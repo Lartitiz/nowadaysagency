@@ -224,7 +224,7 @@ function tplProfonde(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string 
   const color = usePanel ? (ratio >= 4.5 ? preferred : lumBg > 0.179 ? "#000000" : "#FFFFFF") : "#FFFFFF";
   const parts = [
     s.kicker ? kickerHtml(s.kicker).replace("#FFFFFF", color) : "",
-    overlayAnchor(text, `font-family:${fontBody};font-size:${fitSize(44, text, 35)}px;line-height:1.45;color:${color};max-width:880px;`),
+    overlayAnchor(text, `font-family:${fontBody};font-size:${fitSize(40, text, 35)}px;line-height:${usePanel ? 1.4 : 1.45};color:${color};max-width:880px;`),
     s.detail ? detailHtml(s.detail).replace("#FFFFFF", color) : "",
   ].join("");
   // Long passages get a local opaque reading surface; the rest of the image stays intact.
