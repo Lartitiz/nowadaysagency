@@ -80,7 +80,7 @@ const proposal = {
   cost: 1 as const,
 };
 const clients: QueryClient[] = [];
-function CurrentPath() { const location = useLocation(); return <span hidden data-testid="current-path">{location.pathname + location.search}</span>; }
+function CurrentPath() { const location = useLocation(); return <><span hidden data-testid="current-path">{location.pathname + location.search}</span><span hidden data-testid="current-state">{JSON.stringify(location.state)}</span></>; }
 function mount(path = "/photos/studio?session=session") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -148,6 +148,20 @@ it("ouvre les clips sans quitter la session photo et reprend la version sélecti
   expect(await screen.findByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Photos" }));
   expect(screen.getByText("Décris ton fond.")).toBeInTheDocument();
+});
+it("passes the saved Studio image and a return link into content creation", async () => {
+  mock.request.mockResolvedValue({ ...original(), versions: [{
+    id: "version-ready", status: "ready", proposal, url: "/version.png",
+    library_photo_id: "library-ready", error_message: null, created_at: "",
+  }] });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  fireEvent.click(screen.getByRole("button", { name: "Créer un contenu" }));
+  await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent(
+    "/creer?from=%2Fphotos%2Fstudio%3Fsession%3Dsession",
+  ));
+  expect(JSON.parse(screen.getByTestId("current-state").textContent || "null"))
+    .toEqual({ libraryPhotoIds: ["library-ready"] });
 });
 it("shows an uncertain provider outcome without offering an unsafe retry", async () => {
   mock.request.mockResolvedValue({ ...original(), versions: [{

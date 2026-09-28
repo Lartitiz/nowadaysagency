@@ -133,6 +133,7 @@ function Studio({
     const query = next.toString();
     return `/photos/studio${query ? `?${query}` : ""}`;
   }, [reelReturn]);
+  const contentPath = `/creer?${new URLSearchParams({ from: studioPath(sessionId || undefined) })}`;
   const returnToReel = (jobId?: string) => {
     if (reelReturn === null) return;
     const next = new URLSearchParams({ studio_passage: String(reelReturn) });
@@ -472,7 +473,7 @@ function Studio({
     if (!current || actionLock.current || !writable) return;
     if (!version) {
       if (useInContent && current.session.source_photo_id) {
-        navigate("/creer", {
+        navigate(contentPath, {
           state: { libraryPhotoIds: [current.session.source_photo_id] },
         });
       }
@@ -494,7 +495,7 @@ function Studio({
       await cache.invalidateQueries({ queryKey: ["user-photos", workspaceId] });
       if (!alive.current) return;
       if (useInContent) {
-        navigate("/creer", { state: { libraryPhotoIds: [receipt.photo_id] } });
+        navigate(contentPath, { state: { libraryPhotoIds: [receipt.photo_id] } });
       } else {
         await state.refetch();
         toast.success("Image ajoutée à la bibliothèque.");

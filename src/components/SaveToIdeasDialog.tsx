@@ -24,6 +24,7 @@ interface Props {
   contentType: "story" | "reel" | "post_instagram" | "post_linkedin" | "newsletter" | "pinterest";
   subject: string;
   contentData: any;
+  sourcePhotos?: { userPhotoId?: string; edited?: boolean }[];
   personalElements?: any;
   sourceModule: string;
   format?: string;
@@ -44,6 +45,7 @@ export function SaveToIdeasDialog({
   contentType,
   subject,
   contentData,
+  sourcePhotos,
   personalElements,
   sourceModule,
   format,
@@ -102,7 +104,27 @@ export function SaveToIdeasDialog({
     try {
       prepared = onPrepareContent ? await onPrepareContent(contentData) : undefined;
       if (!isCurrent()) { await rollbackPrepared(); return; }
-      const currentContent = prepared ? prepared.contentData : contentData;
+      const preparedContent = prepared ? prepared.contentData : contentData;
+      const provenance = (sourcePhotos || []).flatMap((photo, index) =>
+        photo.userPhotoId
+          ? [{ index, photo_id: photo.userPhotoId, edited: !!photo.edited }]
+          : []
+      );
+      const currentContent = sourcePhotos?.length && preparedContent &&
+          typeof preparedContent === "object" && !Array.isArray(preparedContent)
+        ? (() => {
+          const content = { ...preparedContent };
+          delete content.source_photo_ids;
+          delete content.photo_provenance;
+          return provenance.length
+            ? {
+              ...content,
+              source_photo_ids: provenance.map((entry) => entry.photo_id),
+              photo_provenance: provenance,
+            }
+            : content;
+        })()
+        : preparedContent;
       const contentEmoji =
         contentType === "newsletter" ? "📧" :
         contentType === "story" ? "📱" :
@@ -176,8 +198,8 @@ export function SaveToIdeasDialog({
       onOpenChange(false);
       // Do not claim a complete save before the visuals have also been attached.
       const complete = visualSlides?.length && onUploadVisuals
-        ? await attachVisualsInBackground(targetId) : true;
-      if (prepared) onSaved?.(targetId, complete, currentContent);
+        ? await attachVisualsInBackground(targetId, currentContent) : true;
+      if (prepared || provenance.length) onSaved?.(targetId, complete, currentContent);
       else onSaved?.(targetId, complete);
       if (complete) toast.success(isUpdate ? "Contenu mis à jour dans Mes idées → En cours." : "Contenu enregistré dans Mes idées → En cours.");
       setSelectedTags([]);
@@ -197,7 +219,7 @@ export function SaveToIdeasDialog({
     }
   };
 
-  const attachVisualsInBackground = async (ideaId: string) => {
+  const attachVisualsInBackground = async (ideaId: string, currentContent: any) => {
     const total = visualSlides!.length;
     const toastId = toast.loading(`Visuels en cours d'ajout… 0/${total}`);
     try {
@@ -208,7 +230,7 @@ export function SaveToIdeasDialog({
       const { error: visualError } = await supabase
         .from("saved_ideas")
         .update({
-          content_data: { ...contentData, visual_urls: urls, visual_html: visualSlides },
+          content_data: { ...currentContent, visual_urls: urls, visual_html: visualSlides },
         } as any)
         .eq("id", ideaId).select("id").single();
       if (visualError) throw visualError;

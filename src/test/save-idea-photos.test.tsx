@@ -20,6 +20,21 @@ describe("idea save commits the current photo with its edited text",()=>{
   await waitFor(()=>expect(onSaved).toHaveBeenCalled());const row=mocks.write.mock.calls[0][0];const resumed=resumeIdea(row as any);
   expect(resumed?.raw.edited_text).toBe("Texte courant");expect(resumed?.raw.image_url).toBe("https://assets.test/current.png");expect(JSON.parse(row.content_draft).image_url).toBe(resumed?.raw.image_url);
  });
+ it("keeps the Studio source in the saved idea after uploading its image",async()=>{
+  save({sourcePhotos:[{userPhotoId:"studio-version",edited:false}],onPrepareContent:async()=>({contentData:{...raw,image_url:"https://assets.test/studio.png",photo_urls:["https://assets.test/studio.png"]}})});
+  await waitFor(()=>expect(mocks.write).toHaveBeenCalled());
+  const row=mocks.write.mock.calls[0][0];
+  expect(row.content_data.source_photo_ids).toEqual(["studio-version"]);
+  expect(row.content_data.photo_provenance).toEqual([{index:0,photo_id:"studio-version",edited:false}]);
+  expect(resumeIdea(row as any)?.raw.photo_provenance).toEqual(row.content_data.photo_provenance);
+ });
+ it("removes old library provenance when a different local photo replaces it",async()=>{
+  save({sourcePhotos:[{}],onPrepareContent:async()=>({contentData:{...raw,source_photo_ids:["old-version"],photo_provenance:[{index:0,photo_id:"old-version"}],photo_urls:["https://assets.test/new.png"]}})});
+  await waitFor(()=>expect(mocks.write).toHaveBeenCalled());
+  const row=mocks.write.mock.calls[0][0];
+  expect(row.content_data.source_photo_ids).toBeUndefined();
+  expect(row.content_data.photo_provenance).toBeUndefined();
+ });
  it("keeps the dialog open and does not save a text-only success after an upload failure",async()=>{
   save({onPrepareContent:async()=>{throw Error("upload refused")}});
   await waitFor(()=>expect(mocks.toast.error).toHaveBeenCalled());expect(mocks.write).not.toHaveBeenCalled();expect(props.onOpenChange).not.toHaveBeenCalled();
