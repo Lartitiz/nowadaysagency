@@ -43,6 +43,11 @@ export interface RenderSectionInput {
   voice_text?: string;
   /** Texte affiché dans un reel sans voix (pas une voix de synthèse). */
   overlay_text?: string;
+  /** Optional silent Studio cutaway over the base image; the base carries audio. */
+  broll_url?: string;
+  broll_start?: number;
+  broll_duration?: number;
+  broll_seek?: number;
 }
 
 export interface RenderPlan {
@@ -151,6 +156,7 @@ export interface RenderPlanOptions {
   voiceDurations?: Array<number | null | undefined>;
   /** Mode "filme" seulement : durée RÉELLE du clip choisi pour chaque section. */
   clipDurations?: Array<number | null | undefined>;
+  brollBySection?: Array<{ url: string; start: number; duration: number; seek?: number } | null>;
 }
 
 export function buildRenderPlan(
@@ -166,6 +172,16 @@ export function buildRenderPlan(
     if (!url) return;
     const seek = typeof choice === "object" && choice ? Math.max(0, choice.seek ?? 0) : 0;
 
+    const withBroll = (duration: number): Pick<RenderSectionInput, "broll_url" | "broll_start" | "broll_duration" | "broll_seek"> => {
+      const overlay = opts.brollBySection?.[i];
+      if (!overlay?.url) return {};
+      const start = Math.min(Math.max(0, overlay.start), Math.max(0, duration - 0.1));
+      const length = Math.min(Math.max(0, overlay.duration), duration - start);
+      if (!Number.isFinite(start) || !Number.isFinite(length) || length <= 0) return {};
+      return { broll_url: overlay.url, broll_start: start, broll_duration: length,
+        broll_seek: Math.max(0, overlay.seek ?? 0) };
+    };
+
     if (mode === "filme") {
       // La prise porte déjà sa voix : la durée vient d'elle, pas du script.
       const clipDuration = opts.clipDurations?.[i];
@@ -173,7 +189,7 @@ export function buildRenderPlan(
         typeof clipDuration === "number" && clipDuration > 0
           ? videoSectionDuration(clipDuration)
           : sectionDuration(s);
-      built.push({ clip_url: url, seek, duration });
+      built.push({ clip_url: url, seek, duration, ...withBroll(duration) });
       return;
     }
 
@@ -193,6 +209,7 @@ export function buildRenderPlan(
       ...(opts.voice_mode === "silent" && typeof (s.texte_overlay || s.texte_parle) === "string"
         ? { overlay_text: String(s.texte_overlay || s.texte_parle) }
         : {}),
+      ...withBroll(duration),
     });
   });
   return { sections: built, voice_mode: opts.voice_mode, mode };

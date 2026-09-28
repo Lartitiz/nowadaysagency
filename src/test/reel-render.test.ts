@@ -232,6 +232,15 @@ describe("buildRenderPlan", () => {
     const plan = buildRenderPlan(sections, ["a.mp4"], { voice_mode: "tts" });
     expect(plan.mode).toBe("cache");
   });
+
+  it("cale le plan de coupe sur la prise sans raccourcir la voix", () => {
+    const plan = buildRenderPlan(sections, ["prise.mp4"], {
+      mode: "filme", voice_mode: "recorded", clipDurations: [12],
+      brollBySection: [{ url: "studio.mp4", start: 3, duration: 5 }],
+    });
+    expect(plan.sections[0]).toMatchObject({ clip_url: "prise.mp4", duration: 12,
+      broll_url: "studio.mp4", broll_start: 3, broll_duration: 5 });
+  });
 });
 
 // Sous-titres à l'identité de marque : police du titre + couleur d'accent sur

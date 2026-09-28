@@ -31,7 +31,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Copy, Loader2 } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
-import ReelMontage from "@/components/creer/ReelMontage";
+import ReelMontage, { type ReelMontageProject } from "@/components/creer/ReelMontage";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
@@ -46,6 +46,7 @@ interface StepDef {
 
 interface Props {
   result: any;
+  workspaceId?: string;
   initialMp4Url?: string | null;
   /**
    * Remonte l'avancée du parcours au parent (CreerStepResult), qui s'en sert
@@ -71,7 +72,7 @@ function correctedSection(section: any) {
   };
 }
 
-export default function ReelResult({ result, initialMp4Url, onStepChange, onMp4Change, onResultChange }: Props) {
+export default function ReelResult({ result, workspaceId, initialMp4Url, onStepChange, onMp4Change, onResultChange }: Props) {
   // `format_label` est le libellé LISIBLE produit par la génération (« Face cam
   // confession ») ; `format_type` est la clé technique (`face_cam_confession`).
   // On affichait la clé — même bug que #688 ailleurs dans l'app.
@@ -273,6 +274,9 @@ export default function ReelResult({ result, initialMp4Url, onStepChange, onMp4C
           <ReelMontage
             sections={sections}
             subject={result?.subject || result?.pillar}
+            workspaceId={workspaceId}
+            initialProject={result?.montage_project as ReelMontageProject | undefined}
+            onProjectChange={project => onResultChange?.({ ...result, montage_project: project })}
             onPhaseChange={setMontagePhase}
             onMp4Ready={(url) => { setMp4Url(url); onMp4Change?.(url); }}
           />
