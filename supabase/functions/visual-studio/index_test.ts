@@ -39,6 +39,7 @@ function fixture(role = "owner", replay = false) {
     source_ready: true,
     source_path: "original" as string | null,
     name: "Photo",
+    archived_at: null as string | null,
     revision: 0,
     messages: [],
     proposal: {
@@ -85,6 +86,13 @@ function fixture(role = "owner", replay = false) {
     }
     if (url.pathname === "/rest/v1/rpc/studio_reserve_interpretation") {
       return json(true);
+    }
+    if (url.pathname === "/rest/v1/rpc/studio_set_session_archived") {
+      const body = JSON.parse(String(init?.body));
+      session.archived_at = body.p_archive ? new Date().toISOString() : null;
+      session.revision += 1;
+      session.proposal = null as typeof session.proposal;
+      return json(session);
     }
     if (url.pathname === "/rest/v1/studio_brand_memory") return json(memories);
     if (url.pathname.startsWith("/rest/v1/brand_")) {
@@ -159,6 +167,19 @@ Deno.test("Studio requires authentication before accessing media", async () => {
   } finally {
     f.restore();
   }
+});
+Deno.test("archived sessions can be read and restored but not edited", async () => {
+  const f = fixture();
+  try {
+    const archived = await handleStudioRequest(request({ ...base, action: "archive", revision: 0 }));
+    assertEquals(archived.status, 200);
+    assertEquals(f.session.archived_at !== null, true);
+    assertEquals((await handleStudioRequest(request({ ...base, action: "read" }))).status, 200);
+    assertEquals((await handleStudioRequest(request({ ...base, action: "message", revision: 1, request_id: id(6), message: "Bonjour" }))).status, 409);
+    assertEquals(f.requests.includes("/v1/messages"), false);
+    assertEquals((await handleStudioRequest(request({ ...base, action: "restore", revision: 1 }))).status, 200);
+    assertEquals(f.session.archived_at, null);
+  } finally { f.restore(); }
 });
 Deno.test(
   "viewer cannot ask the interpreter, generate, create or save",

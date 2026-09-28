@@ -59,6 +59,8 @@ const schema = z.object({
     "pilot",
     "composition_save",
     "retry",
+    "archive",
+    "restore",
   ]),
   workspace_id: z.string().uuid(),
   session_id: z.string().uuid(),
@@ -304,6 +306,17 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         },
         409,
       );
+    }
+    if (p.action === "archive" || p.action === "restore") {
+      if (p.revision == null) throw new Error("studio_conflict");
+      session = unwrap(await sb.rpc("studio_set_session_archived", {
+        p_workspace: p.workspace_id,
+        p_session: session.id,
+        p_revision: p.revision,
+        p_archive: p.action === "archive",
+      }));
+    } else if (session.archived_at && p.action !== "read") {
+      throw new Error("studio_archived");
     }
     let references: Reference[] = legacyReferences(session);
     if (p.action === "memory_save" || p.action === "memory_apply") {
@@ -1183,7 +1196,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       ),
       quota,
       generative_allowed: premiumAllowed(quota.plan, isQaTestAccount(actor)),
-      writable,
+      writable: writable && !session.archived_at,
       memory: await readMemory(sb, p.workspace_id),
       charter_references: await Promise.all(
         (await charterReferences(sb, p.workspace_id)).map(async (r, index) => ({
@@ -1249,6 +1262,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       studio_proposal_changed:
         "Cette proposition a changé. Vérifie la dernière demande.",
       studio_conflict: "La session a changé. Recharge-la.",
+      studio_archived: "Cette session est archivée. Restaure-la pour continuer.",
     };
     const key = Object.keys(known).find((k) => message.includes(k));
     return json(

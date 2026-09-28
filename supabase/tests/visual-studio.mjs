@@ -383,6 +383,32 @@ try {
   await assert.rejects(()=>db.query('UPDATE visual_studio_sessions SET composition=$2::jsonb WHERE id=$1',[freeSession,'[]']),/studio_composition_shape/);
   assert.equal(await value("SELECT md5(coalesce(jsonb_agg(to_jsonb(p) ORDER BY id)::text,'[]')) AS value FROM user_photos p"),beforePhotos);
   console.log('PASS editable composition persistence, schema and untouched library');
+  await db.exec(fs.readFileSync(new URL('../migrations/20260928220000_studio_session_archive.sql',import.meta.url),'utf8'));
+  const archive=(s,revision,archived)=>value('SELECT to_jsonb(studio_set_session_archived($1,$2,$3,$4)) AS value',[ws,s,revision,archived]);
+  const beforeVersions=await value("SELECT count(*)::int AS value FROM visual_studio_versions WHERE session_id=$1",[freeSession]);
+  const beforeLibrary=await value("SELECT count(*)::int AS value FROM user_photos");
+  const beforeRevision=await value("SELECT revision AS value FROM visual_studio_sessions WHERE id=$1",[freeSession]);
+  const archived=await archive(freeSession,beforeRevision,true);
+  assert.ok(archived.archived_at);
+  assert.equal(archived.revision,beforeRevision+1);
+  assert.equal(archived.proposal,null);
+  assert.equal((await archive(freeSession,beforeRevision+1,true)).revision,beforeRevision+1);
+  await assert.rejects(()=>archive(freeSession,beforeRevision,false),/studio_conflict/);
+  const restored=await archive(freeSession,beforeRevision+1,false);
+  assert.equal(restored.archived_at,null);
+  assert.equal(restored.revision,beforeRevision+2);
+  assert.equal(await value("SELECT count(*)::int AS value FROM visual_studio_versions WHERE session_id=$1",[freeSession]),beforeVersions);
+  assert.equal(await value("SELECT count(*)::int AS value FROM user_photos"),beforeLibrary);
+  const inFlight=await claim(owner,second,id(41),999,999);
+  assert.equal(inFlight.claimed,true);
+  const secondRevision=await value("SELECT revision AS value FROM visual_studio_sessions WHERE id=$1",[second]);
+  await assert.rejects(()=>archive(second,secondRevision,true),/studio_busy/);
+  await db.query("UPDATE visual_studio_versions SET status='failed' WHERE session_id=$1 AND status='processing'",[second]);
+  assert.ok((await archive(second,secondRevision,true)).archived_at);
+  await asRole('authenticated',owner);
+  await assert.rejects(()=>archive(second,secondRevision+1,false),/permission denied/);
+  await db.exec('RESET ROLE');
+  console.log('PASS reversible Studio archive, active generation guard and preserved media');
   // Account/workspace removal must not acquire blocking foreign keys.
   await db.query("DELETE FROM workspaces WHERE id=$1", [ws]);
   assert.equal(
