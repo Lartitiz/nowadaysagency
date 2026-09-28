@@ -73,8 +73,9 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   const workspaceId = useWorkspaceId();
-  const { connected, loading: connectionsLoading } = useSocialConnections();
+  const { connected, accountNames, loading: connectionsLoading } = useSocialConnections();
   const instagramConnected = !!connected.instagram;
+  const connectedInstagramHandle = normalizeInstagramHandle(accountNames.instagram);
   const { mutate: uploadLibrary } = useUploadLibraryPhotos();
 
   const [status, setStatus] = useState<Status>("loading");
@@ -84,6 +85,8 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
   const [expanded, setExpanded] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
   const [hasSite, setHasSite] = useState(false);
+  // Le compte Instagram connecté correspond-il bien à la marque du profil ?
+  const [instagramUsed, setInstagramUsed] = useState(false);
   // Un seul scan par montage (StrictMode monte deux fois en dev).
   const scanStarted = useRef(false);
 
@@ -100,15 +103,26 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
     void (async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("website_url")
+        .select("website_url, instagram_url, instagram_username")
         .eq("user_id", user.id)
         .maybeSingle();
       const websiteUrl = (profile?.website_url ?? "").trim();
       const siteOk = looksLikeUrl(websiteUrl);
       setHasSite(siteOk);
 
+      // Le compte connecté en OAuth peut appartenir à une autre marque que
+      // celle décrite dans le profil (réinitialisation d'onboarding, test).
+      // Dans ce cas on ignore Instagram : on ne mélange pas deux marques.
+      const profileHandle =
+        normalizeInstagramHandle(profile?.instagram_username) ??
+        normalizeInstagramHandle(profile?.instagram_url);
+      const instagramMatchesBrand =
+        instagramConnected &&
+        (!profileHandle || !connectedInstagramHandle || profileHandle === connectedInstagramHandle);
+      setInstagramUsed(instagramMatchesBrand);
+
       const scans: Promise<SiteImageCandidate[]>[] = [];
-      if (instagramConnected) {
+      if (instagramMatchesBrand) {
         scans.push(
           invokeWithTimeout(
             "site-photos-scan",
