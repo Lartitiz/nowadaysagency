@@ -31,14 +31,20 @@ const bodySchema = z.discriminatedUnion("action", [quoteSchema, submitSchema, st
   .superRefine((p, ctx) => { if (p.action === "quote") validateQuote(p, ctx); });
 type DB = ReturnType<typeof getServiceClient>;
 
-function enabled() {
-  return Deno.env.get("HIGGSFIELD_VIDEO_ENABLED") === "true" && !!Deno.env.get("HIGGSFIELD_API_KEY");
+// Limited trial: only these workspaces may quote or submit, whatever the
+// global switch says. Budget is lifetime (no monthly reset) and enforced
+// atomically by studio_video_claim_trial.
+export const TRIAL_WORKSPACES = new Set(["76af5fa5-3e3a-481f-b6a6-41cc16f3d73b"]);
+export const TRIAL_TOTAL_LIMIT_USD = 10;
+export const TRIAL_MAX_SUBMISSIONS = 1;
+export function workspaceAllowed(workspace: string) { return TRIAL_WORKSPACES.has(workspace); }
+function enabled(workspace: string) {
+  return workspaceAllowed(workspace) && Deno.env.get("HIGGSFIELD_VIDEO_ENABLED") === "true" && !!Deno.env.get("HIGGSFIELD_API_KEY");
 }
 function monthlyLimit() {
   const limit = Number(Deno.env.get("HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD"));
-  // The authorized trial budget is 100 EUR. USD 100 leaves an exchange-rate
-  // buffer and cannot be raised accidentally through deployment configuration.
-  return Number.isFinite(limit) && limit > 0 ? Math.min(limit, 100) : 0;
+  // The configured value can only lower the trial ceiling, never raise it.
+  return Number.isFinite(limit) && limit > 0 ? Math.min(limit, TRIAL_TOTAL_LIMIT_USD) : 0;
 }
 function safeJob(row: Record<string, unknown>, signedUrl: string | null = null) {
   return {
