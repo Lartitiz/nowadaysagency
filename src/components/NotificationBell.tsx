@@ -47,7 +47,9 @@ export default function NotificationBell() {
 
     if (!user) return;
     const channel = supabase
-      .channel("user-notifications")
+      // Nom unique par instance : deux cloches montées en même temps (ou un
+      // remontage rapide) réutilisaient le même canal déjà abonné → plantage.
+      .channel(`user-notifications-${value}-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `${column}=eq.${value}` },
@@ -56,7 +58,7 @@ export default function NotificationBell() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user?.id]);
+  }, [user?.id, column, value]);
 
   const markRead = async (id: string) => {
     const { error } = await supabase.from("notifications").update({ read: true }).eq("id", id);
