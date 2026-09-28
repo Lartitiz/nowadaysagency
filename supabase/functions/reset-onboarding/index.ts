@@ -332,6 +332,8 @@ Deno.serve(async (req) => {
       for (const table of [...BRANDING_TABLES, "audit_validations"]) {
         await del(table, "user_id", targetUserId);
       }
+      await delDiagnosticIdeas("user_id", targetUserId);
+
 
       const { error: profileErr } = await admin.from("profiles").update(PROFILE_RESET).eq("user_id", targetUserId);
       if (profileErr) {
