@@ -126,3 +126,19 @@ Deno.test("mode cache (défaut, omis) : comportement inchangé", () => {
   assertEquals(r.scenes[0].elements[0].muted, true);
   assertEquals(r.scenes[0].elements[1].type, "audio");
 });
+
+Deno.test("face caméra : un B-roll muet couvre une plage mais conserve la prise et les sous-titres", () => {
+  const r = buildReelRecipe({ voice_mode: "recorded", mode: "filme", sections: [{
+    clip_url: "prise.mp4", duration: 12, broll_url: "studio.mp4",
+    broll_start: 3, broll_duration: 5,
+  }] }) as any;
+  const [prise, cutaway] = r.scenes[0].elements;
+  assertEquals(prise.src, "prise.mp4");
+  assertEquals(prise.muted, false);
+  assertEquals(prise.duration, 12);
+  assertEquals(cutaway.src, "studio.mp4");
+  assertEquals(cutaway.start, 3);
+  assertEquals(cutaway.duration, 5);
+  assertEquals(cutaway.muted, true);
+  assertEquals(r.elements[0].type, "subtitles");
+});

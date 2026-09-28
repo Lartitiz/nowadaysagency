@@ -160,3 +160,6 @@ jobs:
 
       - name: Studio confirmation, credits and workspace isolation (disposable PGlite database)
         run: PGLITE_MODULE="$RUNNER_TEMP/linkedin-sql/node_modules/@electric-sql/pglite/dist/index.js" node supabase/tests/visual-studio.mjs
+
+      - name: Studio video paid-claim budget and roles (disposable PGlite database)
+        run: PGLITE_MODULE="$RUNNER_TEMP/linkedin-sql/node_modules/@electric-sql/pglite/dist/index.js" node supabase/tests/studio-video.mjs

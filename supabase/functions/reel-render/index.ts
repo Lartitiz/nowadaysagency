@@ -37,7 +37,13 @@ const SectionSchema = z.object({
   duration: z.number().positive().max(90),
   voice_audio_url: z.string().url().optional(),
   voice_text: z.string().max(600).optional(),
-});
+  broll_url: z.string().url().optional(),
+  broll_start: z.number().min(0).max(90).optional(),
+  broll_duration: z.number().positive().max(90).optional(),
+  broll_seek: z.number().min(0).max(90).optional(),
+}).refine(s => !s.broll_url || (s.broll_duration != null &&
+  (s.broll_start || 0) + s.broll_duration <= s.duration + 0.01),
+  "Le plan de coupe dépasse la durée du passage.");
 
 const SubmitSchema = z.object({
   action: z.literal("submit"),

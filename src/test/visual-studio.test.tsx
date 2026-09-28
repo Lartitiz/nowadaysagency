@@ -8,7 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const mock = vi.hoisted(() => ({
   request: vi.fn(),
@@ -33,6 +33,12 @@ vi.mock("@/contexts/DemoContext", () => ({
 }));
 vi.mock("@/components/photos/PhotoLibraryPickerDialog", () => ({
   PhotoLibraryPickerDialog: () => null,
+}));
+vi.mock("@/features/studio-video/StudioVideoPanel", () => ({
+  StudioVideoPanel: ({ initialSource, onPickClip }: { initialSource?: { kind: string; id: string } | null; onPickClip?: (job: { id: string }) => void }) =>
+    <div>Source du clip : {initialSource?.kind || "aucune"} · {initialSource?.id || "aucune"}
+      {onPickClip && <button onClick={() => onPickClip({ id: "clip-ready" })}>Choisir le clip prêt</button>}
+    </div>,
 }));
 vi.mock("@/features/visual-studio/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -66,6 +72,7 @@ const proposal = {
   cost: 1 as const,
 };
 const clients: QueryClient[] = [];
+function CurrentPath() { const location = useLocation(); return <span hidden data-testid="current-path">{location.pathname + location.search}</span>; }
 function mount(path = "/photos/studio?session=session") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -75,6 +82,7 @@ function mount(path = "/photos/studio?session=session") {
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[path]}>
         <VisualStudioPage />
+        <CurrentPath />
       </MemoryRouter>
     </QueryClientProvider>
   );
@@ -93,6 +101,31 @@ afterEach(() => {
   cleanup();
   clients.forEach((c) => c.clear());
   clients.length = 0;
+});
+it("ouvre les clips sans quitter la session photo et reprend la version sélectionnée", async () => {
+  mock.request.mockResolvedValue({ ...original(), versions: [{
+    id: "version-ready", status: "ready", proposal, url: "/version.png",
+    library_photo_id: null, error_message: null, created_at: "",
+  }] });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  fireEvent.click(screen.getByRole("button", { name: "Animer cette image en vidéo" }));
+  expect(await screen.findByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Photos" }));
+  expect(screen.getByText("Décris ton fond.")).toBeInTheDocument();
+});
+it("revient de Photo via Vidéo au passage d'origine du Reel", async () => {
+  mock.request.mockResolvedValue({ ...original(), versions: [{
+    id: "version-ready", status: "ready", proposal, url: "/version.png",
+    library_photo_id: null, error_message: null, created_at: "",
+  }] });
+  mount("/photos/studio?session=session&reel_passage=1");
+  await screen.findByRole("button", { name: "Animer cette image en vidéo" });
+  fireEvent.click(screen.getByRole("button", { name: "Animer cette image en vidéo" }));
+  expect(screen.getByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
+  expect(screen.getByTestId("current-path")).toHaveTextContent("reel_passage=1");
+  fireEvent.click(screen.getByRole("button", { name: "Choisir le clip prêt" }));
+  expect(screen.getByTestId("current-path")).toHaveTextContent("/creer?studio_passage=1&studio_clip=clip-ready");
 });
 it("sending only interprets; explicit confirmation is locked against duplicate clicks", async () => {
   const start = original(),
@@ -289,6 +322,11 @@ it("mobile drawer exposes the whole conversation and its confirmation", async ()
   });
   mount();
   await screen.findByText("Décris ton fond.");
+  await screen.findByRole("dialog");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Fermer la conversation" }),
+  );
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument(), { timeout: 3000 });
   fireEvent.click(
     await screen.findByRole("button", { name: /Toute la conversation/ }),
   );

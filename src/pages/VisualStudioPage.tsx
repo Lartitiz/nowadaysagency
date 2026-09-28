@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
+import { StudioVideoPanel, type VideoSource } from "@/features/studio-video/StudioVideoPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -103,6 +104,29 @@ function Studio({
   const location = useLocation();
   const navigate = useNavigate(),
     cache = useQueryClient();
+  const [urlParams, setUrlParams] = useSearchParams();
+  const videoTab = urlParams.get("tab") === "video";
+  const reelPassage = urlParams.get("reel_passage");
+  const reelReturn = reelPassage !== null && /^\d+$/.test(reelPassage) ? Number(reelPassage) : null;
+  const studioPath = useCallback((id?: string) => {
+    const next = new URLSearchParams();
+    if (id) next.set("session", id);
+    if (reelReturn !== null) next.set("reel_passage", String(reelReturn));
+    const query = next.toString();
+    return `/photos/studio${query ? `?${query}` : ""}`;
+  }, [reelReturn]);
+  const returnToReel = (jobId?: string) => {
+    if (reelReturn === null) return;
+    const next = new URLSearchParams({ studio_passage: String(reelReturn) });
+    if (jobId) next.set("studio_clip", jobId);
+    navigate(`/creer?${next}`);
+  };
+  const chooseTab = (tab: "photo" | "video") => {
+    const next = new URLSearchParams(urlParams);
+    if (tab === "video") next.set("tab", "video");
+    else next.delete("tab");
+    setUrlParams(next);
+  };
   const isMobile = useIsMobile();
   const writable = ["owner", "manager", "editor"].includes(role);
   const [picker, setPicker] = useState(false),
@@ -133,6 +157,7 @@ function Studio({
     } | null>(null);
   const sourceInit = useRef(false),
     seenReady = useRef<string[] | null>(null);
+  const openedMobile = useRef(false);
   const queryKey = ["visual-studio", userId, workspaceId, sessionId];
   const state = useQuery({
     queryKey,
@@ -172,6 +197,17 @@ function Studio({
       alive.current = false;
     };
   }, []);
+  useEffect(() => {
+    if (isMobile && current && !openedMobile.current) {
+      openedMobile.current = true;
+      if (
+        !current.versions.some(
+          (v) => v.status === "ready" || v.status === "processing",
+        )
+      )
+        setMobileChat(true);
+    }
+  }, [isMobile, current]);
   useEffect(() => {
     if (!current) return;
     const ready = current.versions
@@ -234,7 +270,7 @@ function Studio({
             draftKey(userId, workspaceId, result.session.id),
             draftRef.current,
           );
-          navigate(`/photos/studio?session=${result.session.id}`, {
+          navigate(studioPath(result.session.id), {
             replace: true,
           });
         }
@@ -246,7 +282,7 @@ function Studio({
         if (alive.current) setBusy("");
       }
     },
-    [writable, workspaceId, userId, navigate],
+    [writable, workspaceId, userId, navigate, studioPath],
   );
   useEffect(() => {
     if (photoId && !sessionId && !sourceInit.current && writable) {
@@ -326,7 +362,7 @@ function Studio({
           draftRef.current.trim() === text ? "" : draftRef.current,
         );
         writeDraft(localKey, "");
-        navigate(`/photos/studio?session=${id}`, {
+        navigate(studioPath(id), {
           replace: true,
           state: { studioChatOpen: isMobile },
         });
@@ -430,6 +466,13 @@ function Studio({
     ? `Version ${current!.versions.filter((v) => v.status === "ready").findIndex((v) => v.id === version.id) + 1}`
     : selectedReference?.name ||
       (source ? "Original" : "Ton espace de création");
+  const videoSource: VideoSource | null = version?.status === "ready"
+    ? { kind: "studio_version", id: version.id, name: label }
+    : selectedReference?.photo_id
+      ? { kind: "photo", id: selectedReference.photo_id, name: selectedReference.name }
+      : current?.session.source_photo_id
+        ? { kind: "photo", id: current.session.source_photo_id, name: "Photo de la session" }
+        : null;
   const toTools = () =>
     navigate("/photos", {
       state: {
@@ -747,15 +790,29 @@ function Studio({
           </div>
           <div className="text-right">
             <p className="text-sm">{workspaceName}</p>
-            <Button
+            {!videoTab && <Button
               variant="outline"
               size="sm"
               onClick={() => setSessionsOpen(true)}
             >
               Mes sessions
-            </Button>
+            </Button>}
           </div>
         </header>
+        <nav aria-label="Sections du Studio" className="flex gap-2 px-5 pb-4">
+          <Button type="button" variant={videoTab ? "outline" : "default"} aria-current={!videoTab ? "page" : undefined}
+            onClick={() => chooseTab("photo")}>Photos</Button>
+          <Button type="button" variant={videoTab ? "default" : "outline"} aria-current={videoTab ? "page" : undefined}
+            onClick={() => chooseTab("video")}>Clips vidéo</Button>
+        </nav>
+        {videoTab && <div className="mx-auto max-w-4xl px-5 pb-10 space-y-4">
+          {reelReturn !== null && <Button type="button" variant="outline" onClick={() => returnToReel()}>
+            Retour au Reel · passage {reelReturn + 1}
+          </Button>}
+          <StudioVideoPanel workspaceId={workspaceId} writable={writable} initialSource={videoSource}
+            onPickClip={reelReturn !== null ? job => returnToReel(job.id) : undefined} />
+        </div>}
+        <div hidden={videoTab}>
         {(error || state.error) && (
           <div
             role="alert"
@@ -919,6 +976,11 @@ function Studio({
                     ? "Référence conservée dans la session."
                     : "Tes échanges et créations restent dans cette session."}
               </p>
+              {version?.status === "ready" && (
+                <Button type="button" variant="outline" className="mb-3" onClick={() => chooseTab("video")}>
+                  Animer cette image en vidéo
+                </Button>
+              )}
               {generating && (
                 <div
                   role="status"
@@ -1096,8 +1158,9 @@ function Studio({
             </Button>
           </div>
         }
+        </div>
       </main>
-      <Drawer open={mobileChat} onOpenChange={setMobileChat}>
+      {mobileChat && !videoTab && <Drawer open onOpenChange={setMobileChat}>
         <DrawerContent className="studio-mobile-drawer">
           <DrawerHeader className="text-left">
             <DrawerTitle>
@@ -1114,7 +1177,7 @@ function Studio({
           </DrawerHeader>
           {chat(true)}
         </DrawerContent>
-      </Drawer>
+      </Drawer>}
       <PhotoLibraryPickerDialog
         open={picker}
         onOpenChange={setPicker}
@@ -1159,7 +1222,7 @@ function Studio({
                   className="w-full justify-start overflow-hidden text-ellipsis"
                   onClick={() => {
                     setSessionsOpen(false);
-                    navigate(`/photos/studio?session=${s.id}`);
+                    navigate(studioPath(s.id));
                   }}
                 >
                   {s.name}
@@ -1172,7 +1235,7 @@ function Studio({
           <Button
             onClick={() => {
               setSessionsOpen(false);
-              navigate("/photos/studio");
+              navigate(studioPath());
             }}
           >
             Commencer une nouvelle session

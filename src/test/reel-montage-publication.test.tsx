@@ -1,14 +1,19 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { beforeEach, it, expect, vi } from 'vitest';
-import ReelMontage from '@/components/creer/ReelMontage';
-const mocks=vi.hoisted(()=>({submit:vi.fn(),poll:vi.fn(),archive:vi.fn(),suggest:vi.fn(),search:vi.fn()}));
+import { afterEach, beforeEach, it, expect, vi } from 'vitest';
+import ReelMontage, { type ReelMontageProject } from '@/components/creer/ReelMontage';
+const mocks=vi.hoisted(()=>({submit:vi.fn(),poll:vi.fn(),archive:vi.fn(),suggest:vi.fn(),search:vi.fn(),readStudio:vi.fn()}));
 vi.mock('@/hooks/use-branding',()=>({useBrandCharter:()=>({data:null})}));
 vi.mock('@/lib/stock-videos',()=>({suggestStockKeywords:mocks.suggest,searchStockVideos:mocks.search}));
 vi.mock('@/lib/reel-user-videos',()=>({listReelVideos:async()=>[{url:'https://clips.test/take.mp4',name:'Ma prise'}],loadVideoDuration:async()=>5,uploadReelVideo:vi.fn()}));
 vi.mock('@/lib/reel-render',async()=>({...await vi.importActual('@/lib/reel-plan'),submitReelRender:mocks.submit,pollReelRender:mocks.poll,archiveReelMp4:mocks.archive}));
+vi.mock('@/features/studio-video/api',()=>({readStudioVideo:mocks.readStudio}));
+vi.mock('@/features/studio-video/StudioVideoPanel',()=>({StudioVideoPanel:({onPickClip}:{onPickClip?:(job:{id:string;video_url:string;duration:number;source_name:string})=>void})=>
+ <button onClick={()=>onPickClip?.({id:'studio-job',video_url:'https://clips.test/studio.mp4',duration:5,source_name:'Atelier'})}>Tester le clip Studio</button>}));
 const sections=[{section:'hook',texte_parle:'Mon texte',texte_overlay:'Overlay',timing:'0-3 sec'}];
 const video=`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4`;
-beforeEach(()=>{vi.clearAllMocks();mocks.submit.mockResolvedValue('project');mocks.poll.mockResolvedValue('https://renderer.test/temp.mp4');mocks.archive.mockResolvedValue(video);});
+beforeEach(()=>{vi.clearAllMocks();mocks.submit.mockResolvedValue('project');mocks.poll.mockResolvedValue('https://renderer.test/temp.mp4');mocks.archive.mockResolvedValue(video);
+ mocks.readStudio.mockResolvedValue({job:{status:'ready',video_url:'https://clips.test/fresh.mp4'}});});
+afterEach(()=>window.history.replaceState(null,'','/'));
 async function setup() {
  const onMp4Ready=vi.fn();const view=render(<ReelMontage sections={sections} onMp4Ready={onMp4Ready}/>);
  fireEvent.click(screen.getByRole('button',{name:/Je me filme/}));
@@ -95,4 +100,65 @@ it('offers a separate tab if CORS blocks download and keeps the montage visible'
  expect(fallback).toHaveAttribute('target','_blank');expect(fallback).toHaveAttribute('rel','noopener noreferrer');
  expect(screen.getByText(/Ma vidéo · Ma prise/)).toBeTruthy();
  vi.unstubAllGlobals();
+});
+it('refuses to use a silent Studio clip as the voice-bearing face-camera take',async()=>{
+ const project: ReelMontageProject={version:1,sectionTexts:['Mon texte'],montageMode:'filme',voiceMode:'recorded',
+  clips:[{id:'studio-job',studioJobId:'job',url:'https://clips.test/studio.mp4',thumbnail:null,duration:5,source:'studio',label:'Atelier',seek:0}],
+  cutaways:[null],voiceClips:[null]};
+ render(<ReelMontage sections={sections} initialProject={project}/>);
+ await act(async()=>{await Promise.resolve();});
+ expect(screen.getByRole('alert')).toHaveTextContent(/Un clip du Studio est muet/);
+ fireEvent.click(screen.getByRole('button',{name:'Assembler mon reel'}));
+ expect(mocks.submit).not.toHaveBeenCalled();
+});
+it('chooses a Studio clip for one Reel passage and keeps its editable association',async()=>{
+ mocks.suggest.mockResolvedValue({keywords:['atelier'],primary:'atelier'});
+ mocks.search.mockResolvedValue([]);
+ const project: ReelMontageProject={version:1,sectionTexts:['Mon texte'],montageMode:'cache',voiceMode:'silent',
+  clips:[{id:'stock',url:'https://clips.test/stock.mp4',thumbnail:null,duration:5,source:'stock',label:'Fond',seek:0}],
+  cutaways:[null],voiceClips:[null]};
+ const onProjectChange=vi.fn();
+ render(<ReelMontage sections={sections} workspaceId='space' initialProject={project} onProjectChange={onProjectChange}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Choisir un clip du Studio'}));
+ fireEvent.click(await screen.findByRole('button',{name:'Tester le clip Studio'}));
+ expect(await screen.findByText(/Prévisualisation pour ce passage/)).toBeInTheDocument();
+ fireEvent.click(screen.getByRole('button',{name:'Insérer dans ce passage'}));
+ await waitFor(()=>expect(onProjectChange).toHaveBeenCalledWith(expect.objectContaining({
+  cutaways:[expect.objectContaining({jobId:'studio-job',duration:3,start:0,url:''})],
+  clips:[expect.objectContaining({id:'stock'})],
+ })));
+});
+it('restores a Studio clip by job ID and signs its URL again for rendering',async()=>{
+ mocks.suggest.mockResolvedValue({keywords:['atelier'],primary:'atelier'});
+ mocks.search.mockResolvedValue([]);
+ const project: ReelMontageProject={version:1,sectionTexts:['Mon texte'],montageMode:'cache',voiceMode:'silent',
+  clips:[{id:'studio-job',studioJobId:'studio-job',url:'',thumbnail:null,duration:5,source:'studio',label:'Atelier',seek:0}],
+  cutaways:[null],voiceClips:[null]};
+ const onProjectChange=vi.fn();
+ render(<ReelMontage sections={sections} workspaceId='space' initialProject={project} onProjectChange={onProjectChange}/>);
+ await act(async()=>{await Promise.resolve();});
+ expect(onProjectChange).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByRole('button',{name:'Assembler mon reel'}));
+ await waitFor(()=>expect(mocks.submit).toHaveBeenCalledOnce());
+ expect(mocks.readStudio).toHaveBeenCalledWith('space','studio-job');
+ expect(mocks.submit.mock.calls[0][0].sections[0].clip_url).toBe('https://clips.test/fresh.mp4');
+});
+it('returns from Studio photo to the same Reel passage with a clip to preview',async()=>{
+ window.history.replaceState(null,'','/?studio_passage=0&studio_clip=studio-job');
+ mocks.suggest.mockResolvedValue({keywords:['atelier'],primary:'atelier'});
+ mocks.search.mockResolvedValue([]);
+ mocks.readStudio.mockResolvedValue({job:{id:'studio-job',status:'ready',video_url:'https://clips.test/fresh.mp4',duration:5,source_name:'Atelier'}});
+ const project: ReelMontageProject={version:1,sectionTexts:['Mon texte'],montageMode:'cache',voiceMode:'recorded',
+  clips:[{id:'stock',url:'https://clips.test/stock.mp4',thumbnail:null,duration:5,source:'stock',label:'Banque libre',seek:0}],
+  cutaways:[null],voiceClips:[{url:'https://clips.test/voice.mp3',duration:3}]};
+ const onProjectChange=vi.fn();
+ render(<ReelMontage sections={sections} workspaceId='space' initialProject={project} onProjectChange={onProjectChange}/>);
+ expect(await screen.findByText(/Prévisualisation pour ce passage/)).toBeInTheDocument();
+ expect(mocks.readStudio).toHaveBeenCalledWith('space','studio-job');
+ expect(onProjectChange).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByRole('button',{name:'Insérer dans ce passage'}));
+ await waitFor(()=>expect(onProjectChange).toHaveBeenCalledWith(expect.objectContaining({
+  cutaways:[expect.objectContaining({jobId:'studio-job',url:''})],
+  voiceClips:[expect.objectContaining({url:'https://clips.test/voice.mp3'})],
+ })));
 });

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ReelResult from "@/components/creer/formatRenderers/ReelResult";
 import { suggestStockKeywords, searchStockVideos } from "@/lib/stock-videos";
@@ -86,6 +86,7 @@ const stepDots = () => screen.getAllByRole("tab");
 
 /** Va à l'étape voulue en cliquant son onglet (tous sont atteignables). */
 const goToStep = (n: number) => fireEvent.click(stepDots()[n - 1]);
+afterEach(() => window.history.replaceState(null, "", "/"));
 
 /** Les libellés d'onglets affichés, dans l'ordre. */
 const tabLabels = () => stepDots().map((t) => t.textContent?.trim());
@@ -106,6 +107,14 @@ describe("ReelResult — parcours en 4 étapes", () => {
     // Ni le tournage, ni la légende ne sont là tant qu'on n'y est pas allée.
     expect(screen.queryByText("🎥 Ton plan de tournage")).toBeNull();
     expect(screen.queryByText("📝 Caption")).toBeNull();
+  });
+
+  it("revient directement au montage après la préparation d'une image dans le Studio", () => {
+    window.history.replaceState(null, "", "/creer?studio_passage=0");
+    render(<ReelResult result={captionResult} workspaceId="space" />);
+    expect(screen.getByRole("tab", { name: "Montage" })).toHaveAttribute("aria-selected", "true");
+    fireEvent.click(screen.getByRole("button", { name: /Je ne me montre pas/ }));
+    expect(screen.getByText("Préparer une image dans Studio photo")).toBeInTheDocument();
   });
 
   it("saute l'étape tournage quand plan_tournage est vide (3 pastilles, pas 4)", () => {

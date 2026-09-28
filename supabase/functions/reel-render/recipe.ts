@@ -36,6 +36,11 @@ export interface ReelSectionInput {
   voice_text?: string;
   /** Texte affiché à l'écran dans le mode silencieux. */
   overlay_text?: string;
+  /** Silent cutaway covering the base video for part of this scene. */
+  broll_url?: string;
+  broll_start?: number;
+  broll_duration?: number;
+  broll_seek?: number;
 }
 
 export interface ReelRenderInput {
@@ -99,6 +104,16 @@ export function buildReelRecipe(input: ReelRenderInput): Record<string, unknown>
       },
     ];
 
+    // Keep the first video and its sound/voice for the entire scene. The
+    // cutaway is only a visual layer, and ends before the scene does when short.
+    if (s.broll_url && s.broll_duration) {
+      elements.push({
+        type: "video", src: s.broll_url, start: s.broll_start ?? 0,
+        duration: s.broll_duration, seek: s.broll_seek ?? 0,
+        muted: true, resize: "cover",
+      });
+    }
+
     // Mode "filme" : la voix est déjà dans le clip, aucun élément voix.
     if (mode === "cache") {
       if (input.voice_mode === "recorded" && s.voice_audio_url) {
@@ -129,6 +144,7 @@ export function buildReelRecipe(input: ReelRenderInput): Record<string, unknown>
         });
       }
     }
+
 
     return { duration: s.duration, elements };
   });

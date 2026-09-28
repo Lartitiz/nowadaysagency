@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Loader2, Search, Film, Download, Mic, Upload, Video, EyeOff, VolumeX } from "lucide-react";
 import { toast } from "sonner";
@@ -35,6 +36,7 @@ import {
   pollReelRender,
   archiveReelMp4,
   sectionDuration,
+  voiceSectionDuration,
   subtitleSettingsFromCharter,
 } from "@/lib/reel-render";
 import { useBrandCharter } from "@/hooks/use-branding";
@@ -45,6 +47,8 @@ import {
   loadVideoDuration,
   type UserReelVideo,
 } from "@/lib/reel-user-videos";
+import { StudioVideoPanel } from "@/features/studio-video/StudioVideoPanel";
+import { readStudioVideo, type StudioVideoJob } from "@/features/studio-video/api";
 
 interface Section {
   timing?: string;
@@ -56,6 +60,9 @@ interface Section {
 interface Props {
   sections: Section[];
   subject?: string;
+  workspaceId?: string;
+  initialProject?: ReelMontageProject | null;
+  onProjectChange?: (project: ReelMontageProject) => void;
   /**
    * Remonte l'avancée du rendu au parent (le parcours ReelResult), qui s'en
    * sert pour savoir si un MP4 existe. Aucune logique de montage n'en dépend.
@@ -78,10 +85,22 @@ interface SelectedClip {
   thumbnail: string | null;
   /** Durée du clip source (pour la fenêtre), null si inconnue. */
   duration: number | null;
-  source: "stock" | "mine";
+  source: "stock" | "mine" | "studio";
+  studioJobId?: string;
   label: string;
   /** Seconde d'entrée dans le clip (fenêtre choisie). */
   seek: number;
+}
+
+interface StudioCutaway { jobId: string; url: string; duration: number; start: number; seek: number; label: string }
+export interface ReelMontageProject {
+  version: 1;
+  sectionTexts: string[];
+  montageMode: MontageMode | null;
+  voiceMode: "recorded" | "silent";
+  clips: (SelectedClip | null)[];
+  voiceClips: (VoiceClip | null)[];
+  cutaways: (StudioCutaway | null)[];
 }
 
 function fromStock(v: StockVideo): SelectedClip {
@@ -116,15 +135,50 @@ function fromMine(v: UserReelVideo, duration: number | null): SelectedClip {
  */
 type MontageMode = "filme" | "cache";
 
-export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Ready }: Props) {
+export default function ReelMontage({ sections, subject, workspaceId, initialProject, onProjectChange, onPhaseChange, onMp4Ready }: Props) {
   const spoken = sections.filter((s) => typeof s.texte_parle === "string" && s.texte_parle.trim());
+  const sectionTexts = spoken.map(s => s.texte_parle || "");
   const { data: charter } = useBrandCharter();
 
-  const [montageMode, setMontageMode] = useState<MontageMode | null>(null);
+  const [montageMode, setMontageMode] = useState<MontageMode | null>(initialProject?.montageMode || null);
 
   const [keywords, setKeywords] = useState<string[]>(() => spoken.map(() => ""));
   const [results, setResults] = useState<StockVideo[][]>(() => spoken.map(() => []));
-  const [clips, setClips] = useState<(SelectedClip | null)[]>(() => spoken.map(() => null));
+  const [clips, setClips] = useState<(SelectedClip | null)[]>(() => initialProject?.clips?.length === spoken.length ? initialProject.clips : spoken.map(() => null));
+  const [cutaways, setCutaways] = useState<(StudioCutaway | null)[]>(() => initialProject?.cutaways?.length === spoken.length ? initialProject.cutaways : spoken.map(() => null));
+  const [studioTarget, setStudioTarget] = useState<{ index: number; create: boolean } | null>(null);
+  const [pendingCutaway, setPendingCutaway] = useState<{ index: number; job: StudioVideoJob } | null>(null);
+  const reelReturn = new URLSearchParams(window.location.search);
+  const returnPassage = reelReturn.get("studio_passage");
+  const highlightedPassage = returnPassage !== null && /^\d+$/.test(returnPassage) && Number(returnPassage) < spoken.length
+    ? Number(returnPassage) : null;
+  const returnedClipId = reelReturn.get("studio_clip");
+  const returnClipLoaded = useRef(false);
+  useEffect(() => {
+    if (returnClipLoaded.current || !workspaceId || highlightedPassage === null || !returnedClipId) return;
+    returnClipLoaded.current = true;
+    void readStudioVideo(workspaceId, returnedClipId).then(({ job }) => {
+      if (job.status === "ready" && job.video_url) setPendingCutaway({ index: highlightedPassage, job });
+      else toast.error("Ce clip du Studio n’est pas encore disponible.");
+    }).catch(() => toast.error("Impossible de retrouver ce clip du Studio."));
+  }, [workspaceId, highlightedPassage, returnedClipId]);
+  useEffect(() => {
+    if (highlightedPassage === null || !montageMode) return;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(`studio-reel-passage-${highlightedPassage}`)?.scrollIntoView?.({ block: "center" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [highlightedPassage, montageMode]);
+  const [associationTexts, setAssociationTexts] = useState(() => initialProject?.sectionTexts || sectionTexts);
+  const [needsReview, setNeedsReview] = useState(() => !!initialProject && JSON.stringify(initialProject.sectionTexts) !== JSON.stringify(sectionTexts));
+  const sectionFingerprint = JSON.stringify(sectionTexts);
+  const previousSectionFingerprint = useRef(sectionFingerprint);
+  useEffect(() => {
+    if (previousSectionFingerprint.current !== sectionFingerprint) {
+      previousSectionFingerprint.current = sectionFingerprint;
+      setNeedsReview(true);
+    }
+  }, [sectionFingerprint]);
   const [loading, setLoading] = useState<boolean[]>(() => spoken.map(() => true));
 
   // Mes vidéos : bibliothèque perso (dépôts précédents) + upload en cours.
@@ -151,15 +205,31 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
 
   // Voix : « recorded » = voix off de la créatrice ; « silent » = montage
   // muet avec texte à l'écran. La voix synthétique n'est pas proposée.
-  const [voiceMode, setVoiceMode] = useState<"recorded" | "silent">("recorded");
+  const [voiceMode, setVoiceMode] = useState<"recorded" | "silent">(initialProject?.voiceMode || "recorded");
   // Prises de voix : URL publique ET durée réelle. La durée cale la scène.
-  const [voiceClips, setVoiceClips] = useState<(VoiceClip | null)[]>(() => spoken.map(() => null));
+  const [voiceClips, setVoiceClips] = useState<(VoiceClip | null)[]>(() => initialProject?.voiceClips?.length === spoken.length ? initialProject.voiceClips : spoken.map(() => null));
   const voiceUrls = voiceClips.map((c) => c?.url ?? null);
   const voiceDurations = voiceClips.map((c) => c?.duration ?? null);
 
   // Changing any render input invalidates publication, while preserving takes,
   // chosen clips and the old downloadable MP4. Late rendering responses are ignored.
-  const renderKey = JSON.stringify([reelSourceKey({ sections }), clips, voiceClips, voiceMode, montageMode, subtitleSettingsFromCharter(charter)]);
+  const renderKey = JSON.stringify([reelSourceKey({ sections }),
+    clips.map(clip => clip?.source === "studio" ? { ...clip, url: "" } : clip),
+    cutaways.map(plan => plan ? { ...plan, url: "" } : plan),
+    voiceClips, voiceMode, montageMode, subtitleSettingsFromCharter(charter)]);
+  const projectCallback = useRef(onProjectChange);
+  projectCallback.current = onProjectChange;
+  const lastPersistedProject = useRef<string | null>(null);
+  useEffect(() => {
+    const project: ReelMontageProject = { version: 1, sectionTexts: associationTexts, montageMode, voiceMode,
+      clips: clips.map(clip => clip?.source === "studio" ? { ...clip, url: "" } : clip),
+      voiceClips, cutaways: cutaways.map(plan => plan ? { ...plan, url: "" } : plan) };
+    const key = JSON.stringify(project);
+    if (lastPersistedProject.current === null) { lastPersistedProject.current = key; return; }
+    if (lastPersistedProject.current === key) return;
+    lastPersistedProject.current = key;
+    projectCallback.current?.(project);
+  }, [montageMode, voiceMode, clips, voiceClips, cutaways, associationTexts]);
   const activeRender = useRef({ key: renderKey, generation: 0, mounted: true });
   if (activeRender.current.key !== renderKey) {
     activeRender.current = { key: renderKey, generation: activeRender.current.generation + 1, mounted: true };
@@ -220,9 +290,9 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
         : [];
       if (o?.cancelledRef?.()) return;
       setResults((R) => set(R, i, vids));
-      // Ne remplace jamais une vidéo perso déjà choisie par un résultat stock.
+      // Préserve les clips choisis explicitement dans la bibliothèque ou le Studio.
       setClips((C) =>
-        set(C, i, C[i]?.source === "mine" ? C[i] : vids[0] ? fromStock(vids[0]) : C[i]),
+        set(C, i, C[i]?.source === "mine" || C[i]?.source === "studio" ? C[i] : vids[0] ? fromStock(vids[0]) : C[i]),
       );
     } catch (e) {
       if (!o?.cancelledRef?.()) toast.error(e instanceof Error ? e.message : "Recherche impossible.");
@@ -269,6 +339,11 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
 
   async function handleAssemble() {
     if (renderBusy.current || archiveBusy.current) return;
+    if (needsReview) { toast.error("Vérifie les passages après la modification du texte."); return; }
+    if (montageMode === "filme" && clips.some(clip => clip?.source === "studio")) {
+      toast.error("Un clip du Studio est muet. Choisis une prise face caméra pour porter ta voix, puis ajoute ce clip comme plan.");
+      return;
+    }
     const generation = activeRender.current.generation;
     const isCurrent = () => activeRender.current.mounted && activeRender.current.generation === generation;
     const chosen = clips.map((c) => (c ? { url: c.url, seek: c.seek } : null));
@@ -312,18 +387,36 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
     onMp4Ready?.(null);
     setErrorMsg("");
     try {
+      // Private Studio URLs expire. Sign them afresh before the render service
+      // fetches the media; a saved project stores job IDs, never relies on URLs.
+      const fresh = await Promise.all(clips.map(async (clip, i) => {
+        if (!clip || clip.source !== "studio" || !clip.studioJobId) return chosen[i];
+        if (!workspaceId) throw new Error("Espace du Studio introuvable.");
+        const { job } = await readStudioVideo(workspaceId, clip.studioJobId);
+        if (job.status !== "ready" || !job.video_url) throw new Error("Ce clip du Studio n’est plus disponible.");
+        return { url: job.video_url, seek: clip.seek };
+      }));
+      const freshCutaways = await Promise.all(cutaways.map(async cutaway => {
+        if (!cutaway) return null;
+        if (!workspaceId) throw new Error("Espace du Studio introuvable.");
+        const { job } = await readStudioVideo(workspaceId, cutaway.jobId);
+        if (job.status !== "ready" || !job.video_url) throw new Error("Ce plan du Studio n’est plus disponible.");
+        return { url: job.video_url, start: cutaway.start, duration: cutaway.duration, seek: cutaway.seek };
+      }));
       const plan =
         montageMode === "filme"
-          ? buildRenderPlan(spoken, chosen, {
+          ? buildRenderPlan(spoken, fresh, {
               mode: "filme",
               voice_mode: "tts", // ignoré côté moteur en mode "filme"
               clipDurations: clips.map((c) => c?.duration ?? null),
+              brollBySection: freshCutaways,
             })
-          : buildRenderPlan(spoken, chosen, {
+          : buildRenderPlan(spoken, fresh, {
               mode: "cache",
               voice_mode: voiceMode,
               voiceAudioUrls: voiceUrls,
               voiceDurations,
+              brollBySection: freshCutaways,
             });
       // Police + couleur d'accent de la charte sur les sous-titres ; sans
       // charte (ou champs vides), le moteur retombe sur son style par défaut.
@@ -532,7 +625,7 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
 
           <div className="space-y-2">
             {spoken.map((s, i) => (
-              <Card key={i} className="border-border">
+              <Card key={i} id={`studio-reel-passage-${i}`} className={i === highlightedPassage ? "border-primary ring-2 ring-primary/20" : "border-border"}>
                 <CardContent className="p-3 space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     {s.timing && <Badge variant="secondary" className="font-mono text-2xs">{s.timing}</Badge>}
@@ -631,7 +724,55 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
                         Ma vidéo · {clips[i]?.label}
                       </Badge>
                     )}
+                    {clips[i]?.source === "studio" && <Badge variant="secondary" className="text-2xs">Clip du Studio · {clips[i]?.label}</Badge>}
                   </div>
+
+                  {workspaceId && <div className="space-y-2 rounded-md border border-primary/15 bg-primary/5 p-2">
+                    <p className="text-2xs font-medium">Ajouter un plan du Studio sur ce passage</p>
+                    <div className="flex gap-2 flex-wrap">
+                      <Button type="button" variant="outline" size="sm" onClick={() => setStudioTarget({ index: i, create: false })}>Choisir un clip du Studio</Button>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setStudioTarget({ index: i, create: true })}>Créer un clip dans le Studio</Button>
+                      <a href={`/photos/studio?reel_passage=${i}`} className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm hover:bg-accent hover:text-accent-foreground">
+                        Préparer une image dans Studio photo
+                      </a>
+                    </div>
+                    {pendingCutaway?.index === i && <div className="space-y-2 rounded-md border bg-background p-2">
+                      <p className="text-xs">Prévisualisation pour ce passage : {s.texte_parle}</p>
+                      {pendingCutaway.job.video_url && <video src={pendingCutaway.job.video_url} controls muted playsInline preload="metadata" className="w-full max-w-xs rounded bg-black" />}
+                      <p className="text-2xs text-muted-foreground">Le clip sera muet dans le Reel ; la voix et les sous-titres restent sur le passage.</p>
+                      <div className="flex gap-2">
+                        <Button type="button" size="sm" disabled={montageMode === "filme" && !clips[i]} onClick={() => {
+                          const job = pendingCutaway.job;
+                          const sceneLength = montageMode === "filme" ? clips[i]?.duration || sectionDuration(s) :
+                            voiceClips[i]?.duration ? voiceSectionDuration(voiceClips[i]!.duration) : sectionDuration(s);
+                          if (montageMode === "cache" && !clips[i]) {
+                            if (job.duration < sceneLength) {
+                              toast.error("Ce clip est trop court pour porter toute la voix de ce passage. Choisis une vidéo de fond, puis ajoute-le comme plan.");
+                              return;
+                            }
+                            setClips(C => set(C, i, { id: `studio-${job.id}`, studioJobId: job.id, url: job.video_url!,
+                              thumbnail: null, duration: job.duration, source: "studio", label: job.source_name, seek: 0 }));
+                          } else {
+                            setCutaways(C => set(C, i, { jobId: job.id, url: job.video_url!,
+                              duration: Math.min(job.duration, sceneLength), start: 0, seek: 0, label: job.source_name }));
+                          }
+                          setPendingCutaway(null);
+                        }}>Insérer dans ce passage</Button>
+                        <Button type="button" size="sm" variant="ghost" onClick={() => setPendingCutaway(null)}>Garder sans insérer</Button>
+                      </div>
+                      {montageMode === "filme" && !clips[i] && <p className="text-2xs">Choisis d’abord ta prise face caméra : elle portera la voix sous le plan.</p>}
+                    </div>}
+                    {cutaways[i] && <div className="space-y-1">
+                      <p className="text-2xs">Plan inséré : {cutaways[i]!.label} · {cutaways[i]!.duration} s</p>
+                      <label className="block text-2xs">Début du plan dans ce passage : {cutaways[i]!.start.toFixed(1)} s
+                        <input type="range" min={0} max={Math.max(0, (montageMode === "filme" ? clips[i]?.duration || sectionDuration(s) :
+                          voiceClips[i]?.duration ? voiceSectionDuration(voiceClips[i]!.duration) : sectionDuration(s)) - cutaways[i]!.duration)}
+                          step={0.5} value={cutaways[i]!.start} className="block w-full" aria-label="Placer le plan du Studio dans ce passage"
+                          onChange={e => setCutaways(C => C[i] ? set(C, i, { ...C[i]!, start: Number(e.target.value) }) : C)} />
+                      </label>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setCutaways(C => set(C, i, null))}>Retirer ce plan</Button>
+                    </div>}
+                  </div>}
 
                   {montageMode === "cache" &&
                     clips[i]?.source === "mine" &&
@@ -677,7 +818,7 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
             <span className="text-2xs text-muted-foreground">
               {ready} clip{ready > 1 ? "s" : ""} sur {spoken.length} prêt{ready > 1 ? "s" : ""}
             </span>
-            <Button size="sm" onClick={handleAssemble} disabled={phase === "rendering" || archiving || ready === 0}>
+            <Button size="sm" onClick={handleAssemble} disabled={phase === "rendering" || archiving || ready === 0 || needsReview}>
               {phase === "rendering" ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
@@ -691,6 +832,13 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
               )}
             </Button>
           </div>
+          {needsReview && <div role="alert" className="rounded-md border border-warning p-3 text-xs space-y-2">
+            <p>Le texte du Reel a changé depuis ce montage. Vérifie les clips, voix et plans pour chaque passage avant d’assembler.</p>
+            <Button type="button" variant="outline" size="sm" onClick={() => { setAssociationTexts(sectionTexts); setNeedsReview(false); }}>J’ai vérifié les passages</Button>
+          </div>}
+          {montageMode === "filme" && clips.some(clip => clip?.source === "studio") && <p role="alert" className="text-xs text-destructive">
+            Un clip du Studio est muet. Remplace-le par ta prise face caméra, puis ajoute-le comme plan visuel.
+          </p>}
 
           {phase === "rendering" && (
             <p className="text-2xs text-muted-foreground text-center">
@@ -733,6 +881,15 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
           )}
         </>
       )}
+      <Dialog open={!!studioTarget} onOpenChange={open => { if (!open) setStudioTarget(null); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Studio vidéo · passage {studioTarget ? studioTarget.index + 1 : ""}</DialogTitle>
+            <DialogDescription>Le Reel reste ouvert. Le clip créé sera aussi conservé dans le Studio.</DialogDescription></DialogHeader>
+          {studioTarget && workspaceId && <StudioVideoPanel workspaceId={workspaceId} writable={studioTarget.create}
+            showComposer={studioTarget.create} initialPrompt={spoken[studioTarget.index]?.texte_parle || ""}
+            onPickClip={job => { setPendingCutaway({ index: studioTarget.index, job }); setStudioTarget(null); }} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
