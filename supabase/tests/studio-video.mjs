@@ -31,7 +31,7 @@ try {
       ('${otherWs}','${outsider}','owner');
   `);
   await db.exec(fs.readFileSync(new URL(
-    "../migrations/20260928190000_studio_video_jobs.sql", import.meta.url,
+    "../migrations/20260928163018_5b657a3a-90ec-4ad0-aee7-fd6f84076a9f.sql", import.meta.url,
   ), "utf8"));
   await insert(first, ws, owner, 0.72);
   await insert(second, ws, editor, 0.5);
