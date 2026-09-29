@@ -70,7 +70,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   const jobs = useQuery({ queryKey: ["studio-videos", workspaceId], queryFn: () => listStudioVideos(workspaceId), retry: 1 });
   const watched = useQuery({ queryKey: ["studio-video", workspaceId, watchId], enabled: !!watchId,
     queryFn: () => readStudioVideo(workspaceId, watchId!), retry: 1,
-    refetchInterval: (query) => ["queued", "in_progress", "archiving"].includes(query.state.data?.job.status || "") ? 5000 : false });
+    refetchInterval: (query) => ["submitting_uncertain", "queued", "in_progress", "archiving"].includes(query.state.data?.job.status || "") ? 5000 : false });
 
   useEffect(() => { setQuote(null); setQuoteKey(null); }, [inputKey]);
   useEffect(() => { setPrepared(null); setConfirmed(false); }, [briefKey]);
