@@ -1191,21 +1191,10 @@ function Studio({
                 })()}
 
                 <section className="studio-chat-actions" aria-label="Actions et références">
-                  {!!display && (
-                    <div className="studio-current-image">
-                      <h3 className="font-medium text-sm">Sur l’image sélectionnée · {label}</h3>
-                      <p className="text-xs text-muted-foreground">
-                        Les ajustements partent de cette version. Les précédentes restent disponibles à droite.
-                      </p>
-                      {version && comparisonSource && (
-                        <Button size="sm" variant="ghost" onClick={() => setCompare(!compare)}>
-                          {compare ? "Voir la version seule" : "Comparer à la source"}
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                  {version?.proposal.brand_context && (
-                    <details className="text-sm"><summary>Contexte de marque de cette image</summary><StudioBrandContext context={version.proposal.brand_context} /></details>
+                  {version && comparisonSource && (
+                    <Button size="sm" variant="ghost" onClick={() => setCompare(!compare)}>
+                      {compare ? "Voir la version seule" : "Comparer à la source"}
+                    </Button>
                   )}
                   {version?.status === "ready" && version.proposal.composition && (
                     <Button
@@ -1258,10 +1247,6 @@ function Studio({
                       Créer un contenu
                     </Button>
                   </div>}
-                  {(version || current?.session.source_photo_id) && <p className="mt-3 text-xs text-muted-foreground">
-                    Créer un contenu ajoute aussi la version à ta bibliothèque.
-                    Rien n’est publié.
-                  </p>}
                   {generating && (
                     <div
                       role="status"
