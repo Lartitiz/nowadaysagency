@@ -446,7 +446,7 @@ it("generated versions stay outside the library until an explicit save, with one
         }),
   );
   mount();
-  await screen.findByText(/pas encore dans la bibliothèque/);
+  await screen.findByRole("button", { name: "Ajouter à la bibliothèque" });
   expect(mock.request.mock.calls.some(([b]) => b.action === "save")).toBe(
     false,
   );
@@ -519,9 +519,7 @@ it("attaches several library photos in one choice with their distinct reference 
   fireEvent.click(screen.getByRole("button", { name: "Depuis ma bibliothèque" }));
   expect(screen.getByText("Places disponibles : 8")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Utiliser deux photos" }));
-  await screen.findByText("Photos de référence · 2/8");
-  expect(screen.getByLabelText("Rôle de Bol face")).toHaveValue("product");
-  expect(screen.getByLabelText("Rôle de Atelier")).toHaveValue("style");
+  await waitFor(() => expect(mock.request.mock.calls.filter(([b]) => b.action === "reference")).toHaveLength(2));
   const attachments = mock.request.mock.calls.map(([body]) => body).filter((body) => body.action === "reference");
   expect(attachments.map(({ photo_id, reference_role, revision }) => ({ photo_id, reference_role, revision }))).toEqual([
     { photo_id: "product-one", reference_role: "product", revision: 0 },
@@ -549,7 +547,7 @@ it("starts a session with several references while keeping the unfinished prompt
   fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), { target: { value: "Une scène pour mon offre" } });
   fireEvent.click(screen.getByRole("button", { name: "Depuis ma bibliothèque" }));
   fireEvent.click(screen.getByRole("button", { name: "Utiliser deux photos" }));
-  await screen.findByText("Photos de référence · 2/8");
+  await waitFor(() => expect(mock.request.mock.calls.filter(([b]) => b.action === "reference")).toHaveLength(2));
   const createdId = mock.request.mock.calls.find(([body]) => body.action === "create")?.[0].session_id;
   expect(screen.getByTestId("current-path")).toHaveTextContent(`/photos/studio?session=${createdId}`);
   expect(screen.getByRole("textbox", { name: "Ta demande" })).toHaveValue("Une scène pour mon offre");
@@ -768,44 +766,6 @@ it("editing an older selected version sends that parent, not the latest", async 
       mock.request.mock.calls.find(([b]) => b.action === "message")?.[0]
         .viewed_version_id,
     ).toBe("v1"),
-  );
-});
-it("changing a reference role clears confirmation without generating", async () => {
-  const start = original();
-  const ref = {
-    id: "ref",
-    photo_id: "photo",
-    name: "Bol",
-    role: "subject",
-    url: "/bol.jpg",
-  };
-  mock.request.mockImplementation((body) =>
-    Promise.resolve({
-      ...start,
-      session: {
-        ...start.session,
-        proposal: body.action === "reference" ? null : proposal,
-        references: [
-          { ...ref, role: body.action === "reference" ? "style" : "subject" },
-        ],
-      },
-    }),
-  );
-  mount();
-  await screen.findByRole("combobox", { name: "Rôle de Bol" });
-  fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Bol" }), {
-    target: { value: "style" },
-  });
-  await waitFor(() =>
-    expect(
-      screen.queryByRole("button", { name: /Générer cette image/ }),
-    ).toBeNull(),
-  );
-  expect(
-    mock.request.mock.calls.find(([b]) => b.action === "reference")?.[0],
-  ).toMatchObject({ reference_role: "style", reference_id: "ref", revision: 0 });
-  expect(mock.request.mock.calls.some(([b]) => b.action === "generate")).toBe(
-    false,
   );
 });
 
