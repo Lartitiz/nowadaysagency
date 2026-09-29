@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Film, Loader2, RefreshCw } from "lucide-react";
+import { Film, Image as ImageIcon, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +9,7 @@ import { readVideoDraft, writeVideoDraft, sourceKey, type VideoSource, type Vide
 import { cameraOptions, lightOptions, shotOptions, videoPrompt, type Camera, type Light, type Shot } from "./direction";
 export type { VideoSource } from "./sources";
 import { listStudioVideos, readStudioVideo, videoRequest, type StudioVideoJob } from "./api";
+import { videoReferencePreviews } from "./library-sources";
 
 interface Props {
   workspaceId: string; writable: boolean; initialSource?: VideoSource | null;
@@ -38,6 +39,10 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   const promptLimit = mode === "references" ? 800 : 1000;
   const promptTooLong = composedPrompt.length > promptLimit;
   const referenceKey = references.map(sourceKey).join(",");
+  const previews = useQuery({ queryKey: ["video-reference-previews", workspaceId, referenceKey],
+    queryFn: () => videoReferencePreviews(workspaceId, references), enabled: useImages && references.length > 0,
+    staleTime: 5 * 60_000 });
+  const missingRoles = references.length > 1 && references.some(ref => !ref.role);
   const formId = useId();
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
@@ -67,7 +72,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   }, [cache, watched.data?.job.status, workspaceId]);
 
   async function checkPrice() {
-    if ((mode === "image" && !source) || (mode === "references" && references.length < 2) || promptTooLong ||
+    if ((mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) || promptTooLong ||
       (mode !== "text" && !personFree) || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || busy) return;
     const requestedKey = inputKey;
     setBusy("quote"); setError("");
@@ -110,22 +115,46 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
           <label className="flex items-center gap-1"><input type="radio" name={formId} checked={!useImages} onChange={() => setUseImages(false)} />Une idée</label>
           <label className="flex items-center gap-1"><input type="radio" name={formId} checked={useImages} onChange={() => setUseImages(true)} />Une ou plusieurs images</label>
         </fieldset>
-        {useImages && <div className="space-y-2">
-          <p className="text-sm">Choisis 1 à 4 images. Avec plusieurs références, précise le rôle de chacune : elles guideront les éléments d’une même scène.</p>
-          {references.map((ref, index) => <div key={`${ref.kind}:${ref.id}`} className="flex items-center gap-2 flex-wrap text-sm">
-            <span className="min-w-0 break-words">{index + 1}. {ref.name}</span>
-            {ref.previewUrl && <img src={ref.previewUrl} alt="" className="h-14 w-14 object-cover rounded" />}
-            {references.length > 1 && <select aria-label={`Rôle de ${ref.name}`} value={ref.role}
-              onChange={e => setReferences(current => current.map((r, i) => i === index ? { ...r, role: e.target.value as VideoReference["role"] } : r))}
-              className="h-9 rounded-md border bg-background px-2">
-              <option value="subject">Sujet</option><option value="product">Produit</option>
-              <option value="casting">Mannequin fictif</option><option value="background">Décor</option>
-              <option value="style">Ambiance et lumière</option><option value="composition">Composition</option>
-            </select>}
-            {index > 0 && <Button type="button" variant="ghost" size="sm" aria-label={`Avancer ${ref.name}`} onClick={() => setReferences(current => { const next = [...current]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })}>Avancer</Button>}
-            <Button type="button" variant="ghost" size="sm" onClick={() => setReferences(current => current.filter((_, i) => i !== index))}>Retirer</Button>
-          </div>)}
-          <Button type="button" variant="outline" size="sm" onClick={() => setPicker(true)}>Choisir des images ({references.length}/4)</Button>
+        {useImages && <div className="space-y-3">
+          <div>
+            <p className="text-sm font-medium">1. Ajoute tes images</p>
+            <p className="text-xs text-muted-foreground">Choisis un produit, un mannequin fictif, un décor… depuis ta bibliothèque ou ton appareil. Tu peux en ajouter jusqu’à 4.</p>
+          </div>
+          <Button type="button" variant="outline" onClick={() => setPicker(true)}>{references.length ? "Ajouter ou changer mes images" : "Ajouter mes images"} ({references.length}/4)</Button>
+          {references.length > 0 && <div className="space-y-2">
+            <p className="text-sm font-medium">2. Indique ce que montre chaque image</p>
+            {references.length === 1 && <p className="text-xs text-muted-foreground">Cette image sera animée telle quelle. Ajoute une autre image pour composer une scène avec plusieurs rôles.</p>}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {references.map((ref, index) => {
+                const preview = previews.data?.get(sourceKey(ref)) || ref.previewUrl;
+                return <article key={sourceKey(ref)} className="min-w-0 overflow-hidden rounded-lg border bg-background">
+                  <div className="relative aspect-square bg-muted">
+                    {preview ? <img src={preview} alt={ref.name} className="h-full w-full object-cover" />
+                      : <div role="img" aria-label={ref.name} className="h-full w-full"><ImageIcon aria-hidden className="h-full w-full p-10 text-muted-foreground" /></div>}
+                    <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2 py-0.5 text-xs font-semibold">{index + 1}</span>
+                  </div>
+                  <div className="space-y-2 p-3">
+                    <p className="truncate text-xs text-muted-foreground" title={ref.name}>{ref.name}</p>
+                    {references.length > 1 && <label className="block text-sm font-medium">Cette image est…
+                      <select aria-label={`Rôle de ${ref.name}`} value={ref.role}
+                        onChange={e => setReferences(current => current.map((r, i) => i === index ? { ...r, role: e.target.value as VideoReference["role"] } : r))}
+                        className="mt-1 h-10 w-full rounded-md border bg-background px-2">
+                        <option value="">Choisir un rôle</option><option value="product">Le produit</option>
+                        <option value="casting">Le mannequin fictif</option><option value="background">Le décor</option>
+                        <option value="subject">Le sujet principal</option><option value="style">L’ambiance et la lumière</option>
+                        <option value="composition">La composition</option>
+                      </select>
+                    </label>}
+                    <div className="flex flex-wrap gap-1">
+                      {index > 0 && <Button type="button" variant="ghost" size="sm" aria-label={`Avancer ${ref.name}`} onClick={() => setReferences(current => { const next = [...current]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })}>Avancer</Button>}
+                      <Button type="button" variant="ghost" size="sm" aria-label={`Retirer ${ref.name}`} onClick={() => setReferences(current => current.filter((_, i) => i !== index))}>Retirer</Button>
+                    </div>
+                  </div>
+                </article>;
+              })}
+            </div>
+            {missingRoles && <p className="text-xs text-muted-foreground">Choisis le rôle de chaque image avant de vérifier le prix.</p>}
+          </div>}
         </div>}
         <label className="block text-sm font-medium" htmlFor={`${formId}-prompt`}>{mode === "image" ? "Ce qui doit bouger" : "Quelle vidéo veux-tu créer ?"}</label>
         <Textarea id={`${formId}-prompt`} value={prompt} maxLength={1000} onChange={e => setPrompt(e.target.value)}
@@ -175,7 +204,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
           <span>Je confirme que ces images ne montrent aucune personne identifiable et que je peux les transmettre à Higgsfield pour obtenir le prix et créer ce clip.</span>
         </label>}
         <p className="text-xs text-muted-foreground">Vérifier le prix transmet {mode === "text" ? "la consigne" : "les images et la consigne"} à Higgsfield. La génération ne démarre qu’après le clic suivant. Ce clip est créé sans son ; la voix du Reel reste dans le montage.</p>
-        <Button type="button" variant="outline" disabled={(mode === "image" && !source) || (mode === "references" && references.length < 2) || promptTooLong ||
+        <Button type="button" variant="outline" disabled={(mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) || promptTooLong ||
           (mode !== "text" && !personFree) || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || !!busy}
           onClick={checkPrice}>{busy === "quote" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Vérifier le prix</Button>
         {quote && <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2" role="status">
@@ -215,8 +244,10 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
           </article>;
         })}
       </div>
-      {picker && <VideoImagePicker workspaceId={workspaceId} initialImages={references}
-        onClose={() => setPicker(false)} onConfirm={images => { setReferences(images); setPicker(false); }} />}
+      {picker && <VideoImagePicker workspaceId={workspaceId} initialImages={references.map(ref => ({
+        ...ref, previewUrl: previews.data?.get(sourceKey(ref)) || ref.previewUrl,
+      }))}
+        onClose={() => setPicker(false)} onConfirm={images => { setReferences(images); void cache.invalidateQueries({ queryKey: ["video-reference-previews", workspaceId] }); setPicker(false); }} />}
 
     </section>
   );

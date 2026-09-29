@@ -7,7 +7,7 @@ export interface VideoSource {
   previewUrl?: string | null;
 }
 export type VideoReference = VideoSource & {
-  role: "subject" | "product" | "casting" | "background" | "style" | "composition";
+  role: "" | "subject" | "product" | "casting" | "background" | "style" | "composition";
 };
 export const sourceKey = (source: VideoSource) => `${source.kind}:${source.id}`;
 export const MAX_VIDEO_IMAGES = 4;
@@ -30,7 +30,7 @@ export function readVideoDraft(key?: string): VideoDraft | null {
     if (!value || !Array.isArray(value.images) || value.images.length > MAX_VIDEO_IMAGES ||
       !value.images.every((r: VideoReference) => r && ["photo", "studio_version"].includes(r.kind) &&
         typeof r.id === "string" && typeof r.name === "string" &&
-        ["subject", "product", "casting", "background", "style", "composition"].includes(r.role)) ||
+        ["", "subject", "product", "casting", "background", "style", "composition"].includes(r.role)) ||
       typeof value.prompt !== "string" || typeof value.useImages !== "boolean" ||
       !Number.isInteger(value.duration) || value.duration < 4 || value.duration > 10 ||
       !["480p", "720p"].includes(value.resolution) || !["9:16", "16:9", "1:1"].includes(value.aspectRatio)) return null;

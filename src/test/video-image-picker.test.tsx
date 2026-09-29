@@ -1,12 +1,12 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ upload: vi.fn(), photos: Array.from({ length: 5 }, (_, i) => ({ id: `p${i}`, name: `Photo ${i}`, status: "ready", kind: "other", storage_path: `p${i}.jpg` })) }));
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+const mocks = vi.hoisted(() => ({ upload: vi.fn(), savedVersions: vi.fn(), photos: Array.from({ length: 5 }, (_, i) => ({ id: `p${i}`, name: `Photo ${i}`, status: "ready", kind: "other", storage_path: `p${i}.jpg` })) }));
 vi.mock("@/hooks/use-user-photos", () => ({ useUserPhotos: () => ({ data: mocks.photos, refetch: vi.fn() }), useUploadLibraryPhotos: () => ({ mutate: mocks.upload }) }));
 vi.mock("@/lib/photo-storage", () => ({ getSignedPhotoUrls: async () => new Map() }));
-vi.mock("@/features/visual-studio/api", () => ({
-  listStudioSessions: async () => ({ active: [{ id: "s1", name: "Mon décor" }], archived: [] }),
-  studioRequest: async () => ({ session: { name: "Mon décor" }, versions: [{ id: "v1", status: "ready", url: "https://example.com/photo.jpg" }] }),
+vi.mock("@/features/studio-video/library-sources", () => ({ savedStudioVersions: mocks.savedVersions }));
+vi.mock("@/features/studio-video/api", () => ({
+  listStudioVideoSources: async () => ({ sources: [{ kind: "studio_version", id: "v1", name: "Mon décor", previewUrl: "https://example.com/photo.jpg" }] }),
 }));
 import { VideoImagePicker } from "@/features/studio-video/VideoImagePicker";
 import type { VideoReference } from "@/features/studio-video/sources";
@@ -17,13 +17,14 @@ function mount(images: VideoReference[] = []) {
   render(<QueryClientProvider client={client}><VideoImagePicker workspaceId="workspace" initialImages={images} onConfirm={confirm} onClose={close} /></QueryClientProvider>);
   return { confirm, close };
 }
-afterEach(async () => { await act(async () => { cleanup(); }); clients.forEach(c => c.clear()); clients.length = 0; mocks.upload.mockReset(); });
+beforeEach(() => { mocks.savedVersions.mockResolvedValue(new Map()); });
+afterEach(async () => { await act(async () => { cleanup(); }); clients.forEach(c => c.clear()); clients.length = 0; mocks.upload.mockReset(); mocks.savedVersions.mockReset(); mocks.photos.forEach(p => { p.kind = "other"; }); });
 it("pré-sélectionne les références, conserve leurs rôles et applique la limite aux quatre images", async () => {
   const { confirm } = mount([{ kind: "photo", id: "p0", name: "Photo 0", role: "product" }]);
   expect(screen.getByRole("button", { name: "Photo 0" })).toHaveAttribute("aria-pressed", "true");
   for (const i of [1, 2, 3]) fireEvent.click(screen.getByRole("button", { name: `Photo ${i}` }));
   expect(screen.getByRole("button", { name: "Photo 4" })).toBeDisabled();
-  fireEvent.click(screen.getByRole("button", { name: "Utiliser la sélection (4)" }));
+  fireEvent.click(screen.getByRole("button", { name: "Ajouter ces images (4)" }));
   expect(confirm.mock.calls[0][0]).toHaveLength(4);
   expect(confirm.mock.calls[0][0][0].role).toBe("product");
   await waitFor(() => expect(screen.getByText("4 / 4 images sélectionnées")).toBeInTheDocument());
@@ -31,12 +32,20 @@ it("pré-sélectionne les références, conserve leurs rôles et applique la lim
 it("combine bibliothèque et version Photo sans perdre la première sélection", async () => {
   const { confirm } = mount();
   fireEvent.click(screen.getByRole("button", { name: "Photo 0" }));
-  fireEvent.click(screen.getByRole("button", { name: "Créations du Studio Photo" }));
-  await screen.findByRole("option", { name: "Mon décor" });
-  fireEvent.change(screen.getByRole("combobox", { name: "Session Photo" }), { target: { value: "s1" } });
-  fireEvent.click(await screen.findByRole("button", { name: "Mon décor · version 1" }));
-  fireEvent.click(screen.getByRole("button", { name: "Utiliser la sélection (2)" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Mon décor" }));
+  fireEvent.click(screen.getByRole("button", { name: "Ajouter ces images (2)" }));
   expect(confirm.mock.calls[0][0].map((r: VideoReference) => [r.kind, r.id])).toEqual([["photo", "p0"], ["studio_version", "v1"]]);
+});
+it("propose un mannequin fictif enregistré dans la bibliothèque et garde un vrai portrait indisponible", async () => {
+  mocks.photos[0].kind = "portrait";
+  mocks.photos[1].kind = "portrait";
+  mocks.savedVersions.mockResolvedValue(new Map([["p0", { id: "p0", library_photo_id: "p0" }]]));
+  const { confirm } = mount();
+  await waitFor(() => expect(screen.getByRole("button", { name: "Photo 0" })).toBeEnabled());
+  expect(screen.getByRole("button", { name: "Photo 1" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Photo 0" }));
+  fireEvent.click(screen.getByRole("button", { name: "Ajouter ces images (1)" }));
+  expect(confirm.mock.calls[0][0][0]).toMatchObject({ kind: "studio_version", id: "p0" });
 });
 it("annuler ne modifie pas les références du compositeur", async () => {
   const images: VideoReference[] = [{ kind: "photo", id: "p0", name: "Photo 0", role: "product" }];

@@ -5,12 +5,13 @@ import { afterEach, expect, it, vi } from "vitest";
 const mock = vi.hoisted(() => ({ request: vi.fn(), list: vi.fn(), read: vi.fn() }));
 vi.mock("@/features/studio-video/VideoImagePicker", () => ({ VideoImagePicker: ({ onConfirm }: {
   onConfirm: (photos: Array<{ kind: string; id: string; name: string; role: string }>) => void;
-}) => <button onClick={() => onConfirm([{ kind: "photo", id: "photo-1", name: "Produit", role: "subject" }, { kind: "photo", id: "photo-2", name: "Décor", role: "subject" }])}>Choisir deux photos</button> }));
+}) => <button onClick={() => onConfirm([{ kind: "photo", id: "photo-1", name: "Produit", role: "" }, { kind: "photo", id: "photo-2", name: "Décor", role: "" }])}>Choisir deux photos</button> }));
 vi.mock("@/features/studio-video/api", () => ({
   videoRequest: mock.request,
   listStudioVideos: mock.list,
   readStudioVideo: mock.read,
 }));
+vi.mock("@/features/studio-video/library-sources", () => ({ videoReferencePreviews: async () => new Map() }));
 import { StudioVideoPanel } from "@/features/studio-video/StudioVideoPanel";
 
 const quote = {
@@ -96,8 +97,9 @@ it("transmet les rôles et l'ordre de deux références avec le devis", async ()
   mock.request.mockResolvedValue({ job: { ...quote, source_kind: "references", source_id: null } });
   await mount(false);
   fireEvent.click(screen.getByRole("radio", { name: "Une ou plusieurs images" }));
-  fireEvent.click(screen.getByRole("button", { name: /Choisir des images/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Ajouter mes images/ }));
   fireEvent.click(screen.getByRole("button", { name: "Choisir deux photos" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Produit" }), { target: { value: "product" } });
   fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Décor" }), { target: { value: "background" } });
   fireEvent.change(screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" }),
     { target: { value: "Le produit se révèle doucement dans ce décor" } });
@@ -108,7 +110,7 @@ it("transmet les rôles et l'ordre de deux références avec le devis", async ()
   fireEvent.click(screen.getByRole("button", { name: "Vérifier le prix" }));
   await waitFor(() => expect(mock.request).toHaveBeenCalled());
   expect(mock.request.mock.calls[0][0]).toMatchObject({ source_kind: "references", references: [
-    { kind: "photo", id: "photo-1", role: "subject" }, { kind: "photo", id: "photo-2", role: "background" },
+    { kind: "photo", id: "photo-1", role: "product" }, { kind: "photo", id: "photo-2", role: "background" },
   ] });
   expect(mock.request.mock.calls[0][0].prompt).toBe("Le produit se révèle doucement dans ce décor\nCadrage : Gros plan.\nCaméra : La caméra tourne lentement autour du sujet.\nLumière : Lumière de studio diffuse.");
 });
@@ -116,10 +118,26 @@ it("transmet les rôles et l'ordre de deux références avec le devis", async ()
 it("passe directement d’une photo à plusieurs références sans changer de mode", async () => {
   mock.list.mockResolvedValue({ enabled: true, jobs: [] });
   await mount();
-  fireEvent.click(screen.getByRole("button", { name: /Choisir des images/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Ajouter ou changer mes images/ }));
   fireEvent.click(screen.getByRole("button", { name: "Choisir deux photos" }));
   expect(screen.getByRole("combobox", { name: "Rôle de Décor" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Choisir des images (2/4)" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Ajouter ou changer mes images (2/4)" })).toBeInTheDocument();
+});
+
+it("montre les images choisies et demande leurs rôles avant le devis", async () => {
+  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
+  await mount(false);
+  fireEvent.click(screen.getByRole("radio", { name: "Une ou plusieurs images" }));
+  fireEvent.click(screen.getByRole("button", { name: /Ajouter mes images/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Choisir deux photos" }));
+  expect(screen.getByRole("img", { name: "Produit" })).toBeInTheDocument();
+  expect(screen.getByRole("img", { name: "Décor" })).toBeInTheDocument();
+  fireEvent.change(screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" }), { target: { value: "Le produit apparaît dans ce décor" } });
+  fireEvent.click(screen.getByRole("checkbox"));
+  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Produit" }), { target: { value: "product" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Décor" }), { target: { value: "background" } });
+  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeEnabled();
 });
 
 it("restaure le brouillon mais pas l’attestation ni le devis", async () => {
