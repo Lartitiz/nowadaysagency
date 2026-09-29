@@ -82,7 +82,7 @@ Deno.test(
         ],
       );
       assertEquals(calls[1].url.endsWith("/edits"), true);
-      const form = calls[1].init?.body as FormData;
+      const form = calls[1].(init as any)?.body as FormData;
       assertEquals(await (form.getAll("image[]")[0] as Blob).text(), "parent");
       assertEquals(await (form.getAll("image[]")[1] as Blob).text(), "subject");
       assertEquals(
@@ -222,7 +222,7 @@ Deno.test("product staging sends the confirmed support and keeps the mood refere
   const original = globalThis.fetch;
   let prompt = "";
   globalThis.fetch = async (_input, init) => {
-    prompt = String((init?.body as FormData).get("prompt"));
+    prompt = String(((init as any)?.body as FormData).get("prompt"));
     return new Response(JSON.stringify({ data: [{ b64_json: btoa("image") }] }), {
       headers: { "Content-Type": "application/json" },
     });
@@ -265,7 +265,7 @@ Deno.test("natural photo treatment reaches OpenAI for text and reference request
   const original = globalThis.fetch;
   let sentPrompt = "";
   globalThis.fetch = async (_input, init) => {
-    sentPrompt = String((init?.body as FormData).get("prompt"));
+    sentPrompt = String(((init as any)?.body as FormData).get("prompt"));
     return new Response(JSON.stringify({ data: [{ b64_json: btoa("image") }] }), { headers: { "Content-Type": "application/json" } });
   };
   try {
