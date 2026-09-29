@@ -26,7 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import HomeCreatePanel from "@/components/dashboard/HomeCreatePanel";
 import { toLocalDateStr } from "@/lib/utils";
-import { getSignedPhotoUrls } from "@/lib/photo-storage";
+import { getSignedPhotoThumbUrls } from "@/lib/photo-storage";
 import { trackPorte } from "@/lib/dashboard-portes";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -216,7 +216,9 @@ export default function AdaptiveHome() {
       if (error) throw error;
       const paths = (data ?? []).map((p) => p.storage_path).filter(Boolean) as string[];
       if (!paths.length) return [];
-      const map = await getSignedPhotoUrls(paths, 3600);
+      // Vignettes de 80-96 px à l'écran : on demande une version réduite (x2 pour
+      // les écrans denses), pas l'original — cf. getSignedPhotoThumbUrls.
+      const map = await getSignedPhotoThumbUrls(paths, { width: 200, height: 240 }, 3600);
       return paths.map((p) => map.get(p)).filter(Boolean) as string[];
     },
     enabled: !!user,

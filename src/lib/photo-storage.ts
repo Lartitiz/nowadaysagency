@@ -272,6 +272,47 @@ export async function getSignedPhotoUrls(
 }
 
 /**
+ * Comme getSignedPhotoUrls, mais pour de PETITES vignettes : Supabase redimensionne
+ * côté serveur (`transform`), donc on télécharge ~3 Ko au lieu de l'original
+ * (jusqu'à 5 Mo mesuré le 29/09 sur l'accueil : c'était lui qui tenait la page
+ * à 5-7 s, les données étant prêtes à 1,5 s). Une seule URL par chemin : les
+ * signatures se font en parallèle (createSignedUrls par lot ne sait pas
+ * redimensionner). Tout chemin dont la réduction échoue (source trop lourde,
+ * service indisponible) retombe sur l'URL pleine taille : jamais de vignette vide.
+ */
+export async function getSignedPhotoThumbUrls(
+  paths: string[],
+  size: { width: number; height: number },
+  expiresInSeconds = 3600,
+): Promise<Map<string, string>> {
+  const valid = paths.filter(Boolean);
+  const map = new Map<string, string>();
+  if (valid.length === 0) return map;
+
+  await Promise.all(
+    valid.map(async (path) => {
+      try {
+        const { data, error } = await supabase.storage
+          .from(USER_PHOTOS_BUCKET)
+          .createSignedUrl(path, expiresInSeconds, {
+            transform: { width: size.width, height: size.height, resize: "cover", quality: 70 },
+          });
+        if (!error && data?.signedUrl) map.set(path, data.signedUrl);
+      } catch {
+        /* repli ci-dessous */
+      }
+    }),
+  );
+
+  const missing = valid.filter((p) => !map.has(p));
+  if (missing.length > 0) {
+    const full = await getSignedPhotoUrls(missing, expiresInSeconds);
+    for (const [path, url] of full) map.set(path, url);
+  }
+  return map;
+}
+
+/**
  * Loads a user_photos row from storage and converts it to a base64 data URL,
  * matching the shape used by PhotoUploadZone (PhotoItem.base64 = full data URL).
  */
