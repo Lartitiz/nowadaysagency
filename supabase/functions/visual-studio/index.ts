@@ -780,6 +780,13 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.summary =
             "Recharge le Studio pour accéder à la création et aux retouches étendues. Aucune image n’a été lancée.";
         }
+        if (intent.composition && generative(intent.operation)) {
+          intent.composition.layout = "image_full";
+        } else if (intent.operation === "compose" && intent.composition) {
+          intent.composition.layout = session.composition?.design?.layout === "image_full"
+            ? "image_full"
+            : "image_top";
+        }
         const editInput = parent?.result_path ||
           (intent.operation === "edit" ? selectedReference?.path : null) ||
           null;

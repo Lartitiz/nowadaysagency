@@ -147,7 +147,7 @@ it("ouvre les clips sans quitter la session photo et reprend la version sélecti
   }] });
   mount();
   await screen.findByText("Décris ton fond.");
-  fireEvent.click(screen.getByRole("button", { name: "Animer cette image en vidéo" }));
+  fireEvent.click(screen.getByRole("button", { name: "Créer une vidéo avec cette image" }));
   expect(await screen.findByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Photos" }));
   expect(screen.getByText("Décris ton fond.")).toBeInTheDocument();
@@ -264,11 +264,12 @@ it("reopens a saved composition with its editable text and source", async () => 
     ? { composition: { id: "older-composition", design, background_url: "/older.jpg" } }
     : state));
   mount();
+  fireEvent.click(await screen.findByText("Autres outils et créations enregistrées"));
   fireEvent.click(await screen.findByText("Compositions enregistrées · 1"));
   fireEvent.click(screen.getByRole("button", { name: /Reprendre Marché de Noël/ }));
   expect(await screen.findByRole("textbox", { name: "Titre" })).toHaveValue("Marché de Noël");
   expect(screen.getByLabelText("Utiliser l’image sélectionnée")).toBeChecked();
-  fireEvent.click(screen.getByRole("button", { name: "Enregistrer la composition" }));
+  fireEvent.click(screen.getByRole("button", { name: "Enregistrer ce visuel" }));
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({
     action: "composition_save", composition_history_id: "older-composition",
     composition_use_image: true,
@@ -291,6 +292,7 @@ it("loads and reopens compositions older than the first twenty", async () => {
     hasMore: false,
   });
   mount();
+  fireEvent.click(await screen.findByText("Autres outils et créations enregistrées"));
   fireEvent.click(await screen.findByText("Compositions enregistrées · 20+"));
   fireEvent.click(screen.getByRole("button", { name: "Voir les compositions plus anciennes" }));
   await waitFor(() => expect(mock.older).toHaveBeenCalledWith("A", "session", 20));
@@ -304,8 +306,8 @@ it("revient de Photo via Vidéo au passage d'origine du Reel", async () => {
     library_photo_id: null, error_message: null, created_at: "",
   }] });
   mount("/photos/studio?session=session&reel_passage=1");
-  await screen.findByRole("button", { name: "Animer cette image en vidéo" });
-  fireEvent.click(screen.getByRole("button", { name: "Animer cette image en vidéo" }));
+  await screen.findByRole("button", { name: "Créer une vidéo avec cette image" });
+  fireEvent.click(screen.getByRole("button", { name: "Créer une vidéo avec cette image" }));
   expect(screen.getByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
   expect(screen.getByTestId("current-path")).toHaveTextContent("reel_passage=1");
   fireEvent.click(screen.getByRole("button", { name: "Choisir le clip prêt" }));
@@ -515,12 +517,55 @@ it("mobile drawer exposes the whole conversation and its confirmation", async ()
     await screen.findByRole("button", { name: /Toute la conversation/ }),
   );
   await screen.findByRole("dialog");
-  fireEvent.click(
-    screen.getByRole("button", { name: "Vérifier la proposition" }),
-  );
   expect(
-    screen.getByRole("button", { name: /Générer cette image/ }),
+    within(screen.getByRole("dialog")).getByRole("button", { name: /Générer cette image/ }),
   ).toBeVisible();
+});
+it("keeps confirmation and image actions in the conversation, with a visual-only gallery", async () => {
+  const start = original();
+  mock.request.mockResolvedValue({ ...start, session: { ...start.session, proposal } });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  const conversation = screen.getByRole("region", { name: "Conversation" });
+  const gallery = screen.getByRole("region", { name: "Visuels et versions" });
+  expect(within(conversation).getByRole("button", { name: /Générer cette image/ })).toBeInTheDocument();
+  expect(within(gallery).queryByRole("button", { name: /Générer cette image/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole("complementary", { name: "Détails et confirmation" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Composer une affiche ou un visuel" })).not.toBeInTheDocument();
+});
+it("shows how to browse versions and opens the selected image", async () => {
+  const start = original();
+  mock.request.mockResolvedValue({ ...start, versions: [
+    { id: "first", status: "ready", proposal, url: "/first.png", library_photo_id: null, error_message: null, created_at: "" },
+    { id: "second", status: "ready", proposal, url: "/second.png", library_photo_id: null, error_message: null, created_at: "" },
+  ] });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  const gallery = screen.getByRole("region", { name: "Visuels et versions" });
+  expect(within(gallery).getByText(/fais défiler les versions/)).toBeInTheDocument();
+  expect(within(gallery).getByRole("button", { name: "Versions suivantes" })).toBeInTheDocument();
+  fireEvent.click(within(gallery).getByRole("button", { name: "Version 1" }));
+  expect(within(gallery).getByRole("img", { name: "Version 1" })).toHaveAttribute("src", "/first.png");
+});
+it("lets an AI-generated poster receive exact editable text after the image is ready", async () => {
+  const design = {
+    title: "Marché de Noël", body: "Céramiques artisanales", footer: "12 décembre · Lyon",
+    format: "portrait" as const, background: "#ffffff", foreground: "#242124",
+    accent: "#863f67", font: "sans-serif", align: "left" as const,
+    layout: "image_full" as const,
+  };
+  mock.request.mockResolvedValue({ ...original(), versions: [{
+    id: "poster-ready", status: "ready", proposal: { ...proposal,
+      operation: "create", composition: design }, url: "/poster-background.png",
+    library_photo_id: null, error_message: null, created_at: "",
+  }] });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  fireEvent.click(screen.getByRole("button", { name: "Finaliser l’affiche avec ses textes" }));
+  expect(await screen.findByRole("textbox", { name: "Titre" })).toHaveValue("Marché de Noël");
+  expect(screen.getByRole("textbox", { name: "Informations pratiques" })).toHaveValue("12 décembre · Lyon");
+  expect(screen.getByLabelText("Utiliser l’image sélectionnée")).toBeChecked();
+  expect(screen.getByAltText("Visuel sélectionné")).toHaveStyle({ objectFit: "cover" });
 });
 
 it("a response preserves new text typed while the previous request was in flight", async () => {
