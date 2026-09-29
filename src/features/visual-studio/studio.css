@@ -98,12 +98,15 @@
   background: hsl(var(--muted));
   padding: 12px 14px;
   margin-bottom: 14px;
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
   white-space: pre-wrap;
 }
 .studio-message.mine {
   margin-left: 20px;
-  background: hsl(var(--primary) / 0.1);
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--foreground));
 }
 .studio-stage {
   padding: 28px;
@@ -229,10 +232,9 @@
 }
 @media (max-width: 1000px) {
   .studio-grid {
-    grid-template-columns: minmax(300px, 38%) minmax(0, 1fr);
+    grid-template-columns: minmax(400px, 46%) minmax(0, 1fr);
     height: calc(100dvh - 210px);
   }
-  .studio-resizer { display: none; }
   .studio-stage {
     max-height: none;
     padding: 20px;
