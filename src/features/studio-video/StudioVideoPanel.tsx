@@ -203,7 +203,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         <label className="block text-sm font-medium" htmlFor={`${formId}-prompt`}>{mode === "image" ? "Ce qui doit bouger" : "Quelle vidéo veux-tu créer ?"}</label>
         <Textarea id={`${formId}-prompt`} value={prompt} maxLength={1000} onChange={e => setPrompt(e.target.value)}
           placeholder="Ex. Le mannequin prend le bol et le pose doucement sur la table." />
-        {videoStyle && <button type="button" className="text-left text-xs text-primary underline" onClick={() => setPrompt(current => [current.trim(), `Style de ma marque : ${videoStyle}`].filter(Boolean).join("\n").slice(0, 1000))}>
+        {videoStyle && <button type="button" className="text-left text-xs text-primary underline" onClick={() => setPrompt(current => [current.trim(), `Style de ma marque : ${videoStyle}`].filter(Boolean).join("\n"))}>
           Reprendre mon style vidéo dans cette consigne
         </button>}
         <div className="grid gap-3 sm:grid-cols-3">
@@ -259,7 +259,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
             <p><strong>Ce qui peut changer :</strong> {prepared.allowedChanges}</p>
             <p><strong>Ce qui ne doit pas changer :</strong> {prepared.forbiddenChanges}</p>
           </div>
-          <details className="text-sm"><summary className="cursor-pointer">Lire la consigne technique exacte envoyée pour le devis</summary>
+          <details className="text-sm"><summary className="cursor-pointer">Lire la consigne technique exacte du devis et de la génération</summary>
             <p className="mt-2 whitespace-pre-line break-words">{prepared.prompt}</p></details>
           <p className="text-xs text-muted-foreground">Pour une continuité stricte, un geste simple, un plan court et une caméra fixe sont souvent plus faciles à contrôler. Relis le rendu avant de l’utiliser : ces consignes ne garantissent pas un résultat sans faux raccord.</p>
           <p className="text-xs text-muted-foreground">Pour corriger cette proposition, modifie ton idée ou les réglages ci-dessus, puis demande une nouvelle préparation.</p>

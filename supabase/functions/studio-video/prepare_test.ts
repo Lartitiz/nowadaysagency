@@ -25,8 +25,8 @@ Deno.test("Claude receives the image roles and returns separate summary and prov
     assert(result.summary.includes("produit"));
     assert(result.scene.includes("caméra avance"));
     const prompt = buildVideoPrompt(result, 5, [{ role: "product" }]);
-    assert(prompt.includes("image 1 = produit à préserver"));
-    assert(prompt.includes("même objets et surfaces") || prompt.includes("mêmes objets et surfaces"));
+    assert(prompt.includes("@Image 1 = produit à préserver"));
+    assert(prompt.includes("conserver leur identité, leur forme"));
     const content = (sent as unknown as { messages: Array<{ content: Array<Record<string, unknown>> }> }).messages[0].content;
     assertEquals(content[1].text, "Image 1 : Produit, rôle product");
     assertEquals((content[2].source as { data: string }).data, "AQID");
@@ -64,7 +64,7 @@ Deno.test("the final prompt keeps the same table across the whole shot without i
   }, 5, [{ role: "product" }, { role: "casting" }]);
   assert(prompt.includes("Même surface rouge du premier au dernier photogramme"));
   assert(prompt.includes("matière non établie"));
-  assert(prompt.includes("image 1 = produit à préserver ; image 2 = mannequin fictif"));
+  assert(prompt.includes("@Image 1 = produit à préserver ; @Image 2 = mannequin fictif"));
   assert(prompt.length <= 3000);
 });
 
@@ -76,7 +76,20 @@ Deno.test("an explicitly requested move to a second surface remains possible", (
     allowed_changes: "Le déplacement de la tasse du comptoir vers la seconde table est demandé.",
     forbidden_changes: "Pas de table supplémentaire ni de changement de couleur inattendu.",
   }, 5, [{ role: "product" }, { role: "background" }]);
-  assert(prompt.includes("Sauf changement explicitement demandé"));
+  assert(prompt.includes("Pour les sujets, produits et décors retenus dans la scène"));
   assert(prompt.includes("Le déplacement de la tasse du comptoir vers la seconde table est demandé"));
-  assert(prompt.includes("image 1 = produit à préserver ; image 2 = décor"));
+  assert(prompt.includes("@Image 1 = produit à préserver ; @Image 2 = décor"));
+});
+
+Deno.test("existing product lettering survives while undesired new text is excluded", () => {
+  const prompt = buildVideoPrompt({
+    summary: "Le pot étiqueté reste identique pendant que la caméra avance.",
+    scene: "Le pot étiqueté reste au centre ; la caméra avance lentement vers lui.",
+    invariants: ["Le pot bleu et son étiquette NOW restent visibles et inchangés."],
+    allowed_changes: "La caméra avance lentement.",
+    forbidden_changes: "Aucun nouveau texte sur la scène.",
+  }, 5, [{ role: "product" }]);
+  assert(prompt.includes("son étiquette NOW restent visibles"));
+  assert(prompt.includes("inscriptions et logos déjà présents"));
+  assert(prompt.includes("nouvel objet, texte ou logo non demandé"));
 });

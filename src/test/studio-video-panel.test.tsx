@@ -79,6 +79,18 @@ it("propose le style vidéo de la marque dans une consigne modifiable sans lance
   expect(mock.request).not.toHaveBeenCalled();
 });
 
+it("ne tronque pas silencieusement l'idée quand le style de marque dépasse la limite", async () => {
+  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
+  await mount(false);
+  const idea = screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" });
+  const longIdea = "Un produit sur une table. " + "x".repeat(955);
+  fireEvent.change(idea, { target: { value: longIdea } });
+  fireEvent.click(screen.getByRole("button", { name: "Reprendre mon style vidéo dans cette consigne" }));
+  expect(idea).toHaveValue(`${longIdea}\nStyle de ma marque : Plans calmes ; Fenêtre douce`);
+  expect(screen.getByText(/La consigne complète dépasse 1000 caractères/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Préparer avec Claude" })).toBeDisabled();
+});
+
 it("écarte un devis arrivé après que la demande a changé", async () => {
   mock.list.mockResolvedValue({ enabled: true, jobs: [] });
   let finish: (value: unknown) => void = () => {};

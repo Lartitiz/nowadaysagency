@@ -4,6 +4,7 @@ import { runPipeline } from "../_shared/request-pipeline.ts";
 import { getServiceClient } from "../_shared/plan-limiter.ts";
 import { estimate, MODEL, MODELS, ProviderError, publicHttpsUrl, status as providerStatus, submit, uploadImage, type VideoInput, type VideoModel } from "./higgsfield.ts";
 import { buildVideoPrompt, prepareVideo, signPreparation, verifyPreparation } from "./prepare.ts";
+import { preparationAspectRatio, videoInputForQuote, videoInputFromJob } from "./payload.ts";
 
 const BUCKET = "studio-video";
 const MAX_VIDEO_BYTES = 150 * 1024 * 1024;
@@ -107,15 +108,6 @@ async function source(db: DB, workspace: string, kind: "photo" | "studio_version
   return { bucket: "visual-studio", path: data.result_path as string, name: (session?.name || "Création du Studio").slice(0, 120) };
 }
 type SourceRef = { kind: "photo" | "studio_version"; id: string; role: string; name?: string };
-function inputFromJob(row: Record<string, unknown>): VideoInput {
-  const common = { prompt: String(row.prompt), duration: Number(row.duration),
-    resolution: row.resolution as "480p" | "720p", output_format: "mp4" as const,
-    generate_audio: false as const };
-  if (row.source_kind === "text") return { ...common, aspect_ratio: row.aspect_ratio as "9:16" | "16:9" | "1:1" };
-  if (row.source_kind === "references") return { ...common,
-    image_urls: row.input_urls as string[], aspect_ratio: row.aspect_ratio as "9:16" | "16:9" | "1:1" };
-  return { ...common, image_url: String(row.input_url) };
-}
 async function job(db: DB, workspace: string, id: string) {
   const { data, error } = await db.from("studio_video_jobs").select("*").eq("id", id).eq("workspace_id", workspace).maybeSingle();
   if (error || !data) throw new Error("studio_video_job_unavailable");
@@ -245,7 +237,8 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       }));
       const prepared = await prepareVideo({ idea: p.prompt, source_kind: p.source_kind,
         references: resolved.map(({ kind, id, role, name }, i) => ({ image: i + 1, kind, id, role, name })),
-        duration: p.duration, resolution: p.resolution, aspect_ratio: p.aspect_ratio }, vision);
+        duration: p.duration, resolution: p.resolution,
+        aspect_ratio: preparationAspectRatio(p.source_kind, p.aspect_ratio) }, vision);
       const prompt = buildVideoPrompt(prepared, p.duration, images);
       const preparedInput = { ...p, idea: p.prompt, prompt, summary: prepared.summary, continuity: prepared.invariants,
         allowed_changes: prepared.allowed_changes, forbidden_changes: prepared.forbidden_changes };
@@ -283,11 +276,8 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         // attestation; text-only requests do not transmit an image.
         inputUrls.push(await uploadImage(media));
       }
-      const common = { prompt: actualPrompt, duration: p.duration, resolution: p.resolution,
-        output_format: "mp4" as const, generate_audio: false as const };
-      const input: VideoInput = single ? { ...common, image_url: inputUrls[0] } :
-        refs.length ? { ...common, image_urls: inputUrls, aspect_ratio: p.aspect_ratio } :
-          { ...common, aspect_ratio: p.aspect_ratio };
+      const input: VideoInput = videoInputForQuote(p.source_kind, actualPrompt,
+        p.duration, p.resolution, p.aspect_ratio, inputUrls);
       const price = await estimate(input, fetch, model);
       if (price.usd > monthlyLimit()) return json({ error: "Ce devis dépasse le plafond de la recette vidéo." }, 409);
       const id = crypto.randomUUID();
@@ -329,7 +319,7 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         return json({ error: message }, 409);
       }
       if (!claimed) return json({ job: safeJob(await job(db, p.workspace_id, p.job_id)) });
-      const input = inputFromJob(row);
+      const input = videoInputFromJob(row);
       try {
         const accepted = await submit(input, callback.toString(), fetch, row.model as VideoModel);
         const updated = await db.from("studio_video_jobs").update({ status: "queued",
