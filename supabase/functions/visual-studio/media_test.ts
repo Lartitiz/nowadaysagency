@@ -233,8 +233,8 @@ Deno.test("product staging sends the confirmed support and keeps the mood refere
       new Blob(["mood"], { type: "image/jpeg" }),
     ]);
     assertEquals(prompt.includes("Confirmed product placement: À plat sur la table en pierre"), true);
-  assertEquals(prompt.includes("real contact with a surface or a hand"), true);
-  assertEquals(prompt.includes("The setting reference does not determine product orientation"), true);
+    assertEquals(prompt.includes("real contact with the confirmed supporting surface"), true);
+    assertEquals(prompt.includes("match that setting's camera perspective"), true);
     assertEquals(prompt.includes("Image 1: product reference"), true);
     assertEquals(prompt.includes("Image 2: style reference"), true);
     assertEquals(prompt.includes("Do not copy its foreground props"), true);

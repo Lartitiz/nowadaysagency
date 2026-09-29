@@ -681,10 +681,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           });
           vision.push(await visionFromStorage(sb, BUCKET, parent.result_path));
         }
-        for (const ref of requestReferences) {
+        for (const [index, ref] of requestReferences.entries()) {
           vision.push({
             type: "text",
-            text: `Référence ${ref.id} : ${ref.role}, ${ref.name}`,
+            text: `Référence jointe ${index + 1}, ID ${ref.id} : ${ref.role}, ${ref.name}`,
           });
           vision.push(await visionFromStorage(sb, BUCKET, ref.path));
         }
@@ -704,6 +704,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               {
                 role: "user",
                 content: [
+                  ...vision,
                   {
                     type: "text",
                     text: JSON.stringify({
@@ -735,6 +736,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                           summary: parent.proposal.summary,
                           preserve: parent.proposal.preserve,
                           change: parent.proposal.change,
+                          product_placement: parent.proposal.product_placement,
+                          photo_treatment: parent.proposal.photo_treatment,
                         }
                         : null,
                       brief: parent
@@ -748,7 +751,6 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                       demande: p.message,
                     }),
                   },
-                  ...vision,
                 ],
               },
             ],
@@ -869,7 +871,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               ? intent.shots.map((shot) => ({
                 ...shot,
                 id: crypto.randomUUID(),
-                image_prompt: p.studio_version === 4 ? shot.summary : shot.image_prompt,
+                image_prompt: shot.image_prompt,
               }))
               : [],
             references: proposedRefs,
@@ -880,9 +882,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             original_path: originalPath,
             subject_kind: resolvedReferences.find((r) => isIdentity(r.role))?.kind ||
               null,
-            image_prompt: p.studio_version === 4 && generative(intent.operation)
-              ? intent.summary
-              : intent.image_prompt,
+            image_prompt: intent.image_prompt,
             photo_treatment: intent.photo_treatment,
             composition: p.studio_version === 4 && generative(intent.operation)
               ? undefined
