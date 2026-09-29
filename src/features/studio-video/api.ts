@@ -8,6 +8,7 @@ export interface StudioVideoJob {
   source_name: string;
   source_refs?: Array<{ kind: "photo" | "studio_version"; id: string; role: string; name: string }>;
   prompt: string;
+  preparation?: { idea: string; summary: string; continuity: string[]; allowed_changes: string; forbidden_changes: string } | null;
   duration: number;
   resolution: "480p" | "720p";
   aspect_ratio?: "9:16" | "16:9" | "1:1";

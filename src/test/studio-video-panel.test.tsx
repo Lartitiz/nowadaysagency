@@ -24,7 +24,9 @@ const quote = {
   created_at: "", error_code: null, video_url: null,
 };
 const prepared = { summary: "Le produit est montré dans un plan doux avec un mouvement de caméra lent.",
-  prompt: "Plan vidéo précis du produit, mouvement lent et lumière douce.", prepared_token: "signed" };
+  continuity: ["La table rouge garde la même couleur pendant tout le plan."],
+  allowed_changes: "Le produit et les mains bougent.", forbidden_changes: "La table ne devient pas beige.",
+  prompt: "Plan vidéo précis du produit, mouvement lent et lumière douce. La table reste rouge.", prepared_token: "signed" };
 async function prepareAndConfirm() {
   fireEvent.click(screen.getByRole("button", { name: "Préparer avec Claude" }));
   expect(await screen.findByText(prepared.summary)).toBeInTheDocument();
@@ -59,10 +61,12 @@ it("affiche le devis puis n'envoie le POST payant qu'au clic explicite", async (
   fireEvent.click(screen.getByRole("checkbox"));
   expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
   await prepareAndConfirm();
+  expect(screen.getByText(prepared.continuity[0])).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Vérifier le prix" }));
   expect(await screen.findByText(/Devis Higgsfield/)).toBeInTheDocument();
   expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["prepare", "quote"]);
-  expect(mock.request.mock.calls[1][0]).toMatchObject({ prompt: prepared.prompt, prepared_token: "signed" });
+  expect(mock.request.mock.calls[1][0]).toMatchObject({ prompt: prepared.prompt,
+    summary: prepared.summary, continuity: prepared.continuity, prepared_token: "signed" });
   fireEvent.click(screen.getByRole("button", { name: /Générer ce clip/ }));
   await waitFor(() => expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["prepare", "quote", "submit"]));
 });
@@ -73,6 +77,18 @@ it("propose le style vidéo de la marque dans une consigne modifiable sans lance
   fireEvent.click(screen.getByRole("button", { name: "Reprendre mon style vidéo dans cette consigne" }));
   expect(screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" })).toHaveValue("Style de ma marque : Plans calmes ; Fenêtre douce");
   expect(mock.request).not.toHaveBeenCalled();
+});
+
+it("ne tronque pas silencieusement l'idée quand le style de marque dépasse la limite", async () => {
+  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
+  await mount(false);
+  const idea = screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" });
+  const longIdea = "Un produit sur une table. " + "x".repeat(955);
+  fireEvent.change(idea, { target: { value: longIdea } });
+  fireEvent.click(screen.getByRole("button", { name: "Reprendre mon style vidéo dans cette consigne" }));
+  expect(idea).toHaveValue(`${longIdea}\nStyle de ma marque : Plans calmes ; Fenêtre douce`);
+  expect(screen.getByText(/La consigne complète dépasse 1000 caractères/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Préparer avec Claude" })).toBeDisabled();
 });
 
 it("écarte un devis arrivé après que la demande a changé", async () => {
@@ -152,6 +168,31 @@ it("transmet les rôles et l'ordre de deux références avec le devis", async ()
   ] });
   expect(mock.request.mock.calls[0][0].prompt).toBe("Le produit se révèle doucement dans ce décor\nCadrage : Gros plan.\nCaméra : La caméra tourne lentement autour du sujet.\nLumière : Lumière de studio diffuse.");
   expect(mock.request.mock.calls[1][0].prompt).toBe(prepared.prompt);
+});
+
+it("retire la confirmation si un rôle, l'ordre des images ou un réglage change", async () => {
+  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
+  mock.request.mockResolvedValue(prepared);
+  await mount(false);
+  fireEvent.click(screen.getByRole("radio", { name: "Une ou plusieurs images" }));
+  fireEvent.click(screen.getByRole("button", { name: /Ajouter mes images/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Choisir deux photos" }));
+  fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Produit" }), { target: { value: "product" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Décor" }), { target: { value: "background" } });
+  fireEvent.change(screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" }),
+    { target: { value: "Le produit reste sur la même table" } });
+  fireEvent.click(screen.getByRole("checkbox"));
+  await prepareAndConfirm();
+  fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Décor" }), { target: { value: "style" } });
+  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  await prepareAndConfirm();
+  fireEvent.click(screen.getByRole("button", { name: "Avancer Décor" }));
+  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("checkbox"));
+  await prepareAndConfirm();
+  fireEvent.change(screen.getByRole("combobox", { name: "Mouvement de caméra" }), { target: { value: "static" } });
+  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  expect(mock.request.mock.calls.every(([body]) => body.action === "prepare")).toBe(true);
 });
 
 it("passe directement d’une photo à plusieurs références sans changer de mode", async () => {
