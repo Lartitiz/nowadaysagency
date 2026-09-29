@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 // Parcours cassé du 01/08, volet « crédits épuisés » :
 //  1. les boutons « Passer au Premium » emmenaient sur /mon-plan, qui est le
@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn() }),
   assign: vi.fn(),
+  invoke: vi.fn(),
+  user: { id: "test-user" } as { id: string } | null,
 }));
 
 vi.mock("sonner", () => ({ toast: mocks.toast }));
@@ -26,6 +28,9 @@ vi.mock("react-router-dom", () => ({
 vi.mock("@/lib/posthog", () => ({ posthog: { capture: vi.fn() } }));
 vi.mock("@/components/AppHeader", () => ({ default: () => null }));
 vi.mock("@/components/Confetti", () => ({ default: () => null }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: mocks.user, loading: false }) }));
+vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: mocks.invoke }));
+vi.mock("@/hooks/use-user-plan", () => ({ invalidateUserPlanCache: vi.fn() }));
 
 import QuotaWallModal from "@/components/QuotaWallModal";
 import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
@@ -58,6 +63,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   sessionStorage.clear();
   allerSur("/");
+  mocks.user = { id: "test-user" };
+  mocks.invoke.mockResolvedValue({ data: { state: "confirmed" }, error: null });
 });
 
 describe("« Passer au Premium » mène bien à l'abonnement", () => {
@@ -90,13 +97,14 @@ describe("« Passer au Premium » mène bien à l'abonnement", () => {
 });
 
 describe("après le paiement, on reprend son travail", () => {
-  it("propose de reprendre le contenu en cours et y retourne", () => {
+  it("ne propose de reprendre le contenu qu'après confirmation serveur", async () => {
     memoriseRetour("/creer");
     allerSur("/payment/success?session_id=cs_test");
 
     render(<PaymentSuccessPage />);
 
-    const bouton = screen.getByText(/Reprendre ton contenu en cours/i);
+    const bouton = await screen.findByText(/Reprendre ton contenu en cours/i);
+    expect(mocks.invoke).toHaveBeenCalledWith("verify-checkout", { body: { session_id: "cs_test" } }, 15000);
     fireEvent.click(bouton);
 
     expect(mocks.navigate).toHaveBeenCalledWith("/creer");
@@ -104,13 +112,23 @@ describe("après le paiement, on reprend son travail", () => {
     expect(lireRetour()).toBeNull();
   });
 
-  it("sans travail en cours, la page ne change pas (bouton « Commencer »)", () => {
+  it("sans identifiant de session, n'annonce pas un paiement", () => {
     allerSur("/payment/success");
 
     render(<PaymentSuccessPage />);
 
-    expect(screen.getByText("Commencer")).toBeTruthy();
+    expect(screen.getByText("Paiement non confirmé")).toBeTruthy();
+    expect(screen.queryByText("Commencer")).toBeNull();
     expect(screen.queryByText(/Reprendre/i)).toBeNull();
+    expect(mocks.invoke).not.toHaveBeenCalled();
+  });
+
+  it("ne confirme pas une session inachevée", async () => {
+    mocks.invoke.mockResolvedValue({ data: { state: "incomplete" }, error: null });
+    allerSur("/payment/success?session_id=cs_test");
+    render(<PaymentSuccessPage />);
+    await waitFor(() => expect(screen.getByText("Paiement non confirmé")).toBeTruthy());
+    expect(screen.queryByText("Commencer")).toBeNull();
   });
 });
 

@@ -15,6 +15,7 @@ export default function LoginPage() {
   const { user, loading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get("redirect");
+  const chosenPremium = searchParams.get("offer") === "outil" || redirectTo?.includes("selected=premium");
   const isAddAccount = searchParams.get("add_account") === "true";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -238,7 +239,7 @@ export default function LoginPage() {
 
               <p className="mt-6 text-center text-sm text-muted-foreground">
                 Pas encore de compte ?{" "}
-                <Link to="/#signup-section" className="text-primary font-medium hover:underline">
+                <Link to={chosenPremium ? "/?offer=outil#signup-section" : "/#signup-section"} className="text-primary font-medium hover:underline">
                   Inscris-toi gratuitement
                 </Link>
               </p>

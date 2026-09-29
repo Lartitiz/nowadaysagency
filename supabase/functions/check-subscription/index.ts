@@ -27,20 +27,25 @@ export async function handleCheckSubscriptionRequest(req: Request): Promise<Resp
     );
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Non authentifié");
+    if (!authHeader) return new Response(JSON.stringify({ error: "Non authentifié" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401,
+    });
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError || !userData.user) throw new Error("Non authentifié");
+    if (userError || !userData.user) return new Response(JSON.stringify({ error: "Non authentifié" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401,
+    });
 
     const userId = userData.user.id;
 
     // Check admin role
-    const { data: roleRow } = await supabaseClient
+    const { data: roleRow, error: roleError } = await supabaseClient
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
       .maybeSingle();
+    if (roleError) throw roleError;
     const isAdmin = roleRow?.role === "admin";
 
     if (isAdmin) {
@@ -85,27 +90,31 @@ export async function handleCheckSubscriptionRequest(req: Request): Promise<Resp
       body?.workspace_id || undefined,
     );
 
-    const { data: sub } = await supabaseClient
+    const { data: subscriptionRows, error: subError } = await supabaseClient
       .from("subscriptions")
       .select("*")
       .eq("user_id", userId)
-      .single();
+      .limit(1);
+    if (subError) throw subError;
+    const sub = subscriptionRows?.[0];
 
-    const bonusCredits = await getBonusCredits(supabaseClient, userId);
+    const bonusCredits = await getBonusCredits(supabaseClient, userId, true);
 
-    const { data: purchases } = await supabaseClient
+    const { data: purchases, error: purchasesError } = await supabaseClient
       .from("purchases")
       .select("product_type, status, created_at")
       .eq("user_id", userId)
       .eq("status", "paid");
+    if (purchasesError) throw purchasesError;
 
     // Plan effectif + usage : MÊME code que l'enforcement (plan-limiter).
     // Couvre les alias legacy, le plan workspace et le coaching actif — fini
     // le « Gratuit · 0 restantes » affiché pendant que le serveur autorise (T19).
-    const plan = await getEffectivePlan(supabaseClient, userId, workspaceId);
+    const plan = await getEffectivePlan(supabaseClient, userId, workspaceId, true);
     const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
-    const { data: usageRows } = await getMonthlyUsageRows(supabaseClient, userId, workspaceId);
+    const { data: usageRows, error: usageError } = await getMonthlyUsageRows(supabaseClient, userId, workspaceId);
+    if (usageError) throw usageError;
     const rows = usageRows || [];
 
     // Build usage map
@@ -124,7 +133,8 @@ export async function handleCheckSubscriptionRequest(req: Request): Promise<Resp
       studio_months_paid: sub?.studio_months_paid || 0,
       studio_end_date: sub?.studio_end_date,
       cancel_at: sub?.cancel_at,
-      source: sub?.source || "stripe",
+      source: sub?.source || (plan === "binome" ? "coaching" : workspaceId && plan !== "free" ? "workspace" : "free"),
+      has_stripe_subscription: Boolean(sub?.source === "stripe" && sub?.stripe_subscription_id),
       purchases: purchases || [],
       ai_usage: usage,
       bonus_credits: bonusCredits,
@@ -135,17 +145,9 @@ export async function handleCheckSubscriptionRequest(req: Request): Promise<Resp
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("[check-subscription] Error:", msg);
-    return new Response(JSON.stringify({
-      plan: "free",
-      status: "active",
-      subscribed: false,
-      credits: 10,
-      ai_usage: {},
-      bonus_credits: 0,
-      error: msg,
-    }), {
+    return new Response(JSON.stringify({ error: "Abonnement momentanément indisponible." }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
+      status: 503,
     });
   }
 }

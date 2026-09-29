@@ -2,7 +2,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { useState } from "react";
 import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { lireRetour, oublieRetour } from "@/lib/retour-apres-detour";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { toast } from "sonner";
@@ -37,8 +37,9 @@ const SECTIONS = [
     title: "Création de contenu",
     rows: [
       { label: "Posts, reels, stories, bio", free: true, premium: true },
-      { label: "Volume de création IA", free: "Pour démarrer", premium: "Illimité" },
-      { label: "Carrousels qualité max", free: false, premium: true },
+      { label: "Contenus standard IA", free: "Pour démarrer", premium: "Sans limite mensuelle" },
+      { label: "Carrousels Qualité Max", free: false, premium: "20 / mois" },
+      { label: "Retouches photo", free: false, premium: "50 / mois" },
       { label: "Commentaires stratégiques", free: false, premium: true },
       { label: "DM personnalisés", free: false, premium: true },
     ],
@@ -67,7 +68,7 @@ const FAQ = [
   },
   {
     q: "C'est quoi la différence entre le gratuit et le Premium ?",
-    a: "Le gratuit te fait publier ton premier contenu. Le Premium te fait publier régulièrement sans y penser : création de contenu illimitée, carrousels qualité max, publication directe et programmation automatique sur tous tes réseaux, audits illimités.",
+    a: "Le gratuit t'aide à publier ton premier contenu. Le Premium comprend les contenus standard et audits sans limite mensuelle, jusqu'à 20 carrousels Qualité Max et 50 retouches photo par mois, ainsi que la publication et la programmation.",
   },
   {
     q: "Je peux annuler quand je veux ?",
@@ -96,8 +97,11 @@ function CellValue({ value }: { value: boolean | string }) {
 
 /* ─── Main page ─── */
 export default function PricingPage() {
-  const { user } = useAuth();
-  const { plan } = useUserPlan();
+  const { user, isAdmin } = useAuth();
+  const { plan, loading: planLoading, verified: planVerified, refresh: refreshPlan } = useUserPlan();
+  const [searchParams] = useSearchParams();
+  const selectedPremium = searchParams.get("selected") === "premium";
+  const cancelled = searchParams.get("checkout") === "cancelled";
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const navigate = useNavigate();
   // Lu une seule fois au montage : un paiement Stripe part et revient sur
@@ -112,7 +116,11 @@ export default function PricingPage() {
 
   const handleCheckout = async () => {
     if (!user) {
-      window.location.href = "/login?redirect=/pricing";
+      window.location.href = "/login?offer=outil&redirect=%2Fpricing%3Fselected%3Dpremium";
+      return;
+    }
+    if (!planVerified) {
+      toast.error("Abonnement indisponible", { description: "Vérifie ton plan avant de lancer un paiement." });
       return;
     }
     setCheckoutLoading(true);
@@ -121,6 +129,7 @@ export default function PricingPage() {
         body: {
           priceId: STRIPE_PLANS.outil.priceId,
           mode: "subscription",
+          cancelUrl: `${window.location.origin}/pricing?selected=premium&checkout=cancelled`,
         },
       }, 15000);
       if (error) throw new Error(error.message);
@@ -133,7 +142,7 @@ export default function PricingPage() {
     }
   };
 
-  const isCurrentPlan = (p: string) => plan === p;
+  const isCurrentPlan = (p: string) => Boolean(user) && !planLoading && planVerified && plan === p;
 
   return (
     <div className="min-h-screen bg-background">
@@ -142,8 +151,8 @@ export default function PricingPage() {
           <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
             <Link to="/" className="inline-flex items-center"><BrandLogo className="h-8" /></Link>
             <div className="flex items-center gap-3">
-              <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Se connecter</Link>
-              <Link to="/login" className="rounded-full bg-primary text-primary-foreground px-6 py-2 text-sm font-medium shadow-cta hover:opacity-90 transition-all">
+              <Link to={selectedPremium ? "/login?offer=outil&redirect=%2Fpricing%3Fselected%3Dpremium" : "/login"} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Se connecter</Link>
+              <Link to="/#signup-section" className="rounded-full bg-primary text-primary-foreground px-6 py-2 text-sm font-medium shadow-cta hover:opacity-90 transition-all">
                 Commencer
               </Link>
             </div>
@@ -154,12 +163,12 @@ export default function PricingPage() {
       {/* Bandeau béta */}
       <div className="bg-primary/10 border-b border-primary/20 px-4 py-3 text-center">
         <p className="text-sm text-foreground">
-          🧪 <strong>Béta en cours</strong> : tu testes l'outil gratuitement.
-          Les abonnements premium ouvriront après la béta.
+          🧪 <strong>Bêta en cours</strong> : tu peux commencer gratuitement et consulter les conditions du Premium avant de t’abonner.
         </p>
       </div>
 
       <main className="mx-auto max-w-5xl px-4 py-12 sm:py-16">
+        {cancelled && <p role="status" className="mb-6 rounded-xl border border-border bg-card p-4 text-sm">Paiement annulé. Aucun abonnement n’a été activé. Tu peux revoir ton choix ci-dessous.</p>}
         {/* Venue d'un travail en cours (crédits épuisés) : le chemin du retour
             reste visible, sinon on croit avoir perdu ce qu'on faisait. */}
         {retour && (
@@ -188,6 +197,14 @@ export default function PricingPage() {
           </p>
         </div>
 
+        {selectedPremium && (
+          <div className="max-w-3xl mx-auto mb-8 rounded-2xl border-2 border-primary bg-card p-6" role="region" aria-label="Récapitulatif de ton choix">
+            <h2 className="font-display text-xl font-bold">Ton choix : Premium · 39€/mois</h2>
+            <p className="text-sm text-muted-foreground mt-2">Sans engagement. Contenus standard et audits sans limite mensuelle ; jusqu’à 20 carrousels Qualité Max et 50 retouches photo par mois. Tu peux vérifier ton offre et utiliser un code d’accès avant de passer au paiement.</p>
+            {user ? <div className="mt-4"><PromoCodeInput /></div> : <Link to="/login?offer=outil&redirect=%2Fpricing%3Fselected%3Dpremium" className="inline-block mt-4 text-primary underline">Créer un compte ou se connecter pour continuer</Link>}
+          </div>
+        )}
+
         {/* ── 2 Plan Cards ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto mb-12">
           {/* Free */}
@@ -206,17 +223,17 @@ export default function PricingPage() {
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Audits IA pour te situer (Instagram, site, LinkedIn)</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Espaces par canal (Instagram, LinkedIn, Pinterest…)</li>
             </ul>
-            {isCurrentPlan("free") ? (
-              <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">
-                Ton plan actuel
-              </div>
-            ) : !user ? (
+            {!user ? (
               <Link
-                to="/login?redirect=/pricing"
+                to="/#signup-section"
                 className="block text-center rounded-pill border border-border py-2.5 font-medium text-foreground hover:bg-secondary transition-colors text-sm"
               >
                 Commencer gratuitement
               </Link>
+            ) : isCurrentPlan("free") ? (
+              <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">
+                Ton plan actuel
+              </div>
             ) : null}
           </div>
 
@@ -239,13 +256,19 @@ export default function PricingPage() {
               Tout le plan gratuit, plus :
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Création de contenu illimitée, sans compter</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Carrousels qualité max</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Contenus standard sans limite mensuelle</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Jusqu’à 20 carrousels Qualité Max et 50 retouches photo par mois</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Publication directe + programmation automatique</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Multi-réseaux en 1 clic + ouverture dans Canva</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Audits illimités</li>
             </ul>
-            {isCurrentPlan("outil") ? (
+            {isAdmin ? (
+              <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">Accès administrateur actif</div>
+            ) : user && planLoading ? (
+              <div role="status" className="text-center text-sm text-muted-foreground py-2.5">Vérification de ton plan…</div>
+            ) : user && !planVerified ? (
+              <Button variant="outline" onClick={() => void refreshPlan()} className="w-full rounded-pill">Plan indisponible · Réessayer</Button>
+            ) : isCurrentPlan("outil") ? (
               <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">
                 Ton plan actuel
               </div>
@@ -363,7 +386,7 @@ export default function PricingPage() {
         </div>
 
         {/* ── Promo Code ── */}
-        {user && (
+        {user && !selectedPremium && (
           <div className="max-w-md mx-auto mb-16">
             <PromoCodeInput />
           </div>
@@ -387,7 +410,7 @@ export default function PricingPage() {
             </Link>
           ) : (
             <Link
-              to="/login?redirect=/pricing"
+              to="/#signup-section"
               className="inline-flex items-center gap-2 rounded-pill bg-primary text-primary-foreground px-8 py-3 font-medium shadow-cta hover:bg-bordeaux transition-all hover:-translate-y-0.5"
             >
               <Sparkles className="h-4 w-4" /> Commencer gratuitement

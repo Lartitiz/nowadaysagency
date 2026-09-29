@@ -58,7 +58,7 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "https://nowadaysagency.lovable.app";
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${origin}/parametres`,
+      return_url: `${origin}/abonnement`,
     });
 
     return new Response(JSON.stringify({ url: portalSession.url }), {
