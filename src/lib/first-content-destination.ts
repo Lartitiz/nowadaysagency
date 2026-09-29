@@ -32,8 +32,8 @@ export async function resolveFirstContentDestination(params: {
 
   // Produits / services : réponse donnée à l'étape 2 de l'onboarding,
   // enregistrée séparément du secteur type_activite.
-  // Une lecture qui échoue ne doit jamais bloquer la création → on retombe
-  // sur le carrousel texte, qui marche pour tout le monde.
+  // Une lecture qui échoue ne doit jamais bloquer la création : on garde le
+  // choix local de cette session si la base n'a pas pu le conserver.
   if (userId) {
     try {
       const { data: profile } = await supabase
@@ -42,7 +42,7 @@ export async function resolveFirstContentDestination(params: {
         .eq("user_id", userId)
         .maybeSingle();
       sellsProducts = profileSellsProducts(profile, userId);
-    } catch { /* type d'activité illisible → carrousel texte */ }
+    } catch { sellsProducts = profileSellsProducts(null, userId); }
   }
 
   localStorage.setItem("lac_welcome_seen", "true");
