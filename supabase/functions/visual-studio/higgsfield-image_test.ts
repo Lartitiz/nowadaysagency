@@ -15,13 +15,17 @@ Deno.test("Higgsfield preserves our brief, reference order and disables preset r
       name: "Sac",
       path: "private",
       role: "product",
+    }, {
+      id: "detail", photo_id: null, name: "Détail du sac",
+      path: "private-detail", role: "product",
     }],
     format: "portrait",
-  }, ["https://example.com/bag.jpg"]);
+  }, ["https://example.com/bag.jpg", "https://example.com/bag-detail.jpg"]);
   assertEquals(input.enhance_prompt, false);
-  assertEquals(input.image_urls, ["https://example.com/bag.jpg"]);
+  assertEquals(input.image_urls, ["https://example.com/bag.jpg", "https://example.com/bag-detail.jpg"]);
   assertEquals(input.aspect_ratio, "2:3");
   assert(input.prompt.includes("exact product"));
+  assert(input.prompt.includes("Image 2: product reference, Détail du sac"));
   assertThrows(() =>
     imageInput({ operation: "create", model: "arbitrary/endpoint" }, [])
   );

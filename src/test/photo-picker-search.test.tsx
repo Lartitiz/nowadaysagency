@@ -36,3 +36,17 @@ it("donne accès aux photos au-delà de la limite initiale", async () => {
   await waitFor(() => expect(mocks.limits).toContain(400));
   expect(screen.getByRole("button", { name: "Photo 200" })).toBeVisible();
 });
+it("shows photos already attached to the Studio without letting them consume another slot", async () => {
+  mocks.cache.clear();
+  mocks.photos = [
+    { id: "1", name: "Bol", description: "", tags: [], kind: "produit", status: "ready", storage_path: "1.jpg" },
+    { id: "2", name: "Atelier", description: "", tags: [], kind: "ambiance", status: "ready", storage_path: "2.jpg" },
+  ];
+  const confirm = vi.fn();
+  render(<PhotoLibraryPickerDialog open maxSelectable={1} unavailablePhotoIds={["1"]} onOpenChange={vi.fn()} onConfirm={confirm} />);
+  await screen.findByRole("img", { name: "Bol" });
+  expect(screen.getByRole("button", { name: "Bol · déjà utilisée" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Atelier" }));
+  fireEvent.click(screen.getByRole("button", { name: "Utiliser ces photos" }));
+  expect(confirm.mock.lastCall?.[0].map((photo: { id: string }) => photo.id)).toEqual(["2"]);
+});

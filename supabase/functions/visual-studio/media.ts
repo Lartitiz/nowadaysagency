@@ -219,6 +219,9 @@ export function imagePrompt(proposal: Proposal) {
           referenceInstruction(ref.role)
         }`,
     ),
+    refs.length > 1
+      ? "Several reference photos may show one subject from different angles. When the brief identifies them as the same person or product, combine their evidence into one subject; do not add a separate copy for each reference. Keep style-only references distinct from identity references."
+      : "",
     style || mood || avoid
       ? `Brand visual direction from the confirmed charter: ${[
         style ? `Visual style: ${style}` : "",

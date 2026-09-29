@@ -34,7 +34,19 @@ vi.mock("@/contexts/DemoContext", () => ({
   useDemoContext: () => ({ isDemoMode: mock.demo }),
 }));
 vi.mock("@/components/photos/PhotoLibraryPickerDialog", () => ({
-  PhotoLibraryPickerDialog: () => null,
+  PhotoLibraryPickerDialog: ({ open, onConfirm, maxSelectable, unavailablePhotoIds }: {
+    open: boolean;
+    onConfirm: (photos: Array<{ id: string; name: string; kind: string }>) => void;
+    maxSelectable: number;
+    unavailablePhotoIds?: string[];
+  }) => open ? <div role="dialog" aria-label="Choisir des photos de référence">
+    <span>Places disponibles : {maxSelectable}</span>
+    <span>Déjà choisies : {unavailablePhotoIds?.join(", ") || "aucune"}</span>
+    <button onClick={() => onConfirm([
+      { id: "product-one", name: "Bol face", kind: "produit" },
+      { id: "ambience-two", name: "Atelier", kind: "ambiance" },
+    ])}>Utiliser deux photos</button>
+  </div> : null,
 }));
 vi.mock("@/components/photos/PhotoPreparationDialog", () => ({
   default: ({ initialRecipe, onSaved }: { initialRecipe?: { exposure?: number; format?: string }; onSaved?: (photo: {id:string}) => void }) =>
@@ -532,6 +544,83 @@ it("keeps confirmation and image actions in the conversation, with a visual-only
   expect(within(gallery).queryByRole("button", { name: /Générer cette image/ })).not.toBeInTheDocument();
   expect(screen.queryByRole("complementary", { name: "Détails et confirmation" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Composer une affiche ou un visuel" })).not.toBeInTheDocument();
+});
+it("attaches several library photos in one choice with their distinct reference roles", async () => {
+  let state = { ...original(), session: { ...original().session, references: [] as Array<{
+    id: string; photo_id: string; name: string; role: string; url: string;
+  }> } };
+  mock.request.mockImplementation((body) => {
+    if (body.action === "reference") {
+      state = { ...state, session: { ...state.session, revision: state.session.revision + 1,
+        references: [...state.session.references, { id: body.photo_id, photo_id: body.photo_id,
+          name: body.photo_id === "product-one" ? "Bol face" : "Atelier", role: body.reference_role,
+          url: `/ref-${body.photo_id}.png` }] } };
+    }
+    return Promise.resolve(state);
+  });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  fireEvent.click(screen.getByRole("button", { name: "Choisir des photos de référence" }));
+  expect(screen.getByText("Places disponibles : 8")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Utiliser deux photos" }));
+  await screen.findByText("Photos de référence · 2/8");
+  expect(screen.getByLabelText("Rôle de Bol face")).toHaveValue("product");
+  expect(screen.getByLabelText("Rôle de Atelier")).toHaveValue("style");
+  const attachments = mock.request.mock.calls.map(([body]) => body).filter((body) => body.action === "reference");
+  expect(attachments.map(({ photo_id, reference_role, revision }) => ({ photo_id, reference_role, revision }))).toEqual([
+    { photo_id: "product-one", reference_role: "product", revision: 0 },
+    { photo_id: "ambience-two", reference_role: "style", revision: 1 },
+  ]);
+  expect(mock.request.mock.calls.some(([body]) => body.action === "generate")).toBe(false);
+});
+it("starts a session with several references while keeping the unfinished prompt", async () => {
+  let state = { ...original(), session: { ...original().session, id: "new-session", source_photo_id: null,
+    source_url: null, references: [] as Array<{ id: string; photo_id: string; name: string; role: string; url: string }> } };
+  mock.request.mockImplementation((body) => {
+    if (body.action === "create") {
+      state = { ...state, session: { ...state.session, id: body.session_id } };
+      return Promise.resolve(state);
+    }
+    if (body.action === "reference") {
+      state = { ...state, session: { ...state.session, revision: state.session.revision + 1,
+        references: [...state.session.references, { id: body.photo_id, photo_id: body.photo_id,
+          name: body.photo_id === "product-one" ? "Bol face" : "Atelier", role: body.reference_role,
+          url: `/ref-${body.photo_id}.png` }] } };
+    }
+    return Promise.resolve(state);
+  });
+  mount("/photos/studio");
+  fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), { target: { value: "Une scène pour mon offre" } });
+  fireEvent.click(screen.getByRole("button", { name: "Choisir des photos de référence" }));
+  fireEvent.click(screen.getByRole("button", { name: "Utiliser deux photos" }));
+  await screen.findByText("Photos de référence · 2/8");
+  const createdId = mock.request.mock.calls.find(([body]) => body.action === "create")?.[0].session_id;
+  expect(screen.getByTestId("current-path")).toHaveTextContent(`/photos/studio?session=${createdId}`);
+  expect(screen.getByRole("textbox", { name: "Ta demande" })).toHaveValue("Une scène pour mon offre");
+  expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["create", "reference", "reference"]);
+});
+it("recovers the attached references when a later photo fails", async () => {
+  let state = { ...original(), session: { ...original().session, references: [] as Array<{
+    id: string; photo_id: string; name: string; role: string; url: string;
+  }> } };
+  mock.request.mockImplementation((body) => {
+    if (body.action === "reference" && body.photo_id === "ambience-two") {
+      return Promise.reject(new Error("Photo indisponible"));
+    }
+    if (body.action === "reference") {
+      state = { ...state, session: { ...state.session, revision: 1,
+        references: [{ id: "product-one", photo_id: "product-one", name: "Bol face", role: "product", url: "/bol.png" }] } };
+    }
+    return Promise.resolve(state);
+  });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  fireEvent.click(screen.getByRole("button", { name: "Choisir des photos de référence" }));
+  fireEvent.click(screen.getByRole("button", { name: "Utiliser deux photos" }));
+  await screen.findByText("Photos de référence · 1/8");
+  await waitFor(() => expect(mock.request.mock.calls.filter(([body]) => body.action === "read")).toHaveLength(2));
+  expect(screen.getByLabelText("Rôle de Bol face")).toHaveValue("product");
+  expect(screen.getByRole("button", { name: "Ajouter des photos de référence · 1/8" })).toBeEnabled();
 });
 it("shows how to browse versions and opens the selected image", async () => {
   const start = original();
