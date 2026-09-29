@@ -39,6 +39,9 @@ import {
   higgsfieldImagesEnabled,
   imageCallback,
   reconcileHiggsfieldImage,
+  SOUL2_MODEL,
+  soul2Enabled,
+  soul2Eligible,
   submitHiggsfieldImage,
 } from "./higgsfield-image.ts";
 import { handleMemory, readMemory } from "./memory.ts";
@@ -835,6 +838,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             : ["background", "edit"].includes(intent.operation)
             ? effectiveReference?.path || null
             : null);
+        const useSoul2 = p.studio_version === 4 && soul2Enabled() &&
+          soul2Eligible({ ...intent, references: proposedRefs, input_path: editInput,
+            composition: undefined });
         const proposal = ["background", "create", "edit", "product"].includes(
             intent.operation,
           )
@@ -867,12 +873,12 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             composition: p.studio_version === 4 && generative(intent.operation)
               ? undefined
               : intent.composition,
-            model: p.studio_version !== 4 && generative(intent.operation) && higgsfieldImagesEnabled()
-              ? `marketing-studio/image/${
-                intent.operation === "create" ? "flare" : "sunburst"
-              }`
+            model: useSoul2 ? SOUL2_MODEL
+              : p.studio_version !== 4 && generative(intent.operation) && higgsfieldImagesEnabled()
+              ? `marketing-studio/image/${intent.operation === "create" ? "flare" : "sunburst"}`
               : imageModel(intent.operation),
-            provider: p.studio_version !== 4 && generative(intent.operation) && higgsfieldImagesEnabled()
+            provider: (useSoul2 ||
+              (p.studio_version !== 4 && generative(intent.operation) && higgsfieldImagesEnabled()))
               ? "higgsfield"
               : "default",
             rules_version: RULES_VERSION,

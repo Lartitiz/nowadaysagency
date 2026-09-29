@@ -29,6 +29,7 @@ export interface StudioProposal {
   series_index?: number;
   series_size?: number;
   provider?: string;
+  model?: string;
   rules_version?: string;
   brand_context?: StudioBrandContext;
   composition?: StudioComposition;
