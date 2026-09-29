@@ -239,7 +239,7 @@
 @media (max-width: 1000px) {
   .studio-grid {
     grid-template-columns: minmax(400px, 46%) minmax(0, 1fr);
-    height: calc(100dvh - 210px);
+    height: calc(100dvh - 140px);
   }
   .studio-stage {
     max-height: none;
@@ -276,7 +276,7 @@
     min-height: 0;
   }
   .studio-header h1 {
-    font-size: 24px;
+    font-size: 20px;
     white-space: nowrap;
   }
   .studio-header > div:last-child {
