@@ -1,3 +1,5 @@
+import { isVideoDirection, shotOptions, cameraOptions, lightOptions, type Shot, type Camera, type Light } from "./direction";
+
 export interface VideoSource {
   kind: "photo" | "studio_version";
   id: string;
@@ -17,6 +19,9 @@ export interface VideoDraft {
   duration: number;
   resolution: "480p" | "720p";
   aspectRatio: "9:16" | "16:9" | "1:1";
+  shot: Shot;
+  camera: Camera;
+  light: Light;
 }
 export function readVideoDraft(key?: string): VideoDraft | null {
   if (!key) return null;
@@ -29,7 +34,11 @@ export function readVideoDraft(key?: string): VideoDraft | null {
       typeof value.prompt !== "string" || typeof value.useImages !== "boolean" ||
       !Number.isInteger(value.duration) || value.duration < 4 || value.duration > 10 ||
       !["480p", "720p"].includes(value.resolution) || !["9:16", "16:9", "1:1"].includes(value.aspectRatio)) return null;
-    return value;
+    return { ...value,
+      shot: isVideoDirection(value.shot, shotOptions) ? value.shot as Shot : "",
+      camera: isVideoDirection(value.camera, cameraOptions) ? value.camera as Camera : "",
+      light: isVideoDirection(value.light, lightOptions) ? value.light as Light : "",
+    };
   } catch { return null; }
 }
 export function writeVideoDraft(key: string | undefined, draft: VideoDraft) {
