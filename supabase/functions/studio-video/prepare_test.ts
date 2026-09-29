@@ -68,6 +68,18 @@ Deno.test("the final prompt keeps the same table across the whole shot without i
   assert(prompt.length <= 3000);
 });
 
+Deno.test("a surface continuity rule survives even if Claude omits the support from its invariants", () => {
+  const prompt = buildVideoPrompt({
+    summary: "Une personne soulève un produit et le repose doucement.",
+    scene: "La personne prend le produit puis le repose dans le même décor.",
+    invariants: ["Le produit garde sa forme et sa couleur."],
+    allowed_changes: "Les mains et le produit se déplacent.",
+    forbidden_changes: "Aucun objet supplémentaire.",
+  }, 5, [{ role: "product" }]);
+  assert(prompt.includes("celui visible au départ reste le même, de la même couleur et matière apparentes"));
+  assert(prompt.includes("après avoir soulevé puis reposé l'objet"));
+});
+
 Deno.test("an explicitly requested move to a second surface remains possible", () => {
   const prompt = buildVideoPrompt({
     summary: "Une tasse passe volontairement d'un comptoir à une seconde table.",
@@ -76,7 +88,7 @@ Deno.test("an explicitly requested move to a second surface remains possible", (
     allowed_changes: "Le déplacement de la tasse du comptoir vers la seconde table est demandé.",
     forbidden_changes: "Pas de table supplémentaire ni de changement de couleur inattendu.",
   }, 5, [{ role: "product" }, { role: "background" }]);
-  assert(prompt.includes("Pour les sujets, produits et décors retenus dans la scène"));
+  assert(prompt.includes("Sans demande de changer de support"));
   assert(prompt.includes("Le déplacement de la tasse du comptoir vers la seconde table est demandé"));
   assert(prompt.includes("@Image 1 = produit à préserver ; @Image 2 = décor"));
 });
@@ -92,4 +104,13 @@ Deno.test("existing product lettering survives while undesired new text is exclu
   assert(prompt.includes("son étiquette NOW restent visibles"));
   assert(prompt.includes("inscriptions et logos déjà présents"));
   assert(prompt.includes("nouvel objet, texte ou logo non demandé"));
+});
+
+Deno.test("the maximum structured preparation fits the stored prompt limit", () => {
+  const prompt = buildVideoPrompt({
+    summary: "s".repeat(1200), scene: "s".repeat(900),
+    invariants: Array(4).fill("i".repeat(180)),
+    allowed_changes: "a".repeat(180), forbidden_changes: "f".repeat(250),
+  }, 10, Array(4).fill({ role: "composition" }));
+  assert(prompt.length <= 3000);
 });
