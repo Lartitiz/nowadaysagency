@@ -8,13 +8,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px 24px;
+  flex-wrap: wrap;
+  padding: 8px 20px;
   border-bottom: 1px solid hsl(var(--border));
 }
 .studio-grid {
   display: grid;
   grid-template-columns: minmax(340px, 430px) minmax(0, 1fr);
-  height: calc(100dvh - 210px);
+  height: calc(100dvh - 140px);
   min-height: 560px;
 }
 .studio-chat {
