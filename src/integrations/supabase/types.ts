@@ -7380,6 +7380,7 @@ export type Database = {
           input_urls: Json
           model: string
           person_free_attested: boolean
+          preparation: Json | null
           prompt: string
           provider_correlation_id: string | null
           provider_request_id: string | null
@@ -7410,6 +7411,7 @@ export type Database = {
           input_urls?: Json
           model?: string
           person_free_attested: boolean
+          preparation?: Json | null
           prompt: string
           provider_correlation_id?: string | null
           provider_request_id?: string | null
@@ -7440,6 +7442,7 @@ export type Database = {
           input_urls?: Json
           model?: string
           person_free_attested?: boolean
+          preparation?: Json | null
           prompt?: string
           provider_correlation_id?: string | null
           provider_request_id?: string | null
