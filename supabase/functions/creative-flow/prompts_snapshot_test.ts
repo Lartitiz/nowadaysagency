@@ -44,6 +44,7 @@ const {
   buildFictionalLinkedInQuestions,
   isExplicitlyFictionalBrief,
   isFactualFictionalLinkedInBrief,
+  alignFactualLinkedInHook,
   buildFollowUpPrompt,
   buildHooksPrompt,
   buildAdjustPrompt,
@@ -401,6 +402,16 @@ Deno.test("buildGeneratePrompt — fiche LinkedIn fictive limitée aux faits du 
   assert(!r.systemPrompt.includes(COMMON_PREFIX));
   assert(!r.systemPrompt.includes("Le mythe du talent"));
   assert(!r.systemPrompt.includes("PROFONDEUR (RÈGLE ABSOLUE)"));
+});
+
+Deno.test("post LinkedIn factuel — accroche identique au préfixe du corps", () => {
+  const post = alignFactualLinkedInHook({
+    content: "Exemple fictif : Carnet Azur.\n\n48 pages, papier 100 g/m².",
+    accroche: "Exemple fictif : Carnet Azur, un carnet imaginaire de 48 pages.",
+  });
+  assertEquals(post.accroche, "Exemple fictif : Carnet Azur.");
+  assertEquals(post.format, "linkedin");
+  assertEquals(post.content, "Exemple fictif : Carnet Azur.\n\n48 pages, papier 100 g/m².");
 });
 
 Deno.test("buildGeneratePrompt — reel en mode variation avec contexte lancement", async (t) => {

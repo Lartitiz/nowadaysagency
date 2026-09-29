@@ -663,6 +663,15 @@ export function isFactualFictionalLinkedInBrief(context: string): boolean {
   return isExplicitlyFictionalBrief(context) && /(?:seuls? faits?|faits? du brief|factuel|uniquement.{0,25}faits?|n['’]ajoute|ne lui attribue|sans inventer)/i.test(context);
 }
 
+export function alignFactualLinkedInHook(parsed: { content: string; accroche?: string; format?: string }) {
+  // L'aperçu joint accroche + corps. Une accroche reformulée par le modèle
+  // ne peut pas être retirée du corps et s'affiche alors deux fois.
+  const firstLine = parsed.content.trimStart().split("\n")[0].trim();
+  parsed.accroche = firstLine.length <= 210 ? firstLine : "";
+  parsed.format = "linkedin";
+  return parsed;
+}
+
 // Les modèles ont continué à demander un souvenir ou une motivation personnelle
 // malgré les consignes. Pour une source fictive sans photo, ces trois précisions
 // facultatives évitent de mélanger la fiche de l'exemple au profil réel.
@@ -730,7 +739,7 @@ export async function buildGeneratePrompt(params: {
 
   if (isLinkedIn && !isPhotoMode && isFactualFictionalLinkedInBrief(context)) {
     return {
-      systemPrompt: `Tu écris en français un court post LinkedIn factuel sur un exemple explicitement fictif. Le brief et les réponses éventuelles sont tes seules sources. Ignore le profil de marque, les angles, le calendrier et les objectifs externes. Commence par indiquer que l'exemple est fictif, puis présente seulement les caractéristiques affirmées dans le brief. Si la source contient quatre faits, quatre faits suffisent : le texte doit rester court. N'ajoute ni contexte de test, ni exercice de communication, ni commentaire sur la rédaction, ni morale ou conseil. Ne transforme pas les interdictions du brief en une liste de propriétés absentes. Ne déduis ni commande, ni disponibilité, ni fabrication, ni intention personnelle. N'écris à la première personne que si la source contient des propos personnels à reprendre. Réponds uniquement en JSON valide : {"content":"post complet","accroche":"première phrase, maximum 210 caractères","format":"linkedin","pillar":"","objectif":"","personal_tip":null}.`,
+      systemPrompt: `Tu écris en français un court post LinkedIn factuel sur un exemple explicitement fictif. Le brief et les réponses éventuelles sont tes seules sources. Ignore le profil de marque, les angles, le calendrier et les objectifs externes. Commence par indiquer que l'exemple est fictif, puis présente seulement les caractéristiques affirmées dans le brief. Si la source contient quatre faits, quatre faits suffisent : le texte doit rester court. N'ajoute ni contexte de test, ni exercice de communication, ni commentaire sur la rédaction, ni morale ou conseil. Ne transforme pas les interdictions du brief en une liste de propriétés absentes. Ne déduis ni commande, ni disponibilité, ni fabrication, ni intention personnelle. Un mode de retrait n'implique pas que l'objet est « disponible » : formule seulement « retrait uniquement dans… » si c'est le fait fourni. N'écris à la première personne que si la source contient des propos personnels à reprendre. Réponds uniquement en JSON valide : {"content":"post complet avec phrase d'ouverture","accroche":"copie exacte de la première ligne de content","format":"linkedin","pillar":"","objectif":"","personal_tip":null}.`,
       userPrompt: `BRIEF FACTUEL FICTIF :\n${context}${answersBlock ? `\n\nPRÉCISIONS DE L'UTILISATRICE :\n${answersBlock}` : ""}\n\nRédige le post LinkedIn sur le sujet du brief, sans reprendre ses consignes de contrôle dans le post.`,
       storiesPhotoCatalog,
     };
@@ -1900,10 +1909,7 @@ export async function runLinkedInTwoStep(params: {
     if (typeof parsed?.content !== "string" || !parsed.content.trim()) {
       throw new Error("Post LinkedIn fictif vide ou illisible");
     }
-    parsed.format = "linkedin";
-    parsed.accroche = typeof parsed.accroche === "string" && parsed.accroche.trim()
-      ? parsed.accroche.slice(0, 210)
-      : parsed.content.split(/\n/)[0].slice(0, 210);
+    alignFactualLinkedInHook(parsed);
     await logUsage(userId, "content", "creative_flow", usage.total_tokens, usage.model, workspace_id);
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -3091,6 +3097,10 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
         JSON.stringify({ error: "La génération a échoué (réponse IA illisible). Réessaie." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    if (step === "generate" && isLinkedIn && !isPhotoMode && isFactualFictionalLinkedInBrief(context) && typeof parsed.content === "string") {
+      alignFactualLinkedInHook(parsed);
     }
 
     // (step === "recycle" ne passe plus par ici : pipeline parallèle dédié plus haut.)
