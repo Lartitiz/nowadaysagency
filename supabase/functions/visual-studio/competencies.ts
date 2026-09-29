@@ -1,5 +1,5 @@
 /** Small, versioned contracts shared by planning, source validation and execution. */
-export const RULES_VERSION = "studio-competencies-3";
+export const RULES_VERSION = "studio-competencies-people-1";
 export const MAX_REFERENCES = 8;
 export const REFERENCE_ROLES = [
   "subject",
@@ -58,7 +58,7 @@ export const COMPETENCIES = [
     id: "casting",
     method: "create",
     rule:
-      "Un mannequin fictif peut être créé librement selon la DA, seul ou portant un produit référencé. Son enregistrement pour la marque est une action explicite distincte.",
+      "Créer une identité fictive réutilisable mobilise la méthode person_reference : planche neutre, traits stables et vues lisibles ; une scène avec un mannequin existant utilise ses références validées. Son enregistrement pour la marque est une action explicite distincte.",
   },
   {
     id: "illustration",

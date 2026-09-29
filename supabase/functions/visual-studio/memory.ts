@@ -60,8 +60,8 @@ export async function handleMemory(
       !references.some((old) => old.path === r.path)
     );
     const merged = [
-      ...references,
-      ...added.map((r) => ({ ...r, memory_id: existing.id })),
+      ...references.map(ref => existing.references.some((source: Reference) => source.path === ref.path) ? { ...ref, memory_id: existing.id, description: existing.note, role: existing.kind === "casting" ? "casting" as const : ref.role } : ref),
+      ...added.map((r) => ({ ...r, memory_id: existing.id, description: existing.note })),
     ];
     if (merged.length > MAX_REFERENCES) {
       throw new Error("studio_reference_limit");
@@ -75,7 +75,7 @@ export async function handleMemory(
       updated_at: new Date().toISOString(),
       // The selected direction is a session choice, never a global brand rewrite.
       brief: String(session.brief || "").slice(0, 800) +
-        `\nDirection choisie : ${existing.name}. ${existing.note}`,
+        `\n${existing.kind === "casting" ? "Identité choisie" : "Direction choisie"} : ${existing.name}. ${existing.note}`,
     }).eq("id", session.id).eq("workspace_id", p.workspace_id).eq(
       "revision",
       p.revision,

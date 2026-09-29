@@ -28,3 +28,13 @@ it('casting is explicit and a failed acknowledgement keeps the same request id',
  expect(save.mock.calls[0][0].memory_id).toBe(save.mock.calls[1][0].memory_id);
  expect(save.mock.calls[1][0]).toMatchObject({version_id:'version-2',fictional_model:true});
 });
+it('a fictional identity saves its stable traits without copying scene choices',async()=>{
+ const save=vi.fn().mockResolvedValue({});
+ render(<StudioMemoryPanel memory={[]} selectedVersion="nora-sheet" personReference={{mode:'sheet',name:'Nora fictive',stable_traits:'42 ans, bague à gauche',variable_details:'Veste rouge, bibliothèque',views:['face','profil']}} brief="Une veste rouge dans la bibliothèque" disabled={false} onSave={save} onApply={vi.fn()}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Garder ce mannequin'}));
+ expect(screen.getByLabelText('Nom')).toHaveValue('Nora fictive');
+ expect(screen.getByLabelText('À retenir')).toHaveValue('42 ans, bague à gauche');
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Enregistrer pour ma marque'}));
+ await waitFor(()=>expect(save).toHaveBeenCalledWith(expect.objectContaining({memory_note:'42 ans, bague à gauche',version_id:'nora-sheet'})));
+});

@@ -866,3 +866,12 @@ it("une série partielle conserve un accès à chaque échec sans relancer les i
 it("le bouton proposé par le chat attache réellement la mémoire avant une création",async()=>{
  const state=original();state.memory=[{id:'casting',kind:'casting',name:'Anna',note:'Fictive',revision:0,references:[]}];state.session.messages=[{role:'assistant',text:'Choisis la référence',suggested_memory_ids:['casting']}];mock.request.mockResolvedValue(state);mount();fireEvent.click(await screen.findByRole('button',{name:'Utiliser ce mannequin · Anna'}));await waitFor(()=>expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:'memory_apply',memory_id:'casting'})));expect(mock.request.mock.calls.some(([p])=>p.action==='generate')).toBe(false);
 });
+it("shows stable identity choices and the references actually used before generating", async () => {
+ const start=original();
+ start.session.proposal={...proposal,operation:"create",viewed_reference_id:null,person_reference:{mode:"scene",name:"Nora fictive",stable_traits:"42 ans, bague à gauche",variable_details:"Veste rouge dans la bibliothèque",views:[]},reference_snapshot:[{id:"nora-ref",photo_id:null,role:"casting",name:"Nora",url:""}]};
+ mock.request.mockResolvedValue(start);mount();
+ expect(await screen.findByText("42 ans, bague à gauche",{exact:false})).toBeInTheDocument();
+ expect(screen.getByText("1 référence indiquée ci-dessus")).toBeInTheDocument();
+ expect(screen.queryByText("Création sans photo de départ")).not.toBeInTheDocument();
+ expect(mock.request).not.toHaveBeenCalledWith(expect.objectContaining({action:"generate"}));
+});

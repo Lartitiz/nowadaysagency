@@ -453,6 +453,9 @@ function Studio({
           setOlderCompositions([]);
           setMoreCompositions(true);
         }
+        if (action === "memory_apply") {
+          setAttachments([...attachedIds, ...(result.session.references || []).filter(ref => ref.memory_id === extra.memory_id).map(ref => ref.id)]);
+        }
         cache.setQueryData(queryKey, result);
       }
       return result;
@@ -864,6 +867,12 @@ function Studio({
             <h3 className="font-semibold mb-2">Ce que j’ai compris</h3>
             <p className="whitespace-pre-wrap">{proposal.summary}</p>
           </div>
+          {proposal.person_reference && <div className="text-sm space-y-2" aria-label="Identité de référence à confirmer">
+            <p><strong>{proposal.person_reference.name} · {proposal.person_reference.mode === "sheet" ? "Planche de référence" : "Même personne dans une nouvelle scène"}</strong></p>
+            <p><strong>Traits à conserver : </strong>{proposal.person_reference.stable_traits}</p>
+            <p><strong>Pour cette image : </strong>{proposal.person_reference.variable_details}</p>
+            {!!proposal.person_reference.views.length && <p><strong>Vues : </strong>{proposal.person_reference.views.join(" · ")}</p>}
+          </div>}
           {!!proposal.exact_text?.length && <div className="text-sm">
             <strong>Texte à afficher dans l’image :</strong>
             <ul className="list-disc pl-5 mt-1">{proposal.exact_text.map((item, index) => <li key={`${item}:${index}`}>« {item} »</li>)}</ul>
@@ -911,6 +920,8 @@ function Studio({
                   ? references.find(
                     (r) => r.id === proposal.viewed_reference_id,
                   )?.name || "Référence choisie"
+                  : proposal.reference_snapshot?.length
+                  ? `${proposal.reference_snapshot.length} référence${proposal.reference_snapshot.length > 1 ? "s" : ""} indiquée${proposal.reference_snapshot.length > 1 ? "s" : ""} ci-dessus`
                   : "Création sans photo de départ"}
               </dd>
               {proposal.viewed_version_id &&
@@ -1528,6 +1539,16 @@ function Studio({
                     </div>
                     <span className="text-xs text-muted-foreground">{current?.versions.length || 0} image{current?.versions.length === 1 ? "" : "s"}</span>
                   </div>
+                  {current && <StudioMemoryPanel
+                    key={`${workspaceId}:${sessionId}`}
+                    memory={current.memory || []}
+                    selectedVersion={version?.status === "ready" ? version.id : undefined}
+                    personReference={version?.proposal.person_reference}
+                    brief={version?.proposal.summary || current.session.brief || ""}
+                    disabled={!writable || !!busy || !!generating}
+                    onSave={(values) => mutate("memory_save", values)}
+                    onApply={(id) => mutate("memory_apply", { memory_id: id, revision: current.session.revision })}
+                  />}
                   {!current?.versions.length && <div className="studio-empty">
                     <Sparkles className="h-9 w-9 text-primary" />
                     <h3 className="font-display text-2xl">Tout commence par ton idée</h3>

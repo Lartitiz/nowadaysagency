@@ -5,6 +5,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 const db: SupabaseClient = supabase;
 export interface StudioProposal {
   id: string;
+  person_reference?: {
+    mode: "sheet" | "scene";
+    name: string;
+    stable_traits: string;
+    variable_details: string;
+    views: string[];
+  };
   operation: "background" | "create" | "edit" | "product";
   format?: "square" | "portrait" | "landscape";
   preserve?: string[];

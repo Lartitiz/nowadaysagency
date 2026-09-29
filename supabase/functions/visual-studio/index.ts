@@ -1,3 +1,4 @@
+import { resolvePersonMemory } from "./person-reference.ts";
 import { compositionSchema } from "./composition.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -527,11 +528,11 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         if (p.reference_ids && p.reference_ids.some((id) =>
           !availableReferences.some((ref) => ref.id === id)
         )) return json({ error: "Une image jointe n'est plus disponible. Vérifie ta demande." }, 409);
-        const requestReferences = p.reference_ids
+        const requestReferences: Reference[] = [...(p.reference_ids
           ? p.reference_ids.length
             ? p.reference_ids.map((id) => availableReferences.find((ref) => ref.id === id)!)
             : p.studio_version === 4 ? [] : parent ? versionReferences : []
-          : availableReferences;
+          : availableReferences)];
         if (
           p.viewed_reference_id &&
           !references.some((r) => r.id === p.viewed_reference_id)
@@ -731,6 +732,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                       version_selectionnee: parent
                         ? {
                           id: parent.id,
+                          person_reference: parent.proposal.person_reference,
                           brief: parent.proposal.brief,
                           summary: parent.proposal.summary,
                           preserve: parent.proposal.preserve,
@@ -770,6 +772,30 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             503,
           );
         }
+        const person = intent.person_reference;
+        const memoryIds = person?.memory_ids || [];
+        const memoryReferences = resolvePersonMemory(memoryIds, memory);
+        const ambiguousMemory = memoryIds.some(id => {
+          const selected = memory.find(item => item.id === id);
+          return selected && memory.filter(item => item.kind === "casting" && item.name.trim().toLocaleLowerCase() === selected.name.trim().toLocaleLowerCase()).length > 1 &&
+            !requestReferences.some(ref => ref.memory_id === id);
+        });
+        if (!memoryReferences || ambiguousMemory) {
+          intent.operation = "clarify";
+          intent.summary = "Quelle personne souhaites-tu reprendre ? Choisis sa référence dans la mémoire de cette marque pour éviter de mélanger deux identités.";
+        }
+        const addedMemoryReferences = (memoryReferences || []).filter(ref => !requestReferences.some(old => old.path === ref.path));
+        if (requestReferences.length + addedMemoryReferences.length > MAX_REFERENCES || references.length + addedMemoryReferences.filter(ref => !references.some(old => old.path === ref.path)).length > MAX_REFERENCES) {
+          return json({ error: "Huit références maximum. Retire une image avant de reprendre cette personne." }, 409);
+        }
+        requestReferences.push(...addedMemoryReferences);
+        for (const ref of memoryReferences || []) {
+          const attached = requestReferences.find(item => item.path === ref.path)!;
+          Object.assign(attached, { memory_id: ref.memory_id, description: ref.description, name: ref.name });
+          const use = intent.reference_use.find(item => item.id === attached.id);
+          if (use) use.role = "casting";
+          else intent.reference_use.push({ id: attached.id, role: "casting" });
+        }
         const usedReferences = p.studio_version === 4
           ? requestReferences.filter((ref) => intent.reference_use.some((use) => use.id === ref.id))
           : requestReferences;
@@ -805,9 +831,30 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.summary =
             "Pour représenter fidèlement cette personne ou ce produit, choisis sa photo dans la bibliothèque. Tu peux aussi me demander une illustration sans représentation réelle.";
         }
+        if (person && generative(intent.operation)) {
+          let identityRefs = resolvedReferences.filter(ref => ref.role === "casting" || ref.role === "person");
+          const parentIdentity = !!parent && (parent.proposal?.person_reference ||
+            (parent.proposal?.reference_snapshot || []).some((ref: Reference) => ref.role === "casting" || ref.role === "person"));
+          if (parentIdentity && !identityRefs.length && intent.operation === "create" && (person.mode === "scene" || person.uses_existing_identity)) {
+            resolvedReferences.push({ id: parent.id, version_id: parent.id, photo_id: null, path: parent.result_path,
+              name: parent.proposal.person_reference?.name || "Personne de la version sélectionnée",
+              role: (parent.proposal.reference_snapshot || []).some((ref: Reference) => ref.role === "person") ? "person" : "casting" });
+            identityRefs = resolvedReferences.filter(ref => ref.role === "casting" || ref.role === "person");
+          }
+          if (resolvedReferences.length > MAX_REFERENCES) {
+            intent.operation = "clarify";
+            intent.summary = "Retire une référence pour joindre l’image validée de cette personne (huit images maximum).";
+          } else if ((person.mode === "scene" || person.uses_existing_identity) && !identityRefs.length && !parentIdentity) {
+            intent.operation = "clarify";
+            intent.summary = "Pour reprendre la même personne, choisis son image validée ou indique son nom enregistré dans la mémoire de cette marque.";
+          } else if (person.mode === "sheet" && (intent.shots.length || !person.views.length || new Set(identityRefs.map(ref => ref.memory_id || ref.id)).size > 1 && memoryIds.length > 1)) {
+            intent.operation = "clarify";
+            intent.summary = "Préparons une seule planche de cette personne. Souhaites-tu les vues du visage, ou une planche complémentaire silhouette et mains à partir du visage validé ?";
+          }
+        }
         const normalizeName = (value: string) => value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
         const requestText = ` ${normalizeName(p.message)} `;
-        const memoryToSelect = memory.filter((m) => m.kind !== "preference" &&
+        const memoryToSelect = memory.filter((m) => m.kind !== "preference" && !memoryIds.length &&
           !requestReferences.some((r) => r.memory_id === m.id || m.references.some((source) => source.path === r.path)) &&
           (intent.suggested_memory_ids.includes(m.id) ||
             (/reutilis|reprendr|utiliser/.test(requestText) && requestText.includes(` ${normalizeName(m.name)} `))));
@@ -851,6 +898,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           )
           ? {
             ...intent,
+            ...(person?.mode === "sheet" ? { visual_kind: "photo", exact_text: [] } : {}),
             id: crypto.randomUUID(),
             viewed_version_id: intent.operation === "create" ? null : parent?.id || null,
             viewed_reference_id: effectiveReference?.id || null,
@@ -924,6 +972,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           .update({
             messages,
             proposal,
+            ...(addedMemoryReferences.length && proposal ? { references: [
+              ...references,
+              ...addedMemoryReferences.filter(ref => !references.some(old => old.path === ref.path)),
+            ] } : {}),
             brief: intent.brief ||
               (parent
                 ? parent.proposal.brief || parent.proposal.summary || ""

@@ -206,3 +206,21 @@ Deno.test("multiple product views remain one subject while a mood photo stays st
   assertEquals(prompt.includes("do not add a separate copy for each reference"), true);
   assertEquals(prompt.includes("Keep style-only references distinct"), true);
 });
+
+Deno.test("actual provider payload separates casting bytes from mood and starts sheets with the method", async () => {
+  const old=globalThis.fetch;
+  const calls: RequestInit[]=[];
+  globalThis.fetch=async(_url,init)=>{calls.push(init!);return new Response(JSON.stringify({data:[{b64_json:btoa("result")}]}));};
+  const person={mode:"sheet" as const,name:"Nora fictive",stable_traits:"42 ans, bague à gauche",variable_details:"T-shirt bleu",views:["face","profil"]};
+  try{
+    await generateImage({operation:"create",image_prompt:"Nora",person_reference:person},[]);
+    assertEquals(JSON.parse(String(calls[0].body)).prompt.startsWith("photorealistic character reference sheet"),true);
+    await generateImage({operation:"create",image_prompt:"New scene",person_reference:{...person,mode:"scene",views:[]},references:[{id:"nora",photo_id:null,path:"nora",role:"casting",name:"Nora"},{id:"mood",photo_id:null,path:"mood",role:"style",name:"Bibliothèque"}]},[new Blob(["approved-nora"],{type:"image/jpeg"}),new Blob(["library-mood"],{type:"image/jpeg"})]);
+    const form=calls[1].body as FormData;
+    assertEquals(await (form.getAll("image[]")[0] as Blob).text(),"approved-nora");
+    assertEquals(await (form.getAll("image[]")[1] as Blob).text(),"library-mood");
+    assertEquals(String(form.get("prompt")).includes("Image 1: casting reference, Nora"),true);
+    assertEquals(String(form.get("prompt")).includes("Image 2: style reference, Bibliothèque"),true);
+    assertEquals(String(form.get("prompt")).includes("photorealistic character reference sheet"),false);
+  }finally{globalThis.fetch=old;}
+});

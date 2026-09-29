@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { StudioMemory } from "./api";
+import type { StudioMemory, StudioProposal } from "./api";
 type Draft = {
   id: string;
   revision: number;
@@ -19,9 +19,10 @@ type Draft = {
   fictional: boolean;
 };
 export function StudioMemoryPanel(
-  { memory, selectedVersion, brief, disabled, onSave, onApply }: {
+  { memory, selectedVersion, personReference, brief, disabled, onSave, onApply }: {
     memory: StudioMemory[];
     selectedVersion?: string;
+    personReference?: StudioProposal["person_reference"];
     brief: string;
     disabled: boolean;
     onSave: (values: Record<string, unknown>) => Promise<unknown>;
@@ -37,8 +38,8 @@ export function StudioMemoryPanel(
       id: crypto.randomUUID(),
       revision: -1,
       kind,
-      name: "",
-      note: kind === "preference" ? "" : brief.slice(0, 1500),
+      name: kind === "casting" ? personReference?.name || "" : "",
+      note: kind === "preference" ? "" : (kind === "casting" && personReference ? personReference.stable_traits : brief).slice(0, 1500),
       fictional: false,
     });
   async function save(remove = false) {
@@ -130,6 +131,7 @@ export function StudioMemoryPanel(
                       setDraft({ ...draft, note: e.target.value })}
                   />
                 </label>
+                {draft.kind === "casting" && <p className="text-xs text-muted-foreground">Conserve ici les traits stables : âge apparent, visage, silhouette, mains et signes distinctifs. La tenue, le décor et la pose se précisent dans chaque demande. Chaque personne possède sa propre fiche ; un nouvel enregistrement ne remplace pas une autre identité.</p>}
                 {draft.kind === "casting" && draft.revision === -1 && (
                   <label className="flex items-start gap-2 text-sm">
                     <input

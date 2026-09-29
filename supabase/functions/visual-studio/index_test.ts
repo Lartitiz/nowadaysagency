@@ -1,3 +1,4 @@
+import { imagePrompt } from "./media.ts";
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { handleStudioRequest } from "./index.ts";
 const id = (n: number) =>
@@ -116,7 +117,7 @@ function fixture(role = "owner", replay = false, legacyLarge = false) {
       const selected = url.searchParams.get("id")?.replace("eq.", "");
       return json(selected ? compositions.find((entry) => entry.id === selected) : compositions);
     }
-    if (url.pathname === "/rest/v1/studio_brand_memory") return json(memories);
+    if (url.pathname === "/rest/v1/studio_brand_memory") { assertEquals(url.searchParams.get("workspace_id"), `eq.${space}`); return json(memories); }
     if (url.pathname.startsWith("/rest/v1/brand_")) {
       return json({ mission: "Ateliers artisanaux" });
     }
@@ -849,4 +850,92 @@ Deno.test("pilot keeps only the first-shot brief and removes other shots' direct
     assertEquals(plan.id === proposalId,false);
     assertEquals(f.requests.some(p=>p.includes("studio_confirm_generation")),false);
   } finally { f.restore(); }
+});
+
+const fictionalPerson = (mode: "sheet" | "scene" = "sheet", memory_ids: string[] = []) => ({
+  mode, name: "Nora fictive", stable_traits: "42 ans, peau brune, yeux noisette, nez droit, bouche large, boucles courtes, silhouette élancée, mains fines, bague argent à l'index gauche",
+  variable_details: mode === "sheet" ? "T-shirt bleu uni, fond clair, lumière neutre" : "Veste rouge, bibliothèque, lumière du jour",
+  views: mode === "sheet" ? ["face", "trois quarts", "profil", "sourire"] : [],
+  memory_ids, uses_existing_identity: mode === "scene",
+});
+Deno.test("reference identity method reaches interpreter for short, detailed and ordinary requests", async () => {
+  for (const [n, message] of ["Je veux générer une personne de référence pour ma marque", "Créer mon égérie fictive : 42 ans, peau brune, boucles courtes", "Photographie mon mannequin dans cette tenue", "Un mannequin de vitrine blanc", "Un paysage marin"].entries()) {
+    const f = fixture();
+    try {
+      const res = await handleStudioRequest(request({...base, studio_version:4, action:"message", message, reference_ids:[], request_id:id(800+n), revision:0}));
+      assertEquals(res.status, 200);
+      const payload = JSON.stringify(f.payloads[0]);
+      assertEquals(payload.includes("COMPÉTENCE : IDENTITÉ VISUELLE RÉUTILISABLE"), true);
+      assertEquals(payload.includes("person_reference"), true);
+      assertEquals((await res.json()).session.proposal, null);
+    } finally { f.restore(); }
+  }
+});
+Deno.test("detailed reference sheet retains identity separately and suppresses brand scenery at provider", async () => {
+  const f = fixture();
+  f.setIntent({operation:"create", summary:"Nora fictive en quatre vues sur fond clair", image_prompt:"Technical reference", person_reference:fictionalPerson()});
+  try {
+    const res = await handleStudioRequest(request({...base,studio_version:4,action:"message",message:"Créer cette personne fictive",reference_ids:[],request_id:id(810),revision:0}));
+    const plan = (await res.json()).session.proposal;
+    assertEquals(plan.person_reference.stable_traits, fictionalPerson().stable_traits);
+    assertEquals(plan.cost,1);
+    assertEquals(plan.shots,[]);
+    const prompt = imagePrompt({...plan, brand_context:{charter:{photo_style:"Jardin tropical violet"}}});
+    assertEquals(prompt.startsWith("photorealistic character reference sheet"),true);
+    assertEquals(prompt.includes("Jardin tropical violet"),false);
+    assertEquals(prompt.endsWith("No text or labels."),true);
+    assertEquals(prompt.includes("42 ans"),true);
+  } finally { f.restore(); }
+});
+Deno.test("named casting reuse selects only that workspace identity and retains it for corrections", async () => {
+  const f=fixture();
+  f.memories.push(
+    {id:id(820),kind:"casting",name:"Nora",note:"Identité Nora, bague gauche",references:[{id:id(821),path:"nora.jpg",role:"casting"}]},
+    {id:id(822),kind:"casting",name:"Iris",note:"Autre personne",references:[{id:id(823),path:"iris.jpg",role:"casting"}]},
+  );
+  f.session.references=[{id:id(824),path:"old-mood.jpg",role:"style",name:"Ancien décor"}];
+  f.setIntent({operation:"create",summary:"Nora fictive en veste rouge dans la bibliothèque",image_prompt:"Nora scene",person_reference:fictionalPerson("scene",[id(820)])});
+  try {
+    const res=await handleStudioRequest(request({...base,studio_version:4,action:"message",message:"Nora en veste rouge dans la bibliothèque",reference_ids:[],request_id:id(825),revision:0}));
+    const result=await res.json(), plan=result.session.proposal;
+    assertEquals(plan.references.map((r: {path:string})=>r.path),["nora.jpg"]);
+    assertEquals(plan.reference_snapshot[0].role,"casting");
+    assertEquals(plan.references[0].description,"Identité Nora, bague gauche");
+    assertEquals(result.session.references.length,2);
+    assertEquals(imagePrompt(plan).includes("photorealistic character reference sheet"),false);
+    assertEquals(imagePrompt(plan).includes("Identité Nora, bague gauche"),true);
+    assertEquals(f.requests.some(p=>p.includes("studio_confirm_generation")),false);
+  } finally { f.restore(); }
+});
+Deno.test("unknown or ambiguous saved person never produces a proposal",async()=>{
+  for (const duplicate of [false,true]) {
+    const f=fixture();
+    if(duplicate) f.memories.push(...[830,831].map(n=>({id:id(n),kind:"casting",name:"Nora",note:"Fictive",references:[{id:id(n+10),path:`${n}.jpg`,role:"casting"}]})));
+    f.setIntent({operation:"create",summary:"Scène Nora",image_prompt:"Nora",person_reference:fictionalPerson("scene",[id(830)])});
+    try {
+      const res=await handleStudioRequest(request({...base,studio_version:4,action:"message",message:"Réutilise Nora",reference_ids:[],request_id:id(835),revision:0}));
+      const body=await res.json();assertEquals(body.session.proposal,null);assertEquals(body.session.messages.at(-1).operation,"clarify");
+    } finally { f.restore(); }
+  }
+});
+Deno.test("a mood reference cannot anchor a scene or a complementary sheet",async()=>{
+  for (const mode of ["sheet","scene"] as const) {
+    const f=fixture();f.session.references=[{id:id(850),path:"mood.jpg",role:"style",name:"Ambiance"}];
+    f.setIntent({operation:"create",summary:"Même personne",image_prompt:"Same person",person_reference:{...fictionalPerson(mode),uses_existing_identity:true},reference_use:[{id:id(850),role:"style"}]});
+    try {const res=await handleStudioRequest(request({...base,studio_version:4,action:"message",message:"Reprends la même personne",reference_ids:[id(850)],request_id:id(851),revision:0}));assertEquals((await res.json()).session.proposal,null);}finally{f.restore();}
+  }
+});
+Deno.test("a supplied fictional image anchors the complementary sheet with its original bytes",async()=>{
+  const f=fixture();f.session.references=[{id:id(860),path:"approved-face.jpg",role:"casting",name:"Nora approuvée"}];
+  f.setIntent({operation:"create",summary:"Silhouette et mains de Nora",image_prompt:"Body and hands",person_reference:{...fictionalPerson(),uses_existing_identity:true,views:["en pied","mains"]},reference_use:[{id:id(860),role:"casting"}]});
+  try {const res=await handleStudioRequest(request({...base,studio_version:4,action:"message",message:"Planche complémentaire en pied et mains",reference_ids:[id(860)],request_id:id(861),revision:0}));const plan=(await res.json()).session.proposal;assertEquals(plan.references[0].path,"approved-face.jpg");assertEquals(plan.person_reference.views,["en pied","mains"]);assertEquals(f.requests.some(path=>path.includes("approved-face.jpg")),true);}finally{f.restore();}
+});
+Deno.test("independently generated reference sheets cannot masquerade as anchored complementary views",async()=>{
+  const f=fixture();f.setIntent({operation:"create",summary:"Deux planches",image_prompt:"Face",person_reference:fictionalPerson(),shots:[{summary:"Corps",image_prompt:"Body",format:"portrait"}]});
+  try{const res=await handleStudioRequest(request({...base,studio_version:4,action:"message",message:"Crée deux références cohérentes",reference_ids:[],request_id:id(870),revision:0}));assertEquals((await res.json()).session.proposal,null);}finally{f.restore();}
+});
+Deno.test("a new scene from the selected sheet actually forwards that image to the provider",async()=>{
+ const f=fixture();f.version.status="ready";Object.assign(f.version.proposal,{person_reference:fictionalPerson(),references:[]});
+ f.setIntent({operation:"create",summary:"Nora dans un café",image_prompt:"New scene",person_reference:fictionalPerson("scene")});
+ try{const res=await handleStudioRequest(request({...base,studio_version:4,action:"message",message:"La même personne dans un café",viewed_version_id:proposalId,reference_ids:[],request_id:id(880),revision:0}));const plan=(await res.json()).session.proposal;assertEquals(plan.references[0].path,f.version.result_path);assertEquals(plan.references[0].role,"casting");assertEquals(plan.input_path,null);}finally{f.restore();}
 });

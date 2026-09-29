@@ -1,3 +1,4 @@
+import { personReferencePrompt, type PersonReference } from "./person-reference.ts";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import { openaiImageModel } from "../_shared/openai-image-model.ts";
 import { referenceInstruction, type ReferenceRole } from "./competencies.ts";
@@ -14,6 +15,7 @@ export type Reference = {
 };
 export type Proposal = {
   operation: string;
+  person_reference?: PersonReference;
   summary?: string;
   exact_text?: string[];
   background_prompt?: string;
@@ -193,7 +195,8 @@ export async function generateImage(proposal: Proposal, inputs: Blob[]) {
 export function imagePrompt(proposal: Proposal) {
   const refs = proposal.references || [];
   const isSeries = (proposal.series_size || 1) > 1;
-  const charter = proposal.brand_context?.charter;
+  const isSheet = proposal.person_reference?.mode === "sheet";
+  const charter = isSheet ? null : proposal.brand_context?.charter;
   const direction = (value: unknown) =>
     (typeof value === "string"
       ? value
@@ -216,6 +219,7 @@ export function imagePrompt(proposal: Proposal) {
   const followNotes = referenceNotes.filter(item => item.role !== "avoid").map(item => item.note).slice(0, 5).join("; ");
   const avoidNotes = referenceNotes.filter(item => item.role === "avoid").map(item => item.note).slice(0, 5).join("; ");
   return [
+    personReferencePrompt(proposal.person_reference),
     proposal.image_prompt,
     proposal.exact_text?.length
       ? `Render exactly this text in the image, once each, clearly and legibly: ${proposal.exact_text.map((item) => JSON.stringify(item)).join("; ")}. Do not invent dates, prices, addresses, claims, extra letters, or a different logo. Check spelling and accents.`
@@ -236,7 +240,7 @@ export function imagePrompt(proposal: Proposal) {
           i + 1 + (proposal.input_path ? 1 : 0)
         }: ${ref.role} reference, ${ref.name}. ${
           referenceInstruction(ref.role)
-        }`,
+        }${ref.role === "casting" && ref.description ? ` Saved identity description: ${ref.description}` : ""}`,
     ),
     refs.length > 1
       ? "Several reference photos may show one subject from different angles. When the brief identifies them as the same person or product, combine their evidence into one subject; do not add a separate copy for each reference. Keep style-only references distinct from identity references."
@@ -252,9 +256,10 @@ export function imagePrompt(proposal: Proposal) {
       ].filter(Boolean).join("; ")}. Apply it where compatible with this shot. The user's specific request and exact person or product references take priority; never recolor or reshape them merely to fit the brand.`
       : "",
     "No invented watermarks, promotional claims or extra decorative elements. Match the requested visual medium; do not default to stock imagery.",
-    isSeries
+    isSeries && !isSheet
       ? "Produce ONE image for this shot, not a collage. Its camera framing, crop and pose must follow this shot's brief even when the reference uses a different framing. Shot brief: " + proposal.image_prompt
       : "",
+    isSheet ? "No text or labels." : "",
   ]
     .filter(Boolean)
     .join("\n");
