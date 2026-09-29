@@ -97,7 +97,7 @@ describe("carousel quality checks", () => {
     expect(issues).toContainEqual(
       expect.objectContaining({
         kind: "contrast",
-        severity: "error",
+        severity: "warning",
         fix: { color: "#000000" },
       }),
     );
