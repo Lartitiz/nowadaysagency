@@ -338,6 +338,7 @@ export default function WelcomePage() {
   // source_module="diagnostic") — alimente le CTA « Générer mon premier contenu ».
   const [starterIdea, setStarterIdea] = useState<{ titre: string; format: string } | null>(null);
   const [sellsProducts, setSellsProducts] = useState(false);
+  const [productPhotosReady, setProductPhotosReady] = useState(false);
   const starterIdeaRef = useRef(false);
   const [brandingExpanded, setBrandingExpanded] = useState(false);
 
@@ -716,7 +717,7 @@ export default function WelcomePage() {
             le site (+ Instagram si connecté). Chaque carte se masque seule si rien
             n'est trouvé. */}
         {!loading && <BrandLogoSuggestion placement="welcome" />}
-        {!loading && <BrandPhotosPicker placement="welcome" />}
+        {!loading && <BrandPhotosPicker placement="welcome" onReadyChange={setProductPhotosReady} />}
 
         {/* C-bis) Offres éditables */}
         {!loading && offers.length > 0 && (
@@ -912,10 +913,13 @@ export default function WelcomePage() {
           )}
           <Button
             onClick={handleCreateFirst}
+            disabled={sellsProducts && !productPhotosReady}
             className="w-full rounded-pill gap-2"
             size="lg"
           >
-            {brandReviewPending ? (
+            {sellsProducts && !productPhotosReady && !brandReviewPending ? (
+              <><Sparkles className="h-4 w-4" strokeWidth={1.75} /> Préparation de tes photos…</>
+            ) : brandReviewPending ? (
               <><ClipboardList className="h-4 w-4" strokeWidth={1.75} /> Valider ma fiche de marque</>
             ) : (
               <><Sparkles className="h-4 w-4" strokeWidth={1.75} /> Créer mon premier carrousel</>

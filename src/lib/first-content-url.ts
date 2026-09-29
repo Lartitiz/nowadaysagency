@@ -29,8 +29,7 @@ export interface FirstContentUrlOptions {
 export function buildFirstContentUrl({ sellsProducts, subject }: FirstContentUrlOptions): string {
   const sujet = (subject ?? "").trim();
   if (sellsProducts) {
-    const suffixe = sujet ? `&sujet=${encodeURIComponent(sujet)}` : "";
-    return `/creer?format=carousel&carouselSubMode=photo${suffixe}`;
+    return "/creer?format=carousel&carouselSubMode=photo&firstProduct=1";
   }
   return `/creer?sujet=${encodeURIComponent(
     sujet || SUJET_PREMIER_CONTENU_GENERIQUE,

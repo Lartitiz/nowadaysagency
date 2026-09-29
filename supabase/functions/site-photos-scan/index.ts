@@ -30,6 +30,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { safeFetchFollow } from "../_shared/scraping.ts";
 import {
   extractImageCandidates,
+  extractProductPageUrls,
+  extractProductPrimaryImage,
   extractLogoCandidate,
   flattenInstagramMedia,
   type InstagramMediaItem,
@@ -94,7 +96,7 @@ serve(async (req) => {
     const { userId } = await authenticateRequest(req);
     const { mode, websiteUrl, imageUrl, workspace_id: workspaceId } = await req.json();
 
-    if (mode === "scan" || mode === "logo") {
+    if (mode === "scan" || mode === "logo" || mode === "product-scan") {
       if (!websiteUrl || typeof websiteUrl !== "string") {
         return json(corsHeaders, { error: "websiteUrl requis" }, 400);
       }
@@ -117,6 +119,46 @@ serve(async (req) => {
       // se résolvent contre la page réellement servie, pas l'URL saisie.
       if (mode === "logo") {
         return json(corsHeaders, { success: true, logo: extractLogoCandidate(html, fetched.finalUrl) });
+      }
+      if (mode === "product-scan") {
+        const productPages = extractProductPageUrls(html, fetched.finalUrl, 10);
+        const discovered = await Promise.all(productPages.map(async (pageUrl) => {
+          try {
+            const page = await safeFetchFollow(pageUrl, controller.signal);
+            if (!page?.response.ok) {
+              await page?.response.body?.cancel().catch(() => {});
+              return null;
+            }
+            const pageBytes = await readBodyCapped(page.response, HTML_MAX_BYTES);
+            if (!pageBytes) return null;
+            const pageHtml = new TextDecoder("utf-8", { fatal: false }).decode(pageBytes);
+            return extractProductPrimaryImage(pageHtml, page.finalUrl) ??
+              extractImageCandidates(pageHtml, page.finalUrl)[0] ?? null;
+          } catch { return null; }
+        }));
+        const seen = new Set<string>();
+        const images = discovered.filter((image): image is NonNullable<typeof image> => {
+          if (!image) return false;
+          const key = new URL(image.url).origin + new URL(image.url).pathname;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        // Certains sites affichent leurs produits sans lien de fiche sur la
+        // première page. On n'importe alors que les images explicitement
+        // décrites comme produits, pas les portraits ou bannières du site.
+        if (images.length === 0) {
+          const productCue = /produit|product|boutique|shop/i;
+          for (const image of extractImageCandidates(html, fetched.finalUrl)) {
+            if (!productCue.test(`${image.alt ?? ""} ${new URL(image.url).pathname}`)) continue;
+            const key = new URL(image.url).origin + new URL(image.url).pathname;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            images.push(image);
+            if (images.length >= 8) break;
+          }
+        }
+        return json(corsHeaders, { success: true, images: images.slice(0, 8) });
       }
       const images = extractImageCandidates(html, fetched.finalUrl);
       return json(corsHeaders, { success: true, images });

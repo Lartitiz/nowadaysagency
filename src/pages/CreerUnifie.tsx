@@ -965,7 +965,7 @@ function CreerWorkspace() {
     // ils ne déclenchent pas d'auto-avancée destructrice.
     // Exception : en ?mode=transform, ?format pré-coche le sous-mode Recycler
     // (CreerTransformTab le lit dans l'URL) — on ne touche à rien sur ce chemin.
-    const ONE_SHOT_PARAMS = ["sujet", "subject", "format", "objectif", "objective", "auto", "angle", "carouselSubMode", "idea_id"];
+    const ONE_SHOT_PARAMS = ["sujet", "subject", "format", "objectif", "objective", "auto", "angle", "carouselSubMode", "firstProduct", "idea_id"];
     if (paramMode !== "transform" && ONE_SHOT_PARAMS.some((k) => searchParams.has(k))) {
       const cleaned = consumeFreshStart(searchParams);
       ONE_SHOT_PARAMS.forEach((k) => cleaned.delete(k));
@@ -982,12 +982,12 @@ function CreerWorkspace() {
       ? locState.libraryPhotoIds.filter((x: unknown): x is string => typeof x === "string")
       : [],
   );
+  const firstProductRef = useRef(searchParams.get("firstProduct") === "1");
   const libraryLoadedRef = useRef(false);
   const initialCreationId = useRef(creationId);
   useEffect(() => {
     if (conflictPending || creationId !== initialCreationId.current || libraryLoadedRef.current) return;
-    const ids = libraryPhotoIdsRef.current;
-    if (ids.length === 0) return;
+    if (libraryPhotoIdsRef.current.length === 0 && !firstProductRef.current) return;
     if (!workspaceId) return; // attend que le workspace soit prêt
     libraryLoadedRef.current = true;
     let cancelled = false;
@@ -996,6 +996,22 @@ function CreerWorkspace() {
       setIsLoadingLibraryPhotos(true);
       setStep("format");
       try {
+        if (libraryPhotoIdsRef.current.length === 0 && firstProductRef.current) {
+          const { data: sitePhotos, error: siteError } = await supabase
+            .from("user_photos")
+            .select("id")
+            .eq("workspace_id", workspaceId)
+            .eq("status", "ready")
+            .eq("source_type", "imported")
+            .not("source_image_url", "is", null)
+            .is("removed_from_library_at", null)
+            .order("created_at", { ascending: false })
+            .limit(6);
+          if (siteError) throw siteError;
+          libraryPhotoIdsRef.current = (sitePhotos ?? []).map((photo) => photo.id);
+        }
+        const ids = libraryPhotoIdsRef.current;
+        if (ids.length === 0) return; // le sélecteur manuel reste disponible
         const { data, error: qErr } = await supabase
           .from("user_photos")
           .select("*")

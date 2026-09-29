@@ -1,7 +1,19 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { extractImageCandidates, extractLogoCandidate, pickLargestFromSrcset } from "./site-photos.ts";
+import { extractImageCandidates, extractLogoCandidate, extractProductPageUrls, extractProductPrimaryImage, pickLargestFromSrcset } from "./site-photos.ts";
 
 const BASE = "https://www.exemple-savonnerie.fr/";
+
+Deno.test("pages produit : liens internes dédupliqués, liens externes écartés", () => {
+  const html = `<a href="/products/savon?ref=home">Savon</a><a href="/products/savon">Savon</a><a href="https://other.fr/products/faux">Autre</a><a href="/about">À propos</a>`;
+  assertEquals(extractProductPageUrls(html, BASE), ["https://www.exemple-savonnerie.fr/products/savon"]);
+});
+
+Deno.test("fiche produit : la photo JSON-LD prime sur l'image sociale du site", () => {
+  const html = `<meta property="og:image" content="/banniere.jpg"><script type="application/ld+json">{"@type":"Product","name":"Savon rose","image":"/produits/savon.jpg"}</script>`;
+  assertEquals(extractProductPrimaryImage(html, BASE), {
+    url: "https://www.exemple-savonnerie.fr/produits/savon.jpg", alt: "Savon rose",
+  });
+});
 
 // ── pickLargestFromSrcset ──
 

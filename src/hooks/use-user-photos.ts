@@ -244,6 +244,7 @@ export function useUploadLibraryPhotos() {
 
   async function mutate(
     files: File[],
+    sourceImageUrls?: (string | undefined)[],
   ): Promise<{ uploaded: number; failed: number; photoIds: string[] }> {
     if (!user?.id || !workspaceId) {
       throw new Error("Espace de travail introuvable");
@@ -284,6 +285,7 @@ export function useUploadLibraryPhotos() {
             userId: user.id,
             workspaceId,
             purpose: "library",
+            sourceImageUrl: sourceImageUrls?.[i],
           });
           uploaded++;
           photoIds.push(photoId);

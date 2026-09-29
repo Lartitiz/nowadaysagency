@@ -164,6 +164,61 @@ export function extractImageCandidates(html: string, baseUrl: string): SiteImage
   return out;
 }
 
+/** Pages produit liées depuis la page d'accueil, limitées au même site. */
+export function extractProductPageUrls(html: string, baseUrl: string, max = 12): string[] {
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  const base = new URL(baseUrl);
+  const anchors = /<a\b[^>]*\shref\s*=\s*(?:"([^"]+)"|'([^']+)')[^>]*>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = anchors.exec(html)) !== null && urls.length < max) {
+    try {
+      const url = new URL((match[1] ?? match[2]).replace(/&amp;/g, "&"), base);
+      if (!/^https?:$/.test(url.protocol)) continue;
+      if (url.hostname.replace(/^www\./, "") !== base.hostname.replace(/^www\./, "")) continue;
+      if (!/(?:^|\/)\b(?:products?|produits?|shop\/products?)\b\//i.test(url.pathname)) continue;
+      url.hash = "";
+      url.search = "";
+      if (seen.has(url.href)) continue;
+      seen.add(url.href);
+      urls.push(url.href);
+    } catch { /* lien invalide */ }
+  }
+  return urls;
+}
+
+/** Product JSON-LD is a stronger signal than a site's generic og:image. */
+export function extractProductPrimaryImage(html: string, baseUrl: string): SiteImageCandidate | null {
+  const scripts = /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let match: RegExpExecArray | null;
+  const visit = (value: unknown): { image: unknown; name: unknown } | null => {
+    if (!value || typeof value !== "object") return null;
+    if (Array.isArray(value)) {
+      for (const item of value) { const found = visit(item); if (found) return found; }
+      return null;
+    }
+    const node = value as Record<string, unknown>;
+    if (node["@type"] === "Product" || (Array.isArray(node["@type"]) && node["@type"].includes("Product"))) {
+      return { image: node.image, name: node.name };
+    }
+    for (const child of Object.values(node)) { const found = visit(child); if (found) return found; }
+    return null;
+  };
+  while ((match = scripts.exec(html)) !== null) {
+    try {
+      const product = visit(JSON.parse(match[1]));
+      const raw = Array.isArray(product?.image) ? product?.image[0] : product?.image;
+      const rawUrl = typeof raw === "string" ? raw : raw && typeof raw === "object" ? (raw as Record<string, unknown>).url : null;
+      if (typeof rawUrl !== "string") continue;
+      const url = resolveUrl(rawUrl, baseUrl);
+      if (url && isAcceptableImageUrl(url)) {
+        return { url, alt: typeof product?.name === "string" ? product.name : null };
+      }
+    } catch { /* JSON-LD invalide : essayer le bloc suivant */ }
+  }
+  return null;
+}
+
 /* ───────────────────────── Logo ───────────────────────── */
 
 /**
