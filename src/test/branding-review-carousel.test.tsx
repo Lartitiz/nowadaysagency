@@ -44,6 +44,11 @@ vi.mock("@/components/Confetti", () => ({ default: () => <div data-testid="confe
 vi.mock("@/components/branding/BrandingCoachingFlow", () => ({ default: () => <div data-testid="coaching" /> }));
 // Carte réseau (détection du logo du site) : hors du périmètre de ce test du carrousel.
 vi.mock("@/components/branding/BrandLogoSuggestion", () => ({ BrandLogoSuggestion: () => null }));
+vi.mock("@/components/photos/BrandPhotosPicker", () => ({
+  BrandPhotosPicker: ({ onReadyChange }: { onReadyChange: (ready: boolean) => void }) => (
+    <button onClick={() => onReadyChange(true)}>Photos de test prêtes</button>
+  ),
+}));
 vi.mock("framer-motion", () => ({
   motion: new Proxy({}, { get: () => (props: any) => <div {...props} /> }),
   AnimatePresence: ({ children }: any) => <>{children}</>,
@@ -112,5 +117,31 @@ describe("BrandingReview — fiche en cartes", () => {
     // On revient sur la carte qui n'a pas pu être enregistrée.
     expect(screen.getByText("Ta charte graphique")).toBeTruthy();
     expect(screen.getByText("6/7 validées")).toBeTruthy();
+  });
+
+  it("attend les photos avant le raccourci fixe vers le premier contenu", () => {
+    const done = vi.fn();
+    render(<BrandingReview
+      analysis={{ ...ANALYSIS, reviewed_sections: ["story", "persona", "value_proposition", "tone_style", "content_strategy", "offers", "charter"] }}
+      mandatory
+      onDone={done}
+    />);
+
+    const shortcut = screen.getByRole("button", { name: "Voir la suite →" });
+    fireEvent.click(shortcut);
+    const waitingButtons = screen.getAllByRole("button", { name: "Un instant…" });
+    expect(waitingButtons).toHaveLength(2);
+    for (const button of waitingButtons) {
+      expect(button).toBeDisabled();
+      fireEvent.click(button);
+    }
+    expect(done).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Photos de test prêtes" }));
+    const createButtons = screen.getAllByRole("button", { name: "Créer mon premier contenu →" });
+    expect(createButtons).toHaveLength(2);
+    for (const button of createButtons) expect(button).toBeEnabled();
+    fireEvent.click(createButtons[1]);
+    expect(done).toHaveBeenCalledWith(true);
   });
 });
