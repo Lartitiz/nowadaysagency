@@ -9,16 +9,26 @@ export function cleanStudioSummary(value: string) {
 }
 export const intentSchema = z
   .object({
-    operation: z.enum([
-      "background",
-      "create",
-      "edit",
-      "product",
-      "advise",
-      "clarify",
-      "existing_tool",
-      "compose",
-    ]),
+    // The model sometimes answers with a reference role (e.g. "casting")
+    // instead of an operation; those always mean creating a new image.
+    operation: z.preprocess(
+      (v) =>
+        typeof v === "string" &&
+          ["casting", "person", "subject", "style", "composition", "portrait", "scene"]
+            .includes(v.trim().toLowerCase())
+          ? "create"
+          : v,
+      z.enum([
+        "background",
+        "create",
+        "edit",
+        "product",
+        "advise",
+        "clarify",
+        "existing_tool",
+        "compose",
+      ]),
+    ),
     person_reference: z.object({
       mode: z.enum(["sheet", "scene"]),
       name: z.string().trim().min(1).max(120),
