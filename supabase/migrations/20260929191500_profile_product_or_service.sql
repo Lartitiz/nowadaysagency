@@ -21,3 +21,7 @@ BEGIN
   END IF;
 END;
 $$;
+
+-- L'onboarding met à jour le profil existant. La policy RLS de profiles
+-- limite toujours cette écriture à la ligne de l'utilisatrice connectée.
+GRANT UPDATE (product_or_service) ON public.profiles TO authenticated;
