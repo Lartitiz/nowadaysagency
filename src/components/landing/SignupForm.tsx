@@ -79,6 +79,7 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
           user_id: data.user.id,
           prenom: values.prenom,
           activite: values.activite?.trim() || "",
+          canaux: [],
         });
         // Non bloquant : lac_prenom/lac_activite (localStorage) servent de repli,
         // et handleFinish ré-écrit le profil en fin d'onboarding.
