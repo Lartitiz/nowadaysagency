@@ -47,7 +47,7 @@ import { referencesAtVersion, referencesDiffer } from "./branch-context.ts";
 
 declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void };
 const schema = z.object({
-  studio_version: z.union([z.literal(2), z.literal(3)]).optional(),
+  studio_version: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
   action: z.enum([
     "create",
     "read",
@@ -73,6 +73,7 @@ const schema = z.object({
   composition_history_id: z.string().uuid().optional(),
   charter_index: z.number().int().min(0).max(8).optional(),
   reference_id: z.string().uuid().optional(),
+  reference_ids: z.array(z.string().uuid()).max(MAX_REFERENCES).optional(),
   memory_id: z.string().uuid().optional(),
   memory_revision: z.number().int().min(-1).optional(),
   memory_kind: z.enum(["preference", "direction", "casting"]).optional(),
@@ -356,7 +357,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
     }
     if (p.action === "reference") {
       if (
-        (!p.photo_id && !p.reference_id && p.charter_index == null) ||
+        (!p.photo_id && !p.reference_id && !p.version_id && p.charter_index == null) ||
         p.revision !== session.revision
       ) {
         return json(
@@ -381,7 +382,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         );
       }
       const matches = (r: Reference) =>
-        p.reference_id ? r.id === p.reference_id : r.photo_id === p.photo_id;
+        p.reference_id ? r.id === p.reference_id
+        : p.version_id ? r.version_id === p.version_id
+        : r.photo_id === p.photo_id;
       const found = references.find(matches);
       if (p.remove) {
         references = references.filter((r) => !matches(r));
@@ -390,7 +393,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           r === found ? { ...r, role: p.reference_role || "subject" } : r
         );
       } else {
-        if (!p.photo_id && p.charter_index == null) {
+        if (!p.photo_id && !p.version_id && p.charter_index == null) {
           throw new Error("studio_conflict");
         }
         if (references.length >= MAX_REFERENCES) {
@@ -408,7 +411,12 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         if (p.charter_index != null && !charterImage) {
           throw new Error("studio_conflict");
         }
-        const photo = charterImage ? null : unwrap(
+        const generated = p.version_id ? unwrap(
+          await sb.from("visual_studio_versions").select("*")
+            .eq("id", p.version_id).eq("session_id", session.id)
+            .eq("status", "ready").single(),
+        ) : null;
+        const photo = charterImage || generated ? null : unwrap(
           await sb.from("user_photos").select("*")
             .eq("id", p.photo_id).eq("workspace_id", p.workspace_id).eq(
               "status",
@@ -416,21 +424,24 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             ).is("removed_from_library_at", null).single(),
         );
         const id = crypto.randomUUID(),
-          path = `${p.workspace_id}/${session.id}/reference-${id}`;
-        const blob = await download(
-          sb,
-          charterImage ? "moodboards" : "user-photos",
-          charterImage?.path || photo!.storage_path,
-        );
-        await store(sb, BUCKET, path, blob);
+          path = generated?.result_path || `${p.workspace_id}/${session.id}/reference-${id}`;
+        if (!generated) {
+          const blob = await download(
+            sb,
+            charterImage ? "moodboards" : "user-photos",
+            charterImage?.path || photo!.storage_path,
+          );
+          await store(sb, BUCKET, path, blob);
+        }
         references = [
           ...references,
           {
             id,
             photo_id: photo?.id || null,
+            version_id: generated?.id,
             path,
             role: charterImage ? "style" : p.reference_role || "subject",
-            name: (charterImage?.name || photo?.name || "Référence").slice(
+            name: (charterImage?.name || photo?.name || generated?.proposal?.summary || "Référence").slice(
               0,
               120,
             ),
@@ -502,17 +513,25 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           : references;
         const changedReferences = !!parent &&
           referencesDiffer(versionReferences, references);
-        if (changedReferences && !p.branch_reference_mode) {
+        if (changedReferences && !p.branch_reference_mode && !p.reference_ids) {
           return json({
             code: "branch_reference_choice",
             error:
               "Les références ont changé depuis cette version. Choisis celles à utiliser avant d’envoyer ; aucune image n’a été lancée.",
           }, 409);
         }
-        const requestReferences = changedReferences &&
+        const availableReferences = changedReferences &&
             p.branch_reference_mode === "version"
           ? versionReferences
           : references;
+        if (p.reference_ids && p.reference_ids.some((id) =>
+          !availableReferences.some((ref) => ref.id === id)
+        )) return json({ error: "Une image jointe n'est plus disponible. Vérifie ta demande." }, 409);
+        const requestReferences = p.reference_ids
+          ? p.reference_ids.length
+            ? p.reference_ids.map((id) => availableReferences.find((ref) => ref.id === id)!)
+            : p.studio_version === 4 ? [] : parent ? versionReferences : []
+          : availableReferences;
         if (
           p.viewed_reference_id &&
           !references.some((r) => r.id === p.viewed_reference_id)
@@ -654,8 +673,6 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         ) ||
           requestReferences.find((r) => isIdentity(r.role)) ||
           requestReferences[0];
-        const inputPath = parent?.result_path || selectedReference?.path ||
-          null;
         const vision = [];
         if (parent) {
           vision.push({
@@ -753,12 +770,28 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             503,
           );
         }
+        const usedReferences = p.studio_version === 4
+          ? requestReferences.filter((ref) => intent.reference_use.some((use) => use.id === ref.id))
+          : requestReferences;
+        const requestReferenceIds = new Set(usedReferences.map((ref) => ref.id));
+        const resolvedReferences = usedReferences.map((ref) => ({
+          ...ref,
+          role: intent.reference_use.find((use) =>
+            use.id === ref.id && requestReferenceIds.has(use.id)
+          )?.role || ref.role,
+        }));
+        const explicitSource = resolvedReferences.find((ref) =>
+          ref.id === intent.source_reference_id
+        );
+        const effectiveReference = explicitSource || resolvedReferences.find((ref) => ref.id === selectedReference?.id) ||
+          resolvedReferences.find((ref) => isIdentity(ref.role)) || resolvedReferences[0];
+        const finalInputPath = explicitSource?.path || parent?.result_path || effectiveReference?.path || null;
         // The model cannot invent a real reference or authorize a source-free identity reconstruction.
         if (
           (["background", "edit", "product"].includes(intent.operation) &&
-            !inputPath) ||
+            !finalInputPath) ||
           ((intent.requires_real_subject || intent.operation === "product") &&
-            !requestReferences.some((r) => isIdentity(r.role)))
+            !resolvedReferences.some((r) => isIdentity(r.role)))
         ) {
           intent.operation = "clarify";
           intent.summary =
@@ -780,28 +813,27 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.summary =
             "Recharge le Studio pour accéder à la création et aux retouches étendues. Aucune image n’a été lancée.";
         }
-        if (intent.composition && generative(intent.operation)) {
+        if (p.studio_version !== 4 && intent.composition && generative(intent.operation)) {
           intent.composition.layout = "image_full";
         } else if (intent.operation === "compose" && intent.composition) {
           intent.composition.layout = session.composition?.design?.layout === "image_full"
             ? "image_full"
             : "image_top";
         }
-        const editInput = parent?.result_path ||
-          (intent.operation === "edit" ? selectedReference?.path : null) ||
-          null;
+        const editInput = (intent.operation === "edit" || intent.operation === "background")
+          ? finalInputPath
+          : null;
         const proposedRefs = intent.operation === "background"
           ? []
-          : requestReferences.filter((r) => r.path !== editInput);
+          : resolvedReferences.filter((r) => r.path !== editInput);
         const originalPath =
-          (selectedReference && isIdentity(selectedReference.role)
-            ? selectedReference.path
-            : null) ||
-          requestReferences.find((r) => isIdentity(r.role))?.path ||
-          (parent
+          ((intent.operation === "edit" || intent.operation === "background")
+            ? effectiveReference?.path
+            : resolvedReferences.find((r) => isIdentity(r.role))?.path) ||
+          (parent && intent.operation !== "create"
             ? parent.proposal.original_path || null
             : ["background", "edit"].includes(intent.operation)
-            ? selectedReference?.path || null
+            ? effectiveReference?.path || null
             : null);
         const proposal = ["background", "create", "edit", "product"].includes(
             intent.operation,
@@ -809,37 +841,45 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           ? {
             ...intent,
             id: crypto.randomUUID(),
-            viewed_version_id: parent?.id || null,
-            viewed_reference_id: selectedReference?.id || null,
-            cost: 1 + (p.studio_version === 3 && generative(intent.operation)
+            viewed_version_id: intent.operation === "create" ? null : parent?.id || null,
+            viewed_reference_id: effectiveReference?.id || null,
+            cost: 1 + (p.studio_version && p.studio_version >= 3 && generative(intent.operation)
               ? intent.shots.length
               : 0),
-            shots: p.studio_version === 3 && generative(intent.operation)
+            shots: p.studio_version && p.studio_version >= 3 && generative(intent.operation)
               ? intent.shots.map((shot) => ({
                 ...shot,
                 id: crypto.randomUUID(),
+                image_prompt: p.studio_version === 4 ? shot.summary : shot.image_prompt,
               }))
               : [],
             references: proposedRefs,
-            reference_snapshot: requestReferences,
+            reference_snapshot: resolvedReferences,
             input_path: intent.operation === "background"
-              ? inputPath
+              ? finalInputPath
               : editInput,
             original_path: originalPath,
-            subject_kind: requestReferences.find((r) => isIdentity(r.role))?.kind ||
+            subject_kind: resolvedReferences.find((r) => isIdentity(r.role))?.kind ||
               null,
-            model: generative(intent.operation) && higgsfieldImagesEnabled()
+            image_prompt: p.studio_version === 4 && generative(intent.operation)
+              ? intent.summary
+              : intent.image_prompt,
+            composition: p.studio_version === 4 && generative(intent.operation)
+              ? undefined
+              : intent.composition,
+            model: p.studio_version !== 4 && generative(intent.operation) && higgsfieldImagesEnabled()
               ? `marketing-studio/image/${
                 intent.operation === "create" ? "flare" : "sunburst"
               }`
               : imageModel(intent.operation),
-            provider: generative(intent.operation) && higgsfieldImagesEnabled()
+            provider: p.studio_version !== 4 && generative(intent.operation) && higgsfieldImagesEnabled()
               ? "higgsfield"
               : "default",
             rules_version: RULES_VERSION,
             brand_context: brandContext,
             warning: generative(intent.operation) &&
-                (requestReferences.some((r) => isIdentity(r.role)) || parent)
+                (resolvedReferences.some((r) => isIdentity(r.role)) ||
+                  (parent && intent.operation !== "create"))
               ? "Cette transformation redessine l’image. Elle peut modifier des détails du produit ou du visage. Compare le résultat aux références avant de l’utiliser."
               : null,
           }
@@ -849,7 +889,13 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         );
         const messages = [
           ...session.messages,
-          { id: p.request_id, role: "user", text: p.message },
+          {
+            id: p.request_id,
+            role: "user",
+            text: p.message,
+            reference_ids: requestReferences.map((ref) => ref.id),
+            reference_snapshot: resolvedReferences.map(({ id, name, path, role }) => ({ id, name, path, role })),
+          },
           {
             role: "assistant",
             existing_tool: intent.existing_tool,
@@ -1252,13 +1298,27 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         .order("created_at", { ascending: false })
         .order("id", { ascending: false }).limit(20),
     );
-    const sign = async (path: string) =>
-      unwrap(await sb.storage.from(BUCKET).createSignedUrl(path, 900))
-        .signedUrl;
+    const signedPaths = new Map<string, Promise<string | null>>();
+    const sign = (path: string): Promise<string | null> => {
+      if (!signedPaths.has(path)) signedPaths.set(path,
+        sb.storage.from(BUCKET).createSignedUrl(path, 900)
+          .then((result) => result.data?.signedUrl || null));
+      return signedPaths.get(path)!;
+    };
+    const messages = await Promise.all((session.messages as Array<Record<string, unknown>>).map(async (message) => ({
+      ...message,
+      reference_snapshot: Array.isArray(message.reference_snapshot)
+        ? await Promise.all(message.reference_snapshot.map(async (raw: unknown) => {
+          const ref = raw as { path?: string };
+          return { ...ref, url: ref.path ? await sign(ref.path) : null };
+        }))
+        : undefined,
+    })));
     const quota = await checkQuota(actor, "photo_retouch", p.workspace_id);
     return json({
       session: {
         ...session,
+        messages,
         composition: session.composition
           ? {
             ...session.composition,

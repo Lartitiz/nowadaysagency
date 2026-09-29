@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   ImagePlus,
   Loader2,
-  MessageCircle,
   RefreshCw,
   Sparkles,
 } from "lucide-react";
@@ -20,13 +19,6 @@ import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -34,6 +26,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
+import { useUploadLibraryPhotos } from "@/hooks/use-user-photos";
 import {
   StudioVideoPanel,
   type VideoSource,
@@ -64,6 +57,15 @@ function referenceRoleForPhoto(photo: UserPhotoRow): StudioReference["role"] {
   if (photo.kind === "portrait") return "person";
   if (photo.kind === "ambiance") return "style";
   return "subject";
+}
+function readAttachedIds(key: string): string[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
+  } catch { return []; }
+}
+function writeAttachedIds(key: string, ids: string[]) {
+  try { localStorage.setItem(key, JSON.stringify(ids)); } catch { /* The session still contains the references. */ }
 }
 
 export default function VisualStudioPage() {
@@ -181,8 +183,7 @@ function Studio({
   } | null>(null);
   const [picker, setPicker] = useState(false),
     [sessionsOpen, setSessionsOpen] = useState(false),
-    [sessionAction, setSessionAction] = useState<string | null>(null),
-    [mobileChat, setMobileChat] = useState(!!location.state?.studioChatOpen);
+    [sessionAction, setSessionAction] = useState<string | null>(null);
   const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(
     null,
   );
@@ -196,10 +197,13 @@ function Studio({
   } | null>(null);
   const localKey = draftKey(userId, workspaceId, sessionId || "new");
   const [draft, setDraft] = useState(() => readDraft(localKey));
+  const attachmentKey = `${localKey}:images`;
+  const [attachedIds, setAttachedIds] = useState<string[]>(() => readAttachedIds(attachmentKey));
+  const localUpload = useUploadLibraryPhotos();
+  const fileInput = useRef<HTMLInputElement>(null);
   const draftRef = useRef(draft);
   const desktopMessages = useRef<HTMLDivElement>(null);
-  const mobileMessages = useRef<HTMLDivElement>(null);
-  const versionRail = useRef<HTMLDivElement>(null);
+  const [galleryLimit, setGalleryLimit] = useState(20);
   const alive = useRef(true),
     actionLock = useRef(false),
     creation = useRef({ id: crypto.randomUUID(), photoId: "" }),
@@ -209,11 +213,11 @@ function Studio({
         text: string;
         revision: number;
         target?: string;
+        attachments?: string;
       } | null
     >(null);
   const sourceInit = useRef(false),
     seenReady = useRef<string[] | null>(null);
-  const openedMobile = useRef(false);
   const queryKey = ["visual-studio", userId, workspaceId, sessionId];
   const state = useQuery({
     queryKey,
@@ -248,6 +252,13 @@ function Studio({
     branchChoice.target === selectedId &&
     branchChoice.revision === current?.session.revision;
   const references = current?.session.references || [];
+  const attachedReferences = attachedIds.map((id) => references.find((ref) => ref.id === id)).filter((ref): ref is StudioReference => !!ref);
+  useEffect(() => { setAttachedIds(readAttachedIds(attachmentKey)); }, [attachmentKey]);
+  function setAttachments(ids: string[], key = attachmentKey) {
+    const unique = [...new Set(ids)];
+    writeAttachedIds(key, unique);
+    if (key === attachmentKey) setAttachedIds(unique);
+  }
   const selectedReference =
     references.find((r) => r.id === selectedReferenceId) || references[0];
   const premiumBlocked = !!proposal &&
@@ -264,18 +275,6 @@ function Studio({
     };
   }, []);
   useEffect(() => {
-    if (isMobile && current && !openedMobile.current) {
-      openedMobile.current = true;
-      if (
-        !current.versions.some(
-          (v) => v.status === "ready" || v.status === "processing",
-        )
-      ) {
-        setMobileChat(true);
-      }
-    }
-  }, [isMobile, current]);
-  useEffect(() => {
     if (!current) return;
     const ready = current.versions
       .filter((v) => v.status === "ready")
@@ -289,7 +288,7 @@ function Studio({
     seenReady.current = ready;
   }, [current]);
   useEffect(() => {
-    for (const ref of [desktopMessages, mobileMessages]) {
+    for (const ref of [desktopMessages]) {
       if (ref.current) {
         const messages = ref.current.querySelectorAll(".studio-message");
         const last = messages.item(messages.length - 1);
@@ -300,7 +299,7 @@ function Studio({
         }
       }
     }
-  }, [current?.session.messages.length, mobileChat, proposal?.id]);
+  }, [current?.session.messages.length, proposal?.id]);
   useEffect(() => {
     const pending = sent.current;
     if (pending && current?.session.messages.some((m) => m.id === pending.id)) {
@@ -438,9 +437,11 @@ function Studio({
         if (alive.current) cache.setQueryData(targetKey, latest);
       }
       if (!alive.current) return;
+      const chosenIds = photos.map((photo) => latest?.session.references?.find((ref) => ref.photo_id === photo.id)?.id).filter((id): id is string => !!id);
+      setAttachments([...attachedIds, ...chosenIds], `${draftKey(userId, workspaceId, targetId)}:images`);
       if (!sessionId) {
         writeDraft(draftKey(userId, workspaceId, targetId), draftRef.current);
-        navigate(studioPath(targetId), { replace: true, state: { studioChatOpen: isMobile } });
+        navigate(studioPath(targetId), { replace: true });
       }
       if (added) toast.success(`${added} photo${added > 1 ? "s" : ""} de référence ajoutée${added > 1 ? "s" : ""}`);
     } catch (cause) {
@@ -453,10 +454,14 @@ function Studio({
       if (!alive.current) return;
       const attachedCount = photos.filter((photo) => latest?.session.references?.some((ref) => ref.photo_id === photo.id) ||
         latest?.session.source_photo_id === photo.id).length;
+      if (latest) {
+        const chosenIds = photos.map((photo) => latest?.session.references?.find((ref) => ref.photo_id === photo.id)?.id).filter((id): id is string => !!id);
+        setAttachments([...attachedIds, ...chosenIds], `${draftKey(userId, workspaceId, targetId)}:images`);
+      }
       if (latest && attachedCount === photos.length) {
         if (!sessionId) {
           writeDraft(draftKey(userId, workspaceId, targetId), draftRef.current);
-          navigate(studioPath(targetId), { replace: true, state: { studioChatOpen: isMobile } });
+          navigate(studioPath(targetId), { replace: true });
         }
         toast.success(`${attachedCount} photo${attachedCount > 1 ? "s" : ""} de référence ajoutée${attachedCount > 1 ? "s" : ""}`);
         return;
@@ -464,7 +469,7 @@ function Studio({
       const message = cause instanceof Error ? cause.message : "Impossible d’ajouter ces photos.";
       if (!sessionId && latest) {
         writeDraft(draftKey(userId, workspaceId, targetId), draftRef.current);
-        navigate(studioPath(targetId), { replace: true, state: { studioChatOpen: isMobile } });
+        navigate(studioPath(targetId), { replace: true });
       } else setError(message);
       toast.error(attachedCount
         ? `Ajout interrompu après ${attachedCount} photo${attachedCount > 1 ? "s" : ""}. Elle${attachedCount > 1 ? "s restent" : " reste"} dans la session. ${message}`
@@ -472,6 +477,50 @@ function Studio({
     } finally {
       actionLock.current = false;
       if (alive.current) setBusy("");
+    }
+  }
+  async function addLocalFiles(files: FileList | null) {
+    if (!files?.length || busy || !writable) return;
+    const capacity = Math.max(0, 8 - references.length);
+    const chosen = [...files].slice(0, capacity);
+    if (!chosen.length) { toast.error("Cette discussion utilise déjà huit images de référence."); return; }
+    if (files.length > capacity) toast.info(`Tu peux joindre ${capacity} image${capacity > 1 ? "s" : ""} de plus dans cette discussion.`);
+    setBusy("upload");
+    try {
+      const result = await localUpload.mutate(chosen);
+      if (result.failed) toast.error(`${result.failed} image${result.failed > 1 ? "s" : ""} non ajoutée${result.failed > 1 ? "s" : ""}.`);
+      if (result.photoIds.length) {
+        setBusy("");
+        await addReferencePhotos(result.photoIds.map((id) => ({ id, kind: "autre" } as UserPhotoRow)));
+      }
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Import impossible.");
+    } finally {
+      if (fileInput.current) fileInput.current.value = "";
+      if (alive.current && !actionLock.current) setBusy("");
+    }
+  }
+  async function attachVersionAsReference(versionId: string) {
+    const existing = references.find((ref) => ref.version_id === versionId);
+    if (existing) {
+      setAttachments([...attachedIds, existing.id]);
+      setSelectedId(null);
+      return;
+    }
+    if (!current || references.length >= 8) {
+      toast.error("Cette discussion utilise déjà huit images de référence.");
+      return;
+    }
+    const result = await mutate("reference", {
+      version_id: versionId,
+      reference_role: "style",
+      revision: current.session.revision,
+    });
+    const joined = result?.session.references?.find((ref) => ref.version_id === versionId);
+    if (joined) {
+      setAttachments([...attachedIds, joined.id]);
+      setSelectedId(null);
+      toast.success("Image jointe à ta prochaine demande.");
     }
   }
   async function send(branchReferenceMode?: "version" | "current") {
@@ -508,6 +557,7 @@ function Studio({
           workspace_id: workspaceId,
           session_id: id,
           message: text,
+          reference_ids: [],
           request_id: sent.current.id,
           revision: sent.current.revision,
         });
@@ -518,10 +568,7 @@ function Studio({
           draftRef.current.trim() === text ? "" : draftRef.current,
         );
         writeDraft(localKey, "");
-        navigate(studioPath(id), {
-          replace: true,
-          state: { studioChatOpen: isMobile },
-        });
+        navigate(studioPath(id), { replace: true });
       } catch (e) {
         if (alive.current) {
           setError(e instanceof Error ? e.message : "Réessaie l’envoi.");
@@ -535,18 +582,28 @@ function Studio({
       }
       return;
     }
+    const activeReferenceIds = attachedIds.length
+      ? attachedIds
+      : proposal?.reference_snapshot?.length
+      ? proposal.reference_snapshot.map((ref) => ref.id)
+      : !current.session.messages.some((message) => message.role === "user")
+      ? references.map((ref) => ref.id)
+      : [];
+    const attachmentFingerprint = activeReferenceIds.join(":");
     // Keep the same request ID after an uncertain response, but not for a different message.
     if (
       !sent.current ||
       sent.current.text !== draft.trim() ||
       sent.current.revision !== current.session.revision ||
-      sent.current.target !== (selectedId || selectedReference?.id || "")
+      sent.current.target !== (selectedId || selectedReference?.id || "") ||
+      sent.current.attachments !== attachmentFingerprint
     ) {
       sent.current = {
         id: crypto.randomUUID(),
         text: draft.trim(),
         revision: current.session.revision,
         target: selectedId || selectedReference?.id || "",
+        attachments: attachmentFingerprint,
       };
     }
     const submittedText = sent.current.text;
@@ -555,13 +612,17 @@ function Studio({
       request_id: sent.current.id,
       revision: sent.current.revision,
       viewed_version_id: selectedId,
-      viewed_reference_id: selectedReference?.id || null,
+      viewed_reference_id: selectedId || activeReferenceIds.length
+        ? selectedReference?.id || null
+        : null,
+      reference_ids: activeReferenceIds,
       branch_reference_mode: branchReferenceMode,
     });
     if (result && alive.current) {
       if (draftRef.current.trim() === submittedText) editDraft("");
       sent.current = null;
       setBranchChoice(null);
+      if (result.session.proposal) setAttachments([]);
     }
   }
   async function save(useInContent = false) {
@@ -656,9 +717,6 @@ function Studio({
     }`
     : selectedReference?.name ||
       (source ? "Original" : "Ton espace de création");
-  const galleryCount = references.length +
-    (source && !references.length ? 1 : 0) +
-    (current?.versions.filter((v) => v.status === "ready").length || 0);
   async function openPreparation(message?: StudioMessage) {
     const targetVersion = message?.viewed_version_id
       ? current?.versions.find(v => v.id === message.viewed_version_id)
@@ -729,6 +787,18 @@ function Studio({
               product: "Ton produit en situation",
             }[proposal.operation]}
           </h2>
+          <div className="rounded-lg bg-background p-3 text-sm">
+            <h3 className="font-semibold mb-2">Ce que j’ai compris</h3>
+            <p className="whitespace-pre-wrap">{proposal.summary}</p>
+          </div>
+          {!!proposal.exact_text?.length && <div className="text-sm">
+            <strong>Texte à afficher dans l’image :</strong>
+            <ul className="list-disc pl-5 mt-1">{proposal.exact_text.map((item, index) => <li key={`${item}:${index}`}>« {item} »</li>)}</ul>
+          </div>}
+          {!!proposal.reference_snapshot?.length && <div className="text-sm">
+            <strong>Images utilisées :</strong>
+            <ol className="list-decimal pl-5 mt-1">{proposal.reference_snapshot.map((ref) => <li key={ref.id}>{ref.name} · {{ subject: "sujet à préserver", product: "produit exact", person: "personne réelle", casting: "mannequin fictif", style: "ambiance", composition: "composition", logo: "logo" }[ref.role]}</li>)}</ol>
+          </div>}
           {proposal.composition && (
             <p className="text-sm">
               L’image de fond sera créée par l’IA. Tu ajouteras ensuite les
@@ -798,7 +868,7 @@ function Studio({
               </dd>
             </div>
           </dl>
-          {proposal.brand_context && <StudioBrandContext context={proposal.brand_context} />}
+          {proposal.brand_context && <details className="text-sm"><summary>Contexte de marque utilisé</summary><StudioBrandContext context={proposal.brand_context} /></details>}
           {proposal.preserve?.length
             ? (
               <p className="text-sm">
@@ -850,8 +920,8 @@ function Studio({
               const result = await mutate("generate", {
                 proposal_id: proposal.id,
               });
-              if (result && alive.current) {
-                setMobileChat(false);
+              if (result && alive.current && isMobile) {
+                document.querySelector(".studio-stage")?.scrollIntoView({ behavior: "smooth", block: "start" });
               }
             }}
           >
@@ -910,7 +980,7 @@ function Studio({
         )}
         <>
               <div
-                ref={mobile ? mobileMessages : desktopMessages}
+                ref={desktopMessages}
                 className="studio-messages"
                 aria-live="polite"
               >
@@ -934,6 +1004,15 @@ function Studio({
                     <span className="block text-xs font-semibold mb-1">
                       {m.role === "user" ? "Toi" : "Studio"}
                     </span>
+                    {!!m.reference_ids?.length && <div className="studio-attached-images" aria-label="Images jointes à ce message">
+                      {m.reference_ids.map((id, index) => {
+                        const ref = m.reference_snapshot?.find((item) => item.id === id) || references.find((item) => item.id === id);
+                        return <div key={`${id}:${index}`} className="studio-attached-image">
+                          {ref?.url && <img src={ref.url} alt="" />}
+                          <span>Image {index + 1}{ref ? ` · ${ref.name}` : " · référence conservée"}</span>
+                        </div>;
+                      })}
+                    </div>}
                     <p>{m.text}</p>
                     {m.suggested_memory_ids?.map((id) => {
                       const item = current.memory?.find((entry) => entry.id === id);
@@ -1021,7 +1100,7 @@ function Studio({
                       : "Tes échanges et créations restent dans cette session."}
                   </p>
                   {version?.proposal.brand_context && (
-                    <StudioBrandContext context={version.proposal.brand_context} />
+                    <details className="text-sm"><summary>Contexte de marque de cette image</summary><StudioBrandContext context={version.proposal.brand_context} /></details>
                   )}
                   {version?.status === "ready" && version.proposal.composition && (
                     <Button
@@ -1107,7 +1186,6 @@ function Studio({
                               version_id: v.id,
                               revision: current!.session.revision,
                             });
-                            setMobileChat(isMobile);
                           }}
                         >
                           Réessayer cette image seulement
@@ -1122,11 +1200,13 @@ function Studio({
                         <p className="mt-2">Tu peux poursuivre une autre demande dans cette session. Cette image ne peut pas être relancée automatiquement.</p>
                       </div>
                     ))}
+                  <details className="studio-extra-tools">
+                    <summary>Autres outils et créations enregistrées{references.length ? ` · ${references.length} image${references.length > 1 ? "s" : ""} de référence` : ""}</summary>
                   <div className="studio-references">
                     {!!references.length && (
                       <>
                         <h3 className="text-sm font-medium mb-2">Photos de référence · {references.length}/8</h3>
-                        <p className="text-xs text-muted-foreground mb-3">Elles guideront ensemble la prochaine image. Vérifie leur rôle et précise si plusieurs vues montrent le même sujet.</p>
+                        <p className="text-xs text-muted-foreground mb-3">Ces images restent disponibles. Tu peux préciser leur rôle dans ton message ; seules celles retenues pour la demande sont envoyées au modèle.</p>
                       </>
                     )}
                     {references.map((ref) => (
@@ -1212,8 +1292,6 @@ function Studio({
                       </p>
                     )}
                   </div>
-                  <details className="studio-extra-tools">
-                    <summary>Autres outils et créations enregistrées</summary>
                   {current && (
                     <StudioMemoryPanel
                       memory={current.memory || []}
@@ -1341,6 +1419,9 @@ function Studio({
                 </section>
               </div>
               <div className="studio-composer p-4 border-t space-y-3">
+                {!!selectedId && <button type="button" className="text-xs text-primary text-left" onClick={() => { setSelectedId(null); setSelectedReferenceId(null); setCompare(false); }}>
+                  À partir de l’image sélectionnée · changer de point de départ ×
+                </button>}
                 {activeBranchChoice && (
                   <div role="status" className="rounded-lg border border-primary/30 bg-card p-3 space-y-2 text-sm">
                     <p>Les références ont changé depuis cette version. Lesquelles veux-tu utiliser pour cette nouvelle demande ? Aucune image n’a été lancée.</p>
@@ -1362,6 +1443,13 @@ function Studio({
                 >
                   Ta demande
                 </label>
+                {!!attachedReferences.length && <div className="studio-attached-images" aria-label="Images prêtes à être jointes">
+                  {attachedReferences.map((ref, index) => <div className="studio-attached-image" key={ref.id}>
+                    {ref.url && <img src={ref.url} alt="" />}
+                    <span>Image {index + 1} · {ref.name}</span>
+                    <button type="button" aria-label={`Retirer ${ref.name} de cette demande`} onClick={() => setAttachments(attachedIds.filter((id) => id !== ref.id))}>×</button>
+                  </div>)}
+                </div>}
                 <Textarea
                   className="min-h-[88px] max-h-36 overflow-y-auto"
                   id={mobile ? "studio-draft-mobile" : "studio-draft"}
@@ -1371,15 +1459,16 @@ function Studio({
                   disabled={!writable}
                   placeholder="Une idée, une question, une image à améliorer…"
                 />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={!writable || !!busy || generating || references.length >= 8}
-                  onClick={() => setPicker(true)}
-                >
-                  <ImagePlus className="h-4 w-4 mr-2" />
-                  {references.length ? `Ajouter des photos de référence · ${references.length}/8` : "Choisir des photos de référence"}
-                </Button>
+                <input ref={fileInput} type="file" accept="image/*,.heic,.heif" multiple className="sr-only" aria-label="Importer plusieurs images" onChange={(event) => void addLocalFiles(event.target.files)} />
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="ghost" size="sm" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => fileInput.current?.click()}>
+                    <ImagePlus className="h-4 w-4 mr-2" /> Ajouter des images
+                  </Button>
+                  <Button variant="ghost" size="sm" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => setPicker(true)}>
+                    Depuis ma bibliothèque
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Les images importées restent dans ta bibliothèque.</p>
                 {references.length >= 8 && <p className="text-xs text-muted-foreground">Huit références maximum. Retire une photo pour en choisir une autre.</p>}
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-xs text-muted-foreground">
@@ -1514,169 +1603,62 @@ function Studio({
             ? <p className="p-8">Ouverture de la session…</p>
             : (
               <div className="studio-grid">
-                {!isMobile && (
-                  <section
-                    className="studio-chat desktop-chat"
-                    aria-label="Conversation"
-                  >
-                    {chat()}
-                  </section>
-                )}
+                <section className="studio-chat" aria-label="Conversation">
+                  {chat(isMobile)}
+                </section>
                 <section
                   className="studio-stage"
                   aria-label="Visuels et versions"
                 >
-                  <h2 className="font-display text-2xl mb-5">{label}</h2>
-                  <div
-                    className={compare && version
-                      ? "studio-comparison"
-                      : "studio-image-single"}
-                  >
-                    {compare && version && (
-                      <figure>
-                        <img
-                          src={comparisonSource}
-                          alt="Référence de comparaison"
-                        />
-                        <figcaption>
-                          {source ? "Référence" : "Version précédente"}
-                        </figcaption>
-                      </figure>
-                    )}
-                    {display
-                      ? (
-                        <figure>
-                          <img
-                            src={display}
-                            alt={label}
-                            onError={() =>
-                              setError(
-                                "L’aperçu a expiré ou n’est pas disponible. Réessaie pour le recharger, sans régénérer.",
-                              )}
-                          />
-                          <figcaption>{label}</figcaption>
-                        </figure>
-                      )
-                      : (
-                        <div className="studio-empty">
-                          <Sparkles className="h-9 w-9 text-primary" />
-                          <h3 className="font-display text-2xl">
-                            Tout commence par ton idée
-                          </h3>
-                          <p>
-                            Une illustration, ton produit en situation, un
-                            portrait, un visuel pour une offre… Discute avec le
-                            Studio ; tes créations apparaîtront ici.
-                          </p>
-                          <p>Ajoute une référence depuis la conversation si ton idée en a besoin.</p>
-                          <p className="text-xs">
-                            Aucune image n’est créée avant ta confirmation.
-                          </p>
-                        </div>
-                      )}
-                  </div>
-                  {galleryCount > 1 && (
-                    <div className="studio-version-navigation">
-                      <span>Images de cette session · fais défiler les versions</span>
-                      <div className="flex gap-1">
-                        <Button type="button" variant="ghost" size="sm" aria-label="Versions précédentes"
-                          onClick={() => versionRail.current?.scrollBy({ left: -220, behavior: "smooth" })}>←</Button>
-                        <Button type="button" variant="ghost" size="sm" aria-label="Versions suivantes"
-                          onClick={() => versionRail.current?.scrollBy({ left: 220, behavior: "smooth" })}>→</Button>
-                      </div>
+                  <div className="studio-gallery-header">
+                    <div>
+                      <h2 className="font-display text-2xl">Images créées dans cette discussion</h2>
+                      <p className="text-sm text-muted-foreground">Les nouvelles images suivent les précédentes. Choisis celle que tu veux reprendre.</p>
                     </div>
-                  )}
-                  <div ref={versionRail} className="studio-versions" aria-label="Versions">
-                    {!!source && !references.length && (
-                      <button
-                        type="button"
-                        aria-pressed={!selectedId}
-                        onClick={() => {
-                          setSelectedId(null);
-                          setCompare(false);
-                        }}
-                      >
-                        <img src={source} alt="" />
-                        <span>Original</span>
-                      </button>
-                    )}
-                    {references.map((ref) => (
-                      <button
-                        type="button"
-                        key={ref.id}
-                        aria-pressed={!selectedId &&
-                          selectedReference?.id === ref.id}
-                        onClick={() => {
-                          setSelectedId(null);
-                          setSelectedReferenceId(ref.id);
-                          setCompare(false);
-                        }}
-                      >
-                        <img src={ref.url} alt="" />
-                        <span>{ref.name}</span>
-                      </button>
-                    ))}
-                    {current?.versions
-                      .filter((v) => v.status === "ready")
-                      .map((v, i) => (
-                        <button
-                          key={v.id}
-                          type="button"
-                          aria-pressed={v.id === selectedId}
-                          onClick={() => {
-                            setSelectedId(v.id);
-                            setCompare(false);
-                          }}
-                        >
-                          <img src={v.url!} alt="" />
-                          <span>
-                            Version {i + 1}{v.proposal.series_size ? ` · série ${(v.proposal.series_index || 0) + 1}/${v.proposal.series_size}` : ""}
-                            {v.library_photo_id ? " ✓" : ""}
-                          </span>
-                        </button>
-                      ))}
+                    <span className="text-xs text-muted-foreground">{current?.versions.length || 0} image{current?.versions.length === 1 ? "" : "s"}</span>
                   </div>
+                  {!current?.versions.length && <div className="studio-empty">
+                    <Sparkles className="h-9 w-9 text-primary" />
+                    <h3 className="font-display text-2xl">Tout commence par ton idée</h3>
+                    <p>Une photo, une affiche, une illustration ou un visuel encore à imaginer : décris-le dans la conversation. Le Studio reformulera ta demande avant de créer.</p>
+                  </div>}
+                  {!!current?.versions.length && <div className="studio-image-stream">
+                    {current.versions.length > galleryLimit && <Button variant="outline" onClick={() => setGalleryLimit((limit) => limit + 20)}>Voir les images plus anciennes</Button>}
+                    {current.versions.slice(-galleryLimit).map((item) => {
+                      const number = current.versions.findIndex((entry) => entry.id === item.id) + 1;
+                      const selected = selectedId === item.id;
+                      return <article key={item.id} className={`studio-image-card${selected ? " selected" : ""}`}>
+                        <div className="studio-image-card-head">
+                          <strong>Image {number}{item.proposal.series_size ? ` · série ${(item.proposal.series_index || 0) + 1}/${item.proposal.series_size}` : ""}</strong>
+                          <span>{item.status === "processing" ? "Création en cours" : item.status === "ready" ? "Prête" : item.status === "failed" ? "Échec" : "À vérifier"}</span>
+                        </div>
+                        {item.url ? <div className={selected && compare && comparisonSource ? "studio-comparison" : "studio-image-single"}>
+                          {selected && compare && comparisonSource && <figure><img src={comparisonSource} alt="Source de comparaison" /><figcaption>Source</figcaption></figure>}
+                          <figure><img src={item.url} alt={`Image ${number} créée dans cette discussion`} loading="lazy" onError={() => setError("L’aperçu a expiré. Réessaie pour le recharger, sans régénérer.")} /><figcaption>{item.proposal.summary}</figcaption></figure>
+                        </div> : <p className="p-5 text-sm">{item.error_message || "Le résultat apparaîtra ici dès qu’il sera prêt."}</p>}
+                        <div className="studio-image-card-actions">
+                          {item.status === "ready" && <Button size="sm" variant={selected ? "default" : "outline"} onClick={() => { setSelectedId(item.id); setCompare(false); }}>{selected ? "Image sélectionnée" : "Reprendre cette image"}</Button>}
+                          {item.status === "ready" && <Button size="sm" variant="outline" disabled={!writable || !!busy || generating || (references.length >= 8 && !references.some((ref) => ref.version_id === item.id))} onClick={() => void attachVersionAsReference(item.id)}>Joindre à ma demande</Button>}
+                          {item.status === "ready" && item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="studio-image-open">Agrandir l’image</a>}
+                          {item.library_photo_id && <span className="text-xs text-muted-foreground">Dans la bibliothèque</span>}
+                        </div>
+                      </article>;
+                    })}
+                  </div>}
+                  {!!references.length && <details className="studio-source-details">
+                    <summary>Images apportées dans la discussion · {references.length}</summary>
+                    <div className="studio-versions" aria-label="Références de la discussion">
+                      {references.map((ref) => <button type="button" key={ref.id} onClick={() => { setSelectedId(null); setSelectedReferenceId(ref.id); setAttachments([ref.id]); setCompare(false); }}>
+                        <img src={ref.url} alt="" /><span>{ref.name}</span>
+                      </button>)}
+                    </div>
+                  </details>}
+
                 </section>
               </div>
             )}
-          {
-            <div className="studio-mobile-launch">
-              <Button
-                className="w-full justify-between"
-                onClick={() => setMobileChat(true)}
-              >
-                <span>
-                  <MessageCircle className="h-4 w-4 inline mr-2" />
-                  Toute la conversation
-                </span>
-                <span>{proposal ? "1 proposition" : "Ouvrir"}</span>
-              </Button>
-            </div>
-          }
         </div>
       </main>
-      {mobileChat && !videoTab && (
-        <Drawer open onOpenChange={setMobileChat}>
-          <DrawerContent className="studio-mobile-drawer">
-            <DrawerHeader className="text-left">
-              <DrawerTitle>
-                {current?.session.name || "Studio visuel"}
-              </DrawerTitle>
-              <DrawerDescription>
-                Conversation, confirmation et actions
-              </DrawerDescription>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setMobileChat(false)}
-              >
-                Fermer la conversation
-              </Button>
-            </DrawerHeader>
-            {chat(true)}
-          </DrawerContent>
-        </Drawer>
-      )}
       {current && (
         <StudioCompositionEditor
           key={`${sessionId}:${selectedComposition?.id || "current"}`}
