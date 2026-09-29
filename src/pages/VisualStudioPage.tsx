@@ -1576,14 +1576,8 @@ function Studio({
                   <Button variant="ghost" size="sm" className="whitespace-nowrap shrink-0" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => setPicker(true)}>
                     Depuis ma bibliothèque
                   </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">Les images importées restent dans ta bibliothèque.</p>
-                {references.length >= 8 && <p className="text-xs text-muted-foreground">Huit références maximum. Retire une photo pour en choisir une autre.</p>}
-                <div className="flex justify-between items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    Envoyer ne génère rien.
-                  </span>
                   <Button
+                    className="ml-auto shrink-0"
                     disabled={!writable || !!busy || generating || activeBranchChoice ||
                       !draft.trim()}
                     onClick={() => void send()}
@@ -1594,6 +1588,7 @@ function Studio({
                     Envoyer
                   </Button>
                 </div>
+                {references.length >= 8 && <p className="text-xs text-muted-foreground">Huit références maximum. Retire une photo pour en choisir une autre.</p>}
               </div>
         </>
       </div>
