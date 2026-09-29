@@ -263,6 +263,39 @@ function PhotosLibrary() {
     fileInputRef.current?.click();
   }
 
+  function dragHasFiles(e: React.DragEvent) {
+    return Array.from(e.dataTransfer?.types || []).includes("Files");
+  }
+
+  function handleDragEnter(e: React.DragEvent) {
+    if (!dragHasFiles(e) || !wsReady || uploading) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragActive(true);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    if (!dragHasFiles(e) || !wsReady || uploading) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    if (!dragActive) return;
+    e.preventDefault();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragActive(false);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    if (!dragHasFiles(e)) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragActive(false);
+    if (!wsReady || uploading) return;
+    void handleFilesSelected(e.dataTransfer.files);
+  }
+
   async function handleRetry(photo: UserPhotoRow) {
     try {
       await retry(photo);
