@@ -644,13 +644,13 @@ Deno.test("v4 independent creation does not inherit references from the selected
   } finally { f.restore(); }
 });
 
-Deno.test("v4 routes a source-free photo to Soul2 and keeps text posters on OpenAI", async () => {
+Deno.test("v4 routes source-free photos and text posters to OpenAI", async () => {
   const keys = ["HIGGSFIELD_SOUL2_ENABLED", "HIGGSFIELD_DATA_USE_REVIEWED"];
   const before = keys.map((key) => Deno.env.get(key));
   keys.forEach((key) => Deno.env.set(key, "true"));
   try {
     for (const [intent, expected] of [
-      [{ operation: "create", visual_kind: "photo", summary: "Portrait photographique d'un mannequin fictif", image_prompt: "Portrait photographique" }, "higgsfield-ai/soul/v2/standard"],
+      [{ operation: "create", visual_kind: "photo", summary: "Portrait photographique d'un mannequin fictif", image_prompt: "Portrait photographique" }, "gpt-image-2.5-flare"],
       [{ operation: "create", visual_kind: "photo", summary: "Affiche photo avec le titre Atelier", image_prompt: "Affiche photo", exact_text: ["Atelier"] }, "gpt-image-2.5-flare"],
     ] as const) {
       const f = fixture();
@@ -660,12 +660,12 @@ Deno.test("v4 routes a source-free photo to Soul2 and keeps text posters on Open
       try {
         const res = await handleStudioRequest(request({
           ...base, studio_version: 4, action: "message", message: intent.summary,
-          revision: 0, reference_ids: [], request_id: id(expected.startsWith("higgsfield") ? 108 : 109),
+          revision: 0, reference_ids: [], request_id: id("exact_text" in intent ? 109 : 108),
         }));
         const data = await res.json();
         assertEquals(res.status, 200);
         assertEquals(data.session.proposal.model, expected);
-        assertEquals(data.session.proposal.provider, expected.startsWith("higgsfield") ? "higgsfield" : "default");
+        assertEquals(data.session.proposal.provider, "default");
       } finally { f.restore(); }
     }
   } finally {
