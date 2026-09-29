@@ -3,7 +3,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { getServiceClient } from "../_shared/plan-limiter.ts";
 import { estimate, MODEL, MODELS, ProviderError, publicHttpsUrl, status as providerStatus, submit, uploadImage, type VideoInput, type VideoModel } from "./higgsfield.ts";
-import { prepareVideo, signPreparation, verifyPreparation } from "./prepare.ts";
+import { buildVideoPrompt, prepareVideo, signPreparation, verifyPreparation } from "./prepare.ts";
 
 const BUCKET = "studio-video";
 const MAX_VIDEO_BYTES = 150 * 1024 * 1024;
@@ -12,11 +12,17 @@ const quoteSchema = z.object({
   source_kind: z.enum(["photo", "studio_version", "text", "references"]), source_id: z.string().uuid().optional(),
   references: z.array(z.object({ kind: z.enum(["photo", "studio_version"]), id: z.string().uuid(),
     role: z.enum(["subject", "product", "person", "casting", "background", "style", "composition"]) })).min(2).max(4).optional(),
-  prompt: z.string().trim().min(3).max(1000), duration: z.number().int().min(4).max(10),
+  prompt: z.string().trim().min(3).max(3000), duration: z.number().int().min(4).max(10),
   resolution: z.enum(["480p", "720p"]), aspect_ratio: z.enum(["9:16", "16:9", "1:1"]).default("9:16"),
   person_free_attested: z.boolean(), prepared_token: z.string().max(100).optional(),
+  idea: z.string().trim().min(3).max(1000).optional(),
+  summary: z.string().trim().min(20).max(1200).optional(),
+  continuity: z.array(z.string().trim().min(8).max(180)).min(1).max(4).optional(),
+  allowed_changes: z.string().trim().min(8).max(180).optional(),
+  forbidden_changes: z.string().trim().min(8).max(250).optional(),
 });
-const prepareSchema = quoteSchema.extend({ action: z.literal("prepare"), prepared_token: z.never().optional() });
+const prepareSchema = quoteSchema.extend({ action: z.literal("prepare"),
+  prompt: z.string().trim().min(3).max(1000), prepared_token: z.never().optional() });
 function validateQuote(p: z.infer<typeof quoteSchema> | z.infer<typeof prepareSchema>, ctx: z.RefinementCtx) {
   const image = p.source_kind === "photo" || p.source_kind === "studio_version";
   const attested = p.person_free_attested;
@@ -65,6 +71,7 @@ function safeJob(row: Record<string, unknown>, signedUrl: string | null = null) 
     id: row.id, workspace_id: row.workspace_id, source_kind: row.source_kind,
     source_id: row.source_id, source_name: row.source_name, source_refs: row.source_refs,
     prompt: row.prompt, duration: row.duration, resolution: row.resolution,
+    preparation: row.preparation,
     aspect_ratio: row.aspect_ratio, model: row.model, status: row.status,
     estimated_usd: row.estimated_usd, estimated_credits: row.estimated_credits,
     quote_expires_at: row.quote_expires_at, created_at: row.created_at,
@@ -100,15 +107,6 @@ async function source(db: DB, workspace: string, kind: "photo" | "studio_version
   return { bucket: "visual-studio", path: data.result_path as string, name: (session?.name || "Création du Studio").slice(0, 120) };
 }
 type SourceRef = { kind: "photo" | "studio_version"; id: string; role: string; name?: string };
-const roleInstructions: Record<string, string> = {
-  subject: "sujet à préserver", product: "produit à préserver", person: "personne à préserver",
-  casting: "mannequin fictif", background: "décor", style: "ambiance et lumière",
-  composition: "composition de la scène",
-};
-function referencedPrompt(prompt: string, refs: SourceRef[]) {
-  return `${prompt}\nRéférences visuelles dans l'ordre : ${refs.map((r, i) =>
-    `image ${i + 1} = ${roleInstructions[r.role] || "référence visuelle"}`).join(" ; ")}.`;
-}
 function inputFromJob(row: Record<string, unknown>): VideoInput {
   const common = { prompt: String(row.prompt), duration: Number(row.duration),
     resolution: row.resolution as "480p" | "720p", output_format: "mp4" as const,
@@ -248,13 +246,18 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       const prepared = await prepareVideo({ idea: p.prompt, source_kind: p.source_kind,
         references: resolved.map(({ kind, id, role, name }, i) => ({ image: i + 1, kind, id, role, name })),
         duration: p.duration, resolution: p.resolution, aspect_ratio: p.aspect_ratio }, vision);
-      const preparedInput = { ...p, prompt: prepared.prompt };
+      const prompt = buildVideoPrompt(prepared, p.duration, images);
+      const preparedInput = { ...p, idea: p.prompt, prompt, summary: prepared.summary, continuity: prepared.invariants,
+        allowed_changes: prepared.allowed_changes, forbidden_changes: prepared.forbidden_changes };
       const token = await signPreparation(preparedInput, pipe.userId, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      return json({ summary: prepared.summary, prompt: prepared.prompt, prepared_token: token });
+      return json({ summary: prepared.summary, continuity: prepared.invariants,
+        allowed_changes: prepared.allowed_changes, forbidden_changes: prepared.forbidden_changes,
+        prompt, prepared_token: token });
     }
     if (p.action === "quote") {
       if (!enabled(p.workspace_id) || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
-      if (!p.prepared_token || !await verifyPreparation(p.prepared_token, p, pipe.userId,
+      if (!p.prepared_token || !p.idea || !p.summary || !p.continuity || !p.allowed_changes || !p.forbidden_changes ||
+        !await verifyPreparation(p.prepared_token, p, pipe.userId,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!))
         return json({ error: "La proposition vidéo a changé. Prépare et valide de nouveau le clip." }, 409);
       if (await trialSubmittedCount(db) >= TRIAL_MAX_SUBMISSIONS)
@@ -271,8 +274,7 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       const single = p.source_kind === "photo" || p.source_kind === "studio_version"
         ? await source(db, p.workspace_id, p.source_kind, p.source_id!) : null;
       const images = single ? [single] : resolved;
-      const actualPrompt = refs.length ? referencedPrompt(p.prompt, resolved) : p.prompt;
-      if (actualPrompt.length > 1000) return json({ error: "La consigne avec les rôles dépasse 1 000 caractères. Raccourcis-la." }, 400);
+      const actualPrompt = p.prompt;
       const inputUrls: string[] = [];
       for (const image of images) {
         const { data: media, error: mediaError } = await db.storage.from(image.bucket).download(image.path);
@@ -294,6 +296,8 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         id, workspace_id: p.workspace_id, user_id: pipe.userId, source_kind: p.source_kind,
         source_id: p.source_id || null, source_name: single?.name || (refs.length ? `${refs.length} références` : "Idée seule"),
         source_refs: resolved.map(({ kind, id, role, name }) => ({ kind, id, role, name })),
+        preparation: { idea: p.idea, summary: p.summary, continuity: p.continuity,
+          allowed_changes: p.allowed_changes, forbidden_changes: p.forbidden_changes },
         prompt: actualPrompt, duration: p.duration, aspect_ratio: p.aspect_ratio,
         resolution: p.resolution, person_free_attested: p.person_free_attested, model,
         input_url: single ? inputUrls[0] : null, input_urls: refs.length ? inputUrls : [],
