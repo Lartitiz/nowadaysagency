@@ -122,6 +122,10 @@ function PhotosLibrary() {
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [kindFilter, setKindFilter] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Glisser-déposer : compteur de profondeur car dragenter/dragleave se
+  // déclenchent aussi sur chaque enfant survolé (sinon le cadre clignote).
+  const [dragActive, setDragActive] = useState(false);
+  const dragDepth = useRef(0);
   const queryClient = useQueryClient();
 
   // Rattrapage des photos décrites avant l'arrivée du champ kind : la
@@ -259,6 +263,39 @@ function PhotosLibrary() {
     fileInputRef.current?.click();
   }
 
+  function dragHasFiles(e: React.DragEvent) {
+    return Array.from(e.dataTransfer?.types || []).includes("Files");
+  }
+
+  function handleDragEnter(e: React.DragEvent) {
+    if (!dragHasFiles(e) || !wsReady || uploading) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragActive(true);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    if (!dragHasFiles(e) || !wsReady || uploading) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    if (!dragActive) return;
+    e.preventDefault();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragActive(false);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    if (!dragHasFiles(e)) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragActive(false);
+    if (!wsReady || uploading) return;
+    void handleFilesSelected(e.dataTransfer.files);
+  }
+
   async function handleRetry(photo: UserPhotoRow) {
     try {
       await retry(photo);
@@ -286,7 +323,25 @@ function PhotosLibrary() {
   return (
     <div className="min-h-screen bg-background [--primary:330_50%_20%] dark:[--primary:338_72%_83%]">
       <AppHeader />
-      <main id="main-content" className="container max-w-7xl mx-auto px-4 py-8 sm:py-10">
+      <main
+        id="main-content"
+        className="container relative max-w-7xl mx-auto px-4 py-8 sm:py-10"
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {dragActive && (
+          <div
+            aria-hidden="true"
+            data-testid="photos-drop-overlay"
+            className="pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-3xl border-2 border-dashed border-primary bg-background/85"
+          >
+            <p className="rounded-xl bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
+              Lâche tes photos ici
+            </p>
+          </div>
+        )}
         {/* Titre pleine largeur puis rangée d'actions : les 4 boutons côte à
             côte écrasaient la colonne du titre (h1 cassé sur 2 lignes). */}
         <header className="mb-8 space-y-4">
