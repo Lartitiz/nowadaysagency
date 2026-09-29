@@ -393,6 +393,16 @@ it('protects photos saved without a flow record when entering a new creation', a
   expect(loadPhotos()).toMatchObject([{userPhotoId:'library-1'}]);
 });
 
+it('asks before entering LinkedIn while a Studio photo draft is in progress', async () => {
+  saveFlowState({step:'format',ideaText:'Bol fictif',photoEntry:true,photoSubject:'Bol fictif',creationId:'studio-photo'});
+  await savePhotos([{id:'p',userPhotoId:'library-1',name:'Photo du bol'}]);
+  const before = loadFlowState();
+  mount('/creer?canal=linkedin');
+  expect(screen.getByRole('dialog')).toBeVisible();
+  expect(loadFlowState()).toEqual(before);
+  expect(loadPhotos()).toHaveLength(1);
+});
+
 it('reopens the same generated carousel after precisions and a reload, including designs and caption', async () => {
   const raw = { slides: [{slide_number:1,title:'Couverture',body:''},{slide_number:2,title:'Erreur 1',body:'Une explication à garder'}], caption:{body:'Ma légende'}, _crosspost:{source:'privée'} };
   const visualSlides = [{slide_number:1,html:'<div>Design original</div>'}];

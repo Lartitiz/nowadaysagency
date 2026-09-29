@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Heart, MessageCircle, Send, Bookmark, ThumbsUp, Share2, Mail, Globe, Play, Check } from "lucide-react";
 import { CarouselSlider } from "./CarouselSlider";
 import { formatDistanceToNow } from "date-fns";
@@ -56,7 +56,6 @@ function InstagramMockup({
   const [expanded, setExpanded] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [localComments, setLocalComments] = useState<Comment[]>([]);
-  const likeCount = useMemo(() => Math.floor(Math.random() * 78) + 12, []);
 
   const allComments = [...comments, ...localComments];
   const captionLines = caption.split("\n");
@@ -121,9 +120,6 @@ function InstagramMockup({
             </div>
             <Bookmark className="h-[22px] w-[22px] text-gray-900 cursor-pointer hover:text-gray-500 transition-colors" />
           </div>
-
-          {/* Likes */}
-          <p className="px-3 text-sm font-semibold text-gray-900">{likeCount} J'aime</p>
 
           {/* Caption */}
           <div className="px-3 py-1.5">
@@ -197,7 +193,6 @@ function LinkedInMockup({
   const [expanded, setExpanded] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [localComments, setLocalComments] = useState<Comment[]>([]);
-  const reactionCount = useMemo(() => Math.floor(Math.random() * 40) + 5, []);
 
   const allComments = [...comments, ...localComments];
   const captionLines = caption.split("\n");
@@ -250,7 +245,6 @@ function LinkedInMockup({
           <div className="px-4 flex items-center justify-between pb-2">
             <div className="flex items-center gap-0.5 text-xs text-gray-500">
               <span>👍❤️😄</span>
-              <span className="ml-1">{reactionCount}</span>
             </div>
             {allComments.length > 0 && (
               <span className="text-xs text-gray-500">{allComments.length} commentaire{allComments.length > 1 ? "s" : ""}</span>

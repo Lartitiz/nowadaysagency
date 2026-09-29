@@ -236,7 +236,8 @@ function CreerWorkspace() {
       locState.resumeIdea ||
       paramIdeaId ||
       paramAuto ||
-      paramFormat
+      paramFormat ||
+      (loadPhotos().length > 0 && paramCanal && paramCanal !== (deriveCanalFromState(d) || d.forcedChannel))
     );
     if (!hasNewIntent) return null;
     // Même sujet que le brouillon → pas de conflit, on reprend simplement.
@@ -2668,8 +2669,9 @@ function CreerWorkspace() {
           draft={draftConflict.draft}
           newSubject={draftConflict.newSubject}
           onResume={() => {
-            // On repart proprement du brouillon persisté : rechargement sans
-            // location.state ni paramètres de démarrage.
+            // Retirer aussi l'état de navigation de la photo source : sinon
+            // le dialogue peut réapparaître après le rechargement.
+            window.history.replaceState({ ...(window.history.state || {}), usr: null }, "", location.pathname);
             window.location.replace(location.pathname);
           }}
           onStartNew={() => {

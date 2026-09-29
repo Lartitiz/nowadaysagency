@@ -4,9 +4,9 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import ContentRecycling from '@/components/ContentRecycling';
 import { resumeIdea } from '@/lib/resume-idea';
-const m=vi.hoisted(()=>({saved:null as any,calendar:null as any,response:null as any,raw:{slides:[{id:'s1',slide_number:1,title:'Première',body:'Un'},{id:'s2',slide_number:2,title:'Deuxième',body:'Deux'}],caption:{hook:'Légende',body:'Séparée',cta:'Fin'}}}));
-vi.mock('@/contexts/AuthContext',()=>({useAuth:()=>({user:{id:'qa'}})}));
-vi.mock('@/hooks/use-workspace-query',()=>({useWorkspaceId:()=> 'qa-space'}));
+const m=vi.hoisted(()=>({saved:null as any,calendar:null as any,response:null as any,user:'qa',workspace:'qa-space',raw:{slides:[{id:'s1',slide_number:1,title:'Première',body:'Un'},{id:'s2',slide_number:2,title:'Deuxième',body:'Deux'}],caption:{hook:'Légende',body:'Séparée',cta:'Fin'}}}));
+vi.mock('@/contexts/AuthContext',()=>({useAuth:()=>({user:{id:m.user}})}));
+vi.mock('@/hooks/use-workspace-query',()=>({useWorkspaceId:()=> m.workspace}));
 vi.mock('@/hooks/use-speech-recognition',()=>({useSpeechRecognition:()=>({isListening:false,isSupported:false,toggle:()=>{}})}));
 vi.mock('@/components/ui/textarea-with-voice',()=>({TextareaWithVoice:(p:any)=><textarea {...p}/>}));
 vi.mock('@/components/BaseReminder',()=>({default:()=>null}));
@@ -15,8 +15,18 @@ vi.mock('@/components/calendar/AddToCalendarDialog',()=>({AddToCalendarDialog:(p
 vi.mock('@/lib/posthog',()=>({posthog:{capture:()=>{}}}));
 vi.mock('@/lib/invoke-with-timeout',()=>({invokeWithTimeout:async()=>({data:m.response??{results:{carrousel:m.raw}},error:null})}));
 vi.mock('@/integrations/supabase/client',()=>({supabase:{from:(table:string)=>{const q:any={insert:(v:any)=>{if(table==='saved_ideas')m.saved=v;if(table==='calendar_posts')m.calendar=v;return q},select:()=>q,single:async()=>({data:{id:'saved'},error:null}),then:(resolve:any)=>Promise.resolve({data:null,error:null}).then(resolve)};return q}}}));
-beforeEach(()=>{m.saved=null;m.calendar=null;m.response=null;});
+beforeEach(()=>{m.saved=null;m.calendar=null;m.response=null;m.user='qa';m.workspace='qa-space';sessionStorage.clear();});
 afterEach(cleanup);
+it('keeps recycling drafts separate when switching workspaces',async()=>{
+ const view=render(<MemoryRouter initialEntries={['/creer?canal=linkedin']}><ContentRecycling/></MemoryRouter>);
+ fireEvent.change(screen.getByRole('textbox'),{target:{value:'Source privée A'}});
+ m.workspace='autre-espace';
+ view.rerender(<MemoryRouter initialEntries={['/creer?canal=linkedin']}><ContentRecycling/></MemoryRouter>);
+ await waitFor(()=>expect(screen.getByRole('textbox')).toHaveValue(''));
+ m.workspace='qa-space';
+ view.rerender(<MemoryRouter initialEntries={['/creer?canal=linkedin']}><ContentRecycling/></MemoryRouter>);
+ await waitFor(()=>expect(screen.getByRole('textbox')).toHaveValue('Source privée A'));
+});
 it('keeps structured recycled carousel through the real SaveToIdeasDialog and resume adapter',async()=>{
  render(<MemoryRouter initialEntries={['/creer?format=carrousel']}><ContentRecycling/></MemoryRouter>);
  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Document QA'}});
@@ -61,5 +71,5 @@ it.each(['linkedin','newsletter','reel','stories','carrousel'])('keeps the curre
  fireEvent.click(screen.getByRole('button',{name:'Sauvegarder en idée'}));
  fireEvent.click(screen.getByRole('button',{name:'Enregistrer dans Mes idées'}));
  await waitFor(()=>expect(m.saved).toBeTruthy());
- expect(m.saved.content_data).toEqual({type:'recycling',format,text:'Et : texte QA'});
+ expect(m.saved.content_data).toEqual({type:'recycling',format,text:'Et : texte QA',_ai_generated:true});
 });

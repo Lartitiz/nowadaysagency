@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, X, Sparkles, Plus, Instagram, Linkedin, Mail, Pin, type LucideIcon } from "lucide-react";
 import { ContentPreview } from "@/components/ContentPreview";
+import { isAiGeneratedContent } from "@/lib/content-origin";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -554,6 +555,7 @@ function IdeasInWorkspace() {
                             key={`${selectedIdea.id}:${visit.current}`}
                             contentData={selectedIdea.content_data}
                             contentDraft={selectedIdea.content_draft}
+                            aiGenerated={isAiGeneratedContent(selectedIdea.content_data, selectedIdea.source_module)}
                             contentType={selectedIdea.format === "reel" ? "reel" : selectedIdea.format === "story_serie" ? "stories" : undefined}
                             editable
                             onContentChange={async (edit) => {
@@ -719,6 +721,7 @@ function PlanifierPopover({ idea, onPlan, fullWidth }: { idea: SavedIdea; onPlan
       <PopoverContent className="w-auto p-0" align="start" onClick={(e) => e.stopPropagation()}>
         <Calendar
           mode="single"
+          locale={fr}
           onSelect={(date) => { if (date) { onPlan(idea, date); setOpen(false); } }}
           initialFocus
         />

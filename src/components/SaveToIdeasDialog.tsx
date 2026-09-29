@@ -140,6 +140,13 @@ export function SaveToIdeasDialog({
         contentType === "post_linkedin" ? "linkedin" :
         contentType === "pinterest" ? "pinterest" : "instagram";
 
+      const storedContent = visualSlides?.length && currentContent && typeof currentContent === "object" && !Array.isArray(currentContent)
+        ? { ...currentContent, visual_html: visualSlides }
+        : currentContent;
+      const contentWithOrigin = storedContent && typeof storedContent === "object" && !Array.isArray(storedContent)
+        ? { ...storedContent, _ai_generated: true }
+        : storedContent;
+
       const baseFields = {
         titre: `${contentEmoji} ${subject || contentType}`,
         angle: selectedTags.length > 0 ? selectedTags.join(", ") : contentType,
@@ -147,8 +154,8 @@ export function SaveToIdeasDialog({
         canal: canalValue,
         objectif: objectif || null,
         notes: note || null,
-        content_draft: typeof currentContent === "string" ? currentContent : JSON.stringify(currentContent),
-        content_data: visualSlides?.length && typeof currentContent === "object" ? { ...currentContent, visual_html: visualSlides } : currentContent,
+        content_draft: typeof contentWithOrigin === "string" ? contentWithOrigin : JSON.stringify(contentWithOrigin),
+        content_data: contentWithOrigin,
         personal_elements: personalElements || null,
       };
 
