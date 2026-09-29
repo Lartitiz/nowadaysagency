@@ -33,6 +33,12 @@ export function listStudioVideos(workspaceId: string) {
   return videoRequest<{ jobs: StudioVideoJob[]; enabled?: boolean }>({ action: "list", workspace_id: workspaceId });
 }
 
+export function listStudioVideoSources(workspaceId: string) {
+  return videoRequest<{ sources: { kind: "studio_version"; id: string; name: string; previewUrl: string | null }[] }>(
+    { action: "list_sources", workspace_id: workspaceId },
+  );
+}
+
 export function readStudioVideo(workspaceId: string, jobId: string) {
   return videoRequest<{ job: StudioVideoJob; error?: string }>({ action: "status", workspace_id: workspaceId, job_id: jobId });
 }

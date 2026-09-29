@@ -27,7 +27,8 @@ function validateQuote(p: z.infer<typeof quoteSchema>, ctx: z.RefinementCtx) {
 const submitSchema = z.object({ action: z.literal("submit"), workspace_id: z.string().uuid(), job_id: z.string().uuid() });
 const statusSchema = z.object({ action: z.literal("status"), workspace_id: z.string().uuid(), job_id: z.string().uuid() });
 const listSchema = z.object({ action: z.literal("list"), workspace_id: z.string().uuid() });
-const bodySchema = z.discriminatedUnion("action", [quoteSchema, submitSchema, statusSchema, listSchema])
+const listSourcesSchema = z.object({ action: z.literal("list_sources"), workspace_id: z.string().uuid() });
+const bodySchema = z.discriminatedUnion("action", [quoteSchema, submitSchema, statusSchema, listSchema, listSourcesSchema])
   .superRefine((p, ctx) => { if (p.action === "quote") validateQuote(p, ctx); });
 type DB = ReturnType<typeof getServiceClient>;
 
@@ -63,6 +64,9 @@ async function signed(db: DB, row: { result_path?: string | null }) {
   if (error || !data?.signedUrl) throw new Error("studio_video_sign_failed");
   return data.signedUrl;
 }
+export function allowedStudioVersion(proposal: Record<string, unknown> | null) {
+  return proposal?.requires_real_subject !== true && proposal?.subject_kind !== "portrait";
+}
 async function source(db: DB, workspace: string, kind: "photo" | "studio_version", id: string) {
   if (kind === "photo") {
     const { data, error } = await db.from("user_photos").select("id,name,kind,status,storage_path,removed_from_library_at")
@@ -77,7 +81,7 @@ async function source(db: DB, workspace: string, kind: "photo" | "studio_version
     .eq("id", id).eq("workspace_id", workspace).maybeSingle();
   if (error || !data || data.status !== "ready") throw new Error("studio_video_source_unavailable");
   const proposal = data.proposal as Record<string, unknown> | null;
-  if (proposal?.requires_real_subject === true || proposal?.subject_kind === "portrait")
+  if (!allowedStudioVersion(proposal))
     throw new Error("studio_video_person_unsupported");
   const session = data.visual_studio_sessions as unknown as { name?: string };
   return { bucket: "visual-studio", path: data.result_path as string, name: (session?.name || "Création du Studio").slice(0, 120) };
@@ -195,6 +199,22 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       if (error) throw error;
       return json({ enabled: enabled(p.workspace_id) && monthlyLimit() > 0,
         jobs: await Promise.all((data || []).map(async (row) => safeJob(row, row.status === "ready" ? await signed(db, row) : null))) });
+    }
+    if (p.action === "list_sources") {
+      const { data, error } = await db.from("visual_studio_versions")
+        .select("id,result_path,proposal,visual_studio_sessions!inner(name)")
+        .eq("workspace_id", p.workspace_id).eq("status", "ready")
+        .is("library_photo_id", null).order("created_at", { ascending: false }).limit(100);
+      if (error) throw error;
+      const eligible = (data || []).filter(row => allowedStudioVersion(row.proposal as Record<string, unknown> | null));
+      const paths = eligible.map(row => row.result_path as string);
+      const signedImages = paths.length ? await db.storage.from("visual-studio").createSignedUrls(paths, 3600) : null;
+      if (signedImages?.error) throw signedImages.error;
+      return json({ sources: eligible.map((row, index) => ({
+        kind: "studio_version", id: row.id,
+        name: ((row.visual_studio_sessions as unknown as { name?: string })?.name || "Création du Studio").slice(0, 120),
+        previewUrl: signedImages?.data?.[index]?.signedUrl || null,
+      })) });
     }
     if (p.action === "quote") {
       if (!enabled(p.workspace_id) || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
