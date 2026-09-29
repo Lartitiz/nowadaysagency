@@ -48,7 +48,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   const [camera, setCamera] = useState<Camera>(draft?.camera ?? "");
   const [light, setLight] = useState<Light>(draft?.light ?? "");
   const composedPrompt = videoPrompt(prompt, shot, camera, light);
-  const promptLimit = mode === "references" ? 800 : 1000;
+  const promptLimit = 1000;
   const promptTooLong = composedPrompt.length > promptLimit;
   const briefKey = JSON.stringify([workspaceId, mode, mode === "image" ? [source?.kind, source?.id] : null,
     mode === "references" ? references.map(r => [r.kind, r.id, r.role]) : null,
@@ -66,7 +66,8 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   useEffect(() => { setPersonFree(false); }, [referenceKey]);
   const [quote, setQuote] = useState<StudioVideoJob | null>(null);
   const [quoteKey, setQuoteKey] = useState<string | null>(null);
-  const [prepared, setPrepared] = useState<{ summary: string; prompt: string; token: string; key: string } | null>(null);
+  const [prepared, setPrepared] = useState<{ summary: string; continuity: string[];
+    allowedChanges: string; forbiddenChanges: string; prompt: string; token: string; key: string } | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -95,7 +96,8 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
     const requestedKey = briefKey;
     setBusy("prepare"); setError(""); setPrepared(null); setConfirmed(false); setQuote(null);
     try {
-      const result = await videoRequest<{ summary: string; prompt: string; prepared_token: string }>({
+      const result = await videoRequest<{ summary: string; continuity: string[];
+        allowed_changes: string; forbidden_changes: string; prompt: string; prepared_token: string }>({
         action: "prepare", workspace_id: workspaceId,
         source_kind: mode === "image" ? source!.kind : mode,
         source_id: mode === "image" ? source!.id : undefined,
@@ -104,7 +106,9 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         person_free_attested: mode === "text" ? false : personFree,
       });
       if (alive.current && currentBriefKey.current === requestedKey)
-        setPrepared({ summary: result.summary, prompt: result.prompt, token: result.prepared_token, key: requestedKey });
+        setPrepared({ summary: result.summary, continuity: result.continuity,
+          allowedChanges: result.allowed_changes, forbiddenChanges: result.forbidden_changes,
+          prompt: result.prompt, token: result.prepared_token, key: requestedKey });
     } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "Claude n’a pas pu préparer le clip."); }
     finally { if (alive.current) setBusy(""); }
   }
@@ -119,7 +123,9 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         source_kind: mode === "image" ? source!.kind : mode,
         source_id: mode === "image" ? source!.id : undefined,
         references: mode === "references" ? references.map(({ kind, id, role }) => ({ kind, id, role })) : undefined,
-        prompt: prepared.prompt, prepared_token: prepared.token, duration, resolution, aspect_ratio: aspectRatio,
+        idea: composedPrompt, prompt: prepared.prompt, summary: prepared.summary, continuity: prepared.continuity,
+        allowed_changes: prepared.allowedChanges, forbidden_changes: prepared.forbiddenChanges,
+        prepared_token: prepared.token, duration, resolution, aspect_ratio: aspectRatio,
         person_free_attested: mode === "text" ? false : personFree });
       if (alive.current && currentInputKey.current === requestedKey) { setQuote(result.job); setQuoteKey(requestedKey); }
       await cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId] });
@@ -247,6 +253,15 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         {prepared?.key === briefKey && <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
           <p className="text-sm font-medium">Est-ce bien le clip que tu veux ?</p>
           <p className="text-sm whitespace-pre-line break-words">{prepared.summary}</p>
+          <div className="rounded-md border bg-background p-3 text-sm space-y-1">
+            <p className="font-medium">À vérifier avant le devis</p>
+            <ul className="list-disc pl-5 space-y-1">{prepared.continuity.map((rule, index) => <li key={index}>{rule}</li>)}</ul>
+            <p><strong>Ce qui peut changer :</strong> {prepared.allowedChanges}</p>
+            <p><strong>Ce qui ne doit pas changer :</strong> {prepared.forbiddenChanges}</p>
+          </div>
+          <details className="text-sm"><summary className="cursor-pointer">Lire la consigne technique exacte envoyée pour le devis</summary>
+            <p className="mt-2 whitespace-pre-line break-words">{prepared.prompt}</p></details>
+          <p className="text-xs text-muted-foreground">Pour une continuité stricte, un geste simple, un plan court et une caméra fixe sont souvent plus faciles à contrôler. Relis le rendu avant de l’utiliser : ces consignes ne garantissent pas un résultat sans faux raccord.</p>
           <p className="text-xs text-muted-foreground">Pour corriger cette proposition, modifie ton idée ou les réglages ci-dessus, puis demande une nouvelle préparation.</p>
           <Button type="button" variant={confirmed ? "outline" : "default"} disabled={!!busy}
             onClick={() => setConfirmed(true)}>{confirmed ? "Description validée" : "Oui, c’est bien ça"}</Button>
@@ -276,6 +291,12 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
           return <article key={job.id} className="rounded-md border p-3 space-y-2">
             <p className="text-sm font-medium">{job.source_name} · {job.duration} s · {job.resolution}</p>
             <p className="text-xs text-muted-foreground line-clamp-2">{job.prompt}</p>
+            {job.preparation?.summary && <details className="text-sm"><summary className="cursor-pointer">Revoir la description et les contraintes confirmées</summary>
+              {job.preparation.idea && <p className="mt-2"><strong>Idée donnée :</strong> {job.preparation.idea}</p>}
+              <p className="mt-2 whitespace-pre-line">{job.preparation.summary}</p>
+              <ul className="mt-2 list-disc pl-5">{job.preparation.continuity?.map((rule, index) => <li key={index}>{rule}</li>)}</ul>
+              <p className="mt-2"><strong>Consigne transmise :</strong> {job.prompt}</p>
+            </details>}
             {current.status === "ready" && current.video_url && <video src={current.video_url} controls playsInline preload="metadata" className="w-full max-w-sm rounded bg-black" />}
             {current.status === "quoted" && <p className="text-sm text-muted-foreground">Devis conservé · génération non lancée.</p>}
             {current.status === "canceled" && <p className="text-sm text-muted-foreground">Génération annulée.</p>}
