@@ -392,8 +392,9 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
               forbidden_changes: prepared.forbidden_changes } },
         ]);
         if (eventError) throw eventError;
-        await db.from("studio_video_sessions").update({ updated_at: new Date().toISOString() })
+        const { error: touchError } = await db.from("studio_video_sessions").update({ updated_at: new Date().toISOString() })
           .eq("id", p.session_id).eq("workspace_id", p.workspace_id);
+        if (touchError) throw touchError;
       }
       return json({ summary: prepared.summary, continuity: prepared.invariants,
         allowed_changes: prepared.allowed_changes, forbidden_changes: prepared.forbidden_changes,
