@@ -70,6 +70,15 @@ const QUESTIONS_TOOL = {
   },
 };
 
+const PHOTO_QUESTIONS_TOOL = {
+  ...QUESTIONS_TOOL,
+  description: "Zéro à deux précisions essentielles, sans questionnaire obligatoire.",
+  input_schema: {
+    ...QUESTIONS_TOOL.input_schema,
+    properties: { questions: { ...QUESTIONS_TOOL.input_schema.properties.questions, maxItems: 2 } },
+  },
+};
+
 // Rédaction uniquement : Opus 5.5 normal / Astra medium en Qualité Max.
 // Les suggestions, questions, corrections et visuels gardent leurs modèles.
 const pickCarouselModel = pickCarouselWriter;
@@ -995,7 +1004,7 @@ async function runGenerationAndRespond(
     // Les autres types (express_full/slides/hooks) tournaient SANS limite avant
     // ce correctif (audit timeouts 17/08) — 120s aligné sur la convention
     // "génération standard" du reste des edges du repo.
-    ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: QUESTIONS_TOOL } : { abortTimeoutMs: 120_000 }),
+    ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: (body.carousel_type === "photo" || body.carousel_type === "mix") ? PHOTO_QUESTIONS_TOOL : QUESTIONS_TOOL } : { abortTimeoutMs: 120_000 }),
   };
   let content = isWriting
     ? await _deps.callCarouselWriter({ ...writingOptions, model: pickCarouselModel(body) }, usage)
@@ -1664,7 +1673,7 @@ Réponds en JSON : {"questions":[{"question":"...","placeholder":"..."}]}. Table
     // Questions ancrées sur photos : borne chaque tentative à 60s pour
     // éviter le blocage indéfini d'un fetch qui traîne.
     abortTimeoutMs: 60000,
-    tool: { ...QUESTIONS_TOOL, description: "Zéro à deux précisions essentielles, sans questionnaire obligatoire.", input_schema: { ...QUESTIONS_TOOL.input_schema, properties: { questions: { ...QUESTIONS_TOOL.input_schema.properties.questions, maxItems: 2 } } } },
+    tool: PHOTO_QUESTIONS_TOOL,
   }, deepeningUsage);
 
   // PAS de logUsage — les questions d'approfondissement sont gratuites
@@ -1683,14 +1692,24 @@ async function handleDeepeningQuestionsRequest(reqCtx: CarouselRequestContext): 
     return handleDeepeningQuestionsVisionRequest(reqCtx);
   }
 
-  // ── Photo/mix carousel with description only (no actual photos) ──
-  let userPrompt: string;
-  if ((body.carousel_type === "photo" || body.carousel_type === "mix") && body.photo_description) {
-    const photoDescBlock = `\n\nL'utilisatrice décrit ses photos : "${body.photo_description}". Pose des questions en lien avec ce qu'elle décrit : les informations manquantes qui relient les images au propos, sans imposer de vécu ni d’émotion. Ne redemande pas les faits déjà fournis.`;
-    userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock) + photoDescBlock;
-  } else {
-    userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock);
-  }
+  // The same optional-question contract applies when images are unavailable.
+  const isPhotoNarrative = body.carousel_type === "photo" || body.carousel_type === "mix";
+  const userPrompt = isPhotoNarrative
+    ? `Prépare les éventuelles précisions pour un carrousel ${body.carousel_type}.
+Sujet : ${body.subject || "aucun sujet explicite"}
+Objectif : ${body.objective || "non précisé"}
+Description des photos : ${body.photo_description || "non fournie"}
+Réponses déjà fournies : ${JSON.stringify(body.deepening_answers || {})}
+Angle proposé : ${body.editorial_angle || "non précisé"}
+Structure proposée : ${body.content_structure || "non précisée"}
+CONTEXTE DE MARQUE : ${brandingContext}
+${brandVocabBlock || ""}
+${recentBriefsContext || ""}
+${PHOTO_NARRATIVE_CONTRACT}
+${PHOTO_QUESTIONS_CONTRACT}
+Réponds en JSON : {"questions":[{"question":"...","placeholder":"..."}]}. Tableau vide si aucune précision essentielle.`
+    : buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock);
+
   return runGenerationAndRespond("deepening_questions", userPrompt, reqCtx);
 }
 
