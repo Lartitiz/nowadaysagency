@@ -1,5 +1,6 @@
+import { PHOTO_NARRATIVE_CONTRACT, PHOTO_QUESTIONS_CONTRACT } from "./photo-narrative.ts";
 import { carouselLength, carouselLengthPrompt, carouselStructureIssues } from "../_shared/carousel-length.ts";
-import { reviewCarouselThread, threadRepairInstruction, threadReviewSkipped } from "../_shared/carousel-thread.ts";
+import { reviewCarouselThread, threadRepairInstruction, threadReviewSkipped, preservesCarouselScenario } from "../_shared/carousel-thread.ts";
 import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, NEWS_WRITING } from "./variant-writing.ts";
 import { callCarouselWriter, pickCarouselWriter, CAROUSEL_WRITER_VERSION } from "./writer.ts";
 import { authoredContentSource, currentContentContract } from "../_shared/editorial-voice.ts";
@@ -395,6 +396,9 @@ const STRUCTURE_PROPOSAL_TOOL = {
             title_suggestion: { type: "string" },
             strategic_note: { type: "string" },
             story_beat: { type: "string" },
+            photo_observation: { type: "string", description: "Observation visuelle littérale, sans fabrication, intention ni usage supposé ; ambiguïtés comprises." },
+            image_relation: { type: "string", description: "Rôle de la photo : preuve visible, illustration, ambiance ou écho. Le texte peut raconter des faits de marque non visibles." },
+            factual_basis: { type: "string", description: "Faits utilisables et leur source (brief/réponses/marque), observations ou interprétation explicitement présentée comme telle. Aucun fait déduit du scénario lui-même." },
             photo_index: { type: ["number", "null"] },
             slide_type: { type: "string" },
             visual_anchor: { type: "string" },
@@ -526,6 +530,9 @@ export async function handleRequest(req: Request): Promise<Response> {
       for (const s of body.confirmed_structure) {
         clampAiField(s, "story_beat", 300);
         clampAiField(s, "visual_anchor", 120);
+        clampAiField(s, "photo_observation", 800);
+        clampAiField(s, "image_relation", 400);
+        clampAiField(s, "factual_basis", 800);
       }
     }
 
@@ -559,6 +566,9 @@ export async function handleRequest(req: Request): Promise<Response> {
         slide_type: z.enum(["photo_full", "photo_integrated", "text_only"]).optional(),
         story_beat: z.string().max(300).optional(),
         visual_anchor: z.string().max(120).optional(),
+        photo_observation: z.string().max(800).optional(),
+        image_relation: z.string().max(400).optional(),
+        factual_basis: z.string().max(800).optional(),
         overlay_position: z.enum(["top_left", "top_center", "bottom_left", "bottom_center", "center"]).optional(),
       })).optional().nullable(),
       narrative_thread: z.string().max(1000).optional().nullable(),
@@ -632,6 +642,7 @@ export async function handleRequest(req: Request): Promise<Response> {
     const currentAuthoredText = authoredContentSource(body);
     const currentBrief = [body.subject, body.subject_details, body.photo_description, buildPhotoContextRecap(body.photo_contexts || body.photos), body.editorial_angle, body.objective,
       body.narrative_thread ? `FIL CONFIRMÉ À PRÉSERVER : ${body.narrative_thread}` : "",
+      body.confirmed_structure?.length ? `REPÈRES DU PLAN (analyse IA, pas de nouveaux faits confirmés) : ${JSON.stringify(body.confirmed_structure)}` : "",
       body.content_structure ? `STRUCTURE CHOISIE À PRÉSERVER : ${body.content_structure}` : "",
       currentAuthoredText, typeof body.news_context === "string" ? body.news_context : ""].filter(Boolean).join("\n");
     const semanticReviewEnabled = Deno.env.get("CAROUSEL_SEMANTIC_REVIEW") !== "false";
@@ -914,11 +925,12 @@ async function repairCarouselThread(content: string, opts: {
     return exact && count > 0 && count !== exact ? [`${count} slides reçues, exactement ${exact} demandées.`] : [];
   });
   const length = carouselLength(body);
+  const fixedScenario = !!(body.confirmed_structure?.length || body.slide_structure?.length);
   const judge = async (value: string): Promise<string[]> => {
     if (opts.judgeThread === false) return [];
     const doc = tryParseAiJson<any>(value, "carousel-ai:thread");
     if (threadReviewSkipped(doc, body)) return [];
-    return _deps.reviewThread(doc, { listPromised: !!length.items, logger: (m: string) => console.log(m) });
+    return _deps.reviewThread(doc, { sourceContext: JSON.stringify({ subject: body.subject, objective: body.objective, answers: body.deepening_answers, narrative_thread: body.narrative_thread, plan: body.confirmed_structure, photo_contexts: body.photo_contexts }), preserveStructure: fixedScenario, listPromised: !!length.items, logger: (m: string) => console.log(m) });
   };
   let issues = inspect(content);
   let thread = await judge(content);
@@ -927,13 +939,13 @@ async function repairCarouselThread(content: string, opts: {
     const repairSink: UsageSink = {};
     const defects = [
       issues.length ? `DÉFAUTS STRUCTURELS :\n${issues.join("\n")}\nCorrige ces défauts et renvoie le JSON complet. Préserve les faits, la voix et les formulations déjà relues. Aucun fait nouveau ni suppression d'un élément promis.` : "",
-      threadRepairInstruction(thread, length.exact),
+      threadRepairInstruction(thread, length.exact, fixedScenario),
     ].filter(Boolean).join("\n\n");
     try {
       const repaired = await opts.regenerate(content, defects, repairSink);
       const remaining = inspect(repaired);
       const remainingThread = thread.length ? await judge(repaired) : [];
-      const accepted = countCarouselSlides(repaired) > 0 && remaining.length === 0 && (thread.length === 0 || remainingThread.length < thread.length);
+      const accepted = (!fixedScenario || preservesCarouselScenario(tryParseAiJson(content), tryParseAiJson(repaired))) && countCarouselSlides(repaired) > 0 && remaining.length === 0 && (thread.length === 0 || remainingThread.length < thread.length);
       console.log(JSON.stringify({ type: "carousel_thread_repair", label, before: { structure: issues.length, thread: thread.length }, after: { structure: remaining.length, thread: remainingThread.length }, accepted }));
       if (accepted) { content = repaired; issues = remaining; thread = remainingThread; }
     } catch (e) { console.error(`carousel-ai(${label}): réparation échouée, brouillon conservé`, e); }
@@ -1124,7 +1136,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     const photoCtxRecap = buildPhotoContextRecap(body.photos);
     messageContent.push({
       type: "text",
-      text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "engagement"}\n${carouselLengthPrompt(body)}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}${photoCtxRecap}\n\nVoici ${body.photos.length} photo(s) à intégrer dans le carrousel :`,
+      text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "non précisé ; déduire une intention prudente du brief et du contexte de marque"}\n${carouselLengthPrompt(body)}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}${photoCtxRecap}\n\nVoici ${body.photos.length} photo(s) à intégrer dans le carrousel :`,
     });
 
     // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
@@ -1156,7 +1168,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     const photoDescLine = body.text_first
       ? ""
       : `\nDescription des photos : "${body.photo_description || "non fournie"}"`;
-    const textPrompt = mixPrompt + buildPhotoContextRecap(body.photo_contexts || body.photos) + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n${photoDescLine}\n${carouselLengthPrompt(body)}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
+    const textPrompt = mixPrompt + buildPhotoContextRecap(body.photo_contexts || body.photos) + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n${photoDescLine}\n${carouselLengthPrompt(body)}\nObjectif : ${body.objective || "non précisé ; déduire une intention prudente du brief et du contexte de marque"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
 
     doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
       model: pickCarouselModel(body),
@@ -1288,7 +1300,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     // 1. Brief + recap contexte AVANT les photos
     messageContent.push({
       type: "text",
-      text: `Voici ${body.photos.length} photo(s) pour un carrousel photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\n${carouselLengthPrompt(body)}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${photoCtxRecap}`,
+      text: `Voici ${body.photos.length} photo(s) pour un carrousel photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "non précisé ; déduire une intention prudente du brief et du contexte de marque"}\n${carouselLengthPrompt(body)}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${photoCtxRecap}`,
     });
 
     // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
@@ -1318,7 +1330,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     }, sink);
   } else {
     // Text-only mode: description without actual photos
-    const textPrompt = photoPrompt + buildPhotoContextRecap(body.photo_contexts || body.photos) + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\n${carouselLengthPrompt(body)}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
+    const textPrompt = photoPrompt + buildPhotoContextRecap(body.photo_contexts || body.photos) + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\n${carouselLengthPrompt(body)}\nObjectif : ${body.objective || "non précisé ; déduire une intention prudente du brief et du contexte de marque"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
 
     doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
       model: pickCarouselModel(body),
@@ -1466,6 +1478,7 @@ ${photo_description ? `Description complémentaire : ${photo_description}` : ""}
   const structureSystemPrompt = `${CONTENT_CLARITY_RULES}
 ${CAROUSEL_SUBSTANCE}
 ${CAROUSEL_CONTINUITY}
+${PHOTO_NARRATIVE_CONTRACT}
 
 Tu es une stratège éditoriale spécialisée en carrousels Instagram et LinkedIn.
 
@@ -1489,7 +1502,7 @@ ${structureNewsContextBlock}${structureNewsConsigne}
 Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de backticks), avec cette structure exacte :
 {
   "strategic_rationale": "2-3 phrases expliquant la logique narrative globale",
-  "narrative_thread": "Le fil du propos complet en 2-3 phrases, adapté au sujet et aux informations disponibles. Aucune tension ou révélation à inventer. L'écriture suivra ce fil.",
+  "narrative_thread": "Intention et progression retenues ; promesse tenue de la couverture ; aboutissement. Cite les faits disponibles qui fondent ce choix. Le récit peut venir de l’histoire de marque et être accompagné indirectement par les photos.",
   "slides": [
     {
       "slide_number": 1,
@@ -1500,7 +1513,10 @@ Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de b
       "photo_index": 1,
       "slide_type": "photo_full",
       "overlay_position": "bottom_left",
-      "visual_anchor": "OBLIGATOIRE pour toute slide avec photo_index. 3-8 mots qui pointent UN détail concret VISIBLE dans CETTE photo, mobilisable par le pass d'écriture comme matière première (ex : « la poussière sur les bottes », « les deux tasses encore pleines »). C'est UN détail précis, JAMAIS un résumé de l'image. Ne l'omets que si la photo est vraiment sans aucun détail saisissable."` : ""}
+      "visual_anchor": "Détail visible à préserver dans le cadrage ; ne dicte pas le texte.",
+      "photo_observation": "Ce qui est visible et ce qui reste ambigu, sans histoire supposée.",
+      "image_relation": "Ce que cette image accompagne dans le récit, même indirectement.",
+      "factual_basis": "Faits et sources disponibles pour ce passage ; observation ou interprétation quand ce n’est pas un fait confirmé."` : ""}
     }
   ],
   "total_slides": 7,
@@ -1510,8 +1526,8 @@ Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de b
 RAPPEL CRITIQUE sur les nouveaux champs :
 - "narrative_thread" = LE récit que le pass d'écriture exécutera. C'est la colonne vertébrale.
 - "story_beat" (par slide) = ce que la slide RACONTE dans ce récit, pas ce que la photo MONTRE. Une intention narrative.
-- "visual_anchor" (slides photo uniquement) = UN détail concret mobilisable, ATTENDU sur chaque slide photo. Pas une description. Ne l'omets qu'en dernier recours, si la photo n'offre vraiment aucun détail saisissable.
-- story_beat et visual_anchor SERVENT le narrative_thread : chaque story_beat est UNE étape du récit global ; les visual_anchors fournissent la matière sensorielle qui ancre cette étape.`;
+- "photo_observation", "image_relation" et "factual_basis" conservent séparément ce qui est vu, ce que l’image accompagne et les sources utilisables. Le rédacteur ne reverra pas les pixels.
+- story_beat sert le narrative_thread ; visual_anchor sert la composition. Une histoire de marque peut continuer sur une photo sans lien littéral avec sa phrase.`;
 
   const structureUserPrompt = `Sujet du carrousel : "${subject || "non précisé"}"
 ${hasNewsContextForStructure ? `Actualité de référence : "${(newsContext as string).split("\n")[0]?.slice(0, 120) || ""}…" — cette actu doit ancrer la structure proposée.` : ""}
@@ -1624,78 +1640,19 @@ async function handleDeepeningQuestionsVisionRequest(reqCtx: CarouselRequestCont
   });
   const photoCtxRecap = buildPhotoContextRecap(body.photos);
 
-  // Bloc "intention écrite" : présenté comme un fil narratif de même importance que les photos, pas comme une métadonnée
-  const writtenIntentBlock = hasWrittenIntent
-    ? `\n\nCE QU'ELLE A DÉJÀ EN TÊTE À RACONTER (à mettre AU MÊME NIVEAU que les photos) :
-${!isFallbackSubject ? `Sujet/angle qu'elle a écrit : "${rawSubject}"` : ""}
-${body.photo_description && body.photo_description.trim() ? `Ce qu'elle dit de ses photos : "${body.photo_description}"` : ""}`
-    : `\n\nElle n'a pas (encore) écrit de sujet précis : appuie-toi à 100 % sur les photos pour faire émerger son intention.`;
-
-  const crossingRules = hasWrittenIntent
-    ? `\n- CROISER ce qu'elle a écrit (sujet/description) avec ce que tu vois dans les photos : où est-ce que les deux se rencontrent ? Où est-ce qu'il y a un écart, une tension, un non-dit, un détail visuel qui prolonge ou contredit son texte ?
-- ${isMix ? "Au moins 2 questions sur 3" : "Au moins 1 question sur 3"} doivent faire ce pont EXPLICITE entre son intention écrite et ce que les photos montrent réellement (cite un bout de son texte ET un élément visuel précis dans la même question).`
-    : "";
-
-  const crossingExamples = hasWrittenIntent
-    ? `
-- "Tu écris '${rawSubject ? rawSubject.slice(0, 60) : "[bout de son sujet]"}…' et sur la photo [N] on voit [élément précis] — c'est exactement la scène que tu veux montrer, ou il y a autre chose derrière ce moment-là ?"
-- "Ton sujet parle de [thème écrit], mais les photos montrent surtout [observation visuelle qui détonne ou prolonge]. Lequel des deux veux-tu mettre en avant — ou comment tu veux les faire dialoguer dans le carrousel ?"`
-    : "";
-
-  // ── Blocs de profondeur (alignés sur le prompt texte) ──
-  const brandingDepthBlock = brandingContext
-    ? `\n\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n\nUtilise ce contexte pour personnaliser tes questions : mentionne son domaine d'activité, sa cible, ses offres ou son positionnement quand c'est pertinent. Les questions doivent montrer que tu connais son univers.`
-    : "";
-
-  const angleDepthBlock = (body.editorial_angle && body.content_structure)
-    ? `\n\nANGLE ÉDITORIAL : ${body.editorial_angle}\nSTRUCTURE DU CARROUSEL :\n${body.content_structure}\n\nLes questions doivent aider l'utilisatrice à remplir les étapes de cette structure avec les faits, explications ou expériences qu’elle souhaite partager et ses photos.`
-    : "";
-
-  const reasoningBlock = `\n\n══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
-Réfléchis silencieusement à :
-1. Quel est le SUJET COURANT ? (ré-extraire 1 mot-clé)
-2. Quel vocabulaire métier puis-je intégrer (activité, cible, expressions clés) ?
-3. Quels DÉTAILS VISUELS PRÉCIS sur les photos puis-je nommer (pas "l'ambiance", mais le geste, l'objet, la couleur exacte, la posture) ?
-4. Y a-t-il un sujet identique dans l'historique récent ? Quelle question NE PAS reposer ?`;
-
   messageContent.push({
     type: "text",
-    text: `Voici ${body.photos.length} photo(s) que l'utilisatrice veut utiliser pour un ${formatLabel}.
-
-Objectif : ${body.objective || "engagement"}${writtenIntentBlock}${photoCtxRecap}${brandingDepthBlock}${brandVocabBlock}${recentBriefsContext || ""}${angleDepthBlock}${reasoningBlock}
-
-Tu es une coach com' spécialisée en contenu visuel. Tu as DEUX matières à croiser : ses photos ET ce qu'elle a déjà écrit en amont. Pose exactement 3 questions d'approfondissement.
-
-Tes questions doivent :
-- MENTIONNER ce que tu VOIS RÉELLEMENT dans les photos (éléments concrets, ambiance, couleurs, scène, geste, lieu)${crossingRules}
-- Aider l'utilisatrice à définir l'histoire que ces photos racontent ensemble${isMix ? ", ET QUELS PASSAGES TEXTUELS viennent s'intercaler entre les slides photo (réflexion, chiffre, conviction)" : ""}
-- Chercher les informations manquantes qui permettront de relier les slides : ordre des gestes, choix et raisons connus, usage, exemple, résultat ou nuance. Ne redemande pas une réponse déjà présente dans le sujet, les descriptions ou le contexte fourni. Aucune conviction, anecdote ou émotion obligatoire.
-- Être SPÉCIFIQUES à CE brief (pas génériques, pas interchangeables avec un autre sujet ou d'autres photos)
-- Adapter le ton à la voix et au sujet de la personne, sur les deux réseaux : produit, service, méthode, récit personnel ou pédagogie. Une émotion est utile seulement si la personne veut la raconter.
-${recentBriefsContext ? "- MÉMOIRE ANTI-RÉPÉTITION : l'historique liste des sujets DIFFÉRENTS déjà traités. N'importe JAMAIS leur contenu, vocabulaire ou scènes dans tes questions sur le sujet courant." : ""}
-
-Exemples de bonnes questions${isMix ? " (carrousel mixte)" : ""} :${crossingExamples}
-- "Je vois [élément précis]. C'était dans quel contexte ? Qu'est-ce que ce moment représente pour toi ?"
-- "L'ambiance sur la photo [N] est [observation]. C'est volontaire ? Quel message tu veux faire passer ?"
-${isMix
-  ? "- \"Entre la photo [X] et la photo [Y], qu'est-ce que tu veux dire en mots — quelle réflexion / chiffre / conviction vient s'intercaler ?\""
-  : "- \"Quelle est l'histoire entre la première et la dernière photo ? Il y a une progression ?\""}
-
-INTERDIT :
-- Questions génériques qui pourraient s'appliquer à n'importe quel sujet ou n'importe quelles photos (sans vocabulaire métier)
-- Questions sans aucune référence visuelle aux photos analysées
-- Questions qui présupposent une difficulté, une émotion, une transformation ou un résultat non fourni${hasWrittenIntent ? `
-- Questions qui IGNORENT complètement ce qu'elle a écrit dans son sujet/description et ne parlent que des photos (le pont entre texte et image est OBLIGATOIRE${isMix ? " sur au moins 2 questions" : ""})` : ""}
-- Questions qui réutilisent une scène, un lieu, un personnage venu de l'historique des briefs précédents
-
-Réponds UNIQUEMENT en JSON valide :
-{
-  "questions": [
-    { "question": "...", "placeholder": "..." },
-    { "question": "...", "placeholder": "..." },
-    { "question": "...", "placeholder": "..." }
-  ]
-}`,
+    text: `Prépare les éventuelles précisions pour un ${formatLabel}.
+Sujet : ${hasWrittenIntent ? rawSubject : "aucun sujet explicite ; photos sélectionnées"}
+Description : ${body.photo_description || ""}
+Objectif : ${body.objective || "non précisé"}
+Réponses déjà fournies : ${JSON.stringify(body.deepening_answers || {})}
+${photoCtxRecap}
+CONTEXTE DE MARQUE : ${brandingContext}
+${recentBriefsContext || ""}
+${PHOTO_NARRATIVE_CONTRACT}
+${PHOTO_QUESTIONS_CONTRACT}
+Réponds en JSON : {"questions":[{"question":"...","placeholder":"..."}]}. Tableau vide si aucune précision essentielle.`,
   });
 
   const deepeningUsage: UsageSink = {};
@@ -1707,7 +1664,7 @@ Réponds UNIQUEMENT en JSON valide :
     // Questions ancrées sur photos : borne chaque tentative à 60s pour
     // éviter le blocage indéfini d'un fetch qui traîne.
     abortTimeoutMs: 60000,
-    tool: QUESTIONS_TOOL,
+    tool: { ...QUESTIONS_TOOL, description: "Zéro à deux précisions essentielles, sans questionnaire obligatoire.", input_schema: { ...QUESTIONS_TOOL.input_schema, properties: { questions: { ...QUESTIONS_TOOL.input_schema.properties.questions, maxItems: 2 } } } },
   }, deepeningUsage);
 
   // PAS de logUsage — les questions d'approfondissement sont gratuites
@@ -1960,7 +1917,10 @@ function buildConfirmedStructureBlock(
       line += ` — ${s.strategic_note}`;
       if (withStoryBeat) {
         if (s.story_beat) line += `\n    → Raconte : ${s.story_beat}`;
-        if (s.visual_anchor) line += `\n    → Détail mobilisable : ${s.visual_anchor}`;
+        if (s.photo_observation) line += `\n    → Observation visuelle (analyse IA) : ${s.photo_observation}`;
+        if (s.image_relation) line += `\n    → Relation image/récit : ${s.image_relation}`;
+        if (s.factual_basis) line += `\n    → Sources à vérifier contre le brief et la marque : ${s.factual_basis}`;
+        if (s.visual_anchor) line += `\n    → Détail de composition (pas une consigne de texte) : ${s.visual_anchor}`;
       }
       return line;
     })
@@ -1968,7 +1928,7 @@ function buildConfirmedStructureBlock(
 
   const narrativeBlock = withStoryBeat && narrativeThread && typeof narrativeThread === "string" && narrativeThread.trim()
     ? `RÉCIT À EXÉCUTER (${narrativeContext}) : ${narrativeThread.trim()}
-Chaque slide écrit UNE étape de ce récit. Tu n'inventes pas une autre histoire, tu exécutes celle-ci.
+Chaque slide écrit UNE étape de ce récit. Préserve les choix du scénario, mais ne traite jamais une proposition IA comme une preuve factuelle. Corrige les affirmations non étayées sans changer l'ordre, les rôles ou les photos.
 
 `
     : "";

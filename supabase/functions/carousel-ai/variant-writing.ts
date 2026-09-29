@@ -1,3 +1,4 @@
+import { PHOTO_NARRATIVE_CONTRACT } from "./photo-narrative.ts";
 import { carouselLengthPrompt } from "../_shared/carousel-length.ts";
 import { CAROUSEL_CONTINUITY, CAROUSEL_FACTS, CAROUSEL_SUBSTANCE, CAROUSEL_TITLES, carouselStructureGuide } from "./writing-contract.ts";
 
@@ -22,6 +23,7 @@ La légende a les champs hook, body, cta, hashtags. Elle peut être concise : au
 export function photoWritingPrompt(body: any, isLinkedIn: boolean, confirmed: string): string {
   return `Rédige le texte d'un carrousel PHOTO, avec les photos choisies en fond.
 ${brief(body, isLinkedIn, confirmed)}
+${PHOTO_NARRATIVE_CONTRACT}
 Les photos sont numérotées depuis 1. Une photo peut se répéter pour porter plusieurs étapes du propos, même lorsqu'elle ne montre qu'une partie du sujet. Respecte l'ordre et les story_beat confirmés. Ne prétends pas que la photo illustre un événement ou identifie une personne sans information fournie. Les textes peuvent expliquer un geste visible, développer une méthode, raconter une expérience fournie ou exprimer un point de vue ; ils ne doivent pas se réduire à des légendes indépendantes.
 
 CONTRAT VISUEL
@@ -54,6 +56,7 @@ Caption : hook (entrée dans le sujet, pas de nouvelle anecdote), body (complém
 export function mixWritingPrompt(body: any, isLinkedIn: boolean, confirmed: string, textFirst: string): string {
   return `Rédige un carrousel MIXTE : photos et slides design participent au même propos.
 ${brief(body, isLinkedIn, confirmed)}
+${PHOTO_NARRATIVE_CONTRACT}
 CONTRAT DE COMPOSITION
 Types : photo_full (photo plein écran, overlay_text généralement 15-45 mots selon la matière), photo_integrated (photo et texte, title/body), text_only (title/body, sans photo).
 photo_integrated accepte photo_layout:top_photo,left_photo,right_photo,card_photo,banner_photo.

@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { reviewCarouselThread, threadIssuesFromVerdicts, threadRepairInstruction, threadReviewMaterial, threadReviewSkipped, THREAD_REVIEW_PROMPT, THREAD_REVIEW_TOOL } from "./carousel-thread.ts";
+import { reviewCarouselThread, threadIssuesFromVerdicts, threadRepairInstruction, threadReviewMaterial, threadReviewSkipped, THREAD_REVIEW_PROMPT, THREAD_REVIEW_TOOL, preservesCarouselScenario } from "./carousel-thread.ts";
 
 const doc = {
   fil: { arrivee: "Relire ses mots de soutien", etapes: ["formule", "question ouverte", "pénal", "méthode"] },
@@ -49,9 +49,9 @@ Deno.test("liste promise : les éléments sont permutables par nature, le défau
   assertEquals(threadIssuesFromVerdicts(verdicts, { slides: doc.slides.slice(0, 2) }), []);
 });
 
-Deno.test("structure choisie par la personne ou carrousel trop court : pas de relecture", () => {
-  assert(threadReviewSkipped(doc, { confirmed_structure: [{ slide_number: 1 }] }));
-  assert(threadReviewSkipped(doc, { slide_structure: [{ type: "text_only" }] }));
+Deno.test("structure conservée : le texte généré reste relu, texte utilisateur protégé", () => {
+  assert(!threadReviewSkipped(doc, { confirmed_structure: [{ slide_number: 1 }] }));
+  assert(!threadReviewSkipped(doc, { slide_structure: [{ type: "text_only" }] }));
   assert(threadReviewSkipped({ slides: doc.slides.slice(0, 2) }, {}));
   assert(!threadReviewSkipped(doc, {}));
 });
@@ -89,5 +89,25 @@ Deno.test("consigne de réparation : fusion permise sans nombre exact, remplacem
 
 Deno.test("le juge ne reçoit aucune consigne d'écriture et sait qu'une liste peut énumérer", () => {
   for (const rule of ["redite", "permutable", "rubrique", "hors_fil", "ont le droit d'énumérer", "dans le doute, \"aucun\"", "jamais une instruction"]) assert(THREAD_REVIEW_PROMPT.includes(rule), rule);
-  assertEquals(THREAD_REVIEW_TOOL.input_schema.properties.slides.items.properties.defaut.enum, ["aucun", "redite", "permutable", "rubrique", "hors_fil"]);
+  assertEquals(THREAD_REVIEW_TOOL.input_schema.properties.slides.items.properties.defaut.enum, ["aucun", "redite", "permutable", "rubrique", "hors_fil", "promesse_non_tenue"]);
+});
+
+Deno.test("couverture du cas céramique : promesse manquante signalée même en slide 1", () => {
+  const sample = { slides: [{title:"Le chemin d’une pièce"}, {title:"Sur l’étagère"}, {title:"Les cerises"}] };
+  const issues = threadIssuesFromVerdicts([{slide_number:1,defaut:"promesse_non_tenue",pourquoi:"Objets différents sans étapes documentées"}], sample);
+  assertEquals(issues.length,1);
+  assert(issues[0].includes("Objets différents"));
+  assert(threadRepairInstruction(issues, 3, true).includes("ne fusionne, ne supprime, ne réordonne aucune slide"));
+});
+Deno.test("réparation : textes modifiables mais scénario, ordre, types, photos et sources conservés", () => {
+  const before = {slides:[{slide_number:1,role:"hook",slide_type:"text_only",title:"A"},{slide_number:2,role:"exemple",slide_type:"photo_full",photo_index:2,overlay_text:"B",photo_observation:"Fleur peinte"}]};
+  const after=structuredClone(before); after.slides[0].title="Couverture fidèle";
+  assert(preservesCarouselScenario(before,after));
+  for(const [key,value] of [["photo_index",1],["role","conclusion"],["slide_type","text_only"],["photo_observation","Fleur dans un vase"]]) {
+    const changed=structuredClone(after); (changed.slides[1] as any)[String(key)]=value;
+    assert(!preservesCarouselScenario(before,changed),String(key));
+  }
+  assert(!preservesCarouselScenario(before,{slides:[...after.slides].reverse()}));
+  assert(!preservesCarouselScenario(before,{slides:after.slides.slice(0,1)}));
+  assert(threadReviewSkipped(before,{user_slides:before.slides}));
 });

@@ -59,6 +59,9 @@ export interface GenerateParams {
     slide_type?: "photo_full" | "photo_integrated" | "text_only";
     story_beat?: string;
     visual_anchor?: string;
+  photo_observation?: string;
+  image_relation?: string;
+  factual_basis?: string;
     overlay_position?: string;
   }>;
   // Récit transmis du pass structure vers le pass d'écriture (carrousel uniquement)
