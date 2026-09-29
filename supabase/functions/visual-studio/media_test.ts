@@ -179,3 +179,19 @@ Deno.test("the image provider receives the saved visual charter with the shot's 
   assertEquals(prompt.includes("Preserve this exact product"), true);
   assertEquals(imagePrompt({ operation: "create", image_prompt: "A drawing" }).includes("Brand visual direction"), false);
 });
+Deno.test("multiple product views remain one subject while a mood photo stays style-only", () => {
+  const prompt = imagePrompt({
+    operation: "product",
+    image_prompt: "Show my single bowl using its front and detail photos in a new scene",
+    references: [
+      { id: "front", photo_id: "front", path: "front.jpg", role: "product", name: "Bol de face" },
+      { id: "detail", photo_id: "detail", path: "detail.jpg", role: "product", name: "Détail de l'émail" },
+      { id: "mood", photo_id: "mood", path: "mood.jpg", role: "style", name: "Lumière du matin" },
+    ],
+  });
+  assertEquals(prompt.includes("Image 1: product reference, Bol de face"), true);
+  assertEquals(prompt.includes("Image 2: product reference, Détail de l'émail"), true);
+  assertEquals(prompt.includes("Image 3: style reference, Lumière du matin"), true);
+  assertEquals(prompt.includes("do not add a separate copy for each reference"), true);
+  assertEquals(prompt.includes("Keep style-only references distinct"), true);
+});

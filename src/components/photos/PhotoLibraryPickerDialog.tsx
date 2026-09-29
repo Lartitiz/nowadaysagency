@@ -23,6 +23,7 @@ interface PhotoLibraryPickerDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   maxSelectable: number;
+  unavailablePhotoIds?: string[];
   onConfirm: (photos: UserPhotoRow[]) => void;
   /**
    * Ouvre directement l'import site / Instagram à l'ouverture du picker.
@@ -38,6 +39,7 @@ function PickerThumb({
   signDone,
   selected,
   disabled,
+  alreadyUsed,
   onToggle,
 }: {
   photo: UserPhotoRow;
@@ -45,6 +47,7 @@ function PickerThumb({
   signDone: boolean;
   selected: boolean;
   disabled: boolean;
+  alreadyUsed: boolean;
   onToggle: () => void;
 }) {
   const [imgError, setImgError] = useState(false);
@@ -56,7 +59,7 @@ function PickerThumb({
     <button
       type="button"
       onClick={onToggle}
-      aria-label={photo.name || photo.description || "Photo"}
+      aria-label={`${photo.name || photo.description || "Photo"}${alreadyUsed ? " · déjà utilisée" : ""}`}
       aria-pressed={selected}
       disabled={disabled && !selected}
       className={cn(
@@ -87,7 +90,7 @@ function PickerThumb({
         </div>
       )}
       <span className="absolute inset-x-0 bottom-0 bg-background/95 px-1 py-1 text-xs truncate">
-        {photo.name || photo.description || "Photo"}
+        {alreadyUsed ? "Déjà utilisée · " : ""}{photo.name || photo.description || "Photo"}
       </span>
     </button>
   );
@@ -97,6 +100,7 @@ export function PhotoLibraryPickerDialog({
   open,
   onOpenChange,
   maxSelectable,
+  unavailablePhotoIds = [],
   onConfirm,
   autoOpenImport = false,
 }: PhotoLibraryPickerDialogProps) {
@@ -215,6 +219,7 @@ export function PhotoLibraryPickerDialog({
   const allSigningFailed = signDone && readyPhotos.length > 0 && urlMap.size === 0;
 
   const atMax = selectedIds.length >= maxSelectable;
+  const unavailable = new Set(unavailablePhotoIds);
 
   const toggle = (id: string) => {
     setSelectedIds((cur) => {
@@ -306,7 +311,8 @@ export function PhotoLibraryPickerDialog({
                   url={urlMap.get(p.storage_path) ?? null}
                   signDone={signDone}
                   selected={selectedIds.includes(p.id)}
-                  disabled={atMax}
+                  disabled={atMax || unavailable.has(p.id)}
+                  alreadyUsed={unavailable.has(p.id)}
                   onToggle={() => toggle(p.id)}
                 />
               ))}

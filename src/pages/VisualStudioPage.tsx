@@ -10,7 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { StudioCompositionEditor } from "@/features/visual-studio/StudioCompositionEditor";
-import { uploadPhotoOriginal } from "@/lib/photo-storage";
+import { uploadPhotoOriginal, type UserPhotoRow } from "@/lib/photo-storage";
 import { OfferMockupDialog } from "@/components/photos/OfferMockupDialog";
 import { AvantApresDialog } from "@/components/photos/AvantApresDialog";
 import PhotoPreparationDialog from "@/components/photos/PhotoPreparationDialog";
@@ -50,6 +50,7 @@ import {
   type StudioCompositionEntry,
   type StudioReference,
   type StudioMessage,
+  type StudioState,
   studioRequest,
   StudioRequestError,
   writeDraft,
@@ -57,6 +58,13 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import "@/features/visual-studio/studio.css";
+
+function referenceRoleForPhoto(photo: UserPhotoRow): StudioReference["role"] {
+  if (photo.kind === "produit" || photo.kind === "produit_porte") return "product";
+  if (photo.kind === "portrait") return "person";
+  if (photo.kind === "ambiance") return "style";
+  return "subject";
+}
 
 export default function VisualStudioPage() {
   const { user } = useAuth(),
@@ -178,7 +186,6 @@ function Studio({
   const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(
     null,
   );
-  const referenceRole: StudioReference["role"] = "subject";
   const [selectedId, setSelectedId] = useState<string | null>(null),
     [compare, setCompare] = useState(false),
     [busy, setBusy] = useState(""),
@@ -394,6 +401,74 @@ function Studio({
         void state.refetch();
       }
       return null;
+    } finally {
+      actionLock.current = false;
+      if (alive.current) setBusy("");
+    }
+  }
+  async function addReferencePhotos(photos: UserPhotoRow[]) {
+    if (!photos.length || !writable || actionLock.current || generating) return;
+    if (creation.current.photoId && !sessionId) {
+      creation.current = { id: crypto.randomUUID(), photoId: "" };
+    }
+    const targetId = sessionId || creation.current.id;
+    const targetKey = ["visual-studio", userId, workspaceId, targetId];
+    let latest: StudioState | undefined = current;
+    let added = 0;
+    actionLock.current = true;
+    setBusy("references");
+    setError("");
+    try {
+      await cache.cancelQueries({ queryKey: targetKey });
+      if (!latest) {
+        latest = await studioRequest({
+          action: "create", workspace_id: workspaceId, session_id: targetId,
+        });
+        if (alive.current) cache.setQueryData(targetKey, latest);
+      }
+      for (const photo of photos) {
+        if (latest.session.references?.some((ref) => ref.photo_id === photo.id) ||
+          latest.session.source_photo_id === photo.id) continue;
+        latest = await studioRequest({
+          action: "reference", workspace_id: workspaceId, session_id: targetId,
+          photo_id: photo.id, reference_role: referenceRoleForPhoto(photo),
+          revision: latest.session.revision,
+        });
+        added += 1;
+        if (alive.current) cache.setQueryData(targetKey, latest);
+      }
+      if (!alive.current) return;
+      if (!sessionId) {
+        writeDraft(draftKey(userId, workspaceId, targetId), draftRef.current);
+        navigate(studioPath(targetId), { replace: true, state: { studioChatOpen: isMobile } });
+      }
+      if (added) toast.success(`${added} photo${added > 1 ? "s" : ""} de référence ajoutée${added > 1 ? "s" : ""}`);
+    } catch (cause) {
+      // A response can be lost after the server attached a photo. Read the
+      // session before offering a retry so the picker cannot duplicate it.
+      try {
+        latest = await studioRequest({ action: "read", workspace_id: workspaceId, session_id: targetId });
+        if (alive.current) cache.setQueryData(targetKey, latest);
+      } catch { /* The previous confirmed state remains in the cache. */ }
+      if (!alive.current) return;
+      const attachedCount = photos.filter((photo) => latest?.session.references?.some((ref) => ref.photo_id === photo.id) ||
+        latest?.session.source_photo_id === photo.id).length;
+      if (latest && attachedCount === photos.length) {
+        if (!sessionId) {
+          writeDraft(draftKey(userId, workspaceId, targetId), draftRef.current);
+          navigate(studioPath(targetId), { replace: true, state: { studioChatOpen: isMobile } });
+        }
+        toast.success(`${attachedCount} photo${attachedCount > 1 ? "s" : ""} de référence ajoutée${attachedCount > 1 ? "s" : ""}`);
+        return;
+      }
+      const message = cause instanceof Error ? cause.message : "Impossible d’ajouter ces photos.";
+      if (!sessionId && latest) {
+        writeDraft(draftKey(userId, workspaceId, targetId), draftRef.current);
+        navigate(studioPath(targetId), { replace: true, state: { studioChatOpen: isMobile } });
+      } else setError(message);
+      toast.error(attachedCount
+        ? `Ajout interrompu après ${attachedCount} photo${attachedCount > 1 ? "s" : ""}. Elle${attachedCount > 1 ? "s restent" : " reste"} dans la session. ${message}`
+        : `Aucune photo ajoutée. ${message}`);
     } finally {
       actionLock.current = false;
       if (alive.current) setBusy("");
@@ -1048,12 +1123,19 @@ function Studio({
                       </div>
                     ))}
                   <div className="studio-references">
+                    {!!references.length && (
+                      <>
+                        <h3 className="text-sm font-medium mb-2">Photos de référence · {references.length}/8</h3>
+                        <p className="text-xs text-muted-foreground mb-3">Elles guideront ensemble la prochaine image. Vérifie leur rôle et précise si plusieurs vues montrent le même sujet.</p>
+                      </>
+                    )}
                     {references.map((ref) => (
                       <div
                         key={ref.id}
                         className="rounded-xl border bg-card p-3 my-2 text-sm"
                       >
                         <div className="flex items-center gap-2">
+                          <img src={ref.url} alt="" className="h-12 w-12 shrink-0 rounded-md object-cover" />
                           <span className="flex-1">{ref.name}</span>
                           <select
                             aria-label={`Rôle de ${ref.name}`}
@@ -1292,12 +1374,13 @@ function Studio({
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={!writable || !!busy || generating}
+                  disabled={!writable || !!busy || generating || references.length >= 8}
                   onClick={() => setPicker(true)}
                 >
                   <ImagePlus className="h-4 w-4 mr-2" />
-                  Choisir une référence
+                  {references.length ? `Ajouter des photos de référence · ${references.length}/8` : "Choisir des photos de référence"}
                 </Button>
+                {references.length >= 8 && <p className="text-xs text-muted-foreground">Huit références maximum. Retire une photo pour en choisir une autre.</p>}
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-xs text-muted-foreground">
                     Envoyer ne génère rien.
@@ -1695,18 +1778,11 @@ function Studio({
       <PhotoLibraryPickerDialog
         open={picker}
         onOpenChange={setPicker}
-        maxSelectable={1}
+        maxSelectable={Math.max(1, 8 - references.length)}
+        unavailablePhotoIds={references.map((ref) => ref.photo_id).filter((id): id is string => !!id)}
         onConfirm={(photos) => {
           setPicker(false);
-          if (photos[0]) {
-            if (current) {
-              void mutate("reference", {
-                photo_id: photos[0].id,
-                reference_role: referenceRole,
-                revision: current.session.revision,
-              });
-            } else void openPhoto(photos[0].id);
-          }
+          void addReferencePhotos(photos);
         }}
       />
       <Dialog open={sessionsOpen} onOpenChange={setSessionsOpen}>
