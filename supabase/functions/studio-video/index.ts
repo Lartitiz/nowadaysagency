@@ -19,8 +19,8 @@ const quoteSchema = z.object({
   idea: z.string().trim().min(3).max(1000).optional(),
   summary: z.string().trim().min(20).max(1200).optional(),
   continuity: z.array(z.string().trim().min(8).max(180)).min(1).max(4).optional(),
-  allowed_changes: z.string().trim().min(8).max(180).optional(),
-  forbidden_changes: z.string().trim().min(8).max(250).optional(),
+  allowed_changes: z.string().trim().min(8).max(400).optional(),
+  forbidden_changes: z.string().trim().min(8).max(500).optional(),
 });
 const prepareSchema = quoteSchema.extend({ action: z.literal("prepare"),
   prompt: z.string().trim().min(3).max(1000), prepared_token: z.never().optional() });

@@ -1,4 +1,4 @@
-import { assert, assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
+import { assert, assertEquals, assertThrows } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { buildVideoPrompt, prepareVideo, signPreparation, verifyPreparation } from "./prepare.ts";
 
 Deno.test("Claude receives the image roles and returns separate summary and provider prompt", async () => {
@@ -42,17 +42,18 @@ Deno.test("overlong change rules get one text-only repair without dropping the s
   const originalKey = Deno.env.get("ANTHROPIC_API_KEY");
   Deno.env.set("ANTHROPIC_API_KEY", "test-key");
   const requests: Array<Record<string, unknown>> = [];
-  const first = {
+    const compactAllowed = "Les mains et le bol bougent pendant le geste, puis reviennent au repos sur la même surface rouge. Les ombres suivent naturellement ce mouvement. La caméra garde le cadrage du début à la fin du plan.";
+    const first = {
     summary: "Le mannequin prend le bol bleu et le repose sur la même surface rouge.",
     scene: "Le mannequin prend le bol bleu, le soulève puis le repose sur la même surface rouge.",
     invariants: ["Le bol bleu et la surface rouge restent inchangés."],
-    allowed_changes: "Les mains et le bol bougent pendant le geste. ".repeat(6),
-    forbidden_changes: "Ne pas changer le bol bleu ni la surface rouge. ".repeat(8),
+    allowed_changes: "Les mains et le bol bougent pendant le geste. ".repeat(10),
+    forbidden_changes: "Ne pas changer le bol bleu ni la surface rouge. ".repeat(12),
   };
   globalThis.fetch = async (_input, init) => {
     requests.push(JSON.parse(String((init as { body?: unknown } | undefined)?.body)));
     const input = requests.length === 1 ? first : {
-      allowed_changes: "Les mains et le bol bougent pendant le geste.",
+      allowed_changes: compactAllowed,
       forbidden_changes: "Le bol bleu et la même surface rouge restent inchangés ; aucune seconde table.",
     };
     return new Response(JSON.stringify({ stop_reason: "tool_use", content: [{
@@ -68,7 +69,8 @@ Deno.test("overlong change rules get one text-only repair without dropping the s
     assert(!JSON.stringify(requests[1]).includes('"type":"image"'));
     assertEquals(result.summary, first.summary);
     assertEquals(result.invariants, first.invariants);
-    assertEquals(result.allowed_changes, "Les mains et le bol bougent pendant le geste.");
+    assert(compactAllowed.length > 180);
+    assertEquals(result.allowed_changes, compactAllowed);
     assert(result.forbidden_changes.includes("même surface rouge"));
     assert(buildVideoPrompt(result, 5, [{ role: "product" }]).includes("même surface rouge"));
   } finally {
@@ -154,4 +156,9 @@ Deno.test("the maximum structured preparation fits the stored prompt limit", () 
     allowed_changes: "a".repeat(180), forbidden_changes: "f".repeat(250),
   }, 10, Array(4).fill({ role: "composition" }));
   assert(prompt.length <= 3000);
+  assertThrows(() => buildVideoPrompt({
+    summary: "s".repeat(1200), scene: "s".repeat(900),
+    invariants: Array(4).fill("i".repeat(180)),
+    allowed_changes: "a".repeat(400), forbidden_changes: "f".repeat(500),
+  }, 10, Array(4).fill({ role: "composition" })), Error, "studio_video_prompt_too_long");
 });
