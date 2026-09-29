@@ -746,6 +746,26 @@ Deno.test("v4 independent creation does not inherit references from the selected
   } finally { f.restore(); }
 });
 
+Deno.test("v4 new take sends the selected version as a visible reference", async () => {
+  const f = fixture();
+  f.version.status = "ready";
+  f.setIntent({ operation: "create", uses_selected_version: true,
+    summary: "<summary>Nouvelle prise du même bol</summary>\n<parameter name=\"format\">square",
+    image_prompt: "Same bowl from another angle" });
+  try {
+    const res = await handleStudioRequest(request({
+      ...base, studio_version: 4, action: "message", message: "Une autre vue de ce bol",
+      viewed_version_id: proposalId, reference_ids: [], revision: 0, request_id: id(100),
+    }));
+    const data = await res.json();
+    assertEquals(res.status, 200);
+    assertEquals(data.session.proposal.summary, "Nouvelle prise du même bol");
+    assertEquals(data.session.proposal.references[0].path, f.version.result_path);
+    assertEquals(data.session.proposal.viewed_version_id, proposalId);
+    assertEquals(data.session.proposal.input_path, null);
+  } finally { f.restore(); }
+});
+
 Deno.test("v4 routes source-free photos and text posters to OpenAI", async () => {
   const keys = ["HIGGSFIELD_SOUL2_ENABLED", "HIGGSFIELD_DATA_USE_REVIEWED"];
   const before = keys.map((key) => Deno.env.get(key));

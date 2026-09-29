@@ -66,7 +66,7 @@ export function StudioMemoryPanel(
       <Button variant="outline" onClick={() => setOpen(true)}>
         Mémoire de marque{memory.length ? ` · ${memory.length}` : ""}
       </Button>
-      {selectedVersion && (
+      {selectedVersion && personReference && (
         <Button
           variant="ghost"
           disabled={blocked}
@@ -183,6 +183,9 @@ export function StudioMemoryPanel(
             : (
               <div className="space-y-4">
                 <div className="flex flex-wrap gap-2">
+                  {selectedVersion && !personReference && (
+                    <Button variant="outline" disabled={blocked} onClick={() => start("casting")}>Garder un mannequin fictif de cette image</Button>
+                  )}
                   <Button
                     variant="outline"
                     disabled={blocked}

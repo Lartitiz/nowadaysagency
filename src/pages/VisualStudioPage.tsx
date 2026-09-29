@@ -21,6 +21,7 @@ import { OfferMockupDialog } from "@/components/photos/OfferMockupDialog";
 import { AvantApresDialog } from "@/components/photos/AvantApresDialog";
 import PhotoPreparationDialog from "@/components/photos/PhotoPreparationDialog";
 import { StudioMemoryPanel } from "@/features/visual-studio/StudioMemoryPanel";
+import { cleanStudioSummary } from "@/features/visual-studio/summary";
 import { StudioBrandContext } from "@/features/visual-studio/StudioBrandContext";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -880,7 +881,7 @@ function Studio({
           </h2>
           <div className="rounded-lg bg-background p-3 text-sm">
             <h3 className="font-semibold mb-2">Ce que j’ai compris</h3>
-            <p className="whitespace-pre-wrap">{proposal.summary}</p>
+            <p className="whitespace-pre-wrap">{cleanStudioSummary(proposal.summary)}</p>
             {proposal.photo_treatment === "natural" && <p className="text-sm text-muted-foreground">Rendu demandé : photo du quotidien, naturelle et spontanée.</p>}
             {!!proposal.product_placement && <p className="mt-2"><strong>Position du produit :</strong> {proposal.product_placement}</p>}
           </div>
@@ -924,7 +925,7 @@ function Studio({
           <dl className="text-sm space-y-3">
             <div>
               <dt className="text-muted-foreground">
-                Photo réellement utilisée
+                {proposal.operation === "create" ? "Image utilisée en référence" : "Photo réellement utilisée"}
               </dt>
               <dd>
                 {proposal.viewed_version_id
@@ -947,6 +948,10 @@ function Studio({
                   La demande vise cette version, même si tu en regardes une
                   autre.
                 </p>
+              )}
+              {proposal.operation === "create" && selectedId && !proposal.viewed_version_id &&
+                !proposal.reference_snapshot?.some((ref) => ref.version_id === selectedId) && (
+                <p className="mt-2 text-primary">L’image affichée ne sera pas envoyée pour cette création. Si tu veux en reprendre un élément, précise-le avec « Modifier ma demande ».</p>
               )}
             </div>
             <div>
@@ -1002,7 +1007,7 @@ function Studio({
           <div className="flex justify-between gap-2">
             <strong>{proposal.cost} image{proposal.cost > 1 ? "s" : ""}</strong>
             <span className="text-xs text-muted-foreground">
-              Décomptée après résultat conservé
+              Décomptée si la génération aboutit
             </span>
           </div>
           {!current?.quota.allowed && (
@@ -1043,7 +1048,7 @@ function Studio({
             variant="ghost"
             className="w-full"
             onClick={() => {
-              editDraft(proposal.summary);
+              editDraft(cleanStudioSummary(proposal.summary));
             }}
           >
             Modifier ma demande
@@ -1107,7 +1112,7 @@ function Studio({
                         </div>;
                       })}
                     </div>}
-                    <p>{m.text}</p>
+                    <p>{m.role === "assistant" ? cleanStudioSummary(m.text) : m.text}</p>
                     {m.suggested_memory_ids?.map((id) => {
                       const item = current.memory?.find((entry) => entry.id === id);
                       return item ? <Button key={id} variant="outline" className="my-2 max-w-full h-auto whitespace-normal break-words py-2" disabled={!writable || !!busy || !!generating || references.some((r) => r.memory_id === id)} onClick={() => void mutate("memory_apply", {memory_id:id,revision:current.session.revision})}>{item.kind === "casting" ? "Utiliser ce mannequin" : "Utiliser cette direction"} · {item.name}</Button> : null;
@@ -1757,7 +1762,7 @@ function Studio({
                     memory={current.memory || []}
                     selectedVersion={version?.status === "ready" ? version.id : undefined}
                     personReference={version?.proposal.person_reference}
-                    brief={version?.proposal.summary || current.session.brief || ""}
+                    brief={cleanStudioSummary(version?.proposal.summary || current.session.brief || "")}
                     disabled={!writable || !!busy || !!generating}
                     onSave={(values) => mutate("memory_save", values)}
                     onApply={(id) => mutate("memory_apply", { memory_id: id, revision: current.session.revision })}
@@ -1779,7 +1784,7 @@ function Studio({
                         </div>
                         {item.url ? <div className={selected && compare && comparisonSource ? "studio-comparison" : "studio-image-single"}>
                           {selected && compare && comparisonSource && <figure><img src={comparisonSource} alt="Source de comparaison" /><figcaption>Source</figcaption></figure>}
-                          <figure><img src={item.url} alt={`Image ${number} créée dans cette discussion`} loading="lazy" onError={() => setError("L’aperçu a expiré. Réessaie pour le recharger, sans régénérer.")} /><figcaption>{item.proposal.summary}</figcaption></figure>
+                          <figure><img src={item.url} alt={`Image ${number} créée dans cette discussion`} loading="lazy" onError={() => setError("L’aperçu a expiré. Réessaie pour le recharger, sans régénérer.")} /><figcaption>{cleanStudioSummary(item.proposal.summary)}</figcaption></figure>
                         </div> : <p className="p-5 text-sm">{item.error_message || "Le résultat apparaîtra ici dès qu’il sera prêt."}</p>}
                         <div className="studio-image-card-actions">
                           {item.status === "ready" && <Button size="sm" variant={selected ? "default" : "outline"} onClick={() => { setSelectedId(item.id); setCompare(false); }}>{selected ? "Image sélectionnée" : "Reprendre cette image"}</Button>}

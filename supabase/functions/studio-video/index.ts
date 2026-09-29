@@ -103,7 +103,7 @@ export function claimFailureMessage(error: { message: string; code?: string }) {
   if (error.message.includes("video_quote_expired")) return "Ce devis a expiré. Vérifie à nouveau le prix.";
   return "La génération ne peut pas démarrer.";
 }
-function safeJob(row: Record<string, unknown>, signedUrl: string | null = null) {
+function safeJob(row: Record<string, unknown>, signedUrl: string | null = null, actor?: string) {
   return {
     id: row.id, workspace_id: row.workspace_id, source_kind: row.source_kind,
     source_id: row.source_id, source_name: row.source_name, source_refs: row.source_refs,
@@ -113,6 +113,7 @@ function safeJob(row: Record<string, unknown>, signedUrl: string | null = null) 
     estimated_usd: row.estimated_usd, estimated_credits: row.estimated_credits,
     quote_expires_at: row.quote_expires_at, created_at: row.created_at,
     error_code: row.error_code, video_url: signedUrl,
+    can_submit: !!actor && row.user_id === actor,
   };
 }
 async function signed(db: DB, row: { result_path?: string | null }) {
@@ -232,7 +233,7 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         .order("created_at", { ascending: false }).limit(50);
       if (error) throw error;
       return json({ enabled: on,
-        jobs: await Promise.all((data || []).map(async (row) => safeJob(row, row.status === "ready" ? await signed(db, row) : null))) });
+        jobs: await Promise.all((data || []).map(async (row) => safeJob(row, row.status === "ready" ? await signed(db, row) : null, pipe.userId))) });
     }
     if (p.action === "list_sources") {
       const { data, error } = await db.from("visual_studio_versions")

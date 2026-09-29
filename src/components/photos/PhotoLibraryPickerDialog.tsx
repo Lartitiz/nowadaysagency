@@ -55,21 +55,24 @@ function PickerThumb({
   // Aperçu KO (signature échouée ou image en erreur) ≠ « en chargement » :
   // la photo reste sélectionnable, l'import passe par storage_path.
   const broken = imgError || (signDone && !url);
+  const technicalName = !photo.name || /^(?:[a-f\d]{8}-[a-f\d-]{27,}|img[_-]?\d+|[_\W]+)$/i.test(photo.name.trim());
+  const label = technicalName ? photo.description?.trim() || "Photo à identifier" : photo.name!.trim();
   return (
     <button
       type="button"
       onClick={onToggle}
-      aria-label={`${photo.name || photo.description || "Photo"}${alreadyUsed ? " · déjà utilisée" : ""}`}
+      aria-label={`${label}${alreadyUsed ? " · déjà utilisée" : ""}`}
       aria-pressed={selected}
       disabled={disabled && !selected}
       className={cn(
-        "group relative aspect-square overflow-hidden rounded-lg border bg-muted/40 transition",
+        "group relative min-w-0 overflow-hidden rounded-lg border bg-muted/40 text-left transition",
         selected
           ? "ring-2 ring-primary border-primary"
           : "border-border hover:border-primary/40",
         disabled && !selected && "opacity-40 cursor-not-allowed",
       )}
     >
+      <div className="relative aspect-square">
       {url && !imgError ? (
         <img
           src={url}
@@ -89,9 +92,11 @@ function PickerThumb({
           <Check className="h-3 w-3" />
         </div>
       )}
-      <span className="absolute inset-x-0 bottom-0 bg-background/95 px-1 py-1 text-xs truncate">
-        {alreadyUsed ? "Déjà utilisée · " : ""}{photo.name || photo.description || "Photo"}
+      </div>
+      <span className="block px-2 py-1 text-xs font-medium line-clamp-2 break-words" title={label}>
+        {alreadyUsed ? "Déjà utilisée · " : ""}{label}
       </span>
+      {!!photo.description && !technicalName && <span className="block px-2 pb-2 text-xs text-muted-foreground line-clamp-2 break-words">{photo.description}</span>}
     </button>
   );
 }
@@ -303,7 +308,7 @@ export function PhotoLibraryPickerDialog({
           ) : visiblePhotos.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">Aucune photo ne correspond dans les photos chargées. Essaie un autre mot-clé ou affiche plus de photos.</p>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 p-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-1">
               {visiblePhotos.map((p) => (
                 <PickerThumb
                   key={p.id}

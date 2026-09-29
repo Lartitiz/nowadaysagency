@@ -20,6 +20,7 @@ export interface StudioVideoJob {
   created_at: string;
   error_code: string | null;
   video_url: string | null;
+  can_submit?: boolean;
 }
 
 export async function videoRequest<T>(body: Record<string, unknown>): Promise<T> {
