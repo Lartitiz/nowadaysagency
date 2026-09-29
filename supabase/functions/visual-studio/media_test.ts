@@ -206,3 +206,72 @@ Deno.test("multiple product views remain one subject while a mood photo stays st
   assertEquals(prompt.includes("do not add a separate copy for each reference"), true);
   assertEquals(prompt.includes("Keep style-only references distinct"), true);
 });
+
+Deno.test("product staging sends the confirmed support and keeps the mood reference out of the pose", async () => {
+  const proposal = {
+    operation: "product",
+    visual_kind: "photo" as const,
+    image_prompt: "La céramique aux coquelicots repose à plat sur la table dans la cour provençale.",
+    product_placement: "À plat sur la table en pierre, son fond en contact avec la surface.",
+    brand_context: { charter: { photo_style: "Mediterranean lifestyle", visual_direction: { composition: "Product centered" } } },
+    references: [
+      { id: "plate", photo_id: "plate", path: "plate.jpg", role: "product" as const, name: "Céramique aux coquelicots" },
+      { id: "mood", photo_id: "mood", path: "cour.jpg", role: "style" as const, name: "Cour provençale" },
+    ],
+  };
+  const original = globalThis.fetch;
+  let prompt = "";
+  globalThis.fetch = async (_input, init) => {
+    prompt = String((init?.body as FormData).get("prompt"));
+    return new Response(JSON.stringify({ data: [{ b64_json: btoa("image") }] }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  try {
+    await generateImage(proposal, [
+      new Blob(["plate"], { type: "image/jpeg" }),
+      new Blob(["mood"], { type: "image/jpeg" }),
+    ]);
+    assertEquals(prompt.includes("Confirmed product placement: À plat sur la table en pierre"), true);
+    assertEquals(prompt.includes("real contact with the confirmed supporting surface"), true);
+    assertEquals(prompt.includes("match that setting's camera perspective"), true);
+    assertEquals(prompt.includes("Image 1: product reference"), true);
+    assertEquals(prompt.includes("Image 2: style reference"), true);
+    assertEquals(prompt.includes("Do not copy its foreground props"), true);
+    assertEquals(prompt.includes("Confirmed product placement takes priority over brand composition advice"), true);
+  } finally { globalThis.fetch = original; }
+});
+
+Deno.test("natural photo treatment reaches OpenAI for text and reference requests only", async () => {
+  const natural = {
+    operation: "edit",
+    visual_kind: "photo" as const,
+    photo_treatment: "natural" as const,
+    image_prompt: "Keep the woman sorting fruit, reduce the lavender and simplify the terrace",
+    input_path: "selected-v1",
+    references: [{ id: "style", photo_id: "style", path: "reference", role: "style" as const, name: "Lavender terrace" }],
+    brand_context: { charter: { photo_style: "Warm Mediterranean sunlight" } },
+  };
+  const prompt = imagePrompt(natural);
+  assertEquals(prompt.includes("reduce the lavender"), true);
+  assertEquals(prompt.includes("simplify or remove those elements"), true);
+  assertEquals(prompt.includes("credible skin and material texture"), true);
+  assertEquals(prompt.includes("moderate depth of field"), true);
+  assertEquals(prompt.includes("Warm Mediterranean sunlight"), true);
+  assertEquals(prompt.includes("Keep its other features"), false);
+  assertEquals(imagePrompt({ ...natural, photo_treatment: "directed" }).includes("candid moment"), false);
+  assertEquals(imagePrompt({ ...natural, visual_kind: "graphic" }).includes("candid moment"), false);
+  assertEquals(imagePrompt({ ...natural, exact_text: ["Atelier"] }).includes("candid moment"), false);
+  const original = globalThis.fetch;
+  let sentPrompt = "";
+  globalThis.fetch = async (_input, init) => {
+    sentPrompt = String((init?.body as FormData).get("prompt"));
+    return new Response(JSON.stringify({ data: [{ b64_json: btoa("image") }] }), { headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    await generateImage(natural, [new Blob(["source"], { type: "image/jpeg" })]);
+    assertEquals(sentPrompt, prompt);
+  } finally {
+    globalThis.fetch = original;
+  }
+});

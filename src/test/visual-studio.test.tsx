@@ -446,13 +446,12 @@ it("generated versions stay outside the library until an explicit save, with one
         }),
   );
   mount();
-  await screen.findByRole("button", { name: "Ajouter à la bibliothèque" });
+  const button = await screen.findByRole("button", {
+    name: "Ajouter à la bibliothèque",
+  });
   expect(mock.request.mock.calls.some(([b]) => b.action === "save")).toBe(
     false,
   );
-  const button = screen.getByRole("button", {
-    name: "Ajouter à la bibliothèque",
-  });
   fireEvent.click(button);
   fireEvent.click(button);
   await screen.findByRole("button", { name: "Dans la bibliothèque" });
@@ -500,6 +499,19 @@ it("shows the current reformulation once in the confirmation card", async () => 
   expect(within(screen.getByRole("region", { name: "Conversation" })).getAllByText("Un fond crème")).toHaveLength(2);
   // One occurrence is the user's request, one is the visible confirmation.
   expect(within(screen.getByRole("region", { name: "Demande à confirmer" })).getByText("Un fond crème")).toBeVisible();
+});
+it("shows the product's physical placement before generation", async () => {
+  const start = original();
+  mock.request.mockResolvedValue({ ...start, session: { ...start.session, proposal: {
+    ...proposal,
+    operation: "product" as const,
+    summary: "La céramique aux coquelicots dans la cour.",
+    product_placement: "À plat sur la table en pierre, avec un contact visible.",
+  } } });
+  mount();
+  const confirmation = await screen.findByRole("region", { name: "Demande à confirmer" });
+  expect(within(confirmation).getByText("Position du produit :")).toBeVisible();
+  expect(within(confirmation).getByText(/À plat sur la table en pierre/)).toBeVisible();
 });
 it("attaches several library photos in one choice with their distinct reference roles", async () => {
   let state = { ...original(), session: { ...original().session, references: [] as Array<{

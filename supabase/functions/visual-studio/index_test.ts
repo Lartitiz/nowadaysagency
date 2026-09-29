@@ -1,5 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { handleStudioRequest } from "./index.ts";
+import { generateImage, imagePrompt } from "./media.ts";
 const id = (n: number) =>
   `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const actor = id(1),
@@ -220,7 +221,7 @@ Deno.test("an old version asks which references to use before interpreting", asy
     f.session.references.push(newRef);
     f.session.messages.push({ role: "user", text: "Utilise désormais la nouvelle direction" });
     f.version.status = "ready";
-    Object.assign(f.version.proposal, { brief: "Produit sur fond clair", reference_snapshot: [oldRef] });
+    Object.assign(f.version.proposal, { brief: "Produit sur fond clair", reference_snapshot: [oldRef], preserve: ["Contour ondulé et motif floral orange"], product_placement: "Posé sur son fond", photo_treatment: "natural" });
     const body = { ...base, action: "message", revision: 0, request_id: id(75), viewed_version_id: proposalId, message: "Une autre prise" };
     const first = await handleStudioRequest(request(body));
     assertEquals(first.status, 409);
@@ -229,10 +230,13 @@ Deno.test("an old version asks which references to use before interpreting", asy
     assertEquals(f.payloads.length, 0);
     const chosen = await handleStudioRequest(request({ ...body, branch_reference_mode: "version" }));
     assertEquals(chosen.status, 200);
-    const prompt = JSON.parse((f.payloads[0] as { messages: Array<{ content: Array<{ text: string }> }> }).messages[0].content[0].text);
+    const prompt = JSON.parse((f.payloads[0] as { messages: Array<{ content: Array<{ text: string }> }> }).messages[0].content.at(-1)!.text);
     assertEquals(prompt.references.map((r: { id: string }) => r.id), [oldRef.id]);
     assertEquals(prompt.historique, []);
     assertEquals(prompt.brief, "Produit sur fond clair");
+    assertEquals(prompt.version_selectionnee.preserve, ["Contour ondulé et motif floral orange"]);
+    assertEquals(prompt.version_selectionnee.product_placement, "Posé sur son fond");
+    assertEquals(prompt.version_selectionnee.photo_treatment, "natural");
   } finally { f.restore(); }
 });
 Deno.test("an explicit current-reference choice excludes the old snapshot", async () => {
@@ -247,7 +251,7 @@ Deno.test("an explicit current-reference choice excludes the old snapshot", asyn
       request_id: id(85), viewed_version_id: proposalId, message: "Une autre prise",
       branch_reference_mode: "current" }));
     assertEquals(res.status, 200);
-    const prompt = JSON.parse((f.payloads[0] as { messages: Array<{ content: Array<{ text: string }> }> }).messages[0].content[0].text);
+    const prompt = JSON.parse((f.payloads[0] as { messages: Array<{ content: Array<{ text: string }> }> }).messages[0].content.at(-1)!.text);
     assertEquals(prompt.references.map((r: { id: string }) => r.id), [newRef.id]);
     assertEquals(prompt.historique, []);
   } finally { f.restore(); }
@@ -603,7 +607,8 @@ Deno.test("v4 poster confirms the text sent to image generation and keeps older 
   f.setIntent({
     operation: "product",
     summary: "Affiche portrait du bol dans l'atelier, avec le titre Atelier Céramique et la date 12 décembre.",
-    image_prompt: "A hidden instruction that must not reach the image model",
+    product_placement: "Le bol repose sur son fond, ouverture vers le haut, sur la table de l'atelier.",
+    image_prompt: "Scene: portrait poster of the bowl resting base-down on the workshop table. Text: Atelier Céramique, 12 décembre.",
     exact_text: ["Atelier Céramique", "12 décembre"],
     reference_use: [{ id: product.id, role: "product" }, { id: ambience.id, role: "style" }],
     requires_real_subject: true,
@@ -616,13 +621,110 @@ Deno.test("v4 poster confirms the text sent to image generation and keeps older 
     const data = await res.json();
     assertEquals(res.status, 200);
     const proposal = data.session.proposal;
-    assertEquals(proposal.image_prompt, proposal.summary);
-    assertEquals(proposal.image_prompt.includes("hidden instruction"), false);
+    assertEquals(proposal.image_prompt.startsWith("Scene: portrait poster"), true);
+    const sent = imagePrompt(proposal);
+    assertEquals(sent.includes(proposal.summary), true);
+    assertEquals(sent.includes(proposal.image_prompt), true);
+    assertEquals(sent.includes("do not introduce unconfirmed subjects"), true);
     assertEquals(proposal.exact_text, ["Atelier Céramique", "12 décembre"]);
     assertEquals(proposal.composition, undefined);
     assertEquals(proposal.reference_snapshot.map((r: { path: string; role: string }) => [r.path, r.role]), [["product", "product"], ["ambience", "style"]]);
     assertEquals(data.session.messages.at(-2).reference_ids, [product.id, ambience.id, old.id]);
     assertEquals(data.session.messages.at(-2).reference_snapshot.map((r: { path: string }) => r.path), ["product", "ambience"]);
+  } finally { f.restore(); }
+});
+
+Deno.test("a product scene prioritizes the product over a mood photo and confirms its support", async () => {
+  const f = fixture();
+  const mood = { id: id(530), photo_id: id(531), path: "provence", role: "style", name: "Cour provençale" };
+  const plate = { id: id(532), photo_id: id(533), path: "plate", role: "product", name: "Céramique aux coquelicots" };
+  f.session.references = [mood, plate];
+  f.setIntent({
+    operation: "product", visual_kind: "photo",
+    summary: "La pièce en céramique repose à plat sur la table en pierre, vue de trois quarts, dans la cour provençale.",
+    product_placement: "À plat sur la table en pierre ; le fond touche la table et le décor reste visible en vue de trois quarts.",
+    image_prompt: "Scene: the ceramic dish lies flat on the stone table in the Provençal courtyard. Camera and perspective: three-quarter view, thin edge visible. Contact and light: the base touches the table, contact shadow consistent with the courtyard light.",
+    reference_use: [{ id: mood.id, role: "style" }, { id: plate.id, role: "product" }],
+    requires_real_subject: true,
+  });
+  try {
+    const res = await handleStudioRequest(request({
+      ...base, studio_version: 4, action: "message", message: "Mon produit dans ce décor, posé à plat sur la table",
+      revision: 0, reference_ids: [mood.id, plate.id], request_id: id(534),
+    }));
+    const data = await res.json();
+    assertEquals(res.status, 200);
+    assertEquals(data.session.proposal.product_placement.includes("À plat"), true);
+    assertEquals(data.session.proposal.references.map((r: { role: string }) => r.role), ["product", "style"]);
+    assertEquals(data.session.proposal.reference_snapshot.map((r: { role: string }) => r.role), ["style", "product"]);
+    const proposal = data.session.proposal;
+    assertEquals(proposal.image_prompt.includes("thin edge visible"), true);
+    const content = (f.payloads[0] as { messages: Array<{ content: Array<{ type: string; text?: string }> }> }).messages[0].content;
+    assertEquals(content[0].text?.includes(`Référence jointe 1, ID ${mood.id}`), true);
+    assertEquals(content[1].type, "image");
+    assertEquals(content[2].text?.includes(`Référence jointe 2, ID ${plate.id}`), true);
+    assertEquals(content[3].type, "image");
+    assertEquals(JSON.parse(content.at(-1)!.text!).demande, "Mon produit dans ce décor, posé à plat sur la table");
+    // Verify the persisted proposal, not just a hand-built prompt, at the provider boundary.
+    let sentPrompt = "";
+    let inputOrder: string[] = [];
+    globalThis.fetch = async (_input, init) => {
+      const form = init?.body as FormData;
+      sentPrompt = String(form.get("prompt"));
+      inputOrder = await Promise.all(form.getAll("image[]").map((part) => (part as Blob).text()));
+      return new Response(JSON.stringify({ data: [{ b64_json: btoa("result") }] }), { headers: { "Content-Type": "application/json" } });
+    };
+    await generateImage(proposal, proposal.references.map((ref: { path: string }) => new Blob([ref.path], { type: "image/jpeg" })));
+    assertEquals(inputOrder, ["plate", "provence"]);
+    assertEquals(sentPrompt.includes("Image 1: product reference, Céramique aux coquelicots"), true);
+    assertEquals(sentPrompt.includes("Image 2: style reference, Cour provençale"), true);
+    assertEquals(sentPrompt.includes(proposal.summary), true);
+    assertEquals(sentPrompt.includes(proposal.image_prompt), true);
+    assertEquals(sentPrompt.indexOf("REFERENCE IMAGES") < sentPrompt.indexOf("SHOT INSTRUCTIONS"), true);
+  } finally { f.restore(); }
+});
+
+Deno.test("a new product scene without a support decision asks before generation", async () => {
+  const f = fixture();
+  const product = { id: id(535), photo_id: id(536), path: "plate", role: "product", name: "Céramique" };
+  f.session.references = [product];
+  f.setIntent({
+    operation: "product", summary: "Céramique au premier plan", image_prompt: "Céramique au premier plan",
+    reference_use: [{ id: product.id, role: "product" }], requires_real_subject: true,
+  });
+  try {
+    const res = await handleStudioRequest(request({
+      ...base, studio_version: 4, action: "message", message: "Mets mon produit dans ce décor",
+      revision: 0, reference_ids: [product.id], request_id: id(537),
+    }));
+    const data = await res.json();
+    assertEquals(res.status, 200);
+    assertEquals(data.session.proposal, null);
+    assertEquals(data.session.messages.at(-1).operation, "clarify");
+    assertEquals(data.session.messages.at(-1).text.includes("ce qui le soutient"), true);
+  } finally { f.restore(); }
+});
+
+Deno.test("v4 series keeps each approved shot and its distinct technical prompt", async () => {
+  const f = fixture();
+  f.setIntent({
+    operation: "create", visual_kind: "photo", photo_treatment: "directed",
+    summary: "Une table de travail vide vue de dessus.",
+    image_prompt: "Scene: empty worktable. Camera and perspective: overhead view, entire tabletop visible.",
+    shots: [{ summary: "La même table vue à hauteur du plateau.", image_prompt: "Scene: same empty worktable. Camera and perspective: table-level view, near edge visible.", format: "landscape" }],
+  });
+  try {
+    const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
+      request_id: id(538), reference_ids: [], message: "Deux photos d'une table vide, une de dessus et une à hauteur du plateau" }));
+    assertEquals(res.status, 200);
+    const proposal = (await res.json()).session.proposal;
+    assertEquals(proposal.cost, 2);
+    assertEquals(proposal.image_prompt.includes("overhead view"), true);
+    assertEquals(proposal.shots[0].image_prompt.includes("table-level view"), true);
+    const secondPrompt = imagePrompt({ ...proposal, ...proposal.shots[0], series_size: 2, series_index: 1 });
+    assertEquals(secondPrompt.includes(proposal.shots[0].summary), true);
+    assertEquals(secondPrompt.includes("overhead view"), false);
+    assertEquals(f.requests.some((path) => path.includes("studio_confirm")), false);
   } finally { f.restore(); }
 });
 
@@ -650,7 +752,7 @@ Deno.test("v4 routes source-free photos and text posters to OpenAI", async () =>
   keys.forEach((key) => Deno.env.set(key, "true"));
   try {
     for (const [intent, expected] of [
-      [{ operation: "create", visual_kind: "photo", summary: "Portrait photographique d'un mannequin fictif", image_prompt: "Portrait photographique" }, "gpt-image-2.5-flare"],
+      [{ operation: "create", visual_kind: "photo", photo_treatment: "natural", summary: "Portrait photographique naturel d'un mannequin fictif", image_prompt: "Portrait photographique" }, "gpt-image-2.5-flare"],
       [{ operation: "create", visual_kind: "photo", summary: "Affiche photo avec le titre Atelier", image_prompt: "Affiche photo", exact_text: ["Atelier"] }, "gpt-image-2.5-flare"],
     ] as const) {
       const f = fixture();
@@ -666,6 +768,10 @@ Deno.test("v4 routes source-free photos and text posters to OpenAI", async () =>
         assertEquals(res.status, 200);
         assertEquals(data.session.proposal.model, expected);
         assertEquals(data.session.proposal.provider, "default");
+        if (intent.photo_treatment === "natural") {
+          assertEquals(data.session.proposal.photo_treatment, "natural");
+          assertEquals(data.session.proposal.image_prompt, intent.image_prompt);
+        }
       } finally { f.restore(); }
     }
   } finally {
