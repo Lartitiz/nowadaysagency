@@ -41,6 +41,9 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   const composedPrompt = videoPrompt(prompt, shot, camera, light);
   const promptLimit = mode === "references" ? 800 : 1000;
   const promptTooLong = composedPrompt.length > promptLimit;
+  const briefKey = JSON.stringify([workspaceId, mode, mode === "image" ? [source?.kind, source?.id] : null,
+    mode === "references" ? references.map(r => [r.kind, r.id, r.role]) : null,
+    composedPrompt, duration, resolution, aspectRatio]);
   const referenceKey = references.map(sourceKey).join(",");
   const previews = useQuery({ queryKey: ["video-reference-previews", workspaceId, referenceKey],
     queryFn: () => videoReferencePreviews(workspaceId, references), enabled: useImages && references.length > 0,
@@ -54,12 +57,14 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   useEffect(() => { setPersonFree(false); }, [referenceKey]);
   const [quote, setQuote] = useState<StudioVideoJob | null>(null);
   const [quoteKey, setQuoteKey] = useState<string | null>(null);
+  const [prepared, setPrepared] = useState<{ summary: string; prompt: string; token: string; key: string } | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [watchId, setWatchId] = useState<string | null>(null);
-  const inputKey = JSON.stringify([workspaceId, mode, mode === "image" ? [source?.kind, source?.id] : null,
-    mode === "references" ? references.map(r => [r.kind, r.id, r.role]) : null,
-    composedPrompt, duration, resolution, aspectRatio, personFree]);
+  const inputKey = JSON.stringify([briefKey, prepared?.token, personFree]);
+  const currentBriefKey = useRef(briefKey);
+  currentBriefKey.current = briefKey;
   const currentInputKey = useRef(inputKey);
   currentInputKey.current = inputKey;
   const jobs = useQuery({ queryKey: ["studio-videos", workspaceId], queryFn: () => listStudioVideos(workspaceId), retry: 1 });
@@ -68,15 +73,36 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
     refetchInterval: (query) => ["queued", "in_progress", "archiving"].includes(query.state.data?.job.status || "") ? 5000 : false });
 
   useEffect(() => { setQuote(null); setQuoteKey(null); }, [inputKey]);
+  useEffect(() => { setPrepared(null); setConfirmed(false); }, [briefKey]);
   useEffect(() => {
     if (["ready", "failed", "nsfw", "canceled"].includes(watched.data?.job.status || "")) {
       void cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId] });
     }
   }, [cache, watched.data?.job.status, workspaceId]);
 
+  async function prepareClip() {
+    if ((mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) ||
+      promptTooLong || (mode !== "text" && !personFree) || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || busy) return;
+    const requestedKey = briefKey;
+    setBusy("prepare"); setError(""); setPrepared(null); setConfirmed(false); setQuote(null);
+    try {
+      const result = await videoRequest<{ summary: string; prompt: string; prepared_token: string }>({
+        action: "prepare", workspace_id: workspaceId,
+        source_kind: mode === "image" ? source!.kind : mode,
+        source_id: mode === "image" ? source!.id : undefined,
+        references: mode === "references" ? references.map(({ kind, id, role }) => ({ kind, id, role })) : undefined,
+        prompt: composedPrompt, duration, resolution, aspect_ratio: aspectRatio,
+        person_free_attested: mode === "text" ? false : personFree,
+      });
+      if (alive.current && currentBriefKey.current === requestedKey)
+        setPrepared({ summary: result.summary, prompt: result.prompt, token: result.prepared_token, key: requestedKey });
+    } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "Claude n’a pas pu préparer le clip."); }
+    finally { if (alive.current) setBusy(""); }
+  }
   async function checkPrice() {
     if ((mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) || promptTooLong ||
-      (mode !== "text" && !personFree) || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || busy) return;
+      (mode !== "text" && !personFree) || !prepared || prepared.key !== briefKey || !confirmed ||
+      !Number.isInteger(duration) || duration < 4 || duration > 10 || busy) return;
     const requestedKey = inputKey;
     setBusy("quote"); setError("");
     try {
@@ -84,7 +110,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         source_kind: mode === "image" ? source!.kind : mode,
         source_id: mode === "image" ? source!.id : undefined,
         references: mode === "references" ? references.map(({ kind, id, role }) => ({ kind, id, role })) : undefined,
-        prompt: composedPrompt, duration, resolution, aspect_ratio: aspectRatio,
+        prompt: prepared.prompt, prepared_token: prepared.token, duration, resolution, aspect_ratio: aspectRatio,
         person_free_attested: mode === "text" ? false : personFree });
       if (alive.current && currentInputKey.current === requestedKey) { setQuote(result.job); setQuoteKey(requestedKey); }
       await cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId] });
@@ -179,10 +205,6 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
             </select>
           </label>
         </div>
-        {(shot || camera || light) && <div className="rounded-md bg-muted/50 p-3 text-xs space-y-1">
-          <p className="font-medium">Consigne envoyée avec le devis</p>
-          <p className="whitespace-pre-line break-words">{composedPrompt}</p>
-        </div>}
         {promptTooLong && <p className="text-xs text-destructive">La consigne complète dépasse {promptLimit} caractères. Raccourcis le texte ou retire un réglage.</p>}
         <details className="text-sm">
           <summary className="cursor-pointer">Aide : mouvement, caméra et lumière</summary>
@@ -204,11 +226,22 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         {mode === "image" && <p className="text-xs text-muted-foreground">Avec une seule image, le format suit celui de l’image.</p>}
         {mode !== "text" && <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" checked={personFree} onChange={e => setPersonFree(e.target.checked)} className="mt-1" />
-          <span>Je confirme que ces images ne montrent aucune personne identifiable et que je peux les transmettre à Higgsfield pour obtenir le prix et créer ce clip.</span>
+          <span>Je confirme que ces images ne montrent aucune personne identifiable et que je peux les transmettre à Claude pour préparer le clip, puis à Higgsfield pour obtenir le prix et le créer.</span>
         </label>}
-        <p className="text-xs text-muted-foreground">Vérifier le prix transmet {mode === "text" ? "la consigne" : "les images et la consigne"} à Higgsfield. La génération ne démarre qu’après le clic suivant. Ce clip est créé sans son ; la voix du Reel reste dans le montage.</p>
+        <p className="text-xs text-muted-foreground">Claude prépare la description à valider. Vérifier le prix transmet ensuite {mode === "text" ? "la consigne" : "les images et la consigne"} à Higgsfield. La génération ne démarre qu’après le clic suivant. Ce clip est créé sans son ; la voix du Reel reste dans le montage.</p>
+        <Button type="button" variant="outline" disabled={(mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) ||
+          promptTooLong || (mode !== "text" && !personFree) || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || !!busy}
+          onClick={prepareClip}>{busy === "prepare" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Préparer avec Claude</Button>
+        {prepared?.key === briefKey && <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+          <p className="text-sm font-medium">Est-ce bien le clip que tu veux ?</p>
+          <p className="text-sm whitespace-pre-line break-words">{prepared.summary}</p>
+          <p className="text-xs text-muted-foreground">Pour corriger cette proposition, modifie ton idée ou les réglages ci-dessus, puis demande une nouvelle préparation.</p>
+          <Button type="button" variant={confirmed ? "outline" : "default"} disabled={!!busy}
+            onClick={() => setConfirmed(true)}>{confirmed ? "Description validée" : "Oui, c’est bien ça"}</Button>
+        </div>}
         <Button type="button" variant="outline" disabled={(mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) || promptTooLong ||
-          (mode !== "text" && !personFree) || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || !!busy}
+          (mode !== "text" && !personFree) || !prepared || prepared.key !== briefKey || !confirmed ||
+          !Number.isInteger(duration) || duration < 4 || duration > 10 || !!busy}
           onClick={checkPrice}>{busy === "quote" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Vérifier le prix</Button>
         {quote && <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2" role="status">
           <p className="text-sm">Devis Higgsfield : <strong>{(Number(quote.estimated_usd) * USD_TO_EUR).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</strong> pour {quote.duration} s en {quote.resolution} ({Number(quote.estimated_usd).toFixed(2)} $ · {quote.estimated_credits} crédits API). Le montant est réservé dans le plafond vidéo au lancement.</p>

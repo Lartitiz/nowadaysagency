@@ -21,6 +21,13 @@ const quote = {
   estimated_credits: 72, quote_expires_at: new Date(Date.now() + 60_000).toISOString(),
   created_at: "", error_code: null, video_url: null,
 };
+const prepared = { summary: "Le produit est montré dans un plan doux avec un mouvement de caméra lent.",
+  prompt: "Plan vidéo précis du produit, mouvement lent et lumière douce.", prepared_token: "signed" };
+async function prepareAndConfirm() {
+  fireEvent.click(screen.getByRole("button", { name: "Préparer avec Claude" }));
+  expect(await screen.findByText(prepared.summary)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Oui, c’est bien ça" }));
+}
 const clients: QueryClient[] = [];
 async function mount(withSource = true, draftKey?: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -42,32 +49,49 @@ afterEach(() => {
 it("affiche le devis puis n'envoie le POST payant qu'au clic explicite", async () => {
   mock.list.mockResolvedValue({ enabled: true, jobs: [] });
   mock.request.mockImplementation(async (body: { action: string }) =>
-    body.action === "quote" ? { job: quote } : { job: { ...quote, status: "failed" } });
+    body.action === "prepare" ? prepared : body.action === "quote" ? { job: quote } : { job: { ...quote, status: "failed" } });
   mock.read.mockResolvedValue({ job: { ...quote, status: "failed" } });
   await mount();
   fireEvent.change(screen.getByRole("textbox", { name: "Ce qui doit bouger" }),
     { target: { value: quote.prompt } });
   fireEvent.click(screen.getByRole("checkbox"));
+  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  await prepareAndConfirm();
   fireEvent.click(screen.getByRole("button", { name: "Vérifier le prix" }));
   expect(await screen.findByText(/Devis Higgsfield/)).toBeInTheDocument();
-  expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["quote"]);
+  expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["prepare", "quote"]);
+  expect(mock.request.mock.calls[1][0]).toMatchObject({ prompt: prepared.prompt, prepared_token: "signed" });
   fireEvent.click(screen.getByRole("button", { name: /Générer ce clip/ }));
-  await waitFor(() => expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["quote", "submit"]));
+  await waitFor(() => expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["prepare", "quote", "submit"]));
 });
 
 it("écarte un devis arrivé après que la demande a changé", async () => {
   mock.list.mockResolvedValue({ enabled: true, jobs: [] });
   let finish: (value: unknown) => void = () => {};
-  mock.request.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  mock.request.mockImplementation(async (body: { action: string }) => body.action === "prepare" ? prepared : new Promise(resolve => { finish = resolve; }));
   await mount();
   const prompt = screen.getByRole("textbox", { name: "Ce qui doit bouger" });
   fireEvent.change(prompt, { target: { value: quote.prompt } });
   fireEvent.click(screen.getByRole("checkbox"));
+  await prepareAndConfirm();
   fireEvent.click(screen.getByRole("button", { name: "Vérifier le prix" }));
   fireEvent.change(prompt, { target: { value: "Une autre idée" } });
   finish({ job: quote });
   await waitFor(() => expect(mock.list).toHaveBeenCalledTimes(2));
   expect(screen.queryByRole("button", { name: /Générer ce clip/ })).not.toBeInTheDocument();
+});
+
+it("invalide la validation dès que l'idée change avant le devis", async () => {
+  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
+  mock.request.mockResolvedValue(prepared);
+  await mount(false);
+  const idea = screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" });
+  fireEvent.change(idea, { target: { value: "Un produit tourne sur une table" } });
+  await prepareAndConfirm();
+  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeEnabled();
+  fireEvent.change(idea, { target: { value: "Un produit avance sur une table" } });
+  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  expect(screen.queryByText(prepared.summary)).not.toBeInTheDocument();
 });
 
 it("garde la bibliothèque lisible quand les générations sont désactivées", async () => {
@@ -81,20 +105,23 @@ it("garde la bibliothèque lisible quand les générations sont désactivées", 
 
 it("obtient un devis depuis une idée seule sans attestation d'image", async () => {
   mock.list.mockResolvedValue({ enabled: true, jobs: [] });
-  mock.request.mockResolvedValue({ job: { ...quote, source_kind: "text", source_id: null } });
+  mock.request.mockImplementation(async (body: { action: string }) => body.action === "prepare" ? prepared :
+    { job: { ...quote, source_kind: "text", source_id: null } });
   await mount(false);
   fireEvent.change(screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" }),
     { target: { value: "Une main ouvre une boîte dans un atelier lumineux" } });
   expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  await prepareAndConfirm();
   fireEvent.click(screen.getByRole("button", { name: "Vérifier le prix" }));
   await waitFor(() => expect(mock.request).toHaveBeenCalled());
-  expect(mock.request.mock.calls[0][0]).toMatchObject({ source_kind: "text", person_free_attested: false, aspect_ratio: "9:16" });
-  expect(mock.request.mock.calls[0][0].source_id).toBeUndefined();
+  expect(mock.request.mock.calls[1][0]).toMatchObject({ source_kind: "text", person_free_attested: false, aspect_ratio: "9:16" });
+  expect(mock.request.mock.calls[1][0].source_id).toBeUndefined();
 });
 
 it("transmet les rôles et l'ordre de deux références avec le devis", async () => {
   mock.list.mockResolvedValue({ enabled: true, jobs: [] });
-  mock.request.mockResolvedValue({ job: { ...quote, source_kind: "references", source_id: null } });
+  mock.request.mockImplementation(async (body: { action: string }) => body.action === "prepare" ? prepared :
+    { job: { ...quote, source_kind: "references", source_id: null } });
   await mount(false);
   fireEvent.click(screen.getByRole("radio", { name: "Une ou plusieurs images" }));
   fireEvent.click(screen.getByRole("button", { name: /Ajouter mes images/ }));
@@ -107,12 +134,14 @@ it("transmet les rôles et l'ordre de deux références avec le devis", async ()
   fireEvent.change(screen.getByRole("combobox", { name: "Mouvement de caméra" }), { target: { value: "orbit" } });
   fireEvent.change(screen.getByRole("combobox", { name: "Lumière" }), { target: { value: "studio" } });
   fireEvent.click(screen.getByRole("checkbox"));
+  await prepareAndConfirm();
   fireEvent.click(screen.getByRole("button", { name: "Vérifier le prix" }));
   await waitFor(() => expect(mock.request).toHaveBeenCalled());
-  expect(mock.request.mock.calls[0][0]).toMatchObject({ source_kind: "references", references: [
+  expect(mock.request.mock.calls[0][0]).toMatchObject({ action: "prepare", source_kind: "references", references: [
     { kind: "photo", id: "photo-1", role: "product" }, { kind: "photo", id: "photo-2", role: "background" },
   ] });
   expect(mock.request.mock.calls[0][0].prompt).toBe("Le produit se révèle doucement dans ce décor\nCadrage : Gros plan.\nCaméra : La caméra tourne lentement autour du sujet.\nLumière : Lumière de studio diffuse.");
+  expect(mock.request.mock.calls[1][0].prompt).toBe(prepared.prompt);
 });
 
 it("passe directement d’une photo à plusieurs références sans changer de mode", async () => {
@@ -137,7 +166,8 @@ it("montre les images choisies et demande leurs rôles avant le devis", async ()
   expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
   fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Produit" }), { target: { value: "product" } });
   fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Décor" }), { target: { value: "background" } });
-  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Préparer avec Claude" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
 });
 
 it("restaure le brouillon mais pas l’attestation ni le devis", async () => {
