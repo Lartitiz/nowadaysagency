@@ -1676,10 +1676,42 @@ function Studio({
           {busy === "opening" || (sessionId && !current && state.isFetching)
             ? <p className="p-8">Ouverture de la session…</p>
             : (
-              <div className="studio-grid">
+              <div
+                className="studio-grid"
+                ref={gridRef}
+                style={wide
+                  ? { gridTemplateColumns: `${chatWidth}px minmax(0, 1fr)` }
+                  : undefined}
+              >
                 <section className="studio-chat" aria-label="Conversation">
                   {chat(isMobile)}
+                  {wide && (
+                    <div
+                      className="studio-resizer"
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label="Ajuster la largeur de la conversation"
+                      title="Glisser pour élargir la conversation · double-clic pour réinitialiser"
+                      tabIndex={0}
+                      onPointerDown={startChatResize}
+                      onDoubleClick={resetChatWidth}
+                      onKeyDown={(e) => {
+                        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+                        e.preventDefault();
+                        setChatWidth((w) => {
+                          const next = Math.min(
+                            CHAT_WIDTH_MAX,
+                            Math.max(CHAT_WIDTH_MIN, w + (e.key === "ArrowLeft" ? -24 : 24)),
+                          );
+                          chatWidthLatest.current = next;
+                          persistChatWidth(next);
+                          return next;
+                        });
+                      }}
+                    />
+                  )}
                 </section>
+
                 <section
                   className="studio-stage"
                   aria-label="Visuels et versions"
