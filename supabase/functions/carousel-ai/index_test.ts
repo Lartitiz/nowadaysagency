@@ -680,14 +680,18 @@ for (const kind of ["photo", "mix"]) Deno.test(`structure ${kind} : deux photos 
   assert(prompt.includes("indications de bibliothèque, potentiellement déduites"));
   for (const stale of ["3 à 4", "5 à 7", "7 à 9", "slide pivot", "Utiliser CHAQUE"]) assert(!prompt.includes(stale), stale);
 });
-Deno.test("questions photo : faits manquants sans émotion imposée ni étape ajoutée", async () => {
+for (const carousel_type of ["photo", "mix"]) for (const withPixels of [false, true]) Deno.test(`questions ${carousel_type} avec pixels=${withPixels} : précisions essentielles facultatives`, async () => {
   resetDeps(); let prompt = "";
   _deps.callAnthropic = (async (o: any) => {
     prompt = JSON.stringify(o.messages);
-    return JSON.stringify({ questions: [{ question: "A", placeholder: "" }, { question: "B", placeholder: "" }, { question: "C", placeholder: "" }] });
+    assertEquals(o.tool.input_schema.properties.questions.maxItems, 2);
+    assert(!o.tool.description.includes("3 questions"));
+    return JSON.stringify({ questions: [] });
   }) as any;
-  const res = await handleRequest(makeHooksRequest({ type: "deepening_questions", carousel_type: "photo", subject: "Les étapes de mon diagnostic", photos: [{ base64: "aGVsbG8=", context: "Étape déjà expliquée" }] }));
-  assertEquals(res.status, 200); await res.text();
+  const res = await handleRequest(makeHooksRequest({ type: "deepening_questions", carousel_type, subject: "Les étapes de mon diagnostic", photo_description: "Un portrait accompagne le récit", deepening_answers: { fait: "FAIT_DÉJÀ_FOURNI" }, ...(withPixels ? { photos: [{ base64: "aGVsbG8=", context: "Étape déjà expliquée" }] } : {}) }));
+  assertEquals(res.status, 200);
+  assertEquals(JSON.parse((await res.json()).content).questions, []);
+  assert(prompt.includes("FAIT_DÉJÀ_FOURNI"));
   assert(prompt.includes("zéro, une ou deux questions"));
   assert(!prompt.includes("exactement 3 questions"));
   assert(prompt.includes("Ne redemande pas ce qui est déjà fourni"));
