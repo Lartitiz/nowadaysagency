@@ -2,6 +2,9 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
+// Code promo → cohorte vidéo Studio (table studio_video_cohort_access).
+export const COHORT_PROMO_CODES: Record<string, string> = { BDMMA: "bdmma" };
+
 // Exportée (plutôt qu'inline dans serve()) pour être testable : `serve()` de
 // std/http ouvre un vrai socket TCP à l'import et n'expose pas le handler
 // qu'on lui passe, contrairement à `Deno.serve` (voir _shared/test-edge-harness.ts).
@@ -140,6 +143,20 @@ export async function handleRedeemPromoRequest(req: Request): Promise<Response> 
         headers: { ...cors, "Content-Type": "application/json" },
         status: 500,
       });
+    }
+
+    // Codes de cohorte : ouvrent aussi la vidéo Studio (budget de cohorte séparé, cf. studio-video).
+    // Best-effort : le plan est déjà accordé, un échec ici est journalisé sans bloquer l'activation.
+    const cohort = COHORT_PROMO_CODES[upperCode];
+    if (cohort) {
+      const { data: owned, error: ownedError } = await supabase.from("workspace_members")
+        .select("workspace_id").eq("user_id", userId).eq("role", "owner");
+      const { error: cohortError } = !ownedError && owned?.length
+        ? await supabase.from("studio_video_cohort_access").upsert(
+          owned.map((w: { workspace_id: string }) => ({ workspace_id: w.workspace_id, cohort })),
+          { onConflict: "workspace_id", ignoreDuplicates: true })
+        : { error: ownedError || new Error("aucun espace propriétaire") };
+      if (cohortError) console.error("redeem-promo: ouverture vidéo de cohorte impossible", { userId, cohort, error: cohortError });
     }
 
     // If binome (or legacy now_pilot), auto-create coaching program + sessions + deliverables.
