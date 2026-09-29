@@ -42,18 +42,35 @@ const MAX_SELECTABLE = 20;
 const PREVIEW_COUNT = 12;
 const FETCH_CONCURRENCY = 3;
 
-type Status = "loading" | "ready" | "hidden" | "importing" | "done";
+type Status = "loading" | "ready" | "hidden" | "importing" | "done" | "empty";
 
 interface BrandPhotosPickerProps {
   /** Où la carte est affichée (analytics). */
   placement: "welcome" | "brand_review";
   className?: string;
+  /** Lets the first-content button wait for the automatic product import. */
+  onReadyChange?: (ready: boolean) => void;
 }
 
 /** Même garde que le dialogue : le champ profil peut contenir du texte libre. */
 function looksLikeUrl(value: string): boolean {
   const v = value.trim();
   return !!v && !/\s/.test(v) && v.includes(".");
+}
+
+async function usablePhoto(file: File): Promise<boolean> {
+  if (typeof createImageBitmap === "function") {
+    const bitmap = await createImageBitmap(file);
+    try { return bitmap.width >= MIN_REAL_WIDTH && bitmap.height >= MIN_REAL_WIDTH; }
+    finally { bitmap.close?.(); }
+  }
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(objectUrl); resolve(img.naturalWidth >= MIN_REAL_WIDTH && img.naturalHeight >= MIN_REAL_WIDTH); };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(false); };
+    img.src = objectUrl;
+  });
 }
 
 /**
@@ -69,7 +86,7 @@ function normalizeInstagramHandle(value: string | null | undefined): string | nu
   return handle || null;
 }
 
-export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerProps) {
+export function BrandPhotosPicker({ placement, className, onReadyChange }: BrandPhotosPickerProps) {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   const workspaceId = useWorkspaceId();
@@ -85,10 +102,16 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
   const [expanded, setExpanded] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
   const [hasSite, setHasSite] = useState(false);
+  const [isProduct, setIsProduct] = useState<boolean | null>(null);
+  const [confirmedProductUrls, setConfirmedProductUrls] = useState<string[]>([]);
   // Le compte Instagram connecté correspond-il bien à la marque du profil ?
   const [instagramUsed, setInstagramUsed] = useState(false);
   // Un seul scan par montage (StrictMode monte deux fois en dev).
   const scanStarted = useRef(false);
+
+  useEffect(() => {
+    onReadyChange?.(isDemoMode || (isProduct !== null && (!isProduct || (status !== "loading" && status !== "importing"))));
+  }, [status, isProduct, isDemoMode, onReadyChange]);
 
   useEffect(() => {
     if (isDemoMode || !user?.id) {
@@ -97,18 +120,80 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
     }
     // On attend de savoir si Instagram est connecté avant de lancer.
     if (connectionsLoading) return;
-    if (scanStarted.current) return;
+    if (scanStarted.current || workspaceId === user.id) return;
     scanStarted.current = true;
 
     void (async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("website_url, instagram_url, instagram_username")
+        .select("website_url, instagram_url, instagram_username, type_activite")
         .eq("user_id", user.id)
         .maybeSingle();
       const websiteUrl = (profile?.website_url ?? "").trim();
       const siteOk = looksLikeUrl(websiteUrl);
+      const productActivity = profile?.type_activite === "produits" || profile?.type_activite === "les_deux";
+      setIsProduct(productActivity);
       setHasSite(siteOk);
+
+      if (productActivity) {
+        if (!siteOk) { setStatus("empty"); return; }
+        const { data, error } = await invokeWithTimeout(
+          "site-photos-scan", { body: { mode: "product-scan", websiteUrl } }, 45_000,
+        );
+        if (error || data?.error) { setStatus("empty"); return; }
+        const productImages = (data?.images as SiteImageCandidate[] | undefined) ?? [];
+        setCandidates(productImages);
+        if (productImages.length === 0) { setStatus("empty"); return; }
+
+        setStatus("importing");
+        const { data: existing, error: existingError } = await supabase
+          .from("user_photos")
+          .select("source_image_url,status,removed_from_library_at")
+          .eq("workspace_id", workspaceId)
+          .in("source_image_url", productImages.map((image) => image.url));
+        if (existingError) { setStatus("empty"); return; }
+        const known = new Set((existing ?? []).map((row) => row.source_image_url));
+        const available = (existing ?? []).filter((row) => row.status === "ready" && !row.removed_from_library_at);
+        setConfirmedProductUrls(available.map((row) => row.source_image_url).filter((url): url is string => !!url));
+        const missing = productImages.filter((image) => !known.has(image.url));
+        if (missing.length === 0) { setStatus(available.length ? "done" : "empty"); return; }
+
+        const queue = [...missing];
+        const files: File[] = [];
+        const sourceUrls: string[] = [];
+        const worker = async () => {
+          while (queue.length > 0) {
+            const image = queue.shift()!;
+            try {
+              const { data: fetched, error: fetchError } = await invokeWithTimeout(
+                "site-photos-scan", { body: { mode: "fetch", imageUrl: image.url } }, 45_000,
+              );
+              if (fetchError || fetched?.error || !fetched?.base64) continue;
+              const contentType = fetched.contentType || "image/jpeg";
+              const file = base64ToFile(fetched.base64, contentType, fileNameFromUrl(image.url, contentType, image.name));
+              if (!(await usablePhoto(file))) continue;
+              files.push(file);
+              sourceUrls.push(image.url);
+            } catch { /* la photo suivante reste importable */ }
+          }
+        };
+        await Promise.all(Array.from({ length: Math.min(FETCH_CONCURRENCY, missing.length) }, worker));
+        if (files.length === 0) { setStatus(available.length ? "done" : "empty"); return; }
+        const { uploaded } = await uploadLibrary(files, sourceUrls);
+        setImportedCount(uploaded);
+        if (uploaded > 0) posthog.capture("brand_product_photos_imported", { placement, count: uploaded });
+        const { data: confirmed } = await supabase
+          .from("user_photos")
+          .select("source_image_url")
+          .eq("workspace_id", workspaceId)
+          .eq("status", "ready")
+          .is("removed_from_library_at", null)
+          .in("source_image_url", productImages.map((image) => image.url));
+        const urls = (confirmed ?? []).map((row) => row.source_image_url).filter((url): url is string => !!url);
+        setConfirmedProductUrls(urls);
+        setStatus(urls.length ? "done" : "empty");
+        return;
+      }
 
       // Le compte connecté en OAuth peut appartenir à une autre marque que
       // celle décrite dans le profil (réinitialisation d'onboarding, test).
@@ -284,7 +369,13 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
             {status === "loading"
               ? "Je cherche les photos déjà publiées sur ton site…"
               : status === "done"
-                ? `${importedCount} photo${importedCount > 1 ? "s ajoutées" : " ajoutée"} à ta bibliothèque. Je les décris en arrière-plan : tu les retrouves dans Mes photos, prêtes pour tes contenus.`
+                ? isProduct
+                  ? `${confirmedProductUrls.length} photo${confirmedProductUrls.length > 1 ? "s de produits prêtes" : " de produit prête"} dans Mes photos pour ton premier carrousel. Tu pourras les remplacer ou en ajouter.`
+                  : `${importedCount} photo${importedCount > 1 ? "s ajoutées" : " ajoutée"} à ta bibliothèque. Je les décris en arrière-plan : tu les retrouves dans Mes photos, prêtes pour tes contenus.`
+                : status === "empty"
+                  ? "Je n'ai pas trouvé de photo de produit exploitable sur ton site. Tu pourras en ajouter dans la préparation du carrousel."
+                : status === "importing" && isProduct
+                  ? "J'ajoute tes photos de produits à Mes photos…"
                 : `Je les ai trouvées ${sourceLabel}. Choisis celles qui te ressemblent : elles serviront à tes contenus.`}
           </p>
         </div>
@@ -298,7 +389,15 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
         </div>
       )}
 
-      {(status === "ready" || status === "importing") && (
+      {isProduct && status === "done" && confirmedProductUrls.length > 0 && (
+        <div className="grid grid-cols-4 gap-2">
+          {confirmedProductUrls.slice(0, 4).map((url) => (
+            <img key={url} src={url} alt="Photo de produit trouvée sur ton site" className="aspect-square w-full rounded-lg object-cover" />
+          ))}
+        </div>
+      )}
+
+      {((status === "ready" || status === "importing") && !isProduct) && (
         <>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {shown.map((c) => {

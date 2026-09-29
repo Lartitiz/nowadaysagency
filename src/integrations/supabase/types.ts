@@ -7743,6 +7743,7 @@ export type Database = {
           name: string | null
           original_storage_path: string
           removed_from_library_at: string | null
+          source_image_url: string | null
           source_type: string
           status: string
           storage_path: string
@@ -7765,6 +7766,7 @@ export type Database = {
           name?: string | null
           original_storage_path: string
           removed_from_library_at?: string | null
+          source_image_url?: string | null
           source_type?: string
           status?: string
           storage_path: string
@@ -7787,6 +7789,7 @@ export type Database = {
           name?: string | null
           original_storage_path?: string
           removed_from_library_at?: string | null
+          source_image_url?: string | null
           source_type?: string
           status?: string
           storage_path?: string

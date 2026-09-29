@@ -34,6 +34,7 @@ export interface UserPhotoRow {
   background_prompt: string | null;
   background_preset_key: string | null;
   source_type: string;
+  source_image_url: string | null;
   width: number | null;
   height: number | null;
   file_size_bytes: number | null;
@@ -119,6 +120,8 @@ export interface UploadOriginalParams {
    * la ligne passe à status=ready sans traitement.
    */
   purpose?: "retouche" | "library";
+  /** Stable provenance for a photo imported from the owner's website. */
+  sourceImageUrl?: string;
 }
 
 export interface UploadOriginalResult {
@@ -138,6 +141,7 @@ export async function uploadPhotoOriginal({
   backgroundPrompt,
   backgroundPresetKey,
   purpose = "retouche",
+  sourceImageUrl,
 }: UploadOriginalParams): Promise<UploadOriginalResult> {
   if (!file.type.startsWith("image/")) {
     throw new Error("Le fichier doit être une image.");
@@ -158,7 +162,8 @@ export async function uploadPhotoOriginal({
       name: baseName,
       background_prompt: backgroundPrompt ?? null,
       background_preset_key: backgroundPresetKey ?? null,
-      source_type: "upload",
+      source_type: sourceImageUrl ? "imported" : "upload",
+      source_image_url: sourceImageUrl ?? null,
       width,
       height,
       file_size_bytes: blob.size,

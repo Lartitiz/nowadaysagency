@@ -7,6 +7,8 @@ const m = vi.hoisted(() => ({
   instagram: false,
   profileInstagram: null as string | null,
   connectedInstagram: null as string | null,
+  activityType: "services" as string,
+  existingSources: [] as string[],
   scan: vi.fn(),
   upload: vi.fn(),
 }));
@@ -25,11 +27,18 @@ vi.mock("@/lib/posthog", () => ({ posthog: { capture: vi.fn() } }));
 vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: m.scan }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    from: () => ({
-      select: () => ({ eq: () => ({ maybeSingle: async () => ({
-        data: { website_url: m.website, instagram_username: m.profileInstagram, instagram_url: null },
-      }) }) }),
-    }),
+    from: (table: string) => table === "user_photos"
+      ? { select: () => {
+          const query = {
+            eq: () => query,
+            is: () => query,
+            in: async () => ({ data: m.existingSources.map(source_image_url => ({ source_image_url, status: "ready", removed_from_library_at: null })) }),
+          };
+          return query;
+        } }
+      : { select: () => ({ eq: () => ({ maybeSingle: async () => ({
+          data: { website_url: m.website, instagram_username: m.profileInstagram, instagram_url: null, type_activite: m.activityType },
+        }) }) }) },
   },
 }));
 import { BrandPhotosPicker } from "@/components/photos/BrandPhotosPicker";
@@ -40,16 +49,62 @@ const images = [
 ];
 
 beforeEach(() => {
+  vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ width: 1000, height: 1000, close: vi.fn() })));
   m.demo = false;
   m.website = "www.mon-site.fr";
   m.instagram = false;
   m.profileInstagram = null;
   m.connectedInstagram = null;
+  m.activityType = "services";
+  m.existingSources = [];
   vi.clearAllMocks();
 });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe("BrandPhotosPicker", () => {
+  it("importe automatiquement les photos des fiches produit et conserve leur URL d'origine", async () => {
+    m.activityType = "produits";
+    m.scan.mockImplementation(async (_fn: string, { body }: { body: { mode: string } }) =>
+      body.mode === "product-scan"
+        ? { data: { images: [{ url: "https://mon-site.fr/produits/savon.jpg", alt: "Savon" }] } }
+        : { data: { base64: btoa("x"), contentType: "image/jpeg" } },
+    );
+    m.upload.mockImplementation(async (_files, sourceUrls) => {
+      m.existingSources = sourceUrls;
+      return { uploaded: 1, failed: 0, photoIds: ["p1"] };
+    });
+    const onReadyChange = vi.fn();
+    render(<BrandPhotosPicker placement="welcome" onReadyChange={onReadyChange} />);
+
+    await screen.findByText(/1 photo de produit prête dans Mes photos/);
+    expect(m.scan).toHaveBeenCalledWith("site-photos-scan", {
+      body: { mode: "product-scan", websiteUrl: "www.mon-site.fr" },
+    }, 45000);
+    expect(m.upload.mock.calls[0][1]).toEqual(["https://mon-site.fr/produits/savon.jpg"]);
+    expect(onReadyChange).toHaveBeenLastCalledWith(true);
+  });
+
+  it("ne réimporte pas une photo produit déjà présente", async () => {
+    m.activityType = "les_deux";
+    m.existingSources = ["https://mon-site.fr/produits/savon.jpg"];
+    m.scan.mockResolvedValue({ data: { images: [{ url: m.existingSources[0], alt: "Savon" }] } });
+    render(<BrandPhotosPicker placement="welcome" />);
+    await screen.findByText(/1 photo de produit prête dans Mes photos/);
+    expect(m.upload).not.toHaveBeenCalled();
+  });
+
+  it("écarte automatiquement une vignette trop petite et permet de poursuivre manuellement", async () => {
+    m.activityType = "produits";
+    vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ width: 100, height: 100, close: vi.fn() })));
+    m.scan.mockImplementation(async (_fn: string, { body }: { body: { mode: string } }) =>
+      body.mode === "product-scan"
+        ? { data: { images: [{ url: "https://mon-site.fr/tiny.jpg", alt: "Petit produit" }] } }
+        : { data: { base64: btoa("x"), contentType: "image/jpeg" } },
+    );
+    render(<BrandPhotosPicker placement="welcome" />);
+    await screen.findByText(/Je n'ai pas trouvé de photo de produit exploitable/);
+    expect(m.upload).not.toHaveBeenCalled();
+  });
   it("scanne le site tout seul, puis ajoute les photos cochées à la bibliothèque", async () => {
     m.scan.mockImplementation(async (_fn: string, { body }: { body: { mode: string } }) =>
       body.mode === "scan"

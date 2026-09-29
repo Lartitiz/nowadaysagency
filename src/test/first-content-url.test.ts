@@ -25,6 +25,8 @@ describe("buildFirstContentUrl", () => {
     const url = buildFirstContentUrl({ sellsProducts: true, subject: "Ma gamme" });
     expect(url).toContain("format=carousel");
     expect(url).toContain("carouselSubMode=photo");
+    expect(url).toContain("firstProduct=1");
+    expect(url).not.toContain("sujet=");
     expect(url).not.toContain("auto=1");
     expect(url).not.toContain("format=post");
   });
