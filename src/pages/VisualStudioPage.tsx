@@ -1599,23 +1599,43 @@ function Studio({
     );
   }
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       <AppHeader />
       <main id="main-content" className="studio-page">
         <header className="studio-header">
-          <div>
+          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate("/photos")}
             >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Bibliothèque
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden md:inline">Bibliothèque</span>
             </Button>
-            <h1 className="font-display text-2xl md:text-3xl">Studio visuel</h1>
+            <h1 className="font-display text-xl md:text-2xl">Studio visuel</h1>
+            <nav aria-label="Sections du Studio" className="flex gap-1.5 ml-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={videoTab ? "outline" : "default"}
+                aria-current={!videoTab ? "page" : undefined}
+                onClick={() => chooseTab("photo")}
+              >
+                Photos
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={videoTab ? "default" : "outline"}
+                aria-current={videoTab ? "page" : undefined}
+                onClick={() => chooseTab("video")}
+              >
+                Clips vidéo
+              </Button>
+            </nav>
           </div>
-          <div className="text-right">
-            <p className="text-sm">{workspaceName}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground hidden md:block">{workspaceName}</p>
             {!videoTab && (
               <Button
                 variant="outline"
@@ -1627,24 +1647,6 @@ function Studio({
             )}
           </div>
         </header>
-        <nav aria-label="Sections du Studio" className="flex gap-2 px-5 pb-4">
-          <Button
-            type="button"
-            variant={videoTab ? "outline" : "default"}
-            aria-current={!videoTab ? "page" : undefined}
-            onClick={() => chooseTab("photo")}
-          >
-            Photos
-          </Button>
-          <Button
-            type="button"
-            variant={videoTab ? "default" : "outline"}
-            aria-current={videoTab ? "page" : undefined}
-            onClick={() => chooseTab("video")}
-          >
-            Clips vidéo
-          </Button>
-        </nav>
         {!videoTab && current?.session.archived_at && (
           <div role="status" className="mx-5 mb-4 rounded-xl border border-border bg-card p-4 text-sm flex flex-wrap items-center justify-between gap-3">
             <span>Cette session est archivée. Les échanges, versions et images enregistrées sont conservés.</span>

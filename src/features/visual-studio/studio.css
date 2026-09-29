@@ -1,20 +1,24 @@
 .studio-page {
   max-width: 1600px;
   margin: auto;
-  padding-bottom: 24px;
+}
+.studio-page { padding-bottom: 24px; }
+@media (min-width: 768px) {
+  .studio-page { padding-bottom: 0; }
 }
 .studio-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px 24px;
+  flex-wrap: wrap;
+  padding: 8px 20px;
   border-bottom: 1px solid hsl(var(--border));
 }
 .studio-grid {
   display: grid;
   grid-template-columns: minmax(340px, 430px) minmax(0, 1fr);
-  height: calc(100dvh - 210px);
+  height: calc(100dvh - 140px);
   min-height: 560px;
 }
 .studio-chat {
@@ -238,7 +242,7 @@
 @media (max-width: 1000px) {
   .studio-grid {
     grid-template-columns: minmax(400px, 46%) minmax(0, 1fr);
-    height: calc(100dvh - 210px);
+    height: calc(100dvh - 140px);
   }
   .studio-stage {
     max-height: none;
@@ -275,7 +279,7 @@
     min-height: 0;
   }
   .studio-header h1 {
-    font-size: 24px;
+    font-size: 20px;
     white-space: nowrap;
   }
   .studio-header > div:last-child {
