@@ -82,7 +82,7 @@ export function VideoImagePicker({ workspaceId, initialImages, onConfirm, onClos
   const pendingImports = importedIds.some(id => selected.some(r => r.kind === "photo" && r.id === id) &&
     !ready.some(p => p.id === id));
   return <Dialog open onOpenChange={open => { if (!open && !uploading) onClose(); }}>
-    <DialogContent className="max-w-3xl max-h-[90dvh] overflow-y-auto">
+    <DialogContent className="grid-cols-1 max-w-3xl max-h-[90dvh] overflow-y-auto">
       <DialogHeader><DialogTitle>Choisir les images de la vidéo</DialogTitle>
         <DialogDescription>Sélectionne jusqu’à 4 images, puis clique sur « Ajouter ces images ». Tu indiqueras ensuite ce que représente chacune dans la vidéo.</DialogDescription></DialogHeader>
       <div className="space-y-3">
