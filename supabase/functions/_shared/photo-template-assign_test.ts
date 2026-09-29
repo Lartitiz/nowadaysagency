@@ -19,11 +19,11 @@ Deno.test("pose les gabarits valides et les champs de matière ancrés dans le t
     { slide_number: 4, template: "finale", cta_label: "Dites-le-moi en commentaire" },
   ]);
   assertEquals(applied, 4);
-  assertEquals(rejected.length, 0);
+  assertEquals(rejected.length, 1);
   assertEquals(parsed.slides[1].template, "chiffre");
   assertEquals(parsed.slides[1].big_number, "-40 %");
   assertEquals(parsed.slides[2].attribution, "La propriétaire");
-  assertEquals(parsed.slides[3].cta_label, "Dites-le-moi en commentaire");
+  assertEquals(parsed.slides[3].cta_label, undefined);
 });
 
 Deno.test("anti-invention : big_number absent du texte → gabarit rejeté, slide intacte", () => {
@@ -172,4 +172,14 @@ Deno.test("liste : re-confirmation de points identiques déjà posés → accept
   ]);
   assertEquals(rejected.length, 0);
   assertEquals(parsed.slides[0].points.length, 3);
+});
+
+Deno.test("finale : conserve une invitation existante sans en inventer ni raccourcir le récit", () => {
+  const text="Le petit pot rose trouve une place sur une étagère. Retrouvez les dimensions sur la fiche.";
+  const doc=parsedWith([{slide_number:1,overlay_text:text}]);
+  applyTemplateAssignments(doc,[{slide_number:1,template:"finale",cta_label:"Retrouvez les dimensions sur la fiche"}]);
+  assertEquals(doc.slides[0].overlay_text,text);
+  assertEquals(doc.slides[0].cta_label,"Retrouvez les dimensions sur la fiche");
+  applyTemplateAssignments(doc,[{slide_number:1,template:"finale",cta_label:"Et vous ?"}]);
+  assertEquals(doc.slides[0].cta_label,"Retrouvez les dimensions sur la fiche");
 });

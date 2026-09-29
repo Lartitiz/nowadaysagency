@@ -1056,7 +1056,8 @@ function CreerWorkspace() {
         const first = ordered[0];
         const candidate = (first?.name ?? "").trim();
         const looksLikeFilename = /^(img|dsc|dscn|photo|p)[\W_]?\d+/i.test(candidate);
-        if (!ideaText && candidate.length >= 8 && !looksLikeFilename) {
+        // Après onboarding, le nom automatique d’une photo n’est pas un sujet choisi.
+        if (!firstProductRef.current && !ideaText && candidate.length >= 8 && !looksLikeFilename) {
           setIdeaText(candidate);
         }
       } catch (e: any) {

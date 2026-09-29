@@ -45,7 +45,7 @@ const ASSIGN_TOOL = {
             template: { type: "string", enum: KNOWN_TEMPLATES },
             big_number: { type: ["string", "null"], description: "Gabarit chiffre uniquement : le chiffre COPIÉ EXACTEMENT depuis l'overlay_text (ex '-40 %'). Jamais inventé." },
             attribution: { type: ["string", "null"], description: "Gabarit citation uniquement : qui parle, si le texte le dit (≤5 mots)." },
-            cta_label: { type: ["string", "null"], description: "Gabarit finale uniquement : invitation courte (≤6 mots, ex 'Dites-le-moi en commentaire')." },
+            cta_label: { type: ["string", "null"], description: "Gabarit finale uniquement : invitation déjà présente copiée mot pour mot. null si aucune invitation." },
             points: { type: ["array", "null"], items: { type: "string" }, description: "Gabarit liste uniquement : les 2-3 items, repris des mots du texte (≤8 mots chacun)." },
             step_number: { type: ["number", "null"], description: "Gabarit etape uniquement : numéro de l'étape du processus décrit (1, 2, 3…)." },
           },
@@ -120,7 +120,12 @@ export function applyTemplateAssignments(parsed: any, assignments: TemplateAssig
       s.points = reaffirmed ? pts : grounded;
     }
     if (t === "citation" && a.attribution && wordCount(a.attribution) <= 5) s.attribution = a.attribution.trim();
-    if (t === "finale" && a.cta_label && wordCount(a.cta_label) <= 8) s.cta_label = a.cta_label.trim();
+    if (t === "finale" && a.cta_label && wordCount(a.cta_label) <= 8) {
+      const proposed = a.cta_label.trim();
+      const existing = String(s.cta_label || "").trim();
+      if (norm(text).includes(norm(proposed)) || (existing && norm(existing) === norm(proposed))) s.cta_label = proposed;
+      else rejected.push(`#${nums[i]} invitation absente du texte`);
+    }
     if (t === "etape" && Number.isInteger(a.step_number) && (a.step_number as number) > 0) s.step_number = a.step_number;
 
     s.template = t;
@@ -176,7 +181,7 @@ GABARITS : ${KNOWN_TEMPLATES.join(", ")}.
 - liste : SEULEMENT si le texte énumère 2-3 items distincts → points = les items, avec les mots du texte. Au plus 1 par carrousel.
 - etape : la slide décrit une étape numérotable d'un processus annoncé.
 - citation : le texte est un propos rapporté (guillemets, « m'a dit »…) → attribution si le texte dit qui parle.
-- finale : dernière slide UNIQUEMENT si elle pose une question au lecteur → cta_label = invitation courte (≤6 mots).
+- finale : dernière slide, conclusion du récit avec ou sans invitation. cta_label = extrait exact d’une invitation déjà écrite ; null sinon. Aucune question ni appel aux commentaires ajouté.
 
 RÈGLE D'OR : le gabarit sert le texte tel qu'il est écrit. N'invente ni chiffre, ni citation, ni liste. Ne force AUCUNE variété artificielle. Si template_actuel est déjà juste, garde-le.`,
       messages: [{ role: "user", content: `SLIDES (textes définitifs) :\n${JSON.stringify(digest, null, 2)}\n\nPose le gabarit de chaque slide via le tool.` }],

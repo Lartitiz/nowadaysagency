@@ -637,7 +637,7 @@ for (const outcome of ["better", "same", "vision"]) Deno.test(`fil : défauts no
   } finally { globalThis.fetch = oldFetch; if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key); }
 });
 
-Deno.test("fil : « Mes slides » (texte de la personne) et structure confirmée ne sont jamais rejugés", async () => {
+Deno.test("fil : Mes slides protégé ; rédaction sur structure confirmée relue sans recomposition", async () => {
   resetDeps();
   let judged = 0;
   _deps.reviewThread = (async () => { judged++; return ["Les slides 2 et 3 disent la même idée."]; }) as any;
@@ -659,7 +659,7 @@ Deno.test("fil : « Mes slides » (texte de la personne) et structure confirmée
       assertEquals(res.status, 200);
       await res.text();
     }
-    assertEquals(judged, 0);
+    assertEquals(judged, 2);
   } finally { globalThis.fetch = oldFetch; }
 });
 
@@ -688,8 +688,27 @@ Deno.test("questions photo : faits manquants sans émotion imposée ni étape aj
   }) as any;
   const res = await handleRequest(makeHooksRequest({ type: "deepening_questions", carousel_type: "photo", subject: "Les étapes de mon diagnostic", photos: [{ base64: "aGVsbG8=", context: "Étape déjà expliquée" }] }));
   assertEquals(res.status, 200); await res.text();
-  assert(prompt.includes("exactement 3 questions"));
-  assert(prompt.includes("Ne redemande pas une réponse déjà présente"));
+  assert(prompt.includes("zéro, une ou deux questions"));
+  assert(!prompt.includes("exactement 3 questions"));
+  assert(prompt.includes("Ne redemande pas ce qui est déjà fourni"));
   assert(!prompt.includes("POURQUOI PROFOND"));
   assert(!prompt.includes("ÉMOTION/SCÈNE VÉCUE"));
+});
+
+for (const subject of ["Découverte des céramiques après onboarding", "Histoire de marque illustrée par des portraits", "Expliquer un choix de conseil", "Transformation documentée d’un espace"]) Deno.test(`photo narrative : contrat et preuves traversent le vrai handler : ${subject}`, async () => {
+  resetDeps(); let writerPrompt=""; let judged=0;
+  const plan=Array.from({length:4},(_,i)=>({slide_number:i+1,role:i===0?"hook":"explication",title_suggestion:`Titre ${i}`,strategic_note:"Apport au récit",photo_index:1,slide_type:"photo_full",story_beat:"Progression fournie",photo_observation:"Fleur peinte, aucun bouquet visible",image_relation:"Accompagne l’histoire de marque sans scène littérale",factual_basis:"Raison fournie dans le brief"}));
+  const slides=plan.map(s=>({...s,overlay_text:"Texte suffisamment développé pour comprendre le choix exposé et son lien avec la suite du récit."}));
+  _deps.callCarouselWriter=(async(o:any,sink:any)=>{writerPrompt=o.system+JSON.stringify(o.messages);Object.assign(sink,{total_tokens:1,model:o.model});return JSON.stringify({slides,caption:{body:""}});}) as any;
+  _deps.reviewThread=(async(_doc:any,options:any)=>{judged++;assert(options.preserveStructure);assert(options.sourceContext.includes("Fleur peinte"));return [];}) as any;
+  const oldFetch=globalThis.fetch;
+  globalThis.fetch=(()=>Promise.resolve(new Response(JSON.stringify({content:[{type:"text",text:"{}"}],stop_reason:"end_turn",usage:{input_tokens:1,output_tokens:1}})))) as typeof fetch;
+  try {
+    const res=await handleRequest(makeHooksRequest({type:"express_full",carousel_type:"photo",subject,confirmed_structure:plan,narrative_thread:"Intention puis découverte, choix, aboutissement"}));
+    assertEquals(res.status,200);const out=await res.json();const doc=JSON.parse(out.content);
+    assertEquals(doc.slides.map((s:any)=>s.photo_index),[1,1,1,1]);
+    assert(writerPrompt.includes("PHOTOS ET RÉCIT DE MARQUE"));assert(writerPrompt.includes("Fleur peinte, aucun bouquet visible"));
+    assert(writerPrompt.includes("sans illustrer chaque phrase"));assert(writerPrompt.includes("Sources à vérifier contre le brief et la marque"));
+    assertEquals(judged,1);
+  }finally{globalThis.fetch=oldFetch;}
 });

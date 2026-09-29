@@ -15,6 +15,9 @@ export interface SlideProposal {
   slide_type?: "photo_full" | "photo_integrated" | "text_only";
   story_beat?: string;
   visual_anchor?: string;
+  photo_observation?: string;
+  image_relation?: string;
+  factual_basis?: string;
   overlay_position?: string;
 }
 
