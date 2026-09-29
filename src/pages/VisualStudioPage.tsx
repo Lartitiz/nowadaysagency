@@ -481,8 +481,10 @@ function Studio({
   }
   async function addLocalFiles(files: FileList | null) {
     if (!files?.length || busy || !writable) return;
-    const chosen = [...files].slice(0, Math.max(0, 8 - references.length));
+    const capacity = Math.max(0, 8 - references.length);
+    const chosen = [...files].slice(0, capacity);
     if (!chosen.length) { toast.error("Cette discussion utilise déjà huit images de référence."); return; }
+    if (files.length > capacity) toast.info(`Tu peux joindre ${capacity} image${capacity > 1 ? "s" : ""} de plus dans cette discussion.`);
     setBusy("upload");
     try {
       const result = await localUpload.mutate(chosen);
@@ -1075,7 +1077,7 @@ function Studio({
                       : "Tes échanges et créations restent dans cette session."}
                   </p>
                   {version?.proposal.brand_context && (
-                    <StudioBrandContext context={version.proposal.brand_context} />
+                    <details className="text-sm"><summary>Contexte de marque de cette image</summary><StudioBrandContext context={version.proposal.brand_context} /></details>
                   )}
                   {version?.status === "ready" && version.proposal.composition && (
                     <Button
@@ -1175,11 +1177,13 @@ function Studio({
                         <p className="mt-2">Tu peux poursuivre une autre demande dans cette session. Cette image ne peut pas être relancée automatiquement.</p>
                       </div>
                     ))}
+                  <details className="studio-extra-tools">
+                    <summary>Autres outils et créations enregistrées{references.length ? ` · ${references.length} image${references.length > 1 ? "s" : ""} de référence` : ""}</summary>
                   <div className="studio-references">
                     {!!references.length && (
                       <>
                         <h3 className="text-sm font-medium mb-2">Photos de référence · {references.length}/8</h3>
-                        <p className="text-xs text-muted-foreground mb-3">Elles guideront ensemble la prochaine image. Vérifie leur rôle et précise si plusieurs vues montrent le même sujet.</p>
+                        <p className="text-xs text-muted-foreground mb-3">Ces images restent disponibles. Tu peux préciser leur rôle dans ton message ; seules celles retenues pour la demande sont envoyées au modèle.</p>
                       </>
                     )}
                     {references.map((ref) => (
@@ -1265,8 +1269,6 @@ function Studio({
                       </p>
                     )}
                   </div>
-                  <details className="studio-extra-tools">
-                    <summary>Autres outils et créations enregistrées</summary>
                   {current && (
                     <StudioMemoryPanel
                       memory={current.memory || []}
@@ -1443,6 +1445,7 @@ function Studio({
                     Depuis ma bibliothèque
                   </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">Les images importées restent dans ta bibliothèque.</p>
                 {references.length >= 8 && <p className="text-xs text-muted-foreground">Huit références maximum. Retire une photo pour en choisir une autre.</p>}
                 <div className="flex justify-between items-center gap-2">
                   <span className="text-xs text-muted-foreground">
