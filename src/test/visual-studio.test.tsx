@@ -660,6 +660,25 @@ it("shows how to browse versions and opens the selected image", async () => {
   fireEvent.click(within(gallery).getAllByRole("button", { name: "Reprendre cette image" })[0]);
   expect(within(gallery).getByRole("img", { name: "Image 1 créée dans cette discussion" })).toHaveAttribute("src", "/first.png");
 });
+it("joins a generated image to the next message without saving it to the library", async () => {
+  const start = original();
+  const version = { id: "generated", status: "ready", proposal, url: "/generated.png", library_photo_id: null, error_message: null, created_at: "" };
+  let state = { ...start, versions: [version], session: { ...start.session, references: [] as Array<{
+    id: string; photo_id: string | null; version_id: string; name: string; role: string; url: string;
+  }> } };
+  mock.request.mockImplementation((body) => {
+    if (body.action === "reference") state = { ...state, session: { ...state.session,
+      revision: 1, references: [{ id: "joined", photo_id: null, version_id: "generated", name: "Image générée", role: "style", url: "/generated.png" }],
+    } };
+    return Promise.resolve(state);
+  });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  fireEvent.click(screen.getByRole("button", { name: "Joindre à ma demande" }));
+  await screen.findByText("Image 1 · Image générée");
+  expect(mock.request.mock.calls.find(([body]) => body.action === "reference")?.[0]).toMatchObject({ version_id: "generated", reference_role: "style" });
+  expect(mock.request.mock.calls.some(([body]) => body.action === "save")).toBe(false);
+});
 it("lets an AI-generated poster receive exact editable text after the image is ready", async () => {
   const design = {
     title: "Marché de Noël", body: "Céramiques artisanales", footer: "12 décembre · Lyon",

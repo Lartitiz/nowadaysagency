@@ -357,7 +357,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
     }
     if (p.action === "reference") {
       if (
-        (!p.photo_id && !p.reference_id && p.charter_index == null) ||
+        (!p.photo_id && !p.reference_id && !p.version_id && p.charter_index == null) ||
         p.revision !== session.revision
       ) {
         return json(
@@ -382,7 +382,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         );
       }
       const matches = (r: Reference) =>
-        p.reference_id ? r.id === p.reference_id : r.photo_id === p.photo_id;
+        p.reference_id ? r.id === p.reference_id
+        : p.version_id ? r.version_id === p.version_id
+        : r.photo_id === p.photo_id;
       const found = references.find(matches);
       if (p.remove) {
         references = references.filter((r) => !matches(r));
@@ -391,7 +393,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           r === found ? { ...r, role: p.reference_role || "subject" } : r
         );
       } else {
-        if (!p.photo_id && p.charter_index == null) {
+        if (!p.photo_id && !p.version_id && p.charter_index == null) {
           throw new Error("studio_conflict");
         }
         if (references.length >= MAX_REFERENCES) {
@@ -409,7 +411,12 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         if (p.charter_index != null && !charterImage) {
           throw new Error("studio_conflict");
         }
-        const photo = charterImage ? null : unwrap(
+        const generated = p.version_id ? unwrap(
+          await sb.from("visual_studio_versions").select("*")
+            .eq("id", p.version_id).eq("session_id", session.id)
+            .eq("status", "ready").single(),
+        ) : null;
+        const photo = charterImage || generated ? null : unwrap(
           await sb.from("user_photos").select("*")
             .eq("id", p.photo_id).eq("workspace_id", p.workspace_id).eq(
               "status",
@@ -417,21 +424,24 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             ).is("removed_from_library_at", null).single(),
         );
         const id = crypto.randomUUID(),
-          path = `${p.workspace_id}/${session.id}/reference-${id}`;
-        const blob = await download(
-          sb,
-          charterImage ? "moodboards" : "user-photos",
-          charterImage?.path || photo!.storage_path,
-        );
-        await store(sb, BUCKET, path, blob);
+          path = generated?.result_path || `${p.workspace_id}/${session.id}/reference-${id}`;
+        if (!generated) {
+          const blob = await download(
+            sb,
+            charterImage ? "moodboards" : "user-photos",
+            charterImage?.path || photo!.storage_path,
+          );
+          await store(sb, BUCKET, path, blob);
+        }
         references = [
           ...references,
           {
             id,
             photo_id: photo?.id || null,
+            version_id: generated?.id,
             path,
             role: charterImage ? "style" : p.reference_role || "subject",
-            name: (charterImage?.name || photo?.name || "Référence").slice(
+            name: (charterImage?.name || photo?.name || generated?.proposal?.summary || "Référence").slice(
               0,
               120,
             ),

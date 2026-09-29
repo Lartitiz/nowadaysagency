@@ -644,6 +644,24 @@ Deno.test("v4 independent creation does not inherit references from the selected
   } finally { f.restore(); }
 });
 
+Deno.test("a completed Studio image can be joined as a reference without copying it into the library", async () => {
+  const f = fixture();
+  f.version.status = "ready";
+  try {
+    const res = await handleStudioRequest(request({
+      ...base, studio_version: 4, action: "reference", version_id: proposalId,
+      reference_role: "style", revision: 0,
+    }));
+    const data = await res.json();
+    assertEquals(res.status, 200);
+    assertEquals(data.session.references.length, 1);
+    assertEquals(data.session.references[0].version_id, proposalId);
+    assertEquals(data.session.references[0].path, f.version.result_path);
+    assertEquals(data.session.references[0].role, "style");
+    assertEquals(f.requests.some((path) => path === "/rest/v1/user_photos"), false);
+  } finally { f.restore(); }
+});
+
 Deno.test(
   "a detailed edit preserves all eight invariants instead of rejecting or truncating them",
   async () => {

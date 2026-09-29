@@ -500,6 +500,29 @@ function Studio({
       if (alive.current && !actionLock.current) setBusy("");
     }
   }
+  async function attachVersionAsReference(versionId: string) {
+    const existing = references.find((ref) => ref.version_id === versionId);
+    if (existing) {
+      setAttachments([...attachedIds, existing.id]);
+      setSelectedId(null);
+      return;
+    }
+    if (!current || references.length >= 8) {
+      toast.error("Cette discussion utilise déjà huit images de référence.");
+      return;
+    }
+    const result = await mutate("reference", {
+      version_id: versionId,
+      reference_role: "style",
+      revision: current.session.revision,
+    });
+    const joined = result?.session.references?.find((ref) => ref.version_id === versionId);
+    if (joined) {
+      setAttachments([...attachedIds, joined.id]);
+      setSelectedId(null);
+      toast.success("Image jointe à ta prochaine demande.");
+    }
+  }
   async function send(branchReferenceMode?: "version" | "current") {
     if (
       !draft.trim() ||
@@ -1615,6 +1638,7 @@ function Studio({
                         </div> : <p className="p-5 text-sm">{item.error_message || "Le résultat apparaîtra ici dès qu’il sera prêt."}</p>}
                         <div className="studio-image-card-actions">
                           {item.status === "ready" && <Button size="sm" variant={selected ? "default" : "outline"} onClick={() => { setSelectedId(item.id); setCompare(false); }}>{selected ? "Image sélectionnée" : "Reprendre cette image"}</Button>}
+                          {item.status === "ready" && <Button size="sm" variant="outline" disabled={!writable || !!busy || generating || (references.length >= 8 && !references.some((ref) => ref.version_id === item.id))} onClick={() => void attachVersionAsReference(item.id)}>Joindre à ma demande</Button>}
                           {item.status === "ready" && item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="studio-image-open">Agrandir l’image</a>}
                           {item.library_photo_id && <span className="text-xs text-muted-foreground">Dans la bibliothèque</span>}
                         </div>
