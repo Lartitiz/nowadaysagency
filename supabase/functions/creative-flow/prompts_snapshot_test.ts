@@ -15,6 +15,7 @@
 //   deno test --no-check --allow-env --allow-read --node-modules-dir=none supabase/functions/creative-flow/prompts_snapshot_test.ts
 
 import { assertSnapshot } from "https://deno.land/std@0.224.0/testing/snapshot.ts";
+import { assert, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { setTestEnv } from "../_shared/test-edge-harness.ts";
 
 setTestEnv();
@@ -216,6 +217,46 @@ Deno.test("buildQuestionsPrompt — récit LinkedIn personnel sans crise imposé
     newsContextBlock: "",
     recentBriefsContext: "",
   })));
+});
+
+Deno.test("buildQuestionsPrompt — post_linkedin fictif isolé du profil réel", () => {
+  const prompt = buildQuestionsPrompt({
+    QUESTIONS_PREFIX: "PROFIL RÉEL ET VOIX PERSONNELLE",
+    brandingContext: "Céramiste à Lyon, atelier-refuge et pièces uniques.",
+    brandVocabBlock: "La terre ne ment pas.",
+    context: "Carnet Azur fictif : 48 pages, papier 100 g/m², prix imaginaire de 12 €.",
+    contentType: "post_linkedin",
+    editorialFormatLabel: "Storytelling pro",
+    angle: ANGLE,
+    calendarBlock: "Publication demain",
+    objectiveBlock: "Vendre",
+    newsContextBlock: "Actualité artisanale",
+    recentBriefsContext: "Ancienne histoire d'atelier",
+  });
+  assertStringIncludes(prompt.systemPrompt, "post LinkedIn");
+  assertStringIncludes(prompt.systemPrompt, "Carnet Azur fictif");
+  assert(!prompt.systemPrompt.includes("PROFIL RÉEL ET VOIX PERSONNELLE"));
+  assert(!prompt.systemPrompt.includes("atelier-refuge"));
+  assert(!prompt.systemPrompt.includes("Storytelling pro"));
+  assert(!prompt.systemPrompt.includes("Ancienne histoire d'atelier"));
+});
+
+Deno.test("buildQuestionsPrompt — post_linkedin réel reconnu comme LinkedIn", () => {
+  const prompt = buildQuestionsPrompt({
+    QUESTIONS_PREFIX,
+    brandingContext: "",
+    brandVocabBlock: "",
+    context: "Pourquoi je ne fais plus de remises sur mes créations",
+    contentType: "post_linkedin",
+    editorialFormatLabel: "Prise de position",
+    angle: ANGLE,
+    calendarBlock: "",
+    objectiveBlock: "",
+    newsContextBlock: "",
+    recentBriefsContext: "",
+  });
+  assertStringIncludes(prompt.systemPrompt, "- Canal : LinkedIn");
+  assertStringIncludes(prompt.systemPrompt, "Questions orientées POINT DE VUE");
 });
 
 Deno.test("buildQuestionsPrompt — Newsletter (guidance profondeur)", async (t) => {
