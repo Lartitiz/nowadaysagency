@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { sellsProducts as profileSellsProducts } from "@/lib/product-or-service";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -128,12 +129,12 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
     void (async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("website_url, instagram_url, instagram_username, type_activite")
+        .select("website_url, instagram_url, instagram_username, product_or_service, type_activite")
         .eq("user_id", user.id)
         .maybeSingle();
       const websiteUrl = (profile?.website_url ?? "").trim();
       const siteOk = looksLikeUrl(websiteUrl);
-      const productActivity = profile?.type_activite === "produits" || profile?.type_activite === "les_deux";
+      const productActivity = profileSellsProducts(profile);
       scannedProduct = productActivity;
       setIsProduct(productActivity);
       setHasSite(siteOk);

@@ -802,6 +802,15 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
   const goTo = useCallback((i: number) => setIndex(Math.max(0, Math.min(total, i))), [total]);
   const goNext = useCallback(() => setIndex((i) => Math.min(total, i + 1)), [total]);
   const goPrev = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
+  const waitingForPhotos = mandatory && finished && !productPhotosReady;
+  const canComplete = !mandatory || (finished && productPhotosReady);
+  const completeReview = () => {
+    if (mandatory && !finished) {
+      goTo(total); // Monte la carte photos avant d'autoriser le premier contenu.
+      return;
+    }
+    if (canComplete) onDone(true);
+  };
 
   useEffect(() => {
     if (coachingSection) return;
@@ -1313,7 +1322,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
 
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
               {done ? (
-                <button onClick={() => onDone(true)} disabled={mandatory && !productPhotosReady} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 disabled:cursor-wait">
+                <button onClick={completeReview} disabled={!canComplete} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 disabled:cursor-wait">
                   {mandatory && !productPhotosReady ? "Un instant…" : mandatory ? "Créer mon premier contenu →" : "Voir mon branding complet →"}
                 </button>
               ) : (
@@ -1342,8 +1351,8 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
               </span>
               <div className="flex items-center gap-3 shrink-0">
                 {allDone ? (
-                  <button onClick={() => onDone(true)} className="text-sm font-semibold text-primary-text hover:underline whitespace-nowrap">
-                    {mandatory ? "Créer mon premier contenu →" : "Voir mon branding complet →"}
+                  <button onClick={completeReview} disabled={waitingForPhotos} className="text-sm font-semibold text-primary-text hover:underline whitespace-nowrap disabled:opacity-50 disabled:cursor-wait">
+                    {mandatory ? finished ? waitingForPhotos ? "Un instant…" : "Créer mon premier contenu →" : "Voir la suite →" : "Voir mon branding complet →"}
                   </button>
                 ) : (
                   <>

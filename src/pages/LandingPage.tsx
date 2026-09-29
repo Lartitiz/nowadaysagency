@@ -790,7 +790,7 @@ export default function LandingPage() {
       </section>
 
       {/* ═══ FAQ ═══ */}
-      <section aria-label="Questions fréquentes" className="bg-rose-pale py-16 sm:py-24 px-4">
+      <section id="faq" aria-label="Questions fréquentes" className="bg-rose-pale py-16 sm:py-24 px-4">
         <div className="mx-auto max-w-2xl">
           <Reveal>
             <h2 className="font-display text-2xl sm:text-4xl font-bold mb-10 text-center">Questions fréquentes</h2>

@@ -11,6 +11,7 @@ import { BrandLogoSuggestion } from "@/components/branding/BrandLogoSuggestion";
 
 import EditableText from "@/components/EditableText";
 import { buildFirstContentUrl } from "@/lib/first-content-url";
+import { sellsProducts as profileSellsProducts } from "@/lib/product-or-service";
 import { toast as sonnerToast } from "sonner";
 import {
   Sparkles,
@@ -418,7 +419,7 @@ export default function WelcomePage() {
           .eq("is_primary", true)
           .maybeSingle(),
         supabase.from("profiles")
-          .select("diagnostic_data, type_activite")
+          .select("diagnostic_data, product_or_service, type_activite")
           .eq("user_id", profileUserId)
           .maybeSingle(),
         (supabase.from("audit_recommendations") as any)
@@ -447,11 +448,9 @@ export default function WelcomePage() {
         setDiagnosticSummary(diagData.summary);
       }
 
-      // Vend-elle des produits ? (réponse donnée à l'étape 2 de l'onboarding)
-      // « les_deux » compte comme produits : le carrousel photo est le format
-      // le plus différenciant, et le lien vers le texte reste à un clic.
-      const typeActivite = (profileRes.data as any)?.type_activite;
-      setSellsProducts(typeActivite === "produits" || typeActivite === "les_deux");
+      // Réponse produits/services de l'onboarding, distincte du secteur
+      // type_activite. « les_deux » suit aussi le parcours photo.
+      setSellsProducts(profileSellsProducts(profileRes.data));
 
       // Recommendations
       if (recsRes.data && recsRes.data.length > 0) {
