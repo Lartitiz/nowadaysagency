@@ -61,5 +61,5 @@ it.each(['linkedin','newsletter','reel','stories','carrousel'])('keeps the curre
  fireEvent.click(screen.getByRole('button',{name:'Sauvegarder en idée'}));
  fireEvent.click(screen.getByRole('button',{name:'Enregistrer dans Mes idées'}));
  await waitFor(()=>expect(m.saved).toBeTruthy());
- expect(m.saved.content_data).toEqual({type:'recycling',format,text:'Et : texte QA'});
+ expect(m.saved.content_data).toEqual({type:'recycling',format,text:'Et : texte QA',_ai_generated:true});
 });
