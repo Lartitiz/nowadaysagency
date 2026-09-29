@@ -36,8 +36,12 @@ type DB = ReturnType<typeof getServiceClient>;
 // global switch says. Budget is lifetime (no monthly reset) and enforced
 // atomically by studio_video_claim_trial.
 export const TRIAL_WORKSPACES = new Set(["76af5fa5-3e3a-481f-b6a6-41cc16f3d73b"]);
-export const TRIAL_TOTAL_LIMIT_USD = 10;
-export const TRIAL_MAX_SUBMISSIONS = 1;
+// Plafond demandé : 10 € au total, soit ≈ 11 $ au taux d'affichage (1 $ ≈ 0,92 €).
+export const TRIAL_TOTAL_LIMIT_USD = 11;
+// Plusieurs lancements possibles : le plafond de dépense reste le vrai garde-fou.
+export const TRIAL_MAX_SUBMISSIONS = 20;
+// Les clips échoués, refusés ou annulés ne comptent ni dans les lancements ni dans la dépense.
+const NON_BILLED_STATUSES = ["failed", "nsfw", "canceled"];
 export function workspaceAllowed(workspace: string) { return TRIAL_WORKSPACES.has(workspace); }
 function enabled(workspace: string) {
   return workspaceAllowed(workspace) && Deno.env.get("HIGGSFIELD_VIDEO_ENABLED") === "true" && !!Deno.env.get("HIGGSFIELD_API_KEY");
@@ -219,9 +223,9 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
     if (p.action === "quote") {
       if (!enabled(p.workspace_id) || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
       const { count: submittedCount, error: trialError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
-        .not("submitted_at", "is", null);
+        .not("submitted_at", "is", null).not("status", "in", `(${NON_BILLED_STATUSES.join(",")})`);
       if (trialError) throw trialError;
-      if ((submittedCount || 0) >= TRIAL_MAX_SUBMISSIONS) return json({ error: "La génération de recette a déjà été utilisée." }, 409);
+      if ((submittedCount || 0) >= TRIAL_MAX_SUBMISSIONS) return json({ error: "Le nombre de lancements d’essai est atteint." }, 409);
       const { count, error: quoteLimitError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
         .eq("user_id", pipe.userId).gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
       if (quoteLimitError) throw quoteLimitError;
@@ -282,7 +286,7 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         p_total_limit: monthlyLimit(), p_max_submissions: TRIAL_MAX_SUBMISSIONS,
       });
       if (claimError) {
-        const message = claimError.message.includes("video_trial_exhausted") ? "La génération de recette a déjà été utilisée." :
+        const message = claimError.message.includes("video_trial_exhausted") ? "Le nombre de lancements d’essai est atteint." :
           claimError.message.includes("video_budget") ? "Le plafond vidéo de cet espace est atteint." :
           claimError.message.includes("video_quote_expired") ? "Ce devis a expiré. Vérifie à nouveau le prix." : "La génération ne peut pas démarrer.";
         return json({ error: message }, 409);
