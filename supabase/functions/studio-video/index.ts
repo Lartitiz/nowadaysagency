@@ -36,8 +36,12 @@ type DB = ReturnType<typeof getServiceClient>;
 // global switch says. Budget is lifetime (no monthly reset) and enforced
 // atomically by studio_video_claim_trial.
 export const TRIAL_WORKSPACES = new Set(["76af5fa5-3e3a-481f-b6a6-41cc16f3d73b"]);
-export const TRIAL_TOTAL_LIMIT_USD = 10;
-export const TRIAL_MAX_SUBMISSIONS = 1;
+// Plafond demandé : 10 € au total, soit ≈ 11 $ au taux d'affichage (1 $ ≈ 0,92 €).
+export const TRIAL_TOTAL_LIMIT_USD = 11;
+// Plusieurs lancements possibles : le plafond de dépense reste le vrai garde-fou.
+export const TRIAL_MAX_SUBMISSIONS = 20;
+// Les clips échoués, refusés ou annulés ne comptent ni dans les lancements ni dans la dépense.
+const NON_BILLED_STATUSES = ["failed", "nsfw", "canceled"];
 export function workspaceAllowed(workspace: string) { return TRIAL_WORKSPACES.has(workspace); }
 function enabled(workspace: string) {
   return workspaceAllowed(workspace) && Deno.env.get("HIGGSFIELD_VIDEO_ENABLED") === "true" && !!Deno.env.get("HIGGSFIELD_API_KEY");
