@@ -18,7 +18,7 @@ describe("contraste faible et publication", () => {
       getBoundingClientRect: () => bounds,
     } as any);
 
-    const issues = inspectSlide(document.body.firstElementChild as HTMLElement, 0);
+    const issues = inspectSlide(document, 0);
     const contrastIssues = issues.filter((i) => i.kind === "contrast");
     // Le contraste faible est bien détecté (conseil affiché)…
     expect(contrastIssues.length).toBeGreaterThan(0);
