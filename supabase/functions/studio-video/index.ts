@@ -112,9 +112,6 @@ async function signed(db: DB, row: { result_path?: string | null }) {
   if (error || !data?.signedUrl) throw new Error("studio_video_sign_failed");
   return data.signedUrl;
 }
-export function allowedStudioVersion(proposal: Record<string, unknown> | null) {
-  return !!proposal || proposal === null;
-}
 async function source(db: DB, workspace: string, kind: "photo" | "studio_version", id: string) {
   if (kind === "photo") {
     const { data, error } = await db.from("user_photos").select("id,name,kind,status,storage_path,removed_from_library_at")
@@ -124,12 +121,9 @@ async function source(db: DB, workspace: string, kind: "photo" | "studio_version
     return { bucket: "user-photos", path: data.storage_path as string, name: (data.name || "Photo").slice(0, 120) };
   }
   const { data, error } = await db.from("visual_studio_versions")
-    .select("id,status,result_path,proposal,visual_studio_sessions!inner(name)")
+    .select("id,status,result_path,visual_studio_sessions!inner(name)")
     .eq("id", id).eq("workspace_id", workspace).maybeSingle();
   if (error || !data || data.status !== "ready") throw new Error("studio_video_source_unavailable");
-  const proposal = data.proposal as Record<string, unknown> | null;
-  if (!allowedStudioVersion(proposal))
-    throw new Error("studio_video_person_unsupported");
   const session = data.visual_studio_sessions as unknown as { name?: string };
   return { bucket: "visual-studio", path: data.result_path as string, name: (session?.name || "Création du Studio").slice(0, 120) };
 }
@@ -233,11 +227,11 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
     }
     if (p.action === "list_sources") {
       const { data, error } = await db.from("visual_studio_versions")
-        .select("id,result_path,proposal,visual_studio_sessions!inner(name)")
+        .select("id,result_path,visual_studio_sessions!inner(name)")
         .eq("workspace_id", p.workspace_id).eq("status", "ready")
         .is("library_photo_id", null).order("created_at", { ascending: false }).limit(100);
       if (error) throw error;
-      const eligible = (data || []).filter(row => allowedStudioVersion(row.proposal as Record<string, unknown> | null));
+      const eligible = data || [];
       const paths = eligible.map(row => row.result_path as string);
       const signedImages = paths.length ? await db.storage.from("visual-studio").createSignedUrls(paths, 3600) : null;
       if (signedImages?.error) throw signedImages.error;
