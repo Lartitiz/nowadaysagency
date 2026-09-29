@@ -11,6 +11,9 @@ export type { VideoSource } from "./sources";
 import { listStudioVideos, readStudioVideo, videoRequest, type StudioVideoJob } from "./api";
 import { videoReferencePreviews } from "./library-sources";
 
+// Taux indicatif pour l'affichage : Higgsfield facture en dollars, on montre l'équivalent en euros.
+const USD_TO_EUR = 0.92;
+
 interface Props {
   workspaceId: string; writable: boolean; initialSource?: VideoSource | null;
   initialPrompt?: string; onPickClip?: (job: StudioVideoJob) => void;
