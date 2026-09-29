@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  Check,
   ImagePlus,
   Loader2,
   RefreshCw,
@@ -268,6 +269,7 @@ function Studio({
   } | null>(null);
   const localKey = draftKey(userId, workspaceId, sessionId || "new");
   const [draft, setDraft] = useState(() => readDraft(localKey));
+  const [pickedSuggestions, setPickedSuggestions] = useState<string[]>([]);
   const attachmentKey = `${localKey}:images`;
   const [attachedIds, setAttachedIds] = useState<string[]>(() => readAttachedIds(attachmentKey));
   const localUpload = useUploadLibraryPhotos();
