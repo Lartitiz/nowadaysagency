@@ -30,7 +30,6 @@ function validateQuote(p: z.infer<typeof quoteSchema> | z.infer<typeof prepareSc
   if (image && (!p.source_id || p.references?.length || !attested)) ctx.addIssue({ code: "custom", message: "Image invalide" });
   if (p.source_kind === "text" && (p.source_id || p.references?.length)) ctx.addIssue({ code: "custom", message: "Texte invalide" });
   if (p.source_kind === "references" && (p.source_id || !p.references || !attested ||
-    p.references.some(r => r.role === "person") ||
     new Set(p.references.map(r => `${r.kind}:${r.id}`)).size !== p.references.length))
     ctx.addIssue({ code: "custom", message: "Références invalides" });
 }
@@ -53,20 +52,48 @@ export const TRIAL_MAX_SUBMISSIONS = 20;
 // Les clips échoués, refusés ou annulés ne comptent ni dans les lancements ni dans la dépense.
 const NON_BILLED_STATUSES = ["failed", "nsfw", "canceled"];
 export function workspaceAllowed(workspace: string) { return TRIAL_WORKSPACES.has(workspace); }
-function enabled(workspace: string) {
-  return workspaceAllowed(workspace) && Deno.env.get("HIGGSFIELD_VIDEO_ENABLED") === "true" && !!Deno.env.get("HIGGSFIELD_API_KEY");
+// Cohorte (ex. BDMMA) : espaces inscrits dans studio_video_cohort_access. Budget propre, séparé de l'essai
+// ci-dessus. Deux clés à tourner pour l'ouvrir : HIGGSFIELD_VIDEO_ENABLED=true ET une limite d'environnement
+// HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD > 0 (qui ne peut que baisser ces plafonds).
+export const COHORT_TOTAL_LIMIT_USD = 110;
+export const COHORT_WORKSPACE_LIMIT_USD = 8;
+export const COHORT_WORKSPACE_MAX_SUBMISSIONS = 3;
+export type VideoLane = "trial" | "cohort";
+async function videoLane(db: DB, workspace: string): Promise<VideoLane | null> {
+  if (workspaceAllowed(workspace)) return "trial";
+  const { data, error } = await db.from("studio_video_cohort_access").select("workspace_id")
+    .eq("workspace_id", workspace).maybeSingle();
+  if (error) throw error;
+  return data ? "cohort" : null;
 }
-function monthlyLimit() {
+function switchedOn() {
+  return Deno.env.get("HIGGSFIELD_VIDEO_ENABLED") === "true" && !!Deno.env.get("HIGGSFIELD_API_KEY");
+}
+export function ceilingUsd(lane: VideoLane | null) {
   const limit = Number(Deno.env.get("HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD"));
-  // The configured value can only lower the trial ceiling, never raise it.
-  return Number.isFinite(limit) && limit > 0 ? Math.min(limit, TRIAL_TOTAL_LIMIT_USD) : 0;
+  // The configured value can only lower the ceiling, never raise it.
+  if (!lane || !Number.isFinite(limit) || limit <= 0) return 0;
+  return Math.min(limit, lane === "cohort" ? COHORT_TOTAL_LIMIT_USD : TRIAL_TOTAL_LIMIT_USD);
 }
-async function trialSubmittedCount(db: DB) {
-  const { count, error } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
+export function maxQuoteUsd(lane: VideoLane | null) {
+  return lane === "cohort" ? Math.min(COHORT_WORKSPACE_LIMIT_USD, ceilingUsd(lane)) : ceilingUsd(lane);
+}
+async function submittedCount(db: DB, lane: VideoLane, workspace: string) {
+  let query = db.from("studio_video_jobs").select("id", { count: "exact", head: true })
     .not("submitted_at", "is", null).not("status", "in", `(${NON_BILLED_STATUSES.join(",")})`);
+  if (lane === "cohort") query = query.eq("workspace_id", workspace);
+  else {
+    // L'essai historique ne compte pas les clips de la cohorte.
+    const { data, error: cohortError } = await db.from("studio_video_cohort_access").select("workspace_id");
+    if (cohortError) throw cohortError;
+    const ids = (data || []).map(r => r.workspace_id as string);
+    if (ids.length) query = query.not("workspace_id", "in", `(${ids.join(",")})`);
+  }
+  const { count, error } = await query;
   if (error) throw error;
   return count || 0;
 }
+function maxSubmissions(lane: VideoLane) { return lane === "cohort" ? COHORT_WORKSPACE_MAX_SUBMISSIONS : TRIAL_MAX_SUBMISSIONS; }
 function safeJob(row: Record<string, unknown>, signedUrl: string | null = null) {
   return {
     id: row.id, workspace_id: row.workspace_id, source_kind: row.source_kind,
@@ -86,7 +113,7 @@ async function signed(db: DB, row: { result_path?: string | null }) {
   return data.signedUrl;
 }
 export function allowedStudioVersion(proposal: Record<string, unknown> | null) {
-  return proposal?.requires_real_subject !== true && proposal?.subject_kind !== "portrait";
+  return !!proposal || proposal === null;
 }
 async function source(db: DB, workspace: string, kind: "photo" | "studio_version", id: string) {
   if (kind === "photo") {
@@ -94,7 +121,6 @@ async function source(db: DB, workspace: string, kind: "photo" | "studio_version
       .eq("id", id).eq("workspace_id", workspace).maybeSingle();
     if (error || !data || data.status !== "ready" || data.removed_from_library_at)
       throw new Error("studio_video_source_unavailable");
-    if (data.kind === "portrait" || data.kind === "produit_porte") throw new Error("studio_video_person_unsupported");
     return { bucket: "user-photos", path: data.storage_path as string, name: (data.name || "Photo").slice(0, 120) };
   }
   const { data, error } = await db.from("visual_studio_versions")
@@ -195,12 +221,14 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
     if (memberError || !member) return json({ error: "Espace indisponible." }, 403);
     const writable = ["owner", "manager", "editor"].includes(member.role);
     if (["prepare", "quote", "submit"].includes(p.action) && !writable) return json({ error: "Cet espace est en lecture seule." }, 403);
+    const lane = await videoLane(db, p.workspace_id);
+    const on = !!lane && switchedOn() && ceilingUsd(lane) > 0;
 
     if (p.action === "list") {
       const { data, error } = await db.from("studio_video_jobs").select("*").eq("workspace_id", p.workspace_id)
         .order("created_at", { ascending: false }).limit(50);
       if (error) throw error;
-      return json({ enabled: enabled(p.workspace_id) && monthlyLimit() > 0,
+      return json({ enabled: on,
         jobs: await Promise.all((data || []).map(async (row) => safeJob(row, row.status === "ready" ? await signed(db, row) : null))) });
     }
     if (p.action === "list_sources") {
@@ -220,8 +248,8 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       })) });
     }
     if (p.action === "prepare") {
-      if (!enabled(p.workspace_id) || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
-      if (await trialSubmittedCount(db) >= TRIAL_MAX_SUBMISSIONS)
+      if (!on || !lane) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
+      if (await submittedCount(db, lane, p.workspace_id) >= maxSubmissions(lane))
         return json({ error: "Le nombre de lancements d’essai est atteint." }, 409);
       const refs: SourceRef[] = p.source_kind === "references" ? p.references! : [];
       const resolved = await Promise.all(refs.map(async ref => ({ ...ref,
@@ -248,12 +276,12 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         prompt, prepared_token: token });
     }
     if (p.action === "quote") {
-      if (!enabled(p.workspace_id) || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
+      if (!on || !lane) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
       if (!p.prepared_token || !p.idea || !p.summary || !p.continuity || !p.allowed_changes || !p.forbidden_changes ||
         !await verifyPreparation(p.prepared_token, p, pipe.userId,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!))
         return json({ error: "La proposition vidéo a changé. Prépare et valide de nouveau le clip." }, 409);
-      if (await trialSubmittedCount(db) >= TRIAL_MAX_SUBMISSIONS)
+      if (await submittedCount(db, lane, p.workspace_id) >= maxSubmissions(lane))
         return json({ error: "Le nombre de lancements d’essai est atteint." }, 409);
       const { count, error: quoteLimitError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
         .eq("user_id", pipe.userId).gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
@@ -279,7 +307,7 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       const input: VideoInput = videoInputForQuote(p.source_kind, actualPrompt,
         p.duration, p.resolution, p.aspect_ratio, inputUrls);
       const price = await estimate(input, fetch, model);
-      if (price.usd > monthlyLimit()) return json({ error: "Ce devis dépasse le plafond de la recette vidéo." }, 409);
+      if (price.usd > maxQuoteUsd(lane)) return json({ error: "Ce devis dépasse le plafond de la recette vidéo." }, 409);
       const id = crypto.randomUUID();
       const webhookToken = crypto.randomUUID();
       const { data, error } = await db.from("studio_video_jobs").insert({
@@ -296,24 +324,31 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         quote_expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
       }).select("*").single();
       if (error || !data) throw new Error("studio_video_quote_store_failed");
-      return json({ job: safeJob(data), monthly_limit_usd: monthlyLimit() });
+      return json({ job: safeJob(data), monthly_limit_usd: maxQuoteUsd(lane) });
     }
 
     let row = await job(db, p.workspace_id, p.job_id);
     if (p.action === "submit") {
-      if (!enabled(p.workspace_id) || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
+      if (!on || !lane) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
       if (row.status !== "quoted") return json({ job: safeJob(row, row.status === "ready" ? await signed(db, row) : null) });
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       if (!supabaseUrl || !supabaseUrl.startsWith("https://")) return json({ error: "Le suivi vidéo n’est pas configuré." }, 503);
       const callback = new URL(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/studio-video`);
       callback.searchParams.set("job_id", row.id);
       callback.searchParams.set("token", row.webhook_token);
-      const { data: claimed, error: claimError } = await db.rpc("studio_video_claim_trial", {
-        p_actor: pipe.userId, p_job: p.job_id, p_allowed_workspace: p.workspace_id,
-        p_total_limit: monthlyLimit(), p_max_submissions: TRIAL_MAX_SUBMISSIONS,
-      });
+      const { data: claimed, error: claimError } = await (lane === "cohort"
+        ? db.rpc("studio_video_claim_cohort", {
+          p_actor: pipe.userId, p_job: p.job_id, p_workspace: p.workspace_id,
+          p_cohort_limit: ceilingUsd(lane), p_workspace_limit: maxQuoteUsd(lane),
+          p_workspace_max_submissions: COHORT_WORKSPACE_MAX_SUBMISSIONS,
+        })
+        : db.rpc("studio_video_claim_trial", {
+          p_actor: pipe.userId, p_job: p.job_id, p_allowed_workspace: p.workspace_id,
+          p_total_limit: ceilingUsd(lane), p_max_submissions: TRIAL_MAX_SUBMISSIONS,
+        }));
       if (claimError) {
         const message = claimError.message.includes("video_trial_exhausted") ? "Le nombre de lancements d’essai est atteint." :
+          claimError.message.includes("video_budget_workspace") ? "Tu as atteint ton plafond de clips vidéo pour cet atelier." :
           claimError.message.includes("video_budget") ? "Le plafond vidéo de cet espace est atteint." :
           claimError.message.includes("video_quote_expired") ? "Ce devis a expiré. Vérifie à nouveau le prix." : "La génération ne peut pas démarrer.";
         return json({ error: message }, 409);
@@ -387,8 +422,7 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         ? error.issues.map((issue) => ({ path: issue.path.join("."), code: issue.code }))
         : undefined,
     }));
-    const userMessage = code === "studio_video_person_unsupported" ? "Les portraits et photos avec personnes identifiables ne sont pas encore pris en charge." :
-      code === "studio_video_source_unavailable" ? "Cette image n’est plus disponible dans cet espace." :
+    const userMessage = code === "studio_video_source_unavailable" ? "Cette image n’est plus disponible dans cet espace." :
       error instanceof ProviderError && error.status === 403 ? "Solde API Higgsfield insuffisant." :
       "Le Studio vidéo est momentanément indisponible. Réessaie sans relancer une génération en cours.";
     return json({ error: userMessage, code: code.slice(0, 80) }, 503);

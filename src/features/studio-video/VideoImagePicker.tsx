@@ -48,16 +48,15 @@ export function VideoImagePicker({ workspaceId, initialImages, onConfirm, onClos
       ? current.filter(r => sourceKey(r) !== sourceKey(source))
       : current.length < MAX_VIDEO_IMAGES ? [...current, { ...source, role: "" }] : current);
   }
-  function card(source: VideoSource, unavailable = false) {
+  function card(source: VideoSource) {
     const checked = selected.some(r => sourceKey(r) === sourceKey(source));
     return <button type="button" key={sourceKey(source)} aria-label={source.name} aria-pressed={checked}
-      disabled={uploading || (!checked && (unavailable || selected.length >= MAX_VIDEO_IMAGES))} onClick={() => toggle(source)}
+      disabled={uploading || (!checked && selected.length >= MAX_VIDEO_IMAGES)} onClick={() => toggle(source)}
       className={`relative min-w-0 rounded-lg border p-2 text-left disabled:opacity-50 ${checked ? "ring-2 ring-primary" : ""}`}>
       {source.previewUrl ? <img src={source.previewUrl} alt="" className="aspect-square w-full rounded object-cover" />
         : <ImageIcon aria-hidden className="aspect-square w-full p-8 bg-muted rounded" />}
       {checked && <Check aria-hidden className="absolute right-3 top-3 rounded-full bg-primary text-primary-foreground" />}
       <span className="mt-2 line-clamp-2 break-words text-xs" title={source.name}>{source.name}</span>
-      {unavailable && <span className="block text-xs">Référence classée comme portrait : indisponible pour cet essai.</span>}
     </button>;
   }
   async function importFiles(files: File[]) {
@@ -94,8 +93,7 @@ export function VideoImagePicker({ workspaceId, initialImages, onConfirm, onClos
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{visible.map(p => {
             const studioVersion = savedVersions.data?.get(p.id);
             return card({ kind: studioVersion ? "studio_version" : "photo", id: studioVersion?.id || p.id,
-              name: p.name || "Photo", previewUrl: urls.get(p.storage_path) },
-              ["portrait", "produit_porte"].includes(p.kind) && !studioVersion);
+              name: p.name || "Photo", previewUrl: urls.get(p.storage_path) });
           })}</div>}
         {!photos.isLoading && !photos.isError && !visible.length && <p>Aucune photo dans la bibliothèque pour cette recherche.</p>}
         {(photos.data?.length || 0) >= limit && <Button variant="outline" onClick={() => setLimit(n => n + 200)}>Afficher plus de photos</Button>}

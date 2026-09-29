@@ -36,16 +36,18 @@ it("combine bibliothèque et version Photo sans perdre la première sélection",
   fireEvent.click(screen.getByRole("button", { name: "Ajouter ces images (2)" }));
   expect(confirm.mock.calls[0][0].map((r: VideoReference) => [r.kind, r.id])).toEqual([["photo", "p0"], ["studio_version", "v1"]]);
 });
-it("propose un mannequin fictif enregistré dans la bibliothèque et garde un vrai portrait indisponible", async () => {
+it("permet de sélectionner les portraits de la bibliothèque, avec ou sans version Studio", async () => {
   mocks.photos[0].kind = "portrait";
   mocks.photos[1].kind = "portrait";
   mocks.savedVersions.mockResolvedValue(new Map([["p0", { id: "p0", library_photo_id: "p0" }]]));
   const { confirm } = mount();
   await waitFor(() => expect(screen.getByRole("button", { name: "Photo 0" })).toBeEnabled());
-  expect(screen.getByRole("button", { name: "Photo 1" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Photo 1" })).toBeEnabled();
   fireEvent.click(screen.getByRole("button", { name: "Photo 0" }));
-  fireEvent.click(screen.getByRole("button", { name: "Ajouter ces images (1)" }));
+  fireEvent.click(screen.getByRole("button", { name: "Photo 1" }));
+  fireEvent.click(screen.getByRole("button", { name: "Ajouter ces images (2)" }));
   expect(confirm.mock.calls[0][0][0]).toMatchObject({ kind: "studio_version", id: "p0" });
+  expect(confirm.mock.calls[0][0][1]).toMatchObject({ kind: "photo", id: "p1" });
 });
 it("annuler ne modifie pas les références du compositeur", async () => {
   const images: VideoReference[] = [{ kind: "photo", id: "p0", name: "Photo 0", role: "product" }];

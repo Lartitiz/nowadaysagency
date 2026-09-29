@@ -5,8 +5,19 @@ Deno.test("only Laetitia's workspace is allowed for the trial", () => {
   assert(!workspaceAllowed("00000000-0000-4000-8000-000000000000"), "other refused");
   assert(TRIAL_TOTAL_LIMIT_USD === 11 && TRIAL_MAX_SUBMISSIONS === 20, "trial caps");
 });
-Deno.test("video library exposes fictional Studio versions but excludes real portraits", () => {
+Deno.test("video library exposes Studio versions including portraits", () => {
   assert(allowedStudioVersion({ requires_real_subject: false, subject_kind: null }), "fictional model allowed");
-  assert(!allowedStudioVersion({ requires_real_subject: true, subject_kind: null }), "real subject refused");
-  assert(!allowedStudioVersion({ requires_real_subject: false, subject_kind: "portrait" }), "portrait reference refused");
+  assert(allowedStudioVersion({ requires_real_subject: true, subject_kind: null }), "real subject allowed");
+  assert(allowedStudioVersion({ requires_real_subject: false, subject_kind: "portrait" }), "portrait reference allowed");
+});
+Deno.test("cohort lane ceilings only ever lower, never raise", async () => {
+  const { ceilingUsd, maxQuoteUsd, COHORT_TOTAL_LIMIT_USD, COHORT_WORKSPACE_LIMIT_USD, COHORT_WORKSPACE_MAX_SUBMISSIONS } = await import("./index.ts");
+  Deno.env.set("HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD", "500");
+  assert(ceilingUsd("cohort") === COHORT_TOTAL_LIMIT_USD && ceilingUsd("trial") === TRIAL_TOTAL_LIMIT_USD, "env cannot raise");
+  assert(maxQuoteUsd("cohort") === COHORT_WORKSPACE_LIMIT_USD, "per-workspace cap");
+  Deno.env.set("HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD", "5");
+  assert(ceilingUsd("cohort") === 5 && maxQuoteUsd("cohort") === 5, "env lowers");
+  Deno.env.delete("HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD");
+  assert(ceilingUsd("cohort") === 0 && ceilingUsd(null) === 0, "off without env");
+  assert(COHORT_WORKSPACE_MAX_SUBMISSIONS >= 2, "2 videos per participant fit");
 });
