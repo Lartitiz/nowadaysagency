@@ -69,7 +69,8 @@ export function useCarouselQuality(
               [
                 reason(["overflow"], "textes ou blocs coupés"),
                 reason(["size"], "textes trop petits sur mobile"),
-                reason(["contrast"], "contraste insuffisant"),
+                // Le contraste n'est qu'un conseil (severity "warning") : il ne
+                // bloque jamais la publication ni la programmation.
                 reason(["image"], "images manquantes"),
               ]
                 .filter(Boolean)
