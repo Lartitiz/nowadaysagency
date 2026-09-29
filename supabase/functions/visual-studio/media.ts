@@ -23,6 +23,7 @@ export type Proposal = {
   change?: string[];
   model?: string;
   visual_kind?: "photo" | "graphic";
+  photo_treatment?: "natural" | "directed" | "unspecified";
   composition?: unknown;
   references?: Reference[];
   input_path?: string | null;
@@ -203,6 +204,9 @@ export function imagePrompt(proposal: Proposal) {
   const style = direction(charter?.photo_style);
   const mood = direction(charter?.mood_keywords);
   const avoid = direction(charter?.visual_donts);
+  const naturalPhoto = proposal.visual_kind === "photo" &&
+    proposal.photo_treatment === "natural" &&
+    !proposal.exact_text?.length;
   return [
     proposal.image_prompt,
     proposal.exact_text?.length
@@ -216,7 +220,7 @@ export function imagePrompt(proposal: Proposal) {
     // Each shot's complete image_prompt is the authority for its framing and pose.
     !isSeries ? "Changes: " + (proposal.change || []).join("; ") : "",
     proposal.input_path
-      ? "Image 1 is the selected version to edit. Keep its other features."
+      ? "Image 1 is the selected version to edit. Keep the subject and features the brief asks to preserve; apply the requested changes to its setting and styling."
       : "",
     ...refs.map(
       (ref, i) =>
@@ -235,6 +239,9 @@ export function imagePrompt(proposal: Proposal) {
         mood ? `Mood: ${mood}` : "",
         avoid ? `Avoid: ${avoid}` : "",
       ].filter(Boolean).join("; ")}. Apply it where compatible with this shot. The user's specific request and exact person or product references take priority; never recolor or reshape them merely to fit the brand.`
+      : "",
+    naturalPhoto
+      ? "Natural everyday photograph, as a candid moment captured with a good phone camera: clear subject and believable framing, ordinary surroundings with only props needed for the action, available light with plausible unevenness, credible skin and material texture, and moderate depth of field so the setting remains recognizable. Keep professional image quality. Avoid beauty retouching, waxy skin, glossy advertising light, cinematic staging, artificial bokeh, heavy blur, fake grain, or added picturesque flowers and decor. If a source or style reference has busy scenery or decorative props, borrow only the aspects requested; simplify or remove those elements when the brief asks for it. Preserve the designated person's identity and exact product details. Specific user instructions and confirmed brand requirements take priority."
       : "",
     "No invented watermarks, promotional claims or extra decorative elements. Match the requested visual medium; do not default to stock imagery.",
     isSeries
