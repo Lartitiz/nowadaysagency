@@ -3,6 +3,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { getServiceClient } from "../_shared/plan-limiter.ts";
 import { estimate, MODEL, MODELS, ProviderError, publicHttpsUrl, status as providerStatus, submit, uploadImage, type VideoInput, type VideoModel } from "./higgsfield.ts";
+import { prepareVideo, signPreparation, verifyPreparation } from "./prepare.ts";
 
 const BUCKET = "studio-video";
 const MAX_VIDEO_BYTES = 150 * 1024 * 1024;
@@ -13,13 +14,15 @@ const quoteSchema = z.object({
     role: z.enum(["subject", "product", "person", "casting", "background", "style", "composition"]) })).min(2).max(4).optional(),
   prompt: z.string().trim().min(3).max(1000), duration: z.number().int().min(4).max(10),
   resolution: z.enum(["480p", "720p"]), aspect_ratio: z.enum(["9:16", "16:9", "1:1"]).default("9:16"),
-  person_free_attested: z.boolean(),
+  person_free_attested: z.boolean(), prepared_token: z.string().max(100).optional(),
 });
-function validateQuote(p: z.infer<typeof quoteSchema>, ctx: z.RefinementCtx) {
+const prepareSchema = quoteSchema.extend({ action: z.literal("prepare"), prepared_token: z.never().optional() });
+function validateQuote(p: z.infer<typeof quoteSchema> | z.infer<typeof prepareSchema>, ctx: z.RefinementCtx) {
   const image = p.source_kind === "photo" || p.source_kind === "studio_version";
-  if (image && (!p.source_id || p.references?.length || !p.person_free_attested)) ctx.addIssue({ code: "custom", message: "Image invalide" });
+  const attested = p.person_free_attested;
+  if (image && (!p.source_id || p.references?.length || !attested)) ctx.addIssue({ code: "custom", message: "Image invalide" });
   if (p.source_kind === "text" && (p.source_id || p.references?.length)) ctx.addIssue({ code: "custom", message: "Texte invalide" });
-  if (p.source_kind === "references" && (p.source_id || !p.references || !p.person_free_attested ||
+  if (p.source_kind === "references" && (p.source_id || !p.references || !attested ||
     p.references.some(r => r.role === "person") ||
     new Set(p.references.map(r => `${r.kind}:${r.id}`)).size !== p.references.length))
     ctx.addIssue({ code: "custom", message: "Références invalides" });
@@ -28,8 +31,8 @@ const submitSchema = z.object({ action: z.literal("submit"), workspace_id: z.str
 const statusSchema = z.object({ action: z.literal("status"), workspace_id: z.string().uuid(), job_id: z.string().uuid() });
 const listSchema = z.object({ action: z.literal("list"), workspace_id: z.string().uuid() });
 const listSourcesSchema = z.object({ action: z.literal("list_sources"), workspace_id: z.string().uuid() });
-const bodySchema = z.discriminatedUnion("action", [quoteSchema, submitSchema, statusSchema, listSchema, listSourcesSchema])
-  .superRefine((p, ctx) => { if (p.action === "quote") validateQuote(p, ctx); });
+const bodySchema = z.discriminatedUnion("action", [prepareSchema, quoteSchema, submitSchema, statusSchema, listSchema, listSourcesSchema])
+  .superRefine((p, ctx) => { if (p.action === "quote" || p.action === "prepare") validateQuote(p, ctx); });
 type DB = ReturnType<typeof getServiceClient>;
 
 // Limited trial: only these workspaces may quote or submit, whatever the
@@ -195,7 +198,7 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       .eq("workspace_id", p.workspace_id).eq("user_id", pipe.userId).maybeSingle();
     if (memberError || !member) return json({ error: "Espace indisponible." }, 403);
     const writable = ["owner", "manager", "editor"].includes(member.role);
-    if (["quote", "submit"].includes(p.action) && !writable) return json({ error: "Cet espace est en lecture seule." }, 403);
+    if (["prepare", "quote", "submit"].includes(p.action) && !writable) return json({ error: "Cet espace est en lecture seule." }, 403);
 
     if (p.action === "list") {
       const { data, error } = await db.from("studio_video_jobs").select("*").eq("workspace_id", p.workspace_id)
@@ -220,8 +223,36 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         previewUrl: signedImages?.data?.[index]?.signedUrl || null,
       })) });
     }
+    if (p.action === "prepare") {
+      if (!enabled(p.workspace_id) || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
+      const { count: submittedCount, error: trialError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
+        .not("submitted_at", "is", null);
+      if (trialError) throw trialError;
+      if ((submittedCount || 0) >= TRIAL_MAX_SUBMISSIONS) return json({ error: "La génération de recette a déjà été utilisée." }, 409);
+      const refs: SourceRef[] = p.source_kind === "references" ? p.references! : [];
+      const resolved = await Promise.all(refs.map(async ref => ({ ...ref,
+        ...(await source(db, p.workspace_id, ref.kind, ref.id)) })));
+      const single = p.source_kind === "photo" || p.source_kind === "studio_version"
+        ? await source(db, p.workspace_id, p.source_kind, p.source_id!) : null;
+      const images = single ? [{ ...single, role: "subject" }] : resolved;
+      const vision = await Promise.all(images.map(async image => {
+        const { data, error } = await db.storage.from(image.bucket).download(image.path,
+          { transform: { width: 1200, quality: 75, resize: "contain" } });
+        if (error || !data) throw new Error("studio_video_source_unavailable");
+        return { name: image.name, role: image.role, blob: data };
+      }));
+      const prepared = await prepareVideo({ idea: p.prompt, source_kind: p.source_kind,
+        references: resolved.map(({ kind, id, role, name }, i) => ({ image: i + 1, kind, id, role, name })),
+        duration: p.duration, resolution: p.resolution, aspect_ratio: p.aspect_ratio }, vision);
+      const preparedInput = { ...p, prompt: prepared.prompt };
+      const token = await signPreparation(preparedInput, pipe.userId, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      return json({ summary: prepared.summary, prompt: prepared.prompt, prepared_token: token });
+    }
     if (p.action === "quote") {
       if (!enabled(p.workspace_id) || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
+      if (!p.prepared_token || !await verifyPreparation(p.prepared_token, p, pipe.userId,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!))
+        return json({ error: "La proposition vidéo a changé. Prépare et valide de nouveau le clip." }, 409);
       const { count: submittedCount, error: trialError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
         .not("submitted_at", "is", null).not("status", "in", `(${NON_BILLED_STATUSES.join(",")})`);
       if (trialError) throw trialError;
