@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { buildFirstContentUrl } from "@/lib/first-content-url";
+import { sellsProducts as profileSellsProducts } from "@/lib/product-or-service";
 
 /* ── Destination « mon premier contenu » ──────────────────────────────────
    Partagé entre la fin d'onboarding (use-onboarding), la sortie de l'écran de
@@ -29,18 +30,18 @@ export async function resolveFirstContentDestination(params: {
     if (data?.titre) sujet = data.titre;
   } catch { /* idée perso pas encore prête (enrichment async) → générique */ }
 
-  // Produits / services : réponse donnée à l'étape 2 de l'onboarding.
+  // Produits / services : réponse donnée à l'étape 2 de l'onboarding,
+  // enregistrée séparément du secteur type_activite.
   // Une lecture qui échoue ne doit jamais bloquer la création → on retombe
   // sur le carrousel texte, qui marche pour tout le monde.
   if (userId) {
     try {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("type_activite")
+        .select("product_or_service, type_activite")
         .eq("user_id", userId)
         .maybeSingle();
-      const type = (profile as any)?.type_activite;
-      sellsProducts = type === "produits" || type === "les_deux";
+      sellsProducts = profileSellsProducts(profile);
     } catch { /* type d'activité illisible → carrousel texte */ }
   }
 

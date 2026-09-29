@@ -296,7 +296,7 @@ export function useOnboarding() {
 
     const check = async () => {
       const { data: profile } = await (supabase.from("profiles") as any)
-        .select("onboarding_completed, prenom, activite, type_activite, activity_detail, canaux, main_blocker, main_goal, weekly_time, website_url, instagram_username, linkedin_url, linkedin_summary")
+        .select("onboarding_completed, prenom, activite, type_activite, product_or_service, activity_detail, canaux, main_blocker, main_goal, weekly_time, website_url, instagram_username, linkedin_url, linkedin_summary")
         .eq("user_id", profileUserId)
         .maybeSingle();
 
@@ -345,6 +345,7 @@ export function useOnboarding() {
             prenom: profile?.prenom || metaPrenom || prev.prenom,
             activite: profile?.activite || metaActivite || prev.activite,
             activity_type: profile?.type_activite || prev.activity_type,
+            product_or_service: profile?.product_or_service || prev.product_or_service,
             activity_detail: profile?.activity_detail || prev.activity_detail,
             canaux: (profile?.canaux?.length ? profile.canaux : prev.canaux),
             blocage: profile?.main_blocker || prev.blocage,
@@ -570,6 +571,7 @@ export function useOnboarding() {
         prenom: answers.prenom,
         activite: answers.activite,
         type_activite: answers.activity_type,
+        product_or_service: answers.product_or_service,
         activity_detail: answers.activity_detail || null,
         canaux,
         main_blocker: answers.blocage,
