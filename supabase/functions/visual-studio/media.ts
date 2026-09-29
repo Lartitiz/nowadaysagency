@@ -203,6 +203,12 @@ export function imagePrompt(proposal: Proposal) {
   const style = direction(charter?.photo_style);
   const mood = direction(charter?.mood_keywords);
   const avoid = direction(charter?.visual_donts);
+  const detail = charter?.visual_direction && typeof charter.visual_direction === "object" && !Array.isArray(charter.visual_direction)
+    ? charter.visual_direction as Record<string, unknown> : {};
+  const photoDirection = [
+    ["Composition", detail.composition], ["Lighting", detail.light],
+    ["Framing", detail.framing], ["Retouching", detail.retouch],
+  ].map(([label, value]) => direction(value) ? `${label}: ${direction(value)}` : "").filter(Boolean).join("; ");
   return [
     proposal.image_prompt,
     proposal.exact_text?.length
@@ -229,11 +235,12 @@ export function imagePrompt(proposal: Proposal) {
     refs.length > 1
       ? "Several reference photos may show one subject from different angles. When the brief identifies them as the same person or product, combine their evidence into one subject; do not add a separate copy for each reference. Keep style-only references distinct from identity references."
       : "",
-    style || mood || avoid
+    style || mood || avoid || photoDirection
       ? `Brand visual direction from the confirmed charter: ${[
         style ? `Visual style: ${style}` : "",
         mood ? `Mood: ${mood}` : "",
         avoid ? `Avoid: ${avoid}` : "",
+        photoDirection,
       ].filter(Boolean).join("; ")}. Apply it where compatible with this shot. The user's specific request and exact person or product references take priority; never recolor or reshape them merely to fit the brand.`
       : "",
     "No invented watermarks, promotional claims or extra decorative elements. Match the requested visual medium; do not default to stock imagery.",

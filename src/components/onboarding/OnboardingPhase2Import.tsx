@@ -8,6 +8,7 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocialConnections } from "@/hooks/use-social-connections";
 import { startSocialConnect } from "@/lib/social-connect";
+import CharterReferenceLinks from "@/components/branding/charter/CharterReferenceLinks";
 
 /* ── Étape 4 : la promesse est explicite (« ton espace arrive déjà rempli »)
    et le chemin sans site (capture Instagram) est un vrai plan A-bis, plus un
@@ -38,7 +39,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
     }
   };
   const hasAnyLink = !!(answers.website || answers.instagram || answers.linkedin_summary);
-  const hasAnything = hasAnyLink || files.length > 0;
+  const hasAnything = hasAnyLink || files.length > 0 || !!answers.visual_reference_links?.length;
 
   const webStatus: "valid" | "warn" | "none" = !answers.website ? "none" :
   isValidUrl(addHttpsIfNeeded(answers.website)) ? "valid" : "warn";
@@ -69,8 +70,8 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
           2 minutes qui font 80 % du travail
         </h1>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Donne-moi un lien : j'en tire tes couleurs, ton ton, ton histoire, tes offres.
-          Ton espace arrivera déjà rempli.
+          Si tu as un site, j'y repère des indices pour préparer ton identité, ton histoire et tes offres.
+          Tu vérifieras les propositions avant de les utiliser.
         </p>
       </div>
 
@@ -213,6 +214,12 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
           }
         </div>
       </div>
+
+      {!isDemoMode && <div className="rounded-2xl border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold text-foreground">Des exemples de ton univers ?</h2>
+        <p className="mt-1 mb-3 text-xs text-muted-foreground">Facultatif : ajoute plusieurs sites, créations ou vidéos que tu aimes, ou que tu veux éviter. Tu pourras aussi compléter cette fiche plus tard dans Mon identité.</p>
+        <CharterReferenceLinks links={answers.visual_reference_links || []} onChange={links => set("visual_reference_links", links)} />
+      </div>}
 
       <div className="flex flex-col items-center gap-2">
         <Button onClick={continueFromImport} disabled={uploading} className="rounded-full px-8">

@@ -332,6 +332,8 @@ export type Database = {
           uploaded_templates: Json | null
           user_id: string
           visual_donts: string | null
+          visual_direction: Json
+          visual_evidence: Json
           workspace_id: string | null
         }
         Insert: {
@@ -372,6 +374,8 @@ export type Database = {
           uploaded_templates?: Json | null
           user_id: string
           visual_donts?: string | null
+          visual_direction?: Json
+          visual_evidence?: Json
           workspace_id?: string | null
         }
         Update: {
@@ -412,6 +416,8 @@ export type Database = {
           uploaded_templates?: Json | null
           user_id?: string
           visual_donts?: string | null
+          visual_direction?: Json
+          visual_evidence?: Json
           workspace_id?: string | null
         }
         Relationships: [

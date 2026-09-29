@@ -1888,7 +1888,7 @@ serve(async (req) => {
       const val = workspaceId || user.id;
       const { data: dbCharter } = await sbAdmin
         .from("brand_charter")
-        .select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, border_radius, uploaded_templates, photo_style, visual_donts, ai_generated_brief, moodboard_description, icon_style, template_layout_description, texture_url, texture_enabled")
+        .select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, mood_keywords, border_radius, uploaded_templates, photo_style, visual_donts, ai_generated_brief, moodboard_description, icon_style, template_layout_description, texture_url, texture_enabled, visual_direction")
         .eq(col, val)
         .maybeSingle();
       charter = dbCharter || {};
@@ -1909,6 +1909,9 @@ serve(async (req) => {
       .eq(bpCol, bpVal)
       .maybeSingle();
 
+    const direction = charter.visual_direction && typeof charter.visual_direction === "object" && !Array.isArray(charter.visual_direction)
+      ? charter.visual_direction as Record<string, unknown> : {};
+    const directionText = (key: string) => typeof direction[key] === "string" ? (direction[key] as string).slice(0, 500) : "";
     const ch = {
       // Palette par défaut NEUTRE & éditoriale — source unique NEUTRAL_DEFAULT_PALETTE
       // (pptx-invariants), sinon charte vide = prompt bicolore (audit 10/07).
@@ -1921,12 +1924,12 @@ serve(async (req) => {
       font_body: charter.font_body || "IBM Plex Mono",
       mood_keywords: Array.isArray(charter.mood_keywords) ? charter.mood_keywords.join(", ") : (charter.mood_keywords || "épuré, élégant, minimal, éditorial"),
       border_radius: charter.border_radius || "12px",
-      photo_style: charter.photo_style || "",
+      photo_style: [charter.photo_style, directionText("light") && `Lumière : ${directionText("light")}`, directionText("framing") && `Cadrage : ${directionText("framing")}`, directionText("retouch") && `Retouche : ${directionText("retouch")}`].filter(Boolean).join(" ; "),
       visual_donts: charter.visual_donts || "",
       ai_generated_brief: charter.ai_generated_brief || "",
       moodboard_description: charter.moodboard_description || "",
       icon_style: charter.icon_style || "",
-      template_layout_description: charter.template_layout_description || "",
+      template_layout_description: [charter.template_layout_description, directionText("composition") && `Composition : ${directionText("composition")}`].filter(Boolean).join("\n"),
       // Texture de fond « matière » (générée 1× par marque via recraft-texture).
       // Vide si non activée → les prompts retombent sur l'aplat color_background.
       texture_url: (charter.texture_enabled && typeof charter.texture_url === "string")
