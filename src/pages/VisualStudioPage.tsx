@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  Check,
   ImagePlus,
   Loader2,
   RefreshCw,
@@ -268,6 +269,7 @@ function Studio({
   } | null>(null);
   const localKey = draftKey(userId, workspaceId, sessionId || "new");
   const [draft, setDraft] = useState(() => readDraft(localKey));
+  const [pickedSuggestions, setPickedSuggestions] = useState<string[]>([]);
   const attachmentKey = `${localKey}:images`;
   const [attachedIds, setAttachedIds] = useState<string[]>(() => readAttachedIds(attachmentKey));
   const localUpload = useUploadLibraryPhotos();
@@ -1119,11 +1121,8 @@ function Studio({
                   </div>
                 ))}
                 {proposal && <div className="studio-chat-confirmation">{confirmation()}</div>}
-                <div
-                  className="flex flex-wrap gap-2"
-                  aria-label="Idées d’ajustement"
-                >
-                  {(current?.session.messages.at(-1)?.suggestions?.length
+                {(() => {
+                  const ideas = current?.session.messages.at(-1)?.suggestions?.length
                     ? current.session.messages.at(-1)!.suggestions!
                     : version
                     ? [
@@ -1136,19 +1135,65 @@ function Studio({
                       "Quel visuel pour mon offre ?",
                       "Crée une illustration",
                       "Aide-moi à choisir une photo",
-                    ]).map((t) => (
+                    ];
+                  const picked = pickedSuggestions.filter((t) => ideas.includes(t));
+                  const allPicked = ideas.length > 0 && picked.length === ideas.length;
+                  const insertPicked = (list: string[]) => {
+                    const base = draftRef.current.trim();
+                    editDraft([base, ...list].filter(Boolean).join("\n"));
+                    setPickedSuggestions([]);
+                  };
+                  return (
+                    <div
+                      className="flex flex-wrap items-center gap-2"
+                      aria-label="Idées d’ajustement"
+                    >
+                      {ideas.map((t) => {
+                        const isPicked = picked.includes(t);
+                        return (
+                          <Button
+                            key={t}
+                            size="sm"
+                            variant={isPicked ? "default" : "outline"}
+                            className="studio-suggestion"
+                            aria-pressed={isPicked}
+                            disabled={!writable || !!busy || generating}
+                            onClick={() =>
+                              setPickedSuggestions((prev) =>
+                                prev.includes(t)
+                                  ? prev.filter((x) => x !== t)
+                                  : [...prev, t],
+                              )
+                            }
+                          >
+                            {isPicked && <Check className="mr-1 h-3 w-3" />}
+                            {t}
+                          </Button>
+                        );
+                      })}
                       <Button
-                        key={t}
                         size="sm"
-                        variant="outline"
-                        className="studio-suggestion"
+                        variant="ghost"
+                        className="text-xs"
                         disabled={!writable || !!busy || generating}
-                        onClick={() => editDraft(t)}
+                        onClick={() =>
+                          setPickedSuggestions(allPicked ? [] : [...ideas])
+                        }
                       >
-                        {t}
+                        {allPicked ? "Tout désélectionner" : "Tout sélectionner"}
                       </Button>
-                    ))}
-                </div>
+                      {picked.length > 0 && (
+                        <Button
+                          size="sm"
+                          disabled={!writable || !!busy || generating}
+                          onClick={() => insertPicked(picked)}
+                        >
+                          Insérer dans le texte ({picked.length})
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <section className="studio-chat-actions" aria-label="Actions et références">
                   {!!display && (

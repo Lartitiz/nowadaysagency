@@ -41,13 +41,13 @@
   left: 3px;
   width: 3px;
   border-radius: 2px;
-  background: transparent;
+  background: hsl(var(--primary) / 0.3);
   transition: background 0.15s ease;
 }
 .studio-resizer:hover::after,
 .studio-resizer:focus-visible::after,
 .studio-resizer[data-resizing]::after {
-  background: hsl(var(--primary) / 0.5);
+  background: hsl(var(--primary) / 0.7);
 }
 .studio-resizer:focus-visible {
   outline: none;
