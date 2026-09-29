@@ -1,36 +1,32 @@
-# Carrousels : éviter les coupures (504) sur les générations les plus longues
+# Mieux voir le chat dans le Studio visuel
 
-## Constat vérifié
+## Problème constaté
+À la taille de fenêtre de Laetitia (~980 px), la colonne de conversation est coincée à ~373 px (38 %) et la poignée de redimensionnement ajoutée récemment est désactivée en dessous de 1000 px. Le chat est donc étriqué et difficile à lire.
 
-Le service de génération de carrousels enchaîne plusieurs appels IA, chacun avec sa propre limite, mais **aucune limite globale** n'existe pour l'ensemble de la demande :
+## Direction choisie
+Prototype « Chat élargi et aéré » (v1), avec les préférences exprimées :
+- rendu clean, peu ou pas d'ombres
+- texte majoritairement noir (pas de texte rose dans les messages)
+- indicateur « génération en cours » conservé et visible
 
-| Étape | Limite actuelle |
-|---|---|
-| Recherche « creuser le sujet » (optionnelle) | 25 s |
-| Écriture du carrousel | 120 s |
-| Nouvelle tentative si carrousel trop court | 120 s |
-| Passe de correction | 60 s |
-| Relecture rédactionnelle (2e passe éventuelle) | 60 s |
+## Changements prévus
 
-Dans le pire cas, le cumul dépasse la durée maximale autorisée par la plateforme : la demande est coupée, l'utilisatrice attend plusieurs minutes puis ne reçoit rien. C'est cohérent avec les deux coupures observées le 16/09 à 18:03 et 18:05 UTC.
+### 1. Chat plus large à toutes les tailles d'écran
+- La colonne de conversation passe de 38 % à une largeur minimale de ~430 px dès que la fenêtre le permet (au-dessus de 768 px).
+- La poignée de redimensionnement (glisser pour élargir/réduire, double-clic pour réinitialiser) devient active à toutes les largeurs au-dessus de 768 px, au lieu d'être masquée sous 1000 px.
+- Le réglage choisi reste mémorisé d'une visite à l'autre (comportement existant conservé).
 
-## Ce qui est proposé
+### 2. Lisibilité des messages
+- Texte des messages en noir foncé (couleur de texte standard du thème), taille légèrement augmentée (15 px) avec interligne confortable.
+- Bulles sans ombres, fonds très clairs, bordures fines — l'accent rose reste réservé aux petits libellés et au bouton d'envoi.
+- L'indicateur « génération en cours » reste affiché pendant la création d'image.
 
-Ajouter un **budget temps global** à la génération, mesuré dès le début de la demande, et rendre les étapes optionnelles conditionnelles au temps restant :
-
-1. Poser une échéance globale (environ 5 minutes de marge sous la limite plateforme).
-2. Sauter la recherche « creuser le sujet » si elle ne tient pas dans le budget restant.
-3. Ne relancer une écriture trop courte que s'il reste assez de temps ; sinon garder le résultat obtenu.
-4. Sauter les passes de correction et de relecture quand le temps restant est insuffisant, en journalisant le saut — le carrousel est livré tel quel plutôt que perdu.
-5. Réduire dynamiquement la limite de chaque appel au minimum entre sa valeur actuelle et le temps restant.
-
-Principe : **toujours livrer un carrousel**, quitte à sauter les passes de finition, plutôt que de laisser la demande être coupée sans rien rendre.
+### 3. Ce qui ne change pas
+- La galerie d'images à droite, le flux de génération, les boutons d'action, le champ de saisie et son contenu.
+- La vue mobile (moins de 768 px) conserve son comportement actuel (chat au-dessus de la galerie).
 
 ## Détails techniques
-
-- Fichier concerné : `supabase/functions/carousel-ai/index.ts` uniquement (les trois chemins express / mix / photo).
-- Un petit utilitaire local `remainingMs()` basé sur un `startedAt = Date.now()` en tête de `handleRequest`, passé aux `abortTimeoutMs` existants.
-- Aucune modification du modèle, des prompts, des quotas, des secrets ni de la base.
-- Journalisation d'un événement par saut (`carousel_budget_skip`) pour mesurer la fréquence réelle.
-- Vérification : `tsc` app + tests Deno ciblés carrousels, sans génération réelle.
-- Le déploiement serveur reste à ta main : aucune fonction ne sera déployée sans ton accord.
+- `src/features/visual-studio/studio.css` : media query 1000 px → grille avec colonne chat plus large ; suppression du masquage de la poignée ; styles des messages (couleur texte, taille, suppression d'ombres éventuelles).
+- `src/pages/VisualStudioPage.tsx` : le seuil `wide` (matchMedia) passe de 1001 px à 768 px pour activer la poignée et la largeur mémorisée.
+- Vérifications : typecheck, build, puis contrôle visuel dans l'aperçu à ~980 px et à 1440 px.
+- Frontend non publié (aperçu uniquement).
