@@ -15,12 +15,11 @@ Appliquer dans l’ordre les quatre migrations `20260928200000` à `202609282030
 
 ## Higgsfield images : branchement préparé, activation séparée
 
-L’adaptateur serveur utilise uniquement les routes officielles `marketing-studio/image/flare` et `marketing-studio/image/sunburst`, avec `enhance_prompt=false` pour préserver notre brief. Paramètres initiaux : 2K, qualité high, modération auto. Les images de référence sont envoyées via l’upload officiel ; les résultats sont archivés dans notre stockage privé.
+L’adaptateur serveur utilise les routes officielles `marketing-studio/image/flare`, `marketing-studio/image/sunburst` et `higgsfield-ai/soul/v2/standard`, avec `enhance_prompt=false` pour préserver notre brief. Soul2 sert aux photographies créées à partir du texte seul dans le Studio récent, en 1080p. Les affiches et autres visuels avec texte à rendre restent sur ChatGPT Image. Soul2 Standard ne reçoit pas d’images ordinaires en référence : les créations avec images jointes et les retouches du Studio récent conservent donc leur moteur actuel. Les anciens parcours Flare/Sunburst gardent leurs paramètres 2K, qualité high et modération auto. Les images de référence de ces parcours sont envoyées via l’upload officiel ; les résultats sont archivés dans notre stockage privé.
 
-L’activation requiert **tous** les paramètres suivants, conservés côté serveur :
+L’activation de Soul2 requiert les paramètres communs ci-dessous et `HIGGSFIELD_SOUL2_ENABLED=true`. L’activation distincte des anciens parcours Flare/Sunburst utilise `HIGGSFIELD_IMAGE_ENABLED=true` à la place. Les deux interrupteurs sont indépendants.
 
 - `HIGGSFIELD_API_KEY` au format `KEY_ID:KEY_SECRET` ; jamais côté navigateur.
-- `HIGGSFIELD_IMAGE_ENABLED=true`.
 - `HIGGSFIELD_DATA_USE_REVIEWED=true`, après vérification réelle des paramètres de réutilisation des données du compte et de leur compatibilité avec les photos confiées au service. Ce drapeau n’effectue pas cette démarche chez Higgsfield.
 - `HIGGSFIELD_IMAGE_MONTHLY_LIMIT_USD` positif, choisi par l’exploitante. Réservation atomique sur les **estimations** fournisseur ; ce n’est pas une garantie de plafond de facture réel pour une facturation variable. Une estimation > 2 USD par image est refusée.
 

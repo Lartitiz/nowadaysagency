@@ -817,8 +817,9 @@ function Studio({
           )}
           {proposal.provider === "higgsfield" && (
             <p className="text-xs text-muted-foreground">
-              Les références choisies seront transmises à Higgsfield après
-              confirmation.
+              {proposal.model === "higgsfield-ai/soul/v2/standard"
+                ? "Cette photo sera créée avec Soul2 après confirmation."
+                : "Les références choisies seront transmises à Higgsfield après confirmation."}
             </p>
           )}
           <dl className="text-sm space-y-3">

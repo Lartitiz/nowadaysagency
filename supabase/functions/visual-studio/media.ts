@@ -22,6 +22,8 @@ export type Proposal = {
   preserve?: string[];
   change?: string[];
   model?: string;
+  visual_kind?: "photo" | "graphic";
+  composition?: unknown;
   references?: Reference[];
   input_path?: string | null;
   series_size?: number;

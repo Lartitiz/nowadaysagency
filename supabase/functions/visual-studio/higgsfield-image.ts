@@ -3,11 +3,22 @@ import { imagePrompt, type Proposal } from "./media.ts";
 type DB = ReturnType<typeof getServiceClient>;
 const BASE = "https://api.higgsfield.ai";
 export const IMAGE_MODELS = [
+  "higgsfield-ai/soul/v2/standard",
   "marketing-studio/image/flare",
   "marketing-studio/image/sunburst",
 ] as const;
+export const SOUL2_MODEL = "higgsfield-ai/soul/v2/standard";
+export function soul2Eligible(proposal: Proposal) {
+  return proposal.operation === "create" && proposal.visual_kind === "photo" &&
+    !proposal.exact_text?.length && !proposal.references?.length &&
+    !proposal.input_path && !proposal.composition;
+}
 export function higgsfieldImagesEnabled() {
   return Deno.env.get("HIGGSFIELD_IMAGE_ENABLED") === "true" &&
+    Deno.env.get("HIGGSFIELD_DATA_USE_REVIEWED") === "true";
+}
+export function soul2Enabled() {
+  return Deno.env.get("HIGGSFIELD_SOUL2_ENABLED") === "true" &&
     Deno.env.get("HIGGSFIELD_DATA_USE_REVIEWED") === "true";
 }
 function credentials() {
@@ -49,6 +60,23 @@ async function api(path: string, method = "GET", body?: unknown) {
 export function imageInput(proposal: Proposal, urls: string[]) {
   if (!IMAGE_MODELS.some((model) => model === proposal.model)) {
     throw new Error("studio_provider_model");
+  }
+  if (proposal.model === SOUL2_MODEL) {
+    if (urls.length || !soul2Eligible(proposal)) {
+      throw new Error("studio_provider_model");
+    }
+    return {
+      prompt: imagePrompt(proposal),
+      batch_size: 1,
+      resolution: "1080p",
+      aspect_ratio: proposal.format === "portrait"
+        ? "2:3"
+        : proposal.format === "landscape"
+        ? "3:2"
+        : "1:1",
+      enhance_prompt: false,
+      image_urls: undefined,
+    };
   }
   return {
     prompt: imagePrompt(proposal),
@@ -192,8 +220,14 @@ export async function submitHiggsfieldImage(
 ) {
   let submitted = false, accepted = false;
   try {
-    if (!higgsfieldImagesEnabled()) {
+    if (version.proposal.model === SOUL2_MODEL
+      ? !soul2Enabled()
+      : !higgsfieldImagesEnabled()) {
       throw new Error("studio_provider_unavailable");
+    }
+    if (version.proposal.model === SOUL2_MODEL &&
+      (inputs.length || !soul2Eligible(version.proposal))) {
+      throw new Error("studio_provider_model");
     }
     credentials();
     const monthly = Number(Deno.env.get("HIGGSFIELD_IMAGE_MONTHLY_LIMIT_USD"));

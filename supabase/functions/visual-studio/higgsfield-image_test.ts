@@ -3,7 +3,21 @@ import {
   assertEquals,
   assertThrows,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { higgsfieldImagesEnabled, imageInput } from "./higgsfield-image.ts";
+import { higgsfieldImagesEnabled, imageInput, SOUL2_MODEL, soul2Enabled, soul2Eligible } from "./higgsfield-image.ts";
+Deno.test("Soul2 accepts only source-free photographs without rendered text", () => {
+  const photo = { operation: "create", visual_kind: "photo" as const, image_prompt: "Portrait éditorial", format: "portrait" };
+  assertEquals(soul2Eligible(photo), true);
+  assertEquals(imageInput({ ...photo, model: SOUL2_MODEL }, []), {
+    prompt: imageInput({ ...photo, model: "marketing-studio/image/flare" }, []).prompt,
+    batch_size: 1, resolution: "1080p", aspect_ratio: "2:3",
+    enhance_prompt: false, image_urls: undefined,
+  });
+  assertEquals(soul2Eligible({ ...photo, exact_text: ["Atelier"] }), false);
+  assertEquals(soul2Eligible({ ...photo, visual_kind: "graphic" }), false);
+  assertEquals(soul2Eligible({ ...photo, references: [{ id: "r", photo_id: null, role: "style", path: "p", name: "Ambiance" }] }), false);
+  assertEquals(soul2Eligible({ ...photo, input_path: "selected-version" }), false);
+  assertThrows(() => imageInput({ ...photo, model: SOUL2_MODEL }, ["https://example.com/reference.png"]));
+});
 Deno.test("Higgsfield preserves our brief, reference order and disables preset rewriting", () => {
   const input = imageInput({
     operation: "product",
@@ -46,24 +60,38 @@ Deno.test("image provider activation requires the explicit data settings review"
     }
   }
 });
+Deno.test("Soul2 activation is separate from the legacy Higgsfield image switch", () => {
+  const keys = ["HIGGSFIELD_SOUL2_ENABLED", "HIGGSFIELD_IMAGE_ENABLED", "HIGGSFIELD_DATA_USE_REVIEWED"];
+  const before = keys.map((key) => Deno.env.get(key));
+  try {
+    Deno.env.set("HIGGSFIELD_SOUL2_ENABLED", "true");
+    Deno.env.set("HIGGSFIELD_IMAGE_ENABLED", "false");
+    Deno.env.set("HIGGSFIELD_DATA_USE_REVIEWED", "true");
+    assertEquals(soul2Enabled(), true);
+    assertEquals(higgsfieldImagesEnabled(), false);
+  } finally {
+    keys.forEach((key, index) => before[index] === undefined ? Deno.env.delete(key) : Deno.env.set(key, before[index]!));
+  }
+});
 
 import { getServiceClient } from "../_shared/plan-limiter.ts";
 import {
   reconcileHiggsfieldImage,
   submitHiggsfieldImage,
 } from "./higgsfield-image.ts";
-function lifecycle() {
+function lifecycle(model: string = "marketing-studio/image/flare") {
   const savedFetch = globalThis.fetch;
   const keys = [
     "SUPABASE_URL",
     "SUPABASE_SERVICE_ROLE_KEY",
     "HIGGSFIELD_API_KEY",
     "HIGGSFIELD_IMAGE_ENABLED",
+    "HIGGSFIELD_SOUL2_ENABLED",
     "HIGGSFIELD_DATA_USE_REVIEWED",
     "HIGGSFIELD_IMAGE_MONTHLY_LIMIT_USD",
   ];
   const env = keys.map((k) => [k, Deno.env.get(k)]);
-  ["https://studio.test", "service", "test:secret", "true", "true", "10"]
+  ["https://studio.test", "service", "test:secret", "true", "true", "true", "10"]
     .forEach((v, i) => Deno.env.set(keys[i], v));
   const id = "10000000-0000-4000-8000-000000000001",
     providerId = "20000000-0000-4000-8000-000000000001";
@@ -72,6 +100,7 @@ function lifecycle() {
     stored = false,
     charges = 0,
     submits = 0,
+    submittedInput: Record<string, unknown> | null = null,
     loseSubmit = false,
     pollStatus = 200;
   const json = (x: unknown, status = 200) =>
@@ -123,8 +152,9 @@ function lifecycle() {
       return json(true);
     }
     if (url.pathname.startsWith("/estimate/")) return json({ usd: .3 });
-    if (url.pathname === "/marketing-studio/image/flare") {
+    if (url.pathname === `/${model}`) {
       submits++;
+      submittedInput = body;
       if (loseSubmit) throw new TypeError("lost response");
       return json({ request_id: providerId });
     }
@@ -158,7 +188,8 @@ function lifecycle() {
       workspace_id: id,
       proposal: {
         operation: "create",
-        model: "marketing-studio/image/flare",
+        model,
+        visual_kind: model === SOUL2_MODEL ? "photo" as const : "graphic" as const,
         image_prompt: "An illustration",
       },
     },
@@ -176,6 +207,7 @@ function lifecycle() {
       stored,
       status: job?.status,
     }),
+    submittedInput: () => submittedInput,
     restore() {
       globalThis.fetch = savedFetch;
       for (const [k, v] of env) {
@@ -185,6 +217,26 @@ function lifecycle() {
     },
   };
 }
+Deno.test("Soul2 submission uses the text-only endpoint and one image", async () => {
+  const f = lifecycle(SOUL2_MODEL);
+  try {
+    await submitHiggsfieldImage(f.db, f.version, []);
+    const input = f.submittedInput();
+    assertEquals(input?.batch_size, 1);
+    assertEquals(input?.resolution, "1080p");
+    assertEquals("image_urls" in (input || {}), false);
+    assertEquals(f.counts().charges, 1);
+  } finally { f.restore(); }
+});
+Deno.test("Soul2 rejects image inputs before uploading or submitting", async () => {
+  const f = lifecycle(SOUL2_MODEL);
+  try {
+    await submitHiggsfieldImage(f.db, f.version, [new Blob(["reference"], { type: "image/png" })]);
+    assertEquals(f.counts().submits, 0);
+    assertEquals(f.counts().charges, 0);
+    assertEquals(f.counts().versionStatus, "failed");
+  } finally { f.restore(); }
+});
 Deno.test("provider completion archives and charges once; repeated launch and callback never regenerate", async () => {
   const f = lifecycle();
   try {
