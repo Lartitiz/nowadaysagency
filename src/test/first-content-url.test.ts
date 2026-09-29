@@ -10,6 +10,7 @@ describe("buildFirstContentUrl", () => {
   it("services : carrousel texte, généré directement, jamais un post", () => {
     const url = buildFirstContentUrl({ sellsProducts: false, subject: "Mon sujet" });
     expect(url).toContain("format=carousel");
+    expect(url).toContain("carouselSubMode=text");
     expect(url).not.toContain("format=post");
     expect(url).toContain("auto=1");
     expect(url).toContain(encodeURIComponent("Mon sujet"));
@@ -21,13 +22,13 @@ describe("buildFirstContentUrl", () => {
     expect(url).toContain("format=carousel");
   });
 
-  it("produits : carrousel photo, sans auto (les photos viennent d'abord)", () => {
+  it("produits : carrousel photo lancé après chargement des photos", () => {
     const url = buildFirstContentUrl({ sellsProducts: true, subject: "Ma gamme" });
     expect(url).toContain("format=carousel");
     expect(url).toContain("carouselSubMode=photo");
     expect(url).toContain("firstProduct=1");
     expect(url).not.toContain("sujet=");
-    expect(url).not.toContain("auto=1");
+    expect(url).toContain("auto=1");
     expect(url).not.toContain("format=post");
   });
 
