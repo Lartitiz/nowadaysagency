@@ -7366,6 +7366,32 @@ export type Database = {
           },
         ]
       }
+      studio_video_cohort_access: {
+        Row: {
+          cohort: string
+          granted_at: string
+          workspace_id: string
+        }
+        Insert: {
+          cohort: string
+          granted_at?: string
+          workspace_id: string
+        }
+        Update: {
+          cohort?: string
+          granted_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_video_cohort_access_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       studio_video_jobs: {
         Row: {
           aspect_ratio: string
@@ -9160,6 +9186,17 @@ export type Database = {
         Args: { p_actor: string; p_job: string; p_monthly_limit: number }
         Returns: boolean
       }
+      studio_video_claim_cohort: {
+        Args: {
+          p_actor: string
+          p_cohort_limit: number
+          p_job: string
+          p_workspace: string
+          p_workspace_limit: number
+          p_workspace_max_submissions: number
+        }
+        Returns: boolean
+      }
       studio_video_claim_trial: {
         Args: {
           p_actor: string
@@ -9169,6 +9206,10 @@ export type Database = {
           p_total_limit: number
         }
         Returns: boolean
+      }
+      studio_video_grant_cohort: {
+        Args: { p_cohort: string; p_emails: string[] }
+        Returns: number
       }
       studio_write_memory: {
         Args: {
