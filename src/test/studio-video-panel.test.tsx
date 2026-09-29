@@ -12,6 +12,8 @@ vi.mock("@/features/studio-video/api", () => ({
   readStudioVideo: mock.read,
 }));
 vi.mock("@/features/studio-video/library-sources", () => ({ videoReferencePreviews: async () => new Map() }));
+vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "space" }));
+vi.mock("@/hooks/use-branding", () => ({ useBrandCharter: () => ({ data: { visual_direction: { video_motion: "Plans calmes", light: "Fenêtre douce" } } }) }));
 import { StudioVideoPanel } from "@/features/studio-video/StudioVideoPanel";
 
 const quote = {
@@ -63,6 +65,14 @@ it("affiche le devis puis n'envoie le POST payant qu'au clic explicite", async (
   expect(mock.request.mock.calls[1][0]).toMatchObject({ prompt: prepared.prompt, prepared_token: "signed" });
   fireEvent.click(screen.getByRole("button", { name: /Générer ce clip/ }));
   await waitFor(() => expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["prepare", "quote", "submit"]));
+});
+
+it("propose le style vidéo de la marque dans une consigne modifiable sans lancer de génération", async () => {
+  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
+  await mount(false);
+  fireEvent.click(screen.getByRole("button", { name: "Reprendre mon style vidéo dans cette consigne" }));
+  expect(screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" })).toHaveValue("Style de ma marque : Plans calmes ; Fenêtre douce");
+  expect(mock.request).not.toHaveBeenCalled();
 });
 
 it("écarte un devis arrivé après que la demande a changé", async () => {
