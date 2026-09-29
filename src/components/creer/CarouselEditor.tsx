@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { CarouselQuality } from "@/hooks/use-carousel-quality";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,6 +55,8 @@ interface Props {
   onStaleChange?: (stale: boolean) => void;
   cloudTools?: ReactNode;
   quality?: CarouselQuality;
+  /** Élément hôte sous les boutons d'action : rend les encadrés sauvegarde/qualité via un portail. */
+  toolsPortal?: HTMLElement | null;
 }
 // Compare immutable references, not megabytes of embedded photo HTML on every
 // keystroke. Parent echoes retain these exact references.
@@ -249,6 +252,7 @@ export default function CarouselEditor({
   onStaleChange,
   cloudTools,
   quality,
+  toolsPortal,
 }: Props) {
   const raw = result?.raw || result;
   const editorRoot = useRef<HTMLElement>(null);
@@ -487,7 +491,8 @@ export default function CarouselEditor({
           </Button>
         </div>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      {toolsPortal && createPortal(
+        <div className="grid gap-3 md:grid-cols-2">
       {cloudTools}
       {quality && quality.status !== "idle" && (
         <div
@@ -578,7 +583,9 @@ export default function CarouselEditor({
 
         </div>
       )}
-      </div>
+        </div>,
+        toolsPortal,
+      )}
       <div
         className="flex gap-2 overflow-x-auto pb-2"
         aria-label="Slides du carrousel"

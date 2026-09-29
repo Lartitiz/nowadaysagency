@@ -401,6 +401,12 @@ export default function CreerStepResult({
     { key: "script" | "tournage" | "montage" | "caption"; step: number; isLast: boolean; montageDone: boolean } | null
   >(null);
 
+  // Encadrés sauvegarde + contrôle qualité du carrousel : rendus sous les
+  // boutons « Enregistrer mon contenu / Créer un nouveau contenu » via un
+  // portail (lisibilité — ils n'écrasent plus le haut de l'éditeur).
+  const [carouselToolsSlot, setCarouselToolsSlot] = useState<HTMLElement | null>(null);
+
+
   // ── Célébration à l'apparition du résultat ──
   // Ne se déclenche que sur la transition génération → résultat (pas sur un
   // reload qui restaure un résultat déjà existant).
@@ -544,7 +550,7 @@ export default function CreerStepResult({
     if (format === "carousel" && visualSlides?.length && onCarouselDocumentChange) {
       return <fieldset disabled={visualLoading} className={`min-w-0 w-full ${visualLoading ? "pointer-events-none opacity-60" : ""}`} aria-busy={visualLoading}>
         {visualLoading && <p role="status" className="mb-3 text-sm">Régénération en cours. Les retouches seront disponibles dès que les nouveaux visuels seront prêts.</p>}
-        <CarouselEditor result={result} visualSlides={visualSlides} onChange={onCarouselDocumentChange} photos={photos} onAddPhoto={onAddPhoto} onStaleChange={onCarouselStaleChange} cloudTools={carouselCloudTools} quality={carouselQuality} />
+        <CarouselEditor result={result} visualSlides={visualSlides} onChange={onCarouselDocumentChange} photos={photos} onAddPhoto={onAddPhoto} onStaleChange={onCarouselStaleChange} cloudTools={carouselCloudTools} quality={carouselQuality} toolsPortal={carouselToolsSlot} />
       </fieldset>;
     }
     // Carousel photo gets its own renderer — si on a des photos, OU si les slides
@@ -1025,6 +1031,10 @@ export default function CreerStepResult({
           <RotateCcw className="h-4 w-4" /> Créer un nouveau contenu
         </Button>
       </div>
+
+      {/* Encadrés sauvegarde + contrôle qualité (rendus par CarouselEditor
+          via un portail) : sous les actions principales, jamais au-dessus. */}
+      <div ref={setCarouselToolsSlot} data-testid="carousel-tools-slot" />
     </div>
   );
 }
