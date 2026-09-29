@@ -164,7 +164,8 @@ it("ouvre les clips sans quitter la session photo et reprend la version sélecti
   }] });
   mount();
   await screen.findByText("Décris ton fond.");
-  fireEvent.click(screen.getByRole("button", { name: "Créer une vidéo avec cette image" }));
+  fireEvent.click(screen.getByRole("button", { name: "Autres actions" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Créer une vidéo avec cette image" }));
   expect(await screen.findByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Photos" }));
   expect(screen.getByText("Décris ton fond.")).toBeInTheDocument();
@@ -267,8 +268,8 @@ it("revient de Photo via Vidéo au passage d'origine du Reel", async () => {
     library_photo_id: null, error_message: null, created_at: "",
   }] });
   mount("/photos/studio?session=session&reel_passage=1");
-  await screen.findByRole("button", { name: "Créer une vidéo avec cette image" });
-  fireEvent.click(screen.getByRole("button", { name: "Créer une vidéo avec cette image" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Autres actions" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Créer une vidéo avec cette image" }));
   expect(screen.getByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
   expect(screen.getByTestId("current-path")).toHaveTextContent("reel_passage=1");
   fireEvent.click(screen.getByRole("button", { name: "Choisir le clip prêt" }));
@@ -446,7 +447,8 @@ it("generated versions stay outside the library until an explicit save, with one
         }),
   );
   mount();
-  const button = await screen.findByRole("button", {
+  fireEvent.click(await screen.findByRole("button", { name: "Autres actions" }));
+  const button = await screen.findByRole("menuitem", {
     name: "Ajouter à la bibliothèque",
   });
   expect(mock.request.mock.calls.some(([b]) => b.action === "save")).toBe(
@@ -454,7 +456,8 @@ it("generated versions stay outside the library until an explicit save, with one
   );
   fireEvent.click(button);
   fireEvent.click(button);
-  await screen.findByRole("button", { name: "Dans la bibliothèque" });
+  fireEvent.click(await screen.findByRole("button", { name: "Autres actions" }));
+  await screen.findByRole("menuitem", { name: "Dans la bibliothèque" });
   expect(
     mock.request.mock.calls.filter(([b]) => b.action === "save"),
   ).toHaveLength(1);
@@ -660,7 +663,8 @@ it("lets an AI-generated poster receive exact editable text after the image is r
   }] });
   mount();
   await screen.findByText("Décris ton fond.");
-  fireEvent.click(screen.getByRole("button", { name: "Finaliser l’affiche avec ses textes" }));
+  fireEvent.click(screen.getByRole("button", { name: "Autres actions" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Finaliser l’affiche avec ses textes" }));
   expect(await screen.findByRole("textbox", { name: "Titre" })).toHaveValue("Marché de Noël");
   expect(screen.getByRole("textbox", { name: "Informations pratiques" })).toHaveValue("12 décembre · Lyon");
   expect(screen.getByLabelText("Utiliser l’image sélectionnée")).toBeChecked();
