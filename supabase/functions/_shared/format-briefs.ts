@@ -959,6 +959,7 @@ AVANT D'ÉCRIRE :
 - Sépare les faits de ce contenu des informations générales du profil de marque. Un métier, une valeur ou une ancienne histoire ne prouve pas une scène actuelle.
 - Si elle raconte un moment vécu, suis un fil simple : situation réelle, ce qu'elle fait ou choisit, ce qu'elle pense ou ressent si elle l'a dit, puis la suite ou le sens qu'elle donne à ce moment.
 - Si elle partage une idée ou une expertise sans scène vécue, explique cette idée concrètement sans la déguiser en anecdote.
+- Si le sujet est explicitement fictif ou un essai, rédige un exemple utilisable en indiquant clairement son caractère fictif dans le texte. Ne le présente jamais comme un produit, un lieu ou une expérience réels.
 
 ${linkedinTemplateContent ? `STRUCTURE ÉDITORIALE CHOISIE :\n${linkedinTemplateContent}\n\nGarde uniquement les étapes attestées dans le brief et utiles au sujet.` : ""}
 

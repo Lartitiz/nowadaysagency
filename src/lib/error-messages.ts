@@ -1,4 +1,5 @@
 const ERROR_PATTERNS: { test: RegExp; message: string }[] = [
+  { test: /La génération a échoué en cours de route/i, message: "Le recyclage n'a produit aucun texte utilisable. Réessaie ou ajoute des faits à ta source." },
   // AVANT la règle /quota|crédit/ : une panne de VÉRIFICATION des crédits (503
   // quota_check_failed) n'est pas un quota épuisé — dire « tu as tout utilisé »
   // à une cliente qui n'a rien consommé serait mensonger.

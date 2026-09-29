@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, Check, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
+import { isAiGeneratedContent } from "@/lib/content-origin";
 import { contentEdit, previewContent, type SaveContentEdit, type ContentReceipt } from "@/lib/content-preview-save";
 import { formatSlideRole } from "@/lib/slide-roles";
 import { StoryExportButtons } from "@/components/exports/StoryExportButtons";
@@ -17,9 +18,10 @@ interface ContentPreviewProps {
   compact?: boolean;
   editable?: boolean;
   onContentChange?: SaveContentEdit;
+  aiGenerated?: boolean;
 }
 
-export function ContentPreview({ contentData, contentType, contentDraft, compact = false, editable = false, onContentChange }: ContentPreviewProps) {
+export function ContentPreview({ contentData, contentType, contentDraft, compact = false, editable = false, onContentChange, aiGenerated }: ContentPreviewProps) {
   const initial = useMemo(() => previewContent(contentData, contentDraft, contentType), [contentData, contentDraft, contentType]);
   const [data, setData] = useState(initial);
   const mounted = useRef(true);
@@ -34,10 +36,12 @@ export function ContentPreview({ contentData, contentType, contentDraft, compact
   } : undefined;
   const crosspost = resumeCrosspost(data, contentType);
   if (data == null) return null;
+  const showAiMention = aiGenerated ?? isAiGeneratedContent(data);
   if (typeof data === "string") {
-    return editable && onContentChange
+    const text = editable && onContentChange
       ? <EditableText value={data} onSave={(v) => onContentChange(contentEdit(data, [], v))} />
       : <p className="text-sm text-foreground whitespace-pre-wrap">{data}</p>;
+    return <>{text}{showAiMention && <AiGeneratedMention />}</>;
   }
 
   if (crosspost && (crosspost.format === "post" || crosspost.format === "linkedin")) {
@@ -46,7 +50,7 @@ export function ContentPreview({ contentData, contentType, contentDraft, compact
       {editable && onContentChange
         ? <EditableText value={data[key] || ""} onSave={(value) => onContentChange(contentEdit(data, [key], value))} />
         : <p className="text-sm whitespace-pre-wrap">{data[key]}</p>}
-      <CrosspostSources data={data} /><AiGeneratedMention />
+      <CrosspostSources data={data} />{showAiMention && <AiGeneratedMention />}
     </>;
   }
   editable = editable && !!onContentChange;
@@ -61,7 +65,7 @@ export function ContentPreview({ contentData, contentType, contentDraft, compact
     : (isTextPost || detectedType === "caption_photo" || detectedType === "post_instagram" || detectedType === "post_linkedin") ? <PostPreview data={data} editable={editable} onContentChange={onContentChange} />
     : <FallbackPreview data={data} editable={editable} onContentChange={onContentChange} />;
 
-  return <>{preview}{crosspost && <CrosspostSources data={data} />}<AiGeneratedMention /></>;
+  return <>{preview}{crosspost && <CrosspostSources data={data} />}{showAiMention && <AiGeneratedMention />}</>;
 }
 
 /* ─── Inline Editable Text ─── */

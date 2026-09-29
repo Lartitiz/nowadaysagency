@@ -25,6 +25,7 @@ import { CalendarIcon, Sparkles, Trash2, RefreshCw, Newspaper, Check, Loader2, C
 import type { SavedIdea } from "./CalendarIdeasSidebar";
 import { renderIdeaDraft } from "@/lib/render-idea-draft";
 import { ContentPreview } from "@/components/ContentPreview";
+import { isAiGeneratedContent } from "@/lib/content-origin";
 
 
 const FORMAT_OPTIONS = [
@@ -332,13 +333,13 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       {!idea?.content_draft && idea?.content_data && (
         <section className="space-y-2">
           <h3 className="text-sm font-semibold">Contenu enregistré</h3>
-          <ContentPreview contentData={idea.content_data} contentType={idea.format === "reel" ? "reel" : idea.format === "story_serie" ? "stories" : undefined} compact />
+          <ContentPreview contentData={idea.content_data} contentType={idea.format === "reel" ? "reel" : idea.format === "story_serie" ? "stories" : undefined} aiGenerated={isAiGeneratedContent(idea.content_data, idea.source_module)} compact />
         </section>
       )}
       {(idea?.content_draft || contentDraft) && (
         <div>
           <label htmlFor="idea-content-draft" className="text-xs font-semibold mb-1.5 block text-foreground flex items-center gap-1.5">
-            ✨ Contenu généré
+            Contenu enregistré
           </label>
           <Textarea
             id="idea-content-draft"

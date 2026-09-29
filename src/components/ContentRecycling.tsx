@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -19,6 +19,7 @@ import { UX_UPLOAD_LIMITS } from "@/lib/upload-limits";
 import { posthog } from "@/lib/posthog";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
+import { isRecycleRefusal } from "@/lib/recycle-result";
 
 // Aucun format pré-coché : un format « sélectionné d'office » a déjà fait
 // croire à un bug (campagne QA du 17/07 : cliquer une case pré-cochée la
@@ -46,18 +47,52 @@ function fileEmoji(mimeType: string) {
   return mimeType === "application/pdf" ? "📄" : "🖼️";
 }
 
+type RecyclingDraft = { source: string; selectedFormats: Record<string, boolean> };
+
+function readRecyclingDraft(key: string | null): RecyclingDraft | null {
+  if (!key) return null;
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (typeof saved.source !== "string" || !saved.selectedFormats || typeof saved.selectedFormats !== "object") return null;
+    return { source: saved.source.slice(0, 10000), selectedFormats: saved.selectedFormats };
+  } catch { return null; }
+}
+
 export default function ContentRecycling() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const [searchParams] = useSearchParams();
-  const [source, setSource] = useState("");
+  const draftKey = user && workspaceId ? `content_recycling_draft:${user.id}:${workspaceId}:${searchParams.get("canal") || "all"}` : null;
+  const restoredDraft = useRef(readRecyclingDraft(draftKey));
+  const [source, setSource] = useState(() => restoredDraft.current?.source || "");
   const [selectedFormats, setSelectedFormats] = useState<Record<string, boolean>>(() => {
     const fromUrl = (searchParams.get("format") || "")
       .split(",")
       .map(s => s.trim())
       .filter(id => FORMATS.some(f => f.id === id));
-    return Object.fromEntries(FORMATS.map(f => [f.id, fromUrl.includes(f.id)]));
+    const selected = fromUrl.length ? fromUrl : restoredDraft.current
+      ? FORMATS.filter(f => restoredDraft.current?.selectedFormats[f.id]).map(f => f.id)
+      : searchParams.get("canal") === "linkedin" ? ["linkedin"] : [];
+    return Object.fromEntries(FORMATS.map(f => [f.id, selected.includes(f.id)]));
   });
+  const hydratedKey = useRef(draftKey);
+  const skipNextWrite = useRef(false);
+  useEffect(() => {
+    if (!draftKey || hydratedKey.current === draftKey) return;
+    hydratedKey.current = draftKey;
+    const saved = readRecyclingDraft(draftKey);
+    if (!saved) return;
+    skipNextWrite.current = true;
+    setSource(saved.source);
+    setSelectedFormats(Object.fromEntries(FORMATS.map(f => [f.id, saved.selectedFormats[f.id] === true])));
+  }, [draftKey]);
+  useEffect(() => {
+    if (!draftKey) return;
+    if (skipNextWrite.current) { skipNextWrite.current = false; return; }
+    try { sessionStorage.setItem(draftKey, JSON.stringify({ source, selectedFormats })); } catch { /* La saisie reste visible dans cet onglet. */ }
+  }, [draftKey, source, selectedFormats]);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Record<string, string>>({});
   const [topics, setTopics] = useState<Record<string, string>>({});
@@ -181,10 +216,12 @@ export default function ContentRecycling() {
         }
       }
       if (error) throw new Error(error.message);
-      const r = data?.results || {};
+      const rawResults: Record<string, unknown> = data?.results || {};
+      const rejectedFormats = Object.keys(rawResults).filter(f => isRecycleRefusal(rawResults[f]));
+      const r = Object.fromEntries(Object.entries(rawResults).filter(([, value]) => !isRecycleRefusal(value))) as Record<string, any>;
       if (Object.keys(r).length === 0) {
-        toast.error("Génération incomplète", {
-          description: "La génération a échoué en cours de route. Réessaie.",
+        toast.error("Aucun contenu rédigé", {
+          description: "L'IA n'a pas produit de texte utilisable. Réessaie ou ajoute des faits à ta source.",
         });
         return;
       }
@@ -197,7 +234,7 @@ export default function ContentRecycling() {
       // Le pipeline par format peut livrer un résultat PARTIEL (un format
       // retombé après 2 essais) : on le dit honnêtement au lieu de laisser
       // un onglet vide sans explication.
-      const failedFormats: string[] = Array.isArray(data?.failed_formats) ? data.failed_formats : [];
+      const failedFormats: string[] = [...new Set([...(Array.isArray(data?.failed_formats) ? data.failed_formats : []), ...rejectedFormats])];
       if (failedFormats.length > 0) {
         toast.warning("Génération partielle", {
           description: `Le format ${failedFormats.join(", ")} n'a pas pu être généré cette fois. Relance le recyclage pour le récupérer.`,

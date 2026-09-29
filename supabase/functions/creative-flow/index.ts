@@ -245,6 +245,9 @@ Un reel de 45 secondes sur UN point percutant > un reel de 60 secondes qui liste
 RÈGLE DE VOIX :
 Chaque format doit sonner comme si l'utilisatrice l'avait écrit elle-même. Si le contenu source contient des expressions ou tournures caractéristiques de sa voix, RÉUTILISE-les telles quelles, sans les remplacer par une formulation plus "propre". L'IA structure et amplifie, elle ne réécrit pas.
 
+SOURCE FICTIVE OU TEST :
+Un exemple explicitement fictif est une source valable. Rédige le contenu demandé en indiquant clairement dans le résultat que le cas est fictif ; garde uniquement les faits donnés. Ne refuse pas de rédiger au motif que le vécu n'est pas réel et ne transforme pas cet exemple en témoignage authentique.
+
 SELF-CHECK FINAL (fais-le en interne avant de répondre) :
 - Si un ANGLE t'est imposé dans le message : est-ce que tu l'as vraiment suivi, sans déborder sur les angles des autres formats ? Les repères de contexte indispensables peuvent être répétés dans chaque version : chacune doit se comprendre seule.
 - Est-ce que les accroches sont assez fortes pour stopper le scroll ?
@@ -617,6 +620,7 @@ RÈGLES :
 2. Priorise ce qui manque pour écrire juste sur CE sujet : un fait précis, un exemple, un choix, une nuance. Creuse une conviction quand elle sert le propos, sans imposer une introspection. Ne redemande pas une information déjà fournie.
 3. ${channelGuidance}
 4. Questions OUVERTES (pas oui/non).
+   Tutoie l'utilisatrice comme le reste de l'interface. Ne présuppose pas une motivation, une émotion, un bénéfice produit ou une rencontre ; laisse-la confirmer ou dire qu'elle ne sait pas.
 5. Choisis des questions complémentaires parmi les types utiles au sujet, sans quota par type :
 ${questionTypes}
    ⚠️ INTERDIT de faire 3 questions "Raconte-moi une fois où…". Une question peut recueillir la scène, les autres son intention et son ressenti ou son choix.
@@ -1121,6 +1125,10 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
     const topicVal = parsed?.topics?.[f]
       ?? (parsed?.topics && typeof parsed.topics === "object" ? Object.values(parsed.topics)[0] : null);
     if (!resultVal) throw new Error(`recycle ${f} : résultat vide`);
+    if (f !== "carrousel" && typeof resultVal !== "string") throw new Error(`recycle ${f} : format de résultat inattendu`);
+    if (typeof resultVal === "string" && /^(contenu non g[eé]n[eé]r[eé]|je ne peux pas|impossible de r[eé]diger)/i.test(resultVal.trim())) {
+      throw new Error(`recycle ${f} : refus de rédaction retourné comme contenu`);
+    }
 
     // Le carrousel recyclé (objet structuré {slides, caption}) passe par la
     // MÊME garde rédactionnelle que /creer (carousel-ai) : anti-tics, chiffres
