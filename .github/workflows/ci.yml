@@ -77,6 +77,8 @@ jobs:
           deno-version: v2.x
 
       - name: Tests edge functions (Deno)
+        # Le deno.lock généré par Lovable contient des tarballs de son miroir
+        # privé, refusées par Deno sur GitHub Actions. Le script ignore ce lock.
         run: npm run test:edges
 
       - name: Studio edge type-check
