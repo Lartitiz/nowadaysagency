@@ -112,11 +112,11 @@ export async function estimate(input: VideoInput, fetcher = fetch, model: VideoM
 export async function submit(input: VideoInput, webhookUrl?: string, fetcher = fetch, model: VideoModel = MODEL) {
   const endpoint = webhookUrl ? `${model}?hf_webhook=${encodeURIComponent(webhookUrl)}` : model;
   const { data, correlationId } = await api(endpoint, "POST", input, fetcher);
-  if (typeof data.request_id !== "string" || !/^[0-9a-f-]{36}$/i.test(data.request_id) ||
-    typeof data.status_url !== "string" ||
-    data.status_url !== `${BASE}/requests/${data.request_id}/status`)
+  // Only the request ID matters: status is always read from our own
+  // authenticated endpoint. The provider's status_url format may vary.
+  if (typeof data?.request_id !== "string" || !/^[0-9a-f-]{36}$/i.test(data.request_id))
     throw new Error("higgsfield_submit_response_uncertain");
-  return { requestId: data.request_id as string, statusUrl: data.status_url as string, correlationId };
+  return { requestId: data.request_id as string, statusUrl: `${BASE}/requests/${data.request_id}/status`, correlationId };
 }
 
 export async function status(requestId: string, fetcher = fetch): Promise<ProviderResult> {
