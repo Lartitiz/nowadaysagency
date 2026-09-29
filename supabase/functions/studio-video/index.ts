@@ -54,6 +54,12 @@ function monthlyLimit() {
   // The configured value can only lower the trial ceiling, never raise it.
   return Number.isFinite(limit) && limit > 0 ? Math.min(limit, TRIAL_TOTAL_LIMIT_USD) : 0;
 }
+async function trialSubmittedCount(db: DB) {
+  const { count, error } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
+    .not("submitted_at", "is", null).not("status", "in", `(${NON_BILLED_STATUSES.join(",")})`);
+  if (error) throw error;
+  return count || 0;
+}
 function safeJob(row: Record<string, unknown>, signedUrl: string | null = null) {
   return {
     id: row.id, workspace_id: row.workspace_id, source_kind: row.source_kind,
@@ -225,10 +231,8 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
     }
     if (p.action === "prepare") {
       if (!enabled(p.workspace_id) || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
-      const { count: submittedCount, error: trialError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
-        .not("submitted_at", "is", null);
-      if (trialError) throw trialError;
-      if ((submittedCount || 0) >= TRIAL_MAX_SUBMISSIONS) return json({ error: "La génération de recette a déjà été utilisée." }, 409);
+      if (await trialSubmittedCount(db) >= TRIAL_MAX_SUBMISSIONS)
+        return json({ error: "Le nombre de lancements d’essai est atteint." }, 409);
       const refs: SourceRef[] = p.source_kind === "references" ? p.references! : [];
       const resolved = await Promise.all(refs.map(async ref => ({ ...ref,
         ...(await source(db, p.workspace_id, ref.kind, ref.id)) })));
@@ -253,10 +257,8 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       if (!p.prepared_token || !await verifyPreparation(p.prepared_token, p, pipe.userId,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!))
         return json({ error: "La proposition vidéo a changé. Prépare et valide de nouveau le clip." }, 409);
-      const { count: submittedCount, error: trialError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
-        .not("submitted_at", "is", null).not("status", "in", `(${NON_BILLED_STATUSES.join(",")})`);
-      if (trialError) throw trialError;
-      if ((submittedCount || 0) >= TRIAL_MAX_SUBMISSIONS) return json({ error: "Le nombre de lancements d’essai est atteint." }, 409);
+      if (await trialSubmittedCount(db) >= TRIAL_MAX_SUBMISSIONS)
+        return json({ error: "Le nombre de lancements d’essai est atteint." }, 409);
       const { count, error: quoteLimitError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
         .eq("user_id", pipe.userId).gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
       if (quoteLimitError) throw quoteLimitError;
