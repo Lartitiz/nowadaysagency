@@ -15,7 +15,7 @@
 //   deno test --no-check --allow-env --allow-read --node-modules-dir=none supabase/functions/creative-flow/prompts_snapshot_test.ts
 
 import { assertSnapshot } from "https://deno.land/std@0.224.0/testing/snapshot.ts";
-import { assert, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { setTestEnv } from "../_shared/test-edge-harness.ts";
 
 setTestEnv();
@@ -41,6 +41,9 @@ const realListen = Deno.listen;
 const {
   buildAnglesPrompt,
   buildQuestionsPrompt,
+  buildFictionalLinkedInQuestions,
+  isExplicitlyFictionalBrief,
+  isFactualFictionalLinkedInBrief,
   buildFollowUpPrompt,
   buildHooksPrompt,
   buildAdjustPrompt,
@@ -219,26 +222,17 @@ Deno.test("buildQuestionsPrompt — récit LinkedIn personnel sans crise imposé
   })));
 });
 
-Deno.test("buildQuestionsPrompt — post_linkedin fictif isolé du profil réel", () => {
-  const prompt = buildQuestionsPrompt({
-    QUESTIONS_PREFIX: "PROFIL RÉEL ET VOIX PERSONNELLE",
-    brandingContext: "Céramiste à Lyon, atelier-refuge et pièces uniques.",
-    brandVocabBlock: "La terre ne ment pas.",
-    context: "Carnet Azur fictif : 48 pages, papier 100 g/m², prix imaginaire de 12 €.",
-    contentType: "post_linkedin",
-    editorialFormatLabel: "Storytelling pro",
-    angle: ANGLE,
-    calendarBlock: "Publication demain",
-    objectiveBlock: "Vendre",
-    newsContextBlock: "Actualité artisanale",
-    recentBriefsContext: "Ancienne histoire d'atelier",
-  });
-  assertStringIncludes(prompt.systemPrompt, "post LinkedIn");
-  assertStringIncludes(prompt.systemPrompt, "Carnet Azur fictif");
-  assert(!prompt.systemPrompt.includes("PROFIL RÉEL ET VOIX PERSONNELLE"));
-  assert(!prompt.systemPrompt.includes("atelier-refuge"));
-  assert(!prompt.systemPrompt.includes("Storytelling pro"));
-  assert(!prompt.systemPrompt.includes("Ancienne histoire d'atelier"));
+Deno.test("questions LinkedIn fictives — sans contexte réel ni motivation inventée", () => {
+  assert(isExplicitlyFictionalBrief("Carnet Azur est un produit entièrement fictif."));
+  assert(isExplicitlyFictionalBrief("Atelier imaginaire : exemple de post."));
+  assert(!isExplicitlyFictionalBrief("Je raconte une commande réelle."));
+  const { questions } = buildFictionalLinkedInQuestions();
+  assertEquals(questions.length, 3);
+  assert(questions.every(({ question, placeholder }) => question && placeholder));
+  const text = JSON.stringify(questions);
+  assertStringIncludes(text, "post LinkedIn");
+  assertStringIncludes(text, "Rien à ajouter");
+  assert(!/souvenir|client|atelier|pourquoi|motivation/i.test(text));
 });
 
 Deno.test("buildQuestionsPrompt — post_linkedin réel reconnu comme LinkedIn", () => {
@@ -389,6 +383,24 @@ Deno.test("buildGeneratePrompt — LinkedIn avec format éditorial (FORMAT_STRUC
     isLinkedIn: true,
   });
   await assertSnapshot(t, promptDoc(r));
+});
+
+Deno.test("buildGeneratePrompt — fiche LinkedIn fictive limitée aux faits du brief", async () => {
+  const context = "Carnet Azur est entièrement fictif : 48 pages en papier 100 g/m², prix fictif 12 €, retrait dans un atelier imaginaire, sans livraison. Je veux un post présentant ces seuls faits. N’ajoute rien.";
+  assert(isFactualFictionalLinkedInBrief(context));
+  assert(!isFactualFictionalLinkedInBrief("Raconte une histoire fictive en LinkedIn."));
+  const r = await buildGeneratePrompt({
+    ...GENERATE_BASE,
+    context,
+    contentType: "post_linkedin",
+    isLinkedIn: true,
+    answers: [],
+  });
+  assertStringIncludes(r.systemPrompt, "seulement les caractéristiques affirmées");
+  assertStringIncludes(r.userPrompt, "Carnet Azur");
+  assert(!r.systemPrompt.includes(COMMON_PREFIX));
+  assert(!r.systemPrompt.includes("Le mythe du talent"));
+  assert(!r.systemPrompt.includes("PROFONDEUR (RÈGLE ABSOLUE)"));
 });
 
 Deno.test("buildGeneratePrompt — reel en mode variation avec contexte lancement", async (t) => {

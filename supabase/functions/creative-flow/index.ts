@@ -562,14 +562,6 @@ export function buildQuestionsPrompt(params: {
   const { QUESTIONS_PREFIX, brandingContext, brandVocabBlock, context, contentType, editorialFormatLabel, angle, calendarBlock, objectiveBlock, newsContextBlock, recentBriefsContext } = params;
   const isLinkedIn = contentType === "linkedin" || contentType === "post_linkedin";
   const channelLabel = isLinkedIn ? "LinkedIn" : contentType === "newsletter" ? "Newsletter" : "Instagram";
-  // Un exemple explicitement fictif ne doit pas hériter des souvenirs, produits
-  // et opinions du profil réel, même si un angle a été calculé en amont.
-  if (isLinkedIn && /\b(?:fictif|fictive|fictifs|fictives|imaginaire|imaginaires|inventé|inventée|inventés|inventées)\b/i.test(context)) {
-    return {
-      systemPrompt: `${BASE_SYSTEM_RULES}\nTu poses exactement 3 questions facultatives pour préparer un post LinkedIn à partir d'un exemple explicitement fictif. Le brief ci-dessous est ta seule source. N'utilise ni branding, ni vocabulaire de marque, ni angle éditorial, ni historique, ni objectif de vente : ils peuvent décrire une activité réelle sans rapport avec cet exemple.\n\nBRIEF :\n"${context}"\n\nDemande uniquement une précision factuelle encore absente du brief, le point à mettre en avant parmi les faits donnés, ou la façon de signaler la fiction. Ne suppose aucun souvenir, client, atelier réel, fabrication, motivation ou opinion personnelle. Ne demande pas de raconter une histoire. N'invente pas une caractéristique du produit dans les questions ni dans les exemples de réponse. Tutoie l'utilisatrice. Chaque question et son placeholder doivent être adaptés à ce brief. Si les faits suffisent, une réponse comme « Rien à ajouter » doit être possible. Réponds uniquement en JSON valide : {"questions":[{"question":"...","placeholder":"..."}]}.`,
-      userPrompt: `Pose 3 questions facultatives et factuelles pour ce post LinkedIn fictif : "${context}".`,
-    };
-  }
   const linkedinStory = isLinkedIn && /storytelling|coulisses|récit|histoire/i.test([editorialFormatLabel, angle?.title].filter(Boolean).join(" "));
   const channelGuidance = linkedinStory
     ? "Questions orientées RÉCIT PERSONNEL : demande d'abord ce que la personne veut raconter d'elle-même, puis un moment réel (lieu et action) et ce qu'elle pensait ou ressentait. Son plaisir de travailler ou de transmettre peut être le sujet. N'exige ni crise, ni résultat business, ni leçon universelle. Une citation ou un dialogue ne doivent venir que d'un souvenir fourni."
@@ -663,6 +655,36 @@ Réponds UNIQUEMENT en JSON :
   return { systemPrompt, userPrompt };
 }
 
+export function isExplicitlyFictionalBrief(context: string): boolean {
+  return /(?:^|[^\p{L}])(?:fictif|fictive|fictifs|fictives|imaginaire|imaginaires|inventé|inventée|inventés|inventées)(?=$|[^\p{L}])/iu.test(context);
+}
+
+export function isFactualFictionalLinkedInBrief(context: string): boolean {
+  return isExplicitlyFictionalBrief(context) && /(?:seuls? faits?|faits? du brief|factuel|uniquement.{0,25}faits?|n['’]ajoute|ne lui attribue|sans inventer)/i.test(context);
+}
+
+// Les modèles ont continué à demander un souvenir ou une motivation personnelle
+// malgré les consignes. Pour une source fictive sans photo, ces trois précisions
+// facultatives évitent de mélanger la fiche de l'exemple au profil réel.
+export function buildFictionalLinkedInQuestions() {
+  return {
+    questions: [
+      {
+        question: "Y a-t-il une précision à ajouter à cet exemple fictif, ou le brief contient-il déjà tout ce qu'il faut ?",
+        placeholder: "Par exemple : Rien à ajouter, garde uniquement les faits du brief.",
+      },
+      {
+        question: "Quel fait du brief veux-tu placer en premier dans le post LinkedIn ?",
+        placeholder: "Par exemple : Le fait que je veux mettre en avant, avec les mots exacts du brief.",
+      },
+      {
+        question: "Quelle formulation veux-tu pour signaler que cet exemple est fictif ?",
+        placeholder: "Par exemple : « Exemple fictif » dès la première phrase.",
+      },
+    ],
+  };
+}
+
 export async function buildGeneratePrompt(params: {
   supabase: any;
   userId: string;
@@ -705,6 +727,14 @@ export async function buildGeneratePrompt(params: {
   const answersBlock = answers?.length
     ? answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
     : "";
+
+  if (isLinkedIn && !isPhotoMode && isFactualFictionalLinkedInBrief(context)) {
+    return {
+      systemPrompt: `Tu écris en français un court post LinkedIn factuel sur un exemple explicitement fictif. Le brief et les réponses éventuelles sont tes seules sources. Ignore le profil de marque, les angles, le calendrier et les objectifs externes. Commence par indiquer que l'exemple est fictif, puis présente seulement les caractéristiques affirmées dans le brief. Si la source contient quatre faits, quatre faits suffisent : le texte doit rester court. N'ajoute ni contexte de test, ni exercice de communication, ni commentaire sur la rédaction, ni morale ou conseil. Ne transforme pas les interdictions du brief en une liste de propriétés absentes. Ne déduis ni commande, ni disponibilité, ni fabrication, ni intention personnelle. N'écris à la première personne que si la source contient des propos personnels à reprendre. Réponds uniquement en JSON valide : {"content":"post complet","accroche":"première phrase, maximum 210 caractères","format":"linkedin","pillar":"","objectif":"","personal_tip":null}.`,
+      userPrompt: `BRIEF FACTUEL FICTIF :\n${context}${answersBlock ? `\n\nPRÉCISIONS DE L'UTILISATRICE :\n${answersBlock}` : ""}\n\nRédige le post LinkedIn sur le sujet du brief, sans reprendre ses consignes de contrôle dans le post.`,
+      storiesPhotoCatalog,
+    };
+  }
   const followUpBlock = followUpAnswers?.length
     ? "\n\nQUESTIONS D'APPROFONDISSEMENT :\n" + followUpAnswers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
     : "";
@@ -1862,6 +1892,23 @@ export async function runLinkedInTwoStep(params: {
 }, emitStatus: StatusEmitter = () => {}): Promise<Response> {
   const { model, systemPrompt, userPrompt, corsHeaders, userId, body, fullContext } = params;
   const workspace_id = params.workspace_id ?? undefined;
+  if (isFactualFictionalLinkedInBrief(String(body.context || ""))) {
+    const usage: UsageSink = {};
+    emitStatus("writing");
+    const raw = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.2, 1200, usage, GENERATE_ABORT_MS);
+    const parsed = tryParseAiJson<any>(raw, "creative-flow:generate:factual-fictional-linkedin");
+    if (typeof parsed?.content !== "string" || !parsed.content.trim()) {
+      throw new Error("Post LinkedIn fictif vide ou illisible");
+    }
+    parsed.format = "linkedin";
+    parsed.accroche = typeof parsed.accroche === "string" && parsed.accroche.trim()
+      ? parsed.accroche.slice(0, 210)
+      : parsed.content.split(/\n/)[0].slice(0, 210);
+    await logUsage(userId, "content", "creative_flow", usage.total_tokens, usage.model, workspace_id);
+    return new Response(JSON.stringify(parsed), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
   console.log("[CORRECTION DEBUG] LinkedIn correction pass STARTED");
   const genLkUsage: UsageSink = {};
   const corrLkUsage: UsageSink = {};
@@ -2823,6 +2870,11 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       ({ systemPrompt, userPrompt } = buildAnglesPrompt({ COMMON_PREFIX, editorialFormatLabel, contentType, context, effectiveObjective, calendarBlock }));
 
     } else if (step === "questions") {
+      if (isLinkedIn && !isPhotoMode && isExplicitlyFictionalBrief(context)) {
+        return new Response(JSON.stringify(buildFictionalLinkedInQuestions()), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       ({ systemPrompt, userPrompt } = buildQuestionsPrompt({
         QUESTIONS_PREFIX,
         brandingContext,
@@ -2983,9 +3035,10 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       // + `lecture_test` + shot list) dépasse le défaut de 4096 de callAnthropicSimple
       // → stop_reason "max_tokens" → échec systématique en ~40 s. Un plafond haut ne
       // coûte rien tant qu'il n'est pas consommé.
-      const maxTokens = step === "questions" ? 800 : step === "hooks" ? 1400 : step === "recycle" ? 12288 : 8192;
+      const factualFictionalLinkedIn = step === "generate" && isLinkedIn && !isPhotoMode && isFactualFictionalLinkedInBrief(context);
+      const maxTokens = step === "questions" ? 800 : step === "hooks" ? 1400 : step === "recycle" ? 12288 : factualFictionalLinkedIn ? 1200 : 8192;
       const isLinkedInText = !!contentType?.includes("linkedin") && step !== "questions";
-      const tempText = isLinkedInText ? 0.7 : 0.85;
+      const tempText = factualFictionalLinkedIn ? 0.2 : isLinkedInText ? 0.7 : 0.85;
       // L1 : Haiku pour les steps `questions` et `follow-up` (3-5× plus rapide que Sonnet,
       // suffisant pour des questions structurées en JSON). Sonnet reste pour la génération de contenu.
       const modelForCall = (step === "questions" || step === "follow-up")
@@ -3053,6 +3106,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       step === "generate" &&
       contentType?.includes("linkedin") &&
       !body.photo_mode &&
+      !isFactualFictionalLinkedInBrief(context) &&
       parsed && typeof parsed === "object" &&
       typeof parsed.content === "string" &&
       parsed.content.length >= 200
