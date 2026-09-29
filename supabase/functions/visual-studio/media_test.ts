@@ -206,3 +206,37 @@ Deno.test("multiple product views remain one subject while a mood photo stays st
   assertEquals(prompt.includes("do not add a separate copy for each reference"), true);
   assertEquals(prompt.includes("Keep style-only references distinct"), true);
 });
+
+Deno.test("natural photo treatment reaches OpenAI for text and reference requests only", async () => {
+  const natural = {
+    operation: "edit",
+    visual_kind: "photo" as const,
+    photo_treatment: "natural" as const,
+    image_prompt: "Keep the woman sorting fruit, reduce the lavender and simplify the terrace",
+    input_path: "selected-v1",
+    references: [{ id: "style", photo_id: "style", path: "reference", role: "style" as const, name: "Lavender terrace" }],
+    brand_context: { charter: { photo_style: "Warm Mediterranean sunlight" } },
+  };
+  const prompt = imagePrompt(natural);
+  assertEquals(prompt.includes("reduce the lavender"), true);
+  assertEquals(prompt.includes("simplify or remove those elements"), true);
+  assertEquals(prompt.includes("credible skin and material texture"), true);
+  assertEquals(prompt.includes("moderate depth of field"), true);
+  assertEquals(prompt.includes("Warm Mediterranean sunlight"), true);
+  assertEquals(prompt.includes("Keep its other features"), false);
+  assertEquals(imagePrompt({ ...natural, photo_treatment: "directed" }).includes("candid moment"), false);
+  assertEquals(imagePrompt({ ...natural, visual_kind: "graphic" }).includes("candid moment"), false);
+  assertEquals(imagePrompt({ ...natural, exact_text: ["Atelier"] }).includes("candid moment"), false);
+  const original = globalThis.fetch;
+  let sentPrompt = "";
+  globalThis.fetch = async (_input, init) => {
+    sentPrompt = String((init?.body as FormData).get("prompt"));
+    return new Response(JSON.stringify({ data: [{ b64_json: btoa("image") }] }), { headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    await generateImage(natural, [new Blob(["source"], { type: "image/jpeg" })]);
+    assertEquals(sentPrompt, prompt);
+  } finally {
+    globalThis.fetch = original;
+  }
+});

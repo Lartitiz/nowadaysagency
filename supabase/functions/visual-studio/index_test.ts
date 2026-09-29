@@ -650,7 +650,7 @@ Deno.test("v4 routes source-free photos and text posters to OpenAI", async () =>
   keys.forEach((key) => Deno.env.set(key, "true"));
   try {
     for (const [intent, expected] of [
-      [{ operation: "create", visual_kind: "photo", summary: "Portrait photographique d'un mannequin fictif", image_prompt: "Portrait photographique" }, "gpt-image-2.5-flare"],
+      [{ operation: "create", visual_kind: "photo", photo_treatment: "natural", summary: "Portrait photographique naturel d'un mannequin fictif", image_prompt: "Portrait photographique" }, "gpt-image-2.5-flare"],
       [{ operation: "create", visual_kind: "photo", summary: "Affiche photo avec le titre Atelier", image_prompt: "Affiche photo", exact_text: ["Atelier"] }, "gpt-image-2.5-flare"],
     ] as const) {
       const f = fixture();
@@ -666,6 +666,10 @@ Deno.test("v4 routes source-free photos and text posters to OpenAI", async () =>
         assertEquals(res.status, 200);
         assertEquals(data.session.proposal.model, expected);
         assertEquals(data.session.proposal.provider, "default");
+        if (intent.photo_treatment === "natural") {
+          assertEquals(data.session.proposal.photo_treatment, "natural");
+          assertEquals(data.session.proposal.image_prompt, intent.summary);
+        }
       } finally { f.restore(); }
     }
   } finally {

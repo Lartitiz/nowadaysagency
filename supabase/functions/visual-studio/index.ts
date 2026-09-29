@@ -874,6 +874,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             image_prompt: p.studio_version === 4 && generative(intent.operation)
               ? intent.summary
               : intent.image_prompt,
+            photo_treatment: intent.photo_treatment,
             composition: p.studio_version === 4 && generative(intent.operation)
               ? undefined
               : intent.composition,
