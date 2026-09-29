@@ -7,7 +7,7 @@ Deno.test("Claude receives the image roles and returns separate summary and prov
   Deno.env.set("ANTHROPIC_API_KEY", "test-key");
   let sent: Record<string, unknown> | null = null;
   globalThis.fetch = async (_input, init) => {
-    sent = JSON.parse(String(init?.body));
+    sent = JSON.parse(String((init as { body?: unknown } | undefined)?.body));
     return new Response(JSON.stringify({ stop_reason: "tool_use", content: [{
       type: "tool_use", name: "prepare_video_clip", input: {
         summary: "Le produit apparaît dans le décor choisi, puis la caméra avance lentement.",
