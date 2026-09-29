@@ -56,7 +56,7 @@ export function VideoImagePicker({ workspaceId, initialImages, onConfirm, onClos
       {source.previewUrl ? <img src={source.previewUrl} alt="" className="aspect-square w-full rounded object-cover" />
         : <ImageIcon aria-hidden className="aspect-square w-full p-8 bg-muted rounded" />}
       {checked && <Check aria-hidden className="absolute right-3 top-3 rounded-full bg-primary text-primary-foreground" />}
-      <span className="block text-xs mt-2 break-words line-clamp-2">{source.name}</span>
+      <span className="mt-2 line-clamp-2 break-words text-xs" title={source.name}>{source.name}</span>
       {unavailable && <span className="block text-xs">Référence classée comme portrait : indisponible pour cet essai.</span>}
     </button>;
   }
