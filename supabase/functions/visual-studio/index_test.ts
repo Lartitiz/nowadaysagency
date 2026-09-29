@@ -603,6 +603,7 @@ Deno.test("v4 poster confirms the text sent to image generation and keeps older 
   f.setIntent({
     operation: "product",
     summary: "Affiche portrait du bol dans l'atelier, avec le titre Atelier Céramique et la date 12 décembre.",
+    product_placement: "Le bol repose sur son fond, ouverture vers le haut, sur la table de l'atelier.",
     image_prompt: "A hidden instruction that must not reach the image model",
     exact_text: ["Atelier Céramique", "12 décembre"],
     reference_use: [{ id: product.id, role: "product" }, { id: ambience.id, role: "style" }],
@@ -623,6 +624,54 @@ Deno.test("v4 poster confirms the text sent to image generation and keeps older 
     assertEquals(proposal.reference_snapshot.map((r: { path: string; role: string }) => [r.path, r.role]), [["product", "product"], ["ambience", "style"]]);
     assertEquals(data.session.messages.at(-2).reference_ids, [product.id, ambience.id, old.id]);
     assertEquals(data.session.messages.at(-2).reference_snapshot.map((r: { path: string }) => r.path), ["product", "ambience"]);
+  } finally { f.restore(); }
+});
+
+Deno.test("a product scene prioritizes the product over a mood photo and confirms its support", async () => {
+  const f = fixture();
+  const mood = { id: id(530), photo_id: id(531), path: "provence", role: "style", name: "Cour provençale" };
+  const plate = { id: id(532), photo_id: id(533), path: "plate", role: "product", name: "Céramique aux coquelicots" };
+  f.session.references = [mood, plate];
+  f.setIntent({
+    operation: "product", visual_kind: "photo",
+    summary: "La pièce en céramique repose à plat sur la table en pierre, vue de trois quarts, dans la cour provençale.",
+    product_placement: "À plat sur la table en pierre ; le fond touche la table et le décor reste visible en vue de trois quarts.",
+    image_prompt: "Ancienne consigne cachée",
+    reference_use: [{ id: mood.id, role: "style" }, { id: plate.id, role: "product" }],
+    requires_real_subject: true,
+  });
+  try {
+    const res = await handleStudioRequest(request({
+      ...base, studio_version: 4, action: "message", message: "Mon produit dans ce décor, posé à plat sur la table",
+      revision: 0, reference_ids: [mood.id, plate.id], request_id: id(534),
+    }));
+    const data = await res.json();
+    assertEquals(res.status, 200);
+    assertEquals(data.session.proposal.product_placement.includes("À plat"), true);
+    assertEquals(data.session.proposal.references.map((r: { role: string }) => r.role), ["product", "style"]);
+    assertEquals(data.session.proposal.reference_snapshot.map((r: { role: string }) => r.role), ["style", "product"]);
+    assertEquals(data.session.proposal.image_prompt, data.session.proposal.summary);
+  } finally { f.restore(); }
+});
+
+Deno.test("a new product scene without a support decision asks before generation", async () => {
+  const f = fixture();
+  const product = { id: id(535), photo_id: id(536), path: "plate", role: "product", name: "Céramique" };
+  f.session.references = [product];
+  f.setIntent({
+    operation: "product", summary: "Céramique au premier plan", image_prompt: "Céramique au premier plan",
+    reference_use: [{ id: product.id, role: "product" }], requires_real_subject: true,
+  });
+  try {
+    const res = await handleStudioRequest(request({
+      ...base, studio_version: 4, action: "message", message: "Mets mon produit dans ce décor",
+      revision: 0, reference_ids: [product.id], request_id: id(537),
+    }));
+    const data = await res.json();
+    assertEquals(res.status, 200);
+    assertEquals(data.session.proposal, null);
+    assertEquals(data.session.messages.at(-1).operation, "clarify");
+    assertEquals(data.session.messages.at(-1).text.includes("ce qui le soutient"), true);
   } finally { f.restore(); }
 });
 

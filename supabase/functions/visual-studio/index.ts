@@ -804,6 +804,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.summary =
             "Pour représenter fidèlement cette personne ou ce produit, choisis sa photo dans la bibliothèque. Tu peux aussi me demander une illustration sans représentation réelle.";
         }
+        if (p.studio_version === 4 && intent.operation === "product" && !intent.product_placement.trim()) {
+          intent.operation = "clarify";
+          intent.summary = "Comment veux-tu poser ou tenir ton produit dans ce décor ? Précise sa position et ce qui le soutient ; aucune image n'est lancée.";
+        }
         const normalizeName = (value: string) => value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
         const requestText = ` ${normalizeName(p.message)} `;
         const memoryToSelect = memory.filter((m) => m.kind !== "preference" &&
@@ -833,6 +837,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         const proposedRefs = intent.operation === "background"
           ? []
           : resolvedReferences.filter((r) => r.path !== editInput);
+        if (intent.operation === "product") {
+          // The exact product is the primary image input, even when the user attached a mood photo first.
+          proposedRefs.sort((a, b) => Number(b.role === "product") - Number(a.role === "product"));
+        }
         const originalPath =
           ((intent.operation === "edit" || intent.operation === "background")
             ? effectiveReference?.path

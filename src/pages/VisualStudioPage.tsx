@@ -864,6 +864,7 @@ function Studio({
             <h3 className="font-semibold mb-2">Ce que j’ai compris</h3>
             <p className="whitespace-pre-wrap">{proposal.summary}</p>
             {proposal.photo_treatment === "natural" && <p className="text-sm text-muted-foreground">Rendu demandé : photo du quotidien, naturelle et spontanée.</p>}
+            {!!proposal.product_placement && <p className="mt-2"><strong>Position du produit :</strong> {proposal.product_placement}</p>}
           </div>
           {!!proposal.exact_text?.length && <div className="text-sm">
             <strong>Texte à afficher dans l’image :</strong>

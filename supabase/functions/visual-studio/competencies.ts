@@ -1,5 +1,5 @@
 /** Small, versioned contracts shared by planning, source validation and execution. */
-export const RULES_VERSION = "studio-competencies-3";
+export const RULES_VERSION = "studio-competencies-4";
 export const MAX_REFERENCES = 8;
 export const REFERENCE_ROLES = [
   "subject",
@@ -17,7 +17,7 @@ export function isIdentity(role: string) {
 export function referenceInstruction(role: string) {
   switch (role) {
     case "product":
-      return "Preserve this exact product: geometry, material, color, seams, markings and proportions. Do not borrow its background or the identity of anyone wearing it.";
+      return "Preserve this exact product: geometry, material, color, seams, markings and proportions. Do not borrow its background or the identity of anyone wearing it. Keep its orientation and support physically plausible for its shape and ordinary use.";
     case "person":
       return "Preserve the identity of this real person, including distinctive features. Do not beautify, rejuvenate or reshape their body unless explicitly requested.";
     case "casting":
@@ -26,6 +26,10 @@ export function referenceInstruction(role: string) {
       return "Preserve its real identity, geometry, material, colors and markings.";
     case "logo":
       return "This is an exact brand asset, not an identity reference. Do not invent or redraw it. Leave room for its editable placement.";
+    case "style":
+      return "Use only the requested setting, light, palette or mood. Do not copy its foreground props, product identity, product orientation or arrangement unless the brief explicitly asks for them.";
+    case "composition":
+      return "Use its framing and layout only where compatible with the product's shape and a physically plausible support. Do not copy its identity or force the product into an unsupported pose.";
     default:
       return "Use only for the stated role, not as a person or product identity.";
   }

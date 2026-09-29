@@ -24,10 +24,12 @@ export type Proposal = {
   model?: string;
   visual_kind?: "photo" | "graphic";
   photo_treatment?: "natural" | "directed" | "unspecified";
+  product_placement?: string;
   composition?: unknown;
   references?: Reference[];
   input_path?: string | null;
   series_size?: number;
+  series_index?: number;
   brand_context?: { charter?: Record<string, unknown> | null };
 };
 /** The request may have reached the image provider; repeating it may incur another charge. */
@@ -207,6 +209,18 @@ export function imagePrompt(proposal: Proposal) {
   const naturalPhoto = proposal.visual_kind === "photo" &&
     proposal.photo_treatment === "natural" &&
     !proposal.exact_text?.length;
+  const productReference = refs.some((ref) => ref.role === "product");
+  const productPlacement = proposal.product_placement?.trim();
+  const productStaging = (proposal.operation === "product" || productReference)
+    ? [
+      "Stage the exact product in a physically plausible position for its shape and normal use. Show real contact with a surface or a hand and a believable contact shadow; never balance it implausibly merely to expose a painted face.",
+      "A bowl normally rests base-down with its opening upward; a plate or shallow dish rests flat or is held. Only use an upright display when the confirmed brief explicitly asks for it and shows a plausible visible support.",
+      "The setting reference does not determine product orientation.",
+      productPlacement && (!isSeries || !proposal.series_index)
+        ? `Confirmed product placement: ${productPlacement}. Follow this placement when other staging words are ambiguous.`
+        : "",
+    ].filter(Boolean).join(" ")
+    : "";
   return [
     proposal.image_prompt,
     proposal.exact_text?.length
@@ -230,6 +244,7 @@ export function imagePrompt(proposal: Proposal) {
           referenceInstruction(ref.role)
         }`,
     ),
+    productStaging,
     refs.length > 1
       ? "Several reference photos may show one subject from different angles. When the brief identifies them as the same person or product, combine their evidence into one subject; do not add a separate copy for each reference. Keep style-only references distinct from identity references."
       : "",
