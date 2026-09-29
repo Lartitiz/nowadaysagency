@@ -1534,11 +1534,11 @@ function Studio({
                   placeholder="Une idée, une question, une image à améliorer…"
                 />
                 <input ref={fileInput} type="file" accept="image/*,.heic,.heif" multiple className="sr-only" aria-label="Importer plusieurs images" onChange={(event) => void addLocalFiles(event.target.files)} />
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="ghost" size="sm" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => fileInput.current?.click()}>
+                <div className="flex items-center gap-2 flex-nowrap">
+                  <Button variant="ghost" size="sm" className="whitespace-nowrap shrink-0" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => fileInput.current?.click()}>
                     <ImagePlus className="h-4 w-4 mr-2" /> Ajouter des images
                   </Button>
-                  <Button variant="ghost" size="sm" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => setPicker(true)}>
+                  <Button variant="ghost" size="sm" className="whitespace-nowrap shrink-0" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => setPicker(true)}>
                     Depuis ma bibliothèque
                   </Button>
                 </div>
