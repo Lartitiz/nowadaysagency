@@ -223,9 +223,9 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
     if (p.action === "quote") {
       if (!enabled(p.workspace_id) || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
       const { count: submittedCount, error: trialError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
-        .not("submitted_at", "is", null);
+        .not("submitted_at", "is", null).not("status", "in", `(${NON_BILLED_STATUSES.join(",")})`);
       if (trialError) throw trialError;
-      if ((submittedCount || 0) >= TRIAL_MAX_SUBMISSIONS) return json({ error: "La génération de recette a déjà été utilisée." }, 409);
+      if ((submittedCount || 0) >= TRIAL_MAX_SUBMISSIONS) return json({ error: "Le nombre de lancements d’essai est atteint." }, 409);
       const { count, error: quoteLimitError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
         .eq("user_id", pipe.userId).gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
       if (quoteLimitError) throw quoteLimitError;
