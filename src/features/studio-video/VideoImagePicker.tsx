@@ -82,9 +82,10 @@ export function VideoImagePicker({ workspaceId, initialImages, onConfirm, onClos
   const pendingImports = importedIds.some(id => selected.some(r => r.kind === "photo" && r.id === id) &&
     !ready.some(p => p.id === id));
   return <Dialog open onOpenChange={open => { if (!open && !uploading) onClose(); }}>
-    <DialogContent className="max-w-3xl max-h-[90dvh] overflow-y-auto">
+    <DialogContent className="grid-cols-1 grid-rows-[auto_minmax(0,1fr)_auto] max-w-3xl max-h-[90dvh] overflow-hidden">
       <DialogHeader><DialogTitle>Choisir les images de la vidéo</DialogTitle>
         <DialogDescription>Sélectionne jusqu’à 4 images, puis clique sur « Ajouter ces images ». Tu indiqueras ensuite ce que représente chacune dans la vidéo.</DialogDescription></DialogHeader>
+      <div className="min-h-0 overflow-y-auto space-y-4 pr-1">
       <div className="space-y-3">
         <p className="text-sm font-medium">Ma bibliothèque</p>
         {savedVersions.isError && <p role="alert" className="text-xs">Impossible de vérifier les créations du Studio enregistrées ici. <button className="underline" onClick={() => void savedVersions.refetch()}>Réessayer</button></p>}
@@ -117,6 +118,7 @@ export function VideoImagePicker({ workspaceId, initialImages, onConfirm, onClos
       </div>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {pendingImports && <p role="status" className="text-sm">Tes nouvelles photos se préparent. Tu pourras les ajouter dès que leurs vignettes apparaîtront.</p>}
+      </div>
       <DialogFooter>
         <Button variant="ghost" disabled={uploading} onClick={onClose}>Annuler</Button>
         <Button disabled={uploading || pendingImports} onClick={() => onConfirm(selected.map(ref => {
