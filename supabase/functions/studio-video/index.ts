@@ -21,7 +21,8 @@ const quoteSchema = z.object({
   allowed_changes: z.string().trim().min(8).max(180).optional(),
   forbidden_changes: z.string().trim().min(8).max(250).optional(),
 });
-const prepareSchema = quoteSchema.extend({ action: z.literal("prepare"), prepared_token: z.never().optional() });
+const prepareSchema = quoteSchema.extend({ action: z.literal("prepare"),
+  prompt: z.string().trim().min(3).max(1000), prepared_token: z.never().optional() });
 function validateQuote(p: z.infer<typeof quoteSchema> | z.infer<typeof prepareSchema>, ctx: z.RefinementCtx) {
   const image = p.source_kind === "photo" || p.source_kind === "studio_version";
   const attested = p.person_free_attested;

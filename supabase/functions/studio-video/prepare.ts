@@ -27,7 +27,7 @@ export function buildVideoPrompt(
     `À préserver sur chaque photogramme : ${prepared.invariants.join(" ; ")}.`,
     `Seuls changements autorisés : ${prepared.allowed_changes}.`,
     `Changements interdits : ${prepared.forbidden_changes}.`,
-    "Conserver les mêmes objets et surfaces physiques, leur couleur et leur matière apparentes du premier au dernier photogramme. La lumière et les ombres peuvent évoluer naturellement sans recolorer une surface. Aucun raccord, remplacement, morphing ni nouvel objet ou décor non demandé.",
+    "Sauf changement explicitement demandé, conserver les mêmes objets et surfaces physiques, leur couleur et leur matière apparentes du premier au dernier photogramme. La lumière et les ombres peuvent évoluer naturellement sans recolorer une surface. Aucun raccord, remplacement, morphing ni nouvel objet ou décor non demandé.",
   ].filter(Boolean);
   const prompt = parts.join("\n");
   if (prompt.length > 3000) throw new Error("studio_video_prompt_too_long");

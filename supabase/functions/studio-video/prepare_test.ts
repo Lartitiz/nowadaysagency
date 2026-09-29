@@ -67,3 +67,16 @@ Deno.test("the final prompt keeps the same table across the whole shot without i
   assert(prompt.includes("image 1 = produit à préserver ; image 2 = mannequin fictif"));
   assert(prompt.length <= 3000);
 });
+
+Deno.test("an explicitly requested move to a second surface remains possible", () => {
+  const prompt = buildVideoPrompt({
+    summary: "Une tasse passe volontairement d'un comptoir à une seconde table.",
+    scene: "La personne soulève la tasse du comptoir et la pose sur la table voisine dans le même plan.",
+    invariants: ["La tasse conserve sa forme et sa couleur."],
+    allowed_changes: "Le déplacement de la tasse du comptoir vers la seconde table est demandé.",
+    forbidden_changes: "Pas de table supplémentaire ni de changement de couleur inattendu.",
+  }, 5, [{ role: "product" }, { role: "background" }]);
+  assert(prompt.includes("Sauf changement explicitement demandé"));
+  assert(prompt.includes("Le déplacement de la tasse du comptoir vers la seconde table est demandé"));
+  assert(prompt.includes("image 1 = produit à préserver ; image 2 = décor"));
+});
