@@ -417,9 +417,12 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         : undefined,
     }));
     const userMessage = code === "studio_video_source_unavailable" ? "Cette image n’est plus disponible dans cet espace." :
+      code === "studio_video_grounding_conflict" ?
+        "La préparation ajoute peut-être un décor, un support ou une action non demandés. Précise l’idée puis prépare à nouveau le clip." :
       error instanceof ProviderError && error.status === 403 ? "Solde API Higgsfield insuffisant." :
       "Le Studio vidéo est momentanément indisponible. Réessaie sans relancer une génération en cours.";
-    return json({ error: userMessage, code: code.slice(0, 80) }, 503);
+    return json({ error: userMessage, code: code.slice(0, 80) },
+      code === "studio_video_grounding_conflict" ? 422 : 503);
   }
 }
 

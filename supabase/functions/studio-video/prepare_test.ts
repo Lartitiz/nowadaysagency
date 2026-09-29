@@ -1,21 +1,21 @@
-import { assert, assertEquals, assertThrows } from "https://deno.land/std@0.168.0/testing/asserts.ts";
+import { assert, assertEquals, assertRejects, assertThrows } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { buildVideoPrompt, prepareVideo, signPreparation, verifyPreparation } from "./prepare.ts";
 
 Deno.test("Claude receives the image roles and returns separate summary and provider prompt", async () => {
   const originalFetch = globalThis.fetch;
   const originalKey = Deno.env.get("ANTHROPIC_API_KEY");
   Deno.env.set("ANTHROPIC_API_KEY", "test-key");
-  let sent: Record<string, unknown> | null = null;
+  const requests: Array<Record<string, unknown>> = [];
   globalThis.fetch = async (_input, init) => {
-    sent = JSON.parse(String((init as { body?: unknown } | undefined)?.body));
+    requests.push(JSON.parse(String((init as { body?: unknown } | undefined)?.body)));
     return new Response(JSON.stringify({ stop_reason: "tool_use", content: [{
-      type: "tool_use", name: "prepare_video_clip", input: {
+      type: "tool_use", name: requests.length === 1 ? "prepare_video_clip" : "audit_video_grounding", input: requests.length === 1 ? {
         summary: "Le produit apparaît dans le décor choisi, puis la caméra avance lentement.",
         scene: "Un seul produit dans le décor de référence. La caméra avance doucement.",
         invariants: ["Le produit conserve sa couleur et sa forme visibles."],
         allowed_changes: "La caméra avance lentement.",
         forbidden_changes: "Aucun changement du produit ou du décor.",
-      },
+      } : { verdict: "ok", reason: "Conforme aux références." },
     }] }), { status: 200, headers: { "Content-Type": "application/json" } });
   };
   try {
@@ -27,9 +27,11 @@ Deno.test("Claude receives the image roles and returns separate summary and prov
     const prompt = buildVideoPrompt(result, 5, [{ role: "product" }]);
     assert(prompt.includes("@Image 1 = produit à préserver"));
     assert(prompt.includes("conserver leur identité, leur forme"));
-    const content = (sent as unknown as { messages: Array<{ content: Array<Record<string, unknown>> }> }).messages[0].content;
+    const content = (requests[0] as unknown as { messages: Array<{ content: Array<Record<string, unknown>> }> }).messages[0].content;
     assertEquals(content[1].text, "Image 1 : Produit, rôle product");
     assertEquals((content[2].source as { data: string }).data, "AQID");
+    assertEquals(requests.length, 2);
+    assert(JSON.stringify(requests[1]).includes('"type":"image"'));
   } finally {
     globalThis.fetch = originalFetch;
     if (originalKey == null) Deno.env.delete("ANTHROPIC_API_KEY");
@@ -52,27 +54,96 @@ Deno.test("overlong change rules get one text-only repair without dropping the s
   };
   globalThis.fetch = async (_input, init) => {
     requests.push(JSON.parse(String((init as { body?: unknown } | undefined)?.body)));
-    const input = requests.length === 1 ? first : {
+    const input = requests.length === 1 ? first : requests.length === 2 ? {
       allowed_changes: compactAllowed,
       forbidden_changes: "Le bol bleu et la même surface rouge restent inchangés ; aucune seconde table.",
-    };
+    } : { verdict: "ok", reason: "Même surface rouge." };
     return new Response(JSON.stringify({ stop_reason: "tool_use", content: [{
-      type: "tool_use", name: requests.length === 1 ? "prepare_video_clip" : "condense_video_changes", input,
+      type: "tool_use", name: requests.length === 1 ? "prepare_video_clip" :
+        requests.length === 2 ? "condense_video_changes" : "audit_video_grounding", input,
     }] }), { status: 200, headers: { "Content-Type": "application/json" } });
   };
   try {
     const result = await prepareVideo({ idea: "Le mannequin prend le bol" }, [{
       name: "Bol bleu", role: "product", blob: new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" }),
     }]);
-    assertEquals(requests.length, 2);
+    assertEquals(requests.length, 3);
     assert(JSON.stringify(requests[0]).includes('"type":"image"'));
     assert(!JSON.stringify(requests[1]).includes('"type":"image"'));
+    assert(JSON.stringify(requests[2]).includes('"type":"image"'));
     assertEquals(result.summary, first.summary);
     assertEquals(result.invariants, first.invariants);
     assert(compactAllowed.length > 180);
     assertEquals(result.allowed_changes, compactAllowed);
     assert(result.forbidden_changes.includes("même surface rouge"));
     assert(buildVideoPrompt(result, 5, [{ role: "product" }]).includes("même surface rouge"));
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey == null) Deno.env.delete("ANTHROPIC_API_KEY");
+    else Deno.env.set("ANTHROPIC_API_KEY", originalKey);
+  }
+});
+
+Deno.test("image grounding audit blocks an invented second support but permits an explicit move", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = Deno.env.get("ANTHROPIC_API_KEY");
+  Deno.env.set("ANTHROPIC_API_KEY", "test-key");
+  const requests: Array<Record<string, unknown>> = [];
+  const image = { name: "Bol bleu sur support rouge", role: "product",
+    blob: new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" }) };
+  globalThis.fetch = async (_input, init) => {
+    const request = JSON.parse(String((init as { body?: unknown } | undefined)?.body));
+    requests.push(request);
+    const isAudit = requests.length % 2 === 0;
+    const input = isAudit ? {
+      verdict: requests.length === 2 ? "conflict" : "ok",
+      reason: requests.length === 2 ? "La table claire n'est pas demandée." : "Seconde table demandée.",
+    } : {
+      summary: "Le bol bleu est soulevé de la surface rouge puis posé sur une table claire.",
+      scene: "Le bol quitte la surface rouge et est posé sur une table claire dans le même plan.",
+      invariants: ["Le bol bleu reste identique pendant le déplacement."],
+      allowed_changes: "Le bol se déplace vers la table claire.",
+      forbidden_changes: "Ne pas déformer le bol bleu.",
+    };
+    return new Response(JSON.stringify({ stop_reason: "tool_use", content: [{
+      type: "tool_use", name: isAudit ? "audit_video_grounding" : "prepare_video_clip", input,
+    }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    await assertRejects(() => prepareVideo({ idea: "Soulève le bol et repose-le sur la table" }, [image]),
+      Error, "studio_video_grounding_conflict");
+    assertEquals(requests.length, 2);
+    const explicit = await prepareVideo({ idea: "Déplace le bol de la surface rouge vers une seconde table claire" }, [image]);
+    assert(explicit.scene.includes("table claire"));
+    assertEquals(requests.length, 4);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey == null) Deno.env.delete("ANTHROPIC_API_KEY");
+    else Deno.env.set("ANTHROPIC_API_KEY", originalKey);
+  }
+});
+
+Deno.test("text-only preparation uses no image grounding pass", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = Deno.env.get("ANTHROPIC_API_KEY");
+  Deno.env.set("ANTHROPIC_API_KEY", "test-key");
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    return new Response(JSON.stringify({ stop_reason: "tool_use", content: [{
+      type: "tool_use", name: "prepare_video_clip", input: {
+        summary: "Un galet bleu tourne lentement sur un fond rose uni.",
+        scene: "Le galet bleu tourne lentement au centre d'un fond rose uni.",
+        invariants: ["Le galet bleu garde sa forme et sa couleur."],
+        allowed_changes: "Seule la rotation du galet est demandée.",
+        forbidden_changes: "Aucun autre objet ou texte n'apparaît.",
+      },
+    }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    const result = await prepareVideo({ idea: "Galet bleu sur fond rose" }, []);
+    assertEquals(calls, 1);
+    assert(result.summary.includes("galet bleu"));
   } finally {
     globalThis.fetch = originalFetch;
     if (originalKey == null) Deno.env.delete("ANTHROPIC_API_KEY");
