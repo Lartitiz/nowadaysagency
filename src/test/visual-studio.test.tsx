@@ -502,13 +502,12 @@ it("generated versions stay outside the library until an explicit save, with one
         }),
   );
   mount();
-  await screen.findByText(/pas encore dans la bibliothèque/);
+  const button = await screen.findByRole("button", {
+    name: "Ajouter à la bibliothèque",
+  });
   expect(mock.request.mock.calls.some(([b]) => b.action === "save")).toBe(
     false,
   );
-  const button = screen.getByRole("button", {
-    name: "Ajouter à la bibliothèque",
-  });
   fireEvent.click(button);
   fireEvent.click(button);
   await screen.findByRole("button", { name: "Dans la bibliothèque" });
