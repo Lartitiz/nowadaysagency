@@ -317,19 +317,6 @@ function PhotosLibrary() {
             </Button>
 
           </div>
-          {/* L'import site/Instagram est une 2e façon de REMPLIR : lien discret
-              plutôt qu'un bouton frère qui doublerait le poids de « Ajouter ». */}
-          <p className="text-sm text-muted-foreground">
-            Tu n'as rien sous la main ?{" "}
-            <button
-              type="button"
-              onClick={() => setSiteImportOpen(true)}
-              disabled={!wsReady || uploading}
-              className="text-primary underline underline-offset-2 hover:no-underline disabled:opacity-60"
-            >
-              Récupère celles de ton site ou d'Instagram
-            </button>
-          </p>
         </header>
 
         <input
@@ -446,6 +433,20 @@ function PhotosLibrary() {
             </div>
 
             {photos.length >= photoLimit && <Button variant="outline" disabled={isFetching} onClick={() => setPhotoLimit(n => n + 200)}>Afficher les photos plus anciennes</Button>}
+
+            {/* L'import site/Instagram est une 2e façon de REMPLIR : lien discret
+                sous la grille, pour ne pas repousser les photos sous l'en-tête. */}
+            <p className="text-sm text-muted-foreground">
+              Tu n'as rien sous la main ?{" "}
+              <button
+                type="button"
+                onClick={() => setSiteImportOpen(true)}
+                disabled={!wsReady || uploading}
+                className="text-primary underline underline-offset-2 hover:no-underline disabled:opacity-60"
+              >
+                Récupère celles de ton site ou d'Instagram
+              </button>
+            </p>
           </div>
         )}
         </>}
