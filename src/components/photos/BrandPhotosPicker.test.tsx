@@ -78,7 +78,7 @@ describe("BrandPhotosPicker", () => {
     const onReadyChange = vi.fn();
     render(<BrandPhotosPicker placement="welcome" onReadyChange={onReadyChange} />);
 
-    await screen.findByText(/1 photo de produit prête dans Mes photos/);
+    await screen.findByText(/1 photo de ton site prête dans Mes photos/);
     expect(m.scan).toHaveBeenCalledWith("site-photos-scan", {
       body: { mode: "product-scan", websiteUrl: "www.mon-site.fr" },
     }, 45000);
@@ -91,7 +91,7 @@ describe("BrandPhotosPicker", () => {
     m.existingSources = ["https://mon-site.fr/produits/savon.jpg"];
     m.scan.mockResolvedValue({ data: { images: [{ url: m.existingSources[0], alt: "Savon" }] } });
     render(<BrandPhotosPicker placement="welcome" />);
-    await screen.findByText(/1 photo de produit prête dans Mes photos/);
+    await screen.findByText(/1 photo de ton site prête dans Mes photos/);
     expect(m.upload).not.toHaveBeenCalled();
   });
 
@@ -104,7 +104,7 @@ describe("BrandPhotosPicker", () => {
         : { data: { base64: btoa("x"), contentType: "image/jpeg" } },
     );
     render(<BrandPhotosPicker placement="welcome" />);
-    await screen.findByText(/Je n'ai pas trouvé de photo de produit exploitable/);
+    await screen.findByText(/Je n'ai pas trouvé de photo exploitable/);
     expect(m.upload).not.toHaveBeenCalled();
   });
 
@@ -115,7 +115,7 @@ describe("BrandPhotosPicker", () => {
       .mockResolvedValueOnce({ data: { images: [] } });
     render(<BrandPhotosPicker placement="welcome" />);
     fireEvent.click(await screen.findByRole("button", { name: "Réessayer la recherche" }));
-    await screen.findByText(/Je n'ai pas trouvé de photo de produit exploitable/);
+    await screen.findByText(/Je n'ai pas trouvé de photo exploitable/);
     expect(m.scan).toHaveBeenCalledTimes(2);
   });
   it("scanne le site tout seul, puis ajoute les photos cochées à la bibliothèque", async () => {

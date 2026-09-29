@@ -144,21 +144,17 @@ serve(async (req) => {
           seen.add(key);
           return true;
         });
-        // Certains sites affichent leurs produits sans lien de fiche sur la
-        // première page. On n'importe alors que les images explicitement
-        // décrites comme produits, pas les portraits ou bannières du site.
-        if (images.length === 0) {
-          const productCue = /produit|product|boutique|shop/i;
-          for (const image of extractImageCandidates(html, fetched.finalUrl)) {
-            if (!productCue.test(`${image.alt ?? ""} ${new URL(image.url).pathname}`)) continue;
-            const key = new URL(image.url).origin + new URL(image.url).pathname;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            images.push(image);
-            if (images.length >= 8) break;
-          }
+        // Photos des fiches produit en premier, puis toutes les autres photos
+        // du site (atelier, portraits, ambiances) : l'onboarding doit proposer
+        // l'ensemble des photos exploitables, pas seulement les produits.
+        for (const image of extractImageCandidates(html, fetched.finalUrl)) {
+          if (images.length >= 20) break;
+          const key = new URL(image.url).origin + new URL(image.url).pathname;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          images.push(image);
         }
-        return json(corsHeaders, { success: true, images: images.slice(0, 8) });
+        return json(corsHeaders, { success: true, images: images.slice(0, 20) });
       }
       const images = extractImageCandidates(html, fetched.finalUrl);
       return json(corsHeaders, { success: true, images });

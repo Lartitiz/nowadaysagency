@@ -376,14 +376,14 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
               ? "Je cherche les photos déjà publiées sur ton site…"
               : status === "done"
                 ? isProduct
-                  ? `${confirmedProductUrls.length} photo${confirmedProductUrls.length > 1 ? "s de produits prêtes" : " de produit prête"} dans Mes photos pour ton premier carrousel. Tu pourras les remplacer ou en ajouter.`
+                  ? `${confirmedProductUrls.length} photo${confirmedProductUrls.length > 1 ? "s de ton site prêtes" : " de ton site prête"} dans Mes photos pour ton premier carrousel. Tu pourras les remplacer ou en ajouter.`
                   : `${importedCount} photo${importedCount > 1 ? "s ajoutées" : " ajoutée"} à ta bibliothèque. Je les décris en arrière-plan : tu les retrouves dans Mes photos, prêtes pour tes contenus.`
                 : status === "empty"
-                  ? "Je n'ai pas trouvé de photo de produit exploitable sur ton site. Tu pourras en ajouter dans la préparation du carrousel."
+                  ? "Je n'ai pas trouvé de photo exploitable sur ton site. Tu pourras en ajouter dans la préparation du carrousel."
                 : status === "error"
                   ? "Je n'ai pas pu lire les photos de ton site. Réessaie ou ajoute-les dans la préparation du carrousel."
                 : status === "importing" && isProduct
-                  ? "J'ajoute tes photos de produits à Mes photos…"
+                  ? "J'ajoute les photos de ton site à Mes photos…"
                 : `Je les ai trouvées ${sourceLabel}. Choisis celles qui te ressemblent : elles serviront à tes contenus.`}
           </p>
         </div>
