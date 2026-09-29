@@ -60,6 +60,17 @@ function readRecyclingDraft(key: string | null): RecyclingDraft | null {
   } catch { return null; }
 }
 
+function initialSelectedFormats(searchParams: URLSearchParams, saved: RecyclingDraft | null): Record<string, boolean> {
+  const fromUrl = (searchParams.get("format") || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(id => FORMATS.some(f => f.id === id));
+  const selected = fromUrl.length ? fromUrl : saved
+    ? FORMATS.filter(f => saved.selectedFormats[f.id]).map(f => f.id)
+    : searchParams.get("canal") === "linkedin" ? ["linkedin"] : [];
+  return Object.fromEntries(FORMATS.map(f => [f.id, selected.includes(f.id)]));
+}
+
 export default function ContentRecycling() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
@@ -67,27 +78,17 @@ export default function ContentRecycling() {
   const draftKey = user && workspaceId ? `content_recycling_draft:${user.id}:${workspaceId}:${searchParams.get("canal") || "all"}` : null;
   const restoredDraft = useRef(readRecyclingDraft(draftKey));
   const [source, setSource] = useState(() => restoredDraft.current?.source || "");
-  const [selectedFormats, setSelectedFormats] = useState<Record<string, boolean>>(() => {
-    const fromUrl = (searchParams.get("format") || "")
-      .split(",")
-      .map(s => s.trim())
-      .filter(id => FORMATS.some(f => f.id === id));
-    const selected = fromUrl.length ? fromUrl : restoredDraft.current
-      ? FORMATS.filter(f => restoredDraft.current?.selectedFormats[f.id]).map(f => f.id)
-      : searchParams.get("canal") === "linkedin" ? ["linkedin"] : [];
-    return Object.fromEntries(FORMATS.map(f => [f.id, selected.includes(f.id)]));
-  });
+  const [selectedFormats, setSelectedFormats] = useState<Record<string, boolean>>(() => initialSelectedFormats(searchParams, restoredDraft.current));
   const hydratedKey = useRef(draftKey);
   const skipNextWrite = useRef(false);
   useEffect(() => {
     if (!draftKey || hydratedKey.current === draftKey) return;
     hydratedKey.current = draftKey;
     const saved = readRecyclingDraft(draftKey);
-    if (!saved) return;
     skipNextWrite.current = true;
-    setSource(saved.source);
-    setSelectedFormats(Object.fromEntries(FORMATS.map(f => [f.id, saved.selectedFormats[f.id] === true])));
-  }, [draftKey]);
+    setSource(saved?.source || "");
+    setSelectedFormats(initialSelectedFormats(searchParams, saved));
+  }, [draftKey, searchParams]);
   useEffect(() => {
     if (!draftKey) return;
     if (skipNextWrite.current) { skipNextWrite.current = false; return; }
