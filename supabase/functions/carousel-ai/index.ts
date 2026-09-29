@@ -1645,6 +1645,14 @@ async function handleDeepeningQuestionsVisionRequest(reqCtx: CarouselRequestCont
   const isFallbackSubject = !rawSubject || rawSubject === "Carrousel basé sur les photos uploadées";
   const hasWrittenIntent = !isFallbackSubject || !!(body.photo_description && body.photo_description.trim().length > 0);
 
+  // A photo-only discovery needs no invented objective or new questionnaire.
+  // Explicit subjects/angles still reach the factual clarification pass.
+  if (!hasWrittenIntent && !body.objective && !body.editorial_angle) {
+    return new Response(JSON.stringify({ content: JSON.stringify({ questions: [] }), writing_version: CAROUSEL_WRITING_VERSION }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const messageContent: any[] = [];
   body.photos.slice(0, 10).forEach((photo: any, idx: number) => {
     pushPhotoWithContext(messageContent, photo, idx);

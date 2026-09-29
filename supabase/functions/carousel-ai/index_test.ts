@@ -716,3 +716,11 @@ for (const subject of ["Découverte des céramiques après onboarding", "Histoir
     assertEquals(judged,1);
   }finally{globalThis.fetch=oldFetch;}
 });
+
+for (const subject of ["", "Carrousel basé sur les photos uploadées"]) Deno.test(`photos seules : aucun objectif demandé (${subject || "vide"})`, async () => {
+  resetDeps();
+  _deps.callAnthropic = (async () => { throw new Error("Aucune clarification IA nécessaire"); }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "deepening_questions", carousel_type: "photo", subject, objective: undefined, photos: [{ base64: "aGVsbG8=" }] }));
+  assertEquals(res.status, 200);
+  assertEquals(JSON.parse((await res.json()).content).questions, []);
+});
