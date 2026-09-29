@@ -7400,6 +7400,7 @@ export type Database = {
           aspect_ratio: string
           completed_at: string | null
           created_at: string
+          display_name: string | null
           duration: number
           error_code: string | null
           estimated_credits: number
@@ -7415,8 +7416,10 @@ export type Database = {
           provider_request_id: string | null
           provider_video_url: string | null
           quote_expires_at: string
+          quote_key: string | null
           resolution: string
           result_path: string | null
+          session_id: string | null
           source_id: string | null
           source_kind: string
           source_name: string
@@ -7431,6 +7434,7 @@ export type Database = {
           aspect_ratio?: string
           completed_at?: string | null
           created_at?: string
+          display_name?: string | null
           duration: number
           error_code?: string | null
           estimated_credits: number
@@ -7446,8 +7450,10 @@ export type Database = {
           provider_request_id?: string | null
           provider_video_url?: string | null
           quote_expires_at: string
+          quote_key?: string | null
           resolution: string
           result_path?: string | null
+          session_id?: string | null
           source_id?: string | null
           source_kind: string
           source_name: string
@@ -7462,6 +7468,7 @@ export type Database = {
           aspect_ratio?: string
           completed_at?: string | null
           created_at?: string
+          display_name?: string | null
           duration?: number
           error_code?: string | null
           estimated_credits?: number
@@ -7477,8 +7484,10 @@ export type Database = {
           provider_request_id?: string | null
           provider_video_url?: string | null
           quote_expires_at?: string
+          quote_key?: string | null
           resolution?: string
           result_path?: string | null
+          session_id?: string | null
           source_id?: string | null
           source_kind?: string
           source_name?: string
@@ -7491,7 +7500,93 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "studio_video_job_session_workspace"
+            columns: ["session_id", "workspace_id"]
+            isOneToOne: false
+            referencedRelation: "studio_video_sessions"
+            referencedColumns: ["id", "workspace_id"]
+          },
+          {
             foreignKeyName: "studio_video_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      studio_video_session_events: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          kind: string
+          session_id: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          content: Json
+          created_at?: string
+          id: string
+          kind: string
+          session_id: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          kind?: string
+          session_id?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_video_session_events_session_id_workspace_id_fkey"
+            columns: ["session_id", "workspace_id"]
+            isOneToOne: false
+            referencedRelation: "studio_video_sessions"
+            referencedColumns: ["id", "workspace_id"]
+          },
+        ]
+      }
+      studio_video_sessions: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          draft: Json
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          draft?: Json
+          id: string
+          title?: string
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          draft?: Json
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_video_sessions_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
