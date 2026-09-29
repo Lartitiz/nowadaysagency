@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { VideoImagePicker } from "./VideoImagePicker";
 import { readVideoDraft, writeVideoDraft, sourceKey, type VideoSource, type VideoReference } from "./sources";
+import { cameraOptions, lightOptions, shotOptions, videoPrompt, type Camera, type Light, type Shot } from "./direction";
 export type { VideoSource } from "./sources";
 import { listStudioVideos, readStudioVideo, videoRequest, type StudioVideoJob } from "./api";
 
@@ -30,12 +31,19 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   const [resolution, setResolution] = useState<"480p" | "720p">(draft?.resolution ?? "480p");
   const [personFree, setPersonFree] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<"9:16" | "16:9" | "1:1">(draft?.aspectRatio ?? "9:16");
+  const [shot, setShot] = useState<Shot>(draft?.shot ?? "");
+  const [camera, setCamera] = useState<Camera>(draft?.camera ?? "");
+  const [light, setLight] = useState<Light>(draft?.light ?? "");
+  const composedPrompt = videoPrompt(prompt, shot, camera, light);
+  const promptLimit = mode === "references" ? 800 : 1000;
+  const promptTooLong = composedPrompt.length > promptLimit;
+  const referenceKey = references.map(sourceKey).join(",");
   const formId = useId();
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  useEffect(() => { writeVideoDraft(draftKey, { images: references, useImages, prompt, duration, resolution, aspectRatio }); },
-    [draftKey, references, useImages, prompt, duration, resolution, aspectRatio]);
-  useEffect(() => { setPersonFree(false); }, [references.map(sourceKey).join(",")]);
+  useEffect(() => { writeVideoDraft(draftKey, { images: references, useImages, prompt, duration, resolution, aspectRatio, shot, camera, light }); },
+    [draftKey, references, useImages, prompt, duration, resolution, aspectRatio, shot, camera, light]);
+  useEffect(() => { setPersonFree(false); }, [referenceKey]);
   const [quote, setQuote] = useState<StudioVideoJob | null>(null);
   const [quoteKey, setQuoteKey] = useState<string | null>(null);
   const [busy, setBusy] = useState("");
@@ -43,7 +51,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   const [watchId, setWatchId] = useState<string | null>(null);
   const inputKey = JSON.stringify([workspaceId, mode, mode === "image" ? [source?.kind, source?.id] : null,
     mode === "references" ? references.map(r => [r.kind, r.id, r.role]) : null,
-    prompt.trim(), duration, resolution, aspectRatio, personFree]);
+    composedPrompt, duration, resolution, aspectRatio, personFree]);
   const currentInputKey = useRef(inputKey);
   currentInputKey.current = inputKey;
   const jobs = useQuery({ queryKey: ["studio-videos", workspaceId], queryFn: () => listStudioVideos(workspaceId), retry: 1 });
@@ -59,7 +67,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   }, [cache, watched.data?.job.status, workspaceId]);
 
   async function checkPrice() {
-    if ((mode === "image" && !source) || (mode === "references" && (references.length < 2 || prompt.trim().length > 800)) ||
+    if ((mode === "image" && !source) || (mode === "references" && references.length < 2) || promptTooLong ||
       (mode !== "text" && !personFree) || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || busy) return;
     const requestedKey = inputKey;
     setBusy("quote"); setError("");
@@ -68,7 +76,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         source_kind: mode === "image" ? source!.kind : mode,
         source_id: mode === "image" ? source!.id : undefined,
         references: mode === "references" ? references.map(({ kind, id, role }) => ({ kind, id, role })) : undefined,
-        prompt: prompt.trim(), duration, resolution, aspect_ratio: aspectRatio,
+        prompt: composedPrompt, duration, resolution, aspect_ratio: aspectRatio,
         person_free_attested: mode === "text" ? false : personFree });
       if (alive.current && currentInputKey.current === requestedKey) { setQuote(result.job); setQuoteKey(requestedKey); }
       await cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId] });
@@ -120,13 +128,33 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
           <Button type="button" variant="outline" size="sm" onClick={() => setPicker(true)}>Choisir des images ({references.length}/4)</Button>
         </div>}
         <label className="block text-sm font-medium" htmlFor={`${formId}-prompt`}>{mode === "image" ? "Ce qui doit bouger" : "Quelle vidéo veux-tu créer ?"}</label>
-        <Textarea id={`${formId}-prompt`} value={prompt} maxLength={mode === "references" ? 800 : 1000} onChange={e => setPrompt(e.target.value)}
-          placeholder="Ex. La lumière traverse l’atelier, la caméra avance doucement vers le produit." />
-        {mode === "references" && prompt.trim().length > 800 &&
-          <p className="text-xs text-destructive">Raccourcis la demande à 800 caractères pour laisser la place aux rôles des images.</p>}
+        <Textarea id={`${formId}-prompt`} value={prompt} maxLength={1000} onChange={e => setPrompt(e.target.value)}
+          placeholder="Ex. Le mannequin prend le bol et le pose doucement sur la table." />
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="text-sm">Type de plan
+            <select className="block h-10 w-full rounded-md border bg-background px-2" value={shot} onChange={e => setShot(e.target.value as Shot)}>
+              {Object.entries(shotOptions).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label className="text-sm">Mouvement de caméra
+            <select className="block h-10 w-full rounded-md border bg-background px-2" value={camera} onChange={e => setCamera(e.target.value as Camera)}>
+              {Object.entries(cameraOptions).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label className="text-sm">Lumière
+            <select className="block h-10 w-full rounded-md border bg-background px-2" value={light} onChange={e => setLight(e.target.value as Light)}>
+              {Object.entries(lightOptions).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+        </div>
+        {(shot || camera || light) && <div className="rounded-md bg-muted/50 p-3 text-xs space-y-1">
+          <p className="font-medium">Consigne envoyée avec le devis</p>
+          <p className="whitespace-pre-line break-words">{composedPrompt}</p>
+        </div>}
+        {promptTooLong && <p className="text-xs text-destructive">La consigne complète dépasse {promptLimit} caractères. Raccourcis le texte ou retire un réglage.</p>}
         <details className="text-sm">
           <summary className="cursor-pointer">Aide : mouvement, caméra et lumière</summary>
-          <p className="mt-2 text-muted-foreground">Décris une action simple, puis le déplacement de la caméra et la lumière. Ex. « Le produit reste immobile, la caméra tourne lentement autour (plan en orbite), lumière douce venant de gauche. » Pour une personne fictive : indique un geste naturel et discret. Évite plusieurs actions ou mouvements contradictoires dans un clip court.</p>
+          <p className="mt-2 text-muted-foreground">Décris une action simple dans le texte, puis choisis un plan, un mouvement et une lumière si tu le souhaites. Ces choix guident le modèle sans garantir le résultat exact. Pour une personne fictive, indique un geste naturel et discret. Évite les consignes contradictoires dans un clip court.</p>
         </details>
         <div className="flex gap-3 flex-wrap">
           <label className="text-sm">Durée <Input type="number" min={4} max={10} value={duration} onChange={e => setDuration(Number(e.target.value))} className="w-24" /></label>
@@ -147,7 +175,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
           <span>Je confirme que ces images ne montrent aucune personne identifiable et que je peux les transmettre à Higgsfield pour obtenir le prix et créer ce clip.</span>
         </label>}
         <p className="text-xs text-muted-foreground">Vérifier le prix transmet {mode === "text" ? "la consigne" : "les images et la consigne"} à Higgsfield. La génération ne démarre qu’après le clic suivant. Ce clip est créé sans son ; la voix du Reel reste dans le montage.</p>
-        <Button type="button" variant="outline" disabled={(mode === "image" && !source) || (mode === "references" && (references.length < 2 || prompt.trim().length > 800)) ||
+        <Button type="button" variant="outline" disabled={(mode === "image" && !source) || (mode === "references" && references.length < 2) || promptTooLong ||
           (mode !== "text" && !personFree) || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || !!busy}
           onClick={checkPrice}>{busy === "quote" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Vérifier le prix</Button>
         {quote && <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2" role="status">

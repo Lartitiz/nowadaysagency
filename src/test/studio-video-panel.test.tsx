@@ -101,12 +101,16 @@ it("transmet les rôles et l'ordre de deux références avec le devis", async ()
   fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Décor" }), { target: { value: "background" } });
   fireEvent.change(screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" }),
     { target: { value: "Le produit se révèle doucement dans ce décor" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "Type de plan" }), { target: { value: "close" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "Mouvement de caméra" }), { target: { value: "orbit" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "Lumière" }), { target: { value: "studio" } });
   fireEvent.click(screen.getByRole("checkbox"));
   fireEvent.click(screen.getByRole("button", { name: "Vérifier le prix" }));
   await waitFor(() => expect(mock.request).toHaveBeenCalled());
   expect(mock.request.mock.calls[0][0]).toMatchObject({ source_kind: "references", references: [
     { kind: "photo", id: "photo-1", role: "subject" }, { kind: "photo", id: "photo-2", role: "background" },
   ] });
+  expect(mock.request.mock.calls[0][0].prompt).toBe("Le produit se révèle doucement dans ce décor\nCadrage : Gros plan.\nCaméra : La caméra tourne lentement autour du sujet.\nLumière : Lumière de studio diffuse.");
 });
 
 it("passe directement d’une photo à plusieurs références sans changer de mode", async () => {
@@ -122,10 +126,12 @@ it("restaure le brouillon mais pas l’attestation ni le devis", async () => {
   mock.list.mockResolvedValue({ enabled: true, jobs: [] });
   const view = await mount(true, "draft-a");
   fireEvent.change(screen.getByRole("textbox"), { target: { value: "La caméra tourne autour du produit" } });
+  fireEvent.change(screen.getByRole("combobox", { name: "Type de plan" }), { target: { value: "detail" } });
   fireEvent.click(screen.getByRole("checkbox"));
   view.unmount();
   await mount(true, "draft-a");
   expect(screen.getByRole("textbox")).toHaveValue("La caméra tourne autour du produit");
+  expect(screen.getByRole("combobox", { name: "Type de plan" })).toHaveValue("detail");
   expect(screen.getByRole("checkbox")).not.toBeChecked();
   expect(screen.queryByRole("button", { name: /Générer ce clip/ })).not.toBeInTheDocument();
 });
