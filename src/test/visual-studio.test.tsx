@@ -164,7 +164,7 @@ it("ouvre les clips sans quitter la session photo et reprend la version sélecti
   }] });
   mount();
   await screen.findByText("Décris ton fond.");
-  fireEvent.click(screen.getByRole("button", { name: "Autres actions" }));
+  fireEvent.pointerDown(screen.getByRole("button", { name: "Autres actions" }), { button: 0, ctrlKey: false });
   fireEvent.click(await screen.findByRole("menuitem", { name: "Créer une vidéo avec cette image" }));
   expect(await screen.findByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Photos" }));
@@ -268,7 +268,7 @@ it("revient de Photo via Vidéo au passage d'origine du Reel", async () => {
     library_photo_id: null, error_message: null, created_at: "",
   }] });
   mount("/photos/studio?session=session&reel_passage=1");
-  fireEvent.click(await screen.findByRole("button", { name: "Autres actions" }));
+  fireEvent.pointerDown(await screen.findByRole("button", { name: "Autres actions" }), { button: 0, ctrlKey: false });
   fireEvent.click(await screen.findByRole("menuitem", { name: "Créer une vidéo avec cette image" }));
   expect(screen.getByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
   expect(screen.getByTestId("current-path")).toHaveTextContent("reel_passage=1");
@@ -447,7 +447,7 @@ it("generated versions stay outside the library until an explicit save, with one
         }),
   );
   mount();
-  fireEvent.click(await screen.findByRole("button", { name: "Autres actions" }));
+  fireEvent.pointerDown(await screen.findByRole("button", { name: "Autres actions" }), { button: 0, ctrlKey: false });
   const button = await screen.findByRole("menuitem", {
     name: "Ajouter à la bibliothèque",
   });
@@ -456,7 +456,7 @@ it("generated versions stay outside the library until an explicit save, with one
   );
   fireEvent.click(button);
   fireEvent.click(button);
-  fireEvent.click(await screen.findByRole("button", { name: "Autres actions" }));
+  fireEvent.pointerDown(await screen.findByRole("button", { name: "Autres actions" }), { button: 0, ctrlKey: false });
   await screen.findByRole("menuitem", { name: "Dans la bibliothèque" });
   expect(
     mock.request.mock.calls.filter(([b]) => b.action === "save"),
@@ -663,7 +663,7 @@ it("lets an AI-generated poster receive exact editable text after the image is r
   }] });
   mount();
   await screen.findByText("Décris ton fond.");
-  fireEvent.click(screen.getByRole("button", { name: "Autres actions" }));
+  fireEvent.pointerDown(screen.getByRole("button", { name: "Autres actions" }), { button: 0, ctrlKey: false });
   fireEvent.click(await screen.findByRole("menuitem", { name: "Finaliser l’affiche avec ses textes" }));
   expect(await screen.findByRole("textbox", { name: "Titre" })).toHaveValue("Marché de Noël");
   expect(screen.getByRole("textbox", { name: "Informations pratiques" })).toHaveValue("12 décembre · Lyon");
