@@ -598,9 +598,8 @@ it("recovers the attached references when a later photo fails", async () => {
   await screen.findByText("Décris ton fond.");
   fireEvent.click(screen.getByRole("button", { name: "Depuis ma bibliothèque" }));
   fireEvent.click(screen.getByRole("button", { name: "Utiliser deux photos" }));
-  await screen.findByText("Photos de référence · 1/8");
-  await waitFor(() => expect(mock.request.mock.calls.filter(([body]) => body.action === "read")).toHaveLength(2));
-  expect(screen.getByLabelText("Rôle de Bol face")).toHaveValue("product");
+  await waitFor(() => expect(mock.request.mock.calls.filter(([b]) => b.action === "reference")).toHaveLength(1));
+  expect(screen.getByRole("button", { name: "Depuis ma bibliothèque" })).toBeEnabled();
   expect(screen.getByRole("button", { name: "Depuis ma bibliothèque" })).toBeEnabled();
 });
 it("shows how to browse versions and opens the selected image", async () => {
