@@ -7,7 +7,8 @@ const m = vi.hoisted(() => ({
   instagram: false,
   profileInstagram: null as string | null,
   connectedInstagram: null as string | null,
-  activityType: "services" as string,
+  activityType: "artisane" as string,
+  productOrService: "services" as string,
   existingSources: [] as string[],
   scan: vi.fn(),
   upload: vi.fn(),
@@ -37,7 +38,7 @@ vi.mock("@/integrations/supabase/client", () => ({
           return query;
         } }
       : { select: () => ({ eq: () => ({ maybeSingle: async () => ({
-          data: { website_url: m.website, instagram_username: m.profileInstagram, instagram_url: null, type_activite: m.activityType },
+          data: { website_url: m.website, instagram_username: m.profileInstagram, instagram_url: null, type_activite: m.activityType, product_or_service: m.productOrService },
         }) }) }) },
   },
 }));
@@ -55,7 +56,8 @@ beforeEach(() => {
   m.instagram = false;
   m.profileInstagram = null;
   m.connectedInstagram = null;
-  m.activityType = "services";
+  m.activityType = "artisane";
+  m.productOrService = "services";
   m.existingSources = [];
   vi.clearAllMocks();
 });
@@ -63,7 +65,7 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe("BrandPhotosPicker", () => {
   it("importe automatiquement les photos des fiches produit et conserve leur URL d'origine", async () => {
-    m.activityType = "produits";
+    m.productOrService = "produits";
     m.scan.mockImplementation(async (_fn: string, { body }: { body: { mode: string } }) =>
       body.mode === "product-scan"
         ? { data: { images: [{ url: "https://mon-site.fr/produits/savon.jpg", alt: "Savon" }] } }
@@ -85,7 +87,7 @@ describe("BrandPhotosPicker", () => {
   });
 
   it("ne réimporte pas une photo produit déjà présente", async () => {
-    m.activityType = "les_deux";
+    m.productOrService = "les_deux";
     m.existingSources = ["https://mon-site.fr/produits/savon.jpg"];
     m.scan.mockResolvedValue({ data: { images: [{ url: m.existingSources[0], alt: "Savon" }] } });
     render(<BrandPhotosPicker placement="welcome" />);
@@ -94,7 +96,7 @@ describe("BrandPhotosPicker", () => {
   });
 
   it("écarte automatiquement une vignette trop petite et permet de poursuivre manuellement", async () => {
-    m.activityType = "produits";
+    m.productOrService = "produits";
     vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ width: 100, height: 100, close: vi.fn() })));
     m.scan.mockImplementation(async (_fn: string, { body }: { body: { mode: string } }) =>
       body.mode === "product-scan"
@@ -107,7 +109,7 @@ describe("BrandPhotosPicker", () => {
   });
 
   it("permet de relancer une recherche de produits après une erreur réseau", async () => {
-    m.activityType = "produits";
+    m.productOrService = "produits";
     m.scan
       .mockResolvedValueOnce({ error: { message: "réseau" } })
       .mockResolvedValueOnce({ data: { images: [] } });
