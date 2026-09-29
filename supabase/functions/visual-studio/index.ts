@@ -838,9 +838,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             : ["background", "edit"].includes(intent.operation)
             ? effectiveReference?.path || null
             : null);
-        const useSoul2 = p.studio_version === 4 && soul2Enabled() &&
-          soul2Eligible({ ...intent, references: proposedRefs, input_path: editInput,
-            composition: undefined });
+        // Toutes les créations photo passent par ChatGPT Image (gpt-image-2.5) ;
+        // Higgsfield/Soul2 ne sont plus proposés à la génération.
+        const useSoul2 = false;
         const proposal = ["background", "create", "edit", "product"].includes(
             intent.operation,
           )
@@ -873,14 +873,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             composition: p.studio_version === 4 && generative(intent.operation)
               ? undefined
               : intent.composition,
-            model: useSoul2 ? SOUL2_MODEL
-              : p.studio_version !== 4 && generative(intent.operation) && higgsfieldImagesEnabled()
-              ? `marketing-studio/image/${intent.operation === "create" ? "flare" : "sunburst"}`
-              : imageModel(intent.operation),
-            provider: (useSoul2 ||
-              (p.studio_version !== 4 && generative(intent.operation) && higgsfieldImagesEnabled()))
-              ? "higgsfield"
-              : "default",
+            model: imageModel(intent.operation),
+            provider: "default",
             rules_version: RULES_VERSION,
             brand_context: brandContext,
             warning: generative(intent.operation) &&
