@@ -213,6 +213,7 @@ Deno.test("product staging sends the confirmed support and keeps the mood refere
     visual_kind: "photo" as const,
     image_prompt: "La céramique aux coquelicots repose à plat sur la table dans la cour provençale.",
     product_placement: "À plat sur la table en pierre, son fond en contact avec la surface.",
+    brand_context: { charter: { photo_style: "Mediterranean lifestyle", visual_direction: { composition: "Product centered" } } },
     references: [
       { id: "plate", photo_id: "plate", path: "plate.jpg", role: "product" as const, name: "Céramique aux coquelicots" },
       { id: "mood", photo_id: "mood", path: "cour.jpg", role: "style" as const, name: "Cour provençale" },
@@ -232,11 +233,12 @@ Deno.test("product staging sends the confirmed support and keeps the mood refere
       new Blob(["mood"], { type: "image/jpeg" }),
     ]);
     assertEquals(prompt.includes("Confirmed product placement: À plat sur la table en pierre"), true);
-    assertEquals(prompt.includes("real contact with a surface or a hand"), true);
-    assertEquals(prompt.includes("The setting reference does not determine product orientation"), true);
+  assertEquals(prompt.includes("real contact with a surface or a hand"), true);
+  assertEquals(prompt.includes("The setting reference does not determine product orientation"), true);
     assertEquals(prompt.includes("Image 1: product reference"), true);
     assertEquals(prompt.includes("Image 2: style reference"), true);
     assertEquals(prompt.includes("Do not copy its foreground props"), true);
+    assertEquals(prompt.includes("Confirmed product placement takes priority over brand composition advice"), true);
   } finally { globalThis.fetch = original; }
 });
 

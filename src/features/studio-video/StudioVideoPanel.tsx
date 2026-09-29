@@ -10,6 +10,8 @@ import { cameraOptions, lightOptions, shotOptions, videoPrompt, type Camera, typ
 export type { VideoSource } from "./sources";
 import { listStudioVideos, readStudioVideo, videoRequest, type StudioVideoJob } from "./api";
 import { videoReferencePreviews } from "./library-sources";
+import { useBrandCharter } from "@/hooks/use-branding";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 
 // Taux indicatif pour l'affichage : Higgsfield facture en dollars, on montre l'équivalent en euros.
 const USD_TO_EUR = 0.92;
@@ -24,6 +26,13 @@ export function StudioVideoPanel(props: Props) {
 }
 function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "", onPickClip, showComposer = true, draftKey }: Props) {
   const cache = useQueryClient();
+  const activeWorkspaceId = useWorkspaceId();
+  const { data: charter } = useBrandCharter();
+  const direction = charter?.visual_direction && typeof charter.visual_direction === "object" && !Array.isArray(charter.visual_direction)
+    ? charter.visual_direction as Record<string, unknown> : {};
+  const videoStyle = activeWorkspaceId === workspaceId ? [direction.video_motion, direction.light, direction.framing]
+    .filter((value): value is string => typeof value === "string" && !!value.trim())
+    .map(value => value.trim()).join(" ; ") : "";
   const [draft] = useState(() => readVideoDraft(draftKey));
   const [references, setReferences] = useState<VideoReference[]>(draft?.images || (initialSource ? [{ ...initialSource, role: "subject" }] : []));
   const [useImages, setUseImages] = useState(draft?.useImages ?? !!initialSource);
@@ -188,6 +197,9 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         <label className="block text-sm font-medium" htmlFor={`${formId}-prompt`}>{mode === "image" ? "Ce qui doit bouger" : "Quelle vidéo veux-tu créer ?"}</label>
         <Textarea id={`${formId}-prompt`} value={prompt} maxLength={1000} onChange={e => setPrompt(e.target.value)}
           placeholder="Ex. Le mannequin prend le bol et le pose doucement sur la table." />
+        {videoStyle && <button type="button" className="text-left text-xs text-primary underline" onClick={() => setPrompt(current => [current.trim(), `Style de ma marque : ${videoStyle}`].filter(Boolean).join("\n").slice(0, 1000))}>
+          Reprendre mon style vidéo dans cette consigne
+        </button>}
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="text-sm">Type de plan
             <select className="block h-10 w-full rounded-md border bg-background px-2" value={shot} onChange={e => setShot(e.target.value as Shot)}>

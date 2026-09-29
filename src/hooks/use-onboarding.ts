@@ -13,6 +13,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { posthog } from "@/lib/posthog";
 import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 import { isValidUrl } from "@/components/onboarding/OnboardingShared";
+import type { CharterReferenceLink } from "@/components/branding/charter/CharterReferenceLinks";
 
 /* ────────────────────────────────────────────── helpers */
 
@@ -75,6 +76,7 @@ export interface Answers {
   change_priority: string;
   product_or_service: string;
   uniqueness: string;
+  visual_reference_links?: CharterReferenceLink[];
 }
 
 export interface BrandingAnswers {
@@ -204,6 +206,7 @@ export function useOnboarding() {
     change_priority: isDemoMode ? "Avoir une identité visuelle cohérente sur tous mes supports" : "",
     product_or_service: isDemoMode ? "services" : "",
     uniqueness: isDemoMode ? "Mon approche est très humaine, je mets les gens à l'aise" : "",
+    visual_reference_links: [],
   });
 
   // Keep BrandingAnswers as state for backward compatibility (used by DiagnosticLoading fallback)
@@ -637,6 +640,27 @@ export function useOnboarding() {
       }
 
       // NOTE: brand_profile and persona are now filled by the deep-diagnostic edge function, not here.
+
+      // Explicit visual references are independent of inferred branding. Keep
+      // existing links (and their notes) when the onboarding is revisited.
+      if (answers.visual_reference_links?.length) {
+        const charterQuery = supabase.from("brand_charter") as any;
+        const { data: existingCharter, error: charterReadError } = await charterQuery
+          .select("id,mood_board_urls").eq(column, value).maybeSingle();
+        if (charterReadError) throw charterReadError;
+        const existingLinks = Array.isArray(existingCharter?.mood_board_urls) ? existingCharter.mood_board_urls as CharterReferenceLink[] : [];
+        const linkUrl = (item: CharterReferenceLink) => typeof item === "string" ? item : item.url;
+        const seen = new Set(existingLinks.map(linkUrl));
+        const mergedLinks = [...existingLinks];
+        for (const link of answers.visual_reference_links) {
+          if (!seen.has(linkUrl(link))) { mergedLinks.push(link); seen.add(linkUrl(link)); }
+        }
+        const write = existingCharter?.id
+          ? charterQuery.update({ mood_board_urls: mergedLinks }).eq("id", existingCharter.id).eq(column, value).select("id").maybeSingle()
+          : charterQuery.insert({ user_id: profileUserId, workspace_id: workspaceId && workspaceId !== user.id ? workspaceId : null, mood_board_urls: mergedLinks }).select("id").maybeSingle();
+        const { data: savedCharter, error: charterWriteError } = await write;
+        if (charterWriteError || !savedCharter) throw charterWriteError || new Error("Références visuelles non enregistrées");
+      }
 
       // 3. BRAND_PROPOSITION — save positioning if available
       // Lecture ET écriture scopées à l'espace actif, puis update PAR ID :

@@ -106,6 +106,11 @@ export default function BrandingIdentityCard({ data, onImport, onReanalyze, onSh
               <p className="mt-2 text-xs font-medium">{label}</p><p className="mt-1 break-all text-xs text-muted-foreground">{color || "À choisir"}</p>
             </div>)}</div>
             <h2 className="mt-7 text-sm font-medium">Mes typographies</h2><dl className="mt-4 grid grid-cols-2 gap-4"><div><dt className="text-xs text-muted-foreground">Titres</dt><dd className="mt-2 break-words">{charter?.font_title || "À choisir"}</dd></div><div><dt className="text-xs text-muted-foreground">Textes</dt><dd className="mt-2 break-words">{charter?.font_body || "À choisir"}</dd></div></dl>
+            <div className="mt-7 grid gap-5 sm:grid-cols-2">
+              <div><h2 className="text-sm font-medium">Photo et composition</h2><p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{[charter?.photo_style, charter?.visual_direction?.composition, charter?.visual_direction?.light, charter?.visual_direction?.framing].filter(Boolean).join(" · ") || "À préciser selon tes images et tes formats."}</p></div>
+              <div><h2 className="text-sm font-medium">Vidéo et mouvement</h2><p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{charter?.visual_direction?.video_motion || "À préciser si tu crées des clips."}</p></div>
+            </div>
+            <p className="mt-5 text-xs text-muted-foreground">{Array.isArray(charter?.moodboard_images) ? charter.moodboard_images.length : 0} image(s) · {Array.isArray(charter?.mood_board_urls) ? charter.mood_board_urls.length : 0} lien(s) de référence · {charter?.logo_url ? "Logo ajouté" : "Logo à ajouter si tu en as un"}</p>
             <Button asChild className="mt-7 h-auto min-h-10 whitespace-normal"><Link to="/branding/charter">Personnaliser mon univers</Link></Button>
           </div>
           <More title="Mes logos, références et modèles"><DetailLink to="/branding/charter" title="Mes fichiers et réglages visuels">Logos, inspirations, modèles, fonds et placement du logo.</DetailLink></More>
