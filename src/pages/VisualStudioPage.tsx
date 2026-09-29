@@ -291,15 +291,15 @@ function Studio({
     for (const ref of [desktopMessages]) {
       if (ref.current) {
         const messages = ref.current.querySelectorAll(".studio-message");
-        const last = messages.item(messages.length - 1);
-        if (last) {
-          ref.current.scrollTop += last.getBoundingClientRect().top -
+        const target = (proposal && ref.current.querySelector(".studio-chat-confirmation")) || messages.item(messages.length - 1);
+        if (target) {
+          ref.current.scrollTop += target.getBoundingClientRect().top -
             ref.current.getBoundingClientRect().top -
             12;
         }
       }
     }
-  }, [current?.session.messages.length, proposal?.id]);
+  }, [current?.session.messages.length, proposal]);
   useEffect(() => {
     const pending = sent.current;
     if (pending && current?.session.messages.some((m) => m.id === pending.id)) {
@@ -994,7 +994,9 @@ function Studio({
                     </p>
                   </div>
                 )}
-                {current?.session.messages.map((m, i) => (
+                {current?.session.messages.map((m, i) => proposal &&
+                  i === current.session.messages.length - 1 &&
+                  m.role === "assistant" && m.text === proposal.summary ? null : (
                   <div
                     key={m.id || i}
                     className={m.role === "user"

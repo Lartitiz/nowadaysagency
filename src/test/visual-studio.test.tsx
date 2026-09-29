@@ -542,6 +542,21 @@ it("keeps confirmation and image actions in the conversation, with a visual-only
   expect(screen.queryByRole("complementary", { name: "Détails et confirmation" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Composer une affiche ou un visuel" })).not.toBeInTheDocument();
 });
+it("shows the current reformulation once in the confirmation card", async () => {
+  const start = original();
+  mock.request.mockResolvedValue({ ...start, session: { ...start.session,
+    messages: [
+      { role: "user", text: "Un fond crème" },
+      { role: "assistant", text: "Un fond crème", operation: "background" },
+    ],
+    proposal,
+  } });
+  mount();
+  await screen.findByRole("region", { name: "Demande à confirmer" });
+  expect(within(screen.getByRole("region", { name: "Conversation" })).getAllByText("Un fond crème")).toHaveLength(2);
+  // One occurrence is the user's request, one is the visible confirmation.
+  expect(within(screen.getByRole("region", { name: "Demande à confirmer" })).getByText("Un fond crème")).toBeVisible();
+});
 it("attaches several library photos in one choice with their distinct reference roles", async () => {
   let state = { ...original(), session: { ...original().session, references: [] as Array<{
     id: string; photo_id: string; name: string; role: string; url: string;
