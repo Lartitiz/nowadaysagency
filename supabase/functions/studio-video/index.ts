@@ -94,6 +94,15 @@ async function submittedCount(db: DB, lane: VideoLane, workspace: string) {
   return count || 0;
 }
 function maxSubmissions(lane: VideoLane) { return lane === "cohort" ? COHORT_WORKSPACE_MAX_SUBMISSIONS : TRIAL_MAX_SUBMISSIONS; }
+export function claimFailureMessage(error: { message: string; code?: string }) {
+  if (error.code === "23505" && error.message.includes("studio_video_one_active"))
+    return "Un autre clip est en cours. Attends son résultat avant de lancer celui-ci ; si le devis expire, vérifie à nouveau le prix.";
+  if (error.message.includes("video_trial_exhausted")) return "Le nombre de lancements d’essai est atteint.";
+  if (error.message.includes("video_budget_workspace")) return "Tu as atteint ton plafond de clips vidéo pour cet atelier.";
+  if (error.message.includes("video_budget")) return "Le plafond vidéo de cet espace est atteint.";
+  if (error.message.includes("video_quote_expired")) return "Ce devis a expiré. Vérifie à nouveau le prix.";
+  return "La génération ne peut pas démarrer.";
+}
 function safeJob(row: Record<string, unknown>, signedUrl: string | null = null) {
   return {
     id: row.id, workspace_id: row.workspace_id, source_kind: row.source_kind,
@@ -341,11 +350,7 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
           p_total_limit: ceilingUsd(lane), p_max_submissions: TRIAL_MAX_SUBMISSIONS,
         }));
       if (claimError) {
-        const message = claimError.message.includes("video_trial_exhausted") ? "Le nombre de lancements d’essai est atteint." :
-          claimError.message.includes("video_budget_workspace") ? "Tu as atteint ton plafond de clips vidéo pour cet atelier." :
-          claimError.message.includes("video_budget") ? "Le plafond vidéo de cet espace est atteint." :
-          claimError.message.includes("video_quote_expired") ? "Ce devis a expiré. Vérifie à nouveau le prix." : "La génération ne peut pas démarrer.";
-        return json({ error: message }, 409);
+        return json({ error: claimFailureMessage(claimError) }, 409);
       }
       if (!claimed) return json({ job: safeJob(await job(db, p.workspace_id, p.job_id)) });
       const input = videoInputFromJob(row);
