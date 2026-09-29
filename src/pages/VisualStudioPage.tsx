@@ -453,6 +453,9 @@ function Studio({
           setOlderCompositions([]);
           setMoreCompositions(true);
         }
+        if (action === "memory_apply") {
+          setAttachments([...attachedIds, ...(result.session.references || []).filter(ref => ref.memory_id === extra.memory_id).map(ref => ref.id)]);
+        }
         cache.setQueryData(queryKey, result);
       }
       return result;
@@ -869,6 +872,12 @@ function Studio({
             {proposal.photo_treatment === "natural" && <p className="text-sm text-muted-foreground">Rendu demandé : photo du quotidien, naturelle et spontanée.</p>}
             {!!proposal.product_placement && <p className="mt-2"><strong>Position du produit :</strong> {proposal.product_placement}</p>}
           </div>
+          {proposal.person_reference && <div className="text-sm space-y-2" aria-label="Identité de référence à confirmer">
+            <p><strong>{proposal.person_reference.name} · {proposal.person_reference.mode === "sheet" ? "Planche de référence" : "Même personne dans une nouvelle scène"}</strong></p>
+            <p><strong>Traits à conserver : </strong>{proposal.person_reference.stable_traits}</p>
+            <p><strong>Pour cette image : </strong>{proposal.person_reference.variable_details}</p>
+            {!!proposal.person_reference.views.length && <p><strong>Vues : </strong>{proposal.person_reference.views.join(" · ")}</p>}
+          </div>}
           {!!proposal.exact_text?.length && <div className="text-sm">
             <strong>Texte à afficher dans l’image :</strong>
             <ul className="list-disc pl-5 mt-1">{proposal.exact_text.map((item, index) => <li key={`${item}:${index}`}>« {item} »</li>)}</ul>
@@ -916,6 +925,8 @@ function Studio({
                   ? references.find(
                     (r) => r.id === proposal.viewed_reference_id,
                   )?.name || "Référence choisie"
+                  : proposal.reference_snapshot?.length
+                  ? `${proposal.reference_snapshot.length} référence${proposal.reference_snapshot.length > 1 ? "s" : ""} indiquée${proposal.reference_snapshot.length > 1 ? "s" : ""} ci-dessus`
                   : "Création sans photo de départ"}
               </dd>
               {proposal.viewed_version_id &&
@@ -1305,6 +1316,208 @@ function Studio({
                         <p className="mt-2">Tu peux poursuivre une autre demande dans cette session. Cette image ne peut pas être relancée automatiquement.</p>
                       </div>
                     ))}
+                  {!!(references.length || current?.suggested_photos?.length || current?.charter_references?.length || compositionHistory.length || current?.memory?.length) && (
+                  <details className="studio-extra-tools">
+                    <summary>Autres outils et créations enregistrées{references.length ? ` · ${references.length} image${references.length > 1 ? "s" : ""} de référence` : ""}</summary>
+                  <div className="studio-references">
+                    {!!references.length && (
+                      <>
+                        <h3 className="text-sm font-medium mb-2">Photos de référence · {references.length}/8</h3>
+                        <p className="text-xs text-muted-foreground mb-3">Ces images restent disponibles. Tu peux préciser leur rôle dans ton message ; seules celles retenues pour la demande sont envoyées au modèle.</p>
+                      </>
+                    )}
+                    {references.map((ref) => (
+                      <div
+                        key={ref.id}
+                        className="rounded-xl border bg-card p-3 my-2 text-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          <img src={ref.url} alt="" className="h-12 w-12 shrink-0 rounded-md object-cover" />
+                          <span className="flex-1">{ref.name}</span>
+                          <select
+                            aria-label={`Rôle de ${ref.name}`}
+                            value={ref.role}
+                            disabled={!writable || !!busy || generating}
+                            onChange={(e) =>
+                              void mutate("reference", {
+                                reference_id: ref.id,
+                                reference_role: e.target.value,
+                                revision: current!.session.revision,
+                              })}
+                          >
+                            <option value="subject">Sujet à préserver</option>
+                            <option value="product">Produit exact</option>
+                            <option value="person">Personne réelle</option>
+                            <option value="casting">Mannequin fictif</option>
+                            <option value="logo">Logo à composer</option>
+                            <option value="style">Ambiance</option>
+                            <option value="composition">Composition</option>
+                          </select>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Retirer ${ref.name}`}
+                            disabled={!writable || !!busy || generating}
+                            onClick={() =>
+                              void mutate("reference", {
+                                reference_id: ref.id,
+                                remove: true,
+                                revision: current!.session.revision,
+                              })}
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {!!current?.suggested_photos?.length && (
+                      <div className="my-4">
+                        <h3 className="font-medium text-sm">
+                          Photos proposées · choisis celle qui convient
+                        </h3>
+                        <div className="studio-versions">
+                          {current.suggested_photos
+                            .filter(
+                              (p) =>
+                                !references.some((r) => r.photo_id === p.id),
+                            )
+                            .map((photo) => (
+                              <button
+                                type="button"
+                                key={photo.id}
+                                disabled={!writable || !!busy || generating}
+                                onClick={() =>
+                                  void mutate("reference", {
+                                    photo_id: photo.id,
+                                    reference_role: "subject",
+                                    revision: current.session.revision,
+                                  })}
+                              >
+                                <img src={photo.url} alt={photo.name} />
+                                <span>Choisir {photo.name}</span>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                    {references.length > 0 && (
+                      <p className="text-xs text-muted-foreground mb-4">
+                        Sujet = identité à préserver. Ambiance et composition =
+                        inspiration uniquement. Après un changement de
+                        référence, envoie ta demande pour préparer une nouvelle
+                        proposition.
+                      </p>
+                    )}
+                  </div>
+                  {!!current?.charter_references?.length && (
+                    <details className="my-4 text-sm">
+                      <summary>Références visuelles de ma charte</summary>
+                      <p className="text-xs text-muted-foreground my-2">
+                        Choisis une ambiance à joindre à cette demande.
+                      </p>
+                      <div className="studio-versions">
+                        {current.charter_references.map((r) => (
+                          <button
+                            type="button"
+                            key={r.index}
+                            disabled={!writable || !!busy || generating}
+                            onClick={() =>
+                              void mutate("reference", {
+                                charter_index: r.index,
+                                revision: current.session.revision,
+                              })}
+                          >
+                            <img src={r.url} alt={r.name} />
+                            <span>Utiliser {r.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                  {current && (
+                    <div className="flex flex-wrap gap-2 my-3">
+                      {!!compositionHistory.length && (
+                        <details className="w-full text-sm">
+                          <summary>Compositions enregistrées · {compositionHistory.length}{moreCompositions && current.composition_history?.length === 20 ? "+" : ""}</summary>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {compositionHistory.map((entry) => (
+                              <Button
+                                key={entry.id}
+                                variant="outline"
+                                size="sm"
+                                disabled={!writable || !!busy}
+                                onClick={async () => {
+                                  setBusy("composition_read");
+                                  setError("");
+                                  try {
+                                    const result = await studioRequest<{ composition: {
+                                      id: string;
+                                      design: StudioComposition;
+                                      background_url: string | null;
+                                    } }>({
+                                      action: "composition_read",
+                                      workspace_id: workspaceId,
+                                      session_id: sessionId,
+                                      composition_history_id: entry.id,
+                                    });
+                                    if (alive.current) {
+                                      setSelectedComposition(result.composition);
+                                      setCompositionDraft(undefined);
+                                      setCompositionOpen(true);
+                                    }
+                                  } catch (e) {
+                                    if (alive.current) setError(e instanceof Error ? e.message : "Composition indisponible.");
+                                  } finally {
+                                    if (alive.current) setBusy("");
+                                  }
+                                }}
+                              >
+                                Reprendre {entry.title.slice(0, 48) || "Composition"} · {new Date(entry.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                              </Button>
+                            ))}
+                          </div>
+                          {moreCompositions && current.composition_history?.length === 20 && (
+                            <Button variant="ghost" size="sm" className="mt-2" disabled={olderCompositionsBusy}
+                              onClick={async () => {
+                                if (!sessionId) return;
+                                setOlderCompositionsBusy(true);
+                                setError("");
+                                try {
+                                  const page = await listOlderStudioCompositions(
+                                    workspaceId, sessionId, 20 + olderCompositions.length,
+                                  );
+                                  if (alive.current) {
+                                    setOlderCompositions((existing) => [...existing, ...page.items]);
+                                    setMoreCompositions(page.hasMore);
+                                  }
+                                } catch (e) {
+                                  if (alive.current) setError(e instanceof Error ? e.message : "Historique indisponible.");
+                                } finally {
+                                  if (alive.current) setOlderCompositionsBusy(false);
+                                }
+                              }}
+                            >{olderCompositionsBusy ? "Chargement…" : "Voir les compositions plus anciennes"}</Button>
+                          )}
+                        </details>
+                      )}
+                      <Button
+                        variant="ghost"
+                        disabled={!writable || !!busy}
+                        onClick={() => setExistingTool("before_after")}
+                      >
+                        Avant / après
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        disabled={!writable || !!busy}
+                        onClick={() => setExistingTool("mockup")}
+                      >
+                        Mockup d’offre
+                      </Button>
+                    </div>
+                  )}
+                  </details>
+                  )}
                 </section>
               </div>
               <div className="studio-composer p-4 border-t space-y-3">
@@ -1533,6 +1746,16 @@ function Studio({
                     </div>
                     <span className="text-xs text-muted-foreground">{current?.versions.length || 0} image{current?.versions.length === 1 ? "" : "s"}</span>
                   </div>
+                  {current && <StudioMemoryPanel
+                    key={`${workspaceId}:${sessionId}`}
+                    memory={current.memory || []}
+                    selectedVersion={version?.status === "ready" ? version.id : undefined}
+                    personReference={version?.proposal.person_reference}
+                    brief={version?.proposal.summary || current.session.brief || ""}
+                    disabled={!writable || !!busy || !!generating}
+                    onSave={(values) => mutate("memory_save", values)}
+                    onApply={(id) => mutate("memory_apply", { memory_id: id, revision: current.session.revision })}
+                  />}
                   {!current?.versions.length && <div className="studio-empty">
                     <Sparkles className="h-9 w-9 text-primary" />
                     <h3 className="font-display text-2xl">Tout commence par ton idée</h3>

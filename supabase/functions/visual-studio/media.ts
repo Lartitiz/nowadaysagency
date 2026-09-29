@@ -1,3 +1,4 @@
+import { personReferencePrompt, type PersonReference } from "./person-reference.ts";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import { openaiImageModel } from "../_shared/openai-image-model.ts";
 import { referenceInstruction, type ReferenceRole } from "./competencies.ts";
@@ -14,6 +15,7 @@ export type Reference = {
 };
 export type Proposal = {
   operation: string;
+  person_reference?: PersonReference;
   summary?: string;
   exact_text?: string[];
   background_prompt?: string;
@@ -196,7 +198,8 @@ export async function generateImage(proposal: Proposal, inputs: Blob[]) {
 export function imagePrompt(proposal: Proposal) {
   const refs = proposal.references || [];
   const isSeries = (proposal.series_size || 1) > 1;
-  const charter = proposal.brand_context?.charter;
+  const isSheet = proposal.person_reference?.mode === "sheet";
+  const charter = isSheet ? null : proposal.brand_context?.charter;
   const direction = (value: unknown) =>
     (typeof value === "string"
       ? value
@@ -206,7 +209,7 @@ export function imagePrompt(proposal: Proposal) {
   const style = direction(charter?.photo_style);
   const mood = direction(charter?.mood_keywords);
   const avoid = direction(charter?.visual_donts);
-  const naturalPhoto = proposal.visual_kind === "photo" &&
+  const naturalPhoto = !isSheet && proposal.visual_kind === "photo" &&
     proposal.photo_treatment === "natural" &&
     !proposal.exact_text?.length;
   const productReference = refs.some((ref) => ref.role === "product");
@@ -235,6 +238,9 @@ export function imagePrompt(proposal: Proposal) {
   const followNotes = referenceNotes.filter(item => item.role !== "avoid").map(item => item.note).slice(0, 5).join("; ");
   const avoidNotes = referenceNotes.filter(item => item.role === "avoid").map(item => item.note).slice(0, 5).join("; ");
   return [
+    personReferencePrompt(proposal.person_reference && isSeries && !isSheet
+      ? { ...proposal.person_reference, variable_details: proposal.summary || proposal.image_prompt || "" }
+      : proposal.person_reference),
     // Number only after reference selection, sorting and edit-source deduplication.
     // This list uses the same order as the image[] payload in generateImage.
     proposal.input_path || refs.length ? "REFERENCE IMAGES" : "",
@@ -243,7 +249,7 @@ export function imagePrompt(proposal: Proposal) {
       : "",
     ...refs.map(
       (ref, i) =>
-        `Image ${i + 1 + (proposal.input_path ? 1 : 0)}: ${ref.role} reference, ${ref.name}. ${referenceInstruction(ref.role)}`,
+        `Image ${i + 1 + (proposal.input_path ? 1 : 0)}: ${ref.role} reference, ${ref.name}. ${referenceInstruction(ref.role)}${ref.role === "casting" && ref.description ? ` Saved identity description: ${ref.description}` : ""}`,
     ),
     proposal.summary
       ? `CONFIRMED BRIEF\n${proposal.summary}\nThis brief and the confirmed preservation and change lists govern the result. The technical instructions below only explain how to realize them; do not introduce unconfirmed subjects, props, actions, text or style changes.`
@@ -277,12 +283,13 @@ export function imagePrompt(proposal: Proposal) {
       ? "Natural everyday photograph, as a candid moment captured with a good phone camera: clear subject and believable framing, ordinary surroundings with only props needed for the action, available light with plausible unevenness, credible skin and material texture, and moderate depth of field so the setting remains recognizable. Keep professional image quality. Avoid beauty retouching, waxy skin, glossy advertising light, cinematic staging, artificial bokeh, heavy blur, fake grain, or added picturesque flowers and decor. If a source or style reference has busy scenery or decorative props, borrow only the aspects requested; simplify or remove those elements when the brief asks for it. Preserve the designated person's identity and exact product details. Specific user instructions and confirmed brand requirements take priority."
       : "",
     "No invented watermarks, promotional claims or extra decorative elements. Preserve authentic product lettering and logos when present in the reference. Match the requested visual medium; do not default to stock imagery.",
-    proposal.operation === "edit"
+    proposal.operation === "edit" && !isSheet
       ? "Keep everything else unchanged. Do not alter the camera or rearrange the scene for a texture-only or lighting-only correction."
       : "",
-    isSeries
+    isSeries && !isSheet
       ? "Produce ONE image for this shot, not a collage. Its camera framing, crop and pose must follow this shot's brief even when the reference uses a different framing. Shot brief: " + proposal.image_prompt
       : "",
+    isSheet ? "No text or labels." : "",
   ]
     .filter(Boolean)
     .join("\n");
