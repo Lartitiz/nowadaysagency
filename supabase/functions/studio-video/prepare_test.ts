@@ -15,7 +15,7 @@ Deno.test("Claude receives the image roles and returns separate summary and prov
         invariants: ["Le produit conserve sa couleur et sa forme visibles."],
         allowed_changes: "La caméra avance lentement.",
         forbidden_changes: "Aucun changement du produit ou du décor.",
-      } : { verdict: "ok", reason: "Conforme aux références." },
+      } : { verdict: "ok" },
     }] }), { status: 200, headers: { "Content-Type": "application/json" } });
   };
   try {
@@ -32,6 +32,9 @@ Deno.test("Claude receives the image roles and returns separate summary and prov
     assertEquals((content[2].source as { data: string }).data, "AQID");
     assertEquals(requests.length, 2);
     assert(JSON.stringify(requests[1]).includes('"type":"image"'));
+    const audit = requests[1] as { max_tokens: number; tools: Array<{ input_schema: { required: string[] } }> };
+    assert(audit.max_tokens >= 512);
+    assertEquals(audit.tools[0].input_schema.required, ["verdict"]);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalKey == null) Deno.env.delete("ANTHROPIC_API_KEY");
