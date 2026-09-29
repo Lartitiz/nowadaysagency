@@ -155,15 +155,22 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
   const highlightedPassage = returnPassage !== null && /^\d+$/.test(returnPassage) && Number(returnPassage) < spoken.length
     ? Number(returnPassage) : null;
   const returnedClipId = reelReturn.get("studio_clip");
+  const pendingLibraryKey = workspaceId ? `studio-video-for-reel:${workspaceId}` : null;
+  let pendingLibraryClip: string | null = null;
+  try { pendingLibraryClip = pendingLibraryKey ? sessionStorage.getItem(pendingLibraryKey) : null; } catch { /* Le sélecteur du Studio reste disponible. */ }
   const returnClipLoaded = useRef(false);
   useEffect(() => {
-    if (returnClipLoaded.current || !workspaceId || highlightedPassage === null || !returnedClipId) return;
+    const clipId = returnedClipId && highlightedPassage !== null ? returnedClipId : pendingLibraryClip;
+    const target = returnedClipId && highlightedPassage !== null ? highlightedPassage : spoken.length ? 0 : null;
+    if (returnClipLoaded.current || !workspaceId || target === null || !clipId) return;
     returnClipLoaded.current = true;
-    void readStudioVideo(workspaceId, returnedClipId).then(({ job }) => {
-      if (job.status === "ready" && job.video_url) setPendingCutaway({ index: highlightedPassage, job });
+    void readStudioVideo(workspaceId, clipId).then(({ job }) => {
+      if (job.status === "ready" && job.video_url) setPendingCutaway({ index: target, job });
       else toast.error("Ce clip du Studio n’est pas encore disponible.");
-    }).catch(() => toast.error("Impossible de retrouver ce clip du Studio."));
-  }, [workspaceId, highlightedPassage, returnedClipId]);
+    }).catch(() => toast.error("Impossible de retrouver ce clip du Studio.")).finally(() => {
+      if (pendingLibraryKey && pendingLibraryClip === clipId) try { sessionStorage.removeItem(pendingLibraryKey); } catch { /* Sans effet sur le montage. */ }
+    });
+  }, [workspaceId, highlightedPassage, returnedClipId, pendingLibraryClip, pendingLibraryKey, spoken.length]);
   useEffect(() => {
     if (highlightedPassage === null || !montageMode) return;
     const frame = requestAnimationFrame(() => {

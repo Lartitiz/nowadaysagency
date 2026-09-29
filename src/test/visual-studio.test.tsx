@@ -62,6 +62,12 @@ vi.mock("@/features/studio-video/StudioVideoPanel", () => ({
       {onPickClip && <button onClick={() => onPickClip({ id: "clip-ready" })}>Choisir le clip prêt</button>}
     </div>,
 }));
+vi.mock("@/features/studio-video/VideoStudioSessions", () => ({
+  VideoStudioSessions: ({ initialSource, onPickClip }: { initialSource?: { kind: string; id: string } | null; onPickClip?: (job: { id: string }) => void }) =>
+    <div>Source du clip : {initialSource?.kind || "aucune"} · {initialSource?.id || "aucune"}
+      {onPickClip && <button onClick={() => onPickClip({ id: "clip-ready" })}>Choisir le clip prêt</button>}
+    </div>,
+}));
 vi.mock("@/features/visual-studio/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   studioRequest: mock.request,

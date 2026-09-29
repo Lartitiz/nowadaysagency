@@ -171,6 +171,15 @@ Deno.test("preparation token is bound to the user, images, settings and Claude p
   assertEquals(await verifyPreparation(token, input, "user-b", "secret"), false);
 });
 
+Deno.test("a prepared video cannot be moved into another session silently", async () => {
+  const input = { workspace_id: "space", session_id: "session-a", source_kind: "text",
+    duration: 5, resolution: "480p", aspect_ratio: "9:16", prompt: "Un bol tourne lentement." };
+  const token = await signPreparation(input, "user", "secret");
+  assert(await verifyPreparation(token, input, "user", "secret"));
+  assertEquals(await verifyPreparation(token, { ...input, session_id: "session-b" }, "user", "secret"), false);
+  assertEquals(await verifyPreparation(token, { ...input, session_id: undefined }, "user", "secret"), false);
+});
+
 Deno.test("the final prompt keeps the same table across the whole shot without inventing its material", () => {
   const prompt = buildVideoPrompt({
     summary: "Un mannequin fictif prend un bol bleu sur une surface rouge, puis le repose sur cette même surface.",

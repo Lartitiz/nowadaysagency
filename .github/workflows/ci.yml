@@ -84,6 +84,9 @@ jobs:
       - name: Studio edge type-check
         run: deno check --no-config --no-lock --node-modules-dir=none supabase/functions/visual-studio/index.ts
 
+      - name: Studio video edge type-check
+        run: deno check --no-config --no-lock --node-modules-dir=none supabase/functions/studio-video/index.ts
+
       - name: Build
         run: npm run build
 
@@ -165,3 +168,6 @@ jobs:
 
       - name: Studio video paid-claim budget and roles (disposable PGlite database)
         run: PGLITE_MODULE="$RUNNER_TEMP/linkedin-sql/node_modules/@electric-sql/pglite/dist/index.js" node supabase/tests/studio-video.mjs
+
+      - name: Studio video sessions and historical clips (disposable PGlite database)
+        run: PGLITE_MODULE="$RUNNER_TEMP/linkedin-sql/node_modules/@electric-sql/pglite/dist/index.js" node supabase/tests/studio-video-sessions.mjs
