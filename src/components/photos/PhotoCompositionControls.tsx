@@ -25,13 +25,6 @@ export function PhotoCompositionControls({ recipe, onChange, disabled = false }:
       <label className="text-sm">Largeur (px)<Input type="number" min={320} max={2400} value={recipe.width} onChange={e => change({ width: Number(e.target.value) })} /></label>
       <label className="text-sm">Hauteur (px)<Input type="number" min={320} max={2400} value={recipe.height} onChange={e => change({ height: Number(e.target.value) })} /></label>
     </div>}
-    {!recipe.crop && <div className="space-y-2"><p className="text-sm font-medium">Adapter la photo au format</p>
-      <div className="grid grid-cols-2 gap-2" role="group" aria-label="Cadrage de la photo">
-        <Button type="button" variant={recipe.fit !== "cover" ? "default" : "outline"} onClick={() => change({ fit: "contain" })}>Tout garder · marges possibles</Button>
-        <Button type="button" variant={recipe.fit === "cover" ? "default" : "outline"} onClick={() => change({ fit: "cover" })}>Remplir · recadrer</Button>
-      </div>
-      {recipe.fit === "cover" && <p className="text-xs text-muted-foreground">Une partie des bords sera coupée. Vérifie le produit, le visage et les textes dans l’aperçu avant de valider.</p>}
-    </div>}
     <div className="flex items-center gap-3"><label htmlFor={`${id}-background`} className="text-sm">Fond et marges</label>
       <input id={`${id}-background`} type="color" className="h-9 w-12 rounded border" value={recipe.direction.background} onChange={e => direction({ background: e.target.value })} />
     </div>
