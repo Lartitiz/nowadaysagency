@@ -22,16 +22,15 @@ export interface FirstContentUrlOptions {
 /**
  * Construit l'URL de démarrage du 1er contenu.
  *
- * Mode photo : pas de `auto=1`. La génération a besoin des photos AVANT, donc
- * on atterrit sur l'étape qui les demande (et qui propose de les récupérer
- * depuis son site / Instagram) au lieu de lancer une génération à vide.
+ * Le mode automatique attend les photos du site avant de lancer le carrousel
+ * produit. Sans photo exploitable, le choix manuel reste disponible.
  */
 export function buildFirstContentUrl({ sellsProducts, subject }: FirstContentUrlOptions): string {
   const sujet = (subject ?? "").trim();
   if (sellsProducts) {
-    return "/creer?format=carousel&carouselSubMode=photo&firstProduct=1";
+    return "/creer?format=carousel&carouselSubMode=photo&firstProduct=1&auto=1";
   }
   return `/creer?sujet=${encodeURIComponent(
     sujet || SUJET_PREMIER_CONTENU_GENERIQUE,
-  )}&format=carousel&auto=1`;
+  )}&format=carousel&carouselSubMode=text&auto=1`;
 }

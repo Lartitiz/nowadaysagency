@@ -17,6 +17,8 @@ interface FormatNextOptions {
   photoDump?: boolean;
   textFirstMix?: boolean;
   slideLength?: "auto" | "short" | "classic" | "long";
+  /** Premier contenu après l'onboarding : les réponses existent déjà dans le diagnostic. */
+  skipQuestions?: boolean;
 }
 
 interface UseFormatNextParams {
@@ -117,7 +119,7 @@ export function useFormatNext({
 }: UseFormatNextParams) {
   const handleFormatNext = async (format: string, angle?: string, options?: FormatNextOptions) => {
     if (loadingQuestions || generating || structureLoading) return; // garde anti double-clic (évite une 2e génération facturée)
-    const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject, linkedinCarousel: linkedinCarLocal, photoDump, textFirstMix } = options || {};
+    const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject, linkedinCarousel: linkedinCarLocal, photoDump, textFirstMix, skipQuestions } = options || {};
     // Toujours resynchroniser (undefined = sous-mode sans choix de longueur,
     // ex. pure_photo — on repasse en "auto" pour ne pas traîner un vieux choix).
     setSlideLength(options?.slideLength ?? "auto");
@@ -231,6 +233,17 @@ export function useFormatNext({
     if (angle === "lancement") {
       setStep("result");
       await handleLaunchSequence(format, angle);
+      return;
+    }
+
+    if (skipQuestions && format === "carousel" && (sub === "photo" || sub === "text")) {
+      if (sub === "photo" && !(photos?.length || uploadedPhotos.length)) {
+        toast.info("Ajoute au moins une photo de ton produit pour créer ce carrousel.");
+        return;
+      }
+      resetGenerator();
+      setQuestions([]);
+      setStep("result");
       return;
     }
 
