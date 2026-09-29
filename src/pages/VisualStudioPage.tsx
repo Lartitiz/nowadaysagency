@@ -699,9 +699,10 @@ function Studio({
     }
   }
   async function save(useInContent = false, target?: typeof version) {
-    const selectedVersionRef = version;
     if (!current || actionLock.current || !writable) return;
-    const version = target ?? selectedVersionRef;
+    return saveVersion(useInContent, target ?? version);
+  }
+  async function saveVersion(useInContent: boolean, version: typeof target) {
     if (!version) {
       if (useInContent && current.session.source_photo_id) {
         navigate(contentPath, {
