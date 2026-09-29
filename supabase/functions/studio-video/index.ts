@@ -286,7 +286,7 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         p_total_limit: monthlyLimit(), p_max_submissions: TRIAL_MAX_SUBMISSIONS,
       });
       if (claimError) {
-        const message = claimError.message.includes("video_trial_exhausted") ? "La génération de recette a déjà été utilisée." :
+        const message = claimError.message.includes("video_trial_exhausted") ? "Le nombre de lancements d’essai est atteint." :
           claimError.message.includes("video_budget") ? "Le plafond vidéo de cet espace est atteint." :
           claimError.message.includes("video_quote_expired") ? "Ce devis a expiré. Vérifie à nouveau le prix." : "La génération ne peut pas démarrer.";
         return json({ error: message }, 409);
