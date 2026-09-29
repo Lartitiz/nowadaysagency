@@ -134,7 +134,7 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
         .maybeSingle();
       const websiteUrl = (profile?.website_url ?? "").trim();
       const siteOk = looksLikeUrl(websiteUrl);
-      const productActivity = profileSellsProducts(profile);
+      const productActivity = profileSellsProducts(profile, user.id);
       scannedProduct = productActivity;
       setIsProduct(productActivity);
       setHasSite(siteOk);

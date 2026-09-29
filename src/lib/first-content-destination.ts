@@ -41,7 +41,7 @@ export async function resolveFirstContentDestination(params: {
         .select("product_or_service, type_activite")
         .eq("user_id", userId)
         .maybeSingle();
-      sellsProducts = profileSellsProducts(profile);
+      sellsProducts = profileSellsProducts(profile, userId);
     } catch { /* type d'activité illisible → carrousel texte */ }
   }
 

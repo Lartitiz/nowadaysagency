@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { productOrServiceFromProfile, sellsProducts } from "@/lib/product-or-service";
+import { describe, expect, it, vi } from "vitest";
+import { productOrServiceFromProfile, rememberProductOrService, sellsProducts } from "@/lib/product-or-service";
 
 describe("choix produits ou services du profil", () => {
   it("garde le secteur séparé du choix de contenu", () => {
@@ -16,5 +16,18 @@ describe("choix produits ou services du profil", () => {
   it("conserve la compatibilité des anciens profils", () => {
     expect(sellsProducts({ type_activite: "produits" })).toBe(true);
     expect(productOrServiceFromProfile({ type_activite: "artisane" })).toBeNull();
+  });
+
+  it("retrouve le choix de la session si le profil ne peut pas encore le conserver", () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+    });
+    try {
+      rememberProductOrService("alice", "produits");
+      expect(sellsProducts({ type_activite: "artisane", product_or_service: null }, "alice")).toBe(true);
+      expect(sellsProducts({ type_activite: "artisane", product_or_service: null }, "bob")).toBe(false);
+    } finally { vi.unstubAllGlobals(); }
   });
 });

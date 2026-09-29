@@ -450,7 +450,7 @@ export default function WelcomePage() {
 
       // Réponse produits/services de l'onboarding, distincte du secteur
       // type_activite. « les_deux » suit aussi le parcours photo.
-      setSellsProducts(profileSellsProducts(profileRes.data));
+      setSellsProducts(profileSellsProducts(profileRes.data, profileUserId));
 
       // Recommendations
       if (recsRes.data && recsRes.data.length > 0) {

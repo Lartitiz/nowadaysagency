@@ -13,6 +13,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { posthog } from "@/lib/posthog";
 import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 import { isValidUrl } from "@/components/onboarding/OnboardingShared";
+import { rememberProductOrService } from "@/lib/product-or-service";
 import type { CharterReferenceLink } from "@/components/branding/charter/CharterReferenceLinks";
 
 /* ────────────────────────────────────────────── helpers */
@@ -594,7 +595,14 @@ export function useOnboarding() {
       profileData.linkedin_summary = answers.linkedin_summary || null;
 
       if (existingProfile) {
-        const { error: updateErr } = await supabase.from("profiles").update(profileData as any).eq("user_id", profileUserId);
+        let { error: updateErr } = await supabase.from("profiles").update(profileData as any).eq("user_id", profileUserId);
+        if (updateErr?.code === "42501") {
+          // Le nouveau champ peut manquer de droit UPDATE avant le prochain
+          // déploiement des privilèges. Sauver le reste du profil sans le bloquer.
+          const allowedProfileData = { ...profileData };
+          delete allowedProfileData.product_or_service;
+          ({ error: updateErr } = await supabase.from("profiles").update(allowedProfileData as any).eq("user_id", profileUserId));
+        }
         if (updateErr) {
           console.error("Failed to update profile:", updateErr);
           toast.error("Erreur de sauvegarde", { description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie." });
@@ -608,6 +616,7 @@ export function useOnboarding() {
           return false;
         }
       }
+      rememberProductOrService(profileUserId, answers.product_or_service);
 
       // 2. user_plan_config — pre-configure plan from onboarding answers
       const planChannels = canaux.filter(c => c !== "none");
