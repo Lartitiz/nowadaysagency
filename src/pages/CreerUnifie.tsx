@@ -68,6 +68,7 @@ import { useUserPhotos } from "@/hooks/use-user-photos";
 const StructureReviewStep = lazy(() => import("@/components/creer/StructureReviewStep"));
 // Mode « Mes slides » : l'utilisatrice fournit le texte, l'IA ne fait que le design.
 const UserSlidesStep = lazy(() => import("@/components/creer/UserSlidesStep"));
+import type { UserSlidesInputDraft } from "@/components/creer/UserSlidesStep";
 const HookSelectionStep = lazy(() => import("@/components/creer/HookSelectionStep"));
 // Type-only : n'entre pas dans le bundle, le composant reste lazy.
 import type { ReelHook } from "@/components/creer/HookSelectionStep";
@@ -336,10 +337,9 @@ function CreerWorkspace() {
     if (ps.step === "hook_selection") {
       return ps.selectedFormat ? "format" : "idea";
     }
-    // user_slides (mode « Mes slides ») : le texte collé vit dans le state local
-    // de l'écran, non persisté → au reload on repart de l'étape format.
+    // Le brouillon « Mes slides » est persisté, y compris avant le design.
     if (ps.step === "user_slides") {
-      return ps.selectedFormat ? "format" : "idea";
+      return "user_slides";
     }
     // Si flow photo/mix/pure_photo avec photos retrouvées, garder le step en cours
     if (["questions", "inspiration_proposals"].includes(ps.step)) {
@@ -393,6 +393,7 @@ function CreerWorkspace() {
   // Longueur choisie via les puces « Longueur » (CreerStepFormat).
   // "auto" = aucun slide_count envoyé, l'edge applique ses cibles adaptatives.
   const [slideLength, setSlideLength] = useState<"auto" | "short" | "classic" | "long">(ps?.slideLength ?? "auto");
+  const [userSlidesInput, setUserSlidesInput] = useState<UserSlidesInputDraft | null>(ps?.userSlidesInput ?? null);
   const slideCountChoice = slideLength === "short" ? 4 : slideLength === "classic" ? 7 : slideLength === "long" ? 10 : undefined;
   // Init à [] : le base64 n'est plus stocké inline (cf use-flow-persistence
   // hybride). Les photos sont rehydratées en asynchrone par l'effet plus bas
@@ -779,12 +780,13 @@ function CreerWorkspace() {
         incomingBriefId, currentBriefId,
         carouselSubMode,
         slideLength,
+        userSlidesInput,
         photoDescription, photoSubject, photoEntry, forcedChannel,
         isLinkedInCarousel,
         autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat,
         calendarPostId, calendarPostDate,
     });
-  }, [conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate]);
+  }, [conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate]);
 
   // Filet anti-perte : pendant le streaming, sauvegarder le texte déjà reçu
   // (throttle ~1,5 s). Sans ça, un reload/fermeture mi-génération repartait à
@@ -1804,6 +1806,7 @@ function CreerWorkspace() {
     setVisualSlides([]);
     setPinterestPinHtml(null);
     setCarouselSubMode(null);
+    setUserSlidesInput(null);
     setIsLinkedInCarousel(false);
     setUploadedPhotos([]);
     setPhotoDescription("");
@@ -2864,6 +2867,13 @@ function CreerWorkspace() {
                 initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
                 initialSlides={userSlidesDraft?.slides}
                 initialCaption={userSlidesDraft?.caption}
+                initialDraft={userSlidesInput}
+                onDraftChange={setUserSlidesInput}
+                onPhotosChange={(photos) => {
+                  if (!isCurrentCreation()) return;
+                  setUploadedPhotos(photos);
+                  void savePhotos(photos);
+                }}
                 generating={userSlidesBuilding}
                 onBack={() => setStep("format")}
                 onGenerate={handleUserSlidesGenerate}

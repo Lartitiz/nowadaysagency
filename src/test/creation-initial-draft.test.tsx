@@ -74,6 +74,20 @@ function type(text: string) { fireEvent.change(screen.getByRole('textbox'), { ta
 beforeEach(() => { cleanup(); vi.spyOn(window, 'scrollTo').mockImplementation(() => {}); vi.clearAllMocks(); sessionStorage.clear(); localStorage.clear(); mocks.user='owner'; mocks.workspace='A'; mocks.ready=true; mocks.brandChecking=false; setFlowUserId('owner'); setFlowWorkspaceId('A'); mocks.photoRead.mockResolvedValue({data:[{id:'library-1',name:'Portrait'}],error:null}); mocks.photoDecode.mockResolvedValue({base64:'data:image/png;base64,AA==',name:'Portrait',mimeType:'image/png'}); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); window.history.replaceState(null, '', '/'); });
 describe('initial creation draft through real React components', () => {
+  it('reopens Mes slides at the editing step with its text and caption after a reload', async () => {
+    saveFlowState({
+      step: 'user_slides', selectedFormat: 'carousel', carouselSubMode: 'user_slides',
+      userSlidesInput: { pasteText: 'Texte collé', caption: 'Légende de test', slides: [
+        { id: 'cover', title: 'Titre de test', body: 'Première idée', photoIndex: null },
+        { id: 'end', title: '', body: 'Conclusion', photoIndex: null },
+      ] },
+    });
+    mount();
+    expect(await screen.findByText('Tes slides, ton texte ✍️')).toBeVisible();
+    expect(screen.getByDisplayValue('Première idée')).toBeVisible();
+    expect(screen.getByDisplayValue('Légende de test')).toBeVisible();
+    expect(mocks.generate).not.toHaveBeenCalled();
+  });
   it('keeps the first words on leave, return and reload before continuing', async () => {
     const app=mount(); type('  Mes premiers mots\nencore bruts  ');
     expect(loadFlowState()?.ideaText).toBe('  Mes premiers mots\nencore bruts  ');

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import type { UserSlidesInputDraft } from "@/components/creer/UserSlidesStep";
 
 const STORAGE_KEY = "creer_flow_state";
 const PHOTOS_KEY = "creer_flow_photos";
@@ -45,6 +46,7 @@ interface FlowState {
   publishedCalendarId?: string | null;
   carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null;
   slideLength?: "auto" | "short" | "classic" | "long";
+  userSlidesInput?: UserSlidesInputDraft | null;
   photoDescription?: string;
   photoSubject?: string;
   photoEntry?: boolean;

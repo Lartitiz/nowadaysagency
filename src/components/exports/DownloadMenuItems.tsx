@@ -87,8 +87,8 @@ export function DownloadMenuItems({
           )}
           <div className="flex flex-col">
             <span>PowerPoint : éditable ✨</span>
-            <span className="text-2xs text-muted-foreground">
-              Modifie le texte dans PowerPoint, fond préservé
+            <span className="text-2xs text-muted-foreground whitespace-normal max-w-[220px] leading-snug">
+              Texte modifiable. Installe les polices de ta marque pour conserver leur rendu dans PowerPoint ; sinon, utilise les PNG.
             </span>
           </div>
         </DropdownMenuItem>
