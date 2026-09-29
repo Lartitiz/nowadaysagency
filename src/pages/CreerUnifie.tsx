@@ -187,8 +187,8 @@ function CreerWorkspace() {
   const paramMode = searchParams.get("mode");
   const paramFrom = searchParams.get("from");
   const paramAngle = searchParams.get("angle");
-  // "auto=1" (welcome → 1ère génération guidée) : saute l'étape format et enchaîne
-  // direct sur les questions (l'IA choisit l'angle). Évite la page blanche du 1er contenu.
+  // "auto=1" : le premier carrousel démarre depuis le diagnostic. Pour les
+  // produits, on attend les photos importées avant de lancer la génération.
   const paramAuto = searchParams.get("auto") === "1";
   const paramIdeaId = searchParams.get("idea_id");
   const paramCalendarDate = searchParams.get("calendar_date") || "";
@@ -303,6 +303,9 @@ function CreerWorkspace() {
   // reload. On n'hérite du flag persisté QUE sans nouveaux params d'URL (une
   // nouvelle entrée avec params est un NOUVEAU parcours, jamais un 1er contenu).
   const [autoFlow] = useState<boolean>(paramAuto || (!hasUrlParams && !!ps?.autoFlow));
+  // Un ordre de génération n'est valable que pour cette visite. Le rechargement
+  // après une requête interrompue doit proposer une reprise, jamais repayer seul.
+  const autoGeneratePendingRef = useRef(paramAuto);
 
   // ── Canal forcé via URL (?canal=) vs canal du brouillon restauré ──
   // Les raccourcis "Créer/Programmer sur tel réseau" (dashboard) doivent PRIMER sur
@@ -929,13 +932,14 @@ function CreerWorkspace() {
       if (calendarAngle) setEditorialAngle(calendarAngle);
 
       // Si un angle est déjà choisi (depuis la boîte à idées ou le calendrier),
-      // on saute l'étape "format" et on enchaîne directement sur les questions.
-      // Sinon, pour carousel/post on passe par l'étape format pour permettre
-      // le sous-choix (carrousel texte/photo, toggle photo).
-      if ((fmt === "carousel" || fmt === "post") && !locState?.fromCalendar && !paramAngle && !paramAuto) {
+      // on saute l'étape format. Le premier carrousel texte saute aussi les
+      // questions ; les autres entrées gardent leurs choix de format et photos.
+      if (paramAuto && fmt === "carousel" && paramCarouselSubMode === "text") {
+        setStep("result");
+      } else if ((fmt === "carousel" || fmt === "post") && !locState?.fromCalendar && !paramAngle && !paramAuto) {
         setStep("format");
       } else {
-        // auto=1 : on saute l'étape format → questions directement (l'IA choisit l'angle)
+        // Autres raccourcis préremplis : le flux normal prépare les questions.
         handleFormatNext(fmt, calendarAngle, { overrideSubject: enrichedSubject });
       }
     } else if (!locState.resumeIdea?.raw && locState?.fromCalendar && subject) {
@@ -1059,6 +1063,9 @@ function CreerWorkspace() {
         // Après onboarding, le nom automatique d’une photo n’est pas un sujet choisi.
         if (!firstProductRef.current && !ideaText && candidate.length >= 8 && !looksLikeFilename) {
           setIdeaText(candidate);
+        }
+        if (firstProductRef.current && autoGeneratePendingRef.current) {
+          setStep("result");
         }
       } catch (e: any) {
         if (cancelled) return;
@@ -1664,6 +1671,16 @@ function CreerWorkspace() {
       setCarouselColors,
     },
   });
+
+  useEffect(() => {
+    if (!autoGeneratePendingRef.current || conflictPending || step !== "result" || result ||
+        selectedFormat !== "carousel" || generating || structureLoading || streaming || isLoadingLibraryPhotos) return;
+    if (carouselSubMode === "photo" && uploadedPhotos.length === 0) return;
+    if (carouselSubMode !== "photo" && carouselSubMode !== "text") return;
+    autoGeneratePendingRef.current = false;
+    void doGenerate({});
+  }, [conflictPending, step, result, selectedFormat, generating, structureLoading, streaming,
+      isLoadingLibraryPhotos, carouselSubMode, uploadedPhotos, doGenerate]);
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -2806,7 +2823,11 @@ function CreerWorkspace() {
                   if (pintData) setPinterestData(pintData);
                   if (linkedinCar) setIsLinkedInCarousel(true);
                   else setIsLinkedInCarousel(false);
-                  handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar, photoDump, textFirstMix, slideLength: slideLen });
+                  const directFirstContent = autoFlow && fmt === "carousel" && (sub === "photo" || sub === "text");
+                  if (directFirstContent && (sub === "text" || photos?.length || uploadedPhotos.length)) {
+                    autoGeneratePendingRef.current = true;
+                  }
+                  handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar, photoDump, textFirstMix, slideLength: slideLen, skipQuestions: directFirstContent });
                 }}
                 onSelectionChange={({ channel, format, carouselSubMode: sub, slideLength: length }) => {
                   setSlideLength(length);
@@ -2943,7 +2964,14 @@ function CreerWorkspace() {
               <CarouselStructureLoader hasPhotos={uploadedPhotos.length > 0} />
             )}
 
-            {step === "result" && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !structureLoading && !photoDumpResolving && !result && (
+            {step === "result" && autoGeneratePendingRef.current && !result && !generating && !structureLoading && (
+              <div className="py-16 text-center space-y-3 animate-fade-in">
+                <Spinner className="h-8 w-8 mx-auto" />
+                <p className="text-sm font-medium text-foreground">Je lance ton premier carrousel…</p>
+              </div>
+            )}
+
+            {step === "result" && !autoGeneratePendingRef.current && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !structureLoading && !photoDumpResolving && !result && (
               <div className="py-12 text-center space-y-4 animate-fade-in">
                 {/* Quota épuisé pendant la génération : dire la vérité (les crédits),
                     pas « Session expirée » — et pas de Réessayer qui ne peut que re-échouer. */}

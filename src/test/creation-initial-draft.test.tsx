@@ -37,7 +37,7 @@ vi.mock('@/hooks/use-carousel-quality', () => ({ useCarouselQuality: () => ({}) 
 vi.mock('@/hooks/use-linkedin-carousel-caption', () => ({ useLinkedInCarouselCaption: () => ({}) }));
 vi.mock('@/hooks/use-user-slides-generate', () => ({ useUserSlidesGenerate: () => ({}) }));
 vi.mock('@/hooks/use-select-inspiration-proposal', () => ({ useSelectInspirationProposal: () => ({}) }));
-vi.mock('@/hooks/use-do-generate', () => ({ useDoGenerate: () => ({}) }));
+vi.mock('@/hooks/use-do-generate', () => ({ useDoGenerate: () => ({ doGenerate: mocks.generate }) }));
 vi.mock('@/hooks/use-generate-visuals', () => ({ useGenerateVisuals: () => ({}) }));
 vi.mock('@/hooks/use-open-in-canva', () => ({ useOpenInCanva: () => ({}) }));
 vi.mock('@/hooks/use-social-connections', () => ({ useSocialConnections: () => ({ isConnected: () => false, getTokenExpiry: () => null, known: true }) }));
@@ -56,7 +56,7 @@ vi.mock('@/lib/posthog', () => ({ posthog: { capture: vi.fn() } }));
 vi.mock('@/lib/photo-storage', () => ({ userPhotoToBase64: (...args: any[]) => mocks.photoDecode(...args) }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: (table: string) => {
   const q: any = { then: (resolve: any) => Promise.resolve(table === 'user_photos' ? mocks.photoRead() : { data: [], error: null }).then(resolve) };
-  for (const key of ['select','eq','in','order','limit','insert','update']) q[key] = () => q;
+  for (const key of ['select','eq','in','order','limit','insert','update','not','is']) q[key] = () => q;
   q.single = () => Promise.resolve({ data: { updated_at: 'version' }, error: null });
   return q;
 } } }));
@@ -74,6 +74,32 @@ function type(text: string) { fireEvent.change(screen.getByRole('textbox'), { ta
 beforeEach(() => { cleanup(); vi.spyOn(window, 'scrollTo').mockImplementation(() => {}); vi.clearAllMocks(); sessionStorage.clear(); localStorage.clear(); mocks.user='owner'; mocks.workspace='A'; mocks.ready=true; mocks.brandChecking=false; setFlowUserId('owner'); setFlowWorkspaceId('A'); mocks.photoRead.mockResolvedValue({data:[{id:'library-1',name:'Portrait'}],error:null}); mocks.photoDecode.mockResolvedValue({base64:'data:image/png;base64,AA==',name:'Portrait',mimeType:'image/png'}); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); window.history.replaceState(null, '', '/'); });
 describe('initial creation draft through real React components', () => {
+  it('lance une seule fois le premier carrousel texte sans écran de questions', async () => {
+    const app = mount('/creer?sujet=Mon%20offre&format=carousel&carouselSubMode=text&auto=1');
+    await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(1));
+    expect(mocks.generate).toHaveBeenCalledWith({});
+    expect(screen.queryByText('Quelques précisions')).toBeNull();
+    app.unmount();
+    mount();
+    expect(mocks.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it('attend les photos du site avant le premier carrousel produit', async () => {
+    mocks.photoRead.mockResolvedValue({ data: [{ id: 'library-1', name: 'Tasse en céramique' }], error: null });
+    mount('/creer?format=carousel&carouselSubMode=photo&firstProduct=1&auto=1');
+    await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(1));
+    expect(mocks.generate).toHaveBeenCalledWith({});
+    expect(loadPhotos()).toMatchObject([{ userPhotoId: 'library-1' }]);
+    expect(screen.queryByText('Quelques précisions')).toBeNull();
+  });
+
+  it('sans photo produit, garde le choix manuel et ne lance aucune génération', async () => {
+    mocks.photoRead.mockResolvedValue({ data: [], error: null });
+    mount('/creer?format=carousel&carouselSubMode=photo&firstProduct=1&auto=1');
+    expect(await screen.findByText('Format :')).toBeVisible();
+    expect(mocks.generate).not.toHaveBeenCalled();
+  });
+
   it('reopens Mes slides at the editing step with its text and caption after a reload', async () => {
     saveFlowState({
       step: 'user_slides', selectedFormat: 'carousel', carouselSubMode: 'user_slides',

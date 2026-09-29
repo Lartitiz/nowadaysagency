@@ -8,7 +8,7 @@ import { renderHook, act } from "@testing-library/react";
 // doGenerate lira ensuite.
 
 const mocks = vi.hoisted(() => ({
-  toast: { error: vi.fn(), success: vi.fn() },
+  toast: { error: vi.fn(), info: vi.fn(), success: vi.fn() },
   invokeWithTimeout: vi.fn(),
   handleQuotaError: vi.fn(),
   savePhotos: vi.fn(),
@@ -132,6 +132,28 @@ describe("useFormatNext — gardes et routage par format", () => {
         channel: "linkedin",
       }),
     );
+  });
+
+  it("premier carrousel texte : passe directement à la génération sans préparer de questions", async () => {
+    const params = makeParams();
+    await run(params, "carousel", undefined, { carouselSubMode: "text", skipQuestions: true });
+    expect(params.setCarouselSubMode).toHaveBeenCalledWith("text");
+    expect(params.setQuestions).toHaveBeenCalledWith([]);
+    expect(params.setStep).toHaveBeenLastCalledWith("result");
+    expect(params.generateQuestions).not.toHaveBeenCalled();
+  });
+
+  it("premier carrousel produit : attend une photo puis passe sans questions", async () => {
+    const empty = makeParams({ ideaText: "" });
+    await run(empty, "carousel", undefined, { carouselSubMode: "photo", skipQuestions: true });
+    expect(mocks.toast.info).toHaveBeenCalledOnce();
+    expect(empty.setStep).not.toHaveBeenCalledWith("result");
+    expect(empty.generateQuestions).not.toHaveBeenCalled();
+
+    const withPhoto = makeParams({ ideaText: "", uploadedPhotos: [{ base64: "image" }] });
+    await run(withPhoto, "carousel", undefined, { carouselSubMode: "photo", skipQuestions: true });
+    expect(withPhoto.setStep).toHaveBeenLastCalledWith("result");
+    expect(withPhoto.generateQuestions).not.toHaveBeenCalled();
   });
 
   it("sujet vide en flux photo → jamais \"\" envoyé à l'IA (fallback description puis placeholder)", async () => {
