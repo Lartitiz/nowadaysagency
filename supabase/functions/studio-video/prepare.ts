@@ -5,8 +5,8 @@ export const preparedSchema = z.object({
   summary: z.string().trim().min(20).max(1200),
   scene: z.string().trim().min(20).max(900),
   invariants: z.array(z.string().trim().min(8).max(180)).min(1).max(4),
-  allowed_changes: z.string().trim().min(8).max(180),
-  forbidden_changes: z.string().trim().min(8).max(250),
+  allowed_changes: z.string().trim().min(8).max(400),
+  forbidden_changes: z.string().trim().min(8).max(500),
 });
 
 const roleInstructions: Record<string, string> = {
@@ -44,8 +44,8 @@ const tool = {
       scene: { type: "string", description: "Action, cadrage, mouvement et lumière, uniquement selon l'idée et les références", maxLength: 900 },
       invariants: { type: "array", items: { type: "string", maxLength: 180 }, minItems: 1, maxItems: 4,
         description: "Éléments fixes et leur apparence visible exacte, surtout support/table, produit, personne et décor. Ne pas inventer une matière non visible." },
-      allowed_changes: { type: "string", description: "Ce qui peut changer pendant le plan", maxLength: 180 },
-      forbidden_changes: { type: "string", description: "Recoloration, substitution, déformation ou coupure à éviter selon ce cas", maxLength: 250 },
+      allowed_changes: { type: "string", description: "Ce qui peut changer pendant le plan", maxLength: 400 },
+      forbidden_changes: { type: "string", description: "Recoloration, substitution, déformation ou coupure à éviter selon ce cas", maxLength: 500 },
     },
     required: ["summary", "scene", "invariants", "allowed_changes", "forbidden_changes"],
   },
@@ -57,8 +57,8 @@ const compactChangesTool = {
   input_schema: {
     type: "object",
     properties: {
-      allowed_changes: { type: "string", maxLength: 180 },
-      forbidden_changes: { type: "string", maxLength: 250 },
+      allowed_changes: { type: "string", maxLength: 400 },
+      forbidden_changes: { type: "string", maxLength: 500 },
     },
     required: ["allowed_changes", "forbidden_changes"],
   },
