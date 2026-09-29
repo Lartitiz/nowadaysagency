@@ -1201,15 +1201,6 @@ function Studio({
                       )}
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground my-3">
-                    {version
-                      ? version.library_photo_id
-                        ? "Ajoutée à la bibliothèque · conservée dans cette session."
-                        : "Conservée dans cette session · pas encore dans la bibliothèque."
-                      : source
-                      ? "Référence conservée dans la session."
-                      : "Tes échanges et créations restent dans cette session."}
-                  </p>
                   {version?.proposal.brand_context && (
                     <details className="text-sm"><summary>Contexte de marque de cette image</summary><StudioBrandContext context={version.proposal.brand_context} /></details>
                   )}
@@ -1311,6 +1302,7 @@ function Studio({
                         <p className="mt-2">Tu peux poursuivre une autre demande dans cette session. Cette image ne peut pas être relancée automatiquement.</p>
                       </div>
                     ))}
+                  {!!(references.length || current?.suggested_photos?.length || current?.charter_references?.length || compositionHistory.length || current?.memory?.length) && (
                   <details className="studio-extra-tools">
                     <summary>Autres outils et créations enregistrées{references.length ? ` · ${references.length} image${references.length > 1 ? "s" : ""} de référence` : ""}</summary>
                   <div className="studio-references">
@@ -1527,6 +1519,7 @@ function Studio({
                     </div>
                   )}
                   </details>
+                  )}
                 </section>
               </div>
               <div className="studio-composer p-4 border-t space-y-3">
