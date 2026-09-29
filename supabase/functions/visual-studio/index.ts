@@ -36,12 +36,8 @@ import {
 } from "./competencies.ts";
 import {
   failHiggsfieldImage,
-  higgsfieldImagesEnabled,
   imageCallback,
   reconcileHiggsfieldImage,
-  SOUL2_MODEL,
-  soul2Enabled,
-  soul2Eligible,
   submitHiggsfieldImage,
 } from "./higgsfield-image.ts";
 import { handleMemory, readMemory } from "./memory.ts";
