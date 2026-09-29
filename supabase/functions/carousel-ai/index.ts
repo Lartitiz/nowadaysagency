@@ -1567,7 +1567,8 @@ Propose la structure optimale.`;
       model: getModelForAction("content"),
       system: structureSystemPrompt + PHOTO_MISMATCH_SYSTEM_REMINDER,
       messages: [{ role: "user", content: messageContent }],
-      max_tokens: 3000,
+      // Evidence fields add material per slide; avoid truncating the scenario.
+      max_tokens: 8192,
       tool: STRUCTURE_PROPOSAL_TOOL,
     });
   } else {
@@ -1575,7 +1576,8 @@ Propose la structure optimale.`;
       model: getModelForAction("content"),
       system: structureSystemPrompt,
       messages: [{ role: "user", content: structureUserPrompt }],
-      max_tokens: 3000,
+      // Evidence fields add material per slide; avoid truncating the scenario.
+      max_tokens: 8192,
       tool: STRUCTURE_PROPOSAL_TOOL,
     });
   }
