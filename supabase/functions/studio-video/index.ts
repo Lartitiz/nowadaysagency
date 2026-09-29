@@ -376,6 +376,17 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
     }
   } catch (error) {
     const code = error instanceof Error ? error.message : "studio_video_unknown";
+    // Keep diagnosis useful without logging a user's prompt, image, or provider response.
+    console.error(JSON.stringify({
+      type: "studio_video_error", action: p.action,
+      name: error instanceof Error ? error.name : "unknown",
+      status: typeof (error as { status?: unknown })?.status === "number"
+        ? (error as { status: number }).status : undefined,
+      code: /^studio_video_[a-z_]+$/.test(code) ? code : undefined,
+      issues: error instanceof z.ZodError
+        ? error.issues.map((issue) => ({ path: issue.path.join("."), code: issue.code }))
+        : undefined,
+    }));
     const userMessage = code === "studio_video_person_unsupported" ? "Les portraits et photos avec personnes identifiables ne sont pas encore pris en charge." :
       code === "studio_video_source_unavailable" ? "Cette image n’est plus disponible dans cet espace." :
       error instanceof ProviderError && error.status === 403 ? "Solde API Higgsfield insuffisant." :
