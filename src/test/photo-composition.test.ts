@@ -5,7 +5,7 @@ describe("photo composition fidelity", () => {
   for (const format of Object.keys(PHOTO_FORMATS) as (keyof typeof PHOTO_FORMATS)[]) {
     for (const [width, height] of [[2400, 300], [300, 2400], [1200, 1200]]) {
       it(`keeps all source pixels within ${format} for ${width}×${height}, including reserved text`, () => {
-        const recipe = makePhotoRecipe(format); recipe.direction.textPosition = "bottom"; recipe.direction.padding = 0.2;
+        const recipe = makePhotoRecipe(format); recipe.fit = "contain"; recipe.direction.textPosition = "bottom"; recipe.direction.padding = 0.2;
         const g = photoGeometry(width, height, recipe);
         expect(g.source).toEqual({ x: 0, y: 0, width, height });
         expect(g.dest.width / g.dest.height).toBeCloseTo(width / height);
@@ -22,11 +22,11 @@ describe("photo composition fidelity", () => {
     expect(g.dest.width).toBe(300); expect(g.dest.height).toBe(400);
     expect(photoGeometry(300, 400, r).detailTooSmall).toBe(true);
   });
-  it("fills exact post and story frames only after an explicit crop choice", () => {
+  it("fills exact post and story frames by default, without margins", () => {
     for (const format of ["post", "story", "square"] as const) {
       const recipe = makePhotoRecipe(format);
-      recipe.fit = "cover";
-      recipe.direction.padding = 0;
+      expect(recipe.fit).toBe("cover");
+      expect(recipe.direction.padding).toBe(0);
       const framed = photoGeometry(1600, 900, recipe);
       expect(framed.dest.width).toBeCloseTo(recipe.width);
       expect(framed.dest.height).toBeCloseTo(recipe.height);
@@ -34,7 +34,8 @@ describe("photo composition fidelity", () => {
       expect(framed.source.x + framed.source.width).toBeLessThanOrEqual(1600);
       expect(framed.source.y + framed.source.height).toBeLessThanOrEqual(900);
       expect(framed.source.width).toBeLessThan(1600);
-      expect(photoGeometry(1600, 900, makePhotoRecipe(format)).source.width).toBe(1600);
+      const contained = makePhotoRecipe(format); contained.fit = "contain";
+      expect(photoGeometry(1600, 900, contained).source.width).toBe(1600);
     }
   });
   it("bounds corrupt stored recipes and crops", () => {
