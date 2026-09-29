@@ -323,7 +323,25 @@ function PhotosLibrary() {
   return (
     <div className="min-h-screen bg-background [--primary:330_50%_20%] dark:[--primary:338_72%_83%]">
       <AppHeader />
-      <main id="main-content" className="container max-w-7xl mx-auto px-4 py-8 sm:py-10">
+      <main
+        id="main-content"
+        className="container relative max-w-7xl mx-auto px-4 py-8 sm:py-10"
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {dragActive && (
+          <div
+            aria-hidden="true"
+            data-testid="photos-drop-overlay"
+            className="pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-3xl border-2 border-dashed border-primary bg-background/85"
+          >
+            <p className="rounded-xl bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
+              Lâche tes photos ici
+            </p>
+          </div>
+        )}
         {/* Titre pleine largeur puis rangée d'actions : les 4 boutons côte à
             côte écrasaient la colonne du titre (h1 cassé sur 2 lignes). */}
         <header className="mb-8 space-y-4">
