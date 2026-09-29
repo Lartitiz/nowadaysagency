@@ -49,6 +49,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { isHeic, PHOTO_INPUT_ACCEPT } from "@/lib/heic";
 import { UX_UPLOAD_LIMITS, formatMb } from "@/lib/upload-limits";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { VideoLibrary } from "@/features/studio-video/VideoLibrary";
 
 const PhotoPreparationDialog = lazy(() => import("@/components/photos/PhotoPreparationDialog"));
 const MAX_BATCH = 20;
@@ -96,7 +97,8 @@ function PhotosLibrary() {
   // en arrière-plan après l'upload, sinon `photo.kind` reste figé sur l'instantané
   // pris au clic d'ouverture — même si Realtime a bien rafraîchi `photos` derrière,
   // Portrait pro n'apparaît jamais sans fermer/rouvrir OU recharger la page.
-  const [view, setView] = useState<"photos" | "preparations" | "wishlist">("photos");
+  const [view, setView] = useState<"photos" | "videos" | "preparations" | "wishlist">(() =>
+    new URLSearchParams(window.location.search).get("tab") === "videos" ? "videos" : "photos");
   const [search, setSearch] = useState("");
   const [selecting, setSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -348,7 +350,7 @@ function PhotosLibrary() {
           <div>
             <h1 className="font-display text-4xl text-foreground mb-2">Ma bibliothèque</h1>
             <p className="text-sm text-muted-foreground max-w-xl">
-              Retrouve tes photos, prépare leurs versions et utilise-les dans tes contenus.
+              Retrouve tes photos et tes vidéos, puis utilise-les dans tes contenus.
             </p>
           </div>
           {/* Deux boutons seulement (audit UX 14/08) : « remplir » et
@@ -386,10 +388,11 @@ function PhotosLibrary() {
           }}
         />
 
-        <div className="mb-7 grid grid-cols-3 gap-1 border-b sm:flex" role="group" aria-label="Vues de la bibliothèque">
-          {([["photos", "Mes photos"], ["preparations", "Mes préparations"], ["wishlist", "Photos à prendre"]] as const).map(([key, label]) =>
+        <div className="mb-7 grid grid-cols-2 gap-1 border-b sm:flex" role="group" aria-label="Vues de la bibliothèque">
+          {([["photos", "Mes photos"], ["videos", "Mes vidéos"], ["preparations", "Mes préparations"], ["wishlist", "Photos à prendre"]] as const).map(([key, label]) =>
             <button key={key} type="button" aria-pressed={view === key} onClick={() => setView(key)} className={cn("min-w-0 border-b-2 px-1 py-3 text-xs sm:px-3 sm:text-sm", view === key ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground")}>{label}</button>)}
         </div>
+        {view === "videos" && wsReady && <VideoLibrary workspaceId={activeWorkspace!.id} />}
         {view === "preparations" && wsReady && <PhotoPreparationsPanel workspaceId={activeWorkspace!.id} onResume={setResumeWorkflow} />}
         {view === "wishlist" && wsReady && <div className="max-w-3xl"><PhotoWishlistPanel /></div>}
         {view === "photos" && <>

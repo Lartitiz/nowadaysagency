@@ -8,7 +8,8 @@ import { VideoImagePicker } from "./VideoImagePicker";
 import { readVideoDraft, writeVideoDraft, readPreparedVideo, writePreparedVideo, sourceKey, type VideoSource, type VideoReference, type PreparedVideo } from "./sources";
 import { cameraOptions, lightOptions, shotOptions, videoPrompt, type Camera, type Light, type Shot } from "./direction";
 export type { VideoSource } from "./sources";
-import { listStudioVideos, readStudioVideo, videoRequest, type StudioVideoJob } from "./api";
+import { getVideoSession, listStudioVideos, listVideoLibrary, readStudioVideo, saveVideoSession, videoRequest, videoTitle, type StudioVideoJob, type StudioVideoEvent } from "./api";
+import type { VideoDraft } from "./sources";
 import { videoReferencePreviews } from "./library-sources";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -20,11 +21,15 @@ interface Props {
   workspaceId: string; writable: boolean; initialSource?: VideoSource | null;
   initialPrompt?: string; onPickClip?: (job: StudioVideoJob) => void;
   showComposer?: boolean; draftKey?: string;
+  sessionId?: string | null; sessionDraft?: Record<string, unknown>; sessionTitle?: string;
+  studioLayout?: boolean; initialJob?: StudioVideoJob | null;
+  initialDraft?: VideoDraft | null; legacyDraftKey?: string;
 }
 export function StudioVideoPanel(props: Props) {
-  return <VideoComposer key={`${props.workspaceId}:${props.draftKey || "default"}`} {...props} />;
+  return <VideoComposer key={`${props.workspaceId}:${props.sessionId || props.draftKey || "default"}`} {...props} />;
 }
-function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "", onPickClip, showComposer = true, draftKey }: Props) {
+function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "", onPickClip, showComposer = true,
+  draftKey, sessionId, sessionDraft, sessionTitle, studioLayout = false, initialJob, initialDraft, legacyDraftKey }: Props) {
   const cache = useQueryClient();
   const activeWorkspaceId = useWorkspaceId();
   const { data: charter } = useBrandCharter();
@@ -33,17 +38,22 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   const videoStyle = activeWorkspaceId === workspaceId ? [direction.video_motion, direction.light, direction.framing]
     .filter((value): value is string => typeof value === "string" && !!value.trim())
     .map(value => value.trim()).join(" ; ") : "";
-  const [draft] = useState(() => readVideoDraft(draftKey));
-  const [references, setReferences] = useState<VideoReference[]>(draft?.images || (initialSource ? [{ ...initialSource, role: "subject" }] : []));
-  const [useImages, setUseImages] = useState(draft?.useImages ?? !!initialSource);
+  const [draft] = useState(() => (typeof sessionDraft?.prompt === "string" ? sessionDraft as unknown as VideoDraft : initialDraft || readVideoDraft(draftKey)));
+  const inheritedReferences: VideoReference[] = initialJob?.source_refs?.length
+    ? initialJob.source_refs.map(ref => ({ ...ref, role: ref.role as VideoReference["role"] }))
+    : initialJob?.source_id && ["photo", "studio_version"].includes(initialJob.source_kind)
+      ? [{ kind: initialJob.source_kind as VideoSource["kind"], id: initialJob.source_id,
+        name: initialJob.source_name, role: "subject" }] : [];
+  const [references, setReferences] = useState<VideoReference[]>(draft?.images || (initialSource ? [{ ...initialSource, role: "subject" }] : inheritedReferences));
+  const [useImages, setUseImages] = useState(draft?.useImages ?? (!!initialSource || inheritedReferences.length > 0));
   const mode = !useImages ? "text" : references.length > 1 ? "references" : "image";
   const source = references[0];
   const [picker, setPicker] = useState(false);
-  const [prompt, setPrompt] = useState(draft?.prompt ?? initialPrompt);
-  const [duration, setDuration] = useState(draft?.duration ?? 5);
-  const [resolution, setResolution] = useState<"480p" | "720p">(draft?.resolution ?? "480p");
+  const [prompt, setPrompt] = useState(draft?.prompt ?? initialJob?.preparation?.idea ?? initialPrompt);
+  const [duration, setDuration] = useState(draft?.duration ?? initialJob?.duration ?? 5);
+  const [resolution, setResolution] = useState<"480p" | "720p">(draft?.resolution ?? initialJob?.resolution ?? "480p");
   const [usageRightsConfirmed, setUsageRightsConfirmed] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState<"9:16" | "16:9" | "1:1">(draft?.aspectRatio ?? "9:16");
+  const [aspectRatio, setAspectRatio] = useState<"9:16" | "16:9" | "1:1">(draft?.aspectRatio ?? initialJob?.aspect_ratio ?? "9:16");
   const [shot, setShot] = useState<Shot>(draft?.shot ?? "");
   const [camera, setCamera] = useState<Camera>(draft?.camera ?? "");
   const [light, setLight] = useState<Light>(draft?.light ?? "");
@@ -63,20 +73,53 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => { writeVideoDraft(draftKey, { images: references, useImages, prompt, duration, resolution, aspectRatio, shot, camera, light }); },
     [draftKey, references, useImages, prompt, duration, resolution, aspectRatio, shot, camera, light]);
+  const [saveError, setSaveError] = useState("");
+  const draftMounted = useRef(false);
+  const needsFirstSave = useRef(!!(initialDraft || initialJob || initialSource));
+  const titleRef = useRef(sessionTitle);
+  titleRef.current = sessionTitle;
+  useEffect(() => {
+    if (!sessionId || !writable) return;
+    if (!draftMounted.current) {
+      draftMounted.current = true;
+      if (!needsFirstSave.current) return;
+    }
+    const timer = window.setTimeout(() => {
+      const currentDraft = { images: references.map(({ kind, id, name, role }) => ({ kind, id, name, role })),
+        useImages, prompt, duration, resolution, aspectRatio, shot, camera, light };
+      void saveVideoSession(workspaceId, sessionId, currentDraft,
+        titleRef.current === "Nouvelle idée" && prompt.trim() ? prompt.trim().slice(0, 120) : undefined)
+        .then(({ session }) => {
+          cache.setQueryData<Awaited<ReturnType<typeof getVideoSession>>>(
+            ["studio-videos", workspaceId, sessionId, "studio", 0], old => old ? { ...old, session } : old);
+          void cache.invalidateQueries({ queryKey: ["video-sessions", workspaceId] });
+          if (alive.current) setSaveError("");
+        })
+        .catch(() => { if (alive.current) setSaveError("Le brouillon n’a pas pu être synchronisé. Il reste sur cet appareil."); });
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [sessionId, workspaceId, writable, references, useImages, prompt, duration, resolution, aspectRatio, shot, camera, light, cache]);
   useEffect(() => { setUsageRightsConfirmed(false); }, [referenceKey]);
   const [quote, setQuote] = useState<StudioVideoJob | null>(null);
   const [quoteKey, setQuoteKey] = useState<string | null>(null);
-  const [prepared, setPrepared] = useState<PreparedVideo | null>(() => readPreparedVideo(draftKey, briefKey));
+  const [prepared, setPrepared] = useState<PreparedVideo | null>(() =>
+    readPreparedVideo(draftKey, briefKey) || readPreparedVideo(legacyDraftKey, briefKey));
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [watchId, setWatchId] = useState<string | null>(null);
+  const [libraryPage, setLibraryPage] = useState(0);
   const inputKey = JSON.stringify([briefKey, prepared?.token, usageRightsConfirmed]);
   const currentBriefKey = useRef(briefKey);
   currentBriefKey.current = briefKey;
   const currentInputKey = useRef(inputKey);
   currentInputKey.current = inputKey;
-  const jobs = useQuery({ queryKey: ["studio-videos", workspaceId], queryFn: () => listStudioVideos(workspaceId), retry: 1 });
+  const jobs = useQuery({ queryKey: ["studio-videos", workspaceId, sessionId || "all", showComposer ? "studio" : "picker", libraryPage],
+    queryFn: () => sessionId ? getVideoSession(workspaceId, sessionId)
+      : showComposer ? listStudioVideos(workspaceId) : listVideoLibrary(workspaceId, libraryPage, "", "newest"), retry: 1 });
+  const events: StudioVideoEvent[] = jobs.data && "events" in jobs.data && Array.isArray(jobs.data.events)
+    ? jobs.data.events as StudioVideoEvent[] : [];
+  const libraryTotal = jobs.data && "total" in jobs.data && typeof jobs.data.total === "number" ? jobs.data.total : 0;
   const watched = useQuery({ queryKey: ["studio-video", workspaceId, watchId], enabled: !!watchId,
     queryFn: () => readStudioVideo(workspaceId, watchId!), retry: 1,
     refetchInterval: (query) => ["submitting_uncertain", "queued", "in_progress", "archiving"].includes(query.state.data?.job.status || "") ? 5000 : false });
@@ -86,6 +129,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   useEffect(() => {
     if (["ready", "failed", "nsfw", "canceled"].includes(watched.data?.job.status || "")) {
       void cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId] });
+      void cache.invalidateQueries({ queryKey: ["video-library", workspaceId] });
     }
   }, [cache, watched.data?.job.status, workspaceId]);
 
@@ -97,11 +141,11 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
     try {
       const result = await videoRequest<{ summary: string; continuity: string[];
         allowed_changes: string; forbidden_changes: string; prompt: string; prepared_token: string }>({
-        action: "prepare", workspace_id: workspaceId,
+        action: "prepare", workspace_id: workspaceId, session_id: sessionId || undefined,
         source_kind: mode === "image" ? source!.kind : mode,
         source_id: mode === "image" ? source!.id : undefined,
         references: mode === "references" ? references.map(({ kind, id, role }) => ({ kind, id, role })) : undefined,
-        prompt: composedPrompt, duration, resolution, aspect_ratio: aspectRatio,
+        prompt: composedPrompt, user_idea: prompt.trim(), duration, resolution, aspect_ratio: aspectRatio,
         person_free_attested: mode === "text" ? false : usageRightsConfirmed,
       });
       if (alive.current && currentBriefKey.current === requestedKey) {
@@ -110,6 +154,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
           prompt: result.prompt, token: result.prepared_token, key: requestedKey };
         setPrepared(next);
         writePreparedVideo(draftKey, next);
+        void cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId, sessionId || "all"] });
       }
     } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "Claude n’a pas pu préparer le clip."); }
     finally { if (alive.current) setBusy(""); }
@@ -123,10 +168,11 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
     setBusy("quote"); setError("");
     try {
       const result = await videoRequest<{ job: StudioVideoJob }>({ action: "quote", workspace_id: workspaceId,
+        session_id: sessionId || undefined,
         source_kind: mode === "image" ? source!.kind : mode,
         source_id: mode === "image" ? source!.id : undefined,
         references: mode === "references" ? references.map(({ kind, id, role }) => ({ kind, id, role })) : undefined,
-        idea: composedPrompt, prompt: prepared.prompt, summary: prepared.summary, continuity: prepared.continuity,
+        idea: composedPrompt, display_name: prompt.trim().slice(0, 120), prompt: prepared.prompt, summary: prepared.summary, continuity: prepared.continuity,
         allowed_changes: prepared.allowedChanges, forbidden_changes: prepared.forbiddenChanges,
         prepared_token: prepared.token, duration, resolution, aspect_ratio: aspectRatio,
         person_free_attested: mode === "text" ? false : usageRightsConfirmed });
@@ -146,19 +192,35 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
       setQuote(null); setWatchId(result.job.id);
       if (result.error) setError(result.error);
       await cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId] });
+      void cache.invalidateQueries({ queryKey: ["video-library", workspaceId] });
     } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "Le lancement a échoué. Consulte les clips avant de réessayer."); }
     finally { if (alive.current) setBusy(""); }
   }
 
   return (
     <section className="space-y-5" aria-label="Clips du Studio">
-      <div>
+      {!studioLayout && <div>
         <h2 className="text-lg font-semibold flex items-center gap-2"><Film className="h-5 w-5" /> Clips du Studio</h2>
         <p className="text-sm text-muted-foreground">Crée un clip depuis une idée ou des images avec Seedance 2.5. Il reste ici, même sans Reel.</p>
-      </div>
+      </div>}
       {jobs.data?.enabled === false && <p role="status" className="rounded-md border p-3 text-sm">La création vidéo sera disponible après l’activation du Studio. Tes clips déjà créés restent accessibles ici.</p>}
+      {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
+      {studioLayout && <a href="/photos?tab=videos" className="text-sm text-primary underline">Voir tous mes clips terminés dans Ma bibliothèque</a>}
+      {studioLayout && <a href="#video-results" className="block text-sm text-primary underline lg:hidden">Aller aux résultats de cette session</a>}
+      {initialJob && <p className="rounded-md border p-3 text-sm">Nouvelle demande à partir de « {videoTitle(initialJob)} ». Ce clip historique reste indépendant de cette session ; vérifie l’idée, les références et les droits avant toute préparation.</p>}
+      <div className={studioLayout ? "grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(330px,0.9fr)]" : "space-y-5"}>
+      <div className="min-w-0 space-y-4">
+      {studioLayout && <div className="space-y-3" aria-label="Conversation vidéo">
+        <h3 className="font-medium">Conversation</h3>
+        {events.length === 0 && <p className="rounded-lg border p-4 text-sm text-muted-foreground">Décris ton idée ci-dessous. Chaque proposition validée et chaque version restent dans cette session.</p>}
+        {events.map(event => <div key={event.id} className={`rounded-xl border p-3 text-sm ${event.kind === "request" ? "ml-5 bg-primary/5" : "mr-5 bg-muted/40"}`}>
+          <p className="mb-1 text-xs font-medium">{event.kind === "request" ? "Toi" : "Proposition du Studio"} · {new Date(event.created_at).toLocaleString("fr-FR")}</p>
+          <p className="whitespace-pre-line">{event.kind === "request" ? event.content.idea : event.content.summary}</p>
+          {event.kind === "request" && !!event.content.references?.length && <p className="mt-1 text-xs text-muted-foreground">Références dans l’ordre : {event.content.references.map((ref, i) => `${i + 1}. ${ref.name || ref.kind} (${ref.role})`).join(" · ")}</p>}
+        </div>)}
+      </div>}
       {writable && showComposer && jobs.data?.enabled === true && <div className="rounded-lg border p-4 space-y-3">
-        <h3 className="font-medium">Créer un clip</h3>
+        <h3 className="font-medium">{studioLayout ? "Écris ton prochain message" : "Créer un clip"}</h3>
         <fieldset className="flex flex-wrap gap-3 text-sm">
           <legend className="font-medium mb-2">Point de départ</legend>
           <label className="flex items-center gap-1"><input type="radio" name={formId} checked={!useImages} onChange={() => setUseImages(false)} />Une idée</label>
@@ -285,17 +347,18 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
 
       </div>}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between"><h3 className="font-medium">Mes clips</h3>
+      </div>
+      <div id={studioLayout ? "video-results" : undefined} className="min-w-0 space-y-2">
+        <div className="flex items-center justify-between"><h3 className="font-medium">{studioLayout ? "Résultats de la session" : "Mes clips"}</h3>
           <Button type="button" variant="ghost" size="sm" onClick={() => void jobs.refetch()} aria-label="Actualiser les clips"><RefreshCw className="h-4 w-4" /></Button></div>
         {jobs.isError && <p role="alert" className="text-sm">Impossible de charger les clips. Réessaie.</p>}
         {jobs.isLoading && <p className="text-sm">Chargement des clips…</p>}
-        {jobs.data?.jobs.length === 0 && <p className="text-sm text-muted-foreground">Aucun clip conservé pour l’instant.</p>}
+        {jobs.data?.jobs.length === 0 && <p className="text-sm text-muted-foreground">Aucun rendu pour l’instant. Les nouveaux clips apparaîtront ici dans l’ordre.</p>}
         {jobs.data?.jobs.map(job => {
           const current = watched.data?.job.id === job.id ? watched.data.job : job;
           return <article key={job.id} className="rounded-md border p-3 space-y-2">
-            <p className="text-sm font-medium">{job.source_name} · {job.duration} s · {job.resolution}</p>
-            <p className="text-xs text-muted-foreground line-clamp-2">{job.prompt}</p>
+            <p className="text-sm font-medium">{videoTitle(job)} · {job.duration} s · {job.resolution}</p>
+            <p className="text-xs text-muted-foreground">{new Date(job.created_at).toLocaleString("fr-FR")} · {job.aspect_ratio || "format source"}</p>
             {job.preparation?.summary && <details className="text-sm"><summary className="cursor-pointer">Revoir la description et les contraintes confirmées</summary>
               {job.preparation.idea && <p className="mt-2"><strong>Idée donnée :</strong> {job.preparation.idea}</p>}
               <p className="mt-2 whitespace-pre-line">{job.preparation.summary}</p>
@@ -323,6 +386,12 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
             {current.status === "ready" && current.video_url && onPickClip && <Button type="button" size="sm" onClick={() => onPickClip(current)}>Prévisualiser dans mon Reel</Button>}
           </article>;
         })}
+        {!showComposer && libraryTotal > 24 && <div className="flex gap-2 items-center text-xs">
+          <Button variant="outline" size="sm" disabled={libraryPage === 0} onClick={() => setLibraryPage(libraryPage - 1)}>Précédents</Button>
+          Page {libraryPage + 1} sur {Math.ceil(libraryTotal / 24)}
+          <Button variant="outline" size="sm" disabled={(libraryPage + 1) * 24 >= libraryTotal} onClick={() => setLibraryPage(libraryPage + 1)}>Suivants</Button>
+        </div>}
+      </div>
       </div>
       {picker && <VideoImagePicker workspaceId={workspaceId} initialImages={references.map(ref => ({
         ...ref, previewUrl: previews.data?.get(sourceKey(ref)) || ref.previewUrl,

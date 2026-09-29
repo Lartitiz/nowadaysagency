@@ -10,6 +10,7 @@ const BUCKET = "studio-video";
 const MAX_VIDEO_BYTES = 150 * 1024 * 1024;
 const quoteSchema = z.object({
   action: z.literal("quote"), workspace_id: z.string().uuid(),
+  session_id: z.string().uuid().optional(),
   source_kind: z.enum(["photo", "studio_version", "text", "references"]), source_id: z.string().uuid().optional(),
   references: z.array(z.object({ kind: z.enum(["photo", "studio_version"]), id: z.string().uuid(),
     role: z.enum(["subject", "product", "person", "casting", "background", "style", "composition"]) })).min(2).max(4).optional(),
@@ -17,6 +18,8 @@ const quoteSchema = z.object({
   resolution: z.enum(["480p", "720p"]), aspect_ratio: z.enum(["9:16", "16:9", "1:1"]).default("9:16"),
   person_free_attested: z.boolean(), prepared_token: z.string().max(100).optional(),
   idea: z.string().trim().min(3).max(1000).optional(),
+  user_idea: z.string().trim().min(3).max(1000).optional(),
+  display_name: z.string().trim().min(1).max(120).optional(),
   summary: z.string().trim().min(20).max(1200).optional(),
   continuity: z.array(z.string().trim().min(8).max(180)).min(1).max(4).optional(),
   allowed_changes: z.string().trim().min(8).max(400).optional(),
@@ -37,7 +40,26 @@ const submitSchema = z.object({ action: z.literal("submit"), workspace_id: z.str
 const statusSchema = z.object({ action: z.literal("status"), workspace_id: z.string().uuid(), job_id: z.string().uuid() });
 const listSchema = z.object({ action: z.literal("list"), workspace_id: z.string().uuid() });
 const listSourcesSchema = z.object({ action: z.literal("list_sources"), workspace_id: z.string().uuid() });
-const bodySchema = z.discriminatedUnion("action", [prepareSchema, quoteSchema, submitSchema, statusSchema, listSchema, listSourcesSchema])
+const sessionId = z.string().uuid();
+const sessionCreateSchema = z.object({ action: z.literal("session_create"), workspace_id: sessionId,
+  session_id: sessionId, title: z.string().trim().min(1).max(120).optional() });
+const sessionListSchema = z.object({ action: z.literal("session_list"), workspace_id: sessionId,
+  page: z.number().int().min(0).max(10000).default(0) });
+const sessionGetSchema = z.object({ action: z.literal("session_get"), workspace_id: sessionId, session_id: sessionId });
+const sessionSaveSchema = z.object({ action: z.literal("session_save"), workspace_id: sessionId,
+  session_id: sessionId, draft: z.record(z.unknown()), title: z.string().trim().min(1).max(120).optional() });
+const sessionArchiveSchema = z.object({ action: z.literal("session_archive"),
+  workspace_id: sessionId, session_id: sessionId });
+const sessionRestoreSchema = z.object({ action: z.literal("session_restore"),
+  workspace_id: sessionId, session_id: sessionId });
+const librarySchema = z.object({ action: z.literal("library"), workspace_id: sessionId,
+  page: z.number().int().min(0).max(10000).default(0),
+  search: z.string().trim().max(100).default(""), sort: z.enum(["newest", "oldest"]).default("newest") });
+const legacyJobsSchema = z.object({ action: z.literal("legacy_jobs"), workspace_id: sessionId,
+  page: z.number().int().min(0).max(10000).default(0) });
+const bodySchema = z.discriminatedUnion("action", [prepareSchema, quoteSchema, submitSchema, statusSchema, listSchema,
+  listSourcesSchema, sessionCreateSchema, sessionListSchema, sessionGetSchema, sessionSaveSchema,
+  sessionArchiveSchema, sessionRestoreSchema, librarySchema, legacyJobsSchema])
   .superRefine((p, ctx) => { if (p.action === "quote" || p.action === "prepare") validateQuote(p, ctx); });
 type DB = ReturnType<typeof getServiceClient>;
 
@@ -106,6 +128,7 @@ export function claimFailureMessage(error: { message: string; code?: string }) {
 function safeJob(row: Record<string, unknown>, signedUrl: string | null = null, actor?: string) {
   return {
     id: row.id, workspace_id: row.workspace_id, source_kind: row.source_kind,
+    session_id: row.session_id, display_name: row.display_name,
     source_id: row.source_id, source_name: row.source_name, source_refs: row.source_refs,
     prompt: row.prompt, duration: row.duration, resolution: row.resolution,
     preparation: row.preparation,
@@ -115,6 +138,10 @@ function safeJob(row: Record<string, unknown>, signedUrl: string | null = null, 
     error_code: row.error_code, video_url: signedUrl,
     can_submit: !!actor && row.user_id === actor,
   };
+}
+async function quoteKey(token: string) {
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
 }
 async function signed(db: DB, row: { result_path?: string | null }) {
   if (!row.result_path) return null;
@@ -224,9 +251,78 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       .eq("workspace_id", p.workspace_id).eq("user_id", pipe.userId).maybeSingle();
     if (memberError || !member) return json({ error: "Espace indisponible." }, 403);
     const writable = ["owner", "manager", "editor"].includes(member.role);
-    if (["prepare", "quote", "submit"].includes(p.action) && !writable) return json({ error: "Cet espace est en lecture seule." }, 403);
+    if (["prepare", "quote", "submit", "session_create", "session_save", "session_archive", "session_restore"].includes(p.action) && !writable)
+      return json({ error: "Cet espace est en lecture seule." }, 403);
     const lane = await videoLane(db, p.workspace_id);
     const on = !!lane && switchedOn() && ceilingUsd(lane) > 0;
+
+    if (p.action === "session_create") {
+      const { error } = await db.from("studio_video_sessions").insert({ id: p.session_id,
+        workspace_id: p.workspace_id, user_id: pipe.userId, title: p.title || "Nouvelle idée" });
+      if (error && error.code !== "23505") throw error;
+      const { data } = await db.from("studio_video_sessions").select("*")
+        .eq("id", p.session_id).eq("workspace_id", p.workspace_id).maybeSingle();
+      if (!data) return json({ error: "Session indisponible." }, 404);
+      return json({ session: data });
+    }
+    if (p.action === "session_list") {
+      const start = p.page * 40;
+      const { data, count, error } = await db.from("studio_video_sessions").select("id,title,archived_at,created_at,updated_at", { count: "exact" })
+        .eq("workspace_id", p.workspace_id).order("updated_at", { ascending: false }).range(start, start + 39);
+      if (error) throw error;
+      return json({ sessions: data || [], total: count || 0 });
+    }
+    if (p.action === "session_get" || p.action === "session_save" || p.action === "session_archive" || p.action === "session_restore") {
+      const { data: session, error: sessionError } = await db.from("studio_video_sessions").select("*")
+        .eq("id", p.session_id).eq("workspace_id", p.workspace_id).maybeSingle();
+      if (sessionError) throw sessionError;
+      if (!session) return json({ error: "Session indisponible dans cet espace." }, 404);
+      if (p.action === "session_save") {
+        if (session.archived_at) return json({ error: "Restaure cette session avant de la modifier." }, 409);
+        if (JSON.stringify(p.draft).length > 12_000) return json({ error: "Brouillon trop long." }, 400);
+        const { data, error } = await db.from("studio_video_sessions").update({ draft: p.draft,
+          title: p.title || session.title, updated_at: new Date().toISOString() })
+          .eq("id", p.session_id).eq("workspace_id", p.workspace_id).is("archived_at", null).select("*").single();
+        if (error) throw error;
+        return json({ session: data });
+      }
+      if (p.action === "session_archive" || p.action === "session_restore") {
+        const { data, error } = await db.from("studio_video_sessions")
+          .update({ archived_at: p.action === "session_archive" ? new Date().toISOString() : null,
+            updated_at: new Date().toISOString() })
+          .eq("id", p.session_id).eq("workspace_id", p.workspace_id).select("*").single();
+        if (error) throw error;
+        return json({ session: data });
+      }
+      const { data: events, error: eventError } = await db.from("studio_video_session_events").select("id,kind,content,created_at")
+        .eq("session_id", p.session_id).eq("workspace_id", p.workspace_id)
+        .order("created_at", { ascending: true }).limit(300);
+      if (eventError) throw eventError;
+      const { data: rows, error: jobsError } = await db.from("studio_video_jobs").select("*")
+        .eq("workspace_id", p.workspace_id).eq("session_id", p.session_id)
+        .order("created_at", { ascending: true }).limit(300);
+      if (jobsError) throw jobsError;
+      return json({ session, events: events || [], enabled: on, jobs: await Promise.all((rows || []).map(async row =>
+        safeJob(row, row.status === "ready" ? await signed(db, row) : null, pipe.userId))) });
+    }
+    if (p.action === "library") {
+      const start = p.page * 24;
+      let query = db.from("studio_video_jobs").select("*", { count: "exact" })
+        .eq("workspace_id", p.workspace_id).eq("status", "ready");
+      if (p.search) query = query.ilike("display_name", `%${p.search.replace(/[%_,()]/g, " ")}%`);
+      const { data, count, error } = await query.order("created_at", { ascending: p.sort === "oldest" })
+        .order("id", { ascending: p.sort === "oldest" }).range(start, start + 23);
+      if (error) throw error;
+      return json({ jobs: await Promise.all((data || []).map(async row => safeJob(row, await signed(db, row), pipe.userId))), total: count || 0 });
+    }
+    if (p.action === "legacy_jobs") {
+      const start = p.page * 24;
+      const { data, count, error } = await db.from("studio_video_jobs").select("*", { count: "exact" })
+        .eq("workspace_id", p.workspace_id).is("session_id", null).neq("status", "ready")
+        .order("created_at", { ascending: false }).range(start, start + 23);
+      if (error) throw error;
+      return json({ jobs: (data || []).map(row => safeJob(row, null, pipe.userId)), total: count || 0, enabled: on });
+    }
 
     if (p.action === "list") {
       const { data, error } = await db.from("studio_video_jobs").select("*").eq("workspace_id", p.workspace_id)
@@ -252,6 +348,11 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       })) });
     }
     if (p.action === "prepare") {
+      if (p.session_id) {
+        const { data: session } = await db.from("studio_video_sessions").select("id,archived_at")
+          .eq("id", p.session_id).eq("workspace_id", p.workspace_id).maybeSingle();
+        if (!session || session.archived_at) return json({ error: "Cette session vidéo doit être active dans cet espace." }, 409);
+      }
       if (!on || !lane) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
       if (await submittedCount(db, lane, p.workspace_id) >= maxSubmissions(lane))
         return json({ error: "Le nombre de lancements d’essai est atteint." }, 409);
@@ -275,16 +376,53 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       const preparedInput = { ...p, idea: p.prompt, prompt, summary: prepared.summary, continuity: prepared.invariants,
         allowed_changes: prepared.allowed_changes, forbidden_changes: prepared.forbidden_changes };
       const token = await signPreparation(preparedInput, pipe.userId, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      if (p.session_id) {
+        const { data: stillActive } = await db.from("studio_video_sessions").select("id")
+          .eq("id", p.session_id).eq("workspace_id", p.workspace_id).is("archived_at", null).maybeSingle();
+        if (!stillActive) return json({ error: "Cette session a été archivée pendant la préparation. Restaure-la pour continuer." }, 409);
+        const { error: eventError } = await db.from("studio_video_session_events").insert([
+          { id: crypto.randomUUID(), session_id: p.session_id, workspace_id: p.workspace_id,
+            user_id: pipe.userId, kind: "request", content: { idea: p.user_idea || p.prompt,
+              references: resolved.length ? resolved.map(({ kind, id, role, name }) => ({ kind, id, role, name }))
+                : single ? [{ kind: p.source_kind, id: p.source_id, role: "subject", name: single.name }] : [],
+              duration: p.duration, resolution: p.resolution, aspect_ratio: p.aspect_ratio } },
+          { id: crypto.randomUUID(), session_id: p.session_id, workspace_id: p.workspace_id,
+            user_id: pipe.userId, kind: "proposal", content: { summary: prepared.summary,
+              continuity: prepared.invariants, allowed_changes: prepared.allowed_changes,
+              forbidden_changes: prepared.forbidden_changes } },
+        ]);
+        if (eventError) throw eventError;
+        await db.from("studio_video_sessions").update({ updated_at: new Date().toISOString() })
+          .eq("id", p.session_id).eq("workspace_id", p.workspace_id);
+      }
       return json({ summary: prepared.summary, continuity: prepared.invariants,
         allowed_changes: prepared.allowed_changes, forbidden_changes: prepared.forbidden_changes,
         prompt, prepared_token: token });
     }
     if (p.action === "quote") {
+      if (p.session_id) {
+        const { data: session } = await db.from("studio_video_sessions").select("id,archived_at")
+          .eq("id", p.session_id).eq("workspace_id", p.workspace_id).maybeSingle();
+        if (!session || session.archived_at) return json({ error: "Cette session vidéo doit être active dans cet espace." }, 409);
+      }
       if (!on || !lane) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
+      const preparationSecret = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const signedForSession = !!p.prepared_token && await verifyPreparation(p.prepared_token, p, pipe.userId, preparationSecret);
+      // A still-valid local preparation made before video sessions existed may
+      // be brought into a new session without paying Claude a second time.
+      const signedBeforeSessions = !!p.session_id && !!p.prepared_token && !signedForSession &&
+        await verifyPreparation(p.prepared_token, { ...p, session_id: undefined }, pipe.userId, preparationSecret);
       if (!p.prepared_token || !p.idea || !p.summary || !p.continuity || !p.allowed_changes || !p.forbidden_changes ||
-        !await verifyPreparation(p.prepared_token, p, pipe.userId,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!))
+        (!signedForSession && !signedBeforeSessions))
         return json({ error: "La proposition vidéo a changé. Prépare et valide de nouveau le clip." }, 409);
+      const idempotencyKey = await quoteKey(p.prepared_token);
+      const { data: previousQuote, error: previousError } = await db.from("studio_video_jobs").select("*")
+        .eq("quote_key", idempotencyKey).eq("workspace_id", p.workspace_id).eq("user_id", pipe.userId).maybeSingle();
+      if (previousError) throw previousError;
+      if (previousQuote && previousQuote.session_id !== (p.session_id || null))
+        return json({ error: "Ce devis est déjà lié à une autre session." }, 409);
+      if (previousQuote) return json({ job: safeJob(previousQuote,
+        previousQuote.status === "ready" ? await signed(db, previousQuote) : null, pipe.userId), monthly_limit_usd: maxQuoteUsd(lane) });
       if (await submittedCount(db, lane, p.workspace_id) >= maxSubmissions(lane))
         return json({ error: "Le nombre de lancements d’essai est atteint." }, 409);
       const { count, error: quoteLimitError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
@@ -312,10 +450,17 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         p.duration, p.resolution, p.aspect_ratio, inputUrls);
       const price = await estimate(input, fetch, model);
       if (price.usd > maxQuoteUsd(lane)) return json({ error: "Ce devis dépasse le plafond de la recette vidéo." }, 409);
+      if (p.session_id) {
+        const { data: stillActive } = await db.from("studio_video_sessions").select("id")
+          .eq("id", p.session_id).eq("workspace_id", p.workspace_id).is("archived_at", null).maybeSingle();
+        if (!stillActive) return json({ error: "Cette session a été archivée pendant le devis. Restaure-la pour continuer." }, 409);
+      }
       const id = crypto.randomUUID();
       const webhookToken = crypto.randomUUID();
       const { data, error } = await db.from("studio_video_jobs").insert({
-        id, workspace_id: p.workspace_id, user_id: pipe.userId, source_kind: p.source_kind,
+        id, workspace_id: p.workspace_id, user_id: pipe.userId, session_id: p.session_id || null,
+        quote_key: idempotencyKey,
+        display_name: (p.display_name || p.idea || single?.name || "Clip vidéo").trim().slice(0, 120), source_kind: p.source_kind,
         source_id: p.source_id || null, source_name: single?.name || (refs.length ? `${refs.length} références` : "Idée seule"),
         source_refs: resolved.map(({ kind, id, role, name }) => ({ kind, id, role, name })),
         preparation: { idea: p.idea, summary: p.summary, continuity: p.continuity,
@@ -327,12 +472,24 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         status: "quoted", webhook_token: webhookToken,
         quote_expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
       }).select("*").single();
+      if (error?.code === "23505" && error.message.includes("quote_key")) {
+        const { data: concurrentQuote } = await db.from("studio_video_jobs").select("*")
+          .eq("quote_key", idempotencyKey).eq("workspace_id", p.workspace_id).eq("user_id", pipe.userId).maybeSingle();
+        if (concurrentQuote && concurrentQuote.session_id !== (p.session_id || null))
+          return json({ error: "Ce devis est déjà lié à une autre session." }, 409);
+        if (concurrentQuote) return json({ job: safeJob(concurrentQuote, null, pipe.userId), monthly_limit_usd: maxQuoteUsd(lane) });
+      }
       if (error || !data) throw new Error("studio_video_quote_store_failed");
       return json({ job: safeJob(data), monthly_limit_usd: maxQuoteUsd(lane) });
     }
 
     let row = await job(db, p.workspace_id, p.job_id);
     if (p.action === "submit") {
+      if (row.session_id) {
+        const { data: stillActive } = await db.from("studio_video_sessions").select("id")
+          .eq("id", row.session_id).eq("workspace_id", p.workspace_id).is("archived_at", null).maybeSingle();
+        if (!stillActive) return json({ error: "Restaure cette session avant de lancer son devis." }, 409);
+      }
       if (!on || !lane) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
       if (row.status !== "quoted") return json({ job: safeJob(row, row.status === "ready" ? await signed(db, row) : null) });
       const supabaseUrl = Deno.env.get("SUPABASE_URL");

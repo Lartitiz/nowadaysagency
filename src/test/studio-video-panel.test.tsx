@@ -10,6 +10,7 @@ vi.mock("@/features/studio-video/api", () => ({
   videoRequest: mock.request,
   listStudioVideos: mock.list,
   readStudioVideo: mock.read,
+  videoTitle: (job: { display_name?: string; source_name: string }) => job.display_name || job.source_name,
 }));
 vi.mock("@/features/studio-video/library-sources", () => ({ videoReferencePreviews: async () => new Map() }));
 vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "space" }));

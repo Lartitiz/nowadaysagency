@@ -14,7 +14,7 @@ const sections=[{section:'hook',texte_parle:'Mon texte',texte_overlay:'Overlay',
 const video=`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4`;
 beforeEach(()=>{vi.clearAllMocks();mocks.submit.mockResolvedValue('project');mocks.poll.mockResolvedValue('https://renderer.test/temp.mp4');mocks.archive.mockResolvedValue(video);
  mocks.readStudio.mockResolvedValue({job:{status:'ready',video_url:'https://clips.test/fresh.mp4'}});});
-afterEach(()=>window.history.replaceState(null,'','/'));
+afterEach(()=>{window.history.replaceState(null,'','/');sessionStorage.clear();});
 async function setup() {
  const onMp4Ready=vi.fn();const view=render(<ReelMontage sections={sections} onMp4Ready={onMp4Ready}/>);
  fireEvent.click(screen.getByRole('button',{name:/Je me filme/}));
@@ -162,4 +162,15 @@ it('returns from Studio photo to the same Reel passage with a clip to preview',a
   cutaways:[expect.objectContaining({jobId:'studio-job',url:''})],
   voiceClips:[expect.objectContaining({url:'https://clips.test/voice.mp3'})],
  })));
+});
+it('offers a clip chosen in Ma bibliothèque in the next Reel montage', async () => {
+ sessionStorage.setItem('studio-video-for-reel:space','library-job');
+ mocks.suggest.mockResolvedValue({keywords:['atelier'],primary:'atelier'});
+ mocks.search.mockResolvedValue([]);
+ mocks.readStudio.mockResolvedValue({job:{id:'library-job',status:'ready',video_url:'https://clips.test/library.mp4',duration:5,source_name:'Bol rouge'}});
+ render(<ReelMontage sections={sections} workspaceId='space'/>);
+ fireEvent.click(screen.getByRole('button',{name:/Je ne me montre pas/}));
+ expect(await screen.findByText(/Prévisualisation pour ce passage/)).toBeInTheDocument();
+ expect(mocks.readStudio).toHaveBeenCalledWith('space','library-job');
+ expect(sessionStorage.getItem('studio-video-for-reel:space')).toBeNull();
 });

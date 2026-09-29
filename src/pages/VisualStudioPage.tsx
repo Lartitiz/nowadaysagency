@@ -41,10 +41,8 @@ import {
 } from "@/components/ui/dialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
 import { useUploadLibraryPhotos } from "@/hooks/use-user-photos";
-import {
-  StudioVideoPanel,
-  type VideoSource,
-} from "@/features/studio-video/StudioVideoPanel";
+import type { VideoSource } from "@/features/studio-video/StudioVideoPanel";
+import { VideoStudioSessions } from "@/features/studio-video/VideoStudioSessions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -1607,7 +1605,7 @@ function Studio({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/photos")}
+              onClick={() => navigate(videoTab ? "/photos?tab=videos" : "/photos")}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Bibliothèque
@@ -1657,7 +1655,7 @@ function Studio({
           </div>
         )}
         {videoTab && (
-          <div className="mx-auto max-w-4xl px-5 pb-10 space-y-4">
+          <div className="space-y-4">
             {reelReturn !== null && (
               <Button
                 type="button"
@@ -1667,11 +1665,12 @@ function Studio({
                 Retour au Reel · passage {reelReturn + 1}
               </Button>
             )}
-            <StudioVideoPanel
+            <VideoStudioSessions
               workspaceId={workspaceId}
+              userId={userId}
               writable={roleWritable}
-              draftKey={`studio-video:${userId}:${workspaceId}:${sessionId || "new"}:${videoSource?.id || "idea"}`}
               initialSource={videoSource}
+              legacyDraftKey={`studio-video:${userId}:${workspaceId}:${sessionId || "new"}:${videoSource?.id || "idea"}`}
               onPickClip={reelReturn !== null
                 ? (job) => returnToReel(job.id)
                 : undefined}

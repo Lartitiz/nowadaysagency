@@ -160,14 +160,14 @@ export async function prepareVideo(
 }
 
 type SignedInput = {
-  workspace_id: string; source_kind: string; source_id?: string;
+  workspace_id: string; session_id?: string; source_kind: string; source_id?: string;
   references?: Array<{ kind: string; id: string; role: string }>;
   duration: number; resolution: string; aspect_ratio: string; prompt: string;
   idea?: string;
   summary?: string; continuity?: string[]; allowed_changes?: string; forbidden_changes?: string;
 };
 function canonical(input: SignedInput, userId: string, expires: number) {
-  return JSON.stringify([userId, input.workspace_id, input.source_kind, input.source_id || null,
+  return JSON.stringify([userId, input.workspace_id, input.session_id || null, input.source_kind, input.source_id || null,
     input.references || [], input.duration, input.resolution, input.aspect_ratio, input.idea || null, input.prompt,
     input.summary || null, input.continuity || [], input.allowed_changes || null,
     input.forbidden_changes || null, expires]);
@@ -190,5 +190,14 @@ export async function verifyPreparation(token: string, input: SignedInput, userI
   const expected = await signature(canonical(input, userId, expires), secret);
   let mismatch = 0;
   for (let i = 0; i < expected.length; i++) mismatch |= expected.charCodeAt(i) ^ hex.charCodeAt(i);
-  return mismatch === 0;
+  if (mismatch === 0) return true;
+  if (input.session_id) return false;
+  // Fifteen-minute compatibility window for preparations signed before the
+  // optional session field existed. Every original source and setting is still bound.
+  const oldFields = JSON.parse(canonical(input, userId, expires)) as unknown[];
+  oldFields.splice(2, 1);
+  const legacy = await signature(JSON.stringify(oldFields), secret);
+  let legacyMismatch = 0;
+  for (let i = 0; i < legacy.length; i++) legacyMismatch |= legacy.charCodeAt(i) ^ hex.charCodeAt(i);
+  return legacyMismatch === 0;
 }
