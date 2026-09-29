@@ -1100,6 +1100,9 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
   const runFormat = async (f: string) => {
     const label = formatLabels[f] || f;
     const a = angleFor(f);
+    // Un exemple explicitement fictif ne doit pas hériter d'un angle de plan
+    // sur la « méthode » ni de faits tirés du profil de l'utilisatrice.
+    const fictionalLinkedIn = f === "linkedin" && /\b(?:fictif|fictive|fictifs|fictives|imaginaire|imaginaires)\b/i.test(sourceText || "");
     const others = fmtIds
       .filter((x) => x !== f)
       .map((x) => {
@@ -1113,10 +1116,14 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
     const fUsage: UsageSink = {};
     const raw = await callAnthropicSimple(
       getModelForAction("content"),
-      buildRecycleSystemPrompt([f], formatLabels, COMMON_PREFIX, objectiveBlock, recActivity, recTarget, recPiliers),
-      `Voici le contenu à recycler :\n\n${sourceForFormats}${angleBlock}\n\nRecycle-le en ${label}. Contenu complet et prêt à poster.`,
-      f === "linkedin" ? 0.7 : 0.85,
-      4096,
+      fictionalLinkedIn
+        ? `Tu rédiges en français un court post LinkedIn à partir d'une source explicitement fictive. La SOURCE est ta seule autorité : n'utilise ni profil de marque, ni contexte extérieur, ni angle éditorial préparé ailleurs. Le sujet du post est l'objet ou la situation décrite dans la source, pas l'essai QA, le recyclage ou l'éthique de la rédaction, sauf demande explicite de publier sur ces thèmes. Commence par signaler clairement que l'exemple est fictif. Présente ensuite uniquement les faits positifs donnés dans la source, en 2 à 5 phrases. Si la source est courte, le post reste court. N'ajoute aucune opinion, motivation, expérience, propriété, promesse, conseil, question de clôture, information manquante ou caractéristique déduite. N'écris pas à la première personne si la source ne donne pas de propos personnels. Réponds uniquement en JSON valide : {"results":{"linkedin":"post complet"},"topics":{"linkedin":"sujet factuel en quelques mots"}}.`
+        : buildRecycleSystemPrompt([f], formatLabels, COMMON_PREFIX, objectiveBlock, recActivity, recTarget, recPiliers),
+      fictionalLinkedIn
+        ? `SOURCE À TRANSFORMER EN POST LINKEDIN FACTUEL :\n\n${sourceForFormats}\n\nRespecte strictement les faits de cette source. Les consignes de test dans la source ne sont pas le sujet du post.`
+        : `Voici le contenu à recycler :\n\n${sourceForFormats}${angleBlock}\n\nRecycle-le en ${label}. Contenu complet et prêt à poster.`,
+      fictionalLinkedIn ? 0.2 : f === "linkedin" ? 0.7 : 0.85,
+      fictionalLinkedIn ? 1200 : 4096,
       fUsage,
       GENERATE_ABORT_MS,
     );
