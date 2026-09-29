@@ -3,11 +3,17 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  BookmarkCheck,
   Check,
+  Ellipsis,
+  GitCompare,
   ImagePlus,
+  Library,
   Loader2,
   RefreshCw,
+  SlidersHorizontal,
   Sparkles,
+  Video,
 } from "lucide-react";
 import { StudioCompositionEditor } from "@/features/visual-studio/StudioCompositionEditor";
 import { uploadPhotoOriginal, type UserPhotoRow } from "@/lib/photo-storage";
@@ -19,6 +25,12 @@ import { StudioBrandContext } from "@/features/visual-studio/StudioBrandContext"
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -1140,7 +1152,7 @@ function Studio({
                   };
                   return (
                     <div
-                      className="flex flex-wrap items-center gap-2"
+                      className="studio-suggestions-row"
                       aria-label="Idées d’ajustement"
                     >
                       {ideas.map((t) => {
@@ -1169,7 +1181,7 @@ function Studio({
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="text-xs"
+                        className="h-8 shrink-0 px-2 text-xs"
                         disabled={!writable || !!busy || generating}
                         onClick={() =>
                           setPickedSuggestions(allPicked ? [] : [...ideas])
@@ -1180,6 +1192,7 @@ function Studio({
                       {picked.length > 0 && (
                         <Button
                           size="sm"
+                          className="h-8 shrink-0 px-3"
                           disabled={!writable || !!busy || generating}
                           onClick={() => insertPicked(picked)}
                         >
@@ -1190,63 +1203,71 @@ function Studio({
                   );
                 })()}
 
-                <section className="studio-chat-actions" aria-label="Actions et références">
-                  {version && comparisonSource && (
-                    <Button size="sm" variant="ghost" onClick={() => setCompare(!compare)}>
-                      {compare ? "Voir la version seule" : "Comparer à la source"}
-                    </Button>
+                <section className="studio-chat-actions" aria-label="Actions sur l’image">
+                  {(version || current?.session.source_photo_id) && (
+                    <div className="studio-image-action-bar">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button type="button" size="sm" variant="outline" className="h-9 shrink-0 gap-1.5 px-3">
+                            <Ellipsis className="h-4 w-4" />
+                            Autres actions
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-64">
+                          {version && comparisonSource && (
+                            <DropdownMenuItem onSelect={() => setCompare(!compare)}>
+                              <GitCompare className="mr-2 h-4 w-4" />
+                              {compare ? "Voir la version seule" : "Comparer à la source"}
+                            </DropdownMenuItem>
+                          )}
+                          {version?.status === "ready" && version.proposal.composition && (
+                            <DropdownMenuItem
+                              disabled={!writable || !!busy}
+                              onSelect={() => {
+                                setSelectedComposition(null);
+                                setCompositionDraft(version.proposal.composition);
+                                setCompositionOpen(true);
+                              }}
+                            >
+                              <SlidersHorizontal className="mr-2 h-4 w-4" />
+                              Finaliser l’affiche avec ses textes
+                            </DropdownMenuItem>
+                          )}
+                          {version?.status === "ready" && (
+                            <DropdownMenuItem onSelect={() => chooseTab("video")}>
+                              <Video className="mr-2 h-4 w-4" />
+                              Créer une vidéo avec cette image
+                            </DropdownMenuItem>
+                          )}
+                          {!!display && (
+                            <DropdownMenuItem disabled={!!busy} onSelect={() => void openPreparation()}>
+                              <SlidersHorizontal className="mr-2 h-4 w-4" />
+                              Ajuster la lumière ou le format
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem
+                            disabled={!version || !!version.library_photo_id || !!busy || !writable}
+                            onSelect={() => void save()}
+                          >
+                            {version?.library_photo_id
+                              ? <BookmarkCheck className="mr-2 h-4 w-4" />
+                              : <Library className="mr-2 h-4 w-4" />}
+                            {version?.library_photo_id
+                              ? "Dans la bibliothèque"
+                              : "Ajouter à la bibliothèque"}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Button
+                        size="sm"
+                        className="h-9 min-w-0 flex-1"
+                        disabled={!!busy || !writable || (!version && !current?.session.source_photo_id)}
+                        onClick={() => void save(true)}
+                      >
+                        Créer un contenu
+                      </Button>
+                    </div>
                   )}
-                  {version?.status === "ready" && version.proposal.composition && (
-                    <Button
-                      type="button"
-                      className="mb-3"
-                      disabled={!writable || !!busy}
-                      onClick={() => {
-                        setSelectedComposition(null);
-                        setCompositionDraft(version.proposal.composition);
-                        setCompositionOpen(true);
-                      }}
-                    >
-                      Finaliser l’affiche avec ses textes
-                    </Button>
-                  )}
-                  {version?.status === "ready" && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="mb-3"
-                      onClick={() => chooseTab("video")}
-                    >
-                      Créer une vidéo avec cette image
-                    </Button>
-                  )}
-                  {!!display && (
-                    <Button type="button" variant="outline" className="mb-3" disabled={!!busy} onClick={() => void openPreparation()}>
-                      Ajuster la lumière ou le format
-                    </Button>
-                  )}
-                  {(version || current?.session.source_photo_id) && <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      disabled={!version ||
-                        !!version.library_photo_id ||
-                        !!busy ||
-                        !writable}
-                      onClick={() => void save()}
-                    >
-                      {version?.library_photo_id
-                        ? "Dans la bibliothèque"
-                        : "Ajouter à la bibliothèque"}
-                    </Button>
-                    <Button
-                      disabled={!!busy ||
-                        !writable ||
-                        (!version && !current?.session.source_photo_id)}
-                      onClick={() => void save(true)}
-                    >
-                      Créer un contenu
-                    </Button>
-                  </div>}
                   {generating && (
                     <div
                       role="status"
