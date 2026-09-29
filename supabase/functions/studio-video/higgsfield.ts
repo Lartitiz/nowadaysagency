@@ -80,8 +80,29 @@ export async function uploadImage(blob: Blob, fetcher = fetch) {
   return data.public_url as string;
 }
 
+// Approximate credits per USD, from the documented example (1.5 credits = $0.094).
+const CREDITS_PER_USD = 16;
+
+// Some models (Seedance 2.5) answer with a textual rate instead of numbers:
+// {"type":"description","pricing_description":"... roughly $0.2056 per second ... at 480p, $0.4622 at 720p ..."}
+export function priceFromDescription(text: unknown, input: VideoInput) {
+  if (typeof text !== "string") return null;
+  const perSecond = text.match(/\$([\d.]+) per second of generated video at 480p,\s*\$([\d.]+) at 720p/i);
+  if (!perSecond) return null;
+  const rate = Number(input.resolution === "720p" ? perSecond[2] : perSecond[1]);
+  if (!Number.isFinite(rate) || rate <= 0 || !Number.isFinite(input.duration) || input.duration <= 0) return null;
+  // 10% safety margin, rounded up to the cent: the quote must never be lower than the real cost.
+  const usd = Math.ceil(rate * input.duration * 1.1 * 100) / 100;
+  return { usd, credits: Math.ceil(usd * CREDITS_PER_USD * 1000) / 1000 };
+}
+
 export async function estimate(input: VideoInput, fetcher = fetch, model: VideoModel = MODEL) {
   const { data } = await api(`estimate/${model}`, "POST", input, fetcher);
+  if (data?.type === "description") {
+    const derived = priceFromDescription(data.pricing_description, input);
+    if (!derived) throw new Error("higgsfield_estimate_invalid");
+    return derived;
+  }
   const usd = Number(data.usd), credits = Number(data.credits);
   if (!Number.isFinite(usd) || usd <= 0 || !Number.isFinite(credits) || credits <= 0)
     throw new Error("higgsfield_estimate_invalid");
