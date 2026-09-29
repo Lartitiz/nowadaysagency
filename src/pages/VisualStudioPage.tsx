@@ -702,7 +702,7 @@ function Studio({
     if (!current || actionLock.current || !writable) return;
     return saveVersion(useInContent, target ?? version);
   }
-  async function saveVersion(useInContent: boolean, version: typeof target) {
+  async function saveVersion(useInContent: boolean, version: (typeof current)["versions"][number] | undefined) {
     if (!version) {
       if (useInContent && current.session.source_photo_id) {
         navigate(contentPath, {
