@@ -104,7 +104,7 @@ describe("BrandPhotosPicker", () => {
         : { data: { base64: btoa("x"), contentType: "image/jpeg" } },
     );
     render(<BrandPhotosPicker placement="welcome" />);
-    await screen.findByText(/Je n'ai pas trouvé de photo de produit exploitable/);
+    await screen.findByText(/Je n'ai pas trouvé de photo exploitable/);
     expect(m.upload).not.toHaveBeenCalled();
   });
 
@@ -115,7 +115,7 @@ describe("BrandPhotosPicker", () => {
       .mockResolvedValueOnce({ data: { images: [] } });
     render(<BrandPhotosPicker placement="welcome" />);
     fireEvent.click(await screen.findByRole("button", { name: "Réessayer la recherche" }));
-    await screen.findByText(/Je n'ai pas trouvé de photo de produit exploitable/);
+    await screen.findByText(/Je n'ai pas trouvé de photo exploitable/);
     expect(m.scan).toHaveBeenCalledTimes(2);
   });
   it("scanne le site tout seul, puis ajoute les photos cochées à la bibliothèque", async () => {
