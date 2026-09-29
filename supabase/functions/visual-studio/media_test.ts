@@ -82,7 +82,7 @@ Deno.test(
         ],
       );
       assertEquals(calls[1].url.endsWith("/edits"), true);
-      const form = calls[1].(init as any)?.body as FormData;
+      const form = calls[1].init?.body as FormData;
       assertEquals(await (form.getAll("image[]")[0] as Blob).text(), "parent");
       assertEquals(await (form.getAll("image[]")[1] as Blob).text(), "subject");
       assertEquals(
