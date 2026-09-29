@@ -669,7 +669,7 @@ Deno.test("a product scene prioritizes the product over a mood photo and confirm
     let sentPrompt = "";
     let inputOrder: string[] = [];
     globalThis.fetch = async (_input, init) => {
-      const form = init?.body as FormData;
+      const form = (init as any)?.body as FormData;
       sentPrompt = String(form.get("prompt"));
       inputOrder = await Promise.all(form.getAll("image[]").map((part) => (part as Blob).text()));
       return new Response(JSON.stringify({ data: [{ b64_json: btoa("result") }] }), { headers: { "Content-Type": "application/json" } });
