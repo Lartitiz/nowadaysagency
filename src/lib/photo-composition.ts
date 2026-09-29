@@ -31,7 +31,7 @@ export interface PhotoRecipe {
   crop?: PhotoRect;
 }
 export const DEFAULT_PHOTO_DIRECTION: PhotoDirection = {
-  version: 1, background: "#ffffff", padding: 0.05, horizontal: 0.5, vertical: 0.5,
+  version: 1, background: "#ffffff", padding: 0, horizontal: 0.5, vertical: 0.5,
   textPosition: "none", textColor: "#1a1a1a", scenePrompt: "",
 };
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, Number.isFinite(n) ? n : min));
@@ -40,7 +40,7 @@ const color = (s: unknown, fallback: string) => typeof s === "string" && /^#[0-9
 export function cleanDirection(value: Partial<PhotoDirection> = {}): PhotoDirection {
   return {
     version: 1, background: color(value.background, "#ffffff"), textColor: color(value.textColor, "#1a1a1a"),
-    padding: clamp(value.padding ?? 0.05, 0, 0.2), horizontal: clamp(value.horizontal ?? 0.5, 0, 1),
+    padding: clamp(value.padding ?? 0, 0, 0.2), horizontal: clamp(value.horizontal ?? 0.5, 0, 1),
     vertical: clamp(value.vertical ?? 0.5, 0, 1),
     textPosition: value.textPosition === "top" || value.textPosition === "bottom" ? value.textPosition : "none",
     scenePrompt: typeof value.scenePrompt === "string" ? value.scenePrompt.slice(0, 400) : "",
@@ -48,7 +48,7 @@ export function cleanDirection(value: Partial<PhotoDirection> = {}): PhotoDirect
 }
 export function makePhotoRecipe(format: PhotoFormat = "post", direction: PhotoDirection = DEFAULT_PHOTO_DIRECTION): PhotoRecipe {
   return { format, width: PHOTO_FORMATS[format].width, height: PHOTO_FORMATS[format].height,
-    fit: "contain", direction: cleanDirection(direction), exposure: 0, contrast: 1, text: "" };
+    fit: "cover", direction: cleanDirection(direction), exposure: 0, contrast: 1, text: "" };
 }
 export function cleanRecipe(raw: PhotoRecipe): PhotoRecipe {
   const format = Object.prototype.hasOwnProperty.call(PHOTO_FORMATS, raw.format) ? raw.format : "post";
