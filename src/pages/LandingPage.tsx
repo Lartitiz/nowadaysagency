@@ -2,7 +2,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { useEffect, useState } from "react";
 import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate, Link } from "react-router-dom";
+import { Navigate, Link, useLocation } from "react-router-dom";
 import {
   Accordion,
   AccordionContent,
@@ -306,6 +306,9 @@ function FeatureVisual({ type }: { type: string }) {
    ═══════════════════════════════════════════════════════════ */
 export default function LandingPage() {
   const { user, loading } = useAuth();
+  const location = useLocation();
+  const loginTarget = new URLSearchParams(location.search).get("offer") === "outil"
+    ? "/login?offer=outil&redirect=%2Fpricing%3Fselected%3Dpremium" : "/login";
   const [mobileNav, setMobileNav] = useState(false);
 
   usePageSEO({
@@ -319,7 +322,7 @@ export default function LandingPage() {
     if (loading || user) return;
     const id = window.location.hash.slice(1);
     if (id) document.getElementById(id)?.scrollIntoView();
-  }, [loading, user]);
+  }, [loading, user, location.search, location.hash]);
 
   if (loading) {
     return (
@@ -366,10 +369,10 @@ export default function LandingPage() {
             <a href="https://www.nowadaysagency.com/accompagnement-communication" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Accompagnement</a>
           </div>
           <div className="hidden md:flex items-center gap-3">
-            <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Se connecter</Link>
-            <a href="#signup-section" onClick={scrollTo("signup-section")} className="rounded-pill bg-primary text-primary-foreground px-6 py-2.5 text-sm font-medium shadow-cta hover:bg-bordeaux transition-colors">
+            <Link to={loginTarget} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Se connecter</Link>
+            <Link to="/#signup-section" className="rounded-pill bg-primary text-primary-foreground px-6 py-2.5 text-sm font-medium shadow-cta hover:bg-bordeaux transition-colors">
               Commencer gratuitement
-            </a>
+            </Link>
           </div>
           <button className="md:hidden p-2" onClick={() => setMobileNav(!mobileNav)} aria-label="Ouvrir le menu de navigation" aria-expanded={mobileNav}>
             {mobileNav ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -380,10 +383,10 @@ export default function LandingPage() {
             <a href="#features" onClick={scrollTo("features")} className="block text-sm font-medium">Fonctionnalités</a>
             <Link to="/pricing" className="block text-sm font-medium">Pricing</Link>
             <a href="https://www.nowadaysagency.com/accompagnement-communication" target="_blank" rel="noopener noreferrer" className="block text-sm font-medium">Accompagnement</a>
-            <Link to="/login" className="block text-sm font-medium text-muted-foreground">Se connecter</Link>
-            <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill bg-primary text-primary-foreground py-2.5 text-sm font-medium shadow-cta">
+            <Link to={loginTarget} className="block text-sm font-medium text-muted-foreground">Se connecter</Link>
+            <Link to="/#signup-section" className="block text-center rounded-pill bg-primary text-primary-foreground py-2.5 text-sm font-medium shadow-cta">
               Commencer gratuitement
-            </a>
+            </Link>
           </div>
         )}
       </header>
@@ -729,9 +732,9 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill bg-primary text-primary-foreground py-2.5 font-medium hover:bg-bordeaux transition-colors shadow-cta text-sm">
+                <Link to="/#signup-section" className="block text-center rounded-pill bg-primary text-primary-foreground py-2.5 font-medium hover:bg-bordeaux transition-colors shadow-cta text-sm">
                   Commencer gratuitement
-                </a>
+                </Link>
               </div>
             </Reveal>
 
@@ -741,14 +744,14 @@ export default function LandingPage() {
                 <Gem className="h-5 w-5 text-primary mb-2" strokeWidth={1.75} />
                 <h3 className="font-display text-lg font-bold">Premium</h3>
                 <p className="text-primary font-bold text-xl mt-1">39€<span className="text-sm font-normal text-muted-foreground">/mois</span></p>
-                <p className="text-sm text-muted-foreground mt-1 mb-4">Crée sans compter, autant que tu veux.</p>
+                <p className="text-sm text-muted-foreground mt-1 mb-4">Crée régulièrement, avec des options avancées selon leur quota.</p>
                 <p className="text-xs text-muted-foreground mb-2 pb-2 border-b border-border">
                   Tout le plan gratuit, plus :
                 </p>
                 <ul className="space-y-2 mb-6 flex-1">
                   {[
-                    "Création de contenu illimitée + audits illimités",
-                    "Communauté active + lives mensuels",
+                    "Contenus standard et audits sans limite mensuelle",
+                    "Jusqu’à 20 carrousels Qualité Max et 50 retouches photo par mois",
                   ].map((item, idx) => (
                     <li key={idx} className="text-sm text-foreground flex items-start gap-2">
                       <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
@@ -756,9 +759,9 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <a href="#signup-section" onClick={scrollTo("signup-section")} className="block text-center rounded-pill border-2 border-primary text-primary py-2.5 font-medium hover:bg-primary hover:text-primary-foreground transition-colors text-sm">
+                <Link to="/pricing?selected=premium" className="block text-center rounded-pill border-2 border-primary text-primary py-2.5 font-medium hover:bg-primary hover:text-primary-foreground transition-colors text-sm">
                   S'abonner
-                </a>
+                </Link>
               </div>
             </Reveal>
           </div>

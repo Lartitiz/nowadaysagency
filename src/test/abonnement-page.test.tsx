@@ -100,7 +100,7 @@ describe("AbonnementPage — plan actuel", () => {
 
   it("affiche « Premium » et le prix pour le plan outil", async () => {
     mockInvokeResponses({
-      "check-subscription": { data: { plan: "outil" }, error: null },
+      "check-subscription": { data: { plan: "outil", source: "stripe" }, error: null },
     });
     render(<AbonnementPage />);
 
@@ -111,7 +111,7 @@ describe("AbonnementPage — plan actuel", () => {
 
   it("affiche « Binôme de com » sans lien accompagnement pour le plan binôme", async () => {
     mockInvokeResponses({
-      "check-subscription": { data: { plan: "binome" }, error: null },
+      "check-subscription": { data: { plan: "binome", source: "stripe" }, error: null },
     });
     render(<AbonnementPage />);
 
@@ -126,7 +126,7 @@ describe("AbonnementPage — portail Stripe", () => {
   it("clic sur « Gérer mon abonnement » appelle create-portal-session et ouvre l'URL renvoyée", async () => {
     mocks.userPlan.isPaid = true;
     mockInvokeResponses({
-      "check-subscription": { data: { plan: "outil" }, error: null },
+      "check-subscription": { data: { plan: "outil", source: "stripe", has_stripe_subscription: true }, error: null },
       "create-portal-session": { data: { url: "https://billing.stripe.com/session/abc" }, error: null },
     });
     render(<AbonnementPage />);
@@ -147,7 +147,18 @@ describe("AbonnementPage — portail Stripe", () => {
     });
     render(<AbonnementPage />);
 
-    await waitFor(() => expect(screen.getByText("Gratuit")).toBeInTheDocument());
+    const card = await waitForPlanLoaded();
+    expect(within(card).getByText("Gratuit")).toBeInTheDocument();
+    expect(screen.queryByText("Gérer mon abonnement")).not.toBeInTheDocument();
+  });
+
+  it("présente l'accès administrateur sans mensualité ni portail Stripe", async () => {
+    mocks.userPlan.isPaid = true;
+    mockInvokeResponses({ "check-subscription": { data: { plan: "binome", source: "admin" }, error: null } });
+    render(<AbonnementPage />);
+    const card = await waitForPlanLoaded();
+    expect(within(card).getByText("Accès administrateur")).toBeInTheDocument();
+    expect(within(card).queryByText(/290€\/mois/)).not.toBeInTheDocument();
     expect(screen.queryByText("Gérer mon abonnement")).not.toBeInTheDocument();
   });
 });
@@ -167,7 +178,7 @@ describe("AbonnementPage — upgrade", () => {
     await waitFor(() =>
       expect(mocks.invoke).toHaveBeenCalledWith(
         "create-checkout",
-        { body: { priceId: STRIPE_PLANS.outil.priceId, mode: "subscription" } },
+        { body: { priceId: STRIPE_PLANS.outil.priceId, mode: "subscription", cancelUrl: `${window.location.origin}/abonnement?checkout=cancelled` } },
         15000,
       ),
     );
@@ -176,7 +187,7 @@ describe("AbonnementPage — upgrade", () => {
 });
 
 describe("AbonnementPage — résilience aux erreurs", () => {
-  it("n'affiche pas de crash quand check-subscription échoue et prévient via un toast", async () => {
+  it("montre un état inconnu et bloque les achats si check-subscription échoue", async () => {
     mocks.invoke.mockImplementation(async (fn: string) => {
       if (fn === "check-subscription") throw new Error("network down");
       return { data: null, error: null };
@@ -184,10 +195,9 @@ describe("AbonnementPage — résilience aux erreurs", () => {
 
     render(<AbonnementPage />);
 
-    await waitFor(() => expect(mocks.toast.error).toHaveBeenCalled());
-    // La page reste utilisable : le plan retombe sur l'état par défaut affiché.
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Abonnement momentanément indisponible"));
     expect(screen.getByText("Mon abonnement")).toBeInTheDocument();
-    const card = await waitForPlanLoaded();
-    expect(within(card).getByText("Gratuit")).toBeInTheDocument();
+    expect(screen.queryByText("Plan actuel")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Passer à Premium/)).not.toBeInTheDocument();
   });
 });

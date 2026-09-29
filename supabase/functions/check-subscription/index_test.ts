@@ -3,11 +3,8 @@
 // ici affiche soit un plan payant à une compte gratuite (fuite), soit
 // "Gratuit · 0 restantes" à une abonnée qui a bien payé (le bug T19 documenté
 // dans plan-limiter.ts). Couvre le bypass admin, le calcul du plan effectif
-// pour une utilisatrice payante, et le comportement volontaire du `catch`
-// englobant : en cas d'erreur interne, la fonction répond quand même 200 avec
-// un plan "free" de repli et `error` rempli (jamais un 500 qui casserait
-// l'affichage du header crédits) — verrouillé ici pour que ça reste un choix
-// assumé, pas une régression silencieuse vers un vrai crash.
+// pour une utilisatrice payante, et le traitement d'une lecture inconnue :
+// jamais de plan gratuit inventé en cas de panne.
 //
 // Lancer : deno test --no-check --allow-env --allow-read --node-modules-dir=none supabase/functions/check-subscription/index_test.ts
 
@@ -55,12 +52,13 @@ function installMockFetch(opts: MockOpts) {
         // atterrir dans le catch englobant de check-subscription.
         throw new Error("simulated network failure");
       }
-      if (!opts.subscriptionRow) return json({ message: "no rows" }, 406);
-      return json(opts.subscriptionRow, 200);
+      const listQuery = new URL(url).searchParams.get("select") === "*";
+      if (!opts.subscriptionRow) return listQuery ? json([]) : json({ code: "PGRST116", details: "The result contains 0 rows", message: "Cannot coerce the result to a single JSON object" }, 406);
+      return json(listQuery ? [opts.subscriptionRow] : opts.subscriptionRow);
     }
 
     if (path === "/rest/v1/coaching_programs") {
-      return json({ message: "no rows" }, 406);
+      return json([]);
     }
 
     if (path === "/rest/v1/workspaces") {
@@ -124,25 +122,19 @@ Deno.test("check-subscription: abonnement 'outil' actif -> plan effectif = outil
   }
 });
 
-Deno.test("check-subscription: la requête 'subscriptions' échoue au niveau réseau -> dégrade vers plan 'free' SANS planter (supabase-js n'expose jamais cette erreur, elle est lue via `data` seul, jamais `error`)", async () => {
+Deno.test("check-subscription: panne de lecture -> état indisponible, pas plan gratuit", async () => {
   installMockFetch({ isAdmin: false, breakSubscriptionsQuery: true });
   try {
     const res = await handleCheckSubscriptionRequest(req());
-    // supabase-js convertit un throw fetch en {data:null, error:{...}} plutôt que de
-    // rejeter la promesse — et ce endpoint ne lit jamais `error` sur cet appel
-    // (`const { data: sub } = await ...`). Résultat : pas de crash, mais un plan
-    // "free" silencieux même si la vraie cause est une panne réseau, pas l'absence
-    // d'abonnement. Ce test verrouille ce comportement pour qu'il reste un choix
-    // connu plutôt qu'une régression découverte en prod.
-    assertEquals(res.status, 200);
+    assertEquals(res.status, 503);
     const body = await res.json();
-    assertEquals(body.plan, "free");
+    assertEquals(body.plan, undefined);
   } finally {
     restore();
   }
 });
 
-Deno.test("check-subscription: sans Authorization -> répond aussi 200 avec le même repli (comportement volontaire documenté, pas un 401)", async () => {
+Deno.test("check-subscription: sans Authorization -> 401 sans plan", async () => {
   installMockFetch({ isAdmin: false });
   try {
     const request = new Request("https://edge.local/check-subscription", {
@@ -151,9 +143,9 @@ Deno.test("check-subscription: sans Authorization -> répond aussi 200 avec le m
       body: "{}",
     });
     const res = await handleCheckSubscriptionRequest(request);
-    assertEquals(res.status, 200);
+    assertEquals(res.status, 401);
     const body = await res.json();
-    assertEquals(body.plan, "free");
+    assertEquals(body.plan, undefined);
     assertEquals(typeof body.error, "string");
   } finally {
     restore();

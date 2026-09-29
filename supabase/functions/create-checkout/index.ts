@@ -66,14 +66,24 @@ export async function handleCreateCheckoutRequest(req: Request) {
     }
 
     const origin = req.headers.get("origin") || "https://nowadaysagency.lovable.app";
+    // Stripe returns only to pages on this app. Every success link carries the
+    // Checkout session id; the page verifies it server-side before confirming.
+    const success = new URL(successUrl || `${origin}/payment/success`);
+    if (success.origin !== origin || success.pathname !== "/payment/success" || success.searchParams.has("session_id")) {
+      throw new ValidationError("URL de retour de paiement invalide");
+    }
+    const cancel = new URL(cancelUrl || `${origin}/abonnement`);
+    if (cancel.origin !== origin || !["/pricing", "/abonnement", "/services", "/parametres"].includes(cancel.pathname)) {
+      throw new ValidationError("URL de retour d'annulation invalide");
+    }
 
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [{ price: priceId, quantity: 1 }],
       mode: mode === "subscription" ? "subscription" : "payment",
-      success_url: successUrl || `${origin}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl || `${origin}/parametres`,
+      success_url: `${success.toString()}${success.search ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancel.toString(),
       allow_promotion_codes: true,
       metadata: {
         user_id: user.id,

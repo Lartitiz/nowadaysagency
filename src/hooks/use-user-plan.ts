@@ -51,6 +51,7 @@ export interface CategoryUsage {
 interface UserPlanState {
   plan: Plan;
   loading: boolean;
+  verified: boolean;
   usage: Record<string, CategoryUsage>;
   bonusCredits: number;
   canUseFeature: (feature: Feature) => boolean;
@@ -102,7 +103,7 @@ async function fetchSubscription(workspaceId?: string): Promise<any> {
     .invoke("check-subscription", { body: { workspace_id: workspaceId || null } })
     .then(({ data, error }) => {
       _inflight.delete(key);
-      if (!error && data) {
+      if (!error && data?.plan && !data?.error) {
         _cache.set(key, { data, ts: Date.now() });
         return data;
       }
@@ -137,6 +138,7 @@ export function useUserPlan(): UserPlanState {
     return {};
   });
   const [loading, setLoading] = useState(!isDemoMode);
+  const [verifiedWorkspaceKey, setVerifiedWorkspaceKey] = useState<string | null>(null);
 
   // Update usage when demoPlan changes
   useEffect(() => {
@@ -156,13 +158,15 @@ export function useUserPlan(): UserPlanState {
     try {
       const data = await fetchSubscription(activeWorkspace?.id);
       if (data) {
+        setVerifiedWorkspaceKey(activeWorkspace?.id || "perso");
         setPlan(normalizePlan(data.plan || "free"));
         setBonusCredits(data.bonus_credits || 0);
         if (data.ai_usage && typeof data.ai_usage === "object") {
           setUsage(data.ai_usage);
         }
-      }
+      } else setVerifiedWorkspaceKey(null);
     } catch (e) {
+      setVerifiedWorkspaceKey(null);
       trackError(e, { page: "useUserPlan", action: "checkSubscription" });
     }
     setLoading(false);
@@ -249,6 +253,7 @@ export function useUserPlan(): UserPlanState {
   return {
     plan: effectivePlan,
     loading,
+    verified: isAdminUser || isDemoMode || (!workspaceLoading && verifiedWorkspaceKey === (activeWorkspace?.id || "perso")),
     usage,
     bonusCredits,
     canUseFeature,

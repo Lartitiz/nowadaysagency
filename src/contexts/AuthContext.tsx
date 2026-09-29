@@ -51,7 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, [isDemoMode]);
 
-  async function resolvePostAuthRoute(userId: string): Promise<string> {
+  async function resolvePostAuthRoute(authUser: User): Promise<string> {
+    const userId = authUser.id;
     // Inscription fraîche (marqueur posé par SignupForm avant signUp) : route
     // déterministe vers /onboarding, sans lire profiles/user_plan_config — au
     // SIGNED_IN post-signup, la ligne profiles n'existe souvent PAS ENCORE
@@ -68,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileUserId: userId,
         planConfigUserId: userId,
       });
-      if (status === "needs") return "/onboarding";
+      if (status === "needs" || (status === "unknown" && authUser.user_metadata?.pending_offer === "outil")) return "/onboarding";
 
       // Lecture dédiée pour welcome_seen (séparée du statut onboarding)
       const { data: config } = await supabase
@@ -137,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (path === "/" || path === "/login" || path === "/connexion") {
             setTimeout(async () => {
               if (!mounted || authRevision !== eventRevision) return;
-              const route = await resolvePostAuthRoute(currentSession.user.id);
+              const route = await resolvePostAuthRoute(currentSession.user);
               if (!mounted || authRevision !== eventRevision) return;
               navigateRef.current(route);
             }, 0);
@@ -170,7 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           if (path === "/" || path === "/login" || path === "/connexion") {
-            const route = await resolvePostAuthRoute(initialSession.user.id);
+            const route = await resolvePostAuthRoute(initialSession.user);
             if (!mounted || authRevision !== initialRevision) return;
             navigateRef.current(route);
           }

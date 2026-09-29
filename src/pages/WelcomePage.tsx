@@ -375,7 +375,9 @@ export default function WelcomePage() {
       if (cancelled) return;
       // If welcome already seen, go to dashboard
       if (config?.welcome_seen) {
-        navigate("/dashboard", { replace: true });
+        const pendingPremium = new URLSearchParams(window.location.search).get("offer") === "outil" || sessionStorage.getItem("lac_pending_offer") === "outil" || user.user_metadata?.pending_offer === "outil";
+        if (pendingPremium) sessionStorage.removeItem("lac_pending_offer");
+        navigate(pendingPremium ? "/pricing?selected=premium" : "/dashboard", { replace: true });
         return;
       }
       
@@ -558,7 +560,9 @@ export default function WelcomePage() {
     // force sur /welcome au login suivant.
     localStorage.setItem("lac_welcome_seen", "true");
     // Navigate immediately, don't wait for the update
-    navigate(destination);
+    const pendingPremium = new URLSearchParams(window.location.search).get("offer") === "outil" || sessionStorage.getItem("lac_pending_offer") === "outil" || user.user_metadata?.pending_offer === "outil";
+    if (pendingPremium) sessionStorage.removeItem("lac_pending_offer");
+    navigate(pendingPremium ? "/pricing?selected=premium" : destination);
     // Fire-and-forget en arrière-plan ; si la ligne n'existe pas encore
     // (update 0 ligne silencieux), on la crée.
     (supabase.from("user_plan_config") as any)

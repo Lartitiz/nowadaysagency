@@ -860,6 +860,13 @@ export function useOnboarding() {
     localStorage.removeItem(`lac_onboarding_upload_ids:${user.id}`);
     localStorage.removeItem(`lac_onboarding_diagnostic:${user.id}`);
 
+    if (sessionStorage.getItem("lac_pending_offer") === "outil" || user.user_metadata?.pending_offer === "outil") {
+      // Le choix est désormais porté par l'URL de welcome. La métadonnée
+      // d'inscription n'a pas vocation à relancer ce détour à chaque login.
+      void supabase.auth.updateUser({ data: { pending_offer: null } });
+      navigate("/welcome?offer=outil", { replace: true });
+      return;
+    }
     if (goCreate) {
       // On n'envoie plus direct sur /creer : on intercale l'écran de validation
       // de marque (BrandingReview, rendu par /branding quand une fiche

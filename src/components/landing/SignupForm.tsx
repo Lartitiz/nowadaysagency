@@ -18,6 +18,7 @@ const signupSchema = z.object({
 type SignupValues = z.infer<typeof signupSchema>;
 
 export default function SignupForm({ compact = false }: { compact?: boolean }) {
+  const chosenPremium = new URLSearchParams(window.location.search).get("offer") === "outil";
   const formId = useId();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -59,6 +60,7 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
       // ci-dessous (le SIGNED_IN part avant que la ligne existe → statut "unknown"
       // → la nouvelle inscrite atterrissait sur /dashboard).
       sessionStorage.setItem("lac_fresh_signup", "1");
+      if (chosenPremium) sessionStorage.setItem("lac_pending_offer", "outil");
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
@@ -68,7 +70,7 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
           // confirmation d'email s'ouvre sur un AUTRE appareil, localStorage et
           // l'insert profiles (qui échoue sans session) ne suffisent pas —
           // l'onboarding se pré-remplit alors depuis user_metadata.
-          data: { prenom: values.prenom, activite: values.activite?.trim() || "" },
+          data: { prenom: values.prenom, activite: values.activite?.trim() || "", pending_offer: chosenPremium ? "outil" : null },
         },
       });
       if (error) throw error;
@@ -95,6 +97,7 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
       // Inscription échouée : retirer le marqueur pour ne pas dérouter vers
       // /onboarding une connexion ultérieure dans le même onglet.
       sessionStorage.removeItem("lac_fresh_signup");
+      if (chosenPremium) sessionStorage.removeItem("lac_pending_offer");
       const msg = error.message;
       if (msg === "User already registered") {
         toast.error("Tu as déjà un compte !", {
@@ -137,6 +140,7 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" aria-label="Formulaire d'inscription">
+      {chosenPremium && <p className="rounded-xl border border-primary/30 bg-card p-3 text-sm">Offre choisie : <strong>Premium · 39€/mois</strong>. Crée ton compte, puis tu retrouveras le récapitulatif avant tout paiement.</p>}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label htmlFor={`${formId}-prenom`} className="sr-only">Prénom</label>
@@ -171,9 +175,9 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
         </span>
       </label>
       <Button type="submit" disabled={loading} className="w-full sm:w-auto h-12 rounded-pill px-10 text-base font-medium">
-        {loading ? "Un instant..." : "🚀 Commencer gratuitement"}
+        {loading ? "Un instant..." : chosenPremium ? "🚀 Créer mon compte" : "🚀 Commencer gratuitement"}
       </Button>
-      <p className="text-xs text-muted-foreground">Gratuit. Sans carte bancaire. En 30 secondes.</p>
+      <p className="text-xs text-muted-foreground">Création du compte gratuite, sans carte bancaire.</p>
     </form>
   );
 }

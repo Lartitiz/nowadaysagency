@@ -125,12 +125,13 @@ export function getServiceClient() {
   );
 }
 
-async function getUserPlan(sb: any, userId: string): Promise<string> {
-  const { data } = await sb
+async function getUserPlan(sb: any, userId: string, strict = false): Promise<string> {
+  const { data, error } = await sb
     .from("subscriptions")
     .select("plan, source, status, current_period_end")
     .eq("user_id", userId)
     .single();
+  if (strict && error && error.code !== "PGRST116") throw error;
   // Promo access is time-limited. Stripe subscriptions have their own
   // lifecycle and are deliberately left to webhook status updates.
   if (
@@ -143,12 +144,13 @@ async function getUserPlan(sb: any, userId: string): Promise<string> {
   return resolvePlan(data?.plan || "free");
 }
 
-async function getWorkspacePlan(sb: any, workspaceId: string): Promise<string> {
-  const { data } = await sb
+async function getWorkspacePlan(sb: any, workspaceId: string, strict = false): Promise<string> {
+  const { data, error } = await sb
     .from("workspaces")
     .select("plan")
     .eq("id", workspaceId)
     .single();
+  if (strict && error) throw error;
   return resolvePlan(data?.plan || "free");
 }
 
@@ -156,13 +158,14 @@ async function getWorkspacePlan(sb: any, workspaceId: string): Promise<string> {
 // même sans abonnement Stripe. Cohérent avec check-subscription (qui upgrade
 // free -> binome quand un coaching_program actif existe). Sans ça, le quota
 // traite en "free" une cliente binôme et la bloque à tort.
-async function getCoachingPlan(sb: any, userId: string): Promise<string> {
-  const { data } = await sb
+async function getCoachingPlan(sb: any, userId: string, strict = false): Promise<string> {
+  const { data, error } = await sb
     .from("coaching_programs")
     .select("id")
     .eq("client_user_id", userId)
     .eq("status", "active")
     .maybeSingle();
+  if (strict && error) throw error;
   return data ? "binome" : "free";
 }
 
@@ -180,10 +183,10 @@ function bestPlan(planA: string, planB: string): string {
  * (checkQuota/logUsage) doivent TOUS LES DEUX passer par ici — toute divergence
  * ré-introduit le bug « header N restantes pendant que le serveur refuse » (T19).
  */
-export async function getEffectivePlan(sb: any, userId: string, workspaceId?: string | null): Promise<string> {
-  const userPlan = await getUserPlan(sb, userId);
-  const workspacePlan = workspaceId ? await getWorkspacePlan(sb, workspaceId) : "free";
-  const coachingPlan = await getCoachingPlan(sb, userId);
+export async function getEffectivePlan(sb: any, userId: string, workspaceId?: string | null, strict = false): Promise<string> {
+  const userPlan = await getUserPlan(sb, userId, strict);
+  const workspacePlan = workspaceId ? await getWorkspacePlan(sb, workspaceId, strict) : "free";
+  const coachingPlan = await getCoachingPlan(sb, userId, strict);
   return bestPlan(bestPlan(userPlan, workspacePlan), coachingPlan);
 }
 
@@ -252,12 +255,13 @@ export async function resolveBillingWorkspaceId(
   return data?.workspace_id ?? undefined;
 }
 
-export async function getBonusCredits(sb: any, userId: string): Promise<number> {
-  const { data } = await sb
+export async function getBonusCredits(sb: any, userId: string, strict = false): Promise<number> {
+  const { data, error } = await sb
     .from("profiles")
     .select("bonus_credits")
     .eq("user_id", userId)
     .maybeSingle();
+  if (strict && error) throw error;
   return data?.bonus_credits || 0;
 }
 

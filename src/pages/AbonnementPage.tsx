@@ -42,12 +42,15 @@ function getNextRenewalDate(): string {
 }
 
 export default function AbonnementPage() {
+  const checkoutCancelled = new URLSearchParams(window.location.search).get("checkout") === "cancelled";
   const { user } = useAuth();
   const { plan, usage, isPaid, isBinome, bonusCredits, refresh } = useUserPlan();
   const { activeWorkspace, loading: workspaceLoading } = useWorkspace();
 
   const [subInfo, setSubInfo] = useState<any>(null);
   const [loadingSub, setLoadingSub] = useState(true);
+  const [subscriptionError, setSubscriptionError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [portalLoading, setPortalLoading] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [packLoading, setPackLoading] = useState<string | null>(null);
@@ -56,25 +59,30 @@ export default function AbonnementPage() {
     // Attendre le workspace actif : le « Plan actuel » affiché doit être le plan
     // EFFECTIF (celui que le serveur applique), qui dépend du périmètre.
     if (workspaceLoading) return;
+    let cancelled = false;
     refresh();
 
     (async () => {
       setLoadingSub(true);
+      setSubscriptionError(false);
+      setSubInfo(null);
       try {
-        const { data } = await invokeWithTimeout(
+        const { data, error } = await invokeWithTimeout(
           "check-subscription",
           { body: { workspace_id: activeWorkspace?.id || null } },
           15000,
         );
-        if (data) setSubInfo(data);
+        if (error || data?.error || !data?.plan) throw new Error(error?.message || data?.error || "Abonnement indisponible");
+        if (!cancelled) setSubInfo(data);
       } catch (e) {
         console.error("Abonnement error:", e);
-        toast.error("Une erreur est survenue. Réessaie ou contacte le support.");
+        if (!cancelled) setSubscriptionError(true);
       }
-      setLoadingSub(false);
+      if (!cancelled) setLoadingSub(false);
     })();
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceLoading, activeWorkspace?.id]);
+  }, [workspaceLoading, activeWorkspace?.id, retryCount]);
 
   const handlePortal = async () => {
     setPortalLoading(true);
@@ -92,7 +100,7 @@ export default function AbonnementPage() {
     setPortalLoading(true);
     try {
       const { data } = await invokeWithTimeout("create-checkout", {
-        body: { priceId, mode: "subscription" },
+        body: { priceId, mode: "subscription", cancelUrl: `${window.location.origin}/abonnement?checkout=cancelled` },
       }, 15000);
       if (data?.url) window.location.href = data.url;
     } catch (e) {
@@ -107,7 +115,7 @@ export default function AbonnementPage() {
     setPackLoading(packKey);
     try {
       const { data } = await invokeWithTimeout("create-checkout", {
-        body: { priceId, mode: "payment" },
+        body: { priceId, mode: "payment", cancelUrl: `${window.location.origin}/abonnement?checkout=cancelled` },
       }, 15000);
       if (data?.url) window.location.href = data.url;
     } catch (e) {
@@ -118,7 +126,7 @@ export default function AbonnementPage() {
   };
 
 
-  const planLabel = subInfo?.plan === "binome" ? "Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
+  const planLabel = subInfo?.source === "admin" ? "Accès administrateur" : subInfo?.plan === "binome" ? "Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
 
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
@@ -148,6 +156,19 @@ export default function AbonnementPage() {
           </div>
         </div>
 
+        {checkoutCancelled && <p role="status" className="rounded-xl border border-border bg-card p-4 text-sm mb-4">Paiement annulé. Aucun nouvel achat n’a été confirmé.</p>}
+
+        {subscriptionError && (
+          <div role="alert" className="rounded-2xl border border-destructive/30 bg-card p-6 mb-4">
+            <p className="font-semibold">Abonnement momentanément indisponible</p>
+            <p className="text-sm text-muted-foreground mt-1">Nous ne pouvons pas confirmer ton plan ni tes crédits. Réessaie avant de changer d’abonnement.</p>
+            <Button variant="outline" className="rounded-full mt-3" onClick={() => setRetryCount(value => value + 1)}>Réessayer</Button>
+          </div>
+        )}
+
+        {loadingSub && <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Vérification de l’abonnement…</p>}
+        {!loadingSub && !subscriptionError && <>
+
         {/* ─── Plan actuel ─── */}
         <div className="rounded-2xl border border-border bg-card p-6 mb-4">
           <h2 className="font-display text-lg font-bold text-foreground mb-3">Plan actuel</h2>
@@ -163,10 +184,11 @@ export default function AbonnementPage() {
                   {subInfo?.plan === "binome" && <Handshake className="h-3.5 w-3.5" strokeWidth={1.75} />}
                   {planLabel}
                 </span>
-                {subInfo?.plan === "outil" && " · 39€/mois"}
-                {subInfo?.plan === "binome" && " · 290€/mois"}
+                {subInfo?.source === "stripe" && subInfo?.plan === "outil" && " · 39€/mois"}
+                {subInfo?.source === "stripe" && subInfo?.plan === "binome" && " · 290€/mois"}
               </p>
-              {subInfo?.plan === "binome" && (
+              {subInfo?.source === "admin" && <p className="text-xs text-muted-foreground">Accès de gestion et de démonstration, sans mensualité liée à ce rôle.</p>}
+              {subInfo?.plan === "binome" && subInfo?.source !== "admin" && (
                 <div className="mt-2 space-y-1">
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Target className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.75} /> Accompagnement 6 mois · 7 sessions avec Laetitia</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.75} /> Création de contenu illimitée incluse</p>
@@ -175,10 +197,10 @@ export default function AbonnementPage() {
               {subInfo?.source === "promo" && subInfo?.current_period_end && (
                 <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Gift className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.75} /> Expire le {new Date(subInfo.current_period_end).toLocaleDateString("fr-FR")}</p>
               )}
-              {subInfo?.source !== "promo" && subInfo?.current_period_end && subInfo.plan !== "free" && (
+              {subInfo?.source === "stripe" && subInfo?.current_period_end && subInfo.plan !== "free" && (
                 <p className="text-xs text-muted-foreground">Prochain renouvellement : {new Date(subInfo.current_period_end).toLocaleDateString("fr-FR")}</p>
               )}
-              {isPaid && subInfo?.source !== "promo" && (
+              {isPaid && subInfo?.has_stripe_subscription && (
                 <div>
                   <Button size="sm" variant="outline" className="rounded-full mt-2 gap-1.5" onClick={handlePortal} disabled={portalLoading}>
                     {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -356,7 +378,7 @@ export default function AbonnementPage() {
         </div>
 
         {/* ─── Changer de plan ─── */}
-        <div className="rounded-2xl border border-border bg-card p-6 mb-4">
+        {subInfo?.source !== "admin" && <div className="rounded-2xl border border-border bg-card p-6 mb-4">
           <h2 className="font-display text-lg font-bold text-foreground mb-4">Changer de plan</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <PlanCard
@@ -401,13 +423,14 @@ export default function AbonnementPage() {
           <p className="text-xs text-muted-foreground mt-3 text-center">
             Pour changer de plan ou poser une question : <a href="mailto:laetitia@nowadaysagency.com" className="text-primary underline">laetitia@nowadaysagency.com</a>
           </p>
-        </div>
+        </div>}
 
         {/* ─── Promo code ─── */}
-        <div className="rounded-2xl border border-border bg-card p-6">
+        {subInfo?.source !== "admin" && <div className="rounded-2xl border border-border bg-card p-6">
           <h2 className="font-display text-lg font-bold text-foreground mb-3">Code promotionnel</h2>
           <PromoCodeInput />
-        </div>
+        </div>}
+        </>}
       </main>
     </div>
   );
