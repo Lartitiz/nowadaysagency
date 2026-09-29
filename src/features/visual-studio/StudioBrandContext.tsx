@@ -54,6 +54,15 @@ export function StudioBrandContext({ context }: { context: StudioBrandContext })
           </div>
         ) : null;
       })}
+      {context.charter?.visual_direction && typeof context.charter.visual_direction === "object" && !Array.isArray(context.charter.visual_direction) && <div className="mt-3">
+        <h3 className="font-medium">Direction photo transmise</h3>
+        <dl className="mt-1 space-y-1">
+          {([ ["composition", "Composition"], ["light", "Lumière"], ["framing", "Cadrage"], ["retouch", "Retouche"] ] as const).map(([field, label]) => {
+            const value = readable((context.charter!.visual_direction as Record<string, unknown>)[field]);
+            return value ? <div key={field}><dt className="inline text-muted-foreground">{label} : </dt><dd className="inline whitespace-pre-wrap">{value}</dd></div> : null;
+          })}
+        </dl>
+      </div>}
       {!!context.memory?.length && (
         <div className="mt-3">
           <h3 className="font-medium">Mémoire disponible</h3>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +20,8 @@ import CharterColorsSection from "@/components/branding/charter/CharterColorsSec
 import CharterTypographySection from "@/components/branding/charter/CharterTypographySection";
 import CharterTemplatesSection from "@/components/branding/charter/CharterTemplatesSection";
 import CharterStoriesSection from "@/components/branding/charter/CharterStoriesSection";
+import CharterDirectionSection, { type VisualDirection } from "@/components/branding/charter/CharterDirectionSection";
+import CharterReferenceLinks, { type CharterReferenceLink } from "@/components/branding/charter/CharterReferenceLinks";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { toast } from "sonner";
@@ -127,14 +129,14 @@ interface CharterData {
   photo_keywords: string[];
   mood_keywords: string[];
   visual_donts: string | null;
-  mood_board_urls: string[];
+  mood_board_urls: CharterReferenceLink[];
   icon_style: string;
   border_radius: string;
   uploaded_templates: { url: string; name: string }[];
   completion_pct: number;
   ai_generated_brief: string | null;
   updated_at?: string;
-  moodboard_images: { url: string; path: string; name: string }[];
+  moodboard_images: MoodboardImage[];
   moodboard_description: string | null;
   texture_enabled: boolean;
   texture_material: string | null;
@@ -144,6 +146,8 @@ interface CharterData {
   story_pill_color: string | null;
   story_corners: string | null;
   story_align: string | null;
+  visual_direction: VisualDirection;
+  visual_evidence: VisualEvidence;
 }
 
 const INITIAL: CharterData = {
@@ -177,6 +181,8 @@ const INITIAL: CharterData = {
   story_pill_color: null,
   story_corners: null,
   story_align: null,
+  visual_direction: {},
+  visual_evidence: {},
 };
 
 /** Get display color for UI (neutral fallback if null) */
@@ -207,11 +213,14 @@ function loadGoogleFont(font: string) {
   document.head.appendChild(link);
 }
 
+type MoodboardImage = { url: string; path: string; name: string; role?: "follow" | "avoid"; note?: string };
+type VisualEvidence = Record<string, { source: "diagnostic" | "manual" | "template" | "logo"; confidence?: string; reviewed_at?: string }>;
+
 // ── MoodboardSection component ──
 function MoodboardSection({ images, description, onImagesChange, onDescriptionChange, userId }: {
-  images: { url: string; path: string; name: string }[];
+  images: MoodboardImage[];
   description: string | null;
-  onImagesChange: (imgs: { url: string; path: string; name: string }[]) => void;
+  onImagesChange: (imgs: MoodboardImage[]) => void;
   onDescriptionChange: (desc: string | null) => void;
   userId: string;
 }) {
@@ -242,7 +251,7 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
         if (error) throw error;
         // Get signed URL (private bucket)
         const { data: signedData } = await supabase.storage.from("moodboards").createSignedUrl(path, 60 * 60 * 24 * 365);
-        newImages.push({ url: signedData?.signedUrl || "", path, name: file.name });
+        newImages.push({ url: signedData?.signedUrl || "", path, name: file.name, role: "follow", note: "" });
       }
       const added = newImages.length - images.length;
       if (added > 0) {
@@ -257,11 +266,9 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
     }
   };
 
-  const removeImage = async (idx: number) => {
-    const img = images[idx];
-    if (img.path) {
-      await supabase.storage.from("moodboards").remove([img.path]);
-    }
+  const removeImage = (idx: number) => {
+    // Remove it from the current charter only. Existing creations may still
+    // refer to its storage object, so deleting that object is unsafe.
     onImagesChange(images.filter((_, i) => i !== idx));
   };
 
@@ -279,8 +286,8 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
-      <h2 className="font-body text-base font-bold text-foreground mb-4">🎭 Mon moodboard</h2>
-      <p className="text-xs text-muted-foreground mb-4">Ajoute 4 à 9 images qui représentent l'univers visuel que tu vises (pas forcément tes propres visuels : des photos d'ambiance, des palettes, des visuels d'autres marques qui t'inspirent…). L'IA s'en sert pour comprendre ton esthétique quand elle génère tes contenus.</p>
+      <h2 className="font-body text-base font-bold text-foreground mb-2">Mes images de référence</h2>
+      <p className="text-xs text-muted-foreground mb-4">Ajoute jusqu'à 9 images, puis indique librement ce qui t'inspire ou ce que tu veux éviter. Le Studio photo peut proposer une image « à suivre » comme référence à sélectionner ; une image « à éviter » n'est jamais envoyée comme référence visuelle. Aucun résultat n'est une copie garantie.</p>
 
       {/* Grid */}
       {images.length > 0 && (
@@ -293,11 +300,11 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
               onDragOver={(e) => handleDragOver(e, idx)}
               onDrop={() => handleDrop(idx)}
               onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
-              className={`relative group aspect-square rounded-xl border overflow-hidden cursor-grab transition-all ${
+              className={`relative group rounded-xl border overflow-hidden cursor-grab transition-all ${
                 dragOverIdx === idx ? "border-primary ring-2 ring-primary/20" : "border-border"
               }`}
             >
-              <img loading="lazy" src={img.url} alt={img.name} className="w-full h-full object-cover" />
+              <img loading="lazy" src={img.url} alt={img.name} className="w-full aspect-square object-cover" />
               <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/10 transition-colors" />
               <button
                 onClick={() => removeImage(idx)}
@@ -308,6 +315,12 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
               </button>
               <div className="absolute top-1.5 left-1.5 opacity-0 group-hover:opacity-60 transition-opacity">
                 <GripVertical className="h-4 w-4 text-foreground" />
+              </div>
+              <div className="space-y-1.5 p-2 bg-card">
+                <select aria-label={`Rôle de ${img.name}`} value={img.role || "follow"} onChange={e => onImagesChange(images.map((current, i) => i === idx ? { ...current, role: e.target.value as MoodboardImage["role"] } : current))} className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs">
+                  <option value="follow">À suivre</option><option value="avoid">À éviter</option>
+                </select>
+                <input aria-label={`Ce que montre ${img.name}`} value={img.note || ""} maxLength={200} onChange={e => onImagesChange(images.map((current, i) => i === idx ? { ...current, note: e.target.value } : current))} placeholder="Ce que je retiens…" className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs" />
               </div>
             </div>
           ))}
@@ -352,6 +365,14 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
 
 export default function BrandCharterPage() {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  const ready = useWorkspaceReady();
+  if (!ready || !user || !value) return <div role="status" className="p-8">Chargement de la marque…</div>;
+  return <ScopedBrandCharterPage key={`${user.id}:${column}:${value}`} />;
+}
+
+function ScopedBrandCharterPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") === "coaching" ? "coaching" : "fiche";
@@ -376,6 +397,8 @@ export default function BrandCharterPage() {
   const [cutoutSaving, setCutoutSaving] = useState(false);
   const dataRef = useRef(data);
   dataRef.current = data;
+  const dirtyVersionsRef = useRef(new Map<keyof CharterData, number>());
+  const editVersionRef = useRef(0);
 
   // Audit state
   const [auditing, setAuditing] = useState(false);
@@ -434,6 +457,8 @@ export default function BrandCharterPage() {
         moodboard_images: row.moodboard_images || [],
         moodboard_description: row.moodboard_description || null,
         template_layout_description: row.template_layout_description || null,
+        visual_direction: row.visual_direction && typeof row.visual_direction === "object" && !Array.isArray(row.visual_direction) ? row.visual_direction : {},
+        visual_evidence: row.visual_evidence && typeof row.visual_evidence === "object" && !Array.isArray(row.visual_evidence) ? row.visual_evidence : {},
       });
     }
     setLoading(false);
@@ -443,6 +468,8 @@ export default function BrandCharterPage() {
   const saveFn = useCallback(async () => {
     if (!user) return;
     const d = dataRef.current;
+    const dirtySnapshot = new Map(dirtyVersionsRef.current);
+    if (dirtySnapshot.size === 0) return;
     const pct = computeCompletion(d);
     const payload: any = {
       color_primary: d.color_primary,
@@ -477,19 +504,26 @@ export default function BrandCharterPage() {
       story_pill_color: d.story_pill_color,
       story_corners: d.story_corners,
       story_align: d.story_align,
+      visual_direction: d.visual_direction,
+      visual_evidence: d.visual_evidence,
     };
+    // Save only touched fields. Enrichment and another editor may have updated
+    // other parts of this same brand since the page was opened.
+    const editedPayload = Object.fromEntries([...dirtySnapshot.keys()].map(key => [key, payload[key]]));
+    editedPayload.completion_pct = pct;
 
     if (d.id) {
-      const { error } = await supabase.from("brand_charter").update(payload).eq("id", d.id);
+      const { data: updated, error } = await (supabase.from("brand_charter") as any).update(editedPayload).eq("id", d.id).eq(column, value).select("id").maybeSingle();
       if (error) throw error;
+      if (!updated) throw new Error("Cette charte n’appartient plus à l’espace actif.");
       queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
     } else {
-      payload.user_id = user.id;
+      editedPayload.user_id = user.id;
       if (workspaceId && workspaceId !== user.id) {
-        payload.workspace_id = workspaceId;
+        editedPayload.workspace_id = workspaceId;
       }
       const { data: inserted, error } = await (supabase.from("brand_charter") as any)
-        .insert(payload)
+        .insert(editedPayload)
         .select("id")
         .single();
       if (error) throw error;
@@ -498,14 +532,20 @@ export default function BrandCharterPage() {
         queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
       }
     }
-  }, [user, workspaceId]);
+    for (const [key, version] of dirtySnapshot) {
+      if (dirtyVersionsRef.current.get(key) === version) dirtyVersionsRef.current.delete(key);
+    }
+  }, [user, workspaceId, column, value, queryClient]);
 
   const { saved, saving, triggerSave } = useAutoSave(saveFn, 1200, "brand_charter");
 
-  const update = <K extends keyof CharterData>(key: K, val: CharterData[K]) => {
-    setData(prev => ({ ...prev, [key]: val }));
+  const applyUpdates = (updates: Partial<CharterData>, source: VisualEvidence[string]["source"] = "manual", confidence?: string) => {
+    const evidence = Object.fromEntries(Object.keys(updates).filter(key => key !== "visual_evidence").map(key => [key, { source, ...(confidence ? { confidence } : {}), reviewed_at: new Date().toISOString() }]));
+    setData(prev => ({ ...prev, ...updates, visual_evidence: { ...prev.visual_evidence, ...evidence } }));
+    for (const key of [...Object.keys(updates), "visual_evidence"] as (keyof CharterData)[]) dirtyVersionsRef.current.set(key, ++editVersionRef.current);
     triggerSave();
   };
+  const update = <K extends keyof CharterData>(key: K, val: CharterData[K]) => applyUpdates({ [key]: val } as Partial<CharterData>);
 
   // Logo upload
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -603,15 +643,13 @@ export default function BrandCharterPage() {
   };
 
   const applyLogoPalette = (palette: LogoPalette) => {
-    setData(prev => ({
-      ...prev,
+    applyUpdates({
       color_primary: palette.primary,
       color_secondary: palette.secondary,
       color_accent: palette.accent,
       color_background: palette.background,
       color_text: palette.text,
-    }));
-    triggerSave();
+    }, "logo");
     setLogoPaletteOpen(false);
     toast.success("Palette mise à jour avec les couleurs du logo");
   };
@@ -787,8 +825,7 @@ export default function BrandCharterPage() {
       updates.template_layout_description = auditResult.template_layout_description;
     }
     
-    setData(prev => ({ ...prev, ...updates }));
-    triggerSave();
+    applyUpdates(updates, "template", "medium");
     setAuditDialogOpen(false);
     toast.success("Charte détectée appliquée ! Vérifie et ajuste ci-dessous si besoin.");
   };
@@ -864,6 +901,8 @@ export default function BrandCharterPage() {
                       moodboard_images: row.moodboard_images || [],
                       moodboard_description: row.moodboard_description || null,
                       template_layout_description: row.template_layout_description || null,
+                      visual_direction: row.visual_direction && typeof row.visual_direction === "object" && !Array.isArray(row.visual_direction) ? row.visual_direction : {},
+                      visual_evidence: row.visual_evidence && typeof row.visual_evidence === "object" && !Array.isArray(row.visual_evidence) ? row.visual_evidence : {},
                     });
                   }
                 };
@@ -884,10 +923,24 @@ export default function BrandCharterPage() {
           <SaveIndicator saved={saved} saving={saving} />
         </div>
 
+        {(data.color_primary || data.font_title || data.photo_style) && <div className="mb-6 rounded-xl border border-border bg-card p-4 text-xs text-muted-foreground">
+          <p className="font-medium text-foreground">D’où viennent ces choix ?</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {([ ["color_primary", "Couleur principale"], ["font_title", "Police titres"], ["photo_style", "Style photo"] ] as const)
+              .filter(([key]) => !!data[key])
+              .map(([key, label]) => {
+                const evidence = data.visual_evidence[key];
+                const source = evidence?.source === "diagnostic" ? "Proposé après analyse, puis validé" : evidence?.source === "template" ? "Proposé depuis tes créations" : evidence?.source === "logo" ? "Extrait du logo" : evidence?.source === "manual" ? "Modifié dans la fiche" : "Origine non enregistrée";
+                return <span key={key} className="rounded-full border border-border px-2.5 py-1">{label} · {source}{evidence?.source === "diagnostic" && evidence.confidence ? ` · confiance ${evidence.confidence === "high" ? "forte" : evidence.confidence === "medium" ? "moyenne" : "faible"}` : ""}</span>;
+              })}
+          </div>
+          <p className="mt-2">Les couleurs déduites d’un site proviennent de ses styles quand ils sont disponibles. Compare-les au site affiché et corrige-les ici.</p>
+        </div>}
+
         <div className="mb-6">
         <CharterTemplatesSection
           data={data}
-          onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
+          onDataChange={(updates) => applyUpdates(updates)}
           templatesUploading={templatesUploading}
           setTemplatesUploading={setTemplatesUploading}
           onAuditTemplates={handleAuditTemplates}
@@ -970,7 +1023,7 @@ export default function BrandCharterPage() {
           {/* SECTION 2: Palette de couleurs */}
           <CharterColorsSection
             data={data}
-            onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
+            onDataChange={(updates) => applyUpdates(updates)}
             userSector={userSector}
             selectedEmotions={selectedEmotions}
             setSelectedEmotions={setSelectedEmotions}
@@ -997,20 +1050,22 @@ export default function BrandCharterPage() {
             colorText={data.color_text}
             fontTitle={data.font_title}
             workspaceIdForApi={workspaceId && workspaceId !== user?.id ? workspaceId : null}
-            onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
+            onDataChange={(updates) => applyUpdates(updates)}
           />
 
           {/* SECTION 3: Typographies */}
           <CharterTypographySection
             data={data}
-            onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
+            onDataChange={(updates) => applyUpdates(updates)}
             toneKeywords={toneKeywords}
           />
+
+          <CharterDirectionSection value={data.visual_direction} onChange={value => update("visual_direction", value)} />
 
           {/* SECTION: Stories Instagram (assemblage choisi sur des exemples) */}
           <CharterStoriesSection
             data={data}
-            onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
+            onDataChange={(updates) => applyUpdates(updates)}
           />
 
           {/* SECTION: Moodboard */}
@@ -1021,6 +1076,8 @@ export default function BrandCharterPage() {
             onDescriptionChange={(desc) => update("moodboard_description", desc)}
             userId={user?.id || ""}
           />
+
+          <CharterReferenceLinks links={data.mood_board_urls} onChange={links => update("mood_board_urls", links)} />
 
           <section className="rounded-2xl border border-border bg-card p-5">
             <h2 className="font-body text-base font-bold text-foreground mb-1">✨ Mon ambiance visuelle</h2>

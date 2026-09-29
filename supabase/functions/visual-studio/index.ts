@@ -172,7 +172,8 @@ async function charterReferences(
   return data.moodboard_images.filter((
     r: unknown,
   ): r is { path: string; name: string } =>
-    !!r && typeof r === "object" && "path" in r && typeof r.path === "string" &&
+    !!r && typeof r === "object" && (!("role" in r) || r.role !== "avoid") &&
+    "path" in r && typeof r.path === "string" &&
     !r.path.includes("..") && owners.has(r.path.split("/")[0]) && "name" in r &&
     typeof r.name === "string"
   ).slice(0, 9);
@@ -575,7 +576,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             sb
               .from("brand_charter")
               .select(
-                "color_primary,color_secondary,color_accent,color_background,color_text,font_title,font_body,photo_style,mood_keywords,visual_donts,moodboard_description",
+                "color_primary,color_secondary,color_accent,color_background,color_text,font_title,font_body,photo_style,mood_keywords,visual_donts,moodboard_description,mood_board_urls,visual_direction",
               )
               .eq("workspace_id", p.workspace_id)
               .maybeSingle(),

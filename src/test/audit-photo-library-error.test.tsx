@@ -35,7 +35,6 @@ vi.mock("@/components/photos/PhotoCard", () => ({
 }));
 vi.mock("@/components/photos/PhotoUploadingCard", () => ({ PhotoUploadingCard: () => null }));
 vi.mock("@/components/photos/PhotoRetouchDialog", () => ({ PhotoRetouchDialog: () => null }));
-vi.mock("@/components/photos/CreateVisualDialog", () => ({ CreateVisualDialog: () => null }));
 vi.mock("@/components/photos/PhotoLibraryPickerDialog", () => ({ PhotoLibraryPickerDialog: () => null }));
 vi.mock("@/components/photos/PhotoDetailDialog", () => ({ PhotoDetailDialog: () => null }));
 vi.mock("@/components/photos/PackshotDialog", () => ({ PackshotDialog: () => null }));
