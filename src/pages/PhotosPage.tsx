@@ -38,16 +38,10 @@ import { removePhotoFromLibrary } from "@/lib/photo-storage";
 import { PhotoCard } from "@/components/photos/PhotoCard";
 import { PhotoUploadingCard } from "@/components/photos/PhotoUploadingCard";
 import { PhotoRetouchDialog } from "@/components/photos/PhotoRetouchDialog";
-import {
-  CreateVisualDialog,
-  type CreateVisualChoice,
-} from "@/components/photos/CreateVisualDialog";
 import { PhotoDetailDialog } from "@/components/photos/PhotoDetailDialog";
 import { PackshotDialog } from "@/components/photos/PackshotDialog";
 import { MiseEnSceneDialog } from "@/components/photos/MiseEnSceneDialog";
 import { PortraitProDialog } from "@/components/photos/PortraitProDialog";
-import { OfferMockupDialog } from "@/components/photos/OfferMockupDialog";
-import { AvantApresDialog } from "@/components/photos/AvantApresDialog";
 import { PhotoWishlistPanel } from "@/components/photos/PhotoWishlistPanel";
 import { SitePhotoImportDialog } from "@/components/photos/SitePhotoImportDialog";
 import { PhotoShootEmptyState } from "@/components/photos/PhotoShootEmptyState";
@@ -97,7 +91,6 @@ function PhotosLibrary() {
   const { activeWorkspace, loading: wsLoading, activeRole } = useWorkspace();
   const wsReady = !!activeWorkspace && !wsLoading;
 
-  const [createVisualOpen, setCreateVisualOpen] = useState(false);
   const [siteImportOpen, setSiteImportOpen] = useState(false);
   // Id seul (pas l'objet) : le détail doit refléter le classement IA qui finit
   // en arrière-plan après l'upload, sinon `photo.kind` reste figé sur l'instantané
@@ -124,13 +117,15 @@ function PhotosLibrary() {
   const [packshotPhoto, setPackshotPhoto] = useState<UserPhotoRow | null>(null);
   const [miseEnScenePhoto, setMiseEnScenePhoto] = useState<UserPhotoRow | null>(null);
   const [portraitProPhoto, setPortraitProPhoto] = useState<UserPhotoRow | null>(null);
-  const [mockupOpen, setMockupOpen] = useState(false);
-  const [avantApresOpen, setAvantApresOpen] = useState(false);
   const [retouchePhoto, setRetouchePhoto] = useState<UserPhotoRow | null>(null);
   const [photoToDelete, setPhotoToDelete] = useState<UserPhotoRow | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [kindFilter, setKindFilter] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Glisser-déposer : compteur de profondeur car dragenter/dragleave se
+  // déclenchent aussi sur chaque enfant survolé (sinon le cadre clignote).
+  const [dragActive, setDragActive] = useState(false);
+  const dragDepth = useRef(0);
   const queryClient = useQueryClient();
 
   // Rattrapage des photos décrites avant l'arrivée du champ kind : la
@@ -268,6 +263,39 @@ function PhotosLibrary() {
     fileInputRef.current?.click();
   }
 
+  function dragHasFiles(e: React.DragEvent) {
+    return Array.from(e.dataTransfer?.types || []).includes("Files");
+  }
+
+  function handleDragEnter(e: React.DragEvent) {
+    if (!dragHasFiles(e) || !wsReady || uploading) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragActive(true);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    if (!dragHasFiles(e) || !wsReady || uploading) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    if (!dragActive) return;
+    e.preventDefault();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setDragActive(false);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    if (!dragHasFiles(e)) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragActive(false);
+    if (!wsReady || uploading) return;
+    void handleFilesSelected(e.dataTransfer.files);
+  }
+
   async function handleRetry(photo: UserPhotoRow) {
     try {
       await retry(photo);
@@ -295,7 +323,25 @@ function PhotosLibrary() {
   return (
     <div className="min-h-screen bg-background [--primary:330_50%_20%] dark:[--primary:338_72%_83%]">
       <AppHeader />
-      <main id="main-content" className="container max-w-7xl mx-auto px-4 py-8 sm:py-10">
+      <main
+        id="main-content"
+        className="container relative max-w-7xl mx-auto px-4 py-8 sm:py-10"
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {dragActive && (
+          <div
+            aria-hidden="true"
+            data-testid="photos-drop-overlay"
+            className="pointer-events-none absolute inset-2 z-30 flex items-center justify-center rounded-3xl border-2 border-dashed border-primary bg-background/85"
+          >
+            <p className="rounded-xl bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
+              Lâche tes photos ici
+            </p>
+          </div>
+        )}
         {/* Titre pleine largeur puis rangée d'actions : les 4 boutons côte à
             côte écrasaient la colonne du titre (h1 cassé sur 2 lignes). */}
         <header className="mb-8 space-y-4">
@@ -326,23 +372,6 @@ function PhotosLibrary() {
             </Button>
 
           </div>
-          <p className="text-sm text-muted-foreground">Studio : pars d’une idée, d’une question ou d’une photo. Fonds inclus dans ton quota ; création et mise en scène en Premium.</p>
-          <Button variant="link" className="h-auto p-0" onClick={() => setCreateVisualOpen(true)} disabled={!wsReady}>
-            Créer un avant/après ou un mockup
-          </Button>
-          {/* L'import site/Instagram est une 2e façon de REMPLIR : lien discret
-              plutôt qu'un bouton frère qui doublerait le poids de « Ajouter ». */}
-          <p className="text-sm text-muted-foreground">
-            Tu n'as rien sous la main ?{" "}
-            <button
-              type="button"
-              onClick={() => setSiteImportOpen(true)}
-              disabled={!wsReady || uploading}
-              className="text-primary underline underline-offset-2 hover:no-underline disabled:opacity-60"
-            >
-              Récupère celles de ton site ou d'Instagram
-            </button>
-          </p>
         </header>
 
         <input
@@ -459,20 +488,25 @@ function PhotosLibrary() {
             </div>
 
             {photos.length >= photoLimit && <Button variant="outline" disabled={isFetching} onClick={() => setPhotoLimit(n => n + 200)}>Afficher les photos plus anciennes</Button>}
+
+            {/* L'import site/Instagram est une 2e façon de REMPLIR : lien discret
+                sous la grille, pour ne pas repousser les photos sous l'en-tête. */}
+            <p className="text-sm text-muted-foreground">
+              Tu n'as rien sous la main ?{" "}
+              <button
+                type="button"
+                onClick={() => setSiteImportOpen(true)}
+                disabled={!wsReady || uploading}
+                className="text-primary underline underline-offset-2 hover:no-underline disabled:opacity-60"
+              >
+                Récupère celles de ton site ou d'Instagram
+              </button>
+            </p>
           </div>
         )}
         </>}
       </main>
 
-      <CreateVisualDialog
-        open={createVisualOpen}
-        onOpenChange={setCreateVisualOpen}
-        onChoose={(choice: CreateVisualChoice) => {
-          setCreateVisualOpen(false);
-          if (choice === "avant-apres") setAvantApresOpen(true);
-          else setMockupOpen(true);
-        }}
-      />
       <SitePhotoImportDialog
         open={siteImportOpen}
         onOpenChange={setSiteImportOpen}
@@ -523,12 +557,6 @@ function PhotosLibrary() {
         open={!!portraitProPhoto}
         onOpenChange={(v) => !v && setPortraitProPhoto(null)}
       />
-      <OfferMockupDialog
-        open={mockupOpen}
-        onOpenChange={setMockupOpen}
-        onOpenRetouch={(p) => setRetouchePhoto(p)}
-      />
-      <AvantApresDialog open={avantApresOpen} onOpenChange={setAvantApresOpen} />
       <PhotoRetouchDialog
         photo={retouchePhoto}
         open={!!retouchePhoto}

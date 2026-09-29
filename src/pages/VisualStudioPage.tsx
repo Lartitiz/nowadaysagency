@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  Check,
   ImagePlus,
   Loader2,
   RefreshCw,
@@ -51,6 +52,12 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import "@/features/visual-studio/studio.css";
+
+const CHAT_WIDTH_KEY = "visual-studio-chat-width";
+const CHAT_WIDTH_DEFAULT = 430;
+const CHAT_WIDTH_MIN = 340;
+const CHAT_WIDTH_MAX = 760;
+
 
 function referenceRoleForPhoto(photo: UserPhotoRow): StudioReference["role"] {
   if (photo.kind === "produit" || photo.kind === "produit_porte") return "product";
@@ -160,6 +167,71 @@ function Studio({
     setUrlParams(next);
   };
   const isMobile = useIsMobile();
+  const gridRef = useRef<HTMLDivElement>(null);
+  const chatWidthLatest = useRef(CHAT_WIDTH_DEFAULT);
+  const [chatWidth, setChatWidth] = useState(() => {
+    try {
+      const value = Number(localStorage.getItem(CHAT_WIDTH_KEY));
+      return Number.isFinite(value) && value >= CHAT_WIDTH_MIN && value <= CHAT_WIDTH_MAX
+        ? value
+        : CHAT_WIDTH_DEFAULT;
+    } catch {
+      return CHAT_WIDTH_DEFAULT;
+    }
+  });
+  chatWidthLatest.current = chatWidth;
+  const [wide, setWide] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const onChange = (e: MediaQueryListEvent) => setWide(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  const persistChatWidth = useCallback((value: number) => {
+    try {
+      localStorage.setItem(CHAT_WIDTH_KEY, String(value));
+    } catch {
+      /* Le réglage de largeur reste pour la session. */
+    }
+  }, []);
+  const startChatResize = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const handle = e.currentTarget;
+      handle.setPointerCapture(e.pointerId);
+      handle.dataset.resizing = "true";
+      const move = (ev: PointerEvent) => {
+        const grid = gridRef.current;
+        if (!grid) return;
+        const rect = grid.getBoundingClientRect();
+        const next = Math.min(
+          CHAT_WIDTH_MAX,
+          Math.max(CHAT_WIDTH_MIN, Math.round(ev.clientX - rect.left)),
+        );
+        chatWidthLatest.current = next;
+        setChatWidth(next);
+      };
+      const end = () => {
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", end);
+        handle.removeEventListener("pointercancel", end);
+        delete handle.dataset.resizing;
+        persistChatWidth(chatWidthLatest.current);
+      };
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", end);
+      handle.addEventListener("pointercancel", end);
+    },
+    [persistChatWidth],
+  );
+  const resetChatWidth = useCallback(() => {
+    setChatWidth(CHAT_WIDTH_DEFAULT);
+    chatWidthLatest.current = CHAT_WIDTH_DEFAULT;
+    persistChatWidth(CHAT_WIDTH_DEFAULT);
+  }, [persistChatWidth]);
+
   const roleWritable = ["owner", "manager", "editor"].includes(role);
   const [compositionOpen, setCompositionOpen] = useState(false);
   const [compositionDraft, setCompositionDraft] = useState<
@@ -197,6 +269,7 @@ function Studio({
   } | null>(null);
   const localKey = draftKey(userId, workspaceId, sessionId || "new");
   const [draft, setDraft] = useState(() => readDraft(localKey));
+  const [pickedSuggestions, setPickedSuggestions] = useState<string[]>([]);
   const attachmentKey = `${localKey}:images`;
   const [attachedIds, setAttachedIds] = useState<string[]>(() => readAttachedIds(attachmentKey));
   const localUpload = useUploadLibraryPhotos();
@@ -969,16 +1042,6 @@ function Studio({
   function chat(mobile = false) {
     return (
       <div className="studio-chat-inner">
-        {!mobile && (
-          <div className="p-5 border-b">
-            <h2 className="font-medium line-clamp-2">
-              {current?.session.name || "Ta demande"}
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Fais défiler la conversation ↓ · tout reste dans cette session
-            </p>
-          </div>
-        )}
         <>
               <div
                 ref={desktopMessages}
@@ -1048,11 +1111,8 @@ function Studio({
                   </div>
                 ))}
                 {proposal && <div className="studio-chat-confirmation">{confirmation()}</div>}
-                <div
-                  className="flex flex-wrap gap-2"
-                  aria-label="Idées d’ajustement"
-                >
-                  {(current?.session.messages.at(-1)?.suggestions?.length
+                {(() => {
+                  const ideas = current?.session.messages.at(-1)?.suggestions?.length
                     ? current.session.messages.at(-1)!.suggestions!
                     : version
                     ? [
@@ -1065,19 +1125,65 @@ function Studio({
                       "Quel visuel pour mon offre ?",
                       "Crée une illustration",
                       "Aide-moi à choisir une photo",
-                    ]).map((t) => (
+                    ];
+                  const picked = pickedSuggestions.filter((t) => ideas.includes(t));
+                  const allPicked = ideas.length > 0 && picked.length === ideas.length;
+                  const insertPicked = (list: string[]) => {
+                    const base = draftRef.current.trim();
+                    editDraft([base, ...list].filter(Boolean).join("\n"));
+                    setPickedSuggestions([]);
+                  };
+                  return (
+                    <div
+                      className="flex flex-wrap items-center gap-2"
+                      aria-label="Idées d’ajustement"
+                    >
+                      {ideas.map((t) => {
+                        const isPicked = picked.includes(t);
+                        return (
+                          <Button
+                            key={t}
+                            size="sm"
+                            variant={isPicked ? "default" : "outline"}
+                            className="studio-suggestion"
+                            aria-pressed={isPicked}
+                            disabled={!writable || !!busy || generating}
+                            onClick={() =>
+                              setPickedSuggestions((prev) =>
+                                prev.includes(t)
+                                  ? prev.filter((x) => x !== t)
+                                  : [...prev, t],
+                              )
+                            }
+                          >
+                            {isPicked && <Check className="mr-1 h-3 w-3" />}
+                            {t}
+                          </Button>
+                        );
+                      })}
                       <Button
-                        key={t}
                         size="sm"
-                        variant="outline"
-                        className="studio-suggestion"
+                        variant="ghost"
+                        className="text-xs"
                         disabled={!writable || !!busy || generating}
-                        onClick={() => editDraft(t)}
+                        onClick={() =>
+                          setPickedSuggestions(allPicked ? [] : [...ideas])
+                        }
                       >
-                        {t}
+                        {allPicked ? "Tout désélectionner" : "Tout sélectionner"}
                       </Button>
-                    ))}
-                </div>
+                      {picked.length > 0 && (
+                        <Button
+                          size="sm"
+                          disabled={!writable || !!busy || generating}
+                          onClick={() => insertPicked(picked)}
+                        >
+                          Insérer dans le texte ({picked.length})
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <section className="studio-chat-actions" aria-label="Actions et références">
                   {!!display && (
@@ -1463,11 +1569,11 @@ function Studio({
                   placeholder="Une idée, une question, une image à améliorer…"
                 />
                 <input ref={fileInput} type="file" accept="image/*,.heic,.heif" multiple className="sr-only" aria-label="Importer plusieurs images" onChange={(event) => void addLocalFiles(event.target.files)} />
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="ghost" size="sm" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => fileInput.current?.click()}>
+                <div className="flex items-center gap-2 flex-nowrap">
+                  <Button variant="ghost" size="sm" className="whitespace-nowrap shrink-0" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => fileInput.current?.click()}>
                     <ImagePlus className="h-4 w-4 mr-2" /> Ajouter des images
                   </Button>
-                  <Button variant="ghost" size="sm" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => setPicker(true)}>
+                  <Button variant="ghost" size="sm" className="whitespace-nowrap shrink-0" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => setPicker(true)}>
                     Depuis ma bibliothèque
                   </Button>
                 </div>
@@ -1605,10 +1711,42 @@ function Studio({
           {busy === "opening" || (sessionId && !current && state.isFetching)
             ? <p className="p-8">Ouverture de la session…</p>
             : (
-              <div className="studio-grid">
+              <div
+                className="studio-grid"
+                ref={gridRef}
+                style={wide
+                  ? { gridTemplateColumns: `${chatWidth}px minmax(0, 1fr)` }
+                  : undefined}
+              >
                 <section className="studio-chat" aria-label="Conversation">
                   {chat(isMobile)}
+                  {wide && (
+                    <div
+                      className="studio-resizer"
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label="Ajuster la largeur de la conversation"
+                      title="Glisser pour élargir la conversation · double-clic pour réinitialiser"
+                      tabIndex={0}
+                      onPointerDown={startChatResize}
+                      onDoubleClick={resetChatWidth}
+                      onKeyDown={(e) => {
+                        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+                        e.preventDefault();
+                        setChatWidth((w) => {
+                          const next = Math.min(
+                            CHAT_WIDTH_MAX,
+                            Math.max(CHAT_WIDTH_MIN, w + (e.key === "ArrowLeft" ? -24 : 24)),
+                          );
+                          chatWidthLatest.current = next;
+                          persistChatWidth(next);
+                          return next;
+                        });
+                      }}
+                    />
+                  )}
                 </section>
+
                 <section
                   className="studio-stage"
                   aria-label="Visuels et versions"

@@ -21,7 +21,38 @@
   border-right: 1px solid hsl(var(--border));
   min-height: 0;
   background: hsl(var(--background));
+  position: relative;
 }
+.studio-resizer {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  width: 9px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  touch-action: none;
+}
+.studio-resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 3px;
+  border-radius: 2px;
+  background: hsl(var(--primary) / 0.3);
+  transition: background 0.15s ease;
+}
+.studio-resizer:hover::after,
+.studio-resizer:focus-visible::after,
+.studio-resizer[data-resizing]::after {
+  background: hsl(var(--primary) / 0.7);
+}
+.studio-resizer:focus-visible {
+  outline: none;
+}
+
 .studio-chat-inner {
   display: flex;
   flex-direction: column;
@@ -67,12 +98,15 @@
   background: hsl(var(--muted));
   padding: 12px 14px;
   margin-bottom: 14px;
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
   white-space: pre-wrap;
 }
 .studio-message.mine {
   margin-left: 20px;
-  background: hsl(var(--primary) / 0.1);
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--foreground));
 }
 .studio-stage {
   padding: 28px;
@@ -198,7 +232,7 @@
 }
 @media (max-width: 1000px) {
   .studio-grid {
-    grid-template-columns: minmax(300px, 38%) minmax(0, 1fr);
+    grid-template-columns: minmax(400px, 46%) minmax(0, 1fr);
     height: calc(100dvh - 210px);
   }
   .studio-stage {
