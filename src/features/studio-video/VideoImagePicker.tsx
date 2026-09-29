@@ -10,6 +10,11 @@ import { savedStudioVersions } from "./library-sources";
 import { listStudioVideoSources } from "./api";
 import { MAX_VIDEO_IMAGES, sourceKey, type VideoReference, type VideoSource } from "./sources";
 
+function photoLabel(name: string | null | undefined, description: string | null | undefined) {
+  const technical = !name || /^(?:[a-f\d]{8}-[a-f\d-]{27,}|img[_-]?\d+|[_\W]+)$/i.test(name.trim());
+  return technical ? description?.trim() || "Photo à identifier" : name.trim();
+}
+
 export function VideoImagePicker({ workspaceId, initialImages, onConfirm, onClose }: {
   workspaceId: string; initialImages: VideoReference[];
   onConfirm: (images: VideoReference[]) => void; onClose: () => void;
@@ -77,7 +82,8 @@ export function VideoImagePicker({ workspaceId, initialImages, onConfirm, onClos
     } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "L’import a échoué."); }
     finally { if (alive.current) setUploading(false); }
   }
-  const visible = ready.filter(p => (p.name || "Photo").toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+  const visible = ready.filter(p => [p.name, p.description, ...(p.tags || [])].filter(Boolean)
+    .join(" ").toLocaleLowerCase().includes(search.toLocaleLowerCase()));
   const pendingImports = importedIds.some(id => selected.some(r => r.kind === "photo" && r.id === id) &&
     !ready.some(p => p.id === id));
   return <Dialog open onOpenChange={open => { if (!open && !uploading) onClose(); }}>
@@ -93,7 +99,7 @@ export function VideoImagePicker({ workspaceId, initialImages, onConfirm, onClos
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{visible.map(p => {
             const studioVersion = savedVersions.data?.get(p.id);
             return card({ kind: studioVersion ? "studio_version" : "photo", id: studioVersion?.id || p.id,
-              name: p.name || "Photo", previewUrl: urls.get(p.storage_path) });
+              name: photoLabel(p.name, p.description), previewUrl: urls.get(p.storage_path) });
           })}</div>}
         {!photos.isLoading && !photos.isError && !visible.length && <p>Aucune photo dans la bibliothèque pour cette recherche.</p>}
         {(photos.data?.length || 0) >= limit && <Button variant="outline" onClick={() => setLimit(n => n + 200)}>Afficher plus de photos</Button>}
@@ -121,7 +127,7 @@ export function VideoImagePicker({ workspaceId, initialImages, onConfirm, onClos
         <Button variant="ghost" disabled={uploading} onClick={onClose}>Annuler</Button>
         <Button disabled={uploading || pendingImports} onClick={() => onConfirm(selected.map(ref => {
           const photo = ref.kind === "photo" ? ready.find(p => p.id === ref.id) : null;
-          return photo ? { ...ref, name: photo.name || ref.name, previewUrl: urls.get(photo.storage_path) || ref.previewUrl } : ref;
+          return photo ? { ...ref, name: photoLabel(photo.name, photo.description), previewUrl: urls.get(photo.storage_path) || ref.previewUrl } : ref;
         }))}>{uploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Ajouter ces images ({selected.length})</Button>
       </DialogFooter>
     </DialogContent>

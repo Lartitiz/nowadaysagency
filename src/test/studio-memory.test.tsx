@@ -17,7 +17,8 @@ it('saving a preference requires the edited content and an explicit confirmation
 it('casting is explicit and a failed acknowledgement keeps the same request id',async()=>{
  const save=vi.fn().mockResolvedValue(null);
  render(<StudioMemoryPanel memory={[]} selectedVersion="version-2" brief="Casting pour cette marque" disabled={false} onSave={save} onApply={vi.fn()}/>);
- fireEvent.click(screen.getByRole('button',{name:'Garder ce mannequin'}));
+ fireEvent.click(screen.getByRole('button',{name:'Mémoire de marque'}));
+ fireEvent.click(screen.getByRole('button',{name:'Garder un mannequin fictif de cette image'}));
  fireEvent.change(screen.getByLabelText('Nom'),{target:{value:'Camille'}});
  expect(screen.getByRole('button',{name:'Enregistrer pour ma marque'})).toBeDisabled();
  fireEvent.click(screen.getByRole('checkbox'));
@@ -37,4 +38,8 @@ it('a fictional identity saves its stable traits without copying scene choices',
  fireEvent.click(screen.getByRole('checkbox'));
  fireEvent.click(screen.getByRole('button',{name:'Enregistrer pour ma marque'}));
  await waitFor(()=>expect(save).toHaveBeenCalledWith(expect.objectContaining({memory_note:'42 ans, bague à gauche',version_id:'nora-sheet'})));
+});
+it('ne présente pas un produit comme un mannequin',()=>{
+ render(<StudioMemoryPanel memory={[]} selectedVersion="bol" brief="Un bol en céramique" disabled={false} onSave={vi.fn()} onApply={vi.fn()}/>);
+ expect(screen.queryByRole('button',{name:'Garder ce mannequin'})).not.toBeInTheDocument();
 });

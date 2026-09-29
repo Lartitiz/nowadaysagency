@@ -13,6 +13,7 @@ import {
   quotaDeniedResponse,
 } from "../_shared/plan-limiter.ts";
 import {
+  cleanStudioSummary,
   generative,
   intentSchema,
   intentTool,
@@ -758,6 +759,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             ],
           });
           intent = intentSchema.parse(JSON.parse(raw));
+          intent.summary = cleanStudioSummary(intent.summary);
         } catch (error) {
           console.error(
             "[visual-studio:interpretation]",
@@ -881,6 +883,18 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             ? "image_full"
             : "image_top";
         }
+        // A new take may use the selected result as a visual reference without
+        // treating it as the image to edit. An independent creation stays independent.
+        if (intent.operation === "create" && intent.uses_selected_version && parent &&
+          !resolvedReferences.some((ref) => ref.path === parent.result_path)) {
+          if (resolvedReferences.length >= MAX_REFERENCES) {
+            intent.operation = "clarify";
+            intent.summary = "Retire une référence pour joindre l’image sélectionnée (huit images maximum).";
+          } else {
+            resolvedReferences.unshift({ id: parent.id, version_id: parent.id, photo_id: null,
+              path: parent.result_path, name: "Version sélectionnée", role: "subject" });
+          }
+        }
         const editInput = (intent.operation === "edit" || intent.operation === "background")
           ? finalInputPath
           : null;
@@ -910,7 +924,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             ...intent,
             ...(person?.mode === "sheet" ? { visual_kind: "photo", exact_text: [] } : {}),
             id: crypto.randomUUID(),
-            viewed_version_id: intent.operation === "create" ? null : parent?.id || null,
+            viewed_version_id: intent.operation === "create" && !intent.uses_selected_version ? null : parent?.id || null,
             viewed_reference_id: effectiveReference?.id || null,
             cost: 1 + (p.studio_version && p.studio_version >= 3 && generative(intent.operation)
               ? intent.shots.length

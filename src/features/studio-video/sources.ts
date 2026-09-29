@@ -23,6 +23,33 @@ export interface VideoDraft {
   camera: Camera;
   light: Light;
 }
+export interface PreparedVideo {
+  summary: string;
+  continuity: string[];
+  allowedChanges: string;
+  forbiddenChanges: string;
+  prompt: string;
+  token: string;
+  key: string;
+}
+export function readPreparedVideo(key: string | undefined, briefKey: string): PreparedVideo | null {
+  if (!key) return null;
+  try {
+    const value = JSON.parse(localStorage.getItem(`${key}:prepared`) || "null");
+    const expires = Number(String(value?.token || "").split(".")[0]);
+    return value?.key === briefKey && Number.isSafeInteger(expires) && expires > Date.now() &&
+      typeof value.summary === "string" && Array.isArray(value.continuity) &&
+      typeof value.allowedChanges === "string" && typeof value.forbiddenChanges === "string" &&
+      typeof value.prompt === "string" ? value as PreparedVideo : null;
+  } catch { return null; }
+}
+export function writePreparedVideo(key: string | undefined, prepared: PreparedVideo | null) {
+  if (!key) return;
+  try {
+    if (prepared) localStorage.setItem(`${key}:prepared`, JSON.stringify(prepared));
+    else localStorage.removeItem(`${key}:prepared`);
+  } catch { /* The current preparation remains visible when storage is unavailable. */ }
+}
 export function readVideoDraft(key?: string): VideoDraft | null {
   if (!key) return null;
   try {

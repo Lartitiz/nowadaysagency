@@ -23,10 +23,11 @@ const quote = {
   estimated_credits: 72, quote_expires_at: new Date(Date.now() + 60_000).toISOString(),
   created_at: "", error_code: null, video_url: null,
 };
+const signedToken = `${Date.now() + 15 * 60_000}.${"a".repeat(64)}`;
 const prepared = { summary: "Le produit est montré dans un plan doux avec un mouvement de caméra lent.",
   continuity: ["La table rouge garde la même couleur pendant tout le plan."],
   allowed_changes: "Le produit et les mains bougent.", forbidden_changes: "La table ne devient pas beige.",
-  prompt: "Plan vidéo précis du produit, mouvement lent et lumière douce. La table reste rouge.", prepared_token: "signed" };
+  prompt: "Plan vidéo précis du produit, mouvement lent et lumière douce. La table reste rouge.", prepared_token: signedToken };
 async function prepareAndConfirm() {
   fireEvent.click(screen.getByRole("button", { name: "Préparer avec Claude" }));
   expect(await screen.findByText(prepared.summary)).toBeInTheDocument();
@@ -66,7 +67,7 @@ it("affiche le devis puis n'envoie le POST payant qu'au clic explicite", async (
   expect(await screen.findByText(/Devis Higgsfield/)).toBeInTheDocument();
   expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["prepare", "quote"]);
   expect(mock.request.mock.calls[1][0]).toMatchObject({ prompt: prepared.prompt,
-    summary: prepared.summary, continuity: prepared.continuity, prepared_token: "signed" });
+    summary: prepared.summary, continuity: prepared.continuity, prepared_token: signedToken });
   fireEvent.click(screen.getByRole("button", { name: /Générer ce clip/ }));
   await waitFor(() => expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["prepare", "quote", "submit"]));
 });
@@ -243,4 +244,33 @@ it("restaure le brouillon mais pas l’attestation ni le devis", async () => {
   expect(screen.getByRole("combobox", { name: "Type de plan" })).toHaveValue("detail");
   expect(screen.getByRole("checkbox")).not.toBeChecked();
   expect(screen.queryByRole("button", { name: /Générer ce clip/ })).not.toBeInTheDocument();
+});
+
+it("reprend une préparation exacte après rechargement sans restaurer les confirmations", async () => {
+  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
+  mock.request.mockResolvedValue(prepared);
+  const view = await mount(true, "prepared-a");
+  fireEvent.change(screen.getByRole("textbox", { name: "Ce qui doit bouger" }), { target: { value: "La caméra tourne autour du produit" } });
+  fireEvent.click(screen.getByRole("checkbox"));
+  await prepareAndConfirm();
+  view.unmount();
+  await mount(true, "prepared-a");
+  expect(screen.getByText(prepared.summary)).toBeInTheDocument();
+  expect(screen.getByRole("checkbox")).not.toBeChecked();
+  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  expect(mock.request).toHaveBeenCalledTimes(1);
+});
+
+it("permet de reprendre uniquement son devis conservé avec un nouveau clic explicite", async () => {
+  mock.list.mockResolvedValue({ enabled: true, jobs: [
+    { ...quote, can_submit: true, preparation: { idea: "Un bol en mouvement", summary: prepared.summary, continuity: prepared.continuity } },
+    { ...quote, id: "other", can_submit: false },
+  ] });
+  mock.request.mockResolvedValue({ job: { ...quote, status: "queued" } });
+  mock.read.mockResolvedValue({ job: { ...quote, status: "queued" } });
+  await mount(false);
+  expect(mock.request).not.toHaveBeenCalled();
+  const resume = screen.getByRole("button", { name: "Générer ce clip avec ce devis" });
+  fireEvent.click(resume);
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "submit", job_id: "job" })));
 });

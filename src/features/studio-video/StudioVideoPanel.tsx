@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { VideoImagePicker } from "./VideoImagePicker";
-import { readVideoDraft, writeVideoDraft, sourceKey, type VideoSource, type VideoReference } from "./sources";
+import { readVideoDraft, writeVideoDraft, readPreparedVideo, writePreparedVideo, sourceKey, type VideoSource, type VideoReference, type PreparedVideo } from "./sources";
 import { cameraOptions, lightOptions, shotOptions, videoPrompt, type Camera, type Light, type Shot } from "./direction";
 export type { VideoSource } from "./sources";
 import { listStudioVideos, readStudioVideo, videoRequest, type StudioVideoJob } from "./api";
@@ -66,8 +66,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   useEffect(() => { setUsageRightsConfirmed(false); }, [referenceKey]);
   const [quote, setQuote] = useState<StudioVideoJob | null>(null);
   const [quoteKey, setQuoteKey] = useState<string | null>(null);
-  const [prepared, setPrepared] = useState<{ summary: string; continuity: string[];
-    allowedChanges: string; forbiddenChanges: string; prompt: string; token: string; key: string } | null>(null);
+  const [prepared, setPrepared] = useState<PreparedVideo | null>(() => readPreparedVideo(draftKey, briefKey));
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -83,7 +82,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
     refetchInterval: (query) => ["submitting_uncertain", "queued", "in_progress", "archiving"].includes(query.state.data?.job.status || "") ? 5000 : false });
 
   useEffect(() => { setQuote(null); setQuoteKey(null); }, [inputKey]);
-  useEffect(() => { setPrepared(null); setConfirmed(false); }, [briefKey]);
+  useEffect(() => { setConfirmed(false); }, [briefKey]);
   useEffect(() => {
     if (["ready", "failed", "nsfw", "canceled"].includes(watched.data?.job.status || "")) {
       void cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId] });
@@ -94,7 +93,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
     if ((mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) ||
       promptTooLong || (mode !== "text" && !usageRightsConfirmed) || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || busy) return;
     const requestedKey = briefKey;
-    setBusy("prepare"); setError(""); setPrepared(null); setConfirmed(false); setQuote(null);
+    setBusy("prepare"); setError(""); setPrepared(null); writePreparedVideo(draftKey, null); setConfirmed(false); setQuote(null);
     try {
       const result = await videoRequest<{ summary: string; continuity: string[];
         allowed_changes: string; forbidden_changes: string; prompt: string; prepared_token: string }>({
@@ -105,16 +104,20 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         prompt: composedPrompt, duration, resolution, aspect_ratio: aspectRatio,
         person_free_attested: mode === "text" ? false : usageRightsConfirmed,
       });
-      if (alive.current && currentBriefKey.current === requestedKey)
-        setPrepared({ summary: result.summary, continuity: result.continuity,
+      if (alive.current && currentBriefKey.current === requestedKey) {
+        const next = { summary: result.summary, continuity: result.continuity,
           allowedChanges: result.allowed_changes, forbiddenChanges: result.forbidden_changes,
-          prompt: result.prompt, token: result.prepared_token, key: requestedKey });
+          prompt: result.prompt, token: result.prepared_token, key: requestedKey };
+        setPrepared(next);
+        writePreparedVideo(draftKey, next);
+      }
     } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "Claude n’a pas pu préparer le clip."); }
     finally { if (alive.current) setBusy(""); }
   }
   async function checkPrice() {
     if ((mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) || promptTooLong ||
-      (mode !== "text" && !usageRightsConfirmed) || !prepared || prepared.key !== briefKey || !confirmed ||
+      (mode !== "text" && !usageRightsConfirmed) || !prepared || prepared.key !== briefKey ||
+      Number(prepared.token.split(".")[0]) <= Date.now() || !confirmed ||
       !Number.isInteger(duration) || duration < 4 || duration > 10 || busy) return;
     const requestedKey = inputKey;
     setBusy("quote"); setError("");
@@ -132,11 +135,13 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
     } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "Le devis n’a pas pu être obtenu."); }
     finally { if (alive.current) setBusy(""); }
   }
-  async function generate() {
-    if (!quote || quoteKey !== inputKey || busy || Date.parse(quote.quote_expires_at) <= Date.now()) return;
+  async function generate(savedQuote?: StudioVideoJob) {
+    const offer = savedQuote || quote;
+    if (!offer || (!savedQuote && quoteKey !== inputKey) || (savedQuote && !savedQuote.can_submit) ||
+      busy || Date.parse(offer.quote_expires_at) <= Date.now()) return;
     setBusy("submit"); setError("");
     try {
-      const result = await videoRequest<{ job: StudioVideoJob; error?: string }>({ action: "submit", workspace_id: workspaceId, job_id: quote.id });
+      const result = await videoRequest<{ job: StudioVideoJob; error?: string }>({ action: "submit", workspace_id: workspaceId, job_id: offer.id });
       if (!alive.current) return;
       setQuote(null); setWatchId(result.job.id);
       if (result.error) setError(result.error);
@@ -206,7 +211,9 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         {videoStyle && <button type="button" className="text-left text-xs text-primary underline" onClick={() => setPrompt(current => [current.trim(), `Style de ma marque : ${videoStyle}`].filter(Boolean).join("\n"))}>
           Reprendre mon style vidéo dans cette consigne
         </button>}
-        <div className="grid gap-3 sm:grid-cols-3">
+        <details className="rounded-md border p-3 text-sm">
+          <summary className="cursor-pointer font-medium">Ajuster le plan, la caméra et la lumière (facultatif){shot || camera || light ? " · réglages actifs" : ""}</summary>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <label className="text-sm">Type de plan
             <select className="block h-10 w-full rounded-md border bg-background px-2" value={shot} onChange={e => setShot(e.target.value as Shot)}>
               {Object.entries(shotOptions).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -223,11 +230,9 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
             </select>
           </label>
         </div>
-        {promptTooLong && <p className="text-xs text-destructive">La consigne complète dépasse {promptLimit} caractères. Raccourcis le texte ou retire un réglage.</p>}
-        <details className="text-sm">
-          <summary className="cursor-pointer">Aide : mouvement, caméra et lumière</summary>
-          <p className="mt-2 text-muted-foreground">Décris une action simple dans le texte, puis choisis un plan, un mouvement et une lumière si tu le souhaites. Ces choix guident le modèle sans garantir le résultat exact. Pour une personne fictive, indique un geste naturel et discret. Évite les consignes contradictoires dans un clip court.</p>
+          <p className="mt-2 text-xs text-muted-foreground">Ces réglages guident le modèle sans garantir le résultat exact. Un geste simple et un plan court facilitent la continuité.</p>
         </details>
+        {promptTooLong && <p className="text-xs text-destructive">La consigne complète dépasse {promptLimit} caractères. Raccourcis le texte ou retire un réglage.</p>}
         <div className="flex gap-3 flex-wrap">
           <label className="text-sm">Durée <Input type="number" min={4} max={10} value={duration} onChange={e => setDuration(Number(e.target.value))} className="w-24" /></label>
           <label className="text-sm">Qualité
@@ -250,7 +255,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         <Button type="button" variant="outline" disabled={(mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) ||
           promptTooLong || (mode !== "text" && !usageRightsConfirmed) || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || !!busy}
           onClick={prepareClip}>{busy === "prepare" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Préparer avec Claude</Button>
-        {prepared?.key === briefKey && <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+        {prepared?.key === briefKey && Number(prepared.token.split(".")[0]) > Date.now() && <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
           <p className="text-sm font-medium">Est-ce bien le clip que tu veux ?</p>
           <p className="text-sm whitespace-pre-line break-words">{prepared.summary}</p>
           <div className="rounded-md border bg-background p-3 text-sm space-y-1">
@@ -267,13 +272,13 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
             onClick={() => setConfirmed(true)}>{confirmed ? "Description validée" : "Oui, c’est bien ça"}</Button>
         </div>}
         <Button type="button" variant="outline" disabled={(mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) || promptTooLong ||
-          (mode !== "text" && !usageRightsConfirmed) || !prepared || prepared.key !== briefKey || !confirmed ||
+          (mode !== "text" && !usageRightsConfirmed) || !prepared || prepared.key !== briefKey || Number(prepared.token.split(".")[0]) <= Date.now() || !confirmed ||
           !Number.isInteger(duration) || duration < 4 || duration > 10 || !!busy}
           onClick={checkPrice}>{busy === "quote" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Vérifier le prix</Button>
         {quote && <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2" role="status">
           <p className="text-sm">Devis Higgsfield : <strong>{(Number(quote.estimated_usd) * USD_TO_EUR).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</strong> pour {quote.duration} s en {quote.resolution} ({Number(quote.estimated_usd).toFixed(2)} $ · {quote.estimated_credits} crédits API). Le montant est réservé dans le plafond vidéo au lancement.</p>
           <p className="text-xs text-muted-foreground">Si le devis expire, vérifie à nouveau le prix avant de générer. Une nouvelle tentative serait facturée séparément si ce clip est créé mais ne convient pas.</p>
-          <Button type="button" disabled={!!busy || Date.parse(quote.quote_expires_at) <= Date.now()} onClick={generate}>
+          <Button type="button" disabled={!!busy || Date.parse(quote.quote_expires_at) <= Date.now()} onClick={() => void generate()}>
             {busy === "submit" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Générer ce clip · {(Number(quote.estimated_usd) * USD_TO_EUR).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
           </Button>
         </div>}
@@ -298,7 +303,13 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
               <p className="mt-2"><strong>Consigne transmise :</strong> {job.prompt}</p>
             </details>}
             {current.status === "ready" && current.video_url && <video src={current.video_url} controls playsInline preload="metadata" className="w-full max-w-sm rounded bg-black" />}
-            {current.status === "quoted" && <p className="text-sm text-muted-foreground">Devis conservé · génération non lancée.</p>}
+            {current.status === "quoted" && <div className="space-y-2 text-sm">
+              <p className="text-muted-foreground">Devis conservé · génération non lancée · {(Number(current.estimated_usd) * USD_TO_EUR).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}.</p>
+              {!!current.source_refs?.length && <p>Images prévues : {current.source_refs.map((ref, index) => `${index + 1}. ${ref.name} (${({ subject: "sujet", product: "produit", casting: "mannequin", background: "décor", style: "ambiance", composition: "composition" } as Record<string, string>)[ref.role] || ref.role})`).join(" · ")}</p>}
+              {writable && jobs.data?.enabled && current.can_submit && current.id !== quote?.id && Date.parse(current.quote_expires_at) > Date.now() && <Button type="button" variant="outline" size="sm" disabled={!!busy}
+                onClick={() => void generate(current)}>Générer ce clip avec ce devis</Button>}
+              {Date.parse(current.quote_expires_at) <= Date.now() && <p>Devis expiré. Prépare le clip à nouveau pour vérifier son prix.</p>}
+            </div>}
             {current.status === "canceled" && <p className="text-sm text-muted-foreground">Génération annulée.</p>}
             {current.status === "submitting_uncertain" && <p role="status" className="text-sm text-amber-700">Réponse du fournisseur incertaine : aucune seconde génération ne sera lancée automatiquement.</p>}
             {current.status === "nsfw" && <p role="status" className="text-sm">Higgsfield a refusé ce contenu. La facturation dépend du fournisseur.</p>}
