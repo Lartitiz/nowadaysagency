@@ -209,6 +209,12 @@ export function imagePrompt(proposal: Proposal) {
     ["Composition", detail.composition], ["Lighting", detail.light],
     ["Framing", detail.framing], ["Retouching", detail.retouch],
   ].map(([label, value]) => direction(value) ? `${label}: ${direction(value)}` : "").filter(Boolean).join("; ");
+  const referenceNotes = Array.isArray(charter?.mood_board_urls)
+    ? charter.mood_board_urls.filter((item): item is Record<string, unknown> => !!item && typeof item === "object" && !Array.isArray(item))
+      .slice(0, 12).map(item => ({ role: item.role, note: direction(item.note).slice(0, 300) })).filter(item => !!item.note)
+    : [];
+  const followNotes = referenceNotes.filter(item => item.role !== "avoid").map(item => item.note).slice(0, 5).join("; ");
+  const avoidNotes = referenceNotes.filter(item => item.role === "avoid").map(item => item.note).slice(0, 5).join("; ");
   return [
     proposal.image_prompt,
     proposal.exact_text?.length
@@ -235,11 +241,13 @@ export function imagePrompt(proposal: Proposal) {
     refs.length > 1
       ? "Several reference photos may show one subject from different angles. When the brief identifies them as the same person or product, combine their evidence into one subject; do not add a separate copy for each reference. Keep style-only references distinct from identity references."
       : "",
-    style || mood || avoid || photoDirection
+    style || mood || avoid || photoDirection || followNotes || avoidNotes
       ? `Brand visual direction from the confirmed charter: ${[
         style ? `Visual style: ${style}` : "",
         mood ? `Mood: ${mood}` : "",
         avoid ? `Avoid: ${avoid}` : "",
+        followNotes ? `Reference notes to follow: ${followNotes}` : "",
+        avoidNotes ? `Reference notes to avoid: ${avoidNotes}` : "",
         photoDirection,
       ].filter(Boolean).join("; ")}. Apply it where compatible with this shot. The user's specific request and exact person or product references take priority; never recolor or reshape them merely to fit the brand.`
       : "",

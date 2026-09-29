@@ -576,7 +576,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             sb
               .from("brand_charter")
               .select(
-                "color_primary,color_secondary,color_accent,color_background,color_text,font_title,font_body,photo_style,mood_keywords,visual_donts,moodboard_description,visual_direction",
+                "color_primary,color_secondary,color_accent,color_background,color_text,font_title,font_body,photo_style,mood_keywords,visual_donts,moodboard_description,mood_board_urls,visual_direction",
               )
               .eq("workspace_id", p.workspace_id)
               .maybeSingle(),

@@ -267,8 +267,8 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
   };
 
   const removeImage = (idx: number) => {
-    // Keep the blob until the charter write succeeds; an autosave failure must
-    // never leave a retained reference pointing at deleted media.
+    // Remove it from the current charter only. Existing creations may still
+    // refer to its storage object, so deleting that object is unsafe.
     onImagesChange(images.filter((_, i) => i !== idx));
   };
 
@@ -399,7 +399,6 @@ function ScopedBrandCharterPage() {
   dataRef.current = data;
   const dirtyVersionsRef = useRef(new Map<keyof CharterData, number>());
   const editVersionRef = useRef(0);
-  const pendingMoodboardDeletesRef = useRef(new Set<string>());
 
   // Audit state
   const [auditing, setAuditing] = useState(false);
@@ -535,15 +534,6 @@ function ScopedBrandCharterPage() {
     }
     for (const [key, version] of dirtySnapshot) {
       if (dirtyVersionsRef.current.get(key) === version) dirtyVersionsRef.current.delete(key);
-    }
-    if (dirtySnapshot.has("moodboard_images")) {
-      const stillUsed = new Set(dataRef.current.moodboard_images.map(image => image.path));
-      for (const path of [...pendingMoodboardDeletesRef.current]) {
-        if (stillUsed.has(path)) { pendingMoodboardDeletesRef.current.delete(path); continue; }
-        const { error } = await supabase.storage.from("moodboards").remove([path]);
-        if (!error) pendingMoodboardDeletesRef.current.delete(path);
-        else console.warn("Ancienne image de référence à nettoyer", error);
-      }
     }
   }, [user, workspaceId, column, value, queryClient]);
 
@@ -1082,11 +1072,7 @@ function ScopedBrandCharterPage() {
           <MoodboardSection
             images={data.moodboard_images}
             description={data.moodboard_description}
-            onImagesChange={(imgs) => {
-              const nextPaths = new Set(imgs.map(image => image.path));
-              for (const image of dataRef.current.moodboard_images) if (image.path && !nextPaths.has(image.path)) pendingMoodboardDeletesRef.current.add(image.path);
-              update("moodboard_images", imgs);
-            }}
+            onImagesChange={(imgs) => update("moodboard_images", imgs)}
             onDescriptionChange={(desc) => update("moodboard_description", desc)}
             userId={user?.id || ""}
           />

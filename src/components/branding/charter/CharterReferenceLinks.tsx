@@ -33,7 +33,7 @@ export default function CharterReferenceLinks({ links, onChange }: {
   };
   return <section className="rounded-2xl border border-border bg-card p-5" aria-labelledby="reference-links-title">
     <h2 id="reference-links-title" className="font-body text-base font-bold text-foreground">Sites, créations et vidéos de référence</h2>
-    <p className="mt-1 mb-4 text-sm text-muted-foreground">Garde plusieurs liens et explique ce que tu veux en retenir ou éviter. Ils servent de repères consultables dans ta fiche ; aucun outil ne lit automatiquement le contenu de ces pages.</p>
+    <p className="mt-1 mb-4 text-sm text-muted-foreground">Garde plusieurs liens et explique ce que tu veux en retenir ou éviter. Tes notes guident les propositions visuelles ; aucun outil ne lit automatiquement le contenu de ces pages.</p>
     <div className="flex flex-col gap-2 sm:flex-row">
       <label className="sr-only" htmlFor="reference-kind">Type de référence</label>
       <select id="reference-kind" value={kind} onChange={e => setKind(e.target.value as typeof kind)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
@@ -47,7 +47,7 @@ export default function CharterReferenceLinks({ links, onChange }: {
       {items.map((item, index) => <li key={`${item.url}-${index}`} className="rounded-xl border border-border p-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground">{item.kind === "site" ? "Site" : item.kind === "video" ? "Vidéo" : "Création"}</span>
-          <a href={item.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-sm text-primary underline">{item.url}</a>
+          {/^https?:\/\//i.test(item.url) ? <a href={item.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-sm text-primary underline">{item.url}</a> : <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{item.url}</span>}
           <button type="button" onClick={() => onChange(items.filter((_, i) => i !== index))} className="text-xs text-muted-foreground underline">Retirer</button>
         </div>
         <div className="mt-2 flex flex-wrap gap-2">
