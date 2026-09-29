@@ -25,10 +25,13 @@ export type Proposal = {
   change?: string[];
   model?: string;
   visual_kind?: "photo" | "graphic";
+  photo_treatment?: "natural" | "directed" | "unspecified";
+  product_placement?: string;
   composition?: unknown;
   references?: Reference[];
   input_path?: string | null;
   series_size?: number;
+  series_index?: number;
   brand_context?: { charter?: Record<string, unknown> | null };
 };
 /** The request may have reached the image provider; repeating it may incur another charge. */
@@ -206,6 +209,22 @@ export function imagePrompt(proposal: Proposal) {
   const style = direction(charter?.photo_style);
   const mood = direction(charter?.mood_keywords);
   const avoid = direction(charter?.visual_donts);
+  const naturalPhoto = !isSheet && proposal.visual_kind === "photo" &&
+    proposal.photo_treatment === "natural" &&
+    !proposal.exact_text?.length;
+  const productReference = refs.some((ref) => ref.role === "product");
+  const productPlacement = proposal.product_placement?.trim();
+  const productStaging = (proposal.operation === "product" || productReference)
+    ? [
+      "Stage the exact product in a physically plausible position for its shape and normal use. Show real contact with the confirmed supporting surface and a believable contact shadow; never balance it implausibly merely to expose a painted face. Use a hand only when the confirmed brief calls for one.",
+      "A bowl normally rests base-down with its opening upward; a plate or shallow dish rests flat or is held. Only use an upright display when the confirmed brief explicitly asks for it and shows a plausible visible support.",
+      "The product's support and orientation follow the confirmed placement. When inserting it into the supplied setting, match that setting's camera perspective, scale, light direction and color temperature. Reconstruct the product's volume from that viewpoint instead of pasting its original front or overhead view into the scene. A reference used only for mood or color does not dictate the camera.",
+      "Show the perspective cues appropriate to the confirmed view: rim ellipse, visible wall or thin edge, thickness and contact shadow. Preserve the true shallow or deep profile; do not make a plate into a bowl. Keep the original markings on the same parts of the object, allowing natural foreshortening and occlusion instead of tilting it to expose every marking. Do not invent details of an unseen side.",
+      productPlacement && (!isSeries || !proposal.series_index)
+        ? `Confirmed product placement: ${productPlacement}. Follow this placement when other staging words are ambiguous.`
+        : "",
+    ].filter(Boolean).join(" ")
+    : "";
   const detail = charter?.visual_direction && typeof charter.visual_direction === "object" && !Array.isArray(charter.visual_direction)
     ? charter.visual_direction as Record<string, unknown> : {};
   const photoDirection = [
@@ -220,7 +239,20 @@ export function imagePrompt(proposal: Proposal) {
   const avoidNotes = referenceNotes.filter(item => item.role === "avoid").map(item => item.note).slice(0, 5).join("; ");
   return [
     personReferencePrompt(proposal.person_reference),
-    proposal.image_prompt,
+    // Number only after reference selection, sorting and edit-source deduplication.
+    // This list uses the same order as the image[] payload in generateImage.
+    proposal.input_path || refs.length ? "REFERENCE IMAGES" : "",
+    proposal.input_path
+      ? "Image 1 is the selected version to edit. Keep the subject and features the brief asks to preserve; apply the requested changes to its setting and styling."
+      : "",
+    ...refs.map(
+      (ref, i) =>
+        `Image ${i + 1 + (proposal.input_path ? 1 : 0)}: ${ref.role} reference, ${ref.name}. ${referenceInstruction(ref.role)}${ref.role === "casting" && ref.description ? ` Saved identity description: ${ref.description}` : ""}`,
+    ),
+    proposal.summary
+      ? `CONFIRMED BRIEF\n${proposal.summary}\nThis brief and the confirmed preservation and change lists govern the result. The technical instructions below only explain how to realize them; do not introduce unconfirmed subjects, props, actions, text or style changes.`
+      : "",
+    proposal.image_prompt ? `SHOT INSTRUCTIONS\n${proposal.image_prompt}` : "",
     proposal.exact_text?.length
       ? `Render exactly this text in the image, once each, clearly and legibly: ${proposal.exact_text.map((item) => JSON.stringify(item)).join("; ")}. Do not invent dates, prices, addresses, claims, extra letters, or a different logo. Check spelling and accents.`
       : "",
@@ -231,17 +263,7 @@ export function imagePrompt(proposal: Proposal) {
     // Series snapshots share the plan's change list, which may describe other shots.
     // Each shot's complete image_prompt is the authority for its framing and pose.
     !isSeries ? "Changes: " + (proposal.change || []).join("; ") : "",
-    proposal.input_path
-      ? "Image 1 is the selected version to edit. Keep its other features."
-      : "",
-    ...refs.map(
-      (ref, i) =>
-        `Image ${
-          i + 1 + (proposal.input_path ? 1 : 0)
-        }: ${ref.role} reference, ${ref.name}. ${
-          referenceInstruction(ref.role)
-        }${ref.role === "casting" && ref.description ? ` Saved identity description: ${ref.description}` : ""}`,
-    ),
+    productStaging,
     refs.length > 1
       ? "Several reference photos may show one subject from different angles. When the brief identifies them as the same person or product, combine their evidence into one subject; do not add a separate copy for each reference. Keep style-only references distinct from identity references."
       : "",
@@ -253,9 +275,15 @@ export function imagePrompt(proposal: Proposal) {
         followNotes ? `Reference notes to follow: ${followNotes}` : "",
         avoidNotes ? `Reference notes to avoid: ${avoidNotes}` : "",
         photoDirection,
-      ].filter(Boolean).join("; ")}. Apply it where compatible with this shot. The user's specific request and exact person or product references take priority; never recolor or reshape them merely to fit the brand.`
+      ].filter(Boolean).join("; ")}. Apply it where compatible with this shot. The user's specific request and exact person or product references take priority; never recolor or reshape them merely to fit the brand. Confirmed product placement takes priority over brand composition advice.`
       : "",
-    "No invented watermarks, promotional claims or extra decorative elements. Match the requested visual medium; do not default to stock imagery.",
+    naturalPhoto
+      ? "Natural everyday photograph, as a candid moment captured with a good phone camera: clear subject and believable framing, ordinary surroundings with only props needed for the action, available light with plausible unevenness, credible skin and material texture, and moderate depth of field so the setting remains recognizable. Keep professional image quality. Avoid beauty retouching, waxy skin, glossy advertising light, cinematic staging, artificial bokeh, heavy blur, fake grain, or added picturesque flowers and decor. If a source or style reference has busy scenery or decorative props, borrow only the aspects requested; simplify or remove those elements when the brief asks for it. Preserve the designated person's identity and exact product details. Specific user instructions and confirmed brand requirements take priority."
+      : "",
+    "No invented watermarks, promotional claims or extra decorative elements. Preserve authentic product lettering and logos when present in the reference. Match the requested visual medium; do not default to stock imagery.",
+    proposal.operation === "edit"
+      ? "Keep everything else unchanged. Do not alter the camera or rearrange the scene for a texture-only or lighting-only correction."
+      : "",
     isSeries && !isSheet
       ? "Produce ONE image for this shot, not a collage. Its camera framing, crop and pose must follow this shot's brief even when the reference uses a different framing. Shot brief: " + proposal.image_prompt
       : "",

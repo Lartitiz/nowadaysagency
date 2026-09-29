@@ -23,6 +23,8 @@ export interface StudioProposal {
   viewed_reference_id?: string | null;
   input_path?: string | null;
   summary: string;
+  photo_treatment?: "natural" | "directed" | "unspecified";
+  product_placement?: string;
   background_prompt: string;
   viewed_version_id: string | null;
   cost: number;
