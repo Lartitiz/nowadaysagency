@@ -42,7 +42,7 @@ const MAX_SELECTABLE = 20;
 const PREVIEW_COUNT = 12;
 const FETCH_CONCURRENCY = 3;
 
-type Status = "loading" | "ready" | "hidden" | "importing" | "done" | "empty";
+type Status = "loading" | "ready" | "hidden" | "importing" | "done" | "empty" | "error";
 
 interface BrandPhotosPickerProps {
   /** Où la carte est affichée (analytics). */
@@ -104,6 +104,7 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
   const [hasSite, setHasSite] = useState(false);
   const [isProduct, setIsProduct] = useState<boolean | null>(null);
   const [confirmedProductUrls, setConfirmedProductUrls] = useState<string[]>([]);
+  const [retryToken, setRetryToken] = useState(0);
   // Le compte Instagram connecté correspond-il bien à la marque du profil ?
   const [instagramUsed, setInstagramUsed] = useState(false);
   // Un seul scan par montage (StrictMode monte deux fois en dev).
@@ -122,6 +123,7 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
     if (connectionsLoading) return;
     if (scanStarted.current || workspaceId === user.id) return;
     scanStarted.current = true;
+    let scannedProduct: boolean | null = null;
 
     void (async () => {
       const { data: profile } = await supabase
@@ -132,6 +134,7 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
       const websiteUrl = (profile?.website_url ?? "").trim();
       const siteOk = looksLikeUrl(websiteUrl);
       const productActivity = profile?.type_activite === "produits" || profile?.type_activite === "les_deux";
+      scannedProduct = productActivity;
       setIsProduct(productActivity);
       setHasSite(siteOk);
 
@@ -140,7 +143,7 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
         const { data, error } = await invokeWithTimeout(
           "site-photos-scan", { body: { mode: "product-scan", websiteUrl } }, 45_000,
         );
-        if (error || data?.error) { setStatus("empty"); return; }
+        if (error || data?.error) { setStatus("error"); return; }
         const productImages = (data?.images as SiteImageCandidate[] | undefined) ?? [];
         setCandidates(productImages);
         if (productImages.length === 0) { setStatus("empty"); return; }
@@ -151,7 +154,7 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
           .select("source_image_url,status,removed_from_library_at")
           .eq("workspace_id", workspaceId)
           .in("source_image_url", productImages.map((image) => image.url));
-        if (existingError) { setStatus("empty"); return; }
+        if (existingError) { setStatus("error"); return; }
         const known = new Set((existing ?? []).map((row) => row.source_image_url));
         const available = (existing ?? []).filter((row) => row.status === "ready" && !row.removed_from_library_at);
         setConfirmedProductUrls(available.map((row) => row.source_image_url).filter((url): url is string => !!url));
@@ -257,7 +260,8 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
       }
     })().catch((e) => {
       console.error("[BrandPhotosPicker] scan failed:", e);
-      setStatus("hidden");
+      setIsProduct(scannedProduct ?? false);
+      setStatus(scannedProduct ? "error" : "hidden");
     });
   }, [
     isDemoMode,
@@ -267,6 +271,7 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
     instagramConnected,
     connectedInstagramHandle,
     placement,
+    retryToken,
   ]);
 
   const visible = candidates.filter((c) => !hiddenUrls.has(c.url));
@@ -374,6 +379,8 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
                   : `${importedCount} photo${importedCount > 1 ? "s ajoutées" : " ajoutée"} à ta bibliothèque. Je les décris en arrière-plan : tu les retrouves dans Mes photos, prêtes pour tes contenus.`
                 : status === "empty"
                   ? "Je n'ai pas trouvé de photo de produit exploitable sur ton site. Tu pourras en ajouter dans la préparation du carrousel."
+                : status === "error"
+                  ? "Je n'ai pas pu lire les photos de ton site. Réessaie ou ajoute-les dans la préparation du carrousel."
                 : status === "importing" && isProduct
                   ? "J'ajoute tes photos de produits à Mes photos…"
                 : `Je les ai trouvées ${sourceLabel}. Choisis celles qui te ressemblent : elles serviront à tes contenus.`}
@@ -395,6 +402,14 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
             <img key={url} src={url} alt="Photo de produit trouvée sur ton site" className="aspect-square w-full rounded-lg object-cover" />
           ))}
         </div>
+      )}
+
+      {isProduct && status === "error" && (
+        <Button type="button" variant="outline" size="sm" onClick={() => {
+          scanStarted.current = false;
+          setStatus("loading");
+          setRetryToken((value) => value + 1);
+        }}>Réessayer la recherche</Button>
       )}
 
       {((status === "ready" || status === "importing") && !isProduct) && (

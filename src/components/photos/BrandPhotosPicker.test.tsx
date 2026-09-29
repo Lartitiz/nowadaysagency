@@ -105,6 +105,17 @@ describe("BrandPhotosPicker", () => {
     await screen.findByText(/Je n'ai pas trouvé de photo de produit exploitable/);
     expect(m.upload).not.toHaveBeenCalled();
   });
+
+  it("permet de relancer une recherche de produits après une erreur réseau", async () => {
+    m.activityType = "produits";
+    m.scan
+      .mockResolvedValueOnce({ error: { message: "réseau" } })
+      .mockResolvedValueOnce({ data: { images: [] } });
+    render(<BrandPhotosPicker placement="welcome" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Réessayer la recherche" }));
+    await screen.findByText(/Je n'ai pas trouvé de photo de produit exploitable/);
+    expect(m.scan).toHaveBeenCalledTimes(2);
+  });
   it("scanne le site tout seul, puis ajoute les photos cochées à la bibliothèque", async () => {
     m.scan.mockImplementation(async (_fn: string, { body }: { body: { mode: string } }) =>
       body.mode === "scan"
