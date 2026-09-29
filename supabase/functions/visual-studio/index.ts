@@ -786,10 +786,18 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           resolvedReferences.find((ref) => isIdentity(ref.role)) || resolvedReferences[0];
         const finalInputPath = explicitSource?.path || parent?.result_path || effectiveReference?.path || null;
         // The model cannot invent a real reference or authorize a source-free identity reconstruction.
+        // Retoucher une image déjà générée (ou une photo source explicite) garde
+        // le sujet réel déjà présent dedans : pas besoin de redemander la photo.
+        const editsExistingImage = ["background", "edit"].includes(intent.operation) &&
+          !!(explicitSource?.path || parent?.result_path);
+        const parentHadIdentity = !!parent &&
+          ((parent.proposal?.reference_snapshot || []) as Array<{ role?: string }>)
+            .some((r) => isIdentity(String(r.role || "")));
         if (
           (["background", "edit", "product"].includes(intent.operation) &&
             !finalInputPath) ||
-          ((intent.requires_real_subject || intent.operation === "product") &&
+          (!editsExistingImage && !parentHadIdentity &&
+            (intent.requires_real_subject || intent.operation === "product") &&
             !resolvedReferences.some((r) => isIdentity(r.role)))
         ) {
           intent.operation = "clarify";
