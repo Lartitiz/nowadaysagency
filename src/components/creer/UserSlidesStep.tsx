@@ -1,7 +1,7 @@
 // Écran de saisie du mode carrousel « Mes slides » : l'utilisatrice fournit son
 // texte slide par slide, l'IA ne fait QUE le design. Aucune génération de texte
 // ici : le contenu part VERBATIM vers la mise en page (gabarits + rendu).
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,11 +23,20 @@ export interface UserSlideDraft {
   photoIndex: number | null;
 }
 
+export interface UserSlidesInputDraft {
+  pasteText: string;
+  slides: UserSlideDraft[];
+  caption: string;
+}
+
 interface Props {
   initialPhotos?: PhotoItem[];
   /** Brouillon précédent (retour depuis l'écran résultat) — rien n'est perdu. */
   initialSlides?: UserSlideDraft[];
   initialCaption?: string;
+  initialDraft?: UserSlidesInputDraft | null;
+  onDraftChange?: (draft: UserSlidesInputDraft) => void;
+  onPhotosChange?: (photos: PhotoItem[]) => void;
   generating?: boolean;
   onBack: () => void;
   onGenerate: (payload: { slides: UserSlideDraft[]; photos: PhotoItem[]; caption: string }) => void;
@@ -40,11 +49,23 @@ const emptySlide = (): UserSlideDraft => ({ id: newId(), title: "", body: "", ph
 
 const wordCount = (s: string) => (s || "").trim().split(/\s+/).filter(Boolean).length;
 
-export default function UserSlidesStep({ initialPhotos, initialSlides, initialCaption, generating = false, onBack, onGenerate }: Props) {
-  const [pasteText, setPasteText] = useState("");
-  const [slides, setSlides] = useState<UserSlideDraft[]>(initialSlides || []);
+export default function UserSlidesStep({ initialPhotos, initialSlides, initialCaption, initialDraft, onDraftChange, onPhotosChange, generating = false, onBack, onGenerate }: Props) {
+  const [pasteText, setPasteText] = useState(initialDraft?.pasteText || "");
+  const [slides, setSlides] = useState<UserSlideDraft[]>(initialDraft?.slides ?? initialSlides ?? []);
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos || []);
-  const [caption, setCaption] = useState(initialCaption || "");
+  const [caption, setCaption] = useState(initialDraft?.caption ?? initialCaption ?? "");
+  const syncedPhotos = useRef(false);
+
+  useEffect(() => {
+    onDraftChange?.({ pasteText, slides, caption });
+  }, [pasteText, slides, caption, onDraftChange]);
+
+  // Photos from IndexedDB or the library may arrive after this step mounts.
+  useEffect(() => {
+    if (syncedPhotos.current || !initialPhotos?.length) return;
+    syncedPhotos.current = true;
+    setPhotos((current) => current.length ? current : initialPhotos);
+  }, [initialPhotos]);
 
   const hasSlides = slides.length > 0;
 
@@ -88,11 +109,22 @@ export default function UserSlidesStep({ initialPhotos, initialSlides, initialCa
     setSlides((prev) => [...prev, emptySlide()]);
   };
 
-  // Photos retirées → on déréférence les index devenus invalides.
+  // Keep each slide linked to the same photo when thumbnails are removed or reordered.
   const handlePhotosChange = (next: PhotoItem[]) => {
     setPhotos(next);
+    onPhotosChange?.(next);
     setSlides((prev) =>
-      prev.map((s) => (s.photoIndex && s.photoIndex > next.length ? { ...s, photoIndex: null } : s)),
+      prev.map((s) => {
+        if (!s.photoIndex) return s;
+        const selected = photos[s.photoIndex - 1];
+        const index = selected ? next.findIndex((photo) =>
+          photo === selected ||
+          (!!selected.id && photo.id === selected.id) ||
+          (!!selected.userPhotoId && photo.userPhotoId === selected.userPhotoId) ||
+          (!!selected.base64 && photo.base64 === selected.base64)
+        ) : -1;
+        return { ...s, photoIndex: index < 0 ? null : index + 1 };
+      }),
     );
   };
 
