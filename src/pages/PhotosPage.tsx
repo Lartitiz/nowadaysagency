@@ -38,16 +38,10 @@ import { removePhotoFromLibrary } from "@/lib/photo-storage";
 import { PhotoCard } from "@/components/photos/PhotoCard";
 import { PhotoUploadingCard } from "@/components/photos/PhotoUploadingCard";
 import { PhotoRetouchDialog } from "@/components/photos/PhotoRetouchDialog";
-import {
-  CreateVisualDialog,
-  type CreateVisualChoice,
-} from "@/components/photos/CreateVisualDialog";
 import { PhotoDetailDialog } from "@/components/photos/PhotoDetailDialog";
 import { PackshotDialog } from "@/components/photos/PackshotDialog";
 import { MiseEnSceneDialog } from "@/components/photos/MiseEnSceneDialog";
 import { PortraitProDialog } from "@/components/photos/PortraitProDialog";
-import { OfferMockupDialog } from "@/components/photos/OfferMockupDialog";
-import { AvantApresDialog } from "@/components/photos/AvantApresDialog";
 import { PhotoWishlistPanel } from "@/components/photos/PhotoWishlistPanel";
 import { SitePhotoImportDialog } from "@/components/photos/SitePhotoImportDialog";
 import { PhotoShootEmptyState } from "@/components/photos/PhotoShootEmptyState";
@@ -97,7 +91,6 @@ function PhotosLibrary() {
   const { activeWorkspace, loading: wsLoading, activeRole } = useWorkspace();
   const wsReady = !!activeWorkspace && !wsLoading;
 
-  const [createVisualOpen, setCreateVisualOpen] = useState(false);
   const [siteImportOpen, setSiteImportOpen] = useState(false);
   // Id seul (pas l'objet) : le détail doit refléter le classement IA qui finit
   // en arrière-plan après l'upload, sinon `photo.kind` reste figé sur l'instantané
@@ -124,8 +117,6 @@ function PhotosLibrary() {
   const [packshotPhoto, setPackshotPhoto] = useState<UserPhotoRow | null>(null);
   const [miseEnScenePhoto, setMiseEnScenePhoto] = useState<UserPhotoRow | null>(null);
   const [portraitProPhoto, setPortraitProPhoto] = useState<UserPhotoRow | null>(null);
-  const [mockupOpen, setMockupOpen] = useState(false);
-  const [avantApresOpen, setAvantApresOpen] = useState(false);
   const [retouchePhoto, setRetouchePhoto] = useState<UserPhotoRow | null>(null);
   const [photoToDelete, setPhotoToDelete] = useState<UserPhotoRow | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
@@ -326,9 +317,6 @@ function PhotosLibrary() {
             </Button>
 
           </div>
-          <Button variant="link" className="h-auto p-0" onClick={() => setCreateVisualOpen(true)} disabled={!wsReady}>
-            Créer un avant/après ou un mockup
-          </Button>
           {/* L'import site/Instagram est une 2e façon de REMPLIR : lien discret
               plutôt qu'un bouton frère qui doublerait le poids de « Ajouter ». */}
           <p className="text-sm text-muted-foreground">
@@ -463,15 +451,6 @@ function PhotosLibrary() {
         </>}
       </main>
 
-      <CreateVisualDialog
-        open={createVisualOpen}
-        onOpenChange={setCreateVisualOpen}
-        onChoose={(choice: CreateVisualChoice) => {
-          setCreateVisualOpen(false);
-          if (choice === "avant-apres") setAvantApresOpen(true);
-          else setMockupOpen(true);
-        }}
-      />
       <SitePhotoImportDialog
         open={siteImportOpen}
         onOpenChange={setSiteImportOpen}
@@ -522,12 +501,6 @@ function PhotosLibrary() {
         open={!!portraitProPhoto}
         onOpenChange={(v) => !v && setPortraitProPhoto(null)}
       />
-      <OfferMockupDialog
-        open={mockupOpen}
-        onOpenChange={setMockupOpen}
-        onOpenRetouch={(p) => setRetouchePhoto(p)}
-      />
-      <AvantApresDialog open={avantApresOpen} onOpenChange={setAvantApresOpen} />
       <PhotoRetouchDialog
         photo={retouchePhoto}
         open={!!retouchePhoto}
