@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUploadLibraryPhotos, useUserPhotos } from "@/hooks/use-user-photos";
 import { getSignedPhotoUrls, type UserPhotoRow } from "@/lib/photo-storage";
+import { isTechnicalPhotoName, photoDisplayLabel } from "@/lib/photo-label";
 import { SitePhotoImportDialog } from "@/components/photos/SitePhotoImportDialog";
 
 interface PhotoLibraryPickerDialogProps {
@@ -55,8 +56,8 @@ function PickerThumb({
   // Aperçu KO (signature échouée ou image en erreur) ≠ « en chargement » :
   // la photo reste sélectionnable, l'import passe par storage_path.
   const broken = imgError || (signDone && !url);
-  const technicalName = !photo.name || /^(?:[a-f\d]{8}-[a-f\d-]{27,}|img[_-]?\d+|[_\W]+)$/i.test(photo.name.trim());
-  const label = technicalName ? photo.description?.trim() || "Photo à identifier" : photo.name!.trim();
+  const technicalName = isTechnicalPhotoName(photo.name);
+  const label = photoDisplayLabel(photo.name, photo.description);
   return (
     <button
       type="button"
@@ -76,7 +77,7 @@ function PickerThumb({
       {url && !imgError ? (
         <img
           src={url}
-          alt={photo.name ?? "Photo"}
+          alt={label}
           className="h-full w-full object-cover"
           loading="lazy"
           onError={() => setImgError(true)}
