@@ -52,6 +52,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import "@/features/visual-studio/studio.css";
 
+const CHAT_WIDTH_KEY = "visual-studio-chat-width";
+const CHAT_WIDTH_DEFAULT = 430;
+const CHAT_WIDTH_MIN = 340;
+const CHAT_WIDTH_MAX = 760;
+
+
 function referenceRoleForPhoto(photo: UserPhotoRow): StudioReference["role"] {
   if (photo.kind === "produit" || photo.kind === "produit_porte") return "product";
   if (photo.kind === "portrait") return "person";
@@ -160,6 +166,71 @@ function Studio({
     setUrlParams(next);
   };
   const isMobile = useIsMobile();
+  const gridRef = useRef<HTMLDivElement>(null);
+  const chatWidthLatest = useRef(CHAT_WIDTH_DEFAULT);
+  const [chatWidth, setChatWidth] = useState(() => {
+    try {
+      const value = Number(localStorage.getItem(CHAT_WIDTH_KEY));
+      return Number.isFinite(value) && value >= CHAT_WIDTH_MIN && value <= CHAT_WIDTH_MAX
+        ? value
+        : CHAT_WIDTH_DEFAULT;
+    } catch {
+      return CHAT_WIDTH_DEFAULT;
+    }
+  });
+  chatWidthLatest.current = chatWidth;
+  const [wide, setWide] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1001px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1001px)");
+    const onChange = (e: MediaQueryListEvent) => setWide(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  const persistChatWidth = useCallback((value: number) => {
+    try {
+      localStorage.setItem(CHAT_WIDTH_KEY, String(value));
+    } catch {
+      /* Le réglage de largeur reste pour la session. */
+    }
+  }, []);
+  const startChatResize = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const handle = e.currentTarget;
+      handle.setPointerCapture(e.pointerId);
+      handle.dataset.resizing = "true";
+      const move = (ev: PointerEvent) => {
+        const grid = gridRef.current;
+        if (!grid) return;
+        const rect = grid.getBoundingClientRect();
+        const next = Math.min(
+          CHAT_WIDTH_MAX,
+          Math.max(CHAT_WIDTH_MIN, Math.round(ev.clientX - rect.left)),
+        );
+        chatWidthLatest.current = next;
+        setChatWidth(next);
+      };
+      const end = () => {
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", end);
+        handle.removeEventListener("pointercancel", end);
+        delete handle.dataset.resizing;
+        persistChatWidth(chatWidthLatest.current);
+      };
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", end);
+      handle.addEventListener("pointercancel", end);
+    },
+    [persistChatWidth],
+  );
+  const resetChatWidth = useCallback(() => {
+    setChatWidth(CHAT_WIDTH_DEFAULT);
+    chatWidthLatest.current = CHAT_WIDTH_DEFAULT;
+    persistChatWidth(CHAT_WIDTH_DEFAULT);
+  }, [persistChatWidth]);
+
   const roleWritable = ["owner", "manager", "editor"].includes(role);
   const [compositionOpen, setCompositionOpen] = useState(false);
   const [compositionDraft, setCompositionDraft] = useState<
@@ -1605,10 +1676,42 @@ function Studio({
           {busy === "opening" || (sessionId && !current && state.isFetching)
             ? <p className="p-8">Ouverture de la session…</p>
             : (
-              <div className="studio-grid">
+              <div
+                className="studio-grid"
+                ref={gridRef}
+                style={wide
+                  ? { gridTemplateColumns: `${chatWidth}px minmax(0, 1fr)` }
+                  : undefined}
+              >
                 <section className="studio-chat" aria-label="Conversation">
                   {chat(isMobile)}
+                  {wide && (
+                    <div
+                      className="studio-resizer"
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label="Ajuster la largeur de la conversation"
+                      title="Glisser pour élargir la conversation · double-clic pour réinitialiser"
+                      tabIndex={0}
+                      onPointerDown={startChatResize}
+                      onDoubleClick={resetChatWidth}
+                      onKeyDown={(e) => {
+                        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+                        e.preventDefault();
+                        setChatWidth((w) => {
+                          const next = Math.min(
+                            CHAT_WIDTH_MAX,
+                            Math.max(CHAT_WIDTH_MIN, w + (e.key === "ArrowLeft" ? -24 : 24)),
+                          );
+                          chatWidthLatest.current = next;
+                          persistChatWidth(next);
+                          return next;
+                        });
+                      }}
+                    />
+                  )}
                 </section>
+
                 <section
                   className="studio-stage"
                   aria-label="Visuels et versions"
