@@ -701,8 +701,11 @@ function Studio({
       if (result.session.proposal) setAttachments([]);
     }
   }
-  async function save(useInContent = false) {
+  async function save(useInContent = false, target?: typeof version) {
     if (!current || actionLock.current || !writable) return;
+    return saveVersion(useInContent, target ?? version);
+  }
+  async function saveVersion(useInContent: boolean, version: (typeof current)["versions"][number] | undefined) {
     if (!version) {
       if (useInContent && current.session.source_photo_id) {
         navigate(contentPath, {
@@ -1572,7 +1575,9 @@ function Studio({
                           {item.status === "ready" && <Button size="sm" variant={selected ? "default" : "outline"} onClick={() => { setSelectedId(item.id); setCompare(false); }}>{selected ? "Image sélectionnée" : "Reprendre cette image"}</Button>}
                           {item.status === "ready" && <Button size="sm" variant="outline" disabled={!writable || !!busy || generating || (references.length >= 8 && !references.some((ref) => ref.version_id === item.id))} onClick={() => void attachVersionAsReference(item.id)}>Joindre à ma demande</Button>}
                           {item.status === "ready" && item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="studio-image-open">Agrandir l’image</a>}
-                          {item.library_photo_id && <span className="text-xs text-muted-foreground">Dans la bibliothèque</span>}
+                          {item.status === "ready" && (item.library_photo_id
+                            ? <span className="text-xs text-muted-foreground">Dans la bibliothèque</span>
+                            : <Button size="sm" variant="outline" disabled={!writable || !!busy} onClick={() => void save(false, item)}>Ajouter à ma bibliothèque</Button>)}
                         </div>
                       </article>;
                     })}
