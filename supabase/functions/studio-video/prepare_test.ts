@@ -37,6 +37,47 @@ Deno.test("Claude receives the image roles and returns separate summary and prov
   }
 });
 
+Deno.test("overlong change rules get one text-only repair without dropping the support rule", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = Deno.env.get("ANTHROPIC_API_KEY");
+  Deno.env.set("ANTHROPIC_API_KEY", "test-key");
+  const requests: Array<Record<string, unknown>> = [];
+  const first = {
+    summary: "Le mannequin prend le bol bleu et le repose sur la même surface rouge.",
+    scene: "Le mannequin prend le bol bleu, le soulève puis le repose sur la même surface rouge.",
+    invariants: ["Le bol bleu et la surface rouge restent inchangés."],
+    allowed_changes: "Les mains et le bol bougent pendant le geste. ".repeat(6),
+    forbidden_changes: "Ne pas changer le bol bleu ni la surface rouge. ".repeat(8),
+  };
+  globalThis.fetch = async (_input, init) => {
+    requests.push(JSON.parse(String((init as { body?: unknown } | undefined)?.body)));
+    const input = requests.length === 1 ? first : {
+      allowed_changes: "Les mains et le bol bougent pendant le geste.",
+      forbidden_changes: "Le bol bleu et la même surface rouge restent inchangés ; aucune seconde table.",
+    };
+    return new Response(JSON.stringify({ stop_reason: "tool_use", content: [{
+      type: "tool_use", name: requests.length === 1 ? "prepare_video_clip" : "condense_video_changes", input,
+    }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    const result = await prepareVideo({ idea: "Le mannequin prend le bol" }, [{
+      name: "Bol bleu", role: "product", blob: new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" }),
+    }]);
+    assertEquals(requests.length, 2);
+    assert(JSON.stringify(requests[0]).includes('"type":"image"'));
+    assert(!JSON.stringify(requests[1]).includes('"type":"image"'));
+    assertEquals(result.summary, first.summary);
+    assertEquals(result.invariants, first.invariants);
+    assertEquals(result.allowed_changes, "Les mains et le bol bougent pendant le geste.");
+    assert(result.forbidden_changes.includes("même surface rouge"));
+    assert(buildVideoPrompt(result, 5, [{ role: "product" }]).includes("même surface rouge"));
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey == null) Deno.env.delete("ANTHROPIC_API_KEY");
+    else Deno.env.set("ANTHROPIC_API_KEY", originalKey);
+  }
+});
+
 Deno.test("preparation token is bound to the user, images, settings and Claude prompt", async () => {
   const input = { workspace_id: "space", source_kind: "references", references: [
     { kind: "photo", id: "a", role: "product" }, { kind: "photo", id: "b", role: "background" },
