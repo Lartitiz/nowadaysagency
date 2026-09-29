@@ -307,8 +307,8 @@ export function inspectSlide(doc: Document, slide: number): QualityIssue[] {
             : "#ffffff";
         add(
           "contrast",
-          "Contraste insuffisant sur fond uni : renforce la couleur du texte.",
-          "error",
+          "Contraste peut-être faible sur fond uni : vérifie la lisibilité à l'œil.",
+          "warning",
           { color },
         );
       }
