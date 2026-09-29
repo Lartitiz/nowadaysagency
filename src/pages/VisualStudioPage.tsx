@@ -180,10 +180,10 @@ function Studio({
   });
   chatWidthLatest.current = chatWidth;
   const [wide, setWide] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1001px)").matches,
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches,
   );
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1001px)");
+    const mq = window.matchMedia("(min-width: 768px)");
     const onChange = (e: MediaQueryListEvent) => setWide(e.matches);
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
