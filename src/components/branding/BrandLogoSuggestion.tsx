@@ -32,8 +32,10 @@ type Status = "loading" | "ready" | "hidden" | "saving" | "done";
 
 interface BrandLogoSuggestionProps {
   /** Où la carte est affichée (analytics). */
-  placement: "welcome" | "brand_review";
+  placement: "welcome" | "brand_review" | "charter";
   className?: string;
+  /** Appelé avec l'URL enregistrée, pour rafraîchir l'écran appelant. */
+  onApplied?: (url: string) => void;
 }
 
 /** Plus petit que ça, c'est un favicon, pas un logo exploitable. */
@@ -44,7 +46,7 @@ function looksLikeUrl(value: string): boolean {
   return !!v && !/\s/.test(v) && v.includes(".");
 }
 
-export function BrandLogoSuggestion({ placement, className }: BrandLogoSuggestionProps) {
+export function BrandLogoSuggestion({ placement, className, onApplied }: BrandLogoSuggestionProps) {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
@@ -151,6 +153,7 @@ export function BrandLogoSuggestion({ placement, className }: BrandLogoSuggestio
       }
       queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
       posthog.capture("brand_logo_suggestion_accepted", { placement });
+      onApplied?.(publicUrl);
       setStatus("done");
     } catch (e) {
       console.error("[BrandLogoSuggestion] save failed:", e);

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { BrandLogoSuggestion } from "@/components/branding/BrandLogoSuggestion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
@@ -1012,11 +1013,14 @@ function ScopedBrandCharterPage() {
                 </div>
               </div>
             ) : (
+              <>
+              <BrandLogoSuggestion placement="charter" className="mb-3" onApplied={(url) => setData((prev) => ({ ...prev, logo_url: url }))} />
               <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-8">
                 <Upload className="h-8 w-8 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">{logoUploading ? "Upload en cours..." : "Clique pour uploader ton logo"}</span>
                 <input type="file" accept="image/*,.heic,.heif,image/heic,image/heif" className="hidden" onChange={handleLogoUpload} disabled={logoUploading} />
               </label>
+              </>
             )}
           </section>
 
