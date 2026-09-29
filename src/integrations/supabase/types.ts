@@ -5844,6 +5844,7 @@ export type Database = {
           posts_per_week: number | null
           prenom: string
           probleme_principal: string
+          product_or_service: string | null
           stories_per_week: number | null
           style_communication: string[]
           time_distribution: Json | null
@@ -5914,6 +5915,7 @@ export type Database = {
           posts_per_week?: number | null
           prenom?: string
           probleme_principal?: string
+          product_or_service?: string | null
           stories_per_week?: number | null
           style_communication?: string[]
           time_distribution?: Json | null
@@ -5984,6 +5986,7 @@ export type Database = {
           posts_per_week?: number | null
           prenom?: string
           probleme_principal?: string
+          product_or_service?: string | null
           stories_per_week?: number | null
           style_communication?: string[]
           time_distribution?: Json | null

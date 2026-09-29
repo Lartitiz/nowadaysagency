@@ -1145,20 +1145,8 @@ function Studio({
                 ))}
                 {proposal && <div className="studio-chat-confirmation">{confirmation()}</div>}
                 {(() => {
-                  const ideas = current?.session.messages.at(-1)?.suggestions?.length
-                    ? current.session.messages.at(-1)!.suggestions!
-                    : version
-                    ? [
-                      "Garde la scène, change la lumière",
-                      "Propose une autre direction",
-                    ]
-                    : source
-                    ? ["Un fond uni crème", "Mets ce produit en situation"]
-                    : [
-                      "Quel visuel pour mon offre ?",
-                      "Crée une illustration",
-                      "Aide-moi à choisir une photo",
-                    ];
+                  const ideas = current?.session.messages.at(-1)?.suggestions ?? [];
+                  if (ideas.length === 0) return null;
                   const picked = pickedSuggestions.filter((t) => ideas.includes(t));
                   const allPicked = ideas.length > 0 && picked.length === ideas.length;
                   const insertPicked = (list: string[]) => {
