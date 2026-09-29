@@ -11,6 +11,9 @@ export type { VideoSource } from "./sources";
 import { listStudioVideos, readStudioVideo, videoRequest, type StudioVideoJob } from "./api";
 import { videoReferencePreviews } from "./library-sources";
 
+// Taux indicatif pour l'affichage : Higgsfield facture en dollars, on montre l'équivalent en euros.
+const USD_TO_EUR = 0.92;
+
 interface Props {
   workspaceId: string; writable: boolean; initialSource?: VideoSource | null;
   initialPrompt?: string; onPickClip?: (job: StudioVideoJob) => void;
@@ -208,10 +211,10 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
           (mode !== "text" && !personFree) || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || !!busy}
           onClick={checkPrice}>{busy === "quote" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Vérifier le prix</Button>
         {quote && <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2" role="status">
-          <p className="text-sm">Devis Higgsfield : <strong>{Number(quote.estimated_usd).toFixed(2)} $</strong> pour {quote.duration} s en {quote.resolution} ({quote.estimated_credits} crédits API). Le montant est réservé dans le plafond vidéo au lancement.</p>
+          <p className="text-sm">Devis Higgsfield : <strong>{(Number(quote.estimated_usd) * USD_TO_EUR).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</strong> pour {quote.duration} s en {quote.resolution} ({Number(quote.estimated_usd).toFixed(2)} $ · {quote.estimated_credits} crédits API). Le montant est réservé dans le plafond vidéo au lancement.</p>
           <p className="text-xs text-muted-foreground">Si le devis expire, vérifie à nouveau le prix avant de générer. Une nouvelle tentative serait facturée séparément si ce clip est créé mais ne convient pas.</p>
           <Button type="button" disabled={!!busy || Date.parse(quote.quote_expires_at) <= Date.now()} onClick={generate}>
-            {busy === "submit" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Générer ce clip · {Number(quote.estimated_usd).toFixed(2)} $
+            {busy === "submit" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Générer ce clip · {(Number(quote.estimated_usd) * USD_TO_EUR).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
           </Button>
         </div>}
 
