@@ -836,7 +836,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             : null);
         // Toutes les créations photo passent par ChatGPT Image (gpt-image-2.5) ;
         // Higgsfield/Soul2 ne sont plus proposés à la génération.
-        const useSoul2 = false;
+
         const proposal = ["background", "create", "edit", "product"].includes(
             intent.operation,
           )
