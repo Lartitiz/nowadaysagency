@@ -170,6 +170,16 @@ it("transmet les rôles et l'ordre de deux références avec le devis", async ()
   expect(mock.request.mock.calls[1][0].prompt).toBe(prepared.prompt);
 });
 
+it("demande de confirmer le droit d’utiliser les images, y compris les portraits", async () => {
+  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
+  await mount(false);
+  fireEvent.click(screen.getByRole("radio", { name: "Une ou plusieurs images" }));
+  fireEvent.click(screen.getByRole("button", { name: /Ajouter mes images/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Choisir deux photos" }));
+  expect(screen.getByText(/Je confirme avoir le droit d’utiliser ces images/)).toBeInTheDocument();
+  expect(screen.queryByText(/aucune personne identifiable/)).not.toBeInTheDocument();
+});
+
 it("retire la confirmation si un rôle, l'ordre des images ou un réglage change", async () => {
   mock.list.mockResolvedValue({ enabled: true, jobs: [] });
   mock.request.mockResolvedValue(prepared);

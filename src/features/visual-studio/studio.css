@@ -70,9 +70,14 @@
   margin-top: 18px;
 }
 .studio-chat-actions {
-  margin-top: 18px;
-  padding-top: 16px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid hsl(var(--border));
+}
+.studio-image-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .studio-current-image {
   display: grid;
@@ -305,14 +310,26 @@
 }
 
 .studio-suggestion {
+  flex: 0 0 auto;
   height: auto;
-  min-height: 34px;
-  max-width: 100%;
-  white-space: normal;
+  min-height: 32px;
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-align: left;
   justify-content: flex-start;
-  padding-top: 7px;
-  padding-bottom: 7px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+.studio-suggestions-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0 4px;
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary) / 0.25) transparent;
 }
 .studio-chat {
   min-width: 0;

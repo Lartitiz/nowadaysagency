@@ -19,10 +19,7 @@ export async function savedStudioVersions(workspaceId: string, photoIds: string[
     .eq("workspace_id", workspaceId).eq("status", "ready")
     .in("library_photo_id", photoIds);
   if (error) throw error;
-  return new Map((data || []).filter(v => {
-    const proposal = v.proposal as { requires_real_subject?: boolean; subject_kind?: string } | null;
-    return proposal?.requires_real_subject !== true && proposal?.subject_kind !== "portrait";
-  }).map(v => [v.library_photo_id!, v]));
+  return new Map((data || []).map(v => [v.library_photo_id!, v]));
 }
 
 export async function videoReferencePreviews(workspaceId: string, references: VideoReference[]) {
