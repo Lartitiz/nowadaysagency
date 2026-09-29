@@ -302,3 +302,6 @@ verify_jwt = false
 
 [functions.visual-studio]
 verify_jwt = false
+
+[functions.visual-direction-suggest]
+verify_jwt = false

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { BrandLogoSuggestion } from "@/components/branding/BrandLogoSuggestion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
@@ -750,6 +751,29 @@ function ScopedBrandCharterPage() {
     toast.success("Logo original restauré");
   };
 
+  const [directionGenerating, setDirectionGenerating] = useState(false);
+  const handleGenerateDirection = async () => {
+    setDirectionGenerating(true);
+    try {
+      const { data: res, error } = await invokeWithTimeout("visual-direction-suggest", {
+        body: { charterData: data, workspace_id: workspaceId && workspaceId !== user?.id ? workspaceId : undefined },
+      }, 60_000);
+      if (error || res?.error || !res?.direction) throw new Error(res?.error || "La génération a échoué. Réessaie.");
+      const current = data.visual_direction || {};
+      const hasEmpty = (["composition", "light", "framing", "retouch", "video_motion"] as const).some(k => !current[k]?.trim());
+      const next = { ...current };
+      for (const [k, v] of Object.entries(res.direction as Record<string, string>)) {
+        if (!hasEmpty || !next[k as keyof VisualDirection]?.trim()) next[k as keyof VisualDirection] = v;
+      }
+      update("visual_direction", next);
+      toast.success(hasEmpty ? "Direction proposée : complète ou ajuste-la." : "Nouvelle proposition : ajuste-la si besoin.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "La génération a échoué.");
+    } finally {
+      setDirectionGenerating(false);
+    }
+  };
+
   const isLogoCutout = !!data.logo_url && data.logo_url.includes("logo-cutout.png");
   const hasOriginalVariant = Array.isArray(data.logo_variants)
     && data.logo_variants.some((v: any) => v?.kind === "original" && v?.url);
@@ -1012,11 +1036,14 @@ function ScopedBrandCharterPage() {
                 </div>
               </div>
             ) : (
+              <>
+              <BrandLogoSuggestion placement="charter" className="mb-3" onApplied={(url) => setData((prev) => ({ ...prev, logo_url: url }))} />
               <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-8">
                 <Upload className="h-8 w-8 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">{logoUploading ? "Upload en cours..." : "Clique pour uploader ton logo"}</span>
                 <input type="file" accept="image/*,.heic,.heif,image/heic,image/heif" className="hidden" onChange={handleLogoUpload} disabled={logoUploading} />
               </label>
+              </>
             )}
           </section>
 
@@ -1060,7 +1087,7 @@ function ScopedBrandCharterPage() {
             toneKeywords={toneKeywords}
           />
 
-          <CharterDirectionSection value={data.visual_direction} onChange={value => update("visual_direction", value)} />
+          <CharterDirectionSection value={data.visual_direction} onChange={value => update("visual_direction", value)} onGenerate={handleGenerateDirection} generating={directionGenerating} />
 
           {/* SECTION: Stories Instagram (assemblage choisi sur des exemples) */}
           <CharterStoriesSection

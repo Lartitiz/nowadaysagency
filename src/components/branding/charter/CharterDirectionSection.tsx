@@ -1,3 +1,5 @@
+import { Loader2, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 export type VisualDirection = {
@@ -16,12 +18,20 @@ const fields: { key: keyof VisualDirection; label: string; help: string; example
   { key: "video_motion", label: "Vidéo et mouvement", help: "Rythme, mouvement de caméra et transitions souhaités.", example: "Ex. : plans calmes, caméra fixe, coupes simples" },
 ];
 
-export default function CharterDirectionSection({ value, onChange }: {
+export default function CharterDirectionSection({ value, onChange, onGenerate, generating }: {
   value: VisualDirection;
   onChange: (value: VisualDirection) => void;
+  onGenerate?: () => void;
+  generating?: boolean;
 }) {
   return <section className="rounded-2xl border border-border bg-card p-5" aria-labelledby="visual-direction-title">
-    <h2 id="visual-direction-title" className="font-body text-base font-bold text-foreground">Ma direction photo et vidéo</h2>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <h2 id="visual-direction-title" className="font-body text-base font-bold text-foreground">Ma direction photo et vidéo</h2>
+      {onGenerate && <Button type="button" size="sm" variant="outline" className="rounded-pill" onClick={onGenerate} disabled={generating}>
+        {generating ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
+        {generating ? "Génération…" : "Générer avec l'IA"}
+      </Button>}
+    </div>
     <p className="mt-1 mb-4 text-sm text-muted-foreground">Décris seulement les choix qui comptent pour ta marque. Tu peux les ajuster après chaque création.</p>
     <div className="grid gap-4 sm:grid-cols-2">
       {fields.map(({ key, label, help, example }) => <div key={key} className={key === "video_motion" ? "sm:col-span-2" : ""}>
