@@ -576,9 +576,9 @@ export default function CarouselEditor({
           )}
           <p className="text-xs text-muted-foreground">
             Bloquent la publication : textes coupés, textes trop petits pour le
-            mobile, contraste mesuré insuffisant sur fond uni et images
-            manquantes. Les textes posés sur une photo ou une transparence
-            restent des conseils : vérifie-les à l’œil.
+            mobile et images manquantes. Le contraste et les textes posés sur
+            une photo ou une transparence restent des conseils : vérifie-les à
+            l’œil.
           </p>
 
         </div>
