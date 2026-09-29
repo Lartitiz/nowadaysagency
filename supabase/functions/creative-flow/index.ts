@@ -560,11 +560,20 @@ export function buildQuestionsPrompt(params: {
   recentBriefsContext: string;
 }): { systemPrompt: string; userPrompt: string } {
   const { QUESTIONS_PREFIX, brandingContext, brandVocabBlock, context, contentType, editorialFormatLabel, angle, calendarBlock, objectiveBlock, newsContextBlock, recentBriefsContext } = params;
-  const channelLabel = contentType === "linkedin" ? "LinkedIn" : contentType === "newsletter" ? "Newsletter" : "Instagram";
-  const linkedinStory = contentType === "linkedin" && /storytelling|coulisses|récit|histoire/i.test([editorialFormatLabel, angle?.title].filter(Boolean).join(" "));
+  const isLinkedIn = contentType === "linkedin" || contentType === "post_linkedin";
+  const channelLabel = isLinkedIn ? "LinkedIn" : contentType === "newsletter" ? "Newsletter" : "Instagram";
+  // Un exemple explicitement fictif ne doit pas hériter des souvenirs, produits
+  // et opinions du profil réel, même si un angle a été calculé en amont.
+  if (isLinkedIn && /\b(?:fictif|fictive|fictifs|fictives|imaginaire|imaginaires|inventé|inventée|inventés|inventées)\b/i.test(context)) {
+    return {
+      systemPrompt: `${BASE_SYSTEM_RULES}\nTu poses exactement 3 questions facultatives pour préparer un post LinkedIn à partir d'un exemple explicitement fictif. Le brief ci-dessous est ta seule source. N'utilise ni branding, ni vocabulaire de marque, ni angle éditorial, ni historique, ni objectif de vente : ils peuvent décrire une activité réelle sans rapport avec cet exemple.\n\nBRIEF :\n"${context}"\n\nDemande uniquement une précision factuelle encore absente du brief, le point à mettre en avant parmi les faits donnés, ou la façon de signaler la fiction. Ne suppose aucun souvenir, client, atelier réel, fabrication, motivation ou opinion personnelle. Ne demande pas de raconter une histoire. N'invente pas une caractéristique du produit dans les questions ni dans les exemples de réponse. Tutoie l'utilisatrice. Chaque question et son placeholder doivent être adaptés à ce brief. Si les faits suffisent, une réponse comme « Rien à ajouter » doit être possible. Réponds uniquement en JSON valide : {"questions":[{"question":"...","placeholder":"..."}]}.`,
+      userPrompt: `Pose 3 questions facultatives et factuelles pour ce post LinkedIn fictif : "${context}".`,
+    };
+  }
+  const linkedinStory = isLinkedIn && /storytelling|coulisses|récit|histoire/i.test([editorialFormatLabel, angle?.title].filter(Boolean).join(" "));
   const channelGuidance = linkedinStory
     ? "Questions orientées RÉCIT PERSONNEL : demande d'abord ce que la personne veut raconter d'elle-même, puis un moment réel (lieu et action) et ce qu'elle pensait ou ressentait. Son plaisir de travailler ou de transmettre peut être le sujet. N'exige ni crise, ni résultat business, ni leçon universelle. Une citation ou un dialogue ne doivent venir que d'un souvenir fourni."
-    : contentType === "linkedin"
+    : isLinkedIn
     ? "Questions orientées POINT DE VUE : demande ce que la personne veut exprimer sur ce sujet, puis un choix, une observation ou un fait réel. Si le sujet est un moment vécu, explore son expérience personnelle avant de demander ce qu'elle enseigne aux autres. N'exige pas une prise de position conflictuelle ni un résultat business."
     : contentType === "newsletter"
     ? "Questions orientées PROFONDEUR : demande des réflexions de fond, des convictions, des retours d'expérience détaillés."
