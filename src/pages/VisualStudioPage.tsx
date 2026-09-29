@@ -1599,7 +1599,7 @@ function Studio({
     );
   }
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       <AppHeader />
       <main id="main-content" className="studio-page">
         <header className="studio-header">
