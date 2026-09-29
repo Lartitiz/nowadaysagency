@@ -122,6 +122,10 @@ function PhotosLibrary() {
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [kindFilter, setKindFilter] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Glisser-déposer : compteur de profondeur car dragenter/dragleave se
+  // déclenchent aussi sur chaque enfant survolé (sinon le cadre clignote).
+  const [dragActive, setDragActive] = useState(false);
+  const dragDepth = useRef(0);
   const queryClient = useQueryClient();
 
   // Rattrapage des photos décrites avant l'arrivée du champ kind : la
