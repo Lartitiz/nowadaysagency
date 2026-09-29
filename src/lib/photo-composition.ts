@@ -53,7 +53,7 @@ export function makePhotoRecipe(format: PhotoFormat = "post", direction: PhotoDi
 export function cleanRecipe(raw: PhotoRecipe): PhotoRecipe {
   const format = Object.prototype.hasOwnProperty.call(PHOTO_FORMATS, raw.format) ? raw.format : "post";
   const preset = PHOTO_FORMATS[format];
-  return { format, fit: raw.fit === "cover" ? "cover" : "contain", width: format === "banner" ? Math.round(clamp(raw.width, 320, 2400)) : preset.width,
+  return { format, fit: raw.fit === "contain" ? "contain" : "cover", width: format === "banner" ? Math.round(clamp(raw.width, 320, 2400)) : preset.width,
     height: format === "banner" ? Math.round(clamp(raw.height, 320, 2400)) : preset.height,
     direction: cleanDirection(raw.direction || {}), exposure: clamp(raw.exposure ?? 0, -1, 1),
     contrast: clamp(raw.contrast ?? 1, 0.8, 1.2), text: typeof raw.text === "string" ? raw.text.slice(0, 240) : "",
