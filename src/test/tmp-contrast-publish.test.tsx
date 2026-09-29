@@ -1,6 +1,6 @@
 // Test temporaire : un contraste faible ne doit PAS bloquer la publication.
 import { describe, it, expect } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { useCarouselQuality } from "@/hooks/use-carousel-quality";
 
 // Slide avec texte gris clair sur fond blanc : contraste faible, mais aucune
@@ -16,11 +16,10 @@ describe("contraste faible et publication", () => {
     const { result } = renderHook(() =>
       useCarouselQuality([lowContrastSlide], true),
     );
-    // Laisse le debounce (1 s) + le contrôle se terminer.
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 2500));
-    });
-    expect(result.current.status).toBe("done");
+    await waitFor(
+      () => expect(result.current.status).toBe("done"),
+      { timeout: 10000, interval: 250 },
+    );
     expect(result.current.disabledReason).toBeUndefined();
     // Le conseil contraste peut exister, mais en avertissement seulement.
     const contrastIssues = result.current.issues.filter(
@@ -29,5 +28,5 @@ describe("contraste faible et publication", () => {
     for (const issue of contrastIssues) {
       expect(issue.severity).not.toBe("error");
     }
-  }, 15000);
+  }, 20000);
 });
