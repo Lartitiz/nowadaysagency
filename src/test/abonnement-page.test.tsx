@@ -154,12 +154,15 @@ describe("AbonnementPage — portail Stripe", () => {
 
   it("présente l'accès administrateur sans mensualité ni portail Stripe", async () => {
     mocks.userPlan.isPaid = true;
+    mocks.userPlan.usage = { total: { used: 0, limit: 9999 } };
     mockInvokeResponses({ "check-subscription": { data: { plan: "binome", source: "admin" }, error: null } });
     render(<AbonnementPage />);
     const card = await waitForPlanLoaded();
     expect(within(card).getByText("Accès administrateur")).toBeInTheDocument();
     expect(within(card).queryByText(/290€\/mois/)).not.toBeInTheDocument();
     expect(screen.queryByText("Gérer mon abonnement")).not.toBeInTheDocument();
+    expect(screen.queryByText("Acheter des crédits bonus")).not.toBeInTheDocument();
+    expect(screen.getByText("Accès illimité de gestion et de démonstration.")).toBeInTheDocument();
   });
 });
 

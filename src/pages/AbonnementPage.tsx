@@ -127,6 +127,7 @@ export default function AbonnementPage() {
 
 
   const planLabel = subInfo?.source === "admin" ? "Accès administrateur" : subInfo?.plan === "binome" ? "Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
+  const isAdminAccess = subInfo?.source === "admin";
 
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
@@ -229,7 +230,7 @@ export default function AbonnementPage() {
                   <span className="font-semibold text-primary">Illimité</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Crée autant que tu veux. Seuls les carrousels Qualité Max ont un quota mensuel.
+                  {isAdminAccess ? "Accès illimité de gestion et de démonstration." : "Crée autant que tu veux. Seuls les carrousels Qualité Max ont un quota mensuel."}
                 </p>
               </>
             ) : (
@@ -254,7 +255,7 @@ export default function AbonnementPage() {
           </div>
 
           {/* Bonus credits display */}
-          {bonusCredits > 0 && (
+          {!isAdminAccess && bonusCredits > 0 && (
             <div className="mt-3 flex items-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
               <Gift className="h-4 w-4 text-primary" />
               <span className="text-sm text-foreground">
@@ -262,20 +263,20 @@ export default function AbonnementPage() {
               </span>
             </div>
           )}
-          <p className="mt-2 text-xs text-muted-foreground flex items-start gap-1.5">
+          {!isAdminAccess && <p className="mt-2 text-xs text-muted-foreground flex items-start gap-1.5">
             <Lightbulb className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> Astuce : invite une amie à rejoindre ton workspace et gagne 5 crédits bonus.
-          </p>
+          </p>}
 
           {/* Category detail toggle */}
-          <button
+          {!isAdminAccess && <button
             onClick={() => setShowDetail(!showDetail)}
             className="flex items-center gap-1 mt-4 text-xs text-primary hover:underline"
           >
             {showDetail ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             {showDetail ? "Masquer le détail" : "Voir le détail"}
-          </button>
+          </button>}
 
-          {showDetail && (
+          {!isAdminAccess && showDetail && (
             <div className="mt-3 space-y-3 pt-3 border-t border-border">
               <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.75} /> Détail des crédits ce mois</p>
               {QUOTA_CATEGORIES.map(cat => {
@@ -303,7 +304,7 @@ export default function AbonnementPage() {
           )}
 
           {/* Credit packs */}
-          {packsAvailable && (
+          {!isAdminAccess && packsAvailable && (
             <div className="mt-5 pt-4 border-t border-border">
               <p className="text-sm font-semibold text-foreground mb-1 flex items-center gap-1.5"><Zap className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} /> Acheter des crédits bonus</p>
               <p className="text-xs text-muted-foreground mb-3">
