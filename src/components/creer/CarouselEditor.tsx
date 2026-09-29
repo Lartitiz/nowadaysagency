@@ -426,9 +426,22 @@ export default function CarouselEditor({
     step = 1,
   ) => (
     <label className="block text-xs space-y-1">
-      <span className="flex justify-between gap-2">
+      <span className="flex items-center justify-between gap-2">
         <span>{label}</span>
-        <span>{Math.round(value * 10) / 10}</span>
+        <input
+          aria-label={`${label} (valeur)`}
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={Math.round(value * 10) / 10}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            if (Number.isNaN(n)) return;
+            onValue(Math.min(max, Math.max(min, n)));
+          }}
+          className="w-16 rounded-md border border-input bg-background px-1 py-0.5 text-right text-xs"
+        />
       </span>
       <input
         aria-label={label}
@@ -441,6 +454,7 @@ export default function CarouselEditor({
         className="w-full accent-primary"
       />
     </label>
+
   );
   const css = element?.style || {};
   const toHex = (value: string | undefined, fallback: string) => {
