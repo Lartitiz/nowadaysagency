@@ -3,7 +3,7 @@ import { callAnthropic } from "../_shared/anthropic.ts";
 
 export const preparedSchema = z.object({
   summary: z.string().trim().min(20).max(1200),
-  scene: z.string().trim().min(20).max(1100),
+  scene: z.string().trim().min(20).max(900),
   invariants: z.array(z.string().trim().min(8).max(180)).min(1).max(4),
   allowed_changes: z.string().trim().min(8).max(180),
   forbidden_changes: z.string().trim().min(8).max(250),
@@ -27,7 +27,7 @@ export function buildVideoPrompt(
     `À préserver sur chaque photogramme : ${prepared.invariants.join(" ; ")}.`,
     `Seuls changements autorisés : ${prepared.allowed_changes}.`,
     `Changements interdits : ${prepared.forbidden_changes}.`,
-    "Pour les sujets, produits et décors retenus dans la scène, conserver leur identité, leur forme, leurs couleurs et matières observables, y compris les inscriptions et logos déjà présents. La lumière et les ombres peuvent évoluer naturellement sans recolorer les surfaces. Aucune coupe non demandée ; aucun remplacement, morphing, nouvel objet, texte ou logo non demandé.",
+    "Pour les sujets, produits et décors retenus dans la scène, conserver leur identité, leur forme, leurs couleurs et matières observables, y compris les inscriptions et logos déjà présents. Sans demande de changer de support, celui visible au départ reste le même, de la même couleur et matière apparentes, y compris après avoir soulevé puis reposé l'objet. La lumière et les ombres peuvent évoluer naturellement sans recolorer les surfaces. Aucune coupe non demandée ; aucun remplacement, morphing, nouvel objet, texte ou logo non demandé.",
   ].filter(Boolean);
   const prompt = parts.join("\n");
   if (prompt.length > 3000) throw new Error("studio_video_prompt_too_long");
@@ -41,7 +41,7 @@ const tool = {
     type: "object",
     properties: {
       summary: { type: "string", description: "Description claire en français à confirmer par la personne", maxLength: 1200 },
-      scene: { type: "string", description: "Action, cadrage, mouvement et lumière, uniquement selon l'idée et les références", maxLength: 1100 },
+      scene: { type: "string", description: "Action, cadrage, mouvement et lumière, uniquement selon l'idée et les références", maxLength: 900 },
       invariants: { type: "array", items: { type: "string", maxLength: 180 }, minItems: 1, maxItems: 4,
         description: "Éléments fixes et leur apparence visible exacte, surtout support/table, produit, personne et décor. Ne pas inventer une matière non visible." },
       allowed_changes: { type: "string", description: "Ce qui peut changer pendant le plan", maxLength: 180 },
