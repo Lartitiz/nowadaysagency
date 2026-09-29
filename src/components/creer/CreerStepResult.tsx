@@ -852,7 +852,13 @@ export default function CreerStepResult({
           )}
           {isCarousel && !hasVisuals && onExportPptx && (
             <DropdownMenuItem onClick={onExportPptx} className="gap-2">
-              <Download className="h-4 w-4" /> Télécharger PPTX
+              <Download className="h-4 w-4" />
+              <div className="flex flex-col">
+                <span>Télécharger PPTX</span>
+                <span className="text-2xs text-muted-foreground whitespace-normal max-w-[220px] leading-snug">
+                  Installe les polices de ta marque pour conserver leur rendu dans PowerPoint.
+                </span>
+              </div>
             </DropdownMenuItem>
           )}
           {isStory && storyActions && (
