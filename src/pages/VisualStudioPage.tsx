@@ -1042,16 +1042,6 @@ function Studio({
   function chat(mobile = false) {
     return (
       <div className="studio-chat-inner">
-        {!mobile && (
-          <div className="p-5 border-b">
-            <h2 className="font-medium line-clamp-2">
-              {current?.session.name || "Ta demande"}
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Fais défiler la conversation ↓ · tout reste dans cette session
-            </p>
-          </div>
-        )}
         <>
               <div
                 ref={desktopMessages}
