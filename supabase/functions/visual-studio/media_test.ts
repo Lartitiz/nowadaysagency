@@ -293,3 +293,7 @@ Deno.test("natural photo treatment reaches OpenAI for text and reference request
     globalThis.fetch = original;
   }
 });
+Deno.test("identity scenes in a series keep each shot's setting instead of the first scene",()=>{
+ const prompt=imagePrompt({operation:"create",series_size:2,series_index:1,summary:"Nora seated in the library",image_prompt:"Nora reading",person_reference:{mode:"scene",name:"Nora",stable_traits:"42 ans, bague gauche",variable_details:"FIRST SHOT: standing in a garden",views:[]}});
+ assertEquals(prompt.includes("FIRST SHOT"),false);assertEquals(prompt.includes("Nora seated in the library"),true);assertEquals(prompt.includes("42 ans, bague gauche"),true);
+});

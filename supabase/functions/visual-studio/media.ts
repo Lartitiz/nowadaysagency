@@ -238,7 +238,9 @@ export function imagePrompt(proposal: Proposal) {
   const followNotes = referenceNotes.filter(item => item.role !== "avoid").map(item => item.note).slice(0, 5).join("; ");
   const avoidNotes = referenceNotes.filter(item => item.role === "avoid").map(item => item.note).slice(0, 5).join("; ");
   return [
-    personReferencePrompt(proposal.person_reference),
+    personReferencePrompt(proposal.person_reference && isSeries && !isSheet
+      ? { ...proposal.person_reference, variable_details: proposal.summary || proposal.image_prompt || "" }
+      : proposal.person_reference),
     // Number only after reference selection, sorting and edit-source deduplication.
     // This list uses the same order as the image[] payload in generateImage.
     proposal.input_path || refs.length ? "REFERENCE IMAGES" : "",
@@ -281,7 +283,7 @@ export function imagePrompt(proposal: Proposal) {
       ? "Natural everyday photograph, as a candid moment captured with a good phone camera: clear subject and believable framing, ordinary surroundings with only props needed for the action, available light with plausible unevenness, credible skin and material texture, and moderate depth of field so the setting remains recognizable. Keep professional image quality. Avoid beauty retouching, waxy skin, glossy advertising light, cinematic staging, artificial bokeh, heavy blur, fake grain, or added picturesque flowers and decor. If a source or style reference has busy scenery or decorative props, borrow only the aspects requested; simplify or remove those elements when the brief asks for it. Preserve the designated person's identity and exact product details. Specific user instructions and confirmed brand requirements take priority."
       : "",
     "No invented watermarks, promotional claims or extra decorative elements. Preserve authentic product lettering and logos when present in the reference. Match the requested visual medium; do not default to stock imagery.",
-    proposal.operation === "edit"
+    proposal.operation === "edit" && !isSheet
       ? "Keep everything else unchanged. Do not alter the camera or rearrange the scene for a texture-only or lighting-only correction."
       : "",
     isSeries && !isSheet
