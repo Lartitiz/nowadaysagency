@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { StudioCompositionEditor } from "@/features/visual-studio/StudioCompositionEditor";
 import { uploadPhotoOriginal, type UserPhotoRow } from "@/lib/photo-storage";
+import { redescribePhoto } from "@/lib/photo-redescribe";
 import { OfferMockupDialog } from "@/components/photos/OfferMockupDialog";
 import { AvantApresDialog } from "@/components/photos/AvantApresDialog";
 import PhotoPreparationDialog from "@/components/photos/PhotoPreparationDialog";
@@ -639,6 +640,12 @@ function Studio({
     setBusy("save");
     setError("");
     try {
+      // Sans enregistrement antérieur, l'edge copie le résumé de modification du
+      // chat (« Amélioration de l'exposition… ») comme description : ce texte
+      // décrit CE QUI A CHANGÉ, pas l'image. photo-describe la re-décrit depuis
+      // les pixels (comme packshot / mise en scène / portrait pro) pour obtenir
+      // une description réutilisable dans d'autres contenus.
+      const fresh = !version.library_photo_id;
       const receipt = version.library_photo_id
         ? { photo_id: version.library_photo_id }
         : await studioRequest<{ photo_id: string }>({
@@ -647,6 +654,7 @@ function Studio({
           session_id: sessionId,
           version_id: version.id,
         });
+      if (fresh) redescribePhoto(receipt.photo_id, workspaceId);
       if (!alive.current) return;
       await cache.invalidateQueries({ queryKey: ["user-photos", workspaceId] });
       if (!alive.current) return;
