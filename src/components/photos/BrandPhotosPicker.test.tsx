@@ -83,7 +83,7 @@ describe("BrandPhotosPicker", () => {
       body: { mode: "product-scan", websiteUrl: "www.mon-site.fr" },
     }, 45000);
     expect(m.upload.mock.calls[0][1]).toEqual(["https://mon-site.fr/produits/savon.jpg"]);
-    expect(onReadyChange).toHaveBeenLastCalledWith(true);
+    await waitFor(() => expect(onReadyChange).toHaveBeenLastCalledWith(true));
   });
 
   it("ne réimporte pas une photo produit déjà présente", async () => {
