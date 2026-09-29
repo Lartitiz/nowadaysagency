@@ -214,7 +214,8 @@ Deno.test("actual provider payload separates casting bytes from mood and starts 
   const person={mode:"sheet" as const,name:"Nora fictive",stable_traits:"42 ans, bague à gauche",variable_details:"T-shirt bleu",views:["face","profil"]};
   try{
     await generateImage({operation:"create",image_prompt:"Nora",person_reference:person},[]);
-    assertEquals(JSON.parse(String(calls[0].body)).prompt.startsWith("photorealistic character reference sheet"),true);
+    const sheetPrompt = JSON.parse(String(calls[0].body)).prompt;
+    assertEquals(sheetPrompt.startsWith("photorealistic character reference sheet"),true);
     await generateImage({operation:"create",image_prompt:"New scene",person_reference:{...person,mode:"scene",views:[]},references:[{id:"nora",photo_id:null,path:"nora",role:"casting",name:"Nora"},{id:"mood",photo_id:null,path:"mood",role:"style",name:"Bibliothèque"}]},[new Blob(["approved-nora"],{type:"image/jpeg"}),new Blob(["library-mood"],{type:"image/jpeg"})]);
     const form=calls[1].body as FormData;
     assertEquals(await (form.getAll("image[]")[0] as Blob).text(),"approved-nora");
@@ -222,7 +223,21 @@ Deno.test("actual provider payload separates casting bytes from mood and starts 
     assertEquals(String(form.get("prompt")).includes("Image 1: casting reference, Nora"),true);
     assertEquals(String(form.get("prompt")).includes("Image 2: style reference, Bibliothèque"),true);
     assertEquals(String(form.get("prompt")).includes("photorealistic character reference sheet"),false);
+    // Both provider routes must receive the realism rule, not only the interpreter.
+    for (const prompt of [sheetPrompt, String(form.get("prompt"))]) {
+      assertEquals(prompt.includes("A believable everyday person"), true);
+      assertEquals(prompt.includes("Preserve the approved face and build"), true);
+      assertEquals(prompt.includes("Do not manufacture blemishes, wrinkles, scars or unattractiveness"), true);
+      assertEquals(prompt.includes("Explicitly requested makeup, grooming and fashion styling"), true);
+    }
   }finally{globalThis.fetch=old;}
+});
+
+Deno.test("human realism preserves requested styling and does not apply to object-only prompts", () => {
+  const prompt = imagePrompt({operation:"create",image_prompt:"Nora wearing vivid red lipstick",person_reference:{mode:"sheet",name:"Nora fictive",stable_traits:"42 ans",variable_details:"Vivid red lipstick and a tailored evening suit",views:["face","profil"]}});
+  assertEquals(prompt.includes("Vivid red lipstick and a tailored evening suit"), true);
+  assertEquals(prompt.includes("A believable everyday person"), true);
+  assertEquals(imagePrompt({operation:"create",image_prompt:"A ceramic bowl"}).includes("HUMAN REALISM"), false);
 });
 
 Deno.test("product staging sends the confirmed support and keeps the mood reference out of the pose", async () => {
