@@ -792,7 +792,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           !!(explicitSource?.path || parent?.result_path);
         const parentHadIdentity = !!parent &&
           ((parent.proposal?.reference_snapshot || []) as Array<{ role?: string }>)
-            .some((r) => isIdentity(r.role as never));
+            .some((r) => isIdentity(String(r.role || "")));
         if (
           (["background", "edit", "product"].includes(intent.operation) &&
             !finalInputPath) ||
