@@ -14,6 +14,8 @@ export type Reference = {
 };
 export type Proposal = {
   operation: string;
+  summary?: string;
+  exact_text?: string[];
   background_prompt?: string;
   image_prompt?: string;
   format?: string;
@@ -201,6 +203,9 @@ export function imagePrompt(proposal: Proposal) {
   const avoid = direction(charter?.visual_donts);
   return [
     proposal.image_prompt,
+    proposal.exact_text?.length
+      ? `Render exactly this text in the image, once each, clearly and legibly: ${proposal.exact_text.map((item) => JSON.stringify(item)).join("; ")}. Do not invent dates, prices, addresses, claims, extra letters, or a different logo. Check spelling and accents.`
+      : "",
     (proposal.operation === "create"
       ? "Create a new photograph or artwork following this shot's brief. Reference images define only their stated roles; do not copy their camera framing or pose unless requested. Preserve: "
       : "Modify only what is requested. Preserve: ") +

@@ -594,6 +594,56 @@ Deno.test(
   },
 );
 
+Deno.test("v4 poster confirms the text sent to image generation and keeps older references out", async () => {
+  const f = fixture();
+  const product = { id: id(90), photo_id: id(91), path: "product", role: "style", name: "Bol" };
+  const ambience = { id: id(92), photo_id: id(93), path: "ambience", role: "product", name: "Atelier" };
+  const old = { id: id(94), photo_id: id(95), path: "old", role: "style", name: "Ancien décor" };
+  f.session.references = [product, ambience, old];
+  f.setIntent({
+    operation: "product",
+    summary: "Affiche portrait du bol dans l'atelier, avec le titre Atelier Céramique et la date 12 décembre.",
+    image_prompt: "A hidden instruction that must not reach the image model",
+    exact_text: ["Atelier Céramique", "12 décembre"],
+    reference_use: [{ id: product.id, role: "product" }, { id: ambience.id, role: "style" }],
+    requires_real_subject: true,
+  });
+  try {
+    const res = await handleStudioRequest(request({
+      ...base, studio_version: 4, action: "message", message: "Une affiche avec mon bol et l'atelier, titre Atelier Céramique, date 12 décembre",
+      revision: 0, reference_ids: [product.id, ambience.id, old.id], request_id: id(96),
+    }));
+    const data = await res.json();
+    assertEquals(res.status, 200);
+    const proposal = data.session.proposal;
+    assertEquals(proposal.image_prompt, proposal.summary);
+    assertEquals(proposal.image_prompt.includes("hidden instruction"), false);
+    assertEquals(proposal.exact_text, ["Atelier Céramique", "12 décembre"]);
+    assertEquals(proposal.composition, undefined);
+    assertEquals(proposal.reference_snapshot.map((r: { path: string; role: string }) => [r.path, r.role]), [["product", "product"], ["ambience", "style"]]);
+    assertEquals(data.session.messages.at(-2).reference_ids, [product.id, ambience.id, old.id]);
+    assertEquals(data.session.messages.at(-2).reference_snapshot.map((r: { path: string }) => r.path), ["product", "ambience"]);
+  } finally { f.restore(); }
+});
+
+Deno.test("v4 independent creation does not inherit references from the selected image", async () => {
+  const f = fixture();
+  f.version.status = "ready";
+  f.session.references = [{ id: id(97), photo_id: id(98), path: "former-product", role: "product", name: "Ancien produit" }];
+  f.setIntent({ operation: "create", summary: "Une affiche abstraite pour un nouveau projet", image_prompt: "Abstract poster" });
+  try {
+    const res = await handleStudioRequest(request({
+      ...base, studio_version: 4, action: "message", message: "Nouvelle affiche abstraite sans mon ancien produit",
+      viewed_version_id: proposalId, reference_ids: [], revision: 0, request_id: id(99),
+    }));
+    const data = await res.json();
+    assertEquals(res.status, 200);
+    assertEquals(data.session.proposal.references, []);
+    assertEquals(data.session.proposal.reference_snapshot, []);
+    assertEquals(data.session.proposal.viewed_version_id, null);
+  } finally { f.restore(); }
+});
+
 Deno.test(
   "a detailed edit preserves all eight invariants instead of rejecting or truncating them",
   async () => {

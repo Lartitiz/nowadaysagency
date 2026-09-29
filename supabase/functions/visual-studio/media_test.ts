@@ -161,6 +161,17 @@ Deno.test("a series shot does not inherit conflicting framing from the other sho
   assertEquals(imagePrompt({...proposal, series_size: undefined, operation: "edit"}).includes("First photo: three-quarter length"), true);
 });
 
+Deno.test("poster prompt renders confirmed copy in the image", () => {
+  const prompt = imagePrompt({
+    operation: "create",
+    image_prompt: "Affiche portrait pour un atelier de céramique avec le titre et la date ci-dessous.",
+    exact_text: ["Atelier Céramique", "12 décembre"],
+  });
+  assertEquals(prompt.includes('"Atelier Céramique"'), true);
+  assertEquals(prompt.includes('"12 décembre"'), true);
+  assertEquals(prompt.includes("Do not invent dates"), true);
+});
+
 Deno.test("the image provider receives the saved visual charter with the shot's priorities", () => {
   const prompt = imagePrompt({
     operation: "product",

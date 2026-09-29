@@ -1,5 +1,5 @@
 /** Small, versioned contracts shared by planning, source validation and execution. */
-export const RULES_VERSION = "studio-competencies-2";
+export const RULES_VERSION = "studio-competencies-3";
 export const MAX_REFERENCES = 8;
 export const REFERENCE_ROLES = [
   "subject",

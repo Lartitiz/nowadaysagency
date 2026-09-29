@@ -9,8 +9,10 @@ export interface StudioProposal {
   format?: "square" | "portrait" | "landscape";
   preserve?: string[];
   change?: string[];
+  exact_text?: string[];
   warning?: string | null;
   references?: StudioReference[];
+  reference_snapshot?: StudioReference[];
   viewed_reference_id?: string | null;
   input_path?: string | null;
   summary: string;
@@ -53,6 +55,8 @@ export interface StudioComposition {
   align: "left" | "center";
 }
 export interface StudioMessage {
+  reference_ids?: string[];
+  reference_snapshot?: Array<Pick<StudioReference, "id" | "name" | "role"> & { url?: string | null }>;
   composition?: StudioComposition;
   existing_tool?: "mockup" | "before_after" | "preparation";
   preparation?: { exposure?: number; contrast?: number; format?: "post" | "square" | "story" | "cover" | "banner" };
@@ -151,7 +155,7 @@ export async function studioRequest<T = StudioState>(
 ): Promise<T> {
   const { data, error } = await invokeWithTimeout(
     "visual-studio",
-    { body: { ...body, studio_version: 3 } },
+    { body: { ...body, studio_version: 4 } },
     60_000,
   );
   if (error || data?.error) {

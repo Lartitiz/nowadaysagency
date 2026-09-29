@@ -14,6 +14,7 @@ const mock = vi.hoisted(() => ({
   request: vi.fn(),
   list: vi.fn(),
   older: vi.fn(),
+  upload: vi.fn(),
   space: "A",
   role: "owner",
   user: "user",
@@ -66,6 +67,9 @@ vi.mock("@/features/visual-studio/api", async (importOriginal) => ({
   listStudioSessions: mock.list,
   listOlderStudioCompositions: mock.older,
 }));
+vi.mock("@/hooks/use-user-photos", () => ({
+  useUploadLibraryPhotos: () => ({ mutate: mock.upload, progress: null, pendingUploads: [] }),
+}));
 import VisualStudioPage from "@/pages/VisualStudioPage";
 import { draftKey, StudioRequestError, type StudioState } from "@/features/visual-studio/api";
 const original = (): StudioState => ({
@@ -114,6 +118,7 @@ beforeEach(() => {
   mock.request.mockReset();
   mock.list.mockReset();
   mock.older.mockReset();
+  mock.upload.mockReset();
   mock.list.mockResolvedValue({ active: [], archived: [] });
   mock.space = "A";
   mock.role = "owner";
@@ -207,7 +212,7 @@ it("shows an uncertain provider outcome without offering an unsafe retry", async
     library_photo_id: null, error_message: "Réponse fournisseur perdue.", created_at: "",
   }] });
   mount();
-  expect(await screen.findByText("Réponse fournisseur perdue.")).toBeInTheDocument();
+  expect((await screen.findAllByText("Réponse fournisseur perdue.")).length).toBeGreaterThan(0);
   expect(screen.queryByRole("button", {name: "Réessayer cette image seulement"})).not.toBeInTheDocument();
 });
 it("asks which references to reuse before branching from an older version", async () => {
@@ -511,7 +516,7 @@ it("generated versions stay outside the library until an explicit save, with one
     mock.request.mock.calls.filter(([b]) => b.action === "save"),
   ).toHaveLength(1);
 });
-it("mobile drawer exposes the whole conversation and its confirmation", async () => {
+it("mobile stacks the conversation and confirmation before the image stream", async () => {
   window.innerWidth = 390;
   const start = original();
   mock.request.mockResolvedValue({
@@ -520,18 +525,10 @@ it("mobile drawer exposes the whole conversation and its confirmation", async ()
   });
   mount();
   await screen.findByText("Décris ton fond.");
-  await screen.findByRole("dialog");
-  fireEvent.click(
-    screen.getByRole("button", { name: "Fermer la conversation" }),
-  );
-  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument(), { timeout: 3000 });
-  fireEvent.click(
-    await screen.findByRole("button", { name: /Toute la conversation/ }),
-  );
-  await screen.findByRole("dialog");
-  expect(
-    within(screen.getByRole("dialog")).getByRole("button", { name: /Générer cette image/ }),
-  ).toBeVisible();
+  const conversation = screen.getByRole("region", { name: "Conversation" });
+  expect(within(conversation).getByRole("button", { name: /Générer cette image/ })).toBeVisible();
+  expect(screen.getByRole("region", { name: "Visuels et versions" })).toBeInTheDocument();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
 it("keeps confirmation and image actions in the conversation, with a visual-only gallery", async () => {
   const start = original();
@@ -560,7 +557,7 @@ it("attaches several library photos in one choice with their distinct reference 
   });
   mount();
   await screen.findByText("Décris ton fond.");
-  fireEvent.click(screen.getByRole("button", { name: "Choisir des photos de référence" }));
+  fireEvent.click(screen.getByRole("button", { name: "Depuis ma bibliothèque" }));
   expect(screen.getByText("Places disponibles : 8")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Utiliser deux photos" }));
   await screen.findByText("Photos de référence · 2/8");
@@ -591,13 +588,40 @@ it("starts a session with several references while keeping the unfinished prompt
   });
   mount("/photos/studio");
   fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), { target: { value: "Une scène pour mon offre" } });
-  fireEvent.click(screen.getByRole("button", { name: "Choisir des photos de référence" }));
+  fireEvent.click(screen.getByRole("button", { name: "Depuis ma bibliothèque" }));
   fireEvent.click(screen.getByRole("button", { name: "Utiliser deux photos" }));
   await screen.findByText("Photos de référence · 2/8");
   const createdId = mock.request.mock.calls.find(([body]) => body.action === "create")?.[0].session_id;
   expect(screen.getByTestId("current-path")).toHaveTextContent(`/photos/studio?session=${createdId}`);
   expect(screen.getByRole("textbox", { name: "Ta demande" })).toHaveValue("Une scène pour mon offre");
   expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["create", "reference", "reference"]);
+});
+it("attaches multiple local images beside an unfinished message and sends only those images", async () => {
+  let state = { ...original(), session: { ...original().session, references: [] as Array<{
+    id: string; photo_id: string; name: string; role: string; url: string;
+  }> } };
+  mock.upload.mockResolvedValue({ uploaded: 2, failed: 0, photoIds: ["local-one", "local-two"] });
+  mock.request.mockImplementation((body) => {
+    if (body.action === "reference") state = { ...state, session: { ...state.session,
+      revision: state.session.revision + 1, references: [...state.session.references, {
+        id: `ref-${body.photo_id}`, photo_id: body.photo_id, name: body.photo_id,
+        role: body.reference_role, url: `/${body.photo_id}.png`,
+      }],
+    } };
+    return Promise.resolve(state);
+  });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), { target: { value: "La première pour le produit, la seconde pour l'ambiance" } });
+  fireEvent.change(screen.getByLabelText("Importer plusieurs images"), { target: { files: [
+    new File(["first"], "produit.png", { type: "image/png" }),
+    new File(["second"], "atelier.png", { type: "image/png" }),
+  ] } });
+  await screen.findByText("Image 2 · local-two");
+  expect(screen.getByRole("textbox", { name: "Ta demande" })).toHaveValue("La première pour le produit, la seconde pour l'ambiance");
+  fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+  await waitFor(() => expect(mock.request.mock.calls.find(([body]) => body.action === "message")?.[0].reference_ids).toEqual(["ref-local-one", "ref-local-two"]));
+  expect(mock.request.mock.calls.some(([body]) => body.action === "generate")).toBe(false);
 });
 it("recovers the attached references when a later photo fails", async () => {
   let state = { ...original(), session: { ...original().session, references: [] as Array<{
@@ -615,12 +639,12 @@ it("recovers the attached references when a later photo fails", async () => {
   });
   mount();
   await screen.findByText("Décris ton fond.");
-  fireEvent.click(screen.getByRole("button", { name: "Choisir des photos de référence" }));
+  fireEvent.click(screen.getByRole("button", { name: "Depuis ma bibliothèque" }));
   fireEvent.click(screen.getByRole("button", { name: "Utiliser deux photos" }));
   await screen.findByText("Photos de référence · 1/8");
   await waitFor(() => expect(mock.request.mock.calls.filter(([body]) => body.action === "read")).toHaveLength(2));
   expect(screen.getByLabelText("Rôle de Bol face")).toHaveValue("product");
-  expect(screen.getByRole("button", { name: "Ajouter des photos de référence · 1/8" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Depuis ma bibliothèque" })).toBeEnabled();
 });
 it("shows how to browse versions and opens the selected image", async () => {
   const start = original();
@@ -631,10 +655,10 @@ it("shows how to browse versions and opens the selected image", async () => {
   mount();
   await screen.findByText("Décris ton fond.");
   const gallery = screen.getByRole("region", { name: "Visuels et versions" });
-  expect(within(gallery).getByText(/fais défiler les versions/)).toBeInTheDocument();
-  expect(within(gallery).getByRole("button", { name: "Versions suivantes" })).toBeInTheDocument();
-  fireEvent.click(within(gallery).getByRole("button", { name: "Version 1" }));
-  expect(within(gallery).getByRole("img", { name: "Version 1" })).toHaveAttribute("src", "/first.png");
+  expect(within(gallery).getByText(/Les nouvelles images suivent les précédentes/)).toBeInTheDocument();
+  expect(within(gallery).getByText("Image 1")).toBeInTheDocument();
+  fireEvent.click(within(gallery).getAllByRole("button", { name: "Reprendre cette image" })[0]);
+  expect(within(gallery).getByRole("img", { name: "Image 1 créée dans cette discussion" })).toHaveAttribute("src", "/first.png");
 });
 it("lets an AI-generated poster receive exact editable text after the image is ready", async () => {
   const design = {
@@ -755,8 +779,8 @@ it("editing an older selected version sends that parent, not the latest", async 
   });
   mock.request.mockResolvedValue({ ...start, versions: [v("v1"), v("v2")] });
   mount();
-  await screen.findByRole("button", { name: "Version 1" });
-  fireEvent.click(screen.getByRole("button", { name: "Version 1" }));
+  await screen.findAllByRole("button", { name: "Reprendre cette image" });
+  fireEvent.click(screen.getAllByRole("button", { name: "Reprendre cette image" })[0]);
   fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), {
     target: { value: "Garde la scène, enlève la plante" },
   });
@@ -833,22 +857,13 @@ it("the first mobile question keeps the conversation open after creating its ses
     ),
   );
   mount("/photos/studio");
-  fireEvent.click(
-    await screen.findByRole("button", { name: /Toute la conversation/ }),
-  );
-  await screen.findByRole("dialog");
+  await screen.findByRole("region", { name: "Conversation" });
   fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), {
     target: { value: "Quel visuel pour mon atelier ?" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
-  await waitFor(() =>
-    expect(
-      within(screen.getByRole("dialog")).getByText(
-        "Une direction graphique pour ton atelier.",
-      ),
-    ).toBeVisible(),
-  );
-  expect(screen.getByRole("dialog")).toBeVisible();
+  expect(await screen.findByText("Une direction graphique pour ton atelier.")).toBeVisible();
+  expect(screen.getByRole("region", { name: "Conversation" })).toBeVisible();
   expect(mock.request.mock.calls.some(([b]) => b.action === "generate")).toBe(
     false,
   );
