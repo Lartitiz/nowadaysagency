@@ -331,8 +331,8 @@ export type Database = {
           updated_at: string | null
           uploaded_templates: Json | null
           user_id: string
-          visual_donts: string | null
           visual_direction: Json
+          visual_donts: string | null
           visual_evidence: Json
           workspace_id: string | null
         }
@@ -373,8 +373,8 @@ export type Database = {
           updated_at?: string | null
           uploaded_templates?: Json | null
           user_id: string
-          visual_donts?: string | null
           visual_direction?: Json
+          visual_donts?: string | null
           visual_evidence?: Json
           workspace_id?: string | null
         }
@@ -415,8 +415,8 @@ export type Database = {
           updated_at?: string | null
           uploaded_templates?: Json | null
           user_id?: string
-          visual_donts?: string | null
           visual_direction?: Json
+          visual_donts?: string | null
           visual_evidence?: Json
           workspace_id?: string | null
         }
