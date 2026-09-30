@@ -44,6 +44,7 @@ export async function handleCheckSubscriptionRequest(req: Request): Promise<Resp
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
+      .eq("role", "admin")
       .maybeSingle();
     if (roleError) throw roleError;
     const isAdmin = roleRow?.role === "admin";
@@ -124,7 +125,7 @@ export async function handleCheckSubscriptionRequest(req: Request): Promise<Resp
       const used = rows.filter((r: any) => r.category === cat).length;
       usage[cat] = { used, limit: limits[cat] };
     }
-    usage.total = { used: rows.length, limit: limits.total + bonusCredits };
+    usage.total = { used: rows.length, limit: limits.total };
 
     return new Response(JSON.stringify({
       plan,

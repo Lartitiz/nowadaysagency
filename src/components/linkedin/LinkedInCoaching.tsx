@@ -95,7 +95,7 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
       const { data, error } = await invokeWithTimeout("linkedin-coaching", {
         body: { phase: "questions", module: mod, workspace_id: wsId },
       }, 60000);
-      if (error?.isRateLimit || data?.error === "limit_reached") {
+      if (data?.error === "limit_reached" && data?.quota?.reason !== "error") {
         if (handleQuotaError({ message: error?.message || data?.message, data })) return;
       }
       if (error) throw new Error(error.message);
@@ -128,7 +128,7 @@ export default function LinkedInCoaching({ open, onOpenChange, initialModule, au
       const { data, error } = await invokeWithTimeout("linkedin-coaching", {
         body: { phase: "diagnostic", module: activeModule, answers: answersPayload, workspace_id: wsId },
       }, 90000);
-      if (error?.isRateLimit || data?.error === "limit_reached") {
+      if (data?.error === "limit_reached" && data?.quota?.reason !== "error") {
         if (handleQuotaError({ message: error?.message || data?.message, data })) {
           setPhase("questions");
           return;

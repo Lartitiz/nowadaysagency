@@ -75,6 +75,7 @@ function fakeClient(cfg: FakeConfig): FakeClient {
       return Promise.resolve({ data: null, error: null });
     };
     b.maybeSingle = () => {
+      if (table === "subscriptions" || table === "workspaces") return b.single();
       // getBonusCredits lit profiles via .maybeSingle() depuis le 26/07 (799ffe9d,
       // hygiène .single() → .maybeSingle()) : le fake doit servir la ligne dans
       // les deux variantes, comme un vrai client PostgREST.
@@ -121,6 +122,13 @@ function fakeClient(cfg: FakeConfig): FakeClient {
     from: (t: string) => builderFor(t),
     rpc: (name: string, args?: unknown) => {
       rpcCalls.push({ name, args });
+      if (name === "record_ai_usage") {
+        const a = args as any;
+        inserted.push({ user_id: a.p_user_id, category: a.p_category, workspace_id: a.p_workspace_id,
+          action_type: a.p_action, tokens_used: a.p_tokens, model_used: a.p_model });
+        if (a.p_charge_bonus && (cfg.usage?.length || 0) >= a.p_base_total && (cfg.bonusCredits || 0) > 0) cfg.bonusCredits!--;
+        (cfg.usage ||= []).push({ category: a.p_category });
+      }
       return Promise.resolve({ data: name === "has_role" ? !!cfg.isAdmin : null, error: null });
     },
     _inserted: inserted,
@@ -303,47 +311,49 @@ Deno.test("logUsage: workspace d'autrui (non membre) → retombe sur le workspac
   assertEquals(client._inserted[0].workspace_id, "ws-own");
 });
 
-Deno.test("logUsage: au-delà du plafond de base, décrémente les crédits bonus (RPC atomique)", async () => {
-  // 24 lignes ai_usage (> free.total=23) → appelle la RPC atomique consume_bonus_credit.
-  const client = fakeClient({ userPlan: "free", usage: rows(24, "content"), bonusCredits: 5 });
-  // deno-lint-ignore no-explicit-any
-  await logUsage("u1", "content", "create", undefined, undefined, undefined, client as any);
-  const consumeCalls = client._rpcCalls.filter((c) => c.name === "consume_bonus_credit");
-  assertEquals(consumeCalls.length, 1);
-  assertEquals(consumeCalls[0].args, { p_user_id: "u1" });
+Deno.test("logUsage: transaction unique avec le plafond effectif et bypass admin", async () => {
+  for (const cfg of [
+    {userPlan:"free",bonusCredits:5,usage:rows(23,"content")},
+    {userPlan:"free",workspacePlan:"binome",member:true,bonusCredits:5,usage:rows(50,"content")},
+    {isAdmin:true,bonusCredits:5,usage:rows(999,"content")},
+  ]) {
+    const client = fakeClient(cfg);
+    await logUsage("u1","content","create",undefined,undefined,"ws1",client);
+    const call = client._rpcCalls.find(c=>c.name==="record_ai_usage")!;
+    assertEquals(!!call,true);
+    assertEquals((call.args as any).p_base_total,cfg.workspacePlan || cfg.isAdmin ? 400 : 23);
+    assertEquals((call.args as any).p_charge_bonus,!cfg.isAdmin);
+    assertEquals(cfg.bonusCredits,cfg.workspacePlan || cfg.isAdmin ? 5 : 4);
+    assertEquals(client._rpcCalls.some(c=>c.name==="consume_bonus_credit"),false);
+  }
 });
 
-Deno.test("logUsage: sous le plafond de base, ne touche pas aux crédits bonus", async () => {
-  const client = fakeClient({ userPlan: "free", usage: rows(10, "content"), bonusCredits: 5 });
-  // deno-lint-ignore no-explicit-any
-  await logUsage("u1", "content", "create", undefined, undefined, undefined, client as any);
-  assertEquals(client._rpcCalls.filter((c) => c.name === "consume_bonus_credit").length, 0);
+Deno.test("dix bonus autorisent dix actions après le mensuel, puis bloquent", async()=>{
+ const cfg={userPlan:"free",bonusCredits:10,usage:rows(23,"content")}; const db=sb(cfg);
+ for(let i=0;i<10;i++){
+   const q=await checkQuota("u1","content",undefined,db);
+   assertEquals(q.allowed,true); assertEquals(q.available_total,10-i);
+   await logUsage("u1","content","create",undefined,undefined,undefined,db);
+ }
+ assertEquals(cfg.bonusCredits,0);
+ assertEquals((await checkQuota("u1","content",undefined,db)).reason,"total");
 });
-
-Deno.test("logUsage: plan workspace binome → ne consomme JAMAIS de bonus (même > 23 usages)", async () => {
-  // Le bug corrigé : logUsage lisait le plan PERSO (free, total=23) au lieu du plan
-  // effectif (workspace binome, total=9999) → les bonus d'une cliente Binôme fondaient à tort.
-  const client = fakeClient({ userPlan: "free", workspacePlan: "binome", usage: rows(50, "content"), bonusCredits: 5, member: true });
-  // deno-lint-ignore no-explicit-any
-  await logUsage("u1", "content", "create", undefined, undefined, "ws1", client as any);
-  assertEquals(client._rpcCalls.filter((c) => c.name === "consume_bonus_credit").length, 0);
+Deno.test("erreur de lecture abonnement ou rôle : technique, jamais Premium",async()=>{
+ for(const table of ["subscriptions","role"]){
+  const db=sb({}), from=db.from.bind(db), rpc=db.rpc.bind(db);
+  db.from=(t:string)=>{const b=from(t); if(t===table)b.maybeSingle=async()=>({data:null,error:{code:"XX000"}});return b;};
+  if(table==="role")db.rpc=async()=>({data:null,error:{code:"XX000"}});
+  const q=await checkQuota("u1","quality_max",undefined,db);
+  assertEquals(q.reason,"error"); assertEquals(q.eligible_solutions,[]);
+ }
 });
-
-Deno.test("logUsage: programme d'accompagnement actif → ne consomme pas de bonus", async () => {
-  const client = fakeClient({ userPlan: "free", coaching: true, usage: rows(50, "content"), bonusCredits: 5 });
-  // deno-lint-ignore no-explicit-any
-  await logUsage("u1", "content", "create", undefined, undefined, undefined, client as any);
-  assertEquals(client._rpcCalls.filter((c) => c.name === "consume_bonus_credit").length, 0);
+Deno.test("abonnement annulé sans autre droit ne reste pas Premium",async()=>{
+ const db=sb({}),from=db.from.bind(db);
+ db.from=(t:string)=>{const b=from(t);if(t==="subscriptions") b.maybeSingle=async()=>({data:{plan:"outil",source:"stripe",status:"canceled",current_period_end:"2020-01-01"},error:null});return b;};
+ assertEquals((await checkQuota("u1","quality_max",undefined,db)).allowed,false);
 });
-
-Deno.test("logUsage: admin → journalise l'usage mais ne consomme pas de bonus", async () => {
-  // checkQuota bypass les admins ; logUsage doit faire pareil pour le décompte bonus
-  // (sinon les bonus du compte admin fondent alors qu'aucun quota ne s'applique à lui).
-  const client = fakeClient({ isAdmin: true, userPlan: "free", usage: rows(50, "content"), bonusCredits: 5 });
-  // deno-lint-ignore no-explicit-any
-  await logUsage("u1", "content", "create", undefined, undefined, undefined, client as any);
-  assertEquals(client._inserted.length, 1);
-  assertEquals(client._rpcCalls.filter((c) => c.name === "consume_bonus_credit").length, 0);
+Deno.test("Premium personnel et Binôme espace gardent les droits les plus élevés",async()=>{
+ assertEquals((await checkQuota("u1","photo_retouch","ws",sb({userPlan:"outil",workspacePlan:"binome",member:true}))).plan,"binome");
 });
 
 // ---------- bypass compte QA (déterministe, par UUID) ----------

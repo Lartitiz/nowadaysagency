@@ -1,3 +1,4 @@
+import { checkoutOffer } from "../_shared/checkout-catalog.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
@@ -123,7 +124,8 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
       .maybeSingle();
     checkError("webhook_events select (idempotency check)", existingCheckError, { eventId: event.id });
 
-    if (existing) {
+    const recoverablePurchase = ["checkout.session.completed", "checkout.session.async_payment_succeeded"].includes(event.type) && (event.data.object as Stripe.Checkout.Session).mode === "payment";
+    if (existing && !recoverablePurchase) {
       log("Duplicate event, skipping", { eventId: event.id });
       return new Response(JSON.stringify({ received: true, duplicate: true }), {
         headers: { "Content-Type": "application/json" },
@@ -131,15 +133,23 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
       });
     }
 
+    if (!existing) {
     const { error: insertEventError } = await supabase.from("webhook_events").insert({
       stripe_event_id: event.id,
       event_type: event.type,
     });
-    checkError("webhook_events insert (idempotency record)", insertEventError, { eventId: event.id });
+    if (!(recoverablePurchase && insertEventError?.code === "23505")) checkError("webhook_events insert (idempotency record)", insertEventError, { eventId: event.id });
+    }
 
     switch (event.type) {
-      case "checkout.session.completed": {
+      case "checkout.session.completed":
+      case "checkout.session.async_payment_succeeded": {
         const session = event.data.object as Stripe.Checkout.Session;
+        // Completion can precede payment for delayed payment methods.
+        if (!["paid", "no_payment_required"].includes(session.payment_status)) {
+          log("Checkout awaiting payment", { sessionId: session.id });
+          break;
+        }
         const userId = session.metadata?.user_id;
         if (!userId) { log("No user_id in metadata"); break; }
 
@@ -148,8 +158,11 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
           const priceId = sub.items.data[0]?.price.id;
 
           // Determine plan from price
-          let plan = "outil";
-          if (priceId === "price_1T7uZbIwPeG7Gjpy3arZSdx8") plan = "studio";
+          const offer = checkoutOffer(priceId, "subscription");
+          const plan = offer.plan === "binome" ? "studio" : "outil";
+          if (!["active", "trialing"].includes(sub.status)) {
+            throw new Error("subscription_not_active");
+          }
 
           // Set cancel_at for studio plan (6 months engagement)
           if (plan === "studio" && !sub.cancel_at) {
@@ -168,7 +181,7 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
             stripe_subscription_id: sub.id,
             source: "stripe",
             stripe_price_id: priceId,
-            status: "active",
+            status: sub.status,
             current_period_start: getPeriod(sub).start,
             current_period_end: getPeriod(sub).end,
             studio_start_date: plan === "studio" ? new Date().toISOString() : null,
@@ -185,70 +198,38 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
           await sendEmailEvent("subscription_activated", userId);
 
         } else if (session.mode === "payment") {
-          // One-time purchase
-          const productTypeMap: Record<string, string> = {
-            "prod_U66ntcEvBRUkXF": "coaching",
-            "prod_U66nHw9q4JTxHL": "studio_once",
-          };
-
-          const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
+          const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 2 });
+          if (lineItems.data.length !== 1 || (lineItems.data[0].quantity ?? 1) !== 1) throw new Error("invalid_purchase_items");
           const priceId = lineItems.data[0]?.price?.id || "";
-          const product = lineItems.data[0]?.price?.product;
-
-          // Check if this is a credit pack purchase by looking at product metadata
-          let isCreditPack = false;
-          let packCredits = 0;
-          if (product && typeof product === "string") {
-            try {
-              const stripeProduct = await stripe.products.retrieve(product);
-              if (stripeProduct.metadata?.type === "credit_pack") {
-                isCreditPack = true;
-                packCredits = parseInt(stripeProduct.metadata.credits || "0", 10);
-              }
-            } catch (e) {
-              // Sans cette classification, un achat de pack de crédits peut tomber en
-              // "unknown" et ne jamais être livré : on ne peut pas continuer en silence.
-              log("CRITICAL: stripe.products.retrieve failed, cannot classify purchase", { product, sessionId: session.id, userId, error: String(e) });
-              throw new Error(`stripe.products.retrieve failed for product ${product}: ${String(e)}`);
-            }
+          const offer = checkoutOffer(priceId, "payment");
+          if (offer.credits) {
+            const { data: delivery, error } = await supabase.rpc("fulfill_credit_pack", {
+              p_user_id: userId, p_session_id: session.id,
+              p_payment_intent: typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id || null,
+              p_price_id: priceId, p_credits: offer.credits,
+              p_amount: (session.amount_total || 0) / 100, p_currency: session.currency || "eur",
+            });
+            checkError("fulfill_credit_pack RPC", error, { sessionId: session.id });
+            if (!delivery?.fulfilled) throw new Error("purchase_delivery_unconfirmed");
+            log("Credit pack fulfilled", { sessionId: session.id, credits: offer.credits });
+            break;
           }
-
-          let productType = (typeof product === "string" ? productTypeMap[product] : undefined) || "unknown";
-          if (isCreditPack) {
-            productType = `credit_pack_${packCredits}`;
-          }
-
-          // Check for duplicate purchase by checkout session ID
+          const productType = offer.product!;
           const { data: existingPurchase, error: existingPurchaseError } = await supabase
-            .from("purchases")
-            .select("id")
-            .eq("stripe_checkout_session_id", session.id)
-            .maybeSingle();
-          checkError("purchases select (duplicate check)", existingPurchaseError, { sessionId: session.id, userId });
-
+            .from("purchases").select("id,created_at,fulfillment_state")
+            .eq("stripe_checkout_session_id", session.id).maybeSingle();
+          checkError("purchases select (duplicate check)", existingPurchaseError, { sessionId: session.id });
+          if (existingPurchase?.fulfillment_state === "fulfilled") break;
+          const purchasedAt = existingPurchase?.created_at || new Date().toISOString();
           if (!existingPurchase) {
-            const { error: purchaseInsertError } = await supabase.from("purchases").insert({
-              user_id: userId,
-              product_type: productType,
+            const { error } = await supabase.from("purchases").insert({
+              user_id: userId, product_type: productType,
               stripe_payment_intent_id: session.payment_intent as string,
-              stripe_checkout_session_id: session.id,
-              amount: (session.amount_total || 0) / 100,
-              currency: session.currency || "eur",
-              status: "paid",
+              stripe_checkout_session_id: session.id, amount: (session.amount_total || 0) / 100,
+              currency: session.currency || "eur", status: "paid", fulfillment_state: "pending",
+              created_at: purchasedAt,
             });
-            checkError("purchases insert", purchaseInsertError, { userId, productType, sessionId: session.id });
-          } else {
-            log("Duplicate purchase skipped", { sessionId: session.id });
-          }
-
-          // Credit pack: atomic increment bonus_credits
-          if (isCreditPack && packCredits > 0 && !existingPurchase) {
-            const { error: creditError } = await supabase.rpc("increment_bonus_credits", {
-              user_uuid: userId,
-              amount: packCredits,
-            });
-            checkError("increment_bonus_credits RPC", creditError, { userId, packCredits, sessionId: session.id });
-            log("Bonus credits added (atomic)", { userId, packCredits });
+            checkError("purchases insert", error, { sessionId: session.id });
           }
 
           // If studio one-time, activate studio plan
@@ -260,8 +241,8 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
               stripe_customer_id: session.customer as string,
               status: "active",
               studio_months_paid: 6,
-              studio_start_date: new Date().toISOString(),
-              studio_end_date: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString(),
+              studio_start_date: purchasedAt,
+              studio_end_date: new Date(new Date(purchasedAt).getTime() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString(),
               updated_at: new Date().toISOString(),
             }, { onConflict: "user_id" });
             checkError("subscriptions upsert (studio one-time)", studioSubError, { userId, sessionId: session.id });
@@ -270,7 +251,11 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
             checkError("profiles update (studio one-time)", studioProfileError, { userId });
           }
 
-          log("Purchase recorded", { userId, productType });
+          const { error: fulfilledError } = await supabase.from("purchases")
+            .update({ fulfillment_state: "fulfilled", fulfilled_at: new Date().toISOString() })
+            .eq("stripe_checkout_session_id", session.id);
+          checkError("purchases fulfillment", fulfilledError, { sessionId: session.id });
+          log("Purchase fulfilled", { userId, productType });
         }
         break;
       }

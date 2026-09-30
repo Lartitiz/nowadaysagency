@@ -14,7 +14,7 @@ interface QuotaWallModalProps {
   serverMessage?: string;
 }
 
-export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWallModalProps) {
+export default function QuotaWallModal({ open, onClose, plan, usage, serverMessage }: QuotaWallModalProps) {
   const navigate = useNavigate();
 
   // Track modal open
@@ -42,7 +42,8 @@ export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWall
   };
 
   const nextMonth = new Date();
-  nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+  nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1, 1);
+  nextMonth.setUTCHours(0, 0, 0, 0);
   const renewDate = nextMonth.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
 
   const now = new Date();
@@ -68,7 +69,7 @@ export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWall
             Tes crédits du mois sont utilisés
           </DialogTitle>
           <DialogDescription className="mt-2 text-sm text-muted-foreground">
-            Et c'est une bonne nouvelle : ça veut dire que tu avances ! 💪
+            {serverMessage || "Tu peux continuer à préparer tes contenus ou choisir une offre pour générer à nouveau."}
           </DialogDescription>
         </div>
 
@@ -141,6 +142,9 @@ export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWall
             </p>
           )}
 
+          <button className="w-full rounded-full border px-4 py-2 text-sm" onClick={() => { onClose(); versTarifs(navigate, { destination: "/abonnement#packs" }); }}>Ajouter des crédits sans abonnement</button>
+          <p className="text-xs text-muted-foreground">Les packs n’augmentent pas les plafonds d’images, de carrousels ou de vidéos et n’ouvrent pas les fonctions Premium.</p>
+          <button className="w-full text-sm underline" onClick={handleClose}>Continuer à préparer gratuitement</button>
           {/* En attendant */}
           <div className="rounded-xl bg-muted/50 px-4 py-3 space-y-1">
             <p className="text-xs font-semibold text-foreground">En attendant, tu peux :</p>

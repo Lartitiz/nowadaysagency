@@ -28,6 +28,7 @@ vi.mock("react-router-dom", () => ({
 vi.mock("@/lib/posthog", () => ({ posthog: { capture: vi.fn() } }));
 vi.mock("@/components/AppHeader", () => ({ default: () => null }));
 vi.mock("@/components/Confetti", () => ({ default: () => null }));
+vi.mock("@/contexts/WorkspaceContext", () => ({ useWorkspace: () => ({ switchWorkspace: vi.fn().mockResolvedValue(true) }) }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: mocks.user, loading: false }) }));
 vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: mocks.invoke }));
 vi.mock("@/hooks/use-user-plan", () => ({ invalidateUserPlanCache: vi.fn() }));
@@ -35,7 +36,7 @@ vi.mock("@/hooks/use-user-plan", () => ({ invalidateUserPlanCache: vi.fn() }));
 import QuotaWallModal from "@/components/QuotaWallModal";
 import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
 import { handleQuotaError } from "@/lib/quota-error-handler";
-import { CHEMIN_TARIFS, lireRetour, memoriseRetour } from "@/lib/retour-apres-detour";
+import { CHEMIN_TARIFS, lireRetour, memoriseRetour, recordCreationResume } from "@/lib/retour-apres-detour";
 
 function allerSur(url: string) {
   window.history.replaceState({}, "", url);
@@ -85,7 +86,7 @@ describe("« Passer au Premium » mène bien à l'abonnement", () => {
   it("le message « plus de crédits » emmène aux tarifs en notant la page", () => {
     allerSur("/creer?format=carrousel");
 
-    const traite = handleQuotaError({ message: "Tu as atteint ta limite de générations IA ce mois" });
+    const traite = handleQuotaError({ data: { error: "limit_reached", message: "Tu as atteint ta limite de générations IA ce mois", quota: { reason: "total", plan: "free" } } });
     expect(traite).toBe(true);
 
     const [, opts] = mocks.toast.mock.calls[0];
@@ -108,7 +109,9 @@ describe("après le paiement, on reprend son travail", () => {
     fireEvent.click(bouton);
 
     expect(mocks.navigate).toHaveBeenCalledWith("/creer");
-    // Mémo consommé : un retour arrière ne renvoie pas en boucle.
+    // The destination acknowledges successful restoration, not merely a click.
+    allerSur("/creer");
+    recordCreationResume("creation");
     expect(lireRetour()).toBeNull();
   });
 

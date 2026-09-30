@@ -1,3 +1,4 @@
+import { versTarifs } from "@/lib/retour-apres-detour";
 /**
  * MiseEnSceneDialog — « Mettre en scène » une photo produit de la bibliothèque.
  *
@@ -196,11 +197,11 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     if (data?.error === "premium_required") {
       toast.error("La mise en scène est réservée au plan Premium", {
         description: "Passe en Premium pour habiller tes produits.",
-        action: { label: "Voir les plans", onClick: () => navigate("/abonnement") },
+        action: { label: "Voir les plans", onClick: () => versTarifs(navigate) },
       });
       return null;
     }
-    if (data?.error === "limit_reached" || error?.isRateLimit) {
+    if (data?.error === "limit_reached" && data?.quota?.reason !== "error") {
       toast.error("Tu as utilisé toutes tes images du mois", {
         description: "Elles se rechargent au début du mois prochain.",
       });

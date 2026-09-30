@@ -174,7 +174,7 @@ export default function InspireFlow() {
         body = { source_text: sourceText.trim() };
       }
       const { data, error } = await invokeWithTimeout("inspire-ai", { body: { ...body, workspace_id: workspaceId } }, 90000);
-      if (error?.isRateLimit || data?.error === "limit_reached") {
+      if (data?.error === "limit_reached" && data?.quota?.reason !== "error") {
         if (handleQuotaError({ message: error?.message || data?.message, data })) {
           return;
         }

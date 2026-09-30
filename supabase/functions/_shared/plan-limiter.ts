@@ -4,7 +4,6 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { assertWorkspaceMembership } from "./workspace-guard.ts";
 
 // Grille des forfaits (01/10/2026) — « Pour 39 € par mois : tous tes textes
 // sans compter, 20 carrousels, 30 images et 3 vidéos. »
@@ -111,6 +110,11 @@ export interface QuotaResult {
   reason?: "category" | "total" | "not_available" | "error";
   message?: string;
   usage?: Record<string, { used: number; limit: number }>;
+  category?: string;
+  bonus_credits?: number;
+  available_total?: number;
+  renews_at?: string;
+  eligible_solutions?: ("premium" | "credits" | "renewal")[];
 }
 
 /** Build a standard 429 Response for quota errors */
@@ -144,26 +148,29 @@ export function getServiceClient() {
   );
 }
 
-async function getUserPlan(sb: any, userId: string, strict = false): Promise<string> {
-  const { data, error } = await sb
-    .from("subscriptions")
-    .select("plan, source, status, current_period_end")
-    .eq("user_id", userId)
-    .single();
-  if (strict && error && error.code !== "PGRST116") throw error;
-  // Promo access is time-limited. Stripe subscriptions have their own
-  // lifecycle and are deliberately left to webhook status updates.
-  if (
-    data?.source === "promo" &&
-    data?.current_period_end &&
-    new Date(data.current_period_end).getTime() <= Date.now()
-  ) {
-    return "free";
+async function getUserPlan(sb: any, userId: string, strict = true): Promise<string> {
+  const { data, error } = await sb.from("subscriptions")
+    .select("plan, source, status, current_period_end, studio_end_date, stripe_subscription_id")
+    .eq("user_id", userId).maybeSingle();
+  if (strict && error) throw error;
+  if (!data) return "free";
+  const status = data.status || "active";
+  if (["canceled", "incomplete", "incomplete_expired", "unpaid", "paused"].includes(status)) return "free";
+  const end = data.source === "promo" ? data.current_period_end
+    : !data.stripe_subscription_id ? data.studio_end_date : null;
+  if (end && new Date(end).getTime() <= Date.now()) return "free";
+  // A stale active Stripe row is not evidence that the customer must buy again.
+  // Keep the existing past_due policy; billing management handles its warning.
+  if (data.source === "stripe" && data.stripe_subscription_id && status === "active" &&
+      data.current_period_end && new Date(data.current_period_end).getTime() <= Date.now()) {
+    throw new Error("subscription_sync_pending");
   }
-  return resolvePlan(data?.plan || "free");
+  const plan = resolvePlan(data.plan || "free");
+  if (!PLAN_LIMITS[plan]) throw new Error("unknown_subscription_plan");
+  return plan;
 }
 
-async function getWorkspacePlan(sb: any, workspaceId: string, strict = false): Promise<string> {
+async function getWorkspacePlan(sb: any, workspaceId: string, strict = true): Promise<string> {
   const { data, error } = await sb
     .from("workspaces")
     .select("plan")
@@ -177,7 +184,7 @@ async function getWorkspacePlan(sb: any, workspaceId: string, strict = false): P
 // même sans abonnement Stripe. Cohérent avec check-subscription (qui upgrade
 // free -> binome quand un coaching_program actif existe). Sans ça, le quota
 // traite en "free" une cliente binôme et la bloque à tort.
-async function getCoachingPlan(sb: any, userId: string, strict = false): Promise<string> {
+async function getCoachingPlan(sb: any, userId: string, strict = true): Promise<string> {
   const { data, error } = await sb
     .from("coaching_programs")
     .select("id")
@@ -188,11 +195,10 @@ async function getCoachingPlan(sb: any, userId: string, strict = false): Promise
   return data ? "binome" : "free";
 }
 
-/** Compare two plans and return the one with the highest total limit */
+/** Explicit entitlement order, independent of equal or changing numeric caps. */
 function bestPlan(planA: string, planB: string): string {
-  const limitsA = PLAN_LIMITS[planA] || PLAN_LIMITS.free;
-  const limitsB = PLAN_LIMITS[planB] || PLAN_LIMITS.free;
-  return limitsA.total >= limitsB.total ? planA : planB;
+  const rank: Record<string, number> = { free: 0, outil: 1, binome: 2 };
+  return (rank[planA] ?? 0) >= (rank[planB] ?? 0) ? planA : planB;
 }
 
 /**
@@ -202,7 +208,7 @@ function bestPlan(planA: string, planB: string): string {
  * (checkQuota/logUsage) doivent TOUS LES DEUX passer par ici — toute divergence
  * ré-introduit le bug « header N restantes pendant que le serveur refuse » (T19).
  */
-export async function getEffectivePlan(sb: any, userId: string, workspaceId?: string | null, strict = false): Promise<string> {
+export async function getEffectivePlan(sb: any, userId: string, workspaceId?: string | null, strict = true): Promise<string> {
   const userPlan = await getUserPlan(sb, userId, strict);
   const workspacePlan = workspaceId ? await getWorkspacePlan(sb, workspaceId, strict) : "free";
   const coachingPlan = await getCoachingPlan(sb, userId, strict);
@@ -211,7 +217,7 @@ export async function getEffectivePlan(sb: any, userId: string, workspaceId?: st
 
 function getMonthStart(): string {
   const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
 }
 
 /**
@@ -251,10 +257,12 @@ export async function resolveBillingWorkspaceId(
   workspaceId?: string | null,
 ): Promise<string | undefined> {
   if (workspaceId) {
-    const guard = await assertWorkspaceMembership(sb, userId, workspaceId);
-    if (guard.ok) return workspaceId;
+    const { data: membership, error } = await sb.from("workspace_members").select("role")
+      .eq("workspace_id", workspaceId).eq("user_id", userId).maybeSingle();
+    if (error) throw error;
+    if (membership) return workspaceId;
   }
-  const { data } = await sb
+  const { data, error } = await sb
     .from("workspace_members")
     .select("workspace_id")
     .eq("user_id", userId)
@@ -266,6 +274,7 @@ export async function resolveBillingWorkspaceId(
     .order("joined_at", { ascending: true })
     .limit(1)
     .maybeSingle();
+  if (error) throw error;
   if (!data?.workspace_id) {
     console.warn(
       `[plan-limiter] resolveBillingWorkspaceId: aucun espace owner pour ${userId} — périmètre facturation = user (dégradé).`,
@@ -274,14 +283,14 @@ export async function resolveBillingWorkspaceId(
   return data?.workspace_id ?? undefined;
 }
 
-export async function getBonusCredits(sb: any, userId: string, strict = false): Promise<number> {
+export async function getBonusCredits(sb: any, userId: string, strict = true): Promise<number> {
   const { data, error } = await sb
     .from("profiles")
     .select("bonus_credits")
     .eq("user_id", userId)
     .maybeSingle();
   if (strict && error) throw error;
-  return data?.bonus_credits || 0;
+  return Math.max(0, data?.bonus_credits || 0);
 }
 
 // Bypass comptes QA — DÉTERMINISTE : Set d'UUID en dur, AUCUNE résolution
@@ -311,7 +320,9 @@ export async function checkQuota(
   // Admin bypass — unlimited quota (check via has_role function)
   // `sbOverride` permet d'injecter un faux client en test (cf. plan-limiter_test.ts).
   const sb = sbOverride ?? getServiceClient();
-  const { data: adminCheck } = await sb.rpc("has_role", { _user_id: userId, _role: "admin" });
+  try {
+  const { data: adminCheck, error: adminError } = await sb.rpc("has_role", { _user_id: userId, _role: "admin" });
+  if (adminError) throw adminError;
   if (adminCheck) {
     return { allowed: true, plan: "admin", remaining: 9999, remaining_total: 9999 };
   }
@@ -338,14 +349,14 @@ export async function checkQuota(
     return {
       allowed: false,
       plan,
-      reason: "not_available",
+      reason: "not_available", category, eligible_solutions: ["premium"],
       message: `Cette fonctionnalité est disponible à partir du plan ${planLabel}.`,
     };
   }
 
   // Get bonus credits for the user
   const bonusCredits = await getBonusCredits(sb, userId);
-  const effectiveTotalLimit = limits.total + bonusCredits;
+
 
   const { data: usageRows, error: usageError } = await getMonthlyUsageRows(sb, userId, billingWorkspaceId);
 
@@ -363,6 +374,9 @@ export async function checkQuota(
 
   const rows = usageRows || [];
   const totalUsed = rows.length;
+  const availableTotal = Math.max(0, limits.total - totalUsed) + bonusCredits;
+  const renewsAt = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1)).toISOString();
+  const common = { category, bonus_credits: bonusCredits, available_total: availableTotal, renews_at: renewsAt };
   const categoryUsed = rows.filter((r: any) => r.category === category).length;
 
   // Build usage map (effective total includes bonus)
@@ -372,23 +386,7 @@ export async function checkQuota(
     const used = rows.filter((r: any) => r.category === cat).length;
     usageMap[cat] = { used, limit: limits[cat] };
   }
-  usageMap.total = { used: totalUsed, limit: effectiveTotalLimit };
-
-  // Check total limit (monthly + bonus)
-  if (totalUsed >= effectiveTotalLimit) {
-    const nextMonth = new Date();
-    nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
-    const monthLabel = nextMonth.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
-    return {
-      allowed: false,
-      plan,
-      reason: "total",
-      remaining: 0,
-      remaining_total: 0,
-      usage: usageMap,
-      message: `Tu as utilisé tes ${effectiveTotalLimit} générations IA ce mois. Tes crédits se renouvellent le ${monthLabel}.`,
-    };
-  }
+  usageMap.total = { used: totalUsed, limit: limits.total };
 
   // Check category limit — le cap catégorie protège la répartition du mensuel
   // de BASE. Les bonus_credits sont un dépassement TOUTES-CATÉGORIES (même
@@ -403,7 +401,7 @@ export async function checkQuota(
   // Exception (01/10/2026) : les plafonds DURS (HARD_CAP_CATEGORIES : carrousels,
   // images, vidéos) bloquent MÊME avec des bonus — sinon un seul crédit bonus
   // suffisait à lever les plafonds carrousels/images d'une abonnée.
-  if (categoryUsed >= limits[category] && (bonusCredits <= 0 || HARD_CAP_CATEGORIES.has(category))) {
+  if (categoryUsed >= limits[category] && (bonusCredits <= 0 || HARD_CAP_CATEGORIES.has(category)) && (availableTotal > 0 || HARD_CAP_CATEGORIES.has(category))) {
     const label = CATEGORY_LABELS[category] || category;
     const nextMonth = new Date();
     nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
@@ -411,22 +409,44 @@ export async function checkQuota(
     return {
       allowed: false,
       plan,
-      reason: "category",
+      reason: "category", ...common, eligible_solutions: HARD_CAP_CATEGORIES.has(category) ? (plan === "free" ? ["premium", "renewal"] : ["renewal"]) : (plan === "free" ? ["credits", "premium", "renewal"] : ["credits", "renewal"]),
       remaining: 0,
-      remaining_total: effectiveTotalLimit - totalUsed,
+      remaining_total: availableTotal,
       usage: usageMap,
       message: `Tu as utilisé tes ${limits[category]} ${label} ce mois. Tes crédits se renouvellent le ${monthLabel}.`,
     };
   }
 
+  // Check total limit (monthly + bonus)
+  if (availableTotal <= 0) {
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
+    const monthLabel = nextMonth.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+    return {
+      allowed: false,
+      plan,
+      reason: "total", ...common, eligible_solutions: plan === "free" ? ["credits", "premium", "renewal"] : ["credits", "renewal"],
+      remaining: 0,
+      remaining_total: 0,
+      usage: usageMap,
+      message: `Tu as utilisé tes ${limits.total} générations IA ce mois. Tes crédits se renouvellent le ${monthLabel}.`,
+    };
+  }
+
+
   return {
     allowed: true,
-    plan,
+    plan, ...common,
     // clamp 0 : quand un bonus by-passe le cap catégorie, le calcul brut devient négatif
     remaining: Math.max(0, limits[category] - categoryUsed - 1),
-    remaining_total: effectiveTotalLimit - totalUsed - 1,
+    remaining_total: availableTotal - 1,
     usage: usageMap,
   };
+  } catch (error) {
+    console.error("[plan-limiter] entitlement read failed", error);
+    return { allowed: false, plan: "unknown", category, reason: "error", eligible_solutions: [],
+      message: "Impossible de vérifier ton accès pour le moment. Réessaie dans un instant." };
+  }
 }
 
 /**
@@ -469,38 +489,14 @@ export async function logUsage(
   // passent pas retombent sur le workspace propre de l'utilisatrice).
   const billingWorkspaceId = await resolveBillingWorkspaceId(sb, userId, workspaceId);
 
-  // eslint-disable-next-line nowadays/require-supabase-error-check -- log d'usage IA volontairement fire-and-forget : un échec ne doit jamais bloquer la réponse déjà générée à l'utilisatrice
-  await sb.from("ai_usage").insert({
-    user_id: userId,
-    category,
-    action_type: actionType,
-    tokens_used: tokensUsed || null,
-    model_used: modelUsed || null,
-    workspace_id: billingWorkspaceId || null,
+  const { data: adminCheck, error: roleError } = await sb.rpc("has_role", { _user_id: userId, _role: "admin" });
+  if (roleError) throw roleError;
+  const plan = adminCheck ? "binome" : await getEffectivePlan(sb, userId, billingWorkspaceId);
+  const { error } = await sb.rpc("record_ai_usage", {
+    p_user_id: userId, p_workspace_id: billingWorkspaceId || null,
+    p_category: category, p_action: actionType, p_tokens: tokensUsed || null,
+    p_model: modelUsed || null, p_base_total: PLAN_LIMITS[plan].total,
+    p_charge_bonus: !adminCheck,
   });
-
-
-  // After logging, check if user exceeded monthly base limit → decrement bonus.
-  // Le plan et le périmètre de comptage doivent être LES MÊMES que dans checkQuota
-  // (meilleur de perso/workspace/coaching, usage compté par workspace si fourni) :
-  // sinon une cliente Premium/Binôme voit ses bonus_credits fondre à tort dès que
-  // son compteur perso dépasse le plafond du plan gratuit.
-  const { data: adminCheck } = await sb.rpc("has_role", { _user_id: userId, _role: "admin" });
-  if (adminCheck) return;
-
-  const plan = await getEffectivePlan(sb, userId, billingWorkspaceId);
-  const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
-
-  const { data: usageRows } = await getMonthlyUsageRows(sb, userId, billingWorkspaceId);
-
-  const totalUsed = (usageRows || []).length;
-
-  // If usage exceeds monthly base limit, this credit came from bonus.
-  // Décrément ATOMIQUE (anti race condition) : la RPC fait un UPDATE conditionnel
-  // verrouillé (-1 seulement si > 0) en une requête, au lieu d'un read-modify-write.
-  // Best-effort : on log sans throw (ne casse pas la génération déjà effectuée).
-  if (totalUsed > limits.total) {
-    const { error: decErr } = await sb.rpc("consume_bonus_credit", { p_user_id: userId });
-    if (decErr) console.error("consume_bonus_credit failed", decErr);
-  }
+  if (error) throw error;
 }

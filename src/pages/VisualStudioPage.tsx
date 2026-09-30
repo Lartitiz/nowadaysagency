@@ -1,3 +1,5 @@
+import { recordCreationResume } from "@/lib/retour-apres-detour";
+import { AccessNotice } from "@/components/AccessNotice";
 import { ReferenceCards } from "@/features/visual-studio/ReferenceCards";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { referenceLabels } from "@/features/visual-studio/reference-labels";
@@ -359,6 +361,11 @@ function Studio({
   const premiumBlocked = !!proposal &&
     proposal.operation !== "background" &&
     current?.generative_allowed === false;
+  const imageBalance = current?.quota.usage?.photo_retouch;
+  const insufficientSeries = !!proposal && current?.quota.allowed && (
+    (current.quota.available_total !== undefined && current.quota.available_total < proposal.cost) ||
+    (!!imageBalance && imageBalance.limit > 0 && imageBalance.limit - imageBalance.used < proposal.cost));
+  useEffect(() => { if (current?.session.id) recordCreationResume("studio"); }, [current?.session.id]);
   const generating = current?.versions.some((v) => v.status === "processing");
   useEffect(() => {
     setBranchChoice(null);
@@ -1032,24 +1039,15 @@ function Studio({
               : proposal.warning ||
                 "Vérifie les détails du résultat avant de l’utiliser."}
           </p>
-          {premiumBlocked && (
-            <p role="status" className="text-sm">
-              Cette création est réservée à Premium. Tu peux continuer à
-              préparer ton idée. Rien n’a été décompté.
-            </p>
-          )}
+          <AccessNotice quota={current?.quota} premiumBlocked={premiumBlocked}
+            insufficient={insufficientSeries} onRetry={() => void state.refetch()} />
+          {proposal.scene_workflow?.phase === "scene" && <p className="text-xs text-muted-foreground">La scène coûte 1 image. Si tu valides ensuite l’intégration de tes références, cette seconde génération coûtera 1 image supplémentaire.</p>}
           <div className="flex justify-between gap-2">
             <strong>{proposal.cost} image{proposal.cost > 1 ? "s" : ""}</strong>
             <span className="text-xs text-muted-foreground">
               Décomptée si la génération aboutit
             </span>
           </div>
-          {!current?.quota.allowed && (
-            <p role="status" className="text-sm">
-              {current?.quota.message ||
-                "Le quota doit être vérifié avant de générer."}
-            </p>
-          )}
           {(!!draft.trim() || !!error) && <div className="text-sm" role="status">
             <p>Envoie ta demande pour actualiser la proposition avant de générer.</p>
             <Button variant="ghost" size="sm" onClick={() => { editDraft(""); setError(""); }}>Revenir à cette proposition</Button>
@@ -1060,7 +1058,7 @@ function Studio({
               !!busy ||
               generating ||
               !current?.quota.allowed ||
-              !!draft.trim() || !!error || premiumBlocked || (proposal.scene_workflow?.phase === "integration" && !!proposal.viewed_version_id && proposal.viewed_version_id !== selectedId)}
+              !!draft.trim() || !!error || premiumBlocked || insufficientSeries || (proposal.scene_workflow?.phase === "integration" && !!proposal.viewed_version_id && proposal.viewed_version_id !== selectedId)}
             onClick={async () => {
               const result = await mutate("generate", {
                 proposal_id: proposal.id,

@@ -1,3 +1,4 @@
+import { setRetourScope } from "@/lib/retour-apres-detour";
 import { setFlowWorkspaceId } from "@/hooks/use-flow-persistence";
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -65,6 +66,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   // Draft helpers are also read by the home page before opening /creer.
   setFlowWorkspaceId(activeWorkspace?.id || null);
+  setRetourScope(user?.id || null, activeWorkspace?.id || null);
   const [ownWorkspace, setOwnWorkspace] = useState<Workspace | null>(null);
   const [activeRole, setActiveRole] = useState<WorkspaceRole>("owner");
   const [loading, setLoading] = useState(true);

@@ -1446,6 +1446,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           );
         }
         const quota = await checkQuota(actor, "photo_retouch", p.workspace_id);
+        if (quota.reason === "error") return quotaDeniedResponse(quota, pipe.corsHeaders);
         if (
           generative(session.proposal.operation) &&
           !premiumAllowed(quota.plan, isQaTestAccount(actor))
@@ -1474,7 +1475,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             p_actor: actor,
             p_session: session.id,
             p_proposal: p.proposal_id,
-            p_total_limit: quota.usage?.total.limit ?? 9999,
+            p_total_limit: quota.usage ? quota.usage.total.used + (quota.available_total ?? 0) : 9999,
             // Plafond DUR (grille du 01/10/2026) : les crédits bonus ne lèvent
             // plus le plafond images (cf. HARD_CAP_CATEGORIES, plan-limiter).
             p_image_limit: limits.photo_retouch,
@@ -1739,7 +1740,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         created_at: entry.created_at,
       })),
       quota,
-      generative_allowed: premiumAllowed(quota.plan, isQaTestAccount(actor)),
+      generative_allowed: quota.reason === "error" ? undefined : premiumAllowed(quota.plan, isQaTestAccount(actor)),
       writable: writable && !session.archived_at,
       memory: await readMemory(sb, p.workspace_id),
       charter_references: await Promise.all(
