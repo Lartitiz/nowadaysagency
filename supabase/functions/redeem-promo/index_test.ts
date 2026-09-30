@@ -57,6 +57,7 @@ interface MockOpts {
 
 function installMockFetch(opts: MockOpts) {
   const rpcCalls: { name: string; body: unknown }[] = [];
+  const cohortWrites: unknown[] = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input instanceof Request ? input.url : input);
     const method = (init?.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
@@ -109,9 +110,16 @@ function installMockFetch(opts: MockOpts) {
       return json(null, 200);
     }
 
+    if (path === "/rest/v1/workspace_members") return json([{ workspace_id: "ws-1" }]);
+
+    if (path === "/rest/v1/studio_video_cohort_access") {
+      cohortWrites.push(init?.body ? JSON.parse(init.body as string) : {});
+      return json(null, 201);
+    }
+
     return json([]);
   }) as typeof fetch;
-  return { rpcCalls };
+  return { rpcCalls, cohortWrites };
 }
 
 function restore() {
@@ -245,6 +253,24 @@ Deno.test("redeem-promo: plan binôme accordé mais création de l'espace d'acco
     assertEquals(body.coachingSetupFailed, true);
     assert(typeof body.warning === "string" && body.warning.length > 0);
     assertEquals(mock.rpcCalls.map((c) => c.name).sort(), ["create_coaching_program_full", "redeem_promo_and_grant_plan"]);
+  } finally {
+    restore();
+  }
+});
+
+Deno.test("redeem-promo: code BDMMA -> ouvre aussi la vidéo pour l'espace propriétaire ; un code ordinaire non", async () => {
+  const cohort = installMockFetch({ promo: { ...BASE_PROMO, code: "BDMMA" } });
+  try {
+    const res = await handleRedeemPromoRequest(redeemReq({ code: "bdmma" }));
+    assertEquals(res.status, 200);
+    assertEquals(cohort.cohortWrites, [[{ workspace_id: "ws-1", cohort: "bdmma" }]]);
+  } finally {
+    restore();
+  }
+  const plain = installMockFetch({ promo: BASE_PROMO });
+  try {
+    await handleRedeemPromoRequest(redeemReq({ code: "bienvenue" }));
+    assertEquals(plain.cohortWrites.length, 0);
   } finally {
     restore();
   }
