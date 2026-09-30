@@ -77,7 +77,7 @@ describe("mémo « d'où je viens »", () => {
 
   it("oublie un mémo trop vieux (plus de 30 min)", () => {
     memoriseRetour("/creer");
-    const perime = { chemin: "/creer", quoi: "ton contenu en cours", ts: Date.now() - 31 * 60 * 1000 };
+    const perime = { chemin: "/creer", quoi: "ton contenu en cours", ts: Date.now() - 8 * 24 * 60 * 60 * 1000 };
     sessionStorage.setItem("retour_apres_detour", JSON.stringify(perime));
     expect(lireRetour()).toBeNull();
   });

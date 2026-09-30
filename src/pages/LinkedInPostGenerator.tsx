@@ -58,7 +58,7 @@ export default function LinkedInPostGenerator() {
         body: { action: "improve-post", postContent: existingPost, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       // 110s : génération 60s + passe de correction 30s côté edge, + marge.
       }, 110000);
-      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+      if (res.data?.error === "limit_reached" && res.data?.quota?.reason !== "error") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
       if (res.error) throw new Error(res.error.message);

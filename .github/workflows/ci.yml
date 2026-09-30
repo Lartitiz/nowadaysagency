@@ -171,3 +171,6 @@ jobs:
 
       - name: Studio video sessions and historical clips (disposable PGlite database)
         run: PGLITE_MODULE="$RUNNER_TEMP/linkedin-sql/node_modules/@electric-sql/pglite/dist/index.js" node supabase/tests/studio-video-sessions.mjs
+
+      - name: Purchase delivery and atomic bonus consumption (disposable PGlite database)
+        run: PGLITE_MODULE="$RUNNER_TEMP/linkedin-sql/node_modules/@electric-sql/pglite/dist/index.js" node supabase/tests/purchase-delivery.mjs

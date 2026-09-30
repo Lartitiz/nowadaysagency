@@ -1,3 +1,5 @@
+import { checkoutOffer } from "../_shared/checkout-catalog.ts";
+import { paymentCheckout } from "./payment-checkout.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
@@ -39,9 +41,10 @@ export async function handleCreateCheckoutRequest(req: Request) {
         headers: { ...cors, "Content-Type": "application/json" }, status: 401,
       });
     }
-    log("User authenticated", { email: user.email });
+    log("User authenticated");
 
     const { priceId, mode, successUrl, cancelUrl } = validateInput(await req.json(), CreateCheckoutSchema);
+    try { checkoutOffer(priceId, mode || "payment"); } catch { throw new ValidationError("Cette offre n’est pas disponible."); }
     log("Request body parsed", { priceId, mode });
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
@@ -91,16 +94,16 @@ export async function handleCreateCheckoutRequest(req: Request) {
     };
 
     // Prix du plan Binôme de com (studio_monthly) : engagement 6 mois
-    const STUDIO_MONTHLY_PRICE_ID = "price_1T7uZbIwPeG7Gjpy3arZSdx8";
+    const isBinome = mode === "subscription" && checkoutOffer(priceId, "subscription").plan === "binome";
 
     if (mode === "subscription") {
       sessionParams.subscription_data = {
         metadata: {
           user_id: user.id,
-          auto_cancel_6m: priceId === STUDIO_MONTHLY_PRICE_ID ? "true" : "false",
+          auto_cancel_6m: isBinome ? "true" : "false",
         },
       };
-      if (priceId === STUDIO_MONTHLY_PRICE_ID) {
+      if (isBinome) {
         log("Studio plan: will set cancel_at after subscription creation via webhook");
       }
     } else {
@@ -115,7 +118,7 @@ export async function handleCreateCheckoutRequest(req: Request) {
     });
     const session = mode === "subscription"
       ? await subscriptionCheckout(stripe, admin, { id: user.id, email: user.email }, sessionParams)
-      : await stripe.checkout.sessions.create(sessionParams);
+      : await paymentCheckout(stripe, admin, user.id, sessionParams);
     log("Checkout session created", { sessionId: session.id, url: session.url?.substring(0, 50) });
 
     return new Response(JSON.stringify({ url: session.url }), {

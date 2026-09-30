@@ -1,3 +1,4 @@
+import { versTarifs } from "@/lib/retour-apres-detour";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -575,11 +576,11 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       setGenState((p) => ({ ...p, [idx]: { ...p[idx], loading: false } }));
       toast.error("La génération d'images est réservée au plan Premium", {
         description: "Passe en Premium pour créer les images de tes slides.",
-        action: { label: "Voir les plans", onClick: () => navigate("/abonnement") },
+        action: { label: "Voir les plans", onClick: () => versTarifs(navigate) },
       });
       return;
     }
-    if (data?.error === "limit_reached" || error?.isRateLimit) {
+    if (data?.error === "limit_reached" && data?.quota?.reason !== "error") {
       setGenState((p) => ({ ...p, [idx]: { ...p[idx], loading: false } }));
       toast.error("Tu as utilisé toutes tes images du mois", {
         description: "Elles se rechargent au début du mois prochain.",

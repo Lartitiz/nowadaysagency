@@ -1,3 +1,5 @@
+import { versTarifs } from "@/lib/retour-apres-detour";
+import { useUserPlan } from "@/hooks/use-user-plan";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, Palette, Settings2, Sparkles } from "lucide-react";
@@ -27,6 +29,7 @@ export default function CarouselAdvancedOptions({
   coverIllustrationLocked,
 }: Props) {
   const navigate = useNavigate();
+  const { verified, loading, refresh } = useUserPlan();
   const [open, setOpen] = useState(false);
 
   const active: string[] = [];
@@ -36,10 +39,10 @@ export default function CarouselAdvancedOptions({
   const upgradeLink = (
     <button
       type="button"
-      onClick={(e) => { e.preventDefault(); navigate("/abonnement"); }}
+      onClick={(e) => { e.preventDefault(); if (verified) versTarifs(navigate); else void refresh(); }}
       className="mt-1 text-xs font-medium text-primary underline-offset-2 hover:underline"
     >
-      Passe en Premium pour l'activer →
+      {loading ? 'Vérification de ton accès…' : !verified ? 'Réessayer la vérification' : 'Découvrir Premium →'}
     </button>
   );
 

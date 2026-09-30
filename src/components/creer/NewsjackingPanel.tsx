@@ -223,7 +223,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
       if (fnError) {
         const msg = fnError.message || "";
-        if (fnError.isRateLimit || msg.includes("limit_reached") || msg.includes("crédits")) {
+        if (data?.error === "limit_reached" && data?.quota?.reason !== "error") {
           setIsQuotaError(true);
           setError("Tu as utilisé tous tes crédits de recherche ce mois-ci.");
         } else {
@@ -233,7 +233,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       }
 
       if (data?.error) {
-        if (data.error.includes("limit_reached") || data.error.includes("crédits") || data.error.includes("générations")) {
+        if (data.error === "limit_reached" && data?.quota?.reason !== "error") {
           setIsQuotaError(true);
           setError(data.message || data.error);
         } else {
@@ -317,7 +317,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
 
       if (fnError) {
         const msg = fnError.message || "";
-        if (fnError.isRateLimit || msg.includes("limit_reached") || msg.includes("crédits")) {
+        if (data?.error === "limit_reached" && data?.quota?.reason !== "error") {
           setIsQuotaError(true);
           setError("Tu as utilisé tous tes crédits de recherche ce mois-ci.");
         } else {
@@ -327,7 +327,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
       }
 
       if (data?.error) {
-        if (data.error.includes("limit_reached") || data.error.includes("crédits") || data.error.includes("générations")) {
+        if (data.error === "limit_reached" && data?.quota?.reason !== "error") {
           setIsQuotaError(true);
           setError(data.message || data.error);
         } else {
@@ -366,7 +366,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   // Helper commun pour mapper une erreur d'invocation vers un message / code
   const mapFnError = (fnError: any): { errMsg: string; errorCode: AnglesState["errorCode"] } => {
     const msg = fnError?.message || "";
-    if (fnError?.isRateLimit || msg.includes("limit_reached")) {
+    if (fnError?.data?.error === "limit_reached" && fnError?.data?.quota?.reason !== "error") {
       return { errMsg: "Tu as atteint ta limite de générations.", errorCode: "RATE_LIMIT" };
     }
     if (fnError?.isTimeout) {

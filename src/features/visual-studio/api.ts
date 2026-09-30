@@ -155,6 +155,11 @@ export interface StudioState {
   generative_allowed?: boolean;
   suggested_photos?: { id: string; name: string; url: string }[];
   quota: {
+    reason?: "total" | "category" | "not_available" | "error";
+    category?: string;
+    available_total?: number;
+    renews_at?: string;
+    usage?: Record<string, { used: number; limit: number }>;
     allowed: boolean;
     plan: string;
     message?: string;

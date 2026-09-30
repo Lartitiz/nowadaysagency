@@ -28,9 +28,10 @@ vi.mock("@/contexts/WorkspaceContext", () => ({
   useWorkspace: () => ({ activeWorkspace: { id: "workspace-1" }, loading: false }),
 }));
 vi.mock("@/hooks/use-user-plan", () => ({
-  useUserPlan: () => ({ ...mocks.userPlan, refresh: mocks.refresh }),
+  useUserPlan: () => ({ verified: true, ...mocks.userPlan, refresh: mocks.refresh }),
 }));
 vi.mock("react-router-dom", () => ({
+  useNavigate: () => vi.fn(),
   Link: ({ to, children, ...rest }: any) => (
     <a href={to} {...rest}>
       {children}
