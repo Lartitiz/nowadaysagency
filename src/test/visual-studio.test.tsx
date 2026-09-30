@@ -1003,3 +1003,15 @@ it("blocks an old proposal while an unsent correction exists and renders actual 
  fireEvent.click(screen.getByRole('button',{name:'Revenir à cette proposition'}));expect(confirm).toBeEnabled();
  expect(mock.request.mock.calls.some(([body])=>body.action==='confirm')).toBe(false);
 });
+it("scrolls to the new advice instead of the preserved proposal",async()=>{
+ const box=vi.spyOn(HTMLElement.prototype,'getBoundingClientRect').mockImplementation(function(this:HTMLElement){
+  return {top:this.classList.contains('studio-chat-confirmation')?1000:this.classList.contains('studio-message')?200:0,bottom:0,left:0,right:0,width:0,height:0,x:0,y:0,toJSON(){return {};}};
+ });
+ try{
+  const state=original();state.session.proposal=proposal;
+  state.session.messages.push({role:'assistant',operation:'advise',text:'Tiens ton assiette pour mieux montrer le motif.'});
+  mock.request.mockResolvedValue(state);const view=mount();
+  await screen.findByText('Tiens ton assiette pour mieux montrer le motif.');
+  await waitFor(()=>expect(view.container.querySelector('.studio-messages')?.scrollTop).toBe(188));
+ }finally{box.mockRestore();}
+});
