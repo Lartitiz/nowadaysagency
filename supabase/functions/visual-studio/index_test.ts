@@ -1352,7 +1352,7 @@ Deno.test("integration confirmation persists the exact approved scene before one
       assertEquals(confirmed.input_path, f.version.result_path);
       assertEquals(confirmed.scene_workflow.approved_scene_id, f.version.id);
       assertEquals(confirmed.references[0].path, person.path);
-      assertEquals(JSON.parse(String(init?.body)).p_proposal, preview.id);
+      assertEquals(JSON.parse(String((init as RequestInit | undefined)?.body)).p_proposal, preview.id);
       return new Response(JSON.stringify({ claimed: false }), { headers: { "Content-Type": "application/json" } });
     }
     return savedFetch(input, init);
