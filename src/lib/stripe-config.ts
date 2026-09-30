@@ -19,7 +19,8 @@ export const STRIPE_PLANS = {
     productId: "prod_U66mTd9s81uGAY",
     mode: "subscription" as const,
     features: [
-      "Création illimitée (contenus + audits)",
+      "Textes sans compter (contenus + audits)",
+      "20 carrousels, 30 images et 3 vidéos par mois",
       "Tous les modules Instagram, LinkedIn, Pinterest",
       "Calendrier éditorial",
       "Atelier de rédaction",

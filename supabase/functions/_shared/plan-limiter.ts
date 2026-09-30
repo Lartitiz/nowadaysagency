@@ -6,15 +6,23 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { assertWorkspaceMembership } from "./workspace-guard.ts";
 
-// Modèle de crédits simplifié (2026-06) :
-//  - `total` = LE compteur global unique de créations du mois (toutes catégories
-//    de génération confondues). C'est le seul chiffre que voit la cliente.
-//  - `audit` = sous-plafond dédié aux audits (compte dans `total`).
-//  - `quality_max` = carrousels Opus « Qualité Max », le SEUL poste vraiment
-//    coûteux → plafonné. Gratuit = 0 (réservé au payant). 20 ≈ break-even à 39€.
-//  - `photo_retouch` = génération d'image (coût propre) → gardé borné.
-//  - Toutes les autres catégories sont alignées sur `total` pour que le compteur
-//    global soit la seule vraie limite (le détail par catégorie devient cosmétique).
+// Grille des forfaits (01/10/2026) — « Pour 39 € par mois : tous tes textes
+// sans compter, 20 carrousels, 30 images et 3 vidéos. »
+//  - `total` = compteur global de TOUTES les générations du mois. En gratuit
+//    c'est le chiffre affiché (23). En payant c'est un garde-fou d'usage
+//    raisonnable INVISIBLE (200 Premium / 400 Binôme) : l'interface affiche
+//    « Illimité » (cf. src/lib/plan-limits.ts `isFairUsePlan`), les CGV le citent.
+//  - `carousel` = carrousels rédigés (1 unité par carrousel, Qualité Max
+//    compris ; la mise en forme visuelle est journalisée en `content`).
+//  - `photo_retouch` = toute génération ou retouche d'image (Studio, retouches,
+//    mises en scène, couvertures, pictos).
+//  - `video` = clips vidéo du Studio.
+//  - `quality_max` = DROIT D'ACCÈS au mode Qualité Max (0 = indisponible en
+//    gratuit). Plus aucune ligne n'est journalisée dans cette catégorie.
+//  - `carousel`, `photo_retouch` et `video` sont des plafonds DURS : les
+//    crédits bonus ne les lèvent pas (HARD_CAP_CATEGORIES), car leur coût
+//    unitaire (≈0,60 € / 0,10 € / 1 € et plus) dépasse le prix d'un crédit bonus.
+//  - Les autres catégories sont alignées sur `total` (détail cosmétique).
 export const PLAN_LIMITS: Record<string, Record<string, number>> = {
   free: {
     total: 23,
@@ -29,36 +37,45 @@ export const PLAN_LIMITS: Record<string, Record<string, number>> = {
     deep_research: 23,
     photo_retouch: 5,
     quality_max: 0,
+    carousel: 3,
+    video: 0,
   },
   outil: {
-    total: 9999,
-    content: 9999,
-    audit: 9999,
-    dm_comment: 9999,
-    bio_profile: 9999,
-    suggestion: 9999,
-    coach: 9999,
-    import: 9999,
-    adaptation: 9999,
-    deep_research: 9999,
-    photo_retouch: 50,
+    total: 200,
+    content: 200,
+    audit: 200,
+    dm_comment: 200,
+    bio_profile: 200,
+    suggestion: 200,
+    coach: 200,
+    import: 200,
+    adaptation: 200,
+    deep_research: 200,
+    photo_retouch: 30,
     quality_max: 20,
+    carousel: 20,
+    video: 3,
   },
   binome: {
-    total: 9999,
-    content: 9999,
-    audit: 9999,
-    dm_comment: 9999,
-    bio_profile: 9999,
-    suggestion: 9999,
-    coach: 9999,
-    import: 9999,
-    adaptation: 9999,
-    deep_research: 9999,
-    photo_retouch: 100,
+    total: 400,
+    content: 400,
+    audit: 400,
+    dm_comment: 400,
+    bio_profile: 400,
+    suggestion: 400,
+    coach: 400,
+    import: 400,
+    adaptation: 400,
+    deep_research: 400,
+    photo_retouch: 60,
     quality_max: 40,
+    carousel: 40,
+    video: 6,
   },
 };
+
+/** Plafonds que les crédits bonus ne lèvent jamais (coût unitaire élevé). */
+export const HARD_CAP_CATEGORIES = new Set<string>(["carousel", "photo_retouch", "video"]);
 
 /** Resolve legacy plan names still in DB to current plan keys */
 const PLAN_ALIASES: Record<string, string> = {
@@ -80,8 +97,10 @@ const CATEGORY_LABELS: Record<string, string> = {
   import: "imports",
   adaptation: "adaptations",
   deep_research: "recherches approfondies",
-  photo_retouch: "retouches photo",
+  photo_retouch: "images",
   quality_max: "carrousels Qualité Max",
+  carousel: "carrousels",
+  video: "vidéos",
 };
 
 export interface QuotaResult {
@@ -381,7 +400,10 @@ export async function checkQuota(
   // Le plafond global reste vérifié au-dessus (effectiveTotalLimit inclut les
   // bonus) ; les catégories à cap 0 (quality_max sur free) restent indisponibles
   // (return not_available plus haut, les bonus ne les débloquent pas).
-  if (categoryUsed >= limits[category] && bonusCredits <= 0) {
+  // Exception (01/10/2026) : les plafonds DURS (HARD_CAP_CATEGORIES : carrousels,
+  // images, vidéos) bloquent MÊME avec des bonus — sinon un seul crédit bonus
+  // suffisait à lever les plafonds carrousels/images d'une abonnée.
+  if (categoryUsed >= limits[category] && (bonusCredits <= 0 || HARD_CAP_CATEGORIES.has(category))) {
     const label = CATEGORY_LABELS[category] || category;
     const nextMonth = new Date();
     nextMonth.setMonth(nextMonth.getMonth() + 1, 1);

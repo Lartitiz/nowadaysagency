@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
-import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight, Cookie, RotateCcw, Map, Share2, CalendarHeart, Gem, Handshake, ClipboardList, Lightbulb, User, FileText, Search, FileUp, RefreshCw, type LucideIcon } from "lucide-react";
+import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight, Cookie, RotateCcw, Map, Share2, CalendarHeart, Gem, Handshake, ClipboardList, Lightbulb, User, FileText, Search, FileUp, RefreshCw, Image as ImageIcon, Video, type LucideIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,7 @@ import { MODULE_FLAGS } from "@/config/feature-flags";
 import PurchaseHistory from "@/components/settings/PurchaseHistory";
 import WorkspaceMembersSection from "@/components/settings/WorkspaceMembersSection";
 import PromoCodeInput from "@/components/PromoCodeInput";
+import { isFairUsePlan } from "@/lib/plan-limits";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -704,6 +705,9 @@ const WEEKDAYS = [
 ];
 
 const QUOTA_CATEGORIES: { key: string; icon: LucideIcon; label: string }[] = [
+  { key: "carousel", icon: Sparkles, label: "Carrousels" },
+  { key: "photo_retouch", icon: ImageIcon, label: "Images" },
+  { key: "video", icon: Video, label: "Vidéos" },
   { key: "content", icon: FileText, label: "Contenus" },
   { key: "audit", icon: Search, label: "Audits" },
   { key: "dm_comment", icon: Mail, label: "DM / Commentaires" },
@@ -717,6 +721,9 @@ function AiQuotaDisplay() {
   const { plan, usage, isPaid } = useUserPlan();
   const planLabel = plan === "binome" ? "Binôme de com (290€/mois)" : plan === "outil" ? "Premium (39€/mois)" : "Gratuit";
   const total = usage.total;
+  // Plans payants : le global est un garde-fou d'usage raisonnable, pas un
+  // compteur à montrer (grille 01/10/2026) — seuls les plafonds durs s'affichent.
+  const fairUse = isFairUsePlan(plan, total?.limit);
   const nextMonth = new Date();
   nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
 
@@ -727,6 +734,7 @@ function AiQuotaDisplay() {
         {QUOTA_CATEGORIES.map(({ key, icon: Icon, label }) => {
           const cat = usage[key];
           if (!cat || cat.limit === 0) return null;
+          if (fairUse && (cat.limit >= 9999 || (total && cat.limit >= total.limit))) return null;
           const pct = Math.round((cat.used / cat.limit) * 100);
           return (
             <div key={key} className="space-y-1">
@@ -742,7 +750,7 @@ function AiQuotaDisplay() {
       {total && (
         <div className="pt-2 border-t border-border flex justify-between text-sm font-medium">
           <span>Total</span>
-          <span>{total.used}/{total.limit}</span>
+          <span>{fairUse ? `${total.used} · sans compter` : `${total.used}/${total.limit}`}</span>
         </div>
       )}
       <p className="text-xs text-muted-foreground">Renouvellement : {nextMonth.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>

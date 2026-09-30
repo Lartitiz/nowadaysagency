@@ -66,7 +66,7 @@ function QuotaExhaustedCard({
             onClick={() => versTarifs(navigate)}
             className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-white hover:bg-primary transition-colors"
           >
-            Passer au Premium — création illimitée ✨
+            Passer à Premium — textes sans compter ✨
           </button>
           <p className="text-xs text-muted-foreground mt-2">
             À partir de 39€/mois, sans engagement

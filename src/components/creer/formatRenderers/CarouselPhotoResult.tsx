@@ -581,7 +581,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     }
     if (data?.error === "limit_reached" || error?.isRateLimit) {
       setGenState((p) => ({ ...p, [idx]: { ...p[idx], loading: false } }));
-      toast.error("Tu as utilisé toutes tes retouches photo du mois", {
+      toast.error("Tu as utilisé toutes tes images du mois", {
         description: "Elles se rechargent au début du mois prochain.",
       });
       return;

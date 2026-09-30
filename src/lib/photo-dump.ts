@@ -260,7 +260,7 @@ export async function runPhotoDump(opts: RunPhotoDumpOptions): Promise<RunPhotoD
         if (data?.error === "premium_required") throw new PremiumRequiredError();
         if (data?.error === "limit_reached" || error?.isRateLimit) {
           creditsExhausted = true;
-          toast.error("Tu as utilisé toutes tes retouches photo du mois", {
+          toast.error("Tu as utilisé toutes tes images du mois", {
             description: "Les slides à générer ont été sautées — la séquence continue sans elles.",
           });
           finish(false, true);
@@ -308,7 +308,7 @@ export async function runPhotoDump(opts: RunPhotoDumpOptions): Promise<RunPhotoD
       if (data?.error === "premium_required") throw new PremiumRequiredError();
       if (data?.error === "limit_reached" || error?.isRateLimit) {
         creditsExhausted = true;
-        toast.error("Tu as utilisé toutes tes retouches photo du mois", {
+        toast.error("Tu as utilisé toutes tes images du mois", {
           description: "Les slides à générer ont été sautées — la séquence continue sans elles.",
         });
         finish(false, true);

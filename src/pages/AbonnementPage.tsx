@@ -5,19 +5,23 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CreditCard, Loader2, ArrowRight, Zap, ChevronDown, ChevronUp, Gift, Search, Sparkles, Handshake, Gem, Target, Lightbulb, BarChart3, Check, Phone, Flame, type LucideIcon } from "lucide-react";
+import { CreditCard, Loader2, ArrowRight, Zap, ChevronDown, ChevronUp, Gift, Search, Sparkles, Handshake, Gem, Target, Lightbulb, BarChart3, Check, Phone, Flame, Image as ImageIcon, Video, type LucideIcon } from "lucide-react";
 import { useUserPlan, type AiCategory } from "@/hooks/use-user-plan";
 import { STRIPE_PLANS, CREDIT_PACKS } from "@/lib/stripe-config";
 import { Link } from "react-router-dom";
+import { isFairUsePlan } from "@/lib/plan-limits";
 import PromoCodeInput from "@/components/PromoCodeInput";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 // Compteur global unique (« total ») affiché en tête. Ici on ne détaille que les
-// deux sous-plafonds qui ont vraiment du sens : les audits et les carrousels
-// Qualité Max (Opus, réservés au payant). Le reste compte dans le compteur global.
+// sous-plafonds qui ont vraiment du sens (grille du 01/10/2026) : carrousels
+// (Qualité Max compris), images, vidéos, et les audits du gratuit. Le reste
+// compte dans le compteur global.
 const QUOTA_CATEGORIES: { key: AiCategory; icon: LucideIcon; label: string }[] = [
+  { key: "carousel", icon: Sparkles, label: "Carrousels (Qualité Max compris)" },
+  { key: "photo_retouch", icon: ImageIcon, label: "Images" },
+  { key: "video", icon: Video, label: "Vidéos" },
   { key: "audit", icon: Search, label: "Audits" },
-  { key: "quality_max", icon: Sparkles, label: "Carrousels Qualité Max" },
 ];
 
 // Icônes filaires des packs de crédits (le champ `emoji` de CREDIT_PACKS reste
@@ -136,7 +140,7 @@ export default function AbonnementPage() {
   const totalUsedCapped = Math.min(totalUsed, totalLimit);
   const totalPct = totalLimit > 0 ? Math.min(100, Math.round((totalUsed / totalLimit) * 100)) : 0;
   const totalRemaining = Math.max(0, totalLimit - totalUsed);
-  const isUnlimited = totalLimit >= 9999;
+  const isUnlimited = isFairUsePlan(isAdminAccess ? "admin" : subInfo?.plan, totalLimit);
   const isExhausted = !isUnlimited && totalRemaining === 0;
   const monthName = new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
   const renewalDate = getNextRenewalDate();
@@ -230,7 +234,7 @@ export default function AbonnementPage() {
                   <span className="font-semibold text-primary">Illimité</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {isAdminAccess ? "Accès illimité de gestion et de démonstration." : "Crée autant que tu veux. Seuls les carrousels Qualité Max ont un quota mensuel."}
+                  {isAdminAccess ? "Accès illimité de gestion et de démonstration." : "Tes textes sans compter. Les carrousels, les images et les vidéos ont un plafond mensuel : clique sur « Voir le détail »."}
                 </p>
               </>
             ) : (
@@ -283,7 +287,9 @@ export default function AbonnementPage() {
                 const catUsage = usage[cat.key];
                 // Masque les sous-plafonds non pertinents : 0 (non dispo sur ce
                 // plan) et illimité (≥9999, inutile d'afficher « X/9999 »).
-                if (!catUsage || catUsage.limit === 0 || catUsage.limit >= 9999) return null;
+                // (la valeur alignée sur le garde-fou global, ex. audits 200 en
+                // Premium, n'est pas un plafond à montrer non plus).
+                if (!catUsage || catUsage.limit === 0 || catUsage.limit >= 9999 || (isUnlimited && catUsage.limit >= totalLimit)) return null;
                 const pct = catUsage.limit > 0 ? Math.round((catUsage.used / catUsage.limit) * 100) : 0;
                 return (
                   <div key={cat.key}>
@@ -367,7 +373,7 @@ export default function AbonnementPage() {
             <div className="mt-5 pt-4 border-t border-border">
               <p className="text-sm font-semibold text-foreground mb-1">Envie de plus de crédits ?</p>
               <p className="text-xs text-muted-foreground mb-3">
-                Le plan Premium débloque la création illimitée + la publication automatique sur tes réseaux.
+                Le plan Premium : tes textes sans compter, 20 carrousels, 30 images et 3 vidéos par mois, plus la publication automatique sur tes réseaux.
               </p>
               <Link to="/pricing">
                 <Button size="sm" variant="outline" className="rounded-full text-xs">
@@ -393,7 +399,7 @@ export default function AbonnementPage() {
             <PlanCard
               name="Premium"
               price="39€/mois"
-              credits="Création illimitée"
+              credits="Textes sans compter · 20 carrousels · 30 images · 3 vidéos / mois"
               active={plan === "outil"}
               onSelect={() => handleCheckout(STRIPE_PLANS.outil.priceId)}
               disabled={plan === "outil" || portalLoading}
@@ -405,7 +411,7 @@ export default function AbonnementPage() {
               <p className="text-lg font-semibold text-primary-text mt-1">290€/mois</p>
               <p className="text-xs text-muted-foreground mt-0.5">Engagement 6 mois</p>
               <div className="text-2xs text-muted-foreground mt-1 space-y-0.5 text-left">
-                <p className="flex items-start gap-1"><Check className="h-3 w-3 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> L'outil complet en illimité</p>
+                <p className="flex items-start gap-1"><Check className="h-3 w-3 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> L'outil complet : 40 carrousels, 60 images, 6 vidéos / mois</p>
                 <p className="flex items-start gap-1"><Check className="h-3 w-3 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> 3 sessions fondations</p>
                 <p className="flex items-start gap-1"><Check className="h-3 w-3 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> 4 sessions focus personnalisées</p>
                 <p className="flex items-start gap-1"><Check className="h-3 w-3 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> WhatsApp illimité 6 mois</p>

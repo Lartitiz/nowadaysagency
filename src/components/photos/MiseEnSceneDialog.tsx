@@ -201,7 +201,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
       return null;
     }
     if (data?.error === "limit_reached" || error?.isRateLimit) {
-      toast.error("Tu as utilisé toutes tes retouches photo du mois", {
+      toast.error("Tu as utilisé toutes tes images du mois", {
         description: "Elles se rechargent au début du mois prochain.",
       });
       return null;

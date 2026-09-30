@@ -4,6 +4,7 @@ import { trackError } from "@/lib/error-tracker";
 import { supabase } from "@/integrations/supabase/client";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { HARD_CAP_CATEGORIES } from "@/lib/plan-limits";
 
 type Plan = "free" | "outil" | "binome";
 
@@ -41,7 +42,7 @@ const BINOME_FEATURES: Feature[] = [
 ];
 
 
-export type AiCategory = "content" | "audit" | "dm_comment" | "bio_profile" | "suggestion" | "coach" | "import" | "adaptation" | "deep_research" | "quality_max";
+export type AiCategory = "content" | "audit" | "dm_comment" | "bio_profile" | "suggestion" | "coach" | "import" | "adaptation" | "deep_research" | "quality_max" | "carousel" | "photo_retouch" | "video";
 
 export interface CategoryUsage {
   used: number;
@@ -216,6 +217,8 @@ export function useUserPlan(): UserPlanState {
     if (total.used >= total.limit) return false;
     // Même règle que l'enforcement (plan-limiter) : tant qu'il reste des bonus,
     // le cap catégorie ne bloque pas — seul le plafond global (bonus inclus) compte.
+    // Sauf les plafonds DURS (carrousels, images, vidéos), que les bonus ne lèvent pas.
+    if (HARD_CAP_CATEGORIES.includes(category)) return cat.used < cat.limit;
     return cat.used < cat.limit || bonusCredits > 0;
   }, [usage, isDemoMode, demoPlanResolved, isAdminUser, bonusCredits]);
 
@@ -287,6 +290,9 @@ function getDemoUsage(demoPlan: string, demoData: any): Record<string, CategoryU
   return {
     content: { used: 8, limit: 9999 },
     audit: { used: 1, limit: 9999 },
+    carousel: { used: 6, limit: 40 },
+    photo_retouch: { used: 12, limit: 60 },
+    video: { used: 1, limit: 6 },
     dm_comment: { used: 4, limit: 50 },
     bio_profile: { used: 1, limit: 15 },
     suggestion: { used: 2, limit: 30 },

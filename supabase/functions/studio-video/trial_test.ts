@@ -35,3 +35,19 @@ Deno.test("cohort lane ceilings only ever lower, never raise", async () => {
   assert(ceilingUsd("cohort") === 0 && ceilingUsd(null) === 0, "off without env");
   assert(COHORT_WORKSPACE_MAX_SUBMISSIONS === 2, "2 videos max per participant");
 });
+Deno.test("plan lane (grille 01/10/2026) : 3 clips Premium, 6 Binôme, aucun en gratuit ; clip ≤ 2 $", async () => {
+  const { ceilingUsd, maxQuoteUsd, planVideoClips, PLAN_CLIP_LIMIT_USD, PLAN_TOTAL_LIMIT_USD, exhaustedMessage, overQuoteMessage } = await import("./index.ts");
+  assert(planVideoClips("outil") === 3 && planVideoClips("binome") === 6, "clips par forfait");
+  assert(planVideoClips("free") === 0 && planVideoClips("inconnu") === 0, "pas de vidéo hors forfait payant");
+  Deno.env.set("HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD", "500");
+  assert(ceilingUsd("plan") === PLAN_TOTAL_LIMIT_USD, "env cannot raise the global plan ceiling");
+  assert(maxQuoteUsd("plan") === PLAN_CLIP_LIMIT_USD && PLAN_CLIP_LIMIT_USD === 2, "clip ≤ 2 $ (480p jusqu'à 8 s)");
+  Deno.env.set("HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD", "1");
+  assert(ceilingUsd("plan") === 1 && maxQuoteUsd("plan") === 1, "env lowers");
+  Deno.env.delete("HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD");
+  assert(ceilingUsd("plan") === 0, "off without env");
+  assert(exhaustedMessage("plan", 3).includes("tes 3 vidéos du mois"), "message forfait épuisé");
+  assert(overQuoteMessage("plan").includes("8 secondes en 480p"), "message devis trop cher");
+  assert(claimFailureMessage({ message: "video_month_exhausted" }).includes("vidéos du mois"), "claim month exhausted");
+  assert(claimFailureMessage({ message: "video_clip_too_expensive" }).includes("480p"), "claim clip too expensive");
+});

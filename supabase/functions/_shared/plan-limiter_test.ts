@@ -204,6 +204,37 @@ Deno.test("free: quality_max reste indisponible même avec des bonus", async () 
   assertEquals(r.reason, "not_available");
 });
 
+// Grille du 01/10/2026 : carrousels, images et vidéos sont des plafonds DURS.
+// Avant, un seul crédit bonus suffisait à lever le plafond carrousels/images
+// d'une abonnée Premium (le cap catégorie sautait dès que bonus > 0).
+for (const [cat, cap] of [["carousel", 20], ["photo_retouch", 30], ["video", 3]] as const) {
+  Deno.test(`outil: ${cat} bloque à ${cap} MÊME avec des crédits bonus`, async () => {
+    const r = await checkQuota("u1", cat, undefined, sb({ userPlan: "outil", usage: rows(cap, cat), bonusCredits: 50 }));
+    assertEquals(r.allowed, false);
+    assertEquals(r.reason, "category");
+  });
+  Deno.test(`outil: ${cat} autorisé sous le plafond (${cap - 1}/${cap})`, async () => {
+    const r = await checkQuota("u1", cat, undefined, sb({ userPlan: "outil", usage: rows(cap - 1, cat) }));
+    assertEquals(r.allowed, true);
+  });
+}
+
+Deno.test("outil: garde-fou d'usage raisonnable à 200 générations, levé par les bonus", async () => {
+  const blocked = await checkQuota("u1", "content", undefined, sb({ userPlan: "outil", usage: rows(200, "content") }));
+  assertEquals(blocked.allowed, false);
+  assertEquals(blocked.reason, "total");
+  const withBonus = await checkQuota("u1", "content", undefined, sb({ userPlan: "outil", usage: rows(200, "content"), bonusCredits: 10 }));
+  assertEquals(withBonus.allowed, true);
+});
+
+Deno.test("free: vidéo indisponible, carrousels plafonnés à 3", async () => {
+  const video = await checkQuota("u1", "video", undefined, sb({ userPlan: "free" }));
+  assertEquals(video.reason, "not_available");
+  const carousel = await checkQuota("u1", "carousel", undefined, sb({ userPlan: "free", usage: rows(3, "carousel"), bonusCredits: 10 }));
+  assertEquals(carousel.allowed, false);
+  assertEquals(carousel.reason, "category");
+});
+
 Deno.test("erreur de lecture usage → fail-closed (bloqué, reason error)", async () => {
   const r = await checkQuota("u1", "content", undefined, sb({ userPlan: "free", usageError: true }));
   assertEquals(r.allowed, false);

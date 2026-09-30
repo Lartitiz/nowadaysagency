@@ -1840,8 +1840,10 @@ serve(async (req) => {
     const ownerWorkspaceId = wsMember?.workspace_id;
 
     const reqBody = parsedBody;
-    // Carrousel « Qualité Max » = Opus (~50× le coût d'un post) → quota dédié
-    // `quality_max` (gratuit = 0, Premium = 20/mois).
+    // Grille du 01/10/2026 : le carrousel est décompté UNE fois, à la rédaction
+    // (catégorie `carousel` dans carousel-ai). Ici, `quality_max` ne sert plus
+    // que de droit d'accès (0 en gratuit → not_available) ; la mise en forme est
+    // journalisée en `content` (compteur global, coût suivi par cron-health).
     const quota = await checkQuota(user.id, reqBody?.quality_max ? "quality_max" : "content", ownerWorkspaceId);
     if (!quota.allowed) {
       return quotaDeniedResponse(quota, corsHeaders);
@@ -2319,7 +2321,7 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     const coverIllustrationDone = await applyCoverIllustration(result, { reqBody, slides, ch, userId: user.id, workspaceId, usage });
     // En DERNIER : la couverture illustrée remplace aussi du HTML.
     applyMinFontSizeGuard(result);
-    await logUsage(user.id, reqBody?.quality_max ? "quality_max" : "content", "carousel_visual", usage.total_tokens, usage.model, workspaceId);
+    await logUsage(user.id, "content", "carousel_visual", usage.total_tokens, usage.model, workspaceId);
 
     return new Response(JSON.stringify({ result, cover_illustration_applied: coverIllustrationDone, remaining: quota.remaining }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

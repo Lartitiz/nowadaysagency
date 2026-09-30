@@ -11,7 +11,6 @@ import { runPipeline } from "../_shared/request-pipeline.ts";
 import { callAnthropic, SONNET_MODEL } from "../_shared/anthropic.ts";
 import {
   checkQuota,
-  getBonusCredits,
   getServiceClient,
   isQaTestAccount,
   PLAN_LIMITS,
@@ -1466,8 +1465,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           session = unwrap(await sb.from("visual_studio_sessions").update({ proposal: prepared })
             .eq("id", session.id).eq("revision", session.revision).select("*").single());
         }
-        const exempt = isQaTestAccount(actor) || quota.plan === "admin",
-          bonus = exempt ? 0 : await getBonusCredits(sb, actor);
+        const exempt = isQaTestAccount(actor) || quota.plan === "admin";
         const limits = PLAN_LIMITS[quota.plan] || PLAN_LIMITS.free;
         const claim = unwrap(
           await sb.rpc("studio_confirm_generation", {
@@ -1475,9 +1473,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             p_session: session.id,
             p_proposal: p.proposal_id,
             p_total_limit: quota.usage?.total.limit ?? 9999,
-            p_image_limit: bonus > 0
-              ? (quota.usage?.total.limit ?? 9999)
-              : limits.photo_retouch,
+            // Plafond DUR (grille du 01/10/2026) : les crédits bonus ne lèvent
+            // plus le plafond images (cf. HARD_CAP_CATEGORIES, plan-limiter).
+            p_image_limit: limits.photo_retouch,
             p_charge: !exempt,
             p_base_total: limits.total,
           }),

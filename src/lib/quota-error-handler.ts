@@ -45,6 +45,19 @@ export function handleQuotaError(error: any): boolean {
   const quota = error?.data?.quota || error?.quota;
   const reason = quota?.reason || error?.data?.category;
 
+  // Plans payants (grille 01/10/2026) : plafond du mois atteint (carrousels,
+  // images, vidéos ou garde-fou d'usage raisonnable). Pas de mur « Passe à
+  // Premium » ni de lien vers les tarifs pour quelqu'un qui paie déjà : on dit
+  // clairement ce qui est atteint et quand ça se renouvelle.
+  const paidPlan = quota?.plan === "outil" || quota?.plan === "binome";
+  if (paidPlan && !serverMessage.includes("disponible à partir")) {
+    toast("Plafond du mois atteint 🌸", {
+      description: serverMessage || "Tes plafonds se renouvellent le 1er du mois prochain.",
+      duration: 8000,
+    });
+    return true;
+  }
+
   // Si quota total épuisé ET callback enregistré → ouvrir le modal
   if (_quotaWallCallback && (reason === "total" || serverMessage.includes("générations IA ce mois"))) {
     _quotaWallCallback({
