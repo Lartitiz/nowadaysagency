@@ -1540,6 +1540,7 @@ function CreerWorkspace() {
   const handleConfirmStructure = async (
     confirmedSlides: SlideProposal[],
     proposalOverride?: StructureProposal,
+    answersOverride?: Record<string, string>,
   ) => {
     if (generating) return; // garde anti double-clic (évite une 2e génération facturée)
     const enrichedSubject = existingCalendarContent
@@ -1560,7 +1561,7 @@ function CreerWorkspace() {
     const rekeyedAnswers: Record<string, string> = (() => {
       const textById = new Map(questions.map((q) => [q.id, q.question]));
       const out: Record<string, string> = {};
-      for (const [id, v] of Object.entries(answers)) {
+      for (const [id, v] of Object.entries(answersOverride ?? answers)) {
         if (!v || !v.trim()) continue;
         out[textById.get(id) || id] = v;
       }
@@ -2855,6 +2856,7 @@ function CreerWorkspace() {
                 initialAnswers={briefPrefillAnswers ?? (Object.keys(answers).length > 0 ? answers : undefined) ?? (aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined)}
                 onAnswersChange={setAnswers}
                 autoFirstContent={autoFlow}
+                allowNarrative={selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix")}
               />
             )}
 
