@@ -430,8 +430,8 @@ export default function AbonnementPage() {
               {plan === "binome" ? (
                 <span className="inline-block mt-3 text-xs font-semibold text-primary-text">Plan actuel ✓</span>
               ) : (
-                <Button size="sm" variant="outline" className="mt-3 rounded-full text-xs gap-1.5" onClick={() => window.open("https://calendly.com/laetitia-mattioli/appel-decouverte", "_blank")}>
-                  <Phone className="h-3.5 w-3.5" strokeWidth={1.75} /> Réserver un appel découverte
+                <Button size="sm" variant="outline" className="mt-3 w-full h-auto min-h-8 whitespace-normal rounded-full px-2 py-2 text-xs leading-snug gap-1.5" onClick={() => window.open("https://calendly.com/laetitia-mattioli/appel-decouverte", "_blank")}>
+                  <Phone className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} /> Réserver un appel découverte
                 </Button>
               )}
             </div>

@@ -96,6 +96,25 @@ describe("ProtectedRoute — pas de redirection prématurée pendant le chargeme
 });
 
 describe("ProtectedRoute — gating onboarding", () => {
+  it("garde la facturation accessible avec un onboarding incomplet sans le marquer terminé", async () => {
+    mocks.location.pathname = "/abonnement";
+    sessionStorage.setItem("onboarding_checked:u1", "needs");
+    mocks.resolveOnboardingStatus.mockResolvedValue("needs");
+    renderProtected();
+    await waitFor(() => expect(screen.getByTestId("children")).toBeInTheDocument());
+    expect(screen.queryByTestId("navigate")).not.toBeInTheDocument();
+    expect(sessionStorage.getItem("onboarding_checked:u1")).toBe("needs");
+    expect(mocks.resolveOnboardingStatus).not.toHaveBeenCalled();
+  });
+
+  it("exige toujours la connexion pour consulter la facturation", async () => {
+    mocks.location.pathname = "/abonnement";
+    mocks.auth.user = null;
+    renderProtected();
+    await waitFor(() => expect(screen.getByTestId("navigate")).toHaveAttribute("data-to", "/login?redirect=%2Fabonnement"));
+    expect(screen.queryByTestId("children")).not.toBeInTheDocument();
+  });
+
   it("redirige vers /onboarding quand le statut est \"needs\"", async () => {
     mocks.resolveOnboardingStatus.mockResolvedValue("needs");
     renderProtected();
