@@ -17,7 +17,11 @@ export async function integrationProposal(version: SceneVersion, currentReferenc
   if (currentReferences && scene.scene_reference_signature && referenceSignature(currentReferences) !== scene.scene_reference_signature) return null;
   if (version.status !== "ready" || workflow?.phase !== "scene") return null;
   const refs = (scene.planning_references || []).filter(exactReference);
-  const targets = workflow.targets || [];
+  const targets = (workflow.targets || []).map(t => ({ ...t,
+    instruction: t.role === "product"
+      ? `Remplacer le produit provisoire par le produit exact des originaux, avec sa forme, ses matières et ses motifs observés. Adapter uniquement les raccords nécessaires. Consigne préparée : ${t.instruction}`
+      : `Remplacer la personne provisoire par la personne exacte des originaux : visage, cheveux et morphologie. Conserver la pose et la tenue approuvées, adapter les raccords nécessaires. Consigne préparée : ${t.instruction}`,
+  }));
   if (!refs.length || !validTargets(targets, refs)) return null;
   const references = [...refs]
     .sort((a, b) => Number(b.role === "product") - Number(a.role === "product"));

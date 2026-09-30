@@ -8,7 +8,7 @@ Deno.test("Soul2 accepts only source-free photographs without rendered text", ()
   const photo = { operation: "create", visual_kind: "photo" as const, image_prompt: "Portrait éditorial", format: "portrait" };
   assertEquals(soul2Eligible(photo), true);
   assertEquals(imageInput({ ...photo, model: SOUL2_MODEL }, []), {
-    prompt: imageInput({ ...photo, model: "marketing-studio/image/flare" }, []).prompt,
+    prompt: photo.image_prompt,
     batch_size: 1, resolution: "1080p", aspect_ratio: "2:3",
     enhance_prompt: false, image_urls: undefined,
   });
@@ -287,7 +287,7 @@ Deno.test("a status 404 after accepted submission never marks it failed or permi
 
 
 Deno.test("Soul identity i2i accepts exactly one identity image, never product or multiple references", () => {
-  const p = { operation: "create", visual_kind: "photo" as const, model: "higgsfield-ai/soul/v2/image-to-image",
+  const p = { operation: "create", visual_kind: "photo" as const, image_prompt: "A person photographed in the confirmed scene.", model: "higgsfield-ai/soul/v2/image-to-image",
     scene_workflow: { phase: "scene" as const, camera_match: "Vue compatible" },
     references: [{ id: "person", photo_id: null, path: "person", role: "person" as const, name: "Personne" }] };
   const input = imageInput(p, ["https://example.com/person.jpg"]);
