@@ -343,3 +343,41 @@ Deno.test("final judge excludes a misleading plan and binds every transition to 
   wrong.boundaries[0].from_field_ids = [];
   assertEquals(validateProgressionReport(wrong, doc, sources), "boundary-evidence:0:from");
 });
+
+Deno.test("frontières : une paire sélectionnée par ID restitue ses références et conserve une rupture", async () => {
+  const r = valid();
+  const { from: _from, to: _to, ...boundary } = r.boundaries[0];
+  const result = await reviewCarouselProgression(doc, { sources, call: async (o) => {
+    const schema: any = o.tool!.input_schema;
+    assertEquals(schema.properties.boundaries.items.properties.boundary_id.enum, ["slides.0->slides.1"]);
+    assertEquals(schema.properties.boundaries.items.properties.inherits.minLength, 1);
+    assertEquals(schema.properties.boundaries.items.properties.advances.minLength, 1);
+    assert(!schema.properties.boundaries.items.required.includes("from"));
+    return JSON.stringify({ ...r, boundaries: [{ ...boundary, boundary_id: "slides.0->slides.1", kind: "rupture", inherits: "Aucun raccord explicite.", advances: "La pratique arrive sans lien expliqué." }] });
+  }});
+  assertEquals(result.execution_status, "completed");
+  assertEquals(result.verdict, "needs_repair");
+  assert(result.report);
+  assertEquals(result.report.boundaries[0].from, "slides.0");
+  assertEquals(result.report.boundaries[0].to, "slides.1");
+});
+
+Deno.test("frontières : reprise de format précise le champ vide sans effacer le défaut", async () => {
+  let calls = 0;
+  const r = valid(); r.verdict = "needs_repair"; r.boundaries[0].kind = "rupture"; r.boundaries[0].inherits = "";
+  const result = await reviewCarouselProgression(doc, { sources, call: async (o) => {
+    calls++;
+    if (calls === 2) {
+      assert(JSON.stringify(o.messages).includes("boundary-reference:0:inherits:nonempty-string-required"));
+      r.boundaries[0].inherits = "Aucun lien visible.";
+    }
+    return JSON.stringify(r);
+  }});
+  assertEquals(calls, 2); assertEquals(result.execution_status, "completed"); assertEquals(result.verdict, "needs_repair");
+});
+
+Deno.test("frontières : une paire inconnue ne peut pas reprendre des références valides", async () => {
+  const r = valid();
+  const result = await reviewCarouselProgression(doc, { sources, call: async () => JSON.stringify({ ...r, boundaries: [{ ...r.boundaries[0], boundary_id: "slides.1->slides.0" }] }) });
+  assertEquals(result.execution_status, "invalid"); assertEquals(result.reason, "boundary-reference:0:pair"); assertEquals(result.verdict, null);
+});
