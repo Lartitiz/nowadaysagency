@@ -47,16 +47,64 @@ L'intégration édite une IMAGE précise, fournie ou sélectionnée : phase=inte
 Pour corriger la scène avant intégration, phase=scene et operation=edit sur cette version ; conserve targets et tous les originaux réservés. Pour les corrections après intégration, phase=integration et operation=edit : seules les nouvelles corrections changent, les autres choix validés et originaux subsistent. Ne réintègre pas une deuxième fois les sujets. Pour une demande indépendante, n'hérite pas des références de la branche. Chaque génération reste confirmée, et la scène doit être visible avant l'intégration.`;
 
 export function exactReference(ref: Reference) {
-  return ["person", "casting", "product"].includes(ref.role);
+  return ["person", "casting", "product", "person_product"].includes(ref.role);
 }
 
 /** Reject invented IDs and incomplete subject mappings; never silently drop an original. */
 export function validTargets(targets: IntegrationTarget[], refs: Reference[]) {
   const exact = refs.filter(exactReference);
-  const ids = targets.flatMap(t => t.reference_ids);
+  const keys = targets.flatMap(t => t.reference_ids.map(id => `${id}:${t.role}`));
   return targets.every(t => t.reference_ids.length > 0 && t.location.trim() && t.instruction.trim() &&
-    t.reference_ids.every(id => exact.some(r => r.id === id && r.role === t.role))) &&
-    new Set(ids).size === ids.length && exact.every(r => ids.includes(r.id));
+    t.reference_ids.every(id => exact.some(r => r.id === id && (r.role === t.role || r.role === "person_product" && ["person", "product"].includes(t.role))))) &&
+    new Set(keys).size === keys.length && exact.every(r => (r.role === "person_product" ? ["person", "product"] : [r.role]).every(role => keys.includes(`${r.id}:${role}`)));
+
+}
+
+/** Fill technical omissions only when grouping is unambiguous; never merge distinct people. */
+export function repairTargets(targets: IntegrationTarget[], refs: Reference[], previous: IntegrationTarget[] = [], placement = "") {
+  const originals = refs.filter(exactReference).flatMap(ref => ref.role === "person_product" ? [{...ref, role: "person" as const}, {...ref, role: "product" as const}] : [ref]);
+  const result = targets.map(t => ({ ...t, reference_ids: [...new Set(t.reference_ids)] }));
+  for (const t of result) {
+    const matches = t.reference_ids.map(id => originals.find(r => r.id === id && (r.role === t.role || !refs.some(ref => ref.id === id && ref.role === "person_product"))));
+    if (matches.length && matches.every(r => r && r.role === matches[0]?.role)) t.role = matches[0]!.role as IntegrationTarget["role"];
+  }
+  const groups = new Map<string, Reference[]>();
+  for (const ref of originals) {
+    const group = `${ref.role}:${ref.subject_group || ref.id}`;
+    groups.set(group, [...(groups.get(group) || []), ref]);
+  }
+  for (const group of groups.values()) {
+    if (group.some(r => r.subject_group)) {
+      const indexes = result.map((target, i) => target.role === group[0].role && target.reference_ids.some(id => group.some(ref => ref.id === id)) ? i : -1).filter(i => i >= 0);
+      if (indexes.length && indexes.every(i => result[i].reference_ids.every(id => group.some(ref => ref.id === id)))) {
+        result[indexes[0]].reference_ids = group.map(ref => ref.id);
+        for (const i of indexes.slice(1).reverse()) result.splice(i, 1);
+      }
+    }
+    const missing = group.filter(r => !result.some(t => t.role === r.role && t.reference_ids.includes(r.id)));
+    if (!missing.length) continue;
+    const prior = previous.find(t => group.every(r => t.reference_ids.includes(r.id)) && t.role === group[0].role);
+    const existing = result.find(t => group.some(r => r.role === t.role && t.reference_ids.includes(r.id)));
+    if (existing && group.some(r => r.subject_group)) { existing.reference_ids.push(...missing.map(r => r.id)); continue; }
+    const uniqueKind = originals.filter(r => (r.role === "casting" ? "person" : r.role) === (group[0].role === "casting" ? "person" : group[0].role)).length === group.length;
+    if (prior || uniqueKind || group.some(r => r.subject_group)) result.push(prior ? { ...prior, reference_ids: group.map(r => r.id) } : {
+      role: group[0].role as IntegrationTarget["role"], reference_ids: group.map(r => r.id),
+      location: group[0].role === "product" ? placement || "À l’emplacement du produit dans la scène proposée" : "À l’emplacement de la personne dans la scène proposée",
+      instruction: `Reprendre ${group[0].name} depuis ses originaux en conservant la mise en scène validée.`,
+    });
+  }
+  return result;
+}
+
+export function targetProblems(targets: IntegrationTarget[], refs: Reference[]) {
+  const originals = refs.filter(exactReference), ids = targets.flatMap(t => t.reference_ids.map(id => `${id}:${t.role}`));
+  return [
+    targets.some(t => !t.reference_ids.length) && "empty_target",
+    targets.some(t => !t.location.trim() || !t.instruction.trim()) && "missing_placement",
+    targets.some(t => t.reference_ids.some(id => !originals.some(r => r.id === id && (r.role === t.role || r.role === "person_product" && ["person", "product"].includes(t.role))))) && "unknown_id_or_role",
+    new Set(ids).size !== ids.length && "duplicate_mapping",
+    originals.some(r => (r.role === "person_product" ? ["person", "product"] : [r.role]).some(role => !ids.includes(`${r.id}:${role}`))) && "unmapped_original",
+  ].filter(Boolean);
 }
 
 export const SCENE_PRESERVE = "Conserver le cadrage, le point de vue, le décor, la lumière, les couleurs, la netteté et les textures photographiques de cette image, hors modifications explicitement demandées.";

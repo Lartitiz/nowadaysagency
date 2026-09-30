@@ -1,5 +1,6 @@
+import { activeReferences, adviceTurn, independentRequest, explicitRoles, dialogueHistory, CONVERSATION_SYSTEM, type ConversationContext } from "./conversation.ts";
 import { integrationProposal, referenceSignature } from "./integration-proposal.ts";
-import { exactReference, validTargets, sceneInputs } from "./scene-workflow.ts";
+import { exactReference, validTargets, repairTargets, targetProblems, sceneInputs } from "./scene-workflow.ts";
 import { resolvePersonMemory } from "./person-reference.ts";
 import { compositionSchema } from "./composition.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -19,6 +20,7 @@ import {
   generative,
   intentSchema,
   intentTool,
+  conversationTool,
   premiumAllowed,
   shouldRecover,
   studioSystem,
@@ -60,6 +62,7 @@ const schema = z.object({
     "integrate",
     "save",
     "reference",
+    "selection",
     "memory_save",
     "memory_apply",
     "pilot",
@@ -73,6 +76,9 @@ const schema = z.object({
   session_id: z.string().uuid(),
   photo_id: z.string().uuid().optional(),
   reference_role: z.enum(REFERENCE_ROLES).optional(),
+  role_source: z.enum(["library", "user", "conversation"]).optional(),
+  subject_group: z.string().max(100).optional(),
+  new_request: z.boolean().optional(),
   composition: compositionSchema.optional(),
   composition_use_image: z.boolean().optional(),
   composition_history_id: z.string().uuid().optional(),
@@ -362,6 +368,20 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       session = await handleMemory(sb, actor, p, session, references);
       references = legacyReferences(session);
     }
+    if (p.action === "selection") {
+      const active = unwrap(await sb.from("visual_studio_versions").select("id").eq("session_id", session.id).eq("status", "processing"));
+      if (active.length) return json({ error: "Attends le résultat avant de changer les références." }, 409);
+      if (p.revision !== session.revision || !p.reference_ids || p.reference_ids.some(id => !references.some(ref => ref.id === id))) throw new Error("studio_conflict");
+      const previous = session.source_metadata?.studio_context as ConversationContext | undefined;
+      session = unwrap(await sb.from("visual_studio_sessions").update({
+        source_metadata: { ...session.source_metadata, studio_context: {
+          ...(p.new_request ? {} : previous), reference_ids: [...new Set(p.reference_ids)],
+          branch_id: p.viewed_version_id || null,
+          start_index: p.new_request ? session.messages.length : previous?.start_index || 0,
+        } }, proposal: null, ...(p.new_request ? { brief: "" } : {}),
+        revision: session.revision + 1, updated_at: new Date().toISOString(),
+      }).eq("id", session.id).eq("revision", p.revision).select("*").single());
+    }
     if (p.action === "reference") {
       if (
         (!p.photo_id && !p.reference_id && !p.version_id && p.charter_index == null) ||
@@ -396,8 +416,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       if (p.remove) {
         references = references.filter((r) => !matches(r));
       } else if (found) {
+        if (p.subject_group && p.subject_group !== found.id && !references.some(ref => ref.id === p.subject_group && ref.role === (p.reference_role || found.role))) throw new Error("studio_conflict");
         references = references.map((r) =>
-          r === found ? { ...r, role: p.reference_role || "subject" } : r
+          r === found ? { ...r, role: p.reference_role || r.role, role_source: p.reference_role === "auto" ? "library" : p.role_source || "user", role_explicit: p.reference_role === "auto" ? false : r.role_explicit, subject_group: p.reference_role && p.reference_role !== r.role ? undefined : r.subject_group, ...(p.subject_group !== undefined ? { subject_group: p.subject_group } : {}) } : r
         );
       } else {
         if (!p.photo_id && !p.version_id && p.charter_index == null) {
@@ -447,7 +468,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             photo_id: photo?.id || null,
             version_id: generated?.id,
             path,
-            role: charterImage ? "style" : p.reference_role || "subject",
+            role: charterImage ? "style" : p.reference_role || "auto",
+            role_source: p.role_source || "library",
+            subject_group: p.subject_group,
             name: (charterImage?.name || photo?.name || generated?.proposal?.summary || "Référence").slice(
               0,
               120,
@@ -462,6 +485,15 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           .from("visual_studio_sessions")
           .update({
             references,
+            source_metadata: { ...session.source_metadata, studio_context: {
+              ...session.source_metadata?.studio_context,
+              start_index: session.source_metadata?.studio_context?.start_index || 0,
+              branch_id: session.source_metadata?.studio_context?.branch_id || null,
+              reference_ids: [...new Set([
+                ...activeReferences(session, references),
+                ...(!p.remove && !found ? [references[references.length - 1].id] : []),
+              ])].filter(id => references.some(ref => ref.id === id)),
+            } },
             proposal: null,
             revision: session.revision + 1,
             updated_at: new Date().toISOString(),
@@ -504,7 +536,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             429,
           );
         }
-        const parent = p.viewed_version_id
+        const newRequest = !!p.new_request || independentRequest(p.message!);
+        const conversation = session.source_metadata?.studio_context as ConversationContext | undefined;
+        const conversational = adviceTurn(p.message!);
+        const parent = p.viewed_version_id && !newRequest
           ? unwrap(
             await sb
               .from("visual_studio_versions")
@@ -534,9 +569,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         if (p.reference_ids && p.reference_ids.some((id) =>
           !availableReferences.some((ref) => ref.id === id)
         )) return json({ error: "Une image jointe n'est plus disponible. Vérifie ta demande." }, 409);
-        const requestReferences: Reference[] = [...(p.reference_ids
-          ? p.reference_ids.length
-            ? p.reference_ids.map((id) => availableReferences.find((ref) => ref.id === id)!)
+        const effectiveIds = newRequest ? (p.new_request || !session.messages.some((m: { role: string }) => m.role === "user") ? p.reference_ids || activeReferences(session, availableReferences) : []) : p.reference_ids ?? (p.branch_reference_mode || p.studio_version !== 4 ? availableReferences.map(ref => ref.id) : activeReferences(session, availableReferences));
+        const requestReferences: Reference[] = [...(effectiveIds
+          ? effectiveIds.length
+            ? effectiveIds.map((id) => availableReferences.find((ref) => ref.id === id)!).filter(Boolean)
             : p.studio_version === 4 ? [] : parent ? versionReferences : []
           : availableReferences)];
         // These originals belong to this selected scene branch, not to an unrelated
@@ -684,6 +720,11 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               }).slice(0, 80),
           };
         }
+        const statedRoles = explicitRoles(p.message!, requestReferences);
+        for (const ref of requestReferences) {
+          const stated = statedRoles.get(ref.id);
+          if (stated) { ref.role = stated; ref.role_source = "conversation"; ref.role_explicit = true; }
+        }
         const selectedReference = requestReferences.find((r) =>
           r.id === p.viewed_reference_id
         ) ||
@@ -709,8 +750,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         try {
           interpreterArgs = {
             model: "claude-haiku-4-5",
-            system: studioSystem,
-            tool: intentTool,
+            system: conversational ? CONVERSATION_SYSTEM : studioSystem,
+            tool: conversational ? conversationTool : intentTool,
             // Supplied titles, dates and time ranges must survive structured output verbatim.
             keepDashes: true,
             max_tokens: 6000,
@@ -718,6 +759,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             abortTimeoutMs: 45_000,
             maxRetries: 0,
             messages: [
+              ...dialogueHistory(session.messages, newRequest ? session.messages.length : conversation?.start_index || 0, parent?.id || null),
               {
                 role: "user",
                 content: [
@@ -762,12 +804,13 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                           photo_treatment: parent.proposal.photo_treatment,
                         }
                         : null,
-                      brief: parent
+                      brief: newRequest ? "" : parent
                         ? parent.proposal.brief || parent.proposal.summary || ""
                         : session.brief || "",
-                      proposition_a_corriger: session.proposal && (session.proposal.viewed_version_id || null) === (parent?.id || null)
+                      proposition_a_corriger: !newRequest && session.proposal && (session.proposal.viewed_version_id || null) === (parent?.id || null)
                         ? { summary: session.proposal.summary, image_prompt: session.proposal.image_prompt, preserve: session.proposal.preserve, change: session.proposal.change, scene_workflow: session.proposal.scene_workflow, product_placement: session.proposal.product_placement } : null,
-                      historique: parent ? [] : session.messages.slice(-12),
+                      historique: dialogueHistory(session.messages, newRequest ? session.messages.length : conversation?.start_index || 0, parent?.id || null),
+                      decisions_acquises: newRequest ? {} : conversation?.decisions || {},
                       catalogue: (catalogue.data || []).map((row) => ({
                         ...row,
                         description: row.description?.slice(0, 250),
@@ -782,6 +825,21 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           const raw = await callAnthropic(interpreterArgs);
           intent = intentSchema.parse(JSON.parse(raw));
           intent.summary = cleanStudioSummary(intent.summary);
+          if (intent.reply) intent.reply = cleanStudioSummary(intent.reply);
+          if (["advise", "clarify"].includes(intent.operation)) {
+            intent.summary = intent.reply || intent.summary;
+            if (!intent.summary.trim()) throw new Error("empty_conversation_reply");
+          } else if (!intent.summary.trim()) throw new Error("empty_proposal_summary");
+          const lastReply = [...session.messages].reverse().find((m: {role:string}) => m.role === "assistant")?.text;
+          if (conversational && (intent.summary.trim() === lastReply?.trim() || /^(tu demandes|tu souhaites savoir|je vais comparer|je compare ces)/i.test(intent.summary.trim()))) {
+            const repaired = intentSchema.parse(JSON.parse(await callAnthropic({ ...interpreterArgs,
+              system: `${CONVERSATION_SYSTEM}\nLa précédente tentative répétait la question ou annonçait une réponse sans la donner. Réponds maintenant au fond, avec une recommandation et sa raison, sans reposer la même question.`,
+              tool: conversationTool, max_tokens: 1800,
+            })));
+            const answer = cleanStudioSummary(repaired.reply || repaired.summary);
+            if (!answer || answer.trim() === lastReply?.trim() || /^(tu demandes|tu souhaites savoir|je vais comparer|je compare ces)/i.test(answer.trim()) || !["advise", "clarify"].includes(repaired.operation)) throw new Error("repeated_conversation_reply");
+            intent = { ...repaired, summary: answer, reply: answer };
+          }
         } catch (error) {
           console.error(
             "[visual-studio:interpretation]",
@@ -797,6 +855,16 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             },
             503,
           );
+        }
+        const rawOperation = intent.operation;
+        const dialogueOnly = ["advise", "clarify"].includes(intent.operation);
+        if (dialogueOnly) {
+          // Generation-only fields cannot erase an otherwise valid answer.
+          intent.reference_use = requestReferences.map(ref => ({ id: ref.id, role: intent.operation === "advise" ? ref.role : intent.reference_use.find(use => use.id === ref.id)?.role || ref.role, explicit_change: intent.operation === "advise" ? undefined : intent.reference_use.find(use => use.id === ref.id)?.explicit_change }));
+          intent.source_reference_id = undefined;
+          intent.requires_real_subject = false;
+          intent.person_reference = undefined;
+          intent.scene_workflow = undefined;
         }
         let person = intent.person_reference;
         const memoryIds = person?.memory_ids || [];
@@ -863,6 +931,26 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.operation = "clarify";
           intent.summary = "Je n’ai pas pu identifier toutes les images à utiliser. Précise laquelle est la scène et laquelle montre le produit ; aucune image n’a été lancée.";
         }
+        for (const use of intent.reference_use) {
+          const quote = use.explicit_change?.trim();
+          if (quote && quote.length >= 8 && p.message.includes(quote) && !statedRoles.has(use.id)) {
+            const ref = requestReferences.find(ref => ref.id === use.id);
+            if (ref) { ref.role = use.role; ref.role_source = "conversation"; ref.role_explicit = true; ref.subject_group = undefined; }
+          }
+        }
+        // Explicit choices stay authoritative across follow-ups, including partial model output.
+        for (const ref of requestReferences.filter(r => r.role_source === "user" || r.role_explicit)) {
+          const use = intent.reference_use.find(use => use.id === ref.id);
+          if (use) use.role = ref.role;
+          else intent.reference_use.push({ id: ref.id, role: ref.role });
+        }
+        const baseReferences = requestReferences.filter(ref => ["scene", "edit_source"].includes(ref.role));
+        if (!dialogueOnly && generative(intent.operation) && baseReferences.length === 1) {
+          intent.source_reference_id = baseReferences[0].id;
+          intent.operation = "edit";
+          if (!intent.reference_use.some(use => use.id === baseReferences[0].id)) intent.reference_use.push({ id: baseReferences[0].id, role: baseReferences[0].role });
+          if (intent.scene_workflow?.phase === "scene") intent.scene_workflow = undefined;
+        }
         const newPhoto = intent.visual_kind === "photo" && !intent.exact_text.length && person?.mode !== "sheet" &&
           (intent.operation === "create" || intent.operation === "product" && intent.scene_workflow?.phase !== "integration" && !intent.source_reference_id && !(intent.uses_selected_version && parent));
         if (newPhoto) {
@@ -883,14 +971,15 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         const usedReferences = p.studio_version === 4 && !newPhoto
           ? requestReferences.filter((ref) => intent.reference_use.some((use) => use.id === ref.id))
           : requestReferences.filter(ref => !newPhoto || !reservedProducts.some(r => r.id === ref.id) || !!p.reference_ids?.includes(ref.id) || intent.reference_use.some(use => use.id === ref.id));
-        const resolvedReferences = usedReferences.map((ref) => ({ ...ref,
-          role: intent.reference_use.find(use => use.id === ref.id)?.role || ref.role,
+        const resolvedReferences: Reference[] = usedReferences.map((ref) => ({ ...ref,
+          role: statedRoles.get(ref.id) || ((ref.role_source === "user" || ref.role_explicit) ? ref.role : intent.reference_use.find(use => use.id === ref.id)?.role || ref.role),
+          role_source: (statedRoles.has(ref.id) ? "conversation" : ref.role_source === "user" ? "user" : "conversation") as Reference["role_source"],
         }));
         // Preserve all originals on this branch, even if the interpreter omits them.
         if (intent.scene_workflow?.phase === "scene" || intent.scene_workflow?.phase === "integration") {
           for (const ref of requestReferences) {
             const role = intent.reference_use.find(use => use.id === ref.id)?.role || ref.role;
-            if ((!newPhoto || usedReferences.some(r => r.id === ref.id)) && ["product", "person", "casting"].includes(role) && !resolvedReferences.some(r => r.id === ref.id)) resolvedReferences.push({ ...ref, role });
+            if ((!newPhoto || usedReferences.some(r => r.id === ref.id)) && ["product", "person", "casting", "person_product"].includes(role) && !resolvedReferences.some(r => r.id === ref.id)) resolvedReferences.push({ ...ref, role });
           }
         }
         const explicitSource = resolvedReferences.find((ref) =>
@@ -1003,18 +1092,16 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               targets: intent.scene_workflow.targets || previous.targets };
           }
           const workflow = intent.scene_workflow!;
-          const targets = workflow.targets || [];
           const originals = resolvedReferences.filter(exactReference);
-          // A single view of each different kind is unambiguous in old proposals.
-          // Multiple views/people need Claude's explicit grouping and locations.
-          if (!targets.length && originals.length && new Set(originals.map(r => r.role === "casting" ? "person" : r.role)).size === originals.length) {
-            workflow.targets = originals.map(ref => ({ role: ref.role as "person" | "casting" | "product",
-              reference_ids: [ref.id], location: ref.role === "product" ? intent.product_placement || "À la place de l'objet provisoire" : "À la place de la personne provisoire",
-              instruction: `Remplacer uniquement cet élément par ${ref.name}, depuis sa référence originale, avec les raccords physiques nécessaires.` }));
-          }
-          if (!validTargets(workflow.targets || [], originals)) {
+          workflow.targets = repairTargets(workflow.targets || [], originals,
+            newRequest ? [] : conversation?.targets || [], intent.product_placement);
+          if (!validTargets(workflow.targets, originals)) {
+            const problems = targetProblems(workflow.targets, originals);
+            console.warn("[visual-studio:targets]", JSON.stringify({ request_id: p.request_id, revision: session.revision, problems }));
             intent.operation = "clarify";
-            intent.summary = "Précise quelles photos montrent le même sujet et où placer chaque personne ou produit dans la scène. Aucune image n’a été lancée.";
+            intent.summary = problems.length === 1 && problems[0] === "unmapped_original" && originals.filter(r => r.role === "person" || r.role === "casting").length > 1
+              ? "Ces portraits montrent-ils la même personne sous plusieurs angles, ou des personnes différentes ?"
+              : "La préparation des références est incohérente. Tes photos et tes indications sont conservées ; renvoie ta demande pour réessayer. Aucune image n’a été lancée.";
           }
         }
         const sourcePath = intent.operation === "product"
@@ -1101,7 +1188,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               ? "Cette transformation redessine l’image. Elle peut modifier des détails du produit ou du visage. Compare le résultat aux références avant de l’utiliser."
               : null,
           }
-          : null;
+          : !newRequest && dialogueOnly && intent.operation === "advise" ? session.proposal : null;
         if (proposal?.scene_workflow?.phase === "scene" && proposal.operation === "create") {
           if (!soul2Enabled()) return json({ error: "La création de scène est momentanément indisponible. Tes références sont conservées ; aucune autre génération n’a été lancée." }, 503);
           if (!soul2Eligible(proposal)) return json({ error: "La scène doit être préparée séparément de ses références. Aucune image n’a été lancée." }, 409);
@@ -1118,6 +1205,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             role: "user",
             text: p.message,
             reference_ids: requestReferences.map((ref) => ref.id),
+            viewed_version_id: parent?.id || null,
+            request_scope: newRequest ? "new" : "continue",
             reference_snapshot: resolvedReferences.map(({ id, name, path, role }) => ({ id, name, path, role })),
           },
           {
@@ -1138,19 +1227,28 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             suggested_memory_ids: memoryToSelect.map((m) => m.id),
           },
         ];
+        console.info("[visual-studio:turn]", JSON.stringify({ request_id: p.request_id, revision: session.revision,
+          operation: rawOperation, final_operation: intent.operation, references: requestReferences.map(ref => ({ id: ref.id, role: ref.role })),
+          scope: newRequest ? "new" : "continue", dialogue: dialogueOnly }));
         const updated = await sb
           .from("visual_studio_sessions")
           .update({
             messages,
             proposal,
-            ...(addedMemoryReferences.length && proposal ? { references: [
-              ...references,
+            references: [
+              ...references.map(ref => { const resolved = resolvedReferences.find(r => r.id === ref.id); return resolved ? { ...ref, role: resolved.role, role_source: resolved.role_source, role_explicit: resolved.role_explicit, subject_group: resolved.subject_group } : ref; }),
               ...addedMemoryReferences.filter(ref => !references.some(old => old.path === ref.path)),
-            ] } : {}),
-            brief: intent.brief ||
+            ],
+            source_metadata: { ...session.source_metadata, studio_context: {
+              reference_ids: requestReferences.map(ref => ref.id), branch_id: parent?.id || null,
+              start_index: newRequest ? session.messages.length : conversation?.start_index || 0,
+              targets: intent.scene_workflow?.targets || (newRequest ? [] : conversation?.targets || []),
+              decisions: { ...(newRequest ? {} : conversation?.decisions || {}), ...(intent.operation === "advise" ? {} : intent.decisions || {}) },
+            } },
+            brief: dialogueOnly && !newRequest ? session.brief : intent.brief ||
               (parent
                 ? parent.proposal.brief || parent.proposal.summary || ""
-                : session.brief || ""),
+                : newRequest ? "" : session.brief || ""),
             ...(session.name === "Nouvelle idée"
               ? { name: p.message.slice(0, 100) }
               : {}),
@@ -1577,6 +1675,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       session: {
         ...session,
         messages,
+        active_reference_ids: activeReferences(session, legacyReferences(session)),
+        conversation_branch_id: session.source_metadata?.studio_context?.branch_id || null,
         composition: session.composition
           ? {
             ...session.composition,
