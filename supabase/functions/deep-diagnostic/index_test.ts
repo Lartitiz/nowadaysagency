@@ -39,7 +39,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { runFastDiagnostic, normalizeDiagnosticRoute } = await import("./index.ts");
+const { runFastDiagnostic, normalizeDiagnosticRoute, finalizeDiagnosticEvidence } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -119,4 +119,66 @@ Deno.test("onboarding : succès IA -> pas de logUsage (diagnostic d'onboarding g
   } finally {
     mock.restore();
   }
+});
+
+Deno.test("capture seule : le constat et le conseil conservent la provenance de l'image", () => {
+  const used: string[] = [];
+  const failed: string[] = [];
+  const analysis = structuredClone(VALID_DIAGNOSTIC) as Record<string, unknown>;
+  analysis.screenshot_readable = true;
+  analysis.strengths = [{ title: "Bio lisible", detail: "La bio affiche « céramique peinte à la main » et le lien vers les pièces.", source: "instagram_screenshot" }];
+  analysis.priorities = [{ title: "Préciser la commande", why: "La bio montre la céramique, mais pas la marche à suivre pour commander.", first_step: "Ajoute une invitation à consulter les pièces disponibles.", example: "« Pièces en faïence et grès : voir les créations disponibles [lien] »", route: "/instagram/profil/bio", source: "instagram_screenshot" }];
+  finalizeDiagnosticEvidence(analysis, used, failed, 1);
+  assertEquals(used, ["instagram_screenshot"]);
+  assertEquals(failed, []);
+  assertEquals((analysis.priorities as any[])[0].source, "instagram_screenshot");
+});
+
+Deno.test("capture annoncée lisible mais oubliée par le modèle : second passage avec l'image", async () => {
+  let calls = 0;
+  const mock = installFetchMock({
+    anthropic: () => {
+      calls++;
+      const answer = structuredClone(VALID_DIAGNOSTIC) as Record<string, unknown>;
+      answer.screenshot_readable = true;
+      if (calls === 2) answer.strengths = [
+        { title: "Bio visible", detail: "La bio montre « poteries peintes à la main » et un lien vers la boutique.", source: "instagram_screenshot" },
+      ];
+      return anthropicToolSuccess("rendre_diagnostic", answer);
+    },
+  });
+  try {
+    const { analysisResult } = await runFastDiagnostic({ ...BASE_OPTS,
+      instagramScreenshots: [{ mediaType: "image/png", base64: "iVBORw0KGgo=" }], isOnboarding: true,
+    });
+    assertEquals(mock.anthropicCallCount, 2);
+    assertEquals((analysisResult.strengths as any[])[0].source, "instagram_screenshot");
+  } finally { mock.restore(); }
+});
+
+Deno.test("capture illisible et connexion sans données : aucun canal social annoncé ou scoré", () => {
+  const used = ["website"];
+  const failed: string[] = [];
+  const analysis = structuredClone(VALID_DIAGNOSTIC) as Record<string, unknown>;
+  analysis.screenshot_readable = false;
+  analysis.strengths = [
+    { title: "Site", detail: "La page affiche « pièces uniques en faïence ».", source: "website" },
+    { title: "Inventé", detail: "La bio Instagram dit quelque chose de non vérifié.", source: "instagram_screenshot" },
+  ];
+  (analysis.scores as any).instagram = 70;
+  (analysis.scores as any).website = 60;
+  finalizeDiagnosticEvidence(analysis, used, failed, 1);
+  assertEquals(used, ["website"]);
+  assertEquals(failed, ["social_screenshot"]);
+  assertEquals((analysis.strengths as any[]).length, 1);
+  assertEquals((analysis.scores as any).instagram, null);
+  assertEquals((analysis.scores as any).website, 60);
+});
+
+Deno.test("statistiques LinkedIn seules : chiffre disponible, score éditorial absent", () => {
+  const used = ["linkedin_analytics"];
+  const analysis = structuredClone(VALID_DIAGNOSTIC) as Record<string, unknown>;
+  (analysis.scores as any).linkedin = 82;
+  finalizeDiagnosticEvidence(analysis, used, [], 0);
+  assertEquals((analysis.scores as any).linkedin, null);
 });

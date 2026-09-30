@@ -10,8 +10,15 @@ import Confetti from "@/components/Confetti";
 
 const SOURCE_BADGES: Record<string, { emoji: string; label: string }> = {
   instagram: { emoji: "📱", label: "Instagram" },
+  instagram_public: { emoji: "📱", label: "Profil public Instagram" },
+  instagram_screenshot: { emoji: "📸", label: "Capture Instagram" },
+  linkedin_screenshot: { emoji: "📸", label: "Capture LinkedIn" },
+  social_screenshot: { emoji: "📸", label: "Capture sociale" },
+  instagram_connected: { emoji: "📱", label: "Compte Instagram connecté" },
+  instagram_insights: { emoji: "📊", label: "Statistiques Instagram" },
   website: { emoji: "🌐", label: "Site" },
   linkedin: { emoji: "💼", label: "LinkedIn" },
+  linkedin_analytics: { emoji: "📊", label: "Statistiques LinkedIn" },
   documents: { emoji: "📄", label: "Documents" },
   profile: { emoji: "✨", label: "Profil" },
   about: { emoji: "💬", label: "À propos" },
@@ -158,23 +165,25 @@ function AnimatedSection({ children }: { children: ReactNode }) {
 const SOURCE_LABELS: Record<string, { emoji: string; label: string }> = {
   website: { emoji: "🌐", label: "Site web" },
   instagram: { emoji: "📱", label: "Instagram" },
+  instagram_public: { emoji: "📱", label: "Profil public Instagram" },
+  instagram_screenshot: { emoji: "📸", label: "Capture Instagram" },
+  linkedin_screenshot: { emoji: "📸", label: "Capture LinkedIn" },
+  social_screenshot: { emoji: "📸", label: "Capture sociale" },
+  instagram_connected: { emoji: "📱", label: "Compte Instagram connecté" },
+  instagram_insights: { emoji: "📊", label: "Stats Instagram" },
   linkedin: { emoji: "💼", label: "LinkedIn" },
+  linkedin_analytics: { emoji: "📊", label: "Stats LinkedIn" },
   documents: { emoji: "📄", label: "Documents" },
 };
 
-function AccrocheSection({ prenom, isFallback, hasWebsite, sourcesUsed = [], sourcesFailed = [] }: { prenom: string; isFallback?: boolean; hasInstagram?: boolean; hasWebsite?: boolean; sourcesUsed?: string[]; sourcesFailed?: string[] }) {
-  // Build list of all relevant sources to display (exclude instagram from diagnostic display)
+function AccrocheSection({ prenom, isFallback, sourcesUsed = [], sourcesFailed = [] }: { prenom: string; isFallback?: boolean; hasInstagram?: boolean; hasWebsite?: boolean; sourcesUsed?: string[]; sourcesFailed?: string[] }) {
   const allSources = new Set<string>();
-  sourcesUsed.filter(s => s !== "instagram").forEach(s => allSources.add(s));
-  sourcesFailed.filter(s => s !== "instagram").forEach(s => allSources.add(s));
-  // Add from legacy props if no sourcesUsed/Failed provided
-  if (allSources.size === 0) {
-    if (hasWebsite) allSources.add("website");
-  }
+  sourcesUsed.forEach(s => allSources.add(s));
+  sourcesFailed.forEach(s => allSources.add(s));
 
-  const analyzedLabels = sourcesUsed
+  const analyzedLabels = [...new Set(sourcesUsed
     .filter(s => SOURCE_LABELS[s])
-    .map(s => SOURCE_LABELS[s].label.toLowerCase());
+    .map(s => SOURCE_LABELS[s].label.toLowerCase()))];
   const baseText = analyzedLabels.length > 0
     ? `Mon diagnostic se base sur ${analyzedLabels.join(", ")} + ce que tu m'as partagé.`
     : "Mon diagnostic se base sur ce que tu m'as partagé.";
@@ -199,13 +208,19 @@ function AccrocheSection({ prenom, isFallback, hasWebsite, sourcesUsed = [], sou
                     : "bg-muted text-muted-foreground border border-border"
                 }`}
               >
-                {isAnalyzed ? "✅" : meta.emoji} {meta.label}{!isAnalyzed && " : à auditer"}
+                {isAnalyzed ? "✅" : meta.emoji} {meta.label}{!isAnalyzed && (source === "instagram_insights" || source === "linkedin_analytics" ? " : données indisponibles" : " : à auditer")}
               </span>
             );
           })}
         </div>
       )}
       <p className="text-sm text-muted-foreground">{baseText}</p>
+      {sourcesFailed.includes("social_screenshot") && <p className="text-xs text-muted-foreground max-w-md mx-auto">Ta capture n'a pas donné de constat fiable. Tu pourras en ajouter une plus nette, montrant le profil ou une publication entière, dans l'audit du réseau.</p>}
+      {sourcesFailed.some(s => ["instagram_connected", "instagram_insights", "linkedin_analytics"].includes(s)) && (
+        <p className="text-xs text-muted-foreground max-w-md mx-auto">
+          Certaines données du compte connecté sont indisponibles. Vérifie les autorisations ou reconnecte-le dans <a href="/parametres/connexions" className="underline text-primary">Connexions</a>. Tu peux aussi fournir une capture ou ton texte de profil.
+        </p>
+      )}
       {isFallback && (
         <div className="max-w-md mx-auto rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-left">
           <p className="text-sm text-foreground">
@@ -388,6 +403,7 @@ function PrioritiesSection({ priorities }: { priorities: DiagnosticData["priorit
               <span className="text-2xl font-bold text-primary">{i + 1}.</span>
               <div>
                 <p className="font-medium text-foreground">{p.title}</p>
+                {p.source && SOURCE_BADGES[p.source] && <span className="text-2xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">{SOURCE_BADGES[p.source].emoji} {SOURCE_BADGES[p.source].label}</span>}
                 {p.why && <p className="text-sm text-muted-foreground mt-1">{p.why}</p>}
                 {p.first_step && <p className="text-sm text-foreground mt-3"><span className="font-semibold">À faire maintenant :</span> {p.first_step}</p>}
                 {p.example && <p className="text-sm text-muted-foreground mt-2 rounded-lg bg-muted/60 px-3 py-2"><span className="font-medium">Pour t'aider :</span> {p.example}</p>}

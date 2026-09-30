@@ -22,6 +22,8 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
   const { user } = useAuth();
   const { isConnected, accountNames } = useSocialConnections();
   const igConnected = isConnected("instagram");
+  const liPublishingConnected = isConnected("linkedin");
+  const liAnalyticsConnected = isConnected("linkedin_analytics");
   const [connecting, setConnecting] = useState(false);
 
   const connectInstagram = async () => {
@@ -38,8 +40,21 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
       toast.error("Impossible d'ouvrir la connexion Instagram", { description: "Continue avec ton @, tu pourras connecter ton compte plus tard." });
     }
   };
+  const connectLinkedInAnalytics = async () => {
+    try { localStorage.setItem("lac_onboarding_answers", JSON.stringify(answers)); } catch { /* ignore */ }
+    setConnecting(true);
+    const res = await startSocialConnect(
+      "linkedin_analytics",
+      workspaceId && workspaceId !== user?.id ? workspaceId : undefined,
+      { depuis: "/onboarding", quoi: "ton onboarding" },
+    );
+    if (res.error) {
+      setConnecting(false);
+      toast.error("Connexion LinkedIn Analytics indisponible", { description: "Continue avec ton texte À propos ou une capture." });
+    }
+  };
   const hasAnyLink = !!(answers.website || answers.instagram || answers.linkedin_summary);
-  const hasAnything = hasAnyLink || files.length > 0 || !!answers.visual_reference_links?.length;
+  const hasAnything = hasAnyLink || files.length > 0 || !!answers.visual_reference_links?.length || igConnected || liAnalyticsConnected;
 
   const webStatus: "valid" | "warn" | "none" = !answers.website ? "none" :
   isValidUrl(addHttpsIfNeeded(answers.website)) ? "valid" : "warn";
@@ -98,9 +113,9 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
 
         {/* Instagram — le plan A-bis assumé : le @ suffit, la capture complète */}
         <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-sm font-semibold text-foreground">📸 Pas de site ? Ton Instagram suffit.</p>
+          <p className="text-sm font-semibold text-foreground">📸 Pas de site ? Montre-moi tes réseaux.</p>
           <p className="text-xs text-muted-foreground mt-1 mb-3">
-            Donne ton @ : je vais lire ta page publique. Une capture de ton profil en plus, et je lis aussi ton univers visuel.
+            Ton @ peut donner accès à quelques informations publiques, selon Instagram. Ajoute des captures Instagram ou LinkedIn pour montrer ce qui est réellement visible sur ton profil et tes publications.
           </p>
           <input
             type="text"
@@ -114,7 +129,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
             <div className="mb-3 rounded-xl bg-secondary/40 p-3 flex flex-col sm:flex-row sm:items-center gap-2">
               {igConnected ? (
                 <p className="text-xs text-foreground">
-                  ✅ Compte Instagram connecté{accountNames.instagram ? ` (@${accountNames.instagram})` : ""} : tes photos et tes stats seront synchronisées.
+                  ✅ Compte Instagram connecté{accountNames.instagram ? ` (@${accountNames.instagram})` : ""}. J'utiliserai le profil, les publications et les statistiques seulement si les autorisations et les données le permettent.
                 </p>
               ) : (
                 <>
@@ -139,7 +154,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
             className="border-2 border-dashed border-primary/30 rounded-xl p-4 text-center cursor-pointer hover:border-primary/60 hover:bg-secondary/30 transition-colors">
 
               <Upload className="h-5 w-5 mx-auto text-bordeaux mb-1.5" />
-              <p className="text-sm font-medium text-bordeaux">Ajouter une capture de mon profil</p>
+              <p className="text-sm font-medium text-bordeaux">Ajouter des captures Instagram ou LinkedIn</p>
               <p className="text-xs text-muted-foreground/70 mt-1">Clique ou glisse ici · PNG, JPG, WebP · Max 3</p>
               <input
               ref={inputRef}
@@ -202,6 +217,14 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
           {linkedinOpen &&
           <div className="mt-2">
               <p className="text-xs text-muted-foreground/70 mb-2 italic">Copie-colle le texte de la section "Infos" de ton profil LinkedIn. Le scraping automatique ne fonctionne pas avec LinkedIn, alors c'est plus fiable comme ça.</p>
+              {!isDemoMode && <div className="mb-3 rounded-xl bg-secondary/40 p-3 text-xs text-muted-foreground">
+                {liAnalyticsConnected
+                  ? "✅ LinkedIn Analytics connecté : les chiffres disponibles pourront compléter le diagnostic. Le texte du profil reste à fournir ici ou par capture."
+                  : liPublishingConnected
+                    ? "Ton compte est connecté pour publier. Cette connexion ne donne pas accès au texte de ton profil ni aux statistiques."
+                    : "La lecture du profil et des posts LinkedIn n'est pas incluse dans la connexion de publication."}
+                {!liAnalyticsConnected && <Button type="button" size="sm" variant="outline" className="mt-2 block rounded-full" disabled={connecting} onClick={connectLinkedInAnalytics}>Connecter LinkedIn Analytics</Button>}
+              </div>}
               <textarea
               value={answers.linkedin_summary}
               onChange={(e) => set("linkedin_summary", e.target.value)}
