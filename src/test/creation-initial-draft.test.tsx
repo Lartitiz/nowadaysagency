@@ -85,12 +85,20 @@ describe('initial creation draft through real React components', () => {
   });
 
   it('attend les photos du site avant le premier carrousel produit', async () => {
-    mocks.photoRead.mockResolvedValue({ data: [{ id: 'library-1', name: 'Tasse en céramique' }], error: null });
+    mocks.photoRead.mockResolvedValue({ data: [{ id: 'library-1', name: 'Tasse en céramique' }, { id: 'library-2', name: 'Bol en céramique' }], error: null });
+    mocks.photoDecode.mockImplementation(async (photo: any) => ({ base64: `data:image/png;base64,${photo.id}`, name: photo.name, mimeType: 'image/png' }));
     mount('/creer?format=carousel&carouselSubMode=photo&firstProduct=1&auto=1');
     await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(1));
     expect(mocks.generate).toHaveBeenCalledWith({});
-    expect(loadPhotos()).toMatchObject([{ userPhotoId: 'library-1' }]);
+    expect(loadPhotos()).toMatchObject([{ userPhotoId: 'library-1' }, { userPhotoId: 'library-2' }]);
     expect(screen.queryByText('Quelques précisions')).toBeNull();
+  });
+
+  it('une seule photo produit → demande un autre visuel avant de générer', async () => {
+    mocks.photoRead.mockResolvedValue({ data: [{ id: 'library-1', name: 'Tasse en céramique' }], error: null });
+    mount('/creer?format=carousel&carouselSubMode=photo&firstProduct=1&auto=1');
+    await waitFor(() => expect(screen.getByText('Format :')).toBeVisible());
+    expect(mocks.generate).not.toHaveBeenCalled();
   });
 
   it('sans photo produit, garde le choix manuel et ne lance aucune génération', async () => {

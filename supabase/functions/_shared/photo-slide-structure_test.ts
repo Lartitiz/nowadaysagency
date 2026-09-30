@@ -6,6 +6,7 @@ import {
   maxStructurePhotoIndex,
   mergeConfirmedStructure,
   normalizePhotoIndexes,
+  assignDistinctStructurePhotos,
 } from "./photo-slide-structure.ts";
 
 const wrap = (slides: unknown[], extra: Record<string, unknown> = {}) =>
@@ -27,6 +28,22 @@ Deno.test("maxStructurePhotoIndex prend le plus grand index entier", () => {
   assertEquals(maxStructurePhotoIndex([{ photo_index: 1 }, { photo_index: 4 }, { photo_index: null }]), 4);
   assertEquals(maxStructurePhotoIndex([]), 0);
   assertEquals(maxStructurePhotoIndex(undefined), 0);
+});
+
+Deno.test("premier carrousel produit : répartit les photos et conserve la conclusion", () => {
+  const original: { total_slides: number; slides: Record<string, unknown>[] } = { total_slides: 4, slides: [
+    { slide_number: 1, role: "hook", photo_index: 1, photo_observation: "Assiette orange" },
+    { slide_number: 2, role: "body", photo_index: 2, photo_observation: "Assiette bleue" },
+    { slide_number: 3, role: "body", photo_index: 2, photo_observation: "Assiette bleue", visual_anchor: "Oiseau" },
+    { slide_number: 4, role: "conclusion", photo_index: 2, photo_observation: "Assiette bleue" },
+  ] };
+  const result = assignDistinctStructurePhotos(original, 3);
+  assertEquals(result.slides.map((slide) => slide.photo_index), [1, 2, 3]);
+  assertEquals(result.slides.map((slide) => slide.role), ["hook", "body", "conclusion"]);
+  assertEquals(result.slides[2].photo_observation, undefined);
+  assertEquals(result.slides[2].visual_anchor, undefined);
+  assertEquals(result.total_slides, 3);
+  assertEquals(original.slides.length, 4);
 });
 
 // ── mergeConfirmedStructure ──

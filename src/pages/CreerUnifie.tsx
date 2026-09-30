@@ -1013,7 +1013,7 @@ function CreerWorkspace() {
             .not("source_image_url", "is", null)
             .is("removed_from_library_at", null)
             .order("created_at", { ascending: false })
-            .limit(6);
+            .limit(8);
           if (siteError) throw siteError;
           libraryPhotoIdsRef.current = (sitePhotos ?? []).map((photo) => photo.id);
         }
@@ -1048,10 +1048,22 @@ function CreerWorkspace() {
             });
           }
         });
+        const failedCount = ids.length - items.length;
+        if (firstProductRef.current) {
+          // Plusieurs URL du site peuvent mener au même fichier : ne garder
+          // qu'une occurrence avant de composer le premier carrousel.
+          const seen = new Set<string>();
+          const distinct = items.filter((photo) => {
+            if (seen.has(photo.base64)) return false;
+            seen.add(photo.base64);
+            return true;
+          }).slice(0, 6);
+          items.splice(0, items.length, ...distinct);
+        }
         if (cancelled) return;
         if (items.length === 0) throw new Error("Impossible de charger la photo.");
-        if (items.length !== ids.length) {
-          toast.warning(`${ids.length - items.length} photo${ids.length - items.length > 1 ? "s" : ""} n'ont pas pu être chargées. Vérifie ta sélection avant de créer le contenu.`);
+        if (failedCount > 0) {
+          toast.warning(`${failedCount} photo${failedCount > 1 ? "s" : ""} n'ont pas pu être chargées. Vérifie ta sélection avant de créer le contenu.`);
         }
         setUploadedPhotos(items);
         if (items.length > 0) savePhotos(items);
@@ -1603,6 +1615,7 @@ function CreerWorkspace() {
 
   // ── Cœur de la génération de contenu (6 sous-flux selon format/sous-mode) ──
   const { doGenerate } = useDoGenerate({
+    firstProductCarousel: firstProductRef.current,
     selectedFormat,
     generating,
     structureLoading,
@@ -1677,6 +1690,12 @@ function CreerWorkspace() {
     if (!autoGeneratePendingRef.current || conflictPending || step !== "result" || result ||
         selectedFormat !== "carousel" || generating || structureLoading || streaming || isLoadingLibraryPhotos) return;
     if (carouselSubMode === "photo" && uploadedPhotos.length === 0) return;
+    if (firstProductRef.current && carouselSubMode === "photo" && uploadedPhotos.length === 1) {
+      autoGeneratePendingRef.current = false;
+      setStep("format");
+      toast.info("Une seule photo différente a été trouvée. Ajoute une autre photo pour créer un carrousel varié.");
+      return;
+    }
     if (carouselSubMode !== "photo" && carouselSubMode !== "text") return;
     autoGeneratePendingRef.current = false;
     void doGenerate({});

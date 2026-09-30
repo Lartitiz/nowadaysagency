@@ -25,7 +25,7 @@ import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.t
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
-import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex, normalizeOverlayStyles, analyzeMixComposition } from "../_shared/photo-slide-structure.ts";
+import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex, normalizeOverlayStyles, analyzeMixComposition, assignDistinctStructurePhotos } from "../_shared/photo-slide-structure.ts";
 import { assignPhotoTemplates, assignTemplatesToProvidedSlides } from "../_shared/photo-template-assign.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
@@ -571,6 +571,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       subject: z.string().max(15000).optional().nullable(),
       objective: z.string().max(100).optional().nullable(),
       slide_count: z.number().min(1).max(20).optional(),
+      prefer_distinct_photos: z.boolean().optional(),
       workspace_id: z.string().uuid().optional().nullable(),
       editorial_angle: z.string().max(100).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
@@ -1526,7 +1527,9 @@ async function handleStructureProposalRequest(reqCtx: CarouselRequestContext): P
 
   const photoInstruction = hasPhotos && (isPhotoMode || isMixMode) ? `
 MODE ${isPhotoMode ? "PHOTO" : "MIXTE"} — ${photos.length} photo(s) fournies.
-Le nombre de photos ne détermine ni la longueur ni le type d'histoire. Deux photos ne prouvent pas un avant/après. Préserve l'ordre choisi ; une photo peut porter plusieurs passages, sans zoom imposé. Écarte une photo seulement si elle ne sert pas le sujet.
+${body.prefer_distinct_photos && isPhotoMode
+  ? "Pour ce premier carrousel produit, crée une slide par photo disponible : chaque photo_index doit être unique. Adapte le récit à ces images sans en répéter une. Deux photos ne prouvent pas un avant/après ; ne suppose pas de lien chronologique."
+  : "Le nombre de photos ne détermine ni la longueur ni le type d'histoire. Deux photos ne prouvent pas un avant/après. Préserve l'ordre choisi ; une photo peut porter plusieurs passages, sans zoom imposé. Écarte une photo seulement si elle ne sert pas le sujet."}
 ${isPhotoMode ? 'Chaque slide utilise slide_type:"photo_full" et un photo_index depuis 1.' : 'Répartis photo_full, photo_integrated et text_only selon les besoins du propos. Le texte approfondit ce que les photos accompagnent ; une répartition confirmée prime. photo_index depuis 1 pour les slides photo, absent pour text_only.'}
 Chaque story_beat indique ce que la slide reprend et ce qu'elle ajoute. Les textes se lisent ensemble comme un récit ou une explication suivie, avec une entrée et un aboutissement. Les listes gardent un cadre commun sans causalité artificielle.
 Choisis overlay_position (top_left, top_center, bottom_left, bottom_center, center) pour les slides photo_full dans une zone dégagée qui laisse visibles visage, mains, objet et détails importants. Évite center quand le sujet occupe le centre. Respecte le cadrage original.
@@ -1686,7 +1689,10 @@ Propose la structure optimale.`;
     });
   }
 
-  return new Response(JSON.stringify({ result: structureResult }), {
+  const result = body.prefer_distinct_photos && isPhotoMode && hasPhotos
+    ? assignDistinctStructurePhotos(structureResult, photos.length)
+    : structureResult;
+  return new Response(JSON.stringify({ result }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }

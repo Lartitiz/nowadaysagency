@@ -757,6 +757,26 @@ for (const kind of ["photo", "mix"]) Deno.test(`structure ${kind} : deux photos 
   assert(prompt.includes("indications de bibliothèque, potentiellement déduites"));
   for (const stale of ["3 à 4", "5 à 7", "7 à 9", "slide pivot", "Utiliser CHAQUE"]) assert(!prompt.includes(stale), stale);
 });
+Deno.test("premier carrousel produit : le plan attribue des photos différentes", async () => {
+  resetDeps();
+  let prompt = "";
+  _deps.callAnthropic = (async (options: any) => {
+    prompt = options.system + JSON.stringify(options.messages);
+    return JSON.stringify({ total_slides: 3, slides: [
+      { slide_number: 1, role: "hook", photo_index: 1, photo_observation: "Photo 1" },
+      { slide_number: 2, role: "body", photo_index: 1, photo_observation: "Photo 1" },
+      { slide_number: 3, role: "conclusion", photo_index: 2, photo_observation: "Photo 2" },
+    ] });
+  }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", slide_count: 3,
+    prefer_distinct_photos: true, photos: [1, 2, 3].map(() => ({ base64: "aGVsbG8=" })) }));
+  assertEquals(res.status, 200);
+  const { result } = await res.json();
+  assertEquals(result.slides.map((slide: any) => slide.photo_index), [1, 3, 2]);
+  assertEquals(result.slides[1].photo_observation, undefined);
+  assert(prompt.includes("chaque photo_index doit être unique"));
+});
+
 for (const carousel_type of ["photo", "mix"]) for (const withPixels of [false, true]) Deno.test(`questions ${carousel_type} avec pixels=${withPixels} : précisions essentielles facultatives`, async () => {
   resetDeps(); let prompt = "";
   _deps.callAnthropic = (async (o: any) => {

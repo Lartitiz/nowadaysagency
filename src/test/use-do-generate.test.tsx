@@ -62,6 +62,7 @@ import { useDoGenerate } from "@/hooks/use-do-generate";
 // depuis le regroupement du 17/08 (voir CLAUDE.md / audit refactoring).
 function makeParams(overrides: Record<string, any> = {}) {
   const f = {
+    firstProductCarousel: false,
     selectedFormat: "carousel" as string | null,
     generating: false,
     structureLoading: false,
@@ -125,6 +126,7 @@ function makeParams(overrides: Record<string, any> = {}) {
     ...overrides,
   };
   return {
+    firstProductCarousel: f.firstProductCarousel,
     selectedFormat: f.selectedFormat,
     generating: f.generating,
     structureLoading: f.structureLoading,
@@ -368,6 +370,21 @@ describe("useDoGenerate — carrousels (structure, régénération, mix)", () =>
     expect(params.carousel.handleConfirmStructure).toHaveBeenCalledWith(structureResult.slides, structureResult, {});
     // Pas de double génération : le chemin direct n'est jamais pris.
     expect(params.generate).not.toHaveBeenCalled();
+  });
+
+  it("premier carrousel produit → autant de slides que de photos, sans répétition demandée", async () => {
+    const plan = { slides: [{ slide_number: 1 }, { slide_number: 2 }, { slide_number: 3 }] };
+    mocks.invokeWithTimeout.mockResolvedValue({ data: { result: plan }, error: null });
+    const params = makeParams({ firstProductCarousel: true, carouselSubMode: "photo",
+      uploadedPhotos: [
+        { base64: "p1", context: "", mimeType: "image/jpeg" },
+        { base64: "p2", context: "", mimeType: "image/jpeg" },
+        { base64: "p3", context: "", mimeType: "image/jpeg" },
+      ] });
+    await run(params);
+    expect(mocks.invokeWithTimeout.mock.calls[0][1].body).toMatchObject({
+      type: "structure_proposal", slide_count: 3, prefer_distinct_photos: true,
+    });
   });
 
   it("transmet le même nouveau récit au plan et à la rédaction après l'attente asynchrone", async () => {
