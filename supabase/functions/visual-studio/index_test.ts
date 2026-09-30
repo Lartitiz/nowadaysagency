@@ -1094,7 +1094,7 @@ Deno.test("scene preparation sees product for planning but sends only identity t
         assertEquals(p.viewed_reference_id === product.id, false);
         assertEquals(imagePrompt(p).includes("75 degrees"), true);
         assertEquals(imagePrompt(p).includes("product reference, Assiette"), false);
-        assertEquals(f.payloads[0].messages[0].content.some((c: any) => c.text?.includes(product.id)), true);
+        assertEquals((f.payloads[0].messages[0].content as { text?: string }[]).some((c) => c.text?.includes(product.id)), true);
         assertEquals(f.requests.some(path => path.includes("studio_confirm")), false);
       } finally { f.restore(); }
     }
@@ -1124,7 +1124,7 @@ Deno.test("integration resumes selected scene with ORIGINAL product and sends sc
     let paths: string[] = [];
     let prompt = "";
     globalThis.fetch = async (_input, init) => {
-      const form = init!.body as FormData;
+      const form = (init as RequestInit | undefined)?.body as FormData;
       paths = await Promise.all(form.getAll("image[]").map(part => (part as Blob).text()));
       prompt = String(form.get("prompt"));
       return new Response(JSON.stringify({ data: [{ b64_json: btoa("image") }] }));
