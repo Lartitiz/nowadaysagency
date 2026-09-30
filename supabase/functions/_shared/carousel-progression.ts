@@ -12,7 +12,7 @@ import {
 } from "./carousel-editorial-contract.ts";
 import { progressionMaterial } from "./carousel-editorial-snapshot.ts";
 
-export const PROGRESSION_VERSION = "final-progression-v1";
+export const PROGRESSION_VERSION = "final-progression-v2";
 export interface ProgressionSource {
   id: string;
   provenance: string;
@@ -29,6 +29,7 @@ export interface ProgressionResult {
   reviewed_material: string;
   report?: Record<string, any>;
   validation_details?: Record<string, unknown>;
+  format_retry?: { attempted: boolean; initial_reason: string };
   reason?: string;
   usage?: UsageSink;
 }
@@ -65,7 +66,8 @@ export function validateProgressionReport(
 ): string | null {
   const ids = (doc.slides || []).map((_: unknown, i: number) => `slides.${i}`);
   const sourceIds = new Set(sources.map((s) => s.id));
-  const text = carouselEditorialFields(doc).map((f) => f.text).join("\n");
+  const canonicalQuote = (value: string) => value.normalize("NFKC").replace(/\s+/g, " ").trim();
+  const text = canonicalQuote(carouselEditorialFields(doc).map((f) => f.text).join("\n"));
   const str = (s: unknown) => typeof s === "string" && !!s.trim();
   if (
     !report || !str(report.idea_read) || !str(report.conclusion) ||
@@ -114,15 +116,13 @@ export function validateProgressionReport(
     "omission",
     "raw_photo_text",
   ];
-  if (
-    report.defects.some((d: any) =>
-      !Array.isArray(d.slide_ids) || !d.slide_ids.length ||
-      !d.slide_ids.every((id: string) => ids.includes(id)) ||
-      !["major", "minor"].includes(d.severity) || !kinds.includes(d.type) ||
-      !str(d.excerpt) || !text.includes(d.excerpt) || !str(d.reason) ||
-      !str(d.repair)
-    )
-  ) return "defect-evidence";
+  for (const [i, d] of report.defects.entries()) {
+    if (!d || !Array.isArray(d.slide_ids) || !d.slide_ids.length ||
+      !d.slide_ids.every((id: string) => ids.includes(id))) return `defect-slide-reference:${i}`;
+    if (!["major", "minor"].includes(d.severity) || !kinds.includes(d.type)) return `defect-classification:${i}`;
+    if (!str(d.excerpt) || !text.includes(canonicalQuote(d.excerpt))) return `defect-excerpt:${i}`;
+    if (!str(d.reason) || !str(d.repair)) return `defect-explanation:${i}`;
+  }
   const major = report.defects.some((d: any) => d.severity === "major");
   if (
     report.verdict === "acceptable" &&
@@ -184,35 +184,65 @@ export async function reviewCarouselProgression(doc: any, opts: {
     };
   }
   const usage: UsageSink = {};
+  const startedAt = Date.now();
+  const budgetMs = opts.abortTimeoutMs ?? 45_000;
+  let formatRetry: ProgressionResult["format_retry"];
+  const invoke = async (options: AnthropicOptions) => {
+    const callUsage: UsageSink = {};
+    try { return await (opts.call || callAnthropic)(options, callUsage); }
+    finally {
+      for (const [key, value] of Object.entries(callUsage)) {
+        (usage as any)[key] = typeof value === "number" ? ((usage as any)[key] || 0) + value : value;
+      }
+    }
+  };
   try {
-    const raw = await (opts.call || callAnthropic)({
+    const options: AnthropicOptions = {
       model: getModelForAction("carousel"),
       system: COMMON + "\n\n" + JUDGE + "\nContrat de sortie : recopie exactement les IDs attendus, dans l'ordre fourni, sans renuméroter depuis 1. source_ids utilise seulement allowed_source_ids ; [] si aucune source utile. idea_read et conclusion sont des phrases non vides. limits est toujours un tableau de chaînes, éventuellement vide. Ne remplace aucun champ du schéma par une autre forme.",
       messages: [{ role: "user", content: input }],
       tool,
       max_tokens: Math.min(8192, 2048 + doc.slides.length * 400),
-      abortTimeoutMs: opts.abortTimeoutMs ?? 45_000,
+      abortTimeoutMs: budgetMs,
+      maxRetries: 0,
       keepDashes: true,
-    }, usage);
+    };
+    let raw = await invoke(options);
     let report: any;
-    try {
-      report = JSON.parse(raw);
-    } catch {
-      return {
-        ...receipt,
-        execution_status: "invalid",
-        reason: "invalid-json",
-        usage,
-      };
+    const parseAndValidate = () => {
+      try { report = JSON.parse(raw); }
+      catch { report = null; return "invalid-json"; }
+      return validateProgressionReport(report, doc, opts.sources);
+    };
+    let error = parseAndValidate();
+    if (error) {
+      const initialVerdict = report?.verdict;
+      const remainingMs = budgetMs - (Date.now() - startedAt);
+      formatRetry = { attempted: false, initial_reason: error };
+      if (remainingMs >= 8_000 && input.length + raw.length < 100_000) {
+        formatRetry.attempted = true;
+        try {
+          const retryRaw = await invoke({ ...options, abortTimeoutMs: remainingMs,
+            messages: [options.messages[0], { role: "assistant", content: raw }, {
+              role: "user",
+              content: `Ton rapport a été refusé par le validateur : ${error}. Corrige uniquement son format et ses références, sans réécrire le carrousel ni effacer un défaut pour obtenir acceptable. Utilise les IDs attendus et les valeurs du schéma. Pour chaque défaut, excerpt doit copier un court passage CONTIGU et présent dans sequence.fields[].text, sans guillemets ajoutés ni points de suspension ; une omission se rattache au passage qui aurait besoin de l'explication. Cite le passage concerné et garde une justification et une réparation non vides. Si un défaut ne peut pas être étayé, signale la limite au lieu d'inventer une preuve. Renvoie le rapport complet via le même outil.`,
+            }],
+          });
+          raw = retryRaw;
+          error = parseAndValidate();
+          if (!error && ["needs_repair", "insufficient_evidence"].includes(initialVerdict) && report.verdict === "acceptable") {
+            error = "format-verdict-regression";
+          }
+        } catch { /* Keep the initial invalid result; never convert failure to approval. */ }
+      }
     }
-    const error = validateProgressionReport(report, doc, opts.sources);
     if (error) {
       // Record shape only: diagnose provider schema drift without persisting
       // unvalidated prose or any private source material in public projections.
       const shape = (value: unknown) => Array.isArray(value)
         ? { type: "array", length: value.length, item_types: [...new Set(value.map((v) => typeof v))] }
         : { type: value === null ? "null" : typeof value, ...(typeof value === "string" ? { length: value.trim().length } : {}) };
-      return { ...receipt, execution_status: "invalid", reason: error, usage,
+      return { ...receipt, execution_status: "invalid", reason: error, usage, format_retry: formatRetry,
         validation_details: Object.fromEntries(Object.entries(report ?? {}).map(([key, value]) => [key, shape(value)])),
       };
     }
@@ -234,6 +264,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
       report,
       issues,
       usage,
+      ...(formatRetry ? { format_retry: formatRetry } : {}),
     };
   } catch {
     return {
