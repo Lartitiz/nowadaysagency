@@ -1,5 +1,5 @@
 import { buildConfirmedStructureBlock } from "./confirmed-structure.ts";
-import { createContinuousNarrative } from "./continuous-narrative.ts";
+import { createContinuousNarrative, NarrativePhotoMismatch } from "./continuous-narrative.ts";
 import { COMMON, PLAN, REPAIR } from "../_shared/carousel-editorial-contract.ts";
 import { reviewCarouselProgression, progressionReceipt, progressionWarnings, type ProgressionSource, type ProgressionResult } from "../_shared/carousel-progression.ts";
 import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts";
@@ -1390,13 +1390,17 @@ async function handleSuggestAnglesRequest(reqCtx: CarouselRequestContext): Promi
 // ── Mix carousel mode ──
 async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<Response | null> {
   const usage: UsageSink = {};
-  const output = await _deps.prepareNarrative({
+  let output;
+  try { output = await _deps.prepareNarrative({
     body:ctx.body, brandingContext:ctx.brandingContext,
     photoContext:buildPhotoContextRecap(ctx.body.photo_contexts || ctx.body.photos),
     newsContext:typeof ctx.newsContext === "string" ? ctx.newsContext : "",
     authoredText:ctx.currentAuthoredText, startedAt:ctx.startedAt, usage,
     emitStatus:ctx.emitStatus, write:_deps.callCarouselWriter, review:_deps.reviewThread,
-  });
+  }); } catch(error) {
+    if(error instanceof NarrativePhotoMismatch) return carouselMismatchResponse(JSON.stringify({photo_mismatch:{reason:error.message}}),ctx.body,usage,ctx.body.carousel_type,ctx.corsHeaders);
+    throw error;
+  }
   if (!output) return null;
   const measured = await runRedacGate(JSON.stringify(output.doc), {
     isLinkedIn:ctx.isLinkedIn,inputText:ctx.gateInputText,correction:{enabled:false},

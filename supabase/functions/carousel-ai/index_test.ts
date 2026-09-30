@@ -17,6 +17,22 @@ import { progressionReceipt } from "../_shared/carousel-progression.ts";
 import { handleRequest, _deps } from "./index.ts";
 import { createContinuousNarrative } from "./continuous-narrative.ts";
 
+Deno.test("prose continue : photos directes observées et refus photo conservé sans débit",async()=>{
+  resetDeps();_deps.prepareNarrative=createContinuousNarrative;
+  let debits=0;_deps.logUsage=(async()=>{debits++;}) as any;
+  _deps.callCarouselWriter=async(o)=>{
+    const blocks=o.messages[0].content as any[];
+    assert(blocks.some(b=>b.type==="image"&&b.source.data==="aGVsbG8="));
+    return JSON.stringify({photo_mismatch:{reason:"Le sujet promet un meuble absent des photos."}});
+  };
+  const oldFetch=globalThis.fetch;
+  globalThis.fetch=(()=>Promise.resolve(new Response("{}",{status:503}))) as typeof fetch;
+  try{
+    const response=await handleRequest(makeHooksRequest({type:"express_full",carousel_type:"photo",slide_count:4,scenario_origin:"automatic",photos:[{base64:"aGVsbG8="}],deepening_answers:{fait:"Mon meuble"}}));
+    assertEquals((await response.json()).error,"photo_mismatch");assertEquals(debits,0);
+  }finally{globalThis.fetch=oldFetch;resetDeps();}
+});
+
 // SUPABASE_URL / SERVICE_ROLE_KEY ne sont jamais lus (checkQuota/logUsage/runPipeline
 // sont TOUJOURS mockés via _deps dans ces tests), mais on pose des valeurs factices
 // par prudence — même patron que plan-limiter_test.ts.

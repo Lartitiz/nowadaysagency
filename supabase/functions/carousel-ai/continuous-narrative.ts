@@ -1,4 +1,5 @@
 import { COMMON } from "../_shared/carousel-editorial-contract.ts";
+import { extractImagePayload } from "../_shared/image-utils.ts";
 import {
   carouselLength,
   carouselLengthPrompt,
@@ -12,6 +13,7 @@ import {
 } from "../_shared/carousel-progression.ts";
 
 export const NARRATIVE_VERSION = "continuous-prose-v1";
+export class NarrativePhotoMismatch extends Error {}
 export function usesContinuousNarrative(body: any): boolean {
   return ["photo", "mix"].includes(body.carousel_type) &&
     !body.no_overlay && !body.user_slides?.length && !body.text_first &&
@@ -36,6 +38,10 @@ const TOOL = {
     type: "object",
     required: ["idea", "hook", "paragraphs", "caption"],
     properties: {
+      photo_mismatch: {
+        type: "object",
+        properties: { reason: { type: "string" } },
+      },
       idea: { type: "string" },
       hook: { type: "string" },
       paragraphs: {
@@ -66,6 +72,12 @@ export function parseNarrative(raw: string, exact?: number): Narrative {
       "Le texte du carrousel est incomplet. Réessaie.",
       422,
     );
+  }
+  if (
+    typeof n?.photo_mismatch?.reason === "string" &&
+    n.photo_mismatch.reason.trim()
+  ) {
+    throw new NarrativePhotoMismatch(n.photo_mismatch.reason.trim());
   }
   if (
     !n || typeof n.idea !== "string" || !n.idea.trim() ||
@@ -219,6 +231,7 @@ export async function createContinuousNarrative(options: {
 Choisis UNE proposition précise qui mérite d'être développée avec les faits disponibles. Commence par ce qui intéresse le lecteur, puis fais évoluer sa compréhension. La suite doit avoir une nécessité : une conséquence, une objection, une nuance ou un exemple qui modifie la lecture du point précédent. Ne récite pas la fiche de marque. Tu peux laisser de côté la technique, les inspirations ou les offres si elles n'aident pas cette pensée.
 Une présentation factuelle bien liée ne suffit pas à une demande de récit : chaque paragraphe doit faire avancer ce que tu défends, pas ouvrir une nouvelle rubrique. Ne donne pas toute la réponse immédiatement pour remplir ensuite avec des descriptions. Pas de suspense artificiel. Une demande explicite de liste, tutoriel ou catalogue conserve sa forme.
 Les photos seront placées ensuite. Leur contexte peut éclairer les faits, mais leur ordre, leurs couleurs et leurs motifs ne dictent pas ton texte. Aucune référence « sur cette photo ». Ne fabrique ni conviction intime, ni souvenir ni fait technique pour rendre le propos intéressant. Tu peux développer une interprétation prudente de faits attestés.
+Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas à ordonner les paragraphes. photo_mismatch est réservé à une contradiction frontale avec une chose concrète que la demande promet de montrer ; retourne alors sa raison, sans inventer un récit. Un décalage d'ambiance ou une illustration indirecte ne justifient pas ce refus.
 Écris hook (titre de lecture, 12 mots maximum), puis paragraphs : les paragraphes PUBLICS successifs, sans titres de rubriques ni consignes pour un futur rédacteur. Chaque paragraphe est développé autant que nécessaire, sans minimum de mots ni slogan ajouté. Le dernier termine réellement ce propos, sans ouvrir automatiquement une offre commerciale. Caption résume fidèlement ; cta vide si aucune invitation utile n'est demandée. idea nomme précisément la proposition développée.
 ${
       exact
@@ -231,15 +244,32 @@ ${carouselLengthPrompt(body)}`;
   const draft = async (feedback?: string, prior?: Narrative) => {
     const sink: UsageSink = {};
     try {
+      const content: any[] = [{
+        type: "text",
+        text: JSON.stringify({
+          sources,
+          ...(feedback ? { draft: prior, feedback } : {}),
+        }),
+      }];
+      if (!body.confirmed_structure?.length) {
+        for (const photo of (body.photos || []).slice(0, 10)) {
+          if (photo.base64) {
+            content.push({
+              type: "image",
+              source: {
+                type: "base64",
+                ...extractImagePayload(photo.base64, photo.mimeType),
+              },
+            });
+          }
+        }
+      }
       const text = await write({
         model: pickCarouselWriter(body),
         system,
         messages: [{
           role: "user",
-          content: JSON.stringify({
-            sources,
-            ...(feedback ? { draft: prior, feedback } : {}),
-          }),
+          content,
         }],
         tool: TOOL,
         max_tokens: 5500,
@@ -274,6 +304,7 @@ ${carouselLengthPrompt(body)}`;
     if (receipt.usage) add(receipt.usage);
     return receipt;
   };
+  options.emitStatus("writing");
   let narrative = await draft();
   options.emitStatus("correcting");
   let receipt = await judge(narrative);
