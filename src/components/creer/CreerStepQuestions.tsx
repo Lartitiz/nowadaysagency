@@ -96,6 +96,7 @@ interface Props {
   /** auto=1 (1er contenu post-diagnostic) : récap + « Générer » direct au lieu du
    *  mur de 3 questions. L'affinage reste dispo en secondaire (levier activation). */
   autoFirstContent?: boolean;
+  allowNarrative?: boolean;
 }
 
 export default function CreerStepQuestions({
@@ -112,6 +113,7 @@ export default function CreerStepQuestions({
   onSkip,
   onBack,
   autoFirstContent,
+  allowNarrative,
 }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers || {});
@@ -126,13 +128,31 @@ export default function CreerStepQuestions({
 
   const handleSkip = () => {
     setIsSubmitting(true);
-    onSkip();
+    if (Object.values(answers).some((value) => value.trim())) onNext(answers);
+    else onSkip();
   };
 
   const handleFinalize = (finalAnswers: Record<string, string>) => {
     setIsSubmitting(true);
     onNext(finalAnswers);
   };
+
+  const hasAnswers = Object.values(answers).some((value) => value.trim());
+  const narrativeField = allowNarrative ? (
+    <details className="rounded-xl border p-4 text-left">
+      <summary className="cursor-pointer text-sm font-medium">Un autre récit à raconter ?</summary>
+      <label htmlFor="creation-narrative" className="block text-sm mt-3 mb-2">
+        Ce que tu veux raconter (optionnel)
+      </label>
+      <Textarea
+        id="creation-narrative"
+        value={answers["Le récit que je souhaite raconter"] || ""}
+        onChange={(event) => setAnswers((previous) => ({ ...previous, "Le récit que je souhaite raconter": event.target.value }))}
+        placeholder="Tu peux préciser ou changer l’histoire de départ. Raconte ce qui s’est passé, ce que tu veux expliquer ou faire comprendre."
+        rows={4}
+      />
+    </details>
+  ) : null;
 
   // Levier A — 1er contenu (auto=1) : au lieu du mur de 3 questions juste après le
   // diagnostic, on récapitule l'idée déjà préparée et on GÉNÈRE direct (récompense
@@ -148,6 +168,7 @@ export default function CreerStepQuestions({
           <p className="text-2xs font-semibold uppercase tracking-wide text-primary-text mb-1">Ton idée</p>
           <p className="text-sm font-medium text-foreground leading-snug">{subject}</p>
         </div>
+        {narrativeField}
         <Button onClick={handleSkip} disabled={isSubmitting} data-testid="creer-generate-direct" className="w-full rounded-pill gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-12 text-base">
           {isSubmitting ? (
             <><Loader2 className="h-4 w-4 animate-spin" /> On rédige ton contenu…</>
@@ -178,9 +199,10 @@ export default function CreerStepQuestions({
         )}
         <p className="text-sm text-muted-foreground">
           {loadError
-            ? "Tu peux quand même générer directement : la qualité reste au rendez-vous."
-            : "Pas de questions cette fois : on peut générer directement, ton contenu sera très bien quand même."}
+            ? "Tu peux ajouter tes précisions ou générer avec les informations déjà disponibles."
+            : "La matière disponible suffit pour commencer. Tu peux générer directement ou ajouter une précision."}
         </p>
+        {narrativeField}
         <Button onClick={handleSkip} disabled={isSubmitting} className="gap-2" data-testid="creer-generate-direct">
           {isSubmitting ? (
             <><Loader2 className="h-4 w-4 animate-spin" /> Lancement…</>
@@ -218,7 +240,7 @@ export default function CreerStepQuestions({
     <div className="space-y-5 animate-fade-in">
       <div>
         <h2 className="font-display text-3xl text-primary">Quelques précisions</h2>
-        <p className="mt-2 text-sm text-muted-foreground">Ajoute ce qui compte pour toi. Tu peux aussi passer ces questions et retravailler le texte ensuite.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Tu peux préciser ou changer ce que tu souhaites raconter dans tes réponses. Ce que tu écris sera conservé si tu passes les questions restantes.</p>
       </div>
       {previousBriefsCount && previousBriefsCount > 0 ? (
         <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
@@ -250,6 +272,8 @@ export default function CreerStepQuestions({
         />
       </div>
 
+      {narrativeField}
+
       {/* Navigation */}
       <div className="flex justify-between items-center">
         <Button variant="ghost" size="sm" onClick={handlePrev} disabled={isSubmitting} className="gap-1">
@@ -278,7 +302,7 @@ export default function CreerStepQuestions({
         {isSubmitting ? (
           <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Lancement…</>
         ) : (
-          <><SkipForward className="h-3.5 w-3.5" /> Passer les questions, générer directement</>
+          <><SkipForward className="h-3.5 w-3.5" /> {hasAnswers ? "Générer avec mes précisions" : "Passer les questions, générer directement"}</>
         )}
       </Button>
 

@@ -59,7 +59,7 @@ interface CarouselContext {
   isLinkedInCarousel: boolean;
   setStructureLoading: (value: boolean) => void;
   setStructureProposal: (proposal: any) => void;
-  handleConfirmStructure: (confirmedSlides: SlideProposal[], proposalOverride?: StructureProposal) => Promise<void>;
+  handleConfirmStructure: (confirmedSlides: SlideProposal[], proposalOverride?: StructureProposal, answersOverride?: Record<string, string>) => Promise<void>;
 }
 
 interface ResultSetters {
@@ -510,7 +510,8 @@ export function useDoGenerate({
           // Coupe le loader "structure" avant d'enchaîner : sinon il cohabiterait
           // avec le loader de génération sur l'écran result (double loader).
           setStructureLoading(false);
-          await handleConfirmStructure(data.result.slides, data.result);
+          // Keep the submitted answers through the asynchronous planning call.
+          await handleConfirmStructure(data.result.slides, data.result, ans);
         } else {
           throw new Error("Structure non reçue");
         }

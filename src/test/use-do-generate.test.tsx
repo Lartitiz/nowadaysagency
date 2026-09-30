@@ -365,9 +365,20 @@ describe("useDoGenerate — carrousels (structure, régénération, mix)", () =>
     expect(params.photo.setGeneratedWithPhotos).toHaveBeenCalledWith(photos); // snapshot anti-reset
 
     expect(params.carousel.setStructureProposal).toHaveBeenCalledWith(structureResult);
-    expect(params.carousel.handleConfirmStructure).toHaveBeenCalledWith(structureResult.slides, structureResult);
+    expect(params.carousel.handleConfirmStructure).toHaveBeenCalledWith(structureResult.slides, structureResult, {});
     // Pas de double génération : le chemin direct n'est jamais pris.
     expect(params.generate).not.toHaveBeenCalled();
+  });
+
+  it("transmet le même nouveau récit au plan et à la rédaction après l'attente asynchrone", async () => {
+    const plan = { slides: [{ slide_number: 1 }], narrative_thread: "Un choix expliqué" };
+    mocks.invokeWithTimeout.mockResolvedValue({ data: { result: plan }, error: null });
+    const params = makeParams({ carouselSubMode: "photo", uploadedPhotos: photos, questions: [{ id: "q_0", question: "Quel objectif ?" }] });
+    const answer = "Finalement je veux raconter pourquoi je ne fais plus de séries identiques.";
+    await run(params, { q_0: answer, "Le récit que je souhaite raconter": "Les faits viennent de mon expérience." });
+    const expected = { "Quel objectif ?": answer, "Le récit que je souhaite raconter": "Les faits viennent de mon expérience." };
+    expect(mocks.invokeWithTimeout.mock.calls[0][1].body.deepening_answers).toEqual(expected);
+    expect(params.carousel.handleConfirmStructure).toHaveBeenCalledWith(plan.slides, plan, expected);
   });
 
   it("photo_mismatch → erreur actionnable, retour à format, PAS de repli facturé", async () => {
