@@ -290,7 +290,7 @@ Deno.test("natural photo treatment reaches OpenAI for text and reference request
   assertEquals(prompt.includes("Do not automatically simplify the setting"), true);
   assertEquals(prompt.includes("credible material and skin textures"), true);
   assertEquals(prompt.includes("moderate depth of field"), false);
-  assertEquals(prompt.includes("Warm Mediterranean sunlight"), true);
+  assertEquals(prompt.includes("Warm Mediterranean sunlight"), false);
   assertEquals(prompt.includes("Keep its other features"), false);
   assertEquals(imagePrompt({ ...natural, photo_treatment: "directed" }).includes("Natural photograph with coherent light"), false);
   assertEquals(imagePrompt({ ...natural, visual_kind: "graphic" }).includes("Natural photograph with coherent light"), false);
@@ -302,7 +302,7 @@ Deno.test("natural photo treatment reaches OpenAI for text and reference request
     return new Response(JSON.stringify({ data: [{ b64_json: btoa("image") }] }), { headers: { "Content-Type": "application/json" } });
   };
   try {
-    await generateImage(natural, [new Blob(["source"], { type: "image/jpeg" })]);
+    await generateImage(natural, [new Blob(["source"], { type: "image/jpeg" }), new Blob(["style"], { type: "image/jpeg" })]);
     assertEquals(sentPrompt, prompt);
   } finally {
     globalThis.fetch = original;

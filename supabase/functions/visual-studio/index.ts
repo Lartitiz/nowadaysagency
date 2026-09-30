@@ -1,3 +1,4 @@
+import { imageInputPaths, inheritedPhotoSource } from "./photo-preservation.ts";
 import { soulStyles, selectSoulStyles, resolveSoulStyle } from "./soul-direction.ts";
 import { prepareIntegration } from "./integration-direction.ts";
 import { activeReferences, adviceTurn, independentRequest, explicitRoles, dialogueHistory, CONVERSATION_SYSTEM, type ConversationContext } from "./conversation.ts";
@@ -1183,6 +1184,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             input_path: intent.operation === "background"
               ? finalInputPath
               : editInput,
+            photo_source_path: inheritedPhotoSource({ ...intent, input_path: editInput }, parent),
             original_path: originalPath,
             subject_kind: resolvedReferences.find((r) => isIdentity(r.role))?.kind ||
               null,
@@ -1486,14 +1488,13 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             for (const version of (claim.versions || [claim.version])) {
               const readInputs = async () => {
                 const proposal = version.proposal;
-                const paths = proposal.references
-                  ? [
-                    ...(proposal.input_path ? [proposal.input_path] : []),
-                    ...proposal.references.map((r: Reference) => r.path),
-                    ...(proposal.scene_workflow?.phase === "integration" && proposal.scene_workflow.scene_path && proposal.scene_workflow.scene_path !== proposal.input_path
-                      ? [proposal.scene_workflow.scene_path] : []),
-                  ]
-                  : [session.source_path];
+                const paths = imageInputPaths(proposal);
+                // Very old snapshots without an explicit source must still use the
+                // stored source as pixels, with the same manifest and prompt roles.
+                if (!paths.length && proposal.operation !== "create" && session.source_path) {
+                  proposal.input_path = session.source_path;
+                  paths.push(...imageInputPaths(proposal));
+                }
                 return Promise.all(
                   paths
                     .filter(Boolean)
