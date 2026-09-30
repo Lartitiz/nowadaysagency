@@ -1022,13 +1022,13 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           : finalInputPath;
         const inputs = sceneInputs(phase, intent.operation, resolvedReferences,
           sourcePath, parent?.result_path || null, intent.uses_selected_version);
-        if (phase === "scene" && (intent.visual_kind !== "photo" || intent.exact_text.length ||
+        if (phase === "scene" && generative(intent.operation) && (intent.visual_kind !== "photo" || intent.exact_text.length ||
           intent.shots.length || !["create", "edit"].includes(intent.operation) ||
           inputs.planning.some(ref => ref.path === inputs.input))) {
           intent.operation = "clarify";
-          intent.summary = "Préparons d’abord une seule scène photographique, sans le produit ni texte ajouté. Le produit original sera intégré après validation de cette scène.";
+          intent.summary = "Préparons d’abord une seule scène photographique provisoire, sans texte ajouté. Tes originaux seront intégrés après validation de cette scène.";
         }
-        if (phase === "integration" && (!["product", "edit"].includes(intent.operation) || !inputs.input || !inputs.references.some(exactReference))) {
+        if (phase === "integration" && generative(intent.operation) && (!["product", "edit"].includes(intent.operation) || !inputs.input || !inputs.references.some(exactReference))) {
           intent.operation = "clarify";
           intent.summary = "Pour intégrer tes références, sélectionne la scène à conserver et joins les photos originales de la personne ou du produit.";
         }

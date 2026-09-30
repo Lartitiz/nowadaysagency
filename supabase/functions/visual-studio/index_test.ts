@@ -1366,3 +1366,17 @@ Deno.test("integration confirmation persists the exact approved scene before one
     assertEquals(f.requests.some(path => path.includes("/v1/messages") || path.includes("images/")), false);
   } finally { if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key); f.restore(); }
 });
+
+Deno.test("ambiguous multiple identities keep the specific grouping question instead of a generic scene error", async () => {
+  const f = fixture();
+  const refs = [{ id: id(960), path: "first", role: "person", name: "Portrait 1", photo_id: null },
+    { id: id(961), path: "second", role: "casting", name: "Portrait 2", photo_id: null }];
+  f.session.references = refs;
+  f.setIntent({ operation: "create", visual_kind: "photo", summary: "Deux portraits", image_prompt: "People in a workshop", reference_use: refs.map(({id, role}) => ({id, role})) });
+  try {
+    const res = await handleStudioRequest(request({ ...base, action: "message", studio_version: 4, revision: 0, request_id: id(962), reference_ids: refs.map(r => r.id), message: "Fais une photo avec ces portraits" }));
+    const data = await res.json(); assertEquals(res.status, 200); assertEquals(data.session.proposal, null);
+    assertEquals(data.session.messages.at(-1).text.includes("même sujet"), true);
+    assertEquals(f.requests.some(path => path.includes("studio_confirm_generation")), false);
+  } finally { f.restore(); }
+});
