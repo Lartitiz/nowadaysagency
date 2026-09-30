@@ -96,6 +96,7 @@ function makeParams(overrides: Record<string, any> = {}) {
     generatedWithPhotos: [] as any[],
     structureProposal: null,
     lastConfirmedStructure: null,
+    lastScenarioOrigin: null as "automatic" | "user_validated" | null,
     lastNarrativeThread: null,
     slideCountChoice: undefined,
     isLinkedInCarousel: false,
@@ -181,6 +182,7 @@ function makeParams(overrides: Record<string, any> = {}) {
       textFirstRowsSnapshotRef: f.textFirstRowsSnapshotRef,
       structureProposal: f.structureProposal,
       lastConfirmedStructure: f.lastConfirmedStructure,
+      lastScenarioOrigin: f.lastScenarioOrigin,
       lastNarrativeThread: f.lastNarrativeThread,
       slideCountChoice: f.slideCountChoice,
       isLinkedInCarousel: f.isLinkedInCarousel,
@@ -449,7 +451,7 @@ describe("useDoGenerate — carrousels (structure, régénération, mix)", () =>
     expect(mocks.toast.error).toHaveBeenCalledWith("Impossible de répartir tes photos pour le moment. Vérifie-les puis réessaie.");
   });
 
-  it("structure déjà confirmée → régénération directe avec la même structure et le snapshot photos", async () => {
+  it.each(["automatic", "user_validated"] as const)("structure déjà confirmée (%s) → reprise avec sa provenance et les mêmes photos", async (origin) => {
     const confirmed = [{ slide_number: 1, role: "hook" }];
     const params = makeParams({
       carouselSubMode: "photo",
@@ -457,6 +459,7 @@ describe("useDoGenerate — carrousels (structure, régénération, mix)", () =>
       generatedWithPhotos: photos, // …le snapshot tient encore les photos
       lastConfirmedStructure: confirmed,
       lastNarrativeThread: "mon fil",
+      lastScenarioOrigin: origin,
     });
     await run(params);
 
@@ -466,6 +469,7 @@ describe("useDoGenerate — carrousels (structure, régénération, mix)", () =>
     expect(params.generate.mock.calls[0][0]).toMatchObject({
       confirmedStructure: confirmed,
       narrativeThread: "mon fil",
+      scenarioOrigin: origin,
       carouselType: "photo",
       photos: [expect.objectContaining({ base64: "p1" })],
     });

@@ -1,3 +1,5 @@
+import { soulStyles, selectSoulStyles, resolveSoulStyle } from "./soul-direction.ts";
+import { prepareIntegration } from "./integration-direction.ts";
 import { activeReferences, adviceTurn, independentRequest, explicitRoles, dialogueHistory, CONVERSATION_SYSTEM, type ConversationContext } from "./conversation.ts";
 import { integrationProposal, referenceSignature } from "./integration-proposal.ts";
 import { exactReference, validTargets, repairTargets, targetProblems, sceneInputs } from "./scene-workflow.ts";
@@ -6,7 +8,7 @@ import { compositionSchema } from "./composition.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
-import { callAnthropic } from "../_shared/anthropic.ts";
+import { callAnthropic, SONNET_MODEL } from "../_shared/anthropic.ts";
 import {
   checkQuota,
   getServiceClient,
@@ -55,6 +57,7 @@ const schema = z.object({
   studio_version: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
   action: z.enum([
     "create",
+    "styles",
     "read",
     "message",
     "generate",
@@ -223,6 +226,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
     if (!["read", "composition_read"].includes(p.action) && !writable) {
       return json({ error: "Cet espace est en lecture seule." }, 403);
     }
+    if (p.action === "styles") return json({ styles: await soulStyles() });
     let sessionResult = await sb
       .from("visual_studio_sessions")
       .select("*")
@@ -744,11 +748,12 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           });
           vision.push(await visionFromStorage(sb, BUCKET, ref.path));
         }
+        const availableSoulStyles = conversational ? [] : selectSoulStyles(await soulStyles());
         let intent: ReturnType<typeof intentSchema.parse>;
         let interpreterArgs: Parameters<typeof callAnthropic>[0];
         try {
           interpreterArgs = {
-            model: "claude-haiku-4-5",
+            model: conversational ? "claude-haiku-4-5" : SONNET_MODEL,
             system: conversational ? CONVERSATION_SYSTEM : studioSystem,
             tool: conversational ? conversationTool : intentTool,
             // Supplied titles, dates and time ranges must survive structured output verbatim.
@@ -767,6 +772,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                     type: "text",
                     text: JSON.stringify({
                       composition_editable: !parent && session.composition ? { ...session.composition.design, logo_data_url: undefined, logo_present: !!session.composition.design?.logo_data_url } : null,
+                      presets_soul_disponibles: availableSoulStyles,
                       competences_disponibles: COMPETENCIES,
                       memoire_confirmee: memory.filter((m) =>
                         m.kind === "preference"
@@ -1181,6 +1187,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             subject_kind: resolvedReferences.find((r) => isIdentity(r.role))?.kind ||
               null,
             image_prompt: intent.image_prompt,
+            ...(phase === "scene" && intent.operation === "create" ? { soul_style: resolveSoulStyle(intent.soul_style_id, availableSoulStyles), soul_style_options: availableSoulStyles } : {}),
+            prompt_author: SONNET_MODEL,
             photo_treatment: intent.photo_treatment,
             composition: p.studio_version === 4 && generative(intent.operation)
               ? undefined
@@ -1363,8 +1371,13 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
     if (p.action === "integrate") {
       if (!p.version_id || !p.proposal_id || p.revision !== session.revision) throw new Error("studio_conflict");
       const source = unwrap(await sb.from("visual_studio_versions").select("*").eq("id", p.version_id).eq("session_id", session.id).eq("status", "ready").single());
-      const next = await integrationProposal(source, references);
+      let next = await integrationProposal(source, references);
       if (!next || next.id !== p.proposal_id || p.approved_scene_id !== source.id) return json({ error: "La scène ou les références ont changé. Vérifie l’aperçu avant l’intégration." }, 409);
+      const integrationQuota = await checkQuota(actor, "photo_retouch", p.workspace_id);
+      if (!integrationQuota.allowed) return quotaDeniedResponse(integrationQuota, pipe.corsHeaders);
+      if (!premiumAllowed(integrationQuota.plan, isQaTestAccount(actor))) return json({ error: "Cette création est disponible en Premium." }, 403);
+      next = await prepareIntegration(next, path => visionFromStorage(sb, BUCKET, path));
+      if (!(await canWrite(sb, actor, p.workspace_id))) return json({ error: "Les droits de cet espace ont changé." }, 403);
       // Persist the approval and immutable inputs before the existing atomic claim.
       session = unwrap(await sb.from("visual_studio_sessions").update({ proposal: { ...next,
         scene_workflow: { ...next.scene_workflow, approved_scene_id: source.id, approved_at: new Date().toISOString() } },
@@ -1442,6 +1455,14 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           );
         }
         if (!quota.allowed) return quotaDeniedResponse(quota, pipe.corsHeaders);
+        const workflow = session.proposal.scene_workflow;
+        if (workflow?.phase === "integration" && !session.proposal.integration_preparation &&
+          session.proposal.input_path === workflow.scene_path) {
+          const prepared = await prepareIntegration(session.proposal, path => visionFromStorage(sb, BUCKET, path));
+          if (!(await canWrite(sb, actor, p.workspace_id))) return json({ error: "Les droits de cet espace ont changé." }, 403);
+          session = unwrap(await sb.from("visual_studio_sessions").update({ proposal: prepared })
+            .eq("id", session.id).eq("revision", session.revision).select("*").single());
+        }
         const exempt = isQaTestAccount(actor) || quota.plan === "admin";
         const limits = PLAN_LIMITS[quota.plan] || PLAN_LIMITS.free;
         const claim = unwrap(
@@ -1766,6 +1787,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       message.replace(/https?:\/\/\S+/g, "[url]"),
     );
     const known: Record<string, string> = {
+      studio_soul_style_unavailable: "Ce preset Soul n’est plus disponible. Modifie ta demande ou choisis sans preset.",
+      studio_soul_prompt_missing: "La consigne photographique est incomplète. Modifie ta demande avant de générer.",
+      studio_integration_sources: "Chaque personne et produit doit être associé à ses originaux. Reprécise les références avant l’intégration.",
       studio_reference_limit:
         "Garde jusqu’à huit références. Retire une référence avant d’ajouter cette direction.",
       studio_image_too_large:
@@ -1789,7 +1813,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       {
         error: key
           ? known[key]
-          : "Le Studio est momentanément indisponible. Ta demande reste conservée ; réessaie.",
+          : message.startsWith("Intégration à préciser :") ? message : "Le Studio est momentanément indisponible. Ta demande reste conservée ; réessaie.",
       },
       key ? 409 : 503,
     );

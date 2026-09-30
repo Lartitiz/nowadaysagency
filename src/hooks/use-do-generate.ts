@@ -55,6 +55,7 @@ interface CarouselContext {
   structureProposal: StructureProposal | null;
   lastConfirmedStructure: SlideProposal[] | null;
   lastNarrativeThread: string | null;
+  lastScenarioOrigin?: "automatic" | "user_validated" | null;
   slideCountChoice: number | undefined;
   isLinkedInCarousel: boolean;
   setStructureLoading: (value: boolean) => void;
@@ -176,6 +177,7 @@ export function useDoGenerate({
     structureProposal,
     lastConfirmedStructure,
     lastNarrativeThread,
+    lastScenarioOrigin,
     slideCountChoice,
     isLinkedInCarousel,
     setStructureLoading,
@@ -571,6 +573,7 @@ export function useDoGenerate({
         channel: isLinkedInCarousel ? "linkedin" : undefined,
         slideCount: slideCountChoice,
         confirmedStructure: lastConfirmedStructure,
+        scenarioOrigin: lastScenarioOrigin || "user_validated",
         ...(lastNarrativeThread ? { narrativeThread: lastNarrativeThread } : {}),
         ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: regenPhotos.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription } : {}),
         ...(carouselSubMode === "mix"

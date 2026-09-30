@@ -486,6 +486,7 @@ function CreerWorkspace() {
   }, [coverIllustrationLocked, coverIllustration]);
   const [structureLoading, setStructureLoading] = useState(false);
   const [lastConfirmedStructure, setLastConfirmedStructure] = useState<SlideProposal[] | null>(null);
+  const [lastScenarioOrigin, setLastScenarioOrigin] = useState<"automatic" | "user_validated" | null>(null);
   const [lastNarrativeThread, setLastNarrativeThread] = useState<string | null>(null);
   const [newsjackingContext, setNewsjackingContext] = useState<string | null>(ps?.newsjackingContext || null);
   const [newsjackingSuggestedFormat, setNewsjackingSuggestedFormat] = useState<string | null>(ps?.newsjackingSuggestedFormat || null);
@@ -1566,6 +1567,7 @@ function CreerWorkspace() {
     const narrativeThread =
       (proposalOverride ?? structureProposal)?.narrative_thread || undefined;
     setLastConfirmedStructure(confirmedSlides);
+    setLastScenarioOrigin(proposalOverride ? "automatic" : "user_validated");
     setLastNarrativeThread(narrativeThread || null);
     setStructureProposal(null);
     setStep("result");
@@ -1674,6 +1676,7 @@ function CreerWorkspace() {
       textFirstRowsSnapshotRef,
       structureProposal,
       lastConfirmedStructure,
+      lastScenarioOrigin,
       lastNarrativeThread,
       slideCountChoice,
       isLinkedInCarousel,
@@ -1867,6 +1870,7 @@ function CreerWorkspace() {
     setPhotoBriefOverlayHtml(null);
     setStructureProposal(null);
     setLastConfirmedStructure(null);
+    setLastScenarioOrigin(null);
     setEditingIdeaId(null);
     // Sans ça, le suivi de la publication précédente restait en mémoire et
     // renvoyait « déjà enregistré » pour tout contenu créé ensuite.

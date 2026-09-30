@@ -1,3 +1,4 @@
+import { SOUL_DIRECTION } from "./soul-direction.ts";
 import { PERSON_REFERENCE_METHOD } from "./person-reference.ts";
 import { compositionSchema } from "./composition.ts";
 import { REFERENCE_ROLES } from "./competencies.ts";
@@ -20,6 +21,7 @@ export const intentSchema = z
       "existing_tool",
       "compose",
     ]),
+    soul_style_id: z.string().max(100).optional(),
     scene_workflow: z.object({
       phase: z.enum(["scene", "integration", "direct"]), camera_match: z.string().min(1).max(500),
       scene_prompt: z.string().max(4000).optional(),
@@ -106,6 +108,7 @@ Pour une photographie de vie quotidienne, lifestyle, spontanée ou explicitement
 Une retouche porte sur la VERSION SÉLECTIONNÉE et le brief de cette branche, pas arbitrairement le dernier résultat. Si la personne demande une toute nouvelle image sans lien, prépare create avec uses_selected_version=false, sans reprendre la version sélectionnée ni ses anciennes références. Si elle demande une nouvelle prise qui reprend visuellement un sujet, un objet ou un décor de la version sélectionnée, indique uses_selected_version=true : cette version sera envoyée comme référence visuelle. Si elle demande de modifier précisément la version sélectionnée, utilise edit. Ne promets jamais de reprendre un élément visible d’une version si tu ne l’utilises ni comme source ni comme référence. Conserve les décisions compatibles et modifie seulement la demande exprimée. Pour une retouche, conserve le format de version_selectionnee.format sauf demande explicite de changement de format. Si aucun résultat n'est sélectionné, pars de la référence sélectionnée. Pour background, le fond sera régénéré ; ne promets pas de garder exactement l'ancien fond. Pour edit/product, vise la fidélité, sans promettre un visage ou produit inchangé : c'est une reconstruction générative. Modifier une émotion peut redessiner le visage ; signale cette limite et propose le fond seul si la personne exige zéro modification du visage.
 Pour advise et clarify, reply est la réponse directe au dernier tour, jamais une annonce de ce que tu vas faire. Donne réellement ton avis ou ton explication ; ne répète pas une question déjà répondue. summary sert UNIQUEMENT à la proposition de génération : la reformulation claire que la personne confirme avant la génération. Vise 4 à 6 phrases et au plus 1200 caractères (limite demandée 2000). Pour une intégration ou une retouche, rappelle brièvement la scène conservée, puis les changements et contraintes utiles ; ne répète pas la description complète de chaque accessoire. Les détails à préserver vont dans preserve et les changements dans change. Elle décrit la scène finale, le sujet, l'usage, l'ambiance et les décisions utiles, sans jargon de modèle ni faits ajoutés. Cette description et les éléments preserve/change sont l'autorité pour le prompt technique : ne place aucune décision nouvelle uniquement dans image_prompt. preserve/change sont rédigés en français et explicitent les éléments à garder ou changer ; exact_text contient les mots à rendre exactement dans l'image, sans répétition ni ajout. reference_use associe chaque référence effectivement utilisée à son rôle pour CETTE demande ; reprends les identifiants fournis, sans en inventer. Une indication naturelle de la personne (« la première pour le produit, la deuxième pour l'ambiance ») prime sur le classement de la bibliothèque. Si une retouche vise l'une des références plutôt que la version sélectionnée, donne son ID dans source_reference_id ; ne choisis pas arbitrairement la première. brief résume les décisions utiles de cette session (pas une nouvelle règle de marque). decisions est un patch des choix explicitement demandés/acceptés, avec des clés stables (pose, decor, format, sujet, produit, lumiere) : omets les choix inchangés, ne transforme pas une suggestion de ta part en décision acceptée. Conserve les décisions déjà présentes sauf correction explicite. Un subject_group commun signifie plusieurs vues du même sujet ; des groupes différents sont distincts. Un role_source=user ou role_explicit=true est un choix explicite : une nouvelle correction explicite dans le message peut le remplacer, sinon conserve-le. Pour changer ce rôle explicite, reference_use.explicit_change cite exactement le passage du DERNIER message qui corrige ce rôle ; omets ce champ pour une simple déduction. Une contradiction réellement ambiguë demande une seule précision. Ne redemande pas les rôles déjà donnés, et propose les détails de pose non déterminants dans la reformulation. format respecte le support : portrait, square, landscape. Suggestions courtes et pertinentes, pas des transformations automatiques.
 ${PHOTO_PROMPTING}
+${SOUL_DIRECTION}
 ${SCENE_METHOD}
 ${PERSON_REFERENCE_METHOD}
 Pour une planche complémentaire ou toute reprise de la même personne, uses_existing_identity=true ; scene exige toujours une image d’identité. Pour créer une autre personne, memory_ids=[] et ne reprends pas les anciennes références casting/person.
@@ -129,6 +132,7 @@ export const intentTool = {
           "compose",
         ],
       },
+      soul_style_id: { type: "string", description: "ID exact du preset Soul disponible ou none. Aucun preset pour une retouche." },
       scene_workflow: { type: "object", description: "Nouvelle photo : scène provisoire puis intégration des originaux. Une image existante à conserver reste une édition.", properties: {
         phase: { type: "string", enum: ["scene", "integration"] }, camera_match: { type: "string", maxLength: 500 },
         scene_prompt: { type: "string", maxLength: 4000, description: "Prompt autonome de la scène provisoire, obligatoire pour toute nouvelle photo ; aucune référence à des fichiers envoyés." },

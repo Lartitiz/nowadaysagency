@@ -20,7 +20,8 @@ Deno.test("integration preview binds exact scene and sorted originals with match
   const prompt = imagePrompt(p);
   assertEquals(prompt.includes("Image 1 is the exact base image"), true);
   assertEquals(prompt.includes("Image 2: product reference, Assiette"), true);
-  assertEquals(prompt.includes("Personne à droite: Remplacer son identité avec l'original, conserver la pose. Sources: Image 3"), true);
+  assertEquals(prompt.includes("Personne à droite: Remplacer la personne provisoire par la personne exacte"), true);
+  assertEquals(prompt.includes("Sources: Image 3"), true);
   assertEquals(prompt.includes("Sans fleurs"), true);
   assertEquals(prompt.includes("do not freeze incompatible provisional features"), true);
   assertEquals(prompt.includes("add blur, grain or props"), true);

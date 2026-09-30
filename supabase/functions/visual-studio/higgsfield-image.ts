@@ -1,3 +1,4 @@
+import { soulPrompt } from "./soul-direction.ts";
 import { getServiceClient } from "../_shared/plan-limiter.ts";
 import { imagePrompt, type Proposal } from "./media.ts";
 type DB = ReturnType<typeof getServiceClient>;
@@ -74,7 +75,8 @@ export function imageInput(proposal: Proposal, urls: string[]) {
       throw new Error("studio_provider_model");
     }
     return {
-      prompt: imagePrompt(proposal),
+      prompt: soulPrompt(proposal),
+      ...(proposal.soul_style ? { style_id: proposal.soul_style.id } : {}),
       batch_size: 1,
       resolution: "1080p",
       aspect_ratio: proposal.format === "portrait"

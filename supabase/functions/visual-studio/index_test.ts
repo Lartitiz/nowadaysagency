@@ -96,14 +96,14 @@ function fixture(role = "owner", replay = false, legacyLarge = false) {
       return json(true);
     }
     if (url.pathname === "/rest/v1/rpc/studio_set_session_archived") {
-      const body = JSON.parse(String(init?.body));
+      const body = JSON.parse(String((init as { body?: unknown } | undefined)?.body));
       session.archived_at = body.p_archive ? new Date().toISOString() : null;
       session.revision += 1;
       session.proposal = null;
       return json(session);
     }
     if (url.pathname === "/rest/v1/rpc/studio_save_composition") {
-      const body = JSON.parse(String(init?.body));
+      const body = JSON.parse(String((init as { body?: unknown } | undefined)?.body));
       if (body.p_revision !== session.revision) return json({ message: "studio_conflict" }, 409);
       const entry = {
         id: id(700 + compositions.length), session_id: sessionId,
@@ -131,10 +131,10 @@ function fixture(role = "owner", replay = false, legacyLarge = false) {
       return json([]);
     }
     if (url.pathname === "/v1/messages") {
-      payloads.push(JSON.parse(String(init?.body)));
+      payloads.push(JSON.parse(String((init as { body?: unknown } | undefined)?.body)));
       return json({
         content: [
-          { type: "tool_use", name: "prepare_photo_request", input: intent },
+          { type: "tool_use", name: JSON.parse(String((init as { body?: unknown } | undefined)?.body)).tools?.[0]?.name || "prepare_photo_request", input: intent },
         ],
         stop_reason: "tool_use",
       });
@@ -1344,6 +1344,7 @@ Deno.test("integration confirmation persists the exact approved scene before one
   Object.assign(f.version.proposal, { planning_references: [person], scene_workflow: { phase: "scene", camera_match: "Face",
     targets: [{ role: "person", reference_ids: [person.id], location: "Au centre", instruction: "Intégrer cette identité" }] } });
   const preview = (await integrationProposal(f.version))!;
+  f.setIntent({ image_prompt: "Replace the provisional person in Image 1 with the exact identity of Image 2. Keep the workshop and pose.", targets: preview.scene_workflow.targets, blocked_reason: "" });
   let claims = 0;
   globalThis.fetch = async (input, init) => {
     const url = new URL(String(input));
@@ -1365,7 +1366,8 @@ Deno.test("integration confirmation persists the exact approved scene before one
     assertEquals(claims, 1);
     assertEquals((await handleStudioRequest(request(body))).status, 409);
     assertEquals(claims, 1);
-    assertEquals(f.requests.some(path => path.includes("/v1/messages") || path.includes("images/")), false);
+    assertEquals(f.requests.filter(path => path.includes("/v1/messages")).length, 1);
+    assertEquals(f.requests.some(path => path.includes("images/")), false);
   } finally { if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key); f.restore(); }
 });
 

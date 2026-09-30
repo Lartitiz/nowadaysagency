@@ -7,15 +7,50 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 20px 24px;
+  gap: 12px;
+  padding: 8px 20px;
   border-bottom: 1px solid hsl(var(--border));
 }
+.studio-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.studio-tabs { display: flex; gap: 12px; font-size: 14px; }
+.studio-tabs button {
+  color: hsl(var(--muted-foreground));
+  padding: 2px 0;
+  border-bottom: 2px solid transparent;
+}
+.studio-tabs button[data-active="true"] {
+  color: hsl(var(--primary));
+  border-bottom-color: hsl(var(--primary));
+  font-weight: 600;
+}
+.studio-link {
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: hsl(var(--border));
+  background: none;
+}
+.studio-link:hover:not(:disabled) { color: hsl(var(--foreground)); }
+.studio-link:disabled { opacity: 0.5; cursor: not-allowed; }
+.studio-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+}
+.studio-link-row:empty { display: none; }
 .studio-grid {
   display: grid;
   grid-template-columns: minmax(340px, 430px) minmax(0, 1fr);
-  height: calc(100dvh - 210px);
-  min-height: 560px;
+  height: calc(100dvh - 110px);
+  min-height: 520px;
 }
 .studio-chat {
   border-right: 1px solid hsl(var(--border));
@@ -337,3 +372,24 @@
 .studio-chat {
   min-width: 0;
 }
+
+/* Accordéon repliable des photos attachées à la demande */
+.studio-photos-accordion > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  user-select: none;
+  padding: 2px 0;
+}
+.studio-photos-accordion > summary::-webkit-details-marker { display: none; }
+.studio-photos-accordion > summary::before {
+  content: "▸";
+  color: hsl(var(--primary));
+  transition: transform 0.15s ease;
+}
+.studio-photos-accordion[open] > summary::before { transform: rotate(90deg); }
+.studio-photos-accordion > summary:hover { color: hsl(var(--foreground)); }
