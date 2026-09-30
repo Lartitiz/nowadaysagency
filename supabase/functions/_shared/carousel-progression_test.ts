@@ -49,6 +49,8 @@ const valid = () => ({
   boundaries: [{
     from: "slides.0",
     to: "slides.1",
+    from_field_ids: ["slides.0.body"],
+    to_field_ids: ["slides.1.visual_schema.quote"],
     inherits: "le repère",
     advances: "son sens dans la pratique",
     kind: "progression",
@@ -286,4 +288,58 @@ Deno.test("major evidence overrides approval but ungrounded evidence still fails
   report.defects[0].excerpt = "preuve inventée";
   const bad = await reviewCarouselProgression(doc, {sources,call:async()=>JSON.stringify(report)});
   assertEquals(bad.execution_status,"invalid"); assertEquals(bad.verdict,null);
+});
+
+Deno.test("mixed photo evidence selects fields and preserves exact multiline text without a copying retry", async () => {
+  const mixed = { slides: [
+    { slide_type: "text_only", title: "Le geste", body: "Je peins à main levée.\n\nChaque tracé diffère." },
+    { slide_type: "photo_full", photo_index: 5, overlay_text: "Des fruits et des feuilles décorent ces bols." },
+  ] };
+  let calls = 0;
+  const out = await reviewCarouselProgression(mixed, { sources, call: async (o) => {
+    calls++;
+    const schema: any = o.tool!.input_schema;
+    assertEquals(schema.properties.defects.items.properties.excerpt, undefined);
+    assert(schema.properties.defects.items.properties.field_ids.items.enum.includes("slides.1.overlay_text"));
+    return JSON.stringify({ ...valid(), boundaries: valid().boundaries.map((b) => ({ ...b, to_field_ids: ["slides.1.overlay_text"] })), verdict: "needs_repair", defects: [{
+      slide_ids: ["slides.0", "slides.1"], field_ids: ["slides.0.body", "slides.1.overlay_text"],
+      severity: "major", type: "juxtaposition", reason: "La description des motifs ne poursuit pas l'explication du geste.",
+      repair: "Relier l'exemple au geste sans attribuer une histoire à cette photo.",
+    }] });
+  } });
+  assertEquals(calls, 1);
+  assertEquals(out.execution_status, "completed");
+  assertEquals(out.verdict, "needs_repair");
+  assertEquals(out.report!.defects[0].excerpt, mixed.slides[0].body);
+  assertEquals(out.report!.defects[0].evidence, [
+    { field_id: "slides.0.body", text: mixed.slides[0].body },
+    { field_id: "slides.1.overlay_text", text: mixed.slides[1].overlay_text },
+  ]);
+  assert(out.issues[0].includes("description des motifs"));
+});
+for (const fieldIds of [["invented"], ["slides.1.visual_schema.quote"], []]) Deno.test(`evidence IDs must belong to cited slide: ${JSON.stringify(fieldIds)}`, async () => {
+  const out = await reviewCarouselProgression(doc, { sources, call: async () => JSON.stringify({ ...valid(), verdict: "needs_repair", defects: [{
+    slide_ids: ["slides.0"], field_ids: fieldIds, excerpt: doc.slides[0].body,
+    severity: "major", type: "rupture", reason: "Raison", repair: "Réparation",
+  }] }) });
+  assertEquals(out.execution_status, "invalid");
+  assertEquals(out.verdict, null);
+  assertEquals(out.reason, "defect-field-reference:0");
+});
+
+Deno.test("final judge excludes a misleading plan and binds every transition to its visible neighbouring fields", async () => {
+  const withMisleadingPlan = { ...doc, fil: { arrivee: "INVENTED_BRIDGE_FROM_PLAN", etapes: ["Une causalité absente"] } };
+  const result = await reviewCarouselProgression(withMisleadingPlan, { sources, call: async (o) => {
+    assert(!JSON.stringify(o.messages).includes("INVENTED_BRIDGE_FROM_PLAN"));
+    assert(o.system!.includes("une image répétée n'est pas une redite du texte"));
+    const schema: any = o.tool!.input_schema;
+    assert(schema.properties.boundaries.items.required.includes("from_field_ids"));
+    return JSON.stringify(valid());
+  } });
+  assertEquals(result.verdict, "acceptable");
+  const wrong: any = valid();
+  wrong.boundaries[0].from_field_ids = ["slides.1.visual_schema.quote"];
+  assertEquals(validateProgressionReport(wrong, doc, sources), "boundary-evidence:0:from");
+  wrong.boundaries[0].from_field_ids = [];
+  assertEquals(validateProgressionReport(wrong, doc, sources), "boundary-evidence:0:from");
 });

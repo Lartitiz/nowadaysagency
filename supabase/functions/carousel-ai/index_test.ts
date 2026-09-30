@@ -574,7 +574,7 @@ for (const repair of ['success', 'short', 'failure']) Deno.test(`texte incomplet
 });
 
 // Final progression: all variants, bounded repair, unavailable status, deadlines and invariants.
-for(const variant of ["text","photo","mix"]) for(const outcome of ["acceptable","repair","same","reordered","unavailable","invalid","time-budget"]) Deno.test(`progression finale ${variant} / ${outcome}`,async()=>{
+for(const variant of ["text","photo","mix"]) for(const outcome of ["acceptable","repair","same","reordered","unavailable","invalid","time-budget","late-repair","too-late-repair"]) Deno.test(`progression finale ${variant} / ${outcome}`,async()=>{
   resetDeps();
   const oldFetch=globalThis.fetch,now=Date.now;let offset=0;
   Date.now=()=>now()+offset;
@@ -589,15 +589,22 @@ for(const variant of ["text","photo","mix"]) for(const outcome of ["acceptable",
   _deps.callCarouselWriter=(async(o:any,sink:any)=>{
     writes++;Object.assign(sink,{model:o.model,total_tokens:10});
     if(outcome==="time-budget")offset=300_000;
+    if (writes === 2 && outcome === "late-repair") {
+      assert(o.abortTimeoutMs > 50_000 && o.abortTimeoutMs <= 55_000);
+    }
     if(writes===1 || outcome==="same")return JSON.stringify(draft);
     assert(JSON.stringify(o.messages[0].content).includes("DÉFAUTS DE FIL"));
     if(outcome==="reordered")fixed.slides.reverse();
     return JSON.stringify({...lastJudgedDoc,slides:fixed.slides.map((s,i)=>({...lastJudgedDoc.slides[i],...s}))});
   }) as any;
-  _deps.reviewThread=async(doc:any)=>{
+  _deps.reviewThread=async(doc:any, options:any)=>{
+    assert(options.sources.find((s:any)=>s.id==="request").text.includes("Demandes contradictoires."));
+    assert(options.abortTimeoutMs <= 45_000);
+    if (judges === 0 && outcome === "late-repair") offset = 160_000;
+    if (judges === 0 && outcome === "too-late-repair") offset = 200_000;
     judges++;lastJudgedDoc=structuredClone(doc);
     if(outcome==="unavailable"||outcome==="invalid")return progressionReceipt(doc,outcome);
-    return verdict(doc,outcome==="acceptable" || (judges===2&&outcome==="repair")?[]:["La conclusion est insuffisamment préparée."]);
+    return verdict(doc,outcome==="acceptable" || (judges===2&&["repair","late-repair"].includes(outcome))?[]:["La conclusion est insuffisamment préparée."]);
   };
   try {
     const res=await handleRequest(makeHooksRequest({type:"express_full",carousel_type:variant,subject:"Choisir une direction avant de modifier",slide_count:3,deepening_answers:{faits:"Demandes contradictoires. Le client choisit une direction commune, puis les corrections commencent."},...(variant!=="text"?{photos:[{base64:"aGVsbG8=",mimeType:"image/jpeg"},{base64:"aGVsbG8=",mimeType:"image/jpeg"},{base64:"aGVsbG8=",mimeType:"image/jpeg"}]}:{})}));
@@ -606,10 +613,11 @@ for(const variant of ["text","photo","mix"]) for(const outcome of ["acceptable",
     assertEquals(doc.slides.length,3);
     assert(doc.generation_receipt.writing_version);
     assertEquals(doc.progression_review.reviewed_text_hash.length,64);
-    if(outcome==="repair") {assertEquals(writes,2);assertEquals(judges,2);assertEquals(doc.slides[1].overlay_text,fixed.slides[1].overlay_text);assertEquals(doc.progression_review.verdict,"acceptable");}
+    if(outcome==="repair"||outcome==="late-repair") {assertEquals(writes,2);assertEquals(judges,2);assertEquals(doc.slides[1].overlay_text,fixed.slides[1].overlay_text);assertEquals(doc.progression_review.verdict,"acceptable");}
+    else if(outcome==="too-late-repair") {assertEquals(writes,1);assertEquals(judges,1);assertEquals(doc.progression_review.verdict,"needs_repair");}
     else if(outcome==="same"||outcome==="reordered") {assertEquals(writes,2);assertEquals(doc.slides[1].overlay_text,draft.slides[1].overlay_text);assertEquals(doc.progression_review.verdict,"needs_repair");}
     else {assertEquals(writes,1);assertEquals(doc.progression_review.execution_status,outcome==="time-budget"?"skipped":outcome==="acceptable"?"completed":outcome);}
-    if(outcome!=="acceptable"&&outcome!=="repair")assert(doc.structure_warnings.length>0);
+    if(outcome!=="acceptable"&&outcome!=="repair"&&outcome!=="late-repair")assert(doc.structure_warnings.length>0);
     if(outcome==="time-budget")assertEquals(judges,0);
   }finally {globalThis.fetch=oldFetch;Date.now=now;}
 });

@@ -12,7 +12,7 @@ import {
 } from "./carousel-editorial-contract.ts";
 import { progressionMaterial } from "./carousel-editorial-snapshot.ts";
 
-export const PROGRESSION_VERSION = "final-progression-v3";
+export const PROGRESSION_VERSION = "final-progression-v4";
 export interface ProgressionSource {
   id: string;
   provenance: string;
@@ -67,7 +67,7 @@ export function validateProgressionReport(
   const ids = (doc.slides || []).map((_: unknown, i: number) => `slides.${i}`);
   const sourceIds = new Set(sources.map((s) => s.id));
   const canonicalQuote = (value: string) => value.normalize("NFKC").replace(/\s+/g, " ").trim();
-  const text = canonicalQuote(carouselEditorialFields(doc).map((f) => f.text).join("\n"));
+  const fields = carouselEditorialFields(doc);
   const str = (s: unknown) => typeof s === "string" && !!s.trim();
   if (
     !report || !str(report.idea_read) || !str(report.conclusion) ||
@@ -103,6 +103,14 @@ export function validateProgressionReport(
       )
     )
   ) return "boundary-reference";
+  for (const [i, boundary] of report.boundaries.entries()) {
+    for (const side of ["from", "to"] as const) {
+      const available = fields.filter((f) => f.id.startsWith(boundary[side] + "."));
+      const references = boundary[`${side}_field_ids`];
+      if (!Array.isArray(references) || (available.length > 0 && !references.length) ||
+        !references.every((id: string) => available.some((f) => f.id === id))) return `boundary-evidence:${i}:${side}`;
+    }
+  }
   if (!Array.isArray(report.defects)) return "missing-defects";
   const kinds = [
     "unclear_idea",
@@ -120,7 +128,10 @@ export function validateProgressionReport(
     if (!d || !Array.isArray(d.slide_ids) || !d.slide_ids.length ||
       !d.slide_ids.every((id: string) => ids.includes(id))) return `defect-slide-reference:${i}`;
     if (!["major", "minor"].includes(d.severity) || !kinds.includes(d.type)) return `defect-classification:${i}`;
-    if (!str(d.excerpt) || !text.includes(canonicalQuote(d.excerpt))) return `defect-excerpt:${i}`;
+    const localFields = fields.filter((f) => d.slide_ids.some((id: string) => f.id.startsWith(id + ".")) || f.id.startsWith("caption."));
+    if (d.field_ids !== undefined && (!Array.isArray(d.field_ids) || !d.field_ids.length ||
+      !d.field_ids.every((id: string) => localFields.some((f) => f.id === id)))) return `defect-field-reference:${i}`;
+    if (!str(d.excerpt) || !localFields.some((f) => canonicalQuote(f.text).includes(canonicalQuote(d.excerpt)))) return `defect-excerpt:${i}`;
     if (!str(d.reason) || !str(d.repair)) return `defect-explanation:${i}`;
   }
   const major = report.defects.some((d: any) => d.severity === "major");
@@ -167,13 +178,30 @@ export async function reviewCarouselProgression(doc: any, opts: {
   props.boundaries.minItems = props.boundaries.maxItems = expectedBoundaries.length;
   for (const name of ["from", "to"]) props.boundaries.items.properties[name].enum = slideIds;
   props.defects.items.properties.slide_ids.items.enum = slideIds;
+  // Select evidence by stable IDs; copying quotations was invalidating whole reviews.
+  // The program attaches the exact source text, never a model-reconstructed quote.
+  const fields = carouselEditorialFields(doc);
+  for (const side of ["from", "to"]) {
+    props.boundaries.items.required.push(`${side}_field_ids`);
+    props.boundaries.items.properties[`${side}_field_ids`] = { type: "array",
+      items: { type: "string", ...(fields.length ? { enum: fields.map((f) => f.id) } : {}) },
+      description: `Champs visibles de la slide ${side} qui portent réellement ce lien ; [] uniquement si cette slide n'a aucun texte.` };
+  }
+  const defectSchema = props.defects.items;
+  defectSchema.required = defectSchema.required.filter((key: string) => key !== "excerpt");
+  delete defectSchema.properties.excerpt;
+  defectSchema.required.push("field_ids");
+  defectSchema.properties.field_ids = { type: "array", minItems: 1,
+    items: { type: "string", ...(fields.length ? { enum: fields.map((f) => f.id) } : {}) },
+    description: "IDs des champs visibles concernés, dans les slides citées (ou caption pour un défaut de légende). Pour une omission, choisis le passage qui manque d'explication. Ne recopie pas le texte." };
+  if (!fields.length) props.defects.maxItems = 0;
+
   const input = JSON.stringify({
     expected_slide_ids_in_order: slideIds,
     expected_boundaries_in_order: expectedBoundaries,
     allowed_source_ids: sourceIds,
     sources: opts.sources,
-    plan: doc.fil ?? null,
-    editorial_intent: doc.editorial_intent ?? null,
+    // Do not send the writer's plan: it was filling gaps absent from the published text.
     sequence: JSON.parse(receipt.reviewed_material),
   });
   // No invisible truncation: preserve the draft and report the unperformed check.
@@ -200,7 +228,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
   try {
     const options: AnthropicOptions = {
       model: getModelForAction("carousel"),
-      system: COMMON + "\n\n" + JUDGE + "\nContrat de sortie : recopie exactement les IDs attendus, dans l'ordre fourni, sans renuméroter depuis 1. source_ids utilise seulement allowed_source_ids ; [] si aucune source utile. idea_read et conclusion sont des phrases non vides. limits est toujours un tableau de chaînes, éventuellement vide. Ne remplace aucun champ du schéma par une autre forme. kind=rupture signifie un raccord MANQUANT ou INCOMPRÉHENSIBLE : jamais un contraste argumentatif utile, une nuance, une transition du constat vers les preuves ou une simple variation visuelle. Toute rupture ou défaut majeur impose needs_repair ; décris précisément le lien manquant. Un verdict favorable ne peut pas annuler ce constat.",
+      system: COMMON + "\n\n" + JUDGE + "\nContrat de sortie : recopie exactement les IDs attendus, dans l'ordre fourni, sans renuméroter depuis 1. source_ids utilise seulement allowed_source_ids ; [] si aucune source utile. idea_read et conclusion sont des phrases non vides. limits est toujours un tableau de chaînes, éventuellement vide. Ne remplace aucun champ du schéma par une autre forme. Pour chaque défaut, sélectionne field_ids dans sequence.fields ; le programme joindra leurs textes exacts. Ne fournis pas de citation reconstruite. Pour chaque frontière, from_field_ids et to_field_ids référencent exclusivement les champs visibles des deux slides voisines. Décris uniquement le lien porté par ces textes. Une photo et les sources peuvent vérifier un fait, jamais fournir un raccord absent. kind=rupture signifie un raccord MANQUANT ou INCOMPRÉHENSIBLE : jamais un contraste argumentatif utile, une nuance, une transition du constat vers les preuves ou une simple variation visuelle. Toute rupture ou défaut majeur impose needs_repair ; décris précisément le lien manquant. Un verdict favorable ne peut pas annuler ce constat.",
       messages: [{ role: "user", content: input }],
       tool,
       max_tokens: Math.min(8192, 2048 + doc.slides.length * 400),
@@ -219,6 +247,15 @@ export async function reviewCarouselProgression(doc: any, opts: {
         (Array.isArray(report.defects) && report.defects.some((d: any) => d?.severity === "major")) ||
         (Array.isArray(report.boundaries) && report.boundaries.some((b: any) => b?.kind === "rupture"))
       )) report = { ...report, verdict: "needs_repair", model_verdict: "acceptable" };
+      if (Array.isArray(report?.defects)) {
+        report.defects = report.defects.map((defect: any) => {
+          if (!Array.isArray(defect?.field_ids) || !defect.field_ids.length) return defect;
+          const evidence = defect.field_ids.map((id: string) => fields.find((f) => f.id === id));
+          if (evidence.some((f: any) => !f)) return defect;
+          return { ...defect, excerpt: evidence[0]!.text,
+            evidence: evidence.map((f: any) => ({ field_id: f.id, text: f.text })) };
+        });
+      }
       return validateProgressionReport(report, doc, opts.sources);
     };
     let error = parseAndValidate();
@@ -232,7 +269,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
           const retryRaw = await invoke({ ...options, abortTimeoutMs: remainingMs,
             messages: [options.messages[0], { role: "assistant", content: raw }, {
               role: "user",
-              content: `Ton rapport a été refusé par le validateur : ${error}. Corrige uniquement son format et ses références, sans réécrire le carrousel ni effacer un défaut pour obtenir acceptable. Utilise les IDs attendus et les valeurs du schéma. Pour chaque défaut, excerpt doit copier un court passage CONTIGU et présent dans sequence.fields[].text, sans guillemets ajoutés ni points de suspension ; une omission se rattache au passage qui aurait besoin de l'explication. Cite le passage concerné et garde une justification et une réparation non vides. Si un défaut ne peut pas être étayé, signale la limite au lieu d'inventer une preuve. Renvoie le rapport complet via le même outil.`,
+              content: `Ton rapport a été refusé par le validateur : ${error}. Corrige uniquement son format et ses références, sans réécrire le carrousel ni effacer un défaut pour obtenir acceptable. Utilise les IDs attendus et les valeurs du schéma. Pour chaque défaut, field_ids doit sélectionner les IDs exacts des champs de sequence.fields dans les slides citées, ou caption pour la légende. Le programme joint les textes exacts. Une omission se rattache au passage qui aurait besoin de l’explication. Garde une justification et une réparation non vides. Si un défaut ne peut pas être étayé, signale la limite au lieu d'inventer une preuve. Renvoie le rapport complet via le même outil.`,
             }],
           });
           raw = retryRaw;
