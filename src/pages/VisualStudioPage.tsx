@@ -1011,7 +1011,7 @@ function Studio({
             </p>
           )}
           <Button
-            className="w-full"
+            className="w-full h-auto whitespace-normal py-2"
             disabled={!writable ||
               !!busy ||
               generating ||
