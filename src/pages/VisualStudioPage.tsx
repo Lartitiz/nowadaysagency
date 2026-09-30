@@ -338,6 +338,13 @@ function Studio({
   const references = current?.session.references || [];
   const activeIds = current?.session.active_reference_ids ?? attachedIds;
   const attachedReferences = activeIds.map((id) => references.find((ref) => ref.id === id)).filter((ref): ref is StudioReference => !!ref);
+  const [photosOpen, setPhotosOpen] = useState(false);
+  const photosCountRef = useRef(attachedReferences.length);
+  useEffect(() => {
+    // Rouvre l'accordéon quand une photo est ajoutée ; reste replié ensuite.
+    if (attachedReferences.length > photosCountRef.current) setPhotosOpen(true);
+    photosCountRef.current = attachedReferences.length;
+  }, [attachedReferences.length]);
   useEffect(() => { setAttachedIds(readAttachedIds(attachmentKey)); }, [attachmentKey]);
   function setAttachments(ids: string[], key = attachmentKey) {
     const unique = [...new Set(ids)];
