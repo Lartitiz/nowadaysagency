@@ -1089,11 +1089,15 @@ async function finalizeCarousel(
   };
   recordUsage(receipt);
   const baseline = doc;
+  const minorContinuity = receipt.verdict === "acceptable" &&
+    receipt.report?.defects?.some((d: any) => d.severity === "minor" &&
+      ["unclear_idea", "promise", "juxtaposition", "repetition", "rupture", "ending"].includes(d.type));
+  const initialDefectCount = receipt.report?.defects?.length ?? 0;
   // A single shared repair budget. No retry if a prior structural repair was attempted.
   if (
     !ownsText && !opts.repaired && opts.regenerate &&
     receipt.execution_status === "completed" &&
-    receipt.verdict === "needs_repair" && remaining() >= 85_000
+    (receipt.verdict === "needs_repair" || minorContinuity) && remaining() >= 85_000
   ) {
     const sink: UsageSink = {};
     try {
@@ -1169,7 +1173,11 @@ async function finalizeCarousel(
         recordUsage(checked);
         if (
           checked.execution_status === "completed" &&
-          checked.verdict === "acceptable"
+          checked.verdict === "acceptable" &&
+          // For an already acceptable draft, retain a rewrite only when the
+          // final reviewer finds strictly fewer defects overall.
+          (!minorContinuity || (Array.isArray(checked.report?.defects) &&
+            checked.report.defects.length < initialDefectCount))
         ) {
           doc = finalCandidate;
           receipt = checked;
@@ -1182,6 +1190,8 @@ async function finalizeCarousel(
     } catch {
       /* Preserve the original reviewed draft and its defects. */
     } finally {
+      receipt.repair = { attempted: true, accepted: doc !== baseline,
+        trigger: minorContinuity ? "minor_continuity" : "needs_repair" };
       for (
         const k of ["input_tokens", "output_tokens", "total_tokens"] as const
       ) opts.usage[k] = (opts.usage[k] || 0) + (sink[k] || 0);

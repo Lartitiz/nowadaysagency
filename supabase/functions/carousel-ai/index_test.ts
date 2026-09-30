@@ -769,3 +769,33 @@ Deno.test("plan IA : champs optionnels null au retour et à la reprise, sans per
     assertEquals(doc.slides.map((s: any) => s.overlay_text), plan.map(s => s.title_suggestion));
   } finally { globalThis.fetch = oldFetch; }
 });
+
+for (const variant of ["photo", "mix"]) for (const outcome of ["improved", "same", "unavailable", "style-only"]) Deno.test(`défaut mineur de fil ${variant} / ${outcome} : une reprise seulement si utile`, async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const draft = { slides: [1, 2, 3].map((n) => ({ slide_number: n, role: n === 3 ? "conclusion" : n === 1 ? "hook" : "body", slide_type: "photo_full", photo_index: n, overlay_text: ["La forme choisie précède le décor.", "Le décor rappelle la vaisselle ancienne.", "Ces objets sont faits pour servir au quotidien."][n - 1] })), caption: {} };
+  let writes = 0, reviews = 0, latest: any;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    writes++; Object.assign(sink, { total_tokens: 1, model: o.model });
+    if (writes === 1) return JSON.stringify(draft);
+    assert(JSON.stringify(o.messages).includes("DÉFAUTS DE FIL"));
+    const fixed = structuredClone(latest); fixed.slides[1].overlay_text = "Ce geste à main levée rend chaque dessin unique, même quand les motifs se ressemblent.";
+    return JSON.stringify(fixed);
+  }) as any;
+  _deps.reviewThread = async (doc: any) => {
+    reviews++; latest = structuredClone(doc);
+    if (reviews === 2 && outcome === "unavailable") return progressionReceipt(doc, "unavailable");
+    return { ...await verdict(doc, ["La seconde slide doit expliquer ce que le geste change."]), verdict: "acceptable", report: { defects: reviews === 2 && outcome === "improved" ? [] : [{ severity: "minor", type: outcome === "style-only" ? "voice" : "repetition" }] } };
+  };
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, slide_count: 3, scenario_origin: "automatic", subject: "La main levée rend chaque dessin unique même si les motifs se ressemblent.", photos: [1, 2, 3].map(() => ({ base64: "aGVsbG8=" })) }));
+    assertEquals(res.status, 200); const doc = JSON.parse((await res.json()).content);
+    assertEquals(writes, outcome === "style-only" ? 1 : 2);
+    assertEquals(reviews, outcome === "style-only" ? 1 : 2);
+    assertEquals(doc.slides.map((s: any) => s.photo_index), [1, 2, 3]);
+    assertEquals(doc.slides[1].overlay_text, outcome === "improved" ? "Ce geste à main levée rend chaque dessin unique, même quand les motifs se ressemblent." : draft.slides[1].overlay_text);
+    if (outcome !== "style-only") assertEquals(doc.progression_review.repair, { attempted: true, accepted: outcome === "improved", trigger: "minor_continuity" });
+    else assertEquals(doc.progression_review.repair, undefined);
+  } finally { globalThis.fetch = oldFetch; }
+});
