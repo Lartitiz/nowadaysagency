@@ -1203,3 +1203,23 @@ Deno.test("a correction after integration keeps the ORIGINAL product without dup
     assertEquals(p.scene_workflow.phase, "integration");
   } finally { f.restore(); }
 });
+
+Deno.test("explicit direct generation needs only the product, never an existing scene", async () => {
+  const f = fixture();
+  const product = { id: id(880), photo_id: id(881), path: "original", role: "product", name: "Assiette" };
+  f.session.references = [product];
+  f.setIntent({ operation: "product", visual_kind: "photo", summary: "Créer une scène et y placer l'assiette en une passe.",
+    scene_workflow: { phase: "direct", camera_match: "Vue de haut" }, image_prompt: "Create a summer lunch scene with the exact original plate lying flat on the table.",
+    product_placement: "À plat au centre de la table", reference_use: [{ id: product.id, role: "product" }] });
+  try {
+    const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
+      request_id: id(882), reference_ids: [product.id], message: "Je veux explicitement une génération directe, sans scène séparée" }));
+    const p = (await res.json()).session.proposal;
+    assertEquals(res.status, 200);
+    assertEquals(p.input_path, null);
+    assertEquals(p.provider, "default");
+    assertEquals(p.references.map((r: any) => r.path), ["original"]);
+    assertEquals(p.scene_workflow.phase, "direct");
+    assertEquals(imagePrompt(p).includes("Image 1 is the approved scene"), false);
+  } finally { f.restore(); }
+});

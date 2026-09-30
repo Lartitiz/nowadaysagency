@@ -201,7 +201,7 @@ export function imagePrompt(proposal: Proposal) {
   const refs = proposal.references || [];
   const isSeries = (proposal.series_size || 1) > 1;
   const isSheet = proposal.person_reference?.mode === "sheet";
-  const charter = isSheet || proposal.scene_workflow ? null : proposal.brand_context?.charter;
+  const charter = isSheet || proposal.scene_workflow?.phase === "scene" || proposal.scene_workflow?.phase === "integration" ? null : proposal.brand_context?.charter;
   const direction = (value: unknown) =>
     (typeof value === "string"
       ? value
