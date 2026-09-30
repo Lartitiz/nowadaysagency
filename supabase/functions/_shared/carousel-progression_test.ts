@@ -155,6 +155,50 @@ Deno.test("timeout distinct d'une lecture sans défaut et brouillon conservé", 
   assertEquals(r.verdict, null);
   assertEquals(JSON.stringify(doc), before);
 });
+Deno.test("une reprise du format est bornée, garde le texte et cumule les deux usages", async () => {
+  const before = JSON.stringify(doc);
+  let calls = 0;
+  const out = await reviewCarouselProgression(doc, { sources, call: async (options, usage) => {
+    calls++;
+    Object.assign(usage!, { input_tokens: 10, output_tokens: 5, total_tokens: 15 });
+    if (calls === 1) return JSON.stringify({ ...valid(), conclusion: null });
+    assert(String(options.messages[2].content).includes("missing-summary"));
+    assertEquals(options.maxRetries, 0);
+    assert(options.abortTimeoutMs! <= 45_000);
+    return JSON.stringify(valid());
+  } });
+  assertEquals(calls, 2);
+  assertEquals(out.execution_status, "completed");
+  assertEquals(out.usage?.total_tokens, 30);
+  assertEquals(out.format_retry, { attempted: true, initial_reason: "missing-summary" });
+  assertEquals(JSON.stringify(doc), before);
+});
+Deno.test("la reprise du format ne transforme pas un défaut en feu vert", async () => {
+  let calls = 0;
+  const out = await reviewCarouselProgression(doc, { sources, call: async () => {
+    calls++;
+    return JSON.stringify(calls === 1 ? { ...valid(), verdict: "needs_repair", conclusion: null } : valid());
+  } });
+  assertEquals(calls, 2);
+  assertEquals(out.execution_status, "invalid");
+  assertEquals(out.reason, "format-verdict-regression");
+  assertEquals(out.verdict, null);
+});
+Deno.test("citation avec espaces typographiques reconnue, mots inventés refusés", () => {
+  const report: any = valid();
+  report.verdict = "needs_repair";
+  report.defects = [{ slide_ids: ["slides.1"], severity: "minor", type: "voice", excerpt: "La\u00a0pratique donne son sens au repère.", reason: "Raison", repair: "Correction" }];
+  assertEquals(validateProgressionReport(report, doc, sources), null);
+  report.defects[0].excerpt = "La pratique inventée donne son sens au repère.";
+  assertEquals(validateProgressionReport(report, doc, sources), "defect-excerpt:0");
+});
+Deno.test("pas de reprise du format au-delà du budget de temps", async () => {
+  let calls = 0;
+  const out = await reviewCarouselProgression(doc, { sources, abortTimeoutMs: 1, call: async () => { calls++; return "{}"; } });
+  assertEquals(calls, 1);
+  assertEquals(out.execution_status, "invalid");
+  assertEquals(out.format_retry?.attempted, false);
+});
 Deno.test("budget de contexte explicite, aucun appel ni troncature silencieuse", async () => {
   let calls = 0;
   const r = await reviewCarouselProgression(doc, {
