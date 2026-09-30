@@ -1533,14 +1533,27 @@ function Studio({
                   Ta demande
                 </label>
                 {current && <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground">{attachedReferences.length ? "Photos de cette demande" : "Ta demande"}</span>
+                  <span className="text-xs text-muted-foreground">Ta demande</span>
                   <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" disabled={!writable || !!busy || generating}
                     aria-label="Nouvelle demande sans ces références" onClick={() => void updateSelection([], true)}>Nouvelle demande</Button>
                 </div>}
-                <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
-                  onSelection={ids => void updateSelection(ids)}
-                  onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
-                  onGroup={(id, group) => void mutate("reference", { reference_id: id, subject_group: group, revision: current!.session.revision })} />
+                {attachedReferences.length > 0 && (
+                  <details
+                    className="studio-photos-accordion"
+                    open={photosOpen}
+                    onToggle={(e) => setPhotosOpen((e.target as HTMLDetailsElement).open)}
+                  >
+                    <summary aria-label={`Photos de cette demande (${attachedReferences.length})`}>
+                      Photos de cette demande ({attachedReferences.length})
+                    </summary>
+                    <div className="mt-2">
+                      <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
+                        onSelection={ids => void updateSelection(ids)}
+                        onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
+                        onGroup={(id, group) => void mutate("reference", { reference_id: id, subject_group: group, revision: current!.session.revision })} />
+                    </div>
+                  </details>
+                )}
 
                 <Textarea
                   className="min-h-[88px] max-h-36 overflow-y-auto"
