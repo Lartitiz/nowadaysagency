@@ -14,6 +14,9 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, session, loading, isAdmin, adminLoading } = useAuth();
   const { isDemoMode } = useDemoContext();
   const location = useLocation();
+  // Billing must remain reachable after Stripe even before onboarding is done.
+  // Authentication and feature checks below still apply.
+  const isBillingRoute = location.pathname === "/abonnement";
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
@@ -41,7 +44,8 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
       lastUserIdRef.current = user?.id ?? null;
     }
 
-    if (isDemoMode || !user || location.pathname === "/onboarding") {
+    if (isDemoMode || !user || location.pathname === "/onboarding" || isBillingRoute) {
+      setNeedsOnboarding(false);
       setCheckingOnboarding(false);
       if (isDemoMode) sessionStorage.setItem("onboarding_checked:demo", "done");
       return;
@@ -126,7 +130,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
       }
     };
     check();
-  }, [user?.id, isDemoMode, location.pathname, session?.access_token, loading]);
+  }, [user?.id, isDemoMode, location.pathname, isBillingRoute, session?.access_token, loading]);
 
   if (isDemoMode) {
     const DEMO_READY_ROUTES = [
@@ -214,7 +218,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (needsOnboarding && location.pathname !== "/onboarding" && !shownChildrenRef.current) {
+  if (needsOnboarding && location.pathname !== "/onboarding" && !isBillingRoute && !shownChildrenRef.current) {
     return <Navigate to="/onboarding" replace />;
   }
 
