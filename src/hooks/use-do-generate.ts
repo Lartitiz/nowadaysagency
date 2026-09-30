@@ -71,6 +71,7 @@ interface ResultSetters {
 }
 
 interface UseDoGenerateParams {
+  firstProductCarousel: boolean;
   selectedFormat: string | null;
   generating: boolean;
   structureLoading: boolean;
@@ -114,6 +115,7 @@ interface UseDoGenerateParams {
  * Retourne `{ doGenerate }`.
  */
 export function useDoGenerate({
+  firstProductCarousel,
   selectedFormat,
   generating,
   structureLoading,
@@ -463,7 +465,9 @@ export function useDoGenerate({
           objective: objective || undefined,
           // Longueur : envoyé SEULEMENT si choisie explicitement (puces
           // « Longueur ») — sinon l'edge applique ses cibles adaptatives.
-          ...(slideCountChoice ? { slide_count: slideCountChoice } : {}),
+          ...(firstProductCarousel && uploadedPhotos.length >= 2
+            ? { slide_count: Math.min(uploadedPhotos.length, 6), prefer_distinct_photos: true }
+            : slideCountChoice ? { slide_count: slideCountChoice } : {}),
           editorial_angle: editorialAngle || undefined,
           deepening_answers: Object.keys(ans).length > 0 ? ans : undefined,
           workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,

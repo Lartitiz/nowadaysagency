@@ -48,6 +48,49 @@ export function maxStructurePhotoIndex(structure: unknown): number {
   return max;
 }
 
+/** Premier carrousel produit : une image par slide tant que le stock le permet. */
+export function assignDistinctStructurePhotos<T extends { slides?: AnySlide[]; total_slides?: number }>(
+  proposal: T,
+  photoCount: number,
+): T {
+  if (!Array.isArray(proposal?.slides) || photoCount < 2) return proposal;
+  const slides = proposal.slides;
+  // La consigne demande exactement autant de slides que de photos. Si le
+  // modèle en ajoute, garder la conclusion plutôt qu'une fin tronquée.
+  const kept = slides.length > photoCount
+    ? [...slides.slice(0, photoCount - 1), slides[slides.length - 1]]
+    : slides;
+  const reserved = new Set<number>();
+  const keepRequested = kept.map((slide) => {
+    const index = slide.photo_index;
+    if (!Number.isInteger(index) || (index as number) < 1 || (index as number) > photoCount || reserved.has(index as number)) return false;
+    reserved.add(index as number);
+    return true;
+  });
+  const used = new Set<number>();
+  const nextSlides = kept.map((slide, i) => {
+    const next = { ...slide };
+    const requested = next.photo_index;
+    const index = keepRequested[i]
+      ? requested as number
+      : Array.from({ length: photoCount }, (_, n) => n + 1).find((candidate) => !reserved.has(candidate) && !used.has(candidate))!;
+    used.add(index);
+    if (index !== requested) {
+      // Ces observations concernaient l'ancienne image et ne doivent pas
+      // guider la rédaction ou le placement sur une autre photo.
+      delete next.photo_observation;
+      delete next.visual_anchor;
+      delete next.image_relation;
+      delete next.overlay_position;
+    }
+    next.photo_index = index;
+    next.slide_type = "photo_full";
+    next.slide_number = i + 1;
+    return next;
+  });
+  return { ...proposal, slides: nextSlides, total_slides: nextSlides.length };
+}
+
 /**
  * Recopie photo_index / slide_type / role de la structure confirmée vers les
  * slides générées, appariées par slide_number (fallback : position). La structure validée prime sur les choix du modèle.
