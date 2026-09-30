@@ -1458,3 +1458,13 @@ Deno.test("manual roles survive interpretation and reordered selection survives 
  res=await handleStudioRequest(request({...base,action:'read'}));assertEquals((await res.json()).session.active_reference_ids,[b]);
  }finally{f.restore();}
 });
+
+Deno.test("a quoted explicit conversational correction can replace a manual role",async()=>{
+ const f=fixture();const ref={id:id(2061),photo_id:null,path:'photo',role:'product',role_source:'user',name:'Photo'};f.session.references=[ref];
+ const message="Ce n’est pas le produit que je veux reprendre : sur cette photo, garde seulement mon visage.";
+ f.setIntent({operation:'clarify',reply:'Je garde cette photo pour ton identité. Quel produit veux-tu présenter ?',reference_use:[{id:ref.id,role:'person',explicit_change:message}]});
+ try{
+ const res=await handleStudioRequest(request({...base,studio_version:4,action:'message',message,reference_ids:[ref.id],revision:0,request_id:id(2062)}));const data=await res.json();
+ assertEquals(res.status,200);assertEquals(data.session.references[0].role,'person');assertEquals(data.session.references[0].role_explicit,true);
+ }finally{f.restore();}
+});

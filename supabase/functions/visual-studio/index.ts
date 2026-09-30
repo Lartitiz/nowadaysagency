@@ -860,7 +860,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         const dialogueOnly = ["advise", "clarify"].includes(intent.operation);
         if (dialogueOnly) {
           // Generation-only fields cannot erase an otherwise valid answer.
-          intent.reference_use = requestReferences.map(ref => ({ id: ref.id, role: intent.operation === "advise" ? ref.role : intent.reference_use.find(use => use.id === ref.id)?.role || ref.role }));
+          intent.reference_use = requestReferences.map(ref => ({ id: ref.id, role: intent.operation === "advise" ? ref.role : intent.reference_use.find(use => use.id === ref.id)?.role || ref.role, explicit_change: intent.operation === "advise" ? undefined : intent.reference_use.find(use => use.id === ref.id)?.explicit_change }));
           intent.source_reference_id = undefined;
           intent.requires_real_subject = false;
           intent.person_reference = undefined;
@@ -930,6 +930,13 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           (intent.source_reference_id && !intent.reference_use.some(use => use.id === intent.source_reference_id))) {
           intent.operation = "clarify";
           intent.summary = "Je n’ai pas pu identifier toutes les images à utiliser. Précise laquelle est la scène et laquelle montre le produit ; aucune image n’a été lancée.";
+        }
+        for (const use of intent.reference_use) {
+          const quote = use.explicit_change?.trim();
+          if (quote && quote.length >= 8 && p.message.includes(quote) && !statedRoles.has(use.id)) {
+            const ref = requestReferences.find(ref => ref.id === use.id);
+            if (ref) { ref.role = use.role; ref.role_source = "conversation"; ref.role_explicit = true; ref.subject_group = undefined; }
+          }
         }
         // Explicit choices stay authoritative across follow-ups, including partial model output.
         for (const ref of requestReferences.filter(r => r.role_source === "user" || r.role_explicit)) {
@@ -1229,7 +1236,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             messages,
             proposal,
             references: [
-              ...references.map(ref => { const resolved = resolvedReferences.find(r => r.id === ref.id); return resolved ? { ...ref, role: resolved.role, role_source: resolved.role_source, role_explicit: resolved.role_explicit } : ref; }),
+              ...references.map(ref => { const resolved = resolvedReferences.find(r => r.id === ref.id); return resolved ? { ...ref, role: resolved.role, role_source: resolved.role_source, role_explicit: resolved.role_explicit, subject_group: resolved.subject_group } : ref; }),
               ...addedMemoryReferences.filter(ref => !references.some(old => old.path === ref.path)),
             ],
             source_metadata: { ...session.source_metadata, studio_context: {
