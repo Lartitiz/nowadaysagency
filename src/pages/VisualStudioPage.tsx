@@ -1544,11 +1544,11 @@ function Studio({
                 />
                 <input ref={fileInput} type="file" accept="image/*,.heic,.heif" multiple className="sr-only" aria-label="Importer plusieurs images" onChange={(event) => void addLocalFiles(event.target.files)} />
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Button variant="ghost" size="sm" className="whitespace-nowrap shrink-0" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => fileInput.current?.click()}>
-                    <ImagePlus className="h-4 w-4 mr-2" /> Ajouter des images
+                  <Button variant="ghost" size="sm" className="whitespace-nowrap shrink-0" aria-label="Ajouter des images" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => fileInput.current?.click()}>
+                    <ImagePlus className="h-4 w-4 mr-2" /> Importer
                   </Button>
-                  <Button variant="ghost" size="sm" className="whitespace-nowrap shrink-0" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => setPicker(true)}>
-                    Depuis ma bibliothèque
+                  <Button variant="ghost" size="sm" className="whitespace-nowrap shrink-0" aria-label="Depuis ma bibliothèque" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => setPicker(true)}>
+                    Bibliothèque
                   </Button>
                   <Button
                     className="ml-auto shrink-0"
