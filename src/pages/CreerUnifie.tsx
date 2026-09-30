@@ -2810,7 +2810,9 @@ function CreerWorkspace() {
                 <LowCreditsBanner remaining={remainingWithBonus()} plan={plan} />
                 {(() => {
                   const history = photoEntry ? photoSubjectHistory : ideaHistory;
-                  return <div data-idea-history className="mb-4 flex flex-wrap gap-2" aria-label="Historique du sujet">
+                   // Visible seulement après une vraie modification du sujet (évite un bouton grisé incompréhensible, ex. newsjacking).
+                   if (!history.canUndo && !history.canRedo) return null;
+                   return <div data-idea-history className="mb-4 flex flex-wrap gap-2" aria-label="Historique du sujet">
                     <Button type="button" variant="outline" size="sm" className="gap-1.5" disabled={!history.canUndo || !isCurrentCreation()} onClick={() => history.travel()} aria-label="Annuler la modification du sujet" aria-keyshortcuts="Meta+Z Control+Z" title="Annuler (⌘Z / Ctrl+Z)"><Undo2 className="h-3.5 w-3.5" /> Annuler</Button>
                     <Button type="button" variant="outline" size="sm" className="gap-1.5" disabled={!history.canRedo || !isCurrentCreation()} onClick={() => history.travel(true)} aria-label="Rétablir la modification du sujet" aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z Control+Y" title="Rétablir (⌘⇧Z / Ctrl+⇧Z / Ctrl+Y)"><Redo2 className="h-3.5 w-3.5" /> Rétablir</Button>
                   </div>;
