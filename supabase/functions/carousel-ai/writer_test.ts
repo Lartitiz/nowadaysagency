@@ -125,8 +125,18 @@ Deno.test("Opus truncation and wrong/invalid tool never succeed", () => {
   assertThrows(() => writerResponse(opus, { ...base, tool }), AnthropicError);
   assertThrows(() => writerResponse({ ...astra, output: [{ type: "function_call", name: tool.name, arguments: "{" }] }, { ...base, model: "gpt-6-astra", tool }), AnthropicError);
 });
+Deno.test("Max : crédit fournisseur épuisé distingué d'une saturation sans exposer son message privé",async()=>{
+  const oldKey=Deno.env.get("OPENAI_API_KEY"),oldFetch=globalThis.fetch;
+  Deno.env.set("OPENAI_API_KEY","fake-secret");
+  globalThis.fetch=(()=>Promise.resolve(new Response(JSON.stringify({error:{code:"credit_balance_exhausted",type:"insufficient_quota",message:"PRIVATE_ACCOUNT_DETAILS"}}),{status:429}))) as typeof fetch;
+  try{
+    const error=await assertRejects(()=>callCarouselWriter({...base,model:"gpt-6-astra"}),AnthropicError);
+    assert(error.message.includes("épuisé"));assert(error.message.includes("mode standard"));
+    assert(!error.message.includes("PRIVATE_ACCOUNT_DETAILS"));
+  }finally{globalThis.fetch=oldFetch;if(oldKey===undefined)Deno.env.delete("OPENAI_API_KEY");else Deno.env.set("OPENAI_API_KEY",oldKey);}
+});
 for(const model of ["claude-opus-5", "claude-opus-5-5", "gpt-6-astra"] as const) Deno.test(`HTTP ${model}: correct destination; errors never retry/downgrade/leak provider body`, async () => {
-  const name = model === "gpt-6-astra" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY";
+const name = model === "gpt-6-astra" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY";
   const oldKey = Deno.env.get(name), oldFetch = globalThis.fetch;
   Deno.env.set(name, "fake-secret");
   let calls = 0;
