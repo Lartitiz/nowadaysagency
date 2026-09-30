@@ -528,8 +528,15 @@ function carouselMismatchResponse(
 // gabarits actuels les rendent déjà centrées, en conservant haut/bas.
 // Normaliser à la sortie ET à la reprise d'un ancien plan évite un rejet
 // avant écriture, sans modifier ses textes, son ordre ou ses photos.
-function normalizePlanOverlayPosition(slide: any): void {
+function normalizeGeneratedPlanFields(slide: any): void {
   if (!slide || typeof slide !== "object") return;
+  // Les champs optionnels non renseignés reviennent parfois à null depuis
+  // le modèle, notamment photo_index pour une slide sans photo. Le front
+  // renvoie le plan tel quel : null et absence ont ici le même sens.
+  // Ne jamais toucher aux champs obligatoires ou à une valeur renseignée.
+  for (const key of ["photo_index", "slide_type", "story_beat", "visual_anchor", "photo_observation", "image_relation", "factual_basis", "overlay_position"]) {
+    if (slide[key] === null) delete slide[key];
+  }
   if (slide.overlay_position === "top_right") slide.overlay_position = "top_center";
   if (slide.overlay_position === "bottom_right") slide.overlay_position = "bottom_center";
 }
@@ -571,7 +578,7 @@ export async function handleRequest(req: Request): Promise<Response> {
     clampAiField(body, "narrative_thread", 1000);
     if (Array.isArray(body?.confirmed_structure)) {
       for (const s of body.confirmed_structure) {
-        normalizePlanOverlayPosition(s);
+        normalizeGeneratedPlanFields(s);
         clampAiField(s, "story_beat", 300);
         clampAiField(s, "visual_anchor", 120);
         clampAiField(s, "photo_observation", 800);
@@ -1873,7 +1880,7 @@ Propose la structure optimale.`;
     });
   }
 
-  structureResult.slides.forEach(normalizePlanOverlayPosition);
+  structureResult.slides.forEach(normalizeGeneratedPlanFields);
   const result = body.prefer_distinct_photos && isPhotoMode && hasPhotos
     ? assignDistinctStructurePhotos(structureResult, photos.length)
     : structureResult;
