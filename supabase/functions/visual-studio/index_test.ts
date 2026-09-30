@@ -1267,3 +1267,17 @@ Deno.test("retouch preserves scene workflow and original when the interpreter om
     } finally { f.restore(); }
   }
 });
+
+Deno.test("a modest summary overrun remains intact for confirmation without launching an image", async () => {
+  const f = fixture();
+  const summary = "Conserver la scène et le produit original. ".repeat(60);
+  f.setIntent({ operation: "create", summary, image_prompt: "Create the confirmed scene with every preserved detail." });
+  try {
+    const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
+      request_id: id(940), reference_ids: [], message: "Prépare cette scène" }));
+    const data = await res.json();
+    assertEquals(res.status, 200);
+    assertEquals(data.session.proposal.summary, summary.trim());
+    assertEquals(f.requests.some(path => path.includes("studio_confirm")), false);
+  } finally { f.restore(); }
+});
