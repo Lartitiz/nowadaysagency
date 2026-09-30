@@ -111,9 +111,19 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
   // Un seul scan par montage (StrictMode monte deux fois en dev).
   const scanStarted = useRef(false);
 
+  // Échappatoire : si le scan ou l'import reste bloqué, on ne bloque jamais
+  // le premier contenu plus de 45 s — l'import continue en arrière-plan.
+  const [waitExpired, setWaitExpired] = useState(false);
+  const photosReady = isDemoMode || (isProduct !== null && (!isProduct || (status !== "loading" && status !== "importing")));
   useEffect(() => {
-    onReadyChange?.(isDemoMode || (isProduct !== null && (!isProduct || (status !== "loading" && status !== "importing"))));
-  }, [status, isProduct, isDemoMode, onReadyChange]);
+    if (photosReady || waitExpired) return;
+    const timer = setTimeout(() => setWaitExpired(true), 45_000);
+    return () => clearTimeout(timer);
+  }, [photosReady, waitExpired]);
+
+  useEffect(() => {
+    onReadyChange?.(photosReady || waitExpired);
+  }, [photosReady, waitExpired, onReadyChange]);
 
   useEffect(() => {
     if (isDemoMode || !user?.id) {
