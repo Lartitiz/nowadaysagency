@@ -182,4 +182,4 @@ BEGIN
  END LOOP;
  UPDATE visual_studio_sessions SET proposal=NULL,revision=revision+1,updated_at=now() WHERE id=s.id;
  RETURN jsonb_build_object('version',created->0,'versions',created,'claimed',true);
-END $function$
+END $function$;
