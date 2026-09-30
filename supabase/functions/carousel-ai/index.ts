@@ -428,6 +428,22 @@ const STRUCTURE_PROPOSAL_TOOL = {
 // (CLAUDE.md), même convention que audit-instagram-ai (#861).
 const CORRECTION_ABORT_MS = 60_000;
 
+// ── Budget temps GLOBAL de la requête (mesure live 30/09) ──
+// Un carrousel texte prenait ~190 s (rédaction + juge ~95 s, puis deux relectures
+// ~40 s chacune) et chaque étape facultative a son propre plafond (réparation
+// 120 s, juge 30 s par tentative, relecture 60 s). Empilés un jour d'API lente,
+// ils dépassent la coupure de la plateforme (~400 s), qui perd TOUT le
+// carrousel. Passé ces seuils l'étape facultative n'est plus lancée : on livre
+// ce qui est écrit (défauts de fil signalés en avertissement, comme en vision).
+// Jamais atteints en conditions normales (réparation décidée vers 100-115 s).
+const REPAIR_START_LIMIT_MS = 150_000;
+const REVIEW_START_LIMIT_MS = 270_000;
+const reviewAllowed = (startedAt: number): boolean => {
+  const ok = Date.now() - startedAt <= REVIEW_START_LIMIT_MS;
+  if (!ok) console.log(JSON.stringify({ type: "carousel_time_budget", skipped: "review", elapsed_ms: Date.now() - startedAt }));
+  return ok;
+};
+
 // ── Plancher déterministe de slides (audit carrousel photo 12/07) ──
 // Structure confirmée → on attend EXACTEMENT sa longueur ; sinon min(4, cible).
 function carouselSlideFloor(body: any, defaultTarget: number): number {
@@ -516,6 +532,7 @@ export async function handleRequest(req: Request): Promise<Response> {
   }
 
   const handle = async (emitStatus: StatusEmitter = () => {}): Promise<Response> => {
+  const startedAt = Date.now();
 
   try {
 
@@ -806,6 +823,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       newsContext,
       corsHeaders,
       emitStatus,
+      startedAt,
     };
 
     switch (type) {
@@ -890,6 +908,8 @@ interface CarouselRequestContext {
   newsContext: any;
   corsHeaders: Record<string, string>;
   emitStatus: StatusEmitter;
+  /** Début de la requête (Date.now()) : budget temps global des étapes facultatives. */
+  startedAt: number;
 }
 
 // ── Mode « Mes slides » (assign_templates) : passe gabarits SEULE (15/07) ──
@@ -926,6 +946,7 @@ async function repairCarouselThread(content: string, opts: {
   inspect?: (content: string) => string[];
   regenerate?: (draft: string, defects: string, sink: UsageSink) => Promise<string>;
   judgeThread?: boolean;
+  startedAt: number;
 }): Promise<{ content: string; warnings: string[]; threadWarnings: string[] }> {
   const { body, label, emitStatus, usage } = opts;
   const inspect = opts.inspect || ((value: string): string[] => {
@@ -943,7 +964,11 @@ async function repairCarouselThread(content: string, opts: {
   };
   let issues = inspect(content);
   let thread = await judge(content);
-  if ((issues.length || thread.length) && opts.regenerate) {
+  const repairAllowed = Date.now() - opts.startedAt <= REPAIR_START_LIMIT_MS;
+  if ((issues.length || thread.length) && opts.regenerate && !repairAllowed) {
+    console.log(JSON.stringify({ type: "carousel_time_budget", skipped: "repair", label, elapsed_ms: Date.now() - opts.startedAt }));
+  }
+  if ((issues.length || thread.length) && opts.regenerate && repairAllowed) {
     emitStatus("correcting");
     const repairSink: UsageSink = {};
     const defects = [
@@ -985,7 +1010,7 @@ async function runGenerationAndRespond(
   userPrompt: string,
   reqCtx: CarouselRequestContext,
 ): Promise<Response> {
-  const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, systemPrompt, gateInputText, brandGuardText, captionEndingRule, isLinkedIn, previousHooks, corsHeaders, emitStatus } = reqCtx;
+  const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, systemPrompt, gateInputText, brandGuardText, captionEndingRule, isLinkedIn, previousHooks, corsHeaders, emitStatus, startedAt } = reqCtx;
 
   // L1 : Haiku pour les deepening_questions (tâche structurée et bornée).
   const isWriting = ["express_full", "slides", "hooks"].includes(type);
@@ -1006,39 +1031,27 @@ async function runGenerationAndRespond(
     // "génération standard" du reste des edges du repo.
     ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: (body.carousel_type === "photo" || body.carousel_type === "mix") ? PHOTO_QUESTIONS_TOOL : QUESTIONS_TOOL } : { abortTimeoutMs: 120_000 }),
   };
-  let content = isWriting
-    ? await _deps.callCarouselWriter({ ...writingOptions, model: pickCarouselModel(body) }, usage)
-    : await _deps.callAnthropic({ ...writingOptions, model: getModelForAction(type === "deepening_questions" ? "questions" : "carousel") }, usage);
+  // Durées par étape (ms), renvoyées avec la réponse : sans elles la lenteur du
+  // 30/09 (~190 s) n'était décomposable qu'en devinant entre deux évènements SSE.
+  const timings: Record<string, number> = { prep_ms: Date.now() - startedAt };
+  const timed = async <T>(key: string, work: Promise<T>): Promise<T> => {
+    const t0 = Date.now();
+    try { return await work; } finally { timings[key] = (timings[key] || 0) + Date.now() - t0; }
+  };
+  let content = await timed("write_ms", isWriting
+    ? _deps.callCarouselWriter({ ...writingOptions, model: pickCarouselModel(body) }, usage)
+    : _deps.callAnthropic({ ...writingOptions, model: getModelForAction(type === "deepening_questions" ? "questions" : "carousel") }, usage));
 
-  let threadWarnings: string[] = [];
-  if (type === "express_full" || type === "slides") {
-    const inspect = (value: string) => carouselStructureIssues(tryParseAiJson(value, "carousel-ai:structure"), body);
-    const repaired = await repairCarouselThread(content, {
-      body, label: type, emitStatus, usage, inspect,
-      // Le fil n'est jugé que sur une rédaction neuve : « Mes slides » (type
-      // "slides", texte écrit par la personne) garde son ordre et ses idées.
-      judgeThread: type === "express_full",
-      regenerate: (draft, defects, sink) => _deps.callCarouselWriter({
-        ...writingOptions, model: pickCarouselModel(body),
-        messages: [{ role: "user", content: userPrompt + "\n\nBROUILLON À COMPLÉTER :\n" + draft + "\n\n" + defects }],
-      }, sink),
-    });
-    content = repaired.content;
-    threadWarnings = repaired.threadWarnings;
-    const parsed: any = tryParseAiJson(content, "carousel-ai:structure-result");
-    if (parsed?.slides) content = JSON.stringify({ ...parsed, structure_warnings: repaired.warnings });
-  }
-
-  const editorialBaseline = content;
   // Contextual review for every generated carousel, legacy scan only on rollback.
-  if (type === "express_full" || type === "slides" || type === "hooks") {
+  // Ne rejette jamais : une relecture en échec rend le texte reçu.
+  const review = async (value: string): Promise<string> => {
     try {
-      if (semanticReviewEnabled || carouselNeedsPolish(content) || currentAuthoredText.trim()) {
+      if (semanticReviewEnabled || carouselNeedsPolish(value) || currentAuthoredText.trim()) {
         emitStatus("correcting");
-        const corrected = await applyGuardedCarouselCorrection(content, {
+        const corrected = await applyGuardedCarouselCorrection(value, {
           inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },
           correction: { currentBrief, semanticReview: semanticReviewEnabled,
-            enabled: true,
+            enabled: reviewAllowed(startedAt),
             skipIfShorterThan: 300,
             logger: (msg) => console.log(msg),
             model: pickCorrectionModel(body),
@@ -1046,14 +1059,59 @@ async function runGenerationAndRespond(
             abortTimeoutMs: CORRECTION_ABORT_MS,
           },
         });
-        if (corrected && corrected !== content) {
-          content = corrected;
-        }
+        if (corrected && corrected !== value) return corrected;
       } else {
         console.log("[correction-pass:carousel-json] SKIPPED (scan déterministe propre, texte)");
       }
     } catch (correctionError) {
       console.error("Correction pass failed in carousel-ai:", correctionError);
+    }
+    return value;
+  };
+
+  let threadWarnings: string[] = [];
+  // Relecture du brouillon lancée EN MÊME TEMPS que le juge du fil (30/09) : les
+  // deux lisent le même brouillon, et le juge ne change le texte que s'il nomme
+  // un défaut ET que la réparation est gardée. Dans le cas courant (fil sans
+  // défaut) on économise donc l'attente du juge ; si le brouillon est réécrit,
+  // cette relecture est jetée et refaite sur le texte réparé, comme avant.
+  // Pas d'avance quand un défaut structurel rend la réparation certaine.
+  let draftReview: { draft: string; result: Promise<string> } | undefined;
+  if (type === "express_full" || type === "slides") {
+    const inspect = (value: string) => carouselStructureIssues(tryParseAiJson(value, "carousel-ai:structure"), body);
+    if (type === "express_full" && inspect(content).length === 0) {
+      draftReview = { draft: content, result: timed("review_ms", review(content)) };
+    }
+    const repaired = await timed("thread_ms", repairCarouselThread(content, {
+      body, label: type, emitStatus, usage, inspect, startedAt,
+      // Le fil n'est jugé que sur une rédaction neuve : « Mes slides » (type
+      // "slides", texte écrit par la personne) garde son ordre et ses idées.
+      judgeThread: type === "express_full",
+      regenerate: (draft, defects, sink) => _deps.callCarouselWriter({
+        ...writingOptions, model: pickCarouselModel(body),
+        messages: [{ role: "user", content: userPrompt + "\n\nBROUILLON À COMPLÉTER :\n" + draft + "\n\n" + defects }],
+      }, sink),
+    }));
+    // La relecture d'avance ne vaut que pour le brouillon qu'elle a lu.
+    if (draftReview && repaired.content !== draftReview.draft) draftReview = undefined;
+    content = repaired.content;
+    threadWarnings = repaired.threadWarnings;
+    const parsed: any = tryParseAiJson(content, "carousel-ai:structure-result");
+    if (parsed?.slides) content = JSON.stringify({ ...parsed, structure_warnings: repaired.warnings });
+  }
+
+  const editorialBaseline = content;
+  if (type === "express_full" || type === "slides" || type === "hooks") {
+    if (draftReview) {
+      // Même relecture qu'en séquentiel (elle ne lit pas structure_warnings) ;
+      // les avertissements du juge sont reposés sur le texte relu.
+      const reviewedText = await draftReview.result;
+      const reviewed: any = tryParseAiJson(reviewedText, "carousel-ai:draft-review");
+      content = reviewed?.slides
+        ? JSON.stringify({ ...reviewed, structure_warnings: tryParseAiJson<any>(content, "carousel-ai:draft-review-warnings")?.structure_warnings ?? [] })
+        : reviewedText;
+    } else {
+      content = await timed("review_ms", review(content));
     }
   }
 
@@ -1065,15 +1123,15 @@ async function runGenerationAndRespond(
     if (capped.stripped > 0) console.warn(`carousel-ai: ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
     content = capped.content;
     // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
-    const gateExpress = await runRedacGate(content, {
+    const gateExpress = await timed("gate_ms", runRedacGate(content, {
       isLinkedIn,
       onStatus: emitStatus,
       inputText: gateInputText,
       echo: { previousHooks, subject: body.subject },
       brandGuardText,
       captionEnding: captionEndingRule,
-      correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
-    });
+      correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: reviewAllowed(startedAt), skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
+    }));
     content = gateExpress.content;
     await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspaceId, body.subject);
   }
@@ -1090,8 +1148,10 @@ async function runGenerationAndRespond(
     await _deps.logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspaceId);
   }
 
+  timings.total_ms = Date.now() - startedAt;
+  if (isWriting) console.log(JSON.stringify({ type: "carousel_timings", label: type, review_with_judge: !!draftReview, ...timings }));
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
-    ...(isWriting ? { writer: { version: CAROUSEL_WRITER_VERSION, model: usage.model, effort: "medium" } } : {}),
+    ...(isWriting ? { writer: { version: CAROUSEL_WRITER_VERSION, model: usage.model, effort: "medium" }, timings } : {}),
   }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
@@ -1119,7 +1179,7 @@ async function handleSuggestAnglesRequest(reqCtx: CarouselRequestContext): Promi
 
 // ── Mix carousel mode ──
 async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus } = reqCtx;
+  const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus, startedAt } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
   const mixPrompt = hasNews
@@ -1210,7 +1270,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     const mismatch = carouselMismatchResponse(content, body, mixUsage, "mix", corsHeaders);
     if (mismatch) return mismatch;
   }
-  const threadMix = await repairCarouselThread(content, { body, label: "mix", emitStatus, usage: mixUsage, regenerate: doRepair });
+  const threadMix = await repairCarouselThread(content, { body, label: "mix", emitStatus, usage: mixUsage, regenerate: doRepair, startedAt });
   content = threadMix.content;
 
   const editorialBaseline = content;
@@ -1221,7 +1281,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
       const corrected = await applyGuardedCarouselCorrection(content, {
         inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },
         correction: { currentBrief, semanticReview: semanticReviewEnabled,
-          enabled: true,
+          enabled: reviewAllowed(startedAt),
           skipIfShorterThan: 300,
           logger: (msg) => console.log(msg),
           model: pickCorrectionModel(body),
@@ -1268,7 +1328,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     echo: { previousHooks, subject: body.subject },
     brandGuardText,
     captionEnding: captionEndingRule,
-    correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
+    correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: reviewAllowed(startedAt), skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
   content = gateMix.content;
   content = withStructureWarnings(content, threadMix.warnings);
@@ -1283,7 +1343,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
 
 // ── Photo carousel mode ──
 async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus } = reqCtx;
+  const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus, startedAt } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
   const photoPrompt = hasNews
@@ -1371,7 +1431,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     const mismatch = carouselMismatchResponse(content, body, photoUsage, "photo", corsHeaders);
     if (mismatch) return mismatch;
   }
-  const threadPhoto = await repairCarouselThread(content, { body, label: "photo", emitStatus, usage: photoUsage, regenerate: doRepair });
+  const threadPhoto = await repairCarouselThread(content, { body, label: "photo", emitStatus, usage: photoUsage, regenerate: doRepair, startedAt });
   content = threadPhoto.content;
 
   // Template assignment can add points/attribution/CTA labels. In contextual
@@ -1387,7 +1447,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
       const corrected = await applyGuardedCarouselCorrection(content, {
         inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },
         correction: { currentBrief, semanticReview: semanticReviewEnabled,
-          enabled: true,
+          enabled: reviewAllowed(startedAt),
           skipIfShorterThan: 300,
           logger: (msg) => console.log(msg),
           model: pickCorrectionModel(body),
@@ -1428,7 +1488,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     echo: { previousHooks, subject: body.subject },
     brandGuardText,
     captionEnding: captionEndingRule,
-    correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
+    correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: reviewAllowed(startedAt), skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
   content = gatePhoto.content;
   // Relecture-gabarits (13/07) : sur les textes DÉFINITIFS (post gate),

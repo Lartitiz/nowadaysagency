@@ -775,12 +775,16 @@ export async function runRedacGate(
         : `La caption se termine par une question alors que la forme imposée n'en est pas une : réécris le champ "cta" de la CAPTION dans la forme imposée, SANS aucun point d'interrogation. Garde le sens, change la forme.`);
   }
   const review = first.parsed.editorial_review;
-  // Second review only to verify kept edits or to retry a technical failure.
-  // A first review rejected by the fidelity guard left the draft untouched:
-  // re-asking the same model about the same text is the same call again
-  // (2/2 rejected twice on 28/09, ~55 % of the review cost for nothing).
+  // Second review only to retry a technical failure (invalid/unavailable).
+  // - Rejected by the fidelity guard: the draft is untouched, re-asking the
+  //   same model about the same text is the same call again (28/09).
+  // - Reviewed, with or without edits: no verification pass any more (30/09,
+  //   arbitrage Laetitia). It cost ~40 s of the ~190 s text phase; kept edits
+  //   are already checked in code by the fidelity guard (numbers, quotes,
+  //   regressions). Findings measured by the gate (`fixes`) still trigger
+  //   their targeted re-pass below.
   const verifySemanticReview = opts.correction.semanticReview && opts.correction.reviewBaseline &&
-    review?.status !== "rejected" && (review?.status !== "reviewed" || review?.edits > 0);
+    review?.status !== "rejected" && review?.status !== "reviewed";
   if (fixes || verifySemanticReview) {
     try {
       opts.onStatus?.("correcting");

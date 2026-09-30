@@ -50,6 +50,54 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
     }
   });
 
+  // ── Décomposition de la phase texte (30/09) ──
+  // Les jalons UI disent COMBIEN on attend, pas OÙ. On double donc le flux SSE
+  // de carousel-ai / carousel-visual pour horodater chaque étape annoncée par le
+  // serveur (writing, correcting…) et afficher les durées par étape que
+  // carousel-ai renvoie dans `timings` (préparation, rédaction, juge du fil,
+  // relecture, contrôle final). Lecture seule : le flux de la page est intact.
+  page.on("console", (m) => { if (m.text().startsWith("[SSE]")) console.log(`   ${m.text()}`); });
+  await page.addInitScript(() => {
+    const orig = window.fetch;
+    window.fetch = async (...args: any[]) => {
+      const res = await orig.apply(window, args as any);
+      const url = typeof args[0] === "string" ? args[0] : (args[0] as any)?.url || "";
+      const edge = url.match(/functions\/v1\/(carousel-[a-z-]+)/)?.[1];
+      if (!edge || !res.body || !(res.headers.get("content-type") || "").includes("event-stream")) return res;
+      const t0 = performance.now();
+      const [forPage, forLog] = res.body.tee();
+      (async () => {
+        const reader = forLog.getReader(), decoder = new TextDecoder();
+        let buffer = "";
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let end: number;
+          while ((end = buffer.indexOf("\n\n")) >= 0) {
+            let ev: any = {};
+            try { ev = JSON.parse(buffer.slice(0, end).replace(/^data: /, "")); } catch { /* fragment illisible : ignoré */ }
+            buffer = buffer.slice(end + 2);
+            if (!ev.type || ev.type === "heartbeat") continue;
+            let detail = ev.stage ? `:${ev.stage}` : "";
+            if (ev.type === "done") {
+              try {
+                const full = JSON.parse(ev.full);
+                const doc = JSON.parse((full.content || "").match(/\{[\s\S]*\}/)?.[0] || "{}");
+                const review = doc.editorial_review;
+                detail = ` durées=${JSON.stringify(full.timings || "non renvoyées")}` +
+                  (review ? ` relecture=${JSON.stringify({ status: review.status, pass: review.pass, total_edits: review.total_edits })}` : "") +
+                  (doc.structure_warnings?.length ? ` avertissements=${doc.structure_warnings.length}` : "");
+              } catch { /* done sans JSON exploitable */ }
+            }
+            console.log(`[SSE] ${edge} +${((performance.now() - t0) / 1000).toFixed(1)}s ${ev.type}${detail}`);
+          }
+        }
+      })().catch(() => {});
+      return new Response(forPage, { status: res.status, statusText: res.statusText, headers: res.headers });
+    };
+  });
+
   // ── Parcours /creer ──
   await page.goto("/creer", { waitUntil: "networkidle" });
   const closeBtn = page.locator('[data-testid="branding-banner-close"], button[aria-label*="ermer"]').first();

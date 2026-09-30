@@ -179,6 +179,18 @@ Deno.test("gate : une 1re relecture rejetée par la garde n'est pas rejouée à 
     assertEquals(JSON.parse(gate.content).editorial_review.pass, 1);
   });
 });
+Deno.test("gate : une 1re relecture réussie avec retouches n'est pas revérifiée par une 2e passe", async () => {
+  const draft = { slides: [{ body: "Les demandes se contredisent. Et c'est là que tout se joue." }] };
+  await mockReview(JSON.stringify(editReview(draft as any)), async calls => {
+    const first = await applyGuardedCarouselCorrection(JSON.stringify(draft), { correction: { semanticReview: true } });
+    assertEquals(JSON.parse(first).editorial_review.edits, 1);
+    const gate = await runRedacGate(first, { isLinkedIn: false, correction: { semanticReview: true, reviewBaseline: JSON.stringify(draft) } });
+    assertEquals(calls.length, 1);
+    const output = JSON.parse(gate.content);
+    assertEquals(output.slides[0].body, "Les demandes se contredisent.");
+    assertEquals(output.editorial_review.pass, 1);
+  });
+});
 Deno.test("gate : une 1re relecture en échec technique est retentée une fois", async () => {
   await mockReview("Réécriture opaque", async calls => {
     const first = await applyCorrectionPassCarousel(JSON.stringify(doc), { semanticReview: true });
