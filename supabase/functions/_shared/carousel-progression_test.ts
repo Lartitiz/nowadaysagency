@@ -100,9 +100,6 @@ for (
     source: (r: any) => {
       r.slides[0].source_ids = ["invented"];
     },
-    contradiction: (r: any) => {
-      r.boundaries[0].kind = "rupture";
-    },
     unproven: (r: any) => {
       r.verdict = "needs_repair";
       r.defects = [{
@@ -269,4 +266,24 @@ Deno.test("35 mots sur photo restent intacts, longueur seule sans pénalité ni 
   });
   assertEquals(JSON.parse(out.content).slides[0].overlay_text, overlay);
   assertEquals(out.score, 100);
+});
+
+Deno.test("a contradictory approval becomes an actionable refusal without discarding the rupture", async () => {
+  const report = valid(); report.boundaries[0].kind = "rupture";
+  assertEquals(validateProgressionReport(report, doc, sources), "contradictory-verdict");
+  let calls = 0;
+  const out = await reviewCarouselProgression(doc, { sources, call: async () => { calls++; return JSON.stringify(report); } });
+  assertEquals(out.execution_status, "completed"); assertEquals(out.verdict, "needs_repair");
+  assertEquals(out.report?.model_verdict, "acceptable");
+  assertEquals(out.report?.boundaries, report.boundaries);
+  assert(out.issues[0].includes("1 → 2")); assertEquals(calls, 1);
+});
+Deno.test("major evidence overrides approval but ungrounded evidence still fails", async () => {
+  const report: any = valid();
+  report.defects = [{slide_ids:["slides.0"],severity:"major",type:"unsupported",excerpt:"Un signe donne un repère.",reason:"Préciser la portée",repair:"Reprendre la limite du brief"}];
+  const out = await reviewCarouselProgression(doc, {sources,call:async()=>JSON.stringify(report)});
+  assertEquals(out.verdict,"needs_repair"); assertEquals(out.report?.defects,report.defects);
+  report.defects[0].excerpt = "preuve inventée";
+  const bad = await reviewCarouselProgression(doc, {sources,call:async()=>JSON.stringify(report)});
+  assertEquals(bad.execution_status,"invalid"); assertEquals(bad.verdict,null);
 });
