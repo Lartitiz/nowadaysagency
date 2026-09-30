@@ -1244,3 +1244,26 @@ Deno.test("selected version ID resolves as composition source while unknown refe
     } finally { f.restore(); }
   }
 });
+
+Deno.test("retouch preserves scene workflow and original when the interpreter omits its optional phase", async () => {
+  for (const phase of ["scene", "integration"]) {
+    const f = fixture();
+    const product = { id: id(920), photo_id: id(921), path: "original-product", role: "product", name: "Original" };
+    f.version.status = "ready";
+    Object.assign(f.version.proposal, { scene_workflow: { phase, camera_match: "Vue de haut" }, format: "portrait",
+      planning_references: phase === "scene" ? [product] : [], reference_snapshot: phase === "integration" ? [product] : [] });
+    f.session.references = [product];
+    f.setIntent({ operation: "edit", visual_kind: "photo", summary: "Corriger seulement les ombres dans la version sélectionnée.",
+      image_prompt: "Adjust only the selected image shadows.", reference_use: [] });
+    try {
+      const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
+        request_id: id(922), reference_ids: [], viewed_version_id: proposalId, message: "Corrige les ombres" }));
+      const proposal = (await res.json()).session.proposal;
+      assertEquals(res.status, 200);
+      assertEquals(proposal.scene_workflow.phase, phase);
+      assertEquals(proposal.input_path, f.version.result_path);
+      assertEquals((phase === "scene" ? proposal.planning_references : proposal.references).map((r: {path:string}) => r.path), ["original-product"]);
+      assertEquals((f.payloads[0] as { messages: { content: { text?: string }[] }[] }).messages[0].content.some(c => c.text?.includes('"format":"portrait"')), true);
+    } finally { f.restore(); }
+  }
+});

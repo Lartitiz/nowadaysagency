@@ -746,6 +746,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                         ? {
                           id: parent.id,
                           scene_workflow: parent.proposal.scene_workflow,
+                          format: parent.proposal.format,
                           produits_reserves: reservedProducts.map(({ id, name }) => ({ id, name })),
                           person_reference: parent.proposal.person_reference,
                           brief: parent.proposal.brief,
@@ -935,6 +936,14 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             resolvedReferences.unshift({ id: parent.id, version_id: parent.id, photo_id: null,
               path: parent.result_path, name: "Version sélectionnée", role: "subject" });
           }
+        }
+        // Editing the selected scene continues its workflow even if the model
+        // omits this optional field. Do not inherit when another source is edited
+        // or for an independent creation.
+        if (!intent.scene_workflow && intent.operation === "edit" && intent.visual_kind === "photo" && !intent.exact_text.length && parent &&
+          (!explicitSource || explicitSource.path === parent.result_path) &&
+          ["scene", "integration"].includes(parent.proposal.scene_workflow?.phase)) {
+          intent.scene_workflow = parent.proposal.scene_workflow;
         }
         const phase = intent.scene_workflow?.phase;
         // A correction to the scene must not discard the reserved original just
