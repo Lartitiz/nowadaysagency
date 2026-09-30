@@ -338,6 +338,17 @@ function Studio({
   const references = current?.session.references || [];
   const activeIds = current?.session.active_reference_ids ?? attachedIds;
   const attachedReferences = activeIds.map((id) => references.find((ref) => ref.id === id)).filter((ref): ref is StudioReference => !!ref);
+  const [photosOpen, setPhotosOpen] = useState(false);
+  const photosStateRef = useRef({ loaded: false, count: 0 });
+  useEffect(() => {
+    // Ouvre l'accordéon seulement quand une photo est ajoutée dans une session
+    // déjà chargée — pas au chargement de la page avec des photos validées.
+    const prev = photosStateRef.current;
+    const loaded = !!current;
+    const count = attachedReferences.length;
+    if (loaded && prev.loaded && count > prev.count) setPhotosOpen(true);
+    photosStateRef.current = { loaded, count };
+  }, [current, attachedReferences.length]);
   useEffect(() => { setAttachedIds(readAttachedIds(attachmentKey)); }, [attachmentKey]);
   function setAttachments(ids: string[], key = attachmentKey) {
     const unique = [...new Set(ids)];
@@ -1526,14 +1537,27 @@ function Studio({
                   Ta demande
                 </label>
                 {current && <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground">{attachedReferences.length ? "Photos de cette demande" : "Ta demande"}</span>
+                  <span className="text-xs text-muted-foreground">Ta demande</span>
                   <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" disabled={!writable || !!busy || generating}
                     aria-label="Nouvelle demande sans ces références" onClick={() => void updateSelection([], true)}>Nouvelle demande</Button>
                 </div>}
-                <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
-                  onSelection={ids => void updateSelection(ids)}
-                  onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
-                  onGroup={(id, group) => void mutate("reference", { reference_id: id, subject_group: group, revision: current!.session.revision })} />
+                {attachedReferences.length > 0 && (
+                  <details
+                    className="studio-photos-accordion"
+                    open={photosOpen}
+                    onToggle={(e) => setPhotosOpen((e.target as HTMLDetailsElement).open)}
+                  >
+                    <summary aria-label={`Photos de cette demande (${attachedReferences.length})`}>
+                      Photos de cette demande ({attachedReferences.length})
+                    </summary>
+                    <div className="mt-2">
+                      <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
+                        onSelection={ids => void updateSelection(ids)}
+                        onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
+                        onGroup={(id, group) => void mutate("reference", { reference_id: id, subject_group: group, revision: current!.session.revision })} />
+                    </div>
+                  </details>
+                )}
 
                 <Textarea
                   className="min-h-[88px] max-h-36 overflow-y-auto"
