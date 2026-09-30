@@ -14,6 +14,8 @@ export type Reference = {
   description?: string;
 };
 export type Proposal = {
+  scene_workflow?: import("./scene-workflow.ts").SceneWorkflow;
+  planning_references?: Reference[];
   operation: string;
   person_reference?: PersonReference;
   summary?: string;
@@ -199,7 +201,7 @@ export function imagePrompt(proposal: Proposal) {
   const refs = proposal.references || [];
   const isSeries = (proposal.series_size || 1) > 1;
   const isSheet = proposal.person_reference?.mode === "sheet";
-  const charter = isSheet ? null : proposal.brand_context?.charter;
+  const charter = isSheet || proposal.scene_workflow ? null : proposal.brand_context?.charter;
   const direction = (value: unknown) =>
     (typeof value === "string"
       ? value
@@ -218,7 +220,7 @@ export function imagePrompt(proposal: Proposal) {
     ? [
       "Stage the exact product in a physically plausible position for its shape and normal use. Show real contact with the confirmed supporting surface and a believable contact shadow; never balance it implausibly merely to expose a painted face. Use a hand only when the confirmed brief calls for one.",
       "A bowl normally rests base-down with its opening upward; a plate or shallow dish rests flat or is held. Only use an upright display when the confirmed brief explicitly asks for it and shows a plausible visible support.",
-      "The product's support and orientation follow the confirmed placement. When inserting it into the supplied setting, match that setting's camera perspective, scale, light direction and color temperature. Reconstruct the product's volume from that viewpoint instead of pasting its original front or overhead view into the scene. A reference used only for mood or color does not dictate the camera.",
+      "The product's support and orientation follow the confirmed placement. When inserting it into the supplied setting, match that setting's camera perspective, scale, light direction and color temperature. Keep perspective changes minimal and supported by the visible product reference; never invent an unseen face or flatten an incompatible view into the scene. A reference used only for mood or color does not dictate the camera.",
       "Show the perspective cues appropriate to the confirmed view: rim ellipse, visible wall or thin edge, thickness and contact shadow. Preserve the true shallow or deep profile; do not make a plate into a bowl. Keep the original markings on the same parts of the object, allowing natural foreshortening and occlusion instead of tilting it to expose every marking. Do not invent details of an unseen side.",
       productPlacement && (!isSeries || !proposal.series_index)
         ? `Confirmed product placement: ${productPlacement}. Follow this placement when other staging words are ambiguous.`
@@ -245,7 +247,9 @@ export function imagePrompt(proposal: Proposal) {
     // This list uses the same order as the image[] payload in generateImage.
     proposal.input_path || refs.length ? "REFERENCE IMAGES" : "",
     proposal.input_path
-      ? "Image 1 is the selected version to edit. Keep the subject and features the brief asks to preserve; apply the requested changes to its setting and styling."
+      ? proposal.scene_workflow?.phase === "integration"
+        ? "Image 1 is the approved scene to preserve during product integration."
+        : "Image 1 is the selected version to edit. Keep the subject and features the brief asks to preserve; apply the requested changes to its setting and styling."
       : "",
     ...refs.map(
       (ref, i) =>
@@ -265,7 +269,12 @@ export function imagePrompt(proposal: Proposal) {
     // Series snapshots share the plan's change list, which may describe other shots.
     // Each shot's complete image_prompt is the authority for its framing and pose.
     !isSeries ? "Changes: " + (proposal.change || []).join("; ") : "",
-    productStaging,
+    proposal.scene_workflow?.phase === "scene"
+      ? "SCENE PREPARATION ONLY. Create the confirmed setting, including any confirmed person or hand, with a physically usable area for the future product. Do not render that product or a placeholder. No text or logos. Preserve the confirmed photographic composition and camera; do not add decorative props."
+      : productStaging,
+    proposal.scene_workflow?.phase === "integration"
+      ? "PRODUCT INTEGRATION. Image 1 is the approved scene, not a loose style reference. Preserve its camera, framing, person, surfaces and background. Integrate only the exact original product from the product references. Preserve silhouette, proportions, material, color, motif placement, logo and lettering. Adapt only placement, physically necessary occlusion, local reflections, light and contact shadows. Do not redesign the scene or add decorations. Keep everything else unchanged."
+      : "",
     refs.length > 1
       ? "Several reference photos may show one subject from different angles. When the brief identifies them as the same person or product, combine their evidence into one subject; do not add a separate copy for each reference. Keep style-only references distinct from identity references."
       : "",
@@ -280,7 +289,7 @@ export function imagePrompt(proposal: Proposal) {
       ].filter(Boolean).join("; ")}. Apply it where compatible with this shot. The user's specific request and exact person or product references take priority; never recolor or reshape them merely to fit the brand. Confirmed product placement takes priority over brand composition advice.`
       : "",
     naturalPhoto
-      ? "Natural everyday photograph, as a candid moment captured with a good phone camera: clear subject and believable framing, ordinary surroundings with only props needed for the action, available light with plausible unevenness, credible skin and material texture, and moderate depth of field so the setting remains recognizable. Keep professional image quality. Avoid beauty retouching, waxy skin, glossy advertising light, cinematic staging, artificial bokeh, heavy blur, fake grain, or added picturesque flowers and decor. If a source or style reference has busy scenery or decorative props, borrow only the aspects requested; simplify or remove those elements when the brief asks for it. Preserve the designated person's identity and exact product details. Specific user instructions and confirmed brand requirements take priority."
+      ? "Natural photograph with coherent light, plausible contact and credible material and skin textures. Follow the confirmed camera style, contrast, grain, depth of field and composition. Do not automatically simplify the setting or add imperfections, blur, beauty retouching or decorative props. Preserve the requested accessories and photographic hierarchy. Exact person and product references take priority."
       : "",
     "No invented watermarks, promotional claims or extra decorative elements. Preserve authentic product lettering and logos when present in the reference. Match the requested visual medium; do not default to stock imagery.",
     proposal.operation === "edit" && !isSheet

@@ -287,14 +287,14 @@ Deno.test("natural photo treatment reaches OpenAI for text and reference request
   };
   const prompt = imagePrompt(natural);
   assertEquals(prompt.includes("reduce the lavender"), true);
-  assertEquals(prompt.includes("simplify or remove those elements"), true);
-  assertEquals(prompt.includes("credible skin and material texture"), true);
-  assertEquals(prompt.includes("moderate depth of field"), true);
+  assertEquals(prompt.includes("Do not automatically simplify the setting"), true);
+  assertEquals(prompt.includes("credible material and skin textures"), true);
+  assertEquals(prompt.includes("moderate depth of field"), false);
   assertEquals(prompt.includes("Warm Mediterranean sunlight"), true);
   assertEquals(prompt.includes("Keep its other features"), false);
-  assertEquals(imagePrompt({ ...natural, photo_treatment: "directed" }).includes("candid moment"), false);
-  assertEquals(imagePrompt({ ...natural, visual_kind: "graphic" }).includes("candid moment"), false);
-  assertEquals(imagePrompt({ ...natural, exact_text: ["Atelier"] }).includes("candid moment"), false);
+  assertEquals(imagePrompt({ ...natural, photo_treatment: "directed" }).includes("Natural photograph with coherent light"), false);
+  assertEquals(imagePrompt({ ...natural, visual_kind: "graphic" }).includes("Natural photograph with coherent light"), false);
+  assertEquals(imagePrompt({ ...natural, exact_text: ["Atelier"] }).includes("Natural photograph with coherent light"), false);
   const original = globalThis.fetch;
   let sentPrompt = "";
   globalThis.fetch = async (_input, init) => {
