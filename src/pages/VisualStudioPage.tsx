@@ -893,7 +893,21 @@ function Studio({
           <div className="rounded-lg bg-background p-3 text-sm">
             <h3 className="font-semibold mb-2">Ce que j’ai compris</h3>
             <p className="whitespace-pre-wrap">{cleanStudioSummary(proposal.summary)}</p>
-            {proposal.photo_treatment === "natural" && <p className="text-sm text-muted-foreground">Rendu demandé : photo du quotidien, naturelle et spontanée.</p>}
+            {proposal.photo_treatment === "natural" && <p className="text-sm text-muted-foreground">Rendu photographique naturel, selon la direction de ta marque.</p>}
+            {proposal.scene_workflow?.phase === "scene" && proposal.operation === "create" && <div className="text-sm mt-3 space-y-2" aria-label="Rendu Soul proposé">
+              <p><strong>Rendu Soul :</strong> {proposal.soul_style?.name || "Sans preset, direction propre à cette photo"}</p>
+              {proposal.soul_style && <p>{proposal.soul_style.description}</p>}
+              {!!proposal.soul_style_options?.length && <details><summary className="cursor-pointer">Voir les autres rendus</summary>
+                <p className="text-xs my-2">Exemples Higgsfield : leur effet sera adapté à ta scène. Le choix sera reformulé avant de générer.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {proposal.soul_style_options.map(style => <button type="button" key={style.id} disabled={!!busy || !!generating || !writable} className="border rounded-lg p-2 text-left text-sm" onClick={() => editDraft(`Pour cette même scène, utilise le preset Soul « ${style.name} ». Adapte la consigne à ce rendu en conservant les sujets, leurs références et les décisions déjà prises.`)}>
+                    {style.preview_url && <img src={style.preview_url} alt={`Exemple du preset ${style.name}`} loading="lazy" className="aspect-square w-full object-cover rounded mb-1" />}
+                    <strong>{style.name}</strong>
+                  </button>)}
+                </div>
+                <Button type="button" variant="link" disabled={!!busy || !!generating || !writable} onClick={() => editDraft("Pour cette même scène, choisis sans preset Soul. Garde les sujets, leurs références et la direction de ma marque, sans imposer une ambiance générique.")}>Choisir sans preset</Button>
+              </details>}
+            </div>}
             {!!proposal.product_placement && <p className="mt-2"><strong>Position du produit :</strong> {proposal.product_placement}</p>}
           </div>
           {proposal.scene_workflow && <div className="text-sm space-y-2">
@@ -1179,7 +1193,7 @@ function Studio({
                     <p className="text-xs text-muted-foreground">L’intégration compte pour une image supplémentaire. Vérifie ensuite les détails du visage et du produit.</p>
                     <Button className="w-full h-auto whitespace-normal" disabled={!writable || !!busy || generating || !!draft.trim() || !!error || !current?.quota.allowed || current?.generative_allowed === false}
                       onClick={() => void mutate("integrate", { version_id: version.id, proposal_id: version.integration_proposal!.id, approved_scene_id: version.id, revision: current!.session.revision })}>
-                      Valider cette scène et intégrer mes références · 1 image
+                      {busy === "integrate" ? "Claude examine la scène et prépare les remplacements…" : "Valider cette scène et intégrer mes références · 1 image"}
                     </Button>
                   </section>
                 )}

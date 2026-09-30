@@ -1015,3 +1015,21 @@ it("scrolls to the new advice instead of the preserved proposal",async()=>{
   await waitFor(()=>expect(view.container.querySelector('.studio-messages')?.scrollTop).toBe(188));
  }finally{box.mockRestore();}
 });
+
+it("shows verified Soul examples and prepares a preset correction without generating or losing originals", async () => {
+  const state = original(); state.quota.plan = "premium"; state.generative_allowed = true;
+  const product = { id: "product", photo_id: "p", name: "Assiette", role: "product" as const, url: "/plate.jpg" };
+  state.session.references = [product];
+  const style = { id: "verified-style", name: "Digital Camera", description: "Direct flash", preview_url: "https://cdn.higgsfield.ai/example.webp" };
+  state.session.proposal = { ...proposal, operation: "create", scene_workflow: { phase: "scene", camera_match: "De face" }, planning_references: [product], soul_style_options: [style] };
+  mock.request.mockResolvedValue(state); mount();
+  await screen.findByLabelText("Rendu Soul proposé");
+  expect(screen.getByText("Sans preset, direction propre à cette photo")).toBeInTheDocument();
+  fireEvent.click(screen.getByText("Voir les autres rendus"));
+  expect(screen.getByAltText("Exemple du preset Digital Camera")).toHaveAttribute("src", style.preview_url);
+  fireEvent.click(screen.getByRole("button", { name: /Digital Camera/ }));
+  expect((screen.getByPlaceholderText("Une idée, une question, une image à améliorer…") as HTMLTextAreaElement).value).toContain("Digital Camera");
+  fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "message", reference_ids: ["product"], message: expect.stringContaining("Digital Camera") })));
+  expect(mock.request.mock.calls.some(([body]) => body.action === "generate")).toBe(false);
+});
