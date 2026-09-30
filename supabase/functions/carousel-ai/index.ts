@@ -429,14 +429,13 @@ const STRUCTURE_PROPOSAL_TOOL = {
 const CORRECTION_ABORT_MS = 60_000;
 
 // ── Budget temps GLOBAL de la requête (mesure live 30/09) ──
-// Un carrousel texte prend ~190 s (rédaction + juge ~95 s, puis deux relectures
+// Un carrousel texte prenait ~190 s (rédaction + juge ~95 s, puis deux relectures
 // ~40 s chacune) et chaque étape facultative a son propre plafond (réparation
 // 120 s, juge 30 s par tentative, relecture 60 s). Empilés un jour d'API lente,
 // ils dépassent la coupure de la plateforme (~400 s), qui perd TOUT le
 // carrousel. Passé ces seuils l'étape facultative n'est plus lancée : on livre
 // ce qui est écrit (défauts de fil signalés en avertissement, comme en vision).
-// Jamais atteints en conditions normales (réparation décidée vers 100-115 s,
-// 2e relecture lancée vers 150 s).
+// Jamais atteints en conditions normales (réparation décidée vers 100-115 s).
 const REPAIR_START_LIMIT_MS = 150_000;
 const REVIEW_START_LIMIT_MS = 270_000;
 const reviewAllowed = (startedAt: number): boolean => {

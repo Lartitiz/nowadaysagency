@@ -84,11 +84,12 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     assertEquals(parsed.slides[1].body, "Les demandes se contredisent.");
     assertEquals(parsed.slides.length, 4);
     assertEquals(parsed.editorial_review.status, "reviewed");
-    assertEquals(parsed.editorial_review.pass, 2);
+    // Une seule relecture : ses retouches ne sont plus revérifiées par une 2e passe (30/09).
+    assertEquals(parsed.editorial_review.pass, 1);
     assertEquals(parsed.editorial_review.model, "gpt-6-astra");
     assertEquals(parsed.editorial_review.version, "connected-sequence-astra-medium-v6");
-    assertEquals(parsed.editorial_review.total_usage.total_tokens, 4);
-    assertEquals(reviews, 2);
+    assertEquals(parsed.editorial_review.total_usage.total_tokens, 2);
+    assertEquals(reviews, 1);
   } finally {
     globalThis.fetch = previousFetch;
     if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key);
