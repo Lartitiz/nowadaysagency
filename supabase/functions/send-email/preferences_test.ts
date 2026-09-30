@@ -6,7 +6,10 @@ const serve = Deno.serve;
 await import('./index.ts');
 (Deno as any).serve=serve;
 const originalFetch=globalThis.fetch;
-function req(){return new Request('https://edge.invalid/send-email',{method:'POST',headers:{Authorization:'Bearer fixture-key','Content-Type':'application/json'},body:JSON.stringify({to:'fiction@example.invalid',subject:'fixture',html:'fixture',user_id:'u',sequence_id:'seq'})});}
+// Destinataire à domaine ordinaire : depuis le 30/09 le handler écarte d'emblée les
+// domaines réservés (example.*, .invalid, .test…), ce qui court-circuitait les
+// scénarios « preference-error » et « transaction ». Aucun envoi réel : fetch est simulé.
+function req(to='destinataire@atelier-fixture.fr'){return new Request('https://edge.invalid/send-email',{method:'POST',headers:{Authorization:'Bearer fixture-key','Content-Type':'application/json'},body:JSON.stringify({to,subject:'fixture',html:'fixture',user_id:'u',sequence_id:'seq'})});}
 for(const scenario of ['tips-off','reminders-off','ritual-off','unsubscribed','unsubscribe-error','preference-error','transaction']){
  Deno.test(`send-email handler: ${scenario}`,async()=>{
   let sends=0;
@@ -23,3 +26,15 @@ for(const scenario of ['tips-off','reminders-off','ritual-off','unsubscribed','u
   try{const result=await handler(req());const data=await result.json();assertEquals(sends,scenario==='transaction'?1:0);assertEquals(result.status,scenario.endsWith('error')?500:200);if(!scenario.endsWith('error')&&scenario!=='transaction')assertEquals(data.skipped,true);}finally{globalThis.fetch=originalFetch;}
  });
 }
+Deno.test('send-email handler: adresse de test (domaine réservé) écartée sans envoi',async()=>{
+ let sends=0,logged:any=null;
+ globalThis.fetch=async(input,init)=>{
+  const url=String(input instanceof Request?input.url:input);
+  const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
+  if(url.startsWith('https://api.resend.com/')){sends++;return json({id:'fake-send'});}
+  if(url.includes('/email_unsubscribes'))return json(null);
+  if(url.includes('/email_sends')){if(init?.method==='POST')logged=JSON.parse(String(init.body));return json([]);}
+  throw new Error('Unexpected URL '+url);
+ };
+ try{const result=await handler(req('fiction@example.invalid'));const data=await result.json();assertEquals(result.status,200);assertEquals(data.skipped,true);assertEquals(sends,0);assertEquals((Array.isArray(logged)?logged[0]:logged)?.status,'skipped');}finally{globalThis.fetch=originalFetch;}
+});
