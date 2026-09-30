@@ -105,9 +105,11 @@ export function useCarouselAutosave(options: Options) {
       !!previous &&
       scope.current?.document === identity &&
       controllerKey.current !== key;
+    const predecessor = !copying && previous?.id === o.ideaId &&
+      scope.current?.key === currentScope ? previous : undefined;
     if (previous) {
       previous.detach();
-      void previous
+      if (!predecessor) void previous
         .flush()
         .catch(() => {})
         .finally(() => previous.dispose());
@@ -194,6 +196,7 @@ export function useCarouselAutosave(options: Options) {
           latest.current.onSaved(meta);
         }
       },
+      predecessor,
     );
     controller.current = c;
     c.queue(o.raw);

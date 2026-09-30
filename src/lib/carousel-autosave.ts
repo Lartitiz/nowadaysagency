@@ -55,6 +55,7 @@ export class CarouselAutosaver {
     private baseline: CarouselSnapshot,
     private store: DraftStore,
     private onSaved: (meta: CloudMeta) => void,
+    private predecessor?: CarouselAutosaver,
   ) {}
   dispose() {
     this.active = false;
@@ -80,6 +81,16 @@ export class CarouselAutosaver {
     return this.running;
   }
   private async drain() {
+    // A regenerated document keeps the same saved idea. Finish the old write
+    // before reading its successor's baseline; never race our own revision.
+    if (this.predecessor) {
+      await this.predecessor.flush();
+      if (!this.active) return;
+      if (this.predecessor.meta)
+        this.baseline = { ...this.baseline, _carousel_cloud: this.predecessor.meta };
+      this.predecessor.dispose();
+      this.predecessor = undefined;
+    }
     while (this.active && this.pending) {
       if (this.uncertainRevision) {
         const found = await this.store.read(this.id);

@@ -6,6 +6,7 @@ const db = vi.hoisted(() => ({
   ops: [] as any[],
   fail: false,
   tick: 0,
+  writeGate: undefined as Promise<void> | undefined,
 }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
@@ -20,6 +21,7 @@ vi.mock("@/integrations/supabase/client", () => ({
         if (db.fail) return { data: null, error: new Error("offline") };
         if (operation === "read")
           return { data: db.rows.get(id) || null, error: null };
+        if (db.writeGate) await db.writeGate;
         if (operation === "update" && db.rows.get(id)?.updated_at !== timestamp)
           return { data: null, error: null };
         if (operation === "insert") {
@@ -100,6 +102,7 @@ beforeEach(() => {
   db.ops = [];
   db.fail = false;
   db.tick = 0;
+  db.writeGate = undefined;
 });
 afterEach(async () => {
   cleanup();
@@ -113,6 +116,54 @@ const settle = () =>
     await vi.advanceTimersByTimeAsync(1250);
   });
 describe("carousel autosave lifecycle", () => {
+  it("still refuses a real external revision when handing off a generation", async () => {
+    const o = options();
+    const { result, rerender } = renderHook((p) => useCarouselAutosave(p), { initialProps: o });
+    await settle();
+    const id = o.onId.mock.calls[0][0];
+    const row = db.rows.get(id);
+    db.rows.set(id, { ...row, updated_at: "external", content_data: { ...row.content_data, _carousel_cloud: { revision: "external", history: [] } } });
+    rerender({ ...o, ideaId: id, raw: { ...raw("new narrative"), _carousel_document_id: "generation-2" } });
+    await settle();
+    expect(result.current.status).toBe("conflict");
+    expect(db.rows.get(id).content_data._carousel_cloud.revision).toBe("external");
+  });
+  it("retries an interrupted predecessor before saving the new generation", async () => {
+    const o = options();
+    const { result, rerender } = renderHook((p) => useCarouselAutosave(p), { initialProps: o });
+    await settle();
+    const id = o.onId.mock.calls[0][0];
+    db.fail = true;
+    rerender({ ...o, ideaId: id, raw: raw("pending") });
+    await settle();
+    rerender({ ...o, ideaId: id, raw: { ...raw("new narrative"), _carousel_document_id: "generation-2" } });
+    await settle();
+    expect(result.current.status).toBe("error");
+    db.fail = false;
+    await act(async () => { await result.current.flush(); });
+    expect(result.current.status).toBe("saved");
+    expect(db.rows.size).toBe(1);
+    expect(db.rows.get(id).content_data.caption.body).toBe("new narrative");
+  });
+  it("waits for the previous generation's pending write before saving its replacement", async () => {
+    const o = options();
+    const { result, rerender } = renderHook((p) => useCarouselAutosave(p), { initialProps: o });
+    await settle();
+    const id = o.onId.mock.calls[0][0];
+    let release!: () => void;
+    db.writeGate = new Promise<void>((resolve) => { release = resolve; });
+    rerender({ ...o, ideaId: id, raw: raw("old pending edit") });
+    await settle();
+    rerender({ ...o, ideaId: id, raw: { ...raw("new narrative"), _carousel_document_id: "generation-2" } });
+    await settle();
+    await act(async () => { release(); });
+    await settle();
+    expect(result.current.status).toBe("saved");
+    expect(db.rows.size).toBe(1);
+    expect(db.rows.get(id).content_data.caption.body).toBe("new narrative");
+    expect(db.rows.get(id).content_data._carousel_document_id).toBe("generation-2");
+    expect(db.rows.get(id).content_data._carousel_cloud.history.some((v: any) => v.raw.caption.body === "A")).toBe(true);
+  });
   it("does not keep copying when the user opens another existing idea", async () => {
     const o = options();
     const { result, rerender } = renderHook((p) => useCarouselAutosave(p), {
