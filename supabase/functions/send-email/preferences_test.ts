@@ -33,7 +33,7 @@ Deno.test('send-email handler: adresse de test (domaine réservé) écartée san
   const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
   if(url.startsWith('https://api.resend.com/')){sends++;return json({id:'fake-send'});}
   if(url.includes('/email_unsubscribes'))return json(null);
-  if(url.includes('/email_sends')){if(init?.method==='POST')logged=JSON.parse(String(init.body));return json([]);}
+  if(url.includes('/email_sends')){const i=init as RequestInit|undefined;if(i?.method==='POST')logged=JSON.parse(String(i.body));return json([]);}
   throw new Error('Unexpected URL '+url);
  };
  try{const result=await handler(req('fiction@example.invalid'));const data=await result.json();assertEquals(result.status,200);assertEquals(data.skipped,true);assertEquals(sends,0);assertEquals((Array.isArray(logged)?logged[0]:logged)?.status,'skipped');}finally{globalThis.fetch=originalFetch;}
