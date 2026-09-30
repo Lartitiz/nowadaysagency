@@ -11,14 +11,13 @@ export function ReferenceCards({ references, disabled, onRole, onGroup, onSelect
 }) {
   if (!references.length) return null;
   return <section aria-label="Photos utilisées pour cette demande" className="space-y-2">
-    <p className="text-sm font-medium">Photos utilisées pour cette demande</p>
     <div className="flex gap-3 overflow-x-auto pb-1">
       {references.map((ref, index) => <div key={ref.id} className="rounded-xl border bg-card p-2 w-44 shrink-0 space-y-2">
         <div className="flex gap-2 items-center">
-          <img src={ref.url} alt={ref.name} className="h-12 w-12 rounded-md object-cover" />
-          <span className="text-xs min-w-0 break-words">Image {index + 1} · {ref.name}</span>
+          <img src={ref.url} alt={ref.name} className="h-8 w-8 rounded-md object-cover" />
+          <span className="text-xs min-w-0 line-clamp-2">Image {index + 1} · {ref.name}</span>
         </div>
-        <select aria-label={`Rôle de l’image ${index + 1}`} value={ref.role} disabled={disabled}
+        <select title="Un décor à conserver sert de base ; une inspiration guide seulement l’ambiance. Tu peux aussi préciser les rôles dans le chat." aria-label={`Rôle de l’image ${index + 1}`} value={ref.role} disabled={disabled}
           className="w-full rounded border bg-background text-xs p-1.5"
           onChange={e => onRole(ref.id, e.target.value as StudioReference["role"])}>
           {(["auto", "person", "product", "scene", "style", "edit_source"] as const).map(role => <option key={role} value={role}>{referenceLabels[role]}</option>)}
@@ -41,6 +40,5 @@ export function ReferenceCards({ references, disabled, onRole, onGroup, onSelect
         </div>
       </div>)}
     </div>
-    <p className="text-xs text-muted-foreground">Tu peux aussi expliquer les rôles dans ton message. Un décor à conserver sert de base ; une inspiration guide seulement l’ambiance.</p>
   </section>;
 }

@@ -1523,12 +1523,16 @@ function Studio({
                 >
                   Ta demande
                 </label>
+                {current && <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground">{attachedReferences.length ? "Photos de cette demande" : "Ta demande"}</span>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" disabled={!writable || !!busy || generating}
+                    aria-label="Nouvelle demande sans ces références" onClick={() => void updateSelection([], true)}>Nouvelle demande</Button>
+                </div>}
                 <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
                   onSelection={ids => void updateSelection(ids)}
                   onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
                   onGroup={(id, group) => void mutate("reference", { reference_id: id, subject_group: group, revision: current!.session.revision })} />
-                {current && <Button type="button" variant="ghost" size="sm" disabled={!writable || !!busy || generating}
-                  onClick={() => void updateSelection([], true)}>Nouvelle demande sans ces références</Button>}
+
                 <Textarea
                   className="min-h-[88px] max-h-36 overflow-y-auto"
                   id={mobile ? "studio-draft-mobile" : "studio-draft"}
