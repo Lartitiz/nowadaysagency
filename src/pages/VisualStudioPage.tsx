@@ -340,6 +340,14 @@ function Studio({
   const activeIds = current?.session.active_reference_ids ?? attachedIds;
   const attachedReferences = activeIds.map((id) => references.find((ref) => ref.id === id)).filter((ref): ref is StudioReference => !!ref);
   useEffect(() => { setAttachedIds(readAttachedIds(attachmentKey)); }, [attachmentKey]);
+  const [photosOpen, setPhotosOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const photoCountRef = useRef<number | null>(null);
+  useEffect(() => {
+    const n = attachedReferences.length;
+    if (photoCountRef.current !== null && n > photoCountRef.current) setPhotosOpen(true);
+    photoCountRef.current = n;
+  }, [attachedReferences.length]);
   function setAttachments(ids: string[], key = attachmentKey) {
     const unique = [...new Set(ids)];
     writeAttachedIds(key, unique);
@@ -1503,10 +1511,29 @@ function Studio({
                   )}
                 </section>
               </div>
-              <div className="studio-composer p-4 border-t space-y-3">
-                {!!selectedId && <button type="button" className="text-xs text-primary text-left" onClick={() => { setSelectedId(null); setSelectedReferenceId(null); setCompare(false); }}>
-                  À partir de l’image sélectionnée · changer de point de départ ×
-                </button>}
+              <div className="studio-composer p-3 border-t space-y-2">
+                {(hasExtraTools || current) && (
+                  <div className="studio-link-row">
+                    {hasExtraTools && (
+                      <button type="button" className="studio-link" onClick={() => setToolsOpen(true)}>
+                        {references.length ? `Références (${references.length})` : "Outils et créations"}
+                      </button>
+                    )}
+                    {current && (
+                      <>
+                        <button type="button" className="studio-link" disabled={!writable || !!busy} onClick={() => setExistingTool("before_after")}>Avant / après</button>
+                        <button type="button" className="studio-link" disabled={!writable || !!busy} onClick={() => setExistingTool("mockup")}>Mockup d’offre</button>
+                      </>
+                    )}
+                  </div>
+                )}
+                <div className="studio-link-row">
+                  {!!selectedId && <button type="button" className="studio-link text-primary" onClick={() => { setSelectedId(null); setSelectedReferenceId(null); setCompare(false); }}>
+                    Image sélectionnée · changer ×
+                  </button>}
+                  {current && <button type="button" className="studio-link" disabled={!writable || !!busy || generating}
+                    aria-label="Nouvelle demande sans ces références" onClick={() => void updateSelection([], true)}>Nouvelle demande</button>}
+                </div>
                 {activeBranchChoice && (
                   <div role="status" className="rounded-lg border border-primary/30 bg-card p-3 space-y-2 text-sm">
                     <p>Les références ont changé depuis cette version. Lesquelles veux-tu utiliser pour cette nouvelle demande ? Aucune image n’a été lancée.</p>
@@ -1528,15 +1555,16 @@ function Studio({
                 >
                   Ta demande
                 </label>
-                {current && <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground">{attachedReferences.length ? "Photos de cette demande" : "Ta demande"}</span>
-                  <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" disabled={!writable || !!busy || generating}
-                    aria-label="Nouvelle demande sans ces références" onClick={() => void updateSelection([], true)}>Nouvelle demande</Button>
-                </div>}
-                <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
-                  onSelection={ids => void updateSelection(ids)}
-                  onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
-                  onGroup={(id, group) => void mutate("reference", { reference_id: id, subject_group: group, revision: current!.session.revision })} />
+                {attachedReferences.length > 0 && (
+                  <details className="studio-photos-accordion" open={photosOpen}
+                    onToggle={(e) => setPhotosOpen((e.currentTarget as HTMLDetailsElement).open)}>
+                    <summary>Photos de cette demande ({attachedReferences.length})</summary>
+                    <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
+                      onSelection={ids => void updateSelection(ids)}
+                      onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
+                      onGroup={(id, group) => void mutate("reference", { reference_id: id, subject_group: group, revision: current!.session.revision })} />
+                  </details>
+                )}
 
                 <Textarea
                   className="min-h-[88px] max-h-36 overflow-y-auto"
