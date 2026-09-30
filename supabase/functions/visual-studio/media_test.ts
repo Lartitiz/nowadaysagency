@@ -146,6 +146,23 @@ Deno.test("lost OpenAI and Photoroom responses are uncertain; explicit 4xx is de
   }
 });
 
+Deno.test("provider diagnostics retain status and code without free-form private data", async () => {
+  const original = globalThis.fetch;
+  const originalLog = console.error;
+  const logs: unknown[][] = [];
+  console.error = (...args: unknown[]) => { logs.push(args); };
+  try {
+    for (const code of ["rate_limit_exceeded", "https://private.example/token?secret=private"]) {
+      globalThis.fetch = () => Promise.resolve(Response.json({ error: { code, message: "private prompt and token" } }, { status: 429 }));
+      await assertRejects(() => generateImage({ operation: "create", image_prompt: "private prompt" }, []));
+    }
+    assertEquals(logs, [
+      ["[studio:image-provider-rejected]", JSON.stringify({ status: 429, code: "rate_limit_exceeded" })],
+      ["[studio:image-provider-rejected]", JSON.stringify({ status: 429, code: "unspecified" })],
+    ]);
+  } finally { globalThis.fetch = original; console.error = originalLog; }
+});
+
 Deno.test("a series shot does not inherit conflicting framing from the other shots", () => {
   const proposal = {
     operation: "create", series_size: 2,

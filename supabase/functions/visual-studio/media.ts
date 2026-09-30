@@ -61,6 +61,12 @@ async function providerResponse(url: string, init: RequestInit): Promise<Respons
   }
   // A 4xx response explicitly rejects the request. A server error is less conclusive.
   if (!response.ok) {
+    // Keep only machine-readable diagnostics: never log prompts, images, URLs,
+    // credentials or the provider's free-form error message.
+    const data = await response.clone().json().catch(() => null);
+    const code = typeof data?.error?.code === "string" && /^[a-zA-Z0-9_.-]{1,80}$/.test(data.error.code)
+      ? data.error.code : "unspecified";
+    console.error("[studio:image-provider-rejected]", JSON.stringify({ status: response.status, code }));
     if (response.status >= 500) throw new ProviderOutcomeUncertainError();
     throw new Error("Image provider rejected request");
   }
