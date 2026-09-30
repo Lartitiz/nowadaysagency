@@ -4,9 +4,9 @@ import { PLAN_LIMITS as CLIENT_LIMITS } from "@/lib/plan-limits";
 // Hard-coded copy of PLAN_LIMITS from supabase/functions/_shared/plan-limiter.ts
 // (Deno imports can't be resolved by vitest). MUST stay in sync with the server.
 const SERVER_LIMITS: Record<string, Record<string, number>> = {
-  free: { total: 23, content: 23, audit: 3, dm_comment: 23, bio_profile: 23, suggestion: 23, coach: 23, import: 23, adaptation: 23, deep_research: 23, photo_retouch: 5, quality_max: 0 },
-  outil: { total: 9999, content: 9999, audit: 9999, dm_comment: 9999, bio_profile: 9999, suggestion: 9999, coach: 9999, import: 9999, adaptation: 9999, deep_research: 9999, photo_retouch: 50, quality_max: 20 },
-  binome: { total: 9999, content: 9999, audit: 9999, dm_comment: 9999, bio_profile: 9999, suggestion: 9999, coach: 9999, import: 9999, adaptation: 9999, deep_research: 9999, photo_retouch: 100, quality_max: 40 },
+  free: { total: 23, content: 23, audit: 3, dm_comment: 23, bio_profile: 23, suggestion: 23, coach: 23, import: 23, adaptation: 23, deep_research: 23, photo_retouch: 5, quality_max: 0, carousel: 3, video: 0 },
+  outil: { total: 200, content: 200, audit: 200, dm_comment: 200, bio_profile: 200, suggestion: 200, coach: 200, import: 200, adaptation: 200, deep_research: 200, photo_retouch: 30, quality_max: 20, carousel: 20, video: 3 },
+  binome: { total: 400, content: 400, audit: 400, dm_comment: 400, bio_profile: 400, suggestion: 400, coach: 400, import: 400, adaptation: 400, deep_research: 400, photo_retouch: 60, quality_max: 40, carousel: 40, video: 6 },
 };
 
 const ALL_SERVER_PLANS = Object.keys(SERVER_LIMITS);

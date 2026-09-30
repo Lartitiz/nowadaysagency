@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Progress } from "@/components/ui/progress";
 import { posthog } from "@/lib/posthog";
 import type { CategoryUsage } from "@/hooks/use-user-plan";
+import { isFairUsePlan } from "@/lib/plan-limits";
 
 interface AiCreditsCounterProps {
   plan: string;
@@ -17,7 +18,9 @@ interface AiCreditsCounterProps {
 
 export default function AiCreditsCounter({ plan, usage, bonusCredits = 0 }: AiCreditsCounterProps) {
   const total = usage.total;
-  const isUnlimited = !total || total.limit <= 0 || total.limit >= 9999;
+  // Plans payants : le compteur global est un garde-fou d'usage raisonnable
+  // (200/400), pas un chiffre à surveiller → « Illimité » (grille 01/10/2026).
+  const isUnlimited = !total || total.limit <= 0 || isFairUsePlan(plan, total.limit);
 
   // PostHog tracking — once per tier per session (hooks before early return)
   const monthlyRemaining = isUnlimited ? 0 : Math.max(0, total.limit - total.used);
@@ -135,7 +138,7 @@ export default function AiCreditsCounter({ plan, usage, bonusCredits = 0 }: AiCr
               onClick={() => memoriseRetour()}
               className="inline-block rounded-full bg-primary text-white px-4 py-2 text-xs font-medium hover:bg-primary transition-colors"
             >
-              Passer à L'Assistant Com' — création illimitée
+              Passer à Premium — textes sans compter
             </Link>
           </div>
         ) : (

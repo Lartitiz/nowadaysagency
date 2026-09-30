@@ -635,10 +635,17 @@ export async function handleRequest(req: Request): Promise<Response> {
       return handleAssignTemplatesRequest(body, corsHeaders);
     }
 
-    let category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions" || type === "structure_proposal") ? "suggestion" : "content";
-    // Qualité Max garde son quota dédié ; la migration des modèles ne change
-    // ni les droits d'accès ni les plafonds définis dans plan-limiter.
-    if (category === "content" && body?.quality_max) category = "quality_max";
+    // Grille Premium du 01/10/2026 : UN carrousel rédigé (express_full, y compris
+    // photo/mix, ou slides) = UNE unité de la catégorie `carousel` (20/mois en
+    // Premium), Qualité Max compris. Les étapes intermédiaires (accroches…)
+    // restent en `content`. `quality_max` ne compte plus rien : c'est seulement
+    // le droit d'accès (0 en gratuit → not_available), vérifié à part.
+    const isSuggestion = type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions" || type === "structure_proposal";
+    const category = isSuggestion ? "suggestion" : (type === "express_full" || type === "slides") ? "carousel" : "content";
+    if (!isSuggestion && body?.quality_max) {
+      const qmAccess = await _deps.checkQuota(userId, "quality_max", workspace_id);
+      if (!qmAccess.allowed) return quotaDeniedResponse(qmAccess, corsHeaders);
+    }
     const quotaCheck = await _deps.checkQuota(userId, category, workspace_id);
     if (!quotaCheck.allowed) {
       return quotaDeniedResponse(quotaCheck, corsHeaders);

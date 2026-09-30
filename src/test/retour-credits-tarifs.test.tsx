@@ -74,7 +74,7 @@ describe("« Passer au Premium » mène bien à l'abonnement", () => {
       <QuotaWallModal open onClose={() => {}} plan="free" usage={{} as any} />,
     );
 
-    fireEvent.click(screen.getByText(/Passer à L'Assistant Com'/i));
+    fireEvent.click(screen.getByText(/Passer à Premium — textes sans compter/i));
 
     expect(mocks.navigate).toHaveBeenCalledWith(CHEMIN_TARIFS);
     expect(mocks.navigate).not.toHaveBeenCalledWith("/mon-plan");

@@ -47,7 +47,7 @@ export async function videoRequest<T>(body: Record<string, unknown>): Promise<T>
 }
 
 export function listStudioVideos(workspaceId: string) {
-  return videoRequest<{ jobs: StudioVideoJob[]; enabled?: boolean }>({ action: "list", workspace_id: workspaceId });
+  return videoRequest<{ jobs: StudioVideoJob[]; enabled?: boolean; access_reason?: "off" | "plan_required" | null; plan_clips?: number }>({ action: "list", workspace_id: workspaceId });
 }
 
 export function listStudioVideoSources(workspaceId: string) {
@@ -64,7 +64,7 @@ export function listVideoSessions(workspaceId: string, page = 0) {
   return videoRequest<{ sessions: StudioVideoSession[]; total: number }>({ action: "session_list", workspace_id: workspaceId, page });
 }
 export function getVideoSession(workspaceId: string, sessionId: string) {
-  return videoRequest<{ session: StudioVideoSession; events: StudioVideoEvent[]; jobs: StudioVideoJob[]; enabled: boolean }>(
+  return videoRequest<{ session: StudioVideoSession; events: StudioVideoEvent[]; jobs: StudioVideoJob[]; enabled: boolean; access_reason?: "off" | "plan_required" | null }>(
     { action: "session_get", workspace_id: workspaceId, session_id: sessionId });
 }
 export function createVideoSession(workspaceId: string, sessionId: string, title?: string) {
@@ -87,7 +87,7 @@ export function archiveVideoSession(workspaceId: string, sessionId: string, arch
     workspace_id: workspaceId, session_id: sessionId });
 }
 export function listVideoLibrary(workspaceId: string, page: number, search: string, sort: "newest" | "oldest") {
-  return videoRequest<{ jobs: StudioVideoJob[]; total: number }>({ action: "library", workspace_id: workspaceId, page, search, sort });
+  return videoRequest<{ jobs: StudioVideoJob[]; total: number; enabled?: boolean; access_reason?: "off" | "plan_required" | null }>({ action: "library", workspace_id: workspaceId, page, search, sort });
 }
 export function listLegacyVideoJobs(workspaceId: string, page = 0) {
   return videoRequest<{ jobs: StudioVideoJob[]; total: number; enabled: boolean }>(

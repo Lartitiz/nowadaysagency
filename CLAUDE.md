@@ -174,14 +174,15 @@ Compte pré-rempli "Léa" (photographe portraitiste éthique). Sert pendant les 
 - Onboarding conversationnel complet
 - Espace branding (6 sections + coaching IA)
 - Calendrier éditorial + bibliothèque d'idées
-- 30 crédits IA/mois (compteur unique, toutes fonctionnalités IA confondues)
+- 23 générations IA/mois (compteur unique), dont 3 audits, 3 carrousels et 5 images au maximum ; pas de vidéo ni de Qualité Max
 - Espaces par canal
 - Dashboard bento, gamification
 
 ### Plan Premium (39€/mois)
 Tout le gratuit + :
-- Crédits IA illimités
-- Audits illimités (Instagram, LinkedIn, site)
+- Grille du 01/10/2026, à dire telle quelle : « Pour 39 € par mois : tous tes textes sans compter, 20 carrousels, 30 images et 3 vidéos. »
+- Textes et audits sans compter (garde-fou invisible d'usage raisonnable : 200 générations/mois, cité dans les CGV)
+- 20 carrousels/mois (Qualité Max compris), 30 images/mois, 3 vidéos/mois (480p, jusqu'à 8 s). Ta Binôme de Com' : le double (40 / 60 / 6, garde-fou 400)
 - Import stats (Excel/CSV) + Dashboard KPI
 - Contacts stratégiques + routine d'engagement + mini-CRM prospection
 - Communauté (poster, commenter, lives mensuels, replays)
@@ -219,7 +220,7 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 **Quota IA :**
 - Pattern obligatoire : `checkQuota()` AVANT l'appel IA + `logUsage()` APRÈS succès
 - NE PAS utiliser `checkAndIncrementUsage` (incrémente même en cas d'échec)
-- Système de crédits : compteur unique total (30 pour free, illimité pour outil/binôme). Les sous-catégories existent dans plan-limiter.ts pour l'analytics mais sont toutes égales au total en free (pas de blocage individuel).
+- Système de crédits : compteur unique total (23 en free ; garde-fou 200 Premium / 400 Binôme, affiché « Illimité »). Plafonds DURS par catégorie, que les crédits bonus ne lèvent pas : `carousel`, `photo_retouch` (= images), `video` (voir PLAN_LIMITS dans `_shared/plan-limiter.ts`, miroir `src/lib/plan-limits.ts`). `quality_max` n'est plus qu'un droit d'accès (0 en free). Un carrousel = 1 unité `carousel` (à la rédaction) ; la mise en forme visuelle compte en `content`.
 
 **Workspace isolation :**
 - Utiliser le hook `useWorkspaceFilter` pour filtrer les données par workspace
@@ -270,7 +271,7 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 | Terme | Signification |
 |---|---|
 | Branding | L'ensemble des 6 sections de l'espace branding (pas juste le logo) |
-| Crédits IA | Unité de consommation des appels API Claude. 30/mois en gratuit (compteur unique), illimité en premium/binôme. |
+| Crédits IA | Unité de consommation IA. 23/mois en gratuit (compteur unique) ; en Premium/Binôme, textes sans compter (garde-fou 200/400) et plafonds carrousels / images / vidéos. |
 | Connecteurs intelligents | Système de propagation des modifications branding vers tous les contenus |
 | Mode démo | Compte "Léa" pré-rempli pour les appels découverte |
 | Binôme | L'offre d'accompagnement 6 mois (250€/mois) |

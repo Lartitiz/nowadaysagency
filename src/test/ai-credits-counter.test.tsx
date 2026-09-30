@@ -135,7 +135,7 @@ describe("palier Épuisé (0 crédit)", () => {
     expect(
       screen.getByText(`Tes crédits reviennent le ${libelleProchainMois()}.`),
     ).toBeTruthy();
-    const cta = screen.getByText("Passer à L'Assistant Com' — création illimitée");
+    const cta = screen.getByText("Passer à Premium — textes sans compter");
     expect(cta.className).toContain("bg-primary");
   });
 });
@@ -173,6 +173,12 @@ describe("calcul du restant avec crédits bonus", () => {
 describe("plan illimité", () => {
   it("n'affiche pas de badge de crédits ni d'event PostHog", () => {
     render(<AiCreditsCounter plan="binome" usage={usageDe(9999, 0)} />);
+    expect(screen.getByText("Illimité")).toBeTruthy();
+    expect(mocks.capture).not.toHaveBeenCalled();
+  });
+
+  it("Premium (garde-fou 200, grille 01/10/2026) reste affiché « Illimité », même presque au garde-fou", () => {
+    render(<AiCreditsCounter plan="outil" usage={usageDe(200, 190)} />);
     expect(screen.getByText("Illimité")).toBeTruthy();
     expect(mocks.capture).not.toHaveBeenCalled();
   });

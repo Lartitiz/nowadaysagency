@@ -107,7 +107,8 @@ for(const qualityMax of [false, true]) Deno.test(`writer quota and usage, hooks/
     resetDeps();
     const order: string[] = [];
     let category = "", logged: any[] = [];
-    _deps.checkQuota = (async (_id: string, cat: string) => { category = cat; order.push("quota"); return { allowed: true, plan: "outil" }; }) as any;
+    const checked: string[] = [];
+    _deps.checkQuota = (async (_id: string, cat: string) => { category = cat; checked.push(cat); if (cat !== "quality_max") order.push("quota"); return { allowed: true, plan: "outil" }; }) as any;
     _deps.callCarouselWriter = (async (options: any, sink: any) => {
       order.push("writer");
       assertEquals(options.model, qualityMax ? "gpt-6-astra" : "claude-opus-5-5");
@@ -119,7 +120,13 @@ for(const qualityMax of [false, true]) Deno.test(`writer quota and usage, hooks/
     await res.text();
     assertEquals(res.status, 200);
     assertEquals(order, ["quota", "writer", "usage"]);
-    assertEquals(category, qualityMax ? "quality_max" : "content");
+    // Grille 01/10/2026 : un carrousel rédigé (slides) = 1 unité `carousel`,
+    // Qualité Max compris ; les accroches restent en `content`. Qualité Max
+    // ajoute seulement un contrôle d'accès `quality_max` AVANT le quota.
+    const expected = type === "slides" ? "carousel" : "content";
+    assertEquals(category, expected);
+    assertEquals(checked, qualityMax ? ["quality_max", expected] : [expected]);
+    assertEquals(logged[1], expected);
     assertEquals(logged[3], 123);
     assertEquals(logged[4], qualityMax ? "gpt-6-astra" : "claude-opus-5-5");
     assertEquals(logged[5], TEST_WORKSPACE_ID);

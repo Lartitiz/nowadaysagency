@@ -203,7 +203,9 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         <h2 className="text-lg font-semibold flex items-center gap-2"><Film className="h-5 w-5" /> Clips du Studio</h2>
         <p className="text-sm text-muted-foreground">Crée un clip depuis une idée ou des images avec Seedance 2.5. Il reste ici, même sans Reel.</p>
       </div>}
-      {jobs.data?.enabled === false && <p role="status" className="rounded-md border p-3 text-sm">La création vidéo sera disponible après l’activation du Studio. Tes clips déjà créés restent accessibles ici.</p>}
+      {jobs.data?.enabled === false && <p role="status" className="rounded-md border p-3 text-sm">{jobs.data?.access_reason === "plan_required"
+        ? "Les vidéos sont incluses dans Premium (3 clips par mois) et dans Ta Binôme de Com’. Tes clips déjà créés restent accessibles ici."
+        : "La création vidéo sera disponible après l’activation du Studio. Tes clips déjà créés restent accessibles ici."}</p>}
       {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
       {studioLayout && <a href="/photos?tab=videos" className="text-sm text-primary underline">Voir tous mes clips terminés dans Ma bibliothèque</a>}
       {studioLayout && <a href="#video-results" className="block text-sm text-primary underline lg:hidden">Aller aux résultats de cette session</a>}
@@ -299,7 +301,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
           <label className="text-sm">Durée <Input type="number" min={4} max={10} value={duration} onChange={e => setDuration(Number(e.target.value))} className="w-24" /></label>
           <label className="text-sm">Qualité
             <select className="block h-10 rounded-md border bg-background px-3" value={resolution} onChange={e => setResolution(e.target.value as "480p" | "720p")}
-              aria-label="Qualité vidéo"><option value="480p">480p, essai économique</option><option value="720p">720p</option></select>
+              aria-label="Qualité vidéo"><option value="480p">480p, inclus dans les forfaits (jusqu’à 8 s)</option><option value="720p">720p</option></select>
           </label>
           {mode !== "image" && <label className="text-sm">Format
             <select className="block h-10 rounded-md border bg-background px-3" value={aspectRatio}

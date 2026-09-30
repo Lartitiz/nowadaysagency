@@ -37,9 +37,11 @@ const SECTIONS = [
     title: "Création de contenu",
     rows: [
       { label: "Posts, reels, stories, bio", free: true, premium: true },
-      { label: "Contenus standard IA", free: "Pour démarrer", premium: "Sans limite mensuelle" },
-      { label: "Carrousels Qualité Max", free: false, premium: "20 / mois" },
-      { label: "Retouches photo", free: false, premium: "50 / mois" },
+      { label: "Textes IA (posts, reels, stories, newsletters, LinkedIn…)", free: "Pour démarrer", premium: "Sans compter" },
+      { label: "Carrousels", free: "3 / mois", premium: "20 / mois" },
+      { label: "Mode Qualité Max des carrousels", free: false, premium: true },
+      { label: "Images (Studio, retouches, mises en scène)", free: "5 / mois", premium: "30 / mois" },
+      { label: "Vidéos courtes", free: false, premium: "3 / mois" },
       { label: "Commentaires stratégiques", free: false, premium: true },
       { label: "DM personnalisés", free: false, premium: true },
     ],
@@ -68,7 +70,7 @@ const FAQ = [
   },
   {
     q: "C'est quoi la différence entre le gratuit et le Premium ?",
-    a: "Le gratuit t'aide à publier ton premier contenu. Le Premium comprend les contenus standard et audits sans limite mensuelle, jusqu'à 20 carrousels Qualité Max et 50 retouches photo par mois, ainsi que la publication et la programmation.",
+    a: "Le gratuit t'aide à publier ton premier contenu. Pour 39 € par mois, le Premium comprend tous tes textes sans compter (audits compris), 20 carrousels, 30 images et 3 vidéos par mois, ainsi que la publication et la programmation.",
   },
   {
     q: "Je peux annuler quand je veux ?",

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
-import { getServiceClient } from "../_shared/plan-limiter.ts";
+import { getEffectivePlan, getServiceClient, PLAN_LIMITS } from "../_shared/plan-limiter.ts";
 import { estimate, MODEL, MODELS, ProviderError, publicHttpsUrl, status as providerStatus, submit, uploadImage, type VideoInput, type VideoModel } from "./higgsfield.ts";
 import { buildVideoPrompt, prepareVideo, signPreparation, verifyPreparation } from "./prepare.ts";
 import { preparationAspectRatio, videoInputForQuote, videoInputFromJob } from "./payload.ts";
@@ -80,13 +80,30 @@ export function workspaceAllowed(workspace: string) { return TRIAL_WORKSPACES.ha
 export const COHORT_TOTAL_LIMIT_USD = 110;
 export const COHORT_WORKSPACE_LIMIT_USD = 8;
 export const COHORT_WORKSPACE_MAX_SUBMISSIONS = 2;
-export type VideoLane = "trial" | "cohort";
-async function videoLane(db: DB, workspace: string): Promise<VideoLane | null> {
-  if (workspaceAllowed(workspace)) return "trial";
+// Forfaits (grille du 01/10/2026) : la vidéo est incluse dans les plans payants,
+// PLAN_LIMITS[plan].video clips par mois et par espace (Premium 3, Binôme 6).
+// Un clip de forfait coûte au plus PLAN_CLIP_LIMIT_USD (≈ 480p jusqu'à 8 s au
+// tarif Seedance 2.5 relevé le 29/09 : 0,2056 $/s + 10 % de marge = 1,81 $).
+// PLAN_TOTAL_LIMIT_USD = garde-fou GLOBAL du mois pour toutes les abonnées
+// réunies (la variable d'environnement peut seulement l'abaisser).
+export const PLAN_CLIP_LIMIT_USD = 2;
+export const PLAN_TOTAL_LIMIT_USD = 100;
+export type VideoLane = "trial" | "cohort" | "plan";
+export interface VideoAccess { lane: VideoLane; planClips: number }
+export function planVideoClips(plan: string) { return PLAN_LIMITS[plan]?.video ?? 0; }
+// Priorité : l'espace d'essai (réglages de test) > le forfait payant > la cohorte.
+async function videoAccess(db: DB, workspace: string, userId: string): Promise<VideoAccess | null> {
+  if (workspaceAllowed(workspace)) return { lane: "trial", planClips: 0 };
+  const planClips = planVideoClips(await getEffectivePlan(db, userId, workspace));
+  if (planClips > 0) return { lane: "plan", planClips };
   const { data, error } = await db.from("studio_video_cohort_access").select("workspace_id")
     .eq("workspace_id", workspace).maybeSingle();
   if (error) throw error;
-  return data ? "cohort" : null;
+  return data ? { lane: "cohort", planClips: 0 } : null;
+}
+function monthStartIso() {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
 }
 function switchedOn() {
   return Deno.env.get("HIGGSFIELD_VIDEO_ENABLED") === "true" && !!Deno.env.get("HIGGSFIELD_API_KEY");
@@ -95,16 +112,22 @@ export function ceilingUsd(lane: VideoLane | null) {
   const limit = Number(Deno.env.get("HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD"));
   // The configured value can only lower the ceiling, never raise it.
   if (!lane || !Number.isFinite(limit) || limit <= 0) return 0;
-  return Math.min(limit, lane === "cohort" ? COHORT_TOTAL_LIMIT_USD : TRIAL_TOTAL_LIMIT_USD);
+  return Math.min(limit, lane === "cohort" ? COHORT_TOTAL_LIMIT_USD : lane === "plan" ? PLAN_TOTAL_LIMIT_USD : TRIAL_TOTAL_LIMIT_USD);
 }
 export function maxQuoteUsd(lane: VideoLane | null) {
-  return lane === "cohort" ? Math.min(COHORT_WORKSPACE_LIMIT_USD, ceilingUsd(lane)) : ceilingUsd(lane);
+  if (lane === "cohort") return Math.min(COHORT_WORKSPACE_LIMIT_USD, ceilingUsd(lane));
+  if (lane === "plan") return Math.min(PLAN_CLIP_LIMIT_USD, ceilingUsd(lane));
+  return ceilingUsd(lane);
 }
 async function submittedCount(db: DB, lane: VideoLane, workspace: string) {
   let query = db.from("studio_video_jobs").select("id", { count: "exact", head: true })
     .not("submitted_at", "is", null).not("status", "in", `(${NON_BILLED_STATUSES.join(",")})`);
   if (lane === "cohort") query = query.eq("workspace_id", workspace);
+  // Forfait : clips de CE mois, lancés au titre du forfait, dans cet espace.
+  else if (lane === "plan") query = query.eq("workspace_id", workspace).eq("billing_lane", "plan").gte("submitted_at", monthStartIso());
   else {
+    // L'essai ne compte pas les clips lancés au titre d'un forfait.
+    query = query.or("billing_lane.is.null,billing_lane.neq.plan");
     // L'essai historique ne compte pas les clips de la cohorte.
     const { data, error: cohortError } = await db.from("studio_video_cohort_access").select("workspace_id");
     if (cohortError) throw cohortError;
@@ -115,10 +138,24 @@ async function submittedCount(db: DB, lane: VideoLane, workspace: string) {
   if (error) throw error;
   return count || 0;
 }
-function maxSubmissions(lane: VideoLane) { return lane === "cohort" ? COHORT_WORKSPACE_MAX_SUBMISSIONS : TRIAL_MAX_SUBMISSIONS; }
+function maxSubmissions(lane: VideoLane, planClips = 0) {
+  return lane === "cohort" ? COHORT_WORKSPACE_MAX_SUBMISSIONS : lane === "plan" ? planClips : TRIAL_MAX_SUBMISSIONS;
+}
+export function exhaustedMessage(lane: VideoLane, planClips = 0) {
+  return lane === "plan"
+    ? `Tu as utilisé tes ${planClips} vidéos du mois. Elles se renouvellent le 1er du mois.`
+    : "Le nombre de lancements d’essai est atteint.";
+}
+export function overQuoteMessage(lane: VideoLane) {
+  return lane === "plan"
+    ? "Avec ton forfait, un clip va jusqu’à 8 secondes en 480p. Raccourcis-le ou passe en 480p."
+    : "Ce devis dépasse le plafond de la recette vidéo.";
+}
 export function claimFailureMessage(error: { message: string; code?: string }) {
   if (error.code === "23505" && error.message.includes("studio_video_one_active"))
     return "Un autre clip est en cours. Attends son résultat avant de lancer celui-ci ; si le devis expire, vérifie à nouveau le prix.";
+  if (error.message.includes("video_month_exhausted")) return "Tu as utilisé tes vidéos du mois. Elles se renouvellent le 1er du mois.";
+  if (error.message.includes("video_clip_too_expensive")) return overQuoteMessage("plan");
   if (error.message.includes("video_trial_exhausted")) return "Le nombre de lancements d’essai est atteint.";
   if (error.message.includes("video_budget_workspace")) return "Tu as atteint ton plafond de clips vidéo pour cet atelier.";
   if (error.message.includes("video_budget")) return "Le plafond vidéo de cet espace est atteint.";
@@ -253,8 +290,11 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
     const writable = ["owner", "manager", "editor"].includes(member.role);
     if (["prepare", "quote", "submit", "session_create", "session_save", "session_archive", "session_restore"].includes(p.action) && !writable)
       return json({ error: "Cet espace est en lecture seule." }, 403);
-    const lane = await videoLane(db, p.workspace_id);
+    const access = await videoAccess(db, p.workspace_id, pipe.userId);
+    const lane = access?.lane ?? null, planClips = access?.planClips ?? 0;
     const on = !!lane && switchedOn() && ceilingUsd(lane) > 0;
+    // Pourquoi la création est fermée : pas de forfait qui inclut la vidéo, ou interrupteur coupé.
+    const accessReason = on ? null : lane ? "off" : "plan_required";
 
     if (p.action === "session_create") {
       const { error } = await db.from("studio_video_sessions").insert({ id: p.session_id,
@@ -302,7 +342,7 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         .eq("workspace_id", p.workspace_id).eq("session_id", p.session_id)
         .order("created_at", { ascending: true }).limit(300);
       if (jobsError) throw jobsError;
-      return json({ session, events: events || [], enabled: on, jobs: await Promise.all((rows || []).map(async row =>
+      return json({ session, events: events || [], enabled: on, access_reason: accessReason, plan_clips: planClips, jobs: await Promise.all((rows || []).map(async row =>
         safeJob(row, row.status === "ready" ? await signed(db, row) : null, pipe.userId))) });
     }
     if (p.action === "library") {
@@ -321,14 +361,14 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         .eq("workspace_id", p.workspace_id).is("session_id", null).neq("status", "ready")
         .order("created_at", { ascending: false }).range(start, start + 23);
       if (error) throw error;
-      return json({ jobs: (data || []).map(row => safeJob(row, null, pipe.userId)), total: count || 0, enabled: on });
+      return json({ jobs: (data || []).map(row => safeJob(row, null, pipe.userId)), total: count || 0, enabled: on, access_reason: accessReason, plan_clips: planClips });
     }
 
     if (p.action === "list") {
       const { data, error } = await db.from("studio_video_jobs").select("*").eq("workspace_id", p.workspace_id)
         .order("created_at", { ascending: false }).limit(50);
       if (error) throw error;
-      return json({ enabled: on,
+      return json({ enabled: on, access_reason: accessReason, plan_clips: planClips,
         jobs: await Promise.all((data || []).map(async (row) => safeJob(row, row.status === "ready" ? await signed(db, row) : null, pipe.userId))) });
     }
     if (p.action === "list_sources") {
@@ -354,8 +394,8 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         if (!session || session.archived_at) return json({ error: "Cette session vidéo doit être active dans cet espace." }, 409);
       }
       if (!on || !lane) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
-      if (await submittedCount(db, lane, p.workspace_id) >= maxSubmissions(lane))
-        return json({ error: "Le nombre de lancements d’essai est atteint." }, 409);
+      if (await submittedCount(db, lane, p.workspace_id) >= maxSubmissions(lane, planClips))
+        return json({ error: exhaustedMessage(lane, planClips) }, 409);
       const refs: SourceRef[] = p.source_kind === "references" ? p.references! : [];
       const resolved = await Promise.all(refs.map(async ref => ({ ...ref,
         ...(await source(db, p.workspace_id, ref.kind, ref.id)) })));
@@ -424,8 +464,8 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         return json({ error: "Ce devis est déjà lié à une autre session." }, 409);
       if (previousQuote) return json({ job: safeJob(previousQuote,
         previousQuote.status === "ready" ? await signed(db, previousQuote) : null, pipe.userId), monthly_limit_usd: maxQuoteUsd(lane) });
-      if (await submittedCount(db, lane, p.workspace_id) >= maxSubmissions(lane))
-        return json({ error: "Le nombre de lancements d’essai est atteint." }, 409);
+      if (await submittedCount(db, lane, p.workspace_id) >= maxSubmissions(lane, planClips))
+        return json({ error: exhaustedMessage(lane, planClips) }, 409);
       const { count, error: quoteLimitError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
         .eq("user_id", pipe.userId).gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
       if (quoteLimitError) throw quoteLimitError;
@@ -450,7 +490,7 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       const input: VideoInput = videoInputForQuote(p.source_kind, actualPrompt,
         p.duration, p.resolution, p.aspect_ratio, inputUrls);
       const price = await estimate(input, fetch, model);
-      if (price.usd > maxQuoteUsd(lane)) return json({ error: "Ce devis dépasse le plafond de la recette vidéo." }, 409);
+      if (price.usd > maxQuoteUsd(lane)) return json({ error: overQuoteMessage(lane) }, 409);
       if (p.session_id) {
         const { data: stillActive } = await db.from("studio_video_sessions").select("id")
           .eq("id", p.session_id).eq("workspace_id", p.workspace_id).is("archived_at", null).maybeSingle();
@@ -498,7 +538,13 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       const callback = new URL(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/studio-video`);
       callback.searchParams.set("job_id", row.id);
       callback.searchParams.set("token", row.webhook_token);
-      const { data: claimed, error: claimError } = await (lane === "cohort"
+      const { data: claimed, error: claimError } = await (lane === "plan"
+        ? db.rpc("studio_video_claim_plan", {
+          p_actor: pipe.userId, p_job: p.job_id, p_workspace: p.workspace_id,
+          p_month_max_submissions: planClips, p_clip_limit: maxQuoteUsd(lane),
+          p_month_total_limit: ceilingUsd(lane),
+        })
+        : lane === "cohort"
         ? db.rpc("studio_video_claim_cohort", {
           p_actor: pipe.userId, p_job: p.job_id, p_workspace: p.workspace_id,
           p_cohort_limit: ceilingUsd(lane), p_workspace_limit: maxQuoteUsd(lane),
