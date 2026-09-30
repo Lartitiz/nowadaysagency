@@ -77,8 +77,9 @@ export function validateProgressionReport(
   ) return "missing-summary";
   const trajectory = report.trajectory;
   const slideFields = fields.filter((f) => f.id.startsWith("slides."));
-  if (!trajectory || !["developed_idea", "requested_series", "visual_only", "descriptive_catalogue"].includes(trajectory.kind) ||
-    ![trajectory.starting_point, trajectory.landing, trajectory.reason].every(str)) return "missing-trajectory";
+  if (!trajectory || typeof trajectory !== "object") return "missing-trajectory";
+  if (!["developed_idea", "requested_series", "visual_only", "descriptive_catalogue"].includes(trajectory.kind)) return "trajectory-kind";
+  for (const key of ["starting_point", "landing", "reason"]) if (!str(trajectory[key])) return `trajectory-${key}:nonempty-string-required`;
   if (!Array.isArray(trajectory.field_ids) || (slideFields.length > 0 && !trajectory.field_ids.length) ||
     !trajectory.field_ids.every((id: string) => slideFields.some((f) => f.id === id))) return "trajectory-evidence";
   if (!Array.isArray(trajectory.request_source_ids) ||
