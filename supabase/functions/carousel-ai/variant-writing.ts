@@ -8,7 +8,7 @@ Les descriptions restent courtes et lisibles. Les exemples ci-dessus sont des no
 
 function brief(body: any, isLinkedIn: boolean, confirmed: string): string {
   return `${confirmed}
-BRIEF ACTUEL : ${JSON.stringify({ subject: body.subject, details: body.subject_details, description: body.photo_description, objective: body.objective, answers: body.deepening_answers, selected_offer: body.selected_offer, editorial_angle: body.editorial_angle, content_structure: body.content_structure, narrative_thread: body.narrative_thread })}
+BRIEF ACTUEL : ${JSON.stringify({ subject: body.subject, details: body.subject_details, description: body.photo_description, objective: body.objective, answers: body.deepening_answers, selected_offer: body.selected_offer, editorial_angle: body.editorial_angle, content_structure: body.content_structure, scenario_origin: body.scenario_origin, proposed_or_validated_thread: body.narrative_thread })}
 ${body.slide_structure?.length ? `Répartition imposée : ${JSON.stringify(body.slide_structure)}. Conserve exactement ces ${body.slide_structure.length} slides, leur ordre, type et photo_index.` : ""}
 ${carouselLengthPrompt(body)}
 ${body.content_structure ? "La structure éditoriale choisie est à conserver. Ses rôles orientent le propos sans autoriser de faits ou d'émotions inventés." : "Choisis une progression adaptée à cette demande, sans arc dramatique imposé."}
@@ -36,7 +36,7 @@ La finale peut terminer une explication ou proposer une action pertinente ; ce g
 Choisis overlay_position dans une zone dégagée, en protégeant le visage, le geste, l’objet et les détails utiles ; respecte une position confirmée. Une répétition de photo ne demande aucun zoom automatique.
 visual_anchor : détail visible dans la photo, utile à sa composition. photo_description et note restent des indications techniques ; aucune prose nouvelle ne doit être cachée dans ces champs.
 
-Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = ce que la personne qui lit comprend à la fin ; etapes = une ligne par slide, ce qu'elle ajoute à la précédente), puis carousel_type:"photo", chosen_angle:{title,description}, slides et caption.
+Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = proposition précise développée, pas thème ou parcours de photos ; etapes = chemin qui la fait comprendre), puis carousel_type:"photo", chosen_angle:{title,description}, slides et caption.
 Chaque slide contient slide_number, role, photo_index, photo_description, overlay_text, overlay_position, overlay_style, template, kicker, detail, points, big_number, step_number, attribution, cta_label, visual_anchor, note. Utilise null pour les champs facultatifs inapplicables, pas de placeholders ni de chiffres illustratifs. Les rôles décrivent ce que font les slides ; aucune révélation, émotion ou action obligatoire.`;
 }
 
@@ -50,7 +50,7 @@ ${body.content_structure ? `Structure choisie à conserver : ${body.content_stru
 ${CAROUSEL_FACTS}
 ${VISUAL_SCHEMA_CONTRACT}
 Contrat : une idée principale par slide, title et body en prose adaptée au registre demandé ; body peut être vide sur la couverture. Les titres descriptifs et la numérotation d'étapes sont autorisés. Le champ role nomme la fonction réelle (présentation, caractéristique, usage, étape, argument, nuance, récit, etc.), sans imposer de bascule ni de révélation.
-Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = ce que la personne qui lit comprend à la fin ; etapes = une ligne par slide, ce qu'elle ajoute à la précédente), puis carousel_type, chosen_angle:{title,description}, slides, caption, quality_check:{} et publishing_tip:"". N'invente aucun conseil de performance ou moment optimal pour publier.
+Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = proposition précise développée, pas thème ou parcours de photos ; etapes = chemin qui la fait comprendre), puis carousel_type, chosen_angle:{title,description}, slides, caption, quality_check:{} et publishing_tip:"". N'invente aucun conseil de performance ou moment optimal pour publier.
 Chaque slide contient slide_number (entier depuis 1), role, title, body, visual_suggestion (composition, ambiance ou illustration dans ce champ technique), visual_schema (objet typé ou null), word_count (nombre réel de mots du texte). Aucun contenu éditorial supplémentaire dans les suggestions techniques.
 Caption : hook (entrée dans le sujet, pas de nouvelle anecdote), body (complément ou résumé fidèle), cta (vide si inutile), hashtags (liste de trois mots-clés pertinents maximum). Aucun minimum de longueur et aucune posture d'expert ajoutée au ton demandé.`;
 }
@@ -67,7 +67,7 @@ Les photos sont numérotées depuis 1. Respecte les photo_index et layouts confi
 body : longueur adaptée au développement, sans minimum ni plafond universel ; conserve les détails et nuances utiles. Un titre n'est pas nécessairement une mini-accroche. Un schéma n'est utile que s'il explique un processus, une comparaison ou des données disponibles : 0 à 2 maximum, jamais consécutifs. visual_schema:null à défaut ; si présent, un objet typé, jamais une description sous forme de chaîne.
 ${VISUAL_SCHEMA_CONTRACT}
 ${textFirst}
-Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = ce que la personne qui lit comprend à la fin ; etapes = une ligne par slide, ce qu'elle ajoute à la précédente), puis carousel_type:"mix", chosen_angle:{title,description}, slides et caption.
+Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = proposition précise développée, pas thème ou parcours de photos ; etapes = chemin qui la fait comprendre), puis carousel_type:"mix", chosen_angle:{title,description}, slides et caption.
 Chaque slide : slide_number, slide_type, photo_index, role, puis les champs propres au type. photo_full : overlay_text, overlay_position, overlay_style. photo_integrated : photo_layout,title,body. text_only : title,body,visual_schema. Pour les slides photo : visual_anchor et note, ainsi que photo_directive/photo_query_en/library_photo_index/news_entity quand le mode texte-d'abord le demande. Aucun placeholder ni auto-note de qualité.
 `;
 }

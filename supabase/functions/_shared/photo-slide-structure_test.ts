@@ -240,3 +240,13 @@ Deno.test("structure manuelle : type, cadrage de texte et layout priment", () =>
   assertEquals(out.slides[0].photo_layout, "left_photo");
   assertEquals(out.slides[0].overlay_text, "Mes mots");
 });
+
+Deno.test("plan automatique : restaure les photos mais conserve les rôles éditoriaux reconstruits", () => {
+  const content = wrap([{ slide_number: 1, role: "argument", photo_index: 2, slide_type: "photo_full", overlay_text: "Propos reconstruit" }]);
+  const plan = [{ slide_number: 1, role: "description", photo_index: 3, slide_type: "photo_full" }];
+  const automatic = parse(mergeConfirmedStructure(content, plan, { automatic: true }));
+  assertEquals(automatic.slides[0].role, "argument");
+  assertEquals(automatic.slides[0].photo_index, 3);
+  assertEquals(automatic.slides[0].overlay_text, "Propos reconstruit");
+  assertEquals(parse(mergeConfirmedStructure(content, plan)).slides[0].role, "description");
+});
