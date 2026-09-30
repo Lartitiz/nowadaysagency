@@ -914,6 +914,14 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           }
         }
         const phase = intent.scene_workflow?.phase;
+        // A correction to the scene must not discard the reserved original just
+        // because the interpreter omitted a planning-only image in reference_use.
+        if (phase === "scene" && intent.operation === "edit" && !resolvedReferences.some(ref => ref.role === "product")) {
+          if (resolvedReferences.length + reservedProducts.length > MAX_REFERENCES) {
+            intent.operation = "clarify";
+            intent.summary = "Retire une référence pour conserver le produit original avec cette scène (huit images maximum).";
+          } else resolvedReferences.push(...reservedProducts);
+        }
         const sourcePath = intent.operation === "product"
           ? explicitSource?.role !== "product" ? explicitSource?.path || null : null
           : finalInputPath;

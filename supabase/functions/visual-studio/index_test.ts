@@ -1170,7 +1170,7 @@ Deno.test("scene corrections retain planning originals; exact multiple reference
     }
     f.setIntent({ operation: correction ? "edit" : "create", visual_kind: "photo", summary: "Scène avec cette personne dans le lieu fourni, sans produit.",
       scene_workflow: { phase: "scene", camera_match: "Conserver le point de vue compatible" }, image_prompt: "Preserve person and place; leave the product area clear.",
-      reference_use: [product, person, place].map(r => ({ id: r.id, role: r.role })) });
+      reference_use: (correction ? [person, place] : [product, person, place]).map(r => ({ id: r.id, role: r.role })) });
     try {
       const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
         request_id: id(856), reference_ids: [product.id, person.id, place.id], ...(correction ? { viewed_version_id: proposalId } : {}), message: "Prépare ou corrige cette scène avec mes références" }));
