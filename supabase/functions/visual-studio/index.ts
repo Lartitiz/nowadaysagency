@@ -1362,6 +1362,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           change: [],
         };
       }
+      if (next?.provider === "higgsfield" && next.soul_style) resolveSoulStyle(next.soul_style.id, await soulStyles());
       session = unwrap(
         await sb.from("visual_studio_sessions").update({
           proposal: next,
@@ -1411,6 +1412,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             409,
           );
         }
+        if (session.proposal.provider === "higgsfield" && session.proposal.soul_style) resolveSoulStyle(session.proposal.soul_style.id, await soulStyles());
         if (session.proposal.scene_workflow?.phase === "integration") {
           const workflow = session.proposal.scene_workflow;
           const baseId = session.proposal.viewed_version_id || session.proposal.viewed_reference_id;
