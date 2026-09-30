@@ -291,7 +291,7 @@ Deno.test("Soul identity i2i accepts exactly one identity image, never product o
     scene_workflow: { phase: "scene" as const, camera_match: "Vue compatible" },
     references: [{ id: "person", photo_id: null, path: "person", role: "person" as const, name: "Personne" }] };
   const input = imageInput(p, ["https://example.com/person.jpg"]);
-  assertEquals(input.image_url, "https://example.com/person.jpg");
+  assertEquals((input as { image_url?: string }).image_url, "https://example.com/person.jpg");
   assertEquals(input.image_urls, undefined);
   assertEquals(input.enhance_prompt, true);
   assertThrows(() => imageInput(p, []));
