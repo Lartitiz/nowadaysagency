@@ -868,7 +868,7 @@ function Studio({
         >
           <p className="text-xs text-primary font-medium">À confirmer</p>
           <h2 className="font-display text-xl">
-            {proposal.scene_workflow?.phase === "scene" ? "La scène avant ton produit" : {
+            {proposal.scene_workflow?.phase === "scene" ? "La scène à valider" : {
               background: "Un nouveau fond",
               create: "Une nouvelle image",
               edit: "Une image ajustée",
@@ -883,10 +883,10 @@ function Studio({
           </div>
           {proposal.scene_workflow && <div className="text-sm space-y-2">
             <p><strong>Point de vue :</strong> {proposal.scene_workflow.camera_match}</p>
-            {proposal.scene_workflow.phase === "scene" && <p>Tu pourras voir et ajuster cette scène avant d’y intégrer ton produit. Chaque étape sera confirmée et décomptée séparément.</p>}
+            {proposal.scene_workflow.phase === "scene" && <p>Tu pourras voir et ajuster cette scène avant d’y intégrer tes références originales. Les personnes et objets à remplacer sont provisoires. Chaque génération est décomptée séparément.</p>}
           </div>}
-          {!!proposal.planning_references?.length && <div className="text-sm"><strong>Produits observés pour préparer la scène, ajoutés ensuite :</strong><ul className="list-disc pl-5">{proposal.planning_references.map(ref => <li key={ref.id}>{ref.name}</li>)}</ul></div>}
-          {proposal.person_reference && <div className="text-sm space-y-2" aria-label="Identité de référence à confirmer">
+          {!!proposal.planning_references?.length && <div className="text-sm"><strong>Références observées pour préparer la scène :</strong><ul className="list-disc pl-5">{proposal.planning_references.map(ref => <li key={ref.id}>{ref.name}</li>)}</ul></div>}
+          {proposal.person_reference && proposal.scene_workflow?.phase !== "scene" && <div className="text-sm space-y-2" aria-label="Identité de référence à confirmer">
             <p><strong>{proposal.person_reference.name} · {proposal.person_reference.mode === "sheet" ? "Planche de référence" : "Même personne dans une nouvelle scène"}</strong></p>
             <p><strong>Traits à conserver : </strong>{proposal.person_reference.stable_traits}</p>
             <p><strong>Pour cette image : </strong>{proposal.person_reference.variable_details}</p>
@@ -1016,10 +1016,12 @@ function Studio({
               !!busy ||
               generating ||
               !current?.quota.allowed ||
-              premiumBlocked}
+              premiumBlocked || (proposal.scene_workflow?.phase === "integration" && !!proposal.viewed_version_id && proposal.viewed_version_id !== selectedId)}
             onClick={async () => {
               const result = await mutate("generate", {
                 proposal_id: proposal.id,
+                viewed_version_id: selectedId,
+                ...(proposal.scene_workflow?.phase === "integration" ? { approved_scene_id: proposal.viewed_version_id || proposal.viewed_reference_id } : {}),
               });
               if (result && alive.current && isMobile) {
                 document.querySelector(".studio-stage")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1031,6 +1033,10 @@ function Studio({
               : null}
             {proposal.cost > 1
               ? `Générer la série · ${proposal.cost} images`
+              : proposal.scene_workflow?.phase === "scene" && proposal.operation === "create"
+              ? "Créer la scène · 1 image"
+              : proposal.scene_workflow?.phase === "integration" && !proposal.scene_workflow.approved_scene_id
+              ? "Valider cette scène et intégrer mes références · 1 image"
               : "Générer cette image · 1 image"}
           </Button>
           {!!proposal.shots?.length && <Button variant="outline" className="w-full h-auto whitespace-normal py-2" disabled={!writable || !!busy || !!generating} onClick={() => void mutate("pilot", { proposal_id: proposal.id, revision: current!.session.revision })}>D’abord une image pilote · 1 image</Button>}
@@ -1138,6 +1144,25 @@ function Studio({
                   </div>
                 ))}
                 {proposal && <div className="studio-chat-confirmation">{confirmation()}</div>}
+                {!proposal && version?.status === "ready" && version.integration_proposal && (
+                  <section className="studio-confirm space-y-3" aria-label="Scène à valider avant intégration">
+                    <h2 className="font-display text-xl">Ta scène est prête à être examinée</h2>
+                    <p className="text-sm">Les personnes et objets à remplacer sont encore provisoires. Tu peux demander une correction dans le chat avant de poursuivre.</p>
+                    <p className="text-sm whitespace-pre-wrap">{version.integration_proposal.summary}</p>
+                    <div className="flex flex-wrap gap-3" aria-label="Scène et originaux utilisés pour l’intégration">
+                      <figure className="w-24">{version.url && <img src={version.url} alt="Scène sélectionnée à conserver" className="h-20 w-24 object-cover rounded" />}<figcaption className="text-xs">Cette scène</figcaption></figure>
+                      {version.integration_proposal.references?.map(ref => <figure key={ref.id} className="w-24">
+                        {ref.url && <img src={ref.url} alt={ref.name} className="h-20 w-24 object-cover rounded" />}
+                        <figcaption className="text-xs break-words">{ref.name} · {ref.role === "product" ? "Produit original" : "Identité originale"}</figcaption>
+                      </figure>)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">L’intégration compte pour une image supplémentaire. Vérifie ensuite les détails du visage et du produit.</p>
+                    <Button className="w-full h-auto whitespace-normal" disabled={!writable || !!busy || generating || !current?.quota.allowed || current?.generative_allowed === false}
+                      onClick={() => void mutate("integrate", { version_id: version.id, proposal_id: version.integration_proposal!.id, approved_scene_id: version.id, revision: current!.session.revision })}>
+                      Valider cette scène et intégrer mes références · 1 image
+                    </Button>
+                  </section>
+                )}
 
                 <section className="studio-chat-actions" aria-label="Actions sur l’image">
                   {(version || current?.session.source_photo_id) && (

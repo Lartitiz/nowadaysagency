@@ -910,10 +910,10 @@ it("confirms a scene separately and keeps the planning product when correcting t
     provider: "higgsfield", model: "higgsfield-ai/soul/v2/standard", planning_references: [product], reference_snapshot: [] };
   mock.request.mockResolvedValue(state);
   mount();
-  await screen.findByRole("heading", { name: "La scène avant ton produit" });
-  expect(screen.getByText(/Produits observés pour préparer la scène/)).toBeInTheDocument();
+  await screen.findByRole("heading", { name: "La scène à valider" });
+  expect(screen.getByText(/Références observées pour préparer la scène/)).toBeInTheDocument();
   expect(screen.queryByText(/créée avec Soul/)).not.toBeInTheDocument();
-  expect(screen.getByText(/Chaque étape sera confirmée et décomptée séparément/)).toBeInTheDocument();
+  expect(screen.getByText(/Chaque génération est décomptée séparément/)).toBeInTheDocument();
   fireEvent.change(screen.getByPlaceholderText("Une idée, une question, une image à améliorer…"), { target: { value: "Garde la vue de haut, réduis les ombres" } });
   fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "message", reference_ids: ["product"] })));
@@ -936,4 +936,28 @@ it("selecting a second discussion image preserves the first attachment", async (
   fireEvent.change(screen.getByPlaceholderText("Une idée, une question, une image à améliorer…"), { target: { value: "Insère mon produit dans mon décor" } });
   fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "message", reference_ids: ["product", "scene"] })));
+});
+
+
+it("a reloaded scene displays its originals and requires an explicit integration click", async () => {
+  const state = original();
+  state.quota.plan = "premium"; state.generative_allowed = true;
+  state.session.revision = 7;
+  const preview = { ...proposal, id: "integration-preview", operation: "edit" as const,
+    scene_workflow: { phase: "integration" as const, camera_match: "Face", scene_version_id: "scene" },
+    references: [{ id: "identity", photo_id: null, name: "Portrait original", role: "person" as const, url: "/portrait.jpg" }] };
+  state.versions = [{ id: "scene", status: "ready", url: "/scene.jpg", created_at: "", library_photo_id: null,
+    proposal: { ...proposal, operation: "create", scene_workflow: { phase: "scene", camera_match: "Face" } }, integration_proposal: preview }];
+  mock.request.mockResolvedValue(state);
+  const first = mount();
+  await screen.findByRole("region", { name: "Scène à valider avant intégration" });
+  expect(mock.request.mock.calls.some(([body]) => ["integrate", "generate"].includes(body.action))).toBe(false);
+  first.unmount();
+  mount();
+  expect(await screen.findByRole("img", { name: "Portrait original" })).toHaveAttribute("src", "/portrait.jpg");
+  const button = screen.getByRole("button", { name: "Valider cette scène et intégrer mes références · 1 image" });
+  fireEvent.click(button);
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "integrate", version_id: "scene",
+    proposal_id: "integration-preview", approved_scene_id: "scene", revision: 7 })));
+  expect(mock.request.mock.calls.filter(([body]) => body.action === "integrate")).toHaveLength(1);
 });

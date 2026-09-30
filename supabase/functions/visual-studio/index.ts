@@ -1,4 +1,5 @@
-import { sceneInputs } from "./scene-workflow.ts";
+import { integrationProposal, referenceSignature } from "./integration-proposal.ts";
+import { exactReference, validTargets, sceneInputs } from "./scene-workflow.ts";
 import { resolvePersonMemory } from "./person-reference.ts";
 import { compositionSchema } from "./composition.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -38,7 +39,7 @@ import {
   searchTerms,
 } from "./competencies.ts";
 import {
-  SOUL2_MODEL, SOUL2_I2I_MODEL, soul2Enabled, soul2Eligible, soul2IdentityEligible,
+  SOUL2_MODEL, soul2Enabled, soul2Eligible,
   failHiggsfieldImage,
   imageCallback,
   reconcileHiggsfieldImage,
@@ -56,6 +57,7 @@ const schema = z.object({
     "read",
     "message",
     "generate",
+    "integrate",
     "save",
     "reference",
     "memory_save",
@@ -86,6 +88,7 @@ const schema = z.object({
   remove: z.boolean().optional(),
   viewed_reference_id: z.string().uuid().nullable().optional(),
   proposal_id: z.string().uuid().optional(),
+  approved_scene_id: z.string().uuid().optional(),
   version_id: z.string().uuid().optional(),
   viewed_version_id: z.string().uuid().nullable().optional(),
   branch_reference_mode: z.enum(["version", "current"]).optional(),
@@ -541,7 +544,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         const reservedProducts: Reference[] = parent?.proposal?.scene_workflow?.phase === "scene"
           ? parent.proposal.planning_references || []
           : parent?.proposal?.scene_workflow?.phase === "integration"
-          ? (parent.proposal.reference_snapshot || []).filter((ref: Reference) => ref.role === "product") : [];
+          ? (parent.proposal.reference_snapshot || []).filter(exactReference) : [];
         for (const ref of reservedProducts) {
           if (!requestReferences.some(r => r.id === ref.id) && requestReferences.length < MAX_REFERENCES) requestReferences.push(ref);
         }
@@ -702,8 +705,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           vision.push(await visionFromStorage(sb, BUCKET, ref.path));
         }
         let intent: ReturnType<typeof intentSchema.parse>;
+        let interpreterArgs: Parameters<typeof callAnthropic>[0];
         try {
-          const raw = await callAnthropic({
+          interpreterArgs = {
             model: "claude-haiku-4-5",
             system: studioSystem,
             tool: intentTool,
@@ -746,8 +750,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                         ? {
                           id: parent.id,
                           scene_workflow: parent.proposal.scene_workflow,
+                          image_prompt: parent.proposal.image_prompt,
                           format: parent.proposal.format,
-                          produits_reserves: reservedProducts.map(({ id, name }) => ({ id, name })),
+                          originaux_reserves: reservedProducts.map(({ id, name }) => ({ id, name })),
                           person_reference: parent.proposal.person_reference,
                           brief: parent.proposal.brief,
                           summary: parent.proposal.summary,
@@ -773,7 +778,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                 ],
               },
             ],
-          });
+          };
+          const raw = await callAnthropic(interpreterArgs);
           intent = intentSchema.parse(JSON.parse(raw));
           intent.summary = cleanStudioSummary(intent.summary);
         } catch (error) {
@@ -792,7 +798,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             503,
           );
         }
-        const person = intent.person_reference;
+        let person = intent.person_reference;
         const memoryIds = person?.memory_ids || [];
         const memoryReferences = resolvePersonMemory(memoryIds, memory);
         const ambiguousMemory = memoryIds.some(id => {
@@ -816,6 +822,32 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           if (use) use.role = "casting";
           else intent.reference_use.push({ id: attached.id, role: "casting" });
         }
+        if (addedMemoryReferences.length && generative(intent.operation)) {
+          // The first pass selects the explicitly named identity. The final plan
+          // must observe its actual pixels before it can describe a compatible pose.
+          const memoryVision = [];
+          for (const ref of addedMemoryReferences) {
+            memoryVision.push({ type: "text", text: `Original résolu : ID ${ref.id}, rôle casting, ${ref.name}` });
+            memoryVision.push(await visionFromStorage(sb, BUCKET, ref.path));
+          }
+          try {
+            const checked = intentSchema.parse(JSON.parse(await callAnthropic({ ...interpreterArgs,
+              messages: [{ role: "user", content: [...memoryVision, { type: "text", text: JSON.stringify({
+                demande: p.message, proposition_a_verifier: intent,
+                references: requestReferences.map(({ path, ...ref }) => ref),
+                consigne: "Les originaux de la personne demandée sont maintenant visibles. Corrige la préparation avec ces pixels. Conserve les mêmes memory_ids et références sélectionnées. Pour une nouvelle photographie prépare une scène provisoire Soul, avec targets et scene_prompt, puis intégration après validation."
+              }) }, ...vision] }],
+            })));
+            if (JSON.stringify(checked.person_reference?.memory_ids || []) !== JSON.stringify(memoryIds)) throw new Error("identity_selection_changed");
+            intent = checked; intent.summary = cleanStudioSummary(intent.summary); person = intent.person_reference;
+            for (const ref of memoryReferences || []) {
+              const use = intent.reference_use.find(item => item.id === ref.id);
+              if (use) use.role = "casting"; else intent.reference_use.push({ id: ref.id, role: "casting" });
+            }
+          } catch {
+            return json({ error: "Je n’ai pas pu vérifier la préparation avec la référence enregistrée. Renvoie ta demande ; aucune image n’a été lancée.", code: "refresh_request" }, 503);
+          }
+        }
         // The selected version is already authorised and loaded above. The
         // interpreter can name its ID as a composition source instead of using
         // uses_selected_version. Resolve only this exact known alias; arbitrary
@@ -831,25 +863,34 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.operation = "clarify";
           intent.summary = "Je n’ai pas pu identifier toutes les images à utiliser. Précise laquelle est la scène et laquelle montre le produit ; aucune image n’a été lancée.";
         }
-        const usedReferences = p.studio_version === 4
+        const newPhoto = intent.visual_kind === "photo" && !intent.exact_text.length && person?.mode !== "sheet" &&
+          (intent.operation === "create" || intent.operation === "product" && intent.scene_workflow?.phase !== "integration" && !intent.source_reference_id && !(intent.uses_selected_version && parent));
+        if (newPhoto) {
+          intent.operation = "create";
+          intent.uses_selected_version = false;
+          intent.scene_workflow = { ...intent.scene_workflow, phase: "scene",
+            camera_match: intent.scene_workflow?.camera_match || "Point de vue adapté à la pose et aux références fournies." };
+          intent.image_prompt = intent.scene_workflow.scene_prompt || intent.image_prompt;
+          if (intent.scene_workflow.phase === "scene") {
+            intent.summary = intent.summary.replace(/en une (?:seule )?passe|en une seule génération|directement/gi, "après validation de la scène");
+          }
+          if (intent.shots.length) {
+            intent.brief = [intent.brief, "Prises suivantes après validation du pilote :", ...intent.shots.map(shot => shot.summary)].join("\n").slice(0, 6000);
+            intent.summary += " Nous commençons par une scène pilote ; les autres prises restent à préparer après sa validation.";
+            intent.shots = [];
+          }
+        }
+        const usedReferences = p.studio_version === 4 && !newPhoto
           ? requestReferences.filter((ref) => intent.reference_use.some((use) => use.id === ref.id))
-          : requestReferences;
-        const requestReferenceIds = new Set(usedReferences.map((ref) => ref.id));
-        const resolvedReferences = usedReferences.map((ref) => ({
-          ...ref,
-          role: intent.reference_use.find((use) =>
-            use.id === ref.id && requestReferenceIds.has(use.id)
-          )?.role || ref.role,
+          : requestReferences.filter(ref => !newPhoto || !reservedProducts.some(r => r.id === ref.id) || !!p.reference_ids?.includes(ref.id) || intent.reference_use.some(use => use.id === ref.id));
+        const resolvedReferences = usedReferences.map((ref) => ({ ...ref,
+          role: intent.reference_use.find(use => use.id === ref.id)?.role || ref.role,
         }));
-        // Planning-only products are often omitted by the interpreter because
-        // they must not appear in the scene. Keep the products explicitly attached
-        // to this request unless their role was explicitly reassigned.
-        if (intent.scene_workflow?.phase === "scene") {
+        // Preserve all originals on this branch, even if the interpreter omits them.
+        if (intent.scene_workflow?.phase === "scene" || intent.scene_workflow?.phase === "integration") {
           for (const ref of requestReferences) {
             const role = intent.reference_use.find(use => use.id === ref.id)?.role || ref.role;
-            if (role === "product" && !resolvedReferences.some(r => r.id === ref.id)) {
-              resolvedReferences.push({ ...ref, role: "product" });
-            }
+            if ((!newPhoto || usedReferences.some(r => r.id === ref.id)) && ["product", "person", "casting"].includes(role) && !resolvedReferences.some(r => r.id === ref.id)) resolvedReferences.push({ ...ref, role });
           }
         }
         const explicitSource = resolvedReferences.find((ref) =>
@@ -948,11 +989,33 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         const phase = intent.scene_workflow?.phase;
         // A correction to the scene must not discard the reserved original just
         // because the interpreter omitted a planning-only image in reference_use.
-        if (phase && intent.operation === "edit" && !resolvedReferences.some(ref => ref.role === "product")) {
-          if (resolvedReferences.length + reservedProducts.length > MAX_REFERENCES) {
+        if (phase && intent.operation === "edit") {
+          if (resolvedReferences.length + reservedProducts.filter(ref => !resolvedReferences.some(r => r.id === ref.id)).length > MAX_REFERENCES) {
             intent.operation = "clarify";
             intent.summary = "Retire une référence pour conserver le produit original avec cette scène (huit images maximum).";
-          } else resolvedReferences.push(...reservedProducts);
+          } else resolvedReferences.push(...reservedProducts.filter(ref => !resolvedReferences.some(r => r.id === ref.id)));
+        }
+        if (phase && intent.scene_workflow && generative(intent.operation)) {
+          const previous = parent?.proposal?.scene_workflow;
+          const sameBranch = !newPhoto && parent && (!explicitSource || explicitSource.path === parent.result_path);
+          if (sameBranch && previous) {
+            intent.scene_workflow = { ...previous, ...intent.scene_workflow,
+              targets: intent.scene_workflow.targets || previous.targets };
+          }
+          const workflow = intent.scene_workflow!;
+          const targets = workflow.targets || [];
+          const originals = resolvedReferences.filter(exactReference);
+          // A single view of each different kind is unambiguous in old proposals.
+          // Multiple views/people need Claude's explicit grouping and locations.
+          if (!targets.length && originals.length && new Set(originals.map(r => r.role === "casting" ? "person" : r.role)).size === originals.length) {
+            workflow.targets = originals.map(ref => ({ role: ref.role as "person" | "casting" | "product",
+              reference_ids: [ref.id], location: ref.role === "product" ? intent.product_placement || "À la place de l'objet provisoire" : "À la place de la personne provisoire",
+              instruction: `Remplacer uniquement cet élément par ${ref.name}, depuis sa référence originale, avec les raccords physiques nécessaires.` }));
+          }
+          if (!validTargets(workflow.targets || [], originals)) {
+            intent.operation = "clarify";
+            intent.summary = "Précise quelles photos montrent le même sujet et où placer chaque personne ou produit dans la scène. Aucune image n’a été lancée.";
+          }
         }
         const sourcePath = intent.operation === "product"
           ? explicitSource?.role !== "product" ? explicitSource?.path || null : null
@@ -965,9 +1028,15 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.operation = "clarify";
           intent.summary = "Préparons d’abord une seule scène photographique, sans le produit ni texte ajouté. Le produit original sera intégré après validation de cette scène.";
         }
-        if (phase === "integration" && (!["product", "edit"].includes(intent.operation) || !inputs.input || !inputs.references.some(ref => ref.role === "product"))) {
+        if (phase === "integration" && (!["product", "edit"].includes(intent.operation) || !inputs.input || !inputs.references.some(exactReference))) {
           intent.operation = "clarify";
-          intent.summary = "Pour intégrer ton produit, sélectionne la scène à conserver et joins une photo du produit original.";
+          intent.summary = "Pour intégrer tes références, sélectionne la scène à conserver et joins les photos originales de la personne ou du produit.";
+        }
+        if (newPhoto && generative(intent.operation)) {
+          const hasOriginals = inputs.planning.some(exactReference);
+          intent.summary += hasOriginals
+            ? " Je prépare d’abord la scène : personnes et objets à remplacer sont provisoires. Tu pourras voir et corriger cet aperçu avant d’y intégrer tes références originales."
+            : " Je prépare cette nouvelle scène photographique.";
         }
         const editInput = inputs.input;
         const proposedRefs = inputs.references;
@@ -986,6 +1055,13 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           )
           ? {
             ...intent,
+            ...(intent.scene_workflow ? { scene_workflow: { ...intent.scene_workflow,
+              accepted_changes: [...new Set([
+                ...(!newPhoto && parent && (!explicitSource || explicitSource.path === parent.result_path)
+                  ? parent.proposal.scene_workflow?.accepted_changes || parent.proposal.change || [] : []),
+                ...intent.change,
+              ])].slice(-48),
+            } } : {}),
             ...(person?.mode === "sheet" ? { visual_kind: "photo" as const, exact_text: [] } : {}),
             id: crypto.randomUUID(),
             viewed_version_id: intent.operation === "create" && !intent.uses_selected_version ? null : parent?.id || null,
@@ -1003,6 +1079,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             references: proposedRefs,
             reference_snapshot: inputs.snapshot,
             planning_references: phase === "scene" ? inputs.planning : [],
+            scene_reference_signature: phase === "scene" ? referenceSignature([...references, ...addedMemoryReferences.filter(ref => !references.some(r => r.id === ref.id))]) : undefined,
             input_path: intent.operation === "background"
               ? finalInputPath
               : editInput,
@@ -1025,9 +1102,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               : null,
           }
           : null;
-        if (proposal?.scene_workflow?.phase === "scene" && soul2Enabled() && !proposal.shots.length) {
-          if (soul2Eligible(proposal)) { proposal.provider = "higgsfield"; proposal.model = SOUL2_MODEL; }
-          else if (soul2IdentityEligible(proposal)) { proposal.provider = "higgsfield"; proposal.model = SOUL2_I2I_MODEL; }
+        if (proposal?.scene_workflow?.phase === "scene" && proposal.operation === "create") {
+          if (!soul2Enabled()) return json({ error: "La création de scène est momentanément indisponible. Tes références sont conservées ; aucune autre génération n’a été lancée." }, 503);
+          if (!soul2Eligible(proposal)) return json({ error: "La scène doit être préparée séparément de ses références. Aucune image n’a été lancée." }, 409);
+          proposal.provider = "higgsfield"; proposal.model = SOUL2_MODEL;
         }
 
         const suggestions = intent.suggested_photo_ids.filter((id) =>
@@ -1177,7 +1255,18 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         }).eq("id", session.id).eq("revision", p.revision).select("*").single(),
       );
     }
-    if (p.action === "generate") {
+    if (p.action === "integrate") {
+      if (!p.version_id || !p.proposal_id || p.revision !== session.revision) throw new Error("studio_conflict");
+      const source = unwrap(await sb.from("visual_studio_versions").select("*").eq("id", p.version_id).eq("session_id", session.id).eq("status", "ready").single());
+      const next = await integrationProposal(source, references);
+      if (!next || next.id !== p.proposal_id || p.approved_scene_id !== source.id) return json({ error: "La scène ou les références ont changé. Vérifie l’aperçu avant l’intégration." }, 409);
+      // Persist the approval and immutable inputs before the existing atomic claim.
+      session = unwrap(await sb.from("visual_studio_sessions").update({ proposal: { ...next,
+        scene_workflow: { ...next.scene_workflow, approved_scene_id: source.id, approved_at: new Date().toISOString() } },
+        revision: session.revision + 1, updated_at: new Date().toISOString(),
+      }).eq("id", session.id).eq("revision", p.revision).select("*").single());
+    }
+    if (p.action === "generate" || p.action === "integrate") {
       if (!p.proposal_id) {
         return json({ error: "Confirme une proposition." }, 400);
       }
@@ -1202,6 +1291,23 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             },
             409,
           );
+        }
+        if (session.proposal.scene_workflow?.phase === "integration") {
+          const workflow = session.proposal.scene_workflow;
+          const baseId = session.proposal.viewed_version_id || session.proposal.viewed_reference_id;
+          if (!workflow.approved_scene_id && (!baseId || p.approved_scene_id !== baseId || session.proposal.viewed_version_id && p.viewed_version_id !== baseId)) return json({ error: "Valide la scène affichée avant d’intégrer les références." }, 409);
+          if (!workflow.approved_scene_id) {
+            session = unwrap(await sb.from("visual_studio_sessions").update({ proposal: { ...session.proposal,
+              scene_workflow: { ...workflow, scene_version_id: baseId, scene_path: session.proposal.input_path,
+                approved_scene_id: baseId, approved_at: new Date().toISOString() } },
+            }).eq("id", session.id).eq("revision", session.revision).select("*").single());
+          }
+        }
+        // Old prepared direct-photo proposals must not bypass the new policy after reload.
+        if (session.proposal.visual_kind === "photo" && session.proposal.person_reference?.mode !== "sheet" &&
+          (session.proposal.operation === "create" || session.proposal.scene_workflow?.phase === "direct") &&
+          (session.proposal.provider !== "higgsfield" || session.proposal.model !== SOUL2_MODEL)) {
+          return json({ error: "Cette ancienne proposition doit être repréparée : une nouvelle photo commence par une scène à valider. Utilise Modifier ma demande." }, 409);
         }
         if (
           !Deno.env.get(
@@ -1256,6 +1362,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                   ? [
                     ...(proposal.input_path ? [proposal.input_path] : []),
                     ...proposal.references.map((r: Reference) => r.path),
+                    ...(proposal.scene_workflow?.phase === "integration" && proposal.scene_workflow.scene_path && proposal.scene_workflow.scene_path !== proposal.input_path
+                      ? [proposal.scene_workflow.scene_path] : []),
                   ]
                   : [session.source_path];
                 return Promise.all(
@@ -1491,6 +1599,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         versions.map(async (v) => ({
           ...v,
           url: v.status === "ready" ? await sign(v.result_path) : null,
+          integration_proposal: await (async () => { const next = await integrationProposal(v, legacyReferences(session)); return next ? { ...next,
+            references: await Promise.all(next.references.map(async ref => ({ ...ref, url: await sign(ref.path) }))) } : null; })(),
         })),
       ),
       composition_history: compositions.map((entry) => ({

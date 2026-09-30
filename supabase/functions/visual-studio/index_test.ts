@@ -16,12 +16,16 @@ function fixture(role = "owner", replay = false, legacyLarge = false) {
       "SUPABASE_ANON_KEY",
       "PHOTOROOM_API_KEY",
       "ANTHROPIC_API_KEY",
+      "HIGGSFIELD_SOUL2_ENABLED",
+      "HIGGSFIELD_DATA_USE_REVIEWED",
     ].map((k) => [k, Deno.env.get(k)] as const);
   Deno.env.set("SUPABASE_URL", "https://studio.test");
   Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "service");
   Deno.env.set("SUPABASE_ANON_KEY", "anon");
   Deno.env.set("PHOTOROOM_API_KEY", "test-only");
   Deno.env.set("ANTHROPIC_API_KEY", "test-only");
+  Deno.env.set("HIGGSFIELD_SOUL2_ENABLED", "true");
+  Deno.env.set("HIGGSFIELD_DATA_USE_REVIEWED", "true");
   const memories: Record<string,unknown>[] = [];
   const compositions: Record<string, unknown>[] = [];
   const requests: string[] = [];
@@ -640,7 +644,7 @@ Deno.test("a product scene prioritizes the product over a mood photo and confirm
   const plate = { id: id(532), photo_id: id(533), path: "plate", role: "product", name: "Céramique aux coquelicots" };
   f.session.references = [mood, plate];
   f.setIntent({
-    operation: "product", visual_kind: "photo",
+    operation: "product", visual_kind: "photo", source_reference_id: mood.id,
     summary: "La pièce en céramique repose à plat sur la table en pierre, vue de trois quarts, dans la cour provençale.",
     product_placement: "À plat sur la table en pierre ; le fond touche la table et le décor reste visible en vue de trois quarts.",
     image_prompt: "Scene: the ceramic dish lies flat on the stone table in the Provençal courtyard. Camera and perspective: three-quarter view, thin edge visible. Contact and light: the base touches the table, contact shadow consistent with the courtyard light.",
@@ -655,7 +659,7 @@ Deno.test("a product scene prioritizes the product over a mood photo and confirm
     const data = await res.json();
     assertEquals(res.status, 200);
     assertEquals(data.session.proposal.product_placement.includes("À plat"), true);
-    assertEquals(data.session.proposal.references.map((r: { role: string }) => r.role), ["product", "style"]);
+    assertEquals(data.session.proposal.references.map((r: { role: string }) => r.role), ["product"]);
     assertEquals(data.session.proposal.reference_snapshot.map((r: { role: string }) => r.role), ["style", "product"]);
     const proposal = data.session.proposal;
     assertEquals(proposal.image_prompt.includes("thin edge visible"), true);
@@ -674,10 +678,10 @@ Deno.test("a product scene prioritizes the product over a mood photo and confirm
       inputOrder = await Promise.all(form.getAll("image[]").map((part) => (part as Blob).text()));
       return new Response(JSON.stringify({ data: [{ b64_json: btoa("result") }] }), { headers: { "Content-Type": "application/json" } });
     };
-    await generateImage(proposal, proposal.references.map((ref: { path: string }) => new Blob([ref.path], { type: "image/jpeg" })));
-    assertEquals(inputOrder, ["plate", "provence"]);
-    assertEquals(sentPrompt.includes("Image 1: product reference, Céramique aux coquelicots"), true);
-    assertEquals(sentPrompt.includes("Image 2: style reference, Cour provençale"), true);
+    await generateImage(proposal, [proposal.input_path, ...proposal.references.map((ref: { path: string }) => ref.path)].map(path => new Blob([path], { type: "image/jpeg" })));
+    assertEquals(inputOrder, ["provence", "plate"]);
+    assertEquals(sentPrompt.includes("Image 2: product reference, Céramique aux coquelicots"), true);
+    assertEquals(sentPrompt.includes("Image 1 is the selected version to edit"), true);
     assertEquals(sentPrompt.includes(proposal.summary), true);
     assertEquals(sentPrompt.includes(proposal.image_prompt), true);
     assertEquals(sentPrompt.indexOf("REFERENCE IMAGES") < sentPrompt.indexOf("SHOT INSTRUCTIONS"), true);
@@ -708,7 +712,7 @@ Deno.test("a new product scene without a support decision asks before generation
 Deno.test("v4 series keeps each approved shot and its distinct technical prompt", async () => {
   const f = fixture();
   f.setIntent({
-    operation: "create", visual_kind: "photo", photo_treatment: "directed",
+    operation: "create", visual_kind: "graphic", photo_treatment: "directed",
     summary: "Une table de travail vide vue de dessus.",
     image_prompt: "Scene: empty worktable. Camera and perspective: overhead view, entire tabletop visible.",
     shots: [{ summary: "La même table vue à hauteur du plateau.", image_prompt: "Scene: same empty worktable. Camera and perspective: table-level view, near edge visible.", format: "landscape" }],
@@ -766,13 +770,13 @@ Deno.test("v4 new take sends the selected version as a visible reference", async
   } finally { f.restore(); }
 });
 
-Deno.test("v4 routes source-free photos and text posters to OpenAI", async () => {
+Deno.test("v4 routes new photos to Soul and preserves OpenAI text posters", async () => {
   const keys = ["HIGGSFIELD_SOUL2_ENABLED", "HIGGSFIELD_DATA_USE_REVIEWED"];
   const before = keys.map((key) => Deno.env.get(key));
   keys.forEach((key) => Deno.env.set(key, "true"));
   try {
     for (const [intent, expected] of [
-      [{ operation: "create", visual_kind: "photo", photo_treatment: "natural", summary: "Portrait photographique naturel d'un mannequin fictif", image_prompt: "Portrait photographique" }, "gpt-image-2.5-flare"],
+      [{ operation: "create", visual_kind: "photo", photo_treatment: "natural", summary: "Portrait photographique naturel d'un mannequin fictif", image_prompt: "Portrait photographique" }, "higgsfield-ai/soul/v2/standard"],
       [{ operation: "create", visual_kind: "photo", summary: "Affiche photo avec le titre Atelier", image_prompt: "Affiche photo", exact_text: ["Atelier"] }, "gpt-image-2.5-flare"],
     ] as const) {
       const f = fixture();
@@ -787,7 +791,7 @@ Deno.test("v4 routes source-free photos and text posters to OpenAI", async () =>
         const data = await res.json();
         assertEquals(res.status, 200);
         assertEquals(data.session.proposal.model, expected);
-        assertEquals(data.session.proposal.provider, "default");
+        assertEquals(data.session.proposal.provider, expected.includes("soul") ? "higgsfield" : "default");
         if (intent.photo_treatment === "natural") {
           assertEquals(data.session.proposal.photo_treatment, "natural");
           assertEquals(data.session.proposal.image_prompt, intent.image_prompt);
@@ -1066,7 +1070,7 @@ Deno.test("a new scene from the selected sheet actually forwards that image to t
 });
 
 
-Deno.test("scene preparation sees product for planning but sends only identity to Soul", async () => {
+Deno.test("scene preparation sees originals but sends neither product nor identity to Soul", async () => {
   const keys = ["HIGGSFIELD_SOUL2_ENABLED", "HIGGSFIELD_DATA_USE_REVIEWED"];
   const old = keys.map(key => Deno.env.get(key));
   keys.forEach(key => Deno.env.set(key, "true"));
@@ -1087,9 +1091,9 @@ Deno.test("scene preparation sees product for planning but sends only identity t
         assertEquals(res.status, 200);
         const p = data.session.proposal;
         assertEquals(p.provider, "higgsfield");
-        assertEquals(p.model, includePerson ? "higgsfield-ai/soul/v2/image-to-image" : "higgsfield-ai/soul/v2/standard");
-        assertEquals(p.references.map((r: any) => r.path), includePerson ? ["person"] : []);
-        assertEquals(p.planning_references.map((r: any) => r.path), ["original-plate"]);
+        assertEquals(p.model, "higgsfield-ai/soul/v2/standard");
+        assertEquals(p.references.map((r: any) => r.path), []);
+        assertEquals(p.planning_references.map((r: any) => r.path), includePerson ? ["original-plate", "person"] : ["original-plate"]);
         assertEquals(p.reference_snapshot.some((r: any) => r.role === "product"), false);
         assertEquals(p.viewed_reference_id === product.id, false);
         assertEquals(imagePrompt(p).includes("75 degrees"), true);
@@ -1131,7 +1135,7 @@ Deno.test("integration resumes selected scene with ORIGINAL product and sends sc
     };
     await generateImage(p, [p.input_path, ...p.references.map((r: any) => r.path)].map(path => new Blob([path], { type: "image/jpeg" })));
     assertEquals(paths, [f.version.result_path, "original-plate"]);
-    assertEquals(prompt.includes("Image 1 is the approved scene"), true);
+    assertEquals(prompt.includes("Image 1 is the exact base image"), true);
     assertEquals(prompt.includes("Image 2: product reference, Assiette"), true);
   } finally { f.restore(); }
 });
@@ -1157,7 +1161,7 @@ Deno.test("imported scene is the edit input; missing or hallucinated references 
   }
 });
 
-Deno.test("scene corrections retain planning originals; exact multiple references stay on the editor", async () => {
+Deno.test("scene corrections keep originals reserved; new scenes never fall back to the editor", async () => {
   for (const correction of [false, true]) {
     const f = fixture();
     const product = { id: id(850), photo_id: id(851), path: "product", role: "product", name: "Produit" };
@@ -1176,9 +1180,9 @@ Deno.test("scene corrections retain planning originals; exact multiple reference
         request_id: id(856), reference_ids: [product.id, person.id, place.id], ...(correction ? { viewed_version_id: proposalId } : {}), message: "Prépare ou corrige cette scène avec mes références" }));
       const p = (await res.json()).session.proposal;
       assertEquals(res.status, 200);
-      assertEquals(p.provider, "default");
-      assertEquals(p.planning_references.map((r: any) => r.path), ["product"]);
-      assertEquals(p.references.map((r: any) => r.path), ["person", "place"]);
+      assertEquals(p.provider, correction ? "default" : "higgsfield");
+      assertEquals(p.planning_references.map((r: any) => r.path).sort(), ["person", "place", "product"]);
+      assertEquals(p.references.map((r: any) => r.path), []);
       assertEquals(p.input_path, correction ? f.version.result_path : null);
     } finally { f.restore(); }
   }
@@ -1204,7 +1208,7 @@ Deno.test("a correction after integration keeps the ORIGINAL product without dup
   } finally { f.restore(); }
 });
 
-Deno.test("explicit direct generation needs only the product, never an existing scene", async () => {
+Deno.test("even explicit direct photo requests prepare a Soul scene before integration", async () => {
   const f = fixture();
   const product = { id: id(880), photo_id: id(881), path: "original", role: "product", name: "Assiette" };
   f.session.references = [product];
@@ -1217,9 +1221,10 @@ Deno.test("explicit direct generation needs only the product, never an existing 
     const p = (await res.json()).session.proposal;
     assertEquals(res.status, 200);
     assertEquals(p.input_path, null);
-    assertEquals(p.provider, "default");
-    assertEquals(p.references.map((r: any) => r.path), ["original"]);
-    assertEquals(p.scene_workflow.phase, "direct");
+    assertEquals(p.provider, "higgsfield");
+    assertEquals(p.references, []);
+    assertEquals(p.planning_references.map((r: any) => r.path), ["original"]);
+    assertEquals(p.scene_workflow.phase, "scene");
     assertEquals(imagePrompt(p).includes("Image 1 is the approved scene"), false);
   } finally { f.restore(); }
 });
@@ -1280,4 +1285,84 @@ Deno.test("a modest summary overrun remains intact for confirmation without laun
     assertEquals(data.session.proposal.summary, summary.trim());
     assertEquals(f.requests.some(path => path.includes("studio_confirm")), false);
   } finally { f.restore(); }
+});
+
+Deno.test("mixed originals cannot trigger implicit direct OpenAI creation", async () => {
+  const f = fixture();
+  const product = { id: id(920), photo_id: null, path: "plate-original", role: "product", name: "Assiette" };
+  const person = { id: id(921), photo_id: null, path: "face-original", role: "person", name: "Personne" };
+  f.session.references = [product, person];
+  f.setIntent({ operation: "product", visual_kind: "photo", summary: "La personne présente son assiette en une passe.",
+    image_prompt: "A person holding a plate", scene_workflow: { phase: "direct", camera_match: "À hauteur du visage" },
+    reference_use: [product, person].map(r => ({ id: r.id, role: r.role })) });
+  try {
+    const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", message: "Moi présentant cette assiette", revision: 0, request_id: id(922), reference_ids: [product.id, person.id] }));
+    const p = (await res.json()).session.proposal;
+    assertEquals(p.provider, "higgsfield"); assertEquals(p.model, "higgsfield-ai/soul/v2/standard");
+    assertEquals(p.references, []); assertEquals(p.planning_references.map((r: any) => r.path), [product.path, person.path]);
+    assertEquals(p.scene_workflow.targets.length, 2);
+    assertEquals(p.summary.includes("provisoires"), true);
+    assertEquals(f.requests.some(path => path.includes("studio_confirm_generation")), false);
+  } finally { f.restore(); }
+});
+Deno.test("Soul unavailability refuses new photography without silently switching provider", async () => {
+  const f = fixture(); Deno.env.set("HIGGSFIELD_SOUL2_ENABLED", "false");
+  f.setIntent({ operation: "create", visual_kind: "photo", summary: "Un paysage", image_prompt: "Landscape" });
+  try {
+    const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", message: "Une photo de paysage", revision: 0, request_id: id(923), reference_ids: [] }));
+    assertEquals(res.status, 503); assertEquals(f.requests.some(path => path.includes("images/")), false);
+  } finally { f.restore(); }
+});
+Deno.test("integration action rejects stale revision, wrong scene approval and changed references before any claim", async () => {
+  const { integrationProposal, referenceSignature } = await import("./integration-proposal.ts");
+  for (const mode of ["revision", "approval", "references"]) {
+    const f = fixture();
+    const person = { id: id(924), photo_id: null, path: "person-original", role: "person" as const, name: "Personne" };
+    f.session.references = [person]; f.version.status = "ready";
+    Object.assign(f.version.proposal, { operation: "create", planning_references: [person],
+      scene_reference_signature: referenceSignature([person]),
+      scene_workflow: { phase: "scene", camera_match: "Face", targets: [{ role: "person", reference_ids: [person.id], location: "Au centre", instruction: "Intégrer cette identité" }] } });
+    const preview = (await integrationProposal(f.version))!;
+    if (mode === "references") f.session.references = [];
+    try {
+      const res = await handleStudioRequest(request({ ...base, action: "integrate", version_id: proposalId, proposal_id: preview.id,
+        approved_scene_id: mode === "approval" ? id(925) : proposalId, revision: mode === "revision" ? 99 : 0 }));
+      assertEquals(res.status, 409);
+      assertEquals(f.requests.some(path => path.includes("studio_confirm_generation")), false);
+    } finally { f.restore(); }
+  }
+});
+
+Deno.test("integration confirmation persists the exact approved scene before one atomic claim", async () => {
+  const { integrationProposal } = await import("./integration-proposal.ts");
+  const f = fixture(); const savedFetch = globalThis.fetch; const key = Deno.env.get("OPENAI_API_KEY");
+  Deno.env.set("OPENAI_API_KEY", "test-only");
+  const person = { id: id(950), photo_id: null, path: "original-person", role: "person" as const, name: "Portrait" };
+  f.session.references = [person]; f.version.status = "ready";
+  Object.assign(f.version.proposal, { planning_references: [person], scene_workflow: { phase: "scene", camera_match: "Face",
+    targets: [{ role: "person", reference_ids: [person.id], location: "Au centre", instruction: "Intégrer cette identité" }] } });
+  const preview = (await integrationProposal(f.version))!;
+  let claims = 0;
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(String(input));
+    if (url.pathname.endsWith("visual_studio_versions") && url.searchParams.get("id") === `eq.${preview.id}`) return new Response("null", { headers: { "Content-Type": "application/json" } });
+    if (url.pathname.endsWith("studio_confirm_generation")) {
+      claims++;
+      const confirmed = f.session.proposal as any;
+      assertEquals(confirmed.input_path, f.version.result_path);
+      assertEquals(confirmed.scene_workflow.approved_scene_id, f.version.id);
+      assertEquals(confirmed.references[0].path, person.path);
+      assertEquals(JSON.parse(String(init?.body)).p_proposal, preview.id);
+      return new Response(JSON.stringify({ claimed: false }), { headers: { "Content-Type": "application/json" } });
+    }
+    return savedFetch(input, init);
+  };
+  try {
+    const body = { ...base, action: "integrate", version_id: f.version.id, proposal_id: preview.id, approved_scene_id: f.version.id, revision: 0 };
+    assertEquals((await handleStudioRequest(request(body))).status, 200);
+    assertEquals(claims, 1);
+    assertEquals((await handleStudioRequest(request(body))).status, 409);
+    assertEquals(claims, 1);
+    assertEquals(f.requests.some(path => path.includes("/v1/messages") || path.includes("images/")), false);
+  } finally { if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key); f.restore(); }
 });

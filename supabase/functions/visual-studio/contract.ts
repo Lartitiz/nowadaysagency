@@ -20,7 +20,13 @@ export const intentSchema = z
       "existing_tool",
       "compose",
     ]),
-    scene_workflow: z.object({ phase: z.enum(["scene", "integration", "direct"]), camera_match: z.string().min(1).max(500) }).optional(),
+    scene_workflow: z.object({
+      phase: z.enum(["scene", "integration", "direct"]), camera_match: z.string().min(1).max(500),
+      scene_prompt: z.string().max(4000).optional(),
+      targets: z.array(z.object({ role: z.enum(["person", "casting", "product"]),
+        reference_ids: z.array(z.string().uuid()).min(1).max(8), location: z.string().min(1).max(400),
+        instruction: z.string().min(1).max(800) })).max(8).optional(),
+    }).optional(),
     person_reference: z.object({
       mode: z.enum(["sheet", "scene"]),
       name: z.string().trim().min(1).max(120),
@@ -118,7 +124,15 @@ export const intentTool = {
           "compose",
         ],
       },
-      scene_workflow: { type: "object", description: "scene = préparer une image sans le produit ; integration = insérer dans une IMAGE de scène déjà fournie/sélectionnée ; direct = créer décor et produit en une passe sur demande explicite, sans photo de scène.", properties: { phase: { type: "string", enum: ["scene", "integration", "direct"] }, camera_match: { type: "string", maxLength: 500 } }, required: ["phase", "camera_match"] },
+      scene_workflow: { type: "object", description: "Nouvelle photo : scène provisoire puis intégration des originaux. Une image existante à conserver reste une édition.", properties: {
+        phase: { type: "string", enum: ["scene", "integration"] }, camera_match: { type: "string", maxLength: 500 },
+        scene_prompt: { type: "string", maxLength: 4000, description: "Prompt autonome de la scène provisoire, obligatoire pour toute nouvelle photo ; aucune référence à des fichiers envoyés." },
+        targets: { type: "array", maxItems: 8, items: { type: "object", properties: {
+          role: { type: "string", enum: ["person", "casting", "product"] },
+          reference_ids: { type: "array", minItems: 1, maxItems: 8, items: { type: "string", format: "uuid" } },
+          location: { type: "string", maxLength: 400 }, instruction: { type: "string", maxLength: 800 }
+        }, required: ["role", "reference_ids", "location", "instruction"] } }
+      }, required: ["phase", "camera_match", "targets"] },
       person_reference: {
         type: "object",
         properties: {
