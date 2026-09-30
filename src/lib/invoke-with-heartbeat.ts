@@ -85,13 +85,13 @@ export async function invokeWithHeartbeat(
       let json: any = null;
       try { json = await resp.json(); } catch { /* ignore */ }
       if (resp.status === 429) {
-        return { data: json, error: { message: json?.message || "Limite atteinte.", code: "RATE_LIMIT", isRateLimit: true } };
+        return { data: json, error: { data: json, message: json?.message || "Limite atteinte.", code: "RATE_LIMIT", isRateLimit: true } };
       }
       if (!resp.ok) {
-        return { data: json, error: { message: json?.message || json?.error || "Erreur serveur.", code: "SERVER_ERROR" } };
+        return { data: json, error: { data: json, message: json?.message || json?.error || "Erreur serveur.", code: "SERVER_ERROR" } };
       }
       if (json?.error) {
-        return { data: json, error: { message: json.message || json.error, code: "GENERATION_ERROR" } };
+        return { data: json, error: { data: json, message: json.message || json.error, code: "GENERATION_ERROR" } };
       }
       return { data: json, error: null };
     }
@@ -150,6 +150,7 @@ export async function invokeWithHeartbeat(
         return {
           data: errJson,
           error: {
+            data: errJson,
             message: errJson.message || errJson.error || "Erreur de génération.",
             code: isLimit ? "RATE_LIMIT" : "SERVER_ERROR",
             isRateLimit: isLimit,
@@ -173,7 +174,7 @@ export async function invokeWithHeartbeat(
       const isLimit = parsed.error === "limit_reached";
       return {
         data: parsed,
-        error: { message: parsed.message || parsed.error, code: isLimit ? "RATE_LIMIT" : "GENERATION_ERROR", isRateLimit: isLimit },
+        error: { data: parsed, message: parsed.message || parsed.error, code: isLimit ? "RATE_LIMIT" : "GENERATION_ERROR", isRateLimit: isLimit },
       };
     }
 

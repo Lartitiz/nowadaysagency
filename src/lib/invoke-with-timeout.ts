@@ -1,3 +1,4 @@
+import { trackUpgrade } from "@/lib/upgrade-events";
 import { withIdeaBrief } from "@/lib/idea-brief-request";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -10,6 +11,7 @@ export interface InvokeError {
   isAuth?: boolean;
   isNetwork?: boolean;
   originalError?: any;
+  data?: any;
 }
 
 /** A lost response may hide a successful write. Never automatically replay a
@@ -53,20 +55,21 @@ export async function invokeWithTimeout(
         const body = result.data && typeof result.data === "object" ? result.data : {};
         const message = body.message || body.error;
         if (status === 401) return { data: null, error: { code: "AUTH", isAuth: true, message: "Ta session a expiré. Reconnecte-toi pour continuer." } };
-        if (status === 403) return { data: body, error: { code: "FORBIDDEN", message: message || "Tu n’as pas les droits nécessaires pour cette action." } };
-        if (status === 429) return { data: body, error: { code: "RATE_LIMIT", isRateLimit: true, message: message || "Trop de demandes en même temps. Attends un instant avant de réessayer." } };
+        if (status === 403) return { data: body, error: { code: "FORBIDDEN", data: body, message: message || "Tu n’as pas les droits nécessaires pour cette action." } };
+        if (status === 429) return { data: body, error: { code: "RATE_LIMIT", data: body, isRateLimit: true, message: message || "Trop de demandes en même temps. Attends un instant avant de réessayer." } };
         if (status === undefined && isFetchError(result.error)) return networkFailure(result.error);
         return { data: body, error: {
-          code: "SERVER_ERROR", originalError: result.error,
+          code: "SERVER_ERROR", data: body, originalError: result.error,
           message: status === 404 || status === 503 ? "Le service est momentanément indisponible. Réessaie dans quelques instants."
             : message || "L’IA a eu un blanc. Réessaie dans quelques instants.",
         } };
       }
       if (result.data?.error) {
         const isLimit = result.data.error === "limit_reached";
-        return { data: result.data, error: { message: result.data.message || result.data.error,
+        return { data: result.data, error: { data: result.data, message: result.data.message || result.data.error,
           code: isLimit ? "RATE_LIMIT" : "GENERATION_ERROR", isRateLimit: isLimit } };
       }
+      if (functionName === "create-checkout" && result.data?.url) trackUpgrade("checkout_opened", { surface: "checkout", kind: options.body?.mode });
       return { data: result.data, error: null };
     } catch (error: any) {
       if (isFetchError(error)) return networkFailure(error);

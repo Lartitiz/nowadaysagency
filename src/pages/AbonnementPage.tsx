@@ -1,3 +1,4 @@
+import { lireRetour } from "@/lib/retour-apres-detour";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { CreditCard, Loader2, ArrowRight, Zap, ChevronDown, ChevronUp, Gift, Search, Sparkles, Handshake, Gem, Target, Lightbulb, BarChart3, Check, Phone, Flame, Image as ImageIcon, Video, type LucideIcon } from "lucide-react";
 import { useUserPlan, type AiCategory } from "@/hooks/use-user-plan";
 import { STRIPE_PLANS, CREDIT_PACKS } from "@/lib/stripe-config";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { isFairUsePlan } from "@/lib/plan-limits";
 import PromoCodeInput from "@/components/PromoCodeInput";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -46,10 +47,12 @@ function getNextRenewalDate(): string {
 }
 
 export default function AbonnementPage() {
+  const retour = lireRetour();
+  const navigate = useNavigate();
   const checkoutCancelled = new URLSearchParams(window.location.search).get("checkout") === "cancelled";
   const { user } = useAuth();
-  const { plan, usage, isPaid, isBinome, bonusCredits, refresh } = useUserPlan();
-  const { activeWorkspace, loading: workspaceLoading } = useWorkspace();
+  const { plan, usage, isPaid, isBinome, bonusCredits, refresh, verified } = useUserPlan();
+  const { activeWorkspace, loading: workspaceLoading, switchWorkspace } = useWorkspace();
 
   const [subInfo, setSubInfo] = useState<any>(null);
   const [loadingSub, setLoadingSub] = useState(true);
@@ -86,45 +89,50 @@ export default function AbonnementPage() {
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceLoading, activeWorkspace?.id, retryCount]);
+  }, [user?.id, workspaceLoading, activeWorkspace?.id, retryCount]);
 
   const handlePortal = async () => {
+    if (portalLoading || packLoading || !verified) return;
     setPortalLoading(true);
     try {
-      const { data } = await invokeWithTimeout("create-portal-session", {}, 15000);
+      const { data, error } = await invokeWithTimeout("create-portal-session", {}, 15000);
+      if (error || !data?.url) throw new Error(error?.message || "Lien de paiement indisponible");
       if (data?.url) window.open(data.url, "_blank");
     } catch (e) {
       console.error("Abonnement error:", e);
-      toast.error("Une erreur est survenue. Réessaie ou contacte le support.");
+      toast.error(e instanceof Error ? e.message : "Une erreur est survenue. Réessaie.");
     }
     setPortalLoading(false);
   };
 
   const handleCheckout = async (priceId: string) => {
+    if (portalLoading || packLoading || !verified) return;
     setPortalLoading(true);
     try {
-      const { data } = await invokeWithTimeout("create-checkout", {
+      const { data, error } = await invokeWithTimeout("create-checkout", {
         body: { priceId, mode: "subscription", cancelUrl: `${window.location.origin}/abonnement?checkout=cancelled` },
       }, 15000);
+      if (error || !data?.url) throw new Error(error?.message || "Lien de paiement indisponible");
       if (data?.url) window.location.href = data.url;
     } catch (e) {
       console.error("Abonnement error:", e);
-      toast.error("Une erreur est survenue. Réessaie ou contacte le support.");
+      toast.error(e instanceof Error ? e.message : "Une erreur est survenue. Réessaie.");
     }
     setPortalLoading(false);
   };
 
   const handleBuyPack = async (packKey: string, priceId: string) => {
-    if (!priceId) return;
+    if (!priceId || packLoading || portalLoading || !verified) return;
     setPackLoading(packKey);
     try {
-      const { data } = await invokeWithTimeout("create-checkout", {
+      const { data, error } = await invokeWithTimeout("create-checkout", {
         body: { priceId, mode: "payment", cancelUrl: `${window.location.origin}/abonnement?checkout=cancelled` },
       }, 15000);
+      if (error || !data?.url) throw new Error(error?.message || "Lien de paiement indisponible");
       if (data?.url) window.location.href = data.url;
     } catch (e) {
       console.error("Abonnement error:", e);
-      toast.error("Une erreur est survenue. Réessaie ou contacte le support.");
+      toast.error(e instanceof Error ? e.message : "Une erreur est survenue. Réessaie.");
     }
     setPackLoading(null);
   };
@@ -151,6 +159,7 @@ export default function AbonnementPage() {
     <div className="min-h-screen bg-background pb-20 lg:pb-8">
       <AppHeader />
       <main className="mx-auto max-w-2xl px-4 py-8 animate-fade-in">
+        {retour && <Button variant="outline" className="mb-4" onClick={async () => { if (retour.workspaceId && !await switchWorkspace(retour.workspaceId)) return; navigate(retour.chemin); }}>Reprendre {retour.quoi}</Button>}
         <div className="flex items-center gap-3 mb-6">
           <div className="h-10 w-10 rounded-xl bg-rose-pale flex items-center justify-center">
             <CreditCard className="h-5 w-5 text-primary" />
@@ -312,9 +321,9 @@ export default function AbonnementPage() {
           {/* Credit packs */}
           {!isAdminAccess && packsAvailable && (
             <div className="mt-5 pt-4 border-t border-border">
-              <p className="text-sm font-semibold text-foreground mb-1 flex items-center gap-1.5"><Zap className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} /> Acheter des crédits bonus</p>
+              <p id="packs" className="scroll-mt-24 text-sm font-semibold text-foreground mb-1 flex items-center gap-1.5"><Zap className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} /> Acheter des crédits bonus</p>
               <p className="text-xs text-muted-foreground mb-3">
-                Les crédits bonus ne s'épuisent jamais et sont utilisés après tes crédits mensuels.
+                Les crédits bonus n’expirent pas et sont utilisés après tes crédits mensuels. Ils n’ouvrent pas les fonctions Premium et n’augmentent pas les plafonds d’images, de carrousels ou de vidéos.
               </p>
               <div className="grid grid-cols-3 gap-2">
                 {Object.entries(CREDIT_PACKS).map(([key, pack]) => {

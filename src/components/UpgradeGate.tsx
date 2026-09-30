@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { versTarifs } from "@/lib/retour-apres-detour";
+import { useNavigate } from "react-router-dom";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -35,9 +36,11 @@ interface UpgradeGateProps {
 }
 
 export default function UpgradeGate({ feature, children, fallback }: UpgradeGateProps) {
-  const { canUseFeature, loading } = useUserPlan();
+  const navigate = useNavigate();
+  const { canUseFeature, loading, verified, refresh } = useUserPlan();
 
-  if (loading) return <>{children}</>;
+  if (loading) return <p role="status">Vérification de ton accès…</p>;
+  if (!verified) return <div role="status"><p>Ton accès n’a pas pu être vérifié.</p><Button variant="outline" onClick={() => void refresh()}>Réessayer</Button></div>;
 
   if (canUseFeature(feature)) {
     return <>{children}</>;
@@ -54,15 +57,13 @@ export default function UpgradeGate({ feature, children, fallback }: UpgradeGate
         <Sparkles className="h-5 w-5 text-muted-foreground" />
       </div>
       <h3 className="font-display text-lg font-bold text-foreground mb-2">
-        {isStudioFeature ? "Disponible avec l'accompagnement Binôme" : "Crédits IA épuisés"}
+        {isStudioFeature ? "Disponible avec l'accompagnement Binôme" : "Disponible avec Premium"}
       </h3>
       <p className="text-sm text-muted-foreground mb-5 max-w-sm mx-auto">
         {message}
       </p>
-      <Button asChild className="rounded-full">
-        <Link to="/parametres">
+      <Button className="rounded-full" onClick={() => versTarifs(navigate)}>
           {isStudioFeature ? "Découvrir l'accompagnement →" : "Voir les options →"}
-        </Link>
       </Button>
     </div>
   );

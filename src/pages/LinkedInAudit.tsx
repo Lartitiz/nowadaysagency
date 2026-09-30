@@ -252,7 +252,7 @@ function LinkedInAuditForm() {
       if (!active.current) return;
       if (res.error) {
         const errorMsg = res.error.message || "";
-        if (res.error.isRateLimit || /limit_reached|quota|limit/i.test(errorMsg)) {
+        if (res.data?.error === "limit_reached" && res.data?.quota?.reason !== "error") {
           setQuotaExhausted({ message: errorMsg });
           return;
         }

@@ -1,3 +1,4 @@
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import BrandLogo from "@/components/BrandLogo";
 import { useState } from "react";
 import { usePageSEO } from "@/hooks/use-page-seo";
@@ -29,8 +30,8 @@ const SECTIONS = [
       { label: "Cible & persona", free: true, premium: true },
       { label: "Mon histoire", free: true, premium: true },
       { label: "Calendrier éditorial", free: true, premium: true },
-      { label: "Ligne éditoriale", free: false, premium: true },
-      { label: "Atelier de l'offre", free: false, premium: true },
+      { label: "Ligne éditoriale", free: true, premium: true },
+      { label: "Atelier de l'offre", free: true, premium: true },
     ],
   },
   {
@@ -42,23 +43,23 @@ const SECTIONS = [
       { label: "Mode Qualité Max des carrousels", free: false, premium: true },
       { label: "Images (Studio, retouches, mises en scène)", free: "5 / mois", premium: "30 / mois" },
       { label: "Vidéos courtes", free: false, premium: "3 / mois" },
-      { label: "Commentaires stratégiques", free: false, premium: true },
-      { label: "DM personnalisés", free: false, premium: true },
+      { label: "Commentaires stratégiques", free: true, premium: true },
+      { label: "DM personnalisés", free: true, premium: true },
     ],
   },
   {
     title: "Publication & automatisation",
     rows: [
-      { label: "Publication directe sur tes réseaux", free: false, premium: true },
-      { label: "Programmation automatique", free: false, premium: true },
-      { label: "Multi-réseaux en 1 clic", free: false, premium: true },
+      { label: "Publication directe sur tes réseaux", free: true, premium: true },
+      { label: "Programmation automatique", free: true, premium: true },
+      { label: "Multi-réseaux en 1 clic", free: true, premium: true },
     ],
   },
   {
     title: "Analyse & suivi",
     rows: [
       { label: "Audits IA (Instagram, site, LinkedIn)", free: "Limités", premium: "Illimités" },
-      { label: "Suivi de tes statistiques", free: false, premium: true },
+      { label: "Suivi de tes statistiques", free: true, premium: true },
     ],
   },
 ];
@@ -106,9 +107,10 @@ export default function PricingPage() {
   const cancelled = searchParams.get("checkout") === "cancelled";
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const navigate = useNavigate();
+  const { switchWorkspace } = useWorkspace();
   // Lu une seule fois au montage : un paiement Stripe part et revient sur
   // /payment/success, c'est là-bas que le mémo sera consommé.
-  const [retour] = useState(() => lireRetour());
+  const retour = user ? lireRetour() : null;
 
   usePageSEO({
     title: "Tarifs : Gratuit ou Premium",
@@ -117,6 +119,7 @@ export default function PricingPage() {
   });
 
   const handleCheckout = async () => {
+    if (checkoutLoading) return;
     if (!user) {
       window.location.href = "/login?offer=outil&redirect=%2Fpricing%3Fselected%3Dpremium";
       return;
@@ -176,7 +179,8 @@ export default function PricingPage() {
         {retour && (
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
+              if (retour.workspaceId && !await switchWorkspace(retour.workspaceId)) return;
               oublieRetour();
               navigate(retour.chemin);
             }}

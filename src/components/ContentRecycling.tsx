@@ -211,7 +211,7 @@ export default function ContentRecycling() {
       // incluse pour absorber une éventuelle 2e tentative séquentielle sur
       // un format en échec transitoire (audit latences 17/08).
       const { data, error } = await invokeWithTimeout("creative-flow", { body }, 240000);
-      if (error?.isRateLimit || data?.error === "limit_reached") {
+      if (data?.error === "limit_reached" && data?.quota?.reason !== "error") {
         if (handleQuotaError({ message: error?.message || data?.message, data })) {
           return;
         }

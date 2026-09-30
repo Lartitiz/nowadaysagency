@@ -85,7 +85,7 @@ function LinkedInProfilForm() {
     try {
       const res = await invokeWithTimeout("linkedin-ai", { body: { action: "title", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 75000);
       if (!store.active.current) return;
-      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+      if (res.data?.error === "limit_reached" && res.data?.quota?.reason !== "error") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
       if (res.error) throw new Error(res.error.message);

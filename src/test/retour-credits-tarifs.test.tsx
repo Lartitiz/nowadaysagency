@@ -28,6 +28,7 @@ vi.mock("react-router-dom", () => ({
 vi.mock("@/lib/posthog", () => ({ posthog: { capture: vi.fn() } }));
 vi.mock("@/components/AppHeader", () => ({ default: () => null }));
 vi.mock("@/components/Confetti", () => ({ default: () => null }));
+vi.mock("@/contexts/WorkspaceContext", () => ({ useWorkspace: () => ({ switchWorkspace: vi.fn().mockResolvedValue(true) }) }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: mocks.user, loading: false }) }));
 vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: mocks.invoke }));
 vi.mock("@/hooks/use-user-plan", () => ({ invalidateUserPlanCache: vi.fn() }));
@@ -85,7 +86,7 @@ describe("« Passer au Premium » mène bien à l'abonnement", () => {
   it("le message « plus de crédits » emmène aux tarifs en notant la page", () => {
     allerSur("/creer?format=carrousel");
 
-    const traite = handleQuotaError({ message: "Tu as atteint ta limite de générations IA ce mois" });
+    const traite = handleQuotaError({ data: { error: "limit_reached", message: "Tu as atteint ta limite de générations IA ce mois", quota: { reason: "total", plan: "free" } } });
     expect(traite).toBe(true);
 
     const [, opts] = mocks.toast.mock.calls[0];

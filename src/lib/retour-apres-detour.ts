@@ -1,30 +1,15 @@
-/**
- * « D'où je viens » avant un détour imposé par l'app.
- *
- * Deux détours arrachent la cliente à son travail en cours :
- *  - connecter un compte (Canva, Instagram, LinkedIn…) → Paramètres → Connexions
- *  - tomber à court de crédits → la page des tarifs, puis Stripe
- *
- * Dans les deux cas le travail est toujours là (use-flow-persistence le garde
- * 2 h) mais devenait invisible, faute de chemin de retour : on repartait de zéro
- * en croyant l'avoir perdu.
- *
- * On note donc le chemin de départ AVANT de partir, et la page d'arrivée y
- * ramène — automatiquement quand le détour est fini (compte connecté), ou par un
- * bouton quand la cliente peut vouloir rester (tarifs, confirmation de
- * paiement). Un seul mécanisme pour tous les points de départ plutôt qu'une
- * rustine par endroit.
- *
- * sessionStorage et pas localStorage : le mémo appartient à CET onglet, celui
- * qui fait l'aller-retour. Il survit au passage par canva.com ou stripe.com
- * (même onglet, même origine au retour) et meurt avec l'onglet — c'est voulu.
- */
-
 const KEY = "retour_apres_detour";
 
 /** Le temps d'un détour (autorisation OAuth, paiement Stripe), pas plus :
  *  au-delà, un vieux chemin qui ressurgit serait plus déroutant qu'utile. */
-const MAX_AGE_MS = 30 * 60 * 1000;
+const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+let ownerId: string | null = null;
+let workspaceId: string | null = null;
+export function setRetourScope(user: string | null, workspace?: string | null) {
+  ownerId = user;
+  if (workspace !== undefined) workspaceId = workspace;
+}
+function storageKey() { return ownerId ? `${KEY}:${ownerId}` : KEY; }
 
 export const CHEMIN_CONNEXIONS = "/parametres/connexions";
 export const CHEMIN_TARIFS = "/pricing";
@@ -32,6 +17,7 @@ export const CHEMIN_TARIFS = "/pricing";
 export type RetourMemo = {
   /** Chemin interne à re-visiter, avec sa query (ex. "/creer"). */
   chemin: string;
+  workspaceId?: string | null;
   /** Ce vers quoi on ramène, pour l'annoncer : « ton contenu en cours ». */
   quoi: string;
 };
@@ -48,12 +34,14 @@ function cheminInterneValide(chemin: string): boolean {
     typeof chemin === "string" &&
     chemin.startsWith("/") &&
     !chemin.startsWith("//") &&
-    !chemin.includes("://")
+    !chemin.includes("://") &&
+    !chemin.includes("\\") && !Array.from(chemin).some(c => c.charCodeAt(0) < 32)
   );
 }
 
 /** Comment nommer la destination dans le message de retour. */
 export function quoiPour(chemin: string): string {
+  if (chemin.startsWith("/photos")) return "ta création visuelle";
   if (chemin.startsWith("/creer")) return "ton contenu en cours";
   if (chemin.startsWith("/calendrier")) return "ton calendrier";
   if (chemin.startsWith("/instagram/stats")) return "tes statistiques";
@@ -86,8 +74,10 @@ export function memoriseRetour(chemin?: string, quoi?: string): void {
       chemin: cible,
       quoi: quoi || quoiPour(cible),
       ts: Date.now(),
+      workspaceId,
     };
-    sessionStorage.setItem(KEY, JSON.stringify(stocke));
+    sessionStorage.setItem(storageKey(), JSON.stringify(stocke));
+    if (ownerId) localStorage.setItem(storageKey(), JSON.stringify(stocke));
   } catch {
     /* stockage plein ou indisponible — on dégrade sans casser le parcours */
   }
@@ -96,7 +86,7 @@ export function memoriseRetour(chemin?: string, quoi?: string): void {
 /** Lit le mémo s'il est encore valable, sinon null (et nettoie au passage). */
 export function lireRetour(): RetourMemo | null {
   try {
-    const raw = sessionStorage.getItem(KEY);
+    const raw = sessionStorage.getItem(storageKey()) || (ownerId ? localStorage.getItem(storageKey()) : null);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Stocke;
     if (!parsed?.chemin || !cheminInterneValide(parsed.chemin)) {
@@ -107,7 +97,7 @@ export function lireRetour(): RetourMemo | null {
       oublieRetour();
       return null;
     }
-    return { chemin: parsed.chemin, quoi: parsed.quoi || quoiPour(parsed.chemin) };
+    return { chemin: parsed.chemin, quoi: parsed.quoi || quoiPour(parsed.chemin), ...(parsed.workspaceId ? { workspaceId: parsed.workspaceId } : {}) };
   } catch {
     return null;
   }
@@ -115,7 +105,8 @@ export function lireRetour(): RetourMemo | null {
 
 export function oublieRetour(): void {
   try {
-    sessionStorage.removeItem(KEY);
+    sessionStorage.removeItem(storageKey());
+    if (ownerId) localStorage.removeItem(storageKey());
   } catch {
     /* noop */
   }
@@ -139,10 +130,10 @@ export function versConnexions(
 /** Part vers les tarifs en se souvenant d'où l'on vient (crédits épuisés). */
 export function versTarifs(
   navigate: (chemin: string) => void,
-  opts?: { depuis?: string; quoi?: string },
+  opts?: { depuis?: string; quoi?: string; destination?: "/abonnement#packs" },
 ): void {
   memoriseRetour(opts?.depuis, opts?.quoi);
-  navigate(CHEMIN_TARIFS);
+  navigate(opts?.destination || CHEMIN_TARIFS);
 }
 
 /**

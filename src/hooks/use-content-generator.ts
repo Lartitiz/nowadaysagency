@@ -666,7 +666,7 @@ export function useContentGenerator() {
       // en premier, perdait data.quota (plan/usage du QuotaWallModal) et laissait la
       // détection retomber sur des substrings de message (fragiles depuis que les
       // messages quota n'emploient plus les mots « crédit »/« quota », PR #308).
-      if (invokeError?.isRateLimit || data?.error === "limit_reached" || data?.message?.includes("ce mois")) {
+      if (data?.error === "limit_reached" && data?.quota?.reason !== "error") {
         throw Object.assign(new Error(data?.message || invokeError?.message || "limit_reached"), { _isQuota: true, data });
       }
       if (invokeError) throw new Error(invokeError.message || "Erreur edge function");

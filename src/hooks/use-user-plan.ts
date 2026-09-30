@@ -26,7 +26,8 @@ type Feature =
 
 const FREE_FEATURES: Feature[] = [
   "branding", "persona", "audit_basic", "generation_limited", "community_read",
-  "calendar",
+  "calendar", "import_stats", "prospection", "comments_generator", "dm_generator",
+  "offer_workshop", "contacts_strategiques", "routine_engagement", "editorial_line", "assistant_chat",
 ];
 
 const OUTIL_FEATURES: Feature[] = [
@@ -74,6 +75,7 @@ interface UserPlanState {
    doit changer de cache — sinon on ré-affiche les crédits de l'espace précédent. */
 let _cache = new Map<string, { data: any; ts: number }>();
 const _inflight = new Map<string, Promise<any>>();
+let cacheEpoch = 0;
 const CACHE_TTL = 60_000; // 1 minute
 
 /* ── Cross-instance refresh ──
@@ -91,8 +93,9 @@ function notifyOtherInstances(except: () => void) {
   });
 }
 
-async function fetchSubscription(workspaceId?: string): Promise<any> {
-  const key = workspaceId || "perso";
+async function fetchSubscription(userId: string, workspaceId?: string): Promise<any> {
+  const key = `${userId}:${workspaceId || "perso"}`;
+  const epoch = cacheEpoch;
   const hit = _cache.get(key);
   if (hit && Date.now() - hit.ts < CACHE_TTL) {
     return hit.data;
@@ -103,15 +106,15 @@ async function fetchSubscription(workspaceId?: string): Promise<any> {
   const promise = supabase.functions
     .invoke("check-subscription", { body: { workspace_id: workspaceId || null } })
     .then(({ data, error }) => {
-      _inflight.delete(key);
-      if (!error && data?.plan && !data?.error) {
+      if (_inflight.get(key) === promise) _inflight.delete(key);
+      if (epoch === cacheEpoch && !error && data?.plan && !data?.error) {
         _cache.set(key, { data, ts: Date.now() });
         return data;
       }
       return null;
     })
     .catch(() => {
-      _inflight.delete(key);
+      if (_inflight.get(key) === promise) _inflight.delete(key);
       return null;
     });
 
@@ -120,9 +123,11 @@ async function fetchSubscription(workspaceId?: string): Promise<any> {
 }
 
 /** Force cache invalidation (called by refresh and on sign-out to avoid cross-user leak) */
-export function invalidateUserPlanCache() {
+export function invalidateUserPlanCache(notify = false) {
+  cacheEpoch++;
   _cache = new Map();
   _inflight.clear();
+  if (notify) _listeners.forEach(fn => fn());
 }
 
 export function useUserPlan(): UserPlanState {
@@ -139,6 +144,10 @@ export function useUserPlan(): UserPlanState {
     return {};
   });
   const [loading, setLoading] = useState(!isDemoMode);
+  const scopeKey = `${user?.id || "anonymous"}:${activeWorkspace?.id || "perso"}`;
+  const currentScope = useRef(scopeKey);
+  currentScope.current = scopeKey;
+  const requestId = useRef(0);
   const [verifiedWorkspaceKey, setVerifiedWorkspaceKey] = useState<string | null>(null);
 
   // Update usage when demoPlan changes
@@ -156,10 +165,14 @@ export function useUserPlan(): UserPlanState {
     // un appel en périmètre perso puis un second en périmètre workspace.
     if (workspaceLoading) return;
 
+    const request = ++requestId.current;
+    const scope = scopeKey;
+    setLoading(true);
     try {
-      const data = await fetchSubscription(activeWorkspace?.id);
+      const data = await fetchSubscription(user.id, activeWorkspace?.id);
+      if (request !== requestId.current || scope !== currentScope.current) return;
       if (data) {
-        setVerifiedWorkspaceKey(activeWorkspace?.id || "perso");
+        setVerifiedWorkspaceKey(scope);
         setPlan(normalizePlan(data.plan || "free"));
         setBonusCredits(data.bonus_credits || 0);
         if (data.ai_usage && typeof data.ai_usage === "object") {
@@ -167,11 +180,12 @@ export function useUserPlan(): UserPlanState {
         }
       } else setVerifiedWorkspaceKey(null);
     } catch (e) {
+      if (request !== requestId.current || scope !== currentScope.current) return;
       setVerifiedWorkspaceKey(null);
       trackError(e, { page: "useUserPlan", action: "checkSubscription" });
     }
     setLoading(false);
-  }, [user, isDemoMode, workspaceLoading, activeWorkspace?.id]);
+  }, [user, isDemoMode, workspaceLoading, activeWorkspace?.id, scopeKey]);
 
   const refresh = useCallback(async () => {
     invalidateUserPlanCache();
@@ -193,10 +207,12 @@ export function useUserPlan(): UserPlanState {
   }, [load]);
 
   const { isAdmin: isAdminUser } = useAuth();
+  const verified = isAdminUser || isDemoMode || (!!user && !workspaceLoading && verifiedWorkspaceKey === scopeKey);
   const effectivePlan: Plan = isAdminUser ? "binome" : (isDemoMode ? demoPlanResolved : plan);
 
   const canUseFeature = useCallback(
     (feature: Feature) => {
+      if (!verified) return false;
       const p = isAdminUser ? "binome" : (isDemoMode ? demoPlanResolved : plan);
       switch (p) {
         case "binome": return BINOME_FEATURES.includes(feature);
@@ -204,23 +220,24 @@ export function useUserPlan(): UserPlanState {
         default: return FREE_FEATURES.includes(feature);
       }
     },
-    [plan, isDemoMode, demoPlanResolved, isAdminUser]
+    [plan, isDemoMode, demoPlanResolved, isAdminUser, verified]
   );
 
   const canGenerate = useCallback((category: AiCategory = "content") => {
     if (isAdminUser) return true;
     if (isDemoMode && demoPlanResolved === "binome") return true;
+    if (!verified) return false;
     const cat = usage[category];
     const total = usage.total;
-    if (!cat || !total) return true;
+    if (!cat || !total) return false;
     if (cat.limit === 0) return false;
-    if (total.used >= total.limit) return false;
+    if (Math.max(0, total.limit - total.used) + bonusCredits <= 0) return false;
     // Même règle que l'enforcement (plan-limiter) : tant qu'il reste des bonus,
     // le cap catégorie ne bloque pas — seul le plafond global (bonus inclus) compte.
     // Sauf les plafonds DURS (carrousels, images, vidéos), que les bonus ne lèvent pas.
     if (HARD_CAP_CATEGORIES.includes(category)) return cat.used < cat.limit;
     return cat.used < cat.limit || bonusCredits > 0;
-  }, [usage, isDemoMode, demoPlanResolved, isAdminUser, bonusCredits]);
+  }, [usage, isDemoMode, demoPlanResolved, isAdminUser, bonusCredits, verified]);
 
   const canAudit = useCallback(() => {
     return canGenerate("audit");
@@ -256,7 +273,7 @@ export function useUserPlan(): UserPlanState {
   return {
     plan: effectivePlan,
     loading,
-    verified: isAdminUser || isDemoMode || (!workspaceLoading && verifiedWorkspaceKey === (activeWorkspace?.id || "perso")),
+    verified,
     usage,
     bonusCredits,
     canUseFeature,

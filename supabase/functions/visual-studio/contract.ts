@@ -241,7 +241,7 @@ export function generative(operation: string) {
   return ["create", "edit", "product"].includes(operation);
 }
 export function premiumAllowed(plan: string, qa: boolean) {
-  return qa || plan !== "free";
+  return qa || ["outil", "binome", "studio", "now_pilot", "admin"].includes(plan);
 }
 
 /** Advice has a small contract, without mandatory image-generation fields. */
