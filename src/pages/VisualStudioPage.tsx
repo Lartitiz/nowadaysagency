@@ -339,12 +339,16 @@ function Studio({
   const activeIds = current?.session.active_reference_ids ?? attachedIds;
   const attachedReferences = activeIds.map((id) => references.find((ref) => ref.id === id)).filter((ref): ref is StudioReference => !!ref);
   const [photosOpen, setPhotosOpen] = useState(false);
-  const photosCountRef = useRef(attachedReferences.length);
+  const photosStateRef = useRef({ loaded: false, count: 0 });
   useEffect(() => {
-    // Rouvre l'accordéon quand une photo est ajoutée ; reste replié ensuite.
-    if (attachedReferences.length > photosCountRef.current) setPhotosOpen(true);
-    photosCountRef.current = attachedReferences.length;
-  }, [attachedReferences.length]);
+    // Ouvre l'accordéon seulement quand une photo est ajoutée dans une session
+    // déjà chargée — pas au chargement de la page avec des photos validées.
+    const prev = photosStateRef.current;
+    const loaded = !!current;
+    const count = attachedReferences.length;
+    if (loaded && prev.loaded && count > prev.count) setPhotosOpen(true);
+    photosStateRef.current = { loaded, count };
+  }, [current, attachedReferences.length]);
   useEffect(() => { setAttachedIds(readAttachedIds(attachmentKey)); }, [attachmentKey]);
   function setAttachments(ids: string[], key = attachmentKey) {
     const unique = [...new Set(ids)];
