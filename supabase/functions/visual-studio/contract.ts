@@ -77,15 +77,17 @@ export const intentSchema = z
     suggested_photo_ids: z.array(z.string().uuid()).max(3).default([]),
     requires_real_subject: z.boolean().default(false),
   })
-  .refine((x) => x.operation !== "compose" || !!x.composition)
+  .refine((x) => x.operation !== "compose" || !!x.composition, { message: "missing_composition", path: ["composition"] })
   .refine(
     (x) =>
       x.operation !== "background" || x.background_prompt.trim().length >= 3,
+    { message: "missing_background_prompt", path: ["background_prompt"] },
   )
   .refine(
     (x) =>
       !["create", "edit", "product"].includes(x.operation) ||
       x.image_prompt.trim().length >= 3,
+    { message: "missing_image_prompt", path: ["image_prompt"] },
   );
 export const studioSystem =
   `Tu es le Studio visuel d'une entrepreneuse. Elle peut commencer par une question, une idée ou une photo. Réponds en français, simplement et concrètement. Ne lui impose ni formulaire ni choix d'outil.
@@ -194,7 +196,7 @@ export const intentTool = {
       source_reference_id: { type: "string", format: "uuid", description: "ID d’une référence jointe uniquement. Pour la version sélectionnée, omettre ce champ et utiliser uses_selected_version=true ; son ID n’appartient pas à reference_use." },
       uses_selected_version: { type: "boolean" },
       background_prompt: { type: "string", maxLength: 1200 },
-      image_prompt: { type: "string", maxLength: 4000 },
+      image_prompt: { type: "string", maxLength: 4000, description: "OBLIGATOIRE et non vide pour create/edit/product : consigne technique complète de la première image, cohérente avec summary. Vide seulement pour un dialogue ou un autre outil." },
       format: { type: "string", enum: ["square", "portrait", "landscape"] },
       preserve: {
         type: "array",
@@ -221,8 +223,9 @@ export const intentTool = {
       requires_real_subject: { type: "boolean" },
     },
     required: [
-      "operation",
-      "reply",
+      "operation", "reply", "summary", "visual_kind", "photo_treatment",
+      "product_placement", "reference_use", "background_prompt", "image_prompt",
+      "format", "preserve", "change", "brief", "suggestions", "requires_real_subject",
     ],
   },
 };

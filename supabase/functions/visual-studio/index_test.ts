@@ -1468,3 +1468,21 @@ Deno.test("a quoted explicit conversational correction can replace a manual role
  assertEquals(res.status,200);assertEquals(data.session.references[0].role,'person');assertEquals(data.session.references[0].role_explicit,true);
  }finally{f.restore();}
 });
+Deno.test("an incomplete preparation is repaired once with the same pixels instead of asking the user to resend",async()=>{
+ const f=fixture();f.session.messages=[{role:'assistant',text:'Quelle image veux-tu créer ?'}];f.session.proposal=null;
+ const ref={id:id(2071),photo_id:null,path:'plate',role:'product',name:'Assiette'};f.session.references=[ref];
+ f.setIntent({operation:'create',summary:'Une scène lumineuse',visual_kind:'photo'});
+ let attempts=0;
+ const currentFetch=globalThis.fetch;
+ globalThis.fetch=async(input,init)=>{
+  if(String(input).includes('api.anthropic.com/v1/messages') && ++attempts===2) f.setIntent({operation:'create',summary:'Une scène lumineuse',visual_kind:'photo',image_prompt:'A ceramic plate displayed on a table in a bright workshop.'});
+  return currentFetch(input,init);
+ };
+ try{
+ const res=await handleStudioRequest(request({...base,studio_version:4,action:'message',message:'Prépare une photo de cette assiette',reference_ids:[ref.id],revision:0,request_id:id(2072)}));const data=await res.json();
+ assertEquals(res.status,200);assertEquals(attempts,2);assertEquals(data.session.proposal.provider,'higgsfield');
+ const second=f.payloads[1] as any;assertEquals(second.messages.at(-1).content.some((c:any)=>c.type==='image'),true);
+ assertEquals(second.tools[0].input_schema.required.includes('image_prompt'),true);
+ assertEquals(f.requests.some(p=>p.includes('studio_confirm')),false);
+ }finally{f.restore();}
+});
