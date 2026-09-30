@@ -16,6 +16,7 @@ export type Reference = {
 export type Proposal = {
   scene_workflow?: import("./scene-workflow.ts").SceneWorkflow;
   planning_references?: Reference[];
+  scene_reference_signature?: string;
   operation: string;
   person_reference?: PersonReference;
   summary?: string;
@@ -240,7 +241,7 @@ export function imagePrompt(proposal: Proposal) {
   const followNotes = referenceNotes.filter(item => item.role !== "avoid").map(item => item.note).slice(0, 5).join("; ");
   const avoidNotes = referenceNotes.filter(item => item.role === "avoid").map(item => item.note).slice(0, 5).join("; ");
   return [
-    personReferencePrompt(proposal.person_reference && isSeries && !isSheet
+    proposal.scene_workflow?.phase === "scene" ? "" : personReferencePrompt(proposal.person_reference && isSeries && !isSheet
       ? { ...proposal.person_reference, variable_details: proposal.summary || proposal.image_prompt || "" }
       : proposal.person_reference),
     // Number only after reference selection, sorting and edit-source deduplication.
@@ -248,7 +249,7 @@ export function imagePrompt(proposal: Proposal) {
     proposal.input_path || refs.length ? "REFERENCE IMAGES" : "",
     proposal.input_path
       ? proposal.scene_workflow?.phase === "integration"
-        ? "Image 1 is the approved scene to preserve during product integration."
+        ? "Image 1 is the exact base image to edit, not inspiration. Preserve this photograph outside the explicitly authorized changes."
         : "Image 1 is the selected version to edit. Keep the subject and features the brief asks to preserve; apply the requested changes to its setting and styling."
       : "",
     ...refs.map(
@@ -270,11 +271,18 @@ export function imagePrompt(proposal: Proposal) {
     // Each shot's complete image_prompt is the authority for its framing and pose.
     !isSeries ? "Changes: " + (proposal.change || []).join("; ") : "",
     proposal.scene_workflow?.phase === "scene"
-      ? "SCENE PREPARATION ONLY. Create the confirmed setting, including any confirmed person or hand, with a physically usable area for the future product. Do not render that product or a placeholder. No text or logos. Preserve the confirmed photographic composition and camera; do not add decorative props."
+      ? "SCENE PREPARATION ONLY. Create the confirmed photographic scene, including the provisional people, poses and placeholder objects needed for physically coherent contact. Identities and products are provisional; their originals are reserved for a later edit. Match the planned build, geometry, scale and perspective. Do not invent product markings or claim an exact identity. No added text, logos, decorations, blur, grain or beauty retouching."
       : productStaging,
     proposal.scene_workflow?.phase === "integration"
-      ? "PRODUCT INTEGRATION. Image 1 is the approved scene, not a loose style reference. Preserve its camera, framing, person, surfaces and background. Integrate only the exact original product from the product references. If it is already present in the selected image, adjust that existing instance as requested; never add a duplicate. Preserve silhouette, proportions, material, color, motif placement, logo and lettering. Adapt only placement, physically necessary occlusion, local reflections, light and contact shadows. Do not redesign the scene or add decorations. Keep everything else unchanged."
+      ? "TARGETED PHOTO EDIT. Image 1 is the base photograph, not a loose style reference. Apply ONLY the listed changes at their stated locations. Preserve camera, framing, composition, background, surfaces, lighting, palette, depth of field and photographic textures outside those changes. Replace or adjust the existing provisional subject rather than adding a duplicate; never add a duplicate. Original person references govern identity, face, hair and build; do not freeze incompatible provisional features. Preserve the pose and approved outfit unless their change is requested. Original product references govern silhouette, proportions, materials, colors, motif placement, logos and lettering. Allow only necessary local scale, perspective, contours, hair/face junctions, hand contacts, occlusions, reflections and contact shadows. Do not creatively rewrite the scene, beautify people, smooth the entire image, add blur, grain or props. Keep all prior accepted corrections and everything else unchanged."
       : "",
+    proposal.scene_workflow?.targets?.length && proposal.scene_workflow.phase === "integration"
+      ? (proposal.scene_workflow.approved_scene_id && proposal.input_path !== proposal.scene_workflow.scene_path ? "SUBJECT ANCHORS ALREADY INTEGRATED. Preserve these identities; do not repeat their initial replacement. Apply only the current Changes.\n" : "AUTHORIZED TARGETS\n") + proposal.scene_workflow.targets.map(t => `${t.location}: ${proposal.scene_workflow?.approved_scene_id && proposal.input_path !== proposal.scene_workflow.scene_path ? t.role : t.instruction} Sources: ${t.reference_ids.map(id => { const i = refs.findIndex(r => r.id === id); return i < 0 ? "missing original (do not invent)" : `Image ${i + 1 + (proposal.input_path ? 1 : 0)}`; }).join(", ")}`).join("\n")
+      : "",
+    proposal.scene_workflow?.phase === "integration" && proposal.scene_workflow.scene_path && proposal.scene_workflow.scene_path !== proposal.input_path
+      ? `Image ${refs.length + 2} is the approved original scene, a photographic preservation anchor, NOT the edit base. Edit Image 1 and retain all accepted corrections since that scene. Current explicitly confirmed Changes take precedence over earlier changes.` : "",
+    proposal.scene_workflow?.accepted_changes?.length
+      ? `PREVIOUSLY ACCEPTED CHOICES (current explicit Changes take precedence): ${proposal.scene_workflow.accepted_changes.join("; ")}` : "",
     refs.length > 1
       ? "Several reference photos may show one subject from different angles. When the brief identifies them as the same person or product, combine their evidence into one subject; do not add a separate copy for each reference. Keep style-only references distinct from identity references."
       : "",
