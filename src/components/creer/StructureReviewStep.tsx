@@ -11,6 +11,11 @@ export interface SlideProposal {
   role: string;
   title_suggestion: string;
   strategic_note: string;
+  contribution?: string;
+  inherits?: string;
+  develops?: string;
+  source_ids?: string[];
+  image_role?: string;
   photo_index?: number;
   slide_type?: "photo_full" | "photo_integrated" | "text_only";
   story_beat?: string;

@@ -1,4 +1,5 @@
 import { buildConfirmedStructureBlock } from "./confirmed-structure.ts";
+import { createContinuousNarrative, NarrativePhotoMismatch } from "./continuous-narrative.ts";
 import { COMMON, PLAN, REPAIR } from "../_shared/carousel-editorial-contract.ts";
 import { reviewCarouselProgression, progressionReceipt, progressionWarnings, type ProgressionSource, type ProgressionResult } from "../_shared/carousel-progression.ts";
 import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts";
@@ -45,6 +46,7 @@ export const _deps = {
   callAnthropic,
   callCarouselWriter,
   reviewThread: reviewCarouselProgression,
+  prepareNarrative: createContinuousNarrative,
 };
 
 // ── Sortie structurée pour les deepening_questions ──
@@ -615,6 +617,11 @@ export async function handleRequest(req: Request): Promise<Response> {
         role: z.string(),
         title_suggestion: z.string(),
         strategic_note: z.string(),
+        contribution: z.string().max(2000).optional(),
+        inherits: z.string().max(2000).optional(),
+        develops: z.string().max(2000).optional(),
+        source_ids: z.array(z.string().max(80)).max(20).optional(),
+        image_role: z.string().max(2000).optional(),
         photo_index: z.number().optional(),
         slide_type: z.enum(["photo_full", "photo_integrated", "text_only"]).optional(),
         story_beat: z.string().max(300).optional(),
@@ -1108,6 +1115,9 @@ async function finalizeCarousel(
     (receipt.verdict === "needs_repair" || minorContinuity) && remaining() >= 85_000
   ) {
     const sink: UsageSink = {};
+    let repairReason = "candidate-failed-invariants";
+    let candidateStatus: string | undefined;
+    let candidateVerdict: string | null | undefined;
     try {
       ctx.emitStatus("correcting");
       const draft = JSON.stringify(doc);
@@ -1123,13 +1133,17 @@ async function finalizeCarousel(
       );
       // Exact photo/type/order protection; only a genuinely automatic plan may change roles/intents.
       const scenario = (v: any) =>
-        body.scenario_origin === "automatic"
+        (body.scenario_origin === "automatic" || (!body.scenario_origin && !body.confirmed_structure?.length))
           ? {
             ...v,
             slides: v?.slides?.map((slide: any) => ({
               ...slide,
               role: undefined,
               story_beat: undefined,
+              visual_anchor: undefined,
+              photo_observation: undefined,
+              image_relation: undefined,
+              factual_basis: undefined,
             })),
           }
           : v;
@@ -1179,6 +1193,9 @@ async function finalizeCarousel(
         const finalCandidate: any = tryParseAiJson(measured.content);
         const checked = await judge(finalCandidate);
         recordUsage(checked);
+        candidateStatus = checked.execution_status;
+        candidateVerdict = checked.verdict;
+        repairReason = checked.execution_status !== "completed" ? `review-${checked.execution_status}` : "candidate-not-acceptable-or-not-improved";
         if (
           checked.execution_status === "completed" &&
           checked.verdict === "acceptable" &&
@@ -1189,6 +1206,7 @@ async function finalizeCarousel(
         ) {
           doc = finalCandidate;
           receipt = checked;
+          repairReason = "accepted";
           doc.editorial_review = {
             ...baseline.editorial_review,
             status: "superseded_by_global_repair",
@@ -1196,16 +1214,18 @@ async function finalizeCarousel(
         }
       }
     } catch {
+      repairReason = "repair-failed";
       /* Preserve the original reviewed draft and its defects. */
     } finally {
       receipt.repair = { attempted: true, accepted: doc !== baseline,
-        trigger: minorContinuity ? "minor_continuity" : "needs_repair" };
+        trigger: minorContinuity ? "minor_continuity" : "needs_repair",
+        reason:repairReason,candidate_status:candidateStatus,candidate_verdict:candidateVerdict };
       for (
         const k of ["input_tokens", "output_tokens", "total_tokens"] as const
       ) opts.usage[k] = (opts.usage[k] || 0) + (sink[k] || 0);
     }
   }
-  doc.editorial_intent = body.editorial_intent ?? doc.editorial_intent;
+  doc.editorial_intent = doc.editorial_intent ?? body.editorial_intent;
   doc.progression_review = receipt;
   doc.generation_receipt = {
     writing_version: CAROUSEL_WRITING_VERSION,
@@ -1368,7 +1388,34 @@ async function handleSuggestAnglesRequest(reqCtx: CarouselRequestContext): Promi
 }
 
 // ── Mix carousel mode ──
+async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<Response | null> {
+  const usage: UsageSink = {};
+  let output;
+  try { output = await _deps.prepareNarrative({
+    body:ctx.body, brandingContext:ctx.brandingContext,
+    photoContext:buildPhotoContextRecap(ctx.body.photo_contexts || ctx.body.photos),
+    newsContext:typeof ctx.newsContext === "string" ? ctx.newsContext : "",
+    authoredText:ctx.currentAuthoredText, startedAt:ctx.startedAt, usage,
+    emitStatus:ctx.emitStatus, write:_deps.callCarouselWriter, review:_deps.reviewThread,
+  }); } catch(error) {
+    if(error instanceof NarrativePhotoMismatch) return carouselMismatchResponse(JSON.stringify({photo_mismatch:{reason:error.message}}),ctx.body,usage,ctx.body.carousel_type,ctx.corsHeaders);
+    throw error;
+  }
+  if (!output) return null;
+  const measured = await runRedacGate(JSON.stringify(output.doc), {
+    isLinkedIn:ctx.isLinkedIn,inputText:ctx.gateInputText,correction:{enabled:false},
+  });
+  const content = await finalizeCarousel(measured.content,ctx,{usage,repaired:output.repaired});
+  await _deps.logUsage(ctx.userId,ctx.category,`carousel_${ctx.body.carousel_type}`,usage.total_tokens,usage.model,ctx.workspaceId);
+  await logContentQuality(ctx.userId,`carousel_${ctx.body.carousel_type}`,measured,usage.model,ctx.workspaceId,ctx.body.subject);
+  return new Response(JSON.stringify({content,writing_version:CAROUSEL_WRITING_VERSION,
+    writer:{version:CAROUSEL_WRITER_VERSION,model:usage.model,effort:"medium"}}),
+    {headers:{...ctx.corsHeaders,"Content-Type":"application/json"}});
+}
+
 async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
+  const continuous = await continuousCarouselResponse(reqCtx);
+  if (continuous) return continuous;
   const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus, startedAt } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
@@ -1541,6 +1588,8 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
 
 // ── Photo carousel mode ──
 async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
+  const continuous = await continuousCarouselResponse(reqCtx);
+  if (continuous) return continuous;
   const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus, startedAt } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;

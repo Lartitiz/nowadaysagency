@@ -30,7 +30,7 @@ export interface ProgressionResult {
   report?: Record<string, any>;
   validation_details?: Record<string, unknown>;
   format_retry?: { attempted: boolean; initial_reason: string };
-  repair?: { attempted: true; accepted: boolean; trigger: "needs_repair" | "minor_continuity" };
+  repair?: { attempted: true; accepted: boolean; trigger: "needs_repair" | "minor_continuity"; reason?: string; candidate_status?: string; candidate_verdict?: string | null };
   reason?: string;
   usage?: UsageSink;
 }

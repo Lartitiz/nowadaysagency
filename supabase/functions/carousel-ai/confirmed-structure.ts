@@ -27,6 +27,11 @@ export function buildConfirmedStructureBlock(
       if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
       if (s.overlay_position) line += ` — Position du texte : ${s.overlay_position}`;
       line += ` — ${s.strategic_note}`;
+      if (s.contribution) line += `\n    → Apport : ${s.contribution}`;
+      if (s.inherits) line += `\n    → Reprend : ${s.inherits}`;
+      if (s.develops) line += `\n    → Fait avancer : ${s.develops}`;
+      if (s.source_ids?.length) line += `\n    → Références : ${s.source_ids.join(", ")}`;
+      if (s.image_role) line += `\n    → Fonction de l’image : ${s.image_role}`;
       if (withStoryBeat) {
         if (s.story_beat) line += `\n    → Raconte : ${s.story_beat}`;
         if (s.photo_observation) line += `\n    → Observation visuelle (analyse IA) : ${s.photo_observation}`;
@@ -65,4 +70,3 @@ ${rules.map((r) => `- ${r}`).join("\n")}
 
 `;
 }
-

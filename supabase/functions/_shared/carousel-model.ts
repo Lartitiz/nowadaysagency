@@ -111,8 +111,13 @@ export async function callCarouselWriter(options: CarouselWriterOptions, sink?: 
       body: JSON.stringify(writerRequest(options)),
     });
     if (!response.ok) {
-      await response.body?.cancel();
-      throw new AnthropicError(response.status === 429 ? "Le modèle est momentanément saturé. Réessaie dans un instant." : "Le modèle de rédaction est indisponible. Réessaie dans un instant.", response.status === 429 ? 429 : 502);
+      const failure = await response.json().catch(() => null);
+      const safeCode = (value: unknown) => typeof value === "string" && /^[a-zA-Z0-9_-]{1,80}$/.test(value) ? value : null;
+      const code = safeCode(failure?.error?.code), type = safeCode(failure?.error?.type);
+      const retry = response.headers.get("retry-after");
+      console.warn(JSON.stringify({event:"carousel_writer_failure",status:response.status,provider:openai?"openai":"anthropic",code,type,retry_after:retry && /^\d{1,6}$/.test(retry)?retry:null}));
+      const exhausted = type === "insufficient_quota" || code === "insufficient_quota" || code === "credit_balance_exhausted";
+      throw new AnthropicError(response.status === 429 ? (exhausted ? `Le budget du fournisseur de rédaction est épuisé. ${openai ? "Le mode Max est indisponible ; tu peux utiliser le mode standard." : "Le mode standard est indisponible."} Aucun crédit décompté.` : "Le fournisseur refuse momentanément la génération (limite 429). Réessaie plus tard. Aucun crédit décompté.") : "Le modèle de rédaction est indisponible. Réessaie dans un instant.", response.status === 429 ? 429 : 502);
     }
     const data = await response.json();
     // Opus 5.5 : l'outil n'est plus forcé. S'il répond sans l'appeler, on relance

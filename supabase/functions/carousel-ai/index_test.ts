@@ -15,6 +15,23 @@ import {
 import { AnthropicError } from "../_shared/anthropic.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
 import { handleRequest, _deps } from "./index.ts";
+import { createContinuousNarrative } from "./continuous-narrative.ts";
+
+Deno.test("prose continue : photos directes observées et refus photo conservé sans débit",async()=>{
+  resetDeps();_deps.prepareNarrative=createContinuousNarrative;
+  let debits=0;_deps.logUsage=(async()=>{debits++;}) as any;
+  _deps.callCarouselWriter=async(o)=>{
+    const blocks=o.messages[0].content as any[];
+    assert(blocks.some(b=>b.type==="image"&&b.source.data==="aGVsbG8="));
+    return JSON.stringify({photo_mismatch:{reason:"Le sujet promet un meuble absent des photos."}});
+  };
+  const oldFetch=globalThis.fetch;
+  globalThis.fetch=(()=>Promise.resolve(new Response("{}",{status:503}))) as typeof fetch;
+  try{
+    const response=await handleRequest(makeHooksRequest({type:"express_full",carousel_type:"photo",slide_count:4,scenario_origin:"automatic",photos:[{base64:"aGVsbG8="}],deepening_answers:{fait:"Mon meuble"}}));
+    assertEquals((await response.json()).error,"photo_mismatch");assertEquals(debits,0);
+  }finally{globalThis.fetch=oldFetch;resetDeps();}
+});
 
 // SUPABASE_URL / SERVICE_ROLE_KEY ne sont jamais lus (checkQuota/logUsage/runPipeline
 // sont TOUJOURS mockés via _deps dans ces tests), mais on pose des valeurs factices
@@ -211,6 +228,7 @@ function makeFakeSupabase(ownerId: string = TEST_USER_ID) {
 
 /** Réinitialise TOUS les champs de `_deps` avant chaque test (état de module partagé). */
 function resetDeps() {
+  _deps.prepareNarrative = async () => null;
   _deps.callCarouselWriter = ((options: any, sink: any) => _deps.callAnthropic(options, sink)) as any;
   // Juge du fil neutralisé par défaut (aucun réseau) ; les tests du fil le remplacent.
   _deps.reviewThread = (async (doc:any) => verdict(doc)) as any;
@@ -802,12 +820,16 @@ for (const variant of ["photo", "mix"]) for (const outcome of ["improved", "same
     assertEquals(reviews, outcome === "style-only" ? 1 : 2);
     assertEquals(doc.slides.map((s: any) => s.photo_index), [1, 2, 3]);
     assertEquals(doc.slides[1].overlay_text, outcome === "improved" ? "Ce geste à main levée rend chaque dessin unique, même quand les motifs se ressemblent." : draft.slides[1].overlay_text);
-    if (outcome !== "style-only") assertEquals(doc.progression_review.repair, { attempted: true, accepted: outcome === "improved", trigger: "minor_continuity" });
+    if (outcome !== "style-only") {
+      const {attempted,accepted,trigger,reason}=doc.progression_review.repair;
+      assertEquals({attempted,accepted,trigger}, { attempted: true, accepted: outcome === "improved", trigger: "minor_continuity" });
+      assertEquals(reason,outcome === "improved" ? "accepted" : outcome === "unavailable" ? "review-unavailable" : "candidate-not-acceptable-or-not-improved");
+    }
     else assertEquals(doc.progression_review.repair, undefined);
   } finally { globalThis.fetch = oldFetch; }
 });
 
-for (const variant of ["photo", "mix"]) for (const quality_max of [false, true]) Deno.test(`propos automatique remplaçable dans le vrai parcours ${variant} / Max=${quality_max}`, async () => {
+for (const variant of ["photo", "mix"]) for (const quality_max of [false, true]) Deno.test(`rédacteur historique : propos automatique remplaçable ${variant} / Max=${quality_max}`, async () => {
   resetDeps();
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
@@ -832,4 +854,31 @@ for (const variant of ["photo", "mix"]) for (const quality_max of [false, true])
     assertEquals(doc.slides.map((s:any)=>s.role),["argument","argument","argument"]);
     assertEquals(doc.slides.map((s:any)=>s.photo_index),[1,2,3]);
   } finally { globalThis.fetch = originalFetch; }
+});
+
+for(const carousel_type of ["photo","mix"])for(const quality_max of [false,true])Deno.test(`nouveau parcours complet : prose relue puis distribuée ${carousel_type}, Max=${quality_max}`,async()=>{
+  resetDeps();_deps.prepareNarrative=createContinuousNarrative;
+  const oldFetch=globalThis.fetch;
+  globalThis.fetch=(()=>Promise.resolve(new Response("{}",{status:503}))) as typeof fetch;
+  const paragraphs=["Un objet peut rester utile même quand une pièce s'use.","Si cette pièce peut être remplacée, l'objet retrouve son usage.","La possibilité de réparer devient donc un critère de choix dès l'achat."];
+  let writes=0,reviews=0;
+  _deps.callCarouselWriter=async(o,s)=>{
+    writes++;assertEquals(o.tool?.name,"ecrire_texte_suivi");
+    assertEquals(o.model,quality_max?"gpt-6-astra":"claude-opus-5-5");
+    assert(!JSON.stringify(o.messages).includes("Titre automatique à oublier"));
+    if(s)Object.assign(s,{model:o.model,total_tokens:10});
+    return JSON.stringify({idea:"Réparer prolonge l'usage",hook:"Choisir un objet qui peut rester",paragraphs,caption:{}});
+  };
+  _deps.reviewThread=async(doc)=>{reviews++;return verdict(doc);};
+  const plan=[1,2,3,4].map(i=>({slide_number:i,role:"description",title_suggestion:"Titre automatique à oublier",strategic_note:"Photo",photo_index:i,slide_type:"photo_full",contribution:"Relation transmise",inherits:"Point précédent",develops:"Conséquence",source_ids:["brand"],image_role:"Ambiance"}));
+  try{
+    const response=await handleRequest(makeHooksRequest({type:"express_full",carousel_type,quality_max,scenario_origin:"automatic",confirmed_structure:plan,photo_contexts:plan.map(()=>({context:"Objet réparable"})),subject:"Développer ce que permet la réparation",deepening_answers:{fait:"Les pièces peuvent être remplacées."}}));
+    assertEquals(response.status,200);const doc=JSON.parse((await response.json()).content);
+    assertEquals(writes,1);assertEquals(reviews,2);
+    assertEquals(doc.slides.slice(1).map((s:any)=>s.overlay_text),paragraphs);
+    assertEquals(doc.slides.map((s:any)=>s.photo_index),[1,2,3,4]);
+    assertEquals(doc.narrative_draft.version,"continuous-prose-v1");
+    assertEquals(doc.generation_receipt.writing_version,"fil-v9-continuous-prose");
+    assertEquals(doc.progression_review.verdict,"acceptable");
+  }finally{globalThis.fetch=oldFetch;resetDeps();}
 });
