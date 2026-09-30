@@ -19,7 +19,7 @@ Deno.test("real multipart construction sends source pixels and role-specific pre
       const pixels = paths.map(path => new Blob([`original bytes: ${path}`], { type: "image/png" }));
       globalThis.fetch = async (url, init) => {
         assertEquals(String(url).endsWith("/images/edits"), true);
-        const form = init!.body as FormData;
+        const form = (init as { body?: unknown })!.body as FormData;
         assertEquals(await Promise.all(form.getAll("image[]").map(part => (part as Blob).text())), paths.map(path => `original bytes: ${path}`));
         const prompt = String(form.get("prompt"));
         assertEquals(prompt.includes(PHOTO_PRESERVATION), true);
