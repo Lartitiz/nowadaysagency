@@ -1079,7 +1079,7 @@ Deno.test("scene preparation sees product for planning but sends only identity t
       f.setIntent({ operation: "create", visual_kind: "photo", summary: "Scène vue de haut, à 75°, sans assiette pour la valider d'abord.",
         scene_workflow: { phase: "scene", camera_match: "75° pour respecter la vue de l'assiette" },
         image_prompt: "Summer table, high angle at 75 degrees, clear space for a plate, no plate or text.",
-        reference_use: f.session.references.map((r: any) => ({ id: r.id, role: r.role })) });
+        reference_use: includePerson ? [{ id: person.id, role: "person" }] : [] });
       try {
         const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
           request_id: id(814), reference_ids: f.session.references.map((r: any) => r.id), message: "Prépare la scène avant mon produit" }));

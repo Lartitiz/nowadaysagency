@@ -830,6 +830,17 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             use.id === ref.id && requestReferenceIds.has(use.id)
           )?.role || ref.role,
         }));
+        // Planning-only products are often omitted by the interpreter because
+        // they must not appear in the scene. Keep the products explicitly attached
+        // to this request unless their role was explicitly reassigned.
+        if (intent.scene_workflow?.phase === "scene") {
+          for (const ref of requestReferences) {
+            const role = intent.reference_use.find(use => use.id === ref.id)?.role || ref.role;
+            if (role === "product" && !resolvedReferences.some(r => r.id === ref.id)) {
+              resolvedReferences.push({ ...ref, role: "product" });
+            }
+          }
+        }
         const explicitSource = resolvedReferences.find((ref) =>
           ref.id === intent.source_reference_id
         );
