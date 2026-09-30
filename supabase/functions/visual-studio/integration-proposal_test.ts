@@ -61,7 +61,7 @@ Deno.test("actual multipart payload transports base first and unmodified origina
   let bytes: string[] = [];
   globalThis.fetch = async (url, init) => {
     assertEquals(String(url), "https://api.openai.com/v1/images/edits");
-    const form = init!.body as FormData;
+    const form = (init as RequestInit).body as FormData;
     bytes = await Promise.all(form.getAll("image[]").map(part => (part as Blob).text()));
     assertEquals(String(form.get("prompt")).includes("Sources: Image 3"), true);
     return new Response(JSON.stringify({ data: [{ b64_json: btoa("output") }] }));
