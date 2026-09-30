@@ -529,6 +529,11 @@ export function useDoGenerate({
           // Quota tombé sur la proposition de structure : step est déjà "result"
           // → sans marquage, l'écran derrière le mur quota dirait « Session expirée ».
           markQuotaExhausted(e);
+        } else if (firstProductCarousel) {
+          // Sans plan fiable, le chemin direct peut réutiliser la même image.
+          // Garder les photos et permettre une nouvelle tentative sans débit.
+          toast.error("Impossible de répartir tes photos pour le moment. Vérifie-les puis réessaie.");
+          setStep("format");
         } else {
           toast.error("Erreur lors de la proposition de structure. Génération directe...");
           await generate({

@@ -437,6 +437,18 @@ describe("useDoGenerate — carrousels (structure, régénération, mix)", () =>
     });
   });
 
+  it("premier carrousel produit : une structure en échec ne lance pas de génération avec des photos répétées", async () => {
+    mocks.invokeWithTimeout.mockRejectedValue(new Error("structure indisponible"));
+    const params = makeParams({ firstProductCarousel: true, carouselSubMode: "photo", uploadedPhotos: [
+      { base64: "p1", context: "", mimeType: "image/jpeg" },
+      { base64: "p2", context: "", mimeType: "image/jpeg" },
+    ] });
+    await run(params);
+    expect(params.generate).not.toHaveBeenCalled();
+    expect(params.resultSetters.setStep).toHaveBeenCalledWith("format");
+    expect(mocks.toast.error).toHaveBeenCalledWith("Impossible de répartir tes photos pour le moment. Vérifie-les puis réessaie.");
+  });
+
   it("structure déjà confirmée → régénération directe avec la même structure et le snapshot photos", async () => {
     const confirmed = [{ slide_number: 1, role: "hook" }];
     const params = makeParams({
