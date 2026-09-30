@@ -434,8 +434,9 @@ export function useGenerateVisuals({
             return html === s.html ? s : { ...s, html };
           })
         : normalizedSlides;
-      setVisualSlides(rehydratedSlides.map((visual, i) => rawSlides[i]?.editor_locked && visualSlides[i] ? visualSlides[i] : visual));
-      const fidelityWarnings = carouselCompositionWarnings(carouselSubMode === "pure_photo" ? slidesSource : rawSlides, rehydratedSlides, carouselSubMode === "pure_photo");
+      const committedSlides = rehydratedSlides.map((visual, i) => rawSlides[i]?.editor_locked && visualSlides[i] ? visualSlides[i] : visual);
+      setVisualSlides(committedSlides);
+      const fidelityWarnings = carouselCompositionWarnings(carouselSubMode === "pure_photo" ? slidesSource : rawSlides, committedSlides, carouselSubMode === "pure_photo");
       setVisualsAutoError(fidelityWarnings.length ? fidelityWarnings.join(" ") : null);
       if (fidelityWarnings.length) {
         if (!opts?.background) toast.warning("Le rendu doit être vérifié : certains textes ne sont pas conservés intégralement.");

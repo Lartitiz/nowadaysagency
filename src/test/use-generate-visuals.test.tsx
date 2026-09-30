@@ -161,6 +161,8 @@ describe("useGenerateVisuals — appel manuel (avant-plan)", () => {
     const {result}=renderHook(()=>useGenerateVisuals(params));
     await act(()=>result.current.handleGenerateVisuals());
     expect(params.setVisualSlides).toHaveBeenCalledWith([{slide_number:1,html:"<div>Design verrouillé</div>"},{slide_number:2,html:"<div>T2 B2</div>"}]);
+    expect(params.setVisualsAutoError).toHaveBeenCalledWith(expect.stringContaining("texte manque"));
+    expect(mocks.toast.success).not.toHaveBeenCalled();
     expect(confirm).toHaveBeenCalled();confirm.mockRestore();
   });
   it("ne facture ni ne remplace les retouches quand la régénération est annulée", async () => {
