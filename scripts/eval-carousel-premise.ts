@@ -1,6 +1,6 @@
 // Opt-in semantic regression: exercises the production final judge on fixed,
 // synthetic cases. No database, saved drafts, UI actions or image upload.
-// Deno run --no-config --no-lock --node-modules-dir=none --allow-env --allow-read 
+// Deno run --no-config --no-lock --node-modules-dir=none --allow-env --allow-read
 //   --allow-net=api.anthropic.com scripts/eval-carousel-premise.ts --run
 import { reviewCarouselProgression } from "../supabase/functions/_shared/carousel-progression.ts";
 const fixtures = JSON.parse(await Deno.readTextFile(new URL("./fixtures/carousel-premise.json", import.meta.url)));
@@ -20,8 +20,8 @@ globalThis.fetch = (async (url:any, init?:RequestInit) => {
 let failures = 0;
 try {
   for (const fixture of fixtures) {
-    const result = await reviewCarouselProgression(fixture.doc,{sources:[{id:"request",provenance:"user",text:fixture.source}],abortTimeoutMs:60000});
-    const pass = result.execution_status === "completed" && result.verdict === fixture.expected;
+    const result = await reviewCarouselProgression(fixture.doc,{sources:fixture.sources ?? [{id:"request",provenance:"user",text:fixture.source}],abortTimeoutMs:60000});
+    const pass = result.execution_status === "completed" && result.verdict === fixture.expected && (!fixture.expected_trajectory || result.report?.trajectory?.kind === fixture.expected_trajectory);
     if (!pass) failures++;
     console.log(JSON.stringify({id:fixture.id,expected:fixture.expected,pass,result}));
   }

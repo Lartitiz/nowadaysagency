@@ -1,47 +1,137 @@
 [
   {
-    "id":"photo-catalogue-with-smooth-links",
-    "expected":"needs_repair",
-    "source":"Présenter ma pratique de céramiste dans un carrousel qui développe un propos. Je décore mes pièces à main levée ; un même motif est redessiné sur chaque objet. Les pièces sont destinées au quotidien. Les photos montrent des objets distincts.",
-    "doc":{"slides":[
-      {"overlay_text":"Mes céramiques, de l’atelier au quotidien","slide_type":"photo_full","photo_index":1},
-      {"overlay_text":"Dans l’atelier, ce bol blanc permet de regarder la forme seule. Je peins ensuite les décors à main levée.","slide_type":"photo_full","photo_index":2},
-      {"overlay_text":"Voici une autre pièce, cette fois décorée : de grandes fleurs orange occupent le creux de l’assiette.","slide_type":"photo_full","photo_index":3},
-      {"overlay_text":"D’une assiette à l’autre, les fleurs laissent place aux oiseaux bleus. Le décor change, mais on retrouve la nature.","slide_type":"photo_full","photo_index":4},
-      {"overlay_text":"Cette nature se retrouve aussi sur les bols, avec des cerises rouges. Plusieurs pièces sont réunies en pile.","slide_type":"photo_full","photo_index":5},
-      {"overlay_text":"De la table à l’étagère, les décors trouvent d’autres places : ici, une fleur blanche sur un petit pot rose.","slide_type":"photo_full","photo_index":6}
-    ]}
+    "id": "photo-catalogue-with-smooth-links",
+    "expected": "needs_repair",
+    "doc": {
+      "slides": [
+        {
+          "overlay_text": "Mes céramiques, de l’atelier au quotidien",
+          "slide_type": "photo_full",
+          "photo_index": 1
+        },
+        {
+          "overlay_text": "Dans l’atelier, ce bol blanc permet de regarder la forme seule. Je peins ensuite les décors à main levée.",
+          "slide_type": "photo_full",
+          "photo_index": 2
+        },
+        {
+          "overlay_text": "Voici une autre pièce, cette fois décorée : de grandes fleurs orange occupent le creux de l’assiette.",
+          "slide_type": "photo_full",
+          "photo_index": 3
+        },
+        {
+          "overlay_text": "D’une assiette à l’autre, les fleurs laissent place aux oiseaux bleus. Le décor change, mais on retrouve la nature.",
+          "slide_type": "photo_full",
+          "photo_index": 4
+        },
+        {
+          "overlay_text": "Cette nature se retrouve aussi sur les bols, avec des cerises rouges. Plusieurs pièces sont réunies en pile.",
+          "slide_type": "photo_full",
+          "photo_index": 5
+        },
+        {
+          "overlay_text": "De la table à l’étagère, les décors trouvent d’autres places : ici, une fleur blanche sur un petit pot rose.",
+          "slide_type": "photo_full",
+          "photo_index": 6
+        }
+      ]
+    },
+    "sources": [
+      {
+        "id": "brand",
+        "provenance": "brand_context",
+        "text": "Cette céramiste décore ses pièces à main levée. Un même motif est redessiné sur chaque objet. Les pièces sont destinées au quotidien."
+      },
+      {
+        "id": "photos",
+        "provenance": "visual_observation",
+        "text": "Les photos montrent des objets distincts : un bol blanc sans décor à l’atelier ; une assiette avec de grandes fleurs orange ; une autre avec des oiseaux bleus ; une pile de bols à cerises rouges ; un pot rose à fleur blanche sur une étagère. Ce ne sont pas les étapes de fabrication d’un seul objet."
+      }
+    ],
+    "expected_trajectory": "descriptive_catalogue"
   },
   {
-    "id":"mixed-developed-proposition",
-    "expected":"acceptable",
-    "source":"Présenter ma pratique de céramiste. Je décore à main levée, chaque tracé varie. Je reprends souvent le même motif sur plusieurs pièces ; les couleurs et motifs permettent de les associer. Ne pas inventer de tradition familiale ou de jugement sur les objets industriels.",
-    "doc":{"slides":[
-      {"overlay_text":"Peut-on refaire un motif sans refaire exactement le même dessin ?","slide_type":"photo_full","photo_index":1},
-      {"title":"Le motif revient, le trait varie","body":"Je reprends le même motif sur plusieurs pièces. Mais je le dessine à main levée : d’un objet à l’autre, chaque tracé varie. Le sujet du dessin reste commun, son exécution change.","slide_type":"text_only"},
-      {"overlay_text":"C’est cette différence qui permet de regarder les pièces ensemble sans les confondre. Les couleurs et les motifs les rapprochent ; les variations du trait permettent de les distinguer.","slide_type":"photo_full","photo_index":2},
-      {"title":"Composer avec ces variations","body":"Associer ces pièces revient donc à chercher ce qu’elles ont en commun tout en gardant leurs différences. Refaire un motif peut produire un ensemble cohérent sans produire des dessins identiques.","slide_type":"text_only"}
-    ]}
+    "id": "mixed-developed-proposition",
+    "expected": "acceptable",
+    "source": "Présenter ma pratique de céramiste. Je décore à main levée, chaque tracé varie. Je reprends souvent le même motif sur plusieurs pièces ; les couleurs et motifs permettent de les associer. Ne pas inventer de tradition familiale ou de jugement sur les objets industriels.",
+    "doc": {
+      "slides": [
+        {
+          "overlay_text": "Peut-on refaire un motif sans refaire exactement le même dessin ?",
+          "slide_type": "photo_full",
+          "photo_index": 1
+        },
+        {
+          "title": "Le motif revient, le trait varie",
+          "body": "Je reprends le même motif sur plusieurs pièces. Mais je le dessine à main levée : d’un objet à l’autre, chaque tracé varie. Le sujet du dessin reste commun, son exécution change.",
+          "slide_type": "text_only"
+        },
+        {
+          "overlay_text": "C’est cette différence qui permet de regarder les pièces ensemble sans les confondre. Les couleurs et les motifs les rapprochent ; les variations du trait permettent de les distinguer.",
+          "slide_type": "photo_full",
+          "photo_index": 2
+        },
+        {
+          "title": "Composer avec ces variations",
+          "body": "Associer ces pièces revient donc à chercher ce qu’elles ont en commun tout en gardant leurs différences. Refaire un motif peut produire un ensemble cohérent sans produire des dessins identiques.",
+          "slide_type": "text_only"
+        }
+      ]
+    },
+    "expected_trajectory": "developed_idea"
   },
   {
-    "id":"explicit-catalogue-is-allowed",
-    "expected":"acceptable",
-    "source":"Je veux un catalogue simple de ces trois pièces, une description par slide, sans histoire ni argumentation. Première pièce : bol blanc à cerises rouges. Deuxième : assiette blanche à oiseaux bleus. Troisième : petit pot rose à fleur blanche. Ne pas ajouter de prix ni de disponibilité.",
-    "doc":{"slides":[
-      {"title":"Trois pièces et leurs décors","body":"Un bol, une assiette et un petit pot.","slide_type":"text_only"},
-      {"overlay_text":"Un bol blanc à cerises rouges.","slide_type":"photo_full","photo_index":1},
-      {"overlay_text":"Une assiette blanche à oiseaux bleus.","slide_type":"photo_full","photo_index":2},
-      {"overlay_text":"Un petit pot rose à fleur blanche.","slide_type":"photo_full","photo_index":3}
-    ]}
+    "id": "explicit-catalogue-is-allowed",
+    "expected": "acceptable",
+    "source": "Je veux un catalogue simple de ces trois pièces, une description par slide, sans histoire ni argumentation. Première pièce : bol blanc à cerises rouges. Deuxième : assiette blanche à oiseaux bleus. Troisième : petit pot rose à fleur blanche. Ne pas ajouter de prix ni de disponibilité.",
+    "doc": {
+      "slides": [
+        {
+          "title": "Trois pièces et leurs décors",
+          "body": "Un bol, une assiette et un petit pot.",
+          "slide_type": "text_only"
+        },
+        {
+          "overlay_text": "Un bol blanc à cerises rouges.",
+          "slide_type": "photo_full",
+          "photo_index": 1
+        },
+        {
+          "overlay_text": "Une assiette blanche à oiseaux bleus.",
+          "slide_type": "photo_full",
+          "photo_index": 2
+        },
+        {
+          "overlay_text": "Un petit pot rose à fleur blanche.",
+          "slide_type": "photo_full",
+          "photo_index": 3
+        }
+      ]
+    },
+    "expected_trajectory": "requested_series"
   },
   {
-    "id":"unsupported-personal-belief-is-rejected",
-    "expected":"needs_repair",
-    "source":"La seule information disponible est que je décore à main levée. Aucune opinion sur l’industrie, origine familiale ou pratique de ma grand-mère n’a été fournie.",
-    "doc":{"slides":[
-      {"title":"Pourquoi je refuse les objets industriels","body":"Depuis toujours, je refuse d’en avoir chez moi.","slide_type":"text_only"},
-      {"title":"Un héritage familial","body":"Ma grand-mère m’a appris à décorer chaque pièce à main levée.","slide_type":"text_only"},
-      {"title":"Continuer son combat","body":"Aujourd’hui, chacune de mes pièces prolonge son refus de l’industrie.","slide_type":"text_only"}
-    ]}
+    "id": "unsupported-personal-belief-is-rejected",
+    "expected": "needs_repair",
+    "source": "La seule information disponible est que je décore à main levée. Aucune opinion sur l’industrie, origine familiale ou pratique de ma grand-mère n’a été fournie.",
+    "doc": {
+      "slides": [
+        {
+          "title": "Pourquoi je refuse les objets industriels",
+          "body": "Depuis toujours, je refuse d’en avoir chez moi.",
+          "slide_type": "text_only"
+        },
+        {
+          "title": "Un héritage familial",
+          "body": "Ma grand-mère m’a appris à décorer chaque pièce à main levée.",
+          "slide_type": "text_only"
+        },
+        {
+          "title": "Continuer son combat",
+          "body": "Aujourd’hui, chacune de mes pièces prolonge son refus de l’industrie.",
+          "slide_type": "text_only"
+        }
+      ]
+    }
   }
 ]
