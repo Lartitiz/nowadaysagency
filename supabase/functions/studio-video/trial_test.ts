@@ -22,7 +22,7 @@ Deno.test("cohort lane ceilings only ever lower, never raise", async () => {
   assert(ceilingUsd("cohort") === 5 && maxQuoteUsd("cohort") === 5, "env lowers");
   Deno.env.delete("HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD");
   assert(ceilingUsd("cohort") === 0 && ceilingUsd(null) === 0, "off without env");
-  assert(COHORT_WORKSPACE_MAX_SUBMISSIONS >= 2, "2 videos per participant fit");
+  assert(COHORT_WORKSPACE_MAX_SUBMISSIONS === 2, "2 videos max per participant");
 });
 Deno.test("cohort lane ceilings only ever lower, never raise", async () => {
   const { ceilingUsd, maxQuoteUsd, COHORT_TOTAL_LIMIT_USD, COHORT_WORKSPACE_LIMIT_USD, COHORT_WORKSPACE_MAX_SUBMISSIONS } = await import("./index.ts");
@@ -33,5 +33,5 @@ Deno.test("cohort lane ceilings only ever lower, never raise", async () => {
   assert(ceilingUsd("cohort") === 5 && maxQuoteUsd("cohort") === 5, "env lowers");
   Deno.env.delete("HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD");
   assert(ceilingUsd("cohort") === 0 && ceilingUsd(null) === 0, "off without env");
-  assert(COHORT_WORKSPACE_MAX_SUBMISSIONS >= 2, "2 videos per participant fit");
+  assert(COHORT_WORKSPACE_MAX_SUBMISSIONS === 2, "2 videos max per participant");
 });
