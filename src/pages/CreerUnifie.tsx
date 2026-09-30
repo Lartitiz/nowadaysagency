@@ -1,3 +1,4 @@
+import { invalidateProgressionReceipt } from "../../supabase/functions/_shared/carousel-editorial-snapshot";
 import { pinterestCurrentText } from "@/lib/pinterest-current-text";
 import { prepareIdeaPhotos } from "@/features/creer/prepare-idea-photos";
 import { isDurableReelUrl, reelSourceKey } from "@/lib/reel-publication";
@@ -656,6 +657,7 @@ function CreerWorkspace() {
     streamStage,
     streamReset,
   } = useContentGenerator();
+  const currentStructureWarnings = useMemo(() => invalidateProgressionReceipt(result?.raw || {}).structure_warnings || [], [result?.raw]);
 
   const carouselCloudEnabled = workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive && step === "result" && selectedFormat === "carousel" && !!result?.raw?.carousel_editor_version;
   const carouselSave = useCarouselAutosave({
@@ -1595,6 +1597,8 @@ function CreerWorkspace() {
       channel: isLinkedInCarousel ? "linkedin" : undefined,
       slideCount: slideCountChoice,
       confirmedStructure: confirmedSlides,
+      scenarioOrigin: proposalOverride ? "automatic" : "user_validated",
+      editorialIntent: (proposalOverride ?? structureProposal)?.editorial_intent,
       ...(narrativeThread ? { narrativeThread } : {}),
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: photosForText.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "mix"
@@ -2784,10 +2788,10 @@ function CreerWorkspace() {
             );
           })()}
 
-            {step === "result" && result?.raw?.structure_warnings?.length > 0 && !generating && (
+            {step === "result" && currentStructureWarnings.length > 0 && !generating && (
               <div role="alert" className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-foreground">
                 <p className="font-medium">Ce carrousel est à compléter avant de le publier.</p>
-                <ul className="mt-2 list-disc pl-5">{result.raw.structure_warnings.map((message: string, i: number) => <li key={i}>{message}</li>)}</ul>
+                <ul className="mt-2 list-disc pl-5">{currentStructureWarnings.map((message: string, i: number) => <li key={i}>{message}</li>)}</ul>
               </div>
             )}
 

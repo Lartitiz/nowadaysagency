@@ -8,6 +8,8 @@
 // (le premier arrivé gagne), on re-sérialise. En cas de doute (JSON illisible,
 // pas de slides), on rend le contenu intact.
 
+import { carouselEditorialFields } from "./carousel-editorial-review.ts";
+
 export function limitVisualSchemas(content: string): { content: string; stripped: number } {
   try {
     const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -25,6 +27,13 @@ export function limitVisualSchemas(content: string): { content: string; stripped
         continue;
       }
       if (kept >= 2 || prevHadSchema) {
+        // A layout preference cannot erase a quote, value or relationship.
+        // Meaningful schemas remain available to the final progression judge.
+        if (carouselEditorialFields({slides:[{visual_schema:s.visual_schema}]}).length) {
+          kept++;
+          prevHadSchema = true;
+          continue;
+        }
         s.visual_schema = null;
         stripped++;
         prevHadSchema = false;

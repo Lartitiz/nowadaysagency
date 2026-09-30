@@ -66,6 +66,8 @@ export interface GenerateParams {
   }>;
   // Récit transmis du pass structure vers le pass d'écriture (carrousel uniquement)
   narrativeThread?: string;
+  editorialIntent?: {mode:string;idea:string;reader_takeaway:string;basis_source_ids:string[];inferred:boolean};
+  scenarioOrigin?: "automatic" | "user_validated" | "user_authored";
   // Newsjacking — separate field to avoid bloating `subject`
   newsContext?: string;
   // Régime « texte d'abord » (carrousel mixte sans photos) : l'edge rend des
@@ -470,6 +472,8 @@ export function useContentGenerator() {
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
               slide_structure: params.slideStructure || null,
               confirmed_structure: params.confirmedStructure || null,
+              ...(params.editorialIntent ? {editorial_intent:params.editorialIntent} : {}),
+              scenario_origin: params.scenarioOrigin || (params.confirmedStructure ? "user_validated" : "automatic"),
               quality_max: params.qualityMax || undefined,
               ...(params.narrativeThread && params.narrativeThread.trim() ? { narrative_thread: params.narrativeThread } : {}),
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),

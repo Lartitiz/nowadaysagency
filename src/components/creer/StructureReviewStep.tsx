@@ -27,6 +27,7 @@ export interface StructureProposal {
   total_slides: number;
   carousel_type?: string;
   narrative_thread?: string;
+  editorial_intent?: {mode:string;idea:string;reader_takeaway:string;basis_source_ids:string[];inferred:boolean};
 }
 
 export interface PhotoItem {

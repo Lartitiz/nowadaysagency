@@ -1,12 +1,15 @@
+import { COMMON, PLAN, REPAIR } from "../_shared/carousel-editorial-contract.ts";
+import { reviewCarouselProgression, progressionReceipt, progressionWarnings, type ProgressionSource, type ProgressionResult } from "../_shared/carousel-progression.ts";
+import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts";
 import { PHOTO_NARRATIVE_CONTRACT, PHOTO_QUESTIONS_CONTRACT } from "./photo-narrative.ts";
 import { carouselLength, carouselLengthPrompt, carouselStructureIssues } from "../_shared/carousel-length.ts";
-import { reviewCarouselThread, threadRepairInstruction, threadReviewSkipped, preservesCarouselScenario } from "../_shared/carousel-thread.ts";
+import { preservesCarouselScenario } from "../_shared/carousel-thread.ts";
 import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, NEWS_WRITING } from "./variant-writing.ts";
 import { callCarouselWriter, pickCarouselWriter, CAROUSEL_WRITER_VERSION } from "./writer.ts";
 import { authoredContentSource, currentContentContract } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock, buildBrandGuardText } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock, buildBrandGuardText } from "../_shared/user-context.ts";
 import { checkQuota, isQaTestAccount, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction, SONNET_MODEL, AnthropicError, type UsageSink, type AnthropicModel, type AnthropicOptions } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -15,7 +18,7 @@ import { buildCarouselWritingSystem, CAROUSEL_SUBSTANCE, CAROUSEL_CONTINUITY, CA
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
 import { carouselNeedsPolish } from "../_shared/correction-pass.ts";
-import { runRedacGate, applyGuardedCarouselCorrection, type CaptionEndingRule } from "../_shared/redac-gate.ts";
+import { runRedacGate, applyGuardedCarouselCorrection, analyzeCarouselRedac, numbersIn, type CaptionEndingRule } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
@@ -40,7 +43,7 @@ export const _deps = {
   logUsage,
   callAnthropic,
   callCarouselWriter,
-  reviewThread: reviewCarouselThread,
+  reviewThread: reviewCarouselProgression,
 };
 
 // ── Sortie structurée pour les deepening_questions ──
@@ -385,6 +388,8 @@ const PHOTO_CAROUSEL_TOOL = {
 // proposition de structure » + repli sur une génération directe qui re-refuse,
 // en payant un appel de plus. Champs alignés sur le JSON demandé par
 // structureSystemPrompt.
+const EDITORIAL_INTENT_FIELD = {type:"object",required:["mode","idea","reader_takeaway","basis_source_ids","inferred"],properties:{mode:{type:"string",enum:["recit","explication","argumentation","reflexion","comparaison","liste","serie_visuelle"]},idea:{type:"string"},reader_takeaway:{type:"string"},basis_source_ids:{type:"array",items:{type:"string"}},inferred:{type:"boolean"}}};
+
 const STRUCTURE_PROPOSAL_TOOL = {
   name: "livrer_structure_carrousel",
   description:
@@ -393,6 +398,7 @@ const STRUCTURE_PROPOSAL_TOOL = {
     type: "object",
     properties: {
       photo_mismatch: PHOTO_MISMATCH_FIELD,
+      editorial_intent: EDITORIAL_INTENT_FIELD,
       strategic_rationale: { type: "string" },
       narrative_thread: { type: "string" },
       slides: {
@@ -404,6 +410,7 @@ const STRUCTURE_PROPOSAL_TOOL = {
             role: { type: "string" },
             title_suggestion: { type: "string" },
             strategic_note: { type: "string" },
+            contribution: {type:"string"}, inherits:{type:"string"}, develops:{type:"string"}, image_role:{type:"string"}, source_ids:{type:"array",items:{type:"string"}},
             story_beat: { type: "string" },
             photo_observation: { type: "string", description: "Observation visuelle littérale, sans fabrication, intention ni usage supposé ; ambiguïtés comprises." },
             image_relation: { type: "string", description: "Rôle de la photo : preuve visible, illustration, ambiance ou écho. Le texte peut raconter des faits de marque non visibles." },
@@ -599,6 +606,8 @@ export async function handleRequest(req: Request): Promise<Response> {
         overlay_position: z.enum(["top_left", "top_center", "bottom_left", "bottom_center", "center"]).optional(),
       })).optional().nullable(),
       narrative_thread: z.string().max(1000).optional().nullable(),
+      scenario_origin: z.enum(["automatic","user_validated","user_authored"]).optional(),
+      editorial_intent: z.object({mode:z.string().max(40),idea:z.string().max(2000),reader_takeaway:z.string().max(2000),basis_source_ids:z.array(z.string().max(80)).max(20),inferred:z.boolean()}).optional(),
       recent_briefs_context: z.string().max(6000).optional().nullable(),
       news_context: z.string().max(4000).optional().nullable(),
       // Régime « texte d'abord » (lot 1 casting) : rédaction sans photos, directives
@@ -674,19 +683,10 @@ export async function handleRequest(req: Request): Promise<Response> {
       currentAuthoredText, typeof body.news_context === "string" ? body.news_context : ""].filter(Boolean).join("\n");
     const semanticReviewEnabled = Deno.env.get("CAROUSEL_SEMANTIC_REVIEW") !== "false";
 
-    // Fallback: inject branding as deepening_answers if none provided
-    if (!body.deepening_answers && (type === "express_full" || type === "slides" || type === "hooks")) {
-      const fallback = buildPreGenFallback(ctx);
-      if (fallback) {
-        body.deepening_answers = {
-          anecdote: fallback.anecdote ? `${fallback.anecdote} (élément tiré du branding)` : undefined,
-          emotion: fallback.emotion ? `${fallback.emotion} (élément tiré du branding)` : undefined,
-          conviction: fallback.conviction ? `${fallback.conviction} (élément tiré du branding)` : undefined,
-        };
-      }
-    }
+    // Brand context remains reference data; never turn tone into an invented emotion or conviction.
 
     let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn, ctx.profile);
+    if (body.editorial_intent) systemPrompt += "\nINTENTION DU PLAN AUTOMATIQUE (proposition à confronter aux sources) :\n" + JSON.stringify(body.editorial_intent);
 
     // Recherche « creuser le sujet » (lot D-bis, audit qualité 11-12/07) : quand la
     // génération part SANS matière utilisatrice ni actu, on va chercher ce qu'il y a
@@ -939,67 +939,249 @@ async function handleAssignTemplatesRequest(body: any, corsHeaders: Record<strin
 // (chemins vision : renvoyer les photos coûterait un 2e appel plein tarif), on
 // mesure et on avertit seulement — les défauts restent visibles dans
 // structure_warnings. Une réparation n'est gardée que si elle fait mieux.
-async function repairCarouselThread(content: string, opts: {
+async function repairCarouselStructure(content: string, opts: {
   body: any;
   label: string;
   emitStatus: StatusEmitter;
   usage: UsageSink;
-  inspect?: (content: string) => string[];
-  regenerate?: (draft: string, defects: string, sink: UsageSink) => Promise<string>;
-  judgeThread?: boolean;
   startedAt: number;
-}): Promise<{ content: string; warnings: string[]; threadWarnings: string[] }> {
-  const { body, label, emitStatus, usage } = opts;
-  const inspect = opts.inspect || ((value: string): string[] => {
-    const exact = carouselLength(body).exact;
-    const count = countCarouselSlides(value);
-    return exact && count > 0 && count !== exact ? [`${count} slides reçues, exactement ${exact} demandées.`] : [];
-  });
-  const length = carouselLength(body);
-  const fixedScenario = !!(body.confirmed_structure?.length || body.slide_structure?.length);
-  const judge = async (value: string): Promise<string[]> => {
-    if (opts.judgeThread === false) return [];
-    const doc = tryParseAiJson<any>(value, "carousel-ai:thread");
-    if (threadReviewSkipped(doc, body)) return [];
-    return _deps.reviewThread(doc, { sourceContext: JSON.stringify({ subject: body.subject, objective: body.objective, answers: body.deepening_answers, narrative_thread: body.narrative_thread, plan: body.confirmed_structure, photo_contexts: body.photo_contexts }), preserveStructure: fixedScenario, listPromised: !!length.items, logger: (m: string) => console.log(m) });
-  };
-  let issues = inspect(content);
-  let thread = await judge(content);
-  const repairAllowed = Date.now() - opts.startedAt <= REPAIR_START_LIMIT_MS;
-  if ((issues.length || thread.length) && opts.regenerate && !repairAllowed) {
-    console.log(JSON.stringify({ type: "carousel_time_budget", skipped: "repair", label, elapsed_ms: Date.now() - opts.startedAt }));
+  inspect?: (content: string) => string[];
+  regenerate?: (
+    draft: string,
+    defects: string,
+    sink: UsageSink,
+  ) => Promise<string>;
+}): Promise<{ content: string; repaired: boolean }> {
+  const inspect = opts.inspect ||
+    ((value: string) =>
+      carouselStructureIssues(tryParseAiJson(value), opts.body));
+  const issues = inspect(content);
+  if (
+    !issues.length || !opts.regenerate ||
+    Date.now() - opts.startedAt > REPAIR_START_LIMIT_MS
+  ) return { content, repaired: false };
+  const sink: UsageSink = {};
+  try {
+    opts.emitStatus("correcting");
+    const candidate = await opts.regenerate(
+      content,
+      "DÉFAUTS STRUCTURELS :\n" + issues.join("\n") +
+        "\nCorrige le nombre demandé sans inventer de faits ni changer les choix validés.",
+      sink,
+    );
+    const parsed = tryParseAiJson<any>(candidate);
+    const plan = opts.body.confirmed_structure || opts.body.slide_structure;
+    const matchesPlan = !plan?.length ||
+      (parsed?.slides?.length === plan.length &&
+        plan.every((ref: any, i: number) =>
+          [
+            "photo_index",
+            "slide_type",
+            ...(opts.body.scenario_origin === "automatic" ? [] : ["role"]),
+          ].every((key) =>
+            ref[key] == null || parsed.slides[i]?.[key] === ref[key]
+          )
+        ));
+    if (
+      countCarouselSlides(candidate) > 0 && matchesPlan &&
+      !inspect(candidate).length
+    ) return { content: candidate, repaired: true };
+  } catch {
+    /* The original recoverable draft remains available. */
+  } finally {
+    for (
+      const key of ["input_tokens", "output_tokens", "total_tokens"] as const
+    ) opts.usage[key] = (opts.usage[key] || 0) + (sink[key] || 0);
   }
-  if ((issues.length || thread.length) && opts.regenerate && repairAllowed) {
-    emitStatus("correcting");
-    const repairSink: UsageSink = {};
-    const defects = [
-      issues.length ? `DÉFAUTS STRUCTURELS :\n${issues.join("\n")}\nCorrige ces défauts et renvoie le JSON complet. Préserve les faits, la voix et les formulations déjà relues. Aucun fait nouveau ni suppression d'un élément promis.` : "",
-      threadRepairInstruction(thread, length.exact, fixedScenario),
-    ].filter(Boolean).join("\n\n");
-    try {
-      const repaired = await opts.regenerate(content, defects, repairSink);
-      const remaining = inspect(repaired);
-      const remainingThread = thread.length ? await judge(repaired) : [];
-      const accepted = (!fixedScenario || preservesCarouselScenario(tryParseAiJson(content), tryParseAiJson(repaired))) && countCarouselSlides(repaired) > 0 && remaining.length === 0 && (thread.length === 0 || remainingThread.length < thread.length);
-      console.log(JSON.stringify({ type: "carousel_thread_repair", label, before: { structure: issues.length, thread: thread.length }, after: { structure: remaining.length, thread: remainingThread.length }, accepted }));
-      if (accepted) { content = repaired; issues = remaining; thread = remainingThread; }
-    } catch (e) { console.error(`carousel-ai(${label}): réparation échouée, brouillon conservé`, e); }
-    finally {
-      for (const key of ["input_tokens", "output_tokens", "total_tokens"] as const) usage[key] = (usage[key] || 0) + (repairSink[key] || 0);
-    }
-  } else if (thread.length) {
-    console.log(JSON.stringify({ type: "carousel_thread_warning_only", label, thread: thread.length }));
-  }
-  return { content, warnings: [...issues, ...thread], threadWarnings: thread };
+  return { content, repaired: true }; // One attempted repair consumes the shared repair budget.
 }
 
-// Même affichage que le texte (bandeau « à compléter avant de publier ») pour
-// les chemins mix et photo, sans toucher au JSON quand il n'y a rien à signaler.
-function withStructureWarnings(content: string, warnings: string[]): string {
-  if (!warnings.length) return content;
-  const parsed: any = tryParseAiJson(content, "carousel-ai:thread-warnings");
-  if (!parsed?.slides) return content;
-  return JSON.stringify({ ...parsed, structure_warnings: warnings });
+async function finalizeCarousel(
+  content: string,
+  ctx: CarouselRequestContext,
+  opts: {
+    usage: UsageSink;
+    repaired?: boolean;
+    regenerate?: (
+      draft: string,
+      defects: string,
+      sink: UsageSink,
+    ) => Promise<string>;
+  },
+): Promise<string> {
+  let doc: any = tryParseAiJson(content, "carousel-ai:final-progression");
+  if (!doc?.slides?.length) return content;
+  const { body, startedAt } = ctx;
+  const sources: ProgressionSource[] = [
+    {
+      id: "request",
+      provenance: "user",
+      text: [
+        body.subject,
+        body.subject_details,
+        body.photo_description,
+        ctx.currentAuthoredText,
+      ].filter(Boolean).join("\n"),
+    },
+    { id: "brand", provenance: "brand_context", text: ctx.brandingContext },
+    {
+      id: "photo_context",
+      provenance: "user_context_and_separate_library_inferences",
+      text: buildPhotoContextRecap(body.photo_contexts || body.photos),
+    },
+    {
+      id: "photo_observations",
+      provenance:
+        "visual_observation_inferred_by_planner_not_verified_identity_or_history",
+      text: JSON.stringify(
+        (body.confirmed_structure || []).map((s: any) => ({
+          photo: s.photo_index,
+          observation: s.photo_observation,
+        })),
+      ),
+    },
+    {
+      id: "news",
+      provenance: "provided_reference",
+      text: typeof ctx.newsContext === "string" ? ctx.newsContext : "",
+    },
+  ].filter((s) => s.text.trim());
+  const judge = async (value: any): Promise<ProgressionResult> =>
+    Date.now() - startedAt > 270_000
+      ? progressionReceipt(value, "skipped", "time-budget")
+      : _deps.reviewThread(value, {
+        sources,
+        sourceContext: JSON.stringify(sources),
+        preserveStructure: true,
+      });
+  const ownsText = body.type === "slides" || body.user_slides?.length;
+  let receipt = ownsText
+    ? await progressionReceipt(doc, "skipped", "user-authored")
+    : await judge(doc);
+  const recordUsage = (r: ProgressionResult) => {
+    for (
+      const k of ["input_tokens", "output_tokens", "total_tokens"] as const
+    ) opts.usage[k] = (opts.usage[k] || 0) + (r.usage?.[k] || 0);
+  };
+  recordUsage(receipt);
+  const baseline = doc;
+  // A single shared repair budget. No retry if a prior structural repair was attempted.
+  if (
+    !ownsText && !opts.repaired && opts.regenerate &&
+    receipt.execution_status === "completed" &&
+    receipt.verdict === "needs_repair" && Date.now() - startedAt <= 150_000
+  ) {
+    const sink: UsageSink = {};
+    try {
+      ctx.emitStatus("correcting");
+      const draft = JSON.stringify(doc);
+      const candidate: any = tryParseAiJson(
+        await opts.regenerate(
+          draft,
+          REPAIR + "\nDÉFAUTS DE FIL :\n" + receipt.issues.join("\n") +
+            "\nMême nombre, ordre et associations photo. Sources :\n" +
+            JSON.stringify(sources),
+          sink,
+        ),
+      );
+      // Exact photo/type/order protection; only a genuinely automatic plan may change roles/intents.
+      const scenario = (v: any) =>
+        body.scenario_origin === "automatic"
+          ? {
+            ...v,
+            slides: v?.slides?.map((slide: any) => ({
+              ...slide,
+              role: undefined,
+              story_beat: undefined,
+            })),
+          }
+          : v;
+      const facts = (v: any) =>
+        analyzeCarouselRedac(v, numbersIn(ctx.gateInputText));
+      const prev = facts(doc), next = facts(candidate);
+      const priorNumbers = new Set(
+        prev.fabricatedNumbers.map((x) => x.split(" ")[0]),
+      );
+      const rawChanged = doc.slides.some((slide: any, i: number) =>
+        (doc.no_overlay || slide.no_overlay) &&
+        carouselEditorialFields({ slides: [candidate?.slides?.[i]] }).length > 0
+      );
+      const idChanged = doc.slides.some((slide: any, i: number) =>
+        slide.id !== candidate?.slides?.[i]?.id
+      );
+      const originalText = carouselEditorialFields(doc).map((f) => f.text).join(
+        "\n",
+      );
+      const candidateText = carouselEditorialFields(candidate).map((f) =>
+        f.text
+      ).join("\n");
+      const allowed = numbersIn(ctx.gateInputText);
+      const lostNumber = [...numbersIn(originalText)].some((n) =>
+        allowed.has(n) && !numbersIn(candidateText).has(n)
+      );
+      const quotes = [
+        ...originalText.matchAll(/«\s*([^»]+?)\s*»|“([^”]+)”|"([^"\n]{6,})"/g),
+      ].map((m) => (m[1] || m[2] || m[3]).trim());
+      const lostQuote = quotes.some((q) =>
+        ctx.gateInputText.includes(q) && !candidateText.includes(q)
+      );
+      if (
+        !rawChanged && !idChanged &&
+        preservesCarouselScenario(scenario(doc), scenario(candidate)) &&
+        !carouselStructureIssues(candidate, body).length && !lostNumber &&
+        !lostQuote && !next.fabricatedNumbers.some((x) =>
+          !priorNumbers.has(x.split(" ")[0])
+        ) && next.durationConflicts.length <= prev.durationConflicts.length
+      ) {
+        // Recompute deterministic fields only. Never mutate text after the final judge.
+        const measured = await runRedacGate(JSON.stringify(candidate), {
+          isLinkedIn: ctx.isLinkedIn,
+          inputText: ctx.gateInputText,
+          correction: { enabled: false },
+        });
+        const finalCandidate: any = tryParseAiJson(measured.content);
+        const checked = await judge(finalCandidate);
+        recordUsage(checked);
+        if (
+          checked.execution_status === "completed" &&
+          checked.verdict === "acceptable"
+        ) {
+          doc = finalCandidate;
+          receipt = checked;
+          doc.editorial_review = {
+            ...baseline.editorial_review,
+            status: "superseded_by_global_repair",
+          };
+        }
+      }
+    } catch {
+      /* Preserve the original reviewed draft and its defects. */
+    } finally {
+      for (
+        const k of ["input_tokens", "output_tokens", "total_tokens"] as const
+      ) opts.usage[k] = (opts.usage[k] || 0) + (sink[k] || 0);
+    }
+  }
+  doc.editorial_intent = body.editorial_intent ?? doc.editorial_intent;
+  doc.progression_review = receipt;
+  doc.generation_receipt = {
+    writing_version: CAROUSEL_WRITING_VERSION,
+    writer_version: CAROUSEL_WRITER_VERSION,
+    model: opts.usage.model ?? null,
+    scenario_origin: body.scenario_origin ||
+      (body.confirmed_structure?.length ? "user_validated" : "automatic"),
+    source_manifest: sources.map(({ id, provenance, text }) => ({
+      id,
+      provenance,
+      characters: text.length,
+    })),
+    duration_ms: Date.now() - startedAt,
+  };
+  doc.structure_warnings = [
+    ...carouselStructureIssues(doc, body),
+    ...(ownsText ? [] : progressionWarnings(receipt)),
+  ];
+  return JSON.stringify(doc);
 }
 
 // Partagée par hooks / slides / express_full (texte standard) / suggest_topics /
@@ -1070,51 +1252,16 @@ async function runGenerationAndRespond(
     return value;
   };
 
-  let threadWarnings: string[] = [];
-  // Relecture du brouillon lancée EN MÊME TEMPS que le juge du fil (30/09) : les
-  // deux lisent le même brouillon, et le juge ne change le texte que s'il nomme
-  // un défaut ET que la réparation est gardée. Dans le cas courant (fil sans
-  // défaut) on économise donc l'attente du juge ; si le brouillon est réécrit,
-  // cette relecture est jetée et refaite sur le texte réparé, comme avant.
-  // Pas d'avance quand un défaut structurel rend la réparation certaine.
-  let draftReview: { draft: string; result: Promise<string> } | undefined;
-  if (type === "express_full" || type === "slides") {
-    const inspect = (value: string) => carouselStructureIssues(tryParseAiJson(value, "carousel-ai:structure"), body);
-    if (type === "express_full" && inspect(content).length === 0) {
-      draftReview = { draft: content, result: timed("review_ms", review(content)) };
-    }
-    const repaired = await timed("thread_ms", repairCarouselThread(content, {
-      body, label: type, emitStatus, usage, inspect, startedAt,
-      // Le fil n'est jugé que sur une rédaction neuve : « Mes slides » (type
-      // "slides", texte écrit par la personne) garde son ordre et ses idées.
-      judgeThread: type === "express_full",
-      regenerate: (draft, defects, sink) => _deps.callCarouselWriter({
-        ...writingOptions, model: pickCarouselModel(body),
-        messages: [{ role: "user", content: userPrompt + "\n\nBROUILLON À COMPLÉTER :\n" + draft + "\n\n" + defects }],
-      }, sink),
-    }));
-    // La relecture d'avance ne vaut que pour le brouillon qu'elle a lu.
-    if (draftReview && repaired.content !== draftReview.draft) draftReview = undefined;
-    content = repaired.content;
-    threadWarnings = repaired.threadWarnings;
-    const parsed: any = tryParseAiJson(content, "carousel-ai:structure-result");
-    if (parsed?.slides) content = JSON.stringify({ ...parsed, structure_warnings: repaired.warnings });
+  const regenerate=(draft:string,defects:string,sink:UsageSink)=>_deps.callCarouselWriter({
+    ...writingOptions,model:pickCarouselModel(body),messages:[{role:"user",content:userPrompt+"\n\nBROUILLON À COMPLÉTER :\n"+draft+"\n\n"+defects}],
+  },sink);
+  let structuralRepair=false;
+  if(type==="express_full" || type==="slides") {
+    const repaired=await timed("structure_ms",repairCarouselStructure(content,{body,label:type,emitStatus,usage,startedAt,regenerate}));
+    content=repaired.content;structuralRepair=repaired.repaired;
   }
-
-  const editorialBaseline = content;
-  if (type === "express_full" || type === "slides" || type === "hooks") {
-    if (draftReview) {
-      // Même relecture qu'en séquentiel (elle ne lit pas structure_warnings) ;
-      // les avertissements du juge sont reposés sur le texte relu.
-      const reviewedText = await draftReview.result;
-      const reviewed: any = tryParseAiJson(reviewedText, "carousel-ai:draft-review");
-      content = reviewed?.slides
-        ? JSON.stringify({ ...reviewed, structure_warnings: tryParseAiJson<any>(content, "carousel-ai:draft-review-warnings")?.structure_warnings ?? [] })
-        : reviewedText;
-    } else {
-      content = await timed("review_ms", review(content));
-    }
-  }
+  const editorialBaseline=content;
+  if(type==="express_full" || type==="slides" || type==="hooks") content=await timed("review_ms",review(content));
 
   // Garde DÉTERMINISTE : le prompt limite les schémas (max 2, jamais consécutifs)
   // mais le modèle déborde (3 consécutifs observés en prod le 04/07). On applique
@@ -1138,8 +1285,7 @@ async function runGenerationAndRespond(
   }
 
   if (type === "express_full" || type === "slides") {
-    const parsed: any = tryParseAiJson(content, "carousel-ai:final-structure");
-    if (parsed?.slides) content = JSON.stringify({ ...parsed, structure_warnings: [...carouselStructureIssues(parsed, body), ...threadWarnings] });
+    content=await timed("thread_ms",finalizeCarousel(content,reqCtx,{usage,repaired:structuralRepair,regenerate}));
   }
 
   // deepening_questions (variante texte) est gratuit — arbitrage 10/07/2026 :
@@ -1150,7 +1296,7 @@ async function runGenerationAndRespond(
   }
 
   timings.total_ms = Date.now() - startedAt;
-  if (isWriting) console.log(JSON.stringify({ type: "carousel_timings", label: type, review_with_judge: !!draftReview, ...timings }));
+  if (isWriting) console.log(JSON.stringify({ type: "carousel_timings", label: type, review_before_judge: true, ...timings }));
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
     ...(isWriting ? { writer: { version: CAROUSEL_WRITER_VERSION, model: usage.model, effort: "medium" }, timings } : {}),
   }), {
@@ -1234,6 +1380,15 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
       tool: MIX_CAROUSEL_TOOL,
       abortTimeoutMs: 120_000,
     }, sink);
+    doRepair = (draft, defects, sink) => _deps.callCarouselWriter({
+      model: pickCarouselModel(body),
+      system: systemPrompt + "\n\n" + mixPrompt + PHOTO_MISMATCH_SYSTEM_REMINDER,
+      messages: [{ role: "user", content: [...messageContent, {type:"text",text:"BROUILLON À COMPLÉTER :\n"+draft+"\n"+defects}] }],
+      max_tokens: 8192,
+      temperature: 0.85,
+      tool: MIX_CAROUSEL_TOOL,
+      abortTimeoutMs: 120_000,
+    }, sink);
   } else {
     const photoDescLine = body.text_first
       ? ""
@@ -1271,7 +1426,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     const mismatch = carouselMismatchResponse(content, body, mixUsage, "mix", corsHeaders);
     if (mismatch) return mismatch;
   }
-  const threadMix = await repairCarouselThread(content, { body, label: "mix", emitStatus, usage: mixUsage, regenerate: doRepair, startedAt });
+  const threadMix = await repairCarouselStructure(content, { body, label: "mix", emitStatus, usage: mixUsage, regenerate: doRepair, startedAt });
   content = threadMix.content;
 
   const editorialBaseline = content;
@@ -1332,7 +1487,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: reviewAllowed(startedAt), skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
   content = gateMix.content;
-  content = withStructureWarnings(content, threadMix.warnings);
+  content = await finalizeCarousel(content,reqCtx,{usage:mixUsage,repaired:threadMix.repaired,regenerate:doRepair});
   await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspaceId, body.subject);
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
@@ -1398,6 +1553,15 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
       tool: PHOTO_CAROUSEL_TOOL,
       abortTimeoutMs: 120_000,
     }, sink);
+    doRepair = (draft, defects, sink) => _deps.callCarouselWriter({
+      model: pickCarouselModel(body),
+      system: systemPrompt + "\n\n" + photoPrompt + PHOTO_MISMATCH_SYSTEM_REMINDER,
+      messages: [{ role: "user", content: [...messageContent, {type:"text",text:"BROUILLON À COMPLÉTER :\n"+draft+"\n"+defects}] }],
+      max_tokens: 8192,
+      temperature: 0.85,
+      tool: PHOTO_CAROUSEL_TOOL,
+      abortTimeoutMs: 120_000,
+    }, sink);
   } else {
     // Text-only mode: description without actual photos
     const textPrompt = photoPrompt + buildPhotoContextRecap(body.photo_contexts || body.photos) + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\n${carouselLengthPrompt(body)}\nObjectif : ${body.objective || "non précisé ; déduire une intention prudente du brief et du contexte de marque"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
@@ -1432,7 +1596,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     const mismatch = carouselMismatchResponse(content, body, photoUsage, "photo", corsHeaders);
     if (mismatch) return mismatch;
   }
-  const threadPhoto = await repairCarouselThread(content, { body, label: "photo", emitStatus, usage: photoUsage, regenerate: doRepair, startedAt });
+  const threadPhoto = await repairCarouselStructure(content, { body, label: "photo", emitStatus, usage: photoUsage, regenerate: doRepair, startedAt });
   content = threadPhoto.content;
 
   // Template assignment can add points/attribution/CTA labels. In contextual
@@ -1499,7 +1663,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     model: pickCorrectionModel(body),
     logger: (m) => console.log(m),
   });
-  content = withStructureWarnings(content, threadPhoto.warnings);
+  content = await finalizeCarousel(content,reqCtx,{usage:photoUsage,repaired:threadPhoto.repaired,regenerate:doRepair});
   await _deps.logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspaceId, body.subject);
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
@@ -1547,13 +1711,16 @@ ${photo_description ? `Description complémentaire : ${photo_description}` : ""}
     ? `\nCONSIGNE STRUCTURE — NEWSJACKING ACTIF :\n- La slide 1 (hook) DOIT partir de l'actualité ci-dessus, pas d'une description des photos.\n- Au moins une slide de corps doit exploiter un fait précis de l'actu (chiffre, nom, citation, mécanisme évoqué).\n- Les photos illustrent et incarnent ce propos ; elles ne le remplacent pas.\n- Pense "article + photos", pas "photos seules".\n`
     : "";
 
-  const structureSystemPrompt = `${CONTENT_CLARITY_RULES}
+  const structureSystemPrompt = `${COMMON}
+${PLAN}
+${CONTENT_CLARITY_RULES}
 ${CAROUSEL_SUBSTANCE}
 ${CAROUSEL_CONTINUITY}
 ${PHOTO_NARRATIVE_CONTRACT}
 
 Tu es une stratège éditoriale spécialisée en carrousels Instagram et LinkedIn.
 
+Sources pour les références du plan : request = sujet/réponses explicites ; brand = contexte de marque (vérifier le degré de certitude) ; photo_observations = uniquement ce qui est visible, pas une identité ou une histoire prouvée.
 MISSION : Propose une structure narrative optimale pour un carrousel. Tu ne génères PAS le contenu des slides — uniquement leur architecture.
 
 RÈGLES :
@@ -1835,7 +2002,7 @@ Retourne ce JSON exact :
 }
 
 function buildSlidesPrompt(body: any, isLinkedIn = false): string {
-  return textWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { narrativeThread: body.narrative_thread }));
+  return textWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { scenarioOrigin: body.scenario_origin, narrativeThread: body.narrative_thread }));
 }
 
 function buildSuggestTopicsPrompt(body: any): string {
@@ -1990,6 +2157,7 @@ function buildConfirmedStructureBlock(
     contentFields?: string;
     narrativeThread?: string;
     narrativeContext?: string;
+    scenarioOrigin?: string;
     withStoryBeat?: boolean;
     extraRules?: string[];
   } = {}
@@ -2023,13 +2191,13 @@ function buildConfirmedStructureBlock(
 
   const narrativeBlock = withStoryBeat && narrativeThread && typeof narrativeThread === "string" && narrativeThread.trim()
     ? `RÉCIT À EXÉCUTER (${narrativeContext}) : ${narrativeThread.trim()}
-Chaque slide écrit UNE étape de ce récit. Préserve les choix du scénario, mais ne traite jamais une proposition IA comme une preuve factuelle. Corrige les affirmations non étayées sans changer l'ordre, les rôles ou les photos.
+Chaque slide écrit UNE étape de ce récit. Préserve les choix du scénario, mais ne traite jamais une proposition IA comme une preuve factuelle. Corrige les affirmations non étayées sans changer l’ordre ni les photos. ${opts.scenarioOrigin === "automatic" ? "Ce plan est automatique : ses rôles et intentions peuvent être affinés pour améliorer la progression." : "Les rôles validés sont conservés."}
 
 `
     : "";
 
   const rules = [
-    "Ne change NI l'ordre NI les rôles NI le nombre de slides",
+    opts.scenarioOrigin === "automatic" ? "Plan automatique : conserve nombre, ordre, types et photos ; améliore les rôles et les liens si nécessaire." : "Ne change NI l’ordre NI les rôles NI le nombre de slides",
     "Utilise les titres proposés comme base (tu peux les affiner légèrement)",
     `Génère uniquement le contenu (${contentFields}) pour chaque slide`,
     `Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides`,
@@ -2050,11 +2218,11 @@ ${rules.map((r) => `- ${r}`).join("\n")}
 }
 
 function buildExpressFullPrompt(body: any, isLinkedIn = false): string {
-  return textWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { narrativeThread: body.narrative_thread }));
+  return textWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { scenarioOrigin: body.scenario_origin, narrativeThread: body.narrative_thread }));
 }
 
 function buildPhotoCarouselPrompt(body: any, isLinkedIn = false): string {
-  return photoWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { narrativeThread: body.narrative_thread, withStoryBeat: true }));
+  return photoWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { scenarioOrigin: body.scenario_origin, narrativeThread: body.narrative_thread, withStoryBeat: true }));
 }
 
 function buildPhotoCarouselNewsReactionPrompt(body: any, isLinkedIn = false): string {
@@ -2062,7 +2230,7 @@ function buildPhotoCarouselNewsReactionPrompt(body: any, isLinkedIn = false): st
 }
 
 function buildMixCarouselPrompt(body: any, isLinkedIn = false): string {
-  return mixWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { narrativeThread: body.narrative_thread, withStoryBeat: true }), buildTextFirstBlock(body));
+  return mixWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { scenarioOrigin: body.scenario_origin, narrativeThread: body.narrative_thread, withStoryBeat: true }), buildTextFirstBlock(body));
 }
 
 function buildMixCarouselNewsReactionPrompt(body: any, isLinkedIn = false): string {

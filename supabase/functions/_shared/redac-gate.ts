@@ -531,8 +531,6 @@ export function normalizeCaptionHashtags(parsed: any, isLinkedIn: boolean): void
 export function redacViolations(a: RedacAnalysis): number {
   return (
     a.reversals.length + // Dès la première formule ajoutée par le modèle.
-    a.overlongSlides.length +
-    a.overlongOverlays.length +
     (a.ctaDuplicated ? 1 : 0) +
     a.moulded.length +
     Math.min(3, a.fabricatedNumbers.length) +
@@ -556,6 +554,8 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean) {
   const violations = redacViolations(a);
   return {
     source: "code",
+    scope: "lexical_only_not_editorial_progression",
+    length_policy: "layout_telemetry_only",
     score: redacScore(a),
     reversal_negation_count: a.reversals.length,
     slides_over_50_words: a.overlongSlides,
@@ -605,14 +605,7 @@ function buildFixInstructions(a: RedacAnalysis): string {
       `RETOURNEMENTS PAR NÉGATION : ${a.reversals.length} détectés, aucun effet ajouté n’est autorisé (caption comprise). Réécris chaque passage signalé en affirmation directe, en préservant les négations factuelles et verbatims fournis à garder (même sens, sans « pas X, c'est Y ») :\n${a.reversals.map((r) => `- « ${r} »`).join("\n")}`,
     );
   }
-  for (const s of a.overlongSlides) {
-    lines.push(`SLIDE ${s.slide} : ${s.words} mots, maximum 50. Coupe sans perdre le fait concret.`);
-  }
-  for (const s of a.overlongOverlays) {
-    lines.push(
-      `OVERLAY SLIDE ${s.slide} : ${s.words} mots posés SUR LA PHOTO, maximum 25. Réécris l'overlay_text en UNE phrase complète (sujet + verbe) de 25 mots max, sans perdre le fait concret ni casser l'enchaînement avec les slides voisines.`,
-    );
-  }
+  // Length is layout telemetry only: preserve useful prose and transitions.
   if (a.ctaDuplicated) {
     lines.push(
       `CTA DUPLIQUÉ : le "cta" de la caption répète la dernière slide. Réécris le cta de la CAPTION pour qu'il soit COMPLÉMENTAIRE (autre formulation, autre angle d'invitation), pas une copie.`,
@@ -679,11 +672,10 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
     const after = dropUserSourcedReversals(analyzeCarouselRedac(candidate, allowed, opts.brandGuardText, opts.echo), opts.correction.authoredText);
     // Compare raw counts, not the capped score: a fifth invented number is
     // still a regression even when the score already caps that penalty at 3.
-    const counts = (a: RedacAnalysis) => [a.reversals.length, a.overlongSlides.length,
-      a.overlongOverlays.length, Number(a.ctaDuplicated), a.moulded.length,
+    const counts = (a: RedacAnalysis) => [a.reversals.length, Number(a.ctaDuplicated), a.moulded.length,
       a.fabricatedNumbers.length, a.durationConflicts.length, a.brandCopyOverlap.length, a.hookEchoes.length];
     const beforeCounts = counts(before);
-    const COUNT_NAMES = ["reversals", "overlong-slides", "overlong-overlays", "cta-duplicated", "moulded",
+    const COUNT_NAMES = ["reversals", "cta-duplicated", "moulded",
       "fabricated-numbers", "duration-conflicts", "brand-copy", "hook-echoes"];
     const regressions = counts(after).map((n, i) => n > beforeCounts[i] ? `regression:${COUNT_NAMES[i]}` : "").filter(Boolean);
     // Equal counts can still hide a new unsupported value (5 days → 9 days).

@@ -1,3 +1,4 @@
+import { COMPOSE } from "../_shared/carousel-editorial-contract.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -2248,7 +2249,7 @@ Avant de répondre, vérifie :
 Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de contenu cassé.
 `;
 
-    const systemPromptWithAnnotations = finalSystemPrompt + pptxAnnotationRules;
+    const systemPromptWithAnnotations = finalSystemPrompt + "\n" + COMPOSE + pptxAnnotationRules;
 
     console.log(JSON.stringify({
       type: "carousel_visual_call",

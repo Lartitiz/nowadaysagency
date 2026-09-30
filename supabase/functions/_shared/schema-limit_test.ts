@@ -52,3 +52,8 @@ Deno.test("contenu non-JSON ou sans slides → rendu intact", () => {
   const broken = "{{{ pas parsable";
   assertEquals(limitVisualSchemas(broken).content, broken);
 });
+
+Deno.test("le quota de schémas ne supprime jamais une citation ou une relation utile",()=>{
+  const input=wrap([{visual_schema:{type:"quote_big",quote:"Première idée"}},{visual_schema:{type:"objection_response",objection:"Une apparence sobre",response:"Une preuve reste nécessaire"}},{visual_schema:{type:"quote_big",quote:"Dernière idée"}}]);
+  assertEquals(limitVisualSchemas(input),{content:input,stripped:0});
+});
