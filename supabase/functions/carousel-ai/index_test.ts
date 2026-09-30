@@ -710,3 +710,36 @@ for (const subject of ["", "Carrousel basé sur les photos uploadées"]) Deno.te
   assertEquals(res.status, 200);
   assertEquals(JSON.parse((await res.json()).content).questions, []);
 });
+
+for (const kind of ["photo", "mix"]) Deno.test(`plan ${kind} : positions IA hors enum puis reprise du plan`, async () => {
+  resetDeps();
+  const positions = ["bottom_right", "top_right", "top_left", "top_center", "bottom_left", "bottom_center", "center"];
+  const plan = positions.map((overlay_position, i) => ({ slide_number: i + 1, role: i ? "body" : "hook", title_suggestion: `Titre ${i}`, strategic_note: `Note ${i}`, photo_index: i + 1, slide_type: "photo_full", story_beat: `Lien ${i}`, overlay_position }));
+  _deps.callAnthropic = (async () => JSON.stringify({ slides: plan, total_slides: plan.length })) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: kind, photos: plan.map(() => ({ base64: "aGVsbG8=" })) }));
+  assertEquals(res.status, 200);
+  const { result } = await res.json();
+  const expected = plan.map((s, i) => ({ ...s, overlay_position: ["bottom_center", "top_center", ...positions.slice(2)][i] }));
+  assertEquals(result.slides, expected);
+  // Le même plan déjà conservé dans le navigateur doit pouvoir être repris.
+  let writes = 0;
+  _deps.callCarouselWriter = (async (_o: any, sink: any) => {
+    writes++; Object.assign(sink, { total_tokens: 1, model: "claude-opus-5-5" });
+    return JSON.stringify({ slides: plan.map(s => ({ ...s, overlay_text: `Passage conservé ${s.slide_number}` })), caption: {} });
+  }) as any;
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  try {
+    for (const confirmed_structure of [result.slides, plan]) {
+      const next = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: kind, slide_count: plan.length, confirmed_structure, photos: plan.map(() => ({ base64: "aGVsbG8=" })) }));
+      assertEquals(next.status, 200);
+      const doc = JSON.parse((await next.json()).content);
+      assertEquals(doc.slides.map((s: any) => s.photo_index), plan.map(s => s.photo_index));
+      assertEquals(doc.slides.map((s: any) => s.overlay_text), plan.map(s => `Passage conservé ${s.slide_number}`));
+      assertEquals(doc.slides.map((s: any) => s.overlay_position), expected.map(s => s.overlay_position));
+    }
+    assertEquals(writes, 2);
+  } finally { globalThis.fetch = oldFetch; }
+  const invalid = await handleRequest(makeHooksRequest({ type: "express_full", confirmed_structure: [{ ...plan[0], overlay_position: "unknown" }] }));
+  assertEquals(invalid.status, 400); await invalid.text();
+});
