@@ -126,6 +126,16 @@ for (
   });
 }
 
+Deno.test("diagnostic d'un rapport incomplet sans recopier sa prose non validée", async () => {
+  const report = { ...valid(), conclusion: null, idea_read: "CONTEXTE PRIVE" };
+  const out = await reviewCarouselProgression(doc, { sources, call: async () => JSON.stringify(report) });
+  assertEquals(out.execution_status, "invalid");
+  assertEquals(out.reason, "missing-summary");
+  assertEquals(out.validation_details?.conclusion, { type: "null" });
+  assert(!JSON.stringify(out.validation_details).includes("CONTEXTE PRIVE"));
+  assertEquals(out.verdict, null);
+});
+
 Deno.test("timeout distinct d'une lecture sans défaut et brouillon conservé", async () => {
   const before = JSON.stringify(doc);
   const r = await reviewCarouselProgression(doc, {

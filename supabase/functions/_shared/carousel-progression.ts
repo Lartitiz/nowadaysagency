@@ -28,6 +28,7 @@ export interface ProgressionResult {
   // no private branding, request, API credentials or image bytes in this receipt.
   reviewed_material: string;
   report?: Record<string, any>;
+  validation_details?: Record<string, unknown>;
   reason?: string;
   usage?: UsageSink;
 }
@@ -185,7 +186,14 @@ export async function reviewCarouselProgression(doc: any, opts: {
     }
     const error = validateProgressionReport(report, doc, opts.sources);
     if (error) {
-      return { ...receipt, execution_status: "invalid", reason: error, usage };
+      // Record shape only: diagnose provider schema drift without persisting
+      // unvalidated prose or any private source material in public projections.
+      const shape = (value: unknown) => Array.isArray(value)
+        ? { type: "array", length: value.length, item_types: [...new Set(value.map((v) => typeof v))] }
+        : { type: value === null ? "null" : typeof value, ...(typeof value === "string" ? { length: value.trim().length } : {}) };
+      return { ...receipt, execution_status: "invalid", reason: error, usage,
+        validation_details: Object.fromEntries(Object.entries(report ?? {}).map(([key, value]) => [key, shape(value)])),
+      };
     }
     const issues = report.defects.map((d: any) =>
       `${
