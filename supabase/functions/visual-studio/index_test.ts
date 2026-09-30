@@ -1094,7 +1094,7 @@ Deno.test("scene preparation sees product for planning but sends only identity t
         assertEquals(p.viewed_reference_id === product.id, false);
         assertEquals(imagePrompt(p).includes("75 degrees"), true);
         assertEquals(imagePrompt(p).includes("product reference, Assiette"), false);
-        assertEquals((f.payloads[0].messages[0] as { content: { text?: string }[] }).content.some((c) => c.text?.includes(product.id)), true);
+        assertEquals((f.payloads[0] as { messages: { content: { text?: string }[] }[] }).messages[0].content.some((c) => c.text?.includes(product.id)), true);
         assertEquals(f.requests.some(path => path.includes("studio_confirm")), false);
       } finally { f.restore(); }
     }
