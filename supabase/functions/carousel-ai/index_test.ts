@@ -743,3 +743,29 @@ for (const kind of ["photo", "mix"]) Deno.test(`plan ${kind} : positions IA hors
   const invalid = await handleRequest(makeHooksRequest({ type: "express_full", confirmed_structure: [{ ...plan[0], overlay_position: "unknown" }] }));
   assertEquals(invalid.status, 400); await invalid.text();
 });
+
+Deno.test("plan IA : champs optionnels null au retour et à la reprise, sans perdre texte ni photos valides", async () => {
+  resetDeps();
+  const plan = [1, 2, 3].map((n) => ({ slide_number: n, role: n === 1 ? "hook" : "body", title_suggestion: `Titre ${n}`, strategic_note: `Note ${n}`, photo_index: n === 2 ? null : n, slide_type: "photo_full", story_beat: null, photo_observation: null, image_relation: null, factual_basis: null, visual_anchor: null, overlay_position: null }));
+  _deps.callAnthropic = (async () => JSON.stringify({ slides: plan, total_slides: 3 })) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", photos: plan.map(() => ({ base64: "aGVsbG8=" })) }));
+  const { result } = await res.json();
+  assertEquals(result.slides.map((s: any) => s.photo_index), [1, undefined, 3]);
+  assertEquals(result.slides.map((s: any) => s.title_suggestion), plan.map(s => s.title_suggestion));
+  assert(result.slides.every((s: any) => !("story_beat" in s) && !("overlay_position" in s)));
+  let writes = 0;
+  _deps.callCarouselWriter = (async (_o: any, sink: any) => {
+    writes++; Object.assign(sink, { total_tokens: 1, model: "claude-opus-5-5" });
+    return JSON.stringify({ slides: plan.map((s, i) => ({ slide_number: i + 1, slide_type: "photo_full", photo_index: i + 1, overlay_text: s.title_suggestion })), caption: {} });
+  }) as any;
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  try {
+    const next = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: "photo", slide_count: 3, scenario_origin: "automatic", confirmed_structure: plan, photos: plan.map(() => ({ base64: "aGVsbG8=" })) }));
+    assertEquals(next.status, 200);
+    const doc = JSON.parse((await next.json()).content);
+    assertEquals(writes, 1);
+    assertEquals(doc.slides.map((s: any) => s.photo_index), [1, 2, 3]);
+    assertEquals(doc.slides.map((s: any) => s.overlay_text), plan.map(s => s.title_suggestion));
+  } finally { globalThis.fetch = oldFetch; }
+});
