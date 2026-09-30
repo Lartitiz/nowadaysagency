@@ -4,8 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // Additive tables: explicit boundary until hosted generated types are refreshed.
 const db: SupabaseClient = supabase;
 export interface StudioProposal {
-  soul_style?: { id: string; name: string; description: string; preview_url?: string };
-  soul_style_options?: Array<{ id: string; name: string; description: string; preview_url?: string }>;
+  soul_style?: { id: string; name: string; description: string; description_fr?: string; preview_url?: string };
+  soul_style_options?: Array<{ id: string; name: string; description: string; description_fr?: string; preview_url?: string }>;
   scene_workflow?: { phase: "scene" | "integration" | "direct"; camera_match: string; scene_version_id?: string; approved_scene_id?: string;
     targets?: Array<{ role: "person" | "casting" | "product"; reference_ids: string[]; location: string; instruction: string }> };
   planning_references?: StudioReference[];

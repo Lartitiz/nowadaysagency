@@ -906,13 +906,14 @@ function Studio({
             {proposal.photo_treatment === "natural" && <p className="text-sm text-muted-foreground">Rendu photographique naturel, selon la direction de ta marque.</p>}
             {proposal.scene_workflow?.phase === "scene" && proposal.operation === "create" && <div className="text-sm mt-3 space-y-2" aria-label="Rendu Soul proposé">
               <p><strong>Rendu Soul :</strong> {proposal.soul_style?.name || "Sans preset, direction propre à cette photo"}</p>
-              {proposal.soul_style && <p>{proposal.soul_style.description}</p>}
+              {proposal.soul_style?.description_fr && <p>{proposal.soul_style.description_fr}</p>}
               {!!proposal.soul_style_options?.length && <details><summary className="cursor-pointer">Voir les autres rendus</summary>
                 <p className="text-xs my-2">Exemples Higgsfield : leur effet sera adapté à ta scène. Le choix sera reformulé avant de générer.</p>
                 <div className="grid grid-cols-2 gap-2">
                   {proposal.soul_style_options.map(style => <button type="button" key={style.id} disabled={!!busy || !!generating || !writable} className="border rounded-lg p-2 text-left text-sm" onClick={() => editDraft(`Pour cette même scène, utilise le preset Soul « ${style.name} ». Adapte la consigne à ce rendu en conservant les sujets, leurs références et les décisions déjà prises.`)}>
                     {style.preview_url && <img src={style.preview_url} alt={`Exemple du preset ${style.name}`} loading="lazy" className="aspect-square w-full object-cover rounded mb-1" />}
                     <strong>{style.name}</strong>
+                    {style.description_fr && <p className="text-xs mt-1">{style.description_fr}</p>}
                   </button>)}
                 </div>
                 <Button type="button" variant="link" disabled={!!busy || !!generating || !writable} onClick={() => editDraft("Pour cette même scène, choisis sans preset Soul. Garde les sujets, leurs références et la direction de ma marque, sans imposer une ambiance générique.")}>Choisir sans preset</Button>
