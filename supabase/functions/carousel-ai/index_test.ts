@@ -13,6 +13,7 @@ import {
   assertExists,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { AnthropicError } from "../_shared/anthropic.ts";
+import { progressionReceipt } from "../_shared/carousel-progression.ts";
 import { handleRequest, _deps } from "./index.ts";
 
 // SUPABASE_URL / SERVICE_ROLE_KEY ne sont jamais lus (checkQuota/logUsage/runPipeline
@@ -22,6 +23,7 @@ Deno.env.set("SUPABASE_URL", "http://localhost");
 Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "test");
 
 const TEST_USER_ID = "test-user-1";
+async function verdict(doc:any, issues:string[]=[]){return {...await progressionReceipt(doc,"completed"),verdict:issues.length?"needs_repair" as const:"acceptable" as const,issues};}
 // Exercise the actual three handlers; only external services are faked.
 for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "photo"]) for (const news of [undefined, "ACTUALITÉ_TEST : annonce fournie sans résultat mesuré."]) Deno.test(`révision contextuelle branchée de bout en bout : ${variant}, actu=${!!news}, Max=${qualityMax}`, async () => {
   resetDeps();
@@ -48,6 +50,8 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
   const previousFetch = globalThis.fetch, key = Deno.env.get("OPENAI_API_KEY");
   Deno.env.set("OPENAI_API_KEY", "test-no-network");
   let reviews = 0;
+  let finalJudged=false;
+  _deps.reviewThread=async(doc:any)=>{assertEquals(doc.slides[1].body,"Les demandes se contredisent.");finalJudged=true;return verdict(doc);};
   globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
     const request = init?.body ? JSON.parse(String(init.body)) : {};
     let text = "{}";
@@ -87,9 +91,10 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     // Une seule relecture : ses retouches ne sont plus revérifiées par une 2e passe (30/09).
     assertEquals(parsed.editorial_review.pass, 1);
     assertEquals(parsed.editorial_review.model, "gpt-6-astra");
-    assertEquals(parsed.editorial_review.version, "connected-sequence-astra-medium-v6");
+    assertEquals(parsed.editorial_review.version, "connected-sequence-astra-medium-v7");
     assertEquals(parsed.editorial_review.total_usage.total_tokens, 2);
     assertEquals(reviews, 1);
+    assert(finalJudged,"le juge lit après les retouches finales");
   } finally {
     globalThis.fetch = previousFetch;
     if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key);
@@ -201,7 +206,7 @@ function makeFakeSupabase(ownerId: string = TEST_USER_ID) {
 function resetDeps() {
   _deps.callCarouselWriter = ((options: any, sink: any) => _deps.callAnthropic(options, sink)) as any;
   // Juge du fil neutralisé par défaut (aucun réseau) ; les tests du fil le remplacent.
-  _deps.reviewThread = (async () => []) as any;
+  _deps.reviewThread = (async (doc:any) => verdict(doc)) as any;
   _deps.runPipeline = (async () => ({
     ok: true,
     userId: TEST_USER_ID,
@@ -568,176 +573,52 @@ for (const repair of ['success', 'short', 'failure']) Deno.test(`texte incomplet
   } finally { globalThis.fetch=oldFetch; if(key===undefined)Deno.env.delete('OPENAI_API_KEY');else Deno.env.set('OPENAI_API_KEY',key); }
 });
 
-// ── Fil du carrousel (16/09/2026) ──
-// Le juge nomme des défauts → le rédacteur reçoit le brouillon + « DÉFAUTS DE
-// FIL » → la réparation n'est gardée que si le juge en voit MOINS ensuite.
-for (const outcome of ["better", "same", "vision"]) Deno.test(`fil : défauts nommés → réparation ${outcome}`, async () => {
+// Final progression: all variants, bounded repair, unavailable status, deadlines and invariants.
+for(const variant of ["text","photo","mix"]) for(const outcome of ["acceptable","repair","same","reordered","unavailable","invalid","time-budget"]) Deno.test(`progression finale ${variant} / ${outcome}`,async()=>{
   resetDeps();
-  const oldFetch = globalThis.fetch, key = Deno.env.get("OPENAI_API_KEY");
-  Deno.env.set("OPENAI_API_KEY", "synthetic-no-network");
-  globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
-    const req = JSON.parse(String(init?.body || "{}"));
-    if (req.tool_choice?.name === "review_carousel_fields") {
-      const fields = JSON.parse(req.input[0].content.split("CHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n")[1]);
-      const text = JSON.stringify({ reviews: fields.map((f: any) => ({ field_id: f.field_id, decision: "keep", reason: "Texte situé et utile", edits: [] })) });
-      return Promise.resolve(new Response(JSON.stringify({ model: "gpt-6-astra", status: "completed", output: [{ type: "function_call", name: "review_carousel_fields", arguments: text }], usage: { input_tokens: 1, output_tokens: 1 } })));
-    }
-    return Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text: "{}" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
-  }) as typeof fetch;
-  const slide = (n: number, title: string, body: string, role = "argument") => ({ slide_number: n, slide_type: "text_only", title, body, role });
-  const draft = { fil: { arrivee: "Relire ses mots de soutien", etapes: ["a", "b", "c", "d", "e"] }, slides: [
-    slide(1, "Un soutien sans responsabilité", "", "hook"),
-    slide(2, "La formule laisse une question ouverte", "Le soutien affiché ne dit pas ce qui est pris en charge."),
-    slide(3, "Le soutien laisse une question ouverte", "Se dire proche ne précise ni ce qu'on reconnaît, ni ce qu'on assume."),
-    slide(4, "Note de lecture", "La source ne permet pas d'affirmer qu'aucune mesure n'a été annoncée.", "nuance"),
-    slide(5, "Relire ses mots de soutien", "Avant de publier un soutien, vérifie ce qu'il dit de ta propre implication.", "conclusion"),
-  ], caption: { body: "Une légende fidèle au sujet.", hashtags: [] } };
-  const repaired = { ...draft, slides: [draft.slides[0], slide(2, "La formule laisse une question ouverte", "Le soutien affiché ne dit pas ce qui est pris en charge, et la source ne permet pas d'affirmer qu'aucune mesure n'a été annoncée."), draft.slides[4]] };
-  let judged = 0, writes = 0, repairPrompt = "";
-  _deps.reviewThread = (async (doc: any) => {
-    judged++;
-    if (judged === 1) { assertEquals(doc.slides.length, 5); return ["Les slides 2 et 3 disent la même idée.", "La slide 4 (« Note de lecture ») est une rubrique posée à part."]; }
-    // « same » : autant de défauts après qu'avant → la réparation n'a pas fait mieux, brouillon conservé.
-    return outcome === "better" ? [] : ["Les slides 2 et 3 disent la même idée.", "La slide 4 (« Note de lecture ») est une rubrique posée à part."];
+  const oldFetch=globalThis.fetch,now=Date.now;let offset=0;
+  Date.now=()=>now()+offset;
+  globalThis.fetch=(()=>Promise.resolve(new Response("{}",{status:503}))) as typeof fetch;
+  const draft={slides:[
+    {slide_number:1,slide_type:"photo_full",photo_index:1,role:"hook",overlay_text:"Les retours demandent une direction commune."},
+    {slide_number:2,slide_type:"photo_full",photo_index:2,role:"body",overlay_text:"Les remarques contradictoires restent à départager."},
+    {slide_number:3,slide_type:"photo_full",photo_index:3,role:"conclusion",overlay_text:"Le choix validé guide les corrections."},
+  ],caption:{body:"Un choix commun précède les modifications.",hashtags:[]}};
+  const fixed=structuredClone(draft);fixed.slides[1].overlay_text="Les remarques contradictoires doivent donc être départagées avant de modifier la maquette.";
+  let writes=0,judges=0,lastJudgedDoc:any;
+  _deps.callCarouselWriter=(async(o:any,sink:any)=>{
+    writes++;Object.assign(sink,{model:o.model,total_tokens:10});
+    if(outcome==="time-budget")offset=300_000;
+    if(writes===1 || outcome==="same")return JSON.stringify(draft);
+    assert(JSON.stringify(o.messages[0].content).includes("DÉFAUTS DE FIL"));
+    if(outcome==="reordered")fixed.slides.reverse();
+    return JSON.stringify({...lastJudgedDoc,slides:fixed.slides.map((s,i)=>({...lastJudgedDoc.slides[i],...s}))});
   }) as any;
-  _deps.callCarouselWriter = (async (opts: any, sink: any) => {
-    writes++; Object.assign(sink, { model: opts.model, input_tokens: 10, output_tokens: 20, total_tokens: 30 });
-    if (writes === 2) { repairPrompt = String(opts.messages[0].content); return JSON.stringify(outcome === "same" ? draft : repaired); }
-    return JSON.stringify(draft);
-  }) as any;
-  let logged: any[] = [];
-  _deps.logUsage = (async (...args: any[]) => { logged = args; }) as any;
-  try {
-    const request = outcome === "vision"
-      ? { type: "express_full", carousel_type: "mix", subject: "Hidalgo aux côtés des familles", photos: [{ base64: "aGVsbG8=", mimeType: "image/jpeg" }], deepening_answers: { faits: "Refus de responsabilité pénale sur France Inter." } }
-      : { type: "express_full", carousel_type: "text", subject: "Hidalgo aux côtés des familles", deepening_answers: { faits: "Refus de responsabilité pénale sur France Inter." } };
-    const res = await handleRequest(makeHooksRequest(request));
-    assertEquals(res.status, 200);
-    const out = await res.json(), parsed = JSON.parse(out.content.match(/\{[\s\S]*\}/)[0]);
-    if (outcome === "vision") {
-      // En vision, pas de réparation (les photos ne sont pas renvoyées) : mesure + avertissement.
-      assertEquals(writes, 1); assertEquals(judged, 1);
-      assertEquals(parsed.slides.length, 5);
-      assertEquals(parsed.structure_warnings.length, 2);
-      return;
-    }
-    assertEquals(writes, 2); assertEquals(judged, 2);
-    assert(repairPrompt.includes("BROUILLON À COMPLÉTER"), "brouillon renvoyé");
-    assert(repairPrompt.includes("DÉFAUTS DE FIL"), "défauts de fil transmis");
-    assert(repairPrompt.includes("Note de lecture"), "défaut nommé transmis");
-    assert(repairPrompt.includes("Le nombre de slides peut baisser"), "sans nombre exact, fusion permise");
-    assert(!repairPrompt.includes("DÉFAUTS STRUCTURELS"), "aucun défaut structurel inventé");
-    assertEquals(logged[3], 60, "tokens de la réparation comptés");
-    if (outcome === "better") {
-      assertEquals(parsed.slides.length, 3);
-      assertEquals(parsed.structure_warnings, []);
-    } else {
-      assertEquals(parsed.slides.length, 5, "réparation sans progrès refusée");
-      assertEquals(parsed.structure_warnings.length, 2);
-    }
-  } finally { globalThis.fetch = oldFetch; if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key); }
-});
-
-// ── Durée de la phase texte (30/09/2026) ──
-// Mesure live : ~190 s, dont juge du fil puis relecture l'un APRÈS l'autre. La
-// relecture part désormais en même temps que le juge ; elle n'est gardée que si
-// le brouillon qu'elle a lu est celui qui est livré. Et passé le budget temps
-// global, les étapes facultatives ne sont plus lancées (coupure plateforme ~400 s).
-for (const scenario of ["fil sans défaut", "fil réparé", "budget dépassé"]) Deno.test(`durée texte : relecture en même temps que le juge (${scenario})`, async () => {
-  resetDeps();
-  const oldFetch = globalThis.fetch, key = Deno.env.get("OPENAI_API_KEY"), realNow = Date.now;
-  Deno.env.set("OPENAI_API_KEY", "synthetic-no-network");
-  let clockOffset = 0;
-  Date.now = () => realNow() + clockOffset;
-  const reviewedTexts: string[] = [];
-  globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
-    const req = JSON.parse(String(init?.body || "{}"));
-    if (req.tool_choice?.name === "review_carousel_fields") {
-      const fields = JSON.parse(req.input[0].content.split("CHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n")[1]);
-      reviewedTexts.push(fields.map((f: any) => f.text).join(" | "));
-      const text = JSON.stringify({ reviews: fields.map((f: any) => ({ field_id: f.field_id, decision: "keep", reason: "Texte situé et utile", edits: [] })) });
-      return Promise.resolve(new Response(JSON.stringify({ model: "gpt-6-astra", status: "completed", output: [{ type: "function_call", name: "review_carousel_fields", arguments: text }], usage: { input_tokens: 1, output_tokens: 1 } })));
-    }
-    return Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text: "{}" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
-  }) as typeof fetch;
-  const slide = (n: number, title: string, body: string, role = "argument") => ({ slide_number: n, slide_type: "text_only", title, body, role });
-  const draft = { slides: [
-    slide(1, "Un soutien sans responsabilité", "", "hook"),
-    slide(2, "La formule laisse une question ouverte", "Le soutien affiché ne dit pas ce qui est pris en charge."),
-    slide(3, "Le soutien laisse une question ouverte", "Se dire proche ne précise ni ce qu'on reconnaît, ni ce qu'on assume."),
-    slide(4, "Relire ses mots de soutien", "Avant de publier un soutien, vérifie ce qu'il dit de ta propre implication.", "conclusion"),
-  ], caption: { body: "Une légende fidèle au sujet.", hashtags: [] } };
-  const repaired = { ...draft, slides: [draft.slides[0], slide(2, "La formule laisse une question ouverte", "TEXTE_RÉPARÉ : le soutien affiché ne dit pas ce qui est pris en charge."), draft.slides[3]] };
-  const defect = ["Les slides 2 et 3 disent la même idée."];
-  let judged = 0, writes = 0, reviewsStartedBeforeVerdict = -1;
-  _deps.reviewThread = (async () => {
-    judged++;
-    if (judged > 1) return [];
-    await new Promise((r) => setTimeout(r, 15));
-    reviewsStartedBeforeVerdict = reviewedTexts.length;
-    return scenario === "fil sans défaut" ? [] : defect;
-  }) as any;
-  _deps.callCarouselWriter = (async (opts: any, sink: any) => {
-    writes++; Object.assign(sink, { model: opts.model, input_tokens: 10, output_tokens: 20, total_tokens: 30 });
-    // Rédaction « interminable » : la requête a déjà consommé 300 s à son retour.
-    if (scenario === "budget dépassé") clockOffset = 300_000;
-    return JSON.stringify(writes === 2 ? repaired : draft);
-  }) as any;
-  try {
-    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: "text", subject: "Hidalgo aux côtés des familles", deepening_answers: { faits: "Refus de responsabilité pénale sur France Inter." } }));
-    assertEquals(res.status, 200);
-    const out = await res.json(), parsed = JSON.parse(out.content.match(/\{[\s\S]*\}/)[0]);
-    for (const step of ["prep_ms", "write_ms", "thread_ms", "total_ms"]) assert(Number.isFinite(out.timings[step]), `durée ${step} renvoyée`);
-    if (scenario === "budget dépassé") {
-      // Ni réparation ni relecture : le carrousel écrit est livré, défaut signalé.
-      assertEquals(writes, 1); assertEquals(reviewedTexts.length, 0);
-      assertEquals(parsed.slides.length, 4);
-      assertEquals(parsed.structure_warnings, defect);
-      return;
-    }
-    assertEquals(reviewsStartedBeforeVerdict, 1, "la relecture part sans attendre le verdict du juge");
-    if (scenario === "fil sans défaut") {
-      assertEquals(writes, 1);
-      assertEquals(reviewedTexts.length, 1, "aucune relecture en plus : celle lancée d'avance est gardée");
-      assertEquals(parsed.slides.length, 4);
-      assertEquals(parsed.structure_warnings, []);
-      assertEquals(parsed.editorial_review.status, "reviewed");
-    } else {
-      // Brouillon réécrit : la relecture d'avance est jetée, le texte RÉPARÉ est relu.
-      assertEquals(writes, 2);
-      assertEquals(reviewedTexts.length, 2);
-      assert(!reviewedTexts[0].includes("TEXTE_RÉPARÉ") && reviewedTexts[1].includes("TEXTE_RÉPARÉ"));
-      assertEquals(parsed.slides.length, 3);
-      assert(parsed.slides[1].body.includes("TEXTE_RÉPARÉ"));
-      assertEquals(parsed.editorial_review.status, "reviewed");
-    }
-  } finally { Date.now = realNow; globalThis.fetch = oldFetch; if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key); }
-});
-
-Deno.test("fil : Mes slides protégé ; rédaction sur structure confirmée relue sans recomposition", async () => {
-  resetDeps();
-  let judged = 0;
-  _deps.reviewThread = (async () => { judged++; return ["Les slides 2 et 3 disent la même idée."]; }) as any;
-  const slides = Array.from({ length: 4 }, (_, i) => ({ slide_number: i + 1, title: `Slide ${i + 1}`, body: "Texte écrit par la personne.", role: i === 3 ? "conclusion" : "argument" }));
-  const mockGenerate = async (opts: { model: unknown }, sink: any = {}) => {
-    Object.assign(sink, { model: opts.model, total_tokens: 30 });
-    return JSON.stringify({ slides, caption: { body: "Légende." } });
+  _deps.reviewThread=async(doc:any)=>{
+    judges++;lastJudgedDoc=structuredClone(doc);
+    if(outcome==="unavailable"||outcome==="invalid")return progressionReceipt(doc,outcome);
+    return verdict(doc,outcome==="acceptable" || (judges===2&&outcome==="repair")?[]:["La conclusion est insuffisamment préparée."]);
   };
-  _deps.callCarouselWriter = mockGenerate;
-  _deps.callAnthropic = mockGenerate;
-  const oldFetch = globalThis.fetch;
-  globalThis.fetch = (() => Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text: "{}" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })))) as typeof fetch;
   try {
-    for (const body of [
-      { type: "slides", carousel_type: "text", subject: "Sujet", user_slides: slides.map(s => ({ title: s.title, body: s.body })) },
-      { type: "express_full", carousel_type: "text", subject: "Sujet", confirmed_structure: slides.map(s => ({ slide_number: s.slide_number, role: s.role, title_suggestion: s.title, strategic_note: "" })) },
-    ]) {
-      const res = await handleRequest(makeHooksRequest(body));
-      assertEquals(res.status, 200);
-      await res.text();
-    }
-    assertEquals(judged, 2);
-  } finally { globalThis.fetch = oldFetch; }
+    const res=await handleRequest(makeHooksRequest({type:"express_full",carousel_type:variant,subject:"Choisir une direction avant de modifier",slide_count:3,deepening_answers:{faits:"Demandes contradictoires. Le client choisit une direction commune, puis les corrections commencent."},...(variant!=="text"?{photos:[{base64:"aGVsbG8=",mimeType:"image/jpeg"},{base64:"aGVsbG8=",mimeType:"image/jpeg"},{base64:"aGVsbG8=",mimeType:"image/jpeg"}]}:{})}));
+    assertEquals(res.status,200);const data=await res.json(),doc=JSON.parse(data.content);
+    assertEquals(doc.slides.map((x:any)=>x.photo_index),[1,2,3]);
+    assertEquals(doc.slides.length,3);
+    assert(doc.generation_receipt.writing_version);
+    assertEquals(doc.progression_review.reviewed_text_hash.length,64);
+    if(outcome==="repair") {assertEquals(writes,2);assertEquals(judges,2);assertEquals(doc.slides[1].overlay_text,fixed.slides[1].overlay_text);assertEquals(doc.progression_review.verdict,"acceptable");}
+    else if(outcome==="same"||outcome==="reordered") {assertEquals(writes,2);assertEquals(doc.slides[1].overlay_text,draft.slides[1].overlay_text);assertEquals(doc.progression_review.verdict,"needs_repair");}
+    else {assertEquals(writes,1);assertEquals(doc.progression_review.execution_status,outcome==="time-budget"?"skipped":outcome==="acceptable"?"completed":outcome);}
+    if(outcome!=="acceptable"&&outcome!=="repair")assert(doc.structure_warnings.length>0);
+    if(outcome==="time-budget")assertEquals(judges,0);
+  }finally {globalThis.fetch=oldFetch;Date.now=now;}
+});
+
+Deno.test("texte utilisateur : pas de certification ni de réécriture globale automatique",async()=>{
+  resetDeps();let judged=0;_deps.reviewThread=async(doc:any)=>{judged++;return verdict(doc);};
+  _deps.callCarouselWriter=(async()=>JSON.stringify({slides:[{slide_number:1,title:"Mon titre",body:"Mon passage."}],caption:{}})) as any;
+  const oldFetch=globalThis.fetch;globalThis.fetch=(()=>Promise.resolve(new Response("{}",{status:503}))) as typeof fetch;
+  try{const res=await handleRequest(makeHooksRequest({type:"slides",slide_count:1,user_slides:[{title:"Mon titre",body:"Mon passage."}]}));const d=JSON.parse((await res.json()).content);assertEquals(judged,0);assertEquals(d.progression_review.execution_status,"skipped");assertEquals(d.progression_review.reason,"user-authored");}finally{globalThis.fetch=oldFetch;}
 });
 
 for (const kind of ["photo", "mix"]) Deno.test(`structure ${kind} : deux photos n'imposent ni avant/après ni longueur`, async () => {
@@ -801,7 +682,7 @@ for (const subject of ["Découverte des céramiques après onboarding", "Histoir
   const plan=Array.from({length:4},(_,i)=>({slide_number:i+1,role:i===0?"hook":"explication",title_suggestion:`Titre ${i}`,strategic_note:"Apport au récit",photo_index:1,slide_type:"photo_full",story_beat:"Progression fournie",photo_observation:"Fleur peinte, aucun bouquet visible",image_relation:"Accompagne l’histoire de marque sans scène littérale",factual_basis:"Raison fournie dans le brief"}));
   const slides=plan.map(s=>({...s,overlay_text:"Texte suffisamment développé pour comprendre le choix exposé et son lien avec la suite du récit."}));
   _deps.callCarouselWriter=(async(o:any,sink:any)=>{writerPrompt=o.system+JSON.stringify(o.messages);Object.assign(sink,{total_tokens:1,model:o.model});return JSON.stringify({slides,caption:{body:""}});}) as any;
-  _deps.reviewThread=(async(_doc:any,options:any)=>{judged++;assert(options.preserveStructure);assert(options.sourceContext.includes("Fleur peinte"));return [];}) as any;
+  _deps.reviewThread=(async(_doc:any,options:any)=>{judged++;assert(options.preserveStructure);assert(options.sourceContext.includes("Fleur peinte"));return verdict(_doc);}) as any;
   const oldFetch=globalThis.fetch;
   globalThis.fetch=(()=>Promise.resolve(new Response(JSON.stringify({content:[{type:"text",text:"{}"}],stop_reason:"end_turn",usage:{input_tokens:1,output_tokens:1}})))) as typeof fetch;
   try {

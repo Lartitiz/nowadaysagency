@@ -4,7 +4,7 @@ import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, NEWS_WRITING }
 
 Deno.test("contrat : voix et données transmises, aucune persona imposée", () => {
   const prompt = buildCarouselWritingSystem("VOIX_VALIDÉE : vouvoiement, humour sec", true, "IDENTITÉ_WEB_DESIGNER", "CLARTÉ_SOURCE");
-  for (const value of ["VOIX_VALIDÉE", "IDENTITÉ_WEB_DESIGNER", "CLARTÉ_SOURCE", "humour", "nuances", "80", "cta"]) assert(prompt.includes(value), value);
+  for (const value of ["VOIX_VALIDÉE", "IDENTITÉ_WEB_DESIGNER", "CLARTÉ_SOURCE", "humour", "nuances", "longueur", "cta"]) assert(prompt.includes(value), value);
   assert(!prompt.includes("ton Nowadays"));
 });
 
@@ -55,7 +55,7 @@ for (const linkedIn of [false, true]) Deno.test(`texte : choix conservés, canal
 
 Deno.test("fil : le contrat exige un plan avant les slides, le test d'inversion et aucune rubrique à part", () => {
   const prompt = buildCarouselWritingSystem("VOIX", false, "IDENTITÉ", "CLARTÉ");
-  for (const rule of ["FIL DU CARROUSEL", "champ fil", "inversées sans changer le raisonnement", "fusionne-les", "slide-rubrique", "cas de départ reste présent", "rubrique finale annoncée", "Le nombre de slides suit la matière"]) assert(prompt.includes(rule), rule);
+  for (const rule of ["FIL DU CARROUSEL", "champ fil", "inversées sans changer le raisonnement", "fusionne-les", "une page entière est justifiée", "cas de départ reste présent", "rubrique finale annoncée", "Le nombre de slides suit la matière"]) assert(prompt.includes(rule), rule);
   for (const contradiction of ["ARC NARRATIF OBLIGATOIRE", "chaque slide est un temps de ce récit", "UNE SEULE histoire", "suspense obligatoire"]) assert(!prompt.includes(contradiction), contradiction);
   for (const p of [textWritingPrompt({ subject: "S" }, false, ""), photoWritingPrompt({ subject: "S" }, false, ""), mixWritingPrompt({ subject: "S" }, false, "", "")]) assert(p.includes("fil:{arrivee,etapes} en première clé"), "plan fil demandé dans chaque format");
   assert(NEWS_WRITING.includes("reste le sujet jusqu'à la dernière slide"));

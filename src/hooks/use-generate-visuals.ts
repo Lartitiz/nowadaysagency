@@ -1,3 +1,4 @@
+import { carouselCompositionWarnings } from "@/lib/carousel-composition-fidelity";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -433,9 +434,13 @@ export function useGenerateVisuals({
             return html === s.html ? s : { ...s, html };
           })
         : normalizedSlides;
-      setVisualSlides(rehydratedSlides.map((visual, i) => rawSlides[i]?.editor_locked && visualSlides[i] ? visualSlides[i] : visual));
-      setVisualsAutoError(null);
-      if (!opts?.background) {
+      const committedSlides = rehydratedSlides.map((visual, i) => rawSlides[i]?.editor_locked && visualSlides[i] ? visualSlides[i] : visual);
+      setVisualSlides(committedSlides);
+      const fidelityWarnings = carouselCompositionWarnings(carouselSubMode === "pure_photo" ? slidesSource : rawSlides, committedSlides, carouselSubMode === "pure_photo");
+      setVisualsAutoError(fidelityWarnings.length ? fidelityWarnings.join(" ") : null);
+      if (fidelityWarnings.length) {
+        if (!opts?.background) toast.warning("Le rendu doit être vérifié : certains textes ne sont pas conservés intégralement.");
+      } else if (!opts?.background) {
         if (downgradeReason === "user_chose_text") {
           toast.success("Carrousel généré en mode texte (aucune photo disponible).");
         } else {

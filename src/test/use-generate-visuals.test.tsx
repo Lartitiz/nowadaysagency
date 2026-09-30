@@ -9,7 +9,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 //    1 retry), chaque tentative étant un rendu FACTURÉ côté edge.
 
 const mocks = vi.hoisted(() => ({
-  toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn(), info: vi.fn() }),
+  toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn(), warning: vi.fn(), info: vi.fn() }),
   invokeWithHeartbeat: vi.fn(),
   handleQuotaError: vi.fn(),
   capture: vi.fn(),
@@ -88,7 +88,7 @@ function makeParams(overrides: Record<string, any> = {}) {
 }
 
 const okVisuals = {
-  data: { result: { slides_html: [{ html: "<div>1</div>" }, { html: "<div>2</div>" }] } },
+  data: { result: { slides_html: [{ html: "<div>T1 B1</div>" }, { html: "<div>T2 B2</div>" }] } },
   error: null,
 };
 
@@ -116,6 +116,12 @@ describe("useGenerateVisuals — appel manuel (avant-plan)", () => {
     ]);
   });
 
+  it("une transition perdue dans le HTML conserve le texte et les visuels mais ne dit pas succès",async()=>{
+    const params=makeParams();mocks.invokeWithHeartbeat.mockResolvedValueOnce({data:{result:{slides_html:[{slide_number:1,html:"<p>T1</p>"},{slide_number:2,html:"<p>T2 B2</p>"}]}},error:null});
+    const {result}=renderHook(()=>useGenerateVisuals(params));await act(()=>result.current.handleGenerateVisuals());
+    expect(params.result.raw.slides[0].body).toBe("B1");expect(params.setVisualSlides).toHaveBeenCalled();expect(mocks.toast.success).not.toHaveBeenCalled();expect(mocks.toast.warning).toHaveBeenCalled();expect(params.setVisualsAutoError).toHaveBeenCalledWith(expect.stringContaining("texte manque"));
+  });
+
   it("succès → slides normalisées posées, toast, compteur de crédits resynchronisé", async () => {
     const params = makeParams();
     const { result } = renderHook(() => useGenerateVisuals(params));
@@ -139,8 +145,8 @@ describe("useGenerateVisuals — appel manuel (avant-plan)", () => {
     expect(params.setVisualChunkProgress).toHaveBeenLastCalledWith({ done: 1, total: 4 });
 
     expect(params.setVisualSlides).toHaveBeenCalledWith([
-      { slide_number: 1, html: "<div>1</div>" },
-      { slide_number: 2, html: "<div>2</div>" },
+      { slide_number: 1, html: "<div>T1 B1</div>" },
+      { slide_number: 2, html: "<div>T2 B2</div>" },
     ]);
     expect(mocks.toast.success).toHaveBeenCalledWith("Visuels générés !");
     expect(params.setVisualLoading).toHaveBeenNthCalledWith(1, true);
@@ -154,7 +160,9 @@ describe("useGenerateVisuals — appel manuel (avant-plan)", () => {
     const params=makeParams({result:{raw:{...raw,carousel_editor_version:1,slides:raw.slides.map((s,i)=>({...s,editor_locked:i===0}))}},visualSlides:[{slide_number:1,html:"<div>Design verrouillé</div>"},{slide_number:2,html:"<div>Ancien design</div>"}]});
     const {result}=renderHook(()=>useGenerateVisuals(params));
     await act(()=>result.current.handleGenerateVisuals());
-    expect(params.setVisualSlides).toHaveBeenCalledWith([{slide_number:1,html:"<div>Design verrouillé</div>"},{slide_number:2,html:"<div>2</div>"}]);
+    expect(params.setVisualSlides).toHaveBeenCalledWith([{slide_number:1,html:"<div>Design verrouillé</div>"},{slide_number:2,html:"<div>T2 B2</div>"}]);
+    expect(params.setVisualsAutoError).toHaveBeenCalledWith(expect.stringContaining("texte manque"));
+    expect(mocks.toast.success).not.toHaveBeenCalled();
     expect(confirm).toHaveBeenCalled();confirm.mockRestore();
   });
   it("ne facture ni ne remplace les retouches quand la régénération est annulée", async () => {
@@ -168,7 +176,7 @@ describe("useGenerateVisuals — appel manuel (avant-plan)", () => {
 
   it("résultat amputé (1 slide sur 2) → jamais « Visuels générés ! », erreur réessayable", async () => {
     mocks.invokeWithHeartbeat.mockResolvedValue({
-      data: { result: { slides_html: [{ html: "<div>1</div>" }] } },
+      data: { result: { slides_html: [{ html: "<div>T1 B1</div>" }] } },
       error: null,
     });
     const params = makeParams();
@@ -213,6 +221,7 @@ describe("useGenerateVisuals — appel manuel (avant-plan)", () => {
   });
 
   it("forceText après le dialog → rendu en mode texte assumé, toast dédié", async () => {
+    mocks.invokeWithHeartbeat.mockResolvedValueOnce({data:{result:{slides_html:[{slide_number:1,html:"<p>O1</p>"},{slide_number:2,html:"<h1>T2</h1><p>B2</p>"}]}},error:null});
     const params = makeParams({
       result: {
         raw: {

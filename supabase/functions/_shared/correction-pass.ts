@@ -815,6 +815,10 @@ export async function applyCorrectionPassCarousel(
     // Step 2: Extract text fields into annotated block
     if (options.semanticReview) {
       const fields = carouselEditorialFields(parsed);
+      if ((options.sourceContext?.length || 0) + (options.currentBrief?.length || 0) + jsonContent.length > 100_000) {
+        parsed.editorial_review = {version: CAROUSEL_REVIEW_VERSION, status:"skipped", reason:"context-budget", edits:0};
+        return JSON.stringify(parsed);
+      }
       if (!fields.length) return jsonContent;
       let report: { status: string; fields: number; edits: number; error?: string };
       const reviewUsage: UsageSink = {};
@@ -832,9 +836,9 @@ export async function applyCorrectionPassCarousel(
           // Other formats and the legacy rollback correction remain unchanged.
           model: CAROUSEL_REVIEW_MODEL, system: CAROUSEL_EDITORIAL_REVIEW_PROMPT,
           messages: [{ role: "user", content:
-          claritySourceBlock(options.sourceContext, options.authoredText) +
+          claritySourceBlock(options.sourceContext, options.authoredText, true) +
           "\nALERTES À EXAMINER EN CONTEXTE :\n" + (extraInstructions || "Aucune alerte automatique ; effectuer la relecture de tous les champs.") +
-          (options.currentBrief ? "\nBRIEF ACTUEL PRIORITAIRE (faits, ton et limites de la demande ; respecter ces contraintes) :\n" + JSON.stringify(options.currentBrief.slice(0, 16000)) +
+          (options.currentBrief ? "\nBRIEF ACTUEL PRIORITAIRE (faits, ton et limites de la demande ; respecter ces contraintes) :\n" + JSON.stringify(options.currentBrief) +
             "\nUne information déclarée absente dans CE brief reste absente, même si la marque décrit ailleurs une boutique, un produit disponible ou une habitude. Ne transpose pas ces informations à cet objet.\n" : "") +
           baseline + "\nSÉQUENCE DES SLIDES (repères de lecture uniquement, non modifiables) :\n" + JSON.stringify(carouselEditorialSequence(parsed)) +
           "\nCHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n" + JSON.stringify(fields.map(({ id, text }) => ({ field_id: id, text }))),

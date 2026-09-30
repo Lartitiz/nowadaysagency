@@ -1,3 +1,4 @@
+import { invalidateProgressionReceipt } from "../../supabase/functions/_shared/carousel-editorial-snapshot";
 /** Serial, optimistic writes. Never silently replace another session's version. */
 export type CarouselSnapshot = Record<string, any>;
 export interface CarouselVersion {
@@ -28,7 +29,7 @@ export function cleanCarouselSnapshot(raw: CarouselSnapshot): CarouselSnapshot {
     _carousel_base_updated_at: _base,
     ...content
   } = raw;
-  return content;
+  return invalidateProgressionReceipt(content);
 }
 export class CarouselConflict extends Error {
   constructor() {

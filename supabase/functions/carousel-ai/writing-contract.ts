@@ -1,5 +1,6 @@
+import { COMMON, WRITE } from "../_shared/carousel-editorial-contract.ts";
 /** Carousel-specific writing policy. Layout contracts remain in the variant builders. */
-export const CAROUSEL_WRITING_VERSION = "fil-v5.3";
+export const CAROUSEL_WRITING_VERSION = "fil-v6.0";
 
 export const CAROUSEL_FACTS = `CHIFFRES ET FIGURES : conserve le lien entre une quantité et ce qu'elle mesure. Un nombre présent dans le brief n'autorise pas un autre fait portant le même nombre. Si tu reformules une même donnée sous une autre unité, annonce cette relation sans faire croire à une seconde preuve. Une métaphore peut rester si elle éclaire le sujet ; n'en introduis pas pour donner du poids à la conclusion.`;
 
@@ -41,7 +42,7 @@ Avant d'écrire les slides, fixe le fil : ce que la personne qui lit comprend à
 Pour chaque slide après la couverture, identifie ce qu'elle reprend de la précédente et ce qu'elle apporte. Rédige le début en tenant compte de ce qui vient d'être lu ; les références et pronoms restent compréhensibles. Une photo sans texte peut porter une étape quand la matière fournie le permet.
 Chaque slide part de quelque chose que la précédente a posé (un fait, une question laissée ouverte, un mot) et apporte une chose nouvelle qui fait avancer la compréhension. Un lien de sens suffit : ne fabrique ni transition emphatique, ni suspense, ni chute à chaque frontière de slide.
 Test avant de livrer : si deux slides peuvent être inversées sans changer le raisonnement, ou si une slide redit l'idée précédente avec d'autres mots, fusionne-les ou supprime l'une quand la longueur est libre ; si un nombre ou une structure est imposé, développe plutôt la matière utile dans les pages prévues sans perdre un élément promis. Le nombre de slides suit la matière quand aucun nombre ni structure n'est imposé ; les étapes d'une méthode ou les éléments d'une liste annoncée gardent leur ordre propre.
-Une précaution, une distinction ou une nuance se place dans la slide où elle sert le raisonnement ; elle ne devient pas une slide-rubrique à part (note, avertissement, précision de méthode). Le sujet ou le cas de départ reste présent jusqu'à la dernière slide : un point général s'y rattache explicitement, on ne bascule pas vers une fiche générique. Le lien avec l'activité de la personne se construit au fil des slides quand il existe, jamais sous forme de rubrique finale annoncée par son titre.
+Une précaution, une distinction ou une nuance se place là où elle sert le raisonnement ; une page entière est justifiée si son développement fait avancer la pensée. Le sujet ou le cas de départ reste présent jusqu'à la dernière slide : un point général s'y rattache explicitement, on ne bascule pas vers une fiche générique. Le lien avec l'activité de la personne se construit au fil des slides quand il existe, jamais sous forme de rubrique finale annoncée par son titre.
 Une liste, une checklist ou une comparaison peut avoir des éléments indépendants : garde un cadre commun et un ordre lisible, sans fabriquer de causalité entre eux. Aucune histoire inventée ni recette narrative universelle.
 Relis enfin couverture, titres, corps et overlay_text comme un texte continu, sans dépendre de la légende Instagram pour comprendre les liens. Relie les passages avec la matière disponible ; ajouter « ensuite » ne répare pas un saut de raisonnement. Les nuances nécessaires restent présentes, et une note distincte explicitement demandée est conservée.
 La conclusion découle du chemin parcouru. Une action ou une question n'est ajoutée que si elle sert la demande, une seule au maximum.
@@ -50,7 +51,9 @@ Examine aussi les titres et fins de paragraphes : une opposition de façade, une
 `;
 
 export function buildCarouselWritingSystem(brandingContext: string, isLinkedIn: boolean, identity: string, clarity: string): string {
-  return `${clarity}
+  return `${COMMON}
+${WRITE}
+${clarity}
 ${identity} Tu rédiges pour la personne un carrousel ${isLinkedIn ? "LinkedIn" : "Instagram"} fidèle à sa demande et agréable à lire.
 ${CAROUSEL_SUBSTANCE}
 ${CAROUSEL_CONTINUITY}
@@ -61,7 +64,7 @@ ${brandingContext}
 Le ton demandé et la voix personnelle priment sur les usages du réseau. À défaut, style accessible et chaleureux, ${isLinkedIn ? "professionnel, vouvoiement" : "direct, première personne pour ce que la personne dit d'elle-même"}. Ne diagnostique pas l'audience ; ne lui prête pas de peur ni de manque. Pas de manipulation, rareté fictive, promesse exagérée ou jargon marketing creux. Reste courtois, sans vulgarité ajoutée. Respecte l'écriture inclusive et les mots fournis. Pas de tirets longs ajoutés.
 
 LISIBILITÉ ET RENDU
-Une idée principale par slide, prose fluide, longueur adaptée à sa matière. Maximum ${isLinkedIn ? "80" : "50"} mots par slide texte ; les overlays suivent les limites du gabarit. Préserve le nombre, l'ordre, les types, photos et intentions des slides confirmées. Pense aux illustrations et schémas quand ils expliquent quelque chose ; ne force aucun schéma pour décorer. Les suggestions visuelles restent dans leurs champs techniques, pas dans la prose. Pas de cercles décoratifs ; titres Libre Baskerville non gras, corps IBM Plex Sans si une suggestion typographique est demandée.
+Une idée principale par slide, prose fluide, longueur adaptée à sa matière. La longueur suit le développement utile ; le gabarit s’adapte sans supprimer d’explication ni de transition. Préserve le nombre, l'ordre, les types, photos et intentions des slides confirmées. Pense aux illustrations et schémas quand ils expliquent quelque chose ; ne force aucun schéma pour décorer. Les suggestions visuelles restent dans leurs champs techniques, pas dans la prose. Pas de cercles décoratifs ; titres Libre Baskerville non gras, corps IBM Plex Sans si une suggestion typographique est demandée.
 La légende peut compléter ou résumer utilement le propos pour une lecture autonome. N'invente aucun envers du décor pour la différencier. Ses champs peuvent être courts ; cta vide si aucune action ne sert la demande. Hashtags seulement pertinents, sans prétendre à une origine ou une fabrication non établie.
 Retourne uniquement le JSON demandé par le format, sans commentaire, enveloppe Markdown ni auto-note de qualité inventée.`;
 }
