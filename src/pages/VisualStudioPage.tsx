@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   BookmarkCheck,
-  Check,
   Ellipsis,
   GitCompare,
   ImagePlus,
@@ -280,7 +279,6 @@ function Studio({
   } | null>(null);
   const localKey = draftKey(userId, workspaceId, sessionId || "new");
   const [draft, setDraft] = useState(() => readDraft(localKey));
-  const [pickedSuggestions, setPickedSuggestions] = useState<string[]>([]);
   const attachmentKey = `${localKey}:images`;
   const [attachedIds, setAttachedIds] = useState<string[]>(() => readAttachedIds(attachmentKey));
   const localUpload = useUploadLibraryPhotos();
