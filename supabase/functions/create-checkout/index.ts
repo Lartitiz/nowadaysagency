@@ -44,7 +44,7 @@ export async function handleCreateCheckoutRequest(req: Request) {
     log("User authenticated");
 
     const { priceId, mode, successUrl, cancelUrl } = validateInput(await req.json(), CreateCheckoutSchema);
-    try { checkoutOffer(priceId, mode || "payment"); } catch { throw new ValidationError("Cette offre n’est pas disponible."); }
+    try { checkoutOffer(priceId, mode || "payment", false); } catch { throw new ValidationError("Cette offre n’est pas disponible."); }
     log("Request body parsed", { priceId, mode });
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");

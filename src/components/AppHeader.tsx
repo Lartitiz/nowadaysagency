@@ -121,7 +121,7 @@ function AppHeaderInner() {
   const { user, signOut, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { plan, usage, bonusCredits, isBinome, isPaid } = useUserPlan();
+  const { plan, usage, bonusCredits, isBinome, isPaid, loading: planLoading, verified: planVerified, refresh: refreshPlan } = useUserPlan();
   const { isDemoMode, demoData, demoPlan, activateDemo } = useDemoContext();
   const handleDemoClick = () => { activateDemo(); navigate("/dashboard"); };
   const [searchParams] = useSearchParams();
@@ -239,7 +239,7 @@ function AppHeaderInner() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />
+            {planLoading ? <span role="status" className="text-xs text-muted-foreground">Vérification…</span> : !planVerified ? <button className="text-xs text-primary underline" onClick={() => void refreshPlan()}>Vérifier mon accès</button> : <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />}
             <NotificationBell />
             <AvatarMenu
               initial={initial}
@@ -281,7 +281,7 @@ function AppHeaderInner() {
             {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} switchingWorkspaceId={switchingWorkspaceId} navigate={navigate} />}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />
+            {planLoading ? <span role="status" className="text-xs text-muted-foreground">Vérification…</span> : !planVerified ? <button className="text-xs text-primary underline" onClick={() => void refreshPlan()}>Vérifier mon accès</button> : <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />}
             <NotificationBell />
             <AvatarMenu
               initial={initial}
