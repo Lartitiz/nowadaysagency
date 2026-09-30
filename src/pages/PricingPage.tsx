@@ -181,7 +181,6 @@ export default function PricingPage() {
             type="button"
             onClick={async () => {
               if (retour.workspaceId && !await switchWorkspace(retour.workspaceId)) return;
-              oublieRetour();
               navigate(retour.chemin);
             }}
             className="mb-8 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"

@@ -1,3 +1,4 @@
+import { trackUpgrade } from "@/lib/upgrade-events";
 const KEY = "retour_apres_detour";
 
 /** Le temps d'un détour (autorisation OAuth, paiement Stripe), pas plus :
@@ -146,4 +147,12 @@ export function versTarifs(
 export function partirVersTarifs(quoi?: string): void {
   memoriseRetour(undefined, quoi);
   window.location.assign(CHEMIN_TARIFS);
+}
+
+/** Called only once the destination has successfully reloaded its working state. */
+export function recordCreationResume(surface: "studio" | "creation") {
+ const memo = lireRetour();
+ if (!memo || memo.chemin.split("?")[0] !== window.location.pathname) return;
+ trackUpgrade("creation_resumed", { surface });
+ oublieRetour();
 }

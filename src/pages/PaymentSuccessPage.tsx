@@ -95,8 +95,7 @@ export default function PaymentSuccessPage() {
               className="rounded-full gap-2"
               onClick={async () => {
                 if (retour.workspaceId && !await switchWorkspace(retour.workspaceId)) return;
-                trackUpgrade("creation_resumed", { surface: "payment", kind });
-                oublieRetour();
+                trackUpgrade("return_clicked", { surface: "payment", kind });
                 navigate(retour.chemin);
               }}
             >

@@ -94,16 +94,16 @@ export async function handleCreateCheckoutRequest(req: Request) {
     };
 
     // Prix du plan Binôme de com (studio_monthly) : engagement 6 mois
-    const STUDIO_MONTHLY_PRICE_ID = "price_1T7uZbIwPeG7Gjpy3arZSdx8";
+    const isBinome = mode === "subscription" && checkoutOffer(priceId, "subscription").plan === "binome";
 
     if (mode === "subscription") {
       sessionParams.subscription_data = {
         metadata: {
           user_id: user.id,
-          auto_cancel_6m: priceId === STUDIO_MONTHLY_PRICE_ID ? "true" : "false",
+          auto_cancel_6m: isBinome ? "true" : "false",
         },
       };
-      if (priceId === STUDIO_MONTHLY_PRICE_ID) {
+      if (isBinome) {
         log("Studio plan: will set cancel_at after subscription creation via webhook");
       }
     } else {

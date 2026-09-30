@@ -1,3 +1,4 @@
+import { recordCreationResume } from "@/lib/retour-apres-detour";
 import { AccessNotice } from "@/components/AccessNotice";
 import { ReferenceCards } from "@/features/visual-studio/ReferenceCards";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -364,6 +365,7 @@ function Studio({
   const insufficientSeries = !!proposal && current?.quota.allowed && (
     (current.quota.available_total !== undefined && current.quota.available_total < proposal.cost) ||
     (!!imageBalance && imageBalance.limit > 0 && imageBalance.limit - imageBalance.used < proposal.cost));
+  useEffect(() => { if (current?.session.id) recordCreationResume("studio"); }, [current?.session.id]);
   const generating = current?.versions.some((v) => v.status === "processing");
   useEffect(() => {
     setBranchChoice(null);

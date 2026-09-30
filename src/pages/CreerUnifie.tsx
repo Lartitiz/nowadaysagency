@@ -17,7 +17,7 @@ import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, 
 import { startSocialConnect } from "@/lib/social-connect";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { useSearchParams, useLocation, useNavigate, useNavigationType, Link } from "react-router-dom";
-import { versConnexions, memoriseRetour } from "@/lib/retour-apres-detour";
+import { versConnexions, memoriseRetour, recordCreationResume } from "@/lib/retour-apres-detour";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { posthog } from "@/lib/posthog";
@@ -2654,6 +2654,7 @@ function CreerWorkspace() {
 
   // ── Launch mode rendering ──
 
+  useEffect(() => { if (workspaceReady && (ideaText || result)) recordCreationResume("creation"); }, [workspaceReady, ideaText, result]);
   const isLaunchMode = editorialAngle === "lancement" && step === "result";
 
   // Demo mode: replace action handlers with toast notifications

@@ -36,7 +36,7 @@ vi.mock("@/hooks/use-user-plan", () => ({ invalidateUserPlanCache: vi.fn() }));
 import QuotaWallModal from "@/components/QuotaWallModal";
 import PaymentSuccessPage from "@/pages/PaymentSuccessPage";
 import { handleQuotaError } from "@/lib/quota-error-handler";
-import { CHEMIN_TARIFS, lireRetour, memoriseRetour } from "@/lib/retour-apres-detour";
+import { CHEMIN_TARIFS, lireRetour, memoriseRetour, recordCreationResume } from "@/lib/retour-apres-detour";
 
 function allerSur(url: string) {
   window.history.replaceState({}, "", url);
@@ -109,7 +109,9 @@ describe("après le paiement, on reprend son travail", () => {
     fireEvent.click(bouton);
 
     expect(mocks.navigate).toHaveBeenCalledWith("/creer");
-    // Mémo consommé : un retour arrière ne renvoie pas en boucle.
+    // The destination acknowledges successful restoration, not merely a click.
+    allerSur("/creer");
+    recordCreationResume("creation");
     expect(lireRetour()).toBeNull();
   });
 
