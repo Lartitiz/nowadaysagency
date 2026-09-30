@@ -340,6 +340,7 @@ function Studio({
   const activeIds = current?.session.active_reference_ids ?? attachedIds;
   const attachedReferences = activeIds.map((id) => references.find((ref) => ref.id === id)).filter((ref): ref is StudioReference => !!ref);
   useEffect(() => { setAttachedIds(readAttachedIds(attachmentKey)); }, [attachmentKey]);
+  const hasExtraTools = !!(references.length || current?.suggested_photos?.length || current?.charter_references?.length || compositionHistory.length || current?.memory?.length);
   const [photosOpen, setPhotosOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const photoCountRef = useRef<number | null>(null);
