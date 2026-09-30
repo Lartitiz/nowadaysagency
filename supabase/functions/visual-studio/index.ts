@@ -823,7 +823,15 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             ],
           };
           const raw = await callAnthropic(interpreterArgs);
-          intent = intentSchema.parse(JSON.parse(raw));
+          const parsed = intentSchema.safeParse(JSON.parse(raw));
+          if (!parsed.success) {
+            // A malformed preparation is a technical issue, never a question for the user.
+            const issues = parsed.error.issues.map(issue => ({ code: issue.code, path: issue.path, message: issue.message }));
+            console.warn("[visual-studio:contract]", JSON.stringify({ request_id: p.request_id, issues }));
+            intent = intentSchema.parse(JSON.parse(await callAnthropic({ ...interpreterArgs,
+              system: `${interpreterArgs.system}\nCONTRÔLE DE COMPLÉTUDE : ta réponse précédente était techniquement incomplète (${JSON.stringify(issues)}). Renvoie maintenant la réponse structurée complète pour cette même demande. Pour create/edit/product, image_prompt est obligatoire et non vide, ainsi que summary. Pour background, background_prompt est non vide. Pour compose, composition est obligatoire. N'invente pas de nouvelle demande à l'utilisatrice pour réparer ces champs techniques.`,
+            })));
+          } else intent = parsed.data;
           intent.summary = cleanStudioSummary(intent.summary);
           if (intent.reply) intent.reply = cleanStudioSummary(intent.reply);
           if (["advise", "clarify"].includes(intent.operation)) {
