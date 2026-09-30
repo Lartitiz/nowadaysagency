@@ -1,4 +1,5 @@
 import { ReferenceCards } from "@/features/visual-studio/ReferenceCards";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { referenceLabels } from "@/features/visual-studio/reference-labels";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -339,6 +340,15 @@ function Studio({
   const activeIds = current?.session.active_reference_ids ?? attachedIds;
   const attachedReferences = activeIds.map((id) => references.find((ref) => ref.id === id)).filter((ref): ref is StudioReference => !!ref);
   useEffect(() => { setAttachedIds(readAttachedIds(attachmentKey)); }, [attachmentKey]);
+  const hasExtraTools = !!(references.length || current?.suggested_photos?.length || current?.charter_references?.length || compositionHistory.length || current?.memory?.length);
+  const [photosOpen, setPhotosOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const photoCountRef = useRef<number | null>(null);
+  useEffect(() => {
+    const n = attachedReferences.length;
+    if (photoCountRef.current !== null && n > photoCountRef.current) setPhotosOpen(true);
+    photoCountRef.current = n;
+  }, [attachedReferences.length]);
   function setAttachments(ids: string[], key = attachmentKey) {
     const unique = [...new Set(ids)];
     writeAttachedIds(key, unique);
@@ -1292,9 +1302,10 @@ function Studio({
                         <p className="mt-2">Tu peux poursuivre une autre demande dans cette session. Cette image ne peut pas être relancée automatiquement.</p>
                       </div>
                     ))}
-                  {!!(references.length || current?.suggested_photos?.length || current?.charter_references?.length || compositionHistory.length || current?.memory?.length) && (
-                  <details className="studio-extra-tools">
-                    <summary>Autres outils et créations enregistrées{references.length ? ` · ${references.length} image${references.length > 1 ? "s" : ""} de référence` : ""}</summary>
+                  {hasExtraTools && (
+                  <Sheet open={toolsOpen} onOpenChange={setToolsOpen}>
+                  <SheetContent side="left" className="w-[92vw] sm:max-w-md overflow-y-auto">
+                    <SheetHeader><SheetTitle>Références, outils et créations</SheetTitle></SheetHeader>
                   <div className="studio-references">
                     {!!references.length && (
                       <>
@@ -1483,27 +1494,47 @@ function Studio({
                       <Button
                         variant="ghost"
                         disabled={!writable || !!busy}
-                        onClick={() => setExistingTool("before_after")}
+                        onClick={() => { setToolsOpen(false); setExistingTool("before_after"); }}
                       >
                         Avant / après
                       </Button>
                       <Button
                         variant="ghost"
                         disabled={!writable || !!busy}
-                        onClick={() => setExistingTool("mockup")}
+                        onClick={() => { setToolsOpen(false); setExistingTool("mockup"); }}
                       >
                         Mockup d’offre
                       </Button>
                     </div>
                   )}
-                  </details>
+                  </SheetContent>
+                  </Sheet>
                   )}
                 </section>
               </div>
-              <div className="studio-composer p-4 border-t space-y-3">
-                {!!selectedId && <button type="button" className="text-xs text-primary text-left" onClick={() => { setSelectedId(null); setSelectedReferenceId(null); setCompare(false); }}>
-                  À partir de l’image sélectionnée · changer de point de départ ×
-                </button>}
+              <div className="studio-composer p-3 border-t space-y-2">
+                {(hasExtraTools || current) && (
+                  <div className="studio-link-row">
+                    {hasExtraTools && (
+                      <button type="button" className="studio-link" onClick={() => setToolsOpen(true)}>
+                        {references.length ? `Références (${references.length})` : "Outils et créations"}
+                      </button>
+                    )}
+                    {current && (
+                      <>
+                        <button type="button" className="studio-link" disabled={!writable || !!busy} onClick={() => setExistingTool("before_after")}>Avant / après</button>
+                        <button type="button" className="studio-link" disabled={!writable || !!busy} onClick={() => setExistingTool("mockup")}>Mockup d’offre</button>
+                      </>
+                    )}
+                  </div>
+                )}
+                <div className="studio-link-row">
+                  {!!selectedId && <button type="button" className="studio-link text-primary" onClick={() => { setSelectedId(null); setSelectedReferenceId(null); setCompare(false); }}>
+                    Image sélectionnée · changer ×
+                  </button>}
+                  {current && <button type="button" className="studio-link" disabled={!writable || !!busy || generating}
+                    aria-label="Nouvelle demande sans ces références" onClick={() => void updateSelection([], true)}>Nouvelle demande</button>}
+                </div>
                 {activeBranchChoice && (
                   <div role="status" className="rounded-lg border border-primary/30 bg-card p-3 space-y-2 text-sm">
                     <p>Les références ont changé depuis cette version. Lesquelles veux-tu utiliser pour cette nouvelle demande ? Aucune image n’a été lancée.</p>
@@ -1525,15 +1556,16 @@ function Studio({
                 >
                   Ta demande
                 </label>
-                {current && <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground">{attachedReferences.length ? "Photos de cette demande" : "Ta demande"}</span>
-                  <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" disabled={!writable || !!busy || generating}
-                    aria-label="Nouvelle demande sans ces références" onClick={() => void updateSelection([], true)}>Nouvelle demande</Button>
-                </div>}
-                <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
-                  onSelection={ids => void updateSelection(ids)}
-                  onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
-                  onGroup={(id, group) => void mutate("reference", { reference_id: id, subject_group: group, revision: current!.session.revision })} />
+                {attachedReferences.length > 0 && (
+                  <details className="studio-photos-accordion" open={photosOpen}
+                    onToggle={(e) => setPhotosOpen((e.currentTarget as HTMLDetailsElement).open)}>
+                    <summary>Photos de cette demande ({attachedReferences.length})</summary>
+                    <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
+                      onSelection={ids => void updateSelection(ids)}
+                      onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
+                      onGroup={(id, group) => void mutate("reference", { reference_id: id, subject_group: group, revision: current!.session.revision })} />
+                  </details>
+                )}
 
                 <Textarea
                   className="min-h-[88px] max-h-36 overflow-y-auto"
@@ -1575,48 +1607,41 @@ function Studio({
       <AppHeader />
       <main id="main-content" className="studio-page">
         <header className="studio-header">
-          <div>
-            <Button
-              variant="ghost"
-              size="sm"
+          <div className="studio-header-left">
+            <button
+              type="button"
+              className="studio-link"
               onClick={() => navigate(videoTab ? "/photos?tab=videos" : "/photos")}
             >
-              <ArrowLeft className="mr-2 h-4 w-4" />
+              <ArrowLeft className="inline h-3.5 w-3.5 mr-1" />
               Bibliothèque
-            </Button>
-            <h1 className="font-display text-2xl md:text-3xl">Studio visuel</h1>
-          </div>
-          <div className="text-right">
-            <p className="text-sm">{workspaceName}</p>
-            {!videoTab && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSessionsOpen(true)}
+            </button>
+            <h1 className="font-display text-lg">Studio visuel</h1>
+            <nav aria-label="Sections du Studio" className="studio-tabs">
+              <button
+                type="button"
+                data-active={!videoTab}
+                aria-current={!videoTab ? "page" : undefined}
+                onClick={() => chooseTab("photo")}
               >
-                Mes sessions
-              </Button>
-            )}
+                Photos
+              </button>
+              <button
+                type="button"
+                data-active={videoTab}
+                aria-current={videoTab ? "page" : undefined}
+                onClick={() => chooseTab("video")}
+              >
+                Clips vidéo
+              </button>
+            </nav>
           </div>
+          {!videoTab && (
+            <button type="button" className="studio-link" onClick={() => setSessionsOpen(true)}>
+              Mes sessions
+            </button>
+          )}
         </header>
-        <nav aria-label="Sections du Studio" className="flex gap-2 px-5 pb-4">
-          <Button
-            type="button"
-            variant={videoTab ? "outline" : "default"}
-            aria-current={!videoTab ? "page" : undefined}
-            onClick={() => chooseTab("photo")}
-          >
-            Photos
-          </Button>
-          <Button
-            type="button"
-            variant={videoTab ? "default" : "outline"}
-            aria-current={videoTab ? "page" : undefined}
-            onClick={() => chooseTab("video")}
-          >
-            Clips vidéo
-          </Button>
-        </nav>
         {!videoTab && current?.session.archived_at && (
           <div role="status" className="mx-5 mb-4 rounded-xl border border-border bg-card p-4 text-sm flex flex-wrap items-center justify-between gap-3">
             <span>Cette session est archivée. Les échanges, versions et images enregistrées sont conservés.</span>
