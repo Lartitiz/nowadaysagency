@@ -13,7 +13,7 @@ const EXCLUDED_STATS_EMAILS = [
 // le domaine n'a qu'une seule boîte réelle, celle de l'admin.
 const isExcludedStatsEmail = (e: string | null) =>
   !!e && (EXCLUDED_STATS_EMAILS.includes(e) || /^laetitia\+[^@]*@nowadaysagency\.com$/i.test(e));
-const PLAN_PRICES: Record<string, number> = { outil: 39, binome: 250, pro: 79 };
+const PLAN_PRICES: Record<string, number> = { outil: 39, binome: 350, pro: 79 };
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);

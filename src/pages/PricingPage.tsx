@@ -300,7 +300,7 @@ export default function PricingPage() {
               Le <strong>Binôme de com'</strong> : Laetitia à tes côtés pendant 6 mois. Stratégie sur mesure,
               sessions visio, support WhatsApp et validation de chaque livrable. Un accompagnement humain, en plus de l'outil.
             </p>
-            <p className="text-sm font-medium text-foreground mt-2">À partir de 290€/mois · engagement 6 mois</p>
+            <p className="text-sm font-medium text-foreground mt-2">À partir de 350€/mois · engagement 6 mois</p>
           </div>
           <a
             href="https://calendly.com/laetitia-mattioli/appel-decouverte"

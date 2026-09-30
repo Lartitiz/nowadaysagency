@@ -117,7 +117,7 @@ describe("AbonnementPage — plan actuel", () => {
 
     const card = await waitForPlanLoaded();
     expect(within(card).getByText("Binôme de com")).toBeInTheDocument();
-    expect(within(card).getByText(/290€\/mois/)).toBeInTheDocument();
+    expect(within(card).getByText(/350€\/mois/)).toBeInTheDocument();
     expect(within(card).queryByRole("link", { name: /Voir mon accompagnement/ })).not.toBeInTheDocument();
   });
 });
@@ -159,7 +159,7 @@ describe("AbonnementPage — portail Stripe", () => {
     render(<AbonnementPage />);
     const card = await waitForPlanLoaded();
     expect(within(card).getByText("Accès administrateur")).toBeInTheDocument();
-    expect(within(card).queryByText(/290€\/mois/)).not.toBeInTheDocument();
+    expect(within(card).queryByText(/350€\/mois/)).not.toBeInTheDocument();
     expect(screen.queryByText("Gérer mon abonnement")).not.toBeInTheDocument();
     expect(screen.queryByText("Acheter des crédits bonus")).not.toBeInTheDocument();
     expect(screen.getByText("Accès illimité de gestion et de démonstration.")).toBeInTheDocument();

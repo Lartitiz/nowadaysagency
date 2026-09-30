@@ -719,7 +719,7 @@ const QUOTA_CATEGORIES: { key: string; icon: LucideIcon; label: string }[] = [
 
 function AiQuotaDisplay() {
   const { plan, usage, isPaid } = useUserPlan();
-  const planLabel = plan === "binome" ? "Binôme de com (290€/mois)" : plan === "outil" ? "Premium (39€/mois)" : "Gratuit";
+  const planLabel = plan === "binome" ? "Binôme de com (350€/mois)" : plan === "outil" ? "Premium (39€/mois)" : "Gratuit";
   const total = usage.total;
   // Plans payants : le global est un garde-fou d'usage raisonnable, pas un
   // compteur à montrer (grille 01/10/2026) — seuls les plafonds durs s'affichent.

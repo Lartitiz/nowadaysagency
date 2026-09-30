@@ -28,9 +28,9 @@ export const STRIPE_PLANS = {
   },
   binome_monthly: {
     name: "Ton binôme de com'",
-    price: 290,
-    priceId: "price_1T7uZbIwPeG7Gjpy3arZSdx8",
-    productId: "prod_U66n9TkhjJae5r",
+    price: 350,
+    priceId: "price_1ULVaXIwPeG7GjpydOgyy6d1",
+    productId: "prod_VME2WszeRT47AU",
     mode: "subscription" as const,
     engagement: "6 mois",
     features: [
@@ -42,9 +42,9 @@ export const STRIPE_PLANS = {
   },
   binome_once: {
     name: "Ton binôme de com' (paiement unique)",
-    price: 1740,
-    priceId: "price_1T7uZoIwPeG7GjpysrHPkLgh",
-    productId: "prod_U66nHw9q4JTxHL",
+    price: 2100,
+    priceId: "price_1ULVaeIwPeG7GjpydIGgEdV2",
+    productId: "prod_VME2cb2SjUtniU",
     mode: "payment" as const,
     features: [
       "Tout le plan Outil pendant 6 mois",

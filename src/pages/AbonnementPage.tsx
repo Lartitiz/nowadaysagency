@@ -190,7 +190,7 @@ export default function AbonnementPage() {
                   {planLabel}
                 </span>
                 {subInfo?.source === "stripe" && subInfo?.plan === "outil" && " · 39€/mois"}
-                {subInfo?.source === "stripe" && subInfo?.plan === "binome" && " · 290€/mois"}
+                {subInfo?.source === "stripe" && subInfo?.plan === "binome" && " · 350€/mois"}
               </p>
               {subInfo?.source === "admin" && <p className="text-xs text-muted-foreground">Accès de gestion et de démonstration, sans mensualité liée à ce rôle.</p>}
               {subInfo?.plan === "binome" && subInfo?.source !== "admin" && (
@@ -408,7 +408,7 @@ export default function AbonnementPage() {
               plan === "binome" ? "border-primary bg-rose-pale" : "border-border hover:border-primary/30"
             }`}>
               <h3 className="font-display font-bold text-foreground flex items-center justify-center gap-1.5"><Handshake className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} /> Ta binôme de com</h3>
-              <p className="text-lg font-semibold text-primary-text mt-1">290€/mois</p>
+              <p className="text-lg font-semibold text-primary-text mt-1">350€/mois</p>
               <p className="text-xs text-muted-foreground mt-0.5">Engagement 6 mois</p>
               <div className="text-2xs text-muted-foreground mt-1 space-y-0.5 text-left">
                 <p className="flex items-start gap-1"><Check className="h-3 w-3 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> L'outil complet : 40 carrousels, 60 images, 6 vidéos / mois</p>
