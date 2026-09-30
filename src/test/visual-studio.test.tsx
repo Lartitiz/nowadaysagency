@@ -898,3 +898,42 @@ it("shows stable identity choices and the references actually used before genera
  expect(screen.queryByText("Création sans photo de départ")).not.toBeInTheDocument();
  expect(mock.request).not.toHaveBeenCalledWith(expect.objectContaining({action:"generate"}));
 });
+
+it("confirms a scene separately and keeps the planning product when correcting the draft", async () => {
+  const state = original();
+  state.quota.plan = "premium";
+  state.generative_allowed = true;
+  const product = { id: "product", photo_id: "p", name: "Assiette originale", role: "product" as const, url: "/plate.jpg" };
+  state.session.references = [product];
+  state.session.proposal = { ...proposal, operation: "create", summary: "Une table vue de haut avec une place pour l'assiette.",
+    scene_workflow: { phase: "scene", camera_match: "Vue à 75° compatible avec l'assiette" },
+    provider: "higgsfield", model: "higgsfield-ai/soul/v2/standard", planning_references: [product], reference_snapshot: [] };
+  mock.request.mockResolvedValue(state);
+  mount();
+  await screen.findByRole("heading", { name: "La scène avant ton produit" });
+  expect(screen.getByText(/Produits observés pour préparer la scène/)).toBeInTheDocument();
+  expect(screen.queryByText(/créée avec Soul/)).not.toBeInTheDocument();
+  expect(screen.getByText(/Chaque étape sera confirmée et décomptée séparément/)).toBeInTheDocument();
+  fireEvent.change(screen.getByPlaceholderText("Une idée, une question, une image à améliorer…"), { target: { value: "Garde la vue de haut, réduis les ombres" } });
+  fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "message", reference_ids: ["product"] })));
+  expect(mock.request.mock.calls.some(([body]) => body.action === "generate")).toBe(false);
+});
+
+it("selecting a second discussion image preserves the first attachment", async () => {
+  const state = original();
+  state.session.references = [
+    { id: "product", photo_id: "p", name: "Produit original", role: "product", url: "/plate.jpg" },
+    { id: "scene", photo_id: "s", name: "Décor fourni", role: "composition", url: "/scene.jpg" },
+  ];
+  mock.request.mockResolvedValue(state);
+  mount();
+  await screen.findByText("Décris ton fond.");
+  fireEvent.click(screen.getByText(/Images apportées dans la discussion/));
+  const buttons = screen.getAllByRole("button", { name: "Produit original" });
+  fireEvent.click(buttons.at(-1)!);
+  fireEvent.click(screen.getAllByRole("button", { name: "Décor fourni" }).at(-1)!);
+  fireEvent.change(screen.getByPlaceholderText("Une idée, une question, une image à améliorer…"), { target: { value: "Insère mon produit dans mon décor" } });
+  fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "message", reference_ids: ["product", "scene"] })));
+});

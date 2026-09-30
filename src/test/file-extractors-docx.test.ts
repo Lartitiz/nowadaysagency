@@ -62,6 +62,6 @@ describe("extractTextFromFile — .docx (mammoth + xmldom)", () => {
 
   it("rejette un document.xml mal formé au lieu de renvoyer du vide", async () => {
     const file = await makeDocx(documentXml(`<w:p><w:r><w:t>pas fermé</w:r></w:p>`));
-    await expect(extractTextFromFile(file)).rejects.toThrow(/tag mismatch/);
+    await expect(extractTextFromFile(file)).rejects.toThrow(/tag mismatch|unclosed xml attribute/);
   });
 });

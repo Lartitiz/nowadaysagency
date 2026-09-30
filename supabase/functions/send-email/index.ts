@@ -97,6 +97,26 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Adresses de test (domaines réservés RFC 2606/6761) : refusées définitivement
+    // par Resend (422). On les écarte et on journalise un « skipped » au lieu d'un
+    // échec 500 répété à chaque passage du cron.
+    const RESERVED_DOMAIN = /@(?:[^@]+\.)?(example\.(com|org|net)|[^@]+\.(test|invalid|example|localhost))$|@(example|localhost)$/i;
+    for (let i = recipients.length - 1; i >= 0; i--) {
+      const email = String(recipients[i] || "").trim();
+      if (email && !RESERVED_DOMAIN.test(email) && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) continue;
+      // eslint-disable-next-line nowadays/require-supabase-error-check -- log best-effort, le destinataire est déjà exclu
+      await supabase.from("email_sends").insert({
+        to_email: email,
+        subject,
+        status: "skipped",
+        error: "Adresse de test ou invalide",
+        user_id: user_id || null,
+        template_id: template_id || null,
+        sequence_id: sequence_id || null,
+      });
+      recipients.splice(i, 1);
+    }
+
     // If no recipients left after filtering unsubscribes
     if (recipients.length === 0) {
       return new Response(JSON.stringify({ success: true, skipped: true, reason: "All recipients unsubscribed" }), {

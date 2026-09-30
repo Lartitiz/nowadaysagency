@@ -79,7 +79,7 @@ export function workspaceAllowed(workspace: string) { return TRIAL_WORKSPACES.ha
 // HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD > 0 (qui ne peut que baisser ces plafonds).
 export const COHORT_TOTAL_LIMIT_USD = 110;
 export const COHORT_WORKSPACE_LIMIT_USD = 8;
-export const COHORT_WORKSPACE_MAX_SUBMISSIONS = 3;
+export const COHORT_WORKSPACE_MAX_SUBMISSIONS = 2;
 export type VideoLane = "trial" | "cohort";
 async function videoLane(db: DB, workspace: string): Promise<VideoLane | null> {
   if (workspaceAllowed(workspace)) return "trial";

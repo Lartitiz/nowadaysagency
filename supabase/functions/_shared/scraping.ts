@@ -798,7 +798,8 @@ export async function scrapeInstagram(handle: string, signal: AbortSignal): Prom
     if (titleMatch) parts.push(`Nom: ${titleMatch[1]}`);
     if (descMatch) parts.push(`Bio/Description: ${descMatch[1]}`);
 
-    if (parts.length <= 1) return null;
+    // Un titre OG générique n'est pas une lecture du profil.
+    if (!descMatch || descMatch[1].trim().length < 30) return null;
     return parts.join("\n");
   } catch {
     return null;
@@ -1152,7 +1153,7 @@ export async function processScreenshots(
   const { data: docs, error } = await supabase
     .from("user_documents")
     .select("id, file_name, file_url, file_type")
-    .in("id", documentIds.slice(0, 1))
+    .in("id", documentIds.slice(0, 3))
     .eq("user_id", userId);
 
   if (error || !docs || docs.length === 0) {

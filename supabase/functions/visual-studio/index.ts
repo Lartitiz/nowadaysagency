@@ -1,3 +1,4 @@
+import { sceneInputs } from "./scene-workflow.ts";
 import { resolvePersonMemory } from "./person-reference.ts";
 import { compositionSchema } from "./composition.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -37,6 +38,7 @@ import {
   searchTerms,
 } from "./competencies.ts";
 import {
+  SOUL2_MODEL, SOUL2_I2I_MODEL, soul2Enabled, soul2Eligible, soul2IdentityEligible,
   failHiggsfieldImage,
   imageCallback,
   reconcileHiggsfieldImage,
@@ -88,7 +90,7 @@ const schema = z.object({
   viewed_version_id: z.string().uuid().nullable().optional(),
   branch_reference_mode: z.enum(["version", "current"]).optional(),
   revision: z.number().int().nonnegative().optional(),
-  message: z.string().trim().min(1).max(1000).optional(),
+  message: z.string().trim().min(1).max(6000).optional(),
   request_id: z.string().uuid().optional(),
 });
 const BUCKET = "visual-studio";
@@ -534,6 +536,15 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             ? p.reference_ids.map((id) => availableReferences.find((ref) => ref.id === id)!)
             : p.studio_version === 4 ? [] : parent ? versionReferences : []
           : availableReferences)];
+        // These originals belong to this selected scene branch, not to an unrelated
+        // session result. Claude may use them only when continuing the workflow.
+        const reservedProducts: Reference[] = parent?.proposal?.scene_workflow?.phase === "scene"
+          ? parent.proposal.planning_references || []
+          : parent?.proposal?.scene_workflow?.phase === "integration"
+          ? (parent.proposal.reference_snapshot || []).filter((ref: Reference) => ref.role === "product") : [];
+        for (const ref of reservedProducts) {
+          if (!requestReferences.some(r => r.id === ref.id) && requestReferences.length < MAX_REFERENCES) requestReferences.push(ref);
+        }
         if (
           p.viewed_reference_id &&
           !references.some((r) => r.id === p.viewed_reference_id)
@@ -700,7 +711,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             keepDashes: true,
             max_tokens: 6000,
             temperature: 0.2,
-            abortTimeoutMs: 30_000,
+            abortTimeoutMs: 45_000,
             maxRetries: 0,
             messages: [
               {
@@ -734,6 +745,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                       version_selectionnee: parent
                         ? {
                           id: parent.id,
+                          scene_workflow: parent.proposal.scene_workflow,
+                          format: parent.proposal.format,
+                          produits_reserves: reservedProducts.map(({ id, name }) => ({ id, name })),
                           person_reference: parent.proposal.person_reference,
                           brief: parent.proposal.brief,
                           summary: parent.proposal.summary,
@@ -746,6 +760,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                       brief: parent
                         ? parent.proposal.brief || parent.proposal.summary || ""
                         : session.brief || "",
+                      proposition_a_corriger: session.proposal && (session.proposal.viewed_version_id || null) === (parent?.id || null)
+                        ? { summary: session.proposal.summary, image_prompt: session.proposal.image_prompt, preserve: session.proposal.preserve, change: session.proposal.change, scene_workflow: session.proposal.scene_workflow, product_placement: session.proposal.product_placement } : null,
                       historique: parent ? [] : session.messages.slice(-12),
                       catalogue: (catalogue.data || []).map((row) => ({
                         ...row,
@@ -800,6 +816,21 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           if (use) use.role = "casting";
           else intent.reference_use.push({ id: attached.id, role: "casting" });
         }
+        // The selected version is already authorised and loaded above. The
+        // interpreter can name its ID as a composition source instead of using
+        // uses_selected_version. Resolve only this exact known alias; arbitrary
+        // reference IDs still fail closed below.
+        if (parent && (intent.source_reference_id === parent.id ||
+          intent.reference_use.some(use => use.id === parent.id && use.role === "composition"))) {
+          if (intent.source_reference_id === parent.id) intent.source_reference_id = undefined;
+          intent.reference_use = intent.reference_use.filter(use => !(use.id === parent.id && use.role === "composition"));
+          intent.uses_selected_version = true;
+        }
+        if (intent.reference_use.some(use => !requestReferences.some(ref => ref.id === use.id)) ||
+          (intent.source_reference_id && !intent.reference_use.some(use => use.id === intent.source_reference_id))) {
+          intent.operation = "clarify";
+          intent.summary = "Je n’ai pas pu identifier toutes les images à utiliser. Précise laquelle est la scène et laquelle montre le produit ; aucune image n’a été lancée.";
+        }
         const usedReferences = p.studio_version === 4
           ? requestReferences.filter((ref) => intent.reference_use.some((use) => use.id === ref.id))
           : requestReferences;
@@ -810,6 +841,17 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             use.id === ref.id && requestReferenceIds.has(use.id)
           )?.role || ref.role,
         }));
+        // Planning-only products are often omitted by the interpreter because
+        // they must not appear in the scene. Keep the products explicitly attached
+        // to this request unless their role was explicitly reassigned.
+        if (intent.scene_workflow?.phase === "scene") {
+          for (const ref of requestReferences) {
+            const role = intent.reference_use.find(use => use.id === ref.id)?.role || ref.role;
+            if (role === "product" && !resolvedReferences.some(r => r.id === ref.id)) {
+              resolvedReferences.push({ ...ref, role: "product" });
+            }
+          }
+        }
         const explicitSource = resolvedReferences.find((ref) =>
           ref.id === intent.source_reference_id
         );
@@ -895,16 +937,40 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               path: parent.result_path, name: "Version sélectionnée", role: "subject" });
           }
         }
-        const editInput = (intent.operation === "edit" || intent.operation === "background")
-          ? finalInputPath
-          : null;
-        const proposedRefs = intent.operation === "background"
-          ? []
-          : resolvedReferences.filter((r) => r.path !== editInput);
-        if (intent.operation === "product") {
-          // The exact product is the primary image input, even when the user attached a mood photo first.
-          proposedRefs.sort((a, b) => Number(b.role === "product") - Number(a.role === "product"));
+        // Editing the selected scene continues its workflow even if the model
+        // omits this optional field. Do not inherit when another source is edited
+        // or for an independent creation.
+        if (!intent.scene_workflow && intent.operation === "edit" && intent.visual_kind === "photo" && !intent.exact_text.length && parent &&
+          (!explicitSource || explicitSource.path === parent.result_path) &&
+          ["scene", "integration"].includes(parent.proposal.scene_workflow?.phase)) {
+          intent.scene_workflow = parent.proposal.scene_workflow;
         }
+        const phase = intent.scene_workflow?.phase;
+        // A correction to the scene must not discard the reserved original just
+        // because the interpreter omitted a planning-only image in reference_use.
+        if (phase && intent.operation === "edit" && !resolvedReferences.some(ref => ref.role === "product")) {
+          if (resolvedReferences.length + reservedProducts.length > MAX_REFERENCES) {
+            intent.operation = "clarify";
+            intent.summary = "Retire une référence pour conserver le produit original avec cette scène (huit images maximum).";
+          } else resolvedReferences.push(...reservedProducts);
+        }
+        const sourcePath = intent.operation === "product"
+          ? explicitSource?.role !== "product" ? explicitSource?.path || null : null
+          : finalInputPath;
+        const inputs = sceneInputs(phase, intent.operation, resolvedReferences,
+          sourcePath, parent?.result_path || null, intent.uses_selected_version);
+        if (phase === "scene" && (intent.visual_kind !== "photo" || intent.exact_text.length ||
+          intent.shots.length || !["create", "edit"].includes(intent.operation) ||
+          inputs.planning.some(ref => ref.path === inputs.input))) {
+          intent.operation = "clarify";
+          intent.summary = "Préparons d’abord une seule scène photographique, sans le produit ni texte ajouté. Le produit original sera intégré après validation de cette scène.";
+        }
+        if (phase === "integration" && (!["product", "edit"].includes(intent.operation) || !inputs.input || !inputs.references.some(ref => ref.role === "product"))) {
+          intent.operation = "clarify";
+          intent.summary = "Pour intégrer ton produit, sélectionne la scène à conserver et joins une photo du produit original.";
+        }
+        const editInput = inputs.input;
+        const proposedRefs = inputs.references;
         const originalPath =
           ((intent.operation === "edit" || intent.operation === "background")
             ? effectiveReference?.path
@@ -914,18 +980,16 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             : ["background", "edit"].includes(intent.operation)
             ? effectiveReference?.path || null
             : null);
-        // Toutes les créations photo passent par ChatGPT Image (gpt-image-2.5) ;
-        // Higgsfield/Soul2 ne sont plus proposés à la génération.
 
         const proposal = ["background", "create", "edit", "product"].includes(
             intent.operation,
           )
           ? {
             ...intent,
-            ...(person?.mode === "sheet" ? { visual_kind: "photo", exact_text: [] } : {}),
+            ...(person?.mode === "sheet" ? { visual_kind: "photo" as const, exact_text: [] } : {}),
             id: crypto.randomUUID(),
             viewed_version_id: intent.operation === "create" && !intent.uses_selected_version ? null : parent?.id || null,
-            viewed_reference_id: effectiveReference?.id || null,
+            viewed_reference_id: inputs.snapshot.find(ref => ref.id === effectiveReference?.id)?.id || null,
             cost: 1 + (p.studio_version && p.studio_version >= 3 && generative(intent.operation)
               ? intent.shots.length
               : 0),
@@ -937,7 +1001,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               }))
               : [],
             references: proposedRefs,
-            reference_snapshot: resolvedReferences,
+            reference_snapshot: inputs.snapshot,
+            planning_references: phase === "scene" ? inputs.planning : [],
             input_path: intent.operation === "background"
               ? finalInputPath
               : editInput,
@@ -960,6 +1025,11 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               : null,
           }
           : null;
+        if (proposal?.scene_workflow?.phase === "scene" && soul2Enabled() && !proposal.shots.length) {
+          if (soul2Eligible(proposal)) { proposal.provider = "higgsfield"; proposal.model = SOUL2_MODEL; }
+          else if (soul2IdentityEligible(proposal)) { proposal.provider = "higgsfield"; proposal.model = SOUL2_I2I_MODEL; }
+        }
+
         const suggestions = intent.suggested_photo_ids.filter((id) =>
           (catalogue.data || []).some((row) => row.id === id)
         );
