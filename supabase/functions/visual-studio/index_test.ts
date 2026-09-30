@@ -1079,7 +1079,7 @@ Deno.test("scene preparation sees product for planning but sends only identity t
       f.setIntent({ operation: "create", visual_kind: "photo", summary: "Scène vue de haut, à 75°, sans assiette pour la valider d'abord.",
         scene_workflow: { phase: "scene", camera_match: "75° pour respecter la vue de l'assiette" },
         image_prompt: "Summer table, high angle at 75 degrees, clear space for a plate, no plate or text.",
-        reference_use: f.session.references.map((r: any) => ({ id: r.id, role: r.role })) });
+        reference_use: includePerson ? [{ id: person.id, role: "person" }] : [] });
       try {
         const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
           request_id: id(814), reference_ids: f.session.references.map((r: any) => r.id), message: "Prépare la scène avant mon produit" }));
@@ -1182,4 +1182,44 @@ Deno.test("scene corrections retain planning originals; exact multiple reference
       assertEquals(p.input_path, correction ? f.version.result_path : null);
     } finally { f.restore(); }
   }
+});
+
+Deno.test("a correction after integration keeps the ORIGINAL product without duplicating it", async () => {
+  const f = fixture();
+  const product = { id: id(870), photo_id: id(871), path: "original-product", role: "product", name: "Original" };
+  f.version.status = "ready";
+  Object.assign(f.version.proposal, { scene_workflow: { phase: "integration", camera_match: "Vue de haut" }, planning_references: [], reference_snapshot: [product] });
+  f.session.references = [product];
+  f.setIntent({ operation: "edit", visual_kind: "photo", summary: "Réduire seulement l'ombre sous l'assiette intégrée.",
+    scene_workflow: { phase: "integration", camera_match: "Conserver la caméra" }, image_prompt: "Reduce only the plate contact shadow, preserve everything else.", reference_use: [] });
+  try {
+    const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
+      request_id: id(872), reference_ids: [], viewed_version_id: proposalId, message: "L'ombre du produit est trop forte, réduis-la" }));
+    const p = (await res.json()).session.proposal;
+    assertEquals(res.status, 200);
+    assertEquals(p.input_path, f.version.result_path);
+    assertEquals(p.references.map((r: any) => r.path), ["original-product"]);
+    assertEquals(imagePrompt(p).includes("never add a duplicate"), true);
+    assertEquals(p.scene_workflow.phase, "integration");
+  } finally { f.restore(); }
+});
+
+Deno.test("explicit direct generation needs only the product, never an existing scene", async () => {
+  const f = fixture();
+  const product = { id: id(880), photo_id: id(881), path: "original", role: "product", name: "Assiette" };
+  f.session.references = [product];
+  f.setIntent({ operation: "product", visual_kind: "photo", summary: "Créer une scène et y placer l'assiette en une passe.",
+    scene_workflow: { phase: "direct", camera_match: "Vue de haut" }, image_prompt: "Create a summer lunch scene with the exact original plate lying flat on the table.",
+    product_placement: "À plat au centre de la table", reference_use: [{ id: product.id, role: "product" }] });
+  try {
+    const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
+      request_id: id(882), reference_ids: [product.id], message: "Je veux explicitement une génération directe, sans scène séparée" }));
+    const p = (await res.json()).session.proposal;
+    assertEquals(res.status, 200);
+    assertEquals(p.input_path, null);
+    assertEquals(p.provider, "default");
+    assertEquals(p.references.map((r: any) => r.path), ["original"]);
+    assertEquals(p.scene_workflow.phase, "direct");
+    assertEquals(imagePrompt(p).includes("Image 1 is the approved scene"), false);
+  } finally { f.restore(); }
 });

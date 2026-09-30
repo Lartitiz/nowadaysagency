@@ -201,7 +201,7 @@ export function imagePrompt(proposal: Proposal) {
   const refs = proposal.references || [];
   const isSeries = (proposal.series_size || 1) > 1;
   const isSheet = proposal.person_reference?.mode === "sheet";
-  const charter = isSheet || proposal.scene_workflow ? null : proposal.brand_context?.charter;
+  const charter = isSheet || proposal.scene_workflow?.phase === "scene" || proposal.scene_workflow?.phase === "integration" ? null : proposal.brand_context?.charter;
   const direction = (value: unknown) =>
     (typeof value === "string"
       ? value
@@ -273,7 +273,7 @@ export function imagePrompt(proposal: Proposal) {
       ? "SCENE PREPARATION ONLY. Create the confirmed setting, including any confirmed person or hand, with a physically usable area for the future product. Do not render that product or a placeholder. No text or logos. Preserve the confirmed photographic composition and camera; do not add decorative props."
       : productStaging,
     proposal.scene_workflow?.phase === "integration"
-      ? "PRODUCT INTEGRATION. Image 1 is the approved scene, not a loose style reference. Preserve its camera, framing, person, surfaces and background. Integrate only the exact original product from the product references. Preserve silhouette, proportions, material, color, motif placement, logo and lettering. Adapt only placement, physically necessary occlusion, local reflections, light and contact shadows. Do not redesign the scene or add decorations. Keep everything else unchanged."
+      ? "PRODUCT INTEGRATION. Image 1 is the approved scene, not a loose style reference. Preserve its camera, framing, person, surfaces and background. Integrate only the exact original product from the product references. If it is already present in the selected image, adjust that existing instance as requested; never add a duplicate. Preserve silhouette, proportions, material, color, motif placement, logo and lettering. Adapt only placement, physically necessary occlusion, local reflections, light and contact shadows. Do not redesign the scene or add decorations. Keep everything else unchanged."
       : "",
     refs.length > 1
       ? "Several reference photos may show one subject from different angles. When the brief identifies them as the same person or product, combine their evidence into one subject; do not add a separate copy for each reference. Keep style-only references distinct from identity references."
