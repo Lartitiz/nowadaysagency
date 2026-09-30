@@ -1,15 +1,54 @@
 import type { Proposal } from "./media.ts";
 
 export type SoulStyle = { id: string; name: string; description: string; preview_url?: string; description_fr?: string };
-// Names and descriptions verified against the authenticated provider catalogue on 2026-09-30.
-// IDs/previews still come from the live catalogue; no stale hard-coded provider ID is sent.
-const photographicStyles = [
-  { name: "General", description_fr: "Lumière douce, couleurs fidèles et rendu équilibré." },
-  { name: "iPhone", description_fr: "Lumière naturelle et cadrage spontané, avec un léger rendu HDR." },
-  { name: "Gallery", description_fr: "Décor épuré, murs neutres et présentation soignée du sujet." },
-  { name: "90's Editorial", description_fr: "Photo de magazine rétro, grain argentique, léger flou et couleurs nostalgiques." },
-  { name: "Tokyo Streetstyle", description_fr: "Mode urbaine, silhouettes marquées, superpositions et couleurs affirmées." },
-  { name: "Spotlight", description_fr: "Lumière directe et contrastée, avec un effet de flash affirmé." },
+// Soul 2's official API playground uses a distinct 33-style catalogue.
+// Curated IDs and previews observed in its rendered preset selector on 2026-09-30:
+// https://open.higgsfield.ai/models/higgsfield-ai/soul/v2/standard/playground
+// These French directions are our labels, not provider promises. Do not substitute
+// the legacy /v1/text2image/soul-styles catalogue: its General ID returned HTTP 400.
+export const SOUL2_STYLES: SoulStyle[] = [
+  {
+    "id": "3db34ab5-3439-4317-9e03-08dc30852e69",
+    "name": "General",
+    "preview_url": "https://cdn.higgsfield.ai/soul-v2-style/f33d85f2-6521-4fa8-8e8f-894cfbdee578.webp",
+    "description": "Rendu photographique équilibré, sans effet de style marqué.",
+    "description_fr": "Rendu photographique équilibré, sans effet de style marqué."
+  },
+  {
+    "id": "dbe816eb-c651-4361-aee3-9386f8372121",
+    "name": "Nature light",
+    "preview_url": "https://cdn.higgsfield.ai/soul-v2-style/f795f856-42c9-4f09-991f-ff3f5d1b7db4.webp",
+    "description": "Lumière naturelle et rendu doux, proche d’une prise de vue sur le vif.",
+    "description_fr": "Lumière naturelle et rendu doux, proche d’une prise de vue sur le vif."
+  },
+  {
+    "id": "fafd3087-0d0f-4fb1-9af6-91b7d304687c",
+    "name": "Warm ambient",
+    "preview_url": "https://cdn.higgsfield.ai/soul-v2-style/18e79fc7-3ce8-499b-a129-2daba3165707.webp",
+    "description": "Ambiance lumineuse chaude, enveloppante et intime.",
+    "description_fr": "Ambiance lumineuse chaude, enveloppante et intime."
+  },
+  {
+    "id": "3d5584b2-4d15-48d2-8a09-c1073259f4c6",
+    "name": "Editorial street style",
+    "preview_url": "https://cdn.higgsfield.ai/soul-v2-style/84b09184-9077-4f93-b4aa-1340f3641631.webp",
+    "description": "Photographie de mode en extérieur, pose vivante et cadrage éditorial.",
+    "description_fr": "Photographie de mode en extérieur, pose vivante et cadrage éditorial."
+  },
+  {
+    "id": "e62e75c2-b1bb-433d-9192-f1196faed74e",
+    "name": "Subtle flash",
+    "preview_url": "https://cdn.higgsfield.ai/soul-v2-style/2134d88a-8e98-4f4a-9477-19a59343bd2d.webp",
+    "description": "Flash discret pour détacher le sujet et souligner les textures.",
+    "description_fr": "Flash discret pour détacher le sujet et souligner les textures."
+  },
+  {
+    "id": "7876c2a5-aa83-4530-ad09-2b368bbb5e95",
+    "name": "Theatrical light",
+    "preview_url": "https://cdn.higgsfield.ai/soul-v2-style/2a79c49e-29cd-46b3-b60e-d6eed72b40ec.webp",
+    "description": "Éclairage théâtral, ombres marquées et contraste dramatique.",
+    "description_fr": "Éclairage théâtral, ombres marquées et contraste dramatique."
+  }
 ];
 export function normalizeSoulStyles(value: unknown): SoulStyle[] {
   if (!Array.isArray(value)) return [];
@@ -23,25 +62,14 @@ export function normalizeSoulStyles(value: unknown): SoulStyle[] {
 }
 export function selectSoulStyles(value: unknown): SoulStyle[] {
   const catalogue = normalizeSoulStyles(value);
-  return photographicStyles.flatMap(selected => {
-    const style = catalogue.find(s => s.name === selected.name);
+  return SOUL2_STYLES.flatMap(selected => {
+    const style = catalogue.find(s => s.id === selected.id && s.name === selected.name);
     return style ? [{ ...style, description_fr: selected.description_fr }] : [];
   });
 }
-let cached: { expires: number; styles: SoulStyle[] } | undefined;
-export async function soulStyles(): Promise<SoulStyle[]> {
-  if (cached && cached.expires > Date.now()) return cached.styles;
-  const credentials = Deno.env.get("HIGGSFIELD_API_KEY");
-  if (!credentials) return [];
-  try {
-    const response = await fetch("https://api.higgsfield.ai/v1/text2image/soul-styles", {
-      headers: { Authorization: `Key ${credentials}` }, signal: AbortSignal.timeout(5000),
-    });
-    if (!response.ok) { await response.text(); return []; }
-    const styles = normalizeSoulStyles(await response.json());
-    cached = { expires: Date.now() + 300_000, styles };
-    return styles;
-  } catch { return []; }
+export function soulStyles(): Promise<SoulStyle[]> {
+  // Version-bound curated snapshot: no v1 fallback and no extra catalogue latency.
+  return Promise.resolve(SOUL2_STYLES.map(style => ({ ...style })));
 }
 export function resolveSoulStyle(id: string | undefined, styles: SoulStyle[]) {
   if (!id || id === "none") return undefined;

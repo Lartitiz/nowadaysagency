@@ -1,4 +1,4 @@
-import { soulPrompt } from "./soul-direction.ts";
+import { soulPrompt, resolveSoulStyle, SOUL2_STYLES } from "./soul-direction.ts";
 import { getServiceClient } from "../_shared/plan-limiter.ts";
 import { imagePrompt, type Proposal } from "./media.ts";
 type DB = ReturnType<typeof getServiceClient>;
@@ -74,9 +74,11 @@ export function imageInput(proposal: Proposal, urls: string[]) {
     if (identity ? urls.length !== 1 || !publicUrl(urls[0]) || !soul2IdentityEligible(proposal) : urls.length > 0 || !soul2Eligible(proposal)) {
       throw new Error("studio_provider_model");
     }
+    if (identity && proposal.soul_style) throw new Error("studio_soul_style_unavailable");
+    const style = resolveSoulStyle(proposal.soul_style?.id, SOUL2_STYLES);
     return {
       prompt: soulPrompt(proposal),
-      ...(proposal.soul_style ? { style_id: proposal.soul_style.id } : {}),
+      ...(style ? { style_id: style.id } : {}),
       batch_size: 1,
       resolution: "1080p",
       aspect_ratio: proposal.format === "portrait"
