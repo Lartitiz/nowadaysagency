@@ -12,7 +12,7 @@ import {
 } from "./carousel-editorial-contract.ts";
 import { progressionMaterial } from "./carousel-editorial-snapshot.ts";
 
-export const PROGRESSION_VERSION = "final-progression-v2";
+export const PROGRESSION_VERSION = "final-progression-v3";
 export interface ProgressionSource {
   id: string;
   provenance: string;
@@ -128,7 +128,8 @@ export function validateProgressionReport(
     report.verdict === "acceptable" &&
     (major || report.boundaries.some((b: any) => b.kind === "rupture"))
   ) return "contradictory-verdict";
-  if (report.verdict === "needs_repair" && !report.defects.length) {
+  if (report.verdict === "needs_repair" && !report.defects.length &&
+    !report.boundaries.some((b: any) => b.kind === "rupture")) {
     return "unexplained-repair";
   }
   if (report.verdict === "insufficient_evidence" && !report.limits.length) {
@@ -199,7 +200,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
   try {
     const options: AnthropicOptions = {
       model: getModelForAction("carousel"),
-      system: COMMON + "\n\n" + JUDGE + "\nContrat de sortie : recopie exactement les IDs attendus, dans l'ordre fourni, sans renuméroter depuis 1. source_ids utilise seulement allowed_source_ids ; [] si aucune source utile. idea_read et conclusion sont des phrases non vides. limits est toujours un tableau de chaînes, éventuellement vide. Ne remplace aucun champ du schéma par une autre forme.",
+      system: COMMON + "\n\n" + JUDGE + "\nContrat de sortie : recopie exactement les IDs attendus, dans l'ordre fourni, sans renuméroter depuis 1. source_ids utilise seulement allowed_source_ids ; [] si aucune source utile. idea_read et conclusion sont des phrases non vides. limits est toujours un tableau de chaînes, éventuellement vide. Ne remplace aucun champ du schéma par une autre forme. kind=rupture signifie un raccord MANQUANT ou INCOMPRÉHENSIBLE : jamais un contraste argumentatif utile, une nuance, une transition du constat vers les preuves ou une simple variation visuelle. Toute rupture ou défaut majeur impose needs_repair ; décris précisément le lien manquant. Un verdict favorable ne peut pas annuler ce constat.",
       messages: [{ role: "user", content: input }],
       tool,
       max_tokens: Math.min(8192, 2048 + doc.slides.length * 400),
@@ -212,6 +213,12 @@ export async function reviewCarouselProgression(doc: any, opts: {
     const parseAndValidate = () => {
       try { report = JSON.parse(raw); }
       catch { report = null; return "invalid-json"; }
+      // A structural inconsistency must never produce approval. Keep every finding,
+      // but derive the conservative verdict instead of asking the model to vote again.
+      if (report?.verdict === "acceptable" && (
+        (Array.isArray(report.defects) && report.defects.some((d: any) => d?.severity === "major")) ||
+        (Array.isArray(report.boundaries) && report.boundaries.some((b: any) => b?.kind === "rupture"))
+      )) report = { ...report, verdict: "needs_repair", model_verdict: "acceptable" };
       return validateProgressionReport(report, doc, opts.sources);
     };
     let error = parseAndValidate();
@@ -252,6 +259,9 @@ export async function reviewCarouselProgression(doc: any, opts: {
           .join(", ")
       } : ${d.reason} ${d.repair}`
     );
+    for (const boundary of report.boundaries.filter((b: any) => b.kind === "rupture")) {
+      issues.push(`Transition slides ${Number(boundary.from.split(".")[1]) + 1} → ${Number(boundary.to.split(".")[1]) + 1} à réparer. Reprise : ${boundary.inherits}. Avancée : ${boundary.advances}. Rétablir un lien explicite sans inventer de fait ni changer le scénario.`);
+    }
     if (report.verdict === "insufficient_evidence") {
       issues.push(
         "Une affirmation décisive reste à vérifier avec les sources disponibles.",
