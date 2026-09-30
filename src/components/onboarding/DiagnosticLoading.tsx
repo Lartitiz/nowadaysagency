@@ -36,7 +36,7 @@ interface LiveMessage {
 function buildInitialMessages(hasWebsite: boolean, hasDocuments: boolean): LiveMessage[] {
   const msgs: LiveMessage[] = [];
   if (hasWebsite) msgs.push({ text: "Je lis ton site web...", type: "scanning" });
-  if (hasDocuments) msgs.push({ text: "J'analyse ton profil Instagram...", type: "scanning" });
+  if (hasDocuments) msgs.push({ text: "Je lis tes captures sociales...", type: "scanning" });
   msgs.push({ text: "Je croise tes données pour un diagnostic personnalisé...", type: "scanning" });
   msgs.push({ text: "Je prépare quelque chose de personnalisé...", type: "scanning" });
   return msgs;
@@ -56,13 +56,8 @@ function buildRevealMessages(data: any, answers: Props["answers"]): LiveMessage[
     }
   }
 
-  if (sourcesUsed.includes("instagram_screenshot") && analysis?.scores?.instagram != null) {
-    msgs.push({ text: "J'analyse ta capture Instagram... ✓", type: "done" });
-    if (analysis.scores.instagram >= 60) {
-      msgs.push({ text: "Ton profil Instagram a de bonnes bases. Il y a des choses à optimiser, mais la direction est là.", type: "insight" });
-    } else {
-      msgs.push({ text: "Ton profil Instagram a du potentiel, mais il manque quelques éléments clés.", type: "insight" });
-    }
+  if (sourcesUsed.some(s => ["instagram_screenshot", "linkedin_screenshot", "social_screenshot"].includes(s))) {
+    msgs.push({ text: "J'ai lu ta capture sociale... ✓", type: "done" });
   }
 
   if (analysis?.branding_prefill?.tone_keywords?.length >= 2) {
@@ -318,11 +313,11 @@ export default function DiagnosticLoading({
         setChecks({
           ig: used.includes("instagram"),
           web: used.includes("website"),
-          docs: used.includes("instagram_screenshot"),
+          docs: used.some((s: string) => ["instagram_screenshot", "linkedin_screenshot", "social_screenshot"].includes(s)),
         });
         setFailedChecks({
           web: hasWebsite && !used.includes("website"),
-          docs: hasDocuments && !used.includes("instagram_screenshot"),
+          docs: hasDocuments && !used.some((s: string) => ["instagram_screenshot", "linkedin_screenshot", "social_screenshot"].includes(s)),
         });
 
         const reveals = buildRevealMessages(data, answers);
@@ -381,7 +376,7 @@ export default function DiagnosticLoading({
       {/* Check lines */}
       <div className="space-y-3 text-left max-w-xs mx-auto">
         {hasWebsite && <CheckLine emoji="🌐" label="Ton site web" status={getStatus("web", hasWebsite)} />}
-        {hasDocuments && <CheckLine emoji="📱" label="Ton profil Instagram" status={getStatus("docs", hasDocuments)} />}
+        {hasDocuments && <CheckLine emoji="📸" label="Tes captures sociales" status={getStatus("docs", hasDocuments)} />}
       </div>
 
       {/* Live message area */}
@@ -495,6 +490,7 @@ function mapEdgeResponseToDiagnostic(data: any, answers?: { canaux?: string[] })
     why: p.why || "",
     first_step: p.first_step || "",
     example: p.example || "",
+    source: p.source || undefined,
   }));
 
   return {

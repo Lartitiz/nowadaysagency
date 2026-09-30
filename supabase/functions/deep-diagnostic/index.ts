@@ -8,6 +8,7 @@ import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
+import { readSocialDiagnosticEvidence } from "../_shared/diagnostic-social.ts";
 
 const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 55000;
@@ -39,6 +40,7 @@ const DIAGNOSTIC_TOOL: AnthropicTool = {
     type: "object",
     properties: {
       summary: { type: "string", description: "3-4 phrases qui reformulent les mots de la personne" },
+      screenshot_readable: { type: "boolean", description: "Au moins une capture fournie est lisible et permet un constat concret" },
       strengths: {
         type: "array",
         items: {
@@ -46,7 +48,7 @@ const DIAGNOSTIC_TOOL: AnthropicTool = {
           properties: {
             title: { type: "string" },
             detail: { type: "string" },
-            source: { type: "string", enum: ["website", "profile", "about", "instagram", "linkedin", "documents"] },
+            source: { type: "string", enum: ["website", "profile", "about", "instagram_public", "instagram_screenshot", "linkedin_screenshot", "social_screenshot", "instagram_connected", "instagram_insights", "linkedin", "linkedin_analytics"] },
           },
           required: ["title", "detail"],
         },
@@ -58,7 +60,7 @@ const DIAGNOSTIC_TOOL: AnthropicTool = {
           properties: {
             title: { type: "string" },
             detail: { type: "string" },
-            source: { type: "string", enum: ["website", "profile", "about", "instagram", "linkedin", "documents"] },
+            source: { type: "string", enum: ["website", "profile", "about", "instagram_public", "instagram_screenshot", "linkedin_screenshot", "social_screenshot", "instagram_connected", "instagram_insights", "linkedin", "linkedin_analytics"] },
             fix_hint: { type: "string" },
           },
           required: ["title", "detail"],
@@ -87,6 +89,7 @@ const DIAGNOSTIC_TOOL: AnthropicTool = {
             time: { type: "string" },
             route: { type: "string" },
             impact: { type: "string", enum: ["high", "medium"] },
+            source: { type: "string", enum: ["website", "profile", "about", "instagram_public", "instagram_screenshot", "linkedin_screenshot", "social_screenshot", "instagram_connected", "instagram_insights", "linkedin", "linkedin_analytics"] },
           },
           required: ["title", "why", "first_step", "example", "route"],
         },
@@ -184,6 +187,48 @@ function stripMarkupFromSummary(result: Record<string, unknown>): Record<string,
   return { ...result, summary: summary.slice(0, m.index).trim() };
 }
 
+const SCREENSHOT_SOURCES = new Set(["instagram_screenshot", "linkedin_screenshot", "social_screenshot"]);
+const hasScreenshotFinding = (analysis: Record<string, unknown>) =>
+  ["strengths", "weaknesses"].some((key) => Array.isArray(analysis[key]) &&
+    (analysis[key] as any[]).some((item) => SCREENSHOT_SOURCES.has(item?.source) &&
+      typeof item.detail === "string" && item.detail.trim().length >= 20));
+
+/** Public for regression fixtures: provenance is decided from actual findings, not uploads. */
+export function finalizeDiagnosticEvidence(
+  analysis: Record<string, unknown>, sourcesUsed: string[], sourcesFailed: string[], screenshotCount: number,
+) {
+  const findings = [...(Array.isArray(analysis.strengths) ? analysis.strengths : []),
+    ...(Array.isArray(analysis.weaknesses) ? analysis.weaknesses : [])]
+    .filter((item: any) => SCREENSHOT_SOURCES.has(item?.source) &&
+      typeof item.detail === "string" && item.detail.trim().length >= 20);
+  if (screenshotCount > 0) {
+    if (analysis.screenshot_readable !== false && findings.length) {
+      for (const item of findings) if (!sourcesUsed.includes(item.source)) sourcesUsed.push(item.source);
+    } else if (!sourcesFailed.includes("social_screenshot")) {
+      sourcesFailed.push("social_screenshot");
+    }
+  }
+  const validSources = new Set([...sourcesUsed, "profile"]);
+  for (const key of ["strengths", "weaknesses"] as const) {
+    if (Array.isArray(analysis[key])) {
+      analysis[key] = (analysis[key] as any[]).filter((item) => !item?.source || validSources.has(item.source));
+    }
+  }
+  if (Array.isArray(analysis.priorities)) {
+    analysis.priorities = (analysis.priorities as any[])
+      .filter((item) => !item.source || validSources.has(item.source))
+      .map((item) => ({
+      ...item, source: validSources.has(item.source) ? item.source : "profile",
+      route: normalizeDiagnosticRoute(item.route),
+      }));
+  }
+  const scores = analysis.scores as Record<string, unknown> | undefined;
+  if (scores && !sourcesUsed.some(s => ["instagram_public", "instagram_screenshot", "instagram_connected"].includes(s))) scores.instagram = null;
+  if (scores && !sourcesUsed.some(s => ["linkedin", "linkedin_screenshot"].includes(s))) scores.linkedin = null;
+  if (scores && !sourcesUsed.includes("website")) scores.website = null;
+  return analysis;
+}
+
 /**
  * Phase 1 : diagnostic rapide (Sonnet) + décision de facturation.
  *
@@ -200,6 +245,7 @@ export async function runFastDiagnostic(opts: {
   systemPrompt: string;
   userPrompt: string;
   instagramScreenshots: Array<{ mediaType: string; base64: string }>;
+  connectedImages?: Array<{ mediaType: string; base64: string }>;
   profile: any;
   freeformAnswers: any;
   sourcesUsed: string[];
@@ -207,7 +253,7 @@ export async function runFastDiagnostic(opts: {
   workspaceId: string | null;
   isOnboarding: boolean;
 }): Promise<{ analysisResult: Record<string, unknown>; usageLog: Promise<unknown> | null }> {
-  const { systemPrompt, userPrompt, instagramScreenshots, profile, freeformAnswers, sourcesUsed, userId, workspaceId, isOnboarding } = opts;
+  const { systemPrompt, userPrompt, instagramScreenshots, connectedImages = [], profile, freeformAnswers, sourcesUsed, userId, workspaceId, isOnboarding } = opts;
 
   let analysisResult: Record<string, unknown>;
   const diagUsage: UsageSink = {};
@@ -232,8 +278,12 @@ export async function runFastDiagnostic(opts: {
       });
       userContentBlocks.push({
         type: "text",
-        text: "Ci-dessus : capture d'écran du profil Instagram de cette personne. Analyse la bio, le nombre d'abonnés, la cohérence visuelle du feed, le nom affiché, et tout élément visible.",
+        text: "Ci-dessus : une capture sociale fournie pendant l'onboarding. Identifie Instagram ou LinkedIn seulement si l'interface le montre ; sinon utilise social_screenshot. Décris uniquement les éléments lisibles (bio, grille, publications ou messages visibles). Si illisible, aucun constat. Aucun rythme ou performance ne peut être déduit d'une capture partielle.",
       });
+    }
+    for (const image of connectedImages) {
+      userContentBlocks.push({ type: "image", source: { type: "base64", media_type: image.mediaType, data: image.base64 } });
+      userContentBlocks.push({ type: "text", text: "Ci-dessus : visuel d'une publication Instagram récupérée via le compte connecté. Analyse seulement ce qui est visible dans cette image, sans déduire la performance." });
     }
 
     // Sortie structurée par tool forcé : le JSON est valide par construction.
@@ -277,6 +327,13 @@ export async function runFastDiagnostic(opts: {
       console.warn("Degenerate tool output (XML-in-summary / empty arrays) — retrying once");
       analysisResult = await runDiagnosticCall(
         "⚠️ ATTENTION : ta précédente réponse était invalide. Remplis CHAQUE champ du tool séparément : `summary` = 3-4 phrases de texte pur SANS AUCUNE balise <...>, `strengths`/`weaknesses`/`priorities` = tableaux remplis conformément au schéma. N'écris JAMAIS de XML dans un champ texte."
+      );
+    }
+    if (!isDegenerateDiagnostic(analysisResult) && instagramScreenshots.length > 0 &&
+      analysisResult.screenshot_readable !== false && !hasScreenshotFinding(analysisResult)) {
+      console.warn("Readable screenshot missing from findings — retrying once");
+      analysisResult = await runDiagnosticCall(
+        "Ta réponse n'a aucun constat sourcé par la capture. Relis chaque image. Si une image est lisible, cite un élément précisément visible dans strengths ou weaknesses avec source instagram_screenshot, linkedin_screenshot ou social_screenshot et fais-en découler une priorité. Si elles sont toutes illisibles, mets screenshot_readable=false et n'invente aucun constat."
       );
     }
     if (isDegenerateDiagnostic(analysisResult)) {
@@ -476,33 +533,44 @@ serve(async (req) => {
         scrapeInstagram(instagramHandle, controller.signal)
           .then((text) => {
             if (text) {
-              scrapedContent.instagram = text.slice(0, MAX_TEXT_PER_SOURCE);
-              sourcesUsed.push("instagram");
+              scrapedContent.instagram_public = text.slice(0, MAX_TEXT_PER_SOURCE);
+              sourcesUsed.push("instagram_public");
             } else {
-              sourcesFailed.push("instagram");
+              sourcesFailed.push("instagram_public");
             }
           })
-          .catch(() => { sourcesFailed.push("instagram"); })
+          .catch(() => { sourcesFailed.push("instagram_public"); })
       );
     }
 
-    // Process Instagram screenshots from uploads — max 1, size limit
+    // Jusqu'à trois captures autorisées par l'interface. Une image illisible ou
+    // non reçue ne devient jamais une source analysée.
     let instagramScreenshots: { base64: string; mediaType: string }[] = [];
+    let connectedImages: { base64: string; mediaType: string }[] = [];
     if (documentIds && documentIds.length > 0) {
       scrapePromises.push(
-        processScreenshots(supabaseAdmin, documentIds.slice(0, 1), userId)
+        processScreenshots(supabaseAdmin, documentIds.slice(0, 3), userId)
           .then((screenshots) => {
-            // Filter out screenshots larger than 500KB base64 (~375KB image)
-            instagramScreenshots = screenshots.filter(s => s.base64.length < 500000).slice(0, 1);
-            if (instagramScreenshots.length > 0) {
-              sourcesUsed.push("instagram_screenshot");
-            } else {
-              sourcesFailed.push("instagram_screenshot");
+            instagramScreenshots = screenshots.slice(0, 3);
+            if (instagramScreenshots.length === 0) {
+              sourcesFailed.push("social_screenshot");
             }
           })
-          .catch(() => { sourcesFailed.push("instagram_screenshot"); })
+          .catch(() => { sourcesFailed.push("social_screenshot"); })
       );
     }
+
+    // Les connexions et les droits sont lus pour cet utilisateur ET son espace.
+    // Le statut OAuth seul n'entre pas dans sourcesUsed : seule une réponse API
+    // contenant des données exploitables y entre.
+    scrapePromises.push(readSocialDiagnosticEvidence(
+      supabaseAdmin, userId, workspaceId, controller.signal,
+    ).then((social) => {
+      if (social.text) scrapedContent.connected_social = social.text.slice(0, 12000);
+      sourcesUsed.push(...social.sources);
+      sourcesFailed.push(...social.failed);
+      connectedImages = social.images;
+    }).catch(() => { /* Connexion absente ou API indisponible : repli sur les autres sources. */ }));
 
     await Promise.allSettled(scrapePromises);
 
@@ -516,15 +584,18 @@ CONTEXTE : cette personne vient de terminer son onboarding. Ce diagnostic est la
 1. SOURCES UNIQUEMENT
 Tu peux commenter les réponses de la section PROFIL et des RÉPONSES LIBRES, ainsi que les sources présentes dans les sections "SOURCE:" du message utilisateur. Distingue toujours ce que la personne a déclaré de ce que tu as réellement observé sur son site.
 - Pas de section "SOURCE: WEBSITE" → RIEN sur le site web (pas de CTA, pas de SEO, pas de navigation, rien)
-- Pas de screenshot Instagram → RIEN sur Instagram (pas de bio, pas de feed, pas d'abonnés, rien)
-- Pas de section "SOURCE: LINKEDIN" → RIEN sur LinkedIn
-- INSTAGRAM N'EST JAMAIS SCRAPPÉ PAR API. Même si l'utilisatrice a renseigné son handle Instagram, tu n'as PAS accès à son profil sauf si un screenshot est fourni en image.
+- Une capture fournie n'autorise que des constats sur ce qui y est lisible. Renseigne screenshot_readable. Source = instagram_screenshot, linkedin_screenshot ou social_screenshot selon l'interface reconnaissable. Si toutes sont illisibles, mets false et ne crée aucun constat sourcé capture.
+- "INSTAGRAM_PUBLIC" = métadonnées publiques seulement, pas lecture du feed.
+- "INSTAGRAM_CONNECTÉ" = champs et publications explicitement listés ; les visuels reçus sont les seuls inspectables.
+- "INSTAGRAM_STATISTIQUES" et "LINKEDIN_ANALYTICS" = chiffres uniquement quand ils sont fournis avec leur période.
+- Une connexion de publication LinkedIn n'autorise pas à lire le profil, les posts ni les statistiques.
+- Pas de source LinkedIn lue → aucun constat sur son profil.
 
 2. PREUVES CONCRÈTES OBLIGATOIRES
-Chaque force et chaque faiblesse DOIT citer entre guillemets un extrait LITTÉRAL trouvé dans les données.
+Chaque force et chaque faiblesse DOIT citer un élément observable (extrait littéral pour le texte, description précise pour une image), et utiliser la source exacte. Une inférence doit être formulée comme hypothèse.
 - ✅ BON : "Ton site affiche 'Réserver un coaching découverte' en haut de page : c'est un CTA clair."
 - ❌ INTERDIT : "Pas de CTA sur le site" (sans avoir vérifié la section "Signaux de conversion" des données)
-- ❌ INTERDIT : "Bio Instagram incomplète" (sans screenshot Instagram)
+- ❌ INTERDIT : "Bio Instagram incomplète" (sans bio lue sur une capture ou via le compte connecté)
 
 3. PAS DE PROBLÈMES "MÉTA-OUTIL"
 Ne JAMAIS remonter comme faiblesse le fait qu'un champ n'est pas rempli dans l'outil. L'outil est neuf, c'est normal que tout ne soit pas rempli.
@@ -538,14 +609,15 @@ Quand tu as une source WEBSITE, lis ATTENTIVEMENT la section "Signaux de convers
 - Si des formulaires sont détectés → le site A un système de capture. Ne dis PAS "pas de capture email".
 - Tu peux critiquer la QUALITÉ ou le PLACEMENT des CTAs, mais pas dire qu'ils n'existent pas quand les données prouvent le contraire.
 
-5. INSTAGRAM : REDIRIGER VERS L'AUDIT DÉDIÉ
-Puisque tu n'as pas accès à Instagram, ne fais AUCUNE recommandation spécifique Instagram. Si l'utilisatrice utilise Instagram, ajoute dans les priorités : "Fais ton audit Instagram dans l'outil pour un diagnostic détaillé" avec la route /instagram/audit.
+5. RÉSEAUX SOCIAUX
+Si une capture est lisible, produis au moins un constat et une priorité qui reprennent un élément réellement visible, avec un premier geste et un exemple adapté à l'activité. Si le profil ou les publications connectés sont lus, distingue leurs textes des visuels effectivement reçus. Une capture, un lien ou une connexion seule ne prouvent ni fréquence, ni résultats. Si aucune donnée sociale n'est lisible, propose de joindre une capture ou d'ouvrir l'audit dédié sans inventer de défaut.
 
 6. RECOMMANDATIONS CONCRÈTES ET ACTIONNABLES
 Chaque faiblesse doit expliquer le PROBLÈME RÉEL et donner une piste concrète.
 - ✅ BON : "Ton site parle de 'coaching' mais ne précise pas pour qui ni quel résultat concret. Tes visiteuses ne savent pas si c'est pour elles."
 - ❌ MAUVAIS : "Ta stratégie de contenu manque de structure" (générique, non vérifiable)
 Pour chacune des 3 priorités, donne une raison liée à une preuve observée, un premier geste faisable en 5 à 20 minutes et un exemple que la personne peut adapter ou un contrôle précis à effectuer. La première priorité doit répondre à son changement souhaité ou à son blocage principal si les sources le permettent. Ne recommande pas un canal absent de ses canaux actuels ou souhaités sans raison explicite. Une visite du site ou un handle Instagram ne prouvent pas la fréquence de publication.
+- Pour chaque priorité, remplis source avec l'origine du constat qui motive why. Si c'est seulement une intention déclarée, utilise profile ou about.
 - first_step commence par un verbe concret : « Écris… », « Remplace… », « Vérifie… ».
 - example utilise des mots réellement fournis, ou des emplacements [à compléter] ; jamais de chiffre, citation client ou résultat inventé.
 - Si une source manque, propose une vérification à faire, sans affirmer qu'un problème existe.
@@ -557,15 +629,16 @@ Pour chacune des 3 priorités, donne une raison liée à une preuve observée, u
 
 {
   "summary": "3-4 phrases qui reformulent les mots de la personne. Elle doit se dire 'oui c'est exactement moi'.",
-  "strengths": [{ "title": "titre court", "detail": "explication avec citation concrète entre guillemets", "source": "website|profile|about" }],
-  "weaknesses": [{ "title": "titre court", "detail": "explication du problème réel avec preuve", "source": "website|profile|about", "fix_hint": "piste concrète et actionnable" }],
+  "screenshot_readable": false,
+  "strengths": [{ "title": "titre court", "detail": "élément observable", "source": "website|profile|about|instagram_public|instagram_screenshot|linkedin_screenshot|social_screenshot|instagram_connected|instagram_insights|linkedin|linkedin_analytics" }],
+  "weaknesses": [{ "title": "titre court", "detail": "élément observable et limite de l'inférence", "source": "website|profile|about|instagram_public|instagram_screenshot|linkedin_screenshot|social_screenshot|instagram_connected|instagram_insights|linkedin|linkedin_analytics", "fix_hint": "piste concrète" }],
   "scores": { "total": 0, "branding": 0, "instagram": null, "website": null, "linkedin": null },
-  "priorities": [{ "title": "action", "why": "raison reliée à un constat", "first_step": "premier geste réalisable tout de suite", "example": "exemple à adapter ou vérification précise", "time": "durée réaliste", "route": "/route", "impact": "high|medium" }],
+  "priorities": [{ "title": "action", "why": "raison reliée à un constat", "first_step": "premier geste réalisable tout de suite", "example": "exemple à adapter ou vérification précise", "time": "durée réaliste", "route": "/route", "impact": "high|medium", "source": "origine du constat" }],
   "branding_prefill": { "positioning": null, "mission": null, "target_description": null, "tone_keywords": [], "values": [], "offers": [] }
 }
 
 Routes disponibles : /branding, /branding/proposition/recap, /branding/offres, /branding/charter, /instagram/audit, /instagram/profil/bio, /linkedin/profil, /site/audit, /site/accueil, /site/capture, /calendrier, /creer, /idees. Utilise uniquement ces routes.
-Scores sur 100 : estimation initiale, fondée sur la clarté de l'offre, du public, du résultat promis et du prochain pas visible dans les sources effectivement lues. Ne récompense pas seulement le nombre de liens/champs remplis. TOUJOURS null pour les sources non analysées (pas de score inventé). Instagram est TOUJOURS null (pas scrappable).
+Scores sur 100 : estimation initiale de la clarté observable, pas de la performance. TOUJOURS null pour les canaux sans profil, publication ou capture lisible ; des statistiques seules ne suffisent pas à juger le contenu.
 Max 3-4 forces, 3-4 faiblesses, 3 priorités.`;
 
     // Build user prompt
@@ -615,7 +688,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
       userParts.push(`=== SOURCE: ${source.toUpperCase()} ===\n${text}`);
     }
 
-    if (sourcesUsed.length === 0) {
+    if (sourcesUsed.length === 0 && instagramScreenshots.length === 0) {
       userParts.push("\n⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.");
     }
 
@@ -633,11 +706,11 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
     // Final instructions
     userParts.push(`=== CONSIGNES FINALES ===
 - Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
-- Scores : uniquement pour les sources réellement analysées. Instagram = TOUJOURS null.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
-- RAPPEL : pas de recommandation Instagram sauf "Fais ton audit Instagram" avec route /instagram/audit.
-- Chaque force/faiblesse cite un extrait concret entre guillemets dans le "detail".
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
 - Chaque priorité a un premier geste et un exemple utile, sans fait inventé.`);
 
     const userPrompt = userParts.join("\n\n");
@@ -722,6 +795,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
       systemPrompt,
       userPrompt,
       instagramScreenshots,
+      connectedImages,
       profile,
       freeformAnswers,
       sourcesUsed,
@@ -729,12 +803,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
       workspaceId,
       isOnboarding: !!isOnboarding,
     });
-    if (Array.isArray((analysisResult as any).priorities)) {
-      (analysisResult as any).priorities = (analysisResult as any).priorities.map((priority: any) => ({
-        ...priority,
-        route: normalizeDiagnosticRoute(priority.route),
-      }));
-    }
+    finalizeDiagnosticEvidence(analysisResult, sourcesUsed, sourcesFailed, instagramScreenshots.length);
 
     // ====== SAVE TO DB (fast: only diagnostic essentials) ======
     // Non bloquant : le diagnostic vient d'être généré avec succès — un échec

@@ -1,14 +1,14 @@
 export interface DiagnosticStrength {
   title: string;
   detail?: string;
-  source?: "instagram" | "website" | "linkedin" | "documents" | "profile";
+  source?: string;
 }
 
 export interface DiagnosticWeakness {
   title: string;
   why: string;
   detail?: string;
-  source?: "instagram" | "website" | "linkedin" | "documents" | "profile";
+  source?: string;
   fix_hint?: string;
 }
 
@@ -36,6 +36,7 @@ export interface DiagnosticData {
     why?: string;
     first_step?: string;
     example?: string;
+    source?: string;
   }[];
   channelScores: { emoji: string; label: string; score: number | null }[];
   scores?: DiagnosticScores;
