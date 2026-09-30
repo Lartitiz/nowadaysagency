@@ -28,6 +28,7 @@ export interface ProgressionResult {
   // no private branding, request, API credentials or image bytes in this receipt.
   reviewed_material: string;
   report?: Record<string, any>;
+  validation_details?: Record<string, unknown>;
   reason?: string;
   usage?: UsageSink;
 }
@@ -147,7 +148,28 @@ export async function reviewCarouselProgression(doc: any, opts: {
   if (!Array.isArray(doc?.slides) || !doc.slides.length) {
     return { ...receipt, execution_status: "skipped", reason: "no-slides" };
   }
+  const slideIds = doc.slides.map((_: unknown, i: number) => `slides.${i}`);
+  const sourceIds = opts.sources.map((source) => source.id);
+  const expectedBoundaries = slideIds.slice(1).map((to: string, i: number) => ({ from: slideIds[i], to }));
+  const tool: any = structuredClone(GLOBAL_REVIEW_TOOL);
+  const props = tool.input_schema.properties;
+  props.idea_read.minLength = 1;
+  props.idea_read.description = "Une phrase non vide : idée réellement lue dans le texte.";
+  props.conclusion.minLength = 1;
+  props.conclusion.description = "Une phrase non vide expliquant si la conclusion est préparée. Même si aucune conclusion n'est présente, décrire ce constat.";
+  props.limits.description = "Tableau de chaînes ; [] si aucune limite, jamais null ni un objet.";
+  props.slides.minItems = props.slides.maxItems = slideIds.length;
+  props.slides.items.properties.id.enum = slideIds;
+  props.slides.items.properties.contribution.minLength = 1;
+  if (sourceIds.length) props.slides.items.properties.source_ids.items.enum = sourceIds;
+  else props.slides.items.properties.source_ids.maxItems = 0;
+  props.boundaries.minItems = props.boundaries.maxItems = expectedBoundaries.length;
+  for (const name of ["from", "to"]) props.boundaries.items.properties[name].enum = slideIds;
+  props.defects.items.properties.slide_ids.items.enum = slideIds;
   const input = JSON.stringify({
+    expected_slide_ids_in_order: slideIds,
+    expected_boundaries_in_order: expectedBoundaries,
+    allowed_source_ids: sourceIds,
     sources: opts.sources,
     plan: doc.fil ?? null,
     editorial_intent: doc.editorial_intent ?? null,
@@ -165,9 +187,9 @@ export async function reviewCarouselProgression(doc: any, opts: {
   try {
     const raw = await (opts.call || callAnthropic)({
       model: getModelForAction("carousel"),
-      system: COMMON + "\n\n" + JUDGE,
+      system: COMMON + "\n\n" + JUDGE + "\nContrat de sortie : recopie exactement les IDs attendus, dans l'ordre fourni, sans renuméroter depuis 1. source_ids utilise seulement allowed_source_ids ; [] si aucune source utile. idea_read et conclusion sont des phrases non vides. limits est toujours un tableau de chaînes, éventuellement vide. Ne remplace aucun champ du schéma par une autre forme.",
       messages: [{ role: "user", content: input }],
-      tool: GLOBAL_REVIEW_TOOL,
+      tool,
       max_tokens: Math.min(8192, 2048 + doc.slides.length * 400),
       abortTimeoutMs: opts.abortTimeoutMs ?? 45_000,
       keepDashes: true,
@@ -185,7 +207,14 @@ export async function reviewCarouselProgression(doc: any, opts: {
     }
     const error = validateProgressionReport(report, doc, opts.sources);
     if (error) {
-      return { ...receipt, execution_status: "invalid", reason: error, usage };
+      // Record shape only: diagnose provider schema drift without persisting
+      // unvalidated prose or any private source material in public projections.
+      const shape = (value: unknown) => Array.isArray(value)
+        ? { type: "array", length: value.length, item_types: [...new Set(value.map((v) => typeof v))] }
+        : { type: value === null ? "null" : typeof value, ...(typeof value === "string" ? { length: value.trim().length } : {}) };
+      return { ...receipt, execution_status: "invalid", reason: error, usage,
+        validation_details: Object.fromEntries(Object.entries(report ?? {}).map(([key, value]) => [key, shape(value)])),
+      };
     }
     const issues = report.defects.map((d: any) =>
       `${

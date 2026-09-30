@@ -64,6 +64,13 @@ Deno.test("le registre global lit les schémas, la légende et les frontières m
     sources,
     call: async (o) => {
       input = String(o.messages[0].content);
+      const schema: any = o.tool!.input_schema;
+      assertEquals(schema.properties.slides.items.properties.id.enum, ["slides.0", "slides.1"]);
+      assertEquals(schema.properties.slides.items.properties.source_ids.items.enum, ["brief"]);
+      assertEquals(schema.properties.slides.minItems, 2);
+      assertEquals(schema.properties.boundaries.maxItems, 1);
+      assertEquals(schema.properties.conclusion.minLength, 1);
+      assertEquals(JSON.parse(input).expected_boundaries_in_order, [{ from: "slides.0", to: "slides.1" }]);
       return JSON.stringify(valid());
     },
   });
@@ -125,6 +132,16 @@ for (
     assert(progressionWarnings(out).length > 0);
   });
 }
+
+Deno.test("diagnostic d'un rapport incomplet sans recopier sa prose non validée", async () => {
+  const report = { ...valid(), conclusion: null, idea_read: "CONTEXTE PRIVE" };
+  const out = await reviewCarouselProgression(doc, { sources, call: async () => JSON.stringify(report) });
+  assertEquals(out.execution_status, "invalid");
+  assertEquals(out.reason, "missing-summary");
+  assertEquals(out.validation_details?.conclusion, { type: "null" });
+  assert(!JSON.stringify(out.validation_details).includes("CONTEXTE PRIVE"));
+  assertEquals(out.verdict, null);
+});
 
 Deno.test("timeout distinct d'une lecture sans défaut et brouillon conservé", async () => {
   const before = JSON.stringify(doc);
