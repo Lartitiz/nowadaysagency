@@ -1,10 +1,12 @@
+import { PHOTO_PRESERVATION } from "./photo-preservation.ts";
 /**
  * Reviewed 2026-09-29 against OpenAI's image-prompting guide and Anthropic vision docs.
  * Perspective cues are a task-specific hypothesis to evaluate on real product photos.
  * https://developers.openai.com/api/docs/guides/image-prompting
  * https://platform.claude.com/docs/en/build-with-claude/vision
  */
-export const PHOTO_PROMPTING = `Préparation du prompt image :
+export const PHOTO_PROMPTING = `${PHOTO_PRESERVATION}
+Préparation du prompt image :
 summary reste la proposition française à valider. image_prompt est sa traduction visuelle technique en anglais, réellement transmise au générateur. Garde les textes à inscrire dans leur langue et leur orthographe exactes. Aucun sujet, accessoire, geste, changement de décor, style ou pose supplémentaire ne doit apparaître uniquement dans image_prompt : toute décision perceptible doit être annoncée dans summary ou preserve/change. Pour chaque prise d'une série, summary et image_prompt décrivent cette prise seule.
 Avant de rédiger une mise en situation, observe séparément le produit et le décor joints : vue de dessus, hauteur de table, face ou trois quarts, surfaces et lumière visibles. Ne prétends pas connaître une focale, un angle chiffré, une dimension ou un détail caché. Si une information de fidélité indispensable manque, demande une autre vue avec clarify ; sinon n'invente pas ce détail.
 Si la personne demande d'insérer son produit dans le décor fourni, ce décor fixe le point de vue de la scène. Vérifie que la vue produit permet cette perspective. Si elle impose d'inventer une face importante, demande une autre vue ou propose un nouveau décor compatible. Limite le changement de perspective, sans plaquer artificiellement une vue incompatible. Une référence utilisée seulement pour sa palette ou son ambiance ne fixe pas la caméra. Une demande explicite de cadrage prime. Distingue l'orientation physique de l'objet et le point de vue de l'appareil.

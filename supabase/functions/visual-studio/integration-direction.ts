@@ -1,3 +1,4 @@
+import { PHOTO_PRESERVATION } from "./photo-preservation.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { callAnthropic, SONNET_MODEL } from "../_shared/anthropic.ts";
 import type { Proposal } from "./media.ts";
@@ -9,7 +10,8 @@ const schema = z.object({
     reference_ids: z.array(z.string()).min(1).max(8), location: z.string().min(1).max(400), instruction: z.string().min(1).max(1000) })).min(1).max(8),
   blocked_reason: z.string().max(600).default(""),
 });
-export const INTEGRATION_DIRECTION = `Tu prépares une retouche photographique ciblée. Observe la scène effectivement générée et CHAQUE original joint. La demande confirmée et les associations cible/originaux sont l'autorité ; les anciennes descriptions textuelles des références peuvent être erronées, leurs pixels font foi.
+export const INTEGRATION_DIRECTION = `${PHOTO_PRESERVATION}
+Tu prépares une retouche photographique ciblée. Observe la scène effectivement générée et CHAQUE original joint. La demande confirmée et les associations cible/originaux sont l'autorité ; les anciennes descriptions textuelles des références peuvent être erronées, leurs pixels font foi.
 La scène est l'Image 1. Chaque original est étiqueté avec son vrai numéro, ID et rôle. Écris un prompt anglais concis et complet : modifier Image 1, remplacer explicitement CHAQUE personne provisoire par LA personne de ses originaux, remplacer CHAQUE produit provisoire par le produit exact de ses originaux. Conserver seulement la pose et la tenue approuvées pour la personne ; son visage, ses cheveux et sa morphologie proviennent des originaux. Ne garder ni le visage provisoire ni un mélange des identités. Le produit exact ne compense jamais une personne incorrecte. Ne modifier aucune autre personne du décor.
 Pour chaque cible, indique son emplacement visible dans la scène et une instruction précise en français, avec les mêmes role et reference_ids ; ne fusionne ni ne sépare les sujets. Les contours, contacts, perspective, ombres et raccords locaux peuvent s'adapter. Conserve le cadrage, le décor, la lumière, la palette et les textures hors des remplacements demandés. Aucune nouvelle direction artistique, aucun lissage global, aucun nouveau preset. Ne transforme pas une ancienne description approximative du motif en consigne de redessiner le produit.
 Le prompt commence par les remplacements obligatoires, puis précise ce qui reste inchangé. Ne te contente pas de « conserver le sourire » pour une personne à remplacer. Si une référence est inexploitable ou si l'emplacement est réellement ambigu, renseigne blocked_reason en français ; n'invente pas. image_prompt et targets restent requis pour un diagnostic structuré. Sinon blocked_reason est vide. Ne promets pas une fidélité garantie.`;

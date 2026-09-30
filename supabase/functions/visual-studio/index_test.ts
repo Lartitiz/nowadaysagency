@@ -1,5 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { handleStudioRequest } from "./index.ts";
+import { imageInputPaths } from "./photo-preservation.ts";
 import { generateImage, imagePrompt } from "./media.ts";
 const id = (n: number) =>
   `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -1194,7 +1195,7 @@ Deno.test("a correction after integration keeps the ORIGINAL product without dup
   const f = fixture();
   const product = { id: id(870), photo_id: id(871), path: "original-product", role: "product", name: "Original" };
   f.version.status = "ready";
-  Object.assign(f.version.proposal, { scene_workflow: { phase: "integration", camera_match: "Vue de haut" }, planning_references: [], reference_snapshot: [product] });
+  Object.assign(f.version.proposal, { operation: "edit", input_path: "soul-original", scene_workflow: { phase: "integration", scene_path: "soul-original", approved_scene_id: id(869), camera_match: "Vue de haut" }, planning_references: [], reference_snapshot: [product] });
   f.session.references = [product];
   f.setIntent({ operation: "edit", visual_kind: "photo", summary: "Réduire seulement l'ombre sous l'assiette intégrée.",
     scene_workflow: { phase: "integration", camera_match: "Conserver la caméra" }, image_prompt: "Reduce only the plate contact shadow, preserve everything else.", reference_use: [] });
@@ -1205,6 +1206,8 @@ Deno.test("a correction after integration keeps the ORIGINAL product without dup
     assertEquals(res.status, 200);
     assertEquals(p.input_path, f.version.result_path);
     assertEquals(p.references.map((r: any) => r.path), ["original-product"]);
+    assertEquals(p.photo_source_path, "soul-original");
+    assertEquals(imageInputPaths(p), [f.version.result_path, "original-product", "soul-original"]);
     assertEquals(imagePrompt(p).includes("never add a duplicate"), true);
     assertEquals(p.scene_workflow.phase, "integration");
   } finally { f.restore(); }

@@ -40,6 +40,7 @@ export async function integrationProposal(version: SceneVersion, currentReferenc
     photo_treatment: scene.photo_treatment, product_placement: scene.product_placement,
     brief: scene.brief || scene.summary || "", exact_text: [], shots: [], cost: 1,
     references, reference_snapshot: references, planning_references: [], input_path: version.result_path,
+    photo_source_path: version.result_path,
     viewed_version_id: version.id, viewed_reference_id: null, original_path: references[0].path,
     provider: "default", model: imageModel("edit"), rules_version: RULES_VERSION,
     warning: "L'intégration peut modifier des détails. Compare le résultat à la scène et aux originaux.",

@@ -1,3 +1,4 @@
+import { imageInputPaths, photographicReferencePrompt, preservesPhoto } from "./photo-preservation.ts";
 import { personReferencePrompt, type PersonReference } from "./person-reference.ts";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import { openaiImageModel } from "../_shared/openai-image-model.ts";
@@ -38,6 +39,8 @@ export type Proposal = {
   composition?: unknown;
   references?: Reference[];
   input_path?: string | null;
+  /** Server-owned immutable photographic source for subsequent edits. */
+  photo_source_path?: string;
   series_size?: number;
   series_index?: number;
   brand_context?: { charter?: Record<string, unknown> | null };
@@ -118,9 +121,12 @@ export function imageModel(operation: string) {
   );
 }
 export async function generateImage(proposal: Proposal, inputs: Blob[]) {
-  const expectedInputs = (proposal.input_path ? 1 : 0) + (proposal.references?.length || 0) +
-    (proposal.scene_workflow?.phase === "integration" && proposal.scene_workflow.scene_path && proposal.scene_workflow.scene_path !== proposal.input_path ? 1 : 0);
-  if (proposal.scene_workflow?.phase === "integration" && (!proposal.input_path || inputs.length !== expectedInputs || inputs.some(input => !input.size))) throw new Error("studio_integration_sources");
+  const expectedInputs = imageInputPaths(proposal).length;
+  if (proposal.operation !== "background" &&
+    ((proposal.operation === "edit" || proposal.scene_workflow?.phase === "integration") && !proposal.input_path ||
+      inputs.length !== expectedInputs || inputs.some(input => !input.size))) {
+    throw new Error(proposal.scene_workflow?.phase === "integration" ? "studio_integration_sources" : "studio_image_sources");
+  }
   let response: Response;
   if (proposal.operation === "background") {
     if (!inputs[0]) throw new Error("Source missing");
@@ -210,7 +216,7 @@ export function imagePrompt(proposal: Proposal) {
   const refs = proposal.references || [];
   const isSeries = (proposal.series_size || 1) > 1;
   const isSheet = proposal.person_reference?.mode === "sheet";
-  const charter = isSheet || proposal.scene_workflow?.phase === "scene" || proposal.scene_workflow?.phase === "integration" ? null : proposal.brand_context?.charter;
+  const charter = preservesPhoto(proposal) || isSheet || proposal.scene_workflow?.phase === "scene" || proposal.scene_workflow?.phase === "integration" ? null : proposal.brand_context?.charter;
   const direction = (value: unknown) =>
     (typeof value === "string"
       ? value
@@ -258,7 +264,7 @@ export function imagePrompt(proposal: Proposal) {
     proposal.input_path
       ? proposal.scene_workflow?.phase === "integration"
         ? "Image 1 is the exact base image to edit, not inspiration. Preserve this photograph outside the explicitly authorized changes."
-        : "Image 1 is the selected version to edit. Keep the subject and features the brief asks to preserve; apply the requested changes to its setting and styling."
+        : "Image 1 is the selected version to edit. Keep the subject and features the brief asks to preserve; apply only the explicitly requested changes."
       : "",
     ...refs.map(
       (ref, i) =>
@@ -282,13 +288,13 @@ export function imagePrompt(proposal: Proposal) {
       ? "SCENE PREPARATION ONLY. Create the confirmed photographic scene, including the provisional people, poses and placeholder objects needed for physically coherent contact. Identities and products are provisional; their originals are reserved for a later edit. Match the planned build, geometry, scale and perspective. Do not invent product markings or claim an exact identity. No added text, logos, decorations, blur, grain or beauty retouching."
       : productStaging,
     proposal.scene_workflow?.phase === "integration"
-      ? "TARGETED PHOTO EDIT. Image 1 is the base photograph, not a loose style reference. Apply ONLY the listed changes at their stated locations. Preserve camera, framing, composition, background, surfaces, lighting, palette, depth of field and photographic textures outside those changes. Replace or adjust the existing provisional subject rather than adding a duplicate; never add a duplicate. MANDATORY: replace EACH provisional person with the exact person from their original references; replacing only the product is an incomplete result. Original person references govern identity, face, hair and build; do not freeze incompatible provisional features. Preserve the pose and approved outfit unless their change is requested. Original product references govern silhouette, proportions, materials, colors, motif placement, logos and lettering. Allow only necessary local scale, perspective, contours, hair/face junctions, hand contacts, occlusions, reflections and contact shadows. Do not creatively rewrite the scene, beautify people, smooth the entire image, add blur, grain or props. Keep all prior accepted corrections and everything else unchanged."
+      ? "TARGETED PHOTO EDIT. Image 1 is the base photograph, not a loose style reference. Apply ONLY the listed changes at their stated locations. Preserve camera, framing, composition, background, surfaces, lighting, palette, depth of field and photographic textures outside those changes. Replace or adjust the existing provisional subject rather than adding a duplicate; never add a duplicate. On the initial integration, replace EACH provisional person explicitly listed in AUTHORIZED TARGETS with the exact person from their original references; replacing only the product is an incomplete result when both replacements are requested. For subsequent edits, identity references are preservation anchors: do not repeat the initial replacements or change a person unless the current confirmed Changes request it. Original person references govern identity, face, hair and build; do not freeze incompatible provisional features. Preserve the pose and approved outfit unless their change is requested. Original product references govern silhouette, proportions, materials, colors, motif placement, logos and lettering. Allow only necessary local scale, perspective, contours, hair/face junctions, hand contacts, occlusions, reflections and contact shadows. Do not creatively rewrite the scene, beautify people, smooth the entire image, add blur, grain or props. Keep all prior accepted corrections and everything else unchanged."
       : "",
     proposal.scene_workflow?.targets?.length && proposal.scene_workflow.phase === "integration"
       ? (proposal.scene_workflow.approved_scene_id && proposal.input_path !== proposal.scene_workflow.scene_path ? "SUBJECT ANCHORS ALREADY INTEGRATED. Preserve these identities; do not repeat their initial replacement. Apply only the current Changes.\n" : "AUTHORIZED TARGETS\n") + proposal.scene_workflow.targets.map(t => `${t.location}: ${proposal.scene_workflow?.approved_scene_id && proposal.input_path !== proposal.scene_workflow.scene_path ? t.role : t.instruction} Sources: ${t.reference_ids.map(id => { const i = refs.findIndex(r => r.id === id); return i < 0 ? "missing original (do not invent)" : `Image ${i + 1 + (proposal.input_path ? 1 : 0)}`; }).join(", ")}`).join("\n")
       : "",
     proposal.scene_workflow?.phase === "integration" && proposal.scene_workflow.scene_path && proposal.scene_workflow.scene_path !== proposal.input_path
-      ? `Image ${refs.length + 2} is the approved original scene, a photographic preservation anchor, NOT the edit base. Edit Image 1 and retain all accepted corrections since that scene. Current explicitly confirmed Changes take precedence over earlier changes.` : "",
+      ? `Image ${imageInputPaths(proposal).indexOf(proposal.scene_workflow.scene_path) + 1} is the approved original scene, a photographic preservation anchor, NOT the edit base. Edit Image 1 and retain all accepted corrections since that scene. Current explicitly confirmed Changes take precedence over earlier changes.` : "",
     proposal.scene_workflow?.accepted_changes?.length
       ? `PREVIOUSLY ACCEPTED CHOICES (current explicit Changes take precedence): ${proposal.scene_workflow.accepted_changes.join("; ")}` : "",
     refs.length > 1
@@ -304,6 +310,7 @@ export function imagePrompt(proposal: Proposal) {
         photoDirection,
       ].filter(Boolean).join("; ")}. Apply it where compatible with this shot. The user's specific request and exact person or product references take priority; never recolor or reshape them merely to fit the brand. Confirmed product placement takes priority over brand composition advice.`
       : "",
+    photographicReferencePrompt(proposal),
     naturalPhoto
       ? "Natural photograph with coherent light, plausible contact and credible material and skin textures. Follow the confirmed camera style, contrast, grain, depth of field and composition. Do not automatically simplify the setting or add imperfections, blur, beauty retouching or decorative props. Preserve the requested accessories and photographic hierarchy. Exact person and product references take priority."
       : "",
