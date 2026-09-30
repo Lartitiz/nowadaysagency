@@ -12,7 +12,7 @@ import {
 } from "./carousel-editorial-contract.ts";
 import { progressionMaterial } from "./carousel-editorial-snapshot.ts";
 
-export const PROGRESSION_VERSION = "final-progression-v4";
+export const PROGRESSION_VERSION = "final-progression-v5";
 export interface ProgressionSource {
   id: string;
   provenance: string;
@@ -94,15 +94,11 @@ export function validateProgressionReport(
     !Array.isArray(report.boundaries) ||
     report.boundaries.length !== Math.max(0, ids.length - 1)
   ) return "boundary-coverage";
-  if (
-    report.boundaries.some((b: any, i: number) =>
-      b.from !== ids[i] || b.to !== ids[i + 1] || !str(b.inherits) ||
-      !str(b.advances) ||
-      !["progression", "common_criterion", "visual_pause", "rupture"].includes(
-        b.kind,
-      )
-    )
-  ) return "boundary-reference";
+  for (const [i, b] of report.boundaries.entries()) {
+    if (!b || b.from !== ids[i] || b.to !== ids[i + 1]) return `boundary-reference:${i}:pair`;
+    for (const key of ["inherits", "advances"]) if (!str(b[key])) return `boundary-reference:${i}:${key}:nonempty-string-required`;
+    if (!["progression", "common_criterion", "visual_pause", "rupture"].includes(b.kind)) return `boundary-reference:${i}:kind`;
+  }
   for (const [i, boundary] of report.boundaries.entries()) {
     for (const side of ["from", "to"] as const) {
       const available = fields.filter((f) => f.id.startsWith(boundary[side] + "."));
@@ -176,7 +172,16 @@ export async function reviewCarouselProgression(doc: any, opts: {
   if (sourceIds.length) props.slides.items.properties.source_ids.items.enum = sourceIds;
   else props.slides.items.properties.source_ids.maxItems = 0;
   props.boundaries.minItems = props.boundaries.maxItems = expectedBoundaries.length;
-  for (const name of ["from", "to"]) props.boundaries.items.properties[name].enum = slideIds;
+  const boundarySchema = props.boundaries.items;
+  boundarySchema.required = boundarySchema.required.filter((key: string) => key !== "from" && key !== "to");
+  delete boundarySchema.properties.from;
+  delete boundarySchema.properties.to;
+  boundarySchema.required.push("boundary_id");
+  boundarySchema.properties.boundary_id = { type: "string", ...(expectedBoundaries.length ? { enum: expectedBoundaries.map((b: any) => `${b.from}->${b.to}`) } : {}) };
+  for (const key of ["inherits", "advances"]) {
+    boundarySchema.properties[key].minLength = 1;
+    boundarySchema.properties[key].description = "Phrase non vide. Si le lien manque, décrire explicitement ce qui manque ; ne pas laisser vide et ne pas inventer de raccord.";
+  }
   props.defects.items.properties.slide_ids.items.enum = slideIds;
   // Select evidence by stable IDs; copying quotations was invalidating whole reviews.
   // The program attaches the exact source text, never a model-reconstructed quote.
@@ -199,6 +204,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
   const input = JSON.stringify({
     expected_slide_ids_in_order: slideIds,
     expected_boundaries_in_order: expectedBoundaries,
+    expected_boundary_ids_in_order: expectedBoundaries.map((b: any) => `${b.from}->${b.to}`),
     allowed_source_ids: sourceIds,
     sources: opts.sources,
     // Do not send the writer's plan: it was filling gaps absent from the published text.
@@ -228,7 +234,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
   try {
     const options: AnthropicOptions = {
       model: getModelForAction("carousel"),
-      system: COMMON + "\n\n" + JUDGE + "\nContrat de sortie : recopie exactement les IDs attendus, dans l'ordre fourni, sans renuméroter depuis 1. source_ids utilise seulement allowed_source_ids ; [] si aucune source utile. idea_read et conclusion sont des phrases non vides. limits est toujours un tableau de chaînes, éventuellement vide. Ne remplace aucun champ du schéma par une autre forme. Pour chaque défaut, sélectionne field_ids dans sequence.fields ; le programme joindra leurs textes exacts. Ne fournis pas de citation reconstruite. Pour chaque frontière, from_field_ids et to_field_ids référencent exclusivement les champs visibles des deux slides voisines. Décris uniquement le lien porté par ces textes. Une photo et les sources peuvent vérifier un fait, jamais fournir un raccord absent. kind=rupture signifie un raccord MANQUANT ou INCOMPRÉHENSIBLE : jamais un contraste argumentatif utile, une nuance, une transition du constat vers les preuves ou une simple variation visuelle. Toute rupture ou défaut majeur impose needs_repair ; décris précisément le lien manquant. Un verdict favorable ne peut pas annuler ce constat.",
+      system: COMMON + "\n\n" + JUDGE + "\nContrat de sortie : recopie exactement les IDs attendus, dans l'ordre fourni, sans renuméroter depuis 1. source_ids utilise seulement allowed_source_ids ; [] si aucune source utile. idea_read et conclusion sont des phrases non vides. limits est toujours un tableau de chaînes, éventuellement vide. Ne remplace aucun champ du schéma par une autre forme. Pour chaque défaut, sélectionne field_ids dans sequence.fields ; le programme joindra leurs textes exacts. Ne fournis pas de citation reconstruite. Pour chaque frontière, sélectionne boundary_id dans expected_boundary_ids_in_order, dans cet ordre ; le programme fournira from et to. inherits et advances sont des phrases non vides, même si elles constatent une absence de lien. Pour chaque frontière, from_field_ids et to_field_ids référencent exclusivement les champs visibles des deux slides voisines. Décris uniquement le lien porté par ces textes. Une photo et les sources peuvent vérifier un fait, jamais fournir un raccord absent. kind=rupture signifie un raccord MANQUANT ou INCOMPRÉHENSIBLE : jamais un contraste argumentatif utile, une nuance, une transition du constat vers les preuves ou une simple variation visuelle. Toute rupture ou défaut majeur impose needs_repair ; décris précisément le lien manquant. Un verdict favorable ne peut pas annuler ce constat.",
       messages: [{ role: "user", content: input }],
       tool,
       max_tokens: Math.min(8192, 2048 + doc.slides.length * 400),
@@ -241,6 +247,15 @@ export async function reviewCarouselProgression(doc: any, opts: {
     const parseAndValidate = () => {
       try { report = JSON.parse(raw); }
       catch { report = null; return "invalid-json"; }
+      if (Array.isArray(report?.boundaries)) {
+        report.boundaries = report.boundaries.map((boundary: any) => {
+          if (boundary?.boundary_id === undefined) return boundary;
+          const pair = expectedBoundaries.find((b: any) => boundary.boundary_id === `${b.from}->${b.to}`);
+          // Only a known complete pair can supply its references. Never infer
+          // a missing link or move a finding to a different pair of slides.
+          return pair ? { ...boundary, ...pair } : { ...boundary, from: null, to: null };
+        });
+      }
       // A structural inconsistency must never produce approval. Keep every finding,
       // but derive the conservative verdict instead of asking the model to vote again.
       if (report?.verdict === "acceptable" && (
