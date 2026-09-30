@@ -2396,6 +2396,41 @@ export type Database = {
           },
         ]
       }
+      credit_grants: {
+        Row: {
+          checkout_session_id: string
+          created_at: string
+          credits: number
+          price_id: string
+          purchase_id: string
+          user_id: string
+        }
+        Insert: {
+          checkout_session_id: string
+          created_at?: string
+          credits: number
+          price_id: string
+          purchase_id: string
+          user_id: string
+        }
+        Update: {
+          checkout_session_id?: string
+          created_at?: string
+          credits?: number
+          price_id?: string
+          purchase_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_grants_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dashboard_clicks: {
         Row: {
           created_at: string
@@ -5200,6 +5235,30 @@ export type Database = {
           },
         ]
       }
+      payment_checkout_attempts: {
+        Row: {
+          attempt_id: string
+          expires_at: string
+          params: Json
+          stripe_session_id: string | null
+          user_id: string
+        }
+        Insert: {
+          attempt_id?: string
+          expires_at?: string
+          params: Json
+          stripe_session_id?: string | null
+          user_id: string
+        }
+        Update: {
+          attempt_id?: string
+          expires_at?: string
+          params?: Json
+          stripe_session_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       persona: {
         Row: {
           brands: Json | null
@@ -6223,7 +6282,10 @@ export type Database = {
         Row: {
           amount: number
           created_at: string | null
+          credits_granted: number
           currency: string | null
+          fulfilled_at: string | null
+          fulfillment_state: string
           id: string
           metadata: Json | null
           product_type: string
@@ -6235,7 +6297,10 @@ export type Database = {
         Insert: {
           amount: number
           created_at?: string | null
+          credits_granted?: number
           currency?: string | null
+          fulfilled_at?: string | null
+          fulfillment_state?: string
           id?: string
           metadata?: Json | null
           product_type: string
@@ -6247,7 +6312,10 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string | null
+          credits_granted?: number
           currency?: string | null
+          fulfilled_at?: string | null
+          fulfillment_state?: string
           id?: string
           metadata?: Json | null
           product_type?: string
@@ -9038,6 +9106,18 @@ export type Database = {
         Returns: undefined
       }
       ensure_owner_workspace: { Args: never; Returns: string }
+      fulfill_credit_pack: {
+        Args: {
+          p_amount: number
+          p_credits: number
+          p_currency: string
+          p_payment_intent: string
+          p_price_id: string
+          p_session_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       get_dashboard_summary: {
         Args: { p_user_id: string; p_workspace_id?: string }
         Returns: Json
@@ -9097,6 +9177,19 @@ export type Database = {
         }
         Returns: Json
       }
+      record_ai_usage: {
+        Args: {
+          p_action: string
+          p_base_total: number
+          p_category: string
+          p_charge_bonus: boolean
+          p_model: string
+          p_tokens: number
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: string
+      }
       redeem_promo_and_grant_plan: {
         Args: {
           p_display_plan: string
@@ -9110,6 +9203,10 @@ export type Database = {
       report_client_error: {
         Args: { p_asset?: string; p_kind: string; p_route: string }
         Returns: boolean
+      }
+      reserve_payment_checkout: {
+        Args: { p_params: Json; p_user_id: string }
+        Returns: Json
       }
       reserve_subscription_checkout: {
         Args: { p_params: Json; p_user_id: string }
