@@ -1183,3 +1183,23 @@ Deno.test("scene corrections retain planning originals; exact multiple reference
     } finally { f.restore(); }
   }
 });
+
+Deno.test("a correction after integration keeps the ORIGINAL product without duplicating it", async () => {
+  const f = fixture();
+  const product = { id: id(870), photo_id: id(871), path: "original-product", role: "product", name: "Original" };
+  f.version.status = "ready";
+  Object.assign(f.version.proposal, { scene_workflow: { phase: "integration", camera_match: "Vue de haut" }, planning_references: [], reference_snapshot: [product] });
+  f.session.references = [product];
+  f.setIntent({ operation: "edit", visual_kind: "photo", summary: "Réduire seulement l'ombre sous l'assiette intégrée.",
+    scene_workflow: { phase: "integration", camera_match: "Conserver la caméra" }, image_prompt: "Reduce only the plate contact shadow, preserve everything else.", reference_use: [] });
+  try {
+    const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
+      request_id: id(872), reference_ids: [], viewed_version_id: proposalId, message: "L'ombre du produit est trop forte, réduis-la" }));
+    const p = (await res.json()).session.proposal;
+    assertEquals(res.status, 200);
+    assertEquals(p.input_path, f.version.result_path);
+    assertEquals(p.references.map((r: any) => r.path), ["original-product"]);
+    assertEquals(imagePrompt(p).includes("never add a duplicate"), true);
+    assertEquals(p.scene_workflow.phase, "integration");
+  } finally { f.restore(); }
+});

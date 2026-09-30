@@ -538,8 +538,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           : availableReferences)];
         // These originals belong to this selected scene branch, not to an unrelated
         // session result. Claude may use them only when continuing the workflow.
-        const reservedProducts: Reference[] = parent?.proposal?.scene_workflow
-          ? parent.proposal.planning_references || [] : [];
+        const reservedProducts: Reference[] = parent?.proposal?.scene_workflow?.phase === "scene"
+          ? parent.proposal.planning_references || []
+          : parent?.proposal?.scene_workflow?.phase === "integration"
+          ? (parent.proposal.reference_snapshot || []).filter((ref: Reference) => ref.role === "product") : [];
         for (const ref of reservedProducts) {
           if (!requestReferences.some(r => r.id === ref.id) && requestReferences.length < MAX_REFERENCES) requestReferences.push(ref);
         }
@@ -916,7 +918,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         const phase = intent.scene_workflow?.phase;
         // A correction to the scene must not discard the reserved original just
         // because the interpreter omitted a planning-only image in reference_use.
-        if (phase === "scene" && intent.operation === "edit" && !resolvedReferences.some(ref => ref.role === "product")) {
+        if (phase && intent.operation === "edit" && !resolvedReferences.some(ref => ref.role === "product")) {
           if (resolvedReferences.length + reservedProducts.length > MAX_REFERENCES) {
             intent.operation = "clarify";
             intent.summary = "Retire une référence pour conserver le produit original avec cette scène (huit images maximum).";
@@ -933,7 +935,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.operation = "clarify";
           intent.summary = "Préparons d’abord une seule scène photographique, sans le produit ni texte ajouté. Le produit original sera intégré après validation de cette scène.";
         }
-        if (phase === "integration" && (intent.operation !== "product" || !inputs.input || !inputs.references.some(ref => ref.role === "product"))) {
+        if (phase === "integration" && (!["product", "edit"].includes(intent.operation) || !inputs.input || !inputs.references.some(ref => ref.role === "product"))) {
           intent.operation = "clarify";
           intent.summary = "Pour intégrer ton produit, sélectionne la scène à conserver et joins une photo du produit original.";
         }
