@@ -74,6 +74,13 @@ export function repairTargets(targets: IntegrationTarget[], refs: Reference[], p
     groups.set(group, [...(groups.get(group) || []), ref]);
   }
   for (const group of groups.values()) {
+    if (group.some(r => r.subject_group)) {
+      const indexes = result.map((target, i) => target.role === group[0].role && target.reference_ids.some(id => group.some(ref => ref.id === id)) ? i : -1).filter(i => i >= 0);
+      if (indexes.length && indexes.every(i => result[i].reference_ids.every(id => group.some(ref => ref.id === id)))) {
+        result[indexes[0]].reference_ids = group.map(ref => ref.id);
+        for (const i of indexes.slice(1).reverse()) result.splice(i, 1);
+      }
+    }
     const missing = group.filter(r => !result.some(t => t.role === r.role && t.reference_ids.includes(r.id)));
     if (!missing.length) continue;
     const prior = previous.find(t => group.every(r => t.reference_ids.includes(r.id)) && t.role === group[0].role);

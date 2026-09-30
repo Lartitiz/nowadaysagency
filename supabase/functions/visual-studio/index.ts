@@ -418,7 +418,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       } else if (found) {
         if (p.subject_group && p.subject_group !== found.id && !references.some(ref => ref.id === p.subject_group && ref.role === (p.reference_role || found.role))) throw new Error("studio_conflict");
         references = references.map((r) =>
-          r === found ? { ...r, role: p.reference_role || r.role, role_source: p.reference_role === "auto" ? "library" : p.role_source || "user", role_explicit: p.reference_role === "auto" ? false : r.role_explicit, ...(p.subject_group !== undefined ? { subject_group: p.subject_group } : {}) } : r
+          r === found ? { ...r, role: p.reference_role || r.role, role_source: p.reference_role === "auto" ? "library" : p.role_source || "user", role_explicit: p.reference_role === "auto" ? false : r.role_explicit, subject_group: p.reference_role && p.reference_role !== r.role ? undefined : r.subject_group, ...(p.subject_group !== undefined ? { subject_group: p.subject_group } : {}) } : r
         );
       } else {
         if (!p.photo_id && !p.version_id && p.charter_index == null) {

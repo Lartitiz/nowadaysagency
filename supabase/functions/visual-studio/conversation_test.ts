@@ -52,3 +52,9 @@ Deno.test("explicit grouping completes a partially mapped group even when its ro
  assertEquals(result.length,1);assertEquals(result[0].reference_ids,['me','side']);assertEquals(validTargets(result,people),true);
  assertEquals(independentRequest('Retouche ma nouvelle photo produit'),false);
 });
+
+Deno.test("explicit same-subject grouping coalesces separately proposed targets",()=>{
+ const refs:Reference[]=[{id:'a',path:'a',photo_id:null,name:'Face',role:'person'},{id:'b',path:'b',photo_id:null,name:'Profil',role:'person',subject_group:'a'}];
+ const targets=refs.map(r=>({role:'person' as const,reference_ids:[r.id],location:'Au centre',instruction:'Reprendre cette identité'}));
+ const result=repairTargets(targets,refs);assertEquals(result.length,1);assertEquals(result[0].reference_ids,['a','b']);assertEquals(validTargets(result,refs),true);
+});
