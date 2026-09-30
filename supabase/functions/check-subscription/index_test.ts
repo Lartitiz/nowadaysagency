@@ -116,7 +116,7 @@ Deno.test("check-subscription: abonnement 'outil' actif -> plan effectif = outil
     const body = await res.json();
     assertEquals(body.plan, "outil");
     assertEquals(body.status, "active");
-    assertEquals(body.ai_usage.total.limit, 9999); // PLAN_LIMITS.outil.total
+    assertEquals(body.ai_usage.total.limit, 200); // PLAN_LIMITS.outil.total (garde-fou, grille 01/10/2026)
   } finally {
     restore();
   }
