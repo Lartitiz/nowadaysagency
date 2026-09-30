@@ -15,6 +15,7 @@ import type { CarouselColors } from "@/components/creer/formatRenderers/Carousel
 interface UseGenerateVisualsParams {
   result: any;
   visualLoading: boolean;
+  contentGenerating?: boolean;
   aurianaDemoActive: boolean;
   ideaText: string;
   carouselSubMode: "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null;
@@ -53,6 +54,7 @@ interface UseGenerateVisualsParams {
 export function useGenerateVisuals({
   result,
   visualLoading,
+  contentGenerating = false,
   aurianaDemoActive,
   ideaText,
   carouselSubMode,
@@ -77,8 +79,17 @@ export function useGenerateVisuals({
   const luminanceCacheRef = useRef<Map<string, { top: number; center: number; bottom: number }>>(new Map());
   const autoVisualsAttemptRef = useRef<{ result: any; n: number }>({ result: null, n: 0 });
 
+  // A previous result remains visible while its replacement is written. Never
+  // render it into the newly cleared visuals, or accept its late response.
+  const sourceRef = useRef({ result, contentGenerating, revision: 0 });
+  if (sourceRef.current.result !== result || sourceRef.current.contentGenerating !== contentGenerating) {
+    sourceRef.current = { result, contentGenerating, revision: sourceRef.current.revision + 1 };
+  }
+
   const handleGenerateVisuals = async (opts?: { forceText?: boolean; background?: boolean }) => {
-    if (!result?.raw?.slides || visualLoading) return;
+    if (!result?.raw?.slides || visualLoading || contentGenerating) return;
+    const revision = sourceRef.current.revision;
+    const isCurrent = () => sourceRef.current.revision === revision;
     if (result.raw.carousel_editor_version && !opts?.background && !window.confirm("Recréer le design des slides non verrouillées ? Cela remplacera leurs réglages manuels. Enregistre une copie dans Mes idées si tu souhaites les conserver.")) return;
     // Casting texte-d'abord incomplet : chaque slide photo doit avoir son image avant
     // le rendu (sinon le curseur auto poserait des photos arbitraires dessus).
@@ -362,6 +373,7 @@ export function useGenerateVisuals({
         }).then(() => {}, () => {});
       }
 
+      if (!isCurrent()) return;
       const visualsStartedAt = performance.now();
       // Les carrousels riches en photos (dump : 6-8 slides pleines images)
       // dépassent régulièrement 180 s côté rendu — plafond élargi dans ce cas
@@ -370,11 +382,12 @@ export function useGenerateVisuals({
       const { data, error: fnError } = await invokeWithHeartbeat("carousel-visual", {
         body: requestBody,
         onStatus: (stage, info: any) => {
-          if (stage === "visuals" && typeof info?.total === "number") {
+          if (isCurrent() && stage === "visuals" && typeof info?.total === "number") {
             setVisualChunkProgress({ done: Number(info.done) || 0, total: info.total });
           }
         },
       }, visualsTimeout);
+      if (!isCurrent()) return;
       // Quota épuisé : ouvrir le QuotaWallModal avec l'objet quota complet,
       // AVANT le throw générique qui perdrait data.quota (en SSE, le 429 arrive
       // avec fnError ET data parsé — le quota se juge donc en premier).
@@ -436,6 +449,7 @@ export function useGenerateVisuals({
           })
         : normalizedSlides;
       const fittedSlides = await fitGeneratedSchemaSlides(rehydratedSlides, rawSlides);
+      if (!isCurrent()) return;
       const committedSlides = fittedSlides.map((visual, i) => rawSlides[i]?.editor_locked && visualSlides[i] ? visualSlides[i] : visual);
       setVisualSlides(committedSlides);
       const fidelityWarnings = carouselCompositionWarnings(carouselSubMode === "pure_photo" ? slidesSource : rawSlides, committedSlides, carouselSubMode === "pure_photo");
@@ -450,6 +464,7 @@ export function useGenerateVisuals({
         }
       }
     } catch (e: any) {
+      if (!isCurrent()) return;
       // Quota remonté par throw : ouvrir le mur quota au lieu d'un toast brut.
       // En pré-génération (background), on reste silencieux : pas de mur ni de toast
       // surgissant sans clic — l'utilisatrice pourra relancer manuellement.
@@ -493,7 +508,7 @@ export function useGenerateVisuals({
     if (selectedFormat !== "carousel") return;
     if (step !== "result") return;
     if (!result?.raw?.slides) return;
-    if (visualLoading || visualSlides.length > 0) return;
+    if (contentGenerating || visualLoading || visualSlides.length > 0) return;
     // Ne PAS auto-déclencher si ça ouvrirait le dialog "photos manquantes"
     // (carrousel photo/mix sans photo dispo) — la décision reste à l'utilisatrice.
     const rawType = result?.raw?.carousel_type;
@@ -518,7 +533,7 @@ export function useGenerateVisuals({
     autoVisualsAttemptRef.current.n += 1;
     handleGenerateVisuals({ background: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, selectedFormat, step, visualLoading, visualSlides.length, uploadedPhotos.length, generatedWithPhotos.length]);
+  }, [result, selectedFormat, step, contentGenerating, visualLoading, visualSlides.length, uploadedPhotos.length, generatedWithPhotos.length]);
 
   return { handleGenerateVisuals };
 }

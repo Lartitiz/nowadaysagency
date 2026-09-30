@@ -1988,6 +1988,7 @@ function CreerWorkspace() {
   // ── Génération des visuels du carrousel (+ pré-génération en arrière-plan) ──
   const { handleGenerateVisuals } = useGenerateVisuals({
     result,
+    contentGenerating: generating || structureLoading || photoDumpResolving,
     visualLoading,
     aurianaDemoActive,
     ideaText,

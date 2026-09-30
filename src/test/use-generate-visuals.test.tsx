@@ -61,6 +61,7 @@ function makeParams(overrides: Record<string, any> = {}) {
   return {
     result: makeTextResult(),
     visualLoading: false,
+    contentGenerating: false,
     aurianaDemoActive: false,
     ideaText: "Mon idée",
     carouselSubMode: "text" as const,
@@ -273,6 +274,33 @@ describe("useGenerateVisuals — pré-génération background silencieuse", () =
     mocks.handleQuotaError.mockReturnValue(false);
     mocks.invokeWithHeartbeat.mockResolvedValue(okVisuals);
     mocks.dbInsert.mockResolvedValue({ error: null });
+  });
+
+  it("attend le nouveau texte avant de composer les visuels après une régénération", async () => {
+    const params = makeParams({ step: "result", contentGenerating: true });
+    const { rerender } = renderHook((p) => useGenerateVisuals(p), { initialProps: params });
+    await act(async () => {});
+    expect(mocks.invokeWithHeartbeat).not.toHaveBeenCalled();
+    const next = makeTextResult();
+    next.raw.slides[0].title = "Nouveau récit";
+    rerender({ ...params, result: next, contentGenerating: false });
+    await waitFor(() => expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(1));
+    expect(JSON.stringify(mocks.invokeWithHeartbeat.mock.calls[0])).toContain("Nouveau récit");
+    await waitFor(() => expect(params.setVisualSlides).toHaveBeenCalledTimes(1));
+  });
+
+  it.each(["result", "generation"])("ignore un rendu tardif après changement de %s", async (change) => {
+    let finish!: (value: any) => void;
+    mocks.invokeWithHeartbeat.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const params = makeParams({ contentGenerating: false });
+    const { result, rerender } = renderHook((p) => useGenerateVisuals(p), { initialProps: params });
+    let pending!: Promise<void>;
+    act(() => { pending = result.current.handleGenerateVisuals({ background: true }); });
+    await waitFor(() => expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(1));
+    rerender({ ...params, ...(change === "result" ? { result: makeTextResult() } : { contentGenerating: true }) });
+    await act(async () => { finish(okVisuals); await pending; });
+    expect(params.setVisualSlides).not.toHaveBeenCalled();
+    expect(params.setVisualLoading).toHaveBeenLastCalledWith(false);
   });
 
   it("quota épuisé en background → PAS de mur ni de toast, message posé près du bouton", async () => {
