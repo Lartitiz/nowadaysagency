@@ -637,6 +637,82 @@ for (const outcome of ["better", "same", "vision"]) Deno.test(`fil : défauts no
   } finally { globalThis.fetch = oldFetch; if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key); }
 });
 
+// ── Durée de la phase texte (30/09/2026) ──
+// Mesure live : ~190 s, dont juge du fil puis relecture l'un APRÈS l'autre. La
+// relecture part désormais en même temps que le juge ; elle n'est gardée que si
+// le brouillon qu'elle a lu est celui qui est livré. Et passé le budget temps
+// global, les étapes facultatives ne sont plus lancées (coupure plateforme ~400 s).
+for (const scenario of ["fil sans défaut", "fil réparé", "budget dépassé"]) Deno.test(`durée texte : relecture en même temps que le juge (${scenario})`, async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch, key = Deno.env.get("OPENAI_API_KEY"), realNow = Date.now;
+  Deno.env.set("OPENAI_API_KEY", "synthetic-no-network");
+  let clockOffset = 0;
+  Date.now = () => realNow() + clockOffset;
+  const reviewedTexts: string[] = [];
+  globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
+    const req = JSON.parse(String(init?.body || "{}"));
+    if (req.tool_choice?.name === "review_carousel_fields") {
+      const fields = JSON.parse(req.input[0].content.split("CHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n")[1]);
+      reviewedTexts.push(fields.map((f: any) => f.text).join(" | "));
+      const text = JSON.stringify({ reviews: fields.map((f: any) => ({ field_id: f.field_id, decision: "keep", reason: "Texte situé et utile", edits: [] })) });
+      return Promise.resolve(new Response(JSON.stringify({ model: "gpt-6-astra", status: "completed", output: [{ type: "function_call", name: "review_carousel_fields", arguments: text }], usage: { input_tokens: 1, output_tokens: 1 } })));
+    }
+    return Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text: "{}" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
+  }) as typeof fetch;
+  const slide = (n: number, title: string, body: string, role = "argument") => ({ slide_number: n, slide_type: "text_only", title, body, role });
+  const draft = { slides: [
+    slide(1, "Un soutien sans responsabilité", "", "hook"),
+    slide(2, "La formule laisse une question ouverte", "Le soutien affiché ne dit pas ce qui est pris en charge."),
+    slide(3, "Le soutien laisse une question ouverte", "Se dire proche ne précise ni ce qu'on reconnaît, ni ce qu'on assume."),
+    slide(4, "Relire ses mots de soutien", "Avant de publier un soutien, vérifie ce qu'il dit de ta propre implication.", "conclusion"),
+  ], caption: { body: "Une légende fidèle au sujet.", hashtags: [] } };
+  const repaired = { ...draft, slides: [draft.slides[0], slide(2, "La formule laisse une question ouverte", "TEXTE_RÉPARÉ : le soutien affiché ne dit pas ce qui est pris en charge."), draft.slides[3]] };
+  const defect = ["Les slides 2 et 3 disent la même idée."];
+  let judged = 0, writes = 0, reviewsStartedBeforeVerdict = -1;
+  _deps.reviewThread = (async () => {
+    judged++;
+    if (judged > 1) return [];
+    await new Promise((r) => setTimeout(r, 15));
+    reviewsStartedBeforeVerdict = reviewedTexts.length;
+    return scenario === "fil sans défaut" ? [] : defect;
+  }) as any;
+  _deps.callCarouselWriter = (async (opts: any, sink: any) => {
+    writes++; Object.assign(sink, { model: opts.model, input_tokens: 10, output_tokens: 20, total_tokens: 30 });
+    // Rédaction « interminable » : la requête a déjà consommé 300 s à son retour.
+    if (scenario === "budget dépassé") clockOffset = 300_000;
+    return JSON.stringify(writes === 2 ? repaired : draft);
+  }) as any;
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: "text", subject: "Hidalgo aux côtés des familles", deepening_answers: { faits: "Refus de responsabilité pénale sur France Inter." } }));
+    assertEquals(res.status, 200);
+    const out = await res.json(), parsed = JSON.parse(out.content.match(/\{[\s\S]*\}/)[0]);
+    for (const step of ["prep_ms", "write_ms", "thread_ms", "total_ms"]) assert(Number.isFinite(out.timings[step]), `durée ${step} renvoyée`);
+    if (scenario === "budget dépassé") {
+      // Ni réparation ni relecture : le carrousel écrit est livré, défaut signalé.
+      assertEquals(writes, 1); assertEquals(reviewedTexts.length, 0);
+      assertEquals(parsed.slides.length, 4);
+      assertEquals(parsed.structure_warnings, defect);
+      return;
+    }
+    assertEquals(reviewsStartedBeforeVerdict, 1, "la relecture part sans attendre le verdict du juge");
+    if (scenario === "fil sans défaut") {
+      assertEquals(writes, 1);
+      assertEquals(reviewedTexts.length, 1, "aucune relecture en plus : celle lancée d'avance est gardée");
+      assertEquals(parsed.slides.length, 4);
+      assertEquals(parsed.structure_warnings, []);
+      assertEquals(parsed.editorial_review.status, "reviewed");
+    } else {
+      // Brouillon réécrit : la relecture d'avance est jetée, le texte RÉPARÉ est relu.
+      assertEquals(writes, 2);
+      assertEquals(reviewedTexts.length, 2);
+      assert(!reviewedTexts[0].includes("TEXTE_RÉPARÉ") && reviewedTexts[1].includes("TEXTE_RÉPARÉ"));
+      assertEquals(parsed.slides.length, 3);
+      assert(parsed.slides[1].body.includes("TEXTE_RÉPARÉ"));
+      assertEquals(parsed.editorial_review.status, "reviewed");
+    }
+  } finally { Date.now = realNow; globalThis.fetch = oldFetch; if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key); }
+});
+
 Deno.test("fil : Mes slides protégé ; rédaction sur structure confirmée relue sans recomposition", async () => {
   resetDeps();
   let judged = 0;
