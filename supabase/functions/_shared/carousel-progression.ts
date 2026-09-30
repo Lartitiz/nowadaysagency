@@ -103,6 +103,14 @@ export function validateProgressionReport(
       )
     )
   ) return "boundary-reference";
+  for (const [i, boundary] of report.boundaries.entries()) {
+    for (const side of ["from", "to"] as const) {
+      const available = fields.filter((f) => f.id.startsWith(boundary[side] + "."));
+      const references = boundary[`${side}_field_ids`];
+      if (!Array.isArray(references) || (available.length > 0 && !references.length) ||
+        !references.every((id: string) => available.some((f) => f.id === id))) return `boundary-evidence:${i}:${side}`;
+    }
+  }
   if (!Array.isArray(report.defects)) return "missing-defects";
   const kinds = [
     "unclear_idea",
@@ -173,6 +181,12 @@ export async function reviewCarouselProgression(doc: any, opts: {
   // Select evidence by stable IDs; copying quotations was invalidating whole reviews.
   // The program attaches the exact source text, never a model-reconstructed quote.
   const fields = carouselEditorialFields(doc);
+  for (const side of ["from", "to"]) {
+    props.boundaries.items.required.push(`${side}_field_ids`);
+    props.boundaries.items.properties[`${side}_field_ids`] = { type: "array",
+      items: { type: "string", ...(fields.length ? { enum: fields.map((f) => f.id) } : {}) },
+      description: `Champs visibles de la slide ${side} qui portent réellement ce lien ; [] uniquement si cette slide n'a aucun texte.` };
+  }
   const defectSchema = props.defects.items;
   defectSchema.required = defectSchema.required.filter((key: string) => key !== "excerpt");
   delete defectSchema.properties.excerpt;
@@ -187,8 +201,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
     expected_boundaries_in_order: expectedBoundaries,
     allowed_source_ids: sourceIds,
     sources: opts.sources,
-    plan: doc.fil ?? null,
-    editorial_intent: doc.editorial_intent ?? null,
+    // Do not send the writer's plan: it was filling gaps absent from the published text.
     sequence: JSON.parse(receipt.reviewed_material),
   });
   // No invisible truncation: preserve the draft and report the unperformed check.
@@ -215,7 +228,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
   try {
     const options: AnthropicOptions = {
       model: getModelForAction("carousel"),
-      system: COMMON + "\n\n" + JUDGE + "\nContrat de sortie : recopie exactement les IDs attendus, dans l'ordre fourni, sans renuméroter depuis 1. source_ids utilise seulement allowed_source_ids ; [] si aucune source utile. idea_read et conclusion sont des phrases non vides. limits est toujours un tableau de chaînes, éventuellement vide. Ne remplace aucun champ du schéma par une autre forme. Pour chaque défaut, sélectionne field_ids dans sequence.fields ; le programme joindra leurs textes exacts. Ne fournis pas de citation reconstruite. kind=rupture signifie un raccord MANQUANT ou INCOMPRÉHENSIBLE : jamais un contraste argumentatif utile, une nuance, une transition du constat vers les preuves ou une simple variation visuelle. Toute rupture ou défaut majeur impose needs_repair ; décris précisément le lien manquant. Un verdict favorable ne peut pas annuler ce constat.",
+      system: COMMON + "\n\n" + JUDGE + "\nContrat de sortie : recopie exactement les IDs attendus, dans l'ordre fourni, sans renuméroter depuis 1. source_ids utilise seulement allowed_source_ids ; [] si aucune source utile. idea_read et conclusion sont des phrases non vides. limits est toujours un tableau de chaînes, éventuellement vide. Ne remplace aucun champ du schéma par une autre forme. Pour chaque défaut, sélectionne field_ids dans sequence.fields ; le programme joindra leurs textes exacts. Ne fournis pas de citation reconstruite. Pour chaque frontière, from_field_ids et to_field_ids référencent exclusivement les champs visibles des deux slides voisines. Décris uniquement le lien porté par ces textes. Une photo et les sources peuvent vérifier un fait, jamais fournir un raccord absent. kind=rupture signifie un raccord MANQUANT ou INCOMPRÉHENSIBLE : jamais un contraste argumentatif utile, une nuance, une transition du constat vers les preuves ou une simple variation visuelle. Toute rupture ou défaut majeur impose needs_repair ; décris précisément le lien manquant. Un verdict favorable ne peut pas annuler ce constat.",
       messages: [{ role: "user", content: input }],
       tool,
       max_tokens: Math.min(8192, 2048 + doc.slides.length * 400),

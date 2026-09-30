@@ -49,6 +49,8 @@ const valid = () => ({
   boundaries: [{
     from: "slides.0",
     to: "slides.1",
+    from_field_ids: ["slides.0.body"],
+    to_field_ids: ["slides.1.visual_schema.quote"],
     inherits: "le repère",
     advances: "son sens dans la pratique",
     kind: "progression",
@@ -299,7 +301,7 @@ Deno.test("mixed photo evidence selects fields and preserves exact multiline tex
     const schema: any = o.tool!.input_schema;
     assertEquals(schema.properties.defects.items.properties.excerpt, undefined);
     assert(schema.properties.defects.items.properties.field_ids.items.enum.includes("slides.1.overlay_text"));
-    return JSON.stringify({ ...valid(), verdict: "needs_repair", defects: [{
+    return JSON.stringify({ ...valid(), boundaries: valid().boundaries.map((b) => ({ ...b, to_field_ids: ["slides.1.overlay_text"] })), verdict: "needs_repair", defects: [{
       slide_ids: ["slides.0", "slides.1"], field_ids: ["slides.0.body", "slides.1.overlay_text"],
       severity: "major", type: "juxtaposition", reason: "La description des motifs ne poursuit pas l'explication du geste.",
       repair: "Relier l'exemple au geste sans attribuer une histoire à cette photo.",
@@ -323,4 +325,21 @@ for (const fieldIds of [["invented"], ["slides.1.visual_schema.quote"], []]) Den
   assertEquals(out.execution_status, "invalid");
   assertEquals(out.verdict, null);
   assertEquals(out.reason, "defect-field-reference:0");
+});
+
+Deno.test("final judge excludes a misleading plan and binds every transition to its visible neighbouring fields", async () => {
+  const withMisleadingPlan = { ...doc, fil: { arrivee: "INVENTED_BRIDGE_FROM_PLAN", etapes: ["Une causalité absente"] } };
+  const result = await reviewCarouselProgression(withMisleadingPlan, { sources, call: async (o) => {
+    assert(!JSON.stringify(o.messages).includes("INVENTED_BRIDGE_FROM_PLAN"));
+    assert(o.system!.includes("une image répétée n'est pas une redite du texte"));
+    const schema: any = o.tool!.input_schema;
+    assert(schema.properties.boundaries.items.required.includes("from_field_ids"));
+    return JSON.stringify(valid());
+  } });
+  assertEquals(result.verdict, "acceptable");
+  const wrong: any = valid();
+  wrong.boundaries[0].from_field_ids = ["slides.1.visual_schema.quote"];
+  assertEquals(validateProgressionReport(wrong, doc, sources), "boundary-evidence:0:from");
+  wrong.boundaries[0].from_field_ids = [];
+  assertEquals(validateProgressionReport(wrong, doc, sources), "boundary-evidence:0:from");
 });
