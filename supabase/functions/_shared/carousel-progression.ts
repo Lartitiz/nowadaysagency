@@ -12,7 +12,7 @@ import {
 } from "./carousel-editorial-contract.ts";
 import { progressionMaterial } from "./carousel-editorial-snapshot.ts";
 
-export const PROGRESSION_VERSION = "final-progression-v6-premise";
+export const PROGRESSION_VERSION = "final-progression-v7-development";
 export interface ProgressionSource {
   id: string;
   provenance: string;
