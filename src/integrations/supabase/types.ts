@@ -7398,6 +7398,7 @@ export type Database = {
       studio_video_jobs: {
         Row: {
           aspect_ratio: string
+          billing_lane: string | null
           completed_at: string | null
           created_at: string
           display_name: string | null
@@ -7432,6 +7433,7 @@ export type Database = {
         }
         Insert: {
           aspect_ratio?: string
+          billing_lane?: string | null
           completed_at?: string | null
           created_at?: string
           display_name?: string | null
@@ -7466,6 +7468,7 @@ export type Database = {
         }
         Update: {
           aspect_ratio?: string
+          billing_lane?: string | null
           completed_at?: string | null
           created_at?: string
           display_name?: string | null
@@ -9292,6 +9295,17 @@ export type Database = {
           p_workspace: string
           p_workspace_limit: number
           p_workspace_max_submissions: number
+        }
+        Returns: boolean
+      }
+      studio_video_claim_plan: {
+        Args: {
+          p_actor: string
+          p_clip_limit: number
+          p_job: string
+          p_month_max_submissions: number
+          p_month_total_limit: number
+          p_workspace: string
         }
         Returns: boolean
       }
