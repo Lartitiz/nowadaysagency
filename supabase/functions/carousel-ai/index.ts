@@ -1,3 +1,4 @@
+import { buildConfirmedStructureBlock } from "./confirmed-structure.ts";
 import { COMMON, PLAN, REPAIR } from "../_shared/carousel-editorial-contract.ts";
 import { reviewCarouselProgression, progressionReceipt, progressionWarnings, type ProgressionSource, type ProgressionResult } from "../_shared/carousel-progression.ts";
 import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts";
@@ -256,7 +257,7 @@ Si l'utilisatrice a décrit ses photos, sa description fait foi sur ce qu'elles 
 
 const FIL_FIELD = {
   type: "object",
-  description: "Plan du fil, écrit AVANT les slides : arrivee = ce que la personne qui lit comprend à la fin ; etapes = une ligne par slide, ce qu'elle ajoute à la précédente.",
+  description: "Plan du fil, écrit AVANT les slides : arrivee = proposition précise que le texte développe, pas le thème ni un parcours de photos ; etapes = étapes du raisonnement/récit qui y mènent, pas liste des objets montrés.",
   properties: { arrivee: { type: "string" }, etapes: { type: "array", items: { type: "string" } } },
 };
 
@@ -702,7 +703,7 @@ export async function handleRequest(req: Request): Promise<Response> {
     const hadUserDeepening = !!body.deepening_answers;
     const currentAuthoredText = authoredContentSource(body);
     const currentBrief = [body.subject, body.subject_details, body.photo_description, buildPhotoContextRecap(body.photo_contexts || body.photos), body.editorial_angle, body.objective,
-      body.narrative_thread ? `FIL CONFIRMÉ À PRÉSERVER : ${body.narrative_thread}` : "",
+      body.narrative_thread ? `${body.scenario_origin === "automatic" ? "FIL AUTOMATIQUE À RÉÉVALUER" : "FIL CONFIRMÉ À PRÉSERVER"} : ${body.narrative_thread}` : "",
       body.confirmed_structure?.length ? `REPÈRES DU PLAN (analyse IA, pas de nouveaux faits confirmés) : ${JSON.stringify(body.confirmed_structure)}` : "",
       body.content_structure ? `STRUCTURE CHOISIE À PRÉSERVER : ${body.content_structure}` : "",
       currentAuthoredText, typeof body.news_context === "string" ? body.news_context : ""].filter(Boolean).join("\n");
@@ -1501,7 +1502,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
   } else {
     // Restaure l'intention de la structure confirmée (photo_index/slide_type)
     // AVANT le filet séquentiel — le modèle les omet en sortie (audit 12/07).
-    content = mergeConfirmedStructure(content, body.confirmed_structure?.length ? body.confirmed_structure : body.slide_structure);
+    content = mergeConfirmedStructure(content, body.confirmed_structure?.length ? body.confirmed_structure : body.slide_structure, { automatic: body.scenario_origin === "automatic" });
     const photoCountForIndexes = body.photos?.length || body.photo_contexts?.length || maxStructurePhotoIndex(body.confirmed_structure?.length ? body.confirmed_structure : body.slide_structure);
     content = normalizePhotoIndexes(content, photoCountForIndexes);
     content = normalizeOverlayStyles(content);
@@ -1582,7 +1583,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     // complet (2e appel vision de plein tarif) plutôt qu'une exception rare.
     messageContent.push({
       type: "text",
-      text: `Analyse chaque photo et génère le carrousel photo.\n\n${photoSlideTarget}\n\nRappel : tu GÉNÈRES avec ces photos. Le refus photo_mismatch est réservé à une contradiction frontale entre les photos et une chose concrète que le sujet tapé promet de montrer — jamais à un décalage d'esthétique ou d'univers de marque.`,
+      text: `Construis un propos étayé à partir du brief et de la marque, puis écris ses paragraphes successifs. Les photos accompagnent ce texte ; ne les décris pas l’une après l’autre.\n\n${photoSlideTarget}\n\nRappel : tu GÉNÈRES avec ces photos. Le refus photo_mismatch est réservé à une contradiction frontale entre les photos et une chose concrète que le sujet tapé promet de montrer — jamais à un décalage d'esthétique ou d'univers de marque.`,
     });
 
     doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
@@ -1675,7 +1676,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   // AVANT le filet séquentiel — le modèle les omet en sortie (audit 12/07 :
   // null 13/13 malgré la consigne). En photo pur, une slide sans slide_type
   // EST une slide photo (le renderer front fait déjà cette hypothèse).
-  content = mergeConfirmedStructure(content, body.confirmed_structure?.length ? body.confirmed_structure : body.slide_structure);
+  content = mergeConfirmedStructure(content, body.confirmed_structure?.length ? body.confirmed_structure : body.slide_structure, { automatic: body.scenario_origin === "automatic" });
   {
     const photoCountForIndexes = body.photos?.length || body.photo_contexts?.length || maxStructurePhotoIndex(body.confirmed_structure?.length ? body.confirmed_structure : body.slide_structure);
     content = normalizePhotoIndexes(content, photoCountForIndexes, { assumePhotoWhenTypeMissing: true });
@@ -1781,6 +1782,7 @@ ${structureNewsContextBlock}${structureNewsConsigne}
 
 Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de backticks), avec cette structure exacte :
 {
+  "editorial_intent": {"mode":"explication", "idea":"Proposition précise à développer, distincte du thème ou du parcours des photos", "reader_takeaway":"Ce que le développement permettra de comprendre", "basis_source_ids":["brand"], "inferred":true},
   "strategic_rationale": "2-3 phrases expliquant la logique narrative globale",
   "narrative_thread": "Intention et progression retenues ; promesse tenue de la couverture ; aboutissement. Cite les faits disponibles qui fondent ce choix. Le récit peut venir de l’histoire de marque et être accompagné indirectement par les photos.",
   "slides": [
@@ -1789,6 +1791,11 @@ Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de b
       "role": "hook",
       "title_suggestion": "titre court proposé",
       "strategic_note": "pourquoi cette slide à cette position",
+      "contribution": "Ce que cette page apporte au propos",
+      "inherits": "Élément précis repris ou promesse de couverture",
+      "develops": "Avancée du raisonnement, pas nouveau motif ou objet",
+      "source_ids": ["brand"],
+      "image_role": "Ce que la photo accompagne, sans dicter le texte",
       "story_beat": "Ce que cette slide fait comprendre ou raconte avec la matière fournie, et comment elle poursuit la précédente, en 1 phrase. Une étape du propos, sans émotion, événement ou bascule inventés ; une description de photo seule ne suffit pas."${hasPhotos ? `,
       "photo_index": 1,
       "slide_type": "photo_full",
@@ -1832,7 +1839,7 @@ Propose la structure optimale.`;
     });
     messageContent.push({
       type: "text",
-      text: "Analyse ces photos et propose la structure optimale avec l'assignation photo.",
+      text: "Choisis une proposition éditoriale étayée, construis sa progression, puis assigne les photos à ces étapes. Une visite des photos ne tient pas lieu de propos.",
     });
     content = await _deps.callAnthropic({
       model: getModelForAction("content"),
@@ -2181,82 +2188,6 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour :
     { "question": "...", "placeholder": "..." }
   ]
 }`;
-}
-
-// Bloc "STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE" injecté en tête de prompt quand
-// la structure de slides a été validée à l'étape précédente (proposition de
-// plan avant génération). Partagé par les 5 builders de prompt carrousel
-// (express, photo, photo+actu, mix, mix+actu) — avant cette extraction (18/08/2026,
-// mesure jscpd) c'était le plus gros clone du fichier : chaque builder le
-// recopiait avec de menues variantes (champs générés, présence du story_beat/
-// visual_anchor/narrative_thread propres au mode photo, règles supplémentaires).
-// Les 3 signatures observées sont couvertes par les options ci-dessous — ne
-// PAS ajouter de 4e variante sans vérifier qu'elle ne peut pas se ramener à
-// l'une des trois existantes.
-function buildConfirmedStructureBlock(
-  confirmed_structure: any,
-  opts: {
-    contentFields?: string;
-    narrativeThread?: string;
-    narrativeContext?: string;
-    scenarioOrigin?: string;
-    withStoryBeat?: boolean;
-    extraRules?: string[];
-  } = {}
-): string {
-  if (!confirmed_structure || !Array.isArray(confirmed_structure) || confirmed_structure.length === 0) return "";
-
-  const {
-    contentFields = "body, visual_schema, caption",
-    narrativeThread,
-    narrativeContext = "décidé en voyant les photos",
-    withStoryBeat = false,
-    extraRules = [],
-  } = opts;
-
-  const structureList = confirmed_structure
-    .map((s: any) => {
-      let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
-      if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
-      if (s.overlay_position) line += ` — Position du texte : ${s.overlay_position}`;
-      line += ` — ${s.strategic_note}`;
-      if (withStoryBeat) {
-        if (s.story_beat) line += `\n    → Raconte : ${s.story_beat}`;
-        if (s.photo_observation) line += `\n    → Observation visuelle (analyse IA) : ${s.photo_observation}`;
-        if (s.image_relation) line += `\n    → Relation image/récit : ${s.image_relation}`;
-        if (s.factual_basis) line += `\n    → Sources à vérifier contre le brief et la marque : ${s.factual_basis}`;
-        if (s.visual_anchor) line += `\n    → Détail de composition (pas une consigne de texte) : ${s.visual_anchor}`;
-      }
-      return line;
-    })
-    .join("\n");
-
-  const narrativeBlock = withStoryBeat && narrativeThread && typeof narrativeThread === "string" && narrativeThread.trim()
-    ? `RÉCIT À EXÉCUTER (${narrativeContext}) : ${narrativeThread.trim()}
-Chaque slide écrit UNE étape de ce récit. Préserve les choix du scénario, mais ne traite jamais une proposition IA comme une preuve factuelle. Corrige les affirmations non étayées sans changer l’ordre ni les photos. ${opts.scenarioOrigin === "automatic" ? "Ce plan est automatique : ses rôles et intentions peuvent être affinés pour améliorer la progression." : "Les rôles validés sont conservés."}
-
-`
-    : "";
-
-  const rules = [
-    opts.scenarioOrigin === "automatic" ? "Plan automatique : conserve nombre, ordre, types et photos ; améliore les rôles et les liens si nécessaire." : "Ne change NI l’ordre NI les rôles NI le nombre de slides",
-    "Utilise les titres proposés comme base (tu peux les affiner légèrement)",
-    `Génère uniquement le contenu (${contentFields}) pour chaque slide`,
-    `Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides`,
-    "Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie",
-    ...extraRules,
-  ];
-
-  return `══════════════════════════════════════
-STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
-══════════════════════════════════════
-${narrativeBlock}Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
-${structureList}
-
-RÈGLES ABSOLUES :
-${rules.map((r) => `- ${r}`).join("\n")}
-
-`;
 }
 
 function buildExpressFullPrompt(body: any, isLinkedIn = false): string {

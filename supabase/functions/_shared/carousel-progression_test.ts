@@ -36,6 +36,7 @@ const sources = [{
 const valid = () => ({
   idea_read:
     "Un signe permet de reconnaître, les pratiques permettent de connaître.",
+  trajectory: { kind: "developed_idea", starting_point: "Reconnaître un signe", landing: "Comprendre ce qui lui donne sens", reason: "Le deuxième passage explique ce que le repère seul ne dit pas.", field_ids: ["slides.0.body", "slides.1.visual_schema.quote"], request_source_ids: [] as string[] },
   verdict: "acceptable",
   slides: [{
     id: "slides.0",
@@ -301,7 +302,7 @@ Deno.test("mixed photo evidence selects fields and preserves exact multiline tex
     const schema: any = o.tool!.input_schema;
     assertEquals(schema.properties.defects.items.properties.excerpt, undefined);
     assert(schema.properties.defects.items.properties.field_ids.items.enum.includes("slides.1.overlay_text"));
-    return JSON.stringify({ ...valid(), boundaries: valid().boundaries.map((b) => ({ ...b, to_field_ids: ["slides.1.overlay_text"] })), verdict: "needs_repair", defects: [{
+    return JSON.stringify({ ...valid(), trajectory: {...valid().trajectory,field_ids:["slides.0.body","slides.1.overlay_text"]}, boundaries: valid().boundaries.map((b) => ({ ...b, to_field_ids: ["slides.1.overlay_text"] })), verdict: "needs_repair", defects: [{
       slide_ids: ["slides.0", "slides.1"], field_ids: ["slides.0.body", "slides.1.overlay_text"],
       severity: "major", type: "juxtaposition", reason: "La description des motifs ne poursuit pas l'explication du geste.",
       repair: "Relier l'exemple au geste sans attribuer une histoire à cette photo.",
@@ -380,4 +381,35 @@ Deno.test("frontières : une paire inconnue ne peut pas reprendre des référenc
   const r = valid();
   const result = await reviewCarouselProgression(doc, { sources, call: async () => JSON.stringify({ ...r, boundaries: [{ ...r.boundaries[0], boundary_id: "slides.1->slides.0" }] }) });
   assertEquals(result.execution_status, "invalid"); assertEquals(result.reason, "boundary-reference:0:pair"); assertEquals(result.verdict, null);
+});
+
+Deno.test("un inventaire fluide ne peut pas être approuvé comme un propos développé", async () => {
+  const report = valid();
+  report.trajectory.kind = "descriptive_catalogue";
+  report.trajectory.reason = "Les paragraphes ajoutent seulement un objet puis un lieu, sans développer une proposition.";
+  assertEquals(validateProgressionReport(report, doc, sources), "contradictory-verdict");
+  const out = await reviewCarouselProgression(doc, {sources, call: async () => JSON.stringify(report)});
+  assertEquals(out.execution_status, "completed");
+  assertEquals(out.verdict, "needs_repair");
+  assertEquals(out.report?.model_verdict, "acceptable");
+  assert(out.issues[0].includes("Propos à reconstruire"));
+});
+
+Deno.test("la trajectoire exige des preuves dans les slides, pas une justification dans la légende", () => {
+  for (const field_ids of [[], ["caption.body"], ["slides.99.body"]]) {
+    const report = valid(); report.trajectory.field_ids = field_ids;
+    assertEquals(validateProgressionReport(report, doc, sources), "trajectory-evidence");
+  }
+  const report: any = valid(); delete report.trajectory;
+  assertEquals(validateProgressionReport(report, doc, sources), "missing-trajectory");
+});
+
+Deno.test("une liste demandée reste légitime ; le plan IA ne peut pas en inventer la demande", () => {
+  const report = valid(); report.trajectory.kind = "requested_series";
+  assertEquals(validateProgressionReport(report, doc, sources), "trajectory-request");
+  report.trajectory.request_source_ids = ["brief"];
+  assertEquals(validateProgressionReport(report, doc, sources), null);
+  assertEquals(validateProgressionReport(report, doc, [{...sources[0],provenance:"brand_context"}]), "trajectory-request");
+  report.trajectory.kind = "visual_only";
+  assertEquals(validateProgressionReport(report, doc, sources), "trajectory-visual-text");
 });

@@ -12,7 +12,7 @@ import {
 } from "./carousel-editorial-contract.ts";
 import { progressionMaterial } from "./carousel-editorial-snapshot.ts";
 
-export const PROGRESSION_VERSION = "final-progression-v5";
+export const PROGRESSION_VERSION = "final-progression-v6-premise";
 export interface ProgressionSource {
   id: string;
   provenance: string;
@@ -75,6 +75,16 @@ export function validateProgressionReport(
     !Array.isArray(report.limits) ||
     !report.limits.every((s: unknown) => typeof s === "string")
   ) return "missing-summary";
+  const trajectory = report.trajectory;
+  const slideFields = fields.filter((f) => f.id.startsWith("slides."));
+  if (!trajectory || !["developed_idea", "requested_series", "visual_only", "descriptive_catalogue"].includes(trajectory.kind) ||
+    ![trajectory.starting_point, trajectory.landing, trajectory.reason].every(str)) return "missing-trajectory";
+  if (!Array.isArray(trajectory.field_ids) || (slideFields.length > 0 && !trajectory.field_ids.length) ||
+    !trajectory.field_ids.every((id: string) => slideFields.some((f) => f.id === id))) return "trajectory-evidence";
+  if (!Array.isArray(trajectory.request_source_ids) ||
+    !trajectory.request_source_ids.every((id: string) => sources.some((s) => s.id === id && s.provenance === "user")) ||
+    (trajectory.kind === "requested_series" && !trajectory.request_source_ids.length)) return "trajectory-request";
+  if (trajectory.kind === "visual_only" && slideFields.length) return "trajectory-visual-text";
   if (
     !["acceptable", "needs_repair", "insufficient_evidence"].includes(
       report.verdict,
@@ -134,9 +144,10 @@ export function validateProgressionReport(
   const major = report.defects.some((d: any) => d.severity === "major");
   if (
     report.verdict === "acceptable" &&
-    (major || report.boundaries.some((b: any) => b.kind === "rupture"))
+    (major || trajectory.kind === "descriptive_catalogue" || report.boundaries.some((b: any) => b.kind === "rupture"))
   ) return "contradictory-verdict";
   if (report.verdict === "needs_repair" && !report.defects.length &&
+    trajectory.kind !== "descriptive_catalogue" &&
     !report.boundaries.some((b: any) => b.kind === "rupture")) {
     return "unexplained-repair";
   }
@@ -187,6 +198,12 @@ export async function reviewCarouselProgression(doc: any, opts: {
   // Select evidence by stable IDs; copying quotations was invalidating whole reviews.
   // The program attaches the exact source text, never a model-reconstructed quote.
   const fields = carouselEditorialFields(doc);
+  const slideFieldIds = fields.filter((f) => f.id.startsWith("slides.")).map((f) => f.id);
+  const requestSourceIds = opts.sources.filter((s) => s.provenance === "user").map((s) => s.id);
+  props.trajectory.properties.field_ids.items = { type: "string", ...(slideFieldIds.length ? { enum: slideFieldIds } : {}) };
+  if (!slideFieldIds.length) props.trajectory.properties.field_ids.maxItems = 0;
+  props.trajectory.properties.request_source_ids.items = { type: "string", ...(requestSourceIds.length ? { enum: requestSourceIds } : {}) };
+  if (!requestSourceIds.length) props.trajectory.properties.request_source_ids.maxItems = 0;
   for (const side of ["from", "to"]) {
     props.boundaries.items.required.push(`${side}_field_ids`);
     props.boundaries.items.properties[`${side}_field_ids`] = { type: "array",
@@ -260,6 +277,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
       // A structural inconsistency must never produce approval. Keep every finding,
       // but derive the conservative verdict instead of asking the model to vote again.
       if (report?.verdict === "acceptable" && (
+        report.trajectory?.kind === "descriptive_catalogue" ||
         (Array.isArray(report.defects) && report.defects.some((d: any) => d?.severity === "major")) ||
         (Array.isArray(report.boundaries) && report.boundaries.some((b: any) => b?.kind === "rupture"))
       )) report = { ...report, verdict: "needs_repair", model_verdict: "acceptable" };
@@ -312,6 +330,9 @@ export async function reviewCarouselProgression(doc: any, opts: {
           .join(", ")
       } : ${d.reason} ${d.repair}`
     );
+    if (report.trajectory.kind === "descriptive_catalogue") {
+      issues.unshift(`Propos à reconstruire : ${report.trajectory.reason} Le texte doit développer une idée étayée de bout en bout ; relier les descriptions ne suffit pas. Conserver les faits et les invariants du scénario.`);
+    }
     for (const boundary of report.boundaries.filter((b: any) => b.kind === "rupture")) {
       issues.push(`Transition slides ${Number(boundary.from.split(".")[1]) + 1} → ${Number(boundary.to.split(".")[1]) + 1} à réparer. Reprise : ${boundary.inherits}. Avancée : ${boundary.advances}. Rétablir un lien explicite sans inventer de fait ni changer le scénario.`);
     }

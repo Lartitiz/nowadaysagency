@@ -806,3 +806,30 @@ for (const variant of ["photo", "mix"]) for (const outcome of ["improved", "same
     else assertEquals(doc.progression_review.repair, undefined);
   } finally { globalThis.fetch = oldFetch; }
 });
+
+for (const variant of ["photo", "mix"]) for (const quality_max of [false, true]) Deno.test(`propos automatique remplaçable dans le vrai parcours ${variant} / Max=${quality_max}`, async () => {
+  resetDeps();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const plan = [1,2,3].map(n => ({slide_number:n,role:"description",title_suggestion:`Objet ${n}`,strategic_note:"Décrire",photo_index:n,slide_type:"photo_full"}));
+  let writes = 0;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    writes++;
+    const prompt = o.system + JSON.stringify(o.messages);
+    assert(prompt.includes("PLAN AUTOMATIQUE — RÉPARTITION À CONSERVER"));
+    assert(prompt.includes("réécris librement le fil, les rôles, les titres"));
+    assert(!prompt.includes("STRUCTURE IMPOSÉE PAR L'UTILISATEUR"));
+    assert(!prompt.includes("FIL CONFIRMÉ À PRÉSERVER"));
+    assertEquals(o.model, quality_max ? "gpt-6-astra" : "claude-opus-5-5");
+    Object.assign(sink,{model:o.model,total_tokens:1});
+    return JSON.stringify({slides:plan.map(s => ({slide_number:s.slide_number,role:"argument",photo_index:s.photo_index,slide_type:"photo_full",overlay_text:`Propos développé ${s.slide_number}`})),caption:{}});
+  }) as any;
+  try {
+    const res = await handleRequest(makeHooksRequest({type:"express_full",carousel_type:variant,quality_max,scenario_origin:"automatic",confirmed_structure:plan,narrative_thread:"Une visite descriptive",photo_contexts:plan.map(()=>({context:"Objet visible"}))}));
+    assertEquals(res.status,200);
+    const doc = JSON.parse((await res.json()).content);
+    assertEquals(writes,1);
+    assertEquals(doc.slides.map((s:any)=>s.role),["argument","argument","argument"]);
+    assertEquals(doc.slides.map((s:any)=>s.photo_index),[1,2,3]);
+  } finally { globalThis.fetch = originalFetch; }
+});

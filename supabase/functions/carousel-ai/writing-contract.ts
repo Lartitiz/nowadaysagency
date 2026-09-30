@@ -1,6 +1,6 @@
 import { COMMON, WRITE } from "../_shared/carousel-editorial-contract.ts";
 /** Carousel-specific writing policy. Layout contracts remain in the variant builders. */
-export const CAROUSEL_WRITING_VERSION = "fil-v6.1";
+export const CAROUSEL_WRITING_VERSION = "fil-v7-premise";
 
 export const CAROUSEL_FACTS = `CHIFFRES ET FIGURES : conserve le lien entre une quantité et ce qu'elle mesure. Un nombre présent dans le brief n'autorise pas un autre fait portant le même nombre. Si tu reformules une même donnée sous une autre unité, annonce cette relation sans faire croire à une seconde preuve. Une métaphore peut rester si elle éclaire le sujet ; n'en introduis pas pour donner du poids à la conclusion.`;
 
@@ -24,7 +24,7 @@ export function carouselStructureGuide(type: string): string {
 
 export const CAROUSEL_SUBSTANCE = `
 COMPRENDRE ET DÉVELOPPER CE SUJET
-Choisis la progression qui sert la demande : usage et caractéristiques d'un objet, étapes d'une méthode, récit fourni, analyse argumentée, réaction à une actualité, comparaison ou présentation d'une offre. Une explication descriptive et une liste utile sont légitimes. Une tension, une conviction, une analogie ou une révélation doivent venir de la matière ; elles ne sont pas des cases à remplir.
+Choisis la progression qui sert la demande : usage et caractéristiques d'un objet, étapes d'une méthode, récit fourni, analyse argumentée, réaction à une actualité, comparaison ou présentation d'une offre. Une explication descriptive et une liste utile sont légitimes lorsqu’elles répondent à la demande ; une présentation automatique de marque doit développer une proposition, pas inventorier ses caractéristiques. Une tension, une conviction, une analogie ou une révélation doivent venir de la matière ; elles ne sont pas des cases à remplir.
 Développe les liens qui aident réellement à comprendre : comment cela fonctionne quand on le sait, pourquoi ce choix est fait quand la personne le dit, ce qui distingue deux situations, une limite ou une nuance pertinente. Une opinion peut être vive, drôle ou émue ; elle ne prouve pas un fait. N'invente pas une explication technique pour donner de la profondeur.
 Le brief actuel et ses limites font autorité pour ce contenu. Le profil de marque fournit le registre et des repères : un métier ne prouve pas la fabrication de cet objet, une boutique ne prouve pas sa disponibilité, trois interlocuteurs ne prouvent pas trois modifications. Une propriété, un résultat, un entretien, une durée ou un vécu absents restent inconnus. Conserve les formulations personnelles réussies et les citations fournies ; aucun personnage, témoignage ou exemple vécu ajouté pour meubler.
 Si la matière est courte, écris plus court dans les slides prévues. N'ajoute ni slogan, ni anecdote, ni promesse pour atteindre une longueur. Un sujet riche mérite au contraire d'être développé : préserve ses détails, arguments, nuances et apartés utiles.
@@ -32,7 +32,7 @@ Si la matière est courte, écris plus court dans les slides prévues. N'ajoute 
 
 export const CAROUSEL_TITLES = `
 TITRES ET ACCROCHES
-Un titre permet de saisir le sujet ou l'idée précise de sa slide. Il peut nommer un geste, un objet, une question, une distinction, une étape ou entrer dans un récit fourni. Il n'a pas à être une mini-punchline. Choisis des mots spécifiques ; 4-9 mots est un repère, pas un minimum à remplir. La première slide identifie ce dont on parle, en 12 mots maximum. Une entrée descriptive peut intéresser par sa précision.
+Un titre permet de saisir le sujet ou l'idée précise de sa slide. Il peut nommer un geste, un objet, une question, une distinction, une étape ou entrer dans un récit fourni. Il n'a pas à être une mini-punchline. Choisis des mots spécifiques ; 4-9 mots est un repère, pas un minimum à remplir. La première slide identifie ce dont on parle, en 12 mots maximum. Pour une découverte de marque ou un récit, la couverture ouvre une idée à développer ou une question à résoudre ; le nom du métier ou « de l’atelier au quotidien » ne sont que des thèmes. Une entrée descriptive reste adaptée à un catalogue ou une méthode demandés.
 `;
 
 export const CAROUSEL_CONTINUITY = `

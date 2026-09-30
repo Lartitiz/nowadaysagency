@@ -95,7 +95,7 @@ export function assignDistinctStructurePhotos<T extends { slides?: AnySlide[]; t
  * Recopie photo_index / slide_type / role de la structure confirmée vers les
  * slides générées, appariées par slide_number (fallback : position). La structure validée prime sur les choix du modèle.
  */
-export function mergeConfirmedStructure(content: string, structure: unknown): string {
+export function mergeConfirmedStructure(content: string, structure: unknown, opts: { automatic?: boolean } = {}): string {
   if (!Array.isArray(structure) || structure.length === 0) return content;
   const doc = extractJson(content);
   if (!doc) return content;
@@ -143,7 +143,7 @@ export function mergeConfirmedStructure(content: string, structure: unknown): st
     for (const field of ["photo_layout", "overlay_position"]) {
       if (typeof ref[field] === "string") slide[field] = ref[field];
     }
-    if (typeof ref.role === "string" && ref.role) {
+    if (!opts.automatic && typeof ref.role === "string" && ref.role) {
       slide.role = ref.role;
     }
   });
