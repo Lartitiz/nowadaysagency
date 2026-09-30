@@ -131,7 +131,7 @@ export function invalidateUserPlanCache(notify = false) {
 }
 
 export function useUserPlan(): UserPlanState {
-  const { user } = useAuth();
+  const { user, isAdmin, adminLoading } = useAuth();
   const { activeWorkspace, loading: workspaceLoading } = useWorkspace();
   const { isDemoMode, demoData, demoPlan } = useDemoContext();
   const demoPlanResolved: Plan = isDemoMode ? normalizePlan(demoPlan as string) : "free";
@@ -206,7 +206,7 @@ export function useUserPlan(): UserPlanState {
     };
   }, [load]);
 
-  const { isAdmin: isAdminUser } = useAuth();
+  const isAdminUser = !!isAdmin && !adminLoading;
   const verified = isAdminUser || isDemoMode || (!!user && !workspaceLoading && verifiedWorkspaceKey === scopeKey);
   const effectivePlan: Plan = isAdminUser ? "binome" : (isDemoMode ? demoPlanResolved : plan);
 

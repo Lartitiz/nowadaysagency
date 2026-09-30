@@ -295,3 +295,27 @@ describe("useUserPlan — plan hierarchy (PLAN_LIMITS)", () => {
     expect(PLAN_LIMITS).not.toHaveProperty("studio");
   });
 });
+
+describe("rights remain scoped while identity changes", () => {
+  it("does not carry a previous admin role while the next identity is being checked", () => {
+    mocks.auth = { user: { id: "next-user" }, isAdmin: true, adminLoading: true } as any;
+    mocks.invoke.mockReturnValue(new Promise(() => {}));
+    const { result, unmount } = renderHook(() => useUserPlan());
+    expect(result.current.verified).toBe(false);
+    expect(result.current.isPaid).toBe(false);
+    unmount();
+  });
+  it("does not reuse another account's cache in the same workspace", async () => {
+    mocks.workspace.activeWorkspace = { id: "shared-workspace" };
+    mocks.invoke.mockResolvedValue(subscriptionResponse({plan:"outil"}));
+    const {result,rerender} = renderHook(() => useUserPlan());
+    await waitFor(()=>expect(result.current.verified).toBe(true));
+    mocks.auth = {user:{id:"other-user"},isAdmin:false};
+    mocks.invoke.mockResolvedValue(subscriptionResponse({plan:"free"}));
+    rerender();
+    expect(result.current.verified).toBe(false);
+    await waitFor(()=>expect(result.current.verified).toBe(true));
+    expect(result.current.plan).toBe("free");
+    expect(mocks.invoke).toHaveBeenCalledTimes(2);
+  });
+});

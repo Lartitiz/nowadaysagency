@@ -11,7 +11,7 @@ export async function paymentCheckout(stripe: any, admin: any, userId: string, p
     if (!attempt.stripe_session_id && new Date(attempt.expires_at).getTime() <= Date.now()) {
       let recovered: any = null;
       for await (const candidate of stripe.checkout.sessions.list({
-        created: { gte: Math.floor(new Date(attempt.expires_at).getTime() / 1000) - 7200 }, limit: 100,
+        created: { gte: Math.floor(new Date(attempt.expires_at).getTime() / 1000) - 7200, lte: Math.floor(new Date(attempt.expires_at).getTime() / 1000) }, limit: 100,
       })) {
         if (candidate.metadata?.user_id === userId && (candidate.client_reference_id === attempt.attempt_id ||
           (!candidate.client_reference_id && candidate.mode === "payment" && candidate.expires_at === Math.floor(new Date(attempt.expires_at).getTime() / 1000)))) { recovered = candidate; break; }
