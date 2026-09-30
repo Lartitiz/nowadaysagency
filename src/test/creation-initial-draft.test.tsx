@@ -206,12 +206,12 @@ describe('initial creation draft through real React components', () => {
     expect(screen.getByLabelText('Ton idée')).toHaveValue('');
     fireEvent.keyDown(screen.getByLabelText('Ton idée'), {key:'y',ctrlKey:true});
     mocks.workspace='B'; app.rerender(<StrictMode><MemoryRouter><CreerUnifie/></MemoryRouter></StrictMode>);
-    expect(screen.getByLabelText('Annuler la modification du sujet')).toBeDisabled();
+    expect(screen.queryByLabelText('Annuler la modification du sujet')).toBeNull();
     type('Sujet B'); fireEvent.keyDown(screen.getByLabelText('Ton idée'), {key:'z',ctrlKey:true});
     expect(screen.getByLabelText('Ton idée')).toHaveValue('');
     mocks.workspace='A'; app.rerender(<StrictMode><MemoryRouter><CreerUnifie/></MemoryRouter></StrictMode>);
     expect(screen.getByLabelText('Ton idée')).toHaveValue('Idée corrigée');
-    expect(screen.getByLabelText('Annuler la modification du sujet')).toBeDisabled();
+    expect(screen.queryByLabelText('Annuler la modification du sujet')).toBeNull();
   });
   it('undoes the photo subject without undoing the idea or changing its photos', async () => {
     mount(); type('Idée texte'); fireEvent.click(screen.getByText('Partir de photos'));
