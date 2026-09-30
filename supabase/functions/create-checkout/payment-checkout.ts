@@ -1,0 +1,37 @@
+import { CheckoutConflict } from "./subscription-checkout.ts";
+
+/** One pending purchase per customer, including concurrent tabs and transport retries. */
+export async function paymentCheckout(stripe: any, admin: any, userId: string, params: any) {
+  for (let retry = 0; retry < 2; retry++) {
+    const { data: attempt, error } = await admin.rpc("reserve_payment_checkout", { p_user_id: userId, p_params: params });
+    if (error || !attempt) throw error ?? new Error("checkout_reservation_unavailable");
+    if (attempt.stripe_session_id) {
+      const session = await stripe.checkout.sessions.retrieve(attempt.stripe_session_id);
+      if (session.status === "complete") {
+        const { data: purchase, error: readError } = await admin.from("purchases")
+          .select("fulfillment_state").eq("user_id", userId).eq("stripe_checkout_session_id", session.id).maybeSingle();
+        if (readError) throw readError;
+        if (purchase?.fulfillment_state !== "fulfilled") throw new CheckoutConflict("Ton paiement est en cours de vérification. Consulte ton abonnement avant de payer à nouveau.");
+      }
+      if (session.status === "expired" || session.status === "complete") {
+        const { error: removeError } = await admin.from("payment_checkout_attempts").delete()
+          .eq("user_id", userId).eq("attempt_id", attempt.attempt_id);
+        if (removeError) throw removeError;
+        continue;
+      }
+      if (attempt.params.line_items[0].price !== params.line_items[0].price) throw new CheckoutConflict("Un paiement est déjà ouvert pour un autre achat. Termine-le ou attends son expiration.");
+      if (session.status === "open" && session.url) return session;
+      throw new CheckoutConflict("Ce paiement doit être vérifié avant de continuer.");
+    }
+    if (attempt.params.line_items[0].price !== params.line_items[0].price) throw new CheckoutConflict("Un autre achat est en préparation. Réessaie dans quelques instants.");
+    const session = await stripe.checkout.sessions.create({ ...attempt.params,
+      expires_at: Math.floor(new Date(attempt.expires_at).getTime() / 1000),
+    }, { idempotencyKey: `payment-checkout-${attempt.attempt_id}` });
+    const { error: saveError } = await admin.from("payment_checkout_attempts")
+      .update({ stripe_session_id: session.id }).eq("user_id", userId).eq("attempt_id", attempt.attempt_id);
+    if (saveError) throw saveError;
+    if (session.status === "expired" || session.status === "complete") continue;
+    return session;
+  }
+  throw new CheckoutConflict("Recharge ton abonnement pour vérifier le dernier achat.");
+}

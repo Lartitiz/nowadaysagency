@@ -30,19 +30,15 @@ export function handleQuotaError(error: any): boolean {
   const msg = typeof error === "string" ? error : error?.message || "";
   const dataError = error?.data?.error || error?.error || "";
 
-  const isQuota =
-    dataError === "limit_reached" ||
-    msg.includes("limit_reached") ||
-    msg.includes("générations IA ce mois") ||
-    msg.includes("ce mois. Tes crédits") ||
-    msg.includes("disponible à partir du plan") ||
-    msg.includes("Quota") ||
-    msg.includes("quota");
+  const quota = error?.data?.quota || error?.quota;
+  // A provider 429 or a failed entitlement read is not a purchase opportunity.
+  if (quota?.reason === "error") return false;
+  const isQuota = dataError === "limit_reached" && quota &&
+    ["total", "category", "not_available"].includes(quota.reason);
 
   if (!isQuota) return false;
 
   const serverMessage = error?.data?.message || error?.message || msg;
-  const quota = error?.data?.quota || error?.quota;
   const reason = quota?.reason || error?.data?.category;
 
   // Plans payants (grille 01/10/2026) : plafond du mois atteint (carrousels,
@@ -53,6 +49,7 @@ export function handleQuotaError(error: any): boolean {
   if (paidPlan && !serverMessage.includes("disponible à partir")) {
     toast("Plafond du mois atteint 🌸", {
       description: serverMessage || "Tes plafonds se renouvellent le 1er du mois prochain.",
+      action: reason === "total" && quota?.eligible_solutions?.includes("credits") ? { label: "Ajouter des crédits", onClick: () => { partirVersTarifs(); } } : undefined,
       duration: 8000,
     });
     return true;
@@ -69,9 +66,9 @@ export function handleQuotaError(error: any): boolean {
   }
 
   // Sinon → toast classique (catégorie spécifique ou fonctionnalité premium)
-  const friendlyTitle = serverMessage.includes("disponible à partir")
+  const friendlyTitle = reason === "not_available"
     ? "Fonctionnalité premium ✨"
-    : "Plus de crédits ce mois-ci 🌸";
+    : reason === "category" ? "Plafond du mois atteint" : "Crédits utilisés";
 
   const friendlyDescription = serverMessage.includes("disponible à partir")
     ? serverMessage

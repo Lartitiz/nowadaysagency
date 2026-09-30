@@ -83,7 +83,7 @@ function LinkedInParcoursForm() {
         body: { action: "optimize-experience", job_title: exp.job_title, company: exp.company, description: exp.description_raw, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       }, 75000);
       if (!store.active.current) return;
-      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+      if (res.data?.error === "limit_reached" && res.data?.quota?.reason !== "error") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
       if (res.error) throw new Error(res.error.message);
@@ -117,7 +117,7 @@ function LinkedInParcoursForm() {
     try {
       const res = await invokeWithTimeout("linkedin-ai", { body: { action: "suggest-skills", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 75000);
       if (!store.active.current) return;
-      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+      if (res.data?.error === "limit_reached" && res.data?.quota?.reason !== "error") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
       if (res.error) throw new Error(res.error.message);

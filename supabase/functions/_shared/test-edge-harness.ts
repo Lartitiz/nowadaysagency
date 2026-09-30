@@ -111,6 +111,13 @@ export function installFetchMock(config: FetchMockConfig): FetchMockHandle {
         return new Response(JSON.stringify(null), { status: 200, headers: { "Content-Type": "application/json" } });
       }
 
+      if (path === "/rest/v1/rpc/record_ai_usage" && method === "POST") {
+        const args = JSON.parse(init.body);
+        aiUsageInserts.push({ user_id: args.p_user_id, workspace_id: args.p_workspace_id, category: args.p_category,
+          action_type: args.p_action, tokens_used: args.p_tokens, model_used: args.p_model });
+        return new Response(JSON.stringify("usage-receipt"), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+
       if (path === "/rest/v1/ai_usage" && method === "POST") {
         const row = init?.body ? JSON.parse(init.body as string) : {};
         aiUsageInserts.push(row);

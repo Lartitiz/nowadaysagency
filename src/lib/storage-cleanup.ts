@@ -53,6 +53,8 @@ const LOCAL_KEYS = [
 
 // Préfixes localStorage scopés par user (à balayer)
 const LOCAL_PREFIXES = [
+  "retour_apres_detour",
+  "upgrade_event:",
   "creer_flow_state_backup", // matche "creer_flow_state_backup:{userId}"
   "creer_flow_photos_backup", // manifeste photo de secours, "…:{userId}"
   "lac_onboarding_upload_ids", // captures reprises après rafraîchissement

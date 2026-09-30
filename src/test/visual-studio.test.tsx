@@ -758,7 +758,7 @@ it("generative Premium gating is visible before confirmation", async () => {
     },
   });
   mount();
-  await screen.findByText(/Cette création est réservée à Premium/);
+  await screen.findByText(/La création de scènes et l’intégration de références sont incluses dans Premium/);
   expect(
     screen.getByRole("button", { name: /Générer cette image/ }),
   ).toBeDisabled();

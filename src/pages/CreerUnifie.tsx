@@ -1,3 +1,4 @@
+import { CreationUpgradeInvite } from "@/components/CreationUpgradeInvite";
 import { invalidateProgressionReceipt } from "../../supabase/functions/_shared/carousel-editorial-snapshot";
 import { pinterestCurrentText } from "@/lib/pinterest-current-text";
 import { prepareIdeaPhotos } from "@/features/creer/prepare-idea-photos";
@@ -16,7 +17,7 @@ import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, 
 import { startSocialConnect } from "@/lib/social-connect";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { useSearchParams, useLocation, useNavigate, useNavigationType, Link } from "react-router-dom";
-import { versConnexions, memoriseRetour } from "@/lib/retour-apres-detour";
+import { versConnexions, memoriseRetour, recordCreationResume } from "@/lib/retour-apres-detour";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { posthog } from "@/lib/posthog";
@@ -107,7 +108,8 @@ import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/l
 import { useUserPlan } from "@/hooks/use-user-plan";
 
 function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string }) {
-  const shouldShow = plan === "free" && remaining < 5 && remaining > 0;
+  const [dismissed, setDismissed] = useState(false);
+  const shouldShow = !dismissed && plan === "free" && remaining < 5 && remaining > 0;
 
   useEffect(() => {
     if (shouldShow) {
@@ -123,7 +125,7 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
         <Sparkles className="h-5 w-5 shrink-0 text-warning" strokeWidth={1.75} />
         <p className="text-sm text-warning">
           <span className="font-medium">Plus que {remaining} crédit{remaining > 1 ? "s" : ""}</span> ce mois-ci.
-          {" "}Utilise-les pour ce qui compte le plus pour toi.
+          {" "}Tes brouillons et tes contenus restent accessibles.
         </p>
       </div>
       <Link
@@ -137,6 +139,7 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
       >
         Découvrir le Premium
       </Link>
+      <button aria-label="Masquer cette invitation" onClick={() => setDismissed(true)} className="p-2">×</button>
     </div>
   );
 }
@@ -179,7 +182,7 @@ function CreerWorkspace() {
   const isOwnSpace = useIsOwnSpace();
   const { data: charterData } = useBrandCharter();
   const { activityText } = useActivityExamples();
-  const { remainingWithBonus, loading: planLoading, plan, usage, refresh: refreshPlan } = useUserPlan();
+  const { remainingWithBonus, loading: planLoading, verified: planVerified, plan, usage, refresh: refreshPlan } = useUserPlan();
 
   // URL params
   const paramFormat = searchParams.get("mode") === "transform" ? null : searchParams.get("format");
@@ -469,21 +472,21 @@ function CreerWorkspace() {
   // Qualité Max = fonctionnalité Premium. Sur un plan gratuit le toggle est verrouillé
   // (badge + upsell) au lieu d'échouer à la génération. `plan` défaut "free" pendant le
   // chargement → fail closed (verrouillé tant qu'on ne sait pas que l'utilisatrice est payante).
-  const qualityMaxLocked = plan === "free";
+  const qualityMaxLocked = !planVerified || plan === "free";
   // Garde : si l'état avait été laissé ON (toggle mémorisé d'une session) alors que le plan
   // est gratuit, on le remet à OFF pour ne JAMAIS envoyer `qualityMax` côté serveur (sinon
   // échec quota). Couvre tous les sites d'envoi d'un seul endroit.
   useEffect(() => {
-    if (qualityMaxLocked && qualityMax) setQualityMax(false);
-  }, [qualityMaxLocked, qualityMax]);
+    if (planVerified && qualityMaxLocked && qualityMax) setQualityMax(false);
+  }, [planVerified, qualityMaxLocked, qualityMax]);
   // « Illustration de couverture » : Recraft génère une grande illustration de
   // marque en couverture (layout ancré en bas). Off par défaut (dosé + coût).
   // Premium, même verrou fail-closed que Qualité Max.
   const [coverIllustration, setCoverIllustration] = useState(false);
-  const coverIllustrationLocked = plan === "free";
+  const coverIllustrationLocked = !planVerified || plan === "free";
   useEffect(() => {
-    if (coverIllustrationLocked && coverIllustration) setCoverIllustration(false);
-  }, [coverIllustrationLocked, coverIllustration]);
+    if (planVerified && coverIllustrationLocked && coverIllustration) setCoverIllustration(false);
+  }, [planVerified, coverIllustrationLocked, coverIllustration]);
   const [structureLoading, setStructureLoading] = useState(false);
   const [lastConfirmedStructure, setLastConfirmedStructure] = useState<SlideProposal[] | null>(null);
   const [lastScenarioOrigin, setLastScenarioOrigin] = useState<"automatic" | "user_validated" | null>(null);
@@ -2651,6 +2654,7 @@ function CreerWorkspace() {
 
   // ── Launch mode rendering ──
 
+  useEffect(() => { if (workspaceReady && (ideaText || result)) recordCreationResume("creation"); }, [workspaceReady, ideaText, result]);
   const isLaunchMode = editorialAngle === "lancement" && step === "result";
 
   // Demo mode: replace action handlers with toast notifications
@@ -2812,7 +2816,7 @@ function CreerWorkspace() {
                 event.stopPropagation();
                 (photoEntry ? photoSubjectHistory : ideaHistory).travel(action === "redo");
               }}>
-                <LowCreditsBanner remaining={remainingWithBonus()} plan={plan} />
+                {planVerified && <LowCreditsBanner remaining={remainingWithBonus()} plan={plan} />}
                 {(() => {
                   const history = photoEntry ? photoSubjectHistory : ideaHistory;
                    // Visible seulement après une vraie modification du sujet (évite un bouton grisé incompréhensible, ex. newsjacking).
@@ -3163,6 +3167,8 @@ function CreerWorkspace() {
             )}
 
             {/* Transform LinkedIn text to carousel */}
+            {step === "result" && result && !generating && !streaming && !isDemoMode && <CreationUpgradeInvite key={session?.user?.id} />}
+
             {step === "result" && selectedFormat === "linkedin" && result?.raw && (result.raw.content || result.raw.full_text || result.raw.hook) && !generating && !streaming && !demoGenerating && (
               <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
                 <div>

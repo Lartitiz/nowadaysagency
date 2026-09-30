@@ -167,11 +167,11 @@ function createFakeStripe(cfg: {
     subscriptions: {
       retrieve: async (id: string) => {
         calls.push({ table: "stripe", op: "subscriptions.retrieve", payload: id });
-        return cfg.subscriptionRetrieve;
+        return { status: "active", ...cfg.subscriptionRetrieve };
       },
       update: async (id: string, patch: Row) => {
         calls.push({ table: "stripe", op: "subscriptions.update", payload: { id, patch } });
-        return { ...cfg.subscriptionRetrieve, ...patch };
+        return { status: "active", ...cfg.subscriptionRetrieve, ...patch };
       },
     },
     checkout: {
@@ -199,7 +199,7 @@ function fakeEmailSender(): { send: any; calls: { event: string; userId: unknown
 }
 
 function stripeEvent(id: string, type: string, object: Row): Row {
-  return { id, type, data: { object } };
+  return { id, type, data: { object: type.startsWith("checkout.session.") ? { payment_status: "paid", ...object } : object } };
 }
 
 function webhookRequest(body: Row, signature: string | null = "t=1,v1=fake") {
@@ -226,7 +226,7 @@ Deno.test("checkout.session.completed (subscription, plan outil) : active l'acc�
     subscriptionRetrieve: {
       id: "sub_1",
       cancel_at: null,
-      items: { data: [{ price: { id: "price_outil" }, current_period_start: 1735689600, current_period_end: 1738368000 }] },
+      items: { data: [{ price: { id: "price_1T7uZHIwPeG7GjpycpUQuMqf" }, current_period_start: 1735689600, current_period_end: 1738368000 }] },
     },
   });
   const supabase = createFakeSupabase({ profiles: [{ user_id: "user-1", current_plan: "free" }] });
@@ -242,7 +242,7 @@ Deno.test("checkout.session.completed (subscription, plan outil) : active l'acc�
   assertEquals(sub.status, "active");
   assertEquals(sub.source, "stripe");
   assertEquals(sub.stripe_subscription_id, "sub_1");
-  assertEquals(sub.stripe_price_id, "price_outil");
+  assertEquals(sub.stripe_price_id, "price_1T7uZHIwPeG7GjpycpUQuMqf");
   assertEquals(sub.current_period_start, new Date(1735689600 * 1000).toISOString());
   assertEquals(sub.current_period_end, new Date(1738368000 * 1000).toISOString());
   assertEquals(sub.studio_start_date, null);
@@ -478,7 +478,7 @@ Deno.test("event.id dupliqué : le deuxième appel ne réécrit rien et ne renvo
     subscriptionRetrieve: {
       id: "sub_dup",
       cancel_at: null,
-      items: { data: [{ price: { id: "price_outil" }, current_period_start: 1735689600, current_period_end: 1738368000 }] },
+      items: { data: [{ price: { id: "price_1T7uZHIwPeG7GjpycpUQuMqf" }, current_period_start: 1735689600, current_period_end: 1738368000 }] },
     },
   });
   const supabase = createFakeSupabase({ profiles: [{ user_id: "user-dup", current_plan: "free" }] });
@@ -518,7 +518,7 @@ Deno.test("échec DB pendant l'activation : 500 (pas un 200 menteur) + rollback 
     subscriptionRetrieve: {
       id: "sub_fail",
       cancel_at: null,
-      items: { data: [{ price: { id: "price_outil" }, current_period_start: 1735689600, current_period_end: 1738368000 }] },
+      items: { data: [{ price: { id: "price_1T7uZHIwPeG7GjpycpUQuMqf" }, current_period_start: 1735689600, current_period_end: 1738368000 }] },
     },
   });
   // Simule exactement le scénario de l'incident : le paiement est encaissé côté Stripe,
@@ -534,4 +534,26 @@ Deno.test("échec DB pendant l'activation : 500 (pas un 200 menteur) + rollback 
   assertEquals(supabase.tables.webhook_events.length, 0);
   assertEquals(supabase.tables.subscriptions.length, 0);
   assertEquals(email.calls.length, 0);
+});
+
+Deno.test("credit pack: a stranded webhook marker cannot suppress transaction retry",async()=>{
+ const event=stripeEvent("evt_pack_recovery","checkout.session.completed",{id:"cs_pack",mode:"payment",metadata:{user_id:"owner"},amount_total:390,currency:"eur"});
+ const db=createFakeSupabase({webhook_events:[{id:"marker",stripe_event_id:"evt_pack_recovery"}]});
+ let calls=0;
+ db.rpc=async(name: string,args: any)=>{assertEquals(name,"fulfill_credit_pack");assertEquals(args.p_credits,10);calls++;return calls===1 ? {data:null,error:{message:"temporary"}} : {data:{fulfilled:true},error:null};};
+ const stripe=createFakeStripe({event,lineItems:{data:[{price:{id:"price_1T7ubCIwPeG7GjpyJ8I0qPAM"},quantity:1}]}});
+ const deps={stripe,supabase:db,sendEmailEvent:fakeEmailSender().send};
+ assertEquals((await handleStripeWebhookRequest(webhookRequest(event),deps)).status,500);
+ assertEquals((await handleStripeWebhookRequest(webhookRequest(event),deps)).status,200);
+ assertEquals(calls,2);
+});
+Deno.test("delayed credit pack: completed unpaid grants nothing, async payment delivers",async()=>{
+ const db=createFakeSupabase(); let deliveries=0;
+ db.rpc=async()=>{deliveries++;return {data:{fulfilled:true},error:null};};
+ for(const [type,payment_status] of [["checkout.session.completed","unpaid"],["checkout.session.async_payment_succeeded","paid"]]) {
+ const event=stripeEvent(type,type,{id:"cs_delayed",mode:"payment",payment_status,metadata:{user_id:"owner"},amount_total:390,currency:"eur"});
+ const stripe=createFakeStripe({event,lineItems:{data:[{price:{id:"price_1T7ubCIwPeG7GjpyJ8I0qPAM"},quantity:1}]}});
+ assertEquals((await handleStripeWebhookRequest(webhookRequest(event),{stripe,supabase:db,sendEmailEvent:fakeEmailSender().send})).status,200);
+ assertEquals(deliveries,payment_status==="paid"?1:0);
+ }
 });

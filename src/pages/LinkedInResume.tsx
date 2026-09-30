@@ -150,7 +150,7 @@ function LinkedInResumeForm() {
         body: { action: "analyze-resume", existing_resume: textToAnalyze, workspace_id: column === "workspace_id" ? value : undefined },
       }, 75000);
       if (!store.active.current) return;
-      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+      if (res.data?.error === "limit_reached" && res.data?.quota?.reason !== "error") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
       if (res.error) throw new Error(res.error.message);
@@ -178,7 +178,7 @@ function LinkedInResumeForm() {
         body: { action: "summary", passion, parcours, offre, cta, workspace_id: column === "workspace_id" ? value : undefined },
       }, 90000);
       if (!store.active.current) return;
-      if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
+      if (res.data?.error === "limit_reached" && res.data?.quota?.reason !== "error") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
       if (res.error) throw new Error(res.error.message);
