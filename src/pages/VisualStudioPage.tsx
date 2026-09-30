@@ -376,7 +376,9 @@ function Studio({
     for (const ref of [desktopMessages]) {
       if (ref.current) {
         const messages = ref.current.querySelectorAll(".studio-message");
-        const target = (proposal && ref.current.querySelector(".studio-chat-confirmation")) || messages.item(messages.length - 1);
+        const latest = current?.session.messages.at(-1);
+        const dialogueReply = latest?.role === "assistant" && ["advise", "clarify"].includes(latest.operation || "");
+        const target = (proposal && !dialogueReply && ref.current.querySelector(".studio-chat-confirmation")) || messages.item(messages.length - 1);
         if (target) {
           ref.current.scrollTop += target.getBoundingClientRect().top -
             ref.current.getBoundingClientRect().top -
