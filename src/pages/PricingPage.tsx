@@ -202,7 +202,7 @@ export default function PricingPage() {
         {selectedPremium && (
           <div className="max-w-3xl mx-auto mb-8 rounded-2xl border-2 border-primary bg-card p-6" role="region" aria-label="Récapitulatif de ton choix">
             <h2 className="font-display text-xl font-bold">Ton choix : Premium · 39€/mois</h2>
-            <p className="text-sm text-muted-foreground mt-2">Sans engagement. Contenus standard et audits sans limite mensuelle ; jusqu’à 20 carrousels Qualité Max et 50 retouches photo par mois. Tu peux vérifier ton offre et utiliser un code d’accès avant de passer au paiement.</p>
+            <p className="text-sm text-muted-foreground mt-2">Sans engagement. Tes textes sans compter (audits compris), 20 carrousels, 30 images et 3 vidéos par mois. Tu peux vérifier ton offre et utiliser un code d’accès avant de passer au paiement.</p>
             {user ? <div className="mt-4"><PromoCodeInput /></div> : <Link to="/login?offer=outil&redirect=%2Fpricing%3Fselected%3Dpremium" className="inline-block mt-4 text-primary underline">Créer un compte ou se connecter pour continuer</Link>}
           </div>
         )}
@@ -258,11 +258,11 @@ export default function PricingPage() {
               Tout le plan gratuit, plus :
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Contenus standard sans limite mensuelle</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Jusqu’à 20 carrousels Qualité Max et 50 retouches photo par mois</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tous tes textes sans compter</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 20 carrousels (Qualité Max compris), 30 images et 3 vidéos par mois</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Publication directe + programmation automatique</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Multi-réseaux en 1 clic + ouverture dans Canva</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Audits illimités</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Audits sans compter</li>
             </ul>
             {isAdmin ? (
               <div className="text-center rounded-pill border-2 border-primary py-2.5 font-medium text-primary text-sm">Accès administrateur actif</div>
