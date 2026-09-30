@@ -37,3 +37,10 @@ Deno.test("expired attempt reconciles an unknown Stripe outcome before reopening
  await assertRejects(()=>paymentCheckout(paidUnknown.stripe,paidUnknown.admin,"user",params));
  assertEquals(paidUnknown.keys.length,0);
 });
+
+Deno.test("historical prices remain verifiable but cannot open a new checkout",async()=>{
+ const {checkoutOffer}=await import("../_shared/checkout-catalog.ts");
+ assertEquals(checkoutOffer("price_1ULVaXIwPeG7GjpydOgyy6d1","subscription",false).plan,"binome");
+ assertEquals(checkoutOffer("price_1T7uZbIwPeG7Gjpy3arZSdx8","subscription").plan,"binome");
+ await assertRejects(async()=>checkoutOffer("price_1T7uZbIwPeG7Gjpy3arZSdx8","subscription",false));
+});
