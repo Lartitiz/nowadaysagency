@@ -59,7 +59,7 @@ Deno.test(
         [],
       );
       assertEquals(calls[0].url.endsWith("/generations"), true);
-      assertEquals(JSON.parse(String(calls[0].init?.body)).size, "1536x1024");
+      assertEquals(JSON.parse(String((calls[0].init as { body?: unknown } | undefined)?.body)).size, "1536x1024");
       await generateImage(
         {
           operation: "edit",
@@ -82,7 +82,7 @@ Deno.test(
         ],
       );
       assertEquals(calls[1].url.endsWith("/edits"), true);
-      const form = calls[1].init?.body as FormData;
+      const form = (calls[1].init as { body?: unknown } | undefined)?.body as FormData;
       assertEquals(await (form.getAll("image[]")[0] as Blob).text(), "parent");
       assertEquals(await (form.getAll("image[]")[1] as Blob).text(), "subject");
       assertEquals(

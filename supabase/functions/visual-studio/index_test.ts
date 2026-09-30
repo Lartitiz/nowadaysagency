@@ -96,14 +96,14 @@ function fixture(role = "owner", replay = false, legacyLarge = false) {
       return json(true);
     }
     if (url.pathname === "/rest/v1/rpc/studio_set_session_archived") {
-      const body = JSON.parse(String(init?.body));
+      const body = JSON.parse(String((init as { body?: unknown } | undefined)?.body));
       session.archived_at = body.p_archive ? new Date().toISOString() : null;
       session.revision += 1;
       session.proposal = null;
       return json(session);
     }
     if (url.pathname === "/rest/v1/rpc/studio_save_composition") {
-      const body = JSON.parse(String(init?.body));
+      const body = JSON.parse(String((init as { body?: unknown } | undefined)?.body));
       if (body.p_revision !== session.revision) return json({ message: "studio_conflict" }, 409);
       const entry = {
         id: id(700 + compositions.length), session_id: sessionId,
@@ -131,10 +131,10 @@ function fixture(role = "owner", replay = false, legacyLarge = false) {
       return json([]);
     }
     if (url.pathname === "/v1/messages") {
-      payloads.push(JSON.parse(String(init?.body)));
+      payloads.push(JSON.parse(String((init as { body?: unknown } | undefined)?.body)));
       return json({
         content: [
-          { type: "tool_use", name: JSON.parse(String(init?.body)).tools?.[0]?.name || "prepare_photo_request", input: intent },
+          { type: "tool_use", name: JSON.parse(String((init as { body?: unknown } | undefined)?.body)).tools?.[0]?.name || "prepare_photo_request", input: intent },
         ],
         stop_reason: "tool_use",
       });

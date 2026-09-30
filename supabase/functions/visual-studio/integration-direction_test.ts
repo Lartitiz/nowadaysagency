@@ -13,7 +13,7 @@ Deno.test("Claude observes actual scene and every original with matching provide
   Deno.env.set("ANTHROPIC_API_KEY", "test");
   const read: string[] = [];
   globalThis.fetch = async (_url, init) => {
-    const body = JSON.parse(String(init?.body));
+    const body = JSON.parse(String((init as { body?: unknown } | undefined)?.body));
     assertEquals(body.model.startsWith("claude-sonnet"), true);
     const c = body.messages[0].content;
     assertEquals(c[1].pixels, "scene"); assertEquals(c[3].pixels, "plate"); assertEquals(c[5].pixels, "portrait");
