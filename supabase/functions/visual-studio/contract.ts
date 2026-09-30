@@ -170,7 +170,7 @@ export const intentTool = {
       product_placement: { type: "string", maxLength: 300 },
       exact_text: { type: "array", maxItems: 12, items: { type: "string", maxLength: 300 } },
       reference_use: { type: "array", maxItems: 8, items: { type: "object", properties: { id: { type: "string", format: "uuid" }, role: { type: "string", enum: [...REFERENCE_ROLES] } }, required: ["id", "role"] } },
-      source_reference_id: { type: "string", format: "uuid" },
+      source_reference_id: { type: "string", format: "uuid", description: "ID d’une référence jointe uniquement. Pour la version sélectionnée, omettre ce champ et utiliser uses_selected_version=true ; son ID n’appartient pas à reference_use." },
       uses_selected_version: { type: "boolean" },
       background_prompt: { type: "string", maxLength: 1200 },
       image_prompt: { type: "string", maxLength: 4000 },
