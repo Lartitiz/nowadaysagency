@@ -284,3 +284,18 @@ Deno.test("a status 404 after accepted submission never marks it failed or permi
     f.restore();
   }
 });
+
+
+Deno.test("Soul identity i2i accepts exactly one identity image, never product or multiple references", () => {
+  const p = { operation: "create", visual_kind: "photo" as const, model: "higgsfield-ai/soul/v2/image-to-image",
+    scene_workflow: { phase: "scene" as const, camera_match: "Vue compatible" },
+    references: [{ id: "person", photo_id: null, path: "person", role: "person" as const, name: "Personne" }] };
+  const input = imageInput(p, ["https://example.com/person.jpg"]);
+  assertEquals(input.image_url, "https://example.com/person.jpg");
+  assertEquals(input.image_urls, undefined);
+  assertEquals(input.enhance_prompt, true);
+  assertThrows(() => imageInput(p, []));
+  assertThrows(() => imageInput(p, ["https://example.com/person.jpg", "https://example.com/place.jpg"]));
+  assertThrows(() => imageInput({ ...p, references: [{ ...p.references[0], role: "product" }] }, ["https://example.com/product.jpg"]));
+  assertThrows(() => imageInput({ ...p, exact_text: ["Atelier"] }, ["https://example.com/person.jpg"]));
+});

@@ -669,8 +669,8 @@ function Studio({
     }
     const activeReferenceIds = attachedIds.length
       ? attachedIds
-      : proposal?.reference_snapshot?.length
-      ? proposal.reference_snapshot.map((ref) => ref.id)
+      : proposal && (proposal.reference_snapshot?.length || proposal.planning_references?.length)
+      ? [...new Set([...(proposal.reference_snapshot || []), ...(proposal.planning_references || [])].filter(ref => references.some(r => r.id === ref.id)).map(ref => ref.id))]
       : !current.session.messages.some((message) => message.role === "user")
       ? references.map((ref) => ref.id)
       : [];
@@ -868,7 +868,7 @@ function Studio({
         >
           <p className="text-xs text-primary font-medium">À confirmer</p>
           <h2 className="font-display text-xl">
-            {{
+            {proposal.scene_workflow?.phase === "scene" ? "La scène avant ton produit" : {
               background: "Un nouveau fond",
               create: "Une nouvelle image",
               edit: "Une image ajustée",
@@ -881,6 +881,11 @@ function Studio({
             {proposal.photo_treatment === "natural" && <p className="text-sm text-muted-foreground">Rendu demandé : photo du quotidien, naturelle et spontanée.</p>}
             {!!proposal.product_placement && <p className="mt-2"><strong>Position du produit :</strong> {proposal.product_placement}</p>}
           </div>
+          {proposal.scene_workflow && <div className="text-sm space-y-2">
+            <p><strong>Point de vue :</strong> {proposal.scene_workflow.camera_match}</p>
+            {proposal.scene_workflow.phase === "scene" && <p>Tu pourras voir et ajuster cette scène avant d’y intégrer ton produit. Chaque étape sera confirmée et décomptée séparément.</p>}
+          </div>}
+          {!!proposal.planning_references?.length && <div className="text-sm"><strong>Produits observés pour préparer la scène, ajoutés ensuite :</strong><ul className="list-disc pl-5">{proposal.planning_references.map(ref => <li key={ref.id}>{ref.name}</li>)}</ul></div>}
           {proposal.person_reference && <div className="text-sm space-y-2" aria-label="Identité de référence à confirmer">
             <p><strong>{proposal.person_reference.name} · {proposal.person_reference.mode === "sheet" ? "Planche de référence" : "Même personne dans une nouvelle scène"}</strong></p>
             <p><strong>Traits à conserver : </strong>{proposal.person_reference.stable_traits}</p>
@@ -910,13 +915,6 @@ function Studio({
                 ))}
               </ol>
             </div>
-          )}
-          {proposal.provider === "higgsfield" && (
-            <p className="text-xs text-muted-foreground">
-              {proposal.model === "higgsfield-ai/soul/v2/standard"
-                ? "Cette photo sera créée avec Soul2 après confirmation."
-                : "Les références choisies seront transmises à Higgsfield après confirmation."}
-            </p>
           )}
           <dl className="text-sm space-y-3">
             <div>
@@ -1489,7 +1487,7 @@ function Studio({
                   className="min-h-[88px] max-h-36 overflow-y-auto"
                   id={mobile ? "studio-draft-mobile" : "studio-draft"}
                   value={draft}
-                  maxLength={1000}
+                  maxLength={6000}
                   onChange={(e) => editDraft(e.target.value)}
                   disabled={!writable}
                   placeholder="Une idée, une question, une image à améliorer…"
@@ -1710,7 +1708,7 @@ function Studio({
                           <figure><img src={item.url} alt={`Image ${number} créée dans cette discussion`} loading="lazy" onError={() => setError("L’aperçu a expiré. Réessaie pour le recharger, sans régénérer.")} /><figcaption>{cleanStudioSummary(item.proposal.summary)}</figcaption></figure>
                         </div> : <p className="p-5 text-sm">{item.error_message || "Le résultat apparaîtra ici dès qu’il sera prêt."}</p>}
                         <div className="studio-image-card-actions">
-                          {item.status === "ready" && <Button size="sm" variant={selected ? "default" : "outline"} onClick={() => { setSelectedId(item.id); setCompare(false); }}>{selected ? "Image sélectionnée" : "Reprendre cette image"}</Button>}
+                          {item.status === "ready" && <Button size="sm" variant={selected ? "default" : "outline"} onClick={() => { setSelectedId(item.id); setCompare(false); if (item.proposal.scene_workflow?.phase === "scene") setAttachments((item.proposal.planning_references || []).map(ref => ref.id)); }}>{selected ? "Image sélectionnée" : "Reprendre cette image"}</Button>}
                           {item.status === "ready" && <Button size="sm" variant="outline" disabled={!writable || !!busy || generating || (references.length >= 8 && !references.some((ref) => ref.version_id === item.id))} onClick={() => void attachVersionAsReference(item.id)}>Joindre à ma demande</Button>}
                           {item.status === "ready" && item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="studio-image-open">Agrandir l’image</a>}
                           {item.status === "ready" && (item.library_photo_id
@@ -1723,7 +1721,7 @@ function Studio({
                   {!!references.length && <details className="studio-source-details">
                     <summary>Images apportées dans la discussion · {references.length}</summary>
                     <div className="studio-versions" aria-label="Références de la discussion">
-                      {references.map((ref) => <button type="button" key={ref.id} onClick={() => { setSelectedId(null); setSelectedReferenceId(ref.id); setAttachments([ref.id]); setCompare(false); }}>
+                      {references.map((ref) => <button type="button" key={ref.id} onClick={() => { setSelectedId(null); setSelectedReferenceId(ref.id); setAttachments([...new Set([...attachedIds, ref.id])]); setCompare(false); }}>
                         <img src={ref.url} alt="" /><span>{ref.name}</span>
                       </button>)}
                     </div>

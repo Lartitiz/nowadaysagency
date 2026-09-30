@@ -1064,3 +1064,122 @@ Deno.test("a new scene from the selected sheet actually forwards that image to t
  f.setIntent({operation:"create",summary:"Nora dans un café",image_prompt:"New scene",person_reference:fictionalPerson("scene")});
  try{const res=await handleStudioRequest(request({...base,studio_version:4,action:"message",message:"La même personne dans un café",viewed_version_id:proposalId,reference_ids:[],request_id:id(880),revision:0}));const plan=(await res.json()).session.proposal;assertEquals(plan.references[0].path,f.version.result_path);assertEquals(plan.references[0].role,"casting");assertEquals(plan.input_path,null);}finally{f.restore();}
 });
+
+
+Deno.test("scene preparation sees product for planning but sends only identity to Soul", async () => {
+  const keys = ["HIGGSFIELD_SOUL2_ENABLED", "HIGGSFIELD_DATA_USE_REVIEWED"];
+  const old = keys.map(key => Deno.env.get(key));
+  keys.forEach(key => Deno.env.set(key, "true"));
+  try {
+    for (const includePerson of [false, true]) {
+      const f = fixture();
+      const product = { id: id(810), photo_id: id(811), path: "original-plate", role: "product", name: "Assiette" };
+      const person = { id: id(812), photo_id: id(813), path: "person", role: "person", name: "Personne" };
+      f.session.references = includePerson ? [product, person] : [product];
+      f.setIntent({ operation: "create", visual_kind: "photo", summary: "Scène vue de haut, à 75°, sans assiette pour la valider d'abord.",
+        scene_workflow: { phase: "scene", camera_match: "75° pour respecter la vue de l'assiette" },
+        image_prompt: "Summer table, high angle at 75 degrees, clear space for a plate, no plate or text.",
+        reference_use: f.session.references.map((r: any) => ({ id: r.id, role: r.role })) });
+      try {
+        const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
+          request_id: id(814), reference_ids: f.session.references.map((r: any) => r.id), message: "Prépare la scène avant mon produit" }));
+        const data = await res.json();
+        assertEquals(res.status, 200);
+        const p = data.session.proposal;
+        assertEquals(p.provider, "higgsfield");
+        assertEquals(p.model, includePerson ? "higgsfield-ai/soul/v2/image-to-image" : "higgsfield-ai/soul/v2/standard");
+        assertEquals(p.references.map((r: any) => r.path), includePerson ? ["person"] : []);
+        assertEquals(p.planning_references.map((r: any) => r.path), ["original-plate"]);
+        assertEquals(p.reference_snapshot.some((r: any) => r.role === "product"), false);
+        assertEquals(p.viewed_reference_id === product.id, false);
+        assertEquals(imagePrompt(p).includes("75 degrees"), true);
+        assertEquals(imagePrompt(p).includes("product reference, Assiette"), false);
+        assertEquals(f.payloads[0].messages[0].content.some((c: any) => c.text?.includes(product.id)), true);
+        assertEquals(f.requests.some(path => path.includes("studio_confirm")), false);
+      } finally { f.restore(); }
+    }
+  } finally { keys.forEach((key, i) => old[i] === undefined ? Deno.env.delete(key) : Deno.env.set(key, old[i]!)); }
+});
+
+Deno.test("integration resumes selected scene with ORIGINAL product and sends scene first to image edits", async () => {
+  const f = fixture();
+  const product = { id: id(820), photo_id: id(821), path: "original-plate", role: "product", name: "Assiette" };
+  f.version.status = "ready";
+  Object.assign(f.version.proposal, { scene_workflow: { phase: "scene", camera_match: "Vue de haut" }, planning_references: [product], reference_snapshot: [] });
+  f.session.references = [product];
+  f.setIntent({ operation: "product", visual_kind: "photo", uses_selected_version: true,
+    scene_workflow: { phase: "integration", camera_match: "Conserver la vue de haut" },
+    summary: "Insérer l'assiette à plat dans la scène sélectionnée, conserver le reste.", product_placement: "À plat sur le bois, centre libre.",
+    image_prompt: "Insert only the original plate, flat on the table, preserve approved scene.", reference_use: [{ id: product.id, role: "product" }] });
+  try {
+    const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
+      request_id: id(822), reference_ids: [], viewed_version_id: proposalId, message: "La scène me plaît, ajoute mon assiette" }));
+    const data = await res.json();
+    assertEquals(res.status, 200);
+    const p = data.session.proposal;
+    assertEquals(p.provider, "default");
+    assertEquals(p.model, "gpt-image-2.5-sunburst");
+    assertEquals(p.input_path, f.version.result_path);
+    assertEquals(p.references.map((r: any) => r.path), ["original-plate"]);
+    let paths: string[] = [];
+    let prompt = "";
+    globalThis.fetch = async (_input, init) => {
+      const form = init!.body as FormData;
+      paths = await Promise.all(form.getAll("image[]").map(part => (part as Blob).text()));
+      prompt = String(form.get("prompt"));
+      return new Response(JSON.stringify({ data: [{ b64_json: btoa("image") }] }));
+    };
+    await generateImage(p, [p.input_path, ...p.references.map((r: any) => r.path)].map(path => new Blob([path], { type: "image/jpeg" })));
+    assertEquals(paths, [f.version.result_path, "original-plate"]);
+    assertEquals(prompt.includes("Image 1 is the approved scene"), true);
+    assertEquals(prompt.includes("Image 2: product reference, Assiette"), true);
+  } finally { f.restore(); }
+});
+
+Deno.test("imported scene is the edit input; missing or hallucinated references prevent integration", async () => {
+  for (const mode of ["valid", "missing-scene", "unknown-reference"]) {
+    const f = fixture();
+    const product = { id: id(830), photo_id: id(831), path: "product", role: "product", name: "Produit" };
+    const scene = { id: id(832), photo_id: id(833), path: "imported-scene", role: "composition", name: "Décor" };
+    f.session.references = [product, scene];
+    f.setIntent({ operation: "product", visual_kind: "photo", summary: "Produit dans la scène importée.",
+      scene_workflow: { phase: "integration", camera_match: "Même vue" }, image_prompt: "Keep the imported scene, add only product.", product_placement: "Posé à plat sur la table",
+      ...(mode === "missing-scene" ? {} : { source_reference_id: scene.id }),
+      reference_use: [{ id: product.id, role: "product" }, { id: mode === "unknown-reference" ? id(899) : scene.id, role: "composition" }] });
+    try {
+      const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
+        request_id: id(834), reference_ids: [product.id, scene.id], message: "Ajoute mon produit à mon décor" }));
+      const p = (await res.json()).session.proposal;
+      assertEquals(res.status, 200);
+      if (mode === "valid") { assertEquals(p.input_path, "imported-scene"); assertEquals(p.references.map((r: any) => r.path), ["product"]); }
+      else assertEquals(p, null);
+    } finally { f.restore(); }
+  }
+});
+
+Deno.test("scene corrections retain planning originals; exact multiple references stay on the editor", async () => {
+  for (const correction of [false, true]) {
+    const f = fixture();
+    const product = { id: id(850), photo_id: id(851), path: "product", role: "product", name: "Produit" };
+    const person = { id: id(852), photo_id: id(853), path: "person", role: "person", name: "Personne" };
+    const place = { id: id(854), photo_id: id(855), path: "place", role: "composition", name: "Lieu exact" };
+    f.session.references = [product, person, place];
+    if (correction) {
+      f.version.status = "ready";
+      Object.assign(f.version.proposal, { scene_workflow: { phase: "scene", camera_match: "Vue de haut" }, planning_references: [product], reference_snapshot: [person, place] });
+    }
+    f.setIntent({ operation: correction ? "edit" : "create", visual_kind: "photo", summary: "Scène avec cette personne dans le lieu fourni, sans produit.",
+      scene_workflow: { phase: "scene", camera_match: "Conserver le point de vue compatible" }, image_prompt: "Preserve person and place; leave the product area clear.",
+      reference_use: [product, person, place].map(r => ({ id: r.id, role: r.role })) });
+    try {
+      const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
+        request_id: id(856), reference_ids: [product.id, person.id, place.id], ...(correction ? { viewed_version_id: proposalId } : {}), message: "Prépare ou corrige cette scène avec mes références" }));
+      const p = (await res.json()).session.proposal;
+      assertEquals(res.status, 200);
+      assertEquals(p.provider, "default");
+      assertEquals(p.planning_references.map((r: any) => r.path), ["product"]);
+      assertEquals(p.references.map((r: any) => r.path), ["person", "place"]);
+      assertEquals(p.input_path, correction ? f.version.result_path : null);
+    } finally { f.restore(); }
+  }
+});

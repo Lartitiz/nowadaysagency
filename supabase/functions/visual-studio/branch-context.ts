@@ -2,6 +2,7 @@ import type { Reference } from "./media.ts";
 
 type ParentProposal = {
   reference_snapshot?: Reference[];
+  planning_references?: Reference[];
   references?: Reference[];
   original_path?: string | null;
   viewed_reference_id?: string | null;
@@ -14,7 +15,7 @@ export function referencesAtVersion(
   proposal: ParentProposal,
 ): Reference[] {
   if (Array.isArray(proposal.reference_snapshot)) {
-    return proposal.reference_snapshot;
+    return [...proposal.reference_snapshot, ...(proposal.planning_references || []).filter(ref => !proposal.reference_snapshot!.some(r => r.id === ref.id))];
   }
   const original = proposal.original_path;
   const saved = Array.isArray(proposal.references) ? proposal.references : [];

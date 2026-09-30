@@ -4,10 +4,17 @@ type DB = ReturnType<typeof getServiceClient>;
 const BASE = "https://api.higgsfield.ai";
 export const IMAGE_MODELS = [
   "higgsfield-ai/soul/v2/standard",
+  "higgsfield-ai/soul/v2/image-to-image",
   "marketing-studio/image/flare",
   "marketing-studio/image/sunburst",
 ] as const;
 export const SOUL2_MODEL = "higgsfield-ai/soul/v2/standard";
+export const SOUL2_I2I_MODEL = "higgsfield-ai/soul/v2/image-to-image";
+export function soul2IdentityEligible(proposal: Proposal) {
+  return proposal.operation === "create" && proposal.scene_workflow?.phase === "scene" && proposal.visual_kind === "photo" &&
+    !proposal.exact_text?.length && !proposal.input_path && !proposal.composition &&
+    proposal.references?.length === 1 && ["person", "casting"].includes(proposal.references[0].role);
+}
 export function soul2Eligible(proposal: Proposal) {
   return proposal.operation === "create" && proposal.visual_kind === "photo" &&
     !proposal.exact_text?.length && !proposal.references?.length &&
@@ -61,8 +68,9 @@ export function imageInput(proposal: Proposal, urls: string[]) {
   if (!IMAGE_MODELS.some((model) => model === proposal.model)) {
     throw new Error("studio_provider_model");
   }
-  if (proposal.model === SOUL2_MODEL) {
-    if (urls.length || !soul2Eligible(proposal)) {
+  if (proposal.model === SOUL2_MODEL || proposal.model === SOUL2_I2I_MODEL) {
+    const identity = proposal.model === SOUL2_I2I_MODEL;
+    if (identity ? urls.length !== 1 || !publicUrl(urls[0]) || !soul2IdentityEligible(proposal) : urls.length > 0 || !soul2Eligible(proposal)) {
       throw new Error("studio_provider_model");
     }
     return {
@@ -74,7 +82,9 @@ export function imageInput(proposal: Proposal, urls: string[]) {
         : proposal.format === "landscape"
         ? "3:2"
         : "1:1",
-      enhance_prompt: false,
+      // Soul i2i currently always enhances the prompt; do not claim otherwise.
+      enhance_prompt: identity,
+      ...(identity ? { image_url: urls[0] } : {}),
       image_urls: undefined,
     };
   }
@@ -220,7 +230,7 @@ export async function submitHiggsfieldImage(
 ) {
   let submitted = false, accepted = false;
   try {
-    if (version.proposal.model === SOUL2_MODEL
+    if ([SOUL2_MODEL, SOUL2_I2I_MODEL].includes(version.proposal.model || "")
       ? !soul2Enabled()
       : !higgsfieldImagesEnabled()) {
       throw new Error("studio_provider_unavailable");
@@ -229,6 +239,7 @@ export async function submitHiggsfieldImage(
       (inputs.length || !soul2Eligible(version.proposal))) {
       throw new Error("studio_provider_model");
     }
+    if (version.proposal.model === SOUL2_I2I_MODEL && (inputs.length !== 1 || !soul2IdentityEligible(version.proposal))) throw new Error("studio_provider_model");
     credentials();
     const monthly = Number(Deno.env.get("HIGGSFIELD_IMAGE_MONTHLY_LIMIT_USD"));
     if (!Number.isFinite(monthly) || monthly <= 0) {

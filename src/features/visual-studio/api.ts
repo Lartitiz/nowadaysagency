@@ -4,6 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // Additive tables: explicit boundary until hosted generated types are refreshed.
 const db: SupabaseClient = supabase;
 export interface StudioProposal {
+  scene_workflow?: { phase: "scene" | "integration"; camera_match: string };
+  planning_references?: StudioReference[];
   id: string;
   person_reference?: {
     mode: "sheet" | "scene";
@@ -166,7 +168,7 @@ export async function studioRequest<T = StudioState>(
   const { data, error } = await invokeWithTimeout(
     "visual-studio",
     { body: { ...body, studio_version: 4 } },
-    60_000,
+    body.action === "message" ? 90_000 : 60_000,
   );
   if (error || data?.error) {
     // invokeWithTimeout already reads the HTTP response into data. Its error
