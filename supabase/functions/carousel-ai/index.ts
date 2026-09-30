@@ -1006,6 +1006,7 @@ async function finalizeCarousel(
       draft: string,
       defects: string,
       sink: UsageSink,
+      abortTimeoutMs?: number,
     ) => Promise<string>;
   },
 ): Promise<string> {
@@ -1021,6 +1022,9 @@ async function finalizeCarousel(
         body.subject_details,
         body.photo_description,
         ctx.currentAuthoredText,
+        body.deepening_answers ? JSON.stringify(body.deepening_answers) : "",
+        body.editorial_angle,
+        body.objective,
       ].filter(Boolean).join("\n"),
     },
     { id: "brand", provenance: "brand_context", text: ctx.brandingContext },
@@ -1046,13 +1050,15 @@ async function finalizeCarousel(
       text: typeof ctx.newsContext === "string" ? ctx.newsContext : "",
     },
   ].filter((s) => s.text.trim());
+  const remaining = () => 270_000 - (Date.now() - startedAt);
   const judge = async (value: any): Promise<ProgressionResult> =>
-    Date.now() - startedAt > 270_000
+    remaining() < 8_000
       ? progressionReceipt(value, "skipped", "time-budget")
       : _deps.reviewThread(value, {
         sources,
         sourceContext: JSON.stringify(sources),
         preserveStructure: true,
+        abortTimeoutMs: Math.min(45_000, remaining()),
       });
   const ownsText = body.type === "slides" || body.user_slides?.length;
   let receipt = ownsText
@@ -1069,7 +1075,7 @@ async function finalizeCarousel(
   if (
     !ownsText && !opts.repaired && opts.regenerate &&
     receipt.execution_status === "completed" &&
-    receipt.verdict === "needs_repair" && Date.now() - startedAt <= 150_000
+    receipt.verdict === "needs_repair" && remaining() >= 85_000
   ) {
     const sink: UsageSink = {};
     try {
@@ -1082,6 +1088,7 @@ async function finalizeCarousel(
             "\nMême nombre, ordre et associations photo. Sources :\n" +
             JSON.stringify(sources),
           sink,
+          Math.min(120_000, remaining() - 55_000),
         ),
       );
       // Exact photo/type/order protection; only a genuinely automatic plan may change roles/intents.
@@ -1252,8 +1259,8 @@ async function runGenerationAndRespond(
     return value;
   };
 
-  const regenerate=(draft:string,defects:string,sink:UsageSink)=>_deps.callCarouselWriter({
-    ...writingOptions,model:pickCarouselModel(body),messages:[{role:"user",content:userPrompt+"\n\nBROUILLON À COMPLÉTER :\n"+draft+"\n\n"+defects}],
+  const regenerate=(draft:string,defects:string,sink:UsageSink,abortTimeoutMs=120_000)=>_deps.callCarouselWriter({
+    ...writingOptions,abortTimeoutMs,model:pickCarouselModel(body),messages:[{role:"user",content:userPrompt+"\n\nBROUILLON À COMPLÉTER :\n"+draft+"\n\n"+defects}],
   },sink);
   let structuralRepair=false;
   if(type==="express_full" || type==="slides") {
@@ -1334,9 +1341,8 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     : buildMixCarouselPrompt(body, isLinkedIn);
   let content: string;
   let doGenerate: (sink: UsageSink) => Promise<string>;
-  // Réparation du fil : seulement hors vision (le brouillon + les défauts sont
-  // renvoyés au même prompt texte ; en vision on avertit sans re-payer les photos).
-  let doRepair: ((draft: string, defects: string, sink: UsageSink) => Promise<string>) | undefined;
+  // One bounded repair shares the original sources, including selected photos.
+  let doRepair: ((draft: string, defects: string, sink: UsageSink, abortTimeoutMs?: number) => Promise<string>) | undefined;
   const mixUsage: UsageSink = {};
   emitStatus("writing");
 
@@ -1380,14 +1386,14 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
       tool: MIX_CAROUSEL_TOOL,
       abortTimeoutMs: 120_000,
     }, sink);
-    doRepair = (draft, defects, sink) => _deps.callCarouselWriter({
+    doRepair = (draft, defects, sink, abortTimeoutMs = 120_000) => _deps.callCarouselWriter({
       model: pickCarouselModel(body),
       system: systemPrompt + "\n\n" + mixPrompt + PHOTO_MISMATCH_SYSTEM_REMINDER,
       messages: [{ role: "user", content: [...messageContent, {type:"text",text:"BROUILLON À COMPLÉTER :\n"+draft+"\n"+defects}] }],
       max_tokens: 8192,
       temperature: 0.85,
       tool: MIX_CAROUSEL_TOOL,
-      abortTimeoutMs: 120_000,
+      abortTimeoutMs,
     }, sink);
   } else {
     const photoDescLine = body.text_first
@@ -1404,14 +1410,14 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
       tool: MIX_CAROUSEL_TOOL,
       abortTimeoutMs: 120_000,
     }, sink);
-    doRepair = (draft, defects, sink) => _deps.callCarouselWriter({
+    doRepair = (draft, defects, sink, abortTimeoutMs = 120_000) => _deps.callCarouselWriter({
       model: pickCarouselModel(body),
       system: systemPrompt,
       messages: [{ role: "user", content: textPrompt + "\n\nBROUILLON À COMPLÉTER :\n" + draft + "\n\n" + defects }],
       max_tokens: 8192,
       temperature: 0.85,
       tool: MIX_CAROUSEL_TOOL,
-      abortTimeoutMs: 120_000,
+      abortTimeoutMs,
     }, sink);
   }
 
@@ -1507,8 +1513,8 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     : buildPhotoCarouselPrompt(body, isLinkedIn);
   let content: string;
   let doGenerate: (sink: UsageSink) => Promise<string>;
-  // Réparation du fil : seulement hors vision (cf. handleMixCarouselRequest).
-  let doRepair: ((draft: string, defects: string, sink: UsageSink) => Promise<string>) | undefined;
+  // Shares the same source-preserving repair and deadline as mixed carousels.
+  let doRepair: ((draft: string, defects: string, sink: UsageSink, abortTimeoutMs?: number) => Promise<string>) | undefined;
   const photoUsage: UsageSink = {};
   emitStatus("writing");
 
@@ -1553,14 +1559,14 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
       tool: PHOTO_CAROUSEL_TOOL,
       abortTimeoutMs: 120_000,
     }, sink);
-    doRepair = (draft, defects, sink) => _deps.callCarouselWriter({
+    doRepair = (draft, defects, sink, abortTimeoutMs = 120_000) => _deps.callCarouselWriter({
       model: pickCarouselModel(body),
       system: systemPrompt + "\n\n" + photoPrompt + PHOTO_MISMATCH_SYSTEM_REMINDER,
       messages: [{ role: "user", content: [...messageContent, {type:"text",text:"BROUILLON À COMPLÉTER :\n"+draft+"\n"+defects}] }],
       max_tokens: 8192,
       temperature: 0.85,
       tool: PHOTO_CAROUSEL_TOOL,
-      abortTimeoutMs: 120_000,
+      abortTimeoutMs,
     }, sink);
   } else {
     // Text-only mode: description without actual photos
@@ -1575,14 +1581,14 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
       tool: PHOTO_CAROUSEL_TOOL,
       abortTimeoutMs: 120_000,
     }, sink);
-    doRepair = (draft, defects, sink) => _deps.callCarouselWriter({
+    doRepair = (draft, defects, sink, abortTimeoutMs = 120_000) => _deps.callCarouselWriter({
       model: pickCarouselModel(body),
       system: systemPrompt,
       messages: [{ role: "user", content: textPrompt + "\n\nBROUILLON À COMPLÉTER :\n" + draft + "\n\n" + defects }],
       max_tokens: 8192,
       temperature: 0.85,
       tool: PHOTO_CAROUSEL_TOOL,
-      abortTimeoutMs: 120_000,
+      abortTimeoutMs,
     }, sink);
   }
 

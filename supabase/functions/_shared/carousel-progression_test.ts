@@ -287,3 +287,40 @@ Deno.test("major evidence overrides approval but ungrounded evidence still fails
   const bad = await reviewCarouselProgression(doc, {sources,call:async()=>JSON.stringify(report)});
   assertEquals(bad.execution_status,"invalid"); assertEquals(bad.verdict,null);
 });
+
+Deno.test("mixed photo evidence selects fields and preserves exact multiline text without a copying retry", async () => {
+  const mixed = { slides: [
+    { slide_type: "text_only", title: "Le geste", body: "Je peins à main levée.\n\nChaque tracé diffère." },
+    { slide_type: "photo_full", photo_index: 5, overlay_text: "Des fruits et des feuilles décorent ces bols." },
+  ] };
+  let calls = 0;
+  const out = await reviewCarouselProgression(mixed, { sources, call: async (o) => {
+    calls++;
+    const schema: any = o.tool!.input_schema;
+    assertEquals(schema.properties.defects.items.properties.excerpt, undefined);
+    assert(schema.properties.defects.items.properties.field_ids.items.enum.includes("slides.1.overlay_text"));
+    return JSON.stringify({ ...valid(), verdict: "needs_repair", defects: [{
+      slide_ids: ["slides.0", "slides.1"], field_ids: ["slides.0.body", "slides.1.overlay_text"],
+      severity: "major", type: "juxtaposition", reason: "La description des motifs ne poursuit pas l'explication du geste.",
+      repair: "Relier l'exemple au geste sans attribuer une histoire à cette photo.",
+    }] });
+  } });
+  assertEquals(calls, 1);
+  assertEquals(out.execution_status, "completed");
+  assertEquals(out.verdict, "needs_repair");
+  assertEquals(out.report!.defects[0].excerpt, mixed.slides[0].body);
+  assertEquals(out.report!.defects[0].evidence, [
+    { field_id: "slides.0.body", text: mixed.slides[0].body },
+    { field_id: "slides.1.overlay_text", text: mixed.slides[1].overlay_text },
+  ]);
+  assert(out.issues[0].includes("description des motifs"));
+});
+for (const fieldIds of [["invented"], ["slides.1.visual_schema.quote"], []]) Deno.test(`evidence IDs must belong to cited slide: ${JSON.stringify(fieldIds)}`, async () => {
+  const out = await reviewCarouselProgression(doc, { sources, call: async () => JSON.stringify({ ...valid(), verdict: "needs_repair", defects: [{
+    slide_ids: ["slides.0"], field_ids: fieldIds, excerpt: doc.slides[0].body,
+    severity: "major", type: "rupture", reason: "Raison", repair: "Réparation",
+  }] }) });
+  assertEquals(out.execution_status, "invalid");
+  assertEquals(out.verdict, null);
+  assertEquals(out.reason, "defect-field-reference:0");
+});
