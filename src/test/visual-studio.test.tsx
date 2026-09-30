@@ -932,7 +932,9 @@ it("selecting a second discussion image preserves the first attachment", async (
   fireEvent.click(screen.getByText(/Images apportées dans la discussion/));
   const buttons = screen.getAllByRole("button", { name: "Produit original" });
   fireEvent.click(buttons.at(-1)!);
+  await waitFor(() => expect(screen.getByLabelText("Rôle de l’image 1")).toBeInTheDocument());
   fireEvent.click(screen.getAllByRole("button", { name: "Décor fourni" }).at(-1)!);
+  await waitFor(() => expect(screen.getByLabelText("Rôle de l’image 2")).toBeInTheDocument());
   fireEvent.change(screen.getByPlaceholderText("Une idée, une question, une image à améliorer…"), { target: { value: "Insère mon produit dans mon décor" } });
   fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "message", reference_ids: ["product", "scene"] })));
@@ -960,4 +962,44 @@ it("a reloaded scene displays its originals and requires an explicit integration
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "integrate", version_id: "scene",
     proposal_id: "integration-preview", approved_scene_id: "scene", revision: 7 })));
   expect(mock.request.mock.calls.filter(([body]) => body.action === "integrate")).toHaveLength(1);
+});
+it("persists a visible photo role, reordered selection and fresh-request clearing through the server", async () => {
+  let state = original();
+  state.session.references = [
+    { id: "plate", photo_id: null, role: "auto", name: "Assiette", url: "/plate.jpg" },
+    { id: "person", photo_id: null, role: "person", role_source: "conversation", name: "Portrait", url: "/portrait.jpg" },
+  ];
+  state.session.active_reference_ids = ["plate", "person"];
+  mock.request.mockImplementation(async body => {
+    if (body.action === "reference") state = { ...state, session: { ...state.session, revision: state.session.revision + 1, references: state.session.references!.map(ref => ref.id === body.reference_id ? { ...ref, role: body.reference_role, role_source: body.role_source } : ref) } };
+    if (body.action === "selection") state = { ...state, session: { ...state.session, revision: state.session.revision + 1, active_reference_ids: body.reference_ids, proposal: null } };
+    return structuredClone(state);
+  });
+  const mounted = mount();
+  fireEvent.change(await screen.findByLabelText("Rôle de l’image 1"), { target: { value: "product" } });
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:"reference",reference_id:"plate",reference_role:"product",role_source:"user"})));
+  await waitFor(() => expect(screen.getByLabelText("Rôle de l’image 1")).toHaveValue("product"));
+  expect(screen.getByText("Compris dans la conversation")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", {name:"Déplacer l’image 2 avant"}));
+  await waitFor(() => expect(screen.getByLabelText("Rôle de l’image 1")).toHaveValue("person"));
+  mounted.unmount();mount();
+  await waitFor(() => expect(screen.getByLabelText("Rôle de l’image 1")).toHaveValue("person"));
+  fireEvent.click(screen.getByRole("button", {name:"Retirer Assiette de cette demande"}));
+  await waitFor(() => expect(screen.queryByLabelText("Rôle de l’image 2")).not.toBeInTheDocument());
+  fireEvent.click(screen.getByRole("button", {name:"Nouvelle demande sans ces références"}));
+  await waitFor(() => expect(screen.queryByLabelText("Rôle de l’image 1")).not.toBeInTheDocument());
+  expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:"selection",reference_ids:[],new_request:true}));
+});
+it("blocks an old proposal while an unsent correction exists and renders actual advice",async()=>{
+ const state=original();state.session.proposal=proposal;
+ state.session.messages.push({role:'assistant',text:'La lumière douce rend le motif lisible.',suggestions:['Place la source de lumière sur le côté.']});
+ mock.request.mockResolvedValue(state);mount();
+ await screen.findByText('La lumière douce rend le motif lisible.');
+ expect(screen.getByText('Place la source de lumière sur le côté.')).toBeInTheDocument();
+ const confirm=screen.getByRole('button',{name:/Générer cette image/});
+ expect(confirm).toBeEnabled();
+ fireEvent.change(screen.getByRole('textbox'),{target:{value:'Je préfère un autre décor'}});
+ expect(confirm).toBeDisabled();
+ fireEvent.click(screen.getByRole('button',{name:'Revenir à cette proposition'}));expect(confirm).toBeEnabled();
+ expect(mock.request.mock.calls.some(([body])=>body.action==='confirm')).toBe(false);
 });

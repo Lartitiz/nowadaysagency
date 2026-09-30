@@ -84,12 +84,19 @@ export interface StudioMessage {
   suggested_memory_ids?: string[];
 }
 export interface StudioReference {
+  role_source?: "library" | "user" | "conversation";
+  subject_group?: string;
+  role_explicit?: boolean;
   id: string;
   photo_id: string | null;
   memory_id?: string;
   version_id?: string;
   name: string;
   role:
+    | "person_product"
+    | "auto"
+    | "scene"
+    | "edit_source"
     | "subject"
     | "product"
     | "person"
@@ -100,6 +107,8 @@ export interface StudioReference {
   url: string;
 }
 export interface StudioSession {
+  active_reference_ids?: string[];
+  conversation_branch_id?: string | null;
   id: string;
   workspace_id: string;
   name: string;

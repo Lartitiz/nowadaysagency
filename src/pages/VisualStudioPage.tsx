@@ -1,3 +1,5 @@
+import { ReferenceCards } from "@/features/visual-studio/ReferenceCards";
+import { referenceLabels } from "@/features/visual-studio/reference-labels";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -73,7 +75,7 @@ function referenceRoleForPhoto(photo: UserPhotoRow): StudioReference["role"] {
   if (photo.kind === "produit" || photo.kind === "produit_porte") return "product";
   if (photo.kind === "portrait") return "person";
   if (photo.kind === "ambiance") return "style";
-  return "subject";
+  return "auto";
 }
 function readAttachedIds(key: string): string[] {
   try {
@@ -334,7 +336,8 @@ function Studio({
     branchChoice.target === selectedId &&
     branchChoice.revision === current?.session.revision;
   const references = current?.session.references || [];
-  const attachedReferences = attachedIds.map((id) => references.find((ref) => ref.id === id)).filter((ref): ref is StudioReference => !!ref);
+  const activeIds = current?.session.active_reference_ids ?? attachedIds;
+  const attachedReferences = activeIds.map((id) => references.find((ref) => ref.id === id)).filter((ref): ref is StudioReference => !!ref);
   useEffect(() => { setAttachedIds(readAttachedIds(attachmentKey)); }, [attachmentKey]);
   function setAttachments(ids: string[], key = attachmentKey) {
     const unique = [...new Set(ids)];
@@ -490,6 +493,15 @@ function Studio({
       if (alive.current) setBusy("");
     }
   }
+  async function updateSelection(ids: string[], newRequest = false, branchId = selectedId) {
+    if (!current) return;
+    const result = await mutate("selection", { reference_ids: ids, revision: current.session.revision,
+      viewed_version_id: newRequest ? null : branchId, new_request: newRequest });
+    if (result) {
+      setAttachments(result.session.active_reference_ids ?? ids);
+      if (newRequest) { setSelectedId(null); setSelectedReferenceId(null); editDraft(""); }
+    }
+  }
   async function addReferencePhotos(photos: UserPhotoRow[]) {
     if (!photos.length || !writable || actionLock.current || generating) return;
     if (creation.current.photoId && !sessionId) {
@@ -515,7 +527,7 @@ function Studio({
           latest.session.source_photo_id === photo.id) continue;
         latest = await studioRequest({
           action: "reference", workspace_id: workspaceId, session_id: targetId,
-          photo_id: photo.id, reference_role: referenceRoleForPhoto(photo),
+          photo_id: photo.id, reference_role: referenceRoleForPhoto(photo), role_source: "library",
           revision: latest.session.revision,
         });
         added += 1;
@@ -523,7 +535,7 @@ function Studio({
       }
       if (!alive.current) return;
       const chosenIds = photos.map((photo) => latest?.session.references?.find((ref) => ref.photo_id === photo.id)?.id).filter((id): id is string => !!id);
-      setAttachments([...attachedIds, ...chosenIds], `${draftKey(userId, workspaceId, targetId)}:images`);
+      setAttachments([...activeIds, ...chosenIds], `${draftKey(userId, workspaceId, targetId)}:images`);
       if (!sessionId) {
         writeDraft(draftKey(userId, workspaceId, targetId), draftRef.current);
         navigate(studioPath(targetId), { replace: true });
@@ -541,7 +553,7 @@ function Studio({
         latest?.session.source_photo_id === photo.id).length;
       if (latest) {
         const chosenIds = photos.map((photo) => latest?.session.references?.find((ref) => ref.photo_id === photo.id)?.id).filter((id): id is string => !!id);
-        setAttachments([...attachedIds, ...chosenIds], `${draftKey(userId, workspaceId, targetId)}:images`);
+        setAttachments([...activeIds, ...chosenIds], `${draftKey(userId, workspaceId, targetId)}:images`);
       }
       if (latest && attachedCount === photos.length) {
         if (!sessionId) {
@@ -588,7 +600,7 @@ function Studio({
   async function attachVersionAsReference(versionId: string) {
     const existing = references.find((ref) => ref.version_id === versionId);
     if (existing) {
-      setAttachments([...attachedIds, existing.id]);
+      await updateSelection([...new Set([...activeIds, existing.id])], false, null);
       setSelectedId(null);
       return;
     }
@@ -667,8 +679,9 @@ function Studio({
       }
       return;
     }
-    const activeReferenceIds = attachedIds.length
-      ? attachedIds
+    const activeReferenceIds = current.session.active_reference_ids !== undefined
+      ? current.session.active_reference_ids
+      : attachedIds.length ? attachedIds
       : proposal && (proposal.reference_snapshot?.length || proposal.planning_references?.length)
       ? [...new Set([...(proposal.reference_snapshot || []), ...(proposal.planning_references || [])].filter(ref => references.some(r => r.id === ref.id)).map(ref => ref.id))]
       : !current.session.messages.some((message) => message.role === "user")
@@ -700,14 +713,14 @@ function Studio({
       viewed_reference_id: selectedId || activeReferenceIds.length
         ? selectedReference?.id || null
         : null,
-      reference_ids: activeReferenceIds,
+      reference_ids: branchReferenceMode || selectedId && current.session.conversation_branch_id !== selectedId ? undefined : activeReferenceIds,
       branch_reference_mode: branchReferenceMode,
     });
     if (result && alive.current) {
       if (draftRef.current.trim() === submittedText) editDraft("");
       sent.current = null;
       setBranchChoice(null);
-      if (result.session.proposal) setAttachments([]);
+      if (result.session.active_reference_ids) setAttachments(result.session.active_reference_ids);
     }
   }
   async function save(useInContent = false, target?: typeof version) {
@@ -898,7 +911,7 @@ function Studio({
           </div>}
           {!!proposal.reference_snapshot?.length && <div className="text-sm">
             <strong>Images utilisées :</strong>
-            <ol className="list-decimal pl-5 mt-1">{proposal.reference_snapshot.map((ref) => <li key={ref.id}>{ref.name} · {{ subject: "sujet à préserver", product: "produit exact", person: "personne réelle", casting: "mannequin fictif", style: "ambiance", composition: "composition", logo: "logo" }[ref.role]}</li>)}</ol>
+            <ol className="list-decimal pl-5 mt-1">{proposal.reference_snapshot.map((ref) => <li key={ref.id}>{ref.name} · {referenceLabels[ref.role]}</li>)}</ol>
           </div>}
           {proposal.composition && (
             <p className="text-sm">
@@ -1010,13 +1023,17 @@ function Studio({
                 "Le quota doit être vérifié avant de générer."}
             </p>
           )}
+          {(!!draft.trim() || !!error) && <div className="text-sm" role="status">
+            <p>Envoie ta demande pour actualiser la proposition avant de générer.</p>
+            <Button variant="ghost" size="sm" onClick={() => { editDraft(""); setError(""); }}>Revenir à cette proposition</Button>
+          </div>}
           <Button
             className="w-full h-auto whitespace-normal py-2"
             disabled={!writable ||
               !!busy ||
               generating ||
               !current?.quota.allowed ||
-              premiumBlocked || (proposal.scene_workflow?.phase === "integration" && !!proposal.viewed_version_id && proposal.viewed_version_id !== selectedId)}
+              !!draft.trim() || !!error || premiumBlocked || (proposal.scene_workflow?.phase === "integration" && !!proposal.viewed_version_id && proposal.viewed_version_id !== selectedId)}
             onClick={async () => {
               const result = await mutate("generate", {
                 proposal_id: proposal.id,
@@ -1112,7 +1129,8 @@ function Studio({
                         </div>;
                       })}
                     </div>}
-                    <p>{m.role === "assistant" ? cleanStudioSummary(m.text) : m.text}</p>
+                    <p className="whitespace-pre-wrap">{m.role === "assistant" ? cleanStudioSummary(m.text) : m.text}</p>
+                    {!!m.suggestions?.length && m.role === "assistant" && <ul className="list-disc pl-5 mt-2 text-sm">{m.suggestions.map((suggestion, index) => <li key={index}>{suggestion}</li>)}</ul>}
                     {m.suggested_memory_ids?.map((id) => {
                       const item = current.memory?.find((entry) => entry.id === id);
                       return item ? <Button key={id} variant="outline" className="my-2 max-w-full h-auto whitespace-normal break-words py-2" disabled={!writable || !!busy || !!generating || references.some((r) => r.memory_id === id)} onClick={() => void mutate("memory_apply", {memory_id:id,revision:current.session.revision})}>{item.kind === "casting" ? "Utiliser ce mannequin" : "Utiliser cette direction"} · {item.name}</Button> : null;
@@ -1157,7 +1175,7 @@ function Studio({
                       </figure>)}
                     </div>
                     <p className="text-xs text-muted-foreground">L’intégration compte pour une image supplémentaire. Vérifie ensuite les détails du visage et du produit.</p>
-                    <Button className="w-full h-auto whitespace-normal" disabled={!writable || !!busy || generating || !current?.quota.allowed || current?.generative_allowed === false}
+                    <Button className="w-full h-auto whitespace-normal" disabled={!writable || !!busy || generating || !!draft.trim() || !!error || !current?.quota.allowed || current?.generative_allowed === false}
                       onClick={() => void mutate("integrate", { version_id: version.id, proposal_id: version.integration_proposal!.id, approved_scene_id: version.id, revision: current!.session.revision })}>
                       Valider cette scène et intégrer mes références · 1 image
                     </Button>
@@ -1301,6 +1319,10 @@ function Studio({
                                 revision: current!.session.revision,
                               })}
                           >
+                            <option value="person_product">Personne et produit</option>
+                            <option value="auto">À déterminer dans le chat</option>
+                            <option value="scene">Décor à conserver</option>
+                            <option value="edit_source">Image à retoucher</option>
                             <option value="subject">Sujet à préserver</option>
                             <option value="product">Produit exact</option>
                             <option value="person">Personne réelle</option>
@@ -1501,13 +1523,12 @@ function Studio({
                 >
                   Ta demande
                 </label>
-                {!!attachedReferences.length && <div className="studio-attached-images" aria-label="Images prêtes à être jointes">
-                  {attachedReferences.map((ref, index) => <div className="studio-attached-image" key={ref.id}>
-                    {ref.url && <img src={ref.url} alt="" />}
-                    <span>Image {index + 1} · {ref.name}</span>
-                    <button type="button" aria-label={`Retirer ${ref.name} de cette demande`} onClick={() => setAttachments(attachedIds.filter((id) => id !== ref.id))}>×</button>
-                  </div>)}
-                </div>}
+                <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
+                  onSelection={ids => void updateSelection(ids)}
+                  onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
+                  onGroup={(id, group) => void mutate("reference", { reference_id: id, subject_group: group, revision: current!.session.revision })} />
+                {current && <Button type="button" variant="ghost" size="sm" disabled={!writable || !!busy || generating}
+                  onClick={() => void updateSelection([], true)}>Nouvelle demande sans ces références</Button>}
                 <Textarea
                   className="min-h-[88px] max-h-36 overflow-y-auto"
                   id={mobile ? "studio-draft-mobile" : "studio-draft"}
@@ -1518,7 +1539,7 @@ function Studio({
                   placeholder="Une idée, une question, une image à améliorer…"
                 />
                 <input ref={fileInput} type="file" accept="image/*,.heic,.heif" multiple className="sr-only" aria-label="Importer plusieurs images" onChange={(event) => void addLocalFiles(event.target.files)} />
-                <div className="flex items-center gap-2 flex-nowrap">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Button variant="ghost" size="sm" className="whitespace-nowrap shrink-0" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => fileInput.current?.click()}>
                     <ImagePlus className="h-4 w-4 mr-2" /> Ajouter des images
                   </Button>
@@ -1746,7 +1767,7 @@ function Studio({
                   {!!references.length && <details className="studio-source-details">
                     <summary>Images apportées dans la discussion · {references.length}</summary>
                     <div className="studio-versions" aria-label="Références de la discussion">
-                      {references.map((ref) => <button type="button" key={ref.id} onClick={() => { setSelectedId(null); setSelectedReferenceId(ref.id); setAttachments([...new Set([...attachedIds, ref.id])]); setCompare(false); }}>
+                      {references.map((ref) => <button type="button" key={ref.id} disabled={!writable || !!busy || generating} onClick={() => { setSelectedId(null); setSelectedReferenceId(ref.id); void updateSelection([...new Set([...activeIds, ref.id])], false, null); setCompare(false); }}>
                         <img src={ref.url} alt="" /><span>{ref.name}</span>
                       </button>)}
                     </div>

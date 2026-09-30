@@ -1,7 +1,11 @@
 /** Small, versioned contracts shared by planning, source validation and execution. */
-export const RULES_VERSION = "studio-competencies-8-scene-identity";
+export const RULES_VERSION = "studio-competencies-9-conversation";
 export const MAX_REFERENCES = 8;
 export const REFERENCE_ROLES = [
+  "person_product",
+  "auto",
+  "scene",
+  "edit_source",
   "subject",
   "product",
   "person",
@@ -12,10 +16,15 @@ export const REFERENCE_ROLES = [
 ] as const;
 export type ReferenceRole = typeof REFERENCE_ROLES[number];
 export function isIdentity(role: string) {
-  return ["subject", "product", "person", "casting"].includes(role);
+  return ["subject", "product", "person", "casting", "person_product"].includes(role);
 }
 export function referenceInstruction(role: string) {
   switch (role) {
+    case "scene":
+    case "edit_source":
+      return "This is the exact base photograph to edit. Preserve it outside the explicitly requested changes.";
+    case "person_product":
+      return "Use this image for BOTH the exact person identity and the exact product. Preserve each separately; do not copy its setting unless requested.";
     case "product":
       return "Preserve this exact product: geometry, material, color, seams, markings and proportions. Do not borrow its background or the identity of anyone wearing it. Keep its orientation and support physically plausible for its shape and ordinary use.";
     case "person":

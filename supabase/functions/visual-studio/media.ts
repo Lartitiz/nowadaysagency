@@ -3,6 +3,9 @@ import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import { openaiImageModel } from "../_shared/openai-image-model.ts";
 import { referenceInstruction, type ReferenceRole } from "./competencies.ts";
 export type Reference = {
+  role_source?: "library" | "user" | "conversation";
+  subject_group?: string;
+  role_explicit?: boolean;
   id: string;
   photo_id: string | null;
   role: ReferenceRole;

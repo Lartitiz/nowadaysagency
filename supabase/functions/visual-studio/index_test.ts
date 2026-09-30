@@ -234,9 +234,9 @@ Deno.test("an old version asks which references to use before interpreting", asy
     assertEquals(f.payloads.length, 0);
     const chosen = await handleStudioRequest(request({ ...body, branch_reference_mode: "version" }));
     assertEquals(chosen.status, 200);
-    const prompt = JSON.parse((f.payloads[0] as { messages: Array<{ content: Array<{ text: string }> }> }).messages[0].content.at(-1)!.text);
+    const prompt = JSON.parse((f.payloads[0] as { messages: Array<{ content: Array<{ text: string }> }> }).messages.at(-1)!.content.at(-1)!.text);
     assertEquals(prompt.references.map((r: { id: string }) => r.id), [oldRef.id]);
-    assertEquals(prompt.historique, []);
+    assertEquals(prompt.historique, [{ role: "user", content: "Utilise désormais la nouvelle direction" }]);
     assertEquals(prompt.brief, "Produit sur fond clair");
     assertEquals(prompt.version_selectionnee.preserve, ["Contour ondulé et motif floral orange"]);
     assertEquals(prompt.version_selectionnee.product_placement, "Posé sur son fond");
@@ -255,7 +255,7 @@ Deno.test("an explicit current-reference choice excludes the old snapshot", asyn
       request_id: id(85), viewed_version_id: proposalId, message: "Une autre prise",
       branch_reference_mode: "current" }));
     assertEquals(res.status, 200);
-    const prompt = JSON.parse((f.payloads[0] as { messages: Array<{ content: Array<{ text: string }> }> }).messages[0].content.at(-1)!.text);
+    const prompt = JSON.parse((f.payloads[0] as { messages: Array<{ content: Array<{ text: string }> }> }).messages.at(-1)!.content.at(-1)!.text);
     assertEquals(prompt.references.map((r: { id: string }) => r.id), [newRef.id]);
     assertEquals(prompt.historique, []);
   } finally { f.restore(); }
@@ -267,7 +267,7 @@ Deno.test("a proposed image retains the brand context actually sent to the inter
     f.setIntent({ operation: "create", summary: "Scène d'atelier", image_prompt: "Une scène d'atelier" });
     const response = await handleStudioRequest(request({ ...base, action: "message", revision: 0, request_id: id(91), message: "Imagine un atelier" }));
     assertEquals(response.status, 200);
-    const sent = JSON.parse((f.payloads[0] as { messages: Array<{ content: Array<{ text: string }> }> }).messages[0].content[0].text);
+    const sent = JSON.parse((f.payloads[0] as { messages: Array<{ content: Array<{ text: string }> }> }).messages.at(-1)!.content[0].text);
     const proposal = f.session.proposal as Record<string, unknown>;
     const snapshot = proposal.brand_context as Record<string, unknown>;
     assertEquals(snapshot.charter, sent.marque.charte);
@@ -368,6 +368,7 @@ Deno.test(
     const f = fixture();
     f.session.source_photo_id = null;
     f.session.source_path = null;
+    f.session.proposal = null;
     try {
       const res = await handleStudioRequest(
         request({
@@ -404,7 +405,7 @@ Deno.test("an old large photo is resized for interpretation", async () => {
     assertEquals(res.status, 200);
     assertEquals(f.requests.some((p) => p.startsWith("/storage/v1/render/image/authenticated/")), true);
     const sent = f.payloads[0] as { messages: Array<{ content: Array<{ source?: { data: string; media_type: string } }> }> };
-    const image = sent.messages[0].content.find((part) => part.source);
+    const image = sent.messages.at(-1)!.content.find((part) => part.source);
     assertEquals(image?.source?.data, btoa("resized"));
     assertEquals(image?.source?.media_type, "image/webp");
   } finally { f.restore(); }
@@ -477,6 +478,7 @@ Deno.test(
     const f = fixture();
     f.session.source_photo_id = null;
     f.session.source_path = null;
+    f.session.proposal = null;
     f.setIntent({
       operation: "product",
       summary: "Ton bol sur une table",
@@ -538,7 +540,7 @@ Deno.test(
         messages: { content: { type: string }[] }[];
       };
       assertEquals(
-        payload.messages[0].content.some((b) => b.type === "image"),
+        payload.messages.at(-1)!.content.some((b) => b.type === "image"),
         true,
       );
       assertEquals(data.session.proposal.original_path, "source-ref");
@@ -663,7 +665,7 @@ Deno.test("a product scene prioritizes the product over a mood photo and confirm
     assertEquals(data.session.proposal.reference_snapshot.map((r: { role: string }) => r.role), ["style", "product"]);
     const proposal = data.session.proposal;
     assertEquals(proposal.image_prompt.includes("thin edge visible"), true);
-    const content = (f.payloads[0] as { messages: Array<{ content: Array<{ type: string; text?: string }> }> }).messages[0].content;
+    const content = (f.payloads[0] as { messages: Array<{ content: Array<{ type: string; text?: string }> }> }).messages.at(-1)!.content;
     assertEquals(content[0].text?.includes(`Référence jointe 1, ID ${mood.id}`), true);
     assertEquals(content[1].type, "image");
     assertEquals(content[2].text?.includes(`Référence jointe 2, ID ${plate.id}`), true);
@@ -989,7 +991,7 @@ const fictionalPerson = (mode: "sheet" | "scene" = "sheet", memory_ids: string[]
 });
 Deno.test("reference identity method reaches interpreter for short, detailed and ordinary requests", async () => {
   for (const [n, message] of ["Je veux générer une personne de référence pour ma marque", "Créer mon égérie fictive : 42 ans, peau brune, boucles courtes", "Photographie mon mannequin dans cette tenue", "Un mannequin de vitrine blanc", "Un paysage marin"].entries()) {
-    const f = fixture();
+    const f = fixture(); f.session.proposal = null;
     try {
       const res = await handleStudioRequest(request({...base, studio_version:4, action:"message", message, reference_ids:[], request_id:id(800+n), revision:0}));
       assertEquals(res.status, 200);
@@ -1098,7 +1100,7 @@ Deno.test("scene preparation sees originals but sends neither product nor identi
         assertEquals(p.viewed_reference_id === product.id, false);
         assertEquals(imagePrompt(p).includes("75 degrees"), true);
         assertEquals(imagePrompt(p).includes("product reference, Assiette"), false);
-        assertEquals((f.payloads[0] as { messages: { content: { text?: string }[] }[] }).messages[0].content.some((c) => c.text?.includes(product.id)), true);
+        assertEquals((f.payloads[0] as { messages: { content: { text?: string }[] }[] }).messages.at(-1)!.content.some((c) => c.text?.includes(product.id)), true);
         assertEquals(f.requests.some(path => path.includes("studio_confirm")), false);
       } finally { f.restore(); }
     }
@@ -1268,7 +1270,7 @@ Deno.test("retouch preserves scene workflow and original when the interpreter om
       assertEquals(proposal.scene_workflow.phase, phase);
       assertEquals(proposal.input_path, f.version.result_path);
       assertEquals((phase === "scene" ? proposal.planning_references : proposal.references).map((r: {path:string}) => r.path), ["original-product"]);
-      assertEquals((f.payloads[0] as { messages: { content: { text?: string }[] }[] }).messages[0].content.some(c => c.text?.includes('"format":"portrait"')), true);
+      assertEquals((f.payloads[0] as { messages: { content: { text?: string }[] }[] }).messages.at(-1)!.content.some(c => c.text?.includes('"format":"portrait"')), true);
     } finally { f.restore(); }
   }
 });
@@ -1376,7 +1378,83 @@ Deno.test("ambiguous multiple identities keep the specific grouping question ins
   try {
     const res = await handleStudioRequest(request({ ...base, action: "message", studio_version: 4, revision: 0, request_id: id(962), reference_ids: refs.map(r => r.id), message: "Fais une photo avec ces portraits" }));
     const data = await res.json(); assertEquals(res.status, 200); assertEquals(data.session.proposal, null);
-    assertEquals(data.session.messages.at(-1).text.includes("même sujet"), true);
+    assertEquals(data.session.messages.at(-1).text.includes("même personne"), true);
     assertEquals(f.requests.some(path => path.includes("studio_confirm_generation")), false);
   } finally { f.restore(); }
+});
+
+Deno.test("advice answers the latest turn and preserves proposal, decisions and pixels despite invalid generation metadata", async()=>{
+ const f=fixture(); const original=f.session.proposal;
+ f.session.references=[{id:id(2001),photo_id:null,path:'plate',role:'product',name:'img_5751'}];
+ f.session.source_metadata={studio_context:{reference_ids:[id(2001)],branch_id:null,start_index:0,decisions:{pose:'Dans les mains'}}};
+ f.session.brief='Pose choisie : dans les mains.';
+ f.session.messages=[{role:'user',text:'Je tiens mon assiette'},{role:'assistant',text:'Je propose une lumière douce.'}];
+ f.setIntent({operation:'advise',reply:'Une lumière douce rend le motif lisible et évite une ombre forte sur ton visage.',reference_use:[{id:id(2999),role:'person'}],requires_real_subject:true,brief:'Un résumé qui oublie la pose'});
+ try {
+  const res=await handleStudioRequest(request({...base,studio_version:4,action:'message',message:'Pourquoi cette lumière ?',revision:0,request_id:id(2002)}));
+  const data=await res.json();assertEquals(res.status,200);assertEquals(data.session.proposal,original);
+  assertEquals(data.session.brief,'Pose choisie : dans les mains.');assertEquals(data.session.active_reference_ids,[id(2001)]);
+  assertEquals(data.session.messages.at(-1).operation,'advise');assertEquals(data.session.messages.at(-1).text.startsWith('Une lumière douce'),true);
+  const body=f.payloads[0] as any;assertEquals(body.messages[0].content,'Je tiens mon assiette');assertEquals(body.messages.at(-1).role,'user');
+  assertEquals(body.messages.at(-1).content.filter((c:any)=>c.type==='image').length,1);
+  assertEquals(body.tools[0].input_schema.required,['operation','reply']);
+  assertEquals(f.requests.some(p=>p.includes('studio_confirm')),false);
+ } finally {f.restore();}
+});
+Deno.test("exact plate and person message repairs library roles and an incomplete target before scene preparation",async()=>{
+ const f=fixture(); const a=id(2011),b=id(2012);
+ f.session.references=[{id:a,photo_id:null,path:'plate',role:'style',name:'img_5751'},{id:b,photo_id:null,path:'face',role:'subject',name:'img_5174'}];
+ f.setIntent({operation:'create',visual_kind:'photo',summary:'Tu présentes ton assiette dans un jardin.',image_prompt:'Person holding a provisional plate in a garden.',reference_use:[{id:a,role:'style'},{id:b,role:'person'}],scene_workflow:{phase:'scene',camera_match:'À hauteur du visage',targets:[{role:'person',reference_ids:[b],location:'Tenant le produit',instruction:'Reprendre cette identité'}]}});
+ try {
+  const res=await handleStudioRequest(request({...base,studio_version:4,action:'message',message:"J'aimerais qu'on puisse me voir dans un beau décor présentant ma nouvelle assiette. Donc, mon assiette, image 1, et moi, je suis dans l'image 2.",reference_ids:[a,b],revision:0,request_id:id(2013)}));
+  const data=await res.json();assertEquals(res.status,200);assertEquals(data.session.proposal.provider,'higgsfield');
+  assertEquals(data.session.references.map((r:any)=>r.role),['product','person']);assertEquals(data.session.proposal.scene_workflow.targets.length,2);
+  assertEquals(data.session.active_reference_ids,[a,b]);assertEquals(f.requests.some(p=>p.includes('studio_confirm')),false);
+ }finally{f.restore();}
+});
+Deno.test("selection persists explicit empty, resets fresh context and rejects stale or foreign references",async()=>{
+ const f=fixture(); f.session.references=[{id:id(2021),photo_id:null,path:'plate',role:'product',name:'Assiette'}];
+ f.session.messages=[{role:'user',text:'Une première demande'}];f.session.brief='Ancien brief';
+ try{
+  const bad=await handleStudioRequest(request({...base,action:'selection',reference_ids:[id(2999)],revision:0}));assertEquals(bad.status,409);
+  const res=await handleStudioRequest(request({...base,action:'selection',reference_ids:[],new_request:true,revision:0}));
+  const data=await res.json();assertEquals(res.status,200);assertEquals(data.session.active_reference_ids,[]);assertEquals(data.session.proposal,null);assertEquals(data.session.brief,'');
+  const stale=await handleStudioRequest(request({...base,action:'selection',reference_ids:[id(2021)],revision:0}));assertEquals(stale.status,409);
+  assertEquals(f.payloads.length,0);
+ }finally{f.restore();}
+});
+Deno.test("new independent request does not send old pixels or retain approval",async()=>{
+ const f=fixture();f.session.references=[{id:id(2031),photo_id:null,path:'old-person',role:'person',name:'Portrait'}];
+ f.session.messages=[{role:'user',text:'Mon portrait'}];f.session.source_metadata={studio_context:{reference_ids:[id(2031)],branch_id:null,start_index:0}};
+ f.setIntent({operation:'create',summary:'Une illustration abstraite',image_prompt:'Abstract illustration'});
+ try{
+ const res=await handleStudioRequest(request({...base,studio_version:4,action:'message',message:'Nouvelle idée sans les anciennes photos : une illustration abstraite',reference_ids:[id(2031)],revision:0,request_id:id(2032)}));
+ const data=await res.json();assertEquals(res.status,200);assertEquals(data.session.active_reference_ids,[]);assertEquals(data.session.proposal.references,[]);
+ assertEquals((f.payloads[0] as any).messages.at(-1).content.some((c:any)=>c.type==='image'),false);
+ }finally{f.restore();}
+});
+Deno.test("fresh session's new-photo wording retains explicitly attached originals",async()=>{
+ const f=fixture();f.session.messages=[];f.session.proposal=null;
+ const ref={id:id(2041),photo_id:null,path:'new-plate',role:'product',name:'Assiette'};f.session.references=[ref];
+ f.setIntent({operation:'clarify',reply:'Tu préfères la présenter dans tes mains ou sur la table ?',decisions:{produit:'Assiette de l’image 1'}});
+ try{
+ const res=await handleStudioRequest(request({...base,studio_version:4,action:'message',message:'Une nouvelle photo de mon produit',reference_ids:[ref.id],revision:0,request_id:id(2042)}));
+ const data=await res.json();assertEquals(res.status,200);assertEquals(data.session.active_reference_ids,[ref.id]);
+ assertEquals((f.session.source_metadata as any).studio_context.decisions.produit,'Assiette de l’image 1');
+ assertEquals((f.payloads[0] as any).messages.at(-1).content.some((c:any)=>c.type==='image'),true);
+ }finally{f.restore();}
+});
+Deno.test("manual roles survive interpretation and reordered selection survives reads",async()=>{
+ const f=fixture(); const a=id(2051),b=id(2052);
+ f.session.proposal=null;f.session.references=[{id:a,photo_id:null,path:'plate',role:'product',role_source:'user',name:'Assiette'},{id:b,photo_id:null,path:'face',role:'person',role_source:'user',name:'Portrait'}];
+ f.setIntent({operation:'clarify',reply:'Tu préfères une présentation assise ou debout ?',reference_use:[{id:a,role:'style'},{id:b,role:'style'}]});
+ try{
+ let res=await handleStudioRequest(request({...base,action:'selection',reference_ids:[b,a],revision:0}));assertEquals(res.status,200);
+ res=await handleStudioRequest(request({...base,action:'read'}));assertEquals((await res.json()).session.active_reference_ids,[b,a]);
+ res=await handleStudioRequest(request({...base,studio_version:4,action:'message',message:'Je veux préparer la mise en scène',revision:1,request_id:id(2053)}));
+ const data=await res.json();assertEquals(res.status,200);assertEquals(data.session.references.map((r:any)=>r.role),['product','person']);
+ assertEquals(data.session.messages.at(-2).reference_ids,[b,a]);
+ res=await handleStudioRequest(request({...base,action:'selection',reference_ids:[b],revision:2}));assertEquals((await res.json()).session.active_reference_ids,[b]);
+ res=await handleStudioRequest(request({...base,action:'read'}));assertEquals((await res.json()).session.active_reference_ids,[b]);
+ }finally{f.restore();}
 });

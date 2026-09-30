@@ -7,7 +7,7 @@ type SceneVersion = { id: string; result_path: string; status: string; proposal:
 } };
 
 export function referenceSignature(refs: Reference[]) {
-  return JSON.stringify(refs.map(r => [r.id, r.path, r.name, r.role, r.description || ""]).sort((a, b) => a[0].localeCompare(b[0])));
+  return JSON.stringify(refs.map(r => [r.id, r.path, r.name, r.role, r.description || "", ...(r.subject_group ? [r.subject_group] : [])]).sort((a, b) => a[0].localeCompare(b[0])));
 }
 
 /** Read-only preview, reproducible from an immutable version. No interpreter or image call. */
