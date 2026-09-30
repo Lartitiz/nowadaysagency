@@ -150,7 +150,7 @@ const VISUAL_PROGRESS_MESSAGES = [
 
 // ── Libellé de célébration à l'apparition du résultat ──
 const FORMAT_DONE_LABELS: Record<string, string> = {
-  carousel: "Ton carrousel est prêt",
+  carousel: "Ton brouillon de carrousel est généré",
   reel: "Ton script de reel est prêt",
   story: "Ta séquence de stories est prête",
   post: "Ton post est prêt",
