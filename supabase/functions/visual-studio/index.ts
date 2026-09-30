@@ -815,6 +815,16 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           if (use) use.role = "casting";
           else intent.reference_use.push({ id: attached.id, role: "casting" });
         }
+        // The selected version is already authorised and loaded above. The
+        // interpreter can name its ID as a composition source instead of using
+        // uses_selected_version. Resolve only this exact known alias; arbitrary
+        // reference IDs still fail closed below.
+        if (parent && (intent.source_reference_id === parent.id ||
+          intent.reference_use.some(use => use.id === parent.id && use.role === "composition"))) {
+          if (intent.source_reference_id === parent.id) intent.source_reference_id = undefined;
+          intent.reference_use = intent.reference_use.filter(use => !(use.id === parent.id && use.role === "composition"));
+          intent.uses_selected_version = true;
+        }
         if (intent.reference_use.some(use => !requestReferences.some(ref => ref.id === use.id)) ||
           (intent.source_reference_id && !intent.reference_use.some(use => use.id === intent.source_reference_id))) {
           intent.operation = "clarify";

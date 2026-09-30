@@ -1223,3 +1223,24 @@ Deno.test("explicit direct generation needs only the product, never an existing 
     assertEquals(imagePrompt(p).includes("Image 1 is the approved scene"), false);
   } finally { f.restore(); }
 });
+
+Deno.test("selected version ID resolves as composition source while unknown references still fail", async () => {
+  for (const sourceOnly of [true, false]) {
+    const f = fixture();
+    f.version.status = "ready";
+    Object.assign(f.version.proposal, { scene_workflow: { phase: "scene", camera_match: "Vue de haut" }, planning_references: [] });
+    f.setIntent({ operation: "edit", visual_kind: "photo", summary: "Réduire la lavande dans la scène sélectionnée, sans produit.",
+      scene_workflow: { phase: "scene", camera_match: "Conserver le point de vue" },
+      source_reference_id: proposalId, image_prompt: "Reduce lavender in selected scene; preserve all other elements.",
+      reference_use: sourceOnly ? [] : [{ id: proposalId, role: "composition" }] });
+    try {
+      const response = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0,
+        request_id: id(910), reference_ids: [], viewed_version_id: proposalId, message: "Réduis la lavande dans cette scène" }));
+      const proposal = (await response.json()).session.proposal;
+      assertEquals(response.status, 200);
+      assertEquals(proposal.input_path, f.version.result_path);
+      assertEquals(proposal.references, []);
+      assertEquals(proposal.scene_workflow.phase, "scene");
+    } finally { f.restore(); }
+  }
+});
