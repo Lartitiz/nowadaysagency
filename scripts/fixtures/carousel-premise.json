@@ -133,5 +133,45 @@
         }
       ]
     }
+  },
+  {
+    "id": "thematic-facets-are-not-development",
+    "expected": "needs_repair",
+    "expected_trajectory": "descriptive_catalogue",
+    "sources": [
+      {
+        "id": "brand",
+        "provenance": "brand_context",
+        "text": "Marque fictive de textiles. Dessins inspirés du jardin, impression manuelle, formes de coussins variées, références aux herbiers anciens, linge pour la maison."
+      }
+    ],
+    "doc": {
+      "slides": [
+        {
+          "slide_type": "text_only",
+          "body": "Comment le jardin entre dans mes textiles"
+        },
+        {
+          "slide_type": "text_only",
+          "body": "Les plantes du jardin nourrissent mes dessins. Je les imprime à la main sur des tissus pour la maison."
+        },
+        {
+          "slide_type": "text_only",
+          "body": "Le dessin partage cette place avec la forme. Un coussin carré et un coussin rond donnent deux contours différents au même univers."
+        },
+        {
+          "slide_type": "text_only",
+          "body": "À ces formes se mêlent des références anciennes. Mes dessins rappellent les herbiers et les gravures botaniques."
+        },
+        {
+          "slide_type": "text_only",
+          "body": "Le jardin apparaît aussi dans une simple feuille. Répétée sur plusieurs tissus, elle devient un motif que l’on retrouve d’un coussin à l’autre."
+        },
+        {
+          "slide_type": "text_only",
+          "body": "Feuilles sur les coussins, fleurs sur le linge : mes dessins donnent au jardin une place dans la maison."
+        }
+      ]
+    }
   }
 ]
