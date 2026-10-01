@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -27,6 +28,8 @@ interface PhotoContext {
   photoMode: boolean;
   photoDescription: string;
   generatedWithPhotos: any[];
+  restoreSavedPhotos?: () => Promise<any[]>;
+  isCurrent?: () => boolean;
   photoDumpEnabled: boolean;
   photoDumpDoneRef: React.MutableRefObject<boolean>;
   libraryPhotosForCasting: UserPhotoRow[] | undefined;
@@ -60,7 +63,7 @@ interface CarouselContext {
   isLinkedInCarousel: boolean;
   setStructureLoading: (value: boolean) => void;
   setStructureProposal: (proposal: any) => void;
-  handleConfirmStructure: (confirmedSlides: SlideProposal[], proposalOverride?: StructureProposal, answersOverride?: Record<string, string>) => Promise<void>;
+  handleConfirmStructure: (confirmedSlides: SlideProposal[], proposalOverride?: StructureProposal, answersOverride?: Record<string, string>, photosOverride?: any[]) => Promise<void>;
 }
 
 interface ResultSetters {
@@ -147,7 +150,9 @@ export function useDoGenerate({
   resultSetters,
 }: UseDoGenerateParams) {
   const {
-    uploadedPhotos,
+    uploadedPhotos: selectedPhotos,
+    restoreSavedPhotos,
+    isCurrent,
     photoMode,
     photoDescription,
     generatedWithPhotos,
@@ -195,12 +200,31 @@ export function useDoGenerate({
   const navigate = useNavigate();
   const { addDirective: addWishlistDirective } = usePhotoWishlistMutations();
 
+  const restoringPhotos = useRef(false);
   const doGenerate = async (ansInput: Record<string, string>, reelHookOverride?: ReelHook | null) => {
     if (!selectedFormat) return;
     // Hook choisi à l'étape hook_selection : l'override prime (setState async),
     // le state prend le relais pour « Régénérer » (même angle réécrit).
     const reelHook = reelHookOverride !== undefined ? reelHookOverride : selectedReelHook;
     if (generating || structureLoading || streaming || photoDumpResolving) return; // garde anti double-clic / réentrance (évite une 2e génération facturée)
+    let uploadedPhotos = pickNonEmpty(selectedPhotos, generatedWithPhotos);
+    let recoveredPhotos = false;
+    const needsPhotos = selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "pure_photo" || (carouselSubMode === "mix" && !isTextFirstMix));
+    if (needsPhotos && !uploadedPhotos.length && restoreSavedPhotos) {
+      if (restoringPhotos.current) return;
+      restoringPhotos.current = true;
+      try { uploadedPhotos = await restoreSavedPhotos(); }
+      catch { toast.error("Les photos enregistrées n'ont pas pu être rechargées. Ton carrousel reste inchangé. Réessaie ou ajoute tes photos avant de générer."); return; }
+      finally { restoringPhotos.current = false; }
+      if (isCurrent && !isCurrent()) return;
+      if (!uploadedPhotos.length) {
+        toast.error("Ajoute les photos du carrousel avant de demander une nouvelle proposition.");
+        return;
+      }
+      recoveredPhotos = true;
+      setUploadedPhotos(uploadedPhotos);
+      setGeneratedWithPhotos(uploadedPhotos);
+    }
     // Régime texte d'abord : on fige les lignes bibliothèque correspondant au catalogue
     // envoyé, pour résoudre library_photo_index au retour même si la biblio a bougé.
     if (isTextFirstMix) textFirstRowsSnapshotRef.current = textFirstCatalogRows;
@@ -517,7 +541,7 @@ export function useDoGenerate({
           // avec le loader de génération sur l'écran result (double loader).
           setStructureLoading(false);
           // Keep the submitted answers through the asynchronous planning call.
-          await handleConfirmStructure(data.result.slides, data.result, ans);
+          await handleConfirmStructure(data.result.slides, data.result, ans, ...(recoveredPhotos ? [uploadedPhotos] : []));
         } else {
           throw new Error("Structure non reçue");
         }
