@@ -1,6 +1,6 @@
 import { COMMON, WRITE } from "../_shared/carousel-editorial-contract.ts";
 /** Carousel-specific writing policy. Layout contracts remain in the variant builders. */
-export const CAROUSEL_WRITING_VERSION = "fil-v9-continuous-prose";
+export const CAROUSEL_WRITING_VERSION = "fil-v10-photo-concise";
 
 export const CAROUSEL_FACTS = `CHIFFRES ET FIGURES : conserve le lien entre une quantité et ce qu'elle mesure. Un nombre présent dans le brief n'autorise pas un autre fait portant le même nombre. Si tu reformules une même donnée sous une autre unité, annonce cette relation sans faire croire à une seconde preuve. Une métaphore peut rester si elle éclaire le sujet ; n'en introduis pas pour donner du poids à la conclusion.`;
 
@@ -67,4 +67,13 @@ LISIBILITÉ ET RENDU
 Une idée principale par slide, prose fluide, longueur adaptée à sa matière. La longueur suit le développement utile ; le gabarit s’adapte sans supprimer d’explication ni de transition. Préserve le nombre, l'ordre, les types, photos et intentions des slides confirmées. Pense aux illustrations et schémas quand ils expliquent quelque chose ; ne force aucun schéma pour décorer. Les suggestions visuelles restent dans leurs champs techniques, pas dans la prose. Pas de cercles décoratifs ; titres Libre Baskerville non gras, corps IBM Plex Sans si une suggestion typographique est demandée.
 La légende peut compléter ou résumer utilement le propos pour une lecture autonome. N'invente aucun envers du décor pour la différencier. Ses champs peuvent être courts ; cta vide si aucune action ne sert la demande. Hashtags seulement pertinents, sans prétendre à une origine ou une fabrication non établie.
 Retourne uniquement le JSON demandé par le format, sans commentaire, enveloppe Markdown ni auto-note de qualité inventée.`;
+}
+
+/** Short photo copy is a writing choice, never a renderer truncation. */
+export function photoReadingContract(body: any): string {
+  if (body.carousel_type !== "photo" || body.no_overlay || body.user_slides?.length) return "";
+  return `LECTURE SUR PHOTO — TEXTE COURT, RÉCIT COMPLET
+Pour ce carrousel photo, les règles suivantes précisent les consignes générales de développement. Une idée et une avancée par slide, avec des phrases naturelles reliées aux précédentes. Vise environ 25 à 40 mots de texte visible par slide de développement (kicker, overlay_text, detail et CTA cumulés), souvent moins pour l'ouverture et la conclusion ; 12 mots maximum sur la couverture. C'est un repère de composition, pas une coupe mécanique. Une demande explicite de texte long, une citation exacte, un texte fourni ou un passage protégé prime.
+Garde sur les slides le chemin du raisonnement et les précautions indispensables à la justesse de chaque affirmation. Déplace dans caption.body les exemples secondaires, détails techniques et développements utiles écartés des slides, sans les perdre, les inventer ni recopier toutes les slides. La légende complète un récit déjà compréhensible sans elle ; elle ne répare pas un lien manquant. Sur Instagram, l'ensemble hook/body/cta/hashtags doit rester dans 2200 caractères. Si la matière ou une contrainte explicite rend ce budget impossible, respecte la priorité de la personne et signale la densité plutôt que de tronquer.
+Écris le récit entier avant sa répartition. Préserve le nombre, l'ordre, la voix, les faits, les nuances nécessaires, les textes verrouillés et les photos brutes. Aucun slogan interchangeable, liste de mots-clés ou sous-titre redondant ajouté pour faire court. Relis ensemble les slides et la légende après toute réécriture : les éléments déplacés doivent toujours être présents au bon endroit.`;
 }

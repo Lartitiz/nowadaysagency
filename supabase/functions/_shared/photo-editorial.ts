@@ -1,12 +1,13 @@
 /** Exact source slices: no copywriting, duplicated pull quote or forced numbering. */
 export interface PhotoTextPart { text: string; emphasis: boolean }
-export function photoTextParts(text: string, finale = false): PhotoTextPart[] {
+export function photoTextParts(text: string, finale = false, preferred?: string | null): PhotoTextPart[] {
   if (!text.trim()) return [{ text, emphasis: false }];
   const sentences = text.match(/[^.!?]+(?:[.!?]+[»”"']*(?:\s+|$)|$)/g);
   const safe = sentences && sentences.join("") === text ? sentences : [text];
   let start = -1, end = -1;
   const quote = /[«“][^»”\n]{12,150}[»”][.!?,;:]?/.exec(text);
-  if (!finale && quote && quote.index < 100) { start = quote.index; end = start + quote[0].length; }
+  if (preferred && preferred.length <= 160 && text.includes(preferred) && text.indexOf(preferred) === text.lastIndexOf(preferred)) { start = text.indexOf(preferred); end = start + preferred.length; }
+  else if (!finale && quote && quote.index < 100) { start = quote.index; end = start + quote[0].length; }
   else if (safe.length > 1) {
     const candidate = finale ? safe[safe.length - 1] : safe[0];
     if (candidate.trim().length >= 12 && candidate.trim().length <= 160) {
@@ -36,8 +37,8 @@ export function photoTextParts(text: string, finale = false): PhotoTextPart[] {
 }
 const escape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 /** One editable source wrapper, independently measured native PPTX fragments. */
-export function photoEditorialMarkup(text: string, finale: boolean): string {
-  return photoTextParts(text, finale).map((part, i) =>
+export function photoEditorialMarkup(text: string, finale: boolean, preferred?: string | null): string {
+  return photoTextParts(text, finale, preferred).map((part, i) =>
     `<span data-photo-text-part="${part.emphasis ? "emphasis" : "body"}" data-pptx-editable="overlay" style="position:relative;display:block;white-space:pre-wrap;overflow-wrap:anywhere;${i ? "margin-top:18px;" : ""}${part.emphasis ? "font-family:var(--photo-title-font);font-size:var(--photo-emphasis-size);line-height:1.12;color:var(--photo-heading);" : ""}">${escape(part.text)}</span>`
   ).join("");
 }

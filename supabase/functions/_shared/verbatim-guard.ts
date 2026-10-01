@@ -188,6 +188,9 @@ export function ensurePptxEditable(html: string, field: string): string {
   const loc = findAnchoredElement(html, field);
   if (!loc) return html;
   const openTag = html.slice(loc.openStart, loc.contentStart);
+  // Editorial fragments already carry separate native frames. Annotating their
+  // source wrapper too would duplicate every word in the PPTX.
+  if (/data-photo-editorial-text=/.test(openTag) && /data-photo-text-part=/.test(html.slice(loc.contentStart, loc.contentEnd))) return html;
   if (/\bdata-pptx-editable\s*=/.test(openTag)) return html;
   const patched = openTag.replace(/>$/, ` data-pptx-editable="${field}">`);
   return html.slice(0, loc.openStart) + patched + html.slice(loc.contentStart);

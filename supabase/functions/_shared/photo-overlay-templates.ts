@@ -54,6 +54,7 @@ export interface PhotoSlideSpec {
   attribution?: string | null; // citation : qui parle
   cta_label?: string | null; // finale : texte de la pastille d'invitation
   overlay_position?: string | null; // bottom_* | top_* | center
+  art_direction?: { treatment: string; emphasis: string | null; position: string; reason: string; surface?: "veil" | "paper"; alignment?: "left" | "center" };
   role?: string | null; // rôle narratif issu de la structure (hook, cta…)
 }
 
@@ -230,29 +231,31 @@ function tplCouverture(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): strin
 function editorialOverlay(s: PhotoSlideSpec, ch: PhotoCharter, finale = false): string {
   const d = design(ch), text = s.overlay_text || "";
   const fontBody = cssFont(ch.font_body, "sans-serif"), fontTitle = cssFont(ch.font_title, "Georgia, serif");
-  const count = wordCount(text), size = count > 90 ? 40 : 42;
-  const emphasis = count > 75 ? 50 : finale ? 60 : 56;
-  const align = ch.text_alignment || (s.overlay_position === "center" ? "center" : "left");
+  const count = wordCount(text), size = count > 90 ? 40 : count > 45 ? 42 : 44;
+  const emphasis = count > 75 ? 50 : count > 45 ? 56 : finale ? 72 : 64;
+  const paper = s.art_direction?.surface === "paper";
+  const ink = paper ? d.ink : "#FFFFFF", heading = paper ? d.heading : "#FFFFFF";
+  const align = ch.text_alignment || s.art_direction?.alignment || (s.overlay_position === "center" ? "center" : "left");
   // Use a dark brand hue where available; the neutral scrim preserves photo
   // colours when the primary is pale. Never identify a subject from luminance.
-  const tint = hexLuminance(d.primary.slice(1)) < .12 ? d.primary : "#161616";
+  const tint = hexLuminance(d.primary.slice(1)) < .02 ? d.primary : "#161616";
   const r = parseInt(tint.slice(1, 3), 16), g = parseInt(tint.slice(3, 5), 16), b = parseInt(tint.slice(5, 7), 16);
-  const gradient = `linear-gradient(180deg,rgba(${r},${g},${b},0) 0%,rgba(${r},${g},${b},.92) 8%,rgba(${r},${g},${b},.92) 92%,rgba(${r},${g},${b},0) 100%)`;
-  const copy = `<div data-photo-editorial-text="${finale ? "finale" : "profonde"}" data-slide-text="overlay" style="position:relative;--photo-veil:${gradient};--photo-title-font:${fontTitle};--photo-emphasis-size:${(emphasis / size).toFixed(3)}em;--photo-heading:#FFFFFF;font-family:${fontBody};font-size:${size}px;line-height:1.28;font-weight:400;white-space:pre-wrap;text-align:${align};color:#FFFFFF;">${photoEditorialMarkup(text, finale)}</div>`;
-  const parts = (s.kicker ? kickerHtml(s.kicker) : "") + copy +
-    (s.detail ? detailHtml(s.detail, 22) : "") +
-    (s.cta_label && finale ? `<div data-slide-cta="1" style="position:relative;margin-top:24px;"><span data-slide-text="cta" data-pptx-editable="caption" style="font-size:32px;line-height:1.3;color:#FFFFFF;">${escapeHtml(s.cta_label)}</span></div>` : "");
+  const gradient = `linear-gradient(180deg,rgba(${r},${g},${b},0) 0%,rgba(${r},${g},${b},.62) 8%,rgba(${r},${g},${b},.62) 92%,rgba(${r},${g},${b},0) 100%)`;
+  const copy = `<div data-photo-editorial-text="${finale ? "finale" : "profonde"}" data-photo-emphasis="${escapeHtml(s.art_direction?.emphasis || "")}" data-slide-text="overlay" style="position:relative;--photo-veil:${gradient};--photo-title-font:${fontTitle};--photo-emphasis-size:${(emphasis / size).toFixed(3)}em;--photo-heading:${heading};font-family:${fontBody};font-size:${size}px;line-height:1.28;font-weight:400;white-space:pre-wrap;text-align:${align};color:${ink};text-shadow:${paper ? "none" : "0 2px 8px rgba(0,0,0,.55)"};">${photoEditorialMarkup(text, finale, s.art_direction?.emphasis)}</div>`;
+  const parts = (s.kicker ? kickerHtml(s.kicker, heading) : "") + copy +
+    (s.detail ? detailHtml(s.detail, 22, ink) : "") + (s.attribution ? detailHtml(s.attribution, 18, ink) : "") +
+    (s.cta_label ? `<div data-slide-cta="1" style="position:relative;margin-top:24px;"><span data-slide-text="cta" data-pptx-editable="caption" style="font-size:32px;line-height:1.3;color:${ink};">${escapeHtml(s.cta_label)}</span></div>` : "");
   // A pseudo-element follows drag/width edits without becoming an editable
   // object, source text, native text frame or false text-overflow rectangle.
-  const veil = `<style data-photo-editorial-veil="1">[data-photo-editorial-text]::before{content:"";position:absolute;pointer-events:none;left:-84px;right:-84px;top:-110px;bottom:-100px;background:var(--photo-veil);}</style>`;
-  const panel = `<div data-photo-reading-panel="1" data-photo-editorial-surface="1" style="position:relative;box-sizing:border-box;width:100%;max-width:912px;">${parts}</div>`;
+  const veil = paper ? "" : `<style data-photo-editorial-veil="1">[data-photo-editorial-text]::before{content:"";position:absolute;pointer-events:none;left:-84px;right:-84px;top:-70px;bottom:-60px;background:var(--photo-veil);}</style>`;
+  const panel = `<div data-photo-reading-panel="1" data-photo-editorial-surface="1" ${paper ? 'data-pptx-shape="card"' : ""} style="position:relative;box-sizing:border-box;width:100%;max-width:${paper ? 780 : 912}px;${paper ? `background:${d.background};padding:36px;color:${ink};border-radius:${d.radius}px;` : ""}">${parts}</div>`;
   return veil + contentWrap(s.overlay_position || "bottom_left", "flex-start", panel);
 }
 
 function tplProfonde(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
   const fontBody = cssFont(ch.font_body, "sans-serif"), d = design(ch);
   const text = s.overlay_text || "";
-  if (wordCount(text) > 28) return editorialOverlay(s, ch);
+  if (wordCount(text) > 12) return editorialOverlay(s, ch);
   const usePanel = wordCount([s.kicker, text, s.detail].filter(Boolean).join(" ")) > 28;
   const color = usePanel ? d.ink : "#FFFFFF";
   const parts = (s.kicker ? kickerHtml(s.kicker, usePanel ? d.heading : color) : "") +
@@ -307,7 +310,7 @@ function tplCitation(s: PhotoSlideSpec, ch: PhotoCharter): string {
 
 function tplFinale(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
   const d = design(ch), text = s.overlay_text || "";
-  if (wordCount(text) > 28) return editorialOverlay(s, ch, true);
+  if (wordCount(text) > 12) return editorialOverlay(s, ch, true);
   const usePanel = wordCount([s.kicker, text, s.detail, s.cta_label].filter(Boolean).join(" ")) > 28;
   const q = overlayAnchor(text, `font-family:${cssFont(ch.font_title, "Georgia, serif")};font-size:${fitSize(56, text, 20)}px;line-height:1.2;color:${usePanel ? d.ink : "#FFFFFF"};max-width:880px;`, "h2");
   const cta = s.cta_label ? `<div data-slide-cta="1" style="margin-top:30px;"><span data-slide-text="cta" data-pptx-editable="caption" style="display:inline-block;background:${d.primary};color:${d.onPrimary};border-radius:${Math.min(d.radius, 24)}px;padding:16px 24px;font-size:32px;line-height:1.35;max-width:100%;overflow-wrap:anywhere;">${escapeHtml(s.cta_label)}</span></div>` : "";
@@ -422,13 +425,16 @@ export function composePhotoSlide(
     citation: tplCitation,
     finale: tplFinale,
   };
-  const inner = bodyByTemplate[template](s, charter, lum);
+  const art = s.art_direction;
+  const inner = art && ["editorial", "quote", "statement", "closing"].includes(art.treatment)
+    ? editorialOverlay(s, charter, art.treatment === "closing")
+    : bodyByTemplate[template](s, charter, lum);
   const measured = typeof lum === "number" ? `luminance mesurée ${lum.toFixed(2)}` : "luminance non mesurée (pire cas)";
   return {
     slide_number: s.slide_number,
     html: root(fontBody, photoLayer(s.photo_index, opts.zoomOnRepeat) + inner),
     contrast_ok: true,
-    legibility: `photo-editorial-v1 · gabarit ${template}, palette de marque et surface de lecture (${measured})`,
+    legibility: `photo-editorial-v3-art-direction · gabarit ${template}, palette de marque et surface de lecture (${measured})`,
     template,
   };
 }

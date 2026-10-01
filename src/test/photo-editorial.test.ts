@@ -1,3 +1,4 @@
+import { ensurePptxEditable } from "../../supabase/functions/_shared/verbatim-guard";
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { photoTextParts, photoEditorialMarkup } from "../../supabase/functions/_shared/photo-editorial";
@@ -47,4 +48,14 @@ it('retains the local veil and scales emphasis when editing the source', () => {
   expect(copy.style.getPropertyValue('--photo-heading')).toBe('#ffdddd');
   expect(copy.style.getPropertyValue('--photo-veil')).toBe('linear-gradient(black,transparent)');
   expect(copy.style.getPropertyValue('--photo-emphasis-size')).toBe('1.33em');
+});
+
+it('server export annotation keeps editorial frames separate, with exact AI-selected emphasis', () => {
+  const source="La première phrase. Une deuxième idée à mettre en avant. Une fin.";
+  const markup='<div data-photo-editorial-text="profonde" data-photo-emphasis="Une deuxième idée à mettre en avant." data-slide-text="overlay">'+photoEditorialMarkup(source,false,"Une deuxième idée à mettre en avant.")+'</div>';
+  const guarded=ensurePptxEditable(markup,'overlay');
+  const doc=read(guarded);
+  expect(doc.querySelector('[data-slide-text]')?.hasAttribute('data-pptx-editable')).toBe(false);
+  expect(doc.querySelector('[data-photo-text-part="emphasis"]')?.textContent).toBe('Une deuxième idée à mettre en avant.');
+  expect(doc.querySelector('[data-slide-text]')?.textContent).toBe(source);
 });

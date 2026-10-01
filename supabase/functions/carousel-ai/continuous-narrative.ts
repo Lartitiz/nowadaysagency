@@ -1,3 +1,4 @@
+import { photoReadingContract } from "./writing-contract.ts";
 import { COMMON } from "../_shared/carousel-editorial-contract.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 import {
@@ -12,7 +13,7 @@ import {
   reviewCarouselProgression,
 } from "../_shared/carousel-progression.ts";
 
-export const NARRATIVE_VERSION = "continuous-prose-v2-final-review";
+export const NARRATIVE_VERSION = "continuous-prose-v3-photo-concise";
 export class NarrativePhotoMismatch extends Error {}
 export function usesContinuousNarrative(body: any): boolean {
   return ["photo", "mix"].includes(body.carousel_type) &&
@@ -241,7 +242,8 @@ ${
         } paragraphes de corps après le titre, pour les ${exact} pages choisies. Les paragraphes restent ceux d'un texte suivi.`
         : "Choisis de 3 à 19 paragraphes selon la matière, sans inventer pour allonger."
     }
-${carouselLengthPrompt(body)}`;
+${carouselLengthPrompt(body)}
+${photoReadingContract(body)}`;
   const draft = async (feedback?: string, prior?: Narrative, final?: { exact: number; sink: UsageSink; timeout: number }) => {
     const sink: UsageSink = {};
     try {

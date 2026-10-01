@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { buildCarouselWritingSystem, carouselStructureGuide } from "./writing-contract.ts";
+import { photoReadingContract, buildCarouselWritingSystem, carouselStructureGuide } from "./writing-contract.ts";
 import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, NEWS_WRITING } from "./variant-writing.ts";
 
 Deno.test("contrat : voix et données transmises, aucune persona imposée", () => {
@@ -60,4 +60,11 @@ Deno.test("fil : le contrat exige un plan avant les slides, le test d'inversion 
   for (const p of [textWritingPrompt({ subject: "S" }, false, ""), photoWritingPrompt({ subject: "S" }, false, ""), mixWritingPrompt({ subject: "S" }, false, "", "")]) assert(p.includes("fil:{arrivee,etapes} en première clé"), "plan fil demandé dans chaque format");
   assert(NEWS_WRITING.includes("reste le sujet jusqu'à la dernière slide"));
   assert(NEWS_WRITING.includes("ne fait pas une slide à part"));
+});
+
+Deno.test("photo courte : contrat commun, légende complémentaire et priorités explicites", () => {
+  const p = photoReadingContract({carousel_type:"photo"});
+  for (const part of ["25 à 40", "caption.body", "2200", "citation exacte", "texte fourni", "passage protégé", "sans elle", "coupe mécanique"]) assert(p.includes(part), part);
+  assert(photoWritingPrompt({carousel_type:"photo"},false,"").includes(p));
+  for (const body of [{carousel_type:"text"},{carousel_type:"mix"},{carousel_type:"photo",no_overlay:true},{carousel_type:"photo",user_slides:[{text:"Exact"}]}]) assertEquals(photoReadingContract(body), "");
 });

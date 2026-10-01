@@ -379,6 +379,7 @@ export function extractAnnotatedBlocks(doc: Document): EditableBlock[] {
   const nodes = Array.from(doc.body.querySelectorAll<HTMLElement>("[data-pptx-editable]"));
   const blocks: EditableBlock[] = [];
   for (const el of nodes) {
+    if (el.hasAttribute("data-photo-editorial-text") && el.querySelector("[data-photo-text-part][data-pptx-editable]")) continue;
     const text = textContentWithBreaks(el).trim();
     if (!text) continue;
     const cs = win.getComputedStyle(el);

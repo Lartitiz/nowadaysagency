@@ -879,8 +879,8 @@ for(const carousel_type of ["photo","mix"])for(const quality_max of [false,true]
     assertEquals(writes,1);assertEquals(reviews,2);
     assertEquals(doc.slides.slice(1).map((s:any)=>s.overlay_text),paragraphs);
     assertEquals(doc.slides.map((s:any)=>s.photo_index),[1,2,3,4]);
-    assertEquals(doc.narrative_draft.version,"continuous-prose-v2-final-review");
-    assertEquals(doc.generation_receipt.writing_version,"fil-v9-continuous-prose");
+    assertEquals(doc.narrative_draft.version,"continuous-prose-v3-photo-concise");
+    assertEquals(doc.generation_receipt.writing_version,"fil-v10-photo-concise");
     assertEquals(doc.progression_review.verdict,"acceptable");
   }finally{globalThis.fetch=oldFetch;resetDeps();}
 });

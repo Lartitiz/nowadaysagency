@@ -1,3 +1,4 @@
+import { planPhotoArtDirection } from "../_shared/photo-art-direction.ts";
 import { COMPOSE } from "../_shared/carousel-editorial-contract.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
@@ -731,14 +732,16 @@ export function runComposedByCodeGeneration(params: {
   const result = {
     slides_html: composed.map(({ template: _t, ...slide }) => slide),
   };
-  // Traçabilité du coût : ce chemin ne fait AUCUN appel modèle, donc `usage`
+  // Traçabilité : le composeur HTML seul ne fait aucun appel modèle. La passe
+  // de direction artistique peut déjà avoir renseigné usage ; ne pas l’écraser.
+  // Historiquement, sans cette passe, `usage`
   // reste vide et la ligne ai_usage partait avec model_used ET tokens_used à
   // NULL. Vu de la compta, « pas de modèle » était indiscernable d'« un modèle
   // qu'on a oublié de tarifer » : le bilan hebdo du 13/08 a signalé ces lignes
   // comme NON TARIFÉES (garde `modeles_non_tarifes`, PR #697). On étiquette
   // donc explicitement le rendu par code — le crédit reste débité (c'est bien
   // une génération), mais son coût API est zéro et c'est désormais DIT.
-  usage.model = COMPOSED_BY_CODE_MODEL;
+  if (!usage.model) usage.model = COMPOSED_BY_CODE_MODEL;
   emitStatus("visuals", { done: 1, total: 1 });
   console.log(JSON.stringify({
     type: "carousel_visual_timing",
@@ -2053,9 +2056,9 @@ Adapte le design system ci-dessus au style "${style}". Le style influence l'ambi
     const isPhotoCarousel = reqBody.carousel_type === "photo" && reqBody.photos?.length > 0;
     const isMixCarousel = reqBody.carousel_type === "mix" && reqBody.photos?.length > 0;
 
-    // Carrousel 100% photo : PAS de prompt dédié — la composition est déterministe
-    // (composedByCode → composePhotoSlide, chantier gabarits 13/07) et aucun appel
-    // LLM ne part ; finalSystemPrompt reste alors le prompt texte, jamais envoyé
+    // Carrousel 100% photo : composition HTML déterministe après une passe IA
+    // de direction artistique dédiée. Ce prompt texte ne sert pas à cette passe ;
+    // finalSystemPrompt reste le prompt texte, jamais envoyé pour la photo
     // (les gardes qui le reçoivent s'auto-désactivent quand composedByCode est vrai).
     // L'ancien buildPhotoCarouselPrompt, court-circuité depuis ce chantier, a été
     // supprimé le 17/08/2026 (récupérable dans l'historique git si un rendu photo
@@ -2081,7 +2084,7 @@ Adapte le design system ci-dessus au style "${style}". Le style influence l'ambi
     };
 
     let validImageUrls: string[] = [];
-    if (!isPhotoCarousel && !isMixCarousel && isCharterRef && templateUrls.length > 0) {
+    if (!isMixCarousel && isCharterRef && templateUrls.length > 0) {
       // Filter to only image URLs (exclude PDFs and other unsupported formats)
       const imageUrls = templateUrls.filter((u: string) => isImageUrl(u));
 
@@ -2280,10 +2283,20 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     // ═══ Carrousel PHOTO pur : composition PAR CODE (chantier gabarits 13/07) ═══
     const composedByCode = isPhotoCarousel;
     if (composedByCode) {
-      result = runComposedByCodeGeneration({ slides, ch, reqBody, usage, emitStatus, tStart });
+      emitStatus("visuals", { done: 0, total: 1 });
+      const prepared = slides.map((s: any, i: number) => ({ ...s, art_direction: undefined, slide_number: Number(s.slide_number) || i + 1,
+        photo_index: Number(s.photo_index) >= 1 ? Number(s.photo_index) : (i % Math.max(1, reqBody.photos?.length || 1)) + 1 }));
+      const art = await planPhotoArtDirection(prepared, ch, reqBody.photos || [], usage, undefined, validImageUrls);
+      const templates: Record<string, string> = {opening:"couverture",editorial:"profonde",quote:"profonde",statement:"profonde",list:"liste",steps:"etape",number:"chiffre",closing:"finale"};
+      const directed = prepared.map((s: any) => {
+        const choice = art.choices.find(c => c.slide_number === s.slide_number);
+        return choice ? { ...s, template: templates[choice.treatment], overlay_position: s.position_locked ? s.overlay_position : choice.position, art_direction: choice } : s;
+      });
+      result = runComposedByCodeGeneration({ slides: directed, ch, reqBody, usage, emitStatus, tStart });
+      result.photo_art_direction = art;
     } else if (allEditorial) {
       result = { slides_html: editorialSlides };
-      usage.model = COMPOSED_BY_CODE_MODEL;
+      if (!usage.model) usage.model = COMPOSED_BY_CODE_MODEL;
       emitStatus("visuals", { done: 1, total: 1 });
     } else if (useParallelChunks) {
       result = await runParallelChunkGeneration({

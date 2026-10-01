@@ -50,11 +50,11 @@ Deno.test("safe zones : padding bas 220px et haut 110px dans le wrapper de conte
 });
 
 Deno.test("voile dosé : photo claire → pic 0.85 ; photo sombre → 0.58 ; sans mesure → 0.78", () => {
-  const claire = composePhotoSlide(base({}), CH, { ...mid, luminance: { bottom: 0.8 } });
+  const claire = composePhotoSlide(base({overlay_text:"Une phrase courte pour ce lieu."}), CH, { ...mid, luminance: { bottom: 0.8 } });
   assert(claire.html.includes("rgba(0,0,0,0.85)"));
-  const sombre = composePhotoSlide(base({}), CH, { ...mid, luminance: { bottom: 0.2 } });
+  const sombre = composePhotoSlide(base({overlay_text:"Une phrase courte pour ce lieu."}), CH, { ...mid, luminance: { bottom: 0.2 } });
   assert(sombre.html.includes("rgba(0,0,0,0.58)"));
-  const sansMesure = composePhotoSlide(base({}), CH, mid);
+  const sansMesure = composePhotoSlide(base({overlay_text:"Une phrase courte pour ce lieu."}), CH, mid);
   assert(sansMesure.html.includes("rgba(0,0,0,0.78)"));
 });
 
@@ -134,7 +134,7 @@ Deno.test("sécurité : le texte est échappé (pas d'injection HTML)", () => {
 });
 
 Deno.test("position top : dégradé ancré en HAUT et contenu justifié flex-start", () => {
-  const out = composePhotoSlide(base({ overlay_position: "top_center" }), CH, mid);
+  const out = composePhotoSlide(base({ overlay_position: "top_center", overlay_text:"Une phrase courte pour ce lieu." }), CH, mid);
   assert(out.html.includes("top:0;width:1080px;height:54%;background:linear-gradient(180deg"));
   assert(out.html.includes("justify-content:flex-start"));
 });
@@ -221,7 +221,7 @@ Deno.test("passage développé : panneau de charte local, texte complet et aucun
   }
 });
 Deno.test("texte centré : le voile couvre aussi le centre de l’image", () => {
-  const out = composePhotoSlide(base({ overlay_position: "center" }), CH, { ...mid, luminance: { center: .9 } });
+  const out = composePhotoSlide(base({ overlay_position: "center", overlay_text:"Une phrase courte pour ce lieu." }), CH, { ...mid, luminance: { center: .9 } });
   assert(out.html.includes('height:1350px;background:rgba(0,0,0,0.85)'));
 });
 
@@ -289,6 +289,14 @@ Deno.test("photo veil uses canvas-compatible percentage stops, never calc gradie
   const text = Array(65).fill("développement").join(" ");
   const html = composePhotoSlide(base({overlay_text:text}), CH, mid).html;
   assert(!html.includes("calc("));
-  assert(html.includes(".92) 8%"));
-  assert(html.includes(".92) 92%"));
+  assert(html.includes(".62) 8%"));
+  assert(html.includes(".62) 92%"));
+});
+
+Deno.test("art direction : local paper uses brand colours and exact chosen phrase, without dropping CTA",()=>{
+  const text="Une première idée. Une deuxième idée. Une conclusion.";
+  const html=composePhotoSlide(base({overlay_text:text,cta_label:"En savoir plus",art_direction:{treatment:"editorial",position:"top_left",emphasis:"Une deuxième idée.",reason:"Lisibilité",surface:"paper",alignment:"center"}}),{...CH,color_background:"#fffafa",color_text:"#202020"},mid).html;
+  assert(html.includes('data-pptx-shape="card"'));assert(html.includes("background:#fffafa"));assert(html.includes('text-align:center'));
+  assert(!html.includes('data-photo-editorial-veil'));
+  assert(html.replace(/<[^>]*>/g,"").includes(text));assert(html.includes("En savoir plus"));
 });
