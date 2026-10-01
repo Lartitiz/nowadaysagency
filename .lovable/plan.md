@@ -1,21 +1,19 @@
-# Coach « Mon histoire » : message d'erreur lors des questions
+# Studio : « Réessayer cette image seulement » échoue
 
-## Ce que j'ai déjà constaté (lecture seule)
-- Les journaux serveur du coach montrent des appels « Mon histoire » à 11:13:54, 11:14:09 et 11:16:43 UTC (2 à 4 messages), avec un appel à l'IA lancé à chaque fois.
-- Aucun journal d'erreur côté serveur : ni « parse failed », ni « truncated », ni « branding-coaching error ». Le serveur semble donc avoir répondu normalement, ou s'être arrêté sans rien écrire.
-- Le message d'erreur vient donc probablement de l'écran du coach : réponse jugée « incomplète » ou « inattendue », échec de la sauvegarde de la réponse, ou délai dépassé. Ce n'est pas encore prouvé.
+## Ce qui a été constaté (lecture seule, journaux du Studio)
+- 12:20:44 UTC : le fournisseur d'images a refusé la demande. Code `429`, motif `credit_balance_exhausted`.
+- Juste après, la tâche image s'arrête à l'étape `generate` (pas de doute sur l'issue, aucune référence manquante).
+- C'est exactement le même refus qu'hier soir à 22:43 UTC, et que celui de la recette Max sur les carrousels (OpenAI, `insufficient_quota`).
 
-## Étapes
-1. **Reproduire en tant que toi** dans l'aperçu, section Mon histoire, onglet coaching. Relever le message exact affiché, la réponse brute du serveur (code + forme, sans lire ton contenu) et l'erreur dans la console.
-2. **Identifier la cause** parmi :
-   - réponse serveur 200 mais sans question (jugée « incomplète ») ;
-   - erreur à la sauvegarde de la question/session après la réponse ;
-   - refus du fournisseur IA (plafond Anthropic, paramètre refusé par le modèle Opus) non journalisé ;
-   - version déployée du coach différente de main.
-3. **Corriger chirurgicalement** uniquement la cause confirmée (un seul fichier si possible), sans toucher aux autres sections, au quota (checkQuota avant / logUsage après) ni aux autres fonctions.
-4. **Ajouter un journal technique** (sans contenu) sur les chemins d'échec silencieux du coach, pour qu'un futur incident soit lisible.
-5. **Vérifier** : refaire 2 questions de suite dans Mon histoire, puis une question dans Mon client·e idéal·e pour s'assurer qu'il n'y a pas de régression.
+## Cause
+Ce n'est pas un bug de l'app. Le compte fournisseur qui génère les images (OpenAI) n'a plus de crédit. Toute nouvelle tentative échouera de la même façon tant que le solde n'est pas rechargé. Aucun crédit de l'Assistant Com' n'est décompté pour ces échecs.
 
-## Détails techniques
-- Fichiers concernés : `src/components/branding/BrandingCoachingFlow.tsx` (askAI, persistResponse), `src/lib/branding-coaching-response.ts`, `supabase/functions/branding-coaching/index.ts` (appel `callAnthropicWithMeta`, temperature 0.7, outil forcé `poser_question`).
-- Si un correctif serveur est nécessaire : redéployer uniquement `branding-coaching`. Pas de migration, secret, quota ni paiement.
+## Ce qu'il faut faire
+1. Toi : recharger le solde du compte OpenAI qui sert aux images (platform.openai.com, Billing), ou activer la recharge automatique.
+2. Moi, après ta recharge : relire les journaux pendant que tu cliques à nouveau sur « Réessayer cette image seulement », pour confirmer que l'image sort.
+
+## Option (seulement si tu la demandes)
+Afficher dans le Studio un message clair du type « Le service d'images est temporairement indisponible, réessaie plus tard » au lieu d'un échec générique. Cette correction passerait par GitHub, comme d'habitude.
+
+## Aucun changement prévu
+Pas de code, secret, migration, quota ni déploiement modifiés dans ce diagnostic.
