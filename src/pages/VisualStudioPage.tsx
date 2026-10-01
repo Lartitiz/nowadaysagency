@@ -1,3 +1,4 @@
+import { useCarouselStudioReturn } from "@/features/carousel-studio/useCarouselStudioReturn";
 import { recordCreationResume } from "@/lib/retour-apres-detour";
 import { AccessNotice } from "@/components/AccessNotice";
 import { ReferenceCards } from "@/features/visual-studio/ReferenceCards";
@@ -157,6 +158,7 @@ function Studio({
     cache = useQueryClient();
   const [urlParams, setUrlParams] = useSearchParams();
   const videoTab = urlParams.get("tab") === "video";
+  const carouselReturnId = urlParams.get("carousel_return");
   const reelPassage = urlParams.get("reel_passage");
   const reelReturn = reelPassage !== null && /^\d+$/.test(reelPassage)
     ? Number(reelPassage)
@@ -164,10 +166,11 @@ function Studio({
   const studioPath = useCallback((id?: string) => {
     const next = new URLSearchParams();
     if (id) next.set("session", id);
+    if (carouselReturnId && (!id || id === sessionId)) next.set("carousel_return", carouselReturnId);
     if (reelReturn !== null) next.set("reel_passage", String(reelReturn));
     const query = next.toString();
     return `/photos/studio${query ? `?${query}` : ""}`;
-  }, [reelReturn]);
+  }, [reelReturn, carouselReturnId, sessionId]);
   const contentPath = `/creer?${new URLSearchParams({ from: studioPath(sessionId || undefined) })}`;
   const returnToReel = (jobId?: string) => {
     if (reelReturn === null) return;
@@ -303,6 +306,7 @@ function Studio({
         attachments?: string;
       } | null
     >(null);
+  const carouselReturn = useCarouselStudioReturn(carouselReturnId, userId, workspaceId, sessionId, () => alive.current);
   const sourceInit = useRef(false),
     seenReady = useRef<string[] | null>(null);
   const queryKey = ["visual-studio", userId, workspaceId, sessionId];
@@ -1666,6 +1670,12 @@ function Studio({
             )}
           </div>
         )}
+            {carouselReturnId && <div className="mx-5 mb-4 rounded border p-3 text-sm">
+              {carouselReturn.ticket ? <><p>Image pour la slide {carouselReturn.ticket.slideNumber}. Ton carrousel est enregistré.</p>
+                <Button variant="outline" size="sm" className="h-auto whitespace-normal" disabled={carouselReturn.busy || !!busy} onClick={() => void carouselReturn.returnToCarousel()}>Retour au carrousel sans remplacer l’image</Button></>
+                : <p role="alert">Le lien de retour n’est pas disponible dans cet espace ou cette discussion. Reviens dans l’espace d’origine ou reprends le carrousel depuis Mes idées.</p>}
+              {carouselReturn.error && <p role="alert" className="text-destructive mt-2">{carouselReturn.error}</p>}
+            </div>}
         {videoTab && (
           <div className="space-y-4">
             {reelReturn !== null && (
@@ -1798,6 +1808,7 @@ function Studio({
                           <figure><img src={item.url} alt={`Image ${number} créée dans cette discussion`} loading="lazy" onError={() => setError("L’aperçu a expiré. Réessaie pour le recharger, sans régénérer.")} /><figcaption>{cleanStudioSummary(item.proposal.summary)}</figcaption></figure>
                         </div> : <p className="p-5 text-sm">{item.error_message || "Le résultat apparaîtra ici dès qu’il sera prêt."}</p>}
                         <div className="studio-image-card-actions">
+                          {carouselReturn.ticket && item.status === "ready" && <Button size="sm" disabled={!writable || !!busy || carouselReturn.busy || !!generating} onClick={() => void carouselReturn.returnToCarousel(item)}>{carouselReturn.busy ? "Enregistrement…" : "Utiliser dans cette slide"}</Button>}
                           {item.status === "ready" && <Button size="sm" variant={selected ? "default" : "outline"} onClick={() => { setSelectedId(item.id); setCompare(false); if (item.proposal.scene_workflow?.phase === "scene") setAttachments((item.proposal.planning_references || []).map(ref => ref.id)); }}>{selected ? "Image sélectionnée" : "Reprendre cette image"}</Button>}
                           {item.status === "ready" && <Button size="sm" variant="outline" disabled={!writable || !!busy || generating || (references.length >= 8 && !references.some((ref) => ref.version_id === item.id))} onClick={() => void attachVersionAsReference(item.id)}>Joindre à ma demande</Button>}
                           {item.status === "ready" && item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="studio-image-open">Agrandir l’image</a>}
