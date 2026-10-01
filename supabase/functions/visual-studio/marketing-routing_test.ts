@@ -37,3 +37,23 @@ Deno.test("Marketing Studio payload keeps ordered originals, full prompt, no enh
   assertEquals(input.enhance_prompt, false);
   assertEquals(input.aspect_ratio, "2:3");
 });
+
+Deno.test("Marketing prompt fits the 5000-char provider limit and keeps confirmed content", async () => {
+  const { marketingPrompt, MARKETING_PROMPT_MAX } = await import("./higgsfield-image.ts");
+  const shot = "SHOT-" + "y".repeat(1400);
+  const summary = "BRIEF-" + "z".repeat(575);
+  const p = { operation: "edit", visual_kind: "photo", format: "portrait", model: MARKETING_FIDELITY_MODEL, provider: "higgsfield",
+    summary, image_prompt: shot, change: ["Ajout de l'assiette"], preserve: ["Décor complet"], exact_text: [],
+    input_path: "a/b/c", references: [{ id: "f", name: "img", path: "a/b/d", role: "product" }] } as never;
+  const out = marketingPrompt(p)!;
+  assertEquals(out.length <= MARKETING_PROMPT_MAX, true);
+  assertEquals([out.includes(shot), out.includes(summary), out.includes("Ajout de l'assiette"), out.includes("Décor complet")], [true, true, true, true]);
+  const huge = { ...(p as object), image_prompt: "w".repeat(6000) } as never;
+  assertEquals(marketingPrompt(huge), null);
+});
+
+Deno.test("Marketing reserve stays bounded", async () => {
+  const { marketingReserveUsd } = await import("./higgsfield-image.ts");
+  assertEquals(marketingReserveUsd(2), 0.41);
+  assertEquals(marketingReserveUsd(100) <= 2, true);
+});
