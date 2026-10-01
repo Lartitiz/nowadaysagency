@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   workspace: { activeWorkspace: null as { id: string } | null, loading: false },
   demo: { isDemoMode: false, demoData: null as any, demoPlan: "binome" as string },
   invoke: vi.fn(),
+  getSession: vi.fn(),
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => mocks.auth }));
@@ -19,7 +20,7 @@ vi.mock("@/contexts/WorkspaceContext", () => ({ useWorkspace: () => mocks.worksp
 vi.mock("@/contexts/DemoContext", () => ({ useDemoContext: () => mocks.demo }));
 vi.mock("@/lib/error-tracker", () => ({ trackError: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { functions: { invoke: mocks.invoke } },
+  supabase: { auth: { getSession: mocks.getSession }, functions: { invoke: mocks.invoke } },
 }));
 
 import { useUserPlan, normalizePlan, invalidateUserPlanCache } from "@/hooks/use-user-plan";
@@ -43,6 +44,19 @@ beforeEach(() => {
   mocks.workspace = { activeWorkspace: null, loading: false };
   mocks.demo = { isDemoMode: false, demoData: null, demoPlan: "binome" };
   mocks.invoke.mockResolvedValue(subscriptionResponse());
+  mocks.getSession.mockImplementation(async () => ({ data: { session: { access_token: "fixture-token", user: mocks.auth.user } }, error: null }));
+});
+
+it("une session absente ou d'un autre compte ne déclenche pas la lecture des droits", async () => {
+  for (const session of [null, { access_token: "other", user: { id: "other-user" } }]) {
+    invalidateUserPlanCache();
+    mocks.getSession.mockResolvedValue({ data: { session }, error: null });
+    const { result, unmount } = renderHook(() => useUserPlan());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.verified).toBe(false);
+    expect(mocks.invoke).not.toHaveBeenCalled();
+    unmount();
+  }
 });
 
 describe("normalizePlan", () => {

@@ -19,7 +19,10 @@ vi.mock("@/contexts/WorkspaceContext", () => ({ useWorkspace: () => mocks.worksp
 vi.mock("@/contexts/DemoContext", () => ({ useDemoContext: () => mocks.demo }));
 vi.mock("@/lib/error-tracker", () => ({ trackError: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { functions: { invoke: mocks.invoke } },
+  supabase: {
+    auth: { getSession: async () => ({ data: { session: { access_token: "fixture-token", user: mocks.auth.user } }, error: null }) },
+    functions: { invoke: mocks.invoke },
+  },
 }));
 
 import { useUserPlan, normalizePlan, invalidateUserPlanCache } from "@/hooks/use-user-plan";
