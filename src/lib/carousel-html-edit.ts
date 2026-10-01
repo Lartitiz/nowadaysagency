@@ -1,3 +1,4 @@
+import { photoEditorialMarkup } from "../../supabase/functions/_shared/photo-editorial";
 /**
  * carousel-html-edit — édition en direct du texte dans les visuels carrousel.
  *
@@ -85,7 +86,9 @@ export function replaceSlideText(
 
   // textContent efface les <span> d'accent internes — assumé : le texte a
   // changé, la mise en valeur mot-à-mot de l'ancien texte n'a plus de sens.
-  el.textContent = newText;
+  if (el.hasAttribute("data-photo-editorial-text")) {
+    el.innerHTML = photoEditorialMarkup(newText, el.dataset.photoEditorialText === "finale");
+  } else el.textContent = newText;
   return serialize(doc, stylesPrefix);
 }
 
