@@ -19,6 +19,7 @@ vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: (table: str
   const filters: any[] = [];
   const query: any = {
     select: () => query,
+    abortSignal: () => query,
     eq: (column: string, value: string) => { filters.push(['eq', column, value]); return query; },
     is: (column: string, value: null) => { filters.push(['is', column, value]); return query; },
     order: () => state.read(table, filters),
@@ -96,6 +97,7 @@ it.each([
   { error: { code: '57014', message: 'statement cancelled' } },
   { error: { message: 'service unavailable' }, status: 503 },
   { error: { message: 'Lock acquire timed out' } },
+  { error: { message: 'signal is aborted without reason' } },
 ])('bounds transient retries to two read attempts: %j', async failure => {
   vi.useFakeTimers(); const read = vi.fn().mockResolvedValue({ data: null, ...failure });
   const pending = readIdeaList(read, () => true);
@@ -136,4 +138,18 @@ it.each([400, 401, 403, 404])('does not automatically retry HTTP %s even with ti
   const read = vi.fn().mockResolvedValue({ data: null, error: { message: 'timeout' }, status });
   await readIdeaList(read, () => true);
   expect(read).toHaveBeenCalledOnce();
+});
+
+it('times out stuck reads, aborts each request and never mistakes a late response for success', async () => {
+  vi.useFakeTimers(); const first = deferred(); const second = deferred();
+  const read = vi.fn().mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise);
+  const pending = readIdeaList(read, () => true);
+  await vi.advanceTimersByTimeAsync(30800);
+  const result = await pending;
+  expect(result.data).toBeNull(); expect(result.error).toBeInstanceOf(Error);
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(read.mock.calls.every(([signal]) => signal.aborted)).toBe(true);
+  first.resolve({ data: [idea], error: null }); second.resolve({ data: [idea], error: null });
+  await Promise.resolve();
+  expect(result.data).toBeNull(); expect(vi.getTimerCount()).toBe(0);
 });

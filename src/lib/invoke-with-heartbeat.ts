@@ -2,6 +2,12 @@ import { withIdeaBrief } from "@/lib/idea-brief-request";
 import { supabase } from "@/integrations/supabase/client";
 import type { InvokeError } from "./invoke-with-timeout";
 
+const CONNECTION_INTERRUPTED = "La connexion au service de génération a été interrompue. Ton brouillon est conservé ; réessaie dans quelques instants.";
+function serviceMessage(value: unknown, fallback = "Erreur de génération."): string {
+  if (typeof value !== "string" || !value) return fallback;
+  return /signal is aborted|AbortError|Failed to fetch|NetworkError|Load failed/i.test(value) ? CONNECTION_INTERRUPTED : value;
+}
+
 /**
  * Variante de `invokeWithTimeout` qui demande au serveur d'envoyer des
  * heartbeats SSE pendant la génération. Ça empêche la connexion d'être
@@ -31,8 +37,18 @@ export async function invokeWithHeartbeat(
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
   const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
+  let phase: "session" | "request" | "stream" = "session";
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   try {
-    const session = await supabase.auth.getSession();
+    let sessionTimer: ReturnType<typeof setTimeout> | undefined;
+    const session = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise<never>((_, reject) => {
+        sessionTimer = setTimeout(() => reject(new Error("session-timeout")), 15000);
+      }),
+    ]).finally(() => clearTimeout(sessionTimer));
+    if (session.error) throw session.error;
     const token = session.data.session?.access_token;
     if (!token) {
       return {
@@ -41,8 +57,9 @@ export async function invokeWithHeartbeat(
       };
     }
 
+    phase = "request";
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    timer = setTimeout(() => controller.abort(), timeoutMs);
 
     let resp: Response;
     try {
@@ -81,17 +98,15 @@ export async function invokeWithHeartbeat(
 
     // Fallback: server returned plain JSON (no SSE wrapping).
     if (contentType.includes("application/json")) {
-      clearTimeout(timer);
-      let json: any = null;
-      try { json = await resp.json(); } catch { /* ignore */ }
+      const json = await resp.json();
       if (resp.status === 429) {
         return { data: json, error: { data: json, message: json?.message || "Limite atteinte.", code: "RATE_LIMIT", isRateLimit: true } };
       }
       if (!resp.ok) {
-        return { data: json, error: { data: json, message: json?.message || json?.error || "Erreur serveur.", code: "SERVER_ERROR" } };
+        return { data: json, error: { data: json, message: serviceMessage(json?.message || json?.error, "Erreur serveur."), code: "SERVER_ERROR" } };
       }
       if (json?.error) {
-        return { data: json, error: { data: json, message: json.message || json.error, code: "GENERATION_ERROR" } };
+        return { data: json, error: { data: json, message: serviceMessage(json.message || json.error), code: "GENERATION_ERROR" } };
       }
       return { data: json, error: null };
     }
@@ -105,16 +120,17 @@ export async function invokeWithHeartbeat(
     }
 
     // Read SSE stream until `done` or `error`.
-    const reader = resp.body.getReader();
+    phase = "stream";
+    reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
     let finalText = "";
     let sseError: string | null = null;
+    let terminal = false;
 
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      buffer += done ? decoder.decode() + "\n" : decoder.decode(value, { stream: true });
 
       let idx: number;
       while ((idx = buffer.indexOf("\n")) !== -1) {
@@ -125,14 +141,18 @@ export async function invokeWithHeartbeat(
           const event = JSON.parse(line.slice(6));
           if (event.type === "done") {
             finalText = event.full || "";
+            terminal = true;
           } else if (event.type === "error") {
             sseError = event.error || "Erreur de génération.";
+            terminal = true;
           } else if (event.type === "status" && event.stage && options.onStatus) {
             try { options.onStatus(event.stage, event); } catch { /* le callback UI ne doit jamais casser le flux */ }
           }
           // heartbeat → ignore
         } catch { /* ignore partial JSON */ }
       }
+      // A terminal event is authoritative, even if a proxy keeps the socket open.
+      if (terminal || done) break;
     }
 
     clearTimeout(timer);
@@ -151,13 +171,13 @@ export async function invokeWithHeartbeat(
           data: errJson,
           error: {
             data: errJson,
-            message: errJson.message || errJson.error || "Erreur de génération.",
+            message: serviceMessage(errJson.message || errJson.error),
             code: isLimit ? "RATE_LIMIT" : "SERVER_ERROR",
             isRateLimit: isLimit,
           },
         };
       }
-      return { data: null, error: { message: sseError, code: "SERVER_ERROR" } };
+      return { data: null, error: { message: serviceMessage(sseError), code: "SERVER_ERROR" } };
     }
 
     if (!finalText) {
@@ -174,7 +194,7 @@ export async function invokeWithHeartbeat(
       const isLimit = parsed.error === "limit_reached";
       return {
         data: parsed,
-        error: { data: parsed, message: parsed.message || parsed.error, code: isLimit ? "RATE_LIMIT" : "GENERATION_ERROR", isRateLimit: isLimit },
+        error: { data: parsed, message: serviceMessage(parsed.message || parsed.error), code: isLimit ? "RATE_LIMIT" : "GENERATION_ERROR", isRateLimit: isLimit },
       };
     }
 
@@ -182,7 +202,19 @@ export async function invokeWithHeartbeat(
   } catch (err: any) {
     return {
       data: null,
-      error: { message: err?.message || "Erreur inattendue.", code: "UNKNOWN", originalError: err },
+      error: {
+        message: phase === "session"
+          ? "Impossible de vérifier ta connexion pour le moment. Recharge la page pour réessayer. Ton brouillon est conservé."
+          : CONNECTION_INTERRUPTED,
+        code: phase === "session" ? "SESSION_UNAVAILABLE" : "NETWORK",
+        isNetwork: phase !== "session", originalError: err,
+      },
     };
+  } finally {
+    clearTimeout(timer);
+    if (reader) {
+      void reader.cancel().catch(() => {});
+      reader.releaseLock();
+    }
   }
 }
