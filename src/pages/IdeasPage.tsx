@@ -184,17 +184,17 @@ function IdeasInWorkspace() {
     setLoading(true);
     setLoadError(false);
     const isCurrent = () => mounted.current && started === fetchRequest.current;
-    const readIdeas = () => {
+    const readIdeas = (signal?: AbortSignal) => {
       let query = (supabase.from("saved_ideas") as any).select("*").eq(column, value);
       if (column === "user_id") query = query.is("workspace_id", null);
-      return query.order("created_at", { ascending: false });
+      return query.abortSignal(signal).order("created_at", { ascending: false });
     };
-    const readBriefs = () => {
+    const readBriefs = (signal?: AbortSignal) => {
       let query = (supabase.from("content_briefs") as any)
         .select("id, subject, format, editorial_angle, objective, questions, answers, calendar_post_id, created_at")
         .eq(column, value).is("calendar_post_id", null);
       if (column === "user_id") query = query.is("workspace_id", null);
-      return query.order("created_at", { ascending: false });
+      return query.abortSignal(signal).order("created_at", { ascending: false });
     };
     const results = await Promise.allSettled([
       readIdeaList<SavedIdea>(readIdeas, isCurrent),

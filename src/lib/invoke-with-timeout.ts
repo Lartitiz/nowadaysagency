@@ -2,7 +2,7 @@ import { trackUpgrade } from "@/lib/upgrade-events";
 import { withIdeaBrief } from "@/lib/idea-brief-request";
 import { supabase } from "@/integrations/supabase/client";
 
-export type InvokeErrorCode = "TIMEOUT" | "RATE_LIMIT" | "AUTH" | "FORBIDDEN" | "SERVER_ERROR" | "GENERATION_ERROR" | "NETWORK" | "UNKNOWN";
+export type InvokeErrorCode = "TIMEOUT" | "RATE_LIMIT" | "AUTH" | "SESSION_UNAVAILABLE" | "FORBIDDEN" | "SERVER_ERROR" | "GENERATION_ERROR" | "NETWORK" | "UNKNOWN";
 export interface InvokeError {
   message: string;
   code: InvokeErrorCode;
