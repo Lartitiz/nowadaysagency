@@ -1,3 +1,4 @@
+import { matchFinalPhotos, PHOTO_MATCH_RESERVE_MS } from "./final-photo-match.ts";
 import { buildConfirmedStructureBlock } from "./confirmed-structure.ts";
 import { createContinuousNarrative, NarrativePhotoMismatch } from "./continuous-narrative.ts";
 import { COMMON, PLAN, REPAIR } from "../_shared/carousel-editorial-contract.ts";
@@ -47,6 +48,7 @@ export const _deps = {
   callCarouselWriter,
   reviewThread: reviewCarouselProgression,
   prepareNarrative: createContinuousNarrative,
+  matchPhotos: matchFinalPhotos,
 };
 
 // ── Sortie structurée pour les deepening_questions ──
@@ -1035,6 +1037,7 @@ async function finalizeCarousel(
   opts: {
     usage: UsageSink;
     repaired?: boolean;
+    reserveMs?: number;
     regenerate?: (
       draft: string,
       defects: string,
@@ -1083,7 +1086,7 @@ async function finalizeCarousel(
       text: typeof ctx.newsContext === "string" ? ctx.newsContext : "",
     },
   ].filter((s) => s.text.trim());
-  const remaining = () => 270_000 - (Date.now() - startedAt);
+  const remaining = () => 270_000 - (opts.reserveMs || 0) - (Date.now() - startedAt);
   const judge = async (value: any): Promise<ProgressionResult> =>
     remaining() < 8_000
       ? progressionReceipt(value, "skipped", "time-budget")
@@ -1400,7 +1403,7 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
     photoContext:buildPhotoContextRecap(ctx.body.photo_contexts || ctx.body.photos),
     newsContext:typeof ctx.newsContext === "string" ? ctx.newsContext : "",
     authoredText:ctx.currentAuthoredText, startedAt:ctx.startedAt, usage,
-    emitStatus:ctx.emitStatus, write:_deps.callCarouselWriter, review:_deps.reviewThread,
+    emitStatus:ctx.emitStatus, write:_deps.callCarouselWriter, review:_deps.reviewThread, reserveMs:PHOTO_MATCH_RESERVE_MS,
   }); } catch(error) {
     if(error instanceof NarrativePhotoMismatch) return carouselMismatchResponse(JSON.stringify({photo_mismatch:{reason:error.message}}),ctx.body,usage,ctx.body.carousel_type,ctx.corsHeaders);
     throw error;
@@ -1409,7 +1412,9 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
   const measured = await runRedacGate(JSON.stringify(output.doc), {
     isLinkedIn:ctx.isLinkedIn,inputText:ctx.gateInputText,correction:{enabled:false},
   });
-  const content = await finalizeCarousel(measured.content,ctx,{usage,repaired:output.repaired,regenerate:output.regenerate});
+  const written = await finalizeCarousel(measured.content,ctx,{usage,repaired:output.repaired,regenerate:output.regenerate,reserveMs:PHOTO_MATCH_RESERVE_MS});
+  const matched = await _deps.matchPhotos(JSON.parse(written), {body:ctx.body,startedAt:ctx.startedAt,usage,emitStatus:ctx.emitStatus,call:_deps.callAnthropic});
+  const content = JSON.stringify(matched);
   await _deps.logUsage(ctx.userId,ctx.category,`carousel_${ctx.body.carousel_type}`,usage.total_tokens,usage.model,ctx.workspaceId);
   await logContentQuality(ctx.userId,`carousel_${ctx.body.carousel_type}`,measured,usage.model,ctx.workspaceId,ctx.body.subject);
   return new Response(JSON.stringify({content,writing_version:CAROUSEL_WRITING_VERSION,

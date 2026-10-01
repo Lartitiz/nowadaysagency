@@ -14,6 +14,7 @@ interface SlideData {
   // ═══ CHAMPS PHOTO ═══
   slide_type?: "photo_full" | "photo_integrated" | "text_only";
   photo_index?: number | null;
+  photo_directive?: string;
   photo_layout?: "top_photo" | "left_photo" | "right_photo" | "card_photo";
   overlay_text?: string | null;
   overlay_position?: "bottom_left" | "bottom_center" | "top_left" | "top_center" | "center";
@@ -200,6 +201,10 @@ export async function exportCarouselPptx(
   charter?: CharterColors | null,
   photos?: { base64: string }[]
 ) {
+  if (slides.some(s => ["photo_full", "photo_integrated"].includes(s.slide_type || "") && s.photo_directive && !Number.isInteger(s.photo_index))) {
+    throw new Error("Choisis les images manquantes avant d’exporter le carrousel.");
+  }
+
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "INSTAGRAM", width: 7.5, height: 9.375 });
   pptx.layout = "INSTAGRAM";

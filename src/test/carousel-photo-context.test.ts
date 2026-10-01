@@ -22,3 +22,8 @@ describe("photo context and associations", () => {
     expect(carouselLibraryContext({ name: null, description: null, tags: [], kind: null })).toBe("");
   });
 });
+
+it("does not replace a missing final match with a positional photo", () => {
+  const slide = {slide_type:"photo_full",photo_index:null,photo_directive:"Bols à cerises",photo_match:{status:"missing"}};
+  expect(resolvePhotoIndexes([slide],6)).toEqual([slide]);
+});

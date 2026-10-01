@@ -186,6 +186,7 @@ export async function createContinuousNarrative(options: {
   newsContext: string;
   authoredText: string;
   startedAt: number;
+  reserveMs?: number;
   usage: UsageSink;
   emitStatus: (stage: string) => void;
   write?: typeof callCarouselWriter;
@@ -220,7 +221,7 @@ export async function createContinuousNarrative(options: {
     },
     { id: "news", provenance: "provided_reference", text: options.newsContext },
   ].filter((s) => s.text.trim());
-  const remaining = () => 270000 - (Date.now() - options.startedAt);
+  const remaining = () => 270000 - (options.reserveMs || 0) - (Date.now() - options.startedAt);
   const add = (sink: UsageSink, target: UsageSink = usage) => {
     for (
       const key of ["input_tokens", "output_tokens", "total_tokens"] as const

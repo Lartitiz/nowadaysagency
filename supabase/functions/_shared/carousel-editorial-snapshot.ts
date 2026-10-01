@@ -14,7 +14,7 @@ export function progressionMaterial(doc: any): string {
   });
 }
 
-export function invalidateProgressionReceipt<T extends Record<string, any>>(
+function invalidateTextReceipt<T extends Record<string, any>>(
   doc: T,
 ): T {
   const receipt = doc.progression_review;
@@ -35,6 +35,21 @@ export function invalidateProgressionReceipt<T extends Record<string, any>>(
     structure_warnings: [
       ...(doc.structure_warnings || []).filter((s: string) => !prior.has(s)),
       "Le texte a changé depuis sa relecture. Vérifie le fil avant de publier.",
+    ],
+  };
+}
+
+/** A visual verdict applies only to the reviewed text/order/photo assignments. */
+export function invalidateProgressionReceipt<T extends Record<string, any>>(doc: T): T {
+  const result = invalidateTextReceipt(doc);
+  const photo = result.photo_review;
+  if (!photo || photo.execution_status === "stale" || photo.reviewed_material === progressionMaterial(result)) return result;
+  const prior = new Set(photo.issues || []);
+  return { ...result,
+    photo_review: { ...photo, execution_status: "stale", verdict: null, reason: "content-edited" },
+    structure_warnings: [
+      ...(result.structure_warnings || []).filter((s: string) => !prior.has(s)),
+      "Le texte ou les photos ont changé depuis leur vérification. Vérifie leurs associations avant de publier.",
     ],
   };
 }
