@@ -104,7 +104,9 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
   // domcontentloaded (pas networkidle) : la SPA/landing sonde en continu →
   // networkidle n'arrive jamais et mange tout le budget. On attend les éléments.
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  const form = page.locator("form").first();
+  // Cibler le formulaire d'inscription par son nom : depuis la nouvelle page
+  // d'accueil (#1163), un mini-formulaire Instagram le précède dans la page.
+  const form = page.getByRole("form", { name: "Formulaire d'inscription" });
   await form.getByPlaceholder("Ton prénom").fill(PRENOM);
   await form.getByPlaceholder("Ton email").fill(EMAIL);
   await form.getByPlaceholder(/photographe, coach/i).fill("savonnière artisanale");
