@@ -4,7 +4,7 @@ import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts
 import { progressionMaterial } from "../_shared/carousel-editorial-snapshot.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
 
-export const PHOTO_MATCH_VERSION = "final-photo-match-v3";
+export const PHOTO_MATCH_VERSION = "final-photo-match-v4";
 export const PHOTO_MATCH_RESERVE_MS = 95000;
 type Assignment = { slide: number; photo: number | null; relation: "literal" | "ambient" | "missing"; reason: string; directive: string };
 const isPhoto = (s: any) => ["photo_full", "photo_integrated"].includes(s?.slide_type);
@@ -36,10 +36,20 @@ function parse(raw: string, expected: number[], photoIds: Set<number>, proposed?
   const rows = JSON.parse(raw)?.assignments;
   if (!Array.isArray(rows) || rows.length !== expected.length || new Set(rows.map(r => r?.slide)).size !== expected.length) throw new Error("coverage");
   for (const r of rows) {
-    if (!expected.includes(r?.slide) || !(r.photo === null || photoIds.has(r.photo)) || !str(r.reason)) throw new Error("reference");
+    if (!expected.includes(r?.slide)) throw new Error("reference");
     if (proposed) {
-      if (typeof r.accepted !== "boolean" || r.photo !== proposed.find(p => p.slide === r.slide)?.photo) throw new Error("changed-assignment");
+      const candidate = proposed.find(p => p.slide === r.slide)!;
+      if (typeof r.accepted !== "boolean" || r.photo !== candidate.photo || !str(r.reason)) {
+        // A reviewer sometimes echoes null to reject a candidate or proposes
+        // a replacement despite the instruction. Neither validates that pair.
+        // Reject just this slot; never install the replacement or discard the
+        // independent checks that still refer to their exact candidates.
+        r.photo = candidate.photo;
+        r.accepted = false;
+        r.reason = "La vérification n’a pas confirmé cette association. Choisis une image pour ce passage.";
+      }
     } else {
+      if (!(r.photo === null || photoIds.has(r.photo)) || !str(r.reason)) throw new Error("reference");
       // Metadata for one slot must not discard the other valid candidates.
       // Conflicting/missing relation data can only REMOVE a candidate; the
       // independent pixel review remains mandatory before assigning any photo.

@@ -108,7 +108,7 @@ Deno.test("vérification indépendante refuse l'image contradictoire sans substi
   assert(result.structure_warnings.some((s: string) => s.includes("Slide 1 : image à choisir")));
 });
 
-for (const failure of ["missing", "duplicate", "out-of-range", "review-changed-index", "review-incomplete", "transport"]) Deno.test(`aucune validation trompeuse : ${failure}`, async () => {
+for (const failure of ["missing", "duplicate", "out-of-range", "review-incomplete", "transport"]) Deno.test(`aucune validation trompeuse : ${failure}`, async () => {
   let calls = 0;
   const result = await matchFinalPhotos(fixture(), { ...options(), call: async () => {
     if (failure === "transport") throw new Error("offline");
@@ -118,7 +118,6 @@ for (const failure of ["missing", "duplicate", "out-of-range", "review-changed-i
       if (failure === "duplicate") rows = [rows[0], rows[0]];
       if (failure === "out-of-range") rows[0].photo = 9;
     } else {
-      if (failure === "review-changed-index") rows[0].photo = 1;
       if (failure === "review-incomplete") rows.pop();
     }
     return JSON.stringify({ assignments: rows });
@@ -126,6 +125,26 @@ for (const failure of ["missing", "duplicate", "out-of-range", "review-changed-i
   assertEquals(result.slides.map((s: any) => s.photo_index), [null, null, null]);
   assertEquals(result.photo_review.verdict, null);
   assertEquals(result.photo_review.execution_status, "unavailable");
+});
+
+for (const changed of [null, 1, 9]) Deno.test(`une photo modifiée par le vérificateur est refusée seule : ${changed}`, async () => {
+  let calls = 0;
+  const result = await matchFinalPhotos(fixture(), { ...options(), call: async () => JSON.stringify({
+    assignments: calls++ ? accepted().map((a, i) => i ? a : { ...a, photo: changed, accepted: true }) : proposals(),
+  }) });
+  assertEquals(result.slides.map((s: any) => s.photo_index), [null, 1, null]);
+  assertEquals(result.photo_review.execution_status, "completed");
+  assertEquals(result.photo_review.verdict, "needs_images");
+  assertEquals(result.photo_review.issues.length, 1);
+});
+
+Deno.test("une acceptation non booléenne est refusée sans perdre les autres contrôles", async () => {
+  let calls = 0;
+  const result = await matchFinalPhotos(fixture(), { ...options(), call: async () => JSON.stringify({
+    assignments: calls++ ? accepted().map((a, i) => i ? a : { ...a, accepted: "true" }) : proposals(),
+  }) });
+  assertEquals(result.slides.map((s: any) => s.photo_index), [null, 1, null]);
+  assertEquals(result.photo_review.verdict, "needs_images");
 });
 
 for (const missing of ["pixels", "time"]) Deno.test(`absence de ${missing} : brouillon conservé et images à choisir`, async () => {
