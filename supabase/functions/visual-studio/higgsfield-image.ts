@@ -29,6 +29,22 @@ export function soul2Enabled() {
   return Deno.env.get("HIGGSFIELD_SOUL2_ENABLED") === "true" &&
     Deno.env.get("HIGGSFIELD_DATA_USE_REVIEWED") === "true";
 }
+// Temporary, reversible routing (01/10/2026): fidelity edits/integrations go to
+// Higgsfield Marketing Studio (GPT Image, quality-first) while direct OpenAI is
+// exhausted. Switched by HIGGSFIELD_IMAGE_ENABLED alone (+ existing consent flag);
+// unset it to return to OpenAI. Soul scenes and Photoroom backgrounds are untouched.
+export const MARKETING_FIDELITY_MODEL = "marketing-studio/image/sunburst";
+export const MARKETING_MAX_IMAGES = 16;
+export function marketingFidelityEligible(proposal: Proposal | null | undefined) {
+  if (!proposal || proposal.provider === "higgsfield" || proposal.operation === "background") return false;
+  return proposal.operation === "edit" || proposal.operation === "product" ||
+    proposal.scene_workflow?.phase === "integration" ||
+    (proposal.operation === "create" && proposal.person_reference?.mode === "sheet");
+}
+export function routeToMarketingStudio<T extends Proposal>(proposal: T): T {
+  if (!higgsfieldImagesEnabled() || !marketingFidelityEligible(proposal)) return proposal;
+  return { ...proposal, provider: "higgsfield", model: MARKETING_FIDELITY_MODEL };
+}
 function credentials() {
   const value = Deno.env.get("HIGGSFIELD_API_KEY");
   if (!value || !/^[^:\s]+:[^:\s]+$/.test(value)) {
