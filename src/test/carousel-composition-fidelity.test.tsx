@@ -1,8 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { carouselCompositionWarnings } from "@/lib/carousel-composition-fidelity";
+import { applyReviewedPhotoAssignments, carouselCompositionWarnings } from "@/lib/carousel-composition-fidelity";
 import { cleanCarouselSnapshot } from "@/lib/carousel-autosave";
 import { progressionMaterial } from "../../supabase/functions/_shared/carousel-editorial-snapshot";
 describe("fidélité après composition", () => {
+  it("keeps the reviewed bowls even when the layout puts the pot in their slot", () => {
+    const source = [{slide_number:1,slide_type:"photo_full",photo_index:2,photo_match:{status:"matched"},overlay_text:"Les bols à cerises"}];
+    for (const html of ['<img data-pptx-photo="1" src="data:image/jpeg;base64,pot" srcset="wrong 2x"><p>Les bols à cerises</p>', '<div data-pptx-photo="1" style="background-image:url(data:image/jpeg;base64,pot);height:500px"></div><p>Les bols à cerises</p>']) {
+      const result = applyReviewedPhotoAssignments(source,[{slide_number:1,html}],[{base64:"pot"},{base64:"bowls"}]);
+      expect(result[0].html).toContain('data-pptx-photo="2"');
+      expect(result[0].html).toContain('data:image/jpeg;base64,bowls');
+      expect(result[0].html).not.toContain('base64,pot');
+      expect(result[0].html).not.toContain('srcset');
+      expect(result[0].html).toContain('Les bols à cerises');
+    }
+  });
+  it("refuses an unrecognizable photo slot and preserves manual/old visuals", () => {
+    const html = [{slide_number:1,html:'<div>Les bols à cerises</div>'}];
+    const slide = {slide_number:1,photo_index:1,photo_match:{status:"matched"}};
+    expect(() => applyReviewedPhotoAssignments([slide],html,[{base64:"bowls"}])).toThrow('emplacement');
+    expect(applyReviewedPhotoAssignments([{...slide,editor_locked:true}],html,[])).toEqual(html);
+    expect(applyReviewedPhotoAssignments([{slide_number:1}],html,[])).toEqual(html);
+  });
   it("retrouve une transition avec balises, entités et retours, sans accepter du texte caché dans CSS", () => {
     const source = [{
       title: "Le choix",

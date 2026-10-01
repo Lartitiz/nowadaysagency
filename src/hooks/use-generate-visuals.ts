@@ -1,4 +1,4 @@
-import { carouselCompositionWarnings } from "@/lib/carousel-composition-fidelity";
+import { applyReviewedPhotoAssignments, carouselCompositionWarnings } from "@/lib/carousel-composition-fidelity";
 import { fitGeneratedSchemaSlides } from "@/lib/carousel-schema-fit";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
@@ -448,7 +448,8 @@ export function useGenerateVisuals({
             return html === s.html ? s : { ...s, html };
           })
         : normalizedSlides;
-      const fittedSlides = await fitGeneratedSchemaSlides(rehydratedSlides, rawSlides);
+      const assignedSlides = applyReviewedPhotoAssignments(rawSlides, rehydratedSlides, photosForVisuals);
+      const fittedSlides = await fitGeneratedSchemaSlides(assignedSlides, rawSlides);
       if (!isCurrent()) return;
       const committedSlides = fittedSlides.map((visual, i) => rawSlides[i]?.editor_locked && visualSlides[i] ? visualSlides[i] : visual);
       setVisualSlides(committedSlides);
