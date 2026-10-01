@@ -145,7 +145,8 @@ function lifecycle(model: string = "marketing-studio/image/flare") {
       return json(true);
     }
     if (url.pathname === "/rest/v1/rpc/studio_complete_generation") {
-      if (versionStatus === "processing") {
+      // Match the deployed RPC: a recovered uncertain receipt also completes once.
+      if (versionStatus === "processing" || versionStatus === "uncertain") {
         charges++;
         versionStatus = "ready";
       }

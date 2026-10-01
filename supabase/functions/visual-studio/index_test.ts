@@ -2,6 +2,7 @@ import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { handleStudioRequest } from "./index.ts";
 import { imageInputPaths } from "./photo-preservation.ts";
 import { generateImage, imagePrompt } from "./media.ts";
+import { MARKETING_PROMPT_ERROR } from "./higgsfield-image.ts";
 const id = (n: number) =>
   `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const actor = id(1),
@@ -9,6 +10,31 @@ const actor = id(1),
   sessionId = id(3),
   proposalId = id(4);
 const base = { studio_version: 2, session_id: sessionId, workspace_id: space };
+Deno.test("oversized final Marketing prompt is kept for editing and refused before job claim or image upload", async () => {
+  const f = fixture();
+  const previous = Deno.env.get("HIGGSFIELD_API_KEY");
+  Deno.env.set("HIGGSFIELD_API_KEY", "test:key");
+  const pendingId = id(999);
+  const mock = globalThis.fetch;
+  globalThis.fetch = (input, init) => {
+    const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+    if (url.pathname === "/rest/v1/visual_studio_versions" && url.searchParams.get("id") === `eq.${pendingId}`) return Promise.resolve(new Response("null", { headers: { "Content-Type": "application/json" } }));
+    return mock(input, init);
+  };
+  try {
+    const proposal = { id: pendingId, operation: "edit", provider: "higgsfield", model: "marketing-studio/image/sunburst",
+      summary: "Modifier uniquement la table.", image_prompt: "x".repeat(6000), input_path: "fixture/scene.jpg", cost: 1 };
+    f.session.proposal = proposal as unknown as typeof f.session.proposal;
+    const res = await handleStudioRequest(request({ ...base, action: "generate", proposal_id: pendingId }));
+    assertEquals(res.status, 409);
+    assertEquals((await res.json()).error, MARKETING_PROMPT_ERROR);
+    assertEquals(JSON.stringify(f.session.proposal), JSON.stringify(proposal));
+    assertEquals(f.requests.some(p => /studio_confirm_generation|studio_reserve_image_cost|generate-upload-url/.test(p)), false);
+  } finally {
+    previous === undefined ? Deno.env.delete("HIGGSFIELD_API_KEY") : Deno.env.set("HIGGSFIELD_API_KEY", previous);
+    f.restore();
+  }
+});
 function fixture(role = "owner", replay = false, legacyLarge = false) {
   const saved = globalThis.fetch,
     env = [

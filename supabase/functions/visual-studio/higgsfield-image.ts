@@ -3,6 +3,7 @@ import { getServiceClient } from "../_shared/plan-limiter.ts";
 import { imagePrompt, type Proposal } from "./media.ts";
 import { PHOTO_PRESERVATION } from "./photo-preservation.ts";
 import { referenceInstruction } from "./competencies.ts";
+import { compactIntegrationPrompt } from "./compact-integration-prompt.ts";
 type DB = ReturnType<typeof getServiceClient>;
 const BASE = "https://api.higgsfield.ai";
 export const IMAGE_MODELS = [
@@ -46,6 +47,7 @@ export function marketingFidelityEligible(proposal: Proposal | null | undefined)
 // Official limit observed on the Marketing Studio estimate route (01/10/2026):
 // prompts above 5000 characters are refused with HTTP 400 "is too long".
 export const MARKETING_PROMPT_MAX = 5000;
+export const MARKETING_PROMPT_ERROR = "La préparation de cette image dépasse encore la limite du service. La scène et les références sont conservées. Utilise Modifier ma demande pour la reprendre. Aucune image décomptée.";
 const STAGING_START = "Stage the exact product in a physically plausible position";
 const STAGING_SHORT = "Stage the exact product plausibly: real contact with its confirmed support, believable contact shadow, normal orientation (a plate rests flat or is held, a bowl base-down). Match the setting's perspective, scale, light direction and color temperature. Keep its true profile and markings on the same parts; never invent an unseen side.";
 const SOURCE_RULE = "is the PRIMARY PHOTOGRAPHIC SOURCE: composition, lighting, shadows, colors, texture and atmosphere. Its lighting takes priority over the lighting of identity, product and style references unless the confirmed user request explicitly changes lighting or style. Edit Image 1, keeping all accepted corrections; the original source is not a request to restore provisional people or products.";
@@ -54,7 +56,7 @@ const KEEP_RULE = "Keep everything else unchanged. Do not alter the camera or re
 const BRIEF_RULE = "This brief and the confirmed preservation and change lists govern the result. The technical instructions below only explain how to realize them; do not introduce unconfirmed subjects, props, actions, text or style changes.";
 /** Higgsfield-only fitting: keeps every confirmed user element (brief, shot
  * instructions, preserve/change lists, reference roles) and condenses only generic
- * boilerplate. Returns null when the confirmed content alone exceeds the limit. */
+ * boilerplate. Returns null if the final prompt still exceeds the limit. */
 export function marketingPrompt(proposal: Proposal): string | null {
   const prompt = marketingPromptCandidate(proposal);
   return prompt.length <= MARKETING_PROMPT_MAX ? prompt : null;
@@ -87,7 +89,22 @@ export function marketingPromptCandidate(proposal: Proposal): string {
   prompt = prompt.replace(WATERMARK_RULE, "No invented watermarks, claims or decorations. Keep authentic product lettering and logos. Match the requested medium; no stock look.");
   // Duplicate of the condensed preservation rules above.
   if (prompt.includes("DEFAULT PHOTO PRESERVATION")) prompt = prompt.replace(`\n${KEEP_RULE}`, "");
+  if (prompt.length > MARKETING_PROMPT_MAX) {
+    const compact = compactIntegrationPrompt(proposal);
+    if (compact && compact.length < prompt.length) return compact;
+  }
   return prompt;
+}
+
+/** Called before the atomic generation claim, and again by the worker. */
+export function marketingPromptTooLong(p: Proposal & { shots?: { summary: string; image_prompt: string; format: string }[] }): boolean {
+  if (p.provider !== "higgsfield" || !["marketing-studio/image/flare", MARKETING_FIDELITY_MODEL].includes(p.model || "")) return false;
+  // Match the snapshots produced by studio_confirm_generation for a shot plan.
+  const shots = p.shots?.length ? [p, ...p.shots] : null;
+  return shots ? shots.some((shot, i) => marketingPrompt({ ...p, summary: shot.summary,
+    image_prompt: shot.image_prompt, format: shot.format,
+    ...(shots.length > 1 ? { series_size: shots.length, series_index: i } : {}),
+  }) === null) : marketingPrompt(p) === null;
 }
 /** NOT a quote. Marketing Studio's estimate route returns only a pricing
  * description (token-billed, reconciled by the provider on completion), so the
@@ -416,7 +433,7 @@ export async function submitHiggsfieldImage(
       (!accepted && error instanceof ProviderHttpError &&
         [400, 401, 402, 403, 404, 422, 429].includes(error.status))
     ) await failHiggsfieldImage(db, version.id, error instanceof Error && error.message === "studio_prompt_too_long"
-      ? "La demande est trop longue pour le service d’images. Raccourcis-la puis réessaie. Aucune image décomptée."
+      ? MARKETING_PROMPT_ERROR
       : undefined);
     else if (!accepted) await markHiggsfieldUncertain(db, version.id);
     else {
