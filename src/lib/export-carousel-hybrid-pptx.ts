@@ -1611,6 +1611,14 @@ export async function exportCarouselHybridPptx(
           slide.background = { color: sb.fill };
           continue;
         }
+        // Photo reading panels contain native text only. If the photo stays
+        // rasterized (no separate original supplied), the PNG is opaque beneath
+        // the removed panel: drawing the card below it would hide the card.
+        // Restore this foreground surface above the PNG at its exact size.
+        if (sb.el.hasAttribute("data-photo-reading-panel")) {
+          deferredPills.push({ sb, centered: false, wMul: 1 });
+          continue;
+        }
         const innerLabel =
           sb.type === "pill"
             ? blocks.find(
