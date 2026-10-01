@@ -389,3 +389,12 @@ describe("useGenerateVisuals — pré-génération background silencieuse", () =
     expect(mocks.invokeWithHeartbeat).not.toHaveBeenCalled();
   });
 });
+
+it("keeps an unmatched narrative passage unrendered instead of assigning the first photo", async () => {
+  mocks.invokeWithHeartbeat.mockClear();
+  const params = makeParams({carouselSubMode:"photo",uploadedPhotos:[{base64:"pot"}],result:{raw:{carousel_type:"photo",slides:[{slide_number:1,slide_type:"photo_full",photo_index:null,photo_directive:"Bols avec cerises",overlay_text:"Les cerises peintes sur les bols…"}]}}});
+  const {result} = renderHook(() => useGenerateVisuals(params));
+  await act(async () => { await result.current.handleGenerateVisuals(); });
+  expect(mocks.invokeWithHeartbeat).not.toHaveBeenCalled();
+  expect(params.setVisualSlides).not.toHaveBeenCalled();
+});

@@ -458,15 +458,10 @@ export function useContentGenerator() {
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
               workspace_id: effectiveWorkspaceId || null,
-              // Optimisation : si la structure a déjà été confirmée à l'étape précédente
-              // (structure_proposal), Claude a déjà analysé les photos en vision. Inutile
-              // de les renvoyer en base64 — la structure encode déjà photo_index + slide_type.
-              // Évite que Sonnet refasse une analyse vision (~3 min → ~40 s).
-              // pure_photo (photo dump) : JAMAIS de vision — chaque photo est une
-              // slide 1:1 sans texte, l'analyse vision Sonnet dépassait le timeout
-              // gateway (504). Le contexte des slides est passé en texte via
-              // photo_description ; la légende s'écrit sans voir les images.
-              photos: (!params.confirmedStructure && params.carouselSubMode !== "pure_photo" && (params.carouselType === "photo" || params.carouselType === "mix")) ? await downscalePhotosForVision(params.photos) : undefined,
+              // Automatic narratives may change the plan's text. Send pixels again
+              // so final photo selection can follow the reviewed story, not old indexes.
+              // Human-validated plans and raw photo dumps keep their existing path.
+              photos: ((!params.confirmedStructure || params.scenarioOrigin === "automatic") && !params.textFirst && params.carouselSubMode !== "pure_photo" && (params.carouselType === "photo" || params.carouselType === "mix")) ? await downscalePhotosForVision(params.photos) : undefined,
               photo_contexts: (params.carouselType === "photo" || params.carouselType === "mix")
                 ? params.photos?.slice(0, 10).map(p => ({ context: p.context, libraryContext: p.libraryContext })) : undefined,
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,

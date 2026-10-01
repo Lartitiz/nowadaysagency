@@ -1,3 +1,4 @@
+import { matchFinalPhotos } from "./final-photo-match.ts";
 // Tests du contrat checkQuota → callAnthropic → logUsage pour carousel-ai.
 // La logique métier (prompts, gates, correction) reste non testée ici : ce fichier
 // vérifie uniquement l'ORCHESTRATION — quota bloque avant l'IA, l'IA réussie
@@ -228,6 +229,7 @@ function makeFakeSupabase(ownerId: string = TEST_USER_ID) {
 
 /** Réinitialise TOUS les champs de `_deps` avant chaque test (état de module partagé). */
 function resetDeps() {
+  _deps.matchPhotos = async (doc) => doc;
   _deps.prepareNarrative = async () => null;
   _deps.callCarouselWriter = ((options: any, sink: any) => _deps.callAnthropic(options, sink)) as any;
   // Juge du fil neutralisé par défaut (aucun réseau) ; les tests du fil le remplacent.
@@ -916,4 +918,33 @@ for (const carousel_type of ["photo", "mix"]) for (const improved of [false, tru
       assertEquals(doc.narrative_draft.review.reviewed_text_hash, doc.progression_review.reviewed_text_hash);
     }
   } finally { globalThis.fetch = oldFetch; resetDeps(); }
+});
+
+for (const carousel_type of ["photo", "mix"]) Deno.test(`photos suivent la dernière réécriture et non le plan : ${carousel_type}`, async () => {
+  resetDeps(); _deps.prepareNarrative = createContinuousNarrative; _deps.matchPhotos = matchFinalPhotos;
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  let writes = 0, reviews = 0, matches = 0; const visualInputs: any[] = [];
+  const initial = ["Un pot rose accompagne les fleurs.", "Sa forme prend place dans un intérieur.", "Les objets nous accompagnent."];
+  const final = ["Les cerises peintes sur les bols rendent chaque repas familier.", "Cette présence quotidienne change notre regard sur les objets.", "L'usage rend ces objets familiers."];
+  _deps.callCarouselWriter = async () => JSON.stringify({idea:"La familiarité vient de l'usage",hook:"Ce qui devient familier",paragraphs:++writes === 1 ? initial : final,caption:{}});
+  _deps.reviewThread = async doc => ({...await verdict(doc),issues:++reviews === 2 ? ["Développer la progression"] : [],report:{defects:reviews === 2 ? [{severity:"minor",type:"juxtaposition"}] : []}});
+  _deps.callAnthropic = async o => {
+    matches++;
+    const payload = JSON.stringify(o.messages);
+    visualInputs.push({writes,reviews,payload});
+    const rows = [1,2,3,...(carousel_type === "photo" ? [4] : [])].map(slide => ({slide,photo:slide === 2 ? 2 : 1,relation:slide === 2 ? "literal" : "ambient",reason:"Photo cohérente avec ce passage",directive:"Image pour le passage",accepted:true}));
+    return JSON.stringify({assignments:rows});
+  };
+  try {
+    const response=await handleRequest(makeHooksRequest({type:"express_full",carousel_type,scenario_origin:"automatic",slide_count:4,subject:"Pourquoi les objets deviennent familiers",photos:[{base64:"cG90"},{base64:"Ym9scw=="}]}));
+    assertEquals(response.status,200); const doc=JSON.parse((await response.json()).content);
+    assertEquals(matches,2); assertEquals(doc.slides[1].photo_index,2);
+    assertEquals(doc.progression_review.repair.reason,"accepted");
+    assertEquals(visualInputs.map(v => [v.writes,v.reviews]),[[2,3],[2,3]]);
+    assert(visualInputs.every(v => v.payload.includes(final[0]) && !v.payload.includes(initial[0])));
+    assertEquals(doc.slides.slice(1).map((s:any)=>s.overlay_text||s.body),final);
+    assertEquals(doc.photo_review.verdict,"acceptable");
+    assertEquals(doc.progression_review.repair.accepted,true);
+  } finally { globalThis.fetch=oldFetch; resetDeps(); }
 });
