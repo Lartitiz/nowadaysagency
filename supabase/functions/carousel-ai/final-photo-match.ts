@@ -4,8 +4,8 @@ import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts
 import { progressionMaterial } from "../_shared/carousel-editorial-snapshot.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
 
-export const PHOTO_MATCH_VERSION = "final-photo-match-v1";
-export const PHOTO_MATCH_RESERVE_MS = 75000;
+export const PHOTO_MATCH_VERSION = "final-photo-match-v2";
+export const PHOTO_MATCH_RESERVE_MS = 95000;
 type Assignment = { slide: number; photo: number | null; relation: "literal" | "ambient" | "missing"; reason: string; directive: string };
 const isPhoto = (s: any) => ["photo_full", "photo_integrated"].includes(s?.slide_type);
 const str = (v: unknown) => typeof v === "string" && v.trim().length > 0 && v.length <= 1000;
@@ -14,18 +14,18 @@ Lis le récit entier puis chaque passage. Une réflexion, un souvenir ou une id�
 Les PIXELS priment sur les descriptions automatiques, qui peuvent se tromper (oiseaux/poissons par exemple). Le contexte utilisateur peut identifier un produit mais ne rend pas visible un détail absent. Ne déduis pas une identité, une histoire ou un procédé invisibles.
 Choisis dans TOUTES les photos proposées indépendamment des anciennes associations. Diversifie les images d'ambiance quand plusieurs conviennent; une répétition reste préférable à une contradiction sur un détail précis. Ne force pas l'utilisation de toutes les photos. photo=null et relation=missing si rien ne soutient le passage. Ne remplace jamais une photo manquante par la première photo par défaut.
 reason est une justification publique brève, fondée sur un détail visible et le passage. directive décrit sobrement l'image utile à cet endroit, sans réécrire le récit ni inventer le produit. Réponds pour toutes les slides photo exactement une fois, numéros 1-based. Aucune réponse pour les slides texte.`;
-const tool = (verify: boolean) => ({
+const tool = (verify: boolean, expected: number[], ids: number[]) => ({
   name: verify ? "verifier_associations" : "choisir_photos",
   description: verify ? "Vérifie chaque couple texte/photo sélectionné, sans réaffectation." : "Associe les passages définitifs aux photos observées.",
   input_schema: {
     type: "object", required: ["assignments"], properties: { assignments: {
-      type: "array", items: { type: "object",
+      type: "array", minItems: expected.length, maxItems: expected.length, items: { type: "object",
         required: verify ? ["slide", "photo", "accepted", "reason"] : ["slide", "photo", "relation", "reason", "directive"],
         properties: {
-          slide: { type: "integer" }, photo: { type: ["integer", "null"] },
+          slide: { type: "integer", enum: expected }, photo: { type: ["integer", "null"], enum: [...ids, null] },
           ...(verify ? { accepted: { type: "boolean" } } : {
-            relation: { type: "string", enum: ["literal", "ambient", "missing"] }, directive: { type: "string" },
-          }), reason: { type: "string" },
+            relation: { type: "string", enum: ["literal", "ambient", "missing"] }, directive: { type: "string", maxLength: 220 },
+          }), reason: { type: "string", maxLength: 220 },
         },
       },
     } },
@@ -61,10 +61,11 @@ export async function matchFinalPhotos(doc: any, options: {
   }));
   let assignments: Assignment[] = [], checks: any[] = [];
   let status = "skipped", reason = photos.length ? "time-budget" : "pixels-unavailable";
+  let stage = "selection";
   const ask = async (verify: boolean) => {
     const sink: UsageSink = {};
     const content: any[] = [{ type: "text", text: JSON.stringify({
-      idea: doc.narrative_draft?.idea, passages,
+      idea: doc.narrative_draft?.idea, passages, required_photo_slides: expected,
       ...(verify ? { assignments } : {}),
       photos: photos.map((p: any) => ({ photo: p.id, user_context: p.context || "", inferred_library_context: p.libraryContext || "" })),
     }) }];
@@ -73,10 +74,11 @@ export async function matchFinalPhotos(doc: any, options: {
       { type: "image", source: { type: "base64", ...extractImagePayload(p.base64, p.mimeType) } },
     );
     try {
-      return await call({ model: SONNET_MODEL, system: RULES + (verify
+      return await call({ model: SONNET_MODEL, system: RULES + "\nRéponds uniquement pour required_photo_slides, une ligne par numéro. reason et directive : UNE phrase courte chacune, 220 caractères maximum. Pas de reprise du texte des slides." + (verify
         ? "\nContrôle indépendant : regarde chaque image retenue avec son texte. Refuse une association contradictoire ou une correspondance concrète non visible, même si la justification précédente la prétend correcte. accepted=false si la photo manque ou doit changer. Ne choisis pas une autre image et ne réécris pas le texte."
-        : ""), messages: [{ role: "user", content }], tool: tool(verify), max_tokens: 4000,
-        abortTimeoutMs: Math.max(1000, Math.min(35000, remaining() - (verify ? 2000 : 37000))),
+        : ""), messages: [{ role: "user", content }], tool: tool(verify, expected, [...ids]), max_tokens: 6000,
+        maxRetries: 0,
+        abortTimeoutMs: Math.max(1000, Math.min(45000, Math.floor((remaining() - 2000) / (verify ? 1 : 2)))),
       }, sink);
     } finally {
       for (const k of ["input_tokens", "output_tokens", "total_tokens"] as const) options.usage[k] = (options.usage[k] || 0) + (sink[k] || 0);
@@ -86,12 +88,25 @@ export async function matchFinalPhotos(doc: any, options: {
     options.emitStatus("correcting");
     try {
       assignments = parse(await ask(false), expected, ids);
+      stage = "verification";
       if (remaining() < 4000) { reason = "time-budget"; }
       else {
         checks = parse(await ask(true), expected, ids, assignments);
         status = "completed"; reason = "reviewed";
       }
-    } catch { status = "unavailable"; reason = "selection-or-review-failed"; }
+    } catch (error) {
+      status = "unavailable";
+      const known = ["coverage", "reference", "changed-assignment", "relation"];
+      const message = error instanceof Error ? error.message : "";
+      const code = Number((error as any)?.status);
+      const failure = known.includes(message) ? message : error instanceof SyntaxError ? "invalid-json"
+        : Number.isInteger(code) && code >= 400 && code <= 599 ? `provider-${code}` : "call-failed";
+      reason = `${stage}-${failure}`;
+      // Only technical metadata: never prose, images, provider body or identity.
+      console.warn(JSON.stringify({ type: "carousel_photo_match_failed", version: PHOTO_MATCH_VERSION,
+        stage, failure, photo_count: photos.length, slide_count: expected.length,
+        elapsed_ms: Date.now() - options.startedAt, remaining_ms: remaining() }));
+    }
   }
   const warnings: string[] = [];
   const slides = doc.slides.map((s: any, i: number) => {

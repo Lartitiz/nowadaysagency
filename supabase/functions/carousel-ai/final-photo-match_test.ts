@@ -25,6 +25,12 @@ Deno.test("récit final : bols à cerises au bon passage, ambiance permise, pixe
     assert(content[0].text.includes(doc.slides[0].overlay_text));
     assert(!content[0].text.includes("visual_anchor"));
     assertEquals(o.tool?.name, calls ? "verifier_associations" : "choisir_photos");
+    assertEquals(o.maxRetries, 0);
+    assert((o.abortTimeoutMs || 0) <= 45000);
+    const schema: any = o.tool?.input_schema;
+    assertEquals(schema.properties.assignments.items.properties.slide.enum, [1, 2]);
+    assertEquals(schema.properties.assignments.items.properties.photo.enum, [1, 2, null]);
+    assertEquals(JSON.parse(content[0].text).required_photo_slides, [1, 2]);
     if (sink) sink.total_tokens = 7;
     return JSON.stringify({ assignments: calls++ ? accepted() : proposals() });
   } });
@@ -37,6 +43,30 @@ Deno.test("récit final : bols à cerises au bon passage, ambiance permise, pixe
   assertEquals(result.progression_review.reviewed_material, progressionMaterial(result));
   assertEquals(invalidateProgressionReceipt(result), result);
   assert(!JSON.stringify(result).includes("Ym9scw=="));
+});
+
+Deno.test("le diagnostic distingue troncature de sélection et réponse de vérification incomplète sans exposer le contenu", async () => {
+  const truncated = await matchFinalPhotos(fixture(), { ...options(), call: async () => {
+    throw Object.assign(new Error("private provider response"), { status: 422 });
+  } });
+  assertEquals(truncated.photo_review.reason, "selection-provider-422");
+  assert(!JSON.stringify(truncated).includes("private provider response"));
+  let calls = 0;
+  const invalidReview = await matchFinalPhotos(fixture(), { ...options(), call: async () =>
+    JSON.stringify({ assignments: calls++ ? accepted().slice(0, 1) : proposals() }) });
+  assertEquals(invalidReview.photo_review.reason, "verification-coverage");
+  assertEquals(invalidReview.photo_review.verdict, null);
+});
+
+Deno.test("budget réduit partagé entre les deux passes sans lancer une sélection limitée à une seconde", async () => {
+  const opts = options(); opts.startedAt -= 240000;
+  let calls = 0;
+  const result = await matchFinalPhotos(fixture(), { ...opts, call: async (o) => {
+    if (!calls) assert((o.abortTimeoutMs || 0) > 13000 && (o.abortTimeoutMs || 0) <= 14000);
+    assertEquals(o.maxRetries, 0);
+    return JSON.stringify({ assignments: calls++ ? accepted() : proposals() });
+  } });
+  assertEquals(result.photo_review.verdict, "acceptable");
 });
 
 Deno.test("vérification indépendante refuse l'image contradictoire sans substituer la première photo", async () => {
