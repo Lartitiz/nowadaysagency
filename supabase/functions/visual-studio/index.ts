@@ -1638,7 +1638,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
     );
     await Promise.all(
       versions.filter((v) =>
-        v.status === "processing" && v.proposal.provider === "higgsfield"
+        (v.status === "processing" || v.status === "uncertain") && v.proposal.provider === "higgsfield"
       ).map(async (v) => {
         try {
           await reconcileHiggsfieldImage(sb, v.id);

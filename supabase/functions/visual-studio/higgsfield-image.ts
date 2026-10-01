@@ -132,7 +132,7 @@ class ProviderHttpError extends Error {
     super(`higgsfield_http_${status}`);
   }
 }
-async function api(path: string, method = "GET", body?: unknown) {
+async function api(path: string, method = "GET", body?: unknown, timeoutMs = 35_000) {
   const response = await fetch(`${BASE}/${path}`, {
     method,
     headers: {
@@ -140,7 +140,7 @@ async function api(path: string, method = "GET", body?: unknown) {
       "Content-Type": "application/json",
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
-    signal: AbortSignal.timeout(35_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) throw new ProviderHttpError(response.status, path.split("?")[0]);
   return await response.json();
@@ -218,12 +218,30 @@ export async function failHiggsfieldImage(db: DB, versionId: string, message = "
     status: "failed",
     error_message: message,
     completed_at: new Date().toISOString(),
-  }).eq("id", versionId).eq("status", "processing");
+  }).eq("id", versionId).in("status", ["processing", "uncertain"]);
   if (result.error) throw result.error;
   const request = await db.from("studio_image_requests").update({
     status: "failed",
   }).eq("version_id", versionId);
   if (request.error) throw request.error;
+}
+export const HIGGSFIELD_UNCERTAIN_MESSAGE = "Le service d’images n’a pas confirmé la réception de cette demande. Son issue est inconnue : aucune image n’a été décomptée pour l’instant, et si le résultat arrive il s’affichera ici et comptera une seule fois. Pour éviter un double paiement, cette demande n’est pas relancée automatiquement.";
+/** Ends the endless "processing" display without claiming failure or allowing a blind paid retry. */
+export async function markHiggsfieldUncertain(db: DB, versionId: string) {
+  const request = await db.from("studio_image_requests").update({ status: "uncertain" })
+    .eq("version_id", versionId).in("status", ["preparing", "submitting", "queued", "uncertain"]);
+  if (request.error) throw request.error;
+  const result = await db.from("visual_studio_versions").update({
+    status: "uncertain", error_message: HIGGSFIELD_UNCERTAIN_MESSAGE,
+  }).eq("id", versionId).eq("status", "processing");
+  if (result.error) throw result.error;
+}
+/** A worker that stopped before writing any receipt leaves the request in flight forever. */
+export function higgsfieldReceiptLost(job: { status: string; provider_id?: string | null; created_at?: string }, now = Date.now()) {
+  if (job.provider_id) return false;
+  if (job.status === "uncertain") return true;
+  return ["preparing", "submitting"].includes(job.status) && !!job.created_at &&
+    now - new Date(job.created_at).getTime() > 20 * 60_000;
 }
 /** Polling and callbacks only recover an existing request; never submit a second generation. */
 export async function reconcileHiggsfieldImage(
@@ -237,7 +255,11 @@ export async function reconcileHiggsfieldImage(
   if (error) throw error;
   if (!job || ["completed", "failed"].includes(job.status)) return;
   const requestId = job.provider_id || callbackId;
-  if (!requestId) return; // Lost submit response: callback or manual reconciliation, not a paid retry.
+  if (!requestId) {
+    // Lost submit response: a later callback can still recover it, never a paid retry.
+    if (higgsfieldReceiptLost(job)) await markHiggsfieldUncertain(db, versionId);
+    return;
+  }
   if (
     !/^[0-9a-f-]{36}$/i.test(requestId) ||
     (job.provider_id && callbackId && job.provider_id !== callbackId)
@@ -271,7 +293,7 @@ export async function reconcileHiggsfieldImage(
   const { data: version, error: ve } = await db.from("visual_studio_versions")
     .select("result_path,status").eq("id", versionId).single();
   if (ve || !version) throw ve || new Error("studio_missing");
-  if (version.status === "processing") {
+  if (version.status === "processing" || version.status === "uncertain") {
     const stored = await db.storage.from("visual-studio").info(
       version.result_path,
     );
@@ -375,6 +397,7 @@ export async function submitHiggsfieldImage(
       `${version.proposal.model}?hf_webhook=${encodeURIComponent(callback)}`,
       "POST",
       input,
+      90_000,
     );
     if (
       typeof result.request_id !== "string" ||
@@ -395,9 +418,11 @@ export async function submitHiggsfieldImage(
     ) await failHiggsfieldImage(db, version.id, error instanceof Error && error.message === "studio_prompt_too_long"
       ? "La demande est trop longue pour le service d’images. Raccourcis-la puis réessaie. Aucune image décomptée."
       : undefined);
+    else if (!accepted) await markHiggsfieldUncertain(db, version.id);
     else {
+      // Receipt saved: polling/callback will recover; only the local follow-up failed.
       const uncertain = await db.from("studio_image_requests").update({ status: "uncertain" })
-        .eq("version_id", version.id).in("status", ["submitting", "queued"]);
+        .eq("version_id", version.id).in("status", ["submitting"]);
       if (uncertain.error) throw uncertain.error;
     }
     // Safe metadata only: no prompt, URL, token or provider body.
