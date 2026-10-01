@@ -1,3 +1,4 @@
+import { photoEditorialMarkup } from "./photo-editorial.ts";
 import { hexLuminance } from "./contrast-guard.ts";
 
 // Composition PAR CODE des slides photo+overlay (chantier gabarits 13/07).
@@ -65,6 +66,7 @@ export interface PhotoCharter {
   color_accent: string;
   font_title: string;
   font_body: string;
+  text_alignment?: "left" | "center" | "right";
 }
 
 /** Luminance moyenne (0..1) de trois bandes horizontales de la photo, mesurée
@@ -129,7 +131,7 @@ function design(ch: PhotoCharter) {
 
 function readingPanel(inner: string, ch: PhotoCharter, width = 912): string {
   const d = design(ch);
-  return `<div data-photo-reading-panel="1" style="background:${d.background};color:${d.ink};padding:36px 40px;box-sizing:border-box;width:100%;max-width:${width}px;border-radius:${d.radius}px;">${inner}</div>`;
+  return `<div data-photo-reading-panel="1" data-pptx-shape="card" style="background:${d.background};color:${d.ink};padding:36px 40px;box-sizing:border-box;width:100%;max-width:${width}px;border-radius:${d.radius}px;">${inner}</div>`;
 }
 
 function zoneFor(position: string | null | undefined): keyof PhotoZoneLuminance {
@@ -181,11 +183,11 @@ function contentWrap(
 }
 
 function kickerHtml(text: string, color = "#FFFFFF"): string {
-  return `<div data-pptx-editable="caption" style="font-size:32px;line-height:1.3;font-weight:500;color:${color};margin-bottom:20px;">${escapeHtml(text)}</div>`;
+  return `<div data-pptx-editable="caption" style="position:relative;font-size:32px;line-height:1.3;font-weight:500;color:${color};margin-bottom:20px;">${escapeHtml(text)}</div>`;
 }
 
 function detailHtml(text: string, marginTop = 22, color = "#FFFFFF"): string {
-  return `<div data-pptx-editable="caption" style="font-size:34px;line-height:1.4;font-weight:400;color:${color};margin-top:${marginTop}px;max-width:820px;">${escapeHtml(text)}</div>`;
+  return `<div data-pptx-editable="caption" style="position:relative;font-size:34px;line-height:1.4;font-weight:400;color:${color};margin-top:${marginTop}px;max-width:820px;">${escapeHtml(text)}</div>`;
 }
 
 function overlayAnchor(text: string, style: string, tag = "p"): string {
@@ -196,7 +198,7 @@ function overlayAnchor(text: string, style: string, tag = "p"): string {
 function heroSize(text: string): number {
   const wc = wordCount(text);
   if (wc <= 6) return 84;
-  if (wc <= 12) return 72;
+  if (wc <= 12) return 80;
   if (wc <= 20) return 58;
   return 48; // hook anormalement long : réduit plutôt que clippé par overflow:hidden
 }
@@ -220,13 +222,37 @@ function tplCouverture(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): strin
   const label = s.kicker ? `<div data-pptx-editable="caption" style="display:inline-block;align-self:inherit;background:${d.primary};color:${d.onPrimary};border-radius:${Math.min(d.radius, 24)}px;padding:12px 20px;font-size:32px;line-height:1.35;margin-bottom:24px;max-width:100%;">${escapeHtml(s.kicker)}</div>` : "";
   const text = s.overlay_text || "";
   const parts = label + overlayAnchor(text, `font-family:${fontTitle};font-size:${heroSize(text)}px;line-height:1.1;letter-spacing:-1px;color:#FFFFFF;max-width:900px;`, "h1") + (s.detail ? detailHtml(s.detail, 28) : "");
-  return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72), 72) +
+  return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72), wordCount(text) <= 12 ? 58 : 72) +
     contentWrap(s.overlay_position || "bottom_left", "center", parts);
+}
+
+/** One editable source, several native export frames, full-bleed photograph. */
+function editorialOverlay(s: PhotoSlideSpec, ch: PhotoCharter, finale = false): string {
+  const d = design(ch), text = s.overlay_text || "";
+  const fontBody = cssFont(ch.font_body, "sans-serif"), fontTitle = cssFont(ch.font_title, "Georgia, serif");
+  const count = wordCount(text), size = count > 90 ? 40 : 42;
+  const emphasis = count > 75 ? 50 : finale ? 60 : 56;
+  const align = ch.text_alignment || (s.overlay_position === "center" ? "center" : "left");
+  // Use a dark brand hue where available; the neutral scrim preserves photo
+  // colours when the primary is pale. Never identify a subject from luminance.
+  const tint = hexLuminance(d.primary.slice(1)) < .12 ? d.primary : "#161616";
+  const r = parseInt(tint.slice(1, 3), 16), g = parseInt(tint.slice(3, 5), 16), b = parseInt(tint.slice(5, 7), 16);
+  const gradient = `linear-gradient(180deg,rgba(${r},${g},${b},0) 0%,rgba(${r},${g},${b},.92) 8%,rgba(${r},${g},${b},.92) 92%,rgba(${r},${g},${b},0) 100%)`;
+  const copy = `<div data-photo-editorial-text="${finale ? "finale" : "profonde"}" data-slide-text="overlay" style="position:relative;--photo-veil:${gradient};--photo-title-font:${fontTitle};--photo-emphasis-size:${(emphasis / size).toFixed(3)}em;--photo-heading:#FFFFFF;font-family:${fontBody};font-size:${size}px;line-height:1.28;font-weight:400;white-space:pre-wrap;text-align:${align};color:#FFFFFF;">${photoEditorialMarkup(text, finale)}</div>`;
+  const parts = (s.kicker ? kickerHtml(s.kicker) : "") + copy +
+    (s.detail ? detailHtml(s.detail, 22) : "") +
+    (s.cta_label && finale ? `<div data-slide-cta="1" style="position:relative;margin-top:24px;"><span data-slide-text="cta" data-pptx-editable="caption" style="font-size:32px;line-height:1.3;color:#FFFFFF;">${escapeHtml(s.cta_label)}</span></div>` : "");
+  // A pseudo-element follows drag/width edits without becoming an editable
+  // object, source text, native text frame or false text-overflow rectangle.
+  const veil = `<style data-photo-editorial-veil="1">[data-photo-editorial-text]::before{content:"";position:absolute;pointer-events:none;left:-84px;right:-84px;top:-110px;bottom:-100px;background:var(--photo-veil);}</style>`;
+  const panel = `<div data-photo-reading-panel="1" data-photo-editorial-surface="1" style="position:relative;box-sizing:border-box;width:100%;max-width:912px;">${parts}</div>`;
+  return veil + contentWrap(s.overlay_position || "bottom_left", "flex-start", panel);
 }
 
 function tplProfonde(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
   const fontBody = cssFont(ch.font_body, "sans-serif"), d = design(ch);
   const text = s.overlay_text || "";
+  if (wordCount(text) > 28) return editorialOverlay(s, ch);
   const usePanel = wordCount([s.kicker, text, s.detail].filter(Boolean).join(" ")) > 28;
   const color = usePanel ? d.ink : "#FFFFFF";
   const parts = (s.kicker ? kickerHtml(s.kicker, usePanel ? d.heading : color) : "") +
@@ -265,7 +291,7 @@ function tplListe(s: PhotoSlideSpec, ch: PhotoCharter): string {
 function tplEtape(s: PhotoSlideSpec, ch: PhotoCharter): string {
   const d = design(ch), fontTitle = cssFont(ch.font_title, "Georgia, serif");
   const n = Math.max(1, Math.round(s.step_number || 1));
-  const number = `<div data-pptx-editable="caption" style="font-family:${fontTitle};font-size:42px;line-height:1.15;color:${d.heading};flex-shrink:0;">${String(n).padStart(2, "0")}</div>`;
+  const number = `<div data-pptx-editable="caption" style="font-family:${fontTitle};font-size:88px;line-height:1.05;color:${d.heading};flex-shrink:0;">${String(n).padStart(2, "0")}</div>`;
   const title = s.kicker ? `<div data-pptx-editable="title" style="font-family:${fontTitle};font-size:48px;font-weight:400;line-height:1.15;color:${d.heading};">${escapeHtml(s.kicker)}</div>` : "";
   const body = s.overlay_text ? overlayAnchor(s.overlay_text, `font-size:${fitSize(40, s.overlay_text, 35)}px;line-height:1.45;color:${d.ink};`) : "";
   return contentWrap(s.overlay_position || "bottom_left", "center", readingPanel(`<div style="display:flex;align-items:baseline;gap:24px;margin-bottom:22px;">${number}${title}</div>` + body + (s.detail ? detailHtml(s.detail, 24, d.ink) : ""), ch));
@@ -281,6 +307,7 @@ function tplCitation(s: PhotoSlideSpec, ch: PhotoCharter): string {
 
 function tplFinale(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
   const d = design(ch), text = s.overlay_text || "";
+  if (wordCount(text) > 28) return editorialOverlay(s, ch, true);
   const usePanel = wordCount([s.kicker, text, s.detail, s.cta_label].filter(Boolean).join(" ")) > 28;
   const q = overlayAnchor(text, `font-family:${cssFont(ch.font_title, "Georgia, serif")};font-size:${fitSize(56, text, 20)}px;line-height:1.2;color:${usePanel ? d.ink : "#FFFFFF"};max-width:880px;`, "h2");
   const cta = s.cta_label ? `<div data-slide-cta="1" style="margin-top:30px;"><span data-slide-text="cta" data-pptx-editable="caption" style="display:inline-block;background:${d.primary};color:${d.onPrimary};border-radius:${Math.min(d.radius, 24)}px;padding:16px 24px;font-size:32px;line-height:1.35;max-width:100%;overflow-wrap:anywhere;">${escapeHtml(s.cta_label)}</span></div>` : "";
@@ -401,7 +428,7 @@ export function composePhotoSlide(
     slide_number: s.slide_number,
     html: root(fontBody, photoLayer(s.photo_index, opts.zoomOnRepeat) + inner),
     contrast_ok: true,
-    legibility: `gabarit ${template}, palette de marque et surface de lecture (${measured})`,
+    legibility: `photo-editorial-v1 · gabarit ${template}, palette de marque et surface de lecture (${measured})`,
     template,
   };
 }

@@ -219,6 +219,9 @@ export function inspectSlide(doc: Document, slide: number): QualityIssue[] {
     )
       add("margin", "Texte proche du bord : laisse idéalement 40 px de marge.");
     if (item.kind !== "text") continue;
+    if (el.hasAttribute("data-photo-editorial-text") && rect.width * rect.height > CANVAS_WIDTH * CANVAS_HEIGHT * .42) {
+      add("manual", "Le texte occupe une grande partie de la photo : vérifie que l’objet, le visage ou le geste important reste visible. Tu peux déplacer le texte ou recadrer la photo.");
+    }
     const font = parseFloat(style.fontSize);
     // L'éditeur tague « body » tout texte sans rôle : un CTA garde son rôle
     // d'origine (data-slide-text) pour le plancher secondaire.

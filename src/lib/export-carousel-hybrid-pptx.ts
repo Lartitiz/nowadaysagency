@@ -531,6 +531,7 @@ function findOverlayElement(doc: Document, overlayText: string): HTMLElement | n
 }
 
 interface BlockRender {
+  el?: Element;
   text: string;
   /** Runs typographiques inline. Si présent + length >= 2 → exporté en multi-runs. */
   runs?: TextRun[];
@@ -548,6 +549,7 @@ function blockFromElement(el: HTMLElement, doc: Document, kind: EditableBlock["k
   const fontSizePx = parseFloat(cs.fontSize) || 24;
   const weight = parseInt(cs.fontWeight, 10) || 400;
   return {
+    el,
     text: (el.textContent || "").trim(),
     rect: { x: r.left, y: r.top, w: r.width, h: r.height },
     style: {
@@ -837,6 +839,9 @@ function isMonoFont(fontFamily: string | undefined | null): boolean {
  */
 function desiredTextWidthIn(block: BlockRender): number {
   const wRaw = pxToInches(block.rect.w, PX_PER_IN);
+  // Photo copy is laid out against pixels and local reading surfaces. Font
+  // substitution must never enlarge its frame across the photograph/card.
+  if (block.el?.closest("[data-photo-reading-panel],[data-photo-text-layout]")) return wRaw;
   const mono = isMonoFont(block.style.fontFamily);
   const singleLine = !block.text.includes("\n") && block.rect.h < block.style.lineHeight * 1.6;
   if (mono && singleLine) {
@@ -997,6 +1002,8 @@ function addBlockToSlide(
   const h = Math.min(
     PPTX_H_IN - y,
     pxToInches(block.rect.h, PX_PER_IN) + (block.style.verticalAlign ? 0 : safetyMargin),
+    ...(block.el?.closest("[data-photo-editorial-text]")
+      ? [pxToInches(Math.max(block.rect.h, verticalBudgetPx(block, ctx, parentCard)), PX_PER_IN)] : []),
   );
 
   const isTitleish = block.kind === "title" || block.kind === "overlay";
@@ -1163,7 +1170,7 @@ export async function exportCarouselHybridPptx(
         for (const ab of annotated) {
           if (ab.rect.y > SLIDE_H_PX || ab.rect.x > SLIDE_W_PX) continue;
           if (ab.rect.y + ab.rect.h < 0) continue;
-          blocks.push({ text: ab.text, runs: ab.runs, rect: ab.rect, style: ab.style, kind: ab.kind });
+          blocks.push({ el: ab.el, text: ab.text, runs: ab.runs, rect: ab.rect, style: ab.style, kind: ab.kind });
           (ab.el as HTMLElement).setAttribute("data-pptx-hide", "true");
         }
       } else {
@@ -1189,7 +1196,7 @@ export async function exportCarouselHybridPptx(
           for (const eb of detected) {
             if (eb.rect.y > SLIDE_H_PX || eb.rect.x > SLIDE_W_PX) continue;
             if (eb.rect.y + eb.rect.h < 0) continue;
-            blocks.push({ text: eb.text, rect: eb.rect, style: eb.style, kind: eb.kind });
+            blocks.push({ el: eb.el, text: eb.text, rect: eb.rect, style: eb.style, kind: eb.kind });
             (eb.el as HTMLElement).setAttribute("data-pptx-hide", "true");
           }
         }
@@ -1217,7 +1224,7 @@ export async function exportCarouselHybridPptx(
         // ici). On saute le conteneur ; son éventuel texte propre reste cuit dans
         // le PNG de fond (visible, juste non éditable) — échec sûr.
         if ((eb.el as HTMLElement).querySelector('[data-pptx-editable],[data-pptx-hide="true"]')) continue;
-        blocks.push({ text: eb.text, rect: eb.rect, style: eb.style, kind: eb.kind });
+        blocks.push({ el: eb.el, text: eb.text, rect: eb.rect, style: eb.style, kind: eb.kind });
         (eb.el as HTMLElement).setAttribute("data-pptx-hide", "true");
       }
 

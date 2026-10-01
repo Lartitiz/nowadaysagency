@@ -1,3 +1,4 @@
+import { photoEditorialMarkup } from "../../supabase/functions/_shared/photo-editorial";
 /** The saved HTML is the editable design and the source of every visual export.
  * Structured fields are kept in sync for captions, regeneration and calendar views.
  * All manual operations are local, immutable, and independent from AI services. */
@@ -247,7 +248,9 @@ export function patchElement(
       }
       offset = end;
     }
-    if (!changed) el.textContent = next;
+    if (el.hasAttribute("data-photo-editorial-text")) {
+      el.innerHTML = photoEditorialMarkup(next, el.dataset.photoEditorialText === "finale");
+    } else if (!changed) el.textContent = next;
     el.style.whiteSpace = "pre-wrap";
     if (patch.remove) {
       if (photoNodes(doc).includes(el)) {
@@ -260,6 +263,10 @@ export function patchElement(
   Object.entries(patch.styles || {}).forEach(([key, value]) =>
     el.style.setProperty(key, value),
   );
+  if (el.hasAttribute("data-photo-editorial-text")) {
+    if (patch.styles?.["font-family"]) el.style.setProperty("--photo-title-font", patch.styles["font-family"]);
+    if (patch.styles?.color) el.style.setProperty("--photo-heading", patch.styles.color);
+  }
   return { ...slide, data, html: serialize(doc) };
 }
 export function replacePhoto(
@@ -419,7 +426,9 @@ export function listDocumentFonts(
   slides.forEach((slide) => {
     const doc = parse(slide.html);
     doc.body.querySelectorAll<HTMLElement>("[style]").forEach((el) => {
-      const value = el.style.getPropertyValue("font-family");
+      let value = el.style.getPropertyValue("font-family");
+      const variable = value.match(/^var\((--[\w-]+)\)$/)?.[1];
+      if (variable) value = inherited(el, variable);
       const label = readableFont(value);
       if (label && !found.has(label)) found.set(label, value);
     });
@@ -450,9 +459,13 @@ export function restyleSlide(
     target === "texts"
       ? textNodes(doc)
       : [doc.body.firstElementChild as HTMLElement].filter(Boolean);
-  elements.forEach((el) =>
-    Object.entries(styles).forEach(([k, v]) => el.style.setProperty(k, v)),
-  );
+  elements.forEach((el) => {
+    Object.entries(styles).forEach(([k, v]) => el.style.setProperty(k, v));
+    if (el.hasAttribute("data-photo-editorial-text")) {
+      if (styles["font-family"]) el.style.setProperty("--photo-title-font", styles["font-family"]);
+      if (styles.color) el.style.setProperty("--photo-heading", styles.color);
+    }
+  });
   return { ...slide, html: serialize(doc) };
 }
 export function makeSlide(
@@ -604,6 +617,9 @@ export function positionPhotoText(slide: EditorSlide, position: "top_left" | "bo
   group.style.justifyContent = position === "center" ? "center" : position === "top_left" ? "flex-start" : "flex-end";
   group.style.alignItems = position === "center" ? "center" : "flex-start";
   group.style.textAlign = position === "center" ? "center" : "left";
+  group.querySelectorAll<HTMLElement>("[data-photo-editorial-text]").forEach(el => {
+    el.style.textAlign = group.style.textAlign;
+  });
   // Existing gradient must follow the words too. A centered block needs a full veil.
   for (const scrim of doc.querySelectorAll<HTMLElement>("[data-injected-scrim]")) {
     scrim.style.top = position === "bottom_left" ? "auto" : "0";

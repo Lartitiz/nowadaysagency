@@ -176,3 +176,9 @@ describe("carousel quality checks", () => {
     expect(inspectSlide(document, 0).filter((i) => i.kind === "size")).toHaveLength(1);
   });
 });
+
+it("warns about dense photo copy without pretending to identify the subject", () => {
+  const el = fixture("", {left:84,top:300,right:996,bottom:1130,width:912,height:830});
+  el.setAttribute("data-photo-editorial-text", "profonde");
+  expect(inspectSlide(document, 1)).toContainEqual(expect.objectContaining({kind:"manual",severity:"warning",message:expect.stringContaining("grande partie de la photo")}));
+});

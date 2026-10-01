@@ -62,7 +62,7 @@ Deno.test("résolution : slide 1 avec texte → couverture ; hook court → tail
   const spec = base({ slide_number: 1, overlay_text: "Ce salon ne racontait rien" });
   assertEquals(resolvePhotoTemplate(spec, { isFirst: true, isLast: false }), "couverture");
   const out = composePhotoSlide(spec, CH, { isFirst: true, isLast: false });
-  assert(/font-size:(72|84)px/.test(out.html));
+  assert(/font-size:(72|80|84)px/.test(out.html));
   assert(out.html.includes("Libre Baskerville"));
 });
 
@@ -209,12 +209,12 @@ Deno.test("passage développé : panneau de charte local, texte complet et aucun
   const text = "Je reprends ensuite cette bordure pour garder la même largeur sur toute la pièce. Ce passage demande plusieurs essais : je conserve ici les deux versions pour montrer précisément ce qui change dans le geste et dans le résultat visible.";
   for (const [background, color] of [["#FFF4E9", "#000000"], ["#182128", "#FFFFFF"]]) {
     const out = composePhotoSlide(base({ overlay_text: text, kicker: "Le même geste", detail: "Une précision utile", overlay_position: "top_left" }), { ...CH, color_background: background, color_text: background }, mid);
-    assert(out.html.includes(text));
+    assert(out.html.replace(/<[^>]*>/g, "").includes(text));
     assert(out.html.includes("Le même geste"));
     assert(out.html.includes("Une précision utile"));
     assert(out.html.includes('data-photo-reading-panel="1"'));
-    assert(out.html.includes(`background:${background}`));
-    assert(out.html.includes(`color:${color}`));
+    assert(out.html.includes(`data-photo-editorial-surface="1"`));
+    assert(out.html.includes(`color:#FFFFFF`));
     assert(!out.html.includes('data-injected-scrim'));
     assert(!out.html.includes('background-size:150%'));
     assert(out.html.includes('justify-content:flex-start'));
@@ -272,4 +272,23 @@ Deno.test("chiffre et finale : les compléments fournis sont conservés avec une
     if (template === "chiffre") assert(out.includes('data-pptx-editable="title"'));
     else assert(out.includes('data-slide-text="cta"'));
   }
+});
+
+Deno.test("editorial photo keeps exact prose, one source anchor, full photo and native fragments", () => {
+  const text = "La première condition, c'est de reconnaître la pièce. Une vaisselle ne raconte pas encore votre histoire. Elle accompagne les repas de tous les jours, les mains et les tables que l'on partage.";
+  const out = composePhotoSlide(base({ overlay_text: text }), CH, mid);
+  assertEquals((out.html.match(/data-slide-text="overlay"/g)||[]).length, 1);
+  assert(out.html.replace(/<[^>]*>/g, "").includes(text));
+  assert(out.html.includes('data-photo-text-part="emphasis"'));
+  assert(out.html.includes('data-photo-editorial-veil="1"'));
+  assert(out.html.includes('background-size:cover'));
+  assert(!out.html.includes('data-pptx-shape="card"'));
+});
+
+Deno.test("photo veil uses canvas-compatible percentage stops, never calc gradient stops", () => {
+  const text = Array(65).fill("développement").join(" ");
+  const html = composePhotoSlide(base({overlay_text:text}), CH, mid).html;
+  assert(!html.includes("calc("));
+  assert(html.includes(".92) 8%"));
+  assert(html.includes(".92) 92%"));
 });
