@@ -87,7 +87,7 @@ export function replaceSlideText(
   // textContent efface les <span> d'accent internes — assumé : le texte a
   // changé, la mise en valeur mot-à-mot de l'ancien texte n'a plus de sens.
   if (el.hasAttribute("data-photo-editorial-text")) {
-    el.innerHTML = photoEditorialMarkup(newText, el.dataset.photoEditorialText === "finale");
+    el.innerHTML = photoEditorialMarkup(newText, el.dataset.photoEditorialText === "finale", el.dataset.photoEmphasis);
   } else el.textContent = newText;
   return serialize(doc, stylesPrefix);
 }

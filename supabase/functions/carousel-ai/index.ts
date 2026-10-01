@@ -17,7 +17,7 @@ import { checkQuota, isQaTestAccount, logUsage, quotaDeniedResponse } from "../_
 import { callAnthropic, getModelForAction, SONNET_MODEL, AnthropicError, type UsageSink, type AnthropicModel, type AnthropicOptions } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { EDITORIAL_ANGLES_REFERENCE } from "../_shared/copywriting-prompts.ts";
-import { buildCarouselWritingSystem, CAROUSEL_SUBSTANCE, CAROUSEL_CONTINUITY, CAROUSEL_TITLES as SLIDE_TITLE_RULES, CAROUSEL_WRITING_VERSION } from "./writing-contract.ts";
+import { photoReadingContract, buildCarouselWritingSystem, CAROUSEL_SUBSTANCE, CAROUSEL_CONTINUITY, CAROUSEL_TITLES as SLIDE_TITLE_RULES, CAROUSEL_WRITING_VERSION } from "./writing-contract.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
 import { carouselNeedsPolish } from "../_shared/correction-pass.ts";
@@ -720,7 +720,7 @@ export async function handleRequest(req: Request): Promise<Response> {
 
     // Brand context remains reference data; never turn tone into an invented emotion or conviction.
 
-    let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn, ctx.profile);
+    let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn, ctx.profile) + "\n" + photoReadingContract(body);
     if (body.editorial_intent) systemPrompt += "\nINTENTION DU PLAN AUTOMATIQUE (proposition à confronter aux sources) :\n" + JSON.stringify(body.editorial_intent);
 
     // Recherche « creuser le sujet » (lot D-bis, audit qualité 11-12/07) : quand la

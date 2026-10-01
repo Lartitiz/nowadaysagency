@@ -61,6 +61,8 @@ for (const quality_max of [false, true]) {
         events.push("write");
         assertEquals(o.model, quality_max ? "gpt-6-astra" : "claude-opus-5-5");
         assertEquals(o.tool?.name, "ecrire_texte_suivi");
+        assert(o.system?.includes("25 à 40"));
+        assert(o.system?.includes("caption.body"));
         assert(!JSON.stringify(o).includes("PLAN_PHOTO_A_ECARTER"));
         assert(JSON.stringify(o).includes("Pièces remplaçables"));
         if (s) Object.assign(s, { model: o.model, total_tokens: 5 });

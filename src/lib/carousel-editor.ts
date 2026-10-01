@@ -249,7 +249,7 @@ export function patchElement(
       offset = end;
     }
     if (el.hasAttribute("data-photo-editorial-text")) {
-      el.innerHTML = photoEditorialMarkup(next, el.dataset.photoEditorialText === "finale");
+      el.innerHTML = photoEditorialMarkup(next, el.dataset.photoEditorialText === "finale", el.dataset.photoEmphasis);
     } else if (!changed) el.textContent = next;
     el.style.whiteSpace = "pre-wrap";
     if (patch.remove) {
