@@ -4,7 +4,7 @@ import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts
 import { progressionMaterial } from "../_shared/carousel-editorial-snapshot.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
 
-export const PHOTO_MATCH_VERSION = "final-photo-match-v2";
+export const PHOTO_MATCH_VERSION = "final-photo-match-v3";
 export const PHOTO_MATCH_RESERVE_MS = 95000;
 type Assignment = { slide: number; photo: number | null; relation: "literal" | "ambient" | "missing"; reason: string; directive: string };
 const isPhoto = (s: any) => ["photo_full", "photo_integrated"].includes(s?.slide_type);
@@ -39,7 +39,18 @@ function parse(raw: string, expected: number[], photoIds: Set<number>, proposed?
     if (!expected.includes(r?.slide) || !(r.photo === null || photoIds.has(r.photo)) || !str(r.reason)) throw new Error("reference");
     if (proposed) {
       if (typeof r.accepted !== "boolean" || r.photo !== proposed.find(p => p.slide === r.slide)?.photo) throw new Error("changed-assignment");
-    } else if (!str(r.directive) || !["literal", "ambient", "missing"].includes(r.relation) || (r.photo === null) !== (r.relation === "missing")) throw new Error("relation");
+    } else {
+      // Metadata for one slot must not discard the other valid candidates.
+      // Conflicting/missing relation data can only REMOVE a candidate; the
+      // independent pixel review remains mandatory before assigning any photo.
+      if (r.photo === null || !["literal", "ambient"].includes(r.relation)) {
+        r.photo = null;
+        r.relation = "missing";
+      }
+      // The image brief is presentation metadata, not evidence of a match.
+      // An empty/invalid brief uses the passage-based fallback below.
+      r.directive = str(r.directive) ? r.directive.trim() : "";
+    }
   }
   return rows;
 }

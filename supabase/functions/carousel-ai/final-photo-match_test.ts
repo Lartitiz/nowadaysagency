@@ -16,6 +16,36 @@ const proposals = () => [
 ];
 const accepted = () => proposals().map(a => ({ slide: a.slide, photo: a.photo, accepted: true, reason: a.reason }));
 
+Deno.test("une directive vide ne bloque pas les photos contrôlées indépendamment", async () => {
+  let calls = 0;
+  const result = await matchFinalPhotos(fixture(), { ...options(), call: async () =>
+    JSON.stringify({ assignments: calls++ ? accepted() : proposals().map((a, i) => i ? a : { ...a, directive: "" }) }) });
+  assertEquals(calls, 2);
+  assertEquals(result.slides.map((s: any) => s.photo_index), [2, 1, null]);
+  assert(result.slides[0].photo_directive.includes("cerises"));
+  assertEquals(result.photo_review.verdict, "acceptable");
+});
+
+for (const inconsistent of [
+  { photo: null, relation: "literal" },
+  { photo: 2, relation: "missing" },
+  { photo: 2, relation: "unknown" },
+]) Deno.test(`une relation incohérente isole la slide sans valider sa photo : ${JSON.stringify(inconsistent)}`, async () => {
+  let calls = 0;
+  const result = await matchFinalPhotos(fixture(), { ...options(), call: async (o) => {
+    if (!calls++) return JSON.stringify({ assignments: proposals().map((a, i) => i ? a : { ...a, ...inconsistent, directive: "" }) });
+    const data = JSON.parse((o.messages[0].content as any[])[0].text);
+    assertEquals(data.assignments[0].photo, null);
+    assertEquals(data.assignments[0].relation, "missing");
+    return JSON.stringify({ assignments: accepted().map((a, i) => i ? a : { ...a, photo: null, accepted: true }) });
+  } });
+  assertEquals(calls, 2);
+  assertEquals(result.slides.map((s: any) => s.photo_index), [null, 1, null]);
+  assertEquals(result.photo_review.execution_status, "completed");
+  assertEquals(result.photo_review.verdict, "needs_images");
+  assertEquals(result.photo_review.issues.length, 1);
+});
+
 Deno.test("récit final : bols à cerises au bon passage, ambiance permise, pixels et textes dans les deux passes", async () => {
   const doc: any = fixture(); doc.progression_review = { ...await progressionReceipt(doc, "completed"), verdict: "acceptable" };
   const before = structuredClone(doc), opts = options(); let calls = 0;
