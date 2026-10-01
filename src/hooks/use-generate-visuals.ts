@@ -16,6 +16,7 @@ interface UseGenerateVisualsParams {
   result: any;
   visualLoading: boolean;
   contentGenerating?: boolean;
+  allowAutomatic?: boolean;
   aurianaDemoActive: boolean;
   ideaText: string;
   carouselSubMode: "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null;
@@ -55,6 +56,7 @@ export function useGenerateVisuals({
   result,
   visualLoading,
   contentGenerating = false,
+  allowAutomatic = true,
   aurianaDemoActive,
   ideaText,
   carouselSubMode,
@@ -506,6 +508,7 @@ export function useGenerateVisuals({
   // "Regénérer visuels" à la main. On retente UNE fois automatiquement,
   // puis on laisse la main au bouton manuel (pas de boucle infinie).
   useEffect(() => {
+    if (!allowAutomatic) return;
     if (selectedFormat !== "carousel") return;
     if (step !== "result") return;
     if (!result?.raw?.slides) return;
@@ -534,7 +537,7 @@ export function useGenerateVisuals({
     autoVisualsAttemptRef.current.n += 1;
     handleGenerateVisuals({ background: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, selectedFormat, step, contentGenerating, visualLoading, visualSlides.length, uploadedPhotos.length, generatedWithPhotos.length]);
+  }, [result, selectedFormat, step, allowAutomatic, contentGenerating, visualLoading, visualSlides.length, uploadedPhotos.length, generatedWithPhotos.length]);
 
   return { handleGenerateVisuals };
 }

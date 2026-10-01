@@ -62,6 +62,7 @@ function makeParams(overrides: Record<string, any> = {}) {
     result: makeTextResult(),
     visualLoading: false,
     contentGenerating: false,
+    allowAutomatic: true,
     aurianaDemoActive: false,
     ideaText: "Mon idée",
     carouselSubMode: "text" as const,
@@ -274,6 +275,29 @@ describe("useGenerateVisuals — pré-génération background silencieuse", () =
     mocks.handleQuotaError.mockReturnValue(false);
     mocks.invokeWithHeartbeat.mockResolvedValue(okVisuals);
     mocks.dbInsert.mockResolvedValue({ error: null });
+  });
+
+  it("une reprise avec résultat et photos tardifs ne lance rien ; le bouton manuel reste utilisable", async () => {
+    const params = makeParams({ step: "result", allowAutomatic: false, result: null });
+    const { result, rerender } = renderHook((p) => useGenerateVisuals(p), { initialProps: params });
+    rerender({ ...params, result: makeTextResult() });
+    await act(async () => {});
+    rerender({ ...params, result: makeTextResult(), uploadedPhotos: [{ base64: "data:image/jpeg;base64,TEST" }] });
+    await act(async () => {});
+    expect(mocks.invokeWithHeartbeat).not.toHaveBeenCalled();
+    expect(params.setVisualSlides).not.toHaveBeenCalled();
+    await act(() => result.current.handleGenerateVisuals());
+    expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(1);
+  });
+
+  it("une nouvelle rédaction explicite après reprise réactive la préparation automatique", async () => {
+    const params = makeParams({ step: "result", allowAutomatic: false });
+    const { rerender } = renderHook((p) => useGenerateVisuals(p), { initialProps: params });
+    rerender({ ...params, allowAutomatic: true, contentGenerating: true });
+    await act(async () => {});
+    expect(mocks.invokeWithHeartbeat).not.toHaveBeenCalled();
+    rerender({ ...params, allowAutomatic: true, result: makeTextResult() });
+    await waitFor(() => expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(1));
   });
 
   it("attend le nouveau texte avant de composer les visuels après une régénération", async () => {
