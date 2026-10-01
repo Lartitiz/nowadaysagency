@@ -1482,7 +1482,7 @@ export async function exportCarouselHybridPptx(
         if (w <= 0 || h <= 0) continue;
         const radius = Math.min(pxToInches(cb.borderRadiusPx, PX_PER_IN), Math.min(w, h) / 2);
         try {
-          slide.addShape("roundRect", {
+          slide.addShape(sb.borderRadiusPx > 0 ? "roundRect" : "rect", {
             x, y, w, h,
             fill: { color: cb.color },
             line: { type: "none" },
