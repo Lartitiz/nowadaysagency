@@ -253,6 +253,7 @@ for (const failure of ["missing-key", "network", "wrong-model", "incomplete"]) D
     assertEquals(output.editorial_review.status, "unavailable");
     assertEquals(output.editorial_review.model, null);
     assertEquals(output.editorial_review.requested_model, "gpt-6-astra");
+    assertEquals(output.editorial_review.error, ({ "missing-key": "missing_key", network: "network", "wrong-model": "wrong_model", incomplete: "incomplete" } as Record<string, string>)[failure]);
     assertEquals(calls, failure === "missing-key" ? 0 : 1);
   } finally {
     globalThis.fetch = previousFetch;
@@ -271,4 +272,19 @@ Deno.test("Astra : seconde passe garde le brouillon de comparaison et cumule seu
     const fresh = JSON.parse(await applyCorrectionPassCarousel(first, { semanticReview: true }));
     assertEquals(fresh.editorial_review.total_usage.total_tokens, 2);
   });
+});
+
+Deno.test("Astra budget épuisé : la cause lisible remonte dans le rapport, sans message privé", async () => {
+  const previousFetch = globalThis.fetch, key = Deno.env.get("OPENAI_API_KEY");
+  Deno.env.set("OPENAI_API_KEY", "test-only");
+  globalThis.fetch = (async () => new Response(JSON.stringify({ error: { code: "insufficient_quota", type: "insufficient_quota", message: "PRIVATE_ACCOUNT_DETAILS" } }), { status: 429 })) as typeof fetch;
+  try {
+    const output = JSON.parse(await applyCorrectionPassCarousel(JSON.stringify(doc), { semanticReview: true }));
+    assertEquals(output.editorial_review.status, "unavailable");
+    assertEquals(output.editorial_review.error, "openai_http_429_insufficient_quota");
+    assertEquals(JSON.stringify(output).includes("PRIVATE_ACCOUNT_DETAILS"), false);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key);
+  }
 });
