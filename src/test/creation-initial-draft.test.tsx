@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import CreerUnifie from '@/pages/CreerUnifie';
 import ProductionApp from '@/App';
 import { loadFlowState, saveFlowState, setFlowUserId, setFlowWorkspaceId, savePhotos, loadPhotos, clearFlowState } from '@/hooks/use-flow-persistence';
-const mocks = vi.hoisted(() => ({ user: 'owner', workspace: 'A', ready: true, brandChecking: false, photoRead: vi.fn(), photoDecode: vi.fn(), generate: vi.fn(), cloud: null as any, connect: vi.fn(), publishProps: null as any, saveProps: null as any, resultProps: null as any }));
+const mocks = vi.hoisted(() => ({ user: 'owner', workspace: 'A', ready: true, brandChecking: false, photoRead: vi.fn(), photoDecode: vi.fn(), generate: vi.fn(), cloud: null as any, connect: vi.fn(), publishProps: null as any, saveProps: null as any, resultProps: null as any, visualsProps: null as any }));
 // Keep the production BrowserRouter/AnimatedRoutes and creation page real.
 vi.mock('@/contexts/WorkspaceContext', () => ({ WorkspaceProvider: ({children}: any) => children }));
 vi.mock('@/contexts/SessionContext', () => ({ SessionProvider: ({children}: any) => children }));
@@ -38,7 +38,7 @@ vi.mock('@/hooks/use-linkedin-carousel-caption', () => ({ useLinkedInCarouselCap
 vi.mock('@/hooks/use-user-slides-generate', () => ({ useUserSlidesGenerate: () => ({}) }));
 vi.mock('@/hooks/use-select-inspiration-proposal', () => ({ useSelectInspirationProposal: () => ({}) }));
 vi.mock('@/hooks/use-do-generate', () => ({ useDoGenerate: () => ({ doGenerate: mocks.generate }) }));
-vi.mock('@/hooks/use-generate-visuals', () => ({ useGenerateVisuals: () => ({}) }));
+vi.mock('@/hooks/use-generate-visuals', () => ({ useGenerateVisuals: (p: any) => { mocks.visualsProps = p; return {}; } }));
 vi.mock('@/hooks/use-open-in-canva', () => ({ useOpenInCanva: () => ({}) }));
 vi.mock('@/hooks/use-social-connections', () => ({ useSocialConnections: () => ({ isConnected: () => false, getTokenExpiry: () => null, known: true }) }));
 vi.mock('@/hooks/use-content-generator', () => ({ useContentGenerator: () => {
@@ -128,6 +128,13 @@ describe('initial creation draft through real React components', () => {
     fireEvent.click(screen.getByText('Quitter')); fireEvent.click(screen.getByText('Créer'));
     expect(screen.getByRole('textbox')).toHaveValue('  Mes premiers mots\nencore bruts  ');
     app.unmount(); mount(); expect(screen.getByRole('textbox')).toHaveValue('  Mes premiers mots\nencore bruts  ');
+  });
+  it('restores carousel copy without authorizing automatic paid visuals, even without saved HTML', async () => {
+    saveFlowState({step:'result',creationId:'restored-carousel',selectedFormat:'carousel',result:{type:'carousel',raw:{carousel_type:'photo',slides:[{slide_number:1,photo_index:1,overlay_text:'Texte déjà écrit'}]}}});
+    mount();
+    await waitFor(() => expect(mocks.visualsProps.result?.raw?.slides?.[0].overlay_text).toBe('Texte déjà écrit'));
+    expect(mocks.visualsProps.allowAutomatic).toBe(false);
+    expect(mocks.generate).not.toHaveBeenCalled();
   });
   it('restores a historical first-step draft on plain /creer', () => {
     saveFlowState({step:'idea',ideaText:'Brouillon historique',creationId:'same-id',editingIdeaId:'idea-id',incomingBriefId:'brief-id'});
@@ -368,10 +375,12 @@ it.each(['text','photo','mix','pure_photo','user_slides'])('preserves saved caro
   const entry={pathname:'/creer',search:'?format=carousel&canal=instagram&idea_id=saved-carousel',state:{ideaId:'saved-carousel',resumeIdea:{format:'carousel',raw}}};
   const app=mount(entry); await screen.findByTestId('result');
   expect(loadFlowState()?.carouselSubMode).toBe(mode);
+  expect(mocks.visualsProps.allowAutomatic).toBe(false);
   expect(loadFlowState()).toMatchObject({editingIdeaId:'saved-carousel',result:{raw}});
   if(mode==='user_slides') expect(mocks.resultProps.onChangeAngle).toBeUndefined();
   app.unmount(); sessionStorage.clear(); mount();await screen.findByTestId('result');
   expect(loadFlowState()).toMatchObject({editingIdeaId:'saved-carousel',carouselSubMode:mode,result:{raw}});
+  expect(mocks.visualsProps.allowAutomatic).toBe(false);
 });
 
 it.each(['/creer?mode=transform','/creer?mode=transform&format=stories'])('opens the transform sheet at %s without replacing the current result or its identity', async url=>{

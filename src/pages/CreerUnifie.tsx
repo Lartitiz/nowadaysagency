@@ -2016,9 +2016,15 @@ function CreerWorkspace() {
   );
 
   // ── Génération des visuels du carrousel (+ pré-génération en arrière-plan) ──
+  // A restored result may arrive before its HTML/photos. Opening it is not a
+  // request to pay for visuals. A new writing operation in this visit can
+  // enable the normal automatic continuation; the manual button stays usable.
+  const automaticVisualsAllowed = useRef(!ps?.result && !ps?.pendingStream && !locState.resumeIdea?.raw);
+  if (generating || streaming || userSlidesBuilding) automaticVisualsAllowed.current = true;
   const { handleGenerateVisuals } = useGenerateVisuals({
     result,
-    contentGenerating: generating || structureLoading || photoDumpResolving,
+    allowAutomatic: automaticVisualsAllowed.current,
+    contentGenerating: generating || streaming || userSlidesBuilding || structureLoading || photoDumpResolving,
     visualLoading,
     aurianaDemoActive,
     ideaText,
