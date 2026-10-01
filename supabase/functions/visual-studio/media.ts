@@ -33,6 +33,7 @@ export type Proposal = {
   preserve?: string[];
   change?: string[];
   model?: string;
+  provider?: string;
   visual_kind?: "photo" | "graphic";
   photo_treatment?: "natural" | "directed" | "unspecified";
   product_placement?: string;
