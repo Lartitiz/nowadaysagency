@@ -1226,6 +1226,10 @@ async function finalizeCarousel(
     }
   }
   doc.editorial_intent = doc.editorial_intent ?? body.editorial_intent;
+  if (doc.narrative_draft?.repair?.reason === "final-review-pending") {
+    doc.narrative_draft.review = receipt;
+    doc.narrative_draft.repair = { attempted: true, accepted: true, reason: "accepted-by-final-review" };
+  }
   doc.progression_review = receipt;
   doc.generation_receipt = {
     writing_version: CAROUSEL_WRITING_VERSION,
@@ -1405,7 +1409,7 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
   const measured = await runRedacGate(JSON.stringify(output.doc), {
     isLinkedIn:ctx.isLinkedIn,inputText:ctx.gateInputText,correction:{enabled:false},
   });
-  const content = await finalizeCarousel(measured.content,ctx,{usage,repaired:output.repaired});
+  const content = await finalizeCarousel(measured.content,ctx,{usage,repaired:output.repaired,regenerate:output.regenerate});
   await _deps.logUsage(ctx.userId,ctx.category,`carousel_${ctx.body.carousel_type}`,usage.total_tokens,usage.model,ctx.workspaceId);
   await logContentQuality(ctx.userId,`carousel_${ctx.body.carousel_type}`,measured,usage.model,ctx.workspaceId,ctx.body.subject);
   return new Response(JSON.stringify({content,writing_version:CAROUSEL_WRITING_VERSION,

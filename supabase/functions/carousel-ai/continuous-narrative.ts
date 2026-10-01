@@ -12,7 +12,7 @@ import {
   reviewCarouselProgression,
 } from "../_shared/carousel-progression.ts";
 
-export const NARRATIVE_VERSION = "continuous-prose-v1";
+export const NARRATIVE_VERSION = "continuous-prose-v2-final-review";
 export class NarrativePhotoMismatch extends Error {}
 export function usesContinuousNarrative(body: any): boolean {
   return ["photo", "mix"].includes(body.carousel_type) &&
@@ -221,10 +221,10 @@ export async function createContinuousNarrative(options: {
     { id: "news", provenance: "provided_reference", text: options.newsContext },
   ].filter((s) => s.text.trim());
   const remaining = () => 270000 - (Date.now() - options.startedAt);
-  const add = (sink: UsageSink) => {
+  const add = (sink: UsageSink, target: UsageSink = usage) => {
     for (
       const key of ["input_tokens", "output_tokens", "total_tokens"] as const
-    ) usage[key] = (usage[key] || 0) + (sink[key] || 0);
+    ) target[key] = (target[key] || 0) + (sink[key] || 0);
   };
   const system =
     `${COMMON}\nTu écris le texte d'un carrousel comme un court essai, une réflexion ou un récit, dans la voix de la marque. Tu ne composes pas ses slides.
@@ -241,7 +241,7 @@ ${
         : "Choisis de 3 à 19 paragraphes selon la matière, sans inventer pour allonger."
     }
 ${carouselLengthPrompt(body)}`;
-  const draft = async (feedback?: string, prior?: Narrative) => {
+  const draft = async (feedback?: string, prior?: Narrative, final?: { exact: number; sink: UsageSink; timeout: number }) => {
     const sink: UsageSink = {};
     try {
       const content: any[] = [{
@@ -266,19 +266,19 @@ ${carouselLengthPrompt(body)}`;
       }
       const text = await write({
         model: pickCarouselWriter(body),
-        system,
+        system: system + (final ? `\nRéécriture finale : conserve exactement ${final.exact - 1} paragraphes après le titre. Réécris la pensée entière, pas des cases de slides.` : ""),
         messages: [{
           role: "user",
           content,
         }],
         tool: TOOL,
         max_tokens: 5500,
-        abortTimeoutMs: Math.max(1000, Math.min(100000, remaining() - 40000)),
+        abortTimeoutMs: Math.max(1000, Math.min(final?.timeout ?? 100000, remaining() - 40000)),
       }, sink);
       usage.model = sink.model || pickCarouselWriter(body);
-      return parseNarrative(text, exact);
+      return parseNarrative(text, final?.exact ?? exact);
     } finally {
-      add(sink);
+      add(sink, final?.sink);
     }
   };
   const proof = (n: Narrative) => ({
@@ -342,6 +342,17 @@ ${carouselLengthPrompt(body)}`;
   } else if (receipt.verdict === "needs_repair") repair.reason = "time-budget";
   const doc = composeNarrative(narrative, body);
   return {
+    regenerate: async (_composed: string, feedback: string, sink: UsageSink, timeout = 100000) => {
+      const candidate = await draft(feedback, narrative, { exact: doc.slides.length, sink, timeout });
+      return JSON.stringify({
+        ...composeNarrative(candidate, { ...body, confirmed_structure: doc.slides }),
+        narrative_draft: {
+          version: NARRATIVE_VERSION, ...candidate,
+          review: await progressionReceipt(proof(candidate), "skipped", "final-review-pending"),
+          repair: { attempted: true, accepted: false, reason: "final-review-pending" },
+        },
+      });
+    },
     doc: {
       ...doc,
       narrative_draft: {

@@ -877,8 +877,43 @@ for(const carousel_type of ["photo","mix"])for(const quality_max of [false,true]
     assertEquals(writes,1);assertEquals(reviews,2);
     assertEquals(doc.slides.slice(1).map((s:any)=>s.overlay_text),paragraphs);
     assertEquals(doc.slides.map((s:any)=>s.photo_index),[1,2,3,4]);
-    assertEquals(doc.narrative_draft.version,"continuous-prose-v1");
+    assertEquals(doc.narrative_draft.version,"continuous-prose-v2-final-review");
     assertEquals(doc.generation_receipt.writing_version,"fil-v9-continuous-prose");
     assertEquals(doc.progression_review.verdict,"acceptable");
   }finally{globalThis.fetch=oldFetch;resetDeps();}
+});
+
+for (const carousel_type of ["photo", "mix"]) for (const improved of [false, true]) Deno.test(`continuous final review repairs the whole prose ${carousel_type}, improved=${improved}`, async () => {
+  resetDeps(); _deps.prepareNarrative = createContinuousNarrative;
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const initial = ["Le geste rend chaque dessin unique.", "Les formes restent utiles au quotidien.", "Quelques objets suffisent pour la table."];
+  const fixed = ["Le geste rend chaque dessin unique, meme sur des formes simples.", "Cette singularite accompagne donc un objet dont on se sert.", "L'usage quotidien rend cette singularite familiere."];
+  let writes = 0, reviews = 0;
+  _deps.callCarouselWriter = async (o, sink) => {
+    writes++;
+    assertEquals(o.tool?.name, "ecrire_texte_suivi");
+    if (writes === 2) assert(JSON.stringify(o.messages).includes("FACETTES_SANS_PROGRESSION"));
+    if (sink) Object.assign(sink, { model: o.model, total_tokens: 7 });
+    return JSON.stringify({ idea: "Une singularite utile", hook: "Une piece unique pour le quotidien", paragraphs: writes === 1 ? initial : fixed, caption: {} });
+  };
+  _deps.reviewThread = async (doc) => {
+    reviews++;
+    const defect = reviews === 2 || (reviews === 3 && !improved);
+    return { ...await verdict(doc), issues: defect ? ["FACETTES_SANS_PROGRESSION"] : [], report: { defects: defect ? [{ severity: "minor", type: "unclear_idea" }] : [] } };
+  };
+  try {
+    const response = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type, scenario_origin: "automatic", slide_count: 4, subject: "Une piece peinte a la main reste utile", photos: [1, 2].map(() => ({ base64: "aGVsbG8=" })) }));
+    assertEquals(response.status, 200);
+    const doc = JSON.parse((await response.json()).content);
+    assertEquals(writes, 2); assertEquals(reviews, 3);
+    assertEquals(doc.slides.slice(1).map((s: any) => s.overlay_text || s.body), improved ? fixed : initial);
+    assertEquals(doc.slides.map((s: any) => s.photo_index), carousel_type === "photo" ? [1, 2, 1, 2] : [1, 2, 1, null]);
+    assertEquals(doc.progression_review.repair.accepted, improved);
+    assertEquals(doc.narrative_draft.paragraphs, improved ? fixed : initial);
+    if (improved) {
+      assertEquals(doc.narrative_draft.repair.reason, "accepted-by-final-review");
+      assertEquals(doc.narrative_draft.review.reviewed_text_hash, doc.progression_review.reviewed_text_hash);
+    }
+  } finally { globalThis.fetch = oldFetch; resetDeps(); }
 });
