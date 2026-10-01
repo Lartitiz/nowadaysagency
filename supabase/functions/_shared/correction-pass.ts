@@ -1,6 +1,6 @@
 import { CONTENT_CLARITY_RULES, claritySourceBlock } from "./content-clarity.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type AnthropicModel, type UsageSink } from "./anthropic.ts";
-import { callCarouselWriter } from "./carousel-model.ts";
+import { callCarouselWriter, carouselWriterDiagnostic } from "./carousel-model.ts";
 import { applyEditorialReview, carouselEditorialFields, carouselEditorialSequence, CAROUSEL_EDITORIAL_REVIEW_PROMPT, CAROUSEL_REVIEW_VERSION, CAROUSEL_REVIEW_MODEL, CAROUSEL_REVIEW_TOOL } from "./carousel-editorial-review.ts";
 
 export type CorrectionFormat = "linkedin" | "carousel" | "newsletter" | "instagram_caption" | "reel" | "stories";
@@ -851,9 +851,10 @@ export async function applyCorrectionPassCarousel(
         const review = applyEditorialReview(parsed, raw, options.authoredText);
         parsed = review.doc;
         report = { status: review.status, fields: review.fields, edits: review.edits, ...(review.error ? { error: review.error } : {}) };
-      } catch {
+      } catch (error) {
         // No opaque full-document rewrite fallback. Preserve recoverable text.
-        report = { status: "unavailable", fields: fields.length, edits: 0 };
+        // Safe diagnostic code only (e.g. openai_http_429_insufficient_quota).
+        report = { status: "unavailable", fields: fields.length, edits: 0, error: carouselWriterDiagnostic(error) };
       }
       logger?.(`[carousel-editorial:${CAROUSEL_REVIEW_VERSION}] ${JSON.stringify(report)}`);
       const previous = parsed.editorial_review?.version === CAROUSEL_REVIEW_VERSION ? parsed.editorial_review : undefined;

@@ -385,6 +385,22 @@ export function runWithHeartbeatSSE(
 
       safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: "status", stage: "generating" })}\n\n`));
 
+      // Coupure de la plateforme (durée max, mémoire, CPU) : le code ci-dessous
+      // n'atteint jamais son done/error et le front lisait « Réponse vide du
+      // serveur » (01/10, carrousel coupé pendant l'écriture). Supabase émet
+      // `beforeunload` avec la raison avant d'arrêter le worker : on tente un
+      // error explicite (best effort) et on journalise la cause.
+      const onShutdown = (event: Event) => {
+        if (closed) return;
+        const reason = String((event as any)?.detail?.reason ?? "unknown").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40);
+        console.warn(JSON.stringify({ event: "sse_worker_shutdown", reason }));
+        clearInterval(heartbeat);
+        safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", error: "Le serveur a interrompu la génération avant la fin. Réessaie.", reason })}\n\n`));
+        safeClose();
+      };
+      try { globalThis.addEventListener("beforeunload", onShutdown); } catch { /* runtime sans évènement */ }
+      const stopShutdownWatch = () => { try { globalThis.removeEventListener("beforeunload", onShutdown); } catch { /* idem */ } };
+
       const emitStatus: StatusEmitter = (stage, data) => {
         safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: "status", stage, ...(data || {}) })}\n\n`));
       };
@@ -392,6 +408,7 @@ export function runWithHeartbeatSSE(
       try {
         const response = await work(emitStatus);
         clearInterval(heartbeat);
+        stopShutdownWatch();
 
         let bodyText = "";
         try { bodyText = await response.text(); } catch { bodyText = ""; }
@@ -406,6 +423,7 @@ export function runWithHeartbeatSSE(
         safeClose();
       } catch (err) {
         clearInterval(heartbeat);
+        stopShutdownWatch();
         safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", error: String((err as any)?.message || err) })}\n\n`));
         safeClose();
       }

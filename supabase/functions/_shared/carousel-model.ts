@@ -2,6 +2,23 @@
 // Other generators keep their models. No silent provider/model fallback.
 import { AnthropicError, sanitizeStyle, sanitizeStyleDeep, type AnthropicOptions, type UsageSink } from "./anthropic.ts";
 
+// Erreur typée avec un code de diagnostic SÛR (aucun secret, aucun message
+// fournisseur) : la relecture l'écrit dans editorial_review.error au lieu d'un
+// « unavailable » muet (01/10 : 2 relectures sur 2 en échec en < 1 s, cause invisible).
+export class CarouselWriterError extends AnthropicError {
+  diagnostic: string;
+  constructor(message: string, status: number, diagnostic: string) {
+    super(message, status);
+    this.diagnostic = diagnostic;
+  }
+}
+
+export function carouselWriterDiagnostic(error: unknown): string {
+  if (error instanceof CarouselWriterError) return error.diagnostic;
+  if (error instanceof AnthropicError) return `error_${error.status}`;
+  return "exception";
+}
+
 export const CAROUSEL_WRITER_VERSION = "opus55-astra-medium-v1";
 export type CarouselWriterModel = "claude-opus-5" | "claude-opus-5-5" | "gpt-6-astra";
 export type CarouselWriterOptions = Omit<AnthropicOptions, "model"> & { model: CarouselWriterModel };
@@ -64,33 +81,33 @@ export function writerRequest(options: CarouselWriterOptions): Record<string, un
 export function writerResponse(data: any, options: CarouselWriterOptions, sink?: UsageSink): string {
   const openai = options.model === "gpt-6-astra";
   if (data.model !== options.model && !data.model?.startsWith(options.model + "-20")) {
-    throw new AnthropicError("Le modèle de rédaction demandé n'a pas été utilisé. Réessaie.", 502);
+    throw new CarouselWriterError("Le modèle de rédaction demandé n'a pas été utilisé. Réessaie.", 502, "wrong_model");
   }
   if (!openai && data.stop_reason === "refusal") {
-    throw new AnthropicError("Le modèle a refusé cette demande. Reformule le sujet ou réessaie.", 422);
+    throw new CarouselWriterError("Le modèle a refusé cette demande. Reformule le sujet ou réessaie.", 422, "refusal");
   }
   if (openai ? data.status !== "completed" : data.stop_reason === "max_tokens") {
-    throw new AnthropicError("La génération n'est pas complète. Réessaie.", 422);
+    throw new CarouselWriterError("La génération n'est pas complète. Réessaie.", 422, "incomplete");
   }
   let text: string;
   if (options.tool) {
     const blocks = openai ? data.output : data.content;
     const matches = (blocks || []).filter((b: any) => b.type === (openai ? "function_call" : "tool_use") && b.name === options.tool!.name);
-    if (matches.length !== 1) throw new AnthropicError("La réponse structurée du carrousel est absente ou ambiguë. Réessaie.", 502);
+    if (matches.length !== 1) throw new CarouselWriterError("La réponse structurée du carrousel est absente ou ambiguë. Réessaie.", 502, "tool_missing");
     let value: unknown;
     try { value = openai ? JSON.parse(matches[0].arguments) : matches[0].input; }
-    catch { throw new AnthropicError("La réponse du carrousel est illisible. Réessaie.", 502); }
-    if (!value || typeof value !== "object" || Array.isArray(value)) throw new AnthropicError("La réponse du carrousel est invalide. Réessaie.", 502);
+    catch { throw new CarouselWriterError("La réponse du carrousel est illisible. Réessaie.", 502, "tool_unreadable"); }
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new CarouselWriterError("La réponse du carrousel est invalide. Réessaie.", 502, "tool_invalid");
     text = JSON.stringify(options.keepDashes ? value : sanitizeStyleDeep(value));
   } else {
     const blocks = openai ? (data.output || []).filter((b: any) => b.type === "message").flatMap((b: any) => b.content || []) : data.content || [];
     text = blocks.filter((b: any) => b.type === (openai ? "output_text" : "text")).map((b: any) => b.text).join("\n");
     if (!options.keepDashes) text = sanitizeStyle(text);
   }
-  if (!text.trim()) throw new AnthropicError("L'IA a renvoyé une réponse vide. Réessaie.", 502);
+  if (!text.trim()) throw new CarouselWriterError("L'IA a renvoyé une réponse vide. Réessaie.", 502, "empty");
   const input = data.usage?.input_tokens, output = data.usage?.output_tokens;
   if (!Number.isFinite(input) || !Number.isFinite(output) || input < 0 || output < 0) {
-    throw new AnthropicError("L'usage de cette génération n'a pas pu être vérifié. Réessaie.", 502);
+    throw new CarouselWriterError("L'usage de cette génération n'a pas pu être vérifié. Réessaie.", 502, "usage_unverified");
   }
   const inputTotal = input + (openai ? 0 : (data.usage.cache_read_input_tokens || 0) + (data.usage.cache_creation_input_tokens || 0));
   // Reasoning tokens are already included in output_tokens. Only assign on success.
@@ -101,7 +118,7 @@ export function writerResponse(data: any, options: CarouselWriterOptions, sink?:
 export async function callCarouselWriter(options: CarouselWriterOptions, sink?: UsageSink): Promise<string> {
   const openai = options.model === "gpt-6-astra";
   const key = Deno.env.get(openai ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY");
-  if (!key) throw new AnthropicError("Ce modèle de rédaction n'est pas encore configuré. Aucun crédit décompté.", 503);
+  if (!key) throw new CarouselWriterError("Ce modèle de rédaction n'est pas encore configuré. Aucun crédit décompté.", 503, "missing_key");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.abortTimeoutMs || 120_000);
   try {
@@ -117,7 +134,7 @@ export async function callCarouselWriter(options: CarouselWriterOptions, sink?: 
       const retry = response.headers.get("retry-after");
       console.warn(JSON.stringify({event:"carousel_writer_failure",status:response.status,provider:openai?"openai":"anthropic",code,type,retry_after:retry && /^\d{1,6}$/.test(retry)?retry:null}));
       const exhausted = type === "insufficient_quota" || code === "insufficient_quota" || code === "credit_balance_exhausted";
-      throw new AnthropicError(response.status === 429 ? (exhausted ? `Le budget du fournisseur de rédaction est épuisé. ${openai ? "Le mode Max est indisponible ; tu peux utiliser le mode standard." : "Le mode standard est indisponible."} Aucun crédit décompté.` : "Le fournisseur refuse momentanément la génération (limite 429). Réessaie plus tard. Aucun crédit décompté.") : "Le modèle de rédaction est indisponible. Réessaie dans un instant.", response.status === 429 ? 429 : 502);
+      throw new CarouselWriterError(response.status === 429 ? (exhausted ? `Le budget du fournisseur de rédaction est épuisé. ${openai ? "Le mode Max est indisponible ; tu peux utiliser le mode standard." : "Le mode standard est indisponible."} Aucun crédit décompté.` : "Le fournisseur refuse momentanément la génération (limite 429). Réessaie plus tard. Aucun crédit décompté.") : "Le modèle de rédaction est indisponible. Réessaie dans un instant.", response.status === 429 ? 429 : 502, `${openai ? "openai" : "anthropic"}_http_${response.status}${code ? "_" + code : type ? "_" + type : ""}`);
     }
     const data = await response.json();
     // Opus 5.5 : l'outil n'est plus forcé. S'il répond sans l'appeler, on relance
@@ -132,13 +149,13 @@ export async function callCarouselWriter(options: CarouselWriterOptions, sink?: 
       });
       if (!retry.ok) {
         await retry.body?.cancel();
-        throw new AnthropicError(retry.status === 429 ? "Le modèle est momentanément saturé. Réessaie dans un instant." : "Le modèle de rédaction est indisponible. Réessaie dans un instant.", retry.status === 429 ? 429 : 502);
+        throw new CarouselWriterError(retry.status === 429 ? "Le modèle est momentanément saturé. Réessaie dans un instant." : "Le modèle de rédaction est indisponible. Réessaie dans un instant.", retry.status === 429 ? 429 : 502, `anthropic_http_${retry.status}`);
       }
       return writerResponse(await retry.json(), options, sink);
     }
     return writerResponse(data, options, sink);
   } catch (error) {
     if (error instanceof AnthropicError) throw error;
-    throw new AnthropicError(controller.signal.aborted ? "La rédaction a dépassé le délai prévu. Réessaie." : "La connexion au modèle de rédaction a échoué. Réessaie.", controller.signal.aborted ? 504 : 502);
+    throw new CarouselWriterError(controller.signal.aborted ? "La rédaction a dépassé le délai prévu. Réessaie." : "La connexion au modèle de rédaction a échoué. Réessaie.", controller.signal.aborted ? 504 : 502, controller.signal.aborted ? "timeout" : "network");
   } finally { clearTimeout(timer); }
 }

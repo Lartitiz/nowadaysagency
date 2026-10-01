@@ -68,7 +68,7 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
       const [forPage, forLog] = res.body.tee();
       (async () => {
         const reader = forLog.getReader(), decoder = new TextDecoder();
-        let buffer = "";
+        let buffer = "", lastBeat = 0, ended = false;
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -78,6 +78,8 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
             let ev: any = {};
             try { ev = JSON.parse(buffer.slice(0, end).replace(/^data: /, "")); } catch { /* fragment illisible : ignoré */ }
             buffer = buffer.slice(end + 2);
+            if (ev.type === "heartbeat") lastBeat = performance.now();
+            if (ev.type === "done" || ev.type === "error") ended = true;
             if (!ev.type || ev.type === "heartbeat") continue;
             let detail = ev.stage ? `:${ev.stage}` : "";
             if (ev.type === "done") {
@@ -86,13 +88,16 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
                 const doc = JSON.parse((full.content || "").match(/\{[\s\S]*\}/)?.[0] || "{}");
                 const review = doc.editorial_review;
                 detail = ` durées=${JSON.stringify(full.timings || "non renvoyées")}` +
-                  (review ? ` relecture=${JSON.stringify({ status: review.status, pass: review.pass, total_edits: review.total_edits })}` : "") +
+                  (review ? ` relecture=${JSON.stringify({ status: review.status, pass: review.pass, total_edits: review.total_edits, error: review.error, model: review.model })}` : "") +
                   (doc.structure_warnings?.length ? ` avertissements=${doc.structure_warnings.length}` : "");
               } catch { /* done sans JSON exploitable */ }
             }
             console.log(`[SSE] ${edge} +${((performance.now() - t0) / 1000).toFixed(1)}s ${ev.type}${detail}`);
           }
         }
+        // Flux fermé sans done/error = l'edge a été coupée (durée, mémoire) :
+        // le dernier battement de cœur date à peu près la coupure.
+        if (!ended) console.log(`[SSE] ${edge} +${((performance.now() - t0) / 1000).toFixed(1)}s fin SANS done/error (dernier battement ${lastBeat ? `+${((lastBeat - t0) / 1000).toFixed(1)}s` : "aucun"})`);
       })().catch(() => {});
       return new Response(forPage, { status: res.status, statusText: res.statusText, headers: res.headers });
     };

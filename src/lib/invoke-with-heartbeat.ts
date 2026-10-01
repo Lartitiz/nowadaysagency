@@ -161,7 +161,7 @@ export async function invokeWithHeartbeat(
     }
 
     if (!finalText) {
-      return { data: null, error: { message: "Réponse vide du serveur.", code: "SERVER_ERROR" } };
+      return { data: null, error: { message: "La génération a été interrompue avant la fin (connexion coupée côté serveur). Réessaie.", code: "SERVER_ERROR" } };
     }
 
     let parsed: any = null;
