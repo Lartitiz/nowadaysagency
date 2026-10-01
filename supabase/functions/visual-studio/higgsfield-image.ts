@@ -1,6 +1,7 @@
 import { soulPrompt, resolveSoulStyle, SOUL2_STYLES } from "./soul-direction.ts";
 import { getServiceClient } from "../_shared/plan-limiter.ts";
 import { imagePrompt, type Proposal } from "./media.ts";
+import { PHOTO_PRESERVATION } from "./photo-preservation.ts";
 type DB = ReturnType<typeof getServiceClient>;
 const BASE = "https://api.higgsfield.ai";
 export const IMAGE_MODELS = [
@@ -47,10 +48,6 @@ export const MARKETING_PROMPT_MAX = 5000;
 const STAGING_START = "Stage the exact product in a physically plausible position";
 const STAGING_SHORT = "Stage the exact product plausibly: real contact with its confirmed support, believable contact shadow, normal orientation (a plate rests flat or is held, a bowl base-down). Match the setting's perspective, scale, light direction and color temperature. Keep its true profile and markings on the same parts; never invent an unseen side.";
 const BRIEF_RULE = "This brief and the confirmed preservation and change lists govern the result. The technical instructions below only explain how to realize them; do not introduce unconfirmed subjects, props, actions, text or style changes.";
-const PERSON_ONLY = [
-  "Si la personne change, adapte les ombres à sa morphologie en conservant les conditions lumineuses de la source. Maintiens les ombres naturelles du nez, des arcades, des cheveux et du menton. Ne débouche pas automatiquement les zones sombres. N'ajoute pas d'éclairage frontal ou de retouche beauté.",
-  "Préserve les pores discrets, les ridules et les variations naturelles de la peau, sans lissage ni accentuation excessive. N'invente pas de grain, de rides ou d'imperfections absents des références.",
-];
 /** Higgsfield-only fitting: keeps every confirmed user element (brief, shot
  * instructions, preserve/change lists, reference roles) and condenses only generic
  * boilerplate. Returns null when the confirmed content alone exceeds the limit. */
@@ -59,7 +56,13 @@ export function marketingPrompt(proposal: Proposal): string | null {
   if (prompt.length <= MARKETING_PROMPT_MAX) return prompt;
   const hasPerson = (proposal.references || []).some((r) => ["person", "casting", "person_product"].includes(r.role)) ||
     !!proposal.person_reference;
-  if (!hasPerson) for (const line of PERSON_ONLY) prompt = prompt.replace(`\n${line}`, "");
+  // Same rules as PHOTO_PRESERVATION, condensed (person rules only when a person is involved).
+  prompt = prompt.replace(PHOTO_PRESERVATION, [
+    "DEFAULT PHOTO PRESERVATION (an explicit confirmed lighting/style change overrides only the matching rule; references and brand charter are not such a request).",
+    "Apply only the requested changes. Keep the source's light direction and hardness, contrast, color temperature, grain and depth of field. Unrequested elements stay as faithful as possible to the original.",
+    hasPerson ? "If a person changes, keep source lighting on their morphology and natural face shadows; no automatic fill light, frontal light or beauty retouch; keep natural skin texture without smoothing or invented imperfections. If only the product changes, keep face, identity, expression and skin unchanged; an identity reference does not authorize replacing the person again." : "",
+    "Integrate products with reflections, cast and contact shadows matching this light, respecting their visual characteristics.",
+  ].filter(Boolean).join("\n"));
   prompt = prompt.split("\n").map((line) => {
     if (!line.startsWith(STAGING_START)) return line;
     const placement = line.indexOf("Confirmed product placement:");
