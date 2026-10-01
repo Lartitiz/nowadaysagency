@@ -153,6 +153,8 @@ function makeParams(overrides: Record<string, any> = {}) {
     streamReset: f.streamReset,
     generate: f.generate,
     photo: {
+      restoreSavedPhotos: overrides.restoreSavedPhotos,
+      isCurrent: overrides.isCurrent,
       uploadedPhotos: f.uploadedPhotos,
       photoMode: f.photoMode,
       photoDescription: f.photoDescription,
@@ -561,5 +563,28 @@ describe("useDoGenerate — photo dump (pure_photo)", () => {
     // Pas de fil narratif : la description retombe sur les contextes des photos attachées.
     expect(params.generate.mock.calls[0][0].photoDescription).toBe("au marché");
     expect(params.photo.photoDumpDoneRef.current).toBe(false);
+  });
+});
+
+
+describe("saved photo recovery before paid generation", () => {
+  beforeEach(() => vi.clearAllMocks());
+  it("passes recovered pixels through planning and its asynchronous final writer callback", async () => {
+    const photos = [{ base64: "data:image/jpeg;base64,AAAA", mimeType: "image/jpeg" }];
+    const p = makeParams({ carouselSubMode: "photo", restoreSavedPhotos: vi.fn().mockResolvedValue(photos) });
+    mocks.invokeWithTimeout.mockResolvedValue({ data: { result: { slides: [{ type: "photo_full", photo_index: 1 }] } }, error: null });
+    const { result } = renderHook(() => useDoGenerate(p));
+    await act(async () => { await result.current.doGenerate({}); });
+    expect(mocks.invokeWithTimeout.mock.calls[0][1].body.photos[0].base64).toBe(photos[0].base64);
+    expect(p.carousel.handleConfirmStructure.mock.calls[0][3]).toEqual(photos);
+    expect(p.photo.setGeneratedWithPhotos).toHaveBeenCalledWith(photos);
+  });
+  it.each(["failed", "empty", "stale"])("never resets the saved output or calls AI after %s recovery", async (kind) => {
+    const p = makeParams({ carouselSubMode: "photo", restoreSavedPhotos: kind === "failed" ? vi.fn().mockRejectedValue(new Error("offline")) : vi.fn().mockResolvedValue(kind === "empty" ? [] : [{base64:"photo"}]), isCurrent: () => kind !== "stale" });
+    const { result } = renderHook(() => useDoGenerate(p));
+    await act(async () => { await result.current.doGenerate({}); });
+    expect(mocks.invokeWithTimeout).not.toHaveBeenCalled();
+    expect(p.generate).not.toHaveBeenCalled();
+    expect(p.resultSetters.setVisualSlides).not.toHaveBeenCalled();
   });
 });

@@ -1,3 +1,4 @@
+import { restoreCarouselPhotos } from "@/lib/restore-carousel-photos";
 import { recoverStudioPhotos } from "@/features/carousel-studio/bridge";
 import { CarouselStudioDialog } from "@/features/carousel-studio/CarouselStudioDialog";
 import { CreationUpgradeInvite } from "@/components/CreationUpgradeInvite";
@@ -1582,6 +1583,7 @@ function CreerWorkspace() {
     confirmedSlides: SlideProposal[],
     proposalOverride?: StructureProposal,
     answersOverride?: Record<string, string>,
+    photosOverride?: PhotoItem[],
   ) => {
     if (generating) return; // garde anti double-clic (évite une 2e génération facturée)
     const enrichedSubject = existingCalendarContent
@@ -1611,7 +1613,7 @@ function CreerWorkspace() {
     })();
     // Même repli que les visuels : si le state UI a été reset entre l'upload et
     // cette génération, le snapshot generatedWithPhotos tient encore les photos.
-    const photosForText = pickNonEmpty(uploadedPhotos, generatedWithPhotos);
+    const photosForText = photosOverride ?? pickNonEmpty(uploadedPhotos, generatedWithPhotos);
     // Snapshot des photos avant la génération finale (au cas où le state UI serait reset)
     if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length > 0) {
       setGeneratedWithPhotos(uploadedPhotos);
@@ -1673,6 +1675,8 @@ function CreerWorkspace() {
     streamReset,
     generate,
     photo: {
+      restoreSavedPhotos: () => restoreCarouselPhotos(visualSlides),
+      isCurrent: isCurrentCreation,
       uploadedPhotos,
       photoMode,
       photoDescription,
