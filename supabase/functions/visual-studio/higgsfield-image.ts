@@ -52,6 +52,11 @@ const BRIEF_RULE = "This brief and the confirmed preservation and change lists g
  * instructions, preserve/change lists, reference roles) and condenses only generic
  * boilerplate. Returns null when the confirmed content alone exceeds the limit. */
 export function marketingPrompt(proposal: Proposal): string | null {
+  const prompt = marketingPromptCandidate(proposal);
+  return prompt.length <= MARKETING_PROMPT_MAX ? prompt : null;
+}
+/** Exposed for diagnostics/tests: the fitted prompt, whatever its length. */
+export function marketingPromptCandidate(proposal: Proposal): string {
   let prompt = imagePrompt(proposal);
   if (prompt.length <= MARKETING_PROMPT_MAX) return prompt;
   const hasPerson = (proposal.references || []).some((r) => ["person", "casting", "person_product"].includes(r.role)) ||
@@ -69,7 +74,7 @@ export function marketingPrompt(proposal: Proposal): string | null {
     return placement >= 0 ? `${STAGING_SHORT} ${line.slice(placement)}` : STAGING_SHORT;
   }).join("\n");
   prompt = prompt.replace(BRIEF_RULE, "Follow only this confirmed brief and the confirmed preserve/change lists.");
-  return prompt.length <= MARKETING_PROMPT_MAX ? prompt : null;
+  return prompt;
 }
 /** NOT a quote. Marketing Studio's estimate route returns only a pricing
  * description (token-billed, reconciled by the provider on completion), so the
