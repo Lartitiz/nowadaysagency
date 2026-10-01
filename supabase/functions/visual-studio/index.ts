@@ -48,6 +48,7 @@ import {
   higgsfieldImagesEnabled,
   marketingFidelityEligible,
   MARKETING_MAX_IMAGES,
+  marketingPromptTooLong, MARKETING_PROMPT_ERROR,
   routeToMarketingStudio,
   imageCallback,
   reconcileHiggsfieldImage,
@@ -1488,6 +1489,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           session = unwrap(await sb.from("visual_studio_sessions").update({ proposal: prepared })
             .eq("id", session.id).eq("revision", session.revision).select("*").single());
         }
+        // Check the final prepared prompt before creating a processing version or
+        // reserving usage. Keep the proposal and originals available for editing.
+        if (marketingPromptTooLong(session.proposal)) return json({ error: MARKETING_PROMPT_ERROR }, 409);
         const exempt = isQaTestAccount(actor) || quota.plan === "admin";
         const limits = PLAN_LIMITS[quota.plan] || PLAN_LIMITS.free;
         const claim = unwrap(

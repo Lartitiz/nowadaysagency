@@ -1,0 +1,50 @@
+{
+  "operation": "edit",
+  "visual_kind": "photo",
+  "model": "marketing-studio/image/sunburst",
+  "provider": "higgsfield",
+  "summary": "Je conserve cette scène et j'intègre tes références originales. Au centre du cadre, posée à plat sur le parquet devant le canapé : Remplacer le produit provisoire par le produit exact des originaux, avec sa forme, ses matières et ses motifs observés. Adapter uniquement les raccords nécessaires. Consigne préparée : Remplacer la table provisoire par la table exacte des originaux : plateau ovale en verre, structure noire géométrique, vases noirs et eucalyptus identiques en forme, matière et disposition Le cadrage, le décor et le rendu photographique seront conservés au maximum.",
+  "image_prompt": "Edit Image 1 (the approved living room scene) by replacing the provisional coffee table positioned on the parquet floor in front of the sofa with the exact coffee table shown in the original reference image (ID d80e65db-85e6-44a0-a924-292b2662900e): an oval clear glass tabletop resting on an angular, black V-shaped/geometric metal base, with the three matte black bottle-shaped vases holding dried eucalyptus branches arranged on top exactly as in the reference, matching their shapes, sizes, finish and relative placement. Adapt only the local contacts, perspective, reflections, cast shadows and contact shadows needed to integrate this exact table naturally into the existing floor, lighting and camera angle. Keep the glass transparency, the black satin finish of the metal legs and vases, and the dried eucalyptus foliage color and texture faithful to the reference. Do not alter any other element of the scene: keep the sofa, orange patterned cushion, wall art, wainscoting, window, armchairs, floor lamp, parquet pattern, framing, perspective, light direction, contrast, color temperature, grain and depth of field exactly as in Image 1.",
+  "preserve": [
+    "Conserver le cadrage, le point de vue, le décor, la lumière, les couleurs, la netteté et les textures photographiques de cette image, hors modifications explicitement demandées."
+  ],
+  "change": [
+    "Au centre du cadre, posée à plat sur le parquet devant le canapé : Remplacer la table basse provisoire par la table exacte de la référence : plateau ovale en verre transparent sur structure noire géométrique en forme de V, avec les trois vases noirs mats et les branches d'eucalyptus séché disposés comme sur l'original, en conservant leur forme, taille, finition et disposition. Adapter uniquement les ombres portées, reflets et raccords au sol nécessaires à l'intégration, sans modifier le reste du décor."
+  ],
+  "exact_text": [],
+  "format": "landscape",
+  "photo_treatment": "directed",
+  "product_placement": "Table basse ovale en verre posée à plat sur le parquet, structure noire géométrique bien stable au sol, plateau en verre horizontal avec reflets de la pièce, vases noirs et branches d'eucalyptus déjà sur le plateau tels que dans la référence produit.",
+  "references": [
+    {
+      "id": "product",
+      "photo_id": null,
+      "path": "fixture/product.jpg",
+      "role": "product",
+      "name": "table-basse-reference"
+    }
+  ],
+  "input_path": "fixture/scene.jpg",
+  "photo_source_path": "fixture/scene.jpg",
+  "scene_workflow": {
+    "accepted_changes": [
+      "Suppression du tapis à motifs, parquet en point de Hongrie entièrement visible",
+      "Ajout de la table basse ovale en verre et métal noir au centre, devant le canapé"
+    ],
+    "approved_scene_id": "fixture-scene",
+    "camera_match": "Vue de salon à hauteur d'œil, légèrement en plongée, trois quarts sur la table pour montrer le plateau ovale et les pieds noirs angulaires au sol",
+    "phase": "integration",
+    "scene_path": "fixture/scene.jpg",
+    "scene_version_id": "fixture-scene",
+    "targets": [
+      {
+        "instruction": "Remplacer la table basse provisoire par la table exacte de la référence : plateau ovale en verre transparent sur structure noire géométrique en forme de V, avec les trois vases noirs mats et les branches d'eucalyptus séché disposés comme sur l'original, en conservant leur forme, taille, finition et disposition. Adapter uniquement les ombres portées, reflets et raccords au sol nécessaires à l'intégration, sans modifier le reste du décor.",
+        "location": "Au centre du cadre, posée à plat sur le parquet devant le canapé",
+        "reference_ids": [
+          "product"
+        ],
+        "role": "product"
+      }
+    ]
+  }
+}
