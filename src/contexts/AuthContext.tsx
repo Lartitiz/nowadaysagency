@@ -10,6 +10,7 @@ import { setFlowUserId } from "@/hooks/use-flow-persistence";
 import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 import { invalidateUserPlanCache } from "@/hooks/use-user-plan";
 import { isSafeRedirectTarget } from "@/lib/safe-redirect";
+import { withReadTimeout } from "@/lib/read-timeout";
 
 interface AuthContextType {
   user: User | null;
@@ -72,11 +73,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (status === "needs" || (status === "unknown" && authUser.user_metadata?.pending_offer === "outil")) return "/onboarding";
 
       // Lecture dédiée pour welcome_seen (séparée du statut onboarding)
-      const { data: config } = await supabase
+      const { data: config } = await withReadTimeout(supabase
         .from("user_plan_config")
         .select("welcome_seen")
         .eq("user_id", userId)
-        .maybeSingle();
+        .maybeSingle());
 
       if (!config?.welcome_seen) return "/welcome";
       return "/dashboard";
@@ -91,15 +92,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
     let authRevision = 0;
     const initialRevision = authRevision;
+    // A refresh or cross-tab SDK lock can remain pending without rejecting.
+    // Show recovery, but keep listening: a late valid session must still win.
+    const startupTimer = setTimeout(() => {
+      if (!mounted || authRevision !== initialRevision) return;
+      setSessionReadFailed(true);
+      setLoading(false);
+    }, 15000);
 
     // 1. Listen to auth state changes FIRST (per Supabase docs)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
+      (event, currentSession) => {
         if (!mounted) return;
 
         // The SDK can emit INITIAL_SESSION(null) when its read fails. Only
         // getSession without an error confirms the absence of a session.
         if (!currentSession && event !== "SIGNED_OUT") return;
+        clearTimeout(startupTimer);
         const eventRevision = ++authRevision;
         setSessionReadFailed(false);
         setLoading(false);
@@ -154,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         if (!mounted || authRevision !== initialRevision) return;
         if (error) throw error;
+        clearTimeout(startupTimer);
         setSessionReadFailed(false);
 
         setSession(initialSession);
@@ -184,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return loadInitialSession(2);
         }
         console.error("Failed to get initial session after retry:", error);
+        clearTimeout(startupTimer);
         setSessionReadFailed(true);
         setLoading(false);
       }
@@ -225,6 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false;
+      clearTimeout(startupTimer);
       subscription.unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };

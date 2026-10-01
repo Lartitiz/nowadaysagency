@@ -12,6 +12,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { withReadTimeout } from "@/lib/read-timeout";
 
 export type OnboardingStatus = "done" | "needs" | "unknown";
 
@@ -42,16 +43,16 @@ export async function resolveOnboardingStatus(
   const { profileUserId, planConfigUserId } = opts;
 
   const [profileResult, configResult] = await Promise.allSettled([
-    supabase
+    withReadTimeout(supabase
       .from("profiles")
       .select("onboarding_completed")
       .eq("user_id", profileUserId)
-      .maybeSingle(),
-    supabase
+      .maybeSingle()),
+    withReadTimeout(supabase
       .from("user_plan_config")
       .select("onboarding_completed")
       .eq("user_id", planConfigUserId)
-      .maybeSingle(),
+      .maybeSingle()),
   ]);
 
   // Extraction : { row, available } où `available` = true si la requête a

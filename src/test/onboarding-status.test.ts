@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // resolveOnboardingStatus est le helper de sécurité qui pilote le gating
 // onboarding dans ProtectedRoute (src/components/ProtectedRoute.tsx). La règle
@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // JAMAIS être traité comme "needs" — sinon ProtectedRoute renverrait à tort
 // des comptes déjà onboardés vers /onboarding au moindre lag DB / RLS.
 
-type MockResponse = { data: unknown; error: unknown } | "reject";
+type MockResponse = { data: unknown; error: unknown } | "reject" | "pending";
 
 const mocks = vi.hoisted(() => ({
   responses: {} as Record<string, MockResponse>,
@@ -20,6 +20,7 @@ vi.mock("@/integrations/supabase/client", () => ({
           maybeSingle: async () => {
             const resp = mocks.responses[table];
             if (resp === "reject") throw new Error(`network error on ${table}`);
+            if (resp === "pending") return new Promise(() => {});
             return resp ?? { data: null, error: null };
           },
         }),
@@ -36,6 +37,23 @@ function setResponses(profiles: MockResponse, userPlanConfig: MockResponse) {
 
 beforeEach(() => {
   mocks.responses = {};
+});
+afterEach(() => vi.useRealTimers());
+
+it("une requête suspendue reste inconnue après le délai, sans inventer un onboarding incomplet", async () => {
+  vi.useFakeTimers();
+  setResponses("pending", "pending");
+  const read = resolveOnboardingStatus({ profileUserId: "u1", planConfigUserId: "u1" });
+  await vi.advanceTimersByTimeAsync(10000);
+  expect(await read).toBe("unknown");
+});
+
+it("une réponse fiable reste utilisable quand l'autre requête ne répond pas", async () => {
+  vi.useFakeTimers();
+  setResponses("pending", { data: { onboarding_completed: true }, error: null });
+  const read = resolveOnboardingStatus({ profileUserId: "u1", planConfigUserId: "u1" });
+  await vi.advanceTimersByTimeAsync(10000);
+  expect(await read).toBe("done");
 });
 
 const OPTS = { profileUserId: "u1", planConfigUserId: "u1" };
