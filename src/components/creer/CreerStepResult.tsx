@@ -280,6 +280,7 @@ interface Props {
   visualSlides?: { slide_number: number; html: string }[];
   onVisualSlidesUpdate?: (slides: { slide_number: number; html: string }[]) => void;
   onCarouselDocumentChange?: (raw: any, slides: { slide_number: number; html: string }[]) => void;
+  onOpenCarouselStudio?: (slideId: string) => void;
   carouselCloudTools?: ReactNode;
   carouselQuality?: CarouselQuality;
   onExportPptx?: () => void;
@@ -349,6 +350,7 @@ export default function CreerStepResult({
   visualSlides,
   onVisualSlidesUpdate,
   onCarouselDocumentChange,
+  onOpenCarouselStudio,
   carouselCloudTools,
   carouselQuality,
   onExportPptx,
@@ -550,7 +552,7 @@ export default function CreerStepResult({
     if (format === "carousel" && visualSlides?.length && onCarouselDocumentChange) {
       return <fieldset disabled={visualLoading} className={`min-w-0 w-full ${visualLoading ? "pointer-events-none opacity-60" : ""}`} aria-busy={visualLoading}>
         {visualLoading && <p role="status" className="mb-3 text-sm">Régénération en cours. Les retouches seront disponibles dès que les nouveaux visuels seront prêts.</p>}
-        <CarouselEditor result={result} visualSlides={visualSlides} onChange={onCarouselDocumentChange} photos={photos} onAddPhoto={onAddPhoto} onStaleChange={onCarouselStaleChange} cloudTools={carouselCloudTools} quality={carouselQuality} toolsPortal={carouselToolsSlot} />
+        <CarouselEditor onOpenStudio={onOpenCarouselStudio} result={result} visualSlides={visualSlides} onChange={onCarouselDocumentChange} photos={photos} onAddPhoto={onAddPhoto} onStaleChange={onCarouselStaleChange} cloudTools={carouselCloudTools} quality={carouselQuality} toolsPortal={carouselToolsSlot} />
       </fieldset>;
     }
     // Carousel photo gets its own renderer — si on a des photos, OU si les slides
@@ -560,7 +562,7 @@ export default function CreerStepResult({
     const hasCastingSlides = Array.isArray(r?.slides) && r.slides.some((s: any) => s?.photo_directive);
     if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix") && ((photos && photos.length > 0) || hasCastingSlides)) {
       return (
-        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} onVisualSlidesUpdate={onVisualSlidesUpdate} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} onAddPhoto={onAddPhoto} colors={carouselColors} onColorsChange={onCarouselColorsChange} charterColors={charterColors} onStaleChange={onCarouselStaleChange} />
+        <CarouselPhotoResult onOpenStudio={onOpenCarouselStudio} result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} onVisualSlidesUpdate={onVisualSlidesUpdate} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} onAddPhoto={onAddPhoto} colors={carouselColors} onColorsChange={onCarouselColorsChange} charterColors={charterColors} onStaleChange={onCarouselStaleChange} />
       );
     }
 

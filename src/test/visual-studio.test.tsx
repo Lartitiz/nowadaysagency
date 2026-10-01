@@ -1034,3 +1034,26 @@ it("shows verified Soul examples and prepares a preset correction without genera
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "message", reference_ids: ["product"], message: expect.stringContaining("General") })));
   expect(mock.request.mock.calls.some(([body]) => body.action === "generate")).toBe(false);
 });
+
+
+it("shows carousel return in the photo tab and keeps it after reload", async () => {
+  localStorage.setItem("carousel-studio:ticket", JSON.stringify({ id: "ticket", userId: mock.user, workspaceId: mock.space,
+    ideaId: "idea", documentId: "document", slideId: "slide", slideNumber: 2, sessionId: "session", fingerprint: "fingerprint", createdAt: Date.now() }));
+  mock.request.mockResolvedValue({ ...original(), versions: [{ id: "version", status: "ready", url: "/image.jpg", library_photo_id: "photo", proposal, created_at: "", error_message: null }] });
+  const mounted = mount("/photos/studio?session=session&carousel_return=ticket");
+  expect(await screen.findByText("Image pour la slide 2. Ton carrousel est enregistré.")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Retour au carrousel sans remplacer l’image" })).toBeVisible();
+  expect(await screen.findByRole("button", { name: "Utiliser dans cette slide" })).toBeVisible();
+  mounted.unmount();
+  mount("/photos/studio?session=session&carousel_return=ticket");
+  expect(await screen.findByRole("button", { name: "Retour au carrousel sans remplacer l’image" })).toBeVisible();
+});
+
+it("does not offer a carousel replacement from another workspace or Studio session", async () => {
+  localStorage.setItem("carousel-studio:ticket", JSON.stringify({ id: "ticket", userId: mock.user, workspaceId: "another-space",
+    ideaId: "idea", slideId: "slide", sessionId: "session", createdAt: Date.now() }));
+  mock.request.mockResolvedValue(original());
+  mount("/photos/studio?session=session&carousel_return=ticket");
+  expect(await screen.findByText(/Le lien de retour n’est pas disponible/)).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Utiliser dans cette slide" })).not.toBeInTheDocument();
+});

@@ -1,3 +1,5 @@
+import { recoverStudioPhotos } from "@/features/carousel-studio/bridge";
+import { CarouselStudioDialog } from "@/features/carousel-studio/CarouselStudioDialog";
 import { CreationUpgradeInvite } from "@/components/CreationUpgradeInvite";
 import { invalidateProgressionReceipt } from "../../supabase/functions/_shared/carousel-editorial-snapshot";
 import { pinterestCurrentText } from "@/lib/pinterest-current-text";
@@ -244,6 +246,8 @@ function CreerWorkspace() {
       (loadPhotos().length > 0 && paramCanal && paramCanal !== (deriveCanalFromState(d) || d.forcedChannel))
     );
     if (!hasNewIntent) return null;
+    // A verified Studio return resumes this exact saved idea, not a new draft.
+    if (locState.carouselStudioResume === true && locState.ideaId === d.editingIdeaId) return null;
     // Même sujet que le brouillon → pas de conflit, on reprend simplement.
     const hasSource = !!(paramIdeaId || locState.ideaId || locState.fromBrief || locState.fromCalendar || locState.fromRecycle || locState.resumeIdea || locState.libraryPhotoIds?.length);
     if (!isFreshStart && !hasSource && newSubject && newSubject === d.ideaText?.trim()) return null;
@@ -407,6 +411,7 @@ function CreerWorkspace() {
   // hybride). Les photos sont rehydratées en asynchrone par l'effet plus bas
   // (IndexedDB pour les dépôts, refetch serveur pour la photothèque).
   const [uploadedPhotos, setUploadedPhotos] = useState<any[]>([]);
+  const [photosRestored, setPhotosRestored] = useState(false);
   const [isLoadingLibraryPhotos, setIsLoadingLibraryPhotos] = useState(false);
   // Snapshot des photos au moment de la génération du carrousel.
   // Sert de source de vérité pour handleGenerateVisuals si le state UI est reset.
@@ -663,7 +668,18 @@ function CreerWorkspace() {
   } = useContentGenerator();
   const currentStructureWarnings = useMemo(() => invalidateProgressionReceipt(result?.raw || {}).structure_warnings || [], [result?.raw]);
 
-  const carouselCloudEnabled = workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive && step === "result" && selectedFormat === "carousel" && !!result?.raw?.carousel_editor_version;
+  const [studioSlideId, setStudioSlideId] = useState<string | null>(null);
+  const carouselCloudEnabled = workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive && step === "result" && selectedFormat === "carousel" && !!(result?.raw?.carousel_editor_version || result?.raw?.carousel_studio_version);
+  const openCarouselStudio = (id: string) => {
+    if (id.startsWith("index:")) {
+      const index = Number(id.slice(6));
+      const raw = result?.raw;
+      if (!raw?.slides?.[index]) return;
+      const slides = raw.slides.map((s: any) => ({ ...s, editor_id: s.editor_id || crypto.randomUUID() }));
+      setResult(prev => prev ? { ...prev, raw: { ...raw, slides, _carousel_document_id: raw._carousel_document_id || crypto.randomUUID(), carousel_studio_version: 1 } } : prev);
+      setStudioSlideId(slides[index].editor_id);
+    } else setStudioSlideId(id);
+  };
   const carouselSave = useCarouselAutosave({
     enabled: carouselCloudEnabled,
     userId: session?.user?.id || "", workspaceId, isOwnSpace, ideaId: editingIdeaId,
@@ -672,6 +688,13 @@ function CreerWorkspace() {
     onSaved: (meta) => { if (isCurrentCreation()) setResult((prev: any) => prev ? { ...prev, raw: { ...prev.raw, _carousel_cloud: meta } } : prev); },
     onRestore: (raw) => { if (!isCurrentCreation()) return; setResult((prev: any) => prev ? { ...prev, raw } : prev); setVisualSlides(raw.visual_html || []); },
   });
+  useEffect(() => {
+    if (!photosRestored || !result?.raw?.slides?.some((s: any) => s.studio_image_receipt) || conflictPending) return;
+    setUploadedPhotos(prev => {
+      const next = recoverStudioPhotos(result.raw, prev);
+      return next.length === prev.length && next.every((p, i) => p === prev[i]) ? prev : next;
+    });
+  }, [result?.raw, conflictPending, photosRestored]);
   const carouselQuality = useCarouselQuality(visualSlides, selectedFormat === "carousel" && step === "result" && !visualLoading && !generating);
 
   // Réhydrate les questions persistées : elles vivent dans useContentGenerator
@@ -1104,13 +1127,13 @@ function CreerWorkspace() {
   const photosRehydratedRef = useRef(false);
   useEffect(() => {
     if (conflictPending || creationId !== initialCreationId.current || photosRehydratedRef.current) return;
-    if (!shouldRestore) return;
+    if (!shouldRestore) { setPhotosRestored(true); return; }
     // Le chemin "Partir de la photothèque" (locState.libraryPhotoIds) gère
     // déjà son propre chargement — ne pas le doubler.
     if (libraryPhotoIdsRef.current.length > 0) return;
     const manifest = loadPhotos();
-    if (manifest.length === 0) { photosRehydratedRef.current = true; return; }
-    if (uploadedPhotos.length > 0) { photosRehydratedRef.current = true; return; }
+    if (manifest.length === 0) { photosRehydratedRef.current = true; setPhotosRestored(true); return; }
+    if (uploadedPhotos.length > 0) { photosRehydratedRef.current = true; setPhotosRestored(true); return; }
     // Les originaux photothèque ont besoin du workspace pour le refetch.
     const needsWorkspace = manifest.some((m) => m.local === false);
     if (needsWorkspace && !workspaceId) return; // attend que le workspace soit prêt
@@ -1175,7 +1198,7 @@ function CreerWorkspace() {
         }
       } catch (e) {
         console.warn("[creer] rehydrate photos failed", e);
-      }
+      } finally { if (!cancelled) setPhotosRestored(true); }
     })();
     return () => { cancelled = true; photosRehydratedRef.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3096,6 +3119,7 @@ function CreerWorkspace() {
                   setResult((prev: any) => prev ? { ...prev, raw } : prev);
                   setVisualSlides(visuals);
                 }}
+                onOpenCarouselStudio={workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive ? openCarouselStudio : undefined}
                 carouselCloudTools={<CarouselSaveStatus save={carouselSave} />}
                 carouselQuality={carouselQuality}
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
@@ -3393,6 +3417,12 @@ function CreerWorkspace() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {studioSlideId && carouselCloudEnabled && editingIdeaId && <CarouselStudioDialog
+        key={`${workspaceId}:${studioSlideId}`}
+        userId={session!.user.id} workspaceId={workspaceId} isOwnSpace={isOwnSpace} ideaId={editingIdeaId}
+        raw={result!.raw} slideId={studioSlideId} photos={recoverStudioPhotos(result!.raw, uploadedPhotos).filter(Boolean)}
+        flush={carouselSave.flush} isCurrent={isCurrentCreation} onClose={() => setStudioSlideId(null)}
+      />}
       <SaveToIdeasDialog
         open={saveIdeaDialogOpen}
         onOpenChange={setSaveIdeaDialogOpen}

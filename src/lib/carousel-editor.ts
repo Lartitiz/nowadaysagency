@@ -293,10 +293,11 @@ export function replacePhoto(
   if (el.tagName === "IMG") el.setAttribute("src", source);
   else el.style.backgroundImage = `url("${source.replace(/["\\\n\r]/g, "")}")`;
   el.setAttribute("data-pptx-photo", String(photoIndex));
+  const { studio_image_receipt: _receipt, studio_image_source: _source, photo_library_id: _library, ...photoData } = slide.data;
   return {
     ...slide,
     data: {
-      ...slide.data,
+      ...photoData,
       photo_index: photoIndex,
       slide_type:
         slide.data.slide_type === "text_only"

@@ -52,6 +52,7 @@ interface Props {
   ) => void;
   photos?: PhotoItem[];
   onAddPhoto?: (photo: PhotoItem) => number;
+  onOpenStudio?: (slideId: string) => void;
   onStaleChange?: (stale: boolean) => void;
   cloudTools?: ReactNode;
   quality?: CarouselQuality;
@@ -249,6 +250,7 @@ export default function CarouselEditor({
   onChange,
   photos,
   onAddPhoto,
+  onOpenStudio,
   onStaleChange,
   cloudTools,
   quality,
@@ -1018,6 +1020,7 @@ export default function CarouselEditor({
             >
               Ajouter un texte
             </Button>
+            {onOpenStudio && <Button variant="outline" size="sm" className="w-full" disabled={slide.locked} onClick={() => onOpenStudio(slide.id)}>Créer / remplacer avec le Studio</Button>}
             {onAddPhoto && (
               <Button
                 variant="outline"

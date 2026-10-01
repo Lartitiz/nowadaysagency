@@ -55,6 +55,7 @@ export interface CarouselColors {
 
 interface CarouselPhotoResultProps {
   result: any;
+  onOpenStudio?: (slideId: string) => void;
   photos?: PhotoItem[];
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   visualSlides?: { slide_number: number; html: string }[];
@@ -222,7 +223,7 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, onVisualSlidesUpdate, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false, onAddPhoto, colors, onColorsChange, charterColors, onStaleChange }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSlidesUpdate, visualSlides, onVisualSlidesUpdate, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false, onAddPhoto, colors, onColorsChange, charterColors, onStaleChange }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
 
   // Construit la version "fullText" mono-bloc à partir des sous-champs
@@ -521,7 +522,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     const newIndex = onAddPhoto?.(photo);
     if (!newIndex) return;
     const next = slides.map((s, i) =>
-      i === slideIdx ? { ...s, photo_index: newIndex, cast_source: castSource } : s,
+      i === slideIdx ? { ...s, photo_index: newIndex, cast_source: castSource, studio_image_receipt: undefined, studio_image_source: undefined, photo_library_id: photo.userPhotoId } : s,
     );
     setSlides(next);
     notify(next, caption);
@@ -558,6 +559,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   // Génération IA de l'image d'une slide depuis sa directive (lot 2).
   // 1 crédit par appel (edge carousel-slide-image, gpt-image-2.5-flare, gate Premium).
   const generateForSlide = async (idx: number, adjustment?: string) => {
+    if (onOpenStudio) { onOpenStudio(`index:${idx}`); return; }
     const directive = (slides[idx]?.photo_directive as string | undefined)?.trim();
     if (!directive || genState[idx]?.loading) return;
     setGenState((p) => ({ ...p, [idx]: { ...p[idx], loading: true, error: undefined } }));
@@ -623,7 +625,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     if (!newIndex) return;
     const nextSlides = slides.map((s: any, i: number) =>
       i === idx
-        ? { ...s, photo_index: newIndex, cast_source: "news_stock", photo_credit: credit }
+        ? { ...s, photo_index: newIndex, cast_source: "news_stock", photo_credit: credit, studio_image_receipt: undefined, studio_image_source: undefined, photo_library_id: item.userPhotoId }
         : s,
     );
     let nextCaption = caption;
@@ -980,6 +982,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
+                {onOpenStudio && <Button variant="outline" size="sm" className="h-auto whitespace-normal text-xs" onClick={() => onOpenStudio(`index:${idx}`)}>Créer / remplacer avec le Studio</Button>}
                 <div className="ml-auto flex items-center gap-1">
                   <Button
                     type="button"
@@ -1096,7 +1099,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                             onClick={() => generateForSlide(idx)}
                           >
                             <Sparkles size={13} className="mr-1" />
-                            Générer l'image · 1 crédit
+                            {onOpenStudio ? "Créer dans le Studio" : "Générer l’image · 1 crédit"}
                           </Button>
                         )}
                         <Button
@@ -1202,7 +1205,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                                 onClick={() => generateForSlide(idx)}
                               >
                                 <Sparkles size={13} className="mr-1" />
-                                Générer à la place · 1 crédit
+                                {onOpenStudio ? "Remplacer dans le Studio" : "Générer à la place · 1 crédit"}
                               </Button>
                             )}
                           </div>
