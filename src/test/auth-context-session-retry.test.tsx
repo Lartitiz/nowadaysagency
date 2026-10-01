@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, waitFor, screen, act } from "@testing-library/react";
 import type { ReactNode } from "react";
 
@@ -46,6 +46,7 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 describe("AuthContext — retry sur échec réseau du getSession() initial", () => {
+  afterEach(() => vi.useRealTimers());
   beforeEach(() => {
     vi.clearAllMocks();
     state.getSession.mockReset();
@@ -85,6 +86,33 @@ describe("AuthContext — retry sur échec réseau du getSession() initial", () 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.user).toBeNull();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("une lecture qui ne répond jamais affiche la reprise, puis accepte le succès tardif", async () => {
+    vi.useFakeTimers();
+    let resolve!: (value: unknown) => void;
+    state.getSession.mockImplementation(() => new Promise(r => { resolve = r; }));
+    const { result, unmount } = renderHook(() => useAuth(), { wrapper });
+    await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+    expect(screen.getByRole("alert")).toHaveTextContent("Impossible de vérifier ta connexion");
+    expect(state.navigate).not.toHaveBeenCalled();
+    expect(state.getSession).toHaveBeenCalledTimes(1);
+    await act(async () => { resolve({ data: { session: { access_token: "recovered", user: { id: "u1" } } } }); });
+    expect(result.current.user?.id).toBe("u1");
+    expect(result.current.loading).toBe(false);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    unmount();
+  });
+
+  it("une session confirmée empêche l'ancien délai de masquer la page", async () => {
+    vi.useFakeTimers();
+    state.getSession.mockImplementation(() => new Promise(() => {}));
+    const { result, unmount } = renderHook(() => useAuth(), { wrapper });
+    await act(async () => { state.listener("SIGNED_IN", { access_token: "valid", user: { id: "u1" } }); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(16000); });
+    expect(result.current.user?.id).toBe("u1");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    unmount();
   });
 
   it("INITIAL_SESSION null ne conclut pas avant la lecture qui peut échouer", async () => {
