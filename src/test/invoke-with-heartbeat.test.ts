@@ -67,7 +67,7 @@ it("a stream read failure cleans up its timer without replaying the paid POST", 
 
 it("an abort reported by SSE is readable while an explicit quota keeps its data", async () => {
   fetchMock.mockResolvedValueOnce(events('data: {"type":"error","error":"signal is aborted without reason"}\n'));
-  expect((await invokeWithHeartbeat("carousel-ai")).error?.message).toContain("brouillon est conservé");
+  expect((await invokeWithHeartbeat("carousel-ai")).error?.message).toContain("connexion au service");
   const quota = { error: "limit_reached", quota: { limit: 5 }, message: "Limite atteinte." };
   fetchMock.mockResolvedValueOnce(events(`data: ${JSON.stringify({ type: "error", error: JSON.stringify(quota) })}\n`));
   const result = await invokeWithHeartbeat("carousel-ai");

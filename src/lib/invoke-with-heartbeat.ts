@@ -2,7 +2,7 @@ import { withIdeaBrief } from "@/lib/idea-brief-request";
 import { supabase } from "@/integrations/supabase/client";
 import type { InvokeError } from "./invoke-with-timeout";
 
-const CONNECTION_INTERRUPTED = "La connexion au service de génération a été interrompue. Ton brouillon est conservé ; réessaie dans quelques instants.";
+const CONNECTION_INTERRUPTED = "La connexion au service de génération a été interrompue. Réessaie dans quelques instants.";
 function serviceMessage(value: unknown, fallback = "Erreur de génération."): string {
   if (typeof value !== "string" || !value) return fallback;
   return /signal is aborted|AbortError|Failed to fetch|NetworkError|Load failed/i.test(value) ? CONNECTION_INTERRUPTED : value;
@@ -204,7 +204,7 @@ export async function invokeWithHeartbeat(
       data: null,
       error: {
         message: phase === "session"
-          ? "Impossible de vérifier ta connexion pour le moment. Recharge la page pour réessayer. Ton brouillon est conservé."
+          ? "Impossible de vérifier ta connexion pour le moment. Recharge la page pour réessayer."
           : CONNECTION_INTERRUPTED,
         code: phase === "session" ? "SESSION_UNAVAILABLE" : "NETWORK",
         isNetwork: phase !== "session", originalError: err,
