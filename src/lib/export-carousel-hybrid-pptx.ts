@@ -1482,7 +1482,7 @@ export async function exportCarouselHybridPptx(
         if (w <= 0 || h <= 0) continue;
         const radius = Math.min(pxToInches(cb.borderRadiusPx, PX_PER_IN), Math.min(w, h) / 2);
         try {
-          slide.addShape(sb.borderRadiusPx > 0 ? "roundRect" : "rect", {
+          slide.addShape(cb.borderRadiusPx > 0 ? "roundRect" : "rect", {
             x, y, w, h,
             fill: { color: cb.color },
             line: { type: "none" },
@@ -1563,7 +1563,7 @@ export async function exportCarouselHybridPptx(
         const radiusInches = pxToInches(sb.borderRadiusPx, PX_PER_IN);
         const cappedRadius = Math.min(radiusInches, Math.min(w, h) / 2);
         try {
-          slide.addShape("roundRect", {
+          slide.addShape(sb.borderRadiusPx > 0 ? "roundRect" : "rect", {
             x, y, w, h,
             // L'alpha CSS devient une transparency native : une carte-voile
             // rgba(255,255,255,0.06) sur fond sombre reste un voile (et pas un
