@@ -71,10 +71,21 @@ export function marketingPrompt(proposal: Proposal): string | null {
   prompt = prompt.replace(BRIEF_RULE, "Follow only this confirmed brief and the confirmed preserve/change lists.");
   return prompt.length <= MARKETING_PROMPT_MAX ? prompt : null;
 }
-/** Marketing Studio estimates are token-based and return a pricing description,
- * not an amount. Reserve a conservative bound instead (2k high output + inputs). */
+/** NOT a quote. Marketing Studio's estimate route returns only a pricing
+ * description (token-billed, reconciled by the provider on completion), so the
+ * real cost cannot be capped in advance. This is a budget RESERVATION computed
+ * from the verified official rates (per 1M tokens: text input $5, image input $8,
+ * image output $30) with explicit upper-bound token assumptions:
+ * prompt <= 5000 chars -> <= 2500 tokens; <= 2000 tokens per input image;
+ * <= 10000 output tokens for one 2k high-quality image. Still bounded by the
+ * $2 per-image guard and the monthly limit. */
+export const MARKETING_RESERVE_BASIS = { text_tokens: 2500, image_input_tokens: 2000, output_tokens: 10000,
+  usd_per_m: { text_in: 5, image_in: 8, image_out: 30 } } as const;
 export function marketingReserveUsd(imageCount: number) {
-  return Math.min(2, Math.round((0.35 + 0.03 * imageCount) * 100) / 100);
+  const b = MARKETING_RESERVE_BASIS;
+  const usd = (b.text_tokens * b.usd_per_m.text_in + imageCount * b.image_input_tokens * b.usd_per_m.image_in +
+    b.output_tokens * b.usd_per_m.image_out) / 1_000_000;
+  return Math.min(2, Math.ceil(usd * 100) / 100);
 }
 export function routeToMarketingStudio<T extends Proposal>(proposal: T): T {
   if (!higgsfieldImagesEnabled() || !marketingFidelityEligible(proposal)) return proposal;
@@ -326,6 +337,7 @@ export async function submitHiggsfieldImage(
       ? marketingReserveUsd(urls.length)
       : Number(quote.usd);
     stage = "reserve";
+    if (marketing) console.log("[studio:higgsfield-reserve]", JSON.stringify({ basis: "token_rates_upper_bound", not_a_quote: true, reserve_usd: estimate, images: urls.length }));
     if (!Number.isFinite(estimate) || estimate <= 0 || estimate > 2) {
       throw new Error("studio_provider_budget");
     }

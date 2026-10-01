@@ -54,6 +54,6 @@ Deno.test("Marketing prompt fits the 5000-char provider limit and keeps confirme
 
 Deno.test("Marketing reserve stays bounded", async () => {
   const { marketingReserveUsd } = await import("./higgsfield-image.ts");
-  assertEquals(marketingReserveUsd(2), 0.41);
+  assertEquals(marketingReserveUsd(2), 0.35);
   assertEquals(marketingReserveUsd(100) <= 2, true);
 });
