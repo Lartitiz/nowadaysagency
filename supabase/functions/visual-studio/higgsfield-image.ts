@@ -41,6 +41,38 @@ export function marketingFidelityEligible(proposal: Proposal | null | undefined)
     proposal.scene_workflow?.phase === "integration" ||
     (proposal.operation === "create" && proposal.person_reference?.mode === "sheet");
 }
+// Official limit observed on the Marketing Studio estimate route (01/10/2026):
+// prompts above 5000 characters are refused with HTTP 400 "is too long".
+export const MARKETING_PROMPT_MAX = 5000;
+const STAGING_START = "Stage the exact product in a physically plausible position";
+const STAGING_SHORT = "Stage the exact product plausibly: real contact with its confirmed support, believable contact shadow, normal orientation (a plate rests flat or is held, a bowl base-down). Match the setting's perspective, scale, light direction and color temperature. Keep its true profile and markings on the same parts; never invent an unseen side.";
+const BRIEF_RULE = "This brief and the confirmed preservation and change lists govern the result. The technical instructions below only explain how to realize them; do not introduce unconfirmed subjects, props, actions, text or style changes.";
+const PERSON_ONLY = [
+  "Si la personne change, adapte les ombres à sa morphologie en conservant les conditions lumineuses de la source. Maintiens les ombres naturelles du nez, des arcades, des cheveux et du menton. Ne débouche pas automatiquement les zones sombres. N'ajoute pas d'éclairage frontal ou de retouche beauté.",
+  "Préserve les pores discrets, les ridules et les variations naturelles de la peau, sans lissage ni accentuation excessive. N'invente pas de grain, de rides ou d'imperfections absents des références.",
+];
+/** Higgsfield-only fitting: keeps every confirmed user element (brief, shot
+ * instructions, preserve/change lists, reference roles) and condenses only generic
+ * boilerplate. Returns null when the confirmed content alone exceeds the limit. */
+export function marketingPrompt(proposal: Proposal): string | null {
+  let prompt = imagePrompt(proposal);
+  if (prompt.length <= MARKETING_PROMPT_MAX) return prompt;
+  const hasPerson = (proposal.references || []).some((r) => ["person", "casting", "person_product"].includes(r.role)) ||
+    !!proposal.person_reference;
+  if (!hasPerson) for (const line of PERSON_ONLY) prompt = prompt.replace(`\n${line}`, "");
+  prompt = prompt.split("\n").map((line) => {
+    if (!line.startsWith(STAGING_START)) return line;
+    const placement = line.indexOf("Confirmed product placement:");
+    return placement >= 0 ? `${STAGING_SHORT} ${line.slice(placement)}` : STAGING_SHORT;
+  }).join("\n");
+  prompt = prompt.replace(BRIEF_RULE, "Follow only this confirmed brief and the confirmed preserve/change lists.");
+  return prompt.length <= MARKETING_PROMPT_MAX ? prompt : null;
+}
+/** Marketing Studio estimates are token-based and return a pricing description,
+ * not an amount. Reserve a conservative bound instead (2k high output + inputs). */
+export function marketingReserveUsd(imageCount: number) {
+  return Math.min(2, Math.round((0.35 + 0.03 * imageCount) * 100) / 100);
+}
 export function routeToMarketingStudio<T extends Proposal>(proposal: T): T {
   if (!higgsfieldImagesEnabled() || !marketingFidelityEligible(proposal)) return proposal;
   return { ...proposal, provider: "higgsfield", model: MARKETING_FIDELITY_MODEL };
@@ -64,7 +96,7 @@ function publicUrl(value: unknown): value is string {
   }
 }
 class ProviderHttpError extends Error {
-  constructor(public status: number) {
+  constructor(public status: number, public path: string) {
     super(`higgsfield_http_${status}`);
   }
 }
@@ -78,7 +110,7 @@ async function api(path: string, method = "GET", body?: unknown) {
     ...(body ? { body: JSON.stringify(body) } : {}),
     signal: AbortSignal.timeout(35_000),
   });
-  if (!response.ok) throw new ProviderHttpError(response.status);
+  if (!response.ok) throw new ProviderHttpError(response.status, path.split("?")[0]);
   return await response.json();
 }
 export function imageInput(proposal: Proposal, urls: string[]) {
@@ -108,8 +140,10 @@ export function imageInput(proposal: Proposal, urls: string[]) {
       image_urls: undefined,
     };
   }
+  const prompt = marketingPrompt(proposal);
+  if (!prompt) throw new Error("studio_prompt_too_long");
   return {
-    prompt: imagePrompt(proposal),
+    prompt,
     quality: "high",
     resolution: "2k",
     aspect_ratio: proposal.format === "portrait"
@@ -118,7 +152,6 @@ export function imageInput(proposal: Proposal, urls: string[]) {
       ? "3:2"
       : "1:1",
     enhance_prompt: false,
-    moderation: "auto",
     ...(urls.length ? { image_urls: urls } : {}),
   };
 }
@@ -148,10 +181,10 @@ async function upload(blob: Blob) {
   if (!response.ok) throw new Error("studio_provider_upload");
   return data.public_url;
 }
-export async function failHiggsfieldImage(db: DB, versionId: string) {
+export async function failHiggsfieldImage(db: DB, versionId: string, message = "La création a échoué. Aucune image décomptée.") {
   const result = await db.from("visual_studio_versions").update({
     status: "failed",
-    error_message: "La création a échoué. Aucune image décomptée.",
+    error_message: message,
     completed_at: new Date().toISOString(),
   }).eq("id", versionId).eq("status", "processing");
   if (result.error) throw result.error;
@@ -248,7 +281,7 @@ export async function submitHiggsfieldImage(
   version: { id: string; workspace_id: string; proposal: Proposal },
   inputs: Blob[],
 ) {
-  let submitted = false, accepted = false;
+  let submitted = false, accepted = false, stage = "checks";
   try {
     if ([SOUL2_MODEL, SOUL2_I2I_MODEL].includes(version.proposal.model || "")
       ? !soul2Enabled()
@@ -273,14 +306,23 @@ export async function submitHiggsfieldImage(
       if (inserted.error.code === "23505") return;
       throw inserted.error;
     }
+    stage = "prompt";
+    // Validate the prompt before any upload so an oversized request costs nothing.
+    imageInput(version.proposal, inputs.map(() => "https://placeholder.invalid/x.png"));
+    stage = "upload";
     const urls = await Promise.all(inputs.map(upload));
     const input = imageInput(version.proposal, urls);
+    stage = "estimate";
     const quote = await api(
       `estimate/${version.proposal.model}`,
       "POST",
       input,
     );
-    const estimate = Number(quote.usd);
+    const marketing = String(version.proposal.model).startsWith("marketing-studio/");
+    const estimate = marketing && quote?.usd === undefined && quote?.type === "description"
+      ? marketingReserveUsd(urls.length)
+      : Number(quote.usd);
+    stage = "reserve";
     if (!Number.isFinite(estimate) || estimate <= 0 || estimate > 2) {
       throw new Error("studio_provider_budget");
     }
@@ -294,6 +336,7 @@ export async function submitHiggsfieldImage(
     const callback = `${
       Deno.env.get("SUPABASE_URL")
     }/functions/v1/visual-studio?image_callback=${version.id}&token=${inserted.data.callback_token}`;
+    stage = "submit";
     submitted = true;
     const result = await api(
       `${version.proposal.model}?hf_webhook=${encodeURIComponent(callback)}`,
@@ -316,16 +359,20 @@ export async function submitHiggsfieldImage(
       !submitted ||
       (!accepted && error instanceof ProviderHttpError &&
         [400, 401, 402, 403, 404, 422, 429].includes(error.status))
-    ) await failHiggsfieldImage(db, version.id);
+    ) await failHiggsfieldImage(db, version.id, error instanceof Error && error.message === "studio_prompt_too_long"
+      ? "La demande est trop longue pour le service d’images. Raccourcis-la puis réessaie. Aucune image décomptée."
+      : undefined);
     else {
       const uncertain = await db.from("studio_image_requests").update({ status: "uncertain" })
         .eq("version_id", version.id).in("status", ["submitting", "queued"]);
       if (uncertain.error) throw uncertain.error;
     }
-    console.error(
-      "[studio:higgsfield]",
-      error instanceof Error ? error.message : "provider error",
-    );
+    // Safe metadata only: no prompt, URL, token or provider body.
+    console.error("[studio:higgsfield]", JSON.stringify({
+      stage, model: version.proposal.model,
+      error: error instanceof Error ? error.message : "provider error",
+      ...(error instanceof ProviderHttpError ? { status: error.status, path: error.path.startsWith("estimate/") ? "estimate" : error.path.startsWith("files/") ? "upload_url" : error.path.startsWith("requests/") ? "status" : "submit" } : {}),
+    }));
   }
 }
 export async function imageCallback(req: Request): Promise<Response | null> {

@@ -1356,6 +1356,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           shots: [],
           cost: 1,
         };
+        // New proposal (not a submitted job): apply the current routing so the
+        // confirmation shows the provider that will really be used.
+        if (higgsfieldImagesEnabled() && marketingFidelityEligible(next)) next = routeToMarketingStudio(next);
       } else {
         if (!next || next.id !== p.proposal_id || !next.shots?.length) {
           throw new Error("studio_conflict");
