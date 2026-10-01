@@ -1,6 +1,7 @@
 import { exactReference, integrationInstructions, SCENE_PRESERVE, validTargets, type SceneWorkflow } from "./scene-workflow.ts";
 import { imageModel, type Proposal, type Reference } from "./media.ts";
 import { RULES_VERSION } from "./competencies.ts";
+import { routeToMarketingStudio } from "./higgsfield-image.ts";
 
 type SceneVersion = { id: string; result_path: string; status: string; proposal: Proposal & {
   planning_references?: Reference[]; reference_snapshot?: Reference[]; brief?: string;
@@ -32,7 +33,7 @@ export async function integrationProposal(version: SceneVersion, currentReferenc
   const changes = targets.map(t => `${t.location} : ${t.instruction}`);
   const scene_workflow: SceneWorkflow = { phase: "integration", camera_match: workflow.camera_match,
     targets, accepted_changes: workflow.accepted_changes || scene.change || [], scene_version_id: version.id, scene_path: version.result_path };
-  return {
+  return routeToMarketingStudio({
     id, operation: "edit" as const, visual_kind: "photo" as const, scene_workflow,
     summary: `Je conserve cette scène et j'intègre tes références originales. ${changes.join(" ")} Le cadrage, le décor et le rendu photographique seront conservés au maximum.`,
     image_prompt: `Edit the supplied base photograph. Do not create a new scene.\n${integrationInstructions(targets)}\nKeep everything else unchanged.`,
@@ -44,5 +45,5 @@ export async function integrationProposal(version: SceneVersion, currentReferenc
     viewed_version_id: version.id, viewed_reference_id: null, original_path: references[0].path,
     provider: "default", model: imageModel("edit"), rules_version: RULES_VERSION,
     warning: "L'intégration peut modifier des détails. Compare le résultat à la scène et aux originaux.",
-  };
+  });
 }

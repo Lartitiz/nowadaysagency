@@ -45,6 +45,10 @@ import {
 import {
   SOUL2_MODEL, soul2Enabled, soul2Eligible,
   failHiggsfieldImage,
+  higgsfieldImagesEnabled,
+  marketingFidelityEligible,
+  MARKETING_MAX_IMAGES,
+  routeToMarketingStudio,
   imageCallback,
   reconcileHiggsfieldImage,
   submitHiggsfieldImage,
@@ -1211,6 +1215,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           if (!soul2Eligible(proposal)) return json({ error: "La scène doit être préparée séparément de ses références. Aucune image n’a été lancée." }, 409);
           proposal.provider = "higgsfield"; proposal.model = SOUL2_MODEL;
         }
+        if (proposal && marketingFidelityEligible(proposal) && higgsfieldImagesEnabled() &&
+          imageInputPaths(proposal).length <= MARKETING_MAX_IMAGES) {
+          Object.assign(proposal, routeToMarketingStudio(proposal));
+        }
 
         const suggestions = intent.suggested_photo_ids.filter((id) =>
           (catalogue.data || []).some((row) => row.id === id)
@@ -1424,6 +1432,15 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                 approved_scene_id: baseId, approved_at: new Date().toISOString() } },
             }).eq("id", session.id).eq("revision", session.revision).select("*").single());
           }
+        }
+        // Pending proposals prepared before the temporary Higgsfield routing: reroute
+        // BEFORE the atomic claim, so no OpenAI call and no resubmission can happen.
+        if (marketingFidelityEligible(session.proposal) && higgsfieldImagesEnabled()) {
+          if (imageInputPaths(session.proposal).length > MARKETING_MAX_IMAGES) {
+            return json({ error: `Cette retouche utilise plus de ${MARKETING_MAX_IMAGES} images. Retire quelques références puis réessaie. Rien n’a été décompté.` }, 409);
+          }
+          session = unwrap(await sb.from("visual_studio_sessions").update({ proposal: routeToMarketingStudio(session.proposal) })
+            .eq("id", session.id).eq("revision", session.revision).select("*").single());
         }
         // Old prepared direct-photo proposals must not bypass the new policy after reload.
         if (session.proposal.visual_kind === "photo" && session.proposal.person_reference?.mode !== "sheet" &&

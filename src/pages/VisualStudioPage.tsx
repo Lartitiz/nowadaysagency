@@ -915,6 +915,7 @@ function Studio({
             <h3 className="font-semibold mb-2">Ce que j’ai compris</h3>
             <p className="whitespace-pre-wrap">{cleanStudioSummary(proposal.summary)}</p>
             {proposal.photo_treatment === "natural" && <p className="text-sm text-muted-foreground">Rendu photographique naturel, selon la direction de ta marque.</p>}
+            {proposal.provider === "higgsfield" && proposal.model?.startsWith("marketing-studio/") && <p className="text-xs text-muted-foreground mt-1">Réalisée avec Higgsfield (GPT Image).</p>}
             {proposal.scene_workflow?.phase === "scene" && proposal.operation === "create" && <div className="text-sm mt-3 space-y-2" aria-label="Rendu Soul proposé">
               <p><strong>Rendu Soul :</strong> {proposal.soul_style?.name || "Sans preset, direction propre à cette photo"}</p>
               {proposal.soul_style?.description_fr && <p>{proposal.soul_style.description_fr}</p>}
