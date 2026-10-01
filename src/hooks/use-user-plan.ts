@@ -103,8 +103,18 @@ async function fetchSubscription(userId: string, workspaceId?: string): Promise<
   const pending = _inflight.get(key);
   if (pending) return pending;
 
-  const promise = supabase.functions
-    .invoke("check-subscription", { body: { workspace_id: workspaceId || null } })
+  // Session expirée (utilisatrice encore en mémoire, jeton invalide, ex. sur
+  // /login) : ne pas appeler check-subscription, qui répondrait 401.
+  const promise = supabase.auth
+    .getSession()
+    .then(({ data: { session } }) => {
+      if (!session?.access_token || session.user?.id !== userId) {
+        return { data: null, error: new Error("no-session") };
+      }
+      return supabase.functions.invoke("check-subscription", {
+        body: { workspace_id: workspaceId || null },
+      });
+    })
     .then(({ data, error }) => {
       if (_inflight.get(key) === promise) _inflight.delete(key);
       if (epoch === cacheEpoch && !error && data?.plan && !data?.error) {
