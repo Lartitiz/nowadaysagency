@@ -15,7 +15,7 @@ Deno.test("edits and integrations route to Marketing Studio sunburst only when e
     assertEquals([routed.provider, routed.model], ["higgsfield", MARKETING_FIDELITY_MODEL]);
     assertEquals(routed.image_prompt, edit.image_prompt);
     const integ = routeToMarketingStudio({ operation: "edit", scene_workflow: { phase: "integration" } as never });
-    assertEquals(integ.model, MARKETING_FIDELITY_MODEL);
+    assertEquals((integ as { model?: string }).model, MARKETING_FIDELITY_MODEL);
   });
 });
 
