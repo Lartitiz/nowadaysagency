@@ -57,3 +57,15 @@ Deno.test("Marketing reserve stays bounded", async () => {
   assertEquals(marketingReserveUsd(2), 0.35);
   assertEquals(marketingReserveUsd(100) <= 2, true);
 });
+
+Deno.test("real long edit proposal (anonymized fixture of 01/10 failure) fits without losing confirmed content", async () => {
+  const { marketingPrompt, MARKETING_PROMPT_MAX } = await import("./higgsfield-image.ts");
+  const { imagePrompt } = await import("./media.ts");
+  const p = JSON.parse(await Deno.readTextFile(new URL("./fixtures/marketing-long-edit.json", import.meta.url)));
+  assertEquals(imagePrompt(p).length > MARKETING_PROMPT_MAX, true); // the original failure
+  const out = marketingPrompt(p);
+  assertEquals(out !== null && out.length <= MARKETING_PROMPT_MAX, true);
+  for (const kept of [p.image_prompt, p.summary, p.product_placement, ...p.preserve, ...p.change, "Image 2: product reference, ref_0001.", "PRODUCT —"]) {
+    assertEquals(out!.includes(kept), true, `confirmed content kept: ${String(kept).slice(0, 40)}`);
+  }
+});

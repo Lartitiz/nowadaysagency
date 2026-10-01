@@ -1,0 +1,57 @@
+{
+ "background_prompt": "",
+ "brief": "Marque de faïence artisanale, ambiance champêtre et naturelle. Intégration du produit assiette coquelicots dans un décor de cuisine minimaliste déjà existant.",
+ "change": [
+  "Ajout de l'assiette aux coquelicots posée à plat sur la table en bois au premier plan"
+ ],
+ "cost": 1,
+ "exact_text": [],
+ "format": "portrait",
+ "id": "00000000-0000-4000-8000-000000000000",
+ "image_prompt": "Scene: Minimalist rustic kitchen, white vertical tile backsplash, natural wood cabinets and shelving, ceramic bowls on the open shelf, a rustic wooden table in the foreground where the poppy-patterned ceramic plate rests flat, next to the existing ceramic bowls on the table surface.\n\nCamera and perspective: Keep the same eye-level, slightly elevated perspective as the kitchen reference, three-quarter angle looking toward the wooden table in the foreground, consistent with the existing room depth and framing.\n\nContact and light: The plate lies flat on the wooden table, its rim catching the soft daylight coming from the window at left; a soft contact shadow is visible beneath the plate on the wood grain; the warm brass sconce light and window daylight already in the scene wrap naturally around the plate's glazed surface and orange poppy motifs.\n\nPreserve: Exact plate shape with its irregular scalloped rim, painted orange poppies with olive green leaves and stems, cream glazed background, and ceramic texture and glaze sheen as seen in the product reference.\n\nPhoto style: Directed, clean editorial product photography, natural window light, true-to-life colors, crisp but soft focus matching the kitchen reference's existing depth of field.\n\nExclusions: No added people, hands or cutlery; no extra text or logo; do not alter the kitchen's existing bowls, tiles or wood cabinetry beyond adding the plate.",
+ "input_path": "00000000-0000-4000-8000-000000000000/00000000-0000-4000-8000-000000000000/reference-00000000-0000-4000-8000-000000000000",
+ "model": "marketing-studio/image/sunburst",
+ "operation": "edit",
+ "original_path": "00000000-0000-4000-8000-000000000000/00000000-0000-4000-8000-000000000000/reference-00000000-0000-4000-8000-000000000000",
+ "photo_source_path": "00000000-0000-4000-8000-000000000000/00000000-0000-4000-8000-000000000000/reference-00000000-0000-4000-8000-000000000000",
+ "photo_treatment": "directed",
+ "planning_references": [],
+ "preserve": [
+  "Décor complet de la cuisine : carrelage blanc, bois des meubles, bols en céramique existants, lumière des appliques et de la fenêtre",
+  "Forme, rebord irrégulier, couleurs et motifs exacts de l'assiette aux coquelicots"
+ ],
+ "product_placement": "L'assiette repose à plat sur la table en bois brut, au premier plan de la cuisine, ouverture/motifs visibles de trois quarts vers la caméra, à côté des bols en céramique déjà présents. Contact visible avec la surface en bois, ombre portée cohérente avec la lumière naturelle de la pièce.",
+ "prompt_author": "claude-sonnet-5",
+ "provider": "higgsfield",
+ "reference_use": [
+  {
+   "id": "00000000-0000-4000-8000-000000000000",
+   "role": "scene"
+  },
+  {
+   "id": "00000000-0000-4000-8000-000000000000",
+   "role": "product"
+  }
+ ],
+ "references": [
+  {
+   "description": "Assiette décorée de fleurs oranges, poivrons et oignons verts, lumière naturelle",
+   "id": "00000000-0000-4000-8000-000000000000",
+   "kind": "ambiance",
+   "name": "ref_0001",
+   "path": "00000000-0000-4000-8000-000000000000/00000000-0000-4000-8000-000000000000/reference-00000000-0000-4000-8000-000000000000",
+   "photo_id": "00000000-0000-4000-8000-000000000000",
+   "role": "product",
+   "role_source": "conversation"
+  }
+ ],
+ "requires_real_subject": true,
+ "rules_version": "studio-competencies-11-source-light-preservation",
+ "source_reference_id": "00000000-0000-4000-8000-000000000000",
+ "subject_kind": "ambiance",
+ "summary": "Je place ton assiette aux coquelicots oranges dans la cuisine minimaliste de ta référence : posée à plat sur la table en bois brut au premier plan, à côté des bols en céramique déjà présents sur ce plan de travail. L'assiette repose bien à plat, motifs visibles de trois quarts, dans la continuité du décor (carrelage blanc, bois naturel, lumière douce via la fenêtre). La lumière et les ombres de contact s'adaptent à cette scène existante, sans retoucher le reste du décor. Le cadrage de la cuisine fixe le point de vue : je garde cette perspective pour une intégration crédible.",
+ "uses_selected_version": false,
+ "viewed_reference_id": "00000000-0000-4000-8000-000000000000",
+ "viewed_version_id": null,
+ "visual_kind": "photo"
+}

@@ -2,6 +2,7 @@ import { soulPrompt, resolveSoulStyle, SOUL2_STYLES } from "./soul-direction.ts"
 import { getServiceClient } from "../_shared/plan-limiter.ts";
 import { imagePrompt, type Proposal } from "./media.ts";
 import { PHOTO_PRESERVATION } from "./photo-preservation.ts";
+import { referenceInstruction } from "./competencies.ts";
 type DB = ReturnType<typeof getServiceClient>;
 const BASE = "https://api.higgsfield.ai";
 export const IMAGE_MODELS = [
@@ -47,11 +48,19 @@ export function marketingFidelityEligible(proposal: Proposal | null | undefined)
 export const MARKETING_PROMPT_MAX = 5000;
 const STAGING_START = "Stage the exact product in a physically plausible position";
 const STAGING_SHORT = "Stage the exact product plausibly: real contact with its confirmed support, believable contact shadow, normal orientation (a plate rests flat or is held, a bowl base-down). Match the setting's perspective, scale, light direction and color temperature. Keep its true profile and markings on the same parts; never invent an unseen side.";
+const SOURCE_RULE = "is the PRIMARY PHOTOGRAPHIC SOURCE: composition, lighting, shadows, colors, texture and atmosphere. Its lighting takes priority over the lighting of identity, product and style references unless the confirmed user request explicitly changes lighting or style. Edit Image 1, keeping all accepted corrections; the original source is not a request to restore provisional people or products.";
+const WATERMARK_RULE = "No invented watermarks, promotional claims or extra decorative elements. Preserve authentic product lettering and logos when present in the reference. Match the requested visual medium; do not default to stock imagery.";
+const KEEP_RULE = "Keep everything else unchanged. Do not alter the camera or rearrange the scene for a texture-only or lighting-only correction.";
 const BRIEF_RULE = "This brief and the confirmed preservation and change lists govern the result. The technical instructions below only explain how to realize them; do not introduce unconfirmed subjects, props, actions, text or style changes.";
 /** Higgsfield-only fitting: keeps every confirmed user element (brief, shot
  * instructions, preserve/change lists, reference roles) and condenses only generic
  * boilerplate. Returns null when the confirmed content alone exceeds the limit. */
 export function marketingPrompt(proposal: Proposal): string | null {
+  const prompt = marketingPromptCandidate(proposal);
+  return prompt.length <= MARKETING_PROMPT_MAX ? prompt : null;
+}
+/** Exposed for diagnostics/tests: the fitted prompt, whatever its length. */
+export function marketingPromptCandidate(proposal: Proposal): string {
   let prompt = imagePrompt(proposal);
   if (prompt.length <= MARKETING_PROMPT_MAX) return prompt;
   const hasPerson = (proposal.references || []).some((r) => ["person", "casting", "person_product"].includes(r.role)) ||
@@ -69,7 +78,16 @@ export function marketingPrompt(proposal: Proposal): string | null {
     return placement >= 0 ? `${STAGING_SHORT} ${line.slice(placement)}` : STAGING_SHORT;
   }).join("\n");
   prompt = prompt.replace(BRIEF_RULE, "Follow only this confirmed brief and the confirmed preserve/change lists.");
-  return prompt.length <= MARKETING_PROMPT_MAX ? prompt : null;
+  // Generic source-lighting sentence (photographicReferencePrompt), condensed.
+  prompt = prompt.replace(SOURCE_RULE, "is the PRIMARY PHOTOGRAPHIC SOURCE (composition, light, shadows, colors, texture, atmosphere); its lighting overrides reference lighting unless the confirmed request changes lighting or style. Edit Image 1 keeping accepted corrections; do not restore provisional people or products.");
+  // A product reference already gets a dedicated "Image N: PRODUCT —" line: drop only the
+  // duplicated generic instruction, keeping the numbered role and name.
+  const productRule = referenceInstruction("product");
+  if (productRule && /\nImage \d+: PRODUCT —/.test(prompt)) prompt = prompt.split(productRule).join("").replace(/ +\n/g, "\n");
+  prompt = prompt.replace(WATERMARK_RULE, "No invented watermarks, claims or decorations. Keep authentic product lettering and logos. Match the requested medium; no stock look.");
+  // Duplicate of the condensed preservation rules above.
+  if (prompt.includes("DEFAULT PHOTO PRESERVATION")) prompt = prompt.replace(`\n${KEEP_RULE}`, "");
+  return prompt;
 }
 /** NOT a quote. Marketing Studio's estimate route returns only a pricing
  * description (token-billed, reconciled by the provider on completion), so the
