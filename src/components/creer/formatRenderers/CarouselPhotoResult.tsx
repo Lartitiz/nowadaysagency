@@ -522,7 +522,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
     const newIndex = onAddPhoto?.(photo);
     if (!newIndex) return;
     const next = slides.map((s, i) =>
-      i === slideIdx ? { ...s, photo_index: newIndex, cast_source: castSource } : s,
+      i === slideIdx ? { ...s, photo_index: newIndex, cast_source: castSource, studio_image_receipt: undefined, studio_image_source: undefined, photo_library_id: photo.userPhotoId } : s,
     );
     setSlides(next);
     notify(next, caption);
@@ -625,7 +625,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
     if (!newIndex) return;
     const nextSlides = slides.map((s: any, i: number) =>
       i === idx
-        ? { ...s, photo_index: newIndex, cast_source: "news_stock", photo_credit: credit }
+        ? { ...s, photo_index: newIndex, cast_source: "news_stock", photo_credit: credit, studio_image_receipt: undefined, studio_image_source: undefined, photo_library_id: item.userPhotoId }
         : s,
     );
     let nextCaption = caption;
