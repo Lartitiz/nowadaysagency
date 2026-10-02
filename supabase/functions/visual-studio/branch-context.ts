@@ -59,15 +59,28 @@ export function onlyAdditions(versionRefs: Reference[], currentRefs: Reference[]
 const normalizedKind = (ref: Reference) => (ref.kind || "")
   .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
-/** A clean product shot is authoritative for product fidelity. A worn/in-scene
- * photo remains a fallback only when no clean product shot is available. */
-export function preferredProductReference(currentRefs: Reference[]): {
-  reference: Reference | null;
+/** A worn/in-scene product photo is placement context only when a clean shot exists. */
+export function isWornProduct(ref: Reference): boolean {
+  return normalizedKind(ref) === "produit_porte";
+}
+
+export function hasCleanProduct(refs: Reference[]): boolean {
+  return refs.some(ref => ref.role === "product" && normalizedKind(ref) === "produit");
+}
+
+/** Clean shots of ONE product are authoritative for product fidelity — several
+ * angles of the same product all travel together. Worn shots are never part of
+ * the group, and distinct products require the user to choose. */
+export function preferredProductGroup(currentRefs: Reference[]): {
+  references: Reference[];
   ambiguous: boolean;
 } {
   const clean = currentRefs.filter(ref => ref.role === "product" && normalizedKind(ref) === "produit");
-  const groups = new Map(clean.map(ref => [ref.subject_group || ref.id, ref]));
-  return groups.size === 1
-    ? { reference: [...groups.values()][0], ambiguous: false }
-    : { reference: null, ambiguous: groups.size > 1 };
+  const groups = new Map<string, Reference[]>();
+  for (const ref of clean) {
+    const key = ref.subject_group || ref.id;
+    groups.set(key, [...(groups.get(key) || []), ref]);
+  }
+  if (groups.size !== 1) return { references: [], ambiguous: groups.size > 1 };
+  return { references: [...groups.values()][0], ambiguous: false };
 }

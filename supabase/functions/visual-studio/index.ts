@@ -56,7 +56,7 @@ import {
 } from "./higgsfield-image.ts";
 import { handleMemory, readMemory } from "./memory.ts";
 import { executeStudioJob } from "./worker.ts";
-import { onlyAdditions, preferredProductReference, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
+import { hasCleanProduct, isWornProduct, onlyAdditions, preferredProductGroup, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
 
 declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void };
 const schema = z.object({
@@ -617,7 +617,11 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           ? parent.proposal.planning_references || []
           : parent?.proposal?.scene_workflow?.phase === "integration"
           ? (parent.proposal.reference_snapshot || []).filter(exactReference) : [];
+        // A worn product photo never returns from history once a clean product
+        // shot is attached: the clean photograph alone defines the product.
+        const cleanProductAttached = hasCleanProduct(requestReferences);
         for (const ref of reservedProducts) {
+          if (cleanProductAttached && isWornProduct(ref)) continue;
           if (!requestReferences.some(r => r.id === ref.id) && requestReferences.length < MAX_REFERENCES) requestReferences.push(ref);
         }
         if (
@@ -1027,7 +1031,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         if (intent.scene_workflow?.phase === "scene" || intent.scene_workflow?.phase === "integration") {
           for (const ref of requestReferences) {
             const role = intent.reference_use.find(use => use.id === ref.id)?.role || ref.role;
-            if ((!newPhoto || usedReferences.some(r => r.id === ref.id)) && ["product", "person", "casting", "person_product"].includes(role) && !resolvedReferences.some(r => r.id === ref.id)) resolvedReferences.push({ ...ref, role });
+            if ((!newPhoto || usedReferences.some(r => r.id === ref.id)) && !(cleanProductAttached && isWornProduct(ref)) &&
+              ["product", "person", "casting", "person_product"].includes(role) && !resolvedReferences.some(r => r.id === ref.id)) resolvedReferences.push({ ...ref, role });
           }
         }
         const explicitSource = resolvedReferences.find((ref) =>
@@ -1142,24 +1147,35 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         // a fallback and must not silently displace the clean product photograph.
         if (phase === "integration" && ["scene", "integration"].includes(parent?.proposal.scene_workflow?.phase) &&
           intent.scene_workflow?.targets?.some(target => target.role === "product")) {
-          const preferred = preferredProductReference(references);
+          const preferred = preferredProductGroup(resolvedReferences);
           if (preferred.ambiguous) {
             intent.operation = "clarify";
             intent.summary = "Plusieurs produits seuls sont joints. Choisis la photo du produit exact à intégrer avant de lancer l’image. Aucune image n’a été lancée.";
-          } else if (preferred.reference) {
-            const preferredReference = preferred.reference;
+          } else if (preferred.references.length) {
+            const groupIds = new Set(preferred.references.map(ref => ref.id));
+            // Every angle of the chosen product travels; worn shots and other
+            // products are definitively left out, history included.
+            const removedIds = new Set<string>();
             for (let i = resolvedReferences.length - 1; i >= 0; i--) {
-              if (resolvedReferences[i].role === "product" && resolvedReferences[i].id !== preferredReference.id) resolvedReferences.splice(i, 1);
+              if (resolvedReferences[i].role === "product" && !groupIds.has(resolvedReferences[i].id)) {
+                removedIds.add(resolvedReferences[i].id);
+                resolvedReferences.splice(i, 1);
+              }
             }
-            if (!resolvedReferences.some(ref => ref.id === preferredReference.id)) resolvedReferences.push(preferredReference);
-            // One exact product = one target: earlier branches may carry a product
-            // target per photo (clean + worn); remapping both would duplicate it.
+            for (const ref of preferred.references) {
+              if (!resolvedReferences.some(r => r.id === ref.id)) resolvedReferences.push(ref);
+            }
+            // One exact product = one target carrying every angle: earlier
+            // branches may carry a product target per photo (clean + worn).
             let productKept = false;
             intent.scene_workflow.targets = intent.scene_workflow.targets.flatMap(target => {
-              if (target.role !== "product") return [target];
-              if (productKept) return [];
-              productKept = true;
-              return [{ ...target, reference_ids: [preferredReference.id] }];
+              if (target.role === "product") {
+                if (productKept) return [];
+                productKept = true;
+                return [{ ...target, reference_ids: [...groupIds] }];
+              }
+              const reference_ids = target.reference_ids.filter(id => !removedIds.has(id));
+              return reference_ids.length ? [{ ...target, reference_ids }] : [];
             });
           }
         }
