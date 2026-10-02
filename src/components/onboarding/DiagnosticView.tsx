@@ -37,16 +37,14 @@ interface Props {
 }
 
 export default function DiagnosticView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
-  const isMobile = useIsMobile();
-  return isMobile
-    ? <MobileSlides data={data} prenom={prenom} onComplete={onComplete} onCreateFirst={onCreateFirst} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />
-    : <DesktopScroll data={data} prenom={prenom} onComplete={onComplete} onCreateFirst={onCreateFirst} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />;
+  return <SlideView data={data} prenom={prenom} onComplete={onComplete} onCreateFirst={onCreateFirst} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />;
 }
 
-/* ═══ MOBILE: Slide-by-slide ═══ */
-function MobileSlides({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
+/* ═══ Slides — mode unique, mobile et ordinateur ═══ */
+function SlideView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
   const [slide, setSlide] = useState(0);
   const [touchStart, setTouchStart] = useState(0);
+  const isMobile = useIsMobile();
   const hasSummary = !!data.summary;
 
   const handleTouchStart = (e: React.TouchEvent) => setTouchStart(e.touches[0].clientX);
@@ -77,14 +75,25 @@ function MobileSlides({ data, prenom, onComplete, onCreateFirst, hasInstagram, h
   );
   const totalSlides = sections.length;
 
+  // Flèches clavier ← / → (ordinateur)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") setSlide(s => Math.min(s + 1, totalSlides - 1));
+      if (e.key === "ArrowLeft") setSlide(s => Math.max(s - 1, 0));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [totalSlides]);
+
   return (
     <div
       className="flex-1 flex flex-col min-h-0"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="max-w-lg w-full">
+      {/* Contenu centré ; seule la slide défile si elle dépasse, jamais la page */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex items-center justify-center p-6">
+        <div className="max-w-lg md:max-w-2xl w-full my-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={slide}
@@ -112,7 +121,7 @@ function MobileSlides({ data, prenom, onComplete, onCreateFirst, hasInstagram, h
         </div>
         {slide === 0 && (
           <p className="text-center text-xs text-muted-foreground/60 animate-pulse mb-2">
-            ← Swipe ou clique Suivant →
+            {isMobile ? "← Swipe ou clique Suivant →" : "Clique Suivant ou utilise les flèches ← →"}
           </p>
         )}
         {slide < totalSlides - 1 && (
@@ -124,40 +133,6 @@ function MobileSlides({ data, prenom, onComplete, onCreateFirst, hasInstagram, h
         )}
       </div>
     </div>
-  );
-}
-
-/* ═══ DESKTOP: Scroll with animations ═══ */
-function DesktopScroll({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
-  return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-[640px] mx-auto px-6 py-16 space-y-24">
-        <AnimatedSection><AccrocheSection prenom={prenom} isFallback={data.isFallback} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} /></AnimatedSection>
-        {data.summary && <AnimatedSection><SummarySection summary={data.summary} /></AnimatedSection>}
-        <AnimatedSection><ScoreSection score={data.totalScore} /></AnimatedSection>
-        {data.strengths.length > 0 && <AnimatedSection><StrengthsSection strengths={data.strengths} /></AnimatedSection>}
-        {data.weaknesses.length > 0 && <AnimatedSection><WeaknessesSection weaknesses={data.weaknesses} /></AnimatedSection>}
-        {data.priorities.length > 0 && <AnimatedSection><PrioritiesSection priorities={data.priorities} /></AnimatedSection>}
-        <AnimatedSection><ChannelScoresSection channelScores={data.channelScores} /></AnimatedSection>
-        <AnimatedSection><BrandLearnedSection /></AnimatedSection>
-        <AnimatedSection><FinalSection onComplete={onComplete} onCreateFirst={onCreateFirst} /></AnimatedSection>
-      </div>
-    </div>
-  );
-}
-
-function AnimatedSection({ children }: { children: ReactNode }) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 40 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.6 }}
-    >
-      {children}
-    </motion.div>
   );
 }
 
