@@ -893,15 +893,50 @@ function Studio({
       name: "Photo de la session",
     }
     : null;
+  // Bouton principal de la proposition : affiché à la place d'« Envoyer » dans le composer.
+  const proposalGenerateDisabled = !proposal || !writable ||
+    !!busy ||
+    generating ||
+    !current?.quota.allowed ||
+    !!draft.trim() || !!error || premiumBlocked || insufficientSeries || (proposal.scene_workflow?.phase === "integration" && !!proposal.viewed_version_id && proposal.viewed_version_id !== selectedId);
+  const proposalGenerateLabel = !proposal ? "" : proposal.cost > 1
+    ? `Générer la série · ${proposal.cost} images`
+    : proposal.scene_workflow?.phase === "scene" && proposal.operation === "create"
+    ? "Créer la scène · 1 image"
+    : proposal.scene_workflow?.phase === "integration" && !proposal.scene_workflow.approved_scene_id
+    ? "Valider cette scène et intégrer mes références · 1 image"
+    : "Générer cette image · 1 image";
+  async function runProposalGenerate() {
+    if (!proposal) return;
+    const result = await mutate("generate", {
+      proposal_id: proposal.id,
+      viewed_version_id: selectedId,
+      ...(proposal.scene_workflow?.phase === "integration" ? { approved_scene_id: proposal.viewed_version_id || proposal.viewed_reference_id } : {}),
+    });
+    if (result && alive.current && isMobile) {
+      document.querySelector(".studio-stage")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
   function confirmation() {
     return proposal
       ? (
-        <section
-          className="studio-confirm space-y-4"
-          aria-label="Demande à confirmer"
-        >
-          <p className="text-xs text-primary font-medium">À confirmer</p>
-          <h2 className="font-display text-xl">
+        <section className="studio-proposal-chat" aria-label="Demande à confirmer">
+          <div className="studio-message">
+            <span className="block text-xs font-semibold mb-1">Studio</span>
+            <p className="whitespace-pre-wrap">{cleanStudioSummary(proposal.summary)}</p>
+          </div>
+          <p className="studio-proposal-hint">
+            {proposal.scene_workflow?.phase === "scene" && proposal.operation === "create"
+              ? `Cette scène compte 1 image${proposal.soul_style?.name ? ` · rendu ${proposal.soul_style.name}` : ""}. `
+              : `Cette demande compte ${proposal.cost} image${proposal.cost > 1 ? "s" : ""}, décomptée${proposal.cost > 1 ? "s" : ""} si la génération aboutit. `}
+            Pour changer quelque chose, réponds-moi simplement ci-dessous.
+          </p>
+          <AccessNotice quota={current?.quota} premiumBlocked={premiumBlocked}
+            insufficient={insufficientSeries} onRetry={() => void state.refetch()} />
+          <details className="studio-proposal-details">
+            <summary>Voir les détails de la demande</summary>
+          <div className="space-y-4 pt-3">
+          <h2 className="font-display text-base">
             {proposal.scene_workflow?.phase === "scene" ? "La scène à valider" : {
               background: "Un nouveau fond",
               create: "Une nouvelle image",
@@ -909,9 +944,7 @@ function Studio({
               product: "Ton produit en situation",
             }[proposal.operation]}
           </h2>
-          <div className="rounded-lg bg-background p-3 text-sm">
-            <h3 className="font-semibold mb-2">Ce que j’ai compris</h3>
-            <p className="whitespace-pre-wrap">{cleanStudioSummary(proposal.summary)}</p>
+          <div className="text-sm">
             {proposal.photo_treatment === "natural" && <p className="text-sm text-muted-foreground">Rendu photographique naturel, selon la direction de ta marque.</p>}
             {proposal.provider === "higgsfield" && proposal.model?.startsWith("marketing-studio/") && <p className="text-xs text-muted-foreground mt-1">Réalisée avec Higgsfield (GPT Image).</p>}
             {proposal.scene_workflow?.phase === "scene" && proposal.operation === "create" && <div className="text-sm mt-3 space-y-2" aria-label="Rendu Soul proposé">
@@ -986,17 +1019,6 @@ function Studio({
                   ? `${proposal.reference_snapshot.length} référence${proposal.reference_snapshot.length > 1 ? "s" : ""} indiquée${proposal.reference_snapshot.length > 1 ? "s" : ""} ci-dessus`
                   : "Création sans photo de départ"}
               </dd>
-              {proposal.viewed_version_id &&
-                proposal.viewed_version_id !== selectedId && (
-                <p className="mt-2 text-primary">
-                  La demande vise cette version, même si tu en regardes une
-                  autre.
-                </p>
-              )}
-              {proposal.operation === "create" && selectedId && !proposal.viewed_version_id &&
-                !proposal.reference_snapshot?.some((ref) => ref.version_id === selectedId) && (
-                <p className="mt-2 text-primary">L’image affichée ne sera pas envoyée pour cette création. Si tu veux en reprendre un élément, précise-le avec « Modifier ma demande ».</p>
-              )}
             </div>
             <div>
               <dt className="text-muted-foreground">Outil</dt>
@@ -1036,68 +1058,31 @@ function Studio({
               </p>
             )
             : null}
-          <p className="rounded-lg bg-background p-3 text-sm">
+          <p className="text-sm">
             {proposal.operation === "background"
               ? "Le fond sera remplacé. Le sujet n’est pas redessiné. Vérifie le détourage avant d’utiliser l’image."
               : proposal.warning ||
                 "Vérifie les détails du résultat avant de l’utiliser."}
           </p>
-          <AccessNotice quota={current?.quota} premiumBlocked={premiumBlocked}
-            insufficient={insufficientSeries} onRetry={() => void state.refetch()} />
           {proposal.scene_workflow?.phase === "scene" && <p className="text-xs text-muted-foreground">La scène coûte 1 image. Si tu valides ensuite l’intégration de tes références, cette seconde génération coûtera 1 image supplémentaire.</p>}
-          <div className="flex justify-between gap-2">
-            <strong>{proposal.cost} image{proposal.cost > 1 ? "s" : ""}</strong>
-            <span className="text-xs text-muted-foreground">
-              Décomptée si la génération aboutit
-            </span>
-          </div>
-          {(!!draft.trim() || !!error) && <div className="text-sm" role="status">
-            <p>Envoie ta demande pour actualiser la proposition avant de générer.</p>
-            <Button variant="ghost" size="sm" onClick={() => { editDraft(""); setError(""); }}>Revenir à cette proposition</Button>
-          </div>}
-          <Button
-            className="w-full h-auto whitespace-normal py-2"
-            disabled={!writable ||
-              !!busy ||
-              generating ||
-              !current?.quota.allowed ||
-              !!draft.trim() || !!error || premiumBlocked || insufficientSeries || (proposal.scene_workflow?.phase === "integration" && !!proposal.viewed_version_id && proposal.viewed_version_id !== selectedId)}
-            onClick={async () => {
-              const result = await mutate("generate", {
-                proposal_id: proposal.id,
-                viewed_version_id: selectedId,
-                ...(proposal.scene_workflow?.phase === "integration" ? { approved_scene_id: proposal.viewed_version_id || proposal.viewed_reference_id } : {}),
-              });
-              if (result && alive.current && isMobile) {
-                document.querySelector(".studio-stage")?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }
-            }}
-          >
-            {busy === "generate"
-              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              : null}
-            {proposal.cost > 1
-              ? `Générer la série · ${proposal.cost} images`
-              : proposal.scene_workflow?.phase === "scene" && proposal.operation === "create"
-              ? "Créer la scène · 1 image"
-              : proposal.scene_workflow?.phase === "integration" && !proposal.scene_workflow.approved_scene_id
-              ? "Valider cette scène et intégrer mes références · 1 image"
-              : "Générer cette image · 1 image"}
-          </Button>
           {!!proposal.shots?.length && <Button variant="outline" className="w-full h-auto whitespace-normal py-2" disabled={!writable || !!busy || !!generating} onClick={() => void mutate("pilot", { proposal_id: proposal.id, revision: current!.session.revision })}>D’abord une image pilote · 1 image</Button>}
           <p className="text-xs text-muted-foreground">
             Une image réussie compte même si tu ne la gardes pas. Un échec
             technique n’est pas décompté.
           </p>
-          <Button
-            variant="ghost"
-            className="w-full"
-            onClick={() => {
-              editDraft(cleanStudioSummary(proposal.summary));
-            }}
-          >
-            Modifier ma demande
-          </Button>
+          </div>
+          </details>
+          {proposal.viewed_version_id && proposal.viewed_version_id !== selectedId && (
+            <p className="studio-proposal-hint text-primary">La demande vise une autre version que celle que tu regardes.</p>
+          )}
+          {proposal.operation === "create" && selectedId && !proposal.viewed_version_id &&
+            !proposal.reference_snapshot?.some((ref) => ref.version_id === selectedId) && (
+            <p className="studio-proposal-hint text-primary">L’image affichée ne sera pas envoyée pour cette création. Si tu veux en reprendre un élément, dis-le dans ta réponse.</p>
+          )}
+          {(!!draft.trim() || !!error) && <div className="studio-proposal-hint" role="status">
+            <p>Envoie ta réponse pour actualiser la proposition avant de générer.</p>
+            <Button variant="ghost" size="sm" onClick={() => { editDraft(""); setError(""); }}>Revenir à cette proposition</Button>
+          </div>}
         </section>
       )
       : (
