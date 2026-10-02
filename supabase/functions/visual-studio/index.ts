@@ -141,12 +141,20 @@ async function visionFromStorage(
   bucket: string,
   path: string,
 ) {
-  return await visionBlock(await download(sb, bucket, path), async (width) => {
+  const resized = async (width: number) => {
     const { data, error } = await sb.storage.from(bucket).download(path, {
-      transform: { width, quality: 75, resize: "contain" },
+      transform: { width, quality: 80, resize: "contain" },
     });
     return error ? null : data;
-  });
+  };
+  // The interpreter never needs more than ~1568 px (the vision model downsizes
+  // beyond that). Loading full originals for every reference exhausted the
+  // worker memory (546 WORKER_RESOURCE_LIMIT). Generation still uses originals.
+  const light = await resized(1568);
+  if (light && /^image\/(jpeg|png|webp)$/.test(light.type) && light.size <= 5_000_000) {
+    return await visionBlock(light);
+  }
+  return await visionBlock(await download(sb, bucket, path), resized);
 }
 async function store(
   sb: ReturnType<typeof getServiceClient>,
