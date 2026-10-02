@@ -1635,30 +1635,32 @@ function Studio({
               Bibliothèque
             </button>
             <h1 className="font-display text-lg">Studio visuel</h1>
-            <nav aria-label="Sections du Studio" className="studio-tabs">
-              <button
-                type="button"
-                data-active={!videoTab}
-                aria-current={!videoTab ? "page" : undefined}
-                onClick={() => chooseTab("photo")}
-              >
-                Photos
-              </button>
-              <button
-                type="button"
-                data-active={videoTab}
-                aria-current={videoTab ? "page" : undefined}
-                onClick={() => chooseTab("video")}
-              >
-                Clips vidéo
-              </button>
-            </nav>
           </div>
-          {!videoTab && (
-            <button type="button" className="studio-link" onClick={() => setSessionsOpen(true)}>
-              Mes sessions
+          <nav aria-label="Sections du Studio" className="studio-tabs">
+            <button
+              type="button"
+              data-active={!videoTab}
+              aria-current={!videoTab ? "page" : undefined}
+              onClick={() => chooseTab("photo")}
+            >
+              Photos
             </button>
-          )}
+            <button
+              type="button"
+              data-active={videoTab}
+              aria-current={videoTab ? "page" : undefined}
+              onClick={() => chooseTab("video")}
+            >
+              Clips vidéo
+            </button>
+          </nav>
+          <div className="studio-header-right">
+            {!videoTab && (
+              <button type="button" className="studio-link" onClick={() => setSessionsOpen(true)}>
+                Mes sessions
+              </button>
+            )}
+          </div>
         </header>
         {!videoTab && current?.session.archived_at && (
           <div role="status" className="mx-5 mb-4 rounded-xl border border-border bg-card p-4 text-sm flex flex-wrap items-center justify-between gap-3">
@@ -1790,7 +1792,7 @@ function Studio({
                     onApply={(id) => mutate("memory_apply", { memory_id: id, revision: current.session.revision })}
                   />}
                   {!current?.versions.length && <div className="studio-empty">
-                    <Sparkles className="h-9 w-9 text-primary" />
+                    <div className="studio-empty-icon"><Sparkles className="h-9 w-9" /></div>
                     <h3 className="font-display text-2xl">Tout commence par ton idée</h3>
                     <p>Une photo, une affiche, une illustration ou un visuel encore à imaginer : décris-le dans la conversation. Le Studio reformulera ta demande avant de créer.</p>
                   </div>}
