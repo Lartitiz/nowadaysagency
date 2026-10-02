@@ -149,6 +149,26 @@ export function computeDiagnosticData(
   };
 }
 
+/**
+ * Niveau en mots affiché à la place d'une note chiffrée (écran final
+ * d'onboarding). Décision produit : jamais de note visible. La note reste
+ * calculée en interne (priorités, base, IA) — seul l'affichage change.
+ * Mêmes seuils que getScoreMessage.
+ */
+export function diagnosticLevel(score: number): string {
+  if (score < 40) return "À construire";
+  if (score < 60) return "À consolider";
+  if (score < 80) return "De bonnes bases";
+  return "Bien posé";
+}
+
+/** État en mots d'un canal (liste « canal par canal ») — jamais de note chiffrée. */
+export function channelLevelLabel(score: number): string {
+  if (score >= 60) return "bien posé";
+  if (score >= 40) return "à consolider";
+  return "à construire";
+}
+
 export function getScoreMessage(score: number): string {
   if (score < 30) return "On part de loin, mais franchement c'est normal. La plupart des entrepreneur·es en sont là au début.";
   if (score < 50) return "T'as déjà posé des choses. Il manque de la structure et quelques optimisations clés.";
