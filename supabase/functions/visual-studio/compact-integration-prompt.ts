@@ -3,9 +3,14 @@ import { imageInputPaths, photoSourcePath } from "./photo-preservation.ts";
 import { referenceInstruction } from "./competencies.ts";
 
 /** A provider-sized rendering of the same confirmed integration data. Never
- * shorten user fields or rewrite the approved technical instructions. Generic
- * rules appear once and apply only to subjects actually present in the manifest. */
-export function compactIntegrationPrompt(p: Proposal): string | null {
+ * shorten the current request (brief, shot instructions, preserve, changes,
+ * placement, targets, identities). Generic rules appear once and apply only to
+ * subjects actually present in the manifest.
+ *
+ * Last resort, only for a subsequent edit (Image 1 already shows every earlier
+ * accepted choice) and only when `max` is still exceeded: the OLDEST earlier
+ * accepted choices are left out, newest kept, and the prompt says so. */
+export function compactIntegrationPrompt(p: Proposal, max = Infinity): string | null {
   const workflow = p.scene_workflow;
   if (workflow?.phase !== "integration" || !p.input_path ||
     (p.series_size || 1) > 1 || p.person_reference?.mode === "sheet") return null;
@@ -15,6 +20,7 @@ export function compactIntegrationPrompt(p: Proposal): string | null {
   const person = !!p.person_reference || refs.some(r => ["person", "casting", "person_product"].includes(r.role));
   const product = refs.some(r => ["product", "person_product"].includes(r.role));
   const source = photoSourcePath(p);
+  const sceneIndex = workflow.scene_path ? paths.indexOf(workflow.scene_path) : -1;
   // Lossless de-duplication: a target already stated verbatim in Changes, or an
   // accepted choice repeated inside another one / in Changes, is rendered once.
   const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim();
@@ -32,12 +38,12 @@ export function compactIntegrationPrompt(p: Proposal): string | null {
     if (r.role === "person_product") return "Exact person AND product; not their reference lighting or pose.";
     return referenceInstruction(r.role);
   };
-  return [
-    "TARGETED PHOTO EDIT of Image 1. The confirmed brief and Changes govern; add no decisions. Preserve everything else and accepted corrections.",
+  const render = (kept: string[]) => [
+    "TARGETED PHOTO EDIT of Image 1: apply only the confirmed brief and Changes; keep everything else and accepted corrections.",
     ...refs.map((r, i) => `Image ${i + 2}: ${r.role} reference, ${r.name}. ${role(r)}${r.role === "casting" && r.description ? ` Saved identity description: ${r.description}` : ""}`),
-    source ? `Image ${paths.indexOf(source) + 1}: photographic source (camera, framing, background, light, contrast, temperature, grain, depth of field); only a confirmed lighting/style change overrides it.` : "",
-    workflow.scene_path && workflow.scene_path !== p.input_path && workflow.scene_path !== source
-      ? `Image ${paths.indexOf(workflow.scene_path) + 1}: approved original scene, preservation anchor only; do not restore provisional subjects or undo accepted corrections.` : "",
+    source ? `Image ${paths.indexOf(source) + 1}: photographic source (camera, framing, background, light, contrast, color, grain, depth of field); only a confirmed light/style change overrides it.` : "",
+    sceneIndex >= 0 && workflow.scene_path !== p.input_path && workflow.scene_path !== source
+      ? `Image ${sceneIndex + 1}: approved original scene, preservation anchor only; do not restore provisional subjects or undo accepted corrections.` : "",
     p.summary ? `CONFIRMED BRIEF\n${p.summary}` : "",
     p.image_prompt ? `SHOT INSTRUCTIONS\n${p.image_prompt}` : "",
     p.preserve?.length ? `Preserve: ${p.preserve.join("; ")}` : "",
@@ -51,11 +57,18 @@ export function compactIntegrationPrompt(p: Proposal): string | null {
         return i < 0 ? "missing original (do not invent)" : `Image ${i + 2}`;
       }).join(", ")}`),
     ].join("\n") : "",
-    accepted.length ? `PREVIOUSLY ACCEPTED CHOICES (current Changes take precedence): ${accepted.join("; ")}` : "",
+    kept.length ? `PREVIOUSLY ACCEPTED CHOICES${kept.length < accepted.length ? " (most recent; earlier ones are already visible in Image 1)" : ""} (current Changes take precedence): ${kept.join("; ")}` : "",
     p.person_reference ? `IDENTITY — ${p.person_reference.name}\n${p.person_reference.stable_traits}\nSCENE CHOICES\n${p.person_reference.variable_details}` : "",
-    person ? "Use original identities, not provisional features; keep approved pose/outfit. Source lighting on the new morphology; natural skin and facial shadows; no fill light, smoothing, reshaping or aging. If only a product changes, keep the person." : "",
+    person ? "Use original identities, not provisional features; keep approved pose/outfit. Source lighting on faces; natural skin and shadows; no fill light, smoothing, reshaping or aging. If only a product changes, keep the person." : "",
     product ? "Keep product profile, markings and logos; match perspective, scale, reflections and contact shadows; plausible support; no invented sides; hands only if requested." : "",
     new Set(refs.map(r => r.role)).size < refs.length ? "Multiple views of one subject remain ONE subject. Keep distinct identities separate; style references never define identity." : "",
     "Only necessary local junctions. No invented props, claims, watermarks, blur or grain; keep the medium and texture.",
   ].filter(Boolean).join("\n");
+  let kept = accepted;
+  let out = render(kept);
+  while (subsequent && out.length > max && kept.length) {
+    kept = kept.slice(1);
+    out = render(kept);
+  }
+  return out;
 }

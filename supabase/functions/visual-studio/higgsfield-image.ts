@@ -65,7 +65,10 @@ export function marketingPrompt(proposal: Proposal): string | null {
 export function marketingPromptCandidate(proposal: Proposal): string {
   let prompt = condensedPrompt(proposal);
   const workflow = proposal.scene_workflow;
-  if (prompt.length <= MARKETING_PROMPT_MAX || !workflow?.accepted_changes?.length) return prompt;
+  // An initial integration edits the approved scene itself: its accepted choices are
+  // not yet visible in Image 1, so they are never dropped.
+  const initial = workflow?.phase === "integration" && proposal.input_path === workflow.scene_path;
+  if (prompt.length <= MARKETING_PROMPT_MAX || initial || !workflow?.accepted_changes?.length) return prompt;
   // accepted_changes grows with every retouch (up to 48 items) and repeats the current
   // Changes. Image 1 already shows those earlier choices, so the list only reinforces
   // them: drop the duplicates, then the oldest items, never a current confirmed field.
@@ -105,7 +108,7 @@ function condensedPrompt(proposal: Proposal): string {
   // Duplicate of the condensed preservation rules above.
   if (prompt.includes("DEFAULT PHOTO PRESERVATION")) prompt = prompt.replace(`\n${KEEP_RULE}`, "");
   if (prompt.length > MARKETING_PROMPT_MAX) {
-    const compact = compactIntegrationPrompt(proposal);
+    const compact = compactIntegrationPrompt(proposal, MARKETING_PROMPT_MAX);
     if (compact && compact.length < prompt.length) return compact;
   }
   return prompt;
