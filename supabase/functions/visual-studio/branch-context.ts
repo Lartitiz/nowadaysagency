@@ -50,8 +50,8 @@ const refKey = (r: Reference) => JSON.stringify([
 
 // True when every reference used by the version is still present unchanged and
 // the session only gained extra photos since (nothing removed or edited).
+// A version made without any reference (e.g. a generated decor) only gains photos.
 export function onlyAdditions(versionRefs: Reference[], currentRefs: Reference[]): boolean {
-  if (!versionRefs.length) return false;
   const current = new Set(currentRefs.map(refKey));
   return versionRefs.every((r) => current.has(refKey(r)));
 }

@@ -577,10 +577,12 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         const changedReferences = !!parent &&
           referencesDiffer(versionReferences, references);
         // Earlier created images auto-joined to the session (older scenes) are
-        // not user choices: they never cause a conflict and are left out.
+        // not user choices: they never cause a conflict and are left out, unless
+        // still attached (e.g. a generated model joined to this request).
         const versionIds = new Set(versionReferences.map((r) => r.id));
+        const attachedNow = new Set(activeReferences(session, references));
         const userReferences = parent
-          ? references.filter((r) => !r.version_id || r.version_id === parent.id || versionIds.has(r.id))
+          ? references.filter((r) => !r.version_id || r.version_id === parent.id || versionIds.has(r.id) || attachedNow.has(r.id))
           : references;
         const additionsOnly = changedReferences && !p.branch_reference_mode && !p.reference_ids &&
           onlyAdditions(versionReferences, userReferences);
@@ -598,8 +600,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               "Les références ont changé depuis cette version. Choisis celles à utiliser avant d’envoyer ; aucune image n’a été lancée.",
           }, 409);
         }
+        // A scene keeps its own references plus the photos added since: those can
+        // only be the originals to integrate into it.
         const availableReferences = changedReferences &&
-            branchMode === "version"
+            branchMode === "version" && !sceneKeepsRefs
           ? versionReferences
           : changedReferences && additionsOnly ? userReferences : references;
         if (p.reference_ids && p.reference_ids.some((id) =>

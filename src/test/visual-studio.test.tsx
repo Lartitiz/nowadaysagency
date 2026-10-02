@@ -1072,3 +1072,22 @@ it("does not offer a carousel replacement from another workspace or Studio sessi
   expect(await screen.findByText(/Le lien de retour n’est pas disponible/)).toBeVisible();
   expect(screen.queryByRole("button", { name: "Utiliser dans cette slide" })).not.toBeInTheDocument();
 });
+it("re-joining an already attached decor updates the server selection and keeps the photos added since", async () => {
+  let state = original();
+  state.session.references = [
+    { id: "decor-ref", photo_id: null, version_id: "decor", role: "scene", name: "Décor", url: "/decor.jpg" },
+    { id: "mannequin", photo_id: null, version_id: "sheet", role: "casting", name: "Mannequin", url: "/mannequin.jpg" },
+    { id: "product", photo_id: "p", role: "product", name: "Bougie", url: "/product.jpg" },
+  ];
+  state.session.active_reference_ids = ["mannequin", "product"];
+  state.versions = [{ id: "decor", status: "ready", url: "/decor.jpg", created_at: "", library_photo_id: null, error_message: null,
+    proposal: { ...proposal, operation: "create", scene_workflow: { phase: "scene", camera_match: "Face" }, planning_references: [] } }];
+  mock.request.mockImplementation(async body => {
+    if (body.action === "selection") state = { ...state, session: { ...state.session, revision: state.session.revision + 1, active_reference_ids: body.reference_ids, conversation_branch_id: body.viewed_version_id, proposal: null } };
+    return structuredClone(state);
+  });
+  mount();
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "selection", viewed_version_id: "decor" })));
+  const call = mock.request.mock.calls.map(([body]) => body).find(body => body.action === "selection");
+  expect([...call.reference_ids].sort()).toEqual(["decor-ref", "mannequin", "product"]);
+});

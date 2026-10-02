@@ -39,7 +39,8 @@ Deno.test("onlyAdditions: scene refs kept, extra photo added", () => {
   if (!_onlyAdditions([casting, product], [extra, product, casting])) throw new Error("addition should pass");
   if (_onlyAdditions([casting, product], [extra, casting])) throw new Error("removal must ask");
   if (_onlyAdditions([casting, product], [casting, { ...(product as object), role: "decor" } as never])) throw new Error("role change must ask");
-  if (_onlyAdditions([], [casting])) throw new Error("empty version must ask");
+  // A version made without references (a generated decor) only gained photos.
+  if (!_onlyAdditions([], [casting])) throw new Error("empty version only gains photos");
 });
 
 Deno.test("clean product shot takes priority over a worn product photo", () => {
