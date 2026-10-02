@@ -576,17 +576,24 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           : references;
         const changedReferences = !!parent &&
           referencesDiffer(versionReferences, references);
-        // After a scene, extra photos left in the session are not a conflict:
-        // keep the scene's own references instead of asking.
-        const sceneKeepsRefs = changedReferences && !p.branch_reference_mode && !p.reference_ids &&
-          parent?.proposal?.scene_workflow?.phase === "scene" &&
-          onlyAdditions(versionReferences, references);
-        const branchMode = p.branch_reference_mode || (sceneKeepsRefs ? "version" : undefined);
+        // Earlier created images auto-joined to the session (older scenes) are
+        // not user choices: they never cause a conflict and are left out.
+        const versionIds = new Set(versionReferences.map((r) => r.id));
+        const userReferences = parent
+          ? references.filter((r) => !r.version_id || r.version_id === parent.id || versionIds.has(r.id))
+          : references;
+        const additionsOnly = changedReferences && !p.branch_reference_mode && !p.reference_ids &&
+          onlyAdditions(versionReferences, userReferences);
+        // After a scene, extra photos are not a conflict: keep the scene's own
+        // references. Elsewhere, photos only added since then are kept too.
+        const sceneKeepsRefs = additionsOnly && parent?.proposal?.scene_workflow?.phase === "scene";
+        const branchMode = p.branch_reference_mode ||
+          (sceneKeepsRefs ? "version" : additionsOnly ? "current" : undefined);
         if (changedReferences && !branchMode && !p.reference_ids) {
           return json({
             code: "branch_reference_choice",
             version_names: versionReferences.map((r) => r.name).filter(Boolean),
-            current_names: references.map((r) => r.name).filter(Boolean),
+            current_names: userReferences.map((r) => r.name).filter(Boolean),
             error:
               "Les références ont changé depuis cette version. Choisis celles à utiliser avant d’envoyer ; aucune image n’a été lancée.",
           }, 409);
@@ -594,7 +601,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         const availableReferences = changedReferences &&
             branchMode === "version"
           ? versionReferences
-          : references;
+          : changedReferences && additionsOnly ? userReferences : references;
         if (p.reference_ids && p.reference_ids.some((id) =>
           !availableReferences.some((ref) => ref.id === id)
         )) return json({ error: "Une image jointe n'est plus disponible. Vérifie ta demande." }, 409);
