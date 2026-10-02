@@ -438,20 +438,8 @@ it("generated versions stay outside the library until the user asks in the chat"
       error_message: null,
       created_at: "",
     };
-  let saved = false;
-  mock.request.mockImplementation((body) =>
-    body.action === "read"
-      ? Promise.resolve({
-          ...start,
-          versions: [
-            { ...v, library_photo_id: saved ? "library-photo" : null },
-          ],
-        })
-      : Promise.resolve().then(() => {
-          saved = true;
-          return { photo_id: "library-photo" };
-        }),
-  );
+  const state = { ...start, versions: [v] };
+  mock.request.mockResolvedValue(state);
   mount();
   await screen.findByText(/Qu’est-ce que tu veux ajuster maintenant/);
   expect(mock.request.mock.calls.some(([b]) => b.action === "save")).toBe(
@@ -930,7 +918,7 @@ it("selecting a second discussion image preserves the first attachment", async (
 });
 
 
-it("a reloaded scene displays its originals and requires an explicit integration click", async () => {
+it("a reloaded scene guides integration through a reply in the chat", async () => {
   const state = original();
   state.quota.plan = "premium"; state.generative_allowed = true;
   state.session.revision = 7;
@@ -940,17 +928,16 @@ it("a reloaded scene displays its originals and requires an explicit integration
   state.versions = [{ id: "scene", status: "ready", url: "/scene.jpg", created_at: "", library_photo_id: null, error_message: null,
     proposal: { ...proposal, operation: "create", scene_workflow: { phase: "scene", camera_match: "Face" } }, integration_proposal: preview }];
   mock.request.mockResolvedValue(state);
-  const first = mount();
-  await screen.findByRole("region", { name: "Scène à valider avant intégration" });
-  expect(mock.request.mock.calls.some(([body]) => ["integrate", "generate"].includes(body.action))).toBe(false);
-  first.unmount();
   mount();
-  expect(await screen.findByRole("img", { name: "Portrait original" })).toHaveAttribute("src", "/portrait.jpg");
-  const button = screen.getByRole("button", { name: "Valider cette scène et intégrer mes références · 1 image" });
-  fireEvent.click(button);
-  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "integrate", version_id: "scene",
-    proposal_id: "integration-preview", approved_scene_id: "scene", revision: 7 })));
-  expect(mock.request.mock.calls.filter(([body]) => body.action === "integrate")).toHaveLength(1);
+  expect(await screen.findByText(/Voilà la scène\. Qu’est-ce que tu veux faire maintenant/)).toBeInTheDocument();
+  expect(mock.request.mock.calls.some(([body]) => ["integrate", "generate"].includes(body.action))).toBe(false);
+  expect(screen.queryByRole("button", { name: /intégrer mes références/ })).not.toBeInTheDocument();
+  fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), { target: { value: "Intègre maintenant mon portrait dans cette scène" } });
+  fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({
+    action: "message", viewed_version_id: "scene", message: "Intègre maintenant mon portrait dans cette scène", revision: 7,
+  })));
+  expect(mock.request.mock.calls.filter(([body]) => body.action === "integrate")).toHaveLength(0);
 });
 it("persists a visible photo role, reordered selection and fresh-request clearing through the server", async () => {
   let state = original();
