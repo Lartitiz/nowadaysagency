@@ -9,9 +9,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
-  BookmarkCheck,
   Ellipsis,
-  GitCompare,
   ImagePlus,
   Library,
   Loader2,
@@ -19,7 +17,6 @@ import {
   RefreshCw,
   SlidersHorizontal,
   Sparkles,
-  Video,
 } from "lucide-react";
 import { StudioCompositionEditor } from "@/features/visual-studio/StudioCompositionEditor";
 import { uploadPhotoOriginal, type UserPhotoRow } from "@/lib/photo-storage";
