@@ -19,7 +19,7 @@ type Draft = {
   fictional: boolean;
 };
 export function StudioMemoryPanel(
-  { memory, selectedVersion, personReference, brief, disabled, onSave, onApply }: {
+  { memory, selectedVersion, personReference, brief, disabled, onSave, onApply, registerCastingOpener }: {
     memory: StudioMemory[];
     selectedVersion?: string;
     personReference?: StudioProposal["person_reference"];
@@ -27,6 +27,7 @@ export function StudioMemoryPanel(
     disabled: boolean;
     onSave: (values: Record<string, unknown>) => Promise<unknown>;
     onApply: (id: string) => Promise<unknown>;
+    registerCastingOpener?: (open: (() => void) | null) => void;
   },
 ) {
   const [open, setOpen] = useState(false),
