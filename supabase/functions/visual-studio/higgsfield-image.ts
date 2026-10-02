@@ -90,7 +90,7 @@ export function marketingPromptCandidate(proposal: Proposal): string {
   // Duplicate of the condensed preservation rules above.
   if (prompt.includes("DEFAULT PHOTO PRESERVATION")) prompt = prompt.replace(`\n${KEEP_RULE}`, "");
   if (prompt.length > MARKETING_PROMPT_MAX) {
-    const compact = compactIntegrationPrompt(proposal);
+    const compact = compactIntegrationPrompt(proposal, MARKETING_PROMPT_MAX);
     if (compact && compact.length < prompt.length) return compact;
   }
   return prompt;

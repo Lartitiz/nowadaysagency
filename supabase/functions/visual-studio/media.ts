@@ -300,7 +300,9 @@ export function imagePrompt(proposal: Proposal) {
     proposal.scene_workflow?.targets?.length && proposal.scene_workflow.phase === "integration"
       ? (proposal.scene_workflow.approved_scene_id && proposal.input_path !== proposal.scene_workflow.scene_path ? "SUBJECT ANCHORS ALREADY INTEGRATED. Preserve these identities; do not repeat their initial replacement. Apply only the current Changes.\n" : "AUTHORIZED TARGETS\n") + proposal.scene_workflow.targets.map(t => `${t.location}: ${proposal.scene_workflow?.approved_scene_id && proposal.input_path !== proposal.scene_workflow.scene_path ? t.role : t.instruction} Sources: ${t.reference_ids.map(id => { const i = refs.findIndex(r => r.id === id); return i < 0 ? "missing original (do not invent)" : `Image ${i + 1 + (proposal.input_path ? 1 : 0)}`; }).join(", ")}`).join("\n")
       : "",
-    proposal.scene_workflow?.phase === "integration" && proposal.scene_workflow.scene_path && proposal.scene_workflow.scene_path !== proposal.input_path
+    // Name the original scene only when it is actually one of the sent images.
+    proposal.scene_workflow?.phase === "integration" && proposal.scene_workflow.scene_path && proposal.scene_workflow.scene_path !== proposal.input_path &&
+      imageInputPaths(proposal).includes(proposal.scene_workflow.scene_path)
       ? `Image ${imageInputPaths(proposal).indexOf(proposal.scene_workflow.scene_path) + 1} is the approved original scene, a photographic preservation anchor, NOT the edit base. Edit Image 1 and retain all accepted corrections since that scene. Current explicitly confirmed Changes take precedence over earlier changes.` : "",
     proposal.scene_workflow?.accepted_changes?.length
       ? `PREVIOUSLY ACCEPTED CHOICES (current explicit Changes take precedence): ${proposal.scene_workflow.accepted_changes.join("; ")}` : "",
