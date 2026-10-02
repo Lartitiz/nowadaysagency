@@ -585,6 +585,31 @@ it("attaches multiple local images beside an unfinished message and sends only t
   await waitFor(() => expect(mock.request.mock.calls.find(([body]) => body.action === "message")?.[0].reference_ids).toEqual(["ref-local-one", "ref-local-two"]));
   expect(mock.request.mock.calls.some(([body]) => body.action === "generate")).toBe(false);
 });
+it("accepts images dropped on the composer and ignores non-image files", async () => {
+  let state = { ...original(), session: { ...original().session, references: [] as Array<{
+    id: string; photo_id: string; name: string; role: string; url: string;
+  }> } };
+  mock.upload.mockResolvedValue({ uploaded: 1, failed: 0, photoIds: ["dropped-one"] });
+  mock.request.mockImplementation((body) => {
+    if (body.action === "reference") state = { ...state, session: { ...state.session,
+      revision: state.session.revision + 1, references: [...state.session.references, {
+        id: `ref-${body.photo_id}`, photo_id: body.photo_id, name: body.photo_id,
+        role: body.reference_role, url: `/${body.photo_id}.png`,
+      }],
+    } };
+    return Promise.resolve(state);
+  });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  const composer = document.querySelector(".studio-composer") as HTMLElement;
+  expect(composer).not.toBeNull();
+  fireEvent.drop(composer, { dataTransfer: { files: [
+    new File(["dropped"], "photo.png", { type: "image/png" }),
+    new File(["ignored"], "notes.pdf", { type: "application/pdf" }),
+  ] } });
+  await screen.findByText("Image 1 · dropped-one");
+  expect(mock.upload.mock.calls[0][0]).toEqual([expect.objectContaining({ name: "photo.png" })]);
+});
 it("recovers the attached references when a later photo fails", async () => {
   let state = { ...original(), session: { ...original().session, references: [] as Array<{
     id: string; photo_id: string; name: string; role: string; url: string;
