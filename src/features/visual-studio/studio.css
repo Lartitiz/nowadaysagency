@@ -165,6 +165,12 @@
   overflow-y: auto;
   box-shadow: 0 -8px 20px hsl(var(--background) / 0.9);
 }
+.studio-composer.studio-drop-active {
+  outline: 2px dashed hsl(var(--primary) / 0.6);
+  outline-offset: -4px;
+  border-radius: 12px;
+  background: hsl(var(--primary) / 0.04);
+}
 .studio-message {
   border-radius: 12px;
   background: hsl(var(--muted));

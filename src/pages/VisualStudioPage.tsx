@@ -1450,7 +1450,37 @@ function Studio({
                   )}
                 </section>
               </div>
-              <div className="studio-composer p-3 border-t space-y-2">
+              <div
+                className={`studio-composer p-3 border-t space-y-2${dropActive ? " studio-drop-active" : ""}`}
+                onDragEnter={(e) => {
+                  if (!writable || !!busy || generating) return;
+                  e.preventDefault();
+                  dragDepth.current += 1;
+                  setDropActive(true);
+                }}
+                onDragOver={(e) => {
+                  if (writable && !busy && !generating) e.preventDefault();
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  dragDepth.current = Math.max(0, dragDepth.current - 1);
+                  if (dragDepth.current === 0) setDropActive(false);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  dragDepth.current = 0;
+                  setDropActive(false);
+                  if (!writable || !!busy || generating) return;
+                  const dropped = Array.from(e.dataTransfer?.files ?? []);
+                  const images = dropped.filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
+                  if (!images.length) {
+                    if (dropped.length) toast.error("Seules des images peuvent être ajoutées ici (JPG, PNG, HEIC…).");
+                    return;
+                  }
+                  if (dropped.length > images.length) toast.info(`${dropped.length - images.length} fichier${dropped.length - images.length > 1 ? "s ignorés" : " ignoré"} : seules les images peuvent être jointes.`);
+                  void addLocalFiles(images);
+                }}
+              >
                 <div className="studio-toolbar">
                   <div className="studio-toolbar-group">
                     {hasExtraTools && (
