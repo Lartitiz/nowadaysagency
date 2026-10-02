@@ -11,3 +11,16 @@ it("keeps the brand tint of the veil when the text is moved", () => {
     expect(style.replace(/\s/g, "")).not.toContain("rgba(0,0,0,0.85)");
   }
 });
+
+it("moves the frosted-glass card and keeps its blurred photo aligned", async () => {
+  const { composePhotoSlide } = await import("../../supabase/functions/_shared/photo-overlay-templates");
+  const { html } = composePhotoSlide({ slide_number: 2, photo_index: 1, overlay_text: "Un passage développé pour la carte en verre dépoli, avec plusieurs mots.", overlay_position: "bottom_left", photo_style: "verre", art_direction: { treatment: "editorial", position: "bottom_left", emphasis: null, reason: "t", surface: "veil", alignment: "left" } }, { color_accent: "#5C7A5A", color_primary: "#5C7A5A", font_title: "Georgia", font_body: "Arial" }, { isFirst: false, isLast: false });
+  const moved = positionPhotoText({ id: "1", html, data: {} } as any, "top_left");
+  const doc = new DOMParser().parseFromString(moved.html, "text/html");
+  const card = doc.querySelector<HTMLElement>("[data-photo-glass]")!;
+  const blur = doc.querySelector<HTMLElement>("[data-photo-glass-blur]")!;
+  expect(card.style.top).toBe("110px");
+  expect(blur.style.top).toBe("-110px");
+  expect(card.style.bottom).toBe("");
+  expect(blur.style.bottom).toBe("");
+});

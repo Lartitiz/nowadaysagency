@@ -633,5 +633,18 @@ export function positionPhotoText(slide: EditorSlide, position: "top_left" | "bo
     const veil = position === "center" ? `rgba(${rgb},0.85)` : `linear-gradient(${position === "top_left" ? "180deg" : "0deg"},rgba(${rgb},0.85) 0%,rgba(${rgb},0) 100%)`;
     scrim.setAttribute("style", `${(scrim.getAttribute("style") || "").replace(/;?\s*$/, ";")}background:${veil};`);
   }
+  // Verre dépoli : la carte est positionnée en absolu et sa copie floutée de la
+  // photo doit rester calée sur la photo de fond (mêmes décalages, signes opposés).
+  const glassY = position === "top_left" ? 110 : position === "center" ? 420 : null;
+  for (const card of doc.querySelectorAll<HTMLElement>("[data-photo-glass]")) {
+    const blur = card.querySelector<HTMLElement>("[data-photo-glass-blur]");
+    if (glassY === null) {
+      card.style.removeProperty("top"); card.style.bottom = "200px";
+      if (blur) { blur.style.removeProperty("top"); blur.style.bottom = "-200px"; }
+    } else {
+      card.style.removeProperty("bottom"); card.style.top = `${glassY}px`;
+      if (blur) { blur.style.removeProperty("bottom"); blur.style.top = `-${glassY}px`; }
+    }
+  }
   return { ...slide, data: { ...slide.data, overlay_position: position }, html: serialize(doc) };
 }

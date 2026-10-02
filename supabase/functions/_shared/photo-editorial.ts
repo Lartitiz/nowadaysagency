@@ -54,6 +54,6 @@ const escape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").rep
 /** One editable source wrapper, independently measured native PPTX fragments. */
 export function photoEditorialMarkup(text: string, finale: boolean, preferred?: string | null): string {
   return photoTextParts(text, finale, preferred).map((part, i) =>
-    `<span data-photo-text-part="${part.emphasis ? "emphasis" : "body"}" data-pptx-editable="overlay" style="position:relative;display:block;white-space:pre-wrap;overflow-wrap:anywhere;${i ? "margin-top:18px;" : ""}${part.emphasis ? "font-family:var(--photo-title-font);font-size:var(--photo-emphasis-size);line-height:1.12;color:var(--photo-heading);" : ""}">${escape(part.text)}</span>`
+    `<span data-photo-text-part="${part.emphasis ? "emphasis" : "body"}" data-pptx-editable="overlay" style="position:relative;display:block;white-space:pre-line;overflow-wrap:anywhere;${i ? "margin-top:18px;" : ""}${part.emphasis ? "font-family:var(--photo-title-font);font-size:var(--photo-emphasis-size);line-height:1.12;color:var(--photo-heading);" : ""}">${escape(part.text)}</span>`
   ).join("");
 }

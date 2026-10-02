@@ -16,7 +16,7 @@ import { fetchRecraftIllustrationSvg, buildCoverSlideHtml, hexToRgb } from "../_
 import { enforceTextContrast, hexLuminance } from "../_shared/contrast-guard.ts";
 import { enforceMinFontSize, enforceEditorFontFloor } from "../_shared/font-size-guard.ts";
 import { enforceSafeZones, injectFallbackScrim, enforceHeroHook } from "../_shared/photo-visual-guards.ts";
-import { composePhotoSlide } from "../_shared/photo-overlay-templates.ts";
+import { assignPhotoStyles, composePhotoSlide } from "../_shared/photo-overlay-templates.ts";
 import { composeMixCarousel } from "../_shared/mix-slide-layouts.ts";
 import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
 import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
@@ -697,7 +697,8 @@ export function runComposedByCodeGeneration(params: {
 }): any {
   const { slides, ch, reqBody, usage, emitStatus, tStart } = params;
   emitStatus("visuals", { done: 0, total: 1 });
-  const specs = slides as any[];
+  // Alternance des habillages éditoriaux (carte, voile du bord, verre, colonne).
+  const specs = assignPhotoStyles(slides as any[]) as any[];
   const nums = specs.map((s, i) => Number(s?.slide_number) || i + 1);
   const minNum = Math.min(...nums);
   const maxNum = Math.max(...nums);
