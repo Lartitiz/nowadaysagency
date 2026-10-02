@@ -59,3 +59,15 @@ it('server export annotation keeps editorial frames separate, with exact AI-sele
   expect(doc.querySelector('[data-photo-text-part="emphasis"]')?.textContent).toBe('Une deuxième idée à mettre en avant.');
   expect(doc.querySelector('[data-slide-text]')?.textContent).toBe(source);
 });
+
+it("keeps the punctuation after an emphasis with it (no paragraph starting with ':' or ',')", () => {
+  for (const [text, emphasis] of [
+    ["Tout commence par le pétrissage de l'argile : un geste qui ne laisse aucune trace.", "Tout commence par le pétrissage de l'argile"],
+    ["Vient ensuite le tournage. La forme naît entre les mains, au tour, et c'est là que tout se joue.", "La forme naît entre les mains, au tour"],
+    ["Une seule laisse une trace : le carnet où je note chaque cuisson. La prochaine fois, pensez-y.", "le carnet où je note chaque cuisson"],
+  ] as const) {
+    const parts = photoTextParts(text, false, emphasis);
+    expect(parts.map(p => p.text).join("")).toBe(text);
+    for (const p of parts.filter(p => !p.emphasis)) expect(p.text).not.toMatch(/^[\s,;:.]/);
+  }
+});

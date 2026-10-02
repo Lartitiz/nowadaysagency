@@ -313,7 +313,19 @@ Deno.test("voile éditorial : teinte de la marque et bouton d'invitation lisible
   const text = "Ce carnet ne sert pas à effacer ces écarts, il m'aide à les comprendre. Le bol que tu choisis n'existe qu'une fois.";
   const html = composePhotoSlide(base({ overlay_text: text, cta_label: "Viens voir la série", art_direction: { treatment: "closing", position: "bottom_left", emphasis: null, reason: "Fin", surface: "veil", alignment: "left" } }),
     { ...CH, color_primary: "#91014b", color_background: "#FFF4F8", color_text: "#1A1A1A" }, { isFirst: false, isLast: true }).html;
-  assert(html.includes("rgba(145,1,75,.74) 8%"));
+  assert(/rgba\(1[23]\d,1,6\d,\.74\) 8%/.test(html), "framboise assombrie");
   assert(/data-slide-text="cta"[^>]*background:#FFF4F8;color:#1A1A1A/.test(html));
   assert(html.replace(/<[^>]*>/g, "").includes("Viens voir la série"));
+});
+
+Deno.test("voile de marque : couleur moyenne (vert) assombrie, jamais le gris par défaut", () => {
+  const green = { ...CH, color_primary: "#5C7A5A" };
+  const html = composePhotoSlide(base({ overlay_text: "Une phrase courte pour ce lieu." }), green, { ...mid, luminance: { bottom: 0.8 } }).html;
+  const m = /rgba\((\d+),(\d+),(\d+),0\.85\) 0%/.exec(html);
+  assert(m, "voile teinté attendu");
+  const [r, g, b] = m!.slice(1).map(Number);
+  assert(g > r && g > b, `teinte verte conservée (${r},${g},${b})`);
+  assert(r + g + b > 0 && r + g + b < 200, "assez foncé pour un texte blanc");
+  const editorial = composePhotoSlide(base({ overlay_text: "Une première idée. Une deuxième idée qui se développe un peu plus longuement pour la lecture." }), green, mid).html;
+  assert(!editorial.includes("rgba(22,22,22,.74)"), "le voile éditorial prend la teinte de marque");
 });

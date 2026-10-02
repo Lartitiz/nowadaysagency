@@ -142,12 +142,27 @@ function zoneFor(position: string | null | undefined): keyof PhotoZoneLuminance 
   return "bottom";
 }
 
-/** Couleur des voiles : la teinte foncée de la marque quand elle en a une
- * (primaire, puis couleur de titre), sinon le noir historique. Format "r,g,b",
- * reconnu par l'export hybride (parseScrimStyle) pour cuire le voile dans la photo. */
+/** Teinte foncée de la marque pour les voiles : la couleur principale (puis
+ * secondaire) EXPLICITE de la charte, assombrie jusqu'à porter un texte blanc
+ * quand elle est moyenne ou claire (vu en prod le 02/10/2026 : un vert moyen
+ * retombait sur le gris). Sans couleur de charte explicite : null. */
+function brandVeilHex(ch: PhotoCharter): string | null {
+  const base = [ch.color_primary, ch.color_secondary].find(c => /^#[0-9a-f]{6}$/i.test(String(c || "")));
+  if (!base) return null;
+  const rgb = [1, 3, 5].map(i => parseInt(base.slice(i, i + 2), 16));
+  const toHex = (k: number) => "#" + rgb.map(v => Math.round(v * k).toString(16).padStart(2, "0")).join("");
+  for (let k = 1; k > .05; k -= .1) {
+    const c = toHex(k);
+    if (hexLuminance(c.slice(1)) < .06) return c;
+  }
+  return null;
+}
+
+/** Couleur des voiles "r,g,b" : teinte foncée de la marque, sinon le noir
+ * historique. Reconnue par l'export hybride (parseScrimStyle) pour cuire le
+ * voile dans la photo. */
 function veilRgb(ch: PhotoCharter): string {
-  const d = design(ch);
-  const dark = [d.primary, d.heading].find(c => hexLuminance(c.slice(1)) < .12);
+  const dark = brandVeilHex(ch);
   if (!dark) return "0,0,0";
   return [1, 3, 5].map(i => parseInt(dark.slice(i, i + 2), 16)).join(",");
 }
@@ -248,7 +263,7 @@ function editorialOverlay(s: PhotoSlideSpec, ch: PhotoCharter, finale = false): 
   const align = ch.text_alignment || s.art_direction?.alignment || (s.overlay_position === "center" ? "center" : "left");
   // Use a dark brand hue where available; the neutral scrim preserves photo
   // colours when the primary is pale. Never identify a subject from luminance.
-  const tint = [d.primary, d.heading].find(c => hexLuminance(c.slice(1)) < .12) || "#161616";
+  const tint = brandVeilHex(ch) || "#161616";
   const r = parseInt(tint.slice(1, 3), 16), g = parseInt(tint.slice(3, 5), 16), b = parseInt(tint.slice(5, 7), 16);
   const gradient = `linear-gradient(180deg,rgba(${r},${g},${b},0) 0%,rgba(${r},${g},${b},.74) 8%,rgba(${r},${g},${b},.74) 92%,rgba(${r},${g},${b},0) 100%)`;
   const copy = `<div data-photo-editorial-text="${finale ? "finale" : "profonde"}" data-photo-emphasis="${escapeHtml(s.art_direction?.emphasis || "")}" data-slide-text="overlay" style="position:relative;--photo-veil:${gradient};--photo-title-font:${fontTitle};--photo-emphasis-size:${(emphasis / size).toFixed(3)}em;--photo-heading:${heading};font-family:${fontBody};font-size:${size}px;line-height:1.28;font-weight:400;white-space:pre-wrap;text-align:${align};color:${ink};text-shadow:${paper ? "none" : "0 2px 8px rgba(0,0,0,.55)"};">${photoEditorialMarkup(text, finale, s.art_direction?.emphasis)}</div>`;
