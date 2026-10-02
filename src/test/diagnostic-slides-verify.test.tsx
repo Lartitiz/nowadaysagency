@@ -12,6 +12,13 @@ vi.mock("@/components/onboarding/BrandLearnedSection", () => ({
 vi.mock("@/components/Confetti", () => ({ default: () => null }));
 vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
 
+// jsdom n'a pas IntersectionObserver (utilisé par useInView de framer-motion)
+class IOStub {
+  observe() {} unobserve() {} disconnect() {}
+  constructor(public cb: IntersectionObserverCallback) {}
+}
+(globalThis as any).IntersectionObserver = IOStub;
+
 import DiagnosticView from "@/components/onboarding/DiagnosticView";
 
 describe("DiagnosticView — mode slides unique", () => {
