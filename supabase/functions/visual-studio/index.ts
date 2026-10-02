@@ -1121,7 +1121,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         if (parent?.result_path && parent.proposal.scene_workflow?.phase === "scene" &&
           intent.scene_workflow?.phase === "scene" && intent.visual_kind === "photo" && !intent.exact_text.length &&
           (!explicitSource || explicitSource.path === parent.result_path) &&
-          asksIntegration(intent.operation, [...(intent.change || []), ...(intent.scene_workflow.targets || []).map(t => t.instruction), intent.summary],
+          asksIntegration(intent.operation, intent.change || [],
             resolvedReferences)) {
           const sw = intent.scene_workflow;
           intent.scene_workflow = { ...sw, phase: "integration",
