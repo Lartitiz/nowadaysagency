@@ -56,7 +56,12 @@ export interface PhotoSlideSpec {
   overlay_position?: string | null; // bottom_* | top_* | center
   art_direction?: { treatment: string; emphasis: string | null; position: string; reason: string; surface?: "veil" | "paper"; alignment?: "left" | "center" };
   role?: string | null; // rôle narratif issu de la structure (hook, cta…)
+  // Habillage des passages éditoriaux, attribué par assignPhotoStyles
+  // (alternance validée par Laetitia le 02/10/2026). Absent = rendu historique.
+  photo_style?: PhotoStyle | null;
 }
+
+export type PhotoStyle = "bord" | "carte" | "verre" | "colonne";
 
 export interface PhotoCharter {
   color_primary?: string;
@@ -180,6 +185,14 @@ function fullDim(opacity: number, rgb = "0,0,0"): string {
   return `<div data-injected-scrim="1" style="position:absolute;top:0;left:0;width:${W}px;height:${H}px;background:rgba(${rgb},${opacity});"></div>`;
 }
 
+const COLUMN_W = 560; // colonne éditoriale : moitié gauche de la slide
+
+/** Photo de la colonne éditoriale : moitié droite, recadrée sur son centre. */
+function photoLayerRight(photoIndex: number): string {
+  const n = Math.max(1, Math.round(photoIndex || 1));
+  return `<div data-pptx-photo="${n}" style="position:absolute;top:0;left:${COLUMN_W}px;width:${W - COLUMN_W}px;height:${H}px;background-image:url({{PHOTO_${n}}});background-size:cover;background-position:center;"></div>`;
+}
+
 function photoLayer(photoIndex: number, zoom = false): string {
   const n = Math.max(1, Math.round(photoIndex || 1));
   // Zoom facultatif, uniquement demandé explicitement par un appelant.
@@ -256,20 +269,59 @@ function tplCouverture(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): strin
 function editorialOverlay(s: PhotoSlideSpec, ch: PhotoCharter, finale = false): string {
   const d = design(ch), text = s.overlay_text || "";
   const fontBody = cssFont(ch.font_body, "sans-serif"), fontTitle = cssFont(ch.font_title, "Georgia, serif");
-  const count = wordCount(text), size = count > 90 ? 40 : count > 45 ? 42 : 44;
-  const emphasis = count > 75 ? 50 : count > 45 ? 56 : finale ? 72 : 64;
-  const paper = s.art_direction?.surface === "paper";
-  const ink = paper ? d.ink : "#FFFFFF", heading = paper ? d.heading : "#FFFFFF";
-  const align = ch.text_alignment || s.art_direction?.alignment || (s.overlay_position === "center" ? "center" : "left");
+  const style = s.photo_style || null;
+  const count = wordCount(text);
+  const narrow = style === "colonne";
+  const size = narrow ? (count > 40 ? 36 : 38) : count > 90 ? 40 : count > 45 ? 42 : 44;
+  const emphasis = narrow ? (count > 40 ? 46 : 52) : count > 75 ? 50 : count > 45 ? 56 : finale ? 72 : 64;
+  // Un habillage attribué remplace la surface choisie par la direction artistique.
+  const paper = !style && s.art_direction?.surface === "paper";
+  const glass = style === "verre";
   // Use a dark brand hue where available; the neutral scrim preserves photo
   // colours when the primary is pale. Never identify a subject from luminance.
   const tint = brandVeilHex(ch) || "#161616";
   const r = parseInt(tint.slice(1, 3), 16), g = parseInt(tint.slice(3, 5), 16), b = parseInt(tint.slice(5, 7), 16);
+  const glassInk = hexLuminance(d.ink.slice(1)) < .2 ? d.ink : "#1A1A1A";
+  const ink = paper ? d.ink : glass ? glassInk : "#FFFFFF";
+  const heading = paper ? d.heading : glass ? tint : "#FFFFFF";
+  const shadow = paper || glass || style === "carte" || narrow ? "none" : "0 2px 8px rgba(0,0,0,.55)";
+  const align = narrow ? "left" : ch.text_alignment || s.art_direction?.alignment || (s.overlay_position === "center" ? "center" : "left");
   const gradient = `linear-gradient(180deg,rgba(${r},${g},${b},0) 0%,rgba(${r},${g},${b},.74) 8%,rgba(${r},${g},${b},.74) 92%,rgba(${r},${g},${b},0) 100%)`;
-  const copy = `<div data-photo-editorial-text="${finale ? "finale" : "profonde"}" data-photo-emphasis="${escapeHtml(s.art_direction?.emphasis || "")}" data-slide-text="overlay" style="position:relative;--photo-veil:${gradient};--photo-title-font:${fontTitle};--photo-emphasis-size:${(emphasis / size).toFixed(3)}em;--photo-heading:${heading};font-family:${fontBody};font-size:${size}px;line-height:1.28;font-weight:400;white-space:pre-wrap;text-align:${align};color:${ink};text-shadow:${paper ? "none" : "0 2px 8px rgba(0,0,0,.55)"};">${photoEditorialMarkup(text, finale, s.art_direction?.emphasis)}</div>`;
+  const copy = `<div data-photo-editorial-text="${finale ? "finale" : "profonde"}" data-photo-emphasis="${escapeHtml(s.art_direction?.emphasis || "")}" data-slide-text="overlay" style="position:relative;--photo-veil:${gradient};--photo-title-font:${fontTitle};--photo-emphasis-size:${(emphasis / size).toFixed(3)}em;--photo-heading:${heading};font-family:${fontBody};font-size:${size}px;line-height:1.28;font-weight:400;white-space:pre-wrap;text-align:${align};color:${ink};text-shadow:${shadow};">${photoEditorialMarkup(text, finale, s.art_direction?.emphasis)}</div>`;
+  const ctaBg = paper || glass ? (glass ? tint : d.primary) : d.background;
+  const ctaInk = paper ? d.onPrimary : glass ? "#FFFFFF" : d.ink;
   const parts = (s.kicker ? kickerHtml(s.kicker, heading) : "") + copy +
     (s.detail ? detailHtml(s.detail, 22, ink) : "") + (s.attribution ? detailHtml(s.attribution, 18, ink) : "") +
-    (s.cta_label ? `<div data-slide-cta="1" style="position:relative;margin-top:28px;"><span data-slide-text="cta" data-pptx-editable="caption" style="display:inline-block;background:${paper ? d.primary : d.background};color:${paper ? d.onPrimary : d.ink};border-radius:${Math.min(d.radius, 24)}px;padding:14px 24px;font-size:34px;line-height:1.3;text-shadow:none;max-width:100%;overflow-wrap:anywhere;">${escapeHtml(s.cta_label)}</span></div>` : "");
+    (s.cta_label ? `<div data-slide-cta="1" style="position:relative;margin-top:28px;"><span data-slide-text="cta" data-pptx-editable="caption" style="display:inline-block;background:${ctaBg};color:${ctaInk};border-radius:${Math.min(d.radius, 24)}px;padding:14px 24px;font-size:34px;line-height:1.3;text-shadow:none;max-width:100%;overflow-wrap:anywhere;">${escapeHtml(s.cta_label)}</span></div>` : "");
+  const position = s.overlay_position || "bottom_left";
+  const isTop = /^top/.test(position);
+  // Coins : ceux de la charte quand elle en donne, sinon arrondis (maquette).
+  const radius = ch.border_radius == null || String(ch.border_radius).trim() === "" ? 28 : d.radius;
+
+  if (style === "carte") {
+    // Carte de marque : rectangle plein dans la teinte foncée de la marque.
+    const card = `<div data-photo-reading-panel="1" data-photo-editorial-surface="1" data-photo-style="carte" data-pptx-shape="card" style="position:relative;box-sizing:border-box;width:100%;max-width:952px;background:rgba(${r},${g},${b},.93);padding:48px 52px;color:${ink};border-radius:${radius}px;box-shadow:0 16px 48px rgba(0,0,0,.28);">${parts}</div>`;
+    return contentWrap(position, "flex-start", card);
+  }
+  if (glass) {
+    // Verre dépoli : copie floutée de la photo DANS la carte (pas de
+    // backdrop-filter, que l'export canvas ne sait pas reproduire). La copie est
+    // calée sur la photo de fond par les décalages de la carte : quand l'éditeur
+    // déplace le texte (positionPhotoText), il met à jour les deux.
+    const n = Math.max(1, Math.round(s.photo_index || 1));
+    const y = isTop ? "top:110px" : "bottom:200px";
+    const blurY = isTop ? "top:-110px" : "bottom:-200px";
+    const card = `<div data-photo-glass="1" data-photo-reading-panel="1" data-photo-editorial-surface="1" data-photo-style="verre" style="position:absolute;left:64px;right:64px;${y};box-sizing:border-box;overflow:hidden;border-radius:${radius}px;background:rgba(255,255,255,.64);border:1px solid rgba(255,255,255,.78);padding:48px 52px;color:${ink};pointer-events:auto;">` +
+      `<div data-photo-glass-blur="1" aria-hidden="true" style="position:absolute;left:-64px;${blurY};width:${W}px;height:${H}px;background-image:url({{PHOTO_${n}}});background-size:cover;background-position:center;filter:blur(28px);transform:scale(1.08);"></div>` +
+      `<div style="position:relative;background:rgba(255,255,255,.46);margin:-48px -52px;padding:48px 52px;">${parts}</div></div>`;
+    return `<div data-photo-text-layout="${escapeHtml(position)}" style="position:absolute;top:0;left:0;width:${W}px;height:${H}px;">${card}</div>`;
+  }
+  if (narrow) {
+    // Colonne éditoriale : colonne pleine à gauche, photo décalée à droite
+    // (composePhotoSlide), texte centré verticalement. Pas de réglage haut/bas.
+    return `<div data-photo-style="colonne" data-pptx-shape="card" style="position:absolute;left:0;top:0;width:${COLUMN_W}px;height:${H}px;background:${tint};"></div>` +
+      `<div data-photo-column-text="1" style="position:absolute;left:56px;top:0;width:${COLUMN_W - 112}px;height:${H}px;display:flex;flex-direction:column;justify-content:center;color:${ink};">${parts}</div>`;
+  }
   // A pseudo-element follows drag/width edits without becoming an editable
   // object, source text, native text frame or false text-overflow rectangle.
   // Voile ancré au BORD de la photo (maquette validée le 02/10/2026) : opaque
@@ -279,8 +331,8 @@ function editorialOverlay(s: PhotoSlideSpec, ch: PhotoCharter, finale = false): 
   // le voile change de bord tout seul. Arrêts en pourcentage (export canvas).
   const edge = (dir: string) => `linear-gradient(${dir},rgba(${r},${g},${b},0) 0%,rgba(${r},${g},${b},.82) 18%,rgba(${r},${g},${b},.92) 100%)`;
   const veil = paper ? "" : `<style data-photo-editorial-veil="1">[data-photo-editorial-text]::before{content:"";position:absolute;pointer-events:none;left:-84px;right:-84px;top:-70px;bottom:-60px;background:var(--photo-veil);}[data-photo-text-layout^="bottom"] [data-photo-editorial-text]::before{top:-200px;bottom:-480px;background:${edge("180deg")};}[data-photo-text-layout^="top"] [data-photo-editorial-text]::before{top:-320px;bottom:-200px;background:${edge("0deg")};}</style>`;
-  const panel = `<div data-photo-reading-panel="1" data-photo-editorial-surface="1" ${paper ? 'data-pptx-shape="card"' : ""} style="position:relative;box-sizing:border-box;width:100%;max-width:${paper ? 780 : 912}px;${paper ? `background:${d.background};padding:36px;color:${ink};border-radius:${d.radius}px;` : ""}">${parts}</div>`;
-  return veil + contentWrap(s.overlay_position || "bottom_left", "flex-start", panel);
+  const panel = `<div data-photo-reading-panel="1" data-photo-editorial-surface="1" ${style ? `data-photo-style="${style}"` : ""} ${paper ? 'data-pptx-shape="card"' : ""} style="position:relative;box-sizing:border-box;width:100%;max-width:${paper ? 780 : 912}px;${paper ? `background:${d.background};padding:36px;color:${ink};border-radius:${d.radius}px;` : ""}">${parts}</div>`;
+  return veil + contentWrap(position, "flex-start", panel);
 }
 
 function tplProfonde(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
@@ -411,6 +463,45 @@ export function resolvePhotoTemplate(
   return "profonde";
 }
 
+/**
+ * Alternance des habillages éditoriaux (maquette validée le 02/10/2026) :
+ * voile du bord, carte de marque, verre dépoli, colonne éditoriale. Seuls les
+ * passages rendus en éditorial reçoivent un style ; la couverture garde son
+ * dégradé (style « bord »). Jamais deux fois le même style d'affilée ; au plus
+ * une colonne par carrousel, sur le passage le plus développé qui y tient
+ * (20 à 60 mots), et seulement à partir de trois passages. Un style déjà
+ * présent sur une slide (choix explicite) est conservé.
+ */
+export function assignPhotoStyles(slides: PhotoSlideSpec[]): PhotoSlideSpec[] {
+  const nums = slides.map((s, i) => Number(s.slide_number) || i + 1);
+  const first = Math.min(...nums), last = Math.max(...nums);
+  const editorialTreatments = ["editorial", "quote", "statement", "closing"];
+  const eligible = slides.map((s, i) => {
+    const text = String(s.overlay_text || "");
+    if (!text.trim()) return false;
+    const opts = { isFirst: nums[i] === first, isLast: nums[i] === last };
+    if (s.art_direction) return editorialTreatments.includes(s.art_direction.treatment);
+    const t = resolvePhotoTemplate(s, opts);
+    return (t === "profonde" || t === "finale") && wordCount(text) > 12;
+  });
+  const candidates = slides.map((s, i) => ({ i, words: wordCount(String(s.overlay_text || "")) }))
+    .filter(({ i, words }) => eligible[i] && !slides[i].photo_style && words >= 20 && words <= 60);
+  const columnAt = eligible.filter(Boolean).length >= 3 && candidates.length
+    ? candidates.sort((a, b) => b.words - a.words)[0].i : -1;
+  const cycle: PhotoStyle[] = ["carte", "bord", "verre"];
+  let k = 0, previous: PhotoStyle | null = null;
+  return slides.map((s, i) => {
+    if (!eligible[i]) { previous = nums[i] === first ? "bord" : null; return s; }
+    let style: PhotoStyle = s.photo_style || (i === columnAt ? "colonne" : cycle[k % 3]);
+    if (!s.photo_style && i !== columnAt) {
+      if (style === previous) { k++; style = cycle[k % 3]; }
+      k++;
+    }
+    previous = style;
+    return { ...s, photo_style: style };
+  });
+}
+
 export interface ComposedSlide {
   slide_number: number;
   html: string;
@@ -457,15 +548,19 @@ export function composePhotoSlide(
     finale: tplFinale,
   };
   const art = s.art_direction;
-  const inner = art && ["editorial", "quote", "statement", "closing"].includes(art.treatment)
-    ? editorialOverlay(s, charter, art.treatment === "closing")
+  const editorial = !!art && ["editorial", "quote", "statement", "closing"].includes(art.treatment);
+  const inner = editorial
+    ? editorialOverlay(s, charter, art!.treatment === "closing")
     : bodyByTemplate[template](s, charter, lum);
+  // La colonne n'est attribuée qu'aux passages éditoriaux (assignPhotoStyles) ;
+  // si le passage n'est finalement pas éditorial, la photo reste plein cadre.
+  const column = s.photo_style === "colonne" && inner.includes('data-photo-style="colonne"');
   const measured = typeof lum === "number" ? `luminance mesurée ${lum.toFixed(2)}` : "luminance non mesurée (pire cas)";
   return {
     slide_number: s.slide_number,
-    html: root(fontBody, photoLayer(s.photo_index, opts.zoomOnRepeat) + inner),
+    html: root(fontBody, (column ? photoLayerRight(s.photo_index) : photoLayer(s.photo_index, opts.zoomOnRepeat)) + inner),
     contrast_ok: true,
-    legibility: `photo-editorial-v3-art-direction · gabarit ${template}, palette de marque et surface de lecture (${measured})`,
+    legibility: `photo-editorial-v3-art-direction${s.photo_style ? ` · habillage ${s.photo_style}` : ""} · gabarit ${template}, palette de marque et surface de lecture (${measured})`,
     template,
   };
 }

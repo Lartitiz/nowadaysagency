@@ -1,5 +1,6 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
+  assignPhotoStyles,
   composePhotoSlide,
   resolvePhotoTemplate,
   type PhotoCharter,
@@ -337,4 +338,55 @@ Deno.test("voile éditorial ancré au bord de la photo (plus de bande flottante)
   assert(html.includes('[data-photo-text-layout^="top"] [data-photo-editorial-text]::before'));
   assert(/\[data-photo-text-layout\^="bottom"\][^}]*linear-gradient\(180deg,rgba\(\d+,\d+,\d+,0\) 0%,rgba\(\d+,\d+,\d+,\.82\) 18%,rgba\(\d+,\d+,\d+,\.92\) 100%\)/.test(html));
   assert(!/::before\{[^}]*calc\(/.test(html));
+});
+
+
+// ── Alternance des habillages (02/10/2026) ───────────────────────────────────
+const art = (treatment: string, position = "bottom_left") => ({ treatment, position, emphasis: null, reason: "t", surface: "veil" as const, alignment: "left" as const });
+const words = (n: number) => Array(n).fill("argile").join(" ") + ".";
+
+Deno.test("alternance : couverture intacte, jamais deux fois le même style, une seule colonne sur un passage moyen", () => {
+  const slides = [
+    base({ slide_number: 1, template: "couverture", overlay_text: "Une pièce unique", art_direction: art("opening") }),
+    ...[30, 45, 28, 55, 33, 40].map((n, i) => base({ slide_number: i + 2, overlay_text: words(n), art_direction: art(i === 5 ? "closing" : "editorial") })),
+  ];
+  const out = assignPhotoStyles(slides);
+  assertEquals(out[0].photo_style, undefined);
+  const styles = out.slice(1).map(s => s.photo_style);
+  for (let i = 1; i < styles.length; i++) assert(styles[i] !== styles[i - 1], `répétition : ${styles.join(",")}`);
+  assertEquals(styles.filter(s => s === "colonne").length, 1);
+  assertEquals(out[4].photo_style, "colonne"); // 55 mots : le plus long qui tient dans la colonne
+  assert(styles.includes("carte") && styles.includes("bord") && styles.includes("verre"));
+});
+
+Deno.test("alternance : chiffre/liste non concernés, style explicite conservé, pas de colonne au-delà de 60 mots", () => {
+  const out = assignPhotoStyles([
+    base({ slide_number: 1, template: "chiffre", big_number: "1 mm", overlay_text: "Un millimètre change tout." }),
+    base({ slide_number: 2, overlay_text: words(80), art_direction: art("editorial") }),
+    base({ slide_number: 3, overlay_text: words(70), art_direction: art("editorial"), photo_style: "verre" }),
+    base({ slide_number: 4, overlay_text: words(90), art_direction: art("editorial") }),
+  ]);
+  assertEquals(out[0].photo_style, undefined);
+  assertEquals(out[2].photo_style, "verre");
+  assert(!out.some(s => s.photo_style === "colonne"));
+});
+
+Deno.test("habillages : texte verbatim et ancre unique ; carte = shape natif, verre = flou sans photo d'export, colonne = photo à droite", () => {
+  const text = "Devant une faïence illustrée, on reconnaît une pièce unique. C'est vrai, mais ce n'est qu'une partie de l'histoire.";
+  const ch = { ...CH, color_primary: "#5C7A5A" };
+  for (const style of ["bord", "carte", "verre", "colonne"] as const) {
+    const html = composePhotoSlide(base({ photo_index: 2, overlay_text: text, cta_label: "Viens voir", photo_style: style, art_direction: art("editorial", "top_left") }), ch, mid).html;
+    assertEquals((html.match(/data-slide-text="overlay"/g) || []).length, 1, style);
+    assert(html.replace(/<[^>]*>/g, "").includes(text), style);
+    assert(html.includes('data-slide-text="cta"'), style);
+    assertEquals((html.match(/data-pptx-photo="2"/g) || []).length, 1, `${style} : une seule photo d'export`);
+  }
+  const carte = composePhotoSlide(base({ overlay_text: text, photo_style: "carte", art_direction: art("editorial") }), ch, mid).html;
+  assert(carte.includes('data-photo-style="carte" data-pptx-shape="card"'));
+  const verre = composePhotoSlide(base({ photo_index: 2, overlay_text: text, overlay_position: "top_left", photo_style: "verre", art_direction: art("editorial", "top_left") }), ch, mid).html;
+  assert(verre.includes('data-photo-glass-blur="1"') && verre.includes("filter:blur(28px)") && verre.includes("top:-110px"));
+  assert(!verre.includes("backdrop-filter"));
+  const colonne = composePhotoSlide(base({ photo_index: 2, overlay_text: text, photo_style: "colonne", art_direction: art("editorial") }), ch, mid).html;
+  assert(colonne.includes('data-pptx-photo="2" style="position:absolute;top:0;left:560px;width:520px'));
+  assert(!colonne.includes("data-photo-text-layout"), "pas de réglage haut/bas sur la colonne");
 });
