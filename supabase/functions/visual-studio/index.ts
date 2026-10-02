@@ -48,7 +48,7 @@ import {
   higgsfieldImagesEnabled,
   marketingFidelityEligible,
   MARKETING_MAX_IMAGES,
-  marketingPromptTooLong, MARKETING_PROMPT_ERROR,
+  marketingPromptTooLong, marketingPromptCandidate, MARKETING_PROMPT_ERROR,
   routeToMarketingStudio,
   imageCallback,
   reconcileHiggsfieldImage,
@@ -1559,7 +1559,15 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         }
         // Check the final prepared prompt before creating a processing version or
         // reserving usage. Keep the proposal and originals available for editing.
-        if (marketingPromptTooLong(session.proposal)) return json({ error: MARKETING_PROMPT_ERROR }, 409);
+        if (marketingPromptTooLong(session.proposal)) {
+          // Lengths only (no user content) to see which confirmed field still overflows.
+          const pr = session.proposal;
+          console.warn("[visual-studio:prompt-too-long]", JSON.stringify({ request_id: p.request_id, operation: pr.operation,
+            phase: pr.scene_workflow?.phase || null, prompt: marketingPromptCandidate(pr).length, summary: pr.summary?.length || 0,
+            image_prompt: pr.image_prompt?.length || 0, preserve: (pr.preserve || []).join("; ").length, change: (pr.change || []).join("; ").length,
+            accepted: (pr.scene_workflow?.accepted_changes || []).length, references: pr.references?.length || 0, shots: pr.shots?.length || 0 }));
+          return json({ error: MARKETING_PROMPT_ERROR }, 409);
+        }
         const exempt = isQaTestAccount(actor) || quota.plan === "admin";
         const limits = PLAN_LIMITS[quota.plan] || PLAN_LIMITS.free;
         const claim = unwrap(

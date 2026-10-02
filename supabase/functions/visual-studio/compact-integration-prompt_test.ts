@@ -2,7 +2,7 @@ import { assertEquals, assert, assertThrows } from "https://deno.land/std@0.224.
 import { compactIntegrationPrompt } from "./compact-integration-prompt.ts";
 import { imagePrompt, type Proposal } from "./media.ts";
 import { imageInputPaths } from "./photo-preservation.ts";
-import { imageInput, marketingPrompt, marketingPromptTooLong, MARKETING_FIDELITY_MODEL } from "./higgsfield-image.ts";
+import { imageInput, marketingPrompt, marketingPromptCandidate, marketingPromptTooLong, MARKETING_FIDELITY_MODEL } from "./higgsfield-image.ts";
 
 const fixture = async (): Promise<Proposal> => JSON.parse(await Deno.readTextFile(new URL("./fixtures/marketing-integration.json", import.meta.url)));
 
@@ -89,6 +89,22 @@ Deno.test("targets and accepted choices repeated verbatim in Changes are written
   assertEquals(out.split("Bague exacte").length, 2);
 });
 
+Deno.test("long retouch sessions fit by dropping repeated then oldest accepted choices only", async () => {
+  const p = await fixture();
+  p.input_path = "fixture/edited.jpg";
+  p.change = ["Éclaircir uniquement le plateau sans toucher au reste de la scène."];
+  const history = Array.from({ length: 47 }, (_, i) => `Retouche acceptée n°${i + 1} : ajuster légèrement l’élément ${i + 1} en gardant la lumière d’origine.`);
+  p.scene_workflow!.accepted_changes = [...history, p.change[0]];
+  const out = marketingPrompt(p);
+  assert(out && out.length <= 5000);
+  for (const text of [p.summary!, p.image_prompt!, p.product_placement!, ...p.preserve!, p.change[0]]) assert(out.includes(text), text);
+  assertEquals(out.split(p.change[0]).length, 2);
+  assert(out.includes(history.at(-1)!));
+  assert(!out.includes(history[0]));
+  assertEquals(p.scene_workflow!.accepted_changes.length, 48);
+  assertEquals(marketingPromptTooLong({ ...p, provider: "higgsfield", model: MARKETING_FIDELITY_MODEL }), false);
+});
+
 Deno.test("an original scene that is not sent is never named as an image", async () => {
   const p = await fixture();
   p.input_path = "fixture/edited-2.jpg";
@@ -121,4 +137,11 @@ Deno.test("an initial integration never drops accepted choices to fit", async ()
   const p = await fixture();
   p.scene_workflow!.accepted_changes = Array.from({ length: 30 }, (_, i) => `Choix ${i} assez long pour peser dans la demande`);
   assertEquals(compactIntegrationPrompt(p, 1000), compactIntegrationPrompt(p));
+});
+
+Deno.test("an initial integration beyond the limit keeps every accepted choice and stays refused", async () => {
+  const p = await fixture();
+  p.scene_workflow!.accepted_changes = Array.from({ length: 48 }, (_, i) => `Choix initial ${i} assez long pour dépasser la limite du service d’images.`);
+  const out = marketingPromptCandidate(p);
+  for (const text of p.scene_workflow!.accepted_changes) assert(out.includes(text), text);
 });
