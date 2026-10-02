@@ -15,17 +15,17 @@ vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
 import DiagnosticView from "@/components/onboarding/DiagnosticView";
 
 describe("DiagnosticView — mode slides unique", () => {
-  it("rend en slides sur desktop : une section à la fois, navigation Suivant + clavier", () => {
+  it("rend en slides sur desktop : une section à la fois, navigation Suivant + clavier", async () => {
     render(<DiagnosticView data={DEMO_DIAGNOSTIC} prenom="Léa" onComplete={() => {}} />);
-    // Slide 1 : accroche visible, niveau PAS visible (pas de page à scroller)
+    // Slide 1 : accroche visible, niveau PAS encore rendu (pas de page à scroller)
     expect(screen.getByText(/voilà ce que je vois/)).toBeTruthy();
     expect(screen.queryByText("Où tu en es aujourd'hui")).toBeNull();
     expect(screen.getByText(/Clique Suivant ou utilise les flèches/)).toBeTruthy();
 
-    // Avance au clavier jusqu'au niveau
-    fireEvent.keyDown(window, { key: "ArrowRight" }); // résumé (si présent)
-    fireEvent.keyDown(window, { key: "ArrowRight" }); // niveau
-    expect(screen.queryByText(/voilà ce que je vois/)).toBeNull();
+    // Avance au clavier jusqu'au niveau (slide 2 ou 3 selon présence du résumé)
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+    expect(await screen.findByText("Où tu en es aujourd'hui")).toBeTruthy();
 
     // Avance avec le bouton Suivant jusqu'à la fin
     for (let i = 0; i < 10; i++) {
@@ -33,8 +33,8 @@ describe("DiagnosticView — mode slides unique", () => {
       if (!next) break;
       fireEvent.click(next);
     }
-    // Dernière slide : écran final avec CTA
-    expect(screen.getByText(/Maintenant, tu sais d'où tu pars/)).toBeTruthy();
+    // Dernière slide : écran final avec CTA, plus de bouton Suivant
+    expect(await screen.findByText(/Maintenant, tu sais d'où tu pars/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Suivant/ })).toBeNull();
   });
 });
