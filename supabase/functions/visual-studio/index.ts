@@ -1126,8 +1126,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           const sw = intent.scene_workflow;
           intent.scene_workflow = { ...sw, phase: "integration",
             targets: sw.targets?.length ? sw.targets : parent.proposal.scene_workflow.targets,
-            camera_match: sw.camera_match || parent.proposal.scene_workflow.camera_match,
-            scene_version_id: parent.id, scene_path: parent.result_path };
+            camera_match: sw.camera_match || parent.proposal.scene_workflow.camera_match };
           intent.uses_selected_version = true;
         }
         const phase = intent.scene_workflow?.phase;
