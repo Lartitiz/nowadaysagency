@@ -56,3 +56,15 @@ Deno.test("distinct clean products require a choice", () => {
   const groupedSecond = { ...second, subject_group: first.id };
   assertEquals(preferredProductReference([{ ...first, subject_group: first.id }, groupedSecond]), { reference: groupedSecond, ambiguous: false });
 });
+
+import { isWornProduct, preferredProductGroup } from "./branch-context.ts";
+Deno.test("product group: all views of the clean product, never the worn photo", () => {
+  const clean = { id: "p", photo_id: null, path: "p.png", role: "product", kind: "produit", name: "bag dino+S (2)" } as Reference;
+  const view = { id: "v", photo_id: null, path: "v.png", role: "product", name: "Autre angle", subject_group: "p" } as Reference;
+  const worn = { id: "w", photo_id: null, path: "w.png", role: "product", kind: "produit_porte", name: "dino1 (2)", subject_group: "p" } as Reference;
+  assertEquals(preferredProductGroup([worn, clean, view]).references.map(r => r.id), ["p", "v"]);
+  assertEquals(isWornProduct(worn), true);
+  assertEquals(preferredProductGroup([worn]), { references: [], ambiguous: false });
+  const other = { ...clean, id: "o", path: "o.png" };
+  assertEquals(preferredProductGroup([clean, other]).ambiguous, true);
+});
