@@ -1214,70 +1214,61 @@ function Studio({
                 )}
 
                 <section className="studio-chat-actions" aria-label="Actions sur l’image">
-                  {(version || current?.session.source_photo_id) && (
-                    <div className="studio-image-action-bar">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button type="button" size="sm" variant="outline" className="h-9 shrink-0 gap-1.5 px-3">
-                            <Ellipsis className="h-4 w-4" />
-                            Autres actions
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-64">
-                          {version && comparisonSource && (
-                            <DropdownMenuItem onSelect={() => setCompare(!compare)}>
-                              <GitCompare className="mr-2 h-4 w-4" />
-                              {compare ? "Voir la version seule" : "Comparer à la source"}
-                            </DropdownMenuItem>
-                          )}
-                          {version?.status === "ready" && version.proposal.composition && (
-                            <DropdownMenuItem
-                              disabled={!writable || !!busy}
-                              onSelect={() => {
-                                setSelectedComposition(null);
-                                setCompositionDraft(version.proposal.composition);
-                                setCompositionOpen(true);
-                              }}
-                            >
-                              <SlidersHorizontal className="mr-2 h-4 w-4" />
-                              Finaliser l’affiche avec ses textes
-                            </DropdownMenuItem>
-                          )}
-                          {version?.status === "ready" && (
-                            <DropdownMenuItem onSelect={() => chooseTab("video")}>
-                              <Video className="mr-2 h-4 w-4" />
-                              Créer une vidéo avec cette image
-                            </DropdownMenuItem>
-                          )}
-                          {!!display && (
-                            <DropdownMenuItem disabled={!!busy} onSelect={() => void openPreparation()}>
-                              <SlidersHorizontal className="mr-2 h-4 w-4" />
-                              Ajuster la lumière ou le format
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            disabled={!version || !!version.library_photo_id || !!busy || !writable}
-                            onSelect={() => void save()}
-                          >
-                            {version?.library_photo_id
-                              ? <BookmarkCheck className="mr-2 h-4 w-4" />
-                              : <Library className="mr-2 h-4 w-4" />}
-                            {version?.library_photo_id
-                              ? "Dans la bibliothèque"
-                              : "Ajouter à la bibliothèque"}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <Button
-                        size="sm"
-                        className="h-9 min-w-0 flex-1"
-                        disabled={!!busy || !writable || (!version && !current?.session.source_photo_id)}
-                        onClick={() => void save(true)}
-                      >
-                        Créer un contenu
-                      </Button>
-                    </div>
-                  )}
+                  {(version || current?.session.source_photo_id) && (() => {
+                    const linkCls = "p-0 h-auto inline align-baseline text-[13px] underline underline-offset-2 decoration-border hover:decoration-primary text-primary";
+                    const items: React.ReactNode[] = [];
+                    if (version && comparisonSource) {
+                      items.push(
+                        <button key="compare" type="button" className={linkCls} onClick={() => setCompare(!compare)}>
+                          {compare ? "voir la version seule" : "comparer avec la photo d’origine"}
+                        </button>
+                      );
+                    }
+                    if (version?.status === "ready" && version.proposal.composition) {
+                      items.push(
+                        <button key="compose" type="button" className={linkCls} disabled={!writable || !!busy}
+                          onClick={() => { setSelectedComposition(null); setCompositionDraft(version.proposal.composition); setCompositionOpen(true); }}>
+                          finaliser l’affiche avec ses textes
+                        </button>
+                      );
+                    }
+                    if (version?.status === "ready") {
+                      items.push(
+                        <button key="video" type="button" className={linkCls} onClick={() => chooseTab("video")}>
+                          créer une vidéo
+                        </button>
+                      );
+                    }
+                    if (display) {
+                      items.push(
+                        <button key="prep" type="button" className={linkCls} disabled={!!busy} onClick={() => void openPreparation()}>
+                          ajuster la lumière ou le format
+                        </button>
+                      );
+                    }
+                    if (version) {
+                      items.push(
+                        version.library_photo_id
+                          ? <span key="lib">elle est dans ta bibliothèque</span>
+                          : <button key="lib" type="button" className={linkCls} disabled={!!busy || !writable} onClick={() => void save()}>
+                              l’ajouter à ta bibliothèque
+                            </button>
+                      );
+                    }
+                    if (!items.length) return null;
+                    return (
+                      <p className="text-[13px] leading-relaxed text-muted-foreground">
+                        Avec cette image, tu peux{" "}
+                        {items.map((item, i) => (
+                          <span key={i}>
+                            {i > 0 && (i === items.length - 1 ? " ou " : ", ")}
+                            {item}
+                          </span>
+                        ))}
+                        .
+                      </p>
+                    );
+                  })()}
                   {generating && (
                     <div
                       role="status"
