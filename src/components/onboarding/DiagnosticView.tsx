@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type ReactNode } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { type DiagnosticData, type DiagnosticStrength, type DiagnosticWeakness, normalizeStrength, getScoreMessage } from "@/lib/diagnostic-data";
+import { type DiagnosticData, type DiagnosticStrength, type DiagnosticWeakness, normalizeStrength, getScoreMessage, diagnosticLevel, channelLevelLabel } from "@/lib/diagnostic-data";
 import BrandLearnedSection from "./BrandLearnedSection";
 import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 
@@ -246,54 +246,24 @@ function SummarySection({ summary }: { summary: string }) {
   );
 }
 
-/* ═══ Section: Score ═══ */
+/* ═══ Section: Niveau — jamais de note chiffrée (décision produit) ═══ */
 function ScoreSection({ score }: { score: number }) {
-  const [displayed, setDisplayed] = useState(0);
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
 
-  useEffect(() => {
-    if (!isInView) return;
-    const duration = 1500;
-    const steps = 60;
-    const increment = score / steps;
-    let current = 0;
-    const interval = setInterval(() => {
-      current += increment;
-      if (current >= score) { setDisplayed(score); clearInterval(interval); }
-      else setDisplayed(Math.round(current));
-    }, duration / steps);
-    return () => clearInterval(interval);
-  }, [isInView, score]);
-
-  const pct = score / 100;
-  const circumference = 2 * Math.PI * 80;
-  const offset = circumference * (1 - pct);
-  const color = score < 40 ? "hsl(0 84% 60%)" : score < 60 ? "hsl(25 95% 53%)" : score < 80 ? "hsl(var(--primary))" : "hsl(160 84% 39%)";
-
   return (
     <div ref={ref} className="text-center space-y-6">
-      <h2 className="text-xl font-display font-bold text-foreground">Ton premier repère de communication</h2>
-      <div className="relative w-[200px] h-[200px] mx-auto">
-        <svg width="200" height="200" viewBox="0 0 200 200">
-          <circle cx="100" cy="100" r="80" fill="none" stroke="hsl(var(--border))" strokeWidth="8" />
-          <motion.circle
-            cx="100" cy="100" r="80" fill="none"
-            stroke={color} strokeWidth="8" strokeLinecap="round"
-            strokeDasharray={circumference}
-            initial={{ strokeDashoffset: circumference }}
-            animate={isInView ? { strokeDashoffset: offset } : {}}
-            transition={{ duration: 1.5, ease: "easeOut" }}
-            transform="rotate(-90 100 100)"
-          />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-6xl font-bold text-foreground">{displayed}</span>
-          <span className="text-xl text-muted-foreground">/100</span>
-        </div>
-      </div>
+      <h2 className="text-xl font-display font-bold text-foreground">Où tu en es aujourd'hui</h2>
+      <motion.p
+        initial={{ opacity: 0, y: 12 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="text-5xl font-display font-bold text-foreground"
+      >
+        {diagnosticLevel(score)}
+      </motion.p>
       <p className="text-base text-muted-foreground italic max-w-sm mx-auto">{getScoreMessage(score)}</p>
-      <p className="text-xs text-muted-foreground max-w-sm mx-auto">Une estimation à partir de tes réponses et des sources accessibles aujourd'hui. Les canaux non analysés restent « à auditer ».</p>
+      <p className="text-xs text-muted-foreground max-w-sm mx-auto">Une lecture de tes réponses et des sources accessibles aujourd'hui. Les canaux non analysés restent « à auditer ».</p>
     </div>
   );
 }
@@ -438,31 +408,13 @@ function ChannelScoresSection({ channelScores }: { channelScores: DiagnosticData
 }
 
 function ChannelBar({ emoji, label, score }: { emoji: string; label: string; score: number | null }) {
-  if (score === null) {
-    return (
-      <div className="flex items-center gap-4">
-        <span className="text-xl w-8">{emoji}</span>
-        <span className="w-28 text-sm text-muted-foreground">{label}</span>
-        <span className="text-sm font-medium text-muted-foreground">À auditer</span>
-      </div>
-    );
-  }
-
-  const color = score < 40 ? "bg-destructive/60" : score < 60 ? "bg-accent" : score < 80 ? "bg-primary" : "bg-success";
-
   return (
     <div className="flex items-center gap-4">
       <span className="text-xl w-8">{emoji}</span>
       <span className="w-28 text-sm text-muted-foreground">{label}</span>
-      <div className="flex-1 bg-border/30 rounded-full h-3">
-        <motion.div
-          className={`h-3 rounded-full ${color}`}
-          initial={{ width: 0 }}
-          animate={{ width: `${score}%` }}
-          transition={{ duration: 1, ease: "easeOut" }}
-        />
-      </div>
-      <span className="text-sm font-medium w-16 text-right text-foreground">{score}/100</span>
+      <span className="text-sm font-medium text-foreground">
+        {score === null ? <span className="text-muted-foreground">À auditer</span> : channelLevelLabel(score)}
+      </span>
     </div>
   );
 }
