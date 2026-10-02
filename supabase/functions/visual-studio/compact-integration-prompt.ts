@@ -20,13 +20,15 @@ export function compactIntegrationPrompt(p: Proposal): string | null {
   const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim();
   const changeText = norm((p.change || []).join(" "));
   const inChanges = (t: string) => !!t && changeText.includes(norm(t));
+  const changeIndex = (t: { location: string; instruction: string }) =>
+    (p.change || []).findIndex(c => norm(c).includes(norm(t.instruction))) + 1;
   const acc = workflow.accepted_changes || [];
   const accepted = acc.filter((a, i) => !inChanges(a) &&
     !acc.some((b, j) => j !== i && norm(b) !== norm(a) && norm(b).includes(norm(a))) &&
     acc.findIndex(b => norm(b) === norm(a)) === i);
   const role = (r: typeof refs[number]) => {
     if (["person", "casting"].includes(r.role)) return "Exact identity, face, hair and build; not its lighting or pose.";
-    if (r.role === "product") return "Exact product shape, proportions, materials, colors, markings and lettering; not its lighting.";
+    if (r.role === "product") return "Exact shape, proportions, materials, colors and markings; not its lighting.";
     if (r.role === "person_product") return "Exact person AND product; not their reference lighting or pose.";
     return referenceInstruction(r.role);
   };
@@ -39,12 +41,12 @@ export function compactIntegrationPrompt(p: Proposal): string | null {
     p.summary ? `CONFIRMED BRIEF\n${p.summary}` : "",
     p.image_prompt ? `SHOT INSTRUCTIONS\n${p.image_prompt}` : "",
     p.preserve?.length ? `Preserve: ${p.preserve.join("; ")}` : "",
-    p.change?.length ? `Changes: ${p.change.join("; ")}` : "",
+    p.change?.length ? `Changes: ${p.change.map((c, i) => `(${i + 1}) ${c}`).join(" ")}` : "",
     p.exact_text?.length ? `Render exactly once, legibly, with correct accents: ${p.exact_text.map(t => JSON.stringify(t)).join("; ")}. No additional text.` : "",
     p.product_placement?.trim() ? `Confirmed product placement: ${p.product_placement.trim()}` : "",
     workflow.targets?.length ? [
-      subsequent ? "SUBJECT ANCHORS ALREADY INTEGRATED. Apply only current Changes; do not repeat initial replacements." : "AUTHORIZED TARGETS. Replace EVERY listed provisional subject from its originals; never duplicate it.",
-      ...workflow.targets.map(t => `${t.location}: ${subsequent ? t.role : inChanges(t.instruction) ? "see Changes." : t.instruction} Sources: ${t.reference_ids.map(id => {
+      subsequent ? "SUBJECT ANCHORS ALREADY INTEGRATED. Apply only current Changes; do not repeat initial replacements." : "TARGETS. Replace each provisional subject from its originals, once.",
+      ...workflow.targets.map(t => `${!subsequent && inChanges(`${t.location} : ${t.instruction}`) ? `Change ${changeIndex(t)}` : `${t.location}: ${subsequent ? t.role : inChanges(t.instruction) ? "see Changes." : t.instruction}`} Sources: ${t.reference_ids.map(id => {
         const i = refs.findIndex(r => r.id === id);
         return i < 0 ? "missing original (do not invent)" : `Image ${i + 2}`;
       }).join(", ")}`),
