@@ -641,8 +641,15 @@ function Studio({
   async function attachVersionAsReference(versionId: string, auto = false) {
     const isScene = current?.versions.find((v) => v.id === versionId)?.proposal.scene_workflow?.phase === "scene";
     const existing = references.find((ref) => ref.version_id === versionId);
+    // Only the selected scene stays joined: drop older auto-joined scenes.
+    const keptIds = auto
+      ? attachedIds.filter((id) => {
+        const ref = references.find((r) => r.id === id);
+        return !ref?.version_id || ref.version_id === versionId || !autoAttachedScenes.current.has(ref.version_id);
+      })
+      : attachedIds;
     if (existing) {
-      if (auto) { if (!attachedIds.includes(existing.id)) setAttachments([...attachedIds, existing.id]); return; }
+      if (auto) { setAttachments([...new Set([...keptIds, existing.id])]); return; }
       await updateSelection([...new Set([...activeIds, existing.id])], false, null);
       if (!isScene) setSelectedId(null);
       return;
@@ -659,7 +666,7 @@ function Studio({
     });
     const joined = result?.session.references?.find((ref) => ref.version_id === versionId);
     if (joined) {
-      setAttachments([...attachedIds, joined.id]);
+      setAttachments([...keptIds, joined.id]);
       if (!isScene) setSelectedId(null);
       if (!auto) toast.success("Image jointe à ta prochaine demande.");
     }
