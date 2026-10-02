@@ -75,6 +75,16 @@ function SlideView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasW
   );
   const totalSlides = sections.length;
 
+  // Flèches clavier ← / → (ordinateur)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") setSlide(s => Math.min(s + 1, totalSlides - 1));
+      if (e.key === "ArrowLeft") setSlide(s => Math.max(s - 1, 0));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [totalSlides]);
+
   return (
     <div
       className="flex-1 flex flex-col min-h-0"
