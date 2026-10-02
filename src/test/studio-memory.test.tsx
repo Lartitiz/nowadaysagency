@@ -1,4 +1,4 @@
-import {render,screen,fireEvent,waitFor,cleanup} from '@testing-library/react';
+import {render,screen,fireEvent,waitFor,cleanup,act} from '@testing-library/react';
 import {afterEach,it,expect,vi} from 'vitest';
 import {StudioMemoryPanel} from '@/features/visual-studio/StudioMemoryPanel';
 afterEach(cleanup);
