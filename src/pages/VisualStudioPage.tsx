@@ -431,7 +431,8 @@ function Studio({
   useEffect(() => {
     if (autoSend && draft === autoSend) {
       setAutoSend(null);
-      void send();
+      // The scene step needs the current references (saved model + product).
+      void send("current");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoSend, draft]);
