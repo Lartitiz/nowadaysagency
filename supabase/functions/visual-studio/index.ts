@@ -1038,6 +1038,23 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             if ((!newPhoto || usedReferences.some(r => r.id === ref.id)) && ["product", "person", "casting", "person_product"].includes(role) && !resolvedReferences.some(r => r.id === ref.id)) resolvedReferences.push({ ...ref, role });
           }
         }
+        // Never generate without an exact original the user attached: an omitted
+        // product or person would silently vanish while the summary still promises it.
+        const forgotten = p.studio_version === 4 && !newPhoto && generative(intent.operation)
+          ? requestReferences.filter(ref => exactReference(ref) && !(parent && versionIds.has(ref.id)) &&
+            !reservedProducts.some(r => r.id === ref.id) && !resolvedReferences.some(r => r.id === ref.id))
+          : [];
+        if (forgotten.length) {
+          intent.operation = "clarify";
+          intent.summary = `Je n’ai pas su comment utiliser ${forgotten.map(ref => `« ${ref.name} »`).join(", ")}. Dis-moi où la placer dans l’image, ou retire-la de ta demande. Aucune image n’a été lancée.`;
+        }
+        // An unconfirmed role is told to the generator as "not a product or person":
+        // ask instead of losing the user's product.
+        const unconfirmed = resolvedReferences.filter(ref => ref.role === "auto");
+        if (generative(intent.operation) && unconfirmed.length) {
+          intent.operation = "clarify";
+          intent.summary = `Que montre ${unconfirmed.map(ref => `« ${ref.name} »`).join(", ")} : ton produit exact, une personne, un décor ou une inspiration ? Aucune image n’a été lancée.`;
+        }
         const explicitSource = resolvedReferences.find((ref) =>
           ref.id === intent.source_reference_id
         );
@@ -1136,8 +1153,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         if (parent?.result_path && parent.proposal.scene_workflow?.phase === "scene" &&
           intent.scene_workflow?.phase === "scene" && intent.visual_kind === "photo" && !intent.exact_text.length &&
           (!explicitSource || explicitSource.path === parent.result_path) &&
-          asksIntegration(intent.operation, intent.change || [],
-            resolvedReferences)) {
+          // Originals attached after this scene was made can only be meant for it.
+          (["edit", "product"].includes(intent.operation) && resolvedReferences.some(ref => exactReference(ref) && !versionIds.has(ref.id)) ||
+            asksIntegration(intent.operation, intent.change || [], resolvedReferences))) {
           const sw = intent.scene_workflow;
           intent.scene_workflow = { ...sw, phase: "integration",
             targets: sw.targets?.length ? sw.targets : parent.proposal.scene_workflow.targets,

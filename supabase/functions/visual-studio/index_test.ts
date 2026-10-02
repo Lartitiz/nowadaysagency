@@ -1517,3 +1517,45 @@ Deno.test("an incomplete preparation is repaired once with the same pixels inste
  assertEquals(f.requests.some(p=>p.includes('studio_confirm')),false);
  }finally{f.restore();}
 });
+
+// Décor généré + mannequin + produit : le produit exact n'est jamais perdu en silence.
+Deno.test("originals attached after a scene integrate into it instead of staying provisional", async () => {
+  const f = fixture();
+  const mannequin = { id: id(1300), photo_id: null, version_id: id(1301), path: "mannequin", role: "style", name: "Planche mannequin" };
+  const product = { id: id(1302), photo_id: id(1303), path: "product", role: "product", name: "Bougie" };
+  f.version.status = "ready";
+  Object.assign(f.version.proposal, { operation: "create", visual_kind: "photo", scene_workflow: { phase: "scene", camera_match: "Vue de face" }, planning_references: [], reference_snapshot: [] });
+  f.session.references = [mannequin, product];
+  f.setIntent({ operation: "edit", visual_kind: "photo", summary: "Le mannequin assis dans ce salon tient ma bougie.", image_prompt: "Add the model seated on the sofa holding the candle.",
+    change: ["Ajouter le mannequin assis sur le canapé", "Le mannequin tient la bougie"], product_placement: "Tenue à deux mains",
+    reference_use: [{ id: mannequin.id, role: "casting" }, { id: product.id, role: "product" }] });
+  try {
+    const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0, request_id: id(1304),
+      viewed_version_id: proposalId, reference_ids: [mannequin.id, product.id], message: "Mets mon mannequin dans ce décor, il tient mon produit" }));
+    const p = (await res.json()).session.proposal;
+    assertEquals(res.status, 200);
+    assertEquals(p.scene_workflow.phase, "integration");
+    assertEquals(p.input_path, f.version.result_path);
+    assertEquals(p.references.map((r: any) => r.path).sort(), ["mannequin", "product"]);
+  } finally { f.restore(); }
+});
+
+Deno.test("an unconfirmed or forgotten original asks before generating", async () => {
+  for (const mode of ["auto", "forgotten"]) {
+    const f = fixture();
+    const decor = { id: id(1310), photo_id: id(1311), path: "decor", role: "scene", name: "Décor" };
+    const product = { id: id(1312), photo_id: id(1313), path: "product", role: mode === "auto" ? "auto" : "product", name: "IMG_1234.jpg" };
+    f.session.references = [decor, product];
+    f.setIntent({ operation: "edit", visual_kind: "photo", summary: "Mon produit posé dans le décor.", image_prompt: "Add the product on the table.",
+      change: ["Ajouter le produit sur la table"], product_placement: "Posé sur la table",
+      reference_use: mode === "auto" ? [{ id: decor.id, role: "scene" }, { id: product.id, role: "auto" }] : [{ id: decor.id, role: "scene" }] });
+    try {
+      const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0, request_id: id(1314),
+        reference_ids: [decor.id, product.id], message: "Pose mon produit dans ce décor" }));
+      const data = await res.json();
+      assertEquals(res.status, 200);
+      assertEquals(data.session.proposal, null);
+      assertEquals(data.session.messages.at(-1).text.includes("IMG_1234.jpg"), true);
+    } finally { f.restore(); }
+  }
+});
