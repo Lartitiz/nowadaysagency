@@ -63,6 +63,21 @@ export function marketingPrompt(proposal: Proposal): string | null {
 }
 /** Exposed for diagnostics/tests: the fitted prompt, whatever its length. */
 export function marketingPromptCandidate(proposal: Proposal): string {
+  let prompt = condensedPrompt(proposal);
+  const workflow = proposal.scene_workflow;
+  if (prompt.length <= MARKETING_PROMPT_MAX || !workflow?.accepted_changes?.length) return prompt;
+  // accepted_changes grows with every retouch (up to 48 items) and repeats the current
+  // Changes. Image 1 already shows those earlier choices, so the list only reinforces
+  // them: drop the duplicates, then the oldest items, never a current confirmed field.
+  const current = new Set(proposal.change || []);
+  const accepted = workflow.accepted_changes.filter((item) => !current.has(item));
+  for (let keep = accepted.length; keep >= 0; keep--) {
+    prompt = condensedPrompt({ ...proposal, scene_workflow: { ...workflow, accepted_changes: accepted.slice(accepted.length - keep) } });
+    if (prompt.length <= MARKETING_PROMPT_MAX) return prompt;
+  }
+  return prompt;
+}
+function condensedPrompt(proposal: Proposal): string {
   let prompt = imagePrompt(proposal);
   if (prompt.length <= MARKETING_PROMPT_MAX) return prompt;
   const hasPerson = (proposal.references || []).some((r) => ["person", "casting", "person_product"].includes(r.role)) ||

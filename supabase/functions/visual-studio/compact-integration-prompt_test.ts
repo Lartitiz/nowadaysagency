@@ -88,3 +88,19 @@ Deno.test("targets and accepted choices repeated verbatim in Changes are written
   assert(out.includes("Change 1 Sources: Image 2"));
   assertEquals(out.split("Bague exacte").length, 2);
 });
+
+Deno.test("long retouch sessions fit by dropping repeated then oldest accepted choices only", async () => {
+  const p = await fixture();
+  p.input_path = "fixture/edited.jpg";
+  p.change = ["Éclaircir uniquement le plateau sans toucher au reste de la scène."];
+  const history = Array.from({ length: 47 }, (_, i) => `Retouche acceptée n°${i + 1} : ajuster légèrement l’élément ${i + 1} en gardant la lumière d’origine.`);
+  p.scene_workflow!.accepted_changes = [...history, p.change[0]];
+  const out = marketingPrompt(p);
+  assert(out && out.length <= 5000);
+  for (const text of [p.summary!, p.image_prompt!, p.product_placement!, ...p.preserve!, p.change[0]]) assert(out.includes(text), text);
+  assertEquals(out.split(p.change[0]).length, 2);
+  assert(out.includes(history.at(-1)!));
+  assert(!out.includes(history[0]));
+  assertEquals(p.scene_workflow!.accepted_changes.length, 48);
+  assertEquals(marketingPromptTooLong({ ...p, provider: "higgsfield", model: MARKETING_FIDELITY_MODEL }), false);
+});
