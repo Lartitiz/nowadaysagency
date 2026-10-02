@@ -252,6 +252,7 @@ it("asks which references to reuse before branching from an older version", asyn
   expect(mock.request.mock.calls.some(([body]) => body.action === "generate")).toBe(false);
 });
 it("sends the message with Enter and keeps Shift+Enter for a new line", async () => {
+  mock.request.mockResolvedValue(original());
   mount();
   await screen.findByText("Décris ton fond.");
   const box = screen.getByRole("textbox", { name: "Ta demande" }) as HTMLTextAreaElement;
