@@ -51,3 +51,11 @@ Deno.test("plan lane (grille 01/10/2026) : 3 clips Premium, 6 Binôme, aucun en 
   assert(claimFailureMessage({ message: "video_month_exhausted" }).includes("vidéos du mois"), "claim month exhausted");
   assert(claimFailureMessage({ message: "video_clip_too_expensive" }).includes("480p"), "claim clip too expensive");
 });
+Deno.test("verrou par espace (02/10/2026) : messages du clip déjà en cours et de la file globale", async () => {
+  const { PLAN_MAX_ACTIVE_CLIPS } = await import("./index.ts");
+  assert(PLAN_MAX_ACTIVE_CLIPS === 3, "3 clips de forfait simultanés au maximum");
+  const perWorkspace = claimFailureMessage({ code: "23505",
+    message: 'duplicate key value violates unique constraint "studio_video_one_active_workspace"' });
+  assert(perWorkspace.includes("dans cet espace"), "le verrou est désormais par espace");
+  assert(claimFailureMessage({ message: "video_busy" }).includes("Plusieurs clips"), "file globale expliquée");
+});

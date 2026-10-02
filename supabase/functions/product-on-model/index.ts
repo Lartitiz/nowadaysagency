@@ -222,7 +222,12 @@ serve(async (req) => {
     const adjustment = parsed.adjustment?.trim() || null;
     // 1 image par défaut (coût maîtrisé) ; 2 de plus quand la cliente demande
     // explicitement d'autres variantes depuis l'écran résultat.
-    const n = adjustment || parsed.single ? 1 : parsed.variants ? 2 : 1;
+    // Plafond images (grille du 01/10/2026) : le pipeline a vérifié qu'il reste
+    // AU MOINS 1 image ; `quota.remaining` = images restantes APRÈS celle-ci.
+    // Sans ce bornage, 2 variantes demandées à 1 image du plafond le
+    // dépassaient (51/50) : on en génère alors une seule.
+    const requested = adjustment || parsed.single ? 1 : parsed.variants ? 2 : 1;
+    const n = typeof quota?.remaining === "number" ? Math.min(requested, 1 + Math.max(0, quota.remaining)) : requested;
     const referenceBlob = parsed.reference_person_b64
       ? dataUrlToBlob(parsed.reference_person_b64)
       : null;

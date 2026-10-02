@@ -188,7 +188,7 @@ Tout le gratuit + :
 - Communauté (poster, commenter, lives mensuels, replays)
 - Positionnement : présent sur la page pricing, PAS poussé dans la communication. Se vend par l'usage.
 
-### Ta Binôme de Com' (250€/mois × 6 mois = 1 500€)
+### Ta Binôme de Com' (350€/mois × 6 mois = 2 100€, tarif du 30/09/2026)
 L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 - Phase 1 Stratégie (mois 1-2) : kick-off + branding + plan 6 mois (done for you)
 - Phase 2 Application (mois 3-6) : 1 visio 2h/mois + WhatsApp jours ouvrés 24-48h + validation livrables (done with you)
@@ -274,7 +274,7 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 | Crédits IA | Unité de consommation IA. 23/mois en gratuit (compteur unique) ; en Premium/Binôme, textes sans compter (garde-fou 200/400) et plafonds carrousels / images / vidéos. |
 | Connecteurs intelligents | Système de propagation des modifications branding vers tous les contenus |
 | Mode démo | Compte "Léa" pré-rempli pour les appels découverte |
-| Binôme | L'offre d'accompagnement 6 mois (250€/mois) |
+| Binôme | L'offre d'accompagnement 6 mois (350€/mois) |
 | Navigate state | Méthode React pour passer le contexte du calendrier vers les générateurs |
 | Dashboard bento | Grille de cards de tailles différentes sur la page d'accueil |
 | Endowed Progress Effect | Biais psychologique : la barre de progression commence à 15% pour motiver |
