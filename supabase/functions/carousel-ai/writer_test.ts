@@ -8,14 +8,36 @@ const usage = { input_tokens: 10, output_tokens: 20, output_tokens_details: { re
 const opus = { model: "claude-opus-5", stop_reason: "end_turn", usage, content: [{ type: "thinking", thinking: "not visible" }, { type: "text", text: "Texte" }] };
 const astra = { model: "gpt-6-astra", status: "completed", usage, output: [{ type: "reasoning", summary: [] }, { type: "message", content: [{ type: "output_text", text: "Texte" }] }] };
 
-Deno.test("explicit normal/Max routing; no env alias or silent escalation", () => {
-  assertEquals(pickCarouselWriter({}), "claude-opus-5-5");
-  assertEquals(pickCarouselWriter({ quality_max: false }), "claude-opus-5-5");
-  assertEquals(pickCarouselWriter({ quality_max: true }), "gpt-6-astra");
-  // Banc d'essai (retour à Opus 5) : valeur exacte seulement, Qualité Max prioritaire.
-  assertEquals(pickCarouselWriter({ writer_bench: "claude-opus-5" }), "claude-opus-5");
-  assertEquals(pickCarouselWriter({ writer_bench: "claude-opus-5", quality_max: true }), "gpt-6-astra");
-  assertEquals(pickCarouselWriter({ writer_bench: "claude-fable-5-1" }), "claude-opus-5-5");
+Deno.test("explicit normal/Max routing; no silent escalation", () => {
+  const old = Deno.env.get("CAROUSEL_MAX_WRITER");
+  Deno.env.delete("CAROUSEL_MAX_WRITER");
+  try {
+    assertEquals(pickCarouselWriter({}), "claude-opus-5-5");
+    assertEquals(pickCarouselWriter({ quality_max: false }), "claude-opus-5-5");
+    assertEquals(pickCarouselWriter({ quality_max: true }), "claude-fable-5-1");
+    // Banc d'essai (retour à Opus 5) : valeur exacte seulement, Qualité Max prioritaire.
+    assertEquals(pickCarouselWriter({ writer_bench: "claude-opus-5" }), "claude-opus-5");
+    assertEquals(pickCarouselWriter({ writer_bench: "claude-opus-5", quality_max: true }), "claude-fable-5-1");
+    assertEquals(pickCarouselWriter({ writer_bench: "claude-fable-5-1" }), "claude-opus-5-5");
+    // Retour arrière par secret : liste blanche stricte, le mode standard n'est jamais touché.
+    Deno.env.set("CAROUSEL_MAX_WRITER", "gpt-6-astra");
+    assertEquals(pickCarouselWriter({ quality_max: true }), "gpt-6-astra");
+    assertEquals(pickCarouselWriter({}), "claude-opus-5-5");
+    Deno.env.set("CAROUSEL_MAX_WRITER", "claude-mythos-5-1");
+    assertEquals(pickCarouselWriter({ quality_max: true }), "claude-fable-5-1");
+  } finally {
+    if (old === undefined) Deno.env.delete("CAROUSEL_MAX_WRITER"); else Deno.env.set("CAROUSEL_MAX_WRITER", old);
+  }
+});
+Deno.test("Fable 5.1 (Max) : outil en auto, réflexion adaptative, effort medium, marge de tokens", () => {
+  const request = writerRequest({ ...base, model: "claude-fable-5-1", tool });
+  assertEquals(request.model, "claude-fable-5-1");
+  assertEquals(request.thinking, { type: "adaptive" });
+  assertEquals(request.output_config, { effort: "medium" });
+  assertEquals(request.tool_choice, { type: "auto", disable_parallel_tool_use: true });
+  assert((request.system as any[])[0].text.includes("`livrer_carrousel`"));
+  assertEquals(request.max_tokens, 16000);
+  assert(!("temperature" in request));
 });
 Deno.test("Opus 5.5: never forced tool nor disabled thinking (both 400), room for thinking", () => {
   const request = writerRequest({ ...base, model: "claude-opus-5-5", tool });
@@ -135,7 +157,7 @@ Deno.test("Max : crédit fournisseur épuisé distingué d'une saturation sans e
     assert(!error.message.includes("PRIVATE_ACCOUNT_DETAILS"));
   }finally{globalThis.fetch=oldFetch;if(oldKey===undefined)Deno.env.delete("OPENAI_API_KEY");else Deno.env.set("OPENAI_API_KEY",oldKey);}
 });
-for(const model of ["claude-opus-5", "claude-opus-5-5", "gpt-6-astra"] as const) Deno.test(`HTTP ${model}: correct destination; errors never retry/downgrade/leak provider body`, async () => {
+for(const model of ["claude-opus-5", "claude-opus-5-5", "claude-fable-5-1", "gpt-6-astra"] as const) Deno.test(`HTTP ${model}: correct destination; errors never retry/downgrade/leak provider body`, async () => {
 const name = model === "gpt-6-astra" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY";
   const oldKey = Deno.env.get(name), oldFetch = globalThis.fetch;
   Deno.env.set(name, "fake-secret");

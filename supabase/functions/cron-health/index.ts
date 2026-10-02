@@ -480,6 +480,10 @@ Deno.serve(async (req) => {
       // 68 % entrée / 32 % sortie → 0,68×10 + 0,32×50 ≈ 23. Absent jusqu'ici :
       // chaque carrousel qualité max était compté ZÉRO (signalé le 14/09).
       "gpt-6-astra": 23,
+      // Claude Fable 5.1 (10 $ / 50 $ par Mtok, même grille qu'Astra) : rédacteur
+      // du mode Max depuis le 02/10. Il raisonne aussi (réflexion facturée en
+      // sortie) → même mix mesuré qu'Astra en attendant une mesure propre : 23.
+      "claude-fable-5-1": 23,
     };
     // Relecture éditoriale de CHAQUE carrousel (Astra jusqu’au 02/10, Claude ensuite) : elle n'écrit PAS dans
     // ai_usage (une ligne = un crédit décompté à l'utilisatrice), ses tokens
