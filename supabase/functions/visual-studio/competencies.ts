@@ -40,7 +40,7 @@ export function referenceInstruction(role: string) {
     case "composition":
       return "Use its framing and layout only where compatible with the product's shape and a physically plausible support. Do not copy its identity or force the product into an unsupported pose.";
     default:
-      return "Use only for the stated role, not as a person or product identity.";
+      return "Role not confirmed: use it only as the confirmed brief describes.";
   }
 }
 export const COMPETENCIES = [
