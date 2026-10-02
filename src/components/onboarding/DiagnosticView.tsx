@@ -136,40 +136,6 @@ function SlideView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasW
   );
 }
 
-/* ═══ DESKTOP: Scroll with animations ═══ */
-function DesktopScroll({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
-  return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-[640px] mx-auto px-6 py-16 space-y-24">
-        <AnimatedSection><AccrocheSection prenom={prenom} isFallback={data.isFallback} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} /></AnimatedSection>
-        {data.summary && <AnimatedSection><SummarySection summary={data.summary} /></AnimatedSection>}
-        <AnimatedSection><ScoreSection score={data.totalScore} /></AnimatedSection>
-        {data.strengths.length > 0 && <AnimatedSection><StrengthsSection strengths={data.strengths} /></AnimatedSection>}
-        {data.weaknesses.length > 0 && <AnimatedSection><WeaknessesSection weaknesses={data.weaknesses} /></AnimatedSection>}
-        {data.priorities.length > 0 && <AnimatedSection><PrioritiesSection priorities={data.priorities} /></AnimatedSection>}
-        <AnimatedSection><ChannelScoresSection channelScores={data.channelScores} /></AnimatedSection>
-        <AnimatedSection><BrandLearnedSection /></AnimatedSection>
-        <AnimatedSection><FinalSection onComplete={onComplete} onCreateFirst={onCreateFirst} /></AnimatedSection>
-      </div>
-    </div>
-  );
-}
-
-function AnimatedSection({ children }: { children: ReactNode }) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 40 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.6 }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
 /* ═══ Section: Accroche ═══ */
 const SOURCE_LABELS: Record<string, { emoji: string; label: string }> = {
   website: { emoji: "🌐", label: "Site web" },
