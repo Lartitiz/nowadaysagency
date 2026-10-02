@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type ReactNode } from "react";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { type DiagnosticData, type DiagnosticStrength, type DiagnosticWeakness, normalizeStrength, getScoreMessage } from "@/lib/diagnostic-data";
+import { type DiagnosticData, type DiagnosticStrength, type DiagnosticWeakness, normalizeStrength, getScoreMessage, diagnosticLevel, channelLevelLabel } from "@/lib/diagnostic-data";
 import BrandLearnedSection from "./BrandLearnedSection";
 import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 

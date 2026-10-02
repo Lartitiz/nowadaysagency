@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { type DiagnosticData, computeDiagnosticData, DEMO_DIAGNOSTIC } from "@/lib/diagnostic-data";
+import { type DiagnosticData, computeDiagnosticData, DEMO_DIAGNOSTIC, diagnosticLevel } from "@/lib/diagnostic-data";
 import { onboardingLabel, ACTIVITY_OPTIONS, BLOCKERS, OBJECTIVES, TIME_OPTIONS, PRODUCT_OPTIONS } from "@/lib/onboarding-constants";
 import { ACTIVITY_SECTIONS_REAL_ESTATE, BLOCKERS_REAL_ESTATE, OBJECTIVES_REAL_ESTATE } from "@/lib/onboarding-variants";
 import { Progress } from "@/components/ui/progress";
