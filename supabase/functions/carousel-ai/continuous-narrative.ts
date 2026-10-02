@@ -276,7 +276,10 @@ ${photoReadingContract(body)}`;
         }],
         tool: TOOL,
         max_tokens: 5500,
-        abortTimeoutMs: Math.max(1000, Math.min(final?.timeout ?? 100000, remaining() - 40000)),
+        // Fable 5.1 (mode Max) écrit plus lentement qu'Opus : 115 s mesurées en
+        // live le 02/10 pour l'étape d'écriture → 140 s au lieu de 100 s. Le budget
+        // global (remaining) borne toujours l'appel.
+        abortTimeoutMs: Math.max(1000, Math.min(final?.timeout ?? (pickCarouselWriter(body) === "claude-fable-5-1" ? 140000 : 100000), remaining() - 40000)),
       }, sink);
       usage.model = sink.model || pickCarouselWriter(body);
       return parseNarrative(text, final?.exact ?? exact);

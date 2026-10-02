@@ -60,6 +60,8 @@ for (const quality_max of [false, true]) {
       write: async (o, s) => {
         events.push("write");
         assertEquals(o.model, quality_max ? "claude-fable-5-1" : "claude-opus-5-5");
+        // Fable 5.1 écrit plus lentement : 140 s au lieu de 100 s (budget global intact).
+        if (events.length === 1) assertEquals(o.abortTimeoutMs, quality_max ? 140000 : 100000);
         assertEquals(o.tool?.name, "ecrire_texte_suivi");
         assert(o.system?.includes("25 à 40"));
         assert(o.system?.includes("caption.body"));
