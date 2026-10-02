@@ -427,6 +427,14 @@ function Studio({
     setDraft(value);
     writeDraft(localKey, value);
   }
+  const [autoSend, setAutoSend] = useState<string | null>(null);
+  useEffect(() => {
+    if (autoSend && draft === autoSend) {
+      setAutoSend(null);
+      void send();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSend, draft]);
   const openPhoto = useCallback(
     async (id: string) => {
       if (actionLock.current || !writable) return;
