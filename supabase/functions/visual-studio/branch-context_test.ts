@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { referencesAtVersion, referencesDiffer } from "./branch-context.ts";
+import { preferredProductReference, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
 import type { Reference } from "./media.ts";
 
 const oldSubject: Reference = {
@@ -40,4 +40,18 @@ Deno.test("onlyAdditions: scene refs kept, extra photo added", () => {
   if (_onlyAdditions([casting, product], [extra, casting])) throw new Error("removal must ask");
   if (_onlyAdditions([casting, product], [casting, { ...(product as object), role: "decor" } as never])) throw new Error("role change must ask");
   if (_onlyAdditions([], [casting])) throw new Error("empty version must ask");
+});
+
+Deno.test("clean product shot takes priority over a worn product photo", () => {
+  const worn = { id: "w", photo_id: null, path: "w.png", role: "product", kind: "produit_porte", name: "Bague portée" } as Reference;
+  const clean = { id: "p", photo_id: null, path: "p.png", role: "product", kind: "produit", name: "Bague seule" } as Reference;
+  assertEquals(preferredProductReference([worn, clean]), { reference: clean, ambiguous: false });
+  assertEquals(preferredProductReference([worn]), { reference: null, ambiguous: false });
+});
+
+Deno.test("distinct clean products require a choice", () => {
+  const first = { id: "p1", photo_id: null, path: "p1.png", role: "product", kind: "produit", name: "Bague une" } as Reference;
+  const second = { id: "p2", photo_id: null, path: "p2.png", role: "product", kind: "produit", name: "Bague deux" } as Reference;
+  assertEquals(preferredProductReference([first, second]), { reference: null, ambiguous: true });
+  assertEquals(preferredProductReference([first, { ...second, subject_group: first.id }]), { reference: first, ambiguous: false });
 });

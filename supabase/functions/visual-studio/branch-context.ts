@@ -55,3 +55,19 @@ export function onlyAdditions(versionRefs: Reference[], currentRefs: Reference[]
   const current = new Set(currentRefs.map(refKey));
   return versionRefs.every((r) => current.has(refKey(r)));
 }
+
+const normalizedKind = (ref: Reference) => (ref.kind || "")
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+/** A clean product shot is authoritative for product fidelity. A worn/in-scene
+ * photo remains a fallback only when no clean product shot is available. */
+export function preferredProductReference(currentRefs: Reference[]): {
+  reference: Reference | null;
+  ambiguous: boolean;
+} {
+  const clean = currentRefs.filter(ref => ref.role === "product" && normalizedKind(ref) === "produit");
+  const groups = new Map(clean.map(ref => [ref.subject_group || ref.id, ref]));
+  return groups.size === 1
+    ? { reference: [...groups.values()][0], ambiguous: false }
+    : { reference: null, ambiguous: groups.size > 1 };
+}
