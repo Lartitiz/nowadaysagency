@@ -427,6 +427,14 @@ function Studio({
     setDraft(value);
     writeDraft(localKey, value);
   }
+  const [autoSend, setAutoSend] = useState<string | null>(null);
+  useEffect(() => {
+    if (autoSend && draft === autoSend) {
+      setAutoSend(null);
+      void send();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSend, draft]);
   const openPhoto = useCallback(
     async (id: string) => {
       if (actionLock.current || !writable) return;
@@ -837,7 +845,14 @@ function Studio({
   const sceneReferenceNames = version?.proposal.planning_references
     ?.map((reference) => reference.name.trim())
     .filter(Boolean);
-  const readyFollowUp = version?.status === "ready"
+  const identitySheet = version?.status === "ready" && !!version.proposal.person_reference &&
+    !["scene", "integration"].includes(version.proposal.scene_workflow?.phase as string);
+  const productName = identitySheet
+    ? (references.find((r: any) => r.role === "product")?.name?.trim() || "")
+    : "";
+  const readyFollowUp = identitySheet
+    ? `Voilà ton mannequin. Prochaine étape : la photo portée, avec ${productName ? `« ${productName} »` : "ton produit"}. Tu veux que je prépare la scène ?`
+    : version?.status === "ready"
     ? version.proposal.scene_workflow?.phase === "scene"
       ? `Voilà la scène. Qu’est-ce que tu veux faire maintenant ? Tu peux me demander de la modifier ou d’y intégrer ${sceneReferenceNames?.length ? sceneReferenceNames.join(" et ") : "tes références"}.`
       : version.proposal.scene_workflow?.phase === "integration"
@@ -1194,6 +1209,33 @@ function Studio({
                   <div className="studio-message">
                     <span className="block text-xs font-semibold mb-1">Studio</span>
                     <p>{readyFollowUp}</p>
+                    {identitySheet && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <Button type="button" variant="outline" className="h-auto whitespace-normal py-2"
+                          disabled={!writable || !!busy || !!generating}
+                          onClick={() => {
+                            const text = `Ce mannequin me convient. Prépare maintenant la scène : elle porte ${productName ? `« ${productName} »` : "mon produit"}, dans la direction artistique choisie.`;
+                            editDraft(text);
+                            setAutoSend(text);
+                          }}>
+                          {productName ? `Préparer la scène avec « ${productName} »` : "Préparer la scène"}
+                        </Button>
+                        <Button type="button" variant="outline" className="h-auto whitespace-normal py-2"
+                          disabled={!writable || !!busy || !!generating}
+                          onClick={() => {
+                            editDraft("Modifie le mannequin : ");
+                            const box = document.getElementById("studio-draft") as HTMLTextAreaElement | null;
+                            box?.focus();
+                          }}>
+                          Ajuster le mannequin
+                        </Button>
+                        <Button type="button" variant="outline" className="h-auto whitespace-normal py-2"
+                          disabled={!writable || !!busy || !!generating}
+                          onClick={() => openCastingRef.current?.()}>
+                          Le garder pour ma marque
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
 
