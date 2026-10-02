@@ -516,6 +516,8 @@ it("shows the product's physical placement before generation", async () => {
   } } });
   mount();
   const confirmation = await screen.findByRole("region", { name: "Demande à confirmer" });
+  expect(within(confirmation).getByText("Position du produit :")).not.toBeVisible();
+  fireEvent.click(within(confirmation).getByText("Voir les détails de la demande"));
   expect(within(confirmation).getByText("Position du produit :")).toBeVisible();
   expect(within(confirmation).getByText(/À plat sur la table en pierre/)).toBeVisible();
 });
@@ -859,7 +861,8 @@ it("a persisted reply recovered after a lost acknowledgement clears only its own
   await waitFor(() =>
     expect(screen.getByRole("textbox", { name: "Ta demande" })).toHaveValue(""),
   );
-  expect(screen.getByRole("button", { name: "Envoyer" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Envoyer" })).toBeNull();
+  expect(screen.getByRole("button", { name: /Générer cette image/ })).toBeEnabled();
   expect(
     mock.request.mock.calls.filter(([b]) => b.action === "message"),
   ).toHaveLength(1);
@@ -909,7 +912,7 @@ it("confirms a scene separately and keeps the planning product when correcting t
   expect(screen.getByText(/Références observées pour préparer la scène/)).toBeInTheDocument();
   expect(screen.queryByText(/créée avec Soul/)).not.toBeInTheDocument();
   expect(screen.getByText(/Chaque génération est décomptée séparément/)).toBeInTheDocument();
-  fireEvent.change(screen.getByPlaceholderText("Une idée, une question, une image à améliorer…"), { target: { value: "Garde la vue de haut, réduis les ombres" } });
+  fireEvent.change(screen.getByPlaceholderText(/Une idée, une question|Réponds pour ajuster/), { target: { value: "Garde la vue de haut, réduis les ombres" } });
   fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "message", reference_ids: ["product"] })));
   expect(mock.request.mock.calls.some(([body]) => body.action === "generate")).toBe(false);
@@ -930,7 +933,7 @@ it("selecting a second discussion image preserves the first attachment", async (
   await waitFor(() => expect(screen.getByLabelText("Rôle de l’image 1")).toBeInTheDocument());
   fireEvent.click(screen.getAllByRole("button", { name: "Décor fourni" }).at(-1)!);
   await waitFor(() => expect(screen.getByLabelText("Rôle de l’image 2")).toBeInTheDocument());
-  fireEvent.change(screen.getByPlaceholderText("Une idée, une question, une image à améliorer…"), { target: { value: "Insère mon produit dans mon décor" } });
+  fireEvent.change(screen.getByPlaceholderText(/Une idée, une question|Réponds pour ajuster/), { target: { value: "Insère mon produit dans mon décor" } });
   fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "message", reference_ids: ["product", "scene"] })));
 });
@@ -995,8 +998,9 @@ it("blocks an old proposal while an unsent correction exists and renders actual 
  const confirm=screen.getByRole('button',{name:/Générer cette image/});
  expect(confirm).toBeEnabled();
  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Je préfère un autre décor'}});
- expect(confirm).toBeDisabled();
- fireEvent.click(screen.getByRole('button',{name:'Revenir à cette proposition'}));expect(confirm).toBeEnabled();
+ expect(screen.queryByRole('button',{name:/Générer cette image/})).toBeNull();
+ expect(screen.getByRole('button',{name:'Envoyer'})).toBeEnabled();
+ fireEvent.click(screen.getByRole('button',{name:'Revenir à cette proposition'}));expect(screen.getByRole('button',{name:/Générer cette image/})).toBeEnabled();
  expect(mock.request.mock.calls.some(([body])=>body.action==='confirm')).toBe(false);
 });
 it("scrolls to the new advice instead of the preserved proposal",async()=>{
@@ -1025,7 +1029,7 @@ it("shows verified Soul examples and prepares a preset correction without genera
   expect(screen.getByText("Lumière douce et couleurs fidèles")).toBeInTheDocument();
   expect(screen.getByAltText("Exemple du preset General")).toHaveAttribute("src", style.preview_url);
   fireEvent.click(screen.getByRole("button", { name: /General/ }));
-  expect((screen.getByPlaceholderText("Une idée, une question, une image à améliorer…") as HTMLTextAreaElement).value).toContain("General");
+  expect((screen.getByPlaceholderText(/Une idée, une question|Réponds pour ajuster/) as HTMLTextAreaElement).value).toContain("General");
   fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "message", reference_ids: ["product"], message: expect.stringContaining("General") })));
   expect(mock.request.mock.calls.some(([body]) => body.action === "generate")).toBe(false);

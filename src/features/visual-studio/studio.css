@@ -123,6 +123,26 @@
 .studio-chat-confirmation {
   margin-top: 18px;
 }
+.studio-proposal-chat .studio-message { margin-bottom: 8px; }
+.studio-proposal-hint {
+  font-size: 13px;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+  margin: 0 0 8px 2px;
+}
+.studio-proposal-details {
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+  margin: 4px 0 10px 2px;
+}
+.studio-proposal-details > summary {
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: hsl(var(--border));
+}
+.studio-proposal-details > summary:hover { text-decoration-color: hsl(var(--primary)); }
+.studio-proposal-details[open] { color: hsl(var(--foreground)); }
 .studio-chat-actions {
   margin-top: 10px;
 }
