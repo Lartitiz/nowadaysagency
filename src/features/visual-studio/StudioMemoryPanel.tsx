@@ -79,18 +79,6 @@ export function StudioMemoryPanel(
       <Button variant="outline" onClick={() => setOpen(true)}>
         Mémoire de marque{memory.length ? ` · ${memory.length}` : ""}
       </Button>
-      {selectedVersion && personReference && (
-        <Button
-          variant="ghost"
-          disabled={blocked}
-          onClick={() => {
-            setOpen(true);
-            start("casting");
-          }}
-        >
-          Garder ce mannequin
-        </Button>
-      )}
       <Dialog
         open={open}
         onOpenChange={(v) => {
