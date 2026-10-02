@@ -289,6 +289,8 @@ function Studio({
   const [attachedIds, setAttachedIds] = useState<string[]>(() => readAttachedIds(attachmentKey));
   const localUpload = useUploadLibraryPhotos();
   const fileInput = useRef<HTMLInputElement>(null);
+  const [dropActive, setDropActive] = useState(false);
+  const dragDepth = useRef(0);
   const draftRef = useRef(draft);
   const desktopMessages = useRef<HTMLDivElement>(null);
   const [galleryLimit, setGalleryLimit] = useState(20);
@@ -597,7 +599,7 @@ function Studio({
       if (alive.current) setBusy("");
     }
   }
-  async function addLocalFiles(files: FileList | null) {
+  async function addLocalFiles(files: FileList | File[] | null) {
     if (!files?.length || busy || !writable) return;
     const capacity = Math.max(0, 8 - references.length);
     const chosen = [...files].slice(0, capacity);
