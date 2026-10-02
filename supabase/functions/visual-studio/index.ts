@@ -1137,10 +1137,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.uses_selected_version = true;
         }
         const phase = intent.scene_workflow?.phase;
-        // On a selected scene branch, a clean product shot currently attached to
-        // the request governs exact product fidelity. A worn shot is only a
-        // fallback and must not silently displace the clean product photograph.
-        if (phase === "integration" && parent?.proposal.scene_workflow?.phase === "scene" &&
+        // On a selected scene or integration branch, a clean product shot currently
+        // attached to the request governs exact product fidelity. A worn shot is only
+        // a fallback and must not silently displace the clean product photograph.
+        if (phase === "integration" && ["scene", "integration"].includes(parent?.proposal.scene_workflow?.phase) &&
           intent.scene_workflow?.targets?.some(target => target.role === "product")) {
           const preferred = preferredProductReference(references);
           if (preferred.ambiguous) {
