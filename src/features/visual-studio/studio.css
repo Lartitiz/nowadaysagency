@@ -11,6 +11,10 @@
   --border: 0 0% 91%;
   --primary: 331 98% 29%;
   --primary-foreground: 0 0% 100%;
+  --primary-soft: 331 40% 94%;
+  --primary-light: 331 60% 45%;
+  --rose-pale: 240 5% 96%;
+  --rose-soft: 240 5% 92%;
   background: hsl(var(--background));
 }
 .studio-header {
