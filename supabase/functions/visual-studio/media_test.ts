@@ -109,11 +109,11 @@ Deno.test("vision resizes legacy sources for interpretation without changing the
   const widths: number[] = [];
   const result = await visionBlock(original, async (width) => {
     widths.push(width);
-    return new Blob([width === 2048 ? new Uint8Array(5_000_001) : "resized"], {
+    return new Blob([width === 1200 ? new Uint8Array(5_000_001) : "resized"], {
       type: "image/jpeg",
     });
   });
-  assertEquals(widths, [2048, 1600]);
+  assertEquals(widths, [1200, 1024]);
   assertEquals(original.size, 5_000_001);
   assertEquals(result.source.data, btoa("resized"));
   await assertRejects(
