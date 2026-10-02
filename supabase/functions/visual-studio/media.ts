@@ -102,7 +102,7 @@ export async function visionBlock(
 ) {
   // Keep the original for image generation. Only the interpreter sees a resized copy.
   if (blob.size > 5_000_000 && resize) {
-    for (const width of [2048, 1600, 1200]) {
+    for (const width of [1200, 1024, 768]) {
       const candidate = await resize(width);
       if (candidate && /^image\/(jpeg|png|webp)$/.test(candidate.type) &&
         candidate.size <= 5_000_000) {
