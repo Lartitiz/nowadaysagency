@@ -171,25 +171,24 @@ it("ouvre les clips sans quitter la session photo et reprend la version sélecti
   }] });
   mount();
   await screen.findByText("Décris ton fond.");
-  await userEvent.click(screen.getByRole("button", { name: "Autres actions" }));
-  await userEvent.click(await screen.findByRole("menuitem", { name: "Créer une vidéo avec cette image" }));
+  await userEvent.click(await screen.findByRole("button", { name: "créer une vidéo" }));
   expect(await screen.findByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Photos" }));
   expect(screen.getByText("Décris ton fond.")).toBeInTheDocument();
 });
-it("passes the saved Studio image and a return link into content creation", async () => {
+it("décrit les actions de l’image dans le chat, sans bouton « Créer un contenu »", async () => {
   mock.request.mockResolvedValue({ ...original(), versions: [{
     id: "version-ready", status: "ready", proposal, url: "/version.png",
     library_photo_id: "library-ready", error_message: null, created_at: "",
   }] });
   mount();
   await screen.findByText("Décris ton fond.");
-  fireEvent.click(screen.getByRole("button", { name: "Créer un contenu" }));
-  await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent(
-    "/creer?from=%2Fphotos%2Fstudio%3Fsession%3Dsession",
-  ));
-  expect(JSON.parse(screen.getByTestId("current-state").textContent || "null"))
-    .toEqual({ libraryPhotoIds: ["library-ready"] });
+  expect(screen.getByText(/Avec cette image, tu peux/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "créer une vidéo" })).toBeInTheDocument();
+  expect(screen.getByText("elle est dans ta bibliothèque")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Créer un contenu" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Autres actions" })).not.toBeInTheDocument();
+  expect(screen.getByTestId("current-path")).not.toHaveTextContent("/creer");
 });
 it("resends the first message after an interpretation failure without an invalid session read", async () => {
   let attempts = 0;
@@ -275,8 +274,7 @@ it("revient de Photo via Vidéo au passage d'origine du Reel", async () => {
     library_photo_id: null, error_message: null, created_at: "",
   }] });
   mount("/photos/studio?session=session&reel_passage=1");
-  await userEvent.click(await screen.findByRole("button", { name: "Autres actions" }));
-  await userEvent.click(await screen.findByRole("menuitem", { name: "Créer une vidéo avec cette image" }));
+  await userEvent.click(await screen.findByRole("button", { name: "créer une vidéo" }));
   expect(screen.getByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
   expect(screen.getByTestId("current-path")).toHaveTextContent("reel_passage=1");
   fireEvent.click(screen.getByRole("button", { name: "Choisir le clip prêt" }));
@@ -454,17 +452,15 @@ it("generated versions stay outside the library until an explicit save, with one
         }),
   );
   mount();
-  await userEvent.click(await screen.findByRole("button", { name: "Autres actions" }));
-  const button = await screen.findByRole("menuitem", {
-    name: "Ajouter à la bibliothèque",
+  const button = await screen.findByRole("button", {
+    name: "l’ajouter à ta bibliothèque",
   });
   expect(mock.request.mock.calls.some(([b]) => b.action === "save")).toBe(
     false,
   );
   await userEvent.click(button);
   await userEvent.click(button);
-  await userEvent.click(await screen.findByRole("button", { name: "Autres actions" }));
-  await screen.findByRole("menuitem", { name: "Dans la bibliothèque" });
+  await screen.findByText("elle est dans ta bibliothèque");
   expect(
     mock.request.mock.calls.filter(([b]) => b.action === "save"),
   ).toHaveLength(1);
@@ -670,8 +666,7 @@ it("lets an AI-generated poster receive exact editable text after the image is r
   }] });
   mount();
   await screen.findByText("Décris ton fond.");
-  await userEvent.click(screen.getByRole("button", { name: "Autres actions" }));
-  await userEvent.click(await screen.findByRole("menuitem", { name: "Finaliser l’affiche avec ses textes" }));
+  await userEvent.click(await screen.findByRole("button", { name: "finaliser l’affiche avec ses textes" }));
   expect(await screen.findByRole("textbox", { name: "Titre" })).toHaveValue("Marché de Noël");
   expect(screen.getByRole("textbox", { name: "Informations pratiques" })).toHaveValue("12 décembre · Lyon");
   expect(screen.getByLabelText("Utiliser l’image sélectionnée")).toBeChecked();

@@ -1,4 +1,4 @@
 # Architecture decisions
 
-- Keep secondary Studio image actions in a compact overflow menu so the chat preserves vertical reading space while retaining every action.
+- Studio image actions are described as clickable words in a chat sentence (no hidden menu, no "Créer un contenu" button in that section), so every action is explained in place.
 - Higgsfield Marketing Studio prompts are fitted to the provider 5000-char limit by condensing only generic boilerplate; confirmed user content is never cut, and an oversized request fails before upload.
