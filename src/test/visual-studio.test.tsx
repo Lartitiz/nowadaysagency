@@ -986,8 +986,9 @@ it("persists a visible photo role, reordered selection and fresh-request clearin
   await waitFor(() => expect(screen.getByLabelText("Rôle de l’image 1")).toHaveValue("person"));
   fireEvent.click(screen.getByRole("button", {name:"Retirer Assiette de cette demande"}));
   await waitFor(() => expect(screen.queryByLabelText("Rôle de l’image 2")).not.toBeInTheDocument());
-  fireEvent.click(screen.getByRole("button", {name:"Options"}));
-  fireEvent.click(screen.getByRole("menuitem", {name:"Nouvelle demande sans ces références"}));
+  const optionsTrigger = screen.getByRole("button", {name:"Options"});
+  fireEvent.pointerDown(optionsTrigger, {button:0, ctrlKey:false});
+  fireEvent.click(await screen.findByRole("menuitem", {name:"Nouvelle demande sans ces références"}));
   await waitFor(() => expect(screen.queryByLabelText("Rôle de l’image 1")).not.toBeInTheDocument());
   expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:"selection",reference_ids:[],new_request:true}));
 });
