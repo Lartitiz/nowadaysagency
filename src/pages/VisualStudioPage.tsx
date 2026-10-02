@@ -1297,60 +1297,6 @@ function Studio({
                   <SheetContent side="left" className="w-[92vw] sm:max-w-md overflow-y-auto">
                     <SheetHeader><SheetTitle>Références, outils et créations</SheetTitle></SheetHeader>
                   <div className="studio-references">
-                    {!!references.length && (
-                      <>
-                        <h3 className="text-sm font-medium mb-2">Photos de référence · {references.length}/8</h3>
-                        <p className="text-xs text-muted-foreground mb-3">Ces images restent disponibles. Tu peux préciser leur rôle dans ton message ; seules celles retenues pour la demande sont envoyées au modèle.</p>
-                      </>
-                    )}
-                    {references.map((ref) => (
-                      <div
-                        key={ref.id}
-                        className="rounded-xl border bg-card p-3 my-2 text-sm"
-                      >
-                        <div className="flex items-center gap-2">
-                          <img src={ref.url} alt="" className="h-12 w-12 shrink-0 rounded-md object-cover" />
-                          <span className="flex-1">{ref.name}</span>
-                          <select
-                            aria-label={`Rôle de ${ref.name}`}
-                            value={ref.role}
-                            disabled={!writable || !!busy || generating}
-                            onChange={(e) =>
-                              void mutate("reference", {
-                                reference_id: ref.id,
-                                reference_role: e.target.value,
-                                revision: current!.session.revision,
-                              })}
-                          >
-                            <option value="person_product">Personne et produit</option>
-                            <option value="auto">À déterminer dans le chat</option>
-                            <option value="scene">Décor à conserver</option>
-                            <option value="edit_source">Image à retoucher</option>
-                            <option value="subject">Sujet à préserver</option>
-                            <option value="product">Produit exact</option>
-                            <option value="person">Personne réelle</option>
-                            <option value="casting">Mannequin fictif</option>
-                            <option value="logo">Logo à composer</option>
-                            <option value="style">Ambiance</option>
-                            <option value="composition">Composition</option>
-                          </select>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Retirer ${ref.name}`}
-                            disabled={!writable || !!busy || generating}
-                            onClick={() =>
-                              void mutate("reference", {
-                                reference_id: ref.id,
-                                remove: true,
-                                revision: current!.session.revision,
-                              })}
-                          >
-                            ×
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
                     {!!current?.suggested_photos?.length && (
                       <div className="my-4">
                         <h3 className="font-medium text-sm">
@@ -1380,14 +1326,6 @@ function Studio({
                             ))}
                         </div>
                       </div>
-                    )}
-                    {references.length > 0 && (
-                      <p className="text-xs text-muted-foreground mb-4">
-                        Sujet = identité à préserver. Ambiance et composition =
-                        inspiration uniquement. Après un changement de
-                        référence, envoie ta demande pour préparer une nouvelle
-                        proposition.
-                      </p>
                     )}
                   </div>
                   {!!current?.charter_references?.length && (
@@ -1538,7 +1476,7 @@ function Studio({
                     {hasExtraTools && (
                       <button type="button" className="studio-toolbar-btn" onClick={() => setToolsOpen(true)}>
                         <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                        {references.length ? `Références · ${references.length}` : "Outils et créations"}
+                        Outils et créations
                       </button>
                     )}
                     {current && (
@@ -1593,7 +1531,7 @@ function Studio({
                 {attachedReferences.length > 0 && (
                   <details className="studio-photos-accordion" open={photosOpen}
                     onToggle={(e) => setPhotosOpen((e.currentTarget as HTMLDetailsElement).open)}>
-                    <summary>Photos de cette demande ({attachedReferences.length})</summary>
+                    <summary>Photos de référence ({attachedReferences.length})</summary>
                     <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
                       onSelection={ids => void updateSelection(ids)}
                       onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
