@@ -56,7 +56,7 @@ import {
 } from "./higgsfield-image.ts";
 import { handleMemory, readMemory } from "./memory.ts";
 import { executeStudioJob } from "./worker.ts";
-import { onlyAdditions, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
+import { onlyAdditions, preferredProductReference, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
 
 declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void };
 const schema = z.object({
@@ -1130,6 +1130,26 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.uses_selected_version = true;
         }
         const phase = intent.scene_workflow?.phase;
+        // On a selected scene branch, a clean product shot currently attached to
+        // the request governs exact product fidelity. A worn shot is only a
+        // fallback and must not silently displace the clean product photograph.
+        if (phase === "integration" && parent?.proposal.scene_workflow?.phase === "scene" &&
+          intent.scene_workflow?.targets?.some(target => target.role === "product")) {
+          const preferred = preferredProductReference(references);
+          if (preferred.ambiguous) {
+            intent.operation = "clarify";
+            intent.summary = "Plusieurs produits seuls sont joints. Choisis la photo du produit exact à intégrer avant de lancer l’image. Aucune image n’a été lancée.";
+          } else if (preferred.reference) {
+            const preferredReference = preferred.reference;
+            for (let i = resolvedReferences.length - 1; i >= 0; i--) {
+              if (resolvedReferences[i].role === "product" && resolvedReferences[i].id !== preferredReference.id) resolvedReferences.splice(i, 1);
+            }
+            if (!resolvedReferences.some(ref => ref.id === preferredReference.id)) resolvedReferences.push(preferredReference);
+            intent.scene_workflow.targets = intent.scene_workflow.targets.map(target => target.role === "product"
+              ? { ...target, reference_ids: [preferredReference.id] }
+              : target);
+          }
+        }
         // A correction to the scene must not discard the reserved original just
         // because the interpreter omitted a planning-only image in reference_use.
         if (phase && intent.operation === "edit") {
