@@ -15,6 +15,7 @@ import {
   ImagePlus,
   Library,
   Loader2,
+  Plus,
   RefreshCw,
   SlidersHorizontal,
   Sparkles,
