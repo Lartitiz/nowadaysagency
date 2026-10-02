@@ -516,6 +516,8 @@ it("shows the product's physical placement before generation", async () => {
   } } });
   mount();
   const confirmation = await screen.findByRole("region", { name: "Demande à confirmer" });
+  expect(within(confirmation).getByText("Position du produit :")).not.toBeVisible();
+  fireEvent.click(within(confirmation).getByText("Voir les détails de la demande"));
   expect(within(confirmation).getByText("Position du produit :")).toBeVisible();
   expect(within(confirmation).getByText(/À plat sur la table en pierre/)).toBeVisible();
 });
@@ -859,7 +861,8 @@ it("a persisted reply recovered after a lost acknowledgement clears only its own
   await waitFor(() =>
     expect(screen.getByRole("textbox", { name: "Ta demande" })).toHaveValue(""),
   );
-  expect(screen.getByRole("button", { name: "Envoyer" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Envoyer" })).toBeNull();
+  expect(screen.getByRole("button", { name: /Générer cette image/ })).toBeEnabled();
   expect(
     mock.request.mock.calls.filter(([b]) => b.action === "message"),
   ).toHaveLength(1);
@@ -995,8 +998,9 @@ it("blocks an old proposal while an unsent correction exists and renders actual 
  const confirm=screen.getByRole('button',{name:/Générer cette image/});
  expect(confirm).toBeEnabled();
  fireEvent.change(screen.getByRole('textbox'),{target:{value:'Je préfère un autre décor'}});
- expect(confirm).toBeDisabled();
- fireEvent.click(screen.getByRole('button',{name:'Revenir à cette proposition'}));expect(confirm).toBeEnabled();
+ expect(screen.queryByRole('button',{name:/Générer cette image/})).toBeNull();
+ expect(screen.getByRole('button',{name:'Envoyer'})).toBeEnabled();
+ fireEvent.click(screen.getByRole('button',{name:'Revenir à cette proposition'}));expect(screen.getByRole('button',{name:/Générer cette image/})).toBeEnabled();
  expect(mock.request.mock.calls.some(([body])=>body.action==='confirm')).toBe(false);
 });
 it("scrolls to the new advice instead of the preserved proposal",async()=>{
