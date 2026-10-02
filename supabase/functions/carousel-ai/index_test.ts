@@ -65,25 +65,27 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     if (news) { assert(prompt.includes("ACTUALITÉ_TEST")); assert(prompt.includes("sans désaccord, décalage ni quota d'opinions imposés")); }
     return JSON.stringify(draft);
   }) as any;
-  const previousFetch = globalThis.fetch, key = Deno.env.get("OPENAI_API_KEY");
-  Deno.env.set("OPENAI_API_KEY", "test-no-network");
+  const previousFetch = globalThis.fetch, key = Deno.env.get("ANTHROPIC_API_KEY");
+  Deno.env.set("ANTHROPIC_API_KEY", "test-no-network");
   let reviews = 0;
   let finalJudged=false;
   _deps.reviewThread=async(doc:any)=>{assertEquals(doc.slides[1].body,"Les demandes se contredisent.");finalJudged=true;return verdict(doc);};
   globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
     const request = init?.body ? JSON.parse(String(init.body)) : {};
     let text = "{}";
-    if (String(request.instructions).includes("révision éditoriale de ce carrousel")) {
-      assertEquals(_url, "https://api.openai.com/v1/responses");
-      assertEquals(request.model, "gpt-6-astra");
+    const isReview = request.tools?.[0]?.name === "review_carousel_fields";
+    if (isReview) {
+      assert(String(request.system?.[0]?.text).includes("révision éditoriale de ce carrousel"));
+      assertEquals(_url, "https://api.anthropic.com/v1/messages");
+      assertEquals(request.model, "claude-opus-5-5");
       reviews++;
-      const message = request.input[0].content;
+      const message = request.messages[0].content;
       assert(message.includes("BRIEF ACTUEL PRIORITAIRE"));
       assert(message.includes("CONTEXTE_PHOTO_CONSERVÉ"));
       assert(message.includes("Attendre une réponse commune"));
       assert(message.includes("FIL CONFIRMÉ À PRÉSERVER : FIL_VALIDÉ"));
       assert(message.includes("STRUCTURE CHOISIE À PRÉSERVER : PLAN_VALIDÉ"));
-      assert(request.instructions.includes("RELECTURE DE L'ENSEMBLE AVANT LES CHAMPS"));
+      assert(request.system[0].text.includes("RELECTURE DE L'ENSEMBLE AVANT LES CHAMPS"));
       const sequence = JSON.parse(message.split("SÉQUENCE DES SLIDES (repères de lecture uniquement, non modifiables) :\n")[1].split("\nCHAMPS ÉDITABLES")[0]);
       assertEquals(sequence.length, 4);
       assertEquals(sequence[1].field_ids, ["slides.1.title", "slides.1.body"]);
@@ -93,7 +95,7 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
         return { field_id: f.field_id, decision: f.text.includes(before) ? "edit" : "keep", reason: "analyse du rôle du passage", edits: f.text.includes(before) ? [{ before, after: "" }] : [] };
       }) });
     }
-    if (request.tool_choice?.name === "review_carousel_fields") return Promise.resolve(new Response(JSON.stringify({ model: "gpt-6-astra", status: "completed", output: [{ type: "function_call", name: "review_carousel_fields", arguments: text }], usage: { input_tokens: 1, output_tokens: 1 } })));
+    if (isReview) return Promise.resolve(new Response(JSON.stringify({ model: "claude-opus-5-5", stop_reason: "tool_use", content: [{ type: "tool_use", name: "review_carousel_fields", input: JSON.parse(text) }], usage: { input_tokens: 1, output_tokens: 1 } })));
     return Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
   }) as typeof fetch;
   try {
@@ -108,14 +110,14 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     assertEquals(parsed.editorial_review.status, "reviewed");
     // Une seule relecture : ses retouches ne sont plus revérifiées par une 2e passe (30/09).
     assertEquals(parsed.editorial_review.pass, 1);
-    assertEquals(parsed.editorial_review.model, "gpt-6-astra");
-    assertEquals(parsed.editorial_review.version, "connected-sequence-astra-medium-v7");
+    assertEquals(parsed.editorial_review.model, "claude-opus-5-5");
+    assertEquals(parsed.editorial_review.version, "connected-sequence-opus55-medium-v8");
     assertEquals(parsed.editorial_review.total_usage.total_tokens, 2);
     assertEquals(reviews, 1);
     assert(finalJudged,"le juge lit après les retouches finales");
   } finally {
     globalThis.fetch = previousFetch;
-    if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key);
+    if (key === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", key);
   }
 });
 const TEST_WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
@@ -568,16 +570,16 @@ Deno.test("inaccessible workspace never becomes a personal carousel generation",
 
 for (const repair of ['success', 'short', 'failure']) Deno.test(`texte incomplet : réparation bornée ${repair}, reçu conservé`, async () => {
   resetDeps();
-  const oldFetch = globalThis.fetch, key = Deno.env.get('OPENAI_API_KEY');
-  Deno.env.set('OPENAI_API_KEY', 'synthetic-no-network');
+  const oldFetch = globalThis.fetch, key = Deno.env.get('ANTHROPIC_API_KEY');
+  Deno.env.set('ANTHROPIC_API_KEY', 'synthetic-no-network');
   let reviews = 0, writes = 0, logged: any[] = [];
   globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
     const req = JSON.parse(String(init?.body || '{}'));
-    if (req.tool_choice?.name === 'review_carousel_fields') {
+    if (req.tools?.[0]?.name === 'review_carousel_fields') {
       reviews++;
-      const fields = JSON.parse(req.input[0].content.split("CHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n")[1]);
+      const fields = JSON.parse(req.messages[0].content.split("CHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n")[1]);
       const text = JSON.stringify({reviews: fields.map((f: any) => ({field_id:f.field_id,decision:'keep',reason:'Texte situé et utile',edits:[]}))});
-      return Promise.resolve(new Response(JSON.stringify({model:'gpt-6-astra',status:'completed',output:[{type:'function_call',name:'review_carousel_fields',arguments:text}],usage:{input_tokens:1,output_tokens:1}})));
+      return Promise.resolve(new Response(JSON.stringify({model:'claude-opus-5-5',stop_reason:'tool_use',content:[{type:'tool_use',name:'review_carousel_fields',input:JSON.parse(text)}],usage:{input_tokens:1,output_tokens:1}})));
     }
     return Promise.resolve(new Response(JSON.stringify({content:[{type:'text',text:'{}'}],stop_reason:'end_turn',usage:{input_tokens:1,output_tokens:1}})));
   }) as typeof fetch;
@@ -597,7 +599,7 @@ for (const repair of ['success', 'short', 'failure']) Deno.test(`texte incomplet
     assertEquals(parsed.slides.length,repair==='success'?10:7);
     assertEquals(parsed.structure_warnings.length===0,repair==='success');
     assertEquals(parsed.slides[1].body,full.slides[1].body);
-  } finally { globalThis.fetch=oldFetch; if(key===undefined)Deno.env.delete('OPENAI_API_KEY');else Deno.env.set('OPENAI_API_KEY',key); }
+  } finally { globalThis.fetch=oldFetch; if(key===undefined)Deno.env.delete('ANTHROPIC_API_KEY');else Deno.env.set('ANTHROPIC_API_KEY',key); }
 });
 
 // Final progression: all variants, bounded repair, unavailable status, deadlines and invariants.

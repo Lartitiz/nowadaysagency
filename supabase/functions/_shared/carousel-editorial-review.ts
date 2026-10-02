@@ -1,7 +1,10 @@
 import { REVIEW } from "./carousel-editorial-contract.ts";
 /** Editorial review contract. No layout, photo, link or structural field is editable. */
-export const CAROUSEL_REVIEW_VERSION = "connected-sequence-astra-medium-v7";
-export const CAROUSEL_REVIEW_MODEL = "gpt-6-astra" as const;
+// v8 (02/10) : relecture rendue à Claude (Opus 5.5, comme le rédacteur standard).
+// Astra (OpenAI) la faisait depuis #982 ; un crédit OpenAI épuisé privait alors
+// TOUS les carrousels de relecture (01-02/10). Un seul fournisseur pour le texte.
+export const CAROUSEL_REVIEW_VERSION = "connected-sequence-opus55-medium-v8";
+export const CAROUSEL_REVIEW_MODEL = "claude-opus-5-5" as const;
 export const CAROUSEL_REVIEW_TOOL = {
   name: "review_carousel_fields",
   description: "Révision de chaque champ, avec retouches locales exactes ou conservation explicite.",
