@@ -408,31 +408,13 @@ function ChannelScoresSection({ channelScores }: { channelScores: DiagnosticData
 }
 
 function ChannelBar({ emoji, label, score }: { emoji: string; label: string; score: number | null }) {
-  if (score === null) {
-    return (
-      <div className="flex items-center gap-4">
-        <span className="text-xl w-8">{emoji}</span>
-        <span className="w-28 text-sm text-muted-foreground">{label}</span>
-        <span className="text-sm font-medium text-muted-foreground">À auditer</span>
-      </div>
-    );
-  }
-
-  const color = score < 40 ? "bg-destructive/60" : score < 60 ? "bg-accent" : score < 80 ? "bg-primary" : "bg-success";
-
   return (
     <div className="flex items-center gap-4">
       <span className="text-xl w-8">{emoji}</span>
       <span className="w-28 text-sm text-muted-foreground">{label}</span>
-      <div className="flex-1 bg-border/30 rounded-full h-3">
-        <motion.div
-          className={`h-3 rounded-full ${color}`}
-          initial={{ width: 0 }}
-          animate={{ width: `${score}%` }}
-          transition={{ duration: 1, ease: "easeOut" }}
-        />
-      </div>
-      <span className="text-sm font-medium w-16 text-right text-foreground">{score}/100</span>
+      <span className="text-sm font-medium text-foreground">
+        {score === null ? <span className="text-muted-foreground">À auditer</span> : channelLevelLabel(score)}
+      </span>
     </div>
   );
 }

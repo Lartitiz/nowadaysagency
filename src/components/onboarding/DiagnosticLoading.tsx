@@ -76,11 +76,12 @@ function buildRevealMessages(data: any, answers: Props["answers"]): LiveMessage[
 
   if (analysis?.scores?.total != null) {
     const score = analysis.scores.total;
+    // Jamais de note chiffrée à l'écran (décision produit) : niveau en mots.
     let comment = "";
-    if (score >= 70) comment = "C'est un bon score ! Tu as de solides bases.";
+    if (score >= 70) comment = "Tu as de solides bases.";
     else if (score >= 45) comment = "Tu as des bases, mais il y a des opportunités.";
     else comment = "On a du travail, mais c'est le début de quelque chose de bien.";
-    msgs.push({ text: `Score global : ${score}/100. ${comment}`, type: "insight" });
+    msgs.push({ text: `Ton niveau global : ${diagnosticLevel(score).toLowerCase()}. ${comment}`, type: "insight" });
   }
 
   msgs.push({ text: "Je prépare ton diagnostic personnalisé...", type: "scanning" });
