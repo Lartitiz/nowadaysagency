@@ -15,6 +15,12 @@ export function photoTextParts(text: string, finale = false, preferred?: string 
       end = start + candidate.length;
     }
   }
+  // La ponctuation qui suit l'extrait mis en valeur reste avec lui : sinon le
+  // paragraphe suivant s'ouvrait sur « : », « , » ou « . » (vu en prod le 02/10/2026).
+  if (start >= 0) {
+    const tail = /^[\s\u00a0\u202f]*[,;:.!?…»”)]+[ \u00a0\u202f]*/.exec(text.slice(end));
+    if (tail) end += tail[0].length;
+  }
   const parts: PhotoTextPart[] = [];
   const body = (s: string) => {
     const sentences = s.match(/[^.!?]+(?:[.!?]+[»”"']*(?:\s+|$)|$)/g);
