@@ -53,5 +53,6 @@ Deno.test("distinct clean products require a choice", () => {
   const first = { id: "p1", photo_id: null, path: "p1.png", role: "product", kind: "produit", name: "Bague une" } as Reference;
   const second = { id: "p2", photo_id: null, path: "p2.png", role: "product", kind: "produit", name: "Bague deux" } as Reference;
   assertEquals(preferredProductReference([first, second]), { reference: null, ambiguous: true });
-  assertEquals(preferredProductReference([first, { ...second, subject_group: first.id }]), { reference: first, ambiguous: false });
+  const groupedSecond = { ...second, subject_group: first.id };
+  assertEquals(preferredProductReference([{ ...first, subject_group: first.id }, groupedSecond]), { reference: groupedSecond, ambiguous: false });
 });
