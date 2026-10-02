@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,7 +19,7 @@ type Draft = {
   fictional: boolean;
 };
 export function StudioMemoryPanel(
-  { memory, selectedVersion, personReference, brief, disabled, onSave, onApply }: {
+  { memory, selectedVersion, personReference, brief, disabled, onSave, onApply, registerCastingOpener }: {
     memory: StudioMemory[];
     selectedVersion?: string;
     personReference?: StudioProposal["person_reference"];
@@ -27,6 +27,7 @@ export function StudioMemoryPanel(
     disabled: boolean;
     onSave: (values: Record<string, unknown>) => Promise<unknown>;
     onApply: (id: string) => Promise<unknown>;
+    registerCastingOpener?: (open: (() => void) | null) => void;
   },
 ) {
   const [open, setOpen] = useState(false),
@@ -42,6 +43,18 @@ export function StudioMemoryPanel(
       note: kind === "preference" ? "" : (kind === "casting" && personReference ? personReference.stable_traits : brief).slice(0, 1500),
       fictional: false,
     });
+  useEffect(() => {
+    if (!registerCastingOpener) return;
+    if (!selectedVersion || !personReference) {
+      registerCastingOpener(null);
+      return;
+    }
+    registerCastingOpener(() => {
+      setOpen(true);
+      start("casting");
+    });
+    return () => registerCastingOpener(null);
+  });
   async function save(remove = false) {
     if (!draft || blocked) return;
     setPending(true);
@@ -66,18 +79,6 @@ export function StudioMemoryPanel(
       <Button variant="outline" onClick={() => setOpen(true)}>
         Mémoire de marque{memory.length ? ` · ${memory.length}` : ""}
       </Button>
-      {selectedVersion && personReference && (
-        <Button
-          variant="ghost"
-          disabled={blocked}
-          onClick={() => {
-            setOpen(true);
-            start("casting");
-          }}
-        >
-          Garder ce mannequin
-        </Button>
-      )}
       <Dialog
         open={open}
         onOpenChange={(v) => {

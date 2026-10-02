@@ -185,6 +185,7 @@ function Studio({
   const isMobile = useIsMobile();
   const gridRef = useRef<HTMLDivElement>(null);
   const chatWidthLatest = useRef(CHAT_WIDTH_DEFAULT);
+  const openCastingRef = useRef<(() => void) | null>(null);
   const [chatWidth, setChatWidth] = useState(() => {
     try {
       const value = Number(localStorage.getItem(CHAT_WIDTH_KEY));
@@ -1512,6 +1513,11 @@ function Studio({
                     <span className="studio-selection-clear" aria-hidden="true">×</span>
                   </button>}
                 </div>
+                {version?.status === "ready" && version.proposal.person_reference && (
+                  <p className="text-sm text-muted-foreground">
+                    Ce mannequin te plaît ? Tu peux <button type="button" className="studio-link" disabled={!writable || !!busy || !!generating} onClick={() => openCastingRef.current?.()}>le garder pour ta marque</button>.
+                  </p>
+                )}
                 {activeBranchChoice && (
                   <div role="status" className="rounded-lg border border-primary/30 bg-card p-3 space-y-2 text-sm">
                     <p>Les références ont changé depuis cette version. Lesquelles veux-tu utiliser pour cette nouvelle demande ? Aucune image n’a été lancée.</p>
@@ -1772,6 +1778,7 @@ function Studio({
                     disabled={!writable || !!busy || !!generating}
                     onSave={(values) => mutate("memory_save", values)}
                     onApply={(id) => mutate("memory_apply", { memory_id: id, revision: current.session.revision })}
+                    registerCastingOpener={(open) => { openCastingRef.current = open; }}
                   />}
                   {!current?.versions.length && <div className="studio-empty">
                     <div className="studio-empty-icon"><Sparkles className="h-9 w-9" /></div>
