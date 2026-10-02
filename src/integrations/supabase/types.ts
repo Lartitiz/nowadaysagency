@@ -9395,17 +9395,30 @@ export type Database = {
         }
         Returns: boolean
       }
-      studio_video_claim_plan: {
-        Args: {
-          p_actor: string
-          p_clip_limit: number
-          p_job: string
-          p_month_max_submissions: number
-          p_month_total_limit: number
-          p_workspace: string
-        }
-        Returns: boolean
-      }
+      studio_video_claim_plan:
+        | {
+            Args: {
+              p_actor: string
+              p_clip_limit: number
+              p_job: string
+              p_month_max_submissions: number
+              p_month_total_limit: number
+              p_workspace: string
+            }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              p_actor: string
+              p_clip_limit: number
+              p_job: string
+              p_max_active: number
+              p_month_max_submissions: number
+              p_month_total_limit: number
+              p_workspace: string
+            }
+            Returns: boolean
+          }
       studio_video_claim_trial: {
         Args: {
           p_actor: string
