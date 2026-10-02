@@ -329,3 +329,12 @@ Deno.test("voile de marque : couleur moyenne (vert) assombrie, jamais le gris pa
   const editorial = composePhotoSlide(base({ overlay_text: "Une première idée. Une deuxième idée qui se développe un peu plus longuement pour la lecture." }), green, mid).html;
   assert(!editorial.includes("rgba(22,22,22,.74)"), "le voile éditorial prend la teinte de marque");
 });
+
+Deno.test("voile éditorial ancré au bord de la photo (plus de bande flottante), qui suit la position du texte", () => {
+  const text = "Une première idée. Une deuxième idée qui se développe un peu plus longuement pour la lecture.";
+  const html = composePhotoSlide(base({ overlay_text: text, overlay_position: "bottom_left" }), { ...CH, color_primary: "#5C7A5A" }, mid).html;
+  assert(html.includes('[data-photo-text-layout^="bottom"] [data-photo-editorial-text]::before'));
+  assert(html.includes('[data-photo-text-layout^="top"] [data-photo-editorial-text]::before'));
+  assert(/\[data-photo-text-layout\^="bottom"\][^}]*linear-gradient\(180deg,rgba\(\d+,\d+,\d+,0\) 0%,rgba\(\d+,\d+,\d+,\.82\) 18%,rgba\(\d+,\d+,\d+,\.92\) 100%\)/.test(html));
+  assert(!/::before\{[^}]*calc\(/.test(html));
+});
