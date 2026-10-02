@@ -43,6 +43,18 @@ export function StudioMemoryPanel(
       note: kind === "preference" ? "" : (kind === "casting" && personReference ? personReference.stable_traits : brief).slice(0, 1500),
       fictional: false,
     });
+  useEffect(() => {
+    if (!registerCastingOpener) return;
+    if (!selectedVersion || !personReference) {
+      registerCastingOpener(null);
+      return;
+    }
+    registerCastingOpener(() => {
+      setOpen(true);
+      start("casting");
+    });
+    return () => registerCastingOpener(null);
+  });
   async function save(remove = false) {
     if (!draft || blocked) return;
     setPending(true);
