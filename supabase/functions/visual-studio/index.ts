@@ -772,6 +772,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             type: "text",
             text: `Référence jointe ${index + 1}, ID ${ref.id} : ${ref.role}, ${ref.name}`,
           });
+          // The selected version is already attached above; don't load it twice.
+          if (parent && ref.path === parent.result_path) continue;
           vision.push(await visionFromStorage(sb, BUCKET, ref.path));
         }
         const availableSoulStyles = conversational ? [] : selectSoulStyles(await soulStyles());
