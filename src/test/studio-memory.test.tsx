@@ -31,8 +31,10 @@ it('casting is explicit and a failed acknowledgement keeps the same request id',
 });
 it('a fictional identity saves its stable traits without copying scene choices',async()=>{
  const save=vi.fn().mockResolvedValue({});
- render(<StudioMemoryPanel memory={[]} selectedVersion="nora-sheet" personReference={{mode:'sheet',name:'Nora fictive',stable_traits:'42 ans, bague à gauche',variable_details:'Veste rouge, bibliothèque',views:['face','profil']}} brief="Une veste rouge dans la bibliothèque" disabled={false} onSave={save} onApply={vi.fn()}/>);
- fireEvent.click(screen.getByRole('button',{name:'Garder ce mannequin'}));
+ let openCasting:(()=>void)|null=null;
+ render(<StudioMemoryPanel memory={[]} selectedVersion="nora-sheet" personReference={{mode:'sheet',name:'Nora fictive',stable_traits:'42 ans, bague à gauche',variable_details:'Veste rouge, bibliothèque',views:['face','profil']}} brief="Une veste rouge dans la bibliothèque" disabled={false} onSave={save} onApply={vi.fn()} registerCastingOpener={(open)=>{openCasting=open;}}/>);
+ expect(openCasting).toBeTypeOf('function');
+ openCasting!();
  expect(screen.getByLabelText('Nom')).toHaveValue('Nora fictive');
  expect(screen.getByLabelText('À retenir')).toHaveValue('42 ans, bague à gauche');
  fireEvent.click(screen.getByRole('checkbox'));
@@ -40,6 +42,8 @@ it('a fictional identity saves its stable traits without copying scene choices',
  await waitFor(()=>expect(save).toHaveBeenCalledWith(expect.objectContaining({memory_note:'42 ans, bague à gauche',version_id:'nora-sheet'})));
 });
 it('ne présente pas un produit comme un mannequin',()=>{
- render(<StudioMemoryPanel memory={[]} selectedVersion="bol" brief="Un bol en céramique" disabled={false} onSave={vi.fn()} onApply={vi.fn()}/>);
+ let openCasting:(()=>void)|null=null;
+ render(<StudioMemoryPanel memory={[]} selectedVersion="bol" brief="Un bol en céramique" disabled={false} onSave={vi.fn()} onApply={vi.fn()} registerCastingOpener={(open)=>{openCasting=open;}}/>);
+ expect(openCasting).toBeNull();
  expect(screen.queryByRole('button',{name:'Garder ce mannequin'})).not.toBeInTheDocument();
 });
