@@ -56,16 +56,6 @@ function SlideView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasW
     }
   };
 
-  // Flèches clavier ← / → (ordinateur)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") setSlide(s => Math.min(s + 1, totalSlides - 1));
-      if (e.key === "ArrowLeft") setSlide(s => Math.max(s - 1, 0));
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [totalSlides]);
-
   const sections: ReactNode[] = [
     <AccrocheSection key="a" prenom={prenom} isFallback={data.isFallback} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />,
   ];
