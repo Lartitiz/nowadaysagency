@@ -1605,15 +1605,15 @@ function Studio({
                   placeholder="Une idée, une question, une image à améliorer…"
                 />
                 <input ref={fileInput} type="file" accept="image/*,.heic,.heif" multiple className="sr-only" aria-label="Importer plusieurs images" onChange={(event) => void addLocalFiles(event.target.files)} />
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Button variant="ghost" size="sm" className="whitespace-nowrap shrink-0" aria-label="Ajouter des images" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => fileInput.current?.click()}>
-                    <ImagePlus className="h-4 w-4 mr-2" /> Importer
+                <div className="flex items-center gap-1 flex-wrap">
+                  <Button variant="ghost" size="icon" className="studio-icon-btn shrink-0" title="Importer" aria-label="Ajouter des images" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => fileInput.current?.click()}>
+                    <ImagePlus className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" className="whitespace-nowrap shrink-0" aria-label="Depuis ma bibliothèque" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => setPicker(true)}>
-                    Bibliothèque
+                  <Button variant="ghost" size="icon" className="studio-icon-btn shrink-0" title="Bibliothèque" aria-label="Depuis ma bibliothèque" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => setPicker(true)}>
+                    <Library className="h-4 w-4" />
                   </Button>
                   <Button
-                    className="ml-auto shrink-0"
+                    className="ml-auto shrink-0 rounded-full px-6"
                     disabled={!writable || !!busy || generating || activeBranchChoice ||
                       !draft.trim()}
                     onClick={() => void send()}
