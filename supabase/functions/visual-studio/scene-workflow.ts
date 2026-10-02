@@ -63,7 +63,13 @@ export function validTargets(targets: IntegrationTarget[], refs: Reference[]) {
 /** Fill technical omissions only when grouping is unambiguous; never merge distinct people. */
 export function repairTargets(targets: IntegrationTarget[], refs: Reference[], previous: IntegrationTarget[] = [], placement = "") {
   const originals = refs.filter(exactReference).flatMap(ref => ref.role === "person_product" ? [{...ref, role: "person" as const}, {...ref, role: "product" as const}] : [ref]);
-  const result = targets.map(t => ({ ...t, reference_ids: [...new Set(t.reference_ids)] }));
+  const result: IntegrationTarget[] = [];
+  // Two targets for the exact same photos and role describe one subject: merge them.
+  for (const t of targets.map(t => ({ ...t, reference_ids: [...new Set(t.reference_ids)] }))) {
+    const key = [...t.reference_ids].sort().join(",");
+    if (t.reference_ids.length && result.some(r => r.role === t.role && [...r.reference_ids].sort().join(",") === key)) continue;
+    result.push(t);
+  }
   for (const t of result) {
     const matches = t.reference_ids.map(id => originals.find(r => r.id === id && (r.role === t.role || !refs.some(ref => ref.id === id && ref.role === "person_product"))));
     if (matches.length && matches.every(r => r && r.role === matches[0]?.role)) t.role = matches[0]!.role as IntegrationTarget["role"];

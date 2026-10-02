@@ -1152,9 +1152,15 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               if (resolvedReferences[i].role === "product" && resolvedReferences[i].id !== preferredReference.id) resolvedReferences.splice(i, 1);
             }
             if (!resolvedReferences.some(ref => ref.id === preferredReference.id)) resolvedReferences.push(preferredReference);
-            intent.scene_workflow.targets = intent.scene_workflow.targets.map(target => target.role === "product"
-              ? { ...target, reference_ids: [preferredReference.id] }
-              : target);
+            // One exact product = one target: earlier branches may carry a product
+            // target per photo (clean + worn); remapping both would duplicate it.
+            let productKept = false;
+            intent.scene_workflow.targets = intent.scene_workflow.targets.flatMap(target => {
+              if (target.role !== "product") return [target];
+              if (productKept) return [];
+              productKept = true;
+              return [{ ...target, reference_ids: [preferredReference.id] }];
+            });
           }
         }
         // A correction to the scene must not discard the reserved original just
