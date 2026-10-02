@@ -12,6 +12,10 @@ import { hexLuminance } from "./contrast-guard.ts";
 //   cote_a_cote      — photo sur une colonne, texte sur l'autre
 //   sur_photo        — overlay court dans un bloc de charte posé sur la photo
 //   respiration      — slide texte sans photo, fond de charte
+//   vignette         — dernier recours d'un passage très développé : photo en
+//                      vignette, texte pleine largeur dessous (02/10/2026, vu en
+//                      prod : un passage de 74 mots faisait basculer TOUT le
+//                      carrousel sur le rendu modèle)
 // Le texte n'est jamais posé sur la photo au-delà de 15 mots : un passage
 // développé va à côté de l'image. Deux slides voisines ne partagent jamais la
 // même famille quand une autre tient. Si aucune famille ne contient le texte,
@@ -24,7 +28,7 @@ import { hexLuminance } from "./contrast-guard.ts";
 //   - CTA : wrapper data-slide-cta, texte data-slide-text="cta"
 //   - aplats annotés data-pptx-shape="card" (jamais un élément contenant la photo)
 
-export type MixLayout = "couverture_aplat" | "photo_aplat" | "passe_partout" | "cote_a_cote" | "sur_photo" | "respiration";
+export type MixLayout = "couverture_aplat" | "photo_aplat" | "passe_partout" | "cote_a_cote" | "sur_photo" | "respiration" | "vignette";
 
 export interface MixSlideSpec {
   slide_number: number;
@@ -111,7 +115,7 @@ function lineCount(text: string, width: number, size: number): number {
   }, 0);
 }
 
-interface TextParts { title: string; body: string; cta: string; field: "title_body" | "overlay" }
+interface TextParts { title: string; body: string; cta: string; field: "title_body" | "overlay"; headline?: boolean }
 
 function textParts(s: MixSlideSpec): TextParts {
   const cta = String(s.cta_label || "").trim();
@@ -128,11 +132,11 @@ function textParts(s: MixSlideSpec): TextParts {
  * descendant les tailles jusqu'aux planchers. null = ne tient pas. */
 function fitColumn(p: TextParts, width: number, maxHeight: number, base: { title: number; body: number }) {
   let ts = base.title, bs = base.body;
-  const minTitle = Math.min(base.title, 52), minBody = Math.min(base.body, 40);
+  const minTitle = Math.min(base.title, 52), minBody = p.headline ? 56 : Math.min(base.body, 40);
   const ctaH = p.cta ? 96 : 0;
   const measure = () => {
     const th = p.title ? Math.ceil(lineCount(p.title, width, ts) * ts * 1.15) : 0;
-    const bh = p.body ? Math.ceil(lineCount(p.body, width, bs) * bs * 1.4) : 0;
+    const bh = p.body ? Math.ceil(lineCount(p.body, width, bs) * bs * (p.headline ? 1.15 : 1.4)) : 0;
     const gap = p.title && p.body ? Math.round(bs * .9) : 0;
     return { th, bh, total: th + gap + bh + ctaH, gap };
   };
@@ -150,7 +154,12 @@ function column(p: TextParts, t: Tokens, fit: NonNullable<ReturnType<typeof fitC
   const common = `margin:0;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere;text-align:${align};`;
   const title = p.title ? `<h1 data-slide-text="title" data-pptx-editable="title" style="${common}font-family:'${t.titleFont}', Georgia, serif;font-size:${fit.ts}px;line-height:1.15;letter-spacing:-.01em;color:${colors.heading};">${escapeHtml(p.title)}</h1>` : "";
   const field = p.field === "overlay" ? "overlay" : "body";
-  const body = p.body ? `<p data-slide-text="${field}" data-pptx-editable="${field}" style="${common}font-family:'${t.bodyFont}', sans-serif;font-size:${fit.bs}px;line-height:1.4;color:${colors.ink};${p.title ? `margin-top:${fit.gap}px;` : ""}">${escapeHtml(p.body)}</p>` : "";
+  // headline : texte court seul (accroche d'une couverture photo_full) composé
+  // comme un titre, mais ancré dans son champ d'origine (overlay) pour l'édition.
+  const bodyType = p.headline
+    ? `font-family:'${t.titleFont}', Georgia, serif;font-size:${fit.bs}px;line-height:1.15;letter-spacing:-.01em;color:${colors.heading};`
+    : `font-family:'${t.bodyFont}', sans-serif;font-size:${fit.bs}px;line-height:1.4;color:${colors.ink};`;
+  const body = p.body ? `<p data-slide-text="${field}" data-pptx-editable="${field}" style="${common}${bodyType}${p.title ? `margin-top:${fit.gap}px;` : ""}">${escapeHtml(p.body)}</p>` : "";
   const cta = p.cta ? `<div data-slide-cta="1" style="margin-top:32px;"><span data-slide-text="cta" data-pptx-editable="caption" style="display:inline-block;background:${colors.ctaBg};color:${colors.ctaInk};border-radius:${Math.min(t.radius, 16)}px;padding:14px 22px;font-family:'${t.bodyFont}', sans-serif;font-size:32px;line-height:1.3;">${escapeHtml(p.cta)}</span></div>` : "";
   return `<div data-mix-text="1" style="position:absolute;left:${box.x}px;top:${box.y}px;width:${box.w}px;">${title}${body}${cta}</div>`;
 }
@@ -172,7 +181,8 @@ function root(t: Tokens, layout: MixLayout, bg: string, inner: string): string {
 function couvertureAplat(p: TextParts, n: number, t: Tokens): string | null {
   // L'aplat prend la hauteur du titre, la photo garde au moins 52 % de la slide.
   const maxFlat = Math.round(H * .48);
-  const fit = fitColumn(p, W - 2 * SIDE, maxFlat - 200, { title: 92, body: 40 });
+  if (!p.title && words(p.body) <= 20) p = { ...p, headline: true };
+  const fit = fitColumn(p, W - 2 * SIDE, maxFlat - 200, p.headline ? { title: 92, body: 92 } : { title: 92, body: 40 });
   if (!fit) return null;
   const flatH = Math.max(420, 110 + fit.total + 90);
   const colors = { heading: t.onFlat, ink: t.onFlat, ctaBg: t.background, ctaInk: t.ink };
@@ -184,7 +194,7 @@ function couvertureAplat(p: TextParts, n: number, t: Tokens): string | null {
 
 function photoAplat(p: TextParts, n: number, t: Tokens): string | null {
   // Texte court → la photo prend la place ; texte développé → l'aplat grandit.
-  for (const photoH of [860, 780, 700, 620, 540]) {
+  for (const photoH of [860, 780, 700, 620, 540, 460]) {
     const fit = fitColumn(p, W - 2 * SIDE, TEXT_BOTTOM - (photoH + 72), { title: 64, body: 44 });
     if (!fit) continue;
     const colors = { heading: t.onFlat, ink: t.onFlat, ctaBg: t.background, ctaInk: t.ink };
@@ -251,6 +261,22 @@ function surPhoto(p: TextParts, n: number, t: Tokens, position: string | null | 
     column(p, t, fit, { x: 64 + pad, y: top + pad, w: textW }, colors));
 }
 
+/** Passage très développé : la photo reste présente (association conservée)
+ * en vignette, le texte prend toute la largeur. */
+function vignette(p: TextParts, n: number, t: Tokens): string | null {
+  for (const h of [400, 300, 220]) {
+    const photo = { x: SIDE, y: 96, w: Math.round(h * .8), h };
+    const top = photo.y + photo.h + 48;
+    const fit = fitColumn(p, W - 2 * SIDE, TEXT_BOTTOM + 30 - top, { title: 52, body: 42 });
+    if (!fit) continue;
+    const colors = { heading: t.heading, ink: t.ink, ctaBg: t.flat, ctaInk: t.onFlat };
+    return root(t, "vignette", t.background,
+      photoBox(n, photo, t.radius) +
+      column(p, t, fit, { x: SIDE, y: top, w: W - 2 * SIDE }, colors));
+  }
+  return null;
+}
+
 // ── Choix de la famille ─────────────────────────────────────────────────────
 
 function preferredPhotoLayouts(s: MixSlideSpec, previous: MixLayout | null): MixLayout[] {
@@ -310,7 +336,7 @@ export function composeMixSlide(
       : coteACote(p, photoN, t, side);
     if (html) return done(html, layout);
   }
-  return null;
+  return done(vignette(p, photoN, t), "vignette");
 }
 
 /** Compose tout le carrousel, ou null si une seule slide exige le rendu modèle

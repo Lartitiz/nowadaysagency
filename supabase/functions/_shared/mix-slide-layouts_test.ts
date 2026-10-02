@@ -101,3 +101,24 @@ Deno.test("mix : photo_index hors bornes → slide texte, jamais un placeholder 
   assertEquals(out.layout, "respiration");
   assert(!out.html.includes("{{PHOTO_9}}"));
 });
+
+// Vu en prod le 02/10/2026 : un passage de 74 mots faisait basculer TOUT le
+// carrousel sur le rendu modèle.
+Deno.test("mix : passage très développé → composé (photo réduite ou vignette), jamais de repli global", () => {
+  const p74 = "Pourquoi la sincérité change-t-elle tout ? Parce qu'elle rend chaque contenu cohérent avec le précédent. Quand votre voix et ce que vous montrez restent les mêmes d'une semaine à l'autre, un nouveau contenu ne fait pas que s'ajouter : il confirme. La personne qui vous lit vérifie, sans même y penser, que ce qu'elle avait perçu la fois d'avant était juste. C'est cette petite vérification, répétée, qui devient peu à peu de la confiance.";
+  const a = composeMixSlide({ slide_number: 6, slide_type: "photo_integrated", photo_index: 1, photo_layout: "top_photo", body: p74 }, CH, mid);
+  assert(a && a.html.includes("{{PHOTO_1}}"));
+  const p95 = `${p74} ${p74.split(" ").slice(0, 21).join(" ")}`;
+  const b = composeMixSlide({ slide_number: 6, slide_type: "photo_full", photo_index: 2, overlay_text: p95 }, CH, mid)!;
+  assertEquals(b.layout, "vignette");
+  assert(b.html.includes("{{PHOTO_2}}"));
+  assert(textOf(b.html).includes(p95));
+  assert(composeMixCarousel([...CERAMIQUE.slice(0, 5), { slide_number: 6, slide_type: "photo_integrated", photo_index: 1, body: p74 }], CH, 5));
+});
+
+Deno.test("mix : accroche courte d'une couverture photo_full → titre, ancre overlay conservée", () => {
+  const out = composeMixSlide({ slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: "Pourquoi un seul post viral ne remplace pas la confiance" }, CH, { ...mid, isFirst: true })!;
+  assertEquals(out.layout, "couverture_aplat");
+  assert(/data-slide-text="overlay"[^>]*font-family:'Fraunces'/.test(out.html));
+  assert(!/data-slide-text="overlay"[^>]*font-size:4\dpx/.test(out.html), "l'accroche ne doit pas être en taille de corps");
+});
