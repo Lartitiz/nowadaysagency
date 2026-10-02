@@ -56,7 +56,7 @@ import {
 } from "./higgsfield-image.ts";
 import { handleMemory, readMemory } from "./memory.ts";
 import { executeStudioJob } from "./worker.ts";
-import { onlyAdditions, preferredProductReference, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
+import { isWornProduct, onlyAdditions, preferredProductGroup, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
 
 declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void };
 const schema = z.object({
@@ -613,10 +613,18 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           : availableReferences)];
         // These originals belong to this selected scene branch, not to an unrelated
         // session result. Claude may use them only when continuing the workflow.
-        const reservedProducts: Reference[] = parent?.proposal?.scene_workflow?.phase === "scene"
+        // Once a clean product shot is attached, a worn photo of it is never
+        // reinjected from an earlier version: it made the generator copy the
+        // blurry worn ring instead of the exact product.
+        const cleanProductGroup = preferredProductGroup(references);
+        const wornIds = new Set(references.filter(isWornProduct).map(ref => ref.id));
+        const excludedWorn = (ref: Reference) => cleanProductGroup.references.length > 0 &&
+          (isWornProduct(ref) || wornIds.has(ref.id));
+        const reservedProducts: Reference[] = (parent?.proposal?.scene_workflow?.phase === "scene"
           ? parent.proposal.planning_references || []
           : parent?.proposal?.scene_workflow?.phase === "integration"
-          ? (parent.proposal.reference_snapshot || []).filter(exactReference) : [];
+          ? (parent.proposal.reference_snapshot || []).filter(exactReference) : [])
+          .filter((ref: Reference) => !excludedWorn(ref));
         for (const ref of reservedProducts) {
           if (!requestReferences.some(r => r.id === ref.id) && requestReferences.length < MAX_REFERENCES) requestReferences.push(ref);
         }
