@@ -300,7 +300,12 @@
 }
 @media (max-width: 767px) {
   .studio-header {
+    display: flex;
+    flex-wrap: wrap;
     padding: 16px;
+  }
+  .studio-header-right {
+    margin-left: auto;
   }
   .studio-grid {
     display: block;
