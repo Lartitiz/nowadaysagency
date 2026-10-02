@@ -60,7 +60,7 @@ export function compactIntegrationPrompt(p: Proposal, max = Infinity): string | 
     kept.length ? `PREVIOUSLY ACCEPTED CHOICES${kept.length < accepted.length ? " (most recent; earlier ones are already visible in Image 1)" : ""} (current Changes take precedence): ${kept.join("; ")}` : "",
     p.person_reference ? `IDENTITY — ${p.person_reference.name}\n${p.person_reference.stable_traits}\nSCENE CHOICES\n${p.person_reference.variable_details}` : "",
     person ? "Use original identities, not provisional features; keep approved pose/outfit. Source lighting on faces; natural skin and shadows; no fill light, smoothing, reshaping or aging. If only a product changes, keep the person." : "",
-    product ? "Keep product profile, markings and logos; match perspective, scale, reflections and contact shadows; plausible support; no invented sides; hands only if requested." : "",
+    product ? "Keep product profile, markings and logos; match perspective, scale, reflections and contact shadows; plausible support; no invented sides; hands only if requested. If a different product is pictured in its place, erase it completely before placing the exact product from its references; several views of one product are ONE product — use every angle for its exact shape and details." : "",
     new Set(refs.map(r => r.role)).size < refs.length ? "Multiple views of one subject remain ONE subject. Keep distinct identities separate; style references never define identity." : "",
     "Only necessary local junctions. No invented props, claims, watermarks, blur or grain; keep the medium and texture.",
   ].filter(Boolean).join("\n");

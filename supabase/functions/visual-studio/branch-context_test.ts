@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { preferredProductReference, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
+import { isWornProduct, preferredProductGroup, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
 import type { Reference } from "./media.ts";
 
 const oldSubject: Reference = {
@@ -42,17 +42,21 @@ Deno.test("onlyAdditions: scene refs kept, extra photo added", () => {
   if (_onlyAdditions([], [casting])) throw new Error("empty version must ask");
 });
 
-Deno.test("clean product shot takes priority over a worn product photo", () => {
+Deno.test("clean product shots govern fidelity; worn shots never join the group", () => {
   const worn = { id: "w", photo_id: null, path: "w.png", role: "product", kind: "produit_porte", name: "Bague portée" } as Reference;
   const clean = { id: "p", photo_id: null, path: "p.png", role: "product", kind: "produit", name: "Bague seule" } as Reference;
-  assertEquals(preferredProductReference([worn, clean]), { reference: clean, ambiguous: false });
-  assertEquals(preferredProductReference([worn]), { reference: null, ambiguous: false });
+  assertEquals(preferredProductGroup([worn, clean]), { references: [clean], ambiguous: false });
+  assertEquals(preferredProductGroup([worn]), { references: [], ambiguous: false });
+  assertEquals(isWornProduct(worn), true);
+  assertEquals(isWornProduct(clean), false);
 });
 
-Deno.test("distinct clean products require a choice", () => {
+Deno.test("distinct clean products require a choice; grouped angles travel together", () => {
   const first = { id: "p1", photo_id: null, path: "p1.png", role: "product", kind: "produit", name: "Bague une" } as Reference;
   const second = { id: "p2", photo_id: null, path: "p2.png", role: "product", kind: "produit", name: "Bague deux" } as Reference;
-  assertEquals(preferredProductReference([first, second]), { reference: null, ambiguous: true });
+  assertEquals(preferredProductGroup([first, second]), { references: [], ambiguous: true });
+  const groupedFirst = { ...first, subject_group: first.id };
   const groupedSecond = { ...second, subject_group: first.id };
-  assertEquals(preferredProductReference([{ ...first, subject_group: first.id }, groupedSecond]), { reference: groupedSecond, ambiguous: false });
+  assertEquals(preferredProductGroup([groupedFirst, groupedSecond]),
+    { references: [groupedFirst, groupedSecond], ambiguous: false });
 });
