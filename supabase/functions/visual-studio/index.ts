@@ -3,7 +3,7 @@ import { soulStyles, selectSoulStyles, resolveSoulStyle } from "./soul-direction
 import { prepareIntegration } from "./integration-direction.ts";
 import { activeReferences, adviceTurn, independentRequest, explicitRoles, dialogueHistory, CONVERSATION_SYSTEM, type ConversationContext } from "./conversation.ts";
 import { integrationProposal, referenceSignature } from "./integration-proposal.ts";
-import { exactReference, validTargets, repairTargets, targetProblems, sceneInputs } from "./scene-workflow.ts";
+import { exactReference, validTargets, repairTargets, targetProblems, sceneInputs, asksIntegration } from "./scene-workflow.ts";
 import { resolvePersonMemory } from "./person-reference.ts";
 import { compositionSchema } from "./composition.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -1115,6 +1115,20 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           (!explicitSource || explicitSource.path === parent.result_path) &&
           ["scene", "integration"].includes(parent.proposal.scene_workflow?.phase)) {
           intent.scene_workflow = parent.proposal.scene_workflow;
+        }
+        // A request to place the exact originals into the selected provisional scene
+        // must send them: promote it to integration instead of a scene correction.
+        if (parent?.result_path && parent.proposal.scene_workflow?.phase === "scene" &&
+          intent.scene_workflow?.phase === "scene" && intent.visual_kind === "photo" && !intent.exact_text.length &&
+          (!explicitSource || explicitSource.path === parent.result_path) &&
+          asksIntegration(intent.operation, [...(intent.change || []), ...(intent.scene_workflow.targets || []).map(t => t.instruction), intent.summary],
+            resolvedReferences)) {
+          const sw = intent.scene_workflow;
+          intent.scene_workflow = { ...sw, phase: "integration",
+            targets: sw.targets?.length ? sw.targets : parent.proposal.scene_workflow.targets,
+            camera_match: sw.camera_match || parent.proposal.scene_workflow.camera_match,
+            scene_version_id: parent.id, scene_path: parent.result_path };
+          intent.uses_selected_version = true;
         }
         const phase = intent.scene_workflow?.phase;
         // A correction to the scene must not discard the reserved original just
