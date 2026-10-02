@@ -164,31 +164,31 @@ afterEach(() => {
   clients.forEach((c) => c.clear());
   clients.length = 0;
 });
-it("ouvre les clips sans quitter la session photo et reprend la version sélectionnée", async () => {
+it("guide librement la suite après une image générique, sans boutons sous l’image", async () => {
   mock.request.mockResolvedValue({ ...original(), versions: [{
     id: "version-ready", status: "ready", proposal, url: "/version.png",
     library_photo_id: null, error_message: null, created_at: "",
   }] });
   mount();
   await screen.findByText("Décris ton fond.");
-  await userEvent.click(await screen.findByRole("button", { name: "créer une vidéo" }));
-  expect(await screen.findByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Photos" }));
-  expect(screen.getByText("Décris ton fond.")).toBeInTheDocument();
+  expect(screen.getByText("Voilà la nouvelle version. Qu’est-ce que tu veux ajuster maintenant ? Réponds-moi directement ici.")).toBeInTheDocument();
+  const gallery = screen.getByRole("region", { name: "Visuels et versions" });
+  expect(within(gallery).queryByRole("button")).not.toBeInTheDocument();
+  expect(within(gallery).queryByRole("link")).not.toBeInTheDocument();
 });
-it("décrit les actions de l’image dans le chat, sans bouton « Créer un contenu »", async () => {
+it("remplace les anciennes actions par une question libre dans le chat", async () => {
   mock.request.mockResolvedValue({ ...original(), versions: [{
-    id: "version-ready", status: "ready", proposal, url: "/version.png",
+    id: "version-ready", status: "ready", proposal: { ...proposal, operation: "create" }, url: "/version.png",
     library_photo_id: "library-ready", error_message: null, created_at: "",
   }] });
   mount();
   await screen.findByText("Décris ton fond.");
-  expect(screen.getByText(/Avec cette image, tu peux/)).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "créer une vidéo" })).toBeInTheDocument();
-  expect(screen.getByText("elle est dans ta bibliothèque")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Créer un contenu" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Autres actions" })).not.toBeInTheDocument();
-  expect(screen.getByTestId("current-path")).not.toHaveTextContent("/creer");
+  expect(screen.getByText("Voilà l’image. Qu’est-ce que tu veux faire maintenant ? Réponds-moi directement ici.")).toBeInTheDocument();
+  expect(screen.queryByText(/Avec cette image, tu peux/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Image sélectionnée" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Joindre à ma demande" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "Agrandir l’image" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Ajouter à ma bibliothèque" })).not.toBeInTheDocument();
 });
 it("resends the first message after an interpretation failure without an invalid session read", async () => {
   let attempts = 0;

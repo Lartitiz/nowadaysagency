@@ -831,6 +831,15 @@ function Studio({
       .filter((v) => v.status === "ready")
       .find((v) => v.id !== version?.id)?.url ??
       undefined);
+  const readyFollowUp = version?.status === "ready"
+    ? version.proposal.scene_workflow?.phase === "scene"
+      ? "Voilà la scène. Qu’est-ce que tu veux faire maintenant ? Tu peux me demander de la modifier ou d’y intégrer tes références."
+      : version.proposal.scene_workflow?.phase === "integration"
+      ? "Voilà l’intégration. Qu’est-ce que tu veux ajuster maintenant ? Réponds-moi directement ici."
+      : version.proposal.operation === "background" || version.proposal.operation === "edit"
+      ? "Voilà la nouvelle version. Qu’est-ce que tu veux ajuster maintenant ? Réponds-moi directement ici."
+      : "Voilà l’image. Qu’est-ce que tu veux faire maintenant ? Réponds-moi directement ici."
+    : null;
   const label = version
     ? `Version ${
       current!.versions.filter((v) => v.status === "ready").findIndex((v) =>
@@ -1195,62 +1204,14 @@ function Studio({
                   </section>
                 )}
 
+                {!proposal && readyFollowUp && !version?.integration_proposal && (
+                  <div className="studio-message">
+                    <span className="block text-xs font-semibold mb-1">Studio</span>
+                    <p>{readyFollowUp}</p>
+                  </div>
+                )}
+
                 <section className="studio-chat-actions" aria-label="Actions sur l’image">
-                  {(version || current?.session.source_photo_id) && (() => {
-                    const linkCls = "p-0 h-auto inline align-baseline text-[13px] underline underline-offset-2 decoration-border hover:decoration-primary text-primary";
-                    const items: React.ReactNode[] = [];
-                    if (version && comparisonSource) {
-                      items.push(
-                        <button key="compare" type="button" className={linkCls} onClick={() => setCompare(!compare)}>
-                          {compare ? "voir la version seule" : "comparer avec la photo d’origine"}
-                        </button>
-                      );
-                    }
-                    if (version?.status === "ready" && version.proposal.composition) {
-                      items.push(
-                        <button key="compose" type="button" className={linkCls} disabled={!writable || !!busy}
-                          onClick={() => { setSelectedComposition(null); setCompositionDraft(version.proposal.composition); setCompositionOpen(true); }}>
-                          finaliser l’affiche avec ses textes
-                        </button>
-                      );
-                    }
-                    if (version?.status === "ready") {
-                      items.push(
-                        <button key="video" type="button" className={linkCls} onClick={() => chooseTab("video")}>
-                          créer une vidéo
-                        </button>
-                      );
-                    }
-                    if (display) {
-                      items.push(
-                        <button key="prep" type="button" className={linkCls} disabled={!!busy} onClick={() => void openPreparation()}>
-                          ajuster la lumière ou le format
-                        </button>
-                      );
-                    }
-                    if (version) {
-                      items.push(
-                        version.library_photo_id
-                          ? <span key="lib">elle est dans ta bibliothèque</span>
-                          : <button key="lib" type="button" className={linkCls} disabled={!!busy || !writable} onClick={() => void save()}>
-                              l’ajouter à ta bibliothèque
-                            </button>
-                      );
-                    }
-                    if (!items.length) return null;
-                    return (
-                      <p className="text-[13px] leading-relaxed text-muted-foreground">
-                        Avec cette image, tu peux{" "}
-                        {items.map((item, i) => (
-                          <span key={i}>
-                            {i > 0 && (i === items.length - 1 ? " ou " : ", ")}
-                            {item}
-                          </span>
-                        ))}
-                        .
-                      </p>
-                    );
-                  })()}
                   {generating && (
                     <div
                       role="status"
@@ -1773,7 +1734,7 @@ function Studio({
                   <div className="studio-gallery-header">
                     <div>
                       <h2 className="font-display text-2xl">Images créées dans cette discussion</h2>
-                      <p className="text-sm text-muted-foreground">Les nouvelles images suivent les précédentes. Choisis celle que tu veux reprendre.</p>
+                      <p className="text-sm text-muted-foreground">Les nouvelles images suivent les précédentes.</p>
                     </div>
                     <span className="text-xs text-muted-foreground">{current?.versions.length || 0} image{current?.versions.length === 1 ? "" : "s"}</span>
                   </div>
@@ -1806,15 +1767,7 @@ function Studio({
                           {selected && compare && comparisonSource && <figure><img src={comparisonSource} alt="Source de comparaison" /><figcaption>Source</figcaption></figure>}
                           <figure><img src={item.url} alt={`Image ${number} créée dans cette discussion`} loading="lazy" onError={() => setError("L’aperçu a expiré. Réessaie pour le recharger, sans régénérer.")} /><figcaption>{cleanStudioSummary(item.proposal.summary)}</figcaption></figure>
                         </div> : <p className="p-5 text-sm">{item.error_message || "Le résultat apparaîtra ici dès qu’il sera prêt."}</p>}
-                        <div className="studio-image-card-actions">
-                          {carouselReturn.ticket && item.status === "ready" && <Button size="sm" disabled={!writable || !!busy || carouselReturn.busy || !!generating} onClick={() => void carouselReturn.returnToCarousel(item)}>{carouselReturn.busy ? "Enregistrement…" : "Utiliser dans cette slide"}</Button>}
-                          {item.status === "ready" && <Button size="sm" variant={selected ? "default" : "outline"} onClick={() => { setSelectedId(item.id); setCompare(false); if (item.proposal.scene_workflow?.phase === "scene") setAttachments((item.proposal.planning_references || []).map(ref => ref.id)); }}>{selected ? "Image sélectionnée" : "Reprendre cette image"}</Button>}
-                          {item.status === "ready" && <Button size="sm" variant="outline" disabled={!writable || !!busy || generating || (references.length >= 8 && !references.some((ref) => ref.version_id === item.id))} onClick={() => void attachVersionAsReference(item.id)}>Joindre à ma demande</Button>}
-                          {item.status === "ready" && item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" className="studio-image-open">Agrandir l’image</a>}
-                          {item.status === "ready" && (item.library_photo_id
-                            ? <span className="text-xs text-muted-foreground">Dans la bibliothèque</span>
-                            : <Button size="sm" variant="outline" disabled={!writable || !!busy} onClick={() => void save(false, item)}>Ajouter à ma bibliothèque</Button>)}
-                        </div>
+                        {carouselReturn.ticket && item.status === "ready" && <div className="studio-image-card-actions"><Button size="sm" disabled={!writable || !!busy || carouselReturn.busy || !!generating} onClick={() => void carouselReturn.returnToCarousel(item)}>{carouselReturn.busy ? "Enregistrement…" : "Utiliser dans cette slide"}</Button></div>}
                       </article>;
                     })}
                   </div>}
