@@ -30,3 +30,14 @@ Deno.test("legacy versions rebuild the original subject without inheriting later
     [oldSubject.path, "product"], [newerStyle.path, "style"],
   ]);
 });
+
+import { onlyAdditions as _onlyAdditions } from "./branch-context.ts";
+Deno.test("onlyAdditions: scene refs kept, extra photo added", () => {
+  const casting = { id: "c", photo_id: null, path: "c.png", role: "casting", name: "Mannequin brutaliste urbain" } as never;
+  const product = { id: "p", photo_id: null, path: "p.png", role: "product", name: "dino1 (2)" } as never;
+  const extra = { id: "x", photo_id: null, path: "x.png", role: "product", name: "bag dino+S (2)" } as never;
+  if (!_onlyAdditions([casting, product], [extra, product, casting])) throw new Error("addition should pass");
+  if (_onlyAdditions([casting, product], [extra, casting])) throw new Error("removal must ask");
+  if (_onlyAdditions([casting, product], [casting, { ...(product as object), role: "decor" } as never])) throw new Error("role change must ask");
+  if (_onlyAdditions([], [casting])) throw new Error("empty version must ask");
+});

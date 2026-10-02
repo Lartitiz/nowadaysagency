@@ -43,3 +43,15 @@ export function referencesDiffer(a: Reference[], b: Reference[]): boolean {
     ])).sort();
   return JSON.stringify(keys(a)) !== JSON.stringify(keys(b));
 }
+
+const refKey = (r: Reference) => JSON.stringify([
+  r.path, r.role, r.name, r.kind || null, r.description || null, r.memory_id || null,
+]);
+
+// True when every reference used by the version is still present unchanged and
+// the session only gained extra photos since (nothing removed or edited).
+export function onlyAdditions(versionRefs: Reference[], currentRefs: Reference[]): boolean {
+  if (!versionRefs.length) return false;
+  const current = new Set(currentRefs.map(refKey));
+  return versionRefs.every((r) => current.has(refKey(r)));
+}
