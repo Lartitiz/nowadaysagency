@@ -251,6 +251,18 @@ it("asks which references to reuse before branching from an older version", asyn
   expect(sent[1].request_id).toBe(sent[0].request_id);
   expect(mock.request.mock.calls.some(([body]) => body.action === "generate")).toBe(false);
 });
+it("sends the message with Enter and keeps Shift+Enter for a new line", async () => {
+  mock.request.mockResolvedValue(original());
+  mount();
+  await screen.findByText("Décris ton fond.");
+  const box = screen.getByRole("textbox", { name: "Ta demande" }) as HTMLTextAreaElement;
+  fireEvent.change(box, { target: { value: "Un fond brut" } });
+  fireEvent.keyDown(box, { key: "Enter", shiftKey: true });
+  expect(mock.request.mock.calls.some(([body]) => body.action === "message")).toBe(false);
+  fireEvent.keyDown(box, { key: "Enter" });
+  await waitFor(() => expect(mock.request.mock.calls.some(([body]) =>
+    body.action === "message" && body.message === "Un fond brut")).toBe(true));
+});
 it("opens deterministic preparation from the chat and returns the saved copy", async () => {
   const state: StudioState = { ...original(), session: {
     ...original().session, messages: [{role:"assistant",text:"Éclaircir sans redessiner",operation:"existing_tool",existing_tool:"preparation",preparation:{exposure:0.2,format:"post"},viewed_version_id:"v1"}],

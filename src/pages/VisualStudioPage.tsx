@@ -1550,6 +1550,16 @@ function Studio({
                   value={draft}
                   maxLength={6000}
                   onChange={(e) => editDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+                    e.preventDefault();
+                    if (draft.trim()) {
+                      if (!writable || !!busy || generating || activeBranchChoice) return;
+                      void send();
+                    } else if (proposal && !error && !proposalGenerateDisabled) {
+                      void runProposalGenerate();
+                    }
+                  }}
                   disabled={!writable}
                   placeholder={proposal ? "Réponds pour ajuster la proposition…" : "Une idée, une question, une image à améliorer…"}
                 />
