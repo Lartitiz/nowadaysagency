@@ -1758,7 +1758,25 @@ function Studio({
                     {current.versions.slice(-galleryLimit).map((item) => {
                       const number = current.versions.findIndex((entry) => entry.id === item.id) + 1;
                       const selected = selectedId === item.id;
-                      return <article key={item.id} className={`studio-image-card${selected ? " selected" : ""}`}>
+                      return <article
+                        key={item.id}
+                        className={`studio-image-card${selected ? " selected" : ""}`}
+                        role={item.status === "ready" ? "option" : undefined}
+                        aria-selected={item.status === "ready" ? selected : undefined}
+                        tabIndex={item.status === "ready" ? 0 : undefined}
+                        onClick={item.status === "ready" ? () => {
+                          setSelectedId(item.id);
+                          setCompare(false);
+                          if (item.proposal.scene_workflow?.phase === "scene") setAttachments((item.proposal.planning_references || []).map(ref => ref.id));
+                        } : undefined}
+                        onKeyDown={item.status === "ready" ? (event) => {
+                          if (event.key !== "Enter" && event.key !== " ") return;
+                          event.preventDefault();
+                          setSelectedId(item.id);
+                          setCompare(false);
+                          if (item.proposal.scene_workflow?.phase === "scene") setAttachments((item.proposal.planning_references || []).map(ref => ref.id));
+                        } : undefined}
+                      >
                         <div className="studio-image-card-head">
                           <strong>Image {number}{item.proposal.series_size ? ` · série ${(item.proposal.series_index || 0) + 1}/${item.proposal.series_size}` : ""}</strong>
                           <span>{item.status === "processing" ? "Création en cours" : item.status === "ready" ? "Prête" : item.status === "failed" ? "Échec" : "À vérifier"}</span>

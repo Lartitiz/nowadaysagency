@@ -632,27 +632,24 @@ it("shows how to browse versions and opens the selected image", async () => {
   const gallery = screen.getByRole("region", { name: "Visuels et versions" });
   expect(within(gallery).getByText(/Les nouvelles images suivent les précédentes/)).toBeInTheDocument();
   expect(within(gallery).getByText("Image 1")).toBeInTheDocument();
-  fireEvent.click(within(gallery).getAllByRole("button", { name: "Reprendre cette image" })[0]);
+  fireEvent.click(within(gallery).getAllByRole("option")[0]);
+  expect(within(gallery).getAllByRole("option")[0]).toHaveAttribute("aria-selected", "true");
   expect(within(gallery).getByRole("img", { name: "Image 1 créée dans cette discussion" })).toHaveAttribute("src", "/first.png");
 });
-it("joins a generated image to the next message without saving it to the library", async () => {
+it("uses the selected generated image when the user answers in the chat", async () => {
   const start = original();
   const version = { id: "generated", status: "ready", proposal, url: "/generated.png", library_photo_id: null, error_message: null, created_at: "" };
-  let state = { ...start, versions: [version], session: { ...start.session, references: [] as Array<{
+  const state = { ...start, versions: [version], session: { ...start.session, references: [] as Array<{
     id: string; photo_id: string | null; version_id: string; name: string; role: string; url: string;
   }> } };
-  mock.request.mockImplementation((body) => {
-    if (body.action === "reference") state = { ...state, session: { ...state.session,
-      revision: 1, references: [{ id: "joined", photo_id: null, version_id: "generated", name: "Image générée", role: "style", url: "/generated.png" }],
-    } };
-    return Promise.resolve(state);
-  });
+  mock.request.mockResolvedValue(state);
   mount();
   await screen.findByText("Décris ton fond.");
-  fireEvent.click(screen.getByRole("button", { name: "Joindre à ma demande" }));
-  await screen.findByText("Image 1 · Image générée");
-  expect(mock.request.mock.calls.find(([body]) => body.action === "reference")?.[0]).toMatchObject({ version_id: "generated", reference_role: "style" });
-  expect(mock.request.mock.calls.some(([body]) => body.action === "save")).toBe(false);
+  fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), { target: { value: "Intègre mes luminaires dans cette image" } });
+  fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({
+    action: "message", viewed_version_id: "generated", message: "Intègre mes luminaires dans cette image",
+  })));
 });
 it("lets an AI-generated poster receive exact editable text after the image is ready", async () => {
   const design = {
@@ -773,8 +770,8 @@ it("editing an older selected version sends that parent, not the latest", async 
   });
   mock.request.mockResolvedValue({ ...start, versions: [v("v1"), v("v2")] });
   mount();
-  await screen.findAllByRole("button", { name: "Reprendre cette image" });
-  fireEvent.click(screen.getAllByRole("button", { name: "Reprendre cette image" })[0]);
+  await screen.findAllByRole("option");
+  fireEvent.click(screen.getAllByRole("option")[0]);
   fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), {
     target: { value: "Garde la scène, enlève la plante" },
   });
