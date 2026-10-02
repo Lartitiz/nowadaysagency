@@ -8,3 +8,5 @@
 
 - [ ] Déployer studio-video depuis 44658c09 (PR #1128) — bloqué : projet pas encore synchronisé (HEAD cd6a5c94)
 - [ ] Plafond vidéo 110 $ + migration promo BDMMA — en attente de confirmation (valeur actuelle 100 $, promo non appliquée)
+
+- [x] Studio : la scène créée rejoint les photos de référence (rôle « Décor à conserver »).

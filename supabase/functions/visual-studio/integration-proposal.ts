@@ -15,7 +15,7 @@ export function referenceSignature(refs: Reference[]) {
 export async function integrationProposal(version: SceneVersion, currentReferences?: Reference[]) {
   const scene = version.proposal;
   const workflow = scene.scene_workflow;
-  if (currentReferences && scene.scene_reference_signature && referenceSignature(currentReferences) !== scene.scene_reference_signature) return null;
+  if (currentReferences && scene.scene_reference_signature && referenceSignature(currentReferences.filter(r => r.version_id !== version.id)) !== scene.scene_reference_signature) return null;
   if (version.status !== "ready" || workflow?.phase !== "scene") return null;
   const refs = (scene.planning_references || []).filter(exactReference);
   const targets = (workflow.targets || []).map(t => ({ ...t,
