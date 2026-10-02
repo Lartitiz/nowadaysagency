@@ -1209,6 +1209,33 @@ function Studio({
                   <div className="studio-message">
                     <span className="block text-xs font-semibold mb-1">Studio</span>
                     <p>{readyFollowUp}</p>
+                    {identitySheet && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <Button type="button" variant="outline" className="h-auto whitespace-normal py-2"
+                          disabled={!writable || !!busy || !!generating}
+                          onClick={() => {
+                            const text = `Ce mannequin me convient. Prépare maintenant la scène : elle porte ${productName ? `« ${productName} »` : "mon produit"}, dans la direction artistique choisie.`;
+                            editDraft(text);
+                            setAutoSend(text);
+                          }}>
+                          {productName ? `Préparer la scène avec « ${productName} »` : "Préparer la scène"}
+                        </Button>
+                        <Button type="button" variant="outline" className="h-auto whitespace-normal py-2"
+                          disabled={!writable || !!busy || !!generating}
+                          onClick={() => {
+                            editDraft("Modifie le mannequin : ");
+                            const box = document.getElementById("studio-draft") as HTMLTextAreaElement | null;
+                            box?.focus();
+                          }}>
+                          Ajuster le mannequin
+                        </Button>
+                        <Button type="button" variant="outline" className="h-auto whitespace-normal py-2"
+                          disabled={!writable || !!busy || !!generating}
+                          onClick={() => openCastingRef.current?.()}>
+                          Le garder pour ma marque
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
 
