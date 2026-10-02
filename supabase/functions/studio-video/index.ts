@@ -88,6 +88,9 @@ export const COHORT_WORKSPACE_MAX_SUBMISSIONS = 2;
 // réunies (la variable d'environnement peut seulement l'abaisser).
 export const PLAN_CLIP_LIMIT_USD = 2;
 export const PLAN_TOTAL_LIMIT_USD = 100;
+// Clips de forfait générés EN MÊME TEMPS, tous espaces confondus (Higgsfield peut
+// limiter la concurrence par compte). Un seul clip à la fois par espace (index unique).
+export const PLAN_MAX_ACTIVE_CLIPS = 3;
 export type VideoLane = "trial" | "cohort" | "plan";
 export interface VideoAccess { lane: VideoLane; planClips: number }
 export function planVideoClips(plan: string) { return PLAN_LIMITS[plan]?.video ?? 0; }
@@ -153,7 +156,9 @@ export function overQuoteMessage(lane: VideoLane) {
 }
 export function claimFailureMessage(error: { message: string; code?: string }) {
   if (error.code === "23505" && error.message.includes("studio_video_one_active"))
-    return "Un autre clip est en cours. Attends son résultat avant de lancer celui-ci ; si le devis expire, vérifie à nouveau le prix.";
+    return "Un autre clip est en cours dans cet espace. Attends son résultat avant de lancer celui-ci ; si le devis expire, vérifie à nouveau le prix.";
+  if (error.message.includes("video_busy"))
+    return "Plusieurs clips sont déjà en cours de création. Réessaie dans quelques minutes ; si le devis expire, vérifie à nouveau le prix.";
   if (error.message.includes("video_month_exhausted")) return "Tu as utilisé tes vidéos du mois. Elles se renouvellent le 1er du mois.";
   if (error.message.includes("video_clip_too_expensive")) return overQuoteMessage("plan");
   if (error.message.includes("video_trial_exhausted")) return "Le nombre de lancements d’essai est atteint.";
@@ -542,7 +547,7 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         ? db.rpc("studio_video_claim_plan", {
           p_actor: pipe.userId, p_job: p.job_id, p_workspace: p.workspace_id,
           p_month_max_submissions: planClips, p_clip_limit: maxQuoteUsd(lane),
-          p_month_total_limit: ceilingUsd(lane),
+          p_month_total_limit: ceilingUsd(lane), p_max_active: PLAN_MAX_ACTIVE_CLIPS,
         })
         : lane === "cohort"
         ? db.rpc("studio_video_claim_cohort", {
