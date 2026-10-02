@@ -71,3 +71,20 @@ export function preferredProductReference(currentRefs: Reference[]): {
     ? { reference: [...groups.values()][0], ambiguous: false }
     : { reference: null, ambiguous: groups.size > 1 };
 }
+
+export const isWornProduct = (ref: Reference) => normalizedKind(ref) === "produit_porte";
+
+/** Every view of the single clean product: the clean shot(s) plus any photo the
+ * user marked as "another view" of it. Worn photos never join the group.
+ * Several distinct clean products are ambiguous and need a choice. */
+export function preferredProductGroup(currentRefs: Reference[]): {
+  references: Reference[];
+  ambiguous: boolean;
+} {
+  const key = (ref: Reference) => ref.subject_group || ref.id;
+  const products = currentRefs.filter(ref => ref.role === "product" && !isWornProduct(ref));
+  const cleanKeys = new Set(products.filter(ref => normalizedKind(ref) === "produit").map(key));
+  if (cleanKeys.size !== 1) return { references: [], ambiguous: cleanKeys.size > 1 };
+  const [groupKey] = [...cleanKeys];
+  return { references: products.filter(ref => key(ref) === groupKey), ambiguous: false };
+}
