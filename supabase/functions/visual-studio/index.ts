@@ -56,7 +56,7 @@ import {
 } from "./higgsfield-image.ts";
 import { handleMemory, readMemory } from "./memory.ts";
 import { executeStudioJob } from "./worker.ts";
-import { referencesAtVersion, referencesDiffer } from "./branch-context.ts";
+import { onlyAdditions, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
 
 declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void };
 const schema = z.object({
@@ -572,21 +572,29 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           : references;
         const changedReferences = !!parent &&
           referencesDiffer(versionReferences, references);
-        if (changedReferences && !p.branch_reference_mode && !p.reference_ids) {
+        // After a scene, extra photos left in the session are not a conflict:
+        // keep the scene's own references instead of asking.
+        const sceneKeepsRefs = changedReferences && !p.branch_reference_mode && !p.reference_ids &&
+          parent?.proposal?.scene_workflow?.phase === "scene" &&
+          onlyAdditions(versionReferences, references);
+        const branchMode = p.branch_reference_mode || (sceneKeepsRefs ? "version" : undefined);
+        if (changedReferences && !branchMode && !p.reference_ids) {
           return json({
             code: "branch_reference_choice",
+            version_names: versionReferences.map((r) => r.name).filter(Boolean),
+            current_names: references.map((r) => r.name).filter(Boolean),
             error:
               "Les références ont changé depuis cette version. Choisis celles à utiliser avant d’envoyer ; aucune image n’a été lancée.",
           }, 409);
         }
         const availableReferences = changedReferences &&
-            p.branch_reference_mode === "version"
+            branchMode === "version"
           ? versionReferences
           : references;
         if (p.reference_ids && p.reference_ids.some((id) =>
           !availableReferences.some((ref) => ref.id === id)
         )) return json({ error: "Une image jointe n'est plus disponible. Vérifie ta demande." }, 409);
-        const effectiveIds = newRequest ? (p.new_request || !session.messages.some((m: { role: string }) => m.role === "user") ? p.reference_ids || activeReferences(session, availableReferences) : []) : p.reference_ids ?? (p.branch_reference_mode || p.studio_version !== 4 ? availableReferences.map(ref => ref.id) : activeReferences(session, availableReferences));
+        const effectiveIds = newRequest ? (p.new_request || !session.messages.some((m: { role: string }) => m.role === "user") ? p.reference_ids || activeReferences(session, availableReferences) : []) : p.reference_ids ?? (branchMode || p.studio_version !== 4 ? availableReferences.map(ref => ref.id) : activeReferences(session, availableReferences));
         const requestReferences: Reference[] = [...(effectiveIds
           ? effectiveIds.length
             ? effectiveIds.map((id) => availableReferences.find((ref) => ref.id === id)!).filter(Boolean)

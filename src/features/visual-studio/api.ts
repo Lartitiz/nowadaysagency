@@ -176,6 +176,7 @@ export class StudioRequestError extends Error {
   constructor(
     message: string,
     public code?: string,
+    public detail?: Record<string, unknown> | null,
   ) {
     super(message);
   }
@@ -206,6 +207,7 @@ export async function studioRequest<T = StudioState>(
         ? message
         : "Le Studio est indisponible. Réessaie.",
       typeof detail?.code === "string" ? detail.code : undefined,
+      detail,
     );
   }
   return data as T;

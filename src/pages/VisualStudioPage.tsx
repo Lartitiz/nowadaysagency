@@ -283,6 +283,8 @@ function Studio({
   const [branchChoice, setBranchChoice] = useState<{
     target: string;
     revision: number;
+    versionNames?: string[];
+    currentNames?: string[];
   } | null>(null);
   const localKey = draftKey(userId, workspaceId, sessionId || "new");
   const [draft, setDraft] = useState(() => readDraft(localKey));
@@ -510,7 +512,13 @@ function Studio({
       }
       if (e instanceof StudioRequestError && e.code === "branch_reference_choice") {
         if (alive.current && selectedId && current) {
-          setBranchChoice({ target: selectedId, revision: current.session.revision });
+          const names = (v: unknown) => Array.isArray(v) ? v.filter((n): n is string => typeof n === "string") : [];
+          setBranchChoice({
+            target: selectedId,
+            revision: current.session.revision,
+            versionNames: names(e.detail?.version_names),
+            currentNames: names(e.detail?.current_names),
+          });
         }
         return null;
       }
@@ -1567,11 +1575,11 @@ function Studio({
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" variant="outline" disabled={!!busy}
                         onClick={() => void send("version")}>
-                        Celles de cette version
+                        Celles de cette version{branchChoice?.versionNames?.length ? ` : ${branchChoice.versionNames.join(", ")}` : ""}
                       </Button>
                       <Button type="button" variant="outline" disabled={!!busy}
                         onClick={() => void send("current")}>
-                        Mes références actuelles
+                        Mes photos actuelles{branchChoice?.currentNames?.length ? ` : ${branchChoice.currentNames.join(", ")}` : ""}
                       </Button>
                     </div>
                   </div>
