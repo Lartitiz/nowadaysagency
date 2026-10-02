@@ -481,12 +481,15 @@ Deno.serve(async (req) => {
       // chaque carrousel qualité max était compté ZÉRO (signalé le 14/09).
       "gpt-6-astra": 23,
     };
-    // Relecture éditoriale Astra de CHAQUE carrousel : elle n'écrit PAS dans
+    // Relecture éditoriale de CHAQUE carrousel (Astra jusqu’au 02/10, Claude ensuite) : elle n'écrit PAS dans
     // ai_usage (une ligne = un crédit décompté à l'utilisatrice), ses tokens
     // arrivent via content_quality_events.content_preview.editorial_usage, avec
     // entrée et sortie SÉPARÉES → tarif exact, pas de mix supposé.
     const REVIEW_COST_EUR_PER_MTOKEN: Record<string, { input: number; output: number }> = {
-      "gpt-6-astra": { input: 10, output: 50 },
+      "gpt-6-astra": { input: 10, output: 50 }, // relecture jusqu'au 02/10
+      // Relecture sur Claude depuis le 02/10 (4 $ / 20 $ par Mtok). Le cache
+      // de prompt est compté au plein tarif d'entrée : borne haute.
+      "claude-opus-5-5": { input: 4, output: 20 },
     };
 
     // Générations RÉELLES mais sans appel modèle : coût API nul, et c'est VOULU.
@@ -661,7 +664,8 @@ Deno.serve(async (req) => {
       }
       let cout = 0;
       const relecture = Object.entries(byModel).map(([modele, v]) => {
-        const tarif = REVIEW_COST_EUR_PER_MTOKEN[modele];
+        // L'API peut renvoyer un nom daté (claude-opus-5-5-2026xxxx).
+        const tarif = REVIEW_COST_EUR_PER_MTOKEN[modele] ?? REVIEW_COST_EUR_PER_MTOKEN[modele.replace(/-20\d{6}$/, "")];
         const c = tarif ? (tarif.input * v.input_tokens + tarif.output * v.output_tokens) / 1_000_000 : 0;
         cout += c;
         if (!tarif) {

@@ -88,19 +88,19 @@ Deno.test("révision : schéma et titre obligatoires ne deviennent pas vides", (
 });
 
 async function mockReview(response: string, run: (calls: any[]) => Promise<void>) {
-  const previousFetch = globalThis.fetch, key = Deno.env.get("OPENAI_API_KEY");
+  const previousFetch = globalThis.fetch, key = Deno.env.get("ANTHROPIC_API_KEY");
   const calls: any[] = [];
-  Deno.env.set("OPENAI_API_KEY", "test-no-network");
+  Deno.env.set("ANTHROPIC_API_KEY", "test-no-network");
   globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
-    assertEquals(_url, "https://api.openai.com/v1/responses");
+    assertEquals(_url, "https://api.anthropic.com/v1/messages");
     calls.push(JSON.parse(String(init?.body)));
     let input: any;
     try { input = JSON.parse(response); } catch { input = { reviews: [] }; }
-    return Promise.resolve(new Response(JSON.stringify({ model: "gpt-6-astra", status: "completed", output: [{ type: "function_call", name: "review_carousel_fields", arguments: JSON.stringify(input) }], usage: { input_tokens: 1, output_tokens: 1 } })));
+    return Promise.resolve(new Response(JSON.stringify({ model: "claude-opus-5-5", stop_reason: "tool_use", content: [{ type: "tool_use", name: "review_carousel_fields", input }], usage: { input_tokens: 1, output_tokens: 1 } })));
   }) as typeof fetch;
   try { await run(calls); } finally {
     globalThis.fetch = previousFetch;
-    if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key);
+    if (key === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", key);
   }
 }
 Deno.test("relecture globale : retouches coordonnées, une seule requête, structure et source intactes", async () => {
@@ -119,8 +119,8 @@ Deno.test("relecture globale : retouches coordonnées, une seule requête, struc
   await mockReview(JSON.stringify(response), async calls => {
     const output = JSON.parse(await applyCorrectionPassCarousel(JSON.stringify(draft), { semanticReview: true, currentBrief: "FIL CONFIRMÉ À PRÉSERVER : soutien, rôle, engagements" }));
     assertEquals(calls.length, 1);
-    assertStringIncludes(calls[0].instructions, "RELECTURE DE L'ENSEMBLE AVANT LES CHAMPS");
-    const message = calls[0].input.find((item: any) => item.role === "user");
+    assertStringIncludes(calls[0].system[0].text, "RELECTURE DE L'ENSEMBLE AVANT LES CHAMPS");
+    const message = calls[0].messages.find((item: any) => item.role === "user");
     const payload = JSON.stringify(message);
     assertStringIncludes(payload, "SÉQUENCE DES SLIDES");
     assertStringIncludes(payload, "FIL CONFIRMÉ À PRÉSERVER");
@@ -140,12 +140,15 @@ Deno.test("intégration correction : court, sans source, sans alerte regex, un s
     assertEquals(calls.length, 1);
     assertEquals(output.slides[0].body, "Les demandes se contredisent.");
     assertEquals(output.editorial_review.status, "reviewed");
-    assertStringIncludes(calls[0].instructions, "transition emphatique");
-    assertEquals(calls[0].reasoning, { effort: "medium" });
-    assertEquals(calls[0].store, false);
+    assertStringIncludes(calls[0].system[0].text, "transition emphatique");
+    assertEquals(calls[0].model, "claude-opus-5-5");
+    assertEquals(calls[0].thinking, { type: "adaptive" });
+    assertEquals(calls[0].output_config, { effort: "medium" });
     assertEquals(calls[0].temperature, undefined);
-    assertEquals(calls[0].tool_choice, { type: "function", name: "review_carousel_fields" });
-    assertEquals(output.editorial_review.model, "gpt-6-astra");
+    // Opus 5.5 refuse l'outil forcé (400) : outil en auto + consigne.
+    assertEquals(calls[0].tool_choice, { type: "auto", disable_parallel_tool_use: true });
+    assertEquals(calls[0].tools[0].name, "review_carousel_fields");
+    assertEquals(output.editorial_review.model, "claude-opus-5-5");
     assertEquals(output.editorial_review.total_usage, { input_tokens: 1, output_tokens: 1, total_tokens: 2 });
   });
 });
@@ -229,7 +232,7 @@ Deno.test("brief actuel : ses limites sont séparées du contexte général de m
   await mockReview(JSON.stringify(cleanReview(draft as any)), async calls => {
     await applyCorrectionPassCarousel(JSON.stringify(draft), { semanticReview: true,
       sourceContext: "La marque possède une boutique en ligne.", currentBrief: "Porte-savon : aucune disponibilité communiquée. Ton descriptif." });
-    const message = calls[0].input[0].content;
+    const message = calls[0].messages[0].content;
     assertStringIncludes(message, "BRIEF ACTUEL PRIORITAIRE");
     assertStringIncludes(message, "aucune disponibilité communiquée");
     assertStringIncludes(message, "Une information déclarée absente dans CE brief reste absente");
@@ -237,14 +240,14 @@ Deno.test("brief actuel : ses limites sont séparées du contexte général de m
   });
 });
 
-for (const failure of ["missing-key", "network", "wrong-model", "incomplete"]) Deno.test(`Astra ${failure} : conserve le brouillon, statut explicite, aucun fallback`, async () => {
-  const previousFetch = globalThis.fetch, key = Deno.env.get("OPENAI_API_KEY");
+for (const failure of ["missing-key", "network", "wrong-model", "incomplete"]) Deno.test(`Relecture ${failure} : conserve le brouillon, statut explicite, aucun fallback`, async () => {
+  const previousFetch = globalThis.fetch, key = Deno.env.get("ANTHROPIC_API_KEY");
   let calls = 0;
-  if (failure === "missing-key") Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", "test-only");
+  if (failure === "missing-key") Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", "test-only");
   globalThis.fetch = (async () => {
     calls++;
     if (failure === "network") throw new Error("Private provider error must not escape");
-    return new Response(JSON.stringify({ model: failure === "wrong-model" ? "gpt-other" : "gpt-6-astra", status: "incomplete" }));
+    return new Response(JSON.stringify({ model: failure === "wrong-model" ? "claude-other" : "claude-opus-5-5", stop_reason: "max_tokens", content: [] }));
   }) as typeof fetch;
   try {
     const output = JSON.parse(await applyCorrectionPassCarousel(JSON.stringify(doc), { semanticReview: true }));
@@ -252,20 +255,20 @@ for (const failure of ["missing-key", "network", "wrong-model", "incomplete"]) D
     assertEquals(output.caption, doc.caption);
     assertEquals(output.editorial_review.status, "unavailable");
     assertEquals(output.editorial_review.model, null);
-    assertEquals(output.editorial_review.requested_model, "gpt-6-astra");
+    assertEquals(output.editorial_review.requested_model, "claude-opus-5-5");
     assertEquals(output.editorial_review.error, ({ "missing-key": "missing_key", network: "network", "wrong-model": "wrong_model", incomplete: "incomplete" } as Record<string, string>)[failure]);
     assertEquals(calls, failure === "missing-key" ? 0 : 1);
   } finally {
     globalThis.fetch = previousFetch;
-    if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key);
+    if (key === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", key);
   }
 });
 
-Deno.test("Astra : seconde passe garde le brouillon de comparaison et cumule seulement son usage", async () => {
+Deno.test("Relecture : seconde passe garde le brouillon de comparaison et cumule seulement son usage", async () => {
   await mockReview(JSON.stringify(cleanReview()), async calls => {
     const first = await applyCorrectionPassCarousel(JSON.stringify(doc), { semanticReview: true });
     const second = JSON.parse(await applyCorrectionPassCarousel(first, { semanticReview: true, reviewBaseline: JSON.stringify(doc) }));
-    assertStringIncludes(calls[1].input[0].content, "BROUILLON AVANT RELECTURE");
+    assertStringIncludes(calls[1].messages[0].content, "BROUILLON AVANT RELECTURE");
     assertEquals(second.editorial_review.total_usage, { input_tokens: 2, output_tokens: 2, total_tokens: 4 });
     assertEquals(second.slides, doc.slides);
     // A new first pass must not inherit an unrelated previous usage count.
@@ -274,17 +277,17 @@ Deno.test("Astra : seconde passe garde le brouillon de comparaison et cumule seu
   });
 });
 
-Deno.test("Astra budget épuisé : la cause lisible remonte dans le rapport, sans message privé", async () => {
-  const previousFetch = globalThis.fetch, key = Deno.env.get("OPENAI_API_KEY");
-  Deno.env.set("OPENAI_API_KEY", "test-only");
-  globalThis.fetch = (async () => new Response(JSON.stringify({ error: { code: "insufficient_quota", type: "insufficient_quota", message: "PRIVATE_ACCOUNT_DETAILS" } }), { status: 429 })) as typeof fetch;
+Deno.test("Relecture crédit fournisseur épuisé : la cause lisible remonte dans le rapport, sans message privé", async () => {
+  const previousFetch = globalThis.fetch, key = Deno.env.get("ANTHROPIC_API_KEY");
+  Deno.env.set("ANTHROPIC_API_KEY", "test-only");
+  globalThis.fetch = (async () => new Response(JSON.stringify({ type: "error", error: { code: "credit_balance_exhausted", type: "rate_limit_error", message: "PRIVATE_ACCOUNT_DETAILS" } }), { status: 429 })) as typeof fetch;
   try {
     const output = JSON.parse(await applyCorrectionPassCarousel(JSON.stringify(doc), { semanticReview: true }));
     assertEquals(output.editorial_review.status, "unavailable");
-    assertEquals(output.editorial_review.error, "openai_http_429_insufficient_quota");
+    assertEquals(output.editorial_review.error, "anthropic_http_429_credit_balance_exhausted");
     assertEquals(JSON.stringify(output).includes("PRIVATE_ACCOUNT_DETAILS"), false);
   } finally {
     globalThis.fetch = previousFetch;
-    if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key);
+    if (key === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", key);
   }
 });
