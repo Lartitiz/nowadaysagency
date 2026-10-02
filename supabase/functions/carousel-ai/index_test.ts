@@ -52,7 +52,7 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     { slide_number: 4, slide_type: "text_only", title: "La réponse commune", body: "J'attends votre réponse avant de modifier la maquette." },
   ], caption: { body: "Les retours arrivent par e-mail.", hashtags: [] } };
   _deps.callAnthropic = (async (options: any, sink: any) => {
-    assertEquals(options.model, qualityMax ? "gpt-6-astra" : "claude-opus-5-5");
+    assertEquals(options.model, qualityMax ? "claude-fable-5-1" : "claude-opus-5-5");
     Object.assign(sink, { model: options.model, total_tokens: 30 });
     const prompt = options.system + JSON.stringify(options.messages) + JSON.stringify(options.tool);
     for (const contradiction of ["ARC NARRATIF OBLIGATOIRE", "MÉCANISME INVISIBLE", "CROYANCE SOUS-JACENTE", "AU MOINS 1 analogie", "30-50 mots MINIMUM", "le retournement FORMULÉ", "finale=dernière slide uniquement (question ouverte)", "Mieux vaut une généralisation honnête", "ce que ce mouvement révèle", "cf. DEPTH_LAYER_DUAL"]) {
@@ -102,7 +102,7 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, quality_max: qualityMax, news_context: news, photo_contexts: [{ context: "CONTEXTE_PHOTO_CONSERVÉ : trois demandes reçues par e-mail." }], slide_count: 4, narrative_thread: "FIL_VALIDÉ", content_structure: "PLAN_VALIDÉ", deepening_answers: { faits: "Retours par e-mail. Attendre une réponse commune avant la modification de la maquette." } }));
     assertEquals(res.status, 200);
     const output = await res.json();
-    assertEquals(output.writer, { version: "opus55-astra-medium-v1", model: qualityMax ? "gpt-6-astra" : "claude-opus-5-5", effort: "medium" });
+    assertEquals(output.writer, { version: "opus55-fable51-medium-v2", model: qualityMax ? "claude-fable-5-1" : "claude-opus-5-5", effort: "medium" });
     assertEquals(typeof output.content, "string");
     const parsed = JSON.parse(output.content.match(/\{[\s\S]*\}/)[0]);
     assertEquals(parsed.slides[1].body, "Les demandes se contredisent.");
@@ -131,7 +131,7 @@ for(const qualityMax of [false, true]) Deno.test(`writer quota and usage, hooks/
     _deps.checkQuota = (async (_id: string, cat: string) => { category = cat; checked.push(cat); if (cat !== "quality_max") order.push("quota"); return { allowed: true, plan: "outil" }; }) as any;
     _deps.callCarouselWriter = (async (options: any, sink: any) => {
       order.push("writer");
-      assertEquals(options.model, qualityMax ? "gpt-6-astra" : "claude-opus-5-5");
+      assertEquals(options.model, qualityMax ? "claude-fable-5-1" : "claude-opus-5-5");
       Object.assign(sink, { model: options.model, total_tokens: 123 });
       return JSON.stringify(type === "hooks" ? { hooks: [] } : { slides: [], caption: {} });
     }) as any;
@@ -148,7 +148,7 @@ for(const qualityMax of [false, true]) Deno.test(`writer quota and usage, hooks/
     assertEquals(checked, qualityMax ? ["quality_max", expected] : [expected]);
     assertEquals(logged[1], expected);
     assertEquals(logged[3], 123);
-    assertEquals(logged[4], qualityMax ? "gpt-6-astra" : "claude-opus-5-5");
+    assertEquals(logged[4], qualityMax ? "claude-fable-5-1" : "claude-opus-5-5");
     assertEquals(logged[5], TEST_WORKSPACE_ID);
   }
 });
@@ -846,7 +846,7 @@ for (const variant of ["photo", "mix"]) for (const quality_max of [false, true])
     assert(prompt.includes("réécris librement le fil, les rôles, les titres"));
     assert(!prompt.includes("STRUCTURE IMPOSÉE PAR L'UTILISATEUR"));
     assert(!prompt.includes("FIL CONFIRMÉ À PRÉSERVER"));
-    assertEquals(o.model, quality_max ? "gpt-6-astra" : "claude-opus-5-5");
+    assertEquals(o.model, quality_max ? "claude-fable-5-1" : "claude-opus-5-5");
     Object.assign(sink,{model:o.model,total_tokens:1});
     return JSON.stringify({slides:plan.map(s => ({slide_number:s.slide_number,role:"argument",photo_index:s.photo_index,slide_type:"photo_full",overlay_text:`Propos développé ${s.slide_number}`})),caption:{}});
   }) as any;
@@ -868,7 +868,7 @@ for(const carousel_type of ["photo","mix"])for(const quality_max of [false,true]
   let writes=0,reviews=0;
   _deps.callCarouselWriter=async(o,s)=>{
     writes++;assertEquals(o.tool?.name,"ecrire_texte_suivi");
-    assertEquals(o.model,quality_max?"gpt-6-astra":"claude-opus-5-5");
+    assertEquals(o.model,quality_max?"claude-fable-5-1":"claude-opus-5-5");
     assert(!JSON.stringify(o.messages).includes("Titre automatique à oublier"));
     if(s)Object.assign(s,{model:o.model,total_tokens:10});
     return JSON.stringify({idea:"Réparer prolonge l'usage",hook:"Choisir un objet qui peut rester",paragraphs,caption:{}});

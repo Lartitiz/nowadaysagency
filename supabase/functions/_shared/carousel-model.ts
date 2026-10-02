@@ -19,38 +19,49 @@ export function carouselWriterDiagnostic(error: unknown): string {
   return "exception";
 }
 
-export const CAROUSEL_WRITER_VERSION = "opus55-astra-medium-v1";
-export type CarouselWriterModel = "claude-opus-5" | "claude-opus-5-5" | "gpt-6-astra";
+export const CAROUSEL_WRITER_VERSION = "opus55-fable51-medium-v2";
+export type CarouselWriterModel = "claude-opus-5" | "claude-opus-5-5" | "claude-fable-5-1" | "gpt-6-astra";
 export type CarouselWriterOptions = Omit<AnthropicOptions, "model"> & { model: CarouselWriterModel };
+
+// Mode Max : Claude Fable 5.1 (le modèle Anthropic le plus capable) depuis le
+// 02/10 ; Astra (OpenAI) le faisait avant et tombait avec le crédit OpenAI.
+// Retour arrière SANS code : secret `CAROUSEL_MAX_WRITER` = "gpt-6-astra" (ou
+// "claude-opus-5-5"), lu à chaque requête.
+export const CAROUSEL_MAX_WRITER_DEFAULT = "claude-fable-5-1" as const;
+export function carouselMaxWriter(): CarouselWriterModel {
+  const override = Deno.env.get("CAROUSEL_MAX_WRITER");
+  return override === "gpt-6-astra" || override === "claude-opus-5-5" ? override : CAROUSEL_MAX_WRITER_DEFAULT;
+}
 
 // Rédacteur par défaut : Opus 5.5. `writer_bench: "claude-opus-5"` rejoue l'ancien
 // rédacteur pour comparaison ; carousel-ai ne le laisse passer que pour le compte
 // QA Camille (champ effacé pour tout autre compte).
 export function pickCarouselWriter(body: { quality_max?: boolean; writer_bench?: unknown }): CarouselWriterModel {
-  if (body.quality_max) return "gpt-6-astra";
+  if (body.quality_max) return carouselMaxWriter();
   if (body.writer_bench === "claude-opus-5") return "claude-opus-5";
   return "claude-opus-5-5";
 }
 
-// Opus 5.5 refuse `tool_choice` forcé (400) et ne coupe jamais sa réflexion :
-// outil en `auto` + consigne explicite, et une marge de max_tokens pour la
-// réflexion (qui compte dans le plafond sans être renvoyée).
-const OPUS55_MIN_MAX_TOKENS = 16000;
+// Opus 5.5 et Fable 5.1 refusent `tool_choice` forcé (400) et ne coupent jamais
+// leur réflexion : outil en `auto` + consigne explicite, et une marge de
+// max_tokens pour la réflexion (qui compte dans le plafond sans être renvoyée).
+const NO_FORCED_TOOL_MIN_MAX_TOKENS = 16000;
+const noForcedTool = (model: CarouselWriterModel) => model === "claude-opus-5-5" || model === "claude-fable-5-1";
 
 export function writerRequest(options: CarouselWriterOptions): Record<string, unknown> {
-  if (options.model === "claude-opus-5" || options.model === "claude-opus-5-5") {
-    const opus55 = options.model === "claude-opus-5-5";
-    const system = options.system && options.tool && opus55
+  if (options.model !== "gpt-6-astra") {
+    const autoTool = noForcedTool(options.model);
+    const system = options.system && options.tool && autoTool
       ? options.system + `\n\nLivre ta réponse uniquement en appelant l'outil \`${options.tool.name}\`, une seule fois.`
       : options.system;
     const maxTokens = options.max_tokens || 8192;
     return {
       model: options.model, system: system ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] : "",
-      messages: options.messages, max_tokens: opus55 ? Math.max(maxTokens, OPUS55_MIN_MAX_TOKENS) : maxTokens,
+      messages: options.messages, max_tokens: autoTool ? Math.max(maxTokens, NO_FORCED_TOOL_MIN_MAX_TOKENS) : maxTokens,
       thinking: { type: "adaptive" }, output_config: { effort: "medium" },
       ...(options.tool ? {
         tools: [options.tool],
-        tool_choice: opus55 ? { type: "auto", disable_parallel_tool_use: true } : { type: "tool", name: options.tool.name },
+        tool_choice: autoTool ? { type: "auto", disable_parallel_tool_use: true } : { type: "tool", name: options.tool.name },
       } : {}),
     };
   }
@@ -134,12 +145,12 @@ export async function callCarouselWriter(options: CarouselWriterOptions, sink?: 
       const retry = response.headers.get("retry-after");
       console.warn(JSON.stringify({event:"carousel_writer_failure",status:response.status,provider:openai?"openai":"anthropic",code,type,retry_after:retry && /^\d{1,6}$/.test(retry)?retry:null}));
       const exhausted = type === "insufficient_quota" || code === "insufficient_quota" || code === "credit_balance_exhausted";
-      throw new CarouselWriterError(response.status === 429 ? (exhausted ? `Le budget du fournisseur de rédaction est épuisé. ${openai ? "Le mode Max est indisponible ; tu peux utiliser le mode standard." : "Le mode standard est indisponible."} Aucun crédit décompté.` : "Le fournisseur refuse momentanément la génération (limite 429). Réessaie plus tard. Aucun crédit décompté.") : "Le modèle de rédaction est indisponible. Réessaie dans un instant.", response.status === 429 ? 429 : 502, `${openai ? "openai" : "anthropic"}_http_${response.status}${code ? "_" + code : type ? "_" + type : ""}`);
+      throw new CarouselWriterError(response.status === 429 ? (exhausted ? `Le budget du fournisseur de rédaction est épuisé. ${openai ? "Le mode Max est indisponible ; tu peux utiliser le mode standard." : "La génération de carrousels est indisponible."} Aucun crédit décompté.` : "Le fournisseur refuse momentanément la génération (limite 429). Réessaie plus tard. Aucun crédit décompté.") : "Le modèle de rédaction est indisponible. Réessaie dans un instant.", response.status === 429 ? 429 : 502, `${openai ? "openai" : "anthropic"}_http_${response.status}${code ? "_" + code : type ? "_" + type : ""}`);
     }
     const data = await response.json();
     // Opus 5.5 : l'outil n'est plus forcé. S'il répond sans l'appeler, on relance
     // UNE fois (même modèle, jamais de repli silencieux vers un autre).
-    if (options.model === "claude-opus-5-5" && options.tool && data.stop_reason === "end_turn"
+    if (noForcedTool(options.model) && options.tool && data.stop_reason === "end_turn"
       && !(data.content || []).some((b: any) => b.type === "tool_use" && b.name === options.tool!.name)) {
       console.log(JSON.stringify({ type: "carousel_writer_tool_retry", model: options.model }));
       const retry = await fetch("https://api.anthropic.com/v1/messages", {

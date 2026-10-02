@@ -145,7 +145,7 @@ Deno.test("tout modèle de rédaction ou de relecture carrousel est tarifé dans
   const writerSrc = await Deno.readTextFile(new URL("./carousel-model.ts", import.meta.url));
   const declares = [...(writerSrc.match(/export type CarouselWriterModel = ([^;]+);/)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
   const redacteurs = [...new Set([...declares, pickCarouselWriter({}), pickCarouselWriter({ quality_max: true })])];
-  assert(redacteurs.includes("gpt-6-astra"), `rédacteurs lus : ${redacteurs.join(", ")}`);
+  assert(redacteurs.includes("gpt-6-astra") && redacteurs.includes("claude-fable-5-1"), `rédacteurs lus : ${redacteurs.join(", ")}`);
   for (const m of [...redacteurs, CAROUSEL_REVIEW_MODEL]) {
     assert(texte.has(m), `« ${m} » absent de TEXT_COST_EUR_PER_MTOKEN : son coût serait compté 0 €`);
   }
