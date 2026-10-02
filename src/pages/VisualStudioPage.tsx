@@ -1575,7 +1575,7 @@ function Studio({
                   maxLength={6000}
                   onChange={(e) => editDraft(e.target.value)}
                   disabled={!writable}
-                  placeholder="Une idée, une question, une image à améliorer…"
+                  placeholder={proposal ? "Réponds pour ajuster la proposition…" : "Une idée, une question, une image à améliorer…"}
                 />
                 <input ref={fileInput} type="file" accept="image/*,.heic,.heif" multiple className="sr-only" aria-label="Importer plusieurs images" onChange={(event) => void addLocalFiles(event.target.files)} />
                 <div className="flex items-center gap-1 flex-wrap">
@@ -1585,17 +1585,30 @@ function Studio({
                   <Button variant="ghost" size="icon" className="studio-icon-btn shrink-0" title="Bibliothèque" aria-label="Depuis ma bibliothèque" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => setPicker(true)}>
                     <Library className="h-4 w-4" />
                   </Button>
-                  <Button
-                    className="ml-auto shrink-0 rounded-full px-6"
-                    disabled={!writable || !!busy || generating || activeBranchChoice ||
-                      !draft.trim()}
-                    onClick={() => void send()}
-                  >
-                    {busy === "message"
-                      ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      : null}
-                    Envoyer
-                  </Button>
+                  {proposal && !draft.trim() && !error ? (
+                    <Button
+                      className="ml-auto shrink-0 rounded-full px-5 h-auto min-h-10 py-2 whitespace-normal text-left"
+                      disabled={proposalGenerateDisabled}
+                      onClick={() => void runProposalGenerate()}
+                    >
+                      {busy === "generate"
+                        ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        : null}
+                      {proposalGenerateLabel}
+                    </Button>
+                  ) : (
+                    <Button
+                      className="ml-auto shrink-0 rounded-full px-6"
+                      disabled={!writable || !!busy || generating || activeBranchChoice ||
+                        !draft.trim()}
+                      onClick={() => void send()}
+                    >
+                      {busy === "message"
+                        ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        : null}
+                      Envoyer
+                    </Button>
+                  )}
                 </div>
                 {references.length >= 8 && <p className="text-xs text-muted-foreground">Huit références maximum. Retire une photo pour en choisir une autre.</p>}
               </div>
