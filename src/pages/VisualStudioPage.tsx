@@ -1194,7 +1194,7 @@ function Studio({
                   </div>
                 )}
 
-                <section className="studio-chat-actions" aria-label="Actions sur l’image">
+                <section aria-label="État de la création">
                   {generating && (
                     <div
                       role="status"

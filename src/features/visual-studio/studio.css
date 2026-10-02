@@ -143,16 +143,6 @@
 }
 .studio-proposal-details > summary:hover { text-decoration-color: hsl(var(--primary)); }
 .studio-proposal-details[open] { color: hsl(var(--foreground)); }
-.studio-chat-actions {
-  margin-top: 10px;
-}
-.studio-chat-actions button {
-  cursor: pointer;
-}
-.studio-chat-actions button:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
 .studio-current-image {
   display: grid;
   gap: 6px;
@@ -225,7 +215,6 @@
 .studio-image-card .studio-image-single img { height: auto; max-height: 660px; min-height: 0; }
 .studio-image-card .studio-comparison img { height: auto; max-height: 540px; min-height: 0; }
 .studio-image-card figcaption { max-height: 4.5em; overflow: hidden; }
-.studio-image-open { color: hsl(var(--primary)); font-size: 13px; text-decoration: underline; }
 .studio-source-details { margin-top: 24px; font-size: 13px; color: hsl(var(--muted-foreground)); }
 .studio-source-details summary { cursor: pointer; }
 .studio-attached-images { display: flex; gap: 8px; overflow-x: auto; margin: 0 0 10px; }
