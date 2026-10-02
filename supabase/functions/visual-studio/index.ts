@@ -150,9 +150,13 @@ async function visionFromStorage(
   // The interpreter never needs more than ~1568 px (the vision model downsizes
   // beyond that). Loading full originals for every reference exhausted the
   // worker memory (546 WORKER_RESOURCE_LIMIT). Generation still uses originals.
-  const light = await resized(1568);
-  if (light && /^image\/(jpeg|png|webp)$/.test(light.type) && light.size <= 5_000_000) {
-    return await visionBlock(light);
+  // Several references plus the parent version travel in one request (and its
+  // base64 copy is duplicated in the JSON body): keep each one small.
+  for (const width of [1024, 768]) {
+    const light = await resized(width);
+    if (light && /^image\/(jpeg|png|webp)$/.test(light.type) && light.size <= 1_500_000) {
+      return await visionBlock(light);
+    }
   }
   return await visionBlock(await download(sb, bucket, path), resized);
 }
