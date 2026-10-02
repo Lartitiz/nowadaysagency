@@ -71,3 +71,15 @@ it("keeps the punctuation after an emphasis with it (no paragraph starting with 
     for (const p of parts.filter(p => !p.emphasis)) expect(p.text).not.toMatch(/^[\s,;:.]/);
   }
 });
+
+it("never leaves the previous paragraph on a half sentence when the emphasis starts mid-sentence", () => {
+  for (const [text, emphasis, expected] of [
+    ["Tout commence par le pétrissage. Je travaille la terre à la main. C'est un geste que vous ne verrez jamais : une fois la pièce terminée, rien ne le montre.", "un geste que vous ne verrez jamais", "C'est un geste que vous ne verrez jamais : "],
+    ["Puis vient la cuisson. Je ne vois pas ce qui se passe dans le four, et c'est justement ce moment-là que je consigne.", "c'est justement ce moment-là que je consigne.", "Je ne vois pas ce qui se passe dans le four, et c'est justement ce moment-là que je consigne."],
+    ["Une seule laisse une trace : le carnet où je note chaque cuisson. La suite.", "le carnet où je note chaque cuisson", "le carnet où je note chaque cuisson. "],
+  ] as const) {
+    const parts = photoTextParts(text, false, emphasis);
+    expect(parts.map(p => p.text).join("")).toBe(text);
+    expect(parts.find(p => p.emphasis)?.text).toBe(expected);
+  }
+});
