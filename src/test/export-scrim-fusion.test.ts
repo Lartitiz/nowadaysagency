@@ -41,6 +41,16 @@ describe("parseScrimStyle — formats générés par photo-overlay-templates", (
     expect(parseScrimStyle("radial-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0))", "rgba(0, 0, 0, 0)")).toBeNull();
   });
 
+  it("voile teinté de la marque (02/10/2026) : couleur conservée pour la cuisson", () => {
+    expect(parseScrimStyle("linear-gradient(0deg, rgba(145, 1, 75, 0.85) 0%, rgba(145, 1, 75, 0) 100%)", "rgba(0, 0, 0, 0)"))
+      .toEqual({ kind: "gradient", anchor: "bottom", alpha: 0.85, rgb: "145,1,75" });
+    expect(parseScrimStyle("none", "rgba(35, 57, 91, 0.72)")).toEqual({ kind: "uniform", alpha: 0.72, rgb: "35,57,91" });
+  });
+
+  it("rejette un dégradé dont les deux arrêts n'ont pas la même couleur", () => {
+    expect(parseScrimStyle("linear-gradient(0deg, rgba(145, 1, 75, 0.85) 0%, rgba(0, 0, 0, 0) 100%)", "rgba(0, 0, 0, 0)")).toBeNull();
+  });
+
   it("rejette un élément sans voile (transparent, sans image)", () => {
     expect(parseScrimStyle("none", "rgba(0, 0, 0, 0)")).toBeNull();
     expect(parseScrimStyle("", "")).toBeNull();

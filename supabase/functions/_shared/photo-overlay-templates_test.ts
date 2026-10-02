@@ -289,8 +289,8 @@ Deno.test("photo veil uses canvas-compatible percentage stops, never calc gradie
   const text = Array(65).fill("développement").join(" ");
   const html = composePhotoSlide(base({overlay_text:text}), CH, mid).html;
   assert(!html.includes("calc("));
-  assert(html.includes(".62) 8%"));
-  assert(html.includes(".62) 92%"));
+  assert(html.includes(".74) 8%"));
+  assert(html.includes(".74) 92%"));
 });
 
 Deno.test("art direction : local paper uses brand colours and exact chosen phrase, without dropping CTA",()=>{
@@ -299,4 +299,21 @@ Deno.test("art direction : local paper uses brand colours and exact chosen phras
   assert(html.includes('data-pptx-shape="card"'));assert(html.includes("background:#fffafa"));assert(html.includes('text-align:center'));
   assert(!html.includes('data-photo-editorial-veil'));
   assert(html.replace(/<[^>]*>/g,"").includes(text));assert(html.includes("En savoir plus"));
+});
+
+Deno.test("voile de marque : charte foncée → dégradé teinté, reconnu par l'export ; charte sans couleur foncée → noir", () => {
+  const brand = { ...CH, color_primary: "#23395B" };
+  const html = composePhotoSlide(base({ overlay_text: "Une phrase courte pour ce lieu." }), brand, { ...mid, luminance: { bottom: 0.8 } }).html;
+  assert(html.includes("rgba(35,57,91,0.85) 0%,rgba(35,57,91,0) 100%"));
+  const neutral = composePhotoSlide(base({ overlay_text: "Une phrase courte pour ce lieu." }), CH, { ...mid, luminance: { bottom: 0.8 } }).html;
+  assert(neutral.includes("rgba(0,0,0,0.85)"));
+});
+
+Deno.test("voile éditorial : teinte de la marque et bouton d'invitation lisible", () => {
+  const text = "Ce carnet ne sert pas à effacer ces écarts, il m'aide à les comprendre. Le bol que tu choisis n'existe qu'une fois.";
+  const html = composePhotoSlide(base({ overlay_text: text, cta_label: "Viens voir la série", art_direction: { treatment: "closing", position: "bottom_left", emphasis: null, reason: "Fin", surface: "veil", alignment: "left" } }),
+    { ...CH, color_primary: "#91014b", color_background: "#FFF4F8", color_text: "#1A1A1A" }, { isFirst: false, isLast: true }).html;
+  assert(html.includes("rgba(145,1,75,.74) 8%"));
+  assert(/data-slide-text="cta"[^>]*background:#FFF4F8;color:#1A1A1A/.test(html));
+  assert(html.replace(/<[^>]*>/g, "").includes("Viens voir la série"));
 });

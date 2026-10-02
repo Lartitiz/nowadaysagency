@@ -622,10 +622,16 @@ export function positionPhotoText(slide: EditorSlide, position: "top_left" | "bo
   });
   // Existing gradient must follow the words too. A centered block needs a full veil.
   for (const scrim of doc.querySelectorAll<HTMLElement>("[data-injected-scrim]")) {
+    // Keep the brand tint of the veil (black for older slides).
+    const tint = /rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/.exec(scrim.getAttribute("style") || "");
+    const rgb = tint ? `${tint[1]},${tint[2]},${tint[3]}` : "0,0,0";
     scrim.style.top = position === "bottom_left" ? "auto" : "0";
     scrim.style.bottom = position === "bottom_left" ? "0" : "auto";
     scrim.style.height = position === "center" ? "1350px" : "66%";
-    scrim.style.background = position === "center" ? "rgba(0,0,0,0.85)" : `linear-gradient(${position === "top_left" ? "180deg" : "0deg"},rgba(0,0,0,0.85) 0%,rgba(0,0,0,0) 100%)`;
+    scrim.style.removeProperty("background");
+    // Written into the attribute: some DOM implementations drop gradients set through CSSOM.
+    const veil = position === "center" ? `rgba(${rgb},0.85)` : `linear-gradient(${position === "top_left" ? "180deg" : "0deg"},rgba(${rgb},0.85) 0%,rgba(${rgb},0) 100%)`;
+    scrim.setAttribute("style", `${(scrim.getAttribute("style") || "").replace(/;?\s*$/, ";")}background:${veil};`);
   }
   return { ...slide, data: { ...slide.data, overlay_position: position }, html: serialize(doc) };
 }
