@@ -37,16 +37,14 @@ interface Props {
 }
 
 export default function DiagnosticView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
-  const isMobile = useIsMobile();
-  return isMobile
-    ? <MobileSlides data={data} prenom={prenom} onComplete={onComplete} onCreateFirst={onCreateFirst} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />
-    : <DesktopScroll data={data} prenom={prenom} onComplete={onComplete} onCreateFirst={onCreateFirst} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />;
+  return <SlideView data={data} prenom={prenom} onComplete={onComplete} onCreateFirst={onCreateFirst} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />;
 }
 
-/* ═══ MOBILE: Slide-by-slide ═══ */
-function MobileSlides({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
+/* ═══ Slides — mode unique, mobile et ordinateur ═══ */
+function SlideView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
   const [slide, setSlide] = useState(0);
   const [touchStart, setTouchStart] = useState(0);
+  const isMobile = useIsMobile();
   const hasSummary = !!data.summary;
 
   const handleTouchStart = (e: React.TouchEvent) => setTouchStart(e.touches[0].clientX);
