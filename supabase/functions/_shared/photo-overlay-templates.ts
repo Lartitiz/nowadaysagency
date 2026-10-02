@@ -142,17 +142,27 @@ function zoneFor(position: string | null | undefined): keyof PhotoZoneLuminance 
   return "bottom";
 }
 
+/** Couleur des voiles : la teinte foncée de la marque quand elle en a une
+ * (primaire, puis couleur de titre), sinon le noir historique. Format "r,g,b",
+ * reconnu par l'export hybride (parseScrimStyle) pour cuire le voile dans la photo. */
+function veilRgb(ch: PhotoCharter): string {
+  const d = design(ch);
+  const dark = [d.primary, d.heading].find(c => hexLuminance(c.slice(1)) < .12);
+  if (!dark) return "0,0,0";
+  return [1, 3, 5].map(i => parseInt(dark.slice(i, i + 2), 16)).join(",");
+}
+
 /** Dégradé ancré au bord porteur du texte (bas par défaut). */
-function gradientScrim(position: string | null | undefined, peak: number, heightPct = 54): string {
-  if (position === "center") return fullDim(peak);
+function gradientScrim(position: string | null | undefined, peak: number, heightPct = 54, rgb = "0,0,0"): string {
+  if (position === "center") return fullDim(peak, rgb);
   const isTop = /^top/.test(String(position || ""));
   const dir = isTop ? "180deg" : "0deg";
-  return `<div data-injected-scrim="1" style="position:absolute;left:0;${isTop ? "top" : "bottom"}:0;width:${W}px;height:${heightPct}%;background:linear-gradient(${dir},rgba(0,0,0,${peak}) 0%,rgba(0,0,0,0) 100%);"></div>`;
+  return `<div data-injected-scrim="1" style="position:absolute;left:0;${isTop ? "top" : "bottom"}:0;width:${W}px;height:${heightPct}%;background:linear-gradient(${dir},rgba(${rgb},${peak}) 0%,rgba(${rgb},0) 100%);"></div>`;
 }
 
 /** Voile uniforme (gabarits centrés). */
-function fullDim(opacity: number): string {
-  return `<div data-injected-scrim="1" style="position:absolute;top:0;left:0;width:${W}px;height:${H}px;background:rgba(0,0,0,${opacity});"></div>`;
+function fullDim(opacity: number, rgb = "0,0,0"): string {
+  return `<div data-injected-scrim="1" style="position:absolute;top:0;left:0;width:${W}px;height:${H}px;background:rgba(${rgb},${opacity});"></div>`;
 }
 
 function photoLayer(photoIndex: number, zoom = false): string {
@@ -223,7 +233,7 @@ function tplCouverture(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): strin
   const label = s.kicker ? `<div data-pptx-editable="caption" style="display:inline-block;align-self:inherit;background:${d.primary};color:${d.onPrimary};border-radius:${Math.min(d.radius, 24)}px;padding:12px 20px;font-size:32px;line-height:1.35;margin-bottom:24px;max-width:100%;">${escapeHtml(s.kicker)}</div>` : "";
   const text = s.overlay_text || "";
   const parts = label + overlayAnchor(text, `font-family:${fontTitle};font-size:${heroSize(text)}px;line-height:1.1;letter-spacing:-1px;color:#FFFFFF;max-width:900px;`, "h1") + (s.detail ? detailHtml(s.detail, 28) : "");
-  return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72), wordCount(text) <= 12 ? 58 : 72) +
+  return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72), wordCount(text) <= 12 ? 58 : 72, veilRgb(ch)) +
     contentWrap(s.overlay_position || "bottom_left", "center", parts);
 }
 
@@ -238,13 +248,13 @@ function editorialOverlay(s: PhotoSlideSpec, ch: PhotoCharter, finale = false): 
   const align = ch.text_alignment || s.art_direction?.alignment || (s.overlay_position === "center" ? "center" : "left");
   // Use a dark brand hue where available; the neutral scrim preserves photo
   // colours when the primary is pale. Never identify a subject from luminance.
-  const tint = hexLuminance(d.primary.slice(1)) < .02 ? d.primary : "#161616";
+  const tint = [d.primary, d.heading].find(c => hexLuminance(c.slice(1)) < .12) || "#161616";
   const r = parseInt(tint.slice(1, 3), 16), g = parseInt(tint.slice(3, 5), 16), b = parseInt(tint.slice(5, 7), 16);
-  const gradient = `linear-gradient(180deg,rgba(${r},${g},${b},0) 0%,rgba(${r},${g},${b},.62) 8%,rgba(${r},${g},${b},.62) 92%,rgba(${r},${g},${b},0) 100%)`;
+  const gradient = `linear-gradient(180deg,rgba(${r},${g},${b},0) 0%,rgba(${r},${g},${b},.74) 8%,rgba(${r},${g},${b},.74) 92%,rgba(${r},${g},${b},0) 100%)`;
   const copy = `<div data-photo-editorial-text="${finale ? "finale" : "profonde"}" data-photo-emphasis="${escapeHtml(s.art_direction?.emphasis || "")}" data-slide-text="overlay" style="position:relative;--photo-veil:${gradient};--photo-title-font:${fontTitle};--photo-emphasis-size:${(emphasis / size).toFixed(3)}em;--photo-heading:${heading};font-family:${fontBody};font-size:${size}px;line-height:1.28;font-weight:400;white-space:pre-wrap;text-align:${align};color:${ink};text-shadow:${paper ? "none" : "0 2px 8px rgba(0,0,0,.55)"};">${photoEditorialMarkup(text, finale, s.art_direction?.emphasis)}</div>`;
   const parts = (s.kicker ? kickerHtml(s.kicker, heading) : "") + copy +
     (s.detail ? detailHtml(s.detail, 22, ink) : "") + (s.attribution ? detailHtml(s.attribution, 18, ink) : "") +
-    (s.cta_label ? `<div data-slide-cta="1" style="position:relative;margin-top:24px;"><span data-slide-text="cta" data-pptx-editable="caption" style="font-size:32px;line-height:1.3;color:${ink};">${escapeHtml(s.cta_label)}</span></div>` : "");
+    (s.cta_label ? `<div data-slide-cta="1" style="position:relative;margin-top:28px;"><span data-slide-text="cta" data-pptx-editable="caption" style="display:inline-block;background:${paper ? d.primary : d.background};color:${paper ? d.onPrimary : d.ink};border-radius:${Math.min(d.radius, 24)}px;padding:14px 24px;font-size:34px;line-height:1.3;text-shadow:none;max-width:100%;overflow-wrap:anywhere;">${escapeHtml(s.cta_label)}</span></div>` : "");
   // A pseudo-element follows drag/width edits without becoming an editable
   // object, source text, native text frame or false text-overflow rectangle.
   const veil = paper ? "" : `<style data-photo-editorial-veil="1">[data-photo-editorial-text]::before{content:"";position:absolute;pointer-events:none;left:-84px;right:-84px;top:-70px;bottom:-60px;background:var(--photo-veil);}</style>`;
@@ -261,7 +271,7 @@ function tplProfonde(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string 
   const parts = (s.kicker ? kickerHtml(s.kicker, usePanel ? d.heading : color) : "") +
     overlayAnchor(text, `font-family:${fontBody};font-size:${fitSize(40, text, 35)}px;line-height:1.45;color:${color};max-width:880px;`) +
     (s.detail ? detailHtml(s.detail, 24, color) : "");
-  return (usePanel ? "" : gradientScrim(s.overlay_position, scrimPeak(lum))) +
+  return (usePanel ? "" : gradientScrim(s.overlay_position, scrimPeak(lum), 54, veilRgb(ch))) +
     contentWrap(s.overlay_position || "bottom_left", "center", usePanel ? readingPanel(parts, ch) : parts);
 }
 
@@ -270,7 +280,7 @@ function tplEtiquette(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string
   const label = overlayAnchor(s.overlay_text || "", `display:inline-block;font-family:${cssFont(ch.font_title, "Georgia, serif")};background:${d.primary};color:${d.onPrimary};border-radius:${d.radius}px;padding:20px 32px;font-size:56px;line-height:1.15;max-width:880px;`, "div");
   // Source casing stays intact; brand geometry replaces the universal uppercase pill.
   const detail = s.detail ? detailHtml(s.detail, 26) : "";
-  return (detail ? gradientScrim(s.overlay_position || "bottom_left", scrimPeak(lum), 66) : "") +
+  return (detail ? gradientScrim(s.overlay_position || "bottom_left", scrimPeak(lum), 66, veilRgb(ch)) : "") +
     contentWrap(s.overlay_position || "bottom_left", "center", label + detail);
 }
 
@@ -315,7 +325,7 @@ function tplFinale(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
   const q = overlayAnchor(text, `font-family:${cssFont(ch.font_title, "Georgia, serif")};font-size:${fitSize(56, text, 20)}px;line-height:1.2;color:${usePanel ? d.ink : "#FFFFFF"};max-width:880px;`, "h2");
   const cta = s.cta_label ? `<div data-slide-cta="1" style="margin-top:30px;"><span data-slide-text="cta" data-pptx-editable="caption" style="display:inline-block;background:${d.primary};color:${d.onPrimary};border-radius:${Math.min(d.radius, 24)}px;padding:16px 24px;font-size:32px;line-height:1.35;max-width:100%;overflow-wrap:anywhere;">${escapeHtml(s.cta_label)}</span></div>` : "";
   const parts = (s.kicker ? kickerHtml(s.kicker, usePanel ? d.heading : "#FFFFFF") : "") + q + (s.detail ? detailHtml(s.detail, 24, usePanel ? d.ink : "#FFFFFF") : "") + cta;
-  return (usePanel ? "" : gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), .72), 66)) +
+  return (usePanel ? "" : gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), .72), 66, veilRgb(ch))) +
     contentWrap(s.overlay_position || "bottom_left", "center", usePanel ? readingPanel(parts, ch) : parts);
 }
 

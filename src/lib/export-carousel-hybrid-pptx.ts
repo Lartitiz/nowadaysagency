@@ -167,16 +167,20 @@ export interface ScrimSpec {
   kind: "gradient" | "uniform";
   /** gradient : bord porteur du noir ("bottom" = alpha max en bas). */
   anchor?: "top" | "bottom";
-  /** Alpha max du noir (pic du dégradé ou opacité du voile uniforme). */
+  /** Alpha max du voile (pic du dégradé ou opacité du voile uniforme). */
   alpha: number;
+  /** Couleur du voile "r,g,b" : noir historique ou teinte foncée de la marque. */
+  rgb?: string;
 }
 
 /**
  * Parse le style d'un [data-injected-scrim]. Formats générés par NOTRE code
  * (photo-overlay-templates.ts : gradientScrim / fullDim) :
- *   linear-gradient(0deg,   rgba(0,0,0,P) 0%, rgba(0,0,0,0) 100%)  → pic en bas
- *   linear-gradient(180deg, rgba(0,0,0,P) 0%, rgba(0,0,0,0) 100%)  → pic en haut
- *   background-color rgba(0,0,0,A) sans background-image            → uniforme
+ *   linear-gradient(0deg,   rgba(R,G,B,P) 0%, rgba(R,G,B,0) 100%)  → pic en bas
+ *   linear-gradient(180deg, rgba(R,G,B,P) 0%, rgba(R,G,B,0) 100%)  → pic en haut
+ *   background-color rgba(R,G,B,A) sans background-image            → uniforme
+ * R,G,B = noir (historique) ou teinte foncée de la marque (02/10/2026) ; les
+ * deux arrêts du dégradé doivent porter la MÊME couleur.
  * ⚠️ getComputedStyle OMET l'angle quand c'est la direction par défaut :
  * `180deg` (= to bottom) sérialise SANS angle → angle absent = pic en haut.
  * Retourne null si le style ne matche pas — le voile reste alors dans le raster.
@@ -186,20 +190,23 @@ export function parseScrimStyle(
   backgroundColor: string,
 ): Omit<ScrimSpec, "rect"> | null {
   const grad = (backgroundImage || "").match(
-    /linear-gradient\(\s*(?:(0|180)deg\s*,\s*)?rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*([\d.]+)\s*\)(?:\s*0%)?\s*,\s*rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)(?:\s*100%)?\s*\)/i,
+    /linear-gradient\(\s*(?:(0|180)deg\s*,\s*)?rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*([\d.]+)\s*\)(?:\s*0%)?\s*,\s*rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*0\s*\)(?:\s*100%)?\s*\)/i,
   );
   if (grad) {
-    const alpha = parseFloat(grad[2]);
+    const alpha = parseFloat(grad[5]);
     if (!(alpha > 0 && alpha <= 1)) return null;
-    // CSS : 0deg = dégradé orienté vers le haut → premier stop (noir) au BAS.
-    // Angle absent (défaut 180deg = to bottom) → premier stop (noir) en HAUT.
-    return { kind: "gradient", anchor: grad[1] === "0" ? "bottom" : "top", alpha };
+    const from = [grad[2], grad[3], grad[4]].map(Number), to = [grad[6], grad[7], grad[8]].map(Number);
+    if (from.some((v, i) => v !== to[i] || v > 255)) return null;
+    // CSS : 0deg = dégradé orienté vers le haut → premier stop (opaque) au BAS.
+    // Angle absent (défaut 180deg = to bottom) → premier stop (opaque) en HAUT.
+    return { kind: "gradient", anchor: grad[1] === "0" ? "bottom" : "top", alpha, ...(from.some(Boolean) ? { rgb: from.join(",") } : {}) };
   }
   if (!backgroundImage || backgroundImage === "none") {
-    const uni = (backgroundColor || "").match(/rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*([\d.]+)\s*\)/i);
+    const uni = (backgroundColor || "").match(/rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*([\d.]+)\s*\)/i);
     if (uni) {
-      const alpha = parseFloat(uni[1]);
-      if (alpha > 0 && alpha < 0.99) return { kind: "uniform", alpha };
+      const alpha = parseFloat(uni[4]);
+      const rgb = [uni[1], uni[2], uni[3]].map(Number);
+      if (alpha > 0 && alpha < 0.99 && rgb.every(v => v <= 255)) return { kind: "uniform", alpha, ...(rgb.some(Boolean) ? { rgb: rgb.join(",") } : {}) };
     }
   }
   return null;
@@ -240,14 +247,15 @@ async function burnScrimsIntoPhoto(
           const rw = s.rect.w * sx;
           const rh = s.rect.h * sy;
           if (rw <= 0 || rh <= 0) continue;
+          const rgb = s.rgb || "0,0,0";
           if (s.kind === "uniform") {
-            ctx.fillStyle = `rgba(0,0,0,${s.alpha})`;
+            ctx.fillStyle = `rgba(${rgb},${s.alpha})`;
           } else {
             const from = s.anchor === "top" ? ry : ry + rh;
             const to = s.anchor === "top" ? ry + rh : ry;
             const g = ctx.createLinearGradient(0, from, 0, to);
-            g.addColorStop(0, `rgba(0,0,0,${s.alpha})`);
-            g.addColorStop(1, "rgba(0,0,0,0)");
+            g.addColorStop(0, `rgba(${rgb},${s.alpha})`);
+            g.addColorStop(1, `rgba(${rgb},0)`);
             ctx.fillStyle = g;
           }
           ctx.fillRect(rx, ry, rw, rh);
