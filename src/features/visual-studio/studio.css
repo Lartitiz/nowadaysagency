@@ -1,15 +1,28 @@
+/* Studio visuel — esthétique Apple : fond blanc, gris neutres, accent bordeaux.
+   Les tokens sont surchargés uniquement dans cette page ; le reste de l'app
+   garde le thème framboise global. */
 .studio-page {
   max-width: 1600px;
   margin: auto;
   padding-bottom: 24px;
+  --background: 0 0% 100%;
+  --muted: 240 5% 96%;
+  --muted-foreground: 240 4% 46%;
+  --border: 0 0% 91%;
+  --primary: 331 98% 29%;
+  --primary-foreground: 0 0% 100%;
+  background: hsl(var(--background));
 }
 .studio-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 8px 20px;
   border-bottom: 1px solid hsl(var(--border));
+}
+.studio-header-right {
+  justify-self: end;
 }
 .studio-header-left {
   display: flex;
@@ -18,12 +31,14 @@
   flex-wrap: wrap;
   min-width: 0;
 }
-.studio-tabs { display: flex; gap: 12px; font-size: 14px; }
+.studio-tabs { display: flex; gap: 32px; font-size: 14px; }
 .studio-tabs button {
   color: hsl(var(--muted-foreground));
-  padding: 2px 0;
+  padding: 6px 0;
   border-bottom: 2px solid transparent;
+  transition: color 0.15s ease;
 }
+.studio-tabs button:hover { color: hsl(var(--foreground)); }
 .studio-tabs button[data-active="true"] {
   color: hsl(var(--primary));
   border-bottom-color: hsl(var(--primary));
@@ -154,7 +169,7 @@
 .studio-stage {
   padding: 28px;
   overflow: auto;
-  background: hsl(var(--muted) / 0.35);
+  background: hsl(var(--background));
   min-width: 0;
 }
 .studio-gallery-header {
@@ -330,9 +345,18 @@
   text-align: center;
   gap: 20px;
   padding: 28px;
-  border: 1px dashed hsl(var(--border));
   border-radius: 18px;
   background: hsl(var(--background));
+}
+.studio-empty-icon {
+  width: 96px;
+  height: 96px;
+  border-radius: 24px;
+  background: hsl(var(--muted));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: hsl(var(--muted-foreground));
 }
 .studio-empty p {
   max-width: 420px;
