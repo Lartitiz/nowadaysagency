@@ -1778,6 +1778,7 @@ function Studio({
                     disabled={!writable || !!busy || !!generating}
                     onSave={(values) => mutate("memory_save", values)}
                     onApply={(id) => mutate("memory_apply", { memory_id: id, revision: current.session.revision })}
+                    registerCastingOpener={(open) => { openCastingRef.current = open; }}
                   />}
                   {!current?.versions.length && <div className="studio-empty">
                     <div className="studio-empty-icon"><Sparkles className="h-9 w-9" /></div>
