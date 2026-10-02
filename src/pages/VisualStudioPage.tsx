@@ -15,6 +15,7 @@ import {
   ImagePlus,
   Library,
   Loader2,
+  Plus,
   RefreshCw,
   SlidersHorizontal,
   Sparkles,
@@ -1531,27 +1532,36 @@ function Studio({
                 </section>
               </div>
               <div className="studio-composer p-3 border-t space-y-2">
-                {(hasExtraTools || current) && (
-                  <div className="studio-link-row">
+                <div className="studio-toolbar">
+                  <div className="studio-toolbar-group">
                     {hasExtraTools && (
-                      <button type="button" className="studio-link" onClick={() => setToolsOpen(true)}>
-                        {references.length ? `Références (${references.length})` : "Outils et créations"}
+                      <button type="button" className="studio-toolbar-btn" onClick={() => setToolsOpen(true)}>
+                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                        {references.length ? `Références · ${references.length}` : "Outils et créations"}
                       </button>
                     )}
                     {current && (
-                      <>
-                        <button type="button" className="studio-link" disabled={!writable || !!busy} onClick={() => setExistingTool("before_after")}>Avant / après</button>
-                        <button type="button" className="studio-link" disabled={!writable || !!busy} onClick={() => setExistingTool("mockup")}>Mockup d’offre</button>
-                      </>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button type="button" className="studio-toolbar-btn" disabled={!writable || !!busy}>
+                            Options
+                            <Ellipsis className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem disabled={!writable || !!busy} onClick={() => setExistingTool("before_after")}>Avant / après</DropdownMenuItem>
+                          <DropdownMenuItem disabled={!writable || !!busy} onClick={() => setExistingTool("mockup")}>Mockup d’offre</DropdownMenuItem>
+                          <DropdownMenuItem disabled={!writable || !!busy || generating}
+                            aria-label="Nouvelle demande sans ces références" onClick={() => void updateSelection([], true)}>Nouvelle demande</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                   </div>
-                )}
-                <div className="studio-link-row">
-                  {!!selectedId && <button type="button" className="studio-link text-primary" onClick={() => { setSelectedId(null); setSelectedReferenceId(null); setCompare(false); }}>
-                    Image sélectionnée · changer ×
+                  {!!selectedId && <button type="button" className="studio-selection-pill" onClick={() => { setSelectedId(null); setSelectedReferenceId(null); setCompare(false); }}>
+                    <span className="studio-selection-dot" aria-hidden="true" />
+                    Image sélectionnée
+                    <span className="studio-selection-clear" aria-hidden="true">×</span>
                   </button>}
-                  {current && <button type="button" className="studio-link" disabled={!writable || !!busy || generating}
-                    aria-label="Nouvelle demande sans ces références" onClick={() => void updateSelection([], true)}>Nouvelle demande</button>}
                 </div>
                 {activeBranchChoice && (
                   <div role="status" className="rounded-lg border border-primary/30 bg-card p-3 space-y-2 text-sm">
@@ -1595,15 +1605,15 @@ function Studio({
                   placeholder="Une idée, une question, une image à améliorer…"
                 />
                 <input ref={fileInput} type="file" accept="image/*,.heic,.heif" multiple className="sr-only" aria-label="Importer plusieurs images" onChange={(event) => void addLocalFiles(event.target.files)} />
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Button variant="ghost" size="sm" className="whitespace-nowrap shrink-0" aria-label="Ajouter des images" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => fileInput.current?.click()}>
-                    <ImagePlus className="h-4 w-4 mr-2" /> Importer
+                <div className="flex items-center gap-1 flex-wrap">
+                  <Button variant="ghost" size="icon" className="studio-icon-btn shrink-0" title="Importer" aria-label="Ajouter des images" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => fileInput.current?.click()}>
+                    <ImagePlus className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" className="whitespace-nowrap shrink-0" aria-label="Depuis ma bibliothèque" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => setPicker(true)}>
-                    Bibliothèque
+                  <Button variant="ghost" size="icon" className="studio-icon-btn shrink-0" title="Bibliothèque" aria-label="Depuis ma bibliothèque" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => setPicker(true)}>
+                    <Library className="h-4 w-4" />
                   </Button>
                   <Button
-                    className="ml-auto shrink-0"
+                    className="ml-auto shrink-0 rounded-full px-6"
                     disabled={!writable || !!busy || generating || activeBranchChoice ||
                       !draft.trim()}
                     onClick={() => void send()}

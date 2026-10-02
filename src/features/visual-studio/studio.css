@@ -406,6 +406,72 @@
   min-width: 0;
 }
 
+/* Rangée d'outils compacte au-dessus du champ de demande */
+.studio-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.studio-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.studio-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 0.5);
+  border: 1px solid hsl(var(--border));
+  border-radius: 9999px;
+  padding: 3px 10px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.studio-toolbar-btn:hover:not(:disabled) {
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary) / 0.4);
+}
+.studio-toolbar-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.studio-selection-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: hsl(var(--primary));
+  background: hsl(var(--muted) / 0.5);
+  border: 1px solid hsl(var(--border));
+  border-radius: 9999px;
+  padding: 3px 10px;
+}
+.studio-selection-pill:hover { border-color: hsl(var(--primary) / 0.4); }
+.studio-selection-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: hsl(var(--primary));
+}
+.studio-selection-clear {
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1;
+}
+.studio-selection-pill:hover .studio-selection-clear { color: hsl(var(--primary)); }
+.studio-icon-btn {
+  color: hsl(var(--muted-foreground));
+  border: 1px solid transparent;
+}
+.studio-icon-btn:hover:not(:disabled) {
+  color: hsl(var(--primary));
+  background: hsl(var(--muted) / 0.6);
+  border-color: hsl(var(--border));
+}
+
 /* Accordéon repliable des photos attachées à la demande */
 .studio-photos-accordion > summary {
   display: flex;
@@ -413,7 +479,10 @@
   gap: 6px;
   cursor: pointer;
   list-style: none;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: hsl(var(--muted-foreground));
   user-select: none;
   padding: 2px 0;
