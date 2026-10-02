@@ -91,8 +91,9 @@ function SlideView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasW
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="max-w-lg w-full">
+      {/* Contenu centré ; seule la slide défile si elle dépasse, jamais la page */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex items-center justify-center p-6">
+        <div className="max-w-lg md:max-w-2xl w-full my-auto">
           <AnimatePresence mode="wait">
             <motion.div
               key={slide}
