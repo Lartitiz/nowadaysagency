@@ -1145,32 +1145,6 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.uses_selected_version = true;
         }
         const phase = intent.scene_workflow?.phase;
-        // On a selected scene or integration branch, a clean product shot currently
-        // attached to the request governs exact product fidelity. A worn shot is only
-        // a fallback and must not silently displace the clean product photograph.
-        if (phase === "integration" && ["scene", "integration"].includes(parent?.proposal.scene_workflow?.phase) &&
-          intent.scene_workflow?.targets?.some(target => target.role === "product")) {
-          const preferred = preferredProductReference(references);
-          if (preferred.ambiguous) {
-            intent.operation = "clarify";
-            intent.summary = "Plusieurs produits seuls sont joints. Choisis la photo du produit exact à intégrer avant de lancer l’image. Aucune image n’a été lancée.";
-          } else if (preferred.reference) {
-            const preferredReference = preferred.reference;
-            for (let i = resolvedReferences.length - 1; i >= 0; i--) {
-              if (resolvedReferences[i].role === "product" && resolvedReferences[i].id !== preferredReference.id) resolvedReferences.splice(i, 1);
-            }
-            if (!resolvedReferences.some(ref => ref.id === preferredReference.id)) resolvedReferences.push(preferredReference);
-            // One exact product = one target: earlier branches may carry a product
-            // target per photo (clean + worn); remapping both would duplicate it.
-            let productKept = false;
-            intent.scene_workflow.targets = intent.scene_workflow.targets.flatMap(target => {
-              if (target.role !== "product") return [target];
-              if (productKept) return [];
-              productKept = true;
-              return [{ ...target, reference_ids: [preferredReference.id] }];
-            });
-          }
-        }
         // A correction to the scene must not discard the reserved original just
         // because the interpreter omitted a planning-only image in reference_use.
         if (phase && intent.operation === "edit") {
@@ -1179,6 +1153,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             intent.summary = "Retire une référence pour conserver le produit original avec cette scène (huit images maximum).";
           } else resolvedReferences.push(...reservedProducts.filter(ref => !resolvedReferences.some(r => r.id === ref.id)));
         }
+        let rebaseScenePath: string | null = null;
         if (phase && intent.scene_workflow && generative(intent.operation)) {
           const previous = parent?.proposal?.scene_workflow;
           const sameBranch = !newPhoto && parent && (!explicitSource || explicitSource.path === parent.result_path);
@@ -1187,23 +1162,70 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               targets: intent.scene_workflow.targets || previous.targets };
           }
           const workflow = intent.scene_workflow!;
-          const originals = resolvedReferences.filter(exactReference);
-          workflow.targets = repairTargets(workflow.targets || [], originals,
-            newRequest ? [] : conversation?.targets || [], intent.product_placement);
-          if (!validTargets(workflow.targets, originals)) {
-            const problems = targetProblems(workflow.targets, originals);
-            console.warn("[visual-studio:targets]", JSON.stringify({ request_id: p.request_id, revision: session.revision, problems }));
-            intent.operation = "clarify";
-            intent.summary = problems.length === 1 && problems[0] === "unmapped_original" && originals.filter(r => r.role === "person" || r.role === "casting").length > 1
-              ? "Ces portraits montrent-ils la même personne sous plusieurs angles, ou des personnes différentes ?"
-              : "La préparation des références est incohérente. Tes photos et tes indications sont conservées ; renvoie ta demande pour réessayer. Aucune image n’a été lancée.";
+          // On a selected scene or integration branch, the clean product shot (and
+          // every view marked as the same product) governs exact product fidelity.
+          // Worn photos are excluded: they made the generator copy a vague ring.
+          if (phase === "integration" && ["scene", "integration"].includes(parent?.proposal.scene_workflow?.phase) &&
+            (workflow.targets || []).some(target => target.role === "product")) {
+            if (cleanProductGroup.ambiguous) {
+              intent.operation = "clarify";
+              intent.summary = "Plusieurs produits seuls sont joints. Choisis la photo du produit exact à intégrer, ou indique qu’une photo est une « Autre vue » du même produit. Aucune image n’a été lancée.";
+            } else if (cleanProductGroup.references.length) {
+              const group = cleanProductGroup.references;
+              const ids = group.map(ref => ref.id);
+              const dropped = new Set(resolvedReferences.filter(ref => (ref.role === "product" && !ids.includes(ref.id)) || excludedWorn(ref)).map(ref => ref.id));
+              for (let i = resolvedReferences.length - 1; i >= 0; i--) {
+                if (dropped.has(resolvedReferences[i].id)) resolvedReferences.splice(i, 1);
+              }
+              for (const ref of group) {
+                if (!resolvedReferences.some(r => r.id === ref.id) && resolvedReferences.length < MAX_REFERENCES) resolvedReferences.push(ref);
+              }
+              const sent = ids.filter(id => resolvedReferences.some(r => r.id === id));
+              // One exact product = one target, sourced from all its views.
+              let productKept = false;
+              workflow.targets = (workflow.targets || []).flatMap(target => {
+                if (target.role === "product") {
+                  if (productKept) return [];
+                  productKept = true;
+                  return [{ ...target, reference_ids: sent }];
+                }
+                const kept = target.reference_ids.filter(id => !dropped.has(id));
+                return kept.length ? [{ ...target, reference_ids: kept }] : [];
+              });
+              // The selected integration already shows a product built from other
+              // photos (e.g. the worn shot): retouching it keeps the wrong product.
+              // Re-integrate from the approved scene instead.
+              const parentWorkflow = parent?.proposal.scene_workflow;
+              const parentProducts = ((parent?.proposal.reference_snapshot || parent?.proposal.references || []) as Reference[])
+                .filter(ref => ref.role === "product" || ref.role === "person_product");
+              const parentUsedOther = parentProducts.some(ref => !sent.includes(ref.id)) || sent.some(id => !parentProducts.some(ref => ref.id === id));
+              if (parentWorkflow?.phase === "integration" && parentWorkflow.scene_path && parent?.result_path &&
+                parentWorkflow.scene_path !== parent.result_path && parentUsedOther &&
+                (!explicitSource || explicitSource.path === parent.result_path)) {
+                rebaseScenePath = parentWorkflow.scene_path;
+                intent.summary = `${intent.summary} Je repars de la scène validée pour y placer ton produit exact, sans garder le produit de l’image précédente.`.trim();
+              }
+            }
+          }
+          if (generative(intent.operation)) {
+            const originals = resolvedReferences.filter(exactReference);
+            workflow.targets = repairTargets(workflow.targets || [], originals,
+              newRequest ? [] : conversation?.targets || [], intent.product_placement);
+            if (!validTargets(workflow.targets, originals)) {
+              const problems = targetProblems(workflow.targets, originals);
+              console.warn("[visual-studio:targets]", JSON.stringify({ request_id: p.request_id, revision: session.revision, problems }));
+              intent.operation = "clarify";
+              intent.summary = problems.length === 1 && problems[0] === "unmapped_original" && originals.filter(r => r.role === "person" || r.role === "casting").length > 1
+                ? "Ces portraits montrent-ils la même personne sous plusieurs angles, ou des personnes différentes ?"
+                : "La préparation des références est incohérente. Tes photos et tes indications sont conservées ; renvoie ta demande pour réessayer. Aucune image n’a été lancée.";
+            }
           }
         }
-        const sourcePath = intent.operation === "product"
+        const sourcePath = rebaseScenePath || (intent.operation === "product"
           ? explicitSource?.role !== "product" ? explicitSource?.path || null : null
-          : finalInputPath;
+          : finalInputPath);
         const inputs = sceneInputs(phase, intent.operation, resolvedReferences,
-          sourcePath, parent?.result_path || null, intent.uses_selected_version);
+          sourcePath, rebaseScenePath || parent?.result_path || null, intent.uses_selected_version);
         if (phase === "scene" && generative(intent.operation) && (intent.visual_kind !== "photo" || intent.exact_text.length ||
           intent.shots.length || !["create", "edit"].includes(intent.operation) ||
           inputs.planning.some(ref => ref.path === inputs.input))) {
