@@ -845,7 +845,14 @@ function Studio({
   const sceneReferenceNames = version?.proposal.planning_references
     ?.map((reference) => reference.name.trim())
     .filter(Boolean);
-  const readyFollowUp = version?.status === "ready"
+  const identitySheet = version?.status === "ready" && !!version.proposal.person_reference &&
+    !["scene", "integration"].includes(version.proposal.scene_workflow?.phase as string);
+  const productName = identitySheet
+    ? (references.find((r: any) => r.role === "product")?.name?.trim() || "")
+    : "";
+  const readyFollowUp = identitySheet
+    ? `Voilà ton mannequin. Prochaine étape : la photo portée, avec ${productName ? `« ${productName} »` : "ton produit"}. Tu veux que je prépare la scène ?`
+    : version?.status === "ready"
     ? version.proposal.scene_workflow?.phase === "scene"
       ? `Voilà la scène. Qu’est-ce que tu veux faire maintenant ? Tu peux me demander de la modifier ou d’y intégrer ${sceneReferenceNames?.length ? sceneReferenceNames.join(" et ") : "tes références"}.`
       : version.proposal.scene_workflow?.phase === "integration"
