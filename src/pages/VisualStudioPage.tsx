@@ -1295,7 +1295,7 @@ function Studio({
                   {hasExtraTools && (
                   <Sheet open={toolsOpen} onOpenChange={setToolsOpen}>
                   <SheetContent side="left" className="w-[92vw] sm:max-w-md overflow-y-auto">
-                    <SheetHeader><SheetTitle>Références, outils et créations</SheetTitle></SheetHeader>
+                    <SheetHeader><SheetTitle>Outils et créations</SheetTitle></SheetHeader>
                   <div className="studio-references">
                     {!!current?.suggested_photos?.length && (
                       <div className="my-4">
