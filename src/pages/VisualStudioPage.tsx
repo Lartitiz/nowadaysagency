@@ -638,29 +638,40 @@ function Studio({
       if (alive.current && !actionLock.current) setBusy("");
     }
   }
-  async function attachVersionAsReference(versionId: string) {
+  async function attachVersionAsReference(versionId: string, auto = false) {
+    const isScene = current?.versions.find((v) => v.id === versionId)?.proposal.scene_workflow?.phase === "scene";
     const existing = references.find((ref) => ref.version_id === versionId);
     if (existing) {
+      if (auto) { if (!attachedIds.includes(existing.id)) setAttachments([...attachedIds, existing.id]); return; }
       await updateSelection([...new Set([...activeIds, existing.id])], false, null);
-      setSelectedId(null);
+      if (!isScene) setSelectedId(null);
       return;
     }
     if (!current || references.length >= 8) {
-      toast.error("Cette discussion utilise déjà huit images de référence.");
+      if (!auto) toast.error("Cette discussion utilise déjà huit images de référence.");
       return;
     }
+    // A scene is the decor to keep; other created images only guide the mood.
     const result = await mutate("reference", {
       version_id: versionId,
-      reference_role: "style",
+      reference_role: isScene ? "scene" : "style",
       revision: current.session.revision,
     });
     const joined = result?.session.references?.find((ref) => ref.version_id === versionId);
     if (joined) {
       setAttachments([...attachedIds, joined.id]);
-      setSelectedId(null);
-      toast.success("Image jointe à ta prochaine demande.");
+      if (!isScene) setSelectedId(null);
+      if (!auto) toast.success("Image jointe à ta prochaine demande.");
     }
   }
+  const autoAttachedScenes = useRef(new Set<string>());
+  const readyScene = current?.versions.find((v) => v.status === "ready" && v.proposal.scene_workflow?.phase === "scene" && v.id === selectedId);
+  useEffect(() => {
+    if (!readyScene || !writable || busy || generating || autoAttachedScenes.current.has(readyScene.id)) return;
+    autoAttachedScenes.current.add(readyScene.id);
+    void attachVersionAsReference(readyScene.id, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readyScene?.id, writable, busy, generating]);
   async function send(branchReferenceMode?: "version" | "current") {
     if (
       !draft.trim() ||
@@ -1788,14 +1799,14 @@ function Studio({
                         onClick={item.status === "ready" ? () => {
                           setSelectedId(item.id);
                           setCompare(false);
-                          if (item.proposal.scene_workflow?.phase === "scene") setAttachments((item.proposal.planning_references || []).map(ref => ref.id));
+                          if (item.proposal.scene_workflow?.phase === "scene") setAttachments([...(item.proposal.planning_references || []).map(ref => ref.id), ...references.filter(ref => ref.version_id === item.id).map(ref => ref.id)]);
                         } : undefined}
                         onKeyDown={item.status === "ready" ? (event) => {
                           if (event.key !== "Enter" && event.key !== " ") return;
                           event.preventDefault();
                           setSelectedId(item.id);
                           setCompare(false);
-                          if (item.proposal.scene_workflow?.phase === "scene") setAttachments((item.proposal.planning_references || []).map(ref => ref.id));
+                          if (item.proposal.scene_workflow?.phase === "scene") setAttachments([...(item.proposal.planning_references || []).map(ref => ref.id), ...references.filter(ref => ref.version_id === item.id).map(ref => ref.id)]);
                         } : undefined}
                       >
                         <div className="studio-image-card-head">
