@@ -121,7 +121,7 @@ function SlideView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasW
         </div>
         {slide === 0 && (
           <p className="text-center text-xs text-muted-foreground/60 animate-pulse mb-2">
-            ← Swipe ou clique Suivant →
+            {isMobile ? "← Swipe ou clique Suivant →" : "Clique Suivant ou utilise les flèches ← →"}
           </p>
         )}
         {slide < totalSlides - 1 && (
