@@ -38,7 +38,7 @@ for (const combined of [false, true]) Deno.test(`compact integration preserves $
   assert(out.length < 5000);
   assert(out.includes(`Sources: Image ${combined ? 3 : 2}`));
   for (const text of [person.description, p.person_reference.stable_traits, p.person_reference.variable_details,
-    target.instruction, "EVERY listed provisional subject", "Keep approved pose/outfit", "When only a product changes, keep the person unchanged."]) assert(out.includes(text));
+    target.instruction, "Replace each provisional subject", "keep approved pose/outfit", "If only a product changes, keep the person."]) assert(out.includes(text));
 });
 
 Deno.test("subsequent edits preserve accepted choices, current base, source and identity without repeating replacements", async () => {
@@ -48,7 +48,7 @@ Deno.test("subsequent edits preserve accepted choices, current base, source and 
   p.exact_text = ["Été 2026 — 25 €"];
   const out = compactIntegrationPrompt(p)!;
   assertEquals(imageInputPaths(p), [p.input_path, p.references![0].path, "fixture/scene.jpg"]);
-  assert(out.includes("Edit Image 1 only"));
+  assert(out.includes("TARGETED PHOTO EDIT of Image 1"));
   assert(out.includes("Image 3: photographic source"));
   assert(out.includes("do not repeat initial replacements"));
   assert(!out.includes(p.scene_workflow!.targets![0].instruction));
@@ -76,4 +76,15 @@ Deno.test("series preflight checks the base shot and every additional shot", () 
   p.summary = "Vue principale";
   p.shots[1].image_prompt = "x".repeat(6000);
   assertEquals(marketingPromptTooLong(p), true);
+});
+
+Deno.test("targets and accepted choices repeated verbatim in Changes are written once", async () => {
+  const p = await fixture();
+  const t = p.scene_workflow!.targets![0];
+  p.change = [`${t.location} : ${t.instruction}`];
+  p.scene_workflow!.accepted_changes = ["Bague exacte", "Bague exacte bien visible", "Bague exacte bien visible"];
+  const out = compactIntegrationPrompt(p)!;
+  assertEquals(out.split(t.instruction).length, 2);
+  assert(out.includes("Change 1 Sources: Image 2"));
+  assertEquals(out.split("Bague exacte").length, 2);
 });
