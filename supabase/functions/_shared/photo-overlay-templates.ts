@@ -272,7 +272,13 @@ function editorialOverlay(s: PhotoSlideSpec, ch: PhotoCharter, finale = false): 
     (s.cta_label ? `<div data-slide-cta="1" style="position:relative;margin-top:28px;"><span data-slide-text="cta" data-pptx-editable="caption" style="display:inline-block;background:${paper ? d.primary : d.background};color:${paper ? d.onPrimary : d.ink};border-radius:${Math.min(d.radius, 24)}px;padding:14px 24px;font-size:34px;line-height:1.3;text-shadow:none;max-width:100%;overflow-wrap:anywhere;">${escapeHtml(s.cta_label)}</span></div>` : "");
   // A pseudo-element follows drag/width edits without becoming an editable
   // object, source text, native text frame or false text-overflow rectangle.
-  const veil = paper ? "" : `<style data-photo-editorial-veil="1">[data-photo-editorial-text]::before{content:"";position:absolute;pointer-events:none;left:-84px;right:-84px;top:-70px;bottom:-60px;background:var(--photo-veil);}</style>`;
+  // Voile ancré au BORD de la photo (maquette validée le 02/10/2026) : opaque
+  // côté bord, il s'efface vers le centre. L'ancienne bande flottante (opaque
+  // au-dessus ET au-dessous du texte) reste seulement pour un texte centré. Les
+  // règles suivent data-photo-text-layout : quand l'éditeur déplace le texte,
+  // le voile change de bord tout seul. Arrêts en pourcentage (export canvas).
+  const edge = (dir: string) => `linear-gradient(${dir},rgba(${r},${g},${b},0) 0%,rgba(${r},${g},${b},.82) 18%,rgba(${r},${g},${b},.92) 100%)`;
+  const veil = paper ? "" : `<style data-photo-editorial-veil="1">[data-photo-editorial-text]::before{content:"";position:absolute;pointer-events:none;left:-84px;right:-84px;top:-70px;bottom:-60px;background:var(--photo-veil);}[data-photo-text-layout^="bottom"] [data-photo-editorial-text]::before{top:-200px;bottom:-480px;background:${edge("180deg")};}[data-photo-text-layout^="top"] [data-photo-editorial-text]::before{top:-320px;bottom:-200px;background:${edge("0deg")};}</style>`;
   const panel = `<div data-photo-reading-panel="1" data-photo-editorial-surface="1" ${paper ? 'data-pptx-shape="card"' : ""} style="position:relative;box-sizing:border-box;width:100%;max-width:${paper ? 780 : 912}px;${paper ? `background:${d.background};padding:36px;color:${ink};border-radius:${d.radius}px;` : ""}">${parts}</div>`;
   return veil + contentWrap(s.overlay_position || "bottom_left", "flex-start", panel);
 }
