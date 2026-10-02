@@ -173,8 +173,8 @@ it("guide librement la suite après une image générique, sans boutons sous l�
   await screen.findByText("Décris ton fond.");
   expect(screen.getByText("Voilà la nouvelle version. Qu’est-ce que tu veux ajuster maintenant ? Réponds-moi directement ici.")).toBeInTheDocument();
   const gallery = screen.getByRole("region", { name: "Visuels et versions" });
-  expect(within(gallery).queryByRole("button")).not.toBeInTheDocument();
-  expect(within(gallery).queryByRole("link")).not.toBeInTheDocument();
+  expect(within(gallery).queryByRole("button", { name: "Joindre à ma demande" })).not.toBeInTheDocument();
+  expect(within(gallery).queryByRole("link", { name: "Agrandir l’image" })).not.toBeInTheDocument();
 });
 it("remplace les anciennes actions par une question libre dans le chat", async () => {
   mock.request.mockResolvedValue({ ...original(), versions: [{
@@ -185,10 +185,11 @@ it("remplace les anciennes actions par une question libre dans le chat", async (
   await screen.findByText("Décris ton fond.");
   expect(screen.getByText("Voilà l’image. Qu’est-ce que tu veux faire maintenant ? Réponds-moi directement ici.")).toBeInTheDocument();
   expect(screen.queryByText(/Avec cette image, tu peux/)).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Image sélectionnée" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Joindre à ma demande" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: "Agrandir l’image" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Ajouter à ma bibliothèque" })).not.toBeInTheDocument();
+  const gallery = screen.getByRole("region", { name: "Visuels et versions" });
+  expect(within(gallery).queryByRole("button", { name: "Image sélectionnée" })).not.toBeInTheDocument();
+  expect(within(gallery).queryByRole("button", { name: "Joindre à ma demande" })).not.toBeInTheDocument();
+  expect(within(gallery).queryByRole("link", { name: "Agrandir l’image" })).not.toBeInTheDocument();
+  expect(within(gallery).queryByRole("button", { name: "Ajouter à ma bibliothèque" })).not.toBeInTheDocument();
 });
 it("resends the first message after an interpretation failure without an invalid session read", async () => {
   let attempts = 0;
@@ -274,7 +275,7 @@ it("revient de Photo via Vidéo au passage d'origine du Reel", async () => {
     library_photo_id: null, error_message: null, created_at: "",
   }] });
   mount("/photos/studio?session=session&reel_passage=1");
-  await userEvent.click(await screen.findByRole("button", { name: "créer une vidéo" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Clips vidéo" }));
   expect(screen.getByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
   expect(screen.getByTestId("current-path")).toHaveTextContent("reel_passage=1");
   fireEvent.click(screen.getByRole("button", { name: "Choisir le clip prêt" }));
@@ -426,7 +427,7 @@ it("viewer can read but cannot send or generate", async () => {
   ).toBeDisabled();
   expect(screen.getByRole("textbox", { name: "Ta demande" })).toBeDisabled();
 });
-it("generated versions stay outside the library until an explicit save, with one save in flight", async () => {
+it("generated versions stay outside the library until the user asks in the chat", async () => {
   const start = original(),
     v = {
       id: "v1",
@@ -452,18 +453,14 @@ it("generated versions stay outside the library until an explicit save, with one
         }),
   );
   mount();
-  const button = await screen.findByRole("button", {
-    name: "l’ajouter à ta bibliothèque",
-  });
+  await screen.findByText(/Qu’est-ce que tu veux ajuster maintenant/);
   expect(mock.request.mock.calls.some(([b]) => b.action === "save")).toBe(
     false,
   );
-  await userEvent.click(button);
-  await userEvent.click(button);
-  await screen.findByText("elle est dans ta bibliothèque");
-  expect(
-    mock.request.mock.calls.filter(([b]) => b.action === "save"),
-  ).toHaveLength(1);
+  fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), { target: { value: "Ajoute cette image à ma bibliothèque" } });
+  fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "message", viewed_version_id: "v1" })));
+  expect(mock.request.mock.calls.filter(([b]) => b.action === "save")).toHaveLength(0);
 });
 it("mobile stacks the conversation and confirmation before the image stream", async () => {
   window.innerWidth = 390;
@@ -651,7 +648,7 @@ it("uses the selected generated image when the user answers in the chat", async 
     action: "message", viewed_version_id: "generated", message: "Intègre mes luminaires dans cette image",
   })));
 });
-it("lets an AI-generated poster receive exact editable text after the image is ready", async () => {
+it("invites the user to continue an AI-generated poster in the chat", async () => {
   const design = {
     title: "Marché de Noël", body: "Céramiques artisanales", footer: "12 décembre · Lyon",
     format: "portrait" as const, background: "#ffffff", foreground: "#242124",
@@ -665,11 +662,8 @@ it("lets an AI-generated poster receive exact editable text after the image is r
   }] });
   mount();
   await screen.findByText("Décris ton fond.");
-  await userEvent.click(await screen.findByRole("button", { name: "finaliser l’affiche avec ses textes" }));
-  expect(await screen.findByRole("textbox", { name: "Titre" })).toHaveValue("Marché de Noël");
-  expect(screen.getByRole("textbox", { name: "Informations pratiques" })).toHaveValue("12 décembre · Lyon");
-  expect(screen.getByLabelText("Utiliser l’image sélectionnée")).toBeChecked();
-  expect(screen.getByAltText("Visuel sélectionné")).toHaveStyle({ objectFit: "cover" });
+  expect(screen.getByText("Voilà l’image. Qu’est-ce que tu veux faire maintenant ? Réponds-moi directement ici.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "finaliser l’affiche avec ses textes" })).not.toBeInTheDocument();
 });
 
 it("a response preserves new text typed while the previous request was in flight", async () => {

@@ -831,9 +831,12 @@ function Studio({
       .filter((v) => v.status === "ready")
       .find((v) => v.id !== version?.id)?.url ??
       undefined);
+  const sceneReferenceNames = version?.proposal.planning_references
+    ?.map((reference) => reference.name.trim())
+    .filter(Boolean);
   const readyFollowUp = version?.status === "ready"
     ? version.proposal.scene_workflow?.phase === "scene"
-      ? "Voilà la scène. Qu’est-ce que tu veux faire maintenant ? Tu peux me demander de la modifier ou d’y intégrer tes références."
+      ? `Voilà la scène. Qu’est-ce que tu veux faire maintenant ? Tu peux me demander de la modifier ou d’y intégrer ${sceneReferenceNames?.length ? sceneReferenceNames.join(" et ") : "tes références"}.`
       : version.proposal.scene_workflow?.phase === "integration"
       ? "Voilà l’intégration. Qu’est-ce que tu veux ajuster maintenant ? Réponds-moi directement ici."
       : version.proposal.operation === "background" || version.proposal.operation === "edit"
@@ -1184,27 +1187,7 @@ function Studio({
                   </div>
                 ))}
                 {proposal && <div className="studio-chat-confirmation">{confirmation()}</div>}
-                {!proposal && version?.status === "ready" && version.integration_proposal && (
-                  <section className="studio-confirm space-y-3" aria-label="Scène à valider avant intégration">
-                    <h2 className="font-display text-xl">Ta scène est prête à être examinée</h2>
-                    <p className="text-sm">Les personnes et objets à remplacer sont encore provisoires. Tu peux demander une correction dans le chat avant de poursuivre.</p>
-                    <p className="text-sm whitespace-pre-wrap">{version.integration_proposal.summary}</p>
-                    <div className="flex flex-wrap gap-3" aria-label="Scène et originaux utilisés pour l’intégration">
-                      <figure className="w-24">{version.url && <img src={version.url} alt="Scène sélectionnée à conserver" className="h-20 w-24 object-cover rounded" />}<figcaption className="text-xs">Cette scène</figcaption></figure>
-                      {version.integration_proposal.references?.map(ref => <figure key={ref.id} className="w-24">
-                        {ref.url && <img src={ref.url} alt={ref.name} className="h-20 w-24 object-cover rounded" />}
-                        <figcaption className="text-xs break-words">{ref.name} · {ref.role === "product" ? "Produit original" : "Identité originale"}</figcaption>
-                      </figure>)}
-                    </div>
-                    <p className="text-xs text-muted-foreground">L’intégration compte pour une image supplémentaire. Vérifie ensuite les détails du visage et du produit.</p>
-                    <Button className="w-full h-auto whitespace-normal" disabled={!writable || !!busy || generating || !!draft.trim() || !!error || !current?.quota.allowed || current?.generative_allowed === false}
-                      onClick={() => void mutate("integrate", { version_id: version.id, proposal_id: version.integration_proposal!.id, approved_scene_id: version.id, revision: current!.session.revision })}>
-                      {busy === "integrate" ? "Claude examine la scène et prépare les remplacements…" : "Valider cette scène et intégrer mes références · 1 image"}
-                    </Button>
-                  </section>
-                )}
-
-                {!proposal && readyFollowUp && !version?.integration_proposal && (
+                {!proposal && readyFollowUp && (
                   <div className="studio-message">
                     <span className="block text-xs font-semibold mb-1">Studio</span>
                     <p>{readyFollowUp}</p>
