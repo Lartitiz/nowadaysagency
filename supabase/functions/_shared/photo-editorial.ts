@@ -20,6 +20,15 @@ export function photoTextParts(text: string, finale = false, preferred?: string 
   if (start >= 0) {
     const tail = /^[\s\u00a0\u202f]*[,;:.!?…»”)]+[ \u00a0\u202f]*/.exec(text.slice(end));
     if (tail) end += tail[0].length;
+    // Un extrait qui commence en milieu de phrase laissait le paragraphe
+    // précédent finir sur « C'est » ou « , et » (vu en prod le 02/10/2026) :
+    // on remonte au début de la phrase, tant que l'extrait reste lisible en grand.
+    const before = text.slice(0, start);
+    if (before.trim() && !/[.!?…:»”"'][\s\u00a0\u202f]*$/.test(before)) {
+      const boundary = /[\s\S]*[.!?…:][»”"']*[\s\u00a0\u202f]+/.exec(before);
+      const sentenceStart = boundary ? boundary[0].length : 0;
+      if (end - sentenceStart <= 220) start = sentenceStart;
+    }
   }
   const parts: PhotoTextPart[] = [];
   const body = (s: string) => {
