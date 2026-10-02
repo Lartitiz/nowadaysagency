@@ -534,6 +534,25 @@ function Studio({
       if (alive.current) setBusy("");
     }
   }
+  // The server's active references are what a request sends: change them there,
+  // not only in this browser, or a joined image looks attached but is not.
+  async function syncAttachments(ids: string[], branchId: string | null) {
+    const wanted = [...new Set(ids)].filter((id) => references.some((ref) => ref.id === id));
+    if (current?.session.active_reference_ids === undefined) { setAttachments(wanted); return; }
+    const same = wanted.length === activeIds.length && wanted.every((id) => activeIds.includes(id)) &&
+      current.session.conversation_branch_id === branchId;
+    if (!same) await updateSelection(wanted, false, branchId);
+  }
+  // Selecting a scene joins it with its reserved originals, keeps the photos the
+  // user attached since, and drops other created scenes.
+  function sceneAttachments(item: { id: string; proposal: { planning_references?: StudioReference[] } }) {
+    const kept = activeIds.filter((id) => {
+      const ref = references.find((r) => r.id === id);
+      return !ref?.version_id || ref.role !== "scene" || ref.version_id === item.id;
+    });
+    return [...kept, ...(item.proposal.planning_references || []).map((ref) => ref.id),
+      ...references.filter((ref) => ref.version_id === item.id).map((ref) => ref.id)];
+  }
   async function updateSelection(ids: string[], newRequest = false, branchId = selectedId) {
     if (!current) return;
     const result = await mutate("selection", { reference_ids: ids, revision: current.session.revision,
@@ -643,13 +662,13 @@ function Studio({
     const existing = references.find((ref) => ref.version_id === versionId);
     // Only the selected scene stays joined: drop older auto-joined scenes.
     const keptIds = auto
-      ? attachedIds.filter((id) => {
+      ? activeIds.filter((id) => {
         const ref = references.find((r) => r.id === id);
         return !ref?.version_id || ref.version_id === versionId || !autoAttachedScenes.current.has(ref.version_id);
       })
       : attachedIds;
     if (existing) {
-      if (auto) { setAttachments([...new Set([...keptIds, existing.id])]); return; }
+      if (auto) { await syncAttachments([...keptIds, existing.id], versionId); return; }
       await updateSelection([...new Set([...activeIds, existing.id])], false, null);
       if (!isScene) setSelectedId(null);
       return;
@@ -658,15 +677,19 @@ function Studio({
       if (!auto) toast.error("Cette discussion utilise déjà huit images de référence.");
       return;
     }
-    // A scene is the decor to keep; other created images only guide the mood.
+    // A scene is the decor to keep and a model sheet is a casting. Any other
+    // created image (a packshot, a product…) gets its role from the request:
+    // "style" told the generator never to copy its product.
+    const isSheet = current?.versions.find((v) => v.id === versionId)?.proposal.person_reference?.mode === "sheet";
     const result = await mutate("reference", {
       version_id: versionId,
-      reference_role: isScene ? "scene" : "style",
+      reference_role: isScene ? "scene" : isSheet ? "casting" : "auto",
       revision: current.session.revision,
     });
     const joined = result?.session.references?.find((ref) => ref.version_id === versionId);
     if (joined) {
-      setAttachments([...keptIds, joined.id]);
+      if (auto) await syncAttachments([...keptIds, joined.id], versionId);
+      else setAttachments(result.session.active_reference_ids ?? [...keptIds, joined.id]);
       if (!isScene) setSelectedId(null);
       if (!auto) toast.success("Image jointe à ta prochaine demande.");
     }
@@ -1806,14 +1829,14 @@ function Studio({
                         onClick={item.status === "ready" ? () => {
                           setSelectedId(item.id);
                           setCompare(false);
-                          if (item.proposal.scene_workflow?.phase === "scene") setAttachments([...(item.proposal.planning_references || []).map(ref => ref.id), ...references.filter(ref => ref.version_id === item.id).map(ref => ref.id)]);
+                          if (item.proposal.scene_workflow?.phase === "scene" && writable && !generating) void syncAttachments(sceneAttachments(item), item.id);
                         } : undefined}
                         onKeyDown={item.status === "ready" ? (event) => {
                           if (event.key !== "Enter" && event.key !== " ") return;
                           event.preventDefault();
                           setSelectedId(item.id);
                           setCompare(false);
-                          if (item.proposal.scene_workflow?.phase === "scene") setAttachments([...(item.proposal.planning_references || []).map(ref => ref.id), ...references.filter(ref => ref.version_id === item.id).map(ref => ref.id)]);
+                          if (item.proposal.scene_workflow?.phase === "scene" && writable && !generating) void syncAttachments(sceneAttachments(item), item.id);
                         } : undefined}
                       >
                         <div className="studio-image-card-head">

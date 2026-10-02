@@ -1559,3 +1559,24 @@ Deno.test("an unconfirmed or forgotten original asks before generating", async (
     } finally { f.restore(); }
   }
 });
+
+Deno.test("a decor generated without references keeps the model and product added since, without asking", async () => {
+  const f = fixture();
+  const mannequin = { id: id(1320), photo_id: null, version_id: id(1321), path: "mannequin", role: "casting", name: "Planche mannequin" };
+  const product = { id: id(1322), photo_id: id(1323), path: "product", role: "product", name: "Bougie" };
+  f.version.status = "ready";
+  Object.assign(f.version.proposal, { operation: "create", visual_kind: "photo", scene_workflow: { phase: "scene", camera_match: "Vue de face" }, planning_references: [], reference_snapshot: [] });
+  f.session.references = [mannequin, product];
+  f.session.source_metadata = { studio_context: { reference_ids: [mannequin.id, product.id], branch_id: null, start_index: 0 } };
+  f.setIntent({ operation: "edit", visual_kind: "photo", summary: "Le mannequin tient ma bougie dans ce salon.", image_prompt: "Add the model holding the candle.",
+    change: ["Ajouter le mannequin tenant la bougie"], product_placement: "Tenue à deux mains",
+    reference_use: [{ id: mannequin.id, role: "casting" }, { id: product.id, role: "product" }] });
+  try {
+    const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0, request_id: id(1324),
+      viewed_version_id: proposalId, message: "Mets mon mannequin dans ce décor, il tient mon produit" }));
+    const data = await res.json();
+    assertEquals(res.status, 200);
+    assertEquals(data.session.proposal.scene_workflow.phase, "integration");
+    assertEquals(data.session.proposal.references.map((r: any) => r.path).sort(), ["mannequin", "product"]);
+  } finally { f.restore(); }
+});
