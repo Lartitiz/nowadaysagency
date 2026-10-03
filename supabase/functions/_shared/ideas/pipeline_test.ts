@@ -5,11 +5,19 @@ const idea = { subject: "Un détail d'usage", angle: "Analyse", insight: "Une di
 Deno.test("direct subjectless entry researches internally and formulates 4 developed ideas", async () => {
   const calls: any[] = []; let researches = 0;
   const result = await generateDeepIdeas({ context: "Céramiste sans histoire personnelle fournie", history: "", previous: [{ subject: "Prix", insight: "Temps de travail" }] }, {
-    model: "claude-opus-5-5", apiKey: "not-a-secret", call: async (o, u) => { calls.push(o); if (u) u.total_tokens = 20; return calls.length === 1 ? JSON.stringify({ candidates: [idea], research_queries: ["Pourquoi la forme d'une anse change sa prise en main ?"] }) : JSON.stringify({ ideas: [1, 2, 3, 4].map(i => ({ ...idea, subject: `Idée ${i}` })) }); },
+    model: "claude-opus-5-5", apiKey: "not-a-secret", call: async (o, u) => { calls.push(o); if (u) u.total_tokens = 20; return calls.length === 1 ? JSON.stringify({ candidates: [1, 2, 3, 4, 5, 6].map(i => ({ ...idea, subject: `Piste ${i}` })), research_queries: ["Pourquoi la forme d'une anse change sa prise en main ?"] }) : JSON.stringify({ ideas: [{ ...idea, subject: `Idée ${calls.length}` }] }); },
     research: async (q) => { researches++; assertEquals(q.length, 1); return { sources: [], status: "unavailable" }; },
   });
-  assertEquals(calls.length, 2); assert(calls[0].max_tokens >= 3000); assert(calls[1].max_tokens >= 8000); assertEquals(researches, 1); assertEquals(result.ideas.length, 4); assertEquals(result.usage.total_tokens, 40);
+  assertEquals(calls.length, 5); assert(calls[0].max_tokens >= 3000); assert(calls[1].max_tokens >= 2000); assertEquals(researches, 1); assertEquals(result.ideas.length, 4); assertEquals(result.usage.total_tokens, 100);
   assert(calls[1].system.includes("retire les affirmations")); assert(calls[0].system.includes("Temps de travail"));
+});
+Deno.test("a duplicate parallel idea is replaced once by a reserve candidate", async () => {
+  let calls = 0;
+  const result = await generateDeepIdeas({ context: "Céramiste", history: "" }, {
+    model: "claude-opus-5-5", apiKey: "", call: async (o) => { calls++; if (calls === 1) return JSON.stringify({ candidates: [1, 2, 3, 4, 5, 6].map(i => ({ ...idea, subject: `Piste ${i}` })), research_queries: [] }); const n = o.messages[0].content.match(/piste n°(\d)/)?.[1]; return JSON.stringify({ ideas: [{ ...idea, subject: n === "2" ? "Idée 1" : `Idée ${n}` }] }); },
+    research: async (q) => { assertEquals(q.length, 0); return { sources: [], status: "not_needed" }; },
+  });
+  assertEquals(calls, 6); assertEquals(result.ideas.map(i => i.subject).sort(), ["Idée 1", "Idée 3", "Idée 4", "Idée 5"]);
 });
 Deno.test("deepen preserves one selected thesis and rejects incomplete outputs without a paid retry cascade", async () => {
   let calls = 0;
