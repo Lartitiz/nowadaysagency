@@ -183,3 +183,13 @@ Deno.test("mix mise en forme : la génération passe toujours par l'étage de mi
   assert(/planPhotoFormatting\(mixTextSlides/.test(src), "planPhotoFormatting n'est plus appelé pour le mixte");
   assert(/composeMixCarousel\(applyMixFormatting\(/.test(src), "applyMixFormatting n'est plus appliqué au mixte");
 });
+
+Deno.test("mix mise en forme : motif aligné sur le texte, texte atténué lisible", () => {
+  const motif = { reason: "r", elements: [
+    { k: "text" as const, x: 60, y: 40, text: "Pétrissage", tone: "soft" as const, size: 40 },
+    { k: "line" as const, x1: 60, y1: 80, x2: 900, y2: 80, tone: "soft" as const },
+  ] };
+  const html = composeMixSlide({ slide_number: 3, slide_type: "photo_integrated", photo_index: 2, title: "", body: "Un passage court.", mix_format: { motif } }, CH, mid)!.html;
+  assert(/viewBox="(\d+) /.exec(html)![1] !== "0", "le cadre doit commencer au premier élément");
+  assert(/<text[^>]*fill-opacity="\.72"/.test(html), "texte soft lisible");
+});

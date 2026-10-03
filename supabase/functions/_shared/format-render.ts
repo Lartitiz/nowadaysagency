@@ -11,11 +11,14 @@ export const STEP_HEADER_H = 91;
 export const MOTIF_GAP = 26;
 
 /** Cadre ajusté au dessin : pas de vide quand le motif n'occupe que le haut. */
-export function motifFrame(motif: NonNullable<PhotoFormat["motif"]>): { top: number; height: number } {
+export function motifFrame(motif: NonNullable<PhotoFormat["motif"]>): { left: number; top: number; height: number } {
   const boxes = motif.elements.map(motifBox);
+  // Aligné sur le bord du texte : le dessin commence à gauche de la colonne
+  // (vu en live le 03/10/2026 : motif décalé à droite du texte).
+  const left = Math.max(0, Math.min(400, Math.floor(Math.min(...boxes.map(b => b.x0)))));
   const top = Math.max(-40, Math.floor(Math.min(...boxes.map(b => b.y0)) - 6));
   const bottom = Math.min(420, Math.ceil(Math.max(...boxes.map(b => b.y1)) + 6));
-  return { top, height: Math.max(40, bottom - top) };
+  return { left, top, height: Math.max(40, bottom - top) };
 }
 
 /** Hauteur en pixels du motif dessiné sur `width` (marge comprise). */
@@ -40,8 +43,11 @@ export function motifSvg(motif: NonNullable<PhotoFormat["motif"]>, colors: { ink
   const els = motif.elements.map(e => {
     if (e.k === "rect") return `<rect x="${e.x}" y="${e.y}" width="${e.w}" height="${e.h}" rx="${e.radius ?? 8}" fill="${c(e.tone)}"${e.opacity ? ` fill-opacity="${e.opacity}"` : ""}/>`;
     if (e.k === "line") return `<line x1="${e.x1}" y1="${e.y1}" x2="${e.x2}" y2="${e.y2}" stroke="${c(e.tone)}" stroke-width="${e.width ?? 4}" stroke-linecap="round"/>`;
-    return `<text x="${e.x}" y="${e.y}" fill="${c(e.tone)}" font-size="${e.size ?? 44}" text-anchor="${e.anchor ?? "start"}" font-family="${escapeHtml(e.font === "title" ? fonts.title : fonts.body)}">${escapeHtml(e.text)}</text>`;
+    // Un texte « atténué » reste lisible : encre à 72 % (le ton soft à 32 %
+    // ne convient qu'aux formes ; vu en live, illisible sur un aplat moyen).
+    const fill = e.tone === "soft" ? `${colors.ink}" fill-opacity=".72` : c(e.tone);
+    return `<text x="${e.x}" y="${e.y}" fill="${fill}" font-size="${e.size ?? 44}" text-anchor="${e.anchor ?? "start"}" font-family="${escapeHtml(e.font === "title" ? fonts.title : fonts.body)}">${escapeHtml(e.text)}</text>`;
   }).join("");
-  const { top, height } = motifFrame(motif);
-  return `<svg data-photo-format="motif" role="img" aria-label="${escapeHtml(motif.reason || "Schéma")}" viewBox="0 ${top} 1000 ${height}" width="100%" style="position:relative;display:block;margin-bottom:26px;overflow:visible;">${els}</svg>`;
+  const { left, top, height } = motifFrame(motif);
+  return `<svg data-photo-format="motif" role="img" aria-label="${escapeHtml(motif.reason || "Schéma")}" viewBox="${left} ${top} 1000 ${height}" width="100%" style="position:relative;display:block;margin-bottom:26px;overflow:visible;">${els}</svg>`;
 }
