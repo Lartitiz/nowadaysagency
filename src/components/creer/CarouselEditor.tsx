@@ -31,6 +31,9 @@ import { toast } from "sonner";
 import { hasClippedElement } from "@/lib/carousel-quality";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import {
+  editorialVeilAlpha,
+  setEditorialVeilAlpha,
+  isPassiveShape,
   listLayers,
   moveLayer,
   removeLayer,
@@ -117,7 +120,7 @@ function frameOf(el: HTMLElement): HTMLElement {
     p;
     p = p.parentElement?.closest<HTMLElement>("[data-editor-id]")
   )
-    if (p.matches("[data-pptx-shape],[data-editor-shape]")) frame = p;
+    if (p.matches("[data-pptx-shape],[data-editor-shape]") && !isPassiveShape(p)) frame = p;
   return frame;
 }
 /** La copie floue du verre suit le cadre pendant qu'on le glisse. */
@@ -228,7 +231,7 @@ function SlideCanvas({
       ...next,
       kind: isPhotoEl(el)
         ? "photo"
-        : el.matches(VEIL)
+        : el.matches(VEIL) || isPassiveShape(el)
           ? "veil"
           : el.matches("[data-pptx-shape],[data-editor-shape]")
             ? "shape"
@@ -256,7 +259,7 @@ function SlideCanvas({
           ArrowDown: [0, step],
         };
         const delta = arrows[event.key];
-        if (delta && !isPhotoEl(el) && !el.matches(VEIL)) {
+        if (delta && !isPhotoEl(el) && !el.matches(VEIL) && !isPassiveShape(el)) {
           event.preventDefault();
           const computed = view.getComputedStyle(el);
           const absolute = computed.position === "absolute";
@@ -275,7 +278,7 @@ function SlideCanvas({
           commitLive(id, styles);
           return;
         }
-        if (event.key === "Delete" || event.key === "Backspace") {
+        if ((event.key === "Delete" || event.key === "Backspace") && !el.matches('[data-pptx-shape="background"]')) {
           event.preventDefault();
           latest.current.onRemove(id);
           return;
@@ -320,6 +323,11 @@ function SlideCanvas({
         return;
       }
       // Glisser déplace le cadre entier ; Alt + glisser déplace l'élément seul.
+      // Le fond de la slide se choisit mais ne se déplace pas.
+      if (isPassiveShape(inner) && !isPhotoEl(inner)) {
+        latest.current.onSelect(inner.dataset.editorId!);
+        return;
+      }
       const el = e.altKey || isPhotoEl(inner) ? inner : frameOf(inner);
       const photo = isPhotoEl(el);
       const pos = (
@@ -1116,7 +1124,7 @@ export default function CarouselEditor({
                     )}
                     <button
                       type="button"
-                      disabled={slide.locked}
+                      disabled={slide.locked || layer.fixed}
                       aria-label={`${layer.hidden ? "Afficher" : "Masquer"} le calque ${layer.label}`}
                       title={layer.hidden ? "Afficher" : "Masquer (ni exporté ni publié)"}
                       onClick={() => changeSlide(setLayerHidden(slide, layer.id, !layer.hidden))}
@@ -1126,7 +1134,7 @@ export default function CarouselEditor({
                     </button>
                     <button
                       type="button"
-                      disabled={slide.locked}
+                      disabled={slide.locked || layer.fixed}
                       aria-label={`Retirer le calque ${layer.label}`}
                       title={layer.frame ? "Retirer le fond (garder le texte)" : "Retirer"}
                       onClick={() => remove(layer.id)}
@@ -1384,6 +1392,15 @@ export default function CarouselEditor({
                 )}
               </>
             )}
+            {element?.editorialVeil &&
+              range(
+                "Intensité du voile derrière le texte",
+                editorialVeilAlpha(slide.html) ?? 0.9,
+                0.05,
+                1,
+                (n) => changeSlide(setEditorialVeilAlpha(slide, n), `${slide.id}-editorial-veil`),
+                0.05,
+              )}
             {element?.role === "veil" &&
               range(
                 "Intensité du voile",
@@ -1397,7 +1414,7 @@ export default function CarouselEditor({
                   ),
                 0.05,
               )}
-            {element && element.kind !== "photo" && element.role !== "veil" && (
+            {element && element.kind !== "photo" && element.role !== "veil" && element.role !== "background" && (
               <>
                 {range(
                   "Position horizontale",
@@ -1491,7 +1508,7 @@ export default function CarouselEditor({
                 </div>
               </>
             )}
-            {element && (
+            {element && element.role !== "background" && (
               <Button
                 variant="outline"
                 size="sm"

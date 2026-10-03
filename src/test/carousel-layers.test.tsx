@@ -13,6 +13,8 @@ import {
   type EditorSlide,
 } from "@/lib/carousel-editor";
 import { composePhotoSlide } from "../../supabase/functions/_shared/photo-overlay-templates";
+import { buildCarouselDesignPlan, composeEditorialSlide } from "../../supabase/functions/_shared/carousel-design-plan";
+import { isPassiveShape, editorialVeilAlpha, setEditorialVeilAlpha } from "@/lib/carousel-editor";
 
 const charter = { color_accent: "#5C7A5A", color_primary: "#5C7A5A", font_title: "Georgia", font_body: "Arial" };
 const glassSlide = (): EditorSlide => {
@@ -93,6 +95,48 @@ describe("layers panel", () => {
     expect(doc.querySelector("[data-photo-glass]")!.textContent).toContain("Texte retouché");
     expect(doc.querySelectorAll("[data-photo-glass]")).toHaveLength(1);
     expect(back.html).not.toContain("data-editor-unwrapped");
+  });
+  it("on a text slide, the slide background is a fixed bottom layer, never a frame", () => {
+    const source = { slide_number: 2, title: "Une autre façon de communiquer", body: "La sobriété peut être un choix esthétique.", role: "point", slide_type: "text_only" };
+    const rendered = composeEditorialSlide(source, buildCarouselDesignPlan([source]).sequence[0], { color_background: "#FFF4F8", color_text: "#1A1A1A", color_secondary: "#91014B", font_title: "Georgia", font_body: "Arial" } as never)!;
+    const slide: EditorSlide = { id: "t", data: source, html: prepareSlideHtml(rendered.html) };
+    const bg = getEditorElements(slide.html).find((e) => e.role === "background")!;
+    expect(bg).toBeTruthy();
+    // Avant : la racine était un « cadre » et glisser le titre emportait toute la slide.
+    expect(bg.frame).toBe(false);
+    expect(isPassiveShape(dom(slide.html).querySelector(`[data-editor-id="${bg.id}"]`)!)).toBe(true);
+    const layers = listLayers(slide.html);
+    expect(layers[layers.length - 1]).toMatchObject({ id: bg.id, label: "Fond de la slide", fixed: true, topLevel: false });
+    const title = layers.find((l) => l.label.startsWith("Une autre façon"))!;
+    expect(title).toMatchObject({ depth: 0, topLevel: true });
+    const moved = moveLayer(slide, title.id, "up");
+    expect(moved.html).not.toBe(slide.html);
+    expect(dom(moved.html).querySelector<HTMLElement>(`[data-editor-id="${bg.id}"]`)!.style.zIndex).toBe("");
+  });
+  it("step strip, drawn diagram and the editorial veil become editable", () => {
+    const { html } = composePhotoSlide(
+      {
+        slide_number: 3,
+        photo_index: 1,
+        overlay_text: "Un passage assez long pour le style bord avec un voile en dégradé derrière les mots, posé en bas de la photo.",
+        overlay_position: "bottom_left",
+        art_direction: { treatment: "editorial", position: "bottom_left", emphasis: null, reason: "t", surface: "veil", alignment: "left" },
+        photo_format: {
+          step: { index: 2, total: 4, label: "le tournage" },
+          motif: { reason: "Schéma", elements: [{ k: "rect", x: 0, y: 0, w: 400, h: 80, tone: "accent" }, { k: "text", x: 20, y: 60, text: "Avant", tone: "ink" }] },
+        },
+      } as never,
+      charter as never,
+      { isFirst: false, isLast: false },
+    );
+    const slide: EditorSlide = { id: "b", data: {}, html: prepareSlideHtml(html) };
+    const labels = listLayers(slide.html).map((l) => l.label);
+    expect(labels).toContain("Frise d'étape");
+    const text = getEditorElements(slide.html).find((e) => e.editorialVeil);
+    expect(text).toBeTruthy();
+    const before = editorialVeilAlpha(slide.html)!;
+    const softer = setEditorialVeilAlpha(slide, before / 2);
+    expect(editorialVeilAlpha(softer.html)).toBeCloseTo(before / 2, 2);
   });
   it("ignores locked slides", () => {
     const slide = { ...makeSlide({ title: "T" }, "text_only"), locked: true };

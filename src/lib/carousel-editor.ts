@@ -16,9 +16,13 @@ export interface EditorElement {
   id: string;
   kind: "text" | "photo" | "shape";
   /** Nature d'une forme : cadre en verre, voile sur la photo, ou forme/carte. */
-  role?: "glass" | "veil" | "shape";
+  role?: "glass" | "veil" | "shape" | "background";
   /** Forme qui contient des textes : on la déplace avec eux, comme un groupe. */
   frame?: boolean;
+  /** Nature d'un décor rendu choisissable (frise d'étape, schéma, bloc de texte). */
+  name?: string;
+  /** Texte éditorial posé sur un voile en dégradé (style « bord ») réglable. */
+  editorialVeil?: boolean;
   text: string;
   field?: string;
   style: Record<string, string>;
@@ -79,6 +83,16 @@ function photoNodes(doc: Document): HTMLElement[] {
     ),
   ).filter(
     (el) => !el.parentElement?.closest("[data-pptx-photo],[data-editor-photo]"),
+  );
+}
+/**
+ * Fond de la slide (racine 1080×1350, `data-pptx-shape="background"`) ou
+ * surlignage d'un mot : jamais un cadre qu'on emporte en glissant un texte.
+ */
+export function isPassiveShape(el: Element): boolean {
+  return (
+    el.parentElement === el.ownerDocument.body ||
+    el.matches('[data-pptx-shape="background"],[data-pptx-shape="highlight"]')
   );
 }
 /** Formes qui ne sont pas des formes d'export natives mais qu'on doit pouvoir
@@ -177,6 +191,13 @@ export function prepareSlideHtml(html: string): string {
     });
   // Le cadre en verre devient une forme que le contrôle qualité inspecte aussi.
   doc.querySelectorAll<HTMLElement>("[data-photo-glass]").forEach((el) => el.setAttribute("data-editor-shape", "glass"));
+  // Décors sans ancre : frise d'étape, schéma dessiné, colonne de texte des
+  // slides mixtes. Ils restent dans l'image exportée (pas de data-pptx-shape).
+  doc.querySelectorAll<HTMLElement>('[data-photo-format="etape"]').forEach((el) => el.setAttribute("data-editor-shape", "etape"));
+  doc.querySelectorAll<Element>('svg[data-photo-format="motif"]').forEach((el) => el.setAttribute("data-editor-shape", "motif"));
+  doc.querySelectorAll<HTMLElement>("[data-mix-text]").forEach((el) => {
+    if (!el.hasAttribute("data-pptx-shape")) el.setAttribute("data-editor-shape", "group");
+  });
   const elements = new Set<HTMLElement>([
     ...textNodes(doc),
     ...photoNodes(doc).filter((el) => !el.closest("[data-photo-glass]")),
@@ -211,13 +232,20 @@ export function getEditorElements(html: string): EditorElement[] {
     kind: photos.has(el) ? "photo" : texts.has(el) ? "text" : "shape",
     ...(!photos.has(el) && !texts.has(el)
       ? {
-          role: el.hasAttribute("data-photo-glass")
+          role: el.parentElement === doc.body || el.matches('[data-pptx-shape="background"]')
+            ? ("background" as const)
+            : el.hasAttribute("data-photo-glass")
             ? ("glass" as const)
             : el.hasAttribute("data-injected-scrim")
               ? ("veil" as const)
               : ("shape" as const),
-          frame: !!el.querySelector("[data-editor-id]"),
+          frame: !!el.querySelector("[data-editor-id]") && !isPassiveShape(el),
+          ...(el.getAttribute("data-editor-shape") ? { name: el.getAttribute("data-editor-shape")! } : {}),
         }
+      : {}),
+    ...(texts.has(el) && doc.querySelector("style[data-photo-editorial-veil]") &&
+    (el.hasAttribute("data-photo-editorial-text") || el.closest("[data-photo-editorial-text]"))
+      ? { editorialVeil: true }
       : {}),
     text: el.textContent || "",
     field: el.dataset.slideText,
@@ -856,6 +884,8 @@ export interface LayerItem {
   hidden: boolean;
   /** Seuls les calques de premier niveau changent d'ordre (z-index). */
   topLevel: boolean;
+  /** Fond de la slide : ni déplacé, ni masqué, ni retiré depuis les calques. */
+  fixed?: boolean;
 }
 export interface RemovedLayer {
   html: string;
@@ -871,10 +901,14 @@ export interface RemovedLayer {
 const MAX_REMOVED = 20;
 const MAX_REMOVED_HTML = 150_000;
 
-export function layerLabel(e: Pick<EditorElement, "kind" | "role" | "frame" | "text">): string {
+export function layerLabel(e: Pick<EditorElement, "kind" | "role" | "frame" | "text" | "name">): string {
   if (e.kind === "photo") return "Photo";
+  if (e.role === "background") return "Fond de la slide";
   if (e.role === "glass") return "Cadre en verre";
   if (e.role === "veil") return "Voile sur la photo";
+  if (e.name === "etape") return "Frise d'étape";
+  if (e.name === "motif") return "Schéma dessiné";
+  if (e.name === "group") return "Bloc de texte";
   if (e.kind === "shape") return e.frame ? "Cadre du texte" : "Forme";
   return e.text.trim().slice(0, 40) || "Texte vide";
 }
@@ -882,8 +916,10 @@ function zOf(el: HTMLElement): number {
   const z = parseInt(el.style.zIndex, 10);
   return Number.isFinite(z) ? z : 0;
 }
+/** Cadre parent dans les calques ; le fond de la slide n'en est pas un. */
 function editorParent(el: HTMLElement): HTMLElement | null {
-  return el.parentElement?.closest<HTMLElement>("[data-editor-id]") || null;
+  const p = el.parentElement?.closest<HTMLElement>("[data-editor-id]") || null;
+  return p && isPassiveShape(p) && p.matches('[data-pptx-shape="background"]') ? null : p;
 }
 /** Calques de premier niveau, du fond vers le dessus (ordre de peinture approché). */
 function topLayers(doc: Document): HTMLElement[] {
@@ -891,7 +927,9 @@ function topLayers(doc: Document): HTMLElement[] {
   return all
     .map((el, i) => ({ el, i }))
     .filter(({ el }) => !editorParent(el))
-    .sort((a, b) => zOf(a.el) - zOf(b.el) || a.i - b.i)
+    .sort((a, b) =>
+      Number(!a.el.matches('[data-pptx-shape="background"]')) - Number(!b.el.matches('[data-pptx-shape="background"]')) ||
+      zOf(a.el) - zOf(b.el) || a.i - b.i)
     .map(({ el }) => el);
 }
 /** Liste des calques, le plus haut en premier, les textes d'un cadre sous lui. */
@@ -910,7 +948,8 @@ export function listLayers(html: string): LayerItem[] {
       label: layerLabel(e),
       depth,
       hidden: el.hasAttribute("data-editor-hidden"),
-      topLevel: depth === 0,
+      topLevel: depth === 0 && e.role !== "background",
+      ...(e.role === "background" ? { fixed: true } : {}),
     });
     Array.from(el.querySelectorAll<HTMLElement>("[data-editor-id]"))
       .filter((child) => editorParent(child) === el)
@@ -943,7 +982,7 @@ export function setLayerHidden(slide: EditorSlide, id: string, hidden: boolean):
 export function moveLayer(slide: EditorSlide, id: string, direction: "up" | "down"): EditorSlide {
   if (slide.locked) return slide;
   const doc = parse(slide.html);
-  const order = topLayers(doc);
+  const order = topLayers(doc).filter((el) => !el.matches('[data-pptx-shape="background"]'));
   const from = order.findIndex((el) => el.dataset.editorId === id);
   const to = from + (direction === "up" ? 1 : -1);
   if (from < 0 || to < 0 || to >= order.length) return slide;
@@ -1024,4 +1063,29 @@ export function restoreLayer(slide: EditorSlide, index: number): EditorSlide {
   }
   syncGlass(doc);
   return { ...slide, data, html: prepareSlideHtml(serialize(doc)) };
+}
+
+/** Intensité du voile en dégradé posé derrière un texte éditorial (style « bord »). */
+export function editorialVeilAlpha(html: string): number | null {
+  const doc = parse(html);
+  return veilAlpha(doc.querySelector("style[data-photo-editorial-veil]")?.textContent || "");
+}
+/** Règle ce voile en réécrivant ses alphas (balise de style + variable du texte). */
+export function setEditorialVeilAlpha(slide: EditorSlide, alpha: number): EditorSlide {
+  if (slide.locked) return slide;
+  const doc = parse(slide.html);
+  const style = doc.querySelector("style[data-photo-editorial-veil]");
+  const current = veilAlpha(style?.textContent || "");
+  if (!style || current === null) return slide;
+  const a = Math.min(1, Math.max(0.05, alpha));
+  const scale = (text: string) =>
+    text.replace(/(rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*)([\d.]+)(\s*\))/gi, (m, head, value, tail) =>
+      parseFloat(value) > 0 ? `${head}${Math.round((parseFloat(value) / current) * a * 100) / 100}${tail}` : m,
+    );
+  style.textContent = scale(style.textContent || "");
+  doc.querySelectorAll<HTMLElement>("[data-photo-editorial-text]").forEach((el) => {
+    const veil = el.style.getPropertyValue("--photo-veil");
+    if (veil) el.style.setProperty("--photo-veil", scale(veil));
+  });
+  return { ...slide, html: serialize(doc) };
 }
