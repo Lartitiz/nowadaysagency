@@ -160,6 +160,40 @@ function followGlass(el: HTMLElement) {
   blur.style.removeProperty("bottom");
 }
 type Handle = "e" | "w" | "s" | "se";
+const SNAP = 8;
+/**
+ * Repères d'alignement : bords et centre de la slide, bords et centres des
+ * autres éléments. Renvoie la correction à appliquer et les lignes à dessiner.
+ */
+function snapTo(doc: Document, el: HTMLElement) {
+  const r = el.getBoundingClientRect();
+  const xs = [0, 540, 1080],
+    ys = [0, 675, 1350];
+  doc.querySelectorAll<HTMLElement>("[data-editor-id]").forEach((o) => {
+    if (o === el || o.contains(el) || el.contains(o) || o.matches(VEIL) || isPassiveShape(o)) return;
+    const b = o.getBoundingClientRect();
+    if (!b.width || !b.height) return;
+    xs.push(b.left, b.left + b.width / 2, b.right);
+    ys.push(b.top, b.top + b.height / 2, b.bottom);
+  });
+  const best = (values: number[], targets: number[]) => {
+    let out: { delta: number; line: number } | null = null;
+    for (const v of values)
+      for (const t of targets) {
+        const delta = t - v;
+        if (Math.abs(delta) <= SNAP && (!out || Math.abs(delta) < Math.abs(out.delta))) out = { delta, line: t };
+      }
+    return out;
+  };
+  return {
+    x: best([r.left, r.left + r.width / 2, r.right], xs),
+    y: best([r.top, r.top + r.height / 2, r.bottom], ys),
+  };
+}
+/** Texte modifiable directement sur la slide (pas une photo ni un cadre). */
+const isInlineText = (el: HTMLElement) =>
+  !isPhotoEl(el) && !el.matches(VEIL) && !el.querySelector("[data-editor-id]") && !!el.textContent?.trim() &&
+  !el.closest("svg");
 interface CanvasBox {
   left: number;
   top: number;
@@ -173,6 +207,7 @@ function SlideCanvas({
   onSelect,
   onMove,
   onRemove,
+  onEditText,
   onMeasure,
   onHistoryKey,
 }: {
@@ -181,6 +216,7 @@ function SlideCanvas({
   onSelect: (id: string | null) => void;
   onMove: (id: string, styles: Record<string, string>) => void;
   onRemove: (id: string) => void;
+  onEditText: (id: string, text: string) => void;
   onMeasure?: (box: CanvasBox | null) => void;
   onHistoryKey: (event: KeyboardEvent) => void;
 }) {
@@ -188,6 +224,7 @@ function SlideCanvas({
     frame = useRef<HTMLIFrameElement>(null);
   const [width, setWidth] = useState(0),
     [overflow, setOverflow] = useState(false),
+    [guides, setGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null }),
     [box, setBox] = useState<(CanvasBox & { kind: "photo" | "veil" | "text" | "shape" }) | null>(null);
   const scale = width / 1080 || 1;
   // Une retouche faite DANS l'aperçu (glisser, poignée, flèche) y est déjà
@@ -222,8 +259,8 @@ function SlideCanvas({
     window.document.addEventListener("focusin", leave);
     return () => window.document.removeEventListener("focusin", leave);
   }, []);
-  const latest = useRef({ selected, onSelect, onMove, onRemove, onMeasure, onHistoryKey, locked: slide.locked });
-  latest.current = { selected, onSelect, onMove, onRemove, onMeasure, onHistoryKey, locked: slide.locked };
+  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onMeasure, onHistoryKey, locked: slide.locked });
+  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onMeasure, onHistoryKey, locked: slide.locked };
   useEffect(() => {
     const measure = () => setWidth(host.current?.clientWidth || 0);
     measure();
@@ -272,8 +309,55 @@ function SlideCanvas({
     const view = doc.defaultView!;
     // Keyboard events inside the sandboxed preview do not bubble to React.
     if (keepFocus.current) view.focus();
+    // Édition du texte sur la slide (double-clic) : le texte devient
+    // modifiable sur place ; il est enregistré quand on clique ailleurs ou
+    // qu'on appuie sur Échap (⌘/Ctrl + Entrée aussi).
+    let editing: { el: HTMLElement; id: string; before: string; html: string } | null = null;
+    const readText = (el: HTMLElement) =>
+      el.hasAttribute("data-photo-editorial-text") ? el.textContent || "" : (el.innerText ?? el.textContent ?? "").replace(/\n$/, "");
+    const finishEditing = () => {
+      const e = editing;
+      if (!e) return;
+      editing = null;
+      e.el.removeAttribute("contenteditable");
+      e.el.style.removeProperty("user-select");
+      e.el.style.removeProperty("-webkit-user-select");
+      e.el.style.removeProperty("cursor");
+      const text = readText(e.el);
+      if (text.trim() && text !== e.before) latest.current.onEditText(e.id, text);
+      else e.el.innerHTML = e.html;
+    };
+    view.addEventListener("blur", finishEditing);
+    doc.addEventListener("dblclick", (e) => {
+      if (latest.current.locked) return;
+      const el = pickAt(doc, e.target, e.clientX, e.clientY);
+      if (!el || !isInlineText(el)) return;
+      e.preventDefault();
+      finishEditing();
+      editing = { el, id: el.dataset.editorId!, before: readText(el), html: el.innerHTML };
+      el.setAttribute("contenteditable", "plaintext-only");
+      if (el.contentEditable !== "plaintext-only") el.setAttribute("contenteditable", "true");
+      el.style.setProperty("user-select", "text");
+      el.style.setProperty("-webkit-user-select", "text");
+      el.style.setProperty("cursor", "text");
+      el.focus();
+      const range = doc.createRange();
+      range.selectNodeContents(el);
+      const sel = view.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+      latest.current.onSelect(editing.id);
+    });
     doc.addEventListener("keydown", (event) => {
       keepFocus.current = true;
+      if (editing) {
+        if (event.key === "Escape" || (event.key === "Enter" && (event.metaKey || event.ctrlKey))) {
+          event.preventDefault();
+          finishEditing();
+        }
+        // Pendant la saisie, flèches, Suppr et ⌘Z agissent sur le texte.
+        return;
+      }
       const el = target();
       if (el && !latest.current.locked) {
         const id = el.dataset.editorId!;
@@ -334,6 +418,8 @@ function SlideCanvas({
       view.focus();
     });
     doc.addEventListener("pointerdown", (e) => {
+      if (editing && editing.el.contains(e.target as Node)) return;
+      finishEditing();
       const inner = pickAt(doc, e.target, e.clientX, e.clientY);
       // Clic dans le vide : on désélectionne, comme dans Canva.
       if (!inner) {
@@ -402,6 +488,11 @@ function SlideCanvas({
         d.el.style.bottom = "auto";
         d.el.style.left = `${d.left + dx}px`;
         d.el.style.top = `${d.top + dy}px`;
+        // Repères d'alignement (⌘/Ctrl maintenu : placement libre).
+        const snap = e.metaKey || e.ctrlKey ? { x: null, y: null } : snapTo(doc, d.el);
+        if (snap.x) d.el.style.left = `${d.left + dx + snap.x.delta}px`;
+        if (snap.y) d.el.style.top = `${d.top + dy + snap.y.delta}px`;
+        setGuides({ x: snap.x?.line ?? null, y: snap.y?.line ?? null });
         followGlass(d.el);
       }
       if (latest.current.selected !== d.id) latest.current.onSelect(d.id);
@@ -413,6 +504,7 @@ function SlideCanvas({
       drag = null;
       const dx = e.clientX - d.x,
         dy = e.clientY - d.y;
+      setGuides({ x: null, y: null });
       // Simple clic : on choisit l'élément précis (le texte dans sa carte).
       if (Math.abs(dx) + Math.abs(dy) < 5) {
         latest.current.onSelect(d.inner.dataset.editorId!);
@@ -429,13 +521,14 @@ function SlideCanvas({
         commitLive(d.id, {
           position:
             d.el.style.position === "absolute" ? "absolute" : "relative",
-          left: `${Math.round(d.left + dx)}px`,
-          top: `${Math.round(d.top + dy)}px`,
+          left: `${Math.round(numberOr(d.el.style.left, d.left + dx))}px`,
+          top: `${Math.round(numberOr(d.el.style.top, d.top + dy))}px`,
           ...(d.fixedWidth ? { width: d.fixedWidth } : {}),
         });
     });
     doc.addEventListener("pointercancel", () => {
       drag = null;
+      setGuides({ x: null, y: null });
     });
     // Même inspection géométrique que le contrôle qualité global : l'aperçu
     // n'annonce jamais un débordement que la QA ignorerait, ni l'inverse.
@@ -551,6 +644,12 @@ function SlideCanvas({
               transformOrigin: "top left",
             }}
           />
+        )}
+        {guides.x !== null && (
+          <div aria-hidden="true" data-testid="guide-x" style={{ position: "absolute", top: 0, bottom: 0, left: guides.x * scale, width: 0, borderLeft: "1px dashed #FB3D80", pointerEvents: "none" }} />
+        )}
+        {guides.y !== null && (
+          <div aria-hidden="true" data-testid="guide-y" style={{ position: "absolute", left: 0, right: 0, top: guides.y * scale, height: 0, borderTop: "1px dashed #FB3D80", pointerEvents: "none" }} />
         )}
         {box && (
           <div
@@ -1078,12 +1177,17 @@ export default function CarouselEditor({
               changeSlide(patchElement(slide, id, { styles }))
             }
             onRemove={remove}
+            onEditText={(id, text) =>
+              changeSlide(patchElement(slide, id, { text }), `text-${slide.id}-${id}`)
+            }
           />
           <p className="mt-2 text-xs text-muted-foreground text-center">
-            Slide {active + 1} / {document.slides.length} · Glisse un bloc pour
-            le déplacer (son cadre suit), une photo pour la recadrer, les
-            poignées pour l’agrandir. Alt + glisser : le texte seul. Flèches pour
-            ajuster, Suppr pour retirer, Échap pour choisir le cadre.
+            Slide {active + 1} / {document.slides.length} · Double-clique un
+            texte pour l’écrire sur la slide. Glisse un bloc pour le déplacer
+            (il s’aligne sur les repères roses ; ⌘/Ctrl pour placer librement),
+            une photo pour la recadrer, les poignées pour l’agrandir. Alt +
+            glisser : le texte seul. Flèches pour ajuster, Suppr pour retirer,
+            Échap pour choisir le cadre.
           </p>
         </div>
         <div className="min-w-0 space-y-4 rounded-xl border bg-card p-4">
