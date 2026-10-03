@@ -1,4 +1,5 @@
 import { callAnthropic, SONNET_MODEL, type UsageSink } from "./anthropic.ts";
+import { progressionMaterial } from "./carousel-editorial-snapshot.ts";
 
 // SCHÉMAS décidés APRÈS l'écriture (03/10/2026, demande de Laetitia : « sortir
 // les schémas de l'écriture »).
@@ -157,6 +158,11 @@ export async function planSchemas(slides: Slide[], isMix: boolean, usage: UsageS
   }
 }
 
+async function sha256(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+}
+
 /** Pose les schémas sur le JSON du carrousel écrit. Les schémas éventuels de la
  * rédaction sont retirés : seul cet étage en décide. JSON illisible → intact. */
 export async function addSchemasToContent(content: string, opts: { isMix: boolean; usage: UsageSink; allowed: boolean; call?: typeof callAnthropic }): Promise<{ content: string; plan: SchemaPlan | null }> {
@@ -166,6 +172,13 @@ export async function addSchemasToContent(content: string, opts: { isMix: boolea
     const parsed = JSON.parse(m[0]);
     const slides: Slide[] = parsed?.slides;
     if (!Array.isArray(slides) || !slides.length) return { content, plan: null };
+    // Les reçus de relecture (fil, photos) portent l'empreinte du texte relu,
+    // schémas compris. Les schémas étant posés APRÈS la relecture, un reçu à
+    // jour avant cet étage le reste : sinon l'appli affichait « Le texte a
+    // changé depuis sa relecture » sur chaque carrousel avec schéma.
+    const before = progressionMaterial(parsed);
+    const freshText = parsed.progression_review?.reviewed_material === before;
+    const freshPhoto = parsed.photo_review?.reviewed_material === before;
     for (const s of slides) if (s && typeof s === "object") s.visual_schema = null;
     const plan = opts.allowed
       ? await planSchemas(slides, opts.isMix, opts.usage, opts.call)
@@ -173,6 +186,11 @@ export async function addSchemasToContent(content: string, opts: { isMix: boolea
     for (const sc of plan.schemas) {
       const s = slides.find((x, i) => (Number(x.slide_number) || i + 1) === sc.slide_number);
       if (s) s.visual_schema = sc.visual_schema;
+    }
+    const after = progressionMaterial(parsed);
+    if (after !== before) {
+      if (freshText) parsed.progression_review = { ...parsed.progression_review, reviewed_material: after, reviewed_text_hash: await sha256(after), schemas_added_after_review: true };
+      if (freshPhoto) parsed.photo_review = { ...parsed.photo_review, reviewed_material: after };
     }
     const start = m.index ?? 0;
     return { content: content.slice(0, start) + JSON.stringify(parsed) + content.slice(start + m[0].length), plan };
