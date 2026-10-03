@@ -21,7 +21,7 @@ const CH = { color_accent: "#5C7A5A", color_primary: "#5C7A5A", font_title: "Lib
 Deno.test("validation : étapes = extraits exacts, au moins 3, dans l'ordre ; la couverture n'en reçoit jamais", () => {
   assertEquals(validatePhotoFormatting({ steps: STEPS, motifs: [] }, SLIDES).steps.length, 3);
   assertEquals(validatePhotoFormatting({ steps: STEPS.slice(0, 2), motifs: [] }, SLIDES).steps, []);
-  assertEquals(validatePhotoFormatting({ steps: [STEPS[0], { slide_number: 3, label: "le modelage" }, STEPS[2]], motifs: [] }, SLIDES).steps, [], "label inventé");
+  assertEquals(validatePhotoFormatting({ steps: [STEPS[0], { slide_number: 3, label: "le modelage" }, STEPS[2]], motifs: [] }, SLIDES).steps.map(s => s.label), ["le pétrissage", "", "L’émaillage"], "label inventé : étape gardée, sans libellé");
   assertEquals(validatePhotoFormatting({ steps: [STEPS[1], STEPS[0], STEPS[2]], motifs: [] }, SLIDES).steps, [], "ordre");
   assertEquals(validatePhotoFormatting({ steps: [{ slide_number: 1, label: "une pièce finie" }, ...STEPS], motifs: [] }, SLIDES).steps, [], "couverture");
 });
@@ -44,7 +44,7 @@ Deno.test("validation : motif = mots du texte ou repères courts, jamais de mot 
 
 Deno.test("validation : libellé d'étape court ; s'il répète le début du texte, l'étape s'affiche sans libellé", () => {
   const long = validatePhotoFormatting({ steps: [{ slide_number: 2, label: "Tout commence avant la forme, avec" }, STEPS[1], STEPS[2]], motifs: [] }, SLIDES);
-  assertEquals(long.steps, [], "libellé de plus de 4 mots refusé");
+  assertEquals(long.steps.map(s => s.label), ["", "le tournage", "L’émaillage"], "libellé de plus de 4 mots : étape gardée, sans libellé (jamais toute la suite perdue)");
   const rep = validatePhotoFormatting({ steps: [STEPS[0], { slide_number: 3, label: "Puis vient le tournage" }, STEPS[2]], motifs: [] }, SLIDES);
   assertEquals(rep.steps.map(s => s.label), ["le pétrissage", "", "L’émaillage"]);
   const html = composePhotoSlide(applyPhotoFormatting(SLIDES.map((s, i) => i ? { ...s, photo_style: "carte" } : s), rep)[2], CH, { isFirst: false, isLast: false }).html;
