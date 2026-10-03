@@ -1721,3 +1721,32 @@ export function slideExtraTexts(slide: EditorSlide): string[] {
 export function withGoogleFonts(slide: EditorSlide, fontFamily: string): EditorSlide {
   return GOOGLE_FONTS.filter((f) => fontFamily.includes(f.family)).reduce((acc, f) => ensureFontLink(acc, f.family), slide);
 }
+
+/**
+ * Place la barre d'outils flottante sans cacher l'élément choisi : au-dessus
+ * s'il y a la place, sinon en dessous, sinon collée au bord le plus éloigné
+ * de l'élément. Toutes les valeurs sont en pixels de l'aperçu.
+ */
+export function placeToolbar(
+  box: { left: number; top: number; width: number; height: number },
+  bar: { width: number; height: number },
+  canvas: { width: number; height: number },
+  gap = 8,
+  margin = 4,
+): { left: number; top: number } {
+  const bottom = box.top + box.height;
+  const above = box.top - gap - bar.height;
+  const below = bottom + gap;
+  const top =
+    above >= margin
+      ? above
+      : below + bar.height <= canvas.height - margin
+        ? below
+        : box.top >= canvas.height - bottom
+          ? margin
+          : canvas.height - bar.height - margin;
+  return {
+    left: Math.max(margin, Math.min(box.left, canvas.width - bar.width - margin)),
+    top: Math.max(margin, top),
+  };
+}
