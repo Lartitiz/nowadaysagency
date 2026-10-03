@@ -40,6 +40,6 @@ it("a Google font applied from a saved style or pasted from another slide is loa
   const styled = patchElement(slide, title.id, { styles: { "font-family": "'Playfair Display', serif" } });
   expect(styled.html).toMatch(/Playfair\+Display/);
   const other = makeSlide({ title: "Autre" }, "text_only");
-  const pasted = pasteElement(other, { html: '<p style="font-family: \\'Bebas Neue\\', sans-serif">Copie</p>', rect: { left: 0, top: 0, width: 300, height: 60 } }, false);
+  const pasted = pasteElement(other, { html: `<p style="font-family: 'Bebas Neue', sans-serif">Copie</p>`, rect: { left: 0, top: 0, width: 300, height: 60 } }, false);
   expect(pasted.slide.html).toMatch(/Bebas\+Neue/);
 });
