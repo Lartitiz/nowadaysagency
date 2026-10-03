@@ -223,7 +223,8 @@ describe("carousel editor interaction", () => {
       const title = doc.querySelector<HTMLElement>('[data-slide-text="title"]')!;
       fireEvent.dblClick(title);
       expect(title.getAttribute("contenteditable")).toMatch(/plaintext-only|true/);
-      title.textContent = "Mon nouvel atelier";
+      // Saisie réelle : seul le texte avant le mot en italique change.
+      title.firstChild!.textContent = "Mon nouvel ";
       fireEvent.keyDown(doc, { key: "Escape" });
       expect(title.hasAttribute("contenteditable")).toBe(false);
       const saved = JSON.parse(screen.getByTestId("saved").textContent!);
