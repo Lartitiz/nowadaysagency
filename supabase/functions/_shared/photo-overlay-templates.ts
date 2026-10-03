@@ -275,7 +275,7 @@ function stepHeader(step: NonNullable<PhotoFormat["step"]>, color: string, shado
   const bars = Array.from({ length: step.total }, (_, i) =>
     `<div style="flex:1;height:10px;border-radius:5px;background:${color};opacity:${i < step.index ? 1 : .28};"></div>`).join("");
   return `<div data-photo-format="etape" data-photo-step="${step.index}/${step.total}" style="position:relative;z-index:1;margin-bottom:26px;">` +
-    `<div data-pptx-editable="caption" style="font-size:30px;line-height:1.3;letter-spacing:.06em;text-transform:uppercase;font-weight:500;color:${color};text-shadow:${shadow};">Étape ${step.index} · ${escapeHtml(label)}</div>` +
+    `<div data-pptx-editable="caption" data-photo-step-label="1" style="font-size:30px;line-height:1.3;letter-spacing:.06em;text-transform:uppercase;font-weight:500;color:${color};text-shadow:${shadow};">Étape ${step.index} · ${escapeHtml(label)}</div>` +
     `<div style="display:flex;gap:12px;margin-top:16px;">${bars}</div></div>`;
 }
 
