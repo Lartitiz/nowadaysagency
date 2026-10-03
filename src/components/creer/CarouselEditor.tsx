@@ -38,6 +38,13 @@ import { hasClippedElement } from "@/lib/carousel-quality";
 import { compressImageFile } from "@/lib/image-compress";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import {
+  addPreset,
+  groupElements,
+  PRESETS,
+  setLayerLocked,
+  ungroupElement,
+  type ElementRect,
+  type PresetKind,
   applyToAllSlides,
   pasteElement,
   type ClipboardElement,
@@ -186,6 +193,8 @@ const SHORTCUTS: [string, string][] = [
   ["Flèches · Maj+flèches", "Déplacer de 1 px · 10 px"],
   ["Suppr", "Retirer l’élément"],
   ["⌘] · ⌘[", "Passer devant · derrière"],
+  ["⌘G · ⌘⇧G", "Grouper · dégrouper"],
+  ["⌘⇧L", "Verrouiller · déverrouiller l’élément"],
   ["Alt + glisser", "Déplacer le texte seul, hors de son cadre"],
   ["⌘ + glisser", "Placer librement, sans repères"],
 ];
@@ -193,7 +202,11 @@ type AlignMode = "left" | "center" | "right" | "top" | "middle" | "bottom" | "sp
 interface CanvasApi {
   align: (mode: AlignMode) => void;
   copy: (ids: string[]) => ClipboardElement[];
+  /** Boîtes affichées (repère de la slide), pour grouper / dégrouper sans rien décaler. */
+  rects: (ids: string[]) => Record<string, ElementRect>;
 }
+/** Élément verrouillé (lui ou le groupe qui le contient). */
+const isLockedEl = (el: HTMLElement) => !!el.closest("[data-editor-locked]");
 const SNAP = 8;
 /**
  * Repères d'alignement : bords et centre de la slide, bords et centres des
@@ -271,6 +284,7 @@ function SlideCanvas({
   onPaste,
   onShortcut,
   onDropPhoto,
+  onLock,
   zoom = 1,
   api,
   onMeasure,
@@ -299,6 +313,7 @@ function SlideCanvas({
   api: React.MutableRefObject<CanvasApi | null>;
   /** Photo glissée depuis l'ordinateur sur la slide (cible : la photo sous le pointeur). */
   onDropPhoto?: (file: File, targetId: string | null) => void;
+  onLock?: (id: string, locked: boolean) => void;
   /** Zoom de l'aperçu (1 = largeur de la colonne). */
   zoom?: number;
   onMeasure?: (box: CanvasBox | null) => void;
@@ -317,6 +332,9 @@ function SlideCanvas({
           underline?: boolean;
           editorial?: boolean;
           glass?: boolean;
+          locked?: boolean;
+          /** L'élément verrouillé (lui-même ou son groupe), à déverrouiller. */
+          lockedId?: string;
           fontSize?: number;
           align?: string;
         })
@@ -359,8 +377,8 @@ function SlideCanvas({
     window.document.addEventListener("focusin", leave);
     return () => window.document.removeEventListener("focusin", leave);
   }, []);
-  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, locked: slide.locked });
-  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, locked: slide.locked };
+  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, locked: slide.locked });
+  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, locked: slide.locked };
   const [extraBoxes, setExtraBoxes] = useState<CanvasBox[]>([]);
   const [dropping, setDropping] = useState(false);
   // Barre d'outils : état de la saisie sur la slide et actions branchées sur l'aperçu.
@@ -420,6 +438,8 @@ function SlideCanvas({
               align: cs.textAlign,
               editorial: el.hasAttribute("data-photo-editorial-text"),
               glass: el.hasAttribute("data-photo-glass"),
+              locked: isLockedEl(el),
+              lockedId: el.closest<HTMLElement>("[data-editor-locked]")?.dataset.editorId,
             }
           : {};
       })(),
@@ -581,13 +601,20 @@ function SlideCanvas({
             const r = el.getBoundingClientRect();
             return { html: el.outerHTML, rect: { left: r.left, top: r.top, width: r.width, height: r.height } };
           }),
+      rects: (ids) =>
+        Object.fromEntries(
+          ids
+            .map((id) => [id, doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`)?.getBoundingClientRect()] as const)
+            .filter(([, r]) => !!r && (r.width > 0 || r.height > 0))
+            .map(([id, r]) => [id, { left: r!.left, top: r!.top, width: r!.width, height: r!.height }]),
+        ),
     };
     doc.addEventListener("dblclick", (e) => {
       if (latest.current.locked) return;
       // Déjà en train d'écrire ici : le double-clic choisit un mot.
       if (editing && editing.el.contains(e.target as Node)) return;
       const el = pickAt(doc, e.target, e.clientX, e.clientY);
-      if (!el || !isInlineText(el)) return;
+      if (!el || !isInlineText(el) || isLockedEl(el)) return;
       e.preventDefault();
       startEditing(el);
     });
@@ -623,7 +650,7 @@ function SlideCanvas({
       // Entrée : écrire dans le texte choisi (comme un double-clic).
       if (event.key === "Enter" && !event.metaKey && !event.ctrlKey && latest.current.selected) {
         const chosen = target();
-        if (chosen && isInlineText(chosen) && !latest.current.locked) {
+        if (chosen && isInlineText(chosen) && !latest.current.locked && !isLockedEl(chosen)) {
           event.preventDefault();
           startEditing(chosen);
           return;
@@ -636,7 +663,7 @@ function SlideCanvas({
         const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
         const members = latest.current.group
           .map((id) => doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`))
-          .filter((m): m is HTMLElement => !!m && !(isPhotoEl(m) && isFullBleed(m)) && !m.matches(VEIL) && !isPassiveShape(m));
+          .filter((m): m is HTMLElement => !!m && !(isPhotoEl(m) && isFullBleed(m)) && !m.matches(VEIL) && !isPassiveShape(m) && !isLockedEl(m));
         if (d) {
           event.preventDefault();
           const moves: Record<string, Record<string, string>> = {};
@@ -676,7 +703,8 @@ function SlideCanvas({
           ArrowDown: [0, step],
         };
         const delta = arrows[event.key];
-        if (delta && (!isPhotoEl(el) || !isFullBleed(el)) && !el.matches(VEIL) && !isPassiveShape(el)) {
+        const elLocked = isLockedEl(el);
+        if (delta && !elLocked && (!isPhotoEl(el) || !isFullBleed(el)) && !el.matches(VEIL) && !isPassiveShape(el)) {
           event.preventDefault();
           const computed = view.getComputedStyle(el);
           const absolute = computed.position === "absolute";
@@ -695,7 +723,7 @@ function SlideCanvas({
           commitLive(id, styles);
           return;
         }
-        if ((event.key === "Delete" || event.key === "Backspace") && !el.matches('[data-pptx-shape="background"]')) {
+        if ((event.key === "Delete" || event.key === "Backspace") && !elLocked && !el.matches('[data-pptx-shape="background"]')) {
           event.preventDefault();
           latest.current.onRemove(id);
           return;
@@ -761,7 +789,7 @@ function SlideCanvas({
       // the preview so subsequent ⌘Z/Ctrl+Z reaches its keydown listener.
       view.focus();
       keepFocus.current = true;
-      if (latest.current.locked) {
+      if (latest.current.locked || isLockedEl(inner)) {
         latest.current.onSelect(inner.dataset.editorId!);
         return;
       }
@@ -800,7 +828,7 @@ function SlideCanvas({
           (latest.current.group.includes(el.dataset.editorId!) || latest.current.group.includes(inner.dataset.editorId!))
             ? latest.current.group
                 .map((id) => doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`))
-                .filter((m): m is HTMLElement => !!m && m !== el && m !== inner && !isPhotoEl(m) && !m.matches(VEIL) && !isPassiveShape(m))
+                .filter((m): m is HTMLElement => !!m && m !== el && m !== inner && !isPhotoEl(m) && !m.matches(VEIL) && !isPassiveShape(m) && !isLockedEl(m))
                 .map((m) => {
                   const cs = view.getComputedStyle(m);
                   return { el: m, left: numberOr(cs.left, 0), top: numberOr(cs.top, 0) };
@@ -962,7 +990,7 @@ function SlideCanvas({
     window.addEventListener("pointerup", up);
   };
   const handles: Handle[] =
-    !box || slide.locked || box.kind === "veil" || (box.kind === "photo" && box.width >= 1075 && box.height >= 1345)
+    !box || slide.locked || box.locked || box.kind === "veil" || (box.kind === "photo" && box.width >= 1075 && box.height >= 1345)
       ? []
       : box.kind === "text"
         ? ["w", "e", "se"]
@@ -1008,7 +1036,12 @@ function SlideCanvas({
           top: box.top * scale > 52 ? box.top * scale - 48 : Math.min((box.top + box.height) * scale + 8, width * 1.25 - 48),
         }}
       >
-        {box.kind === "text" && (
+        {box.locked && (
+          <button type="button" className={toolButton} aria-label="Déverrouiller l’élément" onClick={() => latest.current.onLock?.(box.lockedId || selected, false)}>
+            <Unlock size={14} className="mr-1" /> Déverrouiller
+          </button>
+        )}
+        {!box.locked && box.kind === "text" && (
           <>
             <button type="button" className={toolButton} aria-pressed={!!box.bold} aria-label="Gras" title="Gras (sur les mots choisis en écrivant)"
               onClick={() => apply({ "font-weight": "toggle" }, { "font-weight": box.bold ? "400" : "700" })}>B</button>
@@ -1027,6 +1060,8 @@ function SlideCanvas({
             </button>
           </>
         )}
+        {!box.locked && (
+          <>
         {box.kind !== "photo" &&
           colors.map((c) => (
             <button
@@ -1057,6 +1092,10 @@ function SlideCanvas({
         )}
         <button type="button" className={toolButton} aria-label="Retirer l’élément" title="Retirer"
           onClick={() => { tools.current.finish(); latest.current.onRemove(selected); }}><Trash2 size={14} /></button>
+            <button type="button" className={toolButton} aria-label="Verrouiller l’élément" title="Verrouiller (⌘⇧L) : il ne bougera plus par erreur"
+              onClick={() => { tools.current.finish(); latest.current.onLock?.(selected, true); }}><LockKeyhole size={14} /></button>
+          </>
+        )}
       </div>
     ) : null;
   return (
@@ -1340,7 +1379,17 @@ export default function CarouselEditor({
       setExtra(ids.slice(1));
       return true;
     }
+    if (key === "g") {
+      if (event.shiftKey) ungroupSelection();
+      else groupSelection();
+      return true;
+    }
     if (!selected) return false;
+    if (key === "l" && event.shiftKey) {
+      const isLocked = !!listLayers(slide.html).find((l) => l.id === selected)?.locked;
+      lockElement(selected, !isLocked);
+      return true;
+    }
     if (key === "d" && !event.shiftKey) {
       const out = duplicateElement(slide, selected);
       if (!out.id) return true;
@@ -1424,6 +1473,49 @@ export default function CarouselEditor({
     } catch {
       toast.error("Cette photo n’a pas pu être lue.");
     }
+  };
+  // Verrouiller un élément, grouper / dégrouper, éléments tout faits.
+  const lockElement = (id: string, locked: boolean) => changeSlide(setLayerLocked(slide, id, locked));
+  const groupable = (id: string) => {
+    const l = listLayers(slide.html).find((x) => x.id === id);
+    return !!l && l.topLevel && !l.fixed && !l.locked && l.role !== "veil" && l.role !== "glass" && l.kind !== "photo";
+  };
+  const groupSelection = () => {
+    const ids = group.filter(groupable);
+    if (ids.length < 2) {
+      toast("Choisis au moins deux éléments à grouper", { description: "Maj + clic sur la slide ou dans les calques. Les photos et le cadre en verre restent à part." });
+      return;
+    }
+    const rects = canvasApi.current?.rects(ids) || {};
+    const out = groupElements(slide, ids.filter((id) => rects[id]).map((id) => ({ id, rect: rects[id] })));
+    if (!out.id) return;
+    changeSlide(out.slide);
+    selectOne(out.id);
+  };
+  const ungroupSelection = () => {
+    if (!selected) return;
+    const members = getEditorElements(slide.html).filter((e) => e.id !== selected);
+    const rects = canvasApi.current?.rects(members.map((e) => e.id)) || {};
+    const out = ungroupElement(slide, selected, rects);
+    if (!out.ids.length) return;
+    changeSlide(out.slide);
+    setSelected(out.ids[0]);
+    setExtra(out.ids.slice(1));
+  };
+  const addReady = (kind: PresetKind) => {
+    // Couleur de marque : la plus vive de la palette, assez foncée pour se lire
+    // sur un fond clair (le fond rose pâle est souvent la couleur la plus fréquente).
+    const score = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+      const max = Math.max(r, g, b), min = Math.min(r, g, b), light = (max + min) / 2;
+      const sat = max === min ? 0 : (max - min) / (1 - Math.abs(2 * light - 1));
+      return light > 0.12 && light < 0.6 ? sat : -1;
+    };
+    const brand = [...palette].sort((a, b) => score(b) - score(a)).find((c) => score(c) > 0.2) || "#1a1a1a";
+    const out = addPreset(slide, kind, brand, "#ffffff");
+    if (!out.id) return;
+    changeSlide(out.slide);
+    selectOne(out.id);
   };
   const applyAll = (what: { style?: boolean; position?: boolean }) => {
     if (!selected) return;
@@ -1984,6 +2076,7 @@ export default function CarouselEditor({
             onShortcut={shortcut}
             api={canvasApi}
             onDropPhoto={onAddPhoto ? dropPhoto : undefined}
+            onLock={lockElement}
             zoom={fullscreen ? 1 : zoom}
             onMeasure={setMeasured}
             onMove={(id, styles) =>
@@ -2086,6 +2179,17 @@ export default function CarouselEditor({
                     <button
                       type="button"
                       disabled={slide.locked || layer.fixed}
+                      aria-pressed={!!layer.locked}
+                      aria-label={`${layer.locked ? "Déverrouiller" : "Verrouiller"} le calque ${layer.label}`}
+                      title={layer.locked ? "Déverrouiller" : "Verrouiller : il ne bougera plus par erreur"}
+                      onClick={() => lockElement(layer.id, !layer.locked)}
+                      className={`rounded p-1 hover:bg-muted disabled:opacity-30 ${layer.locked ? "text-primary" : "opacity-40 hover:opacity-100"}`}
+                    >
+                      {layer.locked ? <LockKeyhole size={13} /> : <Unlock size={13} />}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={slide.locked || layer.fixed}
                       aria-label={`${layer.hidden ? "Afficher" : "Masquer"} le calque ${layer.label}`}
                       title={layer.hidden ? "Afficher" : "Masquer (ni exporté ni publié)"}
                       onClick={() => changeSlide(setLayerHidden(slide, layer.id, !layer.hidden))}
@@ -2095,7 +2199,7 @@ export default function CarouselEditor({
                     </button>
                     <button
                       type="button"
-                      disabled={slide.locked || layer.fixed}
+                      disabled={slide.locked || layer.fixed || layer.locked}
                       aria-label={`Retirer le calque ${layer.label}`}
                       title={layer.frame ? "Retirer le fond (garder le texte)" : "Retirer"}
                       onClick={() => remove(layer.id)}
@@ -2171,6 +2275,9 @@ export default function CarouselEditor({
                 </div>
               )}
               <div className="flex flex-wrap gap-1">
+                <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={groupSelection} title="⌘G">
+                  Grouper
+                </Button>
                 <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={copySelection}>
                   <Copy size={12} className="mr-1" /> Copier
                 </Button>
@@ -2184,8 +2291,19 @@ export default function CarouselEditor({
               <p className="text-2xs text-muted-foreground">Maj + clic sur un élément ou un calque pour l’ajouter ou le retirer.</p>
             </div>
           )}
+          {element && !slide.locked && listLayers(slide.html).find((l) => l.id === element.id)?.locked && (
+            <div role="status" className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs">
+              <span className="flex items-center gap-1.5"><LockKeyhole size={13} /> Élément verrouillé.</span>
+              <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={() => lockElement(element.id, false)}>Déverrouiller</Button>
+            </div>
+          )}
+          {element?.name === "groupe" && !slide.locked && (
+            <Button size="sm" variant="outline" className="w-full" onClick={ungroupSelection} title="⌘⇧G">
+              Dégrouper
+            </Button>
+          )}
           <fieldset
-            disabled={slide.locked}
+            disabled={slide.locked || (!!element && !!listLayers(slide.html).find((l) => l.id === element.id)?.locked)}
             className="min-w-0 space-y-3 disabled:opacity-50"
           >
             {element?.kind === "text" && (
@@ -2668,6 +2786,20 @@ export default function CarouselEditor({
                 Ajouter une forme
               </Button>
             </div>
+            <label className="block text-xs">
+              Ajouter un élément tout fait
+              <select
+                aria-label="Ajouter un élément tout fait"
+                className="mt-1 w-full rounded border bg-background p-2"
+                value=""
+                onChange={(e) => e.target.value && addReady(e.target.value as PresetKind)}
+              >
+                <option value="">Flèche, numéro, pastille, ligne…</option>
+                {PRESETS.map((p) => (
+                  <option key={p.kind} value={p.kind}>{p.label}</option>
+                ))}
+              </select>
+            </label>
             {onOpenStudio && <Button variant="outline" size="sm" className="w-full" disabled={slide.locked} onClick={() => onOpenStudio(slide.id)}>Créer / remplacer avec le Studio</Button>}
             {onAddPhoto && (
               <Button
