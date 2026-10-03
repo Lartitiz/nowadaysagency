@@ -94,13 +94,18 @@ export function validatePhotoFormatting(raw: unknown, slides: Slide[]): Pick<Pho
   let steps: PhotoFormattingPlan["steps"] = [];
   const rawSteps = Array.isArray(data?.steps) ? data.steps : [];
   for (const st of rawSteps) {
-    const n = Number(st?.slide_number), label = typeof st?.label === "string" ? st.label.trim() : "";
-    if (!eligible(n) || !label || words(label) > 4 || !norm(textOf.get(n) || "").includes(norm(label))) { steps = []; break; }
+    const n = Number(st?.slide_number), raw = typeof st?.label === "string" ? st.label.trim() : "";
+    // La SUITE est ce qui compte (slides valides, dans l'ordre) ; elle seule
+    // peut faire renoncer aux étapes.
+    if (!eligible(n)) { steps = []; break; }
     if (steps.length && n <= steps[steps.length - 1].slide_number) { steps = []; break; }
-    // Un libellé qui répète le début du texte (« Puis vient le tour » au-dessus de
-    // « Puis vient le tour. ») est retiré : l'étape s'affiche « Étape 2 » seule.
+    // Le libellé n'est qu'un plus : trop long (> 4 mots), absent du texte ou qui
+    // répète le début du texte (« Puis vient le tour » au-dessus de « Puis vient
+    // le tour. ») → l'étape s'affiche « Étape 4 » seule, sans casser la suite
+    // (vu en live le 03/10/2026 : « le dessin à la main » faisait tout tomber).
     const opening = norm(textOf.get(n) || "");
-    steps.push({ slide_number: n, label: words(label) >= 3 && opening.startsWith(norm(label)) ? "" : label });
+    const okLabel = !!raw && words(raw) <= 4 && opening.includes(norm(raw)) && !(words(raw) >= 3 && opening.startsWith(norm(raw)));
+    steps.push({ slide_number: n, label: okLabel ? raw : "" });
   }
   if (steps.length < MIN_STEPS) steps = [];
 
