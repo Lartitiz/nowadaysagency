@@ -73,7 +73,7 @@ Deno.test("dessin : texte posé sur une forme descendu dessous ; cadre ajusté a
   assert(t.y - 40 * .8 >= 260, `texte encore sur le rectangle (y=${t.y})`);
   const html = composePhotoSlide(applyPhotoFormatting(SLIDES.map((s, i) => i ? { ...s, photo_style: "carte" } : s), { steps: [], motifs: [{ slide_number: 2, reason: "r", elements: [
     { k: "text", x: 20, y: 40, text: "le pétrissage", tone: "ink", size: 44 }, { k: "line", x1: 310, y1: 70, x2: 390, y2: 70, tone: "soft" }] }] })[1], CH, { isFirst: false, isLast: false }).html;
-  const vb = /data-photo-format="motif"[^>]*viewBox="0 (-?\d+) 1000 (\d+)"/.exec(html);
+  const vb = /data-photo-format="motif"[^>]*viewBox="\d+ (-?\d+) 1000 (\d+)"/.exec(html);
   assert(vb && Number(vb[2]) < 120, `cadre non ajusté (${vb?.[0]})`);
 });
 
