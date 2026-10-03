@@ -1119,20 +1119,30 @@ export function stripVisualHintText(result: any, params: { slides: any[] }): voi
     let html: string = slide?.html || "";
     if (!src || !html) return slide;
     const before = html;
+    const MARK = "<!--indication-retiree-->";
     // Cadre entier : un conteneur sans photo dont le seul texte vient de l'indication.
     html = html.replace(/<(div|figure)\b([^>]*)>((?:(?!<\/?(?:div|figure)\b)[\s\S])*?)<\/\1>/gi, (m: string, _t: string, attrs: string, inner: string) => {
       if (/data-pptx-photo|\{\{PHOTO_|<img\b|data-slide-text/i.test(attrs + inner)) return m;
       const txt = inner.replace(/<[^>]*>/g, " ");
       if (!fromHint(txt, src)) return m;
       removed++;
-      return "";
+      return MARK;
     });
     // Élément texte isolé restant.
     html = html.replace(/<(p|span|figcaption|small|em|i|h[1-6])\b([^>]*)>([^<]{12,})<\/\1>/gi, (m: string, _t: string, attrs: string, txt: string) => {
       if (/data-slide-text/i.test(attrs) || !fromHint(txt, src)) return m;
       removed++;
-      return "";
+      return MARK;
     });
+    // Le cadre qui ne contenait que l'indication (et un trait décoratif) part
+    // aussi, sur trois niveaux au plus : sinon un aplat vide restait (vu en live).
+    const emptied = new RegExp(`<(div|figure)\\b[^>]*>\\s*(?:<svg\\b[\\s\\S]*?<\\/svg>\\s*)*${MARK}\\s*(?:<svg\\b[\\s\\S]*?<\\/svg>\\s*)*<\\/\\1>`, "gi");
+    for (let k = 0; k < 3; k++) {
+      const next = html.replace(emptied, (m: string) => /data-pptx-photo|\{\{PHOTO_|<img\b|data-slide-text/i.test(m) ? m : MARK);
+      if (next === html) break;
+      html = next;
+    }
+    html = html.split(MARK).join("");
     return html === before ? slide : { ...slide, html };
   });
   if (removed > 0) console.log(`carousel-visual: ${removed} indication(s) visuelle(s) recopiée(s) en texte retirée(s)`);
