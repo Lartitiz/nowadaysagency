@@ -5,7 +5,7 @@ import type { CarouselQuality } from "@/hooks/use-carousel-quality";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
-import CarouselEditor from "@/components/creer/CarouselEditor";
+import CarouselEditorConnected from "@/components/creer/CarouselEditorConnected";
 import CarouselPhotoResult, { type CarouselColors } from "@/components/creer/formatRenderers/CarouselPhotoResult";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import ReelResult from "@/components/creer/formatRenderers/ReelResult";
@@ -552,7 +552,7 @@ export default function CreerStepResult({
     if (format === "carousel" && visualSlides?.length && onCarouselDocumentChange) {
       return <fieldset disabled={visualLoading} className={`min-w-0 w-full ${visualLoading ? "pointer-events-none opacity-60" : ""}`} aria-busy={visualLoading}>
         {visualLoading && <p role="status" className="mb-3 text-sm">Régénération en cours. Les retouches seront disponibles dès que les nouveaux visuels seront prêts.</p>}
-        <CarouselEditor onOpenStudio={onOpenCarouselStudio} result={result} visualSlides={visualSlides} onChange={onCarouselDocumentChange} photos={photos} onAddPhoto={onAddPhoto} onStaleChange={onCarouselStaleChange} cloudTools={carouselCloudTools} quality={carouselQuality} toolsPortal={carouselToolsSlot} />
+        <CarouselEditorConnected brandColors={charterColors ? [charterColors.primary, charterColors.secondary, charterColors.accent] : undefined} onOpenStudio={onOpenCarouselStudio} result={result} visualSlides={visualSlides} onChange={onCarouselDocumentChange} photos={photos} onAddPhoto={onAddPhoto} onStaleChange={onCarouselStaleChange} cloudTools={carouselCloudTools} quality={carouselQuality} toolsPortal={carouselToolsSlot} />
       </fieldset>;
     }
     // Carousel photo gets its own renderer — si on a des photos, OU si les slides
