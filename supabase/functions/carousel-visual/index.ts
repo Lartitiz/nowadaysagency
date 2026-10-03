@@ -1,4 +1,5 @@
 import { planPhotoArtDirection } from "../_shared/photo-art-direction.ts";
+import { applyPhotoFormatting, planPhotoFormatting, type PhotoFormattingPlan } from "../_shared/photo-formatting.ts";
 import { COMPOSE } from "../_shared/carousel-editorial-contract.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
@@ -694,11 +695,13 @@ export function runComposedByCodeGeneration(params: {
   usage: UsageSink;
   emitStatus: StatusEmitter;
   tStart: number;
+  formatting?: Pick<PhotoFormattingPlan, "steps" | "motifs"> | null;
 }): any {
-  const { slides, ch, reqBody, usage, emitStatus, tStart } = params;
+  const { slides, ch, reqBody, usage, emitStatus, tStart, formatting } = params;
   emitStatus("visuals", { done: 0, total: 1 });
-  // Alternance des habillages éditoriaux (carte, voile du bord, verre, colonne).
-  const specs = assignPhotoStyles(slides as any[]) as any[];
+  // Alternance des habillages éditoriaux (carte, voile du bord, verre, colonne),
+  // puis mise en forme (étapes, motif libre) qui a besoin de connaître l'habillage.
+  const specs = applyPhotoFormatting(assignPhotoStyles(slides as any[]) as any[], formatting) as any[];
   const nums = specs.map((s, i) => Number(s?.slide_number) || i + 1);
   const minNum = Math.min(...nums);
   const maxNum = Math.max(...nums);
@@ -2300,14 +2303,20 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
       emitStatus("visuals", { done: 0, total: 1 });
       const prepared = slides.map((s: any, i: number) => ({ ...s, art_direction: undefined, slide_number: Number(s.slide_number) || i + 1,
         photo_index: Number(s.photo_index) >= 1 ? Number(s.photo_index) : (i % Math.max(1, reqBody.photos?.length || 1)) + 1 }));
-      const art = await planPhotoArtDirection(prepared, ch, reqBody.photos || [], usage, undefined, validImageUrls);
+      // Direction artistique et MISE EN FORME en parallèle : la mise en forme lit
+      // le texte final et ne dépend pas de l'écriture (garde-fou du 03/10/2026).
+      const [art, formatting] = await Promise.all([
+        planPhotoArtDirection(prepared, ch, reqBody.photos || [], usage, undefined, validImageUrls),
+        planPhotoFormatting(prepared, usage),
+      ]);
       const templates: Record<string, string> = {opening:"couverture",editorial:"profonde",quote:"profonde",statement:"profonde",list:"liste",steps:"etape",number:"chiffre",closing:"finale"};
       const directed = prepared.map((s: any) => {
         const choice = art.choices.find(c => c.slide_number === s.slide_number);
         return choice ? { ...s, template: templates[choice.treatment], overlay_position: s.position_locked ? s.overlay_position : choice.position, art_direction: choice } : s;
       });
-      result = runComposedByCodeGeneration({ slides: directed, ch, reqBody, usage, emitStatus, tStart });
+      result = runComposedByCodeGeneration({ slides: directed, ch, reqBody, usage, emitStatus, tStart, formatting });
       result.photo_art_direction = art;
+      result.photo_formatting = { version: formatting.version, status: formatting.status, steps: formatting.steps.length, motifs: formatting.motifs.length };
     } else if (allEditorial) {
       result = { slides_html: editorialSlides };
       if (!usage.model) usage.model = COMPOSED_BY_CODE_MODEL;

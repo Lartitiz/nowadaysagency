@@ -1,5 +1,6 @@
 import { photoEditorialMarkup } from "./photo-editorial.ts";
 import { hexLuminance } from "./contrast-guard.ts";
+import type { PhotoFormat } from "./photo-format-types.ts";
 
 // Composition PAR CODE des slides photo+overlay (chantier gabarits 13/07).
 //
@@ -59,6 +60,9 @@ export interface PhotoSlideSpec {
   // Habillage des passages éditoriaux, attribué par assignPhotoStyles
   // (alternance validée par Laetitia le 02/10/2026). Absent = rendu historique.
   photo_style?: PhotoStyle | null;
+  // Mise en forme décidée APRÈS l'écriture (photo-formatting.ts) : étape +
+  // frise de progression, motif libre proposé par l'IA. Jamais de texte modifié.
+  photo_format?: PhotoFormat | null;
 }
 
 export type PhotoStyle = "bord" | "carte" | "verre" | "colonne";
@@ -265,6 +269,28 @@ function tplCouverture(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): strin
     contentWrap(s.overlay_position || "bottom_left", "center", parts);
 }
 
+/** « Étape 2 · Le tournage » + frise de progression (rectangles, jamais de ronds). */
+function stepHeader(step: NonNullable<PhotoFormat["step"]>, color: string, shadow = "none"): string {
+  const label = step.label.charAt(0).toUpperCase() + step.label.slice(1);
+  const bars = Array.from({ length: step.total }, (_, i) =>
+    `<div style="flex:1;height:10px;border-radius:5px;background:${color};opacity:${i < step.index ? 1 : .28};"></div>`).join("");
+  return `<div data-photo-format="etape" data-photo-step="${step.index}/${step.total}" style="position:relative;z-index:1;margin-bottom:26px;">` +
+    `<div data-pptx-editable="caption" style="font-size:30px;line-height:1.3;letter-spacing:.06em;text-transform:uppercase;font-weight:500;color:${color};text-shadow:${shadow};">Étape ${step.index} · ${escapeHtml(label)}</div>` +
+    `<div style="display:flex;gap:12px;margin-top:16px;">${bars}</div></div>`;
+}
+
+/** Motif libre proposé par l'IA, validé (photo-formatting.ts) puis dessiné ici
+ * en SVG dans les couleurs de la surface de lecture. */
+function motifSvg(motif: NonNullable<PhotoFormat["motif"]>, colors: { ink: string; soft: string; accent: string }, fonts: { title: string; body: string }): string {
+  const c = (t: string) => t === "accent" ? colors.accent : t === "soft" ? colors.soft : colors.ink;
+  const els = motif.elements.map(e => {
+    if (e.k === "rect") return `<rect x="${e.x}" y="${e.y}" width="${e.w}" height="${e.h}" rx="${e.radius ?? 8}" fill="${c(e.tone)}"${e.opacity ? ` fill-opacity="${e.opacity}"` : ""}/>`;
+    if (e.k === "line") return `<line x1="${e.x1}" y1="${e.y1}" x2="${e.x2}" y2="${e.y2}" stroke="${c(e.tone)}" stroke-width="${e.width ?? 4}" stroke-linecap="round"/>`;
+    return `<text x="${e.x}" y="${e.y}" fill="${c(e.tone)}" font-size="${e.size ?? 44}" text-anchor="${e.anchor ?? "start"}" font-family="${escapeHtml(e.font === "title" ? fonts.title : fonts.body)}">${escapeHtml(e.text)}</text>`;
+  }).join("");
+  return `<svg data-photo-format="motif" role="img" aria-label="${escapeHtml(motif.reason || "Schéma")}" viewBox="0 0 1000 320" width="100%" style="position:relative;display:block;margin-bottom:26px;overflow:visible;">${els}</svg>`;
+}
+
 /** One editable source, several native export frames, full-bleed photograph. */
 function editorialOverlay(s: PhotoSlideSpec, ch: PhotoCharter, finale = false): string {
   const d = design(ch), text = s.overlay_text || "";
@@ -290,7 +316,15 @@ function editorialOverlay(s: PhotoSlideSpec, ch: PhotoCharter, finale = false): 
   const copy = `<div data-photo-editorial-text="${finale ? "finale" : "profonde"}" data-photo-emphasis="${escapeHtml(s.art_direction?.emphasis || "")}" data-slide-text="overlay" style="position:relative;--photo-veil:${gradient};--photo-title-font:${fontTitle};--photo-emphasis-size:${(emphasis / size).toFixed(3)}em;--photo-heading:${heading};font-family:${fontBody};font-size:${size}px;line-height:1.28;font-weight:400;white-space:pre-wrap;text-align:${align};color:${ink};text-shadow:${shadow};">${photoEditorialMarkup(text, finale, s.art_direction?.emphasis)}</div>`;
   const ctaBg = paper || glass ? (glass ? tint : d.primary) : d.background;
   const ctaInk = paper ? d.onPrimary : glass ? "#FFFFFF" : d.ink;
-  const parts = (s.kicker ? kickerHtml(s.kicker, heading) : "") + copy +
+  // Mise en forme (après l'écriture) : en tête de la surface de lecture.
+  const fmt = s.photo_format || null;
+  const panelLook = style === "carte" || glass || narrow;
+  const accentOnDark = (() => { const m = (v: number) => Math.round(v + (255 - v) * .55); return `rgb(${m(r)},${m(g)},${m(b)})`; })();
+  const formatHtml = (fmt?.step ? stepHeader(fmt.step, glass ? tint : paper ? d.heading : "#FFFFFF", shadow) : "") +
+    (fmt?.motif && panelLook ? motifSvg(fmt.motif, glass
+      ? { ink: glassInk, soft: `rgba(${r},${g},${b},.32)`, accent: tint }
+      : { ink: "#FFFFFF", soft: "rgba(255,255,255,.32)", accent: accentOnDark }, { title: fontTitle, body: fontBody }) : "");
+  const parts = formatHtml + (s.kicker ? kickerHtml(s.kicker, heading) : "") + copy +
     (s.detail ? detailHtml(s.detail, 22, ink) : "") + (s.attribution ? detailHtml(s.attribution, 18, ink) : "") +
     (s.cta_label ? `<div data-slide-cta="1" style="position:relative;margin-top:28px;"><span data-slide-text="cta" data-pptx-editable="caption" style="display:inline-block;background:${ctaBg};color:${ctaInk};border-radius:${Math.min(d.radius, 24)}px;padding:14px 24px;font-size:34px;line-height:1.3;text-shadow:none;max-width:100%;overflow-wrap:anywhere;">${escapeHtml(s.cta_label)}</span></div>` : "");
   const position = s.overlay_position || "bottom_left";
@@ -330,7 +364,7 @@ function editorialOverlay(s: PhotoSlideSpec, ch: PhotoCharter, finale = false): 
   // règles suivent data-photo-text-layout : quand l'éditeur déplace le texte,
   // le voile change de bord tout seul. Arrêts en pourcentage (export canvas).
   const edge = (dir: string) => `linear-gradient(${dir},rgba(${r},${g},${b},0) 0%,rgba(${r},${g},${b},.82) 18%,rgba(${r},${g},${b},.92) 100%)`;
-  const veil = paper ? "" : `<style data-photo-editorial-veil="1">[data-photo-editorial-text]::before{content:"";position:absolute;pointer-events:none;left:-84px;right:-84px;top:-70px;bottom:-60px;background:var(--photo-veil);}[data-photo-text-layout^="bottom"] [data-photo-editorial-text]::before{top:-200px;bottom:-480px;background:${edge("180deg")};}[data-photo-text-layout^="top"] [data-photo-editorial-text]::before{top:-320px;bottom:-200px;background:${edge("0deg")};}</style>`;
+  const veil = paper ? "" : `<style data-photo-editorial-veil="1">[data-photo-editorial-text]::before{content:"";position:absolute;pointer-events:none;left:-84px;right:-84px;top:-70px;bottom:-60px;background:var(--photo-veil);}[data-photo-text-layout^="bottom"] [data-photo-editorial-text]::before{top:${s.photo_format?.step ? -360 : -200}px;bottom:-480px;background:${edge("180deg")};}[data-photo-text-layout^="top"] [data-photo-editorial-text]::before{top:-320px;bottom:-200px;background:${edge("0deg")};}</style>`;
   const panel = `<div data-photo-reading-panel="1" data-photo-editorial-surface="1" ${style ? `data-photo-style="${style}"` : ""} ${paper ? 'data-pptx-shape="card"' : ""} style="position:relative;box-sizing:border-box;width:100%;max-width:${paper ? 780 : 912}px;${paper ? `background:${d.background};padding:36px;color:${ink};border-radius:${d.radius}px;` : ""}">${parts}</div>`;
   return veil + contentWrap(position, "flex-start", panel);
 }
