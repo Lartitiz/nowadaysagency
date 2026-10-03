@@ -2,9 +2,10 @@ import { PHOTO_NARRATIVE_CONTRACT } from "./photo-narrative.ts";
 import { carouselLengthPrompt } from "../_shared/carousel-length.ts";
 import { photoReadingContract, CAROUSEL_CONTINUITY, CAROUSEL_FACTS, CAROUSEL_SUBSTANCE, CAROUSEL_TITLES, carouselStructureGuide } from "./writing-contract.ts";
 
-export const VISUAL_SCHEMA_CONTRACT = `SCHÉMAS : objet {type,...données}, jamais une chaîne descriptive ni un objet data intermédiaire. Zéro à deux schémas maximum, jamais consécutifs. Utilise seulement des valeurs établies et utiles à la slide ; null si les champs ne peuvent pas être remplis. Types et formes conservés :
-before_after:{before:{label,items},after:{label,items}} ; comparison:{left:{label,items},right:{label,items}} ; timeline:{steps:[{label,desc}]} ; checklist:{title,items:[{text,checked}]} ; stats:{items:[{number,label}]} ; matrix_2x2:{x_axis:{left,right},y_axis:{bottom,top},quadrants:[{position,label,emoji}]} ; pyramid:{levels:[{label,desc}]} ; equation:{parts:[{label}],result:{label},operator} ; flowchart:{start,branches:[{condition,result}]} ; scale:{left:{label},right:{label},marker:{position,label}} ; icon_grid:{items:[{emoji,label}]} ; story_arc:{steps:[{label,desc}]} ; quote_big:{quote,attribution?,context?} ; objection_response:{objection,response} ; process_visible:{stages:[{label,desc}]} (exactement trois stages, sinon timeline).
-Les descriptions restent courtes et lisibles. Les exemples ci-dessus sont des noms de champs, pas du texte à copier. Les schémas sont facultatifs : choisis-les pour expliquer une relation, pas pour imposer une opposition ou une révélation. Garde les vrais contrastes lorsqu'ils clarifient les données.`;
+// Les SCHÉMAS (visual_schema) ne sont plus demandés à la rédaction depuis le
+// 03/10/2026 : un étage séparé les décide sur le texte final
+// (_shared/schema-formatting.ts). Ne pas réintroduire de consigne de schéma ici.
+export const NO_SCHEMA_IN_WRITING = "visual_schema:null sur chaque slide : les schémas sont décidés après la rédaction, à partir du texte final. Développe donc tout le propos dans title et body.";
 
 function brief(body: any, isLinkedIn: boolean, confirmed: string): string {
   return `${confirmed}
@@ -50,10 +51,10 @@ ${body.chosen_angle ? `Angle choisi à conserver : ${JSON.stringify(body.chosen_
 ${body.selected_hook ? `Accroche choisie par la personne : ${JSON.stringify(body.selected_hook)}. Conserve-la sur la première slide.` : ""}
 ${body.content_structure ? `Structure choisie à conserver : ${body.content_structure}.` : carouselStructureGuide(body.carousel_type)}
 ${CAROUSEL_FACTS}
-${VISUAL_SCHEMA_CONTRACT}
+${NO_SCHEMA_IN_WRITING}
 Contrat : une idée principale par slide, title et body en prose adaptée au registre demandé ; body peut être vide sur la couverture. Les titres descriptifs et la numérotation d'étapes sont autorisés. Le champ role nomme la fonction réelle (présentation, caractéristique, usage, étape, argument, nuance, récit, etc.), sans imposer de bascule ni de révélation.
 Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = proposition précise développée, pas thème ou parcours de photos ; etapes = chemin qui la fait comprendre), puis carousel_type, chosen_angle:{title,description}, slides, caption, quality_check:{} et publishing_tip:"". N'invente aucun conseil de performance ou moment optimal pour publier.
-Chaque slide contient slide_number (entier depuis 1), role, title, body, visual_suggestion (composition, ambiance ou illustration dans ce champ technique), visual_schema (objet typé ou null), word_count (nombre réel de mots du texte). Aucun contenu éditorial supplémentaire dans les suggestions techniques.
+Chaque slide contient slide_number (entier depuis 1), role, title, body, visual_suggestion (composition, ambiance ou illustration dans ce champ technique), visual_schema (null), word_count (nombre réel de mots du texte). Aucun contenu éditorial supplémentaire dans les suggestions techniques.
 Caption : hook (entrée dans le sujet, pas de nouvelle anecdote), body (complément ou résumé fidèle), cta (vide si inutile), hashtags (liste de trois mots-clés pertinents maximum). Aucun minimum de longueur et aucune posture d'expert ajoutée au ton demandé.`;
 }
 
@@ -66,11 +67,10 @@ Types : photo_full (photo plein écran, overlay_text généralement 15-45 mots s
 photo_integrated accepte photo_layout:top_photo,left_photo,right_photo,card_photo,banner_photo.
 Sans répartition imposée : commence en photo_full, termine en text_only, ${body.text_first ? "deux à quatre slides photo au maximum (pas de ratio imposé en texte-d'abord)" : "au moins la moitié des slides avec photo"} ; alterne les types sans trois slides identiques consécutives. Une photo peut se répéter et on conserve les photos pertinentes. Une répartition confirmée prime sur ces préférences. La fin en text_only n'impose pas de CTA.
 Les photos sont numérotées depuis 1. Respecte les photo_index et layouts confirmés. photo_index:null sur text_only. Le changement de type de slide ne change pas de mode d'écriture : overlay_text poursuit la même explication que les title/body voisins. Rédige d'abord cette prose continue, puis répartis-la dans les champs. Une description visible n'est utile que si elle explique ce que cet exemple apporte au propos en cours ; nommer les objets, couleurs ou motifs sans ce lien ne constitue pas une étape du récit. visual_anchor garde la description technique pour la composition, il ne remplace pas le passage public. Le texte peut expliquer ce que la photo ne montre pas sans inventer une scène. Une pause visuelle brute demandée reste sans texte.
-body : longueur adaptée au développement, sans minimum ni plafond universel ; conserve les détails et nuances utiles. Un titre n'est pas nécessairement une mini-accroche. Un schéma n'est utile que s'il explique un processus, une comparaison ou des données disponibles : 0 à 2 maximum, jamais consécutifs. visual_schema:null à défaut ; si présent, un objet typé, jamais une description sous forme de chaîne.
-${VISUAL_SCHEMA_CONTRACT}
+body : longueur adaptée au développement, sans minimum ni plafond universel ; conserve les détails et nuances utiles. Un titre n'est pas nécessairement une mini-accroche. ${NO_SCHEMA_IN_WRITING}
 ${textFirst}
 Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = proposition précise développée, pas thème ou parcours de photos ; etapes = chemin qui la fait comprendre), puis carousel_type:"mix", chosen_angle:{title,description}, slides et caption.
-Chaque slide : slide_number, slide_type, photo_index, role, puis les champs propres au type. photo_full : overlay_text, overlay_position, overlay_style. photo_integrated : photo_layout,title,body. text_only : title,body,visual_schema. Pour les slides photo : visual_anchor et note, ainsi que photo_directive/photo_query_en/library_photo_index/news_entity quand le mode texte-d'abord le demande. Aucun placeholder ni auto-note de qualité.
+Chaque slide : slide_number, slide_type, photo_index, role, puis les champs propres au type. photo_full : overlay_text, overlay_position, overlay_style. photo_integrated : photo_layout,title,body. text_only : title,body,visual_schema (null). Pour les slides photo : visual_anchor et note, ainsi que photo_directive/photo_query_en/library_photo_index/news_entity quand le mode texte-d'abord le demande. Aucun placeholder ni auto-note de qualité.
 `;
 }
 

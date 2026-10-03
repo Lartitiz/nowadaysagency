@@ -13,7 +13,7 @@ export function buildConfirmedStructureBlock(
   if (!confirmed_structure || !Array.isArray(confirmed_structure) || confirmed_structure.length === 0) return "";
 
   const {
-    contentFields = "body, visual_schema, caption",
+    contentFields = "body, caption",
     narrativeThread,
     narrativeContext = "décidé en voyant les photos",
     withStoryBeat = false,
