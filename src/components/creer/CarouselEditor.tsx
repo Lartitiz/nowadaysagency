@@ -341,6 +341,7 @@ function SlideCanvas({
   colors,
   group,
   onSelectAdd,
+  onSelectMany,
   onMoveMany,
   onRemoveMany,
   onCopy,
@@ -369,6 +370,8 @@ function SlideCanvas({
   /** Éléments sélectionnés ensemble (Maj + clic), l'élément principal compris. */
   group: string[];
   onSelectAdd: (id: string) => void;
+  /** Cadre de sélection glissé depuis le vide : les éléments qu'il touche. */
+  onSelectMany?: (ids: string[], add: boolean) => void;
   onMoveMany: (moves: Record<string, Record<string, string>>) => void;
   onRemoveMany: (ids: string[]) => void;
   onCopy: () => void;
@@ -392,6 +395,7 @@ function SlideCanvas({
   const [width, setWidth] = useState(0),
     [overflow, setOverflow] = useState(false),
     [guides, setGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null }),
+    [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null),
     [box, setBox] = useState<
       | (CanvasBox & {
           kind: "photo" | "veil" | "text" | "shape";
@@ -445,8 +449,8 @@ function SlideCanvas({
     window.document.addEventListener("focusin", leave);
     return () => window.document.removeEventListener("focusin", leave);
   }, []);
-  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, fitId, onFitDone, locked: slide.locked });
-  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, fitId, onFitDone, locked: slide.locked };
+  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onSelectMany, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, fitId, onFitDone, locked: slide.locked });
+  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onSelectMany, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, fitId, onFitDone, locked: slide.locked };
   const [extraBoxes, setExtraBoxes] = useState<CanvasBox[]>([]);
   const [dropping, setDropping] = useState(false);
   // Problèmes repérés sur la slide (texte coupé, trop petit, contraste) et recadrage en cours.
@@ -928,6 +932,27 @@ function SlideCanvas({
       members: { el: HTMLElement; left: number; top: number }[];
       shift: boolean;
     } | null = null;
+    // Cadre de sélection : on part du vide (ou du fond) et on glisse.
+    let lasso: { x: number; y: number; shift: boolean; under: HTMLElement | null; moved: boolean } | null = null;
+    // Clic long (sans bouger) sur un élément : le cadre de sélection part de là.
+    let hold: number | undefined;
+    let pointer = { x: 0, y: 0 };
+    const lassoHits = (x1: number, y1: number, x2: number, y2: number) => {
+      const left = Math.min(x1, x2), right = Math.max(x1, x2), top = Math.min(y1, y2), bottom = Math.max(y1, y2);
+      const ok = (el: HTMLElement) =>
+        !el.matches(VEIL) && !isPassiveShape(el) && !isLockedEl(el) && !(isPhotoEl(el) && isFullBleed(el));
+      return Array.from(doc.querySelectorAll<HTMLElement>("[data-editor-id]"))
+        .filter((el) => {
+          if (!ok(el)) return false;
+          // Un élément rangé dans un cadre choisissable vient avec son cadre.
+          for (let p = el.parentElement?.closest<HTMLElement>("[data-editor-id]"); p; p = p.parentElement?.closest<HTMLElement>("[data-editor-id]"))
+            if (ok(p)) return false;
+          const r = el.getBoundingClientRect();
+          if (!r.width && !r.height) return false;
+          return r.left < right && r.right > left && r.top < bottom && r.bottom > top;
+        })
+        .map((el) => el.dataset.editorId!);
+    };
     // Photo glissée depuis l'ordinateur : elle remplace la photo visée (ou la photo de la slide).
     const hasFile = (e: DragEvent) => Array.from(e.dataTransfer?.types || []).includes("Files");
     doc.addEventListener("dragover", (e) => {
@@ -958,9 +983,14 @@ function SlideCanvas({
       finishEditing();
       const inner = pickAt(doc, e.target, e.clientX, e.clientY);
       if (cropRef.current && inner?.dataset.editorId !== cropRef.current) setCropId(null);
-      // Clic dans le vide : on désélectionne, comme dans Canva.
-      if (!inner) {
-        latest.current.onSelect(null);
+      // Clic dans le vide (ou sur le fond) : on désélectionne, comme dans Canva ;
+      // glisser trace un cadre qui choisit tous les éléments qu'il touche.
+      if (!inner || (isPassiveShape(inner) && !isPhotoEl(inner))) {
+        view.focus();
+        keepFocus.current = true;
+        lasso = { x: e.clientX, y: e.clientY, shift: e.shiftKey, under: inner, moved: false };
+        doc.documentElement.setPointerCapture?.(e.pointerId);
+        e.preventDefault();
         return;
       }
       // preventDefault below disables native pointer focus; explicitly focus
@@ -1015,8 +1045,25 @@ function SlideCanvas({
       };
       el.setPointerCapture?.(e.pointerId);
       e.preventDefault();
+      pointer = { x: e.clientX, y: e.clientY };
+      window.clearTimeout(hold);
+      hold = window.setTimeout(() => {
+        const d = drag;
+        if (!d || Math.abs(pointer.x - d.x) + Math.abs(pointer.y - d.y) >= 5) return;
+        drag = null;
+        lasso = { x: d.x, y: d.y, shift: d.shift, under: d.inner, moved: false };
+        setMarquee({ x: d.x, y: d.y, w: 0, h: 0 });
+      }, 450);
     });
     doc.addEventListener("pointermove", (e) => {
+      pointer = { x: e.clientX, y: e.clientY };
+      if (lasso) {
+        const l = lasso;
+        if (!l.moved && Math.abs(e.clientX - l.x) + Math.abs(e.clientY - l.y) < 5) return;
+        l.moved = true;
+        setMarquee({ x: Math.min(l.x, e.clientX), y: Math.min(l.y, e.clientY), w: Math.abs(e.clientX - l.x), h: Math.abs(e.clientY - l.y) });
+        return;
+      }
       if (!drag) return;
       const d = drag,
         dx = e.clientX - d.x,
@@ -1054,6 +1101,22 @@ function SlideCanvas({
       else measure();
     });
     doc.addEventListener("pointerup", (e) => {
+      window.clearTimeout(hold);
+      if (lasso) {
+        const l = lasso;
+        lasso = null;
+        setMarquee(null);
+        if (!l.moved) {
+          const id = l.under?.dataset.editorId || null;
+          if (!l.shift) latest.current.onSelect(id);
+          else if (id && l.under && !isPassiveShape(l.under)) latest.current.onSelectAdd(id);
+          return;
+        }
+        const ids = lassoHits(l.x, l.y, e.clientX, e.clientY);
+        if (latest.current.onSelectMany) latest.current.onSelectMany(ids, l.shift);
+        else if (ids.length) latest.current.onSelect(ids[0]);
+        return;
+      }
       if (!drag) return;
       const d = drag;
       drag = null;
@@ -1098,6 +1161,9 @@ function SlideCanvas({
     });
     doc.addEventListener("pointercancel", () => {
       drag = null;
+      lasso = null;
+      window.clearTimeout(hold);
+      setMarquee(null);
       setGuides({ x: null, y: null });
     });
     // Même inspection géométrique que le contrôle qualité global : l'aperçu
@@ -1404,7 +1470,7 @@ function SlideCanvas({
             title={`Éditeur de la slide ${slide.data.slide_number}`}
             sandbox="allow-same-origin"
             onLoad={bind}
-            srcDoc={`<!doctype html><html><head><style>html,body{margin:0;width:1080px;height:1350px;overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none}*{box-sizing:border-box}[data-editor-id]{cursor:${slide.locked ? "default" : "move"}}</style></head><body>${shown}</body></html>`}
+            srcDoc={`<!doctype html><html><head><style>html,body{margin:0;width:1080px;height:1350px;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}*{box-sizing:border-box}[data-editor-id]{cursor:${slide.locked ? "default" : "move"}}</style></head><body>${shown}</body></html>`}
             style={{
               position: "absolute",
               width: 1080,
@@ -1414,6 +1480,9 @@ function SlideCanvas({
               transformOrigin: "top left",
             }}
           />
+        )}
+        {marquee && (
+          <div aria-hidden="true" data-testid="selection-marquee" style={{ position: "absolute", left: marquee.x * scale, top: marquee.y * scale, width: marquee.w * scale, height: marquee.h * scale, border: "1px solid #FB3D80", background: "rgba(251, 61, 128, 0.08)", pointerEvents: "none" }} />
         )}
         {guides.x !== null && (
           <div aria-hidden="true" data-testid="guide-x" style={{ position: "absolute", top: 0, bottom: 0, left: guides.x * scale, width: 0, borderLeft: "1px dashed #FB3D80", pointerEvents: "none" }} />
@@ -1542,6 +1611,11 @@ export default function CarouselEditor({
       return;
     }
     setExtra((list) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]));
+  };
+  const selectMany = (ids: string[], add: boolean) => {
+    const merged = add ? [...group, ...ids.filter((id) => !group.includes(id))] : ids;
+    setSelected(merged[0] || null);
+    setExtra(merged.slice(1));
   };
   useEffect(() => setExtra([]), [active]);
   // Téléphone : toucher un élément ouvre le tiroir des réglages.
@@ -2485,6 +2559,7 @@ export default function CarouselEditor({
             onSelect={selectOne}
             group={group}
             onSelectAdd={selectAdd}
+            onSelectMany={selectMany}
             onMoveMany={moveMany}
             onRemoveMany={removeMany}
             onCopy={copySelection}
@@ -2534,7 +2609,8 @@ export default function CarouselEditor({
             texte pour l’écrire sur la slide. Glisse un bloc pour le déplacer
             (il s’aligne sur les repères roses ; ⌘/Ctrl pour placer librement),
             une photo pour la recadrer, les poignées pour l’agrandir. Alt +
-            glisser : le texte seul. Flèches pour ajuster, Suppr pour retirer,
+            glisser : le texte seul. Glisser depuis le vide, ou clic long puis
+            glisser, trace un cadre qui choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer,
             Échap pour choisir le cadre.
           </p>
           <p className="mt-1 text-center text-2xs text-muted-foreground md:hidden">
