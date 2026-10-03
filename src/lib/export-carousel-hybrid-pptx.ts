@@ -1,5 +1,6 @@
 import { exportFileName } from "./export-file-name";
 import { ExportImageError, waitForExportImages } from "./export-image-readiness";
+import { bakeGlassBlur } from "./export-glass-blur";
 import { promoteMixedText, charterFontUrl } from "./pptx-mixed-text";
 import PptxGenJS from "pptxgenjs";
 import html2canvas from "html2canvas-pro";
@@ -362,6 +363,8 @@ async function waitReady(iframe: HTMLIFrameElement): Promise<void> {
     /* noop */
   }
   await waitForExportImages(doc.body);
+  // Verre dépoli : html2canvas ignore filter:blur, on pose une photo déjà floutée.
+  await bakeGlassBlur(doc.body);
   // 2 frames pour laisser le layout se stabiliser. ⚠️ requestAnimationFrame est
   // MIS EN PAUSE par le navigateur quand l'onglet est en arrière-plan (ce qui
   // arrive dès qu'on ouvre l'onglet Canva). Sans garde-fou, cette attente ne se
