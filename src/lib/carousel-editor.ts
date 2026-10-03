@@ -1515,6 +1515,8 @@ export function composeLayout(
   variant: LayoutVariant,
   photo = "",
   tokens: StyleTokens = DEFAULT_TOKENS,
+  /** Autres textes de la slide (chiffre clé, liste, mention…), repris tels quels. */
+  extras: string[] = [],
 ): EditorSlide {
   const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const title = String(data.title || data.overlay_text || "Ton titre"),
@@ -1533,8 +1535,12 @@ export function composeLayout(
     heading = dark ? "#ffffff" : readable(tokens.titleColor);
   const h = (css: string, size = titleSize) =>
     `<h1 data-slide-text="title" data-pptx-editable="title" style="font-size:${size}px;font-family:${tokens.titleFont};color:${heading};line-height:1.1;font-weight:${tokens.titleWeight};margin:0 0 36px;white-space:pre-wrap;${css}">${esc(title)}</h1>`;
+  const more = extras
+    .filter((t) => t.trim())
+    .map((t) => `<p data-pptx-editable="body" data-editor-free="true" style="font-size:${Math.max(32, Math.round(bodySize * 0.85))}px;font-family:${tokens.bodyFont};color:${ink};line-height:1.4;margin:24px 0 0;white-space:pre-wrap">${esc(t.trim())}</p>`)
+    .join("");
   const b = (css = "") =>
-    body ? `<p data-slide-text="body" data-pptx-editable="body" style="font-size:${bodySize}px;font-family:${tokens.bodyFont};color:${ink};line-height:1.4;margin:0;white-space:pre-wrap;${css}">${esc(body)}</p>` : "";
+    (body ? `<p data-slide-text="body" data-pptx-editable="body" style="font-size:${bodySize}px;font-family:${tokens.bodyFont};color:${ink};line-height:1.4;margin:0;white-space:pre-wrap;${css}">${esc(body)}</p>` : "") + more;
   const img = (css: string) =>
     photo ? `<div data-pptx-photo="${data.photo_index || 1}" style="position:absolute;${css}background-image:url(&quot;${esc(photo)}&quot;);background-size:cover;background-position:50% 50%;"></div>` : "";
   const block = (css: string, inner: string) => `<div style="position:absolute;${css}">${inner}</div>`;
@@ -1686,4 +1692,18 @@ export function ensureFontLink(slide: EditorSlide, family: string): EditorSlide 
   link.href = href;
   doc.head.append(link);
   return { ...slide, html: serialize(doc) };
+}
+
+/**
+ * Textes d'une slide qui ne sont ni son titre ni son texte principal (chiffre
+ * clé, liste, mention, citation…) : à reprendre quand on change de mise en page.
+ */
+export function slideExtraTexts(slide: EditorSlide): string[] {
+  const doc = parse(slide.html);
+  const main = [slide.data.title, slide.data.body, slide.data.overlay_text].filter(Boolean).map((t: string) => String(t).trim());
+  return textNodes(doc)
+    .filter((el) => !el.closest("[data-slide-page],[data-editor-hidden]") && !/^(title|body|overlay)$/.test(el.dataset.slideText || ""))
+    .filter((el) => !el.closest('[data-slide-text="title"],[data-slide-text="body"],[data-slide-text="overlay"]'))
+    .map((el) => (el.textContent || "").trim())
+    .filter((t) => t && !/^\d+\s*\/\s*\d+$/.test(t) && !main.some((m) => m === t || m.includes(t)) && t !== "«");
 }

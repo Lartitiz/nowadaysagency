@@ -20,3 +20,15 @@ it("keeps decorative bars visible and the coloured word readable on a dark theme
   const text = new DOMParser().parseFromString(`<i style="color:${dark.text}"></i>`, "text/html").querySelector<HTMLElement>("i")!.style.color;
   expect(word.style.color).toBe(text);
 });
+
+it("changing layout keeps every text of the slide, a key figure included", async () => {
+  const { composeLayout, getEditorElements, slideExtraTexts } = await import("@/lib/carousel-editor");
+  const html2 = `<div style="width:1080px;height:1350px;position:relative"><h1 data-slide-text="title">1 et 2 : partir de votre univers</h1><p data-slide-text="body">1. Méfiez-vous des tableaux.</p><div style="background:#5a765c;padding:20px"><p style="font-size:48px">84,7 % jugent la couleur responsable de plus de la moitié des facteurs d'achat</p></div><span data-slide-page style="position:absolute;bottom:60px">2 / 4</span></div>`;
+  const slide = { id: "s", data: { title: "1 et 2 : partir de votre univers", body: "1. Méfiez-vous des tableaux." }, html: prepareSlideHtml(html2) };
+  const extras = slideExtraTexts(slide);
+  expect(extras).toEqual(["84,7 % jugent la couleur responsable de plus de la moitié des facteurs d'achat"]);
+  const next = composeLayout(slide.data, "texte-centre", "", undefined, extras);
+  const texts = getEditorElements(next.html).map((e) => e.text);
+  expect(texts.some((t) => t.includes("84,7 %"))).toBe(true);
+  expect(texts.some((t) => t.includes("1 et 2"))).toBe(true);
+});

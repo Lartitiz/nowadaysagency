@@ -44,6 +44,7 @@ import CarouselInstagramPreview from "@/components/creer/CarouselInstagramPrevie
 import type { CarouselStylesApi, SavedCarouselStyle } from "@/hooks/use-carousel-styles";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import {
+  slideExtraTexts,
   applyTheme,
   carouselThemes,
   composeLayout,
@@ -1957,7 +1958,7 @@ export default function CarouselEditor({
       slide
         ? LAYOUTS.filter((l) => !l.photo || slidePhoto).map((l) => ({
             ...l,
-            preview: composeLayout(slide.data, l.variant, slidePhoto, extractStyleTokens(slide.html)),
+            preview: composeLayout(slide.data, l.variant, slidePhoto, extractStyleTokens(slide.html), slideExtraTexts(slide)),
           }))
         : [],
     [slide, slidePhoto],
@@ -3317,7 +3318,7 @@ export default function CarouselEditor({
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Le titre, le texte, la photo et les couleurs sont gardés ; les éléments ajoutés à la main ne le sont pas. Tu peux annuler.
+              Tous les textes, la photo et les couleurs sont gardés ; les formes et décors ajoutés à la main ne le sont pas. Tu peux annuler.
             </p>
             {slide.html.includes("data-photo-text-layout") && (
               <label className="block text-xs">
