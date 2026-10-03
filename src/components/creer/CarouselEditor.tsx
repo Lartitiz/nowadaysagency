@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { createPortal } from "react-dom";
 import type { CarouselQuality } from "@/hooks/use-carousel-quality";
@@ -96,6 +96,7 @@ import {
   readCarouselDocument,
   renumberDocument,
   replacePhoto,
+  placeToolbar,
   restyleSlide,
   syncGlass,
   type CarouselDocument,
@@ -569,6 +570,10 @@ function SlideCanvas({
       } else if (e.el.innerHTML !== e.html) latest.current.onEditHtml(e.id, e.el.innerHTML);
     };
     view.addEventListener("blur", finishEditing);
+    // Le texte grandit en écrivant : le cadre (et la barre qui l'évite) suit.
+    doc.addEventListener("input", () => {
+      if (editing) measure();
+    });
     // Mise en forme d'un mot : la sélection reçoit sa propre couleur/graisse.
     const format = (styles: Record<string, string>) => {
       if (!editing || editing.el.hasAttribute("data-photo-editorial-text")) return false;
@@ -594,6 +599,7 @@ function SlideCanvas({
       const r = doc.createRange();
       r.selectNodeContents(span);
       sel.addRange(r);
+      measure();
       return true;
     };
     const startEditing = (el: HTMLElement) => {
@@ -1323,18 +1329,36 @@ function SlideCanvas({
     else latest.current.onFill?.(selected, hex);
   };
   const selectedIssue = issues.find((i) => i.elementId === selected && (i.severity === "error" || i.fix || i.kind === "overflow"));
+  // La barre se place là où elle ne cache pas l'élément : au-dessus s'il y a
+  // la place, sinon en dessous, sinon du côté le plus libre. Sa vraie taille
+  // est mesurée (elle passe sur deux lignes quand la slide est étroite).
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [toolbarSize, setToolbarSize] = useState({ w: 300, h: 40 });
+  useLayoutEffect(() => {
+    const el = toolbarRef.current;
+    if (!el) return;
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    if (w !== toolbarSize.w || h !== toolbarSize.h) setToolbarSize({ w, h });
+  });
+  const toolbarPosition = () =>
+    box
+      ? placeToolbar(
+          { left: box.left * scale, top: box.top * scale, width: box.width * scale, height: box.height * scale },
+          { width: toolbarSize.w, height: toolbarSize.h },
+          { width, height: width * 1.25 },
+        )
+      : { left: 0, top: 0 };
   const toolButton = "flex h-8 min-w-8 items-center justify-center rounded-md px-1.5 text-xs font-semibold hover:bg-muted aria-pressed:bg-primary/15";
   const toolbar =
     box && selected && !slide.locked && box.kind !== "veil" ? (
       <div
+        ref={toolbarRef}
         role="toolbar"
         aria-label="Barre d’outils de l’élément"
         onMouseDown={keep}
-        className="absolute z-10 flex max-w-full flex-wrap items-center gap-0.5 rounded-lg border bg-background p-1 shadow-lg"
-        style={{
-          left: Math.max(4, Math.min(box.left * scale, width - 300)),
-          top: box.top * scale > 52 ? box.top * scale - 48 : Math.min((box.top + box.height) * scale + 8, width * 1.25 - 48),
-        }}
+        className="absolute z-10 flex max-w-[calc(100%-8px)] flex-wrap items-center gap-0.5 rounded-lg border bg-background p-1 shadow-lg"
+        style={toolbarPosition()}
       >
         {selectedIssue && !box.locked && (
           <button
