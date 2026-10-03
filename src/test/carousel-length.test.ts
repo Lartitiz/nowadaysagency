@@ -43,4 +43,14 @@ describe("carousel length and completeness", () => {
     expect(issues[0]).toContain("exactement 10");
     expect(issues.join(" ")).toContain("conclure");
   });
+  it("caps the automatic length at 10 slides, an explicit request still wins", () => {
+    expect(carouselLengthPrompt({ subject: "Les coulisses de l'atelier" })).toContain("de 4 à 10 au maximum");
+    expect(carouselLengthPrompt({ subject: "Les coulisses de l'atelier" })).not.toContain("20");
+    expect(carouselLengthPrompt({ subject: "10 erreurs à éviter" })).toContain("prévois 10 slides");
+    expect(carouselLengthPrompt({ subject: "10 erreurs à éviter" })).toContain("regroupe les éléments");
+    expect(carouselLengthPrompt({ subject: "Les coulisses", slide_count: 14 })).toContain("exactement 14");
+    const eleven = { slides: Array.from({ length: 11 }, (_, i) => ({ title: `T${i}`, body: "b", role: i === 10 ? "conclusion" : "dev" })) };
+    expect(carouselStructureIssues(eleven, { subject: "Les coulisses" }).join(" ")).toContain("10 au maximum");
+    expect(carouselStructureIssues(eleven, { subject: "Les coulisses", slide_count: 11 })).toEqual([]);
+  });
 });

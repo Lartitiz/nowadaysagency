@@ -128,3 +128,15 @@ Deno.test("dessin : les mots d'une même ligne restent alignés quand un trait l
   assertEquals(new Set(ys).size, 1, `mots désalignés : ${ys}`);
   assert(ys[0] > 60, "la ligne de mots est descendue sous le trait");
 });
+
+Deno.test("dessin : des mots presque à la même hauteur sont posés sur une seule ligne", () => {
+  const plan = validatePhotoFormatting({ steps: [], motifs: [{ slide_number: 5, reason: "r", elements: [
+    { k: "rect", x: 0, y: 0, w: 60, h: 10, tone: "soft" },
+    { k: "text", x: 0, y: 80, text: "les pages", tone: "ink", size: 40 },
+    { k: "text", x: 600, y: 60, text: "se remplissent", tone: "ink", size: 40 },
+    { k: "text", x: 300, y: 200, text: "Chaque cuisson", tone: "ink", size: 40 },
+  ] }] }, SLIDES);
+  const ys = plan.motifs[0].elements.filter(e => e.k === "text").map(e => (e as any).y);
+  assertEquals(ys[0], ys[1], `mots voisins désalignés : ${ys}`);
+  assert(ys[2] > ys[0] + 60, "une vraie deuxième ligne reste une deuxième ligne");
+});

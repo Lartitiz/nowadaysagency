@@ -72,7 +72,24 @@ function validateElement(e: any, source: string): MotifElement | null {
 
 /** Un texte posé sur une forme (vu en live : légende sur les rectangles) est
  * descendu sous les formes qu'il chevauche. Le cadre du dessin s'ajuste ensuite. */
-export function declutterMotif(elements: MotifElement[]): MotifElement[] {
+/** Mots presque à la même hauteur (écart inférieur à 60 % de leur taille) :
+ * posés sur une seule ligne, la plus basse. Demandé par Laetitia le 03/10/2026
+ * (« cuisson » un cran au-dessus de « pétrie / forme / séchage / dessin »). */
+export function alignMotifRows(elements: MotifElement[]): MotifElement[] {
+  const texts = elements.filter((e): e is Extract<MotifElement, { k: "text" }> => e.k === "text").sort((a, b) => a.y - b.y);
+  const rows: Array<typeof texts> = [];
+  for (const t of texts) {
+    const row = rows.at(-1);
+    const tol = Math.max(...(row || [t]).map(r => r.size ?? 44), t.size ?? 44) * .6;
+    if (row && t.y - row[0].y <= tol) row.push(t); else rows.push([t]);
+  }
+  const yOf = new Map<MotifElement, number>();
+  for (const row of rows) { const y = Math.max(...row.map(r => r.y)); for (const t of row) yOf.set(t, y); }
+  return elements.map(e => yOf.has(e) && (e as any).y !== yOf.get(e) ? { ...e, y: yOf.get(e)! } as MotifElement : e);
+}
+
+export function declutterMotif(input: MotifElement[]): MotifElement[] {
+  const elements = alignMotifRows(input);
   const shapes = elements.filter(e => e.k !== "text").map(motifBox);
   // Les textes d'une même ligne (même y d'origine) descendent ENSEMBLE : sinon un
   // mot qui ne touchait rien restait plus haut que ses voisins (vu en live).
