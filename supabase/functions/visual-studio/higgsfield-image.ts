@@ -32,17 +32,19 @@ export function soul2Enabled() {
   return Deno.env.get("HIGGSFIELD_SOUL2_ENABLED") === "true" &&
     Deno.env.get("HIGGSFIELD_DATA_USE_REVIEWED") === "true";
 }
-// Temporary, reversible routing (01/10/2026): fidelity edits/integrations go to
-// Higgsfield Marketing Studio (GPT Image, quality-first) while direct OpenAI is
-// exhausted. Switched by HIGGSFIELD_IMAGE_ENABLED alone (+ existing consent flag);
-// unset it to return to OpenAI. Soul scenes and Photoroom backgrounds are untouched.
+// Temporary, reversible routing (01/10/2026): every OpenAI image goes to Higgsfield
+// Marketing Studio (GPT Image) while direct OpenAI is exhausted — edits and
+// integrations on sunburst (quality-first), plain creations without an input image
+// on flare (03/10/2026, they still failed with 429 credit_balance_exhausted).
+// Switched by HIGGSFIELD_IMAGE_ENABLED alone (+ existing consent flag); unset it to
+// return to OpenAI. Soul scenes and Photoroom backgrounds are untouched.
 export const MARKETING_FIDELITY_MODEL = "marketing-studio/image/sunburst";
+export const MARKETING_CREATE_MODEL = "marketing-studio/image/flare";
 export const MARKETING_MAX_IMAGES = 16;
 export function marketingFidelityEligible(proposal: Proposal | null | undefined) {
   if (!proposal || proposal.provider === "higgsfield" || proposal.operation === "background") return false;
-  return proposal.operation === "edit" || proposal.operation === "product" ||
-    proposal.scene_workflow?.phase === "integration" ||
-    (proposal.operation === "create" && proposal.person_reference?.mode === "sheet");
+  return ["create", "edit", "product"].includes(proposal.operation) ||
+    proposal.scene_workflow?.phase === "integration";
 }
 // Official limit observed on the Marketing Studio estimate route (01/10/2026):
 // prompts above 5000 characters are refused with HTTP 400 "is too long".
@@ -116,7 +118,7 @@ function condensedPrompt(proposal: Proposal): string {
 
 /** Called before the atomic generation claim, and again by the worker. */
 export function marketingPromptTooLong(p: Proposal & { shots?: { summary: string; image_prompt: string; format: string }[] }): boolean {
-  if (p.provider !== "higgsfield" || !["marketing-studio/image/flare", MARKETING_FIDELITY_MODEL].includes(p.model || "")) return false;
+  if (p.provider !== "higgsfield" || ![MARKETING_CREATE_MODEL, MARKETING_FIDELITY_MODEL].includes(p.model || "")) return false;
   // Match the snapshots produced by studio_confirm_generation for a shot plan.
   const shots = p.shots?.length ? [p, ...p.shots] : null;
   return shots ? shots.some((shot, i) => marketingPrompt({ ...p, summary: shot.summary,
@@ -142,7 +144,8 @@ export function marketingReserveUsd(imageCount: number) {
 }
 export function routeToMarketingStudio<T extends Proposal>(proposal: T): T {
   if (!higgsfieldImagesEnabled() || !marketingFidelityEligible(proposal)) return proposal;
-  return { ...proposal, provider: "higgsfield", model: MARKETING_FIDELITY_MODEL };
+  const fromScratch = proposal.operation === "create" && !proposal.input_path && !proposal.references?.length;
+  return { ...proposal, provider: "higgsfield", model: fromScratch ? MARKETING_CREATE_MODEL : MARKETING_FIDELITY_MODEL };
 }
 function credentials() {
   const value = Deno.env.get("HIGGSFIELD_API_KEY");

@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { MARKETING_FIDELITY_MODEL, routeToMarketingStudio, imageInput } from "./higgsfield-image.ts";
+import { MARKETING_CREATE_MODEL, MARKETING_FIDELITY_MODEL, routeToMarketingStudio, imageInput } from "./higgsfield-image.ts";
 
 const withFlags = (on: boolean, fn: () => void) => {
   Deno.env.set("HIGGSFIELD_DATA_USE_REVIEWED", "true");
@@ -25,8 +25,20 @@ Deno.test("Soul scenes, Photoroom backgrounds and existing Higgsfield jobs are u
     assertEquals(routeToMarketingStudio(bg), bg);
     const scene = { operation: "create", scene_workflow: { phase: "scene" } as never, provider: "higgsfield", model: "higgsfield-ai/soul/v2/standard" };
     assertEquals(routeToMarketingStudio(scene), scene);
-    const direct = { operation: "create", provider: "default" };
-    assertEquals(routeToMarketingStudio(direct), direct);
+  });
+});
+
+// 03/10/2026: a plain decor creation still went to OpenAI and failed (429 credit_balance_exhausted).
+Deno.test("plain creations route to Marketing Studio flare, creations with references to sunburst", () => {
+  const direct = { operation: "create", provider: "default", model: "gpt-image-2.5-flare" };
+  withFlags(false, () => assertEquals(routeToMarketingStudio(direct), direct));
+  withFlags(true, () => {
+    const routed = routeToMarketingStudio(direct);
+    assertEquals([routed.provider, routed.model], ["higgsfield", MARKETING_CREATE_MODEL]);
+    const withRef = routeToMarketingStudio({ ...direct, references: [{ id: "r", path: "p", name: "Logo", role: "logo" }] as never });
+    assertEquals(withRef.model, MARKETING_FIDELITY_MODEL);
+    const input = imageInput({ ...routed, image_prompt: "A bright minimalist living room, morning light.", format: "landscape" } as never, []) as Record<string, unknown>;
+    assertEquals([input.image_urls, input.aspect_ratio], [undefined, "3:2"]);
   });
 });
 
