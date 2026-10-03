@@ -1470,7 +1470,7 @@ Deno.test("originals attached after a scene integrate into it instead of staying
   f.version.status = "ready";
   Object.assign(f.version.proposal, { operation: "create", visual_kind: "photo", scene_workflow: { phase: "scene", camera_match: "Vue de face" }, planning_references: [], reference_snapshot: [] });
   f.session.references = [mannequin, product];
-  f.setIntent({ operation: "edit", visual_kind: "photo", summary: "Le mannequin assis dans ce salon tient ma bougie.", image_prompt: "Add the model seated on the sofa holding the candle.",
+  f.setIntent({ operation: "edit", visual_kind: "photo", summary: "Je prépare d'abord la scène. Le visage et la bougie seront provisoires à ce stade.", image_prompt: "Add the model seated on the sofa holding the candle.",
     change: ["Ajouter le mannequin assis sur le canapé", "Le mannequin tient la bougie"], product_placement: "Tenue à deux mains",
     reference_use: [{ id: mannequin.id, role: "casting" }, { id: product.id, role: "product" }] });
   try {
@@ -1481,6 +1481,7 @@ Deno.test("originals attached after a scene integrate into it instead of staying
     assertEquals(p.scene_workflow.phase, "integration");
     assertEquals(p.input_path, f.version.result_path);
     assertEquals(p.references.map((r: any) => r.path).sort(), ["mannequin", "product"]);
+    assertEquals(p.summary.includes("provisoire"), false);
   } finally { f.restore(); }
 });
 
