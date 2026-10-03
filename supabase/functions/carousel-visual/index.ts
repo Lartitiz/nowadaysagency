@@ -18,7 +18,7 @@ import { enforceTextContrast, hexLuminance } from "../_shared/contrast-guard.ts"
 import { enforceMinFontSize, enforceEditorFontFloor } from "../_shared/font-size-guard.ts";
 import { enforceSafeZones, injectFallbackScrim, enforceHeroHook } from "../_shared/photo-visual-guards.ts";
 import { assignPhotoStyles, composePhotoSlide } from "../_shared/photo-overlay-templates.ts";
-import { composeMixCarousel } from "../_shared/mix-slide-layouts.ts";
+import { applyMixFormatting, composeMixCarousel, mixSlideText } from "../_shared/mix-slide-layouts.ts";
 import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
 import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
@@ -2291,15 +2291,29 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     // Carrousel MIXTE : familles de mise en page composées par le code (maquette
     // validée le 02/10/2026). null = au moins une slide exige le rendu modèle
     // (schéma visuel, texte hors gabarit) → tout le carrousel garde ce rendu.
-    const mixComposed = isMixCarousel && !custom_overrides
-      ? composeMixCarousel(slides, ch, Array.isArray(reqBody.photos) ? reqBody.photos.length : 0)
+    const mixPhotoCount = Array.isArray(reqBody.photos) ? reqBody.photos.length : 0;
+    let mixComposed = isMixCarousel && !custom_overrides
+      ? composeMixCarousel(slides, ch, mixPhotoCount)
       : null;
+    // MISE EN FORME du mixte (03/10/2026) : même étage que le carrousel photo,
+    // séparé de l'écriture. Il lit le texte final ; s'il échoue ou si une slide
+    // ne tient plus avec, la composition sans mise en forme reste en place.
+    let mixFormatting: PhotoFormattingPlan | null = null;
+    if (mixComposed) {
+      const mixTextSlides = slides.map((s: any, i: number) => ({ slide_number: Number(s.slide_number) || i + 1, role: s.role, overlay_text: mixSlideText(s) }));
+      mixFormatting = await planPhotoFormatting(mixTextSlides, usage);
+      if (mixFormatting.steps.length || mixFormatting.motifs.length) {
+        const numbered = slides.map((s: any, i: number) => ({ ...s, slide_number: Number(s.slide_number) || i + 1 }));
+        mixComposed = composeMixCarousel(applyMixFormatting(numbered, mixFormatting), ch, mixPhotoCount) || mixComposed;
+      }
+    }
 
     // ═══ Carrousel PHOTO pur : composition PAR CODE (chantier gabarits 13/07) ═══
     const composedByCode = isPhotoCarousel || !!mixComposed;
     if (mixComposed) {
       emitStatus("visuals", { done: 0, total: 1 });
       result = { slides_html: mixComposed.map(({ layout: _l, ...slide }) => slide) };
+      if (mixFormatting) result.mix_formatting = { version: mixFormatting.version, status: mixFormatting.status, steps: mixFormatting.steps.length, motifs: mixFormatting.motifs.length };
       if (!usage.model) usage.model = COMPOSED_BY_CODE_MODEL;
       console.log(JSON.stringify({ event: "carousel_mix_composed", layouts: mixComposed.map(s => s.layout), total_slides: slides.length }));
       emitStatus("visuals", { done: 1, total: 1 });

@@ -1,4 +1,6 @@
 import { hexLuminance } from "./contrast-guard.ts";
+import type { PhotoFormat } from "./photo-format-types.ts";
+import { motifHeight, motifSvg, STEP_HEADER_H, stepHeader } from "./format-render.ts";
 
 // Composition PAR CODE du carrousel MIXTE (photos + slides texte), maquette
 // validée avec Laetitia le 02/10/2026 (« Carrousel céramiste »).
@@ -27,6 +29,11 @@ import { hexLuminance } from "./contrast-guard.ts";
 //   - title / body / overlay VERBATIM dans data-slide-text + data-pptx-editable
 //   - CTA : wrapper data-slide-cta, texte data-slide-text="cta"
 //   - aplats annotés data-pptx-shape="card" (jamais un élément contenant la photo)
+//
+// MISE EN FORME (03/10/2026) : `mix_format` (étapes, motif libre), décidé par
+// l'étage séparé de l'écriture (photo-formatting.ts), est dessiné en tête de la
+// colonne de texte. Le motif exige une colonne d'au moins MOTIF_MIN_W de large
+// (jamais sur la photo, jamais dans la colonne étroite du côte-à-côte).
 
 export type MixLayout = "couverture_aplat" | "photo_aplat" | "passe_partout" | "cote_a_cote" | "sur_photo" | "respiration" | "vignette";
 
@@ -42,6 +49,7 @@ export interface MixSlideSpec {
   cta_label?: string | null;
   visual_schema?: unknown;
   role?: string | null;
+  mix_format?: PhotoFormat | null;
 }
 
 export interface MixCharter {
@@ -68,6 +76,7 @@ const H = 1350;
 const SIDE = 80;
 const TEXT_BOTTOM = 1230; // dernière ligne de texte : 120 px du bas
 const SHORT_ON_PHOTO = 15;
+const MOTIF_MIN_W = 700;
 
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
@@ -115,7 +124,20 @@ function lineCount(text: string, width: number, size: number): number {
   }, 0);
 }
 
-interface TextParts { title: string; body: string; cta: string; field: "title_body" | "overlay"; headline?: boolean }
+interface TextParts { title: string; body: string; cta: string; field: "title_body" | "overlay"; headline?: boolean; format?: PhotoFormat | null }
+
+/** Hauteur réservée à la mise en forme en tête d'une colonne de `width`. */
+function formatHeight(p: TextParts, width: number): number {
+  const f = p.format;
+  if (!f) return 0;
+  return (f.step ? STEP_HEADER_H : 0) + (f.motif && width >= MOTIF_MIN_W ? motifHeight(f.motif, width) : 0);
+}
+
+function softOf(color: string): string {
+  if (!/^#[0-9a-f]{6}$/i.test(color)) return color;
+  const n = (i: number) => parseInt(color.slice(i, i + 2), 16);
+  return `rgba(${n(1)},${n(3)},${n(5)},.32)`;
+}
 
 function textParts(s: MixSlideSpec): TextParts {
   const cta = String(s.cta_label || "").trim();
@@ -123,9 +145,9 @@ function textParts(s: MixSlideSpec): TextParts {
     // Une slide photo_full s'édite par son overlay (CarouselPhotoResult) : on
     // n'y recompose pas un titre/corps qui ne serait pas éditable.
     const overlay = String(s.overlay_text || s.body || s.title || "");
-    return { title: "", body: overlay, cta, field: "overlay" };
+    return { title: "", body: overlay, cta, field: "overlay", format: s.mix_format || null };
   }
-  return { title: String(s.title || ""), body: String(s.body || ""), cta, field: "title_body" };
+  return { title: String(s.title || ""), body: String(s.body || ""), cta, field: "title_body", format: s.mix_format || null };
 }
 
 /** Bloc de texte mesuré : place titre, corps et CTA dans une colonne, en
@@ -133,7 +155,7 @@ function textParts(s: MixSlideSpec): TextParts {
 function fitColumn(p: TextParts, width: number, maxHeight: number, base: { title: number; body: number }) {
   let ts = base.title, bs = base.body;
   const minTitle = Math.min(base.title, 52), minBody = p.headline ? 56 : Math.min(base.body, 40);
-  const ctaH = p.cta ? 96 : 0;
+  const ctaH = (p.cta ? 96 : 0) + formatHeight(p, width);
   const measure = () => {
     const th = p.title ? Math.ceil(lineCount(p.title, width, ts) * ts * 1.15) : 0;
     const bh = p.body ? Math.ceil(lineCount(p.body, width, bs) * bs * (p.headline ? 1.15 : 1.4)) : 0;
@@ -161,7 +183,10 @@ function column(p: TextParts, t: Tokens, fit: NonNullable<ReturnType<typeof fitC
     : `font-family:'${t.bodyFont}', sans-serif;font-size:${fit.bs}px;line-height:1.4;color:${colors.ink};`;
   const body = p.body ? `<p data-slide-text="${field}" data-pptx-editable="${field}" style="${common}${bodyType}${p.title ? `margin-top:${fit.gap}px;` : ""}">${escapeHtml(p.body)}</p>` : "";
   const cta = p.cta ? `<div data-slide-cta="1" style="margin-top:32px;"><span data-slide-text="cta" data-pptx-editable="caption" style="display:inline-block;background:${colors.ctaBg};color:${colors.ctaInk};border-radius:${Math.min(t.radius, 16)}px;padding:14px 22px;font-family:'${t.bodyFont}', sans-serif;font-size:32px;line-height:1.3;">${escapeHtml(p.cta)}</span></div>` : "";
-  return `<div data-mix-text="1" style="position:absolute;left:${box.x}px;top:${box.y}px;width:${box.w}px;">${title}${body}${cta}</div>`;
+  const f = p.format;
+  const pre = (f?.step ? stepHeader(f.step, colors.heading) : "") +
+    (f?.motif && box.w >= MOTIF_MIN_W ? motifSvg(f.motif, { ink: colors.ink, soft: softOf(colors.ink), accent: colors.heading }, { title: `'${t.titleFont}', Georgia, serif`, body: `'${t.bodyFont}', sans-serif` }) : "");
+  return `<div data-mix-text="1" style="position:absolute;left:${box.x}px;top:${box.y}px;width:${box.w}px;">${pre}${title}${body}${cta}</div>`;
 }
 
 function photoBox(n: number, box: { x: number; y: number; w: number; h: number }, radius = 0): string {
@@ -325,11 +350,13 @@ export function composeMixSlide(
     if (cover) return done(cover, "couverture_aplat");
   }
   // Overlay court sur photo plein cadre, sauf si la slide précédente l'était déjà.
-  if (s.slide_type === "photo_full" && words(p.body) <= SHORT_ON_PHOTO && !p.title && opts.previous !== "sur_photo") {
+  if (s.slide_type === "photo_full" && words(p.body) <= SHORT_ON_PHOTO && !p.title && opts.previous !== "sur_photo" && !p.format?.motif) {
     const html = surPhoto(p, photoN, t, s.overlay_position);
     if (html) return done(html, "sur_photo");
   }
-  for (const layout of preferredPhotoLayouts(s, opts.previous)) {
+  // Un motif demande une colonne large : le côte-à-côte passe en dernier.
+  const layouts = preferredPhotoLayouts(s, opts.previous);
+  for (const layout of p.format?.motif ? [...layouts.filter(l => l !== "cote_a_cote"), "cote_a_cote" as MixLayout] : layouts) {
     const side = /right_photo/.test(String(s.photo_layout || "")) ? "right" : "left";
     const html = layout === "photo_aplat" ? photoAplat(p, photoN, t)
       : layout === "passe_partout" ? passePartout(p, photoN, t)
@@ -346,13 +373,49 @@ export function composeMixCarousel(slides: MixSlideSpec[], charter: MixCharter, 
   const first = Math.min(...nums), last = Math.max(...nums);
   const out: ComposedMixSlide[] = [];
   let previous: MixLayout | null = null;
+  let stepsLost = false;
   for (let i = 0; i < slides.length; i++) {
-    const composed = composeMixSlide({ ...slides[i], slide_number: nums[i] }, charter, {
-      isFirst: nums[i] === first, isLast: nums[i] === last, previous, photoCount,
-    });
+    const opts: { isFirst: boolean; isLast: boolean; previous: MixLayout | null; photoCount: number } = { isFirst: nums[i] === first, isLast: nums[i] === last, previous, photoCount };
+    const base = { ...slides[i], slide_number: nums[i] };
+    const plain = composeMixSlide({ ...base, mix_format: null }, charter, opts);
+    let composed: ComposedMixSlide | null = plain;
+    // La mise en forme ne doit jamais faire perdre la composition ni réduire la
+    // photo en vignette : le motif cède d'abord, puis l'étape.
+    const f = base.mix_format;
+    if (f && (f.step || f.motif)) {
+      const tries = [f, f.step && f.motif ? { step: f.step } : null].filter(Boolean) as PhotoFormat[];
+      const chosen = tries.map(fmt => composeMixSlide({ ...base, mix_format: fmt }, charter, opts))
+        .find(c => c && !(c.layout === "vignette" && plain && plain.layout !== "vignette"));
+      if (chosen) composed = chosen;
+      if (f.step && !composed?.html.includes("data-photo-step=")) stepsLost = true;
+    }
     if (!composed) return null;
     out.push(composed);
     previous = composed.layout;
   }
+  // Une suite d'étapes est entière ou absente : jamais « Étape 1, 3 ».
+  if (stepsLost) return composeMixCarousel(slides.map(s => s.mix_format?.step ? { ...s, mix_format: s.mix_format.motif ? { motif: s.mix_format.motif } : null } : s), charter, photoCount);
   return out;
+}
+
+/** Pose la mise en forme validée (étapes, motifs) sur les slides du mixte. */
+export function applyMixFormatting<T extends MixSlideSpec>(slides: T[], plan: { steps: Array<{ slide_number: number; label: string }>; motifs: Array<{ slide_number: number; elements: any[]; reason: string }> } | null | undefined): T[] {
+  if (!plan || (!plan.steps.length && !plan.motifs.length)) return slides;
+  return slides.map((s, i) => {
+    const n = Number(s.slide_number) || i + 1;
+    const k = plan.steps.findIndex(st => st.slide_number === n);
+    const m = plan.motifs.find(x => x.slide_number === n);
+    if (k < 0 && !m) return s;
+    const format: PhotoFormat = {};
+    if (k >= 0) format.step = { index: k + 1, total: plan.steps.length, label: plan.steps[k].label };
+    if (m) format.motif = { elements: m.elements, reason: m.reason };
+    return { ...s, mix_format: format };
+  });
+}
+
+/** Texte complet d'une slide du mixte, tel que lu par l'étage de mise en forme. */
+export function mixSlideText(s: MixSlideSpec): string {
+  return s.slide_type === "photo_full"
+    ? String(s.overlay_text || s.body || s.title || "")
+    : [s.title, s.body].filter(Boolean).join("\n");
 }

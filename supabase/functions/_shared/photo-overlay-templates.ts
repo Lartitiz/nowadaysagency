@@ -1,6 +1,7 @@
 import { photoEditorialMarkup } from "./photo-editorial.ts";
 import { hexLuminance } from "./contrast-guard.ts";
-import { motifBox, type PhotoFormat } from "./photo-format-types.ts";
+import type { PhotoFormat } from "./photo-format-types.ts";
+import { motifSvg, stepHeader } from "./format-render.ts";
 
 // Composition PAR CODE des slides photo+overlay (chantier gabarits 13/07).
 //
@@ -267,33 +268,6 @@ function tplCouverture(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): strin
   const parts = label + overlayAnchor(text, `font-family:${fontTitle};font-size:${heroSize(text)}px;line-height:1.1;letter-spacing:-1px;color:#FFFFFF;max-width:900px;`, "h1") + (s.detail ? detailHtml(s.detail, 28) : "");
   return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72), wordCount(text) <= 12 ? 58 : 72, veilRgb(ch)) +
     contentWrap(s.overlay_position || "bottom_left", "center", parts);
-}
-
-/** « Étape 2 · Le tournage » + frise de progression (rectangles, jamais de ronds). */
-function stepHeader(step: NonNullable<PhotoFormat["step"]>, color: string, shadow = "none"): string {
-  const label = step.label.charAt(0).toUpperCase() + step.label.slice(1);
-  const bars = Array.from({ length: step.total }, (_, i) =>
-    `<div style="flex:1;height:10px;border-radius:5px;background:${color};opacity:${i < step.index ? 1 : .28};"></div>`).join("");
-  return `<div data-photo-format="etape" data-photo-step="${step.index}/${step.total}" style="position:relative;z-index:1;margin-bottom:26px;">` +
-    `<div data-pptx-editable="caption" data-photo-step-label="1" style="font-size:30px;line-height:1.3;letter-spacing:.06em;text-transform:uppercase;font-weight:500;color:${color};text-shadow:${shadow};">Étape ${step.index} · ${escapeHtml(label)}</div>` +
-    `<div style="display:flex;gap:12px;margin-top:16px;">${bars}</div></div>`;
-}
-
-/** Motif libre proposé par l'IA, validé (photo-formatting.ts) puis dessiné ici
- * en SVG dans les couleurs de la surface de lecture. */
-function motifSvg(motif: NonNullable<PhotoFormat["motif"]>, colors: { ink: string; soft: string; accent: string }, fonts: { title: string; body: string }): string {
-  const c = (t: string) => t === "accent" ? colors.accent : t === "soft" ? colors.soft : colors.ink;
-  const els = motif.elements.map(e => {
-    if (e.k === "rect") return `<rect x="${e.x}" y="${e.y}" width="${e.w}" height="${e.h}" rx="${e.radius ?? 8}" fill="${c(e.tone)}"${e.opacity ? ` fill-opacity="${e.opacity}"` : ""}/>`;
-    if (e.k === "line") return `<line x1="${e.x1}" y1="${e.y1}" x2="${e.x2}" y2="${e.y2}" stroke="${c(e.tone)}" stroke-width="${e.width ?? 4}" stroke-linecap="round"/>`;
-    return `<text x="${e.x}" y="${e.y}" fill="${c(e.tone)}" font-size="${e.size ?? 44}" text-anchor="${e.anchor ?? "start"}" font-family="${escapeHtml(e.font === "title" ? fonts.title : fonts.body)}">${escapeHtml(e.text)}</text>`;
-  }).join("");
-  // Cadre ajusté au dessin : pas de vide quand le motif n'occupe que le haut.
-  const boxes = motif.elements.map(motifBox);
-  const top = Math.max(-40, Math.floor(Math.min(...boxes.map(b => b.y0)) - 6));
-  const bottom = Math.min(420, Math.ceil(Math.max(...boxes.map(b => b.y1)) + 6));
-  const height = Math.max(40, bottom - top);
-  return `<svg data-photo-format="motif" role="img" aria-label="${escapeHtml(motif.reason || "Schéma")}" viewBox="0 ${top} 1000 ${height}" width="100%" style="position:relative;display:block;margin-bottom:26px;overflow:visible;">${els}</svg>`;
 }
 
 /** One editable source, several native export frames, full-bleed photograph. */
