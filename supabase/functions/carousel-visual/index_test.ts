@@ -248,6 +248,11 @@ Deno.test("indication visuelle recopiée en texte : retirée avec son cadre, le 
   assert(!/carnet/.test(out), "texte d'indication retiré");
   assert(!/linear-gradient/.test(out), "cadre vide retiré");
   assert(out.includes("3. Écrire, avec vos mots encore en tête") && out.includes("Une fois les idées choisies"), "vrai texte conservé");
+  const nested = `<div data-pptx-shape="background" style="background:#f8f8f8"><div style="position:absolute;right:80px;top:80px;width:420px;height:560px;background:#eef0ec"><div style="padding:40px"><p>main qui écrit dans un carnet, faïence illustrée floue au premier plan</p></div></div><h2 data-slide-text="title">3. Écrire, avec vos mots encore en tête</h2></div>`;
+  const r3: any = { slides_html: [{ slide_number: 5, html: nested }] };
+  stripVisualHintText(r3, { slides });
+  assert(!/#eef0ec|carnet/.test(r3.slides_html[0].html), "cadre imbriqué vidé retiré");
+  assert(r3.slides_html[0].html.includes("3. Écrire"), "vrai texte conservé");
   const photo = `<div><div style="background:#eee"><div data-pptx-photo="1" style="background-image:url({{PHOTO_1}})"></div><p>main qui écrit dans un carnet faïence illustrée floue</p></div></div>`;
   const r2: any = { slides_html: [{ slide_number: 5, html: photo }] };
   stripVisualHintText(r2, { slides });
