@@ -51,6 +51,32 @@ Deno.test("application : étapes seulement sur des slides habillées ; un motif 
   assertEquals(applyPhotoFormatting(SLIDES, plan).filter(s => s.photo_format?.step).length, 0, "sans habillage : pas d'étapes partielles");
 });
 
+Deno.test("application : un motif ne reste jamais dans la colonne étroite ; jamais deux colonnes", () => {
+  const plan = validatePhotoFormatting({ steps: [], motifs: [MOTIF, { ...MOTIF, slide_number: 3, elements: [{ k: "rect", x: 0, y: 0, w: 10, h: 10, tone: "ink" }, { k: "text", x: 0, y: 60, text: "le tournage", tone: "ink" }] }] }, SLIDES);
+  const styles = ["carte", "colonne", "verre", "colonne", "carte"];
+  const styled = SLIDES.map((s, i) => i === 0 ? s : { ...s, photo_style: styles[i - 1] });
+  const out = applyPhotoFormatting(styled, plan);
+  for (const s of out.filter(s => s.photo_format?.motif)) assert(["carte", "verre"].includes(s.photo_style), `motif en ${s.photo_style}`);
+  assert(out.filter(s => s.photo_style === "colonne").length <= 1);
+  const auto = applyPhotoFormatting(assignPhotoStyles(SLIDES), plan);
+  assert(auto.filter(s => s.photo_style === "colonne").length <= 1);
+  for (const s of auto.filter(s => s.photo_format?.motif)) assert(["carte", "verre"].includes(s.photo_style), `motif en ${s.photo_style}`);
+  const seq = applyPhotoFormatting(SLIDES.map((s, i) => i === 0 ? s : { ...s, photo_style: ["verre", "carte", "bord", "verre", "carte"][i - 1] }),
+    validatePhotoFormatting({ steps: [], motifs: [{ ...MOTIF, slide_number: 4 }] }, SLIDES));
+  for (let i = 2; i < seq.length; i++) assert(seq[i].photo_style !== seq[i - 1].photo_style, `deux ${seq[i].photo_style} d'affilée`);
+});
+
+Deno.test("dessin : texte posé sur une forme descendu dessous ; cadre ajusté au dessin", () => {
+  const plan = validatePhotoFormatting({ steps: [], motifs: [{ slide_number: 5, reason: "r", elements: [
+    { k: "rect", x: 40, y: 40, w: 150, h: 220, tone: "accent" }, { k: "text", x: 40, y: 270, text: "semaine après semaine", tone: "ink", size: 40 }] }] }, SLIDES);
+  const t = plan.motifs[0].elements[1] as any;
+  assert(t.y - 40 * .8 >= 260, `texte encore sur le rectangle (y=${t.y})`);
+  const html = composePhotoSlide(applyPhotoFormatting(SLIDES.map((s, i) => i ? { ...s, photo_style: "carte" } : s), { steps: [], motifs: [{ slide_number: 2, reason: "r", elements: [
+    { k: "text", x: 20, y: 40, text: "le pétrissage", tone: "ink", size: 44 }, { k: "line", x1: 310, y1: 70, x2: 390, y2: 70, tone: "soft" }] }] })[1], CH, { isFirst: false, isLast: false }).html;
+  const vb = /data-photo-format="motif"[^>]*viewBox="0 (-?\d+) 1000 (\d+)"/.exec(html);
+  assert(vb && Number(vb[2]) < 120, `cadre non ajusté (${vb?.[0]})`);
+});
+
 // ── GARDE-FOU DU CATALOGUE (03/10/2026) ─────────────────────────────────────
 // Les « 1, 2, 3 » ont disparu le 01/10/2026 parce que l'écriture a changé sans
 // que rien ne le signale. Ces tests échouent si un design du catalogue ne sort
@@ -63,7 +89,7 @@ Deno.test("catalogue : chaque design de mise en forme sort encore dans les quatr
     assert(step.includes('data-photo-format="etape"') && step.includes("Étape 1 · Le pétrissage") && step.includes('data-photo-step="1/3"'), `étape absente (${style})`);
     assert(step.replace(/<[^>]*>/g, "").includes(SLIDES[1].overlay_text), `texte modifié (${style})`);
     const motif = composePhotoSlide(s[4], CH, { isFirst: false, isLast: false }).html;
-    if (style !== "bord") assert(motif.includes('<svg data-photo-format="motif"'), `motif absent (${style})`);
+    assert(motif.includes('<svg data-photo-format="motif"'), `motif absent (${style})`);
     assert(!/<script|on\w+=/i.test(motif));
   }
 });

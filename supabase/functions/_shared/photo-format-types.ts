@@ -11,3 +11,12 @@ export interface PhotoFormat {
   step?: { index: number; total: number; label: string };
   motif?: { elements: MotifElement[]; reason: string };
 }
+
+/** Emprise approximative d'un élément de motif (texte : largeur estimée). */
+export function motifBox(e: MotifElement): { x0: number; y0: number; x1: number; y1: number } {
+  if (e.k === "rect") return { x0: e.x, y0: e.y, x1: e.x + e.w, y1: e.y + e.h };
+  if (e.k === "line") { const p = (e.width ?? 4) / 2; return { x0: Math.min(e.x1, e.x2) - p, y0: Math.min(e.y1, e.y2) - p, x1: Math.max(e.x1, e.x2) + p, y1: Math.max(e.y1, e.y2) + p }; }
+  const size = e.size ?? 44, w = e.text.length * size * .55;
+  const x0 = e.anchor === "end" ? e.x - w : e.anchor === "middle" ? e.x - w / 2 : e.x;
+  return { x0, y0: e.y - size * .8, x1: x0 + w, y1: e.y + size * .25 };
+}

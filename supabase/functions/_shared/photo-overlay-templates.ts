@@ -1,6 +1,6 @@
 import { photoEditorialMarkup } from "./photo-editorial.ts";
 import { hexLuminance } from "./contrast-guard.ts";
-import type { PhotoFormat } from "./photo-format-types.ts";
+import { motifBox, type PhotoFormat } from "./photo-format-types.ts";
 
 // Composition PAR CODE des slides photo+overlay (chantier gabarits 13/07).
 //
@@ -288,7 +288,12 @@ function motifSvg(motif: NonNullable<PhotoFormat["motif"]>, colors: { ink: strin
     if (e.k === "line") return `<line x1="${e.x1}" y1="${e.y1}" x2="${e.x2}" y2="${e.y2}" stroke="${c(e.tone)}" stroke-width="${e.width ?? 4}" stroke-linecap="round"/>`;
     return `<text x="${e.x}" y="${e.y}" fill="${c(e.tone)}" font-size="${e.size ?? 44}" text-anchor="${e.anchor ?? "start"}" font-family="${escapeHtml(e.font === "title" ? fonts.title : fonts.body)}">${escapeHtml(e.text)}</text>`;
   }).join("");
-  return `<svg data-photo-format="motif" role="img" aria-label="${escapeHtml(motif.reason || "Schéma")}" viewBox="0 0 1000 320" width="100%" style="position:relative;display:block;margin-bottom:26px;overflow:visible;">${els}</svg>`;
+  // Cadre ajusté au dessin : pas de vide quand le motif n'occupe que le haut.
+  const boxes = motif.elements.map(motifBox);
+  const top = Math.max(-40, Math.floor(Math.min(...boxes.map(b => b.y0)) - 6));
+  const bottom = Math.min(420, Math.ceil(Math.max(...boxes.map(b => b.y1)) + 6));
+  const height = Math.max(40, bottom - top);
+  return `<svg data-photo-format="motif" role="img" aria-label="${escapeHtml(motif.reason || "Schéma")}" viewBox="0 ${top} 1000 ${height}" width="100%" style="position:relative;display:block;margin-bottom:26px;overflow:visible;">${els}</svg>`;
 }
 
 /** One editable source, several native export frames, full-bleed photograph. */
