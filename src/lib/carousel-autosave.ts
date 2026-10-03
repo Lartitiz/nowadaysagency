@@ -23,6 +23,24 @@ export interface DraftStore {
     raw: CarouselSnapshot,
   ): Promise<DraftRow | null>;
 }
+/**
+ * Versions gardées : les 3 plus récentes (espacées d'au moins 5 minutes), puis
+ * la dernière version de chacun des jours précédents, 8 au plus. On retrouve
+ * ainsi « avant mes retouches d'hier », pas seulement le dernier quart d'heure.
+ */
+export function pruneCarouselHistory(history: CarouselVersion[]): CarouselVersion[] {
+  const sorted = [...history].sort((a, b) => Date.parse(b.savedAt) - Date.parse(a.savedAt));
+  const kept: CarouselVersion[] = sorted.slice(0, 3);
+  const days = new Set(kept.map((v) => new Date(v.savedAt).toDateString()));
+  for (const v of sorted.slice(3)) {
+    const day = new Date(v.savedAt).toDateString();
+    if (days.has(day)) continue;
+    days.add(day);
+    kept.push(v);
+    if (kept.length >= 8) break;
+  }
+  return kept;
+}
 export function cleanCarouselSnapshot(raw: CarouselSnapshot): CarouselSnapshot {
   const {
     _carousel_cloud: _cloud,
@@ -148,13 +166,13 @@ export class CarouselAutosaver {
           !history.length ||
           Date.now() - Date.parse(history[0].savedAt) >= 5 * 60_000)
       ) {
-        history = [
+        history = pruneCarouselHistory([
           {
             savedAt: this.row?.updated_at || now,
             raw: cleanCarouselSnapshot(prior),
           },
           ...history,
-        ].slice(0, 3);
+        ]);
       }
       // Bound history overhead (embedded photos can be large). Latest document is never truncated.
       while (history.length && JSON.stringify(history).length > 8_000_000)
