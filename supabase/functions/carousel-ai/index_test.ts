@@ -595,7 +595,8 @@ for (const repair of ['success', 'short', 'failure']) Deno.test(`texte incomplet
     const res = await handleRequest(makeHooksRequest({type:'express_full',carousel_type:'text',subject:'8 erreurs de communication',slide_count:10,deepening_answers:{faits:'Développe chaque erreur distinctement.'}}));
     assertEquals(res.status,200);
     const out = await res.json(), parsed=JSON.parse(out.content);
-    assertEquals(writes,2); assertEquals(logged[3],60); assert(reviews>0);
+    // 60 = deux passes de rédaction ; +2 = l'étage de schémas après l'écriture (03/10/2026).
+    assertEquals(writes,2); assertEquals(logged[3],62); assert(reviews>0);
     assertEquals(parsed.slides.length,repair==='success'?10:7);
     assertEquals(parsed.structure_warnings.length===0,repair==='success');
     assertEquals(parsed.slides[1].body,full.slides[1].body);

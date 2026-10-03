@@ -25,6 +25,7 @@ import { runRedacGate, applyGuardedCarouselCorrection, analyzeCarouselRedac, num
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
+import { addSchemasToContent } from "../_shared/schema-formatting.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.ts";
@@ -450,6 +451,14 @@ const CORRECTION_ABORT_MS = 60_000;
 // Jamais atteints en conditions normales (réparation décidée vers 100-115 s).
 const REPAIR_START_LIMIT_MS = 150_000;
 const REVIEW_START_LIMIT_MS = 270_000;
+// Étage SCHÉMAS (03/10/2026) : lancé seulement s'il reste du temps avant la
+// coupure de la plateforme (~400 s) ; il s'arrête de lui-même à 25 s.
+const SCHEMA_START_LIMIT_MS = 330_000;
+const schemasAllowed = (startedAt: number): boolean => {
+  const ok = Date.now() - startedAt <= SCHEMA_START_LIMIT_MS;
+  if (!ok) console.log(JSON.stringify({ type: "carousel_time_budget", skipped: "schemas", elapsed_ms: Date.now() - startedAt }));
+  return ok;
+};
 const reviewAllowed = (startedAt: number): boolean => {
   const ok = Date.now() - startedAt <= REVIEW_START_LIMIT_MS;
   if (!ok) console.log(JSON.stringify({ type: "carousel_time_budget", skipped: "review", elapsed_ms: Date.now() - startedAt }));
@@ -1356,6 +1365,12 @@ async function runGenerationAndRespond(
 
   if (type === "express_full" || type === "slides") {
     content=await timed("thread_ms",finalizeCarousel(content,reqCtx,{usage,repaired:structuralRepair,regenerate}));
+    // SCHÉMAS décidés après l'écriture et ses relectures, sur le texte final
+    // (la rédaction ne les connaît plus : un changement d'écriture ne peut plus
+    // les faire disparaître). Échec ou manque de temps → aucun schéma, texte livré.
+    const withSchemas = await timed("schemas_ms", addSchemasToContent(content, { isMix: false, usage, allowed: schemasAllowed(startedAt) }));
+    content = withSchemas.content;
+    if (withSchemas.plan) console.log(JSON.stringify({ event: "carousel_schema_formatting", label: type, status: withSchemas.plan.status, schemas: withSchemas.plan.schemas.map(x => x.visual_schema.type) }));
   }
 
   // deepening_questions (variante texte) est gratuit — arbitrage 10/07/2026 :
@@ -1586,6 +1601,12 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
   });
   content = gateMix.content;
   content = await finalizeCarousel(content,reqCtx,{usage:mixUsage,repaired:threadMix.repaired,regenerate:doRepair});
+  {
+    // SCHÉMAS décidés après l'écriture, sur les slides text_only du texte final.
+    const withSchemas = await addSchemasToContent(content, { isMix: true, usage: mixUsage, allowed: schemasAllowed(startedAt) });
+    content = withSchemas.content;
+    if (withSchemas.plan) console.log(JSON.stringify({ event: "carousel_schema_formatting", label: "mix", status: withSchemas.plan.status, schemas: withSchemas.plan.schemas.map(x => x.visual_schema.type) }));
+  }
   await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspaceId, body.subject);
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
