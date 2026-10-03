@@ -38,8 +38,9 @@ function lines(text: string, width: number, size: number): number {
 }
 const textH = (text: string, width: number, size: number, lh: number) => Math.ceil(lines(text, width, size) * size * lh);
 
-// Plancher 32 px partout : sous 32 px l'éditeur bloque la publication (mobile).
-const LABEL = 32, ITEM = 34, DESC = 32, PAD = 32, GAP = 24, RADIUS_MAX = 16;
+// 38 px partout (cible de lisibilité de l'éditeur ; sous 38 px il pose un
+// conseil « lisible mais juste » sur chaque élément, sous 32 px il bloque).
+const LABEL = 38, ITEM = 38, DESC = 38, PAD = 32, GAP = 24, RADIUS_MAX = 16;
 
 function diamond(color: string, size = 16): string {
   return `<span style="display:inline-block;flex:none;width:${size}px;height:${size}px;background:${color};transform:rotate(45deg);"></span>`;
@@ -54,7 +55,7 @@ function twoColumns(left: { label: string; items: string[] }, right: { label: st
   const colW = (w - GAP) / 2, inner = colW - 2 * PAD;
   const col = (side: { label: string; items: string[] }, bg: string) => {
     const items = side.items.map(i => `<div style="padding:12px 0;border-top:1px solid ${c.soft};font-family:${f.body};font-size:${ITEM}px;line-height:1.3;color:${c.ink};">${esc(i)}</div>`).join("");
-    return card(bg, r, `<div style="font-family:${f.body};font-size:${LABEL}px;letter-spacing:.12em;text-transform:uppercase;line-height:1.3;color:${c.ink};padding-bottom:14px;">${esc(side.label)}</div>${items}`);
+    return card(bg, r, `<div style="font-family:${f.body};font-size:${LABEL}px;letter-spacing:.06em;text-transform:uppercase;line-height:1.3;color:${c.ink};padding-bottom:14px;">${esc(side.label)}</div>${items}`);
   };
   const colH = (side: { label: string; items: string[] }) => PAD - 4 + Math.ceil(LABEL * 1.3) + 14 + side.items.reduce((h, i) => h + 25 + textH(i, inner, ITEM, 1.3), 0) + PAD - 8;
   return {
@@ -69,14 +70,14 @@ function frise(steps: Array<{ label: string; desc: string }>, w: number, c: MixS
   const innerW = w - 2 * PAD;
   if (steps.length <= 4) {
     const colW = (innerW - (steps.length - 1) * GAP) / steps.length;
-    const cell = (s: { label: string; desc: string }, i: number) => `<div style="display:flex;flex-direction:column;gap:10px;min-width:0;">${diamond(i === steps.length - 1 ? c.accent : c.ink)}<div style="margin-top:6px;font-family:${f.title};font-size:36px;line-height:1.2;color:${c.ink};">${esc(s.label)}</div>${s.desc ? `<div style="font-family:${f.body};font-size:${DESC}px;line-height:1.3;color:${c.ink};opacity:1;">${esc(s.desc)}</div>` : ""}</div>`;
-    const h = Math.max(...steps.map(s => 16 + 16 + textH(s.label, colW, 36, 1.2) + (s.desc ? 10 + textH(s.desc, colW, DESC, 1.3) : 0)));
+    const cell = (s: { label: string; desc: string }, i: number) => `<div style="display:flex;flex-direction:column;gap:10px;min-width:0;">${diamond(i === steps.length - 1 ? c.accent : c.ink)}<div style="margin-top:6px;font-family:${f.title};font-size:40px;line-height:1.2;color:${c.ink};">${esc(s.label)}</div>${s.desc ? `<div style="font-family:${f.body};font-size:${DESC}px;line-height:1.3;color:${c.ink};opacity:1;">${esc(s.desc)}</div>` : ""}</div>`;
+    const h = Math.max(...steps.map(s => 16 + 16 + textH(s.label, colW, 40, 1.2) + (s.desc ? 10 + textH(s.desc, colW, DESC, 1.3) : 0)));
     const inner = `<div style="position:relative;"><div style="position:absolute;left:8px;right:0;top:8px;height:2px;background:${c.soft};"></div><div style="position:relative;display:grid;grid-template-columns:repeat(${steps.length},minmax(0,1fr));gap:${GAP}px;">${steps.map(cell).join("")}</div></div>`;
     return { html: card(c.card, r, inner), height: PAD - 4 + h + PAD - 8 };
   }
   const textW = innerW - 40;
-  const rows = steps.map((s, i) => `<div style="display:flex;align-items:baseline;gap:24px;padding:12px 0;${i ? `border-top:1px solid ${c.soft};` : ""}">${diamond(i === steps.length - 1 ? c.accent : c.ink, 14)}<div style="min-width:0;"><span style="font-family:${f.title};font-size:36px;line-height:1.25;color:${c.ink};">${esc(s.label)}</span>${s.desc ? `<span style="font-family:${f.body};font-size:${DESC}px;line-height:1.3;color:${c.ink};"> · ${esc(s.desc)}</span>` : ""}</div></div>`).join("");
-  const h = steps.reduce((sum, s) => sum + 24 + textH(s.label + (s.desc ? " · " + s.desc : ""), textW, 36, 1.3), 0);
+  const rows = steps.map((s, i) => `<div style="display:flex;align-items:baseline;gap:24px;padding:12px 0;${i ? `border-top:1px solid ${c.soft};` : ""}">${diamond(i === steps.length - 1 ? c.accent : c.ink, 14)}<div style="min-width:0;"><span style="font-family:${f.title};font-size:40px;line-height:1.25;color:${c.ink};">${esc(s.label)}</span>${s.desc ? `<span style="font-family:${f.body};font-size:${DESC}px;line-height:1.3;color:${c.ink};"> · ${esc(s.desc)}</span>` : ""}</div></div>`).join("");
+  const h = steps.reduce((sum, s) => sum + 24 + textH(s.label + (s.desc ? " · " + s.desc : ""), textW, 40, 1.3), 0);
   return { html: card(c.card, r, rows), height: PAD - 4 + h + PAD - 8 };
 }
 
@@ -110,8 +111,8 @@ export function mixSchemaBlock(schema: any, w: number, colors: MixSchemaColors, 
       const title = str(schema.title), innerW = w - 2 * PAD - 44;
       const check = `<svg width="28" height="28" viewBox="0 0 28 28" style="flex:none;margin-top:4px;"><path d="M5 15l6 6L23 8" fill="none" stroke="${colors.accent}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
       const rows = items.map((t: string, i: number) => `<div style="display:flex;gap:16px;align-items:flex-start;padding:10px 0;${i ? `border-top:1px solid ${colors.soft};` : ""}">${check}<div style="font-family:${fonts.body};font-size:${ITEM}px;line-height:1.3;color:${colors.ink};">${esc(t)}</div></div>`).join("");
-      const head = title ? `<div style="font-family:${fonts.title};font-size:36px;line-height:1.2;color:${colors.ink};padding-bottom:12px;">${esc(title)}</div>` : "";
-      const h = (title ? textH(title, w - 2 * PAD, 36, 1.2) + 12 : 0) + items.reduce((s: number, t: string) => s + 21 + textH(t, innerW, ITEM, 1.3), 0);
+      const head = title ? `<div style="font-family:${fonts.title};font-size:40px;line-height:1.2;color:${colors.ink};padding-bottom:12px;">${esc(title)}</div>` : "";
+      const h = (title ? textH(title, w - 2 * PAD, 40, 1.2) + 12 : 0) + items.reduce((s: number, t: string) => s + 21 + textH(t, innerW, ITEM, 1.3), 0);
       block = { html: card(colors.card, r, head + rows), height: PAD - 4 + h + PAD - 8 };
       break;
     }
@@ -119,7 +120,7 @@ export function mixSchemaBlock(schema: any, w: number, colors: MixSchemaColors, 
       const items = (Array.isArray(schema.items) ? schema.items : []).map((x: any) => ({ number: str(x?.number), label: str(x?.label) })).filter((x: { number: string; label: string }) => x.number && x.label).slice(0, 4);
       if (!items.length) return null;
       const n = items.length, colW = (w - (n - 1) * GAP) / n, inner = colW - 2 * PAD;
-      const size = n >= 3 ? 72 : 96;
+      const size = n >= 3 ? 80 : 96;
       const cells = items.map((x: { number: string; label: string }, i: number) => card(i === n - 1 ? colors.cardAlt : colors.card, r,
         `<div style="font-family:${fonts.title};font-size:${size}px;line-height:1;color:${colors.ink};">${esc(x.number)}</div><div style="margin-top:12px;font-family:${fonts.body};font-size:${DESC}px;line-height:1.3;color:${colors.ink};">${esc(x.label)}</div>`)).join("");
       const h = Math.max(...items.map((x: { number: string; label: string }) => lines(x.number, inner, size) * size + 12 + textH(x.label, inner, DESC, 1.3)));
@@ -130,17 +131,17 @@ export function mixSchemaBlock(schema: any, w: number, colors: MixSchemaColors, 
       const quote = str(schema.quote), who = str(schema.attribution);
       if (!quote) return null;
       const innerW = w - 2 * PAD;
-      block = { html: card(colors.card, r, `<div style="font-family:${fonts.title};font-style:italic;font-size:40px;line-height:1.3;color:${colors.ink};">« ${esc(quote)} »</div>${who ? `<div style="margin-top:14px;font-family:${fonts.body};font-size:${LABEL}px;letter-spacing:.08em;text-transform:uppercase;color:${colors.ink};">${esc(who)}</div>` : ""}`),
-        height: PAD - 4 + textH(`« ${quote} »`, innerW, 40, 1.3) + (who ? 14 + Math.ceil(LABEL * 1.3) * lines(who, innerW, LABEL) : 0) + PAD - 8 };
+      block = { html: card(colors.card, r, `<div style="font-family:${fonts.title};font-style:italic;font-size:42px;line-height:1.3;color:${colors.ink};">« ${esc(quote)} »</div>${who ? `<div style="margin-top:14px;font-family:${fonts.body};font-size:${LABEL}px;letter-spacing:.08em;text-transform:uppercase;color:${colors.ink};">${esc(who)}</div>` : ""}`),
+        height: PAD - 4 + textH(`« ${quote} »`, innerW, 42, 1.3) + (who ? 14 + Math.ceil(LABEL * 1.3) * lines(who, innerW, LABEL) : 0) + PAD - 8 };
       break;
     }
     case "objection_response": {
       const o = str(schema.objection), a = str(schema.response);
       if (!o || !a) return null;
       const innerW = w - 2 * PAD;
-      const part = (text: string, bg: string, serif: boolean) => card(bg, r, `<div style="font-family:${serif ? fonts.title : fonts.body};font-size:${serif ? 36 : ITEM}px;line-height:1.3;color:${colors.ink};">${esc(text)}</div>`);
+      const part = (text: string, bg: string, serif: boolean) => card(bg, r, `<div style="font-family:${serif ? fonts.title : fonts.body};font-size:${serif ? 40 : ITEM}px;line-height:1.3;color:${colors.ink};">${esc(text)}</div>`);
       block = { html: `<div style="display:flex;flex-direction:column;gap:16px;">${part(o, colors.card, true)}${part(a, colors.cardAlt, false)}</div>`,
-        height: 2 * (PAD - 4 + PAD - 8) + 16 + textH(o, innerW, 36, 1.3) + textH(a, innerW, ITEM, 1.3) };
+        height: 2 * (PAD - 4 + PAD - 8) + 16 + textH(o, innerW, 40, 1.3) + textH(a, innerW, ITEM, 1.3) };
       break;
     }
   }

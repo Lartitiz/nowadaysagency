@@ -14,13 +14,27 @@ export function progressionMaterial(doc: any): string {
   });
 }
 
+/** Projection relue par la relecture du FIL (texte, ordre, type de slide) :
+ * la photo posée sur une slide n'en fait pas partie (la relecture du fil ne
+ * voit que le texte). Choisir ou changer une photo ne doit donc pas afficher
+ * « Le texte a changé » ; le reçu photo, lui, reste sensible aux photos. */
+function textMaterial(material: string): string {
+  try {
+    const m = JSON.parse(material);
+    return JSON.stringify({ ...m, slides: (m.slides || []).map(({ photo: _p, ...s }: any) => s) });
+  } catch {
+    return material;
+  }
+}
+
 function invalidateTextReceipt<T extends Record<string, any>>(
   doc: T,
 ): T {
   const receipt = doc.progression_review;
   if (
     !receipt || receipt.execution_status === "stale" ||
-    receipt.reviewed_material === progressionMaterial(doc)
+    typeof receipt.reviewed_material !== "string" ||
+    textMaterial(receipt.reviewed_material) === textMaterial(progressionMaterial(doc))
   ) return doc;
   // Keep prior findings as history in the receipt, never as verdicts on edited text.
   const prior = new Set(receipt.issues || []);
