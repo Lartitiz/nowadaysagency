@@ -55,6 +55,7 @@ import {
 } from "./higgsfield-image.ts";
 import { handleMemory, readMemory } from "./memory.ts";
 import { executeStudioJob } from "./worker.ts";
+import { applyPreparedReferences } from "./product-fidelity-studio.ts";
 import { isWornProduct, onlyAdditions, preferredProductGroup, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
 
 declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void };
@@ -1665,11 +1666,16 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                   proposal.input_path = session.source_path;
                   paths.push(...imageInputPaths(proposal));
                 }
-                return Promise.all(
+                const inputs = await Promise.all(
                   paths
                     .filter(Boolean)
                     .map((path: string) => download(sb, BUCKET, path)),
                 );
+                // Product references go out cropped and cut out, with their geometry
+                // pinned in the shot instructions when the provider prompt still fits.
+                await applyPreparedReferences(sb, proposal, paths.filter(Boolean), inputs,
+                  (candidate) => proposal.provider !== "higgsfield" || !marketingPromptTooLong(candidate));
+                return inputs;
               };
               const work = version.proposal.provider === "higgsfield"
                 ? (async () => {
