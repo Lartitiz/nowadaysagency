@@ -18,6 +18,7 @@ import {
   Keyboard,
   ZoomIn,
   ZoomOut,
+  Smartphone,
   Pipette,
   Bookmark,
   X,
@@ -39,6 +40,7 @@ import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import { toast } from "sonner";
 import { findClippedIds, hasClippedElement, inspectSlide, type QualityIssue } from "@/lib/carousel-quality";
 import { compressImageFile } from "@/lib/image-compress";
+import CarouselInstagramPreview from "@/components/creer/CarouselInstagramPreview";
 import type { CarouselStylesApi, SavedCarouselStyle } from "@/hooks/use-carousel-styles";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import {
@@ -1500,6 +1502,7 @@ export default function CarouselEditor({
     [extra, setExtra] = useState<string[]>([]),
     [zoom, setZoom] = useState(1),
     [sheetOpen, setSheetOpen] = useState(false),
+    [instaOpen, setInstaOpen] = useState(false),
     [fitId, setFitId] = useState<string | null>(null),
     [fullscreen, setFullscreen] = useState(false),
     [dragSlide, setDragSlide] = useState<number | null>(null),
@@ -2170,6 +2173,9 @@ export default function CarouselEditor({
             className="gap-1.5"
           >
             <Redo2 size={15} /> Rétablir
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setInstaOpen(true)} aria-label="Aperçu Instagram">
+            <Smartphone size={15} /> <span className="hidden sm:inline">Aperçu Instagram</span>
           </Button>
           <Popover>
             <PopoverTrigger asChild>
@@ -3486,6 +3492,15 @@ export default function CarouselEditor({
         ].join("\n")}
         onFix={fix}
       />
+      {instaOpen && (
+        <CarouselInstagramPreview
+          open={instaOpen}
+          onOpenChange={setInstaOpen}
+          slides={document.slides}
+          caption={captionText(document.caption)}
+          start={active}
+        />
+      )}
       {photoOpen && (
         <PhotoSwapDialog
           open
