@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { createPortal } from "react-dom";
 import type { CarouselQuality } from "@/hooks/use-carousel-quality";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
   LockKeyhole,
   Unlock,
   ImagePlus,
+  Keyboard,
   Eye,
   EyeOff,
   ChevronUp,
@@ -165,6 +167,23 @@ function followGlass(el: HTMLElement) {
   blur.style.removeProperty("bottom");
 }
 type Handle = "e" | "w" | "s" | "se";
+const SHORTCUTS: [string, string][] = [
+  ["⌘Z", "Annuler"],
+  ["⌘⇧Z · Ctrl+Y", "Rétablir"],
+  ["⌘C · ⌘X · ⌘V", "Copier · couper · coller (aussi sur une autre slide)"],
+  ["⌘D", "Dupliquer l’élément"],
+  ["⌘A", "Tout sélectionner"],
+  ["Maj + clic", "Ajouter / retirer de la sélection"],
+  ["Tab · Maj+Tab", "Élément suivant · précédent"],
+  ["Entrée · double-clic", "Écrire dans le texte choisi"],
+  ["Échap", "Valider la saisie · choisir le cadre · désélectionner"],
+  ["⌘B · ⌘I · ⌘U", "Gras · italique · souligné (mots choisis en écrivant)"],
+  ["Flèches · Maj+flèches", "Déplacer de 1 px · 10 px"],
+  ["Suppr", "Retirer l’élément"],
+  ["⌘] · ⌘[", "Passer devant · derrière"],
+  ["Alt + glisser", "Déplacer le texte seul, hors de son cadre"],
+  ["⌘ + glisser", "Placer librement, sans repères"],
+];
 type AlignMode = "left" | "center" | "right" | "top" | "middle" | "bottom" | "spread-x" | "spread-y";
 interface CanvasApi {
   align: (mode: AlignMode) => void;
@@ -228,6 +247,7 @@ function SlideCanvas({
   onRemoveMany,
   onCopy,
   onPaste,
+  onShortcut,
   api,
   onMeasure,
   onHistoryKey,
@@ -250,6 +270,8 @@ function SlideCanvas({
   onRemoveMany: (ids: string[]) => void;
   onCopy: () => void;
   onPaste: () => void;
+  /** Raccourcis de l'éditeur (⌘D, ⌘X, ⌘A, ⌘B/I/U, ⌘]/[, Tab) ; true si traité. */
+  onShortcut: (event: KeyboardEvent) => boolean;
   api: React.MutableRefObject<CanvasApi | null>;
   onMeasure?: (box: CanvasBox | null) => void;
   onHistoryKey: (event: KeyboardEvent) => void;
@@ -309,8 +331,8 @@ function SlideCanvas({
     window.document.addEventListener("focusin", leave);
     return () => window.document.removeEventListener("focusin", leave);
   }, []);
-  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, locked: slide.locked });
-  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, locked: slide.locked };
+  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, locked: slide.locked });
+  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, locked: slide.locked };
   const [extraBoxes, setExtraBoxes] = useState<CanvasBox[]>([]);
   // Barre d'outils : état de la saisie sur la slide et actions branchées sur l'aperçu.
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -547,6 +569,14 @@ function SlideCanvas({
           event.preventDefault();
           finishEditing();
         }
+        // ⌘/Ctrl + B, I, U : sur les mots choisis (même mise en forme que la barre).
+        const word = { b: { "font-weight": "toggle" }, i: { "font-style": "toggle" }, u: { "text-decoration": "toggle" } }[
+          (event.metaKey || event.ctrlKey) && !event.altKey ? event.key.toLowerCase() : ""
+        ];
+        if (word) {
+          event.preventDefault();
+          format(word);
+        }
         // Pendant la saisie, flèches, Suppr et ⌘Z agissent sur le texte.
         return;
       }
@@ -556,6 +586,19 @@ function SlideCanvas({
         if (event.key === "c") latest.current.onCopy();
         else latest.current.onPaste();
         return;
+      }
+      if (latest.current.onShortcut(event)) {
+        event.preventDefault();
+        return;
+      }
+      // Entrée : écrire dans le texte choisi (comme un double-clic).
+      if (event.key === "Enter" && !event.metaKey && !event.ctrlKey && latest.current.selected) {
+        const chosen = target();
+        if (chosen && isInlineText(chosen) && !latest.current.locked) {
+          event.preventDefault();
+          startEditing(chosen);
+          return;
+        }
       }
       const el = target();
       const many = (latest.current.group || []).length > 1;
@@ -1216,6 +1259,61 @@ export default function CarouselEditor({
     setSelected(ids[0]);
     setExtra(ids.slice(1));
   };
+  // Raccourcis clavier de l'éditeur (en plus de ⌘Z, ⌘C/V, flèches, Suppr, Échap).
+  const shortcut = (event: KeyboardEvent): boolean => {
+    if (event.defaultPrevented || event.isComposing || slide.locked) return false;
+    const mod = event.metaKey || event.ctrlKey;
+    const key = event.key.toLowerCase();
+    const layersNow = listLayers(slide.html).filter((l) => !l.fixed && !l.hidden);
+    if (key === "tab" && !mod && !event.altKey) {
+      // Tab / Maj+Tab : élément suivant / précédent, dans l'ordre des calques.
+      if (!layersNow.length) return false;
+      const i = layersNow.findIndex((l) => l.id === selected);
+      const next = layersNow[(i + (event.shiftKey ? -1 : 1) + layersNow.length) % layersNow.length];
+      selectOne(next.id);
+      return true;
+    }
+    if (!mod || event.altKey) return false;
+    if (key === "a" && !event.shiftKey) {
+      const ids = layersNow.filter((l) => l.topLevel && l.role !== "veil").map((l) => l.id);
+      if (!ids.length) return false;
+      setSelected(ids[0]);
+      setExtra(ids.slice(1));
+      return true;
+    }
+    if (!selected) return false;
+    if (key === "d" && !event.shiftKey) {
+      const out = duplicateElement(slide, selected);
+      if (!out.id) return true;
+      changeSlide(out.slide);
+      selectOne(out.id);
+      return true;
+    }
+    if (key === "x" && !event.shiftKey) {
+      copySelection();
+      removeMany(group);
+      return true;
+    }
+    if ((key === "b" || key === "i" || key === "u") && !event.shiftKey) {
+      const els = getEditorElements(slide.html).filter((e) => group.includes(e.id) && e.kind === "text");
+      if (!els.length) return false;
+      const first = els[0].style;
+      const styles =
+        key === "b"
+          ? { "font-weight": (parseInt(first["font-weight"], 10) || 400) >= 600 ? "400" : "700" }
+          : key === "i"
+            ? { "font-style": first["font-style"] === "italic" ? "normal" : "italic" }
+            : { "text-decoration": /underline/.test(first["text-decoration"] || first["text-decoration-line"] || "") ? "none" : "underline" };
+      moveMany(Object.fromEntries(els.map((e) => [e.id, styles])));
+      return true;
+    }
+    if (event.key === "]" || event.key === "[") {
+      const next = moveLayer(slide, selected, event.key === "]" ? "up" : "down");
+      if (next !== slide) changeSlide(next);
+      return true;
+    }
+    return false;
+  };
   const applyAll = (what: { style?: boolean; position?: boolean }) => {
     if (!selected) return;
     const out = applyToAllSlides(current.current, slide.id, selected, what);
@@ -1437,6 +1535,11 @@ export default function CarouselEditor({
         else paste();
         return;
       }
+      // Tab garde son rôle de navigation dans le panneau ; il ne change d'élément que dans l'aperçu.
+      if (event.key !== "Tab" && !/INPUT|TEXTAREA|SELECT/.test(tag) && !(event.target as HTMLElement).isContentEditable && shortcut(event.nativeEvent)) {
+        event.preventDefault();
+        return;
+      }
       onHistoryKey(event);
     }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1472,6 +1575,25 @@ export default function CarouselEditor({
           >
             <Redo2 size={15} /> Rétablir
           </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5" aria-label="Voir les raccourcis clavier">
+                <Keyboard size={15} /> <span className="hidden sm:inline">Raccourcis</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 text-xs">
+              <p className="mb-2 font-semibold">Raccourcis clavier</p>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                {SHORTCUTS.map(([keys, label]) => (
+                  <Fragment key={keys}>
+                    <dt className="whitespace-nowrap font-mono text-2xs">{keys}</dt>
+                    <dd>{label}</dd>
+                  </Fragment>
+                ))}
+              </dl>
+              <p className="mt-2 text-muted-foreground">Sur PC, Ctrl remplace ⌘. Clique d’abord dans l’aperçu.</p>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
       {toolsPortal && createPortal(
@@ -1679,6 +1801,7 @@ export default function CarouselEditor({
             onRemoveMany={removeMany}
             onCopy={copySelection}
             onPaste={paste}
+            onShortcut={shortcut}
             api={canvasApi}
             onMeasure={setMeasured}
             onMove={(id, styles) =>
