@@ -15,6 +15,13 @@
       "when": 1791035860099,
       "tag": "0001_higgsfield_spend_visual_studio",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791046077803,
+      "tag": "0002_carousel_styles",
+      "breakpoints": true
     }
   ]
 }
