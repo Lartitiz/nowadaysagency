@@ -4,8 +4,14 @@ import { imagePrompt, type Proposal } from "./media.ts";
 import { PHOTO_PRESERVATION } from "./photo-preservation.ts";
 import { referenceInstruction } from "./competencies.ts";
 import { compactIntegrationPrompt } from "./compact-integration-prompt.ts";
+import {
+  higgsfieldApi as api, higgsfieldCredentials as credentials, higgsfieldImagesEnabled, higgsfieldUpload as upload,
+  marketingPayload, marketingReserveUsd, MARKETING_CREATE_MODEL, MARKETING_FIDELITY_MODEL, MARKETING_PROMPT_MAX,
+  MARKETING_RESERVE_BASIS, ProviderHttpError, publicUrl,
+} from "../_shared/higgsfield-image-api.ts";
+// Shared with carousel-slide-image and product-on-model (hosting cannot import sibling functions).
+export { higgsfieldImagesEnabled, marketingReserveUsd, MARKETING_CREATE_MODEL, MARKETING_FIDELITY_MODEL, MARKETING_PROMPT_MAX, MARKETING_RESERVE_BASIS };
 type DB = ReturnType<typeof getServiceClient>;
-const BASE = "https://api.higgsfield.ai";
 export const IMAGE_MODELS = [
   "higgsfield-ai/soul/v2/standard",
   "higgsfield-ai/soul/v2/image-to-image",
@@ -24,10 +30,6 @@ export function soul2Eligible(proposal: Proposal) {
     !proposal.exact_text?.length && !proposal.references?.length &&
     !proposal.input_path && !proposal.composition;
 }
-export function higgsfieldImagesEnabled() {
-  return Deno.env.get("HIGGSFIELD_IMAGE_ENABLED") === "true" &&
-    Deno.env.get("HIGGSFIELD_DATA_USE_REVIEWED") === "true";
-}
 export function soul2Enabled() {
   return Deno.env.get("HIGGSFIELD_SOUL2_ENABLED") === "true" &&
     Deno.env.get("HIGGSFIELD_DATA_USE_REVIEWED") === "true";
@@ -38,17 +40,12 @@ export function soul2Enabled() {
 // on flare (03/10/2026, they still failed with 429 credit_balance_exhausted).
 // Switched by HIGGSFIELD_IMAGE_ENABLED alone (+ existing consent flag); unset it to
 // return to OpenAI. Soul scenes and Photoroom backgrounds are untouched.
-export const MARKETING_FIDELITY_MODEL = "marketing-studio/image/sunburst";
-export const MARKETING_CREATE_MODEL = "marketing-studio/image/flare";
 export const MARKETING_MAX_IMAGES = 16;
 export function marketingFidelityEligible(proposal: Proposal | null | undefined) {
   if (!proposal || proposal.provider === "higgsfield" || proposal.operation === "background") return false;
   return ["create", "edit", "product"].includes(proposal.operation) ||
     proposal.scene_workflow?.phase === "integration";
 }
-// Official limit observed on the Marketing Studio estimate route (01/10/2026):
-// prompts above 5000 characters are refused with HTTP 400 "is too long".
-export const MARKETING_PROMPT_MAX = 5000;
 export const MARKETING_PROMPT_ERROR = "La préparation de cette image dépasse encore la limite du service. La scène et les références sont conservées. Utilise Modifier ma demande pour la reprendre. Aucune image décomptée.";
 const STAGING_START = "Stage the exact product in a physically plausible position";
 const STAGING_SHORT = "Stage the exact product plausibly: real contact with its confirmed support, believable contact shadow, normal orientation (a plate rests flat or is held, a bowl base-down). Match the setting's perspective, scale, light direction and color temperature. Keep its true profile and markings on the same parts; never invent an unseen side.";
@@ -126,62 +123,10 @@ export function marketingPromptTooLong(p: Proposal & { shots?: { summary: string
     ...(shots.length > 1 ? { series_size: shots.length, series_index: i } : {}),
   }) === null) : marketingPrompt(p) === null;
 }
-/** NOT a quote. Marketing Studio's estimate route returns only a pricing
- * description (token-billed, reconciled by the provider on completion), so the
- * real cost cannot be capped in advance. This is a budget RESERVATION computed
- * from the verified official rates (per 1M tokens: text input $5, image input $8,
- * image output $30) with explicit upper-bound token assumptions:
- * prompt <= 5000 chars -> <= 2500 tokens; <= 2000 tokens per input image;
- * <= 10000 output tokens for one 2k high-quality image. Still bounded by the
- * $2 per-image guard and the monthly limit. */
-export const MARKETING_RESERVE_BASIS = { text_tokens: 2500, image_input_tokens: 2000, output_tokens: 10000,
-  usd_per_m: { text_in: 5, image_in: 8, image_out: 30 } } as const;
-export function marketingReserveUsd(imageCount: number) {
-  const b = MARKETING_RESERVE_BASIS;
-  const usd = (b.text_tokens * b.usd_per_m.text_in + imageCount * b.image_input_tokens * b.usd_per_m.image_in +
-    b.output_tokens * b.usd_per_m.image_out) / 1_000_000;
-  return Math.min(2, Math.ceil(usd * 100) / 100);
-}
 export function routeToMarketingStudio<T extends Proposal>(proposal: T): T {
   if (!higgsfieldImagesEnabled() || !marketingFidelityEligible(proposal)) return proposal;
   const fromScratch = proposal.operation === "create" && !proposal.input_path && !proposal.references?.length;
   return { ...proposal, provider: "higgsfield", model: fromScratch ? MARKETING_CREATE_MODEL : MARKETING_FIDELITY_MODEL };
-}
-function credentials() {
-  const value = Deno.env.get("HIGGSFIELD_API_KEY");
-  if (!value || !/^[^:\s]+:[^:\s]+$/.test(value)) {
-    throw new Error("studio_provider_unavailable");
-  }
-  return `Key ${value}`;
-}
-function publicUrl(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-  try {
-    const u = new URL(value);
-    return u.protocol === "https:" && !u.username && !u.password &&
-      !/^\d+\.\d+\.\d+\.\d+$/.test(u.hostname) && !u.hostname.includes(":") &&
-      !/(^localhost$|\.localhost$|\.local$|\.internal$)/.test(u.hostname);
-  } catch {
-    return false;
-  }
-}
-class ProviderHttpError extends Error {
-  constructor(public status: number, public path: string) {
-    super(`higgsfield_http_${status}`);
-  }
-}
-async function api(path: string, method = "GET", body?: unknown, timeoutMs = 35_000) {
-  const response = await fetch(`${BASE}/${path}`, {
-    method,
-    headers: {
-      Authorization: credentials(),
-      "Content-Type": "application/json",
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  if (!response.ok) throw new ProviderHttpError(response.status, path.split("?")[0]);
-  return await response.json();
 }
 export function imageInput(proposal: Proposal, urls: string[]) {
   if (!IMAGE_MODELS.some((model) => model === proposal.model)) {
@@ -212,44 +157,7 @@ export function imageInput(proposal: Proposal, urls: string[]) {
   }
   const prompt = marketingPrompt(proposal);
   if (!prompt) throw new Error("studio_prompt_too_long");
-  return {
-    prompt,
-    quality: "high",
-    resolution: "2k",
-    aspect_ratio: proposal.format === "portrait"
-      ? "2:3"
-      : proposal.format === "landscape"
-      ? "3:2"
-      : "1:1",
-    enhance_prompt: false,
-    ...(urls.length ? { image_urls: urls } : {}),
-  };
-}
-async function upload(blob: Blob) {
-  const data = await api("files/generate-upload-url", "POST", {
-    content_type: blob.type,
-  });
-  if (
-    !publicUrl(data.upload_url) || !publicUrl(data.public_url) ||
-    !data.upload_headers || typeof data.upload_headers !== "object"
-  ) throw new Error("studio_provider_upload");
-  const headers: Record<string, string> = {};
-  for (const [key, value] of Object.entries(data.upload_headers)) {
-    if (
-      typeof value !== "string" || !/^[a-z0-9-]+$/i.test(key) ||
-      /authorization|cookie|proxy/i.test(key)
-    ) throw new Error("studio_provider_upload");
-    headers[key] = value;
-  }
-  const response = await fetch(data.upload_url, {
-    method: "PUT",
-    headers,
-    body: blob,
-    redirect: "error",
-    signal: AbortSignal.timeout(60_000),
-  });
-  if (!response.ok) throw new Error("studio_provider_upload");
-  return data.public_url;
+  return marketingPayload(prompt, proposal.format, urls);
 }
 export async function failHiggsfieldImage(db: DB, versionId: string, message = "La création a échoué. Aucune image décomptée.") {
   const result = await db.from("visual_studio_versions").update({
