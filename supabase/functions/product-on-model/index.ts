@@ -190,7 +190,10 @@ serve(async (req) => {
       framing: parsed.framing,
       ambiance: parsed.ambiance ?? null,
       adjustment,
-      productDescription: photo.description,
+      // The saved caption can mistake nearby props for parts of the product
+      // (« bague avec perles nacrées » for loose silver grains): the geometry read
+      // on the cropped reference replaces it when available.
+      productDescription: prepared.description ? null : photo.description,
       productGeometry: productFidelityLine(prepared),
       hasPersonReference: !!referenceBlob,
       brand: {
