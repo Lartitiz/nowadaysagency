@@ -160,9 +160,9 @@ function textParts(s: MixSlideSpec): TextParts {
 
 /** Bloc de texte mesuré : place titre, corps et CTA dans une colonne, en
  * descendant les tailles jusqu'aux planchers. null = ne tient pas. */
-function fitColumn(p: TextParts, width: number, maxHeight: number, base: { title: number; body: number }) {
+function fitColumn(p: TextParts, width: number, maxHeight: number, base: { title: number; body: number }, floors?: { title: number; body: number }) {
   let ts = base.title, bs = base.body;
-  const minTitle = Math.min(base.title, 52), minBody = p.headline ? 56 : Math.min(base.body, 40);
+  const minTitle = Math.min(base.title, floors?.title ?? 52), minBody = p.headline ? 56 : Math.min(base.body, floors?.body ?? 40);
   const ctaH = (p.cta ? 96 : 0) + formatHeight(p, width);
   const measure = () => {
     const th = p.title ? Math.ceil(lineCount(p.title, width, ts) * ts * 1.15) : 0;
@@ -288,10 +288,12 @@ function pause(p: TextParts, t: Tokens, schema: unknown): string | null {
   }, { title: `'${t.titleFont}', Georgia, serif`, body: `'${t.bodyFont}', sans-serif` }, t.radius);
   if (!block) return null;
   const q = { ...p, schema: block };
-  const fit = fitColumn(q, w, TEXT_BOTTOM - 130, { title: 72, body: 42 });
+  // Planchers = ceux de la garde de lisibilité (titre 48, corps 38) : la slide
+  // pause garde le texte entier ET le schéma plus souvent, sans rien couper.
+  const fit = fitColumn(q, w, TEXT_BOTTOM - 100, { title: 72, body: 42 }, { title: 48, body: 38 });
   if (!fit) return null;
   const colors = { heading: t.onFlat, ink: t.onFlat, ctaBg: t.background, ctaInk: t.ink };
-  const y = Math.max(130, Math.round((H - fit.total) / 2) - 20);
+  const y = Math.max(100, Math.round((H - fit.total) / 2) - 20);
   return root(t, "pause", t.flat, column(q, t, fit, { x: SIDE, y, w }, colors));
 }
 

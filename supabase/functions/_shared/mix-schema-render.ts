@@ -47,17 +47,17 @@ function diamond(color: string, size = 16): string {
 }
 
 function card(bg: string, radius: number, inner: string, extra = ""): string {
-  return `<div style="background:${bg};border-radius:${radius}px;padding:${PAD - 4}px ${PAD}px ${PAD - 8}px;box-sizing:border-box;${extra}">${inner}</div>`;
+  return `<div style="background:${bg};border-radius:${radius}px;padding:${PAD - 8}px ${PAD}px ${PAD - 12}px;box-sizing:border-box;${extra}">${inner}</div>`;
 }
 
 /** Deux colonnes étiquetées (avant/après, comparaison). */
 function twoColumns(left: { label: string; items: string[] }, right: { label: string; items: string[] }, w: number, c: MixSchemaColors, f: MixSchemaFonts, r: number) {
   const colW = (w - GAP) / 2, inner = colW - 2 * PAD;
   const col = (side: { label: string; items: string[] }, bg: string) => {
-    const items = side.items.map(i => `<div style="padding:12px 0;border-top:1px solid ${c.soft};font-family:${f.body};font-size:${ITEM}px;line-height:1.3;color:${c.ink};">${esc(i)}</div>`).join("");
-    return card(bg, r, `<div style="font-family:${f.body};font-size:${LABEL}px;letter-spacing:.06em;text-transform:uppercase;line-height:1.3;color:${c.ink};padding-bottom:14px;">${esc(side.label)}</div>${items}`);
+    const items = side.items.map(i => `<div style="padding:8px 0;border-top:1px solid ${c.soft};font-family:${f.body};font-size:${ITEM}px;line-height:1.3;color:${c.ink};">${esc(i)}</div>`).join("");
+    return card(bg, r, `<div style="font-family:${f.body};font-size:${LABEL}px;letter-spacing:.06em;text-transform:uppercase;line-height:1.3;color:${c.ink};padding-bottom:10px;">${esc(side.label)}</div>${items}`);
   };
-  const colH = (side: { label: string; items: string[] }) => PAD - 4 + Math.ceil(LABEL * 1.3) + 14 + side.items.reduce((h, i) => h + 25 + textH(i, inner, ITEM, 1.3), 0) + PAD - 8;
+  const colH = (side: { label: string; items: string[] }) => PAD - 8 + Math.ceil(LABEL * 1.3) + 10 + side.items.reduce((h, i) => h + 17 + textH(i, inner, ITEM, 1.3), 0) + PAD - 12;
   return {
     html: `<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:${GAP}px;align-items:stretch;">${col(left, c.card)}${col(right, c.cardAlt)}</div>`,
     height: Math.max(colH(left), colH(right)),
@@ -73,12 +73,12 @@ function frise(steps: Array<{ label: string; desc: string }>, w: number, c: MixS
     const cell = (s: { label: string; desc: string }, i: number) => `<div style="display:flex;flex-direction:column;gap:10px;min-width:0;">${diamond(i === steps.length - 1 ? c.accent : c.ink)}<div style="margin-top:6px;font-family:${f.title};font-size:40px;line-height:1.2;color:${c.ink};">${esc(s.label)}</div>${s.desc ? `<div style="font-family:${f.body};font-size:${DESC}px;line-height:1.3;color:${c.ink};opacity:1;">${esc(s.desc)}</div>` : ""}</div>`;
     const h = Math.max(...steps.map(s => 16 + 16 + textH(s.label, colW, 40, 1.2) + (s.desc ? 10 + textH(s.desc, colW, DESC, 1.3) : 0)));
     const inner = `<div style="position:relative;"><div style="position:absolute;left:8px;right:0;top:8px;height:2px;background:${c.soft};"></div><div style="position:relative;display:grid;grid-template-columns:repeat(${steps.length},minmax(0,1fr));gap:${GAP}px;">${steps.map(cell).join("")}</div></div>`;
-    return { html: card(c.card, r, inner), height: PAD - 4 + h + PAD - 8 };
+    return { html: card(c.card, r, inner), height: PAD - 8 + h + PAD - 12 };
   }
   const textW = innerW - 40;
   const rows = steps.map((s, i) => `<div style="display:flex;align-items:baseline;gap:24px;padding:12px 0;${i ? `border-top:1px solid ${c.soft};` : ""}">${diamond(i === steps.length - 1 ? c.accent : c.ink, 14)}<div style="min-width:0;"><span style="font-family:${f.title};font-size:40px;line-height:1.25;color:${c.ink};">${esc(s.label)}</span>${s.desc ? `<span style="font-family:${f.body};font-size:${DESC}px;line-height:1.3;color:${c.ink};"> · ${esc(s.desc)}</span>` : ""}</div></div>`).join("");
   const h = steps.reduce((sum, s) => sum + 24 + textH(s.label + (s.desc ? " · " + s.desc : ""), textW, 40, 1.3), 0);
-  return { html: card(c.card, r, rows), height: PAD - 4 + h + PAD - 8 };
+  return { html: card(c.card, r, rows), height: PAD - 8 + h + PAD - 12 };
 }
 
 /** HTML et hauteur (px, largeur `w`) du schéma, ou null si le type n'est pas dessiné par le code. */
@@ -113,7 +113,7 @@ export function mixSchemaBlock(schema: any, w: number, colors: MixSchemaColors, 
       const rows = items.map((t: string, i: number) => `<div style="display:flex;gap:16px;align-items:flex-start;padding:10px 0;${i ? `border-top:1px solid ${colors.soft};` : ""}">${check}<div style="font-family:${fonts.body};font-size:${ITEM}px;line-height:1.3;color:${colors.ink};">${esc(t)}</div></div>`).join("");
       const head = title ? `<div style="font-family:${fonts.title};font-size:40px;line-height:1.2;color:${colors.ink};padding-bottom:12px;">${esc(title)}</div>` : "";
       const h = (title ? textH(title, w - 2 * PAD, 40, 1.2) + 12 : 0) + items.reduce((s: number, t: string) => s + 21 + textH(t, innerW, ITEM, 1.3), 0);
-      block = { html: card(colors.card, r, head + rows), height: PAD - 4 + h + PAD - 8 };
+      block = { html: card(colors.card, r, head + rows), height: PAD - 8 + h + PAD - 12 };
       break;
     }
     case "stats": {
@@ -124,7 +124,7 @@ export function mixSchemaBlock(schema: any, w: number, colors: MixSchemaColors, 
       const cells = items.map((x: { number: string; label: string }, i: number) => card(i === n - 1 ? colors.cardAlt : colors.card, r,
         `<div style="font-family:${fonts.title};font-size:${size}px;line-height:1;color:${colors.ink};">${esc(x.number)}</div><div style="margin-top:12px;font-family:${fonts.body};font-size:${DESC}px;line-height:1.3;color:${colors.ink};">${esc(x.label)}</div>`)).join("");
       const h = Math.max(...items.map((x: { number: string; label: string }) => lines(x.number, inner, size) * size + 12 + textH(x.label, inner, DESC, 1.3)));
-      block = { html: `<div style="display:grid;grid-template-columns:repeat(${n},minmax(0,1fr));gap:${GAP}px;">${cells}</div>`, height: PAD - 4 + h + PAD - 8 };
+      block = { html: `<div style="display:grid;grid-template-columns:repeat(${n},minmax(0,1fr));gap:${GAP}px;">${cells}</div>`, height: PAD - 8 + h + PAD - 12 };
       break;
     }
     case "quote_big": {
@@ -132,7 +132,7 @@ export function mixSchemaBlock(schema: any, w: number, colors: MixSchemaColors, 
       if (!quote) return null;
       const innerW = w - 2 * PAD;
       block = { html: card(colors.card, r, `<div style="font-family:${fonts.title};font-style:italic;font-size:42px;line-height:1.3;color:${colors.ink};">« ${esc(quote)} »</div>${who ? `<div style="margin-top:14px;font-family:${fonts.body};font-size:${LABEL}px;letter-spacing:.08em;text-transform:uppercase;color:${colors.ink};">${esc(who)}</div>` : ""}`),
-        height: PAD - 4 + textH(`« ${quote} »`, innerW, 42, 1.3) + (who ? 14 + Math.ceil(LABEL * 1.3) * lines(who, innerW, LABEL) : 0) + PAD - 8 };
+        height: PAD - 8 + textH(`« ${quote} »`, innerW, 42, 1.3) + (who ? 14 + Math.ceil(LABEL * 1.3) * lines(who, innerW, LABEL) : 0) + PAD - 12 };
       break;
     }
     case "objection_response": {
@@ -141,10 +141,10 @@ export function mixSchemaBlock(schema: any, w: number, colors: MixSchemaColors, 
       const innerW = w - 2 * PAD;
       const part = (text: string, bg: string, serif: boolean) => card(bg, r, `<div style="font-family:${serif ? fonts.title : fonts.body};font-size:${serif ? 40 : ITEM}px;line-height:1.3;color:${colors.ink};">${esc(text)}</div>`);
       block = { html: `<div style="display:flex;flex-direction:column;gap:16px;">${part(o, colors.card, true)}${part(a, colors.cardAlt, false)}</div>`,
-        height: 2 * (PAD - 4 + PAD - 8) + 16 + textH(o, innerW, 40, 1.3) + textH(a, innerW, ITEM, 1.3) };
+        height: 2 * (PAD - 8 + PAD - 8) + 16 + textH(o, innerW, 40, 1.3) + textH(a, innerW, ITEM, 1.3) };
       break;
     }
   }
   if (!block) return null;
-  return { html: `<div data-mix-schema="${esc(schema.type)}" style="margin-top:40px;">${block.html}</div>`, height: block.height + 40 };
+  return { html: `<div data-mix-schema="${esc(schema.type)}" style="margin-top:32px;">${block.html}</div>`, height: block.height + 32 };
 }
