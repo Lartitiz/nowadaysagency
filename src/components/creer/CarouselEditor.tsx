@@ -31,6 +31,8 @@ import { toast } from "sonner";
 import { hasClippedElement } from "@/lib/carousel-quality";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import {
+  documentColors,
+  setElementHtml,
   setEmphasis,
   editorialVeilAlpha,
   setEditorialVeilAlpha,
@@ -208,6 +210,10 @@ function SlideCanvas({
   onMove,
   onRemove,
   onEditText,
+  onEditHtml,
+  onFill,
+  onDuplicate,
+  colors,
   onMeasure,
   onHistoryKey,
 }: {
@@ -217,6 +223,11 @@ function SlideCanvas({
   onMove: (id: string, styles: Record<string, string>) => void;
   onRemove: (id: string) => void;
   onEditText: (id: string, text: string) => void;
+  onEditHtml: (id: string, html: string) => void;
+  onFill: (id: string, hex: string) => void;
+  onDuplicate: (id: string) => void;
+  /** Couleurs du carrousel proposées dans la barre d'outils. */
+  colors: string[];
   onMeasure?: (box: CanvasBox | null) => void;
   onHistoryKey: (event: KeyboardEvent) => void;
 }) {
@@ -225,7 +236,19 @@ function SlideCanvas({
   const [width, setWidth] = useState(0),
     [overflow, setOverflow] = useState(false),
     [guides, setGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null }),
-    [box, setBox] = useState<(CanvasBox & { kind: "photo" | "veil" | "text" | "shape" }) | null>(null);
+    [box, setBox] = useState<
+      | (CanvasBox & {
+          kind: "photo" | "veil" | "text" | "shape";
+          bold?: boolean;
+          italic?: boolean;
+          underline?: boolean;
+          editorial?: boolean;
+          glass?: boolean;
+          fontSize?: number;
+          align?: string;
+        })
+      | null
+    >(null);
   const scale = width / 1080 || 1;
   // Une retouche faite DANS l'aperçu (glisser, poignée, flèche) y est déjà
   // appliquée : on ne recharge pas l'iframe (pas de clignotement, le clavier et
@@ -259,8 +282,15 @@ function SlideCanvas({
     window.document.addEventListener("focusin", leave);
     return () => window.document.removeEventListener("focusin", leave);
   }, []);
-  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onMeasure, onHistoryKey, locked: slide.locked });
-  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onMeasure, onHistoryKey, locked: slide.locked };
+  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, locked: slide.locked });
+  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, locked: slide.locked };
+  // Barre d'outils : état de la saisie sur la slide et actions branchées sur l'aperçu.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const tools = useRef<{
+    format: (styles: Record<string, string>) => boolean;
+    startEditing: (id: string) => void;
+    finish: () => void;
+  }>({ format: () => false, startEditing: () => {}, finish: () => {} });
   useEffect(() => {
     const measure = () => setWidth(host.current?.clientWidth || 0);
     measure();
@@ -299,6 +329,20 @@ function SlideCanvas({
           : el.matches("[data-pptx-shape],[data-editor-shape]")
             ? "shape"
             : "text",
+      ...(() => {
+        const cs = frame.current?.contentWindow?.getComputedStyle(el);
+        return cs
+          ? {
+              bold: parseInt(cs.fontWeight, 10) >= 600,
+              italic: cs.fontStyle === "italic",
+              underline: /underline/.test(cs.textDecorationLine || cs.textDecoration || ""),
+              fontSize: parseFloat(cs.fontSize) || 40,
+              align: cs.textAlign,
+              editorial: el.hasAttribute("data-photo-editorial-text"),
+              glass: el.hasAttribute("data-photo-glass"),
+            }
+          : {};
+      })(),
     });
     latest.current.onMeasure?.(next);
   };
@@ -319,24 +363,54 @@ function SlideCanvas({
       const e = editing;
       if (!e) return;
       editing = null;
+      setEditingId(null);
       e.el.removeAttribute("contenteditable");
       e.el.style.removeProperty("user-select");
       e.el.style.removeProperty("-webkit-user-select");
       e.el.style.removeProperty("cursor");
       const text = readText(e.el);
-      if (text.trim() && text !== e.before) latest.current.onEditText(e.id, text);
-      else e.el.innerHTML = e.html;
+      if (!text.trim()) e.el.innerHTML = e.html;
+      // Texte éditorial : le texte seul (sa mise en valeur est recomposée).
+      else if (e.el.hasAttribute("data-photo-editorial-text")) {
+        if (text !== e.before) latest.current.onEditText(e.id, text);
+        else e.el.innerHTML = e.html;
+      } else if (e.el.innerHTML !== e.html) latest.current.onEditHtml(e.id, e.el.innerHTML);
     };
     view.addEventListener("blur", finishEditing);
-    doc.addEventListener("dblclick", (e) => {
-      if (latest.current.locked) return;
-      const el = pickAt(doc, e.target, e.clientX, e.clientY);
-      if (!el || !isInlineText(el)) return;
-      e.preventDefault();
+    // Mise en forme d'un mot : la sélection reçoit sa propre couleur/graisse.
+    const format = (styles: Record<string, string>) => {
+      if (!editing || editing.el.hasAttribute("data-photo-editorial-text")) return false;
+      const sel = view.getSelection();
+      if (!sel || sel.isCollapsed || !sel.rangeCount) return false;
+      const range = sel.getRangeAt(0);
+      if (!editing.el.contains(range.commonAncestorContainer)) return false;
+      const start = range.startContainer.nodeType === 3 ? range.startContainer.parentElement! : (range.startContainer as HTMLElement);
+      const cs = view.getComputedStyle(start);
+      const next = { ...styles };
+      // Bascule : un mot déjà en gras / italique / souligné revient à la normale.
+      if (next["font-weight"] === "toggle") next["font-weight"] = parseInt(cs.fontWeight, 10) >= 600 ? "400" : "700";
+      if (next["font-style"] === "toggle") next["font-style"] = cs.fontStyle === "italic" ? "normal" : "italic";
+      if (next["text-decoration"] === "toggle")
+        next["text-decoration"] = /underline/.test(cs.textDecorationLine || "") ? "none" : "underline";
+      const fragment = range.extractContents();
+      fragment.querySelectorAll?.<HTMLElement>("[style]").forEach((n) => Object.keys(next).forEach((k) => n.style.removeProperty(k)));
+      const span = doc.createElement("span");
+      Object.entries(next).forEach(([k, v]) => span.style.setProperty(k, v));
+      span.append(fragment);
+      range.insertNode(span);
+      sel.removeAllRanges();
+      const r = doc.createRange();
+      r.selectNodeContents(span);
+      sel.addRange(r);
+      return true;
+    };
+    const startEditing = (el: HTMLElement) => {
       finishEditing();
       editing = { el, id: el.dataset.editorId!, before: readText(el), html: el.innerHTML };
-      el.setAttribute("contenteditable", "plaintext-only");
-      if (el.contentEditable !== "plaintext-only") el.setAttribute("contenteditable", "true");
+      setEditingId(editing.id);
+      const editorial = el.hasAttribute("data-photo-editorial-text");
+      el.setAttribute("contenteditable", editorial ? "plaintext-only" : "true");
+      if (editorial && el.contentEditable !== "plaintext-only") el.setAttribute("contenteditable", "true");
       el.style.setProperty("user-select", "text");
       el.style.setProperty("-webkit-user-select", "text");
       el.style.setProperty("cursor", "text");
@@ -347,6 +421,26 @@ function SlideCanvas({
       sel?.removeAllRanges();
       sel?.addRange(range);
       latest.current.onSelect(editing.id);
+    };
+    tools.current = {
+      format,
+      finish: finishEditing,
+      startEditing: (id) => {
+        const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
+        if (el && isInlineText(el) && !latest.current.locked) {
+          view.focus();
+          startEditing(el);
+        }
+      },
+    };
+    doc.addEventListener("dblclick", (e) => {
+      if (latest.current.locked) return;
+      // Déjà en train d'écrire ici : le double-clic choisit un mot.
+      if (editing && editing.el.contains(e.target as Node)) return;
+      const el = pickAt(doc, e.target, e.clientX, e.clientY);
+      if (!el || !isInlineText(el)) return;
+      e.preventDefault();
+      startEditing(el);
     });
     doc.addEventListener("keydown", (event) => {
       keepFocus.current = true;
@@ -621,6 +715,76 @@ function SlideCanvas({
     return { ...base, right: -size / 2, bottom: -size / 2, cursor: "nwse-resize" };
   };
 
+  // Barre d'outils flottante au-dessus de l'élément choisi (comme Canva).
+  const apply = (word: Record<string, string>, whole: Record<string, string>) => {
+    if (!selected) return;
+    if (tools.current.format(word)) return;
+    tools.current.finish();
+    latest.current.onMove(selected, whole);
+  };
+  const keep = (e: React.MouseEvent) => e.preventDefault(); // garde la sélection dans la slide
+  const toolButton = "flex h-8 min-w-8 items-center justify-center rounded-md px-1.5 text-xs font-semibold hover:bg-muted aria-pressed:bg-primary/15";
+  const toolbar =
+    box && selected && !slide.locked && box.kind !== "veil" ? (
+      <div
+        role="toolbar"
+        aria-label="Barre d’outils de l’élément"
+        onMouseDown={keep}
+        className="absolute z-10 flex max-w-full flex-wrap items-center gap-0.5 rounded-lg border bg-background p-1 shadow-lg"
+        style={{
+          left: Math.max(4, Math.min(box.left * scale, width - 300)),
+          top: box.top * scale > 52 ? box.top * scale - 48 : Math.min((box.top + box.height) * scale + 8, width * 1.25 - 48),
+        }}
+      >
+        {box.kind === "text" && (
+          <>
+            <button type="button" className={toolButton} aria-pressed={!!box.bold} aria-label="Gras" title="Gras (sur les mots choisis en écrivant)"
+              onClick={() => apply({ "font-weight": "toggle" }, { "font-weight": box.bold ? "400" : "700" })}>B</button>
+            <button type="button" className={`${toolButton} italic`} aria-pressed={!!box.italic} aria-label="Italique"
+              onClick={() => apply({ "font-style": "toggle" }, { "font-style": box.italic ? "normal" : "italic" })}>I</button>
+            <button type="button" className={`${toolButton} underline`} aria-pressed={!!box.underline} aria-label="Souligné"
+              onClick={() => apply({ "text-decoration": "toggle" }, { "text-decoration": box.underline ? "none" : "underline" })}>U</button>
+            <button type="button" className={toolButton} aria-label="Réduire le texte"
+              onClick={() => { tools.current.finish(); latest.current.onMove(selected, { "font-size": `${Math.max(18, Math.round((box.fontSize || 40) - 4))}px` }); }}>A−</button>
+            <button type="button" className={toolButton} aria-label="Agrandir le texte"
+              onClick={() => { tools.current.finish(); latest.current.onMove(selected, { "font-size": `${Math.min(200, Math.round((box.fontSize || 40) + 4))}px` }); }}>A+</button>
+            <button type="button" className={toolButton} aria-label="Changer l’alignement"
+              title="Alignement"
+              onClick={() => { tools.current.finish(); latest.current.onMove(selected, { "text-align": box.align === "left" || box.align === "start" ? "center" : box.align === "center" ? "right" : "left" }); }}>
+              {box.align === "center" ? "≡" : box.align === "right" ? "⫶" : "☰"}
+            </button>
+          </>
+        )}
+        {box.kind !== "photo" &&
+          colors.map((c) => (
+            <button
+              key={c}
+              type="button"
+              aria-label={`${box.kind === "text" ? "Couleur du texte" : "Couleur du fond"} ${c}`}
+              title={box.kind === "text" ? (editingId ? "Couleur des mots choisis (ou du texte)" : "Couleur du texte") : "Couleur du fond"}
+              className="m-0.5 h-5 w-5 rounded-full border border-black/20"
+              style={{ background: c }}
+              onClick={() =>
+                box.kind === "text"
+                  ? apply({ color: c }, { color: c })
+                  : latest.current.onFill?.(selected, c)
+              }
+            />
+          ))}
+        {box.kind === "text" && !editingId && (
+          <button type="button" className={toolButton} onClick={() => tools.current.startEditing(selected)}>Écrire</button>
+        )}
+        {box.kind === "text" && editingId && box.editorial && (
+          <span className="px-1 text-2xs text-muted-foreground">Mots : utilise la phrase mise en valeur</span>
+        )}
+        {box.kind !== "photo" && !box.glass && (
+          <button type="button" className={toolButton} aria-label="Dupliquer l’élément" title="Dupliquer"
+            onClick={() => { tools.current.finish(); latest.current.onDuplicate?.(selected); }}><Copy size={14} /></button>
+        )}
+        <button type="button" className={toolButton} aria-label="Retirer l’élément" title="Retirer"
+          onClick={() => { tools.current.finish(); latest.current.onRemove(selected); }}><Trash2 size={14} /></button>
+      </div>
+    ) : null;
   return (
     <div>
       <div
@@ -651,6 +815,7 @@ function SlideCanvas({
         {guides.y !== null && (
           <div aria-hidden="true" data-testid="guide-y" style={{ position: "absolute", left: 0, right: 0, top: guides.y * scale, height: 0, borderTop: "1px dashed #FB3D80", pointerEvents: "none" }} />
         )}
+        {toolbar}
         {box && (
           <div
             aria-hidden="true"
@@ -790,6 +955,7 @@ export default function CarouselEditor({
   };
   const layers = useMemo(() => (slide ? listLayers(slide.html) : []), [slide]);
   const removedLayers: RemovedLayer[] = (slide?.data.editor_removed as RemovedLayer[]) || [];
+  const palette = useMemo(() => documentColors(document.slides), [document.slides]);
   const documentFonts = useMemo(
     () => listDocumentFonts(document.slides),
     [document.slides],
@@ -1180,6 +1346,20 @@ export default function CarouselEditor({
             onEditText={(id, text) =>
               changeSlide(patchElement(slide, id, { text }), `text-${slide.id}-${id}`)
             }
+            onEditHtml={(id, html) => changeSlide(setElementHtml(slide, id, html))}
+            onFill={(id, hex) => {
+              // La couleur change, la transparence choisie (verre, voile) reste.
+              const current = getEditorElements(slide.html).find((e) => e.id === id)?.style["background-color"];
+              const alpha = current ? alphaOf(current) : 1;
+              changeSlide(setShapeFill(slide, id, hex, alpha || 1));
+            }}
+            onDuplicate={(id) => {
+              const out = duplicateElement(slide, id);
+              if (!out.id) return;
+              changeSlide(out.slide);
+              setSelected(out.id);
+            }}
+            colors={palette}
           />
           <p className="mt-2 text-xs text-muted-foreground text-center">
             Slide {active + 1} / {document.slides.length} · Double-clique un
@@ -1565,7 +1745,7 @@ export default function CarouselEditor({
                     {range("Hauteur du cadre", parseFloat(css.height) || Math.round(measured.height), 60, 1350, (n) => style({ height: `${n}px` }))}
                   </>
                 )}
-                {range("Arrondi des coins", parseFloat(css["border-radius"]) || 0, 0, 200, (n) => style({ "border-radius": `${n}px`, overflow: "hidden" }))}
+                {range("Arrondi des coins", parseFloat(css["border-radius"] || css["border-top-left-radius"]) || 0, 0, 200, (n) => style({ "border-radius": `${n}px`, overflow: "hidden" }))}
               </>
             )}
             {element?.editorialVeil &&
@@ -1631,7 +1811,7 @@ export default function CarouselEditor({
                     1350,
                     (n) => style({ [element.frame ? "min-height" : "height"]: `${n}px` }),
                   )}
-                {range("Arrondi des coins", parseFloat(css["border-radius"]) || 0, 0, 200, (n) => style({ "border-radius": `${n}px` }))}
+                {range("Arrondi des coins", parseFloat(css["border-radius"] || css["border-top-left-radius"]) || 0, 0, 200, (n) => style({ "border-radius": `${n}px` }))}
                 <label className="flex items-center justify-between text-xs">
                   Fond du bloc
                   <input

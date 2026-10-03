@@ -1186,3 +1186,77 @@ export function setEmphasis(slide: EditorSlide, id: string, change: { sentence?:
   }
   return { ...slide, data, html: serialize(doc) };
 }
+
+/* ─── Mise en forme d'un mot (barre d'outils) ─────────────────────────── */
+
+const RICH_TAGS = new Set(["SPAN", "STRONG", "B", "EM", "I", "U", "BR"]);
+const RICH_PROPS = ["color", "font-weight", "font-style", "text-decoration", "text-decoration-line", "background-color"];
+/** Ne garde que la mise en forme d'un mot : couleur, gras, italique, souligné. */
+export function sanitizeRichText(html: string): string {
+  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
+  const root = doc.body.firstElementChild as HTMLElement;
+  const clean = (node: Element) => {
+    Array.from(node.children).forEach((child) => {
+      const el = child as HTMLElement;
+      clean(el);
+      if (!RICH_TAGS.has(el.tagName)) {
+        // Retour à la ligne tapé (div/p) : une ligne, pas un bloc.
+        if (/^(DIV|P)$/.test(el.tagName) && el.previousSibling) el.before(doc.createElement("br"));
+        el.replaceWith(...Array.from(el.childNodes));
+        return;
+      }
+      const kept = RICH_PROPS.map((k) => [k, el.style.getPropertyValue(k)] as const).filter(([, v]) => v);
+      Array.from(el.attributes).forEach((a) => el.removeAttribute(a.name));
+      kept.forEach(([k, v]) => el.style.setProperty(k, v));
+      if (el.tagName === "SPAN" && !kept.length) el.replaceWith(...Array.from(el.childNodes));
+    });
+  };
+  clean(root);
+  return root.innerHTML;
+}
+/**
+ * Enregistre un texte avec sa mise en forme partielle. Le texte source (titre,
+ * corps…) suit comme pour une saisie ; la mise en forme reste dans le HTML.
+ */
+export function setElementHtml(slide: EditorSlide, id: string, html: string): EditorSlide {
+  if (slide.locked) return slide;
+  const safe = sanitizeRichText(html);
+  const holder = new DOMParser().parseFromString(`<div>${safe}</div>`, "text/html").body.firstElementChild as HTMLElement;
+  holder.querySelectorAll("br").forEach((br) => br.replaceWith("\n"));
+  const text = holder.textContent || "";
+  if (!text.trim()) return slide;
+  const withText = patchElement(slide, id, { text });
+  const doc = parse(withText.html);
+  const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
+  if (!el || el.hasAttribute("data-photo-editorial-text")) return withText;
+  el.innerHTML = safe;
+  return { ...withText, html: serialize(doc) };
+}
+/** Couleurs réellement utilisées dans le carrousel (pour la barre d'outils). */
+export function documentColors(slides: { html: string }[], limit = 8): string[] {
+  const seen = new Map<string, number>();
+  const hex = (v: string) => {
+    const m = v.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/);
+    if (m) return m[4] !== undefined && Number(m[4]) < 1 ? "" : `#${[m[1], m[2], m[3]].map((n) => Number(n).toString(16).padStart(2, "0")).join("")}`;
+    return /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : "";
+  };
+  slides.forEach((s) =>
+    parse(s.html).body.querySelectorAll<HTMLElement>("[style]").forEach((el) => {
+      for (const v of [el.style.color, el.style.backgroundColor]) {
+        const h = v ? hex(v) : "";
+        if (h) seen.set(h, (seen.get(h) || 0) + 1);
+      }
+    }),
+  );
+  const ranked = Array.from(seen).sort((a, b) => b[1] - a[1]).map(([c]) => c);
+  // Deux teintes presque identiques (#1a1a1a / #161616) ne font qu'une pastille.
+  const rgb = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+  const out: string[] = [];
+  for (const c of [...ranked, "#1a1a1a", "#ffffff"]) {
+    const [r, g, b] = rgb(c);
+    if (out.some((o) => { const [x, y, z] = rgb(o); return Math.abs(r - x) + Math.abs(g - y) + Math.abs(b - z) < 40; })) continue;
+    out.push(c);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
