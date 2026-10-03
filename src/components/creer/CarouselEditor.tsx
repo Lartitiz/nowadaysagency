@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import { hasClippedElement } from "@/lib/carousel-quality";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import {
+  setEmphasis,
   editorialVeilAlpha,
   setEditorialVeilAlpha,
   isPassiveShape,
@@ -100,16 +101,41 @@ const isPhotoEl = (el: HTMLElement) =>
   el.tagName === "IMG" ||
   el.hasAttribute("data-pptx-photo") ||
   el.hasAttribute("data-editor-photo");
+/** Photo qui couvre toute la slide : on la recadre, on ne déplace pas son cadre. */
+const isFullBleed = (el: HTMLElement) => {
+  const r = el.getBoundingClientRect();
+  return r.width >= 1075 && r.height >= 1345;
+};
 /** Élément choisi sous le pointeur : le plus proche, sinon le premier calque
  * en dessous (la photo est souvent recouverte par le calque de mise en page). */
 function pickAt(doc: Document, target: EventTarget | null, x: number, y: number) {
+  let found: HTMLElement | null = null;
   const direct = (target as HTMLElement | null)?.closest?.<HTMLElement>("[data-editor-id]");
-  if (direct && !direct.matches(VEIL)) return direct;
-  for (const node of doc.elementsFromPoint?.(x, y) || []) {
-    const hit = node.closest<HTMLElement>("[data-editor-id]");
-    if (hit && !hit.matches(VEIL)) return hit;
-  }
-  return null;
+  if (direct && !direct.matches(VEIL)) found = direct;
+  else
+    for (const node of doc.elementsFromPoint?.(x, y) || []) {
+      const hit = node.closest<HTMLElement>("[data-editor-id]");
+      if (hit && !hit.matches(VEIL)) {
+        found = hit;
+        break;
+      }
+    }
+  if (found && !isPassiveShape(found)) return found;
+  // Sur le fond : un élément fin (ligne, filet) tout proche est visé, à
+  // 12 px près, comme dans Canva. Le plus petit l'emporte.
+  let best: HTMLElement | null = null,
+    area = Infinity;
+  doc.querySelectorAll<HTMLElement>("[data-editor-id]").forEach((el) => {
+    if (el.matches(VEIL) || isPassiveShape(el)) return;
+    const r = el.getBoundingClientRect();
+    if (!r.width && !r.height) return;
+    if (x < r.left - 12 || x > r.right + 12 || y < r.top - 12 || y > r.bottom + 12) return;
+    if (r.width * r.height < area) {
+      best = el;
+      area = r.width * r.height;
+    }
+  });
+  return best || found;
 }
 /** Cadre le plus large qui contient l'élément (carte, verre, colonne) : on le
  * déplace avec ses textes, comme un groupe dans Canva. */
@@ -259,7 +285,7 @@ function SlideCanvas({
           ArrowDown: [0, step],
         };
         const delta = arrows[event.key];
-        if (delta && !isPhotoEl(el) && !el.matches(VEIL) && !isPassiveShape(el)) {
+        if (delta && (!isPhotoEl(el) || !isFullBleed(el)) && !el.matches(VEIL) && !isPassiveShape(el)) {
           event.preventDefault();
           const computed = view.getComputedStyle(el);
           const absolute = computed.position === "absolute";
@@ -435,7 +461,7 @@ function SlideCanvas({
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     const computed = view.getComputedStyle(el);
     const r = el.getBoundingClientRect();
-    const text = !el.matches("[data-pptx-shape],[data-editor-shape]");
+    const text = !el.matches("[data-pptx-shape],[data-editor-shape]") && !isPhotoEl(el);
     const frameLike = !!el.querySelector("[data-editor-id]");
     const start = {
       x: e.clientX,
@@ -479,7 +505,7 @@ function SlideCanvas({
     window.addEventListener("pointerup", up);
   };
   const handles: Handle[] =
-    !box || slide.locked || box.kind === "photo" || box.kind === "veil"
+    !box || slide.locked || box.kind === "veil" || (box.kind === "photo" && box.width >= 1075 && box.height >= 1345)
       ? []
       : box.kind === "text"
         ? ["w", "e", "se"]
@@ -1290,6 +1316,42 @@ export default function CarouselEditor({
                   (n) => style({ "line-height": String(n) }),
                   0.1,
                 )}
+                {element.emphasis && !!element.emphasis.choices.length && (
+                  <>
+                    <label className="block text-xs">
+                      Phrase mise en valeur
+                      <select
+                        aria-label="Phrase mise en valeur"
+                        className="mt-1 w-full rounded border bg-background p-2"
+                        value={element.emphasis.choices.includes(element.emphasis.sentence) ? element.emphasis.sentence : ""}
+                        onChange={(e) => e.target.value && changeSlide(setEmphasis(slide, element.id, { sentence: e.target.value }))}
+                      >
+                        {!element.emphasis.choices.includes(element.emphasis.sentence) && (
+                          <option value="">{element.emphasis.sentence ? "Extrait actuel" : "Choisir une phrase…"}</option>
+                        )}
+                        {element.emphasis.choices.map((c) => (
+                          <option key={c} value={c}>
+                            {c.length > 60 ? `${c.slice(0, 60)}…` : c}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex items-center justify-between text-xs">
+                      Couleur de la phrase mise en valeur
+                      <input
+                        aria-label="Couleur de la phrase mise en valeur"
+                        type="color"
+                        value={toHex(element.emphasis.color, toHex(css.color, "#222222"))}
+                        onChange={(e) =>
+                          changeSlide(
+                            setEmphasis(slide, element.id, { color: e.target.value }),
+                            `${slide.id}-${element.id}-emphasis`,
+                          )
+                        }
+                      />
+                    </label>
+                  </>
+                )}
               </>
             )}
             {element?.kind === "photo" && (
@@ -1390,6 +1452,16 @@ export default function CarouselEditor({
                   (n) => style({ opacity: String(n) }),
                   0.05,
                 )}
+                {measured && (measured.width < 1075 || measured.height < 1345) && (
+                  <>
+                    <p className="pt-1 text-xs font-medium">Cadre de la photo</p>
+                    {range("Position horizontale", coord("left"), -500, 1080, (n) => style({ position: css.position || "absolute", left: `${n}px` }))}
+                    {range("Position verticale", coord("top"), -500, 1350, (n) => style({ position: css.position || "absolute", top: `${n}px` }))}
+                    {range("Largeur du cadre", parseFloat(css.width) || Math.round(measured.width), 60, 1080, (n) => style({ width: `${n}px` }))}
+                    {range("Hauteur du cadre", parseFloat(css.height) || Math.round(measured.height), 60, 1350, (n) => style({ height: `${n}px` }))}
+                  </>
+                )}
+                {range("Arrondi des coins", parseFloat(css["border-radius"]) || 0, 0, 200, (n) => style({ "border-radius": `${n}px`, overflow: "hidden" }))}
               </>
             )}
             {element?.editorialVeil &&
@@ -1455,6 +1527,7 @@ export default function CarouselEditor({
                     1350,
                     (n) => style({ [element.frame ? "min-height" : "height"]: `${n}px` }),
                   )}
+                {range("Arrondi des coins", parseFloat(css["border-radius"]) || 0, 0, 200, (n) => style({ "border-radius": `${n}px` }))}
                 <label className="flex items-center justify-between text-xs">
                   Fond du bloc
                   <input
