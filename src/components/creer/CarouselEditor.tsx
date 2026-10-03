@@ -37,7 +37,7 @@ import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import { toast } from "sonner";
-import { hasClippedElement } from "@/lib/carousel-quality";
+import { findClippedIds, hasClippedElement, inspectSlide, type QualityIssue } from "@/lib/carousel-quality";
 import { compressImageFile } from "@/lib/image-compress";
 import type { CarouselStylesApi, SavedCarouselStyle } from "@/hooks/use-carousel-styles";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
@@ -212,6 +212,8 @@ interface CanvasApi {
   copy: (ids: string[]) => ClipboardElement[];
   /** Boîtes affichées (repère de la slide), pour grouper / dégrouper sans rien décaler. */
   rects: (ids: string[]) => Record<string, ElementRect>;
+  /** Zoom dans la photo (recadrage), sans agrandir son cadre. */
+  zoomPhoto: (id: string, zoom: number) => void;
 }
 /** Élément verrouillé (lui ou le groupe qui le contient). */
 const isLockedEl = (el: HTMLElement) => !!el.closest("[data-editor-locked]");
@@ -334,6 +336,8 @@ function SlideCanvas({
   onShortcut,
   onDropPhoto,
   onLock,
+  fitId,
+  onFitDone,
   zoom = 1,
   api,
   onMeasure,
@@ -363,6 +367,9 @@ function SlideCanvas({
   /** Photo glissée depuis l'ordinateur sur la slide (cible : la photo sous le pointeur). */
   onDropPhoto?: (file: File, targetId: string | null) => void;
   onLock?: (id: string, locked: boolean) => void;
+  /** Texte qui vient d'être modifié : sa taille se réduit s'il ne tient plus dans son cadre. */
+  fitId?: string | null;
+  onFitDone?: (id: string, size: number | null) => void;
   /** Zoom de l'aperçu (1 = largeur de la colonne). */
   zoom?: number;
   onMeasure?: (box: CanvasBox | null) => void;
@@ -426,10 +433,18 @@ function SlideCanvas({
     window.document.addEventListener("focusin", leave);
     return () => window.document.removeEventListener("focusin", leave);
   }, []);
-  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, locked: slide.locked });
-  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, locked: slide.locked };
+  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, fitId, onFitDone, locked: slide.locked });
+  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, fitId, onFitDone, locked: slide.locked };
   const [extraBoxes, setExtraBoxes] = useState<CanvasBox[]>([]);
   const [dropping, setDropping] = useState(false);
+  // Problèmes repérés sur la slide (texte coupé, trop petit, contraste) et recadrage en cours.
+  const [issues, setIssues] = useState<(QualityIssue & { rect: ElementRect })[]>([]);
+  const [cropId, setCropId] = useState<string | null>(null);
+  const cropRef = useRef<string | null>(null);
+  const zoomRef = useRef<(el: HTMLElement, zoom: number) => Promise<Record<string, string> | null>>(async () => null);
+  const fitRef = useRef<(id: string) => void>(() => {});
+  cropRef.current = cropId;
+  useEffect(() => setCropId(null), [slide.id]);
   // Barre d'outils : état de la saisie sur la slide et actions branchées sur l'aperçu.
   const [editingId, setEditingId] = useState<string | null>(null);
   const tools = useRef<{
@@ -594,6 +609,76 @@ function SlideCanvas({
         }
       },
     };
+    // Recadrage : zoom DANS la photo. Une photo en fond (div) garde son cadre et
+    // agrandit son image (taille calculée sur l'image réelle, comme « cover ») ;
+    // une balise <img> garde l'ancien zoom par transformation.
+    const naturalSize = new Map<string, Promise<[number, number] | null>>();
+    const sizeOf = (url: string) => {
+      if (!naturalSize.has(url))
+        naturalSize.set(
+          url,
+          new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve([img.naturalWidth, img.naturalHeight]);
+            img.onerror = () => resolve(null);
+            img.src = url;
+          }),
+        );
+      return naturalSize.get(url)!;
+    };
+    const zoomPhotoEl = async (el: HTMLElement, zoom: number): Promise<Record<string, string> | null> => {
+      const z = clamp(Math.round(zoom * 100) / 100, 1, 3);
+      if (el.tagName === "IMG") {
+        const base = el.style.getPropertyValue("--editor-zoom") ? el.style.getPropertyValue("--editor-base-transform") : el.style.transform && el.style.transform !== "none" ? el.style.transform : "";
+        const styles = { "--editor-base-transform": base, "--editor-zoom": String(z), transform: `${base} scale(${z})`.trim(), "transform-origin": "center" };
+        Object.entries(styles).forEach(([k, v]) => el.style.setProperty(k, v));
+        return styles;
+      }
+      const url = /url\((['"]?)(.*?)\1\)/.exec(el.style.backgroundImage || "")?.[2];
+      const natural = url ? await sizeOf(url) : null;
+      if (!natural) return null;
+      const r = el.getBoundingClientRect();
+      const cover = Math.max(r.width / natural[0], r.height / natural[1]);
+      const styles = {
+        "--editor-zoom": String(z),
+        "background-size": z === 1 ? "cover" : `${Math.round(natural[0] * cover * z)}px ${Math.round(natural[1] * cover * z)}px`,
+        "background-repeat": "no-repeat",
+      };
+      Object.entries(styles).forEach(([k, v]) => el.style.setProperty(k, v));
+      syncGlass(doc);
+      return styles;
+    };
+    zoomRef.current = zoomPhotoEl;
+    // Molette sur la photo en recadrage : zoom.
+    doc.addEventListener(
+      "wheel",
+      (e) => {
+        const id = cropRef.current;
+        const el = id ? doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`) : null;
+        if (!el) return;
+        e.preventDefault();
+        const current = Number(el.style.getPropertyValue("--editor-zoom")) || 1;
+        zoomPhotoEl(el, current * (e.deltaY < 0 ? 1.05 : 1 / 1.05)).then((styles) => styles && commitLive(id!, styles));
+      },
+      { passive: false },
+    );
+    // Texte qui ne tient plus : on réduit la taille jusqu'à ce qu'il rentre.
+    const fitText = (el: HTMLElement): number | null => {
+      const id = el.dataset.editorId!;
+      const fits = () => !findClippedIds(doc).includes(id) && el.scrollHeight <= el.clientHeight + 2;
+      if (fits()) return null;
+      let size = parseFloat(view.getComputedStyle(el).fontSize) || 40;
+      while (!fits() && size > 24) {
+        size -= 2;
+        el.style.fontSize = `${size}px`;
+      }
+      return size;
+    };
+    fitRef.current = (id) => {
+      const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
+      const size = el ? fitText(el) : null;
+      if (size !== null) commitLive(id, { "font-size": `${size}px` });
+    };
     // Aligner / répartir la sélection multiple, copier des éléments.
     api.current = {
       align: (mode) => {
@@ -650,6 +735,10 @@ function SlideCanvas({
             const r = el.getBoundingClientRect();
             return { html: el.outerHTML, rect: { left: r.left, top: r.top, width: r.width, height: r.height } };
           }),
+      zoomPhoto: (id, zoom) => {
+        const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
+        if (el) zoomPhotoEl(el, zoom).then((styles) => styles && latest.current.onMove(id, styles));
+      },
       rects: (ids) =>
         Object.fromEntries(
           ids
@@ -663,12 +752,24 @@ function SlideCanvas({
       // Déjà en train d'écrire ici : le double-clic choisit un mot.
       if (editing && editing.el.contains(e.target as Node)) return;
       const el = pickAt(doc, e.target, e.clientX, e.clientY);
+      // Double-clic sur une photo : recadrage directement sur la slide.
+      if (el && isPhotoEl(el) && !isLockedEl(el)) {
+        e.preventDefault();
+        latest.current.onSelect(el.dataset.editorId!);
+        setCropId(el.dataset.editorId!);
+        return;
+      }
       if (!el || !isInlineText(el) || isLockedEl(el)) return;
       e.preventDefault();
       startEditing(el);
     });
     doc.addEventListener("keydown", (event) => {
       keepFocus.current = true;
+      if (cropRef.current && (event.key === "Escape" || event.key === "Enter")) {
+        event.preventDefault();
+        setCropId(null);
+        return;
+      }
       if (editing) {
         if (event.key === "Escape" || (event.key === "Enter" && (event.metaKey || event.ctrlKey))) {
           event.preventDefault();
@@ -829,6 +930,7 @@ function SlideCanvas({
       if (editing && editing.el.contains(e.target as Node)) return;
       finishEditing();
       const inner = pickAt(doc, e.target, e.clientX, e.clientY);
+      if (cropRef.current && inner?.dataset.editorId !== cropRef.current) setCropId(null);
       // Clic dans le vide : on désélectionne, comme dans Canva.
       if (!inner) {
         latest.current.onSelect(null);
@@ -973,14 +1075,40 @@ function SlideCanvas({
     });
     // Même inspection géométrique que le contrôle qualité global : l'aperçu
     // n'annonce jamais un débordement que la QA ignorerait, ni l'inverse.
-    const check = () => setOverflow(hasClippedElement(doc));
+    const check = () => {
+      setOverflow(hasClippedElement(doc));
+      try {
+        setIssues(
+          inspectSlide(doc, 0)
+            .filter((i) => i.kind === "overflow" || i.kind === "size" || i.kind === "contrast")
+            .map((i) => {
+              const r = doc.querySelector<HTMLElement>(`[data-editor-id="${i.elementId}"]`)?.getBoundingClientRect();
+              return { ...i, rect: r ? { left: r.left, top: r.top, width: r.width, height: r.height } : { left: 0, top: 0, width: 0, height: 0 } };
+            })
+            .filter((i) => i.rect.width > 0),
+        );
+      } catch {
+        setIssues([]);
+      }
+    };
+    const autofit = () => {
+      const id = latest.current.fitId;
+      if (!id) return;
+      const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
+      const size = el && !isLockedEl(el) ? fitText(el) : null;
+      latest.current.onFitDone?.(id, size);
+      if (size !== null) commitLive(id, { "font-size": `${size}px` });
+    };
     recheck.current = () => {
       check();
       measure();
     };
+    const fontsReady = doc.fonts?.ready;
+    if (!fontsReady) autofit();
     check();
     measure();
-    doc.fonts?.ready.then(() => {
+    fontsReady?.then(() => {
+      autofit();
       check();
       measure();
     });
@@ -993,6 +1121,24 @@ function SlideCanvas({
     e.preventDefault();
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    // Recadrage : le coin zoome dans la photo au lieu de changer son cadre.
+    if (cropId && el.dataset.editorId === cropId) {
+      const startZoom = Number(el.style.getPropertyValue("--editor-zoom")) || 1;
+      const x0 = e.clientX;
+      let last: Record<string, string> | null = null;
+      const move = (ev: PointerEvent) => {
+        const z = startZoom * (1 + (ev.clientX - x0) / Math.max(120, width / 2));
+        zoomRef.current(el, z).then((st) => { last = st; measure(); });
+      };
+      const up = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        if (last) commitLive(el.dataset.editorId!, last);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+      return;
+    }
     const computed = view.getComputedStyle(el);
     const r = el.getBoundingClientRect();
     const text = !el.matches("[data-pptx-shape],[data-editor-shape]") && !isPhotoEl(el);
@@ -1039,7 +1185,9 @@ function SlideCanvas({
     window.addEventListener("pointerup", up);
   };
   const handles: Handle[] =
-    !box || slide.locked || box.locked || box.kind === "veil" || (box.kind === "photo" && box.width >= 1075 && box.height >= 1345)
+    box && cropId && cropId === selected && !slide.locked
+      ? ["se"]
+      : !box || slide.locked || box.locked || box.kind === "veil" || (box.kind === "photo" && box.width >= 1075 && box.height >= 1345)
       ? []
       : box.kind === "text"
         ? ["w", "e", "se"]
@@ -1081,6 +1229,7 @@ function SlideCanvas({
     if (box.kind === "text") apply({ color: hex }, { color: hex });
     else latest.current.onFill?.(selected, hex);
   };
+  const selectedIssue = issues.find((i) => i.elementId === selected && (i.severity === "error" || i.fix || i.kind === "overflow"));
   const toolButton = "flex h-8 min-w-8 items-center justify-center rounded-md px-1.5 text-xs font-semibold hover:bg-muted aria-pressed:bg-primary/15";
   const toolbar =
     box && selected && !slide.locked && box.kind !== "veil" ? (
@@ -1094,6 +1243,26 @@ function SlideCanvas({
           top: box.top * scale > 52 ? box.top * scale - 48 : Math.min((box.top + box.height) * scale + 8, width * 1.25 - 48),
         }}
       >
+        {selectedIssue && !box.locked && (
+          <button
+            type="button"
+            className="flex h-8 items-center gap-1 rounded-md bg-amber-100 px-2 text-2xs font-semibold text-amber-900 hover:bg-amber-200"
+            title={selectedIssue.message}
+            onClick={() => {
+              tools.current.finish();
+              if (selectedIssue.fix) latest.current.onMove(selected, selectedIssue.fix);
+              else if (selectedIssue.kind === "overflow" && box.kind === "text") fitRef.current(selected);
+              else latest.current.onSelect(selected);
+            }}
+          >
+            ! {selectedIssue.fix || (selectedIssue.kind === "overflow" && box.kind === "text") ? "Corriger" : "À vérifier"}
+          </button>
+        )}
+        {box.kind === "photo" && !box.locked && cropId !== selected && (
+          <button type="button" className={toolButton} onClick={() => setCropId(selected)} title="Recadrer (double-clic sur la photo)">
+            Recadrer
+          </button>
+        )}
         {box.locked && (
           <button type="button" className={toolButton} aria-label="Déverrouiller l’élément" onClick={() => latest.current.onLock?.(box.lockedId || selected, false)}>
             <Unlock size={14} className="mr-1" /> Déverrouiller
@@ -1225,6 +1394,32 @@ function SlideCanvas({
         {guides.y !== null && (
           <div aria-hidden="true" data-testid="guide-y" style={{ position: "absolute", left: 0, right: 0, top: guides.y * scale, height: 0, borderTop: "1px dashed #FB3D80", pointerEvents: "none" }} />
         )}
+        {/* Problèmes repérés sur la slide : une pastille par élément, un clic pour le choisir. */}
+        {issues.map((issue, k) => (
+          <button
+            key={`${issue.elementId}-${issue.kind}-${k}`}
+            type="button"
+            data-testid="slide-issue"
+            title={issue.message}
+            aria-label={`À vérifier : ${issue.message}`}
+            onClick={() => latest.current.onSelect(issue.elementId)}
+            className={`absolute z-[15] flex h-5 w-5 items-center justify-center rounded-full text-2xs font-bold text-white shadow ${issue.severity === "error" ? "bg-red-600" : "bg-amber-500"}`}
+            style={{
+              left: Math.min(width - 22, Math.max(2, (issue.rect.left + issue.rect.width) * scale - 10)),
+              top: Math.min(width * 1.25 - 22, Math.max(2, issue.rect.top * scale - 10)),
+            }}
+          >
+            !
+          </button>
+        ))}
+        {cropId && (
+          <div className="absolute inset-x-2 top-2 z-20 flex items-center justify-between gap-2 rounded-lg bg-background/95 px-3 py-1.5 text-2xs shadow">
+            <span>Recadrage : glisse la photo, zoome avec la molette ou le coin.</span>
+            <button type="button" className="rounded-md bg-primary px-2 py-1 font-semibold text-primary-foreground" onClick={() => setCropId(null)}>
+              Terminé
+            </button>
+          </div>
+        )}
         {toolbar}
         {extraBoxes.map((b, i) => (
           <div
@@ -1296,6 +1491,7 @@ export default function CarouselEditor({
     [extra, setExtra] = useState<string[]>([]),
     [zoom, setZoom] = useState(1),
     [sheetOpen, setSheetOpen] = useState(false),
+    [fitId, setFitId] = useState<string | null>(null),
     [fullscreen, setFullscreen] = useState(false),
     [dragSlide, setDragSlide] = useState<number | null>(null),
     [dropAt, setDropAt] = useState<number | null>(null),
@@ -2237,10 +2433,20 @@ export default function CarouselEditor({
               changeSlide(patchElement(slide, id, { styles }))
             }
             onRemove={remove}
-            onEditText={(id, text) =>
-              changeSlide(patchElement(slide, id, { text }), `text-${slide.id}-${id}`)
-            }
-            onEditHtml={(id, html) => changeSlide(setElementHtml(slide, id, html))}
+            onEditText={(id, text) => {
+              setFitId(id);
+              changeSlide(patchElement(slide, id, { text }), `text-${slide.id}-${id}`);
+            }}
+            onEditHtml={(id, html) => {
+              setFitId(id);
+              changeSlide(setElementHtml(slide, id, html));
+            }}
+            fitId={fitId}
+            onFitDone={(_id, size) => {
+              setFitId(null);
+              if (size !== null)
+                toast(`Texte réduit à ${size} px pour tenir dans son cadre`, { description: "Tu peux l’agrandir à nouveau ou élargir le bloc." });
+            }}
             onFill={(id, hex) => {
               // La couleur change, la transparence choisie (verre, voile) reste.
               const current = getEditorElements(slide.html).find((e) => e.id === id)?.style["background-color"];
@@ -2483,12 +2689,13 @@ export default function CarouselEditor({
                   aria-label="Texte sélectionné"
                   value={element.text}
                   rows={4}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    setFitId(element.id);
                     changeSlide(
                       patchElement(slide, element.id, { text: e.target.value }),
                       `text-${slide.id}-${element.id}`,
-                    )
-                  }
+                    );
+                  }}
                 />
                 {range(
                   "Taille du texte",
@@ -2745,18 +2952,8 @@ export default function CarouselEditor({
                   "Zoom photo",
                   Number(css["--editor-zoom"]) || 1,
                   1,
-                  2.5,
-                  (n) => {
-                    const base = css["--editor-zoom"]
-                      ? css["--editor-base-transform"] || ""
-                      : css.transform || "";
-                    style({
-                      "--editor-base-transform": base,
-                      "--editor-zoom": String(n),
-                      transform: `${base} scale(${n})`,
-                      "transform-origin": "center",
-                    });
-                  },
+                  3,
+                  (n) => canvasApi.current?.zoomPhoto(element.id, n),
                   0.05,
                 )}
                 {range(
