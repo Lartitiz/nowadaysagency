@@ -1623,16 +1623,33 @@ export function applyTheme(document: CarouselDocument, theme: CarouselTheme): { 
     root.style.backgroundColor = theme.background;
     root.style.color = theme.text;
     root.querySelectorAll<HTMLElement>('[data-editor-shape="texture"]').forEach((t) => (t.style.opacity = "0.5"));
-    root.querySelectorAll<HTMLElement>("[data-pptx-shape=\"card\"],[data-editor-shape=\"decor\"]").forEach((card) => {
-      if (card.style.backgroundColor || card.style.background) {
-        card.style.removeProperty("background");
-        card.style.backgroundColor = theme.card;
+    // Cartes qui portent du texte : couleur de carte du thème. Décors sans texte
+    // (barres, filets, pastilles) : teintes d'accent du thème, une par couleur
+    // d'origine, pour garder les nuances (vu le 03/10/2026 : des barres
+    // passées en couleur de carte disparaissaient sur le fond sombre).
+    const accents = [theme.heading, mix(theme.heading, theme.background, 0.35), mix(theme.heading, theme.background, 0.6)];
+    const accentOf = new Map<string, string>();
+    root.querySelectorAll<HTMLElement>('[data-pptx-shape="card"],[data-editor-shape="decor"]').forEach((shape) => {
+      const original = shape.style.backgroundColor || "";
+      if (!original && !shape.style.background) return;
+      const holdsText = !!shape.querySelector("[data-editor-id]") || !!ownText(shape).trim();
+      let color = theme.card;
+      if (!holdsText) {
+        if (!accentOf.has(original)) accentOf.set(original, accents[accentOf.size % accents.length]);
+        color = accentOf.get(original)!;
       }
+      shape.style.removeProperty("background");
+      shape.style.backgroundColor = color;
     });
     textNodes(doc).forEach((el) => {
       const size = parseFloat(el.style.fontSize || "") || 0;
       const isHeading = /^H[1-3]$/.test(el.tagName) || el.dataset.slideText === "title" || el.dataset.pptxEditable === "title" || size >= 56;
       el.style.color = isHeading ? theme.heading : theme.text;
+      // Mot mis en couleur dans le texte : une teinte du thème qui se distingue
+      // du texte qui l'entoure et reste lisible sur le nouveau fond.
+      el.querySelectorAll<HTMLElement>("[style*='color']").forEach((word) => {
+        if (word.style.color) word.style.color = isHeading ? theme.text : theme.heading;
+      });
       // Pastille ou CTA à fond coloré : le texte s'accorde au fond du thème.
       if (el.style.backgroundColor && !/rgba\([^)]*,\s*0\)/.test(el.style.backgroundColor)) {
         el.style.backgroundColor = theme.heading;
