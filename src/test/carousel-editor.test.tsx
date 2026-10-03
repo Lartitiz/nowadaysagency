@@ -211,6 +211,37 @@ describe("carousel editor interaction", () => {
     fireEvent.keyDown(screen.getByLabelText("Légende du carrousel"), { key: "z", metaKey: true });
     expect(screen.getByLabelText("Légende du carrousel")).toHaveValue("Autre document");
   });
+  it("edits a text directly on the slide with a double-click, then Escape", () => {
+    const width = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(540);
+    try {
+      render(<Harness />);
+      const iframe = screen.getByTitle("Éditeur de la slide 1") as HTMLIFrameElement;
+      const doc = iframe.contentDocument!;
+      // jsdom ne charge pas srcdoc : on y pose la slide telle qu'affichée.
+      doc.body.innerHTML = readCarouselDocument(raw, visuals).slides[0].html;
+      fireEvent.load(iframe);
+      const title = doc.querySelector<HTMLElement>('[data-slide-text="title"]')!;
+      fireEvent.dblClick(title);
+      expect(title.getAttribute("contenteditable")).toMatch(/plaintext-only|true/);
+      title.textContent = "Mon nouvel atelier";
+      fireEvent.keyDown(doc, { key: "Escape" });
+      expect(title.hasAttribute("contenteditable")).toBe(false);
+      const saved = JSON.parse(screen.getByTestId("saved").textContent!);
+      expect(saved.r.slides[0].title).toBe("Mon nouvel atelier");
+      // Le mot en italique est gardé : « Mon nouvel <em>atelier</em> ».
+      expect(new DOMParser().parseFromString(saved.v[0].html, "text/html").querySelector('[data-slide-text="title"]')!.textContent).toBe("Mon nouvel atelier");
+      expect(saved.v[0].html).toContain("<em>atelier</em>");
+      // Pendant la saisie, Retour arrière n'efface pas l'élément.
+      const body = doc.querySelector<HTMLElement>('[data-slide-text="body"]');
+      if (body) {
+        fireEvent.dblClick(body);
+        fireEvent.keyDown(doc, { key: "Backspace" });
+        expect(JSON.parse(screen.getByTestId("saved").textContent!).v[0].html).toContain("data-slide-text=\"body\"");
+      }
+    } finally {
+      width.mockRestore();
+    }
+  });
   it("forwards keyboard history from the preview iframe document", () => {
     const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(540);
     try {
