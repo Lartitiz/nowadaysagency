@@ -5,8 +5,8 @@ import { motifBox, type PhotoFormat } from "./photo-format-types.ts";
 
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-/** Hauteur occupée par l'en-tête d'étape (libellé 30 px + frise + marge). */
-export const STEP_HEADER_H = 91;
+/** Hauteur occupée par l'en-tête d'étape (libellé 32 px, plancher de lisibilité des captions, + frise + marge). */
+export const STEP_HEADER_H = 94;
 /** Marge sous le motif. */
 export const MOTIF_GAP = 26;
 
@@ -32,7 +32,7 @@ export function stepHeader(step: NonNullable<PhotoFormat["step"]>, color: string
   const bars = Array.from({ length: step.total }, (_, i) =>
     `<div style="flex:1;height:10px;border-radius:5px;background:${color};opacity:${i < step.index ? 1 : .28};"></div>`).join("");
   return `<div data-photo-format="etape" data-photo-step="${step.index}/${step.total}" style="position:relative;z-index:1;margin-bottom:26px;">` +
-    `<div data-pptx-editable="caption" data-photo-step-label="1" style="font-size:30px;line-height:1.3;letter-spacing:.06em;text-transform:uppercase;font-weight:500;color:${color};text-shadow:${shadow};">Étape ${step.index} · ${escapeHtml(label)}</div>` +
+    `<div data-pptx-editable="caption" data-photo-step-label="1" style="font-size:32px;line-height:1.3;letter-spacing:.06em;text-transform:uppercase;font-weight:500;color:${color};text-shadow:${shadow};">Étape ${step.index} · ${escapeHtml(label)}</div>` +
     `<div style="display:flex;gap:12px;margin-top:16px;">${bars}</div></div>`;
 }
 

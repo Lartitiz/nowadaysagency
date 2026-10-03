@@ -70,7 +70,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { applyCoverIllustration, runComposedByCodeGeneration, stripInventedSurtitres, applyTitleBodyContrastGuard, applyTextContrastGuard, applyMinFontSizeGuard } = await import("./index.ts");
+const { applyCoverIllustration, runComposedByCodeGeneration, stripInventedSurtitres, stripSlideNumberBadges, applyTitleBodyContrastGuard, applyTextContrastGuard, applyMinFontSizeGuard } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -178,6 +178,36 @@ Deno.test("mise en forme mixte : étapes et motif survivent aux gardes de produc
   applyMinFontSizeGuard(result);
   for (const n of [1, 2, 3]) assert(result.slides_html[n].html.includes(`Étape ${n} · `), `label d'étape ${n} retiré`);
   assert(result.slides_html[4].html.includes('<svg data-photo-format="motif"') && result.slides_html[4].html.includes("les pages se remplissent"), "motif retiré");
+});
+
+Deno.test("mise en forme texte : étapes et motif survivent aux gardes de production, rien d'autre ne bouge", async () => {
+  const { buildCarouselDesignPlan, composeEditorialSlide, formatEditorialSlides } = await import("../_shared/carousel-design-plan.ts");
+  const slides = [
+    { slide_number: 1, title: "Comment je prépare un lancement", body: "" },
+    { slide_number: 2, title: "D'abord, j'écoute", body: "Je relis les messages de mes clientes." },
+    { slide_number: 3, title: "Ensuite, je trie", body: "Je garde une seule promesse." },
+    { slide_number: 4, title: "Puis j'écris", body: "Un texte court par jour, pendant une semaine." },
+    { slide_number: 5, title: "Et toi ?", body: "Dis-le-moi en commentaire." },
+  ];
+  const ch = { color_primary: "#23395B", color_secondary: "#23395B", color_background: "#F4EFE8", color_text: "#1E2A3A", color_accent: "#B5781A", font_title: "Georgia", font_body: "Arial" };
+  const plan = buildCarouselDesignPlan(slides);
+  const base = slides.map((s, i) => composeEditorialSlide(s, plan.sequence[i], ch));
+  const formatting = { steps: [{ slide_number: 2, label: "j'écoute" }, { slide_number: 3, label: "je trie" }, { slide_number: 4, label: "j'écris" }],
+    motifs: [{ slide_number: 4, reason: "r", elements: [{ k: "rect", x: 0, y: 40, w: 140, h: 100, tone: "soft" }, { k: "rect", x: 170, y: 20, w: 140, h: 120, tone: "accent" }, { k: "text", x: 0, y: 200, text: "pendant une semaine", tone: "ink", size: 44 }] }] };
+  const run = (b: any[]) => {
+    const result: any = { slides_html: b.map((x: any) => ({ ...x })) };
+    stripSlideNumberBadges(result);
+    stripInventedSurtitres(result, { isPhotoCarousel: false, slides });
+    applyTitleBodyContrastGuard(result, { ch });
+    applyTextContrastGuard(result);
+    applyMinFontSizeGuard(result);
+    return result.slides_html.map((x: any) => x.html);
+  };
+  const formatted = run(formatEditorialSlides(slides, plan, ch, base, formatting as any));
+  for (const n of [1, 2, 3]) assert(formatted[n].includes(`Étape ${n} · `), `label d'étape ${n} retiré`);
+  assert(formatted[3].includes('<svg data-photo-format="motif"') && formatted[3].includes("pendant une semaine"), "motif retiré");
+  const plain = run(base);
+  assertEquals(formatted[0], plain[0]); assertEquals(formatted[4], plain[4]);
 });
 
 Deno.test("nettoyage photo : garde les précisions source mais retire encore les surtitres inventés", () => {
