@@ -14,6 +14,15 @@ import {
   LockKeyhole,
   Unlock,
   ImagePlus,
+  Eye,
+  EyeOff,
+  ChevronUp,
+  ChevronDown,
+  Type,
+  Image as ImageIcon,
+  Square,
+  Layers,
+  RotateCcw,
 } from "lucide-react";
 import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
@@ -22,6 +31,12 @@ import { toast } from "sonner";
 import { hasClippedElement } from "@/lib/carousel-quality";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import {
+  listLayers,
+  moveLayer,
+  removeLayer,
+  restoreLayer,
+  setLayerHidden,
+  type RemovedLayer,
   addShapeElement,
   addTextElement,
   duplicateElement,
@@ -202,6 +217,12 @@ function SlideCanvas({
       return;
     }
     const r = el.getBoundingClientRect();
+    // Calque masqué : rien à encadrer sur l'aperçu.
+    if (!r.width && !r.height) {
+      setBox(null);
+      latest.current.onMeasure?.(null);
+      return;
+    }
     const next = { left: r.left, top: r.top, width: r.width, height: r.height };
     setBox({
       ...next,
@@ -631,21 +652,11 @@ export default function CarouselEditor({
   const remove = (id: string) => {
     const target = current.current.slides[Math.min(active, current.current.slides.length - 1)];
     if (!target || target.locked) return;
-    changeSlide(patchElement(target, id, { remove: true }));
+    changeSlide(removeLayer(target, id));
     setSelected(null);
   };
-  const label = (e: (typeof elements)[number]) =>
-    e.kind === "photo"
-      ? "Photo"
-      : e.role === "glass"
-        ? "Cadre en verre"
-        : e.role === "veil"
-          ? "Voile sur la photo"
-          : e.kind === "shape"
-            ? e.frame
-              ? "Cadre du texte"
-              : "Forme"
-            : e.text.slice(0, 35) || "Texte vide";
+  const layers = useMemo(() => (slide ? listLayers(slide.html) : []), [slide]);
+  const removedLayers: RemovedLayer[] = (slide?.data.editor_removed as RemovedLayer[]) || [];
   const documentFonts = useMemo(
     () => listDocumentFonts(document.slides),
     [document.slides],
@@ -801,7 +812,7 @@ export default function CarouselEditor({
         <div>
           <h2 className="font-display text-3xl text-primary">Personnaliser mon carrousel</h2>
           <p className="text-xs text-muted-foreground">
-            Clique sur un élément ou choisis-le dans la liste. Tes retouches ne
+            Clique sur un élément ou choisis-le dans les calques. Tes retouches ne
             consomment aucun crédit IA.
           </p>
         </div>
@@ -1043,22 +1054,119 @@ export default function CarouselEditor({
         </div>
         <div className="min-w-0 space-y-4 rounded-xl border bg-card p-4">
           <h3 className="text-sm font-semibold">Texte, photos et mise en page</h3>
-          <label className="block text-xs font-medium">
-            Élément à modifier
-            <select
-              aria-label="Élément à modifier"
-              value={selected || ""}
-              onChange={(e) => setSelected(e.target.value || null)}
-              className="mt-1 w-full rounded-md border bg-background p-2 text-sm"
+          <div className="space-y-1">
+            <p className="flex items-center gap-1.5 text-xs font-medium">
+              <Layers size={14} aria-hidden="true" /> Calques
+              <span className="font-normal text-muted-foreground">
+                · le plus haut en premier
+              </span>
+            </p>
+            <ul
+              aria-label="Calques de la slide"
+              className="max-h-72 space-y-0.5 overflow-auto rounded-md border bg-background p-1"
             >
-              <option value="">Choisir un élément…</option>
-              {elements.map((e, i) => (
-                <option key={e.id} value={e.id}>
-                  {label(e)} · {i + 1}
-                </option>
-              ))}
-            </select>
-          </label>
+              {layers.map((layer, i) => {
+                const Icon =
+                  layer.kind === "photo"
+                    ? ImageIcon
+                    : layer.kind === "text"
+                      ? Type
+                      : Square;
+                const peers = layers.filter((l) => l.topLevel);
+                const rank = peers.findIndex((l) => l.id === layer.id);
+                return (
+                  <li
+                    key={layer.id}
+                    className={`flex items-center gap-1 rounded px-1 ${selected === layer.id ? "bg-primary/10 ring-1 ring-primary" : "hover:bg-muted"}`}
+                    style={{ paddingLeft: 4 + layer.depth * 16 }}
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={selected === layer.id}
+                      aria-label={`Choisir le calque ${layer.label}`}
+                      onClick={() => setSelected(layer.id)}
+                      className={`flex min-w-0 flex-1 items-center gap-1.5 py-1.5 text-left text-xs ${layer.hidden ? "text-muted-foreground line-through" : ""}`}
+                    >
+                      <Icon size={13} className="shrink-0" aria-hidden="true" />
+                      <span className="truncate">{layer.label}</span>
+                    </button>
+                    {layer.topLevel && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={slide.locked || rank <= 0}
+                          aria-label={`Monter le calque ${layer.label}`}
+                          title="Monter (passer devant)"
+                          onClick={() => changeSlide(moveLayer(slide, layer.id, "up"))}
+                          className="rounded p-1 hover:bg-muted disabled:opacity-30"
+                        >
+                          <ChevronUp size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={slide.locked || rank === peers.length - 1}
+                          aria-label={`Descendre le calque ${layer.label}`}
+                          title="Descendre (passer derrière)"
+                          onClick={() => changeSlide(moveLayer(slide, layer.id, "down"))}
+                          className="rounded p-1 hover:bg-muted disabled:opacity-30"
+                        >
+                          <ChevronDown size={13} />
+                        </button>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      disabled={slide.locked}
+                      aria-label={`${layer.hidden ? "Afficher" : "Masquer"} le calque ${layer.label}`}
+                      title={layer.hidden ? "Afficher" : "Masquer (ni exporté ni publié)"}
+                      onClick={() => changeSlide(setLayerHidden(slide, layer.id, !layer.hidden))}
+                      className="rounded p-1 hover:bg-muted disabled:opacity-30"
+                    >
+                      {layer.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={slide.locked}
+                      aria-label={`Retirer le calque ${layer.label}`}
+                      title={layer.frame ? "Retirer le fond (garder le texte)" : "Retirer"}
+                      onClick={() => remove(layer.id)}
+                      className="rounded p-1 hover:bg-muted disabled:opacity-30"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {!!removedLayers.length && (
+              <details className="text-xs">
+                <summary className="cursor-pointer py-1">
+                  Éléments retirés ({removedLayers.length})
+                </summary>
+                <ul className="space-y-1 pt-1" aria-label="Éléments retirés">
+                  {removedLayers.map((r, i) => (
+                    <li key={`${r.label}-${i}`} className="flex items-center justify-between gap-2 rounded border px-2 py-1">
+                      <span className="truncate">
+                        {r.unwrapOf ? `Fond : ${r.label}` : r.label}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={slide.locked}
+                        onClick={() => {
+                          changeSlide(restoreLayer(slide, i));
+                          setSelected(null);
+                        }}
+                      >
+                        <RotateCcw size={13} className="mr-1" />
+                        Remettre
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
           {slide.locked && (
             <p role="status" className="text-xs">
               Slide verrouillée : déverrouille-la pour la modifier.

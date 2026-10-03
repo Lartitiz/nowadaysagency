@@ -226,16 +226,9 @@ describe("carousel editor interaction", () => {
   });
   it("edits a text in the saved document and restores it with undo/redo", () => {
     render(<Harness />);
-    const select = screen.getByLabelText(
-      "Élément à modifier",
-    ) as HTMLSelectElement;
-    fireEvent.change(select, {
-      target: {
-        value: Array.from(select.options).find((o) =>
-          o.text.includes("Mon atelier"),
-        )!.value,
-      },
-    });
+    fireEvent.click(
+      screen.getByRole("button", { name: /Choisir le calque Mon atelier/ }),
+    );
     fireEvent.change(screen.getByLabelText("Texte sélectionné"), {
       target: { value: "Notre nouvel atelier" },
     });
