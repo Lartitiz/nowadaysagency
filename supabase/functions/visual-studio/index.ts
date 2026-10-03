@@ -981,11 +981,18 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         // interpreter can name its ID as a composition source instead of using
         // uses_selected_version. Resolve only this exact known alias; arbitrary
         // reference IDs still fail closed below.
+        // The selected scene is also joined as a "Décor à conserver" reference: the
+        // interpreter may name it by its version ID with any base role (03/10/2026).
         if (parent && (intent.source_reference_id === parent.id ||
-          intent.reference_use.some(use => use.id === parent.id && use.role === "composition"))) {
+          intent.reference_use.some(use => use.id === parent.id && ["composition", "scene", "edit_source"].includes(use.role)))) {
           if (intent.source_reference_id === parent.id) intent.source_reference_id = undefined;
-          intent.reference_use = intent.reference_use.filter(use => !(use.id === parent.id && use.role === "composition"));
+          intent.reference_use = intent.reference_use.filter(use => !(use.id === parent.id && ["composition", "scene", "edit_source"].includes(use.role)));
           intent.uses_selected_version = true;
+        }
+        // A known source image omitted from reference_use is still that image.
+        const namedSource = intent.source_reference_id && requestReferences.find(ref => ref.id === intent.source_reference_id);
+        if (namedSource && !intent.reference_use.some(use => use.id === namedSource.id)) {
+          intent.reference_use.push({ id: namedSource.id, role: namedSource.role });
         }
         if (intent.reference_use.some(use => !requestReferences.some(ref => ref.id === use.id)) ||
           (intent.source_reference_id && !intent.reference_use.some(use => use.id === intent.source_reference_id))) {
