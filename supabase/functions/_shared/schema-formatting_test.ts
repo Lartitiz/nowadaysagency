@@ -1,5 +1,6 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { addSchemasToContent, planSchemas, schemaEligible, schemaShapeOk, validateSchemaPlan } from "./schema-formatting.ts";
+import { invalidateProgressionReceipt, progressionMaterial } from "./carousel-editorial-snapshot.ts";
 import { mixWritingPrompt, textWritingPrompt } from "../carousel-ai/variant-writing.ts";
 
 const SLIDES = [
@@ -107,4 +108,23 @@ Deno.test("schémas : repérage obligatoire, formes décrites dans l'outil, rep�
   assertEquals(props.schemas.items.properties.visual_schema.additionalProperties, true);
   assertEquals(plan.spotted, ["2:avant_apres"]);
   assertEquals(plan.schemas.length, 1);
+});
+
+Deno.test("schémas : un reçu de relecture à jour le reste après l'ajout des schémas (pas de « texte changé »)", async () => {
+  const doc: any = { slides: SLIDES.map(s => ({ ...s, visual_schema: null })) };
+  doc.progression_review = { execution_status: "completed", verdict: "acceptable", issues: [], reviewed_material: progressionMaterial(doc), reviewed_text_hash: "x" };
+  doc.photo_review = { execution_status: "completed", verdict: "acceptable", issues: [], reviewed_material: progressionMaterial(doc) };
+  const call = (async () => JSON.stringify({ reperage: [], schemas: [{ slide_number: 2, reason: "r", visual_schema: BA }] })) as any;
+  const out = JSON.parse((await addSchemasToContent(JSON.stringify(doc), { isMix: false, usage: {}, allowed: true, call })).content);
+  assertEquals(out.slides[1].visual_schema.type, "before_after");
+  const checked = invalidateProgressionReceipt(out);
+  assertEquals(checked.progression_review.execution_status, "completed");
+  assertEquals(checked.photo_review.execution_status, "completed");
+  assertEquals(checked.structure_warnings, undefined);
+  assertEquals(out.progression_review.reviewed_text_hash.length, 64);
+
+  // Un reçu déjà périmé AVANT l'étage n'est pas « rafraîchi » en douce.
+  const stale: any = { ...doc, progression_review: { ...doc.progression_review, reviewed_material: "autre texte" } };
+  const out2 = JSON.parse((await addSchemasToContent(JSON.stringify(stale), { isMix: false, usage: {}, allowed: true, call })).content);
+  assertEquals(out2.progression_review.reviewed_material, "autre texte");
 });
