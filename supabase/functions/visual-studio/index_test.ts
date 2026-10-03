@@ -1554,3 +1554,30 @@ Deno.test("applying a saved model selects it on the server with the photos alrea
     assertEquals([...data.session.active_reference_ids].sort(), [product.id, model.id].sort());
   } finally { globalThis.fetch = saved; f.restore(); }
 });
+
+// 03/10/2026, live test: the selected scene, also joined as « Décor à conserver »,
+// was cited by its version ID or as an unlisted source: the request fell into a question.
+Deno.test("the selected scene cited by version ID or as an unlisted source still integrates", async () => {
+  for (const variant of ["version-id", "unlisted-source"]) {
+    const f = fixture();
+    const decor = { id: id(1500), photo_id: null, version_id: proposalId, path: f.version.result_path, role: "scene", name: "Décor" };
+    const mannequin = { id: id(1501), photo_id: null, version_id: id(1502), path: "mannequin", role: "casting", name: "Mannequin" };
+    const product = { id: id(1503), photo_id: id(1504), path: "product", role: "product", name: "Bague" };
+    f.version.status = "ready";
+    Object.assign(f.version.proposal, { operation: "create", visual_kind: "photo", scene_workflow: { phase: "scene", camera_match: "Face" }, planning_references: [], reference_snapshot: [] });
+    f.session.references = [decor, mannequin, product];
+    f.setIntent({ operation: "edit", visual_kind: "photo", summary: "Le mannequin porte ma bague dans l'atelier.", image_prompt: "Add the model wearing the ring at the bench.",
+      change: ["Ajouter le mannequin", "La bague au doigt"], product_placement: "Au doigt, main sur l'établi",
+      scene_workflow: { phase: "integration", camera_match: "Face" },
+      ...(variant === "unlisted-source" ? { source_reference_id: decor.id } : {}),
+      reference_use: [...(variant === "version-id" ? [{ id: proposalId, role: "scene" }] : []), { id: mannequin.id, role: "casting" }, { id: product.id, role: "product" }] });
+    try {
+      const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0, request_id: id(1505),
+        viewed_version_id: proposalId, reference_ids: [decor.id, mannequin.id, product.id], message: "Mets ce mannequin dans ce décor, elle porte ma bague" }));
+      const p = (await res.json()).session.proposal;
+      assertEquals(res.status, 200);
+      assertEquals(p?.scene_workflow?.phase, "integration", variant);
+      assertEquals(p.references.map((r: any) => r.path).sort(), ["mannequin", "product"]);
+    } finally { f.restore(); }
+  }
+});
