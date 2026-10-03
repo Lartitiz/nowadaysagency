@@ -1109,3 +1109,29 @@ it("choosing again a library photo already in the discussion selects it on the s
   const selection = mock.request.mock.calls.map(([body]) => body).find((body) => body.action === "selection");
   expect([...selection.reference_ids].sort()).toEqual(["ambience-two", "ref-product"]);
 });
+it("auto-joining a fresh scene updates the selection from the new revision, without a conflict", async () => {
+  let state = original();
+  state.session.revision = 3;
+  state.session.references = [{ id: "product", photo_id: "p", role: "product", name: "Bague", url: "/bague.jpg" }];
+  state.session.active_reference_ids = ["product"];
+  state.versions = [{ id: "decor", status: "ready", url: "/decor.jpg", created_at: "", library_photo_id: null, error_message: null,
+    proposal: { ...proposal, operation: "create", scene_workflow: { phase: "scene", camera_match: "Face" }, planning_references: [] } }];
+  mock.request.mockImplementation(async body => {
+    if (body.action === "reference") {
+      if (body.revision !== state.session.revision) throw new Error("studio_conflict");
+      state = { ...state, session: { ...state.session, revision: state.session.revision + 1,
+        references: [...state.session.references!, { id: "decor-ref", photo_id: null, version_id: "decor", role: "scene", name: "Décor", url: "/decor.jpg" }],
+        active_reference_ids: [...state.session.active_reference_ids!, "decor-ref"] } };
+    }
+    if (body.action === "selection") {
+      if (body.revision !== state.session.revision) throw new Error("studio_conflict");
+      state = { ...state, session: { ...state.session, revision: state.session.revision + 1, active_reference_ids: body.reference_ids, conversation_branch_id: body.viewed_version_id } };
+    }
+    return structuredClone(state);
+  });
+  mount();
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "selection", viewed_version_id: "decor" })));
+  const selection = mock.request.mock.calls.map(([body]) => body).find(body => body.action === "selection");
+  expect(selection.revision).toBe(4);
+  expect([...selection.reference_ids].sort()).toEqual(["decor-ref", "product"]);
+});

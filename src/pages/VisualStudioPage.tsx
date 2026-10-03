@@ -536,12 +536,16 @@ function Studio({
   }
   // The server's active references are what a request sends: change them there,
   // not only in this browser, or a joined image looks attached but is not.
-  async function syncAttachments(ids: string[], branchId: string | null) {
-    const wanted = [...new Set(ids)].filter((id) => references.some((ref) => ref.id === id));
-    if (current?.session.active_reference_ids === undefined) { setAttachments(wanted); return; }
-    const same = wanted.length === activeIds.length && wanted.every((id) => activeIds.includes(id)) &&
-      current.session.conversation_branch_id === branchId;
-    if (!same) await updateSelection(wanted, false, branchId);
+  // `base` is the latest server state: right after another call (e.g. joining a
+  // scene), the rendered `current` still has the previous revision and references.
+  async function syncAttachments(ids: string[], branchId: string | null, base = current) {
+    if (!base) return;
+    const wanted = [...new Set(ids)].filter((id) => (base.session.references || []).some((ref) => ref.id === id));
+    const active = base.session.active_reference_ids;
+    if (active === undefined) { setAttachments(wanted); return; }
+    const same = wanted.length === active.length && wanted.every((id) => active.includes(id)) &&
+      base.session.conversation_branch_id === branchId;
+    if (!same) await updateSelection(wanted, false, branchId, base.session.revision);
   }
   // Selecting a scene joins it with its reserved originals, keeps the photos the
   // user attached since, and drops other created scenes.
@@ -553,9 +557,9 @@ function Studio({
     return [...kept, ...(item.proposal.planning_references || []).map((ref) => ref.id),
       ...references.filter((ref) => ref.version_id === item.id).map((ref) => ref.id)];
   }
-  async function updateSelection(ids: string[], newRequest = false, branchId = selectedId) {
+  async function updateSelection(ids: string[], newRequest = false, branchId = selectedId, revision = current?.session.revision) {
     if (!current) return;
-    const result = await mutate("selection", { reference_ids: ids, revision: current.session.revision,
+    const result = await mutate("selection", { reference_ids: ids, revision,
       viewed_version_id: newRequest ? null : branchId, new_request: newRequest });
     if (result) {
       setAttachments(result.session.active_reference_ids ?? ids);
@@ -699,7 +703,7 @@ function Studio({
     });
     const joined = result?.session.references?.find((ref) => ref.version_id === versionId);
     if (joined) {
-      if (auto) await syncAttachments([...keptIds, joined.id], versionId);
+      if (auto) await syncAttachments([...keptIds, joined.id], versionId, result);
       else setAttachments(result.session.active_reference_ids ?? [...keptIds, joined.id]);
       if (!isScene) setSelectedId(null);
       if (!auto) toast.success("Image jointe à ta prochaine demande.");
