@@ -89,7 +89,7 @@ Deno.test("sync Higgsfield: upload → estimate → shared budget reservation �
     const submit = f.seen[3];
     assertEquals(submit.url, `https://api.higgsfield.ai/${MARKETING_FIDELITY_MODEL}`);
     const body = JSON.parse(String(submit.init?.body));
-    assertEquals(body, { prompt: "Stage the exact product.", quality: "high", resolution: "2k", aspect_ratio: "2:3",
+    assertEquals(body, { prompt: "Stage the exact product.", quality: "high", resolution: "1k", aspect_ratio: "2:3",
       enhance_prompt: false, image_urls: ["https://cdn.example.com/p.jpg"] });
   } finally { f.restore(); }
 });

@@ -50,6 +50,13 @@
 
   "ignoreDependencies": [
     // -- Légitime, à garder --
+    // Outillage de migration ajouté par Lovable (drizzle.config.ts, drizzle/) le
+    // 03/10/2026 en appliquant une migration : drizzle-kit (CLI) les charge, aucun
+    // import dans le code de l'app.
+    "drizzle-orm",
+    "postgres",
+
+    // -- Légitime, à garder --
     // Peer de @axe-core/playwright, lui bien utilisé (e2e-visite/sonde.spec.ts).
     "axe-core",
 
