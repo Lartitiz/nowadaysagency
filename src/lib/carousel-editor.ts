@@ -1493,3 +1493,180 @@ export function addPreset(slide: EditorSlide, kind: PresetKind, color = "#91014b
   const id = parse(html).querySelector<HTMLElement>("[data-editor-new]")?.dataset.editorId || null;
   return { slide: { ...slide, html: html.replace(/ data-editor-new="true"/, "") }, id };
 }
+
+/* ─── Galerie de mises en page, thèmes, polices Google ────────────────── */
+
+export type LayoutVariant = "texte" | "texte-centre" | "citation" | "photo-plein" | "photo-haut" | "photo-gauche" | "photo-cadre";
+export const LAYOUTS: { variant: LayoutVariant; label: string; photo: boolean }[] = [
+  { variant: "texte", label: "Texte", photo: false },
+  { variant: "texte-centre", label: "Titre centré", photo: false },
+  { variant: "citation", label: "Citation", photo: false },
+  { variant: "photo-plein", label: "Photo plein écran", photo: true },
+  { variant: "photo-haut", label: "Photo en haut", photo: true },
+  { variant: "photo-gauche", label: "Photo à gauche", photo: true },
+  { variant: "photo-cadre", label: "Photo encadrée", photo: true },
+];
+/**
+ * Recompose une slide dans une autre mise en page en gardant son titre, son
+ * texte, sa photo et la charte (polices, couleurs) de la slide.
+ */
+export function composeLayout(
+  data: Record<string, any>,
+  variant: LayoutVariant,
+  photo = "",
+  tokens: StyleTokens = DEFAULT_TOKENS,
+): EditorSlide {
+  const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const title = String(data.title || data.overlay_text || "Ton titre"),
+    body = String(data.title || data.overlay_text ? data.body || "" : "");
+  const titleSize = Math.max(38, parseFloat(tokens.titleSize) || 72),
+    bodySize = Math.max(38, parseFloat(tokens.bodySize) || 40);
+  // Lisibilité : un texte sombre sur un fond sombre (ou clair sur clair) bascule.
+  const lum = (color: string) => {
+    const m = color.match(/^#([0-9a-f]{6})$/i) ? [1, 3, 5].map((i) => parseInt(color.slice(i, i + 2), 16)) : (color.match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number);
+    return m.length === 3 ? (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255 : 0.5;
+  };
+  const darkBg = lum(tokens.background) < 0.4;
+  const readable = (c: string) => (darkBg ? (lum(c) < 0.55 ? "#ffffff" : c) : lum(c) > 0.75 ? "#1a1a1a" : c);
+  const dark = variant === "photo-plein";
+  const ink = dark ? "#ffffff" : readable(tokens.bodyColor),
+    heading = dark ? "#ffffff" : readable(tokens.titleColor);
+  const h = (css: string, size = titleSize) =>
+    `<h1 data-slide-text="title" data-pptx-editable="title" style="font-size:${size}px;font-family:${tokens.titleFont};color:${heading};line-height:1.1;font-weight:${tokens.titleWeight};margin:0 0 36px;white-space:pre-wrap;${css}">${esc(title)}</h1>`;
+  const b = (css = "") =>
+    body ? `<p data-slide-text="body" data-pptx-editable="body" style="font-size:${bodySize}px;font-family:${tokens.bodyFont};color:${ink};line-height:1.4;margin:0;white-space:pre-wrap;${css}">${esc(body)}</p>` : "";
+  const img = (css: string) =>
+    photo ? `<div data-pptx-photo="${data.photo_index || 1}" style="position:absolute;${css}background-image:url(&quot;${esc(photo)}&quot;);background-size:cover;background-position:50% 50%;"></div>` : "";
+  const block = (css: string, inner: string) => `<div style="position:absolute;${css}">${inner}</div>`;
+  let inner = "";
+  let bg = tokens.background;
+  switch (variant) {
+    case "texte":
+      inner = block("left:90px;top:200px;width:900px;", h("") + b(""));
+      break;
+    case "texte-centre":
+      inner = block("left:90px;top:0;width:900px;height:1350px;display:flex;flex-direction:column;justify-content:center;text-align:center;", h("", Math.round(titleSize * 1.25)) + b(""));
+      break;
+    case "citation":
+      inner =
+        `<p data-editor-free="true" data-pptx-editable="body" style="position:absolute;left:80px;top:150px;width:240px;margin:0;font-size:260px;line-height:1;font-family:${tokens.titleFont};color:${heading};opacity:.35">«</p>` +
+        block("left:120px;top:420px;width:840px;", h("font-style:italic;") + b(""));
+      break;
+    case "photo-plein":
+      bg = "#111111";
+      inner = img("left:0;top:0;width:1080px;height:1350px;") +
+        `<div data-injected-scrim="1" style="position:absolute;left:0;bottom:0;width:1080px;height:60%;background:linear-gradient(0deg,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0) 100%);"></div>` +
+        block("left:90px;bottom:140px;width:900px;", h("") + b(""));
+      break;
+    case "photo-haut":
+      inner = img("left:0;top:0;width:1080px;height:660px;") + block("left:90px;top:730px;width:900px;", h("") + b(""));
+      break;
+    case "photo-gauche":
+      inner = img("left:0;top:0;width:500px;height:1350px;") + block("left:560px;top:0;width:440px;height:1350px;display:flex;flex-direction:column;justify-content:center;", h("", Math.round(titleSize * 0.8)) + b(""));
+      break;
+    case "photo-cadre":
+      inner = img("left:110px;top:110px;width:860px;height:700px;border-radius:24px;") + block("left:110px;top:870px;width:860px;", h("", Math.round(titleSize * 0.85)) + b(""));
+      break;
+  }
+  const html = `${tokens.fontImports}<div style="width:1080px;height:1350px;position:relative;overflow:hidden;background:${bg};color:${ink};font-family:${tokens.bodyFont};text-align:${tokens.align}">${inner}<span data-slide-page style="position:absolute;bottom:60px;right:80px;font-size:24px;color:${ink}">1 / 1</span></div>`;
+  const slideType = !photo || !LAYOUTS.find((l) => l.variant === variant)?.photo ? "text_only" : variant === "photo-plein" ? "photo_full" : "photo_integrated";
+  return { id: newId(), data: { ...data, title, body, slide_type: slideType, layout_variant: variant }, html: prepareSlideHtml(html) };
+}
+/** Photo actuelle d'une slide (pour la garder en changeant de mise en page). */
+export function slidePhotoSource(html: string): string {
+  const doc = parse(html);
+  const photo = mainPhoto(doc);
+  if (!photo) return "";
+  if (photo.tagName === "IMG") return photo.getAttribute("src") || "";
+  return (photo.style.backgroundImage.match(/url\(\s*(['"]?)(.*?)\1\s*\)/) || [])[2] || "";
+}
+
+export interface CarouselTheme {
+  id: string;
+  label: string;
+  background: string;
+  text: string;
+  heading: string;
+  card: string;
+}
+const mix = (hex: string, target: string, amount: number) => {
+  const a = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)),
+    b = [1, 3, 5].map((i) => parseInt(target.slice(i, i + 2), 16));
+  return `#${a.map((v, i) => Math.round(v + (b[i] - v) * amount).toString(16).padStart(2, "0")).join("")}`;
+};
+/** Thèmes proposés pour tout le carrousel, à partir de la couleur de marque. */
+export function carouselThemes(brand: string, brandBackground?: string, brandText?: string): CarouselTheme[] {
+  const c = /^#[0-9a-f]{6}$/i.test(brand || "") ? brand.toLowerCase() : "#91014b";
+  return [
+    { id: "charte", label: "Ma charte", background: /^#[0-9a-f]{6}$/i.test(brandBackground || "") ? brandBackground! : mix(c, "#ffffff", 0.94), text: /^#[0-9a-f]{6}$/i.test(brandText || "") ? brandText! : "#1a1a1a", heading: c, card: "#ffffff" },
+    { id: "contraste", label: "Contrasté", background: "#ffffff", text: "#111111", heading: c, card: mix(c, "#ffffff", 0.9) },
+    { id: "sombre", label: "Sombre", background: "#161616", text: "#f5f5f5", heading: mix(c, "#ffffff", 0.45), card: "#262626" },
+    { id: "doux", label: "Doux", background: mix(c, "#ffffff", 0.88), text: mix(c, "#000000", 0.55), heading: mix(c, "#000000", 0.25), card: mix(c, "#ffffff", 0.96) },
+  ];
+}
+/**
+ * Applique un thème à tout le carrousel : fond des slides, titres, textes et
+ * cartes. Les slides photo et les slides verrouillées gardent leurs couleurs
+ * (un texte posé sur une photo doit rester lisible sur cette photo).
+ */
+export function applyTheme(document: CarouselDocument, theme: CarouselTheme): { document: CarouselDocument; changed: number; skipped: number } {
+  let changed = 0, skipped = 0;
+  const slides = document.slides.map((slide) => {
+    const doc = parse(slide.html);
+    if (slide.locked || mainPhoto(doc)) {
+      skipped++;
+      return slide;
+    }
+    const root = doc.body.firstElementChild as HTMLElement | null;
+    if (!root) return slide;
+    root.style.removeProperty("background");
+    root.style.backgroundColor = theme.background;
+    root.style.color = theme.text;
+    root.querySelectorAll<HTMLElement>('[data-editor-shape="texture"]').forEach((t) => (t.style.opacity = "0.5"));
+    root.querySelectorAll<HTMLElement>("[data-pptx-shape=\"card\"],[data-editor-shape=\"decor\"]").forEach((card) => {
+      if (card.style.backgroundColor || card.style.background) {
+        card.style.removeProperty("background");
+        card.style.backgroundColor = theme.card;
+      }
+    });
+    textNodes(doc).forEach((el) => {
+      const size = parseFloat(el.style.fontSize || "") || 0;
+      const isHeading = /^H[1-3]$/.test(el.tagName) || el.dataset.slideText === "title" || el.dataset.pptxEditable === "title" || size >= 56;
+      el.style.color = isHeading ? theme.heading : theme.text;
+      // Pastille ou CTA à fond coloré : le texte s'accorde au fond du thème.
+      if (el.style.backgroundColor && !/rgba\([^)]*,\s*0\)/.test(el.style.backgroundColor)) {
+        el.style.backgroundColor = theme.heading;
+        el.style.color = theme.background;
+      }
+    });
+    changed++;
+    return { ...slide, html: serialize(doc) };
+  });
+  return { document: { ...document, slides }, changed, skipped };
+}
+
+/** Polices Google proposées dans l'éditeur (aperçu dans la liste). */
+export const GOOGLE_FONTS: { family: string; kind: "serif" | "sans" | "display" | "script" }[] = [
+  { family: "Playfair Display", kind: "serif" }, { family: "Libre Baskerville", kind: "serif" }, { family: "Lora", kind: "serif" },
+  { family: "Cormorant Garamond", kind: "serif" }, { family: "DM Serif Display", kind: "serif" }, { family: "Fraunces", kind: "serif" },
+  { family: "Inter", kind: "sans" }, { family: "IBM Plex Sans", kind: "sans" }, { family: "Montserrat", kind: "sans" },
+  { family: "Poppins", kind: "sans" }, { family: "DM Sans", kind: "sans" }, { family: "Work Sans", kind: "sans" },
+  { family: "Nunito", kind: "sans" }, { family: "Raleway", kind: "sans" }, { family: "Outfit", kind: "sans" },
+  { family: "Bebas Neue", kind: "display" }, { family: "Anton", kind: "display" }, { family: "Archivo Black", kind: "display" },
+  { family: "Abril Fatface", kind: "display" }, { family: "Syne", kind: "display" },
+  { family: "Caveat", kind: "script" }, { family: "Dancing Script", kind: "script" }, { family: "Pacifico", kind: "script" }, { family: "Homemade Apple", kind: "script" },
+];
+export const googleFontUrl = (families: string[]) =>
+  `https://fonts.googleapis.com/css2?${families.map((f) => `family=${encodeURIComponent(f).replace(/%20/g, "+")}:wght@400;700`).join("&")}&display=swap`;
+/** Ajoute la police à la slide (lien Google Fonts) : l'aperçu et l'export la chargent. */
+export function ensureFontLink(slide: EditorSlide, family: string): EditorSlide {
+  if (!GOOGLE_FONTS.some((f) => f.family === family)) return slide;
+  const href = googleFontUrl([family]);
+  if (slide.html.includes(href.replace(/&/g, "&amp;")) || slide.html.includes(href)) return slide;
+  const doc = parse(slide.html);
+  const link = doc.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  doc.head.append(link);
+  return { ...slide, html: serialize(doc) };
+}
