@@ -106,6 +106,12 @@ Deno.test({ name: "refineProductRegion keeps the image when the product is missi
   assertEquals(failed, { ok: false, reason: "generation_failed" });
 } });
 
+Deno.test("refinePrompt trusts the vision geometry over a saved caption", () => {
+  const prompt = refinePrompt("bague avec perles nacrées", { description: "three almond lobes", extraneous: "loose grains" });
+  assert(!prompt.includes("perles"));
+  assert(prompt.includes("three almond lobes"));
+});
+
 Deno.test("refinePrompt keeps the framing and names the product", () => {
   const prompt = refinePrompt("bague argent", { description: "", extraneous: "" });
   assert(prompt.includes("bague argent"));

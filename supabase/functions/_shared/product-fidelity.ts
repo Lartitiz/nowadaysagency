@@ -93,13 +93,13 @@ export async function locateProduct(image: Blob, product: string, mode: "referen
     const light = await downscaleToJpeg(image, VISION_WIDTH, 85);
     if (light.size > 5_000_000) return null;
     const ask = mode === "reference"
-      ? `This photo is a product reference for an image generator. The product is: ${product}. ` +
+      ? `This photo is a product reference for an image generator. Its saved caption (possibly inaccurate: trust the image) is: ${product}. ` +
         "Give the tight bounding box of THIS product only (the main object; for a ring, the whole ring). " +
         "Exclude loose items lying around it (beads, grains, stones, packaging, props, hands). " +
         "description: in English, the product's exact geometry for someone redrawing it: overall size and bulk, " +
         "number of distinct parts, their shapes, relative sizes, arrangement, surface finish, material and color. Max 60 words, no marketing words. " +
         "extraneous: in English, the loose items visible near it that are NOT part of the product (empty string if none)."
-      : `This photo was generated to feature a product: ${product}. ` +
+      : `This photo was generated to feature a product (saved caption, possibly inaccurate: ${product}). ` +
         "Give the tight bounding box of where this product appears (for a ring: the ring on the finger). " +
         "found=false if it is not visible. description and extraneous: empty strings.";
     const raw = await callAnthropic({
@@ -231,7 +231,11 @@ export function featherAlpha(distance: number, feather: number) {
 
 export function refinePrompt(product: string, ref: Pick<PreparedReference, "description" | "extraneous">) {
   return [
-    `Image 1 is a close crop of a finished photograph featuring this product: ${product}. Image 2 is the exact product reference.`,
+    // A saved caption can be wrong (« bague avec perles » for loose grains next to
+    // it): once the vision geometry exists, it replaces the caption.
+    ref.description
+      ? "Image 1 is a close crop of a finished photograph featuring the product shown in Image 2. Image 2 is the exact product reference."
+      : `Image 1 is a close crop of a finished photograph featuring this product: ${product}. Image 2 is the exact product reference.`,
     "Redraw ONLY the product in Image 1 so it matches Image 2 exactly: same overall silhouette, number of parts, their shapes, relative sizes and arrangement, material, finish and color. Do not simplify, shrink, add or remove parts.",
     productFidelityLine(ref),
     "Keep the product where it is in Image 1, worn or placed the same way, at a believable real-world size. Adapt its reflections and contact shadows to the light of Image 1, not to the reference photo.",
