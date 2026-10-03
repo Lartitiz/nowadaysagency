@@ -44,6 +44,7 @@ import CarouselInstagramPreview from "@/components/creer/CarouselInstagramPrevie
 import type { CarouselStylesApi, SavedCarouselStyle } from "@/hooks/use-carousel-styles";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import {
+  slideExtraTexts,
   applyTheme,
   carouselThemes,
   composeLayout,
@@ -380,7 +381,7 @@ function SlideCanvas({
   onLock?: (id: string, locked: boolean) => void;
   /** Texte qui vient d'être modifié : sa taille se réduit s'il ne tient plus dans son cadre. */
   fitId?: string | null;
-  onFitDone?: (id: string, size: number | null) => void;
+  onFitDone?: (id: string, size: number | null | "trop-long") => void;
   /** Zoom de l'aperçu (1 = largeur de la colonne). */
   zoom?: number;
   onMeasure?: (box: CanvasBox | null) => void;
@@ -674,21 +675,36 @@ function SlideCanvas({
       { passive: false },
     );
     // Texte qui ne tient plus : on réduit la taille jusqu'à ce qu'il rentre.
-    const fitText = (el: HTMLElement): number | null => {
+    // Un texte n'est « coupé » que s'il l'est vraiment : par un cadre qui masque
+    // ce qui dépasse, ou par le bord de la slide. Une boîte écrasée par une mise
+    // en page en colonne (flex) déborde sans être coupée : la réduire ne sert à
+    // rien (vu sur une vraie slide le 03/10/2026 : titre réduit de 84 à 24 px).
+    const fitText = (el: HTMLElement): number | null | "trop-long" => {
       const id = el.dataset.editorId!;
-      const fits = () => !findClippedIds(doc).includes(id) && el.scrollHeight <= el.clientHeight + 2;
-      if (fits()) return null;
+      const cut = () => {
+        if (findClippedIds(doc).includes(id)) return true;
+        const cs = view.getComputedStyle(el);
+        return /hidden|clip|auto|scroll/.test(cs.overflowY) && el.scrollHeight > el.clientHeight + 2;
+      };
+      if (!cut()) return null;
+      const original = el.style.fontSize;
       let size = parseFloat(view.getComputedStyle(el).fontSize) || 40;
-      while (!fits() && size > 24) {
+      while (cut() && size > 24) {
         size -= 2;
         el.style.fontSize = `${size}px`;
+      }
+      if (cut()) {
+        // Même au plus petit, ça ne tient pas : on rend la taille d'origine.
+        el.style.fontSize = original;
+        return "trop-long";
       }
       return size;
     };
     fitRef.current = (id) => {
       const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
       const size = el ? fitText(el) : null;
-      if (size !== null) commitLive(id, { "font-size": `${size}px` });
+      if (typeof size === "number") commitLive(id, { "font-size": `${size}px` });
+      else if (size === "trop-long") latest.current.onFitDone?.(id, size);
     };
     // Aligner / répartir la sélection multiple, copier des éléments.
     api.current = {
@@ -1108,7 +1124,7 @@ function SlideCanvas({
       const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
       const size = el && !isLockedEl(el) ? fitText(el) : null;
       latest.current.onFitDone?.(id, size);
-      if (size !== null) commitLive(id, { "font-size": `${size}px` });
+      if (typeof size === "number") commitLive(id, { "font-size": `${size}px` });
     };
     recheck.current = () => {
       check();
@@ -1942,7 +1958,7 @@ export default function CarouselEditor({
       slide
         ? LAYOUTS.filter((l) => !l.photo || slidePhoto).map((l) => ({
             ...l,
-            preview: composeLayout(slide.data, l.variant, slidePhoto, extractStyleTokens(slide.html)),
+            preview: composeLayout(slide.data, l.variant, slidePhoto, extractStyleTokens(slide.html), slideExtraTexts(slide)),
           }))
         : [],
     [slide, slidePhoto],
@@ -2494,8 +2510,10 @@ export default function CarouselEditor({
             fitId={fitId}
             onFitDone={(_id, size) => {
               setFitId(null);
-              if (size !== null)
+              if (typeof size === "number")
                 toast(`Texte réduit à ${size} px pour tenir dans son cadre`, { description: "Tu peux l’agrandir à nouveau ou élargir le bloc." });
+              else if (size === "trop-long")
+                toast("Ce texte est trop long pour son cadre", { description: "Raccourcis-le ou agrandis le bloc : même réduit au minimum, il serait coupé." });
             }}
             onFill={(id, hex) => {
               // La couleur change, la transparence choisie (verre, voile) reste.
@@ -3300,7 +3318,7 @@ export default function CarouselEditor({
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Le titre, le texte, la photo et les couleurs sont gardés ; les éléments ajoutés à la main ne le sont pas. Tu peux annuler.
+              Tous les textes, la photo et les couleurs sont gardés ; les formes et décors ajoutés à la main ne le sont pas. Tu peux annuler.
             </p>
             {slide.html.includes("data-photo-text-layout") && (
               <label className="block text-xs">

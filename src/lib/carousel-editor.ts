@@ -466,7 +466,10 @@ export function patchElement(
       el.style.setProperty("--photo-heading", patch.styles.color);
   }
   if (Object.keys(styles).length) syncGlass(doc);
-  return { ...slide, data, html: serialize(doc) };
+  const patched = { ...slide, data, html: serialize(doc) };
+  // Une police Google appliquée (style enregistré, report sur toutes les
+  // slides…) doit être chargée par la slide, sinon aperçu et export la remplacent.
+  return styles["font-family"] ? withGoogleFonts(patched, styles["font-family"]) : patched;
 }
 export function replacePhoto(
   slide: EditorSlide,
@@ -1309,9 +1312,15 @@ export function pasteElement(slide: EditorSlide, clip: ClipboardElement, offset 
   el.setAttribute("data-editor-new", "true");
   root.append(el);
   syncGlass(doc);
+  // Élément collé depuis une autre slide : sa police Google suit.
+  const families = Array.from(el.querySelectorAll<HTMLElement>("*"))
+    .concat(el)
+    .map((n) => n.style.fontFamily)
+    .filter(Boolean)
+    .join(",");
   const html = prepareSlideHtml(serialize(doc));
   const id = parse(html).querySelector<HTMLElement>("[data-editor-new]")?.dataset.editorId || null;
-  return { slide: { ...slide, html: html.replace(/ data-editor-new="true"/, "") }, id };
+  return { slide: withGoogleFonts({ ...slide, html: html.replace(/ data-editor-new="true"/, "") }, families), id };
 }
 
 const STYLE_KEYS = {
@@ -1515,6 +1524,8 @@ export function composeLayout(
   variant: LayoutVariant,
   photo = "",
   tokens: StyleTokens = DEFAULT_TOKENS,
+  /** Autres textes de la slide (chiffre clé, liste, mention…), repris tels quels. */
+  extras: string[] = [],
 ): EditorSlide {
   const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const title = String(data.title || data.overlay_text || "Ton titre"),
@@ -1533,8 +1544,12 @@ export function composeLayout(
     heading = dark ? "#ffffff" : readable(tokens.titleColor);
   const h = (css: string, size = titleSize) =>
     `<h1 data-slide-text="title" data-pptx-editable="title" style="font-size:${size}px;font-family:${tokens.titleFont};color:${heading};line-height:1.1;font-weight:${tokens.titleWeight};margin:0 0 36px;white-space:pre-wrap;${css}">${esc(title)}</h1>`;
+  const more = extras
+    .filter((t) => t.trim())
+    .map((t) => `<p data-pptx-editable="body" data-editor-free="true" style="font-size:${Math.max(32, Math.round(bodySize * 0.85))}px;font-family:${tokens.bodyFont};color:${ink};line-height:1.4;margin:24px 0 0;white-space:pre-wrap">${esc(t.trim())}</p>`)
+    .join("");
   const b = (css = "") =>
-    body ? `<p data-slide-text="body" data-pptx-editable="body" style="font-size:${bodySize}px;font-family:${tokens.bodyFont};color:${ink};line-height:1.4;margin:0;white-space:pre-wrap;${css}">${esc(body)}</p>` : "";
+    (body ? `<p data-slide-text="body" data-pptx-editable="body" style="font-size:${bodySize}px;font-family:${tokens.bodyFont};color:${ink};line-height:1.4;margin:0;white-space:pre-wrap;${css}">${esc(body)}</p>` : "") + more;
   const img = (css: string) =>
     photo ? `<div data-pptx-photo="${data.photo_index || 1}" style="position:absolute;${css}background-image:url(&quot;${esc(photo)}&quot;);background-size:cover;background-position:50% 50%;"></div>` : "";
   const block = (css: string, inner: string) => `<div style="position:absolute;${css}">${inner}</div>`;
@@ -1623,16 +1638,33 @@ export function applyTheme(document: CarouselDocument, theme: CarouselTheme): { 
     root.style.backgroundColor = theme.background;
     root.style.color = theme.text;
     root.querySelectorAll<HTMLElement>('[data-editor-shape="texture"]').forEach((t) => (t.style.opacity = "0.5"));
-    root.querySelectorAll<HTMLElement>("[data-pptx-shape=\"card\"],[data-editor-shape=\"decor\"]").forEach((card) => {
-      if (card.style.backgroundColor || card.style.background) {
-        card.style.removeProperty("background");
-        card.style.backgroundColor = theme.card;
+    // Cartes qui portent du texte : couleur de carte du thème. Décors sans texte
+    // (barres, filets, pastilles) : teintes d'accent du thème, une par couleur
+    // d'origine, pour garder les nuances (vu le 03/10/2026 : des barres
+    // passées en couleur de carte disparaissaient sur le fond sombre).
+    const accents = [theme.heading, mix(theme.heading, theme.background, 0.35), mix(theme.heading, theme.background, 0.6)];
+    const accentOf = new Map<string, string>();
+    root.querySelectorAll<HTMLElement>('[data-pptx-shape="card"],[data-editor-shape="decor"]').forEach((shape) => {
+      const original = shape.style.backgroundColor || "";
+      if (!original && !shape.style.background) return;
+      const holdsText = !!shape.querySelector("[data-editor-id]") || !!ownText(shape).trim();
+      let color = theme.card;
+      if (!holdsText) {
+        if (!accentOf.has(original)) accentOf.set(original, accents[accentOf.size % accents.length]);
+        color = accentOf.get(original)!;
       }
+      shape.style.removeProperty("background");
+      shape.style.backgroundColor = color;
     });
     textNodes(doc).forEach((el) => {
       const size = parseFloat(el.style.fontSize || "") || 0;
       const isHeading = /^H[1-3]$/.test(el.tagName) || el.dataset.slideText === "title" || el.dataset.pptxEditable === "title" || size >= 56;
       el.style.color = isHeading ? theme.heading : theme.text;
+      // Mot mis en couleur dans le texte : une teinte du thème qui se distingue
+      // du texte qui l'entoure et reste lisible sur le nouveau fond.
+      el.querySelectorAll<HTMLElement>("[style*='color']").forEach((word) => {
+        if (word.style.color) word.style.color = isHeading ? theme.text : theme.heading;
+      });
       // Pastille ou CTA à fond coloré : le texte s'accorde au fond du thème.
       if (el.style.backgroundColor && !/rgba\([^)]*,\s*0\)/.test(el.style.backgroundColor)) {
         el.style.backgroundColor = theme.heading;
@@ -1669,4 +1701,23 @@ export function ensureFontLink(slide: EditorSlide, family: string): EditorSlide 
   link.href = href;
   doc.head.append(link);
   return { ...slide, html: serialize(doc) };
+}
+
+/**
+ * Textes d'une slide qui ne sont ni son titre ni son texte principal (chiffre
+ * clé, liste, mention, citation…) : à reprendre quand on change de mise en page.
+ */
+export function slideExtraTexts(slide: EditorSlide): string[] {
+  const doc = parse(slide.html);
+  const main = [slide.data.title, slide.data.body, slide.data.overlay_text].filter(Boolean).map((t: string) => String(t).trim());
+  return textNodes(doc)
+    .filter((el) => !el.closest("[data-slide-page],[data-editor-hidden]") && !/^(title|body|overlay)$/.test(el.dataset.slideText || ""))
+    .filter((el) => !el.closest('[data-slide-text="title"],[data-slide-text="body"],[data-slide-text="overlay"]'))
+    .map((el) => (el.textContent || "").trim())
+    .filter((t) => t && !/^\d+\s*\/\s*\d+$/.test(t) && !main.some((m) => m === t || m.includes(t)) && t !== "«");
+}
+
+/** Ajoute à la slide les liens des polices Google citées dans `fontFamily`. */
+export function withGoogleFonts(slide: EditorSlide, fontFamily: string): EditorSlide {
+  return GOOGLE_FONTS.filter((f) => fontFamily.includes(f.family)).reduce((acc, f) => ensureFontLink(acc, f.family), slide);
 }
