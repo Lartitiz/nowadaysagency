@@ -907,6 +907,7 @@ export function duplicateElement(slide: EditorSlide, id: string): { slide: Edito
     // La copie n'est pas le texte source : sinon une retouche réécrirait les deux.
     node.removeAttribute("data-slide-text");
     node.removeAttribute("data-slide-page");
+    node.removeAttribute("data-editor-locked");
   });
   if (copy.style.position === "absolute") {
     copy.style.top = `${(px(copy.style.top) ?? 0) + 40}px`;
@@ -956,6 +957,8 @@ export interface LayerItem {
   topLevel: boolean;
   /** Fond de la slide : ni déplacé, ni masqué, ni retiré depuis les calques. */
   fixed?: boolean;
+  /** Élément verrouillé : sélectionnable, mais plus déplacé ni retouché. */
+  locked?: boolean;
 }
 export interface RemovedLayer {
   html: string;
@@ -979,6 +982,7 @@ export function layerLabel(e: Pick<EditorElement, "kind" | "role" | "frame" | "t
   if (e.name === "etape") return "Frise d'étape";
   if (e.name === "motif") return "Schéma dessiné";
   if (e.name === "group") return "Bloc de texte";
+  if (e.name === "groupe") return "Groupe";
   if (e.name === "texture") return "Texture de fond";
   if (e.name === "dessin") return "Dessin";
   if (e.name === "decor") return e.frame ? "Encadré" : "Décor";
@@ -1021,6 +1025,7 @@ export function listLayers(html: string): LayerItem[] {
       label: layerLabel(e),
       depth,
       hidden: el.hasAttribute("data-editor-hidden"),
+      locked: el.hasAttribute("data-editor-locked"),
       topLevel: depth === 0 && e.role !== "background",
       ...(e.role === "background" ? { fixed: true } : {}),
     });
@@ -1291,6 +1296,7 @@ export function pasteElement(slide: EditorSlide, clip: ClipboardElement, offset 
     node.removeAttribute("data-slide-text");
     node.removeAttribute("data-slide-page");
     node.removeAttribute("data-editor-hidden");
+    node.removeAttribute("data-editor-locked");
   });
   const shift = offset ? 40 : 0;
   el.style.position = "absolute";
@@ -1358,4 +1364,132 @@ export function applyToAllSlides(
     return next;
   });
   return { document: { ...document, slides }, changed };
+}
+
+/* ─── Grouper, verrouiller un élément, éléments tout faits ────────────── */
+
+export interface ElementRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+/** Verrouille un élément : il ne se déplace, ne se retouche ni ne se retire plus par erreur. */
+export function setLayerLocked(slide: EditorSlide, id: string, locked: boolean): EditorSlide {
+  if (slide.locked) return slide;
+  const doc = parse(slide.html);
+  const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
+  if (!el) return slide;
+  if (locked) el.setAttribute("data-editor-locked", "true");
+  else el.removeAttribute("data-editor-locked");
+  return { ...slide, html: serialize(doc) };
+}
+/**
+ * Regroupe des éléments : ils passent dans un cadre transparent et se déplacent
+ * ensemble. Les boîtes mesurées dans l'aperçu (repère de la slide) gardent
+ * chaque élément exactement à sa place.
+ */
+export function groupElements(slide: EditorSlide, items: { id: string; rect: ElementRect }[]): { slide: EditorSlide; id: string | null } {
+  if (slide.locked || items.length < 2) return { slide, id: null };
+  const doc = parse(slide.html);
+  const root = doc.body.firstElementChild as HTMLElement | null;
+  if (!root) return { slide, id: null };
+  const els = items
+    .map((i) => ({ ...i, el: doc.querySelector<HTMLElement>(`[data-editor-id="${i.id}"]`) }))
+    .filter((i): i is typeof i & { el: HTMLElement } => !!i.el);
+  if (els.length < 2) return { slide, id: null };
+  const left = Math.min(...els.map((i) => i.rect.left)), top = Math.min(...els.map((i) => i.rect.top));
+  const right = Math.max(...els.map((i) => i.rect.left + i.rect.width)), bottom = Math.max(...els.map((i) => i.rect.top + i.rect.height));
+  const group = doc.createElement("div");
+  group.setAttribute("data-editor-shape", "groupe");
+  group.setAttribute("data-editor-new", "true");
+  group.style.cssText = `position:absolute;left:${Math.round(left)}px;top:${Math.round(top)}px;width:${Math.round(right - left)}px;height:${Math.round(bottom - top)}px;z-index:${Math.max(0, ...els.map((i) => parseInt(i.el.style.zIndex, 10) || 0)) || 1};`;
+  // Le groupe prend la place du premier élément dans l'ordre d'affichage.
+  els[0].el.before(group);
+  els.forEach(({ el, rect }) => {
+    el.style.position = "absolute";
+    el.style.left = `${Math.round(rect.left - left)}px`;
+    el.style.top = `${Math.round(rect.top - top)}px`;
+    el.style.width = `${Math.round(rect.width)}px`;
+    ["right", "bottom", "margin", "margin-top", "margin-bottom", "margin-left", "margin-right", "z-index"].forEach((k) => el.style.removeProperty(k));
+    group.append(el);
+  });
+  const html = prepareSlideHtml(serialize(doc));
+  const id = parse(html).querySelector<HTMLElement>("[data-editor-new]")?.dataset.editorId || null;
+  return { slide: { ...slide, html: html.replace(/ data-editor-new="true"/, "") }, id };
+}
+/** Dégroupe : chaque élément revient sur la slide, à la place où on le voit. */
+export function ungroupElement(slide: EditorSlide, groupId: string, rects: Record<string, ElementRect>): { slide: EditorSlide; ids: string[] } {
+  if (slide.locked) return { slide, ids: [] };
+  const doc = parse(slide.html);
+  const group = doc.querySelector<HTMLElement>(`[data-editor-id="${groupId}"][data-editor-shape="groupe"]`);
+  if (!group) return { slide, ids: [] };
+  const ids: string[] = [];
+  Array.from(group.children as HTMLCollectionOf<HTMLElement>).forEach((el) => {
+    const rect = el.dataset.editorId ? rects[el.dataset.editorId] : undefined;
+    if (rect) {
+      el.style.position = "absolute";
+      el.style.left = `${Math.round(rect.left)}px`;
+      el.style.top = `${Math.round(rect.top)}px`;
+      el.style.width = `${Math.round(rect.width)}px`;
+    }
+    if (group.style.zIndex) el.style.zIndex = group.style.zIndex;
+    if (el.dataset.editorId) ids.push(el.dataset.editorId);
+    group.before(el);
+  });
+  group.remove();
+  return { slide: { ...slide, html: serialize(doc) }, ids };
+}
+
+export type PresetKind = "fleche" | "fleche-bas" | "numero" | "pastille" | "coche" | "etoile" | "guillemets" | "ligne" | "cadre" | "swipe";
+export const PRESETS: { kind: PresetKind; label: string }[] = [
+  { kind: "fleche", label: "Flèche →" },
+  { kind: "fleche-bas", label: "Flèche ↓" },
+  { kind: "swipe", label: "« Glisse → »" },
+  { kind: "numero", label: "Numéro" },
+  { kind: "pastille", label: "Pastille" },
+  { kind: "coche", label: "Coche ✓" },
+  { kind: "etoile", label: "Étoile ★" },
+  { kind: "guillemets", label: "Guillemets" },
+  { kind: "ligne", label: "Ligne" },
+  { kind: "cadre", label: "Cadre" },
+];
+/** Ajoute un élément tout fait aux couleurs du carrousel, au centre de la slide. */
+export function addPreset(slide: EditorSlide, kind: PresetKind, color = "#91014b", ink = "#ffffff"): { slide: EditorSlide; id: string | null } {
+  if (slide.locked) return { slide, id: null };
+  const tokens = extractStyleTokens(slide.html);
+  const doc = parse(slide.html);
+  const root = doc.body.firstElementChild as HTMLElement | null;
+  if (!root) return { slide, id: null };
+  const el = doc.createElement(["ligne", "cadre"].includes(kind) ? "div" : "p");
+  const text = (t: string, css: string) => {
+    el.textContent = t;
+    el.setAttribute("data-pptx-editable", "body");
+    el.setAttribute("data-editor-free", "true");
+    el.style.cssText = `position:absolute;margin:0;line-height:1;white-space:pre-wrap;font-family:${tokens.titleFont};${css}`;
+  };
+  const z = "z-index:20;";
+  switch (kind) {
+    case "fleche": text("→", `left:440px;top:600px;width:200px;text-align:center;font-size:150px;color:${color};${z}`); break;
+    case "fleche-bas": text("↓", `left:440px;top:560px;width:200px;text-align:center;font-size:150px;color:${color};${z}`); break;
+    case "swipe": text("Glisse →", `left:640px;top:1180px;width:360px;text-align:right;font-size:40px;font-family:${tokens.bodyFont};color:${color};${z}`); break;
+    case "numero": text("1", `left:480px;top:600px;width:120px;height:120px;display:flex;align-items:center;justify-content:center;border-radius:50%;background-color:${color};color:${ink};font-size:64px;${z}`); break;
+    case "pastille": text("Nouveau", `left:390px;top:620px;width:300px;padding:16px 28px;text-align:center;border-radius:999px;background-color:${color};color:${ink};font-size:38px;font-family:${tokens.bodyFont};${z}`); break;
+    case "coche": text("✓", `left:480px;top:600px;width:120px;text-align:center;font-size:110px;color:${color};${z}`); break;
+    case "etoile": text("★", `left:480px;top:600px;width:120px;text-align:center;font-size:110px;color:${color};${z}`); break;
+    case "guillemets": text("«", `left:90px;top:120px;width:200px;font-size:240px;color:${color};${z}`); break;
+    case "ligne":
+      el.setAttribute("data-pptx-shape", "card");
+      el.style.cssText = `position:absolute;left:140px;top:673px;width:800px;height:6px;border-radius:3px;background-color:${color};${z}`;
+      break;
+    case "cadre":
+      el.setAttribute("data-editor-shape", "decor");
+      el.style.cssText = `position:absolute;left:120px;top:300px;width:840px;height:750px;border:8px solid ${color};border-radius:24px;${z}`;
+      break;
+  }
+  el.setAttribute("data-editor-new", "true");
+  root.append(el);
+  const html = prepareSlideHtml(serialize(doc));
+  const id = parse(html).querySelector<HTMLElement>("[data-editor-new]")?.dataset.editorId || null;
+  return { slide: { ...slide, html: html.replace(/ data-editor-new="true"/, "") }, id };
 }
