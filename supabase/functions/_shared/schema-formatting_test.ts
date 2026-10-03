@@ -77,3 +77,20 @@ Deno.test("garde-fou : la rédaction ne décide plus des schémas, l'étage sép
   assert(/addSchemasToContent\(content, \{ isMix: false/.test(src), "étage de schémas absent du carrousel texte");
   assert(/addSchemasToContent\(content, \{ isMix: true/.test(src), "étage de schémas absent du carrousel mixte");
 });
+
+Deno.test("schémas : motifs de rejet tracés (télémétrie)", () => {
+  const rejected: string[] = [];
+  validateSchemaPlan({ schemas: [
+    { slide_number: 1, reason: "r", visual_schema: BA },
+    { slide_number: 2, reason: "r", visual_schema: { ...BA, before: { label: "Avant", items: ["15 pistes"] } } },
+    { slide_number: 4, reason: "r", visual_schema: { type: "quote_big", quote: "Phrase inventée" } },
+  ] }, SLIDES, ELIG, rejected);
+  assertEquals(rejected, ["before_after@1:slide", "before_after@2:chiffre", "quote_big@4:citation"]);
+});
+
+Deno.test("schémas : un numéro d'ordre (« 1. », « Étape 2 : ») n'est pas un chiffre inventé", () => {
+  const tl = { type: "timeline", steps: [{ label: "1. Avant", desc: "toutes les idées" }, { label: "Étape 2 : Après", desc: "une seule promesse" }] };
+  assertEquals(validateSchemaPlan({ schemas: [{ slide_number: 3, reason: "r", visual_schema: tl }] }, SLIDES, ELIG).length, 1);
+  const bad = { type: "timeline", steps: [{ label: "Avant", desc: "40 idées" }, { label: "Après", desc: "une seule promesse" }] };
+  assertEquals(validateSchemaPlan({ schemas: [{ slide_number: 3, reason: "r", visual_schema: bad }] }, SLIDES, ELIG).length, 0, "40 n'est pas dans le texte");
+});

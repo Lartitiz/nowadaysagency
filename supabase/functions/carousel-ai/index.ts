@@ -1370,7 +1370,7 @@ async function runGenerationAndRespond(
     // les faire disparaître). Échec ou manque de temps → aucun schéma, texte livré.
     const withSchemas = await timed("schemas_ms", addSchemasToContent(content, { isMix: false, usage, allowed: schemasAllowed(startedAt) }));
     content = withSchemas.content;
-    if (withSchemas.plan) console.log(JSON.stringify({ event: "carousel_schema_formatting", label: type, status: withSchemas.plan.status, schemas: withSchemas.plan.schemas.map(x => x.visual_schema.type) }));
+    if (withSchemas.plan) console.log(JSON.stringify({ event: "carousel_schema_formatting", label: type, status: withSchemas.plan.status, proposed: withSchemas.plan.proposed ?? 0, rejected: withSchemas.plan.rejected ?? [], schemas: withSchemas.plan.schemas.map(x => x.visual_schema.type) }));
   }
 
   // deepening_questions (variante texte) est gratuit — arbitrage 10/07/2026 :
@@ -1605,7 +1605,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     // SCHÉMAS décidés après l'écriture, sur les slides text_only du texte final.
     const withSchemas = await addSchemasToContent(content, { isMix: true, usage: mixUsage, allowed: schemasAllowed(startedAt) });
     content = withSchemas.content;
-    if (withSchemas.plan) console.log(JSON.stringify({ event: "carousel_schema_formatting", label: "mix", status: withSchemas.plan.status, schemas: withSchemas.plan.schemas.map(x => x.visual_schema.type) }));
+    if (withSchemas.plan) console.log(JSON.stringify({ event: "carousel_schema_formatting", label: "mix", status: withSchemas.plan.status, proposed: withSchemas.plan.proposed ?? 0, rejected: withSchemas.plan.rejected ?? [], schemas: withSchemas.plan.schemas.map(x => x.visual_schema.type) }));
   }
   await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspaceId, body.subject);
