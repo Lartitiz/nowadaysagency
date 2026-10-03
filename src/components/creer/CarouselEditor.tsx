@@ -18,6 +18,9 @@ import {
   Keyboard,
   ZoomIn,
   ZoomOut,
+  Pipette,
+  Bookmark,
+  X,
   Maximize2,
   Minimize2,
   Eye,
@@ -36,6 +39,7 @@ import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import { toast } from "sonner";
 import { hasClippedElement } from "@/lib/carousel-quality";
 import { compressImageFile } from "@/lib/image-compress";
+import type { CarouselStylesApi, SavedCarouselStyle } from "@/hooks/use-carousel-styles";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import {
   addPreset,
@@ -102,6 +106,10 @@ interface Props {
   quality?: CarouselQuality;
   /** Élément hôte sous les boutons d'action : rend les encadrés sauvegarde/qualité via un portail. */
   toolsPortal?: HTMLElement | null;
+  /** « Mes styles » de l'espace de travail (absent : la section ne s'affiche pas). */
+  savedStyles?: CarouselStylesApi;
+  /** Couleurs de la charte, proposées en premier dans les pastilles. */
+  brandColors?: string[];
 }
 // Compare immutable references, not megabytes of embedded photo HTML on every
 // keystroke. Parent echoes retain these exact references.
@@ -1023,6 +1031,15 @@ function SlideCanvas({
     latest.current.onMove(selected, whole);
   };
   const keep = (e: React.MouseEvent) => e.preventDefault(); // garde la sélection dans la slide
+  const pickerInput = useRef<HTMLInputElement>(null);
+  const applyPicked = (value: string) => {
+    if (!selected || !box) return;
+    const m = value.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    const hex = m ? `#${m.slice(1, 4).map((v) => Number(v).toString(16).padStart(2, "0")).join("")}` : value;
+    if (!/^#[0-9a-f]{6}$/i.test(hex)) return;
+    if (box.kind === "text") apply({ color: hex }, { color: hex });
+    else latest.current.onFill?.(selected, hex);
+  };
   const toolButton = "flex h-8 min-w-8 items-center justify-center rounded-md px-1.5 text-xs font-semibold hover:bg-muted aria-pressed:bg-primary/15";
   const toolbar =
     box && selected && !slide.locked && box.kind !== "veil" ? (
@@ -1078,6 +1095,40 @@ function SlideCanvas({
               }
             />
           ))}
+        {box.kind !== "photo" && (
+          <>
+            <button
+              type="button"
+              className={toolButton}
+              aria-label="Pipette : prendre une couleur à l’écran"
+              title="Pipette : prendre une couleur sur la photo ou ailleurs à l’écran"
+              onClick={async () => {
+                const picker = (window as unknown as { EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
+                if (!picker) {
+                  // Safari / Firefox : le sélecteur de couleur du système a sa propre pipette.
+                  pickerInput.current?.click();
+                  return;
+                }
+                try {
+                  const { sRGBHex } = await new picker().open();
+                  applyPicked(sRGBHex);
+                } catch {
+                  // Pipette annulée (Échap).
+                }
+              }}
+            >
+              <Pipette size={14} />
+            </button>
+            <input
+              ref={pickerInput}
+              type="color"
+              aria-hidden="true"
+              tabIndex={-1}
+              className="sr-only"
+              onChange={(e) => applyPicked(e.target.value)}
+            />
+          </>
+        )}
         {box.kind === "text" && !editingId && (
           <button type="button" className={toolButton} onClick={() => tools.current.startEditing(selected)}>Écrire</button>
         )}
@@ -1189,6 +1240,8 @@ export default function CarouselEditor({
   cloudTools,
   quality,
   toolsPortal,
+  savedStyles,
+  brandColors,
 }: Props) {
   const raw = result?.raw || result;
   const editorRoot = useRef<HTMLElement>(null);
@@ -1307,7 +1360,19 @@ export default function CarouselEditor({
   };
   const layers = useMemo(() => (slide ? listLayers(slide.html) : []), [slide]);
   const removedLayers: RemovedLayer[] = (slide?.data.editor_removed as RemovedLayer[]) || [];
-  const palette = useMemo(() => documentColors(document.slides), [document.slides]);
+  // Couleurs de la charte d'abord, puis celles du carrousel (sans quasi-doublons).
+  const palette = useMemo(() => {
+    const brand = (brandColors || []).filter((c) => /^#[0-9a-f]{6}$/i.test(c || "")).map((c) => c.toLowerCase());
+    const rgb = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+    const out: string[] = [];
+    for (const c of [...brand, ...documentColors(document.slides, 10)]) {
+      const [r, g, b] = rgb(c);
+      if (out.some((o) => { const [x, y, z] = rgb(o); return Math.abs(r - x) + Math.abs(g - y) + Math.abs(b - z) < 40; })) continue;
+      out.push(c);
+      if (out.length >= 9) break;
+    }
+    return out;
+  }, [document.slides, brandColors]);
   const documentFonts = useMemo(
     () => listDocumentFonts(document.slides),
     [document.slides],
@@ -1516,6 +1581,41 @@ export default function CarouselEditor({
     if (!out.id) return;
     changeSlide(out.slide);
     selectOne(out.id);
+  };
+  // « Mes styles » : enregistrer le style de l'élément choisi, le réappliquer ailleurs.
+  const [styleName, setStyleName] = useState("");
+  const STYLE_KEYS: Record<SavedCarouselStyle["kind"], string[]> = {
+    text: ["font-family", "font-size", "font-weight", "font-style", "color", "line-height", "text-align", "letter-spacing", "text-transform", "text-decoration", "text-shadow", "background-color", "border-radius", "--photo-heading"],
+    shape: ["background-color", "border-radius", "border", "box-shadow", "opacity"],
+    photo: ["filter", "border-radius", "border", "box-shadow", "opacity"],
+    veil: [],
+  };
+  const styleKind = (e: NonNullable<typeof element>): SavedCarouselStyle["kind"] =>
+    e.role === "veil" ? "veil" : e.kind === "photo" ? "photo" : e.kind === "text" ? "text" : "shape";
+  const saveStyle = async () => {
+    if (!element || !savedStyles) return;
+    const kind = styleKind(element);
+    const styles: Record<string, string> =
+      kind === "veil"
+        ? { alpha: String(veilAlpha(Object.entries(element.style).map(([k, v]) => `${k}:${v}`).join(";")) ?? 0.85) }
+        : Object.fromEntries(STYLE_KEYS[kind].map((k) => [k, element.style[k]]).filter(([, v]) => v));
+    if (kind === "text" && element.emphasis?.color) styles["--photo-heading"] = element.emphasis.color;
+    const name = styleName.trim() || (kind === "text" ? "Mon style de texte" : kind === "photo" ? "Ma retouche photo" : kind === "veil" ? "Mon voile" : "Ma forme");
+    const ok = await savedStyles.save(name, kind, styles);
+    if (ok) {
+      setStyleName("");
+      toast.success("Style enregistré", { description: "Il est proposé pour les éléments du même type, dans tous tes carrousels." });
+    } else toast.error("Le style n’a pas pu être enregistré.", { description: "Réessaie dans un instant." });
+  };
+  const applySaved = (saved: SavedCarouselStyle) => {
+    const ids = group.length ? group : selected ? [selected] : [];
+    let next = slide;
+    ids.forEach((id) => {
+      next = saved.kind === "veil"
+        ? setVeilAlpha(next, id, Number(saved.styles.alpha) || 0.85)
+        : patchElement(next, id, { styles: saved.styles });
+    });
+    if (next !== slide) changeSlide(next);
   };
   const applyAll = (what: { style?: boolean; position?: boolean }) => {
     if (!selected) return;
@@ -2909,6 +3009,59 @@ export default function CarouselEditor({
                   <option value="both">Son style et sa position</option>
                 </select>
               </label>
+            )}
+            {element && savedStyles && element.role !== "background" && (
+              <div className="space-y-2 rounded-lg border p-2" aria-label="Mes styles">
+                <p className="flex items-center gap-1.5 text-xs font-medium">
+                  <Bookmark size={13} /> Mes styles
+                </p>
+                {savedStyles.list.filter((st) => st.kind === styleKind(element)).length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {savedStyles.list
+                      .filter((st) => st.kind === styleKind(element))
+                      .map((st) => (
+                        <span key={st.id} className="inline-flex items-center rounded-full border bg-background text-2xs">
+                          <button
+                            type="button"
+                            className="flex items-center gap-1 py-1 pl-2 pr-1 hover:text-primary"
+                            title="Appliquer ce style"
+                            onClick={() => applySaved(st)}
+                          >
+                            {st.styles.color || st.styles["background-color"] ? (
+                              <span className="h-3 w-3 rounded-full border" style={{ background: st.styles.color || st.styles["background-color"] }} />
+                            ) : null}
+                            {st.name}
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Supprimer le style ${st.name}`}
+                            className="rounded-full p-1 text-muted-foreground hover:text-destructive"
+                            onClick={() => savedStyles.remove(st.id)}
+                          >
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-2xs text-muted-foreground">
+                    Enregistre le style de cet élément pour le réappliquer d’un clic dans tes prochains carrousels.
+                  </p>
+                )}
+                <div className="flex gap-1">
+                  <input
+                    aria-label="Nom du style"
+                    placeholder="Nom (ex. Titre rose)"
+                    value={styleName}
+                    maxLength={60}
+                    onChange={(e) => setStyleName(e.target.value)}
+                    className="min-w-0 flex-1 rounded border bg-background px-2 py-1 text-xs"
+                  />
+                  <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={saveStyle}>
+                    Enregistrer ce style
+                  </Button>
+                </div>
+              </div>
             )}
           </fieldset>
         </div>
