@@ -16,9 +16,13 @@ export interface EditorElement {
   id: string;
   kind: "text" | "photo" | "shape";
   /** Nature d'une forme : cadre en verre, voile sur la photo, ou forme/carte. */
-  role?: "glass" | "veil" | "shape";
+  role?: "glass" | "veil" | "shape" | "background";
   /** Forme qui contient des textes : on la déplace avec eux, comme un groupe. */
   frame?: boolean;
+  /** Nature d'un décor rendu choisissable (frise d'étape, schéma, bloc de texte). */
+  name?: string;
+  /** Texte éditorial posé sur un voile en dégradé (style « bord ») réglable. */
+  editorialVeil?: boolean;
   text: string;
   field?: string;
   style: Record<string, string>;
@@ -79,6 +83,16 @@ function photoNodes(doc: Document): HTMLElement[] {
     ),
   ).filter(
     (el) => !el.parentElement?.closest("[data-pptx-photo],[data-editor-photo]"),
+  );
+}
+/**
+ * Fond de la slide (racine 1080×1350, `data-pptx-shape="background"`) ou
+ * surlignage d'un mot : jamais un cadre qu'on emporte en glissant un texte.
+ */
+export function isPassiveShape(el: Element): boolean {
+  return (
+    el.parentElement === el.ownerDocument.body ||
+    el.matches('[data-pptx-shape="background"],[data-pptx-shape="highlight"]')
   );
 }
 /** Formes qui ne sont pas des formes d'export natives mais qu'on doit pouvoir
@@ -177,6 +191,13 @@ export function prepareSlideHtml(html: string): string {
     });
   // Le cadre en verre devient une forme que le contrôle qualité inspecte aussi.
   doc.querySelectorAll<HTMLElement>("[data-photo-glass]").forEach((el) => el.setAttribute("data-editor-shape", "glass"));
+  // Décors sans ancre : frise d'étape, schéma dessiné, colonne de texte des
+  // slides mixtes. Ils restent dans l'image exportée (pas de data-pptx-shape).
+  doc.querySelectorAll<HTMLElement>('[data-photo-format="etape"]').forEach((el) => el.setAttribute("data-editor-shape", "etape"));
+  doc.querySelectorAll<Element>('svg[data-photo-format="motif"]').forEach((el) => el.setAttribute("data-editor-shape", "motif"));
+  doc.querySelectorAll<HTMLElement>("[data-mix-text]").forEach((el) => {
+    if (!el.hasAttribute("data-pptx-shape")) el.setAttribute("data-editor-shape", "group");
+  });
   const elements = new Set<HTMLElement>([
     ...textNodes(doc),
     ...photoNodes(doc).filter((el) => !el.closest("[data-photo-glass]")),
@@ -211,13 +232,20 @@ export function getEditorElements(html: string): EditorElement[] {
     kind: photos.has(el) ? "photo" : texts.has(el) ? "text" : "shape",
     ...(!photos.has(el) && !texts.has(el)
       ? {
-          role: el.hasAttribute("data-photo-glass")
+          role: el.parentElement === doc.body || el.matches('[data-pptx-shape="background"]')
+            ? ("background" as const)
+            : el.hasAttribute("data-photo-glass")
             ? ("glass" as const)
             : el.hasAttribute("data-injected-scrim")
               ? ("veil" as const)
               : ("shape" as const),
-          frame: !!el.querySelector("[data-editor-id]"),
+          frame: !!el.querySelector("[data-editor-id]") && !isPassiveShape(el),
+          ...(el.getAttribute("data-editor-shape") ? { name: el.getAttribute("data-editor-shape")! } : {}),
         }
+      : {}),
+    ...(texts.has(el) && doc.querySelector("style[data-photo-editorial-veil]") &&
+    (el.hasAttribute("data-photo-editorial-text") || el.closest("[data-photo-editorial-text]"))
+      ? { editorialVeil: true }
       : {}),
     text: el.textContent || "",
     field: el.dataset.slideText,
@@ -272,6 +300,7 @@ export function patchElement(
       if (node !== el && node.hasAttribute("data-editor-id")) return;
       ["background", "background-color", "background-image", "box-shadow", "border", "backdrop-filter"].forEach((k) => node.style.removeProperty(k));
     });
+    el.setAttribute("data-editor-unwrapped", id);
     ["data-pptx-shape", "data-editor-shape", "data-photo-glass", "data-editor-id"].forEach((a) => el.removeAttribute(a));
     return { ...slide, html: serialize(doc) };
   }
@@ -841,4 +870,222 @@ export function addShapeElement(slide: EditorSlide): { slide: EditorSlide; id: s
   const html = prepareSlideHtml(serialize(doc));
   const id = parse(html).querySelector<HTMLElement>("[data-editor-new]")?.dataset.editorId || null;
   return { slide: { ...slide, html: html.replace(/ data-editor-new="true"/, "") }, id };
+}
+
+/* ─── Calques ─────────────────────────────────────────────────────────── */
+
+export interface LayerItem {
+  id: string;
+  kind: EditorElement["kind"];
+  role?: EditorElement["role"];
+  frame?: boolean;
+  label: string;
+  depth: number;
+  hidden: boolean;
+  /** Seuls les calques de premier niveau changent d'ordre (z-index). */
+  topLevel: boolean;
+  /** Fond de la slide : ni déplacé, ni masqué, ni retiré depuis les calques. */
+  fixed?: boolean;
+}
+export interface RemovedLayer {
+  html: string;
+  /** Chemin d'index depuis la racine de la slide jusqu'au parent. */
+  path: number[];
+  index: number;
+  label: string;
+  field?: string;
+  text?: string;
+  /** Identifiant du cadre dont on a seulement retiré le fond. */
+  unwrapOf?: string;
+}
+const MAX_REMOVED = 20;
+const MAX_REMOVED_HTML = 150_000;
+
+export function layerLabel(e: Pick<EditorElement, "kind" | "role" | "frame" | "text" | "name">): string {
+  if (e.kind === "photo") return "Photo";
+  if (e.role === "background") return "Fond de la slide";
+  if (e.role === "glass") return "Cadre en verre";
+  if (e.role === "veil") return "Voile sur la photo";
+  if (e.name === "etape") return "Frise d'étape";
+  if (e.name === "motif") return "Schéma dessiné";
+  if (e.name === "group") return "Bloc de texte";
+  if (e.kind === "shape") return e.frame ? "Cadre du texte" : "Forme";
+  return e.text.trim().slice(0, 40) || "Texte vide";
+}
+function zOf(el: HTMLElement): number {
+  const z = parseInt(el.style.zIndex, 10);
+  return Number.isFinite(z) ? z : 0;
+}
+/** Cadre parent dans les calques ; le fond de la slide n'en est pas un. */
+function editorParent(el: HTMLElement): HTMLElement | null {
+  const p = el.parentElement?.closest<HTMLElement>("[data-editor-id]") || null;
+  return p && isPassiveShape(p) && p.matches('[data-pptx-shape="background"]') ? null : p;
+}
+/** Calques de premier niveau, du fond vers le dessus (ordre de peinture approché). */
+function topLayers(doc: Document): HTMLElement[] {
+  const all = Array.from(doc.body.querySelectorAll<HTMLElement>("[data-editor-id]"));
+  return all
+    .map((el, i) => ({ el, i }))
+    .filter(({ el }) => !editorParent(el))
+    .sort((a, b) =>
+      Number(!a.el.matches('[data-pptx-shape="background"]')) - Number(!b.el.matches('[data-pptx-shape="background"]')) ||
+      zOf(a.el) - zOf(b.el) || a.i - b.i)
+    .map(({ el }) => el);
+}
+/** Liste des calques, le plus haut en premier, les textes d'un cadre sous lui. */
+export function listLayers(html: string): LayerItem[] {
+  const doc = parse(html);
+  const info = new Map(getEditorElements(html).map((e) => [e.id, e]));
+  const out: LayerItem[] = [];
+  const visit = (el: HTMLElement, depth: number) => {
+    const e = info.get(el.dataset.editorId!);
+    if (!e) return;
+    out.push({
+      id: e.id,
+      kind: e.kind,
+      role: e.role,
+      frame: e.frame,
+      label: layerLabel(e),
+      depth,
+      hidden: el.hasAttribute("data-editor-hidden"),
+      topLevel: depth === 0 && e.role !== "background",
+      ...(e.role === "background" ? { fixed: true } : {}),
+    });
+    Array.from(el.querySelectorAll<HTMLElement>("[data-editor-id]"))
+      .filter((child) => editorParent(child) === el)
+      .reverse()
+      .forEach((child) => visit(child, depth + 1));
+  };
+  topLayers(doc).reverse().forEach((el) => visit(el, 0));
+  return out;
+}
+/** Masque ou réaffiche un calque (un calque masqué n'est ni exporté ni publié). */
+export function setLayerHidden(slide: EditorSlide, id: string, hidden: boolean): EditorSlide {
+  if (slide.locked) return slide;
+  const doc = parse(slide.html);
+  const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
+  if (!el || el.hasAttribute("data-editor-hidden") === hidden) return slide;
+  if (hidden) {
+    if (el.style.display) el.setAttribute("data-editor-display", el.style.display);
+    el.style.display = "none";
+    el.setAttribute("data-editor-hidden", "true");
+  } else {
+    const previous = el.getAttribute("data-editor-display");
+    if (previous) el.style.display = previous;
+    else el.style.removeProperty("display");
+    el.removeAttribute("data-editor-display");
+    el.removeAttribute("data-editor-hidden");
+  }
+  return { ...slide, html: serialize(doc) };
+}
+/** Monte (vers le dessus) ou descend un calque de premier niveau d'un cran. */
+export function moveLayer(slide: EditorSlide, id: string, direction: "up" | "down"): EditorSlide {
+  if (slide.locked) return slide;
+  const doc = parse(slide.html);
+  const order = topLayers(doc).filter((el) => !el.matches('[data-pptx-shape="background"]'));
+  const from = order.findIndex((el) => el.dataset.editorId === id);
+  const to = from + (direction === "up" ? 1 : -1);
+  if (from < 0 || to < 0 || to >= order.length) return slide;
+  [order[from], order[to]] = [order[to], order[from]];
+  // L'ordre affiché devient la vérité : chaque calque reçoit son rang.
+  order.forEach((el, i) => {
+    el.style.zIndex = String(i + 1);
+    if (!el.style.position || el.style.position === "static") el.style.position = "relative";
+  });
+  return { ...slide, html: serialize(doc) };
+}
+function pathTo(root: Element, node: Element): number[] {
+  const path: number[] = [];
+  for (let n: Element | null = node; n && n !== root; n = n.parentElement) {
+    if (!n.parentElement) return [];
+    path.unshift(Array.from(n.parentElement.children).indexOf(n));
+  }
+  return path;
+}
+/** Retire un élément en le gardant dans « Éléments retirés » pour pouvoir le remettre. */
+export function removeLayer(slide: EditorSlide, id: string): EditorSlide {
+  if (slide.locked) return slide;
+  const doc = parse(slide.html);
+  const root = doc.body.firstElementChild;
+  const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
+  if (!el || !root) return slide;
+  const e = getEditorElements(slide.html).find((x) => x.id === id);
+  const parent = el.parentElement!;
+  const record: RemovedLayer = {
+    html: el.outerHTML,
+    path: pathTo(root, parent),
+    index: Array.from(parent.children).indexOf(el),
+    label: e ? layerLabel(e) : "Élément",
+    ...(e?.field ? { field: e.field, text: e.text } : {}),
+    ...(e?.frame && e.kind === "shape" ? { unwrapOf: id } : {}),
+  };
+  const next = patchElement(slide, id, { remove: true });
+  if (next === slide || record.html.length > MAX_REMOVED_HTML) return next;
+  const removed = [record, ...((next.data.editor_removed as RemovedLayer[]) || [])].slice(0, MAX_REMOVED);
+  return { ...next, data: { ...next.data, editor_removed: removed } };
+}
+/** Remet un élément retiré à sa place ; les retouches faites depuis sur ses textes sont gardées. */
+export function restoreLayer(slide: EditorSlide, index: number): EditorSlide {
+  if (slide.locked) return slide;
+  const list: RemovedLayer[] = (slide.data.editor_removed as RemovedLayer[]) || [];
+  const record = list[index];
+  if (!record) return slide;
+  const doc = parse(slide.html);
+  const root = doc.body.firstElementChild as HTMLElement | null;
+  if (!root) return slide;
+  const holder = doc.createElement("div");
+  holder.innerHTML = record.html;
+  const node = holder.firstElementChild as HTMLElement | null;
+  if (!node) return slide;
+  // Les éléments encore présents (textes d'un cadre) gardent leur version actuelle.
+  node.querySelectorAll<HTMLElement>("[data-editor-id]").forEach((inner) => {
+    const live = doc.querySelector<HTMLElement>(`[data-editor-id="${inner.dataset.editorId}"]`);
+    if (live && live !== inner) inner.replaceWith(live);
+  });
+  const unwrapped = record.unwrapOf
+    ? doc.querySelector<HTMLElement>(`[data-editor-unwrapped="${record.unwrapOf}"]`)
+    : null;
+  if (unwrapped) unwrapped.replaceWith(node);
+  else {
+    if (doc.querySelector(`[data-editor-id="${node.dataset.editorId}"]`)) node.removeAttribute("data-editor-id");
+    let parent: Element = root;
+    for (const i of record.path) {
+      const child = parent.children[i];
+      if (!child) break;
+      parent = child;
+    }
+    parent.insertBefore(node, parent.children[record.index] || null);
+  }
+  let data = { ...slide.data, editor_removed: list.filter((_, i) => i !== index) };
+  if (record.field && record.text !== undefined && !unwrapped) {
+    const key = record.field === "overlay" ? "overlay_text" : record.field === "cta" ? "cta_label" : record.field;
+    if (["title", "body", "overlay_text", "cta_label"].includes(key) && !data[key]) data = { ...data, [key]: record.text };
+  }
+  syncGlass(doc);
+  return { ...slide, data, html: prepareSlideHtml(serialize(doc)) };
+}
+
+/** Intensité du voile en dégradé posé derrière un texte éditorial (style « bord »). */
+export function editorialVeilAlpha(html: string): number | null {
+  const doc = parse(html);
+  return veilAlpha(doc.querySelector("style[data-photo-editorial-veil]")?.textContent || "");
+}
+/** Règle ce voile en réécrivant ses alphas (balise de style + variable du texte). */
+export function setEditorialVeilAlpha(slide: EditorSlide, alpha: number): EditorSlide {
+  if (slide.locked) return slide;
+  const doc = parse(slide.html);
+  const style = doc.querySelector("style[data-photo-editorial-veil]");
+  const current = veilAlpha(style?.textContent || "");
+  if (!style || current === null) return slide;
+  const a = Math.min(1, Math.max(0.05, alpha));
+  const scale = (text: string) =>
+    text.replace(/(rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*)([\d.]+)(\s*\))/gi, (m, head, value, tail) =>
+      parseFloat(value) > 0 ? `${head}${Math.round((parseFloat(value) / current) * a * 100) / 100}${tail}` : m,
+    );
+  style.textContent = scale(style.textContent || "");
+  doc.querySelectorAll<HTMLElement>("[data-photo-editorial-text]").forEach((el) => {
+    const veil = el.style.getPropertyValue("--photo-veil");
+    if (veil) el.style.setProperty("--photo-veil", scale(veil));
+  });
+  return { ...slide, html: serialize(doc) };
 }
