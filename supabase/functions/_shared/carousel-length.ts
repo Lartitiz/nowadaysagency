@@ -3,6 +3,10 @@ const numbers: Record<string, number> = { un: 1, une: 1, deux: 2, trois: 3, quat
 const numeral = "(\\d{1,2}|" + Object.keys(numbers).join("|") + ")";
 const quantity = (value: string) => numbers[value.toLowerCase()] ?? Number(value);
 export interface CarouselLength { exact?: number; items?: number; }
+/** Longueur « Auto » : 10 slides au plus, la limite de la publication directe
+ * sur Instagram (03/10/2026, vu en live : 11 slides en Auto, non publiables
+ * directement). Un nombre demandé explicitement (jusqu'à 20) prime. */
+export const AUTO_MAX_SLIDES = 10;
 export function carouselLength(body: any): CarouselLength {
   const subject = String(body.subject || "");
   const slideRequest = subject.match(new RegExp(`\\b${numeral}\\s+(?:slides?|diapositives?)\\b`, "i"));
@@ -14,8 +18,8 @@ export function carouselLength(body: any): CarouselLength {
 }
 export function carouselLengthPrompt(body: any): string {
   const { exact, items } = carouselLength(body);
-  return `${exact ? `Nombre demandé : exactement ${exact} slides.` : items ? `Longueur automatique : prévois ${Math.min(20, items + 2)} slides pour développer les ${items} éléments, couverture et conclusion comprises. Adapte si une explication exige davantage de place, jusqu'à 20 slides.` : "Longueur automatique : adapte le nombre de slides à la matière, de 4 à 20 ; aucun nombre fixe à remplir."}
-${items ? `LISTE PROMISE : les ${items} éléments doivent tous être présents, distincts et expliqués. Numérote-les de 1 à ${items} dans les titres des slides de développement (ou dans le corps si plusieurs éléments partagent une slide). ${(exact && exact < items + 2) || items + 2 > 20 ? "Le nombre exact prime : regroupe les éléments en gardant leurs explications, sans en omettre." : "Réserve une slide de développement par élément."} Pour chaque erreur, explique ce qui pose problème et comment agir autrement ; un exemple générique clairement présenté peut clarifier, sans inventer un vécu ni un résultat.` : ""}
+  return `${exact ? `Nombre demandé : exactement ${exact} slides.` : items ? `Longueur automatique : prévois ${Math.min(AUTO_MAX_SLIDES, items + 2)} slides pour développer les ${items} éléments, couverture et conclusion comprises. ${AUTO_MAX_SLIDES} slides au maximum (limite de la publication directe sur Instagram).` : `Longueur automatique : adapte le nombre de slides à la matière, de 4 à ${AUTO_MAX_SLIDES} au maximum (limite de la publication directe sur Instagram) ; aucun nombre fixe à remplir.`}
+${items ? `LISTE PROMISE : les ${items} éléments doivent tous être présents, distincts et expliqués. Numérote-les de 1 à ${items} dans les titres des slides de développement (ou dans le corps si plusieurs éléments partagent une slide). ${(exact && exact < items + 2) || (!exact && items + 2 > AUTO_MAX_SLIDES) || items + 2 > 20 ? "Le nombre de slides prime : regroupe les éléments en gardant leurs explications, sans en omettre." : "Réserve une slide de développement par élément."} Pour chaque erreur, explique ce qui pose problème et comment agir autrement ; un exemple générique clairement présenté peut clarifier, sans inventer un vécu ni un résultat.` : ""}
 Une seule couverture : évite une deuxième slide qui annonce seulement « Voici les erreurs/conseils ». Termine par une slide avec role:"conclusion", qui apporte une synthèse utile ou un prochain geste concret. Ne répète pas la couverture. Aucune invitation vague comme « N'hésitez pas » ; si une action sert le sujet, une seule, précise, sans destination inventée. Une structure explicitement confirmée prime sur cette répartition.`;
 }
 /** Structural checks are distinct from semantic/editorial review. */
@@ -25,6 +29,7 @@ export function carouselStructureIssues(parsed: any, body: any): string[] {
   const { exact, items } = carouselLength(body);
   const issues: string[] = [];
   if (exact && slides.length !== exact) issues.push(`${slides.length} slides reçues, exactement ${exact} demandées.`);
+  if (!exact && slides.length > AUTO_MAX_SLIDES) issues.push(`${slides.length} slides reçues : ${AUTO_MAX_SLIDES} au maximum en longueur automatique. Regroupe sans retirer d'idée.`);
   // Custom plans may intentionally end in a different role or use unnumbered copy.
   if (body.confirmed_structure?.length || body.slide_structure?.length) return issues;
   if (items) {
