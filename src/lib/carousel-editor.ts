@@ -466,7 +466,10 @@ export function patchElement(
       el.style.setProperty("--photo-heading", patch.styles.color);
   }
   if (Object.keys(styles).length) syncGlass(doc);
-  return { ...slide, data, html: serialize(doc) };
+  const patched = { ...slide, data, html: serialize(doc) };
+  // Une police Google appliquée (style enregistré, report sur toutes les
+  // slides…) doit être chargée par la slide, sinon aperçu et export la remplacent.
+  return styles["font-family"] ? withGoogleFonts(patched, styles["font-family"]) : patched;
 }
 export function replacePhoto(
   slide: EditorSlide,
@@ -1309,9 +1312,15 @@ export function pasteElement(slide: EditorSlide, clip: ClipboardElement, offset 
   el.setAttribute("data-editor-new", "true");
   root.append(el);
   syncGlass(doc);
+  // Élément collé depuis une autre slide : sa police Google suit.
+  const families = Array.from(el.querySelectorAll<HTMLElement>("*"))
+    .concat(el)
+    .map((n) => n.style.fontFamily)
+    .filter(Boolean)
+    .join(",");
   const html = prepareSlideHtml(serialize(doc));
   const id = parse(html).querySelector<HTMLElement>("[data-editor-new]")?.dataset.editorId || null;
-  return { slide: { ...slide, html: html.replace(/ data-editor-new="true"/, "") }, id };
+  return { slide: withGoogleFonts({ ...slide, html: html.replace(/ data-editor-new="true"/, "") }, families), id };
 }
 
 const STYLE_KEYS = {
@@ -1706,4 +1715,9 @@ export function slideExtraTexts(slide: EditorSlide): string[] {
     .filter((el) => !el.closest('[data-slide-text="title"],[data-slide-text="body"],[data-slide-text="overlay"]'))
     .map((el) => (el.textContent || "").trim())
     .filter((t) => t && !/^\d+\s*\/\s*\d+$/.test(t) && !main.some((m) => m === t || m.includes(t)) && t !== "«");
+}
+
+/** Ajoute à la slide les liens des polices Google citées dans `fontFamily`. */
+export function withGoogleFonts(slide: EditorSlide, fontFamily: string): EditorSlide {
+  return GOOGLE_FONTS.filter((f) => fontFamily.includes(f.family)).reduce((acc, f) => ensureFontLink(acc, f.family), slide);
 }

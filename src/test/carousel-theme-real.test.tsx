@@ -32,3 +32,14 @@ it("changing layout keeps every text of the slide, a key figure included", async
   expect(texts.some((t) => t.includes("84,7 %"))).toBe(true);
   expect(texts.some((t) => t.includes("1 et 2"))).toBe(true);
 });
+
+it("a Google font applied from a saved style or pasted from another slide is loaded by the slide", async () => {
+  const { makeSlide, getEditorElements, patchElement, pasteElement } = await import("@/lib/carousel-editor");
+  const slide = makeSlide({ title: "Titre", body: "Corps" }, "text_only");
+  const title = getEditorElements(slide.html).find((e) => e.field === "title")!;
+  const styled = patchElement(slide, title.id, { styles: { "font-family": "'Playfair Display', serif" } });
+  expect(styled.html).toMatch(/Playfair\+Display/);
+  const other = makeSlide({ title: "Autre" }, "text_only");
+  const pasted = pasteElement(other, { html: '<p style="font-family: \\'Bebas Neue\\', sans-serif">Copie</p>', rect: { left: 0, top: 0, width: 300, height: 60 } }, false);
+  expect(pasted.slide.html).toMatch(/Bebas\+Neue/);
+});
