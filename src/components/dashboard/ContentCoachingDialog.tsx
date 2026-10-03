@@ -69,7 +69,7 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
       workspace_id: workspace !== userId ? workspace : undefined,
       upcoming_marronniers: nextMarronniers(new Date(), 3).map(o => ({ label: o.marronnier.label, date: o.date.toISOString().slice(0, 10) })),
       previous_ideas: history.slice(-24), deepen_idea: card?.idea, refinement: card ? precision : undefined,
-    } }, 220000); // preparation60 + research25 + selection120, with transport margin
+    } }, 200000); // preparation60 + research25 + parallel selection90 (+ rare reserve), with transport margin
     if (error) throw new Error(error.message);
     if (data?.needs_activity) return { cards: [], preferences: prefs, history, needs_activity: true };
     if (data?.version !== 2 || !Array.isArray(data.ideas)) throw new Error("La nouvelle sélection n'est pas disponible. Réessaie dans un instant.");
