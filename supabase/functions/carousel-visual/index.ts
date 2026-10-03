@@ -23,7 +23,7 @@ import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, type VerbatimAnc
 import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
-import { buildCarouselDesignPlan, describeCarouselDesignPlan, composeEditorialSlide } from "../_shared/carousel-design-plan.ts";
+import { buildCarouselDesignPlan, describeCarouselDesignPlan, composeEditorialSlide, editorialSlideText, formatEditorialSlides } from "../_shared/carousel-design-plan.ts";
 
 /**
  * Bloc partagé : templates HTML/CSS des schémas visuels (visual_schema).
@@ -1066,7 +1066,7 @@ function applySafeZoneGuard(result: any, params: {
 // demande plus, mais on garantit leur absence par code (texte, photo ET mix), sur TOUTES
 // les slides. On ne touche PAS aux numéros d'étape d'un schéma (timeline "01", "02") :
 // ceux-là sont des entiers NUS, sans "SLIDE" ni "/total" — le motif ci-dessous les ignore.
-function stripSlideNumberBadges(result: any): void {
+export function stripSlideNumberBadges(result: any): void {
   if (!Array.isArray(result?.slides_html)) return;
   // "SLIDE 03", "SLIDE 03/08", "03/08", "3 - 8" → stamp. PAS "03" nu (ambigu avec une étape).
   const SLIDE_STAMP_RE = /^(?:slide\s*)?\d{1,2}\s*[\/.\-]\s*\d{1,2}$|^slide\s*\d{1,2}$/i;
@@ -2288,6 +2288,13 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
       ? slides.map((s: any, i: number) => composeEditorialSlide(s, designPlan.sequence[i], ch))
       : [];
     const allEditorial = editorialSlides.length === slides.length && editorialSlides.every(Boolean);
+    // MISE EN FORME du carrousel texte (03/10/2026) : même étage que le photo et
+    // le mixte, séparé de l'écriture, lancé en parallèle du rendu. Il ne touche
+    // que les slides composées par le code ; sans proposition, rendu inchangé.
+    const textFormattingUsage: UsageSink = {};
+    const textFormattingPromise = editorialSlides.some(Boolean)
+      ? planPhotoFormatting(slides.map((s: any, i: number) => ({ slide_number: Number(s.slide_number) || i + 1, role: s.role, overlay_text: editorialSlideText(s) })), textFormattingUsage)
+      : null;
     // Carrousel MIXTE : familles de mise en page composées par le code (maquette
     // validée le 02/10/2026). null = au moins une slide exige le rendu modèle
     // (schéma visuel, texte hors gabarit) → tout le carrousel garde ce rendu.
@@ -2336,7 +2343,7 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
       result.photo_art_direction = art;
       result.photo_formatting = { version: formatting.version, status: formatting.status, steps: formatting.steps.length, motifs: formatting.motifs.length };
     } else if (allEditorial) {
-      result = { slides_html: editorialSlides };
+      result = { slides_html: [...editorialSlides] };
       if (!usage.model) usage.model = COMPOSED_BY_CODE_MODEL;
       emitStatus("visuals", { done: 1, total: 1 });
     } else if (useParallelChunks) {
@@ -2350,10 +2357,20 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
       });
     }
 
+    let finalEditorial = editorialSlides;
+    if (textFormattingPromise) {
+      const textFormatting = await textFormattingPromise;
+      for (const key of ["input_tokens", "output_tokens", "total_tokens"] as const) (usage as any)[key] = ((usage as any)[key] || 0) + ((textFormattingUsage as any)[key] || 0);
+      // Rendu 100 % code + appel de mise en forme : le coût est celui du modèle de mise en forme.
+      if (usage.model === COMPOSED_BY_CODE_MODEL && (textFormattingUsage as any).total_tokens) usage.model = textFormattingUsage.model;
+      finalEditorial = formatEditorialSlides(slides, designPlan, ch, editorialSlides, textFormatting);
+      result.text_formatting = { version: textFormatting.version, status: textFormatting.status, steps: textFormatting.steps.length, motifs: textFormatting.motifs.length };
+      if (allEditorial) result.slides_html = finalEditorial;
+    }
     // Specialized schemas/references retain their generated HTML. Plain slides
     // can use the curated geometry in the same sequence without changing copy.
-    if (!allEditorial && editorialSlides.some(Boolean)) {
-      const composed = new Map(editorialSlides.filter(Boolean).map(s => [s!.slide_number, s!.html]));
+    if (!allEditorial && finalEditorial.some(Boolean)) {
+      const composed = new Map(finalEditorial.filter(Boolean).map(s => [s!.slide_number, s!.html]));
       result.slides_html = result.slides_html.map((s: any) => composed.has(s.slide_number) ? { ...s, html: composed.get(s.slide_number) } : s);
     }
     result.design_plan = designPlan;

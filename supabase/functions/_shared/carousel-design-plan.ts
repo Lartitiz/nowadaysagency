@@ -15,6 +15,9 @@ export interface CarouselDesignPlan {
   sequence: DesignBeat[];
   constraints: { maxCentered: number; maxPills: number; maxCardSlides: number };
 }
+import type { PhotoFormat } from "./photo-format-types.ts";
+import { motifHeight, motifSvg, STEP_HEADER_H, stepHeader } from "./format-render.ts";
+
 type Slide = Record<string, any>;
 type Charter = Record<string, any>;
 
@@ -76,7 +79,7 @@ function lines(text: string, width: number, size: number) {
 
 /** Curated layouts for plain text. Custom references, schemas and photos are
  * intentionally handled by their specialized renderer, never flattened here. */
-export function composeEditorialSlide(slide: Slide, beat: DesignBeat, ch: Charter): { slide_number: number; html: string } | null {
+export function composeEditorialSlide(slide: Slide, beat: DesignBeat, ch: Charter, format?: PhotoFormat | null): { slide_number: number; html: string } | null {
   if (slide.visual_schema || /^photo/.test(slide.slide_type || "") || slide.cta_label || slide.kicker || slide.detail || slide.points || slide.big_number || slide.attribution || ch.template_layout_description || ch.texture_url || ch.visual_donts || ch.ai_generated_brief || ch.moodboard_description) return null;
   const title = String(slide.title || "");
   const body = String(slide.body || "");
@@ -121,8 +124,64 @@ export function composeEditorialSlide(slide: Slide, beat: DesignBeat, ch: Charte
     }
     if (Math.max(ty + th, by + bh) > 1220 || lines(title, tw, fs) > 6) return null;
   }
+  // MISE EN FORME (03/10/2026) : étape et motif posés en tête du texte, tout le
+  // reste descend d'autant. Sans `format`, rendu strictement inchangé ; si le
+  // tout ne tient plus, null et l'appelant garde la slide sans mise en forme.
+  let pre = "";
+  if (format && (format.step || format.motif)) {
+    const px = title ? tx : bx, pw = title ? tw : bw;
+    const motifOk = !!format.motif && pw >= 700;
+    if (!format.step && !motifOk) return null;
+    const ph = (format.step ? STEP_HEADER_H : 0) + (motifOk ? motifHeight(format.motif!, pw) : 0);
+    let py = title ? ty : by;
+    if (type === "statement") {
+      py = Math.max(150, Math.round((1230 - ph - th - bh - 64) / 2));
+      ty = py + ph; by = ty + th + 64;
+    } else if (title) { ty += ph; by += ph; }
+    else by += ph;
+    if (Math.max(ty + th, by + bh) > 1220) return null;
+    const soft = /^#[\da-f]{6}$/i.test(ink) ? `rgba(${parseInt(ink.slice(1, 3), 16)},${parseInt(ink.slice(3, 5), 16)},${parseInt(ink.slice(5, 7), 16)},.32)` : ink;
+    pre = `<div data-format-block="1" style="position:absolute;left:${px}px;top:${py}px;width:${pw}px;text-align:${beat.alignment};">` +
+      (format.step ? stepHeader(format.step, heading) : "") +
+      (motifOk ? motifSvg(format.motif!, { ink, soft, accent: heading }, { title: `'${titleFont}', serif`, body: `'${bodyFont}', sans-serif` }) : "") + `</div>`;
+  }
   const align = beat.alignment;
   const textBlock = (field: "title" | "body", text: string, x: number, y: number, w: number, size: number, family: string, c: string, lineHeight: number) => text ? `<${field === "title" ? "h1" : "p"} data-slide-text="${field}" data-pptx-editable="${field}" style="position:absolute;left:${x}px;top:${y}px;width:${w}px;margin:0;font-family:'${family}';font-size:${size}px;font-weight:400;line-height:${lineHeight};color:${c};white-space:pre-wrap;overflow-wrap:anywhere;text-align:${align};">${escape(text)}</${field === "title" ? "h1" : "p"}>` : "";
   const imports = `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(titleFont)}:wght@400&family=${encodeURIComponent(bodyFont)}:wght@400;500;600&display=swap">`;
-  return { slide_number: beat.slide_number, html: `${imports}<div data-pptx-shape="background" data-carousel-layout="${type}" data-design-version="1" style="width:1080px;height:1350px;position:relative;overflow:hidden;background:${bg};font-family:'${bodyFont}';color:${ink};">${textBlock("title", title, tx, ty, tw, fs, titleFont, heading, 1.2)}${textBlock("body", body, bx, by, bw, bs, bodyFont, ink, 1.5)}</div>` };
+  return { slide_number: beat.slide_number, html: `${imports}<div data-pptx-shape="background" data-carousel-layout="${type}" data-design-version="1" style="width:1080px;height:1350px;position:relative;overflow:hidden;background:${bg};font-family:'${bodyFont}';color:${ink};">${pre}${textBlock("title", title, tx, ty, tw, fs, titleFont, heading, 1.2)}${textBlock("body", body, bx, by, bw, bs, bodyFont, ink, 1.5)}</div>` };
+}
+
+/** Applique la mise en forme validée aux slides texte composées par le code.
+ * `base` = composition sans mise en forme (null = slide rendue ailleurs, jamais
+ * touchée). Une suite d'étapes est posée entière ou pas du tout ; un motif qui
+ * ne tient pas est retiré, la slide garde alors sa composition d'origine. */
+export function formatEditorialSlides(
+  slides: Slide[], plan: CarouselDesignPlan, ch: Charter,
+  base: Array<{ slide_number: number; html: string } | null>,
+  formatting: { steps: Array<{ slide_number: number; label: string }>; motifs: Array<{ slide_number: number; elements: any[]; reason: string }> } | null | undefined,
+): Array<{ slide_number: number; html: string } | null> {
+  if (!formatting || (!formatting.steps.length && !formatting.motifs.length)) return base;
+  const idx = (n: number) => slides.findIndex((s, i) => (Number(s.slide_number) || i + 1) === n);
+  const stepOf = (k: number) => ({ index: k + 1, total: formatting.steps.length, label: formatting.steps[k].label });
+  const stepsOk = formatting.steps.length >= 3 && formatting.steps.every((st, k) => {
+    const i = idx(st.slide_number);
+    return i >= 0 && !!base[i] && !!composeEditorialSlide(slides[i], plan.sequence[i], ch, { step: stepOf(k) });
+  });
+  return base.map((b, i) => {
+    if (!b) return b;
+    const n = Number(slides[i].slide_number) || i + 1;
+    const k = stepsOk ? formatting.steps.findIndex(st => st.slide_number === n) : -1;
+    const m = formatting.motifs.find(x => x.slide_number === n);
+    const step = k >= 0 ? stepOf(k) : undefined;
+    const motif = m ? { elements: m.elements, reason: m.reason } : undefined;
+    if (!step && !motif) return b;
+    return (motif && composeEditorialSlide(slides[i], plan.sequence[i], ch, { step, motif }))
+      || (step && composeEditorialSlide(slides[i], plan.sequence[i], ch, { step }))
+      || b;
+  });
+}
+
+/** Texte complet d'une slide texte, tel que lu par l'étage de mise en forme. */
+export function editorialSlideText(s: Slide): string {
+  return [s.title, s.body].filter(Boolean).join("\n");
 }
