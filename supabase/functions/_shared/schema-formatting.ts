@@ -1,5 +1,6 @@
 import { callAnthropic, SONNET_MODEL, type UsageSink } from "./anthropic.ts";
 import { progressionMaterial } from "./carousel-editorial-snapshot.ts";
+import { MIX_SCHEMA_TYPES } from "./mix-schema-render.ts";
 
 // SCHÉMAS décidés APRÈS l'écriture (03/10/2026, demande de Laetitia : « sortir
 // les schémas de l'écriture »).
@@ -92,7 +93,7 @@ export function slideText(s: Slide): string {
 }
 
 /** Valide la réponse du modèle contre le texte réel. Jamais d'exception : au pire, aucun schéma. */
-export function validateSchemaPlan(raw: unknown, slides: Slide[], eligible: (s: Slide, i: number) => boolean, rejected: string[] = []): SchemaPlan["schemas"] {
+export function validateSchemaPlan(raw: unknown, slides: Slide[], eligible: (s: Slide, i: number) => boolean, rejected: string[] = [], types: readonly string[] = SCHEMA_TYPES): SchemaPlan["schemas"] {
   const data = typeof raw === "string" ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
   const list = Array.isArray(data?.schemas) ? data.schemas : [];
   const idx = (n: number) => slides.findIndex((s, i) => (Number(s.slide_number) || i + 1) === n);
@@ -102,6 +103,7 @@ export function validateSchemaPlan(raw: unknown, slides: Slide[], eligible: (s: 
     const n = Number(item?.slide_number), i = idx(n), schema = item?.visual_schema;
     const type = String(schema?.type || "?");
     if (i < 0 || !eligible(slides[i], i)) { rejected.push(`${type}@${n}:slide`); continue; }
+    if (!types.includes(type)) { rejected.push(`${type}@${n}:type`); continue; }
     if (!schemaShapeOk(schema)) { rejected.push(`${type}@${n}:forme`); continue; }
     if (out.some(o => Math.abs(idx(o.slide_number) - i) <= 1)) { rejected.push(`${type}@${n}:consecutif`); continue; } // jamais consécutifs
     const text = slideText(slides[i]);
@@ -126,10 +128,15 @@ export function schemaEligible(isMix: boolean) {
 export async function planSchemas(slides: Slide[], isMix: boolean, usage: UsageSink, call = callAnthropic): Promise<SchemaPlan> {
   const eligible = schemaEligible(isMix);
   if (!slides.some(eligible)) return { version: SCHEMA_FORMAT_VERSION, status: "skipped", schemas: [] };
+  // Mixte : seulement les types que la mise en page du mixte sait dessiner.
+  const types: readonly string[] = isMix ? MIX_SCHEMA_TYPES : SCHEMA_TYPES;
+  const system = isMix
+    ? SCHEMA_FORMAT_RULES + `\n- Carrousel mixte : types autorisés UNIQUEMENT ${types.join(", ")} (chiffres → stats, recap → checklist).`
+    : SCHEMA_FORMAT_RULES;
   const sink: UsageSink = {};
   try {
     const raw = await call({
-      model: SONNET_MODEL, system: SCHEMA_FORMAT_RULES, max_tokens: 3000, maxRetries: 0, abortTimeoutMs: 25000, keepDashes: true,
+      model: SONNET_MODEL, system, max_tokens: 3000, maxRetries: 0, abortTimeoutMs: 25000, keepDashes: true,
       messages: [{ role: "user", content: [{ type: "text", text: JSON.stringify({ slides: slides.map((s, i) => ({ slide_number: Number(s.slide_number) || i + 1, role: s.role, eligible: eligible(s, i), title: s.title || "", text: s.body || s.overlay_text || "" })) }) }] }],
       tool: { name: "proposer_schemas", description: "Repère la relation écrite dans chaque slide éligible, puis propose jusqu'à 2 schémas qui la font voir, sans modifier le texte.", input_schema: { type: "object", required: ["reperage", "schemas"], properties: {
         reperage: { type: "array", items: { type: "object", required: ["slide_number", "relation"], properties: {
@@ -139,7 +146,7 @@ export async function planSchemas(slides: Slide[], isMix: boolean, usage: UsageS
           slide_number: { type: "integer" }, reason: { type: "string", maxLength: 300 },
           // Les champs de chaque type sont décrits ici : sans eux, le modèle
           // croyait ne pouvoir livrer que { type } et renonçait (0 schéma en prod).
-          visual_schema: { type: "object", required: ["type"], additionalProperties: true, description: `Objet complet {type, ...données} selon la forme du type : ${SCHEMA_SHAPES}`, properties: { type: { type: "string", enum: [...SCHEMA_TYPES] } } },
+          visual_schema: { type: "object", required: ["type"], additionalProperties: true, description: `Objet complet {type, ...données} selon la forme du type : ${SCHEMA_SHAPES}`, properties: { type: { type: "string", enum: [...types] } } },
         } } },
       } } },
     } as any, sink);
@@ -149,7 +156,7 @@ export async function planSchemas(slides: Slide[], isMix: boolean, usage: UsageS
     const spotted = (Array.isArray((parsed as any)?.reperage) ? (parsed as any).reperage : [])
       .filter((r: any) => r && RELATIONS.includes(r.relation) && r.relation !== "aucune")
       .map((r: any) => `${Number(r.slide_number)}:${r.relation}`);
-    return { version: SCHEMA_FORMAT_VERSION, status: "completed", schemas: validateSchemaPlan(parsed, slides, eligible, rejected), proposed, rejected, spotted };
+    return { version: SCHEMA_FORMAT_VERSION, status: "completed", schemas: validateSchemaPlan(parsed, slides, eligible, rejected, types), proposed, rejected, spotted };
   } catch {
     return { version: SCHEMA_FORMAT_VERSION, status: "unavailable", schemas: [] };
   } finally {
