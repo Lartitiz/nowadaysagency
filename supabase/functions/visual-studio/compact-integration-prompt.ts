@@ -51,7 +51,7 @@ export function compactIntegrationPrompt(p: Proposal, max = Infinity): string | 
     p.exact_text?.length ? `Render exactly once, legibly, with correct accents: ${p.exact_text.map(t => JSON.stringify(t)).join("; ")}. No additional text.` : "",
     p.product_placement?.trim() ? `Confirmed product placement: ${p.product_placement.trim()}` : "",
     workflow.targets?.length ? [
-      subsequent ? "SUBJECT ANCHORS ALREADY INTEGRATED. Apply only current Changes; do not repeat initial replacements." : "TARGETS. Replace each provisional subject from its originals, once.",
+      subsequent ? "SUBJECT ANCHORS ALREADY INTEGRATED. Apply only current Changes; do not repeat initial replacements." : "TARGETS. Replace each provisional subject from its originals, once; with no provisional subject (empty decor), add it once at its location.",
       ...workflow.targets.map(t => `${!subsequent && inChanges(`${t.location} : ${t.instruction}`) ? `Change ${changeIndex(t)}` : `${t.location}: ${subsequent ? t.role : inChanges(t.instruction) ? "see Changes." : t.instruction}`} Sources: ${t.reference_ids.map(id => {
         const i = refs.findIndex(r => r.id === id);
         return i < 0 ? "missing original (do not invent)" : `Image ${i + 2}`;

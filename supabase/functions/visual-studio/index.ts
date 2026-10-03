@@ -1163,6 +1163,12 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             targets: sw.targets?.length ? sw.targets : parent.proposal.scene_workflow.targets,
             camera_match: sw.camera_match || parent.proposal.scene_workflow.camera_match };
           intent.uses_selected_version = true;
+          // The interpreter wrote a scene announcement ("provisional at this stage");
+          // the confirmation must say what will really happen.
+          if (/provisoire|d['’]abord la sc[eè]ne/i.test(intent.summary)) {
+            const names = resolvedReferences.filter(exactReference).map(ref => `« ${ref.name} »`);
+            intent.summary = `Je pars de la scène sélectionnée et j’y intègre tes photos exactes (${names.join(", ")}), en conservant au maximum son cadrage, son décor et sa lumière.${intent.product_placement ? ` Placement : ${intent.product_placement}` : ""}`;
+          }
         }
         const phase = intent.scene_workflow?.phase;
         // A correction to the scene must not discard the reserved original just

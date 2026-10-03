@@ -47,3 +47,20 @@ Deno.test("Claude cannot silently drop, regroup or substitute an original target
   try { await assertRejects(() => prepareIntegration(p, async () => ({ pixels: "image" })), Error, "studio_integration_sources"); }
   finally { globalThis.fetch = saved; key === undefined ? Deno.env.delete("ANTHROPIC_API_KEY") : Deno.env.set("ANTHROPIC_API_KEY", key); }
 });
+
+// 03/10/2026, live test: an empty reason written as two quotes blocked the integration.
+Deno.test("an empty blocked reason written as quotes or « aucun » does not block", async () => {
+  const saved = globalThis.fetch, key = Deno.env.get("ANTHROPIC_API_KEY"); Deno.env.set("ANTHROPIC_API_KEY", "test");
+  for (const reason of ['""', "« »", "aucun", "Aucun."]) {
+    globalThis.fetch = async () => Response.json({ stop_reason: "tool_use", content: [{ type: "tool_use", name: "prepare_integration", input: {
+      image_prompt: "Add the exact person of Image 3 at the bench and the exact plate of Image 2. Preserve the scene.", targets: p.scene_workflow!.targets, blocked_reason: reason,
+    } }] });
+    try { assertEquals((await prepareIntegration(p, async () => ({ pixels: "image" }))).image_prompt!.startsWith("Add the exact person"), true); }
+    finally { globalThis.fetch = saved; }
+  }
+  globalThis.fetch = async () => Response.json({ stop_reason: "tool_use", content: [{ type: "tool_use", name: "prepare_integration", input: {
+    image_prompt: "Add the exact person of Image 3 at the bench and the exact plate of Image 2. Preserve the scene.", targets: p.scene_workflow!.targets, blocked_reason: "Le portrait est flou.",
+  } }] });
+  try { await assertRejects(() => prepareIntegration(p, async () => ({ pixels: "image" })), Error, "Intégration à préciser : Le portrait est flou"); }
+  finally { globalThis.fetch = saved; key === undefined ? Deno.env.delete("ANTHROPIC_API_KEY") : Deno.env.set("ANTHROPIC_API_KEY", key); }
+});
