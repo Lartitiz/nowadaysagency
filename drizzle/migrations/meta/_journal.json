@@ -8,6 +8,13 @@
       "when": 1791022738102,
       "tag": "0000_higgsfield_image_spend",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791035860099,
+      "tag": "0001_higgsfield_spend_visual_studio",
+      "breakpoints": true
     }
   ]
 }
