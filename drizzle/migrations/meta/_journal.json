@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791022738102,
+      "tag": "0000_higgsfield_image_spend",
+      "breakpoints": true
+    }
+  ]
+}

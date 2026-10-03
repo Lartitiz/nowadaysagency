@@ -3367,6 +3367,39 @@ export type Database = {
           },
         ]
       }
+      higgsfield_image_spend: {
+        Row: {
+          created_at: string
+          estimated_usd: number
+          id: string
+          provider_id: string | null
+          source: string
+          status: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          estimated_usd: number
+          id?: string
+          provider_id?: string | null
+          source: string
+          status?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          estimated_usd?: number
+          id?: string
+          provider_id?: string | null
+          source?: string
+          status?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       highlight_categories: {
         Row: {
           added_to_profile: boolean | null
@@ -9137,6 +9170,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      higgsfield_image_month_used: { Args: never; Returns: number }
       increment_bonus_credits: {
         Args: { amount: number; user_uuid: string }
         Returns: undefined
@@ -9203,6 +9237,16 @@ export type Database = {
       report_client_error: {
         Args: { p_asset?: string; p_kind: string; p_route: string }
         Returns: boolean
+      }
+      reserve_higgsfield_image_cost: {
+        Args: {
+          p_estimate: number
+          p_monthly_limit: number
+          p_source: string
+          p_user: string
+          p_workspace: string
+        }
+        Returns: string
       }
       reserve_payment_checkout: {
         Args: { p_params: Json; p_user_id: string }
