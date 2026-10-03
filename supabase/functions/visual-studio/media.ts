@@ -22,7 +22,6 @@ export type Proposal = {
   soul_style_options?: import("./soul-direction.ts").SoulStyle[];
   scene_workflow?: import("./scene-workflow.ts").SceneWorkflow;
   planning_references?: Reference[];
-  scene_reference_signature?: string;
   operation: string;
   person_reference?: PersonReference;
   summary?: string;

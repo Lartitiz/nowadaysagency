@@ -959,11 +959,8 @@ it("a reloaded scene guides integration through a reply in the chat", async () =
   const state = original();
   state.quota.plan = "premium"; state.generative_allowed = true;
   state.session.revision = 7;
-  const preview = { ...proposal, id: "integration-preview", operation: "edit" as const,
-    scene_workflow: { phase: "integration" as const, camera_match: "Face", scene_version_id: "scene" },
-    references: [{ id: "identity", photo_id: null, name: "Portrait original", role: "person" as const, url: "/portrait.jpg" }] };
   state.versions = [{ id: "scene", status: "ready", url: "/scene.jpg", created_at: "", library_photo_id: null, error_message: null,
-    proposal: { ...proposal, operation: "create", scene_workflow: { phase: "scene", camera_match: "Face" } }, integration_proposal: preview }];
+    proposal: { ...proposal, operation: "create", scene_workflow: { phase: "scene", camera_match: "Face" } } }];
   mock.request.mockResolvedValue(state);
   mount();
   expect(await screen.findByText(/Voilà la scène\. Qu’est-ce que tu veux faire maintenant/)).toBeInTheDocument();

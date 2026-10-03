@@ -128,7 +128,6 @@ export interface StudioSession {
   archived_at: string | null;
 }
 export interface StudioVersion {
-  integration_proposal?: StudioProposal | null;
   id: string;
   status: "processing" | "ready" | "failed" | "uncertain";
   proposal: StudioProposal;
@@ -187,7 +186,7 @@ export async function studioRequest<T = StudioState>(
   const { data, error } = await invokeWithTimeout(
     "visual-studio",
     { body: { ...body, studio_version: 4 } },
-    ["message", "integrate", "generate"].includes(String(body.action)) ? 90_000 : 60_000,
+    ["message", "generate"].includes(String(body.action)) ? 90_000 : 60_000,
   );
   if (error || data?.error) {
     // invokeWithTimeout already reads the HTTP response into data. Its error

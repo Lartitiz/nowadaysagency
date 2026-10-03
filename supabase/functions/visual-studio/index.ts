@@ -2,7 +2,6 @@ import { imageInputPaths, inheritedPhotoSource } from "./photo-preservation.ts";
 import { soulStyles, selectSoulStyles, resolveSoulStyle } from "./soul-direction.ts";
 import { prepareIntegration } from "./integration-direction.ts";
 import { activeReferences, adviceTurn, independentRequest, explicitRoles, dialogueHistory, CONVERSATION_SYSTEM, type ConversationContext } from "./conversation.ts";
-import { integrationProposal, referenceSignature } from "./integration-proposal.ts";
 import { exactReference, validTargets, repairTargets, targetProblems, sceneInputs, asksIntegration } from "./scene-workflow.ts";
 import { resolvePersonMemory } from "./person-reference.ts";
 import { compositionSchema } from "./composition.ts";
@@ -67,7 +66,6 @@ const schema = z.object({
     "read",
     "message",
     "generate",
-    "integrate",
     "save",
     "reference",
     "selection",
@@ -1305,7 +1303,6 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             references: proposedRefs,
             reference_snapshot: inputs.snapshot,
             planning_references: phase === "scene" ? inputs.planning : [],
-            scene_reference_signature: phase === "scene" ? referenceSignature([...references, ...addedMemoryReferences.filter(ref => !references.some(r => r.id === ref.id))]) : undefined,
             input_path: intent.operation === "background"
               ? finalInputPath
               : editInput,
@@ -1503,23 +1500,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         }).eq("id", session.id).eq("revision", p.revision).select("*").single(),
       );
     }
-    if (p.action === "integrate") {
-      if (!p.version_id || !p.proposal_id || p.revision !== session.revision) throw new Error("studio_conflict");
-      const source = unwrap(await sb.from("visual_studio_versions").select("*").eq("id", p.version_id).eq("session_id", session.id).eq("status", "ready").single());
-      let next = await integrationProposal(source, references);
-      if (!next || next.id !== p.proposal_id || p.approved_scene_id !== source.id) return json({ error: "La scène ou les références ont changé. Vérifie l’aperçu avant l’intégration." }, 409);
-      const integrationQuota = await checkQuota(actor, "photo_retouch", p.workspace_id);
-      if (!integrationQuota.allowed) return quotaDeniedResponse(integrationQuota, pipe.corsHeaders);
-      if (!premiumAllowed(integrationQuota.plan, isQaTestAccount(actor))) return json({ error: "Cette création est disponible en Premium." }, 403);
-      next = await prepareIntegration(next, path => visionFromStorage(sb, BUCKET, path));
-      if (!(await canWrite(sb, actor, p.workspace_id))) return json({ error: "Les droits de cet espace ont changé." }, 403);
-      // Persist the approval and immutable inputs before the existing atomic claim.
-      session = unwrap(await sb.from("visual_studio_sessions").update({ proposal: { ...next,
-        scene_workflow: { ...next.scene_workflow, approved_scene_id: source.id, approved_at: new Date().toISOString() } },
-        revision: session.revision + 1, updated_at: new Date().toISOString(),
-      }).eq("id", session.id).eq("revision", p.revision).select("*").single());
-    }
-    if (p.action === "generate" || p.action === "integrate") {
+    if (p.action === "generate") {
       if (!p.proposal_id) {
         return json({ error: "Confirme une proposition." }, 400);
       }
@@ -1882,8 +1863,6 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         versions.map(async (v) => ({
           ...v,
           url: v.status === "ready" ? await sign(v.result_path) : null,
-          integration_proposal: await (async () => { const next = await integrationProposal(v, legacyReferences(session)); return next ? { ...next,
-            references: await Promise.all(next.references.map(async ref => ({ ...ref, url: await sign(ref.path) }))) } : null; })(),
         })),
       ),
       composition_history: compositions.map((entry) => ({
