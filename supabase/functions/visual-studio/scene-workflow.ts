@@ -10,7 +10,24 @@ export type SceneWorkflow = {
   approved_scene_id?: string;
   approved_at?: string;
   accepted_changes?: string[];
+  /** The approved scene was made with no provisional subject: originals are added, not swapped. */
+  empty_scene?: boolean;
 };
+
+/** A scene prepared without any original to integrate later has no stand-in to replace. */
+export function sceneWithoutPlaceholders(workflow?: SceneWorkflow, planning?: Reference[]) {
+  return workflow?.phase === "scene" && !workflow.targets?.length && !planning?.length;
+}
+
+const REPLACE_PLACEHOLDER = /\b(r)emplacer\s+(?:la|le|les|l['’])\s*[^,.;:]{0,50}?provisoires?\s+par\s+/gi;
+const IN_PLACE_OF_PLACEHOLDER = /\s*(?:à la place|en remplacement)\s+(?:de la|du|des|de l['’])\s*[^,.;:]{0,50}?provisoires?/gi;
+/** Rewrites "replace the provisional X" wording for an empty decor: subjects are added. */
+export function withoutPlaceholders(text: string, fallback = text) {
+  const rewritten = text.replace(REPLACE_PLACEHOLDER, (_m, r: string) => r === "R" ? "Ajouter " : "ajouter ")
+    .replace(IN_PLACE_OF_PLACEHOLDER, " dans la scène")
+    .split(/(?<=[.!?])\s+/).filter((sentence) => !/provisoire/i.test(sentence)).join(" ").trim();
+  return rewritten || fallback.replace(/provisoires?/gi, "").replace(/\s{2,}/g, " ").trim();
+}
 
 export type IntegrationTarget = {
   role: "person" | "casting" | "product";

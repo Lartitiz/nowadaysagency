@@ -64,3 +64,18 @@ Deno.test("an empty blocked reason written as quotes or « aucun » does not blo
   try { await assertRejects(() => prepareIntegration(p, async () => ({ pixels: "image" })), Error, "Intégration à préciser : Le portrait est flou"); }
   finally { globalThis.fetch = saved; key === undefined ? Deno.env.delete("ANTHROPIC_API_KEY") : Deno.env.set("ANTHROPIC_API_KEY", key); }
 });
+
+Deno.test("an empty decor keeps no « provisoire » wording in the prepared changes", async () => {
+  const saved = globalThis.fetch, key = Deno.env.get("ANTHROPIC_API_KEY"); Deno.env.set("ANTHROPIC_API_KEY", "test");
+  const empty = { ...p, scene_workflow: { ...p.scene_workflow!, empty_scene: true } };
+  globalThis.fetch = async () => Response.json({ stop_reason: "tool_use", content: [{ type: "tool_use", name: "prepare_integration", input: {
+    image_prompt: "Add the exact person of Image 3 at the bench and the exact plate of Image 2. Preserve the scene.", blocked_reason: "",
+    targets: [{ ...p.scene_workflow!.targets![0], instruction: "Remplacer le produit provisoire par l'assiette exacte." },
+      { ...p.scene_workflow!.targets![1], location: "À la place de la personne provisoire", instruction: "Remplacer la femme provisoire par la personne exacte, même pose." }],
+  } }] });
+  try {
+    const result = await prepareIntegration(empty, async () => ({ pixels: "image" }));
+    assertEquals(JSON.stringify([result.change, result.scene_workflow!.targets]).includes("provisoire"), false);
+    assertEquals(result.change![0].includes("Ajouter l'assiette exacte"), true);
+  } finally { globalThis.fetch = saved; key === undefined ? Deno.env.delete("ANTHROPIC_API_KEY") : Deno.env.set("ANTHROPIC_API_KEY", key); }
+});
