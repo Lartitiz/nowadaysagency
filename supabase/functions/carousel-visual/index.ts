@@ -1087,6 +1087,57 @@ export function stripDuplicateStepNumbers(result: any, params: { slides: any[] }
   if (removed > 0) console.log(`carousel-visual: ${removed} numéro(s) d'étape en double retiré(s)`);
 }
 
+/** Indication visuelle recopiée comme texte (vu en live le 03/10/2026 : un
+ * cadre dégradé avec « main qui écrit dans un carnet — faïence illustrée floue… »,
+ * tiré de visual_suggestion). Ces champs guident le dessin, ils ne se publient
+ * pas. Un élément dont le texte vient d'eux (et pas du texte de la slide) est
+ * retiré, ainsi que son cadre s'il ne contient plus rien de lisible ni de photo. */
+export function stripVisualHintText(result: any, params: { slides: any[] }): void {
+  if (!Array.isArray(result?.slides_html)) return;
+  const norm = (t: string) => (t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const HINT_KEYS = ["visual_suggestion", "photo_description", "visual_anchor", "image_prompt"];
+  const TEXT_KEYS = ["title", "body", "overlay_text", "kicker", "detail", "attribution", "cta_label", "big_number"];
+  const bySlide = new Map<number, { hints: string[]; text: string }>();
+  (params.slides || []).forEach((s: any, i: number) => {
+    const hints = HINT_KEYS.map(k => norm(String(s?.[k] || ""))).filter(h => h.split(" ").length >= 4);
+    const text = norm([...TEXT_KEYS.map(k => String(s?.[k] || "")), ...(Array.isArray(s?.points) ? s.points : [])].join(" "));
+    if (hints.length) bySlide.set(Number(s?.slide_number) || i + 1, { hints, text });
+  });
+  let removed = 0;
+  const fromHint = (raw: string, src: { hints: string[]; text: string }): boolean => {
+    const t = norm(raw);
+    const words = t.split(" ").filter(Boolean);
+    if (words.length < 4 || src.text.includes(t)) return false;
+    return src.hints.some(h => {
+      if (h.includes(t) || t.includes(h)) return true;
+      const hw = new Set(h.split(" "));
+      return words.filter(w => hw.has(w)).length / words.length >= 0.8;
+    });
+  };
+  result.slides_html = result.slides_html.map((slide: any) => {
+    const src = bySlide.get(Number(slide?.slide_number));
+    let html: string = slide?.html || "";
+    if (!src || !html) return slide;
+    const before = html;
+    // Cadre entier : un conteneur sans photo dont le seul texte vient de l'indication.
+    html = html.replace(/<(div|figure)\b([^>]*)>((?:(?!<\/?(?:div|figure)\b)[\s\S])*?)<\/\1>/gi, (m: string, _t: string, attrs: string, inner: string) => {
+      if (/data-pptx-photo|\{\{PHOTO_|<img\b|data-slide-text/i.test(attrs + inner)) return m;
+      const txt = inner.replace(/<[^>]*>/g, " ");
+      if (!fromHint(txt, src)) return m;
+      removed++;
+      return "";
+    });
+    // Élément texte isolé restant.
+    html = html.replace(/<(p|span|figcaption|small|em|i|h[1-6])\b([^>]*)>([^<]{12,})<\/\1>/gi, (m: string, _t: string, attrs: string, txt: string) => {
+      if (/data-slide-text/i.test(attrs) || !fromHint(txt, src)) return m;
+      removed++;
+      return "";
+    });
+    return html === before ? slide : { ...slide, html };
+  });
+  if (removed > 0) console.log(`carousel-visual: ${removed} indication(s) visuelle(s) recopiée(s) en texte retirée(s)`);
+}
+
 export function stripSlideNumberBadges(result: any): void {
   if (!Array.isArray(result?.slides_html)) return;
   // "SLIDE 03", "SLIDE 03/08", "03/08", "3 - 8" → stamp. PAS "03" nu (ambigu avec une étape).
@@ -1330,6 +1381,22 @@ export function applyTitleBodyContrastGuard(result: any, params: { ch: any }): v
     if (ratio(text6, bg6) >= LIGHT_BG_FLOOR) return text6;
     return ratio(text6, bg6) >= ratio(secondary6, bg6) ? text6 : secondary6;
   };
+  // Fond « sombre » de luminance moyenne (bleu-gris #A1BAC6, vu en live le
+  // 03/10/2026) : le blanc y fait 1,9:1. On garde le blanc quand il passe,
+  // sinon la couleur de charte qui lit le mieux.
+  const bestOnDark = (bg6: string): string => {
+    if (ratio("FFFFFF", bg6) >= DARK_BG_FLOOR) return "FFFFFF";
+    return ["FFFFFF", text6, secondary6].reduce((a, b) => ratio(b, bg6) > ratio(a, bg6) ? b : a);
+  };
+  // Le modèle n'annote pas toujours data-pptx-editable (le site l'ajoute ensuite),
+  // écrit parfois style='…' ou « !important » : sans ça, un titre bleu-gris sur
+  // blanc (1,9:1) passait la garde (vu en live le 03/10/2026).
+  const STYLE_RE = /style\s*=\s*(["'])([\s\S]*?)\1/i;
+  const colorOf = (style: string): { raw: string; important: boolean } | null => {
+    const cm = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
+    if (!cm) return null;
+    return { raw: cm[1].replace(/!\s*important/i, "").trim(), important: /!\s*important/i.test(cm[1]) };
+  };
   let titlesFixed = 0;
   let bodyFixed = 0;
   // Fond ENGLOBANT réel d'un élément : mini-scan des tags avec une pile,
@@ -1385,24 +1452,24 @@ export function applyTitleBodyContrastGuard(result: any, params: { ch: any }): v
     const bgm = html.match(/background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/i);
     if (bgm) { const c = hexOnBg(bgm[1], "FFFFFF"); if (c) bg6 = c; }
     html = html.replace(
-      /<([a-z0-9]+)([^>]*\bdata-pptx-editable\s*=\s*["']title["'][^>]*)>/gi,
+      /<([a-z0-9]+)([^>]*\bdata-(?:pptx-editable|slide-text)\s*=\s*["']title["'][^>]*)>/gi,
       (full: string, _t: string, _a: string, offset: number, whole: string) =>
-        full.replace(/style\s*=\s*"([^"]*)"/i, (sm: string, style: string) => {
-          const cm = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
-          if (!cm) return sm;
+        full.replace(STYLE_RE, (sm: string, q: string, style: string) => {
+          const c = colorOf(style);
+          if (!c) return sm;
           const bgLocal = bgEnclosingAt(whole, offset, bgDefault6) ?? bg6;
-          const eff = hexOnBg(cm[1], bgLocal);
+          const eff = hexOnBg(c.raw, bgLocal);
           if (!eff) return sm;
           let repl: string | null = null;
           if (hexLuminance(bgLocal) > 0.5) {
             if (ratio(eff, bgLocal) < LIGHT_BG_FLOOR) repl = bestDark(bgLocal);
           } else {
-            if (ratio(eff, bgLocal) < DARK_BG_FLOOR) repl = "FFFFFF";
+            if (ratio(eff, bgLocal) < DARK_BG_FLOOR) repl = bestOnDark(bgLocal);
           }
-          if (!repl || repl === eff) return sm;
+          if (!repl || repl === eff || ratio(repl, bgLocal) <= ratio(eff, bgLocal)) return sm;
           titlesFixed++;
-          const newStyle = style.replace(/((?:^|;)\s*)color\s*:\s*[^;]+/i, `$1color:#${repl}`);
-          return `style="${newStyle}"`;
+          const newStyle = style.replace(/((?:^|;)\s*)color\s*:\s*[^;]+/i, `$1color:#${repl}${c.important ? " !important" : ""}`);
+          return `style=${q}${newStyle}${q}`;
         }),
     );
 
@@ -1416,24 +1483,24 @@ export function applyTitleBodyContrastGuard(result: any, params: { ch: any }): v
     const bodyDark = (b: string): string =>
       ratio(text6, b) >= LIGHT_BG_FLOOR ? text6 : bestDark(b);
     html = html.replace(
-      /<([a-z0-9]+)([^>]*\bdata-pptx-editable\s*=\s*["'](?:body|subtitle)["'][^>]*)>/gi,
+      /<([a-z0-9]+)([^>]*\bdata-(?:pptx-editable|slide-text)\s*=\s*["'](?:body|subtitle)["'][^>]*)>/gi,
       (full: string, _t: string, _a: string, offset: number, whole: string) =>
-        full.replace(/style\s*=\s*"([^"]*)"/i, (sm: string, style: string) => {
-          const cm = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
-          if (!cm) return sm;
+        full.replace(STYLE_RE, (sm: string, q: string, style: string) => {
+          const c = colorOf(style);
+          if (!c) return sm;
           const bgLocal = bgEnclosingAt(whole, offset, bgDefault6) ?? bg6;
-          const eff = hexOnBg(cm[1], bgLocal);
+          const eff = hexOnBg(c.raw, bgLocal);
           if (!eff) return sm;
           let repl: string | null = null;
           if (hexLuminance(bgLocal) > 0.5) {
             if (ratio(eff, bgLocal) < LIGHT_BG_FLOOR) repl = bodyDark(bgLocal);
           } else {
-            if (ratio(eff, bgLocal) < DARK_BG_FLOOR) repl = "FFFFFF";
+            if (ratio(eff, bgLocal) < DARK_BG_FLOOR) repl = bestOnDark(bgLocal);
           }
-          if (!repl || repl === eff) return sm;
+          if (!repl || repl === eff || ratio(repl, bgLocal) <= ratio(eff, bgLocal)) return sm;
           bodyFixed++;
-          const newStyle = style.replace(/((?:^|;)\s*)color\s*:\s*[^;]+/i, `$1color:#${repl}`);
-          return `style="${newStyle}"`;
+          const newStyle = style.replace(/((?:^|;)\s*)color\s*:\s*[^;]+/i, `$1color:#${repl}${c.important ? " !important" : ""}`);
+          return `style=${q}${newStyle}${q}`;
         }),
     );
     return { ...slide, html };
@@ -2400,6 +2467,7 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     applySafeZoneGuard(result, { isPhotoCarousel, isMixCarousel, composedByCode, slides });
     stripSlideNumberBadges(result);
     stripDuplicateStepNumbers(result, { slides });
+    stripVisualHintText(result, { slides });
     stripInventedSurtitres(result, { isPhotoCarousel, slides });
     injectPhotoBase64(result, { isPhotoCarousel, isMixCarousel, reqBody });
     forceGoogleFontsLink(result, { safeFontTitle, safeFontBody });
