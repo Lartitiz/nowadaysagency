@@ -2,7 +2,7 @@ import { restoreCarouselPhotos } from "@/lib/restore-carousel-photos";
 import { recoverStudioPhotos } from "@/features/carousel-studio/bridge";
 import { CarouselStudioDialog } from "@/features/carousel-studio/CarouselStudioDialog";
 import { CreationUpgradeInvite } from "@/components/CreationUpgradeInvite";
-import { invalidateProgressionReceipt } from "../../supabase/functions/_shared/carousel-editorial-snapshot";
+import { invalidateProgressionReceipt, rebindReceiptsAfterPhotoCast } from "../../supabase/functions/_shared/carousel-editorial-snapshot";
 import { pinterestCurrentText } from "@/lib/pinterest-current-text";
 import { prepareIdeaPhotos } from "@/features/creer/prepare-idea-photos";
 import { isDurableReelUrl, reelSourceKey } from "@/lib/reel-publication";
@@ -2109,7 +2109,8 @@ function CreerWorkspace() {
           }
           return s;
         });
-        return { ...prevR, raw: { ...prevR.raw, slides: nextSlides } };
+        // Photos posées automatiquement : le reçu de relecture reste valable.
+        return { ...prevR, raw: rebindReceiptsAfterPhotoCast(prevR.raw, { ...prevR.raw, slides: nextSlides }) };
       });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

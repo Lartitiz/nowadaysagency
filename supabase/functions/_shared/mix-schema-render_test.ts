@@ -92,3 +92,19 @@ Deno.test("schémas mixte : aucun texte sous 32 px (plancher bloquant de l'édit
     assert(sizes.length && sizes.every(n => n >= 32), `${type} : ${sizes}`);
   }
 });
+
+Deno.test("étage de schémas, mixte : seulement les slides texte qui ont la place (texte jamais raccourci)", () => {
+  const long = Array(5).fill("Chaque nouvelle demande devenait une nouvelle référence, à émailler, à cuire et à stocker.").join(" ");
+  const slides = [
+    { slide_number: 1, slide_type: "photo_integrated", title: "x" },
+    { slide_number: 2, slide_type: "text_only", title: "Avant, je tournais tout", body: BA_BODY },
+    { slide_number: 3, slide_type: "photo_integrated", title: "y" },
+    { slide_number: 4, slide_type: "text_only", title: "Un passage très développé", body: long + " " + long },
+  ];
+  const eligible = schemaEligible(true);
+  assertEquals([eligible(slides[1], 1), eligible(slides[3], 3)], [true, false]);
+  const rejected: string[] = [];
+  const big = { type: "checklist", items: Array(6).fill(0).map(() => ({ text: "Chaque nouvelle demande devenait une nouvelle référence" })) };
+  validateSchemaPlan({ schemas: [{ slide_number: 2, visual_schema: big }] }, slides, () => true, rejected, MIX_SCHEMA_TYPES, (s, sc) => composeMixCarousel([{ ...s, visual_schema: sc } as any], CH, 0)?.[0]?.layout === "pause");
+  assertEquals(rejected, ["checklist@2:place"]);
+});
