@@ -256,6 +256,47 @@ interface CanvasBox {
   height: number;
 }
 
+/**
+ * Section repliable du panneau de réglages. Fermée, elle reste dans la page
+ * (masquée) ; son état ouvert / fermé est mémorisé par titre.
+ */
+function PanelSection({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: ReactNode }) {
+  const key = `carousel-panel:${title}`;
+  const [open, setOpen] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem(key);
+      return saved === null ? defaultOpen : saved === "1";
+    } catch {
+      return defaultOpen;
+    }
+  });
+  return (
+    <div className="rounded-lg border">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() =>
+          setOpen((o) => {
+            try {
+              window.localStorage.setItem(key, o ? "0" : "1");
+            } catch {
+              // Stockage indisponible : l'état reste pour la session.
+            }
+            return !o;
+          })
+        }
+        className="flex w-full items-center justify-between px-2.5 py-2 text-left text-xs font-semibold hover:bg-muted/50"
+      >
+        {title}
+        <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+      </button>
+      <div hidden={!open} className="space-y-3 px-2.5 pb-2.5">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /** Miniature réelle d'une slide (rendu du HTML exporté, réduit). */
 function SlideThumb({ html }: { html: string }) {
   const W = 84;
@@ -1254,6 +1295,7 @@ export default function CarouselEditor({
     [measured, setMeasured] = useState<CanvasBox | null>(null),
     [extra, setExtra] = useState<string[]>([]),
     [zoom, setZoom] = useState(1),
+    [sheetOpen, setSheetOpen] = useState(false),
     [fullscreen, setFullscreen] = useState(false),
     [dragSlide, setDragSlide] = useState<number | null>(null),
     [dropAt, setDropAt] = useState<number | null>(null),
@@ -1278,6 +1320,17 @@ export default function CarouselEditor({
     setExtra((list) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]));
   };
   useEffect(() => setExtra([]), [active]);
+  // Téléphone : toucher un élément ouvre le tiroir des réglages.
+  useEffect(() => {
+    if (!selected) return;
+    setSheetOpen(true);
+    // L'aperçu remonte sous l'en-tête pour rester visible au-dessus du tiroir.
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      const preview = window.document.querySelector<HTMLElement>("[data-canvas-sticky]");
+      if (preview && preview.getBoundingClientRect().top > 60)
+        window.scrollBy({ top: preview.getBoundingClientRect().top - 52, behavior: "smooth" });
+    }
+  }, [selected]);
   const history = useRef<{
     past: CarouselDocument[];
     future: CarouselDocument[];
@@ -1830,7 +1883,7 @@ export default function CarouselEditor({
   );
   if (!slide) return null;
   return (
-    <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-4" onKeyDown={(event) => {
+    <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className={`min-w-0 w-full space-y-4 md:pb-0 ${sheetOpen ? "pb-[52vh]" : "pb-16"}`} onKeyDown={(event) => {
       const tag = (event.target as HTMLElement).tagName;
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && (event.key === "c" || event.key === "v") && !/INPUT|TEXTAREA|SELECT/.test(tag) && !(event.target as HTMLElement).isContentEditable && !window.getSelection()?.toString()) {
         event.preventDefault();
@@ -2134,6 +2187,7 @@ export default function CarouselEditor({
               ? "fixed inset-0 z-50 flex flex-col items-center justify-center gap-2 overflow-auto bg-background p-4"
               : "sticky top-12 z-30 min-w-0 w-full bg-background pb-2 md:top-28 md:bg-transparent md:pb-0"
           }
+          data-canvas-sticky
           onKeyDown={(e) => {
             if (fullscreen && e.key === "Escape" && !selected) setFullscreen(false);
           }}
@@ -2214,8 +2268,24 @@ export default function CarouselEditor({
           </p>
           </div>
         </div>
-        <div className="min-w-0 space-y-4 rounded-xl border bg-card p-4">
-          <h3 className="text-sm font-semibold">Texte, photos et mise en page</h3>
+        {/* Téléphone : le panneau devient un tiroir qui remonte du bas de l'écran. */}
+        <div
+          className={`fixed inset-x-0 bottom-0 z-40 min-w-0 space-y-4 overflow-y-auto rounded-t-2xl border-t bg-card px-4 pb-4 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] transition-[max-height] md:static md:z-auto md:max-h-none md:overflow-visible md:rounded-xl md:border md:p-4 md:shadow-none ${sheetOpen ? "max-h-[50vh]" : "max-h-14 overflow-hidden"}`}
+        >
+          <button
+            type="button"
+            aria-expanded={sheetOpen}
+            aria-label={sheetOpen ? "Replier les réglages" : "Ouvrir les réglages"}
+            onClick={() => setSheetOpen((o) => !o)}
+            className="sticky top-0 z-10 -mx-4 flex w-[calc(100%+2rem)] flex-col items-center gap-1 bg-card px-4 pb-2 pt-2 md:hidden"
+          >
+            <span className="h-1.5 w-10 rounded-full bg-muted-foreground/30" aria-hidden="true" />
+            <span className="flex w-full items-center justify-between text-xs font-semibold">
+              {element ? layers.find((l) => l.id === element.id)?.label || "Élément" : "Réglages"}
+              <ChevronDown size={14} className={sheetOpen ? "" : "rotate-180"} aria-hidden="true" />
+            </span>
+          </button>
+          <h3 className="hidden text-sm font-semibold md:block">Texte, photos et mise en page</h3>
           <div className="space-y-1">
             <p className="flex items-center gap-1.5 text-xs font-medium">
               <Layers size={14} aria-hidden="true" /> Calques
@@ -2408,6 +2478,7 @@ export default function CarouselEditor({
           >
             {element?.kind === "text" && (
               <>
+                <PanelSection title="Texte" defaultOpen>
                 <Textarea
                   aria-label="Texte sélectionné"
                   value={element.text}
@@ -2502,6 +2573,8 @@ export default function CarouselEditor({
                   <option value="center">Centré</option>
                   <option value="right">Aligné à droite</option>
                 </select>
+                </PanelSection>
+                <PanelSection title="Typographie avancée">
                 {range(
                   "Interligne",
                   parseFloat(css["line-height"]) < 3
@@ -2556,8 +2629,9 @@ export default function CarouselEditor({
                     onChange={(e) => style({ "text-shadow": e.target.checked ? "0 2px 10px rgba(0,0,0,0.45)" : "none" })}
                   />
                 </label>
+                </PanelSection>
                 {element.emphasis && !!element.emphasis.choices.length && (
-                  <>
+                  <PanelSection title="Phrase mise en valeur" defaultOpen>
                     <label className="block text-xs">
                       Phrase mise en valeur
                       <select
@@ -2590,12 +2664,13 @@ export default function CarouselEditor({
                         }
                       />
                     </label>
-                  </>
+                  </PanelSection>
                 )}
               </>
             )}
             {element?.kind === "photo" && (
               <>
+                <PanelSection title="Photo" defaultOpen>
                 <label className="block text-xs">
                   Affichage de la photo
                   <select
@@ -2692,17 +2767,19 @@ export default function CarouselEditor({
                   (n) => style({ opacity: String(n) }),
                   0.05,
                 )}
+                </PanelSection>
+                <PanelSection title="Cadre de la photo">
                 {measured && (measured.width < 1075 || measured.height < 1345) && (
                   <>
-                    <p className="pt-1 text-xs font-medium">Cadre de la photo</p>
-                    {range("Position horizontale", coord("left"), -500, 1080, (n) => style({ position: css.position || "absolute", left: `${n}px` }))}
+                        {range("Position horizontale", coord("left"), -500, 1080, (n) => style({ position: css.position || "absolute", left: `${n}px` }))}
                     {range("Position verticale", coord("top"), -500, 1350, (n) => style({ position: css.position || "absolute", top: `${n}px` }))}
                     {range("Largeur du cadre", parseFloat(css.width) || Math.round(measured.width), 60, 1080, (n) => style({ width: `${n}px` }))}
                     {range("Hauteur du cadre", parseFloat(css.height) || Math.round(measured.height), 60, 1350, (n) => style({ height: `${n}px` }))}
                   </>
                 )}
                 {range("Arrondi des coins", parseFloat(css["border-radius"] || css["border-top-left-radius"]) || 0, 0, 200, (n) => style({ "border-radius": `${n}px`, overflow: "hidden" }))}
-                <p className="pt-1 text-xs font-medium">Retouche de la photo</p>
+                </PanelSection>
+                <PanelSection title="Retouche de la photo">
                 {range("Luminosité", filterValue("brightness", 1), 0.5, 1.5, (n) => setFilter({ brightness: n }), 0.05)}
                 {range("Contraste", filterValue("contrast", 1), 0.5, 1.5, (n) => setFilter({ contrast: n }), 0.05)}
                 {range("Saturation", filterValue("saturate", 1), 0, 2, (n) => setFilter({ saturate: n }), 0.05)}
@@ -2717,6 +2794,7 @@ export default function CarouselEditor({
                   )}
                 </div>
                 {measured && (measured.width < 1075 || measured.height < 1345) && borderControls}
+                </PanelSection>
               </>
             )}
             {element?.editorialVeil &&
@@ -2743,6 +2821,7 @@ export default function CarouselEditor({
               )}
             {element && element.kind !== "photo" && element.role !== "veil" && element.role !== "background" && (
               <>
+                <PanelSection title="Position et taille">
                 {range(
                   "Position horizontale",
                   coord("left"),
@@ -2782,6 +2861,8 @@ export default function CarouselEditor({
                     1350,
                     (n) => style({ [element.frame ? "min-height" : "height"]: `${n}px` }),
                   )}
+                </PanelSection>
+                <PanelSection title="Fond, bordure et effets">
                 {range("Arrondi des coins", parseFloat(css["border-radius"] || css["border-top-left-radius"]) || 0, 0, 200, (n) => style({ "border-radius": `${n}px` }))}
                 {borderControls}
                 {element.role !== "glass" && range("Rotation", rotation, -180, 180, rotate)}
@@ -2841,6 +2922,7 @@ export default function CarouselEditor({
                     </Button>
                   )}
                 </div>
+                </PanelSection>
               </>
             )}
             {element && element.role !== "background" && (
@@ -2854,6 +2936,7 @@ export default function CarouselEditor({
                   : "Retirer cet élément"}
               </Button>
             )}
+            <PanelSection title="Ajouter" defaultOpen>
             <div className="grid grid-cols-2 gap-2">
               {hasClip && (
                 <Button
@@ -2912,6 +2995,8 @@ export default function CarouselEditor({
                 Ajouter / changer la photo
               </Button>
             )}
+            </PanelSection>
+            <PanelSection title="Mise en page de la slide">
             <label className="block text-xs">
               Mise en page
               <select
@@ -2966,6 +3051,9 @@ export default function CarouselEditor({
                 }
               />
             </label>
+            </PanelSection>
+            {element && element.role !== "background" && (
+            <PanelSection title="Toutes les slides">
             {element?.kind === "text" && (
               <Button
                 variant="outline"
@@ -2991,7 +3079,7 @@ export default function CarouselEditor({
                 Police et couleur sur toutes les slides
               </Button>
             )}
-            {element && element.role !== "background" && document.slides.length > 1 && (
+            {document.slides.length > 1 && (
               <label className="block text-xs">
                 Appliquer à toutes les slides
                 <select
@@ -3009,6 +3097,8 @@ export default function CarouselEditor({
                   <option value="both">Son style et sa position</option>
                 </select>
               </label>
+            )}
+            </PanelSection>
             )}
             {element && savedStyles && element.role !== "background" && (
               <div className="space-y-2 rounded-lg border p-2" aria-label="Mes styles">
