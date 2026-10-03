@@ -23,6 +23,8 @@ export interface EditorElement {
   name?: string;
   /** Texte éditorial posé sur un voile en dégradé (style « bord ») réglable. */
   editorialVeil?: boolean;
+  /** Texte éditorial : phrase mise en valeur, sa couleur, les phrases possibles. */
+  emphasis?: { sentence: string; color: string; choices: string[] };
   text: string;
   field?: string;
   style: Record<string, string>;
@@ -92,7 +94,7 @@ function photoNodes(doc: Document): HTMLElement[] {
 export function isPassiveShape(el: Element): boolean {
   return (
     el.parentElement === el.ownerDocument.body ||
-    el.matches('[data-pptx-shape="background"],[data-pptx-shape="highlight"]')
+    el.matches('[data-pptx-shape="background"],[data-pptx-shape="highlight"],[data-editor-shape="texture"]')
   );
 }
 /** Formes qui ne sont pas des formes d'export natives mais qu'on doit pouvoir
@@ -139,6 +141,56 @@ export function syncGlass(doc: Document) {
       photo.style.objectPosition || photo.style.backgroundPosition || "center";
     const zoom = photo.style.transform && photo.style.transform !== "none" ? photo.style.transform : "";
     blur.style.transform = `${zoom} scale(1.08)`.trim();
+  });
+}
+
+/** Un style en ligne peint-il quelque chose (fond, dégradé, bordure) ? */
+function paints(el: Element): boolean {
+  const st = (el as HTMLElement).style;
+  if (!st) return false;
+  const raw = el.getAttribute("style") || "";
+  // jsdom perd les dégradés en CSSOM : on relit aussi l'attribut.
+  if (/gradient\(/i.test(raw) || /gradient\(/i.test(st.backgroundImage || "")) return true;
+  const color = (st.backgroundColor || "").trim();
+  if (color && !/^(transparent|initial|inherit|none)$/i.test(color) && !/rgba\([^)]*,\s*0(?:\.0+)?\s*\)$/i.test(color)) return true;
+  return /border(?:-(?:top|right|bottom|left))?\s*:\s*[^;]*\d+px\s+(?:solid|dashed|dotted|double)/i.test(raw);
+}
+function coversSlide(el: HTMLElement): boolean {
+  const st = el.style;
+  const full = (v: string, n: number) => v === "100%" || v === `${n}px`;
+  return (
+    /(^|;)\s*inset\s*:\s*0/.test(el.getAttribute("style") || "") ||
+    ((px(st.top) ?? 0) === 0 && (px(st.left) ?? 0) === 0 && st.position === "absolute" &&
+      (full(st.width, 1080) || st.right === "0px" || st.right === "0") &&
+      (full(st.height, 1350) || st.bottom === "0px" || st.bottom === "0"))
+  );
+}
+/**
+ * Décors des slides dessinées par l'IA (ligne de frise, séparateurs, boîtes,
+ * barres, dessins SVG) : ils n'avaient pas d'ancre et un clic choisissait la
+ * slide entière. Ils deviennent des calques ; ils restent dans l'image
+ * exportée (pas de data-pptx-shape) et hors du contrôle qualité (décor).
+ */
+function tagDecors(doc: Document) {
+  const root = doc.body.firstElementChild;
+  if (!root) return;
+  const texts = new Set(textNodes(doc));
+  const photos = new Set(photoNodes(doc));
+  root.querySelectorAll<HTMLElement>("*").forEach((el) => {
+    if (
+      el.hasAttribute("data-editor-shape") || el.hasAttribute("data-pptx-shape") || el.hasAttribute("data-editor-id") ||
+      texts.has(el) || photos.has(el) || el.matches("[data-injected-scrim],[data-photo-glass-blur],[data-photo-glass-blur] *,svg *,style,script") ||
+      el.closest("[data-slide-text],[data-pptx-editable],[data-photo-glass-blur]") ||
+      // Les morceaux d'un ensemble déjà choisissable (barres d'une frise,
+      // seconde couche du verre…) suivent leur ensemble.
+      el.parentElement?.closest('[data-photo-glass],[data-editor-shape="etape"],[data-editor-shape="motif"],[data-editor-shape="dessin"],[data-editor-shape="texture"]')
+    )
+      return;
+    const svg = el.tagName.toLowerCase() === "svg";
+    if (!svg && !paints(el)) return;
+    if (svg && el.closest("[data-editor-shape]") && el.closest("[data-editor-shape]") !== el) return;
+    el.setAttribute("data-editor-shape", coversSlide(el) ? "texture" : svg ? "dessin" : "decor");
+    el.setAttribute("data-decorative", "true");
   });
 }
 
@@ -198,6 +250,7 @@ export function prepareSlideHtml(html: string): string {
   doc.querySelectorAll<HTMLElement>("[data-mix-text]").forEach((el) => {
     if (!el.hasAttribute("data-pptx-shape")) el.setAttribute("data-editor-shape", "group");
   });
+  tagDecors(doc);
   const elements = new Set<HTMLElement>([
     ...textNodes(doc),
     ...photoNodes(doc).filter((el) => !el.closest("[data-photo-glass]")),
@@ -246,6 +299,15 @@ export function getEditorElements(html: string): EditorElement[] {
     ...(texts.has(el) && doc.querySelector("style[data-photo-editorial-veil]") &&
     (el.hasAttribute("data-photo-editorial-text") || el.closest("[data-photo-editorial-text]"))
       ? { editorialVeil: true }
+      : {}),
+    ...(el.hasAttribute("data-photo-editorial-text")
+      ? {
+          emphasis: {
+            sentence: el.querySelector('[data-photo-text-part="emphasis"]')?.textContent?.trim() || "",
+            color: el.style.getPropertyValue("--photo-heading").trim(),
+            choices: emphasisChoices(el.textContent || ""),
+          },
+        }
       : {}),
     text: el.textContent || "",
     field: el.dataset.slideText,
@@ -393,7 +455,10 @@ export function patchElement(
   );
   if (el.hasAttribute("data-photo-editorial-text")) {
     if (patch.styles?.["font-family"]) el.style.setProperty("--photo-title-font", patch.styles["font-family"]);
-    if (patch.styles?.color) el.style.setProperty("--photo-heading", patch.styles.color);
+    // La phrase mise en valeur suit la couleur du texte, sauf si sa couleur a
+    // été choisie à part (elle perdait alors son contraste).
+    if (patch.styles?.color && !el.hasAttribute("data-emphasis-color"))
+      el.style.setProperty("--photo-heading", patch.styles.color);
   }
   if (Object.keys(styles).length) syncGlass(doc);
   return { ...slide, data, html: serialize(doc) };
@@ -593,7 +658,7 @@ export function restyleSlide(
     Object.entries(styles).forEach(([k, v]) => el.style.setProperty(k, v));
     if (el.hasAttribute("data-photo-editorial-text")) {
       if (styles["font-family"]) el.style.setProperty("--photo-title-font", styles["font-family"]);
-      if (styles.color) el.style.setProperty("--photo-heading", styles.color);
+      if (styles.color && !el.hasAttribute("data-emphasis-color")) el.style.setProperty("--photo-heading", styles.color);
     }
   });
   return { ...slide, html: serialize(doc) };
@@ -909,6 +974,9 @@ export function layerLabel(e: Pick<EditorElement, "kind" | "role" | "frame" | "t
   if (e.name === "etape") return "Frise d'étape";
   if (e.name === "motif") return "Schéma dessiné";
   if (e.name === "group") return "Bloc de texte";
+  if (e.name === "texture") return "Texture de fond";
+  if (e.name === "dessin") return "Dessin";
+  if (e.name === "decor") return e.frame ? "Encadré" : "Décor";
   if (e.kind === "shape") return e.frame ? "Cadre du texte" : "Forme";
   return e.text.trim().slice(0, 40) || "Texte vide";
 }
@@ -1088,4 +1156,33 @@ export function setEditorialVeilAlpha(slide: EditorSlide, alpha: number): Editor
     if (veil) el.style.setProperty("--photo-veil", scale(veil));
   });
   return { ...slide, html: serialize(doc) };
+}
+
+/** Phrases qu'on peut mettre en valeur (assez longues pour être lues en grand). */
+function emphasisChoices(text: string): string[] {
+  const sentences = text.match(/[^.!?]+(?:[.!?]+[»”"']*(?:\s+|$)|$)/g) || [text];
+  return sentences
+    .map((s) => s.trim())
+    .filter((s, i, all) => s.length >= 12 && s.length <= 160 && all.indexOf(s) === i && text.indexOf(s) === text.lastIndexOf(s));
+}
+/** Choisit la phrase mise en valeur d'un texte éditorial et/ou sa couleur. */
+export function setEmphasis(slide: EditorSlide, id: string, change: { sentence?: string; color?: string }): EditorSlide {
+  if (slide.locked) return slide;
+  const doc = parse(slide.html);
+  const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"][data-photo-editorial-text]`);
+  if (!el) return slide;
+  let data = slide.data;
+  if (change.color && /^#[0-9a-f]{6}$/i.test(change.color)) {
+    el.style.setProperty("--photo-heading", change.color);
+    el.setAttribute("data-emphasis-color", "custom");
+  }
+  if (change.sentence !== undefined) {
+    const text = el.textContent || "";
+    if (!emphasisChoices(text).includes(change.sentence)) return slide;
+    el.dataset.photoEmphasis = change.sentence;
+    el.innerHTML = photoEditorialMarkup(text, el.dataset.photoEditorialText === "finale", change.sentence);
+    if (data.art_direction && typeof data.art_direction === "object")
+      data = { ...data, art_direction: { ...data.art_direction, emphasis: change.sentence } };
+  }
+  return { ...slide, data, html: serialize(doc) };
 }
