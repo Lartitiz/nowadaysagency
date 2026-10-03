@@ -1088,3 +1088,24 @@ it("re-joining an already attached decor updates the server selection and keeps 
   const call = mock.request.mock.calls.map(([body]) => body).find(body => body.action === "selection");
   expect([...call.reference_ids].sort()).toEqual(["decor-ref", "mannequin", "product"]);
 });
+it("choosing again a library photo already in the discussion selects it on the server", async () => {
+  let state = original();
+  state.session.references = [{ id: "ref-product", photo_id: "product-one", name: "Bol face", role: "product", url: "/bol.png" }];
+  state.session.active_reference_ids = [];
+  mock.request.mockImplementation(async (body) => {
+    if (body.action === "reference") {
+      state = { ...state, session: { ...state.session, revision: state.session.revision + 1,
+        references: [...state.session.references!, { id: body.photo_id, photo_id: body.photo_id, name: "Atelier", role: body.reference_role, url: "/atelier.png" }],
+        active_reference_ids: [...state.session.active_reference_ids!, body.photo_id] } };
+    }
+    if (body.action === "selection") state = { ...state, session: { ...state.session, revision: state.session.revision + 1, active_reference_ids: body.reference_ids } };
+    return structuredClone(state);
+  });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  fireEvent.click(screen.getByRole("button", { name: "Depuis ma bibliothèque" }));
+  fireEvent.click(screen.getByRole("button", { name: "Utiliser deux photos" }));
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "selection" })));
+  const selection = mock.request.mock.calls.map(([body]) => body).find((body) => body.action === "selection");
+  expect([...selection.reference_ids].sort()).toEqual(["ambience-two", "ref-product"]);
+});

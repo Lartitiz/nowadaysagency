@@ -1524,3 +1524,28 @@ Deno.test("a decor generated without references keeps the model and product adde
     assertEquals(data.session.proposal.references.map((r: any) => r.path).sort(), ["mannequin", "product"]);
   } finally { f.restore(); }
 });
+
+// 03/10/2026, live test: "Utiliser ici" joined the saved model only in the browser,
+// so the next message (sending the server selection) left the model out.
+Deno.test("applying a saved model selects it on the server with the photos already chosen", async () => {
+  const f = fixture();
+  const product = { id: id(1400), photo_id: id(1401), path: "product", role: "product", name: "Bague" };
+  const model = { id: id(1402), photo_id: null, path: "space/memory/model", role: "casting", name: "Mannequin" };
+  f.session.references = [product];
+  f.session.source_metadata = { studio_context: { reference_ids: [product.id], branch_id: null, start_index: 0 } };
+  const memory = { id: id(1403), workspace_id: space, kind: "casting", name: "Mannequin brutaliste", note: "Femme, cheveux bruns", revision: 0, archived_at: null, references: [model] };
+  const saved = globalThis.fetch;
+  globalThis.fetch = (input, init) => {
+    const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+    if (url.pathname === "/rest/v1/studio_brand_memory" && url.searchParams.get("id")) {
+      return Promise.resolve(new Response(JSON.stringify(memory), { headers: { "Content-Type": "application/json" } }));
+    }
+    return saved(input, init);
+  };
+  try {
+    const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "memory_apply", memory_id: memory.id, revision: 0 }));
+    const data = await res.json();
+    assertEquals(res.status, 200);
+    assertEquals([...data.session.active_reference_ids].sort(), [product.id, model.id].sort());
+  } finally { globalThis.fetch = saved; f.restore(); }
+});

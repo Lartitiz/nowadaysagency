@@ -1,6 +1,7 @@
 import { getServiceClient } from "../_shared/plan-limiter.ts";
 import { MAX_REFERENCES } from "./competencies.ts";
 import { type Reference } from "./media.ts";
+import { activeReferences, type ConversationContext } from "./conversation.ts";
 type DB = ReturnType<typeof getServiceClient>;
 type Params = {
   action: string;
@@ -66,10 +67,21 @@ export async function handleMemory(
     if (merged.length > MAX_REFERENCES) {
       throw new Error("studio_reference_limit");
     }
+    // The applied identity joins the request on the server, which is what a message
+    // sends: a browser-only attachment left the saved model out of the generation.
+    const metadata = (session.source_metadata || {}) as { studio_context?: ConversationContext };
+    const applied = merged.filter((ref) => ref.memory_id === existing.id).map((ref) => ref.id);
+    const selected = activeReferences(session as unknown as Parameters<typeof activeReferences>[0], references);
     const { data: updated, error: conflict } = await db.from(
       "visual_studio_sessions",
     ).update({
       references: merged,
+      source_metadata: { ...metadata, studio_context: {
+        ...metadata.studio_context,
+        start_index: metadata.studio_context?.start_index || 0,
+        branch_id: metadata.studio_context?.branch_id || null,
+        reference_ids: [...new Set([...selected, ...applied])],
+      } },
       proposal: null,
       revision: session.revision + 1,
       updated_at: new Date().toISOString(),
