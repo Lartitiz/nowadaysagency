@@ -295,6 +295,16 @@ function pause(p: TextParts, t: Tokens, schema: unknown): string | null {
   return root(t, "pause", t.flat, column(q, t, fit, { x: SIDE, y, w }, colors));
 }
 
+/** Le texte de cette slide texte tient-il avec ce schéma en slide « pause » ?
+ * Les mesures ne dépendent pas des couleurs : charte neutre. Sert à l'étage de
+ * schémas pour ne proposer un schéma que là où il sera vraiment dessiné. */
+export function mixPauseFits(s: MixSlideSpec, schema: unknown): boolean {
+  return !!pause(textParts({ ...s, slide_type: "text_only" }), tokens({}), schema);
+}
+/** Schéma témoin (récapitulatif de trois éléments courts) : une slide qui ne le
+ * contient pas n'a pas la place pour un schéma. */
+export const MIX_SCHEMA_ROOM_PROBE = { type: "checklist", items: [{ text: "un élément court" }, { text: "un élément court" }, { text: "un élément court" }] };
+
 /** Mélange deux couleurs hex (part `k` de la première). */
 function mixHex(a: string, b: string, k: number): string {
   if (!/^#[0-9a-f]{6}$/i.test(a) || !/^#[0-9a-f]{6}$/i.test(b)) return b;

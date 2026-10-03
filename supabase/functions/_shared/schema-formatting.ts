@@ -1,6 +1,7 @@
 import { callAnthropic, SONNET_MODEL, type UsageSink } from "./anthropic.ts";
 import { progressionMaterial } from "./carousel-editorial-snapshot.ts";
 import { MIX_SCHEMA_TYPES } from "./mix-schema-render.ts";
+import { MIX_SCHEMA_ROOM_PROBE, mixPauseFits } from "./mix-slide-layouts.ts";
 
 // SCHÉMAS décidés APRÈS l'écriture (03/10/2026, demande de Laetitia : « sortir
 // les schémas de l'écriture »).
@@ -93,7 +94,7 @@ export function slideText(s: Slide): string {
 }
 
 /** Valide la réponse du modèle contre le texte réel. Jamais d'exception : au pire, aucun schéma. */
-export function validateSchemaPlan(raw: unknown, slides: Slide[], eligible: (s: Slide, i: number) => boolean, rejected: string[] = [], types: readonly string[] = SCHEMA_TYPES): SchemaPlan["schemas"] {
+export function validateSchemaPlan(raw: unknown, slides: Slide[], eligible: (s: Slide, i: number) => boolean, rejected: string[] = [], types: readonly string[] = SCHEMA_TYPES, fits?: (s: Slide, schema: unknown) => boolean): SchemaPlan["schemas"] {
   const data = typeof raw === "string" ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
   const list = Array.isArray(data?.schemas) ? data.schemas : [];
   const idx = (n: number) => slides.findIndex((s, i) => (Number(s.slide_number) || i + 1) === n);
@@ -114,14 +115,18 @@ export function validateSchemaPlan(raw: unknown, slides: Slide[], eligible: (s: 
     const ordinalFree = (t: string) => t.replace(/^\s*(?:étape\s*|etape\s*)?\d{1,2}\s*[.)·:–-]\s*/i, "");
     if (all.some(t => (ordinalFree(t).match(NUMBER) || []).some(x => !textNumbers.has(x.replace(",", "."))))) { rejected.push(`${type}@${n}:chiffre`); continue; }
     if (schema.type === "quote_big" && !norm(text).includes(norm(String(schema.quote)))) { rejected.push(`${type}@${n}:citation`); continue; }
+    // Mixte : le texte entier doit tenir avec CE schéma, sinon il ne serait pas dessiné.
+    if (fits && !fits(slides[i], schema)) { rejected.push(`${type}@${n}:place`); continue; }
     out.push({ slide_number: n, visual_schema: schema, reason: String(item?.reason || "").slice(0, 300) });
   }
   return out;
 }
 
-/** Slides qui peuvent porter un schéma : jamais la couverture, jamais une slide photo. */
+/** Slides qui peuvent porter un schéma : jamais la couverture, jamais une slide
+ * photo ; dans le mixte, seulement une slide texte qui a la place d'un schéma à
+ * côté de son texte entier (le texte n'est jamais raccourci). */
 export function schemaEligible(isMix: boolean) {
-  return (s: Slide, i: number) => i > 0 && (isMix ? s.slide_type === "text_only" : !/^photo/.test(String(s.slide_type || ""))) && !!slideText(s).trim();
+  return (s: Slide, i: number) => i > 0 && (isMix ? s.slide_type === "text_only" && mixPauseFits(s as any, MIX_SCHEMA_ROOM_PROBE) : !/^photo/.test(String(s.slide_type || ""))) && !!slideText(s).trim();
 }
 
 /** Appel borné. Aucun texte n'est modifié ; échec → aucun schéma. */
@@ -156,7 +161,7 @@ export async function planSchemas(slides: Slide[], isMix: boolean, usage: UsageS
     const spotted = (Array.isArray((parsed as any)?.reperage) ? (parsed as any).reperage : [])
       .filter((r: any) => r && RELATIONS.includes(r.relation) && r.relation !== "aucune")
       .map((r: any) => `${Number(r.slide_number)}:${r.relation}`);
-    return { version: SCHEMA_FORMAT_VERSION, status: "completed", schemas: validateSchemaPlan(parsed, slides, eligible, rejected, types), proposed, rejected, spotted };
+    return { version: SCHEMA_FORMAT_VERSION, status: "completed", schemas: validateSchemaPlan(parsed, slides, eligible, rejected, types, isMix ? (s: Slide, sc: unknown) => mixPauseFits(s as any, sc) : undefined), proposed, rejected, spotted };
   } catch {
     return { version: SCHEMA_FORMAT_VERSION, status: "unavailable", schemas: [] };
   } finally {
