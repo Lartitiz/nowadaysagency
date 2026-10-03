@@ -42,6 +42,15 @@ import { compressImageFile } from "@/lib/image-compress";
 import type { CarouselStylesApi, SavedCarouselStyle } from "@/hooks/use-carousel-styles";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import {
+  applyTheme,
+  carouselThemes,
+  composeLayout,
+  ensureFontLink,
+  GOOGLE_FONTS,
+  googleFontUrl,
+  LAYOUTS,
+  slidePhotoSource,
+  type LayoutVariant,
   addPreset,
   groupElements,
   PRESETS,
@@ -1922,25 +1931,60 @@ export default function CarouselEditor({
     };
     commit(next);
   };
-  const changeTemplate = (type: string) => {
+  // Galerie de mises en page : aperçu de la slide dans chaque mise en page,
+  // avec son titre, son texte, sa photo et sa charte.
+  const slidePhoto = useMemo(() => (slide ? slidePhotoSource(slide.html) : ""), [slide]);
+  const layoutPreviews = useMemo(
+    () =>
+      slide
+        ? LAYOUTS.filter((l) => !l.photo || slidePhoto).map((l) => ({
+            ...l,
+            preview: composeLayout(slide.data, l.variant, slidePhoto, extractStyleTokens(slide.html)),
+          }))
+        : [],
+    [slide, slidePhoto],
+  );
+  const changeLayout = (variant: LayoutVariant) => {
     if (slide.locked) return;
-    const doc = new DOMParser().parseFromString(slide.html, "text/html");
-    const img = doc.querySelector<HTMLImageElement>("img");
-    const bg = doc
-      .querySelector<HTMLElement>("[data-pptx-photo],[data-editor-photo]")
-      ?.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/)?.[1];
-    changeSlide({
-      // La mise en page change, la charte de la slide reste.
-      ...makeSlide(
-        slide.data,
-        type,
-        img?.src || bg || "",
-        extractStyleTokens(slide.html),
-      ),
-      id: slide.id,
-    });
-
+    const next = layoutPreviews.find((l) => l.variant === variant)?.preview;
+    if (!next) return;
+    changeSlide({ ...next, id: slide.id });
     setSelected(null);
+  };
+  // Thèmes pour tout le carrousel, construits sur la charte du carrousel.
+  const themes = useMemo(() => {
+    const tokens = documentTokens(document.slides);
+    const hex = (v: string) => {
+      const m = v.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      return m ? `#${m.slice(1, 4).map((x) => Number(x).toString(16).padStart(2, "0")).join("")}` : v;
+    };
+    const brand = (brandColors || []).find((c) => /^#[0-9a-f]{6}$/i.test(c)) || hex(tokens.titleColor);
+    return carouselThemes(brand, hex(tokens.background), hex(tokens.bodyColor));
+  }, [document.slides, brandColors]);
+  const applyCarouselTheme = (themeId: string) => {
+    const theme = themes.find((t) => t.id === themeId);
+    if (!theme) return;
+    const out = applyTheme(current.current, theme);
+    if (!out.changed) {
+      toast("Aucune slide à changer", { description: "Les slides photo et les slides verrouillées gardent leurs couleurs." });
+      return;
+    }
+    commit(out.document);
+    toast.success(`Thème « ${theme.label} » appliqué à ${out.changed} slide${out.changed > 1 ? "s" : ""}`, {
+      description: out.skipped
+        ? out.skipped > 1
+          ? `${out.skipped} slides photo ou verrouillées gardent leurs couleurs. Tu peux annuler.`
+          : "1 slide photo ou verrouillée garde ses couleurs. Tu peux annuler."
+        : "Tu peux annuler.",
+    });
+  };
+  // Police Google : la police est ajoutée à la slide (aperçu et export).
+  const [fontQuery, setFontQuery] = useState("");
+  const pickFont = (value: string, family?: string) => {
+    if (!selected) return;
+    let next = family ? ensureFontLink(slide, family) : slide;
+    next = patchElement(next, selected, { styles: { "font-family": value } });
+    changeSlide(next);
   };
   const range = (
     label: string,
@@ -2704,6 +2748,46 @@ export default function CarouselEditor({
                   160,
                   (n) => style({ "font-size": `${n}px` }, "font"),
                 )}
+                <div className="flex items-center justify-between text-xs">
+                  <span>Plus de polices</span>
+                  <Popover onOpenChange={(open) => {
+                    // Aperçu : les polices Google se chargent dans la page à l'ouverture.
+                    if (!open || window.document.querySelector("link[data-font-preview]")) return;
+                    const link = window.document.createElement("link");
+                    link.rel = "stylesheet";
+                    link.href = googleFontUrl(GOOGLE_FONTS.map((f) => f.family));
+                    link.setAttribute("data-font-preview", "true");
+                    window.document.head.append(link);
+                  }}>
+                    <PopoverTrigger asChild>
+                      <Button size="sm" variant="outline" className="h-7 text-2xs">Choisir une police…</Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-72 p-2">
+                      <input
+                        aria-label="Chercher une police"
+                        placeholder="Chercher (ex. Playfair)"
+                        value={fontQuery}
+                        onChange={(e) => setFontQuery(e.target.value)}
+                        className="mb-2 w-full rounded border bg-background px-2 py-1 text-xs"
+                      />
+                      <div className="max-h-72 space-y-0.5 overflow-auto" role="listbox" aria-label="Polices">
+                        {GOOGLE_FONTS.filter((f) => f.family.toLowerCase().includes(fontQuery.toLowerCase())).map((f) => (
+                          <button
+                            key={f.family}
+                            type="button"
+                            role="option"
+                            aria-selected={(css["font-family"] || "").includes(f.family)}
+                            onClick={() => pickFont(`'${f.family}', ${f.kind === "serif" ? "serif" : f.kind === "script" ? "cursive" : "sans-serif"}`, f.family)}
+                            className="flex w-full items-baseline justify-between rounded px-2 py-1.5 text-left hover:bg-muted aria-selected:bg-primary/10"
+                          >
+                            <span style={{ fontFamily: `'${f.family}'`, fontSize: 18 }}>{f.family}</span>
+                            <span className="text-2xs text-muted-foreground">{{ serif: "Serif", sans: "Sans", display: "Affiche", script: "Manuscrite" }[f.kind]}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 <label className="block text-xs">
                   Police
                   <select
@@ -3194,24 +3278,23 @@ export default function CarouselEditor({
             )}
             </PanelSection>
             <PanelSection title="Mise en page de la slide">
-            <label className="block text-xs">
-              Mise en page
-              <select
-                aria-label="Mise en page"
-                value=""
-                onChange={(e) => changeTemplate(e.target.value)}
-                className="mt-1 w-full rounded border bg-background p-2"
-              >
-                <option value="">Choisir une mise en page…</option>
-                <option value="text_only">Texte</option>
-                <option value="photo_full">Photo plein écran</option>
-                <option value="photo_integrated">
-                  Photo en haut, texte en bas
-                </option>
-              </select>
-            </label>
+            <div className="grid grid-cols-3 gap-2" role="group" aria-label="Mises en page">
+              {layoutPreviews.map((l) => (
+                <button
+                  key={l.variant}
+                  type="button"
+                  disabled={slide.locked}
+                  onClick={() => changeLayout(l.variant)}
+                  className={`rounded-lg border p-1 text-center text-2xs hover:border-primary disabled:opacity-50 ${slide.data.layout_variant === l.variant ? "border-primary ring-1 ring-primary" : ""}`}
+                  aria-label={`Mise en page ${l.label}`}
+                >
+                  <SlideThumb html={l.preview.html} />
+                  <span className="mt-0.5 block leading-tight">{l.label}</span>
+                </button>
+              ))}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Changer de mise en page recompose cette slide. Tu peux annuler.
+              Le titre, le texte, la photo et les couleurs sont gardés ; les éléments ajoutés à la main ne le sont pas. Tu peux annuler.
             </p>
             {slide.html.includes("data-photo-text-layout") && (
               <label className="block text-xs">
@@ -3249,6 +3332,26 @@ export default function CarouselEditor({
               />
             </label>
             </PanelSection>
+            <PanelSection title="Thème du carrousel">
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Thèmes">
+                {themes.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => applyCarouselTheme(t.id)}
+                    className="flex items-center gap-2 rounded-lg border p-2 text-left text-xs hover:border-primary"
+                    aria-label={`Appliquer le thème ${t.label}`}
+                  >
+                    <span className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-md border" style={{ background: t.background }}>
+                      <span style={{ color: t.heading, fontWeight: 700, lineHeight: 1 }}>Aa</span>
+                      <span className="mt-0.5 h-1 w-5 rounded" style={{ background: t.text }} />
+                    </span>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-2xs text-muted-foreground">Fonds, titres, textes et cartes de toutes les slides. Les slides photo gardent leurs couleurs.</p>
+            </PanelSection>
             {element && element.role !== "background" && (
             <PanelSection title="Toutes les slides">
             {element?.kind === "text" && (
@@ -3259,8 +3362,8 @@ export default function CarouselEditor({
                 onClick={() =>
                   commit({
                     ...document,
-                    slides: document.slides.map((s) =>
-                      restyleSlide(
+                    slides: document.slides.map((s) => {
+                      const restyled = restyleSlide(
                         s,
                         Object.fromEntries(
                           ["font-family", "color"]
@@ -3268,8 +3371,11 @@ export default function CarouselEditor({
                             .map((k) => [k, css[k]]),
                         ),
                         "texts",
-                      ),
-                    ),
+                      );
+                      // Une police Google suit sur chaque slide (aperçu et export).
+                      const google = GOOGLE_FONTS.find((f) => (css["font-family"] || "").includes(f.family));
+                      return google ? ensureFontLink(restyled, google.family) : restyled;
+                    }),
                   })
                 }
               >
