@@ -70,7 +70,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { applyCoverIllustration, runComposedByCodeGeneration, stripInventedSurtitres, stripSlideNumberBadges, stripDuplicateStepNumbers, applyTitleBodyContrastGuard, applyTextContrastGuard, applyMinFontSizeGuard } = await import("./index.ts");
+const { applyCoverIllustration, runComposedByCodeGeneration, stripInventedSurtitres, stripSlideNumberBadges, stripDuplicateStepNumbers, stripVisualHintText, applyTitleBodyContrastGuard, applyTextContrastGuard, applyMinFontSizeGuard } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -221,6 +221,37 @@ Deno.test("numéro d'étape en double retiré, les autres chiffres restent", () 
   assert(result.slides_html[0].html.includes("2. Trier les idées") && result.slides_html[0].html.includes("En 2 semaines."));
   assert(result.slides_html[1].html.includes(">73<"), "chiffre-clé conservé");
   assert(result.slides_html[2].html.includes("<span>3</span>"), "autre numéro conservé");
+});
+
+Deno.test("contraste texte (vu en live 03/10) : titre non annoté, style entre apostrophes, fond bleu-gris moyen", () => {
+  const ch = { color_primary: "#5C7A5A", color_secondary: "#A1BAC6", color_background: "#F8F8F8", color_text: "#1C1C20" };
+  const run = (html: string) => { const r: any = { slides_html: [{ slide_number: 1, html }] }; applyTitleBodyContrastGuard(r, { ch }); return r.slides_html[0].html as string; };
+  const noTag = run(`<div style="background:#FFFFFF"><div><h2 data-slide-text="title" style="font-size:64px;color:#a1bac6">1. Écouter</h2></div></div>`);
+  assert(!/color:#a1bac6/i.test(noTag), "titre bleu-gris sur blanc non corrigé");
+  const single = run(`<div style='background:#FFFFFF'><h2 data-slide-text="title" style='font-size:64px;color:#a1bac6'>x</h2></div>`);
+  assert(!/color:#a1bac6/i.test(single) && /style='/.test(single), "style entre apostrophes");
+  const important = run(`<div style="background:#FFFFFF"><p data-pptx-editable="body" style="color:#a1bac6 !important">x</p></div>`);
+  assert(/color:#[0-9A-F]{6} !important/.test(important) && !/a1bac6/i.test(important), "!important conservé, couleur corrigée");
+  const mid = run(`<div style="width:1080px;height:1350px;background:rgb(161, 186, 198);"><h2 data-slide-text="title" data-pptx-editable="title" style="color:rgb(248, 248, 248)">2. Trier</h2><p data-slide-text="body" data-pptx-editable="body" style="color:rgb(248, 248, 248)">Une collection</p></div>`);
+  assertEquals((mid.match(/color:#1C1C20/g) || []).length, 2, "texte foncé sur bleu-gris (le blanc y fait 1,9:1)");
+  const ok = `<div style="background:#5C7A5A"><h2 data-slide-text="title" style="color:#FFFFFF">Lisible</h2></div>`;
+  assertEquals(run(ok), ok, "blanc sur vert de charte (4,9:1) inchangé");
+});
+
+Deno.test("indication visuelle recopiée en texte : retirée avec son cadre, le vrai texte reste", () => {
+  const slides = [{ slide_number: 5, title: "3. Écrire, avec vos mots encore en tête", body: "Une fois les idées choisies, j'écris.",
+    visual_suggestion: "Main qui écrit dans un carnet — faïence illustrée floue au premier plan, matière lin" }];
+  const html = `<div data-pptx-shape="background" style="background:#f8f8f8"><div style="height:400px;background:linear-gradient(180deg,#e8ece6 0%,#d9e0d5 100%)"><p style="font-size:30px">main qui écrit dans un carnet — faïence illustrée floue au premier plan, matière lin</p><svg width="300" height="20"><path d="M0,10 Q150,0 300,10" stroke="#aaa"/></svg></div><h2 data-slide-text="title" style="color:#1C1C20">3. Écrire, avec vos mots encore en tête</h2><p data-slide-text="body">Une fois les idées choisies, j'écris.</p></div>`;
+  const r: any = { slides_html: [{ slide_number: 5, html }] };
+  stripVisualHintText(r, { slides });
+  const out = r.slides_html[0].html as string;
+  assert(!/carnet/.test(out), "texte d'indication retiré");
+  assert(!/linear-gradient/.test(out), "cadre vide retiré");
+  assert(out.includes("3. Écrire, avec vos mots encore en tête") && out.includes("Une fois les idées choisies"), "vrai texte conservé");
+  const photo = `<div><div style="background:#eee"><div data-pptx-photo="1" style="background-image:url({{PHOTO_1}})"></div><p>main qui écrit dans un carnet faïence illustrée floue</p></div></div>`;
+  const r2: any = { slides_html: [{ slide_number: 5, html: photo }] };
+  stripVisualHintText(r2, { slides });
+  assert(r2.slides_html[0].html.includes("{{PHOTO_1}}"), "jamais de photo retirée");
 });
 
 Deno.test("nettoyage photo : garde les précisions source mais retire encore les surtitres inventés", () => {
