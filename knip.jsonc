@@ -67,13 +67,6 @@
     // Invoqué en CLI (node_modules/.bin/jscpd) depuis e2e-visite/code-health.mjs
     // (audit hebdo de duplication), jamais importé en JS — knip ne trace pas
     // les appels via child_process.
-    "jscpd",
-
-    // -- Légitime, à garder --
-    // Migrations Lovable (drizzle.config.ts, drizzle/migrations) lancées par la CLI
-    // drizzle-kit, qui charge drizzle-orm et le pilote postgres — jamais importés
-    // dans le code de l'app (ajoutés le 03/10/2026, commit Lovable 8eb64541).
-    "drizzle-orm",
-    "postgres"
+    "jscpd"
   ]
 }
