@@ -409,7 +409,9 @@ it('preserves saved output through production Routes when consuming resume param
  expect(loadFlowState()?.result?.raw).toEqual(raw);
  fireEvent.click(screen.getByText('Production précédent'));
  await waitFor(()=>expect(screen.queryByRole('dialog')).toBeNull());
- expect(screen.getByTestId('result')).toHaveTextContent('Retouche sauvegardée');
+ // The lazy result step remounts after the POP: wait for it instead of reading the DOM
+ // synchronously (flaked on CI on 03/10/2026, "Unable to find [data-testid=result]").
+ expect(await screen.findByTestId('result')).toHaveTextContent('Retouche sauvegardée');
  expect(loadFlowState()).toMatchObject({editingIdeaId:'saved-news',result:{raw}});
 });
 
