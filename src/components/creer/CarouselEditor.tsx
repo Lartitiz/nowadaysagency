@@ -31,6 +31,9 @@ import { toast } from "sonner";
 import { hasClippedElement } from "@/lib/carousel-quality";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import {
+  applyToAllSlides,
+  pasteElement,
+  type ClipboardElement,
   documentColors,
   setElementHtml,
   setEmphasis,
@@ -162,6 +165,11 @@ function followGlass(el: HTMLElement) {
   blur.style.removeProperty("bottom");
 }
 type Handle = "e" | "w" | "s" | "se";
+type AlignMode = "left" | "center" | "right" | "top" | "middle" | "bottom" | "spread-x" | "spread-y";
+interface CanvasApi {
+  align: (mode: AlignMode) => void;
+  copy: (ids: string[]) => ClipboardElement[];
+}
 const SNAP = 8;
 /**
  * Repères d'alignement : bords et centre de la slide, bords et centres des
@@ -214,6 +222,13 @@ function SlideCanvas({
   onFill,
   onDuplicate,
   colors,
+  group,
+  onSelectAdd,
+  onMoveMany,
+  onRemoveMany,
+  onCopy,
+  onPaste,
+  api,
   onMeasure,
   onHistoryKey,
 }: {
@@ -228,6 +243,14 @@ function SlideCanvas({
   onDuplicate: (id: string) => void;
   /** Couleurs du carrousel proposées dans la barre d'outils. */
   colors: string[];
+  /** Éléments sélectionnés ensemble (Maj + clic), l'élément principal compris. */
+  group: string[];
+  onSelectAdd: (id: string) => void;
+  onMoveMany: (moves: Record<string, Record<string, string>>) => void;
+  onRemoveMany: (ids: string[]) => void;
+  onCopy: () => void;
+  onPaste: () => void;
+  api: React.MutableRefObject<CanvasApi | null>;
   onMeasure?: (box: CanvasBox | null) => void;
   onHistoryKey: (event: KeyboardEvent) => void;
 }) {
@@ -272,6 +295,10 @@ function SlideCanvas({
     liveUntil.current = Date.now() + 1000;
     latest.current.onMove(id, styles);
   };
+  const commitLiveMany = (moves: Record<string, Record<string, string>>) => {
+    liveUntil.current = Date.now() + 1000;
+    latest.current.onMoveMany(moves);
+  };
   // L'aperçu se recharge après chaque retouche : s'il avait le clavier, il le
   // reprend (flèches répétées) ; jamais s'il a été quitté pour le panneau.
   const keepFocus = useRef(false);
@@ -282,8 +309,9 @@ function SlideCanvas({
     window.document.addEventListener("focusin", leave);
     return () => window.document.removeEventListener("focusin", leave);
   }, []);
-  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, locked: slide.locked });
-  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, locked: slide.locked };
+  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, locked: slide.locked });
+  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, locked: slide.locked };
+  const [extraBoxes, setExtraBoxes] = useState<CanvasBox[]>([]);
   // Barre d'outils : état de la saisie sur la slide et actions branchées sur l'aperçu.
   const [editingId, setEditingId] = useState<string | null>(null);
   const tools = useRef<{
@@ -310,6 +338,7 @@ function SlideCanvas({
     if (!el) {
       setBox(null);
       latest.current.onMeasure?.(null);
+      measureGroup();
       return;
     }
     const r = el.getBoundingClientRect();
@@ -345,8 +374,20 @@ function SlideCanvas({
       })(),
     });
     latest.current.onMeasure?.(next);
+    measureGroup();
   };
-  useEffect(measure, [selected, slide.html]);
+  // Cadres des autres éléments de la sélection multiple.
+  const measureGroup = () => {
+    const doc = frame.current?.contentDocument;
+    setExtraBoxes(
+      (latest.current.group || [])
+        .filter((id) => id !== latest.current.selected)
+        .map((id) => doc?.querySelector<HTMLElement>(`[data-editor-id="${id}"]`)?.getBoundingClientRect())
+        .filter((r): r is DOMRect => !!r && (r.width > 0 || r.height > 0))
+        .map((r) => ({ left: r.left, top: r.top, width: r.width, height: r.height })),
+    );
+  };
+  useEffect(measure, [selected, slide.html, group.join(",")]);
   const bind = () => {
     const doc = frame.current?.contentDocument;
     if (!doc) return;
@@ -433,6 +474,63 @@ function SlideCanvas({
         }
       },
     };
+    // Aligner / répartir la sélection multiple, copier des éléments.
+    api.current = {
+      align: (mode) => {
+        const members = (latest.current.group || [])
+          .map((id) => doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`))
+          .filter((m): m is HTMLElement => !!m && !(isPhotoEl(m) && isFullBleed(m)) && !m.matches(VEIL) && !isPassiveShape(m));
+        if (members.length < 2) return;
+        const items = members.map((el) => {
+          const r = el.getBoundingClientRect();
+          const cs = view.getComputedStyle(el);
+          return { el, r, left: numberOr(cs.left, 0), top: numberOr(cs.top, 0), abs: cs.position === "absolute" };
+        });
+        const minL = Math.min(...items.map((i) => i.r.left)), maxR = Math.max(...items.map((i) => i.r.right));
+        const minT = Math.min(...items.map((i) => i.r.top)), maxB = Math.max(...items.map((i) => i.r.bottom));
+        const dxOf = new Map<HTMLElement, number>(), dyOf = new Map<HTMLElement, number>();
+        items.forEach((i) => {
+          if (mode === "left") dxOf.set(i.el, minL - i.r.left);
+          if (mode === "right") dxOf.set(i.el, maxR - i.r.right);
+          if (mode === "center") dxOf.set(i.el, (minL + maxR) / 2 - (i.r.left + i.r.width / 2));
+          if (mode === "top") dyOf.set(i.el, minT - i.r.top);
+          if (mode === "bottom") dyOf.set(i.el, maxB - i.r.bottom);
+          if (mode === "middle") dyOf.set(i.el, (minT + maxB) / 2 - (i.r.top + i.r.height / 2));
+        });
+        if (mode === "spread-x" || mode === "spread-y") {
+          const x = mode === "spread-x";
+          const sorted = [...items].sort((a, b) => (x ? a.r.left - b.r.left : a.r.top - b.r.top));
+          const span = x ? maxR - minL : maxB - minT;
+          const sizes = sorted.reduce((sum, i) => sum + (x ? i.r.width : i.r.height), 0);
+          const gap = (span - sizes) / (sorted.length - 1);
+          let cursor = x ? minL : minT;
+          sorted.forEach((i) => {
+            (x ? dxOf : dyOf).set(i.el, cursor - (x ? i.r.left : i.r.top));
+            cursor += (x ? i.r.width : i.r.height) + gap;
+          });
+        }
+        const moves: Record<string, Record<string, string>> = {};
+        items.forEach((i) => {
+          const dx = dxOf.get(i.el) || 0, dy = dyOf.get(i.el) || 0;
+          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+          moves[i.el.dataset.editorId!] = {
+            position: i.abs ? "absolute" : "relative",
+            left: `${Math.round(i.left + dx)}px`,
+            top: `${Math.round(i.top + dy)}px`,
+            ...(i.abs && i.el.style.right && !i.el.style.width ? { width: `${Math.round(i.r.width)}px` } : {}),
+          };
+        });
+        if (Object.keys(moves).length) latest.current.onMoveMany(moves);
+      },
+      copy: (ids) =>
+        ids
+          .map((id) => doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`))
+          .filter((el): el is HTMLElement => !!el && !isPassiveShape(el) && !el.matches(VEIL))
+          .map((el) => {
+            const r = el.getBoundingClientRect();
+            return { html: el.outerHTML, rect: { left: r.left, top: r.top, width: r.width, height: r.height } };
+          }),
+    };
     doc.addEventListener("dblclick", (e) => {
       if (latest.current.locked) return;
       // Déjà en train d'écrire ici : le double-clic choisit un mot.
@@ -452,7 +550,50 @@ function SlideCanvas({
         // Pendant la saisie, flèches, Suppr et ⌘Z agissent sur le texte.
         return;
       }
+      // Copier / coller (⌘/Ctrl + C, V).
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && (event.key === "c" || event.key === "v")) {
+        event.preventDefault();
+        if (event.key === "c") latest.current.onCopy();
+        else latest.current.onPaste();
+        return;
+      }
       const el = target();
+      const many = (latest.current.group || []).length > 1;
+      if (el && many && !latest.current.locked) {
+        const step = event.shiftKey ? 10 : 1;
+        const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[event.key];
+        const members = latest.current.group
+          .map((id) => doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`))
+          .filter((m): m is HTMLElement => !!m && !(isPhotoEl(m) && isFullBleed(m)) && !m.matches(VEIL) && !isPassiveShape(m));
+        if (d) {
+          event.preventDefault();
+          const moves: Record<string, Record<string, string>> = {};
+          members.forEach((m) => {
+            const cs = view.getComputedStyle(m);
+            const styles = {
+              position: cs.position === "absolute" ? "absolute" : "relative",
+              left: `${Math.round(numberOr(cs.left, 0) + d[0])}px`,
+              top: `${Math.round(numberOr(cs.top, 0) + d[1])}px`,
+            };
+            Object.entries(styles).forEach(([k, v]) => m.style.setProperty(k, v));
+            followGlass(m);
+            moves[m.dataset.editorId!] = styles;
+          });
+          measure();
+          commitLiveMany(moves);
+          return;
+        }
+        if (event.key === "Delete" || event.key === "Backspace") {
+          event.preventDefault();
+          latest.current.onRemoveMany(latest.current.group);
+          return;
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          latest.current.onSelect(latest.current.selected);
+          return;
+        }
+      }
       if (el && !latest.current.locked) {
         const id = el.dataset.editorId!;
         const step = event.shiftKey ? 10 : 1;
@@ -506,6 +647,9 @@ function SlideCanvas({
       el: HTMLElement;
       inner: HTMLElement;
       fixedWidth: string | null;
+      /** Les autres éléments de la sélection multiple, déplacés ensemble. */
+      members: { el: HTMLElement; left: number; top: number }[];
+      shift: boolean;
     } | null = null;
     doc.addEventListener("click", (e) => {
       e.preventDefault();
@@ -557,6 +701,18 @@ function SlideCanvas({
         el,
         inner,
         fixedWidth,
+        shift: e.shiftKey,
+        members:
+          !photo && (latest.current.group || []).length > 1 &&
+          (latest.current.group.includes(el.dataset.editorId!) || latest.current.group.includes(inner.dataset.editorId!))
+            ? latest.current.group
+                .map((id) => doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`))
+                .filter((m): m is HTMLElement => !!m && m !== el && m !== inner && !isPhotoEl(m) && !m.matches(VEIL) && !isPassiveShape(m))
+                .map((m) => {
+                  const cs = view.getComputedStyle(m);
+                  return { el: m, left: numberOr(cs.left, 0), top: numberOr(cs.top, 0) };
+                })
+            : [],
       };
       el.setPointerCapture?.(e.pointerId);
       e.preventDefault();
@@ -583,13 +739,19 @@ function SlideCanvas({
         d.el.style.left = `${d.left + dx}px`;
         d.el.style.top = `${d.top + dy}px`;
         // Repères d'alignement (⌘/Ctrl maintenu : placement libre).
-        const snap = e.metaKey || e.ctrlKey ? { x: null, y: null } : snapTo(doc, d.el);
+        const snap = e.metaKey || e.ctrlKey || d.members.length ? { x: null, y: null } : snapTo(doc, d.el);
+        d.members.forEach((m) => {
+          if (m.el.style.position !== "absolute") m.el.style.position = "relative";
+          m.el.style.left = `${m.left + dx}px`;
+          m.el.style.top = `${m.top + dy}px`;
+          followGlass(m.el);
+        });
         if (snap.x) d.el.style.left = `${d.left + dx + snap.x.delta}px`;
         if (snap.y) d.el.style.top = `${d.top + dy + snap.y.delta}px`;
         setGuides({ x: snap.x?.line ?? null, y: snap.y?.line ?? null });
         followGlass(d.el);
       }
-      if (latest.current.selected !== d.id) latest.current.onSelect(d.id);
+      if (!d.members.length && latest.current.selected !== d.id) latest.current.onSelect(d.id);
       else measure();
     });
     doc.addEventListener("pointerup", (e) => {
@@ -599,9 +761,24 @@ function SlideCanvas({
       const dx = e.clientX - d.x,
         dy = e.clientY - d.y;
       setGuides({ x: null, y: null });
-      // Simple clic : on choisit l'élément précis (le texte dans sa carte).
+      // Simple clic : on choisit l'élément précis (le texte dans sa carte) ;
+      // Maj + clic l'ajoute à la sélection (ou l'en retire).
       if (Math.abs(dx) + Math.abs(dy) < 5) {
-        latest.current.onSelect(d.inner.dataset.editorId!);
+        if (d.shift) latest.current.onSelectAdd(d.inner.dataset.editorId!);
+        else latest.current.onSelect(d.inner.dataset.editorId!);
+        return;
+      }
+      if (d.members.length) {
+        const moves: Record<string, Record<string, string>> = {};
+        [{ el: d.el }, ...d.members].forEach(({ el: m }) => {
+          moves[m.dataset.editorId!] = {
+            position: m.style.position === "absolute" ? "absolute" : "relative",
+            left: `${Math.round(numberOr(m.style.left, 0))}px`,
+            top: `${Math.round(numberOr(m.style.top, 0))}px`,
+            ...(m === d.el && d.fixedWidth ? { width: d.fixedWidth } : {}),
+          };
+        });
+        commitLiveMany(moves);
         return;
       }
       latest.current.onSelect(d.id);
@@ -777,6 +954,8 @@ function SlideCanvas({
         {box.kind === "text" && editingId && box.editorial && (
           <span className="px-1 text-2xs text-muted-foreground">Mots : utilise la phrase mise en valeur</span>
         )}
+        <button type="button" className={toolButton} aria-label="Copier l’élément" title="Copier (⌘/Ctrl + C), puis coller ici ou sur une autre slide"
+          onClick={() => { tools.current.finish(); latest.current.onCopy(); }}>Copier</button>
         {box.kind !== "photo" && !box.glass && (
           <button type="button" className={toolButton} aria-label="Dupliquer l’élément" title="Dupliquer"
             onClick={() => { tools.current.finish(); latest.current.onDuplicate?.(selected); }}><Copy size={14} /></button>
@@ -816,6 +995,14 @@ function SlideCanvas({
           <div aria-hidden="true" data-testid="guide-y" style={{ position: "absolute", left: 0, right: 0, top: guides.y * scale, height: 0, borderTop: "1px dashed #FB3D80", pointerEvents: "none" }} />
         )}
         {toolbar}
+        {extraBoxes.map((b, i) => (
+          <div
+            key={i}
+            aria-hidden="true"
+            data-testid="group-box"
+            style={{ position: "absolute", left: b.left * scale, top: b.top * scale, width: b.width * scale, height: b.height * scale, border: "2px dashed #c02769", borderRadius: 4, pointerEvents: "none" }}
+          />
+        ))}
         {box && (
           <div
             aria-hidden="true"
@@ -872,7 +1059,29 @@ export default function CarouselEditor({
   const [active, setActive] = useState(0),
     [selected, setSelected] = useState<string | null>(null),
     [photoOpen, setPhotoOpen] = useState(false),
-    [measured, setMeasured] = useState<CanvasBox | null>(null);
+    [measured, setMeasured] = useState<CanvasBox | null>(null),
+    [extra, setExtra] = useState<string[]>([]),
+    [hasClip, setHasClip] = useState(false);
+  // Sélection multiple (Maj + clic) : l'élément principal + les autres.
+  const group = selected ? [selected, ...extra.filter((id) => id !== selected)] : [];
+  const canvasApi = useRef<CanvasApi | null>(null);
+  // Presse-papiers de l'éditeur : survit au changement de slide.
+  const clipboard = useRef<{ from: string; items: ClipboardElement[] }>({ from: "", items: [] });
+  const selectOne = (id: string | null) => {
+    setSelected(id);
+    setExtra([]);
+  };
+  const selectAdd = (id: string) => {
+    if (!selected) return selectOne(id);
+    if (id === selected) {
+      const [next, ...rest] = extra;
+      setSelected(next || null);
+      setExtra(rest);
+      return;
+    }
+    setExtra((list) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]));
+  };
+  useEffect(() => setExtra([]), [active]);
   const history = useRef<{
     past: CarouselDocument[];
     future: CarouselDocument[];
@@ -971,6 +1180,50 @@ export default function CarouselEditor({
       },
       key,
     );
+  const moveMany = (moves: Record<string, Record<string, string>>) => {
+    let next = slide;
+    Object.entries(moves).forEach(([id, styles]) => (next = patchElement(next, id, { styles })));
+    if (next !== slide) changeSlide(next);
+  };
+  const removeMany = (ids: string[]) => {
+    let next = slide;
+    ids.forEach((id) => (next = removeLayer(next, id)));
+    if (next !== slide) changeSlide(next);
+    selectOne(null);
+  };
+  const copySelection = () => {
+    const items = canvasApi.current?.copy(group) || [];
+    if (!items.length) return;
+    clipboard.current = { from: slide.id, items };
+    setHasClip(true);
+    toast.success(items.length > 1 ? `${items.length} éléments copiés` : "Élément copié", { description: "⌘/Ctrl + V pour coller, ici ou sur une autre slide." });
+  };
+  const paste = () => {
+    if (!clipboard.current.items.length || slide.locked) return;
+    let next = slide;
+    const ids: string[] = [];
+    clipboard.current.items.forEach((item) => {
+      const out = pasteElement(next, item, clipboard.current.from === slide.id);
+      if (out.id) {
+        next = out.slide;
+        ids.push(out.id);
+      }
+    });
+    if (!ids.length) return;
+    changeSlide(next);
+    setSelected(ids[0]);
+    setExtra(ids.slice(1));
+  };
+  const applyAll = (what: { style?: boolean; position?: boolean }) => {
+    if (!selected) return;
+    const out = applyToAllSlides(current.current, slide.id, selected, what);
+    if (!out.changed) {
+      toast("Aucun élément équivalent sur les autres slides", { description: "Le report vise le même texte (titre, corps…), le même cadre ou le même décor." });
+      return;
+    }
+    commit(out.document);
+    toast.success(`Appliqué à ${out.changed} autre${out.changed > 1 ? "s" : ""} slide${out.changed > 1 ? "s" : ""}`);
+  };
   const style = (styles: Record<string, string>, key = "style") => {
     if (selected)
       changeSlide(
@@ -1106,7 +1359,16 @@ export default function CarouselEditor({
         : 0;
   if (!slide) return null;
   return (
-    <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-4" onKeyDown={onHistoryKey}>
+    <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-4" onKeyDown={(event) => {
+      const tag = (event.target as HTMLElement).tagName;
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && (event.key === "c" || event.key === "v") && !/INPUT|TEXTAREA|SELECT/.test(tag) && !(event.target as HTMLElement).isContentEditable && !window.getSelection()?.toString()) {
+        event.preventDefault();
+        if (event.key === "c") copySelection();
+        else paste();
+        return;
+      }
+      onHistoryKey(event);
+    }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-display text-3xl text-primary">Personnaliser mon carrousel</h2>
@@ -1337,7 +1599,14 @@ export default function CarouselEditor({
             onHistoryKey={onHistoryKey}
             slide={slide}
             selected={selected}
-            onSelect={setSelected}
+            onSelect={selectOne}
+            group={group}
+            onSelectAdd={selectAdd}
+            onMoveMany={moveMany}
+            onRemoveMany={removeMany}
+            onCopy={copySelection}
+            onPaste={paste}
+            api={canvasApi}
             onMeasure={setMeasured}
             onMove={(id, styles) =>
               changeSlide(patchElement(slide, id, { styles }))
@@ -1395,14 +1664,14 @@ export default function CarouselEditor({
                 return (
                   <li
                     key={layer.id}
-                    className={`flex items-center gap-1 rounded px-1 ${selected === layer.id ? "bg-primary/10 ring-1 ring-primary" : "hover:bg-muted"}`}
+                    className={`flex items-center gap-1 rounded px-1 ${selected === layer.id ? "bg-primary/10 ring-1 ring-primary" : group.includes(layer.id) ? "bg-primary/5 ring-1 ring-dashed ring-primary/60" : "hover:bg-muted"}`}
                     style={{ paddingLeft: 4 + layer.depth * 16 }}
                   >
                     <button
                       type="button"
-                      aria-pressed={selected === layer.id}
+                      aria-pressed={group.includes(layer.id)}
                       aria-label={`Choisir le calque ${layer.label}`}
-                      onClick={() => setSelected(layer.id)}
+                      onClick={(e) => (e.shiftKey ? selectAdd(layer.id) : selectOne(layer.id))}
                       className={`flex min-w-0 flex-1 items-center gap-1.5 py-1.5 text-left text-xs ${layer.hidden ? "text-muted-foreground line-through" : ""}`}
                     >
                       <Icon size={13} className="shrink-0" aria-hidden="true" />
@@ -1489,6 +1758,49 @@ export default function CarouselEditor({
             <p role="status" className="text-xs">
               Slide verrouillée : déverrouille-la pour la modifier.
             </p>
+          )}
+          {group.length > 1 && !slide.locked && (
+            <div className="space-y-2 rounded-lg border border-dashed border-primary/60 p-2" aria-label="Sélection multiple">
+              <p className="text-xs font-medium">
+                {group.length} éléments sélectionnés · glisse-les ensemble, ou aligne-les :
+              </p>
+              <div className="grid grid-cols-3 gap-1">
+                {([
+                  ["left", "À gauche"],
+                  ["center", "Centrés"],
+                  ["right", "À droite"],
+                  ["top", "En haut"],
+                  ["middle", "Au milieu"],
+                  ["bottom", "En bas"],
+                ] as [AlignMode, string][]).map(([mode, label]) => (
+                  <Button key={mode} size="sm" variant="outline" className="h-7 px-1 text-2xs" onClick={() => canvasApi.current?.align(mode)}>
+                    {label}
+                  </Button>
+                ))}
+              </div>
+              {group.length > 2 && (
+                <div className="grid grid-cols-2 gap-1">
+                  <Button size="sm" variant="outline" className="h-7 px-1 text-2xs" onClick={() => canvasApi.current?.align("spread-x")}>
+                    Répartir en largeur
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 px-1 text-2xs" onClick={() => canvasApi.current?.align("spread-y")}>
+                    Répartir en hauteur
+                  </Button>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-1">
+                <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={copySelection}>
+                  <Copy size={12} className="mr-1" /> Copier
+                </Button>
+                <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={() => removeMany(group)}>
+                  <Trash2 size={12} className="mr-1" /> Retirer
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-2xs" onClick={() => selectOne(selected)}>
+                  Ne garder que le premier
+                </Button>
+              </div>
+              <p className="text-2xs text-muted-foreground">Maj + clic sur un élément ou un calque pour l’ajouter ou le retirer.</p>
+            </div>
           )}
           <fieldset
             disabled={slide.locked}
@@ -1877,6 +2189,17 @@ export default function CarouselEditor({
               </Button>
             )}
             <div className="grid grid-cols-2 gap-2">
+              {hasClip && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="col-span-2"
+                  onClick={paste}
+                  title="⌘/Ctrl + V"
+                >
+                  Coller {clipboard.current.items.length > 1 ? `les ${clipboard.current.items.length} éléments copiés` : "l’élément copié"}
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -1987,6 +2310,25 @@ export default function CarouselEditor({
               >
                 Police et couleur sur toutes les slides
               </Button>
+            )}
+            {element && element.role !== "background" && document.slides.length > 1 && (
+              <label className="block text-xs">
+                Appliquer à toutes les slides
+                <select
+                  aria-label="Appliquer à toutes les slides"
+                  className="mt-1 w-full rounded border bg-background p-2"
+                  value=""
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v) applyAll({ style: v !== "position", position: v !== "style" });
+                  }}
+                >
+                  <option value="">Reporter cet élément sur les autres slides…</option>
+                  <option value="style">Son style (police, taille, couleurs)</option>
+                  <option value="position">Sa position et sa largeur</option>
+                  <option value="both">Son style et sa position</option>
+                </select>
+              </label>
             )}
           </fieldset>
         </div>

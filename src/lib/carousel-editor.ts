@@ -1260,3 +1260,97 @@ export function documentColors(slides: { html: string }[], limit = 8): string[] 
   }
   return out;
 }
+
+/* ─── Copier-coller, appliquer à toutes les slides ────────────────────── */
+
+export interface ClipboardElement {
+  html: string;
+  /** Boîte affichée au moment de la copie (repère 1080×1350). */
+  rect: { left: number; top: number; width: number; height: number };
+}
+/**
+ * Colle un élément copié (même slide ou autre slide) à la même place, décalé
+ * de 40 px s'il recouvrirait l'original. La copie n'est liée à aucun texte source.
+ */
+export function pasteElement(slide: EditorSlide, clip: ClipboardElement, offset = true): { slide: EditorSlide; id: string | null } {
+  if (slide.locked) return { slide, id: null };
+  const doc = parse(slide.html);
+  const root = doc.body.firstElementChild as HTMLElement | null;
+  if (!root) return { slide, id: null };
+  const holder = doc.createElement("div");
+  holder.innerHTML = clip.html;
+  const el = holder.firstElementChild as HTMLElement | null;
+  if (!el) return { slide, id: null };
+  [el, ...Array.from(el.querySelectorAll<HTMLElement>("*"))].forEach((node) => {
+    node.removeAttribute("data-editor-id");
+    node.removeAttribute("data-slide-text");
+    node.removeAttribute("data-slide-page");
+    node.removeAttribute("data-editor-hidden");
+  });
+  const shift = offset ? 40 : 0;
+  el.style.position = "absolute";
+  el.style.left = `${Math.round(clip.rect.left + shift)}px`;
+  el.style.top = `${Math.round(clip.rect.top + shift)}px`;
+  el.style.width = `${Math.round(clip.rect.width)}px`;
+  ["right", "bottom", "margin", "margin-top", "margin-bottom", "transform", "z-index"].forEach((k) => el.style.removeProperty(k));
+  el.style.zIndex = "20";
+  el.setAttribute("data-editor-free", "true");
+  el.setAttribute("data-editor-new", "true");
+  root.append(el);
+  syncGlass(doc);
+  const html = prepareSlideHtml(serialize(doc));
+  const id = parse(html).querySelector<HTMLElement>("[data-editor-new]")?.dataset.editorId || null;
+  return { slide: { ...slide, html: html.replace(/ data-editor-new="true"/, "") }, id };
+}
+
+const STYLE_KEYS = {
+  text: ["font-family", "font-size", "font-weight", "font-style", "color", "line-height", "text-align", "letter-spacing", "text-transform", "text-decoration"],
+  shape: ["background-color", "border-radius", "border", "box-shadow", "opacity"],
+};
+const POSITION_KEYS = ["position", "left", "top", "width", "right", "bottom"];
+/** Élément « équivalent » sur une autre slide : même champ, même rôle ou même nature. */
+function counterpart(target: EditorSlide, source: EditorElement): EditorElement | undefined {
+  const els = getEditorElements(target.html);
+  if (source.field) return els.find((e) => e.field === source.field);
+  if (source.role === "glass" || source.role === "veil") return els.find((e) => e.role === source.role);
+  if (source.emphasis) return els.find((e) => !!e.emphasis);
+  if (source.name) return els.find((e) => e.name === source.name);
+  if (source.kind === "photo") return els.find((e) => e.kind === "photo");
+  return undefined;
+}
+/**
+ * Reporte le style et/ou la position d'un élément sur son équivalent dans
+ * toutes les autres slides (non verrouillées). Renvoie le nombre de slides changées.
+ */
+export function applyToAllSlides(
+  document: CarouselDocument,
+  slideId: string,
+  id: string,
+  what: { style?: boolean; position?: boolean },
+): { document: CarouselDocument; changed: number } {
+  const from = document.slides.find((s) => s.id === slideId);
+  const source = from && getEditorElements(from.html).find((e) => e.id === id);
+  if (!from || !source) return { document, changed: 0 };
+  const keys = [
+    ...(what.style ? (source.kind === "text" ? STYLE_KEYS.text : source.kind === "photo" ? ["border-radius", "opacity"] : STYLE_KEYS.shape) : []),
+    ...(what.position ? POSITION_KEYS : []),
+  ];
+  let changed = 0;
+  const slides = document.slides.map((s) => {
+    if (s.id === slideId || s.locked) return s;
+    const match = counterpart(s, source);
+    if (!match) return s;
+    const styles: Record<string, string> = {};
+    keys.forEach((k) => {
+      const v = source.style[k];
+      // Une propriété absente de la source est retirée de la cible (position).
+      if (v) styles[k] = v;
+      else if (what.position && POSITION_KEYS.includes(k)) styles[k] = "";
+    });
+    if (source.emphasis?.color && what.style) styles["--photo-heading"] = source.emphasis.color;
+    const next = patchElement(s, match.id, { styles });
+    if (next.html !== s.html) changed++;
+    return next;
+  });
+  return { document: { ...document, slides }, changed };
+}
