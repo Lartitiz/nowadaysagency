@@ -62,7 +62,11 @@ describe("floating toolbar", () => {
       fireEvent.load(iframe);
       const title = doc.querySelector<HTMLElement>('[data-slide-text="title"]')!;
       // jsdom ne mesure rien : on donne au titre sa boîte affichée.
-      title.getBoundingClientRect = () => ({ left: 100, top: 200, width: 600, height: 120, right: 700, bottom: 320, x: 100, y: 200, toJSON: () => ({}) }) as DOMRect;
+      const box = () => ({ left: 100, top: 200, width: 600, height: 120, right: 700, bottom: 320, x: 100, y: 200, toJSON: () => ({}) }) as DOMRect;
+      title.getBoundingClientRect = box;
+      // Le contrôle de débordement mesure aussi le texte par une plage (absent de jsdom).
+      const RangeCtor = (doc.defaultView as unknown as { Range: typeof Range }).Range;
+      RangeCtor.prototype.getBoundingClientRect = box;
       fireEvent.dblClick(title);
       // Choisit « atelier » dans le titre.
       const text = title.firstChild!;

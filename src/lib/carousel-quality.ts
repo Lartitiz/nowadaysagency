@@ -112,6 +112,8 @@ export function collectInspectables(doc: Document): Inspectable[] {
 function contentRect(doc: Document, item: Inspectable): DOMRect {
   if (item.kind !== "text") return item.el.getBoundingClientRect();
   const range = doc.createRange();
+  // Environnements sans mesure de plage (jsdom) : la boîte de l'élément suffit.
+  if (typeof range.getBoundingClientRect !== "function") return item.el.getBoundingClientRect();
   range.selectNodeContents(item.el);
   const textRect = range.getBoundingClientRect();
   return textRect.width || textRect.height
