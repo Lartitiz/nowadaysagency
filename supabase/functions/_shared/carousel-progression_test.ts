@@ -219,7 +219,7 @@ Deno.test("réception tronquée ne vaut pas certification", async () => {
   });
   assertEquals(r.execution_status, "invalid");
 });
-Deno.test("modification de prose, schéma, légende, photo ou ordre invalide le reçu ; ajout de HTML ne l'invalide pas", async () => {
+Deno.test("modification de prose, schéma, légende ou ordre invalide le reçu ; photo seule ou ajout de HTML ne l'invalident pas", async () => {
   const original = {
     ...doc,
     progression_review: {
@@ -232,7 +232,6 @@ Deno.test("modification de prose, schéma, légende, photo ou ordre invalide le 
       (d: any) => d.slides[0].body = "Autre texte",
       (d: any) => d.slides[1].visual_schema.quote = "Autre citation",
       (d: any) => d.caption.body = "Autre légende",
-      (d: any) => d.slides[0].photo_index = 4,
       (d: any) => d.slides.reverse(),
     ]
   ) {
@@ -249,6 +248,11 @@ Deno.test("modification de prose, schéma, légende, photo ou ordre invalide le 
     }).progression_review.execution_status,
     "completed",
   );
+  // La relecture du fil ne lit que le texte : changer la photo d'une slide ne
+  // dit pas « Le texte a changé » (même règle que final-photo-match).
+  const photoOnly = structuredClone(original);
+  photoOnly.slides[0].photo_index = 4;
+  assertEquals(invalidateProgressionReceipt(photoOnly).progression_review.execution_status, "completed");
   assertEquals(invalidateProgressionReceipt({ slides: doc.slides }), {
     slides: doc.slides,
   });

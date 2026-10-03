@@ -85,11 +85,11 @@ Deno.test("étage de schémas, mixte : seulement les types dessinés", async () 
   assert(opts.system.includes("Carrousel mixte"));
 });
 
-Deno.test("schémas mixte : aucun texte sous 32 px (plancher bloquant de l'éditeur)", () => {
+Deno.test("schémas mixte : aucun texte sous 38 px (cible de lisibilité de l'éditeur)", () => {
   for (const type of MIX_SCHEMA_TYPES) {
     const html = mixSchemaBlock(SAMPLES[type], 920, COLORS, FONTS, 16)!.html;
     const sizes = [...html.matchAll(/font-size:(\d+)px/g)].map(m => Number(m[1]));
-    assert(sizes.length && sizes.every(n => n >= 32), `${type} : ${sizes}`);
+    assert(sizes.length && sizes.every(n => n >= 38), `${type} : ${sizes}`);
   }
 });
 
