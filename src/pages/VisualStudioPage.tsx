@@ -595,7 +595,18 @@ function Studio({
       }
       if (!alive.current) return;
       const chosenIds = photos.map((photo) => latest?.session.references?.find((ref) => ref.photo_id === photo.id)?.id).filter((id): id is string => !!id);
-      setAttachments([...activeIds, ...chosenIds], `${draftKey(userId, workspaceId, targetId)}:images`);
+      // A photo already in the discussion is not re-added: select it on the server,
+      // which is what a request sends, or it would only look attached.
+      const serverIds = latest.session.active_reference_ids;
+      if (serverIds && chosenIds.some((id) => !serverIds.includes(id))) {
+        latest = await studioRequest({
+          action: "selection", workspace_id: workspaceId, session_id: targetId,
+          reference_ids: [...new Set([...serverIds, ...chosenIds])], revision: latest.session.revision,
+          viewed_version_id: latest.session.conversation_branch_id ?? null,
+        });
+        if (alive.current) cache.setQueryData(targetKey, latest);
+      }
+      setAttachments(latest.session.active_reference_ids ?? [...activeIds, ...chosenIds], `${draftKey(userId, workspaceId, targetId)}:images`);
       if (!sessionId) {
         writeDraft(draftKey(userId, workspaceId, targetId), draftRef.current);
         navigate(studioPath(targetId), { replace: true });
