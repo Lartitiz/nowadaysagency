@@ -15,6 +15,10 @@ export interface CarouselDocument {
 export interface EditorElement {
   id: string;
   kind: "text" | "photo" | "shape";
+  /** Nature d'une forme : cadre en verre, voile sur la photo, ou forme/carte. */
+  role?: "glass" | "veil" | "shape";
+  /** Forme qui contient des textes : on la déplace avec eux, comme un groupe. */
+  frame?: boolean;
   text: string;
   field?: string;
   style: Record<string, string>;
@@ -77,8 +81,63 @@ function photoNodes(doc: Document): HTMLElement[] {
     (el) => !el.parentElement?.closest("[data-pptx-photo],[data-editor-photo]"),
   );
 }
+/** Formes qui ne sont pas des formes d'export natives mais qu'on doit pouvoir
+ * choisir : cadre en verre dépoli et voiles posés sur la photo. */
+const EXTRA_SHAPES = "[data-photo-glass],[data-injected-scrim],[data-editor-shape]";
+const SLIDE_W = 1080;
+const px = (value: string | undefined) => {
+  const n = parseFloat(value || "");
+  return Number.isFinite(n) ? n : null;
+};
+/** Photo principale de la slide (jamais la copie floue du verre). */
+function mainPhoto(doc: Document): HTMLElement | undefined {
+  return photoNodes(doc).find((el) => !el.closest("[data-photo-glass]"));
+}
+/**
+ * Le verre dépoli contient une copie floue de la photo, calée sur la photo de
+ * fond par des décalages opposés à ceux du cadre. Après tout déplacement du
+ * cadre ou tout recadrage / remplacement de la photo, on recale la copie.
+ */
+export function syncGlass(doc: Document) {
+  const photo = mainPhoto(doc);
+  doc.querySelectorAll<HTMLElement>("[data-photo-glass]").forEach((card) => {
+    const blur = card.querySelector<HTMLElement>("[data-photo-glass-blur]");
+    if (!blur) return;
+    const left = px(card.style.left), top = px(card.style.top), bottom = px(card.style.bottom);
+    if (left !== null) blur.style.left = `${-left}px`;
+    if (top !== null) {
+      blur.style.top = `${-top}px`;
+      blur.style.removeProperty("bottom");
+    } else if (bottom !== null) {
+      blur.style.bottom = `${-bottom}px`;
+      blur.style.removeProperty("top");
+    }
+    if (!photo) return;
+    const url =
+      photo.tagName === "IMG"
+        ? photo.getAttribute("src")
+        : (photo.style.backgroundImage.match(/url\(\s*(['"]?)(.*?)\1\s*\)/) || [])[2];
+    if (url) blur.style.backgroundImage = `url("${url.replace(/["\\\n\r]/g, "")}")`;
+    const fit = photo.style.objectFit || photo.style.backgroundSize;
+    blur.style.backgroundSize = fit === "contain" ? "contain" : photo.tagName === "IMG" ? "cover" : fit || "cover";
+    blur.style.backgroundRepeat = "no-repeat";
+    blur.style.backgroundPosition =
+      photo.style.objectPosition || photo.style.backgroundPosition || "center";
+    const zoom = photo.style.transform && photo.style.transform !== "none" ? photo.style.transform : "";
+    blur.style.transform = `${zoom} scale(1.08)`.trim();
+  });
+}
+
 export function prepareSlideHtml(html: string): string {
   const doc = parse(html);
+  // Colonne éditoriale : la bande et son texte étaient deux calques voisins.
+  // Le texte passe DANS la bande (mêmes coordonnées, la bande est à 0,0) pour
+  // qu'ils se déplacent ensemble.
+  doc.querySelectorAll<HTMLElement>('[data-photo-style="colonne"]').forEach((band) => {
+    const text = band.nextElementSibling as HTMLElement | null;
+    if (!band.children.length && text?.hasAttribute("data-photo-column-text") && px(band.style.left) === 0 && px(band.style.top) === 0)
+      band.append(text);
+  });
   // Legacy backgrounds can also be selected. Ignore brand textures when a real
   // photo is already annotated by the renderer.
   if (!photoNodes(doc).length) {
@@ -116,10 +175,13 @@ export function prepareSlideHtml(html: string): string {
       });
       el.prepend(layer);
     });
+  // Le cadre en verre devient une forme que le contrôle qualité inspecte aussi.
+  doc.querySelectorAll<HTMLElement>("[data-photo-glass]").forEach((el) => el.setAttribute("data-editor-shape", "glass"));
   const elements = new Set<HTMLElement>([
     ...textNodes(doc),
-    ...photoNodes(doc),
+    ...photoNodes(doc).filter((el) => !el.closest("[data-photo-glass]")),
     ...Array.from(doc.body.querySelectorAll<HTMLElement>("[data-pptx-shape]")),
+    ...Array.from(doc.body.querySelectorAll<HTMLElement>(EXTRA_SHAPES)),
   ]);
   const used = new Set(
     Array.from(doc.querySelectorAll("[data-editor-id]")).map((e) =>
@@ -147,6 +209,16 @@ export function getEditorElements(html: string): EditorElement[] {
   ).map((el) => ({
     id: el.dataset.editorId!,
     kind: photos.has(el) ? "photo" : texts.has(el) ? "text" : "shape",
+    ...(!photos.has(el) && !texts.has(el)
+      ? {
+          role: el.hasAttribute("data-photo-glass")
+            ? ("glass" as const)
+            : el.hasAttribute("data-injected-scrim")
+              ? ("veil" as const)
+              : ("shape" as const),
+          frame: !!el.querySelector("[data-editor-id]"),
+        }
+      : {}),
     text: el.textContent || "",
     field: el.dataset.slideText,
     style: (() => {
@@ -192,11 +264,28 @@ export function patchElement(
     doc.querySelectorAll<HTMLElement>("[data-editor-id]"),
   ).find((e) => e.dataset.editorId === id);
   if (!el) return slide;
+  // Retirer un cadre qui contient des textes : on enlève le fond, les textes
+  // restent (avant, « Retirer » effaçait aussi le texte de la slide).
+  if (patch.remove && !photoNodes(doc).includes(el) && el.querySelector("[data-editor-id]")) {
+    el.querySelectorAll("[data-photo-glass-blur]").forEach((blur) => blur.remove());
+    [el, ...Array.from(el.children as HTMLCollectionOf<HTMLElement>)].forEach((node) => {
+      if (node !== el && node.hasAttribute("data-editor-id")) return;
+      ["background", "background-color", "background-image", "box-shadow", "border", "backdrop-filter"].forEach((k) => node.style.removeProperty(k));
+    });
+    ["data-pptx-shape", "data-editor-shape", "data-photo-glass", "data-editor-id"].forEach((a) => el.removeAttribute(a));
+    return { ...slide, html: serialize(doc) };
+  }
+  if (patch.remove && el.hasAttribute("data-injected-scrim")) {
+    el.remove();
+    return { ...slide, html: serialize(doc) };
+  }
   let data = { ...slide.data };
   if (patch.text !== undefined || patch.remove) {
     const old = el.textContent?.trim() || "";
     const next = patch.remove ? "" : patch.text!;
-    if (old) data = replaceData(data, old, next);
+    // Une copie (Dupliquer) n'est pas le texte source : elle ne le réécrit pas.
+    const free = !!el.closest("[data-editor-free]");
+    if (old && !free) data = replaceData(data, old, next);
     const field = el.dataset.slideText;
     if (field && ["title", "body", "overlay"].includes(field))
       data[field === "overlay" ? "overlay_text" : field] = next;
@@ -206,7 +295,7 @@ export function patchElement(
     const numberPattern = /\d+(?:[.,]\d+)?\s*(?:%|×|h)?/g;
     const before = old.match(numberPattern) || [],
       after = next.match(numberPattern) || [];
-    if (before.length === 1 && after.length === 1 && before[0] !== after[0]) {
+    if (!free && before.length === 1 && after.length === 1 && before[0] !== after[0]) {
       textNodes(doc).forEach((other) => {
         if (other !== el && other.textContent?.trim() === before[0])
           other.textContent = after[0];
@@ -260,13 +349,24 @@ export function patchElement(
       el.remove();
     }
   }
-  Object.entries(patch.styles || {}).forEach(([key, value]) =>
-    el.style.setProperty(key, value),
+  const styles = patch.styles || {};
+  // Un bloc ancré par le bas ou par les deux côtés (cadre en verre) passe en
+  // coordonnées haut/gauche explicites, sinon il s'étirerait au lieu de bouger.
+  if (styles.top !== undefined && styles.bottom === undefined) el.style.removeProperty("bottom");
+  if (styles.left !== undefined && styles.right === undefined && el.style.right) {
+    const left = px(el.style.left), right = px(el.style.right);
+    if (!el.style.width && styles.width === undefined && left !== null && right !== null)
+      el.style.width = `${SLIDE_W - left - right}px`;
+    el.style.removeProperty("right");
+  }
+  Object.entries(styles).forEach(([key, value]) =>
+    value === "" ? el.style.removeProperty(key) : el.style.setProperty(key, value),
   );
   if (el.hasAttribute("data-photo-editorial-text")) {
     if (patch.styles?.["font-family"]) el.style.setProperty("--photo-title-font", patch.styles["font-family"]);
     if (patch.styles?.color) el.style.setProperty("--photo-heading", patch.styles.color);
   }
+  if (Object.keys(styles).length) syncGlass(doc);
   return { ...slide, data, html: serialize(doc) };
 }
 export function replacePhoto(
@@ -300,6 +400,7 @@ export function replacePhoto(
   if (el.tagName === "IMG") el.setAttribute("src", source);
   else el.style.backgroundImage = `url("${source.replace(/["\\\n\r]/g, "")}")`;
   el.setAttribute("data-pptx-photo", String(photoIndex));
+  syncGlass(doc);
   const { studio_image_receipt: _receipt, studio_image_source: _source, photo_library_id: _library, ...photoData } = slide.data;
   return {
     ...slide,
@@ -487,7 +588,7 @@ export function makeSlide(
     bodyColor = type === "photo_full" ? "#ffffff" : tokens.bodyColor;
   const titleSize = Math.max(38, parseFloat(tokens.titleSize) || 72),
     bodySize = Math.max(38, parseFloat(tokens.bodySize) || 40);
-  const html = `${tokens.fontImports}<div style="width:1080px;height:1350px;position:relative;overflow:hidden;background:${bg};color:${bodyColor};font-family:${tokens.bodyFont};text-align:${tokens.align}">${photo && type !== "text_only" ? `<img data-pptx-photo="${data.photo_index || 1}" src="${escape(photo)}" style="position:absolute;left:0;top:0;width:1080px;height:${type === "photo_full" ? 1350 : 650}px;object-fit:cover;object-position:50% 50%">` : ""}<div style="position:absolute;left:80px;top:${type === "photo_integrated" ? 700 : 160}px;width:920px;${type === "photo_full" ? "background:rgba(0,0,0,.65);padding:28px;box-sizing:border-box;" : ""}"><h1 data-slide-text="title" data-pptx-editable="title" style="font-size:${titleSize}px;font-family:${tokens.titleFont};color:${titleColor};line-height:1.1;font-weight:${tokens.titleWeight};margin:0 0 40px;white-space:pre-wrap">${escape(title)}</h1><p data-slide-text="body" data-pptx-editable="body" style="font-size:${bodySize}px;font-family:${tokens.bodyFont};color:${bodyColor};line-height:1.4;white-space:pre-wrap">${escape(body)}</p></div><span data-slide-page style="position:absolute;bottom:65px;right:80px;font-size:24px">1 / 1</span></div>`;
+  const html = `${tokens.fontImports}<div style="width:1080px;height:1350px;position:relative;overflow:hidden;background:${bg};color:${bodyColor};font-family:${tokens.bodyFont};text-align:${tokens.align}">${photo && type !== "text_only" ? `<img data-pptx-photo="${data.photo_index || 1}" src="${escape(photo)}" style="position:absolute;left:0;top:0;width:1080px;height:${type === "photo_full" ? 1350 : 650}px;object-fit:cover;object-position:50% 50%">` : ""}<div style="position:absolute;left:80px;top:${type === "photo_integrated" ? 700 : 160}px;width:920px;${type === "photo_full" ? "background:rgba(0,0,0,.65);padding:28px;box-sizing:border-box;" : ""}"${type === "photo_full" ? ' data-pptx-shape="card"' : ""}><h1 data-slide-text="title" data-pptx-editable="title" style="font-size:${titleSize}px;font-family:${tokens.titleFont};color:${titleColor};line-height:1.1;font-weight:${tokens.titleWeight};margin:0 0 40px;white-space:pre-wrap">${escape(title)}</h1><p data-slide-text="body" data-pptx-editable="body" style="font-size:${bodySize}px;font-family:${tokens.bodyFont};color:${bodyColor};line-height:1.4;white-space:pre-wrap">${escape(body)}</p></div><span data-slide-page style="position:absolute;bottom:65px;right:80px;font-size:24px">1 / 1</span></div>`;
   return {
     id: newId(),
     data: { ...data, title, body, slide_type: type },
@@ -625,26 +726,119 @@ export function positionPhotoText(slide: EditorSlide, position: "top_left" | "bo
     // Keep the brand tint of the veil (black for older slides).
     const tint = /rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/.exec(scrim.getAttribute("style") || "");
     const rgb = tint ? `${tint[1]},${tint[2]},${tint[3]}` : "0,0,0";
+    // L'intensité réglée par la personne est conservée (0,85 par défaut).
+    const peak = veilAlpha(scrim.getAttribute("style") || "") ?? 0.85;
     scrim.style.top = position === "bottom_left" ? "auto" : "0";
     scrim.style.bottom = position === "bottom_left" ? "0" : "auto";
     scrim.style.height = position === "center" ? "1350px" : "66%";
     scrim.style.removeProperty("background");
     // Written into the attribute: some DOM implementations drop gradients set through CSSOM.
-    const veil = position === "center" ? `rgba(${rgb},0.85)` : `linear-gradient(${position === "top_left" ? "180deg" : "0deg"},rgba(${rgb},0.85) 0%,rgba(${rgb},0) 100%)`;
+    const veil = position === "center" ? `rgba(${rgb},${peak})` : `linear-gradient(${position === "top_left" ? "180deg" : "0deg"},rgba(${rgb},${peak}) 0%,rgba(${rgb},0) 100%)`;
     scrim.setAttribute("style", `${(scrim.getAttribute("style") || "").replace(/;?\s*$/, ";")}background:${veil};`);
   }
   // Verre dépoli : la carte est positionnée en absolu et sa copie floutée de la
   // photo doit rester calée sur la photo de fond (mêmes décalages, signes opposés).
   const glassY = position === "top_left" ? 110 : position === "center" ? 420 : null;
   for (const card of doc.querySelectorAll<HTMLElement>("[data-photo-glass]")) {
-    const blur = card.querySelector<HTMLElement>("[data-photo-glass-blur]");
     if (glassY === null) {
       card.style.removeProperty("top"); card.style.bottom = "200px";
-      if (blur) { blur.style.removeProperty("top"); blur.style.bottom = "-200px"; }
     } else {
       card.style.removeProperty("bottom"); card.style.top = `${glassY}px`;
-      if (blur) { blur.style.removeProperty("bottom"); blur.style.top = `-${glassY}px`; }
     }
   }
+  syncGlass(doc);
   return { ...slide, data: { ...slide.data, overlay_position: position }, html: serialize(doc) };
+}
+
+/** Intensité (alpha le plus fort) d'un voile : dégradé ou couleur unie. */
+export function veilAlpha(style: string): number | null {
+  const alphas = Array.from(style.matchAll(/rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*([\d.]+)\s*\)/gi))
+    .map((m) => parseFloat(m[1]))
+    .filter((a) => a > 0);
+  return alphas.length ? Math.max(...alphas) : null;
+}
+/**
+ * Règle l'intensité d'un voile en réécrivant ses alphas dans le même format
+ * (l'export PowerPoint ne relit que ce format, jamais la propriété opacity).
+ */
+export function setVeilAlpha(slide: EditorSlide, id: string, alpha: number): EditorSlide {
+  if (slide.locked) return slide;
+  const doc = parse(slide.html);
+  const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
+  const style = el?.getAttribute("style") || "";
+  const current = veilAlpha(style);
+  if (!el || current === null) return slide;
+  const a = Math.round(Math.min(1, Math.max(0.05, alpha)) * 100) / 100;
+  el.setAttribute(
+    "style",
+    style.replace(/(rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*)([\d.]+)(\s*\))/gi, (m, head, value, tail) =>
+      parseFloat(value) > 0 ? `${head}${Math.round((parseFloat(value) / current) * a * 100) / 100}${tail}` : m,
+    ),
+  );
+  return { ...slide, html: serialize(doc) };
+}
+/** Couleur et opacité du fond d'une forme ; le verre garde sa seconde couche. */
+export function setShapeFill(slide: EditorSlide, id: string, hex: string, alpha: number): EditorSlide {
+  if (slide.locked || !/^#[0-9a-f]{6}$/i.test(hex)) return slide;
+  const doc = parse(slide.html);
+  const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
+  if (!el) return slide;
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const a = Math.round(Math.min(1, Math.max(0, alpha)) * 100) / 100;
+  el.style.removeProperty("background");
+  el.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a})`;
+  if (el.hasAttribute("data-photo-glass")) {
+    const inner = Array.from(el.children as HTMLCollectionOf<HTMLElement>).find((c) => !c.hasAttribute("data-photo-glass-blur"));
+    if (inner) inner.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${Math.round(a * 0.72 * 100) / 100})`;
+    // Un verre sans opacité n'est plus du verre : la copie floue disparaît avec.
+    const blur = el.querySelector<HTMLElement>("[data-photo-glass-blur]");
+    if (blur) blur.style.opacity = a === 0 ? "0" : "1";
+  }
+  return { ...slide, html: serialize(doc) };
+}
+/** Duplique un texte ou une forme juste après l'original (copie non liée au texte source). */
+export function duplicateElement(slide: EditorSlide, id: string): { slide: EditorSlide; id: string | null } {
+  if (slide.locked) return { slide, id: null };
+  const doc = parse(slide.html);
+  const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
+  if (!el || photoNodes(doc).includes(el) || el.hasAttribute("data-injected-scrim") || el.hasAttribute("data-photo-glass")) return { slide, id: null };
+  const copy = el.cloneNode(true) as HTMLElement;
+  [copy, ...Array.from(copy.querySelectorAll<HTMLElement>("*"))].forEach((node) => {
+    node.removeAttribute("data-editor-id");
+    // La copie n'est pas le texte source : sinon une retouche réécrirait les deux.
+    node.removeAttribute("data-slide-text");
+    node.removeAttribute("data-slide-page");
+  });
+  if (copy.style.position === "absolute") {
+    copy.style.top = `${(px(copy.style.top) ?? 0) + 40}px`;
+    copy.style.left = `${(px(copy.style.left) ?? 0) + 40}px`;
+  }
+  copy.setAttribute("data-editor-copy", "true");
+  copy.setAttribute("data-editor-free", "true");
+  el.after(copy);
+  const html = prepareSlideHtml(serialize(doc));
+  const next = parse(html).querySelector<HTMLElement>("[data-editor-copy]");
+  const nextId = next?.dataset.editorId || null;
+  return { slide: { ...slide, html: html.replace(/ data-editor-copy="true"/, "") }, id: nextId };
+}
+/** Ajoute une forme pleine sous les textes (au-dessus de la photo). */
+export function addShapeElement(slide: EditorSlide): { slide: EditorSlide; id: string | null } {
+  if (slide.locked) return { slide, id: null };
+  const tokens = extractStyleTokens(slide.html);
+  const doc = parse(slide.html);
+  const root = doc.body.firstElementChild as HTMLElement | null;
+  if (!root) return { slide, id: null };
+  const shape = doc.createElement("div");
+  shape.setAttribute("data-pptx-shape", "card");
+  shape.setAttribute("data-editor-new", "true");
+  const color = /^#[0-9a-f]{6}$/i.test(tokens.titleColor) ? tokens.titleColor : "#1a1a1a";
+  shape.style.cssText = `position:absolute;left:140px;top:475px;width:800px;height:400px;background-color:${color};border-radius:24px;`;
+  // Juste après le calque photo : la forme passe sous les textes déjà posés.
+  const photo = mainPhoto(doc);
+  const layer = photo && Array.from(root.children).find((c) => c === photo || c.contains(photo));
+  if (layer) layer.after(shape);
+  else root.prepend(shape);
+  const html = prepareSlideHtml(serialize(doc));
+  const id = parse(html).querySelector<HTMLElement>("[data-editor-new]")?.dataset.editorId || null;
+  return { slide: { ...slide, html: html.replace(/ data-editor-new="true"/, "") }, id };
 }

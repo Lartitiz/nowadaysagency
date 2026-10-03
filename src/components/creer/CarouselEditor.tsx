@@ -22,7 +22,12 @@ import { toast } from "sonner";
 import { hasClippedElement } from "@/lib/carousel-quality";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import {
+  addShapeElement,
   addTextElement,
+  duplicateElement,
+  setShapeFill,
+  setVeilAlpha,
+  veilAlpha,
   captionFromText,
   captionText,
   CAROUSEL_MAX_SLIDES,
@@ -38,6 +43,7 @@ import {
   renumberDocument,
   replacePhoto,
   restyleSlide,
+  syncGlass,
   type CarouselDocument,
   type EditorSlide,
 } from "@/lib/carousel-editor";
@@ -71,25 +77,109 @@ const clamp = (n: number, min: number, max: number) =>
 const numberOr = (value: string | undefined, fallback: number) =>
   Number.isFinite(parseFloat(value || "")) ? parseFloat(value!) : fallback;
 
+const VEIL = "[data-injected-scrim]";
+const isPhotoEl = (el: HTMLElement) =>
+  el.tagName === "IMG" ||
+  el.hasAttribute("data-pptx-photo") ||
+  el.hasAttribute("data-editor-photo");
+/** Élément choisi sous le pointeur : le plus proche, sinon le premier calque
+ * en dessous (la photo est souvent recouverte par le calque de mise en page). */
+function pickAt(doc: Document, target: EventTarget | null, x: number, y: number) {
+  const direct = (target as HTMLElement | null)?.closest?.<HTMLElement>("[data-editor-id]");
+  if (direct && !direct.matches(VEIL)) return direct;
+  for (const node of doc.elementsFromPoint?.(x, y) || []) {
+    const hit = node.closest<HTMLElement>("[data-editor-id]");
+    if (hit && !hit.matches(VEIL)) return hit;
+  }
+  return null;
+}
+/** Cadre le plus large qui contient l'élément (carte, verre, colonne) : on le
+ * déplace avec ses textes, comme un groupe dans Canva. */
+function frameOf(el: HTMLElement): HTMLElement {
+  let frame = el;
+  for (
+    let p = el.parentElement?.closest<HTMLElement>("[data-editor-id]");
+    p;
+    p = p.parentElement?.closest<HTMLElement>("[data-editor-id]")
+  )
+    if (p.matches("[data-pptx-shape],[data-editor-shape]")) frame = p;
+  return frame;
+}
+/** La copie floue du verre suit le cadre pendant qu'on le glisse. */
+function followGlass(el: HTMLElement) {
+  const blur = el.matches("[data-photo-glass]")
+    ? el.querySelector<HTMLElement>("[data-photo-glass-blur]")
+    : null;
+  if (!blur) return;
+  blur.style.left = `${-numberOr(el.style.left, 0)}px`;
+  blur.style.top = `${-numberOr(el.style.top, 0)}px`;
+  blur.style.removeProperty("bottom");
+}
+type Handle = "e" | "w" | "s" | "se";
+interface CanvasBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 function SlideCanvas({
   slide,
   selected,
   onSelect,
   onMove,
+  onRemove,
+  onMeasure,
   onHistoryKey,
 }: {
   slide: EditorSlide;
   selected: string | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string | null) => void;
   onMove: (id: string, styles: Record<string, string>) => void;
+  onRemove: (id: string) => void;
+  onMeasure?: (box: CanvasBox | null) => void;
   onHistoryKey: (event: KeyboardEvent) => void;
 }) {
   const host = useRef<HTMLDivElement>(null),
     frame = useRef<HTMLIFrameElement>(null);
   const [width, setWidth] = useState(0),
-    [overflow, setOverflow] = useState(false);
-  const latest = useRef({ selected, onSelect, onMove, onHistoryKey, locked: slide.locked });
-  latest.current = { selected, onSelect, onMove, onHistoryKey, locked: slide.locked };
+    [overflow, setOverflow] = useState(false),
+    [box, setBox] = useState<(CanvasBox & { kind: "photo" | "veil" | "text" | "shape" }) | null>(null);
+  const scale = width / 1080 || 1;
+  // Une retouche faite DANS l'aperçu (glisser, poignée, flèche) y est déjà
+  // appliquée : on ne recharge pas l'iframe (pas de clignotement, le clavier et
+  // les appuis répétés ne sont plus perdus). Toute autre retouche recharge.
+  const [shown, setShown] = useState(slide.html);
+  const liveUntil = useRef(0);
+  const recheck = useRef<() => void>(() => {});
+  const shownId = useRef(slide.id);
+  useEffect(() => {
+    const sameSlide = shownId.current === slide.id;
+    shownId.current = slide.id;
+    if (sameSlide && Date.now() < liveUntil.current) {
+      liveUntil.current = 0;
+      recheck.current();
+      return;
+    }
+    liveUntil.current = 0;
+    setShown(slide.html);
+  }, [slide.html, slide.id]);
+  const commitLive = (id: string, styles: Record<string, string>) => {
+    liveUntil.current = Date.now() + 1000;
+    latest.current.onMove(id, styles);
+  };
+  // L'aperçu se recharge après chaque retouche : s'il avait le clavier, il le
+  // reprend (flèches répétées) ; jamais s'il a été quitté pour le panneau.
+  const keepFocus = useRef(false);
+  useEffect(() => {
+    const leave = (e: FocusEvent) => {
+      if (e.target !== frame.current) keepFocus.current = false;
+    };
+    window.document.addEventListener("focusin", leave);
+    return () => window.document.removeEventListener("focusin", leave);
+  }, []);
+  const latest = useRef({ selected, onSelect, onMove, onRemove, onMeasure, onHistoryKey, locked: slide.locked });
+  latest.current = { selected, onSelect, onMove, onRemove, onMeasure, onHistoryKey, locked: slide.locked };
   useEffect(() => {
     const measure = () => setWidth(host.current?.clientWidth || 0);
     measure();
@@ -97,23 +187,87 @@ function SlideCanvas({
     if (host.current) observer.observe(host.current);
     return () => observer.disconnect();
   }, []);
-  const highlight = () =>
-    frame.current?.contentDocument
-      ?.querySelectorAll<HTMLElement>("[data-editor-id]")
-      .forEach((el) => {
-        el.style.outline =
-          el.dataset.editorId === latest.current.selected
-            ? "3px solid #c02769"
-            : "";
-        el.style.outlineOffset = "6px";
-      });
-  useEffect(highlight, [selected, slide.html]);
+  const target = () =>
+    latest.current.selected
+      ? frame.current?.contentDocument?.querySelector<HTMLElement>(
+          `[data-editor-id="${latest.current.selected}"]`,
+        ) || null
+      : null;
+  // Cadre de sélection dessiné AU-DESSUS de l'aperçu (jamais dans le HTML exporté).
+  const measure = () => {
+    const el = target();
+    if (!el) {
+      setBox(null);
+      latest.current.onMeasure?.(null);
+      return;
+    }
+    const r = el.getBoundingClientRect();
+    const next = { left: r.left, top: r.top, width: r.width, height: r.height };
+    setBox({
+      ...next,
+      kind: isPhotoEl(el)
+        ? "photo"
+        : el.matches(VEIL)
+          ? "veil"
+          : el.matches("[data-pptx-shape],[data-editor-shape]")
+            ? "shape"
+            : "text",
+    });
+    latest.current.onMeasure?.(next);
+  };
+  useEffect(measure, [selected, slide.html]);
   const bind = () => {
     const doc = frame.current?.contentDocument;
     if (!doc) return;
+    const view = doc.defaultView!;
     // Keyboard events inside the sandboxed preview do not bubble to React.
-    doc.addEventListener("keydown", (event) => latest.current.onHistoryKey(event));
-    highlight();
+    if (keepFocus.current) view.focus();
+    doc.addEventListener("keydown", (event) => {
+      keepFocus.current = true;
+      const el = target();
+      if (el && !latest.current.locked) {
+        const id = el.dataset.editorId!;
+        const step = event.shiftKey ? 10 : 1;
+        const arrows: Record<string, [number, number]> = {
+          ArrowLeft: [-step, 0],
+          ArrowRight: [step, 0],
+          ArrowUp: [0, -step],
+          ArrowDown: [0, step],
+        };
+        const delta = arrows[event.key];
+        if (delta && !isPhotoEl(el) && !el.matches(VEIL)) {
+          event.preventDefault();
+          const computed = view.getComputedStyle(el);
+          const absolute = computed.position === "absolute";
+          const styles = {
+            position: absolute ? "absolute" : "relative",
+            left: `${Math.round(numberOr(computed.left, 0) + delta[0])}px`,
+            top: `${Math.round(numberOr(computed.top, 0) + delta[1])}px`,
+            ...(absolute && el.style.right && !el.style.width
+              ? { width: `${Math.round(el.getBoundingClientRect().width)}px`, right: "auto" }
+              : {}),
+          };
+          Object.entries(styles).forEach(([k, v]) => el.style.setProperty(k, v));
+          el.style.bottom = "auto";
+          followGlass(el);
+          measure();
+          commitLive(id, styles);
+          return;
+        }
+        if (event.key === "Delete" || event.key === "Backspace") {
+          event.preventDefault();
+          latest.current.onRemove(id);
+          return;
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          const parent = el.parentElement?.closest<HTMLElement>("[data-editor-id]");
+          latest.current.onSelect(parent?.dataset.editorId || null);
+          return;
+        }
+      }
+      latest.current.onHistoryKey(event);
+    });
     let drag: {
       id: string;
       x: number;
@@ -122,34 +276,42 @@ function SlideCanvas({
       top: number;
       photo: boolean;
       el: HTMLElement;
+      inner: HTMLElement;
+      fixedWidth: string | null;
     } | null = null;
     doc.addEventListener("click", (e) => {
       e.preventDefault();
-      doc.defaultView?.focus();
-      const el = (e.target as HTMLElement).closest<HTMLElement>(
-        "[data-editor-id]",
-      );
-      if (el) latest.current.onSelect(el.dataset.editorId!);
+      view.focus();
     });
     doc.addEventListener("pointerdown", (e) => {
-      const el = (e.target as HTMLElement).closest<HTMLElement>(
-        "[data-editor-id]",
-      );
-      if (!el || latest.current.locked) return;
+      const inner = pickAt(doc, e.target, e.clientX, e.clientY);
+      // Clic dans le vide : on désélectionne, comme dans Canva.
+      if (!inner) {
+        latest.current.onSelect(null);
+        return;
+      }
       // preventDefault below disables native pointer focus; explicitly focus
       // the preview so subsequent ⌘Z/Ctrl+Z reaches its keydown listener.
-      doc.defaultView?.focus();
-      latest.current.onSelect(el.dataset.editorId!);
-      const photo =
-        el.tagName === "IMG" ||
-        el.hasAttribute("data-pptx-photo") ||
-        el.hasAttribute("data-editor-photo");
+      view.focus();
+      keepFocus.current = true;
+      if (latest.current.locked) {
+        latest.current.onSelect(inner.dataset.editorId!);
+        return;
+      }
+      // Glisser déplace le cadre entier ; Alt + glisser déplace l'élément seul.
+      const el = e.altKey || isPhotoEl(inner) ? inner : frameOf(inner);
+      const photo = isPhotoEl(el);
       const pos = (
         el.style.objectPosition ||
         el.style.backgroundPosition ||
         "50% 50%"
       ).split(" ");
-      const computed = doc.defaultView!.getComputedStyle(el);
+      const computed = view.getComputedStyle(el);
+      // Un cadre ancré par ses deux côtés (verre) garde sa largeur en bougeant.
+      const fixedWidth =
+        !photo && computed.position === "absolute" && el.style.right && !el.style.width
+          ? `${Math.round(el.getBoundingClientRect().width)}px`
+          : null;
       drag = {
         id: el.dataset.editorId!,
         x: e.clientX,
@@ -158,6 +320,8 @@ function SlideCanvas({
         top: photo ? numberOr(pos[1], 50) : numberOr(computed.top, 0),
         photo,
         el,
+        inner,
+        fixedWidth,
       };
       el.setPointerCapture?.(e.pointerId);
       e.preventDefault();
@@ -167,16 +331,26 @@ function SlideCanvas({
       const d = drag,
         dx = e.clientX - d.x,
         dy = e.clientY - d.y;
+      if (Math.abs(dx) + Math.abs(dy) < 5) return;
       if (d.photo) {
         const pos = `${clamp(d.left - dx / 10.8, 0, 100)}% ${clamp(d.top - dy / 13.5, 0, 100)}%`;
         d.el.style.objectPosition = pos;
         d.el.style.backgroundPosition = pos;
+        syncGlass(doc);
       } else {
         if (d.el.style.position !== "absolute")
           d.el.style.position = "relative";
+        if (d.fixedWidth) {
+          d.el.style.width = d.fixedWidth;
+          d.el.style.right = "auto";
+        }
+        d.el.style.bottom = "auto";
         d.el.style.left = `${d.left + dx}px`;
         d.el.style.top = `${d.top + dy}px`;
+        followGlass(d.el);
       }
+      if (latest.current.selected !== d.id) latest.current.onSelect(d.id);
+      else measure();
     });
     doc.addEventListener("pointerup", (e) => {
       if (!drag) return;
@@ -184,19 +358,25 @@ function SlideCanvas({
       drag = null;
       const dx = e.clientX - d.x,
         dy = e.clientY - d.y;
-      if (Math.abs(dx) + Math.abs(dy) < 5) return;
+      // Simple clic : on choisit l'élément précis (le texte dans sa carte).
+      if (Math.abs(dx) + Math.abs(dy) < 5) {
+        latest.current.onSelect(d.inner.dataset.editorId!);
+        return;
+      }
+      latest.current.onSelect(d.id);
       if (d.photo) {
         const pos = `${clamp(d.left - dx / 10.8, 0, 100)}% ${clamp(d.top - dy / 13.5, 0, 100)}%`;
-        latest.current.onMove(d.id, {
+        commitLive(d.id, {
           "object-position": pos,
           "background-position": pos,
         });
       } else
-        latest.current.onMove(d.id, {
+        commitLive(d.id, {
           position:
             d.el.style.position === "absolute" ? "absolute" : "relative",
           left: `${Math.round(d.left + dx)}px`,
           top: `${Math.round(d.top + dy)}px`,
+          ...(d.fixedWidth ? { width: d.fixedWidth } : {}),
         });
     });
     doc.addEventListener("pointercancel", () => {
@@ -205,8 +385,92 @@ function SlideCanvas({
     // Même inspection géométrique que le contrôle qualité global : l'aperçu
     // n'annonce jamais un débordement que la QA ignorerait, ni l'inverse.
     const check = () => setOverflow(hasClippedElement(doc));
+    recheck.current = () => {
+      check();
+      measure();
+    };
     check();
-    doc.fonts?.ready.then(check);
+    measure();
+    doc.fonts?.ready.then(() => {
+      check();
+      measure();
+    });
+  };
+  // Poignées : élargir, rétrécir, allonger ; le coin agrandit aussi le texte.
+  const startResize = (handle: Handle) => (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = target();
+    const view = frame.current?.contentWindow;
+    if (!el || !view || slide.locked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    const computed = view.getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    const text = !el.matches("[data-pptx-shape],[data-editor-shape]");
+    const frameLike = !!el.querySelector("[data-editor-id]");
+    const start = {
+      x: e.clientX,
+      y: e.clientY,
+      w: r.width,
+      h: r.height,
+      left: numberOr(computed.left, 0),
+      font: numberOr(computed.fontSize, 40),
+      position: computed.position === "absolute" ? "absolute" : "relative",
+    };
+    let styles: Record<string, string> = {};
+    const move = (ev: PointerEvent) => {
+      const dx = (ev.clientX - start.x) / scale,
+        dy = (ev.clientY - start.y) / scale;
+      const w = Math.max(60, start.w + (handle === "w" ? -dx : dx));
+      styles = {};
+      if (handle !== "s") {
+        styles.width = `${Math.round(w)}px`;
+        styles["max-width"] = "none";
+        if (el.style.right) styles.right = "auto";
+      }
+      if (handle === "w") {
+        styles.position = start.position;
+        styles.left = `${Math.round(start.left + start.w - w)}px`;
+      }
+      if (handle === "se" && text)
+        styles["font-size"] = `${Math.round(clamp((start.font * w) / start.w, 18, 200))}px`;
+      if (handle === "s" || (handle === "se" && !text))
+        styles[frameLike ? "min-height" : "height"] = `${Math.round(Math.max(40, start.h + dy))}px`;
+      Object.entries(styles).forEach(([k, v]) => el.style.setProperty(k, v));
+      followGlass(el);
+      measure();
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      if (Object.keys(styles).length)
+        commitLive(el.dataset.editorId!, styles);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  const handles: Handle[] =
+    !box || slide.locked || box.kind === "photo" || box.kind === "veil"
+      ? []
+      : box.kind === "text"
+        ? ["w", "e", "se"]
+        : ["w", "e", "s", "se"];
+  const handleStyle = (h: Handle): React.CSSProperties => {
+    const size = 14;
+    const base: React.CSSProperties = {
+      position: "absolute",
+      width: size,
+      height: size,
+      background: "#ffffff",
+      border: "2px solid #c02769",
+      borderRadius: 999,
+      pointerEvents: "auto",
+      touchAction: "none",
+    };
+    if (h === "e") return { ...base, right: -size / 2, top: "50%", marginTop: -size / 2, cursor: "ew-resize" };
+    if (h === "w") return { ...base, left: -size / 2, top: "50%", marginTop: -size / 2, cursor: "ew-resize" };
+    if (h === "s") return { ...base, bottom: -size / 2, left: "50%", marginLeft: -size / 2, cursor: "ns-resize" };
+    return { ...base, right: -size / 2, bottom: -size / 2, cursor: "nwse-resize" };
   };
 
   return (
@@ -222,16 +486,41 @@ function SlideCanvas({
             title={`Éditeur de la slide ${slide.data.slide_number}`}
             sandbox="allow-same-origin"
             onLoad={bind}
-            srcDoc={`<!doctype html><html><head><style>html,body{margin:0;width:1080px;height:1350px;overflow:hidden}*{box-sizing:border-box}[data-editor-id]{cursor:${slide.locked ? "default" : "move"}}</style></head><body>${slide.html}</body></html>`}
+            srcDoc={`<!doctype html><html><head><style>html,body{margin:0;width:1080px;height:1350px;overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none}*{box-sizing:border-box}[data-editor-id]{cursor:${slide.locked ? "default" : "move"}}</style></head><body>${shown}</body></html>`}
             style={{
               position: "absolute",
               width: 1080,
               height: 1350,
               border: 0,
-              transform: `scale(${width / 1080})`,
+              transform: `scale(${scale})`,
               transformOrigin: "top left",
             }}
           />
+        )}
+        {box && (
+          <div
+            aria-hidden="true"
+            data-testid="selection-box"
+            style={{
+              position: "absolute",
+              left: box.left * scale,
+              top: box.top * scale,
+              width: box.width * scale,
+              height: box.height * scale,
+              border: "2px solid #c02769",
+              borderRadius: 4,
+              pointerEvents: "none",
+            }}
+          >
+            {handles.map((h) => (
+              <div
+                key={h}
+                data-handle={h}
+                style={handleStyle(h)}
+                onPointerDown={startResize(h)}
+              />
+            ))}
+          </div>
         )}
       </div>
       {overflow && (
@@ -263,7 +552,8 @@ export default function CarouselEditor({
   );
   const [active, setActive] = useState(0),
     [selected, setSelected] = useState<string | null>(null),
-    [photoOpen, setPhotoOpen] = useState(false);
+    [photoOpen, setPhotoOpen] = useState(false),
+    [measured, setMeasured] = useState<CanvasBox | null>(null);
   const history = useRef<{
     past: CarouselDocument[];
     future: CarouselDocument[];
@@ -338,6 +628,24 @@ export default function CarouselEditor({
     [slide],
   );
   const element = elements.find((e) => e.id === selected);
+  const remove = (id: string) => {
+    const target = current.current.slides[Math.min(active, current.current.slides.length - 1)];
+    if (!target || target.locked) return;
+    changeSlide(patchElement(target, id, { remove: true }));
+    setSelected(null);
+  };
+  const label = (e: (typeof elements)[number]) =>
+    e.kind === "photo"
+      ? "Photo"
+      : e.role === "glass"
+        ? "Cadre en verre"
+        : e.role === "veil"
+          ? "Voile sur la photo"
+          : e.kind === "shape"
+            ? e.frame
+              ? "Cadre du texte"
+              : "Forme"
+            : e.text.slice(0, 35) || "Texte vide";
   const documentFonts = useMemo(
     () => listDocumentFonts(document.slides),
     [document.slides],
@@ -461,7 +769,7 @@ export default function CarouselEditor({
   const css = element?.style || {};
   const toHex = (value: string | undefined, fallback: string) => {
     if (/^#[0-9a-f]{6}$/i.test(value || "")) return value!;
-    const rgb = value?.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    const rgb = value?.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
     return rgb
       ? `#${rgb
           .slice(1)
@@ -469,6 +777,23 @@ export default function CarouselEditor({
           .join("")}`
       : fallback;
   };
+  const alphaOf = (value: string | undefined) => {
+    if (!value || value === "transparent") return 0;
+    const m = value.match(/^rgba\([^)]*,\s*([\d.]+)\s*\)/);
+    return m ? Number(m[1]) : 1;
+  };
+  const fillHex = toHex(css["background-color"], "#ffffff");
+  const fillAlpha = alphaOf(css["background-color"]);
+  const fill = (hex: string, alpha: number) =>
+    selected &&
+    changeSlide(setShapeFill(slide, selected, hex, alpha), `${slide.id}-${selected}-fill`);
+  // Un bloc posé en absolu sans coordonnée explicite affiche sa vraie position.
+  const coord = (key: "left" | "top") =>
+    css[key] && css[key] !== "auto"
+      ? parseFloat(css[key]) || 0
+      : css.position === "absolute" && measured
+        ? Math.round(measured[key])
+        : 0;
   if (!slide) return null;
   return (
     <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-4" onKeyDown={onHistoryKey}>
@@ -703,13 +1028,17 @@ export default function CarouselEditor({
             slide={slide}
             selected={selected}
             onSelect={setSelected}
+            onMeasure={setMeasured}
             onMove={(id, styles) =>
               changeSlide(patchElement(slide, id, { styles }))
             }
+            onRemove={remove}
           />
           <p className="mt-2 text-xs text-muted-foreground text-center">
-            Slide {active + 1} / {document.slides.length} · Glisse un texte pour
-            le déplacer, une photo pour la recadrer.
+            Slide {active + 1} / {document.slides.length} · Glisse un bloc pour
+            le déplacer (son cadre suit), une photo pour la recadrer, les
+            poignées pour l’agrandir. Alt + glisser : le texte seul. Flèches pour
+            ajuster, Suppr pour retirer, Échap pour choisir le cadre.
           </p>
         </div>
         <div className="min-w-0 space-y-4 rounded-xl border bg-card p-4">
@@ -725,12 +1054,7 @@ export default function CarouselEditor({
               <option value="">Choisir un élément…</option>
               {elements.map((e, i) => (
                 <option key={e.id} value={e.id}>
-                  {e.kind === "photo"
-                    ? "Photo"
-                    : e.kind === "shape"
-                      ? "Forme"
-                      : e.text.slice(0, 35) || "Texte vide"}{" "}
-                  · {i + 1}
+                  {label(e)} · {i + 1}
                 </option>
               ))}
             </select>
@@ -952,11 +1276,24 @@ export default function CarouselEditor({
                 )}
               </>
             )}
-            {element && element.kind !== "photo" && (
+            {element?.role === "veil" &&
+              range(
+                "Intensité du voile",
+                veilAlpha(Object.entries(css).map(([k, v]) => `${k}:${v}`).join(";")) ?? 0.85,
+                0.05,
+                1,
+                (n) =>
+                  changeSlide(
+                    setVeilAlpha(slide, element.id, n),
+                    `${slide.id}-${element.id}-veil`,
+                  ),
+                0.05,
+              )}
+            {element && element.kind !== "photo" && element.role !== "veil" && (
               <>
                 {range(
                   "Position horizontale",
-                  parseFloat(css.left) || 0,
+                  coord("left"),
                   -500,
                   1080,
                   (n) =>
@@ -968,7 +1305,7 @@ export default function CarouselEditor({
                 )}
                 {range(
                   "Position verticale",
-                  parseFloat(css.top) || 0,
+                  coord("top"),
                   -500,
                   1350,
                   (n) =>
@@ -980,46 +1317,104 @@ export default function CarouselEditor({
                 )}
                 {range(
                   "Largeur du bloc",
-                  parseFloat(css.width) || 800,
-                  80,
-                  1000,
-                  (n) => style({ width: `${n}px`, "max-width": "none" }),
+                  parseFloat(css.width) || Math.round(measured?.width || 800),
+                  60,
+                  1080,
+                  (n) => style({ width: `${n}px`, "max-width": "none", ...(css.right ? { right: "auto" } : {}) }),
                 )}
+                {element.kind === "shape" &&
+                  range(
+                    "Hauteur du bloc",
+                    parseFloat(css[element.frame ? "min-height" : "height"]) || Math.round(measured?.height || 300),
+                    40,
+                    1350,
+                    (n) => style({ [element.frame ? "min-height" : "height"]: `${n}px` }),
+                  )}
                 <label className="flex items-center justify-between text-xs">
                   Fond du bloc
                   <input
                     aria-label="Fond du bloc"
                     type="color"
-                    value={toHex(css["background-color"], "#ffffff")}
-                    onChange={(e) =>
-                      style({ "background-color": e.target.value })
-                    }
+                    value={fillHex}
+                    onChange={(e) => fill(e.target.value, fillAlpha || 1)}
                   />
                 </label>
+                {range(
+                  "Opacité du fond",
+                  fillAlpha,
+                  0,
+                  1,
+                  (n) => fill(fillHex, n),
+                  0.05,
+                )}
+                <div className="flex flex-wrap gap-1">
+                  <Button size="sm" variant="outline" onClick={() => fill(fillHex, 0)}>
+                    Fond transparent
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    aria-pressed={css["z-index"] === "30"}
+                    onClick={() =>
+                      style(
+                        css["z-index"] === "30"
+                          ? { "z-index": "" }
+                          : { "z-index": "30", ...(css.position ? {} : { position: "relative" }) },
+                      )
+                    }
+                  >
+                    {css["z-index"] === "30" ? "Remettre à sa place" : "Premier plan"}
+                  </Button>
+                  {element.role !== "glass" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const out = duplicateElement(slide, element.id);
+                        if (!out.id) return;
+                        changeSlide(out.slide);
+                        setSelected(out.id);
+                      }}
+                    >
+                      <Copy size={14} className="mr-1" />
+                      Dupliquer
+                    </Button>
+                  )}
+                </div>
               </>
             )}
             {element && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  changeSlide(
-                    patchElement(slide, element.id, { remove: true }),
-                  );
-                  setSelected(null);
-                }}
+                onClick={() => remove(element.id)}
               >
-                Retirer cet élément
+                {element.frame
+                  ? "Retirer le fond (garder le texte)"
+                  : "Retirer cet élément"}
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => changeSlide(addTextElement(slide))}
-            >
-              Ajouter un texte
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => changeSlide(addTextElement(slide))}
+              >
+                Ajouter un texte
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const out = addShapeElement(slide);
+                  if (!out.id) return;
+                  changeSlide(out.slide);
+                  setSelected(out.id);
+                }}
+              >
+                Ajouter une forme
+              </Button>
+            </div>
             {onOpenStudio && <Button variant="outline" size="sm" className="w-full" disabled={slide.locked} onClick={() => onOpenStudio(slide.id)}>Créer / remplacer avec le Studio</Button>}
             {onAddPhoto && (
               <Button
