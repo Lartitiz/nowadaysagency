@@ -453,6 +453,8 @@ const REPAIR_START_LIMIT_MS = 150_000;
 const REVIEW_START_LIMIT_MS = 270_000;
 // Étage SCHÉMAS (03/10/2026) : lancé seulement s'il reste du temps avant la
 // coupure de la plateforme (~400 s) ; il s'arrête de lui-même à 25 s.
+/** Schémas sur le carrousel mixte : coupés tant que mix-slide-layouts ne sait pas les dessiner. */
+export const MIX_SCHEMAS_ENABLED = false;
 const SCHEMA_START_LIMIT_MS = 330_000;
 const schemasAllowed = (startedAt: number): boolean => {
   const ok = Date.now() - startedAt <= SCHEMA_START_LIMIT_MS;
@@ -1602,8 +1604,11 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
   content = gateMix.content;
   content = await finalizeCarousel(content,reqCtx,{usage:mixUsage,repaired:threadMix.repaired,regenerate:doRepair});
   {
-    // SCHÉMAS décidés après l'écriture, sur les slides text_only du texte final.
-    const withSchemas = await addSchemasToContent(content, { isMix: true, usage: mixUsage, allowed: schemasAllowed(startedAt) });
+    // SCHÉMAS : pas sur le mixte. Un seul visual_schema fait abandonner la
+    // composition par le code de TOUT le carrousel (composeMixCarousel → null,
+    // rendu modèle), or c'est ce design composé que Laetitia a validé. L'étage
+    // est appelé quand même pour retirer tout schéma résiduel de la rédaction.
+    const withSchemas = await addSchemasToContent(content, { isMix: true, usage: mixUsage, allowed: MIX_SCHEMAS_ENABLED && schemasAllowed(startedAt) });
     content = withSchemas.content;
     if (withSchemas.plan) console.log(JSON.stringify({ event: "carousel_schema_formatting", label: "mix", status: withSchemas.plan.status, proposed: withSchemas.plan.proposed ?? 0, rejected: withSchemas.plan.rejected ?? [], spotted: withSchemas.plan.spotted ?? [], schemas: withSchemas.plan.schemas.map(x => x.visual_schema.type) }));
   }
