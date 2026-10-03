@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import CarouselEditor from "@/components/creer/CarouselEditor";
 import {
@@ -30,6 +30,8 @@ beforeAll(() =>
     },
   ),
 );
+// Les calques sont repliés par défaut : ces tests les ouvrent.
+beforeEach(() => window.localStorage.setItem("carousel-panel:Calques", "1"));
 afterEach(cleanup);
 const html =
   '<style>p{margin:0}</style><div style="position:relative;width:1080px;height:1350px;color:#123456"><h1 data-slide-text="title">Mon <em>atelier</em></h1><p data-slide-text="body">40 % des pièces sont bleues.</p><strong>40 %</strong></div>';
