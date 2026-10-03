@@ -2,6 +2,7 @@ import { embedExportFonts } from "./export-font-embedding";
 import { exportFileName } from "./export-file-name";
 import { ExportImageError, embedExportImages, waitForExportImages } from "./export-image-readiness";
 import { bakeGlassBlur } from "./export-glass-blur";
+import { bakePhotoFilters } from "./export-photo-filters";
 import html2canvas from "html2canvas-pro";
 import { fetchLogoAsBase64, buildLogoOverlayHtml } from "./export-logo";
 
@@ -114,6 +115,8 @@ async function waitForIframeReady(
   await waitForExportImages(doc.body, timeoutMs);
   // Verre dépoli : html2canvas ignore filter:blur, on pose une photo déjà floutée.
   await bakeGlassBlur(doc.body, timeoutMs);
+  // Filtres photo (luminosité, contraste…) : même raison, html2canvas ignore filter.
+  await bakePhotoFilters(doc.body, timeoutMs);
 
   // Deux RAF + petit buffer pour laisser le layout se stabiliser.
   // ⚠️ Course avec un timeout : sur un onglet non visible (fenêtre recouverte,
