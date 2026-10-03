@@ -137,7 +137,7 @@ export function applyPhotoFormatting<T extends Slide>(slides: T[], plan: Pick<Ph
       // Pas deux habillages identiques d'affilée : la voisine suivante sans motif repasse au bord.
       const next = out[i + 1] as Slide | undefined;
       const nextHasMotif = plan.motifs.some(x => idx(x.slide_number) === i + 1);
-      if (next?.photo_style === out[i].photo_style && !nextHasMotif) next.photo_style = "bord";
+      if (next && next.photo_style === out[i].photo_style && !nextHasMotif) next.photo_style = "bord";
     }
     (out[i] as Slide).photo_format = { ...(out[i].photo_format || {}), motif: { elements: m.elements, reason: m.reason } };
   }
