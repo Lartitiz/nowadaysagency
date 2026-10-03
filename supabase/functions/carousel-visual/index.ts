@@ -1150,6 +1150,10 @@ export function stripInventedSurtitres(result: any, params: { isPhotoCarousel: b
       if (allowed.some(t => t.includes(tn) || tn.includes(t))) return false;
       return true;
     };
+    // Le label d'étape (« Étape 2 · Le tournage ») vient de l'étage de mise en
+    // forme, qui le valide déjà comme extrait exact du texte : ce n'est pas un
+    // surtitre inventé (retiré à tort au test live du 03/10/2026).
+    const isStepLabel = (m: string) => m.includes("data-photo-step-label");
     let html = rawHtml;
     // 1) Pilule canonique enveloppant une caption : <span pill><span caption>TXT</span></span>
     html = html.replace(
@@ -1163,7 +1167,7 @@ export function stripInventedSurtitres(result: any, params: { isPhotoCarousel: b
     html = html.replace(
       /<(\w+)\b[^>]*data-pptx-editable="caption"[^>]*>([^<]*)<\/\1>/gi,
       (m: string, _tag: string, txt: string) => {
-        if (shouldDrop(txt)) { stripped++; return ""; }
+        if (!isStepLabel(m) && shouldDrop(txt)) { stripped++; return ""; }
         return m;
       },
     );

@@ -140,6 +140,24 @@ Deno.test("design photo : charte transmise et contenu conservé après les garde
   assert(before[1].includes("Une personne"));
 });
 
+Deno.test("mise en forme photo : les labels d'étape survivent aux gardes de production (toutes les slides)", () => {
+  const slides = [
+    {slide_number:1,photo_index:1,template:"couverture",overlay_text:"Ce qu'une pièce finie ne raconte pas"},
+    {slide_number:2,photo_index:1,overlay_text:"Tout commence par la terre, que je pétris avant de lui donner une forme. On ne voit jamais cette étape.",art_direction:{treatment:"editorial",position:"bottom_left",emphasis:null,reason:"t",surface:"veil",alignment:"left"}},
+    {slide_number:3,photo_index:1,overlay_text:"Vient ensuite le tournage. La terre pétrie passe sur le tour et prend sa forme sous la main.",art_direction:{treatment:"editorial",position:"top_left",emphasis:null,reason:"t",surface:"veil",alignment:"left"}},
+    {slide_number:4,photo_index:1,overlay_text:"Puis vient l'émaillage. Je choisis un émail et je le pose, mais rien n'est encore joué avant le four.",art_direction:{treatment:"editorial",position:"bottom_left",emphasis:null,reason:"t",surface:"veil",alignment:"left"}},
+    {slide_number:5,photo_index:1,overlay_text:"Reste la cuisson. Semaine après semaine, les pages du carnet se remplissent.",art_direction:{treatment:"closing",position:"bottom_left",emphasis:null,reason:"t",surface:"veil",alignment:"left"}},
+  ];
+  const ch = {color_primary:"#3A4A3C",color_secondary:"#A9BCC8",color_accent:"#3A4A3C",color_background:"#FFFFFF",color_text:"#1A1A1A",font_title:"Georgia",font_body:"Arial"};
+  const formatting = {steps:[{slide_number:2,label:"la terre"},{slide_number:3,label:"le tournage"},{slide_number:4,label:"l'émaillage"},{slide_number:5,label:"la cuisson"}],motifs:[]};
+  const result = runComposedByCodeGeneration({slides,ch,reqBody:{photos:[{}]},usage:{},emitStatus:()=>{},tStart:Date.now(),formatting});
+  stripInventedSurtitres(result,{isPhotoCarousel:true,slides});
+  applyTitleBodyContrastGuard(result,{ch});
+  applyTextContrastGuard(result);
+  applyMinFontSizeGuard(result);
+  for (const n of [1,2,3,4]) assert(result.slides_html[n].html.includes(`Étape ${n} · `), `label d'étape ${n} retiré`);
+});
+
 Deno.test("nettoyage photo : garde les précisions source mais retire encore les surtitres inventés", () => {
   const result={slides_html:[{slide_number:1,html:'<div><span data-pptx-editable="caption">Un détail fourni</span><span data-pptx-editable="caption">LA MÉTHODE MAGIQUE</span></div>'},{slide_number:2,html:"<div>Fin</div>"}]};
   stripInventedSurtitres(result,{isPhotoCarousel:true,slides:[{slide_number:1,overlay_text:"Le récit",detail:"Un détail fourni"}]});
