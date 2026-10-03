@@ -2,7 +2,7 @@ import { PHOTO_PRESERVATION } from "./photo-preservation.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { callAnthropic, SONNET_MODEL } from "../_shared/anthropic.ts";
 import type { Proposal } from "./media.ts";
-import { validTargets } from "./scene-workflow.ts";
+import { validTargets, withoutPlaceholders } from "./scene-workflow.ts";
 
 const schema = z.object({
   image_prompt: z.string().trim().min(30).max(5000),
@@ -24,7 +24,8 @@ export async function prepareIntegration<T extends Proposal>(proposal: T, readVi
   for (const [i, ref] of refs.entries()) {
     content.push({ type: "text", text: `Image ${i + 2} : original ID ${ref.id}, rôle ${ref.role}, nom ${ref.name}.` }, await readVision(ref.path));
   }
-  content.push({ type: "text", text: JSON.stringify({ demande_confirmee: proposal.summary, targets, preserve: proposal.preserve, changements_acceptes: proposal.scene_workflow?.accepted_changes }) });
+  content.push({ type: "text", text: JSON.stringify({ demande_confirmee: proposal.summary, targets, preserve: proposal.preserve, changements_acceptes: proposal.scene_workflow?.accepted_changes,
+    ...(proposal.scene_workflow?.empty_scene ? { scene_vide: "Image 1 ne contient aucun sujet provisoire : ajoute chaque sujet exact, sans parler de remplacement." } : {}) }) });
   const started = Date.now();
   const raw = await callAnthropic({ model: SONNET_MODEL, system: INTEGRATION_DIRECTION,
     messages: [{ role: "user", content }], max_tokens: 3000, maxRetries: 0, abortTimeoutMs: 40_000, keepDashes: true,
@@ -44,10 +45,15 @@ export async function prepareIntegration<T extends Proposal>(proposal: T, readVi
   if (blocked && !/^(aucune?|rien|none|n\/a|null)$/i.test(blocked)) throw new Error(`Intégration à préciser : ${blocked}`);
   const signature = (items: typeof targets) => JSON.stringify(items.map(t => `${t.role}:${[...t.reference_ids].sort().join(",")}`).sort());
   if (!validTargets(result.targets, refs) || signature(result.targets) !== signature(targets)) throw new Error("studio_integration_sources");
+  // An empty decor has no stand-in: the visible changes must not speak of one.
+  const added = "Ajouter ce sujet exact depuis ses originaux, une seule fois.";
+  const refined = proposal.scene_workflow?.empty_scene
+    ? result.targets.map(t => ({ ...t, location: withoutPlaceholders(t.location, "Dans la scène"), instruction: withoutPlaceholders(t.instruction, added) }))
+    : result.targets;
   return { ...proposal, image_prompt: result.image_prompt,
     // Keep the user's visible confirmation as the authority; refinements only locate the same subjects.
-    change: result.targets.map(t => `${t.location} : ${t.instruction}`),
-    scene_workflow: { ...proposal.scene_workflow!, targets: result.targets },
+    change: refined.map(t => `${t.location} : ${t.instruction}`),
+    scene_workflow: { ...proposal.scene_workflow!, targets: refined },
     integration_preparation: { model: SONNET_MODEL, elapsed_ms: Date.now() - started, source_path: proposal.input_path, reference_ids: refs.map(r => r.id) },
   };
 }

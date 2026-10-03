@@ -2,7 +2,7 @@ import { imageInputPaths, inheritedPhotoSource } from "./photo-preservation.ts";
 import { soulStyles, selectSoulStyles, resolveSoulStyle } from "./soul-direction.ts";
 import { prepareIntegration } from "./integration-direction.ts";
 import { activeReferences, adviceTurn, independentRequest, explicitRoles, dialogueHistory, CONVERSATION_SYSTEM, type ConversationContext } from "./conversation.ts";
-import { exactReference, validTargets, repairTargets, targetProblems, sceneInputs, asksIntegration } from "./scene-workflow.ts";
+import { exactReference, validTargets, repairTargets, targetProblems, sceneInputs, asksIntegration, sceneWithoutPlaceholders, withoutPlaceholders } from "./scene-workflow.ts";
 import { resolvePersonMemory } from "./person-reference.ts";
 import { compositionSchema } from "./composition.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -845,6 +845,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                           image_prompt: parent.proposal.image_prompt,
                           format: parent.proposal.format,
                           originaux_reserves: reservedProducts.map(({ id, name }) => ({ id, name })),
+                          ...(sceneWithoutPlaceholders(parent.proposal.scene_workflow, parent.proposal.planning_references)
+                            ? { sujets_provisoires: "aucun : décor vide. Les originaux y sont AJOUTÉS ; ne parle jamais de personne, de visage ni de produit provisoire à remplacer." }
+                            : {}),
                           person_reference: parent.proposal.person_reference,
                           brief: parent.proposal.brief,
                           summary: parent.proposal.summary,
@@ -1171,6 +1174,20 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           }
         }
         const phase = intent.scene_workflow?.phase;
+        // An empty decor has no stand-in: say that the originals are added, never
+        // that a provisional person or product is replaced.
+        // Server-set only: the interpreter's schema does not expose empty_scene.
+        const emptyDecor = phase === "integration" && !!intent.scene_workflow && !!parent &&
+          sceneWithoutPlaceholders(parent.proposal.scene_workflow, parent.proposal.planning_references);
+        if (emptyDecor && intent.scene_workflow) {
+          const added = "Ajouter ce sujet exact depuis ses originaux, une seule fois, de façon physiquement plausible.";
+          Object.assign(intent.scene_workflow, { empty_scene: true });
+          intent.summary = withoutPlaceholders(intent.summary);
+          intent.change = (intent.change || []).map(item => withoutPlaceholders(item, added));
+          intent.scene_workflow.targets = intent.scene_workflow.targets?.map(t => ({ ...t,
+            location: withoutPlaceholders(t.location, intent.product_placement || "À l’emplacement le plus naturel de la scène"),
+            instruction: withoutPlaceholders(t.instruction, added) }));
+        }
         // A correction to the scene must not discard the reserved original just
         // because the interpreter omitted a planning-only image in reference_use.
         if (phase && intent.operation === "edit") {
@@ -1246,6 +1263,13 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                 : "La préparation des références est incohérente. Tes photos et tes indications sont conservées ; renvoie ta demande pour réessayer. Aucune image n’a été lancée.";
             }
           }
+        }
+        // Targets completed above may carry the default "where the person is" location.
+        if (emptyDecor && intent.scene_workflow) {
+          intent.scene_workflow.targets = intent.scene_workflow.targets?.map(t => ({ ...t,
+            location: /^À l’emplacement (?:de la personne|du produit) dans la scène proposée$/.test(t.location)
+              ? (t.role === "product" && intent.product_placement) || "À l’emplacement le plus naturel de la scène, selon la demande"
+              : t.location }));
         }
         const sourcePath = rebaseScenePath || (intent.operation === "product"
           ? explicitSource?.role !== "product" ? explicitSource?.path || null : null

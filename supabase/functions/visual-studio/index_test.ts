@@ -1471,7 +1471,7 @@ Deno.test("originals attached after a scene integrate into it instead of staying
   Object.assign(f.version.proposal, { operation: "create", visual_kind: "photo", scene_workflow: { phase: "scene", camera_match: "Vue de face" }, planning_references: [], reference_snapshot: [] });
   f.session.references = [mannequin, product];
   f.setIntent({ operation: "edit", visual_kind: "photo", summary: "Je prépare d'abord la scène. Le visage et la bougie seront provisoires à ce stade.", image_prompt: "Add the model seated on the sofa holding the candle.",
-    change: ["Ajouter le mannequin assis sur le canapé", "Le mannequin tient la bougie"], product_placement: "Tenue à deux mains",
+    change: ["Remplacer la personne provisoire par le mannequin assis sur le canapé", "Le mannequin tient la bougie"], product_placement: "Tenue à deux mains",
     reference_use: [{ id: mannequin.id, role: "casting" }, { id: product.id, role: "product" }] });
   try {
     const res = await handleStudioRequest(request({ ...base, studio_version: 4, action: "message", revision: 0, request_id: id(1304),
@@ -1482,6 +1482,10 @@ Deno.test("originals attached after a scene integrate into it instead of staying
     assertEquals(p.input_path, f.version.result_path);
     assertEquals(p.references.map((r: any) => r.path).sort(), ["mannequin", "product"]);
     assertEquals(p.summary.includes("provisoire"), false);
+    // 03/10/2026: an empty decor has no stand-in, the visible texts must not speak of one.
+    assertEquals(p.scene_workflow.empty_scene, true);
+    assertEquals(JSON.stringify([p.change, p.scene_workflow.targets]).includes("provisoire"), false);
+    assertEquals(JSON.stringify(p.scene_workflow.targets).includes("emplacement de la personne"), false);
   } finally { f.restore(); }
 });
 
