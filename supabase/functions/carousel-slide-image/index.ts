@@ -26,9 +26,14 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { isQaTestAccount, logUsage } from "../_shared/plan-limiter.ts";
+import { getServiceClient, isQaTestAccount, logUsage } from "../_shared/plan-limiter.ts";
 import { fetchWithRetry } from "../_shared/http-retry.ts";
 import { openaiImageModel } from "../_shared/openai-image-model.ts";
+import {
+  blobToDataUrl, generateHiggsfieldImageSync, higgsfieldImagesEnabled, MARKETING_CREATE_MODEL, MARKETING_PROMPT_MAX,
+  SYNC_IMAGE_MESSAGES,
+} from "../_shared/higgsfield-image-api.ts";
+import { buildPrompt } from "./prompt.ts";
 
 const BodySchema = z.object({
   workspace_id: z.string().uuid().optional().nullable(),
@@ -41,62 +46,6 @@ const BodySchema = z.object({
 
 const OPENAI_URL = "https://api.openai.com/v1/images/generations";
 const OPENAI_TIMEOUT_MS = 160_000;
-
-interface BrandBlockInput {
-  activite?: string | null;
-  photo_style?: string | null;
-  mood_keywords?: unknown;
-  visual_donts?: string | null;
-  moodboard_description?: string | null;
-}
-
-function buildPrompt(opts: {
-  directive: string;
-  adjustment: string | null;
-  brand: BrandBlockInput;
-}): string {
-  const lines: string[] = [];
-
-  lines.push(
-    "Candid photo taken on an iPhone, amateur photography, unposed, captured mid-moment."
-  );
-
-  lines.push(
-    "SCENE (description in French — follow it faithfully): " +
-      opts.directive.trim() +
-      " — with realistic everyday details; the background must stay fully readable."
-  );
-
-  lines.push(
-    "PERSON (when the scene includes one): a real-looking person, NOT a professional model — natural visible skin texture, minimal makeup, subtle facial asymmetries, a few loose hair strands. Representation matters: vary ethnicity and age (25-55)."
-  );
-
-  lines.push(
-    "CAPTURE: deep depth of field, EVERYTHING in sharp focus from foreground to background, as if shot at f/11 on a phone (small sensor look). Every element of the background must stay crisp, detailed and readable — walls, furniture, objects, textures. Natural daylight, true-to-life colors, fine visible grain, slightly off-center framing. At most 1-2 honest imperfections (slight motion blur OR slightly tilted horizon)."
-  );
-
-  lines.push(
-    "STRICTLY FORBIDDEN: any real identifiable person, celebrity or public figure; any third-party brand name, logo or recognizable product. Also avoid: background blur, bokeh, shallow depth of field, cinematic look, studio lighting, golden-hour glow, magazine retouching, plastic smooth skin, added text, watermarks."
-  );
-
-  const b = opts.brand;
-  const brandLines: string[] = [];
-  if (b.activite) brandLines.push(`- Activité : ${b.activite}`);
-  const moods = Array.isArray(b.mood_keywords) ? b.mood_keywords.filter(Boolean) : [];
-  if (moods.length) brandLines.push(`- Style visuel : ${moods.join(", ")}`);
-  if (b.photo_style) brandLines.push(`- Style photo : ${b.photo_style}`);
-  if (b.visual_donts) brandLines.push(`- Interdits visuels : ${b.visual_donts}`);
-  if (b.moodboard_description) brandLines.push(`- Ambiance moodboard : ${b.moodboard_description}`);
-  if (brandLines.length) {
-    lines.push("BRAND UNIVERSE (guide mood, palette and places):\n" + brandLines.join("\n"));
-  }
-
-  if (opts.adjustment?.trim()) {
-    lines.push("ADJUSTMENT REQUESTED (apply on top of everything above): " + opts.adjustment.trim());
-  }
-
-  return lines.join("\n\n");
-}
 
 serve(async (req) => {
   const t0 = Date.now();
@@ -158,7 +107,12 @@ serve(async (req) => {
       supabase.from("profiles").select("activite").eq("user_id", userId).maybeSingle(),
     ]);
 
+    // Route temporaire et réversible (03/10/2026) : crédit OpenAI direct épuisé
+    // → Higgsfield Marketing Studio (Flare, création pure) tant que
+    // HIGGSFIELD_IMAGE_ENABLED=true. Retirer le secret = retour à OpenAI.
+    const useHiggsfield = higgsfieldImagesEnabled();
     const prompt = buildPrompt({
+      ...(useHiggsfield ? { maxLength: MARKETING_PROMPT_MAX } : {}),
       directive: parsed.directive,
       adjustment,
       brand: {
@@ -169,6 +123,54 @@ serve(async (req) => {
         moodboard_description: charterRes.data?.moodboard_description,
       },
     });
+
+    if (useHiggsfield) {
+      const result = await generateHiggsfieldImageSync(getServiceClient(), {
+        source: "carousel-slide-image",
+        userId,
+        workspaceId: bodyWorkspaceId,
+        model: MARKETING_CREATE_MODEL,
+        prompt,
+        format: "portrait",
+        inputs: [],
+        // Le front abandonne à 200 s.
+        deadline: t0 + 180_000,
+      });
+      if (!result.ok) {
+        console.error(JSON.stringify({
+          event: "carousel_slide_image_failed", reason: `higgsfield_${result.reason}`,
+          user_id: userId, total_ms: Date.now() - t0,
+        }));
+        return jsonResponse({ error: SYNC_IMAGE_MESSAGES[result.reason] }, 502);
+      }
+      // 1 crédit par image générée (après succès uniquement)
+      await logUsage(
+        userId,
+        "photo_retouch",
+        adjustment ? "casting_slide_image_adjust" : "casting_slide_image",
+        undefined,
+        MARKETING_CREATE_MODEL,
+        bodyWorkspaceId ?? undefined
+      );
+      console.log(JSON.stringify({
+        event: "carousel_slide_image_success",
+        user_id: userId,
+        model: MARKETING_CREATE_MODEL,
+        provider: "higgsfield",
+        workspace_id: bodyWorkspaceId,
+        has_adjustment: !!adjustment,
+        total_ms: Date.now() - t0,
+      }));
+      return jsonResponse(
+        {
+          success: true,
+          image: await blobToDataUrl(result.blob),
+          remaining: quota?.remaining,
+          remaining_total: quota?.remaining_total,
+        },
+        200
+      );
+    }
 
     const openaiKey = Deno.env.get("OPENAI_API_KEY");
     if (!openaiKey) {
