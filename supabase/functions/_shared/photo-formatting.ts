@@ -17,7 +17,7 @@ export const PHOTO_FORMAT_VERSION = "photo-formatting-v1";
 export const MAX_MOTIFS = 2;
 export const MIN_STEPS = 3;
 
-import type { MotifElement, MotifTone, PhotoFormat } from "./photo-format-types.ts";
+import { motifBox, type MotifElement, type MotifTone, type PhotoFormat } from "./photo-format-types.ts";
 export type { MotifElement, MotifTone, PhotoFormat };
 
 export interface PhotoFormattingPlan {
@@ -70,6 +70,20 @@ function validateElement(e: any, source: string): MotifElement | null {
   return null;
 }
 
+/** Un texte posé sur une forme (vu en live : légende sur les rectangles) est
+ * descendu sous les formes qu'il chevauche. Le cadre du dessin s'ajuste ensuite. */
+export function declutterMotif(elements: MotifElement[]): MotifElement[] {
+  const shapes = elements.filter(e => e.k !== "text").map(motifBox);
+  return elements.map(e => {
+    if (e.k !== "text") return e;
+    const b = motifBox(e);
+    const hit = shapes.filter(s => b.x0 < s.x1 && b.x1 > s.x0 && b.y0 < s.y1 && b.y1 > s.y0);
+    if (!hit.length) return e;
+    const size = e.size ?? 44;
+    return { ...e, y: Math.round(Math.max(...hit.map(s => s.y1)) + size * .8 + 14) };
+  });
+}
+
 /** Valide la réponse du modèle contre le texte réel. Jamais d'exception : au pire, plan vide. */
 export function validatePhotoFormatting(raw: unknown, slides: Slide[]): Pick<PhotoFormattingPlan, "steps" | "motifs"> {
   const data = typeof raw === "string" ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
@@ -94,14 +108,15 @@ export function validatePhotoFormatting(raw: unknown, slides: Slide[]): Pick<Pho
     if (!eligible(n) || motifs.some(x => x.slide_number === n) || !Array.isArray(m?.elements)) continue;
     const elements = m.elements.slice(0, 24).map((e: any) => validateElement(e, textOf.get(n) || "")).filter(Boolean) as MotifElement[];
     if (elements.length < 2) continue;
-    motifs.push({ slide_number: n, elements, reason: String(m?.reason || "").slice(0, 300) });
+    motifs.push({ slide_number: n, elements: declutterMotif(elements), reason: String(m?.reason || "").slice(0, 300) });
   }
   return { steps, motifs };
 }
 
 /** Pose la mise en forme sur les slides, APRÈS l'attribution des habillages :
- * un motif exige une surface de lecture (carte, verre, colonne) ; une slide au
- * voile du bord passe alors en carte (ou en verre si une voisine est en carte). */
+ * un motif exige une surface de lecture large (carte ou verre) ; une slide au
+ * voile du bord ou en colonne passe alors en carte (ou en verre si une voisine
+ * est en carte). */
 export function applyPhotoFormatting<T extends Slide>(slides: T[], plan: Pick<PhotoFormattingPlan, "steps" | "motifs"> | null | undefined): T[] {
   if (!plan) return slides;
   const out = slides.map(s => ({ ...s })) as T[];
@@ -114,9 +129,15 @@ export function applyPhotoFormatting<T extends Slide>(slides: T[], plan: Pick<Ph
   for (const m of plan.motifs.slice(0, MAX_MOTIFS)) {
     const i = idx(m.slide_number);
     if (i < 0 || !out[i].photo_style) continue;
-    if (out[i].photo_style === "bord") {
+    // Le motif est dessiné sur 1000 de large : la colonne (448 utiles) le
+    // réduirait de moitié, illisible sur téléphone (vu en live le 03/10/2026).
+    if (out[i].photo_style === "bord" || out[i].photo_style === "colonne") {
       const near = [out[i - 1]?.photo_style, out[i + 1]?.photo_style];
-      (out[i] as Slide).photo_style = near.includes("carte") ? (near.includes("verre") ? "colonne" : "verre") : "carte";
+      (out[i] as Slide).photo_style = !near.includes("carte") ? "carte" : !near.includes("verre") ? "verre" : out[i - 1]?.photo_style === "carte" ? "verre" : "carte";
+      // Pas deux habillages identiques d'affilée : la voisine suivante sans motif repasse au bord.
+      const next = out[i + 1] as Slide | undefined;
+      const nextHasMotif = plan.motifs.some(x => idx(x.slide_number) === i + 1);
+      if (next?.photo_style === out[i].photo_style && !nextHasMotif) next.photo_style = "bord";
     }
     (out[i] as Slide).photo_format = { ...(out[i].photo_format || {}), motif: { elements: m.elements, reason: m.reason } };
   }
