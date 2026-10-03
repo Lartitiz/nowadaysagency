@@ -15,6 +15,7 @@
  * même somme côté base).
  */
 import type { getServiceClient } from "./plan-limiter.ts";
+import { downscaleToJpeg } from "./image-downscale.ts";
 
 const BASE = "https://api.higgsfield.ai";
 export const MARKETING_CREATE_MODEL = "marketing-studio/image/flare";
@@ -201,10 +202,9 @@ export async function generateHiggsfieldImageSync(db: DB, req: SyncImageRequest)
 
     stage = "upload";
     const urls = await Promise.all(req.inputs.map(higgsfieldUpload));
-    // 1k (~832×1248, close to the former OpenAI 1024×1536): the image travels as
-    // base64 in the HTTP response; a 2k PNG weighed 6.5 MB and exceeded the
-    // 4 MB photo-dump reference cap. The Studio keeps 2k (stored, not returned).
-    const input = marketingPayload(req.prompt, req.format, urls, "1k");
+    // 2k then shrunk to 1024 px JPEG below (downscaleToJpeg): sharper than 1k
+    // (688×1024), far lighter than the raw 2k PNG (6.5 MB in base64).
+    const input = marketingPayload(req.prompt, req.format, urls, "2k");
     stage = "estimate";
     const quote = await higgsfieldApi(`estimate/${req.model}`, "POST", input);
     const estimate = quote?.usd === undefined && quote?.type === "description"
@@ -265,7 +265,7 @@ export async function generateHiggsfieldImageSync(db: DB, req: SyncImageRequest)
         throw new Error("studio_provider_output");
       }
       await setSpendStatus(db, spendId, "completed");
-      return { ok: true, blob, requestId };
+      return { ok: true, blob: await downscaleToJpeg(blob), requestId };
     }
     await setSpendStatus(db, spendId, "uncertain");
     log({ error: "timeout" });
