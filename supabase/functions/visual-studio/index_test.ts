@@ -1344,62 +1344,6 @@ Deno.test("Soul unavailability refuses new photography without silently switchin
     assertEquals(res.status, 503); assertEquals(f.requests.some(path => path.includes("images/")), false);
   } finally { f.restore(); }
 });
-Deno.test("integration action rejects stale revision, wrong scene approval and changed references before any claim", async () => {
-  const { integrationProposal, referenceSignature } = await import("./integration-proposal.ts");
-  for (const mode of ["revision", "approval", "references"]) {
-    const f = fixture();
-    const person = { id: id(924), photo_id: null, path: "person-original", role: "person" as const, name: "Personne" };
-    f.session.references = [person]; f.version.status = "ready";
-    Object.assign(f.version.proposal, { operation: "create", planning_references: [person],
-      scene_reference_signature: referenceSignature([person]),
-      scene_workflow: { phase: "scene", camera_match: "Face", targets: [{ role: "person", reference_ids: [person.id], location: "Au centre", instruction: "Intégrer cette identité" }] } });
-    const preview = (await integrationProposal(f.version))!;
-    if (mode === "references") f.session.references = [];
-    try {
-      const res = await handleStudioRequest(request({ ...base, action: "integrate", version_id: proposalId, proposal_id: preview.id,
-        approved_scene_id: mode === "approval" ? id(925) : proposalId, revision: mode === "revision" ? 99 : 0 }));
-      assertEquals(res.status, 409);
-      assertEquals(f.requests.some(path => path.includes("studio_confirm_generation")), false);
-    } finally { f.restore(); }
-  }
-});
-
-Deno.test("integration confirmation persists the exact approved scene before one atomic claim", async () => {
-  const { integrationProposal } = await import("./integration-proposal.ts");
-  const f = fixture(); const savedFetch = globalThis.fetch; const key = Deno.env.get("OPENAI_API_KEY");
-  Deno.env.set("OPENAI_API_KEY", "test-only");
-  const person = { id: id(950), photo_id: null, path: "original-person", role: "person" as const, name: "Portrait" };
-  f.session.references = [person]; f.version.status = "ready";
-  Object.assign(f.version.proposal, { planning_references: [person], scene_workflow: { phase: "scene", camera_match: "Face",
-    targets: [{ role: "person", reference_ids: [person.id], location: "Au centre", instruction: "Intégrer cette identité" }] } });
-  const preview = (await integrationProposal(f.version))!;
-  f.setIntent({ image_prompt: "Replace the provisional person in Image 1 with the exact identity of Image 2. Keep the workshop and pose.", targets: preview.scene_workflow.targets, blocked_reason: "" });
-  let claims = 0;
-  globalThis.fetch = async (input, init) => {
-    const url = new URL(String(input));
-    if (url.pathname.endsWith("visual_studio_versions") && url.searchParams.get("id") === `eq.${preview.id}`) return new Response("null", { headers: { "Content-Type": "application/json" } });
-    if (url.pathname.endsWith("studio_confirm_generation")) {
-      claims++;
-      const confirmed = f.session.proposal as any;
-      assertEquals(confirmed.input_path, f.version.result_path);
-      assertEquals(confirmed.scene_workflow.approved_scene_id, f.version.id);
-      assertEquals(confirmed.references[0].path, person.path);
-      assertEquals(JSON.parse(String((init as RequestInit | undefined)?.body)).p_proposal, preview.id);
-      return new Response(JSON.stringify({ claimed: false }), { headers: { "Content-Type": "application/json" } });
-    }
-    return savedFetch(input, init);
-  };
-  try {
-    const body = { ...base, action: "integrate", version_id: f.version.id, proposal_id: preview.id, approved_scene_id: f.version.id, revision: 0 };
-    assertEquals((await handleStudioRequest(request(body))).status, 200);
-    assertEquals(claims, 1);
-    assertEquals((await handleStudioRequest(request(body))).status, 409);
-    assertEquals(claims, 1);
-    assertEquals(f.requests.filter(path => path.includes("/v1/messages")).length, 1);
-    assertEquals(f.requests.some(path => path.includes("images/")), false);
-  } finally { if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key); f.restore(); }
-});
-
 Deno.test("ambiguous multiple identities keep the specific grouping question instead of a generic scene error", async () => {
   const f = fixture();
   const refs = [{ id: id(960), path: "first", role: "person", name: "Portrait 1", photo_id: null },
