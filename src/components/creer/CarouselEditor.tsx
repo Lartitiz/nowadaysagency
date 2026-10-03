@@ -16,6 +16,10 @@ import {
   Unlock,
   ImagePlus,
   Keyboard,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Minimize2,
   Eye,
   EyeOff,
   ChevronUp,
@@ -31,6 +35,7 @@ import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import { toast } from "sonner";
 import { hasClippedElement } from "@/lib/carousel-quality";
+import { compressImageFile } from "@/lib/image-compress";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import {
   applyToAllSlides,
@@ -230,6 +235,23 @@ interface CanvasBox {
   height: number;
 }
 
+/** Miniature réelle d'une slide (rendu du HTML exporté, réduit). */
+function SlideThumb({ html }: { html: string }) {
+  const W = 84;
+  return (
+    <span className="relative block overflow-hidden rounded-md bg-white" style={{ width: W, height: W * 1.25 }} aria-hidden="true">
+      <iframe
+        title=""
+        tabIndex={-1}
+        // Comme l'aperçu : pas de scripts ; une origine opaque empêchait certaines slides photo de s'afficher.
+        sandbox="allow-same-origin"
+        srcDoc={`<!doctype html><html><head><style>html,body{margin:0;width:1080px;height:1350px;overflow:hidden}</style></head><body>${html}</body></html>`}
+        style={{ position: "absolute", width: 1080, height: 1350, border: 0, transform: `scale(${W / 1080})`, transformOrigin: "top left", pointerEvents: "none" }}
+      />
+    </span>
+  );
+}
+
 function SlideCanvas({
   slide,
   selected,
@@ -248,6 +270,8 @@ function SlideCanvas({
   onCopy,
   onPaste,
   onShortcut,
+  onDropPhoto,
+  zoom = 1,
   api,
   onMeasure,
   onHistoryKey,
@@ -273,6 +297,10 @@ function SlideCanvas({
   /** Raccourcis de l'éditeur (⌘D, ⌘X, ⌘A, ⌘B/I/U, ⌘]/[, Tab) ; true si traité. */
   onShortcut: (event: KeyboardEvent) => boolean;
   api: React.MutableRefObject<CanvasApi | null>;
+  /** Photo glissée depuis l'ordinateur sur la slide (cible : la photo sous le pointeur). */
+  onDropPhoto?: (file: File, targetId: string | null) => void;
+  /** Zoom de l'aperçu (1 = largeur de la colonne). */
+  zoom?: number;
   onMeasure?: (box: CanvasBox | null) => void;
   onHistoryKey: (event: KeyboardEvent) => void;
 }) {
@@ -331,9 +359,10 @@ function SlideCanvas({
     window.document.addEventListener("focusin", leave);
     return () => window.document.removeEventListener("focusin", leave);
   }, []);
-  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, locked: slide.locked });
-  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, locked: slide.locked };
+  const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, locked: slide.locked });
+  latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, locked: slide.locked };
   const [extraBoxes, setExtraBoxes] = useState<CanvasBox[]>([]);
+  const [dropping, setDropping] = useState(false);
   // Barre d'outils : état de la saisie sur la slide et actions branchées sur l'aperçu.
   const [editingId, setEditingId] = useState<string | null>(null);
   const tools = useRef<{
@@ -694,6 +723,27 @@ function SlideCanvas({
       members: { el: HTMLElement; left: number; top: number }[];
       shift: boolean;
     } | null = null;
+    // Photo glissée depuis l'ordinateur : elle remplace la photo visée (ou la photo de la slide).
+    const hasFile = (e: DragEvent) => Array.from(e.dataTransfer?.types || []).includes("Files");
+    doc.addEventListener("dragover", (e) => {
+      if (!hasFile(e) || latest.current.locked || !latest.current.onDropPhoto) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+      setDropping(true);
+    });
+    doc.addEventListener("dragleave", (e) => {
+      if (!e.relatedTarget) setDropping(false);
+    });
+    doc.addEventListener("drop", (e) => {
+      setDropping(false);
+      const file = Array.from(e.dataTransfer?.files || []).find((f) => f.type.startsWith("image/"));
+      if (!file || latest.current.locked || !latest.current.onDropPhoto) return;
+      e.preventDefault();
+      const under = (doc.elementsFromPoint?.(e.clientX, e.clientY) || [])
+        .map((n) => n.closest<HTMLElement>("[data-editor-id]"))
+        .find((n): n is HTMLElement => !!n && isPhotoEl(n));
+      latest.current.onDropPhoto(file, under?.dataset.editorId || null);
+    });
     doc.addEventListener("click", (e) => {
       e.preventDefault();
       view.focus();
@@ -1010,12 +1060,17 @@ function SlideCanvas({
       </div>
     ) : null;
   return (
-    <div>
+    <div className={zoom > 1 ? "max-h-[75vh] overflow-auto rounded-xl" : undefined}>
       <div
         ref={host}
-        className="relative w-full overflow-hidden rounded-xl border bg-white shadow-sm"
-        style={{ aspectRatio: "1080 / 1350" }}
+        className="relative overflow-hidden rounded-xl border bg-white shadow-sm"
+        style={{ aspectRatio: "1080 / 1350", width: `${zoom * 100}%` }}
       >
+        {dropping && (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-primary/20 text-sm font-semibold text-primary">
+            Dépose la photo ici
+          </div>
+        )}
         {width > 0 && (
           <iframe
             ref={frame}
@@ -1106,6 +1161,10 @@ export default function CarouselEditor({
     [photoOpen, setPhotoOpen] = useState(false),
     [measured, setMeasured] = useState<CanvasBox | null>(null),
     [extra, setExtra] = useState<string[]>([]),
+    [zoom, setZoom] = useState(1),
+    [fullscreen, setFullscreen] = useState(false),
+    [dragSlide, setDragSlide] = useState<number | null>(null),
+    [dropAt, setDropAt] = useState<number | null>(null),
     [hasClip, setHasClip] = useState(false);
   // Sélection multiple (Maj + clic) : l'élément principal + les autres.
   const group = selected ? [selected, ...extra.filter((id) => id !== selected)] : [];
@@ -1313,6 +1372,58 @@ export default function CarouselEditor({
       return true;
     }
     return false;
+  };
+  // Réordonner en glissant une vignette (souris ou doigt).
+  const thumbDrag = useRef<{ from: number; x: number; moved: boolean } | null>(null);
+  const justDragged = useRef(false);
+  const thumbIndexAt = (x: number) => {
+    const thumbs = Array.from(window.document.querySelectorAll<HTMLElement>("[data-thumb]"));
+    // Position d'insertion : avant la vignette dont on passe la moitié, sinon à la fin.
+    let index = thumbs.length;
+    for (let k = 0; k < thumbs.length; k++) {
+      const r = thumbs[k].getBoundingClientRect();
+      if (x < r.left + r.width / 2) {
+        index = k;
+        break;
+      }
+    }
+    return index;
+  };
+  const reorder = (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0) return;
+    const slides = [...current.current.slides];
+    const [moved] = slides.splice(from, 1);
+    slides.splice(to, 0, moved);
+    commit(renumberDocument({ ...current.current, slides }));
+    setActive(to);
+    selectOne(null);
+  };
+  // Photo glissée depuis l'ordinateur sur la slide.
+  const dropPhoto = async (file: File, targetId: string | null) => {
+    if (!onAddPhoto) {
+      toast.error("Ajout de photo indisponible ici.");
+      return;
+    }
+    try {
+      const small = await compressImageFile(file);
+      const source = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(small);
+      });
+      if (!/^data:image\/(png|jpeg|webp|gif);base64,/i.test(source)) {
+        toast.error("Format non pris en charge. Choisis une photo JPG, PNG ou WEBP.");
+        return;
+      }
+      const index = onAddPhoto({ base64: source, preview: source, name: small.name, mimeType: small.type || "image/jpeg" });
+      if (!index) return;
+      const target = current.current.slides.find((s) => s.id === slide.id) || slide;
+      changeSlide(replacePhoto(target, targetId, source, index));
+      toast.success("Photo ajoutée à la slide");
+    } catch {
+      toast.error("Cette photo n’a pas pu être lue.");
+    }
   };
   const applyAll = (what: { style?: boolean; position?: boolean }) => {
     if (!selected) return;
@@ -1699,16 +1810,53 @@ export default function CarouselEditor({
           <button
             key={s.id}
             type="button"
+            data-thumb={i}
+            style={{ touchAction: "none" }}
+            onPointerDown={(e) => {
+              thumbDrag.current = { from: i, x: e.clientX, moved: false };
+              (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+            }}
+            onPointerMove={(e) => {
+              const d = thumbDrag.current;
+              if (!d || (!d.moved && Math.abs(e.clientX - d.x) < 6)) return;
+              d.moved = true;
+              setDragSlide(d.from);
+              setDropAt(Math.min(thumbIndexAt(e.clientX), current.current.slides.length - 1));
+            }}
+            onPointerUp={(e) => {
+              const d = thumbDrag.current;
+              thumbDrag.current = null;
+              setDragSlide(null);
+              setDropAt(null);
+              if (d?.moved) {
+                justDragged.current = true;
+                const at = thumbIndexAt(e.clientX);
+                reorder(d.from, at > d.from ? at - 1 : at);
+              }
+            }}
+            onPointerCancel={() => {
+              thumbDrag.current = null;
+              setDragSlide(null);
+              setDropAt(null);
+            }}
             onClick={() => {
+              if (justDragged.current) {
+                justDragged.current = false;
+                return;
+              }
               setActive(i);
               setSelected(null);
             }}
             aria-label={`Sélectionner la slide ${i + 1}`}
             aria-pressed={i === active}
-            className={`shrink-0 rounded-lg border px-4 py-3 text-sm ${i === active ? "border-primary bg-primary/10 font-semibold" : "bg-background"}`}
+            title="Clique pour ouvrir, glisse pour changer l’ordre"
+            className={`relative shrink-0 cursor-grab rounded-lg border p-1 text-2xs ${i === active ? "border-primary ring-2 ring-primary/40" : "bg-background"} ${dragSlide === i ? "opacity-50" : ""} ${dropAt === i && dragSlide !== i ? "outline outline-2 outline-offset-2 outline-primary" : ""}`}
           >
-            {i + 1}
-            {s.locked ? " 🔒" : ""}
+            <SlideThumb html={s.html} />
+            <span className="mt-0.5 block text-center font-semibold">
+              {i + 1}
+              {s.locked ? " 🔒" : ""}
+            </span>
           </button>
         ))}
       </div>
@@ -1788,8 +1936,40 @@ export default function CarouselEditor({
       <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_280px] lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Téléphone : l'aperçu reste visible (collé sous l'en-tête, plus petit)
             pendant qu'on fait défiler les réglages en dessous. */}
-        <div className="sticky top-12 z-30 min-w-0 w-full bg-background pb-2 md:top-28 md:bg-transparent md:pb-0">
-          <div className="mx-auto w-full max-w-[min(540px,36vh)] md:max-w-[540px]">
+        <div
+          className={
+            fullscreen
+              ? "fixed inset-0 z-50 flex flex-col items-center justify-center gap-2 overflow-auto bg-background p-4"
+              : "sticky top-12 z-30 min-w-0 w-full bg-background pb-2 md:top-28 md:bg-transparent md:pb-0"
+          }
+          onKeyDown={(e) => {
+            if (fullscreen && e.key === "Escape" && !selected) setFullscreen(false);
+          }}
+        >
+          <div className="mb-1 flex items-center justify-end gap-1">
+            {!fullscreen && (
+              <>
+                <Button size="sm" variant="ghost" className="h-7 px-2" aria-label="Dézoomer l’aperçu" disabled={zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - 0.5))}>
+                  <ZoomOut size={14} />
+                </Button>
+                <span className="w-10 text-center text-2xs tabular-nums text-muted-foreground">{Math.round(zoom * 100)} %</span>
+                <Button size="sm" variant="ghost" className="h-7 px-2" aria-label="Zoomer l’aperçu" disabled={zoom >= 3} onClick={() => setZoom((z) => Math.min(3, z + 0.5))}>
+                  <ZoomIn size={14} />
+                </Button>
+              </>
+            )}
+            <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-2xs" aria-label={fullscreen ? "Quitter le plein écran" : "Ouvrir l’aperçu en grand"} onClick={() => setFullscreen((f) => !f)}>
+              {fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              {fullscreen ? "Quitter le plein écran" : "En grand"}
+            </Button>
+          </div>
+          <div
+            className={
+              fullscreen
+                ? "w-full max-w-[min(1080px,calc((100vh-6rem)*0.8))]"
+                : "mx-auto w-full max-w-[min(540px,36vh)] md:max-w-[540px]"
+            }
+          >
           <SlideCanvas
             onHistoryKey={onHistoryKey}
             slide={slide}
@@ -1803,6 +1983,8 @@ export default function CarouselEditor({
             onPaste={paste}
             onShortcut={shortcut}
             api={canvasApi}
+            onDropPhoto={onAddPhoto ? dropPhoto : undefined}
+            zoom={fullscreen ? 1 : zoom}
             onMeasure={setMeasured}
             onMove={(id, styles) =>
               changeSlide(patchElement(slide, id, { styles }))
