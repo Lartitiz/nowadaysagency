@@ -35,11 +35,20 @@ Deno.test("validation : motif = mots du texte ou repères courts, jamais de mot 
     { ...MOTIF, slide_number: 3, elements: [{ k: "rect", x: 0, y: 0, w: 10, h: 10, tone: "ink" }, { k: "text", x: 0, y: 40, text: "le tournage", tone: "ink" }] },
     { ...MOTIF, slide_number: 4, elements: [{ k: "rect", x: 0, y: 0, w: 10, h: 10, tone: "ink" }, { k: "text", x: 0, y: 40, text: "la cuisson", tone: "ink" }] },
   ] }, SLIDES);
-  assertEquals(plan.motifs.length, 2);
-  assertEquals(plan.motifs[0].elements.length, 4, "chiffre inventé et rectangle hors cadre retirés");
-  const sizes = plan.motifs[0].elements.filter(e => e.k === "text").map(e => (e as any).size);
+  assertEquals(plan.motifs.map(m => m.slide_number), [3, 4], "motif avec chiffre inventé et rectangle hors cadre : retiré en entier, jamais à moitié");
+  const ok = validatePhotoFormatting({ steps: [], motifs: [MOTIF] }, SLIDES);
+  const sizes = ok.motifs[0].elements.filter(e => e.k === "text").map(e => (e as any).size);
   assert(sizes.every(s => s >= 40 && s <= 64), `tailles ${sizes}`);
   assertEquals(validatePhotoFormatting("pas du JSON", SLIDES), { steps: [], motifs: [] });
+});
+
+Deno.test("validation : libellé d'étape court ; s'il répète le début du texte, l'étape s'affiche sans libellé", () => {
+  const long = validatePhotoFormatting({ steps: [{ slide_number: 2, label: "Tout commence avant la forme, avec" }, STEPS[1], STEPS[2]], motifs: [] }, SLIDES);
+  assertEquals(long.steps, [], "libellé de plus de 4 mots refusé");
+  const rep = validatePhotoFormatting({ steps: [STEPS[0], { slide_number: 3, label: "Puis vient le tournage" }, STEPS[2]], motifs: [] }, SLIDES);
+  assertEquals(rep.steps.map(s => s.label), ["le pétrissage", "", "L’émaillage"]);
+  const html = composePhotoSlide(applyPhotoFormatting(SLIDES.map((s, i) => i ? { ...s, photo_style: "carte" } : s), rep)[2], CH, { isFirst: false, isLast: false }).html;
+  assert(html.includes(">Étape 2</div>") && !html.includes("Étape 2 ·"), "étape sans libellé");
 });
 
 Deno.test("application : étapes seulement sur des slides habillées ; un motif sur voile du bord passe sur une surface de lecture", () => {

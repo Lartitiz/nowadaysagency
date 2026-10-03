@@ -129,7 +129,7 @@ Deno.test("mix : accroche courte d'une couverture photo_full → titre, ancre ov
 // ne sort plus dans le mixte, ou si la génération ne passe plus par l'étage.
 const MIX_TEXT = CERAMIQUE.map(s => ({ slide_number: s.slide_number, overlay_text: mixSlideText(s) }));
 const MIX_PLAN = validatePhotoFormatting({
-  steps: [{ slide_number: 2, label: "Tout commence avant le tour" }, { slide_number: 3, label: "Sur le tour" }, { slide_number: 4, label: "L'émail" }],
+  steps: [{ slide_number: 2, label: "chaque boule d'argile" }, { slide_number: 3, label: "Sur le tour" }, { slide_number: 4, label: "L'émail" }],
   motifs: [{ slide_number: 5, reason: "Une page par fournée.", elements: [
     { k: "rect", x: 0, y: 40, w: 140, h: 120, tone: "soft" }, { k: "rect", x: 170, y: 40, w: 140, h: 120, tone: "soft" }, { k: "rect", x: 340, y: 40, w: 140, h: 120, tone: "accent" },
     { k: "text", x: 0, y: 150, text: "température", tone: "ink", size: 40 },
@@ -140,7 +140,7 @@ Deno.test("mix mise en forme : étapes et motif dessinés, texte intact, composi
   assertEquals(MIX_PLAN.steps.length, 3); assertEquals(MIX_PLAN.motifs.length, 1);
   const out = composeMixCarousel(applyMixFormatting(CERAMIQUE, MIX_PLAN), CH, 5);
   assert(out, "la mise en forme ne doit jamais faire perdre la composition par le code");
-  for (const [i, n] of [[1, 1], [2, 2], [3, 3]]) assert(out![i].html.includes(`Étape ${n} · `) && out![i].html.includes(`data-photo-step="${n}/3"`), `étape ${n} absente`);
+  for (const [i, n] of [[1, 1], [2, 2], [3, 3]]) assert(out![i].html.includes(`Étape ${n}`) && out![i].html.includes(`data-photo-step="${n}/3"`), `étape ${n} absente`);
   // Le motif tombe hors de la photo, dans une colonne large.
   assert(out![4].html.includes('<svg data-photo-format="motif"'), `motif absent (${out![4].layout})`);
   assert(out![4].layout !== "cote_a_cote" && out![4].layout !== "sur_photo");
