@@ -70,7 +70,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { applyCoverIllustration, runComposedByCodeGeneration, stripInventedSurtitres, stripSlideNumberBadges, applyTitleBodyContrastGuard, applyTextContrastGuard, applyMinFontSizeGuard } = await import("./index.ts");
+const { applyCoverIllustration, runComposedByCodeGeneration, stripInventedSurtitres, stripSlideNumberBadges, stripDuplicateStepNumbers, applyTitleBodyContrastGuard, applyTextContrastGuard, applyMinFontSizeGuard } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -208,6 +208,19 @@ Deno.test("mise en forme texte : étapes et motif survivent aux gardes de produc
   assert(formatted[3].includes('<svg data-photo-format="motif"') && formatted[3].includes("pendant une semaine"), "motif retiré");
   const plain = run(base);
   assertEquals(formatted[0], plain[0]); assertEquals(formatted[4], plain[4]);
+});
+
+Deno.test("numéro d'étape en double retiré, les autres chiffres restent", () => {
+  const result: any = { slides_html: [
+    { slide_number: 4, html: '<div><span style="font-size:32px">2</span><h1 data-slide-text="title">2. Trier les idées</h1><p>En 2 semaines.</p></div>' },
+    { slide_number: 5, html: '<div><span style="font-size:120px">73</span><h1 data-slide-text="title">Le chiffre</h1></div>' },
+    { slide_number: 6, html: '<div><span>3</span><h1 data-slide-text="title">2. Autre</h1></div>' },
+  ] };
+  stripDuplicateStepNumbers(result, { slides: [{ slide_number: 4, title: "2. Trier les idées" }, { slide_number: 5, title: "Le chiffre" }, { slide_number: 6, title: "2. Autre" }] });
+  assert(!result.slides_html[0].html.includes('px">2</span>'), "le 2 isolé doit partir");
+  assert(result.slides_html[0].html.includes("2. Trier les idées") && result.slides_html[0].html.includes("En 2 semaines."));
+  assert(result.slides_html[1].html.includes(">73<"), "chiffre-clé conservé");
+  assert(result.slides_html[2].html.includes("<span>3</span>"), "autre numéro conservé");
 });
 
 Deno.test("nettoyage photo : garde les précisions source mais retire encore les surtitres inventés", () => {

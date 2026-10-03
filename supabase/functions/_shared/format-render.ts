@@ -43,9 +43,9 @@ export function motifSvg(motif: NonNullable<PhotoFormat["motif"]>, colors: { ink
   const els = motif.elements.map(e => {
     if (e.k === "rect") return `<rect x="${e.x}" y="${e.y}" width="${e.w}" height="${e.h}" rx="${e.radius ?? 8}" fill="${c(e.tone)}"${e.opacity ? ` fill-opacity="${e.opacity}"` : ""}/>`;
     if (e.k === "line") return `<line x1="${e.x1}" y1="${e.y1}" x2="${e.x2}" y2="${e.y2}" stroke="${c(e.tone)}" stroke-width="${e.width ?? 4}" stroke-linecap="round"/>`;
-    // Un texte « atténué » reste lisible : encre à 72 % (le ton soft à 32 %
-    // ne convient qu'aux formes ; vu en live, illisible sur un aplat moyen).
-    const fill = e.tone === "soft" ? `${colors.ink}" fill-opacity=".72` : c(e.tone);
+    // Jamais d'opacité sur du texte (méthode design de Laetitia, 2.5) : un
+    // texte « atténué » prend l'encre pleine ; le ton soft reste aux formes.
+    const fill = e.tone === "soft" ? colors.ink : c(e.tone);
     return `<text x="${e.x}" y="${e.y}" fill="${fill}" font-size="${e.size ?? 44}" text-anchor="${e.anchor ?? "start"}" font-family="${escapeHtml(e.font === "title" ? fonts.title : fonts.body)}">${escapeHtml(e.text)}</text>`;
   }).join("");
   const { left, top, height } = motifFrame(motif);
