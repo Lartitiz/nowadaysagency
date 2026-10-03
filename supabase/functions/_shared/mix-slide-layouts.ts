@@ -1,6 +1,7 @@
 import { hexLuminance } from "./contrast-guard.ts";
 import type { PhotoFormat } from "./photo-format-types.ts";
 import { motifHeight, motifSvg, STEP_HEADER_H, stepHeader } from "./format-render.ts";
+import { mixSchemaBlock } from "./mix-schema-render.ts";
 
 // Composition PAR CODE du carrousel MIXTE (photos + slides texte), maquette
 // validée avec Laetitia le 02/10/2026 (« Carrousel céramiste »).
@@ -14,6 +15,10 @@ import { motifHeight, motifSvg, STEP_HEADER_H, stepHeader } from "./format-rende
 //   cote_a_cote      — photo sur une colonne, texte sur l'autre
 //   sur_photo        — overlay court dans un bloc de charte posé sur la photo
 //   respiration      — slide texte sans photo, fond de charte
+//   pause            — slide texte qui porte un SCHÉMA : aplat de charte, texte
+//                      entier en haut, schéma en cartes claires dessous (piste B
+//                      choisie par Laetitia le 03/10/2026, mix-schema-render.ts).
+//                      Le schéma cède si le texte ne tient plus avec lui.
 //   vignette         — dernier recours d'un passage très développé : photo en
 //                      vignette, texte pleine largeur dessous (02/10/2026, vu en
 //                      prod : un passage de 74 mots faisait basculer TOUT le
@@ -35,7 +40,7 @@ import { motifHeight, motifSvg, STEP_HEADER_H, stepHeader } from "./format-rende
 // colonne de texte. Le motif exige une colonne d'au moins MOTIF_MIN_W de large
 // (jamais sur la photo, jamais dans la colonne étroite du côte-à-côte).
 
-export type MixLayout = "couverture_aplat" | "photo_aplat" | "passe_partout" | "cote_a_cote" | "sur_photo" | "respiration" | "vignette";
+export type MixLayout = "couverture_aplat" | "photo_aplat" | "passe_partout" | "cote_a_cote" | "sur_photo" | "respiration" | "pause" | "vignette";
 
 export interface MixSlideSpec {
   slide_number: number;
@@ -69,6 +74,8 @@ export interface ComposedMixSlide {
   contrast_ok: true;
   legibility: string;
   layout: MixLayout;
+  /** La slide portait un visual_schema qui n'a pas pu être dessiné (texte trop long). */
+  schema_dropped?: true;
 }
 
 const W = 1080;
@@ -124,13 +131,14 @@ function lineCount(text: string, width: number, size: number): number {
   }, 0);
 }
 
-interface TextParts { title: string; body: string; cta: string; field: "title_body" | "overlay"; headline?: boolean; format?: PhotoFormat | null }
+interface TextParts { title: string; body: string; cta: string; field: "title_body" | "overlay"; headline?: boolean; format?: PhotoFormat | null; schema?: { html: string; height: number } | null }
 
 /** Hauteur réservée à la mise en forme en tête d'une colonne de `width`. */
 function formatHeight(p: TextParts, width: number): number {
   const f = p.format;
-  if (!f) return 0;
-  return (f.step ? STEP_HEADER_H : 0) + (f.motif && width >= MOTIF_MIN_W ? motifHeight(f.motif, width) : 0);
+  const schema = p.schema && width >= MOTIF_MIN_W ? p.schema.height : 0;
+  if (!f) return schema;
+  return schema + (f.step ? STEP_HEADER_H : 0) + (f.motif && width >= MOTIF_MIN_W ? motifHeight(f.motif, width) : 0);
 }
 
 function softOf(color: string): string {
@@ -186,7 +194,8 @@ function column(p: TextParts, t: Tokens, fit: NonNullable<ReturnType<typeof fitC
   const f = p.format;
   const pre = (f?.step ? stepHeader(f.step, colors.heading) : "") +
     (f?.motif && box.w >= MOTIF_MIN_W ? motifSvg(f.motif, { ink: colors.ink, soft: softOf(colors.ink), accent: colors.heading }, { title: `'${t.titleFont}', Georgia, serif`, body: `'${t.bodyFont}', sans-serif` }) : "");
-  return `<div data-mix-text="1" style="position:absolute;left:${box.x}px;top:${box.y}px;width:${box.w}px;">${pre}${title}${body}${cta}</div>`;
+  const schema = p.schema && box.w >= MOTIF_MIN_W ? p.schema.html : "";
+  return `<div data-mix-text="1" style="position:absolute;left:${box.x}px;top:${box.y}px;width:${box.w}px;">${pre}${title}${body}${schema}${cta}</div>`;
 }
 
 function photoBox(n: number, box: { x: number; y: number; w: number; h: number }, radius = 0): string {
@@ -269,6 +278,30 @@ function respiration(p: TextParts, t: Tokens, inverted: boolean): string | null 
   return root(t, "respiration", bg, column(p, t, fit, { x: SIDE, y, w: W - 2 * SIDE }, colors));
 }
 
+/** Slide « pause » (piste B) : aplat de charte, texte entier, schéma en cartes
+ * claires dessous. null si le texte ne tient pas avec le schéma. */
+function pause(p: TextParts, t: Tokens, schema: unknown): string | null {
+  const w = W - 2 * SIDE;
+  const block = mixSchemaBlock(schema, w, {
+    card: t.background, cardAlt: mixHex(t.flat, t.background, .16), ink: t.ink,
+    soft: softOf(t.ink).replace(/,\.32\)$/, ",.18)"), accent: readable(t.flat, t.background) === t.flat ? t.flat : t.ink,
+  }, { title: `'${t.titleFont}', Georgia, serif`, body: `'${t.bodyFont}', sans-serif` }, t.radius);
+  if (!block) return null;
+  const q = { ...p, schema: block };
+  const fit = fitColumn(q, w, TEXT_BOTTOM - 130, { title: 72, body: 42 });
+  if (!fit) return null;
+  const colors = { heading: t.onFlat, ink: t.onFlat, ctaBg: t.background, ctaInk: t.ink };
+  const y = Math.max(130, Math.round((H - fit.total) / 2) - 20);
+  return root(t, "pause", t.flat, column(q, t, fit, { x: SIDE, y, w }, colors));
+}
+
+/** Mélange deux couleurs hex (part `k` de la première). */
+function mixHex(a: string, b: string, k: number): string {
+  if (!/^#[0-9a-f]{6}$/i.test(a) || !/^#[0-9a-f]{6}$/i.test(b)) return b;
+  const c = (x: string, i: number) => parseInt(x.slice(i, i + 2), 16);
+  return "#" + [1, 3, 5].map(i => Math.round(c(a, i) * k + c(b, i) * (1 - k)).toString(16).padStart(2, "0")).join("");
+}
+
 /** Overlay court : photo plein cadre, texte dans un bloc plein de la charte
  * posé en haut ou en bas à gauche (position choisie à la rédaction). */
 function surPhoto(p: TextParts, n: number, t: Tokens, position: string | null | undefined): string | null {
@@ -304,8 +337,14 @@ function vignette(p: TextParts, n: number, t: Tokens): string | null {
 
 // ── Choix de la famille ─────────────────────────────────────────────────────
 
-function preferredPhotoLayouts(s: MixSlideSpec, previous: MixLayout | null): MixLayout[] {
+function preferredPhotoLayouts(s: MixSlideSpec, previous: MixLayout | null, nextIsPause = false): MixLayout[] {
   const layout = String(s.photo_layout || "");
+  // À côté d'une slide « pause » (aplat de charte), la photo passe sur fond
+  // clair : deux aplats voisins effaceraient l'alternance.
+  if (previous === "pause" || nextIsPause) {
+    const light: MixLayout[] = /left_photo|right_photo/.test(layout) ? ["cote_a_cote", "passe_partout", "photo_aplat"] : ["passe_partout", "cote_a_cote", "photo_aplat"];
+    return light;
+  }
   const order: MixLayout[] =
     /left_photo|right_photo/.test(layout) ? ["cote_a_cote", "photo_aplat", "passe_partout"]
     : /card_photo/.test(layout) ? ["passe_partout", "photo_aplat", "cote_a_cote"]
@@ -318,15 +357,15 @@ function preferredPhotoLayouts(s: MixSlideSpec, previous: MixLayout | null): Mix
 
 /**
  * Compose une slide du carrousel mixte. `previous` = famille de la slide
- * précédente (rythme). Renvoie null quand la slide relève d'un rendu spécialisé
- * (schéma visuel) ou qu'aucune famille ne contient son texte.
+ * précédente (rythme). Un schéma (visual_schema) sur une slide texte la
+ * dessine en « pause » ; renvoie null seulement quand aucune famille ne contient
+ * son texte.
  */
 export function composeMixSlide(
   s: MixSlideSpec,
   charter: MixCharter,
-  opts: { isFirst: boolean; isLast: boolean; previous: MixLayout | null; photoCount: number },
+  opts: { isFirst: boolean; isLast: boolean; previous: MixLayout | null; photoCount: number; nextIsPause?: boolean },
 ): ComposedMixSlide | null {
-  if (s.visual_schema) return null;
   const t = tokens(charter);
   const p = textParts(s);
   const hasText = !!(p.title.trim() || p.body.trim());
@@ -338,6 +377,14 @@ export function composeMixSlide(
 
   if (!hasPhoto) {
     if (!hasText) return null;
+    // Schéma : slide « pause ». Ne tient pas → la slide reste une respiration,
+    // texte entier, sans schéma (on dégrade l'élément, jamais la slide).
+    if (s.visual_schema) {
+      const html = !opts.isFirst ? pause(p, t, s.visual_schema) : null;
+      if (html) return done(html, "pause");
+      const plain = done(respiration(p, t, opts.previous === "respiration" && !opts.isFirst || opts.isFirst), "respiration");
+      return plain ? { ...plain, schema_dropped: true } : null;
+    }
     // Deux slides texte d'affilée : la seconde passe sur l'aplat de charte.
     return done(respiration(p, t, opts.previous === "respiration" && !opts.isFirst || opts.isFirst), "respiration");
   }
@@ -355,7 +402,7 @@ export function composeMixSlide(
     if (html) return done(html, "sur_photo");
   }
   // Un motif demande une colonne large : le côte-à-côte passe en dernier.
-  const layouts = preferredPhotoLayouts(s, opts.previous);
+  const layouts = preferredPhotoLayouts(s, opts.previous, opts.nextIsPause);
   for (const layout of p.format?.motif ? [...layouts.filter(l => l !== "cote_a_cote"), "cote_a_cote" as MixLayout] : layouts) {
     const side = /right_photo/.test(String(s.photo_layout || "")) ? "right" : "left";
     const html = layout === "photo_aplat" ? photoAplat(p, photoN, t)
@@ -375,7 +422,9 @@ export function composeMixCarousel(slides: MixSlideSpec[], charter: MixCharter, 
   let previous: MixLayout | null = null;
   let stepsLost = false;
   for (let i = 0; i < slides.length; i++) {
-    const opts: { isFirst: boolean; isLast: boolean; previous: MixLayout | null; photoCount: number } = { isFirst: nums[i] === first, isLast: nums[i] === last, previous, photoCount };
+    const next = slides[i + 1];
+    const nextIsPause = !!(next?.visual_schema && (next.slide_type === "text_only" || !Number.isInteger(Number(next.photo_index))));
+    const opts: { isFirst: boolean; isLast: boolean; previous: MixLayout | null; photoCount: number; nextIsPause: boolean } = { isFirst: nums[i] === first, isLast: nums[i] === last, previous, photoCount, nextIsPause };
     const base = { ...slides[i], slide_number: nums[i] };
     const plain = composeMixSlide({ ...base, mix_format: null }, charter, opts);
     let composed: ComposedMixSlide | null = plain;
@@ -390,6 +439,7 @@ export function composeMixCarousel(slides: MixSlideSpec[], charter: MixCharter, 
       if (f.step && !composed?.html.includes("data-photo-step=")) stepsLost = true;
     }
     if (!composed) return null;
+    if (base.visual_schema && composed.layout !== "pause") composed = { ...composed, schema_dropped: true };
     out.push(composed);
     previous = composed.layout;
   }

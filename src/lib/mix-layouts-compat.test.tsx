@@ -32,4 +32,16 @@ describe("carrousel mixte composé × édition live", () => {
     expect(removed).not.toContain("Viens voir la série");
     expect(removed).toContain("Il garde la trace de l'argile.");
   });
+
+  it("slide « pause » à schéma : titre et corps éditables, schéma conservé", () => {
+    const body = "Avant, 40 références. Aujourd'hui, 12 pièces que je maîtrise.";
+    const slide = composeMixSlide({ slide_number: 3, slide_type: "text_only", title: "Moins, mais mieux", body,
+      visual_schema: { type: "before_after", before: { label: "Avant", items: ["40 références"] }, after: { label: "Aujourd'hui", items: ["12 pièces"] } } }, CH, mid)!;
+    expect(slide.layout).toBe("pause");
+    const edited = replaceSlideText(replaceSlideText(slide.html, "title", "Moins, mais mieux", "Le tri"), "body", body, "Nouveau corps.");
+    expect(edited).toContain("Le tri");
+    expect(edited).toContain("Nouveau corps.");
+    expect(edited).toContain('data-mix-schema="before_after"');
+    expect(edited).toContain("12 pièces");
+  });
 });

@@ -77,8 +77,8 @@ Deno.test("garde-fou : la rédaction ne décide plus des schémas, l'étage sép
   const src = await Deno.readTextFile(new URL("../carousel-ai/index.ts", import.meta.url));
   assert(/addSchemasToContent\(content, \{ isMix: false/.test(src), "étage de schémas absent du carrousel texte");
   assert(/addSchemasToContent\(content, \{ isMix: true/.test(src), "étage de schémas absent du carrousel mixte");
-  // Mixte : schémas coupés (un schéma ferait perdre la composition par le code de tout le carrousel).
-  assert(/export const MIX_SCHEMAS_ENABLED = false;/.test(src), "schémas réactivés sur le mixte : vérifier d'abord que mix-slide-layouts sait les dessiner");
+  // Mixte : schémas actifs, dessinés par le code (slide « pause »).
+  assert(/export const MIX_SCHEMAS_ENABLED = true;/.test(src), "schémas du mixte désactivés");
 });
 
 Deno.test("schémas : motifs de rejet tracés (télémétrie)", () => {

@@ -74,8 +74,11 @@ Deno.test("mix : photo_layout confirmé côte à côte respecté", () => {
   assertEquals(out.layout, "cote_a_cote");
 });
 
-Deno.test("mix : schéma visuel ou texte démesuré → rendu modèle pour tout le carrousel", () => {
-  assertEquals(composeMixCarousel([...CERAMIQUE, { slide_number: 7, slide_type: "text_only", title: "Étapes", visual_schema: { type: "timeline" } }], CH, 5), null);
+Deno.test("mix : schéma indessinable → slide gardée sans schéma ; texte démesuré → rendu modèle", () => {
+  const out = composeMixCarousel([...CERAMIQUE, { slide_number: 7, slide_type: "text_only", title: "Étapes", visual_schema: { type: "timeline" } }], CH, 5);
+  assert(out, "un schéma ne fait plus perdre la composition du carrousel");
+  assertEquals(out![6].layout, "respiration");
+  assertEquals(out![6].schema_dropped, true);
   const huge = Array(400).fill("argile").join(" ");
   assertEquals(composeMixSlide({ slide_number: 2, slide_type: "photo_integrated", photo_index: 1, body: huge }, CH, mid), null);
 });

@@ -2417,10 +2417,10 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     const composedByCode = isPhotoCarousel || !!mixComposed;
     if (mixComposed) {
       emitStatus("visuals", { done: 0, total: 1 });
-      result = { slides_html: mixComposed.map(({ layout: _l, ...slide }) => slide) };
+      result = { slides_html: mixComposed.map(({ layout: _l, schema_dropped: _d, ...slide }) => slide) };
       if (mixFormatting) result.mix_formatting = { version: mixFormatting.version, status: mixFormatting.status, steps: mixFormatting.steps.length, motifs: mixFormatting.motifs.length };
       if (!usage.model) usage.model = COMPOSED_BY_CODE_MODEL;
-      console.log(JSON.stringify({ event: "carousel_mix_composed", layouts: mixComposed.map(s => s.layout), total_slides: slides.length }));
+      console.log(JSON.stringify({ event: "carousel_mix_composed", layouts: mixComposed.map(s => s.layout), schemas_dropped: mixComposed.filter(s => s.schema_dropped).map(s => s.slide_number), total_slides: slides.length }));
       emitStatus("visuals", { done: 1, total: 1 });
     } else if (isPhotoCarousel) {
       emitStatus("visuals", { done: 0, total: 1 });
