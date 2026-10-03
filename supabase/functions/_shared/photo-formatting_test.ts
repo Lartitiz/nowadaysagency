@@ -117,3 +117,14 @@ Deno.test("appel IA : réponse validée, échec silencieux, consommation compté
   const ko = await planPhotoFormatting(SLIDES, {}, (async () => { throw new Error("timeout"); }) as any);
   assertEquals(ko.status, "unavailable"); assertEquals(ko.steps, []);
 });
+
+Deno.test("dessin : les mots d'une même ligne restent alignés quand un trait les gêne", () => {
+  const plan = validatePhotoFormatting({ steps: [], motifs: [{ slide_number: 5, reason: "r", elements: [
+    { k: "line", x1: 0, y1: 40, x2: 120, y2: 40, tone: "soft" },
+    { k: "text", x: 0, y: 60, text: "les pages", tone: "ink", size: 40 },
+    { k: "text", x: 600, y: 60, text: "se remplissent", tone: "ink", size: 40 },
+  ] }] }, SLIDES);
+  const ys = plan.motifs[0].elements.filter(e => e.k === "text").map(e => (e as any).y);
+  assertEquals(new Set(ys).size, 1, `mots désalignés : ${ys}`);
+  assert(ys[0] > 60, "la ligne de mots est descendue sous le trait");
+});

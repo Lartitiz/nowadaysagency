@@ -74,13 +74,22 @@ function validateElement(e: any, source: string): MotifElement | null {
  * descendu sous les formes qu'il chevauche. Le cadre du dessin s'ajuste ensuite. */
 export function declutterMotif(elements: MotifElement[]): MotifElement[] {
   const shapes = elements.filter(e => e.k !== "text").map(motifBox);
-  return elements.map(e => {
-    if (e.k !== "text") return e;
+  // Les textes d'une même ligne (même y d'origine) descendent ENSEMBLE : sinon un
+  // mot qui ne touchait rien restait plus haut que ses voisins (vu en live).
+  const shiftByRow = new Map<number, number>();
+  for (const e of elements) {
+    if (e.k !== "text") continue;
     const b = motifBox(e);
     const hit = shapes.filter(s => b.x0 < s.x1 && b.x1 > s.x0 && b.y0 < s.y1 && b.y1 > s.y0);
-    if (!hit.length) return e;
-    const size = e.size ?? 44;
-    return { ...e, y: Math.round(Math.max(...hit.map(s => s.y1)) + size * .8 + 14) };
+    if (!hit.length) continue;
+    const target = Math.round(Math.max(...hit.map(s => s.y1)) + (e.size ?? 44) * .8 + 14);
+    const row = Math.round(e.y / 8);
+    shiftByRow.set(row, Math.max(shiftByRow.get(row) ?? 0, target - e.y));
+  }
+  return elements.map(e => {
+    if (e.k !== "text") return e;
+    const shift = shiftByRow.get(Math.round(e.y / 8));
+    return shift ? { ...e, y: e.y + shift } : e;
   });
 }
 
