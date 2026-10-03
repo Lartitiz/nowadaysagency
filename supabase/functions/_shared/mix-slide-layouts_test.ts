@@ -191,5 +191,5 @@ Deno.test("mix mise en forme : motif aligné sur le texte, texte atténué lisib
   ] };
   const html = composeMixSlide({ slide_number: 3, slide_type: "photo_integrated", photo_index: 2, title: "", body: "Un passage court.", mix_format: { motif } }, CH, mid)!.html;
   assert(/viewBox="(\d+) /.exec(html)![1] !== "0", "le cadre doit commencer au premier élément");
-  assert(/<text[^>]*fill-opacity="\.72"/.test(html), "texte soft lisible");
+  assert(!/<text[^>]*(fill-)?opacity/.test(html), "jamais d'opacité sur du texte");
 });

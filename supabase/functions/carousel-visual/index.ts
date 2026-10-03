@@ -1066,6 +1066,27 @@ function applySafeZoneGuard(result: any, params: {
 // demande plus, mais on garantit leur absence par code (texte, photo ET mix), sur TOUTES
 // les slides. On ne touche PAS aux numéros d'étape d'un schéma (timeline "01", "02") :
 // ceux-là sont des entiers NUS, sans "SLIDE" ni "/total" — le motif ci-dessous les ignore.
+/** Numéro d'étape en double (vu en live le 03/10/2026 : petit « 2 » au-dessus
+ * de « 2. Trier les idées »). Quand le titre commence déjà par son numéro, un
+ * élément dont le texte n'est QUE ce numéro est retiré. Aucun autre chiffre
+ * n'est touché (chiffre-clé, statistique, numéro dans une phrase). */
+export function stripDuplicateStepNumbers(result: any, params: { slides: any[] }): void {
+  if (!Array.isArray(result?.slides_html)) return;
+  const titleBySlide = new Map<number, string>();
+  (params.slides || []).forEach((s: any, i: number) => titleBySlide.set(Number(s?.slide_number) || i + 1, String(s?.title || s?.overlay_text || "")));
+  let removed = 0;
+  result.slides_html = result.slides_html.map((slide: any) => {
+    const m = /^\s*(?:étape\s*)?0?(\d{1,2})\s*[.)·:-]\s+\S/i.exec(titleBySlide.get(Number(slide?.slide_number)) || "");
+    const html: string = slide?.html || "";
+    if (!m || !html) return slide;
+    const n = Number(m[1]);
+    const lone = new RegExp(`<(span|div|p|h[1-6])\\b[^>]*>\\s*0?${n}\\s*\\.?\\s*</\\1>`, "gi");
+    const next = html.replace(lone, () => { removed++; return ""; });
+    return next === html ? slide : { ...slide, html: next };
+  });
+  if (removed > 0) console.log(`carousel-visual: ${removed} numéro(s) d'étape en double retiré(s)`);
+}
+
 export function stripSlideNumberBadges(result: any): void {
   if (!Array.isArray(result?.slides_html)) return;
   // "SLIDE 03", "SLIDE 03/08", "03/08", "3 - 8" → stamp. PAS "03" nu (ambigu avec une étape).
@@ -2378,6 +2399,7 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     await applyContrastCorrectionPass(result, { isPhotoCarousel, isMixCarousel, composedByCode, reqBody, systemPromptWithAnnotations, model });
     applySafeZoneGuard(result, { isPhotoCarousel, isMixCarousel, composedByCode, slides });
     stripSlideNumberBadges(result);
+    stripDuplicateStepNumbers(result, { slides });
     stripInventedSurtitres(result, { isPhotoCarousel, slides });
     injectPhotoBase64(result, { isPhotoCarousel, isMixCarousel, reqBody });
     forceGoogleFontsLink(result, { safeFontTitle, safeFontBody });
