@@ -4,6 +4,7 @@ import { imagePrompt, type Proposal } from "./media.ts";
 import { PHOTO_PRESERVATION } from "./photo-preservation.ts";
 import { referenceInstruction } from "./competencies.ts";
 import { compactIntegrationPrompt } from "./compact-integration-prompt.ts";
+import { refineStudioResult } from "./product-fidelity-studio.ts";
 import {
   higgsfieldApi as api, higgsfieldCredentials as credentials, higgsfieldImagesEnabled, higgsfieldUpload as upload,
   marketingPayload, marketingReserveUsd, MARKETING_CREATE_MODEL, MARKETING_FIDELITY_MODEL, MARKETING_PROMPT_MAX,
@@ -237,7 +238,7 @@ export async function reconcileHiggsfieldImage(
   }
   if (result.status !== "completed") return;
   const { data: version, error: ve } = await db.from("visual_studio_versions")
-    .select("result_path,status").eq("id", versionId).single();
+    .select("id,result_path,status,proposal,user_id,workspace_id").eq("id", versionId).single();
   if (ve || !version) throw ve || new Error("studio_missing");
   if (version.status === "processing" || version.status === "uncertain") {
     const stored = await db.storage.from("visual-studio").info(
@@ -254,11 +255,15 @@ export async function reconcileHiggsfieldImage(
         !response.ok ||
         Number(response.headers.get("content-length")) > 15_000_000
       ) throw new Error("studio_provider_output");
-      const blob = await response.blob();
+      const provided = await response.blob();
       if (
-        !/^image\/(jpeg|png|webp)$/.test(blob.type) || blob.size > 15_000_000 ||
-        !blob.size
+        !/^image\/(jpeg|png|webp)$/.test(provided.type) || provided.size > 15_000_000 ||
+        !provided.size
       ) throw new Error("studio_provider_output");
+      // Product integrations: zoomed second pass on the product before storing.
+      // null = another worker holds the refine lock; it stores and completes.
+      const blob = await refineStudioResult(db, version, provided);
+      if (!blob) return;
       const uploaded = await db.storage.from("visual-studio").upload(
         version.result_path,
         blob,

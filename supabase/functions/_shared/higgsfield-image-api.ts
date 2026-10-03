@@ -145,13 +145,15 @@ export function higgsfieldErrorMeta(error: unknown) {
 type DB = ReturnType<typeof getServiceClient>;
 
 export interface SyncImageRequest {
-  source: "carousel-slide-image" | "product-on-model";
+  source: "carousel-slide-image" | "product-on-model" | "visual-studio";
   userId: string;
   workspaceId?: string | null;
   model: typeof MARKETING_CREATE_MODEL | typeof MARKETING_FIDELITY_MODEL;
   prompt: string;
   format: "portrait" | "landscape" | "square";
   inputs: Blob[];
+  /** Output size; 2k by default (a zoomed product patch only needs 1k). */
+  resolution?: "1k" | "2k";
   /** Absolute deadline (ms epoch) for the whole generation, polling included. */
   deadline: number;
   /** Status polling interval (tests only). */
@@ -204,7 +206,7 @@ export async function generateHiggsfieldImageSync(db: DB, req: SyncImageRequest)
     const urls = await Promise.all(req.inputs.map(higgsfieldUpload));
     // 2k then shrunk to 1024 px JPEG below (downscaleToJpeg): sharper than 1k
     // (688×1024), far lighter than the raw 2k PNG (6.5 MB in base64).
-    const input = marketingPayload(req.prompt, req.format, urls, "2k");
+    const input = marketingPayload(req.prompt, req.format, urls, req.resolution ?? "2k");
     stage = "estimate";
     const quote = await higgsfieldApi(`estimate/${req.model}`, "POST", input);
     const estimate = quote?.usd === undefined && quote?.type === "description"

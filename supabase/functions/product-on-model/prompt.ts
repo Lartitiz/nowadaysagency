@@ -31,6 +31,8 @@ export function buildPrompt(opts: {
   ambiance: string | null;
   adjustment: string | null;
   productDescription: string | null;
+  /** Geometry read on the reference by the vision model (product-fidelity.ts). */
+  productGeometry?: string;
   hasPersonReference: boolean;
   brand: BrandBlockInput;
   /** Set for Higgsfield (MARKETING_PROMPT_MAX); OpenAI keeps the full prompt. */
@@ -44,7 +46,8 @@ export function buildPrompt(opts: {
 
   lines.push(
     "THE PRODUCT: the attached photo shows the exact product to feature. Reproduce it with perfect fidelity — shape, proportions, colors, materials, textures, patterns, clasps, engravings and every small component. Do not redesign, simplify or embellish it." +
-      (opts.productDescription ? ` Product context: ${opts.productDescription}` : "")
+      (opts.productDescription ? ` Product context: ${opts.productDescription}` : "") +
+      (opts.productGeometry ? ` ${opts.productGeometry}` : "")
   );
 
   lines.push(MODE_TEXT[opts.mode] ?? MODE_TEXT.auto);
@@ -122,5 +125,6 @@ export function buildPrompt(opts: {
   // brand universe first, then the product context, never the request.
   if (opts.maxLength && brandBlock) prompt = clipSection(prompt, brandBlock, opts.maxLength);
   if (opts.maxLength && opts.productDescription) prompt = clipSection(prompt, ` Product context: ${opts.productDescription}`, opts.maxLength);
+  if (opts.maxLength && opts.productGeometry) prompt = clipSection(prompt, ` ${opts.productGeometry}`, opts.maxLength);
   return prompt;
 }

@@ -35,6 +35,7 @@ import {
   SYNC_IMAGE_MESSAGES,
 } from "../_shared/higgsfield-image-api.ts";
 import { buildPrompt } from "./prompt.ts";
+import { prepareProductReference, productFidelityLine, refineProductRegion } from "../_shared/product-fidelity.ts";
 
 // ── Body schema ──
 const BodySchema = z.object({
@@ -65,8 +66,10 @@ function dataUrlToBlob(input: string): Blob | null {
 
 const OPENAI_URL = "https://api.openai.com/v1/images/edits";
 const OPENAI_TIMEOUT_MS = 200_000;
-const PHOTOROOM_URL = "https://image-api.photoroom.com/v2/edit";
-const PHOTOROOM_TIMEOUT_MS = 45_000;
+// Passe zoomée : lancée seulement s'il reste assez de temps avant le mur des
+// 150 s de l'hébergement (le front abandonne à 160 s).
+const REFINE_START_BEFORE_MS = 85_000;
+const REFINE_DEADLINE_MS = 145_000;
 
 serve(async (req) => {
   const t0 = Date.now();
@@ -153,46 +156,17 @@ serve(async (req) => {
       return jsonResponse({ error: "Téléchargement de la photo impossible" }, 500);
     }
 
-    // 4bis. Détourage Photoroom AVANT gpt-image (lot 1ter, validé le 09/07) :
-    // en fidélité haute, gpt-image hérite du STYLE OPTIQUE de la source — un
-    // bokeh d'origine rend le fond flou, incorrigible par prompt. Une source
-    // détourée sur fond blanc n'a rien à hériter → scène re-générée NETTE
-    // selon la recette. Dégrade proprement : si Photoroom échoue (quota,
-    // panne), on continue avec la photo brute plutôt que de bloquer.
-    let sourceBlob: Blob = blob;
-    let detoured = false;
-    const photoroomKey = Deno.env.get("PHOTOROOM_API_KEY");
-    if (photoroomKey) {
-      try {
-        const fd = new FormData();
-        fd.append("imageFile", blob, "input.jpg");
-        fd.append("removeBackground", "true");
-        fd.append("background.color", "FFFFFF");
-        fd.append("referenceBox", "originalImage");
-        fd.append("outputSize", "originalImage");
-        fd.append("export.format", "jpg");
-        const prRes = await fetch(PHOTOROOM_URL, {
-          method: "POST",
-          headers: { "x-api-key": photoroomKey },
-          body: fd,
-          signal: AbortSignal.timeout(PHOTOROOM_TIMEOUT_MS),
-        });
-        if (prRes.ok) {
-          sourceBlob = await prRes.blob();
-          detoured = true;
-        } else {
-          await prRes.text().catch(() => "");
-          console.warn(
-            "[product-on-model] détourage Photoroom KO (status " + prRes.status + ") — photo brute utilisée"
-          );
-        }
-      } catch (e) {
-        console.warn(
-          "[product-on-model] détourage Photoroom erreur — photo brute utilisée:",
-          e instanceof Error ? e.message : e
-        );
-      }
-    }
+    // 4bis. Référence produit préparée AVANT génération (03/10/2026) : la vision
+    // localise le produit, on recadre dessus puis Photoroom le détoure sur fond
+    // blanc (cadrage « sujet » : le produit remplit l'image). Un petit bijou perdu
+    // dans une grande photo, entouré de grains ou d'accessoires, était réinventé ;
+    // le fond blanc garde aussi l'ancien rôle du détourage (lot 1ter, 09/07) :
+    // aucun bokeh d'origine à hériter. Dégrade proprement : sans vision ni
+    // Photoroom, on continue avec la photo brute.
+    const productName = [photo.name, photo.description].filter(Boolean).join(" — ").slice(0, 300) || "the product";
+    const prepared = await prepareProductReference(blob, productName);
+    const sourceBlob: Blob = prepared.blob;
+    const detoured = prepared.detoured;
 
     // 5. Charte + profil pour le bloc « univers de marque »
     const col = bodyWorkspaceId ? "workspace_id" : "user_id";
@@ -217,6 +191,7 @@ serve(async (req) => {
       ambiance: parsed.ambiance ?? null,
       adjustment,
       productDescription: photo.description,
+      productGeometry: productFidelityLine(prepared),
       hasPersonReference: !!referenceBlob,
       brand: {
         activite: profileRes.data?.activite,
@@ -245,7 +220,29 @@ serve(async (req) => {
           deadline: t0 + (parsed.variants ? 190_000 : 150_000),
         })
       ));
-      const blobs = results.flatMap((r) => r.ok ? [r.blob] : []);
+      let blobs = results.flatMap((r) => r.ok ? [r.blob] : []);
+      // 2e passe zoomée sur le produit (03/10/2026) : recadrage autour du produit
+      // dans l'image obtenue, régénération de ce carré seul avec la référence,
+      // recollage en fondu. Coût fournisseur en plus, aucun crédit en plus ; en
+      // cas d'échec ou de manque de temps, l'image de la 1re passe est rendue.
+      let refined = 0;
+      if (blobs.length && Date.now() - t0 < REFINE_START_BEFORE_MS) {
+        blobs = await Promise.all(blobs.map(async (image) => {
+          const outcome = await refineProductRegion({
+            image, reference: sourceBlob, product: productName, ref: prepared,
+            generate: async (refinePrompt, refineInputs) => {
+              const r = await generateHiggsfieldImageSync(db, {
+                source: "product-on-model", userId, workspaceId: bodyWorkspaceId,
+                model: MARKETING_FIDELITY_MODEL, prompt: refinePrompt, format: "square",
+                inputs: refineInputs, resolution: "1k", deadline: t0 + REFINE_DEADLINE_MS,
+              });
+              return r.ok ? r.blob : null;
+            },
+          });
+          if (outcome.ok) refined++;
+          return outcome.ok ? outcome.blob : image;
+        }));
+      }
       if (!blobs.length) {
         const reason = results.find((r) => !r.ok)?.reason ?? "failed";
         console.error(JSON.stringify({
@@ -282,6 +279,8 @@ serve(async (req) => {
         has_adjustment: !!adjustment,
         has_reference: !!referenceBlob,
         detoured,
+        reference_cropped: prepared.cropped,
+        refined,
         total_ms: Date.now() - t0,
       }));
       return jsonResponse(
