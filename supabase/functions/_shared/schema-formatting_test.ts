@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { addSchemasToContent, schemaEligible, schemaShapeOk, validateSchemaPlan } from "./schema-formatting.ts";
+import { addSchemasToContent, planSchemas, schemaEligible, schemaShapeOk, validateSchemaPlan } from "./schema-formatting.ts";
 import { mixWritingPrompt, textWritingPrompt } from "../carousel-ai/variant-writing.ts";
 
 const SLIDES = [
@@ -93,4 +93,18 @@ Deno.test("schémas : un numéro d'ordre (« 1. », « Étape 2 : ») n'est pas 
   assertEquals(validateSchemaPlan({ schemas: [{ slide_number: 3, reason: "r", visual_schema: tl }] }, SLIDES, ELIG).length, 1);
   const bad = { type: "timeline", steps: [{ label: "Avant", desc: "40 idées" }, { label: "Après", desc: "une seule promesse" }] };
   assertEquals(validateSchemaPlan({ schemas: [{ slide_number: 3, reason: "r", visual_schema: bad }] }, SLIDES, ELIG).length, 0, "40 n'est pas dans le texte");
+});
+
+Deno.test("schémas : repérage obligatoire, formes décrites dans l'outil, repérage tracé", async () => {
+  let opts: any;
+  const plan = await planSchemas(SLIDES, false, {}, (async (o: any) => {
+    opts = o;
+    return JSON.stringify({ reperage: [{ slide_number: 2, relation: "avant_apres" }, { slide_number: 5, relation: "aucune" }], schemas: [{ slide_number: 2, reason: "r", visual_schema: BA }] });
+  }) as any);
+  const props = opts.tool.input_schema.properties;
+  assertEquals(opts.tool.input_schema.required, ["reperage", "schemas"]);
+  assert(props.schemas.items.properties.visual_schema.description.includes("before_after:{before:{label,items}"), "le modèle doit voir les champs de chaque type");
+  assertEquals(props.schemas.items.properties.visual_schema.additionalProperties, true);
+  assertEquals(plan.spotted, ["2:avant_apres"]);
+  assertEquals(plan.schemas.length, 1);
 });
