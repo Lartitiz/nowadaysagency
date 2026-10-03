@@ -50,11 +50,11 @@ export function aspectRatio(format?: string | null) {
 }
 
 /** Marketing Studio payload: full prompt, no provider-side enhancement. */
-export function marketingPayload(prompt: string, format: string | null | undefined, urls: string[]) {
+export function marketingPayload(prompt: string, format: string | null | undefined, urls: string[], resolution: "1k" | "2k" = "2k") {
   return {
     prompt,
     quality: "high",
-    resolution: "2k",
+    resolution,
     aspect_ratio: aspectRatio(format),
     enhance_prompt: false,
     ...(urls.length ? { image_urls: urls } : {}),
@@ -201,7 +201,10 @@ export async function generateHiggsfieldImageSync(db: DB, req: SyncImageRequest)
 
     stage = "upload";
     const urls = await Promise.all(req.inputs.map(higgsfieldUpload));
-    const input = marketingPayload(req.prompt, req.format, urls);
+    // 1k (~832×1248, close to the former OpenAI 1024×1536): the image travels as
+    // base64 in the HTTP response; a 2k PNG weighed 6.5 MB and exceeded the
+    // 4 MB photo-dump reference cap. The Studio keeps 2k (stored, not returned).
+    const input = marketingPayload(req.prompt, req.format, urls, "1k");
     stage = "estimate";
     const quote = await higgsfieldApi(`estimate/${req.model}`, "POST", input);
     const estimate = quote?.usd === undefined && quote?.type === "description"
