@@ -33,6 +33,10 @@ import {
   Square,
   Layers,
   RotateCcw,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Info,
 } from "lucide-react";
 import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
@@ -275,8 +279,8 @@ interface CanvasBox {
  * Section repliable du panneau de réglages. Fermée, elle reste dans la page
  * (masquée) ; son état ouvert / fermé est mémorisé par titre.
  */
-function PanelSection({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: ReactNode }) {
-  const key = `carousel-panel:${title}`;
+function PanelSection({ title, defaultOpen = false, storageKey, icon, children }: { title: string; defaultOpen?: boolean; storageKey?: string; icon?: ReactNode; children: ReactNode }) {
+  const key = `carousel-panel:${storageKey || title}`;
   const [open, setOpen] = useState(() => {
     try {
       const saved = window.localStorage.getItem(key);
@@ -302,7 +306,7 @@ function PanelSection({ title, defaultOpen = false, children }: { title: string;
         }
         className="flex w-full items-center justify-between px-2.5 py-2 text-left text-xs font-semibold hover:bg-muted/50"
       >
-        {title}
+        <span className="flex items-center gap-1.5">{icon}{title}</span>
         <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
       </button>
       <div hidden={!open} className="space-y-3 px-2.5 pb-2.5">
@@ -1611,6 +1615,7 @@ export default function CarouselEditor({
     [extra, setExtra] = useState<string[]>([]),
     [zoom, setZoom] = useState(1),
     [sheetOpen, setSheetOpen] = useState(false),
+    [panelTab, setPanelTab] = useState<"element" | "slide" | "carrousel">("slide"),
     [instaOpen, setInstaOpen] = useState(false),
     [fitId, setFitId] = useState<string | null>(null),
     [fullscreen, setFullscreen] = useState(false),
@@ -1642,6 +1647,8 @@ export default function CarouselEditor({
     setExtra(merged.slice(1));
   };
   useEffect(() => setExtra([]), [active]);
+  // Colonne de droite : un élément choisi ouvre « Élément », un clic dans le vide « Slide ».
+  useEffect(() => setPanelTab(selected ? "element" : "slide"), [selected]);
   // Téléphone : toucher un élément ouvre le tiroir des réglages.
   useEffect(() => {
     if (!selected) return;
@@ -2176,6 +2183,20 @@ export default function CarouselEditor({
     douce: "0 8px 24px rgba(0,0,0,0.18)",
     marquee: "0 16px 40px rgba(0,0,0,0.35)",
   };
+  // Styles de bloc tout faits : un clic au lieu de six réglages.
+  const blockPresets: { label: string; styles: Record<string, string>; fill?: [string, number] }[] = [
+    { label: "Aucun", styles: { border: "", "box-shadow": "none", "border-radius": "0px" }, fill: ["#ffffff", 0] },
+    { label: "Carte", styles: { border: "", "box-shadow": "0 8px 24px rgba(0,0,0,0.18)", "border-radius": "24px", padding: "32px" }, fill: ["#ffffff", 1] },
+    { label: "Pastille", styles: { border: "", "box-shadow": "none", "border-radius": "999px", padding: "12px 32px" }, fill: [palette.find((c) => !/^#(f{6}|0{6})$/i.test(c)) || "#fb3d80", 1] },
+    { label: "Contour", styles: { border: `4px solid ${toHex(css.color, "#1a1a1a")}`, "box-shadow": "none", "border-radius": "20px", padding: "24px" }, fill: ["#ffffff", 0] },
+    { label: "Ombre douce", styles: { "box-shadow": "0 8px 24px rgba(0,0,0,0.18)" } },
+  ];
+  const applyBlockPreset = (preset: (typeof blockPresets)[number]) => {
+    if (!selected) return;
+    let next = patchElement(slide, selected, { styles: preset.styles });
+    if (preset.fill) next = setShapeFill(next, selected, preset.fill[0], preset.fill[1]);
+    changeSlide(next);
+  };
   const shadowOf = (v: string | undefined) =>
     !v || v === "none" ? "none" : v === shadowPresets.marquee || /0\.35\)/.test(v) ? "marquee" : "douce";
   const textShadowOn = !!css["text-shadow"] && css["text-shadow"] !== "none";
@@ -2628,14 +2649,11 @@ export default function CarouselEditor({
             }}
             colors={palette}
           />
-          <p className="mt-2 hidden text-xs text-muted-foreground text-center md:block">
-            Slide {active + 1} / {document.slides.length} · Double-clique un
-            texte pour l’écrire sur la slide. Glisse un bloc pour le déplacer
-            (il s’aligne sur les repères roses ; ⌘/Ctrl pour placer librement),
-            une photo pour la recadrer, les poignées pour l’agrandir. Alt +
-            glisser : le texte seul. Glisser depuis le vide, ou clic long puis
-            glisser, trace un cadre qui choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer,
-            Échap pour choisir le cadre.
+          <p className="mt-2 hidden items-center justify-center gap-1 text-xs text-muted-foreground md:flex">
+            Slide {active + 1} / {document.slides.length} · Double-clic : écrire · Glisser : déplacer · Glisser dans le vide : choisir plusieurs
+            <Info size={13} role="img" aria-label="Double-clique un texte pour l’écrire sur la slide. Glisse un bloc pour le déplacer (il s’aligne sur les repères roses ; ⌘/Ctrl pour placer librement), une photo pour la recadrer, les poignées pour l’agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, trace un cadre qui choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre.">
+              <title>Double-clique un texte pour l’écrire sur la slide. Glisse un bloc pour le déplacer (il s’aligne sur les repères roses ; ⌘/Ctrl pour placer librement), une photo pour la recadrer, les poignées pour l’agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, trace un cadre qui choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre.</title>
+            </Info>
           </p>
           <p className="mt-1 text-center text-2xs text-muted-foreground md:hidden">
             Slide {active + 1} / {document.slides.length} · Touche un élément, glisse-le ; « Écrire » pour changer un texte.
@@ -2659,14 +2677,9 @@ export default function CarouselEditor({
               <ChevronDown size={14} className={sheetOpen ? "" : "rotate-180"} aria-hidden="true" />
             </span>
           </button>
-          <h3 className="hidden text-sm font-semibold md:block">Texte, photos et mise en page</h3>
+          <PanelSection title={`Calques (${layers.length})`} storageKey="Calques" icon={<Layers size={14} aria-hidden="true" />}>
           <div className="space-y-1">
-            <p className="flex items-center gap-1.5 text-xs font-medium">
-              <Layers size={14} aria-hidden="true" /> Calques
-              <span className="font-normal text-muted-foreground">
-                · le plus haut en premier
-              </span>
-            </p>
+            <p className="text-2xs text-muted-foreground">Le plus haut en premier.</p>
             <ul
               aria-label="Calques de la slide"
               className="max-h-72 space-y-0.5 overflow-auto rounded-md border bg-background p-1"
@@ -2784,15 +2797,39 @@ export default function CarouselEditor({
               </details>
             )}
           </div>
+          </PanelSection>
+          <div role="tablist" aria-label="Réglages" className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+            {([
+              ["element", "Élément"],
+              ["slide", "Slide"],
+              ["carrousel", "Carrousel"],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={panelTab === id}
+                onClick={() => setPanelTab(id)}
+                className={`rounded-md px-2 py-1.5 text-xs font-medium ${panelTab === id ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           {slide.locked && (
             <p role="status" className="text-xs">
               Slide verrouillée : déverrouille-la pour la modifier.
             </p>
           )}
-          {group.length > 1 && !slide.locked && (
+          {panelTab === "element" && !element && group.length < 2 && (
+            <p className="rounded-lg border border-dashed p-3 text-center text-xs text-muted-foreground">
+              Choisis un élément sur la slide ou dans les calques pour le régler.
+            </p>
+          )}
+          {panelTab === "element" && group.length > 1 && !slide.locked && (
             <div className="space-y-2 rounded-lg border border-dashed border-primary/60 p-2" aria-label="Sélection multiple">
               <p className="text-xs font-medium">
-                {group.length} éléments sélectionnés · glisse-les ensemble, ou aligne-les :
+                {group.length} éléments sélectionnés · glisse-les ou aligne-les :
               </p>
               <div className="grid grid-cols-3 gap-1">
                 {([
@@ -2832,31 +2869,32 @@ export default function CarouselEditor({
                   Ne garder que le premier
                 </Button>
               </div>
-              <p className="text-2xs text-muted-foreground">Maj + clic sur un élément ou un calque pour l’ajouter ou le retirer.</p>
+              <p className="text-2xs text-muted-foreground">Maj + clic pour ajouter ou retirer un élément.</p>
             </div>
           )}
-          {element && !slide.locked && listLayers(slide.html).find((l) => l.id === element.id)?.locked && (
+          {panelTab === "element" && element && !slide.locked && listLayers(slide.html).find((l) => l.id === element.id)?.locked && (
             <div role="status" className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs">
               <span className="flex items-center gap-1.5"><LockKeyhole size={13} /> Élément verrouillé.</span>
               <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={() => lockElement(element.id, false)}>Déverrouiller</Button>
             </div>
           )}
-          {element?.name === "groupe" && !slide.locked && (
+          {panelTab === "element" && element?.name === "groupe" && !slide.locked && (
             <Button size="sm" variant="outline" className="w-full" onClick={ungroupSelection} title="⌘⇧G">
               Dégrouper
             </Button>
           )}
           <fieldset
-            disabled={slide.locked || (!!element && !!listLayers(slide.html).find((l) => l.id === element.id)?.locked)}
+            disabled={slide.locked || (panelTab === "element" && !!element && !!listLayers(slide.html).find((l) => l.id === element.id)?.locked)}
             className="min-w-0 space-y-3 disabled:opacity-50"
           >
+            {panelTab === "element" && (<>
             {element?.kind === "text" && (
               <>
                 <PanelSection title="Texte" defaultOpen>
                 <Textarea
                   aria-label="Texte sélectionné"
                   value={element.text}
-                  rows={4}
+                  rows={3}
                   onChange={(e) => {
                     setFitId(element.id);
                     changeSlide(
@@ -2872,8 +2910,8 @@ export default function CarouselEditor({
                   160,
                   (n) => style({ "font-size": `${n}px` }, "font"),
                 )}
-                <div className="flex items-center justify-between text-xs">
-                  <span>Plus de polices</span>
+                <div className="space-y-1 text-xs">
+                  <span>Police</span>
                   <Popover onOpenChange={(open) => {
                     // Aperçu : les polices Google se chargent dans la page à l'ouverture.
                     if (!open || window.document.querySelector("link[data-font-preview]")) return;
@@ -2884,7 +2922,12 @@ export default function CarouselEditor({
                     window.document.head.append(link);
                   }}>
                     <PopoverTrigger asChild>
-                      <Button size="sm" variant="outline" className="h-7 text-2xs">Choisir une police…</Button>
+                      <Button size="sm" variant="outline" aria-label="Choisir une police" className="h-8 w-full justify-between font-normal">
+                        <span className="truncate" style={{ fontFamily: css["font-family"] || undefined }}>
+                          {(css["font-family"] || "").split(",")[0].replace(/['"]/g, "").trim() || "Police du thème"}
+                        </span>
+                        <ChevronDown size={14} aria-hidden="true" />
+                      </Button>
                     </PopoverTrigger>
                     <PopoverContent align="end" className="w-72 p-2">
                       <input
@@ -2895,99 +2938,64 @@ export default function CarouselEditor({
                         className="mb-2 w-full rounded border bg-background px-2 py-1 text-xs"
                       />
                       <div className="max-h-72 space-y-0.5 overflow-auto" role="listbox" aria-label="Polices">
-                        {GOOGLE_FONTS.filter((f) => f.family.toLowerCase().includes(fontQuery.toLowerCase())).map((f) => (
-                          <button
-                            key={f.family}
-                            type="button"
-                            role="option"
-                            aria-selected={(css["font-family"] || "").includes(f.family)}
-                            onClick={() => pickFont(`'${f.family}', ${f.kind === "serif" ? "serif" : f.kind === "script" ? "cursive" : "sans-serif"}`, f.family)}
-                            className="flex w-full items-baseline justify-between rounded px-2 py-1.5 text-left hover:bg-muted aria-selected:bg-primary/10"
-                          >
-                            <span style={{ fontFamily: `'${f.family}'`, fontSize: 18 }}>{f.family}</span>
-                            <span className="text-2xs text-muted-foreground">{{ serif: "Serif", sans: "Sans", display: "Affiche", script: "Manuscrite" }[f.kind]}</span>
-                          </button>
-                        ))}
+                        {[
+                          ...documentFonts.map((f) => ({ label: f.label, value: f.value, family: undefined as string | undefined, tag: "Ton carrousel" })),
+                          ...["Arial, sans-serif", "Georgia, serif", "Verdana, sans-serif", "Trebuchet MS, sans-serif"].map((f) => ({ label: f.split(",")[0], value: f, family: undefined as string | undefined, tag: "Classique" })),
+                          ...GOOGLE_FONTS.map((f) => ({
+                            label: f.family,
+                            value: `'${f.family}', ${f.kind === "serif" ? "serif" : f.kind === "script" ? "cursive" : "sans-serif"}`,
+                            family: f.family as string | undefined,
+                            tag: { serif: "Serif", sans: "Sans", display: "Affiche", script: "Manuscrite" }[f.kind],
+                          })),
+                        ]
+                          .filter((f) => f.label.toLowerCase().includes(fontQuery.toLowerCase()))
+                          .map((f) => (
+                            <button
+                              key={`${f.tag}-${f.value}`}
+                              type="button"
+                              role="option"
+                              aria-selected={(css["font-family"] || "") === f.value || (!!f.family && (css["font-family"] || "").includes(f.family))}
+                              onClick={() => pickFont(f.value, f.family)}
+                              className="flex w-full items-baseline justify-between rounded px-2 py-1.5 text-left hover:bg-muted aria-selected:bg-primary/10"
+                            >
+                              <span style={{ fontFamily: f.value, fontSize: 18 }}>{f.label}</span>
+                              <span className="text-2xs text-muted-foreground">{f.tag}</span>
+                            </button>
+                          ))}
                       </div>
                     </PopoverContent>
                   </Popover>
                 </div>
-                <label className="block text-xs">
-                  Police
-                  <select
-                    aria-label="Police"
-                    value={css["font-family"] || ""}
-                    onChange={(e) => style({ "font-family": e.target.value })}
-                    className="mt-1 w-full rounded border bg-background p-2"
-                  >
-                    <option value={css["font-family"] || ""}>
-                      Police actuelle
-                    </option>
-                    {documentFonts.map((f) => (
-                      <option key={f.value} value={f.value}>
-                        {f.label} (ton carrousel)
-                      </option>
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <label className="flex items-center gap-2">
+                    Couleur
+                    <input
+                      aria-label="Couleur du texte"
+                      type="color"
+                      value={toHex(css.color, "#222222")}
+                      onChange={(e) => style({ color: e.target.value })}
+                    />
+                  </label>
+                  <div role="group" aria-label="Alignement du texte" className="flex gap-0.5">
+                    {([
+                      ["left", AlignLeft, "Aligné à gauche"],
+                      ["center", AlignCenter, "Centré"],
+                      ["right", AlignRight, "Aligné à droite"],
+                    ] as const).map(([value, Icon, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-label={label}
+                        title={label}
+                        aria-pressed={(css["text-align"] || "left") === value}
+                        onClick={() => style({ "text-align": value })}
+                        className="rounded p-1.5 hover:bg-muted aria-pressed:bg-primary/15"
+                      >
+                        <Icon size={14} />
+                      </button>
                     ))}
-                    {[
-                      "Arial, sans-serif",
-                      "Georgia, serif",
-                      "Verdana, sans-serif",
-                      "Trebuchet MS, sans-serif",
-                    ].map((f) => (
-                      <option key={f} value={f}>
-                        {f.split(",")[0]}
-                      </option>
-                    ))}
-
-                  </select>
-                </label>
-                <div className="flex flex-wrap gap-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    aria-pressed={css["font-weight"] === "700"}
-                    onClick={() =>
-                      style({
-                        "font-weight":
-                          css["font-weight"] === "700" ? "400" : "700",
-                      })
-                    }
-                  >
-                    Gras
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    aria-pressed={css["font-style"] === "italic"}
-                    onClick={() =>
-                      style({
-                        "font-style":
-                          css["font-style"] === "italic" ? "normal" : "italic",
-                      })
-                    }
-                  >
-                    Italique
-                  </Button>
+                  </div>
                 </div>
-                <label className="flex items-center justify-between text-xs">
-                  Couleur du texte
-                  <input
-                    aria-label="Couleur du texte"
-                    type="color"
-                    value={toHex(css.color, "#222222")}
-                    onChange={(e) => style({ color: e.target.value })}
-                  />
-                </label>
-                <select
-                  aria-label="Alignement du texte"
-                  className="w-full rounded border bg-background p-2 text-sm"
-                  value={css["text-align"] || "left"}
-                  onChange={(e) => style({ "text-align": e.target.value })}
-                >
-                  <option value="left">Aligné à gauche</option>
-                  <option value="center">Centré</option>
-                  <option value="right">Aligné à droite</option>
-                </select>
                 </PanelSection>
                 <PanelSection title="Typographie avancée">
                 {range(
@@ -3267,7 +3275,19 @@ export default function CarouselEditor({
                     (n) => style({ [element.frame ? "min-height" : "height"]: `${n}px` }),
                   )}
                 </PanelSection>
-                <PanelSection title="Fond, bordure et effets">
+                <PanelSection title="Style du bloc" defaultOpen>
+                {element.role !== "glass" && (
+                  <div className="flex flex-wrap gap-1" role="group" aria-label="Styles de bloc tout faits">
+                    {blockPresets.map((preset) => (
+                      <Button key={preset.label} size="sm" variant="outline" className="h-7 text-2xs" onClick={() => applyBlockPreset(preset)}>
+                        {preset.label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+                <details className="space-y-3 text-xs">
+                  <summary className="cursor-pointer py-1 font-medium">Personnaliser (bordure, ombre, fond, rotation)</summary>
+                  <div className="space-y-3 pt-2">
                 {range("Arrondi des coins", parseFloat(css["border-radius"] || css["border-top-left-radius"]) || 0, 0, 200, (n) => style({ "border-radius": `${n}px` }))}
                 {borderControls}
                 {element.role !== "glass" && range("Rotation", rotation, -180, 180, rotate)}
@@ -3311,36 +3331,23 @@ export default function CarouselEditor({
                   >
                     {css["z-index"] === "30" ? "Remettre à sa place" : "Premier plan"}
                   </Button>
-                  {element.role !== "glass" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        const out = duplicateElement(slide, element.id);
-                        if (!out.id) return;
-                        changeSlide(out.slide);
-                        setSelected(out.id);
-                      }}
-                    >
-                      <Copy size={14} className="mr-1" />
-                      Dupliquer
-                    </Button>
-                  )}
                 </div>
+                  </div>
+                </details>
                 </PanelSection>
               </>
             )}
-            {element && element.role !== "background" && (
+            {element?.frame && element.role !== "background" && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => remove(element.id)}
               >
-                {element.frame
-                  ? "Retirer le fond (garder le texte)"
-                  : "Retirer cet élément"}
+                Retirer le fond (garder le texte)
               </Button>
             )}
+            </>)}
+            {panelTab === "slide" && (<>
             <PanelSection title="Ajouter" defaultOpen>
             <div className="grid grid-cols-2 gap-2">
               {hasClip && (
@@ -3401,7 +3408,7 @@ export default function CarouselEditor({
               </Button>
             )}
             </PanelSection>
-            <PanelSection title="Mise en page de la slide">
+            <PanelSection title="Mise en page de la slide" defaultOpen>
             <div className="grid grid-cols-3 gap-2" role="group" aria-label="Mises en page">
               {layoutPreviews.map((l) => (
                 <button
@@ -3417,8 +3424,11 @@ export default function CarouselEditor({
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Tous les textes, la photo et les couleurs sont gardés ; les formes et décors ajoutés à la main ne le sont pas. Tu peux annuler.
+            <p className="flex items-center gap-1 text-2xs text-muted-foreground">
+              Textes, photo et couleurs gardés.
+              <Info size={12} aria-label="Tous les textes, la photo et les couleurs sont gardés ; les formes et décors ajoutés à la main ne le sont pas. Tu peux annuler." role="img">
+                <title>Tous les textes, la photo et les couleurs sont gardés ; les formes et décors ajoutés à la main ne le sont pas. Tu peux annuler.</title>
+              </Info>
             </p>
             {slide.html.includes("data-photo-text-layout") && (
               <label className="block text-xs">
@@ -3456,7 +3466,9 @@ export default function CarouselEditor({
               />
             </label>
             </PanelSection>
-            <PanelSection title="Thème du carrousel">
+            </>)}
+            {panelTab === "carrousel" && (
+            <PanelSection title="Thème du carrousel" defaultOpen>
               <div className="grid grid-cols-2 gap-2" role="group" aria-label="Thèmes">
                 {themes.map((t) => (
                   <button
@@ -3474,9 +3486,10 @@ export default function CarouselEditor({
                   </button>
                 ))}
               </div>
-              <p className="text-2xs text-muted-foreground">Fonds, titres, textes et cartes de toutes les slides. Les slides photo gardent leurs couleurs.</p>
+              <p className="text-2xs text-muted-foreground">Change toutes les slides (sauf les slides photo).</p>
             </PanelSection>
-            {element && element.role !== "background" && (
+            )}
+            {panelTab === "element" && element && element.role !== "background" && (
             <PanelSection title="Toutes les slides">
             {element?.kind === "text" && (
               <Button
@@ -3527,7 +3540,7 @@ export default function CarouselEditor({
             )}
             </PanelSection>
             )}
-            {element && savedStyles && element.role !== "background" && (
+            {panelTab === "element" && element && savedStyles && element.role !== "background" && (
               <div className="space-y-2 rounded-lg border p-2" aria-label="Mes styles">
                 <p className="flex items-center gap-1.5 text-xs font-medium">
                   <Bookmark size={13} /> Mes styles

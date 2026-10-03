@@ -1,13 +1,15 @@
 // Cadre de sélection de l'éditeur de carrousel (03/10/2026) : glisser depuis
 // le vide, ou clic long puis glisser, choisit plusieurs éléments.
 import React, { useState } from "react";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import CarouselEditor from "@/components/creer/CarouselEditor";
 import { readCarouselDocument } from "@/lib/carousel-editor";
 
 vi.mock("@/components/creer/PhotoSwapDialog", () => ({ default: () => null }));
 beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} }));
+// Les calques sont repliés par défaut : ces tests les ouvrent.
+beforeEach(() => window.localStorage.setItem("carousel-panel:Calques", "1"));
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
