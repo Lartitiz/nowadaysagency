@@ -1385,6 +1385,44 @@ export type Database = {
           },
         ]
       }
+      carousel_styles: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          name: string
+          styles: Json
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          name: string
+          styles: Json
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          name?: string
+          styles?: Json
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "carousel_styles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_guide_conversations: {
         Row: {
           created_at: string
