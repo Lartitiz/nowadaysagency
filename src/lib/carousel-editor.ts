@@ -141,6 +141,11 @@ export function syncGlass(doc: Document) {
       photo.style.objectPosition || photo.style.backgroundPosition || "center";
     const zoom = photo.style.transform && photo.style.transform !== "none" ? photo.style.transform : "";
     blur.style.transform = `${zoom} scale(1.08)`.trim();
+    // Les retouches de la photo (luminosité, noir et blanc…) valent aussi pour sa copie floue.
+    const tone = photo.style.filter && photo.style.filter !== "none" ? photo.style.filter : "";
+    blur.style.filter = `blur(28px) ${tone}`.trim();
+    if (tone) blur.setAttribute("data-photo-filter", tone);
+    else blur.removeAttribute("data-photo-filter");
   });
 }
 

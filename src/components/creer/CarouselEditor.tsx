@@ -874,8 +874,10 @@ function SlideCanvas({
       : box.kind === "text"
         ? ["w", "e", "se"]
         : ["w", "e", "s", "se"];
+  // Écran tactile : poignées plus grandes, faciles à attraper au doigt.
+  const coarse = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches;
   const handleStyle = (h: Handle): React.CSSProperties => {
-    const size = 14;
+    const size = coarse ? 24 : 14;
     const base: React.CSSProperties = {
       position: "absolute",
       width: size,
@@ -1357,6 +1359,74 @@ export default function CarouselEditor({
       : css.position === "absolute" && measured
         ? Math.round(measured[key])
         : 0;
+  // Réglages avancés : ombre, bordure, rotation, filtres photo.
+  const shadowPresets: Record<string, string> = {
+    none: "none",
+    douce: "0 8px 24px rgba(0,0,0,0.18)",
+    marquee: "0 16px 40px rgba(0,0,0,0.35)",
+  };
+  const shadowOf = (v: string | undefined) =>
+    !v || v === "none" ? "none" : v === shadowPresets.marquee || /0\.35\)/.test(v) ? "marquee" : "douce";
+  const textShadowOn = !!css["text-shadow"] && css["text-shadow"] !== "none";
+  const rotation = parseFloat(css["--editor-rotate"] || "") || 0;
+  const rotate = (n: number) => {
+    const base = css["--editor-rotate"] ? css["--editor-base-transform"] || "" : css.transform && css.transform !== "none" ? css.transform : "";
+    style(
+      {
+        "--editor-base-transform": base,
+        "--editor-rotate": `${n}deg`,
+        transform: n ? `${base} rotate(${n}deg)`.trim() : base || "none",
+      },
+      "rotate",
+    );
+  };
+  const borderWidth = parseFloat(css["border-top-width"] || css["border-width"] || "") || 0;
+  const borderColor = toHex(css["border-top-color"] || css["border-color"], "#ffffff");
+  const filterValue = (name: string, fallback: number) => {
+    const m = new RegExp(`${name}\\(([\\d.]+)`).exec(css.filter || "");
+    return m ? Number(m[1]) : fallback;
+  };
+  const setFilter = (change: Partial<Record<"brightness" | "contrast" | "saturate", number>>) => {
+    const next = {
+      brightness: filterValue("brightness", 1),
+      contrast: filterValue("contrast", 1),
+      saturate: filterValue("saturate", 1),
+      ...change,
+    };
+    const neutral = next.brightness === 1 && next.contrast === 1 && next.saturate === 1;
+    style({ filter: neutral ? "" : `brightness(${next.brightness}) contrast(${next.contrast}) saturate(${next.saturate})` }, "filter");
+  };
+  const borderControls = (
+    <>
+      {range("Épaisseur de la bordure", borderWidth, 0, 40, (n) =>
+        style({ border: n ? `${n}px solid ${borderColor}` : "" }, "border"),
+      )}
+      {borderWidth > 0 && (
+        <label className="flex items-center justify-between text-xs">
+          Couleur de la bordure
+          <input
+            aria-label="Couleur de la bordure"
+            type="color"
+            value={borderColor}
+            onChange={(e) => style({ border: `${borderWidth}px solid ${e.target.value}` }, "border")}
+          />
+        </label>
+      )}
+      <label className="block text-xs">
+        Ombre portée
+        <select
+          aria-label="Ombre portée"
+          className="mt-1 w-full rounded border bg-background p-2"
+          value={shadowOf(css["box-shadow"])}
+          onChange={(e) => style({ "box-shadow": shadowPresets[e.target.value] })}
+        >
+          <option value="none">Aucune</option>
+          <option value="douce">Douce</option>
+          <option value="marquee">Marquée</option>
+        </select>
+      </label>
+    </>
+  );
   if (!slide) return null;
   return (
     <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-4" onKeyDown={(event) => {
@@ -1594,7 +1664,10 @@ export default function CarouselEditor({
         </Button>
       </div>
       <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_280px] lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0 max-w-[540px] w-full mx-auto md:sticky md:top-28">
+        {/* Téléphone : l'aperçu reste visible (collé sous l'en-tête, plus petit)
+            pendant qu'on fait défiler les réglages en dessous. */}
+        <div className="sticky top-12 z-30 min-w-0 w-full bg-background pb-2 md:top-28 md:bg-transparent md:pb-0">
+          <div className="mx-auto w-full max-w-[min(540px,36vh)] md:max-w-[540px]">
           <SlideCanvas
             onHistoryKey={onHistoryKey}
             slide={slide}
@@ -1630,7 +1703,7 @@ export default function CarouselEditor({
             }}
             colors={palette}
           />
-          <p className="mt-2 text-xs text-muted-foreground text-center">
+          <p className="mt-2 hidden text-xs text-muted-foreground text-center md:block">
             Slide {active + 1} / {document.slides.length} · Double-clique un
             texte pour l’écrire sur la slide. Glisse un bloc pour le déplacer
             (il s’aligne sur les repères roses ; ⌘/Ctrl pour placer librement),
@@ -1638,6 +1711,10 @@ export default function CarouselEditor({
             glisser : le texte seul. Flèches pour ajuster, Suppr pour retirer,
             Échap pour choisir le cadre.
           </p>
+          <p className="mt-1 text-center text-2xs text-muted-foreground md:hidden">
+            Slide {active + 1} / {document.slides.length} · Touche un élément, glisse-le ; « Écrire » pour changer un texte.
+          </p>
+          </div>
         </div>
         <div className="min-w-0 space-y-4 rounded-xl border bg-card p-4">
           <h3 className="text-sm font-semibold">Texte, photos et mise en page</h3>
@@ -1912,6 +1989,50 @@ export default function CarouselEditor({
                   (n) => style({ "line-height": String(n) }),
                   0.1,
                 )}
+                <label className="block text-xs">
+                  Graisse
+                  <select
+                    aria-label="Graisse"
+                    className="mt-1 w-full rounded border bg-background p-2"
+                    value={String(parseInt(css["font-weight"], 10) || 400)}
+                    onChange={(e) => style({ "font-weight": e.target.value })}
+                  >
+                    {[["300", "Fine"], ["400", "Normale"], ["500", "Moyenne"], ["600", "Demi-grasse"], ["700", "Grasse"], ["800", "Extra-grasse"]].map(([v, l]) => (
+                      <option key={v} value={v}>{l}</option>
+                    ))}
+                  </select>
+                </label>
+                {range(
+                  "Espacement des lettres",
+                  parseFloat(css["letter-spacing"]) || 0,
+                  -5,
+                  30,
+                  (n) => style({ "letter-spacing": n ? `${n}px` : "" }, "spacing"),
+                  0.5,
+                )}
+                <label className="block text-xs">
+                  Casse
+                  <select
+                    aria-label="Casse"
+                    className="mt-1 w-full rounded border bg-background p-2"
+                    value={css["text-transform"] || "none"}
+                    onChange={(e) => style({ "text-transform": e.target.value === "none" ? "" : e.target.value })}
+                  >
+                    <option value="none">Comme écrit</option>
+                    <option value="uppercase">MAJUSCULES</option>
+                    <option value="lowercase">minuscules</option>
+                    <option value="capitalize">Capitales Initiales</option>
+                  </select>
+                </label>
+                <label className="flex items-center justify-between text-xs">
+                  Ombre du texte
+                  <input
+                    aria-label="Ombre du texte"
+                    type="checkbox"
+                    checked={textShadowOn}
+                    onChange={(e) => style({ "text-shadow": e.target.checked ? "0 2px 10px rgba(0,0,0,0.45)" : "none" })}
+                  />
+                </label>
                 {element.emphasis && !!element.emphasis.choices.length && (
                   <>
                     <label className="block text-xs">
@@ -2058,6 +2179,21 @@ export default function CarouselEditor({
                   </>
                 )}
                 {range("Arrondi des coins", parseFloat(css["border-radius"] || css["border-top-left-radius"]) || 0, 0, 200, (n) => style({ "border-radius": `${n}px`, overflow: "hidden" }))}
+                <p className="pt-1 text-xs font-medium">Retouche de la photo</p>
+                {range("Luminosité", filterValue("brightness", 1), 0.5, 1.5, (n) => setFilter({ brightness: n }), 0.05)}
+                {range("Contraste", filterValue("contrast", 1), 0.5, 1.5, (n) => setFilter({ contrast: n }), 0.05)}
+                {range("Saturation", filterValue("saturate", 1), 0, 2, (n) => setFilter({ saturate: n }), 0.05)}
+                <div className="flex flex-wrap gap-1">
+                  <Button size="sm" variant="outline" aria-pressed={filterValue("saturate", 1) === 0} onClick={() => setFilter({ saturate: filterValue("saturate", 1) === 0 ? 1 : 0 })}>
+                    Noir et blanc
+                  </Button>
+                  {css.filter && (
+                    <Button size="sm" variant="ghost" onClick={() => style({ filter: "" })}>
+                      Photo d’origine
+                    </Button>
+                  )}
+                </div>
+                {measured && (measured.width < 1075 || measured.height < 1345) && borderControls}
               </>
             )}
             {element?.editorialVeil &&
@@ -2124,6 +2260,13 @@ export default function CarouselEditor({
                     (n) => style({ [element.frame ? "min-height" : "height"]: `${n}px` }),
                   )}
                 {range("Arrondi des coins", parseFloat(css["border-radius"] || css["border-top-left-radius"]) || 0, 0, 200, (n) => style({ "border-radius": `${n}px` }))}
+                {borderControls}
+                {element.role !== "glass" && range("Rotation", rotation, -180, 180, rotate)}
+                {!!rotation && (
+                  <p className="text-2xs text-muted-foreground">
+                    La rotation apparaît sur l’image publiée ; dans l’export PowerPoint, un texte tourné reste droit.
+                  </p>
+                )}
                 <label className="flex items-center justify-between text-xs">
                   Fond du bloc
                   <input

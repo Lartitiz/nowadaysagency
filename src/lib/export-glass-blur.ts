@@ -7,6 +7,8 @@
 // réduisant puis réagrandissant la photo avec lissage (flou sans `ctx.filter`,
 // qui manque encore à certains Safari). Aucune donnée ne quitte le navigateur.
 
+import { applyPhotoFilter, parsePhotoFilter, type PhotoFilter } from "./export-photo-filters";
+
 const SELECTOR = "[data-photo-glass-blur]";
 
 /** Facteurs de réduction successifs : plus le dernier est petit, plus le flou est fort. */
@@ -37,7 +39,7 @@ function loadImage(url: string, timeoutMs: number): Promise<HTMLImageElement | n
 }
 
 /** Photo recadrée en « cover » sur width×height, puis floutée par paliers. */
-function blurredCoverDataUrl(img: HTMLImageElement, width: number, height: number, doc: Document = document): string | null {
+function blurredCoverDataUrl(img: HTMLImageElement, width: number, height: number, doc: Document = document, tone: PhotoFilter | null = null): string | null {
   const scale = Math.max(width / img.naturalWidth, height / img.naturalHeight);
   const sw = width / scale, sh = height / scale;
   const sx = (img.naturalWidth - sw) / 2, sy = (img.naturalHeight - sh) / 2;
@@ -64,6 +66,12 @@ function blurredCoverDataUrl(img: HTMLImageElement, width: number, height: numbe
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(source, 0, 0, srcRect[2], srcRect[3], 0, 0, width, height);
   try {
+    // Même retouche que la photo de fond (noir et blanc, luminosité…).
+    if (tone) {
+      const pixels = ctx.getImageData(0, 0, width, height);
+      applyPhotoFilter(pixels.data, tone);
+      ctx.putImageData(pixels, 0, 0);
+    }
     return out.toDataURL("image/jpeg", 0.88);
   } catch {
     return null; // canvas « tainted » (image sans CORS) : on garde la copie nette
@@ -84,7 +92,7 @@ export async function bakeGlassBlur(root: HTMLElement, timeoutMs = 8000): Promis
     const img = await loadImage(url, timeoutMs);
     if (!img) continue;
     const width = el.offsetWidth || 1080, height = el.offsetHeight || 1350;
-    const data = blurredCoverDataUrl(img, width, height, root.ownerDocument);
+    const data = blurredCoverDataUrl(img, width, height, root.ownerDocument, parsePhotoFilter(el.getAttribute("data-photo-filter") || ""));
     if (!data) continue;
     el.style.backgroundImage = `url("${data}")`;
     el.style.backgroundSize = "100% 100%";
