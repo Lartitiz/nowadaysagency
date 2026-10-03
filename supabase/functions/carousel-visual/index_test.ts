@@ -158,6 +158,28 @@ Deno.test("mise en forme photo : les labels d'étape survivent aux gardes de pro
   for (const n of [1,2,3,4]) assert(result.slides_html[n].html.includes(`Étape ${n} · `), `label d'étape ${n} retiré`);
 });
 
+Deno.test("mise en forme mixte : étapes et motif survivent aux gardes de production", async () => {
+  const { applyMixFormatting, composeMixCarousel } = await import("../_shared/mix-slide-layouts.ts");
+  const slides = [
+    { slide_number: 1, slide_type: "photo_integrated", photo_index: 1, title: "Ce qu'une pièce finie ne raconte pas", body: "" },
+    { slide_number: 2, slide_type: "photo_integrated", photo_index: 2, title: "Le pétrissage", body: "Tout commence avant le tour, par la terre que je pétris." },
+    { slide_number: 3, slide_type: "photo_integrated", photo_index: 3, title: "Le tournage", body: "Sur le tour, la forme naît sous la main." },
+    { slide_number: 4, slide_type: "photo_integrated", photo_index: 4, title: "L'émaillage", body: "Je pose l'émail, mais rien n'est encore joué." },
+    { slide_number: 5, slide_type: "text_only", title: "Le carnet", body: "Semaine après semaine, les pages se remplissent." },
+  ];
+  const ch = { color_primary: "#3A4A3C", color_secondary: "#3A4A3C", color_background: "#F4EFE8", color_text: "#1A1A1A", color_accent: "#3A4A3C", font_title: "Georgia", font_body: "Arial" };
+  const plan = { steps: [{ slide_number: 2, label: "Le pétrissage" }, { slide_number: 3, label: "Le tournage" }, { slide_number: 4, label: "L'émaillage" }],
+    motifs: [{ slide_number: 5, reason: "r", elements: [{ k: "rect", x: 0, y: 40, w: 140, h: 100, tone: "soft" }, { k: "rect", x: 170, y: 20, w: 140, h: 120, tone: "accent" }, { k: "text", x: 0, y: 200, text: "les pages se remplissent", tone: "ink", size: 44 }] }] };
+  const composed = composeMixCarousel(applyMixFormatting(slides as any, plan as any), ch, 4)!;
+  const result: any = { slides_html: composed.map(({ layout: _l, ...x }: any) => x) };
+  stripInventedSurtitres(result, { isPhotoCarousel: false, slides });
+  applyTitleBodyContrastGuard(result, { ch });
+  applyTextContrastGuard(result);
+  applyMinFontSizeGuard(result);
+  for (const n of [1, 2, 3]) assert(result.slides_html[n].html.includes(`Étape ${n} · `), `label d'étape ${n} retiré`);
+  assert(result.slides_html[4].html.includes('<svg data-photo-format="motif"') && result.slides_html[4].html.includes("les pages se remplissent"), "motif retiré");
+});
+
 Deno.test("nettoyage photo : garde les précisions source mais retire encore les surtitres inventés", () => {
   const result={slides_html:[{slide_number:1,html:'<div><span data-pptx-editable="caption">Un détail fourni</span><span data-pptx-editable="caption">LA MÉTHODE MAGIQUE</span></div>'},{slide_number:2,html:"<div>Fin</div>"}]};
   stripInventedSurtitres(result,{isPhotoCarousel:true,slides:[{slide_number:1,overlay_text:"Le récit",detail:"Un détail fourni"}]});
