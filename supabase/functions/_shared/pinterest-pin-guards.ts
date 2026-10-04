@@ -55,7 +55,8 @@ export function normalizePinData(pinData: any, requestedPinType: string): { pinD
   }
   if (typeof out.badge_label !== "string" || out.badge_label.trim() === "") {
     if (isPinType(out.pin_type)) {
-      out.badge_label = DEFAULT_BADGE_BY_PIN_TYPE[out.pin_type];
+      const pinType: PinType = out.pin_type;
+      out.badge_label = DEFAULT_BADGE_BY_PIN_TYPE[pinType];
       fixes.push("badge_label");
     }
   }
