@@ -38,6 +38,16 @@ const REVERSAL_PATTERNS: RegExp[] = [
   /\bpas pour les raisons que (?:tu crois|vous croyez|tu penses|vous pensez)\b/i,
   // « … comme une crème. Pas comme un produit ménager. »
   /\bcomme [^.!?\n]{2,50}\. ?Pas comme\b/,
+  // ── Concession de paille + « Sauf que… » vide (test réel LinkedIn 04/10/2026) ──
+  // « C'est logique, sur le papier. Sauf que ce n'est pas tout à fait comme ça
+  // que ça fonctionne. » La concession n'est comptée QUE suivie d'un « Sauf que »
+  // ou « Mais non » : « en théorie… En pratique, [mécanisme] » reste permis.
+  /(?:^|[.!?]\s+)(?:C(?:'|’)est (?:logique|séduisant|tentant|cohérent)|Ça (?:se tient|paraît logique|semble logique)), (?:sur le papier|en théorie)[.!] ?(?:Sauf que|Mais non)\b[^.!?\n]{0,90}/,
+  /(?:^|[.!?]\s+)(?:Sur le papier|En théorie), (?:ça se tient|c(?:'|’)est logique|ça paraît logique|ça marche|tout se tient)[.!] ?(?:Sauf que|Mais non)\b[^.!?\n]{0,90}/,
+  // « Sauf que » en OUVERTURE de phrase suivi d'une négation vide (sans le
+  // mécanisme). Un « sauf que » factuel en milieu de phrase, ou « Sauf que la
+  // livraison a du retard », ne compte pas.
+  /(?:^|[.!?]\s+|\n\s*)Sauf que (?:non\b|(?:ce n(?:'|’)est|c(?:'|’)est|ça n(?:'|’)est) pas (?:tout à fait|vraiment|si simple|aussi simple|exactement|comme ça|ce qui se passe|le cas)|ça ne (?:marche|fonctionne|se passe) pas (?:comme ça|vraiment|tout à fait|ainsi|du tout))[^.!?\n]{0,80}/,
 ];
 
 // Formules moulées repérées à l'identique dans deux contenus générés à 30 min
@@ -794,7 +804,10 @@ function findReversals(text: string): string[] {
       }
     }
   }
-  return [...new Set(found)];
+  // Un même passage vu depuis deux fenêtres (concession + « Sauf que… », puis
+  // « Sauf que… » seul) ne compte qu'une fois : on garde l'extrait le plus long.
+  const unique = [...new Set(found)];
+  return unique.filter((f) => !unique.some((g) => g !== f && g.includes(f)));
 }
 
 export interface RedacAnalysis {
@@ -1544,7 +1557,7 @@ export function buildTextFixInstructions(a: TextRedacAnalysis): string {
   const lines: string[] = [];
   if (a.reversals.length > 0) {
     lines.push(
-      `RETOURNEMENTS PAR NÉGATION : ${a.reversals.length} détectés, aucun effet ajouté n’est autorisé. Réécris chaque passage signalé en affirmation directe, en préservant les négations factuelles et verbatims fournis à garder :\n${a.reversals.map((r) => `- « ${r} »`).join("\n")}`,
+      `RETOURNEMENTS PAR NÉGATION : ${a.reversals.length} détectés, aucun effet ajouté n’est autorisé. Réécris chaque passage signalé en affirmation directe, en préservant les négations factuelles et verbatims fournis à garder. Une concession suivie de « Sauf que… » (« C'est logique, sur le papier. Sauf que ce n'est pas comme ça que ça marche ») disparaît : pose directement le mécanisme réel, sans concession ni « sauf que » :\n${a.reversals.map((r) => `- « ${r} »`).join("\n")}`,
     );
   }
   for (const m of a.moulded) {
