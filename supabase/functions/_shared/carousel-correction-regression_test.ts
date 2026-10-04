@@ -118,3 +118,27 @@ Deno.test("carrousel : le plafonnement du score ne cache pas un chiffre inventé
     assertEquals(await applyGuardedCarouselCorrection(doc, opts), doc);
   });
 });
+
+Deno.test("carrousel : un chiffre de recherche sans source peut passer en qualitatif (ce n'est pas une donnée perdue)", async () => {
+  const research = "Chaque post est d'abord montré à 2 à 5 % du réseau (Hootsuite, 2025).";
+  const doc = JSON.stringify({ slides: [{ slide_number: 1, title: "Le test", body: "Ton post est montré à 5 % de ton réseau, puis tout se décide." }], caption: {} });
+  const gateOpts = { isLinkedIn: false, inputText: `${source}\n${research}`, researchText: research, correction: { enabled: true, skipIfShorterThan: 0, model: "claude-haiku-4-5" as const } };
+  await withCorrection("[SLIDE 1 - BODY] Ton post est d'abord montré à une petite partie de ton réseau, puis tout se décide.", async (requests) => {
+    const result = await runRedacGate(doc, gateOpts);
+    assertStringIncludes(JSON.stringify(requests[0]), "CHIFFRES DE LA RECHERCHE REPRIS SANS LEUR SOURCE");
+    assertEquals(JSON.parse(result.content).slides[0].body.includes("petite partie"), true);
+    assertEquals(result.after.unsourcedResearchNumbers, []);
+    assertEquals(result.repassed, true);
+  });
+});
+
+Deno.test("carrousel : un chiffre de recherche AVEC sa source ne déclenche aucune re-passe", async () => {
+  const research = "Chaque post est d'abord montré à 2 à 5 % du réseau (Hootsuite, 2025).";
+  const doc = JSON.stringify({ slides: [{ slide_number: 1, title: "Le test", body: "Ton post est montré à 5 % de ton réseau (Hootsuite, 2025)." }], caption: {} });
+  const gateOpts = { isLinkedIn: false, inputText: `${source}\n${research}`, researchText: research, correction: { enabled: true, skipIfShorterThan: 0, model: "claude-haiku-4-5" as const } };
+  await withCorrection("ne doit pas être appelé", async (requests) => {
+    const result = await runRedacGate(doc, gateOpts);
+    assertEquals(requests.length, 0);
+    assertEquals(result.before.unsourcedResearchNumbers, []);
+  });
+});

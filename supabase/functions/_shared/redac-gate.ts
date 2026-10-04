@@ -111,6 +111,85 @@ function findFabricatedNumbers(text: string, allowed: Set<string>): string[] {
   return found;
 }
 
+// ── Chiffres venus SEULEMENT de la recherche : autorisés avec leur source (04/10/2026) ──
+// Test réel après #1298/#1299/#1300 : la recherche « creuser le sujet » rejoignait
+// la liste blanche, donc « l'algorithme teste chaque post sur 2 à 5 % de ton
+// réseau » ou « une étude sur 4,6 millions de posts… 17,3 % » passaient sans nom
+// ni année. Un chiffre du brief, des réponses, du branding ou de l'actu reste
+// autorisé tel quel ; un chiffre que seule la recherche fournit doit porter sa
+// source DANS LA MÊME PHRASE (« (Nom, année) », « selon X », « l'étude de X »).
+
+/** Chiffres de la recherche absents du brief/réponses/branding/actu (années exclues : des dates, pas des stats). */
+export interface ResearchNumbers {
+  only: Set<string>;
+  text: string;
+}
+
+export function researchNumbers(baseAllowed: Set<string>, researchText?: string): ResearchNumbers | undefined {
+  if (!researchText?.trim()) return undefined;
+  const only = new Set<string>();
+  for (const n of numbersIn(researchText)) {
+    if (!/^\d/.test(n) || baseAllowed.has(n) || /^(?:19|20)\d{2}$/.test(n)) continue;
+    only.add(n);
+  }
+  return only.size ? { only, text: researchText } : undefined;
+}
+
+/** Texte d'entrée sans la matière de recherche (qui y a été concaténée telle quelle). */
+function baseInputText(inputText?: string, researchText?: string): string {
+  if (!inputText) return "";
+  return researchText?.trim() ? inputText.split(researchText).join("\n") : inputText;
+}
+
+const SOURCE_MENTIONS: RegExp[] = [
+  // « (Hootsuite, 2025) », « (étude LinkedIn 2024) », « (source : Insee) »
+  /\([^()]{0,80}(?<!\d)(?:19|20)\d{2}(?!\d)[^()]{0,30}\)/u,
+  /\(\s*(?:source\s*:\s*)?\p{Lu}[^()]{1,60}\)/u,
+  // « selon Hootsuite », « d'après l'Insee », « source : … »
+  /(?<!\p{L})(?:selon|d['’]apr[eè]s|sources?\s*:)/iu,
+  // « l'étude de Richard van der Blom », « un rapport du CNRS », « publiée par LinkedIn »
+  /(?<!\p{L})(?:[ée]tudes?|rapports?|barom[eè]tres?|enqu[eê]tes?|sondages?|analyses?|chiffres|donn[ée]es)\s+(?:de\s+l['’]|de\s+la\s+|du\s+|des\s+|de\s+|d['’])\p{Lu}/u,
+  /(?<!\p{L})(?:publi[ée]e?s?|men[ée]e?s?|r[ée]alis[ée]e?s?|mesur[ée]e?s?)\s+par\s+(?:l['’]|le\s+|la\s+|les\s+)?\p{Lu}/u,
+];
+
+function hasSourceMention(sentence: string): boolean {
+  return SOURCE_MENTIONS.some((re) => re.test(sentence));
+}
+
+/** Phrases d'un texte (coupe sur . ! ? … suivis d'un blanc, et sur les retours à la ligne). */
+function sentencesOf(text: string): string[] {
+  return (text || "").split(/(?<=[.!?…])\s+|\n+/).map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * Chiffres que seule la recherche fournit, repris dans une phrase sans mention de source.
+ * `units` : blocs lus d'un tenant (par défaut les phrases du texte ; une slide entière pour le carrousel).
+ */
+export function findUnsourcedResearchNumbers(text: string, research?: ResearchNumbers, units?: string[]): string[] {
+  if (!research) return [];
+  const found: string[] = [];
+  const seen = new Set<string>();
+  const researchSentences = sentencesOf(research.text);
+  for (const unit of units ?? sentencesOf(text)) {
+    const sentence = unit.replace(/\s+/g, " ").trim();
+    if (hasSourceMention(sentence)) continue;
+    for (const m of sentence.matchAll(NUMBER_TOKEN)) {
+      const tok = m[0].replace(",", ".");
+      if (!research.only.has(tok) || seen.has(tok)) continue;
+      const after = sentence.slice(m.index! + m[0].length, m.index! + m[0].length + 3);
+      if (/^(?:er|re|e\b|ᵉ|ʳ)/.test(after)) continue;
+      seen.add(tok);
+      const where = sentence.length > 160 ? sentence.slice(0, 157) + "…" : sentence;
+      const inResearch = researchSentences.find((s) => [...s.matchAll(NUMBER_TOKEN)].some((r) => r[0].replace(",", ".") === tok));
+      found.push(`${m[0]} (« ${where} »)${inResearch ? ` — dans la recherche : « ${inResearch.length > 220 ? inResearch.slice(0, 217) + "…" : inResearch} »` : ""}`);
+    }
+  }
+  return found;
+}
+
+const UNSOURCED_RESEARCH_FIX = (items: string[]) =>
+  `CHIFFRES DE LA RECHERCHE REPRIS SANS LEUR SOURCE : ces chiffres ne viennent que de la matière de recherche, et la phrase qui les reprend ne cite pas leur source :\n${items.map((n) => `- ${n}`).join("\n")}\nPour CHACUN : si la matière de recherche donne la source de ce chiffre, ajoute-la DANS LA MÊME PHRASE, de façon discrète (« (Nom, année) » ou « selon Nom ») ; sinon, remplace le chiffre par une formulation qualitative honnête (« une petite partie de ton réseau », « les premiers jours »). N'invente JAMAIS de source, de nom ou d'année. Ne touche pas au reste du texte.`;
+
 // ── Cohérence des durées slides ↔ caption (bilan hebdo 17/08/2026) ──
 // Trou trouvé au juge /5 : un carrousel « avant/après » notait « Trois semaines
 // sans visite » en slide 2 et « Un mois entre les deux photos » en légende — deux
@@ -436,6 +515,8 @@ export interface RedacAnalysis {
   moulded: string[];
   hashtagsCount: number;
   fabricatedNumbers: string[];
+  /** Chiffres que seule la recherche fournit, repris sans leur source dans la même phrase. */
+  unsourcedResearchNumbers?: string[];
   /** Durées qui se contredisent entre les slides et la caption (même fait, 2 chiffres). */
   durationConflicts: string[];
   /** Passages qui recopient quasi mot pour mot un champ de la fiche de marque. */
@@ -452,7 +533,7 @@ export interface EchoContext {
   subject?: string;
 }
 
-export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext): RedacAnalysis {
+export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext, research?: ResearchNumbers): RedacAnalysis {
   const doc = parsed?.carousel?.slides ? parsed.carousel : parsed;
   const slides: any[] = Array.isArray(doc?.slides) ? doc.slides : [];
   const caption = doc?.caption ?? doc?.instagram_caption ?? parsed?.caption ?? parsed?.instagram_caption ?? {};
@@ -491,6 +572,10 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, 
   const fabricatedNumbers = allowedNumbers
     ? findFabricatedNumbers(allText + "\n" + schemaText, allowedNumbers)
     : [];
+  // Une slide se lit d'un bloc (titre + corps) : la source peut être dans l'un, le chiffre dans l'autre.
+  const unsourcedResearchNumbers = findUnsourcedResearchNumbers(
+    "", research, [...slides.map(slideTexts), ...sentencesOf(captionText)],
+  );
 
   const durationConflicts = findDurationConflicts(slidesText, captionText);
   // L'accroche d'un carrousel = le texte de sa slide 1, quel que soit le format
@@ -499,7 +584,7 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, 
 
   return {
     reversals, overlongSlides, overlongOverlays, ctaDuplicated, moulded,
-    hashtagsCount, fabricatedNumbers, durationConflicts, brandCopyOverlap, hookEchoes,
+    hashtagsCount, fabricatedNumbers, unsourcedResearchNumbers, durationConflicts, brandCopyOverlap, hookEchoes,
   };
 }
 
@@ -534,6 +619,7 @@ export function redacViolations(a: RedacAnalysis): number {
     (a.ctaDuplicated ? 1 : 0) +
     a.moulded.length +
     Math.min(3, a.fabricatedNumbers.length) +
+    Math.min(3, a.unsourcedResearchNumbers?.length ?? 0) +
     // Plafonné à 1 : une contradiction, c'est UN fait à corriger, même si le
     // croisement slides × caption en remonte plusieurs formulations.
     Math.min(1, a.durationConflicts.length) +
@@ -563,6 +649,7 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean) {
     caption_cta_duplicates_slide: a.ctaDuplicated,
     moulded_verbatims: a.moulded,
     fabricated_numbers: a.fabricatedNumbers.length,
+    unsourced_research_numbers: a.unsourcedResearchNumbers?.length ?? 0,
     duration_conflicts: a.durationConflicts,
     brand_copy_overlap: a.brandCopyOverlap.length,
     hook_echoes: a.hookEchoes,
@@ -619,6 +706,7 @@ function buildFixInstructions(a: RedacAnalysis): string {
       `CHIFFRES SANS SOURCE : ces chiffres ne viennent ni du brief, ni des réponses de l'utilisatrice, ni de son branding, ni de l'actu fournie :\n${a.fabricatedNumbers.map((n) => `- ${n}`).join("\n")}\nRemplace CHACUN par une formulation qualitative honnête (« une bonne partie », « plusieurs semaines », « la plupart », « bien plus cher »). N'invente JAMAIS de statistique, de prix, de durée ou de proportion. Si un schéma visuel de type stats n'a plus de chiffre à afficher, transforme-le en slide texte.`,
     );
   }
+  if (a.unsourcedResearchNumbers?.length) lines.push(UNSOURCED_RESEARCH_FIX(a.unsourcedResearchNumbers));
   if (a.durationConflicts.length) {
     lines.push(
       `DURÉES QUI SE CONTREDISENT entre les slides et la légende :\n${a.durationConflicts.map((c) => `- ${c}`).join("\n")}\nC'est le MÊME fait raconté deux fois avec deux chiffres différents — devant l'audience, ça décrédibilise tout le contenu. Choisis UNE durée et emploie EXACTEMENT la même des deux côtés (ou retire-la d'un des deux). Ne « fais pas la moyenne » : garde celle du brief si le brief en donne une.`,
@@ -651,6 +739,8 @@ export interface RedacGateResult {
 interface CarouselCorrectionContext {
   correction: CorrectionOptions;
   inputText?: string;
+  /** Matière de recherche (incluse dans inputText) : ses chiffres seuls exigent leur source. */
+  researchText?: string;
   brandGuardText?: string;
   echo?: EchoContext;
 }
@@ -668,15 +758,17 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
     const original = originalDoc.carousel?.slides ? originalDoc.carousel : originalDoc;
     const candidate = candidateDoc.carousel?.slides ? candidateDoc.carousel : candidateDoc;
     const allowed = source === undefined ? undefined : numbersIn(source);
-    const before = dropUserSourcedReversals(analyzeCarouselRedac(original, allowed, opts.brandGuardText, opts.echo), opts.correction.authoredText);
-    const after = dropUserSourcedReversals(analyzeCarouselRedac(candidate, allowed, opts.brandGuardText, opts.echo), opts.correction.authoredText);
+    const research = allowed ? researchNumbers(numbersIn(baseInputText(opts.inputText, opts.researchText)), opts.researchText) : undefined;
+    const before = dropUserSourcedReversals(analyzeCarouselRedac(original, allowed, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
+    const after = dropUserSourcedReversals(analyzeCarouselRedac(candidate, allowed, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
     // Compare raw counts, not the capped score: a fifth invented number is
     // still a regression even when the score already caps that penalty at 3.
     const counts = (a: RedacAnalysis) => [a.reversals.length, Number(a.ctaDuplicated), a.moulded.length,
-      a.fabricatedNumbers.length, a.durationConflicts.length, a.brandCopyOverlap.length, a.hookEchoes.length];
+      a.fabricatedNumbers.length, a.durationConflicts.length, a.brandCopyOverlap.length, a.hookEchoes.length,
+      a.unsourcedResearchNumbers?.length ?? 0];
     const beforeCounts = counts(before);
     const COUNT_NAMES = ["reversals", "cta-duplicated", "moulded",
-      "fabricated-numbers", "duration-conflicts", "brand-copy", "hook-echoes"];
+      "fabricated-numbers", "duration-conflicts", "brand-copy", "hook-echoes", "unsourced-research-numbers"];
     const regressions = counts(after).map((n, i) => n > beforeCounts[i] ? `regression:${COUNT_NAMES[i]}` : "").filter(Boolean);
     // Equal counts can still hide a new unsupported value (5 days → 9 days).
     // Reuse the detector's ordinal exclusions and decimal normalization.
@@ -690,7 +782,10 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
     const originalText = opts.correction.semanticReview ? carouselEditorialFields(originalDoc).map(f => f.text).join("\n") : prose(original);
     const candidateText = opts.correction.semanticReview ? carouselEditorialFields(candidateDoc).map(f => f.text).join("\n") : prose(candidate);
     const candidateNumbers = numbersIn(candidateText);
-    const lostNumbers = allowed ? [...numbersIn(originalText)].filter(n => allowed.has(n) && !candidateNumbers.has(n)) : [];
+    // Un chiffre de recherche repris sans source peut légitimement disparaître
+    // (passé en formulation qualitative) : ce n'est pas une donnée perdue.
+    const unsourced = new Set((before.unsourcedResearchNumbers ?? []).map(unsupportedValue));
+    const lostNumbers = allowed ? [...numbersIn(originalText)].filter(n => allowed.has(n) && !candidateNumbers.has(n) && !unsourced.has(n)) : [];
     // Protect sourced quotations; unrelated quotation marks in the brand
     // profile do not force material into the output. This is not a fact checker.
     const quotes = [...originalText.matchAll(/«\s*([^»]+?)\s*»|“([^”]+)”|"([^"\n]{6,})"/g)]
@@ -731,6 +826,8 @@ export async function runRedacGate(
     onStatus?: (s: string) => void;
     /** Texte d'entrée (brief, réponses, branding, actu) : liste blanche des chiffres autorisés. */
     inputText?: string;
+    /** Matière de recherche (déjà incluse dans inputText) : ses chiffres seuls exigent leur source. */
+    researchText?: string;
     /** Forme de chute de caption imposée par le tirage code (caption v2). */
     captionEnding?: CaptionEndingRule;
     /** Champs de marque bruts (buildBrandGuardText) : passages à ne jamais recopier tels quels. */
@@ -753,7 +850,8 @@ export async function runRedacGate(
   if (!first) return { content, repassed: false, before: emptyAnalysis(), after: emptyAnalysis(), score: null, violations: null };
 
   const allowedNumbers = opts.inputText !== undefined ? numbersIn(opts.inputText) : undefined;
-  const before = dropUserSourcedReversals(analyzeCarouselRedac(first.parsed, allowedNumbers, opts.brandGuardText, opts.echo), opts.correction.authoredText);
+  const research = allowedNumbers ? researchNumbers(numbersIn(baseInputText(opts.inputText, opts.researchText)), opts.researchText) : undefined;
+  const before = dropUserSourcedReversals(analyzeCarouselRedac(first.parsed, allowedNumbers, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
   let out = content;
   let repassed = false;
 
@@ -782,6 +880,7 @@ export async function runRedacGate(
       opts.onStatus?.("correcting");
       const corrected = await applyGuardedCarouselCorrection(out, {
         inputText: opts.inputText,
+        researchText: opts.researchText,
         brandGuardText: opts.brandGuardText,
         echo: opts.echo,
         correction: { ...opts.correction, extraInstructions: fixes },
@@ -834,14 +933,14 @@ export async function runRedacGate(
     }
   }
 
-  let after = dropUserSourcedReversals(analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo), opts.correction.authoredText);
+  let after = dropUserSourcedReversals(analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
   // Duplication caption/slide PERSISTANTE malgré la re-passe (vue livrée avec le
   // flag true, audit 12/07 lot D) : suppression déterministe — le CTA vit sur la
   // slide, la caption garde sa chute (dernière ligne du body). Supprimer > inventer.
   if (after.ctaDuplicated && finalDoc.parsed?.caption) {
     console.log("[redac-gate] caption.cta supprimé (duplication de la dernière slide persistante après re-passe)");
     finalDoc.parsed.caption.cta = "";
-    after = dropUserSourcedReversals(analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo), opts.correction.authoredText);
+    after = dropUserSourcedReversals(analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
   }
   normalizeCaptionHashtags(finalDoc.parsed, opts.isLinkedIn);
   finalDoc.parsed.quality_check = buildQualityCheck(after, repassed);
@@ -851,7 +950,7 @@ export async function runRedacGate(
     : content.replace(first.raw, JSON.stringify(finalDoc.parsed, null, 2));
 
   console.log(
-    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, durées contradictoires ${before.durationConflicts.length}→${after.durationConflicts.length}, recopie fiche marque ${before.brandCopyOverlap.length}→${after.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${after.hookEchoes.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
+    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${after.unsourcedResearchNumbers?.length ?? 0}, durées contradictoires ${before.durationConflicts.length}→${after.durationConflicts.length}, recopie fiche marque ${before.brandCopyOverlap.length}→${after.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${after.hookEchoes.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
   );
 
   return { content: out, repassed, before, after, score: redacScore(after), violations: redacViolations(after) };
@@ -870,6 +969,8 @@ export interface TextRedacAnalysis {
   reversals: string[];
   moulded: string[];
   fabricatedNumbers: string[];
+  /** Chiffres que seule la recherche fournit, repris sans leur source dans la même phrase. */
+  unsourcedResearchNumbers?: string[];
   /** Passages qui recopient quasi mot pour mot un champ de la fiche de marque. */
   brandCopyOverlap: string[];
   /** Accroches DÉJÀ écrites pour ce sujet que celle-ci redit (cf. findHookEchoes). */
@@ -883,13 +984,14 @@ export function textHook(text: string): string {
   return phrase.slice(0, 200);
 }
 
-export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext): TextRedacAnalysis {
+export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext, research?: ResearchNumbers): TextRedacAnalysis {
   const reversals = findReversals(text || "");
   const moulded = MOULDED_VERBATIMS.map((re) => (text || "").match(re)?.[0]).filter(Boolean) as string[];
   const fabricatedNumbers = allowedNumbers ? findFabricatedNumbers(text || "", allowedNumbers) : [];
+  const unsourcedResearchNumbers = findUnsourcedResearchNumbers(text || "", research);
   const brandCopyOverlap = findBrandCopyOverlap(text || "", brandGuardText);
   const hookEchoes = findHookEchoes(textHook(text), echo?.previousHooks, echo?.subject);
-  return { reversals, moulded, fabricatedNumbers, brandCopyOverlap, hookEchoes };
+  return { reversals, moulded, fabricatedNumbers, unsourcedResearchNumbers, brandCopyOverlap, hookEchoes };
 }
 
 /**
@@ -916,6 +1018,7 @@ export function textRedacViolations(a: TextRedacAnalysis): number {
     a.reversals.length +
     a.moulded.length +
     Math.min(3, a.fabricatedNumbers.length) +
+    Math.min(3, a.unsourcedResearchNumbers?.length ?? 0) +
     Math.min(3, a.brandCopyOverlap.length) +
     Math.min(1, a.hookEchoes.length)
   );
@@ -1094,6 +1197,7 @@ export function buildTextFixInstructions(a: TextRedacAnalysis): string {
       `CHIFFRES SANS SOURCE : ces chiffres ne viennent ni du brief, ni des réponses de l'utilisatrice, ni de son branding, ni de l'actu fournie :\n${a.fabricatedNumbers.map((n) => `- ${n}`).join("\n")}\nRemplace CHACUN par une formulation qualitative honnête (« une bonne partie », « plusieurs heures », « bien plus cher »). N'invente JAMAIS de statistique, de prix, de durée ou de proportion.`,
     );
   }
+  if (a.unsourcedResearchNumbers?.length) lines.push(UNSOURCED_RESEARCH_FIX(a.unsourcedResearchNumbers));
   if (a.brandCopyOverlap.length) {
     lines.push(
       `PASSAGES RECOPIÉS DE LA FICHE DE MARQUE : ces extraits reprennent quasi mot pour mot un champ de la fiche de marque de l'utilisatrice (combat, mission, ton, expressions, convictions) :\n${a.brandCopyOverlap.map((o) => `- « ${o} »`).join("\n")}\nCette fiche est la MATIÈRE de l'utilisatrice, jamais son texte final. Reformule CHAQUE extrait avec des mots neufs, garde le sens et l'intensité, mais ne recopie plus la fiche de marque telle quelle.`,
@@ -1122,7 +1226,7 @@ export function buildTextFixInstructions(a: TextRedacAnalysis): string {
  * ne doit pas profiter du plafond de pénalité d’une autre catégorie. */
 export function textRedacRawCount(a: TextRedacAnalysis): number {
   return a.reversals.length + a.moulded.length + a.fabricatedNumbers.length + a.brandCopyOverlap.length +
-    a.hookEchoes.length;
+    a.hookEchoes.length + (a.unsourcedResearchNumbers?.length ?? 0);
 }
 
 export interface TextGateResult {
@@ -1144,6 +1248,8 @@ export async function runTextRedacGate(
     correction: CorrectionOptions;
     /** Liste blanche des chiffres autorisés (numbersIn du brief/réponses/branding/actu). */
     allowedNumbers?: Set<string>;
+    /** Chiffres que seule la recherche fournit (researchNumbers) : autorisés avec leur source. */
+    research?: ResearchNumbers;
     brandGuardText?: string;
     /** Passes LLM max (défaut 2 : 1 relecture générale + 1 rattrapage si violations restantes). */
     maxPasses?: number;
@@ -1152,7 +1258,7 @@ export async function runTextRedacGate(
   },
 ): Promise<TextGateResult> {
   const analyze = (t: string) => dropUserSourcedReversals(
-    analyzeTextRedac(t, opts.allowedNumbers, opts.brandGuardText, opts.echo), opts.correction.authoredText,
+    analyzeTextRedac(t, opts.allowedNumbers, opts.brandGuardText, opts.echo, opts.research), opts.correction.authoredText,
   );
   const before = analyze(text);
   let best = text;
@@ -1193,7 +1299,7 @@ export async function runTextRedacGate(
   const violations = textRedacViolations(bestA);
   const score = Math.max(40, 100 - 10 * violations);
   opts.correction.logger?.(
-    `[text-gate:${opts.format}] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, repassé=${repassed}, rejeté=${reverted}`,
+    `[text-gate:${opts.format}] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${bestA.unsourcedResearchNumbers?.length ?? 0}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, repassé=${repassed}, rejeté=${reverted}`,
   );
   return { content: best, before, after: bestA, repassed, reverted, score, violations };
 }

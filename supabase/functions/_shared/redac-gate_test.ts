@@ -562,3 +562,83 @@ Deno.test("findBrandCopyOverlap : un verbatim cible recopié n'est compté qu'un
   const generated = "Ce que j'entends : je fais un travail que j'aime mais personne ne le voit. Et c'est là qu'on peut agir.";
   assertEquals(findBrandCopyOverlap(generated, FICHE_FRAGMENTS).length, 1);
 });
+
+// ── Chiffres venus SEULEMENT de la recherche (test réel du 04/10/2026) ──
+// La recherche rejoignait la liste blanche : « 2 à 5 % de ton réseau »,
+// « 48 à 72 heures » ou « une étude sur 4,6 millions de posts… 17,3 % »
+// passaient sans nom ni année. Ils doivent porter leur source dans la phrase.
+const RESEARCH = "LinkedIn montre d'abord chaque post à 2 à 5 % du réseau (Hootsuite, 2025). La portée se joue dans les 48 à 72 heures (Richard van der Blom, Algorithm Insights 2025). Une étude sur 4,6 millions de posts mesure 17,3 % d'engagement en plus pour les carrousels (Socialinsider, 2024).";
+const BRIEF = "Pourquoi mes posts LinkedIn ne décollent pas, 3 ans d'activité";
+
+Deno.test("researchNumbers : seuls les chiffres absents du brief comptent, les années sont exclues", async () => {
+  const { researchNumbers } = await import("./redac-gate.ts");
+  const r = researchNumbers(numbersIn(BRIEF), RESEARCH + " En 2026, 3 réseaux.")!;
+  assertEquals(r.only.has("2"), true);
+  assertEquals(r.only.has("17.3"), true);
+  assertEquals(r.only.has("4.6"), true);
+  assertEquals(r.only.has("3"), false); // déjà dans le brief
+  assertEquals(r.only.has("2025"), false);
+  assertEquals(r.only.has("2026"), false);
+  assertEquals(researchNumbers(numbersIn(BRIEF), ""), undefined);
+});
+
+Deno.test("analyzeTextRedac : chiffres de la recherche repris SANS source -> signalés (cas réels du 04/10)", async () => {
+  const { researchNumbers } = await import("./redac-gate.ts");
+  const base = numbersIn(BRIEF);
+  const allowed = new Set([...base, ...numbersIn(RESEARCH)]);
+  const text = "L'algorithme teste chaque post sur 2 à 5% de ton réseau. Tout se joue en 48 à 72 heures. Une étude sur 4,6 millions de posts montre 17,3 % d'engagement en plus pour les carrousels.";
+  const a = analyzeTextRedac(text, allowed, undefined, undefined, researchNumbers(base, RESEARCH));
+  assertEquals(a.fabricatedNumbers.length, 0); // ce ne sont pas des chiffres inventés…
+  assertEquals((a.unsourcedResearchNumbers ?? []).map((n) => n.split(" ")[0]), ["2", "5", "48", "72", "4,6", "17,3"]);
+  const fix = buildTextFixInstructions(a);
+  assertEquals(fix.includes("CHIFFRES DE LA RECHERCHE REPRIS SANS LEUR SOURCE"), true);
+  assertEquals(fix.includes("Hootsuite, 2025"), true); // la source à recopier est donnée
+  assertEquals(fix.includes("formulation qualitative"), true);
+});
+
+Deno.test("analyzeTextRedac : chiffre de recherche AVEC sa source dans la phrase -> accepté (parenthèse, selon, étude de)", async () => {
+  const { researchNumbers, textRedacViolations } = await import("./redac-gate.ts");
+  const base = numbersIn(BRIEF);
+  const allowed = new Set([...base, ...numbersIn(RESEARCH)]);
+  const research = researchNumbers(base, RESEARCH);
+  for (const text of [
+    "L'algorithme montre d'abord ton post à 2 à 5 % de ton réseau (Hootsuite, 2025).",
+    "Selon Richard van der Blom, tout se joue en 48 à 72 heures.",
+    "D'après Socialinsider, les carrousels font 17,3 % d'engagement en plus.",
+    "L'étude de Socialinsider sur 4,6 millions de posts mesure 17,3 % d'engagement en plus.",
+    "Les carrousels gagnent 17,3 % d'engagement (Socialinsider).",
+  ]) {
+    const a = analyzeTextRedac(text, allowed, undefined, undefined, research);
+    assertEquals(a.unsourcedResearchNumbers, [], text);
+    assertEquals(textRedacViolations(a), 0, text);
+  }
+});
+
+Deno.test("analyzeTextRedac : chiffre du brief/réponses autorisé tel quel, même s'il est aussi dans la recherche ; ordinal ignoré", async () => {
+  const { researchNumbers } = await import("./redac-gate.ts");
+  const base = numbersIn(BRIEF + " 17,3 % de mes clientes viennent de LinkedIn");
+  const allowed = new Set([...base, ...numbersIn(RESEARCH)]);
+  const a = analyzeTextRedac("Chez moi, 17,3 % des clientes arrivent par LinkedIn. C'est mon 2e canal après 3 ans.", allowed, undefined, undefined, researchNumbers(base, RESEARCH));
+  assertEquals(a.unsourcedResearchNumbers, []);
+});
+
+Deno.test("analyzeTextRedac : sans recherche, rien ne change (garde existante intacte)", async () => {
+  const a = analyzeTextRedac("Tout se joue en 48 heures.", numbersIn(BRIEF));
+  assertEquals(a.unsourcedResearchNumbers, []);
+  assertEquals(a.fabricatedNumbers.length, 1);
+});
+
+Deno.test("analyzeCarouselRedac : la source peut être ailleurs sur la MÊME slide ; une slide ou une légende sans source est signalée", async () => {
+  const { researchNumbers } = await import("./redac-gate.ts");
+  const base = numbersIn(BRIEF);
+  const allowed = new Set([...base, ...numbersIn(RESEARCH)]);
+  const parsed = {
+    slides: [
+      { slide_number: 1, title: "17,3 % d'engagement en plus", body: "C'est ce que mesure Socialinsider sur les carrousels (2024)." },
+      { slide_number: 2, title: "Les 48 premières heures", body: "Tout se joue là." },
+    ],
+    caption: { hook: "", body: "Ton post est d'abord montré à 2 à 5 % de ton réseau.", cta: "" },
+  };
+  const a = analyzeCarouselRedac(parsed, allowed, undefined, undefined, researchNumbers(base, RESEARCH));
+  assertEquals((a.unsourcedResearchNumbers ?? []).map((n) => n.split(" ")[0]), ["48", "2", "5"]);
+});
