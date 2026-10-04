@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { readIdeaList } from '@/lib/idea-list-read';
 
-const state = vi.hoisted(() => ({ ready: true, scope: 'A', column: 'workspace_id', read: vi.fn() }));
+const state = vi.hoisted(() => ({ ready: true, scope: 'A', column: 'workspace_id', read: vi.fn(), rpc: vi.fn(), full: vi.fn(), selects: [] as string[] }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'user' } }) }));
 vi.mock('@/hooks/use-workspace-query', () => ({
   useWorkspaceReady: () => state.ready,
@@ -15,10 +15,14 @@ vi.mock('@/components/AppHeader', () => ({ default: () => null }));
 vi.mock('@/components/ContentPreview', () => ({ ContentPreview: () => null }));
 vi.mock('@/components/calendar/CalendarIdeasSidebar', () => ({ AddIdeaDialog: () => null }));
 vi.mock('@/components/ui/textarea-with-voice', () => ({ TextareaWithVoice: (props: any) => <textarea {...props} /> }));
-vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: (table: string) => {
+vi.mock('@/integrations/supabase/client', () => ({ supabase: { rpc: (...args: any[]) => state.rpc(...args), from: (table: string) => {
   const filters: any[] = [];
   const query: any = {
-    select: () => query,
+    select: (columns: string) => { state.selects.push(columns); return query; },
+    not: () => query, neq: () => query,
+    maybeSingle: () => state.full(filters),
+    // Lectures « a-t-elle un contenu ? » (identifiants seulement).
+    then: (ok: any, ko: any) => Promise.resolve({ data: [], error: null }).then(ok, ko),
     abortSignal: () => query,
     eq: (column: string, value: string) => { filters.push(['eq', column, value]); return query; },
     is: (column: string, value: null) => { filters.push(['is', column, value]); return query; },
@@ -33,7 +37,11 @@ const brief = { id: 'brief', subject: 'Brief conservé', created_at: '2026-09-16
 const success = (table: string) => ({ data: table === 'saved_ideas' ? [idea] : [brief], error: null });
 const page = () => <MemoryRouter><IdeasPage /></MemoryRouter>;
 function deferred() { let resolve!: (value: any) => void; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; }
-beforeEach(() => { state.ready = true; state.scope = 'A'; state.column = 'workspace_id'; state.read.mockReset().mockImplementation(success); });
+beforeEach(() => {
+  state.ready = true; state.scope = 'A'; state.column = 'workspace_id'; state.selects = [];
+  state.read.mockReset().mockImplementation(success);
+  state.rpc.mockReset().mockResolvedValue({ data: [], error: null });
+});
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 it('waits for the workspace instead of querying the temporary personal scope', async () => {
@@ -152,4 +160,29 @@ it('times out stuck reads, aborts each request and never mistakes a late respons
   first.resolve({ data: [idea], error: null }); second.resolve({ data: [idea], error: null });
   await Promise.resolve();
   expect(result.data).toBeNull(); expect(vi.getTimerCount()).toBe(0);
+});
+
+it('the list never downloads idea contents and shows the server-side preview', async () => {
+  state.rpc.mockResolvedValue({ data: [{ id: 'idea', preview: { slides: [{ title: 'Aperçu calculé par la base' }] }, draft_head: null }], error: null });
+  render(page());
+  expect(await screen.findByText(/Aperçu calculé par la base/)).toBeVisible();
+  const listSelect = state.selects.find(c => c.includes('titre'))!;
+  expect(listSelect).not.toMatch(/content_data|content_draft|\*/);
+  expect(state.rpc).toHaveBeenCalledWith('saved_idea_previews', { p_ids: ['idea'] });
+});
+
+it('a failing preview read keeps the list visible without error', async () => {
+  state.rpc.mockResolvedValue({ data: null, error: { message: 'function missing' } });
+  render(page());
+  expect(await screen.findByRole('button', { name: idea.titre })).toBeVisible();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+it('opening an idea reads its full content once, by id', async () => {
+  state.full.mockResolvedValue({ data: { ...idea, content_draft: 'Texte complet', content_data: null }, error: null });
+  render(page());
+  fireEvent.click(await screen.findByRole('button', { name: idea.titre }));
+  await waitFor(() => expect(state.full).toHaveBeenCalledTimes(1));
+  expect(state.full.mock.calls[0][0]).toContainEqual(['eq', 'id', 'idea']);
+  expect(await screen.findByRole('dialog')).toBeVisible();
 });

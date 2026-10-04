@@ -19,6 +19,7 @@ import { fr } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { getIdeaState, ideaContentLabel, formatLabel } from "@/lib/idea-state";
 import { planSavedIdea } from "@/lib/idea-calendar-persistence";
+import { readIdeaSummaries } from "@/lib/saved-idea-summaries";
 import { calendarSaveError } from "@/lib/calendar-persistence";
 
 export interface SavedIdea {
@@ -33,8 +34,10 @@ export interface SavedIdea {
   notes: string | null;
   status: string;
   canal: string | null;
-  content_draft: string | null;
-  content_data: any;
+  /** Absents dans la liste légère du panneau : lus à l'ouverture ou au placement. */
+  content_draft?: string | null;
+  content_data?: any;
+  has_content?: boolean;
   source_module: string | null;
   planned_date: string | null;
   calendar_post_id: string | null;
@@ -92,11 +95,7 @@ function IdeasInWorkspace({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse, re
         return;
       }
       if (!user || !value) { setIdeas([]); return; }
-      let query = (supabase.from("saved_ideas") as any)
-        .select("id, titre, format, objectif, notes, status, canal, content_draft, content_data, source_module, planned_date, calendar_post_id, updated_at, angle, series_id, episode_number")
-        .eq(column, value);
-      if (column === "user_id") query = query.is("workspace_id", null);
-      const { data, error } = await query.order("created_at", { ascending: false });
+      const { data, error } = await readIdeaSummaries({ column, value });
       if (!mounted.current || started !== request.current) return;
       if (error) throw error;
       setIdeas((data || []) as SavedIdea[]);

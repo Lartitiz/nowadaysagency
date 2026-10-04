@@ -134,6 +134,11 @@ jobs:
           PGPASSWORD: postgres
         run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_test -f supabase/tests/launch-calendar.sql
 
+      - name: Light idea previews respect RLS and never return images (disposable database)
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_test -f supabase/tests/saved-idea-previews.sql
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20

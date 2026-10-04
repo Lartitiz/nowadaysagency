@@ -1,4 +1,5 @@
 import { planSavedIdea, moveCalendarPost } from '@/lib/idea-calendar-persistence';
+import { loadFullIdea, needsFullIdea } from '@/lib/saved-idea-summaries';
 import { calendarSaveError } from '@/lib/calendar-persistence';
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
@@ -819,8 +820,12 @@ function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
     if (ok) setDialogOpen(false);
   };
 
-  const handleIdeaClick = (idea: SavedIdea) => {
-    setSelectedIdea(idea);
+  const handleIdeaClick = async (idea: SavedIdea) => {
+    // La fiche affiche et modifie le contenu : on le lit à l'ouverture.
+    let full = idea;
+    try { if (needsFullIdea(idea)) full = await loadFullIdea(idea); }
+    catch { toast.error("Impossible d'ouvrir cette idée", { description: "Réessaie dans un instant." }); return; }
+    setSelectedIdea(full);
     setIdeaDetailOpen(true);
   };
 
