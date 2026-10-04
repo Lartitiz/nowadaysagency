@@ -472,11 +472,17 @@ const INVENTED_TESTIMONY_FIX = (items: string[]) =>
  * inventé après la relecture, UNE passe courte qui ne fait que le retirer. Gardée seulement si
  * le code mesure moins de témoignages et aucun autre compteur dégradé.
  */
-export async function enforceNoInventedTestimonials(
+export async function enforceNoInventedTestimonials<A extends { inventedTestimonials?: string[]; inventedExperiences?: string[] } = TextRedacAnalysis>(
   text: string,
-  analyze: (t: string) => TextRedacAnalysis,
-  opts: { logger?: (msg: string) => void; abortTimeoutMs?: number; before?: TextRedacAnalysis },
-): Promise<{ content: string; analysis: TextRedacAnalysis; applied: boolean }> {
+  analyze: (t: string) => A,
+  opts: {
+    logger?: (msg: string) => void; abortTimeoutMs?: number; before?: A;
+    /** Somme des AUTRES compteurs (défaut : variante texte) : aucun ne doit se dégrader. */
+    otherCount?: (a: A) => number;
+    /** Refus supplémentaire propre à l'appelant (ex. chiffre sourcé perdu par le carrousel). */
+    reject?: (candidate: string) => string | null;
+  },
+): Promise<{ content: string; analysis: A; applied: boolean }> {
   const before = opts.before ?? analyze(text);
   const items = before.inventedTestimonials ?? [];
   const experiences = before.inventedExperiences ?? [];
@@ -484,10 +490,11 @@ export async function enforceNoInventedTestimonials(
   const candidate = await applyTestimonyRemovalPass(text, { items, experiences, logger: opts.logger, abortTimeoutMs: opts.abortTimeoutMs });
   if (!candidate || candidate === text) return { content: text, analysis: before, applied: false };
   const after = analyze(candidate);
-  const count = (a: TextRedacAnalysis) => (a.inventedTestimonials?.length ?? 0) + (a.inventedExperiences?.length ?? 0);
-  const others = (a: TextRedacAnalysis) => textRedacRawCount(a) - count(a);
-  const kept = count(after) < count(before) && others(after) <= others(before);
-  opts.logger?.(`[testimony-removal] témoignages inventés ${before.inventedTestimonials?.length ?? 0}→${after.inventedTestimonials?.length ?? 0}, vécus inventés ${experiences.length}→${after.inventedExperiences?.length ?? 0}, autres ${others(before)}→${others(after)}, gardé=${kept}`);
+  const count = (a: A) => (a.inventedTestimonials?.length ?? 0) + (a.inventedExperiences?.length ?? 0);
+  const others = opts.otherCount ?? ((a: A) => textRedacRawCount(a as unknown as TextRedacAnalysis) - count(a));
+  const rejected = opts.reject?.(candidate) ?? null;
+  const kept = count(after) < count(before) && others(after) <= others(before) && !rejected;
+  opts.logger?.(`[testimony-removal] témoignages inventés ${before.inventedTestimonials?.length ?? 0}→${after.inventedTestimonials?.length ?? 0}, vécus inventés ${experiences.length}→${after.inventedExperiences?.length ?? 0}, autres ${others(before)}→${others(after)}${rejected ? `, refus ${rejected}` : ""}, gardé=${kept}`);
   return kept ? { content: candidate, analysis: after, applied: true } : { content: text, analysis: before, applied: false };
 }
 
@@ -827,6 +834,10 @@ export interface RedacAnalysis {
   brandCopyOverlap: string[];
   /** Accroches DÉJÀ écrites pour ce sujet que celle-ci redit (cf. findHookEchoes). */
   hookEchoes: string[];
+  /** Paroles rapportées ou rencontres qu'aucune source ne fournit (slides + légende). */
+  inventedTestimonials?: string[];
+  /** Vécu de l'autrice au passé qu'aucune source ne fournit (slides + légende). */
+  inventedExperiences?: string[];
 }
 
 /** Contexte inter-contenus : ce que le gate ne peut pas voir dans le document seul. */
@@ -837,7 +848,8 @@ export interface EchoContext {
   subject?: string;
 }
 
-export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext, research?: ResearchNumbers): RedacAnalysis {
+/** `testimonySource` : brief + réponses + actu ; absent = témoignages et vécus non mesurés. */
+export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext, research?: ResearchNumbers, testimonySource?: string): RedacAnalysis {
   const doc = parsed?.carousel?.slides ? parsed.carousel : parsed;
   const slides: any[] = Array.isArray(doc?.slides) ? doc.slides : [];
   const caption = doc?.caption ?? doc?.instagram_caption ?? parsed?.caption ?? parsed?.instagram_caption ?? {};
@@ -886,9 +898,15 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, 
   // (le mixte et le photo portent `overlay_text`, pas `title`).
   const hookEchoes = findHookEchoes(slideTexts(slides[0]) || caption.hook || "", echo?.previousHooks, echo?.subject);
 
+  // Témoignages et vécus au passé inventés (04/10/2026) : mêmes détecteurs que
+  // la variante texte, sur slides + légende. Chaque slide est un paragraphe.
+  const inventedTestimonials = findInventedTestimonials(allText, testimonySource);
+  const inventedExperiences = findInventedExperiences(allText, testimonySource);
+
   return {
     reversals, overlongSlides, overlongOverlays, ctaDuplicated, moulded,
     hashtagsCount, fabricatedNumbers, unsourcedResearchNumbers, durationConflicts, brandCopyOverlap, hookEchoes,
+    inventedTestimonials, inventedExperiences,
   };
 }
 
@@ -930,8 +948,17 @@ export function redacViolations(a: RedacAnalysis): number {
     Math.min(3, a.brandCopyOverlap.length) +
     // Plafonné à 1 : c'est UNE accroche à réécrire, qu'elle fasse écho à un ou
     // à cinq contenus précédents.
-    Math.min(1, a.hookEchoes.length)
+    Math.min(1, a.hookEchoes.length) +
+    Math.min(3, a.inventedTestimonials?.length ?? 0) +
+    Math.min(3, a.inventedExperiences?.length ?? 0)
   );
+}
+
+/** Compteurs bruts du carrousel (non plafonnés) : garde anti-régression des passes dédiées. */
+export function carouselRedacRawCount(a: RedacAnalysis): number {
+  return a.reversals.length + Number(a.ctaDuplicated) + a.moulded.length + a.fabricatedNumbers.length +
+    (a.unsourcedResearchNumbers?.length ?? 0) + a.durationConflicts.length + a.brandCopyOverlap.length +
+    a.hookEchoes.length + (a.inventedTestimonials?.length ?? 0) + (a.inventedExperiences?.length ?? 0);
 }
 
 /** Score rédactionnel 0-100 (plancher 40), dérivé des violations. */
@@ -954,6 +981,8 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean) {
     moulded_verbatims: a.moulded,
     fabricated_numbers: a.fabricatedNumbers.length,
     unsourced_research_numbers: a.unsourcedResearchNumbers?.length ?? 0,
+    invented_testimonials: a.inventedTestimonials?.length ?? 0,
+    invented_experiences: a.inventedExperiences?.length ?? 0,
     duration_conflicts: a.durationConflicts,
     brand_copy_overlap: a.brandCopyOverlap.length,
     hook_echoes: a.hookEchoes,
@@ -1011,6 +1040,8 @@ function buildFixInstructions(a: RedacAnalysis): string {
     );
   }
   if (a.unsourcedResearchNumbers?.length) lines.push(UNSOURCED_RESEARCH_FIX(a.unsourcedResearchNumbers));
+  if (a.inventedTestimonials?.length) lines.push(INVENTED_TESTIMONY_FIX(a.inventedTestimonials));
+  if (a.inventedExperiences?.length) lines.push(INVENTED_EXPERIENCE_FIX(a.inventedExperiences));
   if (a.durationConflicts.length) {
     lines.push(
       `DURÉES QUI SE CONTREDISENT entre les slides et la légende :\n${a.durationConflicts.map((c) => `- ${c}`).join("\n")}\nC'est le MÊME fait raconté deux fois avec deux chiffres différents — devant l'audience, ça décrédibilise tout le contenu. Choisis UNE durée et emploie EXACTEMENT la même des deux côtés (ou retire-la d'un des deux). Ne « fais pas la moyenne » : garde celle du brief si le brief en donne une.`,
@@ -1047,6 +1078,8 @@ interface CarouselCorrectionContext {
   researchText?: string;
   brandGuardText?: string;
   echo?: EchoContext;
+  /** Brief + réponses + actu (jamais branding ni recherche) : seule source d'un témoignage ou d'un vécu. Absent = non mesuré. */
+  testimonySource?: string;
 }
 
 // Numéro d'ordre en tête d'un titre de slide (« 1. », « 2) », « Étape 3 ») :
@@ -1098,16 +1131,17 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
     const candidate = candidateDoc.carousel?.slides ? candidateDoc.carousel : candidateDoc;
     const allowed = source === undefined ? undefined : numbersIn(source);
     const research = allowed ? researchNumbers(numbersIn(baseInputText(opts.inputText, opts.researchText)), opts.researchText, baseInputText(opts.inputText, opts.researchText)) : undefined;
-    const before = dropUserSourcedReversals(analyzeCarouselRedac(original, allowed, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
-    const after = dropUserSourcedReversals(analyzeCarouselRedac(candidate, allowed, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
+    const before = dropUserSourcedReversals(analyzeCarouselRedac(original, allowed, opts.brandGuardText, opts.echo, research, opts.testimonySource), opts.correction.authoredText);
+    const after = dropUserSourcedReversals(analyzeCarouselRedac(candidate, allowed, opts.brandGuardText, opts.echo, research, opts.testimonySource), opts.correction.authoredText);
     // Compare raw counts, not the capped score: a fifth invented number is
     // still a regression even when the score already caps that penalty at 3.
     const counts = (a: RedacAnalysis) => [a.reversals.length, Number(a.ctaDuplicated), a.moulded.length,
       a.fabricatedNumbers.length, a.durationConflicts.length, a.brandCopyOverlap.length, a.hookEchoes.length,
-      a.unsourcedResearchNumbers?.length ?? 0];
+      a.unsourcedResearchNumbers?.length ?? 0, a.inventedTestimonials?.length ?? 0, a.inventedExperiences?.length ?? 0];
     const beforeCounts = counts(before);
     const COUNT_NAMES = ["reversals", "cta-duplicated", "moulded",
-      "fabricated-numbers", "duration-conflicts", "brand-copy", "hook-echoes", "unsourced-research-numbers"];
+      "fabricated-numbers", "duration-conflicts", "brand-copy", "hook-echoes", "unsourced-research-numbers",
+      "invented-testimonials", "invented-experiences"];
     const regressions = counts(after).map((n, i) => n > beforeCounts[i] ? `regression:${COUNT_NAMES[i]}` : "").filter(Boolean);
     // Equal counts can still hide a new unsupported value (5 days → 9 days).
     // Reuse the detector's ordinal exclusions and decimal normalization.
@@ -1173,6 +1207,8 @@ export async function runRedacGate(
     brandGuardText?: string;
     /** Contenus DÉJÀ générés sur ce sujet : garde anti-redite d'accroche. */
     echo?: EchoContext;
+    /** Brief + réponses + actu (jamais branding ni recherche) : témoignages et vécus au passé mesurés contre elle. Absent = non mesurés. */
+    testimonySource?: string;
   },
 ): Promise<RedacGateResult> {
   const parseFenced = (c: string): { parsed: any; raw: string } | null => {
@@ -1190,7 +1226,7 @@ export async function runRedacGate(
 
   const allowedNumbers = opts.inputText !== undefined ? numbersIn(opts.inputText) : undefined;
   const research = allowedNumbers ? researchNumbers(numbersIn(baseInputText(opts.inputText, opts.researchText)), opts.researchText, baseInputText(opts.inputText, opts.researchText)) : undefined;
-  const before = dropUserSourcedReversals(analyzeCarouselRedac(first.parsed, allowedNumbers, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
+  const before = dropUserSourcedReversals(analyzeCarouselRedac(first.parsed, allowedNumbers, opts.brandGuardText, opts.echo, research, opts.testimonySource), opts.correction.authoredText);
   let out = content;
   let repassed = false;
 
@@ -1222,6 +1258,7 @@ export async function runRedacGate(
         researchText: opts.researchText,
         brandGuardText: opts.brandGuardText,
         echo: opts.echo,
+        testimonySource: opts.testimonySource,
         correction: { ...opts.correction, extraInstructions: fixes },
       });
       if (corrected && corrected !== out) {
@@ -1242,13 +1279,12 @@ export async function runRedacGate(
   if (research && opts.correction.enabled !== false) {
     try {
       const doc = finalDoc.parsed;
-      const analyzeDoc = (d: any) => dropUserSourcedReversals(analyzeCarouselRedac(d, allowedNumbers, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
+      const analyzeDoc = (d: any) => dropUserSourcedReversals(analyzeCarouselRedac(d, allowedNumbers, opts.brandGuardText, opts.echo, research, opts.testimonySource), opts.correction.authoredText);
       const current = analyzeDoc(doc);
       if (current.unsourcedResearchNumbers?.length) {
         const sourced = await enforceResearchNumberSources(extractCarouselTexts(doc), (b) => analyzeDoc(reinjectCarouselTexts(doc, b)), research, {
           logger: opts.correction.logger, abortTimeoutMs: opts.correction.abortTimeoutMs, before: current,
-          otherCount: (a) => a.reversals.length + Number(a.ctaDuplicated) + a.moulded.length + a.fabricatedNumbers.length +
-            a.durationConflicts.length + a.brandCopyOverlap.length + a.hookEchoes.length,
+          otherCount: (a) => carouselRedacRawCount(a) - (a.unsourcedResearchNumbers?.length ?? 0),
         });
         if (sourced.applied) {
           finalDoc.parsed = reinjectCarouselTexts(doc, sourced.content);
@@ -1257,6 +1293,40 @@ export async function runRedacGate(
       }
     } catch (e) {
       console.error("[redac-gate] passe chiffres de recherche échouée, contenu conservé :", e);
+    }
+  }
+
+  // Témoignages ou vécus au passé inventés encore là après la relecture : passe
+  // dédiée courte sur les textes balisés (même patron que les chiffres de
+  // recherche ; jamais quand la correction est désactivée). Gardée seulement si
+  // le compte baisse, qu'aucun autre compteur ne monte et qu'aucun chiffre
+  // sourcé ne disparaît.
+  if (opts.testimonySource !== undefined && opts.correction.enabled !== false) {
+    try {
+      const doc = finalDoc.parsed;
+      const analyzeDoc = (d: any) => dropUserSourcedReversals(analyzeCarouselRedac(d, allowedNumbers, opts.brandGuardText, opts.echo, research, opts.testimonySource), opts.correction.authoredText);
+      const current = analyzeDoc(doc);
+      if (current.inventedTestimonials?.length || current.inventedExperiences?.length) {
+        const block = extractCarouselTexts(doc);
+        // Les marqueurs « [SLIDE 3 - BODY] » ne sont pas des chiffres du texte.
+        const unmarked = (t: string) => t.replace(/\[[^\]\n]{1,40}\]/g, " ");
+        const sourcedNumbers = allowedNumbers ? [...numbersIn(unmarked(block))].filter((n) => allowedNumbers.has(n)) : [];
+        const cleaned = await enforceNoInventedTestimonials(block, (b) => analyzeDoc(reinjectCarouselTexts(doc, b)), {
+          logger: opts.correction.logger, abortTimeoutMs: opts.correction.abortTimeoutMs, before: current,
+          otherCount: (a) => carouselRedacRawCount(a) - (a.inventedTestimonials?.length ?? 0) - (a.inventedExperiences?.length ?? 0),
+          reject: (candidate) => {
+            const kept = numbersIn(unmarked(candidate));
+            const lost = sourcedNumbers.filter((n) => !kept.has(n));
+            return lost.length ? `chiffre sourcé perdu ${JSON.stringify(lost)}` : null;
+          },
+        });
+        if (cleaned.applied) {
+          finalDoc.parsed = reinjectCarouselTexts(doc, cleaned.content);
+          repassed = true;
+        }
+      }
+    } catch (e) {
+      console.error("[redac-gate] passe témoignages inventés échouée, contenu conservé :", e);
     }
   }
 
@@ -1295,14 +1365,14 @@ export async function runRedacGate(
     }
   }
 
-  let after = dropUserSourcedReversals(analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
+  let after = dropUserSourcedReversals(analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo, research, opts.testimonySource), opts.correction.authoredText);
   // Duplication caption/slide PERSISTANTE malgré la re-passe (vue livrée avec le
   // flag true, audit 12/07 lot D) : suppression déterministe — le CTA vit sur la
   // slide, la caption garde sa chute (dernière ligne du body). Supprimer > inventer.
   if (after.ctaDuplicated && finalDoc.parsed?.caption) {
     console.log("[redac-gate] caption.cta supprimé (duplication de la dernière slide persistante après re-passe)");
     finalDoc.parsed.caption.cta = "";
-    after = dropUserSourcedReversals(analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
+    after = dropUserSourcedReversals(analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo, research, opts.testimonySource), opts.correction.authoredText);
   }
   normalizeCaptionHashtags(finalDoc.parsed, opts.isLinkedIn);
   finalDoc.parsed.quality_check = buildQualityCheck(after, repassed);
@@ -1312,7 +1382,7 @@ export async function runRedacGate(
     : content.replace(first.raw, JSON.stringify(finalDoc.parsed, null, 2));
 
   console.log(
-    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${after.unsourcedResearchNumbers?.length ?? 0}, durées contradictoires ${before.durationConflicts.length}→${after.durationConflicts.length}, recopie fiche marque ${before.brandCopyOverlap.length}→${after.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${after.hookEchoes.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
+    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${after.unsourcedResearchNumbers?.length ?? 0}, témoignages inventés ${before.inventedTestimonials?.length ?? 0}→${after.inventedTestimonials?.length ?? 0}, vécus inventés ${before.inventedExperiences?.length ?? 0}→${after.inventedExperiences?.length ?? 0}, durées contradictoires ${before.durationConflicts.length}→${after.durationConflicts.length}, recopie fiche marque ${before.brandCopyOverlap.length}→${after.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${after.hookEchoes.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
   );
 
   return { content: out, repassed, before, after, score: redacScore(after), violations: redacViolations(after) };
