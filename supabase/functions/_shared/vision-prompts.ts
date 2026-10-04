@@ -100,6 +100,31 @@ Réponds UNIQUEMENT en JSON valide :
 }`;
 }
 
+/** Forme de sortie des stories en mode photo : un TABLEAU de stories (texte
+ * à lire + petit titre facultatif + sticker + usage de la photo fournie).
+ * Aucun champ de mise en page : décidée après, par le code. */
+export const VISION_STORIES_JSON_SHAPE = `{
+  "accroche": "<les premiers mots de la story 1>",
+  "format": "stories_sequence",
+  "pillar": "...",
+  "objectif": "...",
+  "stories": [
+    {
+      "number": 1,
+      "role": "<intention : accroche, contexte, révélation, CTA>",
+      "text": "<ce qui est écrit sur la story, tel qu'on le lit : aucune indication visuelle ici>",
+      "sticker": null,
+      "visual": {
+        "title_pill": null,
+        "photo_directive": "<comment utiliser la photo fournie pour cette story : zoom, crop, hors-champ>"
+      },
+      "face_cam": false
+    }
+  ]
+}
+"sticker" : { "type": "question" ou "sondage", "label": "...", "options": [...] } sur la story qui fait réagir, null ailleurs.
+"title_pill" : null le plus souvent.`;
+
 export interface VisionGenerateBrief {
   formatBrief: string;
   jsonShape: string;
@@ -130,7 +155,14 @@ export function buildVisionGenerateBrief(contentType: string | null | undefined)
   if (ctype.includes("story") || ctype.includes("stories")) {
     return {
       formatBrief: `Découpe une SÉQUENCE DE 3 À 5 STORIES Instagram qui exploitent cette image (zooms, crops narratifs, hors-champ, sticker question / sondage). Chaque story doit avoir une intention claire (accroche, contexte, révélation, CTA). Texte court, oral, direct.`,
-      jsonShape: `{\n  "content": "<séquence numérotée des stories avec texte + indication visuelle>",\n  "accroche": "<le texte de la story 1>",\n  "format": "stories_sequence",\n  "pillar": "...",\n  "objectif": "..."\n}`,
+      // Sortie STRUCTURÉE (04/10/2026, séparation écriture / design) : avant,
+      // "content" était une prose « texte + indication visuelle » affichée
+      // telle quelle comme un post. Désormais même forme que le flux stories
+      // principal : la rédaction écrit le texte (+ petit titre, sticker) et
+      // dit comment utiliser LA photo fournie ; la mise en page est posée
+      // ensuite par le code (story-formatting.ts). Consignes d'écriture
+      // (formatBrief ci-dessus) inchangées.
+      jsonShape: VISION_STORIES_JSON_SHAPE,
     };
   }
   if (ctype.includes("newsletter")) {
@@ -187,7 +219,55 @@ export function buildVisionTool(contentType: string | null | undefined): VisionT
 
   if (ctype.includes("linkedin")) return make("post_linkedin");
   if (ctype.includes("reel")) return make("reel_script");
-  if (ctype.includes("story") || ctype.includes("stories")) return make("stories_sequence");
+  if (ctype.includes("story") || ctype.includes("stories")) {
+    // Stories : tableau structuré (miroir de VISION_STORIES_JSON_SHAPE), sans
+    // "content" en prose (il était affiché tel quel, indications visuelles
+    // comprises). Aucun champ de mise en page.
+    return {
+      name: "rediger_contenu_visuel",
+      description: "Retourne la séquence de stories rédigée à partir de la/des photo(s), une entrée par story.",
+      input_schema: {
+        type: "object",
+        properties: {
+          accroche: { type: "string", description: "Les premiers mots de la story 1." },
+          pillar: { type: "string" },
+          objectif: { type: "string" },
+          format: { type: "string", description: 'Valeur attendue : "stories_sequence".' },
+          stories: {
+            type: "array",
+            description: "Une entrée par story, dans l'ordre de la séquence.",
+            items: {
+              type: "object",
+              properties: {
+                number: { type: "integer" },
+                role: { type: "string", description: "Intention de la story (accroche, contexte, révélation, CTA)." },
+                text: { type: "string", description: "Ce qui est écrit sur la story, tel qu'on le lit. Aucune indication visuelle." },
+                sticker: {
+                  type: ["object", "null"],
+                  description: "Sticker question / sondage sur la story qui fait réagir, null ailleurs.",
+                  properties: {
+                    type: { type: "string" },
+                    label: { type: "string" },
+                    options: { type: "array", items: { type: "string" } },
+                  },
+                },
+                visual: {
+                  type: "object",
+                  properties: {
+                    title_pill: { type: ["string", "null"], description: "Petit titre facultatif, null le plus souvent." },
+                    photo_directive: { type: "string", description: "Comment utiliser la photo fournie pour cette story : zoom, crop, hors-champ." },
+                  },
+                },
+                face_cam: { type: "boolean" },
+              },
+              required: ["text"],
+            },
+          },
+        },
+        required: ["stories", "accroche"],
+      },
+    };
+  }
   if (ctype.includes("newsletter")) {
     return make("newsletter", {
       subject: { type: "string", description: "Objet de l'email (<60 car)." },
