@@ -167,6 +167,19 @@ function statMentions(text: string): StatMention[] {
   for (const m of (text || "").matchAll(ratio)) {
     out.push({ raw: m[0], keys: [`ratio:${wordValue(m[1])}/${wordValue(m[2])}`], index: m.index!, end: m.index! + m[0].length });
   }
+  // Durées et quantités en lettres (« une à deux heures », « trois semaines ») :
+  // seulement avec une unité de mesure, pour ne pas viser « trois raisons ».
+  const LETTER = "un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|quarante|cinquante|soixante|cent";
+  const measured = new RegExp(`(?<!\\p{L})(${LETTER})(?:\\s*(?:à|-|–|ou)\\s*(${LETTER}))?\\s+(secondes?|minutes?|heures?|jours?|semaines?|mois|ans|années?|millions?|milliards?)(?!\\p{L})`, "giu");
+  for (const m of (text || "").matchAll(measured)) {
+    const unit = unitAfter(" " + m[3], 0);
+    for (const word of [m[1], m[2]].filter(Boolean)) {
+      // « un mois », « une semaine » seuls = langage courant ; dans une fourchette, une mesure.
+      if (!m[2] && /^une?$/i.test(word)) continue;
+      const v = wordValue(word);
+      out.push({ raw: m[0], keys: [`${v}|${unit}`], index: m.index!, end: m.index! + m[0].length });
+    }
+  }
   const pct = new RegExp(`(?<!\\p{L})(${NUMBER_WORD})\\s+pour\\s?cents?(?!\\p{L})`, "giu");
   for (const m of (text || "").matchAll(pct)) {
     if (/^\d/.test(m[1])) continue; // déjà vu comme chiffre
@@ -190,7 +203,8 @@ export function researchNumbers(baseAllowed: Set<string>, researchText?: string,
     if (/^\d/.test(first) && withUnit) {
       // Valeur absente de la base → toute reprise compte ; valeur présente mais
       // avec une autre unité → seule la reprise avec l'unité de la recherche compte.
-      if (!baseKeys.has(first)) only.add(first);
+      // (la clé avec unité sert aussi à reconnaître la reprise en lettres : « deux heures »)
+      if (!baseKeys.has(first)) { only.add(first); if (!baseKeys.has(withUnit)) only.add(withUnit); }
       else if (baseText && !baseKeys.has(withUnit)) only.add(withUnit);
     } else if (!baseKeys.has(first)) {
       only.add(first);
