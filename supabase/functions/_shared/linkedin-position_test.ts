@@ -56,3 +56,11 @@ Deno.test("relecture fidèle aux sources (posts avec brief) : garde opinion et �
   assertEquals(p.includes("Supprime en revanche une précaution"), true);
   assertEquals(p.includes("anecdotes vécues, témoignages, résultats"), true);
 });
+
+Deno.test("brief LinkedIn : le « je » de position est une opinion, pas un souvenir inventé (gabarits compris)", () => {
+  const brief = linkedinBrief("prise_de_position");
+  assertEquals(brief.includes("Ce « je » exprime une opinion au présent"), true);
+  assertEquals(brief.includes("ne servent que si les réponses fournissent ce vécu"), true);
+  assertEquals(brief.includes("« Pendant longtemps j'ai cru X / J'ai vu Y arriver trop souvent"), false);
+  assertEquals(brief.includes("sans souvenir inventé"), true);
+});
