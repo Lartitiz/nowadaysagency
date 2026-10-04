@@ -6790,11 +6790,14 @@ export type Database = {
           episode_number: number | null
           format: string
           format_technique: string | null
+          has_content: boolean
           id: string
           notes: string | null
           objectif: string | null
           personal_elements: Json | null
           planned_date: string | null
+          preview: Json | null
+          preview_draft: string | null
           series_id: string | null
           source_module: string | null
           status: string | null
@@ -6816,11 +6819,14 @@ export type Database = {
           episode_number?: number | null
           format: string
           format_technique?: string | null
+          has_content?: boolean
           id?: string
           notes?: string | null
           objectif?: string | null
           personal_elements?: Json | null
           planned_date?: string | null
+          preview?: Json | null
+          preview_draft?: string | null
           series_id?: string | null
           source_module?: string | null
           status?: string | null
@@ -6842,11 +6848,14 @@ export type Database = {
           episode_number?: number | null
           format?: string
           format_technique?: string | null
+          has_content?: boolean
           id?: string
           notes?: string | null
           objectif?: string | null
           personal_elements?: Json | null
           planned_date?: string | null
+          preview?: Json | null
+          preview_draft?: string | null
           series_id?: string | null
           source_module?: string | null
           status?: string | null
@@ -9341,6 +9350,11 @@ export type Database = {
         }
         Returns: Json
       }
+      saved_idea_has_content: {
+        Args: { p_data: Json; p_draft: string }
+        Returns: boolean
+      }
+      saved_idea_preview_of: { Args: { p_data: Json }; Returns: Json }
       saved_idea_preview_pick: {
         Args: { keys: string[]; o: Json }
         Returns: Json
