@@ -27,7 +27,7 @@ MATIÈRE DE PROFONDEUR (recherche fraîche sur le sujet)
 ${cleaned}
 
 CONSIGNE D'USAGE (impérative) :
-- Cette matière sert la slide « fond du sujet » / « mécanisme » (cf. DEPTH_LAYER) : le mécanisme expliqué est un mécanisme RÉEL et DOCUMENTÉ du sujet, pas un concept psycho plaqué.
+- Cette matière sert à creuser et à étayer la position : le mécanisme expliqué est un mécanisme RÉEL et DOCUMENTÉ du sujet (technique, social ou culturel), pas un concept psycho plaqué.
 - C'est un CONDIMENT, pas le plat : le carrousel reste porté par la voix, l'angle et le vécu de l'utilisatrice. INTERDIT d'en faire un résumé d'article ou une revue de presse.
 - Toute donnée chiffrée reprise reste attachée à sa source (mention discrète : nom, année). Ne reprends JAMAIS un chiffre sans sa source.
 - Si un élément contredit le positionnement de l'utilisatrice, ignore-le plutôt que de tordre son propos.`;
@@ -53,10 +53,10 @@ export async function fetchDepthMaterial(opts: {
 "${subject}"
 
 Fais 1 à 2 recherches web ciblées, puis rédige un bloc COURT (200 mots max, en français) qui donne ce qu'il y a SOUS la surface du sujet :
-1. LE MÉCANISME RÉEL en jeu (technique, économique, sectoriel — comment ça marche vraiment, qui gagne quoi). Explique-le simplement.
+1. LE MÉCANISME RÉEL en jeu (technique, économique, sectoriel, ou social et culturel quand le sujet touche une norme ou une injonction — comment ça marche vraiment, qui gagne quoi). Explique-le simplement.
 2. UN ANGLE CONTRE-INTUITIF ou une controverse actuelle sur ce sujet (ce que les contenus grand public ne disent pas, ou disent faux).
 3. UNE LIMITE OU NUANCE de praticien·ne (« ça marche sauf si… », le détail que seuls les gens du métier connaissent).
-4. SI et seulement si tu en trouves une solide : 1 donnée chiffrée récente AVEC sa source et son année, format « chiffre (Source, année) ».
+4. 1 ou 2 faits concrets qui frappent (étude, donnée chiffrée, phénomène connu) AVEC leur source et leur année, format « fait (Source, année) », si tu en trouves de solides.
 
 RÈGLES STRICTES :
 - Des FAITS et des mécanismes, pas des conseils ni des opinions.
