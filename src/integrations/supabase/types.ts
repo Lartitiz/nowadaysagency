@@ -9341,6 +9341,19 @@ export type Database = {
         }
         Returns: Json
       }
+      saved_idea_preview_pick: {
+        Args: { keys: string[]; o: Json }
+        Returns: Json
+      }
+      saved_idea_preview_text: { Args: { v: Json }; Returns: Json }
+      saved_idea_previews: {
+        Args: { p_ids: string[] }
+        Returns: {
+          draft_head: string
+          id: string
+          preview: Json
+        }[]
+      }
       set_photo_library_visibility: {
         Args: { p_photo_id: string; p_removed?: boolean }
         Returns: Json
