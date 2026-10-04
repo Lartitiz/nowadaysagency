@@ -202,3 +202,18 @@ Deno.test("écriture photo : les champs de mise en page sont retirés, le texte 
   const tool = src.slice(src.indexOf("const PHOTO_CAROUSEL_TOOL"), src.indexOf("caption:", src.indexOf("const PHOTO_CAROUSEL_TOOL")));
   for (const f of WRITER_LAYOUT_FIELDS) assert(!new RegExp(`\\n\\s+${f}: \\{`).test(tool), `schéma d'écriture : ${f}`);
 });
+
+Deno.test("extraits exacts : un item de liste réécrit ou une attribution devinée sont refusés", () => {
+  const slides = [{ slide_number: 1, overlay_text: "Trois gestes : ouvrir les volets, ranger le plan de travail, allumer une lampe." }, { slide_number: 2, overlay_text: "« Je sais enfin ce que vous proposez », m'a-t-on écrit." }];
+  const reworded = parsedWith(slides);
+  // Un mot commun (« volets ») ne suffit plus : l'item doit être copié du texte.
+  const r1 = applyTemplateAssignments(reworded, [{ slide_number: 1, template: "liste", points: ["Ouvrir grand les volets", "Ranger toute la cuisine"] }]);
+  assertEquals(r1.applied, 0);
+  const exact = parsedWith(slides);
+  applyTemplateAssignments(exact, [{ slide_number: 1, template: "liste", points: ["ouvrir les volets", "ranger le plan de travail", "allumer une lampe"] }]);
+  assertEquals(exact.slides[0].points, ["ouvrir les volets", "ranger le plan de travail", "allumer une lampe"]);
+  const guessed = parsedWith(slides);
+  const r2 = applyTemplateAssignments(guessed, [{ slide_number: 2, template: "citation", attribution: "Claire, cliente" }]);
+  assertEquals(guessed.slides[1].attribution, undefined);
+  assert(r2.rejected.some((x) => x.includes("attribution")));
+});

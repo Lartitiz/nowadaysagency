@@ -46,9 +46,9 @@ const ASSIGN_TOOL = {
             slide_number: { type: "number" },
             template: { type: "string", enum: KNOWN_TEMPLATES },
             big_number: { type: ["string", "null"], description: "Gabarit chiffre uniquement : le chiffre COPIÉ EXACTEMENT depuis l'overlay_text (ex '-40 %'). Jamais inventé." },
-            attribution: { type: ["string", "null"], description: "Gabarit citation uniquement : qui parle, si le texte le dit (≤5 mots)." },
+            attribution: { type: ["string", "null"], description: "Gabarit citation uniquement : qui parle, COPIÉ EXACTEMENT depuis l'overlay_text (≤5 mots) ; null si le texte ne le dit pas." },
             cta_label: { type: ["string", "null"], description: "Gabarit finale uniquement : invitation déjà présente copiée mot pour mot. null si aucune invitation." },
-            points: { type: ["array", "null"], items: { type: "string" }, description: "Gabarit liste uniquement : les 2-3 items, repris des mots du texte (≤8 mots chacun)." },
+            points: { type: ["array", "null"], items: { type: "string" }, description: "Gabarit liste uniquement : les 2-3 items, chacun COPIÉ EXACTEMENT depuis l'overlay_text (≤8 mots chacun)." },
           },
           required: ["slide_number", "template"],
         },
@@ -111,8 +111,9 @@ export function applyTemplateAssignments(parsed: any, assignments: TemplateAssig
     }
     if (t === "liste") {
       const pts = (a.points || []).filter((p) => typeof p === "string" && p.trim() && wordCount(p) <= 8).slice(0, 3);
-      const textWords = new Set(norm(text).split(" "));
-      const grounded = pts.filter((p) => norm(p).split(" ").some((w) => w.length > 3 && textWords.has(w)));
+      // Extrait EXACT du texte (04/10/2026) : un seul mot commun suffisait avant,
+      // ce qui laissait passer un item réécrit, donc du texte absent de la slide.
+      const grounded = pts.filter((p) => !!norm(p) && norm(text).includes(norm(p)));
       // Même logique que chiffre : des points identiques à ceux déjà posés par
       // la passe d'écriture sont une re-confirmation, pas une invention.
       const existingPts = Array.isArray(s?.points) ? s.points.map((p: any) => norm(String(p))).join("|") : "";
@@ -120,7 +121,12 @@ export function applyTemplateAssignments(parsed: any, assignments: TemplateAssig
       if (grounded.length < 2 && !reaffirmed) return void rejected.push(`#${nums[i]} liste sans points ancrés dans le texte`);
       s.points = reaffirmed ? pts : grounded;
     }
-    if (t === "citation" && a.attribution && wordCount(a.attribution) <= 5) s.attribution = a.attribution.trim();
+    // Qui parle : seulement si le texte de la slide le dit (extrait exact) ;
+    // jamais une attribution devinée.
+    if (t === "citation" && a.attribution && wordCount(a.attribution) <= 5) {
+      if (norm(text).includes(norm(a.attribution))) s.attribution = a.attribution.trim();
+      else rejected.push(`#${nums[i]} attribution absente du texte`);
+    }
     if (t === "finale" && a.cta_label && wordCount(a.cta_label) <= 8) {
       const proposed = a.cta_label.trim();
       const existing = String(s.cta_label || "").trim();
@@ -206,8 +212,8 @@ GABARITS : ${KNOWN_TEMPLATES.join(", ")}.
 - profonde : le DÉFAUT — une vraie phrase posée sur la photo. C'est le bon choix pour la plupart des slides ; un carrousel entièrement en profonde est légitime si le récit est un fil continu.
 - etiquette : texte très court (≤4 mots) qui marque un pivot (AVANT, APRÈS, un mot-étendard).
 - chiffre : SEULEMENT si le texte contient déjà un chiffre marquant → big_number = ce chiffre copié EXACTEMENT. Au plus 1 par carrousel.
-- liste : SEULEMENT si le texte énumère 2-3 items distincts → points = les items, avec les mots du texte. Au plus 1 par carrousel.
-- citation : le texte est un propos rapporté (guillemets, « m'a dit »…) → attribution si le texte dit qui parle.
+- liste : SEULEMENT si le texte énumère 2-3 items distincts → points = les items, chacun copié exactement depuis le texte. Au plus 1 par carrousel.
+- citation : le texte est un propos rapporté (guillemets, « m'a dit »…) → attribution = qui parle, copié exactement du texte, seulement si le texte le dit.
 - finale : dernière slide, conclusion du récit avec ou sans invitation. cta_label = extrait exact d’une invitation déjà écrite ; null sinon. Aucune question ni appel aux commentaires ajouté.
 
 RÈGLE D'OR : le gabarit sert le texte tel qu'il est écrit. N'invente ni chiffre, ni citation, ni liste. Ne force AUCUNE variété artificielle. Si template_actuel est déjà juste, garde-le.`,
