@@ -1,4 +1,5 @@
 import { SavedContentPreview } from "@/components/SavedContentPreview";
+import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { reelCalendarCaption } from "../../../supabase/functions/_shared/reel-caption";
 import { calendarPublishCaption } from "../../../supabase/functions/_shared/calendar-caption";
 import { isDurableReelUrl, REEL_VIDEO_REQUIRED } from "@/lib/reel-publication";
@@ -296,7 +297,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
   };
 
   const handleCopy = () => {
-    if (contentDraft) { navigator.clipboard.writeText(contentDraft); toast.success("Texte copié !"); }
+    if (contentDraft) { navigator.clipboard.writeText(copyTextForChannel(contentDraft, postCanal)); toast.success("Texte copié !"); }
   };
 
   // ── Publication directe Instagram (reel vidéo, image simple OU carrousel) ──

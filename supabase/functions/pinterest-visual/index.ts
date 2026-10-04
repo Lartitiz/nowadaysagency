@@ -9,10 +9,12 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { buildPptxInvariants, formatInvariantsForPrompt, NEUTRAL_DEFAULT_PALETTE } from "../_shared/pptx-invariants.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
-import { enforceTextContrast } from "../_shared/contrast-guard.ts";
-import { enforceGlobalMinFontSize } from "../_shared/font-size-guard.ts";
+import { finalizePinHtml, normalizePinData, reportPinDataMismatch } from "../_shared/pinterest-pin-guards.ts";
 
-serve(async (req) => {
+// Handler exporté pour les tests (index_test.ts) : `serve()` de std/http ouvre
+// un vrai socket au chargement, d'où le guard `import.meta.main` en bas de
+// fichier (même patron que branding-coaching) — comportement de prod inchangé.
+export async function handlePinterestVisualRequest(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -385,26 +387,28 @@ Réponds en appelant l'outil save_pinterest_pin.`;
       throw new AnthropicError("L'IA n'a pas retourné un format valide. Réessaie.", 502);
     }
 
-    // Post-processing: replace @import Google Fonts with <link> for iframe compatibility
+    // Post-traitement (_shared/pinterest-pin-guards.ts) : @import → <link>,
+    // puis gardes DÉTERMINISTES (mêmes parades que carousel-visual) : contraste
+    // texte/fond et plancher GLOBAL de taille 20px — le HTML d'épingle n'a pas
+    // de rôles data-pptx-editable, on borne donc tout texte inline (les
+    // décoratifs aria-hidden / opacity < 0.7 comme le watermark sont exemptés).
     if (result?.pin_html) {
-      const fontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(ch.font_title)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(ch.font_body)}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
-      let html = result.pin_html;
-      // Retirer le @import Google Fonts OÙ QU'IL SOIT (nu ou dans un <style> plus
-      // large) — sinon il fuite en TEXTE VISIBLE quand le modèle oublie le wrapper
-      // <style>. La police reste fournie par le <link> ci-dessous.
-      html = html
-        .replace(/@import\s+url\(\s*['"]?[^)]*fonts\.googleapis\.com[^)]*['"]?\s*\)\s*;?/gi, "")
-        .replace(/<style>\s*<\/style>/gi, "");
-      // Gardes DÉTERMINISTES (mêmes parades que carousel-visual) : contraste
-      // texte/fond, puis plancher GLOBAL de taille — le HTML d'épingle n'a pas
-      // de rôles data-pptx-editable, on borne donc tout texte inline (les
-      // décoratifs aria-hidden / opacity < 0.7 comme le watermark sont exemptés).
-      const contrast = enforceTextContrast(html);
-      const fontFloor = enforceGlobalMinFontSize(contrast.html, 20);
-      if (contrast.fixes > 0 || fontFloor.fixes > 0) {
-        console.warn(`pinterest-visual: gardes déterministes — ${contrast.fixes} contraste, ${fontFloor.fixes} font-size sous plancher`);
+      const fin = finalizePinHtml(result.pin_html, { title: ch.font_title, body: ch.font_body }, 20);
+      if (fin.contrastFixes > 0 || fin.fontFixes > 0) {
+        console.warn(`pinterest-visual: gardes déterministes — ${fin.contrastFixes} contraste, ${fin.fontFixes} font-size sous plancher`);
       }
-      result.pin_html = fontsLink + fontFloor.html;
+      result.pin_html = fin.html;
+    }
+
+    // pin_data (export PPTX éditable) : structure complétée par le code quand
+    // l'IA l'a laissée vide (badge_label, pin_type) — aucun texte réécrit —,
+    // puis mesure de cohérence avec le HTML (export PNG) : on journalise,
+    // on ne bloque pas.
+    if (result?.pin_data) {
+      const norm = normalizePinData(result.pin_data, pin_type);
+      if (norm.fixes.length) console.warn(`pinterest-visual: pin_data complété par le code — ${norm.fixes.join(", ")}`);
+      result.pin_data = norm.pinData;
+      if (result.pin_html) reportPinDataMismatch(result.pin_data, result.pin_html, "pinterest-visual");
     }
 
     // Invariants : toujours les valeurs SERVEUR (déterministe). On ne les demande
@@ -459,4 +463,9 @@ Réponds en appelant l'outil save_pinterest_pin.`;
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}
+
+// En prod (point d'entrée du bundle), import.meta.main est true : inchangé.
+if (import.meta.main) {
+  serve(handlePinterestVisualRequest);
+}

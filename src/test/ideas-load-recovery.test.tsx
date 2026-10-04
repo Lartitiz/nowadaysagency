@@ -162,20 +162,21 @@ it('times out stuck reads, aborts each request and never mistakes a late respons
   expect(result.data).toBeNull(); expect(vi.getTimerCount()).toBe(0);
 });
 
-it('the list never downloads idea contents and shows the server-side preview', async () => {
-  state.rpc.mockResolvedValue({ data: [{ id: 'idea', preview: { slides: [{ title: 'Aperçu calculé par la base' }] }, draft_head: null }], error: null });
+it('the list never downloads idea contents and shows the preview stored by the database', async () => {
+  state.read.mockImplementation((table: string) => ({ data: table === 'saved_ideas' ? [{ ...idea, has_content: true, preview_data: { slides: [{ title: 'Aperçu préparé à l’enregistrement' }] }, draft_head: null }] : [brief], error: null }));
   render(page());
-  expect(await screen.findByText(/Aperçu calculé par la base/)).toBeVisible();
+  expect(await screen.findByText(/Aperçu préparé à l’enregistrement/)).toBeVisible();
   const listSelect = state.selects.find(c => c.includes('titre'))!;
   expect(listSelect).not.toMatch(/content_data|content_draft|\*/);
-  expect(state.rpc).toHaveBeenCalledWith('saved_idea_previews', { p_ids: ['idea'] });
+  expect(listSelect).toMatch(/preview_data:preview/);
+  expect(listSelect).toMatch(/draft_head:preview_draft/);
+  expect(state.rpc).not.toHaveBeenCalled();
 });
 
-it('a failing preview read keeps the list visible without error', async () => {
-  state.rpc.mockResolvedValue({ data: null, error: { message: 'function missing' } });
+it('the draft head is used as preview for plain-text ideas', async () => {
+  state.read.mockImplementation((table: string) => ({ data: table === 'saved_ideas' ? [{ ...idea, has_content: true, preview_data: null, draft_head: 'Début du brouillon' }] : [], error: null }));
   render(page());
-  expect(await screen.findByRole('button', { name: idea.titre })).toBeVisible();
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  expect(await screen.findByText(/Début du brouillon/)).toBeVisible();
 });
 
 it('opening an idea reads its full content once, by id', async () => {
@@ -185,20 +186,4 @@ it('opening an idea reads its full content once, by id', async () => {
   await waitFor(() => expect(state.full).toHaveBeenCalledTimes(1));
   expect(state.full.mock.calls[0][0]).toContainEqual(['eq', 'id', 'idea']);
   expect(await screen.findByRole('dialog')).toBeVisible();
-});
-
-it('previews are read 5 ideas at a time, one batch after another, and shown as they arrive', async () => {
-  const many = Array.from({ length: 12 }, (_, n) => ({ ...idea, id: `i${n}`, titre: `Idée ${n}` }));
-  state.read.mockImplementation((table: string) => ({ data: table === 'saved_ideas' ? many : [], error: null }));
-  let inFlight = 0, maxInFlight = 0;
-  state.rpc.mockImplementation(async (_: string, { p_ids }: { p_ids: string[] }) => {
-    inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
-    await new Promise(r => setTimeout(r, 5));
-    inFlight--;
-    return { data: p_ids.map(id => ({ id, preview: { body: `Extrait ${id}` }, draft_head: null })), error: null };
-  });
-  render(page());
-  expect(await screen.findByText('Extrait i11')).toBeVisible();
-  expect(state.rpc.mock.calls.map(([, args]) => args.p_ids.length)).toEqual([5, 5, 2]);
-  expect(maxInFlight).toBe(1);
 });

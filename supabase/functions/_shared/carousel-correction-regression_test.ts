@@ -143,6 +143,46 @@ Deno.test("carrousel : un chiffre de recherche AVEC sa source ne déclenche aucu
   });
 });
 
+Deno.test("carrousel : la re-passe ignore la consigne -> passe dédiée, source recopiée de la recherche", async () => {
+  const research = "Chaque post est d'abord montré à 2 à 5 % du réseau (Hootsuite, 2025).";
+  const doc = JSON.stringify({ slides: [{ slide_number: 1, title: "Le test", body: "Ton post est montré à 5 % de ton réseau, puis tout se décide." }], caption: {} });
+  const gateOpts = { isLinkedIn: false, inputText: `${source}\n${research}`, researchText: research, correction: { enabled: true, skipIfShorterThan: 0, model: "claude-haiku-4-5" as const } };
+  const originalFetch = globalThis.fetch;
+  const originalKey = Deno.env.get("ANTHROPIC_API_KEY");
+  const requests: any[] = [];
+  const replies = [
+    "[SLIDE 1 - TITLE] Le test\n[SLIDE 1 - BODY] Ton post est montré à 5 % de ton réseau, puis tout se décide vraiment.",
+    "[SLIDE 1 - HOOK] Le test\n[SLIDE 1 - BODY] Ton post est montré à 5 % de ton réseau (Hootsuite, 2025), puis tout se décide vraiment.",
+  ];
+  Deno.env.set("ANTHROPIC_API_KEY", "test-no-network");
+  globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
+    requests.push(JSON.parse(String(init?.body)));
+    const text = replies[Math.min(requests.length - 1, replies.length - 1)];
+    return Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text }], usage: { input_tokens: 1, output_tokens: 1 }, stop_reason: "end_turn" }), { headers: { "content-type": "application/json" } }));
+  }) as typeof fetch;
+  try {
+    const result = await runRedacGate(doc, gateOpts);
+    assertEquals(requests.length, 2);
+    assertStringIncludes(JSON.stringify(requests[1].system), "correctrice factuelle");
+    assertStringIncludes(JSON.parse(result.content).slides[0].body, "(Hootsuite, 2025)");
+    assertEquals(result.after.unsourcedResearchNumbers, []);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) Deno.env.delete("ANTHROPIC_API_KEY");
+    else Deno.env.set("ANTHROPIC_API_KEY", originalKey);
+  }
+});
+
+Deno.test("carrousel : correction désactivée (après le juge final) -> aucune passe dédiée", async () => {
+  const research = "Chaque post est d'abord montré à 2 à 5 % du réseau (Hootsuite, 2025).";
+  const doc = JSON.stringify({ slides: [{ slide_number: 1, title: "Le test", body: "Ton post est montré à 5 % de ton réseau." }], caption: {} });
+  await withCorrection("ne doit pas être appelé", async (requests) => {
+    const result = await runRedacGate(doc, { isLinkedIn: false, inputText: `${source}\n${research}`, researchText: research, correction: { enabled: false } });
+    assertEquals(requests.length, 0);
+    assertEquals((result.after.unsourcedResearchNumbers ?? []).length, 1);
+  });
+});
+
 Deno.test("carrousel : la correction historique (titres génériques) ne retire pas un numéro d'ordre", async () => {
   const doc = { slides: [
     { slide_number: 1, title: "Comment je fais un bol", body: "Trois gestes, du pain de terre au four, que je répète chaque semaine à l'atelier." },

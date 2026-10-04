@@ -1,4 +1,5 @@
 import { newsletterCopyText } from "@/lib/newsletter-copy";
+import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { Loader2, Pencil, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight, Send, MoreHorizontal } from "lucide-react";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import type { CarouselQuality } from "@/hooks/use-carousel-quality";
@@ -593,13 +594,16 @@ export default function CreerStepResult({
   const isStory = format === "story";
 
   // Texte propre à copier selon le format (déplacé tel quel dans le menu « Autres actions »).
+  // LinkedIn n'interprète pas le markdown : un **gras** collé resterait en
+  // astérisques. Même nettoyage que la publication directe (linkedin-graph).
+  const copyOut = (text: string) => onCopy(copyTextForChannel(text, format));
   const handleCopyText = () => {
-    if (format === "newsletter") { onCopy(newsletterCopyText(result)); return; }
-    if (typeof result?.edited_text === "string" && format !== "reel") { onCopy(result.edited_text); return; }
+    if (format === "newsletter") { copyOut(newsletterCopyText(result)); return; }
+    if (typeof result?.edited_text === "string" && format !== "reel") { copyOut(result.edited_text); return; }
     if (format === "pinterest_photo" && result?.title) {
       const b = result.photo_brief;
       const briefText = b ? `\n\n📷 BRIEF PHOTO :\n• Sujet : ${b.what}\n• Cadrage : ${b.framing}\n• Lumière : ${b.lighting}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood}` : "";
-      onCopy(`📌 ${result.title}\n\n${result.description || ""}${briefText}`);
+      copyOut(`📌 ${result.title}\n\n${result.description || ""}${briefText}`);
       return;
     }
     if (format === "reel" && (result?.sections || result?.script)) {
@@ -611,7 +615,7 @@ export default function CreerStepResult({
         const tags = Array.isArray(result?.hashtags) ? result.hashtags.filter((h: unknown) => typeof h === "string") : [];
         const captionText = [c?.text, c?.cta, tags.length ? tags.join(" ") : null].filter(Boolean).join("\n\n");
         if (captionText) {
-          onCopy(captionText);
+          copyOut(captionText);
           return;
         }
       }
@@ -624,17 +628,17 @@ export default function CreerStepResult({
               .join("\n");
           })
           .join("\n\n");
-        onCopy(`🎥 Plan de tournage\n\n${shots}`);
+        copyOut(`🎥 Plan de tournage\n\n${shots}`);
         return;
       }
       const reelSections = result.sections || result.script || [];
       const scriptText = reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n");
       const tip = result.personal_tip ? `\n\n🎯 ${result.personal_tip}` : "";
-      onCopy(`🎬 Script Reel (${result.duree_cible || ""})\n\n${scriptText}${tip}`);
+      copyOut(`🎬 Script Reel (${result.duree_cible || ""})\n\n${scriptText}${tip}`);
       return;
     }
     if (format === "pinterest_visual" && result?.title) {
-      onCopy(`${result.title}\n\n${result.description || ""}`);
+      copyOut(`${result.title}\n\n${result.description || ""}`);
       return;
     }
     if (format === "story" && Array.isArray(result?.stories)) {
@@ -647,7 +651,7 @@ export default function CreerStepResult({
         .filter(Boolean)
         .join("\n\n");
       if (storiesText) {
-        onCopy(storiesText);
+        copyOut(storiesText);
         return;
       }
     }
@@ -655,7 +659,7 @@ export default function CreerStepResult({
       result?.full_text ||
       result?.content ||
       [result?.hook, result?.body, result?.cta].filter(Boolean).join("\n\n").trim();
-    onCopy(cleanText || JSON.stringify(result, null, 2));
+    copyOut(cleanText || JSON.stringify(result, null, 2));
   };
 
   return (

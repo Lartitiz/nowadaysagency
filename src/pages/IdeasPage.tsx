@@ -1,4 +1,5 @@
 import { planSavedIdea } from '@/lib/idea-calendar-persistence';
+import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { calendarSaveError } from '@/lib/calendar-persistence';
 import { savePreviewEdit } from "@/lib/content-preview-save";
 import { resumeIdea } from "@/lib/resume-idea";
@@ -7,9 +8,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { readIdeaList } from "@/lib/idea-list-read";
-import { IDEA_SUMMARY_COLUMNS, loadFullIdea, needsFullIdea, readIdeaPreviews, readIdeaSummaries } from "@/lib/saved-idea-summaries";
+import { IDEA_SUMMARY_COLUMNS, loadFullIdea, needsFullIdea, readIdeaSummaries } from "@/lib/saved-idea-summaries";
 
-const IDEAS_PAGE_COLUMNS = `${IDEA_SUMMARY_COLUMNS}, type, personal_elements, accroche_short, accroche_long, format_technique, created_at`;
+const IDEAS_PAGE_COLUMNS = `${IDEA_SUMMARY_COLUMNS}, type, personal_elements, accroche_short, accroche_long, format_technique, created_at, preview_data:preview, draft_head:preview_draft`;
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -209,13 +210,7 @@ function IdeasInWorkspace() {
     ]);
     if (!mounted.current || started !== fetchRequest.current) return;
     const [ideaResult, briefResult] = results;
-    if (ideaResult.status === "fulfilled" && !ideaResult.value.error) {
-      const list = (ideaResult.value.data || []) as unknown as SavedIdea[];
-      setIdeas(list);
-      void readIdeaPreviews(list.map(i => i.id), previews => {
-        setIdeas(prev => prev.map(i => previews.has(i.id) ? { ...i, ...previews.get(i.id) } : i));
-      }, isCurrent);
-    }
+    if (ideaResult.status === "fulfilled" && !ideaResult.value.error) setIdeas((ideaResult.value.data || []) as unknown as SavedIdea[]);
     if (briefResult.status === "fulfilled" && !briefResult.value.error) setBriefs((briefResult.value.data || []) as unknown as SavedBrief[]);
     setLoadError(results.some(result => result.status === "rejected" || !!result.value.error));
     setLoading(false);
@@ -659,7 +654,7 @@ function IdeasInWorkspace() {
                       )}
                       {selectedIdea.content_draft?.trim() && !selectedIdea.content_draft.trim().startsWith("{") && (
                         <Button variant="outline" size="sm" className="rounded-pill gap-1 text-xs" onClick={async () => {
-                          await navigator.clipboard.writeText(selectedIdea.content_draft!.trim());
+                          await navigator.clipboard.writeText(copyTextForChannel(selectedIdea.content_draft!.trim(), selectedIdea.canal));
                           toast.success("Copié !");
                         }}>
                           <Copy className="h-3 w-3" /> Copier

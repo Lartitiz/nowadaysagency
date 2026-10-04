@@ -27,7 +27,8 @@ vi.mock('@/integrations/supabase/client', () => ({ supabase: {
 import { CalendarIdeasSidebar } from '@/components/calendar/CalendarIdeasSidebar';
 const fullIdea = { id: 'rich', titre: 'Carrousel enregistré', format: 'carousel', canal: 'linkedin', status: 'ready', content_draft: null, content_data: { slides: [{ id: 's2', title: 'Deux' }, { id: 's1', title: 'Un' }], visual_urls: ['https://example.test/2.png'], custom: 'keep' }, updated_at: '2026-09-16T10:00:00Z' };
 // La liste du panneau est légère : sans content_data ni content_draft.
-const { content_data: _data, content_draft: _draft, ...idea } = fullIdea;
+const { content_data: _data, content_draft: _draft, ...rest } = fullIdea;
+const idea = { ...rest, has_content: true };
 function deferred() { let resolve!: (v: any) => void; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; }
 function App({ refreshed = 0, onPlanned = vi.fn(), onOpen = vi.fn() }) { return <MemoryRouter><CalendarIdeasSidebar refreshKey={refreshed} onIdeaPlanned={onPlanned} onIdeaClick={onOpen}/></MemoryRouter>; }
 beforeEach(() => {
@@ -100,13 +101,14 @@ it('the list never downloads idea contents (HTTP 500 on large workspaces) but st
  expect(state.neq).not.toContain('content_data');
 });
 it('an idea without content stays « Idée à développer » in the light list', async () => {
- state.flags.mockResolvedValue({ data: [], error: null });
- state.list.mockResolvedValue({ data: [{ ...idea, status: 'to_explore' }], error: null });
+ state.list.mockResolvedValue({ data: [{ ...idea, status: 'to_explore', has_content: false }], error: null });
  render(<App/>);
  expect(await screen.findByText('Idée à développer')).toBeVisible();
 });
-it('a failing content-flag read is an error, not a wrong label', async () => {
- state.flags.mockResolvedValue({ data: null, error: new Error('timeout') });
+it('the list is one single read: no extra query to know which ideas have content', async () => {
  render(<App/>);
- expect(await screen.findByRole('alert')).toHaveTextContent('Impossible de charger');
+ await screen.findByRole('button', { name: idea.titre });
+ expect(state.selects).toHaveLength(1);
+ expect(state.selects[0]).toContain('has_content');
+ expect(state.flags).not.toHaveBeenCalled();
 });
