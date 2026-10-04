@@ -1109,6 +1109,7 @@ export const RESEARCH_SOURCING_PROMPT = `Tu es correctrice factuelle. Tu reçois
 Pour CHAQUE chiffre listé, dans la phrase où il apparaît :
 - si la matière de recherche donne la source de ce chiffre (nom d'une étude, d'un organisme, d'une personne, d'un média, et l'année si elle est donnée), ajoute cette source dans la même phrase, de façon discrète : « (Nom, année) » en fin de proposition, ou « selon Nom » ;
 - sinon, remplace le chiffre par une formulation qualitative honnête (« une petite partie de ton réseau », « les premières heures », « une large étude ») ; une « étude » sans nom passe aussi en qualitatif.
+  Dans ce cas, ajuste aussi les mots qui annonçaient le chiffre (« le chiffre qui fait mal », « ce pourcentage », « seuls ») et les accords de la phrase, pour qu'elle reste juste et naturelle sans chiffre : « Et le chiffre qui fait mal : seuls 2 % des posts… » devient « Et ce qui fait mal : très peu de posts… ».
 N'invente JAMAIS de source, de nom ou d'année : recopie-les seulement depuis la matière de recherche.
 Ne modifie RIEN d'autre : mêmes phrases, même ordre, mêmes mots, mêmes retours à la ligne, même ponctuation, mêmes listes.
 Si le texte comporte des marqueurs entre crochets (« [STORY 1 - TEXT] », « [SECTION 2 - PARLE] »…), conserve TOUS les marqueurs exactement, dans le même ordre.
