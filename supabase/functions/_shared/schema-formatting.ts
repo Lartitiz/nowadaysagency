@@ -128,7 +128,8 @@ export function validateSchemaPlan(raw: unknown, slides: Slide[], eligible: (s: 
     const reason = String(item?.reason || "").slice(0, 300);
     if (fits && !fits(slides[i], schema)) {
       // Slide trop chargée : le schéma prend sa propre slide si la longueur le permet.
-      if (ownSlides > 0) { ownSlides--; out.push({ slide_number: n, visual_schema: schema, reason, own_slide: true }); continue; }
+      // Jamais après la dernière slide : la conclusion reste la fin du carrousel.
+      if (ownSlides > 0 && i < slides.length - 1) { ownSlides--; out.push({ slide_number: n, visual_schema: schema, reason, own_slide: true }); continue; }
       rejected.push(`${type}@${n}:place`); continue;
     }
     out.push({ slide_number: n, visual_schema: schema, reason });

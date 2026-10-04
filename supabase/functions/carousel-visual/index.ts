@@ -1,6 +1,7 @@
 import { planPhotoArtDirection } from "../_shared/photo-art-direction.ts";
 import { applyPhotoFormatting, planPhotoFormatting, type PhotoFormattingPlan } from "../_shared/photo-formatting.ts";
 import { COMPOSE } from "../_shared/carousel-editorial-contract.ts";
+import { DENSE_SLIDE_WORDS, wordCount } from "../_shared/schema-formatting.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -248,6 +249,13 @@ Ambiance : ${ch.mood_keywords}
 Border-radius : ${ch.border_radius}${opts.photoStyleLabel && ch.photo_style ? `\n${opts.photoStyleLabel} : ${ch.photo_style}` : ""}${ch.visual_donts ? `\n\n⛔ ${opts.dontsLabel} :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\n${opts.briefLabel} :\n${ch.ai_generated_brief}` : ""}${opts.withMoodboard && ch.moodboard_description ? `\n\nAMBIANCE MOODBOARD :\n${ch.moodboard_description}` : ""}${opts.withIconStyle && ch.icon_style ? `\nStyle d'icônes : ${ch.icon_style}` : ""}${ch.template_layout_description ? `\n\n═══ ${opts.layoutHeader} ═══\n${ch.template_layout_description}\n\n${opts.layoutInstruction}` : ""}`;
 }
 
+/** Slides longues du carrousel texte (hors couverture, photo et slide pause) :
+ * le modèle n'y ajoute ni chiffre dupliqué ni encart. */
+export function denseSlidesBlock(slides: any[]): string {
+  const dense = (slides || []).filter((s: any, i: number) => i > 0 && s && !s.schema_pause && !/^photo/.test(String(s.slide_type || "")) && wordCount(s) > DENSE_SLIDE_WORDS).map((s: any) => s.slide_number);
+  return dense.length ? `\n\nSLIDES DENSES (plus de ${DENSE_SLIDE_WORDS} mots) : ${dense.join(", ")}. Sur ces slides, le texte seul : aucun chiffre dupliqué en grand, aucune carte, aucun encart ni schéma ajouté.` : "";
+}
+
 export function buildTextCarouselPrompt(params: {
   ch: any;
   safeFontTitle: string;
@@ -335,7 +343,8 @@ MISE EN VALEUR DES MOTS-CLÉS (OPTIONNELLE, selon le sens) :
 DENSITÉ & RESPIRATION (à juger à l'échelle du CARROUSEL, pas de la slide) :
 - Une slide minimaliste (titre fort + texte nu, typographie impeccable, bien centrée) est LÉGITIME et souvent élégante — surtout pour une punchline, une citation, un moment de storytelling. Ne la surcharge pas pour la « designer ».
 - Le rythme vient des variations d'échelle, d'alignement, de largeur de colonne et de densité définies dans le plan global. Une rupture peut être purement typographique. Les cartes, emojis et cadres pointillés ne sont jamais nécessaires pour rendre une slide aboutie.
-- Les chiffres et données du contenu sont TOUJOURS mis en scène : très grande taille (72-120px) en ${ch.font_title}, couleur ${ch.color_primary}, jamais noyés dans une phrase. Pour ça, DUPLIQUE le chiffre dans un élément décoratif (carte, chiffre géant) — mais l'élément ancré data-slide-text garde le texte source COMPLET et inchangé (ne déplace jamais un morceau du body vers un élément décoratif).
+- Sur une slide COURTE (${DENSE_SLIDE_WORDS} mots au plus, titre + texte), les chiffres du contenu sont mis en scène : très grande taille (72-120px) en ${ch.font_title}, couleur ${ch.color_primary}. Pour ça, DUPLIQUE le chiffre dans un élément décoratif (carte, chiffre géant) — mais l'élément ancré data-slide-text garde le texte source COMPLET et inchangé (ne déplace jamais un morceau du body vers un élément décoratif).
+- Sur une slide LONGUE (plus de ${DENSE_SLIDE_WORDS} mots, liste « SLIDES DENSES » ci-dessous) : AUCUN chiffre dupliqué, aucune carte ni encart ajouté. Le texte seul, bien composé et lisible ; un mot peut être mis en valeur dans le texte. Une slide dense chargée d'un encart en plus est un défaut.
 - Nombres à la française : décimale avec virgule collée ("3,5 ans" — jamais "3, 5 ans" ni "3.5").
 
 CARTES BLANCHES (pour les blocs de contenu) :
@@ -2170,6 +2179,10 @@ Adapte le design system ci-dessus au style "${style}". Le style influence l'ambi
       .join("\n");
 
     let visualBlock = "";
+    // Slides longues : pas d'encart en plus du texte (04/10/2026, slide de ~70
+    // mots + carte « 1,5 % » jugée trop chargée). Leur schéma éventuel est sur
+    // une slide « pause » à part.
+    visualBlock += denseSlidesBlock(slides);
     if (schemaInstructions) {
       visualBlock += `\n\n🎨 SLIDES AVEC SCHÉMA VISUEL — OBLIGATOIRE, utilise les templates de schéma du design system :\n${schemaInstructions}`;
     }
