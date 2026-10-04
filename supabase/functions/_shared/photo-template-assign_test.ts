@@ -183,3 +183,22 @@ Deno.test("finale : conserve une invitation existante sans en inventer ni raccou
   applyTemplateAssignments(doc,[{slide_number:1,template:"finale",cta_label:"Et vous ?"}]);
   assertEquals(doc.slides[0].cta_label,"Retrouvez les dimensions sur la fiche");
 });
+
+Deno.test("écriture photo : les champs de mise en page sont retirés, le texte reste intact", async () => {
+  const { stripWriterLayoutFields, WRITER_LAYOUT_FIELDS } = await import("./photo-template-assign.ts");
+  const doc = { carousel_type: "photo", slides: [
+    { slide_number: 1, overlay_text: "Avant la couleur, la forme.", kicker: "Le geste", detail: "Amélie, céramiste", template: "couverture" },
+    { slide_number: 2, overlay_text: "Trois bols sur quarante.", template: "chiffre", big_number: "40", points: ["a", "b"], step_number: 2, attribution: "Claire", cta_label: null },
+  ] };
+  const out = JSON.parse(stripWriterLayoutFields(JSON.stringify(doc)));
+  for (const s of out.slides) for (const f of WRITER_LAYOUT_FIELDS) assertEquals(f in s, false, f);
+  assertEquals(out.slides.map((s: any) => [s.overlay_text, s.kicker, s.detail]), [["Avant la couleur, la forme.", "Le geste", "Amélie, céramiste"], ["Trois bols sur quarante.", undefined, undefined]]);
+  assertEquals(stripWriterLayoutFields("pas du json"), "pas du json");
+  // Garde-fou : carousel-ai retire ces champs AVANT la passe des gabarits, et
+  // le schéma de sortie de la rédaction photo ne les propose plus.
+  const src = await Deno.readTextFile(new URL("../carousel-ai/index.ts", import.meta.url));
+  const strip = src.indexOf("stripWriterLayoutFields(threadPhoto.content)");
+  assert(strip > 0 && strip < src.indexOf("assignPhotoTemplates(content", strip), "retrait avant la passe des gabarits");
+  const tool = src.slice(src.indexOf("const PHOTO_CAROUSEL_TOOL"), src.indexOf("caption:", src.indexOf("const PHOTO_CAROUSEL_TOOL")));
+  for (const f of WRITER_LAYOUT_FIELDS) assert(!new RegExp(`\\n\\s+${f}: \\{`).test(tool), `schéma d'écriture : ${f}`);
+});
