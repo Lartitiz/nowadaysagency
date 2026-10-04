@@ -869,3 +869,77 @@ Deno.test("applyStoriesCorrectionPass : chiffre de recherche sans source -> pass
     mock.restore();
   }
 });
+
+// ═══ Témoignage inventé (test réel 04/10/2026) : « Une céramiste me disait
+// récemment… » en ouverture d'un post LinkedIn sans réponse aux questions ═══
+const TESTIMONY_BODY = { context: "Pourquoi publier plus souvent sur LinkedIn ne fait pas décoller ta portée", answers: null, news_context: "" };
+const TESTIMONY_POST = "Une céramiste me disait récemment qu'elle avait doublé sa fréquence de publication, et que sa portée n'avait pas bougé.\n\nPublier plus ne règle rien, et je trouve qu'on le dit trop peu.";
+const TESTIMONY_CLEANED = "Doubler sa fréquence de publication sans voir sa portée bouger, c'est courant.\n\nPublier plus ne règle rien, et je trouve qu'on le dit trop peu.";
+const anthropicOk = (text: string) => ({ status: 200, body: { content: [{ type: "text", text }], stop_reason: "end_turn", usage: { input_tokens: 50, output_tokens: 30 } } });
+
+Deno.test("runLinkedInTwoStep : témoignage inventé -> instruction ciblée dans la relecture, version sans témoignage gardée", async () => {
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    anthropicOk(JSON.stringify({ content: TESTIMONY_POST })),
+    anthropicOk(JSON.stringify({ content: TESTIMONY_CLEANED, accroche: "", corrections_applied: [] })),
+  ]);
+  try {
+    const res = await runLinkedInTwoStep({ ...LINKEDIN_BASE_PARAMS, body: TESTIMONY_BODY });
+    const correctionUserMsg = capturedBodies[1].messages[0].content as string;
+    assertEquals(correctionUserMsg.includes("TÉMOIGNAGE INVENTÉ"), true);
+    assertEquals(correctionUserMsg.includes("Une céramiste me disait"), true);
+    assertEquals(mock.anthropicCallCount, 2);
+    const json = await res.json();
+    assertEquals(json.content, TESTIMONY_CLEANED);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("runLinkedInTwoStep : la relecture garde le témoignage -> passe dédiée qui le retire", async () => {
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    anthropicOk(JSON.stringify({ content: TESTIMONY_POST })),
+    anthropicOk(JSON.stringify({ content: TESTIMONY_POST, accroche: "", corrections_applied: [] })),
+    anthropicOk(TESTIMONY_CLEANED),
+  ]);
+  try {
+    const res = await runLinkedInTwoStep({ ...LINKEDIN_BASE_PARAMS, body: TESTIMONY_BODY });
+    assertEquals(mock.anthropicCallCount, 3);
+    assertEquals(JSON.stringify(capturedBodies[2].system).includes("témoignage est inventé"), true);
+    const json = await res.json();
+    assertEquals(json.content.includes("céramiste"), false);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("runLinkedInTwoStep : une relecture qui AJOUTE un témoignage est rejetée", async () => {
+  const { mock } = installAnthropicBodyCapture([
+    anthropicOk(JSON.stringify({ content: TESTIMONY_CLEANED })),
+    anthropicOk(JSON.stringify({ content: TESTIMONY_POST, accroche: "", corrections_applied: [] })),
+  ]);
+  try {
+    const res = await runLinkedInTwoStep({ ...LINKEDIN_BASE_PARAMS, body: TESTIMONY_BODY });
+    const json = await res.json();
+    assertEquals(json.content, TESTIMONY_CLEANED);
+    assertEquals(mock.anthropicCallCount, 2);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("runLinkedInTwoStep : témoignage fourni dans les réponses -> gardé, aucune passe en plus", async () => {
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    anthropicOk(JSON.stringify({ content: TESTIMONY_POST })),
+    anthropicOk(JSON.stringify({ content: TESTIMONY_POST, accroche: "", corrections_applied: [] })),
+  ]);
+  try {
+    const body = { ...TESTIMONY_BODY, answers: ["Une céramiste m'a dit qu'elle avait doublé sa fréquence sans effet"] };
+    const res = await runLinkedInTwoStep({ ...LINKEDIN_BASE_PARAMS, body });
+    assertEquals((capturedBodies[1].messages[0].content as string).includes("TÉMOIGNAGE INVENTÉ"), false);
+    assertEquals(mock.anthropicCallCount, 2);
+    const json = await res.json();
+    assertEquals(json.content.includes("céramiste"), true);
+  } finally {
+    mock.restore();
+  }
+});
