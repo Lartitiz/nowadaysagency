@@ -76,7 +76,11 @@ Deno.test("photo courte : contrat commun, légende complémentaire et priorités
 
 Deno.test("prise de position : thèse assumée, émotion partagée, aucune précaution inutile", () => {
   const prompt = buildCarouselWritingSystem("VOIX", false, "IDENTITÉ", "CLARTÉ");
-  for (const rule of ["PROFONDEUR ET PRISE DE POSITION", "assume-la en première personne", "norme sociale", "expérience partagée", "Une opinion n'a pas besoin de source", "n'écris ni « sans garantie »", "too much"]) assert(prompt.includes(rule), rule);
+  for (const rule of ["PROFONDEUR ET PRISE DE POSITION", "assume-la en première personne", "norme sociale", "expérience partagée", "Une opinion n'a pas besoin de source", "n'écris ni « sans garantie »", "too much", "sans annonce prudente", "utilise-la en première personne"]) assert(prompt.includes(rule), rule);
   assert(!prompt.includes("ne lui prête pas de peur ni de manque"));
   assert(prompt.includes("nommer une émotion courante que le sujet soulève reste permis"));
+});
+
+Deno.test("actualité : fin sur une question simple en commentaire", () => {
+  assert(NEWS_WRITING.includes("question simple, facile à répondre en commentaire"));
 });

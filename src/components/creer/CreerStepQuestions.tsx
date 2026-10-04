@@ -97,6 +97,9 @@ interface Props {
    *  mur de 3 questions. L'affinage reste dispo en secondaire (levier activation). */
   autoFirstContent?: boolean;
   allowNarrative?: boolean;
+  /** Newsjacking : question unique posée quand on passe les questions sans répondre.
+   *  C'est la seule source possible du vécu de terrain (l'IA n'en invente pas). */
+  fieldQuestion?: string;
 }
 
 export default function CreerStepQuestions({
@@ -114,11 +117,13 @@ export default function CreerStepQuestions({
   onBack,
   autoFirstContent,
   allowNarrative,
+  fieldQuestion,
 }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers || {});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refine, setRefine] = useState(false);
+  const [askingField, setAskingField] = useState(false);
 
   // Remonte chaque réponse pendant la saisie afin que le flux la persiste avant
   // même le clic sur « Générer » (reload mobile, retour de veille, HMR…).
@@ -127,8 +132,13 @@ export default function CreerStepQuestions({
   }, [answers, onAnswersChange]);
 
   const handleSkip = () => {
+    const answered = Object.values(answers).some((value) => value.trim());
+    if (!answered && fieldQuestion && !askingField) {
+      setAskingField(true);
+      return;
+    }
     setIsSubmitting(true);
-    if (Object.values(answers).some((value) => value.trim())) onNext(answers);
+    if (answered) onNext(answers);
     else onSkip();
   };
 
@@ -180,6 +190,42 @@ export default function CreerStepQuestions({
           <button type="button" onClick={() => setRefine(true)} className="text-sm text-primary-text underline underline-offset-2 hover:opacity-80">
             Je préfère répondre à quelques questions d'abord
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (askingField && fieldQuestion) {
+    const fieldAnswer = answers[fieldQuestion] || "";
+    return (
+      <div className="space-y-5 animate-fade-in" data-testid="creer-field-question">
+        <div>
+          <h2 className="font-display text-3xl text-primary">Une seule question</h2>
+          <p className="mt-2 text-sm text-muted-foreground">C'est ce qui donne ta voix au contenu : l'IA n'invente jamais ce que tu vis sur le terrain.</p>
+        </div>
+        <div className="space-y-3">
+          <label htmlFor="creation-field-question" className="block text-sm font-semibold text-foreground">{fieldQuestion}</label>
+          <Textarea
+            id="creation-field-question"
+            value={fieldAnswer}
+            onChange={(e) => setAnswers((prev) => ({ ...prev, [fieldQuestion]: e.target.value }))}
+            placeholder="Ex. : on me répond direct « non, je ne veux pas me montrer ». Derrière, je sens souvent la peur d'être jugée."
+            rows={4}
+            className="resize-none"
+            autoFocus
+          />
+        </div>
+        <Button onClick={handleSkip} disabled={isSubmitting} className="w-full gap-2" data-testid="creer-field-question-generate">
+          {isSubmitting ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> Lancement…</>
+          ) : (
+            <><Sparkles className="h-4 w-4" /> {fieldAnswer.trim() ? "Générer avec ma réponse" : "Générer sans répondre"}</>
+          )}
+        </Button>
+        <div className="text-center">
+          <Button variant="ghost" size="sm" onClick={() => setAskingField(false)} disabled={isSubmitting} className="gap-1">
+            <ArrowLeft className="h-3.5 w-3.5" /> Revenir aux questions
+          </Button>
         </div>
       </div>
     );
