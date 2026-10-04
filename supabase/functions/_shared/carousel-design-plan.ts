@@ -8,7 +8,13 @@ export interface DesignBeat {
   alignment: "left" | "center";
   density: "low" | "medium" | "high";
   inverted: boolean;
+  /** Traitement visuel de la slide de texte (maquettes validées par Laetitia
+   * le 04/10/2026, artifact RhuBrmBLR847aLYrhGkpuo, rangée D). */
+  treatment?: TextTreatment;
+  /** Extrait EXACT du texte mis en valeur (phrase-clé, constat). */
+  extract?: string;
 }
+export type TextTreatment = "centre" | "surligne" | "aplat" | "lettrine" | "forme" | "deux_temps";
 export interface CarouselDesignPlan {
   version: 1;
   direction: "editorial";
@@ -45,13 +51,69 @@ export function buildCarouselDesignPlan(slides: Slide[]): CarouselDesignPlan {
     else layout = (["essay", "offset", "split"] as EditorialLayout[])[textIndex++ % 3];
     return { slide_number: Number(s.slide_number) || i + 1, layout, alignment: layout === "opening" || (layout === "statement" && words < 20) ? "center" : "left", density: words > 65 ? "high" : words > 30 ? "medium" : "low", inverted: i === rupture };
   });
+  assignTextTreatments(slides, sequence);
   return { version: 1, direction: "editorial", sequence, constraints: { maxCentered: Math.max(1, Math.floor(slides.length / 3)), maxPills: 1, maxCardSlides: Math.max(1, Math.floor(slides.length / 3)) } };
+}
+
+/** Phrases du texte, découpées sur . ! ? … suivis d'une espace (extraits exacts). */
+export function sentences(text: string): string[] {
+  return (String(text || "").match(/[^.!?…]+(?:[.!?…]+|$)(?:\s+|$)/g) || []).map(x => x.trim()).filter(Boolean);
+}
+const TREATMENT_CYCLE: TextTreatment[] = ["centre", "surligne", "aplat", "lettrine", "forme", "deux_temps"];
+/** Un traitement par slide de texte, en alternance, jamais deux fois le même
+ * de suite ; l'aplat au plus deux fois ; chaque traitement seulement si le
+ * texte s'y prête (deux phrases pour la phrase-clé / le constat, une lettre
+ * en tête pour la lettrine). La couverture, la conclusion, les schémas, les
+ * photos et la slide de rupture gardent leur composition. */
+export function assignTextTreatments(slides: Slide[], sequence: DesignBeat[]): void {
+  let k = 0, aplats = 0;
+  let previous: TextTreatment | undefined;
+  sequence.forEach((beat, i) => {
+    const s = slides[i];
+    if (!["essay", "offset", "split"].includes(beat.layout) || !s) return;
+    const body = String(s.body || "");
+    const parts = sentences(body);
+    const fits = (t: TextTreatment) => t !== previous &&
+      (t !== "aplat" || aplats < 2) &&
+      (t !== "lettrine" || /^\p{L}/u.test(body.trim())) &&
+      ((t !== "surligne" && t !== "deux_temps") || parts.length >= 2);
+    let treatment: TextTreatment = "centre";
+    for (let n = 0; n < TREATMENT_CYCLE.length; n++) {
+      const t = TREATMENT_CYCLE[(k + n) % TREATMENT_CYCLE.length];
+      if (fits(t)) { treatment = t; k = (k + n + 1) % TREATMENT_CYCLE.length; break; }
+    }
+    if (treatment === "aplat") aplats++;
+    beat.treatment = treatment;
+    // Phrase-clé : celle qui porte un chiffre, sinon la dernière ; constat : la première.
+    if (treatment === "surligne") beat.extract = parts.slice(1).find(p => /\d/.test(p)) || parts[parts.length - 1];
+    if (treatment === "deux_temps") beat.extract = parts[0];
+    previous = treatment;
+  });
+}
+
+const TREATMENT_RULES: Record<TextTreatment, (b: DesignBeat) => string> = {
+  centre: () => "centré : petit filet de couleur au-dessus du titre, titre puis texte, le bloc centré verticalement",
+  surligne: (b) => `mot-clé surligné : 1 à 3 mots du titre portent un surligneur doux (background: linear-gradient(transparent 58%, <accent clair> 58%)) ; dans le texte, la phrase « ${b.extract} » passe en plus grand dans la police des titres et la couleur de charte, à SA place (un <span style="display:block; …"> dans l'élément du texte, jamais recopiée ailleurs)`,
+  aplat: () => "aplat : le haut de la slide (environ 40 %) est un aplat de la couleur principale portant le titre en clair, le texte est centré verticalement dans la partie claire en dessous",
+  lettrine: () => "lettrine : titre en italique couleur de charte ; le texte commence par une grande lettrine (premier caractère dans un <span> flottant, police des titres, environ 4 lignes de haut) avec un filet vertical fin à gauche du texte",
+  forme: () => "forme de marque : une grande forme organique douce (SVG décoratif, couleur de charte très claire, jamais un cercle, jamais sous le texte au point de gêner la lecture) déborde derrière le titre, côté droit ; titre et texte centrés verticalement",
+  deux_temps: (b) => `texte en deux temps : la première phrase « ${b.extract} » en gras, un peu plus grande ; la suite du texte dans une carte claire arrondie (le tout dans le MÊME élément du texte, la première phrase et la carte étant des <span style="display:block; …">)`,
+};
+
+export function describeTextTreatments(plan: CarouselDesignPlan): string {
+  const treated = plan.sequence.filter(b => b.treatment);
+  if (!treated.length) return "";
+  return `
+TRAITEMENTS DES SLIDES DE TEXTE (maquettes validées par la marque) — OBLIGATOIRES :
+${treated.map(b => `Slide ${b.slide_number} : ${TREATMENT_RULES[b.treatment!](b)}.`).join("\n")}
+Pour toutes ces slides : le bloc titre + texte est CENTRÉ VERTICALEMENT dans la slide (aligné à gauche), jamais collé en haut avec un grand vide dessous. Le texte reste dans UN seul élément ancré (data-slide-text="body"), intégral et dans l'ordre : les mises en valeur sont des <span> à l'intérieur, rien n'est recopié ni déplacé. Texte sur toute la largeur utile (au moins 840px), jamais en colonne étroite.`;
 }
 
 export function describeCarouselDesignPlan(plan: CarouselDesignPlan): string {
   return `PLAN ÉDITORIAL GLOBAL : mêmes polices, palette et grille ; compositions adaptées au récit.
 ${plan.sequence.map(s => `Slide ${s.slide_number} : ${s.layout}, alignement ${s.alignment}, densité ${s.density}${s.inverted ? ", rupture avec fond de charte inversé" : ""}`).join("\n")}
-Les références et interdits explicites de la marque restent prioritaires. Pas de pastille, carte, emoji ou surlignage automatique. Maximum ${plan.constraints.maxCentered} compositions centrées, ${plan.constraints.maxPills} pastille et ${plan.constraints.maxCardSlides} slides à cartes. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.`;
+${describeTextTreatments(plan)}
+Les références et interdits explicites de la marque restent prioritaires. Pas de pastille, carte, emoji ou surlignage en dehors des traitements ci-dessus. Maximum ${plan.constraints.maxCentered} compositions centrées horizontalement, ${plan.constraints.maxPills} pastille et ${plan.constraints.maxCardSlides} slides à cartes. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.`;
 }
 
 const escape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

@@ -104,7 +104,7 @@ ESPACEMENT VERTICAL :
 - Entre les blocs : 40px
 
 COMPOSITION SUR UNE GRILLE ÉDITORIALE :
-Le plan global choisit la position et l'alignement. Utilise une grille à marges latérales de 80px, haute de 96px et basse de 110px. L'alignement gauche est le point de départ ; le centrage est réservé à une rupture courte. Varie la largeur et la hauteur des blocs avec intention. Un espace vide asymétrique est légitime. Ne centre pas automatiquement le conteneur ou son texte et ne remplis pas artificiellement le bas de page.
+Le plan global choisit la position et l'alignement. Utilise une grille à marges latérales de 80px, haute de 96px et basse de 110px. L'alignement gauche est le point de départ ; le centrage est réservé à une rupture courte. Varie la largeur et la hauteur des blocs avec intention. Un espace vide asymétrique est légitime. Le bloc titre + texte d'une slide de développement est centré VERTICALEMENT (aligné à gauche), jamais collé en haut avec un grand vide dessous ; ne centre pas le texte horizontalement par défaut et ne remplis pas artificiellement le bas de page.
 
 RYTHME DU CARROUSEL (obligatoire dès 5 slides) :
 
@@ -548,7 +548,7 @@ ESPACEMENT VERTICAL :
 - Entre les blocs : 40px
 
 COMPOSITION SUR UNE GRILLE ÉDITORIALE :
-Le plan global choisit la position et l'alignement. Utilise une grille à marges latérales de 80px, haute de 96px et basse de 110px. L'alignement gauche est le point de départ ; le centrage est réservé à une rupture courte. Varie la largeur et la hauteur des blocs avec intention. Un espace vide asymétrique est légitime. Ne centre pas automatiquement le conteneur ou son texte et ne remplis pas artificiellement le bas de page.
+Le plan global choisit la position et l'alignement. Utilise une grille à marges latérales de 80px, haute de 96px et basse de 110px. L'alignement gauche est le point de départ ; le centrage est réservé à une rupture courte. Varie la largeur et la hauteur des blocs avec intention. Un espace vide asymétrique est légitime. Le bloc titre + texte d'une slide de développement est centré VERTICALEMENT (aligné à gauche), jamais collé en haut avec un grand vide dessous ; ne centre pas le texte horizontalement par défaut et ne remplis pas artificiellement le bas de page.
 
 RYTHME DU CARROUSEL (obligatoire dès 5 slides) :
 
@@ -1534,7 +1534,7 @@ Retourne UNIQUEMENT le JSON.\`
 `;
 
 snapshot[`buildCoherencePlan — 8 slides, marque claire, séparateur explicite + schémas visuels 1`] = `
-"PLAN ÉDITORIAL GLOBAL : mêmes polices, palette et grille ; compositions adaptées au récit.
+\`PLAN ÉDITORIAL GLOBAL : mêmes polices, palette et grille ; compositions adaptées au récit.
 Slide 1 : opening, alignement center, densité low
 Slide 2 : essay, alignement left, densité low
 Slide 3 : schema, alignement left, densité low
@@ -1543,26 +1543,41 @@ Slide 5 : statement, alignement center, densité low, rupture avec fond de chart
 Slide 6 : schema, alignement left, densité low
 Slide 7 : split, alignement left, densité low
 Slide 8 : closing, alignement left, densité low
-Les références et interdits explicites de la marque restent prioritaires. Pas de pastille, carte, emoji ou surlignage automatique. Maximum 2 compositions centrées, 1 pastille et 2 slides à cartes. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
-Fond principal : #FFF4F8. Les changements de fond suivent les ruptures éditoriales, pas la parité du numéro de slide."
+
+TRAITEMENTS DES SLIDES DE TEXTE (maquettes validées par la marque) — OBLIGATOIRES :
+Slide 2 : centré : petit filet de couleur au-dessus du titre, titre puis texte, le bloc centré verticalement.
+Slide 4 : aplat : le haut de la slide (environ 40 %) est un aplat de la couleur principale portant le titre en clair, le texte est centré verticalement dans la partie claire en dessous.
+Slide 7 : forme de marque : une grande forme organique douce (SVG décoratif, couleur de charte très claire, jamais un cercle, jamais sous le texte au point de gêner la lecture) déborde derrière le titre, côté droit ; titre et texte centrés verticalement.
+Pour toutes ces slides : le bloc titre + texte est CENTRÉ VERTICALEMENT dans la slide (aligné à gauche), jamais collé en haut avec un grand vide dessous. Le texte reste dans UN seul élément ancré (data-slide-text="body"), intégral et dans l'ordre : les mises en valeur sont des <span> à l'intérieur, rien n'est recopié ni déplacé. Texte sur toute la largeur utile (au moins 840px), jamais en colonne étroite.
+Les références et interdits explicites de la marque restent prioritaires. Pas de pastille, carte, emoji ou surlignage en dehors des traitements ci-dessus. Maximum 2 compositions centrées horizontalement, 1 pastille et 2 slides à cartes. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
+Fond principal : #FFF4F8. Les changements de fond suivent les ruptures éditoriales, pas la parité du numéro de slide.\`
 `;
 
 snapshot[`buildCoherencePlan — 5 slides sans schéma, marque sombre (moments de design auto, fonds gamme sombre) 1`] = `
-"PLAN ÉDITORIAL GLOBAL : mêmes polices, palette et grille ; compositions adaptées au récit.
+\`PLAN ÉDITORIAL GLOBAL : mêmes polices, palette et grille ; compositions adaptées au récit.
 Slide 1 : opening, alignement center, densité low
 Slide 2 : essay, alignement left, densité low
 Slide 3 : statement, alignement center, densité low, rupture avec fond de charte inversé
 Slide 4 : offset, alignement left, densité low
 Slide 5 : closing, alignement left, densité low
-Les références et interdits explicites de la marque restent prioritaires. Pas de pastille, carte, emoji ou surlignage automatique. Maximum 1 compositions centrées, 1 pastille et 1 slides à cartes. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
-La marque est sombre : les fonds restent dans la gamme de #1C1A17, sans alternance blanche imposée."
+
+TRAITEMENTS DES SLIDES DE TEXTE (maquettes validées par la marque) — OBLIGATOIRES :
+Slide 2 : centré : petit filet de couleur au-dessus du titre, titre puis texte, le bloc centré verticalement.
+Slide 4 : aplat : le haut de la slide (environ 40 %) est un aplat de la couleur principale portant le titre en clair, le texte est centré verticalement dans la partie claire en dessous.
+Pour toutes ces slides : le bloc titre + texte est CENTRÉ VERTICALEMENT dans la slide (aligné à gauche), jamais collé en haut avec un grand vide dessous. Le texte reste dans UN seul élément ancré (data-slide-text="body"), intégral et dans l'ordre : les mises en valeur sont des <span> à l'intérieur, rien n'est recopié ni déplacé. Texte sur toute la largeur utile (au moins 840px), jamais en colonne étroite.
+Les références et interdits explicites de la marque restent prioritaires. Pas de pastille, carte, emoji ou surlignage en dehors des traitements ci-dessus. Maximum 1 compositions centrées horizontalement, 1 pastille et 1 slides à cartes. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
+La marque est sombre : les fonds restent dans la gamme de #1C1A17, sans alternance blanche imposée.\`
 `;
 
 snapshot[`buildCoherencePlan — 3 slides (pas d'ajout automatique de moments de design sous 4 slides) 1`] = `
-"PLAN ÉDITORIAL GLOBAL : mêmes polices, palette et grille ; compositions adaptées au récit.
+\`PLAN ÉDITORIAL GLOBAL : mêmes polices, palette et grille ; compositions adaptées au récit.
 Slide 1 : opening, alignement center, densité low
 Slide 2 : essay, alignement left, densité low
 Slide 3 : closing, alignement left, densité low
-Les références et interdits explicites de la marque restent prioritaires. Pas de pastille, carte, emoji ou surlignage automatique. Maximum 1 compositions centrées, 1 pastille et 1 slides à cartes. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
-Fond principal : #FFF4F8. Les changements de fond suivent les ruptures éditoriales, pas la parité du numéro de slide."
+
+TRAITEMENTS DES SLIDES DE TEXTE (maquettes validées par la marque) — OBLIGATOIRES :
+Slide 2 : centré : petit filet de couleur au-dessus du titre, titre puis texte, le bloc centré verticalement.
+Pour toutes ces slides : le bloc titre + texte est CENTRÉ VERTICALEMENT dans la slide (aligné à gauche), jamais collé en haut avec un grand vide dessous. Le texte reste dans UN seul élément ancré (data-slide-text="body"), intégral et dans l'ordre : les mises en valeur sont des <span> à l'intérieur, rien n'est recopié ni déplacé. Texte sur toute la largeur utile (au moins 840px), jamais en colonne étroite.
+Les références et interdits explicites de la marque restent prioritaires. Pas de pastille, carte, emoji ou surlignage en dehors des traitements ci-dessus. Maximum 1 compositions centrées horizontalement, 1 pastille et 1 slides à cartes. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
+Fond principal : #FFF4F8. Les changements de fond suivent les ruptures éditoriales, pas la parité du numéro de slide.\`
 `;
