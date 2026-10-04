@@ -837,7 +837,7 @@ PRINCIPE : Défendre une conviction liée à son métier, son secteur, ses valeu
 
 ARCHITECTURE DU POST :
 1. ACCROCHE POLARISANTE (3 lignes max, < 210 car.) : Une affirmation qui tranche. Pas consensuelle. Le lecteur prend position mentalement dès la première phrase.
-2. LE POURQUOI, D'où vient cette conviction. Pas un argumentaire froid : un cheminement. « Pendant longtemps j'ai cru X / J'ai vu Y arriver trop souvent / Chaque fois que je rencontre Z, je constate que… ». L'incarnation rend la position crédible.
+2. LE POURQUOI, D'où vient cette conviction. Pas un argumentaire froid : un cheminement. Si la personne a raconté le sien (« pendant longtemps j'ai cru X », « chaque fois que je rencontre Z… »), utilise-le ; sinon, déroule le raisonnement au présent, sans souvenir inventé. L'incarnation rend la position crédible.
 3. L'ARGUMENT PRINCIPAL : UNE idée forte, développée avec de la matière. Pas 5 arguments survolés. Un seul angle bien creusé avec un exemple, une analogie ou un chiffre.
 4. LA NUANCE (optionnel mais puissant) : Reconnaître la limite de sa propre position. Ça renforce la crédibilité. « Bien sûr, ça ne veut pas dire que… »
 5. OUVERTURE OU QUESTION CLIVANTE : Pas de résumé. Une question qui force le lecteur à choisir son camp.
