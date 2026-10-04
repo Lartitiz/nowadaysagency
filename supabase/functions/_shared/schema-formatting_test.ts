@@ -177,3 +177,10 @@ Deno.test("slide courte : le schéma reste sur la slide (aucune slide ajoutée)"
   assertEquals(slides.length, 4);
   assertEquals(slides[1].visual_schema.type, "stats");
 });
+
+Deno.test("trace : la décision de l'étage est lisible dans le carrousel (statut, rejets, slide pause)", async () => {
+  const out = await addSchemasToContent(JSON.stringify({ slides: DENSE }), { isMix: false, usage: {}, allowed: true, call: denseCall, maxSlides: 10 });
+  assertEquals(JSON.parse(out.content).schema_formatting, { status: "completed", proposed: 1, rejected: [], spotted: [], placed: ["stats@2:pause"] });
+  const none = await addSchemasToContent(JSON.stringify({ slides: DENSE }), { isMix: false, usage: {}, allowed: true, call: denseCall, maxSlides: 0 });
+  assertEquals(JSON.parse(none.content).schema_formatting.rejected, ["stats@2:place"]);
+});
