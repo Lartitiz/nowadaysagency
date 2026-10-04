@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic, AnthropicError, OPUS_MODEL, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, AnthropicError, OPUS_MODEL, type AnthropicModel, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
@@ -10,6 +10,25 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { buildPptxInvariants, formatInvariantsForPrompt, NEUTRAL_DEFAULT_PALETTE } from "../_shared/pptx-invariants.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { finalizePinHtml, normalizePinData, reportPinDataMismatch } from "../_shared/pinterest-pin-guards.ts";
+import {
+  addUsage,
+  applyDesignEmojis,
+  buildFallbackPinHtml,
+  designWithTextFidelity,
+  pinDataTextSpec,
+  PIN_REQUEST_BUDGET_MS,
+  PIN_WRITE_TIMEOUT_MS,
+  stripWriterDesignFields,
+} from "../_shared/pinterest-two-step.ts";
+
+/**
+ * Modèles des deux appels. Rédaction = modèle d'avant (Opus). Mise en forme =
+ * Opus aussi : c'est lui qui dessinait ces épingles, et le style doit rester
+ * le même ; un modèle plus rapide (Sonnet) changerait le rendu sans qu'on ait
+ * pu le comparer sur de vraies épingles.
+ */
+export const PIN_WRITE_MODEL: AnthropicModel = OPUS_MODEL;
+export const PIN_DESIGN_MODEL: AnthropicModel = OPUS_MODEL;
 
 // Handler exporté pour les tests (index_test.ts) : `serve()` de std/http ouvre
 // un vrai socket au chargement, d'où le guard `import.meta.main` en bas de
@@ -17,6 +36,7 @@ import { finalizePinHtml, normalizePinData, reportPinDataMismatch } from "../_sh
 export async function handlePinterestVisualRequest(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const tStart = Date.now();
 
   try {
     const authHeader = req.headers.get("authorization");
@@ -122,7 +142,184 @@ export async function handlePinterestVisualRequest(req: Request): Promise<Respon
     const invariants = buildPptxInvariants({ charter, brandProfile });
     const invariantsBlock = formatInvariantsForPrompt(invariants);
 
-    const systemPrompt = `Tu es une directrice artistique ET experte SEO Pinterest. Tu génères un visuel HTML/CSS inline pour une épingle Pinterest au format 1000×1500px, PLUS le titre et la description SEO.
+    // ═══ DEUX APPELS (chantier « séparation écriture / design », 04/10/2026) ═══
+    // Appel 1 « rédaction » : UNIQUEMENT le texte (pin_data + titre/description
+    // SEO). Appel 2 « mise en forme » : le HTML, à partir du texte FINAL, sans
+    // droit d'y toucher ; validé par le code (_shared/pinterest-two-step.ts).
+    // Les règles d'écriture et le système de design sont ceux du prompt unique
+    // d'avant, répartis entre les deux appels.
+    const writeSystemPrompt = `Tu es une directrice artistique ET experte SEO Pinterest. Tu rédiges le TEXTE d'une épingle Pinterest visuelle au format 1000×1500px (les textes affichés sur le visuel, en version structurée), PLUS le titre et la description SEO.
+
+La mise en forme visuelle (disposition, couleurs, polices, icônes) est faite dans une étape séparée qui reprendra tes textes mot pour mot : écris exactement le texte à afficher, rien d'autre.
+${reqBody.reference_image_base64 ? `
+═══ IMAGE DE RÉFÉRENCE ═══
+Une image d'épingle Pinterest est fournie comme inspiration.
+ANALYSE sa structure (hiérarchie, nombre de blocs, densité) : ton texte suit cette structure (même nombre de blocs, même densité de texte), avec le nouveau contenu (sujet fourni).
+Tu ne copies PAS le contenu de la référence.
+` : ""}
+═══ TYPES D'ÉPINGLES (contenu à rédiger) ═══
+
+Si pin_type = "infographie" :
+- Titre en haut
+- 3-6 étapes
+- Chaque étape = numéro + titre court + 1 ligne de description
+- Watermark discret en bas
+
+Si pin_type = "checklist" :
+- Badge "CHECKLIST" en haut
+- Titre principal sous le badge
+- Liste de 5-8 items
+- Chaque item = texte court (max 8 mots)
+- CTA discret en bas ("Enregistre pour ne rien oublier")
+
+Si pin_type = "mini_tuto" :
+- Badge "TUTO" en haut
+- Titre principal
+- 3 à 5 étapes numérotées
+- Chaque étape = numéro + titre court + 1-2 lignes d'explication
+
+Si pin_type = "avant_apres" :
+- Deux zones : AVANT et APRÈS
+- 3-5 points de comparaison de chaque côté
+
+Si pin_type = "schema_visuel" :
+- Titre en haut
+- Élément central relié à 3-6 éléments périphériques
+- Chaque élément = texte court
+- Peut être : mind map, diagramme en étoile, flow chart, équation visuelle
+
+═══ TITRE SEO PINTEREST ═══
+- Max 100 caractères
+- Mot-clé principal dans les 3 premiers mots
+- Descriptif et utile, PAS clickbait
+- Penser : qu'est-ce que la cible taperait dans Pinterest ?
+
+═══ DESCRIPTION SEO ═══
+- 100-200 mots, 2-3 paragraphes
+- Intégrer mots-clés naturellement
+- Décrire ce que la personne va trouver
+- CTA doux en fin ("Enregistre pour plus tard", "Découvre le guide complet")
+- PAS de hashtags
+- Écriture inclusive point médian
+
+Tu réponds via l'outil save_pinterest_text (le schéma de l'outil est le contrat de sortie).
+
+RÈGLES pour pin_data.elements :
+- Pour "infographie" et "mini_tuto" : chaque élément a number, label, description
+- Pour "checklist" : chaque élément a label (le texte de l'item), number pour l'ordre
+- Pour "avant_apres" : chaque élément a label, side ("before" ou "after")
+- Pour "schema_visuel" : le premier élément (number=0) est l'élément central, les suivants sont périphériques`;
+
+    const writeUserPrompt = `Rédige le texte d'une épingle Pinterest visuelle pour le sujet suivant.
+
+SUJET : ${subject}
+TYPE D'ÉPINGLE : ${pin_type}
+${pinterest_link ? `LIEN DE DESTINATION : ${pinterest_link}` : ""}
+${pinterest_board ? `TABLEAU : ${pinterest_board}` : ""}
+
+CONTEXTE BRANDING DE L'UTILISATRICE :
+${contextText}
+
+Réponds en appelant l'outil save_pinterest_text.`;
+
+    // Sortie structurée par tool forcé (leçon audit formats : le schéma DEVIENT le
+    // contrat) : troncature → erreur 422 propre AVANT logUsage.
+    const TEXT_TOOL: AnthropicTool = {
+      name: "save_pinterest_text",
+      description: "Enregistre le texte de l'épingle Pinterest (textes affichés en version structurée + SEO)",
+      input_schema: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Titre SEO Pinterest, max 100 caractères" },
+          description: { type: "string", description: "Description SEO 100-200 mots, 2-3 paragraphes" },
+          pin_data: {
+            type: "object",
+            description: "Textes affichés sur le visuel, en version structurée (source unique des exports PNG et PPTX)",
+            properties: {
+              pin_type: {
+                type: "string",
+                enum: ["infographie", "checklist", "mini_tuto", "avant_apres", "schema_visuel"],
+              },
+              main_title: { type: "string", description: "Le titre affiché sur le visuel" },
+              badge_label: { type: "string", description: "TUTO, CHECKLIST, INFOGRAPHIE, AVANT / APRÈS…" },
+              elements: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    number: { type: "number" },
+                    label: { type: "string", description: "Titre court de l'élément" },
+                    description: { type: "string", description: "Description en 1-2 lignes" },
+                    side: { type: "string", enum: ["before", "after"] },
+                  },
+                  required: ["label"],
+                },
+              },
+              cta_text: { type: "string", description: "Texte du CTA en bas si applicable" },
+              watermark: { type: "string", description: "Watermark en bas (nom du projet)" },
+            },
+            required: ["pin_type", "main_title", "elements"],
+          },
+        },
+        required: ["title", "description", "pin_data"],
+      },
+    };
+
+    const hasReference = !!reqBody.reference_image_base64;
+    const rawBase64 = hasReference
+      ? reqBody.reference_image_base64.replace(/^data:image\/[a-z]+;base64,/, "")
+      : "";
+    // deno-lint-ignore no-explicit-any
+    const withReference = (text: string): any[] => hasReference
+      ? [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: "image/jpeg", data: rawBase64 } },
+            { type: "text", text: `Voici l'épingle Pinterest de référence. Inspire-toi de sa structure.\n\n${text}` },
+          ],
+        }]
+      : [{ role: "user", content: text }];
+
+    const usage: UsageSink = {};
+
+    // ── Appel 1 : rédaction ──
+    const tWrite = Date.now();
+    const writeUsage: UsageSink = {};
+    const rawText = await callAnthropic({
+      model: PIN_WRITE_MODEL,
+      system: writeSystemPrompt,
+      messages: withReference(writeUserPrompt),
+      temperature: 0.5,
+      max_tokens: 4096,
+      abortTimeoutMs: PIN_WRITE_TIMEOUT_MS,
+      maxRetries: 1,
+      tool: TEXT_TOOL,
+    }, writeUsage);
+    addUsage(usage, writeUsage);
+    const writeMs = Date.now() - tWrite;
+
+    // deno-lint-ignore no-explicit-any
+    let written: any;
+    try {
+      written = JSON.parse(rawText);
+    } catch {
+      console.error("Failed to parse pinterest-visual text tool input:", rawText.slice(0, 500));
+      throw new AnthropicError("L'IA n'a pas retourné un format valide. Réessaie.", 502);
+    }
+    if (!written?.pin_data || typeof written.pin_data !== "object" || typeof written.pin_data.main_title !== "string") {
+      throw new AnthropicError("L'IA n'a pas retourné un format valide. Réessaie.", 502);
+    }
+
+    // Structure complétée par le code (badge_label, pin_type) AVANT la mise en
+    // forme, pour que l'appel 2 reçoive le texte définitif. L'emoji est un
+    // choix de design : retiré s'il arrive de la rédaction.
+    const norm = normalizePinData(stripWriterDesignFields(written.pin_data), pin_type);
+    if (norm.fixes.length) console.warn(`pinterest-visual: pin_data complété par le code — ${norm.fixes.join(", ")}`);
+    let pinData = norm.pinData;
+    const textSpec = pinDataTextSpec(pinData);
+
+    // ── Appel 2 : mise en forme (même système de design qu'avant) ──
+    const designSystemPrompt = `Tu es une directrice artistique. Tu génères un visuel HTML/CSS inline pour une épingle Pinterest au format 1000×1500px, à partir de TEXTES DÉJÀ RÉDIGÉS ET VALIDÉS (bloc TEXTES À AFFICHER).
 
 Tu dois produire un visuel qui ressemble à du design professionnel fait sur Figma ou Canva Pro, PAS à du texte centré sur un fond de couleur. Inspire-toi du design system des carrousels Instagram de l'app.
 
@@ -182,10 +379,10 @@ ${ch.visual_donts ? `\n⛔ INTERDITS VISUELS :\n${ch.visual_donts}` : ""}${ch.ai
 
 
 ═══ IMAGE DE RÉFÉRENCE ═══
-${reqBody.reference_image_base64 ? `Une image d'épingle Pinterest est fournie comme inspiration.
+${hasReference ? `Une image d'épingle Pinterest est fournie comme inspiration.
 ANALYSE sa structure (disposition des éléments, hiérarchie, nombre de blocs, densité).
 REPRODUIS cette structure et ce layout, mais avec :
-- Le nouveau contenu (sujet fourni)
+- Le nouveau contenu (textes fournis)
 - La charte graphique de l'utilisatrice (couleurs, polices)
 - Le design system Nowadays (badges pilules, cartes blanches, etc.)
 Tu ne copies PAS le contenu ni les couleurs de la référence. Tu copies sa STRUCTURE et son LAYOUT.
@@ -241,41 +438,40 @@ Si pin_type = "schema_visuel" :
 - Marges latérales : min 40px
 - Une épingle se lit dans un feed mobile à ~200px de large : tout texte sous ces minima est ILLISIBLE. En cas de doute, plus grand.
 
-═══ TITRE SEO PINTEREST ═══
-- Max 100 caractères
-- Mot-clé principal dans les 3 premiers mots
-- Descriptif et utile, PAS clickbait
-- Penser : qu'est-ce que la cible taperait dans Pinterest ?
-
-═══ DESCRIPTION SEO ═══
-- 100-200 mots, 2-3 paragraphes
-- Intégrer mots-clés naturellement
-- Décrire ce que la personne va trouver
-- CTA doux en fin ("Enregistre pour plus tard", "Découvre le guide complet")
-- PAS de hashtags
-- Écriture inclusive point médian
-
 ${invariantsBlock}
 
-Tu réponds via l'outil save_pinterest_pin (le schéma de l'outil est le contrat de sortie).
+═══ TEXTES : FIDÉLITÉ ABSOLUE ═══
+Les textes de l'épingle sont DÉJÀ rédigés et validés. Tu ne fais QUE la mise en forme.
+- Affiche CHAQUE texte fourni, en entier et mot pour mot : badge_label, main_title, chaque label, chaque description, cta_text (et watermark s'il est fourni).
+- Tu n'as PAS le droit de réécrire, reformuler, raccourcir, traduire, ajouter ou retirer un seul mot.
+- N'ajoute AUCUN autre texte visible (pas de « Étape », « Astuce », « VS », sous-titre, slogan, hashtag, lien). Seuls ajouts permis : les numéros des éléments en chiffres, des emojis et des symboles (flèches, coches).
+- Les libellés cités en exemple dans les types d'épingles (« CHECKLIST », « TUTO », CTA d'exemple) sont remplacés par les textes fournis. Seule exception : les tags « AVANT » et « APRÈS » d'une épingle avant_apres.
+- Les quantités des types d'épingles décrivent le contenu déjà rédigé : garde exactement les éléments fournis, dans l'ordre fourni.
 
-RÈGLES pour pin_data.elements :
-- Pour "infographie" et "mini_tuto" : chaque élément a number, label, description, emoji optionnel
-- Pour "checklist" : chaque élément a label (le texte de l'item), number pour l'ordre
-- Pour "avant_apres" : chaque élément a label, side ("before" ou "after"), emoji optionnel (❌ pour before, ✅ pour after)
-- Pour "schema_visuel" : le premier élément (number=0) est l'élément central, les suivants sont périphériques
+Tu réponds via l'outil save_pinterest_design (le schéma de l'outil est le contrat de sortie).
 
-Le pin_data DOIT être cohérent avec le pin_html (mêmes textes, même structure). C'est une version structurée du même contenu.`;
+RÈGLES pour element_emojis (un par élément, dans l'ordre des éléments, chaîne vide si aucun) :
+- Pour "infographie" et "mini_tuto" : emoji optionnel
+- Pour "avant_apres" : emoji optionnel (❌ pour before, ✅ pour after)
+- Ce sont les emojis affichés dans pin_html.`;
 
-    const userPrompt = `Génère une épingle Pinterest visuelle pour le sujet suivant.
+    const designTexts = {
+      badge_label: pinData.badge_label,
+      main_title: pinData.main_title,
+      // deno-lint-ignore no-explicit-any
+      elements: (Array.isArray(pinData.elements) ? pinData.elements : []).map((el: any) => ({
+        ...(typeof el?.number === "number" ? { number: el.number } : {}),
+        label: el?.label,
+        ...(typeof el?.description === "string" && el.description ? { description: el.description } : {}),
+        ...(el?.side === "before" || el?.side === "after" ? { side: el.side } : {}),
+      })),
+      ...(typeof pinData.cta_text === "string" && pinData.cta_text ? { cta_text: pinData.cta_text } : {}),
+      ...(typeof pinData.watermark === "string" && pinData.watermark ? { watermark: pinData.watermark } : {}),
+    };
 
-SUJET : ${subject}
+    const designUserPrompt = `Mets en forme l'épingle Pinterest suivante.
+
 TYPE D'ÉPINGLE : ${pin_type}
-${pinterest_link ? `LIEN DE DESTINATION : ${pinterest_link}` : ""}
-${pinterest_board ? `TABLEAU : ${pinterest_board}` : ""}
-
-CONTEXTE BRANDING DE L'UTILISATRICE :
-${contextText}
 
 CHARTE GRAPHIQUE :
 - Couleur principale : ${ch.color_primary}
@@ -287,129 +483,87 @@ CHARTE GRAPHIQUE :
 - Police corps : ${ch.font_body}
 - Ambiance : ${ch.mood_keywords}
 
-Réponds en appelant l'outil save_pinterest_pin.`;
+TEXTES À AFFICHER (définitifs, à reprendre mot pour mot) :
+${JSON.stringify(designTexts, null, 2)}
 
-    // Sortie structurée par tool forcé (leçon audit formats : le schéma DEVIENT le
-    // contrat). Élimine le JSON tronqué/illisible qui faisait perdre le visuel
-    // (1 crédit facturé pour un résultat partiel) : troncature → erreur 422 propre
-    // AVANT logUsage, et l'input du tool est du JSON valide par construction.
-    const PIN_TOOL: AnthropicTool = {
-      name: "save_pinterest_pin",
-      description: "Enregistre l'épingle Pinterest générée (visuel HTML + SEO + version structurée)",
+Réponds en appelant l'outil save_pinterest_design.`;
+
+    const DESIGN_TOOL: AnthropicTool = {
+      name: "save_pinterest_design",
+      description: "Enregistre la mise en forme de l'épingle Pinterest (visuel HTML des textes fournis)",
       input_schema: {
         type: "object",
         properties: {
           pin_html: {
             type: "string",
             description:
-              "HTML complet et autonome du visuel 1000×1500px, CSS 100% inline, commençant par <style>@import Google Fonts</style>",
+              "HTML complet et autonome du visuel 1000×1500px, CSS 100% inline, commençant par <style>@import Google Fonts</style>, affichant les textes fournis mot pour mot",
           },
-          title: { type: "string", description: "Titre SEO Pinterest, max 100 caractères" },
-          description: { type: "string", description: "Description SEO 100-200 mots, 2-3 paragraphes" },
-          pin_data: {
-            type: "object",
-            description:
-              "Version structurée du MÊME contenu que pin_html (mêmes textes, même structure) — sert à l'export PPTX éditable",
-            properties: {
-              pin_type: {
-                type: "string",
-                enum: ["infographie", "checklist", "mini_tuto", "avant_apres", "schema_visuel"],
-              },
-              main_title: { type: "string", description: "Le titre affiché sur le visuel" },
-              badge_label: { type: "string", description: "TUTO, CHECKLIST, INFOGRAPHIE, AVANT / APRÈS…" },
-              elements: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    number: { type: "number" },
-                    label: { type: "string", description: "Titre court de l'élément" },
-                    description: { type: "string", description: "Description en 1-2 lignes" },
-                    emoji: { type: "string" },
-                    side: { type: "string", enum: ["before", "after"] },
-                  },
-                  required: ["label"],
-                },
-              },
-              cta_text: { type: "string", description: "Texte du CTA en bas si applicable" },
-              watermark: { type: "string", description: "Watermark en bas (nom du projet)" },
-            },
-            required: ["pin_type", "main_title", "elements"],
+          element_emojis: {
+            type: "array",
+            items: { type: "string" },
+            description: "Emoji affiché pour chaque élément, dans l'ordre (chaîne vide si aucun)",
           },
         },
-        required: ["pin_html", "title", "description", "pin_data"],
+        required: ["pin_html"],
       },
     };
 
-    const model = OPUS_MODEL;
-    const hasReference = !!reqBody.reference_image_base64;
+    const design = await designWithTextFidelity<unknown>({
+      source: "pinterest-visual",
+      pinType: pin_type,
+      spec: textSpec,
+      deadline: tStart + PIN_REQUEST_BUDGET_MS,
+      writeMs,
+      callDesign: async (gapNote, timeoutMs) => {
+        const designUsage: UsageSink = {};
+        try {
+          // max_tokens 16384 (comme l'appel unique d'avant) : un pin_html dense
+          // reste sous le plafond ; au-delà, 422 « génération coupée » → repli.
+          const raw = await callAnthropic({
+            model: PIN_DESIGN_MODEL,
+            system: designSystemPrompt,
+            messages: withReference(gapNote ? `${designUserPrompt}\n\n${gapNote}` : designUserPrompt),
+            temperature: 0.5,
+            max_tokens: 16384,
+            abortTimeoutMs: timeoutMs,
+            maxRetries: 0,
+            tool: DESIGN_TOOL,
+          }, designUsage);
+          const parsed = JSON.parse(raw);
+          return { html: parsed?.pin_html, extra: parsed?.element_emojis };
+        } finally {
+          addUsage(usage, designUsage);
+        }
+      },
+      // Gardes déterministes (_shared/pinterest-pin-guards.ts) : @import →
+      // <link>, contraste texte/fond, plancher GLOBAL de 20px (décoratifs
+      // aria-hidden / opacity < 0.7 comme le watermark exemptés).
+      finalize: (html) => {
+        const fin = finalizePinHtml(html, { title: ch.font_title, body: ch.font_body }, 20);
+        if (fin.contrastFixes > 0 || fin.fontFixes > 0) {
+          console.warn(`pinterest-visual: gardes déterministes — ${fin.contrastFixes} contraste, ${fin.fontFixes} font-size sous plancher`);
+        }
+        return fin.html;
+      },
+      fallback: () => buildFallbackPinHtml(pinData, ch),
+    });
 
-    let messages: any[];
-    if (hasReference) {
-      const rawBase64 = reqBody.reference_image_base64.replace(/^data:image\/[a-z]+;base64,/, "");
-      messages = [{
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: { type: "base64", media_type: "image/jpeg", data: rawBase64 }
-          },
-          {
-            type: "text",
-            text: `Voici l'épingle Pinterest de référence. Inspire-toi de sa structure.\n\n${userPrompt}`
-          }
-        ]
-      }];
-    } else {
-      messages = [{ role: "user", content: userPrompt }];
-    }
+    // Emojis choisis par la mise en forme ET affichés → reportés dans pin_data
+    // (le PPTX éditable montre les mêmes que le PNG).
+    if (design.outcome !== "fallback") pinData = applyDesignEmojis(pinData, design.extra, design.html);
 
-    const usage: UsageSink = {};
-    // max_tokens 8192 → 16384 : un pin_html dense + pin_data dépassait le plafond
-    // (JSON amputé). 16K reste sûr sans streaming ; au-delà, callAnthropic lève
-    // désormais une 422 « génération coupée » au lieu de renvoyer un JSON tronqué.
-    const rawResponse = await callAnthropic({
-      model,
-      system: systemPrompt,
-      messages,
-      temperature: 0.5,
-      max_tokens: 16384,
-      abortTimeoutMs: 120_000,
-      tool: PIN_TOOL,
-    }, usage);
-
-    // Tool forcé : rawResponse = JSON.stringify(input) → valide par construction.
-    let result: any;
-    try {
-      result = JSON.parse(rawResponse);
-    } catch {
-      console.error("Failed to parse pinterest-visual tool input:", rawResponse.slice(0, 500));
-      throw new AnthropicError("L'IA n'a pas retourné un format valide. Réessaie.", 502);
-    }
-
-    // Post-traitement (_shared/pinterest-pin-guards.ts) : @import → <link>,
-    // puis gardes DÉTERMINISTES (mêmes parades que carousel-visual) : contraste
-    // texte/fond et plancher GLOBAL de taille 20px — le HTML d'épingle n'a pas
-    // de rôles data-pptx-editable, on borne donc tout texte inline (les
-    // décoratifs aria-hidden / opacity < 0.7 comme le watermark sont exemptés).
-    if (result?.pin_html) {
-      const fin = finalizePinHtml(result.pin_html, { title: ch.font_title, body: ch.font_body }, 20);
-      if (fin.contrastFixes > 0 || fin.fontFixes > 0) {
-        console.warn(`pinterest-visual: gardes déterministes — ${fin.contrastFixes} contraste, ${fin.fontFixes} font-size sous plancher`);
-      }
-      result.pin_html = fin.html;
-    }
-
-    // pin_data (export PPTX éditable) : structure complétée par le code quand
-    // l'IA l'a laissée vide (badge_label, pin_type) — aucun texte réécrit —,
-    // puis mesure de cohérence avec le HTML (export PNG) : on journalise,
-    // on ne bloque pas.
-    if (result?.pin_data) {
-      const norm = normalizePinData(result.pin_data, pin_type);
-      if (norm.fixes.length) console.warn(`pinterest-visual: pin_data complété par le code — ${norm.fixes.join(", ")}`);
-      result.pin_data = norm.pinData;
-      if (result.pin_html) reportPinDataMismatch(result.pin_data, result.pin_html, "pinterest-visual");
-    }
+    // deno-lint-ignore no-explicit-any
+    const result: any = {
+      pin_html: design.html,
+      title: written.title,
+      description: written.description,
+      pin_data: pinData,
+      design_source: design.outcome === "fallback" ? "fallback" : "ai",
+    };
+    // Filet de mesure historique (ne doit plus jamais se déclencher : le HTML
+    // vient d'être validé contre pin_data).
+    reportPinDataMismatch(result.pin_data, result.pin_html, "pinterest-visual");
 
     // Invariants : toujours les valeurs SERVEUR (déterministe). On ne les demande
     // plus au modèle — personne ne lisait sa version côté front, et ça allégeait
