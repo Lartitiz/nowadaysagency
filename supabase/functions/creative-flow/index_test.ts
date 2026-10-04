@@ -39,7 +39,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { retiredCarouselStreamResponse, runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent, applyStoriesCorrectionPass, applyNewsletterCorrectionPass } = await import("./index.ts");
+const { retiredCarouselStreamResponse, runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent, applyStoriesCorrectionPass, applyNewsletterCorrectionPass, applyLinkedInCorrectionPass } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -492,6 +492,72 @@ Deno.test("circuit carrousel stream retiré : 410 explicite, aucun appel IA", as
     assertEquals(/carousel-ai/.test(json.message), true);
     assertEquals(mock.anthropicCallCount, 0);
     assertEquals(mock.aiUsageInserts.length, 0);
+  } finally {
+    mock.restore();
+  }
+});
+
+// ═══ Post LinkedIn newsjacking : les chiffres sourcés de la recherche web ═══
+// La recherche était ajoutée au prompt, mais absente de la liste blanche de la
+// correction : un chiffre sourcé repris tel quel était retiré comme « sans source ».
+const LI_RESEARCH_POST = "Je le dis sans détour : 62 % des indépendantes interrogées (Ifop, 2025) disent repousser leurs posts par peur du jugement. Ce chiffre m'énerve, parce qu'il dit une norme sociale bien plus qu'un manque de courage individuel.";
+
+Deno.test("LinkedIn + recherche : un chiffre sourcé par la recherche web n'est pas signalé comme sans source", async () => {
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: LI_RESEARCH_POST }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10 } } },
+  ]);
+  try {
+    const parsed = { content: LI_RESEARCH_POST };
+    await applyLinkedInCorrectionPass(parsed, {
+      body: { context: "La visibilité des indépendantes sur LinkedIn", answers: null, news_context: "" },
+      fullContext: "",
+      researchText: "--- RECHERCHE WEB ---\n62 % des indépendantes repoussent leurs posts (Ifop, 2025).",
+    });
+    assertEquals(capturedBodies.some((b) => JSON.stringify(b).includes("CHIFFRES SANS SOURCE")), false);
+    assertEquals(parsed.content.includes("62 %"), true);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("LinkedIn sans recherche : le même chiffre reste signalé comme sans source", async () => {
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: LI_RESEARCH_POST }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10 } } },
+  ]);
+  try {
+    await applyLinkedInCorrectionPass({ content: LI_RESEARCH_POST }, {
+      body: { context: "La visibilité des indépendantes sur LinkedIn", answers: null, news_context: "" },
+      fullContext: "",
+    });
+    assertEquals(capturedBodies.some((b) => JSON.stringify(b).includes("CHIFFRES SANS SOURCE")), true);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("recherche web : chaque chiffre repris garde sa source", async () => {
+  const mock = installFetchMock({
+    anthropic: () => ({ status: 200, body: { content: [{ type: "text", text: "62 % (Ifop, 2025)." }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } } }),
+  });
+  try {
+    const addendum = await runDeepResearchWebSearch(BASE_PARAMS);
+    assertEquals(addendum.includes("Ne cite pas les sources"), false);
+    assertEquals(addendum.includes("reste attaché à sa source"), true);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("runLinkedInTwoStep : la relecture garde la prise de position et n'ajoute ni précaution ni devoir", async () => {
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify({ content: "Je trouve qu'on confond visibilité et exposition." }) }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } } },
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify({ content: "Je trouve qu'on confond visibilité et exposition." }) }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } } },
+  ]);
+  try {
+    await runLinkedInTwoStep(LINKEDIN_BASE_PARAMS);
+    const system = JSON.stringify(capturedBodies[1].system);
+    assertEquals(system.includes("Garde la prise de position assumée"), true);
+    assertEquals(system.includes("ni devoir final"), true);
   } finally {
     mock.restore();
   }

@@ -1358,8 +1358,11 @@ function normalizeHooksResponse(parsed: any, params: { body: any; rawContent: st
 // En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
 // (vision déjà coûteuse en wall-time). Les règles anti-broetry sont déjà
 // injectées AVANT les images dans le prompt photo LinkedIn (lignes 1272+).
-async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<void> {
+export async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[]; researchText?: string }): Promise<void> {
   const { body, fullContext, brandGuardText } = params;
+  // Recherche web (newsjacking) : ses chiffres sourcés sont des faits fournis.
+  // Hors liste blanche, la correction les retirait comme « chiffres sans source ».
+  const researchText = params.researchText || "";
   try {
     // Gate rédactionnel (lots 3+4) : mesures en code injectées dans la
     // passe de correction existante — retournements (1 max), formules
@@ -1369,6 +1372,7 @@ async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; ful
       body.answers ? JSON.stringify(body.answers) : "",
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
+      researchText,
     ].join("\n"));
     // runTextRedacGate = mesure → correction → RE-mesure → garde anti-régression
     // (la correction n'est gardée que si elle ne dégrade aucun compteur mesuré,
@@ -1378,7 +1382,7 @@ async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; ful
       correction: {
         logger: (msg) => console.log(msg),
         authoredText: authoredContentSource(body),
-        sourceContext: [authoredContentSource(body), fullContext].filter(Boolean).join("\n"),
+        sourceContext: [authoredContentSource(body), fullContext, researchText].filter(Boolean).join("\n"),
         // Édition mécanique à règles fermées → Haiku (cf. #364)
         model: "claude-haiku-4-5",
         abortTimeoutMs: CORRECTION_ABORT_MS,
@@ -1798,7 +1802,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
   await logUsage(userId, "deep_research", "web_search", webSearchTokens || undefined, searchModel, workspaceId);
 
   if (!researchResult.trim()) return "";
-  return `\n\n--- RECHERCHE WEB ---\n${researchResult}\n--- FIN RECHERCHE ---\n\nUtilise ces données pour enrichir le contenu avec des faits concrets, des chiffres, des exemples récents. Ne cite pas les sources directement mais intègre les infos naturellement.`;
+  return `\n\n--- RECHERCHE WEB ---\n${researchResult}\n--- FIN RECHERCHE ---\n\nUtilise ces données pour étayer la position du contenu avec des faits concrets, des chiffres, des exemples récents, intégrés naturellement. Tout chiffre repris reste attaché à sa source (mention discrète : nom, année) ; jamais de chiffre sans source.`;
 }
 
 // ── LinkedIn + photos : streaming vision (évite la coupure de socket
@@ -2031,6 +2035,7 @@ Lis le post à voix haute mentalement. Identifie les passages répétitifs, arti
 ══ RÈGLES ABSOLUES ══
 
 - Garde le SENS et la CONVICTION du post. Tu corriges la FORME, pas le FOND.
+- Garde la prise de position assumée et les émotions courantes nommées. N'ajoute ni précaution (« sans garantie », « je n'affirme rien »), ni devoir final adressé au lecteur.
 - N'invente pas de nouveaux faits. Garde les détails concrets de l'original.
 - La longueur du post corrigé suit la matière réellement disponible ; aucun remplissage.
 - JAMAIS de tiret cadratin (—). Utilise : ou ; ou des virgules.
@@ -2855,6 +2860,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 
 
     // ── Deep Research (web search via Anthropic) ──
+    let researchAddendum = "";
     if (deepResearch && step === "generate") {
       // Check deep_research quota
       const drQuota = await checkQuota(userId, "deep_research", workspace_id);
@@ -2862,7 +2868,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
         return quotaDeniedResponse(drQuota, corsHeaders);
       }
 
-      systemPrompt += await runDeepResearchWebSearch({
+      researchAddendum = await runDeepResearchWebSearch({
         userId,
         workspaceId: workspace_id,
         calendarContext,
@@ -2874,6 +2880,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
         editorialFormatLabel,
         angle,
       });
+      systemPrompt += researchAddendum;
     }
 
     // Accroches déjà écrites par cette utilisatrice sur CE sujet — garde
@@ -3024,7 +3031,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       typeof parsed.content === "string" &&
       parsed.content.length >= 200
     ) {
-      await applyLinkedInCorrectionPass(parsed, { body, fullContext, brandGuardText, echoSubject, previousHooks });
+      await applyLinkedInCorrectionPass(parsed, { body, fullContext, brandGuardText, echoSubject, previousHooks, researchText: researchAddendum });
     }
 
     if (isNewsletter && step === "generate" && parsed && typeof parsed === "object") {

@@ -760,9 +760,10 @@ PATTERN 6, LE VOCABULAIRE GÉNÉRIQUE : évite "ça a tout changé", "game chang
    - Des détails concrets établis par les sources, quand ils éclairent le propos. Un paragraphe peut aussi expliquer ou nuancer sans ajouter une anecdote.
    - Oralité fidèle à la personne ; aparté ou autocorrection seulement si utile, sans obligation.
    - Transitions naturelles, variées d'un post à l'autre : ne réutilise pas systématiquement la même cheville de transition.
+   - PRENDS POSITION : dis ce que l'auteur·ice défend, ce qui l'étonne ou ce qui la dérange sur ce sujet, en première personne, sans « chacun son avis » ni précaution sur ce que le texte n'affirme pas. Une opinion n'a pas besoin de source ; un fait, un chiffre ou un vécu, si.
 
 3. FIN :
-   - Question PRÉCISE et SPÉCIFIQUE liée au sujet concret du post, ou rien du tout.
+   - La position assumée, ou une question PRÉCISE et SIMPLE liée au sujet concret du post, à laquelle on peut répondre en commentaire. Jamais un devoir adressé au lecteur (« il faut », « à vous de »).
    - JAMAIS "Et toi/vous, qu'en penses-tu/pensez-vous ?" ni variante large existentielle
    - La dernière phrase apporte du NOUVEAU ou laisse une tension ouverte.
 
@@ -795,7 +796,7 @@ export const LINKEDIN_STORYTELLING_RULES = `
 - Identifie d'abord ce que l'auteur·ice veut raconter et pourquoi : un moment vécu, une pensée, une façon de travailler, une émotion, une décision. Une annonce ou un conseil peut rester une annonce ou un conseil ; ne transforme pas chaque sujet en récit.
 - Si un vécu est fourni, cherche une entrée dans un lieu et une action réels. Respecte la personne grammaticale de la marque : au « je » seulement si elle s'exprime ainsi. Suis ce qu'elle a fait, pensé ou ressenti, puis ce qui a changé dans sa compréhension. Privilégie son vocabulaire, même s'il est moins « professionnel ».
 - Pour préparer le récit, tu peux examiner : zone d'inconfort, événement déclencheur, difficulté, imprévu, choix, déclic, suite. Garde seulement les étapes réellement présentes et utiles. Une séance de travail heureuse n'a pas besoin de crise, de climax ou de transformation spectaculaire.
-- Lieu, action, pensées, sensations, émotion et dialogue enrichissent le texte seulement s'ils sont fournis. Ne crée ni citation, ni trac, ni durée de préparation, ni résultat observé, ni scène supplémentaire. Si une information manque, écris avec ce qui est connu ; ne laisse pas de crochet ou de question de brief dans le post publiable.
+- Le lieu, les actions, pensées, sensations, émotions et dialogues VÉCUS par l’auteur·ice enrichissent le récit seulement s’ils sont fournis. Ne crée ni citation, ni trac, ni durée de préparation, ni résultat observé, ni scène supplémentaire. Si une information manque, écris avec ce qui est connu ; ne laisse pas de crochet ou de question de brief dans le post publiable.
 - Fais progresser chaque paragraphe : situation → geste ou choix → sens pour la personne. La réflexion professionnelle peut venir du vécu sans devenir une « leçon universelle ». Le récit peut se terminer sur ce que l'auteur·ice aime, cherche ou fera ensuite, sans CTA obligatoire.
 - Quand la personne fournit ses propres phrases, conserve celles qui sonnent juste. Le profil de voix et le sujet courant priment sur le template LinkedIn. Une prose parlée peut comporter une phrase courte, un aparté ou une hésitation si cela correspond à la voix.
 `;

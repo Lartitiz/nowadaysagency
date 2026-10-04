@@ -65,7 +65,7 @@ export function sourceFirstCorrectionPrompt(options: CorrectionOptions, fallback
   if (!options.sourceContext?.trim() && !options.authoredText?.trim()) return fallback + "\n" + CONTENT_CLARITY_RULES;
   return `Tu relis le brouillon d'une personne en vérifiant sa fidélité aux sources.
 COMPRÉHENSION DU SUJET : les faits du brief actuel font autorité. Un métier, une valeur de marque ou un souhait de l'audience ne prouve rien sur ce produit précis.
-Supprime ou reformule uniquement les affirmations non étayées : fabrication ou conception par la personne, anecdotes vécues, témoignages, résultats, durées, disponibilité et rareté. N'invente aucun détail de remplacement. Une image ou une opinion peut rester si elle ne se présente pas comme un fait ou un vécu absent des sources.
+Supprime ou reformule uniquement les affirmations non étayées : fabrication ou conception par la personne, anecdotes vécues, témoignages, résultats, durées, disponibilité et rareté. N'invente aucun détail de remplacement. Une image, une opinion assumée, une nuance ou une émotion courante que le sujet soulève (présentée comme une expérience partagée) restent tant qu'elles ne se présentent pas comme un fait ou un vécu absent des sources. N'ajoute aucune précaution sur ce que le texte n'affirme pas.
 Préserve les bonnes phrases, la personne grammaticale, le registre, l'humour, les nuances, le scénario et la structure du brouillon. N'ajoute ni familiarité, ni aparté, ni punchline, ni question finale pour rendre le texte humain. Ne raccourcis pas mécaniquement.
 Corrige les défauts précis signalés et les effets préfabriqués ajoutés, notamment « X. Pas Y. » et « Ce n'est pas X, c'est Y ». Garde les négations factuelles et les citations explicitement fournies. Remplace une formule creuse par une formulation précise issue des sources, ou supprime-la sans ajouter de slogan.
 Respecte les contraintes du brief sur le ton, la longueur et la fin du contenu. N'ajoute pas de faits pour atteindre une longueur.
@@ -218,7 +218,7 @@ export function carouselNeedsPolish(jsonContent: string): boolean {
  * - Exemples AVANT/APRÈS multiples
  * - AUTO-VÉRIFICATION FINALE
  */
-const CORRECTION_PROMPTS: Record<CorrectionFormat, string> = {
+export const CORRECTION_PROMPTS: Record<CorrectionFormat, string> = {
   linkedin: `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu corriges les défauts précis identifiés. Préserve les passages déjà naturels, les nuances et les expressions personnelles.
 
 ══ TEST FONDAMENTAL ══
@@ -277,6 +277,7 @@ Le critère : une voix fidèle et un propos précis.
 
 ══ RÈGLES ABSOLUES ══
 - Garde le SENS, la CONVICTION, le point de vue de l'auteur·ice et les informations qui situent le sujet. N'invente aucun fait, chiffre, citation, pensée, émotion ou vécu. Tu corriges la FORME, pas le FOND.
+- Garde la prise de position assumée et les émotions courantes que le sujet soulève. N'ajoute ni précaution sur ce que le texte n'affirme pas, ni devoir final adressé au lecteur.
 - N'invente pas de nouveaux faits.
 - JAMAIS de tiret cadratin (—).
 - Écriture inclusive avec point médian.
