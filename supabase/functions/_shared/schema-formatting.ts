@@ -220,6 +220,9 @@ export async function addSchemasToContent(content: string, opts: { isMix: boolea
       slides.splice(i + 1, 0, { slide_number: 0, role: "schema_pause", slide_type: slides[i].slide_type ?? "text_only", title: "", body: "", visual_schema: sc.visual_schema, schema_pause: true });
     }
     if (plan.schemas.some(sc => sc.own_slide)) slides.forEach((x, i) => { if (x && typeof x === "object") x.slide_number = i + 1; });
+    // Trace lisible dans le carrousel lui-même (les journaux ne sont pas
+    // toujours consultables) : statut, propositions et motifs de rejet.
+    parsed.schema_formatting = { status: plan.status, proposed: plan.proposed ?? 0, rejected: plan.rejected ?? [], spotted: plan.spotted ?? [], placed: plan.schemas.map(sc => `${sc.visual_schema.type}@${sc.slide_number}${sc.own_slide ? ":pause" : ""}`) };
     const after = progressionMaterial(parsed);
     if (after !== before) {
       if (freshText) parsed.progression_review = { ...parsed.progression_review, reviewed_material: after, reviewed_text_hash: await sha256(after), schemas_added_after_review: true };
