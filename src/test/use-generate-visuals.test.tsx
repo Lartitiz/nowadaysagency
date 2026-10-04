@@ -125,19 +125,21 @@ describe("useGenerateVisuals — appel manuel (avant-plan)", () => {
       carouselSubMode: "mix",
       onMixLayoutMemos,
       uploadedPhotos: [{ base64: "data:image/jpeg;base64,TEST", mimeType: "image/jpeg" }],
-      result: { raw: { carousel_type: "mix", slides: [
+      result: { raw: { carousel_type: "mix", mix_formatting_memo: { source: "mise_en_forme", fingerprint: "old" }, slides: [
         { slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: "Une ouverture.", mix_layout_memo: { ...memo, slide_type: "photo_full", layout: "sur_photo" } },
         { slide_number: 2, slide_type: "photo_integrated", photo_index: 1, title: "T", body: "B", mix_layout_memo: memo },
       ] } },
     });
     const memos = [null, memo];
-    mocks.invokeWithHeartbeat.mockResolvedValueOnce({ data: { result: { slides_html: [{ slide_number: 1, html: "<p>Une ouverture.</p>" }, { slide_number: 2, html: "<p>T B</p>" }], mix_layout_memos: memos } }, error: null });
+    mocks.invokeWithHeartbeat.mockResolvedValueOnce({ data: { result: { slides_html: [{ slide_number: 1, html: "<p>Une ouverture.</p>" }, { slide_number: 2, html: "<p>T B</p>" }], mix_layout_memos: memos, mix_formatting_memo: { fingerprint: "f" } } }, error: null });
     const { result } = renderHook(() => useGenerateVisuals(params));
     await act(() => result.current.handleGenerateVisuals());
     const sent = mocks.invokeWithHeartbeat.mock.calls[0][1].body.slides;
     expect(sent[0].mix_layout_memo.layout).toBe("sur_photo");
     expect(sent[1].mix_layout_memo).toEqual(memo);
-    expect(onMixLayoutMemos).toHaveBeenCalledWith(memos, undefined);
+    expect(onMixLayoutMemos).toHaveBeenCalledWith(memos, undefined, { fingerprint: "f" });
+    // La mise en forme gardée repart avec la demande de rendu.
+    expect(mocks.invokeWithHeartbeat.mock.calls[0][1].body.mix_formatting_memo).toEqual({ source: "mise_en_forme", fingerprint: "old" });
     // Pas de disposition par défaut inventée : l’edge choisit.
     expect(sent[1]).not.toHaveProperty("photo_layout");
   });

@@ -7,6 +7,7 @@ import {
   type MixLayoutProposal,
   type MixSlideSpec,
   mixSlideText,
+  nextIsPauseAt,
   PROPOSABLE_MIX_LAYOUTS,
   type ProposableMixLayout,
 } from "./mix-slide-layouts.ts";
@@ -198,11 +199,23 @@ export function applyMixLayouts<T extends MixSlideSpec>(slides: T[], plan: Pick<
 // sur le choix déterministe, qui est mémorisé à sa place.
 
 export const MIX_LAYOUT_MEMO_SOURCE = "mise_en_forme";
-export interface MixLayoutMemo extends MixLayoutProposal {
+export interface MixLayoutMemo extends Omit<MixLayoutProposal, "pinned"> {
   source: typeof MIX_LAYOUT_MEMO_SOURCE;
   photo_index: number;
   slide_type: string;
   version: string;
+  /** Voisinage et texte au moment du dessin : s'ils sont identiques, la
+   * disposition est reprise telle quelle. */
+  prev_layout?: string | null;
+  next_pause?: boolean;
+  text_key?: string;
+}
+
+/** Empreinte courte et stable d'un texte (FNV-1a). */
+export function textKey(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16).padStart(8, "0");
 }
 
 /** Mémoire encore valable pour cette slide (même photo, même type) ? */
@@ -214,14 +227,19 @@ export function validMixLayoutMemo(s: Slide): MixLayoutMemo | null {
   return m as MixLayoutMemo;
 }
 
-/** Reprend les dispositions mémorisées valables (champ mix_layout, revalidé à la composition). */
+/** Reprend les dispositions mémorisées valables (champ mix_layout). Texte
+ * inchangé → disposition « épinglée » à son voisinage d'alors (reprise telle
+ * quelle si ce voisinage se retrouve) ; texte modifié → simple proposition,
+ * soumise aux mêmes règles qu'une proposition de l'IA. */
 export function restoreMixLayoutMemos<T extends Slide>(slides: T[]): { slides: T[]; restored: number } {
   let restored = 0;
   const out = slides.map(s => {
     const m = validMixLayoutMemo(s);
     if (!m) return s;
     restored++;
-    return { ...s, mix_layout: { layout: m.layout, side: m.side ?? null, position: m.position ?? null } };
+    const sameText = !!m.text_key && m.text_key === textKey(mixSlideText(s as unknown as MixSlideSpec));
+    const pinned = sameText && "prev_layout" in m ? { prev: (m.prev_layout ?? null) as any, next_pause: !!m.next_pause } : null;
+    return { ...s, mix_layout: { layout: m.layout, side: m.side ?? null, position: m.position ?? null, pinned } };
   });
   return { slides: out, restored };
 }
@@ -247,6 +265,9 @@ export function mixLayoutMemos(slides: Slide[], composed: ComposedMixSlide[], pl
       photo_index: Number(s.photo_index),
       slide_type: String(s.slide_type || ""),
       version: MIX_LAYOUT_VERSION,
+      prev_layout: composed[i - 1]?.layout ?? null,
+      next_pause: nextIsPauseAt(slides as MixSlideSpec[], i),
+      text_key: textKey(mixSlideText(s as MixSlideSpec)),
     };
   });
 }
@@ -340,4 +361,37 @@ export async function layoutMixSlides<T extends Slide>(slides: T[], charter: Mix
   const memo = restoreMixLayoutMemos(numbered);
   const plan = await planMixLayouts(memo.slides, charter, photos, usage, call);
   return { slides: applyMixLayouts(memo.slides as any[], plan) as T[], plan, restored: memo.restored };
+}
+
+// ── Mémoire de la mise en forme (étapes, motifs) du mixte ─────────────────────
+// La mise en forme change la place disponible (en-tête d'étape, motif) : si
+// l'IA la redécidait à chaque rendu, les dispositions bougeraient avec elle.
+// Le plan validé est donc gardé sur le carrousel avec l'empreinte des textes
+// qu'il a lus, et repris tel quel tant que ces textes n'ont pas changé.
+
+export interface MixFormattingMemo {
+  source: typeof MIX_LAYOUT_MEMO_SOURCE;
+  version: string;
+  fingerprint: string;
+  steps: Array<{ slide_number: number; label: string }>;
+  motifs: Array<{ slide_number: number; elements: any[]; reason: string }>;
+}
+
+/** Empreinte des textes lus par la mise en forme (numéro, rôle, texte). */
+export function mixFormattingFingerprint(textSlides: Array<{ slide_number: number; role?: unknown; overlay_text?: unknown }>): string {
+  return textKey(JSON.stringify(textSlides.map(s => [s.slide_number, String(s.role ?? ""), String(s.overlay_text ?? "")])));
+}
+
+/** Plan mémorisé encore valable pour ces textes, ou null. */
+export function reuseMixFormatting(memo: unknown, textSlides: Array<{ slide_number: number; role?: unknown; overlay_text?: unknown }>) {
+  const m = memo as MixFormattingMemo | null;
+  if (!m || typeof m !== "object" || m.source !== MIX_LAYOUT_MEMO_SOURCE || !Array.isArray(m.steps) || !Array.isArray(m.motifs)) return null;
+  if (m.fingerprint !== mixFormattingFingerprint(textSlides)) return null;
+  return { version: String(m.version || ""), status: "completed" as const, steps: m.steps, motifs: m.motifs };
+}
+
+/** Plan à mémoriser (seulement s'il vient d'une réponse de l'IA ou d'une mémoire). */
+export function mixFormattingMemo(plan: { version: string; status: string; steps: any[]; motifs: any[] }, textSlides: Array<{ slide_number: number; role?: unknown; overlay_text?: unknown }>): MixFormattingMemo | null {
+  if (plan.status !== "completed") return null;
+  return { source: MIX_LAYOUT_MEMO_SOURCE, version: plan.version, fingerprint: mixFormattingFingerprint(textSlides), steps: plan.steps, motifs: plan.motifs };
 }
