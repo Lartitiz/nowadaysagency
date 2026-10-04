@@ -53,6 +53,13 @@ const REVERSAL_PATTERNS: RegExp[] = [
   // temps. Tu en perds. » : la 2e phrase est une chute courte (≤ 50 caractères)
   // qui renverse la 1re. Une explication développée après « On pense que… » ne compte pas.
   /(?:^|[.!?]\s+|\n\s*)(?:On|Tu|Vous|Nous) (?:croit|crois|croyez|croyons|pense|penses|pensez|pensons|s['’]imagine|t['’]imagines|vous imaginez|a l['’]impression d(?:e |['’])|as l['’]impression d(?:e |['’]))[^.!?\n]{2,60}[.!] ?(?:Mais |En réalité,? |En fait,? |Au final,? |Résultat ?: )?(?:on|tu|vous|nous|On|Tu|Vous|Nous)\b[^.!?\n]{2,45}[.!]/,
+  // ── Contraste « pas X. Y » au MÊME verbe (re-test réel LinkedIn 04/10/2026) ──
+  // « Je ne cherche pas à produire plus de pièces. Je cherche les quelques-unes
+  // qui ont une vraie identité. » / « On n'achète pas un objet. On achète une
+  // histoire. » : la 2e phrase reprend le sujet ET le verbe niés pour renverser.
+  /(?:^|[.!?]\s+|\n\s*)(Je|Tu|On|Nous|Vous|Il|Elle|Ils|Elles) ne (\p{L}+) pas\b[^.!?\n]{2,90}[.!] ?(?:Mais |Non, )?\1 \2\b/iu,
+  /(?:^|[.!?]\s+|\n\s*)(?:Je|J['’]) n['’](\p{L}+) pas\b[^.!?\n]{2,90}[.!] ?(?:Mais |Non, )?J['’]\1\b/iu,
+  /(?:^|[.!?]\s+|\n\s*)(Tu|On|Nous|Vous|Il|Elle|Ils|Elles) n['’](\p{L}+) pas\b[^.!?\n]{2,90}[.!] ?(?:Mais |Non, )?\1 \2\b/iu,
 ];
 
 // Formules moulées repérées à l'identique dans deux contenus générés à 30 min
