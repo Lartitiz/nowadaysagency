@@ -140,3 +140,14 @@ Deno.test("dessin : des mots presque à la même hauteur sont posés sur une seu
   assertEquals(ys[0], ys[1], `mots voisins désalignés : ${ys}`);
   assert(ys[2] > ys[0] + 60, "une vraie deuxième ligne reste une deuxième ligne");
 });
+
+Deno.test("étape : le nom peut venir du titre de slide (kicker), pas seulement du texte", () => {
+  const slides = [
+    { slide_number: 1, overlay_text: "Couverture" },
+    { slide_number: 2, kicker: "Avant la couleur, la forme", overlay_text: "Tout commence par la forme nue." },
+    { slide_number: 3, kicker: "Puis vient l'engobe", overlay_text: "Il habille la terre et prépare la surface." },
+    { slide_number: 4, kicker: "Le geste à main levée", overlay_text: "Ensuite, le motif." },
+  ];
+  const plan = validatePhotoFormatting({ steps: [{ slide_number: 2, label: "la forme nue" }, { slide_number: 3, label: "l'engobe" }, { slide_number: 4, label: "le motif" }], motifs: [] }, slides);
+  assertEquals(plan.steps.map((s) => s.label), ["la forme nue", "l'engobe", "le motif"]);
+});

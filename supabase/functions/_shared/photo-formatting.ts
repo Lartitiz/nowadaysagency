@@ -110,10 +110,18 @@ export function declutterMotif(input: MotifElement[]): MotifElement[] {
   });
 }
 
+/** Texte lu par la mise en forme : titre de slide (kicker, texte de la
+ * rédaction depuis le 04/10/2026) puis texte. Le nom d'une étape peut n'être
+ * que dans le titre (« Puis vient l'engobe ») : sans lui, l'étape s'affichait
+ * « Étape 2 » seule. */
+export function photoFormatText(s: Slide): string {
+  return [s.kicker, s.overlay_text].map(x => String(x || "").trim()).filter(Boolean).join("\n");
+}
+
 /** Valide la réponse du modèle contre le texte réel. Jamais d'exception : au pire, plan vide. */
 export function validatePhotoFormatting(raw: unknown, slides: Slide[]): Pick<PhotoFormattingPlan, "steps" | "motifs"> {
   const data = typeof raw === "string" ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
-  const textOf = new Map(slides.map((s, i) => [Number(s.slide_number) || i + 1, String(s.overlay_text || "")]));
+  const textOf = new Map(slides.map((s, i) => [Number(s.slide_number) || i + 1, photoFormatText(s)]));
   const first = Math.min(...slides.map((s, i) => Number(s.slide_number) || i + 1));
   const eligible = (n: number) => n !== first && !!(textOf.get(n) || "").trim();
 
@@ -185,13 +193,13 @@ export function applyPhotoFormatting<T extends Slide>(slides: T[], plan: Pick<Ph
 
 /** Appel borné, parallèle à la direction artistique. Aucun texte n'est modifié. */
 export async function planPhotoFormatting(slides: Slide[], usage: UsageSink, call = callAnthropic): Promise<PhotoFormattingPlan> {
-  const active = slides.filter(s => String(s.overlay_text || "").trim());
+  const active = slides.filter(s => photoFormatText(s));
   if (active.length < 2) return { version: PHOTO_FORMAT_VERSION, status: "skipped", steps: [], motifs: [] };
   const sink: UsageSink = {};
   try {
     const raw = await call({
       model: SONNET_MODEL, system: PHOTO_FORMAT_RULES, max_tokens: 2500, maxRetries: 0, abortTimeoutMs: 25000, keepDashes: true,
-      messages: [{ role: "user", content: [{ type: "text", text: JSON.stringify({ slides: slides.map((s, i) => ({ slide_number: Number(s.slide_number) || i + 1, role: s.role, text: s.overlay_text || "" })) }) }] }],
+      messages: [{ role: "user", content: [{ type: "text", text: JSON.stringify({ slides: slides.map((s, i) => ({ slide_number: Number(s.slide_number) || i + 1, role: s.role, text: photoFormatText(s) })) }) }] }],
       tool: { name: "mettre_en_forme", description: "Propose la mise en forme du texte final sans le modifier.", input_schema: { type: "object", required: ["steps", "motifs"], properties: {
         steps: { type: "array", items: { type: "object", required: ["slide_number", "label"], properties: { slide_number: { type: "integer" }, label: { type: "string", maxLength: 60 } } } },
         motifs: { type: "array", maxItems: MAX_MOTIFS, items: { type: "object", required: ["slide_number", "reason", "elements"], properties: {
