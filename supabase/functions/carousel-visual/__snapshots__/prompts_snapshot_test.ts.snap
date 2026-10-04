@@ -37,31 +37,31 @@ PADDING : 80px sur les côtés, 60px en haut et en bas. JAMAIS de texte collé a
 
 TITRES (headlines) :
 - Font : Libre Baskerville, font-weight: normal (JAMAIS bold), font-style: normal
-- Taille : 88-120px pour l'accroche de couverture (slide 1), 64-88px pour les autres slides selon la longueur
+- Taille (échelle UNIQUE, pour toutes les slides) : accroche de couverture 120-168px (4-5 mots ≈ 168px, plus petit si elle est plus longue) ; titres 92-120px selon la longueur ; une phrase seule, courte, jusqu'à 150px. On ne réduit que si la slide reste longue.
 - Couleur : #91014B ou #1A1A1A
-- Line-height : 1.25
-- Certains MOTS-CLÉS en couleur accent #FB3D80 et font-style: italic pour créer du contraste (jamais sur la couverture)
+- Line-height : 1.15
+- Un groupe de mots qui porte la bascule du propos peut passer en couleur accent #FB3D80 et font-style: italic (sur la couverture : un seul groupe, extrait de l'accroche)
 
 CORPS DE TEXTE :
 - Font : IBM Plex Sans, font-weight: 400
-- Taille : 38-48px
+- Taille : 46-52px (jusqu'à 40px seulement si la slide reste longue)
 - Couleur : #1A1A1A
-- Line-height : 1.6
+- Line-height : 1.45
 - Texte opaque, y compris secondaire : la hiérarchie vient de la taille et du placement
 
-LABELS ÉDITORIAUX (optionnels, jamais une signature imposée) :
+LABELS ÉDITORIAUX (optionnels, jamais une signature imposée ; le texte d'un label est TOUJOURS un extrait exact du texte de la slide, jamais un mot ajouté) :
 - Display: inline-block
 - Background : #FB3D80
 - Color: white, font-family: IBM Plex Sans, font-weight: 600
 - Font-size: 32px minimum, casse naturelle, letter-spacing: 0.5px
 - Padding: 8px 24px
 - Texte nu par défaut. Une seule pilule maximum sur tout le carrousel, si la marque le justifie.
-- Utilise-les pour : catégorie, label de section, mot-clé. JAMAIS un numéro de slide ni un label "SLIDE".
+- Utilise-les pour un mot-clé repris du texte de la slide. JAMAIS un numéro de slide, un label "SLIDE" ni un mot absent du texte.
 
 EYEBROWS (petit label au-dessus du titre — à DOSER, jamais systématique) :
 - Un eyebrow = une ligne courte au-dessus du titre : font-family: IBM Plex Sans, font-size: 32px, font-weight: 500, couleur très contrastée issue de la charte
 - Deux formes possibles : texte nu OU badge pilule (voir ci-dessus).
-- Jamais sur la couverture. Sur 1-2 slides du carrousel MAXIMUM, là où un label éditorial apporte vraiment quelque chose ("LE PIÈGE", "CE QUE ÇA CHANGE"…) — jamais un numéro de slide.
+- Jamais sur la couverture. Sur 1-2 slides du carrousel MAXIMUM, et seulement avec des mots repris EXACTEMENT du texte de la slide — jamais un label inventé ni un numéro de slide.
 - L'absence d'eyebrow est le cas NORMAL. Un eyebrow sur chaque slide = effet template généré par IA, c'est un défaut.
 - Gap eyebrow → titre : 16-20px.
 
@@ -75,7 +75,7 @@ MISE EN VALEUR DES MOTS-CLÉS (OPTIONNELLE, selon le sens) :
 DENSITÉ & RESPIRATION (à juger à l'échelle du CARROUSEL, pas de la slide) :
 - Une slide minimaliste (titre fort + texte nu, typographie impeccable, bien centrée) est LÉGITIME et souvent élégante — surtout pour une punchline, une citation, un moment de storytelling. Ne la surcharge pas pour la « designer ».
 - Le rythme vient des variations d'échelle, d'alignement, de largeur de colonne et de densité définies dans le plan global. Une rupture peut être purement typographique. Les cartes, emojis et cadres pointillés ne sont jamais nécessaires pour rendre une slide aboutie.
-- Sur une slide COURTE (45 mots au plus, titre + texte), les chiffres du contenu sont mis en scène : très grande taille (72-120px) en Libre Baskerville, couleur #FB3D80. Pour ça, DUPLIQUE le chiffre dans un élément décoratif (carte, chiffre géant) — mais l'élément ancré data-slide-text garde le texte source COMPLET et inchangé (ne déplace jamais un morceau du body vers un élément décoratif).
+- Sur une slide COURTE (45 mots au plus, titre + texte), un chiffre qui porte l'idée (un prix, un total) peut être mis en scène : très grande taille (72-150px) en Libre Baskerville, couleur #FB3D80, par exemple sur une étiquette. Pour ça, DUPLIQUE le chiffre (recopié exactement) dans un élément décoratif — mais l'élément ancré data-slide-text garde le texte source COMPLET et inchangé (ne déplace jamais un morceau du body vers un élément décoratif).
 - Sur une slide LONGUE (plus de 45 mots, liste « SLIDES DENSES » ci-dessous) : AUCUN chiffre dupliqué, aucune carte ni encart ajouté, et le texte sur toute la largeur utile (jamais en colonne étroite à côté d'un visuel décoratif). Le texte seul, bien composé et lisible ; un mot peut être mis en valeur dans le texte. Une slide dense chargée d'un encart en plus est un défaut.
 - Nombres à la française : décimale avec virgule collée ("3,5 ans" — jamais "3, 5 ans" ni "3.5").
 
@@ -91,10 +91,9 @@ BORDURES POINTILLÉES (pour les encadrés, citations, analogies) :
 - Border-radius: 20px
 - Padding: 30px
 
-ÉLÉMENTS DÉCORATIFS AUTORISÉS :
-- Rectangles arrondis (border-radius: 20px), lignes, traits
-- Petites vagues/zigzags en SVG inline
-- Flèches → en #FB3D80
+ÉLÉMENTS GRAPHIQUES AUTORISÉS (seulement quand ils servent l'idée de la slide) :
+- Rectangles arrondis (border-radius: 20px), lignes, traits, étiquettes légèrement inclinées (transform: rotate(-3deg à 3deg))
+- Flèches en #FB3D80, droites (→) ou courbes en SVG inline
 - Soulignements colorés sous les mots-clés (border-bottom ou background linear-gradient)
 - Aucun emoji décoratif ajouté. Les emojis fournis dans le texte source restent inchangés.
 - JAMAIS de cercles/ronds comme décoration de fond
@@ -106,21 +105,41 @@ ESPACEMENT VERTICAL :
 COMPOSITION SUR UNE GRILLE ÉDITORIALE :
 Le plan global choisit la position et l'alignement. Utilise une grille à marges latérales de 80px, haute de 96px et basse de 110px. L'alignement gauche est le point de départ ; le centrage est réservé à une rupture courte. Varie la largeur et la hauteur des blocs avec intention. Un espace vide asymétrique est légitime. Le bloc titre + texte d'une slide de développement est centré VERTICALEMENT (aligné à gauche), jamais collé en haut avec un grand vide dessous ; ne centre pas le texte horizontalement par défaut et ne remplis pas artificiellement le bas de page.
 
-RYTHME DU CARROUSEL (obligatoire dès 5 slides) :
+FOND ET RUPTURES :
 
-- Au moins UNE slide de rupture à fond plein dans le carrousel : SÉPARATEUR (fond #FB3D80), DARK BOX (punchline sur fond sombre) ou CTA inversé (fond #91014B, texte clair).
+- Fond uni sur tout le carrousel par défaut. Aucune slide à fond plein n'est imposée, ni par la position, ni par le nombre de slides : zéro rupture est un bon résultat.
 
-- Place-la sur la slide la plus forte éditorialement (prise de position, punchline, chiffre choc) — c'est elle qui crée la respiration visuelle dans le feed.
+- Une slide de rupture (fond plein #FB3D80, fond sombre, ou fond #91014B avec texte clair) seulement quand le TEXTE marque une vraie bascule (aveu, prise de position, retournement).
 
-- Alterne les densités : une slide dense (schéma, liste) est suivie d'une slide aérée (punchline, citation).
+- Le rythme vient du texte : une phrase seule, très grande, fait respirer entre deux slides plus denses.
+
+═══ LE DESIGN MONTRE L'IDÉE ═══
+
+Pour CHAQUE slide, demande-toi : comment illustrer cette idée par le design, quand c'est pertinent ? Montre l'idée plutôt que décorer. Si rien ne s'y prête, le texte seul, sobre, très grand et bien centré : c'est souvent le meilleur choix.
+
+Quelques exemples pour t'inspirer (pas une liste à appliquer, invente ce qui sert le texte de la slide) :
+- une énumération (« l'écologie, les artistes…, les biais…, la sécurité… ») → chaque élément sur une étiquette légèrement inclinée, en alternant deux tons de la charte, comme des post-it ;
+- un enchaînement (« la stratégie, puis la mise en œuvre ») → des cartes numérotées reliées par des flèches courbes ; l'étape qui manque est en pointillés et grisée ;
+- un prix (« Le tout pour 2 100 € TTC ») → le prix en très grand sur une étiquette inclinée ;
+- un calcul (« 1 000 € + 5 000 € + 1 500 € = au moins 7 500 € ») → un ticket d'addition : une ligne par poste, le total en grand, la source en petit dessous ;
+- une perte, une disparition (« je ne pourrais plus m'adresser à… », « mon métier disparaîtra ») → cartes en pointillés au texte grisé, lettres qui s'effacent progressivement ;
+- un mot fort → ce seul mot surligné.
+
+Règles du dispositif :
+- Tout mot visible vient du texte de la slide, recopié exactement. N'ajoute JAMAIS de texte : ni bulle de discussion, ni label, ni légende, ni titre de carte absents du texte. Seuls ajouts permis : les numéros d'ordre (1, 2, 3) et les symboles (+, =, →). Un texte ajouté est retiré automatiquement.
+- Quand le dispositif porte le texte lui-même (étiquettes, cartes, lignes du ticket), chaque morceau est un <span style="display:block|inline-block; …"> À L'INTÉRIEUR de l'élément ancré (data-slide-text), dans l'ordre : le texte reste complet et inchangé. Les numéros d'ordre, flèches et pointillés sont des éléments décoratifs HORS de l'élément ancré.
+- Aucun élément décoratif qui n'explique rien (barres, bulles, formes, pictogrammes de remplissage).
+- Si le dispositif ne tient pas dans la slide, c'est lui qui cède : le texte seul, jamais un texte raccourci.
 
 ═══ DESIGN PAR RÔLE DE SLIDE ═══
 
 HOOK (slide 1) — COUVERTURE : une accroche, rien d'autre :
 
-- Uniquement l'accroche (title) en très grand, et le sous-titre (body) en petit s'il existe. AUCUN autre élément : ni pastille, ni petit label au-dessus, ni motif décoratif, ni surligneur, ni mot-clé coloré, ni numéro, ni logo, ni flèche « glisse ».
+- Uniquement l'accroche (title) en très grand, et le sous-titre (body) en petit s'il existe. AUCUN autre élément : ni pastille, ni petit label au-dessus, ni motif décoratif, ni surligneur, ni numéro, ni logo, ni flèche « glisse ».
 
-- Titre en Libre Baskerville, 88-120px selon la longueur (une accroche courte = plus grand), font-weight normal ; sous-titre en IBM Plex Sans, 36-42px.
+- UN seul groupe de mots de l'accroche peut passer en italique, couleur #FB3D80 (le cœur de l'accroche : dans « Oui, j'utilise l'IA générative. », « l'IA générative »), dans un <span> à l'intérieur de l'élément ancré. Aucun si rien ne s'impose.
+
+- Titre en Libre Baskerville, 120-168px selon la longueur (4-5 mots ≈ 168px), font-weight normal ; sous-titre en IBM Plex Sans, 36-42px.
 
 - Titre ET sous-titre CENTRÉS horizontalement (text-align:center) et le bloc centré verticalement dans la slide, marges latérales de 80px minimum.
 
@@ -128,36 +147,34 @@ HOOK (slide 1) — COUVERTURE : une accroche, rien d'autre :
 
 CONTEXTE / STORYTELLING (slide 2) — Personnel, immersif :
 - Fond : blanc ou #FFF4F8
-- Titre en Libre Baskerville (48-56px)
-- Corps en IBM Plex Sans avec un ton intime
+- Titre en Libre Baskerville, corps en IBM Plex Sans, aux tailles de l'échelle unique ci-dessus, avec un ton intime
 - Optionnel : bordure pointillée autour du bloc de texte
 - Utilise la typographie et l'espace pour donner un ton personnel.
 
 TIPS / CONTENU PÉDAGOGIQUE (slides du milieu) — Clair, structuré :
 - Fond : blanc
-- Optionnel : badge pilule en haut à gauche avec un label éditorial court ("Le piège", "À éviter", etc.) — jamais un numéro de slide.
-- Titre headline en Libre Baskerville (48-56px), couleur #91014B
-- Corps du tip en IBM Plex Sans (34-38px)
+- Optionnel : badge pilule avec un mot-clé repris EXACTEMENT du texte de la slide — jamais un label inventé ni un numéro de slide.
+- Titre headline en Libre Baskerville, couleur #91014B, corps en IBM Plex Sans, aux tailles de l'échelle unique ci-dessus
 - Pour structurer le bloc : un mot-clé surligné ou un encadré pointillé — JAMAIS de barre verticale accolée au texte
 - Un mot-clé souligné en #FFE561 (soulignement jaune type highlighter)
 - Alterner les couleurs d'accent entre les slides pour la variété, UNIQUEMENT dans la palette de la charte : #FB3D80, #FFE561, #91014B. JAMAIS de couleur hors charte pour les accents.
 
 SLIDE SÉPARATEUR (optionnelle, entre les blocs) — Rupture visuelle :
 - Fond : #FB3D80 (rose vif, plein)
-- Titre en BLANC, Libre Baskerville, 64px, centré
+- Titre en BLANC, Libre Baskerville, 100-150px, centré
 - Pas de body, juste le titre
 - Optionnel : numéro de bloc en très grand (200px) coupé en bas de slide, opacity 0.15
 
 DARK BOX (pour les punchlines fortes) :
 - Fond : #1A1A1A
-- Texte blanc en Libre Baskerville (56px)
+- Texte blanc en Libre Baskerville (92-150px)
 - Un mot en #FFE561 (jaune) pour le contraste
 - Padding généreux (80px)
 
 CTA (dernière slide) — Douce, invitante :
 - Fond : #FFF4F8
 - Composition ouverte, alignée avec la grille, sans carte obligatoire
-- Texte du CTA en Libre Baskerville (44-52px), couleur #FB3D80
+- Texte du CTA aux tailles de l'échelle unique (titre Libre Baskerville 92-120px, texte 46-52px), couleur #FB3D80 ou #91014B
 - Un appel à l'action graphique uniquement si le texte source le demande, sans pastille obligatoire
 - Ambiance chaleureuse, pas commerciale
 - Aucun badge de compétence ou de thème inventé autour du CTA
@@ -166,14 +183,14 @@ CTA (dernière slide) — Douce, invitante :
 - TOUTES les slides utilisent les MÊMES fonts (Libre Baskerville pour les titres, IBM Plex Sans pour le corps)
 - Le padding latéral est IDENTIQUE sur toutes les slides (80px)
 - Les badges pilules ont le MÊME style partout
-- Le fond ALTERNE entre : blanc, #FFF4F8, et ponctuellement #FB3D80 (max 1-2 slides en fond coloré plein)
+- Le fond reste UNI : #FFF4F8 sur toutes les slides ; un fond coloré plein (#FB3D80 ou #91014B) seulement pour une rupture du texte (max 1-2 slides)
 - La hiérarchie titre/corps est CONSTANTE : le titre est toujours plus grand, toujours en Libre Baskerville
 - Les éléments décoratifs (barres, soulignements) utilisent une palette cohérente
 
 ═══ ANTI-PATTERNS — CE QUE TU NE FAIS JAMAIS ═══
-- ❌ Centrage et même largeur de texte répétés sur toutes les slides (la couverture, elle, est toujours centrée)
-- ❌ Toutes les slides avec le même layout (il faut de la variété visuelle)
-- ❌ Texte trop petit (<30px) ou trop gros (>88px sauf l'accroche de couverture et les numéros décoratifs)
+- ❌ Varier pour varier : la forme suit le sens. Des slides de texte nu qui se suivent sont légitimes ; un dispositif ou un fond qui change sans raison dans le texte ne l'est pas
+- ❌ Texte trop petit (corps sous 40px, légende sous 30px) ou trop gros (>150px sauf l'accroche de couverture, jusqu'à 168px, et les chiffres mis en scène)
+- ❌ Texte ajouté : bulle de discussion, label, légende ou mot absent du texte de la slide
 - ❌ Pas de padding (texte qui touche les bords)
 - ❌ Cercles ou ronds comme éléments décoratifs
 - ❌ Font-weight bold sur Libre Baskerville (toujours normal)
@@ -366,9 +383,9 @@ Retourne un JSON :
 }
 
 IMPORTANT : le HTML de chaque slide doit inclure la balise @import au début
-- Varie le design selon le RÔLE de chaque slide (hook, context, tip, separator, cta, etc.)
-- Crée une continuité visuelle : mêmes fonts, même padding, palette cohérente
-- Suis le plan éditorial global : variations de composition et de densité, sans ornement automatique
+- Le design de chaque slide suit le SENS de son texte (voir « LE DESIGN MONTRE L'IDÉE »), pas sa position
+- Crée une continuité visuelle : mêmes fonts, même padding, palette cohérente, fond uni
+- Suis le plan du carrousel, sans ornement automatique
 - Le résultat doit ressembler à du design Canva Pro, PAS à du HTML basique
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.
@@ -423,7 +440,7 @@ CONTENU DES SLIDES :
 
 Template demandé : editorial
 
-RAPPEL : Chaque slide suit le plan de composition adapté à son rôle. La continuité vient de la grille, des polices et de la palette ; la variété vient des placements, de l'échelle et du rythme. Aucun ornement automatique. Les slides avec visual_schema conservent toutes les données et relations, avec des textes lisibles.
+RAPPEL : Pour chaque slide, demande-toi comment le design peut montrer son idée ; sinon, le texte seul, très grand. La continuité vient de la grille, des polices, de la palette et du fond uni. Aucun ornement automatique, aucun mot ajouté. Les slides avec visual_schema conservent toutes les données et relations, avec des textes lisibles.
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.\`
 `;
@@ -481,31 +498,31 @@ PADDING : 80px sur les côtés, 60px en haut et en bas. JAMAIS de texte collé a
 
 TITRES (headlines) :
 - Font : Cormorant Garamond, font-weight: normal (JAMAIS bold), font-style: normal
-- Taille : 88-120px pour l'accroche de couverture (slide 1), 64-88px pour les autres slides selon la longueur
+- Taille (échelle UNIQUE, pour toutes les slides) : accroche de couverture 120-168px (4-5 mots ≈ 168px, plus petit si elle est plus longue) ; titres 92-120px selon la longueur ; une phrase seule, courte, jusqu'à 150px. On ne réduit que si la slide reste longue.
 - Couleur : #3A2E24 ou #F4EDE3
-- Line-height : 1.25
-- Certains MOTS-CLÉS en couleur accent #E7C07B et font-style: italic pour créer du contraste (jamais sur la couverture)
+- Line-height : 1.15
+- Un groupe de mots qui porte la bascule du propos peut passer en couleur accent #E7C07B et font-style: italic (sur la couverture : un seul groupe, extrait de l'accroche)
 
 CORPS DE TEXTE :
 - Font : Work Sans, font-weight: 400
-- Taille : 38-48px
+- Taille : 46-52px (jusqu'à 40px seulement si la slide reste longue)
 - Couleur : #F4EDE3
-- Line-height : 1.6
+- Line-height : 1.45
 - Texte opaque, y compris secondaire : la hiérarchie vient de la taille et du placement
 
-LABELS ÉDITORIAUX (optionnels, jamais une signature imposée) :
+LABELS ÉDITORIAUX (optionnels, jamais une signature imposée ; le texte d'un label est TOUJOURS un extrait exact du texte de la slide, jamais un mot ajouté) :
 - Display: inline-block
 - Background : #E7C07B
 - Color: white, font-family: Work Sans, font-weight: 600
 - Font-size: 32px minimum, casse naturelle, letter-spacing: 0.5px
 - Padding: 8px 24px
 - Texte nu par défaut. Une seule pilule maximum sur tout le carrousel, si la marque le justifie.
-- Utilise-les pour : catégorie, label de section, mot-clé. JAMAIS un numéro de slide ni un label "SLIDE".
+- Utilise-les pour un mot-clé repris du texte de la slide. JAMAIS un numéro de slide, un label "SLIDE" ni un mot absent du texte.
 
 EYEBROWS (petit label au-dessus du titre — à DOSER, jamais systématique) :
 - Un eyebrow = une ligne courte au-dessus du titre : font-family: Work Sans, font-size: 32px, font-weight: 500, couleur très contrastée issue de la charte
 - Deux formes possibles : texte nu OU badge pilule (voir ci-dessus).
-- Jamais sur la couverture. Sur 1-2 slides du carrousel MAXIMUM, là où un label éditorial apporte vraiment quelque chose ("LE PIÈGE", "CE QUE ÇA CHANGE"…) — jamais un numéro de slide.
+- Jamais sur la couverture. Sur 1-2 slides du carrousel MAXIMUM, et seulement avec des mots repris EXACTEMENT du texte de la slide — jamais un label inventé ni un numéro de slide.
 - L'absence d'eyebrow est le cas NORMAL. Un eyebrow sur chaque slide = effet template généré par IA, c'est un défaut.
 - Gap eyebrow → titre : 16-20px.
 
@@ -519,7 +536,7 @@ MISE EN VALEUR DES MOTS-CLÉS (OPTIONNELLE, selon le sens) :
 DENSITÉ & RESPIRATION (à juger à l'échelle du CARROUSEL, pas de la slide) :
 - Une slide minimaliste (titre fort + texte nu, typographie impeccable, bien centrée) est LÉGITIME et souvent élégante — surtout pour une punchline, une citation, un moment de storytelling. Ne la surcharge pas pour la « designer ».
 - Le rythme vient des variations d'échelle, d'alignement, de largeur de colonne et de densité définies dans le plan global. Une rupture peut être purement typographique. Les cartes, emojis et cadres pointillés ne sont jamais nécessaires pour rendre une slide aboutie.
-- Sur une slide COURTE (45 mots au plus, titre + texte), les chiffres du contenu sont mis en scène : très grande taille (72-120px) en Cormorant Garamond, couleur #E7C07B. Pour ça, DUPLIQUE le chiffre dans un élément décoratif (carte, chiffre géant) — mais l'élément ancré data-slide-text garde le texte source COMPLET et inchangé (ne déplace jamais un morceau du body vers un élément décoratif).
+- Sur une slide COURTE (45 mots au plus, titre + texte), un chiffre qui porte l'idée (un prix, un total) peut être mis en scène : très grande taille (72-150px) en Cormorant Garamond, couleur #E7C07B, par exemple sur une étiquette. Pour ça, DUPLIQUE le chiffre (recopié exactement) dans un élément décoratif — mais l'élément ancré data-slide-text garde le texte source COMPLET et inchangé (ne déplace jamais un morceau du body vers un élément décoratif).
 - Sur une slide LONGUE (plus de 45 mots, liste « SLIDES DENSES » ci-dessous) : AUCUN chiffre dupliqué, aucune carte ni encart ajouté, et le texte sur toute la largeur utile (jamais en colonne étroite à côté d'un visuel décoratif). Le texte seul, bien composé et lisible ; un mot peut être mis en valeur dans le texte. Une slide dense chargée d'un encart en plus est un défaut.
 - Nombres à la française : décimale avec virgule collée ("3,5 ans" — jamais "3, 5 ans" ni "3.5").
 
@@ -535,10 +552,9 @@ BORDURES POINTILLÉES (pour les encadrés, citations, analogies) :
 - Border-radius: 12px
 - Padding: 30px
 
-ÉLÉMENTS DÉCORATIFS AUTORISÉS :
-- Rectangles arrondis (border-radius: 12px), lignes, traits
-- Petites vagues/zigzags en SVG inline
-- Flèches → en #E7C07B
+ÉLÉMENTS GRAPHIQUES AUTORISÉS (seulement quand ils servent l'idée de la slide) :
+- Rectangles arrondis (border-radius: 12px), lignes, traits, étiquettes légèrement inclinées (transform: rotate(-3deg à 3deg))
+- Flèches en #E7C07B, droites (→) ou courbes en SVG inline
 - Soulignements colorés sous les mots-clés (border-bottom ou background linear-gradient)
 - Aucun emoji décoratif ajouté. Les emojis fournis dans le texte source restent inchangés.
 - JAMAIS de cercles/ronds comme décoration de fond
@@ -550,21 +566,41 @@ ESPACEMENT VERTICAL :
 COMPOSITION SUR UNE GRILLE ÉDITORIALE :
 Le plan global choisit la position et l'alignement. Utilise une grille à marges latérales de 80px, haute de 96px et basse de 110px. L'alignement gauche est le point de départ ; le centrage est réservé à une rupture courte. Varie la largeur et la hauteur des blocs avec intention. Un espace vide asymétrique est légitime. Le bloc titre + texte d'une slide de développement est centré VERTICALEMENT (aligné à gauche), jamais collé en haut avec un grand vide dessous ; ne centre pas le texte horizontalement par défaut et ne remplis pas artificiellement le bas de page.
 
-RYTHME DU CARROUSEL (obligatoire dès 5 slides) :
+FOND ET RUPTURES :
 
-- Au moins UNE slide de rupture à fond plein dans le carrousel : SÉPARATEUR (fond #E7C07B), DARK BOX (punchline sur fond sombre) ou CTA inversé (fond #3A2E24, texte clair).
+- Fond uni sur tout le carrousel par défaut. Aucune slide à fond plein n'est imposée, ni par la position, ni par le nombre de slides : zéro rupture est un bon résultat.
 
-- Place-la sur la slide la plus forte éditorialement (prise de position, punchline, chiffre choc) — c'est elle qui crée la respiration visuelle dans le feed.
+- Une slide de rupture (fond plein #E7C07B, fond sombre, ou fond #3A2E24 avec texte clair) seulement quand le TEXTE marque une vraie bascule (aveu, prise de position, retournement).
 
-- Alterne les densités : une slide dense (schéma, liste) est suivie d'une slide aérée (punchline, citation).
+- Le rythme vient du texte : une phrase seule, très grande, fait respirer entre deux slides plus denses.
+
+═══ LE DESIGN MONTRE L'IDÉE ═══
+
+Pour CHAQUE slide, demande-toi : comment illustrer cette idée par le design, quand c'est pertinent ? Montre l'idée plutôt que décorer. Si rien ne s'y prête, le texte seul, sobre, très grand et bien centré : c'est souvent le meilleur choix.
+
+Quelques exemples pour t'inspirer (pas une liste à appliquer, invente ce qui sert le texte de la slide) :
+- une énumération (« l'écologie, les artistes…, les biais…, la sécurité… ») → chaque élément sur une étiquette légèrement inclinée, en alternant deux tons de la charte, comme des post-it ;
+- un enchaînement (« la stratégie, puis la mise en œuvre ») → des cartes numérotées reliées par des flèches courbes ; l'étape qui manque est en pointillés et grisée ;
+- un prix (« Le tout pour 2 100 € TTC ») → le prix en très grand sur une étiquette inclinée ;
+- un calcul (« 1 000 € + 5 000 € + 1 500 € = au moins 7 500 € ») → un ticket d'addition : une ligne par poste, le total en grand, la source en petit dessous ;
+- une perte, une disparition (« je ne pourrais plus m'adresser à… », « mon métier disparaîtra ») → cartes en pointillés au texte grisé, lettres qui s'effacent progressivement ;
+- un mot fort → ce seul mot surligné.
+
+Règles du dispositif :
+- Tout mot visible vient du texte de la slide, recopié exactement. N'ajoute JAMAIS de texte : ni bulle de discussion, ni label, ni légende, ni titre de carte absents du texte. Seuls ajouts permis : les numéros d'ordre (1, 2, 3) et les symboles (+, =, →). Un texte ajouté est retiré automatiquement.
+- Quand le dispositif porte le texte lui-même (étiquettes, cartes, lignes du ticket), chaque morceau est un <span style="display:block|inline-block; …"> À L'INTÉRIEUR de l'élément ancré (data-slide-text), dans l'ordre : le texte reste complet et inchangé. Les numéros d'ordre, flèches et pointillés sont des éléments décoratifs HORS de l'élément ancré.
+- Aucun élément décoratif qui n'explique rien (barres, bulles, formes, pictogrammes de remplissage).
+- Si le dispositif ne tient pas dans la slide, c'est lui qui cède : le texte seul, jamais un texte raccourci.
 
 ═══ DESIGN PAR RÔLE DE SLIDE ═══
 
 HOOK (slide 1) — COUVERTURE : une accroche, rien d'autre :
 
-- Uniquement l'accroche (title) en très grand, et le sous-titre (body) en petit s'il existe. AUCUN autre élément : ni pastille, ni petit label au-dessus, ni motif décoratif, ni surligneur, ni mot-clé coloré, ni numéro, ni logo, ni flèche « glisse ».
+- Uniquement l'accroche (title) en très grand, et le sous-titre (body) en petit s'il existe. AUCUN autre élément : ni pastille, ni petit label au-dessus, ni motif décoratif, ni surligneur, ni numéro, ni logo, ni flèche « glisse ».
 
-- Titre en Cormorant Garamond, 88-120px selon la longueur (une accroche courte = plus grand), font-weight normal ; sous-titre en Work Sans, 36-42px.
+- UN seul groupe de mots de l'accroche peut passer en italique, couleur #E7C07B (le cœur de l'accroche : dans « Oui, j'utilise l'IA générative. », « l'IA générative »), dans un <span> à l'intérieur de l'élément ancré. Aucun si rien ne s'impose.
+
+- Titre en Cormorant Garamond, 120-168px selon la longueur (4-5 mots ≈ 168px), font-weight normal ; sous-titre en Work Sans, 36-42px.
 
 - Titre ET sous-titre CENTRÉS horizontalement (text-align:center) et le bloc centré verticalement dans la slide, marges latérales de 80px minimum.
 
@@ -572,36 +608,34 @@ HOOK (slide 1) — COUVERTURE : une accroche, rien d'autre :
 
 CONTEXTE / STORYTELLING (slide 2) — Personnel, immersif :
 - Fond : #1C1A17 ou une déclinaison à peine plus claire de #1C1A17 (même famille sombre — JAMAIS blanc)
-- Titre en Cormorant Garamond (48-56px)
-- Corps en Work Sans avec un ton intime
+- Titre en Cormorant Garamond, corps en Work Sans, aux tailles de l'échelle unique ci-dessus, avec un ton intime
 - Optionnel : bordure pointillée autour du bloc de texte
 - Utilise la typographie et l'espace pour donner un ton personnel.
 
 TIPS / CONTENU PÉDAGOGIQUE (slides du milieu) — Clair, structuré :
 - Fond : #1C1A17 (les cartes posées dessus portent la clarté)
-- Optionnel : badge pilule en haut à gauche avec un label éditorial court ("Le piège", "À éviter", etc.) — jamais un numéro de slide.
-- Titre headline en Cormorant Garamond (48-56px), couleur #3A2E24
-- Corps du tip en Work Sans (34-38px)
+- Optionnel : badge pilule avec un mot-clé repris EXACTEMENT du texte de la slide — jamais un label inventé ni un numéro de slide.
+- Titre headline en Cormorant Garamond, couleur #3A2E24, corps en Work Sans, aux tailles de l'échelle unique ci-dessus
 - Pour structurer le bloc : un mot-clé surligné ou un encadré pointillé — JAMAIS de barre verticale accolée au texte
 - Un mot-clé souligné en #C94F2E (soulignement jaune type highlighter)
 - Alterner les couleurs d'accent entre les slides pour la variété, UNIQUEMENT dans la palette de la charte : #E7C07B, #C94F2E, #3A2E24. JAMAIS de couleur hors charte pour les accents.
 
 SLIDE SÉPARATEUR (optionnelle, entre les blocs) — Rupture visuelle :
 - Fond : #E7C07B (rose vif, plein)
-- Titre en BLANC, Cormorant Garamond, 64px, centré
+- Titre en BLANC, Cormorant Garamond, 100-150px, centré
 - Pas de body, juste le titre
 - Optionnel : numéro de bloc en très grand (200px) coupé en bas de slide, opacity 0.15
 
 DARK BOX (pour les punchlines fortes) :
 - Fond : #1A1A1A
-- Texte blanc en Cormorant Garamond (56px)
+- Texte blanc en Cormorant Garamond (92-150px)
 - Un mot en #C94F2E (jaune) pour le contraste
 - Padding généreux (80px)
 
 CTA (dernière slide) — Douce, invitante :
 - Fond : #1C1A17
 - Composition ouverte, alignée avec la grille, sans carte obligatoire
-- Texte du CTA en Cormorant Garamond (44-52px), couleur #E7C07B
+- Texte du CTA aux tailles de l'échelle unique (titre Cormorant Garamond 92-120px, texte 46-52px), couleur #E7C07B ou #3A2E24
 - Un appel à l'action graphique uniquement si le texte source le demande, sans pastille obligatoire
 - Ambiance chaleureuse, pas commerciale
 - Aucun badge de compétence ou de thème inventé autour du CTA
@@ -615,9 +649,9 @@ CTA (dernière slide) — Douce, invitante :
 - Les éléments décoratifs (barres, soulignements) utilisent une palette cohérente
 
 ═══ ANTI-PATTERNS — CE QUE TU NE FAIS JAMAIS ═══
-- ❌ Centrage et même largeur de texte répétés sur toutes les slides (la couverture, elle, est toujours centrée)
-- ❌ Toutes les slides avec le même layout (il faut de la variété visuelle)
-- ❌ Texte trop petit (<30px) ou trop gros (>88px sauf l'accroche de couverture et les numéros décoratifs)
+- ❌ Varier pour varier : la forme suit le sens. Des slides de texte nu qui se suivent sont légitimes ; un dispositif ou un fond qui change sans raison dans le texte ne l'est pas
+- ❌ Texte trop petit (corps sous 40px, légende sous 30px) ou trop gros (>150px sauf l'accroche de couverture, jusqu'à 168px, et les chiffres mis en scène)
+- ❌ Texte ajouté : bulle de discussion, label, légende ou mot absent du texte de la slide
 - ❌ Pas de padding (texte qui touche les bords)
 - ❌ Cercles ou ronds comme éléments décoratifs
 - ❌ Font-weight bold sur Cormorant Garamond (toujours normal)
@@ -811,9 +845,9 @@ Retourne un JSON :
 }
 
 IMPORTANT : le HTML de chaque slide doit inclure la balise @import au début
-- Varie le design selon le RÔLE de chaque slide (hook, context, tip, separator, cta, etc.)
-- Crée une continuité visuelle : mêmes fonts, même padding, palette cohérente
-- Suis le plan éditorial global : variations de composition et de densité, sans ornement automatique
+- Le design de chaque slide suit le SENS de son texte (voir « LE DESIGN MONTRE L'IDÉE »), pas sa position
+- Crée une continuité visuelle : mêmes fonts, même padding, palette cohérente, fond uni
+- Suis le plan du carrousel, sans ornement automatique
 - Le résultat doit ressembler à du design Canva Pro, PAS à du HTML basique
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.
@@ -872,7 +906,7 @@ Taille du texte : large
 
 SCHÉMAS VISUELS DEMANDÉS : la slide 3 porte un before_after (voir JSON).
 
-RAPPEL : Chaque slide suit le plan de composition adapté à son rôle. La continuité vient de la grille, des polices et de la palette ; la variété vient des placements, de l'échelle et du rythme. Aucun ornement automatique. Les slides avec visual_schema conservent toutes les données et relations, avec des textes lisibles.
+RAPPEL : Pour chaque slide, demande-toi comment le design peut montrer son idée ; sinon, le texte seul, très grand. La continuité vient de la grille, des polices, de la palette et du fond uni. Aucun ornement automatique, aucun mot ajouté. Les slides avec visual_schema conservent toutes les données et relations, avec des textes lisibles.
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.\`
 `;
@@ -1534,50 +1568,38 @@ Retourne UNIQUEMENT le JSON.\`
 `;
 
 snapshot[`buildCoherencePlan — 8 slides, marque claire, séparateur explicite + schémas visuels 1`] = `
-\`PLAN ÉDITORIAL GLOBAL : mêmes polices, palette et grille ; compositions adaptées au récit.
-Slide 1 : opening, alignement center, densité low
-Slide 2 : essay, alignement left, densité low
-Slide 3 : schema, alignement left, densité low
-Slide 4 : offset, alignement left, densité low
-Slide 5 : statement, alignement center, densité low, rupture avec fond de charte inversé
-Slide 6 : schema, alignement left, densité low
-Slide 7 : split, alignement left, densité low
-Slide 8 : closing, alignement left, densité low
-
-TRAITEMENTS DES SLIDES DE TEXTE (maquettes validées par la marque) — OBLIGATOIRES :
-Slide 2 : centré : petit filet de couleur au-dessus du titre, titre puis texte, le bloc centré verticalement.
-Slide 4 : aplat : le haut de la slide (environ 40 %) est un aplat de la couleur principale portant le titre en clair, le texte est centré verticalement dans la partie claire en dessous.
-Slide 7 : forme de marque : une grande forme organique douce (SVG décoratif, couleur de charte très claire, jamais un cercle, jamais sous le texte au point de gêner la lecture) déborde derrière le titre, côté droit ; titre et texte centrés verticalement.
-Pour toutes ces slides : le bloc titre + texte est CENTRÉ VERTICALEMENT dans la slide (aligné à gauche), jamais collé en haut avec un grand vide dessous. Le texte reste dans UN seul élément ancré (data-slide-text="body"), intégral et dans l'ordre : les mises en valeur sont des <span> à l'intérieur, rien n'est recopié ni déplacé. Texte sur toute la largeur utile (au moins 840px), jamais en colonne étroite.
-Les références et interdits explicites de la marque restent prioritaires. Pas de pastille, carte, emoji ou surlignage en dehors des traitements ci-dessus. Maximum 2 compositions centrées horizontalement, 1 pastille et 2 slides à cartes. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
-Fond principal : #FFF4F8. Les changements de fond suivent les ruptures éditoriales, pas la parité du numéro de slide.\`
+"PLAN DU CARROUSEL : mêmes polices, palette et grille sur toutes les slides ; fond uni par défaut.
+Slide 1 : couverture, densité faible
+Slide 2 : phrase seule, en très grand, densité faible
+Slide 3 : schéma, densité faible
+Slide 4 : phrase seule, en très grand, densité faible
+Slide 5 : phrase seule, en très grand, densité faible
+Slide 6 : schéma, densité faible
+Slide 7 : phrase seule, en très grand, densité faible
+Slide 8 : phrase seule, en très grand, densité faible
+Aucune forme n'est imposée par la position de la slide : pour chacune, c'est le SENS du texte qui décide. Quand le design peut montrer l'idée (une énumération, un enchaînement, un prix, un calcul, une perte), montre-la ; sinon le texte seul, sobre, très grand et lisible. Une rupture de fond seulement quand le texte marque une rupture. Le bloc titre + texte est centré verticalement, jamais collé en haut avec un grand vide dessous, et occupe toute la largeur utile (au moins 840px).
+Les références et interdits explicites de la marque restent prioritaires. Au plus 1 pastille. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
+Fond principal : #FFF4F8. Les changements de fond suivent les ruptures éditoriales, pas la parité du numéro de slide."
 `;
 
 snapshot[`buildCoherencePlan — 5 slides sans schéma, marque sombre (moments de design auto, fonds gamme sombre) 1`] = `
-\`PLAN ÉDITORIAL GLOBAL : mêmes polices, palette et grille ; compositions adaptées au récit.
-Slide 1 : opening, alignement center, densité low
-Slide 2 : essay, alignement left, densité low
-Slide 3 : statement, alignement center, densité low, rupture avec fond de charte inversé
-Slide 4 : offset, alignement left, densité low
-Slide 5 : closing, alignement left, densité low
-
-TRAITEMENTS DES SLIDES DE TEXTE (maquettes validées par la marque) — OBLIGATOIRES :
-Slide 2 : centré : petit filet de couleur au-dessus du titre, titre puis texte, le bloc centré verticalement.
-Slide 4 : aplat : le haut de la slide (environ 40 %) est un aplat de la couleur principale portant le titre en clair, le texte est centré verticalement dans la partie claire en dessous.
-Pour toutes ces slides : le bloc titre + texte est CENTRÉ VERTICALEMENT dans la slide (aligné à gauche), jamais collé en haut avec un grand vide dessous. Le texte reste dans UN seul élément ancré (data-slide-text="body"), intégral et dans l'ordre : les mises en valeur sont des <span> à l'intérieur, rien n'est recopié ni déplacé. Texte sur toute la largeur utile (au moins 840px), jamais en colonne étroite.
-Les références et interdits explicites de la marque restent prioritaires. Pas de pastille, carte, emoji ou surlignage en dehors des traitements ci-dessus. Maximum 1 compositions centrées horizontalement, 1 pastille et 1 slides à cartes. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
-La marque est sombre : les fonds restent dans la gamme de #1C1A17, sans alternance blanche imposée.\`
+"PLAN DU CARROUSEL : mêmes polices, palette et grille sur toutes les slides ; fond uni par défaut.
+Slide 1 : couverture, densité faible
+Slide 2 : phrase seule, en très grand, densité faible
+Slide 3 : phrase seule, en très grand, densité faible
+Slide 4 : phrase seule, en très grand, densité faible
+Slide 5 : phrase seule, en très grand, densité faible
+Aucune forme n'est imposée par la position de la slide : pour chacune, c'est le SENS du texte qui décide. Quand le design peut montrer l'idée (une énumération, un enchaînement, un prix, un calcul, une perte), montre-la ; sinon le texte seul, sobre, très grand et lisible. Une rupture de fond seulement quand le texte marque une rupture. Le bloc titre + texte est centré verticalement, jamais collé en haut avec un grand vide dessous, et occupe toute la largeur utile (au moins 840px).
+Les références et interdits explicites de la marque restent prioritaires. Au plus 1 pastille. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
+La marque est sombre : les fonds restent dans la gamme de #1C1A17, sans alternance blanche imposée."
 `;
 
 snapshot[`buildCoherencePlan — 3 slides (pas d'ajout automatique de moments de design sous 4 slides) 1`] = `
-\`PLAN ÉDITORIAL GLOBAL : mêmes polices, palette et grille ; compositions adaptées au récit.
-Slide 1 : opening, alignement center, densité low
-Slide 2 : essay, alignement left, densité low
-Slide 3 : closing, alignement left, densité low
-
-TRAITEMENTS DES SLIDES DE TEXTE (maquettes validées par la marque) — OBLIGATOIRES :
-Slide 2 : centré : petit filet de couleur au-dessus du titre, titre puis texte, le bloc centré verticalement.
-Pour toutes ces slides : le bloc titre + texte est CENTRÉ VERTICALEMENT dans la slide (aligné à gauche), jamais collé en haut avec un grand vide dessous. Le texte reste dans UN seul élément ancré (data-slide-text="body"), intégral et dans l'ordre : les mises en valeur sont des <span> à l'intérieur, rien n'est recopié ni déplacé. Texte sur toute la largeur utile (au moins 840px), jamais en colonne étroite.
-Les références et interdits explicites de la marque restent prioritaires. Pas de pastille, carte, emoji ou surlignage en dehors des traitements ci-dessus. Maximum 1 compositions centrées horizontalement, 1 pastille et 1 slides à cartes. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
-Fond principal : #FFF4F8. Les changements de fond suivent les ruptures éditoriales, pas la parité du numéro de slide.\`
+"PLAN DU CARROUSEL : mêmes polices, palette et grille sur toutes les slides ; fond uni par défaut.
+Slide 1 : couverture, densité faible
+Slide 2 : phrase seule, en très grand, densité faible
+Slide 3 : phrase seule, en très grand, densité faible
+Aucune forme n'est imposée par la position de la slide : pour chacune, c'est le SENS du texte qui décide. Quand le design peut montrer l'idée (une énumération, un enchaînement, un prix, un calcul, une perte), montre-la ; sinon le texte seul, sobre, très grand et lisible. Une rupture de fond seulement quand le texte marque une rupture. Le bloc titre + texte est centré verticalement, jamais collé en haut avec un grand vide dessous, et occupe toute la largeur utile (au moins 840px).
+Les références et interdits explicites de la marque restent prioritaires. Au plus 1 pastille. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
+Fond principal : #FFF4F8. Les changements de fond suivent les ruptures éditoriales, pas la parité du numéro de slide."
 `;

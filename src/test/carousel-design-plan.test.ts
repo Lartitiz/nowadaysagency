@@ -9,9 +9,11 @@ describe("carousel art direction", () => {
     const plan = buildCarouselDesignPlan(slides);
     expect(plan).toEqual(buildCarouselDesignPlan(slides));
     expect(plan.sequence.map(s => s.slide_number)).toEqual([1, 2, 3, 4, 5, 6, 7]);
-    expect(new Set(plan.sequence.map(s => s.layout)).size).toBeGreaterThanOrEqual(5);
-    expect(plan.sequence.filter(s => s.inverted)).toHaveLength(1);
-    expect(plan.sequence.filter(s => s.alignment === "center").length).toBeLessThanOrEqual(2);
+    // Décision de Laetitia du 04/10/2026 : fond uni, aucune forme imposée par
+    // la position (même avec un rôle « manifesto »), plus de rupture obligatoire.
+    expect(plan.sequence.map(s => s.layout)).toEqual(["opening", "essay", "essay", "essay", "essay", "essay", "closing"]);
+    expect(plan.sequence.filter(s => s.inverted)).toHaveLength(0);
+    expect(plan.sequence.filter(s => s.alignment === "center").length).toBe(1);
     expect(JSON.stringify(slides)).toBe(source);
   });
   it("keeps photo and schema semantics in the plan", () => {

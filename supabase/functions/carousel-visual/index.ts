@@ -26,7 +26,9 @@ import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { stripDuplicateStepPrefixHtml } from "../_shared/format-render.ts";
-import { buildCarouselDesignPlan, describeCarouselDesignPlan, composeCoverSlide, composeEditorialSlide, editorialSlideText, formatEditorialSlides } from "../_shared/carousel-design-plan.ts";
+import { applyTextSenseDesign, buildCarouselDesignPlan, describeCarouselDesignPlan, composeCoverSlide, composeEditorialSlide, editorialSlideText, formatEditorialSlides } from "../_shared/carousel-design-plan.ts";
+import { planTextSenseDesign, type TextSenseDesign } from "../_shared/carousel-sense-design.ts";
+import { stripInventedSlideText } from "../_shared/invented-text-guard.ts";
 
 /**
  * Bloc partagé : templates HTML/CSS des schémas visuels (visual_schema).
@@ -306,31 +308,31 @@ PADDING : 80px sur les côtés, 60px en haut et en bas. JAMAIS de texte collé a
 
 TITRES (headlines) :
 - Font : ${ch.font_title}, font-weight: normal (JAMAIS bold), font-style: normal
-- Taille : 88-120px pour l'accroche de couverture (slide 1), 64-88px pour les autres slides selon la longueur
+- Taille (échelle UNIQUE, pour toutes les slides) : accroche de couverture 120-168px (4-5 mots ≈ 168px, plus petit si elle est plus longue) ; titres 92-120px selon la longueur ; une phrase seule, courte, jusqu'à 150px. On ne réduit que si la slide reste longue.
 - Couleur : ${ch.color_secondary} ou ${ch.color_text}
-- Line-height : 1.25
-- Certains MOTS-CLÉS en couleur accent ${ch.color_primary} et font-style: italic pour créer du contraste (jamais sur la couverture)
+- Line-height : 1.15
+- Un groupe de mots qui porte la bascule du propos peut passer en couleur accent ${ch.color_primary} et font-style: italic (sur la couverture : un seul groupe, extrait de l'accroche)
 
 CORPS DE TEXTE :
 - Font : ${ch.font_body}, font-weight: 400
-- Taille : 38-48px
+- Taille : 46-52px (jusqu'à 40px seulement si la slide reste longue)
 - Couleur : ${ch.color_text}
-- Line-height : 1.6
+- Line-height : 1.45
 - Texte opaque, y compris secondaire : la hiérarchie vient de la taille et du placement
 
-LABELS ÉDITORIAUX (optionnels, jamais une signature imposée) :
+LABELS ÉDITORIAUX (optionnels, jamais une signature imposée ; le texte d'un label est TOUJOURS un extrait exact du texte de la slide, jamais un mot ajouté) :
 - Display: inline-block
 - Background : ${ch.color_primary}
 - Color: white, font-family: ${ch.font_body}, font-weight: 600
 - Font-size: 32px minimum, casse naturelle, letter-spacing: 0.5px
 - Padding: 8px 24px
 - Texte nu par défaut. Une seule pilule maximum sur tout le carrousel, si la marque le justifie.
-- Utilise-les pour : catégorie, label de section, mot-clé. JAMAIS un numéro de slide ni un label "SLIDE".
+- Utilise-les pour un mot-clé repris du texte de la slide. JAMAIS un numéro de slide, un label "SLIDE" ni un mot absent du texte.
 
 EYEBROWS (petit label au-dessus du titre — à DOSER, jamais systématique) :
 - Un eyebrow = une ligne courte au-dessus du titre : font-family: ${ch.font_body}, font-size: 32px, font-weight: 500, couleur très contrastée issue de la charte
 - Deux formes possibles : texte nu OU badge pilule (voir ci-dessus).
-- Jamais sur la couverture. Sur 1-2 slides du carrousel MAXIMUM, là où un label éditorial apporte vraiment quelque chose ("LE PIÈGE", "CE QUE ÇA CHANGE"…) — jamais un numéro de slide.
+- Jamais sur la couverture. Sur 1-2 slides du carrousel MAXIMUM, et seulement avec des mots repris EXACTEMENT du texte de la slide — jamais un label inventé ni un numéro de slide.
 - L'absence d'eyebrow est le cas NORMAL. Un eyebrow sur chaque slide = effet template généré par IA, c'est un défaut.
 - Gap eyebrow → titre : 16-20px.
 
@@ -344,7 +346,7 @@ MISE EN VALEUR DES MOTS-CLÉS (OPTIONNELLE, selon le sens) :
 DENSITÉ & RESPIRATION (à juger à l'échelle du CARROUSEL, pas de la slide) :
 - Une slide minimaliste (titre fort + texte nu, typographie impeccable, bien centrée) est LÉGITIME et souvent élégante — surtout pour une punchline, une citation, un moment de storytelling. Ne la surcharge pas pour la « designer ».
 - Le rythme vient des variations d'échelle, d'alignement, de largeur de colonne et de densité définies dans le plan global. Une rupture peut être purement typographique. Les cartes, emojis et cadres pointillés ne sont jamais nécessaires pour rendre une slide aboutie.
-- Sur une slide COURTE (${DENSE_SLIDE_WORDS} mots au plus, titre + texte), les chiffres du contenu sont mis en scène : très grande taille (72-120px) en ${ch.font_title}, couleur ${ch.color_primary}. Pour ça, DUPLIQUE le chiffre dans un élément décoratif (carte, chiffre géant) — mais l'élément ancré data-slide-text garde le texte source COMPLET et inchangé (ne déplace jamais un morceau du body vers un élément décoratif).
+- Sur une slide COURTE (${DENSE_SLIDE_WORDS} mots au plus, titre + texte), un chiffre qui porte l'idée (un prix, un total) peut être mis en scène : très grande taille (72-150px) en ${ch.font_title}, couleur ${ch.color_primary}, par exemple sur une étiquette. Pour ça, DUPLIQUE le chiffre (recopié exactement) dans un élément décoratif — mais l'élément ancré data-slide-text garde le texte source COMPLET et inchangé (ne déplace jamais un morceau du body vers un élément décoratif).
 - Sur une slide LONGUE (plus de ${DENSE_SLIDE_WORDS} mots, liste « SLIDES DENSES » ci-dessous) : AUCUN chiffre dupliqué, aucune carte ni encart ajouté, et le texte sur toute la largeur utile (jamais en colonne étroite à côté d'un visuel décoratif). Le texte seul, bien composé et lisible ; un mot peut être mis en valeur dans le texte. Une slide dense chargée d'un encart en plus est un défaut.
 - Nombres à la française : décimale avec virgule collée ("3,5 ans" — jamais "3, 5 ans" ni "3.5").
 
@@ -360,10 +362,9 @@ BORDURES POINTILLÉES (pour les encadrés, citations, analogies) :
 - Border-radius: ${ch.border_radius}
 - Padding: 30px
 
-ÉLÉMENTS DÉCORATIFS AUTORISÉS :
-- Rectangles arrondis (border-radius: ${ch.border_radius}), lignes, traits
-- Petites vagues/zigzags en SVG inline
-- Flèches → en ${ch.color_primary}
+ÉLÉMENTS GRAPHIQUES AUTORISÉS (seulement quand ils servent l'idée de la slide) :
+- Rectangles arrondis (border-radius: ${ch.border_radius}), lignes, traits, étiquettes légèrement inclinées (transform: rotate(-3deg à 3deg))
+- Flèches en ${ch.color_primary}, droites (→) ou courbes en SVG inline
 - Soulignements colorés sous les mots-clés (border-bottom ou background linear-gradient)
 - Aucun emoji décoratif ajouté. Les emojis fournis dans le texte source restent inchangés.
 - JAMAIS de cercles/ronds comme décoration de fond
@@ -375,21 +376,41 @@ ESPACEMENT VERTICAL :
 COMPOSITION SUR UNE GRILLE ÉDITORIALE :
 Le plan global choisit la position et l'alignement. Utilise une grille à marges latérales de 80px, haute de 96px et basse de 110px. L'alignement gauche est le point de départ ; le centrage est réservé à une rupture courte. Varie la largeur et la hauteur des blocs avec intention. Un espace vide asymétrique est légitime. Le bloc titre + texte d'une slide de développement est centré VERTICALEMENT (aligné à gauche), jamais collé en haut avec un grand vide dessous ; ne centre pas le texte horizontalement par défaut et ne remplis pas artificiellement le bas de page.
 
-RYTHME DU CARROUSEL (obligatoire dès 5 slides) :
+FOND ET RUPTURES :
 
-- Au moins UNE slide de rupture à fond plein dans le carrousel : SÉPARATEUR (fond ${ch.color_primary}), DARK BOX (punchline sur fond sombre) ou CTA inversé (fond ${ch.color_secondary}, texte clair).
+- Fond uni sur tout le carrousel par défaut. Aucune slide à fond plein n'est imposée, ni par la position, ni par le nombre de slides : zéro rupture est un bon résultat.
 
-- Place-la sur la slide la plus forte éditorialement (prise de position, punchline, chiffre choc) — c'est elle qui crée la respiration visuelle dans le feed.
+- Une slide de rupture (fond plein ${ch.color_primary}, fond sombre, ou fond ${ch.color_secondary} avec texte clair) seulement quand le TEXTE marque une vraie bascule (aveu, prise de position, retournement).
 
-- Alterne les densités : une slide dense (schéma, liste) est suivie d'une slide aérée (punchline, citation).
+- Le rythme vient du texte : une phrase seule, très grande, fait respirer entre deux slides plus denses.
+
+═══ LE DESIGN MONTRE L'IDÉE ═══
+
+Pour CHAQUE slide, demande-toi : comment illustrer cette idée par le design, quand c'est pertinent ? Montre l'idée plutôt que décorer. Si rien ne s'y prête, le texte seul, sobre, très grand et bien centré : c'est souvent le meilleur choix.
+
+Quelques exemples pour t'inspirer (pas une liste à appliquer, invente ce qui sert le texte de la slide) :
+- une énumération (« l'écologie, les artistes…, les biais…, la sécurité… ») → chaque élément sur une étiquette légèrement inclinée, en alternant deux tons de la charte, comme des post-it ;
+- un enchaînement (« la stratégie, puis la mise en œuvre ») → des cartes numérotées reliées par des flèches courbes ; l'étape qui manque est en pointillés et grisée ;
+- un prix (« Le tout pour 2 100 € TTC ») → le prix en très grand sur une étiquette inclinée ;
+- un calcul (« 1 000 € + 5 000 € + 1 500 € = au moins 7 500 € ») → un ticket d'addition : une ligne par poste, le total en grand, la source en petit dessous ;
+- une perte, une disparition (« je ne pourrais plus m'adresser à… », « mon métier disparaîtra ») → cartes en pointillés au texte grisé, lettres qui s'effacent progressivement ;
+- un mot fort → ce seul mot surligné.
+
+Règles du dispositif :
+- Tout mot visible vient du texte de la slide, recopié exactement. N'ajoute JAMAIS de texte : ni bulle de discussion, ni label, ni légende, ni titre de carte absents du texte. Seuls ajouts permis : les numéros d'ordre (1, 2, 3) et les symboles (+, =, →). Un texte ajouté est retiré automatiquement.
+- Quand le dispositif porte le texte lui-même (étiquettes, cartes, lignes du ticket), chaque morceau est un <span style="display:block|inline-block; …"> À L'INTÉRIEUR de l'élément ancré (data-slide-text), dans l'ordre : le texte reste complet et inchangé. Les numéros d'ordre, flèches et pointillés sont des éléments décoratifs HORS de l'élément ancré.
+- Aucun élément décoratif qui n'explique rien (barres, bulles, formes, pictogrammes de remplissage).
+- Si le dispositif ne tient pas dans la slide, c'est lui qui cède : le texte seul, jamais un texte raccourci.
 
 ═══ DESIGN PAR RÔLE DE SLIDE ═══
 
 HOOK (slide 1) — COUVERTURE : une accroche, rien d'autre :
 
-- Uniquement l'accroche (title) en très grand, et le sous-titre (body) en petit s'il existe. AUCUN autre élément : ni pastille, ni petit label au-dessus, ni motif décoratif, ni surligneur, ni mot-clé coloré, ni numéro, ni logo, ni flèche « glisse ».
+- Uniquement l'accroche (title) en très grand, et le sous-titre (body) en petit s'il existe. AUCUN autre élément : ni pastille, ni petit label au-dessus, ni motif décoratif, ni surligneur, ni numéro, ni logo, ni flèche « glisse ».
 
-- Titre en ${ch.font_title}, 88-120px selon la longueur (une accroche courte = plus grand), font-weight normal ; sous-titre en ${ch.font_body}, 36-42px.
+- UN seul groupe de mots de l'accroche peut passer en italique, couleur ${ch.color_primary} (le cœur de l'accroche : dans « Oui, j'utilise l'IA générative. », « l'IA générative »), dans un <span> à l'intérieur de l'élément ancré. Aucun si rien ne s'impose.
+
+- Titre en ${ch.font_title}, 120-168px selon la longueur (4-5 mots ≈ 168px), font-weight normal ; sous-titre en ${ch.font_body}, 36-42px.
 
 - Titre ET sous-titre CENTRÉS horizontalement (text-align:center) et le bloc centré verticalement dans la slide, marges latérales de 80px minimum.
 
@@ -397,36 +418,34 @@ HOOK (slide 1) — COUVERTURE : une accroche, rien d'autre :
 
 CONTEXTE / STORYTELLING (slide 2) — Personnel, immersif :
 - Fond : ${darkBrand ? `${ch.color_background} ou une déclinaison à peine plus claire de ${ch.color_background} (même famille sombre — JAMAIS blanc)` : `blanc ou ${ch.color_background}`}
-- Titre en ${ch.font_title} (48-56px)
-- Corps en ${ch.font_body} avec un ton intime
+- Titre en ${ch.font_title}, corps en ${ch.font_body}, aux tailles de l'échelle unique ci-dessus, avec un ton intime
 - Optionnel : bordure pointillée autour du bloc de texte
 - Utilise la typographie et l'espace pour donner un ton personnel.
 
 TIPS / CONTENU PÉDAGOGIQUE (slides du milieu) — Clair, structuré :
 - Fond : ${darkBrand ? `${ch.color_background} (les cartes posées dessus portent la clarté)` : "blanc"}
-- Optionnel : badge pilule en haut à gauche avec un label éditorial court ("Le piège", "À éviter", etc.) — jamais un numéro de slide.
-- Titre headline en ${ch.font_title} (48-56px), couleur ${ch.color_secondary}
-- Corps du tip en ${ch.font_body} (34-38px)
+- Optionnel : badge pilule avec un mot-clé repris EXACTEMENT du texte de la slide — jamais un label inventé ni un numéro de slide.
+- Titre headline en ${ch.font_title}, couleur ${ch.color_secondary}, corps en ${ch.font_body}, aux tailles de l'échelle unique ci-dessus
 - Pour structurer le bloc : un mot-clé surligné ou un encadré pointillé — JAMAIS de barre verticale accolée au texte
 - Un mot-clé souligné en ${ch.color_accent} (soulignement jaune type highlighter)
 - Alterner les couleurs d'accent entre les slides pour la variété, UNIQUEMENT dans la palette de la charte : ${ch.color_primary}, ${ch.color_accent}, ${ch.color_secondary}. JAMAIS de couleur hors charte pour les accents.
 
 SLIDE SÉPARATEUR (optionnelle, entre les blocs) — Rupture visuelle :
 - Fond : ${ch.color_primary} (rose vif, plein)
-- Titre en BLANC, ${ch.font_title}, 64px, centré
+- Titre en BLANC, ${ch.font_title}, 100-150px, centré
 - Pas de body, juste le titre
 - Optionnel : numéro de bloc en très grand (200px) coupé en bas de slide, opacity 0.15
 
 DARK BOX (pour les punchlines fortes) :
 - Fond : #1A1A1A
-- Texte blanc en ${ch.font_title} (56px)
+- Texte blanc en ${ch.font_title} (92-150px)
 - Un mot en ${ch.color_accent} (jaune) pour le contraste
 - Padding généreux (80px)
 
 CTA (dernière slide) — Douce, invitante :
 - Fond : ${ch.color_background}
 - Composition ouverte, alignée avec la grille, sans carte obligatoire
-- Texte du CTA en ${ch.font_title} (44-52px), couleur ${ch.color_primary}
+- Texte du CTA aux tailles de l'échelle unique (titre ${ch.font_title} 92-120px, texte 46-52px), couleur ${ch.color_primary} ou ${ch.color_secondary}
 - Un appel à l'action graphique uniquement si le texte source le demande, sans pastille obligatoire
 - Ambiance chaleureuse, pas commerciale
 - Aucun badge de compétence ou de thème inventé autour du CTA
@@ -435,14 +454,14 @@ CTA (dernière slide) — Douce, invitante :
 - TOUTES les slides utilisent les MÊMES fonts (${ch.font_title} pour les titres, ${ch.font_body} pour le corps)
 - Le padding latéral est IDENTIQUE sur toutes les slides (80px)
 - Les badges pilules ont le MÊME style partout
-- Le fond ${darkBrand ? `reste dans la GAMME SOMBRE de la charte : ${ch.color_background}, une déclinaison à peine plus claire ou plus foncée de ${ch.color_background} (même famille), et ponctuellement ${ch.color_primary} — l'alternance est OPTIONNELLE et JAMAIS une slide à fond blanc/clair plein : la marque est sombre, chaque fond de slide reste sombre` : `ALTERNE entre : ${ch.texture_url ? `la texture de marque (background:url('${ch.texture_url}') center/cover), blanc, et ponctuellement ${ch.color_primary}` : `blanc, ${ch.color_background}, et ponctuellement ${ch.color_primary}`} (max 1-2 slides en fond coloré plein)`}
+- Le fond ${darkBrand ? `reste dans la GAMME SOMBRE de la charte : ${ch.color_background}, une déclinaison à peine plus claire ou plus foncée de ${ch.color_background} (même famille), et ponctuellement ${ch.color_primary} — l'alternance est OPTIONNELLE et JAMAIS une slide à fond blanc/clair plein : la marque est sombre, chaque fond de slide reste sombre` : `reste UNI : ${ch.texture_url ? `la texture de marque (background:url('${ch.texture_url}') center/cover)` : ch.color_background} sur toutes les slides ; un fond coloré plein (${ch.color_primary} ou ${ch.color_secondary}) seulement pour une rupture du texte (max 1-2 slides)`}
 - La hiérarchie titre/corps est CONSTANTE : le titre est toujours plus grand, toujours en ${ch.font_title}
 - Les éléments décoratifs (barres, soulignements) utilisent une palette cohérente
 
 ═══ ANTI-PATTERNS — CE QUE TU NE FAIS JAMAIS ═══
-- ❌ Centrage et même largeur de texte répétés sur toutes les slides (la couverture, elle, est toujours centrée)
-- ❌ Toutes les slides avec le même layout (il faut de la variété visuelle)
-- ❌ Texte trop petit (<30px) ou trop gros (>88px sauf l'accroche de couverture et les numéros décoratifs)
+- ❌ Varier pour varier : la forme suit le sens. Des slides de texte nu qui se suivent sont légitimes ; un dispositif ou un fond qui change sans raison dans le texte ne l'est pas
+- ❌ Texte trop petit (corps sous 40px, légende sous 30px) ou trop gros (>150px sauf l'accroche de couverture, jusqu'à 168px, et les chiffres mis en scène)
+- ❌ Texte ajouté : bulle de discussion, label, légende ou mot absent du texte de la slide
 - ❌ Pas de padding (texte qui touche les bords)
 - ❌ Cercles ou ronds comme éléments décoratifs
 - ❌ Font-weight bold sur ${ch.font_title} (toujours normal)
@@ -472,9 +491,9 @@ Retourne un JSON :
 }
 
 IMPORTANT : le HTML de chaque slide doit inclure la balise @import au début
-- Varie le design selon le RÔLE de chaque slide (hook, context, tip, separator, cta, etc.)
-- Crée une continuité visuelle : mêmes fonts, même padding, palette cohérente
-- Suis le plan éditorial global : variations de composition et de densité, sans ornement automatique
+- Le design de chaque slide suit le SENS de son texte (voir « LE DESIGN MONTRE L'IDÉE »), pas sa position
+- Crée une continuité visuelle : mêmes fonts, même padding, palette cohérente, fond uni
+- Suis le plan du carrousel, sans ornement automatique
 - Le résultat doit ressembler à du design Canva Pro, PAS à du HTML basique
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
@@ -492,7 +511,7 @@ ${JSON.stringify(slides, null, 2)}
 
 Template demandé : ${style}${overrideNote}${visualBlock}
 
-RAPPEL : Chaque slide suit le plan de composition adapté à son rôle. La continuité vient de la grille, des polices et de la palette ; la variété vient des placements, de l'échelle et du rythme. Aucun ornement automatique. Les slides avec visual_schema conservent toutes les données et relations, avec des textes lisibles.
+RAPPEL : Pour chaque slide, demande-toi comment le design peut montrer son idée ; sinon, le texte seul, très grand. La continuité vient de la grille, des polices, de la palette et du fond uni. Aucun ornement automatique, aucun mot ajouté. Les slides avec visual_schema conservent toutes les données et relations, avec des textes lisibles.
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
@@ -1125,12 +1144,32 @@ export function stripDuplicateStepNumbers(result: any, params: { slides: any[] }
   if (removed > 0) console.log(`carousel-visual: ${removed} numéro(s) d'étape en double retiré(s)`);
 }
 
+/** Groupe de mots que l'IA de mise en page a mis en italique dans l'accroche
+ * (premier <em>, <i> ou <span> en font-style:italic de l'élément ancré). Le
+ * code le revalide comme extrait exact de l'accroche (composeCoverSlide). */
+export function aiCoverAccent(html: string): string | undefined {
+  const anchor = /<([a-z][a-z0-9]*)\b[^>]*data-slide-text\s*=\s*["'](?:title|body)["'][^>]*>([\s\S]*?)<\/\1>/i.exec(html || "");
+  if (!anchor) return undefined;
+  const m = /<(em|i|span)\b([^>]*)>([^<]+)<\/\1>/gi;
+  let x: RegExpExecArray | null;
+  while ((x = m.exec(anchor[2]))) {
+    if (x[1].toLowerCase() !== "span" || /font-style\s*:\s*italic/i.test(x[2])) {
+      return x[3].replace(/&#39;|&apos;|&rsquo;/g, "'").replace(/&amp;/g, "&").replace(/&nbsp;/g, " ").trim() || undefined;
+    }
+  }
+  return undefined;
+}
+
 /** COUVERTURE des carrousels texte (04/10/2026) : la slide 1 est toujours
  * composée par le code (accroche + sous-titre centrés sur l'aplat), même quand
  * le reste est dessiné par l'IA (charte avec texture, moodboard, référence…).
  * Vu en réel le 04/10 : l'IA ajoutait une illustration décorative au-dessus de
- * l'accroche et un mot coloré. Texte trop long pour tenir → HTML gardé. */
-export function enforceTextCover(result: any, params: { slides: any[]; ch: any; isText: boolean; bgOverride?: string | null }): void {
+ * l'accroche. Décision de Laetitia du 04/10 (carrousel de référence) : UN
+ * groupe de mots de l'accroche en italique couleur d'accent, choisi par l'étage
+ * de mise en page (`accent`) ou, à défaut, repris de l'italique que l'IA a posé
+ * dans l'accroche ; extrait exact validé par le code, sinon aucun. Texte trop
+ * long pour tenir → HTML gardé. */
+export function enforceTextCover(result: any, params: { slides: any[]; ch: any; isText: boolean; bgOverride?: string | null; accent?: string | null }): void {
   if (!params.isText || !Array.isArray(result?.slides_html) || !params.slides?.length) return;
   const nums = params.slides.map((s: any, i: number) => Number(s?.slide_number) || i + 1);
   const first = Math.min(...nums);
@@ -1138,7 +1177,7 @@ export function enforceTextCover(result: any, params: { slides: any[]; ch: any; 
   if (!src || src.visual_schema) return;
   const i = result.slides_html.findIndex((s: any) => Number(s?.slide_number) === first);
   if (i < 0 || /data-carousel-layout="opening"/.test(String(result.slides_html[i].html || ""))) return;
-  const cover = composeCoverSlide(src, params.ch || {}, first, params.bgOverride);
+  const cover = composeCoverSlide(src, params.ch || {}, first, params.bgOverride, params.accent || aiCoverAccent(String(result.slides_html[i].html || "")));
   if (!cover) return;
   result.slides_html[i] = { ...result.slides_html[i], html: cover.html };
   console.log(JSON.stringify({ event: "carousel_cover_composed", slide: first }));
@@ -2437,6 +2476,13 @@ Adapte le design system ci-dessus au style "${style}". Le style influence l'ambi
     //  - Section B (contrat PPTX) = invariants explicites ci-dessous + annotations.
     //  - Section C (output) = on demande aussi `slides_invariants` pour que l'exporter
     //    n'ait plus à deviner palette/polices/tailles via getComputedStyle.
+    // Tailles du carrousel TEXTE alignées sur la référence de Laetitia
+    // (04/10/2026) ; photo et mixte gardent leurs consignes d'avant.
+    const isTextRender = !isPhotoCarousel && !isMixCarousel;
+    const bodySizeRule = isTextRender
+      ? "Corps 46-52px (40px au plus petit, seulement si la slide reste longue), légendes secondaires au moins 32px."
+      : "Corps 38-44px, légendes secondaires au moins 32px.";
+    const bodySizeCheck = isTextRender ? "à 46-52px (40px au plus petit sur une slide longue)" : "à 38-44px";
     const pptxAnnotationRules = `
 
 ${invariantsBlock}
@@ -2447,7 +2493,7 @@ Chaque slide (texte, photo, schéma) est une colonne flex pleine hauteur :
 
 display:flex;flex-direction:column;height:1350px (+ justify-content adapté au contenu).
 
-- CONTRAINTE DE SORTIE VÉRIFIABLE : tous les textes restent dans la zone sûre de 96px à 1240px. La position du dernier élément dépend du plan et de la densité : aucune hauteur de remplissage obligatoire. Si le contenu dépasse, change la largeur et la composition. Ne raccourcis, ne supprime et ne reformule JAMAIS le texte source. Corps 38-44px, légendes secondaires au moins 32px.
+- CONTRAINTE DE SORTIE VÉRIFIABLE : tous les textes restent dans la zone sûre de 96px à 1240px. La position du dernier élément dépend du plan et de la densité : aucune hauteur de remplissage obligatoire. Si le contenu dépasse, change la largeur et la composition. Ne raccourcis, ne supprime et ne reformule JAMAIS le texte source. ${bodySizeRule}
 
 Évite de répéter une petite carte flottante au centre. Un vide intentionnel dans une composition éditoriale est autorisé.
 
@@ -2517,7 +2563,7 @@ Le bloc \`slides_invariants\` confirme la palette/typo/layouts que TU as effecti
 
 Avant de répondre, vérifie :
 1. Chaque titre tient dans sa zone, sans suppression ni reformulation du texte source.
-2. Chaque corps reste lisible à 38-44px, sans débordement.
+2. Chaque corps reste lisible ${bodySizeCheck}, sans débordement.
 3. Les layouts suivent le plan global et les références explicites de la marque.
 4. Aucune slide n'a de ligne décorative sous un titre.
 5. Aucune slide n'a un fond beige/crème par défaut.
@@ -2557,6 +2603,15 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     const textFormattingUsage: UsageSink = {};
     const textFormattingPromise = editorialSlides.some(Boolean)
       ? planPhotoFormatting(slides.map((s: any, i: number) => ({ slide_number: Number(s.slide_number) || i + 1, role: s.role, overlay_text: editorialSlideText(s) })), textFormattingUsage)
+      : null;
+    // DESIGN AU SERVICE DU SENS (décision de Laetitia du 04/10/2026) : étage
+    // séparé de l'écriture, en parallèle du rendu, qui choisit slide par slide
+    // la forme selon le sens du texte (phrase seule, rupture, mot en italique
+    // d'accent, mot surligné, accent de la couverture). Validé par le code ;
+    // sans réponse exploitable, le plan de repli (fond uni, texte nu) reste.
+    const textSenseUsage: UsageSink = {};
+    const textSensePromise: Promise<TextSenseDesign> | null = editorialSlides.some(Boolean)
+      ? planTextSenseDesign(slides, textSenseUsage)
       : null;
     // Carrousel MIXTE : familles de mise en page composées par le code (maquette
     // validée le 02/10/2026). null = au moins une slide exige le rendu modèle
@@ -2636,24 +2691,38 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     // disposition n'a pas tourné ; on le dit dans la réponse (gardé sur le carrousel).
     if (isMixCarousel && !mixComposed && result) result.mix_layout = { ...mixLayoutTelemetry(null, null), status: "model_render" };
     let finalEditorial = editorialSlides;
+    let sensedPlan = designPlan;
+    let coverAccent: string | undefined;
+    if (textSensePromise) {
+      const sense = await textSensePromise;
+      for (const key of ["input_tokens", "output_tokens", "total_tokens"] as const) (usage as any)[key] = ((usage as any)[key] || 0) + ((textSenseUsage as any)[key] || 0);
+      if (usage.model === COMPOSED_BY_CODE_MODEL && (textSenseUsage as any).total_tokens) usage.model = textSenseUsage.model;
+      sensedPlan = applyTextSenseDesign(slides, designPlan, ch, sense);
+      // Seules les slides déjà composées par le code changent ; une forme qui ne
+      // tient pas laisse la composition de repli (l'élément cède, jamais le texte).
+      finalEditorial = editorialSlides.map((b, i) => b ? (composeEditorialSlide(slides[i], sensedPlan.sequence[i], ch) || b) : b);
+      coverAccent = sense.cover_accent;
+      result.text_sense_design = { version: sense.version, status: sense.status, phrases_seules: sense.slides.filter(x => x.forme === "phrase_seule").length, ruptures: sense.slides.filter(x => x.forme === "rupture").length, accents: sense.slides.filter(x => x.accent).length, surlignes: sense.slides.filter(x => x.surligne).length, cover_accent: !!sense.cover_accent };
+      console.log(JSON.stringify({ event: "carousel_text_sense_design", ...result.text_sense_design }));
+    }
     if (textFormattingPromise) {
       const textFormatting = await textFormattingPromise;
       for (const key of ["input_tokens", "output_tokens", "total_tokens"] as const) (usage as any)[key] = ((usage as any)[key] || 0) + ((textFormattingUsage as any)[key] || 0);
       // Rendu 100 % code + appel de mise en forme : le coût est celui du modèle de mise en forme.
       if (usage.model === COMPOSED_BY_CODE_MODEL && (textFormattingUsage as any).total_tokens) usage.model = textFormattingUsage.model;
-      finalEditorial = formatEditorialSlides(slides, designPlan, ch, editorialSlides, textFormatting);
+      finalEditorial = formatEditorialSlides(slides, sensedPlan, ch, finalEditorial, textFormatting);
       result.text_formatting = { version: textFormatting.version, status: textFormatting.status, steps: textFormatting.steps.length, motifs: textFormatting.motifs.length };
-      if (allEditorial) result.slides_html = finalEditorial;
     }
+    if (allEditorial) result.slides_html = finalEditorial;
     // Specialized schemas/references retain their generated HTML. Plain slides
     // can use the curated geometry in the same sequence without changing copy.
     if (!allEditorial && finalEditorial.some(Boolean)) {
       const composed = new Map(finalEditorial.filter(Boolean).map(s => [s!.slide_number, s!.html]));
       result.slides_html = result.slides_html.map((s: any) => composed.has(s.slide_number) ? { ...s, html: composed.get(s.slide_number) } : s);
     }
-    result.design_plan = designPlan;
-    console.log(JSON.stringify({ event: "carousel_design_plan", version: designPlan.version, layouts: designPlan.sequence.map(s => s.layout), composed_slides: editorialSlides.filter(Boolean).length, total_slides: slides.length }));
-    enforceTextCover(result, { slides, ch, isText: !isPhotoCarousel && !isMixCarousel, bgOverride: custom_overrides?.slide_bg_override });
+    result.design_plan = sensedPlan;
+    console.log(JSON.stringify({ event: "carousel_design_plan", version: sensedPlan.version, layouts: sensedPlan.sequence.map(s => s.layout), composed_slides: editorialSlides.filter(Boolean).length, total_slides: slides.length }));
+    enforceTextCover(result, { slides, ch, isText: !isPhotoCarousel && !isMixCarousel, bgOverride: custom_overrides?.slide_bg_override, accent: coverAccent });
     await applyContrastCorrectionPass(result, { isPhotoCarousel, isMixCarousel, composedByCode, reqBody, systemPromptWithAnnotations, model });
     applySafeZoneGuard(result, { isPhotoCarousel, isMixCarousel, composedByCode, slides });
     stripSlideNumberBadges(result);
@@ -2671,6 +2740,9 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     enforceVerbatimAnchorsGuard(result, { slides });
     enforcePhotoSlideAnchorsGuard(result, { slides });
     stripDuplicateStepPrefixes(result);
+    // Texte inventé (bulles, labels, eyebrows absents du texte) : retiré des
+    // slides du carrousel TEXTE, le texte ancré n'est jamais touché.
+    stripInventedSlideText(result, { isText: !isPhotoCarousel && !isMixCarousel, slides });
     logSchemaFidelityTelemetry(result, { slides, userId: user.id });
     const coverIllustrationDone = await applyCoverIllustration(result, { reqBody, slides, ch, userId: user.id, workspaceId, usage });
     // En DERNIER : la couverture illustrée remplace aussi du HTML.
