@@ -25,6 +25,7 @@ const SLIDE_ROLE_LABELS: Record<string, string> = {
   analysis: "Analyse",
   analyse: "Analyse",
   comparison: "Comparaison",
+  schema_pause: "Schéma",
   comparaison: "Comparaison",
   exemple: "Exemple",
   example: "Exemple",

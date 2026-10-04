@@ -2146,7 +2146,7 @@ Adapte le design system ci-dessus au style "${style}". Le style influence l'ambi
     // Build schema instructions from visual_schema fields
     const schemaSlides = slides.filter((s: any) => s.visual_schema);
     const schemaInstructions = schemaSlides
-      .map((s: any) => `- Slide ${s.slide_number} (SCHÉMA type "${s.visual_schema.type}") : ${JSON.stringify(s.visual_schema)}`)
+      .map((s: any) => `- Slide ${s.slide_number} (SCHÉMA type "${s.visual_schema.type}")${s.schema_pause ? " — SLIDE PAUSE : le schéma seul, en grand, qui occupe la slide ; aucun titre ni texte ajouté en dehors des données du schéma" : ""} : ${JSON.stringify(s.visual_schema)}`)
       .join("\n");
 
     let visualBlock = "";
