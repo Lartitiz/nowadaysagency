@@ -192,7 +192,9 @@ Deno.test("disposition mixte : l'étage ne réécrit jamais le texte, échec →
   assertEquals(payload.slides.filter((s: any) => s.options.length).map((s: any) => s.slide_number), [2, 3, 4, 5]);
   assertEquals(payload.slides[1].photo_orientation, "portrait");
   assertEquals(sent.messages[0].content.filter((c: any) => c.type === "image").length, 4);
-  assertEquals(sent.abortTimeoutMs, 25000);
+  assertEquals(sent.abortTimeoutMs, 30000);
+  // Schéma d'outil sans null dans les enum.
+  assert(!JSON.stringify(sent.tool.input_schema).includes("null"), "schéma d'outil avec null");
   // Échec ou délai : aucune disposition, rendu identique au déterministe.
   const failed = await planMixLayouts(CERAMIQUE, CH, photos, {}, (() => Promise.reject(new Error("timeout"))) as any);
   assertEquals([failed.status, failed.choices.length], ["unavailable", 0]);
@@ -221,9 +223,11 @@ Deno.test("disposition mixte : orientation lue dans l'en-tête (PNG, JPEG), inco
 
 Deno.test("disposition mixte : le rendu passe toujours par l'étage, en parallèle de la mise en forme", async () => {
   const src = await Deno.readTextFile(new URL("../carousel-visual/index.ts", import.meta.url));
-  assert(/Promise\.all\(\[\s*planPhotoFormatting\(mixTextSlides, usage\),\s*layoutMixSlides\(numbered, ch, reqBody\.photos \|\| \[\], usage\),?\s*\]\)/.test(src), "l'étage de disposition n'est plus lancé en parallèle");
-  assert(/composeMixCarousel\(applyMixFormatting\(laid\.slides( as any\[\])?, mixFormatting\)/.test(src), "les dispositions ne sont plus appliquées");
-  assert(/result\.mix_layout_memos = mixLayoutMemoOut/.test(src) && /mixLayoutMemos\(laid\.slides, mixComposed, laid\.plan\)/.test(src), "les dispositions ne sont plus renvoyées pour être mémorisées");
+  assert(/await composeMixStages\(\{ slides, ch, photos: reqBody\.photos \|\| \[\], photoCount: mixPhotoCount, usage, initial: mixComposed \}\)/.test(src), "les étages du mixte ne sont plus appelés au rendu");
+  const fn = /export async function composeMixStages[\s\S]*?\n}\n/.exec(src)?.[0] || "";
+  assert(/Promise\.all\(\[[\s\S]*planPhotoFormatting\(mixTextSlides[\s\S]*layoutMixSlides\(numbered, ch, photos, usage[\s\S]*\]\)/.test(fn), "l'étage de disposition n'est plus lancé en parallèle");
+  assert(/composeMixCarousel\(applyMixFormatting\(laid\.slides( as any\[\])?, formatting\)/.test(fn), "les dispositions ne sont plus appliquées");
+  assert(/memos: mixLayoutMemos\(laid\.slides, composed, laid\.plan\)/.test(fn) && /result\.mix_layout_memos = mixLayoutMemoOut/.test(src), "les dispositions ne sont plus renvoyées pour être mémorisées");
   assert(/carousel_mix_layout_formatting/.test(src), "télémétrie de disposition perdue");
 });
 

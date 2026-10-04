@@ -693,6 +693,34 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
 // a montré que les gardes regex ne rattrapaient pas les variantes du modèle
 // (5 motifs sur 6 passaient au travers). Zéro appel modèle = plus rapide et
 // moins cher. Le mode MIXTE (slides design + photos) garde le chemin modèle.
+/**
+ * Étages APRÈS l'écriture du carrousel MIXTE, dans l'ordre de production :
+ * mise en forme (étapes, motifs) et disposition (mix-layout-formatting.ts) en
+ * parallèle, dispositions mémorisées reprises, composition par le code, puis
+ * dispositions à mémoriser renvoyées au front. `call` : injectable (tests).
+ */
+export async function composeMixStages(params: {
+  slides: any[]; ch: any; photos: any[]; photoCount: number; usage: UsageSink;
+  initial: NonNullable<ReturnType<typeof composeMixCarousel>>; call?: typeof callAnthropic;
+}) {
+  const { slides, ch, photos, photoCount, usage, call } = params;
+  const mixTextSlides = slides.map((s: any, i: number) => ({ slide_number: Number(s.slide_number) || i + 1, role: s.role, overlay_text: mixSlideText(s) }));
+  // Dispositions mémorisées au rendu précédent : reprises telles quelles,
+  // l'IA ne traite que les slides qui n'en ont pas (mêmes visuels à chaque
+  // régénération).
+  const numbered = slides.map((s: any, i: number) => ({ ...s, slide_number: Number(s.slide_number) || i + 1 }));
+  const [formatting, laid] = await Promise.all([
+    call ? planPhotoFormatting(mixTextSlides, usage, call) : planPhotoFormatting(mixTextSlides, usage),
+    call ? layoutMixSlides(numbered, ch, photos, usage, call) : layoutMixSlides(numbered, ch, photos, usage),
+  ]);
+  let composed = params.initial;
+  if (formatting.steps.length || formatting.motifs.length || laid.plan.choices.length || laid.restored) {
+    composed = composeMixCarousel(applyMixFormatting(laid.slides as any[], formatting), ch, photoCount) || composed;
+  }
+  // Renvoyé au front, qui le garde sur chaque slide (mix_layout_memo).
+  return { composed, formatting, layouts: laid.plan, memos: mixLayoutMemos(laid.slides, composed, laid.plan), memorized: laid.restored };
+}
+
 export function runComposedByCodeGeneration(params: {
   slides: any[];
   ch: any;
@@ -2513,23 +2541,8 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     let mixLayouts: MixLayoutPlan | null = null;
     let mixMemorized = 0;
     if (mixComposed) {
-      const mixTextSlides = slides.map((s: any, i: number) => ({ slide_number: Number(s.slide_number) || i + 1, role: s.role, overlay_text: mixSlideText(s) }));
-      // Dispositions mémorisées au rendu précédent : reprises telles quelles,
-      // l'IA ne traite que les slides qui n'en ont pas (mêmes visuels à chaque
-      // régénération).
-      const numbered = slides.map((s: any, i: number) => ({ ...s, slide_number: Number(s.slide_number) || i + 1 }));
-      const [formatting, laid] = await Promise.all([
-        planPhotoFormatting(mixTextSlides, usage),
-        layoutMixSlides(numbered, ch, reqBody.photos || [], usage),
-      ]);
-      mixFormatting = formatting;
-      mixLayouts = laid.plan;
-      mixMemorized = laid.restored;
-      if (mixFormatting.steps.length || mixFormatting.motifs.length || laid.plan.choices.length || laid.restored) {
-        mixComposed = composeMixCarousel(applyMixFormatting(laid.slides as any[], mixFormatting), ch, mixPhotoCount) || mixComposed;
-      }
-      // Renvoyé au front, qui le garde sur chaque slide (mix_layout_memo).
-      if (mixComposed) mixLayoutMemoOut = mixLayoutMemos(laid.slides, mixComposed, laid.plan);
+      const stages = await composeMixStages({ slides, ch, photos: reqBody.photos || [], photoCount: mixPhotoCount, usage, initial: mixComposed });
+      ({ composed: mixComposed, formatting: mixFormatting, layouts: mixLayouts, memos: mixLayoutMemoOut, memorized: mixMemorized } = stages);
     }
 
     // ═══ Carrousel PHOTO pur : composition PAR CODE (chantier gabarits 13/07) ═══
@@ -2579,6 +2592,9 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
       });
     }
 
+    // Mixte rendu par le modèle (une slide hors gabarit) : l'étage de
+    // disposition n'a pas tourné ; on le dit dans la réponse (gardé sur le carrousel).
+    if (isMixCarousel && !mixComposed && result) result.mix_layout = { ...mixLayoutTelemetry(null, null), status: "model_render" };
     let finalEditorial = editorialSlides;
     if (textFormattingPromise) {
       const textFormatting = await textFormattingPromise;

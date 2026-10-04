@@ -20,7 +20,8 @@ describe("mémoire de la disposition du mixte", () => {
   });
   it("la page de création garde la mémoire sur les slides du carrousel (donc sauvegardée)", () => {
     const src = readFileSync("src/pages/CreerUnifie.tsx", "utf8");
-    expect(src).toMatch(/onMixLayoutMemos: \(memos\) => setResult\(/);
+    expect(src).toMatch(/onMixLayoutMemos: \(memos, receipt\) => setResult\(/);
+    expect(src).toMatch(/mix_layout_formatting: receipt/);
     expect(src).toMatch(/applyMixLayoutMemos\(slides, memos\)/);
   });
 });

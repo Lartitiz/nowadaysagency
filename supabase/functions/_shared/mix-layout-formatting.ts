@@ -30,6 +30,8 @@ import {
 // texte entier et la photo de la slide, ou n'est pas retenue.
 
 export const MIX_LAYOUT_VERSION = "mix-layout-formatting-v1";
+/** Appel avec photos, en parallèle de la mise en forme (25 s) : un peu plus de marge. */
+export const MIX_LAYOUT_TIMEOUT_MS = 30_000;
 
 /** Champs de disposition que la rédaction ne décide plus (carrousel mixte). */
 export const MIX_WRITER_LAYOUT_FIELDS = ["photo_layout", "overlay_position", "overlay_style"] as const;
@@ -43,6 +45,8 @@ export interface MixLayoutPlan {
   proposed: number;
   /** Refusées dès la lecture (slide inconnue, hors options, doublon). */
   rejected: Array<{ slide_number: number; layout: string; reason: string }>;
+  /** Cause d'un échec de l'appel (status « unavailable »), pour diagnostic. */
+  error?: string;
 }
 
 type Slide = Record<string, any>;
@@ -253,6 +257,7 @@ export function mixLayoutTelemetry(plan: MixLayoutPlan | null, composed: Compose
   return {
     version: plan?.version ?? MIX_LAYOUT_VERSION,
     status: plan?.status ?? "skipped",
+    ...(plan?.error ? { error: plan.error } : {}),
     memorized,
     proposed: plan?.proposed ?? 0,
     accepted: receipts.filter(r => r!.status === "accepted").length,
@@ -305,21 +310,23 @@ export async function planMixLayouts(slides: Slide[], charter: MixCharter, photo
   const sink: UsageSink = {};
   try {
     const raw = await call({
-      model: SONNET_MODEL, system: MIX_LAYOUT_RULES, max_tokens: 1500, maxRetries: 0, abortTimeoutMs: 25000, keepDashes: true,
+      model: SONNET_MODEL, system: MIX_LAYOUT_RULES, max_tokens: 1500, maxRetries: 0, abortTimeoutMs: MIX_LAYOUT_TIMEOUT_MS, keepDashes: true,
       messages: [{ role: "user", content }],
       tool: { name: "choisir_dispositions", description: "Choisit la disposition de chaque slide photo parmi ses options, sans modifier le texte.", input_schema: { type: "object", required: ["layouts"], properties: {
         layouts: { type: "array", maxItems: options.size, items: { type: "object", required: ["slide_number", "layout", "reason"], properties: {
           slide_number: { type: "integer" },
           layout: { type: "string", enum: [...PROPOSABLE_MIX_LAYOUTS] },
-          side: { type: ["string", "null"], enum: ["left", "right", null] },
-          position: { type: ["string", "null"], enum: ["top", "bottom", null] },
+          // Pas de null dans les enum : schéma le plus simple possible pour l'API.
+          side: { type: "string", enum: ["left", "right"] },
+          position: { type: "string", enum: ["top", "bottom"] },
           reason: { type: "string", maxLength: 300 },
         } } },
       } } },
     } as any, sink);
     return { version: MIX_LAYOUT_VERSION, status: "completed", ...validateMixLayoutPlan(raw, options) };
-  } catch {
-    return empty("unavailable");
+  } catch (e) {
+    console.error(JSON.stringify({ event: "carousel_mix_layout_unavailable", error: String((e as any)?.message || e).slice(0, 300) }));
+    return { ...empty("unavailable"), error: String((e as any)?.message || e).slice(0, 300) };
   } finally {
     for (const key of ["input_tokens", "output_tokens", "total_tokens"] as const) usage[key] = (usage[key] || 0) + (sink[key] || 0);
     if (!usage.model) usage.model = sink.model || SONNET_MODEL;
