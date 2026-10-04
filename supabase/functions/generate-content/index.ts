@@ -11,6 +11,9 @@ import { validateInput, ValidationError, GenerateContentSchema, clampAiField } f
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { numbersIn, runTextRedacGate } from "../_shared/redac-gate.ts";
+import { parseAudienceAddress, type AudienceAddress } from "../_shared/audience-address.ts";
+import { addressPassOptions } from "../_shared/audience-address-pass.ts";
+import { enforceAudienceAddressInJsonText, enforceAudienceAddressInText } from "../_shared/audience-address-fields.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -88,6 +91,9 @@ serve(async (req) => {
     // Liste blanche des chiffres pour la passe de correction LinkedIn (cf. redac-gate.ts,
     // même patron que creative-flow) : renseignée dans les branches concernées ci-dessous.
     let linkedinRedacInput = "";
+    // Tu ou vous réglé dans la fiche de marque (04/10/2026) : contrôlé par le
+    // code sur les textes publiés (calendar-quick, express-draft, caption).
+    let audienceAddress: AudienceAddress | null = null;
 
     // Handle "raw" type early - no profile block needed
     if (type === "raw") {
@@ -105,6 +111,7 @@ serve(async (req) => {
       const canalLabel = canal === "linkedin" ? "LinkedIn" : canal === "blog" ? "un article de blog" : canal === "pinterest" ? "Pinterest" : "Instagram";
       const ctx = await getUserContext(supabase, userId, workspace_id);
       const fullContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
+      audienceAddress = parseAudienceAddress(ctx?.tone?.tone_register);
 
       if (type === "suggest") {
         const objectifInstruction = objectif
@@ -602,6 +609,13 @@ Réponds en JSON :
       } catch (correctionError) {
         console.error("LinkedIn correction pass failed, using original:", correctionError);
       }
+    }
+
+    // Tu ou vous APRÈS la relecture : aucun appel sans réglage ou si le texte est conforme.
+    if (audienceAddress && (type === "calendar-quick" || type === "caption")) {
+      content = await enforceAudienceAddressInText(content, audienceAddress, addressPassOptions(`generate-content:${type}`, 20_000));
+    } else if (audienceAddress && type === "express-draft") {
+      content = (await enforceAudienceAddressInJsonText(content, ["accroche", "content"], audienceAddress, addressPassOptions("generate-content:express-draft", 20_000))) ?? content;
     }
 
 

@@ -4,6 +4,7 @@
 
 import { LINKEDIN_STORYTELLING_RULES, LINKEDIN_TEMPLATES } from "./copywriting-prompts.ts";
 import { LIVED_CASE_FIRST } from "./lived-case.ts";
+import type { AudienceAddress } from "./audience-address.ts";
 
 export function carouselBrief(): string {
   return `FORMAT : CARROUSEL INSTAGRAM (8 slides minimum)
@@ -576,6 +577,30 @@ export interface StoriesBriefParams {
    * résout ensuite index → user_photos.id de façon déterministe.
    */
   photo_catalog?: { index: number; description: string; chosen?: boolean }[] | null;
+  /**
+   * Tu ou vous réglé dans la fiche de marque (04/10/2026). Quand il existe, les
+   * consignes d'adresse ci-dessous ne fixent plus de forme : elles renvoient
+   * au réglage. Sans réglage, elles restent mot pour mot celles d'avant.
+   */
+  audienceAddress?: AudienceAddress | null;
+}
+
+/** Consignes d'adresse des stories : figées sans réglage (historique), alignées sur la fiche sinon. */
+export function storiesAddressLines(addr: AudienceAddress | null | undefined): { voice: string; hook: string; oral: string } {
+  if (!addr) {
+    return {
+      voice: `- Le "TU" n'arrive que dans les moments d'interpellation directe ou les CTA, JAMAIS comme ton dominant.
+- Le "VOUS" inclusif ("qui ici…", "est-ce que ça vous parle…") est préféré au "tu" pour les questions.`,
+      hook: `IMPORTANT : Le hook par défaut est en "JE" ou en "VOUS inclusif". Le "TU" direct est réservé UNIQUEMENT à l'angle "interpellation communauté" et doit rester rare.`,
+      oral: `Le "JE" raconte, le "VOUS/TU" n'intervient que ponctuellement pour interpeller.`,
+    };
+  }
+  const form = addr === "vous" ? `"VOUS" (vouvoiement)` : `"TU" (tutoiement)`;
+  return {
+    voice: `- L'adresse directe au public (interpellation, questions, CTA) reste ponctuelle, jamais le ton dominant, et elle est TOUJOURS au ${form} : c'est le réglage de sa fiche de marque, règle ferme.`,
+    hook: `IMPORTANT : Le hook par défaut est en "JE" ou s'adresse au public au ${form}, selon sa fiche de marque. L'interpellation directe reste rare.`,
+    oral: `Le "JE" raconte, l'adresse au public (au ${form}) n'intervient que ponctuellement pour interpeller.`,
+  };
 }
 
 function getStoriesVenteInstructions(priceRange?: string | null): string {
@@ -619,6 +644,7 @@ function getStoriesVenteInstructions(priceRange?: string | null): string {
 }
 
 export function storiesBrief(p: StoriesBriefParams = {}): string {
+  const address = storiesAddressLines(p.audienceAddress);
   const objective = p.objective || "connexion";
   const time_available = p.time_available || "flexible";
   const face_cam = p.face_cam || "flexible";
@@ -820,8 +846,7 @@ On regarde les stories UNE PAR UNE, en tapotant. Si la story 4 pourrait être lu
 RÈGLE D'OR DE LA VOIX :
 - AUCUNE amorce passe-partout : la première phrase de la séquence doit être IMPOSSIBLE à coller sur un autre sujet ou un autre métier. Si elle pourrait ouvrir n'importe quelle story de n'importe quel compte, réécris-la à partir d'un détail de CE sujet.
 - Le "JE" narratif est la voix PAR DÉFAUT. On raconte depuis son expérience.
-- Le "TU" n'arrive que dans les moments d'interpellation directe ou les CTA, JAMAIS comme ton dominant.
-- Le "VOUS" inclusif ("qui ici…", "est-ce que ça vous parle…") est préféré au "tu" pour les questions.
+${address.voice}
 - Une bonne story donne l'impression de surprendre quelqu'un en train de réfléchir ou de vivre quelque chose. Ce n'est PAS un post reformaté en slides.
 - Chaque story doit donner envie de voir la SUIVANTE. Il y a une tension narrative, un fil. Pas juste des affirmations empilées.
 
@@ -868,7 +893,7 @@ TYPES DE HOOKS STORIES (adaptés à l'angle choisi) :
 5. Storytime : un vécu réel fourni par l'utilisatrice, anonymisé. Si rien n'est fourni, ne pas fabriquer de date ni d'anecdote : généraliser.
 6. Prise de position : le constat précis qui dérange, ancré dans le sujet, pas une formule d'agacement générique.
 Dans tous les cas : ne recycle JAMAIS une amorce vue ailleurs, écris la phrase à partir d'un détail de CE sujet.
-IMPORTANT : Le hook par défaut est en "JE" ou en "VOUS inclusif". Le "TU" direct est réservé UNIQUEMENT à l'angle "interpellation communauté" et doit rester rare.
+${address.hook}
 
 GARDE-FOUS OBLIGATOIRES :
 1. Max 10 stories par séquence
@@ -878,7 +903,7 @@ GARDE-FOUS OBLIGATOIRES :
 5. Si face cam → TOUJOURS mentionner sous-titres
 6. Story 1 = hook fort (c'est là que l'audience décroche)
 7. Publier TOUTE la séquence à la suite, dans un seul bloc. Choisis UN créneau conseillé (matin, midi ou soir) dans "publication_time" ; ne répartis jamais les stories d'une même histoire sur plusieurs moments.
-8. Ton oral, décontracté, comme si on parlait face caméra ou en message vocal. Le "JE" raconte, le "VOUS/TU" n'intervient que ponctuellement pour interpeller.
+8. Ton oral, décontracté, comme si on parlait face caméra ou en message vocal. ${address.oral}
 9. Écriture inclusive point médian
 10. Expressions naturelles et orales, variées d'une story à l'autre : évite de réutiliser toujours la même cheville
 11. Aparté entre parenthèses : 1 MAXIMUM par séquence, jamais dans deux stories de suite, et uniquement s'il dit quelque chose de propre à ce sujet (un aparté qui pourrait aller dans n'importe quelle story est un tic : supprime-le)

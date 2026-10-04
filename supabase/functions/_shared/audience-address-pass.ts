@@ -30,3 +30,8 @@ export const applyAudienceAddressPass: AudienceAddressPass = async (content, add
   }
 };
 
+
+/** Options prêtes pour audience-address-fields.ts (passe IA réelle, journaux nommés). */
+export function addressPassOptions(scope: string, abortTimeoutMs = 30_000) {
+  return { pass: applyAudienceAddressPass, abortTimeoutMs, scope, logger: (m: string) => console.log(`[${scope}] ${m}`) };
+}

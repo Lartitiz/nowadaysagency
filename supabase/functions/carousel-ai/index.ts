@@ -2260,7 +2260,7 @@ Nombre de slides : ${slide_count || 7}
 ${deepeningCtx}${angleCtx}
 RÈGLES HOOKS CARROUSEL :
 - 4 à 10 MOTS par hook (idéalement 5 à 8) : c'est le titre de la couverture
-- Doit stopper le scroll : tension ou manque (prise de position, erreur courante, question qui pique, promesse concrète, liste chiffrée, « personne ne te dit que… », actu détournée, histoire entamée)
+- Doit stopper le scroll : tension ou manque (prise de position, erreur courante, question qui pique, promesse concrète, liste chiffrée, « ce que personne ne dit sur… », actu détournée, histoire entamée)
 - Spécifique au sujet, pas générique ; jamais un titre-étiquette qui nomme seulement le sujet
 - 3 types DIFFÉRENTS de hooks
 ${deepeningCtx ? "- ANCRE les hooks dans le vécu et les mots de l'utilisatrice" : ""}

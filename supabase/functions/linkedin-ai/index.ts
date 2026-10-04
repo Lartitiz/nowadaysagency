@@ -8,6 +8,9 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { numbersIn, runTextRedacGate } from "../_shared/redac-gate.ts";
+import { parseAudienceAddress, type AudienceAddress } from "../_shared/audience-address.ts";
+import { addressPassOptions } from "../_shared/audience-address-pass.ts";
+import { collectTextSlots, enforceAudienceAddressInSlots } from "../_shared/audience-address-fields.ts";
 
 // Plafond de la passe de correction (Haiku, édition mécanique à règles fermées,
 // sortie capée 4096 tokens) : bornée séparément de l'appel principal pour que
@@ -75,6 +78,54 @@ async function correctCrosspostJson(rawJson: string, abortTimeoutMs = CORRECTION
     console.error(`[linkedin-ai] correctCrosspostJson failed:`, e);
     return rawJson;
   }
+}
+
+// Tu ou vous (fiche de marque, 04/10/2026) : champs PUBLIÉS de chaque action
+// qui rédige un contenu. Le reste (analyse, checklist, angle choisi) parle à
+// l'utilisatrice et n'est pas touché.
+const ADDRESS_FIELDS: Record<string, string[]> = {
+  "caption-for-carousel": ["hook", "body", "cta"],
+  "improve-post": ["improved_version", "hook_alternatives[]"],
+  "adapt-instagram": ["hook", "full_text"],
+  "crosspost": [
+    "versions.linkedin.full_text",
+    "versions.instagram.full_text",
+    "versions.reel.script",
+    "versions.stories.sequence[]",
+    "versions.stories.sequence[].text",
+  ],
+};
+const ADDRESS_TIMEOUT_MS = 25_000;
+
+/** Contrôle tu/vous de la réponse JSON (texte) d'une action ; renvoie le JSON final. */
+export async function enforceLinkedInAiAddress(rawJson: string, action: string, addr: AudienceAddress | null | undefined, pass = addressPassOptions(`linkedin-ai:${action}`, ADDRESS_TIMEOUT_MS)): Promise<string> {
+  const paths = ADDRESS_FIELDS[action];
+  if (!addr || !paths) return rawJson;
+  try {
+    const parsed: any = tryParseAiJson(rawJson, `linkedin-ai:address:${action}`);
+    if (!parsed || typeof parsed !== "object") return rawJson;
+    const receipt = await enforceAudienceAddressInSlots(collectTextSlots(parsed, paths), addr, pass);
+    if (!receipt?.applied) return rawJson;
+    // Les compteurs de caractères suivent le texte final.
+    if (typeof parsed.character_count === "number") {
+      const t = parsed.improved_version ?? parsed.full_text;
+      if (typeof t === "string") parsed.character_count = t.length;
+    }
+    for (const v of Object.values(parsed.versions ?? {}) as any[]) {
+      if (v && typeof v.full_text === "string" && typeof v.character_count === "number") v.character_count = v.full_text.length;
+    }
+    return JSON.stringify(parsed);
+  } catch (e) {
+    console.error(`[linkedin-ai] contrôle tu/vous ignoré (${action}) :`, e);
+    return rawJson;
+  }
+}
+
+/** Consigne d'adresse : la fiche de marque prime ; sans réglage, le défaut historique. */
+export function linkedInAddressLine(addr: AudienceAddress | null | undefined, fallback: string): string {
+  if (addr === "vous") return "Vouvoie le public (« vous », « votre », « vos ») : réglage de sa fiche de marque, règle ferme.";
+  if (addr === "tu") return "Tutoie le public (« tu », « ton », « ta », « tes ») : réglage de sa fiche de marque, règle ferme.";
+  return fallback;
 }
 
 // Validation anti-débit : un crédit ne doit être facturé que si la réponse IA
@@ -157,6 +208,8 @@ serve(async (req) => {
     }
     const ctx = await getUserContext(supabase, userId, workspace_id, "linkedin");
     const context = formatContextForAI(ctx, CONTEXT_PRESETS.linkedin);
+    // Tu ou vous réglé dans la fiche de marque (null = pas de réglage : défauts historiques).
+    const audienceAddress = parseAudienceAddress(ctx?.tone?.tone_register);
     const qualityBlocks = `${EMBEDDED_EDUCATION}\n\n${ANTI_SLOP}\n\n${ANTI_BIAS}\n\n${CHAIN_OF_THOUGHT}\n\nPRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.`;
     const branding = { storytelling: ctx.storytelling };
 
@@ -178,7 +231,7 @@ serve(async (req) => {
 
     } else if (action === "adapt-instagram") {
       const { postContent, audience } = params;
-      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\n${LINKEDIN_STORYTELLING_RULES}\n\n${qualityBlocks}\n\nADAPTE ce post Instagram pour LinkedIn.\n\nPOST INSTAGRAM :\n${postContent}\n\nAUDIENCE LINKEDIN : ${audience || "vous"}\n${audience === "tu" ? "Utilise le tutoiement (la voix de marque le demande)." : audience === "mixte" ? "Utilise un ton mixte, principalement vouvoiement chaleureux, tutoiement seulement quand la proximité s'y prête." : "Utilise le vouvoiement chaleureux et professionnel (sauf si la voix de marque indique le tutoiement)."}\n\nRÈGLES :\n1. ACCROCHE : reformuler pour les 210 premiers caractères LinkedIn\n2. LONGUEUR : développer seulement si la source apporte assez de matière\n3. TON : garder la voix et le point de vue de la personne\n4. RÉFÉRENCES : conserver les données fournies ; n’en ajoute aucune\n5. EMOJIS : 0-2 max\n6. HASHTAGS : 0-2 max\n7. CTA : seulement si pertinent ; une fin qui aboutit suffit\n8. STRUCTURE : paragraphes courts, espacement blanc\n\nNE PAS copier-coller. C'est une RÉÉCRITURE.\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks :\n{\n  "hook": "210 premiers caractères",\n  "full_text": "Le post LinkedIn complet",\n  "character_count": 1247,\n  "hashtags": [],\n  "checklist": [\n    { "item": "Accroche dans les 210 car.", "ok": true },\n    { "item": "0-2 emojis", "ok": true },\n    { "item": "0-2 hashtags", "ok": true },\n    { "item": "Pas de lien dans le corps", "ok": true },\n    { "item": "Écriture inclusive", "ok": true }\n  ]\n}`;
+      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\n${LINKEDIN_STORYTELLING_RULES}\n\n${qualityBlocks}\n\nADAPTE ce post Instagram pour LinkedIn.\n\nPOST INSTAGRAM :\n${postContent}\n\nAUDIENCE LINKEDIN : ${audienceAddress || audience || "vous"}\n${linkedInAddressLine(audienceAddress, audience === "tu" ? "Utilise le tutoiement (la voix de marque le demande)." : audience === "mixte" ? "Utilise un ton mixte, principalement vouvoiement chaleureux, tutoiement seulement quand la proximité s'y prête." : "Utilise le vouvoiement chaleureux et professionnel (sauf si la voix de marque indique le tutoiement).")}\n\nRÈGLES :\n1. ACCROCHE : reformuler pour les 210 premiers caractères LinkedIn\n2. LONGUEUR : développer seulement si la source apporte assez de matière\n3. TON : garder la voix et le point de vue de la personne\n4. RÉFÉRENCES : conserver les données fournies ; n’en ajoute aucune\n5. EMOJIS : 0-2 max\n6. HASHTAGS : 0-2 max\n7. CTA : seulement si pertinent ; une fin qui aboutit suffit\n8. STRUCTURE : paragraphes courts, espacement blanc\n\nNE PAS copier-coller. C'est une RÉÉCRITURE.\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks :\n{\n  "hook": "210 premiers caractères",\n  "full_text": "Le post LinkedIn complet",\n  "character_count": 1247,\n  "hashtags": [],\n  "checklist": [\n    { "item": "Accroche dans les 210 car.", "ok": true },\n    { "item": "0-2 emojis", "ok": true },\n    { "item": "0-2 hashtags", "ok": true },\n    { "item": "Pas de lien dans le corps", "ok": true },\n    { "item": "Écriture inclusive", "ok": true }\n  ]\n}`;
       userPrompt = "Adapte ce post Instagram pour LinkedIn.";
 
     } else if (action === "crosspost") {
@@ -229,6 +282,7 @@ serve(async (req) => {
         }, cpUsage);
 
         content = await correctCrosspostJson(content, CORRECTION_TIMEOUT_MS, [context, sourceContent].filter(Boolean).join("\n"));
+        content = await enforceLinkedInAiAddress(content, "crosspost", audienceAddress);
 
         if (!isParseableJson(content)) {
           console.error("[linkedin-ai] crosspost (files): réponse IA inexploitable, pas de débit");
@@ -271,7 +325,7 @@ serve(async (req) => {
 
     } else if (action === "caption-for-carousel") {
       const { subject, chosen_angle, slides_summary, editorial_angle, objective } = params;
-      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\n${LINKEDIN_STORYTELLING_RULES}\n\n${qualityBlocks}\n\nTu rédiges UNIQUEMENT la légende (caption) qui accompagne un carrousel LinkedIn (PDF de slides). Les slides portent déjà la valeur structurée : la légende complète, contextualise, donne envie de cliquer le PDF.\n\nCONTEXTE DU CARROUSEL :\n- Sujet : "${subject || ""}"\n${chosen_angle ? `- Angle choisi : "${chosen_angle}"\n` : ""}${editorial_angle ? `- Angle éditorial : "${editorial_angle}"\n` : ""}${objective ? `- Objectif : "${objective}"\n` : ""}${slides_summary ? `- Résumé des slides du PDF :\n${slides_summary}\n` : ""}\n\nRÈGLES LINKEDIN STRICTES :\n1. HOOK (max 210 caractères) : phrase d'accroche AVANT le "voir plus". DOIT donner envie d'ouvrir le carrousel. PAS la même phrase que la slide 1 du PDF — elle complète, elle ne répète pas.\n2. BODY : développe seulement ce que les informations fournies permettent de dire sur le sujet et ce que le PDF ne montre pas. Phrases complètes, paragraphes courts (2-4 lignes), aérés. PAS de listicle. PAS de phrases isolées sur des lignes séparées (anti-broetry).\n3. FIN : une invitation concrète à la conversation si elle sert le sujet, ou une dernière phrase qui aboutit. JAMAIS "Sauvegarde", "DM moi", "Tag une copine".\n4. HASHTAGS : 0 à 2 hashtags professionnels si utiles (secteur, métier, thématique). PAS de hashtags génériques type #motivation #life. Sans le "#" dans le tableau.\n5. PAS de tirets cadratins (—). Écriture inclusive (point médian quand pertinent).\n6. Ton : professionnel chaleureux, expert·e accessible. Vouvoiement par défaut sauf si la voix de marque dit le contraire.\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks ni texte avant/après :\n{\n  "hook": "max 210 caractères",\n  "body": "texte adapté aux faits disponibles",\n  "cta": "invitation utile ou chaîne vide",\n  "hashtags": []\n}`;
+      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\n${LINKEDIN_STORYTELLING_RULES}\n\n${qualityBlocks}\n\nTu rédiges UNIQUEMENT la légende (caption) qui accompagne un carrousel LinkedIn (PDF de slides). Les slides portent déjà la valeur structurée : la légende complète, contextualise, donne envie de cliquer le PDF.\n\nCONTEXTE DU CARROUSEL :\n- Sujet : "${subject || ""}"\n${chosen_angle ? `- Angle choisi : "${chosen_angle}"\n` : ""}${editorial_angle ? `- Angle éditorial : "${editorial_angle}"\n` : ""}${objective ? `- Objectif : "${objective}"\n` : ""}${slides_summary ? `- Résumé des slides du PDF :\n${slides_summary}\n` : ""}\n\nRÈGLES LINKEDIN STRICTES :\n1. HOOK (max 210 caractères) : phrase d'accroche AVANT le "voir plus". DOIT donner envie d'ouvrir le carrousel. PAS la même phrase que la slide 1 du PDF — elle complète, elle ne répète pas.\n2. BODY : développe seulement ce que les informations fournies permettent de dire sur le sujet et ce que le PDF ne montre pas. Phrases complètes, paragraphes courts (2-4 lignes), aérés. PAS de listicle. PAS de phrases isolées sur des lignes séparées (anti-broetry).\n3. FIN : une invitation concrète à la conversation si elle sert le sujet, ou une dernière phrase qui aboutit. JAMAIS "Sauvegarde", "DM moi", "Tag une copine".\n4. HASHTAGS : 0 à 2 hashtags professionnels si utiles (secteur, métier, thématique). PAS de hashtags génériques type #motivation #life. Sans le "#" dans le tableau.\n5. PAS de tirets cadratins (—). Écriture inclusive (point médian quand pertinent).\n6. Ton : professionnel chaleureux, expert·e accessible. ${linkedInAddressLine(audienceAddress, "Vouvoiement par défaut sauf si la voix de marque dit le contraire.")}\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks ni texte avant/après :\n{\n  "hook": "max 210 caractères",\n  "body": "texte adapté aux faits disponibles",\n  "cta": "invitation utile ou chaîne vide",\n  "hashtags": []\n}`;
       userPrompt = "Rédige la légende LinkedIn pour ce carrousel.";
 
     } else if (action === "improve-post") {
@@ -368,6 +422,8 @@ serve(async (req) => {
       const inputText = [params.sourceContent, context].filter(Boolean).join("\n");
       content = await correctCrosspostJson(content, CORRECTION_TIMEOUT_MS, inputText);
     }
+    // Tu ou vous APRÈS la relecture : aucun appel si le texte est conforme ou sans réglage.
+    content = await enforceLinkedInAiAddress(content, action, audienceAddress);
 
     if (JSON_ACTIONS.has(action) && !isParseableJson(content)) {
       console.error(`[linkedin-ai] ${action}: réponse IA inexploitable, pas de débit`);

@@ -1,4 +1,4 @@
-import { extractNewsletterTexts, reinjectNewsletterTexts } from "../_shared/correction-pass.ts";
+import { extractCarouselTexts, extractNewsletterTexts, reinjectCarouselTexts, reinjectNewsletterTexts } from "../_shared/correction-pass.ts";
 import { structureLossReason } from "../_shared/text-structure-guard.ts";
 import { alignLinkedInHookFields } from "../_shared/linkedin-hook.ts";
 import { authoredContentSource, currentContentContract, testimonySourceText } from "../_shared/editorial-voice.ts";
@@ -9,6 +9,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback, buildBrandGuardText } from "../_shared/user-context.ts";
 import { enforceAudienceAddress, parseAudienceAddress, type AudienceAddress } from "../_shared/audience-address.ts";
 import { applyAudienceAddressPass } from "../_shared/audience-address-pass.ts";
+import { enforceAudienceAddressInFields, enforceAudienceAddressInJsonText, enforceAudienceAddressInText, type AudienceAddressFieldsOptions } from "../_shared/audience-address-fields.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
@@ -772,6 +773,8 @@ export async function buildGeneratePrompt(params: {
   isPinterest: boolean;
   isNewsletter: boolean;
   isPhotoMode: boolean;
+  /** Tu ou vous de la fiche de marque : remplace les consignes d'adresse figées des stories (04/10/2026). */
+  audienceAddress?: AudienceAddress | null;
 }): Promise<{ systemPrompt: string; userPrompt: string; storiesPhotoCatalog: { index: number; id: string; description: string; preferred?: boolean }[] }> {
   const {
     supabase, userId, workspace_id, body, COMMON_PREFIX, context, contentType, editorialFormat, editorialFormatLabel,
@@ -894,6 +897,7 @@ export async function buildGeneratePrompt(params: {
       gardeFouAlerte: storiesGardeFouAlerte,
       pre_gen_answers: body.pre_gen_answers,
       subject: context,
+      audienceAddress: params.audienceAddress ?? null,
       photo_catalog: storiesPhotoCatalog.map(({ index, description, preferred }) => ({
         index,
         description,
@@ -1092,6 +1096,9 @@ async function handleRecycleStep(params: {
   const recTarget = ctx?.profile?.cible || profile?.cible || "";
   const recPiliers = ctx?.profile?.piliers || "";
   const recBrandGuardText = buildBrandGuardText(ctx || {});
+  // Tu ou vous : le contenu recyclé suit le réglage de la fiche de marque,
+  // quelle que soit la forme du texte source (qui, lui, n'est jamais réécrit).
+  const recAddress = parseAudienceAddress(ctx?.tone?.tone_register);
   const requestedLabels = fmtIds.map((f) => formatLabels[f] || f);
 
   // ── Fichiers : mêmes validations que l'ancien chemin ──
@@ -1259,6 +1266,7 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
         sourceText: sourceForFormats,
         fullContext: [plan?.synthese_source || "", recActivity, recTarget, recPiliers].filter(Boolean).join("\n"),
         brandGuardText: recBrandGuardText,
+        audienceAddress: recAddress,
       });
       if (!done) throw new Error(`recycle ${f} : séquence de stories vide`);
       resultVal = done.sequence;
@@ -1328,6 +1336,14 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
         );
       } catch (e) {
         console.error(`[creative-flow recycle ${f}] garde rédactionnelle échouée, contenu conservé :`, e);
+      }
+    }
+    // Tu ou vous (stories structurées : déjà fait avant la mise en forme).
+    if (recAddress && !structuredStories) {
+      if (typeof resultVal === "string") {
+        resultVal = await enforceAudienceAddressInText(resultVal, recAddress, addrOpts(`recycle-${f}`));
+      } else if (resultVal && typeof resultVal === "object") {
+        resultVal = await enforceCarouselObjectAudienceAddress(resultVal, recAddress, `recycle-${f}`);
       }
     }
     return { f, resultVal, topicVal, usage: fUsage };
@@ -1503,7 +1519,7 @@ export async function applyLinkedInCorrectionPass(parsed: any, params: { body: a
 // 3. Recalibrage déterministe des durées : la durée affichée découle du texte
 //    réel (2,5 mots/s). Mesuré à l'audit : durées déclarées sous-estimées de
 //    40-80 % (90 s réelles annoncées "50 sec" = pénalité de distribution).
-export async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<void> {
+export async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[]; audienceAddress?: AudienceAddress | null }): Promise<void> {
   const { body, effectiveObjective, fullContext, researchSource, brandGuardText, echoSubject, previousHooks } = params;
   if (body.face_cam === "non" && enforceReelNoFaceCam(parsed)) {
     console.log("[creative-flow] reel face_cam=non : structure convertie en voix off");
@@ -1606,6 +1622,11 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
   //   diverge du script corrigé — faille trouvée à la revue du 12/07) ;
   // - timings recomptés sur la version FINALE du texte.
   // (Ordre et détail : finalizeReelScript, _shared/reel-postprocess.ts.)
+  // Tu ou vous (fiche de marque) : script, textes à l'écran, légende,
+  // couverture et stories de suite, AVANT les filets finaux (le hook choisi
+  // par l'utilisatrice reste reverrouillé tel qu'elle l'a choisi, la lecture
+  // test et les durées suivent le texte final).
+  await enforceReelAudienceAddress(parsed, params.audienceAddress);
   finalizeReelScript(parsed, body.selected_hook);
 }
 
@@ -1735,7 +1756,7 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
 // séquence normalisée → retrait de toute mise en page écrite → correction du
 // texte (source = contenu recyclé, comme l'ancienne garde texte) → mise en
 // forme par le code + garde photo d'abord. null si aucune story n'a de texte.
-export async function finalizeRecycledStories(value: unknown, params: { sourceText: string; fullContext: string; brandGuardText?: string }): Promise<{ sequence: { stories: any[] } & Record<string, unknown>; gate: StoriesGateResult | null } | null> {
+export async function finalizeRecycledStories(value: unknown, params: { sourceText: string; fullContext: string; brandGuardText?: string; audienceAddress?: AudienceAddress | null }): Promise<{ sequence: { stories: any[] } & Record<string, unknown>; gate: StoriesGateResult | null } | null> {
   const sequence = coerceStoriesSequence(value);
   if (!sequence) return null;
   stripStoriesWriterLayout(sequence);
@@ -1744,6 +1765,8 @@ export async function finalizeRecycledStories(value: unknown, params: { sourceTe
     fullContext: params.fullContext,
     brandGuardText: params.brandGuardText,
   });
+  // Le contenu recyclé suit le réglage tu/vous (jamais le texte source, qui n'est pas réécrit).
+  await enforceAudienceAddressInFields(sequence, STORIES_ADDRESS_FIELDS, params.audienceAddress, addrOpts("recycle-stories"));
   finalizeStoriesLayout(sequence, { storiesPhotoCatalog: [], logger: (m) => console.log(`[creative-flow recycle stories] ${m}`) });
   return { sequence, gate };
 }
@@ -1832,7 +1855,65 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
  * réponse vide).
  */
 /** Dépendances remplaçables en test (même patron que carousel-ai). */
-export const _deps = { fetchDepthMaterial };
+export const _deps = { fetchDepthMaterial, audienceAddressPass: applyAudienceAddressPass };
+
+// ═══ TU OU VOUS (fiche de marque) SUR TOUS LES TEXTES PUBLIÉS (04/10/2026) ═══
+// Le réglage « je m'adresse à mon public en tu / vous » est une règle ferme
+// en tête de rédaction (user-context.ts) ; ici, le contrôle par le code après
+// rédaction, chemin par chemin. Une passe courte ne part QUE si le texte
+// contredit le réglage, et n'est gardée que si le compte baisse sans chiffre
+// perdu ni ajouté (audience-address.ts). Sans réglage : aucun appel, rien ne
+// change. Seuls les champs publiés sont listés : jamais les conseils que
+// l'appli adresse à l'utilisatrice (tip, personal_tip, consignes de tournage).
+function addrOpts(scope: string, abortTimeoutMs = CORRECTION_ABORT_MS): AudienceAddressFieldsOptions {
+  return { pass: _deps.audienceAddressPass, abortTimeoutMs, scope: `creative-flow:${scope}`, logger: (m) => console.log(`[creative-flow ${scope}] ${m}`) };
+}
+
+/** Champs publiés d'une séquence de stories (texte, petit titre, sticker), AVANT la mise en forme. */
+export const STORIES_ADDRESS_FIELDS = ["stories[].text", "stories[].visual.title_pill", "stories[].sticker.label", "stories[].sticker.question", "stories[].sticker.options[]"];
+/** Légende, post, épingle, légende photo, script reel vision : texte + accroche. */
+export const POST_ADDRESS_FIELDS = ["content", "accroche"];
+/** Newsletter : objet, aperçu (deux noms selon le chemin), corps, accroche, invitation. */
+export const NEWSLETTER_ADDRESS_FIELDS = ["subject", "preview_text", "preheader", "content", "accroche", "cta_suggestion"];
+/** Accroches de reel proposées à l'étape « hooks » : ce qu'elle dira et ce qu'on lira. */
+export const HOOKS_ADDRESS_FIELDS = ["hooks[].text", "hooks[].text_overlay"];
+
+/** Reel : script parlé, textes à l'écran, légende, couverture, stories de suite (mêmes balises que la relecture). */
+export async function enforceReelAudienceAddress(parsed: any, addr: AudienceAddress | null | undefined): Promise<void> {
+  if (!addr || !parsed || typeof parsed !== "object") return;
+  try {
+    const block = extractReelTexts(parsed);
+    if (!block) return;
+    const o = addrOpts("reel");
+    const res = await enforceAudienceAddress(block, addr, o);
+    if (res.receipt && res.receipt.wrong_before > 0) console.log(JSON.stringify({ event: "audience_address", scope: o.scope, ...res.receipt }));
+    if (res.receipt?.applied) Object.assign(parsed, reinjectReelTexts(parsed, res.content));
+  } catch (e) {
+    console.error("[creative-flow reel] contrôle tu/vous ignoré (script intact) :", e);
+  }
+}
+
+/** Carrousel (objet slides + légende) : mêmes balises que la relecture du carrousel. */
+export async function enforceCarouselObjectAudienceAddress(doc: any, addr: AudienceAddress | null | undefined, scope: string): Promise<any> {
+  if (!addr || !doc || typeof doc !== "object" || !Array.isArray(doc.slides ?? doc.carousel?.slides)) return doc;
+  try {
+    const block = extractCarouselTexts(doc);
+    if (!block) return doc;
+    const o = addrOpts(scope);
+    const res = await enforceAudienceAddress(block, addr, o);
+    if (res.receipt && res.receipt.wrong_before > 0) console.log(JSON.stringify({ event: "audience_address", scope: o.scope, ...res.receipt }));
+    return res.receipt?.applied ? reinjectCarouselTexts(doc, res.content) : doc;
+  } catch (e) {
+    console.error(`[creative-flow ${scope}] contrôle tu/vous ignoré (carrousel intact) :`, e);
+    return doc;
+  }
+}
+
+/** Consigne voix des chemins photo : sans réglage, inchangée ; avec réglage, la forme de la fiche. */
+export function photoVoiceRule(addr: AudienceAddress | null | undefined, legacy: string): string {
+  if (!addr) return legacy;
+  return `Respecte la personne grammaticale et le registre de cette marque : si elle écrit au « je », garde ses mots. Pour s'adresser à son public, elle ${addr === "vous" ? "VOUVOIE (« vous », « votre », « vos »)" : "TUTOIE (« tu », « ton », « ta », « tes »)"} : règle ferme de sa fiche de marque.`;
+}
 
 /**
  * Recherche « creuser le sujet » pour posts, reels et stories (04/10/2026, même
@@ -1969,6 +2050,8 @@ function streamLinkedInPhotoVision(params: {
   corsHeaders: Record<string, string>;
   userId: string;
   workspace_id?: string | null | undefined;
+  /** Tu ou vous de la fiche de marque (04/10/2026). */
+  audienceAddress?: AudienceAddress | null;
 }): Response {
   const { apiKey, model, systemPrompt, body, contentType, answers, context, corsHeaders, userId } = params;
   const workspace_id = params.workspace_id ?? undefined;
@@ -1986,7 +2069,7 @@ function streamLinkedInPhotoVision(params: {
 2. ANTI-CASCADE : pas de rafale de phrases courtes pour faire "punchy". Une seule pensée qui se déroule.
 3. ANTI-CTA FABRIQUÉ : pas de slogan-invitation en italique ou guillemets.
 4. CHIFFRES / NUMÉROS / DATES / NOMS VISIBLES : recopie EXACTEMENT.
-5. VOIX : respecte la personne grammaticale et le registre de cette marque. Si elle écrit au « je », garde ses mots ; n'impose ni « tu » ni « vous ».
+5. VOIX : ${photoVoiceRule(params.audienceAddress, "respecte la personne grammaticale et le registre de cette marque. Si elle écrit au « je », garde ses mots ; n'impose ni « tu » ni « vous ».")}
 
 ══ MAINTENANT, REGARDE LES IMAGES ══
 `,
@@ -2032,8 +2115,11 @@ function streamLinkedInPhotoVision(params: {
       60_000,
     ),
     corsHeaders,
-    async (_full, usage) => {
+    async (full, usage) => {
       await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
+      // Tu ou vous : contrôlé APRÈS le flux (le texte déjà affiché n'est pas
+      // rejoué, seule la valeur finale `done` change), comme les autres passes.
+      return await enforceAudienceAddressInJsonText(full, POST_ADDRESS_FIELDS, params.audienceAddress, addrOpts("linkedin-photo-stream"));
     },
   );
 }
@@ -2068,6 +2154,7 @@ export async function runLinkedInTwoStep(params: {
     if (typeof parsed?.content !== "string" || !parsed.content.trim()) {
       throw new Error("Post LinkedIn fictif vide ou illisible");
     }
+    await enforceAudienceAddressInFields(parsed, ["content"], params.audienceAddress, addrOpts("linkedin-fictif"));
     alignFactualLinkedInHook(parsed);
     await logUsage(userId, "content", "creative_flow", usage.total_tokens, usage.model, workspace_id);
     return new Response(JSON.stringify(parsed), {
@@ -2355,6 +2442,8 @@ Réponds UNIQUEMENT en JSON :
 export async function applyNewsletterCorrectionPass(parsed: any, params: {
   body: any; fullContext: string; researchSource?: string; context?: string | null; newsContext?: string | null;
   brandGuardText?: string; previousHooks?: string[];
+  /** Tu ou vous de la fiche de marque : objet, aperçu et corps contrôlés après la relecture (04/10/2026). */
+  audienceAddress?: AudienceAddress | null;
 }, emitStatus: StatusEmitter = () => {}): Promise<void> {
   const { body, fullContext, researchSource, context, newsContext, brandGuardText, previousHooks } = params;
   if (parsed.content && typeof parsed.content === "string" && parsed.content.length >= 200) {
@@ -2389,7 +2478,9 @@ export async function applyNewsletterCorrectionPass(parsed: any, params: {
       console.error("[creative-flow newsletter] correction pass failed:", e);
     }
   }
-
+  // Tu ou vous : objet, texte d'aperçu et corps (même quand le corps est trop
+  // court pour la relecture). Aucun appel si le texte est conforme.
+  await enforceAudienceAddressInFields(parsed, NEWSLETTER_ADDRESS_FIELDS, params.audienceAddress, addrOpts("newsletter"));
 }
 
 async function runNewsletterTwoStep(params: {
@@ -2407,6 +2498,8 @@ async function runNewsletterTwoStep(params: {
   brandGuardText?: string;
   /** Accroches déjà écrites sur ce sujet : garde déterministe anti-redite (24/08). */
   previousHooks?: string[];
+  /** Tu ou vous de la fiche de marque (04/10/2026). */
+  audienceAddress?: AudienceAddress | null;
 }, emitStatus: StatusEmitter = () => {}): Promise<Response> {
   const { model, systemPrompt, userPrompt, corsHeaders, userId, body, context, newsContext, fullContext, researchSource, brandGuardText, previousHooks } = params;
   const workspace_id = params.workspace_id ?? undefined;
@@ -2571,6 +2664,8 @@ function streamDefaultPostSSE(params: {
   /** Sujet + accroches déjà écrites dessus : garde déterministe anti-redite (24/08). */
   echoSubject?: string;
   previousHooks?: string[];
+  /** Tu ou vous de la fiche de marque (04/10/2026). */
+  audienceAddress?: AudienceAddress | null;
 }): Response {
   const { apiKey, model, systemPrompt, userPrompt, corsHeaders, userId, body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks } = params;
   const workspace_id = params.workspace_id ?? undefined;
@@ -2588,7 +2683,10 @@ function streamDefaultPostSSE(params: {
     corsHeaders,
     async (full, usage) => {
       await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
-      return await correctPostStreamContent(full, { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
+      const corrected = await correctPostStreamContent(full, { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
+      // Tu ou vous APRÈS la relecture (même place que les autres passes du flux).
+      const addressed = await enforceAudienceAddressInJsonText(corrected ?? full, POST_ADDRESS_FIELDS, params.audienceAddress, addrOpts("post-stream"));
+      return addressed ?? corrected;
     },
     { failOnTruncation: true },
   );
@@ -2670,6 +2768,8 @@ async function runVisionGenerate(params: {
   answers?: any[];
   systemPrompt: string;
   finalUsage: UsageSink;
+  /** Tu ou vous de la fiche de marque (04/10/2026). */
+  audienceAddress?: AudienceAddress | null;
 }): Promise<string> {
   const { body, contentType, context, answers, systemPrompt, finalUsage } = params;
   const validPhotos = body.photos.filter((p: any) => p?.base64).slice(0, 10);
@@ -2691,7 +2791,7 @@ async function runVisionGenerate(params: {
 - Une photo peut étayer un fait visible. Elle ne révèle pas une pensée, une émotion, une citation, un dialogue ou une chronologie hors champ. N'invente pas ces éléments.
 - Évite les slogans, les cascades de phrases courtes et la question finale automatique. Garde les phrases courtes qui correspondent à la personne et au moment raconté.
 - Recopie exactement les chiffres, noms et dates lisibles si tu les utilises.
-- Respecte la personne grammaticale et le registre de la marque, sans tutoiement ni vouvoiement imposé.
+- ${photoVoiceRule(params.audienceAddress, "Respecte la personne grammaticale et le registre de la marque, sans tutoiement ni vouvoiement imposé.")}
 
 ══ MAINTENANT, REGARDE LES IMAGES ══
 `,
@@ -2842,6 +2942,8 @@ serve(async (req) => {
     // pour détecter une recopie quasi mot pour mot (audit slop 18/08). Aucune
     // requête supplémentaire — ctx.tone est déjà fetché par getUserContext().
     const brandGuardText = buildBrandGuardText(ctx);
+    // Tu ou vous réglé dans la fiche de marque (null = pas de réglage : rien ne change).
+    const audienceAddress = parseAudienceAddress(ctx?.tone?.tone_register);
 
     // Recent briefs context — fetched server-side as fallback if not provided.
     // Used by `questions` step to avoid repeating angles already covered.
@@ -3042,7 +3144,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
         supabase, userId, workspace_id, body, COMMON_PREFIX, context, contentType, editorialFormat, editorialFormatLabel,
         angle, answers, followUpAnswers, calendarBlock, objectiveBlock, newsContextBlock, preGenBlock, effectiveObjective,
         pinterest_link, pinterest_board, variation, previousContent,
-        isCarousel, isReel, isStories, isLinkedIn, isPinterest, isNewsletter, isPhotoMode,
+        isCarousel, isReel, isStories, isLinkedIn, isPinterest, isNewsletter, isPhotoMode, audienceAddress,
       });
       systemPrompt = genResult.systemPrompt;
       userPrompt = genResult.userPrompt;
@@ -3150,22 +3252,22 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       const model = getModelForAction("content");
 
       if (canStreamPhoto) {
-        return streamLinkedInPhotoVision({ apiKey, model, systemPrompt, body, contentType, answers, context, corsHeaders, userId, workspace_id });
+        return streamLinkedInPhotoVision({ apiKey, model, systemPrompt, body, contentType, answers, context, corsHeaders, userId, workspace_id, audienceAddress });
       }
 
       if (isLinkedIn) {
-        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runLinkedInTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, researchSource, audienceAddress: parseAudienceAddress(ctx?.tone?.tone_register) }, emitStatus));
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runLinkedInTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, researchSource, audienceAddress }, emitStatus));
       }
 
       if (isNewsletter) {
-        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext, researchSource, brandGuardText, previousHooks }, emitStatus));
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext, researchSource, brandGuardText, previousHooks, audienceAddress }, emitStatus));
       }
 
       if (isCarousel) {
         return retiredCarouselStreamResponse(corsHeaders);
       }
 
-      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
+      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks, audienceAddress });
     }
 
     // ── Call Anthropic ──
@@ -3180,7 +3282,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     if (step === "questions" && body.photo_mode && body.photos?.[0]?.base64) {
       rawContent = await runVisionQuestions({ body, contentType, context, objective, QUESTIONS_PREFIX, brandingContext, brandVocabBlock, recentBriefsContext, finalUsage });
     } else if (step === "generate" && body.photo_mode && body.photos?.[0]?.base64) {
-      rawContent = await runVisionGenerate({ body, contentType, context, answers, systemPrompt, finalUsage });
+      rawContent = await runVisionGenerate({ body, contentType, context, answers, systemPrompt, finalUsage, audienceAddress });
     } else {
       // 8192 pour la génération de contenu : le JSON reel (script + duplicata `sections`
       // + `lecture_test` + shot list) dépasse le défaut de 4096 de callAnthropicSimple
@@ -3254,6 +3356,13 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     if (step === "hooks" && parsed && typeof parsed === "object") {
       const hooksEarlyExit = normalizeHooksResponse(parsed, { body, rawContent, corsHeaders });
       if (hooksEarlyExit) return hooksEarlyExit;
+      // Tu ou vous : le hook choisi part tel quel dans le script final.
+      await enforceAudienceAddressInFields(parsed, HOOKS_ADDRESS_FIELDS, audienceAddress, addrOpts("hooks", 20_000));
+    }
+
+    // Ajustement : le contenu réécrit suit le réglage tu/vous.
+    if (step === "adjust" && parsed && typeof parsed === "object") {
+      await enforceAudienceAddressInFields(parsed, ["content"], audienceAddress, addrOpts("adjust"));
     }
 
     // ═══ PASSE DE CORRECTION LinkedIn ═══
@@ -3272,18 +3381,34 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     // L'accroche suit le début exact du post FINAL (après correction, photo
     // comprise) : la correction peut avoir changé la première ligne.
     if (step === "generate" && isLinkedIn && parsed && typeof parsed === "object" && typeof parsed.content === "string") {
+      // Tu ou vous (non diffusé, photo, exemple fictif) : AVANT l'alignement de l'accroche.
+      await enforceAudienceAddressInFields(parsed, ["content"], audienceAddress, addrOpts("linkedin"));
       alignLinkedInHookFields(parsed);
     }
 
     if (isNewsletter && step === "generate" && parsed && typeof parsed === "object") {
-      await applyNewsletterCorrectionPass(parsed, { body, fullContext, researchSource, context, newsContext, brandGuardText, previousHooks });
+      await applyNewsletterCorrectionPass(parsed, { body, fullContext, researchSource, context, newsContext, brandGuardText, previousHooks, audienceAddress });
       Object.assign(parsed, stripMarkdownFromNewsletter(parsed));
       if (typeof parsed.content === "string") parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
     }
 
     // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
     if (isReel && step === "generate" && parsed && typeof parsed === "object" && Array.isArray(parsed.script)) {
-      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
+      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext, researchSource, brandGuardText, echoSubject, previousHooks, audienceAddress });
+    }
+
+    // Tu ou vous des autres textes générés ici : légende Instagram (non
+    // streamée), légende photo, épingle, script de reel en mode photo,
+    // carrousel. LinkedIn, newsletter, reel et stories ont leur propre place.
+    if (
+      step === "generate" && parsed && typeof parsed === "object" &&
+      !isLinkedIn && !isNewsletter && !isStories && !(isReel && Array.isArray(parsed.script))
+    ) {
+      if (Array.isArray(parsed.slides ?? parsed.carousel?.slides)) {
+        Object.assign(parsed, await enforceCarouselObjectAudienceAddress(parsed, audienceAddress, "carousel"));
+      } else {
+        await enforceAudienceAddressInFields(parsed, POST_ADDRESS_FIELDS, audienceAddress, addrOpts(isPinterest ? "pinterest" : isPhotoMode ? "photo-caption" : "post"));
+      }
     }
 
     // ═══ STORIES : texte d'abord, mise en forme ensuite (04/10/2026) ═══
@@ -3300,6 +3425,8 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       if (isPhotoMode) adoptStructuredStories(parsed);
       stripStoriesWriterLayout(parsed);
       storiesGate = await applyStoriesCorrectionPass(parsed, { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
+      // Tu ou vous : texte, petit titre et sticker, AVANT la mise en forme (les pastilles en sont extraites).
+      await enforceAudienceAddressInFields(parsed, STORIES_ADDRESS_FIELDS, audienceAddress, addrOpts("stories"));
       finalizeStoriesLayout(parsed, { storiesPhotoCatalog, logger: (m) => console.log(m) });
     }
 
