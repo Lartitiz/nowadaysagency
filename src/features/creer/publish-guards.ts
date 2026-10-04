@@ -1,4 +1,5 @@
 import { isDurableReelUrl, REEL_VIDEO_REQUIRED } from "@/lib/reel-publication";
+import { calendarPublishCaption, hasSlidesSeparator } from "../../../supabase/functions/_shared/calendar-caption";
 /**
  * Gardes de publication directe (Instagram / LinkedIn) — logique PURE extraite
  * de CreerUnifie (lot 4 de la dé-monolithisation, cf src/features/creer/).
@@ -32,6 +33,11 @@ export function findPublishableImageUrl(raw: RawResult, uploadedPhotoPreview?: s
 /** Texte à publier sur Instagram (inclut le champ caption, string ou objet). */
 export function extractInstagramCaption(raw: RawResult): string {
   const r: any = raw;
+  // Texte repris du calendrier (crosspost) : un carrousel y embarque le texte
+  // des slides derrière un séparateur — seule la légende part.
+  if (typeof r?.edited_text === "string" && !(r?.sections || r?.script) && hasSlidesSeparator(r.edited_text)) {
+    return calendarPublishCaption(r.edited_text, { caption: r.caption });
+  }
   if (typeof r?.edited_text === "string" && !(r?.sections || r?.script)) return r.edited_text;
   // Reel: the CTA and top-level hashtags complement caption.text.
   if (r?.caption && typeof r.caption === "object" && typeof r.caption.text === "string" && (r?.sections || r?.script)) {

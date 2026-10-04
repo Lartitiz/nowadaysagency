@@ -361,3 +361,46 @@ for(const memberRole of ["owner","manager"])Deno.test(`scheduler: ${memberRole} 
  const result=await withMockedFetch(async()=>new Response(JSON.stringify({id:"urn:li:share:r4"}),{status:201,headers:{"Content-Type":"application/json"}}),()=>processScheduledPosts(sb));
  assertEquals(result.results[0].ok,true);
 });
+
+// NON-RÉGRESSION légende carrousel texte : build-calendar-content écrit
+// « légende ⏎⏎───── SLIDES ─────⏎⏎ slides » ; avant, TOUT partait en légende.
+const SEP_DRAFT = "Accroche\nLe corps de la légende.\n\n───── SLIDES ─────\n\nTitre slide 1\nCorps slide 1\n\nTitre slide 2\nCorps slide 2";
+const SEP_DETAIL = { type: "carousel", carousel_type: "tips", slides: [], caption: { hook: "Accroche", body: "Le corps de la légende.", hashtags: ["atelier"] } };
+
+Deno.test("LinkedIn programmé : brouillon à séparateur SLIDES → seule la légende part", async () => {
+  const sb = fakeSupabase({ dueRows: [{ ...DUE_POST, content_draft: SEP_DRAFT, story_sequence_detail: SEP_DETAIL }] });
+  let payload = "";
+  const result = await withMockedFetch(async (_input: any, init: any) => {
+    payload = init.body;
+    return new Response(JSON.stringify({ id: "urn:li:share:sep" }), { status: 201 });
+  }, () => processScheduledPosts(sb));
+  assertEquals(result.results[0].ok, true);
+  // Texte publié (le champ dépend de l'API LinkedIn utilisée ; « # » peut être échappé).
+  const texts: string[] = [];
+  const walk = (v: any) => { if (typeof v === "string") texts.push(v); else if (v && typeof v === "object") Object.values(v).forEach(walk); };
+  walk(JSON.parse(payload));
+  const published = texts.find((t) => t.startsWith("Accroche"))!;
+  assertEquals(published.replace(/\\#/g, "#"), "Accroche\nLe corps de la légende.\n\n#atelier");
+  assertEquals(payload.includes("SLIDES"), false);
+  assertEquals(payload.includes("Corps slide 1"), false);
+});
+
+Deno.test("Instagram programmé : carrousel à séparateur SLIDES → seule la légende part", async () => {
+  Deno.env.set("SUPABASE_URL", "https://fake.local");
+  const db = fakeSupabase({
+    dueRows: [{ ...DUE_POST, canal: "instagram", format: "post_carrousel", content_draft: SEP_DRAFT, story_sequence_detail: SEP_DETAIL, media_urls: ["https://cdn.test/1.png", "https://cdn.test/2.png"] }],
+    connection: { user_id: "user-1", workspace_id: null, platform_account_id: "ig", access_token: "token", token_expires_at: new Date(Date.now() + 30 * 86400_000).toISOString() },
+  });
+  const calls: URL[] = [];
+  const result = await withMockedFetch(async (input: any, init: any) => {
+    const req = new Request(input, init); const url = new URL(req.url); calls.push(url);
+    if (req.method === "POST" && !url.searchParams.size) {
+      const body = await req.clone().text();
+      for (const [k, v] of new URLSearchParams(body)) url.searchParams.set(k, v);
+    }
+    return new Response(JSON.stringify(url.pathname.endsWith("/media_publish") ? { id: "ig-published" } : url.pathname.endsWith("/media") ? { id: `c${calls.length}` } : { status_code: "FINISHED" }), { headers: { "content-type": "application/json" } });
+  }, () => processScheduledPosts(db));
+  assertEquals(result.results[0].ok, true, JSON.stringify(result.results[0]));
+  const carousel = calls.find((u) => u.pathname.endsWith("/media") && u.searchParams.get("media_type") === "CAROUSEL")!;
+  assertEquals(carousel.searchParams.get("caption"), "Accroche\nLe corps de la légende.\n\n#atelier");
+});
