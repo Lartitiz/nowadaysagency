@@ -184,3 +184,12 @@ Deno.test("trace : la décision de l'étage est lisible dans le carrousel (statu
   const none = await addSchemasToContent(JSON.stringify({ slides: DENSE }), { isMix: false, usage: {}, allowed: true, call: denseCall, maxSlides: 0 });
   assertEquals(JSON.parse(none.content).schema_formatting.rejected, ["stats@2:place"]);
 });
+
+Deno.test("slide chargée en dernière position : pas de slide pause après la conclusion", async () => {
+  const last = [...DENSE.slice(0, 3), { slide_number: 4, title: "Et toi ?", body: DENSE_BODY }];
+  const call = (async () => JSON.stringify({ schemas: [{ slide_number: 4, reason: "r", visual_schema: STAT }] })) as any;
+  const out = await addSchemasToContent(JSON.stringify({ slides: last }), { isMix: false, usage: {}, allowed: true, call, maxSlides: 10 });
+  const doc = JSON.parse(out.content);
+  assertEquals(doc.slides.length, 4);
+  assertEquals(doc.schema_formatting.rejected, ["stats@4:place"]);
+});
