@@ -54,7 +54,7 @@ import { useSelectInspirationProposal } from "@/hooks/use-select-inspiration-pro
 import { useCalendarSave } from "@/hooks/use-calendar-save";
 import { useFormatNext } from "@/hooks/use-format-next";
 import { useGenerateVisuals } from "@/hooks/use-generate-visuals";
-import { applyMixLayoutMemos } from "@/lib/mix-layout-memo";
+import { applyMixRenderMemory, mergeEditorRaw } from "@/lib/mix-layout-memo";
 import { useDoGenerate } from "@/hooks/use-do-generate";
 import CreerStepIdea from "@/components/creer/CreerStepIdea";
 // Code-splitting : les étapes après l'écran « idée » sont chargées à la demande
@@ -2048,13 +2048,10 @@ function CreerWorkspace() {
     setPhotoMissingDialog,
     setVisualChunkProgress,
     refreshPlan,
-    onMixLayoutMemos: (memos, receipt) => setResult((prev: any) => {
-      const slides = prev?.raw?.slides;
-      const next = Array.isArray(slides) && memos ? applyMixLayoutMemos(slides, memos) : slides;
-      // Reçu de l'étage de disposition gardé sur le carrousel (diagnostic).
-      const sameReceipt = JSON.stringify(prev?.raw?.mix_layout_formatting ?? null) === JSON.stringify(receipt ?? null);
-      if (!prev?.raw || (next === slides && sameReceipt)) return prev;
-      return { ...prev, raw: { ...prev.raw, slides: next, ...(receipt ? { mix_layout_formatting: receipt } : {}) } };
+    onMixLayoutMemos: (memos, receipt, formattingMemo) => setResult((prev: any) => {
+      if (!prev?.raw) return prev;
+      const raw = applyMixRenderMemory(prev.raw, { memos, receipt, formattingMemo });
+      return raw === prev.raw ? prev : { ...prev, raw };
     }),
   });
 
@@ -3131,7 +3128,9 @@ function CreerWorkspace() {
                 visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
                 onVisualSlidesUpdate={setVisualSlides}
                 onCarouselDocumentChange={(raw, visuals) => {
-                  setResult((prev: any) => prev ? { ...prev, raw } : prev);
+                  // Le reçu de sauvegarde reste celui du carrousel courant (jamais
+                  // la copie de l'éditeur) : sinon « Une version plus récente existe ».
+                  setResult((prev: any) => prev ? { ...prev, raw: mergeEditorRaw(prev.raw, raw) } : prev);
                   setVisualSlides(visuals);
                 }}
                 onOpenCarouselStudio={workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive ? openCarouselStudio : undefined}

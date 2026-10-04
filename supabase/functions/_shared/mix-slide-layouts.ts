@@ -72,7 +72,20 @@ export interface MixSlideSpec {
  * et vignette restent décidées par le code (vignette = dernier recours). */
 export const PROPOSABLE_MIX_LAYOUTS = ["photo_aplat", "passe_partout", "cote_a_cote", "sur_photo"] as const;
 export type ProposableMixLayout = typeof PROPOSABLE_MIX_LAYOUTS[number];
-export interface MixLayoutProposal { layout: ProposableMixLayout; side?: "left" | "right" | null; position?: "top" | "bottom" | null }
+export interface MixLayoutProposal {
+  layout: ProposableMixLayout; side?: "left" | "right" | null; position?: "top" | "bottom" | null;
+  /** Disposition DÉJÀ dessinée à un rendu précédent (mémoire), avec le voisinage
+   * d'alors. Si le voisinage est identique, elle est reprise telle quelle : les
+   * règles de choix (alternance, pause, motif) ont déjà été appliquées quand
+   * elle a été choisie ; seule la place réelle du texte est revérifiée. */
+  pinned?: { prev: MixLayout | null; next_pause: boolean } | null;
+}
+
+/** La slide suivante est-elle une slide « pause » (schéma) ? Même règle partout. */
+export function nextIsPauseAt(slides: Array<Pick<MixSlideSpec, "visual_schema" | "slide_type" | "photo_index">>, i: number): boolean {
+  const next = slides[i + 1];
+  return !!(next?.visual_schema && (next.slide_type === "text_only" || !Number.isInteger(Number(next.photo_index))));
+}
 export interface MixLayoutReceipt { slide_number: number; layout: string; status: "accepted" | "rejected"; reason?: string }
 
 export interface MixCharter {
@@ -537,10 +550,18 @@ function proposedPhotoLayout(s: MixSlideSpec, p: TextParts, photoN: number, t: T
   if (!(PROPOSABLE_MIX_LAYOUTS as readonly string[]).includes(layout)) return { reason: "hors catalogue" };
   if (opts.isFirst) return { reason: "couverture" };
   if (LOCKED_PHOTO_LAYOUT.test(String(s.photo_layout || ""))) return { reason: "disposition confirmée" };
-  if (layout === opts.previous) return { reason: "même disposition que la slide précédente" };
-  if (layout === "photo_aplat" && (opts.previous === "pause" || opts.nextIsPause)) return { reason: "aplat voisin d'une pause" };
-  if (layout === "cote_a_cote" && p.format?.motif) return { reason: "motif en colonne étroite" };
-  if (layout === "sur_photo" && (!surPhotoEligible(s, p) || p.format?.motif)) return { reason: "texte trop long pour la photo" };
+  // Mémoire au même voisinage : c'est le résultat d'un rendu précédent, pas un
+  // nouveau choix. Les règles de choix ne sont pas rejouées (le repli
+  // déterministe peut lui-même garder deux côte-à-côte voisins quand rien
+  // d'autre ne tient) ; seule la place réelle du texte compte.
+  const pinned = !!prop.pinned && (prop.pinned.prev ?? null) === (opts.previous ?? null) && !!prop.pinned.next_pause === !!opts.nextIsPause;
+  if (!pinned) {
+    if (layout === opts.previous) return { reason: "même disposition que la slide précédente" };
+    if (layout === "photo_aplat" && (opts.previous === "pause" || opts.nextIsPause)) return { reason: "aplat voisin d'une pause" };
+    if (layout === "cote_a_cote" && p.format?.motif) return { reason: "motif en colonne étroite" };
+    if (layout === "sur_photo" && p.format?.motif) return { reason: "motif sur la photo" };
+  }
+  if (layout === "sur_photo" && !surPhotoEligible(s, p)) return { reason: "texte trop long pour la photo" };
   const side = prop.side === "right" ? "right" : "left";
   const position = lockedOverlayPosition(s) || (prop.position === "top" ? "top_left" : "bottom_left");
   const html = layout === "photo_aplat" ? photoAplat(p, photoN, t)
@@ -577,8 +598,7 @@ export function composeMixCarousel(slides: MixSlideSpec[], charter: MixCharter, 
   let previous: MixLayout | null = null;
   let stepsLost = false;
   for (let i = 0; i < slides.length; i++) {
-    const next = slides[i + 1];
-    const nextIsPause = !!(next?.visual_schema && (next.slide_type === "text_only" || !Number.isInteger(Number(next.photo_index))));
+    const nextIsPause = nextIsPauseAt(slides, i);
     const opts: { isFirst: boolean; isLast: boolean; previous: MixLayout | null; photoCount: number; nextIsPause: boolean } = { isFirst: nums[i] === first, isLast: nums[i] === last, previous, photoCount, nextIsPause };
     const base = { ...slides[i], slide_number: nums[i] };
     const plain = composeMixSlide({ ...base, mix_format: null }, charter, opts);

@@ -223,7 +223,8 @@ Deno.test("disposition mixte : orientation lue dans l'en-tête (PNG, JPEG), inco
 
 Deno.test("disposition mixte : le rendu passe toujours par l'étage, en parallèle de la mise en forme", async () => {
   const src = await Deno.readTextFile(new URL("../carousel-visual/index.ts", import.meta.url));
-  assert(/await composeMixStages\(\{ slides, ch, photos: reqBody\.photos \|\| \[\], photoCount: mixPhotoCount, usage, initial: mixComposed \}\)/.test(src), "les étages du mixte ne sont plus appelés au rendu");
+  assert(/await composeMixStages\(\{ slides, ch, photos: reqBody\.photos \|\| \[\], photoCount: mixPhotoCount, usage, initial: mixComposed, formattingMemo: reqBody\.mix_formatting_memo \}\)/.test(src), "les étages du mixte ne sont plus appelés au rendu");
+  assert(/result\.mix_formatting_memo = mixFormattingMemoOut/.test(src), "la mise en forme n'est plus renvoyée pour être gardée");
   const fn = /export async function composeMixStages[\s\S]*?\n}\n/.exec(src)?.[0] || "";
   assert(/Promise\.all\(\[[\s\S]*planPhotoFormatting\(mixTextSlides[\s\S]*layoutMixSlides\(numbered, ch, photos, usage[\s\S]*\]\)/.test(fn), "l'étage de disposition n'est plus lancé en parallèle");
   assert(/composeMixCarousel\(applyMixFormatting\(laid\.slides( as any\[\])?, formatting\)/.test(fn), "les dispositions ne sont plus appliquées");

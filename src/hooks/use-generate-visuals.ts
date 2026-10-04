@@ -40,7 +40,7 @@ interface UseGenerateVisualsParams {
   refreshPlan: () => void;
   /** Carrousel mixte : dispositions dessinées à garder sur les slides (même
    * ordre) et reçu de l'étage de disposition (statut, cause d'un échec). */
-  onMixLayoutMemos?: (memos: unknown[] | null, receipt?: unknown) => void;
+  onMixLayoutMemos?: (memos: unknown[] | null, receipt?: unknown, formattingMemo?: unknown) => void;
 }
 
 /**
@@ -284,6 +284,9 @@ export function useGenerateVisuals({
         : null;
       const requestBody: any = {
         slides: slidesForVisuals,
+        // Mise en forme (étapes, motifs) gardée au rendu précédent : reprise
+        // telle quelle tant que les textes n'ont pas changé.
+        ...(isMixCarousel && result.raw.mix_formatting_memo ? { mix_formatting_memo: result.raw.mix_formatting_memo } : {}),
         ...(visionPhotosWithLuminance ? {
           photos: visionPhotosWithLuminance,
           carousel_type: isMixCarousel ? "mix" : "photo",
@@ -423,7 +426,7 @@ export function useGenerateVisuals({
       // Mémoire de la disposition (mixte) : gardée sur les slides sauvegardées
       // pour que la prochaine régénération reprenne les mêmes dispositions.
       if ((Array.isArray(data.result?.mix_layout_memos) || data.result?.mix_layout) && slidesSource === rawSlides) {
-        onMixLayoutMemos?.(Array.isArray(data.result?.mix_layout_memos) ? data.result.mix_layout_memos : null, data.result?.mix_layout);
+        onMixLayoutMemos?.(Array.isArray(data.result?.mix_layout_memos) ? data.result.mix_layout_memos : null, data.result?.mix_layout, data.result?.mix_formatting_memo);
       }
       const fidelityWarnings = carouselCompositionWarnings(carouselSubMode === "pure_photo" ? slidesSource : rawSlides, committedSlides, carouselSubMode === "pure_photo");
       setVisualsAutoError(fidelityWarnings.length ? fidelityWarnings.join(" ") : null);

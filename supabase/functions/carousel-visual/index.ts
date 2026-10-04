@@ -20,7 +20,7 @@ import { enforceMinFontSize, enforceEditorFontFloor } from "../_shared/font-size
 import { enforceSafeZones, injectFallbackScrim, enforceHeroHook } from "../_shared/photo-visual-guards.ts";
 import { assignPhotoStyles, composePhotoSlide } from "../_shared/photo-overlay-templates.ts";
 import { applyMixFormatting, composeMixCarousel, mixSlideText } from "../_shared/mix-slide-layouts.ts";
-import { layoutMixSlides, type MixLayoutPlan, mixLayoutMemos, mixLayoutTelemetry } from "../_shared/mix-layout-formatting.ts";
+import { layoutMixSlides, type MixLayoutPlan, mixFormattingMemo, mixLayoutMemos, mixLayoutTelemetry, reuseMixFormatting } from "../_shared/mix-layout-formatting.ts";
 import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
 import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
@@ -702,6 +702,8 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
 export async function composeMixStages(params: {
   slides: any[]; ch: any; photos: any[]; photoCount: number; usage: UsageSink;
   initial: NonNullable<ReturnType<typeof composeMixCarousel>>; call?: typeof callAnthropic;
+  /** Mise en forme gardée au rendu précédent (raw.mix_formatting_memo). */
+  formattingMemo?: unknown;
 }) {
   const { slides, ch, photos, photoCount, usage, call } = params;
   const mixTextSlides = slides.map((s: any, i: number) => ({ slide_number: Number(s.slide_number) || i + 1, role: s.role, overlay_text: mixSlideText(s) }));
@@ -710,7 +712,10 @@ export async function composeMixStages(params: {
   // régénération).
   const numbered = slides.map((s: any, i: number) => ({ ...s, slide_number: Number(s.slide_number) || i + 1 }));
   const [formatting, laid] = await Promise.all([
-    call ? planPhotoFormatting(mixTextSlides, usage, call) : planPhotoFormatting(mixTextSlides, usage),
+    // Mise en forme mémorisée pour ces mêmes textes : reprise telle quelle,
+    // sans nouvel appel (sinon les étapes et la place disponible bougeraient).
+    (reuseMixFormatting(params.formattingMemo, mixTextSlides) as PhotoFormattingPlan | null) ??
+      (call ? planPhotoFormatting(mixTextSlides, usage, call) : planPhotoFormatting(mixTextSlides, usage)),
     call ? layoutMixSlides(numbered, ch, photos, usage, call) : layoutMixSlides(numbered, ch, photos, usage),
   ]);
   let composed = params.initial;
@@ -718,7 +723,7 @@ export async function composeMixStages(params: {
     composed = composeMixCarousel(applyMixFormatting(laid.slides as any[], formatting), ch, photoCount) || composed;
   }
   // Renvoyé au front, qui le garde sur chaque slide (mix_layout_memo).
-  return { composed, formatting, layouts: laid.plan, memos: mixLayoutMemos(laid.slides, composed, laid.plan), memorized: laid.restored };
+  return { composed, formatting, layouts: laid.plan, memos: mixLayoutMemos(laid.slides, composed, laid.plan), memorized: laid.restored, formattingMemo: mixFormattingMemo(formatting, mixTextSlides) };
 }
 
 export function runComposedByCodeGeneration(params: {
@@ -2571,9 +2576,11 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     let mixLayoutMemoOut: ReturnType<typeof mixLayoutMemos> | null = null;
     let mixLayouts: MixLayoutPlan | null = null;
     let mixMemorized = 0;
+    let mixFormattingMemoOut: ReturnType<typeof mixFormattingMemo> = null;
     if (mixComposed) {
-      const stages = await composeMixStages({ slides, ch, photos: reqBody.photos || [], photoCount: mixPhotoCount, usage, initial: mixComposed });
+      const stages = await composeMixStages({ slides, ch, photos: reqBody.photos || [], photoCount: mixPhotoCount, usage, initial: mixComposed, formattingMemo: reqBody.mix_formatting_memo });
       ({ composed: mixComposed, formatting: mixFormatting, layouts: mixLayouts, memos: mixLayoutMemoOut, memorized: mixMemorized } = stages);
+      mixFormattingMemoOut = stages.formattingMemo;
     }
 
     // ═══ Carrousel PHOTO pur : composition PAR CODE (chantier gabarits 13/07) ═══
@@ -2583,6 +2590,8 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
       result = { slides_html: mixComposed.map(({ layout: _l, schema_dropped: _d, layout_proposal: _p, disposition: _q, ...slide }) => slide) };
       if (mixFormatting) result.mix_formatting = { version: mixFormatting.version, status: mixFormatting.status, steps: mixFormatting.steps.length, motifs: mixFormatting.motifs.length };
       if (mixLayoutMemoOut) result.mix_layout_memos = mixLayoutMemoOut;
+      // Mise en forme gardée par le front sur le carrousel, reprise au prochain rendu.
+      if (mixFormattingMemoOut) result.mix_formatting_memo = mixFormattingMemoOut;
       if (mixLayouts) {
         result.mix_layout = mixLayoutTelemetry(mixLayouts, mixComposed, mixMemorized);
         console.log(JSON.stringify({ event: "carousel_mix_layout_formatting", ...result.mix_layout }));

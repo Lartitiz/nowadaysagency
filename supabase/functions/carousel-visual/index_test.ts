@@ -586,3 +586,76 @@ Deno.test("ancien carrousel : une disposition explicite garde son rendu ; « top
   const neutral = composeMixCarousel(sent.map((s: any, i: number) => i === 2 ? { ...s, photo_layout: undefined } : s) as any, ch, 2)!;
   assertEquals(out.map(c => c.html), neutral.map(c => c.html));
 });
+
+// ═══ Régénérations successives du VRAI carrousel du test en ligne (04/10/2026) ═══
+// 7 slides, photo_full / photo_integrated alternés, 3 photos. Au 1er rendu, le
+// motif de la slide 5 la mettait en côte-à-côte juste après un côte-à-côte
+// (repli déterministe) ; à la régénération, la mise en forme redécidée (sans
+// motif) et la règle « jamais deux voisines identiques » appliquée à la seule
+// mémoire faisaient basculer la slide 5, puis la 6.
+async function regenerationRig() {
+  const { visualSlidePayload } = await import("../../../src/lib/visual-slide-payload.ts");
+  const { applyMixLayoutMemos } = await import("../../../src/lib/mix-layout-memo.ts");
+  const { composeMixCarousel } = await import("../_shared/mix-slide-layouts.ts");
+  const words = (n: number) => Array.from({ length: n }, (_, i) => ["la", "terre", "garde", "chaque", "geste", "du", "four", "et", "de", "la", "main"][i % 11]).join(" ") + ".";
+  const raw: any = { carousel_type: "mix", slides: [
+    { slide_number: 1, slide_type: "photo_full", role: "hook", photo_index: 1, overlay_text: "Pourquoi deux bols ne sont jamais pareils" },
+    { slide_number: 2, slide_type: "photo_integrated", role: "developpement", photo_index: 1, title: "", body: words(30) },
+    { slide_number: 3, slide_type: "photo_full", role: "developpement", photo_index: 2, overlay_text: words(25) },
+    { slide_number: 4, slide_type: "photo_integrated", role: "developpement", photo_index: 3, title: "", body: words(30) },
+    { slide_number: 5, slide_type: "photo_full", role: "developpement", photo_index: 2, overlay_text: words(60) },
+    { slide_number: 6, slide_type: "photo_integrated", role: "developpement", photo_index: 3, title: "", body: words(30) },
+    { slide_number: 7, slide_type: "text_only", role: "conclusion", title: "Une seule fois", body: "Ce bol n'existe qu'une fois." },
+  ] };
+  const ch = { color_primary: "#3A4A3C", color_secondary: "#A9BCC8", color_accent: "#3A4A3C", color_background: "#FFFFFF", color_text: "#1A1A1A", font_title: "Georgia", font_body: "Arial" };
+  const tiny = btoa(String.fromCharCode(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 3, 0x20, 0, 0, 4, 0xb0, 8, 2, 0, 0, 0));
+  const photos = [{ base64: tiny }, { base64: tiny }, { base64: tiny }];
+  const calls: Record<string, number> = {};
+  // Comme en ligne : la mise en forme répond différemment à chaque appel (motif
+  // sur la slide 5 la première fois seulement).
+  const call = async (req: any) => {
+    const n = calls[req.tool.name] = (calls[req.tool.name] || 0) + 1;
+    if (req.tool.name === "choisir_dispositions") return JSON.stringify({ layouts: [{ slide_number: 4, layout: "cote_a_cote", side: "right", reason: "r" }] });
+    return JSON.stringify(n === 1
+      ? { steps: [], motifs: [{ slide_number: 5, reason: "r", elements: [{ k: "rect", x: 0, y: 0, w: 300, h: 300, tone: "soft" }, { k: "rect", x: 400, y: 0, w: 300, h: 300, tone: "accent" }] }] }
+      : { steps: [], motifs: [] });
+  };
+  const send = (r: any) => r.slides.map((s: any) => visualSlidePayload(s, s.slide_type, Number.isInteger(s.photo_index) ? s.photo_index : undefined));
+  /** Un clic « Regénérer les visuels » : front → carousel-visual → front. */
+  const render = async (r: any, keepFormatting = true) => {
+    const slides = send(r);
+    const out = await composeMixStages({ slides, ch, photos, photoCount: 3, usage: {}, initial: composeMixCarousel(slides, ch, 3)!, call: call as any, formattingMemo: keepFormatting ? r.mix_formatting_memo : undefined });
+    const saved = { ...r, slides: applyMixLayoutMemos(r.slides, out.memos), ...(out.formattingMemo ? { mix_formatting_memo: out.formattingMemo } : {}) };
+    return { out, saved };
+  };
+  return { raw, render, calls };
+}
+
+Deno.test("régénération : trois rendus successifs du vrai carrousel → mêmes dispositions, mêmes visuels, une seule consultation de l'IA", async () => {
+  const { raw, render, calls } = await regenerationRig();
+  const r1 = await render(raw);
+  const layouts = r1.out.composed.map(c => c.layout);
+  assertEquals(layouts.slice(3, 5), ["cote_a_cote", "cote_a_cote"], "le cas réel : deux côte-à-côte voisins au 1er rendu");
+  const r2 = await render(r1.saved);
+  const r3 = await render(r2.saved);
+  for (const r of [r2, r3]) {
+    assertEquals(r.out.composed.map(c => c.layout), layouts);
+    assertEquals(r.out.composed.map(c => c.html), r1.out.composed.map(c => c.html), "visuels identiques");
+  }
+  assertEquals(r3.saved, r1.saved, "données sauvegardées stables");
+  assertEquals([calls.choisir_dispositions, calls.mettre_en_forme], [1, 1], "l'IA n'est consultée qu'au premier rendu");
+});
+
+Deno.test("régénération : même si la mise en forme est redécidée, une disposition dessinée et inchangée est reprise telle quelle", async () => {
+  const { raw, render } = await regenerationRig();
+  const r1 = await render(raw);
+  // Mise en forme non gardée : l'IA répond cette fois sans motif.
+  const r2 = await render(r1.saved, false);
+  assertEquals(r2.out.composed.map(c => c.layout), r1.out.composed.map(c => c.layout));
+  assert(r2.out.composed.slice(1).every(c => !c.layout_proposal || c.layout_proposal.status === "accepted"), JSON.stringify(r2.out.composed.map(c => c.layout_proposal)));
+  // Texte modifié sur la slide 5 : la mémoire redevient une simple proposition (mêmes règles qu'au 1er rendu).
+  const edited = { ...r1.saved, slides: r1.saved.slides.map((s: any) => s.slide_number === 5 ? { ...s, overlay_text: s.overlay_text + " Encore." } : s) };
+  const r3 = await render(edited, false);
+  assertEquals(r3.out.composed[4].layout_proposal?.status, "rejected");
+  assert(visibleText(r3.out.composed[4].html).includes(edited.slides[4].overlay_text), "texte perdu");
+});
