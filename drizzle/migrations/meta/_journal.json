@@ -43,6 +43,13 @@
       "when": 1791141039006,
       "tag": "0005_carousel_media_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791144537690,
+      "tag": "0006_carousel_media_backup_cleanup",
+      "breakpoints": true
     }
   ]
 }
