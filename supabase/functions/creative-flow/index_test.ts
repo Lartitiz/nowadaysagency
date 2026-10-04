@@ -192,6 +192,19 @@ Deno.test("questions LinkedIn avec photos : le vécu passe avant le résultat bu
   assertEquals(prompt.includes("résultat / chiffre concret, contexte business"), false);
 });
 
+// Non-régression « canal des questions » (mode photo) : ni un parcours LinkedIn
+// (front : « linkedin_post ») ni Pinterest ne doivent annoncer Instagram.
+for (const [contentType, expected] of [["linkedin_post", "LinkedIn"], ["post_linkedin", "LinkedIn"], ["post_pinterest", "Pinterest"], ["newsletter", "Newsletter"]]) {
+  Deno.test(`questions avec photos : canal « ${expected} » pour ${contentType}, jamais Instagram`, () => {
+    const prompt = buildVisionQuestionsPrompt({
+      contentType, context: "Ma table de travail le lundi matin", objective: null,
+      photo_description: null, per_photo_context: null,
+    });
+    assertEquals(prompt.includes(expected), true);
+    assertEquals(/instagram/i.test(prompt), false);
+  });
+}
+
 Deno.test("runLinkedInTwoStep : élisions appliquées même si la 2e passe échoue (filet déterministe, fallback sur le brut)", async () => {
   const generated = { content: "On montre le avant/après qui brille, sans rien cacher." };
   const { mock } = installAnthropicBodyCapture([
