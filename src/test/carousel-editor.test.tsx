@@ -155,8 +155,13 @@ describe("carousel editor document", () => {
     const a = makeSlide({ slide_number: 1 }),
       b = makeSlide({ slide_number: 2 });
     const next = renumberDocument({ slides: [b, a], caption: {} });
-    expect(next.slides[0].html).toContain(">1 / 2<");
+    // Couverture sans numéro (04/10/2026) ; la slide 2 garde le sien.
+    expect(next.slides[0].html).not.toContain(" / 2<");
+    expect(next.slides[1].html).toContain(">2 / 2<");
     expect(next.slides[1].data.slide_number).toBe(2);
+    // Une ancienne couverture déplacée en 2e position retrouve son numéro.
+    const back = renumberDocument({ slides: [next.slides[1], next.slides[0]], caption: {} });
+    expect(back.slides[1].html).toContain(">2 / 2<");
   });
   it("clears obsolete freeform text when committing structured edits", () => {
     expect(

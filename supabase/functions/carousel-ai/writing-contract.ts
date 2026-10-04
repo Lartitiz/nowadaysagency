@@ -1,6 +1,7 @@
 import { COMMON, WRITE } from "../_shared/carousel-editorial-contract.ts";
+import { COVER_WRITING } from "../_shared/carousel-cover.ts";
 /** Carousel-specific writing policy. Layout contracts remain in the variant builders. */
-export const CAROUSEL_WRITING_VERSION = "fil-v10-photo-concise";
+export const CAROUSEL_WRITING_VERSION = "fil-v11-couverture-accroche";
 
 export const CAROUSEL_FACTS = `CHIFFRES ET FIGURES : conserve le lien entre une quantité et ce qu'elle mesure. Un nombre présent dans le brief n'autorise pas un autre fait portant le même nombre. Si tu reformules une même donnée sous une autre unité, annonce cette relation sans faire croire à une seconde preuve. Une métaphore peut rester si elle éclaire le sujet ; n'en introduis pas pour donner du poids à la conclusion.`;
 
@@ -34,7 +35,8 @@ Si la matière est courte, écris plus court dans les slides prévues. N'ajoute 
 
 export const CAROUSEL_TITLES = `
 TITRES ET ACCROCHES
-Un titre permet de saisir le sujet ou l'idée précise de sa slide. Il peut nommer un geste, un objet, une question, une distinction, une étape ou entrer dans un récit fourni. Il n'a pas à être une mini-punchline. Choisis des mots spécifiques ; 4-9 mots est un repère, pas un minimum à remplir. La première slide identifie ce dont on parle, en 12 mots maximum. Pour une découverte de marque ou un récit, la couverture ouvre une idée à développer ou une question à résoudre ; le nom du métier ou « de l’atelier au quotidien » ne sont que des thèmes. Une entrée descriptive reste adaptée à un catalogue ou une méthode demandés.
+Un titre permet de saisir le sujet ou l'idée précise de sa slide. Il peut nommer un geste, un objet, une question, une distinction, une étape ou entrer dans un récit fourni. Il n'a pas à être une mini-punchline. Choisis des mots spécifiques ; 4-9 mots est un repère, pas un minimum à remplir. Ces repères valent pour les slides de développement ; la couverture suit ses propres règles.
+${COVER_WRITING}
 `;
 
 export const CAROUSEL_CONTINUITY = `
@@ -75,7 +77,7 @@ Retourne uniquement le JSON demandé par le format, sans commentaire, enveloppe 
 export function photoReadingContract(body: any): string {
   if (body.carousel_type !== "photo" || body.no_overlay || body.user_slides?.length) return "";
   return `LECTURE SUR PHOTO — TEXTE COURT, RÉCIT COMPLET
-Pour ce carrousel photo, les règles suivantes précisent les consignes générales de développement. Une idée et une avancée par slide, avec des phrases naturelles reliées aux précédentes. Vise environ 25 à 40 mots de texte visible par slide de développement (kicker, overlay_text, detail et CTA cumulés), souvent moins pour l'ouverture et la conclusion ; 12 mots maximum sur la couverture. C'est un repère de composition, pas une coupe mécanique. Une demande explicite de texte long, une citation exacte, un texte fourni ou un passage protégé prime.
+Pour ce carrousel photo, les règles suivantes précisent les consignes générales de développement. Une idée et une avancée par slide, avec des phrases naturelles reliées aux précédentes. Vise environ 25 à 40 mots de texte visible par slide de développement (kicker, overlay_text, detail et CTA cumulés), souvent moins pour la conclusion ; la couverture suit ses propres règles (accroche de 10 mots maximum, sous-titre facultatif en detail, aucun kicker). C'est un repère de composition, pas une coupe mécanique. Une demande explicite de texte long, une citation exacte, un texte fourni ou un passage protégé prime.
 Garde sur les slides le chemin du raisonnement et les précautions indispensables à la justesse de chaque affirmation. Déplace dans caption.body les exemples secondaires, détails techniques et développements utiles écartés des slides, sans les perdre, les inventer ni recopier toutes les slides. La légende complète un récit déjà compréhensible sans elle ; elle ne répare pas un lien manquant. Sur Instagram, l'ensemble hook/body/cta/hashtags doit rester dans 2200 caractères. Si la matière ou une contrainte explicite rend ce budget impossible, respecte la priorité de la personne et signale la densité plutôt que de tronquer.
 Écris le récit entier avant sa répartition. Préserve le nombre, l'ordre, la voix, les faits, les nuances nécessaires, les textes verrouillés et les photos brutes. Aucun slogan interchangeable, liste de mots-clés ou sous-titre redondant ajouté pour faire court. Relis ensemble les slides et la légende après toute réécriture : les éléments déplacés doivent toujours être présents au bon endroit.`;
 }

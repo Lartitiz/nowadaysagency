@@ -77,3 +77,14 @@ Deno.test("slide de rupture : mêmes mots qu'avant, seulement lus sans accents n
   assertEquals(rupture("synthèse"), 2);
   assertEquals(rupture("histoire"), rupture(undefined), "rôle non reconnu : même repli qu'avant");
 });
+
+Deno.test("texte : couverture = accroche en très grand + sous-titre, centrés verticalement et horizontalement (04/10/2026)", () => {
+  const cover = { slide_number: 1, title: "Arrête de publier tous les jours.", body: "Le rythme qui marche pour une marque slow" };
+  const out = composeEditorialSlide(cover, PLAN.sequence[0], CH)!;
+  assert(out.html.includes('data-carousel-layout="opening"'));
+  assert(out.html.includes("font-size:112px"), "accroche de 6 mots en très grand");
+  assertEquals((out.html.match(/text-align:center/g) || []).length, 2);
+  assert(out.html.includes("justify-content:center"), "bloc centré verticalement");
+  assert(textOf(out.html).includes(cover.title) && textOf(out.html).includes(cover.body));
+  assert(!out.html.includes("data-format-block"));
+});

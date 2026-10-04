@@ -298,10 +298,10 @@ PADDING : 80px sur les côtés, 60px en haut et en bas. JAMAIS de texte collé a
 
 TITRES (headlines) :
 - Font : ${ch.font_title}, font-weight: normal (JAMAIS bold), font-style: normal
-- Taille : 80-112px pour le hook (slide 1), 64-88px pour les autres slides selon la longueur
+- Taille : 88-120px pour l'accroche de couverture (slide 1), 64-88px pour les autres slides selon la longueur
 - Couleur : ${ch.color_secondary} ou ${ch.color_text}
 - Line-height : 1.25
-- Certains MOTS-CLÉS en couleur accent ${ch.color_primary} et font-style: italic pour créer du contraste
+- Certains MOTS-CLÉS en couleur accent ${ch.color_primary} et font-style: italic pour créer du contraste (jamais sur la couverture)
 
 CORPS DE TEXTE :
 - Font : ${ch.font_body}, font-weight: 400
@@ -322,7 +322,7 @@ LABELS ÉDITORIAUX (optionnels, jamais une signature imposée) :
 EYEBROWS (petit label au-dessus du titre — à DOSER, jamais systématique) :
 - Un eyebrow = une ligne courte au-dessus du titre : font-family: ${ch.font_body}, font-size: 32px, font-weight: 500, couleur très contrastée issue de la charte
 - Deux formes possibles : texte nu OU badge pilule (voir ci-dessus).
-- Sur 1-2 slides du carrousel MAXIMUM, là où un label éditorial apporte vraiment quelque chose ("LE PIÈGE", "CE QUE ÇA CHANGE"…) — jamais un numéro de slide.
+- Jamais sur la couverture. Sur 1-2 slides du carrousel MAXIMUM, là où un label éditorial apporte vraiment quelque chose ("LE PIÈGE", "CE QUE ÇA CHANGE"…) — jamais un numéro de slide.
 - L'absence d'eyebrow est le cas NORMAL. Un eyebrow sur chaque slide = effet template généré par IA, c'est un défaut.
 - Gap eyebrow → titre : 16-20px.
 
@@ -376,21 +376,15 @@ RYTHME DU CARROUSEL (obligatoire dès 5 slides) :
 
 ═══ DESIGN PAR RÔLE DE SLIDE ═══
 
-HOOK (slide 1) — Design le plus fort, stoppe le scroll :
+HOOK (slide 1) — COUVERTURE : une accroche, rien d'autre :
 
-- La TYPOGRAPHIE est l'élément visuel principal : titre en ${ch.font_title}, 64-84px, qui occupe la largeur (marges 80px) — PAS de petite carte flottant au centre.
+- Uniquement l'accroche (title) en très grand, et le sous-titre (body) en petit s'il existe. AUCUN autre élément : ni pastille, ni petit label au-dessus, ni motif décoratif, ni surligneur, ni mot-clé coloré, ni numéro, ni logo, ni flèche « glisse ».
 
-- Deux compositions au choix :
+- Titre en ${ch.font_title}, 88-120px selon la longueur (une accroche courte = plus grand), font-weight normal ; sous-titre en ${ch.font_body}, 36-42px.
 
-  · Plein format clair : fond ${ch.color_background}, titre énorme aligné gauche ou centré, 1-2 mots-clés en ${ch.color_primary} italic
+- Titre ET sous-titre CENTRÉS horizontalement (text-align:center) et le bloc centré verticalement dans la slide, marges latérales de 80px minimum.
 
-  · Plein format inversé : fond ${ch.color_secondary}, titre en blanc/clair, 1 mot-clé en ${ch.color_accent}
-
-- Optionnel : petit badge pilule de thème/catégorie en haut, AU-DESSUS du titre (jamais un numéro de slide).
-
-- Le titre occupe une zone forte de la grille choisie par le plan, avec une grande échelle et une lecture immédiate.
-
-- Optionnel : motif décoratif subtil en fond (lignes, zigzag — pas de ronds).
+- Fond simple : aplat ${ch.color_background}, ou aplat inversé ${ch.color_secondary} avec titre clair. Une photo éventuelle est en plein cadre sous un voile uniforme (rgba sombre 0.45-0.6) qui garde le titre lisible.
 
 CONTEXTE / STORYTELLING (slide 2) — Personnel, immersif :
 - Fond : ${darkBrand ? `${ch.color_background} ou une déclinaison à peine plus claire de ${ch.color_background} (même famille sombre — JAMAIS blanc)` : `blanc ou ${ch.color_background}`}
@@ -437,9 +431,9 @@ CTA (dernière slide) — Douce, invitante :
 - Les éléments décoratifs (barres, soulignements) utilisent une palette cohérente
 
 ═══ ANTI-PATTERNS — CE QUE TU NE FAIS JAMAIS ═══
-- ❌ Centrage et même largeur de texte répétés sur toutes les slides
+- ❌ Centrage et même largeur de texte répétés sur toutes les slides (la couverture, elle, est toujours centrée)
 - ❌ Toutes les slides avec le même layout (il faut de la variété visuelle)
-- ❌ Texte trop petit (<30px) ou trop gros (>84px sauf numéros décoratifs)
+- ❌ Texte trop petit (<30px) ou trop gros (>88px sauf l'accroche de couverture et les numéros décoratifs)
 - ❌ Pas de padding (texte qui touche les bords)
 - ❌ Cercles ou ronds comme éléments décoratifs
 - ❌ Font-weight bold sur ${ch.font_title} (toujours normal)

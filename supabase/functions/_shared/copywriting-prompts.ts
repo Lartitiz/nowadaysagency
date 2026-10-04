@@ -201,7 +201,7 @@ STRUCTURES PAR FORMAT
 ═══════════════════════════════════════════════════
 
 CARROUSEL INSIGHT (8-10 slides) :
-- Slide 1 : Hook (situation concrète ou constat décalé. Peu de mots, beaucoup d'intrigue.)
+- Slide 1 : Couverture : une accroche de 4 à 10 mots (constat décalé, prise de position, question qui pique), sous-titre facultatif de 12 mots max, rien d'autre.
 - Slide 2 : Contexte. Si l'utilisatrice a fourni un vécu réel, ancre-le. SINON, un constat général incarné, sans date ni citation fabriquée ("ce qui revient", "le cas typique", "ce qu'on voit passer"). JAMAIS inventer "la semaine dernière" / "une cliente m'a dit".
 - Slide 3 : Le problème tel qu'on le vit (identification : le lecteur se reconnaît)
 - Slide 4 : Bascule/révélation (le regard qui change, le mécanisme caché)

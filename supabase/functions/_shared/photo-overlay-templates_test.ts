@@ -63,7 +63,7 @@ Deno.test("résolution : slide 1 avec texte → couverture ; hook court → tail
   const spec = base({ slide_number: 1, overlay_text: "Ce salon ne racontait rien" });
   assertEquals(resolvePhotoTemplate(spec, { isFirst: true, isLast: false }), "couverture");
   const out = composePhotoSlide(spec, CH, { isFirst: true, isLast: false });
-  assert(/font-size:(72|80|84)px/.test(out.html));
+  assert(/font-size:(8[4-9]|9[0-9]|10[0-9])px/.test(out.html));
   assert(out.html.includes("Libre Baskerville"));
 });
 
@@ -142,14 +142,21 @@ Deno.test("position top : dégradé ancré en HAUT et contenu justifié flex-sta
   assert(out.html.includes("justify-content:flex-start"));
 });
 
-Deno.test("couverture : le repère fourni utilise la couleur de marque, titre blanc", () => {
+Deno.test("couverture (04/10/2026) : accroche + sous-titre centrés, voile uniforme, jamais de kicker ni de direction éditoriale", () => {
   const out = composePhotoSlide(
-    base({ slide_number: 1, overlay_text: "Ce salon ne racontait rien", kicker: "Home staging · salon" }),
+    base({ slide_number: 1, overlay_text: "Ce salon ne racontait rien", kicker: "Home staging · salon", detail: "Avant / après d'un home staging", overlay_position: "bottom_left", template: "profonde", points: ["a", "b"], art_direction: { treatment: "statement", surface: "veil", alignment: "left", emphasis: "" } as any }),
     CH,
     { isFirst: true, isLast: false },
   );
-  assert(out.html.includes("background:#7BC9A3"));
-  assert(out.html.includes("font-weight:400"));
+  assertEquals(out.template, "couverture");
+  assert(!out.html.includes("Home staging · salon"), "kicker affiché");
+  assert(out.html.includes("Avant / après d'un home staging"));
+  assert(out.html.includes('data-photo-text-layout="center"'));
+  assert(out.html.includes("text-align:center"));
+  assert(out.html.includes("height:1350px;background:rgba("), "voile uniforme attendu");
+  assert(!out.html.includes("linear-gradient"), "pas de dégradé sur la couverture");
+  assert(!out.html.includes("data-photo-editorial-text"));
+  assert(out.html.includes("font-size:100px"), "accroche de 5 mots en très grand");
 });
 
 // ── Audit photo 22/07 : dégradations non-vides, etiquette longue, zoom répété ──

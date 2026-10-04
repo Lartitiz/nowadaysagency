@@ -113,9 +113,10 @@ describe("brand card, column and veil", () => {
   });
   it("the veil is listed and its strength stays readable by the PowerPoint export", () => {
     const { html } = composePhotoSlide(
-      { slide_number: 1, photo_index: 1, overlay_text: "Le titre de couverture", overlay_position: "bottom_left" } as any,
+      // Slide de développement : la couverture a un voile uniforme (04/10/2026).
+      { slide_number: 2, photo_index: 1, overlay_text: "Le titre de cette slide de développement", overlay_position: "bottom_left" } as any,
       charter,
-      { isFirst: true, isLast: false },
+      { isFirst: false, isLast: false },
     );
     const slide: EditorSlide = { id: "c", data: {}, html: prepareSlideHtml(html) };
     const veil = find(slide, (e) => e.role === "veil");
@@ -129,6 +130,21 @@ describe("brand card, column and veil", () => {
     // Un déplacement par le menu garde l'intensité choisie.
     const preset = positionPhotoText(softer, "top_left");
     expect(veilAlpha(dom(preset.html).querySelector("[data-injected-scrim]")!.getAttribute("style") || "")).toBeCloseTo(0.4);
+  });
+});
+
+describe("cover veil (04/10/2026)", () => {
+  it("the uniform cover veil is listed and its strength can be changed", () => {
+    const { html } = composePhotoSlide(
+      { slide_number: 1, photo_index: 1, overlay_text: "Tes photos font fuir tes clientes.", overlay_position: "bottom_left" } as any,
+      charter,
+      { isFirst: true, isLast: false },
+    );
+    const slide: EditorSlide = { id: "c", data: {}, html: prepareSlideHtml(html) };
+    const veil = find(slide, (e) => e.role === "veil");
+    expect(veil).toBeTruthy();
+    const softer = setVeilAlpha(slide, veil.id, 0.4);
+    expect(veilAlpha(dom(softer.html).querySelector("[data-injected-scrim]")!.getAttribute("style") || "")).toBeCloseTo(0.4);
   });
 });
 

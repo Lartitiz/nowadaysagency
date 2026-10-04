@@ -36,8 +36,9 @@ AVANT DE RÉDIGER, identifie :
 ══ RÈGLES DE RÉDACTION ══
 
 STRUCTURE DES SLIDES :
-- Slide 1 (hook) : 1-2 phrases max, 12 mots max. Crée la tension. PAS de titre listicle.
-- Slides 2-7 : chacune a un RÔLE dans l'arc narratif (pas un numéro de conseil).
+- Slide 1 (couverture) : une accroche de 4 à 10 mots qui crée la tension, plus au besoin un sous-titre de 12 mots maximum. Rien d'autre. PAS de titre-étiquette.
+- Slide 2 : deuxième accroche, compréhensible sans la slide 1 (Instagram peut ouvrir le carrousel directement dessus).
+- Slides 3-7 : chacune a un RÔLE dans l'arc narratif (pas un numéro de conseil).
   Chaque slide = 2-4 phrases qui DÉVELOPPENT le point. Pas un header + une ligne.
 - Slide finale : punchline mémorable qui OUVRE (pas qui résume) + CTA léger.
 - TOTAL : 1500-3000 caractères de contenu textuel (slides + caption).

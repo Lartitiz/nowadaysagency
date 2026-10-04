@@ -7,6 +7,7 @@ import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts
 import { PHOTO_NARRATIVE_CONTRACT, PHOTO_QUESTIONS_CONTRACT } from "./photo-narrative.ts";
 import { AUTO_MAX_SLIDES, carouselLength, carouselLengthPrompt, carouselStructureIssues } from "../_shared/carousel-length.ts";
 import { preservesCarouselScenario } from "../_shared/carousel-thread.ts";
+import { coverKind, coverRewritePrompt, enforceCover } from "../_shared/carousel-cover.ts";
 import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, NEWS_WRITING } from "./variant-writing.ts";
 import { callCarouselWriter, pickCarouselWriter, CAROUSEL_WRITER_VERSION } from "./writer.ts";
 import { authoredContentSource, currentContentContract } from "../_shared/editorial-voice.ts";
@@ -355,8 +356,8 @@ const PHOTO_CAROUSEL_TOOL = {
             visual_anchor: { type: "string" },
             overlay_position: { type: "string", enum: ["top_left", "top_center", "bottom_left", "bottom_center", "center"] },
             note: { type: "string" },
-            kicker: { type: ["string", "null"], description: "Titre court de la slide (≤6 mots), facultatif." },
-            detail: { type: ["string", "null"], description: "Ligne de détail (≤12 mots), facultative : sous-titre de couverture." },
+            kicker: { type: ["string", "null"], description: "Titre court de la slide (≤6 mots), facultatif ; toujours null sur la couverture." },
+            detail: { type: ["string", "null"], description: "Ligne de détail (≤12 mots), facultative ; sur la couverture : sous-titre seulement s'il apporte quelque chose." },
             cta_label: { type: ["string", "null"], description: "Dernière slide : texte de la pastille d'invitation (≤6 mots), null si aucune." },
           },
         },
@@ -1271,7 +1272,29 @@ async function finalizeCarousel(
     ...carouselStructureIssues(doc, body),
     ...(ownsText ? [] : progressionWarnings(receipt)),
   ];
-  return JSON.stringify(doc);
+  // COUVERTURE (04/10/2026) : accroche de 10 mots max + sous-titre facultatif,
+  // rien d'autre ; seule la slide 1 est touchée (cf. _shared/carousel-cover.ts).
+  const coverSink: UsageSink = {};
+  const cover = await enforceCover(doc, {
+    kind: coverKind(body.carousel_type),
+    userAuthored: !!ownsText,
+    selectedHook: typeof body.selected_hook === "string" ? body.selected_hook : body.selected_hook?.text ?? null,
+    sources: ctx.gateInputText,
+    rewrite: remaining() < 25_000 ? undefined : async (input) => {
+      const raw = await _deps.callAnthropic({
+        model: SONNET_MODEL,
+        system: ctx.systemPrompt,
+        messages: [{ role: "user", content: coverRewritePrompt(input) }],
+        max_tokens: 400,
+        temperature: 0.7,
+        abortTimeoutMs: Math.min(20_000, remaining() - 5_000),
+      }, coverSink);
+      return tryParseAiJson(raw, "carousel-ai:cover");
+    },
+  });
+  for (const k of ["input_tokens", "output_tokens", "total_tokens"] as const) opts.usage[k] = (opts.usage[k] || 0) + (coverSink[k] || 0);
+  if (cover.receipt) console.log(JSON.stringify({ event: "carousel_cover", ...cover.receipt }));
+  return JSON.stringify(cover.doc);
 }
 
 // Partagée par hooks / slides / express_full (texte standard) / suggest_topics /
@@ -2149,18 +2172,18 @@ Objectif : ${objective}
 Nombre de slides : ${slide_count || 7}
 ${deepeningCtx}${angleCtx}
 RÈGLES HOOKS CARROUSEL :
-- MAXIMUM 12 MOTS par hook
-- Doit stopper le scroll
-- Spécifique au sujet, pas générique
+- 4 à 10 MOTS par hook (idéalement 5 à 8) : c'est le titre de la couverture
+- Doit stopper le scroll : tension ou manque (prise de position, erreur courante, question qui pique, promesse concrète, liste chiffrée, « personne ne te dit que… », actu détournée, histoire entamée)
+- Spécifique au sujet, pas générique ; jamais un titre-étiquette qui nomme seulement le sujet
 - 3 types DIFFÉRENTS de hooks
 ${deepeningCtx ? "- ANCRE les hooks dans le vécu et les mots de l'utilisatrice" : ""}
 
 Retourne ce JSON exact :
 {
   "hooks": [
-    { "id": "A", "text": "[HOOK 5-12 MOTS]", "word_count": 8, "style": "curiosité" },
-    { "id": "B", "text": "[HOOK 5-12 MOTS]", "word_count": 7, "style": "provocation" },
-    { "id": "C", "text": "[HOOK 5-12 MOTS]", "word_count": 9, "style": "résultat" }
+    { "id": "A", "text": "[HOOK 4-10 MOTS]", "word_count": 8, "style": "curiosité" },
+    { "id": "B", "text": "[HOOK 4-10 MOTS]", "word_count": 7, "style": "provocation" },
+    { "id": "C", "text": "[HOOK 4-10 MOTS]", "word_count": 9, "style": "résultat" }
   ]
 }`;
 }

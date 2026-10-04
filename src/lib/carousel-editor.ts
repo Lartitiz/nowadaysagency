@@ -724,7 +724,9 @@ export function renumberDocument(document: CarouselDocument): CarouselDocument {
         previous = slide.data.slide_number;
       doc
         .querySelectorAll<HTMLElement>("[data-slide-page]")
-        .forEach((el) => (el.textContent = `${index + 1} / ${total}`));
+        // Pas de numéro sur la couverture (04/10/2026) : le repère reste en
+        // place, vide, et se remplit si la slide quitte la première position.
+        .forEach((el) => (el.textContent = index === 0 ? "" : `${index + 1} / ${total}`));
       textNodes(doc).forEach((el) => {
         if (
           new RegExp(`^${previous}\\s*/\\s*\\d+$`).test(

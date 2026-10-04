@@ -133,7 +133,9 @@ Deno.test("design photo : charte transmise et contenu conservé après les garde
   applyTextContrastGuard(result);
   applyMinFontSizeGuard(result);
   assertEquals(result.slides_html.map((s:any)=>s.html),before);
-  assert(before[0].includes("background:#914B30"));
+  // Couverture (04/10/2026) : ni pastille ni kicker, voile uniforme sur la photo.
+  assert(!before[0].includes("Dans les coulisses"));
+  assert(before[0].includes("data-injected-scrim"));
   assert(before[1].includes("background:#FFF6E9"));
   assert(before[1].includes("border-radius:24px"));
   assert(before[0].includes("Une précision fournie"));
