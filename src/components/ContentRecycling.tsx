@@ -20,7 +20,9 @@ import { UX_UPLOAD_LIMITS } from "@/lib/upload-limits";
 import { posthog } from "@/lib/posthog";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
-import { isRecycleRefusal } from "@/lib/recycle-result";
+import { isRecycleRefusal, isRecycledStoriesSequence, recycledStoriesText } from "@/lib/recycle-result";
+import StoryResult from "@/components/creer/formatRenderers/StoryResult";
+import { buildCalendarContent } from "@/features/creer/build-calendar-content";
 
 // Aucun format pré-coché : un format « sélectionné d'office » a déjà fait
 // croire à un bug (campagne QA du 17/07 : cliquer une case pré-cochée la
@@ -105,6 +107,9 @@ export default function ContentRecycling() {
       }
     | null
   >(null);
+  // Stories recyclées structurées : rendues en vraies stories (images), comme
+  // le flux principal. null = ancienne forme texte (affichée telle quelle).
+  const [storiesSequence, setStoriesSequence] = useState<{ stories: any[] } | null>(null);
   const [activeTab, setActiveTab] = useState<string>("");
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
@@ -247,6 +252,7 @@ export default function ContentRecycling() {
       const rawCarousel = r.carrousel;
       const display: Record<string, string> = {};
       let structure: typeof carouselStructure = null;
+      let storiesSeq: { stories: any[] } | null = null;
       for (const k of Object.keys(r)) {
         if (k === "carrousel" && rawCarousel && typeof rawCarousel === "object" && Array.isArray(rawCarousel.slides)) {
           const slides = rawCarousel.slides as Array<{ slide_number: number; title: string; body: string }>;
@@ -257,11 +263,15 @@ export default function ContentRecycling() {
             .join("\n\n");
           const captionText = [caption.hook, caption.body, caption.cta].filter(Boolean).join("\n\n");
           display[k] = `${slidesText}\n\n──────────\nLégende\n\n${captionText}`;
+        } else if (k === "stories" && isRecycledStoriesSequence(r[k])) {
+          storiesSeq = r[k];
+          display[k] = recycledStoriesText(r[k]);
         } else {
           display[k] = typeof r[k] === "string" ? r[k] : JSON.stringify(r[k]);
         }
       }
       setCarouselStructure(structure);
+      setStoriesSequence(storiesSeq);
       setResults(display);
       setTopics(data?.topics || {});
       setActiveTab(Object.keys(display)[0] || "");
@@ -346,6 +356,14 @@ export default function ContentRecycling() {
       status: "ready",
     };
     if (workspaceId && workspaceId !== user.id) insertData.workspace_id = workspaceId;
+    if (activeTab === "stories" && storiesSequence) {
+      // Même contenu calendrier que le flux stories principal.
+      const built = buildCalendarContent("story", storiesSequence);
+      insertData.content_draft = built.contentDraft;
+      insertData.accroche = (built.accroche || "").slice(0, 200);
+      insertData.story_sequence_detail = built.storyDetail;
+      insertData.stories_count = storiesSequence.stories.length;
+    }
     if (activeTab === "carrousel" && carouselStructure) {
       insertData.story_sequence_detail = {
         type: "carousel",
@@ -506,6 +524,17 @@ export default function ContentRecycling() {
 
           {activeTab && results[activeTab] && (
             <div className="space-y-3">
+              {activeTab === "stories" && storiesSequence ? (
+                <StoryResult
+                  result={storiesSequence}
+                  onStoriesUpdate={(stories) => {
+                    const next = { ...storiesSequence, stories };
+                    setStoriesSequence(next);
+                    setResults(prev => ({ ...prev, stories: recycledStoriesText(next) }));
+                  }}
+                />
+              ) : (
+              <>
               <div className="rounded-xl bg-muted/30 p-4">
                 <pre className="text-sm text-foreground whitespace-pre-wrap font-body">
                   {results[activeTab]}
@@ -532,6 +561,8 @@ export default function ContentRecycling() {
                   }));
                 }}
               />
+              </>
+              )}
 
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => copyContent(copyTextForChannel(results[activeTab], activeTab))} className="rounded-pill gap-1.5">
@@ -543,7 +574,7 @@ export default function ContentRecycling() {
                 <Button variant="outline" size="sm" disabled={!canExport} onClick={() => setShowIdeasDialog(true)} className="rounded-pill gap-1.5">
                   <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => { setResults({}); setTopics({}); setActiveTab(""); setFiles([]); setCarouselStructure(null); }} className="rounded-pill gap-1.5">
+                <Button variant="ghost" size="sm" onClick={() => { setResults({}); setTopics({}); setActiveTab(""); setFiles([]); setCarouselStructure(null); setStoriesSequence(null); }} className="rounded-pill gap-1.5">
                   <RefreshCw className="h-3.5 w-3.5" /> Nouveau recyclage
                 </Button>
               </div>
@@ -562,7 +593,7 @@ export default function ContentRecycling() {
                 onOpenChange={setShowIdeasDialog}
                 contentType={getContentType(activeTab)}
                 subject={getTopicFor(activeTab)}
-                contentData={{ ...(activeTab === "carrousel" && carouselStructure ? carouselStructure : {}), type: "recycling", format: activeTab, text: activeText }}
+                contentData={{ ...(activeTab === "carrousel" && carouselStructure ? carouselStructure : {}), ...(activeTab === "stories" && storiesSequence ? storiesSequence : {}), type: "recycling", format: activeTab, text: activeText }}
                 sourceModule="recycling"
                 format={getCalendarFormat(activeTab)}
               />

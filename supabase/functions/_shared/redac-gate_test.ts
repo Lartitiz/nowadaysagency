@@ -679,3 +679,28 @@ Deno.test("chiffre de recherche : source dans la phrase juste avant (même parag
   const otherParagraph = analyzeTextRedac("Socialinsider a passé au crible des millions de posts (2024).\n\nRésultat : 17,3 % d'engagement en plus.", allowed, undefined, undefined, r);
   assertEquals((otherParagraph.unsourcedResearchNumbers ?? []).length, 1);
 });
+
+Deno.test("chiffres de recherche en lettres : durées (« une à deux heures ») contrôlées, « trois raisons » ignoré", async () => {
+  const { researchNumbers } = await import("./redac-gate.ts");
+  const research = "Le premier test dure 1 à 2 heures (Richard van der Blom, 2025). 3 posts sur 10 sont vus par moins de 5 % du réseau (Socialinsider, 2024).";
+  const r = researchNumbers(numbersIn(BRIEF), research, BRIEF);
+  const allowed = new Set([...numbersIn(BRIEF), ...numbersIn(research)]);
+  const a = analyzeTextRedac("Ton post est d'abord testé pendant une à deux heures. Voici trois raisons d'y croire.", allowed, undefined, undefined, r);
+  assertEquals((a.unsourcedResearchNumbers ?? []).map((n) => n.split(" (")[0]), ["une à deux heures"]);
+  const ok = analyzeTextRedac("Selon Richard van der Blom, ton post est d'abord testé pendant une à deux heures.", allowed, undefined, undefined, r);
+  assertEquals(ok.unsourcedResearchNumbers, []);
+});
+
+Deno.test("chiffres de recherche en lettres : « un mois » seul n'est pas une statistique", async () => {
+  const { researchNumbers } = await import("./redac-gate.ts");
+  const research = "La portée se stabilise après 1 mois de publication régulière (AuthoredUp, 2025).";
+  const r = researchNumbers(numbersIn(BRIEF), research, BRIEF);
+  const allowed = new Set([...numbersIn(BRIEF), ...numbersIn(research)]);
+  assertEquals(analyzeTextRedac("Ça fait un mois que je teste.", allowed, undefined, undefined, r).unsourcedResearchNumbers, []);
+});
+
+Deno.test("passe dédiée : en qualitatif, les mots qui annonçaient le chiffre suivent (test réel « le chiffre qui fait mal : seuls une petite partie »)", async () => {
+  const { RESEARCH_SOURCING_PROMPT } = await import("./correction-pass.ts");
+  assertEquals(RESEARCH_SOURCING_PROMPT.includes("ajuste aussi les mots qui annonçaient le chiffre"), true);
+  assertEquals(RESEARCH_SOURCING_PROMPT.includes("N'invente JAMAIS de source"), true);
+});

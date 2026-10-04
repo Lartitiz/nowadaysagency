@@ -17,6 +17,13 @@ import { MIX_SCHEMA_ROOM_PROBE, mixPauseFits } from "./mix-slide-layouts.ts";
 
 export const SCHEMA_FORMAT_VERSION = "schema-formatting-v2";
 export const MAX_SCHEMAS = 2;
+/** Au-delà de ce nombre de mots (titre + corps), une slide du carrousel texte
+ * n'a plus la place d'un schéma à côté de son texte entier (04/10/2026 : slide
+ * de ~70 mots + carte « 1,5 % » jugée trop chargée par Laetitia). Son schéma
+ * part alors sur une slide « pause » à lui, juste après, quand la longueur est
+ * libre et qu'il reste de la place sous la limite ; sinon il n'est pas posé. */
+export const DENSE_SLIDE_WORDS = 45;
+export const wordCount = (s: Slide) => slideText(s).split(/\s+/).filter(w => /[\p{L}\p{N}]/u.test(w)).length;
 
 export const SCHEMA_TYPES = [
   "before_after", "comparison", "timeline", "checklist", "stats", "matrix_2x2", "pyramid", "equation",
@@ -45,7 +52,9 @@ type Slide = Record<string, any>;
 export interface SchemaPlan {
   version: string;
   status: "completed" | "unavailable" | "skipped";
-  schemas: Array<{ slide_number: number; visual_schema: Record<string, unknown>; reason: string }>;
+  /** own_slide : le schéma est posé sur une slide « pause » insérée juste après
+   * slide_number (slide trop chargée pour le recevoir). */
+  schemas: Array<{ slide_number: number; visual_schema: Record<string, unknown>; reason: string; own_slide?: boolean }>;
   /** Télémétrie : propositions du modèle et motifs de rejet par le code. */
   proposed?: number;
   rejected?: string[];
@@ -94,7 +103,7 @@ export function slideText(s: Slide): string {
 }
 
 /** Valide la réponse du modèle contre le texte réel. Jamais d'exception : au pire, aucun schéma. */
-export function validateSchemaPlan(raw: unknown, slides: Slide[], eligible: (s: Slide, i: number) => boolean, rejected: string[] = [], types: readonly string[] = SCHEMA_TYPES, fits?: (s: Slide, schema: unknown) => boolean): SchemaPlan["schemas"] {
+export function validateSchemaPlan(raw: unknown, slides: Slide[], eligible: (s: Slide, i: number) => boolean, rejected: string[] = [], types: readonly string[] = SCHEMA_TYPES, fits?: (s: Slide, schema: unknown) => boolean, ownSlides = 0): SchemaPlan["schemas"] {
   const data = typeof raw === "string" ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : raw;
   const list = Array.isArray(data?.schemas) ? data.schemas : [];
   const idx = (n: number) => slides.findIndex((s, i) => (Number(s.slide_number) || i + 1) === n);
@@ -116,8 +125,13 @@ export function validateSchemaPlan(raw: unknown, slides: Slide[], eligible: (s: 
     if (all.some(t => (ordinalFree(t).match(NUMBER) || []).some(x => !textNumbers.has(x.replace(",", "."))))) { rejected.push(`${type}@${n}:chiffre`); continue; }
     if (schema.type === "quote_big" && !norm(text).includes(norm(String(schema.quote)))) { rejected.push(`${type}@${n}:citation`); continue; }
     // Mixte : le texte entier doit tenir avec CE schéma, sinon il ne serait pas dessiné.
-    if (fits && !fits(slides[i], schema)) { rejected.push(`${type}@${n}:place`); continue; }
-    out.push({ slide_number: n, visual_schema: schema, reason: String(item?.reason || "").slice(0, 300) });
+    const reason = String(item?.reason || "").slice(0, 300);
+    if (fits && !fits(slides[i], schema)) {
+      // Slide trop chargée : le schéma prend sa propre slide si la longueur le permet.
+      if (ownSlides > 0) { ownSlides--; out.push({ slide_number: n, visual_schema: schema, reason, own_slide: true }); continue; }
+      rejected.push(`${type}@${n}:place`); continue;
+    }
+    out.push({ slide_number: n, visual_schema: schema, reason });
   }
   return out;
 }
@@ -130,7 +144,7 @@ export function schemaEligible(isMix: boolean) {
 }
 
 /** Appel borné. Aucun texte n'est modifié ; échec → aucun schéma. */
-export async function planSchemas(slides: Slide[], isMix: boolean, usage: UsageSink, call = callAnthropic): Promise<SchemaPlan> {
+export async function planSchemas(slides: Slide[], isMix: boolean, usage: UsageSink, call = callAnthropic, extraSlides = 0): Promise<SchemaPlan> {
   const eligible = schemaEligible(isMix);
   if (!slides.some(eligible)) return { version: SCHEMA_FORMAT_VERSION, status: "skipped", schemas: [] };
   // Mixte : seulement les types que la mise en page du mixte sait dessiner.
@@ -161,7 +175,7 @@ export async function planSchemas(slides: Slide[], isMix: boolean, usage: UsageS
     const spotted = (Array.isArray((parsed as any)?.reperage) ? (parsed as any).reperage : [])
       .filter((r: any) => r && RELATIONS.includes(r.relation) && r.relation !== "aucune")
       .map((r: any) => `${Number(r.slide_number)}:${r.relation}`);
-    return { version: SCHEMA_FORMAT_VERSION, status: "completed", schemas: validateSchemaPlan(parsed, slides, eligible, rejected, types, isMix ? (s: Slide, sc: unknown) => mixPauseFits(s as any, sc) : undefined), proposed, rejected, spotted };
+    return { version: SCHEMA_FORMAT_VERSION, status: "completed", schemas: validateSchemaPlan(parsed, slides, eligible, rejected, types, isMix ? (s: Slide, sc: unknown) => mixPauseFits(s as any, sc) : (s: Slide) => wordCount(s) <= DENSE_SLIDE_WORDS, isMix ? 0 : extraSlides), proposed, rejected, spotted };
   } catch {
     return { version: SCHEMA_FORMAT_VERSION, status: "unavailable", schemas: [] };
   } finally {
@@ -177,7 +191,7 @@ async function sha256(text: string): Promise<string> {
 
 /** Pose les schémas sur le JSON du carrousel écrit. Les schémas éventuels de la
  * rédaction sont retirés : seul cet étage en décide. JSON illisible → intact. */
-export async function addSchemasToContent(content: string, opts: { isMix: boolean; usage: UsageSink; allowed: boolean; call?: typeof callAnthropic }): Promise<{ content: string; plan: SchemaPlan | null }> {
+export async function addSchemasToContent(content: string, opts: { isMix: boolean; usage: UsageSink; allowed: boolean; call?: typeof callAnthropic; maxSlides?: number }): Promise<{ content: string; plan: SchemaPlan | null }> {
   try {
     const m = content.match(/\{[\s\S]*\}/);
     if (!m) return { content, plan: null };
@@ -193,12 +207,19 @@ export async function addSchemasToContent(content: string, opts: { isMix: boolea
     const freshPhoto = parsed.photo_review?.reviewed_material === before;
     for (const s of slides) if (s && typeof s === "object") s.visual_schema = null;
     const plan = opts.allowed
-      ? await planSchemas(slides, opts.isMix, opts.usage, opts.call)
+      ? await planSchemas(slides, opts.isMix, opts.usage, opts.call, Math.max(0, (opts.maxSlides ?? 0) - slides.length))
       : { version: SCHEMA_FORMAT_VERSION, status: "skipped" as const, schemas: [] };
-    for (const sc of plan.schemas) {
-      const s = slides.find((x, i) => (Number(x.slide_number) || i + 1) === sc.slide_number);
-      if (s) s.visual_schema = sc.visual_schema;
+    // Slides « pause » insérées de la fin vers le début : les numéros d'origine
+    // restent valables pendant l'insertion, puis tout est renuméroté.
+    const pos = (n: number) => slides.findIndex((x, i) => (Number(x.slide_number) || i + 1) === n);
+    for (const sc of [...plan.schemas].sort((a, b) => b.slide_number - a.slide_number)) {
+      const i = pos(sc.slide_number);
+      if (i < 0) continue;
+      if (!sc.own_slide) { slides[i].visual_schema = sc.visual_schema; continue; }
+      // Aucun texte : la slide ne montre que le schéma, tiré du texte de la slide d'avant.
+      slides.splice(i + 1, 0, { slide_number: 0, role: "schema_pause", slide_type: slides[i].slide_type ?? "text_only", title: "", body: "", visual_schema: sc.visual_schema, schema_pause: true });
     }
+    if (plan.schemas.some(sc => sc.own_slide)) slides.forEach((x, i) => { if (x && typeof x === "object") x.slide_number = i + 1; });
     const after = progressionMaterial(parsed);
     if (after !== before) {
       if (freshText) parsed.progression_review = { ...parsed.progression_review, reviewed_material: after, reviewed_text_hash: await sha256(after), schemas_added_after_review: true };
