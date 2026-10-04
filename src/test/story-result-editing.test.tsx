@@ -61,6 +61,14 @@ describe("Stories : édition et remplacement du résultat", () => {
     expect(screen.getByText("2 / 2")).toBeVisible();
   });
 
+  it("une story sauvegardée sans plan visuel (ni face cam) a quand même son aperçu, fond photo et texte complet", () => {
+    const text = "Une ancienne story sans plan visuel, gardée telle quelle.";
+    render(<StoryResult result={{ stories: [{ text, face_cam: false }] }} />);
+    const html = previewHtml();
+    expect(html).toContain(text);
+    expect(screen.getByRole("button", { name: "📷 Photo" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("ajoute un détail réel de la personne au début de la story 1", () => {
     const onStoriesUpdate = vi.fn();
     const result = {

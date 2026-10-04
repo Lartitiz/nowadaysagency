@@ -126,3 +126,10 @@ Deno.test("entrées dégénérées : ne jette pas", () => {
   enforceStoriesPhotoFirst({});
   enforceStoriesPhotoFirst({ stories: [{}, { visual: "oops" as unknown as null }] });
 });
+
+Deno.test("badge : une story DÉJÀ à fond photo (posé par la mise en forme) ne s'annonce plus « texte »", () => {
+  const parsed = { stories: [{ format: "texte_fond", format_label: "📝 Texte sur fond", face_cam: false, visual: { gabarit: "photo_pills", background: "photo" } }] };
+  enforceStoriesPhotoFirst(parsed);
+  assertEquals(parsed.stories[0].format, "photo");
+  assertEquals(parsed.stories[0].format_label, "📸 Photo avec texte");
+});

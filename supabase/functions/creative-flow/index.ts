@@ -34,7 +34,7 @@ import {
   reelTemplateLeaks,
 } from "../_shared/reel-postprocess.ts";
 import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
-import { enforceStoriesPhotoFirst } from "../_shared/story-photo-gate.ts";
+import { finalizeStoriesLayout, stripStoriesWriterLayout } from "../_shared/story-formatting.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -1496,52 +1496,9 @@ async function applyReelQualityPass(parsed: any, params: { body: any; effectiveO
 }
 
 // ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══
-// La consigne « majorité de fonds photo » du brief est probabiliste et fuit
-// (séquences quasi entières en fond_couleur). Garde déterministe, appliquée
-// AVANT la résolution bibliothèque pour que les stories basculées soient
-// éligibles au placement de photos. photo_index (petit entier émis par l'IA)
-// → photo_id (UUID user_photos) : correspondance stricte, jamais deux stories
-// sur la même photo, et uniquement quand la story attend un fond photo.
-function applyStoriesPhotoGuardAndResolution(parsed: any, params: { storiesPhotoCatalog: { index: number; id: string; description: string; preferred?: boolean }[] }): void {
-  const { storiesPhotoCatalog } = params;
-  enforceStoriesPhotoFirst(parsed);
-
-  if (storiesPhotoCatalog.length > 0 && Array.isArray(parsed?.stories)) {
-    const byIndex = new Map(storiesPhotoCatalog.map((c) => [c.index, c]));
-    const usedPhotoIds = new Set<string>();
-    for (const s of parsed.stories) {
-      const v = s?.visual;
-      if (!v || typeof v !== "object") continue;
-      const idx = typeof v.photo_index === "number" ? v.photo_index : null;
-      delete v.photo_index;
-      if (idx === null) continue;
-      const cat = byIndex.get(idx);
-      if (!cat || v.background !== "photo" || usedPhotoIds.has(cat.id)) continue;
-      v.photo_id = cat.id;
-      v.photo_library_description = cat.description;
-      usedPhotoIds.add(cat.id);
-    }
-    // Garantie lot D : toute photo CHOISIE par l'utilisatrice que l'IA n'a
-    // pas placée est distribuée aux stories à fond photo restées sans photo,
-    // dans l'ordre de la séquence. Ses photos finissent TOUJOURS dans le
-    // résultat (c'était la demande de base du parcours).
-    const leftoverPreferred = storiesPhotoCatalog.filter(
-      (c) => c.preferred && !usedPhotoIds.has(c.id),
-    );
-    if (leftoverPreferred.length > 0) {
-      for (const s of parsed.stories) {
-        if (leftoverPreferred.length === 0) break;
-        const v = s?.visual;
-        if (!v || typeof v !== "object") continue;
-        if (v.background !== "photo" || v.photo_id) continue;
-        const next = leftoverPreferred.shift()!;
-        v.photo_id = next.id;
-        v.photo_library_description = next.description;
-        usedPhotoIds.add(next.id);
-      }
-    }
-  }
-}
+// Déplacées le 04/10/2026 dans _shared/story-formatting.ts
+// (applyStoriesPhotoGuardAndResolution), appelées par finalizeStoriesLayout
+// APRÈS la mise en forme : le plan visuel n'existe plus avant.
 
 // ═══ PASSE DE CORRECTION STORIES (audit stories 07/09/2026) ═══
 // Historique : depuis le 18/08 (#896) cette passe tournait en mode « ombre » :
@@ -1551,11 +1508,12 @@ function applyStoriesPhotoGuardAndResolution(parsed: any, params: { storiesPhoto
 // séquence réelle de Laetitia du même jour, score 80) auraient déclenché la
 // re-passe. Ici la boucle est refermée, avec les mêmes garde-fous que le
 // texte libre (runTextRedacGate) :
-// - on mesure ce que l'abonnée LIT : le texte de chaque story ET les
-//   pastilles rendues sur l'image (extractStoriesTexts) ;
+// - on mesure ce que l'abonnée LIT : le texte de chaque story
+//   (extractStoriesTexts ; les pastilles de l'image en sont des extraits
+//   posés APRÈS par la mise en forme, depuis le 04/10/2026) ;
 // - la correction ne tourne QUE s'il y a violation (0 appel IA sinon) ;
 // - elle est réinjectée story par story, par marqueur, avec garde de
-//   fidélité et bornes de pastilles (reinjectStoriesTexts) ;
+//   fidélité (reinjectStoriesTexts) ;
 // - garde anti-régression : une correction qui laisse plus de tics bruts
 //   qu'avant est rejetée, l'original reste ;
 // - le ton brut est protégé par le prompt (« retirer les tics, rien d'autre »).
@@ -1693,7 +1651,7 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
   };
 
   if (isStories && Array.isArray(parsed?.stories)) {
-    // Texte audité = texte + pastilles (ce que l'abonnée lit), même mesure que la passe.
+    // Texte audité = texte des stories (les pastilles en sont des extraits depuis le 04/10/2026), même mesure que la passe.
     await logTextQuality("stories", storiesAuditableText(parsed.stories), { stories: parsed.stories }, storiesGate);
   } else if (isReel && Array.isArray(parsed?.script)) {
     await logTextQuality("reel", reelAuditableText(parsed), { script: parsed.script });
@@ -3086,11 +3044,18 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
     }
 
-    // ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══
+    // ═══ STORIES : texte d'abord, mise en forme ensuite (04/10/2026) ═══
+    // 1. La rédaction n'écrit que du texte : tout choix de mise en page qu'elle
+    //    aurait quand même écrit est retiré (restent le petit titre, du texte,
+    //    et la photo à prendre).
+    // 2. La correction ne touche que le texte et le petit titre.
+    // 3. La mise en forme lit le texte FINAL et pose le plan visuel par code,
+    //    puis la garde photo d'abord et les photos de la bibliothèque.
     let storiesGate: StoriesGateResult | null = null;
     if (isStories && step === "generate") {
-      applyStoriesPhotoGuardAndResolution(parsed, { storiesPhotoCatalog });
+      stripStoriesWriterLayout(parsed);
       storiesGate = await applyStoriesCorrectionPass(parsed, { body, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
+      finalizeStoriesLayout(parsed, { storiesPhotoCatalog, logger: (m) => console.log(m) });
     }
 
     // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══

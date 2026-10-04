@@ -10,7 +10,7 @@ import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import { toast } from "sonner";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useBrandCharter } from "@/hooks/use-branding";
-import { buildStoryFrameHtml, placeTextAwayFromLikelyFace, type StoryFrameBranding } from "@/lib/story-visual";
+import { buildStoryFrameHtml, placeTextAwayFromLikelyFace, withStoryVisualFallback, type StoryFrameBranding } from "@/lib/story-visual";
 import { classerParPertinence } from "@/lib/rank-library-photos";
 import { exportStoryPng } from "@/lib/export-carousel-png";
 import { exportStoryPptx } from "@/lib/export-story-pptx";
@@ -101,7 +101,9 @@ function publicationTimeLabel(value: unknown): string | null {
 
 export default function StoryResult({ result, onStoriesUpdate, photos, onExportActionsChange }: Props) {
   const rawStories: any[] = result?.stories || result?.sequences || result?.slides || [];
-  const [stories, setStories] = useState(rawStories);
+  // Une story sans plan visuel (ni face cam) reçoit le plan de repli
+  // photo + texte complet : aperçu, choix de photo et exports existent.
+  const [stories, setStories] = useState(() => rawStories.map(withStoryVisualFallback));
   const [readerOpen, setReaderOpen] = useState(false);
   const [personalAnchor, setPersonalAnchor] = useState("");
 
@@ -112,7 +114,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     // Une régénération peut garder le même nombre de stories. Comparer le
     // contenu, tout en gardant les éditions locales si le parent ne change rien.
     if (rawSignature !== prevSignature.current) {
-      setStories(JSON.parse(rawSignature));
+      setStories(JSON.parse(rawSignature).map(withStoryVisualFallback));
       prevSignature.current = rawSignature;
     }
   }, [rawSignature]);

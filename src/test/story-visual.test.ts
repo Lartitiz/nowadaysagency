@@ -89,7 +89,7 @@ describe("buildStoryFrameHtml", () => {
     expect(html).toBeNull();
   });
 
-  it("retourne null sans plan visuel (anciens contenus générés)", () => {
+  it("retourne null sans plan visuel ni texte (rien à afficher)", () => {
     expect(buildStoryFrameHtml({} as any, branding)).toBeNull();
     expect(buildStoryFrameHtml({ visual: null }, branding)).toBeNull();
   });

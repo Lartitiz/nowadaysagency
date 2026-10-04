@@ -331,13 +331,12 @@ const anthropicText = (text: string) => ({
   body: { content: [{ type: "text", text }], stop_reason: "end_turn", usage: { input_tokens: 40, output_tokens: 20 } },
 });
 
-Deno.test("applyStoriesCorrectionPass : formule moulée détectée -> bloc annoté envoyé, correction réinjectée story par story, quality_check posé", async () => {
+Deno.test("applyStoriesCorrectionPass : formule moulée détectée -> texte et titre envoyés, correction réinjectée story par story, pastilles dérivées jamais réécrites, quality_check posé", async () => {
   const parsed: any = MOULDED_STORIES();
   const { mock, capturedBodies } = installAnthropicBodyCapture([
     anthropicText([
       "[STORY 1 - TEXT] Voir tout le monde stresser pour un post Instagram dont personne ne se souvient la semaine suivante, ça continue sans jamais changer.",
       "[STORY 1 - TITLE] LE POST QUE PERSONNE NE RETIENT",
-      "[STORY 1 - BODY] Tout le monde stresse pour un post que personne ne retient.",
       "[STORY 2 - TEXT] Bref, on respire, on avance, et on essaie de ne pas se laisser bouffer par la pression du contenu parfait tous les jours de la semaine.",
     ].join("\n")),
   ]);
@@ -347,6 +346,7 @@ Deno.test("applyStoriesCorrectionPass : formule moulée détectée -> bloc annot
     const sent = JSON.stringify(capturedBodies[0]);
     assertEquals(sent.includes("[STORY 1 - TEXT]"), true);
     assertEquals(sent.includes("[STORY 1 - TITLE] CE QUI ME DÉRANGE"), true);
+    assertEquals(sent.includes("[STORY 1 - BODY]"), false);
     assertEquals(parsed.stories[0].text.startsWith("Voir tout le monde stresser"), true);
     assertEquals(parsed.stories[0].visual.title_pill, "LE POST QUE PERSONNE NE RETIENT");
     assertEquals(parsed.stories[0].visual.body_pill, "Tout le monde stresse pour un post que personne ne retient.");
@@ -416,11 +416,11 @@ Deno.test("applyStoriesCorrectionPass : stories propres (0 violation) -> aucun a
   }
 });
 
-Deno.test("applyStoriesCorrectionPass : pastilles récitant la fiche de marque -> mesurées (le texte seul serait propre)", async () => {
+Deno.test("applyStoriesCorrectionPass : texte récitant la fiche de marque -> mesuré et corrigé", async () => {
   const brand = "Contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent la peau, et contre le greenwashing des marques naturelles aux listes illisibles.";
   const parsed: any = {
     stories: [
-      { text: "Une journée à l'atelier, de la pesée des huiles au démoulage, et le petit stress du dernier moment qui ne part jamais vraiment.", visual: { title_pill: "POURQUOI JE FAIS ÇA", body_pill: "Contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent la peau." } },
+      { text: "Une journée à l'atelier, de la pesée des huiles au démoulage. Contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent la peau.", visual: { photo_directive: "la pesée des huiles" } },
       { text: "Le démoulage, à chaque fois j'ai un petit stress, même après tout ce temps, et ça me rappelle pourquoi je travaille en petites séries.", visual: null },
     ],
   };
