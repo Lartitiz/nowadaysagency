@@ -449,6 +449,18 @@ const schemasAllowed = (startedAt: number): boolean => {
   if (!ok) console.log(JSON.stringify({ type: "carousel_time_budget", skipped: "schemas", elapsed_ms: Date.now() - startedAt }));
   return ok;
 };
+// Délai de la RÉDACTION texte (04/10/2026) : 3 générations sur 8 coupées à
+// 120 s fixes (« La rédaction a dépassé le délai prévu »), alors qu'Opus 5.5 en
+// réflexion adaptative écrit un carrousel long en 100-150 s et que la recherche
+// « creuser le sujet » (≤ 25 s) passe avant. La rédaction a donc jusqu'à 240 s
+// après le début de la requête (jamais moins de 120 s) : au-delà, les relectures
+// (≤ 270 s), le juge (270 s) et les schémas (330 s) se coupent d'eux-mêmes et la
+// réponse part avant la coupure de la plateforme (~400 s) et du client (400 s).
+// Plus de temps pour écrire, jamais de texte raccourci.
+const WRITE_DEADLINE_MS = 240_000;
+const WRITE_MIN_TIMEOUT_MS = 120_000;
+export const writerTimeoutMs = (startedAt: number, now = Date.now()): number =>
+  Math.max(WRITE_MIN_TIMEOUT_MS, WRITE_DEADLINE_MS - (now - startedAt));
 const reviewAllowed = (startedAt: number): boolean => {
   const ok = Date.now() - startedAt <= REVIEW_START_LIMIT_MS;
   if (!ok) console.log(JSON.stringify({ type: "carousel_time_budget", skipped: "review", elapsed_ms: Date.now() - startedAt }));
@@ -1338,8 +1350,9 @@ async function runGenerationAndRespond(
     // qui traîne bascule en retry plutôt que de bloquer le chemin d'activation.
     // Les autres types (express_full/slides/hooks) tournaient SANS limite avant
     // ce correctif (audit timeouts 17/08) — 120s aligné sur la convention
-    // "génération standard" du reste des edges du repo.
-    ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: (body.carousel_type === "photo" || body.carousel_type === "mix") ? PHOTO_QUESTIONS_TOOL : QUESTIONS_TOOL } : { abortTimeoutMs: 120_000 }),
+    // "génération standard" du reste des edges du repo. Depuis le 04/10/2026 la
+    // rédaction suit le budget global (writerTimeoutMs) au lieu de 120 s fixes.
+    ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: (body.carousel_type === "photo" || body.carousel_type === "mix") ? PHOTO_QUESTIONS_TOOL : QUESTIONS_TOOL } : { abortTimeoutMs: writerTimeoutMs(startedAt) }),
   };
   // Durées par étape (ms), renvoyées avec la réponse : sans elles la lenteur du
   // 30/09 (~190 s) n'était décomposable qu'en devinant entre deux évènements SSE.
