@@ -139,6 +139,11 @@ jobs:
           PGPASSWORD: postgres
         run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_test -f supabase/tests/saved-idea-previews.sql
 
+      - name: Idea previews computed on save, backfill keeps updated_at (disposable database)
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_test -f supabase/tests/saved-ideas-stored-preview.sql
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
