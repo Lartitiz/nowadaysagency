@@ -17,6 +17,7 @@ import { Sparkles, Copy, Check, RefreshCw, CalendarDays, Loader2, Search, Lightb
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import LinkedInPreview from "@/components/linkedin/LinkedInPreview";
 import CharacterCounter from "@/components/linkedin/CharacterCounter";
+import { replaceLinkedInHook } from "@/lib/linkedin-hook";
 
 interface ImproveResult {
   score: number;
@@ -96,19 +97,9 @@ export default function LinkedInPostGenerator() {
 
   const useHookAlternative = (hook: string) => {
     if (!improveResult) return;
-    const lines = improveResult.improved_version.split("\n");
-    let charCount = 0;
-    let cutIdx = 0;
-    for (let i = 0; i < lines.length; i++) {
-      charCount += lines[i].length + 1;
-      if (charCount >= 210 || (i > 0 && charCount > 100)) {
-        cutIdx = i + 1;
-        break;
-      }
-    }
-    if (cutIdx === 0) cutIdx = 1;
-    const rest = lines.slice(cutIdx).join("\n");
-    const newVersion = hook + "\n\n" + rest;
+    // Seule l'accroche change : le reste du post (listes, numérotation,
+    // sauts de ligne) est gardé tel quel, au mot près.
+    const newVersion = replaceLinkedInHook(improveResult.improved_version, hook);
     setImproveResult({ ...improveResult, improved_version: newVersion, character_count: newVersion.length });
   };
 

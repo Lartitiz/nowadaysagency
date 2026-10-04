@@ -1,4 +1,6 @@
 import { extractNewsletterTexts, reinjectNewsletterTexts } from "../_shared/correction-pass.ts";
+import { structureLossReason } from "../_shared/text-structure-guard.ts";
+import { alignLinkedInHookFields } from "../_shared/linkedin-hook.ts";
 import { authoredContentSource, currentContentContract } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES, claritySourceBlock } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -2090,10 +2092,18 @@ Réponds UNIQUEMENT en JSON :
     if (correctedWorse) {
       console.log("[CORRECTION DEBUG] correction rejetée (compteurs rédactionnels dégradés), post original conservé");
     }
+    // Garde de structure par le CODE (règles d'écriture inchangées) : une
+    // correction qui casse une liste voulue, sa numérotation ou les
+    // paragraphes est rejetée entière (« dégrader la correction, pas le texte »).
+    const structureLoss = postText ? structureLossReason(postText, finalResult.content) : null;
+    if (structureLoss) {
+      console.warn(`[structure-guard:linkedin] correction rejetée, texte d'avant conservé : ${structureLoss}`);
+    }
+    const keepOriginal = correctedWorse || !!structureLoss;
     const merged = {
       ...originalParsed,
-      content: correctedWorse ? (postText || finalResult.content) : finalResult.content,
-      accroche: correctedWorse ? originalParsed.accroche : (finalResult.accroche || originalParsed.accroche),
+      content: keepOriginal ? (postText || finalResult.content) : finalResult.content,
+      accroche: keepOriginal ? originalParsed.accroche : (finalResult.accroche || originalParsed.accroche),
       format: originalParsed.format || "linkedin",
       pillar: originalParsed.pillar || "",
       objectif: originalParsed.objectif || "",
@@ -2101,6 +2111,8 @@ Réponds UNIQUEMENT en JSON :
     // Filet déterministe (même patron que applyLinkedInCorrectionPass) :
     // élisions manquantes type « le avant/après » (vécu 21/07).
     fixElisionsInFields(merged, ["content", "accroche"]);
+    // L'accroche est dérivée du début exact du post (jamais l'inverse).
+    alignLinkedInHookFields(merged);
 
     await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
     return new Response(JSON.stringify(merged), {
@@ -2119,6 +2131,7 @@ Réponds UNIQUEMENT en JSON :
   // Filet déterministe même si la passe de correction a échoué : le texte
   // brut renvoyé peut encore porter des élisions non faites.
   fixElisionsInFields(fallbackParsed, ["content", "accroche"]);
+  alignLinkedInHookFields(fallbackParsed);
 
   await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
   return new Response(JSON.stringify(fallbackParsed), {
@@ -3031,6 +3044,12 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       parsed.content.length >= 200
     ) {
       await applyLinkedInCorrectionPass(parsed, { body, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
+    }
+
+    // L'accroche suit le début exact du post FINAL (après correction, photo
+    // comprise) : la correction peut avoir changé la première ligne.
+    if (step === "generate" && isLinkedIn && parsed && typeof parsed === "object" && typeof parsed.content === "string") {
+      alignLinkedInHookFields(parsed);
     }
 
     if (isNewsletter && step === "generate" && parsed && typeof parsed === "object") {
