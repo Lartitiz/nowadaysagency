@@ -456,7 +456,7 @@ Deno.test("NON-RÉGRESSION mixte : dispositions proposées après l'écriture, r
   const base = composeMixCarousel(applyMixFormatting(numbered as any, formatting as any), ch, 5)!;
   const composed = composeMixCarousel(applyMixFormatting(applyMixLayouts(numbered as any, plan), formatting as any), ch, 5)!;
   const layouts = composed.map(s => s.layout);
-  assertEquals(layouts, ["couverture_aplat", "cote_a_cote", "sur_photo", "photo_aplat", "passe_partout", "pause", "respiration"]);
+  assertEquals(layouts, ["couverture_photo", "cote_a_cote", "sur_photo", "photo_aplat", "passe_partout", "pause", "respiration"]);
   assertEquals(composed.map(s => s.layout_proposal?.status ?? null), [null, "accepted", "accepted", null, "rejected", null, null]);
   // Slide 4 (proposition refusée dès la lecture) et slide 5 (refusée à la
   // composition) : même choix que sans proposition à disposition égale.
@@ -470,7 +470,7 @@ Deno.test("NON-RÉGRESSION mixte : dispositions proposées après l'écriture, r
     for (const field of ["title", "body", "overlay_text", "cta_label"]) if (s[field]) assert(visibleText(html[i]).includes(s[field]), `slide ${i + 1} : ${field} perdu (« ${s[field]} »)`);
     if (s.slide_type !== "text_only") assert(html[i].includes(`{{PHOTO_${s.photo_index}}}`) && html[i].includes(`data-pptx-photo="${s.photo_index}"`), `slide ${i + 1} : photo perdue`);
   });
-  const catalog = ["couverture_aplat", "photo_aplat", "passe_partout", "cote_a_cote", "sur_photo", "respiration", "pause", "vignette"];
+  const catalog = ["couverture_photo", "couverture_aplat", "photo_aplat", "passe_partout", "cote_a_cote", "sur_photo", "respiration", "pause", "vignette"];
   for (const [i, h] of html.entries()) assert(catalog.some(l => h.includes(`data-carousel-layout="mix-${l}"`)), `slide ${i + 1} : disposition hors catalogue`);
   for (let i = 1; i < layouts.length; i++) assert(layouts[i] !== layouts[i - 1], `slides ${i} et ${i + 1} identiques`);
   [1, 2, 3].forEach(n => assert(html[n].includes(`Étape ${n}`), `« Étape ${n} » perdu`));
