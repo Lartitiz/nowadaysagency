@@ -15,7 +15,7 @@ import {
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { AnthropicError } from "../_shared/anthropic.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
-import { handleRequest, _deps } from "./index.ts";
+import { handleRequest, _deps, normalizeSlideType } from "./index.ts";
 import { createContinuousNarrative } from "./continuous-narrative.ts";
 
 Deno.test("prose continue : photos directes observées et refus photo conservé sans débit",async()=>{
@@ -950,4 +950,26 @@ for (const carousel_type of ["photo", "mix"]) Deno.test(`photos suivent la derni
     assertEquals(doc.photo_review.verdict,"acceptable");
     assertEquals(doc.progression_review.repair.accepted,true);
   } finally { globalThis.fetch=oldFetch; resetDeps(); }
+});
+
+Deno.test("type de slide : variantes du modèle de structure normalisées (vu en live : « text » faisait échouer la génération)", async () => {
+  assertEquals(["text", "Texte", "photo", "text_only", "photo-integrated", "carte"].map(normalizeSlideType), ["text_only", "text_only", "photo_full", "text_only", "photo_integrated", undefined]);
+  // Carrousel photo : la proposition ressort en photo_full partout, même si le modèle écrit « text ».
+  resetDeps();
+  _deps.callAnthropic = (async () => JSON.stringify({ total_slides: 3, slides: [
+    { slide_number: 1, role: "hook", photo_index: 1, slide_type: "photo" },
+    { slide_number: 2, role: "body", photo_index: 2, slide_type: "text" },
+    { slide_number: 3, role: "conclusion", photo_index: 3, slide_type: "text" },
+  ] })) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", slide_count: 3, photos: [1, 2, 3].map(() => ({ base64: "aGVsbG8=" })) }));
+  const { result } = await res.json();
+  assertEquals(result.slides.map((s: any) => s.slide_type), ["photo_full", "photo_full", "photo_full"]);
+});
+
+Deno.test("structure confirmée renvoyée avec « text » : acceptée (plus de « Données invalides »)", async () => {
+  resetDeps();
+  _deps.callAnthropic = (async () => JSON.stringify({ total_slides: 2, slides: [{ slide_number: 1, role: "hook", photo_index: 1 }, { slide_number: 2, role: "body", photo_index: 1 }] })) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", slide_count: 2, photos: [{ base64: "aGVsbG8=" }],
+    confirmed_structure: [{ slide_number: 1, role: "hook", title_suggestion: "a", strategic_note: "b", slide_type: "photo" }, { slide_number: 2, role: "body", title_suggestion: "c", strategic_note: "d", slide_type: "text" }] }));
+  assertEquals(res.status, 200);
 });
