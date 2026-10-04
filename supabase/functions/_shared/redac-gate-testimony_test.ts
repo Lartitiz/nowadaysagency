@@ -44,6 +44,9 @@ Deno.test("témoignage : variantes de parole rapportée et de rencontre", () => 
       "Une amie qui vend des bijoux m'a écrit hier soir.",
       "La semaine dernière, j'ai discuté avec une créatrice de savons.",
       "Plusieurs indépendantes m'ont raconté la même chose.",
+      "Et pourtant, régulièrement, on me dit qu'il faudrait que je poste plus souvent pour « faire tourner l'algorithme ».",
+      "On me demande souvent combien de fois publier.",
+      "On m'a souvent conseillé de publier tous les jours.",
     ]
   ) {
     assertEquals(findInventedTestimonials(t, BRIEF).length, 1, t);
@@ -57,7 +60,8 @@ Deno.test("témoignage : pas de faux positif sur une opinion ou un sujet qui n'e
       "Mon père m'a fabriqué ces moules l'hiver dernier.",
       "Une étude m'a montré que la portée baisse.",
       "Je pense que publier plus ne règle rien.",
-      "On me demande souvent combien de fois publier.",
+      "On dit souvent qu'il faut publier tous les jours.",
+      "On me dira que c'est une question de chance.",
       CLEAN,
     ]
   ) {
