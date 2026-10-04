@@ -373,7 +373,7 @@ ESPACEMENT VERTICAL :
 - Entre les blocs : 40px
 
 COMPOSITION SUR UNE GRILLE ÉDITORIALE :
-Le plan global choisit la position et l'alignement. Utilise une grille à marges latérales de 80px, haute de 96px et basse de 110px. L'alignement gauche est le point de départ ; le centrage est réservé à une rupture courte. Varie la largeur et la hauteur des blocs avec intention. Un espace vide asymétrique est légitime. Ne centre pas automatiquement le conteneur ou son texte et ne remplis pas artificiellement le bas de page.
+Le plan global choisit la position et l'alignement. Utilise une grille à marges latérales de 80px, haute de 96px et basse de 110px. L'alignement gauche est le point de départ ; le centrage est réservé à une rupture courte. Varie la largeur et la hauteur des blocs avec intention. Un espace vide asymétrique est légitime. Le bloc titre + texte d'une slide de développement est centré VERTICALEMENT (aligné à gauche), jamais collé en haut avec un grand vide dessous ; ne centre pas le texte horizontalement par défaut et ne remplis pas artificiellement le bas de page.
 
 RYTHME DU CARROUSEL (obligatoire dès 5 slides) :
 
@@ -1219,6 +1219,31 @@ export function stripVisualHintText(result: any, params: { slides: any[] }): voi
   if (removed > 0) console.log(`carousel-visual: ${removed} indication(s) visuelle(s) recopiée(s) en texte retirée(s)`);
 }
 
+/** Remplace chaque élément ancré (data-slide-text), balises imbriquées du même
+ * nom comprises, par un marqueur ; `kept` garde les originaux. */
+export function protectAnchored(html: string, kept: string[]): string {
+  let out = "", pos = 0;
+  const open = /<([a-z][a-z0-9]*)\b[^>]*\bdata-slide-text\b[^>]*>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = open.exec(html))) {
+    if (m.index < pos) continue;
+    const tag = m[1].toLowerCase();
+    const re = new RegExp(`<(/?)${tag}\\b[^>]*>`, "gi");
+    re.lastIndex = m.index + m[0].length;
+    let depth = 1, end = -1, t: RegExpExecArray | null;
+    while ((t = re.exec(html))) {
+      depth += t[1] ? -1 : 1;
+      if (depth === 0) { end = t.index + t[0].length; break; }
+    }
+    if (end < 0) break;
+    out += html.slice(pos, m.index) + `<!--texte-ancre-${kept.length}-->`;
+    kept.push(html.slice(m.index, end));
+    pos = end;
+    open.lastIndex = end;
+  }
+  return out + html.slice(pos);
+}
+
 /** Slide LONGUE du carrousel texte (plus de DENSE_SLIDE_WORDS mots) : un bloc
  * décoratif qui ne fait que répéter un chiffre du texte (« 0,3 Wh », « 415 TWh
  * → 945 TWh ») est retiré. Le modèle de mise en page le dessinait malgré la
@@ -1248,6 +1273,11 @@ export function stripDenseFigureEchoes(result: any, params: { isPhotoCarousel: b
     let html: string = slide?.html || "";
     if (!src || !html) return slide;
     const before = html;
+    // Le texte ancré (data-slide-text) et tout ce qu'il contient (phrase-clé,
+    // lettrine, constat mis en valeur à sa place) est mis à l'abri pendant le
+    // nettoyage : seuls les éléments décoratifs HORS du texte sont visés.
+    const kept: string[] = [];
+    html = protectAnchored(html, kept);
     // Cadre le plus intérieur (sans div imbriqué) qui ne contient que l'écho.
     html = html.replace(/<(div|figure)\b([^>]*)>((?:(?!<\/?(?:div|figure)\b)[\s\S])*?)<\/\1>/gi, (m: string, _t: string, attrs: string, inner: string) => {
       if (/data-slide-text|data-pptx-shape="background"|data-photo-(?:format|step)/i.test(attrs) || !echo(inner, src)) return m;
@@ -1268,6 +1298,7 @@ export function stripDenseFigureEchoes(result: any, params: { isPhotoCarousel: b
       html = next;
     }
     html = html.split(MARK).join("");
+    html = html.replace(/<!--texte-ancre-(\d+)-->/g, (_m: string, k: string) => kept[Number(k)]);
     return html === before ? slide : { ...slide, html };
   });
   if (removed > 0) console.log(`carousel-visual: ${removed} chiffre(s) répété(s) retiré(s) sur des slides denses`);

@@ -274,3 +274,14 @@ Deno.test("slide dense : rien n'est retiré en photo, mixte, slide courte, chiff
   stripDenseFigureEchoes(r3, { isPhotoCarousel: false, slides: src2 });
   assert(r3.slides_html[0].html.includes('data-photo-step="2/5"'), "étape gardée");
 });
+
+Deno.test("slide dense : la phrase-clé mise en valeur DANS le texte ancré n'est jamais retirée", () => {
+  const key = "En août 2025, Google a publié 0,24 Wh pour une requête médiane.";
+  const body = `<p data-slide-text="body">Début du texte. <span style="display:block; font-size:44px">${key}</span> Suite.</p>`;
+  const html = `<div data-pptx-shape="background"><h2 data-slide-text="title">Titre</h2>${body}<div><p>0,24 Wh</p></div></div>`;
+  const src = [{ slide_number: 1, title: "c", body: "" }, { slide_number: 2, title: "Titre", body: "Début du texte. " + key + " Suite. " + Array.from({ length: 50 }, (_, i) => `mot${i}`).join(" ") }];
+  const r = { slides_html: [{ slide_number: 2, html }] };
+  stripDenseFigureEchoes(r, { isPhotoCarousel: false, slides: src });
+  assert(r.slides_html[0].html.includes(body), "texte ancré intact");
+  assert(!r.slides_html[0].html.includes("<div><p>0,24 Wh</p></div>"), "l'écho décoratif part");
+});

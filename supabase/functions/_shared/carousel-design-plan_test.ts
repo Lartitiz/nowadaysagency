@@ -88,3 +88,39 @@ Deno.test("texte : couverture = accroche en très grand + sous-titre, centrés v
   assert(textOf(out.html).includes(cover.title) && textOf(out.html).includes(cover.body));
   assert(!out.html.includes("data-format-block"));
 });
+
+// 04/10/2026 : traitements des slides de texte validés sur maquette par
+// Laetitia (centré, mot-clé surligné + phrase-clé, aplat, lettrine, forme de
+// marque, texte en deux temps), en alternance, bloc centré verticalement.
+import { describeTextTreatments, sentences } from "./carousel-design-plan.ts";
+Deno.test("traitements : alternance sans répétition, aplat ≤ 2, extraits exacts, conditions respectées", () => {
+  const long = (i: number) => `Phrase ${i} un. Puis 0,${i}4 Wh mesurés ensuite. Et une fin ${i}.`;
+  const slides = [{ slide_number: 1, title: "Couverture", body: "" },
+    ...Array.from({ length: 8 }, (_, i) => ({ slide_number: i + 2, role: "argument", title: `Titre ${i}`, body: long(i) + " " + "mot ".repeat(50) })),
+    { slide_number: 10, role: "conclusion", title: "Fin", body: "Court." }];
+  const plan = buildCarouselDesignPlan(slides);
+  const t = plan.sequence.map(b => b.treatment);
+  assertEquals(t[0], undefined, "couverture");
+  assertEquals(t[9], undefined, "conclusion");
+  const used = t.filter(Boolean);
+  assert(used.length >= 7, JSON.stringify(t));
+  for (let i = 1; i < t.length; i++) assert(!(t[i] && t[i] === t[i - 1]), "jamais deux fois de suite");
+  assert(used.filter(x => x === "aplat").length <= 2);
+  assert(new Set(used).size >= 5, "les six traitements tournent");
+  for (const [i, b] of plan.sequence.entries()) {
+    if (b.extract) assert(String(slides[i].body).includes(b.extract), "extrait exact");
+    if (b.treatment === "surligne") assert(/\d/.test(b.extract!), "phrase-clé chiffrée");
+  }
+  const desc = describeTextTreatments(plan);
+  assert(desc.includes("CENTRÉ VERTICALEMENT") && desc.includes("data-slide-text=\"body\""));
+});
+Deno.test("traitements : texte d'une seule phrase → ni phrase-clé ni deux temps ; pas de lettrine sur un guillemet", () => {
+  const slides = [{ slide_number: 1, title: "C", body: "" },
+    { slide_number: 2, title: "A", body: "« Une seule phrase citée sans fin" },
+    { slide_number: 3, title: "B", body: "Une seule phrase." },
+    { slide_number: 4, title: "D", body: "Fin." }];
+  const plan = buildCarouselDesignPlan(slides);
+  for (const b of plan.sequence.slice(1, 3)) assert(!["surligne", "deux_temps"].includes(b.treatment!), b.treatment);
+  assert(plan.sequence[1].treatment !== "lettrine");
+  assertEquals(sentences("Un. Deux ? Trois"), ["Un.", "Deux ?", "Trois"]);
+});
