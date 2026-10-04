@@ -501,6 +501,19 @@ export function replacePhoto(
   }
   if (el.tagName === "IMG") el.setAttribute("src", source);
   else el.style.backgroundImage = `url("${source.replace(/["\\\n\r]/g, "")}")`;
+  // Nouvelle photo : le recadrage de l'ancienne (zoom, point de vue) ne lui va pas.
+  if (el.style.getPropertyValue("--editor-zoom")) {
+    if (el.tagName === "IMG") {
+      const base = el.style.getPropertyValue("--editor-base-transform");
+      if (base) el.style.transform = base;
+      else el.style.removeProperty("transform");
+      el.style.removeProperty("--editor-base-transform");
+    } else el.style.backgroundSize = "cover";
+    el.style.removeProperty("--editor-zoom");
+  }
+  if (el.tagName === "IMG") {
+    if (el.style.objectPosition) el.style.objectPosition = "50% 50%";
+  } else if (el.style.backgroundPosition) el.style.backgroundPosition = "50% 50%";
   el.setAttribute("data-pptx-photo", String(photoIndex));
   syncGlass(doc);
   const { studio_image_receipt: _receipt, studio_image_source: _source, photo_library_id: _library, ...photoData } = slide.data;

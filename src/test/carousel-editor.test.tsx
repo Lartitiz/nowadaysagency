@@ -130,6 +130,19 @@ describe("carousel editor document", () => {
     expect(next.data.photo_index).toBe(2);
     expect(s.html).toContain("AA==");
   });
+  it("resets the old crop (zoom, framing) when a new photo fills the frame", () => {
+    const s = makeSlide({ title: "Texte" }, "photo_full", "data:image/png;base64,AA==");
+    const photo = getEditorElements(s.html).find((e) => e.kind === "photo")!;
+    const cropped = patchElement(s, photo.id, {
+      styles: { "object-position": "20% 80%", "--editor-zoom": "2", "--editor-base-transform": "", transform: "scale(2)" },
+    });
+    const next = replacePhoto(cropped, photo.id, "data:image/png;base64,BB==", 2);
+    const img = new DOMParser().parseFromString(next.html, "text/html").querySelector<HTMLElement>("img")!;
+    expect(img.getAttribute("src")).toContain("BB==");
+    expect(img.style.objectPosition).toBe("50% 50%");
+    expect(img.style.transform).toBe("");
+    expect(img.style.getPropertyValue("--editor-zoom")).toBe("");
+  });
   it("honors a slide lock across text, styles, photo replacement and added text", () => {
     const s = { ...makeSlide(), locked: true },
       id = getEditorElements(s.html)[0].id;

@@ -353,6 +353,7 @@ function SlideCanvas({
   onPaste,
   onShortcut,
   onDropPhoto,
+  onReplacePhoto,
   onLock,
   fitId,
   onFitDone,
@@ -386,6 +387,8 @@ function SlideCanvas({
   api: React.MutableRefObject<CanvasApi | null>;
   /** Photo glissée depuis l'ordinateur sur la slide (cible : la photo sous le pointeur). */
   onDropPhoto?: (file: File, targetId: string | null) => void;
+  /** Bouton « Remplacer » de la barre flottante d'une photo. */
+  onReplacePhoto?: () => void;
   onLock?: (id: string, locked: boolean) => void;
   /** Texte qui vient d'être modifié : sa taille se réduit s'il ne tient plus dans son cadre. */
   fitId?: string | null;
@@ -457,7 +460,8 @@ function SlideCanvas({
   const latest = useRef({ selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onSelectMany, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, fitId, onFitDone, locked: slide.locked });
   latest.current = { selected, onSelect, onMove, onRemove, onEditText, onEditHtml, onFill, onDuplicate, onMeasure, onHistoryKey, group, onSelectAdd, onSelectMany, onMoveMany, onRemoveMany, onCopy, onPaste, onShortcut, onDropPhoto, onLock, fitId, onFitDone, locked: slide.locked };
   const [extraBoxes, setExtraBoxes] = useState<CanvasBox[]>([]);
-  const [dropping, setDropping] = useState(false);
+  // Glisser d'une photo depuis l'ordinateur : cadre qui la recevra (null = toute la slide).
+  const [dropping, setDropping] = useState<false | ElementRect | null>(false);
   // Problèmes repérés sur la slide (texte coupé, trop petit, contraste) et recadrage en cours.
   const [issues, setIssues] = useState<(QualityIssue & { rect: ElementRect })[]>([]);
   const [cropId, setCropId] = useState<string | null>(null);
@@ -965,11 +969,28 @@ function SlideCanvas({
     };
     // Photo glissée depuis l'ordinateur : elle remplace la photo visée (ou la photo de la slide).
     const hasFile = (e: DragEvent) => Array.from(e.dataTransfer?.types || []).includes("Files");
+    // Cadre photo visé : celui sous le pointeur, sinon la photo de la slide (comme replacePhoto).
+    const dropTarget = (e: DragEvent) =>
+      (doc.elementsFromPoint?.(e.clientX, e.clientY) || [])
+        .map((n) => n.closest<HTMLElement>("[data-editor-id]"))
+        .find((n): n is HTMLElement => !!n && isPhotoEl(n)) ||
+      Array.from(doc.body.querySelectorAll<HTMLElement>("img,[data-pptx-photo],[data-editor-photo]")).find(
+        (n) => !n.parentElement?.closest("[data-pptx-photo],[data-editor-photo]"),
+      ) ||
+      null;
     doc.addEventListener("dragover", (e) => {
       if (!hasFile(e) || latest.current.locked || !latest.current.onDropPhoto) return;
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-      setDropping(true);
+      const r = dropTarget(e)?.getBoundingClientRect();
+      const next = r && r.width && r.height ? { left: r.left, top: r.top, width: r.width, height: r.height } : null;
+      setDropping((prev) =>
+        prev && next && prev.left === next.left && prev.top === next.top && prev.width === next.width && prev.height === next.height
+          ? prev
+          : prev === null && next === null
+            ? prev
+            : next,
+      );
     });
     doc.addEventListener("dragleave", (e) => {
       if (!e.relatedTarget) setDropping(false);
@@ -979,10 +1000,7 @@ function SlideCanvas({
       const file = Array.from(e.dataTransfer?.files || []).find((f) => f.type.startsWith("image/"));
       if (!file || latest.current.locked || !latest.current.onDropPhoto) return;
       e.preventDefault();
-      const under = (doc.elementsFromPoint?.(e.clientX, e.clientY) || [])
-        .map((n) => n.closest<HTMLElement>("[data-editor-id]"))
-        .find((n): n is HTMLElement => !!n && isPhotoEl(n));
-      latest.current.onDropPhoto(file, under?.dataset.editorId || null);
+      latest.current.onDropPhoto(file, dropTarget(e)?.dataset.editorId || null);
     });
     doc.addEventListener("click", (e) => {
       e.preventDefault();
@@ -1355,7 +1373,7 @@ function SlideCanvas({
       : { left: 0, top: 0 };
   const toolButton = "flex h-8 min-w-8 items-center justify-center rounded-md px-1.5 text-xs font-semibold hover:bg-muted aria-pressed:bg-primary/15";
   const toolbar =
-    box && selected && !slide.locked && box.kind !== "veil" ? (
+    box && selected && !slide.locked && box.kind !== "veil" && dropping === false ? (
       <div
         ref={toolbarRef}
         role="toolbar"
@@ -1377,6 +1395,11 @@ function SlideCanvas({
             }}
           >
             ! {selectedIssue.fix || (selectedIssue.kind === "overflow" && box.kind === "text") ? "Corriger" : "À vérifier"}
+          </button>
+        )}
+        {box.kind === "photo" && !box.locked && cropId !== selected && onReplacePhoto && (
+          <button type="button" className={toolButton} onClick={onReplacePhoto} title="Mettre une autre photo dans ce cadre (ou glisse une photo dessus)">
+            <ImagePlus size={14} className="mr-1" /> Remplacer
           </button>
         )}
         {box.kind === "photo" && !box.locked && cropId !== selected && (
@@ -1486,10 +1509,29 @@ function SlideCanvas({
         ref={host}
         className="relative overflow-hidden rounded-xl border bg-white shadow-sm"
         style={{ aspectRatio: "1080 / 1350", width: `${zoom * 100}%` }}
+        // Photo lâchée à côté de l’aperçu (bord, barre flottante) : sans ça, le
+        // navigateur ouvrirait le fichier à la place de l'éditeur.
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes("Files") || slide.locked || !onDropPhoto) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+        }}
+        onDrop={(e) => {
+          if (!e.dataTransfer.types.includes("Files")) return;
+          e.preventDefault();
+          setDropping(false);
+          const file = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith("image/"));
+          if (!file || slide.locked || !onDropPhoto) return;
+          onDropPhoto(file, box?.kind === "photo" ? selected : null);
+        }}
       >
-        {dropping && (
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-primary/20 text-sm font-semibold text-primary">
-            Dépose la photo ici
+        {dropping !== false && (
+          <div
+            data-testid="photo-drop-target"
+            className="pointer-events-none absolute z-20 flex items-center justify-center rounded-sm border-2 border-dashed border-primary bg-primary/20 p-2 text-center text-sm font-semibold text-primary"
+            style={dropping ? { left: dropping.left * scale, top: dropping.top * scale, width: dropping.width * scale, height: dropping.height * scale } : { inset: 0 }}
+          >
+            <span className="rounded-md bg-background/90 px-2 py-1 shadow">{dropping ? "Dépose pour remplacer cette photo" : "Dépose la photo ici"}</span>
           </div>
         )}
         {width > 0 && (
@@ -2612,6 +2654,7 @@ export default function CarouselEditor({
             onShortcut={shortcut}
             api={canvasApi}
             onDropPhoto={onAddPhoto ? dropPhoto : undefined}
+            onReplacePhoto={onAddPhoto ? () => setPhotoOpen(true) : undefined}
             onLock={lockElement}
             zoom={fullscreen ? 1 : zoom}
             onMeasure={setMeasured}
