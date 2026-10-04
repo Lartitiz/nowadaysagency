@@ -63,6 +63,8 @@ Deno.test("vécu : pas de faux positif sur une opinion au présent, une hypothè
       "Je pense que publier plus ne règle rien.",
       "J'ai l'impression qu'on confond régularité et volume.",
       "J'ai envie qu'on arrête de compter les posts.",
+      "J'ai fait le choix de publier moins, et je l'assume.",
+      "Je ne publie presque jamais une pièce que je viens de sortir du four.",
       "Tu te dis peut-être : j'ai tout essayé, rien ne marche.",
       "Tu as sûrement entendu « j'ai testé, ça ne marche pas ».",
       "Si je pensais que la fréquence suffisait, je posterais tous les jours.",

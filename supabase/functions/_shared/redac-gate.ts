@@ -391,7 +391,7 @@ export function findInventedTestimonials(text: string, sourceText?: string): str
 // les réponses ou l'actu en racontent déjà un.
 
 const EXPERIENCE_ADVERBS = String.raw`(?:(?:longtemps|déjà|souvent|moi-même|moi\s+aussi|aussi|même|d['’]abord|vraiment|tout|enfin|beaucoup|toujours|plusieurs\s+fois|récemment|personnellement)\s+){0,2}`;
-const EXPERIENCE_PARTICIPLES = String.raw`(?:essayée?s?|testée?s?|tentée?s?|fait|refait|publiée?s?|postée?s?|doublée?|triplée?|multipliée?|augmentée?|arrêtée?|commencée?|recommencée?|lancée?s?|perdue?s?|gagnée?s?|passée?s?|vue?s?|remarquée?|constatée?|observée?|appris|compris|découverte?|cru|suivie?s?|appliquée?s?|changée?|mesurée?|vécue?|connue?|misée?)`;
+const EXPERIENCE_PARTICIPLES = String.raw`(?:essayée?s?|testée?s?|tentée?s?|fait(?!\s+(?:le\s+|ce\s+)?(?:choix|pari))|refait|publiée?s?|postée?s?|doublée?|triplée?|multipliée?|augmentée?|arrêtée?|commencée?|recommencée?|lancée?s?|perdue?s?|gagnée?s?|passée?s?|vue?s?|remarquée?|constatée?|observée?|appris|compris|découverte?|cru|suivie?s?|appliquée?s?|changée?|mesurée?|vécue?|connue?|misée?)`;
 const FIRST_PERSON_PAST_RES: RegExp[] = [
   new RegExp(String.raw`(?<!\p{L})j['’](?:ai|avais)\s+${EXPERIENCE_ADVERBS}${EXPERIENCE_PARTICIPLES}(?!\p{L})`, "iu"),
   new RegExp(String.raw`(?<!\p{L})je\s+(?:l['’]|les\s+)(?:ai|avais)\s+${EXPERIENCE_ADVERBS}${EXPERIENCE_PARTICIPLES}(?!\p{L})`, "iu"),
