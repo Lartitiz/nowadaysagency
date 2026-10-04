@@ -217,3 +217,79 @@ Deno.test("extraits exacts : un item de liste réécrit ou une attribution devin
   assertEquals(guessed.slides[1].attribution, undefined);
   assert(r2.rejected.some((x) => x.includes("attribution")));
 });
+
+// ── Re-validation sur le texte FINAL (04/10/2026) ──
+import { revalidatePhotoLayout, revalidatePhotoLayoutContent } from "./photo-template-assign.ts";
+import { progressionReceipt } from "./carousel-progression.ts";
+import { invalidateProgressionReceipt } from "./carousel-editorial-snapshot.ts";
+
+const LAID_OUT = () => ({ slides: [
+  { slide_number: 1, overlay_text: "Ce salon, je l'ai trouvé comme ça.", template: "couverture" },
+  { slide_number: 2, overlay_text: "Le temps de vente a chuté de 40 % après la mise en valeur.", template: "chiffre", big_number: "40 %" },
+  { slide_number: 3, overlay_text: "Trois gestes : vider le plan de travail, ouvrir les volets, poser un bouquet.", template: "liste", points: ["vider le plan de travail", "ouvrir les volets", "poser un bouquet"] },
+  { slide_number: 4, overlay_text: "La propriétaire m'a dit : on a eu trois visites.", template: "citation", attribution: "La propriétaire" },
+  { slide_number: 5, overlay_text: "Et votre pièce à vivre, elle raconte quoi ?", template: "finale", cta_label: "Écrivez-moi" },
+] });
+
+Deno.test("re-validation : texte inchangé → mise en page intacte", () => {
+  const doc = LAID_OUT();
+  assertEquals(revalidatePhotoLayout(doc), []);
+  assertEquals(doc, LAID_OUT());
+});
+
+Deno.test("re-validation : un texte corrigé après coup fait tomber l'extrait périmé, jamais un mot du texte", () => {
+  const doc = LAID_OUT();
+  doc.slides[1].overlay_text = "Le temps de vente a nettement baissé après la mise en valeur.";
+  doc.slides[2].overlay_text = "Trois gestes : vider le plan de travail, ouvrir les volets, allumer une lampe.";
+  doc.slides[3].overlay_text = "On m'a dit : on a eu trois visites.";
+  const texts = doc.slides.map((s: any) => [s.overlay_text, s.cta_label]);
+  const removed = revalidatePhotoLayout(doc);
+  assertEquals(removed.length, 3);
+  // Chiffre périmé : retiré, la slide retombe en prose (gabarit du rendu).
+  assertEquals((doc.slides[1] as any).big_number, undefined);
+  assertEquals(doc.slides[1].template, "profonde");
+  // Liste : l'item périmé tombe, les 2 encore exacts restent.
+  assertEquals((doc.slides[2] as any).points, ["vider le plan de travail", "ouvrir les volets"]);
+  assertEquals(doc.slides[2].template, "liste");
+  // Attribution qui n'est plus dans le texte : retirée, la citation reste.
+  assertEquals((doc.slides[3] as any).attribution, undefined);
+  assertEquals(doc.slides[3].template, "citation");
+  // Aucun texte touché.
+  assertEquals(doc.slides.map((s: any) => [s.overlay_text, s.cta_label]), texts);
+});
+
+Deno.test("re-validation : liste réduite à un seul item exact → la liste tombe, la slide reste en prose", () => {
+  const doc = LAID_OUT();
+  doc.slides[2].overlay_text = "Un geste : vider le plan de travail. Le reste suit.";
+  revalidatePhotoLayout(doc);
+  assertEquals((doc.slides[2] as any).points, undefined);
+  assertEquals(doc.slides[2].template, "profonde");
+});
+
+Deno.test("re-validation : reçu de relecture à jour ré-empreint (pas de « Le texte a changé »), reçu périmé laissé tel quel", async () => {
+  const doc: any = LAID_OUT();
+  doc.slides[2].overlay_text = "Trois gestes : vider le plan de travail, ouvrir les volets, allumer une lampe.";
+  // Le juge a relu ce texte (avec la liste périmée encore posée).
+  doc.progression_review = { ...await progressionReceipt(doc, "completed"), verdict: "acceptable" };
+  doc.photo_review = { execution_status: "completed", verdict: "acceptable", reviewed_material: doc.progression_review.reviewed_material, issues: [] };
+  const out = JSON.parse(await revalidatePhotoLayoutContent(JSON.stringify(doc)));
+  assertEquals(out.slides[2].points, ["vider le plan de travail", "ouvrir les volets"]);
+  const checked = invalidateProgressionReceipt(out);
+  assertEquals(checked.progression_review.execution_status, "completed");
+  assertEquals(checked.photo_review.execution_status, "completed");
+  assert(!(checked.structure_warnings || []).some((w: string) => w.includes("a changé")));
+  assertEquals(out.progression_review.reviewed_text_hash, (await progressionReceipt(out, "completed")).reviewed_text_hash);
+
+  // Reçu déjà périmé (texte édité après relecture) : il le reste.
+  const stale: any = LAID_OUT();
+  stale.progression_review = { ...await progressionReceipt(stale, "completed"), verdict: "acceptable" };
+  stale.slides[2].overlay_text = "Trois gestes : vider le plan de travail, ouvrir les volets, allumer une lampe.";
+  const staleOut = invalidateProgressionReceipt(JSON.parse(await revalidatePhotoLayoutContent(JSON.stringify(stale))));
+  assertEquals(staleOut.progression_review.execution_status, "stale");
+});
+
+Deno.test("re-validation : JSON illisible ou rien à retirer → contenu identique", async () => {
+  assertEquals(await revalidatePhotoLayoutContent("pas du json"), "pas du json");
+  const same = JSON.stringify(LAID_OUT());
+  assertEquals(await revalidatePhotoLayoutContent(same), same);
+});

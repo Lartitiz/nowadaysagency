@@ -33,7 +33,7 @@ import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex, normalizeOverlayStyles, analyzeMixComposition, assignDistinctStructurePhotos } from "../_shared/photo-slide-structure.ts";
-import { assignPhotoTemplates, assignTemplatesToProvidedSlides, stripWriterLayoutFields } from "../_shared/photo-template-assign.ts";
+import { assignPhotoTemplates, assignTemplatesToProvidedSlides, revalidatePhotoLayoutContent, stripWriterLayoutFields } from "../_shared/photo-template-assign.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 // ── Seam d'injection de dépendances (tests) ──
@@ -1730,14 +1730,9 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   }
   const threadPhoto = await repairCarouselStructure(content, { body, label: "photo", emitStatus, usage: photoUsage, regenerate: doRepair, startedAt });
   // Mise en page hors de l'écriture : gabarit, chiffre, liste, étape et
-  // attribution sont posés ensuite, à partir du texte final (assignPhotoTemplates).
+  // attribution sont posés ensuite, à partir du texte FINAL (assignPhotoTemplates,
+  // après la relecture et le redac-gate, plus bas).
   content = stripWriterLayoutFields(threadPhoto.content);
-
-  // Template assignment can add points/attribution/CTA labels. In contextual
-  // mode these must exist BEFORE review, never appear unchecked afterwards.
-  if (semanticReviewEnabled) content = await assignPhotoTemplates(content, {
-    model: pickCorrectionModel(body), logger: (m) => console.log(m),
-  });
   const editorialBaseline = content;
   // Short photo overlays need the same contextual review as text slides.
   try {
@@ -1790,14 +1785,24 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: reviewAllowed(startedAt), skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
   content = gatePhoto.content;
-  // Relecture-gabarits (13/07) : sur les textes DÉFINITIFS (post gate),
-  // pose le gabarit visuel de chaque slide. Décision prise sur le texte
-  // réel, aucun quota de variété, anti-invention par code, fail-open.
-  if (!semanticReviewEnabled) content = await assignPhotoTemplates(content, {
+  // Relecture-gabarits (13/07) : sur les textes DÉFINITIFS (post relecture
+  // éditoriale et redac-gate), pose le gabarit visuel de chaque slide. Avant le
+  // 04/10/2026 elle tournait AVANT la relecture sémantique quand celle-ci était
+  // active (pour que la relecture « voie » liste/attribution) : la relecture
+  // pouvait alors corriger l'overlay ou patcher big_number/points, et l'extrait
+  // mis en valeur ne correspondait plus au texte final. Ces champs sont
+  // désormais des extraits EXACTS du texte relu (aucune matière nouvelle à
+  // relire) et la relecture ne les patche plus (carouselReviewFields).
+  content = await assignPhotoTemplates(content, {
     model: pickCorrectionModel(body),
     logger: (m) => console.log(m),
   });
   content = await finalizeCarousel(content,reqCtx,{usage:photoUsage,repaired:threadPhoto.repaired,regenerate:doRepair});
+  // Une réparation globale du fil (finalizeCarousel) peut réécrire les textes
+  // après l'assignation : la mise en page est revérifiée contre le texte final,
+  // un extrait qui n'y figure plus est retiré (reçus ré-empreints s'ils étaient
+  // à jour).
+  content = await revalidatePhotoLayoutContent(content, (m) => console.log(m));
   await _deps.logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspaceId, body.subject);
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,

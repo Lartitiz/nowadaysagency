@@ -1,7 +1,7 @@
 import { CONTENT_CLARITY_RULES, claritySourceBlock } from "./content-clarity.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type AnthropicModel, type UsageSink } from "./anthropic.ts";
 import { callCarouselWriter, carouselWriterDiagnostic } from "./carousel-model.ts";
-import { applyEditorialReview, carouselEditorialFields, carouselEditorialSequence, CAROUSEL_EDITORIAL_REVIEW_PROMPT, CAROUSEL_REVIEW_VERSION, CAROUSEL_REVIEW_MODEL, CAROUSEL_REVIEW_TOOL } from "./carousel-editorial-review.ts";
+import { applyEditorialReview, carouselEditorialSequence, carouselReviewFields, CAROUSEL_EDITORIAL_REVIEW_PROMPT, CAROUSEL_REVIEW_VERSION, CAROUSEL_REVIEW_MODEL, CAROUSEL_REVIEW_TOOL } from "./carousel-editorial-review.ts";
 
 export type CorrectionFormat = "linkedin" | "carousel" | "newsletter" | "instagram_caption" | "reel" | "stories";
 
@@ -814,7 +814,7 @@ export async function applyCorrectionPassCarousel(
 
     // Step 2: Extract text fields into annotated block
     if (options.semanticReview) {
-      const fields = carouselEditorialFields(parsed);
+      const fields = carouselReviewFields(parsed);
       if ((options.sourceContext?.length || 0) + (options.currentBrief?.length || 0) + jsonContent.length > 100_000) {
         parsed.editorial_review = {version: CAROUSEL_REVIEW_VERSION, status:"skipped", reason:"context-budget", edits:0};
         return JSON.stringify(parsed);
@@ -827,7 +827,7 @@ export async function applyCorrectionPassCarousel(
         if (options.reviewBaseline) {
           try {
             const draft = JSON.parse(options.reviewBaseline.match(/\{[\s\S]*\}/)?.[0] || "null");
-            baseline = "\nBROUILLON AVANT RELECTURE (comparaison uniquement, PAS une source factuelle) :\n" + JSON.stringify(carouselEditorialFields(draft).map(({ id, text }) => ({ id, text }))) +
+            baseline = "\nBROUILLON AVANT RELECTURE (comparaison uniquement, PAS une source factuelle) :\n" + JSON.stringify(carouselReviewFields(draft).map(({ id, text }) => ({ id, text }))) +
               "\nVérifie les modifications déjà faites : elles doivent améliorer le texte sans slogan de remplacement, perte de sens ou voix aplatie. Corrige aussi un défaut résiduel ailleurs. Les extraits before doivent venir des CHAMPS ÉDITABLES actuels, jamais de cet ancien brouillon.\n";
           } catch { /* A missing baseline does not change the patch contract. */ }
         }

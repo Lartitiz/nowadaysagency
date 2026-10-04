@@ -62,9 +62,28 @@ export function carouselEditorialFields(doc: any): EditorialField[] {
   return fields;
 }
 
+/** Champs de MISE EN PAGE dérivés du texte (carrousel photo) : le gros chiffre,
+ * les items de liste et l'attribution sont des EXTRAITS EXACTS de l'overlay_text,
+ * posés par le code après la relecture (photo-template-assign.ts). La relecture
+ * ne les patche jamais : elle corrige le texte source, la mise en page le relit
+ * ensuite. Ils restent dans carouselEditorialFields (empreinte des reçus, garde
+ * factuelle), mais hors des champs éditables par la relecture. Un « attribution »
+ * de schéma (visual_schema) reste du texte relu. */
+const DERIVED_LAYOUT_KEYS = new Set(["big_number", "points", "attribution"]);
+function isDerivedLayoutField(path: (string | number)[]): boolean {
+  const i = path.indexOf("slides");
+  return i >= 0 && typeof path[i + 1] === "number" && DERIVED_LAYOUT_KEYS.has(String(path[i + 2]));
+}
+
+/** Champs que la relecture éditoriale peut retoucher : le texte visible, sans
+ * les champs de mise en page dérivés. */
+export function carouselReviewFields(doc: any): EditorialField[] {
+  return carouselEditorialFields(doc).filter((f) => !isDerivedLayoutField(f.path));
+}
+
 /** Read-only slide boundaries and roles, including photos with no editable text. */
 export function carouselEditorialSequence(doc: any) {
-  const fields = carouselEditorialFields(doc);
+  const fields = carouselReviewFields(doc);
   const collect = (container: any, root: string[]) => {
     if (!Array.isArray(container?.slides)) return [];
     return container.slides.map((slide: any, index: number) => {
@@ -118,7 +137,9 @@ export interface ReviewApplication { doc: any; status: "reviewed" | "invalid"; f
 
 /** Atomic, exact-match patches: a malformed/incomplete review cannot rewrite the draft. */
 export function applyEditorialReview(doc: any, raw: string, authoredText = ""): ReviewApplication {
-  const fields = carouselEditorialFields(doc);
+  // Jamais de patch sur un champ de mise en page dérivé (gros chiffre, liste,
+  // attribution) : un field_id qui les vise est un champ inconnu.
+  const fields = carouselReviewFields(doc);
   const invalid = (error: string): ReviewApplication => ({ doc, status: "invalid", fields: fields.length, edits: 0, error });
   try {
     const payload = JSON.parse(raw.trim().replace(/^```(?:json)?\s*\n/i, "").replace(/\n```$/, ""));

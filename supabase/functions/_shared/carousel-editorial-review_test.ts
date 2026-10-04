@@ -1,10 +1,10 @@
 import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { applyEditorialReview, carouselEditorialFields, carouselEditorialSequence, CAROUSEL_EDITORIAL_REVIEW_PROMPT } from "./carousel-editorial-review.ts";
+import { applyEditorialReview, carouselEditorialFields, carouselEditorialSequence, carouselReviewFields, CAROUSEL_EDITORIAL_REVIEW_PROMPT } from "./carousel-editorial-review.ts";
 import { applyCorrectionPassCarousel } from "./correction-pass.ts";
 import { analyzeCarouselRedac, applyGuardedCarouselCorrection, runRedacGate } from "./redac-gate.ts";
 
 const doc = { slides: [{ title: "Les retours sur la maquette", body: "Les demandes se contredisent. Et c'est là que tout se joue.", photo_index: 2, photo_url: "https://example.com/photo", template: "liste", points: ["Une réponse commune", "Un arbitrage explicite"], visual_schema: { type: "timeline", steps: [{ label: "Retours", desc: "Choisir entre les demandes" }], color: "pink" } }], caption: { body: "J'attends votre réponse commune.", hashtags: ["design"] } };
-const cleanReview = (d = doc): any => ({ reviews: carouselEditorialFields(d).map(f => ({ field_id: f.id, decision: "keep", reason: "information utile", edits: [] })) });
+const cleanReview = (d = doc): any => ({ reviews: carouselReviewFields(d).map(f => ({ field_id: f.id, decision: "keep", reason: "information utile", edits: [] })) });
 function editReview(d = doc, before = " Et c'est là que tout se joue.", after = "") {
   const result = cleanReview(d);
   Object.assign(result.reviews.find((r: any) => r.field_id === "slides.0.body"), { decision: "edit", reason: "emphase répétant le problème déjà décrit", edits: [{ before, after }] });
@@ -16,6 +16,21 @@ Deno.test("registre : texte visible complet, aucun champ technique ni hashtag", 
   assertEquals(ids, ["slides.0.title", "slides.0.body", "slides.0.points.0", "slides.0.points.1", "slides.0.visual_schema.steps.0.label", "slides.0.visual_schema.steps.0.desc", "caption.body"]);
   const extra = { carousel: { slides: [{ hook: "Hook", text: "Texte", kicker: "Pastille", detail: "Détail", big_number: "35", attribution: "Auteur", cta_label: "Voir", overlay_text: "Photo", visual_schema: { type: "matrix_2x2", x_axis: { left: "Facile", right: "Difficile" } } }], caption: { hook: "Légende" } }, instagram_caption: "Ancienne légende" };
   assertEquals(carouselEditorialFields(extra).length, 12);
+});
+Deno.test("relecture : les champs de mise en page dérivés (chiffre, liste, attribution) ne sont jamais patchés", () => {
+  const photo = { slides: [{ overlay_text: "Trois gestes : vider le plan, ouvrir les volets, poser un bouquet.", template: "liste", points: ["vider le plan", "ouvrir les volets"], big_number: "3", attribution: "Amélie",
+    visual_schema: { type: "quote", data: { quote: "Une phrase", attribution: "Schéma relu" } } }] };
+  const ids = carouselReviewFields(photo).map(f => f.id);
+  assertEquals(ids, ["slides.0.overlay_text", "slides.0.visual_schema.data.quote", "slides.0.visual_schema.data.attribution"]);
+  // L'empreinte des reçus et la garde factuelle les voient toujours.
+  assertEquals(carouselEditorialFields(photo).length, 7);
+  assertEquals(carouselEditorialSequence(photo)[0].field_ids, ids);
+  // Une relecture qui vise un item de liste est refusée en bloc : jamais de patch partiel.
+  const review = { reviews: [...ids.map(id => ({ field_id: id, decision: "keep", reason: "utile", edits: [] })),
+    { field_id: "slides.0.points.1", decision: "edit", reason: "x", edits: [{ before: "ouvrir les volets", after: "fermer" }] }] };
+  const result = applyEditorialReview(photo, JSON.stringify(review));
+  assertEquals(result.status, "invalid");
+  assertEquals(result.doc, photo);
 });
 Deno.test("séquence : photo sans texte, overlay et schéma gardent leur place, sans exposer les médias", () => {
   const draft = { carousel: { slides: [
