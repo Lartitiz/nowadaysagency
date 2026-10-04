@@ -5,7 +5,7 @@ import { COMMON, PLAN, REPAIR } from "../_shared/carousel-editorial-contract.ts"
 import { reviewCarouselProgression, progressionReceipt, progressionWarnings, type ProgressionSource, type ProgressionResult } from "../_shared/carousel-progression.ts";
 import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts";
 import { PHOTO_NARRATIVE_CONTRACT, PHOTO_QUESTIONS_CONTRACT } from "./photo-narrative.ts";
-import { autoMaxSlides, carouselLength, carouselLengthPrompt, carouselStructureIssues, longTextSlides } from "../_shared/carousel-length.ts";
+import { autoMaxSlides, carouselLength, carouselLengthPrompt, carouselStructureIssues, longTextSlides, structureRepairInstruction } from "../_shared/carousel-length.ts";
 import { preservesCarouselScenario } from "../_shared/carousel-thread.ts";
 import { coverKind, coverRewritePrompt, enforceCover } from "../_shared/carousel-cover.ts";
 import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, NEWS_WRITING } from "./variant-writing.ts";
@@ -1067,8 +1067,8 @@ async function repairCarouselStructure(content: string, opts: {
     opts.emitStatus("correcting");
     const candidate = await opts.regenerate(
       content,
-      "DÉFAUTS STRUCTURELS :\n" + issues.join("\n") +
-        "\nCorrige le nombre demandé sans inventer de faits ni changer les choix validés.",
+      "DÉFAUTS STRUCTURELS :\n" + issues.join("\n") + "\n" +
+        structureRepairInstruction(issues),
       sink,
     );
     const parsed = tryParseAiJson<any>(candidate);
@@ -1095,7 +1095,9 @@ async function repairCarouselStructure(content: string, opts: {
       const key of ["input_tokens", "output_tokens", "total_tokens"] as const
     ) opts.usage[key] = (opts.usage[key] || 0) + (sink[key] || 0);
   }
-  return { content, repaired: true }; // One attempted repair consumes the shared repair budget.
+  // Réparation refusée ou en échec : le brouillon d'origine reste, et la
+  // réparation du fil (finalizeCarousel) garde sa chance de passer.
+  return { content, repaired: false };
 }
 
 async function finalizeCarousel(
