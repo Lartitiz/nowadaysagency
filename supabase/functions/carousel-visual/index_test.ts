@@ -490,14 +490,32 @@ Deno.test("couverture texte (04/10/2026) : la slide 1 dessinée par l'IA est rem
   enforceTextCover(result, { slides, ch, isText: true });
   const html = result.slides_html[0].html;
   assert(html.includes('data-carousel-layout="opening"'));
-  assert(!html.includes("data-decorative") && !html.includes("<svg") && !html.includes("font-style:italic"));
-  assert(html.includes(slides[0].title) && html.includes(slides[0].body));
+  assert(!html.includes("data-decorative") && !html.includes("<svg"));
+  const plain = (h: string) => h.replace(/<[^>]*>/g, "").replace(/&#39;/g, "'");
+  assert(plain(html).includes(slides[0].title) && plain(html).includes(slides[0].body));
+  // Décision de Laetitia du 04/10/2026 : UN groupe de mots de l'accroche en
+  // italique, repris de l'IA de mise en page quand c'est un extrait exact.
+  assertEquals((html.match(/font-style:italic/g) || []).length, 1);
+  assert(/<span style="font-style:italic;[^"]*">use<\/span>/.test(html));
   assertEquals((html.match(/text-align:center/g) || []).length, 2);
   assertEquals(result.slides_html[1].html, "<div>slide 2</div>");
   // Photo / mixte : jamais touchés par cette garde.
   const photo: any = { slides_html: [{ slide_number: 1, html: aiCover }] };
   enforceTextCover(photo, { slides, ch, isText: false });
   assertEquals(photo.slides_html[0].html, aiCover);
+});
+
+Deno.test("couverture texte : l'accent choisi par l'étage de mise en page passe avant l'italique de l'IA ; un extrait inventé ou trop long est ignoré", () => {
+  const slides = [{ slide_number: 1, title: "Oui, j'utilise l'IA générative.", body: "" }, { slide_number: 2, title: "a", body: "b" }];
+  const ch = { color_background: "#FFF4F8", color_text: "#1A1A1A", color_secondary: "#91014B", color_primary: "#FB3D80", font_title: "Instrument Serif", font_body: "Hanken Grotesk" };
+  const ai = `<div><h1 data-slide-text="title">Oui, <em>j'utilise</em> l'IA générative.</h1></div>`;
+  const run = (accent?: string, html = ai) => { const r: any = { slides_html: [{ slide_number: 1, html }] }; enforceTextCover(r, { slides, ch, isText: true, accent }); return r.slides_html[0].html as string; };
+  const chosen = run("l'IA générative");
+  assert(chosen.includes(">l&#39;IA générative</span>") || chosen.includes(">l'IA générative</span>"), chosen);
+  assert(chosen.includes("font-size:168px"), "accroche de 4 mots à 168px");
+  assert(chosen.includes("color:#FB3D80"), "couleur d'accent lisible sur le fond clair");
+  assert(run(undefined).includes(">j&#39;utilise</span>") || run(undefined).includes(">j'utilise</span>"), "repli : italique de l'IA");
+  for (const bad of ["l'IA éthique", "Oui, j'utilise l'IA générative."]) assert(!run(bad, "<div><h1 data-slide-text=\"title\">x</h1></div>").includes("font-style:italic"), bad);
 });
 
 // ═══ VRAI CHEMIN du mixte automatique (test en ligne du 04/10/2026) ═══

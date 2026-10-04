@@ -63,75 +63,118 @@ Deno.test("texte : un texte trop long pour la mise en forme garde sa composition
 Deno.test("texte : la génération passe toujours par l'étage de mise en forme", async () => {
   const src = await Deno.readTextFile(new URL("../carousel-visual/index.ts", import.meta.url));
   assert(/planPhotoFormatting\(slides\.map\([^\n]*editorialSlideText/.test(src), "planPhotoFormatting n'est plus appelé pour le carrousel texte");
-  assert(/formatEditorialSlides\(slides, designPlan, ch, editorialSlides/.test(src), "formatEditorialSlides n'est plus appliqué");
-});
-
-Deno.test("slide de rupture : mêmes mots qu'avant, seulement lus sans accents ni casse ; aucun synonyme ajouté", async () => {
-  const { isRuptureRole } = await import("./carousel-design-plan.ts");
-  const legacy = (role: string) => /manifest|synth|conclu|punch|separator|constat/.test(role || "");
-  for (const role of ["manifeste", "synthèse", "conclusion", "punchline", "separator", "constat", "étape", "argument", "récit", "histoire", "anecdote", "bascule", "rupture", "séparateur", ""]) assertEquals(isRuptureRole(role), legacy(role), role);
-  for (const role of ["Synthèse", "CONCLUSION", "Constat"]) assert(isRuptureRole(role), role);
-  assertEquals(isRuptureRole(undefined), false);
-  const slides = (role3: unknown) => [1, 2, 3, 4, 5, 6].map(n => ({ slide_number: n, title: `T${n}`, body: "Un texte court.", role: n === 3 ? role3 : "étape" }));
-  const rupture = (role3: unknown) => buildCarouselDesignPlan(slides(role3) as any).sequence.findIndex(b => b.inverted);
-  assertEquals(rupture("synthèse"), 2);
-  assertEquals(rupture("histoire"), rupture(undefined), "rôle non reconnu : même repli qu'avant");
+  assert(/formatEditorialSlides\(slides, sensedPlan, ch, finalEditorial/.test(src), "formatEditorialSlides n'est plus appliqué");
+  assert(/planTextSenseDesign\(slides, textSenseUsage\)/.test(src), "l'étage « design au service du sens » n'est plus appelé");
 });
 
 Deno.test("texte : couverture = accroche en très grand + sous-titre, centrés verticalement et horizontalement (04/10/2026)", () => {
   const cover = { slide_number: 1, title: "Arrête de publier tous les jours.", body: "Le rythme qui marche pour une marque slow" };
   const out = composeEditorialSlide(cover, PLAN.sequence[0], CH)!;
   assert(out.html.includes('data-carousel-layout="opening"'));
-  assert(out.html.includes("font-size:112px"), "accroche de 6 mots en très grand");
+  assert(out.html.includes("font-size:148px"), "accroche de 6 mots en très grand");
   assertEquals((out.html.match(/text-align:center/g) || []).length, 2);
   assert(out.html.includes("justify-content:center"), "bloc centré verticalement");
   assert(textOf(out.html).includes(cover.title) && textOf(out.html).includes(cover.body));
   assert(!out.html.includes("data-format-block"));
 });
 
-// 04/10/2026 : traitements des slides de texte validés sur maquette par
-// Laetitia (centré, mot-clé surligné + phrase-clé, aplat, lettrine, forme de
-// marque, texte en deux temps), en alternance, bloc centré verticalement.
-import { describeTextTreatments, sentences } from "./carousel-design-plan.ts";
-Deno.test("traitements : alternance sans répétition, aplat ≤ 2, extraits exacts, conditions respectées", () => {
-  const long = (i: number) => `Phrase ${i} un. Puis 0,${i}4 Wh mesurés ensuite. Et une fin ${i}.`;
+// ═══ Décisions de Laetitia du 04/10/2026 (carrousel de référence) ═══
+import { applyTextSenseDesign, describeCarouselDesignPlan, isSingleSentence, locateExtract, sentences, validExtract } from "./carousel-design-plan.ts";
+
+Deno.test("plan de repli : plus de forme imposée par la position, plus de fond plein obligatoire", () => {
   const slides = [{ slide_number: 1, title: "Couverture", body: "" },
-    ...Array.from({ length: 8 }, (_, i) => ({ slide_number: i + 2, role: "argument", title: `Titre ${i}`, body: long(i) + " " + "mot ".repeat(50) })),
-    { slide_number: 10, role: "conclusion", title: "Fin", body: "Court." }];
+    ...Array.from({ length: 10 }, (_, i) => ({ slide_number: i + 2, role: i === 4 ? "manifeste" : "argument", title: `Titre ${i}`, body: "Un texte de développement qui tient sur deux phrases. Et voici la seconde." })),
+    { slide_number: 12, title: "Alors pourquoi je l'utilise quand même ?", body: "" }];
   const plan = buildCarouselDesignPlan(slides);
-  const t = plan.sequence.map(b => b.treatment);
-  assertEquals(t[0], undefined, "couverture");
-  assertEquals(t[9], undefined, "conclusion");
-  const used = t.filter(Boolean);
-  assert(used.length >= 7, JSON.stringify(t));
-  for (let i = 1; i < t.length; i++) assert(!(t[i] && t[i] === t[i - 1]), "jamais deux fois de suite");
-  assert(used.filter(x => x === "aplat").length <= 2);
-  assert(new Set(used).size >= 5, "les six traitements tournent");
-  for (const [i, b] of plan.sequence.entries()) {
-    if (b.extract) assert(String(slides[i].body).includes(b.extract), "extrait exact");
-    if (b.treatment === "surligne") assert(/\d/.test(b.extract!), "phrase-clé chiffrée");
-  }
-  const desc = describeTextTreatments(plan);
-  assert(desc.includes("CENTRÉ VERTICALEMENT") && desc.includes("data-slide-text=\"body\""));
-  assert(desc.includes("ALIGNÉ À GAUCHE") && desc.includes("jamais moins de 30px"), "réglages du 04/10 : alignement gauche, texte lisible");
+  assertEquals(plan.sequence.filter(b => b.inverted).length, 0, "aucune rupture imposée, même avec un rôle « manifeste »");
+  assertEquals(new Set(plan.sequence.slice(1, 11).map(b => b.layout)).size, 1, "texte nu partout, aucune rotation");
+  assertEquals(plan.sequence[11].layout, "statement", "phrase seule : décidée par le texte");
+  for (const b of plan.sequence) assert(!("treatment" in b), "plus de traitements en alternance (#1348)");
+  const desc = describeCarouselDesignPlan(plan);
+  assert(desc.includes("fond uni par défaut") && desc.includes("SENS du texte"));
+  assert(!/OBLIGATOIRES|rupture avec fond de charte inversé/.test(desc));
 });
-Deno.test("traitements : texte d'une seule phrase → ni phrase-clé ni deux temps ; pas de lettrine sur un guillemet", () => {
-  const slides = [{ slide_number: 1, title: "C", body: "" },
-    { slide_number: 2, title: "A", body: "« Une seule phrase citée sans fin" },
-    { slide_number: 3, title: "B", body: "Une seule phrase." },
-    { slide_number: 4, title: "D", body: "Fin." }];
-  const plan = buildCarouselDesignPlan(slides);
-  for (const b of plan.sequence.slice(1, 3)) assert(!["surligne", "deux_temps"].includes(b.treatment!), b.treatment);
-  assert(plan.sequence[1].treatment !== "lettrine");
+
+Deno.test("phrase seule : une seule phrase courte, sans titre ET texte", () => {
+  assert(isSingleSentence({ title: "Alors pourquoi je l'utilise quand même ?", body: "" }));
+  assert(isSingleSentence({ title: "", body: "Le tout pour 2 100 € TTC" }));
+  assert(!isSingleSentence({ title: "Je ne sais pas si j'ai raison.", body: "Ça crée une dissonance en moi." }));
+  assert(!isSingleSentence({ title: "Un. Deux.", body: "" }));
   assertEquals(sentences("Un. Deux ? Trois"), ["Un.", "Deux ?", "Trois"]);
 });
 
-// 04/10/2026 : en carrousel texte découpé une idée par slide, une slide peut
-// poursuivre la phrase de la précédente (« et c'est là… ») : pas de lettrine.
-Deno.test("traitements : pas de lettrine sur une slide qui poursuit une phrase", () => {
-  const slides = [{ slide_number: 1, title: "C", body: "" },
-    ...Array.from({ length: 8 }, (_, i) => ({ slide_number: i + 2, title: "", body: "et la phrase continue ici, sans majuscule. Puis une autre." })),
-    { slide_number: 10, title: "D", body: "Fin." }];
+Deno.test("extraits : exacts (apostrophes courbes confondues), jamais le texte entier, plafonnés", () => {
+  assertEquals(locateExtract("Oui, j’utilise l’IA générative.", "l'IA générative"), [15, 30]);
+  assertEquals(validExtract("Oui, j’utilise l’IA générative.", "l'IA générative", 3), "l’IA générative");
+  assertEquals(validExtract("Oui, j'utilise l'IA générative.", "l'IA éthique", 3), undefined);
+  assertEquals(validExtract("Mais je préfère", "Mais je préfère", 5), undefined);
+  assertEquals(validExtract("un deux trois quatre cinq six sept", "un deux trois quatre", 3), undefined);
+});
+
+const REF_CH = { color_primary: "#FB3D80", color_secondary: "#91014B", color_accent: "#FFE561", color_background: "#FFF4F8", color_text: "#1A1A1A", font_title: "Instrument Serif", font_body: "Hanken Grotesk" };
+const plain = (h: string) => h.replace(/<[^>]*>/g, "").replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+const sizes = (h: string) => [...h.matchAll(/font-size:(\d+)px/g)].map(m => Number(m[1]));
+
+Deno.test("tailles alignées sur la référence : couverture 168px pour 4 mots, titres ≥ 92px, texte ≥ 46px", () => {
+  const slides = [
+    { slide_number: 1, title: "Oui, j'utilise l'IA générative.", body: "" },
+    { slide_number: 2, title: "Et oui, je m'adresse à des projets qui se veulent un peu plus responsables.", body: "Ça crée une dissonance en moi. Et j'avais envie de vous en parler." },
+    { slide_number: 3, title: "Alors pourquoi je l'utilise quand même ?", body: "" },
+    { slide_number: 4, title: "Mais je préfère la transparence :", body: "vous avez le droit de savoir comment est faite la com' que je propose. Et je serais ravie d'en discuter avec vous." },
+  ];
   const plan = buildCarouselDesignPlan(slides);
-  assert(plan.sequence.every(b => b.treatment !== "lettrine"), plan.sequence.map(b => b.treatment).join(","));
+  const out = slides.map((s, i) => composeEditorialSlide(s, plan.sequence[i], REF_CH)!);
+  assert(out.every(Boolean));
+  assertEquals(sizes(out[0].html)[0], 168);
+  assert(sizes(out[1].html)[0] >= 84 && sizes(out[1].html)[1] >= 46, JSON.stringify(sizes(out[1].html)));
+  assert(sizes(out[2].html)[0] >= 132, "phrase seule en très grand");
+  for (const [i, s] of slides.entries()) for (const t of [s.title, s.body]) if (t) assert(plain(out[i].html).includes(t), `slide ${i + 1} : texte perdu`);
+  for (const o of out) for (const m of o.html.matchAll(/top:(\d+)px/g)) assert(Number(m[1]) < 1220);
+  // Bloc centré verticalement par le navigateur, pleine largeur utile.
+  for (const o of out.slice(1)) assert(o.html.includes('data-text-block="1"') && o.html.includes("justify-content:center") && o.html.includes("width:920px"));
+});
+
+Deno.test("autofit : une slide longue réduit sa taille sans perdre un mot", () => {
+  const body = Array.from({ length: 6 }, (_, i) => `Phrase ${i} qui développe une idée avec soin et précision.`).join(" ");
+  const slide = { slide_number: 2, title: "Une longue explication mérite une vraie place", body };
+  const out = composeEditorialSlide(slide, buildCarouselDesignPlan([{ slide_number: 1, title: "C" }, slide, { slide_number: 3, title: "F", body: "x y" }]).sequence[1], REF_CH);
+  assert(out, "la slide tient");
+  assert(plain(out!.html).includes(body));
+  const s = sizes(out!.html);
+  assert(s[1] >= 40 && s[1] <= 46, JSON.stringify(s));
+});
+
+Deno.test("design au service du sens : rupture, phrase seule, italique d'accent et surlignage appliqués ; texte inchangé", () => {
+  const slides = [
+    { slide_number: 1, title: "Oui, j'utilise l'IA générative.", body: "" },
+    { slide_number: 2, title: "Pour tout vous dire, avant, j'étais toujours un peu bloquée.", body: "Établir une stratégie, ça coûte cher. Souvent, les personnes venaient me voir sans stratégie." },
+    { slide_number: 3, title: "Je ne sais pas si j'ai raison.", body: "Ça crée une dissonance en moi, je le sais." },
+    { slide_number: 4, title: "Mais je préfère la transparence :", body: "vous avez le droit de savoir." },
+  ];
+  const plan = buildCarouselDesignPlan(slides);
+  const sensed = applyTextSenseDesign(slides, plan, REF_CH, { cover_accent: "l'IA générative", slides: [
+    { slide_number: 2, forme: "texte", accent: "bloquée", surligne: "ça coûte cher" },
+    { slide_number: 3, forme: "rupture", surligne: "dissonance" },
+  ] });
+  const out = slides.map((s, i) => composeEditorialSlide(s, sensed.sequence[i], REF_CH)!);
+  assert(/<span style="font-style:italic;color:#FB3D80">l'IA générative<\/span>/.test(out[0].html), "accent de couverture");
+  assert(/<span style="font-style:italic;color:#FB3D80">bloquée<\/span>/.test(out[1].html), "accent du titre");
+  assert(/<span style="background:linear-gradient\(transparent 58%, #FFE561 58%\);padding:0 4px">ça coûte cher<\/span>/.test(out[1].html), "mot surligné");
+  assert(out[2].html.includes("background:#91014B"), "rupture : fond plein");
+  assert(!out[2].html.includes("linear-gradient"), "pas de surligneur sur fond inversé");
+  for (const [i, s] of slides.entries()) for (const t of [s.title, s.body]) if (t) assert(plain(out[i].html).includes(t), `slide ${i + 1} : texte modifié`);
+  // Sans réponse de l'étage : le plan de repli, inchangé.
+  assertEquals(applyTextSenseDesign(slides, plan, REF_CH, null), plan);
+});
+
+Deno.test("design au service du sens : une forme qui ne tient pas cède, jamais le texte", () => {
+  const long = Array.from({ length: 5 }, (_, i) => `Phrase ${i} qui développe une idée avec soin et précision.`).join(" ");
+  const slides = [{ slide_number: 1, title: "Couverture", body: "" }, { slide_number: 2, title: "Un titre plutôt long pour une phrase seule en très grand", body: long }, { slide_number: 3, title: "Fin", body: "Merci." }];
+  const plan = buildCarouselDesignPlan(slides);
+  const sensed = applyTextSenseDesign(slides, plan, REF_CH, { slides: [{ slide_number: 2, forme: "phrase_seule" }] });
+  const base = composeEditorialSlide(slides[1], plan.sequence[1], REF_CH);
+  assert(base, "fixture : la slide tient en texte nu");
+  assertEquals(sensed.sequence[1].layout, "essay", "la phrase seule ne tient pas : elle cède");
+  const out = composeEditorialSlide(slides[1], sensed.sequence[1], REF_CH);
+  assert(out && plain(out.html).includes(long), "slide toujours composée avec tout son texte");
 });
