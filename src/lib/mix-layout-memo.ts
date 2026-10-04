@@ -66,7 +66,13 @@ export function mergeEditorRaw<R extends Record<string, any>>(current: Record<st
   // de l'éditeur ne l'a pas encore (même slide, repérée par son identifiant).
   if (Array.isArray(merged.slides) && Array.isArray(current.slides)) {
     const memoById = new Map(current.slides.filter((s: any) => s?.editor_id && s.mix_layout_memo).map((s: any) => [s.editor_id, s.mix_layout_memo]));
-    if (memoById.size) merged.slides = merged.slides.map((s: any) => s && !s.mix_layout_memo && memoById.has(s.editor_id) ? { ...s, mix_layout_memo: memoById.get(s.editor_id) } : s);
+    // Ne recréer la liste QUE si une slide reçoit vraiment sa mémoire : l'éditeur
+    // reconnaît son propre écho à la RÉFÉRENCE de la liste des slides (inputKey).
+    // Une nouvelle liste identique lui faisait croire à un changement venu
+    // d'ailleurs → relecture → nouvel écho → boucle infinie (page figée, vu en
+    // ligne le 04/10 sur un mixte à dispositions mémorisées).
+    const needsMemo = (s: any) => s && !s.mix_layout_memo && memoById.has(s.editor_id);
+    if (memoById.size && merged.slides.some(needsMemo)) merged.slides = merged.slides.map((s: any) => needsMemo(s) ? { ...s, mix_layout_memo: memoById.get(s.editor_id) } : s);
   }
   return merged as R;
 }
