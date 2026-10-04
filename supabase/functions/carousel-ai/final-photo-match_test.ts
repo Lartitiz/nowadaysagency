@@ -81,10 +81,10 @@ Deno.test("le diagnostic distingue troncature de sélection et réponse de véri
   } });
   assertEquals(truncated.photo_review.reason, "selection-provider-422");
   assert(!JSON.stringify(truncated).includes("private provider response"));
-  let calls = 0;
-  const invalidReview = await matchFinalPhotos(fixture(), { ...options(), call: async () =>
-    JSON.stringify({ assignments: calls++ ? accepted().slice(0, 1) : proposals() }) });
+  const invalidReview = await matchFinalPhotos(fixture(), { ...options(), call: async (o) =>
+    JSON.stringify(o.tool?.name === "choisir_photos" ? { assignments: proposals() } : { oops: true }) });
   assertEquals(invalidReview.photo_review.reason, "verification-coverage");
+  assertEquals(invalidReview.photo_review.verification_attempts, 2);
   assertEquals(invalidReview.photo_review.verdict, null);
 });
 
@@ -108,23 +108,100 @@ Deno.test("vérification indépendante refuse l'image contradictoire sans substi
   assert(result.structure_warnings.some((s: string) => s.includes("Slide 1 : image à choisir")));
 });
 
-for (const failure of ["missing", "duplicate", "out-of-range", "review-incomplete", "transport"]) Deno.test(`aucune validation trompeuse : ${failure}`, async () => {
+for (const failure of ["transport", "selection-empty", "review-unparseable"]) Deno.test(`aucune validation trompeuse : ${failure}`, async () => {
   let calls = 0;
   const result = await matchFinalPhotos(fixture(), { ...options(), call: async () => {
     if (failure === "transport") throw new Error("offline");
-    let rows: any[] = calls++ ? accepted() : proposals();
-    if (calls === 1) {
-      if (failure === "missing") rows = rows.slice(0, 1);
-      if (failure === "duplicate") rows = [rows[0], rows[0]];
-      if (failure === "out-of-range") rows[0].photo = 9;
-    } else {
-      if (failure === "review-incomplete") rows.pop();
-    }
-    return JSON.stringify({ assignments: rows });
+    if (calls++ === 0) return JSON.stringify({ assignments: failure === "selection-empty" ? [] : proposals() });
+    return "{not json";
   } });
   assertEquals(result.slides.map((s: any) => s.photo_index), [null, null, null]);
+  assertEquals(result.slides.filter((s: any) => s.photo_match).map((s: any) => s.photo_match.status), ["unverified", "unverified"]);
   assertEquals(result.photo_review.verdict, null);
   assertEquals(result.photo_review.execution_status, "unavailable");
+});
+
+// Bug réel du 04/10/2026 : une ligne manquante ou en trop dans la vérification
+// jetait toutes les associations, même celles qui venaient d'être acceptées.
+for (const shape of ["missing", "extra", "duplicate", "foreign"]) Deno.test(`vérification incomplète (${shape}) : relance limitée aux slides non contrôlées`, async () => {
+  const required: number[][] = [];
+  const result = await matchFinalPhotos(fixture(), { ...options(), call: async (o) => {
+    const data = JSON.parse((o.messages[0].content as any[])[0].text);
+    if (o.tool?.name === "choisir_photos") return JSON.stringify({ assignments: proposals() });
+    required.push(data.required_photo_slides);
+    assertEquals((o.tool?.input_schema as any).properties.assignments.items.properties.slide.enum, data.required_photo_slides);
+    if (required.length === 2) return JSON.stringify({ assignments: accepted().filter(a => a.slide === 2) });
+    let rows: any[] = accepted();
+    if (shape === "missing") rows = rows.slice(0, 1);
+    if (shape === "extra") rows = [...rows, { slide: 3, photo: 1, accepted: true, reason: "Ligne de trop." }];
+    if (shape === "duplicate") rows = [rows[0], rows[1], { ...rows[1], accepted: false }];
+    if (shape === "foreign") rows = [rows[0], { slide: 7, photo: 1, accepted: true, reason: "Slide inconnue." }];
+    return JSON.stringify({ assignments: rows });
+  } });
+  assertEquals(required, shape === "extra" ? [[1, 2]] : [[1, 2], [2]]);
+  assertEquals(result.slides.map((s: any) => s.photo_index), [2, 1, null]);
+  assertEquals(result.photo_review.execution_status, "completed");
+  assertEquals(result.photo_review.reason, "reviewed");
+  assertEquals(result.photo_review.verdict, "acceptable");
+});
+
+Deno.test("vérification toujours incomplète après la relance : seule la slide manquante reste à choisir", async () => {
+  let reviews = 0;
+  const result = await matchFinalPhotos(fixture(), { ...options(), call: async (o) => {
+    if (o.tool?.name === "choisir_photos") return JSON.stringify({ assignments: proposals() });
+    return JSON.stringify({ assignments: reviews++ ? [] : accepted().slice(0, 1) });
+  } });
+  assertEquals(reviews, 2);
+  assertEquals(result.slides.map((s: any) => s.photo_index), [2, null, null]);
+  assertEquals(result.slides[1].photo_match.status, "unverified");
+  assertEquals(result.photo_review.execution_status, "completed");
+  assertEquals(result.photo_review.reason, "reviewed-partial");
+  assertEquals(result.photo_review.verdict, "needs_images");
+  assertEquals(result.photo_review.issues.length, 1);
+});
+
+Deno.test("échec technique de la 1re vérification : la relance peut encore valider", async () => {
+  let reviews = 0;
+  const result = await matchFinalPhotos(fixture(), { ...options(), call: async (o) => {
+    if (o.tool?.name === "choisir_photos") return JSON.stringify({ assignments: proposals() });
+    if (!reviews++) throw Object.assign(new Error("overloaded"), { status: 529 });
+    return JSON.stringify({ assignments: accepted() });
+  } });
+  assertEquals(result.slides.map((s: any) => s.photo_index), [2, 1, null]);
+  assertEquals(result.photo_review.verification_attempts, 2);
+});
+
+Deno.test("pas de relance quand le temps manque : slides non contrôlées laissées à choisir", async () => {
+  let reviews = 0;
+  const opts: any = { ...options(), call: async (o: any) => {
+    if (o.tool?.name === "choisir_photos") return JSON.stringify({ assignments: proposals() });
+    reviews++; opts.startedAt -= 265000;
+    return JSON.stringify({ assignments: accepted().slice(0, 1) });
+  } };
+  const result = await matchFinalPhotos(fixture(), opts);
+  assertEquals(reviews, 1);
+  assertEquals(result.slides.map((s: any) => s.photo_index), [2, null, null]);
+  assertEquals(result.photo_review.reason, "reviewed-partial");
+});
+
+for (const shape of ["missing", "duplicate", "out-of-range"]) Deno.test(`sélection incomplète (${shape}) : la slide concernée seule reste à choisir`, async () => {
+  let reviewed: number[] = [];
+  const result = await matchFinalPhotos(fixture(), { ...options(), call: async (o) => {
+    if (o.tool?.name === "choisir_photos") {
+      let rows: any[] = proposals();
+      if (shape === "missing") rows = rows.slice(1);
+      if (shape === "duplicate") rows = [rows[0], rows[0], rows[1]];
+      if (shape === "out-of-range") rows[0].photo = 9;
+      return JSON.stringify({ assignments: rows });
+    }
+    reviewed = JSON.parse((o.messages[0].content as any[])[0].text).required_photo_slides;
+    return JSON.stringify({ assignments: accepted().filter(a => reviewed.includes(a.slide)) });
+  } });
+  assertEquals(reviewed, [2]);
+  assertEquals(result.slides.map((s: any) => s.photo_index), [null, 1, null]);
+  assertEquals(result.slides[0].photo_match.status, "missing");
+  assertEquals(result.photo_review.execution_status, "completed");
+  assertEquals(result.photo_review.verdict, "needs_images");
 });
 
 for (const changed of [null, 1, 9]) Deno.test(`une photo modifiée par le vérificateur est refusée seule : ${changed}`, async () => {
