@@ -26,13 +26,13 @@ interface SlideData {
 /** Une slide de carrousel PHOTO sans slide_type est une slide photo plein écran
  * (même hypothèse que carousel-ai et le rendu) : sinon l'export de secours la
  * traitait en slide texte, sans son texte. */
-export function isPhotoFullSlide(s: Pick<SlideData, "slide_type" | "overlay_text">, hasPhotos: boolean): boolean {
+export function isPhotoFullSlide(s: Partial<Pick<SlideData, "slide_type" | "overlay_text">>, hasPhotos: boolean): boolean {
   return hasPhotos && (s.slide_type === "photo_full" || (!s.slide_type && !!(s.overlay_text || "").trim()));
 }
 
 /** Texte complet d'une slide photo pour l'export de secours : titre de slide,
  * texte, sous-titre. Rien n'est perdu (04/10/2026 : les titres disparaissaient). */
-export function photoSlideText(s: Pick<SlideData, "kicker" | "overlay_text" | "title" | "detail">): string {
+export function photoSlideText(s: Partial<Pick<SlideData, "kicker" | "overlay_text" | "title" | "detail">>): string {
   return [s.kicker, s.overlay_text || s.title, s.detail].map(x => String(x || "").trim()).filter(Boolean).join("\n");
 }
 
