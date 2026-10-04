@@ -20,6 +20,7 @@ import Confetti from "@/components/Confetti";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
 import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
+import { getIncludeLogoPref, setIncludeLogoPref } from "@/lib/export-logo";
 import { EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, type EditorialAngle } from "@/lib/content-structures";
 
 /**
@@ -290,6 +291,8 @@ interface Props {
   onOpenInCanva?: () => void;
   openingCanva?: boolean;
   onExportVisualPng?: () => void;
+  /** La charte a un logo : affiche la case « Ajouter mon logo » au téléchargement. */
+  logoAvailable?: boolean;
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   onStoriesUpdate?: (stories: any[]) => void;
   /** Remonte l'état « visuels périmés » du carrousel photo (bloque publication/export en amont). */
@@ -359,6 +362,7 @@ export default function CreerStepResult({
   onOpenInCanva,
   openingCanva,
   onExportVisualPng,
+  logoAvailable,
   onSlidesUpdate,
   onStoriesUpdate,
   onCarouselStaleChange,
@@ -415,6 +419,8 @@ export default function CreerStepResult({
   // reload qui restaure un résultat déjà existant).
   const prevGenerating = useRef(generating);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [includeLogo, setIncludeLogo] = useState(getIncludeLogoPref);
+  const handleIncludeLogoChange = (value: boolean) => { setIncludeLogo(value); setIncludeLogoPref(value); };
 
   useEffect(() => {
     if (!generating) {
@@ -852,6 +858,9 @@ export default function CreerStepResult({
                   onPng={onExportVisualPng}
                   onPptxEditable={onExportHybridPptx}
                   count={visualSlides?.length ?? 1}
+                  logoAvailable={logoAvailable}
+                  includeLogo={includeLogo}
+                  onIncludeLogoChange={handleIncludeLogoChange}
                 />
               </DropdownMenuSubContent>
             </DropdownMenuSub>
@@ -893,6 +902,9 @@ export default function CreerStepResult({
                   onPng={onExportPinterestPng}
                   onPptxEditable={onExportPinterestEditablePptx}
                   count={1}
+                  logoAvailable={logoAvailable}
+                  includeLogo={includeLogo}
+                  onIncludeLogoChange={handleIncludeLogoChange}
                 />
               </DropdownMenuSubContent>
             </DropdownMenuSub>
