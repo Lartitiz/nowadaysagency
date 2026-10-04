@@ -218,3 +218,14 @@ Deno.test("réponse incomplète ou mauvais nombre : erreur explicite, aucun réc
     "provider-unavailable",
   );
 });
+
+Deno.test("carrousel photo : chaque slide reste photo_full avec son texte, même si la structure dit text_only (vu en live 04/10)", () => {
+  const n = { idea: "Idée", hook: "Accroche du carrousel", paragraphs: ["Deuxième passage du récit.", "Troisième passage du récit.", "Dernier passage du récit."], caption: { hook: "h", body: "b", cta: "", hashtags: [] } };
+  const out = composeNarrative(n as any, { carousel_type: "photo", photos: [{}, {}], confirmed_structure: [
+    { slide_number: 1, slide_type: "photo_full", photo_index: 1 }, { slide_number: 2, slide_type: "text_only" },
+    { slide_number: 3, slide_type: "photo_full", photo_index: 2 }, { slide_number: 4, slide_type: "text_only" },
+  ] });
+  assertEquals(out.slides.map((s: any) => s.slide_type), ["photo_full", "photo_full", "photo_full", "photo_full"]);
+  assertEquals(out.slides.map((s: any) => s.overlay_text), ["Accroche du carrousel", ...n.paragraphs]);
+  assert(out.slides.every((s: any) => Number.isInteger(s.photo_index)));
+});

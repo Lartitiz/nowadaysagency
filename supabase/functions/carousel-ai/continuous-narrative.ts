@@ -139,10 +139,10 @@ export function composeNarrative(n: Narrative, body: any) {
     slides: passages.map((text, i) => {
       const ref = plan[i] || {};
       const last = i === passages.length - 1;
-      const slide_type = ref.slide_type || ref.type ||
-        (body.carousel_type === "photo"
-          ? "photo_full"
-          : last
+      // Carrousel photo : toujours photo_full (le texte va dans overlay_text,
+      // seul champ que le rendu photo affiche), quelle que soit la structure.
+      const slide_type = body.carousel_type === "photo" ? "photo_full" : ref.slide_type || ref.type ||
+        (last
           ? "text_only"
           : i % 2
           ? "photo_integrated"
