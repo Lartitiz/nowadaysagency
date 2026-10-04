@@ -240,7 +240,7 @@ ${target ? `Sa cible : ${target}. Adapte le vocabulaire et les exemples à cette
 ${piliers ? `Ses piliers de contenu : ${piliers}. Le recyclage doit rester cohérent avec ces piliers.` : ""}
 
 LONGUEURS OBLIGATOIRES :
-- Carrousel : 8 slides détaillées (slide 1 = hook, slides 2-7 = développement, slide 8 = punchline + CTA). Chaque slide = 2-4 phrases. Pas de slides d'1 mot.
+- Carrousel : 8 slides (slide 1 = couverture, slides 2-7 = développement, slide 8 = punchline + CTA). Slide 1 : title = une accroche de 4 à 10 mots qui crée une tension, body = un sous-titre facultatif de 12 mots maximum (ou vide). Slides 2 à 8 : 2-4 phrases chacune ; la slide 2 relance comme une deuxième accroche compréhensible seule. Pas de slides d'1 mot.
 - Reel : script complet avec timecodes (0-3s hook, 3-15s contexte, 15-45s coeur, 45-60s CTA). Indique les cuts et le texte à l'écran.
 ${storiesLengthLine}
 - LinkedIn : longueur selon la matière disponible. Prose fluide et ouverture qui situe le sujet. 0-2 hashtags si utiles.
@@ -306,7 +306,7 @@ Réponds UNIQUEMENT en JSON valide :
     ${fmtIds.map((f: string) => `"${f}": "le sujet réel de ce contenu en 5-10 mots (pas 'recyclage', le VRAI sujet traité)"`).join(",\n    ")}
   }
 }
-${fmtIds.includes("carrousel") ? `\nIMPORTANT pour le carrousel : tu DOIS renvoyer un OBJET structuré avec exactement 8 slides (slide_number 1 à 8, chaque slide a title + body de 2-4 phrases) et une caption {hook, body, cta}. Pas une string. Pas moins de 8 slides. Les règles de longueur et d'arc narratif (slide 1 = hook, 2-7 = développement, 8 = punchline + CTA) s'appliquent au champ body de chaque slide.` : ""}${storiesStructured ? `\nIMPORTANT pour les stories : tu DOIS renvoyer un OBJET { "stories": [...] } avec une entrée par story, pas une string. "text" = ce qui est écrit sur la story, tel que l'abonnée le lit : aucune indication visuelle ni de mise en scène dedans. L'indication visuelle va dans "photo_directive" (et "photo_query_en"). "sticker" = { "type", "label", "options" } sur la story d'interaction, null ailleurs. "title_pill" reste null, sauf si la story annonce une liste, une question, une offre ou une date. La mise en page de l'image (pastilles, liste, citation, fond, position) est décidée après, à partir de ton texte : tu n'en écris rien.` : ""}`;
+${fmtIds.includes("carrousel") ? `\nIMPORTANT pour le carrousel : tu DOIS renvoyer un OBJET structuré avec exactement 8 slides (slide_number 1 à 8 ; slide 1 = title-accroche de 10 mots max + body sous-titre facultatif de 12 mots max ; slides 2 à 8 = title + body de 2-4 phrases) et une caption {hook, body, cta}. Pas une string. Pas moins de 8 slides. Les règles de longueur et d'arc narratif (slide 1 = hook, 2-7 = développement, 8 = punchline + CTA) s'appliquent au champ body des slides 2 à 8.` : ""}${storiesStructured ? `\nIMPORTANT pour les stories : tu DOIS renvoyer un OBJET { "stories": [...] } avec une entrée par story, pas une string. "text" = ce qui est écrit sur la story, tel que l'abonnée le lit : aucune indication visuelle ni de mise en scène dedans. L'indication visuelle va dans "photo_directive" (et "photo_query_en"). "sticker" = { "type", "label", "options" } sur la story d'interaction, null ailleurs. "title_pill" reste null, sauf si la story annonce une liste, une question, une offre ou une date. La mise en page de l'image (pastilles, liste, citation, fond, position) est décidée après, à partir de ton texte : tu n'en écris rien.` : ""}`;
 }
 
 export function buildFollowUpPrompt(params: {

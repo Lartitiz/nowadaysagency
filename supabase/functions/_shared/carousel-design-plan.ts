@@ -43,7 +43,7 @@ export function buildCarouselDesignPlan(slides: Slide[]): CarouselDesignPlan {
     else if (i === slides.length - 1 && slides.length > 1) layout = "closing";
     else if (i === rupture) layout = "statement";
     else layout = (["essay", "offset", "split"] as EditorialLayout[])[textIndex++ % 3];
-    return { slide_number: Number(s.slide_number) || i + 1, layout, alignment: layout === "statement" && words < 20 ? "center" : "left", density: words > 65 ? "high" : words > 30 ? "medium" : "low", inverted: i === rupture };
+    return { slide_number: Number(s.slide_number) || i + 1, layout, alignment: layout === "opening" || (layout === "statement" && words < 20) ? "center" : "left", density: words > 65 ? "high" : words > 30 ? "medium" : "low", inverted: i === rupture };
   });
   return { version: 1, direction: "editorial", sequence, constraints: { maxCentered: Math.max(1, Math.floor(slides.length / 3)), maxPills: 1, maxCardSlides: Math.max(1, Math.floor(slides.length / 3)) } };
 }
@@ -96,9 +96,27 @@ export function composeEditorialSlide(slide: Slide, beat: DesignBeat, ch: Charte
   const titleFont = font(ch.font_title, "Libre Baskerville");
   const bodyFont = font(ch.font_body, "IBM Plex Sans");
   const type = beat.layout;
-  let tx = 80, ty = type === "opening" ? 185 : type === "closing" ? 280 : 170;
+  // COUVERTURE (04/10/2026, maquettes validées par Laetitia) : l'accroche en
+  // très grand et le sous-titre facultatif, centrés sur l'aplat ; aucune mise
+  // en forme (étape, motif) sur la couverture.
+  if (type === "opening") {
+    if (format && (format.step || format.motif)) return null;
+    const hook = title || body, sub = title ? body : "";
+    const n = hook.trim().split(/\s+/).filter(Boolean).length;
+    let size = n <= 4 ? 120 : n <= 6 ? 112 : n <= 8 ? 104 : n <= 10 ? 96 : 80;
+    while (size > 64 && lines(hook, 920, size) > 5) size -= 4;
+    const hh = Math.ceil(lines(hook, 920, size) * size * 1.12);
+    const sh = sub ? 48 + Math.ceil(lines(sub, 780, 40) * 40 * 1.4) : 0;
+    if (hh + sh > 1050) return null;
+    // Bloc en flux centré (comme la couverture du mixte) : l'estimation des
+    // lignes sert seulement à vérifier que tout tient.
+    const block = (field: "title" | "body", text: string, size: number, family: string, c: string, lh: number, weight: number, extra: string) => `<${field === "title" ? "h1" : "p"} data-slide-text="${field}" data-pptx-editable="${field}" style="margin:0;font-family:'${family}';font-size:${size}px;font-weight:${weight};line-height:${lh};color:${c};white-space:pre-wrap;overflow-wrap:anywhere;text-align:center;${extra}">${escape(text)}</${field === "title" ? "h1" : "p"}>`;
+    const imports = `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(titleFont)}:wght@400&family=${encodeURIComponent(bodyFont)}:wght@400;500;600&display=swap">`;
+    return { slide_number: beat.slide_number, html: `${imports}<div data-pptx-shape="background" data-carousel-layout="opening" data-design-version="1" style="width:1080px;height:1350px;position:relative;overflow:hidden;background:${bg};font-family:'${bodyFont}';color:${ink};"><div data-cover="1" style="position:absolute;top:0;left:0;width:1080px;height:1350px;padding:150px 80px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;">${block(title ? "title" : "body", hook, size, titleFont, heading, 1.12, 400, "max-width:920px;")}${sub ? block("body", sub, 40, bodyFont, ink, 1.4, 500, "margin-top:48px;max-width:780px;") : ""}</div></div>` };
+  }
+  let tx = 80, ty = type === "closing" ? 280 : 170;
   let tw = 920, bx = 80, bw = 840, by = 0;
-  let fs = type === "opening" ? 108 : type === "statement" ? 100 : 80;
+  let fs = type === "statement" ? 100 : 80;
   let bs = body.trim().split(/\s+/).length <= 45 ? 50 : 40;
   if (type === "offset") { tx = 80; tw = 830; bx = 245; bw = 755; ty = 160; }
   if (type === "split" && title.length < 85 && body.length < 260) { tw = 420; bx = 560; bw = 440; fs = 76; by = 390; ty = 190; }
@@ -107,7 +125,6 @@ export function composeEditorialSlide(slide: Slide, beat: DesignBeat, ch: Charte
   let th = title ? Math.ceil(lines(title, tw, fs) * fs * 1.2) : 0;
   let bh = body ? Math.ceil(lines(body, bw, bs) * bs * 1.5) : 0;
   if (!by) by = ty + th + (title && body ? 64 : 0);
-  if (type === "opening") by = Math.max(by, 735);
   if (type === "statement") {
     ty = Math.max(150, Math.round((1230 - th - bh - 64) / 2));
     by = ty + th + 64;

@@ -21,7 +21,7 @@ describe("gabarits composés × édition live", () => {
     expect(edited).toContain("{{PHOTO_1}}");
   });
 
-  it("replaceSlideText édite le hook d'une couverture (kicker et détail intacts)", () => {
+  it("replaceSlideText édite le hook d'une couverture (sous-titre intact, kicker jamais affiché)", () => {
     const { html } = composePhotoSlide(
       { slide_number: 1, photo_index: 1, overlay_text: "Ce salon ne racontait rien", kicker: "Home staging · salon", detail: "7 slides pour voir ce qui a changé" },
       CH,
@@ -29,7 +29,7 @@ describe("gabarits composés × édition live", () => {
     );
     const edited = replaceSlideText(html, "overlay", "Ce salon ne racontait rien", "Ce salon méritait mieux");
     expect(edited).toContain("Ce salon méritait mieux");
-    expect(edited).toContain("Home staging · salon");
+    expect(edited).not.toContain("Home staging · salon");
     expect(edited).toContain("7 slides pour voir ce qui a changé");
   });
 

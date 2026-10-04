@@ -180,13 +180,18 @@ export interface CoverCharter {
  * dépendance réseau à l'export html2canvas). Le titre porte l'ancre
  * `data-slide-text="title"` (compat édition live).
  */
+function coverTitleSize(title: string): number {
+  const n = title.trim().split(/\s+/).filter(Boolean).length;
+  return n <= 4 ? 104 : n <= 6 ? 96 : n <= 8 ? 88 : n <= 10 ? 80 : 68;
+}
+
 export function buildCoverSlideHtml(params: {
   title: string;
   kicker?: string;
   illustrationSvg: string;
   ch: CoverCharter;
 }): string {
-  const { title, kicker, illustrationSvg, ch } = params;
+  const { title, illustrationSvg, ch } = params;
   const safeFontTitle = (ch.font_title || "Libre Baskerville").replace(/[<>"'&]/g, "");
   const safeFontBody = (ch.font_body || "Inter").replace(/[<>"'&]/g, "");
   const dataUri = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(illustrationSvg)));
@@ -197,16 +202,13 @@ export function buildCoverSlideHtml(params: {
 
   const fontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeFontTitle)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(safeFontBody)}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
 
-  const kickerHtml = kicker
-    ? `<span style="font-family:'${safeFontBody}',sans-serif;font-size:26px;letter-spacing:5px;text-transform:uppercase;color:${ch.color_primary};font-weight:600">${escapeHtml(kicker)}</span>`
-    : "";
-
   return (
     fontsLink +
     `<div style="width:1080px;height:1350px;background:${bg};position:relative;overflow:hidden">` +
-    `<div style="padding:96px 84px 0;position:relative;z-index:2">` +
-    kickerHtml +
-    `<h1 data-slide-text="title" style="font-family:'${safeFontTitle}',serif;font-weight:400;font-size:78px;line-height:1.16;color:${ch.color_text};margin:${kicker ? "32px" : "0"} 0 0">${escapeHtml(title)}</h1>` +
+    // Couverture (04/10/2026) : accroche seule, centrée dans la zone au-dessus de
+    // l'illustration ; le petit texte en capitales n'est plus affiché.
+    `<div style="position:absolute;top:0;left:0;width:1080px;height:670px;padding:80px 84px 40px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;z-index:2">` +
+    `<h1 data-slide-text="title" style="font-family:'${safeFontTitle}',serif;font-weight:400;font-size:${coverTitleSize(title)}px;line-height:1.12;color:${ch.color_text};margin:0;text-align:center">${escapeHtml(title)}</h1>` +
     `</div>` +
     `<img src="${dataUri}" alt="" style="position:absolute;bottom:0;left:0;width:1080px;height:680px;object-fit:cover;object-position:bottom;z-index:1"/>` +
     `</div>`

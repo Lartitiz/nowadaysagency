@@ -81,7 +81,7 @@ Deno.test("disposition mixte : sans proposition, rendu identique au choix déter
 
 Deno.test("disposition mixte : une proposition invalide retombe EXACTEMENT sur le choix actuel", () => {
   const base = composeMixCarousel(CERAMIQUE, CH, 5)!;
-  assertEquals(base.map(s => s.layout), ["couverture_aplat", "photo_aplat", "sur_photo", "photo_aplat", "passe_partout", "respiration"]);
+  assertEquals(base.map(s => s.layout), ["couverture_photo", "photo_aplat", "sur_photo", "photo_aplat", "passe_partout", "respiration"]);
   const invalid = [
     plan([{ slide_number: 1, layout: "passe_partout" }]), // couverture : fixée par le code
     plan([{ slide_number: 3, layout: "photo_aplat" }]), // même famille que la slide 2
@@ -255,7 +255,7 @@ Deno.test("mémoire de disposition : deux rendus successifs → mêmes dispositi
     ] });
   };
   const first = await renderAndSave(CERAMIQUE, call);
-  assertEquals(first.composed.map(s => s.layout), ["couverture_aplat", "cote_a_cote", "sur_photo", "passe_partout", "cote_a_cote", "respiration"]);
+  assertEquals(first.composed.map(s => s.layout), ["couverture_photo", "cote_a_cote", "sur_photo", "passe_partout", "cote_a_cote", "respiration"]);
   // Mémoire posée sur les slides photo (hors couverture), marquée « mise_en_forme », distincte d'une disposition confirmée.
   assertEquals(first.saved.map((s: any) => s.mix_layout_memo?.layout ?? null), [null, "cote_a_cote", "sur_photo", "passe_partout", "cote_a_cote", null]);
   assert(first.saved.every((s: any) => !s.mix_layout_memo || (s.mix_layout_memo.source === "mise_en_forme" && !("photo_layout" in s))));

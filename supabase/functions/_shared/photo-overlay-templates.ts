@@ -238,13 +238,18 @@ function overlayAnchor(text: string, style: string, tag = "p"): string {
   return `<${tag} data-slide-text="overlay" data-pptx-editable="overlay" style="margin:0;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere;${style}">${escapeHtml(text)}</${tag}>`;
 }
 
-/** Taille du hook de couverture selon sa longueur (règle héros 64-88px). */
+/** Taille de l'accroche de couverture selon sa longueur : une accroche courte
+ * (cible 5 à 8 mots, 10 au plus) s'affiche en très grand pour rester lisible
+ * en vignette de grille. */
 function heroSize(text: string): number {
   const wc = wordCount(text);
-  if (wc <= 6) return 84;
-  if (wc <= 12) return 80;
+  if (wc <= 4) return 108;
+  if (wc <= 6) return 100;
+  if (wc <= 8) return 92;
+  if (wc <= 10) return 84;
+  if (wc <= 12) return 76;
   if (wc <= 20) return 58;
-  return 48; // hook anormalement long : réduit plutôt que clippé par overflow:hidden
+  return 48; // hook anormalement long (texte fourni) : réduit plutôt que clippé
 }
 
 /** Rétrécit la police quand le texte dépasse la longueur nominale du gabarit.
@@ -261,13 +266,25 @@ function fitSize(base: number, text: string, nominalWords: number): number {
 
 // ── Gabarits ────────────────────────────────────────────────────────────────
 
+/** Voile UNIFORME de la couverture (titre centré) : plus léger qu'un pic de
+ * dégradé puisqu'il couvre toute la photo, dosé sur la luminance du centre. */
+function coverVeil(lum: number | undefined): number {
+  if (typeof lum !== "number" || Number.isNaN(lum)) return 0.55;
+  if (lum >= 0.6) return 0.62;
+  if (lum >= 0.35) return 0.52;
+  return 0.42;
+}
+
+/** Couverture (04/10/2026, maquettes validées par Laetitia) : l'accroche en
+ * grand + un sous-titre facultatif (detail), centrés, sur la photo plein cadre
+ * avec un voile uniforme. Rien d'autre : le kicker n'est jamais affiché. */
 function tplCouverture(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
-  const fontTitle = cssFont(ch.font_title, "Georgia, serif"), d = design(ch);
-  const label = s.kicker ? `<div data-pptx-editable="caption" style="display:inline-block;align-self:inherit;background:${d.primary};color:${d.onPrimary};border-radius:${Math.min(d.radius, 24)}px;padding:12px 20px;font-size:32px;line-height:1.35;margin-bottom:24px;max-width:100%;">${escapeHtml(s.kicker)}</div>` : "";
+  const fontTitle = cssFont(ch.font_title, "Georgia, serif");
   const text = s.overlay_text || "";
-  const parts = label + overlayAnchor(text, `font-family:${fontTitle};font-size:${heroSize(text)}px;line-height:1.1;letter-spacing:-1px;color:#FFFFFF;max-width:900px;`, "h1") + (s.detail ? detailHtml(s.detail, 28) : "");
-  return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72), wordCount(text) <= 12 ? 58 : 72, veilRgb(ch)) +
-    contentWrap(s.overlay_position || "bottom_left", "center", parts);
+  const shadow = "text-shadow:0 2px 12px rgba(0,0,0,.35);";
+  const parts = overlayAnchor(text, `font-family:${fontTitle};font-size:${heroSize(text)}px;line-height:1.1;letter-spacing:-1px;color:#FFFFFF;max-width:900px;text-wrap:balance;${shadow}`, "h1") +
+    (s.detail ? `<div data-pptx-editable="caption" style="position:relative;font-size:36px;line-height:1.35;font-weight:500;color:#FFFFFF;margin-top:32px;max-width:760px;${shadow}">${escapeHtml(s.detail)}</div>` : "");
+  return fullDim(coverVeil(lum), veilRgb(ch)) + contentWrap("center", "center", parts);
 }
 
 /** One editable source, several native export frames, full-bleed photograph. */
@@ -441,6 +458,9 @@ export function resolvePhotoTemplate(
 ): PhotoTemplate {
   const t = (s.template || "").trim() as PhotoTemplate;
   const hasText = !!(s.overlay_text || "").trim();
+  // La slide 1 avec texte est TOUJOURS la couverture (04/10/2026), quel que
+  // soit le gabarit proposé.
+  if (opts.isFirst && hasText) return "couverture";
   // Plus de gabarit « etape » à gros numéro (04/10/2026) : une slide d'étape est
   // une slide de prose ; « Étape n · … » vient de l'étage de mise en forme.
   if (t === "etape") return hasText && wordCount(s.overlay_text || "") <= 4 && !s.kicker ? "etiquette" : "profonde";
@@ -552,7 +572,7 @@ export function composePhotoSlide(
   }
 
   const template = resolvePhotoTemplate(s, opts);
-  const lum = (opts.luminance || {})[zoneFor(s.overlay_position)];
+  const lum = (opts.luminance || {})[template === "couverture" ? "center" : zoneFor(s.overlay_position)];
 
   const bodyByTemplate: Record<PhotoTemplate, (x: PhotoSlideSpec, c: PhotoCharter, l?: number) => string> = {
     couverture: tplCouverture,
@@ -565,7 +585,8 @@ export function composePhotoSlide(
     finale: tplFinale,
   };
   const art = s.art_direction;
-  const editorial = !!art && ["editorial", "quote", "statement", "closing"].includes(art.treatment);
+  // La couverture ignore la direction artistique éditoriale : accroche centrée seule.
+  const editorial = template !== "couverture" && !!art && ["editorial", "quote", "statement", "closing"].includes(art.treatment);
   const inner = editorial
     ? editorialOverlay(s, charter, art!.treatment === "closing")
     : bodyByTemplate[template](s, charter, lum);

@@ -46,7 +46,7 @@ import { mixSchemaBlock } from "./mix-schema-render.ts";
 // règles de série) ; refusé ou absent → le choix déterministe ci-dessous,
 // inchangé. Couverture, respiration, pause et vignette restent au code.
 
-export type MixLayout = "couverture_aplat" | "photo_aplat" | "passe_partout" | "cote_a_cote" | "sur_photo" | "respiration" | "pause" | "vignette";
+export type MixLayout = "couverture_photo" | "couverture_aplat" | "photo_aplat" | "passe_partout" | "cote_a_cote" | "sur_photo" | "respiration" | "pause" | "vignette";
 
 export interface MixSlideSpec {
   slide_number: number;
@@ -56,6 +56,8 @@ export interface MixSlideSpec {
   title?: string | null;
   body?: string | null;
   overlay_text?: string | null;
+  /** Sous-titre facultatif de la couverture (photo_full). */
+  detail?: string | null;
   overlay_position?: string | null;
   cta_label?: string | null;
   visual_schema?: unknown;
@@ -231,6 +233,53 @@ function root(t: Tokens, layout: MixLayout, bg: string, inner: string): string {
 }
 
 // ── Familles ────────────────────────────────────────────────────────────────
+
+// ── Couverture (04/10/2026, maquettes validées par Laetitia) ──────────────
+// Accroche en grand + sous-titre facultatif, centrés ; photo plein cadre avec
+// un voile uniforme, ou aplat de charte sans photo. Rien d'autre.
+
+/** Accroche et sous-titre de la couverture, avec leurs champs éditables. */
+function coverParts(s: MixSlideSpec): { hook: string; sub: string; hookField: "overlay" | "title"; subField: "caption" | "body" } {
+  if (s.slide_type === "photo_full" || (!s.title && s.overlay_text)) {
+    return { hook: String(s.overlay_text || s.body || s.title || "").trim(), sub: String(s.detail || "").trim(), hookField: "overlay", subField: "caption" };
+  }
+  return { hook: String(s.title || s.body || "").trim(), sub: s.title ? String(s.body || "").trim() : "", hookField: "title", subField: "body" };
+}
+
+function coverHookSize(n: number): number {
+  return n <= 4 ? 112 : n <= 6 ? 104 : n <= 8 ? 96 : n <= 10 ? 88 : n <= 14 ? 72 : 56;
+}
+
+/** Bloc centré (accroche + sous-titre) mesuré ; null s'il ne tient pas. */
+function coverBlock(s: MixSlideSpec, t: Tokens, color: string, shadow: boolean): string | null {
+  const c = coverParts(s);
+  if (!c.hook) return null;
+  const width = W - 2 * SIDE;
+  let size = coverHookSize(words(c.hook));
+  const subSize = 38;
+  const height = () => Math.ceil(lineCount(c.hook, width, size) * size * 1.1) + (c.sub ? 32 + Math.ceil(lineCount(c.sub, width - 120, subSize) * subSize * 1.35) : 0);
+  while (height() > H - 2 * 150 && size > 52) size -= 4;
+  if (height() > H - 2 * 150) return null;
+  const glow = shadow ? "text-shadow:0 2px 12px rgba(0,0,0,.35);" : "";
+  const common = `margin:0;white-space:pre-wrap;overflow-wrap:anywhere;text-align:center;color:${color};${glow}`;
+  const hook = `<h1 data-slide-text="${c.hookField}" data-pptx-editable="${c.hookField}" style="${common}font-family:'${t.titleFont}', Georgia, serif;font-weight:400;font-size:${size}px;line-height:1.1;letter-spacing:-.01em;">${escapeHtml(c.hook)}</h1>`;
+  const sub = c.sub ? `<p ${c.subField === "body" ? 'data-slide-text="body" ' : ""}data-pptx-editable="${c.subField}" style="${common}font-family:'${t.bodyFont}', sans-serif;font-weight:500;font-size:${subSize}px;line-height:1.35;margin-top:32px;max-width:${width - 120}px;">${escapeHtml(c.sub)}</p>` : "";
+  return `<div data-mix-text="1" data-cover="1" style="position:absolute;inset:0;padding:150px ${SIDE}px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;">${hook}${sub}</div>`;
+}
+
+function couverturePhoto(s: MixSlideSpec, n: number, t: Tokens): string | null {
+  const block = coverBlock(s, t, "#FFFFFF", true);
+  if (!block) return null;
+  return root(t, "couverture_photo", "#111111",
+    photoBox(n, { x: 0, y: 0, w: W, h: H }) +
+    `<div data-injected-scrim="1" style="position:absolute;top:0;left:0;width:${W}px;height:${H}px;background:rgba(12,10,8,0.52);"></div>` +
+    block);
+}
+
+function couvertureSimple(s: MixSlideSpec, t: Tokens): string | null {
+  const block = coverBlock(s, t, t.onFlat, false);
+  return block ? root(t, "couverture_aplat", t.flat, block) : null;
+}
 
 function couvertureAplat(p: TextParts, n: number, t: Tokens): string | null {
   // L'aplat prend la hauteur du titre, la photo garde au moins 52 % de la slide.
@@ -409,6 +458,10 @@ export function composeMixSlide(
 
   if (!hasPhoto) {
     if (!hasText) return null;
+    if (opts.isFirst) {
+      const cover = couvertureSimple(s, t);
+      if (cover) return done(cover, "couverture_aplat");
+    }
     // Schéma : slide « pause ». Ne tient pas → la slide reste une respiration,
     // texte entier, sans schéma (on dégrade l'élément, jamais la slide).
     if (s.visual_schema) {
@@ -425,8 +478,8 @@ export function composeMixSlide(
     return done(root(t, "sur_photo", t.background, photoBox(photoN, { x: 0, y: 0, w: W, h: H })), "sur_photo");
   }
   if (opts.isFirst) {
-    const cover = couvertureAplat(p, photoN, t);
-    if (cover) return done(cover, "couverture_aplat");
+    const cover = couverturePhoto(s, photoN, t) || couvertureAplat(p, photoN, t);
+    if (cover) return done(cover, cover.includes('mix-couverture_photo"') ? "couverture_photo" : "couverture_aplat");
   }
   // Disposition proposée après l'écriture : acceptée seulement si elle respecte
   // le catalogue, la slide et les règles de série ; sinon choix habituel.

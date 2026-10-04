@@ -30,12 +30,14 @@ Deno.test("mix : tout le récit est composé, texte verbatim, racine 1080×1350"
   }
 });
 
-Deno.test("mix : couverture en aplat + photo, photos annotées pour l'export", () => {
+Deno.test("mix : couverture en photo plein cadre avec voile, titre centré, photo annotée pour l'export", () => {
   const out = composeMixCarousel(CERAMIQUE, CH, 5)!;
-  assertEquals(out[0].layout, "couverture_aplat");
+  assertEquals(out[0].layout, "couverture_photo");
   assert(out[0].html.includes('data-pptx-photo="2"'));
   assert(out[0].html.includes("url({{PHOTO_2}})"));
   assert(out[0].html.includes('data-slide-text="title"'));
+  assert(out[0].html.includes("data-injected-scrim"));
+  assert(out[0].html.includes("text-align:center"));
   for (const s of out) assert(!/data-pptx-shape="[^"]*"[^>]*\{\{PHOTO_/.test(s.html), "un aplat ne doit jamais porter la photo");
 });
 
@@ -120,11 +122,20 @@ Deno.test("mix : passage très développé → composé (photo réduite ou vigne
   assert(composeMixCarousel([...CERAMIQUE.slice(0, 5), { slide_number: 6, slide_type: "photo_integrated", photo_index: 1, body: p74 }], CH, 5));
 });
 
-Deno.test("mix : accroche courte d'une couverture photo_full → titre, ancre overlay conservée", () => {
-  const out = composeMixSlide({ slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: "Pourquoi un seul post viral ne remplace pas la confiance" }, CH, { ...mid, isFirst: true })!;
-  assertEquals(out.layout, "couverture_aplat");
+Deno.test("mix : couverture photo_full → accroche + sous-titre centrés sur la photo, ancre overlay conservée", () => {
+  const out = composeMixSlide({ slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: "Un post viral ne remplace pas la confiance", detail: "Ce qui fait vraiment revenir tes clientes" }, CH, { ...mid, isFirst: true })!;
+  assertEquals(out.layout, "couverture_photo");
   assert(/data-slide-text="overlay"[^>]*font-family:'Fraunces'/.test(out.html));
-  assert(!/data-slide-text="overlay"[^>]*font-size:4\dpx/.test(out.html), "l'accroche ne doit pas être en taille de corps");
+  assert(/data-slide-text="overlay"[^>]*font-size:(8\d|9\d|1\d\d)px/.test(out.html), "l'accroche doit être en très grand");
+  assert(out.html.includes("Ce qui fait vraiment revenir tes clientes"));
+  assert(!out.html.includes('data-pptx-shape="card"'), "ni aplat ni carte sur la couverture");
+});
+
+Deno.test("mix : couverture sans photo → aplat de charte, accroche centrée", () => {
+  const out = composeMixSlide({ slide_number: 1, slide_type: "text_only", title: "Arrête de publier tous les jours.", body: "" }, CH, { ...mid, isFirst: true })!;
+  assertEquals(out.layout, "couverture_aplat");
+  assert(out.html.includes("justify-content:center"));
+  assert(out.html.includes("text-align:center"));
 });
 
 // ── MISE EN FORME du mixte (03/10/2026) ─────────────────────────────────────
