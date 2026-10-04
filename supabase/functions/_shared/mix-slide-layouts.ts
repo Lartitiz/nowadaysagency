@@ -94,6 +94,8 @@ export interface ComposedMixSlide {
   schema_dropped?: true;
   /** Sort de la disposition proposée (télémétrie proposed/accepted/rejected). */
   layout_proposal?: MixLayoutReceipt;
+  /** Côté de la photo (côte à côte) ou place du bloc (sur photo) réellement dessinés. */
+  disposition?: { side?: "left" | "right"; position?: "top" | "bottom" };
 }
 
 const W = 1080;
@@ -432,7 +434,7 @@ export function composeMixSlide(
     const tried = proposedPhotoLayout(s, p, photoN, t, opts);
     if ("html" in tried) {
       const accepted = done(tried.html, s.mix_layout.layout);
-      return accepted && { ...accepted, layout_proposal: { slide_number: s.slide_number, layout: s.mix_layout.layout, status: "accepted" } };
+      return accepted && { ...accepted, disposition: tried.disposition, layout_proposal: { slide_number: s.slide_number, layout: s.mix_layout.layout, status: "accepted" } };
     }
     const fallback = deterministicPhotoLayout(s, p, photoN, t, opts, done);
     return fallback && { ...fallback, layout_proposal: { slide_number: s.slide_number, layout: String(s.mix_layout.layout), status: "rejected", reason: tried.reason } };
@@ -449,7 +451,8 @@ function deterministicPhotoLayout(s: MixSlideSpec, p: TextParts, photoN: number,
   // Overlay court sur photo plein cadre, sauf si la slide précédente l'était déjà.
   if (s.slide_type === "photo_full" && words(p.body) <= SHORT_ON_PHOTO && !p.title && opts.previous !== "sur_photo" && !p.format?.motif) {
     const html = surPhoto(p, photoN, t, s.overlay_position);
-    if (html) return done(html, "sur_photo");
+    const c = done(html, "sur_photo");
+    if (c) return { ...c, disposition: { position: /^top/.test(String(s.overlay_position || "")) ? "top" : "bottom" } };
   }
   // Un motif demande une colonne large : le côte-à-côte passe en dernier.
   const layouts = preferredPhotoLayouts(s, opts.previous, opts.nextIsPause);
@@ -458,7 +461,8 @@ function deterministicPhotoLayout(s: MixSlideSpec, p: TextParts, photoN: number,
     const html = layout === "photo_aplat" ? photoAplat(p, photoN, t)
       : layout === "passe_partout" ? passePartout(p, photoN, t)
       : coteACote(p, photoN, t, side);
-    if (html) return done(html, layout);
+    const c = done(html, layout);
+    if (c) return layout === "cote_a_cote" ? { ...c, disposition: { side } } : c;
   }
   return done(vignette(p, photoN, t), "vignette");
 }
@@ -474,7 +478,7 @@ const lockedOverlayPosition = (s: MixSlideSpec) => {
 const surPhotoEligible = (s: MixSlideSpec, p: TextParts) => s.slide_type === "photo_full" && words(p.body) <= SHORT_ON_PHOTO && !p.title;
 
 /** Essaie la disposition proposée. Renvoie le HTML, ou la raison du refus. */
-function proposedPhotoLayout(s: MixSlideSpec, p: TextParts, photoN: number, t: Tokens, opts: ComposeOpts): { html: string } | { reason: string } {
+function proposedPhotoLayout(s: MixSlideSpec, p: TextParts, photoN: number, t: Tokens, opts: ComposeOpts): { html: string; disposition?: ComposedMixSlide["disposition"] } | { reason: string } {
   const prop = s.mix_layout!;
   const layout = prop.layout;
   if (!(PROPOSABLE_MIX_LAYOUTS as readonly string[]).includes(layout)) return { reason: "hors catalogue" };
@@ -490,7 +494,8 @@ function proposedPhotoLayout(s: MixSlideSpec, p: TextParts, photoN: number, t: T
     : layout === "passe_partout" ? passePartout(p, photoN, t)
     : layout === "cote_a_cote" ? coteACote(p, photoN, t, side)
     : surPhoto(p, photoN, t, position);
-  return html ? { html } : { reason: "texte ne tient pas" };
+  if (!html) return { reason: "texte ne tient pas" };
+  return { html, disposition: layout === "cote_a_cote" ? { side } : layout === "sur_photo" ? { position: /^top/.test(position) ? "top" : "bottom" } : undefined };
 }
 
 /** Dispositions du catalogue où le texte ENTIER de cette slide tient avec sa

@@ -3,6 +3,9 @@ import { applyMixFormatting, composeMixCarousel, composeMixSlide, type MixCharte
 import {
   applyMixLayouts,
   keepDraftLayoutFields,
+  layoutMixSlides,
+  mixLayoutMemos,
+  validMixLayoutMemo,
   MIX_LAYOUT_RULES,
   mixLayoutTelemetry,
   photoOrientation,
@@ -11,6 +14,7 @@ import {
   validateMixLayoutPlan,
 } from "./mix-layout-formatting.ts";
 import { MIX_LAYOUT_AFTER_WRITING, mixWritingPrompt } from "../carousel-ai/variant-writing.ts";
+import { applyMixLayoutMemos } from "../../../src/lib/mix-layout-memo.ts";
 
 const CH: MixCharter = {
   color_primary: "#23395B", color_secondary: "#23395B", color_background: "#F4EFE8",
@@ -217,8 +221,9 @@ Deno.test("disposition mixte : orientation lue dans l'en-tête (PNG, JPEG), inco
 
 Deno.test("disposition mixte : le rendu passe toujours par l'étage, en parallèle de la mise en forme", async () => {
   const src = await Deno.readTextFile(new URL("../carousel-visual/index.ts", import.meta.url));
-  assert(/Promise\.all\(\[\s*planPhotoFormatting\(mixTextSlides, usage\),\s*planMixLayouts\(numbered, ch, reqBody\.photos \|\| \[\], usage\),?\s*\]\)/.test(src), "l'étage de disposition n'est plus lancé en parallèle");
-  assert(/composeMixCarousel\(applyMixFormatting\(applyMixLayouts\(numbered, mixLayouts\)/.test(src), "les dispositions ne sont plus appliquées");
+  assert(/Promise\.all\(\[\s*planPhotoFormatting\(mixTextSlides, usage\),\s*layoutMixSlides\(numbered, ch, reqBody\.photos \|\| \[\], usage\),?\s*\]\)/.test(src), "l'étage de disposition n'est plus lancé en parallèle");
+  assert(/composeMixCarousel\(applyMixFormatting\(laid\.slides( as any\[\])?, mixFormatting\)/.test(src), "les dispositions ne sont plus appliquées");
+  assert(/result\.mix_layout_memos = mixLayoutMemoOut/.test(src) && /mixLayoutMemos\(laid\.slides, mixComposed, laid\.plan\)/.test(src), "les dispositions ne sont plus renvoyées pour être mémorisées");
   assert(/carousel_mix_layout_formatting/.test(src), "télémétrie de disposition perdue");
 });
 
@@ -226,3 +231,72 @@ Deno.test("disposition mixte : le rendu passe toujours par l'étage, en parallè
 function b64(bytes: number[]): string { return btoa(String.fromCharCode(...bytes)); }
 const PNG_PORTRAIT = b64([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 3, 0x20, 0, 0, 4, 0xb0, 8, 2, 0, 0, 0]);
 const JPEG_LANDSCAPE = b64([0xff, 0xd8, 0xff, 0xe0, 0, 4, 0, 0, 0xff, 0xc0, 0, 11, 8, 0x02, 0xd0, 0x05, 0x00, 3, 1, 0x22, 0, 0, 0, 0]);
+
+// ── Mémoire : régénérer ne change pas la disposition ─────────────────────────
+
+/** Un rendu tel que carousel-visual le fait, puis la sauvegarde du front. */
+async function renderAndSave(slides: any[], call: any) {
+  const photos = [1, 2, 3, 4, 5].map(() => ({ base64: PNG_PORTRAIT }));
+  const laid = await layoutMixSlides(slides, CH, photos, {}, call);
+  const composed = composeMixCarousel(laid.slides, CH, 5)!;
+  const memos = mixLayoutMemos(laid.slides, composed, laid.plan);
+  return { composed, laid, saved: applyMixLayoutMemos(slides, memos) };
+}
+
+Deno.test("mémoire de disposition : deux rendus successifs → mêmes dispositions, un seul appel IA", async () => {
+  let calls = 0;
+  const call = async () => {
+    calls++;
+    return JSON.stringify({ layouts: [
+      { slide_number: 2, layout: "cote_a_cote", side: "right", reason: "r" },
+      { slide_number: 3, layout: "sur_photo", position: "top", reason: "r" },
+      { slide_number: 4, layout: "passe_partout", reason: "r" },
+      { slide_number: 5, layout: "cote_a_cote", side: "left", reason: "r" },
+    ] });
+  };
+  const first = await renderAndSave(CERAMIQUE, call);
+  assertEquals(first.composed.map(s => s.layout), ["couverture_aplat", "cote_a_cote", "sur_photo", "passe_partout", "cote_a_cote", "respiration"]);
+  // Mémoire posée sur les slides photo (hors couverture), marquée « mise_en_forme », distincte d'une disposition confirmée.
+  assertEquals(first.saved.map((s: any) => s.mix_layout_memo?.layout ?? null), [null, "cote_a_cote", "sur_photo", "passe_partout", "cote_a_cote", null]);
+  assert(first.saved.every((s: any) => !s.mix_layout_memo || (s.mix_layout_memo.source === "mise_en_forme" && !("photo_layout" in s))));
+  // Texte et structure des slides : intacts.
+  first.saved.forEach((s: any, i: number) => { const { mix_layout_memo: _m, ...rest } = s; assertEquals(rest, CERAMIQUE[i]); });
+  const second = await renderAndSave(first.saved, call);
+  assertEquals(calls, 1, "l'IA ne doit pas être rappelée");
+  assertEquals(second.laid.plan.status, "skipped");
+  assertEquals(second.composed.map(s => s.html), first.composed.map(s => s.html), "mêmes visuels");
+  assertEquals(second.saved, first.saved, "mêmes données sauvegardées");
+  const third = await renderAndSave(second.saved, call);
+  assertEquals([calls, third.composed.map(s => s.html)], [1, first.composed.map(s => s.html)]);
+});
+
+Deno.test("mémoire de disposition : photo changée → l'IA ne revoit que cette slide ; texte qui ne tient plus → repli propre", async () => {
+  const sent: any[] = [];
+  const call = async (req: any) => { sent.push(JSON.parse(req.messages[0].content[0].text)); return JSON.stringify({ layouts: [{ slide_number: 3, layout: "sur_photo", position: "top", reason: "r" }, { slide_number: 4, layout: "passe_partout", reason: "r" }] }); };
+  const first = await renderAndSave(CERAMIQUE, call);
+  // Photo changée sur la slide 4 : sa mémoire ne vaut plus, les autres restent fixées.
+  const changed = first.saved.map((s: any) => s.slide_number === 4 ? { ...s, photo_index: 1 } : s);
+  assertEquals(validMixLayoutMemo(changed[3]), null);
+  await renderAndSave(changed, call);
+  assertEquals(sent.length, 2);
+  assertEquals(sent[1].slides.filter((s: any) => s.options.length).map((s: any) => s.slide_number), [4]);
+  assertEquals(sent[1].slides.filter((s: any) => s.fixed_layout).map((s: any) => s.slide_number), [2, 3, 5]);
+  // Texte allongé sur la slide 3 (mémoire sur_photo) : il ne tient plus sur la
+  // photo → choix déterministe, texte entier, et la mémoire est remplacée.
+  const long = "Sur le tour, un millimètre change tout : la paroi monte, s'affine, puis la main corrige encore la courbe avant que la terre ne sèche.";
+  const edited = first.saved.map((s: any) => s.slide_number === 3 ? { ...s, overlay_text: long } : s);
+  const after = await renderAndSave(edited, async () => JSON.stringify({ layouts: [] }));
+  assert(after.composed[2].layout !== "sur_photo");
+  assertEquals(after.composed[2].layout_proposal?.status, "rejected");
+  assert(textOf(after.composed[2].html).includes(long), "texte perdu");
+  assertEquals((after.saved[2] as any).mix_layout_memo.layout, after.composed[2].layout);
+});
+
+Deno.test("mémoire de disposition : IA indisponible → rien de figé, l'essai suivant pourra proposer", async () => {
+  const failed = await renderAndSave(CERAMIQUE, () => Promise.reject(new Error("délai")));
+  assertEquals(failed.laid.plan.status, "unavailable");
+  assert(failed.saved.every((s: any) => !s.mix_layout_memo), "un choix jamais vu par l'IA ne doit pas être figé");
+  assertEquals(failed.composed.map(s => s.html), composeMixCarousel(CERAMIQUE, CH, 5)!.map(s => s.html));
+  // Une mémoire étrangère (autre source) n'est jamais reprise.
+  assertEquals(validMixLayoutMemo({ ...CERAMIQUE[1], mix_layout_memo: { layout: "passe_partout", source: "utilisatrice", photo_index: 1, slide_type: "photo_integrated" } }), null);
+});

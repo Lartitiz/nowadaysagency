@@ -118,6 +118,28 @@ describe("useGenerateVisuals — appel manuel (avant-plan)", () => {
     ]);
   });
 
+  it("mixte : la disposition mémorisée part avec la slide et la nouvelle revient sur les slides sauvegardées", async () => {
+    const memo = { layout: "cote_a_cote", side: "right", position: null, source: "mise_en_forme", photo_index: 1, slide_type: "photo_integrated", version: "v" };
+    const onMixLayoutMemos = vi.fn();
+    const params = makeParams({
+      carouselSubMode: "mix",
+      onMixLayoutMemos,
+      uploadedPhotos: [{ base64: "data:image/jpeg;base64,TEST", mimeType: "image/jpeg" }],
+      result: { raw: { carousel_type: "mix", slides: [
+        { slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: "Une ouverture.", mix_layout_memo: { ...memo, slide_type: "photo_full", layout: "sur_photo" } },
+        { slide_number: 2, slide_type: "photo_integrated", photo_index: 1, title: "T", body: "B", mix_layout_memo: memo },
+      ] } },
+    });
+    const memos = [null, memo];
+    mocks.invokeWithHeartbeat.mockResolvedValueOnce({ data: { result: { slides_html: [{ slide_number: 1, html: "<p>Une ouverture.</p>" }, { slide_number: 2, html: "<p>T B</p>" }], mix_layout_memos: memos } }, error: null });
+    const { result } = renderHook(() => useGenerateVisuals(params));
+    await act(() => result.current.handleGenerateVisuals());
+    const sent = mocks.invokeWithHeartbeat.mock.calls[0][1].body.slides;
+    expect(sent[0].mix_layout_memo.layout).toBe("sur_photo");
+    expect(sent[1].mix_layout_memo).toEqual(memo);
+    expect(onMixLayoutMemos).toHaveBeenCalledWith(memos);
+  });
+
   it("une transition perdue dans le HTML conserve le texte et les visuels mais ne dit pas succès",async()=>{
     const params=makeParams();mocks.invokeWithHeartbeat.mockResolvedValueOnce({data:{result:{slides_html:[{slide_number:1,html:"<p>T1</p>"},{slide_number:2,html:"<p>T2 B2</p>"}]}},error:null});
     const {result}=renderHook(()=>useGenerateVisuals(params));await act(()=>result.current.handleGenerateVisuals());

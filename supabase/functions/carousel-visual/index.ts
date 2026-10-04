@@ -19,7 +19,7 @@ import { enforceMinFontSize, enforceEditorFontFloor } from "../_shared/font-size
 import { enforceSafeZones, injectFallbackScrim, enforceHeroHook } from "../_shared/photo-visual-guards.ts";
 import { assignPhotoStyles, composePhotoSlide } from "../_shared/photo-overlay-templates.ts";
 import { applyMixFormatting, composeMixCarousel, mixSlideText } from "../_shared/mix-slide-layouts.ts";
-import { applyMixLayouts, type MixLayoutPlan, mixLayoutTelemetry, planMixLayouts } from "../_shared/mix-layout-formatting.ts";
+import { layoutMixSlides, type MixLayoutPlan, mixLayoutMemos, mixLayoutTelemetry } from "../_shared/mix-layout-formatting.ts";
 import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
 import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
@@ -2429,27 +2429,38 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     // validé par slide photo ; le code la valide, sinon choix habituel. Sans
     // réponse (échec, délai), la composition déterministe reste en place.
     let mixFormatting: PhotoFormattingPlan | null = null;
+    let mixLayoutMemoOut: ReturnType<typeof mixLayoutMemos> | null = null;
     let mixLayouts: MixLayoutPlan | null = null;
+    let mixMemorized = 0;
     if (mixComposed) {
       const mixTextSlides = slides.map((s: any, i: number) => ({ slide_number: Number(s.slide_number) || i + 1, role: s.role, overlay_text: mixSlideText(s) }));
+      // Dispositions mémorisées au rendu précédent : reprises telles quelles,
+      // l'IA ne traite que les slides qui n'en ont pas (mêmes visuels à chaque
+      // régénération).
       const numbered = slides.map((s: any, i: number) => ({ ...s, slide_number: Number(s.slide_number) || i + 1 }));
-      [mixFormatting, mixLayouts] = await Promise.all([
+      const [formatting, laid] = await Promise.all([
         planPhotoFormatting(mixTextSlides, usage),
-        planMixLayouts(numbered, ch, reqBody.photos || [], usage),
+        layoutMixSlides(numbered, ch, reqBody.photos || [], usage),
       ]);
-      if (mixFormatting.steps.length || mixFormatting.motifs.length || mixLayouts.choices.length) {
-        mixComposed = composeMixCarousel(applyMixFormatting(applyMixLayouts(numbered, mixLayouts), mixFormatting), ch, mixPhotoCount) || mixComposed;
+      mixFormatting = formatting;
+      mixLayouts = laid.plan;
+      mixMemorized = laid.restored;
+      if (mixFormatting.steps.length || mixFormatting.motifs.length || laid.plan.choices.length || laid.restored) {
+        mixComposed = composeMixCarousel(applyMixFormatting(laid.slides as any[], mixFormatting), ch, mixPhotoCount) || mixComposed;
       }
+      // Renvoyé au front, qui le garde sur chaque slide (mix_layout_memo).
+      if (mixComposed) mixLayoutMemoOut = mixLayoutMemos(laid.slides, mixComposed, laid.plan);
     }
 
     // ═══ Carrousel PHOTO pur : composition PAR CODE (chantier gabarits 13/07) ═══
     const composedByCode = isPhotoCarousel || !!mixComposed;
     if (mixComposed) {
       emitStatus("visuals", { done: 0, total: 1 });
-      result = { slides_html: mixComposed.map(({ layout: _l, schema_dropped: _d, layout_proposal: _p, ...slide }) => slide) };
+      result = { slides_html: mixComposed.map(({ layout: _l, schema_dropped: _d, layout_proposal: _p, disposition: _q, ...slide }) => slide) };
       if (mixFormatting) result.mix_formatting = { version: mixFormatting.version, status: mixFormatting.status, steps: mixFormatting.steps.length, motifs: mixFormatting.motifs.length };
+      if (mixLayoutMemoOut) result.mix_layout_memos = mixLayoutMemoOut;
       if (mixLayouts) {
-        result.mix_layout = mixLayoutTelemetry(mixLayouts, mixComposed);
+        result.mix_layout = mixLayoutTelemetry(mixLayouts, mixComposed, mixMemorized);
         console.log(JSON.stringify({ event: "carousel_mix_layout_formatting", ...result.mix_layout }));
       }
       if (!usage.model) usage.model = COMPOSED_BY_CODE_MODEL;

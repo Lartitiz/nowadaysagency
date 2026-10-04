@@ -37,6 +37,8 @@ interface UseGenerateVisualsParams {
   setPhotoMissingDialog: (state: { open: boolean; rawType: "photo" | "mix" | null }) => void;
   setVisualChunkProgress: (progress: { done: number; total: number } | null) => void;
   refreshPlan: () => void;
+  /** Carrousel mixte : dispositions dessinées à garder sur les slides (même ordre). */
+  onMixLayoutMemos?: (memos: unknown[]) => void;
 }
 
 /**
@@ -77,6 +79,7 @@ export function useGenerateVisuals({
   setPhotoMissingDialog,
   setVisualChunkProgress,
   refreshPlan,
+  onMixLayoutMemos,
 }: UseGenerateVisualsParams) {
   const luminanceCacheRef = useRef<Map<string, { top: number; center: number; bottom: number }>>(new Map());
   const autoVisualsAttemptRef = useRef<{ result: any; n: number }>({ result: null, n: 0 });
@@ -251,6 +254,8 @@ export function useGenerateVisuals({
             // texte hors du détail + zoom narratif sur photo répétée) : le tronquer
             // ici rendait ces règles inertes.
             ...(s.visual_anchor ? { visual_anchor: s.visual_anchor } : {}),
+            // Disposition du rendu précédent (mixte) : reprise à l'identique.
+            ...(s.mix_layout_memo ? { mix_layout_memo: s.mix_layout_memo } : {}),
           } : {}),
           ...(slideType === "photo_integrated" ? {
             photo_index: resolvedPhotoIndex,
@@ -259,6 +264,7 @@ export function useGenerateVisuals({
             body: s.body || "",
             note: s.note,
             ...(s.visual_anchor ? { visual_anchor: s.visual_anchor } : {}),
+            ...(s.mix_layout_memo ? { mix_layout_memo: s.mix_layout_memo } : {}),
           } : {}),
           ...(slideType === "text_only" ? {
             title: s.title || s.overlay_text || "",
@@ -455,6 +461,9 @@ export function useGenerateVisuals({
       if (!isCurrent()) return;
       const committedSlides = fittedSlides.map((visual, i) => rawSlides[i]?.editor_locked && visualSlides[i] ? visualSlides[i] : visual);
       setVisualSlides(committedSlides);
+      // Mémoire de la disposition (mixte) : gardée sur les slides sauvegardées
+      // pour que la prochaine régénération reprenne les mêmes dispositions.
+      if (Array.isArray(data.result?.mix_layout_memos) && slidesSource === rawSlides) onMixLayoutMemos?.(data.result.mix_layout_memos);
       const fidelityWarnings = carouselCompositionWarnings(carouselSubMode === "pure_photo" ? slidesSource : rawSlides, committedSlides, carouselSubMode === "pure_photo");
       setVisualsAutoError(fidelityWarnings.length ? fidelityWarnings.join(" ") : null);
       if (fidelityWarnings.length) {

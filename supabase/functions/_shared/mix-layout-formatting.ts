@@ -141,7 +141,7 @@ Catalogue validé (aucune autre disposition n'existe) :
 - cote_a_cote : photo sur une colonne pleine hauteur, texte dans l'autre colonne. Pour une photo verticale (portrait) ; side = côté de la PHOTO (left ou right), choisi pour que le sujet ou son regard aille vers le texte, ou pour varier avec la slide précédente.
 - sur_photo : texte court dans un bloc de couleur posé sur la photo plein cadre. Seulement pour un passage très court qui gagne à laisser la photo entière ; position top ou bottom, du côté qui ne cache ni le visage, ni les mains, ni l'objet.
 
-Pour chaque slide qui a des options, choisis UNE disposition PARMI SES options (ce sont celles où son texte tient entier). La couverture et les slides texte sont déjà fixées : ne les traite pas. Règles de série : deux slides voisines n'ont jamais la même disposition ; à côté d'une slide « pause » (schéma sur aplat), préfère passe_partout ou cote_a_cote. Choisis d'après la photo (orientation, place du sujet) et ce que le texte demande de regarder ; ne change pas de disposition pour remplir un quota. Explique en une phrase concrète ce que la disposition apporte à la lecture.`;
+Pour chaque slide qui a des options, choisis UNE disposition PARMI SES options (ce sont celles où son texte tient entier). La couverture et les slides texte sont déjà fixées : ne les traite pas. Une slide avec fixed_layout garde cette disposition (déjà vue par l'utilisatrice) : ne la traite pas, mais tiens-en compte pour ses voisines. Règles de série : deux slides voisines n'ont jamais la même disposition ; à côté d'une slide « pause » (schéma sur aplat), préfère passe_partout ou cote_a_cote. Choisis d'après la photo (orientation, place du sujet) et ce que le texte demande de regarder ; ne change pas de disposition pour remplir un quota. Explique en une phrase concrète ce que la disposition apporte à la lecture.`;
 
 const POSITIONS = ["top", "bottom"] as const;
 const SIDES = ["left", "right"] as const;
@@ -182,12 +182,78 @@ export function applyMixLayouts<T extends MixSlideSpec>(slides: T[], plan: Pick<
   });
 }
 
+// ── Mémoire de la disposition (04/10/2026) ──────────────────────────────────
+// L'utilisatrice régénère souvent les visuels pour corriger un détail : la
+// disposition ne doit pas changer à chaque fois. Après un rendu, la disposition
+// dessinée de chaque slide photo est renvoyée au front, qui la garde sur la
+// slide (`mix_layout_memo`, source « mise_en_forme » : distincte d'une
+// disposition confirmée, `photo_layout`). Aux rendus suivants elle est reprise
+// telle quelle, toujours revalidée par le code ; l'IA n'est rappelée que pour
+// les slides sans mémoire valide (slide ajoutée, photo ou type changés). Une
+// mémoire qui ne passe plus (texte qui ne tient plus, voisine changée) retombe
+// sur le choix déterministe, qui est mémorisé à sa place.
+
+export const MIX_LAYOUT_MEMO_SOURCE = "mise_en_forme";
+export interface MixLayoutMemo extends MixLayoutProposal {
+  source: typeof MIX_LAYOUT_MEMO_SOURCE;
+  photo_index: number;
+  slide_type: string;
+  version: string;
+}
+
+/** Mémoire encore valable pour cette slide (même photo, même type) ? */
+export function validMixLayoutMemo(s: Slide): MixLayoutMemo | null {
+  const m = s?.mix_layout_memo;
+  if (!m || typeof m !== "object" || m.source !== MIX_LAYOUT_MEMO_SOURCE) return null;
+  if (!(PROPOSABLE_MIX_LAYOUTS as readonly string[]).includes(m.layout)) return null;
+  if (Number(m.photo_index) !== Number(s.photo_index) || String(m.slide_type || "") !== String(s.slide_type || "")) return null;
+  return m as MixLayoutMemo;
+}
+
+/** Reprend les dispositions mémorisées valables (champ mix_layout, revalidé à la composition). */
+export function restoreMixLayoutMemos<T extends Slide>(slides: T[]): { slides: T[]; restored: number } {
+  let restored = 0;
+  const out = slides.map(s => {
+    const m = validMixLayoutMemo(s);
+    if (!m) return s;
+    restored++;
+    return { ...s, mix_layout: { layout: m.layout, side: m.side ?? null, position: m.position ?? null } };
+  });
+  return { slides: out, restored };
+}
+
+/** Disposition à mémoriser pour chaque slide envoyée (même ordre), ou null
+ * (rien à garder : couverture, slide texte, disposition confirmée, ou étage
+ * indisponible pour une slide sans mémoire acceptée). */
+export function mixLayoutMemos(slides: Slide[], composed: ComposedMixSlide[], plan: Pick<MixLayoutPlan, "status"> | null): Array<MixLayoutMemo | null> {
+  const first = Math.min(...slides.map((s, i) => Number(s.slide_number) || i + 1));
+  return slides.map((s, i) => {
+    const c = composed[i];
+    const n = Number(s.slide_number) || i + 1;
+    if (!c || n === first || !(PROPOSABLE_MIX_LAYOUTS as readonly string[]).includes(c.layout)) return null;
+    if (s.slide_type === "text_only" || !Number.isInteger(Number(s.photo_index)) || /left_photo|right_photo|card_photo|banner_photo/.test(String(s.photo_layout || ""))) return null;
+    // Étage indisponible : on ne fige pas un choix que l'IA n'a jamais vu ;
+    // seule une mémoire reprise et acceptée est reconduite.
+    if (plan?.status === "unavailable" && !(s.mix_layout && c.layout_proposal?.status === "accepted")) return null;
+    return {
+      layout: c.layout as ProposableMixLayout,
+      side: c.layout === "cote_a_cote" ? c.disposition?.side ?? "left" : null,
+      position: c.layout === "sur_photo" ? c.disposition?.position ?? "bottom" : null,
+      source: MIX_LAYOUT_MEMO_SOURCE,
+      photo_index: Number(s.photo_index),
+      slide_type: String(s.slide_type || ""),
+      version: MIX_LAYOUT_VERSION,
+    };
+  });
+}
+
 /** Télémétrie proposed / accepted / rejected, lecture + composition comprises. */
-export function mixLayoutTelemetry(plan: MixLayoutPlan | null, composed: ComposedMixSlide[] | null) {
+export function mixLayoutTelemetry(plan: MixLayoutPlan | null, composed: ComposedMixSlide[] | null, memorized = 0) {
   const receipts = (composed || []).map(c => c.layout_proposal).filter(Boolean);
   return {
     version: plan?.version ?? MIX_LAYOUT_VERSION,
     status: plan?.status ?? "skipped",
+    memorized,
     proposed: plan?.proposed ?? 0,
     accepted: receipts.filter(r => r!.status === "accepted").length,
     rejected: [...(plan?.rejected ?? []), ...receipts.filter(r => r!.status === "rejected").map(r => ({ slide_number: r!.slide_number, layout: r!.layout, reason: r!.reason || "" }))],
@@ -204,6 +270,8 @@ export async function planMixLayouts(slides: Slide[], charter: MixCharter, photo
   const photoCount = Array.isArray(photos) ? photos.length : 0;
   const options = new Map<number, ProposableMixLayout[]>();
   for (const s of numbered) {
+    // Disposition mémorisée : reprise telle quelle, l'IA n'est pas réinterrogée.
+    if (s.mix_layout) continue;
     const o = mixLayoutOptions(s as MixSlideSpec, charter, { isFirst: s.slide_number === first, photoCount });
     // Une seule option : aucun choix à faire, le code décide.
     if (o.length >= 2) options.set(s.slide_number, o);
@@ -223,6 +291,7 @@ export async function planMixLayouts(slides: Slide[], charter: MixCharter, photo
       words: mixSlideText(s as MixSlideSpec).trim().split(/\s+/).filter(Boolean).length,
       visual_anchor: isPhoto(s) ? s.visual_anchor ?? null : null,
       options: options.get(s.slide_number) ?? [],
+      fixed_layout: s.mix_layout?.layout ?? null,
     })),
   };
   const content: any[] = [{ type: "text", text: JSON.stringify(payload) }];
@@ -255,4 +324,13 @@ export async function planMixLayouts(slides: Slide[], charter: MixCharter, photo
     for (const key of ["input_tokens", "output_tokens", "total_tokens"] as const) usage[key] = (usage[key] || 0) + (sink[key] || 0);
     if (!usage.model) usage.model = sink.model || SONNET_MODEL;
   }
+}
+
+/** Étage complet de disposition pour un rendu : reprend les dispositions
+ * mémorisées, n'interroge l'IA que pour les autres slides, pose le résultat. */
+export async function layoutMixSlides<T extends Slide>(slides: T[], charter: MixCharter, photos: any[], usage: UsageSink, call = callAnthropic): Promise<{ slides: T[]; plan: MixLayoutPlan; restored: number }> {
+  const numbered = slides.map((s, i) => ({ ...s, slide_number: Number(s.slide_number) || i + 1 }));
+  const memo = restoreMixLayoutMemos(numbered);
+  const plan = await planMixLayouts(memo.slides, charter, photos, usage, call);
+  return { slides: applyMixLayouts(memo.slides as any[], plan) as T[], plan, restored: memo.restored };
 }
