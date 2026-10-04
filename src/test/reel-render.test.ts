@@ -147,6 +147,16 @@ describe("buildRenderPlan", () => {
     expect(plan.sections[0].voice_text).toBeUndefined();
   });
 
+  it("mode silent : overlay absent ou vide → TOUT le texte parlé, jamais coupé", () => {
+    const parle = "Un texte parlé plutôt long, gardé en entier pour l'écran.";
+    for (const texte_overlay of [undefined, null, "", "   "]) {
+      const plan = buildRenderPlan([{ timing: "0-4 sec", texte_parle: parle, texte_overlay }], ["a.mp4"], { voice_mode: "silent" });
+      expect(plan.sections[0].overlay_text).toBe(parle);
+    }
+    const none = buildRenderPlan([{ timing: "0-4 sec", texte_parle: "  ", texte_overlay: "" }], ["a.mp4"], { voice_mode: "silent" });
+    expect(none.sections[0].overlay_text).toBeUndefined();
+  });
+
   it("accepte un clip objet {url, seek} : la fenêtre choisie est transmise", () => {
     const plan = buildRenderPlan(sections, [{ url: "mine.mp4", seek: 7.5 }, "b.mp4"]);
     expect(plan.sections[0].clip_url).toBe("mine.mp4");

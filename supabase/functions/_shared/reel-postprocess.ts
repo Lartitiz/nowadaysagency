@@ -88,7 +88,7 @@ export function recalibrateReelTimings(parsed: any): void {
  */
 export function alignFaceCamTakeDuration(parsed: any): void {
   const plans = Array.isArray(parsed?.plan_tournage) ? parsed.plan_tournage : [];
-  const faceCams = plans.filter((p: any) => String(p?.type || "") === "face_cam");
+  const faceCams = plans.filter((p: any) => mentionsFaceCam(p?.type));
   if (faceCams.length !== 1) return;
   const totalSecs = Math.round(countReelSpokenWords(parsed) / WORDS_PER_SECOND);
   if (totalSecs < 5) return;
@@ -129,6 +129,68 @@ export function rebuildReelLectureTest(parsed: any): void {
   }
 }
 
+/** Rôle canonique d'une section de reel : "hook" | "body" | "cta". */
+export type ReelSectionRole = "hook" | "body" | "cta";
+
+function foldLabel(label: unknown): string {
+  return String(label ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * Rôle d'une section d'après le libellé écrit par l'IA, insensible à la casse,
+ * aux accents et à la ponctuation, synonymes compris (« Hook », « Accroche »,
+ * « Intro », « Body 2 », « Développement », « CTA final », « Appel à
+ * l'action »…). null si le libellé n'est pas reconnu.
+ */
+export function reelSectionRole(label: unknown): ReelSectionRole | null {
+  const f = foldLabel(label);
+  if (!f) return null;
+  if (/^(hook|accroche|intro|introduction|ouverture|opening|attention)\b/.test(f)) return "hook";
+  if (/^(cta|call to action|appel a l action|appel a action|conclusion|outro|chute|fin|final|cloture)\b/.test(f)) return "cta";
+  if (/^(body|corps|developpement|contenu|content|milieu|partie|valeur|value|mecanisme|demonstration|preuve|exemple|transition)\b/.test(f)) return "body";
+  return null;
+}
+
+/**
+ * Normalise par le CODE le libellé `section` de chaque section (« Hook »,
+ * « accroche », « intro » → "hook", etc.) : tout le reste de la chaîne
+ * (verrou du hook choisi, aperçu, calendrier) compare au libellé exact.
+ * Repli par POSITION : si aucune section n'est reconnue comme hook, la 1re
+ * section l'est (le gabarit du prompt la place toujours en tête), sauf si elle
+ * est explicitement un CTA. Un libellé inconnu ailleurs est laissé tel quel.
+ * Ne touche à aucun texte. Retourne true si un libellé a changé.
+ */
+export function normalizeReelSectionLabels(parsed: any): boolean {
+  const script = sectionsOf(parsed);
+  if (!script.length) return false;
+  let touched = false;
+  for (const s of script) {
+    if (!s || typeof s !== "object") continue;
+    const role = reelSectionRole(s.section);
+    if (role && s.section !== role) {
+      s.section = role;
+      touched = true;
+    }
+  }
+  const first = script[0];
+  if (
+    first && typeof first === "object" &&
+    !script.some((s) => s?.section === "hook") &&
+    first.section !== "cta"
+  ) {
+    console.warn(`[reel-postprocess] aucune section « hook » (1re section : ${JSON.stringify(first.section ?? null)}) : la 1re section est traitée comme l'accroche`);
+    first.section = "hook";
+    touched = true;
+  }
+  if (touched && Array.isArray(parsed?.script)) parsed.sections = parsed.script;
+  return touched;
+}
+
 /**
  * Verrouille le hook CHOISI par l'utilisatrice (étape hook_selection) sur la
  * section 1 : ni la génération ni la passe de correction ne doivent le
@@ -139,6 +201,9 @@ export function enforceSelectedReelHook(
   parsed: any,
   selectedHook: { text?: unknown; text_overlay?: unknown } | null | undefined,
 ): boolean {
+  // Le libellé vient de l'IA : normalisé par le code AVANT de décider (un
+  // « Hook » ou « accroche » ne doit pas faire sauter le verrou en silence).
+  normalizeReelSectionLabels(parsed);
   const script = sectionsOf(parsed);
   const first = script[0];
   if (!first || String(first.section || "") !== "hook") return false;
@@ -157,6 +222,28 @@ export function enforceSelectedReelHook(
   }
   if (touched && Array.isArray(parsed?.script)) parsed.sections = parsed.script;
   return touched;
+}
+
+/**
+ * Filets déterministes de FIN de génération d'un reel, dans l'ordre de
+ * production (creative-flow, applyReelQualityPass) — appliqués même si la
+ * passe de correction a échoué :
+ * - le hook choisi reste verrouillé (l'instruction de la passe est probabiliste) ;
+ * - élisions (après le verrou : corriger une coquille n'est pas réécrire) ;
+ * - lecture_test = concat des texte_parle FINAUX ;
+ * - timings recomptés sur la version FINALE du texte ;
+ * - la prise face cam du plan de tournage couvre le monologue recompté.
+ * Une seule fonction = le test de non-régression rejoue l'ordre RÉEL.
+ */
+export function finalizeReelScript(
+  parsed: any,
+  selectedHook: { text?: unknown; text_overlay?: unknown } | null | undefined,
+): void {
+  enforceSelectedReelHook(parsed, selectedHook);
+  applyReelElisions(parsed);
+  rebuildReelLectureTest(parsed);
+  recalibrateReelTimings(parsed);
+  alignFaceCamTakeDuration(parsed);
 }
 
 /** Bloc balisé des textes corrigibles (pour la passe de correction). */
@@ -220,23 +307,36 @@ export function reinjectReelTexts(parsed: any, correctedBlock: string): any {
 }
 
 /**
+ * Mention de face cam, quelle que soit l'écriture : « face_cam », « facecam »,
+ * « face-cam », « Face Cam », « face caméra », « caméra face », « face à la
+ * caméra », « regarde la caméra », « regard caméra », « talking head ».
+ * Insensible à la casse et aux accents (le texte est replié avant le test).
+ */
+const FACE_CAM_RE = /\bface[\s_\-.]*(?:(?:a|de)[\s_\-]+)?(?:la[\s_\-]+)?cam|\bcamera[\s_\-]*(?:de[\s_\-]+)?face\b|\bregarde?s?[\s_\-]+(?:la[\s_\-]+)?camera|\bregard[\s_\-]+camera|\btalking[\s_\-]*head/i;
+
+export function mentionsFaceCam(value: unknown): boolean {
+  const folded = String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return FACE_CAM_RE.test(folded);
+}
+
+/**
  * Violations de la contrainte face_cam=non (liste vide = conforme).
  * Sert à construire les instructions ciblées de la passe de correction.
  */
 export function reelFaceCamViolations(parsed: any): string[] {
   const violations: string[] = [];
   const ft = String(parsed?.format_type || "");
-  if (/face.?cam/i.test(ft)) {
+  if (mentionsFaceCam(ft)) {
     violations.push(`format_type "${ft}" est une structure face cam`);
   }
   sectionsOf(parsed).forEach((s, i) => {
-    if (/face.?cam|regarde? la caméra|regard caméra/i.test(String(s.format_visuel || ""))) {
+    if (mentionsFaceCam(s.format_visuel)) {
       violations.push(`section ${i + 1} : format_visuel "${s.format_visuel}" demande de la face cam`);
     }
   });
   (Array.isArray(parsed?.plan_tournage) ? parsed.plan_tournage : []).forEach(
     (p: any, i: number) => {
-      if (String(p?.type || "") === "face_cam" || /face caméra|face cam/i.test(String(p?.plan || ""))) {
+      if (mentionsFaceCam(p?.type) || mentionsFaceCam(p?.plan)) {
         violations.push(`plan_tournage ${i + 1} : plan face cam ("${String(p?.plan || "").slice(0, 60)}…")`);
       }
     },
@@ -253,19 +353,19 @@ export function reelFaceCamViolations(parsed: any): string[] {
  */
 export function enforceReelNoFaceCam(parsed: any): boolean {
   let touched = false;
-  if (/face.?cam/i.test(String(parsed?.format_type || ""))) {
+  if (mentionsFaceCam(parsed?.format_type)) {
     parsed.format_type = "voix_off_broll";
     parsed.format_label = "Voix off + B-roll";
     touched = true;
   }
   for (const s of sectionsOf(parsed)) {
-    if (/face.?cam|regarde? la caméra|regard caméra/i.test(String(s.format_visuel || ""))) {
+    if (mentionsFaceCam(s.format_visuel)) {
       s.format_visuel = "Plan sur ton activité (mains, gestes, matière) : le texte passe en voix off + sous-titres";
       touched = true;
     }
   }
   for (const p of Array.isArray(parsed?.plan_tournage) ? parsed.plan_tournage : []) {
-    if (String(p?.type || "") === "face_cam" || /face caméra|face cam/i.test(String(p?.plan || ""))) {
+    if (mentionsFaceCam(p?.type) || mentionsFaceCam(p?.plan)) {
       p.type = "b_roll";
       p.plan = "Plans de ton activité (gestes du métier, matière, lieu) pendant que la voix off déroule le script";
       p.conseil = "Enregistre la voix off séparément, au calme : pas besoin de te montrer";
