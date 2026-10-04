@@ -218,7 +218,7 @@ export function carouselNeedsPolish(jsonContent: string): boolean {
  * - Exemples AVANT/APRÈS multiples
  * - AUTO-VÉRIFICATION FINALE
  */
-const CORRECTION_PROMPTS: Record<CorrectionFormat, string> = {
+export const CORRECTION_PROMPTS: Record<CorrectionFormat, string> = {
   linkedin: `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu corriges les défauts précis identifiés. Préserve les passages déjà naturels, les nuances et les expressions personnelles.
 
 ══ TEST FONDAMENTAL ══
@@ -277,6 +277,7 @@ Le critère : une voix fidèle et un propos précis.
 
 ══ RÈGLES ABSOLUES ══
 - Garde le SENS, la CONVICTION, le point de vue de l'auteur·ice et les informations qui situent le sujet. N'invente aucun fait, chiffre, citation, pensée, émotion ou vécu. Tu corriges la FORME, pas le FOND.
+- Garde la prise de position assumée et les émotions courantes que le sujet soulève. N'ajoute ni précaution sur ce que le texte n'affirme pas, ni devoir final adressé au lecteur.
 - N'invente pas de nouveaux faits.
 - JAMAIS de tiret cadratin (—).
 - Écriture inclusive avec point médian.

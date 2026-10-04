@@ -502,7 +502,7 @@ Deno.test("buildGeneratePrompt — post Instagram d'opinion avec actu : position
   assert(!r.systemPrompt.includes(`Pas "en général" mais "la semaine dernière"`));
 });
 
-Deno.test("buildGeneratePrompt — reel et stories reçoivent la prise de position ; LinkedIn, légende photo et carrousel non", async () => {
+Deno.test("buildGeneratePrompt — reel et stories reçoivent la prise de position ; légende photo et carrousel non ; LinkedIn la sienne, une seule fois", async () => {
   const reel = await buildGeneratePrompt({ ...GENERATE_BASE, contentType: "reel", isReel: true, angle: { ...OPINION_ANGLE, format_livraison: "reel" } });
   assertStringIncludes(reel.systemPrompt, "PROFONDEUR ET PRISE DE POSITION");
   assertStringIncludes(reel.systemPrompt, "Une norme sociale ou une injonction");
@@ -519,7 +519,12 @@ Deno.test("buildGeneratePrompt — reel et stories reçoivent la prise de positi
   assertStringIncludes(stories.systemPrompt, "question simple (sondage, question ouverte)");
   assertStringIncludes(stories.systemPrompt, "ce que j'en pense, assumé");
 
-  for (const flags of [{ isLinkedIn: true, contentType: "linkedin" }, { isPhotoMode: true, contentType: "post" }, { isCarousel: true, contentType: "carrousel" }]) {
+  // LinkedIn : bloc propre au brief LinkedIn (linkedinBrief), pas en double.
+  const linkedin = await buildGeneratePrompt({ ...GENERATE_BASE, isLinkedIn: true, contentType: "linkedin", body: {} });
+  assertEquals(linkedin.systemPrompt.split("PROFONDEUR ET PRISE DE POSITION").length - 1, 1);
+  assertStringIncludes(linkedin.systemPrompt, "assume-la en première personne");
+
+  for (const flags of [{ isPhotoMode: true, contentType: "post" }, { isCarousel: true, contentType: "carrousel" }]) {
     const r = await buildGeneratePrompt({ ...GENERATE_BASE, ...flags, body: { photo_description: "un atelier" } });
     assert(!r.systemPrompt.includes("PROFONDEUR ET PRISE DE POSITION"), JSON.stringify(flags));
   }

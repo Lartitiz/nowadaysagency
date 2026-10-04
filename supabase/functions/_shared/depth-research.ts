@@ -50,7 +50,7 @@ export async function fetchDepthMaterial(opts: {
   const { subject, activity, model, apiKey, logger, timeoutMs = RESEARCH_TIMEOUT_MS } = opts;
   if (!subject || !apiKey) return "";
 
-  const prompt = `Tu prépares la MATIÈRE DE PROFONDEUR pour un contenu Instagram sur le sujet suivant, écrit par ${activity ? `une professionnelle (${activity})` : "une professionnelle indépendante"} :
+  const prompt = `Tu prépares la MATIÈRE DE PROFONDEUR pour un contenu de réseau social (Instagram ou LinkedIn) sur le sujet suivant, écrit par ${activity ? `une professionnelle (${activity})` : "une professionnelle indépendante"} :
 
 "${subject}"
 

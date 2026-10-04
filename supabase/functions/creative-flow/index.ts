@@ -1363,7 +1363,7 @@ function normalizeHooksResponse(parsed: any, params: { body: any; rawContent: st
 // En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
 // (vision déjà coûteuse en wall-time). Les règles anti-broetry sont déjà
 // injectées AVANT les images dans le prompt photo LinkedIn (lignes 1272+).
-async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<void> {
+export async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<void> {
   const { body, fullContext, brandGuardText } = params;
   try {
     // Gate rédactionnel (lots 3+4) : mesures en code injectées dans la
@@ -1827,7 +1827,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
   await logUsage(userId, "deep_research", "web_search", webSearchTokens || undefined, searchModel, workspaceId);
 
   if (!researchResult.trim()) return "";
-  return `\n\n--- RECHERCHE WEB ---\n${researchResult}\n--- FIN RECHERCHE ---\n\nUtilise ces données pour enrichir le contenu avec des faits concrets, des chiffres, des exemples récents. Ne cite pas les sources directement mais intègre les infos naturellement.`;
+  return `\n\n--- RECHERCHE WEB ---\n${researchResult}\n--- FIN RECHERCHE ---\n\nUtilise ces données pour étayer la position du contenu avec des faits concrets, des chiffres, des exemples récents, intégrés naturellement. Tout chiffre repris reste attaché à sa source (mention discrète : nom, année) ; jamais de chiffre sans source.`;
 }
 
 // ── LinkedIn + photos : streaming vision (évite la coupure de socket
@@ -1927,8 +1927,11 @@ export async function runLinkedInTwoStep(params: {
   workspace_id?: string | null | undefined;
   body: any;
   fullContext: string;
+  /** Matière de la recherche « creuser le sujet » : ses faits sourcés sont des sources. */
+  researchSource?: string;
 }, emitStatus: StatusEmitter = () => {}): Promise<Response> {
   const { model, systemPrompt, userPrompt, corsHeaders, userId, body, fullContext } = params;
+  const researchSource = params.researchSource || "";
   const workspace_id = params.workspace_id ?? undefined;
   if (isFactualFictionalLinkedInBrief(String(body.context || ""))) {
     const usage: UsageSink = {};
@@ -1979,6 +1982,7 @@ export async function runLinkedInTwoStep(params: {
     body.answers ? JSON.stringify(body.answers) : "",
     typeof body.news_context === "string" ? body.news_context : "",
     fullContext || "",
+    researchSource,
   ].join("\n"));
   const liRedac = analyzeTextRedac(postText, liAllowed);
   const liExtraInstructions = buildTextFixInstructions(liRedac);
@@ -2060,6 +2064,7 @@ Lis le post à voix haute mentalement. Identifie les passages répétitifs, arti
 ══ RÈGLES ABSOLUES ══
 
 - Garde le SENS et la CONVICTION du post. Tu corriges la FORME, pas le FOND.
+- Garde la prise de position assumée et les émotions courantes nommées. N'ajoute ni précaution (« sans garantie », « je n'affirme rien »), ni devoir final adressé au lecteur.
 - N'invente pas de nouveaux faits. Garde les détails concrets de l'original.
 - La longueur du post corrigé suit la matière réellement disponible ; aucun remplissage.
 - JAMAIS de tiret cadratin (—). Utilise : ou ; ou des virgules.
@@ -2089,7 +2094,7 @@ Réponds UNIQUEMENT en JSON :
   const correctedRaw = await callAnthropicSimple(
     "claude-haiku-4-5",
     correctionPrompt + CONTENT_CLARITY_RULES,
-    claritySourceBlock([body.news_context, body.context, JSON.stringify(body.answers || []), JSON.stringify(body.followUpAnswers || [])].filter(Boolean).join("\n")) + correctionUserMsg,
+    claritySourceBlock([body.news_context, body.context, JSON.stringify(body.answers || []), JSON.stringify(body.followUpAnswers || []), researchSource].filter(Boolean).join("\n")) + correctionUserMsg,
     0.3,
     4096,
     corrLkUsage,
@@ -2909,8 +2914,8 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       systemPrompt += researchSource;
     }
 
-    // Recherche « creuser le sujet » pour posts, reels et stories (hors légende photo).
-    if (step === "generate" && !deepResearch && !isPhotoMode && (isCaption || isReel || isStories)) {
+    // Recherche « creuser le sujet » pour posts, posts LinkedIn, reels et stories (hors légende photo).
+    if (step === "generate" && !deepResearch && !isPhotoMode && (isCaption || isLinkedIn || isReel || isStories)) {
       const depthBlock = await creativeDepthBlock({ context, newsContext, activity });
       if (depthBlock) {
         systemPrompt += depthBlock;
@@ -2955,7 +2960,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       }
 
       if (isLinkedIn) {
-        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runLinkedInTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext }, emitStatus));
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runLinkedInTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, researchSource }, emitStatus));
       }
 
       if (isNewsletter) {
