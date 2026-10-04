@@ -1076,3 +1076,23 @@ Deno.test("applyStoriesCorrectionPass : la passe dédiée laisse un vécu -> rej
     mock.restore();
   }
 });
+
+// « Ton cas d'abord » (04/10/2026) : cas personnel fourni → recherche en mode appui.
+Deno.test("creativeDepthBlock : avec un cas personnel, recherche en mode appui", async () => {
+  const { _deps, creativeDepthBlock } = await import("./index.ts");
+  const original = _deps.fetchDepthMaterial;
+  // deno-lint-ignore no-explicit-any
+  let seen: any = null;
+  // deno-lint-ignore no-explicit-any
+  _deps.fetchDepthMaterial = (async (opts: any) => { seen = opts; return "« 300 € la journée » : le TJM médian d'une consultante est plus élevé (Malt, 2025)."; }) as typeof original;
+  try {
+    const block = await creativeDepthBlock({ context: "Fixer ses prix", livedCase: "J'ai longtemps facturé 300 € la journée." });
+    assertEquals(seen.mode, "support");
+    assertEquals(seen.livedCase, "J'ai longtemps facturé 300 € la journée.");
+    assertEquals(block.includes("MATIÈRE D'APPUI"), true);
+    await creativeDepthBlock({ context: "Fixer ses prix" });
+    assertEquals(seen.mode, "depth");
+  } finally {
+    _deps.fetchDepthMaterial = original;
+  }
+});
