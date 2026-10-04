@@ -308,3 +308,6 @@ verify_jwt = false
 
 [functions.visual-direction-suggest]
 verify_jwt = false
+
+[functions.carousel-media-backfill]
+verify_jwt = false

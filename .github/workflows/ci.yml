@@ -144,6 +144,11 @@ jobs:
           PGPASSWORD: postgres
         run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_test -f supabase/tests/saved-ideas-stored-preview.sql
 
+      - name: Carousel media backfill keeps updated_at, backs up originals and skips edited rows (disposable database)
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_test -f supabase/tests/carousel-media-backfill.sql
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
