@@ -90,9 +90,18 @@ function measuredMultipliers(text: string): Array<{ raw: string; key: string; va
 
 
 /** Tokens numériques d'un texte (pour construire la liste blanche d'entrée). */
+// Pourcentage : la valeur seule ne suffit pas (« depuis 21 ans » dans le
+// branding n'autorise pas « +21 % », vu en test réel LinkedIn le 04/10/2026).
+const PERCENT_AFTER = /^\s?(?:%|pour\s?cent\b)/i;
+const pctKey = (value: string) => `pct:${value}`;
+
 export function numbersIn(text: string): Set<string> {
   const out = new Set<string>();
-  for (const m of (text || "").matchAll(NUMBER_TOKEN)) out.add(m[0].replace(",", "."));
+  for (const m of (text || "").matchAll(NUMBER_TOKEN)) {
+    const value = m[0].replace(",", ".");
+    out.add(value);
+    if (PERCENT_AFTER.test(text.slice(m.index! + m[0].length, m.index! + m[0].length + 10))) out.add(pctKey(value));
+  }
   for (const m of measuredMultipliers(text || "")) {
     out.add(m.key);
     out.add(m.value);
@@ -107,7 +116,8 @@ function findFabricatedNumbers(text: string, allowed: Set<string>): string[] {
   const seenValues = new Set<string>();
   for (const m of (text || "").matchAll(NUMBER_TOKEN)) {
     const tok = m[0].replace(",", ".");
-    if (allowed.has(tok)) continue;
+    const isPercent = PERCENT_AFTER.test(text.slice(m.index! + m[0].length, m.index! + m[0].length + 10));
+    if (allowed.has(tok) && (!isPercent || allowed.has(pctKey(tok)))) continue;
     // Ordinaux (« 1er », « 2e », « 1ʳᵉ ») : pas des statistiques.
     const after = text.slice(m.index! + m[0].length, m.index! + m[0].length + 3);
     if (/^(?:er|re|e\b|ᵉ|ʳ)/.test(after)) continue;
