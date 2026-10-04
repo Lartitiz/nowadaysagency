@@ -3194,6 +3194,13 @@ function CreerWorkspace() {
               />
             )}
 
+            {step === "result" && currentStructureWarnings.length > 0 && !generating && (
+              <div role="alert" className="mt-4 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-foreground">
+                <p className="font-medium">Ce carrousel est à compléter avant de le publier.</p>
+                <ul className="mt-2 list-disc pl-5">{currentStructureWarnings.map((message: string, i: number) => <li key={i}>{message}</li>)}</ul>
+              </div>
+            )}
+
             {/* Transform LinkedIn text to carousel */}
             {step === "result" && result && !generating && !streaming && !isDemoMode && <CreationUpgradeInvite key={session?.user?.id} />}
 
