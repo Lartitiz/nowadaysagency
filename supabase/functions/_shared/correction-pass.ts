@@ -505,7 +505,7 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
 
 1. FORMULE "X SANS Y, C'EST Z" (slide 1 ou ailleurs) :
    ❌ "La créativité sans clarté, c'est du bruit"
-   → ✅ Remplace par un FAIT CONCRET ou une SCÈNE VÉCUE. Ex: "J'ai passé 3h sur un visuel. Personne n'a compris ce que je vendais."
+   → ✅ Remplace par un FAIT CONCRET établi par les sources, une scène vécue FOURNIE, ou la position dite franchement. Jamais une scène, une rencontre ou une parole rapportée (« une cliente m'a dit ») absente des sources.
 
 2. POINT DE VUE : conserve le JE, le NOUS, le TU ou le VOUS du contenu et du profil de voix. Corrige une interpellation accusatrice sans transformer un conseil en vécu personnel. Une procédure conserve ses étapes.
 
@@ -1113,6 +1113,41 @@ N'invente JAMAIS de source, de nom ou d'année : recopie-les seulement depuis la
 Ne modifie RIEN d'autre : mêmes phrases, même ordre, mêmes mots, mêmes retours à la ligne, même ponctuation, mêmes listes.
 Si le texte comporte des marqueurs entre crochets (« [STORY 1 - TEXT] », « [SECTION 2 - PARLE] »…), conserve TOUS les marqueurs exactement, dans le même ordre.
 Renvoie uniquement le texte corrigé, sans commentaire ni balise.`;
+
+export const TESTIMONY_REMOVAL_PROMPT = `Tu es correctrice factuelle. Tu reçois un texte et une liste de passages qui racontent une parole ou une rencontre que les sources ne fournissent pas (« une cliente me disait… », « une céramiste m'a confié… », « j'ai discuté avec une amie… »). Ce témoignage est inventé : la personne qui publie ne l'a jamais vécu.
+Pour CHAQUE passage listé : retire le témoignage et garde l'idée qu'il portait, dite comme un constat général au présent ou comme l'opinion de l'autrice (« Doubler sa fréquence de publication sans voir sa portée bouger, c'est courant. »). Aucune personne, aucune parole rapportée, aucune scène, aucun « on m'a dit » de remplacement. Si une phrase voisine dépend de ce témoignage (« Elle… », « sa portée »), ajuste-la pour qu'elle reste juste.
+Ne modifie RIEN d'autre : mêmes phrases ailleurs, même ordre, mêmes retours à la ligne, mêmes listes. Garde la position et le ton.
+Si le texte comporte des marqueurs entre crochets (« [STORY 1 - TEXT] », « [SECTION 2 - PARLE] »…), conserve TOUS les marqueurs exactement, dans le même ordre.
+Renvoie uniquement le texte corrigé, sans commentaire ni balise.`;
+
+/** Passe courte qui retire les témoignages inventés (relue ensuite par le code). */
+export async function applyTestimonyRemovalPass(
+  content: string,
+  opts: { items: string[]; logger?: (msg: string) => void; abortTimeoutMs?: number; model?: AnthropicModel },
+): Promise<string> {
+  if (!content || !opts.items.length) return content;
+  try {
+    const raw = await callAnthropicSimple(
+      opts.model ?? "claude-haiku-4-5",
+      TESTIMONY_REMOVAL_PROMPT,
+      `PASSAGES À RETIRER :\n${opts.items.map((n) => `- « ${n} »`).join("\n")}\n\nTEXTE :\n"""\n${content}\n"""`,
+      0,
+      4096,
+      undefined,
+      opts.abortTimeoutMs,
+    );
+    const corrected = unwrapCorrectionOutput(raw);
+    if (!corrected || corrected.length < content.length * 0.6 || corrected.length > content.length * 1.2) {
+      opts.logger?.(`[testimony-removal] FALLBACK (longueur ${corrected?.length} vs ${content.length})`);
+      return content;
+    }
+    const guarded = keepStructureOrRevert(content, corrected, "testimony-removal", opts.logger);
+    return guarded.reverted ? content : corrected;
+  } catch (e) {
+    opts.logger?.(`[testimony-removal] ERROR: ${e}`);
+    return content;
+  }
+}
 
 export async function applyResearchSourcingPass(
   content: string,
