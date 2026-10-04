@@ -15,7 +15,7 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, X, Sparkles, Plus, Instagram, Linkedin, Mail, Pin, type LucideIcon } from "lucide-react";
+import { Loader2, Lightbulb, PenLine, CalendarDays, Trash2, Copy, X, Sparkles, Plus, Instagram, Linkedin, Mail, Pin, type LucideIcon } from "lucide-react";
 import { ContentPreview } from "@/components/ContentPreview";
 import { isAiGeneratedContent } from "@/lib/content-origin";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -180,6 +180,8 @@ function IdeasInWorkspace() {
   const mounted = useRef(true);
   const fetchRequest = useRef(0);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  // Idée dont on lit le contenu complet (jusqu'à ~1,5 s) avant de l'ouvrir.
+  const [openingId, setOpeningId] = useState<string | null>(null);
   const closeDetail = () => { visit.current += 1; setSelectedIdea(null); };
   const [detailNotes, setDetailNotes] = useState("");
 
@@ -310,9 +312,12 @@ function IdeasInWorkspace() {
   /** Ouvre Créer avec l'idée en point de départ. Créer garde `idea_id` et
       relie le contenu à l'idée quand il le pose au calendrier. */
   const handleCreate = async (light: SavedIdea) => {
+    if (openingId) return;
     let idea = light;
+    setOpeningId(light.id);
     try { if (needsFullIdea(light)) idea = await loadFullIdea(light); }
     catch (error) { toast.error("Impossible d'ouvrir cette idée", { description: friendlyError(error) }); return; }
+    finally { if (mounted.current) setOpeningId(null); }
     const params = new URLSearchParams({
       sujet: cleanTitle(idea.titre),
       angle: idea.angle || "",
@@ -343,10 +348,13 @@ function IdeasInWorkspace() {
   };
 
   const openDetail = async (light: SavedIdea) => {
+    if (openingId) return;
     const opening = ++visit.current;
     let idea = light;
+    setOpeningId(light.id);
     try { if (needsFullIdea(light)) idea = await loadFullIdea(light); }
     catch (error) { toast.error("Impossible d'ouvrir cette idée", { description: friendlyError(error) }); return; }
+    finally { if (mounted.current) setOpeningId(null); }
     if (!mounted.current || opening !== visit.current) return;
     // La fiche garde le contenu complet pour la suite (placer, reprendre…).
     setIdeas(prev => prev.map(i => i.id === idea.id ? { ...i, ...idea } : i));
@@ -358,6 +366,13 @@ function IdeasInWorkspace() {
   const primaryAction = (idea: SavedIdea, full = false) => {
     const state = getIdeaState(idea);
     const cls = `rounded-pill text-xs gap-1.5 ${full ? "w-full" : ""}`;
+    if (openingId === idea.id) {
+      return (
+        <Button variant="outline" size="sm" className={cls} disabled aria-busy="true">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Ouverture…
+        </Button>
+      );
+    }
     if (state === "created") {
       return (
         <Button variant="outline" size="sm" className={cls} onClick={() => handleViewCalendar(idea)}>
@@ -485,7 +500,7 @@ function IdeasInWorkspace() {
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <div className="min-w-0 flex-1 pr-6 sm:pr-0">
                       <h3 className="font-body text-[15px] font-bold leading-snug text-foreground">
-                        <button onClick={() => openDetail(idea)} className="text-left hover:underline break-words">{cleanTitle(idea.titre)}</button>
+                        <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} aria-busy={openingId === idea.id} className="text-left hover:underline break-words disabled:cursor-wait">{cleanTitle(idea.titre)}</button>
                       </h3>
                       <p className="text-xs text-muted-foreground mt-1">
                         <span className="text-primary-text">{ideaContentLabel(idea)}</span> · {metaLine(idea)}

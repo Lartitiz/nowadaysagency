@@ -41,6 +41,7 @@ beforeEach(() => {
   state.ready = true; state.scope = 'A'; state.column = 'workspace_id'; state.selects = [];
   state.read.mockReset().mockImplementation(success);
   state.rpc.mockReset().mockResolvedValue({ data: [], error: null });
+  state.full.mockReset();
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
@@ -186,4 +187,18 @@ it('opening an idea reads its full content once, by id', async () => {
   await waitFor(() => expect(state.full).toHaveBeenCalledTimes(1));
   expect(state.full.mock.calls[0][0]).toContainEqual(['eq', 'id', 'idea']);
   expect(await screen.findByRole('dialog')).toBeVisible();
+});
+
+it('« Reprendre » shows « Ouverture… » while the full idea loads, then opens the sheet', async () => {
+  state.read.mockImplementation((table: string) => ({ data: table === 'saved_ideas' ? [{ ...idea, status: 'drafting', has_content: true }] : [], error: null }));
+  const pending = deferred(); state.full.mockReturnValue(pending.promise);
+  render(page());
+  fireEvent.click(await screen.findByRole('button', { name: /Reprendre/ }));
+  const busy = screen.getByRole('button', { name: /Ouverture…/ });
+  expect(busy).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: idea.titre }));
+  expect(state.full).toHaveBeenCalledTimes(1);
+  await act(async () => pending.resolve({ data: { ...idea, status: 'drafting', content_draft: 'Texte', content_data: null }, error: null }));
+  expect(await screen.findByRole('dialog')).toBeVisible();
+  expect(screen.queryByRole('button', { name: /Ouverture…/ })).not.toBeInTheDocument();
 });

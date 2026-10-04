@@ -4,7 +4,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
-import { GripVertical, Trash2, CalendarIcon, Undo2, Search, X } from "lucide-react";
+import { GripVertical, Trash2, CalendarIcon, Undo2, Search, X, Loader2 } from "lucide-react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -53,7 +53,8 @@ const FORMAT_FILTERS = [
 
 interface Props {
   onIdeaPlanned: () => void;
-  onIdeaClick?: (idea: SavedIdea) => void;
+  /** Peut lire le contenu complet avant d'ouvrir la fiche (~1,5 s pour une idée lourde). */
+  onIdeaClick?: (idea: SavedIdea) => void | Promise<void>;
   isMobile?: boolean;
   onCollapse?: () => void;
   refreshKey?: number;
@@ -168,10 +169,15 @@ function IdeasInWorkspace({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse, re
     toast.success(`${receipt.replayed ? "Déjà prévue" : "Prévue"} au calendrier le ${format(new Date(receipt.date + "T12:00:00"), "d MMMM", { locale: fr })}`);
   };
 
-  const handleIdeaClick = (idea: SavedIdea) => {
-    if (onIdeaClick) {
-      onIdeaClick(idea);
-    }
+  // Une idée lourde (images collées) met ~1,5 s à s'ouvrir : on le montre
+  // sur la carte et on ignore les clics répétés pendant ce temps.
+  const [openingId, setOpeningId] = useState<string | null>(null);
+  const handleIdeaClick = async (idea: SavedIdea) => {
+    if (!onIdeaClick || openingId) return;
+    setOpeningId(idea.id);
+    try { await onIdeaClick(idea); }
+    catch { /* la page affiche déjà l'erreur (toast) */ }
+    finally { if (mounted.current) setOpeningId(null); }
   };
 
   const { setNodeRef: dropRef, isOver: isOverSidebar } = useDroppable({
@@ -251,7 +257,7 @@ function IdeasInWorkspace({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse, re
         {!loading && !loadError && filteredIdeas.map(idea => (
           <IdeaCard key={idea.id} idea={idea} isMobile={isMobile} onDelete={handleDeleteIdea}
             onPlan={() => { setPlanDialogIdea(idea); setPlanDate(undefined); }}
-            onClick={() => handleIdeaClick(idea)} />
+            onClick={() => handleIdeaClick(idea)} opening={openingId === idea.id} />
         ))}
       </div>
 
@@ -291,7 +297,7 @@ function IdeasInWorkspace({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse, re
 }
 
 /* Une vraie action au clic complète le glisser-déposer. */
-function IdeaCard({ idea, isMobile, onDelete, onPlan, onClick }: { idea: SavedIdea; isMobile?: boolean; onDelete: (id: string) => void; onPlan: () => void; onClick: () => void }) {
+function IdeaCard({ idea, isMobile, onDelete, onPlan, onClick, opening }: { idea: SavedIdea; isMobile?: boolean; onDelete: (id: string) => void; onPlan: () => void; onClick: () => void; opening?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `idea-${idea.id}`, data: { type: "idea", idea }, disabled: isMobile,
   });
@@ -302,13 +308,15 @@ function IdeaCard({ idea, isMobile, onDelete, onPlan, onClick }: { idea: SavedId
   return (
     <article ref={setNodeRef} style={style} className="rounded-xl border border-border bg-background p-3 hover:border-primary/30 transition-colors">
       <div className="flex items-start gap-1">
-        <button onClick={onClick} className="flex-1 min-w-0 text-left text-sm font-semibold leading-snug hover:underline break-words">{idea.titre}</button>
+        <button onClick={onClick} disabled={opening} aria-busy={opening} className="flex-1 min-w-0 text-left text-sm font-semibold leading-snug hover:underline break-words disabled:cursor-wait">{idea.titre}</button>
         {!isMobile && <button {...attributes} {...listeners} aria-label={`Glisser : ${idea.titre}`} className="cursor-grab touch-none p-1 -mr-1 text-muted-foreground"><GripVertical className="h-4 w-4" /></button>}
       </div>
       <p className="text-xs text-primary-text mt-2">{ideaContentLabel(idea)}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{formatLabel(idea.format)}{idea.canal ? ` · ${idea.canal === "linkedin" ? "LinkedIn" : idea.canal.charAt(0).toUpperCase() + idea.canal.slice(1)}` : ""}</p>
       <div className="flex items-center gap-2 mt-3">
-        <button onClick={onClick} className="text-xs text-muted-foreground hover:underline py-1">Ouvrir</button>
+        <button onClick={onClick} disabled={opening} aria-busy={opening} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline py-1 disabled:cursor-wait">
+          {opening ? <><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Ouverture…</> : "Ouvrir"}
+        </button>
         <button onClick={onPlan} className="ml-auto inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-primary hover:bg-accent"><CalendarIcon className="h-3.5 w-3.5" /> Placer</button>
         {isMobile && <button onClick={() => onDelete(idea.id)} aria-label={`Supprimer : ${idea.titre}`} className="p-1 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>}
       </div>
