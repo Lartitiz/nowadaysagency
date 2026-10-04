@@ -1,5 +1,6 @@
 import { COMMON, WRITE } from "../_shared/carousel-editorial-contract.ts";
 import { COVER_WRITING } from "../_shared/carousel-cover.ts";
+import { LIVED_CASE_FIRST } from "../_shared/lived-case.ts";
 /** Carousel-specific writing policy. Layout contracts remain in the variant builders. */
 export const CAROUSEL_WRITING_VERSION = "fil-v11-couverture-accroche";
 
@@ -23,13 +24,16 @@ export function carouselStructureGuide(type: string): string {
   return (guides[type] || "Choisis une progression adaptée au sujet : description, explication, méthode, analyse, comparaison ou récit fourni.") + " Le nombre de slides demandé et toute structure confirmée priment sur le guide. Ne remplis aucune étape sans matière, développe les passages utiles à la place.";
 }
 
+/** Lecture sociale (#1292) : réservée aux sujets SANS vécu fourni (« Ton cas d'abord », 04/10/2026). */
+export const SOCIAL_READING = "Creuse sous le sujet : ce qu'il révèle quand il en touche un (norme sociale, injonction faite aux femmes ou aux indépendantes, rapport de pouvoir, mécanisme du métier) ; pour un sujet de société, un « on » ou « nous » collectif peut porter cette lecture.";
+
 export const CAROUSEL_SUBSTANCE = `
 COMPRENDRE ET DÉVELOPPER CE SUJET
 Choisis la progression qui sert la demande : usage et caractéristiques d'un objet, étapes d'une méthode, récit fourni, analyse argumentée, réaction à une actualité, comparaison ou présentation d'une offre. Une explication descriptive et une liste utile sont légitimes lorsqu’elles répondent à la demande ; une présentation automatique de marque doit développer une proposition, pas inventorier ses caractéristiques. Une tension, une conviction, une analogie ou une révélation doivent venir de la matière ; elles ne sont pas des cases à remplir.
 Développe les liens qui aident réellement à comprendre : comment cela fonctionne quand on le sait, pourquoi ce choix est fait quand la personne le dit, ce qui distingue deux situations, une limite ou une nuance pertinente. Une opinion peut être vive, drôle ou émue ; elle ne prouve pas un fait. N'invente pas une explication technique pour donner de la profondeur.
 Le brief actuel et ses limites font autorité pour ce contenu. Le profil de marque fournit le registre et des repères : un métier ne prouve pas la fabrication de cet objet, une boutique ne prouve pas sa disponibilité, trois interlocuteurs ne prouvent pas trois modifications. Une propriété, un résultat, un entretien, une durée ou un vécu absents restent inconnus. Conserve les formulations personnelles réussies et les citations fournies ; aucun personnage, témoignage ou exemple vécu ajouté pour meubler.
 PROFONDEUR ET PRISE DE POSITION
-Sauf liste, tutoriel, checklist ou présentation d'offre demandés, un carrousel défend une position. Tire-la de l'angle choisi, de l'accroche, des réponses de la personne, de ses convictions et de ses combats de marque, puis assume-la en première personne au lieu de la diluer dans une distinction abstraite ou un concept. Une idée forte de l'angle (un parallèle, une comparaison, une formule qui fait réagir) reste le fil du carrousel. Creuse sous le sujet : ce qu'il révèle quand il en touche un (norme sociale, injonction faite aux femmes ou aux indépendantes, rapport de pouvoir, mécanisme du métier) ; pour un sujet de société, un « on » ou « nous » collectif peut porter cette lecture. Nomme les émotions concrètes que ce sujet soulève couramment (peur du jugement, honte, fatigue, colère) comme une expérience partagée, jamais comme le diagnostic de la personne qui lit. Une opinion n'a pas besoin de source ; un fait, un chiffre ou un vécu, si. Une nuance assumée (« ça peut aussi être un vrai choix ») renforce la position. Une précaution sur ce que le texte n'affirme pas l'affaiblit : n'écris ni « sans garantie », ni « hypothèse de travail », ni « je n'affirme rien sur l'algorithme ». Une accroche provocante n'est pas désamorcée par une excuse (« ok je suis peut-être un peu too much »). Les premières slides entrent directement dans la position ou dans le fait qui frappe, sans annonce prudente (« j'aimerais le regarder de plus près », « avant de leur donner tort, je voudrais comprendre »). Une réponse de la personne sur ce qu'elle observe ou entend est du terrain : utilise-la en première personne (« quand je donne ce conseil, on me répond… »).
+Sauf liste, tutoriel, checklist ou présentation d'offre demandés, un carrousel défend une position. Tire-la de l'angle choisi, de l'accroche, des réponses de la personne, de ses convictions et de ses combats de marque, puis assume-la en première personne au lieu de la diluer dans une distinction abstraite ou un concept. Une idée forte de l'angle (un parallèle, une comparaison, une formule qui fait réagir) reste le fil du carrousel. ${SOCIAL_READING} Nomme les émotions concrètes que ce sujet soulève couramment (peur du jugement, honte, fatigue, colère) comme une expérience partagée, jamais comme le diagnostic de la personne qui lit. Une opinion n'a pas besoin de source ; un fait, un chiffre ou un vécu, si. Une nuance assumée (« ça peut aussi être un vrai choix ») renforce la position. Une précaution sur ce que le texte n'affirme pas l'affaiblit : n'écris ni « sans garantie », ni « hypothèse de travail », ni « je n'affirme rien sur l'algorithme ». Une accroche provocante n'est pas désamorcée par une excuse (« ok je suis peut-être un peu too much »). Les premières slides entrent directement dans la position ou dans le fait qui frappe, sans annonce prudente (« j'aimerais le regarder de plus près », « avant de leur donner tort, je voudrais comprendre »). Une réponse de la personne sur ce qu'elle observe ou entend est du terrain : utilise-la en première personne (« quand je donne ce conseil, on me répond… »).
 Si la matière est courte, écris plus court dans les slides prévues. N'ajoute ni slogan, ni anecdote, ni promesse pour atteindre une longueur. Un sujet riche mérite au contraire d'être développé : préserve ses détails, arguments, nuances et apartés utiles.
 `;
 
@@ -54,12 +58,21 @@ Préserve le registre, le je/tu/vous, l'humour, les hésitations et les bonnes p
 Examine aussi les titres et fins de paragraphes : une opposition de façade, une révélation banale ou un slogan interchangeable ne devient pas pertinent parce qu'il contient le nom du produit. Si la phrase répète seulement l'explication avec emphase, enlève-la et arrête le passage. Une phrase courte, une image éclairante ou une blague située peut rester.
 `;
 
-export function buildCarouselWritingSystem(brandingContext: string, isLinkedIn: boolean, identity: string, clarity: string): string {
+/**
+ * Contrat de fond selon la matière : quand la personne a donné son propre cas
+ * (lived-case.ts), la lecture sociale en « on / nous » laisse la place à la
+ * règle « Ton cas d'abord » ; sinon le contrat de profondeur reste inchangé.
+ */
+export function carouselSubstance(livedCase = false): string {
+  return livedCase ? CAROUSEL_SUBSTANCE.replace(SOCIAL_READING, LIVED_CASE_FIRST) : CAROUSEL_SUBSTANCE;
+}
+
+export function buildCarouselWritingSystem(brandingContext: string, isLinkedIn: boolean, identity: string, clarity: string, livedCase = false): string {
   return `${COMMON}
 ${WRITE}
 ${clarity}
 ${identity} Tu rédiges pour la personne un carrousel ${isLinkedIn ? "LinkedIn" : "Instagram"} fidèle à sa demande et agréable à lire.
-${CAROUSEL_SUBSTANCE}
+${carouselSubstance(livedCase)}
 ${CAROUSEL_CONTINUITY}
 ${CAROUSEL_TITLES}
 CONTEXTE DE MARQUE (repères, pas un vécu nouveau pour ce sujet) :
