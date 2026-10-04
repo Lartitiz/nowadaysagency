@@ -65,6 +65,10 @@ const REVERSAL_PATTERNS: RegExp[] = [
   // queue de phrase (1 à 3 mots). Les tournures figées restent permises :
   // « pas plus », « pas encore », « pas toujours », « pas forcément », « ou pas »…
   /[^.!?\n]{8,}, pas (?!(?:plus|moins|encore|toujours|forcément|vraiment|du tout|mal|trop|question|seulement|tant|si|non plus|à pas|d['’]un coup|besoin|grave|sûr|sûre|certain|certaine|facile|simple|évident|moi|toi|lui|elle|nous|vous|eux|elles|ça|celui-là|celle-là)\b)(?:[\p{L}'’-]+\s?){1,3}[.!]/u,
+  // Même contraste avec un sujet nom repris par un pronom (re-test réel 04/10/2026) :
+  // « Instagram ne regarde pas combien tu publies. Il regarde ce que les gens font… »
+  /(?:^|[.!?]\s+|\n\s*)(?:L['’]|Le |La |Les |Ton |Ta |Tes |Votre |Vos |Mon |Ma |Mes )?\p{Lu}?[\p{L}'’-]+(?: [\p{L}'’-]+){0,3} ne (\p{L}+) pas\b[^.!?\n]{2,90}[.!] ?(?:Mais )?(?:Il|Elle|Ils|Elles) \1\b/u,
+  /(?:^|[.!?]\s+|\n\s*)(?:L['’]|Le |La |Les |Ton |Ta |Tes |Votre |Vos |Mon |Ma |Mes )?\p{Lu}?[\p{L}'’-]+(?: [\p{L}'’-]+){0,3} n['’](\p{L}+) pas\b[^.!?\n]{2,90}[.!] ?(?:Mais )?(?:Il|Elle|Ils|Elles) \1\b/u,
 ];
 
 // Formules moulées repérées à l'identique dans deux contenus générés à 30 min
