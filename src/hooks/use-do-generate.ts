@@ -358,10 +358,22 @@ export function useDoGenerate({
       return;
     }
 
+    // Épingles visuelle / photo : leurs edges n'ont pas de champ `answers`.
+    // Les réponses aux questions de précision voyagent donc dans le sujet —
+    // sinon elles étaient perdues, et un sujet donné seulement en réponse
+    // (champ idée vide) partait vide → 400 « subject » côté edge.
+    const answersBlock = Object.entries(ans)
+      .map(([q, a]) => `- ${q} : ${a.trim()}`)
+      .join("\n");
+    const pinterestSubject = [
+      enrichedSubject.trim(),
+      answersBlock ? `Précisions de l'utilisatrice :\n${answersBlock}` : "",
+    ].filter(Boolean).join("\n\n");
+
     // Épingle visuelle Pinterest : appel direct (comme carousel mais une seule slide)
     if (selectedFormat === "pinterest_visual") {
       await generatePinterestVisual({
-        subject: enrichedSubject,
+        subject: pinterestSubject,
         pinType: chosenProposal?.pin_type || editorialAngle || "infographie",
         referenceImageBase64: inspirationImageBase64,
         alwaysSendReferenceImage: false,
@@ -384,7 +396,7 @@ export function useDoGenerate({
     // Brief photo Pinterest : appel direct
     if (selectedFormat === "pinterest_photo") {
       await generatePinterestPhotoBrief({
-        subject: enrichedSubject,
+        subject: pinterestSubject,
         pinType: chosenProposal?.pin_type || "photo_lifestyle",
         briefHint: chosenProposal?.brief || "",
         referenceImageBase64: inspirationImageBase64,

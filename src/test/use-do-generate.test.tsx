@@ -318,6 +318,24 @@ describe("useDoGenerate — routage par format", () => {
     expect(mocks.generatePinterestVisual.mock.calls[1][0].pinType).toBe("infographie");
   });
 
+  it("pinterest_visual / photo : les réponses aux questions partent dans le sujet, même si le champ idée est vide", async () => {
+    const params = makeParams({
+      selectedFormat: "pinterest_visual",
+      ideaText: "",
+      questions: [{ id: "q_0", question: "Quel geste ?" }],
+    });
+    await run(params, { q_0: "Laver à la main, sécher tout de suite" });
+    const subject = mocks.generatePinterestVisual.mock.calls[0][0].subject;
+    expect(subject).toContain("Quel geste ? : Laver à la main, sécher tout de suite");
+    expect(subject.trim().length).toBeGreaterThan(0);
+
+    const params2 = makeParams({ selectedFormat: "pinterest_photo", ideaText: "Mon idée", questions: [{ id: "q_0", question: "Pour qui ?" }] });
+    await run(params2, { q_0: "Les potières" });
+    const subject2 = mocks.generatePinterestPhotoBrief.mock.calls[0][0].subject;
+    expect(subject2).toContain("Mon idée");
+    expect(subject2).toContain("Pour qui ? : Les potières");
+  });
+
   it("pinterest_photo → brief photo dédié avec le brief de la proposition choisie", async () => {
     const params = makeParams({
       selectedFormat: "pinterest_photo",
