@@ -39,7 +39,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent, applyStoriesCorrectionPass, applyNewsletterCorrectionPass } = await import("./index.ts");
+const { retiredCarouselStreamResponse, runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent, applyStoriesCorrectionPass, applyNewsletterCorrectionPass } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -474,4 +474,25 @@ Deno.test("newsletter : la même relecture reçoit et corrige aussi les champs c
     assertEquals(parsed.content, content);
     assertEquals(parsed.campaign, "stable");
   } finally { mock.restore(); }
+});
+
+// ── Ancien circuit carrousel (stream + passe de correction) retiré ──
+// Sa passe de correction demandait d'effacer la numérotation des conseils
+// (régression « 1, 2, 3 » perdus). Plus aucun appelant : réponse 410 claire,
+// sans appel IA ni crédit débité. Les carrousels passent par carousel-ai.
+Deno.test("circuit carrousel stream retiré : 410 explicite, aucun appel IA", async () => {
+  const mock = installFetchMock({ anthropic: () => { throw new Error("aucun appel IA attendu"); } });
+  try {
+    const res = retiredCarouselStreamResponse({ "Access-Control-Allow-Origin": "*" });
+    assertEquals(res.status, 410);
+    assertEquals(res.headers.get("Content-Type"), "application/json");
+    assertEquals(res.headers.get("Access-Control-Allow-Origin"), "*");
+    const json = await res.json();
+    assertEquals(json.error, "carousel_flow_retired");
+    assertEquals(/carousel-ai/.test(json.message), true);
+    assertEquals(mock.anthropicCallCount, 0);
+    assertEquals(mock.aiUsageInserts.length, 0);
+  } finally {
+    mock.restore();
+  }
 });

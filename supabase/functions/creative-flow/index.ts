@@ -2256,115 +2256,18 @@ async function runNewsletterTwoStep(params: {
   });
 }
 
-// Carousel: disable streaming, use 2-step generation + correction
-async function runCarouselTwoStep(params: {
-  model: AnthropicModel;
-  systemPrompt: string;
-  userPrompt: string;
-  corsHeaders: Record<string, string>;
-  userId: string;
-  workspace_id?: string | null | undefined;
-}): Promise<Response> {
-  const { model, systemPrompt, userPrompt, corsHeaders, userId } = params;
-  const workspace_id = params.workspace_id ?? undefined;
-  const caUsage: UsageSink = {};
-  const caCorrUsage: UsageSink = {};
-  const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, caUsage, GENERATE_ABORT_MS);
-
-  // Parse the raw content
-  let parsedContent: any = null;
-  try {
-    parsedContent = JSON.parse(rawContent);
-  } catch {
-    const match = rawContent.match(/\{[\s\S]*\}/);
-    if (match) {
-      try { parsedContent = JSON.parse(match[0]); } catch { /* best-effort : on garde le contenu brut */ }
-    }
-  }
-
-  // Extract slides text for correction
-  const slidesText = parsedContent?.content || rawContent;
-
-  // Step 2: Correction pass for carousel
-  const carouselCorrectionPrompt = `Tu es un éditeur de carrousels Instagram exigeant. Tu reçois un carrousel et tu dois le CORRIGER slide par slide.
-
-CORRECTIONS OBLIGATOIRES — applique TOUTES celles qui s'appliquent :
-
-1. SLIDE-TITRE (slide qui ne contient qu'1 phrase ou moins de 15 mots) :
-   → Développer à 2-4 phrases. Ajouter un exemple, une nuance, un détail concret.
-   → Exception : Slide 1 (hook) DOIT être courte (1-2 phrases max).
-
-2. NUMÉROTATION DE CONSEILS ("Conseil 1", "Erreur n°2", "Étape 3", "Astuce") :
-   → Supprimer la numérotation. Reformuler comme un moment dans un arc narratif.
-   → "Conseil 1 : Soyez authentique" → "Ce que j'ai compris après 2 ans à copier les autres : l'authenticité n'est pas un style, c'est ce qui reste quand on arrête de performer."
-
-3. SLIDES REDONDANTES (2 slides qui disent la même chose différemment) :
-   → Fusionner en une seule slide plus dense, ou remplacer la plus faible par un nouvel angle.
-
-4. MANQUE DE CONCRET (slide entièrement abstraite, sans exemple ni chiffre ni situation) :
-   → Ajouter un détail concret : un cas, un chiffre, une phrase entendue, un avant/après.
-
-5. SLIDE FINALE QUI RÉSUME :
-   → Remplacer par une punchline qui OUVRE (question, tension non résolue, invitation) au lieu de fermer.
-
-6. CAPTION FAIBLE (caption qui répète le contenu des slides) :
-   → Le hook de la caption doit être DIFFÉRENT de la slide 1. La caption apporte un COMPLÉMENT, pas un résumé.
-
-RÈGLES :
-- Garde l'ARC NARRATIF du carrousel. Tu corriges les slides faibles, pas la structure globale.
-- Chaque slide corrigée fait 2-4 phrases (sauf slide 1 : 1-2 phrases max).
-- Le carrousel corrigé fait 1500-3000 caractères au total.
-- Retourne le même format JSON que l'original avec les slides corrigées.
-
-Réponds UNIQUEMENT en JSON :
-{
-  "content": "le carrousel complet corrigé avec les marqueurs 📌 SLIDE et 📝 CAPTION",
-  "accroche": "le hook de la slide 1",
-  "corrections_applied": ["liste courte des corrections faites"]
-}`;
-
-  const correctedRaw = await callAnthropicSimple(
-    getModelForAction("content"),
-    carouselCorrectionPrompt,
-    `Voici le carrousel à corriger :\n\n"""\n${slidesText}\n"""`,
-    0.3,
-    4096,
-    caCorrUsage,
-    CORRECTION_ABORT_MS
-  );
-
-  // Parse corrected content, fallback to original if correction fails
-  let finalResult: any = null;
-  try {
-    finalResult = JSON.parse(correctedRaw);
-  } catch {
-    const match = correctedRaw.match(/\{[\s\S]*\}/);
-    if (match) {
-      try { finalResult = JSON.parse(match[0]); } catch { finalResult = null; }
-    }
-  }
-
-  if (finalResult?.content) {
-    const merged = {
-      ...(parsedContent || {}),
-      content: finalResult.content,
-      accroche: finalResult.accroche || parsedContent?.accroche,
-      format: parsedContent?.format || "carrousel",
-      pillar: parsedContent?.pillar || "",
-      objectif: parsedContent?.objectif || "",
-    };
-
-    await logUsage(userId, "content", "creative_flow", ((caUsage.total_tokens ?? 0) + (caCorrUsage.total_tokens ?? 0)) || undefined, caUsage.model, workspace_id);
-    return new Response(JSON.stringify(merged), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  // Fallback: return original
-  await logUsage(userId, "content", "creative_flow", ((caUsage.total_tokens ?? 0) + (caCorrUsage.total_tokens ?? 0)) || undefined, caUsage.model, workspace_id);
-  return new Response(JSON.stringify(parsedContent || { content: rawContent }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+// Ancien circuit carrousel (génération + passe de correction, en mode
+// « stream ») : RETIRÉ. Aucun appelant du front ne l'atteignait plus (le
+// streaming n'est demandé que pour post / LinkedIn / newsletter / Pinterest,
+// sans format_livraison), les carrousels passent par carousel-ai. Sa passe de
+// correction portait en outre une consigne anti-numérotation des conseils,
+// même cause que la régression « 1, 2, 3 » perdus. On renvoie une erreur
+// claire AVANT tout appel IA (aucun crédit débité), comme carousel-ai-candidate.
+export function retiredCarouselStreamResponse(corsHeaders: Record<string, string>): Response {
+  return new Response(JSON.stringify({
+    error: "carousel_flow_retired",
+    message: "Ce circuit de carrousel est retiré. Les carrousels se génèrent avec carousel-ai.",
+  }), { status: 410, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
 // Non-LinkedIn, non-Carousel (= POST Instagram + Pinterest) : streaming
@@ -3017,7 +2920,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       }
 
       if (isCarousel) {
-        return await runCarouselTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id });
+        return retiredCarouselStreamResponse(corsHeaders);
       }
 
       return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, brandGuardText, echoSubject, previousHooks });
