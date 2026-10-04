@@ -52,6 +52,23 @@ export function carouselLengthPrompt(body: any): string {
 ${items ? `LISTE PROMISE : les ${items} éléments doivent tous être présents, distincts et expliqués. Numérote-les de 1 à ${items} dans les titres des slides de développement (ou dans le corps si plusieurs éléments partagent une slide). ${(exact && exact < items + 2) || (!exact && items + 2 > max) || items + 2 > 20 ? "Le nombre de slides prime : regroupe les éléments en gardant leurs explications, sans en omettre." : "Réserve une slide de développement par élément."} Pour chaque erreur, explique ce qui pose problème et comment agir autrement ; un exemple générique clairement présenté peut clarifier, sans inventer un vécu ni un résultat.` : ""}
 ${!exact && text ? `${ONE_IDEA_RULE}\n` : ""}Une seule couverture : évite une deuxième slide qui annonce seulement « Voici les erreurs/conseils ». Termine par une slide avec role:"conclusion", qui apporte une synthèse, la position assumée, une question simple à laquelle répondre en commentaire ou un prochain geste concret. Pas de devoir à faire pour conclure. Ne répète pas la couverture. Aucune invitation vague comme « N'hésitez pas » ; si une action sert le sujet, une seule, précise, sans destination inventée. Une structure explicitement confirmée prime sur cette répartition.`;
 }
+/** Texte visible d'une slide, quel que soit le type : carrousel texte
+ * (title/body), photo (kicker/overlay_text/detail) ou slide de mixte (points). */
+const TEXT_FIELDS = ["kicker", "title", "overlay_text", "body", "detail"] as const;
+function slideText(slide: any): string {
+  const points = Array.isArray(slide?.points) ? slide.points.map((p: any) => typeof p === "string" ? p : [p?.title, p?.text, p?.body, p?.label].filter(Boolean).join(" ")) : [];
+  return [...TEXT_FIELDS.map((k) => slide?.[k]), ...points].filter((v) => typeof v === "string" && v.trim()).join("\n");
+}
+const NUMBERED_START = /^\s*(?:[-•]\s*)?\d{1,2}\s*[.):—–-]/;
+/** La slide ne porte que le nom numéroté d'un élément dans son titre (title en
+ * texte, kicker en photo : « 1. Poster sans stratégie ») et aucun autre texte.
+ * Un overlay photo seul n'est pas jugé ici : c'est souvent toute la slide. */
+function namesItemOnly(slide: any): boolean {
+  const heading = [slide?.title, slide?.kicker].find((v) => typeof v === "string" && v.trim())?.trim() || "";
+  if (!NUMBERED_START.test(heading) || slideText(slide).trim() !== heading) return false;
+  const name = heading.replace(NUMBERED_START, "").trim().replace(/[.!…]+$/, "");
+  return !/[.!?:;]\s+\S|\s[—–-]\s/.test(name);
+}
 /** Structural checks are distinct from semantic/editorial review. */
 export function carouselStructureIssues(parsed: any, body: any): string[] {
   const slides = parsed?.slides;
@@ -64,10 +81,16 @@ export function carouselStructureIssues(parsed: any, body: any): string[] {
   // Custom plans may intentionally end in a different role or use unnumbered copy.
   if (body.confirmed_structure?.length || body.slide_structure?.length) return issues;
   if (items) {
-    const text = slides.slice(slides.length > 1 ? 1 : 0, exact && exact < items + 2 ? undefined : -1).map((s: any) => `${s.title || ""}\n${s.body || ""}`).join("\n");
+    const scope = slides.slice(slides.length > 1 ? 1 : 0, exact && exact < items + 2 ? undefined : -1);
+    const text = scope.map(slideText).join("\n");
     const missing = Array.from({ length: items }, (_, i) => i + 1).filter(n => !new RegExp(`(?:^|\\n)\\s*(?:[-•]\\s*)?(?:(?:erreur|conseil|astuce|étape|etape|point|raison|idée|idee|piège|piege)\\s*(?:n[°ºo]\\s*)?)?${n}\\s*[.):—–-]`, "i").test(text));
-    for (const slide of slides.slice(1, -1)) {
-      if (/^\s*\d+\s*[.):—–-]/.test(String(slide.title || "")) && !String(slide.body || "").trim()) issues.push(`La slide ${slide.slide_number || ""} nomme un élément sans l'expliquer.`);
+    // Une slide « 1. Poster sans stratégie » seule est permise par ONE_IDEA_RULE
+    // quand la slide suivante porte son explication sans numéro propre.
+    for (let i = 1; i < slides.length - 1; i++) {
+      if (!namesItemOnly(slides[i])) continue;
+      const next = slides[i + 1];
+      const explainedNext = i + 1 < slides.length - 1 && slideText(next).trim() && !NUMBERED_START.test(slideText(next));
+      if (!explainedNext) issues.push(`La slide ${slides[i].slide_number || i + 1} nomme un élément sans l'expliquer.`);
     }
     if (missing.length) issues.push(`Éléments de la liste non repérés : ${missing.join(", ")}. Numérote et explique chaque élément.`);
   }
@@ -84,4 +107,18 @@ export function longTextSlides(parsed: any, body: any): number[] {
   if (!Array.isArray(slides) || !isTextCarousel(body) || carouselLength(body).exact) return [];
   const words = (s: any) => `${s?.title || ""} ${s?.body || ""}`.trim().split(/\s+/).filter(Boolean).length;
   return slides.flatMap((s: any, i: number) => i > 0 && words(s) > LONG_SLIDE_WORDS ? [Number(s?.slide_number) || i + 1] : []);
+}
+
+/** Consigne de réparation adaptée aux défauts relevés par
+ * carouselStructureIssues (un défaut de liste ou de conclusion n'est pas un
+ * défaut de nombre). */
+export function structureRepairInstruction(issues: string[]): string {
+  const all = issues.join("\n");
+  const asks: string[] = [];
+  if (/slides reçues/.test(all)) asks.push("Corrige le nombre de slides demandé, en regroupant ou en découpant sans retirer d'idée.");
+  if (/non repérés/.test(all)) asks.push("Fais apparaître chaque élément manquant de la liste promise, numéroté et expliqué.");
+  if (/nomme un élément sans l'expliquer/.test(all)) asks.push("Explique chaque élément nommé, sur sa slide ou sur la slide qui suit.");
+  if (/dernière slide/i.test(all)) asks.push("Termine par une slide de conclusion (role:conclusion) qui conclut vraiment.");
+  if (!asks.length) asks.push("Corrige ces défauts.");
+  return asks.join("\n") + "\nN'invente aucun fait et ne change pas les choix validés.";
 }
