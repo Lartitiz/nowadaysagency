@@ -9,8 +9,19 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
+import { finalizePinHtml } from "../_shared/pinterest-pin-guards.ts";
 
-serve(async (req) => {
+/**
+ * Plancher de taille de l'overlay : le prompt de cette edge fixe « corps min
+ * 18px » (≠ 20px de pinterest-visual) — la garde ne rattrape que ce qui est
+ * SOUS le contrat du prompt, elle ne change pas un overlay qui le respecte.
+ */
+export const PHOTO_OVERLAY_MIN_FONT_PX = 18;
+
+// Handler exporté pour les tests (index_test.ts) : `serve()` de std/http ouvre
+// un vrai socket au chargement, d'où le guard `import.meta.main` en bas de
+// fichier (même patron que branding-coaching) — comportement de prod inchangé.
+export async function handlePinterestPhotoBriefRequest(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -239,17 +250,16 @@ CHARTE : primary ${ch.color_primary}, secondary ${ch.color_secondary}, accent ${
       );
     }
 
-    // Post-processing: replace @import Google Fonts with <link> for iframe compatibility
-    if (result?.overlay_html) {
-      const fontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(ch.font_title)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(ch.font_body)}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
-      let html = result.overlay_html;
-      // Retirer le @import Google Fonts OÙ QU'IL SOIT (nu ou dans un <style> plus
-      // large) — sinon il fuite en TEXTE VISIBLE quand le modèle oublie le wrapper
-      // <style>. La police reste fournie par le <link> ci-dessous.
-      html = html
-        .replace(/@import\s+url\(\s*['"]?[^)]*fonts\.googleapis\.com[^)]*['"]?\s*\)\s*;?/gi, "")
-        .replace(/<style>\s*<\/style>/gi, "");
-      result.overlay_html = fontsLink + html;
+    // Post-traitement commun avec pinterest-visual (_shared/pinterest-pin-guards.ts) :
+    // @import → <link>, puis gardes DÉTERMINISTES contraste texte/fond et
+    // plancher de police (n'agissent que sur les cas cassés ; décors
+    // aria-hidden / opacity < 0.7 exemptés).
+    if (typeof result?.overlay_html === "string" && result.overlay_html) {
+      const fin = finalizePinHtml(result.overlay_html, { title: ch.font_title, body: ch.font_body }, PHOTO_OVERLAY_MIN_FONT_PX);
+      if (fin.contrastFixes > 0 || fin.fontFixes > 0) {
+        console.warn(`pinterest-photo-brief: gardes déterministes — ${fin.contrastFixes} contraste, ${fin.fontFixes} font-size sous plancher`);
+      }
+      result.overlay_html = fin.html;
     }
 
     await logUsage(user.id, "content", "pinterest_photo_brief", usage.total_tokens, usage.model, filterWs);
@@ -273,4 +283,9 @@ CHARTE : primary ${ch.color_primary}, secondary ${ch.color_secondary}, accent ${
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}
+
+// En prod (point d'entrée du bundle), import.meta.main est true : inchangé.
+if (import.meta.main) {
+  serve(handlePinterestPhotoBriefRequest);
+}
