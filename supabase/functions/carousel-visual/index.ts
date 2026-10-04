@@ -19,6 +19,7 @@ import { enforceMinFontSize, enforceEditorFontFloor } from "../_shared/font-size
 import { enforceSafeZones, injectFallbackScrim, enforceHeroHook } from "../_shared/photo-visual-guards.ts";
 import { assignPhotoStyles, composePhotoSlide } from "../_shared/photo-overlay-templates.ts";
 import { applyMixFormatting, composeMixCarousel, mixSlideText } from "../_shared/mix-slide-layouts.ts";
+import { layoutMixSlides, type MixLayoutPlan, mixLayoutMemos, mixLayoutTelemetry } from "../_shared/mix-layout-formatting.ts";
 import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
 import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
@@ -2423,22 +2424,45 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     // MISE EN FORME du mixte (03/10/2026) : même étage que le carrousel photo,
     // séparé de l'écriture. Il lit le texte final ; s'il échoue ou si une slide
     // ne tient plus avec, la composition sans mise en forme reste en place.
+    // DISPOSITION du mixte (04/10/2026) : étage séparé de l'écriture, en
+    // parallèle de la mise en forme. Il propose une disposition du catalogue
+    // validé par slide photo ; le code la valide, sinon choix habituel. Sans
+    // réponse (échec, délai), la composition déterministe reste en place.
     let mixFormatting: PhotoFormattingPlan | null = null;
+    let mixLayoutMemoOut: ReturnType<typeof mixLayoutMemos> | null = null;
+    let mixLayouts: MixLayoutPlan | null = null;
+    let mixMemorized = 0;
     if (mixComposed) {
       const mixTextSlides = slides.map((s: any, i: number) => ({ slide_number: Number(s.slide_number) || i + 1, role: s.role, overlay_text: mixSlideText(s) }));
-      mixFormatting = await planPhotoFormatting(mixTextSlides, usage);
-      if (mixFormatting.steps.length || mixFormatting.motifs.length) {
-        const numbered = slides.map((s: any, i: number) => ({ ...s, slide_number: Number(s.slide_number) || i + 1 }));
-        mixComposed = composeMixCarousel(applyMixFormatting(numbered, mixFormatting), ch, mixPhotoCount) || mixComposed;
+      // Dispositions mémorisées au rendu précédent : reprises telles quelles,
+      // l'IA ne traite que les slides qui n'en ont pas (mêmes visuels à chaque
+      // régénération).
+      const numbered = slides.map((s: any, i: number) => ({ ...s, slide_number: Number(s.slide_number) || i + 1 }));
+      const [formatting, laid] = await Promise.all([
+        planPhotoFormatting(mixTextSlides, usage),
+        layoutMixSlides(numbered, ch, reqBody.photos || [], usage),
+      ]);
+      mixFormatting = formatting;
+      mixLayouts = laid.plan;
+      mixMemorized = laid.restored;
+      if (mixFormatting.steps.length || mixFormatting.motifs.length || laid.plan.choices.length || laid.restored) {
+        mixComposed = composeMixCarousel(applyMixFormatting(laid.slides as any[], mixFormatting), ch, mixPhotoCount) || mixComposed;
       }
+      // Renvoyé au front, qui le garde sur chaque slide (mix_layout_memo).
+      if (mixComposed) mixLayoutMemoOut = mixLayoutMemos(laid.slides, mixComposed, laid.plan);
     }
 
     // ═══ Carrousel PHOTO pur : composition PAR CODE (chantier gabarits 13/07) ═══
     const composedByCode = isPhotoCarousel || !!mixComposed;
     if (mixComposed) {
       emitStatus("visuals", { done: 0, total: 1 });
-      result = { slides_html: mixComposed.map(({ layout: _l, schema_dropped: _d, ...slide }) => slide) };
+      result = { slides_html: mixComposed.map(({ layout: _l, schema_dropped: _d, layout_proposal: _p, disposition: _q, ...slide }) => slide) };
       if (mixFormatting) result.mix_formatting = { version: mixFormatting.version, status: mixFormatting.status, steps: mixFormatting.steps.length, motifs: mixFormatting.motifs.length };
+      if (mixLayoutMemoOut) result.mix_layout_memos = mixLayoutMemoOut;
+      if (mixLayouts) {
+        result.mix_layout = mixLayoutTelemetry(mixLayouts, mixComposed, mixMemorized);
+        console.log(JSON.stringify({ event: "carousel_mix_layout_formatting", ...result.mix_layout }));
+      }
       if (!usage.model) usage.model = COMPOSED_BY_CODE_MODEL;
       console.log(JSON.stringify({ event: "carousel_mix_composed", layouts: mixComposed.map(s => s.layout), schemas_dropped: mixComposed.filter(s => s.schema_dropped).map(s => s.slide_number), total_slides: slides.length }));
       emitStatus("visuals", { done: 1, total: 1 });

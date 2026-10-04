@@ -54,6 +54,7 @@ import { useSelectInspirationProposal } from "@/hooks/use-select-inspiration-pro
 import { useCalendarSave } from "@/hooks/use-calendar-save";
 import { useFormatNext } from "@/hooks/use-format-next";
 import { useGenerateVisuals } from "@/hooks/use-generate-visuals";
+import { applyMixLayoutMemos } from "@/lib/mix-layout-memo";
 import { useDoGenerate } from "@/hooks/use-do-generate";
 import CreerStepIdea from "@/components/creer/CreerStepIdea";
 // Code-splitting : les étapes après l'écran « idée » sont chargées à la demande
@@ -2047,6 +2048,11 @@ function CreerWorkspace() {
     setPhotoMissingDialog,
     setVisualChunkProgress,
     refreshPlan,
+    onMixLayoutMemos: (memos) => setResult((prev: any) => {
+      const slides = prev?.raw?.slides;
+      const next = Array.isArray(slides) ? applyMixLayoutMemos(slides, memos) : slides;
+      return next === slides ? prev : { ...prev, raw: { ...prev.raw, slides: next } };
+    }),
   });
 
   // ═══ Casting automatique bibliothèque (régime texte d'abord) ═══

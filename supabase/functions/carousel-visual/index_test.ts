@@ -419,3 +419,59 @@ Deno.test("étape numérotée deux fois — MIXTE : titre dédoublonné, sans é
   }
   assert(visibleText(html[4]).includes("4. Le carnet"), "sans étape dessinée, le titre numéroté reste entier");
 });
+
+// ═══ GARDE-FOU DE NON-RÉGRESSION : carrousel MIXTE de référence (04/10/2026) ═══
+// La disposition est décidée APRÈS l'écriture (mix-layout-formatting.ts). Ce
+// carrousel passe par la lecture de la réponse de l'IA (propositions valides ET
+// invalides), la composition de production et toutes les gardes, dans l'ordre de
+// production : aucun mot ni aucune photo ne disparaît, chaque disposition vient
+// du catalogue validé, jamais deux voisines identiques, et une proposition
+// refusée laisse exactement le choix d'avant.
+Deno.test("NON-RÉGRESSION mixte : dispositions proposées après l'écriture, rien ne se perd après les gardes de production", async () => {
+  const { applyMixFormatting, composeMixCarousel, mixLayoutOptions } = await import("../_shared/mix-slide-layouts.ts");
+  const { applyMixLayouts, validateMixLayoutPlan } = await import("../_shared/mix-layout-formatting.ts");
+  const slides = [
+    { slide_number: 1, slide_type: "photo_integrated", photo_index: 2, title: "Pourquoi deux bols de la même série ne sont jamais pareils", body: "" },
+    { slide_number: 2, slide_type: "photo_integrated", photo_index: 1, title: "Le pétrissage", body: "Tout commence avant le tour. Je pétris chaque boule d'argile à la main pour chasser l'air, et aucune n'a tout à fait la même humidité." },
+    { slide_number: 3, slide_type: "photo_full", photo_index: 4, overlay_text: "Sur le tour, un millimètre change tout." },
+    { slide_number: 4, slide_type: "photo_integrated", photo_index: 3, title: "L'émail", body: "Le même bleu, posé de la même façon, coule différemment selon sa place dans le four." },
+    { slide_number: 5, slide_type: "photo_integrated", photo_index: 5, title: "", body: "Chaque fournée a sa page dans mon carnet : température, place dans le four, couleur obtenue." },
+    { slide_number: 6, slide_type: "text_only", title: "Trois gestes, une seule main", body: "Pétrir, tourner, cuire.", visual_schema: { type: "checklist", items: [{ text: "Pétrir" }, { text: "Tourner" }, { text: "Cuire" }] } },
+    { slide_number: 7, slide_type: "text_only", title: "Ce carnet ne sert pas à effacer ces écarts.", body: "Il m'aide à les comprendre. Le bol que tu choisis dans la série n'existe qu'une fois.", cta_label: "Voir la série" },
+  ];
+  const ch = { color_primary: "#3A4A3C", color_secondary: "#A9BCC8", color_accent: "#3A4A3C", color_background: "#FFFFFF", color_text: "#1A1A1A", font_title: "Georgia", font_body: "Arial" };
+  const options = new Map(slides.map((s, i) => [s.slide_number, mixLayoutOptions(s as any, ch, { isFirst: i === 0, photoCount: 5 })] as const).filter(([, o]) => o.length >= 2));
+  const plan = validateMixLayoutPlan(JSON.stringify({ layouts: [
+    { slide_number: 1, layout: "passe_partout", reason: "couverture : refusée" },
+    { slide_number: 2, layout: "cote_a_cote", side: "right", reason: "photo verticale" },
+    { slide_number: 3, layout: "sur_photo", position: "top", reason: "phrase courte, mains en bas" },
+    { slide_number: 4, layout: "sur_photo", reason: "trop long : refusée" },
+    { slide_number: 5, layout: "photo_aplat", reason: "voisine d'une pause : refusée" },
+    { slide_number: 6, layout: "respiration", reason: "slide texte : refusée" },
+  ] }), options);
+  const formatting = { steps: [{ slide_number: 2, label: "Le pétrissage" }, { slide_number: 3, label: "" }, { slide_number: 4, label: "L'émail" }], motifs: [] };
+  const numbered = slides.map(s => ({ ...s }));
+  const base = composeMixCarousel(applyMixFormatting(numbered as any, formatting as any), ch, 5)!;
+  const composed = composeMixCarousel(applyMixFormatting(applyMixLayouts(numbered as any, plan), formatting as any), ch, 5)!;
+  const layouts = composed.map(s => s.layout);
+  assertEquals(layouts, ["couverture_aplat", "cote_a_cote", "sur_photo", "photo_aplat", "passe_partout", "pause", "respiration"]);
+  assertEquals(composed.map(s => s.layout_proposal?.status ?? null), [null, "accepted", "accepted", null, "rejected", null, null]);
+  // Slide 4 (proposition refusée dès la lecture) et slide 5 (refusée à la
+  // composition) : même choix que sans proposition à disposition égale.
+  assertEquals(base[0].html, composed[0].html, "couverture inchangée");
+  assertEquals(base[5].html, composed[5].html, "slide pause inchangée");
+  const result: any = { slides_html: composed.map(({ layout: _l, schema_dropped: _d, layout_proposal: _p, ...x }: any) => x) };
+  productionGuards(result, slides, ch, false);
+  const html: string[] = result.slides_html.map((s: any) => s.html);
+  assertEquals(html.length, 7, "nombre de slides");
+  slides.forEach((s: any, i) => {
+    for (const field of ["title", "body", "overlay_text", "cta_label"]) if (s[field]) assert(visibleText(html[i]).includes(s[field]), `slide ${i + 1} : ${field} perdu (« ${s[field]} »)`);
+    if (s.slide_type !== "text_only") assert(html[i].includes(`{{PHOTO_${s.photo_index}}}`) && html[i].includes(`data-pptx-photo="${s.photo_index}"`), `slide ${i + 1} : photo perdue`);
+  });
+  const catalog = ["couverture_aplat", "photo_aplat", "passe_partout", "cote_a_cote", "sur_photo", "respiration", "pause", "vignette"];
+  for (const [i, h] of html.entries()) assert(catalog.some(l => h.includes(`data-carousel-layout="mix-${l}"`)), `slide ${i + 1} : disposition hors catalogue`);
+  for (let i = 1; i < layouts.length; i++) assert(layouts[i] !== layouts[i - 1], `slides ${i} et ${i + 1} identiques`);
+  [1, 2, 3].forEach(n => assert(html[n].includes(`Étape ${n}`), `« Étape ${n} » perdu`));
+  assert(/top:96px/.test(html[2]), "bloc de l'overlay en haut, comme proposé");
+  assert(visibleText(html[5]).includes("Tourner"), "schéma de la slide pause perdu");
+});

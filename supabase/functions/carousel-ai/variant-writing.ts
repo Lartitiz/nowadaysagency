@@ -24,6 +24,12 @@ La légende a les champs hook, body, cta, hashtags. Elle peut être concise : au
 /** Mise en page du carrousel photo décidée APRÈS l'écriture (04/10/2026). */
 export const PHOTO_LAYOUT_AFTER_WRITING = "La mise en page (gabarit, chiffre mis en avant, liste, étape, citation) est décidée après la rédaction, à partir du texte final : écris tout ce qui doit être lu dans overlay_text, en toutes lettres (un chiffre, une énumération ou un propos rapporté y figurent tels quels).";
 
+// Mixte (04/10/2026) : la disposition (photo_layout, overlay_position,
+// overlay_style) est choisie après l'écriture par _shared/mix-layout-formatting.ts.
+// slide_type et photo_index restent à la rédaction : ils décident quel champ
+// porte le texte (overlay court ou title/body) et donc la structure du récit.
+export const MIX_LAYOUT_AFTER_WRITING = "La disposition (place de la photo, position et style du texte) est décidée après la rédaction, à partir du texte final : tu ne la renseignes pas.";
+
 export function photoWritingPrompt(body: any, isLinkedIn: boolean, confirmed: string): string {
   return `Rédige le texte d'un carrousel PHOTO, avec les photos choisies en fond.
 ${brief(body, isLinkedIn, confirmed)}
@@ -67,13 +73,13 @@ ${brief(body, isLinkedIn, confirmed)}
 ${PHOTO_NARRATIVE_CONTRACT}
 CONTRAT DE COMPOSITION
 Types : photo_full (photo plein écran, overlay_text généralement 15-45 mots selon la matière), photo_integrated (photo et texte, title/body), text_only (title/body, sans photo).
-photo_integrated accepte photo_layout:top_photo,left_photo,right_photo,card_photo,banner_photo.
+${MIX_LAYOUT_AFTER_WRITING}
 Sans répartition imposée : commence en photo_full, termine en text_only, ${body.text_first ? "deux à quatre slides photo au maximum (pas de ratio imposé en texte-d'abord)" : "au moins la moitié des slides avec photo"} ; alterne les types sans trois slides identiques consécutives. Une photo peut se répéter et on conserve les photos pertinentes. Une répartition confirmée prime sur ces préférences. La fin en text_only n'impose pas de CTA.
-Les photos sont numérotées depuis 1. Respecte les photo_index et layouts confirmés. photo_index:null sur text_only. Le changement de type de slide ne change pas de mode d'écriture : overlay_text poursuit la même explication que les title/body voisins. Rédige d'abord cette prose continue, puis répartis-la dans les champs. Une description visible n'est utile que si elle explique ce que cet exemple apporte au propos en cours ; nommer les objets, couleurs ou motifs sans ce lien ne constitue pas une étape du récit. visual_anchor garde la description technique pour la composition, il ne remplace pas le passage public. Le texte peut expliquer ce que la photo ne montre pas sans inventer une scène. Une pause visuelle brute demandée reste sans texte.
+Les photos sont numérotées depuis 1. Respecte les photo_index confirmés. photo_index:null sur text_only. Le changement de type de slide ne change pas de mode d'écriture : overlay_text poursuit la même explication que les title/body voisins. Rédige d'abord cette prose continue, puis répartis-la dans les champs. Une description visible n'est utile que si elle explique ce que cet exemple apporte au propos en cours ; nommer les objets, couleurs ou motifs sans ce lien ne constitue pas une étape du récit. visual_anchor garde la description technique pour la composition, il ne remplace pas le passage public. Le texte peut expliquer ce que la photo ne montre pas sans inventer une scène. Une pause visuelle brute demandée reste sans texte.
 body : longueur adaptée au développement, sans minimum ni plafond universel ; conserve les détails et nuances utiles. Un titre n'est pas nécessairement une mini-accroche. ${NO_SCHEMA_IN_WRITING}
 ${textFirst}
 Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = proposition précise développée, pas thème ou parcours de photos ; etapes = chemin qui la fait comprendre), puis carousel_type:"mix", chosen_angle:{title,description}, slides et caption.
-Chaque slide : slide_number, slide_type, photo_index, role, puis les champs propres au type. photo_full : overlay_text, overlay_position, overlay_style. photo_integrated : photo_layout,title,body. text_only : title,body,visual_schema (null). Pour les slides photo : visual_anchor et note, ainsi que photo_directive/photo_query_en/library_photo_index/news_entity quand le mode texte-d'abord le demande. Aucun placeholder ni auto-note de qualité.
+Chaque slide : slide_number, slide_type, photo_index, role, puis les champs propres au type. photo_full : overlay_text. photo_integrated : title,body. text_only : title,body,visual_schema (null). Pour les slides photo : visual_anchor et note, ainsi que photo_directive/photo_query_en/library_photo_index/news_entity quand le mode texte-d'abord le demande. Aucun placeholder ni auto-note de qualité.
 `;
 }
 
