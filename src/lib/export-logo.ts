@@ -9,9 +9,15 @@
 
 const LOGO_LS_KEY = "export-include-logo";
 
+/** Sans logo par défaut (choix du 04/10/2026) : le logo s'ajoute seulement
+ * quand la case « Ajouter mon logo » du menu Télécharger a été cochée. */
 export function getIncludeLogoPref(): boolean {
-  if (typeof window === "undefined") return true;
-  return window.localStorage.getItem(LOGO_LS_KEY) !== "false";
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(LOGO_LS_KEY) === "true";
+  } catch {
+    return false;
+  }
 }
 
 export function setIncludeLogoPref(value: boolean): void {

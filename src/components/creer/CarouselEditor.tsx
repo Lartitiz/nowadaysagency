@@ -1,3 +1,4 @@
+import { INSTAGRAM_DIRECT_MAX_IMAGES, instagramTooManyImagesReason } from "@/features/creer/publish-guards";
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { createPortal } from "react-dom";
@@ -2617,11 +2618,9 @@ export default function CarouselEditor({
           </button>
         ))}
       </div>
-      {document.slides.length > 10 && (
+      {document.slides.length > INSTAGRAM_DIRECT_MAX_IMAGES && (
         <p className="text-xs text-muted-foreground">
-          Ce carrousel dépasse les 10 images prises en charge par la publication
-          directe de l’outil. Tu peux exporter les slides pour publier depuis
-          Instagram.
+          {instagramTooManyImagesReason(document.slides.length)}
         </p>
       )}
       <div className="flex flex-wrap gap-2">

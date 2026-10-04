@@ -151,17 +151,19 @@ describe("carousel editor document", () => {
     expect(addTextElement(s)).toBe(s);
     expect(replacePhoto(s, null, "data:image/png;base64,AA==", 1)).toBe(s);
   });
-  it("renumbers both data and displayed pagination after reorder", () => {
+  it("renumbers the data and removes any displayed pagination after reorder", () => {
     const a = makeSlide({ slide_number: 1 }),
       b = makeSlide({ slide_number: 2 });
-    const next = renumberDocument({ slides: [b, a], caption: {} });
-    // Couverture sans numéro (04/10/2026) ; la slide 2 garde le sien.
-    expect(next.slides[0].html).not.toContain(" / 2<");
-    expect(next.slides[1].html).toContain(">2 / 2<");
+    // Plus de numéro de page sur les slides (04/10/2026), y compris l'ancien
+    // repère « 1 / 1 » posé par les mises en page de l'éditeur.
+    const old = { ...a, html: a.html.replace("</div>", '<span data-slide-page>1 / 1</span></div>') };
+    const next = renumberDocument({ slides: [b, old], caption: {} });
+    for (const slide of next.slides) {
+      expect(slide.html).not.toMatch(/\d\s*\/\s*\d/);
+      expect(slide.html).not.toContain("data-slide-page");
+    }
     expect(next.slides[1].data.slide_number).toBe(2);
-    // Une ancienne couverture déplacée en 2e position retrouve son numéro.
-    const back = renumberDocument({ slides: [next.slides[1], next.slides[0]], caption: {} });
-    expect(back.slides[1].html).toContain(">2 / 2<");
+    expect(makeSlide({ title: "T", body: "B" }, "text_only").html).not.toContain("data-slide-page");
   });
   it("clears obsolete freeform text when committing structured edits", () => {
     expect(

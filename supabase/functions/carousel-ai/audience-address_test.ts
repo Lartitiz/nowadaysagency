@@ -21,7 +21,7 @@ const DOC = {
 
 Deno.test("carrousel : règle ferme en tête du prompt de rédaction, rien sans réglage", () => {
   const rule = audienceAddressRule("vous");
-  const withRule = buildCarouselWritingSystem("CONTEXTE", false, "IDENTITÉ", "CLARTÉ", rule);
+  const withRule = buildCarouselWritingSystem("CONTEXTE", false, "IDENTITÉ", "CLARTÉ", false, rule);
   assert(withRule.startsWith(rule));
   const without = buildCarouselWritingSystem("CONTEXTE", false, "IDENTITÉ", "CLARTÉ");
   assertEquals(withRule.slice(rule.length + 2), without);

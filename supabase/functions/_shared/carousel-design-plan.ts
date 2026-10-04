@@ -75,7 +75,10 @@ export function assignTextTreatments(slides: Slide[], sequence: DesignBeat[]): v
     const parts = sentences(body);
     const fits = (t: TextTreatment) => t !== previous &&
       (t !== "aplat" || aplats < 2) &&
-      (t !== "lettrine" || /^\p{L}/u.test(body.trim())) &&
+      // Lettrine sur une majuscule seulement : une slide qui poursuit la phrase
+      // de la précédente (« et c'est là… », carrousel texte découpé une idée
+      // par slide) ne commence pas une nouvelle prose.
+      (t !== "lettrine" || /^\p{Lu}/u.test(body.trim())) &&
       ((t !== "surligne" && t !== "deux_temps") || parts.length >= 2);
     let treatment: TextTreatment = "centre";
     for (let n = 0; n < TREATMENT_CYCLE.length; n++) {
@@ -92,11 +95,11 @@ export function assignTextTreatments(slides: Slide[], sequence: DesignBeat[]): v
 }
 
 const TREATMENT_RULES: Record<TextTreatment, (b: DesignBeat) => string> = {
-  centre: () => "centré : petit filet de couleur au-dessus du titre, titre puis texte, le bloc centré verticalement",
+  centre: () => "centré : petit filet de couleur au-dessus du titre, titre puis texte, le bloc centré verticalement mais ALIGNÉ À GAUCHE (titre et texte jamais centrés horizontalement)",
   surligne: (b) => `mot-clé surligné : 1 à 3 mots du titre portent un surligneur doux (background: linear-gradient(transparent 58%, <accent clair> 58%)) ; dans le texte, la phrase « ${b.extract} » passe en plus grand dans la police des titres et la couleur de charte, à SA place (un <span style="display:block; …"> dans l'élément du texte, jamais recopiée ailleurs)`,
   aplat: () => "aplat : le haut de la slide (environ 40 %) est un aplat de la couleur principale portant le titre en clair, le texte est centré verticalement dans la partie claire en dessous",
   lettrine: () => "lettrine : titre en italique couleur de charte ; le texte commence par une grande lettrine (premier caractère dans un <span> flottant, police des titres, environ 4 lignes de haut) avec un filet vertical fin à gauche du texte",
-  forme: () => "forme de marque : une grande forme organique douce (SVG décoratif, couleur de charte très claire, jamais un cercle, jamais sous le texte au point de gêner la lecture) déborde derrière le titre, côté droit ; titre et texte centrés verticalement",
+  forme: () => "forme de marque : une grande forme organique douce (SVG décoratif, couleur de charte très claire, jamais un cercle) posée dans le coin haut droit et qui déborde du bord ; elle ne touche JAMAIS le titre ni le texte (titre limité à 760px de large, la forme reste à droite de cette zone ou au-dessus) ; titre et texte centrés verticalement",
   deux_temps: (b) => `texte en deux temps : la première phrase « ${b.extract} » en gras, un peu plus grande ; la suite du texte dans une carte claire arrondie (le tout dans le MÊME élément du texte, la première phrase et la carte étant des <span style="display:block; …">)`,
 };
 
@@ -106,7 +109,7 @@ export function describeTextTreatments(plan: CarouselDesignPlan): string {
   return `
 TRAITEMENTS DES SLIDES DE TEXTE (maquettes validées par la marque) — OBLIGATOIRES :
 ${treated.map(b => `Slide ${b.slide_number} : ${TREATMENT_RULES[b.treatment!](b)}.`).join("\n")}
-Pour toutes ces slides : le bloc titre + texte est CENTRÉ VERTICALEMENT dans la slide (aligné à gauche), jamais collé en haut avec un grand vide dessous. Le texte reste dans UN seul élément ancré (data-slide-text="body"), intégral et dans l'ordre : les mises en valeur sont des <span> à l'intérieur, rien n'est recopié ni déplacé. Texte sur toute la largeur utile (au moins 840px), jamais en colonne étroite.`;
+Pour toutes ces slides : le bloc titre + texte est CENTRÉ VERTICALEMENT dans la slide et ALIGNÉ À GAUCHE, jamais collé en haut avec un grand vide dessous. Tailles : titre 56 à 68px, texte 32 à 36px (jamais moins de 30px) ; s'il reste beaucoup de place, agrandis le texte plutôt que de laisser un grand vide. Le texte reste dans UN seul élément ancré (data-slide-text="body"), intégral et dans l'ordre : les mises en valeur sont des <span> à l'intérieur, rien n'est recopié ni déplacé. Texte sur toute la largeur utile (au moins 840px), jamais en colonne étroite.`;
 }
 
 export function describeCarouselDesignPlan(plan: CarouselDesignPlan): string {

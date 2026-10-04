@@ -18,6 +18,7 @@ import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, 
 import { streamAnthropicSSE, streamAnthropicToolSSE, createClientSSEStream, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.ts";
+import { livedCaseFromCreativeBody, LIVED_CASE_FIRST } from "../_shared/lived-case.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief, positionDepthBlock } from "../_shared/format-briefs.ts";
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
@@ -913,7 +914,11 @@ export async function buildGeneratePrompt(params: {
   // Posts (hors légende photo), reels et stories défendent une position (#1292 pour le carrousel).
   const positionFormat = isReel ? "reel" : isStories ? "stories"
     : (!isCarousel && !isLinkedIn && !isPinterest && !isNewsletter && !isPhotoMode) ? "caption" : null;
-  if (positionFormat) depthMandate += `\n\n${positionDepthBlock(positionFormat, !!newsContextBlock)}`;
+  // « Ton cas d'abord » (04/10/2026) : avec un cas personnel fourni, la lecture
+  // sociale en « on / nous » laisse la place à son vécu, preuve centrale.
+  const livedCase = livedCaseFromCreativeBody(body).provided;
+  if (positionFormat) depthMandate += `\n\n${positionDepthBlock(positionFormat, !!newsContextBlock, livedCase)}`;
+  else if (isLinkedIn && livedCase) depthMandate += `\n\n${LIVED_CASE_FIRST}`;
 
   let systemPrompt = `${COMMON_PREFIX}
 
@@ -1835,11 +1840,15 @@ export const _deps = { fetchDepthMaterial };
  * sourcés qui étayent une position. L'actu ne donne que le déclencheur, les réponses
  * le vécu. Condiment : échec silencieux, borné à 20 s (budget reel 90 s + 45 s).
  */
-export async function creativeDepthBlock(params: { context?: string | null; newsContext?: string | null; activity?: string }): Promise<string> {
+export async function creativeDepthBlock(params: { context?: string | null; newsContext?: string | null; activity?: string; livedCase?: string }): Promise<string> {
   const subject = typeof params.context === "string" ? params.context.trim() : "";
   if (!subject) return "";
   const newsAngle = typeof params.newsContext === "string" ? params.newsContext.trim().slice(0, 600) : "";
+  // « Ton cas d'abord » (04/10/2026) : cas personnel fourni → vérification d'un point, au plus un fait.
+  const mode = params.livedCase?.trim() ? "support" : "depth";
   const material = await _deps.fetchDepthMaterial({
+    mode,
+    livedCase: params.livedCase,
     subject: [subject.slice(0, 1500), newsAngle].filter(Boolean).join("\n"),
     activity: params.activity,
     model: getModelForAction("content"),
@@ -1847,7 +1856,7 @@ export async function creativeDepthBlock(params: { context?: string | null; news
     logger: (m) => console.log(`[creative-flow] ${m}`),
     timeoutMs: 20_000,
   });
-  return buildDepthBlock(material);
+  return buildDepthBlock(material, mode);
 }
 
 export async function runDeepResearchWebSearch(params: {
@@ -2824,7 +2833,11 @@ serve(async (req) => {
 
     const profileBlock = profile ? buildProfileBlock(profile) : "";
     const ctx = await getUserContext(supabase, userId, workspace_id, channelFromType);
-    const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
+    // « Ton cas d'abord » (04/10/2026) : quand la personne a donné son propre cas,
+    // son histoire de marque n'est pas jointe à la rédaction (elle racontait le
+    // parcours de la marque à la place du récit fourni).
+    const ownCaseGeneration = step === "generate" && livedCaseFromCreativeBody(body).provided;
+    const brandingContext = formatContextForAI(ctx, ownCaseGeneration ? { ...CONTEXT_PRESETS.content, includeStory: false } : CONTEXT_PRESETS.content);
     // Champs de marque bruts (combat, mission, ton…) : le redac-gate s'en sert
     // pour détecter une recopie quasi mot pour mot (audit slop 18/08). Aucune
     // requête supplémentaire — ctx.tone est déjà fetché par getUserContext().
@@ -3096,7 +3109,9 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 
     // Recherche « creuser le sujet » pour posts, posts LinkedIn, reels et stories (hors légende photo).
     if (step === "generate" && !deepResearch && !isPhotoMode && (isCaption || isLinkedIn || isReel || isStories)) {
-      const depthBlock = await creativeDepthBlock({ context, newsContext, activity });
+      const lived = livedCaseFromCreativeBody(body);
+      if (lived.provided) console.log(`[creative-flow] cas personnel fourni (${lived.reasons.join(", ")}) — ton cas d'abord, recherche en appui`);
+      const depthBlock = await creativeDepthBlock({ context, newsContext, activity, livedCase: lived.provided ? lived.answers.join("\n") || String(context || "") : undefined });
       if (depthBlock) {
         systemPrompt += depthBlock;
         researchSource = depthBlock;

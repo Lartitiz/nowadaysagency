@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Clock, FileEdit, ImagePlus, Link2, Loader2, Zap } from "lucide-react";
+import { Clock, Download, FileEdit, ImagePlus, Link2, Loader2, Zap } from "lucide-react";
 import AlreadyPlannedNotice from "@/components/calendar/AlreadyPlannedNotice";
 
 export type PublishChannel = "instagram" | "linkedin" | null;
@@ -19,7 +19,7 @@ interface Props {
    * la raison de blocage est un cul-de-sac. Affichée en bouton sous les deux options
    * bloquées ; `busy` pendant l'upload.
    */
-  blockedAction?: { label: string; onClick: () => void; busy?: boolean } | null;
+  blockedAction?: { label: string; onClick: () => void; busy?: boolean; icon?: "image" | "download"; busyLabel?: string } | null;
   /** Compte du canal connecté ? Sans connexion, publier/programmer échoueraient. */
   channelConnected: boolean | null;
   connectionLoading?: boolean;
@@ -203,10 +203,12 @@ export default function PublishOrScheduleDialog({
                   >
                     {blockedAction.busy ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : blockedAction.icon === "download" ? (
+                      <Download className="h-4 w-4" />
                     ) : (
                       <ImagePlus className="h-4 w-4" />
                     )}
-                    {blockedAction.busy ? "Ajout en cours…" : blockedAction.label}
+                    {blockedAction.busy ? (blockedAction.busyLabel ?? "Ajout en cours…") : blockedAction.label}
                   </Button>
                 )
               )}
