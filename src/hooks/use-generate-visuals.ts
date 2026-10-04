@@ -348,7 +348,9 @@ export function useGenerateVisuals({
       // Les carrousels riches en photos (dump : 6-8 slides pleines images)
       // dépassent régulièrement 180 s côté rendu — plafond élargi dans ce cas
       // (vu au re-test live du 10/07 : texte OK, timeout sur les visuels).
-      const visualsTimeout = (requestBody as any)?.photos?.length >= 4 ? 420000 : 180000;
+      // Carrousel texte de plus de 10 slides (jusqu'à 20 en Auto, 04/10/2026) :
+      // plus de lots dessinés en parallèle et un rattrapage éventuel plus long.
+      const visualsTimeout = (requestBody as any)?.photos?.length >= 4 ? 420000 : (requestBody as any)?.slides?.length > 10 ? 300000 : 180000;
       const { data, error: fnError } = await invokeWithHeartbeat("carousel-visual", {
         body: requestBody,
         onStatus: (stage, info: any) => {

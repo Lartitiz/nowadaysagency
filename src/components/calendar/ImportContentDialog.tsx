@@ -19,6 +19,7 @@ import { imagesToPdfFile } from "@/lib/images-to-pdf";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { INSTAGRAM_DIRECT_MAX_IMAGES, instagramTooManyImagesReason } from "@/features/creer/publish-guards";
 
 const MAX_IMAGES = 10;
 
@@ -265,7 +266,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
     if (canals.length === 0) return "Choisis au moins un réseau où publier.";
     if (canals.includes("instagram")) {
       if (igValidImages.length === 0) return "Ajoute au moins un visuel pour Instagram.";
-      if (igValidImages.length > 10) return "Instagram limite les carrousels à 10 images.";
+      if (igValidImages.length > INSTAGRAM_DIRECT_MAX_IMAGES) return instagramTooManyImagesReason(igValidImages.length);
     }
     if (canals.includes("linkedin") && !captionOf("linkedin") && !pdfUrl && igValidImages.length === 0) return "Ajoute un texte, une image ou un PDF pour LinkedIn.";
     if (mode === "schedule") {

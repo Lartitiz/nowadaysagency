@@ -1,6 +1,7 @@
 import { isDurableReelUrl, REEL_VIDEO_REQUIRED } from "@/lib/reel-publication";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { supabase } from "@/integrations/supabase/client";
+import { instagramTooManyImagesReason } from "@/features/creer/publish-guards";
 
 const PUBLISH_BUCKET = "instagram-publish";
 // Durée de vie de l'URL signée servie à Instagram. Instagram récupère (cURL) chaque
@@ -193,9 +194,8 @@ export async function publishRenderedCarouselToInstagram(opts: {
   const { renderCarouselSlidesToBlobs } = await import("@/lib/export-carousel-png");
   const blobs = await renderCarouselSlidesToBlobs(visualSlides, logoUrl);
   if (blobs.length < 2) throw new Error("Le carrousel doit contenir au moins 2 visuels valides.");
-  if (blobs.length > 10) {
-    throw new Error(`Instagram limite les carrousels à 10 images (celui-ci en a ${blobs.length}).`);
-  }
+  const tooMany = instagramTooManyImagesReason(blobs.length);
+  if (tooMany) throw new Error(tooMany);
   const { urls, paths } = await uploadSlideBlobs(blobs, userId);
   try {
     return await publishToInstagram({ caption, imageUrls: urls, workspaceId, userId, timeoutMs });
