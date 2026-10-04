@@ -47,6 +47,10 @@ Deno.test("témoignage : variantes de parole rapportée et de rencontre", () => 
       "Et pourtant, régulièrement, on me dit qu'il faudrait que je poste plus souvent pour « faire tourner l'algorithme ».",
       "On me demande souvent combien de fois publier.",
       "On m'a souvent conseillé de publier tous les jours.",
+      "On me pose souvent la question : faut-il publier tous les jours pour que ça marche sur LinkedIn ?",
+      "On me pose sans cesse cette question.",
+      "Vous me demandez souvent combien de fois publier.",
+      "Vous êtes nombreuses à m'écrire que vous n'avez pas le temps.",
     ]
   ) {
     assertEquals(findInventedTestimonials(t, BRIEF).length, 1, t);
@@ -62,6 +66,9 @@ Deno.test("témoignage : pas de faux positif sur une opinion ou un sujet qui n'e
       "Je pense que publier plus ne règle rien.",
       "On dit souvent qu'il faut publier tous les jours.",
       "On me dira que c'est une question de chance.",
+      "Vous me direz que c'est une question de chance.",
+      "On se pose tous la question un jour.",
+      "Je me pose souvent la question.",
       CLEAN,
     ]
   ) {
