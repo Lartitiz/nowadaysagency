@@ -1274,6 +1274,8 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
           // vient d'elle, ses chiffres sont légitimes) + réponses/actu/branding.
           inputText: [sourceForFormats, plan?.synthese_source || "", recActivity, recTarget, recPiliers].filter(Boolean).join("\n"),
           brandGuardText: recBrandGuardText,
+          // Témoignages et vécus au passé : seuls ceux de la source recyclée sont admis.
+          testimonySource: sourceForFormats,
         });
         const reparsed = tryParseAiJson<any>(gated.content, "creative-flow:recycle:carrousel:gated");
         if (reparsed && Array.isArray(reparsed.slides)) resultVal = reparsed;
