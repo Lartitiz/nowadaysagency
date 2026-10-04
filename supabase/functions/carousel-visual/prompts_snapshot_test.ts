@@ -225,6 +225,7 @@ Deno.test("garde-fou : la consigne ne demande plus de dupliquer les chiffres d'u
   assert(!all.includes("TOUJOURS mis en scène"));
   assert(all.includes("Sur une slide LONGUE"));
   assert(all.includes("SLIDES DENSES"));
+  assert(all.includes("jamais une colonne étroite"), "slide dense : pleine largeur");
 });
 
 // HTML réel du test du 04/10/2026 (slides 2 et 3, ~60-70 mots) : le modèle
