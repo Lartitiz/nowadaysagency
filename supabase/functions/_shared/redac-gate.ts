@@ -48,6 +48,11 @@ const REVERSAL_PATTERNS: RegExp[] = [
   // mécanisme). Un « sauf que » factuel en milieu de phrase, ou « Sauf que la
   // livraison a du retard », ne compte pas.
   /(?:^|[.!?]\s+|\n\s*)Sauf que (?:non\b|(?:ce n(?:'|’)est|c(?:'|’)est|ça n(?:'|’)est) pas (?:tout à fait|vraiment|si simple|aussi simple|exactement|comme ça|ce qui se passe|le cas)|ça ne (?:marche|fonctionne|se passe) pas (?:comme ça|vraiment|tout à fait|ainsi|du tout))[^.!?\n]{0,80}/,
+  // ── Antithèse croyance / réalité en deux phrases miroir (re-test réel 04/10/2026) ──
+  // « On croit en faire plus. On en fait souvent moins. » / « Tu penses gagner du
+  // temps. Tu en perds. » : la 2e phrase est une chute courte (≤ 50 caractères)
+  // qui renverse la 1re. Une explication développée après « On pense que… » ne compte pas.
+  /(?:^|[.!?]\s+|\n\s*)(?:On|Tu|Vous|Nous) (?:croit|crois|croyez|croyons|pense|penses|pensez|pensons|s['’]imagine|t['’]imagines|vous imaginez|a l['’]impression d(?:e |['’])|as l['’]impression d(?:e |['’]))[^.!?\n]{2,60}[.!] ?(?:Mais |En réalité,? |En fait,? |Au final,? |Résultat ?: )?(?:on|tu|vous|nous|On|Tu|Vous|Nous)\b[^.!?\n]{2,45}[.!]/,
 ];
 
 // Formules moulées repérées à l'identique dans deux contenus générés à 30 min
@@ -1027,7 +1032,7 @@ function buildFixInstructions(a: RedacAnalysis): string {
   const lines: string[] = [];
   if (a.reversals.length > 0) {
     lines.push(
-      `RETOURNEMENTS PAR NÉGATION : ${a.reversals.length} détectés, aucun effet ajouté n’est autorisé (caption comprise). Réécris chaque passage signalé en affirmation directe, en préservant les négations factuelles et verbatims fournis à garder (même sens, sans « pas X, c'est Y ») :\n${a.reversals.map((r) => `- « ${r} »`).join("\n")}`,
+      `RETOURNEMENTS PAR NÉGATION : ${a.reversals.length} détectés, aucun effet ajouté n’est autorisé (caption comprise). Réécris chaque passage signalé en affirmation directe, en préservant les négations factuelles et verbatims fournis à garder (même sens, sans « pas X, c'est Y »). Une concession suivie de « Sauf que… » disparaît, et une antithèse en deux phrases miroir (« On croit en faire plus. On en fait souvent moins. ») devient une seule phrase qui dit le mécanisme (« Publier trop vite coupe l'élan du post précédent. ») :\n${a.reversals.map((r) => `- « ${r} »`).join("\n")}`,
     );
   }
   // Length is layout telemetry only: preserve useful prose and transitions.
@@ -1632,7 +1637,7 @@ export function buildTextFixInstructions(a: TextRedacAnalysis): string {
   const lines: string[] = [];
   if (a.reversals.length > 0) {
     lines.push(
-      `RETOURNEMENTS PAR NÉGATION : ${a.reversals.length} détectés, aucun effet ajouté n’est autorisé. Réécris chaque passage signalé en affirmation directe, en préservant les négations factuelles et verbatims fournis à garder. Une concession suivie de « Sauf que… » (« C'est logique, sur le papier. Sauf que ce n'est pas comme ça que ça marche ») disparaît : pose directement le mécanisme réel, sans concession ni « sauf que » :\n${a.reversals.map((r) => `- « ${r} »`).join("\n")}`,
+      `RETOURNEMENTS PAR NÉGATION : ${a.reversals.length} détectés, aucun effet ajouté n’est autorisé. Réécris chaque passage signalé en affirmation directe, en préservant les négations factuelles et verbatims fournis à garder. Une concession suivie de « Sauf que… » (« C'est logique, sur le papier. Sauf que ce n'est pas comme ça que ça marche ») disparaît : pose directement le mécanisme réel, sans concession ni « sauf que ». Une antithèse en deux phrases miroir (« On croit en faire plus. On en fait souvent moins. ») devient une seule phrase qui dit le mécanisme (« Publier trop vite coupe l'élan du post précédent. ») :\n${a.reversals.map((r) => `- « ${r} »`).join("\n")}`,
     );
   }
   for (const m of a.moulded) {

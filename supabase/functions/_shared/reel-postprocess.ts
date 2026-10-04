@@ -270,6 +270,11 @@ export function extractReelTexts(parsed: any): string {
       }
     },
   );
+  // Texte de couverture : mesuré par reelAuditableText, donc corrigible aussi
+  // (sinon un vécu ou un chiffre inventé y restait, vu le 04/10/2026).
+  if (typeof parsed?.cover_text === "string" && parsed.cover_text.trim()) {
+    lines.push(`[COVER]\n${parsed.cover_text.trim()}`);
+  }
   return lines.join("\n\n");
 }
 
@@ -281,7 +286,7 @@ export function extractReelTexts(parsed: any): string {
 export function reinjectReelTexts(parsed: any, correctedBlock: string): any {
   const out = JSON.parse(JSON.stringify(parsed));
   const map = new Map<string, string>();
-  const re = /^\[(SECTION \d+ - (?:PARLE|OVERLAY)|CAPTION(?: - CTA)?|STORY \d+)\]\s*\n([\s\S]*?)(?=\n\[(?:SECTION \d+ - (?:PARLE|OVERLAY)|CAPTION(?: - CTA)?|STORY \d+)\]|$)/gm;
+  const re = /^\[(SECTION \d+ - (?:PARLE|OVERLAY)|CAPTION(?: - CTA)?|STORY \d+|COVER)\]\s*\n([\s\S]*?)(?=\n\[(?:SECTION \d+ - (?:PARLE|OVERLAY)|CAPTION(?: - CTA)?|STORY \d+|COVER)\]|$)/gm;
   for (const m of correctedBlock.matchAll(re)) {
     const text = m[2].trim();
     if (text) map.set(m[1], text);
@@ -296,6 +301,7 @@ export function reinjectReelTexts(parsed: any, correctedBlock: string): any {
   });
   if (map.get("CAPTION") && out?.caption?.text) out.caption.text = map.get("CAPTION");
   if (map.get("CAPTION - CTA") && out?.caption?.cta) out.caption.cta = map.get("CAPTION - CTA");
+  if (map.get("COVER") && typeof out?.cover_text === "string") out.cover_text = map.get("COVER");
   (Array.isArray(out?.amplification_stories) ? out.amplification_stories : []).forEach(
     (a: any, i: number) => {
       const t = map.get(`STORY ${i + 1}`);
