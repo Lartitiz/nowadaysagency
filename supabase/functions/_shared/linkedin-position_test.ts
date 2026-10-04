@@ -51,7 +51,8 @@ Deno.test("correction LinkedIn : garde la position, n'invente toujours rien", ()
 Deno.test("relecture fidèle aux sources (posts avec brief) : garde opinion et émotion partagée, sans précaution ajoutée", async () => {
   const { sourceFirstCorrectionPrompt } = await import("./correction-pass.ts");
   const p = sourceFirstCorrectionPrompt({ sourceContext: "brief" }, "");
-  assertEquals(p.includes("une opinion assumée, une nuance ou une émotion courante"), true);
-  assertEquals(p.includes("N'ajoute aucune précaution"), true);
+  assertEquals(p.includes("une opinion n'a pas besoin de source"), true);
+  assertEquals(p.includes("les émotions courantes nommées comme une expérience partagée"), true);
+  assertEquals(p.includes("Supprime en revanche une précaution"), true);
   assertEquals(p.includes("anecdotes vécues, témoignages, résultats"), true);
 });

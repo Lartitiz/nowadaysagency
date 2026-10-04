@@ -13,7 +13,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, forcesDisabledThinking, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, streamAnthropicToolSSE, createClientSSEStream, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
-import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "../_shared/format-briefs.ts";
+import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.ts";
+import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief, positionDepthBlock } from "../_shared/format-briefs.ts";
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
@@ -862,6 +863,10 @@ export async function buildGeneratePrompt(params: {
   } else {
     depthMandate = captionBrief(effectiveObjective ?? null);
   }
+  // Posts (hors légende photo), reels et stories défendent une position (#1292 pour le carrousel).
+  const positionFormat = isReel ? "reel" : isStories ? "stories"
+    : (!isCarousel && !isLinkedIn && !isPinterest && !isNewsletter && !isPhotoMode) ? "caption" : null;
+  if (positionFormat) depthMandate += `\n\n${positionDepthBlock(positionFormat, !!newsContextBlock)}`;
 
   let systemPrompt = `${COMMON_PREFIX}
 
@@ -1358,11 +1363,8 @@ function normalizeHooksResponse(parsed: any, params: { body: any; rawContent: st
 // En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
 // (vision déjà coûteuse en wall-time). Les règles anti-broetry sont déjà
 // injectées AVANT les images dans le prompt photo LinkedIn (lignes 1272+).
-export async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[]; researchText?: string }): Promise<void> {
+export async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<void> {
   const { body, fullContext, brandGuardText } = params;
-  // Recherche web (newsjacking) : ses chiffres sourcés sont des faits fournis.
-  // Hors liste blanche, la correction les retirait comme « chiffres sans source ».
-  const researchText = params.researchText || "";
   try {
     // Gate rédactionnel (lots 3+4) : mesures en code injectées dans la
     // passe de correction existante — retournements (1 max), formules
@@ -1372,7 +1374,6 @@ export async function applyLinkedInCorrectionPass(parsed: any, params: { body: a
       body.answers ? JSON.stringify(body.answers) : "",
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
-      researchText,
     ].join("\n"));
     // runTextRedacGate = mesure → correction → RE-mesure → garde anti-régression
     // (la correction n'est gardée que si elle ne dégrade aucun compteur mesuré,
@@ -1382,7 +1383,7 @@ export async function applyLinkedInCorrectionPass(parsed: any, params: { body: a
       correction: {
         logger: (msg) => console.log(msg),
         authoredText: authoredContentSource(body),
-        sourceContext: [authoredContentSource(body), fullContext, researchText].filter(Boolean).join("\n"),
+        sourceContext: [authoredContentSource(body), fullContext].filter(Boolean).join("\n"),
         // Édition mécanique à règles fermées → Haiku (cf. #364)
         model: "claude-haiku-4-5",
         abortTimeoutMs: CORRECTION_ABORT_MS,
@@ -1709,6 +1710,30 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
  * Renvoie le texte à ajouter au systemPrompt, "" si rien à ajouter (échec ou
  * réponse vide).
  */
+/** Dépendances remplaçables en test (même patron que carousel-ai). */
+export const _deps = { fetchDepthMaterial };
+
+/**
+ * Recherche « creuser le sujet » pour posts, reels et stories (04/10/2026, même
+ * logique que le carrousel depuis #1292) : mécanisme réel, lecture sociale et faits
+ * sourcés qui étayent une position. L'actu ne donne que le déclencheur, les réponses
+ * le vécu. Condiment : échec silencieux, borné à 20 s (budget reel 90 s + 45 s).
+ */
+export async function creativeDepthBlock(params: { context?: string | null; newsContext?: string | null; activity?: string }): Promise<string> {
+  const subject = typeof params.context === "string" ? params.context.trim() : "";
+  if (!subject) return "";
+  const newsAngle = typeof params.newsContext === "string" ? params.newsContext.trim().slice(0, 600) : "";
+  const material = await _deps.fetchDepthMaterial({
+    subject: [subject.slice(0, 1500), newsAngle].filter(Boolean).join("\n"),
+    activity: params.activity,
+    model: getModelForAction("content"),
+    apiKey: Deno.env.get("ANTHROPIC_API_KEY") || "",
+    logger: (m) => console.log(`[creative-flow] ${m}`),
+    timeoutMs: 20_000,
+  });
+  return buildDepthBlock(material);
+}
+
 export async function runDeepResearchWebSearch(params: {
   userId: string;
   workspaceId?: string;
@@ -1902,8 +1927,11 @@ export async function runLinkedInTwoStep(params: {
   workspace_id?: string | null | undefined;
   body: any;
   fullContext: string;
+  /** Matière de la recherche « creuser le sujet » : ses faits sourcés sont des sources. */
+  researchSource?: string;
 }, emitStatus: StatusEmitter = () => {}): Promise<Response> {
   const { model, systemPrompt, userPrompt, corsHeaders, userId, body, fullContext } = params;
+  const researchSource = params.researchSource || "";
   const workspace_id = params.workspace_id ?? undefined;
   if (isFactualFictionalLinkedInBrief(String(body.context || ""))) {
     const usage: UsageSink = {};
@@ -1954,6 +1982,7 @@ export async function runLinkedInTwoStep(params: {
     body.answers ? JSON.stringify(body.answers) : "",
     typeof body.news_context === "string" ? body.news_context : "",
     fullContext || "",
+    researchSource,
   ].join("\n"));
   const liRedac = analyzeTextRedac(postText, liAllowed);
   const liExtraInstructions = buildTextFixInstructions(liRedac);
@@ -2065,7 +2094,7 @@ Réponds UNIQUEMENT en JSON :
   const correctedRaw = await callAnthropicSimple(
     "claude-haiku-4-5",
     correctionPrompt + CONTENT_CLARITY_RULES,
-    claritySourceBlock([body.news_context, body.context, JSON.stringify(body.answers || []), JSON.stringify(body.followUpAnswers || [])].filter(Boolean).join("\n")) + correctionUserMsg,
+    claritySourceBlock([body.news_context, body.context, JSON.stringify(body.answers || []), JSON.stringify(body.followUpAnswers || []), researchSource].filter(Boolean).join("\n")) + correctionUserMsg,
     0.3,
     4096,
     corrLkUsage,
@@ -2860,7 +2889,9 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 
 
     // ── Deep Research (web search via Anthropic) ──
-    let researchAddendum = "";
+    // Texte de recherche ajouté au prompt : il rejoint aussi la source des relectures,
+    // sinon ses chiffres sourcés passent pour « inventés » et sont retirés.
+    let researchSource = "";
     if (deepResearch && step === "generate") {
       // Check deep_research quota
       const drQuota = await checkQuota(userId, "deep_research", workspace_id);
@@ -2868,7 +2899,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
         return quotaDeniedResponse(drQuota, corsHeaders);
       }
 
-      researchAddendum = await runDeepResearchWebSearch({
+      researchSource = await runDeepResearchWebSearch({
         userId,
         workspaceId: workspace_id,
         calendarContext,
@@ -2880,8 +2911,18 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
         editorialFormatLabel,
         angle,
       });
-      systemPrompt += researchAddendum;
+      systemPrompt += researchSource;
     }
+
+    // Recherche « creuser le sujet » pour posts, posts LinkedIn, reels et stories (hors légende photo).
+    if (step === "generate" && !deepResearch && !isPhotoMode && (isCaption || isLinkedIn || isReel || isStories)) {
+      const depthBlock = await creativeDepthBlock({ context, newsContext, activity });
+      if (depthBlock) {
+        systemPrompt += depthBlock;
+        researchSource = depthBlock;
+      }
+    }
+    const gateContext = researchSource ? `${fullContext}\n${researchSource}` : fullContext;
 
     // Accroches déjà écrites par cette utilisatrice sur CE sujet — garde
     // déterministe anti-redite (bilan hebdo 24/08 : trois reels d'un même sujet
@@ -2919,18 +2960,18 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       }
 
       if (isLinkedIn) {
-        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runLinkedInTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext }, emitStatus));
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runLinkedInTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, researchSource }, emitStatus));
       }
 
       if (isNewsletter) {
-        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext, brandGuardText, previousHooks }, emitStatus));
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext: gateContext, brandGuardText, previousHooks }, emitStatus));
       }
 
       if (isCarousel) {
         return retiredCarouselStreamResponse(corsHeaders);
       }
 
-      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, brandGuardText, echoSubject, previousHooks });
+      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
     }
 
     // ── Call Anthropic ──
@@ -3031,30 +3072,30 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       typeof parsed.content === "string" &&
       parsed.content.length >= 200
     ) {
-      await applyLinkedInCorrectionPass(parsed, { body, fullContext, brandGuardText, echoSubject, previousHooks, researchText: researchAddendum });
+      await applyLinkedInCorrectionPass(parsed, { body, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
     }
 
     if (isNewsletter && step === "generate" && parsed && typeof parsed === "object") {
-      await applyNewsletterCorrectionPass(parsed, { body, fullContext, context, newsContext, brandGuardText, previousHooks });
+      await applyNewsletterCorrectionPass(parsed, { body, fullContext: gateContext, context, newsContext, brandGuardText, previousHooks });
       Object.assign(parsed, stripMarkdownFromNewsletter(parsed));
       if (typeof parsed.content === "string") parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
     }
 
     // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
     if (isReel && step === "generate" && parsed && typeof parsed === "object" && Array.isArray(parsed.script)) {
-      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext, brandGuardText, echoSubject, previousHooks });
+      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
     }
 
     // ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══
     let storiesGate: StoriesGateResult | null = null;
     if (isStories && step === "generate") {
       applyStoriesPhotoGuardAndResolution(parsed, { storiesPhotoCatalog });
-      storiesGate = await applyStoriesCorrectionPass(parsed, { body, fullContext, brandGuardText, echoSubject, previousHooks });
+      storiesGate = await applyStoriesCorrectionPass(parsed, { body, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
     }
 
     // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
     if (step === "generate") {
-      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate });
+      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext: gateContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate });
     }
 
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.

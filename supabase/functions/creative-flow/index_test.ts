@@ -507,11 +507,11 @@ Deno.test("LinkedIn + recherche : un chiffre sourcé par la recherche web n'est 
     { status: 200, body: { content: [{ type: "text", text: LI_RESEARCH_POST }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10 } } },
   ]);
   try {
+    // creative-flow passe gateContext (profil + recherche) comme fullContext.
     const parsed = { content: LI_RESEARCH_POST };
     await applyLinkedInCorrectionPass(parsed, {
       body: { context: "La visibilité des indépendantes sur LinkedIn", answers: null, news_context: "" },
-      fullContext: "",
-      researchText: "--- RECHERCHE WEB ---\n62 % des indépendantes repoussent leurs posts (Ifop, 2025).",
+      fullContext: "profil\n--- RECHERCHE WEB ---\n62 % des indépendantes repoussent leurs posts (Ifop, 2025).",
     });
     assertEquals(capturedBodies.some((b) => JSON.stringify(b).includes("CHIFFRES SANS SOURCE")), false);
     assertEquals(parsed.content.includes("62 %"), true);
@@ -560,5 +560,60 @@ Deno.test("runLinkedInTwoStep : la relecture garde la prise de position et n'ajo
     assertEquals(system.includes("ni devoir final"), true);
   } finally {
     mock.restore();
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("runLinkedInTwoStep (chemin streamé) : la matière de recherche est une source pour la relecture", async () => {
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify({ content: LI_RESEARCH_POST }) }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } } },
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify({ content: LI_RESEARCH_POST }) }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } } },
+  ]);
+  try {
+    await runLinkedInTwoStep({ ...LINKEDIN_BASE_PARAMS, researchSource: "MATIÈRE DE PROFONDEUR\n62 % des indépendantes repoussent leurs posts (Ifop, 2025)." });
+    const correctionUserMsg = capturedBodies[1].messages[0].content as string;
+    assertEquals(correctionUserMsg.includes("CHIFFRES SANS SOURCE"), false);
+    assertEquals(correctionUserMsg.includes("Ifop, 2025"), true);
+  } finally {
+    mock.restore();
+  }
+});
+
+// ── Recherche « creuser le sujet » pour posts, reels et stories (04/10/2026) ──
+Deno.test("creativeDepthBlock : sujet + angle de l'actu envoyés à la recherche, bloc de matière renvoyé", async () => {
+  const { _deps, creativeDepthBlock } = await import("./index.ts");
+  const original = _deps.fetchDepthMaterial;
+  // deno-lint-ignore no-explicit-any
+  let seen: any = null;
+  // deno-lint-ignore no-explicit-any
+  _deps.fetchDepthMaterial = (async (opts: any) => {
+    seen = opts;
+    return "Le visage rassure parce qu'il signale une personne responsable de ce qu'elle vend ; Instagram favorise les contenus qui retiennent (Meta, 2025). Mais cette norme pèse surtout sur les femmes, jugées sur leur apparence.";
+  }) as typeof original;
+  try {
+    const block = await creativeDepthBlock({ context: "Montre ton visage, le nouveau souris ?", newsContext: "Instagram pousse les visages", activity: "photographe" });
+    assertEquals(seen.subject.includes("Montre ton visage"), true);
+    assertEquals(seen.subject.includes("Instagram pousse les visages"), true);
+    assertEquals(seen.activity, "photographe");
+    assertEquals(seen.timeoutMs, 20_000);
+    assertEquals(block.includes("MATIÈRE DE PROFONDEUR"), true);
+    assertEquals(block.includes("(Meta, 2025)"), true);
+  } finally {
+    _deps.fetchDepthMaterial = original;
+  }
+});
+
+Deno.test("creativeDepthBlock : recherche vide ou sans sujet -> aucun bloc, aucun appel sans sujet", async () => {
+  const { _deps, creativeDepthBlock } = await import("./index.ts");
+  const original = _deps.fetchDepthMaterial;
+  let calls = 0;
+  _deps.fetchDepthMaterial = (async () => { calls++; return "VIDE"; }) as typeof original;
+  try {
+    assertEquals(await creativeDepthBlock({ context: "Un sujet" }), "");
+    assertEquals(await creativeDepthBlock({ context: "  " }), "");
+    assertEquals(calls, 1);
+  } finally {
+    _deps.fetchDepthMaterial = original;
   }
 });

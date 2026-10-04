@@ -28,7 +28,7 @@ ${cleaned}
 
 CONSIGNE D'USAGE (impérative) :
 - Cette matière sert à creuser et à étayer la position : le mécanisme expliqué est un mécanisme RÉEL et DOCUMENTÉ du sujet (technique, social ou culturel), pas un concept psycho plaqué.
-- C'est un CONDIMENT, pas le plat : le carrousel reste porté par la voix, l'angle et le vécu de l'utilisatrice. INTERDIT d'en faire un résumé d'article ou une revue de presse.
+- C'est un CONDIMENT, pas le plat : le contenu reste porté par la voix, l'angle et le vécu de l'utilisatrice. INTERDIT d'en faire un résumé d'article ou une revue de presse.
 - Toute donnée chiffrée reprise reste attachée à sa source (mention discrète : nom, année). Ne reprends JAMAIS un chiffre sans sa source.
 - Si un élément contredit le positionnement de l'utilisatrice, ignore-le plutôt que de tordre son propos.`;
 }
@@ -44,11 +44,13 @@ export async function fetchDepthMaterial(opts: {
   model: string;
   apiKey: string;
   logger?: (msg: string) => void;
+  /** Plafond total (défaut 25 s) : posts/reels/stories ont un budget serveur plus serré. */
+  timeoutMs?: number;
 }): Promise<string> {
-  const { subject, activity, model, apiKey, logger } = opts;
+  const { subject, activity, model, apiKey, logger, timeoutMs = RESEARCH_TIMEOUT_MS } = opts;
   if (!subject || !apiKey) return "";
 
-  const prompt = `Tu prépares la MATIÈRE DE PROFONDEUR pour un contenu Instagram sur le sujet suivant, écrit par ${activity ? `une professionnelle (${activity})` : "une professionnelle indépendante"} :
+  const prompt = `Tu prépares la MATIÈRE DE PROFONDEUR pour un contenu de réseau social (Instagram ou LinkedIn) sur le sujet suivant, écrit par ${activity ? `une professionnelle (${activity})` : "une professionnelle indépendante"} :
 
 "${subject}"
 
@@ -74,7 +76,7 @@ RÈGLES STRICTES :
   };
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), RESEARCH_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const allContent: unknown[] = [];
     let data: any;

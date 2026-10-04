@@ -65,7 +65,7 @@ export function sourceFirstCorrectionPrompt(options: CorrectionOptions, fallback
   if (!options.sourceContext?.trim() && !options.authoredText?.trim()) return fallback + "\n" + CONTENT_CLARITY_RULES;
   return `Tu relis le brouillon d'une personne en vérifiant sa fidélité aux sources.
 COMPRÉHENSION DU SUJET : les faits du brief actuel font autorité. Un métier, une valeur de marque ou un souhait de l'audience ne prouve rien sur ce produit précis.
-Supprime ou reformule uniquement les affirmations non étayées : fabrication ou conception par la personne, anecdotes vécues, témoignages, résultats, durées, disponibilité et rareté. N'invente aucun détail de remplacement. Une image, une opinion assumée, une nuance ou une émotion courante que le sujet soulève (présentée comme une expérience partagée) restent tant qu'elles ne se présentent pas comme un fait ou un vécu absent des sources. N'ajoute aucune précaution sur ce que le texte n'affirme pas.
+Supprime ou reformule uniquement les affirmations non étayées : fabrication ou conception par la personne, anecdotes vécues, témoignages, résultats, durées, disponibilité et rareté. N'invente aucun détail de remplacement. Une image ou une opinion peut rester si elle ne se présente pas comme un fait ou un vécu absent des sources : une opinion n'a pas besoin de source. Garde la position assumée en première personne, la lecture collective (« on », « nous ») et les émotions courantes nommées comme une expérience partagée. Supprime en revanche une précaution sur ce que le texte n'affirme pas (« sans garantie », « hypothèse de travail », « je n'affirme rien sur l'algorithme »).
 Préserve les bonnes phrases, la personne grammaticale, le registre, l'humour, les nuances, le scénario et la structure du brouillon. N'ajoute ni familiarité, ni aparté, ni punchline, ni question finale pour rendre le texte humain. Ne raccourcis pas mécaniquement.
 Corrige les défauts précis signalés et les effets préfabriqués ajoutés, notamment « X. Pas Y. » et « Ce n'est pas X, c'est Y ». Garde les négations factuelles et les citations explicitement fournies. Remplace une formule creuse par une formulation précise issue des sources, ou supprime-la sans ajouter de slogan.
 Respecte les contraintes du brief sur le ton, la longueur et la fin du contenu. N'ajoute pas de faits pour atteindre une longueur.
@@ -388,7 +388,7 @@ Réponds UNIQUEMENT avec la newsletter corrigée, rien d'autre.`,
   instagram_caption: `Tu es un éditeur de caption Instagram exigeant. Tu reçois une caption et tu dois la CORRIGER.
 
 ══ TEST FONDAMENTAL ══
-Un défaut précis de clarté, de fidélité ou une formule artificielle ? Corrige ce passage ; sinon, préserve-le.
+Un défaut précis de clarté, de fidélité ou une formule artificielle ? Corrige ce passage ; sinon, préserve-le. La position assumée et les émotions nommées comme expérience partagée ne sont pas des défauts.
 
 ══ CORRECTIONS OBLIGATOIRES ══
 
@@ -430,6 +430,9 @@ et tu dois les CORRIGER systématiquement, même subtils.
    La couche MÉCANISME (le POURQUOI) doit être présente ; si le mécanisme est un
    décryptage psychologique de la spectatrice ("ta peur de", "ta posture de"),
    remplace-le par une mécanique concrète du métier/du marché quand le contexte le permet.
+   Une norme sociale ou une émotion courante nommée comme expérience partagée
+   (« la peur du jugement », « on nous a appris que… ») n'est pas un diagnostic : garde-la,
+   comme la position assumée par la personne.
 
 3. TEXTE OVERLAY qui répète mot pour mot le texte parlé : varie (l'overlay COMPLÈTE).
 
@@ -474,7 +477,7 @@ Réponds UNIQUEMENT avec les sections corrigées (marqueurs + textes), sans comm
 - QUOTE = verbatim affiché sur l'image
 
 ══ TON JOB ══
-Retirer les tics, RIEN d'autre. Les stories ont un ton brut, parlé, spontané : c'est leur force. Tu ne lisses pas, tu ne reformules pas ce qui est déjà naturel, tu ne changes pas le sens, tu n'ajoutes ni vécu ni date ni chiffre.
+Retirer les tics, RIEN d'autre. Les stories ont un ton brut, parlé, spontané : c'est leur force. Tu ne lisses pas, tu ne reformules pas ce qui est déjà naturel, tu ne changes pas le sens, tu n'ajoutes ni vécu ni date ni chiffre. Tu gardes la position assumée et les émotions nommées.
 
 ══ CORRECTIONS OBLIGATOIRES ══
 1. AMORCE PASSE-PARTOUT (une première phrase qu'on pourrait coller sur n'importe quel sujet ou métier) : réécris-la à partir d'un détail précis de CETTE séquence.

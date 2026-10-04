@@ -475,3 +475,57 @@ Deno.test("buildGeneratePrompt — stories objectif vente : garde-fou 3 séquenc
   // contrat de sortie : c'est lui qui garantit le placement post-parse.
   await assertSnapshot(t, JSON.stringify(r.storiesPhotoCatalog, null, 2));
 });
+
+// ── Prise de position (04/10/2026, même contrat que le carrousel depuis #1292) ──
+const OPINION_ANGLE = {
+  title: "Montrer son visage, le nouveau souris ?",
+  structure: ["actu", "thèse", "lecture sociale", "position"],
+  tone: "cash",
+  format_livraison: "post",
+};
+
+Deno.test("buildGeneratePrompt — post Instagram d'opinion avec actu : position assumée, thèse, fin sans devoir", async () => {
+  const r = await buildGeneratePrompt({
+    ...GENERATE_BASE,
+    contentType: "post",
+    angle: OPINION_ANGLE,
+    context: "Montre ton visage, le nouveau souris ?",
+    newsContextBlock: "\nCONTEXTE ACTUALITÉ (NEWSJACKING)\nInstagram met en avant les comptes qui montrent leur visage.\n",
+  });
+  assertStringIncludes(r.systemPrompt, "PROFONDEUR ET PRISE DE POSITION");
+  assertStringIncludes(r.systemPrompt, "assume-la en première personne");
+  assertStringIncludes(r.systemPrompt, "comme une expérience partagée");
+  assertStringIncludes(r.systemPrompt, "n'écris ni « sans garantie »");
+  assertStringIncludes(r.systemPrompt, "l'angle choisi est la THÈSE du contenu");
+  assertStringIncludes(r.systemPrompt, "Pas de devoir à faire pour conclure");
+  // La légende ne pousse plus à dater un moment inventé.
+  assert(!r.systemPrompt.includes(`Pas "en général" mais "la semaine dernière"`));
+});
+
+Deno.test("buildGeneratePrompt — reel et stories reçoivent la prise de position ; légende photo et carrousel non ; LinkedIn la sienne, une seule fois", async () => {
+  const reel = await buildGeneratePrompt({ ...GENERATE_BASE, contentType: "reel", isReel: true, angle: { ...OPINION_ANGLE, format_livraison: "reel" } });
+  assertStringIncludes(reel.systemPrompt, "PROFONDEUR ET PRISE DE POSITION");
+  assertStringIncludes(reel.systemPrompt, "Une norme sociale ou une injonction");
+  assert(!reel.systemPrompt.includes("l'angle choisi est la THÈSE"), "sans actu, pas de consigne newsjacking");
+
+  const stories = await buildGeneratePrompt({
+    ...GENERATE_BASE,
+    supabase: fakeSupabaseStories({ venteCount: 0, photos: [] }),
+    contentType: "stories",
+    isStories: true,
+    angle: null,
+  });
+  assertStringIncludes(stories.systemPrompt, "PROFONDEUR ET PRISE DE POSITION");
+  assertStringIncludes(stories.systemPrompt, "question simple (sondage, question ouverte)");
+  assertStringIncludes(stories.systemPrompt, "ce que j'en pense, assumé");
+
+  // LinkedIn : bloc propre au brief LinkedIn (linkedinBrief), pas en double.
+  const linkedin = await buildGeneratePrompt({ ...GENERATE_BASE, isLinkedIn: true, contentType: "linkedin", body: {} });
+  assertEquals(linkedin.systemPrompt.split("PROFONDEUR ET PRISE DE POSITION").length - 1, 1);
+  assertStringIncludes(linkedin.systemPrompt, "assume-la en première personne");
+
+  for (const flags of [{ isPhotoMode: true, contentType: "post" }, { isCarousel: true, contentType: "carrousel" }]) {
+    const r = await buildGeneratePrompt({ ...GENERATE_BASE, ...flags, body: { photo_description: "un atelier" } });
+    assert(!r.systemPrompt.includes("PROFONDEUR ET PRISE DE POSITION"), JSON.stringify(flags));
+  }
+});
