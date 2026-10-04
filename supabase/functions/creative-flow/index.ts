@@ -2069,7 +2069,7 @@ export async function runLinkedInTwoStep(params: {
   const liAnalyze = (t: string) => analyzeTextRedac(t, liAllowed, undefined, undefined, liResearch, liTestimonySource);
   const liRedac = liAnalyze(postText);
   const liExtraInstructions = buildTextFixInstructions(liRedac);
-  console.log(`[linkedin-gate] recherche=${researchSource ? "oui" : "non"}, chiffres de recherche sans source ${liRedac.unsourcedResearchNumbers?.length ?? 0}, chiffres inventés ${liRedac.fabricatedNumbers.length}, témoignages inventés ${liRedac.inventedTestimonials?.length ?? 0}`);
+  console.log(`[linkedin-gate] recherche=${researchSource ? "oui" : "non"}, chiffres de recherche sans source ${liRedac.unsourcedResearchNumbers?.length ?? 0}, chiffres inventés ${liRedac.fabricatedNumbers.length}, témoignages inventés ${liRedac.inventedTestimonials?.length ?? 0}, vécus inventés ${liRedac.inventedExperiences?.length ?? 0}`);
 
   // Step 2: Correction pass — short, focused prompt
   const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu corriges uniquement les défauts identifiés. Préserve les passages déjà naturels, les formulations personnelles et les nuances.
