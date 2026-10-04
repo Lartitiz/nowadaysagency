@@ -698,3 +698,9 @@ Deno.test("chiffres de recherche en lettres : « un mois » seul n'est pas une s
   const allowed = new Set([...numbersIn(BRIEF), ...numbersIn(research)]);
   assertEquals(analyzeTextRedac("Ça fait un mois que je teste.", allowed, undefined, undefined, r).unsourcedResearchNumbers, []);
 });
+
+Deno.test("passe dédiée : en qualitatif, les mots qui annonçaient le chiffre suivent (test réel « le chiffre qui fait mal : seuls une petite partie »)", async () => {
+  const { RESEARCH_SOURCING_PROMPT } = await import("./correction-pass.ts");
+  assertEquals(RESEARCH_SOURCING_PROMPT.includes("ajuste aussi les mots qui annonçaient le chiffre"), true);
+  assertEquals(RESEARCH_SOURCING_PROMPT.includes("N'invente JAMAIS de source"), true);
+});
