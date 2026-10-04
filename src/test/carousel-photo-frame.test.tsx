@@ -97,3 +97,12 @@ it("moves a framed photo when dragged instead of reframing it", () => {
     width.mockRestore();
   }
 });
+
+it("recognises each frame shape from its border-radius", async () => {
+  const { PHOTO_SHAPES, photoShapeOf } = await import("@/lib/carousel-editor");
+  for (const shape of PHOTO_SHAPES) expect(photoShapeOf(shape.radius)).toBe(shape.key);
+  expect(photoShapeOf("")).toBe("carre");
+  expect(photoShapeOf("0")).toBe("carre");
+  expect(photoShapeOf("9999px 9999px 0 0")).toBe("arche");
+  expect(photoShapeOf("37px")).toBeNull();
+});
