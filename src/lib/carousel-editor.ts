@@ -211,7 +211,7 @@ export function prepareSlideHtml(html: string): string {
   });
   // Legacy backgrounds can also be selected. Ignore brand textures when a real
   // photo is already annotated by the renderer.
-  if (!photoNodes(doc).length) {
+  if (!photoNodes(doc).some((el) => !el.hasAttribute("data-editor-photo-empty"))) {
     doc.body
       .querySelectorAll<HTMLElement>('[style*="background"]')
       .forEach((el) => {
@@ -515,6 +515,10 @@ export function replacePhoto(
     if (el.style.objectPosition) el.style.objectPosition = "50% 50%";
   } else if (el.style.backgroundPosition) el.style.backgroundPosition = "50% 50%";
   el.setAttribute("data-pptx-photo", String(photoIndex));
+  if (el.hasAttribute("data-editor-photo-empty")) {
+    el.removeAttribute("data-editor-photo-empty");
+    el.style.removeProperty("background-color");
+  }
   syncGlass(doc);
   const { studio_image_receipt: _receipt, studio_image_source: _source, photo_library_id: _library, ...photoData } = slide.data;
   return {
@@ -1476,6 +1480,27 @@ export const PRESETS: { kind: PresetKind; label: string }[] = [
   { kind: "ligne", label: "Ligne" },
   { kind: "cadre", label: "Cadre" },
 ];
+/**
+ * Cadre photo vide, au centre de la slide : on le place et le dimensionne,
+ * puis on y glisse une photo (ou « Ajouter une photo »). Teinte légère tant
+ * qu'il est vide ; l'invitation « Glisse une photo ici » n'existe que dans
+ * l'éditeur, jamais dans le HTML exporté.
+ */
+export function addPhotoFrame(slide: EditorSlide, tint = "#ececec"): { slide: EditorSlide; id: string | null } {
+  if (slide.locked) return { slide, id: null };
+  const doc = parse(slide.html);
+  const root = doc.body.firstElementChild as HTMLElement | null;
+  if (!root) return { slide, id: null };
+  const el = doc.createElement("div");
+  el.setAttribute("data-editor-photo", "true");
+  el.setAttribute("data-editor-photo-empty", "true");
+  el.setAttribute("data-editor-new", "true");
+  el.style.cssText = `position:absolute;left:290px;top:362px;width:500px;height:625px;background-color:${tint};background-size:cover;background-position:50% 50%;background-repeat:no-repeat;border-radius:24px;z-index:20`;
+  root.append(el);
+  const html = prepareSlideHtml(serialize(doc));
+  const id = parse(html).querySelector<HTMLElement>("[data-editor-new]")?.dataset.editorId || null;
+  return { slide: { ...slide, html: html.replace(/ data-editor-new="true"/, "") }, id };
+}
 /** Ajoute un élément tout fait aux couleurs du carrousel, au centre de la slide. */
 export function addPreset(slide: EditorSlide, kind: PresetKind, color = "#91014b", ink = "#ffffff"): { slide: EditorSlide; id: string | null } {
   if (slide.locked) return { slide, id: null };

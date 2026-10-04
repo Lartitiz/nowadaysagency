@@ -1,7 +1,7 @@
 // Remplacer la photo d'un cadre depuis la barre flottante, ou en la glissant dessus (04/10/2026).
 import { useState } from "react";
 import { afterEach, beforeAll, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import CarouselEditor from "@/components/creer/CarouselEditor";
 import { readCarouselDocument } from "@/lib/carousel-editor";
 
@@ -53,6 +53,46 @@ it("replaces the photo of the selected frame from the floating toolbar and reset
     expect(frame.style.width).toBe("540px");
     expect(frame.style.backgroundPosition).toBe("50% 50%");
     expect(frame.getAttribute("data-pptx-photo")).toBe("2");
+  } finally {
+    width.mockRestore();
+  }
+});
+
+it("adds an empty photo frame that a photo then fills, without hiding a legacy background photo", async () => {
+  const { addPhotoFrame, getEditorElements, replacePhoto } = await import("@/lib/carousel-editor");
+  const legacy = readCarouselDocument(raw, [{ slide_number: 1, html: '<div style="position:relative;width:1080px;height:1350px;background-image:url(&quot;https://example.com/fond.jpg&quot;)"><h1 data-slide-text="title">Les mains</h1></div>' }]).slides[0];
+  const out = addPhotoFrame(legacy);
+  const photos = getEditorElements(out.slide.html).filter((e) => e.kind === "photo");
+  // Le cadre vide ET l'ancienne photo de fond restent choisissables.
+  expect(photos.map((p) => p.id)).toContain(out.id);
+  expect(photos.length).toBe(2);
+  const frame = () => new DOMParser().parseFromString(filled.html, "text/html").querySelector<HTMLElement>(`[data-editor-id="${out.id}"]`)!;
+  const filled = replacePhoto(out.slide, out.id, "data:image/jpeg;base64,NEW", 3);
+  expect(frame().style.backgroundImage).toContain("NEW");
+  expect(frame().hasAttribute("data-editor-photo-empty")).toBe(false);
+  expect(frame().style.backgroundColor).toBe("");
+  expect(frame().style.width).toBe("500px");
+  expect(filled.html).toContain("fond.jpg");
+});
+
+it("moves a framed photo when dragged instead of reframing it", () => {
+  const width = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(540);
+  try {
+    render(<Harness />);
+    const iframe = screen.getByTitle("Éditeur de la slide 1") as HTMLIFrameElement;
+    const doc = iframe.contentDocument!;
+    doc.body.innerHTML = readCarouselDocument(raw, visuals).slides[0].html;
+    fireEvent.load(iframe);
+    const photo = doc.querySelector<HTMLElement>("[data-pptx-photo]")!;
+    photo.getBoundingClientRect = () => ({ left: 0, top: 0, width: 540, height: 1350, right: 540, bottom: 1350, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+    const pointer = (type: string, x: number) => act(() => { photo.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: 100, button: 0, metaKey: true })); });
+    pointer("pointerdown", 100);
+    pointer("pointermove", 200);
+    pointer("pointerup", 200);
+    const saved = JSON.parse(screen.getByTestId("saved").textContent!);
+    const frame = new DOMParser().parseFromString(saved.v[0].html, "text/html").querySelector<HTMLElement>("[data-pptx-photo]")!;
+    expect(frame.style.left).toBe("100px");
+    expect(frame.style.backgroundPosition).toBe("20% 70%");
   } finally {
     width.mockRestore();
   }
