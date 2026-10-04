@@ -1,7 +1,7 @@
 import { extractNewsletterTexts, reinjectNewsletterTexts } from "../_shared/correction-pass.ts";
 import { structureLossReason } from "../_shared/text-structure-guard.ts";
 import { alignLinkedInHookFields } from "../_shared/linkedin-hook.ts";
-import { authoredContentSource, currentContentContract } from "../_shared/editorial-voice.ts";
+import { authoredContentSource, currentContentContract, testimonySourceText } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES, claritySourceBlock } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ANTI_BIAS, PREGEN_INJECTION_RULES, EDITORIAL_ANGLES_REFERENCE, VISUAL_ANALOGIES, LINKEDIN_TEMPLATES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
@@ -21,7 +21,7 @@ import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool }
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, applyCorrectionPassReel, type CorrectionFormat, applyCorrectionPassStories, extractStoriesTexts, reinjectStoriesTexts, storiesAuditableText } from "../_shared/correction-pass.ts";
-import { analyzeTextRedac, buildTextFixInstructions, enforceResearchNumberSources, fixElisionsInFields, numbersIn, researchNumbers, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations, dropUserSourcedReversals, type ResearchNumbers } from "../_shared/redac-gate.ts";
+import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, numbersIn, researchNumbers, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations, dropUserSourcedReversals, type ResearchNumbers } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks, fetchPreviousHooksByFormat } from "../_shared/previous-hooks.ts";
 import {
@@ -573,6 +573,19 @@ Propose-moi 3 hooks de types différents pour ce reel.`;
   return { systemPrompt, userPrompt };
 }
 
+/**
+ * Format qui choisit la branche de rédaction. Le format demandé par
+ * l'utilisatrice (`contentType`) prime TOUJOURS ; `angle.format_livraison`
+ * (suggestion IA du step "angles") ne sert que s'il n'y a pas de contentType.
+ * Avant : format_livraison passait devant, un angle « carrousel » pouvait
+ * faire rédiger un carrousel pour un post LinkedIn demandé.
+ */
+export function resolveFormatHint(contentType: string | null | undefined, angle: { format_livraison?: unknown } | null | undefined): string {
+  const requested = typeof contentType === "string" ? contentType.trim().toLowerCase() : "";
+  if (requested) return requested;
+  return typeof angle?.format_livraison === "string" ? angle.format_livraison.toLowerCase() : "";
+}
+
 export function buildQuestionsPrompt(params: {
   QUESTIONS_PREFIX: string;
   brandingContext: string;
@@ -587,14 +600,20 @@ export function buildQuestionsPrompt(params: {
   recentBriefsContext: string;
 }): { systemPrompt: string; userPrompt: string } {
   const { QUESTIONS_PREFIX, brandingContext, brandVocabBlock, context, contentType, editorialFormatLabel, angle, calendarBlock, objectiveBlock, newsContextBlock, recentBriefsContext } = params;
-  const isLinkedIn = contentType === "linkedin" || contentType === "post_linkedin";
-  const channelLabel = isLinkedIn ? "LinkedIn" : contentType === "newsletter" ? "Newsletter" : "Instagram";
+  // Canal détecté par inclusion : le front envoie « linkedin_post » (questions)
+  // et « post_linkedin » (génération) ; une égalité stricte laissait passer
+  // « linkedin_post » → canal « Instagram » dans les questions d'un parcours LinkedIn.
+  const ctypeQ = String(contentType || "").toLowerCase();
+  const isLinkedIn = ctypeQ.includes("linkedin");
+  const isNewsletterQ = !isLinkedIn && (ctypeQ.includes("newsletter") || ctypeQ.includes("email"));
+  const isPinterestQ = !isLinkedIn && !isNewsletterQ && ctypeQ.includes("pinterest");
+  const channelLabel = isLinkedIn ? "LinkedIn" : isNewsletterQ ? "Newsletter" : isPinterestQ ? "Pinterest" : "Instagram";
   const linkedinStory = isLinkedIn && /storytelling|coulisses|récit|histoire/i.test([editorialFormatLabel, angle?.title].filter(Boolean).join(" "));
   const channelGuidance = linkedinStory
     ? "Questions orientées RÉCIT PERSONNEL : demande d'abord ce que la personne veut raconter d'elle-même, puis un moment réel (lieu et action) et ce qu'elle pensait ou ressentait. Son plaisir de travailler ou de transmettre peut être le sujet. N'exige ni crise, ni résultat business, ni leçon universelle. Une citation ou un dialogue ne doivent venir que d'un souvenir fourni."
     : isLinkedIn
     ? "Questions orientées POINT DE VUE : demande ce que la personne veut exprimer sur ce sujet, puis un choix, une observation ou un fait réel. Si le sujet est un moment vécu, explore son expérience personnelle avant de demander ce qu'elle enseigne aux autres. N'exige pas une prise de position conflictuelle ni un résultat business."
-    : contentType === "newsletter"
+    : isNewsletterQ
     ? "Questions orientées PROFONDEUR : demande des réflexions de fond, des convictions, des retours d'expérience détaillés."
     : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
   const questionTypes = linkedinStory
@@ -1287,6 +1306,7 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
           },
           allowedNumbers: textAllowed,
           brandGuardText: recBrandGuardText,
+          testimonySource: sourceForFormats,
         });
         resultVal = gate.content;
         await logContentQuality(
@@ -1413,9 +1433,10 @@ function normalizeHooksResponse(parsed: any, params: { body: any; rawContent: st
 // (« creuser le sujet » ou deep research) fournit passent aussi, mais le gate
 // exige leur source dans la même phrase (findUnsourcedResearchNumbers).
 export function gateNumbers(baseParts: string[], researchSource?: string): { allowed: Set<string>; research?: ResearchNumbers } {
-  const base = numbersIn(baseParts.join("\n"));
+  const baseText = baseParts.join("\n");
+  const base = numbersIn(baseText);
   if (!researchSource?.trim()) return { allowed: base };
-  return { allowed: new Set([...base, ...numbersIn(researchSource)]), research: researchNumbers(base, researchSource) };
+  return { allowed: new Set([...base, ...numbersIn(researchSource)]), research: researchNumbers(base, researchSource, baseText) };
 }
 
 // Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe
@@ -1452,6 +1473,7 @@ export async function applyLinkedInCorrectionPass(parsed: any, params: { body: a
       research,
       brandGuardText,
       echo: { previousHooks: params.previousHooks, subject: params.echoSubject },
+      testimonySource: testimonySourceText(body),
     });
     parsed.content = gate.content;
   } catch (corrErr) {
@@ -1503,6 +1525,7 @@ async function applyReelQualityPass(parsed: any, params: { body: any; effectiveO
       brandGuardText,
       hookVerrouille ? undefined : { previousHooks, subject: echoSubject },
       reelResearch,
+      testimonySourceText(body),
     );
     const extras: string[] = [];
     const redacFix = buildTextFixInstructions(reelRedac);
@@ -1612,7 +1635,7 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
       body.answers ? JSON.stringify(body.answers) : "",
       (body.preGenAnswers || body.pre_gen_answers) ? JSON.stringify(body.preGenAnswers || body.pre_gen_answers) : "",
     ].join("\n");
-    const analyze = (stories: any[]) => dropUserSourcedReversals(analyzeTextRedac(storiesAuditableText(stories), storiesAllowed, brandGuardText, echo, storiesResearch), userSource);
+    const analyze = (stories: any[]) => dropUserSourcedReversals(analyzeTextRedac(storiesAuditableText(stories), storiesAllowed, brandGuardText, echo, storiesResearch, testimonySourceText(body)), userSource);
     const before = analyze(parsed.stories);
     let best = parsed.stories;
     let bestA = before;
@@ -2041,9 +2064,12 @@ export async function runLinkedInTwoStep(params: {
     typeof body.news_context === "string" ? body.news_context : "",
     fullContext || "",
   ], researchSource);
-  const liRedac = analyzeTextRedac(postText, liAllowed, undefined, undefined, liResearch);
+  // Témoignages : seuls le brief, les réponses et l'actu peuvent fournir une parole rapportée.
+  const liTestimonySource = testimonySourceText(body);
+  const liAnalyze = (t: string) => analyzeTextRedac(t, liAllowed, undefined, undefined, liResearch, liTestimonySource);
+  const liRedac = liAnalyze(postText);
   const liExtraInstructions = buildTextFixInstructions(liRedac);
-  console.log(`[linkedin-gate] recherche=${researchSource ? "oui" : "non"}, chiffres de recherche sans source ${liRedac.unsourcedResearchNumbers?.length ?? 0}, chiffres inventés ${liRedac.fabricatedNumbers.length}`);
+  console.log(`[linkedin-gate] recherche=${researchSource ? "oui" : "non"}, chiffres de recherche sans source ${liRedac.unsourcedResearchNumbers?.length ?? 0}, chiffres inventés ${liRedac.fabricatedNumbers.length}, témoignages inventés ${liRedac.inventedTestimonials?.length ?? 0}`);
 
   // Step 2: Correction pass — short, focused prompt
   const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu corriges uniquement les défauts identifiés. Préserve les passages déjà naturels, les formulations personnelles et les nuances.
@@ -2100,7 +2126,7 @@ Lis le post à voix haute mentalement. Identifie les passages répétitifs, arti
    → Si 2 phrases consécutives expriment des valeurs abstraites sans fait : utilise un fait déjà fourni, ou coupe la redite. N’invente pas d’exemple.
 
 7. ACCROCHE PROMESSE/SLOGAN :
-   → Si l'accroche promet quelque chose ("X n'aura plus de secrets", "Voici comment...", "5 erreurs à éviter") : remplace par un FAIT concret ou une scène vécue.
+   → Si l'accroche promet quelque chose ("X n'aura plus de secrets", "Voici comment...", "5 erreurs à éviter") : remplace par un fait concret ou un vécu FOURNIS par les sources, sinon par la position de l'autrice dite franchement. Jamais une scène, une rencontre ou une parole rapportée (« une cliente me disait… ») absente des sources.
 
 8. CTA GÉNÉRIQUE :
    → "Et toi/vous, qu'en penses-tu/pensez-vous ?" ou variante existentielle large : remplace par une question SPÉCIFIQUE au sujet du post, ou supprime.
@@ -2185,7 +2211,7 @@ Réponds UNIQUEMENT en JSON :
     // l'échantillon live du 18/08 a montré Haiku INTRODUISANT des retournements
     // dans des textes qui n'en avaient pas.
     const correctedWorse =
-      textRedacRawCount(analyzeTextRedac(finalResult.content, liAllowed, undefined, undefined, liResearch)) >
+      textRedacRawCount(liAnalyze(finalResult.content)) >
       textRedacRawCount(liRedac);
     if (correctedWorse) {
       console.log("[CORRECTION DEBUG] correction rejetée (compteurs rédactionnels dégradés), post original conservé");
@@ -2210,11 +2236,17 @@ Réponds UNIQUEMENT en JSON :
     if (typeof merged.content === "string" && liResearch) {
       const sourced = await enforceResearchNumberSources(
         merged.content,
-        (t) => analyzeTextRedac(t, liAllowed, undefined, undefined, liResearch),
+        liAnalyze,
         liResearch,
         { logger: (m) => console.log(m), abortTimeoutMs: CORRECTION_ABORT_MS },
       );
       merged.content = sourced.content;
+    }
+    // Témoignage inventé encore présent : passe dédiée, relue par le code.
+    if (typeof merged.content === "string") {
+      merged.content = (await enforceNoInventedTestimonials(merged.content, liAnalyze, {
+        logger: (m) => console.log(m), abortTimeoutMs: CORRECTION_ABORT_MS,
+      })).content;
     }
     // Filet déterministe (même patron que applyLinkedInCorrectionPass) :
     // élisions manquantes type « le avant/après » (vécu 21/07).
@@ -2239,10 +2271,15 @@ Réponds UNIQUEMENT en JSON :
   if (typeof fallbackParsed.content === "string" && liResearch) {
     fallbackParsed.content = (await enforceResearchNumberSources(
       fallbackParsed.content,
-      (t) => analyzeTextRedac(t, liAllowed, undefined, undefined, liResearch),
+      liAnalyze,
       liResearch,
       { logger: (m) => console.log(m), abortTimeoutMs: CORRECTION_ABORT_MS },
     )).content;
+  }
+  if (typeof fallbackParsed.content === "string") {
+    fallbackParsed.content = (await enforceNoInventedTestimonials(fallbackParsed.content, liAnalyze, {
+      logger: (m) => console.log(m), abortTimeoutMs: CORRECTION_ABORT_MS,
+    })).content;
   }
   // Filet déterministe même si la passe de correction a échoué : le texte
   // brut renvoyé peut encore porter des élisions non faites.
@@ -2287,6 +2324,7 @@ export async function applyNewsletterCorrectionPass(parsed: any, params: {
         research: nlResearch,
         brandGuardText,
         echo: { previousHooks, subject: typeof context === "string" ? context : undefined },
+        testimonySource: testimonySourceText(body),
       });
       Object.assign(parsed, reinjectNewsletterTexts(parsed, gate.content));
     } catch (e) {
@@ -2428,7 +2466,7 @@ export async function correctPostStreamContent(
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
     ], researchSource);
-    const postRedac = dropUserSourcedReversals(analyzeTextRedac(parsed.content, postAllowed, brandGuardText, undefined, postResearch), authoredContentSource(body));
+    const postRedac = dropUserSourcedReversals(analyzeTextRedac(parsed.content, postAllowed, brandGuardText, undefined, postResearch, testimonySourceText(body)), authoredContentSource(body));
     if (textRedacViolations(postRedac) === 0) return undefined; // déjà propre : pas d'appel IA de plus
 
     // runTextRedacGate = correction → RE-mesure → garde anti-régression (la
@@ -2448,6 +2486,7 @@ export async function correctPostStreamContent(
       research: postResearch,
       brandGuardText,
       echo: { previousHooks, subject: echoSubject },
+      testimonySource: testimonySourceText(body),
     });
     if (!gate.repassed || gate.content === parsed.content) return undefined;
 
@@ -2875,8 +2914,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     let userPrompt: string | null = "";
 
     // ── Format detection (outer scope — used by generate + streaming) ──
-    const angleFormat = angle?.format_livraison?.toLowerCase() || "";
-    const formatHint = angleFormat || contentType?.toLowerCase() || "";
+    const formatHint = resolveFormatHint(contentType, angle);
     const isCarousel = formatHint.includes("carrousel") || formatHint.includes("carousel");
     const isReel = formatHint.includes("reel") || formatHint.includes("script");
     const isStories = formatHint.includes("stories") || formatHint.includes("story");

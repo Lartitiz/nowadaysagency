@@ -10,7 +10,7 @@ import { carouselEditorialFields } from "./carousel-editorial-review.ts";
 // re-passe LLM ciblée sur les phrases fautives (jamais plus d'une), et re-mesurer.
 // Le quality_check émis au front est celui calculé ici (source: "code").
 
-import { applyCorrectionPass, applyCorrectionPassCarousel, applyResearchSourcingPass, type CorrectionFormat, type CorrectionOptions } from "./correction-pass.ts";
+import { applyCorrectionPass, applyCorrectionPassCarousel, applyResearchSourcingPass, applyTestimonyRemovalPass, extractCarouselTexts, reinjectCarouselTexts, type CorrectionFormat, type CorrectionOptions } from "./correction-pass.ts";
 
 // ── Détection de la famille « retournement par négation » ──
 // Mêmes variantes que la règle ANTI_SLOP : "Ce n'est pas X, c'est Y" /
@@ -125,12 +125,76 @@ export interface ResearchNumbers {
   text: string;
 }
 
-export function researchNumbers(baseAllowed: Set<string>, researchText?: string): ResearchNumbers | undefined {
+// Mentions statistiques d'un texte (04/10/2026, suite du test réel) : un
+// chiffre avec son unité (« 5 % » n'est pas « 5 ans »), et ce qui s'écrit en
+// lettres (« deux fois plus », « 2x », « une personne sur trois »,
+// « cinquante pour cent »), que le seul repérage des chiffres laissait passer.
+interface StatMention { raw: string; keys: string[]; index: number; end: number }
+
+const NUMBER_WORD = "(?:\\d+(?:[.,]\\d+)?|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|quarante|cinquante|soixante|cent)";
+const UNIT_ALIASES: Array<[RegExp, string]> = [
+  [/^(?:%|pour\s?cents?)$/, "%"], [/^(?:€|euros?)$/, "€"], [/^(?:h|heures?)$/, "h"], [/^(?:min|mn|minutes?)$/, "min"],
+  [/^jours?$/, "j"], [/^semaines?$/, "sem"], [/^(?:ans?|années?)$/, "an"], [/^millions?$/, "M"], [/^milliards?$/, "Md"],
+];
+
+function wordValue(word: string): string {
+  const w = word.toLowerCase();
+  return String(FRENCH_NUMERALS[w] ?? Number(w.replace(",", ".")));
+}
+
+function unitAfter(text: string, from: number): string {
+  const m = text.slice(from).match(/^(?:\s*(?:à|-|–|—|et|ou)\s*\d+(?:[.,]\d+)?)?\s*(%|€|pour\s?cents?|\p{L}+)/iu);
+  if (!m) return "";
+  const raw = m[1].toLowerCase();
+  for (const [re, unit] of UNIT_ALIASES) if (re.test(raw)) return unit;
+  return raw.replace(/[sx]$/, "");
+}
+
+function statMentions(text: string): StatMention[] {
+  const out: StatMention[] = [];
+  for (const m of (text || "").matchAll(NUMBER_TOKEN)) {
+    const end = m.index! + m[0].length;
+    if (/^(?:er|re|e\b|ᵉ|ʳ)/.test(text.slice(end, end + 3))) continue; // ordinal
+    const v = m[0].replace(",", ".");
+    const unit = unitAfter(text, end);
+    out.push({ raw: m[0], keys: unit ? [v, `${v}|${unit}`] : [v], index: m.index!, end });
+  }
+  for (const m of measuredMultipliers(text || "")) out.push({ raw: m.raw, keys: [m.key], index: m.index, end: m.index + m.raw.length });
+  for (const m of (text || "").matchAll(/(?<![\p{L}\d])(\d+(?:[.,]\d+)?)\s?x(?!\p{L})|(?<!\p{L})x\s?(\d+(?:[.,]\d+)?)(?![\d.,]*\p{L})/giu)) {
+    out.push({ raw: m[0], keys: [`multiplier:${Number((m[1] || m[2]).replace(",", "."))}:plus`], index: m.index!, end: m.index! + m[0].length });
+  }
+  const ratio = new RegExp(`(?<!\\p{L})(${NUMBER_WORD})\\s+(?:[\\p{L}'’-]+\\s+){0,3}sur\\s+(${NUMBER_WORD})(?![\\d.,])(?!\\s*(?:millions?|milliers?|milliards?|%|pour\\s?cents?)(?!\\p{L}))(?!\\p{L})`, "giu");
+  for (const m of (text || "").matchAll(ratio)) {
+    out.push({ raw: m[0], keys: [`ratio:${wordValue(m[1])}/${wordValue(m[2])}`], index: m.index!, end: m.index! + m[0].length });
+  }
+  const pct = new RegExp(`(?<!\\p{L})(${NUMBER_WORD})\\s+pour\\s?cents?(?!\\p{L})`, "giu");
+  for (const m of (text || "").matchAll(pct)) {
+    if (/^\d/.test(m[1])) continue; // déjà vu comme chiffre
+    const v = wordValue(m[1]);
+    out.push({ raw: m[0], keys: [v, `${v}|%`], index: m.index!, end: m.index! + m[0].length });
+  }
+  return out;
+}
+
+const isYear = (k: string) => /^(?:19|20)\d{2}(?:\|.*)?$/.test(k);
+
+export function researchNumbers(baseAllowed: Set<string>, researchText?: string, baseText?: string): ResearchNumbers | undefined {
   if (!researchText?.trim()) return undefined;
+  // Valeur ET unité du brief/réponses/branding/actu : « 5 ans » n'autorise pas « 5 % ».
+  const baseKeys = new Set<string>(baseAllowed);
+  if (baseText) for (const m of statMentions(baseText)) m.keys.forEach((k) => baseKeys.add(k));
   const only = new Set<string>();
-  for (const n of numbersIn(researchText)) {
-    if (!/^\d/.test(n) || baseAllowed.has(n) || /^(?:19|20)\d{2}$/.test(n)) continue;
-    only.add(n);
+  for (const m of statMentions(researchText)) {
+    const [first, withUnit] = m.keys;
+    if (isYear(first)) continue;
+    if (/^\d/.test(first) && withUnit) {
+      // Valeur absente de la base → toute reprise compte ; valeur présente mais
+      // avec une autre unité → seule la reprise avec l'unité de la recherche compte.
+      if (!baseKeys.has(first)) only.add(first);
+      else if (baseText && !baseKeys.has(withUnit)) only.add(withUnit);
+    } else if (!baseKeys.has(first)) {
+      only.add(first);
+    }
   }
   return only.size ? { only, text: researchText } : undefined;
 }
@@ -162,6 +226,24 @@ function sentencesOf(text: string): string[] {
 }
 
 /**
+ * Phrases avec leur couverture de source : citée dans la phrase, ou dans la
+ * phrase JUSTE AVANT du même paragraphe (« Selon X, … . Résultat : 17 % »),
+ * pour ne pas répéter la source deux phrases de suite.
+ */
+function sourcedSentences(text: string): Array<{ text: string; covered: boolean }> {
+  const out: Array<{ text: string; covered: boolean }> = [];
+  for (const paragraph of (text || "").split(/\n+/)) {
+    let previousCited = false;
+    for (const sentence of paragraph.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter(Boolean)) {
+      const cited = hasSourceMention(sentence);
+      out.push({ text: sentence, covered: cited || previousCited });
+      previousCited = cited;
+    }
+  }
+  return out;
+}
+
+/**
  * Chiffres que seule la recherche fournit, repris dans une phrase sans mention de source.
  * `units` : blocs lus d'un tenant (par défaut les phrases du texte ; une slide entière pour le carrousel).
  */
@@ -169,30 +251,36 @@ export function findUnsourcedResearchNumbers(text: string, research?: ResearchNu
   if (!research) return [];
   const found: string[] = [];
   const seen = new Set<string>();
-  const researchSentences = sentencesOf(research.text);
-  for (const unit of units ?? sentencesOf(text)) {
-    const sentence = unit.replace(/\s+/g, " ").trim();
-    if (hasSourceMention(sentence)) continue;
-    for (const m of sentence.matchAll(NUMBER_TOKEN)) {
-      const tok = m[0].replace(",", ".");
-      if (!research.only.has(tok) || seen.has(tok)) continue;
-      const after = sentence.slice(m.index! + m[0].length, m.index! + m[0].length + 3);
-      if (/^(?:er|re|e\b|ᵉ|ʳ)/.test(after)) continue;
-      seen.add(tok);
+  const researchSentences = sentencesOf(research.text).map((t) => ({ t, keys: new Set(statMentions(t).flatMap((m) => m.keys)) }));
+  const blocks = units
+    ? units.map((u) => ({ text: u.replace(/\s+/g, " ").trim(), covered: hasSourceMention(u.replace(/\s+/g, " ")) }))
+    : sourcedSentences(text);
+  for (const { text: sentence, covered } of blocks) {
+    if (covered) continue;
+    // La mention la plus longue gagne (« deux fois plus » plutôt que « deux »), puis ordre du texte.
+    const picked: Array<{ m: StatMention; key: string }> = [];
+    for (const m of statMentions(sentence).sort((a, b) => (b.end - b.index) - (a.end - a.index))) {
+      const key = m.keys.find((k) => research.only.has(k));
+      if (!key || seen.has(key) || picked.some((p) => m.index < p.m.end && p.m.index < m.end)) continue;
+      seen.add(key);
+      picked.push({ m, key });
+    }
+    for (const { m, key } of picked.sort((a, b) => a.m.index - b.m.index)) {
       const where = sentence.length > 160 ? sentence.slice(0, 157) + "…" : sentence;
-      const inResearch = researchSentences.find((s) => [...s.matchAll(NUMBER_TOKEN)].some((r) => r[0].replace(",", ".") === tok));
-      found.push(`${m[0]} (« ${where} »)${inResearch ? ` — dans la recherche : « ${inResearch.length > 220 ? inResearch.slice(0, 217) + "…" : inResearch} »` : ""}`);
+      const inResearch = researchSentences.find((r) => r.keys.has(key))?.t;
+      found.push(`${m.raw} (« ${where} »)${inResearch ? ` — dans la recherche : « ${inResearch.length > 220 ? inResearch.slice(0, 217) + "…" : inResearch} »` : ""}`);
     }
   }
   return found;
 }
 
 const UNSOURCED_RESEARCH_FIX = (items: string[]) =>
-  `CHIFFRES DE LA RECHERCHE REPRIS SANS LEUR SOURCE : ces chiffres ne viennent que de la matière de recherche, et la phrase qui les reprend ne cite pas leur source :\n${items.map((n) => `- ${n}`).join("\n")}\nPour CHACUN : si la matière de recherche donne la source de ce chiffre, ajoute-la DANS LA MÊME PHRASE, de façon discrète (« (Nom, année) » ou « selon Nom ») ; sinon, remplace le chiffre par une formulation qualitative honnête (« une petite partie de ton réseau », « les premiers jours »). N'invente JAMAIS de source, de nom ou d'année. Ne touche pas au reste du texte.`;
+  `CHIFFRES DE LA RECHERCHE REPRIS SANS LEUR SOURCE : ces chiffres ne viennent que de la matière de recherche, et la phrase qui les reprend ne cite pas leur source :\n${items.map((n) => `- ${n}`).join("\n")}\nPour CHACUN : si la matière de recherche donne la source de ce chiffre, ajoute-la DANS LA MÊME PHRASE (ou dans la phrase juste avant, si elle introduit l'étude), de façon discrète (« (Nom, année) » ou « selon Nom ») ; sinon, remplace le chiffre par une formulation qualitative honnête (« une petite partie de ton réseau », « les premiers jours »). N'invente JAMAIS de source, de nom ou d'année. Ne touche pas au reste du texte.`;
 
 /** Noms propres et années ajoutés par une correction : ils doivent venir de la recherche. */
 function inventedSourceTokens(before: string, after: string, researchText: string): string[] {
-  const tokens = (t: string) => new Set((t.match(/\p{Lu}[\p{L}\d'’-]+|(?<!\d)(?:19|20)\d{2}(?!\d)/gu) || []));
+  // Les marqueurs « [SLIDE 1 - BODY] » des textes balisés ne sont pas des sources.
+  const tokens = (t: string) => new Set((t.replace(/\[[^\]\n]{1,40}\]/g, " ").match(/\p{Lu}[\p{L}\d'’-]+|(?<!\d)(?:19|20)\d{2}(?!\d)/gu) || []));
   const had = tokens(before);
   const research = researchText.toLowerCase();
   return [...tokens(after)].filter((tok) => !had.has(tok) && !research.includes(tok.toLowerCase()));
@@ -205,12 +293,16 @@ function inventedSourceTokens(before: string, after: string, researchText: strin
  * mesure moins de chiffres non sourcés, aucun autre compteur dégradé et aucun
  * nom ni année absents de la recherche (pas de source inventée).
  */
-export async function enforceResearchNumberSources(
+export async function enforceResearchNumberSources<A extends { unsourcedResearchNumbers?: string[]; fabricatedNumbers: string[] } = TextRedacAnalysis>(
   text: string,
-  analyze: (t: string) => TextRedacAnalysis,
+  analyze: (t: string) => A,
   research: ResearchNumbers | undefined,
-  opts: { logger?: (msg: string) => void; abortTimeoutMs?: number; before?: TextRedacAnalysis },
-): Promise<{ content: string; analysis: TextRedacAnalysis; applied: boolean }> {
+  opts: {
+    logger?: (msg: string) => void; abortTimeoutMs?: number; before?: A;
+    /** Somme des AUTRES compteurs (défaut : variante texte) : aucun ne doit se dégrader. */
+    otherCount?: (a: A) => number;
+  },
+): Promise<{ content: string; analysis: A; applied: boolean }> {
   const before = opts.before ?? analyze(text);
   const items = before.unsourcedResearchNumbers ?? [];
   if (!research || !items.length) return { content: text, analysis: before, applied: false };
@@ -219,12 +311,81 @@ export async function enforceResearchNumberSources(
   });
   if (!candidate || candidate === text) return { content: text, analysis: before, applied: false };
   const after = analyze(candidate);
-  const unsourced = (a: TextRedacAnalysis) => a.unsourcedResearchNumbers?.length ?? 0;
-  const others = (a: TextRedacAnalysis) => textRedacRawCount(a) - unsourced(a);
+  const unsourced = (a: A) => a.unsourcedResearchNumbers?.length ?? 0;
+  const others = opts.otherCount ?? ((a: A) => textRedacRawCount(a as unknown as TextRedacAnalysis) - unsourced(a));
   const invented = inventedSourceTokens(text, candidate, research.text);
   const kept = unsourced(after) < unsourced(before) && others(after) <= others(before) &&
     after.fabricatedNumbers.length <= before.fabricatedNumbers.length && !invented.length;
   opts.logger?.(`[research-sourcing] chiffres de recherche sans source ${unsourced(before)}→${unsourced(after)}, autres ${others(before)}→${others(after)}${invented.length ? `, source absente de la recherche ${JSON.stringify(invented)}` : ""}, gardé=${kept}`);
+  return kept ? { content: candidate, analysis: after, applied: true } : { content: text, analysis: before, applied: false };
+}
+
+// ── Témoignages inventés (04/10/2026) ──
+// Vu en test réel : deux posts LinkedIn successifs, sans réponse aux questions,
+// ouvraient sur « Une céramiste me disait récemment qu'elle avait doublé sa
+// fréquence… ». Aucune source ne le fournit : c'est un vécu inventé. La règle
+// existe dans les prompts ; ici on la MESURE. Une parole rapportée (« une
+// cliente m'a dit », « mes client·es me disent ») ou une rencontre (« j'ai
+// discuté avec une… ») n'est acceptée que si le brief, les réponses ou l'actu
+// en contiennent déjà une.
+
+const TESTIMONY_SUBJECT = String.raw`(?:une?|mon|ma|mes|des|plusieurs|certaine?s?|l['’]une?(?:\s+de\s+mes)?|deux|trois|quelques)(?:·e)?`;
+const TESTIMONY_VERB_PRESENT = String.raw`(?:disai(?:t|ent)|dit|disent|confi(?:ait|aient|e|ent)|racont(?:ait|aient|e|ent)|écri(?:vait|vaient|t|vent)|expliqu(?:ait|aient|e|ent)|demand(?:ait|aient|e|ent)|avou(?:ait|aient|e|ent)|répét(?:ait|aient)|répètent?|gliss(?:ait|aient|e|ent)|lan[cç](?:ait|aient|e|ent)|montr(?:ait|aient)|envoy(?:ait|aient)|partage(?:ait|aient)?|souffl(?:ait|aient|e|ent))`;
+const TESTIMONY_VERB_PAST = String.raw`(?:dit|confié|raconté|écrit|expliqué|demandé|avoué|répété|glissé|lancé|montré|envoyé|renvoyé|partagé|soufflé|posé\s+(?:la|une|cette)\s+question)`;
+// Sujets qui « disent » sans être une personne rencontrée : « mon instinct me dit ».
+const NON_PERSON_SUBJECT = /(?<!\p{L})(?:instinct|intuition|voix|cerveau|tête|ventre|cœur|coeur|corps|expérience|algorithme|logique|statistiques?|chiffres?|graphiques?|données|stats|application|appli|outil|calendrier|agenda|miroir|téléphone|étude|article|livre|podcast|rapport|sondage)(?!\p{L})/iu;
+
+const REPORTED_SPEECH_RE = new RegExp(
+  String.raw`(?<!\p{L})${TESTIMONY_SUBJECT}\s+[^.!?\n]{1,60}?(?:\s|,)(?:me\s+${TESTIMONY_VERB_PRESENT}|m['’](?:a|ont|avait|avaient)\s+${TESTIMONY_VERB_PAST})(?!\p{L})`,
+  "giu",
+);
+const ENCOUNTER_RE = /(?<!\p{L})(?:j['’](?:ai|avais)\s+(?:discuté|échangé|parlé|croisé|rencontré|accompagné)\s+(?:avec\s+)?(?:une?|des|plusieurs|deux|trois)\s|j['’]échangeais\s+avec\s+(?:une?|des)\s|je\s+(?:parlais|discutais)\s+avec\s+(?:une?|des)\s|(?:en\s+accompagnant|en\s+discutant\s+avec)\s+(?:une?|des)\s)/giu;
+
+function testimonyPassages(text: string): string[] {
+  const out: string[] = [];
+  for (const sentence of sentencesOf(text)) {
+    const s = sentence.replace(/\s+/g, " ");
+    const hits = [...s.matchAll(REPORTED_SPEECH_RE)].filter((m) => !NON_PERSON_SUBJECT.test(m[0]));
+    if (hits.length || ENCOUNTER_RE.test(s)) out.push(s.length > 200 ? s.slice(0, 197) + "…" : s);
+    ENCOUNTER_RE.lastIndex = 0;
+  }
+  return out;
+}
+
+/**
+ * Phrases qui rapportent la parole d'une personne rencontrée ou une rencontre,
+ * alors que les sources (brief, réponses, actu) n'en contiennent aucune.
+ * `sourceText` absent = pas de mesure (l'appelant ne sait pas ce qui est fourni).
+ */
+export function findInventedTestimonials(text: string, sourceText?: string): string[] {
+  if (sourceText === undefined) return [];
+  if (testimonyPassages(sourceText).length) return [];
+  return testimonyPassages(text || "");
+}
+
+const INVENTED_TESTIMONY_FIX = (items: string[]) =>
+  `TÉMOIGNAGE INVENTÉ : ces phrases rapportent la parole d'une personne rencontrée (cliente, amie, artisane…) ou une rencontre, alors que ni le brief, ni les réponses, ni l'actu ne la fournissent :\n${items.map((t) => `- « ${t} »`).join("\n")}\nRetire CHAQUE témoignage et garde l'idée qu'il portait, dite comme un constat général au présent ou comme l'opinion de l'autrice. Aucune personne, parole rapportée ou scène de remplacement.`;
+
+/**
+ * Filet dédié (04/10/2026) : s'il reste un témoignage inventé après la
+ * relecture, UNE passe courte qui ne fait que le retirer. Gardée seulement si
+ * le code mesure moins de témoignages et aucun autre compteur dégradé.
+ */
+export async function enforceNoInventedTestimonials(
+  text: string,
+  analyze: (t: string) => TextRedacAnalysis,
+  opts: { logger?: (msg: string) => void; abortTimeoutMs?: number; before?: TextRedacAnalysis },
+): Promise<{ content: string; analysis: TextRedacAnalysis; applied: boolean }> {
+  const before = opts.before ?? analyze(text);
+  const items = before.inventedTestimonials ?? [];
+  if (!items.length) return { content: text, analysis: before, applied: false };
+  const candidate = await applyTestimonyRemovalPass(text, { items, logger: opts.logger, abortTimeoutMs: opts.abortTimeoutMs });
+  if (!candidate || candidate === text) return { content: text, analysis: before, applied: false };
+  const after = analyze(candidate);
+  const count = (a: TextRedacAnalysis) => a.inventedTestimonials?.length ?? 0;
+  const others = (a: TextRedacAnalysis) => textRedacRawCount(a) - count(a);
+  const kept = count(after) < count(before) && others(after) <= others(before);
+  opts.logger?.(`[testimony-removal] témoignages inventés ${count(before)}→${count(after)}, autres ${others(before)}→${others(after)}, gardé=${kept}`);
   return kept ? { content: candidate, analysis: after, applied: true } : { content: text, analysis: before, applied: false };
 }
 
@@ -796,7 +957,7 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
     const original = originalDoc.carousel?.slides ? originalDoc.carousel : originalDoc;
     const candidate = candidateDoc.carousel?.slides ? candidateDoc.carousel : candidateDoc;
     const allowed = source === undefined ? undefined : numbersIn(source);
-    const research = allowed ? researchNumbers(numbersIn(baseInputText(opts.inputText, opts.researchText)), opts.researchText) : undefined;
+    const research = allowed ? researchNumbers(numbersIn(baseInputText(opts.inputText, opts.researchText)), opts.researchText, baseInputText(opts.inputText, opts.researchText)) : undefined;
     const before = dropUserSourcedReversals(analyzeCarouselRedac(original, allowed, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
     const after = dropUserSourcedReversals(analyzeCarouselRedac(candidate, allowed, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
     // Compare raw counts, not the capped score: a fifth invented number is
@@ -888,7 +1049,7 @@ export async function runRedacGate(
   if (!first) return { content, repassed: false, before: emptyAnalysis(), after: emptyAnalysis(), score: null, violations: null };
 
   const allowedNumbers = opts.inputText !== undefined ? numbersIn(opts.inputText) : undefined;
-  const research = allowedNumbers ? researchNumbers(numbersIn(baseInputText(opts.inputText, opts.researchText)), opts.researchText) : undefined;
+  const research = allowedNumbers ? researchNumbers(numbersIn(baseInputText(opts.inputText, opts.researchText)), opts.researchText, baseInputText(opts.inputText, opts.researchText)) : undefined;
   const before = dropUserSourcedReversals(analyzeCarouselRedac(first.parsed, allowedNumbers, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
   let out = content;
   let repassed = false;
@@ -935,6 +1096,29 @@ export async function runRedacGate(
 
   const finalDoc = parseFenced(out) || parseFenced(content);
   if (!finalDoc) return { content: out, repassed, before, after: before, score: redacScore(before), violations: redacViolations(before) };
+
+  // Chiffres de la recherche encore sans source après la re-passe : passe dédiée
+  // sur les textes balisés (jamais après le juge final : correction désactivée).
+  if (research && opts.correction.enabled !== false) {
+    try {
+      const doc = finalDoc.parsed;
+      const analyzeDoc = (d: any) => dropUserSourcedReversals(analyzeCarouselRedac(d, allowedNumbers, opts.brandGuardText, opts.echo, research), opts.correction.authoredText);
+      const current = analyzeDoc(doc);
+      if (current.unsourcedResearchNumbers?.length) {
+        const sourced = await enforceResearchNumberSources(extractCarouselTexts(doc), (b) => analyzeDoc(reinjectCarouselTexts(doc, b)), research, {
+          logger: opts.correction.logger, abortTimeoutMs: opts.correction.abortTimeoutMs, before: current,
+          otherCount: (a) => a.reversals.length + Number(a.ctaDuplicated) + a.moulded.length + a.fabricatedNumbers.length +
+            a.durationConflicts.length + a.brandCopyOverlap.length + a.hookEchoes.length,
+        });
+        if (sourced.applied) {
+          finalDoc.parsed = reinjectCarouselTexts(doc, sourced.content);
+          repassed = true;
+        }
+      }
+    } catch (e) {
+      console.error("[redac-gate] passe chiffres de recherche échouée, contenu conservé :", e);
+    }
+  }
 
   // Filet schémas : la re-passe ne voit que les textes — un visual_schema qui
   // porte encore des chiffres sans source est retiré en code (la slide redevient
@@ -1009,6 +1193,8 @@ export interface TextRedacAnalysis {
   fabricatedNumbers: string[];
   /** Chiffres que seule la recherche fournit, repris sans leur source dans la même phrase. */
   unsourcedResearchNumbers?: string[];
+  /** Paroles rapportées ou rencontres qu'aucune source ne fournit (« une cliente me disait… »). */
+  inventedTestimonials?: string[];
   /** Passages qui recopient quasi mot pour mot un champ de la fiche de marque. */
   brandCopyOverlap: string[];
   /** Accroches DÉJÀ écrites pour ce sujet que celle-ci redit (cf. findHookEchoes). */
@@ -1022,14 +1208,16 @@ export function textHook(text: string): string {
   return phrase.slice(0, 200);
 }
 
-export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext, research?: ResearchNumbers): TextRedacAnalysis {
+/** `testimonySource` : brief + réponses + actu ; absent = témoignages non mesurés. */
+export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext, research?: ResearchNumbers, testimonySource?: string): TextRedacAnalysis {
   const reversals = findReversals(text || "");
   const moulded = MOULDED_VERBATIMS.map((re) => (text || "").match(re)?.[0]).filter(Boolean) as string[];
   const fabricatedNumbers = allowedNumbers ? findFabricatedNumbers(text || "", allowedNumbers) : [];
   const unsourcedResearchNumbers = findUnsourcedResearchNumbers(text || "", research);
   const brandCopyOverlap = findBrandCopyOverlap(text || "", brandGuardText);
   const hookEchoes = findHookEchoes(textHook(text), echo?.previousHooks, echo?.subject);
-  return { reversals, moulded, fabricatedNumbers, unsourcedResearchNumbers, brandCopyOverlap, hookEchoes };
+  const inventedTestimonials = findInventedTestimonials(text || "", testimonySource);
+  return { reversals, moulded, fabricatedNumbers, unsourcedResearchNumbers, inventedTestimonials, brandCopyOverlap, hookEchoes };
 }
 
 /**
@@ -1057,6 +1245,7 @@ export function textRedacViolations(a: TextRedacAnalysis): number {
     a.moulded.length +
     Math.min(3, a.fabricatedNumbers.length) +
     Math.min(3, a.unsourcedResearchNumbers?.length ?? 0) +
+    Math.min(3, a.inventedTestimonials?.length ?? 0) +
     Math.min(3, a.brandCopyOverlap.length) +
     Math.min(1, a.hookEchoes.length)
   );
@@ -1236,6 +1425,7 @@ export function buildTextFixInstructions(a: TextRedacAnalysis): string {
     );
   }
   if (a.unsourcedResearchNumbers?.length) lines.push(UNSOURCED_RESEARCH_FIX(a.unsourcedResearchNumbers));
+  if (a.inventedTestimonials?.length) lines.push(INVENTED_TESTIMONY_FIX(a.inventedTestimonials));
   if (a.brandCopyOverlap.length) {
     lines.push(
       `PASSAGES RECOPIÉS DE LA FICHE DE MARQUE : ces extraits reprennent quasi mot pour mot un champ de la fiche de marque de l'utilisatrice (combat, mission, ton, expressions, convictions) :\n${a.brandCopyOverlap.map((o) => `- « ${o} »`).join("\n")}\nCette fiche est la MATIÈRE de l'utilisatrice, jamais son texte final. Reformule CHAQUE extrait avec des mots neufs, garde le sens et l'intensité, mais ne recopie plus la fiche de marque telle quelle.`,
@@ -1264,7 +1454,7 @@ export function buildTextFixInstructions(a: TextRedacAnalysis): string {
  * ne doit pas profiter du plafond de pénalité d’une autre catégorie. */
 export function textRedacRawCount(a: TextRedacAnalysis): number {
   return a.reversals.length + a.moulded.length + a.fabricatedNumbers.length + a.brandCopyOverlap.length +
-    a.hookEchoes.length + (a.unsourcedResearchNumbers?.length ?? 0);
+    a.hookEchoes.length + (a.unsourcedResearchNumbers?.length ?? 0) + (a.inventedTestimonials?.length ?? 0);
 }
 
 export interface TextGateResult {
@@ -1293,10 +1483,12 @@ export async function runTextRedacGate(
     maxPasses?: number;
     /** Contenus DÉJÀ générés sur ce sujet : garde anti-redite d'accroche. */
     echo?: EchoContext;
+    /** Brief + réponses + actu : un témoignage absent de ces sources est inventé (non mesuré si absent). */
+    testimonySource?: string;
   },
 ): Promise<TextGateResult> {
   const analyze = (t: string) => dropUserSourcedReversals(
-    analyzeTextRedac(t, opts.allowedNumbers, opts.brandGuardText, opts.echo, opts.research), opts.correction.authoredText,
+    analyzeTextRedac(t, opts.allowedNumbers, opts.brandGuardText, opts.echo, opts.research, opts.testimonySource), opts.correction.authoredText,
   );
   const before = analyze(text);
   let best = text;
@@ -1345,10 +1537,21 @@ export async function runTextRedacGate(
     }
   }
 
+  if (bestA.inventedTestimonials?.length) {
+    const cleaned = await enforceNoInventedTestimonials(best, analyze, {
+      logger: opts.correction.logger, abortTimeoutMs: opts.correction.abortTimeoutMs, before: bestA,
+    });
+    if (cleaned.applied) {
+      best = cleaned.content;
+      bestA = cleaned.analysis;
+      repassed = true;
+    }
+  }
+
   const violations = textRedacViolations(bestA);
   const score = Math.max(40, 100 - 10 * violations);
   opts.correction.logger?.(
-    `[text-gate:${opts.format}] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${bestA.unsourcedResearchNumbers?.length ?? 0}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, repassé=${repassed}, rejeté=${reverted}`,
+    `[text-gate:${opts.format}] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${bestA.unsourcedResearchNumbers?.length ?? 0}, témoignages inventés ${before.inventedTestimonials?.length ?? 0}→${bestA.inventedTestimonials?.length ?? 0}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, repassé=${repassed}, rejeté=${reverted}`,
   );
   return { content: best, before, after: bestA, repassed, reverted, score, violations };
 }

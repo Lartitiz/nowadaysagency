@@ -50,6 +50,7 @@ const {
   buildAdjustPrompt,
   buildDictationPrompt,
   buildGeneratePrompt,
+  resolveFormatHint,
 } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
@@ -252,6 +253,56 @@ Deno.test("buildQuestionsPrompt — post_linkedin réel reconnu comme LinkedIn",
   });
   assertStringIncludes(prompt.systemPrompt, "- Canal : LinkedIn");
   assertStringIncludes(prompt.systemPrompt, "Questions orientées POINT DE VUE");
+});
+
+// Non-régression « canal des questions » : le front (use-content-generator)
+// envoie « linkedin_post » au step questions. Une égalité stricte sur
+// "linkedin"/"post_linkedin" retombait sur « Canal : Instagram » → la 1re
+// question parlait de « contenu Instagram » dans un parcours LinkedIn.
+for (const [contentType, expected] of [
+  ["linkedin_post", "LinkedIn"],
+  ["post_linkedin", "LinkedIn"],
+  ["linkedin", "LinkedIn"],
+  ["newsletter", "Newsletter"],
+  ["post_newsletter", "Newsletter"],
+  ["post_pinterest", "Pinterest"],
+  ["instagram_post", "Instagram"],
+] as const) {
+  Deno.test(`buildQuestionsPrompt — canal juste pour contentType « ${contentType} »`, () => {
+    const { systemPrompt } = buildQuestionsPrompt({
+      QUESTIONS_PREFIX, brandingContext: "", brandVocabBlock: "",
+      context: "Pourquoi je ne fais plus de remises sur mes créations",
+      contentType, editorialFormatLabel: null, angle: ANGLE,
+      calendarBlock: "", objectiveBlock: "", newsContextBlock: "", recentBriefsContext: "",
+    });
+    assertStringIncludes(systemPrompt, `- Canal : ${expected}`);
+    if (expected !== "Instagram") assert(!/instagram/i.test(systemPrompt), `« Instagram » dans un parcours ${expected}`);
+  });
+}
+
+Deno.test("buildQuestionsPrompt — parcours LinkedIn réel (linkedin_post) : consignes LinkedIn actives", () => {
+  const { systemPrompt } = buildQuestionsPrompt({
+    QUESTIONS_PREFIX, brandingContext: "", brandVocabBlock: "",
+    context: "Pourquoi je ne fais plus de remises sur mes créations",
+    contentType: "linkedin_post", editorialFormatLabel: null, angle: ANGLE,
+    calendarBlock: "", objectiveBlock: "", newsContextBlock: "", recentBriefsContext: "",
+  });
+  assertStringIncludes(systemPrompt, "Questions orientées POINT DE VUE");
+});
+
+// Garde « format demandé d'abord » : angle.format_livraison (suggestion IA du
+// step "angles") ne doit jamais remplacer le format choisi par l'utilisatrice.
+Deno.test("resolveFormatHint — contentType prime sur angle.format_livraison", () => {
+  assertEquals(resolveFormatHint("post_linkedin", { format_livraison: "carrousel" }), "post_linkedin");
+  assertEquals(resolveFormatHint("post_instagram", { format_livraison: "reel" }), "post_instagram");
+  assertEquals(resolveFormatHint("post_pinterest", { format_livraison: "Stories" }), "post_pinterest");
+});
+
+Deno.test("resolveFormatHint — format_livraison seulement sans contentType", () => {
+  assertEquals(resolveFormatHint(null, { format_livraison: "Carrousel" }), "carrousel");
+  assertEquals(resolveFormatHint("  ", { format_livraison: "reel" }), "reel");
+  assertEquals(resolveFormatHint(undefined, undefined), "");
+  assertEquals(resolveFormatHint(undefined, { format_livraison: 42 }), "");
 });
 
 Deno.test("buildQuestionsPrompt — Newsletter (guidance profondeur)", async (t) => {

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { prepareLinkedInText } from "@/lib/linkedin-copy";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -86,7 +87,7 @@ export default function LinkedInPostGenerator() {
   };
 
   const copyImproveText = (text: string, key: string) => {
-    navigator.clipboard.writeText(text).then(() => {
+    navigator.clipboard.writeText(prepareLinkedInText(text)).then(() => {
       setCopiedImprove(key);
       setTimeout(() => setCopiedImprove(null), 2000);
       toast.success("📋 Copié !");

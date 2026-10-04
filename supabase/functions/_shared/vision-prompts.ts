@@ -27,6 +27,9 @@ export function buildVisionQuestionsPrompt(p: VisionQuestionsParams): string {
   } else if (ctype.includes("story") || ctype.includes("stories")) {
     channelLabelQ = "Stories Instagram (séquence éphémère)";
     channelGuidanceQ = "L'image est le point d'ancrage d'une séquence (zooms, crops, hors-champ, sticker question). Questions sur : ce qu'on découpe, le 'avant/après', ce qu'on veut faire réagir.";
+  } else if (ctype.includes("pinterest")) {
+    // Canal seulement : la consigne de questions reste celle du post photo.
+    channelLabelQ = "Pinterest (épingle)";
   } else if (ctype.includes("newsletter")) {
     channelLabelQ = "Newsletter (email long format)";
     channelGuidanceQ = "Ton ÉDITORIAL / INTIME : l'image est en ouverture, le texte prolonge l'ambiance. Questions sur : ce que l'image évoque, le fil narratif qu'elle ouvre, l'angle perso à creuser.";

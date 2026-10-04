@@ -21,6 +21,11 @@ export function authoredContentSource(body: Record<string, unknown>): string {
     .join("\n");
 }
 
+/** Ce qui peut fournir une parole rapportée ou une rencontre : brief, réponses, actu (jamais le branding ni la recherche). */
+export function testimonySourceText(body: Record<string, unknown>): string {
+  return [authoredContentSource(body), typeof body.news_context === "string" ? body.news_context : ""].filter(Boolean).join("\n");
+}
+
 /** Final reminder near the current task, after generic framework instructions. */
 export function currentContentContract(source: string): string {
   if (!source.trim()) return "";

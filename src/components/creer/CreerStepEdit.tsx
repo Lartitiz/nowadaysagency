@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { useTextEditHistory } from "@/hooks/use-text-edit-history";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import { Button } from "@/components/ui/button";
@@ -152,7 +153,7 @@ export default function CreerStepEdit({ content, format, subject, newsContext, w
           <ArrowLeft className="h-3.5 w-3.5" /> Retour
         </Button>
         <div className="flex-1" />
-        <Button variant="outline" size="sm" onClick={() => onCopy(editedContent)} className="gap-1.5">
+        <Button variant="outline" size="sm" onClick={() => onCopy(copyTextForChannel(editedContent, format))} className="gap-1.5">
           <Copy className="h-3.5 w-3.5" /> Copier
         </Button>
         <Button variant="outline" size="sm" onClick={() => onSave(editedContent)} className="gap-1.5">

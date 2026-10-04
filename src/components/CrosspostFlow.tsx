@@ -1,4 +1,5 @@
 import CrosspostSources from "@/components/crosspost/CrosspostSources";
+import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { crosspostText, crosspostEnvelope, CROSSPOST_TARGETS, type CrosspostResult } from '@/lib/crosspost-content';
 import { crosspostScope, archiveCrosspost, crosspostHistory, readCrosspost, persistCrosspost, createCrosspostSession, saveCrosspostCalendar, saveCrosspostIdea } from '@/lib/crosspost-persistence';
@@ -132,7 +133,7 @@ function CrosspostWorkspace() {
   };
 
   const handleCopy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text).then(() => {
+    navigator.clipboard.writeText(copyTextForChannel(text, key)).then(() => {
       setCopied(key);
       setTimeout(() => setCopied(null), 2000);
     }).catch(() => {

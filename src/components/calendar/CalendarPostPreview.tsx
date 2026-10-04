@@ -1,4 +1,5 @@
 import { exportFileName } from "@/lib/export-file-name";
+import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2, ExternalLink } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
@@ -193,9 +194,9 @@ export function CalendarPostPreview({
   const handleCopyCaption = useCallback(() => {
     const text = copyCaption || caption;
     if (!text) return;
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(copyTextForChannel(text, canal));
     toast.success("Légende copiée !");
-  }, [caption, copyCaption]);
+  }, [caption, copyCaption, canal]);
 
   // ── Mini toolbar (toujours rendue si on a du contenu) ──
   const Toolbar = () => {

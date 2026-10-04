@@ -1,4 +1,5 @@
 import { planSavedIdea } from '@/lib/idea-calendar-persistence';
+import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { calendarSaveError } from '@/lib/calendar-persistence';
 import { savePreviewEdit } from "@/lib/content-preview-save";
 import { resumeIdea } from "@/lib/resume-idea";
@@ -659,7 +660,7 @@ function IdeasInWorkspace() {
                       )}
                       {selectedIdea.content_draft?.trim() && !selectedIdea.content_draft.trim().startsWith("{") && (
                         <Button variant="outline" size="sm" className="rounded-pill gap-1 text-xs" onClick={async () => {
-                          await navigator.clipboard.writeText(selectedIdea.content_draft!.trim());
+                          await navigator.clipboard.writeText(copyTextForChannel(selectedIdea.content_draft!.trim(), selectedIdea.canal));
                           toast.success("Copié !");
                         }}>
                           <Copy className="h-3 w-3" /> Copier

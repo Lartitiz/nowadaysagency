@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -564,7 +565,7 @@ export default function ContentRecycling() {
               )}
 
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={() => copyContent(results[activeTab])} className="rounded-pill gap-1.5">
+                <Button variant="outline" size="sm" onClick={() => copyContent(copyTextForChannel(results[activeTab], activeTab))} className="rounded-pill gap-1.5">
                   <Copy className="h-3.5 w-3.5" /> Copier
                 </Button>
                 <Button variant="outline" size="sm" disabled={!canExport} onClick={() => setShowCalendarDialog(true)} className="rounded-pill gap-1.5">

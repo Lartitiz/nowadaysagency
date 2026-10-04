@@ -514,6 +514,8 @@ Le lecteur ne doit pas savoir qu'il est en train d'apprendre quelque chose avant
 
 TEST DE DÉTECTION : si le contenu pourrait commencer par "Conseil n°1", il est daté. Réécrire.
 
+CONDITION DE VÉRITÉ (avant de choisir un véhicule) : les véhicules 1 (récit d'expérience) et 2 (déclencheur externe) ne servent QUE si le brief, les réponses ou l'actu fournissent ce vécu ou ce déclencheur. Les exemples ci-dessous illustrent une transformation, ils ne sont pas une matière à reprendre. Sans vécu fourni, aucune cliente, amie, artisane ou personne croisée qui « me disait », « m'a confié » ou « m'a écrit » : prends le véhicule 3 (constat décalé) ou une lecture de l'actu ou d'une étude réellement fournie.
+
 ═══════════════════════════════════════════════════
 
 LES 4 VÉHICULES DE L'ÉDUCATION EMBARQUÉE
@@ -524,7 +526,7 @@ Chaque contenu qui transmet de l'information DOIT utiliser un de ces 4 véhicule
 
 VÉHICULE 1 : RÉCIT D'EXPÉRIENCE
 
-Principe : "Voici ce qui s'est passé quand…" au lieu de "Voici comment faire".
+Principe : "Voici ce qui s'est passé quand…" au lieu de "Voici comment faire". Seulement avec un vécu fourni par l'utilisatrice.
 
 L'information est la même, mais le véhicule change. Les gens partagent des histoires, pas des cours.
 
@@ -542,7 +544,7 @@ Signal algorithmique : partages en DM ("ça m'est arrivé aussi"), commentaires 
 
 VÉHICULE 2 : DÉCLENCHEUR EXTERNE
 
-Principe : L'information arrive par rebond sur quelque chose d'extérieur : un retour client, un chiffre découvert, une conversation, une lecture, un commentaire reçu, une situation observée.
+Principe : L'information arrive par rebond sur quelque chose d'extérieur : un retour client, un chiffre découvert, une conversation, une lecture, un commentaire reçu, une situation observée. Ce déclencheur doit être FOURNI (réponses, brief, actu, étude citée) : un retour client ou une conversation absents des sources est un témoignage inventé.
 
 Pas "moi je sais et je t'explique" mais "voilà ce qui m'a fait réaliser un truc".
 
@@ -638,7 +640,7 @@ APPLICATION DANS LA GÉNÉRATION
 
 QUAND L'IA GÉNÈRE DU CONTENU QUI TRANSMET UNE INFORMATION :
 
-1. Identifier le véhicule le plus naturel pour ce sujet et cette personne
+1. Identifier le véhicule le plus naturel pour ce sujet et cette personne, parmi ceux que la matière fournie permet (voir CONDITION DE VÉRITÉ)
 
 2. Structurer le contenu autour du VÉHICULE, pas autour de l'information
 
