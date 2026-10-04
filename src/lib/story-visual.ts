@@ -311,14 +311,19 @@ ${blocks.filter(Boolean).map((b) => `<div style="max-width:100%">${b}</div>`).jo
 }
 
 /** Découpe la narration autour du verbatim pour garder le contexte sans répéter la citation. */
-function splitAroundQuote(text: string, quote: string): { before: string; quote: string; after: string } | null {
+function splitAroundQuote(text: string, quote: string): { before: string; quote: string; trail: string; after: string } | null {
   if (!text || !quote) return null;
   const index = text.toLocaleLowerCase("fr").indexOf(quote.toLocaleLowerCase("fr"));
   if (index < 0) return null;
+  const rest = text.slice(index + quote.length).replace(/^[\s»”"'’]+/u, "");
+  // La ponctuation qui suit le verbatim (« … humeur ». Alors…) reste collée à
+  // la citation : sinon le bloc suivant commençait par « . Alors ».
+  const trail = rest.match(/^[.,;:!?…]+/u)?.[0] || "";
   return {
     before: text.slice(0, index).replace(/[\s«“"'‘]+$/u, "").trim(),
     quote: text.slice(index, index + quote.length).trim(),
-    after: text.slice(index + quote.length).replace(/^[\s»”"'’]+/u, "").trim(),
+    trail,
+    after: rest.slice(trail.length).trim(),
   };
 }
 
@@ -452,7 +457,7 @@ ${items.map((it) => `<div style="max-width:100%">${textBlock(it, itemStyle, ctx,
       : { ...asm.title, mode: "wh", size: asm.title.size * 0.92, upper: false, letterSpacing: undefined };
     const narrativeStyle = { ...bodyBase, size: bodyBase.size * bodyScale(narration) };
     const split = splitAroundQuote(narration, quote);
-    const quoteText = `« ${split?.quote || quote} »`;
+    const quoteText = `« ${split?.quote || quote} »${split?.trail || ""}`;
     const align = alignFor(ctx, { text: narration || quoteText, style: narration ? narrativeStyle : quoteStyle });
     // Une story « citation » reste une histoire : le contexte avant et la
     // réaction après le verbatim font partie du visuel. Si le verbatim ne se

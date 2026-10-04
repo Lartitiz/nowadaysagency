@@ -52,6 +52,17 @@ describe("buildStoryFrameHtml", () => {
     expect(html).not.toContain("L&#39;avis 1 étoile qui sauve tout");
   });
 
+  it("garde la ponctuation qui suit le verbatim collée à la citation", () => {
+    const text = "Ce matin une cliente m’a écrit : « je prends mon café dans ce bol chaque matin ». Alors aujourd’hui je vous montre comment il naît.";
+    const html = buildStoryFrameHtml({
+      text,
+      visual: { gabarit: "citation", background: "photo", quote: "je prends mon café dans ce bol chaque matin" },
+    }, branding)!;
+    expect(html).toContain("« je prends mon café dans ce bol chaque matin ».");
+    expect(html).toContain("Alors aujourd’hui je vous montre comment il naît.");
+    expect(html).not.toMatch(/>\s*\.\s*Alors/);
+  });
+
   it("affiche toute la narration si la citation a été reformulée séparément", () => {
     const text = "Le contexte complet reste indispensable, même quand le verbatim ne correspond plus exactement.";
     const html = buildStoryFrameHtml({ text, visual: { gabarit: "citation", quote: "Une autre formulation" } }, branding)!;
