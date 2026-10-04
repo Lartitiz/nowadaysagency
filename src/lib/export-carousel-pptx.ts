@@ -120,9 +120,9 @@ export function classifyRole(role: unknown, slideIndex: number, totalSlides: num
   const has = (...keys: string[]) => keys.some((k) => r.includes(k));
   if (slideIndex === 0 || has("hook", "accroche")) return "hook";
   if (slideIndex === totalSlides - 1 || has("cta", "appel", "action")) return "cta";
-  if (has("separ", "transition", "rupture", "bascule")) return "separator";
+  if (has("separ", "transition", "rupture")) return "separator";
   if (has("dark", "punchline", "punch")) return "dark_box";
-  if (has("context", "story", "intro", "recit", "histoire", "anecdote")) return "context";
+  if (has("context", "story", "intro", "recit")) return "context";
   if (has("espoir", "hope", "solution", "bonne nouvelle")) return "hope";
   return "tip";
 }

@@ -16,7 +16,7 @@ function legacyClassify(role: string, slideIndex: number, totalSlides: number): 
 
 const KNOWN = ["hook", "Accroche", "cta", "Appel à l'action", "call to action", "séparateur", "separator", "Transition", "rupture",
   "punchline", "dark box", "Punch", "contexte", "Story", "introduction", "récit", "espoir", "Solution", "bonne nouvelle", "hope",
-  "tip", "conseil", "étape", "argument", "développement", "conclusion", "nuance", "présentation", "caractéristique", "usage", "", "  "];
+  "tip", "conseil", "histoire", "anecdote", "bascule", "synthèse", "Synthèse", "étape", "argument", "développement", "conclusion", "nuance", "présentation", "caractéristique", "usage", "", "  "];
 
 describe("export PowerPoint : rôle de slide écrit par l'IA", () => {
   it("rôles déjà reconnus : même gabarit qu'avant, à toutes les positions", () => {
@@ -30,10 +30,11 @@ describe("export PowerPoint : rôle de slide écrit par l'IA", () => {
     expect(classifyRole("Bonne-Nouvelle", 2, 6)).toBe("hope");
     expect(classifyRole("Punch-line", 2, 6)).toBe("dark_box");
   });
-  it("synonymes reconnus", () => {
-    expect(classifyRole("histoire", 2, 6)).toBe("context");
-    expect(classifyRole("anecdote", 2, 6)).toBe("context");
-    expect(classifyRole("bascule", 2, 6)).toBe("separator");
+  it("aucun synonyme ajouté : « histoire », « anecdote », « bascule » gardent leur gabarit d'avant", () => {
+    for (const role of ["histoire", "Anecdote", "bascule", "Histoire de l'atelier"]) for (const i of [0, 2, 5]) {
+      expect(classifyRole(role, i, 6), `${role} @${i}`).toBe(legacyClassify(role, i, 6));
+    }
+    expect(classifyRole("histoire", 2, 6)).toBe("tip");
   });
   it("rôle inconnu ou absent : repli neutre identique (tip)", () => {
     for (const role of [undefined, null, 42, {}, "argument", "xyz"]) expect(classifyRole(role, 2, 6)).toBe("tip");

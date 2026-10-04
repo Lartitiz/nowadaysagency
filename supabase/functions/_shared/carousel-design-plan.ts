@@ -21,11 +21,11 @@ import { motifHeight, motifSvg, STEP_HEADER_H, stepHeader } from "./format-rende
 type Slide = Record<string, any>;
 type Charter = Record<string, any>;
 
-/** Rôle libre écrit par l'IA, lu sans accents ni casse (« Synthèse », « SÉPARATEUR »). */
-const roleKey = (role: unknown) => typeof role === "string" ? role.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
-/** Slide de rupture désignée par son rôle. Rôle inconnu → aucune, et le plan
- * retombe sur la slide du milieu (comportement d'origine). */
-export const isRuptureRole = (role: unknown) => /manifest|synth|conclu|punch|separ|rupture|constat/.test(roleKey(role));
+/** Rôle libre écrit par l'IA, lu sans accents, casse ni séparateurs. */
+const roleKey = (role: unknown) => typeof role === "string" ? role.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[_\-\u2013\u2014/]+/g, " ") : "";
+/** Slide de rupture désignée par son rôle : mêmes mots qu'avant, aucun synonyme
+ * ajouté. Rôle inconnu → aucune, le plan retombe sur la slide du milieu. */
+export const isRuptureRole = (role: unknown) => /manifest|synth|conclu|punch|separator|constat/.test(roleKey(role));
 
 export function buildCarouselDesignPlan(slides: Slide[]): CarouselDesignPlan {
   const wordCount = (s: Slide) => String(s.body || s.overlay_text || "").trim().split(/\s+/).filter(Boolean).length;
