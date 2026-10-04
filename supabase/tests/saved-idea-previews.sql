@@ -10,6 +10,7 @@ CREATE POLICY own ON public.saved_ideas FOR SELECT TO authenticated USING (auth.
 GRANT USAGE ON SCHEMA public, auth TO authenticated;
 GRANT SELECT ON public.saved_ideas TO authenticated;
 \ir ../migrations/20261004130000_saved_idea_previews.sql
+\ir ../migrations/20261004150000_saved_idea_previews_single_read.sql
 -- Une idée de plusieurs Mo (images collées) ne renvoie qu'un extrait de texte.
 INSERT INTO public.saved_ideas VALUES
  ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-000000000001',

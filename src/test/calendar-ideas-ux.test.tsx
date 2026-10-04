@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-const state = vi.hoisted(() => ({ user: { id: 'user' }, scope: 'A', list: vi.fn(), rpc: vi.fn(), flags: vi.fn(), full: vi.fn(), selects: [] as string[] }));
+const state = vi.hoisted(() => ({ user: { id: 'user' }, scope: 'A', list: vi.fn(), rpc: vi.fn(), flags: vi.fn(), full: vi.fn(), selects: [] as string[], neq: [] as string[] }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: state.user }) }));
 vi.mock('@/contexts/DemoContext', () => ({ useDemoContext: () => ({ isDemoMode: false }) }));
 vi.mock('@/hooks/use-workspace-query', () => ({ useWorkspaceFilter: () => ({ column: 'workspace_id', value: state.scope }), useWorkspaceId: () => state.scope }));
@@ -16,7 +16,7 @@ vi.mock('@/integrations/supabase/client', () => ({ supabase: {
   const q: any = {
    select: (c: string) => { columns = c; state.selects.push(c); return q; },
    eq: (col: string, value: string) => { if (col === 'id') id = value; else scope = value; return q; },
-   is: () => q, not: () => q, neq: () => q,
+   is: () => q, not: () => q, neq: (col: string) => { state.neq.push(col); return q; },
    order: () => state.list(scope),
    maybeSingle: () => state.full(id),
    then: (ok: any, ko: any) => Promise.resolve(state.flags(columns, scope)).then(ok, ko),
@@ -31,7 +31,7 @@ const { content_data: _data, content_draft: _draft, ...idea } = fullIdea;
 function deferred() { let resolve!: (v: any) => void; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; }
 function App({ refreshed = 0, onPlanned = vi.fn(), onOpen = vi.fn() }) { return <MemoryRouter><CalendarIdeasSidebar refreshKey={refreshed} onIdeaPlanned={onPlanned} onIdeaClick={onOpen}/></MemoryRouter>; }
 beforeEach(() => {
- state.scope = 'A'; state.selects = [];
+ state.scope = 'A'; state.selects = []; state.neq = [];
  state.list.mockReset().mockResolvedValue({ data: [idea], error: null }); state.rpc.mockReset();
  state.flags.mockReset().mockImplementation((columns: string) => ({ data: columns === 'id' ? [{ id: 'rich' }] : [], error: null }));
  state.full.mockReset().mockResolvedValue({ data: fullIdea, error: null });
@@ -96,6 +96,8 @@ it('the list never downloads idea contents (HTTP 500 on large workspaces) but st
  const listSelect = state.selects.find(c => c.includes('titre'))!;
  expect(listSelect).not.toMatch(/content_data|content_draft|\*/);
  expect(state.full).not.toHaveBeenCalled();
+ // Comparer content_data force la base à relire tout le contenu (7,8 s en ligne).
+ expect(state.neq).not.toContain('content_data');
 });
 it('an idea without content stays « Idée à développer » in the light list', async () => {
  state.flags.mockResolvedValue({ data: [], error: null });

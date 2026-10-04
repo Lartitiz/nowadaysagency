@@ -44,8 +44,10 @@ export async function readIdeaSummaries(scope: Scope, columns = IDEA_SUMMARY_COL
   const [list, withDraft, withData] = await Promise.all([
     scoped(columns, scope, signal).order('created_at', { ascending: false }),
     scoped('id', scope, signal).not('content_draft', 'is', null).neq('content_draft', ''),
-    scoped('id', scope, signal).not('content_data', 'is', null)
-      .neq('content_data', '{}').neq('content_data', '[]').neq('content_data', '""'),
+    // IS NOT NULL seul : comparer content_data à '{}' oblige la base à relire
+    // tout le contenu (7,8 s mesurées en ligne pour ~79 Mo, limite 8 s).
+    // Aucun code n'écrit de content_data vide.
+    scoped('id', scope, signal).not('content_data', 'is', null),
   ]);
   const error = list.error || withDraft.error || withData.error;
   if (error) return { data: null, error };
@@ -81,7 +83,8 @@ export interface IdeaPreview {
 export async function readIdeaPreviews(ids: string[]): Promise<Map<string, IdeaPreview>> {
   const previews = new Map<string, IdeaPreview>();
   const chunks: string[][] = [];
-  for (let i = 0; i < ids.length; i += 25) chunks.push(ids.slice(i, i + 25));
+  // Par 10 : la base relit le contenu de chaque idée (jusqu'à ~8 Mo l'une).
+  for (let i = 0; i < ids.length; i += 10) chunks.push(ids.slice(i, i + 10));
   await Promise.all(chunks.map(async chunk => {
     try {
       const { data, error } = await supabase.rpc('saved_idea_previews' as any, { p_ids: chunk });
