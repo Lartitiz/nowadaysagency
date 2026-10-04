@@ -354,7 +354,7 @@ export async function enforceResearchNumberSources<A extends { unsourcedResearch
 // en contiennent déjà une.
 
 const TESTIMONY_SUBJECT = String.raw`(?:une?|mon|ma|mes|des|plusieurs|certaine?s?|l['’]une?(?:\s+de\s+mes)?|deux|trois|quelques)(?:·e)?`;
-const TESTIMONY_VERB_PRESENT = String.raw`(?:disai(?:t|ent)|dit|disent|confi(?:ait|aient|e|ent)|racont(?:ait|aient|e|ent)|écri(?:vait|vaient|t|vent)|expliqu(?:ait|aient|e|ent)|demand(?:ait|aient|e|ent)|avou(?:ait|aient|e|ent)|répét(?:ait|aient)|répètent?|gliss(?:ait|aient|e|ent)|lan[cç](?:ait|aient|e|ent)|montr(?:ait|aient)|envoy(?:ait|aient)|partage(?:ait|aient)?|souffl(?:ait|aient|e|ent)|conseill(?:ait|aient|e|ent))`;
+const TESTIMONY_VERB_PRESENT = String.raw`(?:pos(?:ait|aient|e|ent)\s+(?:souvent\s+|régulièrement\s+|toujours\s+|sans\s+cesse\s+)?(?:la|une|cette|des|ces|toujours\s+la)\s+questions?|disai(?:t|ent)|dit|disent|confi(?:ait|aient|e|ent)|racont(?:ait|aient|e|ent)|écri(?:vait|vaient|t|vent)|expliqu(?:ait|aient|e|ent)|demand(?:ait|aient|e|ent)|avou(?:ait|aient|e|ent)|répét(?:ait|aient)|répètent?|gliss(?:ait|aient|e|ent)|lan[cç](?:ait|aient|e|ent)|montr(?:ait|aient)|envoy(?:ait|aient)|partage(?:ait|aient)?|souffl(?:ait|aient|e|ent)|conseill(?:ait|aient|e|ent))`;
 const TESTIMONY_VERB_PAST = String.raw`(?:dit|confié|raconté|écrit|expliqué|demandé|avoué|répété|glissé|lancé|montré|envoyé|renvoyé|partagé|soufflé|conseillé|répété|posé\s+(?:la|une|cette)\s+question)`;
 // Sujets qui « disent » sans être une personne rencontrée : « mon instinct me dit ».
 const NON_PERSON_SUBJECT = /(?<!\p{L})(?:instinct|intuition|voix|cerveau|tête|ventre|cœur|coeur|corps|expérience|algorithme|logique|statistiques?|chiffres?|graphiques?|données|stats|application|appli|outil|calendrier|agenda|miroir|téléphone|étude|article|livre|podcast|rapport|sondage)(?!\p{L})/iu;
@@ -368,6 +368,11 @@ const IMPERSONAL_SPEECH_RE = new RegExp(
   String.raw`(?<!\p{L})on\s+(?:[^.!?\n]{0,25}?\s)?(?:me\s+${TESTIMONY_VERB_PRESENT}|m['’](?:a|avait)\s+(?:souvent\s+|déjà\s+|toujours\s+)?${TESTIMONY_VERB_PAST})(?!\p{L})`,
   "iu",
 );
+// « Vous me demandez souvent… », « vous êtes nombreuses à m'écrire… » : audience inventée (re-test réel 04/10).
+const AUDIENCE_SPEECH_RE = new RegExp(
+  String.raw`(?<!\p{L})(?:vous\s+(?:[^.!?\n]{0,20}?\s)?me\s+(?:demandez|posez|dites|écrivez|racontez|confiez)|vous\s+êtes\s+(?:nombreu(?:x|ses)|beaucoup|plusieurs)\s+à\s+m['’]?(?:e\s+)?(?:demander|poser|dire|écrire|raconter|confier))(?!\p{L})`,
+  "iu",
+);
 const ENCOUNTER_RE = /(?<!\p{L})(?:j['’](?:ai|avais)\s+(?:discuté|échangé|parlé|croisé|rencontré|accompagné)\s+(?:avec\s+)?(?:une?|des|plusieurs|deux|trois)\s|j['’]échangeais\s+avec\s+(?:une?|des)\s|je\s+(?:parlais|discutais)\s+avec\s+(?:une?|des)\s|(?:en\s+accompagnant|en\s+discutant\s+avec)\s+(?:une?|des)\s)/giu;
 
 function testimonyPassages(text: string): string[] {
@@ -375,7 +380,7 @@ function testimonyPassages(text: string): string[] {
   for (const sentence of sentencesOf(text)) {
     const s = sentence.replace(/\s+/g, " ");
     const hits = [...s.matchAll(REPORTED_SPEECH_RE)].filter((m) => !NON_PERSON_SUBJECT.test(m[0]));
-    if (hits.length || IMPERSONAL_SPEECH_RE.test(s) || ENCOUNTER_RE.test(s)) out.push(s.length > 200 ? s.slice(0, 197) + "…" : s);
+    if (hits.length || IMPERSONAL_SPEECH_RE.test(s) || AUDIENCE_SPEECH_RE.test(s) || ENCOUNTER_RE.test(s)) out.push(s.length > 200 ? s.slice(0, 197) + "…" : s);
     ENCOUNTER_RE.lastIndex = 0;
   }
   return out;
