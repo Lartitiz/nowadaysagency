@@ -23,6 +23,7 @@ import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, type VerbatimAnc
 import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
+import { stripDuplicateStepPrefixHtml } from "../_shared/format-render.ts";
 import { buildCarouselDesignPlan, describeCarouselDesignPlan, composeEditorialSlide, editorialSlideText, formatEditorialSlides } from "../_shared/carousel-design-plan.ts";
 
 /**
@@ -1087,6 +1088,25 @@ export function stripDuplicateStepNumbers(result: any, params: { slides: any[] }
   if (removed > 0) console.log(`carousel-visual: ${removed} numéro(s) d'étape en double retiré(s)`);
 }
 
+/** Numéro d'étape lu deux fois (audit du 04/10/2026) : « Étape 2 · Le tour »
+ * dessiné par la mise en forme au-dessus du titre « 2. Le tour » écrit par la
+ * rédaction. Le titre AFFICHÉ perd son préfixe d'ordre seulement quand l'étape
+ * dessinée porte le même numéro (photo, mixte et texte composé par le code).
+ * Les données de la slide gardent « 2. Le tour ». Passe APRÈS la garde verbatim
+ * des slides texte, qui sinon réinjecterait le titre source. */
+export function stripDuplicateStepPrefixes(result: any): void {
+  if (!Array.isArray(result?.slides_html)) return;
+  const touched: number[] = [];
+  result.slides_html = result.slides_html.map((slide: any) => {
+    if (typeof slide?.html !== "string") return slide;
+    const out = stripDuplicateStepPrefixHtml(slide.html);
+    if (!out.removed) return slide;
+    touched.push(Number(slide.slide_number));
+    return { ...slide, html: out.html };
+  });
+  if (touched.length) console.log(JSON.stringify({ event: "carousel_step_prefix_deduplicated", slides: touched }));
+}
+
 /** Indication visuelle recopiée comme texte (vu en live le 03/10/2026 : un
  * cadre dégradé avec « main qui écrit dans un carnet — faïence illustrée floue… »,
  * tiré de visual_suggestion). Ces champs guident le dessin, ils ne se publient
@@ -1656,7 +1676,7 @@ export function applyMinFontSizeGuard(result: any): void {
 // appels de rendu). On ne dépend pas du prompt : si le texte de l'ancre
 // diffère du texte source, la source est réinjectée telle quelle. Les <span>
 // d'accent internes sautent alors — même compromis que l'édition live.
-function enforceVerbatimAnchorsGuard(result: any, params: { slides: any[] }): void {
+export function enforceVerbatimAnchorsGuard(result: any, params: { slides: any[] }): void {
   const { slides } = params;
   if (!Array.isArray(result?.slides_html)) return;
   const srcText = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
@@ -1719,7 +1739,7 @@ function enforceVerbatimAnchorsGuard(result: any, params: { slides: any[] }): vo
 // lisibilité de l'overlay (voile/bandeau/spans d'accent). Le champ édité côté
 // front dépend du type : photo_full → overlay ; photo_integrated → title/body
 // (cf. CarouselPhotoResult.tsx).
-function enforcePhotoSlideAnchorsGuard(result: any, params: { slides: any[] }): void {
+export function enforcePhotoSlideAnchorsGuard(result: any, params: { slides: any[] }): void {
   const { slides } = params;
   if (!Array.isArray(result?.slides_html)) return;
   const srcByNum = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
@@ -2488,6 +2508,7 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     applyTextContrastGuard(result);
     enforceVerbatimAnchorsGuard(result, { slides });
     enforcePhotoSlideAnchorsGuard(result, { slides });
+    stripDuplicateStepPrefixes(result);
     logSchemaFidelityTelemetry(result, { slides, userId: user.id });
     const coverIllustrationDone = await applyCoverIllustration(result, { reqBody, slides, ch, userId: user.id, workspaceId, usage });
     // En DERNIER : la couverture illustrée remplace aussi du HTML.

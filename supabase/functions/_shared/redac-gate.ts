@@ -963,6 +963,35 @@ interface CarouselCorrectionContext {
   echo?: EchoContext;
 }
 
+// Numéro d'ordre en tête d'un titre de slide (« 1. », « 2) », « Étape 3 ») :
+// la relecture ne doit jamais le faire disparaître (audit du 04/10/2026). Le
+// garde-fou « lost-number » ne protège que les chiffres de la source, et les
+// ordinaux en sont exclus : un « 2. » écrit par la rédaction n'y est pas.
+const ORDER_PREFIX = /^\s*(?:[ée]tape\s+(\d{1,2})(?!\d)|(\d{1,2})\s*[.)](?=\s))/i;
+const ORDER_PREFIX_FIELDS = new Set(["title", "hook", "accroche", "kicker", "overlay_text"]);
+const orderNumber = (text: string) => { const m = ORDER_PREFIX.exec(text || ""); return m ? Number(m[1] ?? m[2]) : null; };
+
+/** Une correction qui retire (ou change) le numéro d'ordre en tête d'un titre
+ * est refusée POUR CE CHAMP : il reprend sa version d'avant relecture, le reste
+ * de la correction est gardé (« dégrader la correction, pas le texte »).
+ * Modifie `candidate` en place ; renvoie les champs restaurés. */
+export function protectOrderPrefixes(original: any, candidate: any): string[] {
+  const after = new Map(carouselEditorialFields(candidate).map(f => [f.id, f.text]));
+  const restored: string[] = [];
+  for (const field of carouselEditorialFields(original)) {
+    const key = String(field.path[field.path.length - 1]);
+    if (!field.path.includes("slides") || field.path.includes("visual_schema") || !ORDER_PREFIX_FIELDS.has(key)) continue;
+    const n = orderNumber(field.text);
+    if (n === null || orderNumber(after.get(field.id) ?? "") === n) continue;
+    let target = candidate;
+    for (const step of field.path.slice(0, -1)) target = target?.[step];
+    if (!target || typeof target !== "object") continue;
+    target[key] = field.text;
+    restored.push(field.id);
+  }
+  return restored;
+}
+
 /** Shared by the preliminary polish and the final gate. No extra model call. */
 export async function applyGuardedCarouselCorrection(content: string, opts: CarouselCorrectionContext): Promise<string> {
   const source = opts.correction.sourceContext ?? opts.inputText;
@@ -972,6 +1001,12 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
     const parse = (s: string) => JSON.parse(s.match(/\{[\s\S]*\}/)?.[0] || "null");
     const originalDoc = parse(content), candidateDoc = parse(corrected);
     if (!originalDoc || !candidateDoc) return content;
+    const orderKept = protectOrderPrefixes(originalDoc, candidateDoc);
+    if (orderKept.length) {
+      opts.correction.logger?.(`[carousel-correction] numéro d'ordre conservé, champ gardé avant relecture ${JSON.stringify(orderKept)}`);
+      console.log(JSON.stringify({ event: "carousel_order_prefix_protected", fields: orderKept, semantic: Boolean(opts.correction.semanticReview) }));
+      if (candidateDoc.editorial_review && typeof candidateDoc.editorial_review === "object") candidateDoc.editorial_review.order_prefix_kept = orderKept;
+    }
     // Legacy nested carousels use the same textual fields as the flat response.
     const original = originalDoc.carousel?.slides ? originalDoc.carousel : originalDoc;
     const candidate = candidateDoc.carousel?.slides ? candidateDoc.carousel : candidateDoc;
@@ -1023,7 +1058,7 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
       }
       return content;
     }
-    return corrected;
+    return orderKept.length ? corrected.replace(corrected.match(/\{[\s\S]*\}/)![0], () => JSON.stringify(candidateDoc)) : corrected;
   } catch {
     return content;
   }

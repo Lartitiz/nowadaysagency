@@ -182,3 +182,16 @@ Deno.test("carrousel : correction désactivée (après le juge final) -> aucune 
     assertEquals((result.after.unsourcedResearchNumbers ?? []).length, 1);
   });
 });
+
+Deno.test("carrousel : la correction historique (titres génériques) ne retire pas un numéro d'ordre", async () => {
+  const doc = { slides: [
+    { slide_number: 1, title: "Comment je fais un bol", body: "Trois gestes, du pain de terre au four, que je répète chaque semaine à l'atelier." },
+    { slide_number: 2, title: "1. Pétrir", body: "Je pétris la terre longtemps pour chasser l'air, sinon la pièce éclate à la cuisson." },
+    { slide_number: 3, title: "2. Tourner", body: "Sur le tour, la forme monte sous la main, et je reprends souvent le bord plusieurs fois." },
+  ], caption: {} };
+  await withCorrection("[SLIDE 1 - TITLE] Comment je fais un bol\n[SLIDE 1 - BODY] Trois gestes, du pain de terre au four, que je répète chaque semaine à l'atelier.\n[SLIDE 2 - TITLE] Pétrir pour chasser l'air\n[SLIDE 2 - BODY] Je pétris la terre longtemps pour chasser l'air, sinon la pièce éclate à la cuisson.\n[SLIDE 3 - TITLE] 2. Tourner le bord\n[SLIDE 3 - BODY] Sur le tour, la forme monte sous la main, et je reprends souvent le bord plusieurs fois.", async () => {
+    const out = JSON.parse(await applyGuardedCarouselCorrection(JSON.stringify(doc), { inputText: "", correction: opts.correction }));
+    assertEquals(out.slides[1].title, "1. Pétrir", "numéro retiré : titre gardé avant correction");
+    assertEquals(out.slides[2].title, "2. Tourner le bord", "numéro conservé : correction gardée");
+  });
+});

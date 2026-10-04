@@ -21,11 +21,17 @@ import { motifHeight, motifSvg, STEP_HEADER_H, stepHeader } from "./format-rende
 type Slide = Record<string, any>;
 type Charter = Record<string, any>;
 
+/** Rôle libre écrit par l'IA, lu sans accents, casse ni séparateurs. */
+const roleKey = (role: unknown) => typeof role === "string" ? role.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[_\-\u2013\u2014/]+/g, " ") : "";
+/** Slide de rupture désignée par son rôle : mêmes mots qu'avant, aucun synonyme
+ * ajouté. Rôle inconnu → aucune, le plan retombe sur la slide du milieu. */
+export const isRuptureRole = (role: unknown) => /manifest|synth|conclu|punch|separator|constat/.test(roleKey(role));
+
 export function buildCarouselDesignPlan(slides: Slide[]): CarouselDesignPlan {
   const wordCount = (s: Slide) => String(s.body || s.overlay_text || "").trim().split(/\s+/).filter(Boolean).length;
   const candidates = slides.map((s, i) => ({ s, i })).filter(({ s, i }) => i > 0 && i < slides.length - 1 && !s.visual_schema && !/^photo/.test(s.slide_type || "") && wordCount(s) <= 45);
   const rupture = slides.length >= 5
-    ? (candidates.find(({ s }) => /manifest|synth|conclu|punch|separator|constat/.test(s.role || "")) || candidates.sort((a, b) => Math.abs(a.i - slides.length / 2) - Math.abs(b.i - slides.length / 2))[0])?.i
+    ? (candidates.find(({ s }) => isRuptureRole(s.role)) || candidates.sort((a, b) => Math.abs(a.i - slides.length / 2) - Math.abs(b.i - slides.length / 2))[0])?.i
     : undefined;
   let textIndex = 0;
   const sequence = slides.map((s, i): DesignBeat => {
