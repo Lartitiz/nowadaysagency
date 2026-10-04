@@ -1,4 +1,5 @@
 import { exportFileName } from "./export-file-name";
+import { inlineCarouselMedia, inlineSlidesMedia } from "./carousel-media";
 import { ExportImageError, waitForExportImages } from "./export-image-readiness";
 import { bakeGlassBlur } from "./export-glass-blur";
 import { bakePhotoFilters } from "./export-photo-filters";
@@ -1138,6 +1139,14 @@ export async function exportCarouselHybridPptx(
     onProgress?: (faites: number, total: number) => void;
   },
 ): Promise<Blob | void> {
+  // Photos rangées à part (liens) : remises en data URL, dont dépend le
+  // repérage des zones photo ; une photo d'origine retrouvée par son seul
+  // lien (base64 vide) est rechargée de la même façon.
+  visualSlides = await inlineSlidesMedia(visualSlides);
+  if (originalPhotos) originalPhotos = await Promise.all(originalPhotos.map(async (photo: OriginalPhoto & { preview?: string }) =>
+    photo && !photo.base64 && photo.preview?.includes("/carousel-media/")
+      ? { ...photo, base64: await inlineCarouselMedia(photo.preview) }
+      : photo));
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "INSTAGRAM", width: PPTX_W_IN, height: PPTX_H_IN });
   pptx.layout = "INSTAGRAM";

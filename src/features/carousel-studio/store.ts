@@ -1,6 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { DraftStore } from "@/lib/carousel-autosave";
+import { withCarouselMedia } from "@/lib/carousel-media";
 export function carouselStudioStore(userId: string, workspaceId: string, isOwnSpace = false): DraftStore {
+  return withCarouselMedia(baseStore(userId, workspaceId, isOwnSpace), userId);
+}
+function baseStore(userId: string, workspaceId: string, isOwnSpace: boolean): DraftStore {
   const scope = (q: any) => workspaceId === userId
     ? q.eq("user_id", userId).is("workspace_id", null)
     : isOwnSpace ? q.or(`workspace_id.eq.${workspaceId},and(workspace_id.is.null,user_id.eq.${userId})`) : q.eq("workspace_id", workspaceId);
