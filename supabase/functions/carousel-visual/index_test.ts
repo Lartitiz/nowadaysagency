@@ -70,7 +70,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { applyCoverIllustration, runComposedByCodeGeneration, stripInventedSurtitres, stripSlideNumberBadges, stripDuplicateStepNumbers, stripDuplicateStepPrefixes, enforceVerbatimAnchorsGuard, enforcePhotoSlideAnchorsGuard, stripVisualHintText, applyTitleBodyContrastGuard, applyTextContrastGuard, applyMinFontSizeGuard } = await import("./index.ts");
+const { applyCoverIllustration, enforceTextCover, runComposedByCodeGeneration, stripInventedSurtitres, stripSlideNumberBadges, stripDuplicateStepNumbers, stripDuplicateStepPrefixes, enforceVerbatimAnchorsGuard, enforcePhotoSlideAnchorsGuard, stripVisualHintText, applyTitleBodyContrastGuard, applyTextContrastGuard, applyMinFontSizeGuard } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -476,4 +476,26 @@ Deno.test("NON-RÉGRESSION mixte : dispositions proposées après l'écriture, r
   [1, 2, 3].forEach(n => assert(html[n].includes(`Étape ${n}`), `« Étape ${n} » perdu`));
   assert(/top:96px/.test(html[2]), "bloc de l'overlay en haut, comme proposé");
   assert(visibleText(html[5]).includes("Tourner"), "schéma de la slide pause perdu");
+});
+
+Deno.test("couverture texte (04/10/2026) : la slide 1 dessinée par l'IA est remplacée par la couverture du code", () => {
+  // Vu en réel : illustration décorative au-dessus de l'accroche + mot coloré.
+  const slides = [
+    { slide_number: 1, title: "Publier tous les jours use plus qu'il ne vend", body: "Pour les petites marques artisanales qui s'essoufflent sur Instagram" },
+    { slide_number: 2, title: "Instagram juge chaque publication une par une", body: "Corps." },
+  ];
+  const aiCover = `<div style="width:1080px;height:1350px;background:#f8f8f8"><div data-editor-shape="decor" data-decorative="1" style="width:220px;height:160px"><svg></svg></div><h1 data-slide-text="title">Publier tous les jours <span style="color:#5a765c;font-style:italic">use</span> plus qu'il ne vend</h1><p data-slide-text="body">Pour les petites marques artisanales qui s'essoufflent sur Instagram</p></div>`;
+  const result: any = { slides_html: [{ slide_number: 1, html: aiCover }, { slide_number: 2, html: "<div>slide 2</div>" }] };
+  const ch = { color_background: "#F8F8F8", color_text: "#1C1C20", color_secondary: "#1C1C20", font_title: "Spectral", font_body: "Open Sans" };
+  enforceTextCover(result, { slides, ch, isText: true });
+  const html = result.slides_html[0].html;
+  assert(html.includes('data-carousel-layout="opening"'));
+  assert(!html.includes("data-decorative") && !html.includes("<svg") && !html.includes("font-style:italic"));
+  assert(html.includes(slides[0].title) && html.includes(slides[0].body));
+  assertEquals((html.match(/text-align:center/g) || []).length, 2);
+  assertEquals(result.slides_html[1].html, "<div>slide 2</div>");
+  // Photo / mixte : jamais touchés par cette garde.
+  const photo: any = { slides_html: [{ slide_number: 1, html: aiCover }] };
+  enforceTextCover(photo, { slides, ch, isText: false });
+  assertEquals(photo.slides_html[0].html, aiCover);
 });
