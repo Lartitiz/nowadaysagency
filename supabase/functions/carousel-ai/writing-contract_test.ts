@@ -1,6 +1,6 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { photoReadingContract, buildCarouselWritingSystem, carouselStructureGuide } from "./writing-contract.ts";
-import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, NEWS_WRITING } from "./variant-writing.ts";
+import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, NEWS_WRITING, PHOTO_LAYOUT_AFTER_WRITING } from "./variant-writing.ts";
 
 Deno.test("contrat : voix et données transmises, aucune persona imposée", () => {
   const prompt = buildCarouselWritingSystem("VOIX_VALIDÉE : vouvoiement, humour sec", true, "IDENTITÉ_WEB_DESIGNER", "CLARTÉ_SOURCE");
@@ -30,7 +30,12 @@ for (const linkedIn of [false, true]) for (const kind of ["photo", "mix"]) {
     const p = kind === "photo" ? photoWritingPrompt(body, linkedIn, "STRUCTURE_CONFIRMÉE") : mixWritingPrompt(body, linkedIn, "STRUCTURE_CONFIRMÉE", "DIRECTIVES_TEXTE_FIRST");
     for (const x of ["SUJET_FIXÉ", "DÉTAIL", "PHOTO_FOND", "OFFRE", "ANGLE", "STRUCTURE", "FIL", "MOTS_FOURNIS", "STRUCTURE_CONFIRMÉE", "exactement 1 slides", "photo_index", "caption"]) assert(p.includes(x));
     assertEquals(p.includes("Légende optionnelle"), linkedIn);
-    if (kind === "photo") for (const template of ["couverture", "profonde", "etiquette", "chiffre", "liste", "etape", "citation", "finale"]) assert(p.includes(template));
+    // Photo : la mise en page (gabarits, chiffre, liste, étape, citation) est
+    // décidée après l'écriture ; la rédaction ne demande plus ces champs.
+    if (kind === "photo") {
+      assert(p.includes(PHOTO_LAYOUT_AFTER_WRITING));
+      for (const field of ["big_number", "step_number", "points", "attribution", "template,", "Gabarits conservés"]) assert(!p.includes(field), field);
+    }
     if (kind === "mix") assert(p.includes("DIRECTIVES_TEXTE_FIRST"));
   });
 }

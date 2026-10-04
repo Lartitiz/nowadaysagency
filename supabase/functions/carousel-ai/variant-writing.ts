@@ -21,6 +21,9 @@ La légende a les champs hook, body, cta, hashtags. Elle peut être concise : au
 `;
 }
 
+/** Mise en page du carrousel photo décidée APRÈS l'écriture (04/10/2026). */
+export const PHOTO_LAYOUT_AFTER_WRITING = "La mise en page (gabarit, chiffre mis en avant, liste, étape, citation) est décidée après la rédaction, à partir du texte final : écris tout ce qui doit être lu dans overlay_text, en toutes lettres (un chiffre, une énumération ou un propos rapporté y figurent tels quels).";
+
 export function photoWritingPrompt(body: any, isLinkedIn: boolean, confirmed: string): string {
   return `Rédige le texte d'un carrousel PHOTO, avec les photos choisies en fond.
 ${brief(body, isLinkedIn, confirmed)}
@@ -32,15 +35,15 @@ Les photos sont numérotées depuis 1. Une photo peut se répéter pour porter p
 CONTRAT VISUEL
 overlay_text : un passage naturel ; couverture maximum 12. Préserve les transitions et nuances indispensables. Une phrase courte convient quand elle suffit ; ne transforme pas une explication en slogan pour tenir sur la photo. Le gabarit doit s’adapter au texte. Une photo qui se suffit peut avoir overlay_text:null. Le texte reste le récit ou l'explication, pas une suite de mots-clés. Ne remplis pas chaque champ facultatif.
 overlay_style : narratif, sensoriel, minimal ou technique, selon la matière. overlay_position : bottom_left, bottom_center, top_left, top_center ou center.
-Gabarits conservés : couverture (première slide), profonde (prose, défaut), etiquette (label court), chiffre (big_number sourcé), liste (points courts), etape (step_number), citation (verbatim fourni, attribution), finale (dernière slide).
-La finale peut terminer une explication ou proposer une action pertinente ; ce gabarit n'impose pas de question. cta_label:null si aucune invitation. kicker et detail sont facultatifs, ils servent la lecture sans doubler le texte. Une slide sans texte n'a pas de template.
+${PHOTO_LAYOUT_AFTER_WRITING}
+La dernière slide peut terminer une explication ou proposer une action pertinente ; elle n'impose pas de question. cta_label:null si aucune invitation. kicker (titre court de la slide) et detail sont facultatifs, ils servent la lecture sans doubler le texte.
 Choisis overlay_position dans une zone dégagée, en protégeant le visage, le geste, l’objet et les détails utiles ; respecte une position confirmée. Une répétition de photo ne demande aucun zoom automatique.
 visual_anchor : détail visible dans la photo, utile à sa composition. photo_description et note restent des indications techniques ; aucune prose nouvelle ne doit être cachée dans ces champs.
 
 ${photoReadingContract(body)}
 
 Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = proposition précise développée, pas thème ou parcours de photos ; etapes = chemin qui la fait comprendre), puis carousel_type:"photo", chosen_angle:{title,description}, slides et caption.
-Chaque slide contient slide_number, role, photo_index, photo_description, overlay_text, overlay_position, overlay_style, template, kicker, detail, points, big_number, step_number, attribution, cta_label, visual_anchor, note. Utilise null pour les champs facultatifs inapplicables, pas de placeholders ni de chiffres illustratifs. Les rôles décrivent ce que font les slides ; aucune révélation, émotion ou action obligatoire.`;
+Chaque slide contient slide_number, role, photo_index, photo_description, overlay_text, overlay_position, overlay_style, kicker, detail, cta_label, visual_anchor, note. Utilise null pour les champs facultatifs inapplicables, pas de placeholders ni de chiffres illustratifs. Les rôles décrivent ce que font les slides ; aucune révélation, émotion ou action obligatoire.`;
 }
 
 export function textWritingPrompt(body: any, isLinkedIn: boolean, confirmed: string): string {

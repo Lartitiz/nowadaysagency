@@ -142,6 +142,34 @@ export function applyTemplateAssignments(parsed: any, assignments: TemplateAssig
   return { applied, rejected };
 }
 
+/** Champs de MISE EN PAGE du carrousel photo : décidés après la rédaction
+ * (cette passe + la direction artistique), jamais par l'écriture (04/10/2026,
+ * « séparer vraiment le design du texte »). kicker, detail et cta_label sont du
+ * TEXTE (titre de slide, sous-titre, invitation) : ils restent à la rédaction. */
+export const WRITER_LAYOUT_FIELDS = ["template", "big_number", "points", "step_number", "attribution"] as const;
+
+/** Retire de la sortie d'écriture les champs de mise en page. Le texte
+ * (overlay_text, kicker, detail, cta_label) n'est jamais touché. JSON illisible
+ * → contenu intact. */
+export function stripWriterLayoutFields(content: string): string {
+  try {
+    const m = content.match(/\{[\s\S]*\}/);
+    if (!m) return content;
+    const parsed = JSON.parse(m[0]);
+    if (!Array.isArray(parsed?.slides)) return content;
+    let changed = false;
+    for (const sl of parsed.slides) {
+      if (!sl || typeof sl !== "object") continue;
+      for (const k of WRITER_LAYOUT_FIELDS) if (k in sl) { delete sl[k]; changed = true; }
+    }
+    if (!changed) return content;
+    const start = m.index ?? 0;
+    return content.slice(0, start) + JSON.stringify(parsed) + content.slice(start + m[0].length);
+  } catch {
+    return content;
+  }
+}
+
 /**
  * Passe de relecture : relit les textes DÉFINITIFS et pose les gabarits.
  * Fail-open : toute erreur → contenu retourné inchangé.

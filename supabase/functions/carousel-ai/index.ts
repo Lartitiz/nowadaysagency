@@ -33,7 +33,7 @@ import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex, normalizeOverlayStyles, analyzeMixComposition, assignDistinctStructurePhotos } from "../_shared/photo-slide-structure.ts";
-import { assignPhotoTemplates, assignTemplatesToProvidedSlides } from "../_shared/photo-template-assign.ts";
+import { assignPhotoTemplates, assignTemplatesToProvidedSlides, stripWriterLayoutFields } from "../_shared/photo-template-assign.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 // ── Seam d'injection de dépendances (tests) ──
@@ -356,21 +356,9 @@ const PHOTO_CAROUSEL_TOOL = {
             visual_anchor: { type: "string" },
             overlay_position: { type: "string", enum: ["top_left", "top_center", "bottom_left", "bottom_center", "center"] },
             note: { type: "string" },
-            // ── Gabarits composés par code (chantier 13/07) : le modèle choisit
-            // le gabarit et fournit ses champs ; le rendu HTML est déterministe.
-            template: {
-              type: ["string", "null"],
-              enum: ["couverture", "profonde", "etiquette", "chiffre", "liste", "etape", "citation", "finale", null],
-              description:
-                "Gabarit visuel. couverture=slide 1 uniquement (affiche). profonde=prose suivie, généralement 15-45 mots selon le sujet, sur fond de lecture adapté (défaut). etiquette=texte ≤4 mots en pastille (AVANT/APRÈS, connecteur). chiffre=big_number requis. liste=points requis. etape=step_number requis (processus). citation=attribution recommandée. finale=dernière slide uniquement (fin du propos ou action pertinente, question facultative).",
-            },
-            kicker: { type: ["string", "null"], description: "Sur-titre court (≤6 mots) : couverture, liste, etape (titre de l'étape)." },
-            detail: { type: ["string", "null"], description: "Ligne de détail (≤12 mots) : couverture, etiquette." },
-            points: { type: ["array", "null"], items: { type: "string" }, description: "Gabarit liste : 2-3 points courts (≤8 mots chacun)." },
-            big_number: { type: ["string", "null"], description: "Gabarit chiffre : le chiffre seul, court ('-40 %', '3×', '48 h')." },
-            step_number: { type: ["number", "null"], description: "Gabarit etape : numéro de l'étape du PROCESSUS (1, 2, 3…), pas de la slide." },
-            attribution: { type: ["string", "null"], description: "Gabarit citation : qui parle (≤5 mots)." },
-            cta_label: { type: ["string", "null"], description: "Gabarit finale : texte de la pastille d'invitation (≤6 mots)." },
+            kicker: { type: ["string", "null"], description: "Titre court de la slide (≤6 mots), facultatif." },
+            detail: { type: ["string", "null"], description: "Ligne de détail (≤12 mots), facultative : sous-titre de couverture." },
+            cta_label: { type: ["string", "null"], description: "Dernière slide : texte de la pastille d'invitation (≤6 mots), null si aucune." },
           },
         },
       },
@@ -1722,7 +1710,9 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     if (mismatch) return mismatch;
   }
   const threadPhoto = await repairCarouselStructure(content, { body, label: "photo", emitStatus, usage: photoUsage, regenerate: doRepair, startedAt });
-  content = threadPhoto.content;
+  // Mise en page hors de l'écriture : gabarit, chiffre, liste, étape et
+  // attribution sont posés ensuite, à partir du texte final (assignPhotoTemplates).
+  content = stripWriterLayoutFields(threadPhoto.content);
 
   // Template assignment can add points/attribution/CTA labels. In contextual
   // mode these must exist BEFORE review, never appear unchecked afterwards.
