@@ -21,7 +21,9 @@ import { EDITORIAL_ANGLES_REFERENCE } from "../_shared/copywriting-prompts.ts";
 import { photoReadingContract, buildCarouselWritingSystem, carouselSubstance, CAROUSEL_CONTINUITY, CAROUSEL_TITLES as SLIDE_TITLE_RULES, CAROUSEL_WRITING_VERSION } from "./writing-contract.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
-import { carouselNeedsPolish } from "../_shared/correction-pass.ts";
+import { carouselNeedsPolish, extractCarouselTexts, reinjectCarouselTexts } from "../_shared/correction-pass.ts";
+import { audienceAddressRule, enforceAudienceAddress, parseAudienceAddress, type AudienceAddress, type AudienceAddressPass } from "../_shared/audience-address.ts";
+import { applyAudienceAddressPass } from "../_shared/audience-address-pass.ts";
 import { runRedacGate, applyGuardedCarouselCorrection, analyzeCarouselRedac, numbersIn, type CaptionEndingRule } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
@@ -54,6 +56,7 @@ export const _deps = {
   prepareNarrative: createContinuousNarrative,
   matchPhotos: matchFinalPhotos,
   fetchDepthMaterial,
+  audienceAddressPass: applyAudienceAddressPass,
 };
 
 // ── Sortie structurée pour les deepening_questions ──
@@ -768,7 +771,10 @@ export async function handleRequest(req: Request): Promise<Response> {
 
     // Brand context remains reference data; never turn tone into an invented emotion or conviction.
 
-    let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn, ctx.profile, livedCase.provided) + "\n" + photoReadingContract(body);
+    // Tu ou vous réglé dans la fiche de marque : règle ferme en tête de la
+    // rédaction, puis contrôle par le code dans finalizeCarousel (04/10/2026).
+    const audienceAddress = parseAudienceAddress(ctx?.tone?.tone_register);
+    let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn, ctx.profile, livedCase.provided, audienceAddress) + "\n" + photoReadingContract(body);
     if (body.editorial_intent) systemPrompt += "\nINTENTION DU PLAN AUTOMATIQUE (proposition à confronter aux sources) :\n" + JSON.stringify(body.editorial_intent);
 
     // Recherche « creuser le sujet » (lot D-bis, audit qualité 11-12/07) : on va
@@ -904,6 +910,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       researchNumbersCap: livedCase.provided ? 1 : undefined,
       testimonySource,
       brandGuardText,
+      audienceAddress,
       captionEndingRule,
       recentBriefsContext,
       previousHooks,
@@ -994,6 +1001,8 @@ interface CarouselRequestContext {
   testimonySource?: string;
   /** Champs de marque bruts (buildBrandGuardText) : passages à ne jamais recopier tels quels. */
   brandGuardText: string;
+  /** Tu ou vous de la fiche de marque ; null = aucun réglage, aucun contrôle. */
+  audienceAddress: AudienceAddress | null;
   captionEndingRule: CaptionEndingRule | undefined;
   recentBriefsContext: string;
   /** Accroches déjà écrites sur CE sujet : garde déterministe anti-redite (24/08). */
@@ -1327,7 +1336,7 @@ async function finalizeCarousel(
       const raw = await _deps.callAnthropic({
         model: SONNET_MODEL,
         system: ctx.systemPrompt,
-        messages: [{ role: "user", content: coverRewritePrompt(input) }],
+        messages: [{ role: "user", content: coverRewritePrompt(input, ctx.audienceAddress) }],
         max_tokens: 400,
         temperature: 0.7,
         abortTimeoutMs: Math.min(20_000, remaining() - 5_000),
@@ -1337,7 +1346,30 @@ async function finalizeCarousel(
   });
   for (const k of ["input_tokens", "output_tokens", "total_tokens"] as const) opts.usage[k] = (opts.usage[k] || 0) + (coverSink[k] || 0);
   if (cover.receipt) console.log(JSON.stringify({ event: "carousel_cover", ...cover.receipt }));
-  return JSON.stringify(cover.doc);
+  // TU OU VOUS (04/10/2026) : contrôle par le code après rédaction ET
+  // couverture ; passe courte ciblée si le texte contredit la fiche de marque.
+  // Jamais sur le texte écrit par la personne.
+  const finalDoc = !ownsText && ctx.audienceAddress
+    ? await enforceCarouselAudienceAddress(cover.doc, ctx.audienceAddress, remaining() < 15_000 ? 0 : Math.min(20_000, remaining() - 5_000))
+    : cover.doc;
+  return JSON.stringify(finalDoc);
+}
+
+/** Contrôle tu/vous du carrousel final (textes balisés, légende comprise). `budgetMs` 0 = mesure seule. */
+export async function enforceCarouselAudienceAddress(doc: any, address: AudienceAddress, budgetMs: number, pass: AudienceAddressPass = _deps.audienceAddressPass): Promise<any> {
+  try {
+    const block = extractCarouselTexts(doc);
+    const result = await enforceAudienceAddress(block, address, {
+      pass: budgetMs > 0 ? pass : async (t) => t,
+      abortTimeoutMs: budgetMs || undefined,
+      logger: (m) => console.log(m),
+    });
+    if (result.receipt) console.log(JSON.stringify({ event: "carousel_audience_address", ...result.receipt }));
+    return result.receipt?.applied ? reinjectCarouselTexts(doc, result.content) : doc;
+  } catch (e) {
+    console.error("[carousel-ai] contrôle tu/vous ignoré (carrousel intact) :", e);
+    return doc;
+  }
 }
 
 // Partagée par hooks / slides / express_full (texte standard) / suggest_topics /
@@ -2198,8 +2230,8 @@ Réponds en JSON : {"questions":[{"question":"...","placeholder":"..."}]}. Table
   return runGenerationAndRespond("deepening_questions", userPrompt, reqCtx);
 }
 
-function buildSystemPrompt(brandingContext: string, isLinkedIn = false, profile?: any, livedCase = false): string {
-  return buildCarouselWritingSystem(brandingContext, isLinkedIn, buildIdentityBlock(profile, "rédactrice éditoriale"), CONTENT_CLARITY_RULES, livedCase);
+function buildSystemPrompt(brandingContext: string, isLinkedIn = false, profile?: any, livedCase = false, audienceAddress: AudienceAddress | null = null): string {
+  return buildCarouselWritingSystem(brandingContext, isLinkedIn, buildIdentityBlock(profile, "rédactrice éditoriale"), CONTENT_CLARITY_RULES, livedCase, audienceAddressRule(audienceAddress));
 }
 
 function buildHooksPrompt(body: any): string {

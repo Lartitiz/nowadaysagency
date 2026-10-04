@@ -67,8 +67,9 @@ export function carouselSubstance(livedCase = false): string {
   return livedCase ? CAROUSEL_SUBSTANCE.replace(SOCIAL_READING, LIVED_CASE_FIRST) : CAROUSEL_SUBSTANCE;
 }
 
-export function buildCarouselWritingSystem(brandingContext: string, isLinkedIn: boolean, identity: string, clarity: string, livedCase = false): string {
-  return `${COMMON}
+/** `addressRule` : règle ferme tu/vous de la fiche de marque (audience-address.ts), en tête ; vide = inchangé. */
+export function buildCarouselWritingSystem(brandingContext: string, isLinkedIn: boolean, identity: string, clarity: string, livedCase = false, addressRule = ""): string {
+  return `${addressRule ? `${addressRule}\n\n` : ""}${COMMON}
 ${WRITE}
 ${clarity}
 ${identity} Tu rédiges pour la personne un carrousel ${isLinkedIn ? "LinkedIn" : "Instagram"} fidèle à sa demande et agréable à lire.

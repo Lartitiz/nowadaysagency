@@ -19,8 +19,8 @@ export const COVER_SUBTITLE_MAX_WORDS = 12;
 
 export const COVER_WRITING = `COUVERTURE (SLIDE 1) ET SLIDE 2
 La première slide est une couverture : une ACCROCHE en titre, de 4 à ${COVER_HOOK_MAX_WORDS} mots (idéalement 5 à 8), et au plus un sous-titre de ${COVER_SUBTITLE_MAX_WORDS} mots, seulement s'il apporte une information utile (pour qui, ce qu'on y gagne, le cadre). Rien d'autre sur cette slide : ni petit titre au-dessus, ni paragraphe, ni annonce du plan.
-Une accroche crée une tension ou un manque qui donne envie de glisser. Formes qui marchent : une prise de position (« Arrête de publier tous les jours. »), une erreur courante (« L'erreur qui rend ta page de vente invisible »), une question qui pique et n'appelle pas un simple oui/non, une promesse concrète, une liste chiffrée (« 5 mots à bannir de ta bio »), « Personne ne te dit que… », une actualité détournée, une histoire entamée en plein milieu. Varie la forme selon le sujet.
-Interdits sur la couverture : le titre-étiquette qui nomme seulement le sujet (« Les tarifs dans l'artisanat », « 5 conseils pour ta com »), l'annonce (« Dans ce carrousel… »), le jargon, la promesse que la suite ne tient pas, un chiffre, un nom ou un vécu absents des sources.
+Une accroche crée une tension ou un manque qui donne envie de glisser. Formes qui marchent : une prise de position (« Publier tous les jours ne sert à rien. »), une erreur courante (« L'erreur qui rend une page de vente invisible »), une question qui pique et n'appelle pas un simple oui/non, une promesse concrète, une liste chiffrée (« 5 mots à bannir d'une bio »), « Ce que personne ne dit sur… », une actualité détournée, une histoire entamée en plein milieu. Varie la forme selon le sujet. Ces exemples sont neutres : l'accroche s'adresse au public en tu ou en vous comme le reste du carrousel.
+Interdits sur la couverture : le titre-étiquette qui nomme seulement le sujet (« Les tarifs dans l'artisanat », « 5 conseils pour une bonne com »), l'annonce (« Dans ce carrousel… »), le jargon, la promesse que la suite ne tient pas, un chiffre, un nom ou un vécu absents des sources.
 La slide 2 est une deuxième accroche : Instagram peut ouvrir le carrousel directement sur elle. Elle pose la thèse ou la première révélation dans une formulation qui se comprend sans la slide 1, sans « dans ce carrousel », « on commence » ni « voici pourquoi ».`;
 
 export type CoverKind = "text" | "photo" | "mix";
@@ -220,10 +220,16 @@ export async function enforceCover(doc: any, opts: EnforceCoverOptions): Promise
 }
 
 /** Prompt de la passe courte « couverture ». */
-export function coverRewritePrompt(input: { hook: string; subtitle: string; slide2: string }): string {
+export function coverRewritePrompt(input: { hook: string; subtitle: string; slide2: string }, address?: "tu" | "vous" | null): string {
+  // Tu ou vous réglé dans la fiche de marque : règle ferme (04/10/2026).
+  const register = address === "vous"
+    ? "le registre, et VOUVOIE le public (règle ferme de la fiche de marque : « vous », « votre », « vos », jamais « tu », « ton », « ta », « tes »)"
+    : address === "tu"
+      ? "le registre, et TUTOIE le public (règle ferme de la fiche de marque : « tu », « ton », « ta », « tes », jamais « vous », « votre », « vos »)"
+      : "le registre et le tutoiement ou vouvoiement";
   return `${COVER_WRITING}
 
-Réécris UNIQUEMENT la couverture de ce carrousel pour respecter ces règles. Garde le sens, la position défendue, le registre et le tutoiement ou vouvoiement. N'ajoute aucun fait, chiffre, nom ou vécu absent du texte fourni. Ne reprends pas mot pour mot la slide 2.
+Réécris UNIQUEMENT la couverture de ce carrousel pour respecter ces règles. Garde le sens, la position défendue, ${register}. N'ajoute aucun fait, chiffre, nom ou vécu absent du texte fourni. Ne reprends pas mot pour mot la slide 2.
 
 Couverture actuelle :
 - titre : ${JSON.stringify(input.hook)}

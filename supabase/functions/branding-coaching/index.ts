@@ -359,7 +359,7 @@ Clé bonus (à remplir dès que l'info est disponible) :
 
 ⚠️ IMPORTANT : Quand un sujet mappe vers PLUSIEURS clés (aesthetic_world, inspiration), tu DOIS remplir TOUTES les clés dans le même extracted_insights. Ne renvoie pas une seule clé en ignorant l'autre.` :
 section === "tone_style" ? `- "voice_description": string, comment tu parles / ta voix
-- "tone_register": string, le registre (familier, soutenu, etc.)
+- "tone_register": string, comment elle s'adresse à son public : "tutoiement" ou "vouvoiement" (omets la clé si elle ne l'a pas dit ; le niveau de langage va dans tone_level)
 - "tone_do": string, ce que tu fais toujours en com
 - "tone_dont": string, ce que tu ne fais jamais
 - "combat_cause": string, ta cause principale / ton combat
