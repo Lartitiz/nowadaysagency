@@ -128,3 +128,11 @@ Deno.test("prompts : les exemples de cliente ne sont plus une matière à repren
   assertEquals(brief.includes("une céramiste m'a confié"), true);
   assertEquals(brief.includes("Sans vécu fourni, ouvre sur le constat ou sur ta position."), true);
 });
+
+Deno.test("décision 04/10 : une habitude plausible tirée du métier n'est pas un témoignage", () => {
+  const t = "Je ne publie presque jamais sur LinkedIn. Quand je le fais, c'est souvent une pièce que je viens de sortir du four.";
+  assertEquals(findInventedTestimonials(t, BRIEF), []);
+  const brief = linkedinBrief(null);
+  assertEquals(brief.includes("Une habitude de travail plausible tirée du métier de la marque reste possible."), true);
+  assertEquals(brief.includes("ni habitude ou routine personnelle non fournie"), false);
+});
