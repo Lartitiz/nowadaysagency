@@ -16,11 +16,18 @@ export function carouselLength(body: any): CarouselLength {
   const requested = confirmed || body.slide_count || (slideRequest ? quantity(slideRequest[1]) : undefined);
   return { exact: requested ? Math.min(20, Math.max(1, requested)) : undefined, items: items && items <= 20 ? items : undefined };
 }
+/** Carrousel texte (ni photo, ni mixte). */
+export const isTextCarousel = (body: any) => !/photo|mix/i.test(String(body?.carousel_type || ""));
+/** Slide trop longue → deux slides (04/10/2026, accord de Laetitia : « répartis
+ * sur deux slides quand c'est trop long »). Le texte n'est jamais raccourci :
+ * il est réparti. Longueur automatique seulement, sous la limite de slides. */
+export const LONG_SLIDE_WORDS = 70;
+export const LONG_SLIDE_RULE = `SLIDE TROP LONGUE : une slide de développement se lit d'un coup d'œil, environ ${LONG_SLIDE_WORDS} mots au plus (titre et texte compris). Quand une idée demande davantage, répartis-la sur deux slides qui se suivent, chacune avec son propre titre, sans raccourcir ni résumer : tout le texte reste, il est seulement réparti, et la seconde slide reprend le fil de la première. Sous la limite de ${AUTO_MAX_SLIDES} slides, préfère deux slides lisibles à une slide surchargée ; si la limite est atteinte, garde le texte entier.`;
 export function carouselLengthPrompt(body: any): string {
   const { exact, items } = carouselLength(body);
   return `${exact ? `Nombre demandé : exactement ${exact} slides.` : items ? `Longueur automatique : prévois ${Math.min(AUTO_MAX_SLIDES, items + 2)} slides pour développer les ${items} éléments, couverture et conclusion comprises. ${AUTO_MAX_SLIDES} slides au maximum (limite de la publication directe sur Instagram).` : `Longueur automatique : adapte le nombre de slides à la matière, de 4 à ${AUTO_MAX_SLIDES} au maximum (limite de la publication directe sur Instagram) ; aucun nombre fixe à remplir.`}
 ${items ? `LISTE PROMISE : les ${items} éléments doivent tous être présents, distincts et expliqués. Numérote-les de 1 à ${items} dans les titres des slides de développement (ou dans le corps si plusieurs éléments partagent une slide). ${(exact && exact < items + 2) || (!exact && items + 2 > AUTO_MAX_SLIDES) || items + 2 > 20 ? "Le nombre de slides prime : regroupe les éléments en gardant leurs explications, sans en omettre." : "Réserve une slide de développement par élément."} Pour chaque erreur, explique ce qui pose problème et comment agir autrement ; un exemple générique clairement présenté peut clarifier, sans inventer un vécu ni un résultat.` : ""}
-Une seule couverture : évite une deuxième slide qui annonce seulement « Voici les erreurs/conseils ». Termine par une slide avec role:"conclusion", qui apporte une synthèse, la position assumée, une question simple à laquelle répondre en commentaire ou un prochain geste concret. Pas de devoir à faire pour conclure. Ne répète pas la couverture. Aucune invitation vague comme « N'hésitez pas » ; si une action sert le sujet, une seule, précise, sans destination inventée. Une structure explicitement confirmée prime sur cette répartition.`;
+${!exact && isTextCarousel(body) ? `${LONG_SLIDE_RULE}\n` : ""}Une seule couverture : évite une deuxième slide qui annonce seulement « Voici les erreurs/conseils ». Termine par une slide avec role:"conclusion", qui apporte une synthèse, la position assumée, une question simple à laquelle répondre en commentaire ou un prochain geste concret. Pas de devoir à faire pour conclure. Ne répète pas la couverture. Aucune invitation vague comme « N'hésitez pas » ; si une action sert le sujet, une seule, précise, sans destination inventée. Une structure explicitement confirmée prime sur cette répartition.`;
 }
 /** Structural checks are distinct from semantic/editorial review. */
 export function carouselStructureIssues(parsed: any, body: any): string[] {
