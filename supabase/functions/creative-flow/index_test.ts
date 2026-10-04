@@ -560,8 +560,6 @@ Deno.test("runLinkedInTwoStep : la relecture garde la prise de position et n'ajo
     assertEquals(system.includes("ni devoir final"), true);
   } finally {
     mock.restore();
-  } finally {
-    mock.restore();
   }
 });
 
