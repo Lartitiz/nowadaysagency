@@ -262,6 +262,57 @@ export function formatStoriesVisuals(parsed: { stories?: unknown } | null | unde
   return { version: STORY_FORMAT_VERSION, gabarits };
 }
 
+/**
+ * Séquence stories venue d'un chemin SECONDAIRE (mode photo / vision,
+ * recyclage), avant la chaîne retrait → correction → mise en forme.
+ * Accepte { stories: [...] }, le tableau seul, ou l'un des deux sérialisé en
+ * JSON (un tool forcé garantit le transport, pas les types internes). Garde
+ * les stories qui portent un texte ou un sticker ; null si aucune n'a de
+ * texte : l'appelant décide alors (nouvel essai, ou ancien rendu).
+ * Ne lève jamais.
+ */
+export function coerceStoriesSequence(value: unknown): ({ stories: Story[] } & Record<string, unknown>) | null {
+  try {
+    let v: unknown = value;
+    if (typeof v === "string") {
+      const t = v.trim();
+      if (!/^[[{]/.test(t)) return null;
+      v = JSON.parse(t);
+    }
+    let seq: Record<string, unknown>;
+    if (Array.isArray(v)) seq = { stories: v };
+    else if (v && typeof v === "object") seq = { ...(v as Record<string, unknown>) };
+    else return null;
+    let stories: unknown = seq.stories;
+    if (typeof stories === "string") stories = JSON.parse(stories);
+    if (!Array.isArray(stories)) return null;
+    const kept = (stories as unknown[]).filter((s): s is Story =>
+      !!s && typeof s === "object" && !Array.isArray(s) && (!!storyText(s as Story) || hasSticker(s as Story))
+    );
+    if (!kept.some((s) => !!storyText(s))) return null;
+    seq.stories = kept.map((s, i) => ({ ...s, number: typeof s.number === "number" ? s.number : i + 1 }));
+    return seq as { stories: Story[] } & Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Mode photo (vision) : la réponse porte la séquence dans "stories". On la
+ * normalise en place (mutation) pour qu'elle suive la MÊME chaîne que le flux
+ * principal ; un éventuel "content" en prose (ancienne forme, indications
+ * visuelles comprises) est retiré pour ne jamais être affiché ni copié.
+ * Renvoie false si aucune story exploitable : la réponse reste telle quelle.
+ */
+export function adoptStructuredStories(parsed: Record<string, unknown> | null | undefined): boolean {
+  if (!parsed || typeof parsed !== "object") return false;
+  const seq = coerceStoriesSequence(parsed.stories);
+  if (!seq) return false;
+  parsed.stories = seq.stories;
+  delete parsed.content;
+  return true;
+}
+
 export type StoriesPhotoCatalog = { index: number; id: string; description: string; preferred?: boolean }[];
 
 /**

@@ -35,7 +35,7 @@ import {
   reelTemplateLeaks,
 } from "../_shared/reel-postprocess.ts";
 import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
-import { finalizeStoriesLayout, stripStoriesWriterLayout } from "../_shared/story-formatting.ts";
+import { adoptStructuredStories, coerceStoriesSequence, finalizeStoriesLayout, stripStoriesWriterLayout } from "../_shared/story-formatting.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -190,7 +190,7 @@ function extractImagePayload(input: string, fallbackMime?: string): { media_type
  * anti-chevauchement est portée par le PLAN (angles imposés dans le user
  * prompt), plus par une consigne d'auto-arbitrage.
  */
-function buildRecycleSystemPrompt(
+export function buildRecycleSystemPrompt(
   fmtIds: string[],
   formatLabels: Record<string, string>,
   commonPrefix: string,
@@ -200,6 +200,14 @@ function buildRecycleSystemPrompt(
   piliers: string,
 ): string {
   const requestedFormats = fmtIds.map((f) => formatLabels[f] || f);
+  // Stories recyclées (04/10/2026) : séquence STRUCTURÉE comme le flux stories
+  // principal (texte lu + sticker + photo), mise en page posée ensuite par le
+  // code. Seule la ligne stories change, et seulement dans le prompt stories :
+  // les prompts des autres formats restent identiques à l'octet.
+  const storiesStructured = fmtIds.includes("stories");
+  const storiesLengthLine = storiesStructured
+    ? `- Stories : séquence de 5-7 stories. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle (dans "photo_directive", jamais dans le texte). Story 4 = interaction obligatoire.`
+    : `- Stories : séquence de 5-7 stories. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle. Story 4 = interaction obligatoire.`;
   return `${commonPrefix}
 
 ${ANTI_BIAS}
@@ -234,7 +242,7 @@ ${piliers ? `Ses piliers de contenu : ${piliers}. Le recyclage doit rester cohé
 LONGUEURS OBLIGATOIRES :
 - Carrousel : 8 slides détaillées (slide 1 = hook, slides 2-7 = développement, slide 8 = punchline + CTA). Chaque slide = 2-4 phrases. Pas de slides d'1 mot.
 - Reel : script complet avec timecodes (0-3s hook, 3-15s contexte, 15-45s coeur, 45-60s CTA). Indique les cuts et le texte à l'écran.
-- Stories : séquence de 5-7 stories. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle. Story 4 = interaction obligatoire.
+${storiesLengthLine}
 - LinkedIn : longueur selon la matière disponible. Prose fluide et ouverture qui situe le sujet. 0-2 hashtags si utiles.
 - Instagram (Carrousel, Reel, Stories) : 3 hashtags maximum en fin de légende. Jamais plus, même si la légende est longue. Choisis-les ciblés (pas de #love #life génériques).
 - Newsletter : 1500-3000 caractères. Objet d'email accrocheur. Structure : hook personnel > développement > leçon > CTA.
@@ -275,13 +283,30 @@ Réponds UNIQUEMENT en JSON valide :
       ],
       "caption": { "hook": "1-2 phrases d'accroche", "body": "développement de la légende", "cta": "appel à l'action final", "hashtags": ["3 hashtags ciblés maximum, sans #, en rapport avec le sujet"] }
     }`
+      : f === "stories"
+      ? `"stories": {
+      "stories": [
+        {
+          "number": 1,
+          "role": "Hook",
+          "text": "ce qui est écrit sur la story, tel qu'on le lit",
+          "sticker": null,
+          "visual": {
+            "title_pill": null,
+            "photo_directive": "la photo qui porte cette story, concrète, ancrée dans l'activité",
+            "photo_query_en": "2-4 mots anglais, scène photographiable"
+          },
+          "face_cam": false
+        }
+      ]
+    }`
       : `"${f}": "contenu complet ici"`).join(",\n    ")}
   },
   "topics": {
     ${fmtIds.map((f: string) => `"${f}": "le sujet réel de ce contenu en 5-10 mots (pas 'recyclage', le VRAI sujet traité)"`).join(",\n    ")}
   }
 }
-${fmtIds.includes("carrousel") ? `\nIMPORTANT pour le carrousel : tu DOIS renvoyer un OBJET structuré avec exactement 8 slides (slide_number 1 à 8, chaque slide a title + body de 2-4 phrases) et une caption {hook, body, cta}. Pas une string. Pas moins de 8 slides. Les règles de longueur et d'arc narratif (slide 1 = hook, 2-7 = développement, 8 = punchline + CTA) s'appliquent au champ body de chaque slide.` : ""}`;
+${fmtIds.includes("carrousel") ? `\nIMPORTANT pour le carrousel : tu DOIS renvoyer un OBJET structuré avec exactement 8 slides (slide_number 1 à 8, chaque slide a title + body de 2-4 phrases) et une caption {hook, body, cta}. Pas une string. Pas moins de 8 slides. Les règles de longueur et d'arc narratif (slide 1 = hook, 2-7 = développement, 8 = punchline + CTA) s'appliquent au champ body de chaque slide.` : ""}${storiesStructured ? `\nIMPORTANT pour les stories : tu DOIS renvoyer un OBJET { "stories": [...] } avec une entrée par story, pas une string. "text" = ce qui est écrit sur la story, tel que l'abonnée le lit : aucune indication visuelle ni de mise en scène dedans. L'indication visuelle va dans "photo_directive" (et "photo_query_en"). "sticker" = { "type", "label", "options" } sur la story d'interaction, null ailleurs. "title_pill" reste null, sauf si la story annonce une liste, une question, une offre ou une date. La mise en page de l'image (pastilles, liste, citation, fond, position) est décidée après, à partir de ton texte : tu n'en écris rien.` : ""}`;
 }
 
 export function buildFollowUpPrompt(params: {
@@ -1206,7 +1231,10 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
     const topicVal = parsed?.topics?.[f]
       ?? (parsed?.topics && typeof parsed.topics === "object" ? Object.values(parsed.topics)[0] : null);
     if (!resultVal) throw new Error(`recycle ${f} : résultat vide`);
-    if (f !== "carrousel" && typeof resultVal !== "string") throw new Error(`recycle ${f} : format de résultat inattendu`);
+    // Stories : séquence structurée attendue (04/10/2026). Une string (ancienne
+    // forme) reste acceptée et suit l'ancienne garde texte plus bas.
+    const structuredStories = f === "stories" && typeof resultVal !== "string";
+    if (f !== "carrousel" && !structuredStories && typeof resultVal !== "string") throw new Error(`recycle ${f} : format de résultat inattendu`);
     if (typeof resultVal === "string" && /^(contenu non g[eé]n[eé]r[eé]|je ne peux pas|impossible de r[eé]diger)/i.test(resultVal.trim())) {
       throw new Error(`recycle ${f} : refus de rédaction retourné comme contenu`);
     }
@@ -1216,7 +1244,28 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
     // sans source, hashtags normalisés (cap 3), quality_check calculé. Sans
     // ça, un carrousel « Recycler » échappait à tout l'audit qualité (12/07).
     // La re-passe LLM ne se déclenche QUE si des violations sont mesurées.
-    if ((f === "carrousel" || f === "carousel") && resultVal && typeof resultVal === "object" && Array.isArray(resultVal.slides)) {
+    if (structuredStories) {
+      // Même chaîne que le flux stories principal : retrait de toute mise en
+      // page écrite → correction du texte → mise en forme par le code (photo
+      // d'abord). Séquence inexploitable → erreur → nouvel essai du format.
+      const done = await finalizeRecycledStories(resultVal, {
+        sourceText: sourceForFormats,
+        fullContext: [plan?.synthese_source || "", recActivity, recTarget, recPiliers].filter(Boolean).join("\n"),
+        brandGuardText: recBrandGuardText,
+      });
+      if (!done) throw new Error(`recycle ${f} : séquence de stories vide`);
+      resultVal = done.sequence;
+      if (done.gate) {
+        await logContentQuality(
+          userId,
+          `recycle_${f}`,
+          { score: done.gate.score, violations: done.gate.violations, repassed: done.gate.repassed, content: JSON.stringify(done.sequence.stories.map((s: any) => s?.text ?? "")) },
+          (fUsage as any)?.model,
+          workspace_id,
+          typeof topicVal === "string" ? topicVal : undefined,
+        );
+      }
+    } else if ((f === "carrousel" || f === "carousel") && resultVal && typeof resultVal === "object" && Array.isArray(resultVal.slides)) {
       try {
         const gated = await runRedacGate(JSON.stringify(resultVal), {
           isLinkedIn: false,
@@ -1637,6 +1686,25 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
     console.error("[creative-flow] passe de correction stories ignorée (génération intacte) :", (e as any)?.message || e);
     return null;
   }
+}
+
+// ═══ STORIES RECYCLÉES (04/10/2026) ═══
+// Le recyclage écrivait les stories en prose (« texte + indication visuelle »),
+// affichée telle quelle. Elles suivent désormais la chaîne du flux principal :
+// séquence normalisée → retrait de toute mise en page écrite → correction du
+// texte (source = contenu recyclé, comme l'ancienne garde texte) → mise en
+// forme par le code + garde photo d'abord. null si aucune story n'a de texte.
+export async function finalizeRecycledStories(value: unknown, params: { sourceText: string; fullContext: string; brandGuardText?: string }): Promise<{ sequence: { stories: any[] } & Record<string, unknown>; gate: StoriesGateResult | null } | null> {
+  const sequence = coerceStoriesSequence(value);
+  if (!sequence) return null;
+  stripStoriesWriterLayout(sequence);
+  const gate = await applyStoriesCorrectionPass(sequence, {
+    body: { context: params.sourceText },
+    fullContext: params.fullContext,
+    brandGuardText: params.brandGuardText,
+  });
+  finalizeStoriesLayout(sequence, { storiesPhotoCatalog: [], logger: (m) => console.log(`[creative-flow recycle stories] ${m}`) });
+  return { sequence, gate };
 }
 
 // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
@@ -3163,6 +3231,9 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     //    puis la garde photo d'abord et les photos de la bibliothèque.
     let storiesGate: StoriesGateResult | null = null;
     if (isStories && step === "generate") {
+      // Mode photo (vision) : même séquence structurée que le flux principal,
+      // donc même chaîne ci-dessous (04/10/2026).
+      if (isPhotoMode) adoptStructuredStories(parsed);
       stripStoriesWriterLayout(parsed);
       storiesGate = await applyStoriesCorrectionPass(parsed, { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
       finalizeStoriesLayout(parsed, { storiesPhotoCatalog, logger: (m) => console.log(m) });
