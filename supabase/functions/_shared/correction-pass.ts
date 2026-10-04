@@ -517,7 +517,7 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
    → Reformule avec un ARGUMENT PROPRE, un exemple, une nuance.
 
 5. PHRASES COURTES CONSÉCUTIVES (2+ phrases < 10 mots) :
-   → Fluidifie seulement une rafale artificielle. Garde les phrases courtes utiles et le point de vue choisi.
+   → Fluidifie seulement une rafale artificielle. Garde les phrases courtes utiles et le point de vue choisi. Une slide faite d'une seule phrase courte (relance, respiration) et une phrase qui se poursuit sur la slide suivante sont voulues : ne les allonge pas.
    ❌ "On saute des étapes. On parle en raccourcis."
    → ✅ "On saute des étapes et on parle en raccourcis sans s'en rendre compte."
 

@@ -41,6 +41,7 @@ import { RevertToOriginalButton } from "@/components/ContentPreview";
 import { CalendarPostMetadata, FORMAT_OPTIONS_BY_CANAL } from "./CalendarPostMetadata";
 import { CalendarPostContent } from "./CalendarPostContent";
 import { CalendarPostPreview } from "./CalendarPostPreview";
+import { INSTAGRAM_DIRECT_MAX_IMAGES, instagramTooManyImagesReason } from "@/features/creer/publish-guards";
 
 interface Props {
   open: boolean;
@@ -313,7 +314,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
     if (format === "reel" && !igVideo) return REEL_VIDEO_REQUIRED;
     if (igVideo) return null;
     if (igValidImages.length === 0) return "Ajoute un visuel (image) ou monte ta vidéo pour publier.";
-    if (igValidImages.length > 10) return "Instagram limite les carrousels à 10 images.";
+    if (igValidImages.length > INSTAGRAM_DIRECT_MAX_IMAGES) return instagramTooManyImagesReason(igValidImages.length);
     return null;
   })();
 
@@ -459,7 +460,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
       if (format === "story_serie") { toast.error("La publication directe des stories arrive bientôt : publie-la depuis l'app Instagram."); return; }
       if (format === "reel" && !igVideo) { toast.error(REEL_VIDEO_REQUIRED); return; }
       if (!igVideo && igValidImages.length === 0) { toast.error("Ajoute une image ou monte ta vidéo avant de programmer."); return; }
-      if (!igVideo && igValidImages.length > 10) { toast.error("Instagram limite les carrousels à 10 images."); return; }
+      if (!igVideo && igValidImages.length > INSTAGRAM_DIRECT_MAX_IMAGES) { toast.error(instagramTooManyImagesReason(igValidImages.length)); return; }
     } else if (postCanal === "linkedin") {
       if (!linkedInText) { toast.error("Rédige le texte du post avant de programmer."); return; }
     }

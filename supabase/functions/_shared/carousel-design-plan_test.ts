@@ -125,3 +125,13 @@ Deno.test("traitements : texte d'une seule phrase → ni phrase-clé ni deux tem
   assert(plan.sequence[1].treatment !== "lettrine");
   assertEquals(sentences("Un. Deux ? Trois"), ["Un.", "Deux ?", "Trois"]);
 });
+
+// 04/10/2026 : en carrousel texte découpé une idée par slide, une slide peut
+// poursuivre la phrase de la précédente (« et c'est là… ») : pas de lettrine.
+Deno.test("traitements : pas de lettrine sur une slide qui poursuit une phrase", () => {
+  const slides = [{ slide_number: 1, title: "C", body: "" },
+    ...Array.from({ length: 8 }, (_, i) => ({ slide_number: i + 2, title: "", body: "et la phrase continue ici, sans majuscule. Puis une autre." })),
+    { slide_number: 10, title: "D", body: "Fin." }];
+  const plan = buildCarouselDesignPlan(slides);
+  assert(plan.sequence.every(b => b.treatment !== "lettrine"), plan.sequence.map(b => b.treatment).join(","));
+});

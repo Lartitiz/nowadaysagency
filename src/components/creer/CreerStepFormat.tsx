@@ -789,6 +789,12 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
               </button>
             ))}
           </div>
+          {carouselSubMode === "text" && slideLength === "auto" && (
+            <p className="text-2xs text-muted-foreground pl-1" data-testid="carousel-text-auto-length">
+              En Auto, le carrousel texte met une idée par slide, jusqu'à 20 slides.
+              {selectedChannel === "instagram" && " Au-delà de 10, il se publie depuis l'appli Instagram de ton téléphone (pas en direct depuis l'outil)."}
+            </p>
+          )}
           <p className="text-2xs text-muted-foreground pl-1">
             Tu pourras toujours supprimer ou ajouter des slides après la génération.
           </p>

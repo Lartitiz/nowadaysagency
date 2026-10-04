@@ -5,7 +5,7 @@ import { COMMON, PLAN, REPAIR } from "../_shared/carousel-editorial-contract.ts"
 import { reviewCarouselProgression, progressionReceipt, progressionWarnings, type ProgressionSource, type ProgressionResult } from "../_shared/carousel-progression.ts";
 import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts";
 import { PHOTO_NARRATIVE_CONTRACT, PHOTO_QUESTIONS_CONTRACT } from "./photo-narrative.ts";
-import { AUTO_MAX_SLIDES, carouselLength, carouselLengthPrompt, carouselStructureIssues } from "../_shared/carousel-length.ts";
+import { autoMaxSlides, carouselLength, carouselLengthPrompt, carouselStructureIssues, longTextSlides } from "../_shared/carousel-length.ts";
 import { preservesCarouselScenario } from "../_shared/carousel-thread.ts";
 import { coverKind, coverRewritePrompt, enforceCover } from "../_shared/carousel-cover.ts";
 import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, NEWS_WRITING } from "./variant-writing.ts";
@@ -1358,7 +1358,10 @@ async function runGenerationAndRespond(
   const writingOptions: Omit<AnthropicOptions, "model"> = {
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
-    max_tokens: type === "deepening_questions" ? 1024 : 8192,
+    // Carrousel texte jusqu'à 20 slides (04/10/2026) : la réflexion adaptative
+    // compte dans ce plafond, 8192 laissait peu de marge à un texte découpé
+    // une idée par slide. Un plafond plus haut ne coûte que ce qui est écrit.
+    max_tokens: type === "deepening_questions" ? 1024 : 16000,
     // Le carrousel tournait au défaut API (1.0), plus chaud que les autres
     // canaux (0.8) → on cadre la créativité du format vitrine. Les questions
     // (Haiku, tâche bornée) gardent le comportement par défaut.
@@ -1449,8 +1452,10 @@ async function runGenerationAndRespond(
     // SCHÉMAS décidés après l'écriture et ses relectures, sur le texte final
     // (la rédaction ne les connaît plus : un changement d'écriture ne peut plus
     // les faire disparaître). Échec ou manque de temps → aucun schéma, texte livré.
-    const withSchemas = await timed("schemas_ms", addSchemasToContent(content, { isMix: false, usage, allowed: schemasAllowed(startedAt), maxSlides: carouselLength(body).exact ? 0 : AUTO_MAX_SLIDES }));
+    const withSchemas = await timed("schemas_ms", addSchemasToContent(content, { isMix: false, usage, allowed: schemasAllowed(startedAt), maxSlides: carouselLength(body).exact ? 0 : autoMaxSlides(body) }));
     content = withSchemas.content;
+    const finalParsed = tryParseAiJson<any>(content);
+    console.log(JSON.stringify({ event: "carousel_rhythm", label: type, slides: Array.isArray(finalParsed?.slides) ? finalParsed.slides.length : 0, long_slides: longTextSlides(finalParsed, body) }));
     if (withSchemas.plan) console.log(JSON.stringify({ event: "carousel_schema_formatting", label: type, status: withSchemas.plan.status, proposed: withSchemas.plan.proposed ?? 0, rejected: withSchemas.plan.rejected ?? [], spotted: withSchemas.plan.spotted ?? [], schemas: withSchemas.plan.schemas.map(x => x.visual_schema.type) }));
   }
 

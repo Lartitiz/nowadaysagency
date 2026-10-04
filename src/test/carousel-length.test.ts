@@ -11,7 +11,7 @@ describe("carousel length and completeness", () => {
     const body = { subject: "Les 8 erreurs de communication" };
     expect(carouselLength(body)).toEqual({ exact: undefined, items: 8 });
     const prompt = textWritingPrompt(body, false, "");
-    expect(prompt).toContain("prévois 10 slides");
+    expect(prompt).toContain("au moins 10 slides");
     expect(prompt).not.toContain("exactement 7 slides");
     expect(carouselStructureIssues(complete, body)).toEqual([]);
   });
@@ -43,14 +43,42 @@ describe("carousel length and completeness", () => {
     expect(issues[0]).toContain("exactement 10");
     expect(issues.join(" ")).toContain("conclure");
   });
-  it("caps the automatic length at 10 slides, an explicit request still wins", () => {
-    expect(carouselLengthPrompt({ subject: "Les coulisses de l'atelier" })).toContain("de 4 à 10 au maximum");
-    expect(carouselLengthPrompt({ subject: "Les coulisses de l'atelier" })).not.toContain("20");
-    expect(carouselLengthPrompt({ subject: "10 erreurs à éviter" })).toContain("prévois 10 slides");
-    expect(carouselLengthPrompt({ subject: "10 erreurs à éviter" })).toContain("regroupe les éléments");
-    expect(carouselLengthPrompt({ subject: "Les coulisses", slide_count: 14 })).toContain("exactement 14");
-    const eleven = { slides: Array.from({ length: 11 }, (_, i) => ({ title: `T${i}`, body: "b", role: i === 10 ? "conclusion" : "dev" })) };
-    expect(carouselStructureIssues(eleven, { subject: "Les coulisses" }).join(" ")).toContain("10 au maximum");
-    expect(carouselStructureIssues(eleven, { subject: "Les coulisses", slide_count: 11 })).toEqual([]);
+  it("caps the automatic length of PHOTO and MIX carousels at 10 slides, an explicit request still wins", () => {
+    for (const carousel_type of ["photo", "mix"]) {
+      expect(carouselLengthPrompt({ subject: "Les coulisses de l'atelier", carousel_type })).toContain("de 4 à 10 au maximum");
+      expect(carouselLengthPrompt({ subject: "Les coulisses de l'atelier", carousel_type })).not.toContain("20");
+      expect(carouselLengthPrompt({ subject: "Les coulisses de l'atelier", carousel_type })).not.toContain("UNE IDÉE PAR SLIDE");
+      expect(carouselLengthPrompt({ subject: "10 erreurs à éviter", carousel_type })).toContain("prévois 10 slides");
+      expect(carouselLengthPrompt({ subject: "10 erreurs à éviter", carousel_type })).toContain("regroupe les éléments");
+      expect(carouselLengthPrompt({ subject: "Les coulisses", slide_count: 14, carousel_type })).toContain("exactement 14");
+      const eleven = { slides: Array.from({ length: 11 }, (_, i) => ({ title: `T${i}`, body: "b", role: i === 10 ? "conclusion" : "dev" })) };
+      expect(carouselStructureIssues(eleven, { subject: "Les coulisses", carousel_type }).join(" ")).toContain("10 au maximum");
+      expect(carouselStructureIssues(eleven, { subject: "Les coulisses", slide_count: 11, carousel_type })).toEqual([]);
+    }
+  });
+  it("lets an automatic TEXT carousel go up to 20 slides, one idea per slide, never shortened", () => {
+    for (const carousel_type of [undefined, "prise_de_position", "storytelling"]) {
+      const prompt = carouselLengthPrompt({ subject: "Oui, j'utilise l'IA générative", carousel_type });
+      expect(prompt).toContain("de 4 à 20 au maximum");
+      expect(prompt).toContain("UNE IDÉE PAR SLIDE");
+      expect(prompt).toContain("sans raccourcir ni résumer");
+      expect(prompt).toContain("se poursuivre sur la suivante");
+      expect(prompt).not.toContain("limite de la publication directe");
+      const sixteen = { slides: Array.from({ length: 16 }, (_, i) => ({ title: `T${i}`, body: "b", role: i === 15 ? "conclusion" : "dev" })) };
+      expect(carouselStructureIssues(sixteen, { subject: "Les coulisses", carousel_type })).toEqual([]);
+      const twentyOne = { slides: Array.from({ length: 21 }, (_, i) => ({ title: `T${i}`, body: "b", role: i === 20 ? "conclusion" : "dev" })) };
+      expect(carouselStructureIssues(twentyOne, { subject: "Les coulisses", carousel_type }).join(" ")).toContain("20 au maximum");
+    }
+    // 12 erreurs : une slide par élément devient possible en texte (14 ≤ 20).
+    expect(carouselLengthPrompt({ subject: "12 erreurs à éviter" })).toContain("Réserve une slide de développement par élément");
+    expect(carouselLengthPrompt({ subject: "12 erreurs à éviter", carousel_type: "photo" })).toContain("regroupe les éléments");
+  });
+  it("keeps an explicit number above the automatic text rhythm", () => {
+    const prompt = carouselLengthPrompt({ subject: "Les coulisses", slide_count: 7 });
+    expect(prompt).toContain("exactement 7");
+    expect(prompt).not.toContain("UNE IDÉE PAR SLIDE");
+    const twelve = { slides: Array.from({ length: 12 }, (_, i) => ({ title: `T${i}`, body: "b", role: i === 11 ? "conclusion" : "dev" })) };
+    expect(carouselStructureIssues(twelve, { subject: "Les coulisses", slide_count: 7 }).join(" ")).toContain("exactement 7");
+    expect(carouselStructureIssues(twelve, { subject: "Un carrousel en 12 slides" })).toEqual([]);
   });
 });

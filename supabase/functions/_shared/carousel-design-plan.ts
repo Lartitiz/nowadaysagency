@@ -75,7 +75,10 @@ export function assignTextTreatments(slides: Slide[], sequence: DesignBeat[]): v
     const parts = sentences(body);
     const fits = (t: TextTreatment) => t !== previous &&
       (t !== "aplat" || aplats < 2) &&
-      (t !== "lettrine" || /^\p{L}/u.test(body.trim())) &&
+      // Lettrine sur une majuscule seulement : une slide qui poursuit la phrase
+      // de la précédente (« et c'est là… », carrousel texte découpé une idée
+      // par slide) ne commence pas une nouvelle prose.
+      (t !== "lettrine" || /^\p{Lu}/u.test(body.trim())) &&
       ((t !== "surligne" && t !== "deux_temps") || parts.length >= 2);
     let treatment: TextTreatment = "centre";
     for (let n = 0; n < TREATMENT_CYCLE.length; n++) {
