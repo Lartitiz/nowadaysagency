@@ -112,3 +112,20 @@ it('the list is one single read: no extra query to know which ideas have content
  expect(state.selects[0]).toContain('has_content');
  expect(state.flags).not.toHaveBeenCalled();
 });
+it('opening a heavy idea shows « Ouverture… » on its card and ignores repeated clicks', async () => {
+ const pending = deferred(); const onOpen = vi.fn().mockReturnValue(pending.promise);
+ render(<App onOpen={onOpen}/>);
+ fireEvent.click(await screen.findByRole('button', { name: 'Ouvrir' }));
+ const busy = screen.getByRole('button', { name: /Ouverture…/ });
+ expect(busy).toBeDisabled(); expect(busy).toHaveAttribute('aria-busy', 'true');
+ fireEvent.click(screen.getByRole('button', { name: idea.titre }));
+ expect(onOpen).toHaveBeenCalledTimes(1);
+ await act(async () => pending.resolve(undefined));
+ expect(screen.getByRole('button', { name: 'Ouvrir' })).toBeEnabled();
+});
+it('a failed opening still gives the button back', async () => {
+ const onOpen = vi.fn().mockRejectedValue(new Error('offline'));
+ render(<App onOpen={onOpen}/>);
+ fireEvent.click(await screen.findByRole('button', { name: 'Ouvrir' }));
+ await waitFor(() => expect(screen.getByRole('button', { name: 'Ouvrir' })).toBeEnabled());
+});
