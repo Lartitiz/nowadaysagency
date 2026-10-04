@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { withCarouselMedia } from "@/lib/carousel-media";
 import {
   CarouselAutosaver,
   CarouselConflict,
@@ -185,7 +186,8 @@ export function useCarouselAutosave(options: Options) {
       !copying && previous?.id === o.ideaId && previous.meta && !previous.dirty
         ? { ...o.raw, _carousel_cloud: previous.meta }
         : o.raw,
-      store,
+      // Les photos des slides sont rangées à part : le brouillon ne garde que leurs liens.
+      withCarouselMedia(store, o.userId),
       (meta) => {
         if (
           controller.current === c &&

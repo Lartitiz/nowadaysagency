@@ -1,6 +1,7 @@
 import { embedExportFonts } from "./export-font-embedding";
 import { exportFileName } from "./export-file-name";
 import { ExportImageError, embedExportImages, waitForExportImages } from "./export-image-readiness";
+import { inlineSlidesMedia } from "./carousel-media";
 import { bakeGlassBlur } from "./export-glass-blur";
 import { bakePhotoFilters } from "./export-photo-filters";
 import html2canvas from "html2canvas-pro";
@@ -366,6 +367,8 @@ export async function renderCarouselSlidesToBlobs(
   logoUrl?: string | null,
 ): Promise<{ slide_number: number; blob: Blob }[]> {
   if (!visualSlides || visualSlides.length === 0) return [];
+  // Photos rangées à part (liens) : remises dans la slide comme avant.
+  visualSlides = await inlineSlidesMedia(visualSlides);
   const logoBase64 = await fetchLogoAsBase64(logoUrl);
   const logoOverlayHtml = logoBase64 ? buildLogoOverlayHtml(logoBase64, SLIDE_W) : "";
   const out: { slide_number: number; blob: Blob }[] = [];
@@ -410,6 +413,7 @@ export async function exportCarouselPng(
   logoUrl?: string | null,
 ): Promise<CarouselExportResult> {
   if (!visualSlides || visualSlides.length === 0) return { total: 0, exported: 0, failed: [] };
+  visualSlides = await inlineSlidesMedia(visualSlides);
 
   // Pré-charge le logo une seule fois ; injecté dans chaque slide via overlay HTML.
   const logoBase64 = await fetchLogoAsBase64(logoUrl);

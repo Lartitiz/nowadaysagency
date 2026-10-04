@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { externalizeCarouselMedia } from "@/lib/carousel-media";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 
@@ -143,9 +144,10 @@ export function SaveToIdeasDialog({
       const storedContent = visualSlides?.length && currentContent && typeof currentContent === "object" && !Array.isArray(currentContent)
         ? { ...currentContent, visual_html: visualSlides }
         : currentContent;
-      const contentWithOrigin = storedContent && typeof storedContent === "object" && !Array.isArray(storedContent)
+      // Photos des slides rangées à part : l'idée (données ET texte) ne garde que leurs liens.
+      const contentWithOrigin = await externalizeCarouselMedia(storedContent && typeof storedContent === "object" && !Array.isArray(storedContent)
         ? { ...storedContent, _ai_generated: true }
-        : storedContent;
+        : storedContent, user.id);
 
       const baseFields = {
         titre: `${contentEmoji} ${subject || contentType}`,
@@ -237,7 +239,7 @@ export function SaveToIdeasDialog({
       const { error: visualError } = await supabase
         .from("saved_ideas")
         .update({
-          content_data: { ...currentContent, visual_urls: urls, visual_html: visualSlides },
+          content_data: await externalizeCarouselMedia({ ...currentContent, visual_urls: urls, visual_html: visualSlides }, user?.id || ""),
         } as any)
         .eq("id", ideaId).select("id").single();
       if (visualError) throw visualError;
