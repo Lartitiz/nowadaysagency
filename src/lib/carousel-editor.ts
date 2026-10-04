@@ -707,7 +707,7 @@ export function makeSlide(
     bodyColor = type === "photo_full" ? "#ffffff" : tokens.bodyColor;
   const titleSize = Math.max(38, parseFloat(tokens.titleSize) || 72),
     bodySize = Math.max(38, parseFloat(tokens.bodySize) || 40);
-  const html = `${tokens.fontImports}<div style="width:1080px;height:1350px;position:relative;overflow:hidden;background:${bg};color:${bodyColor};font-family:${tokens.bodyFont};text-align:${tokens.align}">${photo && type !== "text_only" ? `<img data-pptx-photo="${data.photo_index || 1}" src="${escape(photo)}" style="position:absolute;left:0;top:0;width:1080px;height:${type === "photo_full" ? 1350 : 650}px;object-fit:cover;object-position:50% 50%">` : ""}<div style="position:absolute;left:80px;top:${type === "photo_integrated" ? 700 : 160}px;width:920px;${type === "photo_full" ? "background:rgba(0,0,0,.65);padding:28px;box-sizing:border-box;" : ""}"${type === "photo_full" ? ' data-pptx-shape="card"' : ""}><h1 data-slide-text="title" data-pptx-editable="title" style="font-size:${titleSize}px;font-family:${tokens.titleFont};color:${titleColor};line-height:1.1;font-weight:${tokens.titleWeight};margin:0 0 40px;white-space:pre-wrap">${escape(title)}</h1><p data-slide-text="body" data-pptx-editable="body" style="font-size:${bodySize}px;font-family:${tokens.bodyFont};color:${bodyColor};line-height:1.4;white-space:pre-wrap">${escape(body)}</p></div><span data-slide-page style="position:absolute;bottom:65px;right:80px;font-size:24px">1 / 1</span></div>`;
+  const html = `${tokens.fontImports}<div style="width:1080px;height:1350px;position:relative;overflow:hidden;background:${bg};color:${bodyColor};font-family:${tokens.bodyFont};text-align:${tokens.align}">${photo && type !== "text_only" ? `<img data-pptx-photo="${data.photo_index || 1}" src="${escape(photo)}" style="position:absolute;left:0;top:0;width:1080px;height:${type === "photo_full" ? 1350 : 650}px;object-fit:cover;object-position:50% 50%">` : ""}<div style="position:absolute;left:80px;top:${type === "photo_integrated" ? 700 : 160}px;width:920px;${type === "photo_full" ? "background:rgba(0,0,0,.65);padding:28px;box-sizing:border-box;" : ""}"${type === "photo_full" ? ' data-pptx-shape="card"' : ""}><h1 data-slide-text="title" data-pptx-editable="title" style="font-size:${titleSize}px;font-family:${tokens.titleFont};color:${titleColor};line-height:1.1;font-weight:${tokens.titleWeight};margin:0 0 40px;white-space:pre-wrap">${escape(title)}</h1><p data-slide-text="body" data-pptx-editable="body" style="font-size:${bodySize}px;font-family:${tokens.bodyFont};color:${bodyColor};line-height:1.4;white-space:pre-wrap">${escape(body)}</p></div></div>`;
   return {
     id: newId(),
     data: { ...data, title, body, slide_type: type },
@@ -716,26 +716,23 @@ export function makeSlide(
 }
 
 export function renumberDocument(document: CarouselDocument): CarouselDocument {
-  const total = document.slides.length;
   return {
     ...document,
     slides: document.slides.map((slide, index) => {
       const doc = parse(slide.html),
         previous = slide.data.slide_number;
-      doc
-        .querySelectorAll<HTMLElement>("[data-slide-page]")
-        // Pas de numéro sur la couverture (04/10/2026) : le repère reste en
-        // place, vide, et se remplit si la slide quitte la première position.
-        .forEach((el) => (el.textContent = index === 0 ? "" : `${index + 1} / ${total}`));
+      // Plus aucun numéro de page sur les slides (choix du 04/10/2026, la
+      // référence de Laetitia n'en a pas) : on retire ceux des anciens
+      // carrousels, repère posé par l'éditeur ou « 3 / 8 » dessiné seul.
+      doc.querySelectorAll<HTMLElement>("[data-slide-page]").forEach((el) => el.remove());
       textNodes(doc).forEach((el) => {
         if (
+          el.isConnected &&
           new RegExp(`^${previous}\\s*/\\s*\\d+$`).test(
             el.textContent?.trim() || "",
           )
-        ) {
-          el.textContent = `${index + 1} / ${total}`;
-          el.dataset.slidePage = "true";
-        }
+        )
+          el.remove();
       });
       return {
         ...slide,
@@ -1642,7 +1639,7 @@ export function composeLayout(
       inner = img("left:110px;top:110px;width:860px;height:700px;border-radius:24px;") + block("left:110px;top:870px;width:860px;", h("", Math.round(titleSize * 0.85)) + b(""));
       break;
   }
-  const html = `${tokens.fontImports}<div style="width:1080px;height:1350px;position:relative;overflow:hidden;background:${bg};color:${ink};font-family:${tokens.bodyFont};text-align:${tokens.align}">${inner}<span data-slide-page style="position:absolute;bottom:60px;right:80px;font-size:24px;color:${ink}">1 / 1</span></div>`;
+  const html = `${tokens.fontImports}<div style="width:1080px;height:1350px;position:relative;overflow:hidden;background:${bg};color:${ink};font-family:${tokens.bodyFont};text-align:${tokens.align}">${inner}</div>`;
   const slideType = !photo || !LAYOUTS.find((l) => l.variant === variant)?.photo ? "text_only" : variant === "photo-plein" ? "photo_full" : "photo_integrated";
   return { id: newId(), data: { ...data, title, body, slide_type: slideType, layout_variant: variant }, html: prepareSlideHtml(html) };
 }

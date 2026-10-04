@@ -1,6 +1,7 @@
 // Copier-coller entre slides et « appliquer à toutes les slides » (03/10/2026).
 import { describe, expect, it } from "vitest";
 import {
+  addTextElement,
   applyToAllSlides,
   getEditorElements,
   makeSlide,
@@ -71,7 +72,9 @@ describe("apply to all slides", () => {
     const b2 = getEditorElements(out.document.slides[1].html).find((e) => e.field === "body")!;
     expect(b2.style.top).toBe("900px");
     expect(out.document.slides[2]).toBe(d.slides[2]);
-    const page = getEditorElements(first.html).find((e) => !e.field && e.kind === "text")!;
-    expect(applyToAllSlides(d, first.id, page.id, { style: true }).changed).toBe(0);
+    // Un texte ajouté sur la slide 1 seulement n'a pas d'équivalent ailleurs.
+    const withExtra = addTextElement(first);
+    const extra = getEditorElements(withExtra.html).find((e) => !e.field && e.kind === "text")!;
+    expect(applyToAllSlides({ ...d, slides: [withExtra, ...d.slides.slice(1)] }, first.id, extra.id, { style: true }).changed).toBe(0);
   });
 });

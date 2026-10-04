@@ -227,7 +227,7 @@ describe("Audit carrousel — reproductions de défauts", () => {
     expect(updated).toContain(">20 %</strong>");
   });
 
-  it("A8: les numéros inscrits dans les visuels suivent le déplacement de slide", () => {
+  it("A8: les numéros de page dessinés dans les visuels sont retirés au déplacement de slide", () => {
     const onVisualSlidesUpdate = vi.fn();
     const vs = textSlides.map((s) => ({
       slide_number: s.slide_number,
@@ -245,6 +245,7 @@ describe("Audit carrousel — reproductions de défauts", () => {
     );
     const output = onVisualSlidesUpdate.mock.calls.at(-1)![0];
     expect(output[0].slide_number).toBe(1);
-    expect(output[0].html).toContain("1 / 3");
+    // Plus de numéro de page sur les slides (04/10/2026).
+    expect(output[0].html).not.toContain(" / 3");
   });
 });
