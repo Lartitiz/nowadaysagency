@@ -130,3 +130,50 @@ Deno.test("schémas : un reçu de relecture à jour le reste après l'ajout des 
   const out2 = JSON.parse((await addSchemasToContent(JSON.stringify(stale), { isMix: false, usage: {}, allowed: true, call })).content);
   assertEquals(out2.progression_review.reviewed_material, "autre texte");
 });
+
+// ── SLIDE CHARGÉE (04/10/2026) ──────────────────────────────────────────────
+// Capture de Laetitia : ~70 mots + carte « 1,5 % » sur la même slide, trop
+// chargée. Choix validé : le schéma part sur sa propre slide « pause » juste
+// après (longueur libre, sous la limite), sinon il n'est pas posé. Le texte
+// n'est jamais raccourci ni déplacé.
+const DENSE_BODY = "L'IA générative consomme des ressources : de l'électricité, de l'eau, des centres de données. À l'échelle mondiale, les centres de données liés à l'IA pesaient déjà environ 1,5 % de la consommation d'électricité en 2024 (AIE, 2024). Les modèles ont aussi été entraînés sur des œuvres sans l'accord de leurs autrices et auteurs, et ils reproduisent des biais.";
+const DENSE = [
+  { slide_number: 1, title: "Créer avec l'IA sans se renier", body: "" },
+  { slide_number: 2, title: "Ce que ces outils coûtent, je le sais", body: DENSE_BODY },
+  { slide_number: 3, title: "Ce que j'en fais", body: "Je l'utilise pour trier, pas pour créer." },
+  { slide_number: 4, title: "Et toi ?", body: "Où places-tu ta limite ?" },
+];
+const STAT = { type: "stats", items: [{ number: "1,5 %", label: "de la consommation d'électricité mondiale en 2024" }] };
+const denseCall = (async () => JSON.stringify({ schemas: [{ slide_number: 2, reason: "r", visual_schema: STAT }] })) as any;
+
+Deno.test("slide chargée : le schéma part sur une slide pause juste après, texte intact", async () => {
+  const content = JSON.stringify({ slides: DENSE });
+  const out = await addSchemasToContent(content, { isMix: false, usage: {}, allowed: true, call: denseCall, maxSlides: 10 });
+  const slides = JSON.parse(out.content).slides;
+  assertEquals(slides.length, 5);
+  assertEquals(slides.map((s: any) => s.slide_number), [1, 2, 3, 4, 5], "renumérotées");
+  assertEquals(slides[1].visual_schema, null, "la slide chargée ne porte plus le schéma");
+  assertEquals(slides[1].body, DENSE_BODY, "texte jamais raccourci");
+  assertEquals(slides[2].schema_pause, true);
+  assertEquals(slides[2].visual_schema.type, "stats");
+  assertEquals([slides[2].title, slides[2].body], ["", ""], "aucun texte ajouté");
+  assertEquals(slides.filter((s: any) => !s.schema_pause).map((s: any) => s.body), DENSE.map(s => s.body), "ordre et textes identiques");
+});
+
+Deno.test("slide chargée : longueur imposée ou limite atteinte → pas de schéma (rejet tracé)", async () => {
+  for (const maxSlides of [0, 4]) {
+    const out = await addSchemasToContent(JSON.stringify({ slides: DENSE }), { isMix: false, usage: {}, allowed: true, call: denseCall, maxSlides });
+    const slides = JSON.parse(out.content).slides;
+    assertEquals(slides.length, 4);
+    assert(slides.every((s: any) => s.visual_schema === null));
+    assertEquals(out.plan?.rejected, ["stats@2:place"]);
+  }
+});
+
+Deno.test("slide courte : le schéma reste sur la slide (aucune slide ajoutée)", async () => {
+  const short = DENSE.map(s => s.slide_number === 2 ? { ...s, body: "Les centres de données liés à l'IA pesaient environ 1,5 % de la consommation d'électricité mondiale en 2024." } : s);
+  const out = await addSchemasToContent(JSON.stringify({ slides: short }), { isMix: false, usage: {}, allowed: true, call: denseCall, maxSlides: 10 });
+  const slides = JSON.parse(out.content).slides;
+  assertEquals(slides.length, 4);
+  assertEquals(slides[1].visual_schema.type, "stats");
+});
