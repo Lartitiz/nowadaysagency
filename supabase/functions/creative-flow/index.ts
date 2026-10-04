@@ -20,8 +20,8 @@ import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, 
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
-import { applyCorrectionPass, applyCorrectionPassReel, type CorrectionFormat, applyCorrectionPassStories, storiesAuditableText } from "../_shared/correction-pass.ts";
-import { analyzeTextRedac, buildTextFixInstructions, fixElisionsInFields, numbersIn, researchNumbers, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations, dropUserSourcedReversals, type ResearchNumbers } from "../_shared/redac-gate.ts";
+import { applyCorrectionPass, applyCorrectionPassReel, type CorrectionFormat, applyCorrectionPassStories, extractStoriesTexts, reinjectStoriesTexts, storiesAuditableText } from "../_shared/correction-pass.ts";
+import { analyzeTextRedac, buildTextFixInstructions, enforceResearchNumberSources, fixElisionsInFields, numbersIn, researchNumbers, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations, dropUserSourcedReversals, type ResearchNumbers } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks, fetchPreviousHooksByFormat } from "../_shared/previous-hooks.ts";
 import {
@@ -30,6 +30,8 @@ import {
   enforceSelectedReelHook,
   finalizeReelScript,
   reelAuditableText,
+  extractReelTexts,
+  reinjectReelTexts,
   reelTemplateLeaks,
 } from "../_shared/reel-postprocess.ts";
 import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
@@ -1489,6 +1491,14 @@ async function applyReelQualityPass(parsed: any, params: { body: any; effectiveO
     if (corrected && typeof corrected === "object") {
       Object.assign(parsed, corrected);
     }
+    // Chiffres de la recherche encore sans source : passe dédiée sur les textes balisés.
+    if (reelResearch) {
+      const analyzeBlock = (b: string) => analyzeTextRedac(reelAuditableText(reinjectReelTexts(parsed, b)), reelAllowed, undefined, undefined, reelResearch);
+      const sourced = await enforceResearchNumberSources(extractReelTexts(parsed), analyzeBlock, reelResearch, {
+        logger: (msg) => console.log(msg), abortTimeoutMs: CORRECTION_ABORT_MS,
+      });
+      if (sourced.applied) Object.assign(parsed, reinjectReelTexts(parsed, sourced.content));
+    }
   } catch (corrErr) {
     console.error("[creative-flow] correction-pass reel failed:", corrErr);
   }
@@ -1577,6 +1587,19 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
         } else {
           reverted = true;
         }
+      }
+    }
+    // Chiffres de la recherche encore sans source : passe dédiée sur les textes balisés.
+    if (storiesResearch && bestA.unsourcedResearchNumbers?.length) {
+      const base = best;
+      const sourced = await enforceResearchNumberSources(
+        extractStoriesTexts(base), (b) => analyze(reinjectStoriesTexts(base, b).stories), storiesResearch,
+        { logger: (msg) => console.log(msg), abortTimeoutMs: CORRECTION_ABORT_MS, before: bestA },
+      );
+      if (sourced.applied) {
+        best = reinjectStoriesTexts(base, sourced.content).stories;
+        bestA = sourced.analysis;
+        repassed = true;
       }
     }
     const violations = textRedacViolations(bestA);
@@ -1952,6 +1975,7 @@ export async function runLinkedInTwoStep(params: {
   ], researchSource);
   const liRedac = analyzeTextRedac(postText, liAllowed, undefined, undefined, liResearch);
   const liExtraInstructions = buildTextFixInstructions(liRedac);
+  console.log(`[linkedin-gate] recherche=${researchSource ? "oui" : "non"}, chiffres de recherche sans source ${liRedac.unsourcedResearchNumbers?.length ?? 0}, chiffres inventés ${liRedac.fabricatedNumbers.length}`);
 
   // Step 2: Correction pass — short, focused prompt
   const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu corriges uniquement les défauts identifiés. Préserve les passages déjà naturels, les formulations personnelles et les nuances.
@@ -2114,6 +2138,16 @@ Réponds UNIQUEMENT en JSON :
       pillar: originalParsed.pillar || "",
       objectif: originalParsed.objectif || "",
     };
+    // Chiffres de la recherche encore sans source : passe dédiée, relue par le code.
+    if (typeof merged.content === "string" && liResearch) {
+      const sourced = await enforceResearchNumberSources(
+        merged.content,
+        (t) => analyzeTextRedac(t, liAllowed, undefined, undefined, liResearch),
+        liResearch,
+        { logger: (m) => console.log(m), abortTimeoutMs: CORRECTION_ABORT_MS },
+      );
+      merged.content = sourced.content;
+    }
     // Filet déterministe (même patron que applyLinkedInCorrectionPass) :
     // élisions manquantes type « le avant/après » (vécu 21/07).
     fixElisionsInFields(merged, ["content", "accroche"]);
@@ -2133,6 +2167,14 @@ Réponds UNIQUEMENT en JSON :
     const m = rawContent.match(/\{[\s\S]*\}/);
     if (m) try { fallbackParsed = JSON.parse(m[0]); } catch { fallbackParsed = { content: rawContent }; }
     else fallbackParsed = { content: rawContent };
+  }
+  if (typeof fallbackParsed.content === "string" && liResearch) {
+    fallbackParsed.content = (await enforceResearchNumberSources(
+      fallbackParsed.content,
+      (t) => analyzeTextRedac(t, liAllowed, undefined, undefined, liResearch),
+      liResearch,
+      { logger: (m) => console.log(m), abortTimeoutMs: CORRECTION_ABORT_MS },
+    )).content;
   }
   // Filet déterministe même si la passe de correction a échoué : le texte
   // brut renvoyé peut encore porter des élisions non faites.

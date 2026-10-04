@@ -10,7 +10,7 @@ import { carouselEditorialFields } from "./carousel-editorial-review.ts";
 // re-passe LLM ciblée sur les phrases fautives (jamais plus d'une), et re-mesurer.
 // Le quality_check émis au front est celui calculé ici (source: "code").
 
-import { applyCorrectionPass, applyCorrectionPassCarousel, type CorrectionFormat, type CorrectionOptions } from "./correction-pass.ts";
+import { applyCorrectionPass, applyCorrectionPassCarousel, applyResearchSourcingPass, type CorrectionFormat, type CorrectionOptions } from "./correction-pass.ts";
 
 // ── Détection de la famille « retournement par négation » ──
 // Mêmes variantes que la règle ANTI_SLOP : "Ce n'est pas X, c'est Y" /
@@ -189,6 +189,44 @@ export function findUnsourcedResearchNumbers(text: string, research?: ResearchNu
 
 const UNSOURCED_RESEARCH_FIX = (items: string[]) =>
   `CHIFFRES DE LA RECHERCHE REPRIS SANS LEUR SOURCE : ces chiffres ne viennent que de la matière de recherche, et la phrase qui les reprend ne cite pas leur source :\n${items.map((n) => `- ${n}`).join("\n")}\nPour CHACUN : si la matière de recherche donne la source de ce chiffre, ajoute-la DANS LA MÊME PHRASE, de façon discrète (« (Nom, année) » ou « selon Nom ») ; sinon, remplace le chiffre par une formulation qualitative honnête (« une petite partie de ton réseau », « les premiers jours »). N'invente JAMAIS de source, de nom ou d'année. Ne touche pas au reste du texte.`;
+
+/** Noms propres et années ajoutés par une correction : ils doivent venir de la recherche. */
+function inventedSourceTokens(before: string, after: string, researchText: string): string[] {
+  const tokens = (t: string) => new Set((t.match(/\p{Lu}[\p{L}\d'’-]+|(?<!\d)(?:19|20)\d{2}(?!\d)/gu) || []));
+  const had = tokens(before);
+  const research = researchText.toLowerCase();
+  return [...tokens(after)].filter((tok) => !had.has(tok) && !research.includes(tok.toLowerCase()));
+}
+
+/**
+ * Filet dédié (04/10/2026) : s'il reste des chiffres de recherche sans source
+ * après la relecture, UNE passe courte qui ne fait que ça (source recopiée de
+ * la recherche ou formulation qualitative). Gardée seulement si le code
+ * mesure moins de chiffres non sourcés, aucun autre compteur dégradé et aucun
+ * nom ni année absents de la recherche (pas de source inventée).
+ */
+export async function enforceResearchNumberSources(
+  text: string,
+  analyze: (t: string) => TextRedacAnalysis,
+  research: ResearchNumbers | undefined,
+  opts: { logger?: (msg: string) => void; abortTimeoutMs?: number; before?: TextRedacAnalysis },
+): Promise<{ content: string; analysis: TextRedacAnalysis; applied: boolean }> {
+  const before = opts.before ?? analyze(text);
+  const items = before.unsourcedResearchNumbers ?? [];
+  if (!research || !items.length) return { content: text, analysis: before, applied: false };
+  const candidate = await applyResearchSourcingPass(text, {
+    items, researchText: research.text, logger: opts.logger, abortTimeoutMs: opts.abortTimeoutMs,
+  });
+  if (!candidate || candidate === text) return { content: text, analysis: before, applied: false };
+  const after = analyze(candidate);
+  const unsourced = (a: TextRedacAnalysis) => a.unsourcedResearchNumbers?.length ?? 0;
+  const others = (a: TextRedacAnalysis) => textRedacRawCount(a) - unsourced(a);
+  const invented = inventedSourceTokens(text, candidate, research.text);
+  const kept = unsourced(after) < unsourced(before) && others(after) <= others(before) &&
+    after.fabricatedNumbers.length <= before.fabricatedNumbers.length && !invented.length;
+  opts.logger?.(`[research-sourcing] chiffres de recherche sans source ${unsourced(before)}→${unsourced(after)}, autres ${others(before)}→${others(after)}${invented.length ? `, source absente de la recherche ${JSON.stringify(invented)}` : ""}, gardé=${kept}`);
+  return kept ? { content: candidate, analysis: after, applied: true } : { content: text, analysis: before, applied: false };
+}
 
 // ── Cohérence des durées slides ↔ caption (bilan hebdo 17/08/2026) ──
 // Trou trouvé au juge /5 : un carrousel « avant/après » notait « Trois semaines
@@ -1293,6 +1331,17 @@ export async function runTextRedacGate(
       // retiré) : on s'arrête sur la meilleure version connue.
       reverted = true;
       break;
+    }
+  }
+
+  if (bestA.unsourcedResearchNumbers?.length) {
+    const sourced = await enforceResearchNumberSources(best, analyze, opts.research, {
+      logger: opts.correction.logger, abortTimeoutMs: opts.correction.abortTimeoutMs, before: bestA,
+    });
+    if (sourced.applied) {
+      best = sourced.content;
+      bestA = sourced.analysis;
+      repassed = true;
     }
   }
 
