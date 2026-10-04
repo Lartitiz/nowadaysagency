@@ -81,6 +81,7 @@ import {
   setLayerHidden,
   type RemovedLayer,
   addShapeElement,
+  addPhotoFrame,
   addTextElement,
   duplicateElement,
   setShapeFill,
@@ -412,6 +413,7 @@ function SlideCanvas({
           underline?: boolean;
           editorial?: boolean;
           glass?: boolean;
+          emptyFrame?: boolean;
           locked?: boolean;
           /** L'élément verrouillé (lui-même ou son groupe), à déverrouiller. */
           lockedId?: string;
@@ -464,6 +466,8 @@ function SlideCanvas({
   const [dropping, setDropping] = useState<false | ElementRect | null>(false);
   // Problèmes repérés sur la slide (texte coupé, trop petit, contraste) et recadrage en cours.
   const [issues, setIssues] = useState<(QualityIssue & { rect: ElementRect })[]>([]);
+  // Cadres photo encore vides : invitation dessinée au-dessus de l'aperçu.
+  const [emptyFrames, setEmptyFrames] = useState<(ElementRect & { id: string })[]>([]);
   const [cropId, setCropId] = useState<string | null>(null);
   const cropRef = useRef<string | null>(null);
   const zoomRef = useRef<(el: HTMLElement, zoom: number) => Promise<Record<string, string> | null>>(async () => null);
@@ -527,6 +531,7 @@ function SlideCanvas({
               align: cs.textAlign,
               editorial: el.hasAttribute("data-photo-editorial-text"),
               glass: el.hasAttribute("data-photo-glass"),
+              emptyFrame: el.hasAttribute("data-editor-photo-empty"),
               locked: isLockedEl(el),
               lockedId: el.closest<HTMLElement>("[data-editor-locked]")?.dataset.editorId,
             }
@@ -969,11 +974,12 @@ function SlideCanvas({
     };
     // Photo glissée depuis l'ordinateur : elle remplace la photo visée (ou la photo de la slide).
     const hasFile = (e: DragEvent) => Array.from(e.dataTransfer?.types || []).includes("Files");
-    // Cadre photo visé : celui sous le pointeur, sinon la photo de la slide (comme replacePhoto).
+    // Cadre photo visé : celui sous le pointeur, sinon un cadre vide, sinon la photo de la slide.
     const dropTarget = (e: DragEvent) =>
       (doc.elementsFromPoint?.(e.clientX, e.clientY) || [])
         .map((n) => n.closest<HTMLElement>("[data-editor-id]"))
         .find((n): n is HTMLElement => !!n && isPhotoEl(n)) ||
+      doc.querySelector<HTMLElement>("[data-editor-photo-empty][data-editor-id]") ||
       Array.from(doc.body.querySelectorAll<HTMLElement>("img,[data-pptx-photo],[data-editor-photo]")).find(
         (n) => !n.parentElement?.closest("[data-pptx-photo],[data-editor-photo]"),
       ) ||
@@ -1036,7 +1042,10 @@ function SlideCanvas({
         return;
       }
       const el = e.altKey || isPhotoEl(inner) ? inner : frameOf(inner);
-      const photo = isPhotoEl(el);
+      // Glisser une photo plein écran (ou en recadrage) déplace l'image dans son
+      // cadre ; une photo encadrée (ou un cadre vide) se déplace entière, comme
+      // dans Canva : double-clic ou « Recadrer » pour bouger l'image dedans.
+      const photo = isPhotoEl(el) && (isFullBleed(el) || cropRef.current === el.dataset.editorId);
       const pos = (
         el.style.objectPosition ||
         el.style.backgroundPosition ||
@@ -1198,6 +1207,14 @@ function SlideCanvas({
     // n'annonce jamais un débordement que la QA ignorerait, ni l'inverse.
     const check = () => {
       setOverflow(hasClippedElement(doc));
+      setEmptyFrames(
+        Array.from(doc.querySelectorAll<HTMLElement>("[data-editor-photo-empty][data-editor-id]"))
+          .map((el) => {
+            const r = el.getBoundingClientRect();
+            return { id: el.dataset.editorId!, left: r.left, top: r.top, width: r.width, height: r.height };
+          })
+          .filter((r) => r.width > 0 && r.height > 0),
+      );
       try {
         setIssues(
           inspectSlide(doc, 0)
@@ -1398,11 +1415,11 @@ function SlideCanvas({
           </button>
         )}
         {box.kind === "photo" && !box.locked && cropId !== selected && onReplacePhoto && (
-          <button type="button" className={toolButton} onClick={onReplacePhoto} title="Mettre une autre photo dans ce cadre (ou glisse une photo dessus)">
-            <ImagePlus size={14} className="mr-1" /> Remplacer
+          <button type="button" className={toolButton} onClick={onReplacePhoto} title={box.emptyFrame ? "Mettre une photo dans ce cadre (ou glisse une photo dessus)" : "Mettre une autre photo dans ce cadre (ou glisse une photo dessus)"}>
+            <ImagePlus size={14} className="mr-1" /> {box.emptyFrame ? "Ajouter une photo" : "Remplacer"}
           </button>
         )}
-        {box.kind === "photo" && !box.locked && cropId !== selected && (
+        {box.kind === "photo" && !box.locked && !box.emptyFrame && cropId !== selected && (
           <button type="button" className={toolButton} onClick={() => setCropId(selected)} title="Recadrer (double-clic sur la photo)">
             Recadrer
           </button>
@@ -1531,7 +1548,7 @@ function SlideCanvas({
             className="pointer-events-none absolute z-20 flex items-center justify-center rounded-sm border-2 border-dashed border-primary bg-primary/20 p-2 text-center text-sm font-semibold text-primary"
             style={dropping ? { left: dropping.left * scale, top: dropping.top * scale, width: dropping.width * scale, height: dropping.height * scale } : { inset: 0 }}
           >
-            <span className="rounded-md bg-background/90 px-2 py-1 shadow">{dropping ? "Dépose pour remplacer cette photo" : "Dépose la photo ici"}</span>
+            <span className="rounded-md bg-background/90 px-2 py-1 shadow">{dropping ? "Dépose la photo dans ce cadre" : "Dépose la photo ici"}</span>
           </div>
         )}
         {width > 0 && (
@@ -1560,6 +1577,22 @@ function SlideCanvas({
         {guides.y !== null && (
           <div aria-hidden="true" data-testid="guide-y" style={{ position: "absolute", left: 0, right: 0, top: guides.y * scale, height: 0, borderTop: "1px dashed #FB3D80", pointerEvents: "none" }} />
         )}
+        {emptyFrames.map((f) => (
+          <div
+            key={f.id}
+            aria-hidden="true"
+            data-testid="empty-photo-frame"
+            className="pointer-events-none absolute z-[5] flex flex-col items-center justify-center gap-1 rounded-[inherit] border-2 border-dashed border-muted-foreground/40 p-1 text-center text-2xs font-medium text-muted-foreground"
+            style={{ left: f.left * scale, top: f.top * scale, width: f.width * scale, height: f.height * scale }}
+          >
+            {f.width * scale > 60 && f.height * scale > 40 && (
+              <>
+                <ImagePlus size={18} />
+                {f.width * scale > 110 && <span>Glisse une photo ici</span>}
+              </>
+            )}
+          </div>
+        ))}
         {/* Problèmes repérés sur la slide : une pastille par élément, un clic pour le choisir. */}
         {issues.map((issue, k) => (
           <button
@@ -2694,8 +2727,8 @@ export default function CarouselEditor({
           />
           <p className="mt-2 hidden items-center justify-center gap-1 text-xs text-muted-foreground md:flex">
             Slide {active + 1} / {document.slides.length} · Double-clic : écrire · Glisser : déplacer · Glisser dans le vide : choisir plusieurs
-            <Info size={13} role="img" aria-label="Double-clique un texte pour l’écrire sur la slide. Glisse un bloc pour le déplacer (il s’aligne sur les repères roses ; ⌘/Ctrl pour placer librement), une photo pour la recadrer, les poignées pour l’agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, trace un cadre qui choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre.">
-              <title>Double-clique un texte pour l’écrire sur la slide. Glisse un bloc pour le déplacer (il s’aligne sur les repères roses ; ⌘/Ctrl pour placer librement), une photo pour la recadrer, les poignées pour l’agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, trace un cadre qui choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre.</title>
+            <Info size={13} role="img" aria-label="Double-clique un texte pour l’écrire sur la slide. Glisse un bloc pour le déplacer (il s’aligne sur les repères roses ; ⌘/Ctrl pour placer librement), une photo plein écran pour la recadrer (double-clic pour recadrer une photo encadrée), les poignées pour l’agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, trace un cadre qui choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre.">
+              <title>Double-clique un texte pour l’écrire sur la slide. Glisse un bloc pour le déplacer (il s’aligne sur les repères roses ; ⌘/Ctrl pour placer librement), une photo plein écran pour la recadrer (double-clic pour recadrer une photo encadrée), les poignées pour l’agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, trace un cadre qui choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre.</title>
             </Info>
           </p>
           <p className="mt-1 text-center text-2xs text-muted-foreground md:hidden">
@@ -3422,6 +3455,20 @@ export default function CarouselEditor({
                 }}
               >
                 Ajouter une forme
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="col-span-2"
+                onClick={() => {
+                  const out = addPhotoFrame(slide);
+                  if (!out.id) return;
+                  changeSlide(out.slide);
+                  selectOne(out.id);
+                }}
+              >
+                <ImagePlus size={14} className="mr-1" />
+                Ajouter un cadre photo
               </Button>
             </div>
             <label className="block text-xs">
