@@ -77,20 +77,26 @@ export interface IdeaPreview {
 
 /**
  * Aperçus des cartes de « Mes idées », calculés par la base (fonction
- * `saved_idea_previews`). Un échec n'empêche pas la liste : on renvoie ce
- * qu'on a pu lire, les cartes concernées s'affichent sans extrait.
+ * `saved_idea_previews`). Un échec n'empêche pas la liste : les cartes
+ * concernées s'affichent sans extrait.
+ *
+ * Lots de 5, l'un après l'autre : la base relit le contenu de chaque idée
+ * (jusqu'à ~8 Mo l'une, ~11 Mo/s en ligne). Cinq lots de 10 en parallèle se
+ * partageaient le disque et dépassaient tous la limite de 8 s (HTTP 500).
+ * Chaque lot est rendu dès qu'il arrive ; on s'arrête si la page a changé.
  */
-export async function readIdeaPreviews(ids: string[]): Promise<Map<string, IdeaPreview>> {
-  const previews = new Map<string, IdeaPreview>();
-  const chunks: string[][] = [];
-  // Par 10 : la base relit le contenu de chaque idée (jusqu'à ~8 Mo l'une).
-  for (let i = 0; i < ids.length; i += 10) chunks.push(ids.slice(i, i + 10));
-  await Promise.all(chunks.map(async chunk => {
+export async function readIdeaPreviews(
+  ids: string[],
+  onBatch: (previews: Map<string, IdeaPreview>) => void,
+  isCurrent: () => boolean = () => true,
+): Promise<void> {
+  for (let i = 0; i < ids.length && isCurrent(); i += 5) {
     try {
-      const { data, error } = await supabase.rpc('saved_idea_previews' as any, { p_ids: chunk });
-      if (error) return;
+      const { data, error } = await supabase.rpc('saved_idea_previews' as any, { p_ids: ids.slice(i, i + 5) });
+      if (error || !isCurrent()) continue;
+      const previews = new Map<string, IdeaPreview>();
       for (const row of (data as any[]) || []) previews.set(row.id, { preview_data: row.preview ?? null, draft_head: row.draft_head ?? null });
+      if (previews.size) onBatch(previews);
     } catch { /* aperçu facultatif */ }
-  }));
-  return previews;
+  }
 }

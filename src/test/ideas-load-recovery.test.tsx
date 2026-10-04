@@ -186,3 +186,19 @@ it('opening an idea reads its full content once, by id', async () => {
   expect(state.full.mock.calls[0][0]).toContainEqual(['eq', 'id', 'idea']);
   expect(await screen.findByRole('dialog')).toBeVisible();
 });
+
+it('previews are read 5 ideas at a time, one batch after another, and shown as they arrive', async () => {
+  const many = Array.from({ length: 12 }, (_, n) => ({ ...idea, id: `i${n}`, titre: `Idée ${n}` }));
+  state.read.mockImplementation((table: string) => ({ data: table === 'saved_ideas' ? many : [], error: null }));
+  let inFlight = 0, maxInFlight = 0;
+  state.rpc.mockImplementation(async (_: string, { p_ids }: { p_ids: string[] }) => {
+    inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
+    await new Promise(r => setTimeout(r, 5));
+    inFlight--;
+    return { data: p_ids.map(id => ({ id, preview: { body: `Extrait ${id}` }, draft_head: null })), error: null };
+  });
+  render(page());
+  expect(await screen.findByText('Extrait i11')).toBeVisible();
+  expect(state.rpc.mock.calls.map(([, args]) => args.p_ids.length)).toEqual([5, 5, 2]);
+  expect(maxInFlight).toBe(1);
+});
