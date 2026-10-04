@@ -48,8 +48,13 @@ export async function captureServeHandler(modulePath: string): Promise<Handler> 
 }
 
 export interface FetchMockConfig {
-  /** Simule la réponse de l'API Anthropic (POST https://api.anthropic.com/v1/messages). */
-  anthropic: () => { status: number; body: unknown } | Promise<{ status: number; body: unknown }>;
+  /**
+   * Simule la réponse de l'API Anthropic (POST https://api.anthropic.com/v1/messages).
+   * Reçoit le corps JSON de la requête (pour répondre selon l'outil demandé,
+   * ou vérifier ce que l'edge a envoyé au modèle).
+   */
+  // deno-lint-ignore no-explicit-any
+  anthropic: (requestBody?: any) => { status: number; body: unknown } | Promise<{ status: number; body: unknown }>;
 }
 
 export interface FetchMockHandle {
@@ -57,6 +62,9 @@ export interface FetchMockHandle {
   aiUsageInserts: Record<string, unknown>[];
   /** Nombre d'appels faits à l'API Anthropic. */
   anthropicCallCount: number;
+  /** Corps JSON de chaque requête envoyée à l'API Anthropic, dans l'ordre. */
+  // deno-lint-ignore no-explicit-any
+  anthropicRequests: any[];
   restore(): void;
 }
 
@@ -78,6 +86,8 @@ export function installFetchMock(config: FetchMockConfig): FetchMockHandle {
   const originalFetch = globalThis.fetch;
   const aiUsageInserts: Record<string, unknown>[] = [];
   let anthropicCallCount = 0;
+  // deno-lint-ignore no-explicit-any
+  const anthropicRequests: any[] = [];
 
   // deno-lint-ignore no-explicit-any
   globalThis.fetch = (async (input: any, init?: any) => {
@@ -85,7 +95,14 @@ export function installFetchMock(config: FetchMockConfig): FetchMockHandle {
 
     if (url.startsWith("https://api.anthropic.com/v1/messages")) {
       anthropicCallCount++;
-      const { status, body } = await config.anthropic();
+      let requestBody: unknown = null;
+      try {
+        requestBody = init?.body ? JSON.parse(init.body as string) : null;
+      } catch {
+        requestBody = null;
+      }
+      anthropicRequests.push(requestBody);
+      const { status, body } = await config.anthropic(requestBody);
       return new Response(JSON.stringify(body), {
         status,
         headers: { "Content-Type": "application/json" },
@@ -137,6 +154,7 @@ export function installFetchMock(config: FetchMockConfig): FetchMockHandle {
 
   return {
     aiUsageInserts,
+    anthropicRequests,
     get anthropicCallCount() {
       return anthropicCallCount;
     },

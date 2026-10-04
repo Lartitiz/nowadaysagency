@@ -365,7 +365,9 @@ export function useDoGenerate({
         pinType: chosenProposal?.pin_type || editorialAngle || "infographie",
         referenceImageBase64: inspirationImageBase64,
         alwaysSendReferenceImage: false,
-        timeoutMs: 120000,
+        // Deux appels IA côté serveur (rédaction puis mise en forme), bornés à
+        // 135 s (PIN_REQUEST_BUDGET_MS) : on attend jusqu'à 150 s (limite edge).
+        timeoutMs: 150000,
         errorFallbackMessage: "Erreur lors de la génération du visuel Pinterest",
         pinterestData,
         workspaceId,
@@ -387,7 +389,7 @@ export function useDoGenerate({
         briefHint: chosenProposal?.brief || "",
         referenceImageBase64: inspirationImageBase64,
         alwaysSendReferenceImage: false,
-        timeoutMs: 120000,
+        timeoutMs: 150000, // deux appels IA côté serveur, bornés à 135 s
         pinterestData,
         workspaceId,
         session,
