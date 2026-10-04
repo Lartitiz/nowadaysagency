@@ -1481,6 +1481,25 @@ export const PRESETS: { kind: PresetKind; label: string }[] = [
   { kind: "cadre", label: "Cadre" },
 ];
 /**
+ * Formes d'un cadre photo, toutes en border-radius (rendu identique dans
+ * l'aperçu et à l'export html2canvas, contrairement à clip-path). Les grands
+ * rayons sont réduits par le navigateur : 9999px donne un demi-cercle exact.
+ */
+export const PHOTO_SHAPES = [
+  { key: "carre", label: "Carré", radius: "0px" },
+  { key: "arrondi", label: "Arrondi", radius: "24px" },
+  { key: "rond", label: "Rond", radius: "50%" },
+  { key: "arche", label: "Arche", radius: "9999px 9999px 0px 0px" },
+  { key: "feuille", label: "Feuille", radius: "9999px 0px" },
+] as const;
+export type PhotoShapeKey = (typeof PHOTO_SHAPES)[number]["key"];
+/** Forme reconnue d'après le border-radius d'un cadre (null : arrondi sur mesure). */
+export function photoShapeOf(radius: string | undefined): PhotoShapeKey | null {
+  const r = (radius || "").trim().replace(/\b0(?!\.|px|%)\b/g, "0px");
+  if (!r || r === "0px") return "carre";
+  return PHOTO_SHAPES.find((s) => s.radius === r)?.key || null;
+}
+/**
  * Cadre photo vide, au centre de la slide : on le place et le dimensionne,
  * puis on y glisse une photo (ou « Ajouter une photo »). Teinte légère tant
  * qu'il est vide ; l'invitation « Glisse une photo ici » n'existe que dans

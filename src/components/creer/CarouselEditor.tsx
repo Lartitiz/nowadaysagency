@@ -82,6 +82,8 @@ import {
   type RemovedLayer,
   addShapeElement,
   addPhotoFrame,
+  PHOTO_SHAPES,
+  photoShapeOf,
   addTextElement,
   duplicateElement,
   setShapeFill,
@@ -334,6 +336,36 @@ function SlideThumb({ html }: { html: string }) {
   );
 }
 
+/** Une photo plein écran n'a pas de cadre à mettre en forme. */
+const isFullBleedBox = (b: { width: number; height: number }) => b.width >= 1075 && b.height >= 1345;
+/** Choix de la forme d'un cadre photo : un aperçu par forme. */
+function PhotoShapePicker({ current, onPick }: { current: string | null; onPick: (radius: string) => void }) {
+  // Le choix s'affiche tout de suite, sans attendre la nouvelle mesure du cadre.
+  const [picked, setPicked] = useState(current);
+  useEffect(() => setPicked(current), [current]);
+  return (
+    <div className="flex gap-1" role="group" aria-label="Forme du cadre photo">
+      {PHOTO_SHAPES.map((shape) => (
+        <button
+          key={shape.key}
+          type="button"
+          aria-pressed={picked === shape.key}
+          aria-label={`Forme ${shape.label}`}
+          title={shape.label}
+          onClick={() => {
+            setPicked(shape.key);
+            onPick(shape.radius);
+          }}
+          className="flex w-14 flex-col items-center gap-1 rounded-md p-1 text-2xs hover:bg-muted aria-pressed:bg-primary/15 aria-pressed:font-semibold"
+        >
+          <span className="block h-10 w-8 bg-primary/60" style={{ borderRadius: shape.radius }} />
+          {shape.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function SlideCanvas({
   slide,
   selected,
@@ -414,6 +446,7 @@ function SlideCanvas({
           editorial?: boolean;
           glass?: boolean;
           emptyFrame?: boolean;
+          radius?: string;
           locked?: boolean;
           /** L'élément verrouillé (lui-même ou son groupe), à déverrouiller. */
           lockedId?: string;
@@ -467,7 +500,7 @@ function SlideCanvas({
   // Problèmes repérés sur la slide (texte coupé, trop petit, contraste) et recadrage en cours.
   const [issues, setIssues] = useState<(QualityIssue & { rect: ElementRect })[]>([]);
   // Cadres photo encore vides : invitation dessinée au-dessus de l'aperçu.
-  const [emptyFrames, setEmptyFrames] = useState<(ElementRect & { id: string })[]>([]);
+  const [emptyFrames, setEmptyFrames] = useState<(ElementRect & { id: string; radius: string })[]>([]);
   const [cropId, setCropId] = useState<string | null>(null);
   const cropRef = useRef<string | null>(null);
   const zoomRef = useRef<(el: HTMLElement, zoom: number) => Promise<Record<string, string> | null>>(async () => null);
@@ -532,6 +565,7 @@ function SlideCanvas({
               editorial: el.hasAttribute("data-photo-editorial-text"),
               glass: el.hasAttribute("data-photo-glass"),
               emptyFrame: el.hasAttribute("data-editor-photo-empty"),
+              radius: el.style.borderRadius,
               locked: isLockedEl(el),
               lockedId: el.closest<HTMLElement>("[data-editor-locked]")?.dataset.editorId,
             }
@@ -1211,7 +1245,7 @@ function SlideCanvas({
         Array.from(doc.querySelectorAll<HTMLElement>("[data-editor-photo-empty][data-editor-id]"))
           .map((el) => {
             const r = el.getBoundingClientRect();
-            return { id: el.dataset.editorId!, left: r.left, top: r.top, width: r.width, height: r.height };
+            return { id: el.dataset.editorId!, left: r.left, top: r.top, width: r.width, height: r.height, radius: el.style.borderRadius };
           })
           .filter((r) => r.width > 0 && r.height > 0),
       );
@@ -1419,6 +1453,21 @@ function SlideCanvas({
             <ImagePlus size={14} className="mr-1" /> {box.emptyFrame ? "Ajouter une photo" : "Remplacer"}
           </button>
         )}
+        {box.kind === "photo" && !box.locked && cropId !== selected && !isFullBleedBox(box) && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button type="button" className={toolButton} title="Forme du cadre : carré, arrondi, rond, arche…">
+                Forme
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-auto p-2">
+              <PhotoShapePicker
+                current={photoShapeOf(box.radius)}
+                onPick={(radius) => latest.current.onMove(selected, { "border-radius": radius, overflow: "hidden" })}
+              />
+            </PopoverContent>
+          </Popover>
+        )}
         {box.kind === "photo" && !box.locked && !box.emptyFrame && cropId !== selected && (
           <button type="button" className={toolButton} onClick={() => setCropId(selected)} title="Recadrer (double-clic sur la photo)">
             Recadrer
@@ -1582,8 +1631,15 @@ function SlideCanvas({
             key={f.id}
             aria-hidden="true"
             data-testid="empty-photo-frame"
-            className="pointer-events-none absolute z-[5] flex flex-col items-center justify-center gap-1 rounded-[inherit] border-2 border-dashed border-muted-foreground/40 p-1 text-center text-2xs font-medium text-muted-foreground"
-            style={{ left: f.left * scale, top: f.top * scale, width: f.width * scale, height: f.height * scale }}
+            className="pointer-events-none absolute z-[5] flex flex-col items-center justify-center gap-1 border-2 border-dashed border-muted-foreground/40 p-1 text-center text-2xs font-medium text-muted-foreground"
+            style={{
+              left: f.left * scale,
+              top: f.top * scale,
+              width: f.width * scale,
+              height: f.height * scale,
+              // Même forme que le cadre (rayons en px de la slide → px de l'aperçu).
+              borderRadius: f.radius.replace(/([\d.]+)px/g, (_, n) => `${parseFloat(n) * scale}px`),
+            }}
           >
             {f.width * scale > 60 && f.height * scale > 40 && (
               <>
@@ -3266,7 +3322,10 @@ export default function CarouselEditor({
                     {range("Hauteur du cadre", parseFloat(css.height) || Math.round(measured.height), 60, 1350, (n) => style({ height: `${n}px` }))}
                   </>
                 )}
-                {range("Arrondi des coins", parseFloat(css["border-radius"] || css["border-top-left-radius"]) || 0, 0, 200, (n) => style({ "border-radius": `${n}px`, overflow: "hidden" }))}
+                {measured && (measured.width < 1075 || measured.height < 1345) && (
+                  <PhotoShapePicker current={photoShapeOf(css["border-radius"])} onPick={(radius) => style({ "border-radius": radius, overflow: "hidden" })} />
+                )}
+                {range("Arrondi des coins", Math.min(200, parseFloat(css["border-radius"] || css["border-top-left-radius"]) || 0), 0, 200, (n) => style({ "border-radius": `${n}px`, overflow: "hidden" }))}
                 </PanelSection>
                 <PanelSection title="Retouche de la photo">
                 {range("Luminosité", filterValue("brightness", 1), 0.5, 1.5, (n) => setFilter({ brightness: n }), 0.05)}
