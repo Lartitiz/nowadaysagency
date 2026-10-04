@@ -13,7 +13,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, forcesDisabledThinking, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, streamAnthropicToolSSE, createClientSSEStream, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
-import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "../_shared/format-briefs.ts";
+import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.ts";
+import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief, positionDepthBlock } from "../_shared/format-briefs.ts";
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
@@ -862,6 +863,10 @@ export async function buildGeneratePrompt(params: {
   } else {
     depthMandate = captionBrief(effectiveObjective ?? null);
   }
+  // Posts (hors légende photo), reels et stories défendent une position (#1292 pour le carrousel).
+  const positionFormat = isReel ? "reel" : isStories ? "stories"
+    : (!isCarousel && !isLinkedIn && !isPinterest && !isNewsletter && !isPhotoMode) ? "caption" : null;
+  if (positionFormat) depthMandate += `\n\n${positionDepthBlock(positionFormat, !!newsContextBlock)}`;
 
   let systemPrompt = `${COMMON_PREFIX}
 
@@ -1705,6 +1710,30 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
  * Renvoie le texte à ajouter au systemPrompt, "" si rien à ajouter (échec ou
  * réponse vide).
  */
+/** Dépendances remplaçables en test (même patron que carousel-ai). */
+export const _deps = { fetchDepthMaterial };
+
+/**
+ * Recherche « creuser le sujet » pour posts, reels et stories (04/10/2026, même
+ * logique que le carrousel depuis #1292) : mécanisme réel, lecture sociale et faits
+ * sourcés qui étayent une position. L'actu ne donne que le déclencheur, les réponses
+ * le vécu. Condiment : échec silencieux, borné à 20 s (budget reel 90 s + 45 s).
+ */
+export async function creativeDepthBlock(params: { context?: string | null; newsContext?: string | null; activity?: string }): Promise<string> {
+  const subject = typeof params.context === "string" ? params.context.trim() : "";
+  if (!subject) return "";
+  const newsAngle = typeof params.newsContext === "string" ? params.newsContext.trim().slice(0, 600) : "";
+  const material = await _deps.fetchDepthMaterial({
+    subject: [subject.slice(0, 1500), newsAngle].filter(Boolean).join("\n"),
+    activity: params.activity,
+    model: getModelForAction("content"),
+    apiKey: Deno.env.get("ANTHROPIC_API_KEY") || "",
+    logger: (m) => console.log(`[creative-flow] ${m}`),
+    timeoutMs: 20_000,
+  });
+  return buildDepthBlock(material);
+}
+
 export async function runDeepResearchWebSearch(params: {
   userId: string;
   workspaceId?: string;
@@ -2855,6 +2884,9 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 
 
     // ── Deep Research (web search via Anthropic) ──
+    // Texte de recherche ajouté au prompt : il rejoint aussi la source des relectures,
+    // sinon ses chiffres sourcés passent pour « inventés » et sont retirés.
+    let researchSource = "";
     if (deepResearch && step === "generate") {
       // Check deep_research quota
       const drQuota = await checkQuota(userId, "deep_research", workspace_id);
@@ -2862,7 +2894,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
         return quotaDeniedResponse(drQuota, corsHeaders);
       }
 
-      systemPrompt += await runDeepResearchWebSearch({
+      researchSource = await runDeepResearchWebSearch({
         userId,
         workspaceId: workspace_id,
         calendarContext,
@@ -2874,7 +2906,18 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
         editorialFormatLabel,
         angle,
       });
+      systemPrompt += researchSource;
     }
+
+    // Recherche « creuser le sujet » pour posts, reels et stories (hors légende photo).
+    if (step === "generate" && !deepResearch && !isPhotoMode && (isCaption || isReel || isStories)) {
+      const depthBlock = await creativeDepthBlock({ context, newsContext, activity });
+      if (depthBlock) {
+        systemPrompt += depthBlock;
+        researchSource = depthBlock;
+      }
+    }
+    const gateContext = researchSource ? `${fullContext}\n${researchSource}` : fullContext;
 
     // Accroches déjà écrites par cette utilisatrice sur CE sujet — garde
     // déterministe anti-redite (bilan hebdo 24/08 : trois reels d'un même sujet
@@ -2916,14 +2959,14 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       }
 
       if (isNewsletter) {
-        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext, brandGuardText, previousHooks }, emitStatus));
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext: gateContext, brandGuardText, previousHooks }, emitStatus));
       }
 
       if (isCarousel) {
         return retiredCarouselStreamResponse(corsHeaders);
       }
 
-      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, brandGuardText, echoSubject, previousHooks });
+      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
     }
 
     // ── Call Anthropic ──
@@ -3024,30 +3067,30 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       typeof parsed.content === "string" &&
       parsed.content.length >= 200
     ) {
-      await applyLinkedInCorrectionPass(parsed, { body, fullContext, brandGuardText, echoSubject, previousHooks });
+      await applyLinkedInCorrectionPass(parsed, { body, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
     }
 
     if (isNewsletter && step === "generate" && parsed && typeof parsed === "object") {
-      await applyNewsletterCorrectionPass(parsed, { body, fullContext, context, newsContext, brandGuardText, previousHooks });
+      await applyNewsletterCorrectionPass(parsed, { body, fullContext: gateContext, context, newsContext, brandGuardText, previousHooks });
       Object.assign(parsed, stripMarkdownFromNewsletter(parsed));
       if (typeof parsed.content === "string") parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
     }
 
     // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
     if (isReel && step === "generate" && parsed && typeof parsed === "object" && Array.isArray(parsed.script)) {
-      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext, brandGuardText, echoSubject, previousHooks });
+      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
     }
 
     // ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══
     let storiesGate: StoriesGateResult | null = null;
     if (isStories && step === "generate") {
       applyStoriesPhotoGuardAndResolution(parsed, { storiesPhotoCatalog });
-      storiesGate = await applyStoriesCorrectionPass(parsed, { body, fullContext, brandGuardText, echoSubject, previousHooks });
+      storiesGate = await applyStoriesCorrectionPass(parsed, { body, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
     }
 
     // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
     if (step === "generate") {
-      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate });
+      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext: gateContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate });
     }
 
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.
