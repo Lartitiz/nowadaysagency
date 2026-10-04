@@ -39,6 +39,12 @@ import { mixSchemaBlock } from "./mix-schema-render.ts";
 // l'étage séparé de l'écriture (photo-formatting.ts), est dessiné en tête de la
 // colonne de texte. Le motif exige une colonne d'au moins MOTIF_MIN_W de large
 // (jamais sur la photo, jamais dans la colonne étroite du côte-à-côte).
+//
+// DISPOSITION (04/10/2026) : la rédaction ne choisit plus photo_layout ni
+// overlay_position. `mix_layout`, proposé par l'étage séparé
+// mix-layout-formatting.ts, est validé ici (catalogue, texte entier qui tient,
+// règles de série) ; refusé ou absent → le choix déterministe ci-dessous,
+// inchangé. Couverture, respiration, pause et vignette restent au code.
 
 export type MixLayout = "couverture_aplat" | "photo_aplat" | "passe_partout" | "cote_a_cote" | "sur_photo" | "respiration" | "pause" | "vignette";
 
@@ -55,7 +61,17 @@ export interface MixSlideSpec {
   visual_schema?: unknown;
   role?: string | null;
   mix_format?: PhotoFormat | null;
+  /** Disposition proposée par l'étage de mise en page (mix-layout-formatting.ts),
+   * APRÈS l'écriture. Validée ici ; refusée → choix déterministe habituel. */
+  mix_layout?: MixLayoutProposal | null;
 }
+
+/** Familles qu'une proposition peut demander : couverture, respiration, pause
+ * et vignette restent décidées par le code (vignette = dernier recours). */
+export const PROPOSABLE_MIX_LAYOUTS = ["photo_aplat", "passe_partout", "cote_a_cote", "sur_photo"] as const;
+export type ProposableMixLayout = typeof PROPOSABLE_MIX_LAYOUTS[number];
+export interface MixLayoutProposal { layout: ProposableMixLayout; side?: "left" | "right" | null; position?: "top" | "bottom" | null }
+export interface MixLayoutReceipt { slide_number: number; layout: string; status: "accepted" | "rejected"; reason?: string }
 
 export interface MixCharter {
   color_primary?: string;
@@ -76,6 +92,8 @@ export interface ComposedMixSlide {
   layout: MixLayout;
   /** La slide portait un visual_schema qui n'a pas pu être dessiné (texte trop long). */
   schema_dropped?: true;
+  /** Sort de la disposition proposée (télémétrie proposed/accepted/rejected). */
+  layout_proposal?: MixLayoutReceipt;
 }
 
 const W = 1080;
@@ -376,7 +394,7 @@ function preferredPhotoLayouts(s: MixSlideSpec, previous: MixLayout | null, next
 export function composeMixSlide(
   s: MixSlideSpec,
   charter: MixCharter,
-  opts: { isFirst: boolean; isLast: boolean; previous: MixLayout | null; photoCount: number; nextIsPause?: boolean },
+  opts: ComposeOpts,
 ): ComposedMixSlide | null {
   const t = tokens(charter);
   const p = textParts(s);
@@ -408,6 +426,26 @@ export function composeMixSlide(
     const cover = couvertureAplat(p, photoN, t);
     if (cover) return done(cover, "couverture_aplat");
   }
+  // Disposition proposée après l'écriture : acceptée seulement si elle respecte
+  // le catalogue, la slide et les règles de série ; sinon choix habituel.
+  if (s.mix_layout) {
+    const tried = proposedPhotoLayout(s, p, photoN, t, opts);
+    if ("html" in tried) {
+      const accepted = done(tried.html, s.mix_layout.layout);
+      return accepted && { ...accepted, layout_proposal: { slide_number: s.slide_number, layout: s.mix_layout.layout, status: "accepted" } };
+    }
+    const fallback = deterministicPhotoLayout(s, p, photoN, t, opts, done);
+    return fallback && { ...fallback, layout_proposal: { slide_number: s.slide_number, layout: String(s.mix_layout.layout), status: "rejected", reason: tried.reason } };
+  }
+  return deterministicPhotoLayout(s, p, photoN, t, opts, done);
+}
+
+type ComposeOpts = { isFirst: boolean; isLast: boolean; previous: MixLayout | null; photoCount: number; nextIsPause?: boolean };
+type Done = (html: string | null, layout: MixLayout) => ComposedMixSlide | null;
+
+/** Choix déterministe d'une slide photo (algorithme validé le 02/10/2026,
+ * inchangé) : repli exact de toute proposition refusée. */
+function deterministicPhotoLayout(s: MixSlideSpec, p: TextParts, photoN: number, t: Tokens, opts: ComposeOpts, done: Done): ComposedMixSlide | null {
   // Overlay court sur photo plein cadre, sauf si la slide précédente l'était déjà.
   if (s.slide_type === "photo_full" && words(p.body) <= SHORT_ON_PHOTO && !p.title && opts.previous !== "sur_photo" && !p.format?.motif) {
     const html = surPhoto(p, photoN, t, s.overlay_position);
@@ -423,6 +461,53 @@ export function composeMixSlide(
     if (html) return done(html, layout);
   }
   return done(vignette(p, photoN, t), "vignette");
+}
+
+/** Une disposition confirmée (structure validée, ancien carrousel) prime sur
+ * toute proposition. top_photo est la valeur par défaut du front : neutre. */
+const LOCKED_PHOTO_LAYOUT = /left_photo|right_photo|card_photo|banner_photo/;
+/** Position d'overlay confirmée : bottom_center est la valeur par défaut du front. */
+const lockedOverlayPosition = (s: MixSlideSpec) => {
+  const pos = String(s.overlay_position || "");
+  return pos && pos !== "bottom_center" ? pos : null;
+};
+const surPhotoEligible = (s: MixSlideSpec, p: TextParts) => s.slide_type === "photo_full" && words(p.body) <= SHORT_ON_PHOTO && !p.title;
+
+/** Essaie la disposition proposée. Renvoie le HTML, ou la raison du refus. */
+function proposedPhotoLayout(s: MixSlideSpec, p: TextParts, photoN: number, t: Tokens, opts: ComposeOpts): { html: string } | { reason: string } {
+  const prop = s.mix_layout!;
+  const layout = prop.layout;
+  if (!(PROPOSABLE_MIX_LAYOUTS as readonly string[]).includes(layout)) return { reason: "hors catalogue" };
+  if (opts.isFirst) return { reason: "couverture" };
+  if (LOCKED_PHOTO_LAYOUT.test(String(s.photo_layout || ""))) return { reason: "disposition confirmée" };
+  if (layout === opts.previous) return { reason: "même disposition que la slide précédente" };
+  if (layout === "photo_aplat" && (opts.previous === "pause" || opts.nextIsPause)) return { reason: "aplat voisin d'une pause" };
+  if (layout === "cote_a_cote" && p.format?.motif) return { reason: "motif en colonne étroite" };
+  if (layout === "sur_photo" && (!surPhotoEligible(s, p) || p.format?.motif)) return { reason: "texte trop long pour la photo" };
+  const side = prop.side === "right" ? "right" : "left";
+  const position = lockedOverlayPosition(s) || (prop.position === "top" ? "top_left" : "bottom_left");
+  const html = layout === "photo_aplat" ? photoAplat(p, photoN, t)
+    : layout === "passe_partout" ? passePartout(p, photoN, t)
+    : layout === "cote_a_cote" ? coteACote(p, photoN, t, side)
+    : surPhoto(p, photoN, t, position);
+  return html ? { html } : { reason: "texte ne tient pas" };
+}
+
+/** Dispositions du catalogue où le texte ENTIER de cette slide tient avec sa
+ * photo (sonde avec la charte réelle). [] = slide non proposable (couverture,
+ * slide texte, photo seule, disposition confirmée). */
+export function mixLayoutOptions(s: MixSlideSpec, charter: MixCharter, opts: { isFirst: boolean; photoCount: number }): ProposableMixLayout[] {
+  const t = tokens(charter);
+  const p = textParts(s);
+  const photoN = Number(s.photo_index);
+  if (opts.isFirst || s.slide_type === "text_only" || !Number.isInteger(photoN) || photoN < 1 || photoN > Math.max(1, opts.photoCount)) return [];
+  if (!(p.title.trim() || p.body.trim()) || LOCKED_PHOTO_LAYOUT.test(String(s.photo_layout || ""))) return [];
+  const out: ProposableMixLayout[] = [];
+  if (surPhotoEligible(s, p) && surPhoto(p, photoN, t, null)) out.push("sur_photo");
+  if (photoAplat(p, photoN, t)) out.push("photo_aplat");
+  if (passePartout(p, photoN, t)) out.push("passe_partout");
+  if (coteACote(p, photoN, t, "left")) out.push("cote_a_cote");
+  return out;
 }
 
 /** Compose tout le carrousel, ou null si une seule slide exige le rendu modèle

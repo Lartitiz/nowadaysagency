@@ -26,6 +26,7 @@ import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
 import { addSchemasToContent } from "../_shared/schema-formatting.ts";
+import { keepDraftLayoutFields, stripMixWriterLayoutFields } from "../_shared/mix-layout-formatting.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.ts";
@@ -289,14 +290,11 @@ const MIX_CAROUSEL_TOOL = {
             slide_number: { type: "number" },
             slide_type: { type: "string" },
             photo_index: { type: ["number", "null"] },
-            photo_layout: { type: "string" },
             role: { type: "string" },
             title: { type: "string" },
             body: { type: "string" },
             overlay_text: { type: "string" },
-            overlay_style: { type: "string" },
             visual_anchor: { type: "string" },
-            overlay_position: { type: "string", enum: ["top_left", "top_center", "bottom_left", "bottom_center", "center"] },
             photo_directive: { type: "string" },
             photo_query_en: { type: "string" },
             library_photo_index: { type: ["number", "null"] },
@@ -1542,6 +1540,16 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     }, sink);
   }
 
+  // DISPOSITION hors de la rédaction (04/10/2026) : la rédaction du mixte
+  // n'écrit que le texte et la structure (slide_type, photo_index). Ce qu'elle
+  // écrirait quand même en photo_layout / overlay_position / overlay_style est
+  // ignoré ; une réparation garde ceux du brouillon (structure confirmée). La
+  // disposition est choisie au rendu par mix-layout-formatting.ts.
+  {
+    const write = doGenerate, repair = doRepair;
+    doGenerate = (sink: UsageSink) => write(sink).then(stripMixWriterLayoutFields);
+    if (repair) doRepair = (draft, defects, sink, abortTimeoutMs) => repair(draft, defects, sink, abortTimeoutMs).then(out => keepDraftLayoutFields(draft, out));
+  }
   content = await doGenerate(mixUsage);
   // Plancher déterministe de slides (audit carrousel photo 12/07) : le modèle
   // peut renvoyer un carrousel écrasé (1 slide vue en live ~1 run/2 en photo).
