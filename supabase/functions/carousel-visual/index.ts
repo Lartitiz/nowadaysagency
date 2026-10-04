@@ -26,7 +26,7 @@ import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { stripDuplicateStepPrefixHtml } from "../_shared/format-render.ts";
-import { buildCarouselDesignPlan, describeCarouselDesignPlan, composeEditorialSlide, editorialSlideText, formatEditorialSlides } from "../_shared/carousel-design-plan.ts";
+import { buildCarouselDesignPlan, describeCarouselDesignPlan, composeCoverSlide, composeEditorialSlide, editorialSlideText, formatEditorialSlides } from "../_shared/carousel-design-plan.ts";
 
 /**
  * Bloc partagé : templates HTML/CSS des schémas visuels (visual_schema).
@@ -1090,6 +1090,25 @@ export function stripDuplicateStepNumbers(result: any, params: { slides: any[] }
     return next === html ? slide : { ...slide, html: next };
   });
   if (removed > 0) console.log(`carousel-visual: ${removed} numéro(s) d'étape en double retiré(s)`);
+}
+
+/** COUVERTURE des carrousels texte (04/10/2026) : la slide 1 est toujours
+ * composée par le code (accroche + sous-titre centrés sur l'aplat), même quand
+ * le reste est dessiné par l'IA (charte avec texture, moodboard, référence…).
+ * Vu en réel le 04/10 : l'IA ajoutait une illustration décorative au-dessus de
+ * l'accroche et un mot coloré. Texte trop long pour tenir → HTML gardé. */
+export function enforceTextCover(result: any, params: { slides: any[]; ch: any; isText: boolean; bgOverride?: string | null }): void {
+  if (!params.isText || !Array.isArray(result?.slides_html) || !params.slides?.length) return;
+  const nums = params.slides.map((s: any, i: number) => Number(s?.slide_number) || i + 1);
+  const first = Math.min(...nums);
+  const src = params.slides[nums.indexOf(first)];
+  if (!src || src.visual_schema) return;
+  const i = result.slides_html.findIndex((s: any) => Number(s?.slide_number) === first);
+  if (i < 0 || /data-carousel-layout="opening"/.test(String(result.slides_html[i].html || ""))) return;
+  const cover = composeCoverSlide(src, params.ch || {}, first, params.bgOverride);
+  if (!cover) return;
+  result.slides_html[i] = { ...result.slides_html[i], html: cover.html };
+  console.log(JSON.stringify({ event: "carousel_cover_composed", slide: first }));
 }
 
 /** Numéro d'étape lu deux fois (audit du 04/10/2026) : « Étape 2 · Le tour »
@@ -2578,6 +2597,7 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     }
     result.design_plan = designPlan;
     console.log(JSON.stringify({ event: "carousel_design_plan", version: designPlan.version, layouts: designPlan.sequence.map(s => s.layout), composed_slides: editorialSlides.filter(Boolean).length, total_slides: slides.length }));
+    enforceTextCover(result, { slides, ch, isText: !isPhotoCarousel && !isMixCarousel, bgOverride: custom_overrides?.slide_bg_override });
     await applyContrastCorrectionPass(result, { isPhotoCarousel, isMixCarousel, composedByCode, reqBody, systemPromptWithAnnotations, model });
     applySafeZoneGuard(result, { isPhotoCarousel, isMixCarousel, composedByCode, slides });
     stripSlideNumberBadges(result);

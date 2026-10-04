@@ -83,6 +83,38 @@ function lines(text: string, width: number, size: number) {
   }, 0);
 }
 
+/**
+ * Couverture d'un carrousel texte (04/10/2026, maquettes validées par
+ * Laetitia) : l'accroche en très grand et le sous-titre facultatif, centrés sur
+ * l'aplat de charte. Utilisée par la composition par le code ET, pour la slide
+ * 1, à la place du HTML dessiné par l'IA (test réel du 04/10 : l'IA ajoutait une
+ * illustration décorative et un mot coloré sur la couverture). null si le texte
+ * ne tient pas (texte fourni très long).
+ */
+export function composeCoverSlide(slide: Slide, ch: Charter, slideNumber: number, bgOverride?: string | null): { slide_number: number; html: string } | null {
+  const title = String(slide.title || slide.overlay_text || "").trim();
+  const body = String(slide.title || slide.overlay_text ? slide.body || slide.detail || "" : slide.body || "").trim();
+  const hook = title || body, sub = title ? body : "";
+  if (!hook) return null;
+  const bg = color(bgOverride || ch.color_background, "#FFFFFF");
+  const ink = readable(color(ch.color_text, "#1A1A1A"), bg);
+  const heading = readable(color(ch.color_secondary, ink), bg);
+  const titleFont = font(ch.font_title, "Libre Baskerville");
+  const bodyFont = font(ch.font_body, "IBM Plex Sans");
+  const n = hook.split(/\s+/).filter(Boolean).length;
+  let size = n <= 4 ? 120 : n <= 6 ? 112 : n <= 8 ? 104 : n <= 10 ? 96 : 80;
+  while (size > 64 && lines(hook, 920, size) > 5) size -= 4;
+  const hh = Math.ceil(lines(hook, 920, size) * size * 1.12);
+  const sh = sub ? 48 + Math.ceil(lines(sub, 780, 40) * 40 * 1.4) : 0;
+  if (hh + sh > 1050) return null;
+  // Bloc en flux centré (comme la couverture du mixte) : l'estimation des
+  // lignes sert seulement à vérifier que tout tient.
+  const field = title ? "title" : "body";
+  const block = (f: "title" | "body", text: string, px: number, family: string, c: string, lh: number, weight: number, extra: string) => `<${f === "title" ? "h1" : "p"} data-slide-text="${f}" data-pptx-editable="${f}" style="margin:0;font-family:'${family}';font-size:${px}px;font-weight:${weight};line-height:${lh};color:${c};white-space:pre-wrap;overflow-wrap:anywhere;text-align:center;${extra}">${escape(text)}</${f === "title" ? "h1" : "p"}>`;
+  const imports = `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(titleFont)}:wght@400&family=${encodeURIComponent(bodyFont)}:wght@400;500;600&display=swap">`;
+  return { slide_number: slideNumber, html: `${imports}<div data-pptx-shape="background" data-carousel-layout="opening" data-design-version="1" style="width:1080px;height:1350px;position:relative;overflow:hidden;background:${bg};font-family:'${bodyFont}';color:${ink};"><div data-cover="1" style="position:absolute;top:0;left:0;width:1080px;height:1350px;padding:150px 80px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;">${block(field, hook, size, titleFont, heading, 1.12, 400, "max-width:920px;")}${sub ? block("body", sub, 40, bodyFont, ink, 1.4, 500, "margin-top:48px;max-width:780px;") : ""}</div></div>` };
+}
+
 /** Curated layouts for plain text. Custom references, schemas and photos are
  * intentionally handled by their specialized renderer, never flattened here. */
 export function composeEditorialSlide(slide: Slide, beat: DesignBeat, ch: Charter, format?: PhotoFormat | null): { slide_number: number; html: string } | null {
@@ -101,18 +133,7 @@ export function composeEditorialSlide(slide: Slide, beat: DesignBeat, ch: Charte
   // en forme (étape, motif) sur la couverture.
   if (type === "opening") {
     if (format && (format.step || format.motif)) return null;
-    const hook = title || body, sub = title ? body : "";
-    const n = hook.trim().split(/\s+/).filter(Boolean).length;
-    let size = n <= 4 ? 120 : n <= 6 ? 112 : n <= 8 ? 104 : n <= 10 ? 96 : 80;
-    while (size > 64 && lines(hook, 920, size) > 5) size -= 4;
-    const hh = Math.ceil(lines(hook, 920, size) * size * 1.12);
-    const sh = sub ? 48 + Math.ceil(lines(sub, 780, 40) * 40 * 1.4) : 0;
-    if (hh + sh > 1050) return null;
-    // Bloc en flux centré (comme la couverture du mixte) : l'estimation des
-    // lignes sert seulement à vérifier que tout tient.
-    const block = (field: "title" | "body", text: string, size: number, family: string, c: string, lh: number, weight: number, extra: string) => `<${field === "title" ? "h1" : "p"} data-slide-text="${field}" data-pptx-editable="${field}" style="margin:0;font-family:'${family}';font-size:${size}px;font-weight:${weight};line-height:${lh};color:${c};white-space:pre-wrap;overflow-wrap:anywhere;text-align:center;${extra}">${escape(text)}</${field === "title" ? "h1" : "p"}>`;
-    const imports = `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(titleFont)}:wght@400&family=${encodeURIComponent(bodyFont)}:wght@400;500;600&display=swap">`;
-    return { slide_number: beat.slide_number, html: `${imports}<div data-pptx-shape="background" data-carousel-layout="opening" data-design-version="1" style="width:1080px;height:1350px;position:relative;overflow:hidden;background:${bg};font-family:'${bodyFont}';color:${ink};"><div data-cover="1" style="position:absolute;top:0;left:0;width:1080px;height:1350px;padding:150px 80px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;">${block(title ? "title" : "body", hook, size, titleFont, heading, 1.12, 400, "max-width:920px;")}${sub ? block("body", sub, 40, bodyFont, ink, 1.4, 500, "margin-top:48px;max-width:780px;") : ""}</div></div>` };
+    return composeCoverSlide(slide, ch, beat.slide_number);
   }
   let tx = 80, ty = type === "closing" ? 280 : 170;
   let tw = 920, bx = 80, bw = 840, by = 0;
