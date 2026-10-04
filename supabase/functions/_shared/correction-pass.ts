@@ -580,7 +580,7 @@ Retourne EXACTEMENT le même format annoté :
 /**
  * Extrait les champs textuels d'un JSON carrousel en bloc annoté.
  */
-function extractCarouselTexts(parsed: any): string {
+export function extractCarouselTexts(parsed: any): string {
   const lines: string[] = [];
 
   const slides = parsed.slides || parsed.carousel?.slides || [];
@@ -645,7 +645,7 @@ export function keepUnlessRealEdit(original: unknown, corrected: string): string
 /**
  * Réinjecte les textes corrigés dans la structure JSON originale.
  */
-function reinjectCarouselTexts(parsed: any, correctedBlock: string): any {
+export function reinjectCarouselTexts(parsed: any, correctedBlock: string): any {
   const result = JSON.parse(JSON.stringify(parsed)); // deep clone
   const slides = result.slides || result.carousel?.slides || [];
 

@@ -1364,9 +1364,10 @@ function normalizeHooksResponse(parsed: any, params: { body: any; rawContent: st
 // (« creuser le sujet » ou deep research) fournit passent aussi, mais le gate
 // exige leur source dans la même phrase (findUnsourcedResearchNumbers).
 export function gateNumbers(baseParts: string[], researchSource?: string): { allowed: Set<string>; research?: ResearchNumbers } {
-  const base = numbersIn(baseParts.join("\n"));
+  const baseText = baseParts.join("\n");
+  const base = numbersIn(baseText);
   if (!researchSource?.trim()) return { allowed: base };
-  return { allowed: new Set([...base, ...numbersIn(researchSource)]), research: researchNumbers(base, researchSource) };
+  return { allowed: new Set([...base, ...numbersIn(researchSource)]), research: researchNumbers(base, researchSource, baseText) };
 }
 
 // Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe

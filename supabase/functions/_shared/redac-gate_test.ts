@@ -642,3 +642,40 @@ Deno.test("analyzeCarouselRedac : la source peut être ailleurs sur la MÊME sli
   const a = analyzeCarouselRedac(parsed, allowed, undefined, undefined, researchNumbers(base, RESEARCH));
   assertEquals((a.unsourcedResearchNumbers ?? []).map((n) => n.split(" ")[0]), ["48", "2", "5"]);
 });
+
+// ── Suite du test réel : lettres, unités, phrase d'avant ──
+Deno.test("chiffres de recherche en lettres : « deux fois plus », « une personne sur trois », « cinquante pour cent » sont contrôlés", async () => {
+  const { researchNumbers } = await import("./redac-gate.ts");
+  const research = "Les commentaires pèsent 2x plus que les likes (Richard van der Blom, 2025). 1 post sur 3 n'atteint pas 100 vues (Socialinsider, 2024). 50 % des comptes perdent en portée (AuthoredUp, 2025).";
+  const r = researchNumbers(numbersIn(BRIEF), research, BRIEF);
+  const allowed = new Set([...numbersIn(BRIEF), ...numbersIn(research)]);
+  const text = "Les commentaires comptent deux fois plus que les likes. Un post sur trois ne décolle jamais. Cinquante pour cent des comptes perdent en portée.";
+  const a = analyzeTextRedac(text, allowed, undefined, undefined, r);
+  assertEquals((a.unsourcedResearchNumbers ?? []).map((n) => n.split(" (")[0]), ["deux fois plus", "Un post sur trois", "Cinquante pour cent"]);
+  const ok = analyzeTextRedac("Selon Richard van der Blom, les commentaires comptent deux fois plus que les likes.", allowed, undefined, undefined, r);
+  assertEquals(ok.unsourcedResearchNumbers, []);
+});
+
+Deno.test("chiffre de recherche : la valeur du brief ne couvre pas une autre unité (« 5 ans » n'autorise pas « 5 % »)", async () => {
+  const { researchNumbers } = await import("./redac-gate.ts");
+  const brief = "J'ai lancé mon atelier il y a 5 ans.";
+  const research = "Seuls 5 % des posts dépassent 1000 vues (Socialinsider, 2024).";
+  const r = researchNumbers(numbersIn(brief), research, brief);
+  const allowed = new Set([...numbersIn(brief), ...numbersIn(research)]);
+  const flagged = analyzeTextRedac("Seuls 5% des posts dépassent les mille vues.", allowed, undefined, undefined, r);
+  assertEquals((flagged.unsourcedResearchNumbers ?? []).length, 1);
+  const own = analyzeTextRedac("Ça fait 5 ans que je publie chaque semaine.", allowed, undefined, undefined, r);
+  assertEquals(own.unsourcedResearchNumbers, []);
+});
+
+Deno.test("chiffre de recherche : source dans la phrase juste avant (même paragraphe) acceptée, pas deux phrases plus loin ni au paragraphe suivant", async () => {
+  const { researchNumbers } = await import("./redac-gate.ts");
+  const r = researchNumbers(numbersIn(BRIEF), RESEARCH, BRIEF);
+  const allowed = new Set([...numbersIn(BRIEF), ...numbersIn(RESEARCH)]);
+  const ok = analyzeTextRedac("Socialinsider a passé au crible des millions de posts (2024). Résultat : 17,3 % d'engagement en plus pour les carrousels.", allowed, undefined, undefined, r);
+  assertEquals(ok.unsourcedResearchNumbers, []);
+  const far = analyzeTextRedac("Socialinsider a passé au crible des millions de posts (2024). C'est énorme. Résultat : 17,3 % d'engagement en plus.", allowed, undefined, undefined, r);
+  assertEquals((far.unsourcedResearchNumbers ?? []).length, 1);
+  const otherParagraph = analyzeTextRedac("Socialinsider a passé au crible des millions de posts (2024).\n\nRésultat : 17,3 % d'engagement en plus.", allowed, undefined, undefined, r);
+  assertEquals((otherParagraph.unsourcedResearchNumbers ?? []).length, 1);
+});
