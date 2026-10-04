@@ -19,6 +19,21 @@ interface SlideData {
   overlay_text?: string | null;
   overlay_position?: "bottom_left" | "bottom_center" | "top_left" | "top_center" | "center";
   overlay_style?: "sensoriel" | "narratif" | "minimal" | "technique";
+  kicker?: string | null;   // titre court de la slide photo (texte de la rédaction)
+  detail?: string | null;   // sous-titre de couverture
+}
+
+/** Une slide de carrousel PHOTO sans slide_type est une slide photo plein écran
+ * (même hypothèse que carousel-ai et le rendu) : sinon l'export de secours la
+ * traitait en slide texte, sans son texte. */
+export function isPhotoFullSlide(s: Pick<SlideData, "slide_type" | "overlay_text">, hasPhotos: boolean): boolean {
+  return hasPhotos && (s.slide_type === "photo_full" || (!s.slide_type && !!(s.overlay_text || "").trim()));
+}
+
+/** Texte complet d'une slide photo pour l'export de secours : titre de slide,
+ * texte, sous-titre. Rien n'est perdu (04/10/2026 : les titres disparaissaient). */
+export function photoSlideText(s: Pick<SlideData, "kicker" | "overlay_text" | "title" | "detail">): string {
+  return [s.kicker, s.overlay_text || s.title, s.detail].map(x => String(x || "").trim()).filter(Boolean).join("\n");
 }
 
 interface VisualSlide {
@@ -249,7 +264,7 @@ export async function exportCarouselPptx(
     const slide = pptx.addSlide();
 
     // ═══ Slides photo (carrousel mix/photo) ═══
-    if (s.slide_type === "photo_full" && compressedPhotos?.length) {
+    if (isPhotoFullSlide(s, !!compressedPhotos?.length)) {
       buildPhotoFullSlide(slide, s, c, f, W, H, compressedPhotos);
       continue;
     }
@@ -331,7 +346,7 @@ function buildPhotoFullSlide(
     });
   }
 
-  const overlayText = s.overlay_text || s.title || "";
+  const overlayText = photoSlideText(s);
   if (!overlayText) return;
 
   const style = s.overlay_style || "sensoriel";
