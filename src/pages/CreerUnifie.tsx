@@ -16,7 +16,7 @@ import { handleQuotaError } from "@/lib/quota-error-handler";
 import { slideText } from "@/lib/slide-text";
 import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
 import { pickNonEmpty } from "@/features/creer/photo-source";
-import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason, REASON_IMAGE_MANQUANTE, checkScheduleGuards, tokenExpiresBeforeSchedule } from "@/features/creer/publish-guards";
+import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason, REASON_IMAGE_MANQUANTE, INSTAGRAM_DIRECT_MAX_IMAGES, checkScheduleGuards, tokenExpiresBeforeSchedule } from "@/features/creer/publish-guards";
 import { startSocialConnect } from "@/lib/social-connect";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { useSearchParams, useLocation, useNavigate, useNavigationType, Link } from "react-router-dom";
@@ -3138,6 +3138,7 @@ function CreerWorkspace() {
                 carouselQuality={carouselQuality}
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
                 onExportVisualPng={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPng : undefined}
+                logoAvailable={!!(charterData as any)?.logo_url}
                 onExportHybridPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportHybridPptx : undefined}
                 onOpenInCanva={selectedFormat === "carousel" && visualSlides.length > 0 && !isDemoMode ? handleOpenInCanva : undefined}
                 openingCanva={openingCanva}
@@ -3318,7 +3319,12 @@ function CreerWorkspace() {
                 onClick: () => publishImageInputRef.current?.click(),
                 busy: addingPublishImage,
               }
-            : null
+            : publishChannel === "instagram" && isCarouselPublish && visualSlides.length > INSTAGRAM_DIRECT_MAX_IMAGES
+              // Carrousel texte de plus de 10 slides (jusqu'à 20 en Auto) : la
+              // publication directe est impossible, on propose le téléchargement
+              // pour publier depuis l'appli Instagram du téléphone.
+              ? { label: "Télécharger les slides (ZIP)", onClick: () => void handleExportVisualPng(), icon: "download" as const }
+              : null
         }
         channelConnected={connectionsKnown ? (publishChannel ? isSocialConnected(publishChannel) : false) : null}
         connectionLoading={connectionsLoading}

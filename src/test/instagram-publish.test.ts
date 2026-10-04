@@ -195,7 +195,7 @@ describe("publishRenderedCarouselToInstagram", () => {
         visualSlides: Array.from({ length: 11 }, (_, i) => ({ slide_number: i + 1, html: "<div/>" })),
         userId: "u1",
       }),
-    ).rejects.toThrow("limite les carrousels à 10 images");
+    ).rejects.toThrow("s'arrête à 10 images");
     expect(mocks.invokeWithTimeout).not.toHaveBeenCalled();
   });
 

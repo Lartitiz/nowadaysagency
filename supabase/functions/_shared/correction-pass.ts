@@ -517,7 +517,7 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
    → Reformule avec un ARGUMENT PROPRE, un exemple, une nuance.
 
 5. PHRASES COURTES CONSÉCUTIVES (2+ phrases < 10 mots) :
-   → Fluidifie seulement une rafale artificielle. Garde les phrases courtes utiles et le point de vue choisi.
+   → Fluidifie seulement une rafale artificielle. Garde les phrases courtes utiles et le point de vue choisi. Une slide faite d'une seule phrase courte (relance, respiration) et une phrase qui se poursuit sur la slide suivante sont voulues : ne les allonge pas.
    ❌ "On saute des étapes. On parle en raccourcis."
    → ✅ "On saute des étapes et on parle en raccourcis sans s'en rendre compte."
 
@@ -1180,6 +1180,52 @@ export async function applyResearchSourcingPass(
     return guarded.reverted ? content : corrected;
   } catch (e) {
     opts.logger?.(`[research-sourcing] ERROR: ${e}`);
+    return content;
+  }
+}
+
+// ── Passe dédiée : chiffres de recherche en trop face au cas personnel (« Ton cas d'abord », 04/10/2026) ──
+// Carrousel de référence « Oui, j'utilise l'IA générative » : Laetitia avait donné
+// son cas (2 100 € au lieu d'au moins 7 500 €, sa peur, son doute) et la sortie
+// le remplaçait par des chiffres de recherche (AIE, 1,5 % de l'électricité…).
+// Quand un cas est fourni, le redac-gate compte les chiffres venus de la seule
+// recherche ; au-delà du plafond, cette passe courte retire l'excédent. Le code
+// relit ensuite le résultat (compte en baisse, chiffres du brief gardés, aucun
+// passage vidé).
+export const RESEARCH_EXCESS_PROMPT = `Tu es correctrice. Tu reçois un texte qui raconte le cas personnel de son autrice, la liste des chiffres de ce texte qui viennent d'une recherche web (pas de son cas), et le nombre maximum de ces chiffres à garder.
+Garde au plus le nombre indiqué de ces chiffres : celui qui appuie le plus directement une phrase du cas personnel (si aucun ne l'appuie, n'en garde aucun). Pour CHAQUE autre chiffre listé :
+- retire le chiffre, sa source et la proposition qui ne sert qu'à le porter ; si une phrase entière ne servait qu'à ce chiffre, retire-la ;
+- raccorde les phrases voisines pour que le passage se lise sans trou : pas de connecteur orphelin, pas de « ce chiffre » ou « ce constat » sans antécédent, pas de passage vide ;
+- si un passage balisé ne portait que ce chiffre, garde une phrase courte qui fait le lien entre ce qui précède et ce qui suit, avec des idées DÉJÀ présentes dans le texte.
+N'invente RIEN : aucun fait, chiffre, source, vécu, exemple ou émotion nouveaux. Ne touche ni aux chiffres ni aux phrases du cas personnel. Ne modifie rien d'autre : mêmes phrases ailleurs, même ordre, mêmes retours à la ligne, mêmes listes.
+Si le texte comporte des marqueurs entre crochets (« [SLIDE 3 - BODY] »…), conserve TOUS les marqueurs exactement, dans le même ordre, et aucun marqueur ne reste vide.
+Renvoie uniquement le texte corrigé, sans commentaire ni balise.`;
+
+/** Passe courte qui retire les chiffres de recherche au-delà du plafond (relue ensuite par le code). */
+export async function applyResearchExcessPass(
+  content: string,
+  opts: { items: string[]; keep: number; logger?: (msg: string) => void; abortTimeoutMs?: number; model?: AnthropicModel },
+): Promise<string> {
+  if (!content || opts.items.length <= opts.keep) return content;
+  try {
+    const raw = await callAnthropicSimple(
+      opts.model ?? "claude-haiku-4-5",
+      RESEARCH_EXCESS_PROMPT,
+      `NOMBRE MAXIMUM DE CHIFFRES DE RECHERCHE À GARDER : ${opts.keep}\n\nCHIFFRES VENUS DE LA RECHERCHE :\n${opts.items.map((n) => `- ${n}`).join("\n")}\n\nTEXTE :\n"""\n${content}\n"""`,
+      0,
+      4096,
+      undefined,
+      opts.abortTimeoutMs,
+    );
+    const corrected = unwrapCorrectionOutput(raw);
+    if (!corrected || corrected.length < content.length * 0.5 || corrected.length > content.length * 1.1) {
+      opts.logger?.(`[research-excess] FALLBACK (longueur ${corrected?.length} vs ${content.length})`);
+      return content;
+    }
+    const guarded = keepStructureOrRevert(content, corrected, "research-excess", opts.logger);
+    return guarded.reverted ? content : corrected;
+  } catch (e) {
+    opts.logger?.(`[research-excess] ERROR: ${e}`);
     return content;
   }
 }

@@ -112,6 +112,17 @@ export function isInstagramPublishTarget(args: {
 export const REASON_IMAGE_MANQUANTE =
   "Ajoute d'abord une image à ton post pour pouvoir le publier sur Instagram.";
 
+/** Publication directe Instagram (API) : 10 images au plus par carrousel.
+ * L'appli Instagram en accepte 20 : un carrousel texte plus long (jusqu'à 20
+ * slides en longueur Auto, 04/10/2026) se publie depuis le téléphone. */
+export const INSTAGRAM_DIRECT_MAX_IMAGES = 10;
+
+/** Message clair quand un carrousel dépasse la publication directe, ou null. */
+export function instagramTooManyImagesReason(count: number): string | null {
+  if (count <= INSTAGRAM_DIRECT_MAX_IMAGES) return null;
+  return `Ce carrousel a ${count} slides : la publication directe depuis l'outil s'arrête à ${INSTAGRAM_DIRECT_MAX_IMAGES} images (limite d'Instagram). Télécharge les slides et publie-le depuis l'appli Instagram sur ton téléphone, qui en accepte jusqu'à 20.`;
+}
+
 /** Raison pour laquelle la publication Instagram est désactivée, ou null si publiable. */
 export function instagramPublishDisabledReason(args: {
   selectedFormat: string | null | undefined;
@@ -132,7 +143,7 @@ export function instagramPublishDisabledReason(args: {
     return "La publication directe des stories arrive bientôt — en attendant, télécharge le visuel et publie-le depuis l'app Instagram.";
   }
   if (isCarousel) {
-    return visualSlidesCount > 10 ? "Instagram limite les carrousels à 10 images." : visualSlidesCount >= 2 ? null : "Génère les visuels du carrousel pour pouvoir le publier.";
+    return instagramTooManyImagesReason(visualSlidesCount) ?? (visualSlidesCount >= 2 ? null : "Génère les visuels du carrousel pour pouvoir le publier.");
   }
   if (!publishableImageUrl) return REASON_IMAGE_MANQUANTE;
   return null;

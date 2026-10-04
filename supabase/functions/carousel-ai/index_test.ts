@@ -1078,3 +1078,32 @@ Deno.test("photo : relecture qui corrige un overlay mis en valeur → l'extrait 
     if (key === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", key);
   }
 });
+
+// « Ton cas d'abord » (04/10/2026) : avec un cas personnel fourni, la recherche
+// passe en mode appui et la rédaction reçoit son cas comme preuve centrale ;
+// sans cas, la recherche de profondeur et la lecture sociale restent (#1292).
+for (const lived of [true, false]) Deno.test(`ton cas d'abord : recherche et rédaction, cas fourni=${lived}`, async () => {
+  resetDeps();
+  // deno-lint-ignore no-explicit-any
+  let research: any = null, system = "", user = "";
+  // deno-lint-ignore no-explicit-any
+  _deps.fetchDepthMaterial = (async (o: any) => { research = o; return "« 2 100 € TTC » : un site vitrine coûte dès 1 000 € en agence (La Fabrique du Net, 2026), assez long pour être gardé."; }) as any;
+  // deno-lint-ignore no-explicit-any
+  _deps.callAnthropic = (async (options: any) => { system = options.system; user = JSON.stringify(options.messages); throw new Error("arrêt du test après capture"); }) as any;
+  const deepening_answers = lived
+    ? { "Qu'est-ce que l'IA a changé ?": "Avant je ne faisais que la stratégie. Aujourd'hui je livre stratégie, site et e-mails pour 2 100 € TTC." }
+    : undefined;
+  await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: "prise_de_position", subject: "Oui, j'utilise l'IA générative", deepening_answers }));
+  assertEquals(research.mode, lived ? "support" : "depth");
+  if (lived) {
+    assert(String(research.livedCase).includes("2 100 € TTC"));
+    assert(system.includes("TON CAS D'ABORD"));
+    assert(system.includes("MATIÈRE D'APPUI"));
+    assert(!system.includes("un « on » ou « nous » collectif peut porter cette lecture"));
+    assert(user.includes("SON CAS PERSONNEL"));
+  } else {
+    assert(system.includes("un « on » ou « nous » collectif peut porter cette lecture"));
+    assert(system.includes("MATIÈRE DE PROFONDEUR"));
+    assert(!system.includes("TON CAS D'ABORD"));
+  }
+});

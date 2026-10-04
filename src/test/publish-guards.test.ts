@@ -117,6 +117,13 @@ describe("instagramPublishDisabledReason", () => {
   it("carrousel : exige au moins 2 visuels", () => {
     expect(instagramPublishDisabledReason({ ...base, isCarousel: true, visualSlidesCount: 1 })).toMatch(/visuels du carrousel/);
     expect(instagramPublishDisabledReason({ ...base, isCarousel: true, visualSlidesCount: 2 })).toBeNull();
+    expect(instagramPublishDisabledReason({ ...base, isCarousel: true, visualSlidesCount: 10 })).toBeNull();
+    // Carrousel texte jusqu'à 20 slides (04/10/2026) : message clair, solution proposée.
+    const tooMany = instagramPublishDisabledReason({ ...base, isCarousel: true, visualSlidesCount: 16 });
+    expect(tooMany).toContain("16 slides");
+    expect(tooMany).toContain("10 images");
+    expect(tooMany).toMatch(/Télécharge les slides/);
+    expect(tooMany).toMatch(/téléphone/);
   });
 
   it("image simple : exige une image, avec un message en langage courant (REASON_IMAGE_MANQUANTE)", () => {
