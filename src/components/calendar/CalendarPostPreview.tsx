@@ -20,6 +20,8 @@ interface Props {
   canal: string;
   format: string | null;
   caption: string | null;
+  /** Texte copié par « Copier la légende » (légende seule, sans le texte des slides). Défaut : caption. */
+  copyCaption?: string | null;
   theme: string;
   username: string;
   displayName: string;
@@ -39,7 +41,7 @@ interface Props {
 }
 
 export function CalendarPostPreview({
-  photoComposition = false, canal, format, caption, theme, username, displayName,
+  photoComposition = false, canal, format, caption, copyCaption, theme, username, displayName,
   mediaUrls, visualHtml, visualUrls, onNavigateToGenerator, hasAngle, hasTheme,
   slidesData, photoUrls, storiesData, compact = false, onFullscreen, syncStatus,
 }: Props) {
@@ -189,10 +191,11 @@ export function CalendarPostPreview({
   }, [visualHtml, slidesData, charterData, theme, includeLogo, logoUrl, openInCanva, loadOriginalPhotos]);
 
   const handleCopyCaption = useCallback(() => {
-    if (!caption) return;
-    navigator.clipboard.writeText(caption);
+    const text = copyCaption || caption;
+    if (!text) return;
+    navigator.clipboard.writeText(text);
     toast.success("Légende copiée !");
-  }, [caption]);
+  }, [caption, copyCaption]);
 
   // ── Mini toolbar (toujours rendue si on a du contenu) ──
   const Toolbar = () => {

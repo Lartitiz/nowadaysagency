@@ -13,7 +13,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, forcesDisabledThinking, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, streamAnthropicToolSSE, createClientSSEStream, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
-import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "../_shared/format-briefs.ts";
+import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.ts";
+import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief, positionDepthBlock } from "../_shared/format-briefs.ts";
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
@@ -862,6 +863,10 @@ export async function buildGeneratePrompt(params: {
   } else {
     depthMandate = captionBrief(effectiveObjective ?? null);
   }
+  // Posts (hors légende photo), reels et stories défendent une position (#1292 pour le carrousel).
+  const positionFormat = isReel ? "reel" : isStories ? "stories"
+    : (!isCarousel && !isLinkedIn && !isPinterest && !isNewsletter && !isPhotoMode) ? "caption" : null;
+  if (positionFormat) depthMandate += `\n\n${positionDepthBlock(positionFormat, !!newsContextBlock)}`;
 
   let systemPrompt = `${COMMON_PREFIX}
 
@@ -1663,6 +1668,30 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
  * Renvoie le texte à ajouter au systemPrompt, "" si rien à ajouter (échec ou
  * réponse vide).
  */
+/** Dépendances remplaçables en test (même patron que carousel-ai). */
+export const _deps = { fetchDepthMaterial };
+
+/**
+ * Recherche « creuser le sujet » pour posts, reels et stories (04/10/2026, même
+ * logique que le carrousel depuis #1292) : mécanisme réel, lecture sociale et faits
+ * sourcés qui étayent une position. L'actu ne donne que le déclencheur, les réponses
+ * le vécu. Condiment : échec silencieux, borné à 20 s (budget reel 90 s + 45 s).
+ */
+export async function creativeDepthBlock(params: { context?: string | null; newsContext?: string | null; activity?: string }): Promise<string> {
+  const subject = typeof params.context === "string" ? params.context.trim() : "";
+  if (!subject) return "";
+  const newsAngle = typeof params.newsContext === "string" ? params.newsContext.trim().slice(0, 600) : "";
+  const material = await _deps.fetchDepthMaterial({
+    subject: [subject.slice(0, 1500), newsAngle].filter(Boolean).join("\n"),
+    activity: params.activity,
+    model: getModelForAction("content"),
+    apiKey: Deno.env.get("ANTHROPIC_API_KEY") || "",
+    logger: (m) => console.log(`[creative-flow] ${m}`),
+    timeoutMs: 20_000,
+  });
+  return buildDepthBlock(material);
+}
+
 export async function runDeepResearchWebSearch(params: {
   userId: string;
   workspaceId?: string;
@@ -2214,115 +2243,18 @@ async function runNewsletterTwoStep(params: {
   });
 }
 
-// Carousel: disable streaming, use 2-step generation + correction
-async function runCarouselTwoStep(params: {
-  model: AnthropicModel;
-  systemPrompt: string;
-  userPrompt: string;
-  corsHeaders: Record<string, string>;
-  userId: string;
-  workspace_id?: string | null | undefined;
-}): Promise<Response> {
-  const { model, systemPrompt, userPrompt, corsHeaders, userId } = params;
-  const workspace_id = params.workspace_id ?? undefined;
-  const caUsage: UsageSink = {};
-  const caCorrUsage: UsageSink = {};
-  const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, caUsage, GENERATE_ABORT_MS);
-
-  // Parse the raw content
-  let parsedContent: any = null;
-  try {
-    parsedContent = JSON.parse(rawContent);
-  } catch {
-    const match = rawContent.match(/\{[\s\S]*\}/);
-    if (match) {
-      try { parsedContent = JSON.parse(match[0]); } catch { /* best-effort : on garde le contenu brut */ }
-    }
-  }
-
-  // Extract slides text for correction
-  const slidesText = parsedContent?.content || rawContent;
-
-  // Step 2: Correction pass for carousel
-  const carouselCorrectionPrompt = `Tu es un éditeur de carrousels Instagram exigeant. Tu reçois un carrousel et tu dois le CORRIGER slide par slide.
-
-CORRECTIONS OBLIGATOIRES — applique TOUTES celles qui s'appliquent :
-
-1. SLIDE-TITRE (slide qui ne contient qu'1 phrase ou moins de 15 mots) :
-   → Développer à 2-4 phrases. Ajouter un exemple, une nuance, un détail concret.
-   → Exception : Slide 1 (hook) DOIT être courte (1-2 phrases max).
-
-2. NUMÉROTATION DE CONSEILS ("Conseil 1", "Erreur n°2", "Étape 3", "Astuce") :
-   → Supprimer la numérotation. Reformuler comme un moment dans un arc narratif.
-   → "Conseil 1 : Soyez authentique" → "Ce que j'ai compris après 2 ans à copier les autres : l'authenticité n'est pas un style, c'est ce qui reste quand on arrête de performer."
-
-3. SLIDES REDONDANTES (2 slides qui disent la même chose différemment) :
-   → Fusionner en une seule slide plus dense, ou remplacer la plus faible par un nouvel angle.
-
-4. MANQUE DE CONCRET (slide entièrement abstraite, sans exemple ni chiffre ni situation) :
-   → Ajouter un détail concret : un cas, un chiffre, une phrase entendue, un avant/après.
-
-5. SLIDE FINALE QUI RÉSUME :
-   → Remplacer par une punchline qui OUVRE (question, tension non résolue, invitation) au lieu de fermer.
-
-6. CAPTION FAIBLE (caption qui répète le contenu des slides) :
-   → Le hook de la caption doit être DIFFÉRENT de la slide 1. La caption apporte un COMPLÉMENT, pas un résumé.
-
-RÈGLES :
-- Garde l'ARC NARRATIF du carrousel. Tu corriges les slides faibles, pas la structure globale.
-- Chaque slide corrigée fait 2-4 phrases (sauf slide 1 : 1-2 phrases max).
-- Le carrousel corrigé fait 1500-3000 caractères au total.
-- Retourne le même format JSON que l'original avec les slides corrigées.
-
-Réponds UNIQUEMENT en JSON :
-{
-  "content": "le carrousel complet corrigé avec les marqueurs 📌 SLIDE et 📝 CAPTION",
-  "accroche": "le hook de la slide 1",
-  "corrections_applied": ["liste courte des corrections faites"]
-}`;
-
-  const correctedRaw = await callAnthropicSimple(
-    getModelForAction("content"),
-    carouselCorrectionPrompt,
-    `Voici le carrousel à corriger :\n\n"""\n${slidesText}\n"""`,
-    0.3,
-    4096,
-    caCorrUsage,
-    CORRECTION_ABORT_MS
-  );
-
-  // Parse corrected content, fallback to original if correction fails
-  let finalResult: any = null;
-  try {
-    finalResult = JSON.parse(correctedRaw);
-  } catch {
-    const match = correctedRaw.match(/\{[\s\S]*\}/);
-    if (match) {
-      try { finalResult = JSON.parse(match[0]); } catch { finalResult = null; }
-    }
-  }
-
-  if (finalResult?.content) {
-    const merged = {
-      ...(parsedContent || {}),
-      content: finalResult.content,
-      accroche: finalResult.accroche || parsedContent?.accroche,
-      format: parsedContent?.format || "carrousel",
-      pillar: parsedContent?.pillar || "",
-      objectif: parsedContent?.objectif || "",
-    };
-
-    await logUsage(userId, "content", "creative_flow", ((caUsage.total_tokens ?? 0) + (caCorrUsage.total_tokens ?? 0)) || undefined, caUsage.model, workspace_id);
-    return new Response(JSON.stringify(merged), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  // Fallback: return original
-  await logUsage(userId, "content", "creative_flow", ((caUsage.total_tokens ?? 0) + (caCorrUsage.total_tokens ?? 0)) || undefined, caUsage.model, workspace_id);
-  return new Response(JSON.stringify(parsedContent || { content: rawContent }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+// Ancien circuit carrousel (génération + passe de correction, en mode
+// « stream ») : RETIRÉ. Aucun appelant du front ne l'atteignait plus (le
+// streaming n'est demandé que pour post / LinkedIn / newsletter / Pinterest,
+// sans format_livraison), les carrousels passent par carousel-ai. Sa passe de
+// correction portait en outre une consigne anti-numérotation des conseils,
+// même cause que la régression « 1, 2, 3 » perdus. On renvoie une erreur
+// claire AVANT tout appel IA (aucun crédit débité), comme carousel-ai-candidate.
+export function retiredCarouselStreamResponse(corsHeaders: Record<string, string>): Response {
+  return new Response(JSON.stringify({
+    error: "carousel_flow_retired",
+    message: "Ce circuit de carrousel est retiré. Les carrousels se génèrent avec carousel-ai.",
+  }), { status: 410, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
 // Non-LinkedIn, non-Carousel (= POST Instagram + Pinterest) : streaming
@@ -2910,6 +2842,9 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 
 
     // ── Deep Research (web search via Anthropic) ──
+    // Texte de recherche ajouté au prompt : il rejoint aussi la source des relectures,
+    // sinon ses chiffres sourcés passent pour « inventés » et sont retirés.
+    let researchSource = "";
     if (deepResearch && step === "generate") {
       // Check deep_research quota
       const drQuota = await checkQuota(userId, "deep_research", workspace_id);
@@ -2917,7 +2852,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
         return quotaDeniedResponse(drQuota, corsHeaders);
       }
 
-      systemPrompt += await runDeepResearchWebSearch({
+      researchSource = await runDeepResearchWebSearch({
         userId,
         workspaceId: workspace_id,
         calendarContext,
@@ -2929,7 +2864,18 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
         editorialFormatLabel,
         angle,
       });
+      systemPrompt += researchSource;
     }
+
+    // Recherche « creuser le sujet » pour posts, reels et stories (hors légende photo).
+    if (step === "generate" && !deepResearch && !isPhotoMode && (isCaption || isReel || isStories)) {
+      const depthBlock = await creativeDepthBlock({ context, newsContext, activity });
+      if (depthBlock) {
+        systemPrompt += depthBlock;
+        researchSource = depthBlock;
+      }
+    }
+    const gateContext = researchSource ? `${fullContext}\n${researchSource}` : fullContext;
 
     // Accroches déjà écrites par cette utilisatrice sur CE sujet — garde
     // déterministe anti-redite (bilan hebdo 24/08 : trois reels d'un même sujet
@@ -2971,14 +2917,14 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       }
 
       if (isNewsletter) {
-        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext, brandGuardText, previousHooks }, emitStatus));
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext: gateContext, brandGuardText, previousHooks }, emitStatus));
       }
 
       if (isCarousel) {
-        return await runCarouselTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id });
+        return retiredCarouselStreamResponse(corsHeaders);
       }
 
-      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, brandGuardText, echoSubject, previousHooks });
+      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
     }
 
     // ── Call Anthropic ──
@@ -3079,36 +3025,37 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       typeof parsed.content === "string" &&
       parsed.content.length >= 200
     ) {
-      await applyLinkedInCorrectionPass(parsed, { body, fullContext, brandGuardText, echoSubject, previousHooks });
+      await applyLinkedInCorrectionPass(parsed, { body, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
     }
 
     if (isNewsletter && step === "generate" && parsed && typeof parsed === "object") {
-      await applyNewsletterCorrectionPass(parsed, { body, fullContext, context, newsContext, brandGuardText, previousHooks });
+      await applyNewsletterCorrectionPass(parsed, { body, fullContext: gateContext, context, newsContext, brandGuardText, previousHooks });
       Object.assign(parsed, stripMarkdownFromNewsletter(parsed));
       if (typeof parsed.content === "string") parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
     }
 
     // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
     if (isReel && step === "generate" && parsed && typeof parsed === "object" && Array.isArray(parsed.script)) {
-      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext, brandGuardText, echoSubject, previousHooks });
+      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
     }
 
     // ═══ STORIES : texte d'abord, mise en forme ensuite (04/10/2026) ═══
     // 1. La rédaction n'écrit que du texte : tout choix de mise en page qu'elle
-    //    aurait quand même écrit est retiré (seule la photo à prendre reste).
-    // 2. La correction ne touche que le texte.
+    //    aurait quand même écrit est retiré (restent le petit titre, du texte,
+    //    et la photo à prendre).
+    // 2. La correction ne touche que le texte et le petit titre.
     // 3. La mise en forme lit le texte FINAL et pose le plan visuel par code,
     //    puis la garde photo d'abord et les photos de la bibliothèque.
     let storiesGate: StoriesGateResult | null = null;
     if (isStories && step === "generate") {
       stripStoriesWriterLayout(parsed);
-      storiesGate = await applyStoriesCorrectionPass(parsed, { body, fullContext, brandGuardText, echoSubject, previousHooks });
+      storiesGate = await applyStoriesCorrectionPass(parsed, { body, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
       finalizeStoriesLayout(parsed, { storiesPhotoCatalog, logger: (m) => console.log(m) });
     }
 
     // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
     if (step === "generate") {
-      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate });
+      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext: gateContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate });
     }
 
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.

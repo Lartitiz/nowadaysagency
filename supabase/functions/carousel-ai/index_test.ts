@@ -979,3 +979,78 @@ Deno.test("structure confirmée renvoyée avec « text » : acceptée (plus de �
   assertEquals(res.status, 200);
 });
 
+
+// ── Photo : la mise en page lit le texte FINAL (04/10/2026) ──
+// Avant : les gabarits (gros chiffre, liste, attribution) étaient posés AVANT
+// la relecture éditoriale ; la relecture corrigeait ensuite l'overlay et l'item
+// mis en valeur n'existait plus dans le texte livré. Le vrai handler photo est
+// exercé ; seuls le rédacteur, la relecture et la passe gabarits sont simulés.
+Deno.test("photo : relecture qui corrige un overlay mis en valeur → l'extrait suit le texte final, aucun mot perdu, reçu à jour", async () => {
+  resetDeps();
+  const { invalidateProgressionReceipt } = await import("../_shared/carousel-editorial-snapshot.ts");
+  const draft = { slides: [
+    { slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: "Ce salon, je l'ai trouvé comme ça, encombré et sombre." },
+    { slide_number: 2, slide_type: "photo_full", photo_index: 1, overlay_text: "Trois gestes ont suffi : vider le plan de travail, ouvrir les volets, poser un bouquet sur la table.",
+      // Mise en page écrite par le rédacteur : doit être ignorée (champ dérivé).
+      template: "liste", points: ["Un rangement", "La lumière"] },
+    { slide_number: 3, slide_type: "photo_full", photo_index: 1, overlay_text: "La propriétaire m'a dit : on respire enfin dans cette pièce." },
+    { slide_number: 4, slide_type: "photo_full", photo_index: 1, overlay_text: "Une pièce à vivre se range avant de se décorer." },
+  ], caption: { body: "Un salon remis en ordre avant la vente.", hashtags: [] } };
+  _deps.callAnthropic = (async (options: any, sink: any) => { Object.assign(sink, { model: options.model, total_tokens: 30 }); return JSON.stringify(draft); }) as any;
+  const order: string[] = [];
+  let reviewedIds: string[] = [];
+  const previousFetch = globalThis.fetch, key = Deno.env.get("ANTHROPIC_API_KEY");
+  Deno.env.set("ANTHROPIC_API_KEY", "test-no-network");
+  const toolReply = (name: string, input: unknown) => Promise.resolve(new Response(JSON.stringify({ model: "claude-opus-5-5", stop_reason: "tool_use", content: [{ type: "tool_use", name, input }], usage: { input_tokens: 1, output_tokens: 1 } })));
+  globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
+    const request = init?.body ? JSON.parse(String(init.body)) : {};
+    const tool = request.tools?.[0]?.name;
+    if (tool === "review_carousel_fields") {
+      order.push("relecture");
+      const fields = JSON.parse(request.messages[0].content.split("CHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n")[1]);
+      reviewedIds = fields.map((f: any) => f.field_id);
+      const before = "poser un bouquet sur la table";
+      return toolReply(tool, { reviews: fields.map((f: any) => f.text.includes(before)
+        ? { field_id: f.field_id, decision: "edit", reason: "fait non fourni", edits: [{ before, after: "laisser entrer la lumière du soir" }] }
+        : { field_id: f.field_id, decision: "keep", reason: "utile", edits: [] }) });
+    }
+    if (tool === "poser_les_gabarits") {
+      order.push("gabarits");
+      // Passe gabarits « naïve » : propose toujours les trois items du brouillon.
+      return toolReply(tool, { slides: [
+        { slide_number: 1, template: "couverture" },
+        { slide_number: 2, template: "liste", points: ["vider le plan de travail", "ouvrir les volets", "poser un bouquet sur la table"] },
+        { slide_number: 3, template: "citation", attribution: "La propriétaire" },
+        { slide_number: 4, template: "finale" },
+      ] });
+    }
+    return Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text: "{}" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
+  }) as typeof fetch;
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: "photo", slide_count: 4, subject: "Remettre un salon en ordre avant une vente" }));
+    assertEquals(res.status, 200);
+    const doc = JSON.parse((await res.json()).content);
+    // La mise en page est posée APRÈS la relecture, qui n'a vu aucun champ dérivé.
+    assertEquals(order, ["relecture", "gabarits"]);
+    assert(!reviewedIds.some((id) => /\.(points|big_number|attribution)(\.|$)/.test(id)), `champs de mise en page relus : ${reviewedIds}`);
+    // Texte final = texte relu, entier.
+    assertEquals(doc.slides[1].overlay_text, "Trois gestes ont suffi : vider le plan de travail, ouvrir les volets, laisser entrer la lumière du soir.");
+    assertEquals(doc.slides[2].overlay_text, draft.slides[2].overlay_text);
+    // Chaque extrait mis en valeur figure dans le texte final de sa slide.
+    for (const s of doc.slides) {
+      for (const p of s.points || []) assert(s.overlay_text.includes(p), `item hors du texte final : « ${p} »`);
+      if (s.big_number) assert(s.overlay_text.includes(s.big_number));
+      if (s.attribution) assert(s.overlay_text.includes(s.attribution));
+    }
+    assertEquals(doc.slides[1].template, "liste");
+    assertEquals(doc.slides[1].points, ["vider le plan de travail", "ouvrir les volets"]);
+    assertEquals(doc.slides[2].attribution, "La propriétaire");
+    // Le reçu de relecture correspond au contenu livré : pas de « Le texte a changé ».
+    const checked = invalidateProgressionReceipt(doc);
+    assert(checked.progression_review.execution_status !== "stale");
+    assert(!(checked.structure_warnings || []).some((w: string) => w.includes("a changé")));
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (key === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", key);
+  }
+});

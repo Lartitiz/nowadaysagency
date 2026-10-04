@@ -156,6 +156,11 @@ Deno.test("relecture sourcée : supprime les recettes concurrentes, conserve le 
   assertEquals(focused.includes("RECETTE HISTORIQUE"), false);
   assertEquals(focused.includes("fabrication ou conception"), true);
   assertEquals(focused.includes("le registre, l'humour, les nuances"), true);
+  // Une opinion n'a pas besoin de source : la relecture garde la position et l'émotion partagée,
+  // et retire les précautions sans objet (posts, reels, stories, 04/10/2026).
+  assertEquals(focused.includes("Garde la position assumée en première personne"), true);
+  assertEquals(focused.includes("émotions courantes nommées comme une expérience partagée"), true);
+  assertEquals(focused.includes("Supprime en revanche une précaution sur ce que le texte n'affirme pas"), true);
 });
 
 import { correctionModel } from "./correction-pass.ts";

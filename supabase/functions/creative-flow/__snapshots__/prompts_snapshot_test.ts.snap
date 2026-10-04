@@ -2693,7 +2693,11 @@ vu ça comme ça".
   PAS un décryptage psychologique de la spectatrice ("tu as peur de…", "ta
   posture de…", "ton cerveau te dit…"). Un mécanisme psychologique n'est
   autorisé QUE s'il est nommé précisément (biais cognitif identifiable) ET
-  relié à un fait concret du métier.
+  relié à un fait concret du métier. Une norme sociale ou une injonction
+  (ce qu'on attend des femmes, des indépendantes, de « la bonne pro ») est une
+  mécanique du SUJET, pas de la psychologie : elle a toute sa place ici, et
+  l'émotion courante qu'elle soulève (peur du jugement, honte, fatigue) peut
+  être nommée comme une expérience partagée.
 - Sans vécu fourni : ancre l'idée dans UN élément spécifique du contexte de
   marque (son process, sa matière, ses contraintes réelles, sa clientèle) pour
   la rendre NON-TRANSPOSABLE à un autre compte.
@@ -3006,6 +3010,13 @@ IMPORTANT :
 - "plan_tournage" = la SHOT LIST du reel : 3 à 6 plans à tourner AU TÉLÉPHONE, listés dans l'ordre de TOURNAGE le plus simple (toutes les prises face cam d'abord, puis les plans de coupe). Chaque "plan" est CONCRET et ancré dans l'activité RÉELLE de la marque (son lieu, ses gestes, ses objets — d'après le contexte de marque fourni ; JAMAIS un "plan de coupe générique" ni un décor qu'elle n'a probablement pas). Types : "face_cam" (elle parle), "b_roll" (elle fait, sans parler), "insert" (gros plan objet/écran/détail). Cohérence : chaque cut du script doit correspondre à un plan de cette liste ("sert_pour" le dit). Si le format est face cam pur, prévois quand même 1-2 plans de coupe b_roll pour faire respirer le montage. Bonus malin : indique quand un plan b_roll est RÉUTILISABLE pour de futurs reels.
 - Pas de markdown dans les valeurs JSON
 
+══ PROFONDEUR ET PRISE DE POSITION ══
+Sauf tutoriel, liste pratique, coulisses ou présentation d'offre demandés, ce contenu défend une position. Tire-la de l'angle choisi, de l'accroche, des réponses de la personne, de ses convictions et de ses combats de marque, puis assume-la en première personne au lieu de la diluer dans une distinction abstraite ou un concept. Une idée forte de l'angle (un parallèle, une comparaison, une formule qui fait réagir) reste le fil du contenu.
+Creuse sous le sujet : ce qu'il révèle quand il en touche un (norme sociale, injonction faite aux femmes ou aux indépendantes, rapport de pouvoir, mécanisme du métier). Pour un sujet de société, un « on » ou un « nous » collectif peut porter cette lecture.
+Nomme les émotions concrètes que ce sujet soulève couramment (peur du jugement, honte, fatigue, colère) comme une expérience partagée, jamais comme le diagnostic de la personne qui lit (« tu as peur », « tu n'oses pas »).
+Une opinion n'a pas besoin de source ; un fait, un chiffre ou un vécu, si. Une nuance assumée (« ça peut aussi être un vrai choix ») renforce la position. Une précaution sur ce que le texte n'affirme pas l'affaiblit : n'écris ni « sans garantie », ni « hypothèse de travail », ni « je n'affirme rien sur l'algorithme ». Une accroche provocante n'est pas désamorcée par une excuse (« ok je suis peut-être un peu too much »).
+FIN : la position assumée, ou une question simple à laquelle on répond en un commentaire. Pas de devoir à faire pour conclure (« cette semaine, essaie de… », « ton exercice : … »).
+
 RÉPONSES DE L'UTILISATRICE :
 Q1 : "La dernière fois qu'on t'a demandé une remise, tu as répondu quoi ?" → "J'ai dit non, et la cliente a signé quand même."
 Q2 : "C'est quoi le truc qui t'agace dans la culture du prix cassé ?" → "Que ça dévalorise tout l'artisanat, pas juste mon travail."
@@ -3265,7 +3276,7 @@ Chaque séquence de stories doit avoir UN angle de narration dominant. C'est l'a
 6. 🔥 COUP DE GUEULE DOUX (la position affirmée)
    Voix : position affirmée mais bienveillante
    Story 1 : le constat qui agace, formulé avec les mots du sujet (pas une amorce générique)
-   Le fil : constat → pourquoi ça pose problème → ce qu'on peut faire autrement
+   Le fil : constat → pourquoi ça pose problème → ce que j'en pense, assumé → question ou sondage qui fait réagir
    Idéal pour : se positionner, affirmer ses valeurs, créer du débat sain
 
 ══ SI UN CONTENU SOURCE EST FOURNI (bloc « CONTENU SOURCE » ou fichiers) ══
@@ -3426,6 +3437,13 @@ IMPORTANT :
 - Pas de markdown dans les valeurs JSON
 
 Réponds UNIQUEMENT avec le JSON, rien d'autre.
+
+══ PROFONDEUR ET PRISE DE POSITION ══
+Sauf tutoriel, liste pratique, coulisses ou présentation d'offre demandés, ce contenu défend une position. Tire-la de l'angle choisi, de l'accroche, des réponses de la personne, de ses convictions et de ses combats de marque, puis assume-la en première personne au lieu de la diluer dans une distinction abstraite ou un concept. Une idée forte de l'angle (un parallèle, une comparaison, une formule qui fait réagir) reste le fil du contenu.
+Creuse sous le sujet : ce qu'il révèle quand il en touche un (norme sociale, injonction faite aux femmes ou aux indépendantes, rapport de pouvoir, mécanisme du métier). Pour un sujet de société, un « on » ou un « nous » collectif peut porter cette lecture.
+Nomme les émotions concrètes que ce sujet soulève couramment (peur du jugement, honte, fatigue, colère) comme une expérience partagée, jamais comme le diagnostic de la personne qui lit (« tu as peur », « tu n'oses pas »).
+Une opinion n'a pas besoin de source ; un fait, un chiffre ou un vécu, si. Une nuance assumée (« ça peut aussi être un vrai choix ») renforce la position. Une précaution sur ce que le texte n'affirme pas l'affaiblit : n'écris ni « sans garantie », ni « hypothèse de travail », ni « je n'affirme rien sur l'algorithme ». Une accroche provocante n'est pas désamorcée par une excuse (« ok je suis peut-être un peu too much »).
+FIN : la position assumée, ou une question simple (sondage, question ouverte) qui découle de la séquence. Pas de devoir à faire pour conclure (« cette semaine, essaie de… », « ton exercice : … »).
 
 RÉPONSES DE L'UTILISATRICE :
 Q1 : "La dernière fois qu'on t'a demandé une remise, tu as répondu quoi ?" → "J'ai dit non, et la cliente a signé quand même."

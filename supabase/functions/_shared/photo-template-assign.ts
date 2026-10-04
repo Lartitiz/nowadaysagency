@@ -17,6 +17,8 @@
 // Import PARESSEUX de anthropic.ts (au moment de l'appel seulement) : son
 // chargement lit l'environnement, ce qui casserait les tests purs de ce module.
 import type { AnthropicModel } from "./anthropic.ts";
+import { progressionMaterial } from "./carousel-editorial-snapshot.ts";
+import { resolvePhotoTemplate } from "./photo-overlay-templates.ts";
 
 // « etape » retiré le 04/10/2026 : les étapes sont marquées par l'étage de mise
 // en forme (« Étape n · … »), plus par un gros numéro de gabarit.
@@ -67,6 +69,12 @@ function norm(s: string): string {
   return (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9%]+/g, " ").trim();
 }
 
+/** Un extrait (chiffre, item, attribution) vient-il EXACTEMENT du texte ? Même
+ * règle pour l'assignation et pour la re-validation après coup. */
+function isExtractOf(text: string, excerpt: unknown): boolean {
+  return typeof excerpt === "string" && !!norm(excerpt) && norm(text).includes(norm(excerpt));
+}
+
 /**
  * Merge PUR et GARDÉ des assignations dans le JSON de contenu (testable sans
  * modèle). Ne touche jamais aux textes ; rejette la matière non issue du texte.
@@ -102,7 +110,7 @@ export function applyTemplateAssignments(parsed: any, assignments: TemplateAssig
       // relecture stérile sur ce gabarit. On accepte donc aussi la
       // re-confirmation du chiffre déjà posé par la passe d'écriture (dont la
       // véracité est contrôlée par le redac-gate, qui scanne big_number).
-      const fromText = !!big && norm(text).includes(norm(big));
+      const fromText = !!big && isExtractOf(text, big);
       const reaffirmed = !!big && !!existing && norm(existing) === norm(big);
       if (!fromText && !reaffirmed) {
         return void rejected.push(`#${nums[i]} chiffre sans big_number issu du texte`);
@@ -113,7 +121,7 @@ export function applyTemplateAssignments(parsed: any, assignments: TemplateAssig
       const pts = (a.points || []).filter((p) => typeof p === "string" && p.trim() && wordCount(p) <= 8).slice(0, 3);
       // Extrait EXACT du texte (04/10/2026) : un seul mot commun suffisait avant,
       // ce qui laissait passer un item réécrit, donc du texte absent de la slide.
-      const grounded = pts.filter((p) => !!norm(p) && norm(text).includes(norm(p)));
+      const grounded = pts.filter((p) => isExtractOf(text, p));
       // Même logique que chiffre : des points identiques à ceux déjà posés par
       // la passe d'écriture sont une re-confirmation, pas une invention.
       const existingPts = Array.isArray(s?.points) ? s.points.map((p: any) => norm(String(p))).join("|") : "";
@@ -124,7 +132,7 @@ export function applyTemplateAssignments(parsed: any, assignments: TemplateAssig
     // Qui parle : seulement si le texte de la slide le dit (extrait exact) ;
     // jamais une attribution devinée.
     if (t === "citation" && a.attribution && wordCount(a.attribution) <= 5) {
-      if (norm(text).includes(norm(a.attribution))) s.attribution = a.attribution.trim();
+      if (isExtractOf(text, a.attribution)) s.attribution = a.attribution.trim();
       else rejected.push(`#${nums[i]} attribution absente du texte`);
     }
     if (t === "finale" && a.cta_label && wordCount(a.cta_label) <= 8) {
@@ -146,6 +154,81 @@ export function applyTemplateAssignments(parsed: any, assignments: TemplateAssig
     applied++;
   });
   return { applied, rejected };
+}
+
+/**
+ * Re-validation PURE de la mise en page contre le texte FINAL (04/10/2026,
+ * « la mise en page lit le texte final »). Le gros chiffre, les items de liste
+ * et l'attribution sont des extraits exacts de l'overlay_text ; si une passe
+ * ultérieure (réparation globale du fil, édition) a changé ce texte, un extrait
+ * qui n'y figure plus est RETIRÉ et le gabarit retombe comme au rendu
+ * (resolvePhotoTemplate). Dégrader l'élément, jamais le texte : overlay_text,
+ * kicker, detail et cta_label ne sont jamais touchés. Retourne les retraits.
+ */
+export function revalidatePhotoLayout(parsed: any): string[] {
+  const removed: string[] = [];
+  const slides: any[] = Array.isArray(parsed?.slides) ? parsed.slides : [];
+  slides.forEach((s: any, i: number) => {
+    if (!s || typeof s !== "object") return;
+    const text: string = typeof s.overlay_text === "string" ? s.overlay_text : "";
+    const n = Number(s.slide_number) || i + 1;
+    let changed = false;
+    if (s.big_number != null && !isExtractOf(text, s.big_number)) {
+      delete s.big_number; changed = true; removed.push(`#${n} chiffre`);
+    }
+    if (Array.isArray(s.points)) {
+      const kept = s.points.filter((p: unknown) => isExtractOf(text, p));
+      if (kept.length !== s.points.length) {
+        changed = true;
+        removed.push(`#${n} ${s.points.length - kept.length} item(s) de liste`);
+        if (kept.length >= 2) s.points = kept; else delete s.points;
+      }
+    } else if (s.points != null) { delete s.points; changed = true; removed.push(`#${n} liste illisible`); }
+    if (s.attribution != null && !isExtractOf(text, s.attribution)) {
+      delete s.attribution; changed = true; removed.push(`#${n} attribution`);
+    }
+    // Le gabarit qui portait l'élément retiré retombe comme le ferait le rendu.
+    if (changed && typeof s.template === "string" && s.template) {
+      s.template = resolvePhotoTemplate(s, { isFirst: i === 0, isLast: i === slides.length - 1 });
+    }
+  });
+  return removed;
+}
+
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Re-validation sur le contenu JSON livré. Les reçus de relecture (fil, photos)
+ * portent l'empreinte du texte relu, champs de mise en page compris : retirer
+ * un extrait périmé ne change aucun mot du texte, donc un reçu À JOUR avant
+ * cette étape est ré-empreint (comme l'étage schémas, PR #1268) ; un reçu déjà
+ * périmé le reste. JSON illisible → contenu intact.
+ */
+export async function revalidatePhotoLayoutContent(content: string, logger?: (m: string) => void): Promise<string> {
+  try {
+    const m = content.match(/\{[\s\S]*\}/);
+    if (!m) return content;
+    const parsed = JSON.parse(m[0]);
+    if (!Array.isArray(parsed?.slides)) return content;
+    const before = progressionMaterial(parsed);
+    const freshText = parsed.progression_review?.reviewed_material === before;
+    const freshPhoto = parsed.photo_review?.reviewed_material === before;
+    const removed = revalidatePhotoLayout(parsed);
+    if (!removed.length) return content;
+    logger?.(`[template-assign] re-validation sur le texte final : ${removed.join(" ; ")}`);
+    const after = progressionMaterial(parsed);
+    if (after !== before) {
+      if (freshText) parsed.progression_review = { ...parsed.progression_review, reviewed_material: after, reviewed_text_hash: await sha256Hex(after), layout_revalidated_after_review: true };
+      if (freshPhoto) parsed.photo_review = { ...parsed.photo_review, reviewed_material: after };
+    }
+    const start = m.index ?? 0;
+    return content.slice(0, start) + JSON.stringify(parsed) + content.slice(start + m[0].length);
+  } catch {
+    return content;
+  }
 }
 
 /** Champs de MISE EN PAGE du carrousel photo : décidés après la rédaction

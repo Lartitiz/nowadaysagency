@@ -1,5 +1,5 @@
 import { assertWorkspacePublication } from "../_shared/social-workspace-guard.ts";
-import { reelCalendarCaption } from "../_shared/reel-caption.ts";
+import { calendarPublishCaption } from "../_shared/calendar-caption.ts";
 import { isDurableReelUrl } from "../_shared/reel-publication.ts";
 // Publication programmée (Instagram image/carrousel + LinkedIn texte). Appelée toutes
 // les ~5 min par le cron (public.trigger_publish_due_posts) avec la clé service-role en
@@ -102,29 +102,12 @@ export async function processScheduledPosts(supabase: any): Promise<{ processed:
 
   const results: any[] = [];
 
-  // Légende réelle du post : un carrousel sauvegardé en brouillon garde le
-  // dump « SLIDE 1 : … » dans content_draft (édité tel quel dans le dialog
-  // calendrier) alors que la vraie légende vit dans story_sequence_detail.
-  // Sans ce choix, le dump des slides partait TEL QUEL en légende.
-  const resolveCaption = (post: any): string => {
-    const draft = (post?.content_draft || "").trim();
-    const detail = post?.story_sequence_detail;
-    if (detail?.type === "reel") return reelCalendarCaption(draft, detail);
-    const cap = detail && typeof detail === "object" ? (detail as any).caption : null;
-    let capText = typeof cap === "string"
-      ? cap.trim()
-      : cap && typeof cap === "object"
-        ? [cap.hook, cap.body, cap.cta].filter(Boolean).join("\n\n").trim()
-        : "";
-    if (capText && cap && typeof cap === "object" && Array.isArray(cap.hashtags) && cap.hashtags.length) {
-      capText += "\n\n" + cap.hashtags.map((h: unknown) => `#${String(h).replace(/^#/, "")}`).join(" ");
-    }
-    const looksLikeSlideDump = /^\s*(?:📌\s*)?SLIDE\s*\d+\s*[:.–-]/i.test(draft) || /\n\s*(?:📌\s*)?SLIDE\s*\d+\s*[:.–-]/i.test(draft);
-    // Une légende éditée à la main dans le calendrier reste prioritaire — on ne
-    // bascule sur la légende structurée que si le draft est vide ou est un dump.
-    if (capText && (looksLikeSlideDump || !draft)) return capText;
-    return draft;
-  };
+  // Légende réelle du post : le brouillon d'un carrousel embarque aussi le
+  // texte des slides (dump « SLIDE 1 : … » ou séparateur « ───── SLIDES ───── »)
+  // pour l'affichage calendrier ; seule la légende doit partir. Règle partagée
+  // avec la publication directe du front : _shared/calendar-caption.ts.
+  const resolveCaption = (post: any): string =>
+    calendarPublishCaption(post?.content_draft, post?.story_sequence_detail);
 
   for (const post of due || []) {
     // Verrou optimiste : passe à 'publishing' seulement si encore 'scheduled' (anti double-publi).

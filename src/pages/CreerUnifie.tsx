@@ -60,6 +60,7 @@ import CreerStepIdea from "@/components/creer/CreerStepIdea";
 // (chunk /creer initial allégé → premier écran plus rapide).
 const CreerStepFormat = lazy(() => import("@/components/creer/CreerStepFormat"));
 const CreerStepQuestions = lazy(() => import("@/components/creer/CreerStepQuestions"));
+import { NEWSJACKING_FIELD_QUESTION } from "@/lib/field-question";
 const CreerStepResult = lazy(() => import("@/components/creer/CreerStepResult"));
 import type { CarouselColors } from "@/components/creer/formatRenderers/CarouselPhotoResult";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
@@ -2918,6 +2919,7 @@ function CreerWorkspace() {
                 onAnswersChange={setAnswers}
                 autoFirstContent={autoFlow}
                 allowNarrative={selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix")}
+                fieldQuestion={newsjackingContext ? NEWSJACKING_FIELD_QUESTION : undefined}
               />
             )}
 

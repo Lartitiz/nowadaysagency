@@ -5,12 +5,52 @@
  * malgré l'instruction (incises) ; ce nettoyage déterministe le garantit.
  * Remplace tiret cadratin (—) et demi-cadratin (–) par une virgule.
  * Ne touche PAS le trait d'union "-" (donc "30-45 mots", puces "- ", dates intacts).
+ *
+ * Exceptions STRUCTURELLES (régression « 1, 2, 3 » perdus) : la règle vise les
+ * incises au fil de la phrase. Trois positions ne sont pas des incises et une
+ * virgule y casse le texte, elles sont donc protégées :
+ *  (a) tiret en début de ligne = puce de liste / réplique (« – item ») :
+ *      conservé ; le cadratin y devient demi-cadratin « – » (même rôle visuel,
+ *      règle « jamais de — » respectée). Avant : « , item ».
+ *  (b) tiret juste après un numéro d'ordre en début de ligne ou de titre
+ *      (« 1 — Le pétrissage », « Étape 3 – … », « ## 2 — … ») : séparation
+ *      conservée telle quelle (« – »), sans réécrire la numérotation.
+ *      Avant : « 1, Le pétrissage ».
+ *  (c) tiret entre deux nombres / heures = plage (« 9h–12h », « 2020–2024 ») :
+ *      devient le trait d'union simple « - » (« 9h-12h »). Avant : « 9h, 12h ».
+ * « Début de ligne » couvre aussi le texte JSON sérialisé (sortie tool en
+ * streaming) : après un "\n" échappé ou au début d'une valeur "…".
  */
+// Marqueurs internes (zone Unicode privée) pour protéger les exceptions du
+// remplacement général, restaurés ensuite.
+const KEEP_EN_DASH = "\uE000";
+const KEEP_HYPHEN = "\uE001";
+// Début de ligne : début de chaîne, vrai saut de ligne, "\n" échappé JSON, ou
+// ouverture de valeur JSON ; puis indentation et marqueurs de titre markdown.
+const LINE_START = String.raw`((?:^|\n|\\n|")[ \t]*(?:#{1,6}[ \t]+|\*\*|__)?[ \t]*)`;
+// Numéro d'ordre : « 1 », « 1. », « 1) », « 1️⃣ », éventuellement précédé d'un
+// mot d'ordre (« Étape 3 », « Conseil n°2 », « Jour 4 »…).
+const ORDER_NUMBER = String.raw`((?:(?:[ÉE]tape|Jour|Semaine|Mois|Partie|Chapitre|Slide|Point|Conseil|Astuce|Erreur|R[èe]gle|Le[çc]on|Question|Raison|Option|Phase|N°|n°|No\.?|#)[ \t]*(?:n°[ \t]*)?)?\d{1,3}(?:\uFE0F?\u20E3)?[.)]?)`;
+const NUMBERED_DASH_RE = new RegExp(`${LINE_START}${ORDER_NUMBER}([ \\t]*)[—–]`, "g");
+const LIST_DASH_RE = new RegExp(`${LINE_START}[—–]`, "g");
+// Plage collée (« 9h–12h », « 2020–2024 », « 10%–20% ») ou plage horaire
+// espacée (« 9h – 12h ») ; une incise espacée entre deux nombres quelconques
+// (« en 2019 — 5 ans après ») reste une incise et suit la règle générale.
+const RANGE_TIGHT_RE = /(\d(?:[ \t]?h(?:\d{2})?|%|€)?)[—–](?=[ \t]?\d)/g;
+const RANGE_HOURS_RE = /(\d{1,2}[ \t]?h(?:\d{2})?)([ \t]+)[—–]([ \t]+)(?=\d{1,2}[ \t]?h)/g;
+
 export function sanitizeDashes(text: string): string {
   if (!text) return text;
   return text
+    // Plages d'abord : « 2–3 fois » en tête de ligne est une plage, pas une numérotation.
+    .replace(RANGE_HOURS_RE, (_m, a: string, s1: string, s2: string) => `${a}${s1}${KEEP_HYPHEN}${s2}`) // (c)
+    .replace(RANGE_TIGHT_RE, (_m, a: string) => `${a}${KEEP_HYPHEN}`) // (c)
+    .replace(NUMBERED_DASH_RE, (_m, start: string, num: string, sp: string) => `${start}${num}${sp}${KEEP_EN_DASH}`) // (b)
+    .replace(LIST_DASH_RE, (_m, start: string) => `${start}${KEEP_EN_DASH}`) // (a)
     .replace(/ *[—–] */g, ", ") // tiret (entouré ou non d'espaces) -> virgule
-    .replace(/,\s*,/g, ",");    // évite ",," si deux tirets se suivaient
+    .replace(/,\s*,/g, ",")    // évite ",," si deux tirets se suivaient
+    .replaceAll(KEEP_EN_DASH, "–")
+    .replaceAll(KEEP_HYPHEN, "-");
 }
 
 /** Applique sanitizeDashes à toutes les strings d'une valeur JSON (sortie structurée). */

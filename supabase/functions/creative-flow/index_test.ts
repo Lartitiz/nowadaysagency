@@ -39,7 +39,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent, applyStoriesCorrectionPass, applyNewsletterCorrectionPass } = await import("./index.ts");
+const { retiredCarouselStreamResponse, runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent, applyStoriesCorrectionPass, applyNewsletterCorrectionPass } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -474,4 +474,63 @@ Deno.test("newsletter : la même relecture reçoit et corrige aussi les champs c
     assertEquals(parsed.content, content);
     assertEquals(parsed.campaign, "stable");
   } finally { mock.restore(); }
+});
+
+// ── Ancien circuit carrousel (stream + passe de correction) retiré ──
+// Sa passe de correction demandait d'effacer la numérotation des conseils
+// (régression « 1, 2, 3 » perdus). Plus aucun appelant : réponse 410 claire,
+// sans appel IA ni crédit débité. Les carrousels passent par carousel-ai.
+Deno.test("circuit carrousel stream retiré : 410 explicite, aucun appel IA", async () => {
+  const mock = installFetchMock({ anthropic: () => { throw new Error("aucun appel IA attendu"); } });
+  try {
+    const res = retiredCarouselStreamResponse({ "Access-Control-Allow-Origin": "*" });
+    assertEquals(res.status, 410);
+    assertEquals(res.headers.get("Content-Type"), "application/json");
+    assertEquals(res.headers.get("Access-Control-Allow-Origin"), "*");
+    const json = await res.json();
+    assertEquals(json.error, "carousel_flow_retired");
+    assertEquals(/carousel-ai/.test(json.message), true);
+    assertEquals(mock.anthropicCallCount, 0);
+    assertEquals(mock.aiUsageInserts.length, 0);
+  } finally {
+    mock.restore();
+  }
+});
+
+// ── Recherche « creuser le sujet » pour posts, reels et stories (04/10/2026) ──
+Deno.test("creativeDepthBlock : sujet + angle de l'actu envoyés à la recherche, bloc de matière renvoyé", async () => {
+  const { _deps, creativeDepthBlock } = await import("./index.ts");
+  const original = _deps.fetchDepthMaterial;
+  // deno-lint-ignore no-explicit-any
+  let seen: any = null;
+  // deno-lint-ignore no-explicit-any
+  _deps.fetchDepthMaterial = (async (opts: any) => {
+    seen = opts;
+    return "Le visage rassure parce qu'il signale une personne responsable de ce qu'elle vend ; Instagram favorise les contenus qui retiennent (Meta, 2025). Mais cette norme pèse surtout sur les femmes, jugées sur leur apparence.";
+  }) as typeof original;
+  try {
+    const block = await creativeDepthBlock({ context: "Montre ton visage, le nouveau souris ?", newsContext: "Instagram pousse les visages", activity: "photographe" });
+    assertEquals(seen.subject.includes("Montre ton visage"), true);
+    assertEquals(seen.subject.includes("Instagram pousse les visages"), true);
+    assertEquals(seen.activity, "photographe");
+    assertEquals(seen.timeoutMs, 20_000);
+    assertEquals(block.includes("MATIÈRE DE PROFONDEUR"), true);
+    assertEquals(block.includes("(Meta, 2025)"), true);
+  } finally {
+    _deps.fetchDepthMaterial = original;
+  }
+});
+
+Deno.test("creativeDepthBlock : recherche vide ou sans sujet -> aucun bloc, aucun appel sans sujet", async () => {
+  const { _deps, creativeDepthBlock } = await import("./index.ts");
+  const original = _deps.fetchDepthMaterial;
+  let calls = 0;
+  _deps.fetchDepthMaterial = (async () => { calls++; return "VIDE"; }) as typeof original;
+  try {
+    assertEquals(await creativeDepthBlock({ context: "Un sujet" }), "");
+    assertEquals(await creativeDepthBlock({ context: "  " }), "");
+    assertEquals(calls, 1);
+  } finally {
+    _deps.fetchDepthMaterial = original;
+  }
 });

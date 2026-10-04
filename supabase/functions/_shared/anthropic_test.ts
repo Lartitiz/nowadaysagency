@@ -1,5 +1,5 @@
 import { assertEquals, assertThrows } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { sanitizeSlop, extractValidatedToolInput, sanitizeDashesDeep, AnthropicError } from "./anthropic.ts";
+import { sanitizeSlop, extractValidatedToolInput, sanitizeDashes, sanitizeDashesDeep, sanitizeStyle, sanitizeStyleDeep, AnthropicError } from "./anthropic.ts";
 
 // ── sanitizeDashesDeep : la règle « jamais de tiret cadratin » traverse le JSON ──
 
@@ -22,6 +22,60 @@ Deno.test("sanitizeDashesDeep nettoie les strings imbriquées (objets + tableaux
 
 Deno.test("sanitizeDashesDeep laisse intacts nombres, booléens et null", () => {
   assertEquals(sanitizeDashesDeep({ a: 1, b: true, c: null }), { a: 1, b: true, c: null });
+});
+
+// ── sanitizeDashes : exceptions structurelles (régression « 1, 2, 3 » perdus) ──
+// La règle de style (incise « — » → virgule) reste ; seuls les tirets qui ne
+// sont PAS des incises (puce, numéro d'ordre, plage) sont protégés.
+
+Deno.test("sanitizeDashes : l'incise au milieu d'une phrase devient toujours une virgule", () => {
+  assertEquals(sanitizeDashes("Ta collection — c'est quoi le déclic ?"), "Ta collection, c'est quoi le déclic ?");
+  assertEquals(sanitizeDashes("un salon – une rencontre"), "un salon, une rencontre");
+  assertEquals(sanitizeDashes("J'ai lancé en 2019 — 5 ans plus tard, tout a changé."), "J'ai lancé en 2019, 5 ans plus tard, tout a changé.");
+  assertEquals(sanitizeDashes("Le pain — 3 ingrédients — suffit."), "Le pain, 3 ingrédients, suffit.");
+});
+
+Deno.test("sanitizeDashes (b) : le tiret après un numéro d'ordre en tête de ligne n'est pas changé en virgule", () => {
+  assertEquals(sanitizeDashes("1 — Le pétrissage"), "1 – Le pétrissage");
+  assertEquals(sanitizeDashes("2 – La pousse"), "2 – La pousse");
+  assertEquals(sanitizeDashes("Étape 3 — Le façonnage"), "Étape 3 – Le façonnage");
+  assertEquals(sanitizeDashes("1. — Le choix"), "1. – Le choix");
+  assertEquals(sanitizeDashes("## 4 — La cuisson"), "## 4 – La cuisson");
+  assertEquals(sanitizeDashes("**5 — Le repos**"), "**5 – Le repos**");
+  assertEquals(
+    sanitizeDashes("Mes conseils :\n1 — Le pétrissage\n2 — La pousse\n3 — La cuisson — sans stress"),
+    "Mes conseils :\n1 – Le pétrissage\n2 – La pousse\n3 – La cuisson, sans stress",
+  );
+});
+
+Deno.test("sanitizeDashes (a) : une puce en début de ligne reste une puce, jamais « , item »", () => {
+  assertEquals(sanitizeDashes("– item"), "– item");
+  assertEquals(sanitizeDashes("— item"), "– item"); // cadratin interdit → demi-cadratin, même rôle
+  assertEquals(sanitizeDashes("Liste :\n– farine\n  — eau\n– sel"), "Liste :\n– farine\n  – eau\n– sel");
+  assertEquals(sanitizeDashes("- tiret simple"), "- tiret simple");
+});
+
+Deno.test("sanitizeDashes (c) : une plage entre nombres/heures devient un trait d'union", () => {
+  assertEquals(sanitizeDashes("Ouvert 9h–12h"), "Ouvert 9h-12h");
+  assertEquals(sanitizeDashes("Ouvert 9h30–12h"), "Ouvert 9h30-12h");
+  assertEquals(sanitizeDashes("Ouvert 9h – 12h"), "Ouvert 9h - 12h");
+  assertEquals(sanitizeDashes("De 2020–2024"), "De 2020-2024");
+  assertEquals(sanitizeDashes("2–3 fois par semaine"), "2-3 fois par semaine");
+  assertEquals(sanitizeDashes("entre 10%–20%"), "entre 10%-20%");
+});
+
+Deno.test("sanitizeDashes : texte JSON sérialisé (stream tool) protégé aussi", () => {
+  const raw = JSON.stringify({ slides: [{ title: "1 — Le pétrissage", body: "Ligne\n– puce\nHoraires 9h–12h — en semaine" }] });
+  assertEquals(JSON.parse(sanitizeDashes(raw)), {
+    slides: [{ title: "1 – Le pétrissage", body: "Ligne\n– puce\nHoraires 9h-12h, en semaine" }],
+  });
+});
+
+Deno.test("sanitizeStyle/Deep : jamais de cadratin en sortie, numérotation intacte", () => {
+  const out = sanitizeStyleDeep({ titles: ["1 — Le pétrissage", "Étape 2 — La pousse"], note: "— puce" });
+  assertEquals(out, { titles: ["1 – Le pétrissage", "Étape 2 – La pousse"], note: "– puce" });
+  assertEquals(JSON.stringify(out).includes("—"), false);
+  assertEquals(sanitizeStyle("Une idée — une seule.").includes("—"), false);
 });
 
 // ── extractValidatedToolInput : sortie structurée = JSON valide par construction ──
