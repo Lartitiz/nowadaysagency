@@ -128,6 +128,55 @@ function makeBadge(
   );
 }
 
+// ═══ STRUCTURE DÉDUITE PAR LE CODE ═══
+// L'IA remplit pin_data ; quand un champ de STRUCTURE manque (badge, côté
+// avant/après, élément central d'un schéma), le code le déduit au lieu de
+// produire une slide vide ou un badge vide. Aucun texte n'est réécrit, et
+// quand les champs sont bons le rendu est strictement le même.
+
+/** Badge affiché : celui de l'IA s'il est non vide, sinon le libellé du type. */
+function badgeTextFor(pinData: PinData, fallback: string): string {
+  const b = pinData.badge_label;
+  return typeof b === "string" && b.trim() ? b : fallback;
+}
+
+/**
+ * Répartit les éléments d'un avant/après. `side` valide → respecté. Sans
+ * `side` : ❌ → avant, ✅ → après, sinon moitié/moitié dans l'ordre (la
+ * première moitié, arrondie au supérieur, est « avant »). Avant, un élément
+ * sans `side` disparaissait de l'export (slide vide si aucun n'en avait).
+ */
+export function splitBeforeAfter(elements: PinElement[]): { before: PinElement[]; after: PinElement[] } {
+  const half = Math.ceil(elements.length / 2);
+  const before: PinElement[] = [];
+  const after: PinElement[] = [];
+  elements.forEach((el, i) => {
+    let side = el.side;
+    if (side !== "before" && side !== "after") {
+      const emoji = el.emoji || "";
+      if (emoji.includes("❌")) side = "before";
+      else if (emoji.includes("✅")) side = "after";
+      else side = i < half ? "before" : "after";
+    }
+    (side === "before" ? before : after).push(el);
+  });
+  return { before, after };
+}
+
+/**
+ * Élément central d'un schéma : celui de `number === 0` ; à défaut, le premier
+ * élément (le prompt demande que le centre soit le premier). Avant, sans
+ * `number === 0`, la carte centrale manquait.
+ */
+export function splitSchemaCenter(elements: PinElement[]): { center: PinElement | undefined; peripherals: PinElement[] } {
+  const idx = elements.findIndex((e) => e.number === 0);
+  const centerIdx = idx >= 0 ? idx : elements.length > 0 ? 0 : -1;
+  return {
+    center: centerIdx >= 0 ? elements[centerIdx] : undefined,
+    peripherals: elements.filter((_, i) => i !== centerIdx),
+  };
+}
+
 // ═══ DIMENSIONS ═══
 const W = 6.94;
 const H = 10.42;
@@ -147,7 +196,7 @@ function buildInfographieOrTuto(
   slide.addShape("rect", { x: 0, y: 0, w: W, h: H, fill: { color: c.bg } });
 
   // Badge
-  const badgeText = pinData.badge_label || (pinData.pin_type === "mini_tuto" ? "TUTO" : "INFOGRAPHIE");
+  const badgeText = badgeTextFor(pinData, pinData.pin_type === "mini_tuto" ? "TUTO" : "INFOGRAPHIE");
   const badgeW = Math.max(1.8, badgeText.length * 0.14 + 0.6);
   makeBadge(slide, badgeText, (W - badgeW) / 2, PAD_Y, c.primary, f.body);
 
@@ -230,7 +279,7 @@ function buildChecklist(
 ) {
   slide.addShape("rect", { x: 0, y: 0, w: W, h: H, fill: { color: c.bg } });
 
-  const badgeText = pinData.badge_label || "CHECKLIST";
+  const badgeText = badgeTextFor(pinData, "CHECKLIST");
   const badgeW = Math.max(1.8, badgeText.length * 0.14 + 0.6);
   makeBadge(slide, badgeText, (W - badgeW) / 2, PAD_Y, c.primary, f.body);
 
@@ -312,7 +361,7 @@ function buildAvantApres(
 ) {
   slide.addShape("rect", { x: 0, y: 0, w: W, h: H, fill: { color: "FFFFFF" } });
 
-  const badgeText = pinData.badge_label || "AVANT / APRÈS";
+  const badgeText = badgeTextFor(pinData, "AVANT / APRÈS");
   const badgeW = Math.max(1.8, badgeText.length * 0.14 + 0.6);
   makeBadge(slide, badgeText, (W - badgeW) / 2, PAD_Y, c.primary, f.body);
 
@@ -321,8 +370,7 @@ function buildAvantApres(
     { x: PAD_X, y: PAD_Y + 0.6, w: CONTENT_W, h: 0.7, align: "center", valign: "middle" },
   );
 
-  const beforeItems = (pinData.elements || []).filter((e) => e.side === "before");
-  const afterItems = (pinData.elements || []).filter((e) => e.side === "after");
+  const { before: beforeItems, after: afterItems } = splitBeforeAfter(pinData.elements || []);
 
   const sectionStartY = 1.8;
   const sectionH = (H - sectionStartY - 0.8) / 2 - 0.3;
@@ -405,7 +453,7 @@ function buildSchemaVisuel(
 ) {
   slide.addShape("rect", { x: 0, y: 0, w: W, h: H, fill: { color: c.bg } });
 
-  const badgeText = pinData.badge_label || "SCHÉMA";
+  const badgeText = badgeTextFor(pinData, "SCHÉMA");
   const badgeW = Math.max(1.8, badgeText.length * 0.14 + 0.6);
   makeBadge(slide, badgeText, (W - badgeW) / 2, PAD_Y, c.primary, f.body);
 
@@ -415,8 +463,7 @@ function buildSchemaVisuel(
   );
 
   const elements = pinData.elements || [];
-  const center = elements.find((e) => e.number === 0);
-  const peripherals = elements.filter((e) => e.number !== 0);
+  const { center, peripherals } = splitSchemaCenter(elements);
 
   // Central element
   const centerY = 2.2;
