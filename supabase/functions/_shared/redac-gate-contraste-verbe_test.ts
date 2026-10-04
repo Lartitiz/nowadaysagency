@@ -20,6 +20,9 @@ Deno.test("contraste même verbe : variantes détectées", () => {
       "Tu ne vends pas un bol. Tu vends un moment.",
       "Elle ne publie pas plus. Elle publie mieux.",
       "Vous ne cherchez pas la visibilité. Mais vous cherchez la confiance.",
+      "Instagram ne regarde pas combien tu publies. Il regarde ce que les gens FONT avec ce que tu publies.",
+      "L'algorithme ne récompense pas le volume. Il récompense l'attention.",
+      "Ta cliente n'achète pas un bol. Elle achète un rituel.",
     ]
   ) {
     assertEquals(analyzeTextRedac(s).reversals.length, 1, `non détecté : ${s}`);
@@ -34,6 +37,8 @@ Deno.test("contraste même verbe : pas de faux positif", () => {
       "Je ne cherche pas à plaire à tout le monde, et je l'assume.",
       "Je cherche des pièces qui ont une identité.",
       "Tu ne publies pas assez ? Ce n'est pas grave.",
+      "Instagram ne montre pas tout de suite ton post. Il le teste d'abord sur une petite partie de ton réseau.",
+      "L'algorithme ne regarde pas le nombre de posts. Il mesure le temps passé.",
     ]
   ) {
     assertEquals(analyzeTextRedac(s).reversals, [], `faux positif : ${s}`);
