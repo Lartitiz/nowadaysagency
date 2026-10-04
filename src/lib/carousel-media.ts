@@ -29,14 +29,14 @@ const stored = new Map<string, Promise<string>>();
 // lien public → data URL, pour les exports.
 const fetched = new Map<string, Promise<string>>();
 
-function decode(base64: string): Uint8Array {
+function decode(base64: string): Uint8Array<ArrayBuffer> {
   const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
 }
 
-async function sha256(bytes: Uint8Array): Promise<string> {
+async function sha256(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
