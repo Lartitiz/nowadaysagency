@@ -70,7 +70,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { applyCoverIllustration, enforceTextCover, runComposedByCodeGeneration, stripInventedSurtitres, stripSlideNumberBadges, stripDuplicateStepNumbers, stripDuplicateStepPrefixes, enforceVerbatimAnchorsGuard, enforcePhotoSlideAnchorsGuard, stripVisualHintText, applyTitleBodyContrastGuard, applyTextContrastGuard, applyMinFontSizeGuard } = await import("./index.ts");
+const { applyCoverIllustration, composeMixStages, enforceTextCover, runComposedByCodeGeneration, stripInventedSurtitres, stripSlideNumberBadges, stripDuplicateStepNumbers, stripDuplicateStepPrefixes, enforceVerbatimAnchorsGuard, enforcePhotoSlideAnchorsGuard, stripVisualHintText, applyTitleBodyContrastGuard, applyTextContrastGuard, applyMinFontSizeGuard } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -498,4 +498,91 @@ Deno.test("couverture texte (04/10/2026) : la slide 1 dessinée par l'IA est rem
   const photo: any = { slides_html: [{ slide_number: 1, html: aiCover }] };
   enforceTextCover(photo, { slides, ch, isText: false });
   assertEquals(photo.slides_html[0].html, aiCover);
+});
+
+// ═══ VRAI CHEMIN du mixte automatique (test en ligne du 04/10/2026) ═══
+// Récit continu (carousel-ai) → slides envoyées par le front
+// (visualSlidePayload) → étages de carousel-visual (composeMixStages) → mémoire
+// gardée par le front (applyMixLayoutMemos) → régénération. En ligne, aucune
+// disposition n'était mémorisée et chaque photo_integrated portait
+// photo_layout « top_photo », un défaut inventé en deux endroits.
+Deno.test("VRAI CHEMIN mixte auto : l'étage de disposition est consulté, la mémoire revient et la régénération la reprend", async () => {
+  const { composeNarrative } = await import("../carousel-ai/continuous-narrative.ts");
+  const { visualSlidePayload } = await import("../../../src/lib/visual-slide-payload.ts");
+  const { applyMixLayoutMemos } = await import("../../../src/lib/mix-layout-memo.ts");
+  const { composeMixCarousel } = await import("../_shared/mix-slide-layouts.ts");
+  const narrative = {
+    idea: "Deux bols d'une même série ne sont jamais pareils",
+    hook: "Pourquoi deux bols de la même série ne sont jamais pareils",
+    paragraphs: [
+      "Tout commence avant le tour : chaque boule d'argile a sa propre humidité.",
+      "Sur le tour, un millimètre change tout.",
+      "Le même bleu, posé de la même façon, coule différemment selon sa place dans le four.",
+      "Chaque fournée a sa page dans mon carnet : température, place, couleur obtenue.",
+      "Ces écarts ne sont pas des défauts à effacer.",
+      "Le bol que tu choisis n'existe qu'une fois.",
+    ],
+    caption: { hook: "", body: "", cta: "", hashtags: [] },
+  };
+  const body = { carousel_type: "mix", scenario_origin: "automatic", slide_count: 7, photo_contexts: [{}, {}, {}] };
+  const raw = composeNarrative(narrative, body);
+  // 1. carousel-ai n'invente plus de disposition.
+  for (const s of raw.slides as any[]) assert(!("photo_layout" in s), `slide ${s.slide_number} : photo_layout inventé`);
+  // 2. Le front n'en invente pas non plus.
+  const send = (slides: any[]) => slides.map((s: any) => visualSlidePayload(s, s.slide_type, Number.isInteger(s.photo_index) ? s.photo_index : undefined));
+  const sent = send(raw.slides);
+  for (const s of sent as any[]) assert(!("photo_layout" in s), `slide ${s.slide_number} : photo_layout par défaut envoyé`);
+  // 3. carousel-visual : l'étage de disposition est bien interrogé.
+  const tiny = btoa(String.fromCharCode(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 3, 0x20, 0, 0, 4, 0xb0, 8, 2, 0, 0, 0));
+  const photos = [{ base64: tiny }, { base64: tiny }, { base64: tiny }];
+  const ch = { color_primary: "#3A4A3C", color_secondary: "#A9BCC8", color_accent: "#3A4A3C", color_background: "#FFFFFF", color_text: "#1A1A1A", font_title: "Georgia", font_body: "Arial" };
+  const calls: Record<string, number> = {};
+  const call = async (req: any) => {
+    calls[req.tool.name] = (calls[req.tool.name] || 0) + 1;
+    if (req.tool.name === "choisir_dispositions") {
+      const payload = JSON.parse(req.messages[0].content[0].text);
+      return JSON.stringify({ layouts: payload.slides.filter((s: any) => s.options.length).map((s: any) => ({ slide_number: s.slide_number, layout: s.options.includes("passe_partout") && s.slide_number % 2 ? "passe_partout" : s.options.at(-1), side: "right", position: "top", reason: "r" })) });
+    }
+    return JSON.stringify({ steps: [], motifs: [] });
+  };
+  const render = async (slides: any[]) => {
+    const payload = send(slides);
+    const initial = composeMixCarousel(payload, ch, photos.length)!;
+    assert(initial, "le mixte doit être composé par le code");
+    return { payload, ...(await composeMixStages({ slides: payload, ch, photos, photoCount: photos.length, usage: {}, initial, call: call as any })) };
+  };
+  const first = await render(raw.slides);
+  assertEquals(calls.choisir_dispositions, 1, "étage de disposition non consulté");
+  assertEquals(first.layouts.status, "completed");
+  assert(first.composed.some(c => c.layout_proposal?.status === "accepted"), "aucune disposition proposée retenue");
+  // 4. La mémoire revient pour chaque slide photo hors couverture.
+  const photoSlides = (raw.slides as any[]).map((s, i) => i > 0 && s.slide_type !== "text_only");
+  assertEquals(first.memos.map(m => !!m), photoSlides, "mémoire absente");
+  const saved = applyMixLayoutMemos(raw.slides as any[], first.memos);
+  assertEquals(saved.map((s: any) => !!s.mix_layout_memo), photoSlides, "mémoire non gardée sur les slides");
+  // 5. Régénération : mêmes visuels, pas de nouvel appel de disposition.
+  const second = await render(saved);
+  assertEquals(calls.choisir_dispositions, 1, "l'IA de disposition rappelée à la régénération");
+  assertEquals(second.composed.map(c => c.html), first.composed.map(c => c.html));
+  assertEquals(applyMixLayoutMemos(saved, second.memos), saved, "mémoire stable");
+});
+
+Deno.test("ancien carrousel : une disposition explicite garde son rendu ; « top_photo » reste neutre", async () => {
+  const { visualSlidePayload } = await import("../../../src/lib/visual-slide-payload.ts");
+  const { composeMixCarousel } = await import("../_shared/mix-slide-layouts.ts");
+  const ch = { color_primary: "#3A4A3C", color_secondary: "#A9BCC8", color_accent: "#3A4A3C", color_background: "#FFFFFF", color_text: "#1A1A1A", font_title: "Georgia", font_body: "Arial" };
+  const slides = [
+    { slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: "Pourquoi deux bols ne sont jamais pareils" },
+    { slide_number: 2, slide_type: "photo_integrated", photo_index: 2, photo_layout: "right_photo", title: "Le tour", body: "Un millimètre change tout." },
+    { slide_number: 3, slide_type: "photo_integrated", photo_index: 1, photo_layout: "top_photo", title: "L'émail", body: "Le bleu coule selon sa place dans le four." },
+    { slide_number: 4, slide_type: "text_only", title: "Une seule fois", body: "Ce bol n'existe qu'une fois." },
+  ];
+  const sent = slides.map((s: any) => visualSlidePayload(s, s.slide_type, s.photo_index));
+  assertEquals((sent[1] as any).photo_layout, "right_photo");
+  assertEquals((sent[2] as any).photo_layout, "top_photo");
+  // Même rendu qu'avant : la disposition confirmée est respectée, top_photo = rendu sans disposition.
+  const out = composeMixCarousel(sent as any, ch, 2)!;
+  assertEquals(out[1].layout, "cote_a_cote");
+  const neutral = composeMixCarousel(sent.map((s: any, i: number) => i === 2 ? { ...s, photo_layout: undefined } : s) as any, ch, 2)!;
+  assertEquals(out.map(c => c.html), neutral.map(c => c.html));
 });

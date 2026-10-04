@@ -169,8 +169,11 @@ export function composeNarrative(n: Narrative, body: any) {
             title: i === 0 ? text : "",
             body: i === 0 ? "" : text,
             visual_schema: null,
-            ...(slide_type === "photo_integrated"
-              ? { photo_layout: ref.photo_layout || "top_photo" }
+            // Disposition : seulement celle d'une structure confirmée. Un
+            // défaut posé ici passait pour un choix et la disposition est
+            // décidée au rendu (mix-layout-formatting.ts).
+            ...(slide_type === "photo_integrated" && ref.photo_layout
+              ? { photo_layout: ref.photo_layout }
               : {}),
           }),
         ...(ref.visual_anchor ? { visual_anchor: ref.visual_anchor } : {}),

@@ -2048,10 +2048,13 @@ function CreerWorkspace() {
     setPhotoMissingDialog,
     setVisualChunkProgress,
     refreshPlan,
-    onMixLayoutMemos: (memos) => setResult((prev: any) => {
+    onMixLayoutMemos: (memos, receipt) => setResult((prev: any) => {
       const slides = prev?.raw?.slides;
-      const next = Array.isArray(slides) ? applyMixLayoutMemos(slides, memos) : slides;
-      return next === slides ? prev : { ...prev, raw: { ...prev.raw, slides: next } };
+      const next = Array.isArray(slides) && memos ? applyMixLayoutMemos(slides, memos) : slides;
+      // Reçu de l'étage de disposition gardé sur le carrousel (diagnostic).
+      const sameReceipt = JSON.stringify(prev?.raw?.mix_layout_formatting ?? null) === JSON.stringify(receipt ?? null);
+      if (!prev?.raw || (next === slides && sameReceipt)) return prev;
+      return { ...prev, raw: { ...prev.raw, slides: next, ...(receipt ? { mix_layout_formatting: receipt } : {}) } };
     }),
   });
 

@@ -137,7 +137,9 @@ describe("useGenerateVisuals — appel manuel (avant-plan)", () => {
     const sent = mocks.invokeWithHeartbeat.mock.calls[0][1].body.slides;
     expect(sent[0].mix_layout_memo.layout).toBe("sur_photo");
     expect(sent[1].mix_layout_memo).toEqual(memo);
-    expect(onMixLayoutMemos).toHaveBeenCalledWith(memos);
+    expect(onMixLayoutMemos).toHaveBeenCalledWith(memos, undefined);
+    // Pas de disposition par défaut inventée : l’edge choisit.
+    expect(sent[1]).not.toHaveProperty("photo_layout");
   });
 
   it("une transition perdue dans le HTML conserve le texte et les visuels mais ne dit pas succès",async()=>{
