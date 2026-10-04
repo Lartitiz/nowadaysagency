@@ -1385,6 +1385,27 @@ export type Database = {
           },
         ]
       }
+      carousel_media_backfill_backup: {
+        Row: {
+          migrated_at: string
+          original: Json
+          row_id: string
+          table_name: string
+        }
+        Insert: {
+          migrated_at?: string
+          original: Json
+          row_id: string
+          table_name: string
+        }
+        Update: {
+          migrated_at?: string
+          original?: Json
+          row_id?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
       carousel_styles: {
         Row: {
           created_at: string
@@ -9150,6 +9171,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_carousel_media_backfill: {
+        Args: {
+          p_expected: string
+          p_id: string
+          p_table: string
+          p_values: Json
+        }
+        Returns: boolean
+      }
       assert_launch_target: {
         Args: { p_launch_id: string; p_workspace_id: string }
         Returns: undefined
@@ -9161,6 +9191,12 @@ export type Database = {
       calendar_share_text_preserved: {
         Args: { field_name?: string; new_value: Json; old_value: Json }
         Returns: boolean
+      }
+      carousel_media_candidates: {
+        Args: { p_after: string; p_limit: number; p_table: string }
+        Returns: {
+          id: string
+        }[]
       }
       consume_bonus_credit: { Args: { p_user_id: string }; Returns: number }
       create_coaching_program_full: {
