@@ -387,13 +387,15 @@ function tplListe(s: PhotoSlideSpec, ch: PhotoCharter): string {
   return contentWrap(s.overlay_position || "bottom_left", "center", readingPanel(parts, ch));
 }
 
+/** Ancien gabarit « etape » : plus de gros numéro (« 02 ») depuis le 04/10/2026,
+ * les étapes sont marquées par « Étape n · … » (étage de mise en forme). Ne sert
+ * plus qu'aux contenus déjà enregistrés ; resolvePhotoTemplate le remplace par
+ * « profonde » (qui reçoit, lui, les habillages et les étapes). */
 function tplEtape(s: PhotoSlideSpec, ch: PhotoCharter): string {
   const d = design(ch), fontTitle = cssFont(ch.font_title, "Georgia, serif");
-  const n = Math.max(1, Math.round(s.step_number || 1));
-  const number = `<div data-pptx-editable="caption" style="font-family:${fontTitle};font-size:88px;line-height:1.05;color:${d.heading};flex-shrink:0;">${String(n).padStart(2, "0")}</div>`;
-  const title = s.kicker ? `<div data-pptx-editable="title" style="font-family:${fontTitle};font-size:48px;font-weight:400;line-height:1.15;color:${d.heading};">${escapeHtml(s.kicker)}</div>` : "";
+  const title = s.kicker ? `<div data-pptx-editable="title" style="font-family:${fontTitle};font-size:48px;font-weight:400;line-height:1.15;color:${d.heading};margin-bottom:22px;">${escapeHtml(s.kicker)}</div>` : "";
   const body = s.overlay_text ? overlayAnchor(s.overlay_text, `font-size:${fitSize(40, s.overlay_text, 35)}px;line-height:1.45;color:${d.ink};`) : "";
-  return contentWrap(s.overlay_position || "bottom_left", "center", readingPanel(`<div style="display:flex;align-items:baseline;gap:24px;margin-bottom:22px;">${number}${title}</div>` + body + (s.detail ? detailHtml(s.detail, 24, d.ink) : ""), ch));
+  return contentWrap(s.overlay_position || "bottom_left", "center", readingPanel(title + body + (s.detail ? detailHtml(s.detail, 24, d.ink) : ""), ch));
 }
 
 function tplCitation(s: PhotoSlideSpec, ch: PhotoCharter): string {
@@ -439,6 +441,9 @@ export function resolvePhotoTemplate(
 ): PhotoTemplate {
   const t = (s.template || "").trim() as PhotoTemplate;
   const hasText = !!(s.overlay_text || "").trim();
+  // Plus de gabarit « etape » à gros numéro (04/10/2026) : une slide d'étape est
+  // une slide de prose ; « Étape n · … » vient de l'étage de mise en forme.
+  if (t === "etape") return hasText && wordCount(s.overlay_text || "") <= 4 && !s.kicker ? "etiquette" : "profonde";
   if (KNOWN.includes(t)) {
     // Cohérence gabarit/champs : un gabarit qui exige un champ absent est dégradé
     // vers un gabarit dont le champ PORTEUR existe (sinon la dégradation rendait
@@ -467,7 +472,6 @@ export function resolvePhotoTemplate(
   if (opts.isFirst && hasText) return "couverture";
   if ((s.big_number || "").trim()) return "chiffre";
   if ((s.points || []).length >= 2) return "liste";
-  if (typeof s.step_number === "number" && s.step_number > 0) return "etape";
   if ((s.attribution || "").trim() && hasText) return "citation";
   if (opts.isLast && hasText && (/\?\s*$/.test(s.overlay_text || "") || (s.cta_label || "").trim() || /cta|invitation/i.test(s.role || ""))) {
     return "finale";

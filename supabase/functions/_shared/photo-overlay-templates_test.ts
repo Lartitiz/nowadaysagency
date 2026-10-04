@@ -76,10 +76,11 @@ Deno.test("résolution : texte ≤ 4 mots → etiquette de marque, sans capitale
   assert(out.html.includes("justify-content:flex-end"));
 });
 
-Deno.test("résolution par champs : big_number → chiffre, points → liste, step_number → etape, attribution → citation", () => {
+Deno.test("résolution par champs : big_number → chiffre, points → liste, attribution → citation ; step_number ne fait plus de gabarit", () => {
   assertEquals(resolvePhotoTemplate(base({ big_number: "-40 %" }), mid), "chiffre");
   assertEquals(resolvePhotoTemplate(base({ points: ["Désencombrer", "Un vrai canapé"] }), mid), "liste");
-  assertEquals(resolvePhotoTemplate(base({ step_number: 2 }), mid), "etape");
+  assertEquals(resolvePhotoTemplate(base({ step_number: 2 }), mid), "profonde");
+  assertEquals(resolvePhotoTemplate(base({ template: "etape", step_number: 2 }), mid), "profonde");
   assertEquals(resolvePhotoTemplate(base({ attribution: "La propriétaire" }), mid), "citation");
 });
 
@@ -113,9 +114,10 @@ Deno.test("liste : numéros en couleur d'accent lisible, tous les points conserv
   assert(out.html.includes("Un de trop"));
 });
 
-Deno.test("etape : numéro de processus lisible, pas de pagination décorative", () => {
-  const out = composePhotoSlide(base({ step_number: 1, kicker: "On vide, on nettoie le regard" }), CH, mid);
-  assert(out.html.includes(">01</div>"));
+Deno.test("ancienne slide « etape » : plus de gros numéro, le titre de slide reste, pas de pagination", () => {
+  const out = composePhotoSlide(base({ template: "etape", step_number: 1, kicker: "On vide, on nettoie le regard" }), CH, mid);
+  assert(!/>0?1<\/div>/.test(out.html), "gros numéro supprimé");
+  assert(out.html.includes("On vide, on nettoie le regard"), "titre de slide conservé");
   assert(!/slide\s*\d/i.test(out.html));
   assert(!/\d\s*\/\s*\d/.test(out.html));
 });

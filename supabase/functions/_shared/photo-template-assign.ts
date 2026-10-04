@@ -18,7 +18,9 @@
 // chargement lit l'environnement, ce qui casserait les tests purs de ce module.
 import type { AnthropicModel } from "./anthropic.ts";
 
-const KNOWN_TEMPLATES = ["couverture", "profonde", "etiquette", "chiffre", "liste", "etape", "citation", "finale"];
+// « etape » retiré le 04/10/2026 : les étapes sont marquées par l'étage de mise
+// en forme (« Étape n · … »), plus par un gros numéro de gabarit.
+const KNOWN_TEMPLATES = ["couverture", "profonde", "etiquette", "chiffre", "liste", "citation", "finale"];
 
 export interface TemplateAssignment {
   slide_number: number;
@@ -47,7 +49,6 @@ const ASSIGN_TOOL = {
             attribution: { type: ["string", "null"], description: "Gabarit citation uniquement : qui parle, si le texte le dit (≤5 mots)." },
             cta_label: { type: ["string", "null"], description: "Gabarit finale uniquement : invitation déjà présente copiée mot pour mot. null si aucune invitation." },
             points: { type: ["array", "null"], items: { type: "string" }, description: "Gabarit liste uniquement : les 2-3 items, repris des mots du texte (≤8 mots chacun)." },
-            step_number: { type: ["number", "null"], description: "Gabarit etape uniquement : numéro de l'étape du processus décrit (1, 2, 3…)." },
           },
           required: ["slide_number", "template"],
         },
@@ -126,7 +127,6 @@ export function applyTemplateAssignments(parsed: any, assignments: TemplateAssig
       if (norm(text).includes(norm(proposed)) || (existing && norm(existing) === norm(proposed))) s.cta_label = proposed;
       else rejected.push(`#${nums[i]} invitation absente du texte`);
     }
-    if (t === "etape" && Number.isInteger(a.step_number) && (a.step_number as number) > 0) s.step_number = a.step_number;
 
     s.template = t;
     // Purge la matière des AUTRES gabarits, périmée après réassignation : un
@@ -136,7 +136,7 @@ export function applyTemplateAssignments(parsed: any, assignments: TemplateAssig
     if (t !== "liste") delete s.points;
     if (t !== "citation") delete s.attribution;
     if (t !== "finale") delete s.cta_label;
-    if (t !== "etape") delete s.step_number;
+    delete s.step_number;
     applied++;
   });
   return { applied, rejected };
@@ -207,7 +207,6 @@ GABARITS : ${KNOWN_TEMPLATES.join(", ")}.
 - etiquette : texte très court (≤4 mots) qui marque un pivot (AVANT, APRÈS, un mot-étendard).
 - chiffre : SEULEMENT si le texte contient déjà un chiffre marquant → big_number = ce chiffre copié EXACTEMENT. Au plus 1 par carrousel.
 - liste : SEULEMENT si le texte énumère 2-3 items distincts → points = les items, avec les mots du texte. Au plus 1 par carrousel.
-- etape : la slide décrit une étape numérotable d'un processus annoncé.
 - citation : le texte est un propos rapporté (guillemets, « m'a dit »…) → attribution si le texte dit qui parle.
 - finale : dernière slide, conclusion du récit avec ou sans invitation. cta_label = extrait exact d’une invitation déjà écrite ; null sinon. Aucune question ni appel aux commentaires ajouté.
 

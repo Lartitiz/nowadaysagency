@@ -2432,7 +2432,7 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
         planPhotoArtDirection(prepared, ch, reqBody.photos || [], usage, undefined, validImageUrls),
         planPhotoFormatting(prepared, usage),
       ]);
-      const templates: Record<string, string> = {opening:"couverture",editorial:"profonde",quote:"profonde",statement:"profonde",list:"liste",steps:"etape",number:"chiffre",closing:"finale"};
+      const templates: Record<string, string> = {opening:"couverture",editorial:"profonde",quote:"profonde",statement:"profonde",list:"liste",steps:"profonde",number:"chiffre",closing:"finale"};
       const directed = prepared.map((s: any) => {
         const choice = art.choices.find(c => c.slide_number === s.slide_number);
         return choice ? { ...s, template: templates[choice.treatment], overlay_position: s.position_locked ? s.overlay_position : choice.position, art_direction: choice } : s;
