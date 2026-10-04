@@ -860,7 +860,7 @@ PRINCIPE : Prendre une croyance répandue dans son secteur et la démonter avec 
 ARCHITECTURE DU POST :
 1. ACCROCHE = LE MYTHE FORMULÉ COMME UNE VÉRITÉ (3 lignes max, < 210 car.), Énoncer la croyance telle qu'on l'entend partout. Entre guillemets si possible. Ou frontalement : « [Croyance répandue]. C'est faux. »
 2. POURQUOI CE MYTHE EXISTE : C'est ce qui fait la différence avec un post banal. Expliquer d'OÙ vient cette croyance, pourquoi elle s'est installée, à qui elle profite. Un biais cognitif nommé ici est très puissant (biais du survivant, effet de halo, preuve sociale inversée…).
-3. LA RÉALITÉ, AVEC PREUVES : Données, expérience terrain, cas client, observation concrète. Pas « moi je pense que c'est faux » mais « voilà ce que j'ai constaté / voilà ce que les données montrent ».
+3. LA RÉALITÉ, AVEC PREUVES : Données, expérience terrain, cas client, observation concrète. Pas « moi je pense que c'est faux » mais « voilà ce que j'ai constaté / voilà ce que les données montrent ». « Ce que j'ai constaté » seulement si le brief ou les réponses fournissent ce constat ; sinon, ce que les données fournies montrent ou un mécanisme expliqué au présent.
 4. CE QU'IL FAUT RETENIR À LA PLACE : La vraie leçon. Courte, directe. La reformulation de ce qui est vrai maintenant que le mythe est tombé.
 5. QUESTION : Qui demande au lecteur s'il a déjà été confronté à ce mythe, ou propose un autre mythe à déconstruire.
 
@@ -919,7 +919,7 @@ Longueur : selon la matière réellement disponible`,
 PRINCIPE : Montrer l'envers du décor : comment on travaille vraiment, les décisions prises, les outils utilisés, les process, les doutes, les choix. Le « build in public » version LinkedIn : transparent, instructif, pas exhibitionniste.
 
 ARCHITECTURE DU POST :
-1. ACCROCHE = UN MOMENT OU UNE DÉCISION CONCRÈTE (3 lignes max, < 210 car.) : « La semaine dernière, j'ai passé 3 heures sur un truc que personne ne verra jamais. » ou « Voilà à quoi ressemble vraiment ma journée de [métier]. » Entrer par le concret.
+1. ACCROCHE = UN MOMENT OU UNE DÉCISION CONCRÈTE (3 lignes max, < 210 car.) : « La semaine dernière, j'ai passé 3 heures sur un truc que personne ne verra jamais. » ou « Voilà à quoi ressemble vraiment ma journée de [métier]. » Entrer par le concret. Le moment raconté vient du brief ou des réponses ; sans moment fourni, entre par le geste ou l'étape du métier décrits au présent.
 2. LA COULISSE, Décrire avec précision ce qu'on fait, comment, et pourquoi. Les outils, les étapes, les micro-décisions. Le détail fait la valeur : pas « je prépare une stratégie de contenu » mais les étapes réelles du process.
 3. LE POURQUOI DERRIÈRE LE COMMENT : Expliquer les principes ou convictions derrière les actions. C'est ce qui rend le post utile. Relier le process à une croyance, une valeur, un enseignement.
 4. CE QUE ÇA PEUT INSPIRER : Pas un conseil direct (« fais comme moi ») mais une invitation à regarder ses propres coulisses différemment. Question ouverte.
@@ -958,7 +958,7 @@ Longueur : selon la matière réellement disponible`,
 PRINCIPE : Prendre de la hauteur sur un enjeu de société, de secteur ou de métier. La tribune LinkedIn : pas un édito d'expert·e omniscient·e, mais une réflexion incarnée. Le côté « France Culture » du contenu LinkedIn.
 
 ARCHITECTURE DU POST :
-1. ACCROCHE = UNE OBSERVATION OU UNE QUESTION LARGE (3 lignes max, < 210 car.) : Pas un constat banal (« le monde change »). Une observation précise qui ouvre sur quelque chose de plus grand. « J'ai remarqué que mes client·es me posent de plus en plus la même question. Et cette question en dit long sur [enjeu]. »
+1. ACCROCHE = UNE OBSERVATION OU UNE QUESTION LARGE (3 lignes max, < 210 car.) : Pas un constat banal (« le monde change »). Une observation précise qui ouvre sur quelque chose de plus grand. « J'ai remarqué que mes client·es me posent de plus en plus la même question. Et cette question en dit long sur [enjeu]. » Cette observation vient du brief ou des réponses ; sinon, pose-la comme un constat général au présent.
 2. LE DÉVELOPPEMENT, Dérouler la réflexion comme on la penserait à voix haute. Avec des bifurcations, des « mais en même temps », des nuances. C'est le format où on a le droit de ne pas avoir de réponse définitive. Intégrer des références si pertinent : un concept, un livre, un fait de société.
 3. LE LIEN AVEC LE MÉTIER : Relier la réflexion large au quotidien concret du lecteur. Pourquoi cet enjeu impacte sa façon de travailler, de communiquer, de vendre, de créer. C'est ce pont qui rend le post utile.
 4. OUVERTURE SANS CONCLUSION : Pas de réponse toute faite. Une question qui reste ouverte, une tension non résolue. Les meilleurs posts de réflexion de fond sont ceux qu'on continue de mâcher 2 heures après.
@@ -1039,6 +1039,7 @@ export const EDITORIAL_ANGLES_REFERENCE = `
 ═══════════════════════════════════════════════════
 LES 14 ANGLES ÉDITORIAUX ET LEURS STRUCTURES PAR TYPE
 ═══════════════════════════════════════════════════
+Les accroches entre guillemets sont des modèles de forme. Un « j'ai remarqué », « j'ai testé » ou « je pensais » n'est écrit que si le brief, les réponses ou l'actu fournissent ce vécu ; sinon, la même idée se dit en constat ou en opinion au présent.
 
 ANGLE 1 : ENQUÊTE / DÉCRYPTAGE
 Principe : Analyser un phénomène avec un angle que personne n'a pris.
@@ -1051,7 +1052,7 @@ En post caption (800-1500 car) : Accroche affirmation forte → Contexte ("j'ai 
 En LinkedIn (1300-2000 car) : Accroche statistique ou affirmation → Analyse sectorielle détaillée → Preuves/données → Position d'experte → CTA question pro
 
 ANGLE 2 : TEST GRANDEUR NATURE
-Principe : Tester un conseil/tendance et donner ton verdict honnête.
+Principe : Tester un conseil/tendance et donner ton verdict honnête. Seulement si le brief ou les réponses racontent ce test : sans test fourni, aucun « j'ai testé / j'ai essayé / résultat : » inventé, prends un autre angle.
 Structure par défaut : tuto
 Objectifs : visibilité + confiance | Phase 2 | Déclic : les deux
 En carrousel (8 slides) : Hook "J'ai testé [X] pendant [durée]" → Contexte (pourquoi ce test) → Étape 1 du test → Étape 2 → Étape 3 + résultats chiffrés → Verdict honnête → Leçon → CTA

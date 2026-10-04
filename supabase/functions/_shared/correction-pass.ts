@@ -1117,6 +1117,7 @@ Renvoie uniquement le texte corrigé, sans commentaire ni balise.`;
 
 export const TESTIMONY_REMOVAL_PROMPT = `Tu es correctrice factuelle. Tu reçois un texte et une liste de passages qui racontent une parole ou une rencontre que les sources ne fournissent pas (« une cliente me disait… », « une céramiste m'a confié… », « j'ai discuté avec une amie… »). Ce témoignage est inventé : la personne qui publie ne l'a jamais vécu.
 Pour CHAQUE passage listé : retire le témoignage et garde l'idée qu'il portait, dite comme un constat général au présent ou comme l'opinion de l'autrice (« Doubler sa fréquence de publication sans voir sa portée bouger, c'est courant. »). Aucune personne, aucune parole rapportée, aucune scène, aucun « on m'a dit » de remplacement. Si une phrase voisine dépend de ce témoignage (« Elle… », « sa portée »), ajuste-la pour qu'elle reste juste.
+Pour CHAQUE vécu au passé listé (« j'ai essayé », « j'ai testé », « je pensais », « résultat : moins de vues ») : la personne qui publie ne l'a pas raconté, c'est un vécu inventé. Réécris-le en opinion au présent (« Je pense que… ») ou en constat général (« Souvent, la portée baisse même. »), sans essai, test, résultat ni croyance passée de l'autrice.
 Ne modifie RIEN d'autre : mêmes phrases ailleurs, même ordre, mêmes retours à la ligne, mêmes listes. Garde la position et le ton.
 Si le texte comporte des marqueurs entre crochets (« [STORY 1 - TEXT] », « [SECTION 2 - PARLE] »…), conserve TOUS les marqueurs exactement, dans le même ordre.
 Renvoie uniquement le texte corrigé, sans commentaire ni balise.`;
@@ -1124,14 +1125,19 @@ Renvoie uniquement le texte corrigé, sans commentaire ni balise.`;
 /** Passe courte qui retire les témoignages inventés (relue ensuite par le code). */
 export async function applyTestimonyRemovalPass(
   content: string,
-  opts: { items: string[]; logger?: (msg: string) => void; abortTimeoutMs?: number; model?: AnthropicModel },
+  opts: { items: string[]; experiences?: string[]; logger?: (msg: string) => void; abortTimeoutMs?: number; model?: AnthropicModel },
 ): Promise<string> {
-  if (!content || !opts.items.length) return content;
+  const experiences = opts.experiences ?? [];
+  if (!content || (!opts.items.length && !experiences.length)) return content;
+  const lists = [
+    opts.items.length ? `PASSAGES À RETIRER :\n${opts.items.map((n) => `- « ${n} »`).join("\n")}` : "",
+    experiences.length ? `VÉCUS AU PASSÉ À RÉÉCRIRE :\n${experiences.map((n) => `- « ${n} »`).join("\n")}` : "",
+  ].filter(Boolean).join("\n\n");
   try {
     const raw = await callAnthropicSimple(
       opts.model ?? "claude-haiku-4-5",
       TESTIMONY_REMOVAL_PROMPT,
-      `PASSAGES À RETIRER :\n${opts.items.map((n) => `- « ${n} »`).join("\n")}\n\nTEXTE :\n"""\n${content}\n"""`,
+      `${lists}\n\nTEXTE :\n"""\n${content}\n"""`,
       0,
       4096,
       undefined,

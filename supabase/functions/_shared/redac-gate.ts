@@ -382,12 +382,84 @@ export function findInventedTestimonials(text: string, sourceText?: string): str
   return testimonyPassages(text || "");
 }
 
+// ── Vécu personnel inventé (04/10/2026) ──
+// Vu en test réel après #1300 et #1310, sans réponse aux questions : « Doubler
+// sa fréquence […], c'est courant. J'ai essayé. Résultat : moins de vues
+// qu'avant. Je pensais que c'était moi… En fait non. » Le « je » de position
+// doit être une opinion au présent ; un vécu au passé (« j'ai essayé / testé »,
+// « je pensais », « résultat : » qui le suit) n'est accepté que si le brief,
+// les réponses ou l'actu en racontent déjà un.
+
+const EXPERIENCE_ADVERBS = String.raw`(?:(?:longtemps|déjà|souvent|moi-même|moi\s+aussi|aussi|même|d['’]abord|vraiment|tout|enfin|beaucoup|toujours|plusieurs\s+fois|récemment|personnellement)\s+){0,2}`;
+const EXPERIENCE_PARTICIPLES = String.raw`(?:essayée?s?|testée?s?|tentée?s?|fait(?!\s+(?:le\s+|ce\s+)?(?:choix|pari))|refait|publiée?s?|postée?s?|doublée?|triplée?|multipliée?|augmentée?|arrêtée?|commencée?|recommencée?|lancée?s?|perdue?s?|gagnée?s?|passée?s?|vue?s?|remarquée?|constatée?|observée?|appris|compris|découverte?|cru|suivie?s?|appliquée?s?|changée?|mesurée?|vécue?|connue?|misée?)`;
+const FIRST_PERSON_PAST_RES: RegExp[] = [
+  new RegExp(String.raw`(?<!\p{L})j['’](?:ai|avais)\s+${EXPERIENCE_ADVERBS}${EXPERIENCE_PARTICIPLES}(?!\p{L})`, "iu"),
+  new RegExp(String.raw`(?<!\p{L})je\s+(?:l['’]|les\s+)(?:ai|avais)\s+${EXPERIENCE_ADVERBS}${EXPERIENCE_PARTICIPLES}(?!\p{L})`, "iu"),
+  new RegExp(String.raw`(?<!\p{L})nous\s+(?:avons|avions)\s+${EXPERIENCE_ADVERBS}${EXPERIENCE_PARTICIPLES}(?!\p{L})`, "iu"),
+  /(?<!\p{L})je\s+me\s+suis\s+(?:longtemps\s+|vite\s+|alors\s+)?(?:lancée?|mise?\s+à|rendue?\s+compte|aperçue?|dit|retrouvée?|surprise?|accrochée?|obligée?)(?!\p{L})/iu,
+  /(?<!\p{L})je\s+(?:pensais|croyais|me\s+disais|m['’]imaginais|imaginais|publiais|postais|testais|passais|suivais|m['’]acharnais|me\s+demandais)(?!\p{L})/iu,
+  /(?<!\p{L})j['’](?:étais|ai\s+été)\s+(?:convaincue?|persuadée?|sûre?|certaine?)(?!\p{L})/iu,
+];
+// Voix prêtée au lecteur (« tu te dis : j'ai tout essayé ») : pas un vécu de l'autrice.
+const READER_VOICE_RE = /(?<!\p{L})(?:tu|vous)\s+(?:te\s+|vous\s+|t['’])?(?:dis|dites|penses|pensez|répètes|répétez|réponds|répondez|avoues|avouez|es\s+dit|êtes\s+dit)(?!\p{L})/iu;
+const QUOTED_RE = /«[^»]*»|“[^”]*”|"[^"\n]*"/g;
+// Côté sources, on est large : un vécu à peine esquissé (« mon test de 30 jours », « j'ai… ») suffit.
+const PROVIDED_EXPERIENCE_RE = /(?<!\p{L})(?:j['’](?:ai|avais|étais)|je\s+me\s+suis|nous\s+avons|(?:mon|mes|notre)\s+(?:test|essai|expérience|vécu)s?)(?!\p{L})/iu;
+const RESULT_LEAD_RE = /^(?:et\s+)?(?:le\s+)?résultats?\s*:/iu;
+
+function hasFirstPersonPast(sentence: string, stripQuotes: boolean): boolean {
+  const s = stripQuotes ? sentence.replace(QUOTED_RE, " ") : sentence;
+  return FIRST_PERSON_PAST_RES.some((re) => {
+    const m = s.match(re);
+    if (!m || m.index === undefined) return false;
+    const before = s.slice(0, m.index);
+    // Hypothèse (« si je pensais… ») ou voix du lecteur : pas un vécu raconté.
+    if (/(?<!\p{L})si\s*$/iu.test(before) || READER_VOICE_RE.test(before)) return false;
+    return true;
+  });
+}
+
+/** Passages de vécu au passé, phrases voisines (et « Résultat : » qui suit) regroupées. */
+function experiencePassages(text: string, stripQuotes = true): string[] {
+  const out: string[] = [];
+  for (const paragraph of (text || "").split(/\n+/)) {
+    let current: string[] = [];
+    const flush = () => {
+      if (current.length) {
+        const p = current.join(" ").replace(/\s+/g, " ");
+        out.push(p.length > 220 ? p.slice(0, 217) + "…" : p);
+      }
+      current = [];
+    };
+    for (const sentence of sentencesOf(paragraph)) {
+      if (hasFirstPersonPast(sentence, stripQuotes) || (current.length && RESULT_LEAD_RE.test(sentence))) current.push(sentence);
+      else flush();
+    }
+    flush();
+  }
+  return out;
+}
+
+/**
+ * Vécu personnel au passé (« j'ai essayé », « je pensais », « résultat : »)
+ * alors que les sources (brief, réponses, actu) n'en racontent aucun.
+ * `sourceText` absent = pas de mesure.
+ */
+export function findInventedExperiences(text: string, sourceText?: string): string[] {
+  if (sourceText === undefined) return [];
+  if (experiencePassages(sourceText, false).length || PROVIDED_EXPERIENCE_RE.test(sourceText)) return [];
+  return experiencePassages(text || "");
+}
+
+const INVENTED_EXPERIENCE_FIX = (items: string[]) =>
+  `VÉCU PERSONNEL INVENTÉ : ces passages racontent une expérience de l'autrice au passé (« j'ai essayé », « je pensais », « résultat : »), alors que ni le brief, ni les réponses, ni l'actu ne la fournissent :\n${items.map((t) => `- « ${t} »`).join("\n")}\nRéécris CHAQUE passage en opinion au présent (« Je pense que… », « Pour moi… ») ou en constat général (« c'est courant », « souvent, la portée baisse même »). Garde l'idée et la position ; aucun test, essai, résultat ou croyance passée de l'autrice.`;
+
 const INVENTED_TESTIMONY_FIX = (items: string[]) =>
   `TÉMOIGNAGE INVENTÉ : ces phrases rapportent la parole d'une personne rencontrée (cliente, amie, artisane…) ou une rencontre, alors que ni le brief, ni les réponses, ni l'actu ne la fournissent :\n${items.map((t) => `- « ${t} »`).join("\n")}\nRetire CHAQUE témoignage et garde l'idée qu'il portait, dite comme un constat général au présent ou comme l'opinion de l'autrice. Aucune personne, parole rapportée ou scène de remplacement.`;
 
 /**
- * Filet dédié (04/10/2026) : s'il reste un témoignage inventé après la
- * relecture, UNE passe courte qui ne fait que le retirer. Gardée seulement si
+ * Filet dédié (04/10/2026) : s'il reste un témoignage ou un vécu au passé
+ * inventé après la relecture, UNE passe courte qui ne fait que le retirer. Gardée seulement si
  * le code mesure moins de témoignages et aucun autre compteur dégradé.
  */
 export async function enforceNoInventedTestimonials(
@@ -397,14 +469,15 @@ export async function enforceNoInventedTestimonials(
 ): Promise<{ content: string; analysis: TextRedacAnalysis; applied: boolean }> {
   const before = opts.before ?? analyze(text);
   const items = before.inventedTestimonials ?? [];
-  if (!items.length) return { content: text, analysis: before, applied: false };
-  const candidate = await applyTestimonyRemovalPass(text, { items, logger: opts.logger, abortTimeoutMs: opts.abortTimeoutMs });
+  const experiences = before.inventedExperiences ?? [];
+  if (!items.length && !experiences.length) return { content: text, analysis: before, applied: false };
+  const candidate = await applyTestimonyRemovalPass(text, { items, experiences, logger: opts.logger, abortTimeoutMs: opts.abortTimeoutMs });
   if (!candidate || candidate === text) return { content: text, analysis: before, applied: false };
   const after = analyze(candidate);
-  const count = (a: TextRedacAnalysis) => a.inventedTestimonials?.length ?? 0;
+  const count = (a: TextRedacAnalysis) => (a.inventedTestimonials?.length ?? 0) + (a.inventedExperiences?.length ?? 0);
   const others = (a: TextRedacAnalysis) => textRedacRawCount(a) - count(a);
   const kept = count(after) < count(before) && others(after) <= others(before);
-  opts.logger?.(`[testimony-removal] témoignages inventés ${count(before)}→${count(after)}, autres ${others(before)}→${others(after)}, gardé=${kept}`);
+  opts.logger?.(`[testimony-removal] témoignages inventés ${before.inventedTestimonials?.length ?? 0}→${after.inventedTestimonials?.length ?? 0}, vécus inventés ${experiences.length}→${after.inventedExperiences?.length ?? 0}, autres ${others(before)}→${others(after)}, gardé=${kept}`);
   return kept ? { content: candidate, analysis: after, applied: true } : { content: text, analysis: before, applied: false };
 }
 
@@ -1249,6 +1322,8 @@ export interface TextRedacAnalysis {
   unsourcedResearchNumbers?: string[];
   /** Paroles rapportées ou rencontres qu'aucune source ne fournit (« une cliente me disait… »). */
   inventedTestimonials?: string[];
+  /** Vécu de l'autrice au passé qu'aucune source ne fournit (« j'ai essayé. Résultat : »). */
+  inventedExperiences?: string[];
   /** Passages qui recopient quasi mot pour mot un champ de la fiche de marque. */
   brandCopyOverlap: string[];
   /** Accroches DÉJÀ écrites pour ce sujet que celle-ci redit (cf. findHookEchoes). */
@@ -1271,7 +1346,8 @@ export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>, bra
   const brandCopyOverlap = findBrandCopyOverlap(text || "", brandGuardText);
   const hookEchoes = findHookEchoes(textHook(text), echo?.previousHooks, echo?.subject);
   const inventedTestimonials = findInventedTestimonials(text || "", testimonySource);
-  return { reversals, moulded, fabricatedNumbers, unsourcedResearchNumbers, inventedTestimonials, brandCopyOverlap, hookEchoes };
+  const inventedExperiences = findInventedExperiences(text || "", testimonySource);
+  return { reversals, moulded, fabricatedNumbers, unsourcedResearchNumbers, inventedTestimonials, inventedExperiences, brandCopyOverlap, hookEchoes };
 }
 
 /**
@@ -1300,6 +1376,7 @@ export function textRedacViolations(a: TextRedacAnalysis): number {
     Math.min(3, a.fabricatedNumbers.length) +
     Math.min(3, a.unsourcedResearchNumbers?.length ?? 0) +
     Math.min(3, a.inventedTestimonials?.length ?? 0) +
+    Math.min(3, a.inventedExperiences?.length ?? 0) +
     Math.min(3, a.brandCopyOverlap.length) +
     Math.min(1, a.hookEchoes.length)
   );
@@ -1480,6 +1557,7 @@ export function buildTextFixInstructions(a: TextRedacAnalysis): string {
   }
   if (a.unsourcedResearchNumbers?.length) lines.push(UNSOURCED_RESEARCH_FIX(a.unsourcedResearchNumbers));
   if (a.inventedTestimonials?.length) lines.push(INVENTED_TESTIMONY_FIX(a.inventedTestimonials));
+  if (a.inventedExperiences?.length) lines.push(INVENTED_EXPERIENCE_FIX(a.inventedExperiences));
   if (a.brandCopyOverlap.length) {
     lines.push(
       `PASSAGES RECOPIÉS DE LA FICHE DE MARQUE : ces extraits reprennent quasi mot pour mot un champ de la fiche de marque de l'utilisatrice (combat, mission, ton, expressions, convictions) :\n${a.brandCopyOverlap.map((o) => `- « ${o} »`).join("\n")}\nCette fiche est la MATIÈRE de l'utilisatrice, jamais son texte final. Reformule CHAQUE extrait avec des mots neufs, garde le sens et l'intensité, mais ne recopie plus la fiche de marque telle quelle.`,
@@ -1508,7 +1586,8 @@ export function buildTextFixInstructions(a: TextRedacAnalysis): string {
  * ne doit pas profiter du plafond de pénalité d’une autre catégorie. */
 export function textRedacRawCount(a: TextRedacAnalysis): number {
   return a.reversals.length + a.moulded.length + a.fabricatedNumbers.length + a.brandCopyOverlap.length +
-    a.hookEchoes.length + (a.unsourcedResearchNumbers?.length ?? 0) + (a.inventedTestimonials?.length ?? 0);
+    a.hookEchoes.length + (a.unsourcedResearchNumbers?.length ?? 0) + (a.inventedTestimonials?.length ?? 0) +
+    (a.inventedExperiences?.length ?? 0);
 }
 
 export interface TextGateResult {
@@ -1591,7 +1670,7 @@ export async function runTextRedacGate(
     }
   }
 
-  if (bestA.inventedTestimonials?.length) {
+  if (bestA.inventedTestimonials?.length || bestA.inventedExperiences?.length) {
     const cleaned = await enforceNoInventedTestimonials(best, analyze, {
       logger: opts.correction.logger, abortTimeoutMs: opts.correction.abortTimeoutMs, before: bestA,
     });
@@ -1605,7 +1684,7 @@ export async function runTextRedacGate(
   const violations = textRedacViolations(bestA);
   const score = Math.max(40, 100 - 10 * violations);
   opts.correction.logger?.(
-    `[text-gate:${opts.format}] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${bestA.unsourcedResearchNumbers?.length ?? 0}, témoignages inventés ${before.inventedTestimonials?.length ?? 0}→${bestA.inventedTestimonials?.length ?? 0}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, repassé=${repassed}, rejeté=${reverted}`,
+    `[text-gate:${opts.format}] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${bestA.unsourcedResearchNumbers?.length ?? 0}, témoignages inventés ${before.inventedTestimonials?.length ?? 0}→${bestA.inventedTestimonials?.length ?? 0}, vécus inventés ${before.inventedExperiences?.length ?? 0}→${bestA.inventedExperiences?.length ?? 0}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, repassé=${repassed}, rejeté=${reverted}`,
   );
   return { content: best, before, after: bestA, repassed, reverted, score, violations };
 }
