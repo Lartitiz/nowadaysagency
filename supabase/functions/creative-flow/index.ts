@@ -548,6 +548,19 @@ Propose-moi 3 hooks de types différents pour ce reel.`;
   return { systemPrompt, userPrompt };
 }
 
+/**
+ * Format qui choisit la branche de rédaction. Le format demandé par
+ * l'utilisatrice (`contentType`) prime TOUJOURS ; `angle.format_livraison`
+ * (suggestion IA du step "angles") ne sert que s'il n'y a pas de contentType.
+ * Avant : format_livraison passait devant, un angle « carrousel » pouvait
+ * faire rédiger un carrousel pour un post LinkedIn demandé.
+ */
+export function resolveFormatHint(contentType: string | null | undefined, angle: { format_livraison?: unknown } | null | undefined): string {
+  const requested = typeof contentType === "string" ? contentType.trim().toLowerCase() : "";
+  if (requested) return requested;
+  return typeof angle?.format_livraison === "string" ? angle.format_livraison.toLowerCase() : "";
+}
+
 export function buildQuestionsPrompt(params: {
   QUESTIONS_PREFIX: string;
   brandingContext: string;
@@ -562,14 +575,20 @@ export function buildQuestionsPrompt(params: {
   recentBriefsContext: string;
 }): { systemPrompt: string; userPrompt: string } {
   const { QUESTIONS_PREFIX, brandingContext, brandVocabBlock, context, contentType, editorialFormatLabel, angle, calendarBlock, objectiveBlock, newsContextBlock, recentBriefsContext } = params;
-  const isLinkedIn = contentType === "linkedin" || contentType === "post_linkedin";
-  const channelLabel = isLinkedIn ? "LinkedIn" : contentType === "newsletter" ? "Newsletter" : "Instagram";
+  // Canal détecté par inclusion : le front envoie « linkedin_post » (questions)
+  // et « post_linkedin » (génération) ; une égalité stricte laissait passer
+  // « linkedin_post » → canal « Instagram » dans les questions d'un parcours LinkedIn.
+  const ctypeQ = String(contentType || "").toLowerCase();
+  const isLinkedIn = ctypeQ.includes("linkedin");
+  const isNewsletterQ = !isLinkedIn && (ctypeQ.includes("newsletter") || ctypeQ.includes("email"));
+  const isPinterestQ = !isLinkedIn && !isNewsletterQ && ctypeQ.includes("pinterest");
+  const channelLabel = isLinkedIn ? "LinkedIn" : isNewsletterQ ? "Newsletter" : isPinterestQ ? "Pinterest" : "Instagram";
   const linkedinStory = isLinkedIn && /storytelling|coulisses|récit|histoire/i.test([editorialFormatLabel, angle?.title].filter(Boolean).join(" "));
   const channelGuidance = linkedinStory
     ? "Questions orientées RÉCIT PERSONNEL : demande d'abord ce que la personne veut raconter d'elle-même, puis un moment réel (lieu et action) et ce qu'elle pensait ou ressentait. Son plaisir de travailler ou de transmettre peut être le sujet. N'exige ni crise, ni résultat business, ni leçon universelle. Une citation ou un dialogue ne doivent venir que d'un souvenir fourni."
     : isLinkedIn
     ? "Questions orientées POINT DE VUE : demande ce que la personne veut exprimer sur ce sujet, puis un choix, une observation ou un fait réel. Si le sujet est un moment vécu, explore son expérience personnelle avant de demander ce qu'elle enseigne aux autres. N'exige pas une prise de position conflictuelle ni un résultat business."
-    : contentType === "newsletter"
+    : isNewsletterQ
     ? "Questions orientées PROFONDEUR : demande des réflexions de fond, des convictions, des retours d'expérience détaillés."
     : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
   const questionTypes = linkedinStory
@@ -2807,8 +2826,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     let userPrompt: string | null = "";
 
     // ── Format detection (outer scope — used by generate + streaming) ──
-    const angleFormat = angle?.format_livraison?.toLowerCase() || "";
-    const formatHint = angleFormat || contentType?.toLowerCase() || "";
+    const formatHint = resolveFormatHint(contentType, angle);
     const isCarousel = formatHint.includes("carrousel") || formatHint.includes("carousel");
     const isReel = formatHint.includes("reel") || formatHint.includes("script");
     const isStories = formatHint.includes("stories") || formatHint.includes("story");

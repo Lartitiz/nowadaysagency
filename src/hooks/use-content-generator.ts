@@ -862,11 +862,15 @@ export function useContentGenerator() {
               // Étape gratuite, mais le workspace scope aussi le contexte branding
               // (getUserContext) et la mémoire anti-répétition côté serveur.
               workspace_id: effectiveWorkspaceId || undefined,
+              // Le canal pilote le libellé des questions côté serveur
+              // (« …sur LinkedIn / Pinterest… » et pas « Instagram »).
               contentType:
                 format === "linkedin"
                   ? "linkedin_post"
                   : format === "newsletter"
                   ? "newsletter"
+                  : format === "pinterest"
+                  ? "post_pinterest"
                   : "instagram_post",
               context: (() => {
                 const CONTEXT_MAX = 7800;
