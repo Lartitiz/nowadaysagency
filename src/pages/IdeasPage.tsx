@@ -7,9 +7,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { readIdeaList } from "@/lib/idea-list-read";
-import { IDEA_SUMMARY_COLUMNS, loadFullIdea, needsFullIdea, readIdeaPreviews, readIdeaSummaries } from "@/lib/saved-idea-summaries";
+import { IDEA_SUMMARY_COLUMNS, loadFullIdea, needsFullIdea, readIdeaSummaries } from "@/lib/saved-idea-summaries";
 
-const IDEAS_PAGE_COLUMNS = `${IDEA_SUMMARY_COLUMNS}, type, personal_elements, accroche_short, accroche_long, format_technique, created_at`;
+const IDEAS_PAGE_COLUMNS = `${IDEA_SUMMARY_COLUMNS}, type, personal_elements, accroche_short, accroche_long, format_technique, created_at, preview_data:preview, draft_head:preview_draft`;
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -209,13 +209,7 @@ function IdeasInWorkspace() {
     ]);
     if (!mounted.current || started !== fetchRequest.current) return;
     const [ideaResult, briefResult] = results;
-    if (ideaResult.status === "fulfilled" && !ideaResult.value.error) {
-      const list = (ideaResult.value.data || []) as unknown as SavedIdea[];
-      setIdeas(list);
-      void readIdeaPreviews(list.map(i => i.id), previews => {
-        setIdeas(prev => prev.map(i => previews.has(i.id) ? { ...i, ...previews.get(i.id) } : i));
-      }, isCurrent);
-    }
+    if (ideaResult.status === "fulfilled" && !ideaResult.value.error) setIdeas((ideaResult.value.data || []) as unknown as SavedIdea[]);
     if (briefResult.status === "fulfilled" && !briefResult.value.error) setBriefs((briefResult.value.data || []) as unknown as SavedBrief[]);
     setLoadError(results.some(result => result.status === "rejected" || !!result.value.error));
     setLoading(false);

@@ -5,9 +5,11 @@ import { supabase } from '@/integrations/supabase/client';
 // toute la liste faisait dépasser le délai de la base (HTTP 500) sur les
 // grands espaces : la liste ne lit plus que des colonnes légères, et le
 // contenu complet est lu, idée par idée, au moment de l'ouvrir ou de la placer.
+// `has_content`, `preview` et `preview_draft` sont calculés par la base à
+// chaque enregistrement du contenu (trigger saved_ideas_fill_preview).
 
 export const IDEA_SUMMARY_COLUMNS =
-  'id, titre, format, objectif, notes, status, canal, source_module, planned_date, calendar_post_id, updated_at, angle, series_id, episode_number';
+  'id, titre, format, objectif, notes, status, canal, source_module, planned_date, calendar_post_id, updated_at, angle, series_id, episode_number, has_content';
 
 export interface IdeaSummaryRow {
   id: string;
@@ -39,20 +41,11 @@ function scoped(columns: string, { column, value }: Scope, signal?: AbortSignal)
   return signal ? query.abortSignal(signal) : query;
 }
 
-/** Liste légère + identifiants des idées qui ont déjà un contenu (sans le transférer). */
+/** Liste légère, sans aucun contenu : une seule lecture, quelques Ko. */
 export async function readIdeaSummaries(scope: Scope, columns = IDEA_SUMMARY_COLUMNS, signal?: AbortSignal): Promise<{ data: IdeaSummaryRow[] | null; error: unknown }> {
-  const [list, withDraft, withData] = await Promise.all([
-    scoped(columns, scope, signal).order('created_at', { ascending: false }),
-    scoped('id', scope, signal).not('content_draft', 'is', null).neq('content_draft', ''),
-    // IS NOT NULL seul : comparer content_data à '{}' oblige la base à relire
-    // tout le contenu (7,8 s mesurées en ligne pour ~79 Mo, limite 8 s).
-    // Aucun code n'écrit de content_data vide.
-    scoped('id', scope, signal).not('content_data', 'is', null),
-  ]);
-  const error = list.error || withDraft.error || withData.error;
+  const { data, error } = await scoped(columns, scope, signal).order('created_at', { ascending: false });
   if (error) return { data: null, error };
-  const filled = new Set<string>([...(withDraft.data || []), ...(withData.data || [])].map((row: { id: string }) => row.id));
-  return { data: (list.data || []).map((row: Omit<IdeaSummaryRow, 'has_content'>) => ({ ...row, has_content: filled.has(row.id) })), error: null };
+  return { data: (data || []).map((row: IdeaSummaryRow) => ({ ...row, has_content: !!row.has_content })), error: null };
 }
 
 /** Lit une idée complète (contenu compris) juste avant de l'ouvrir ou de la placer. */
@@ -68,35 +61,3 @@ export function needsFullIdea(idea: { content_data?: unknown; content_draft?: un
   return idea.content_data === undefined && idea.content_draft === undefined;
 }
 
-export interface IdeaPreview {
-  /** Extrait léger de content_data (mêmes clés, textes tronqués, sans images). */
-  preview_data: unknown;
-  /** Début de content_draft. */
-  draft_head: string | null;
-}
-
-/**
- * Aperçus des cartes de « Mes idées », calculés par la base (fonction
- * `saved_idea_previews`). Un échec n'empêche pas la liste : les cartes
- * concernées s'affichent sans extrait.
- *
- * Lots de 5, l'un après l'autre : la base relit le contenu de chaque idée
- * (jusqu'à ~8 Mo l'une, ~11 Mo/s en ligne). Cinq lots de 10 en parallèle se
- * partageaient le disque et dépassaient tous la limite de 8 s (HTTP 500).
- * Chaque lot est rendu dès qu'il arrive ; on s'arrête si la page a changé.
- */
-export async function readIdeaPreviews(
-  ids: string[],
-  onBatch: (previews: Map<string, IdeaPreview>) => void,
-  isCurrent: () => boolean = () => true,
-): Promise<void> {
-  for (let i = 0; i < ids.length && isCurrent(); i += 5) {
-    try {
-      const { data, error } = await supabase.rpc('saved_idea_previews' as any, { p_ids: ids.slice(i, i + 5) });
-      if (error || !isCurrent()) continue;
-      const previews = new Map<string, IdeaPreview>();
-      for (const row of (data as any[]) || []) previews.set(row.id, { preview_data: row.preview ?? null, draft_head: row.draft_head ?? null });
-      if (previews.size) onBatch(previews);
-    } catch { /* aperçu facultatif */ }
-  }
-}
