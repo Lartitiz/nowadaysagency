@@ -15,14 +15,12 @@ export function allowedPhotoTreatments(s: Slide, index: number, total: number): 
   // Structured source fields must keep the template that actually renders them.
   if (Array.isArray(s.points) && s.points.length >= 2) return ["list"];
   if (typeof s.big_number === "string" && s.big_number.trim()) return ["number"];
-  if (Number.isInteger(s.step_number) && s.step_number > 0) return ["steps"];
   const choices: PhotoTreatment[] = ["editorial"];
   if (index === 0) choices.push("opening");
   if (index === total - 1) choices.push("closing");
   if (text.trim() && words(text) <= 18) choices.push("statement");
   if (/[«“][^»”]+[»”]/.test(text)) choices.push("quote");
   if (Array.isArray(s.points) && s.points.length >= 2) choices.push("list");
-  if (Number.isInteger(s.step_number) && s.step_number > 0) choices.push("steps");
   if (typeof s.big_number === "string" && s.big_number.trim()) choices.push("number");
   return choices;
 }
