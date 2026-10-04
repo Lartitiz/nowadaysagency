@@ -65,3 +65,16 @@ Deno.test("texte : la génération passe toujours par l'étage de mise en forme"
   assert(/planPhotoFormatting\(slides\.map\([^\n]*editorialSlideText/.test(src), "planPhotoFormatting n'est plus appelé pour le carrousel texte");
   assert(/formatEditorialSlides\(slides, designPlan, ch, editorialSlides/.test(src), "formatEditorialSlides n'est plus appliqué");
 });
+
+Deno.test("slide de rupture : rôle lu sans accents ni casse, rôles connus et repli inchangés", async () => {
+  const { isRuptureRole } = await import("./carousel-design-plan.ts");
+  const legacy = (role: string) => /manifest|synth|conclu|punch|separator|constat/.test(role || "");
+  for (const role of ["manifeste", "synthèse", "conclusion", "punchline", "separator", "constat", "étape", "argument", "récit", ""]) assertEquals(isRuptureRole(role), legacy(role), role);
+  for (const role of ["Synthèse", "CONCLUSION", "Séparateur", "rupture", "Constat"]) assert(isRuptureRole(role), role);
+  assertEquals(isRuptureRole(undefined), false);
+  const slides = (role3: unknown) => [1, 2, 3, 4, 5, 6].map(n => ({ slide_number: n, title: `T${n}`, body: "Un texte court.", role: n === 3 ? role3 : "étape" }));
+  const rupture = (role3: unknown) => buildCarouselDesignPlan(slides(role3) as any).sequence.findIndex(b => b.inverted);
+  assertEquals(rupture("synthèse"), 2);
+  assertEquals(rupture("Synthèse"), 2);
+  assertEquals(rupture("argument"), rupture(undefined), "rôle inconnu : même repli (slide du milieu)");
+});

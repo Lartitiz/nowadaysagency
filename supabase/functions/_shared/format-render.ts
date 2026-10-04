@@ -26,9 +26,68 @@ export function motifHeight(motif: NonNullable<PhotoFormat["motif"]>, width: num
   return Math.ceil(width * motifFrame(motif).height / 1000) + MOTIF_GAP;
 }
 
+/** Texte sans son préfixe d'ordre quand il porte le numéro `n` (« 2. Le tour »,
+ * « 2) Le tour », « 02 · Le tour », « Étape 2 : Le tour » → « Le tour ») ;
+ * null sinon. Seul le repère d'ordre part, jamais un mot du texte : « 2,5 kg »,
+ * « 20 ans », « 2 000 », « 2 – 3 jours » ou « Étape 20 » ne sont pas des
+ * préfixes de 2 (jamais de chiffre juste après le repère). */
+export function stripStepOrderPrefix(text: string, n: number): string | null {
+  if (!Number.isInteger(n) || n < 1) return null;
+  const m = new RegExp(`^(\\s*)(?:[ée]tape\\s+0?${n}(?!\\d)\\s*(?:[.)·:\u2013\u2014-]\\s*)?|0?${n}\\s*[.)·:\u2013\u2014-]\\s+)(?=[^\\s\\d])`, "i").exec(text || "");
+  if (!m) return null;
+  return m[1] + text.slice(m[0].length);
+}
+
+/** Numéro d'étape lu deux fois (audit du 04/10/2026) : l'étage de mise en forme
+ * dessine « Étape 2 · Le tour » et la rédaction a pu titrer « 2. Le tour ».
+ * Au RENDU seulement, le premier texte qui suit l'en-tête d'étape perd son
+ * préfixe d'ordre quand celui-ci porte LE MÊME numéro que l'étape dessinée.
+ * Le texte de la slide (données) n'est jamais modifié ; un numéro différent,
+ * ou tout autre chiffre, reste tel quel. */
+export function stripDuplicateStepPrefixHtml(html: string): { html: string; removed: boolean } {
+  const same = { html, removed: false };
+  const head = /<div\b[^>]*\bdata-photo-step="(\d+)\/\d+"[^>]*>/i.exec(html || "");
+  if (!head) return same;
+  const n = Number(head[1]);
+  // Fin du bloc d'étape (libellé + frise) : profondeur des <div>.
+  const divs = /<(\/?)div\b[^>]*>/gi;
+  divs.lastIndex = head.index + head[0].length;
+  let depth = 1, pos = divs.lastIndex;
+  while (depth > 0) {
+    const t = divs.exec(html);
+    if (!t) return same;
+    depth += t[1] ? -1 : 1;
+    pos = t.index + t[0].length;
+  }
+  // Premier texte lisible après le bloc (le motif SVG éventuel est sauté).
+  while (pos < html.length) {
+    const lt = html.indexOf("<", pos);
+    const end = lt < 0 ? html.length : lt;
+    const text = html.slice(pos, end);
+    if (text.trim()) {
+      const stripped = stripStepOrderPrefix(text, n);
+      return stripped === null ? same : { html: html.slice(0, pos) + stripped + html.slice(end), removed: true };
+    }
+    if (lt < 0) break;
+    const skip = /^<(svg|style|script)\b/i.exec(html.slice(lt, lt + 8));
+    if (skip) {
+      const close = html.toLowerCase().indexOf(`</${skip[1].toLowerCase()}>`, lt);
+      if (close < 0) return same;
+      pos = close + skip[1].length + 3;
+      continue;
+    }
+    const gt = html.indexOf(">", lt);
+    if (gt < 0) break;
+    pos = gt + 1;
+  }
+  return same;
+}
+
 /** « Étape 2 · Le tournage » + frise de progression (rectangles, jamais de ronds). */
 export function stepHeader(step: NonNullable<PhotoFormat["step"]>, color: string, shadow = "none"): string {
-  const label = step.label ? step.label.charAt(0).toUpperCase() + step.label.slice(1) : "";
+  // Un libellé « 2. Tour » sous « Étape 2 » afficherait le numéro deux fois.
+  const raw = step.label ? (stripStepOrderPrefix(step.label, step.index) ?? step.label).trim() : "";
+  const label = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : "";
   const bars = Array.from({ length: step.total }, (_, i) =>
     `<div style="flex:1;height:10px;border-radius:5px;background:${color};opacity:${i < step.index ? 1 : .28};"></div>`).join("");
   return `<div data-photo-format="etape" data-photo-step="${step.index}/${step.total}" style="position:relative;z-index:1;margin-bottom:26px;">` +

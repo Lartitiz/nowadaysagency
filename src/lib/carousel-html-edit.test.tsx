@@ -93,3 +93,17 @@ describe("CTA retirable (data-slide-cta)", () => {
     expect(removeSlideCta(`${STYLE}<div><h1>Rien</h1></div>`)).toBeNull();
   });
 });
+
+describe("replaceSlideText — étape dessinée", () => {
+  const step = `<div data-photo-format="etape" data-photo-step="2/3"><div data-pptx-editable="caption" data-photo-step-label="1">Étape 2 · Le tour</div><div style="display:flex"><div></div><div></div><div></div></div></div>`;
+  it("un titre réédité « 2. Le tour » s'affiche sans son « 2. » sous « Étape 2 »", () => {
+    const html = `<div>${step}<h1 data-slide-text="title">2. Le tour</h1><p data-slide-text="body">Corps</p></div>`;
+    const out = replaceSlideText(html, "title", "2. Le tour", "2. Le tour à la main");
+    expect(out!).toContain(">Le tour à la main</h1>");
+    expect(out!).toContain("Étape 2 · Le tour");
+  });
+  it("sans étape dessinée, le titre numéroté reste entier", () => {
+    const out = replaceSlideText(`<div><h1 data-slide-text="title">Ancien</h1></div>`, "title", "Ancien", "2. Le tour");
+    expect(out!).toContain(">2. Le tour</h1>");
+  });
+});

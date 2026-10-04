@@ -306,3 +306,28 @@ Deno.test("Relecture crédit fournisseur épuisé : la cause lisible remonte dan
     if (key === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", key);
   }
 });
+
+// Numéro d'ordre en tête de titre (audit 04/10/2026) : la relecture ne le retire jamais.
+Deno.test("relecture : un titre qui perd « 2. » garde sa version d'avant, les autres retouches restent", async () => {
+  const draft = { slides: [
+    { title: "Mes trois gestes", body: "Je travaille la terre chaque matin." },
+    { title: "1. Pétrir", body: "Je pétris la terre. Et c'est là que tout se joue." },
+    { title: "2. Tourner le bol", body: "La forme monte sous la main." },
+    { title: "Étape 3 : cuire", body: "Le four révèle les couleurs." },
+  ] };
+  const review = cleanReview(draft as any);
+  const edit = (id: string, before: string, after: string) => Object.assign(review.reviews.find((r: any) => r.field_id === id), { decision: "edit", reason: "titre", edits: [{ before, after }] });
+  edit("slides.1.body", " Et c'est là que tout se joue.", "");
+  edit("slides.2.title", "2. Tourner le bol", "Le tournage du bol");
+  edit("slides.3.title", "Étape 3 : cuire", "La cuisson");
+  edit("slides.1.title", "Pétrir", "Pétrir la terre");
+  await mockReview(JSON.stringify(review), async () => {
+    const output = JSON.parse(await applyGuardedCarouselCorrection(JSON.stringify(draft), { correction: { semanticReview: true } }));
+    assertEquals(output.slides[2].title, "2. Tourner le bol", "« 2. » retiré : champ gardé avant relecture");
+    assertEquals(output.slides[3].title, "Étape 3 : cuire", "« Étape 3 » retiré : champ gardé avant relecture");
+    assertEquals(output.slides[1].title, "1. Pétrir la terre", "numéro conservé : retouche gardée");
+    assertEquals(output.slides[1].body, "Je pétris la terre.", "retouche d'un autre champ gardée");
+    assertEquals(output.editorial_review.order_prefix_kept, ["slides.2.title", "slides.3.title"]);
+    assertEquals(output.editorial_review.status, "reviewed");
+  });
+});

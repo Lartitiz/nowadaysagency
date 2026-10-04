@@ -106,16 +106,31 @@ function addFittedText(slide: any, textOrParts: any, opts: any) {
   slide.addText(textOrParts, opts);
 }
 
-/** Classify the slide role into a design category */
-function classifyRole(role: string, slideIndex: number, totalSlides: number): string {
-  const r = (role || "").toLowerCase().trim();
-  if (slideIndex === 0 || r.includes("hook") || r.includes("accroche")) return "hook";
-  if (slideIndex === totalSlides - 1 || r.includes("cta") || r.includes("appel") || r.includes("action")) return "cta";
-  if (r.includes("sépar") || r.includes("separ") || r.includes("transition") || r.includes("rupture")) return "separator";
-  if (r.includes("dark") || r.includes("punchline") || r.includes("punch")) return "dark_box";
-  if (r.includes("context") || r.includes("story") || r.includes("intro") || r.includes("récit")) return "context";
-  if (r.includes("espoir") || r.includes("hope") || r.includes("solution") || r.includes("bonne nouvelle")) return "hope";
+/** Rôle écrit librement par l'IA (« Récit », « RÉCIT », « bonne_nouvelle »…),
+ * lu sans accents, sans casse et sans séparateurs. Autre chose qu'un texte → "". */
+export function normalizeRole(role: unknown): string {
+  if (typeof role !== "string") return "";
+  return role.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[_\-\u2013\u2014/]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** Classify the slide role into a design category. Rôle inconnu → "tip"
+ * (rendu neutre, inchangé) ; la première et la dernière slide gardent leur rôle de position. */
+export function classifyRole(role: unknown, slideIndex: number, totalSlides: number): string {
+  const r = normalizeRole(role);
+  const has = (...keys: string[]) => keys.some((k) => r.includes(k));
+  if (slideIndex === 0 || has("hook", "accroche")) return "hook";
+  if (slideIndex === totalSlides - 1 || has("cta", "appel", "action")) return "cta";
+  if (has("separ", "transition", "rupture", "bascule")) return "separator";
+  if (has("dark", "punchline", "punch")) return "dark_box";
+  if (has("context", "story", "intro", "recit", "histoire", "anecdote")) return "context";
+  if (has("espoir", "hope", "solution", "bonne nouvelle")) return "hope";
   return "tip";
+}
+
+/** Texte de la pastille de rôle : le rôle tel qu'écrit, sinon le libellé neutre
+ * du gabarit (rôle absent, vide ou qui n'est pas du texte). */
+export function roleBadgeLabel(role: unknown, fallback: string): string {
+  return typeof role === "string" && role.trim() ? role.trim() : fallback;
 }
 
 /** Accent colors that rotate for tip slides, starting with the brand primary */
@@ -482,7 +497,7 @@ function buildPhotoIntegratedSlide(
     photoData = raw.startsWith("data:") ? raw : `data:image/jpeg;base64,${raw}`;
   }
 
-  const roleLabel = s.role || "CONTENU";
+  const roleLabel = roleBadgeLabel(s.role, "CONTENU");
   const [badgeText, badgeOpts] = makeBadge(roleLabel, PAD_X, 0.5, c.primary, f);
 
   switch (layout) {
@@ -731,7 +746,7 @@ function buildHookSlide(
   });
 
   // Badge pilule centered on top of card
-  const roleLabel = s.role || "ANALOGIE";
+  const roleLabel = roleBadgeLabel(s.role, "ANALOGIE");
   const [badgeText, badgeOpts] = makeBadge(roleLabel, 0, 0, c.primary, f);
   const badgeW = badgeOpts.w as number;
   slide.addText(badgeText, {
@@ -777,7 +792,7 @@ function buildContextSlide(
   slide.background = { color: "FFFFFF" };
 
   // Badge pilule top-left
-  const roleLabel = s.role || "CONTEXTE";
+  const roleLabel = roleBadgeLabel(s.role, "CONTEXTE");
   const [badgeText, badgeOpts] = makeBadge(roleLabel, PAD_X, 0.6, c.primary, f);
   slide.addText(badgeText, badgeOpts);
 
@@ -872,7 +887,7 @@ function buildTipSlide(
   const accentColor = accentRotation[tipIndex % accentRotation.length];
 
   // Badge pilule top-left
-  const label = s.role || `${String(s.slide_number).padStart(2, "0")}`;
+  const label = roleBadgeLabel(s.role, `${String(s.slide_number).padStart(2, "0")}`);
   const [badgeText, badgeOpts] = makeBadge(label, PAD_X, 0.6, accentColor, f);
   slide.addText(badgeText, badgeOpts);
 
@@ -1048,7 +1063,7 @@ function buildHopeSlide(
   });
 
   // Badge
-  const roleLabel = s.role || "ESPOIR";
+  const roleLabel = roleBadgeLabel(s.role, "ESPOIR");
   const [badgeText, badgeOpts] = makeBadge(roleLabel, 0, 0, c.primary, f);
   const badgeW = badgeOpts.w as number;
   slide.addText(badgeText, {

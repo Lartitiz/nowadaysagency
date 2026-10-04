@@ -1,4 +1,5 @@
 import { photoEditorialMarkup } from "../../supabase/functions/_shared/photo-editorial";
+import { stripDuplicateStepPrefixHtml } from "../../supabase/functions/_shared/format-render";
 /**
  * carousel-html-edit — édition en direct du texte dans les visuels carrousel.
  *
@@ -89,7 +90,9 @@ export function replaceSlideText(
   if (el.hasAttribute("data-photo-editorial-text")) {
     el.innerHTML = photoEditorialMarkup(newText, el.dataset.photoEditorialText === "finale", el.dataset.photoEmphasis);
   } else el.textContent = newText;
-  return serialize(doc, stylesPrefix);
+  // Même règle qu'à la génération (carousel-visual) : sous « Étape 2 · … »
+  // dessinée, le titre réédité « 2. Le tour » s'affiche sans son « 2. ».
+  return stripDuplicateStepPrefixHtml(serialize(doc, stylesPrefix)).html;
 }
 
 /** true si la slide porte un bouton d'appel à l'action retirable (data-slide-cta). */

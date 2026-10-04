@@ -70,7 +70,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { applyCoverIllustration, runComposedByCodeGeneration, stripInventedSurtitres, stripSlideNumberBadges, stripDuplicateStepNumbers, stripVisualHintText, applyTitleBodyContrastGuard, applyTextContrastGuard, applyMinFontSizeGuard } = await import("./index.ts");
+const { applyCoverIllustration, runComposedByCodeGeneration, stripInventedSurtitres, stripSlideNumberBadges, stripDuplicateStepNumbers, stripDuplicateStepPrefixes, enforceVerbatimAnchorsGuard, enforcePhotoSlideAnchorsGuard, stripVisualHintText, applyTitleBodyContrastGuard, applyTextContrastGuard, applyMinFontSizeGuard } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -301,6 +301,9 @@ Deno.test("NON-RÉGRESSION photo : carrousel de référence complet après les g
   stripInventedSurtitres(result, { isPhotoCarousel: true, slides });
   applyTitleBodyContrastGuard(result, { ch });
   applyTextContrastGuard(result);
+  enforceVerbatimAnchorsGuard(result, { slides });
+  enforcePhotoSlideAnchorsGuard(result, { slides });
+  stripDuplicateStepPrefixes(result);
   applyMinFontSizeGuard(result);
 
   const html: string[] = result.slides_html.map((s: any) => s.html);
@@ -324,4 +327,95 @@ Deno.test("NON-RÉGRESSION photo : carrousel de référence complet après les g
     assert(!/>\s*0[1-9]\s*</.test(h), `slide ${i + 1} : gros numéro d'étape`);
     assert(!/\b\d+\s*\/\s*6\b/.test(text(h)), `slide ${i + 1} : pagination`);
   }
+});
+
+// ═══ Numéro d'étape lu deux fois : « Étape 2 · Le tour » + titre « 2. Le tour » (audit 04/10/2026) ═══
+// Gardes de production dans l'ordre de production (sous-ensemble utile au texte).
+function productionGuards(result: any, slides: any[], ch: any, isPhotoCarousel: boolean) {
+  stripSlideNumberBadges(result);
+  stripDuplicateStepNumbers(result, { slides });
+  stripVisualHintText(result, { slides });
+  stripInventedSurtitres(result, { isPhotoCarousel, slides });
+  applyTitleBodyContrastGuard(result, { ch });
+  applyTextContrastGuard(result);
+  enforceVerbatimAnchorsGuard(result, { slides });
+  enforcePhotoSlideAnchorsGuard(result, { slides });
+  stripDuplicateStepPrefixes(result);
+  applyMinFontSizeGuard(result);
+}
+const visibleText = (h: string) => h.replace(/<svg[\s\S]*?<\/svg>/g, " ").replace(/<[^>]*>/g, " ").replace(/&#39;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ");
+
+Deno.test("étape numérotée deux fois — PHOTO : le titre « 2. Le tour » perd son « 2. » sous « Étape 2 · Le tour »", async () => {
+  const { validatePhotoFormatting } = await import("../_shared/photo-formatting.ts");
+  const art = (treatment: string, position = "bottom_left") => ({ treatment, position, emphasis: null, reason: "t", surface: "veil", alignment: "left" });
+  const slides = [
+    { slide_number: 1, photo_index: 1, overlay_text: "Ma façon de faire un bol, du pain de terre au four", art_direction: art("opening") },
+    { slide_number: 2, photo_index: 2, kicker: "1. La terre", overlay_text: "Je pétris longtemps pour chasser l'air de la terre.", art_direction: art("editorial") },
+    { slide_number: 3, photo_index: 1, kicker: "2. Le tour", overlay_text: "Sur le tour, la forme monte sous mes doigts en 2 minutes.", art_direction: art("editorial", "top_left") },
+    { slide_number: 4, photo_index: 2, kicker: "4. La cuisson", overlay_text: "Le four révèle les couleurs, toujours un peu autrement.", art_direction: art("editorial") },
+    { slide_number: 5, photo_index: 1, overlay_text: "Trois temps, une seule main.", cta_label: "Voir l'atelier", art_direction: art("closing") },
+  ];
+  const formatting = { version: "test", status: "completed", ...validatePhotoFormatting({
+    steps: [{ slide_number: 2, label: "La terre" }, { slide_number: 3, label: "Le tour" }, { slide_number: 4, label: "La cuisson" }], motifs: [] }, slides) };
+  assertEquals(formatting.steps.length, 3, "étapes validées");
+  const ch = { color_primary: "#3A4A3C", color_secondary: "#A9BCC8", color_accent: "#3A4A3C", color_background: "#FFFFFF", color_text: "#1A1A1A", font_title: "Georgia", font_body: "Arial" };
+  const result = runComposedByCodeGeneration({ slides, ch, reqBody: { photos: [{}, {}] }, usage: {}, emitStatus: () => {}, tStart: Date.now(), formatting } as any);
+  productionGuards(result, slides, ch, true);
+  const html: string[] = result.slides_html.map((s: any) => s.html);
+  assert(html[1].includes("Étape 1 · La terre") && html[2].includes("Étape 2 · Le tour"), "étapes dessinées conservées");
+  assert(!visibleText(html[1]).includes("1. La terre") && visibleText(html[1]).includes("La terre"), "« 1. » en double sous « Étape 1 »");
+  assert(!visibleText(html[2]).includes("2. Le tour"), "« 2. » en double sous « Étape 2 »");
+  // Numéro différent de l'étape dessinée (3) : rien n'est retiré.
+  assert(html[3].includes("Étape 3 · La cuisson") && visibleText(html[3]).includes("4. La cuisson"), "un numéro différent reste");
+  // Aucun autre chiffre ni mot ne bouge, et les données restent intactes.
+  assert(visibleText(html[2]).includes("en 2 minutes."), "chiffre du texte conservé");
+  for (const [i, s] of slides.entries()) assert(visibleText(html[i]).includes(s.overlay_text), `texte slide ${i + 1} perdu`);
+  assertEquals(slides[2].kicker, "2. Le tour", "les données de la slide ne changent pas");
+});
+
+Deno.test("étape numérotée deux fois — TEXTE composé par le code : survit à la garde verbatim", async () => {
+  const { buildCarouselDesignPlan, composeEditorialSlide, formatEditorialSlides } = await import("../_shared/carousel-design-plan.ts");
+  const slides = [
+    { slide_number: 1, slide_type: "text_only", title: "Comment je prépare un lancement", body: "" },
+    { slide_number: 2, slide_type: "text_only", title: "1. J'écoute", body: "Je relis les messages de mes clientes." },
+    { slide_number: 3, slide_type: "text_only", title: "Étape 2 : je trie", body: "Je garde une seule promesse." },
+    { slide_number: 4, slide_type: "text_only", title: "3) J'écris", body: "Un texte court par jour, pendant 7 jours." },
+    { slide_number: 5, slide_type: "text_only", title: "Et toi ?", body: "Dis-le-moi en commentaire." },
+  ];
+  const ch = { color_primary: "#23395B", color_secondary: "#23395B", color_background: "#F4EFE8", color_text: "#1E2A3A", color_accent: "#B5781A", font_title: "Georgia", font_body: "Arial" };
+  const plan = buildCarouselDesignPlan(slides);
+  const base = slides.map((s, i) => composeEditorialSlide(s, plan.sequence[i], ch));
+  const formatting = { steps: [{ slide_number: 2, label: "J'écoute" }, { slide_number: 3, label: "je trie" }, { slide_number: 4, label: "J'écris" }], motifs: [] };
+  const result: any = { slides_html: formatEditorialSlides(slides, plan, ch, base, formatting as any).map((x: any) => ({ ...x })) };
+  productionGuards(result, slides, ch, false);
+  const html: string[] = result.slides_html.map((s: any) => s.html);
+  for (const n of [1, 2, 3]) assert(html[n].includes(`Étape ${n} · `), `étape ${n} dessinée`);
+  const title = (h: string) => /<h1[^>]*data-slide-text="title"[^>]*>([^<]*)<\/h1>/.exec(h)?.[1];
+  assertEquals(title(html[1]), "J'écoute");
+  assertEquals(title(html[2]), "je trie");
+  assertEquals(title(html[3]), "J'écris");
+  assert(visibleText(html[3]).includes("pendant 7 jours."), "chiffre du corps conservé");
+  assertEquals(slides[2].title, "Étape 2 : je trie", "les données de la slide ne changent pas");
+});
+
+Deno.test("étape numérotée deux fois — MIXTE : titre dédoublonné, sans étape rien ne bouge", async () => {
+  const { applyMixFormatting, composeMixCarousel } = await import("../_shared/mix-slide-layouts.ts");
+  const slides = [
+    { slide_number: 1, slide_type: "photo_integrated", photo_index: 1, title: "Ce qu'une pièce finie ne raconte pas", body: "" },
+    { slide_number: 2, slide_type: "photo_integrated", photo_index: 2, title: "1. Le pétrissage", body: "Tout commence avant le tour, par la terre que je pétris." },
+    { slide_number: 3, slide_type: "photo_integrated", photo_index: 3, title: "2. Le tournage", body: "Sur le tour, la forme naît sous la main." },
+    { slide_number: 4, slide_type: "photo_integrated", photo_index: 4, title: "3. L'émaillage", body: "Je pose l'émail, mais rien n'est encore joué." },
+    { slide_number: 5, slide_type: "text_only", title: "4. Le carnet", body: "Semaine après semaine, les pages se remplissent." },
+  ];
+  const ch = { color_primary: "#3A4A3C", color_secondary: "#3A4A3C", color_background: "#F4EFE8", color_text: "#1A1A1A", color_accent: "#3A4A3C", font_title: "Georgia", font_body: "Arial" };
+  const plan = { steps: [{ slide_number: 2, label: "Le pétrissage" }, { slide_number: 3, label: "Le tournage" }, { slide_number: 4, label: "L'émaillage" }], motifs: [] };
+  const composed = composeMixCarousel(applyMixFormatting(slides as any, plan as any), ch, 4)!;
+  const result: any = { slides_html: composed.map(({ layout: _l, ...x }: any) => x) };
+  productionGuards(result, slides, ch, false);
+  const html: string[] = result.slides_html.map((s: any) => s.html);
+  for (const n of [1, 2, 3]) {
+    assert(html[n].includes(`Étape ${n} · `), `étape ${n} dessinée`);
+    assert(!visibleText(html[n]).includes(`${n}. `), `numéro ${n} en double`);
+  }
+  assert(visibleText(html[4]).includes("4. Le carnet"), "sans étape dessinée, le titre numéroté reste entier");
 });
