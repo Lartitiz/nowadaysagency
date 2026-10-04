@@ -7,6 +7,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { readIdeaList } from "@/lib/idea-list-read";
+import { IDEA_SUMMARY_COLUMNS, loadFullIdea, needsFullIdea, readIdeaPreviews, readIdeaSummaries } from "@/lib/saved-idea-summaries";
+
+const IDEAS_PAGE_COLUMNS = `${IDEA_SUMMARY_COLUMNS}, type, personal_elements, accroche_short, accroche_long, format_technique, created_at`;
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -37,8 +40,12 @@ interface SavedIdea {
   objectif: string | null;
   type: string | null;
   status: string | null;
-  content_draft: string | null;
-  content_data: any | null;
+  /** Absents dans la liste (trop lourds) : lus à l'ouverture de l'idée. */
+  content_draft?: string | null;
+  content_data?: any | null;
+  has_content?: boolean;
+  preview_data?: unknown;
+  draft_head?: string | null;
   source_module: string | null;
   personal_elements: any | null;
   accroche_short: string | null;
@@ -85,7 +92,9 @@ function cleanSlideMarkers(text: string): string {
 }
 
 function getIdeaPreview(idea: SavedIdea): { title?: string; text?: string } {
-  let data: any = idea.content_data;
+  // Liste légère : l'extrait calculé par la base remplace le contenu complet.
+  let data: any = idea.content_data !== undefined ? idea.content_data : idea.preview_data;
+  const draft = idea.content_draft ?? idea.draft_head;
   if (typeof data === "string") {
     try { data = JSON.parse(data); } catch { data = null; }
   }
@@ -114,7 +123,7 @@ function getIdeaPreview(idea: SavedIdea): { title?: string; text?: string } {
     if (title || cleanText) return { title, text: cleanText };
   }
   if (idea.accroche_short?.trim()) return { text: idea.accroche_short.trim() };
-  if (idea.content_draft?.trim() && !idea.content_draft.trim().startsWith("{")) return { text: cleanSlideMarkers(idea.content_draft) };
+  if (draft?.trim() && !draft.trim().startsWith("{")) return { text: cleanSlideMarkers(draft) };
   return {};
 }
 
@@ -184,11 +193,9 @@ function IdeasInWorkspace() {
     setLoading(true);
     setLoadError(false);
     const isCurrent = () => mounted.current && started === fetchRequest.current;
-    const readIdeas = (signal?: AbortSignal) => {
-      let query = (supabase.from("saved_ideas") as any).select("*").eq(column, value);
-      if (column === "user_id") query = query.is("workspace_id", null);
-      return query.abortSignal(signal).order("created_at", { ascending: false });
-    };
+    // Sans content_data / content_draft : certaines idées pèsent plusieurs Mo
+    // (images collées), la liste complète dépassait le délai de la base.
+    const readIdeas = (signal?: AbortSignal) => readIdeaSummaries({ column, value }, IDEAS_PAGE_COLUMNS, signal) as Promise<{ data: SavedIdea[] | null; error: unknown }>;
     const readBriefs = (signal?: AbortSignal) => {
       let query = (supabase.from("content_briefs") as any)
         .select("id, subject, format, editorial_angle, objective, questions, answers, calendar_post_id, created_at")
@@ -202,7 +209,14 @@ function IdeasInWorkspace() {
     ]);
     if (!mounted.current || started !== fetchRequest.current) return;
     const [ideaResult, briefResult] = results;
-    if (ideaResult.status === "fulfilled" && !ideaResult.value.error) setIdeas((ideaResult.value.data || []) as unknown as SavedIdea[]);
+    if (ideaResult.status === "fulfilled" && !ideaResult.value.error) {
+      const list = (ideaResult.value.data || []) as unknown as SavedIdea[];
+      setIdeas(list);
+      readIdeaPreviews(list.map(i => i.id)).then(previews => {
+        if (!isCurrent() || previews.size === 0) return;
+        setIdeas(prev => prev.map(i => previews.has(i.id) ? { ...i, ...previews.get(i.id) } : i));
+      });
+    }
     if (briefResult.status === "fulfilled" && !briefResult.value.error) setBriefs((briefResult.value.data || []) as unknown as SavedBrief[]);
     setLoadError(results.some(result => result.status === "rejected" || !!result.value.error));
     setLoading(false);
@@ -301,7 +315,10 @@ function IdeasInWorkspace() {
 
   /** Ouvre Créer avec l'idée en point de départ. Créer garde `idea_id` et
       relie le contenu à l'idée quand il le pose au calendrier. */
-  const handleCreate = (idea: SavedIdea) => {
+  const handleCreate = async (light: SavedIdea) => {
+    let idea = light;
+    try { if (needsFullIdea(light)) idea = await loadFullIdea(light); }
+    catch (error) { toast.error("Impossible d'ouvrir cette idée", { description: friendlyError(error) }); return; }
     const params = new URLSearchParams({
       sujet: cleanTitle(idea.titre),
       angle: idea.angle || "",
@@ -331,8 +348,14 @@ function IdeasInWorkspace() {
     toast.success("Notes enregistrées");
   };
 
-  const openDetail = (idea: SavedIdea) => {
-    visit.current += 1;
+  const openDetail = async (light: SavedIdea) => {
+    const opening = ++visit.current;
+    let idea = light;
+    try { if (needsFullIdea(light)) idea = await loadFullIdea(light); }
+    catch (error) { toast.error("Impossible d'ouvrir cette idée", { description: friendlyError(error) }); return; }
+    if (!mounted.current || opening !== visit.current) return;
+    // La fiche garde le contenu complet pour la suite (placer, reprendre…).
+    setIdeas(prev => prev.map(i => i.id === idea.id ? { ...i, ...idea } : i));
     setSelectedIdea(idea);
     setDetailNotes(idea.notes || "");
   };

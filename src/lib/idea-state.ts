@@ -13,12 +13,15 @@ export interface IdeaStateInput {
   content_draft?: string | null;
   content_data?: unknown;
   format?: string | null;
+  /** Liste légère (sans content_data) : présence de contenu calculée côté base. */
+  has_content?: boolean;
 }
 
 const CREATED_STATUSES = new Set(["planned", "published"]);
 const IN_PROGRESS_STATUSES = new Set(["drafting", "ready"]);
 
 function hasContent(idea: IdeaStateInput): boolean {
+  if (idea.content_data === undefined && typeof idea.has_content === "boolean") return idea.has_content;
   if (typeof idea.content_draft === "string" && idea.content_draft.trim().length > 0) return true;
   const data = idea.content_data;
   if (data == null) return false;
