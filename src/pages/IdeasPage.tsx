@@ -212,10 +212,9 @@ function IdeasInWorkspace() {
     if (ideaResult.status === "fulfilled" && !ideaResult.value.error) {
       const list = (ideaResult.value.data || []) as unknown as SavedIdea[];
       setIdeas(list);
-      readIdeaPreviews(list.map(i => i.id)).then(previews => {
-        if (!isCurrent() || previews.size === 0) return;
+      void readIdeaPreviews(list.map(i => i.id), previews => {
         setIdeas(prev => prev.map(i => previews.has(i.id) ? { ...i, ...previews.get(i.id) } : i));
-      });
+      }, isCurrent);
     }
     if (briefResult.status === "fulfilled" && !briefResult.value.error) setBriefs((briefResult.value.data || []) as unknown as SavedBrief[]);
     setLoadError(results.some(result => result.status === "rejected" || !!result.value.error));
