@@ -69,46 +69,45 @@ const STORIES_FIXTURE = [
   { number: 3, text: "Paroles face cam, pas de visuel.", visual: null, face_cam: true },
 ];
 
-Deno.test("extractStoriesTexts : texte + pastilles annotés, une ligne par champ, face cam sans visuel = texte seul", () => {
+Deno.test("extractStoriesTexts : le TEXTE seul, une ligne par story ; les pastilles (dérivées du texte après la passe) ne sont jamais envoyées", () => {
   const block = extractStoriesTexts(STORIES_FIXTURE);
   const lines = block.split("\n");
-  assertEquals(lines[0], "[STORY 1 - TEXT] Un truc qui me fatigue dans le savon fait main : personne ne parle du vrai prix.");
-  assertEquals(lines[1], "[STORY 1 - TITLE] UN TRUC QUI ME FATIGUE");
-  assertEquals(lines[2], "[STORY 1 - BODY] Dans le savon fait main, personne ne parle du vrai prix.");
-  assertEquals(lines.includes("[STORY 2 - ITEM 1] Des huiles choisies pour la douceur"), true);
-  assertEquals(lines.includes("[STORY 2 - ITEM 2] Des semaines de séchage"), true);
-  assertEquals(lines[lines.length - 1], "[STORY 3 - TEXT] Paroles face cam, pas de visuel.");
-  assertEquals(lines.length, 8);
+  assertEquals(lines, [
+    "[STORY 1 - TEXT] Un truc qui me fatigue dans le savon fait main : personne ne parle du vrai prix.",
+    "[STORY 2 - TEXT] Le vrai coût, c'est les huiles choisies pour leur douceur.",
+    "[STORY 3 - TEXT] Paroles face cam, pas de visuel.",
+  ]);
+  for (const marker of ["TITLE", "BODY", "ITEM", "QUOTE"]) assertEquals(block.includes(`- ${marker}`), false, marker);
 });
 
-Deno.test("reinjectStoriesTexts : les champs corrigés sont remplacés, les absents gardés, l'original jamais muté", () => {
+Deno.test("reinjectStoriesTexts : le texte corrigé est remplacé, les absents gardés, l'original jamais muté", () => {
   const corrected = [
     "[STORY 1 - TEXT] Vingt-quatre euros les trois savons, et personne ne dit ce qu'il y a derrière ce prix.",
-    "[STORY 1 - TITLE] LE PRIX QU'ON NE DIT PAS",
-    "[STORY 2 - ITEM 2] Six semaines de séchage sans rien produire",
+    "[STORY 3 - TEXT] Paroles face cam, pas de visuel.",
   ].join("\n");
   const { stories, changed } = reinjectStoriesTexts(STORIES_FIXTURE, corrected);
-  assertEquals(changed, 3);
+  assertEquals(changed, 1);
   assertEquals(stories[0].text.startsWith("Vingt-quatre euros"), true);
-  assertEquals(stories[0].visual.title_pill, "LE PRIX QU'ON NE DIT PAS");
-  assertEquals(stories[0].visual.body_pill, STORIES_FIXTURE[0].visual!.body_pill); // absent du bloc → gardé
-  assertEquals(stories[1].visual.list_pills[0], "Des huiles choisies pour la douceur");
-  assertEquals(stories[1].visual.list_pills[1], "Six semaines de séchage sans rien produire");
+  assertEquals(stories[1].text, STORIES_FIXTURE[1].text); // absent du bloc → gardé
   assertEquals(stories[2].text, "Paroles face cam, pas de visuel.");
   // Original intact
-  assertEquals(STORIES_FIXTURE[0].visual!.title_pill, "UN TRUC QUI ME FATIGUE");
+  assertEquals(STORIES_FIXTURE[0].text.startsWith("Un truc"), true);
 });
 
-Deno.test("reinjectStoriesTexts : une pastille hors gabarit (titre trop long, body > 350 car.) garde l'original", () => {
+// Séparation écriture / design (04/10/2026) : la passe ne réécrit JAMAIS une
+// pastille, même si le modèle en renvoie ; elles sont posées après par
+// _shared/story-formatting.ts à partir du texte final.
+Deno.test("reinjectStoriesTexts : des lignes TITLE / BODY / ITEM / QUOTE renvoyées sont ignorées (pastilles intactes)", () => {
   const corrected = [
-    "[STORY 1 - TITLE] Un titre beaucoup trop long pour une pastille de story Instagram affichée en capitales",
-    `[STORY 1 - BODY] ${"x".repeat(351)}`,
-    "[STORY 2 - ITEM 1] un item de liste vraiment beaucoup trop long pour tenir dans une pastille lisible",
+    "[STORY 1 - TITLE] LE PRIX QU'ON NE DIT PAS",
+    "[STORY 1 - BODY] Un autre texte affiché.",
+    "[STORY 2 - ITEM 1] Six semaines de séchage sans rien produire",
+    "[STORY 2 - QUOTE] Un verbatim réécrit",
   ].join("\n");
   const { stories, changed } = reinjectStoriesTexts(STORIES_FIXTURE, corrected);
   assertEquals(changed, 0);
-  assertEquals(stories[0].visual.title_pill, "UN TRUC QUI ME FATIGUE");
-  assertEquals(stories[1].visual.list_pills[0], "Des huiles choisies pour la douceur");
+  assertEquals(stories[0].visual, STORIES_FIXTURE[0].visual);
+  assertEquals(stories[1].visual, STORIES_FIXTURE[1].visual);
 });
 
 Deno.test("reinjectStoriesTexts : bloc sans marqueur ou espaces seulement changés → 0 changement", () => {
@@ -122,9 +121,9 @@ Deno.test("reinjectStoriesTexts : accepte une correction du texte complet entre 
     const prefix = "Le détail du col : ";
     const candidate = prefix + "a".repeat(length - prefix.length);
     assertEquals(candidate.length, length);
-    const { stories, changed } = reinjectStoriesTexts(STORIES_FIXTURE, `[STORY 1 - BODY] ${candidate}`);
+    const { stories, changed } = reinjectStoriesTexts(STORIES_FIXTURE, `[STORY 1 - TEXT] ${candidate}`);
     assertEquals(changed, 1);
-    assertEquals(stories[0].visual.body_pill, candidate);
+    assertEquals(stories[0].text, candidate);
   }
 });
 

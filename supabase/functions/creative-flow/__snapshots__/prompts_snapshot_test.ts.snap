@@ -3325,26 +3325,15 @@ Si format = visuel/photo :
 - L'image fait le travail visuel ; le texte ouvre une attente et commence vraiment le récit
 
 
-══ PLAN VISUEL PAR STORY (champ "visual") ══
+══ TEXTE ET PHOTO DE CHAQUE STORY ══
 
-Chaque story reçoit un objet "visual" : c'est le plan du visuel 1080×1920 rendu AUTOMATIQUEMENT par l'outil (texte façon natif Instagram : pastilles de texte surlignées posées sur une photo ou un fond aux couleurs de la marque). Le spectateur doit croire que la story a été faite dans l'app Instagram, PAS designée.
+Tu écris le TEXTE de chaque story et tu dis quelle PHOTO la porte (objet "visual"). La mise en page de l'image (pastilles, titre, liste, citation, fond, position) est décidée APRÈS, à partir de ton texte : tu n'en écris rien.
 
-GABARITS DISPONIBLES (champ "gabarit") :
-- "photo_pills" : photo en fond + pastille titre + pastille texte. Le gabarit par défaut, le plus authentique.
-- "fond_pills" : fond uni aux couleurs de la marque + pastilles centrées. EXCEPTIONNEL : ne l'utilise pas, préfère toujours "photo_pills" (une story sur fond uni au milieu de photos casse l'authenticité).
-- "interaction" : une question courte en pastille + une ZONE RÉSERVÉE pour le sticker interactif (sondage/question/slider) que l'utilisateur·ice posera dans Instagram. OBLIGATOIRE quand la story a un sticker.
-- "liste" : pastille titre + 2-4 pastilles items empilées. Pour les tips et étapes.
-- "citation" : verbatim en italique élégant dans une grande pastille. Pour la preuve sociale, les retours clients.
-
-RÈGLES DU PLAN VISUEL :
-1. "title_pill" : OPTIONNEL, et null le plus souvent. Une story native, c'est UN bloc de texte posé sur la photo ; un titre + un texte dessous sur chaque story, c'est la signature d'un outil, pas d'une personne. Ne mets un "title_pill" (3-7 mots, pas de point final, affiché en capitales condensées type "Strong") QUE si la story annonce quelque chose qui se lit d'abord : une liste, une question posée à l'audience, une offre, une date. Jamais de titre qui répète ou résume le body_pill. Sur une séquence de 5 stories, 1 ou 2 titres maximum.
-2. "body_pill" : LE TEXTE DE LA STORY, mot pour mot (= le champ "text"), 350 caractères MAX. Ce qui est écrit sur la story, c'est ce qu'on lit : pas de résumé, pas de version raccourcie, pas de "titre puis texte". Un texte de 3-4 phrases qui raconte vraiment, c'est ce qui fait lire ; une accroche de 8 mots, on la swipe. Écrit comme on parle, jamais en formule. Si "text" dépasse 350 caractères, coupe "text" lui-même : une story ne doit pas dire plus.
-3. "list_pills" : uniquement pour le gabarit "liste", 2-4 items de 6-10 mots.
-4. "quote" : uniquement pour le gabarit "citation". Verbatim court, jamais inventé : s'il n'y a pas de vrai retour client fourni, n'utilise PAS ce gabarit. Pour ce gabarit, "body_pill" n'est PAS le texte de la story mais QUI L'A DIT, en 2-6 mots ("Marion, cliente depuis juin", "reçu en DM hier") ; le texte de la story reste dans "text".
-5. "background" : "photo" ou "fond_couleur". Les stories, ce sont des IMAGES : "photo" est le fond de TOUTES les stories (hors face cam) — le fond de chaque story illustre CE QU'ELLE DIT. La SEULE exception tolérée : le gabarit "citation" (verbatim sur fond couleur, choix design). Une story texte sur fond coloré au milieu de photos casse l'authenticité : n'en produis pas.
-6. Pour CHAQUE story non face-cam (même "citation"), remplis TOUJOURS "photo_directive" (quelle photo prendre ou choisir, CONCRÈTE et ancrée dans l'activité réelle, comme un plan de tournage : "ton plan de travail avec les pots en cours de séchage", pas "une jolie photo") ET "photo_query_en" (2-4 mots EN ANGLAIS décrivant une scène photographiable concrète équivalente, pour la recherche de photos libres de droits, ex "hands shaping clay bowl"). Jamais null.
-7. Varie les gabarits dans la séquence : jamais deux fois le même d'affilée si la séquence fait 3+ stories.
-8. Story avec sticker → gabarit "interaction" (le sticker a besoin de sa zone).
+RÈGLES :
+1. "text" : LE TEXTE DE LA STORY, 350 caractères MAX. Ce qui est écrit sur la story, c'est ce qu'on lit : pas de résumé, pas de version raccourcie, pas de "titre puis texte". Un texte de 3-4 phrases qui raconte vraiment, c'est ce qui fait lire ; une accroche de 8 mots, on la swipe. Écrit comme on parle, jamais en formule. Si "text" dépasse 350 caractères, coupe "text" lui-même : une story ne doit pas dire plus.
+2. Verbatim client : court, jamais inventé. S'il n'y a pas de vrai retour client fourni, n'en cite pas.
+3. Les stories, ce sont des IMAGES : une photo est le fond de TOUTES les stories (hors face cam), et elle illustre CE QUE DIT la story.
+4. Pour CHAQUE story non face-cam, remplis TOUJOURS "photo_directive" (quelle photo prendre ou choisir, CONCRÈTE et ancrée dans l'activité réelle, comme un plan de tournage : "ton plan de travail avec les pots en cours de séchage", pas "une jolie photo") ET "photo_query_en" (2-4 mots EN ANGLAIS décrivant une scène photographiable concrète équivalente, pour la recherche de photos libres de droits, ex "hands shaping clay bowl"). Jamais null.
 
 ══ BIBLIOTHÈQUE DE PHOTOS DE LA MARQUE ══
 
@@ -3358,7 +3347,7 @@ Autres photos disponibles dans sa bibliothèque :
 - photo 3 : Étagère de bols émaillés bleu nuit, rangés par taille
 
 RÈGLES BIBLIOTHÈQUE :
-- Pour chaque story avec "background": "photo", place d'abord les PHOTOS CHOISIES, puis regarde si une photo ci-dessus illustre VRAIMENT ce moment précis. Si oui, mets son numéro dans "photo_index". Sinon "photo_index": null.
+- Pour chaque story non face cam, place d'abord les PHOTOS CHOISIES, puis regarde si une photo ci-dessus illustre VRAIMENT ce moment précis. Si oui, mets son numéro dans "photo_index". Sinon "photo_index": null.
 - Pour les photos NON choisies, correspondance EXIGEANTE : la photo doit coller à la scène de CETTE story. Un rapport vague ou décoratif = null (on cherchera ailleurs), c'est mieux qu'une photo hors sujet.
 - Ne mets JAMAIS le même "photo_index" sur deux stories de la séquence.
 - Remplis quand même "photo_directive" et "photo_query_en" dans tous les cas (l'utilisatrice peut préférer reprendre la photo elle-même).
@@ -3414,16 +3403,9 @@ Réponds en JSON strict :
       "sticker": {
         "type": "sondage",
         "label": "Sondage",
-        "options": ["Oui", "Non"],
-        "placement": "bas de la story"
+        "options": ["Oui", "Non"]
       },
       "visual": {
-        "gabarit": "interaction",
-        "background": "photo",
-        "title_pill": null,
-        "body_pill": "[= le champ text, mot pour mot, 350 car. max]",
-        "list_pills": null,
-        "quote": null,
         "photo_directive": "[quelle photo prendre/choisir, concrète, ancrée dans l'activité]",
         "photo_query_en": "[2-4 mots anglais, scène photographiable]",
         "photo_index": null

@@ -77,6 +77,40 @@ export interface StoryFrameStory {
   visual?: StoryVisualPlan | null;
   sticker?: StoryStickerPlan | null;
   face_cam?: boolean | null;
+  format?: string | null;
+}
+
+const VIDEO_FORMAT = /face[_\s-]?cam|vid[ée]o|reel/i;
+
+/**
+ * Plan visuel de repli d'une story qui n'en a pas (04/10/2026 : 3 stories sur
+ * 50 en prod sortaient sans plan, donc sans image et sans alerte). Une story
+ * qui a du texte et n'est pas une vidéo à filmer reçoit le plan le plus sûr :
+ * fond photo + texte complet (photo_pills), interaction si elle porte un
+ * sticker. Les stories qui ont déjà un plan sont rendues sans changement.
+ */
+export function storyVisualOrFallback(story: StoryFrameStory | null | undefined): StoryVisualPlan | null {
+  if (!story || story.face_cam) return null;
+  const visual = story.visual;
+  if (visual && typeof visual === "object" && !Array.isArray(visual)) return visual;
+  if (typeof story.format === "string" && VIDEO_FORMAT.test(story.format)) return null;
+  const narration = String(story.text || story.texte || story.content || "").trim();
+  if (!narration) return null;
+  return {
+    gabarit: story.sticker?.type ? "interaction" : "photo_pills",
+    background: "photo",
+    title_pill: null,
+    body_pill: narration,
+    list_pills: null,
+    quote: null,
+  };
+}
+
+/** Même story, avec le plan de repli posé quand il manque (sinon l'objet d'origine). */
+export function withStoryVisualFallback<T extends StoryFrameStory>(story: T): T {
+  if (!story || typeof story !== "object" || story.visual) return story;
+  const visual = storyVisualOrFallback(story);
+  return visual ? { ...story, visual } : story;
 }
 
 /** Couleurs de la charte + réglages story_* (colonnes brand_charter, optionnelles). */
@@ -341,15 +375,16 @@ function customTextPlacement(visual: StoryVisualPlan): string | null {
 
 /**
  * Construit le HTML autonome (1080×1920) du visuel d'une story.
- * Retourne null si la story n'a pas de visuel à rendre (face cam, plan absent).
+ * Retourne null si la story n'a pas de visuel à rendre (face cam, ou ni plan
+ * ni texte) ; une story avec texte mais sans plan reçoit le plan de repli.
  */
 export function buildStoryFrameHtml(
   story: StoryFrameStory | null | undefined,
   branding: StoryFrameBranding | null | undefined,
   opts: StoryFrameOptions = {},
 ): string | null {
-  const visual = story?.visual;
-  if (!visual || story?.face_cam) return null;
+  const visual = storyVisualOrFallback(story);
+  if (!visual) return null;
 
   const style = resolveStoryStyle(branding);
   const asm = getStoryAssemblage(style.assemblage);

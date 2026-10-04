@@ -49,20 +49,24 @@ export function enforceStoriesPhotoFirst(parsed: { stories?: StoryLike[] | null 
   for (const s of parsed.stories) {
     const v = s?.visual;
     if (!v || typeof v !== "object" || s?.face_cam) continue;
-    if (v.gabarit === "citation") continue;
-    if (v.background === "photo") continue;
-    v.background = "photo";
-    // fond_pills n'existe que pour les fonds couleur : son équivalent photo
-    // est photo_pills. Les gabarits interaction/liste gardent leur structure
-    // (le renderer les pose sur photo sans changement).
-    if (!v.gabarit || v.gabarit === "fond_pills") v.gabarit = "photo_pills";
+    if (v.background !== "photo") {
+      if (v.gabarit === "citation") continue;
+      v.background = "photo";
+      // fond_pills n'existe que pour les fonds couleur : son équivalent photo
+      // est photo_pills. Les gabarits interaction/liste gardent leur structure
+      // (le renderer les pose sur photo sans changement).
+      if (!v.gabarit || v.gabarit === "fond_pills") v.gabarit = "photo_pills";
+    }
     // Cohérence du badge affiché : une story à fond photo ne doit plus
     // s'annoncer comme du texte-sur-fond. Le nom du format est LIBRE côté
     // modèle (le brief ne l'énumère pas, il n'en montre qu'un exemple) : le
     // 18/08/2026 une séquence est sortie en "texte" et non "texte_fond", donc
     // 4 stories à fond photo affichaient le badge « texte ». Le fond était
     // bon, seul le libellé mentait. On normalise donc TOUT format texte-ish,
-    // pas la seule chaîne exacte "texte_fond".
+    // pas la seule chaîne exacte "texte_fond". Depuis le 04/10/2026 le fond
+    // photo est posé par la mise en forme (story-formatting.ts) AVANT cette
+    // garde : le badge est donc normalisé pour toute story à fond photo, pas
+    // seulement celles que la garde vient de basculer.
     if (isTexteFormat(s.format)) {
       s.format = "photo";
       s.format_label = "📸 Photo avec texte";
