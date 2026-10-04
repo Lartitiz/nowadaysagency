@@ -331,9 +331,8 @@ const anthropicText = (text: string) => ({
   body: { content: [{ type: "text", text }], stop_reason: "end_turn", usage: { input_tokens: 40, output_tokens: 20 } },
 });
 
-Deno.test("applyStoriesCorrectionPass : formule moulée détectée -> TEXTE seul envoyé, correction réinjectée story par story, pastilles jamais réécrites, quality_check posé", async () => {
+Deno.test("applyStoriesCorrectionPass : formule moulée détectée -> texte et titre envoyés, correction réinjectée story par story, pastilles dérivées jamais réécrites, quality_check posé", async () => {
   const parsed: any = MOULDED_STORIES();
-  const visualBefore = JSON.stringify(parsed.stories[0].visual);
   const { mock, capturedBodies } = installAnthropicBodyCapture([
     anthropicText([
       "[STORY 1 - TEXT] Voir tout le monde stresser pour un post Instagram dont personne ne se souvient la semaine suivante, ça continue sans jamais changer.",
@@ -346,9 +345,11 @@ Deno.test("applyStoriesCorrectionPass : formule moulée détectée -> TEXTE seul
     assertEquals(mock.anthropicCallCount, 1);
     const sent = JSON.stringify(capturedBodies[0]);
     assertEquals(sent.includes("[STORY 1 - TEXT]"), true);
-    assertEquals(sent.includes("[STORY 1 - TITLE]"), false);
+    assertEquals(sent.includes("[STORY 1 - TITLE] CE QUI ME DÉRANGE"), true);
+    assertEquals(sent.includes("[STORY 1 - BODY]"), false);
     assertEquals(parsed.stories[0].text.startsWith("Voir tout le monde stresser"), true);
-    assertEquals(JSON.stringify(parsed.stories[0].visual), visualBefore);
+    assertEquals(parsed.stories[0].visual.title_pill, "LE POST QUE PERSONNE NE RETIENT");
+    assertEquals(parsed.stories[0].visual.body_pill, "Tout le monde stresse pour un post que personne ne retient.");
     assertEquals(parsed.stories[1].text.startsWith("Bref, on respire"), true);
     assertEquals(gate?.repassed, true);
     assertEquals(gate?.violations, 0);

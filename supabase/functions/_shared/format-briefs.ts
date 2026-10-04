@@ -825,9 +825,10 @@ ${hookBlock}
 
 ══ TEXTE ET PHOTO DE CHAQUE STORY ══
 
-Tu écris le TEXTE de chaque story et tu dis quelle PHOTO la porte (objet "visual"). La mise en page de l'image (pastilles, titre, liste, citation, fond, position) est décidée APRÈS, à partir de ton texte : tu n'en écris rien.
+Tu écris le TEXTE de chaque story (et son petit titre éventuel) et tu dis quelle PHOTO la porte (objet "visual"). La mise en page de l'image (pastilles, liste, citation, fond, position) est décidée APRÈS, à partir de ton texte : tu n'en écris rien.
 
 RÈGLES :
+0. "title_pill" : OPTIONNEL, et null le plus souvent. Une story native, c'est UN bloc de texte posé sur la photo ; un titre + un texte dessous sur chaque story, c'est la signature d'un outil, pas d'une personne. Ne mets un "title_pill" (3-7 mots, pas de point final, affiché en capitales condensées type "Strong") QUE si la story annonce quelque chose qui se lit d'abord : une liste, une question posée à l'audience, une offre, une date. Jamais de titre qui répète ou résume le "text". Sur une séquence de 5 stories, 1 ou 2 titres maximum.
 1. "text" : LE TEXTE DE LA STORY, 350 caractères MAX. Ce qui est écrit sur la story, c'est ce qu'on lit : pas de résumé, pas de version raccourcie, pas de "titre puis texte". Un texte de 3-4 phrases qui raconte vraiment, c'est ce qui fait lire ; une accroche de 8 mots, on la swipe. Écrit comme on parle, jamais en formule. Si "text" dépasse 350 caractères, coupe "text" lui-même : une story ne doit pas dire plus.
 2. Verbatim client : court, jamais inventé. S'il n'y a pas de vrai retour client fourni, n'en cite pas.
 3. Les stories, ce sont des IMAGES : une photo est le fond de TOUTES les stories (hors face cam), et elle illustre CE QUE DIT la story.
@@ -907,6 +908,7 @@ Réponds en JSON strict :
         "options": ["Oui", "Non"]
       },
       "visual": {
+        "title_pill": null,
         "photo_directive": "[quelle photo prendre/choisir, concrète, ancrée dans l'activité]",
         "photo_query_en": "[2-4 mots anglais, scène photographiable]"${p.photo_catalog && p.photo_catalog.length > 0 ? `,
         "photo_index": null` : ""}

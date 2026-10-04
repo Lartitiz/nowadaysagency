@@ -29,7 +29,7 @@ function referenceWriterOutput() {
       {
         number: 1, role: "Hook", format: "photo", face_cam: false,
         text: "Ce matin, le four s'est ouvert sur une fournée entière de bols craquelés. Je vous raconte ce que j'ai compris.",
-        visual: { gabarit: "fond_pills", background: "fond_couleur", title_pill: "UN TITRE INVENTÉ", body_pill: "Un résumé qui n'est pas le texte", photo_directive: "les bols craquelés sur l'étagère", photo_query_en: "cracked ceramic bowls", photo_index: 1 },
+        visual: { gabarit: "fond_pills", background: "fond_couleur", title_pill: "Ce matin au four", body_pill: "Un résumé qui n'est pas le texte", photo_directive: "les bols craquelés sur l'étagère", photo_query_en: "cracked ceramic bowls", photo_index: 1 },
       },
       {
         number: 2, role: "Liste", format: "photo", face_cam: false,
@@ -50,7 +50,7 @@ function referenceWriterOutput() {
         number: 5, role: "Interaction", format: "photo", face_cam: false,
         text: "Et vous, vous gardez vos pièces ratées ou vous les cassez ?",
         sticker: { type: "sondage", label: "Sondage", options: ["Je garde", "Je casse"], placement: "bas" },
-        visual: { photo_directive: "une pile de bols ratés", photo_query_en: "imperfect pottery" },
+        visual: { title_pill: "Petit sondage", photo_directive: "une pile de bols ratés", photo_query_en: "imperfect pottery" },
       },
       {
         number: 6, role: "Fin", format: "texte_fond", face_cam: false,
@@ -85,7 +85,7 @@ describe("NON-RÉGRESSION stories : séquence de référence après les gardes d
     ]);
     // Rien de ce que la rédaction avait inventé comme mise en page ne survit.
     const all = JSON.stringify(stories);
-    for (const invented of ["UN TITRE INVENTÉ", "Un résumé qui n'est pas le texte", "Un item réécrit", "une citation inventée", "fond_couleur", "\"placement\""]) {
+    for (const invented of ["Un résumé qui n'est pas le texte", "Un item réécrit", "une citation inventée", "fond_couleur", "\"placement\""]) {
       expect(all).not.toContain(invented);
     }
     // Photo de la bibliothèque résolue, consignes de photo gardées.
@@ -120,8 +120,27 @@ describe("NON-RÉGRESSION stories : séquence de référence après les gardes d
     expect(stories[2].text).toContain(stories[2].visual.quote);
     // Interaction : zone du sticker réservée.
     expect(html[4]).toContain("data-story-sticker-zone");
-    // Pas de titre ajouté hors liste.
-    for (const i of [0, 2, 4, 5]) expect(html[i]).not.toContain('data-story-pptx="title"');
+    // Petit titre écrit par la rédaction : affiché tel quel, là où il a été écrit.
+    expect(stories[0].visual.title_pill).toBe("Ce matin au four");
+    expect(html[0]).toContain('data-story-pptx="title"');
+    expect(html[0]).toContain(">Ce matin au four</span>");
+    expect(html[4]).toContain(">Petit sondage</span>");
+    // Aucun titre ajouté là où la rédaction n'en a pas écrit.
+    for (const i of [2, 5]) expect(html[i]).not.toContain('data-story-pptx="title"');
+  });
+
+  it("une story avec petit titre s'affiche exactement comme avant la séparation", () => {
+    const text = "Ce matin, le four s'est ouvert sur une fournée entière de bols craquelés.";
+    // Avant : la rédaction écrivait tout le plan visuel.
+    const before = { text, format: "photo", visual: { gabarit: "photo_pills", background: "photo", title_pill: "Ce matin au four", body_pill: text, list_pills: null, quote: null } };
+    // Maintenant : la rédaction écrit le texte et le titre, le code pose le reste.
+    const parsed: any = { stories: [{ text, format: "photo", visual: { title_pill: "Ce matin au four" } }] };
+    stripStoriesWriterLayout(parsed);
+    finalizeStoriesLayout(parsed, { storiesPhotoCatalog: [] });
+    for (const preview of [true, false]) {
+      expect(buildStoryFrameHtml(parsed.stories[0], branding, { photoUrl: PHOTO, preview }))
+        .toBe(buildStoryFrameHtml(before, branding, { photoUrl: PHOTO, preview }));
+    }
   });
 });
 

@@ -465,8 +465,9 @@ et tu dois les CORRIGER systématiquement, même subtils.
 
 Réponds UNIQUEMENT avec les sections corrigées (marqueurs + textes), sans commentaire.`,
 
-  stories: `Tu es un éditeur de séquences Stories Instagram exigeant. Tu reçois les TEXTES d'une séquence, annotés par marqueurs [STORY N - TEXT] :
+  stories: `Tu es un éditeur de séquences Stories Instagram exigeant. Tu reçois les TEXTES d'une séquence, annotés par marqueurs [STORY N - CHAMP] :
 - TEXT = ce que la story dit (texte complet ou paroles face cam), jusqu'à 350 caractères
+- TITLE = pastille titre affichée sur l'image (3-7 mots, sans point final)
 
 ══ TON JOB ══
 Retirer les tics, RIEN d'autre. Les stories ont un ton brut, parlé, spontané : c'est leur force. Tu ne lisses pas, tu ne reformules pas ce qui est déjà naturel, tu ne changes pas le sens, tu n'ajoutes ni vécu ni date ni chiffre.
@@ -484,6 +485,7 @@ Retirer les tics, RIEN d'autre. Les stories ont un ton brut, parlé, spontané :
 ══ RÈGLES ABSOLUES ══
 - Retourne EXACTEMENT le même format annoté, TOUTES les lignes, dans le même ordre, même celles que tu ne changes pas (recopiées à l'identique).
 - Ne fusionne pas, ne supprime pas, n'ajoute pas de ligne ni de story.
+- Respecte la taille du titre : TITLE 3-7 mots sans point final.
 - JAMAIS de tiret cadratin (—). Pas de markdown.
 
 Réponds UNIQUEMENT avec le bloc annoté corrigé.`,
@@ -918,19 +920,22 @@ export async function applyCorrectionPassCarousel(
  * casser. Fallback : retourne l'objet original si quoi que ce soit échoue.
  */
 /**
- * Textes d'une séquence de stories, annotés [STORY N - TEXT] : le texte de
- * chaque story, et lui seul. Depuis le 04/10/2026 (séparation écriture /
- * design), les pastilles de l'image (titre, items, citation) sont des
- * EXTRAITS du texte posés par la mise en forme APRÈS cette passe
- * (_shared/story-formatting.ts) : les corriger ici n'aurait aucun sens, et les
- * mesurer compterait deux fois les mêmes mots.
+ * Textes d'une séquence de stories, annotés [STORY N - CHAMP] : ce que la
+ * rédaction a écrit et que l'abonnée lit, le texte (TEXT) et le petit titre
+ * (TITLE). Depuis le 04/10/2026 (séparation écriture / design), les autres
+ * pastilles de l'image (items de liste, citation) sont des EXTRAITS du texte
+ * posés par la mise en forme APRÈS cette passe (_shared/story-formatting.ts) :
+ * ni envoyées ni réécrites ici.
  */
 export function extractStoriesTexts(stories: any[]): string {
   const lines: string[] = [];
   if (!Array.isArray(stories)) return "";
   for (let i = 0; i < stories.length; i++) {
     const st = stories[i];
-    if (typeof st?.text === "string" && st.text.trim()) lines.push(`[STORY ${i + 1} - TEXT] ${st.text.trim()}`);
+    const num = i + 1;
+    if (typeof st?.text === "string" && st.text.trim()) lines.push(`[STORY ${num} - TEXT] ${st.text.trim()}`);
+    const title = st?.visual && typeof st.visual === "object" ? st.visual.title_pill : null;
+    if (typeof title === "string" && title.trim()) lines.push(`[STORY ${num} - TITLE] ${title.trim()}`);
   }
   return lines.join("\n");
 }
@@ -944,14 +949,16 @@ export function storiesAuditableText(stories: any[]): string {
   return extractStoriesTexts(stories).replace(/^\[STORY \d+ - [A-Z]+(?: \d+)?\] /gm, "");
 }
 
+/** Borne du petit titre (même que le brief stories) : une correction qui la casse est ignorée. */
+const STORY_TITLE_MAX_WORDS = 8;
+
 /**
  * Réinjecte un bloc annoté corrigé dans la liste de stories. Ne touche QUE le
- * texte des stories présentes dans le bloc, avec la garde de fidélité
- * keepUnlessRealEdit ; une ligne absente ou vide garde l'original. Aucune
- * pastille (title_pill, body_pill, list_pills, quote) n'est jamais réécrite :
- * elles sont dérivées du texte par la mise en forme, qui tourne après.
- * Renvoie une COPIE profonde (l'original n'est jamais muté), plus le nombre
- * de champs réellement changés — 0 = correction sans effet.
+ * texte et le petit titre, avec la garde de fidélité keepUnlessRealEdit ; une
+ * ligne absente, vide ou hors borne garde l'original. Les pastilles dérivées
+ * (body_pill, list_pills, quote) ne sont jamais réécrites : la mise en forme
+ * les pose après, à partir du texte. Renvoie une COPIE profonde (l'original
+ * n'est jamais muté), plus le nombre de champs réellement changés.
  */
 export function reinjectStoriesTexts(stories: any[], correctedBlock: string): { stories: any[]; changed: number } {
   const result: any[] = JSON.parse(JSON.stringify(stories));
@@ -962,16 +969,25 @@ export function reinjectStoriesTexts(stories: any[], correctedBlock: string): { 
     corrections.set(match[1].trim(), match[2].trim());
   }
   let changed = 0;
+  const wordCount = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
+  const apply = (holder: any, field: string, key: string, ok: (t: string) => boolean) => {
+    if (!holder || !corrections.has(key)) return;
+    const candidate = corrections.get(key)!;
+    if (!candidate || !ok(candidate)) return;
+    const val = keepUnlessRealEdit(holder[field], candidate);
+    if (val !== holder[field]) {
+      holder[field] = val;
+      changed++;
+    }
+  };
   for (let i = 0; i < result.length; i++) {
     const st = result[i];
-    const key = `STORY ${i + 1} - TEXT`;
-    if (!st || !corrections.has(key)) continue;
-    const candidate = corrections.get(key)!;
-    if (!candidate) continue;
-    const val = keepUnlessRealEdit(st.text, candidate);
-    if (val !== st.text) {
-      st.text = val;
-      changed++;
+    const num = i + 1;
+    apply(st, "text", `STORY ${num} - TEXT`, () => true);
+    const v = st?.visual;
+    // Seulement un titre qui existe déjà : la passe n'en invente pas.
+    if (v && typeof v === "object" && typeof v.title_pill === "string" && v.title_pill.trim()) {
+      apply(v, "title_pill", `STORY ${num} - TITLE`, (t) => wordCount(t) <= STORY_TITLE_MAX_WORDS);
     }
   }
   return { stories: result, changed };

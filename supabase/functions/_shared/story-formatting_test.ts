@@ -10,6 +10,9 @@ import {
 } from "./story-formatting.ts";
 
 const VALID_GABARITS = ["photo_pills", "interaction", "liste", "citation"];
+// Consigne d'écriture du petit titre, mot pour mot celle d'avant la séparation
+// (seul « body_pill » est devenu « "text" », le champ n'existant plus côté rédaction).
+const TITLE_RULE = `"title_pill" : OPTIONNEL, et null le plus souvent. Une story native, c'est UN bloc de texte posé sur la photo ; un titre + un texte dessous sur chaque story, c'est la signature d'un outil, pas d'une personne. Ne mets un "title_pill" (3-7 mots, pas de point final, affiché en capitales condensées type "Strong") QUE si la story annonce quelque chose qui se lit d'abord : une liste, une question posée à l'audience, une offre, une date. Jamais de titre qui répète ou résume le "text". Sur une séquence de 5 stories, 1 ou 2 titres maximum.`;
 
 // ═══ (a) Garde-fou de prompt : la rédaction n'écrit plus la mise en page ═══
 // Si quelqu'un remet gabarit / pastilles / fond / position dans le brief
@@ -23,13 +26,16 @@ Deno.test("brief stories : ne demande plus aucun choix de mise en page (toutes v
     storiesBrief({ photo_catalog: [{ index: 1, description: "bol", chosen: true }, { index: 2, description: "four" }] }),
   ];
   const forbidden = [
-    "gabarit", "title_pill", "body_pill", "list_pills", "\"quote\"", "\"background\"", "background\":", "text_position",
+    "gabarit", "body_pill", "list_pills", "\"quote\"", "\"background\"", "background\":", "text_position",
     "placement", "photo_pills", "fond_pills", "fond_couleur", "\"interaction\"", "\"liste\"", "\"citation\"",
   ];
   for (const brief of variants) {
     for (const word of forbidden) assert(!brief.includes(word), `le brief d'écriture demande encore « ${word} »`);
     for (const field of STORY_WRITER_LAYOUT_FIELDS) assert(!brief.includes(`"${field}"`), `champ de mise en page « ${field} » dans le brief`);
     // Ce qui reste à la rédaction : le texte, le sticker (texte du sondage), la photo à prendre.
+    // Le petit titre est du TEXTE écrit par la rédaction : sa consigne reste, mot pour mot.
+    assert(brief.includes(TITLE_RULE), "la consigne du petit titre de story a disparu du brief");
+    assert(brief.includes('"title_pill": null'), "le petit titre a disparu du JSON demandé");
     for (const kept of ["\"text\"", "\"sticker\"", "\"label\"", "\"options\"", "photo_directive", "photo_query_en", "350 caractères MAX"]) {
       assert(brief.includes(kept), `le brief a perdu « ${kept} »`);
     }
@@ -51,7 +57,7 @@ Deno.test("stripStoriesWriterLayout : retire la mise en page, garde texte, stick
     ],
   };
   stripStoriesWriterLayout(parsed);
-  assertEquals(parsed.stories[0].visual, { photo_directive: "pd", photo_query_en: "pq", photo_index: 2 });
+  assertEquals(parsed.stories[0].visual, { title_pill: "T", photo_directive: "pd", photo_query_en: "pq", photo_index: 2 });
   assertEquals(parsed.stories[0].sticker, { type: "sondage", label: "Sondage", options: ["Oui", "Non"] });
   assertEquals(parsed.stories[0].text, "Le texte.");
   assertEquals(parsed.stories[1].visual, null);
@@ -205,4 +211,42 @@ Deno.test("creative-flow : stripStoriesWriterLayout → applyStoriesCorrectionPa
   const finalize = block.indexOf("finalizeStoriesLayout(parsed");
   assert(strip >= 0 && correction > strip && finalize > correction, `ordre cassé : ${strip}, ${correction}, ${finalize}`);
   assert(!src.includes("enforceStoriesPhotoFirst(parsed)"), "la garde photo doit passer par finalizeStoriesLayout (après la mise en forme)");
+});
+
+// ═══ Petit titre écrit par la rédaction (décision du 04/10/2026) ═══
+Deno.test("petit titre : repris tel quel dans visual.title_pill, jamais réécrit ni raccourci", () => {
+  const long = "Un petit titre un peu plus long que prévu ici";
+  const parsed: any = {
+    stories: [
+      { text: "Je vous montre l'atelier ce matin.", visual: { title_pill: "Ce matin à l'atelier", photo_directive: "établi" } },
+      { text: "Vous préférez quoi ?", sticker: { type: "sondage", label: "Sondage", options: ["A", "B"] }, visual: { title_pill: "Petit sondage" } },
+      { text: "Une story sans titre.", visual: { title_pill: null } },
+      { text: "Une autre.", visual: { title_pill: long } },
+    ],
+  };
+  stripStoriesWriterLayout(parsed);
+  finalizeStoriesLayout(parsed, { storiesPhotoCatalog: [] });
+  assertEquals(parsed.stories[0].visual.title_pill, "Ce matin à l'atelier");
+  assertEquals(parsed.stories[0].visual.gabarit, "photo_pills");
+  assertEquals(parsed.stories[1].visual.title_pill, "Petit sondage");
+  assertEquals(parsed.stories[1].visual.gabarit, "interaction");
+  assertEquals(parsed.stories[2].visual.title_pill, null);
+  assertEquals(parsed.stories[3].visual.title_pill, long);
+});
+
+Deno.test("petit titre : jamais perdu par un gabarit qui ne l'affiche pas (liste à amorce, citation)", () => {
+  const parsed: any = {
+    stories: [
+      { text: "Ce que je vérifie : la couleur ; l'odeur ; la texture.", visual: { title_pill: "Avant de démouler" } },
+      { text: "Une cliente m'a écrit « vos bols imparfaits sont mes préférés » hier.", visual: { title_pill: "Reçu en DM" } },
+      { text: "- la couleur\n- l'odeur\n- la texture", visual: { title_pill: "Mes trois vérifs" } },
+    ],
+  };
+  formatStoriesVisuals(parsed);
+  assertEquals(parsed.stories[0].visual.gabarit, "photo_pills");
+  assertEquals(parsed.stories[0].visual.title_pill, "Avant de démouler");
+  assertEquals(parsed.stories[1].visual.gabarit, "photo_pills");
+  assertEquals(parsed.stories[1].visual.title_pill, "Reçu en DM");
+  assertEquals(parsed.stories[2].visual.gabarit, "liste");
+  assertEquals(parsed.stories[2].visual.title_pill, "Mes trois vérifs");
 });

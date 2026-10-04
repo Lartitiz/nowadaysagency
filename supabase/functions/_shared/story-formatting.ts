@@ -40,13 +40,16 @@ export const STORY_QUOTE_MAX_CHARS = 220;
 
 /** Champs de MISE EN PAGE que la rédaction n'écrit plus (décidés ici). */
 export const STORY_WRITER_LAYOUT_FIELDS = [
-  "gabarit", "background", "title_pill", "body_pill", "list_pills", "quote",
+  "gabarit", "background", "body_pill", "list_pills", "quote",
   "text_position", "text_position_x", "text_position_y",
 ] as const;
 
-/** Ce que la rédaction garde dans "visual" : la photo à prendre ou choisir
- * (consigne de tournage écrite, ancrée dans le texte et la bibliothèque). */
+/** Ce que la rédaction garde dans "visual" : le petit titre de la story (du
+ * TEXTE, décision de Laetitia du 04/10/2026, comme les kicker du carrousel
+ * photo) et la photo à prendre ou choisir (consigne de tournage écrite). */
 export const STORY_WRITER_PHOTO_FIELDS = ["photo_directive", "photo_query_en", "photo_index"] as const;
+export const STORY_WRITER_TEXT_FIELDS = ["title_pill"] as const;
+const STORY_WRITER_KEPT_FIELDS = [...STORY_WRITER_TEXT_FIELDS, ...STORY_WRITER_PHOTO_FIELDS];
 
 type Story = Record<string, any>;
 
@@ -98,7 +101,7 @@ export function stripStoriesWriterLayout(parsed: { stories?: unknown } | null | 
     const v = s.visual;
     if (v && typeof v === "object" && !Array.isArray(v)) {
       const kept: Record<string, unknown> = {};
-      for (const k of STORY_WRITER_PHOTO_FIELDS) if (k in v) kept[k] = v[k];
+      for (const k of STORY_WRITER_KEPT_FIELDS) if (k in v) kept[k] = v[k];
       s.visual = kept;
     } else if (v !== undefined && v !== null) {
       s.visual = null;
@@ -197,6 +200,11 @@ function fallbackVisual(s: Story, photo: Record<string, unknown>): StoryVisual {
   };
 }
 
+/** Petit titre écrit par la rédaction : repris tel quel, jamais réécrit. */
+function writerTitle(v: Record<string, unknown>): string | null {
+  return typeof v.title_pill === "string" && v.title_pill.trim() ? v.title_pill.trim() : null;
+}
+
 /** Construit le plan visuel d'UNE story à partir de son texte final. */
 export function planStoryVisual(s: Story, previous: StoryVisual | null = null): StoryVisual | null {
   if (!s || typeof s !== "object") return null;
@@ -208,14 +216,19 @@ export function planStoryVisual(s: Story, previous: StoryVisual | null = null): 
     const v = s.visual && typeof s.visual === "object" && !Array.isArray(s.visual) ? s.visual : {};
     const photo: Record<string, unknown> = {};
     for (const k of STORY_WRITER_PHOTO_FIELDS) if (k in v) photo[k] = v[k];
-    base = fallbackVisual(s, photo);
+    const title = writerTitle(v);
+    base = { ...fallbackVisual(s, photo), title_pill: title };
     if (base.gabarit === "interaction") return base;
     const text = storyText(s);
     const list = detectStoryList(text);
-    if (list && previous?.gabarit !== "liste") {
-      return { ...base, gabarit: "liste", title_pill: list.title, body_pill: null, list_pills: list.items };
+    // Le gabarit liste n'affiche qu'UN titre : avec un petit titre écrit ET une
+    // amorce dans le texte, l'un des deux disparaîtrait → pas de liste.
+    if (list && previous?.gabarit !== "liste" && !(title && list.title)) {
+      return { ...base, gabarit: "liste", title_pill: title ?? list.title, body_pill: null, list_pills: list.items };
     }
-    const quote = detectStoryQuote(text);
+    // Le gabarit citation n'affiche pas de titre : une story avec un petit
+    // titre reste en photo_pills (titre + texte complet).
+    const quote = title ? null : detectStoryQuote(text);
     if (quote && previous?.gabarit !== "citation") {
       return { ...base, gabarit: "citation", body_pill: null, quote };
     }
