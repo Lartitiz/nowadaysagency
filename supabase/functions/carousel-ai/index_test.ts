@@ -973,3 +973,4 @@ Deno.test("structure confirmée renvoyée avec « text » : acceptée (plus de �
     confirmed_structure: [{ slide_number: 1, role: "hook", title_suggestion: "a", strategic_note: "b", slide_type: "photo" }, { slide_number: 2, role: "body", title_suggestion: "c", strategic_note: "d", slide_type: "text" }] }));
   assertEquals(res.status, 200);
 });
+

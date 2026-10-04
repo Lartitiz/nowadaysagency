@@ -600,6 +600,11 @@ export async function handleRequest(req: Request): Promise<Response> {
     if (Array.isArray(body?.confirmed_structure)) {
       for (const s of body.confirmed_structure) {
         normalizeGeneratedPlanFields(s);
+        // Carrousel PHOTO : chaque slide est une slide photo. Une structure
+        // renvoyée avec « text » (variante du modèle) devenait text_only, dont le
+        // texte va dans title/body que le rendu photo n'affiche pas (vu en live
+        // le 04/10/2026 : deux slides sans texte).
+        if (body.carousel_type === "photo" && s && typeof s === "object") s.slide_type = "photo_full";
         clampAiField(s, "story_beat", 300);
         clampAiField(s, "visual_anchor", 120);
         clampAiField(s, "photo_observation", 800);
