@@ -23,13 +23,10 @@ import { analyzeTextRedac, buildTextFixInstructions, fixElisionsInFields, number
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks, fetchPreviousHooksByFormat } from "../_shared/previous-hooks.ts";
 import {
-  alignFaceCamTakeDuration,
-  applyReelElisions,
   countReelSpokenWords,
   enforceReelNoFaceCam,
   enforceSelectedReelHook,
-  rebuildReelLectureTest,
-  recalibrateReelTimings,
+  finalizeReelScript,
   reelAuditableText,
   reelTemplateLeaks,
 } from "../_shared/reel-postprocess.ts";
@@ -1486,13 +1483,8 @@ async function applyReelQualityPass(parsed: any, params: { body: any; effectiveO
   // - lecture_test = concat des texte_parle FINAUX (sinon le monologue affiché
   //   diverge du script corrigé — faille trouvée à la revue du 12/07) ;
   // - timings recomptés sur la version FINALE du texte.
-  enforceSelectedReelHook(parsed, body.selected_hook);
-  applyReelElisions(parsed);
-  rebuildReelLectureTest(parsed);
-  recalibrateReelTimings(parsed);
-  // La prise face cam du plan de tournage doit couvrir le monologue recompté
-  // (le modèle recopie la durée de l'exemple du prompt sans la relier au script).
-  alignFaceCamTakeDuration(parsed);
+  // (Ordre et détail : finalizeReelScript, _shared/reel-postprocess.ts.)
+  finalizeReelScript(parsed, body.selected_hook);
 }
 
 // ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══

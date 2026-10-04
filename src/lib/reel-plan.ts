@@ -159,6 +159,17 @@ export interface RenderPlanOptions {
   brollBySection?: Array<{ url: string; start: number; duration: number; seek?: number } | null>;
 }
 
+/**
+ * Texte à l'écran d'une section en mode silencieux : le texte overlay écrit
+ * pour l'écran, sinon (absent ou vide) TOUT le texte parlé — jamais coupé ;
+ * c'est le rendu (reel-render/recipe.ts) qui adapte la taille pour qu'il tienne.
+ */
+export function silentOverlayText(s: { texte_parle?: unknown; texte_overlay?: unknown }): string | undefined {
+  return [s.texte_overlay, s.texte_parle].find(
+    (t): t is string => typeof t === "string" && t.trim() !== "",
+  );
+}
+
 export function buildRenderPlan(
   sections: Array<{ timing?: unknown; texte_parle?: unknown; texte_overlay?: unknown }>,
   clipBySection: ClipChoice[],
@@ -206,8 +217,8 @@ export function buildRenderPlan(
       duration,
       ...(voiceUrl ? { voice_audio_url: voiceUrl } : {}),
       ...(opts.voice_mode === "tts" && typeof s.texte_parle === "string" ? { voice_text: s.texte_parle } : {}),
-      ...(opts.voice_mode === "silent" && typeof (s.texte_overlay || s.texte_parle) === "string"
-        ? { overlay_text: String(s.texte_overlay || s.texte_parle) }
+      ...(opts.voice_mode === "silent" && silentOverlayText(s) !== undefined
+        ? { overlay_text: silentOverlayText(s) }
         : {}),
       ...withBroll(duration),
     });
