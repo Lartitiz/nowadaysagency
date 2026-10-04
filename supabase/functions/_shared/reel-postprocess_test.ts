@@ -251,3 +251,124 @@ Deno.test("applyReelElisions : corrige sections, caption et cover", () => {
   assertEquals(reel.cover_text, "l'avant/après");
   assertEquals(reel.sections, reel.script);
 });
+
+// ── Libellés de section écrits par l'IA : normalisés par le code ──
+
+import {
+  finalizeReelScript,
+  mentionsFaceCam,
+  normalizeReelSectionLabels,
+  reelSectionRole,
+} from "./reel-postprocess.ts";
+
+Deno.test("reelSectionRole : casse, accents, synonymes", () => {
+  for (const l of ["hook", "Hook", "HOOK", " hook ", "Accroche", "accroche (0-3 s)", "Intro", "introduction", "Ouverture", "hook_1"]) {
+    assertEquals(reelSectionRole(l), "hook", l);
+  }
+  for (const l of ["body", "Body 2", "BODY_1", "Corps", "Développement", "developpement", "Contenu", "Milieu"]) {
+    assertEquals(reelSectionRole(l), "body", l);
+  }
+  for (const l of ["cta", "CTA", "CTA final", "Call to action", "Appel à l'action", "Conclusion", "Chute"]) {
+    assertEquals(reelSectionRole(l), "cta", l);
+  }
+  for (const l of ["", null, undefined, "scène 3", "xyz"]) assertEquals(reelSectionRole(l), null, String(l));
+});
+
+for (const label of ["Hook", "HOOK", "accroche", "Accroche", "intro", "Introduction", " hook "]) {
+  Deno.test(`enforceSelectedReelHook : libellé « ${label} » → l'accroche choisie reste verrouillée`, () => {
+    const reel = sampleReel() as any;
+    reel.script[0].section = label;
+    const touched = enforceSelectedReelHook(reel, { text: "Mon accroche à moi.", text_overlay: "MON CHOIX" });
+    assertEquals(touched, true);
+    assertEquals(reel.script[0].texte_parle, "Mon accroche à moi.");
+    assertEquals(reel.script[0].texte_overlay, "MON CHOIX");
+    assertEquals(reel.script[0].section, "hook");
+  });
+}
+
+Deno.test("enforceSelectedReelHook : aucune section étiquetée hook → la 1re section (position) est verrouillée", () => {
+  for (const label of [undefined, "", "scène 1", "partie 1"]) {
+    const reel = sampleReel() as any;
+    reel.script[0].section = label;
+    assertEquals(enforceSelectedReelHook(reel, { text: "Mon accroche à moi." }), true, String(label));
+    assertEquals(reel.script[0].texte_parle, "Mon accroche à moi.");
+  }
+});
+
+Deno.test("enforceSelectedReelHook : un hook étiqueté plus loin n'est pas écrasé par position", () => {
+  const reel = sampleReel() as any;
+  reel.script[0].section = "body";
+  reel.script[1].section = "Hook";
+  const before = reel.script[0].texte_parle;
+  // Le verrou ne vise que la 1re section ; ici elle est explicitement un body.
+  assertEquals(enforceSelectedReelHook(reel, { text: "Mon accroche à moi." }), false);
+  assertEquals(reel.script[0].texte_parle, before);
+  assertEquals(reel.script[1].section, "hook");
+});
+
+Deno.test("normalizeReelSectionLabels : libellés canoniques, textes intacts, miroir sections", () => {
+  const reel = sampleReel() as any;
+  reel.script[0].section = "Accroche";
+  reel.script[1].section = "Body 1";
+  reel.script[2].section = "CTA final";
+  const textsBefore = reel.script.map((s: any) => [s.texte_parle, s.texte_overlay]);
+  assertEquals(normalizeReelSectionLabels(reel), true);
+  assertEquals(reel.script.map((s: any) => s.section), ["hook", "body", "cta"]);
+  assertEquals(reel.script.map((s: any) => [s.texte_parle, s.texte_overlay]), textsBefore);
+  assertEquals(reel.sections, reel.script);
+  assertEquals(normalizeReelSectionLabels(reel), false); // idempotent
+});
+
+// ── face cam : toutes les écritures ──
+
+Deno.test("mentionsFaceCam : toutes les écritures de face cam", () => {
+  for (const v of [
+    "face_cam", "face_cam_confession", "facecam", "FaceCam", "face-cam", "Face Cam", "FACE CAM", "face  cam",
+    "face.cam", "face caméra", "Face caméra", "face camera", "caméra face", "Caméra de face", "face à la caméra",
+    "en face de la caméra", "regarde la caméra", "Regard caméra direct", "regardes la caméra", "talking head", "talking-head",
+  ]) {
+    assert(mentionsFaceCam(v), v);
+  }
+});
+
+Deno.test("mentionsFaceCam : pas de faux positif", () => {
+  for (const v of [
+    "voix_off_broll", "hook_loop", "b_roll", "insert", "Gros plan sur tes mains", "surface camouflée",
+    "interface caméra du téléphone", "Plan sur ton activité (mains, gestes, matière)", "", null, undefined,
+  ]) {
+    assert(!mentionsFaceCam(v), String(v));
+  }
+});
+
+for (const ft of ["facecam", "face-cam", "Face Cam", "FACE_CAM_CONFESSION", "caméra face", "face caméra"]) {
+  Deno.test(`enforceReelNoFaceCam : format_type « ${ft} » converti en voix off`, () => {
+    const reel = sampleReel() as any;
+    reel.format_type = ft;
+    reel.script[0].format_visuel = ft;
+    reel.plan_tournage[0].type = ft;
+    reel.plan_tournage[0].plan = "Toi, assise à ton poste";
+    assertEquals(enforceReelNoFaceCam(reel), true);
+    assertEquals(reel.format_type, "voix_off_broll");
+    assert(!mentionsFaceCam(reel.script[0].format_visuel));
+    assertEquals(reel.plan_tournage[0].type, "b_roll");
+    assertEquals(reelFaceCamViolations(reel), []);
+  });
+}
+
+Deno.test("reelFaceCamViolations : plan_tournage au type mal écrit détecté", () => {
+  const reel = sampleReel() as any;
+  reel.format_type = "voix_off_broll";
+  reel.script.forEach((s: any) => (s.format_visuel = "B-roll"));
+  reel.plan_tournage = [{ plan: "Toi assise", type: "Face-Cam" }];
+  assertEquals(reelFaceCamViolations(reel).length, 1);
+});
+
+Deno.test("finalizeReelScript : verrou du hook puis élisions, lecture_test et timings recomptés", () => {
+  const reel = sampleReel() as any;
+  reel.script[0].section = "Accroche";
+  finalizeReelScript(reel, { text: "Mon accroche à moi.", text_overlay: "MON CHOIX" });
+  assertEquals(reel.script[0].texte_parle, "Mon accroche à moi.");
+  assert(reel.lecture_test.startsWith("Mon accroche à moi."));
+  assertEquals(reel.script[0].timing, "0-2 sec");
+  assertEquals(reel.sections, reel.script);
+});

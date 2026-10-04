@@ -1,4 +1,5 @@
 import { isCrosspost, resumeCrosspost, crosspostText } from "@/lib/crosspost-content";
+import { reelScriptDraft, reelSectionsOf } from "../../../supabase/functions/_shared/reel-caption";
 // Logique pure extraite de CreerUnifie.tsx (monolithe) : construit le brouillon
 // de contenu calendrier à partir du résultat de génération (`result.raw`) et du
 // format choisi. Aucune dépendance à l'état React -> testable, behavior-preserving.
@@ -57,9 +58,10 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
   }
   const r = raw;
   if (!r) return { contentDraft: "", accroche: "", storyDetail: null as any };
-  const reelSections = Array.isArray(r.sections) ? r.sections
-    : Array.isArray(r.script) ? r.script
-    : Array.isArray(r.script?.sections) ? r.script.sections : [];
+  // Même lecture des sections et même format que la règle de légende
+  // (_shared/reel-caption.ts) : le script copié doit y être reconnu à
+  // l'identique, sinon il partirait en légende à la publication.
+  const reelSections = reelSectionsOf(r);
   const storySequence = [r.stories, r.sequences, r.slides].find(Array.isArray);
   const stories = storySequence || [];
   const storyText = (story: any) => String(story.text ?? story.texte ?? story.content ?? "");
@@ -99,7 +101,7 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
     contentDraft = r.full_text || [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
   } else if (selectedFormat === "reel" && (r?.sections || r?.script)) {
     accroche = reelSections[0]?.texte_parle || r.accroche || "";
-    contentDraft = typeof r.script === "string" && !reelSections.length ? r.script : reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || s.section || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}${s.format_visuel ? `\n📹 ${s.format_visuel}` : ""}`).join("\n\n");
+    contentDraft = typeof r.script === "string" && !reelSections.length ? r.script : reelScriptDraft(reelSections);
   } else if (selectedFormat === "story" && storySequence) {
     accroche = storyText(stories[0] || {});
     const sequenceTime = r.publication_time
@@ -154,7 +156,10 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
       format_type: r.format_type,
       format_label: r.format_label,
       duree_cible: r.duree_cible,
-      script: r.sections || r.script,
+      // Un `sections` resté en chaîne (gabarit du prompt) ne doit pas masquer
+      // le vrai `script` : la règle de légende ne reconnaîtrait plus le
+      // brouillon et le script partirait en légende.
+      script: Array.isArray(r.sections) || !r.script ? r.sections : r.script,
       caption: r.caption,
       hashtags: capHashtags(r.hashtags),
       cover_text: r.cover_text,

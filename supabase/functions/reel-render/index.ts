@@ -27,36 +27,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildReelRecipe } from "./recipe.ts";
+import { SubmitSchema } from "./schema.ts";
 
 const J2V_BASE = "https://api.json2video.com/v2/movies";
 const J2V_TIMEOUT_MS = 20_000;
-
-const SectionSchema = z.object({
-  clip_url: z.string().url(),
-  seek: z.number().min(0).optional(),
-  duration: z.number().positive().max(90),
-  voice_audio_url: z.string().url().optional(),
-  voice_text: z.string().max(600).optional(),
-  broll_url: z.string().url().optional(),
-  broll_start: z.number().min(0).max(90).optional(),
-  broll_duration: z.number().positive().max(90).optional(),
-  broll_seek: z.number().min(0).max(90).optional(),
-}).refine(s => !s.broll_url || (s.broll_duration != null &&
-  (s.broll_start || 0) + s.broll_duration <= s.duration + 0.01),
-  "Le plan de coupe dépasse la durée du passage.");
-
-const SubmitSchema = z.object({
-  action: z.literal("submit"),
-  width: z.number().int().positive().optional(),
-  height: z.number().int().positive().optional(),
-  sections: z.array(SectionSchema).min(1).max(20),
-  voice_mode: z.enum(["recorded", "tts", "silent"]),
-  tts_voice: z.string().max(60).optional(),
-  subtitles: z.boolean().optional(),
-  subtitle_settings: z.record(z.unknown()).optional(),
-  // "filme" (prise face cam, clip gardé avec son) / "cache" (défaut, comportement existant).
-  mode: z.enum(["filme", "cache"]).optional(),
-});
 
 const StatusSchema = z.object({
   action: z.literal("status"),
