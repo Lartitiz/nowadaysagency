@@ -21,7 +21,7 @@ import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool }
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, applyCorrectionPassReel, type CorrectionFormat, applyCorrectionPassStories, storiesAuditableText } from "../_shared/correction-pass.ts";
-import { analyzeTextRedac, buildTextFixInstructions, fixElisionsInFields, numbersIn, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations, dropUserSourcedReversals } from "../_shared/redac-gate.ts";
+import { analyzeTextRedac, buildTextFixInstructions, fixElisionsInFields, numbersIn, researchNumbers, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations, dropUserSourcedReversals, type ResearchNumbers } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks, fetchPreviousHooksByFormat } from "../_shared/previous-hooks.ts";
 import {
@@ -1357,23 +1357,33 @@ function normalizeHooksResponse(parsed: any, params: { body: any; rawContent: st
 }
 
 // ═══ PASSE DE CORRECTION LinkedIn ═══
+// Liste blanche des chiffres (04/10/2026) : ceux du brief, des réponses, du
+// branding et de l'actu passent tels quels ; ceux que SEULE la recherche
+// (« creuser le sujet » ou deep research) fournit passent aussi, mais le gate
+// exige leur source dans la même phrase (findUnsourcedResearchNumbers).
+export function gateNumbers(baseParts: string[], researchSource?: string): { allowed: Set<string>; research?: ResearchNumbers } {
+  const base = numbersIn(baseParts.join("\n"));
+  if (!researchSource?.trim()) return { allowed: base };
+  return { allowed: new Set([...base, ...numbersIn(researchSource)]), research: researchNumbers(base, researchSource) };
+}
+
 // Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe
 // spécialisée qui chasse cascades, anaphores, formules manufacturées, CTA génériques.
 // En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
 // (vision déjà coûteuse en wall-time). Les règles anti-broetry sont déjà
 // injectées AVANT les images dans le prompt photo LinkedIn (lignes 1272+).
-export async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<void> {
-  const { body, fullContext, brandGuardText } = params;
+export async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<void> {
+  const { body, fullContext, brandGuardText, researchSource } = params;
   try {
     // Gate rédactionnel (lots 3+4) : mesures en code injectées dans la
     // passe de correction existante — retournements (1 max), formules
     // moulées, chiffres sans source (liste blanche = brief + réponses + actu).
-    const liAllowed = numbersIn([
+    const { allowed: liAllowed, research } = gateNumbers([
       typeof body.context === "string" ? body.context : "",
       body.answers ? JSON.stringify(body.answers) : "",
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
-    ].join("\n"));
+    ], researchSource);
     // runTextRedacGate = mesure → correction → RE-mesure → garde anti-régression
     // (la correction n'est gardée que si elle ne dégrade aucun compteur mesuré,
     // cf. échantillon live 18/08 : Haiku introduisait des retournements).
@@ -1382,12 +1392,13 @@ export async function applyLinkedInCorrectionPass(parsed: any, params: { body: a
       correction: {
         logger: (msg) => console.log(msg),
         authoredText: authoredContentSource(body),
-        sourceContext: [authoredContentSource(body), fullContext].filter(Boolean).join("\n"),
+        sourceContext: [authoredContentSource(body), fullContext, researchSource].filter(Boolean).join("\n"),
         // Édition mécanique à règles fermées → Haiku (cf. #364)
         model: "claude-haiku-4-5",
         abortTimeoutMs: CORRECTION_ABORT_MS,
       },
       allowedNumbers: liAllowed,
+      research,
       brandGuardText,
       echo: { previousHooks: params.previousHooks, subject: params.echoSubject },
     });
@@ -1410,8 +1421,8 @@ export async function applyLinkedInCorrectionPass(parsed: any, params: { body: a
 // 3. Recalibrage déterministe des durées : la durée affichée découle du texte
 //    réel (2,5 mots/s). Mesuré à l'audit : durées déclarées sous-estimées de
 //    40-80 % (90 s réelles annoncées "50 sec" = pénalité de distribution).
-async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<void> {
-  const { body, effectiveObjective, fullContext, brandGuardText, echoSubject, previousHooks } = params;
+async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<void> {
+  const { body, effectiveObjective, fullContext, researchSource, brandGuardText, echoSubject, previousHooks } = params;
   if (body.face_cam === "non" && enforceReelNoFaceCam(parsed)) {
     console.log("[creative-flow] reel face_cam=non : structure convertie en voix off");
   }
@@ -1420,13 +1431,13 @@ async function applyReelQualityPass(parsed: any, params: { body: any; effectiveO
   // ni l'une ni l'autre ne décide à la place de l'utilisatrice).
   const hasChosenHook = enforceSelectedReelHook(parsed, body.selected_hook);
   try {
-    const reelAllowed = numbersIn([
+    const { allowed: reelAllowed, research: reelResearch } = gateNumbers([
       typeof body.context === "string" ? body.context : "",
       (body.preGenAnswers || body.pre_gen_answers) ? JSON.stringify(body.preGenAnswers || body.pre_gen_answers) : "",
       body.selected_hook ? JSON.stringify(body.selected_hook) : "",
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
-    ].join("\n"));
+    ], researchSource);
     // 🔑 L'écho d'accroche n'est mesuré QUE si le hook n'est pas verrouillé.
     // Quand l'utilisatrice a choisi son hook à l'étape hook_selection, la passe
     // reçoit déjà l'ordre de le recopier À L'IDENTIQUE : y ajouter « réécris
@@ -1440,6 +1451,7 @@ async function applyReelQualityPass(parsed: any, params: { body: any; effectiveO
       reelAllowed,
       brandGuardText,
       hookVerrouille ? undefined : { previousHooks, subject: echoSubject },
+      reelResearch,
     );
     const extras: string[] = [];
     const redacFix = buildTextFixInstructions(reelRedac);
@@ -1469,7 +1481,7 @@ async function applyReelQualityPass(parsed: any, params: { body: any; effectiveO
     const corrected = await applyCorrectionPassReel(parsed, {
       logger: (msg) => console.log(msg),
       authoredText: authoredContentSource(body),
-      sourceContext: [fullContext, authoredContentSource(body)].filter(Boolean).join("\n"),
+      sourceContext: [fullContext, researchSource, authoredContentSource(body)].filter(Boolean).join("\n"),
       model: "claude-haiku-4-5",
       extraInstructions: extras.length ? extras.join("\n\n") : undefined,
       abortTimeoutMs: CORRECTION_ABORT_MS,
@@ -1522,18 +1534,18 @@ export interface StoriesGateResult {
   reverted: boolean;
 }
 
-export async function applyStoriesCorrectionPass(parsed: any, params: { body: any; fullContext: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<StoriesGateResult | null> {
-  const { body, fullContext, brandGuardText, echoSubject, previousHooks } = params;
+export async function applyStoriesCorrectionPass(parsed: any, params: { body: any; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<StoriesGateResult | null> {
+  const { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks } = params;
   if (!Array.isArray(parsed?.stories) || parsed.stories.length === 0) return null;
   const auditable = storiesAuditableText(parsed.stories);
   if (!auditable || auditable.length < 150) return null;
   try {
-    const storiesAllowed = numbersIn([
+    const { allowed: storiesAllowed, research: storiesResearch } = gateNumbers([
       typeof body.context === "string" ? body.context : "",
       body.answers ? JSON.stringify(body.answers) : "",
       (body.preGenAnswers || body.pre_gen_answers) ? JSON.stringify(body.preGenAnswers || body.pre_gen_answers) : "",
       fullContext || "",
-    ].join("\n"));
+    ], researchSource);
     const echo = { previousHooks, subject: echoSubject };
     // Un retournement écrit PAR l'utilisatrice (message clé, réponses) n'est pas un tic.
     const userSource = [
@@ -1541,7 +1553,7 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
       body.answers ? JSON.stringify(body.answers) : "",
       (body.preGenAnswers || body.pre_gen_answers) ? JSON.stringify(body.preGenAnswers || body.pre_gen_answers) : "",
     ].join("\n");
-    const analyze = (stories: any[]) => dropUserSourcedReversals(analyzeTextRedac(storiesAuditableText(stories), storiesAllowed, brandGuardText, echo), userSource);
+    const analyze = (stories: any[]) => dropUserSourcedReversals(analyzeTextRedac(storiesAuditableText(stories), storiesAllowed, brandGuardText, echo, storiesResearch), userSource);
     const before = analyze(parsed.stories);
     let best = parsed.stories;
     let bestA = before;
@@ -1551,7 +1563,7 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
       const out = await applyCorrectionPassStories(parsed.stories, {
         logger: (msg) => console.log(msg),
         authoredText: authoredContentSource(body),
-        sourceContext: [authoredContentSource(body), fullContext].filter(Boolean).join("\n"),
+        sourceContext: [authoredContentSource(body), fullContext, researchSource].filter(Boolean).join("\n"),
         model: "claude-haiku-4-5",
         extraInstructions: buildTextFixInstructions(before) || undefined,
         abortTimeoutMs: CORRECTION_ABORT_MS,
@@ -1570,7 +1582,7 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
     const violations = textRedacViolations(bestA);
     const result: StoriesGateResult = { source: "code", score: Math.max(40, 100 - 10 * violations), violations, repassed, reverted };
     console.log(
-      `[stories-gate] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, repassé=${repassed}, rejeté=${reverted}`,
+      `[stories-gate] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${bestA.unsourcedResearchNumbers?.length ?? 0}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, repassé=${repassed}, rejeté=${reverted}`,
     );
     parsed.stories = best;
     parsed.quality_check = result;
@@ -1598,6 +1610,7 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
   body: any;
   newsContext?: string | null;
   fullContext: string;
+  researchSource?: string;
   brandGuardText?: string;
   finalUsage: UsageSink;
   workspace_id?: string | null;
@@ -1609,25 +1622,26 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
   /** Résultat de la passe stories (score APRÈS correction) : loggé tel quel, sans re-mesure. */
   storiesGate?: StoriesGateResult | null;
 }): Promise<void> {
-  const { userId, context, body, newsContext, fullContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate } = params;
-  const qualityAllowed = () =>
-    numbersIn([
+  const { userId, context, body, newsContext, fullContext, researchSource, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate } = params;
+  const qualityNumbers = () =>
+    gateNumbers([
       typeof context === "string" ? context : "",
       body.answers ? JSON.stringify(body.answers) : "",
       (body.preGenAnswers || body.pre_gen_answers) ? JSON.stringify(body.preGenAnswers || body.pre_gen_answers) : "",
       typeof newsContext === "string" ? newsContext : "",
       fullContext || "",
-    ].join("\n"));
+    ], researchSource);
   const logTextQuality = async (format: string, text: string, previewDoc: unknown, gate?: StoriesGateResult | null) => {
     try {
       let score: number, violations: number, repassed = false;
       if (gate) {
         ({ score, violations, repassed } = gate);
       } else {
-        const a = analyzeTextRedac(text, qualityAllowed(), brandGuardText, {
+        const { allowed, research } = qualityNumbers();
+        const a = analyzeTextRedac(text, allowed, brandGuardText, {
           previousHooks,
           subject: typeof context === "string" ? context : undefined,
-        });
+        }, research);
         violations = textRedacViolations(a);
         score = Math.max(40, 100 - 10 * violations);
       }
@@ -1929,14 +1943,14 @@ export async function runLinkedInTwoStep(params: {
   // chiffres sans source (liste blanche = brief + réponses + actu + branding).
   // Ce chemin streamé (celui réellement utilisé en prod, cf. audit slop
   // 18/08 constat 2) en était totalement dépourvu.
-  const liAllowed = numbersIn([
+  // Chiffres de la recherche : autorisés seulement avec leur source dans la phrase.
+  const { allowed: liAllowed, research: liResearch } = gateNumbers([
     typeof body.context === "string" ? body.context : "",
     body.answers ? JSON.stringify(body.answers) : "",
     typeof body.news_context === "string" ? body.news_context : "",
     fullContext || "",
-    researchSource,
-  ].join("\n"));
-  const liRedac = analyzeTextRedac(postText, liAllowed);
+  ], researchSource);
+  const liRedac = analyzeTextRedac(postText, liAllowed, undefined, undefined, liResearch);
   const liExtraInstructions = buildTextFixInstructions(liRedac);
 
   // Step 2: Correction pass — short, focused prompt
@@ -2079,7 +2093,7 @@ Réponds UNIQUEMENT en JSON :
     // l'échantillon live du 18/08 a montré Haiku INTRODUISANT des retournements
     // dans des textes qui n'en avaient pas.
     const correctedWorse =
-      textRedacRawCount(analyzeTextRedac(finalResult.content, liAllowed)) >
+      textRedacRawCount(analyzeTextRedac(finalResult.content, liAllowed, undefined, undefined, liResearch)) >
       textRedacRawCount(liRedac);
     if (correctedWorse) {
       console.log("[CORRECTION DEBUG] correction rejetée (compteurs rédactionnels dégradés), post original conservé");
@@ -2134,32 +2148,33 @@ Réponds UNIQUEMENT en JSON :
 // Newsletter : même pattern que LinkedIn — pas de streaming de texte,
 // mais heartbeat SSE + étapes réelles (writing → correcting).
 export async function applyNewsletterCorrectionPass(parsed: any, params: {
-  body: any; fullContext: string; context?: string | null; newsContext?: string | null;
+  body: any; fullContext: string; researchSource?: string; context?: string | null; newsContext?: string | null;
   brandGuardText?: string; previousHooks?: string[];
 }, emitStatus: StatusEmitter = () => {}): Promise<void> {
-  const { body, fullContext, context, newsContext, brandGuardText, previousHooks } = params;
+  const { body, fullContext, researchSource, context, newsContext, brandGuardText, previousHooks } = params;
   if (parsed.content && typeof parsed.content === "string" && parsed.content.length >= 200) {
     try {
       emitStatus("correcting");
-      const nlAllowed = numbersIn([
+      const { allowed: nlAllowed, research: nlResearch } = gateNumbers([
         typeof body.context === "string" ? body.context : "",
         body.answers ? JSON.stringify(body.answers) : "",
         typeof body.news_context === "string" ? body.news_context : "",
         fullContext || "",
-      ].join("\n"));
+      ], researchSource);
       // runTextRedacGate = mesure → correction → RE-mesure → garde anti-régression
       // (cf. échantillon live 18/08 : la passe Haiku introduisait des retournements).
       const gate = await runTextRedacGate(extractNewsletterTexts(parsed), {
         format: "newsletter",
         correction: {
           logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
-          sourceContext: [newsContext, context, JSON.stringify(body.answers || []), JSON.stringify(body.followUpAnswers || [])].filter(Boolean).join("\n"),
+          sourceContext: [newsContext, context, JSON.stringify(body.answers || []), JSON.stringify(body.followUpAnswers || []), researchSource].filter(Boolean).join("\n"),
           authoredText: authoredContentSource(body),
           // Édition mécanique à règles fermées → Haiku (cf. #364)
           model: "claude-haiku-4-5",
           abortTimeoutMs: CORRECTION_ABORT_MS,
         },
         allowedNumbers: nlAllowed,
+        research: nlResearch,
         brandGuardText,
         echo: { previousHooks, subject: typeof context === "string" ? context : undefined },
       });
@@ -2182,11 +2197,12 @@ async function runNewsletterTwoStep(params: {
   context?: string | null;
   newsContext?: string | null;
   fullContext: string;
+  researchSource?: string;
   brandGuardText?: string;
   /** Accroches déjà écrites sur ce sujet : garde déterministe anti-redite (24/08). */
   previousHooks?: string[];
 }, emitStatus: StatusEmitter = () => {}): Promise<Response> {
-  const { model, systemPrompt, userPrompt, corsHeaders, userId, body, context, newsContext, fullContext, brandGuardText, previousHooks } = params;
+  const { model, systemPrompt, userPrompt, corsHeaders, userId, body, context, newsContext, fullContext, researchSource, brandGuardText, previousHooks } = params;
   const workspace_id = params.workspace_id ?? undefined;
   const nlUsage: UsageSink = {};
   emitStatus("writing");
@@ -2225,13 +2241,13 @@ async function runNewsletterTwoStep(params: {
   // dans la queue commune). Même mesure légère que les autres formats.
   if (typeof parsed.content === "string" && parsed.content.trim()) {
     try {
-      const nlAllowed = numbersIn([
+      const { allowed: nlAllowed, research: nlResearch } = gateNumbers([
         typeof context === "string" ? context : "",
         body.answers ? JSON.stringify(body.answers) : "",
         typeof newsContext === "string" ? newsContext : "",
         fullContext || "",
-      ].join("\n"));
-      const a = analyzeTextRedac(parsed.content, nlAllowed, brandGuardText);
+      ], researchSource);
+      const a = analyzeTextRedac(parsed.content, nlAllowed, brandGuardText, undefined, nlResearch);
       const violations = textRedacViolations(a);
       const score = Math.max(40, 100 - 10 * violations);
       await logContentQuality(
@@ -2284,9 +2300,9 @@ export function retiredCarouselStreamResponse(corsHeaders: Record<string, string
 // `runDeepResearchWebSearch` ci-dessus.
 export async function correctPostStreamContent(
   full: string,
-  params: { body: any; fullContext: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] },
+  params: { body: any; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] },
 ): Promise<string | undefined> {
-  const { body, fullContext, brandGuardText, echoSubject, previousHooks } = params;
+  const { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks } = params;
   let parsed: any;
   try {
     parsed = JSON.parse(full);
@@ -2296,13 +2312,13 @@ export async function correctPostStreamContent(
   if (typeof parsed?.content !== "string" || parsed.content.length < 200) return undefined;
 
   try {
-    const postAllowed = numbersIn([
+    const { allowed: postAllowed, research: postResearch } = gateNumbers([
       typeof body.context === "string" ? body.context : "",
       body.answers ? JSON.stringify(body.answers) : "",
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
-    ].join("\n"));
-    const postRedac = dropUserSourcedReversals(analyzeTextRedac(parsed.content, postAllowed, brandGuardText), authoredContentSource(body));
+    ], researchSource);
+    const postRedac = dropUserSourcedReversals(analyzeTextRedac(parsed.content, postAllowed, brandGuardText, undefined, postResearch), authoredContentSource(body));
     if (textRedacViolations(postRedac) === 0) return undefined; // déjà propre : pas d'appel IA de plus
 
     // runTextRedacGate = correction → RE-mesure → garde anti-régression (la
@@ -2313,12 +2329,13 @@ export async function correctPostStreamContent(
       correction: {
         logger: (m) => console.log(`[creative-flow post-stream] ${m}`),
         authoredText: authoredContentSource(body),
-        sourceContext: [authoredContentSource(body), fullContext].filter(Boolean).join("\n"),
+        sourceContext: [authoredContentSource(body), fullContext, researchSource].filter(Boolean).join("\n"),
         // Édition mécanique à règles fermées → Haiku (cf. #364)
         model: "claude-haiku-4-5",
         abortTimeoutMs: CORRECTION_ABORT_MS,
       },
       allowedNumbers: postAllowed,
+      research: postResearch,
       brandGuardText,
       echo: { previousHooks, subject: echoSubject },
     });
@@ -2342,12 +2359,13 @@ function streamDefaultPostSSE(params: {
   workspace_id?: string | null | undefined;
   body: any;
   fullContext: string;
+  researchSource?: string;
   brandGuardText?: string;
   /** Sujet + accroches déjà écrites dessus : garde déterministe anti-redite (24/08). */
   echoSubject?: string;
   previousHooks?: string[];
 }): Response {
-  const { apiKey, model, systemPrompt, userPrompt, corsHeaders, userId, body, fullContext, brandGuardText, echoSubject, previousHooks } = params;
+  const { apiKey, model, systemPrompt, userPrompt, corsHeaders, userId, body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks } = params;
   const workspace_id = params.workspace_id ?? undefined;
   return createClientSSEStream(
     () => streamAnthropicToolSSE(
@@ -2363,7 +2381,7 @@ function streamDefaultPostSSE(params: {
     corsHeaders,
     async (full, usage) => {
       await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
-      return await correctPostStreamContent(full, { body, fullContext, brandGuardText, echoSubject, previousHooks });
+      return await correctPostStreamContent(full, { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
     },
     { failOnTruncation: true },
   );
@@ -2853,7 +2871,9 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 
     // ── Deep Research (web search via Anthropic) ──
     // Texte de recherche ajouté au prompt : il rejoint aussi la source des relectures,
-    // sinon ses chiffres sourcés passent pour « inventés » et sont retirés.
+    // sinon ses chiffres sourcés passent pour « inventés » et sont retirés. Il est
+    // transmis À PART (researchSource) : un chiffre qu'il est seul à fournir doit
+    // garder sa source dans la phrase (gateNumbers, 04/10/2026).
     let researchSource = "";
     if (deepResearch && step === "generate") {
       // Check deep_research quota
@@ -2885,7 +2905,6 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
         researchSource = depthBlock;
       }
     }
-    const gateContext = researchSource ? `${fullContext}\n${researchSource}` : fullContext;
 
     // Accroches déjà écrites par cette utilisatrice sur CE sujet — garde
     // déterministe anti-redite (bilan hebdo 24/08 : trois reels d'un même sujet
@@ -2927,14 +2946,14 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       }
 
       if (isNewsletter) {
-        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext: gateContext, brandGuardText, previousHooks }, emitStatus));
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext, researchSource, brandGuardText, previousHooks }, emitStatus));
       }
 
       if (isCarousel) {
         return retiredCarouselStreamResponse(corsHeaders);
       }
 
-      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
+      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
     }
 
     // ── Call Anthropic ──
@@ -3035,7 +3054,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       typeof parsed.content === "string" &&
       parsed.content.length >= 200
     ) {
-      await applyLinkedInCorrectionPass(parsed, { body, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
+      await applyLinkedInCorrectionPass(parsed, { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
     }
 
     // L'accroche suit le début exact du post FINAL (après correction, photo
@@ -3045,14 +3064,14 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     }
 
     if (isNewsletter && step === "generate" && parsed && typeof parsed === "object") {
-      await applyNewsletterCorrectionPass(parsed, { body, fullContext: gateContext, context, newsContext, brandGuardText, previousHooks });
+      await applyNewsletterCorrectionPass(parsed, { body, fullContext, researchSource, context, newsContext, brandGuardText, previousHooks });
       Object.assign(parsed, stripMarkdownFromNewsletter(parsed));
       if (typeof parsed.content === "string") parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
     }
 
     // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
     if (isReel && step === "generate" && parsed && typeof parsed === "object" && Array.isArray(parsed.script)) {
-      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
+      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
     }
 
     // ═══ STORIES : texte d'abord, mise en forme ensuite (04/10/2026) ═══
@@ -3065,13 +3084,13 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     let storiesGate: StoriesGateResult | null = null;
     if (isStories && step === "generate") {
       stripStoriesWriterLayout(parsed);
-      storiesGate = await applyStoriesCorrectionPass(parsed, { body, fullContext: gateContext, brandGuardText, echoSubject, previousHooks });
+      storiesGate = await applyStoriesCorrectionPass(parsed, { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
       finalizeStoriesLayout(parsed, { storiesPhotoCatalog, logger: (m) => console.log(m) });
     }
 
     // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
     if (step === "generate") {
-      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext: gateContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate });
+      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext, researchSource, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate });
     }
 
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.

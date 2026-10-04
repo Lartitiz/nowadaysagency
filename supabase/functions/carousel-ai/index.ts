@@ -869,6 +869,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       systemPrompt,
       brandingContext,
       gateInputText,
+      researchText: depthBlock,
       brandGuardText,
       captionEndingRule,
       recentBriefsContext,
@@ -952,6 +953,8 @@ interface CarouselRequestContext {
   systemPrompt: string;
   brandingContext: string;
   gateInputText: string;
+  /** Matière de recherche (incluse dans gateInputText) : ses chiffres seuls exigent leur source. */
+  researchText?: string;
   /** Champs de marque bruts (buildBrandGuardText) : passages à ne jamais recopier tels quels. */
   brandGuardText: string;
   captionEndingRule: CaptionEndingRule | undefined;
@@ -1209,6 +1212,7 @@ async function finalizeCarousel(
         const measured = await runRedacGate(JSON.stringify(candidate), {
           isLinkedIn: ctx.isLinkedIn,
           inputText: ctx.gateInputText,
+          researchText: ctx.researchText,
           correction: { enabled: false },
         });
         const finalCandidate: any = tryParseAiJson(measured.content);
@@ -1281,7 +1285,7 @@ async function runGenerationAndRespond(
   userPrompt: string,
   reqCtx: CarouselRequestContext,
 ): Promise<Response> {
-  const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, systemPrompt, gateInputText, brandGuardText, captionEndingRule, isLinkedIn, previousHooks, corsHeaders, emitStatus, startedAt } = reqCtx;
+  const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, systemPrompt, gateInputText, researchText, brandGuardText, captionEndingRule, isLinkedIn, previousHooks, corsHeaders, emitStatus, startedAt } = reqCtx;
 
   // L1 : Haiku pour les deepening_questions (tâche structurée et bornée).
   const isWriting = ["express_full", "slides", "hooks"].includes(type);
@@ -1320,7 +1324,7 @@ async function runGenerationAndRespond(
       if (semanticReviewEnabled || carouselNeedsPolish(value) || currentAuthoredText.trim()) {
         emitStatus("correcting");
         const corrected = await applyGuardedCarouselCorrection(value, {
-          inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },
+          inputText: gateInputText, researchText, brandGuardText, echo: { previousHooks, subject: body.subject },
           correction: { currentBrief, semanticReview: semanticReviewEnabled,
             enabled: reviewAllowed(startedAt),
             skipIfShorterThan: 300,
@@ -1363,6 +1367,7 @@ async function runGenerationAndRespond(
       isLinkedIn,
       onStatus: emitStatus,
       inputText: gateInputText,
+      researchText,
       echo: { previousHooks, subject: body.subject },
       brandGuardText,
       captionEnding: captionEndingRule,
@@ -1434,7 +1439,7 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
   }
   if (!output) return null;
   const measured = await runRedacGate(JSON.stringify(output.doc), {
-    isLinkedIn:ctx.isLinkedIn,inputText:ctx.gateInputText,correction:{enabled:false},
+    isLinkedIn:ctx.isLinkedIn,inputText:ctx.gateInputText,researchText:ctx.researchText,correction:{enabled:false},
   });
   const written = await finalizeCarousel(measured.content,ctx,{usage,repaired:output.repaired,regenerate:output.regenerate,reserveMs:PHOTO_MATCH_RESERVE_MS});
   const matched = await _deps.matchPhotos(JSON.parse(written), {body:ctx.body,startedAt:ctx.startedAt,usage,emitStatus:ctx.emitStatus,call:_deps.callAnthropic});
@@ -1449,7 +1454,7 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
 async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
   const continuous = await continuousCarouselResponse(reqCtx);
   if (continuous) return continuous;
-  const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus, startedAt } = reqCtx;
+  const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, researchText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus, startedAt } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
   const mixPrompt = hasNews
@@ -1557,7 +1562,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     if (semanticReviewEnabled || carouselNeedsPolish(content) || currentAuthoredText.trim()) {
       emitStatus("correcting");
       const corrected = await applyGuardedCarouselCorrection(content, {
-        inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },
+        inputText: gateInputText, researchText, brandGuardText, echo: { previousHooks, subject: body.subject },
         correction: { currentBrief, semanticReview: semanticReviewEnabled,
           enabled: reviewAllowed(startedAt),
           skipIfShorterThan: 300,
@@ -1603,6 +1608,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     isLinkedIn,
     onStatus: emitStatus,
     inputText: gateInputText,
+    researchText,
     echo: { previousHooks, subject: body.subject },
     brandGuardText,
     captionEnding: captionEndingRule,
@@ -1631,7 +1637,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
 async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
   const continuous = await continuousCarouselResponse(reqCtx);
   if (continuous) return continuous;
-  const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus, startedAt } = reqCtx;
+  const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, researchText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus, startedAt } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
   const photoPrompt = hasNews
@@ -1739,7 +1745,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     if (semanticReviewEnabled || carouselNeedsPolish(content) || currentAuthoredText.trim()) {
       emitStatus("correcting");
       const corrected = await applyGuardedCarouselCorrection(content, {
-        inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },
+        inputText: gateInputText, researchText, brandGuardText, echo: { previousHooks, subject: body.subject },
         correction: { currentBrief, semanticReview: semanticReviewEnabled,
           enabled: reviewAllowed(startedAt),
           skipIfShorterThan: 300,
@@ -1779,6 +1785,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     isLinkedIn,
     onStatus: emitStatus,
     inputText: gateInputText,
+    researchText,
     echo: { previousHooks, subject: body.subject },
     brandGuardText,
     captionEnding: captionEndingRule,

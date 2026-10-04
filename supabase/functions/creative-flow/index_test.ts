@@ -507,13 +507,15 @@ Deno.test("LinkedIn + recherche : un chiffre sourcé par la recherche web n'est 
     { status: 200, body: { content: [{ type: "text", text: LI_RESEARCH_POST }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 10 } } },
   ]);
   try {
-    // creative-flow passe gateContext (profil + recherche) comme fullContext.
+    // creative-flow passe la recherche à part (researchSource) : ses chiffres sont autorisés AVEC leur source.
     const parsed = { content: LI_RESEARCH_POST };
     await applyLinkedInCorrectionPass(parsed, {
       body: { context: "La visibilité des indépendantes sur LinkedIn", answers: null, news_context: "" },
-      fullContext: "profil\n--- RECHERCHE WEB ---\n62 % des indépendantes repoussent leurs posts (Ifop, 2025).",
+      fullContext: "profil",
+      researchSource: "--- RECHERCHE WEB ---\n62 % des indépendantes repoussent leurs posts (Ifop, 2025).",
     });
     assertEquals(capturedBodies.some((b) => JSON.stringify(b).includes("CHIFFRES SANS SOURCE")), false);
+    assertEquals(capturedBodies.some((b) => JSON.stringify(b).includes("REPRIS SANS LEUR SOURCE")), false);
     assertEquals(parsed.content.includes("62 %"), true);
   } finally {
     mock.restore();
@@ -719,6 +721,58 @@ Deno.test("runLinkedInTwoStep : correction gardée (structure intacte) → l'acc
     assertEquals(json.content, kept.content);
     assertEquals(json.accroche, "Trois ans pour comprendre pourquoi mes posts ne trouvaient pas leur public.");
     assertEquals(json.content.startsWith(json.accroche), true);
+  } finally {
+    mock.restore();
+  }
+});
+
+// ═══ Chiffres de la recherche repris SANS leur source (test réel du 04/10/2026) ═══
+const LI_DEPTH = "MATIÈRE DE PROFONDEUR\nLinkedIn montre d'abord chaque post à 2 à 5 % du réseau (Hootsuite, 2025). La portée se joue dans les 48 à 72 heures (Richard van der Blom, 2025).";
+const LI_UNSOURCED = "Je le pense vraiment : l'algorithme teste chaque post sur 2 à 5% de ton réseau, et tout se joue en 48 à 72 heures. Publier plus ne change rien à ce mécanisme, publier mieux si.";
+
+Deno.test("runLinkedInTwoStep : un chiffre de la recherche repris sans source -> instruction ciblée avec la source à ajouter", async () => {
+  const sourced = "Je le pense vraiment : l'algorithme teste chaque post sur 2 à 5% de ton réseau (Hootsuite, 2025), et selon Richard van der Blom tout se joue en 48 à 72 heures. Publier plus ne change rien à ce mécanisme, publier mieux si.";
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify({ content: LI_UNSOURCED }) }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } } },
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify({ content: sourced }) }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } } },
+  ]);
+  try {
+    const res = await runLinkedInTwoStep({ ...LINKEDIN_BASE_PARAMS, researchSource: LI_DEPTH });
+    const correctionUserMsg = capturedBodies[1].messages[0].content as string;
+    assertEquals(correctionUserMsg.includes("CHIFFRES DE LA RECHERCHE REPRIS SANS LEUR SOURCE"), true);
+    assertEquals(correctionUserMsg.includes("Hootsuite, 2025"), true);
+    assertEquals(correctionUserMsg.includes("CHIFFRES SANS SOURCE :"), false); // pas traités comme inventés
+    assertEquals((await res.json()).content, sourced);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("runLinkedInTwoStep : garde anti-régression -> une relecture qui ajoute un chiffre de recherche sans source est rejetée", async () => {
+  const clean = "Je le pense vraiment : l'algorithme ne montre d'abord ton post qu'à une petite partie de ton réseau. Publier plus ne change rien à ce mécanisme, publier mieux si.";
+  const { mock } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify({ content: clean }) }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } } },
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify({ content: LI_UNSOURCED }) }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } } },
+  ]);
+  try {
+    const res = await runLinkedInTwoStep({ ...LINKEDIN_BASE_PARAMS, researchSource: LI_DEPTH });
+    assertEquals((await res.json()).content, clean);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("correctPostStreamContent : chiffre de la recherche sans source -> correction déclenchée (post Instagram)", async () => {
+  const content = "Je le dis franchement, l'algorithme teste chaque post sur 2 à 5% de ton réseau avant de décider s'il le pousse plus loin, et c'est pour ça que la première ligne compte autant que tout le reste du post.";
+  const corrected = "Je le dis franchement, l'algorithme teste chaque post sur 2 à 5% de ton réseau (Hootsuite, 2025) avant de décider s'il le pousse plus loin, et c'est pour ça que la première ligne compte autant que tout le reste du post.";
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: corrected }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } } },
+  ]);
+  try {
+    const result = await correctPostStreamContent(JSON.stringify({ content }), { ...POST_BASE_PARAMS, researchSource: LI_DEPTH });
+    assertEquals(mock.anthropicCallCount, 1);
+    assertEquals(JSON.stringify(capturedBodies[0]).includes("REPRIS SANS LEUR SOURCE"), true);
+    assertEquals(JSON.parse(result!).content, corrected);
   } finally {
     mock.restore();
   }
