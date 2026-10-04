@@ -4,7 +4,7 @@ import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts
 import { progressionMaterial } from "../_shared/carousel-editorial-snapshot.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
 
-export const PHOTO_MATCH_VERSION = "final-photo-match-v4";
+export const PHOTO_MATCH_VERSION = "final-photo-match-v5";
 export const PHOTO_MATCH_RESERVE_MS = 95000;
 type Assignment = { slide: number; photo: number | null; relation: "literal" | "ambient" | "missing"; reason: string; directive: string };
 const isPhoto = (s: any) => ["photo_full", "photo_integrated"].includes(s?.slide_type);
@@ -32,38 +32,63 @@ const tool = (verify: boolean, expected: number[], ids: number[]) => ({
   },
 });
 
-function parse(raw: string, expected: number[], photoIds: Set<number>, proposed?: Assignment[]): any[] {
+// One row per slide is the contract, but a model sometimes drops, repeats or
+// adds a row. A bad row only affects ITS slide: the other slots keep their own
+// answers. A slot without exactly one usable row simply receives no photo.
+function rowsBySlide(raw: string, expected: number[]): Map<number, any> {
   const rows = JSON.parse(raw)?.assignments;
-  if (!Array.isArray(rows) || rows.length !== expected.length || new Set(rows.map(r => r?.slide)).size !== expected.length) throw new Error("coverage");
-  for (const r of rows) {
-    if (!expected.includes(r?.slide)) throw new Error("reference");
-    if (proposed) {
-      const candidate = proposed.find(p => p.slide === r.slide)!;
-      if (typeof r.accepted !== "boolean" || r.photo !== candidate.photo || !str(r.reason)) {
-        // A reviewer sometimes echoes null to reject a candidate or proposes
-        // a replacement despite the instruction. Neither validates that pair.
-        // Reject just this slot; never install the replacement or discard the
-        // independent checks that still refer to their exact candidates.
-        r.photo = candidate.photo;
-        r.accepted = false;
-        r.reason = "La vérification n’a pas confirmé cette association. Choisis une image pour ce passage.";
-      }
-    } else {
-      if (!(r.photo === null || photoIds.has(r.photo)) || !str(r.reason)) throw new Error("reference");
-      // Metadata for one slot must not discard the other valid candidates.
-      // Conflicting/missing relation data can only REMOVE a candidate; the
-      // independent pixel review remains mandatory before assigning any photo.
-      if (r.photo === null || !["literal", "ambient"].includes(r.relation)) {
-        r.photo = null;
-        r.relation = "missing";
-      }
-      // The image brief is presentation metadata, not evidence of a match.
-      // An empty/invalid brief uses the passage-based fallback below.
-      r.directive = str(r.directive) ? r.directive.trim() : "";
+  if (!Array.isArray(rows)) throw new Error("coverage");
+  const seen = new Map<number, any[]>();
+  for (const r of rows) if (expected.includes(r?.slide)) seen.set(r.slide, [...(seen.get(r.slide) || []), r]);
+  const unique = new Map<number, any>();
+  for (const [slide, list] of seen) if (list.length === 1) unique.set(slide, list[0]);
+  return unique;
+}
+
+function parseSelection(raw: string, expected: number[], photoIds: Set<number>): { assignments: Assignment[]; gaps: number } {
+  const rows = rowsBySlide(raw, expected);
+  let gaps = 0;
+  const assignments = expected.map((slide): Assignment => {
+    const r = rows.get(slide);
+    if (!r || !(r.photo === null || photoIds.has(r.photo)) || !str(r.reason)) {
+      gaps++;
+      return { slide, photo: null, relation: "missing", reason: "Aucune photo n’a pu être proposée pour ce passage.", directive: "" };
+    }
+    // Metadata for one slot must not discard the other valid candidates.
+    // Conflicting/missing relation data can only REMOVE a candidate; the
+    // independent pixel review remains mandatory before assigning any photo.
+    const valid = r.photo !== null && ["literal", "ambient"].includes(r.relation);
+    // The image brief is presentation metadata, not evidence of a match.
+    // An empty/invalid brief uses the passage-based fallback below.
+    return { slide, photo: valid ? r.photo : null, relation: valid ? r.relation : "missing", reason: r.reason,
+      directive: str(r.directive) ? r.directive.trim() : "" };
+  });
+  return { assignments, gaps };
+}
+
+/** Only slots with exactly one row are returned; the others stay unverified. */
+function parseChecks(raw: string, required: number[], proposed: Assignment[]): Map<number, any> {
+  const rows = rowsBySlide(raw, required);
+  for (const [slide, r] of rows) {
+    const candidate = proposed.find(p => p.slide === slide)!;
+    if (typeof r.accepted !== "boolean" || r.photo !== candidate.photo || !str(r.reason)) {
+      // A reviewer sometimes echoes null to reject a candidate or proposes
+      // a replacement despite the instruction. Neither validates that pair.
+      // Reject just this slot; never install the replacement or discard the
+      // independent checks that still refer to their exact candidates.
+      rows.set(slide, { slide, photo: candidate.photo, accepted: false,
+        reason: "La vérification n’a pas confirmé cette association. Choisis une image pour ce passage." });
     }
   }
   return rows;
 }
+
+const failureCode = (error: unknown) => {
+  const message = error instanceof Error ? error.message : "";
+  const code = Number((error as any)?.status);
+  return ["coverage", "reference"].includes(message) ? message : error instanceof SyntaxError ? "invalid-json"
+    : Number.isInteger(code) && code >= 400 && code <= 599 ? `provider-${code}` : "call-failed";
+};
 
 /** Runs only AFTER all narrative rewrites. Failed/unverified slots remain explicitly uncast. */
 export async function matchFinalPhotos(doc: any, options: {
@@ -80,13 +105,15 @@ export async function matchFinalPhotos(doc: any, options: {
     slide: i + 1, type: s.slide_type,
     text: carouselEditorialFields({ slides: [s] }).map(f => f.text).join("\n"),
   }));
-  let assignments: Assignment[] = [], checks: any[] = [];
+  let assignments: Assignment[] = [];
+  const checks = new Map<number, any>();
   let status = "skipped", reason = photos.length ? "time-budget" : "pixels-unavailable";
-  let stage = "selection";
-  const ask = async (verify: boolean) => {
+  let stage = "selection", gaps = 0, attempts = 0;
+  const failures: string[] = [];
+  const ask = async (verify: boolean, required: number[]) => {
     const sink: UsageSink = {};
     const content: any[] = [{ type: "text", text: JSON.stringify({
-      idea: doc.narrative_draft?.idea, passages, required_photo_slides: expected,
+      idea: doc.narrative_draft?.idea, passages, required_photo_slides: required,
       ...(verify ? { assignments } : {}),
       photos: photos.map((p: any) => ({ photo: p.id, user_context: p.context || "", inferred_library_context: p.libraryContext || "" })),
     }) }];
@@ -97,7 +124,7 @@ export async function matchFinalPhotos(doc: any, options: {
     try {
       return await call({ model: SONNET_MODEL, system: RULES + "\nRéponds uniquement pour required_photo_slides, une ligne par numéro. reason et directive : UNE phrase courte chacune, 220 caractères maximum. Pas de reprise du texte des slides." + (verify
         ? "\nContrôle indépendant : regarde chaque image retenue avec son texte. Refuse une association contradictoire ou une correspondance concrète non visible, même si la justification précédente la prétend correcte. accepted=false si la photo manque ou doit changer. Ne choisis pas une autre image et ne réécris pas le texte."
-        : ""), messages: [{ role: "user", content }], tool: tool(verify, expected, [...ids]), max_tokens: 6000,
+        : ""), messages: [{ role: "user", content }], tool: tool(verify, required, [...ids]), max_tokens: 6000,
         maxRetries: 0,
         abortTimeoutMs: Math.max(1000, Math.min(45000, Math.floor((remaining() - 2000) / (verify ? 1 : 2)))),
       }, sink);
@@ -105,45 +132,61 @@ export async function matchFinalPhotos(doc: any, options: {
       for (const k of ["input_tokens", "output_tokens", "total_tokens"] as const) options.usage[k] = (options.usage[k] || 0) + (sink[k] || 0);
     }
   };
+  const logFailure = (failure: string) => {
+    // Only technical metadata: never prose, images, provider body or identity.
+    console.warn(JSON.stringify({ type: "carousel_photo_match_failed", version: PHOTO_MATCH_VERSION,
+      stage, failure, attempt: attempts, photo_count: photos.length, slide_count: expected.length,
+      elapsed_ms: Date.now() - options.startedAt, remaining_ms: remaining() }));
+  };
   if (photos.length && remaining() >= 15000) {
     options.emitStatus("correcting");
     try {
-      assignments = parse(await ask(false), expected, ids);
-      stage = "verification";
-      if (remaining() < 4000) { reason = "time-budget"; }
-      else {
-        checks = parse(await ask(true), expected, ids, assignments);
-        status = "completed"; reason = "reviewed";
-      }
+      ({ assignments, gaps } = parseSelection(await ask(false, expected), expected, ids));
+      if (gaps === expected.length) throw new Error("coverage");
+      if (gaps) logFailure("partial-coverage");
     } catch (error) {
-      status = "unavailable";
-      const known = ["coverage", "reference", "changed-assignment", "relation"];
-      const message = error instanceof Error ? error.message : "";
-      const code = Number((error as any)?.status);
-      const failure = known.includes(message) ? message : error instanceof SyntaxError ? "invalid-json"
-        : Number.isInteger(code) && code >= 400 && code <= 599 ? `provider-${code}` : "call-failed";
-      reason = `${stage}-${failure}`;
-      // Only technical metadata: never prose, images, provider body or identity.
-      console.warn(JSON.stringify({ type: "carousel_photo_match_failed", version: PHOTO_MATCH_VERSION,
-        stage, failure, photo_count: photos.length, slide_count: expected.length,
-        elapsed_ms: Date.now() - options.startedAt, remaining_ms: remaining() }));
+      status = "unavailable"; reason = `selection-${failureCode(error)}`; logFailure(failureCode(error));
+    }
+    if (status !== "unavailable") {
+      stage = "verification";
+      const candidates = assignments.flatMap(a => a.photo != null ? [a.slide] : []);
+      let pending = candidates;
+      // One retry, limited to the slots still unchecked, when time allows. A
+      // photo is never placed without an independent check that accepted it.
+      while (pending.length && attempts < 2 && remaining() >= (attempts ? 10000 : 4000)) {
+        attempts++;
+        try {
+          for (const [slide, check] of parseChecks(await ask(true, pending), pending, assignments)) checks.set(slide, check);
+        } catch (error) {
+          failures.push(failureCode(error)); logFailure(failureCode(error));
+        }
+        pending = candidates.filter(slide => !checks.has(slide));
+        if (pending.length && attempts === 1) logFailure(failures.length ? "retry" : "partial-coverage");
+      }
+      if (!candidates.length || checks.size) {
+        status = "completed";
+        reason = pending.length ? "reviewed-partial" : "reviewed";
+      } else if (attempts) {
+        status = "unavailable"; reason = `verification-${failures.at(-1) || "coverage"}`;
+      } else reason = "time-budget";
     }
   }
   const warnings: string[] = [];
   const slides = doc.slides.map((s: any, i: number) => {
     if (!isPhoto(s)) return s;
     const assignment = assignments.find(a => a.slide === i + 1);
-    const check = checks.find(a => a.slide === i + 1);
+    const check = checks.get(i + 1);
     const accepted = status === "completed" && assignment?.photo != null && check?.accepted === true;
-    const detail = accepted ? check.reason : status === "completed"
-      ? (check?.reason || assignment?.reason)
-      : "La correspondance entre le texte et la photo n’a pas pu être vérifiée.";
+    const unverified = status !== "completed" || (assignment?.photo != null && !check);
+    const detail = accepted ? check.reason : unverified
+      ? "La correspondance entre le texte et la photo n’a pas pu être vérifiée."
+      : (check?.reason || assignment?.reason);
     if (!accepted) warnings.push(`Slide ${i + 1} : image à choisir. ${detail}`);
     // Drop the old plan's visual claims; they describe a different assignment.
     const { visual_anchor: _a, photo_observation: _b, image_relation: _c, factual_basis: _d, ...clean } = s;
     return { ...clean, photo_index: accepted ? assignment!.photo : null,
       photo_directive: assignment?.directive?.slice(0, 600) || `Une image qui accompagne ce passage : ${passages[i].text}`.slice(0, 600),
-      photo_match: { status: accepted ? "matched" : status === "completed" ? "missing" : "unverified", relation: assignment?.relation || "missing", reason: detail },
+      photo_match: { status: accepted ? "matched" : unverified ? "unverified" : "missing", relation: assignment?.relation || "missing", reason: detail },
     };
   });
   const result = { ...doc, slides, structure_warnings: [...(doc.structure_warnings || []), ...warnings] };
@@ -155,7 +198,7 @@ export async function matchFinalPhotos(doc: any, options: {
   }
   result.photo_review = { version: PHOTO_MATCH_VERSION, execution_status: status,
     verdict: status === "completed" ? warnings.length ? "needs_images" : "acceptable" : null,
-    reason, issues: warnings, reviewed_material: progressionMaterial(result),
+    reason, verification_attempts: attempts, issues: warnings, reviewed_material: progressionMaterial(result),
     assignments: slides.flatMap((s: any, i: number) => isPhoto(s) ? [{ slide: i + 1, photo: s.photo_index, ...s.photo_match }] : []),
   };
   result.generation_receipt = { ...result.generation_receipt, photo_match_version: PHOTO_MATCH_VERSION, duration_ms: Date.now() - options.startedAt };
