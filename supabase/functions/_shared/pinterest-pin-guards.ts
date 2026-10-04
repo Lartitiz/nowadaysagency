@@ -114,14 +114,18 @@ function words(text: string): string[] {
     .filter((w) => w.length >= 3);
 }
 
-/** Texte visible du HTML (hors <style>/<script>, balises → espaces, entités décodées). */
-export function visibleTextOfHtml(html: string): string {
+/**
+ * Texte visible du HTML (hors <style>/<script>, entités décodées). Les
+ * balises deviennent des espaces par défaut ; `tagJoiner = ""` recolle les
+ * mots coupés par une balise (« Orga<span>niser</span> » → « Organiser »).
+ */
+export function visibleTextOfHtml(html: string, tagJoiner = " "): string {
   return decodeEntities(
     (html || "")
       .replace(/<style[\s\S]*?<\/style>/gi, " ")
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
       .replace(/<!--[\s\S]*?-->/g, " ")
-      .replace(/<[^>]+>/g, " "),
+      .replace(/<[^>]+>/g, tagJoiner),
   );
 }
 

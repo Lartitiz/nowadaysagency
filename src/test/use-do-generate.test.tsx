@@ -298,7 +298,7 @@ describe("useDoGenerate — routage par format", () => {
     expect(mocks.toast.error).not.toHaveBeenCalled();
   });
 
-  it("pinterest_visual → moteur Pinterest dédié (120s), pin_type en cascade proposition → angle → défaut", async () => {
+  it("pinterest_visual → moteur Pinterest dédié (150s : rédaction + mise en forme côté serveur), pin_type en cascade proposition → angle → défaut", async () => {
     const params = makeParams({
       selectedFormat: "pinterest_visual",
       editorialAngle: "citation",
@@ -310,7 +310,7 @@ describe("useDoGenerate — routage par format", () => {
     expect(mocks.generatePinterestVisual).toHaveBeenCalledTimes(1);
     expect(mocks.generatePinterestVisual.mock.calls[0][0]).toMatchObject({
       pinType: "citation",
-      timeoutMs: 120000,
+      timeoutMs: 150000,
     });
 
     const params2 = makeParams({ selectedFormat: "pinterest_visual" });
@@ -328,6 +328,7 @@ describe("useDoGenerate — routage par format", () => {
     expect(mocks.generatePinterestPhotoBrief).toHaveBeenCalledTimes(1);
     expect(mocks.generatePinterestPhotoBrief.mock.calls[0][0]).toMatchObject({
       pinType: "photo_lifestyle",
+      timeoutMs: 150000,
       briefHint: "lumière douce",
     });
     expect(params.generate).not.toHaveBeenCalled();
