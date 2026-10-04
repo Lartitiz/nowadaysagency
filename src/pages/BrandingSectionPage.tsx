@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { usePersonas } from "@/hooks/use-personas";
 import PersonaList from "@/components/branding/PersonaList";
 import SeriesFicheCards from "@/components/branding/SeriesFicheCards";
+import AudienceAddressChoice from "@/components/branding/AudienceAddressChoice";
 
 type Section = "story" | "persona" | "tone_style" | "content_strategy";
 
@@ -104,7 +105,7 @@ const SECTION_CONFIGS: Record<Section, SectionConfig> = {
       { key: "combat_fights", label: "Mes combats" },
       { key: "combat_alternative", label: "Mon alternative" },
       { key: "combat_refusals", label: "Ce que je refuse" },
-      { key: "tone_register", label: "Registre (tu/vous)", multiline: false },
+      { key: "tone_register", label: "Je m'adresse à mon public en (tu / vous)", multiline: false },
       { key: "tone_level", label: "Niveau de familiarité", multiline: false },
       { key: "tone_style", label: "Style d'écriture", multiline: false },
       { key: "tone_humor", label: "Humour", multiline: false },
@@ -521,6 +522,15 @@ export default function BrandingSectionPage() {
             onCreateNew={() => {
               navigate("/branding/coaching?section=persona");
             }}
+          />
+        )}
+
+        {/* Tu ou vous : réglage clair, visible dans les deux vues (04/10/2026) */}
+        {section === "tone_style" && (data?.id || isDemoMode) && (
+          <AudienceAddressChoice
+            value={data?.tone_register}
+            recordId={data?.id}
+            onSaved={(next, old) => handleFieldUpdate("tone_register", next, old)}
           />
         )}
 

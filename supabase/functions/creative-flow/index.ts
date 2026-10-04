@@ -7,6 +7,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ANTI_BIAS, PREGEN_INJECTION_RULES, EDITORIAL_ANGLES_REFERENCE, VISUAL_ANALOGIES, LINKEDIN_TEMPLATES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback, buildBrandGuardText } from "../_shared/user-context.ts";
+import { enforceAudienceAddress, parseAudienceAddress, type AudienceAddress } from "../_shared/audience-address.ts";
+import { applyAudienceAddressPass } from "../_shared/audience-address-pass.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
@@ -2043,6 +2045,8 @@ export async function runLinkedInTwoStep(params: {
   fullContext: string;
   /** Matière de la recherche « creuser le sujet » : ses faits sourcés sont des sources. */
   researchSource?: string;
+  /** Tu ou vous de la fiche de marque : contrôlé par le code après rédaction (04/10/2026). */
+  audienceAddress?: AudienceAddress | null;
 }, emitStatus: StatusEmitter = () => {}): Promise<Response> {
   const { model, systemPrompt, userPrompt, corsHeaders, userId, body, fullContext } = params;
   const researchSource = params.researchSource || "";
@@ -2282,6 +2286,12 @@ Réponds UNIQUEMENT en JSON :
         logger: (m) => console.log(m), abortTimeoutMs: CORRECTION_ABORT_MS,
       })).content;
     }
+    // Tu ou vous réglé dans la fiche de marque : passe courte si le post le contredit.
+    if (typeof merged.content === "string") {
+      merged.content = (await enforceAudienceAddress(merged.content, params.audienceAddress, {
+        pass: applyAudienceAddressPass, logger: (m) => console.log(m), abortTimeoutMs: CORRECTION_ABORT_MS,
+      })).content;
+    }
     // Filet déterministe (même patron que applyLinkedInCorrectionPass) :
     // élisions manquantes type « le avant/après » (vécu 21/07).
     fixElisionsInFields(merged, ["content", "accroche"]);
@@ -2313,6 +2323,11 @@ Réponds UNIQUEMENT en JSON :
   if (typeof fallbackParsed.content === "string") {
     fallbackParsed.content = (await enforceNoInventedTestimonials(fallbackParsed.content, liAnalyze, {
       logger: (m) => console.log(m), abortTimeoutMs: CORRECTION_ABORT_MS,
+    })).content;
+  }
+  if (typeof fallbackParsed.content === "string") {
+    fallbackParsed.content = (await enforceAudienceAddress(fallbackParsed.content, params.audienceAddress, {
+      pass: applyAudienceAddressPass, logger: (m) => console.log(m), abortTimeoutMs: CORRECTION_ABORT_MS,
     })).content;
   }
   // Filet déterministe même si la passe de correction a échoué : le texte
@@ -3124,7 +3139,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       }
 
       if (isLinkedIn) {
-        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runLinkedInTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, researchSource }, emitStatus));
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runLinkedInTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, researchSource, audienceAddress: parseAudienceAddress(ctx?.tone?.tone_register) }, emitStatus));
       }
 
       if (isNewsletter) {

@@ -54,8 +54,9 @@ Préserve le registre, le je/tu/vous, l'humour, les hésitations et les bonnes p
 Examine aussi les titres et fins de paragraphes : une opposition de façade, une révélation banale ou un slogan interchangeable ne devient pas pertinent parce qu'il contient le nom du produit. Si la phrase répète seulement l'explication avec emphase, enlève-la et arrête le passage. Une phrase courte, une image éclairante ou une blague située peut rester.
 `;
 
-export function buildCarouselWritingSystem(brandingContext: string, isLinkedIn: boolean, identity: string, clarity: string): string {
-  return `${COMMON}
+/** `addressRule` : règle ferme tu/vous de la fiche de marque (audience-address.ts), en tête ; vide = inchangé. */
+export function buildCarouselWritingSystem(brandingContext: string, isLinkedIn: boolean, identity: string, clarity: string, addressRule = ""): string {
+  return `${addressRule ? `${addressRule}\n\n` : ""}${COMMON}
 ${WRITE}
 ${clarity}
 ${identity} Tu rédiges pour la personne un carrousel ${isLinkedIn ? "LinkedIn" : "Instagram"} fidèle à sa demande et agréable à lire.

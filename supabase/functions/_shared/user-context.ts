@@ -7,6 +7,7 @@
  */
 
 import { assertWorkspaceMembership } from "./workspace-guard.ts";
+import { audienceAddressRule, parseAudienceAddress } from "./audience-address.ts";
 
 export interface ContextOptions {
   includeStory?: boolean;
@@ -458,7 +459,13 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
     return "NOTE : Le profil est très peu rempli. Les résultats seront plus pertinents une fois le Branding et les Offres complétés.\n";
   }
 
-  return `CONTEXTE DE LA MARQUE (utilise ces informations pour personnaliser TOUT le contenu généré) :\n\n${sections.join("\n\n")}\n\nRAPPEL : Si une section VOIX PERSONNELLE est présente ci-dessus, elle prime sur toutes les autres instructions de style. Le contenu doit sonner comme l'utilisatrice, pas comme une IA.\n`;
+  // Tu ou vous (04/10/2026) : réglé dans la fiche de marque, c'est une RÈGLE
+  // FERME, en tête du contexte, et non plus une ligne « Registre » parmi la
+  // matière à reformuler. Sans réglage : rien n'est ajouté.
+  const addressRule = audienceAddressRule(parseAudienceAddress(ctx.tone?.tone_register));
+  if (addressRule) sections.unshift(addressRule);
+
+  return `CONTEXTE DE LA MARQUE (utilise ces informations pour personnaliser TOUT le contenu généré) :\n\n${sections.join("\n\n")}\n\nRAPPEL : Si une section VOIX PERSONNELLE est présente ci-dessus, elle prime sur toutes les autres instructions de style${addressRule ? ", sauf l'ADRESSE AU PUBLIC (tu ou vous), qui reste une règle ferme" : ""}. Le contenu doit sonner comme l'utilisatrice, pas comme une IA.\n`;
 }
 
 /**
