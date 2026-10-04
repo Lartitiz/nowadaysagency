@@ -7,7 +7,28 @@
 // Indispensable pour du copywriting FR avec parenthèses, hashtags et emojis.
 // (Le passage à /rest/posts viendra avec l'ajout des images/carrousels.)
 
+import { stripInlineMarkdown } from "./strip-markdown.ts";
+
 const UGC_POSTS_URL = "https://api.linkedin.com/v2/ugcPosts";
+
+/**
+ * Texte prêt à publier : LinkedIn n'interprète pas le markdown, un **gras**
+ * glissé par l'IA serait publié en astérisques bruts. On retire seulement les
+ * marques inline (gras, italique, titres « # », liens [texte](url)) ; la
+ * numérotation, les puces et les sauts de ligne restent tels quels. Les URL
+ * sont protégées (un « _ » ou « * » dans un lien ne doit pas bouger).
+ */
+export function prepareLinkedInText(text: string): string {
+  let out = String(text || "");
+  // Liens markdown d'abord (avant de protéger les URL nues).
+  out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, "$1 ($2)");
+  const urls: string[] = [];
+  out = out.replace(/https?:\/\/[^\s)]+/g, (url) => `\u0000${urls.push(url) - 1}\u0000`);
+  out = stripInlineMarkdown(out);
+  out = out.replace(/\u0000(\d+)\u0000/g, (_m, i) => urls[Number(i)]);
+  return out.trim();
+}
+
 const ASSETS_REGISTER_URL = "https://api.linkedin.com/v2/assets?action=registerUpload";
 
 /** Vrai si l'URL ressemble à une image bitmap publiable (exclut les PDF). */
@@ -84,7 +105,7 @@ export async function publishImagesToLinkedIn(conn: any, text: string, imageUrls
     lifecycleState: "PUBLISHED",
     specificContent: {
       "com.linkedin.ugc.ShareContent": {
-        shareCommentary: { text: (text || "").trim() },
+        shareCommentary: { text: prepareLinkedInText(text) },
         shareMediaCategory: "IMAGE",
         media: assets.map((a) => ({ status: "READY", media: a })),
       },
@@ -188,7 +209,7 @@ export async function publishDocumentToLinkedIn(conn: any, text: string, pdfUrl:
   // 4) Crée le post document (carrousel).
   const payload = {
     author,
-    commentary: escapeLinkedInCommentary((text || "").trim()),
+    commentary: escapeLinkedInCommentary(prepareLinkedInText(text)),
     visibility: "PUBLIC",
     distribution: { feedDistribution: "MAIN_FEED", targetEntities: [], thirdPartyDistributionChannels: [] },
     content: { media: { id: documentUrn, title: (title || "Carrousel").slice(0, 100) } },
@@ -211,7 +232,7 @@ export async function publishDocumentToLinkedIn(conn: any, text: string, pdfUrl:
  * Renvoie l'URN du post créé. Lève une Error avec un message lisible sinon.
  */
 export async function publishTextToLinkedIn(conn: any, text: string): Promise<string> {
-  const body = (text || "").trim();
+  const body = prepareLinkedInText(text);
   if (!body) throw new Error("Le texte du post LinkedIn est vide.");
 
   const memberId = conn?.platform_account_id;

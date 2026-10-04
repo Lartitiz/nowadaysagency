@@ -12,6 +12,7 @@ import {
   isLinkedInImageUrl,
   isLinkedInPdfUrl,
   linkedInPermalink,
+  prepareLinkedInText,
 } from "./linkedin-graph.ts";
 
 function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}): Response {
@@ -234,4 +235,41 @@ Deno.test("isLinkedInImageUrl / isLinkedInPdfUrl / linkedInPermalink", () => {
   assertEquals(isLinkedInPdfUrl("https://x/a.pdf"), true);
   assertEquals(isLinkedInPdfUrl("https://x/a.jpg"), false);
   assertEquals(linkedInPermalink("urn:li:share:1"), "https://www.linkedin.com/feed/update/urn:li:share:1/");
+});
+
+// ── Nettoyage du markdown avant publication (04/10/2026) ──────────────────
+// LinkedIn n'interprète pas le markdown : un **gras** glissé par l'IA était
+// publié en astérisques bruts. Numérotation, puces et sauts de ligne intacts.
+
+const POST_MARKDOWN = "Un **vrai** déclic.\n\n1. Le *premier* point\n2. Le second\n\n– une puce\n• une autre\n\nLien : https://site.fr/mon_offre_2026 et [ma page](https://site.fr/a_b)\n\n#marketing #petite_entreprise";
+const POST_CLEAN = "Un vrai déclic.\n\n1. Le premier point\n2. Le second\n\n– une puce\n• une autre\n\nLien : https://site.fr/mon_offre_2026 et ma page (https://site.fr/a_b)\n\n#marketing #petite_entreprise";
+
+Deno.test("prepareLinkedInText — retire **gras** / *italique*, garde numérotation, puces, sauts de ligne, URL et hashtags", () => {
+  assertEquals(prepareLinkedInText(POST_MARKDOWN), POST_CLEAN);
+  // Pas de faux positif sur un calcul ou une puce « * ».
+  assertEquals(prepareLinkedInText("2 * 3 = 6\n* point un\n* point deux"), "2 * 3 = 6\n* point un\n* point deux");
+});
+
+Deno.test("publishTextToLinkedIn — le markdown n'est jamais publié en astérisques bruts", async () => {
+  const { fetchFn, calls } = makeRouter({});
+  globalThis.fetch = fetchFn;
+  await publishTextToLinkedIn(CONN, POST_MARKDOWN);
+  const payload = JSON.parse(calls.find((c) => c.url === "https://api.linkedin.com/v2/ugcPosts")!.body!);
+  assertEquals(payload.specificContent["com.linkedin.ugc.ShareContent"].shareCommentary.text, POST_CLEAN);
+});
+
+Deno.test("publishImagesToLinkedIn — légende nettoyée du markdown", async () => {
+  const { fetchFn, calls } = makeRouter({});
+  globalThis.fetch = fetchFn;
+  await publishImagesToLinkedIn(CONN, POST_MARKDOWN, ["https://images.example/a.jpg"]);
+  const payload = JSON.parse(calls.find((c) => c.url === "https://api.linkedin.com/v2/ugcPosts")!.body!);
+  assertEquals(payload.specificContent["com.linkedin.ugc.ShareContent"].shareCommentary.text, POST_CLEAN);
+});
+
+Deno.test("publishDocumentToLinkedIn — légende nettoyée du markdown avant l'échappement", async () => {
+  const { fetchFn, calls } = makeRouter({});
+  globalThis.fetch = fetchFn;
+  await publishDocumentToLinkedIn(CONN, "Un **vrai** déclic", "https://pdfs.example/deck.pdf", "Deck");
+  const payload = JSON.parse(calls.find((c) => c.url === "https://api.linkedin.com/rest/posts")!.body!);
+  assertEquals(payload.commentary, "Un vrai déclic");
 });

@@ -615,3 +615,111 @@ Deno.test("creativeDepthBlock : recherche vide ou sans sujet -> aucun bloc, aucu
     _deps.fetchDepthMaterial = original;
   }
 });
+
+// ═══ NON-RÉGRESSION LinkedIn (04/10/2026) ═══
+// Un post de référence (paragraphes + liste numérotée + liste à puces +
+// accroche + un **gras** glissé par l'IA) traverse toutes les gardes de
+// production dans l'ordre réel : lecture du JSON → correction (simulée, qui
+// CASSE la liste et reformule l'accroche) → garde de structure → filet
+// d'élisions → accroche dérivée du texte → nettoyage avant publication.
+// La liste, la numérotation, les sauts de paragraphe et chaque mot doivent
+// survivre. Même famille de cause que la perte des « 1, 2, 3 » (PR #1191).
+const { prepareLinkedInText } = await import("../_shared/linkedin-graph.ts");
+const { alignLinkedInHookFields } = await import("../_shared/linkedin-hook.ts");
+
+const LI_REFERENCE_POST = `J'ai mis trois ans à comprendre pourquoi mes posts ne prenaient pas.
+
+Une question de **méthode**, surtout. Voici ce que j'ai changé, dans l'ordre :
+
+1. J'écris d'abord pour une seule personne.
+2. Je garde une seule idée par post.
+3. Je relis à voix haute avant de publier.
+
+Ce que j'ai arrêté :
+– les listes de conseils génériques
+– les accroches qui promettent tout
+– les fins en question plaquée
+
+Le résultat tient dans la durée, et je publie sans y passer mes soirées.`;
+
+// Ce qu'une passe de correction peut renvoyer en appliquant ses règles
+// (« fusionne les rafales », « casse la symétrie ») : listes fondues en prose,
+// accroche « 210 premiers caractères » coupée au milieu d'une phrase.
+const LI_BROKEN_CORRECTION = {
+  content: `J'ai mis trois ans à comprendre pourquoi mes posts ne prenaient pas.
+
+Une question de méthode, surtout. J'écris d'abord pour une seule personne, je garde une seule idée par post et je relis à voix haute avant de publier. J'ai aussi arrêté les conseils génériques, les accroches qui promettent tout et les fins en question plaquée.
+
+Le résultat tient dans la durée.`,
+  accroche: "J'ai mis trois ans à comprendre pourquoi",
+  corrections_applied: ["énumérations désymétrisées"],
+};
+
+const words = (t: string) => t.replace(/\*\*/g, "").split(/\s+/).filter(Boolean);
+
+function assertReferenceSurvives(published: string, accroche: string) {
+  const expected = LI_REFERENCE_POST.replace(/\*\*/g, "");
+  // Texte publié = texte d'avant correction, au mot et au saut de ligne près.
+  assertEquals(published, expected);
+  for (const line of ["1. J'écris d'abord pour une seule personne.", "2. Je garde une seule idée par post.", "3. Je relis à voix haute avant de publier.", "– les listes de conseils génériques", "– les accroches qui promettent tout", "– les fins en question plaquée"]) {
+    assertEquals(published.split("\n").includes(line), true, `ligne de liste perdue : ${line}`);
+  }
+  assertEquals(published.split("\n\n").length, LI_REFERENCE_POST.split("\n\n").length);
+  assertEquals(words(published), words(LI_REFERENCE_POST));
+  assertEquals(published.includes("*"), false);
+  // L'accroche est le début exact du texte (jamais affichée deux fois).
+  assertEquals(accroche, "J'ai mis trois ans à comprendre pourquoi mes posts ne prenaient pas.");
+  assertEquals(published.startsWith(accroche), true);
+}
+
+Deno.test("NON-RÉGRESSION LinkedIn (chemin streamé runLinkedInTwoStep) : liste, numérotation, paragraphes et mots survivent à une correction qui les casse", async () => {
+  const generated = { content: LI_REFERENCE_POST, accroche: "Trois ans pour comprendre mes posts", format: "linkedin" };
+  const { mock } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify(generated) }], stop_reason: "end_turn", usage: { input_tokens: 50, output_tokens: 30 } } },
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify(LI_BROKEN_CORRECTION) }], stop_reason: "end_turn", usage: { input_tokens: 60, output_tokens: 40 } } },
+  ]);
+  try {
+    const res = await runLinkedInTwoStep(LINKEDIN_BASE_PARAMS);
+    const json = await res.json();
+    assertEquals(json.content, LI_REFERENCE_POST);
+    assertReferenceSurvives(prepareLinkedInText(json.content), json.accroche);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("NON-RÉGRESSION LinkedIn (chemin non streamé applyLinkedInCorrectionPass) : même garantie", async () => {
+  const { mock } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: LI_BROKEN_CORRECTION.content }], stop_reason: "end_turn", usage: { input_tokens: 60, output_tokens: 40 } } },
+  ]);
+  try {
+    const parsed: any = { content: LI_REFERENCE_POST, accroche: "Trois ans pour comprendre mes posts" };
+    await applyLinkedInCorrectionPass(parsed, { body: { context: "", answers: null, news_context: "" }, fullContext: "" });
+    // Ordre du handler : correction → accroche dérivée du post final.
+    alignLinkedInHookFields(parsed, () => {});
+    assertEquals(parsed.content, LI_REFERENCE_POST);
+    assertReferenceSurvives(prepareLinkedInText(parsed.content), parsed.accroche);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("runLinkedInTwoStep : correction gardée (structure intacte) → l'accroche suit la nouvelle première ligne", async () => {
+  const generated = { content: LI_REFERENCE_POST, accroche: "J'ai mis trois ans à comprendre pourquoi mes posts ne prenaient pas." };
+  const kept = {
+    content: LI_REFERENCE_POST.replace("J'ai mis trois ans à comprendre pourquoi mes posts ne prenaient pas.", "Trois ans pour comprendre pourquoi mes posts ne trouvaient pas leur public."),
+    accroche: "Trois ans pour comprendre pourquoi mes posts",
+  };
+  const { mock } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify(generated) }], stop_reason: "end_turn", usage: { input_tokens: 50, output_tokens: 30 } } },
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify(kept) }], stop_reason: "end_turn", usage: { input_tokens: 60, output_tokens: 40 } } },
+  ]);
+  try {
+    const json = await (await runLinkedInTwoStep(LINKEDIN_BASE_PARAMS)).json();
+    assertEquals(json.content, kept.content);
+    assertEquals(json.accroche, "Trois ans pour comprendre pourquoi mes posts ne trouvaient pas leur public.");
+    assertEquals(json.content.startsWith(json.accroche), true);
+  } finally {
+    mock.restore();
+  }
+});

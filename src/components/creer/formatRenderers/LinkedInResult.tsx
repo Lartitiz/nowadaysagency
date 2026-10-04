@@ -5,6 +5,7 @@ import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import FeedPreview from "@/components/creer/formatRenderers/FeedPreview";
 import { useState, useEffect } from "react";
+import { deriveLinkedInHook, splitHookFromBody } from "@/lib/linkedin-hook";
 
 interface Props {
   result: any;
@@ -12,31 +13,15 @@ interface Props {
   photos?: { preview: string; base64?: string; name?: string }[];
 }
 
-// Retire du corps le préfixe couvert par l'accroche, en tolérant les différences
-// d'espaces / retours à la ligne (l'IA reformate parfois l'accroche vs le contenu)
-// et la troncature (l'accroche peut être un préfixe coupé du contenu).
-// En cas de divergence réelle, ne touche pas au corps (retour tel quel).
-function stripHookPrefix(body: string, hook: string): string {
-  const h = hook.replace(/\s+/g, " ").trim();
-  if (!h) return body;
-  let i = 0; // index dans body (whitespace d'origine)
-  let j = 0; // index dans h (espaces normalisés)
-  while (i < body.length && j < h.length) {
-    const bWs = /\s/.test(body[i]);
-    const hWs = h[j] === " ";
-    if (bWs && hWs) { while (i < body.length && /\s/.test(body[i])) i++; j++; continue; }
-    if (bWs) { i++; continue; }       // espace en plus côté corps
-    if (hWs) { j++; continue; }       // espace en plus côté accroche
-    if (body[i] === h[j]) { i++; j++; continue; }
-    return body;                       // vraie divergence → on ne strip pas
-  }
-  return j >= h.length ? body.slice(i).replace(/^\s+/, "") : body;
-}
-
 export default function LinkedInResult({ result, photos, onTextChange }: Props) {
   const hasEditedText = typeof result?.edited_text === "string";
-  const hook = hasEditedText ? "" : result?.hook || result?.accroche || "";
   const rawBody = hasEditedText ? result.edited_text : result?.body || result?.content || result?.full_text || result?.text || "";
+  const declaredHook = hasEditedText ? "" : result?.hook || result?.accroche || "";
+  // Post complet (`content` sans `body` séparé) : l'accroche est TOUJOURS le
+  // début exact du post. Une accroche reformulée par l'IA s'afficherait sinon
+  // deux fois ; on la dérive du texte, sans jamais toucher au texte.
+  const isFullPost = !hasEditedText && !result?.body && typeof result?.content === "string" && rawBody === result.content;
+  const hook = isFullPost ? deriveLinkedInHook(rawBody, declaredHook) : declaredHook;
   const cta = hasEditedText ? "" : result?.cta || result?.call_to_action || "";
   const hashtags = hasEditedText ? [] : result?.hashtags || [];
   const characterCount = hasEditedText ? result.edited_text.length : result?.character_count || result?.char_count;
@@ -45,9 +30,15 @@ export default function LinkedInResult({ result, photos, onTextChange }: Props) 
 
   // `content` inclut souvent déjà l'accroche en 1ʳᵉ ligne → on l'enlève du corps
   // pour ne pas afficher (ni copier) deux fois l'accroche.
-  const body = hook ? stripHookPrefix(rawBody, hook) : rawBody;
+  const split = hook ? splitHookFromBody(rawBody, hook) : { matched: false, rest: rawBody };
+  const body = split.rest;
 
-  const fullText = [hook, body, cta].filter(Boolean).join("\n\n");
+  // Quand l'accroche est le début du post, l'aperçu (et le texte corrigé par
+  // RedFlagsChecker) repart du post tel quel : recoller accroche + "\n\n" +
+  // reste ajouterait un saut de paragraphe que le post n'a pas.
+  const fullText = split.matched
+    ? [rawBody.trim(), cta].filter(Boolean).join("\n\n")
+    : [hook, body, cta].filter(Boolean).join("\n\n");
   const [checkedText, setCheckedText] = useState(fullText);
   // Resynchronise quand le contenu change (ex. régénération de légende).
   useEffect(() => { setCheckedText(fullText); }, [fullText]);

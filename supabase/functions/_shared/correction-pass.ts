@@ -1,4 +1,5 @@
 import { CONTENT_CLARITY_RULES, claritySourceBlock } from "./content-clarity.ts";
+import { keepStructureOrRevert } from "./text-structure-guard.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type AnthropicModel, type UsageSink } from "./anthropic.ts";
 import { callCarouselWriter, carouselWriterDiagnostic } from "./carousel-model.ts";
 import { applyEditorialReview, carouselEditorialSequence, carouselReviewFields, CAROUSEL_EDITORIAL_REVIEW_PROMPT, CAROUSEL_REVIEW_VERSION, CAROUSEL_REVIEW_MODEL, CAROUSEL_REVIEW_TOOL } from "./carousel-editorial-review.ts";
@@ -771,6 +772,12 @@ export async function applyCorrectionPass(
       logger?.(`[correction-pass:${format}] FALLBACK (corrected too short: ${corrected?.length})`);
       return content;
     }
+
+    // Garde de structure par le CODE (règles d'écriture inchangées) : une
+    // correction qui fait disparaître une liste voulue, sa numérotation ou les
+    // paragraphes est rejetée entière ; le texte d'avant reste intact.
+    const guarded = keepStructureOrRevert(content, corrected, format, logger);
+    if (guarded.reverted) return content;
 
     logger?.(`[correction-pass:${format}] DONE, corrected length: ${corrected.length}`);
     return corrected;
