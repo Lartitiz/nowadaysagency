@@ -1,5 +1,6 @@
 import { SavedContentPreview } from "@/components/SavedContentPreview";
 import { reelCalendarCaption } from "../../../supabase/functions/_shared/reel-caption";
+import { calendarPublishCaption } from "../../../supabase/functions/_shared/calendar-caption";
 import { isDurableReelUrl, REEL_VIDEO_REQUIRED } from "@/lib/reel-publication";
 import { resumeCrosspost } from "@/lib/crosspost-content";
 import { useState, useEffect, useRef } from "react";
@@ -366,7 +367,9 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
             userId: user.id,
           })
         : await publishToInstagram({
-            caption: contentDraft || theme || "",
+            // Légende seule : le texte des slides reste dans le brouillon (affichage),
+            // il ne part jamais en légende (même règle que la publication programmée).
+            caption: calendarPublishCaption(contentDraft, savedPreviewContent) || theme || "",
             imageUrls: igValidImages,
             workspaceId,
             userId: user.id,
@@ -387,7 +390,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
   };
 
   // ── Publication directe LinkedIn (post texte : content_draft) ──
-  const linkedInText = (contentDraft || "").trim();
+  const linkedInText = calendarPublishCaption(contentDraft, savedPreviewContent);
   const linkedInPublishDisabledReason = (() => {
     if (postCanal !== "linkedin") return "Publication directe réservée aux posts LinkedIn.";
     if (!linkedInText) return "Rédige le texte du post pour publier.";
@@ -736,6 +739,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
     <CalendarPostPreview
       photoComposition={ssd?.type === "photo_composition"}
       canal={postCanal} format={format} caption={contentDraft} theme={theme}
+      copyCaption={calendarPublishCaption(contentDraft, ssd)}
       username={igUsername || ownerName} displayName={ownerName} mediaUrls={mediaUrls}
       visualHtml={ssd?.visual_html || null}
       visualUrls={ssd?.visual_urls || null}
