@@ -1,20 +1,50 @@
 import { PHOTO_NARRATIVE_CONTRACT } from "./photo-narrative.ts";
 import { carouselLengthPrompt } from "../_shared/carousel-length.ts";
-import { photoReadingContract, CAROUSEL_CONTINUITY, CAROUSEL_FACTS, CAROUSEL_SUBSTANCE, CAROUSEL_TITLES, carouselStructureGuide } from "./writing-contract.ts";
+import { photoReadingContract, CAROUSEL_CONTINUITY, CAROUSEL_FACTS, CAROUSEL_TITLES, carouselStructureGuide, carouselSubstance } from "./writing-contract.ts";
+import { livedCaseFromCarouselBody, LIVED_CASE_FIRST } from "../_shared/lived-case.ts";
 
 // Les SCHÉMAS (visual_schema) ne sont plus demandés à la rédaction depuis le
 // 03/10/2026 : un étage séparé les décide sur le texte final
 // (_shared/schema-formatting.ts). Ne pas réintroduire de consigne de schéma ici.
 export const NO_SCHEMA_IN_WRITING = "visual_schema:null sur chaque slide : les schémas sont décidés après la rédaction, à partir du texte final. Développe donc tout le propos dans title et body.";
 
+/**
+ * Réponses de l'utilisatrice mises en avant (« Ton cas d'abord », 04/10/2026) :
+ * elles arrivaient en une ligne JSON au milieu du brief, sans rien qui dise
+ * qu'elles portent sa preuve. La matière éditoriale choisie (idée) reste dans le
+ * brief JSON : ce n'est pas un témoignage personnel.
+ */
+export function userAnswersBlock(body: any): string {
+  const answers = body?.deepening_answers;
+  if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
+    return typeof answers === "string" && answers.trim() ? `\nRÉPONSES DE LA PERSONNE (sa matière, avec ses mots) :\n${JSON.stringify(answers.trim())}\n` : "";
+  }
+  const own = Object.entries(answers).filter(([k, v]) => k !== "Brief éditorial choisi" && typeof v === "string" && v.trim());
+  if (!own.length) return "";
+  const lived = livedCaseFromCarouselBody(body).provided;
+  return `
+${lived ? "SON CAS PERSONNEL (ses réponses : la preuve centrale de ce carrousel, à raconter avec ses mots)" : "RÉPONSES DE LA PERSONNE (sa matière, avec ses mots)"} :
+${own.map(([q, a]) => `- ${JSON.stringify(q)} → ${JSON.stringify(String(a).trim())}`).join("\n")}
+${lived ? LIVED_CASE_FIRST + "\n" : ""}`;
+}
+
+function briefAnswersRest(body: any): unknown {
+  const answers = body?.deepening_answers;
+  if (!answers || typeof answers !== "object" || Array.isArray(answers)) return undefined;
+  const material = answers["Brief éditorial choisi"];
+  return typeof material === "string" && material.trim() ? { "Brief éditorial choisi": material } : undefined;
+}
+
 function brief(body: any, isLinkedIn: boolean, confirmed: string): string {
+  const answersBlock = userAnswersBlock(body);
+  const answersInJson = answersBlock ? briefAnswersRest(body) : body.deepening_answers;
   return `${confirmed}
-BRIEF ACTUEL : ${JSON.stringify({ subject: body.subject, details: body.subject_details, description: body.photo_description, objective: body.objective, answers: body.deepening_answers, selected_offer: body.selected_offer, editorial_angle: body.editorial_angle, content_structure: body.content_structure, scenario_origin: body.scenario_origin, proposed_or_validated_thread: body.narrative_thread })}
+BRIEF ACTUEL : ${JSON.stringify({ subject: body.subject, details: body.subject_details, description: body.photo_description, objective: body.objective, answers: answersInJson, selected_offer: body.selected_offer, editorial_angle: body.editorial_angle, content_structure: body.content_structure, scenario_origin: body.scenario_origin, proposed_or_validated_thread: body.narrative_thread })}${answersBlock}
 ${body.slide_structure?.length ? `Répartition imposée : ${JSON.stringify(body.slide_structure)}. Conserve exactement ces ${body.slide_structure.length} slides, leur ordre, type et photo_index.` : ""}
 ${carouselLengthPrompt(body)}
 ${body.content_structure ? "La structure éditoriale choisie est à conserver. Ses rôles orientent le propos sans autoriser de faits ou d'émotions inventés." : "Choisis une progression adaptée à cette demande, sans arc dramatique imposé."}
 Canal : ${isLinkedIn ? "LinkedIn. Registre professionnel, vouvoiement par défaut sauf voix contraire. Légende optionnelle (gérée aussi par un appel dédié)." : "Instagram. Registre demandé ; à défaut, accessible et chaleureux. Fournis une légende fidèle au sujet."}
-${CAROUSEL_SUBSTANCE}
+${carouselSubstance(livedCaseFromCarouselBody(body).provided)}
 ${CAROUSEL_CONTINUITY}
 ${CAROUSEL_TITLES}
 La légende a les champs hook, body, cta, hashtags. Elle peut être concise : aucun minimum à meubler, aucun envers du décor inventé. CTA vide si inutile ou non demandé. Trois hashtags pertinents maximum ; ne suggère aucune fabrication, origine ou propriété absente.

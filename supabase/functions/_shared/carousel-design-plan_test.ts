@@ -113,6 +113,7 @@ Deno.test("traitements : alternance sans répétition, aplat ≤ 2, extraits exa
   }
   const desc = describeTextTreatments(plan);
   assert(desc.includes("CENTRÉ VERTICALEMENT") && desc.includes("data-slide-text=\"body\""));
+  assert(desc.includes("ALIGNÉ À GAUCHE") && desc.includes("jamais moins de 30px"), "réglages du 04/10 : alignement gauche, texte lisible");
 });
 Deno.test("traitements : texte d'une seule phrase → ni phrase-clé ni deux temps ; pas de lettrine sur un guillemet", () => {
   const slides = [{ slide_number: 1, title: "C", body: "" },

@@ -18,7 +18,7 @@ import { checkQuota, isQaTestAccount, logUsage, quotaDeniedResponse } from "../_
 import { callAnthropic, getModelForAction, SONNET_MODEL, AnthropicError, type UsageSink, type AnthropicModel, type AnthropicOptions } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { EDITORIAL_ANGLES_REFERENCE } from "../_shared/copywriting-prompts.ts";
-import { photoReadingContract, buildCarouselWritingSystem, CAROUSEL_SUBSTANCE, CAROUSEL_CONTINUITY, CAROUSEL_TITLES as SLIDE_TITLE_RULES, CAROUSEL_WRITING_VERSION } from "./writing-contract.ts";
+import { photoReadingContract, buildCarouselWritingSystem, carouselSubstance, CAROUSEL_CONTINUITY, CAROUSEL_TITLES as SLIDE_TITLE_RULES, CAROUSEL_WRITING_VERSION } from "./writing-contract.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
 import { carouselNeedsPolish } from "../_shared/correction-pass.ts";
@@ -31,6 +31,7 @@ import { keepDraftLayoutFields, stripMixWriterLayoutFields } from "../_shared/mi
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.ts";
+import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
@@ -714,7 +715,14 @@ export async function handleRequest(req: Request): Promise<Response> {
     }
 
     const ctx = await getUserContext(supabase, userId, workspace_id, isLinkedIn ? "linkedin" : "instagram");
-    const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.posts);
+    // « Ton cas d'abord » (04/10/2026) : quand la personne a donné son propre cas,
+    // il est la preuve centrale. Son histoire de marque n'est pas jointe à la
+    // rédaction (« dix ans dans le marketing digital » racontés à la place de
+    // son récit, carrousel de référence) et la recherche passe en mode appui.
+    const livedCase = livedCaseFromCarouselBody(body);
+    const tellsOwnCase = livedCase.provided && ["express_full", "slides", "hooks"].includes(type);
+    const brandingContext = formatContextForAI(ctx, tellsOwnCase ? { ...CONTEXT_PRESETS.posts, includeStory: false } : CONTEXT_PRESETS.posts);
+    if (livedCase.provided) console.log(`[carousel-ai] cas personnel fourni (${livedCase.reasons.join(", ")}) — ton cas d'abord, recherche en appui`);
     // Champs de marque bruts (combat, mission, ton…) : le redac-gate s'en sert
     // pour détecter une recopie quasi mot pour mot (audit slop 18/08). Aucune
     // requête supplémentaire — ctx.tone est déjà fetché par getUserContext().
@@ -760,7 +768,7 @@ export async function handleRequest(req: Request): Promise<Response> {
 
     // Brand context remains reference data; never turn tone into an invented emotion or conviction.
 
-    let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn, ctx.profile) + "\n" + photoReadingContract(body);
+    let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn, ctx.profile, livedCase.provided) + "\n" + photoReadingContract(body);
     if (body.editorial_intent) systemPrompt += "\nINTENTION DU PLAN AUTOMATIQUE (proposition à confronter aux sources) :\n" + JSON.stringify(body.editorial_intent);
 
     // Recherche « creuser le sujet » (lot D-bis, audit qualité 11-12/07) : on va
@@ -769,17 +777,22 @@ export async function handleRequest(req: Request): Promise<Response> {
     // aussi avec une actu ou des réponses : l'actu ne donne que le déclencheur et les
     // réponses le vécu, aucun des deux n'apporte les faits qui étayent une position.
     // Condiment : échec 100 % silencieux, borné à 25 s.
+    // « Ton cas d'abord » (04/10/2026) : avec un cas personnel fourni, la recherche
+    // ne fait que vérifier ou appuyer un point de ce cas (mode « support »).
     let depthBlock = "";
     if (type === "express_full") {
       const newsAngle = typeof body.news_context === "string" ? body.news_context.trim().slice(0, 600) : "";
+      const depthMode = livedCase.provided ? "support" : "depth";
       const material = await _deps.fetchDepthMaterial({
         subject: [body.subject || "", newsAngle].filter(Boolean).join("\n"),
         activity: ctx?.profile?.activite,
         model: getModelForAction("content"),
         apiKey: Deno.env.get("ANTHROPIC_API_KEY") || "",
         logger: (m) => console.log(m),
+        mode: depthMode,
+        livedCase: livedCase.provided ? [body.subject_details, ...livedCase.answers].filter(Boolean).join("\n") : undefined,
       });
-      depthBlock = buildDepthBlock(material);
+      depthBlock = buildDepthBlock(material, depthMode);
       if (depthBlock) systemPrompt += depthBlock;
     }
 
@@ -888,6 +901,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       brandingContext,
       gateInputText,
       researchText: depthBlock,
+      researchNumbersCap: livedCase.provided ? 1 : undefined,
       testimonySource,
       brandGuardText,
       captionEndingRule,
@@ -974,6 +988,8 @@ interface CarouselRequestContext {
   gateInputText: string;
   /** Matière de recherche (incluse dans gateInputText) : ses chiffres seuls exigent leur source. */
   researchText?: string;
+  /** Cas personnel fourni : au plus N chiffres venus de la seule recherche (redac-gate, « Ton cas d'abord »). */
+  researchNumbersCap?: number;
   /** Brief + réponses + photos + actu : seule source d'un témoignage ou d'un vécu au passé (redac-gate). */
   testimonySource?: string;
   /** Champs de marque bruts (buildBrandGuardText) : passages à ne jamais recopier tels quels. */
@@ -1237,6 +1253,7 @@ async function finalizeCarousel(
           isLinkedIn: ctx.isLinkedIn,
           inputText: ctx.gateInputText,
           researchText: ctx.researchText,
+          researchNumbersCap: ctx.researchNumbersCap,
           testimonySource: ctx.testimonySource,
           correction: { enabled: false },
         });
@@ -1419,6 +1436,7 @@ async function runGenerationAndRespond(
       onStatus: emitStatus,
       inputText: gateInputText,
       researchText,
+      researchNumbersCap: reqCtx.researchNumbersCap,
       testimonySource,
       echo: { previousHooks, subject: body.subject },
       brandGuardText,
@@ -1493,7 +1511,7 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
   }
   if (!output) return null;
   const measured = await runRedacGate(JSON.stringify(output.doc), {
-    isLinkedIn:ctx.isLinkedIn,inputText:ctx.gateInputText,researchText:ctx.researchText,testimonySource:ctx.testimonySource,correction:{enabled:false},
+    isLinkedIn:ctx.isLinkedIn,inputText:ctx.gateInputText,researchText:ctx.researchText,researchNumbersCap:ctx.researchNumbersCap,testimonySource:ctx.testimonySource,correction:{enabled:false},
   });
   const written = await finalizeCarousel(measured.content,ctx,{usage,repaired:output.repaired,regenerate:output.regenerate,reserveMs:PHOTO_MATCH_RESERVE_MS});
   const matched = await _deps.matchPhotos(JSON.parse(written), {body:ctx.body,startedAt:ctx.startedAt,usage,emitStatus:ctx.emitStatus,call:_deps.callAnthropic});
@@ -1673,6 +1691,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     onStatus: emitStatus,
     inputText: gateInputText,
     researchText,
+    researchNumbersCap: reqCtx.researchNumbersCap,
     testimonySource,
     echo: { previousHooks, subject: body.subject },
     brandGuardText,
@@ -1851,6 +1870,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     onStatus: emitStatus,
     inputText: gateInputText,
     researchText,
+    researchNumbersCap: reqCtx.researchNumbersCap,
     testimonySource,
     echo: { previousHooks, subject: body.subject },
     brandGuardText,
@@ -1926,7 +1946,7 @@ ${photo_description ? `Description complémentaire : ${photo_description}` : ""}
   const structureSystemPrompt = `${COMMON}
 ${PLAN}
 ${CONTENT_CLARITY_RULES}
-${CAROUSEL_SUBSTANCE}
+${carouselSubstance(livedCaseFromCarouselBody(body).provided)}
 ${CAROUSEL_CONTINUITY}
 ${PHOTO_NARRATIVE_CONTRACT}
 
@@ -2178,8 +2198,8 @@ Réponds en JSON : {"questions":[{"question":"...","placeholder":"..."}]}. Table
   return runGenerationAndRespond("deepening_questions", userPrompt, reqCtx);
 }
 
-function buildSystemPrompt(brandingContext: string, isLinkedIn = false, profile?: any): string {
-  return buildCarouselWritingSystem(brandingContext, isLinkedIn, buildIdentityBlock(profile, "rédactrice éditoriale"), CONTENT_CLARITY_RULES);
+function buildSystemPrompt(brandingContext: string, isLinkedIn = false, profile?: any, livedCase = false): string {
+  return buildCarouselWritingSystem(brandingContext, isLinkedIn, buildIdentityBlock(profile, "rédactrice éditoriale"), CONTENT_CLARITY_RULES, livedCase);
 }
 
 function buildHooksPrompt(body: any): string {
