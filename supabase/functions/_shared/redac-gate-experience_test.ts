@@ -51,6 +51,10 @@ Deno.test("vécu : variantes au passé en première personne", () => {
       "Nous avons testé trois rythmes de publication.",
       "J’ai remarqué que mes posts du mardi marchaient mieux.",
       "J'ai tout essayé : carrousels, vidéos, sondages.",
+      "J'ai mis trois semaines à finir une série de six assiettes.",
+      "J'ai fini ma dernière série hier soir.",
+      "J'ai vendu trois bols au marché samedi.",
+      "J'ai ouvert mon atelier en 2019.",
     ]
   ) {
     assertEquals(findInventedExperiences(t, BRIEF).length, 1, t);
@@ -64,6 +68,7 @@ Deno.test("vécu : pas de faux positif sur une opinion au présent, une hypothè
       "J'ai l'impression qu'on confond régularité et volume.",
       "J'ai envie qu'on arrête de compter les posts.",
       "J'ai fait le choix de publier moins, et je l'assume.",
+      "J'ai mis du sens dans chaque pièce.",
       "Je ne publie presque jamais une pièce que je viens de sortir du four.",
       "Tu te dis peut-être : j'ai tout essayé, rien ne marche.",
       "Tu as sûrement entendu « j'ai testé, ça ne marche pas ».",
