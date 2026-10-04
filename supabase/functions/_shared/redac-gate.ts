@@ -60,6 +60,11 @@ const REVERSAL_PATTERNS: RegExp[] = [
   /(?:^|[.!?]\s+|\n\s*)(Je|Tu|On|Nous|Vous|Il|Elle|Ils|Elles) ne (\p{L}+) pas\b[^.!?\n]{2,90}[.!] ?(?:Mais |Non, )?\1 \2\b/iu,
   /(?:^|[.!?]\s+|\n\s*)(?:Je|J['’]) n['’](\p{L}+) pas\b[^.!?\n]{2,90}[.!] ?(?:Mais |Non, )?J['’]\1\b/iu,
   /(?:^|[.!?]\s+|\n\s*)(Tu|On|Nous|Vous|Il|Elle|Ils|Elles) n['’](\p{L}+) pas\b[^.!?\n]{2,90}[.!] ?(?:Mais |Non, )?\1 \2\b/iu,
+  // ── « X, pas Y. » en fin de phrase (re-test réel LinkedIn 04/10/2026) ──
+  // « … ont vu leurs résultats baisser, pas augmenter. » : contraste plaqué en
+  // queue de phrase (1 à 3 mots). Les tournures figées restent permises :
+  // « pas plus », « pas encore », « pas toujours », « pas forcément », « ou pas »…
+  /[^.!?\n]{8,}, pas (?!(?:plus|moins|encore|toujours|forcément|vraiment|du tout|mal|trop|question|seulement|tant|si|non plus|à pas|d['’]un coup|besoin|grave|sûr|sûre|certain|certaine|facile|simple|évident|moi|toi|lui|elle|nous|vous|eux|elles|ça|celui-là|celle-là)\b)(?:[\p{L}'’-]+\s?){1,3}[.!]/u,
 ];
 
 // Formules moulées repérées à l'identique dans deux contenus générés à 30 min
@@ -96,6 +101,16 @@ function measuredMultipliers(text: string): Array<{ raw: string; key: string; va
 }
 
 
+/**
+ * Durées écrites en lettres (« trois semaines », « six mois ») : NUMBER_TOKEN ne
+ * voit que les chiffres, et un vécu inventé passait avec ses durées (« J'ai mis
+ * trois semaines… », re-test réel 04/10/2026). « un / une » ne comptent pas.
+ */
+function letterDurations(text: string): Array<{ raw: string; value: string; index: number }> {
+  const re = /(?<!\p{L})(deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|quarante|cinquante|soixante|cent)\s+(secondes|minutes|heures|jours|journées|semaines|mois|ans|années)(?!\p{L})/giu;
+  return [...text.matchAll(re)].map((m) => ({ raw: m[0], value: String(FRENCH_NUMERALS[m[1].toLowerCase()]), index: m.index! }));
+}
+
 /** Tokens numériques d'un texte (pour construire la liste blanche d'entrée). */
 // Pourcentage : la valeur seule ne suffit pas (« depuis 21 ans » dans le
 // branding n'autorise pas « +21 % », vu en test réel LinkedIn le 04/10/2026).
@@ -109,6 +124,7 @@ export function numbersIn(text: string): Set<string> {
     out.add(value);
     if (PERCENT_AFTER.test(text.slice(m.index! + m[0].length, m.index! + m[0].length + 10))) out.add(pctKey(value));
   }
+  for (const m of letterDurations(text || "")) out.add(m.value);
   for (const m of measuredMultipliers(text || "")) {
     out.add(m.key);
     out.add(m.value);
@@ -133,6 +149,12 @@ function findFabricatedNumbers(text: string, allowed: Set<string>): string[] {
     seenValues.add(tok);
     const ctx = text.slice(Math.max(0, m.index! - 30), m.index! + m[0].length + 30).replace(/\s+/g, " ").trim();
     found.push(`${m[0]} (« …${ctx}… »)`);
+  }
+  for (const m of letterDurations(text || "")) {
+    if (allowed.has(m.value) || seenValues.has(m.value)) continue;
+    seenValues.add(m.value);
+    const ctx = text.slice(Math.max(0, m.index - 30), m.index + m.raw.length + 30).replace(/\s+/g, " ").trim();
+    found.push(`${m.raw} (« …${ctx}… »)`);
   }
   for (const m of measuredMultipliers(text || "")) {
     if (allowed.has(m.key) || seenValues.has(m.value)) continue;
