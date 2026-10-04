@@ -100,8 +100,10 @@ Deno.test("analyzeTextRedac attrape la variante « Ce qui me gêne »", () => {
 });
 
 Deno.test("buildTextFixInstructions vide quand le texte est sain", () => {
-  const a = analyzeTextRedac("Un bol met trois semaines à exister. Le séchage décide du rythme, pas moi.", new Set<string>());
+  const a = analyzeTextRedac("Un bol met plusieurs semaines à exister. Le séchage décide du rythme, pas moi.", new Set<string>());
   assertEquals(buildTextFixInstructions(a), "");
+  // Durée en lettres non fournie : comptée comme un chiffre (« 3 semaines » l'était déjà).
+  assertEquals(analyzeTextRedac("Un bol met trois semaines à exister.", new Set<string>()).fabricatedNumbers.length, 1);
 });
 
 Deno.test("le gate texte compte les retournements au-delà de 1", () => {
