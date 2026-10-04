@@ -39,7 +39,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { retiredCarouselStreamResponse, runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent, applyStoriesCorrectionPass, applyNewsletterCorrectionPass, applyLinkedInCorrectionPass } = await import("./index.ts");
+const { retiredCarouselStreamResponse, runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent, applyStoriesCorrectionPass, applyNewsletterCorrectionPass, applyLinkedInCorrectionPass, applyReelQualityPass } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -952,6 +952,126 @@ Deno.test("runLinkedInTwoStep : témoignage fourni dans les réponses -> gardé,
     assertEquals(mock.anthropicCallCount, 2);
     const json = await res.json();
     assertEquals(json.content.includes("céramiste"), true);
+  } finally {
+    mock.restore();
+  }
+});
+
+// ═══ Vécu au passé inventé dans les REELS et les STORIES (04/10/2026) ═══
+// Après #1321, reels et stories mesuraient « J'ai essayé. Résultat : … » et
+// le passaient à la relecture, sans la passe dédiée qu'ont LinkedIn et le
+// texte libre. Ces tests échouent si la passe n'est plus appelée, si elle
+// n'est pas réinjectée, ou si une passe qui laisse le vécu est gardée.
+const VECU_BODY = { context: "Pourquoi publier plus souvent ne fait pas décoller ta portée", answers: null, news_context: "" };
+const VECU_LINE = "J'ai essayé de publier tous les jours pendant un mois. Résultat : moins de vues qu'avant.";
+const VECU_FIXED = "Publier tous les jours pendant un mois, c'est courant. Souvent, la portée baisse même.";
+const VECU_KEPT = "J'ai testé moi aussi pendant un mois entier. Résultat : rien du tout.";
+
+/** Route les appels : la passe dédiée reçoit `reply(texte balisé)`, les autres une réponse vide (repli). */
+function installTestimonyRouter(reply: (block: string) => string) {
+  const calls = { testimony: 0, other: 0, block: "" };
+  const mock = installFetchMock({
+    // deno-lint-ignore no-explicit-any
+    anthropic: (req: any) => {
+      const user = String(req?.messages?.[0]?.content ?? "");
+      if (user.includes("VÉCUS AU PASSÉ À RÉÉCRIRE")) {
+        calls.testimony++;
+        calls.block = user.split('TEXTE :\n"""\n')[1]?.replace(/\n"""\s*$/, "") ?? "";
+        return textReply(reply(calls.block));
+      }
+      calls.other++;
+      return textReply("");
+    },
+  });
+  return { mock, calls };
+}
+
+const REEL_WITH_VECU = () => ({
+  script: [
+    { section: "hook", timing: "0-3s", texte_parle: "Publier plus souvent ne fait pas décoller ta portée, et voilà pourquoi ça arrive.", texte_overlay: "Publier plus, ça ne suffit pas" },
+    { section: "corps", timing: "3-15s", texte_parle: `${VECU_LINE} La portée dépend des premières réactions à ton contenu, pas du nombre de posts.`, texte_overlay: "Les premières réactions comptent" },
+  ],
+  caption: { text: "La fréquence ne règle rien si personne ne s'arrête sur tes contenus.", cta: "Dis-moi en commentaire ce que tu en penses." },
+});
+
+Deno.test("applyReelQualityPass : « J'ai essayé. Résultat : … » sans source -> passe dédiée appelée, marqueurs gardés, version sans vécu réinjectée", async () => {
+  // deno-lint-ignore no-explicit-any
+  const parsed: any = REEL_WITH_VECU();
+  const { mock, calls } = installTestimonyRouter((b) => b.replace(VECU_LINE, VECU_FIXED));
+  try {
+    await applyReelQualityPass(parsed, { body: VECU_BODY, fullContext: "" });
+    assertEquals(calls.testimony, 1);
+    assertEquals(calls.block.includes("[SECTION 2 - PARLE]"), true);
+    assertEquals(parsed.script[1].texte_parle.includes("J'ai essayé"), false);
+    assertEquals(parsed.script[1].texte_parle.startsWith(VECU_FIXED), true);
+    assertEquals(parsed.script[0].texte_parle, REEL_WITH_VECU().script[0].texte_parle);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("applyReelQualityPass : la passe dédiée laisse un vécu -> rejetée, texte d'origine gardé", async () => {
+  // deno-lint-ignore no-explicit-any
+  const parsed: any = REEL_WITH_VECU();
+  const { mock, calls } = installTestimonyRouter((b) => b.replace(VECU_LINE, VECU_KEPT));
+  try {
+    await applyReelQualityPass(parsed, { body: VECU_BODY, fullContext: "" });
+    assertEquals(calls.testimony, 1);
+    assertEquals(parsed.script[1].texte_parle.startsWith(VECU_LINE), true);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("applyReelQualityPass : vécu fourni par les réponses -> aucune passe dédiée", async () => {
+  // deno-lint-ignore no-explicit-any
+  const parsed: any = REEL_WITH_VECU();
+  const { mock, calls } = installTestimonyRouter((b) => b.replace(VECU_LINE, VECU_FIXED));
+  try {
+    await applyReelQualityPass(parsed, { body: { ...VECU_BODY, answers: ["J'ai publié tous les jours pendant un mois et ma portée a baissé"] }, fullContext: "" });
+    assertEquals(calls.testimony, 0);
+    assertEquals(parsed.script[1].texte_parle.startsWith(VECU_LINE), true);
+  } finally {
+    mock.restore();
+  }
+});
+
+const STORIES_WITH_VECU = () => ({
+  stories: [
+    { text: `${VECU_LINE} Et pourtant on continue tous à croire que la régularité suffit.`, visual: { title_pill: "PUBLIER PLUS" } },
+    { text: "La portée dépend des premières réactions à ton contenu, pas du nombre de posts que tu publies dans la semaine.", visual: {} },
+  ],
+});
+
+Deno.test("applyStoriesCorrectionPass : « J'ai essayé. Résultat : … » sans source -> passe dédiée sur [STORY n - …], gardée", async () => {
+  // deno-lint-ignore no-explicit-any
+  const parsed: any = STORIES_WITH_VECU();
+  const { mock, calls } = installTestimonyRouter((b) => b.replace(VECU_LINE, VECU_FIXED));
+  try {
+    const gate = await applyStoriesCorrectionPass(parsed, { body: VECU_BODY, fullContext: "" });
+    assertEquals(calls.testimony, 1);
+    assertEquals(calls.block.includes("[STORY 1 - TEXT]"), true);
+    assertEquals(calls.block.includes("[STORY 1 - TITLE] PUBLIER PLUS"), true);
+    assertEquals(parsed.stories[0].text.includes("J'ai essayé"), false);
+    assertEquals(parsed.stories[0].text.startsWith(VECU_FIXED), true);
+    assertEquals(parsed.stories[0].visual.title_pill, "PUBLIER PLUS");
+    assertEquals(gate?.repassed, true);
+    assertEquals(gate?.violations, 0);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("applyStoriesCorrectionPass : la passe dédiée laisse un vécu -> rejetée, stories inchangées", async () => {
+  // deno-lint-ignore no-explicit-any
+  const parsed: any = STORIES_WITH_VECU();
+  const original = JSON.stringify(parsed.stories);
+  const { mock, calls } = installTestimonyRouter((b) => b.replace(VECU_LINE, VECU_KEPT));
+  try {
+    const gate = await applyStoriesCorrectionPass(parsed, { body: VECU_BODY, fullContext: "" });
+    assertEquals(calls.testimony, 1);
+    assertEquals(JSON.stringify(parsed.stories), original);
+    assertEquals((gate?.violations ?? 0) > 0, true);
   } finally {
     mock.restore();
   }

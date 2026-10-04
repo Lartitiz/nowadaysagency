@@ -1494,7 +1494,7 @@ export async function applyLinkedInCorrectionPass(parsed: any, params: { body: a
 // 3. Recalibrage déterministe des durées : la durée affichée découle du texte
 //    réel (2,5 mots/s). Mesuré à l'audit : durées déclarées sous-estimées de
 //    40-80 % (90 s réelles annoncées "50 sec" = pénalité de distribution).
-async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<void> {
+export async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<void> {
   const { body, effectiveObjective, fullContext, researchSource, brandGuardText, echoSubject, previousHooks } = params;
   if (body.face_cam === "non" && enforceReelNoFaceCam(parsed)) {
     console.log("[creative-flow] reel face_cam=non : structure convertie en voix off");
@@ -1571,6 +1571,23 @@ async function applyReelQualityPass(parsed: any, params: { body: any; effectiveO
       });
       if (sourced.applied) Object.assign(parsed, reinjectReelTexts(parsed, sourced.content));
     }
+    // Témoignage ou vécu au passé inventé encore présent (« J'ai essayé.
+    // Résultat : … ») : passe dédiée sur les textes balisés, relue par le code
+    // (même mesure que la relecture, gardée seulement si le compte baisse et
+    // qu'aucun autre compteur ne se dégrade). Le hook choisi reste reverrouillé
+    // par finalizeReelScript ensuite.
+    const analyzeTestimony = (b: string) => analyzeTextRedac(
+      reelAuditableText(reinjectReelTexts(parsed, b)),
+      reelAllowed,
+      brandGuardText,
+      hookVerrouille ? undefined : { previousHooks, subject: echoSubject },
+      reelResearch,
+      testimonySourceText(body),
+    );
+    const cleaned = await enforceNoInventedTestimonials(extractReelTexts(parsed), analyzeTestimony, {
+      logger: (msg) => console.log(msg), abortTimeoutMs: CORRECTION_ABORT_MS,
+    });
+    if (cleaned.applied) Object.assign(parsed, reinjectReelTexts(parsed, cleaned.content));
   } catch (corrErr) {
     console.error("[creative-flow] correction-pass reel failed:", corrErr);
   }
@@ -1674,10 +1691,25 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
         repassed = true;
       }
     }
+    // Témoignage ou vécu au passé inventé encore présent : passe dédiée sur
+    // les textes balisés (marqueurs [STORY n - …] conservés), gardée seulement
+    // si le compte baisse sans autre compteur dégradé.
+    if (bestA.inventedTestimonials?.length || bestA.inventedExperiences?.length) {
+      const base = best;
+      const cleaned = await enforceNoInventedTestimonials(
+        extractStoriesTexts(base), (b) => analyze(reinjectStoriesTexts(base, b).stories),
+        { logger: (msg) => console.log(msg), abortTimeoutMs: CORRECTION_ABORT_MS, before: bestA },
+      );
+      if (cleaned.applied) {
+        best = reinjectStoriesTexts(base, cleaned.content).stories;
+        bestA = cleaned.analysis;
+        repassed = true;
+      }
+    }
     const violations = textRedacViolations(bestA);
     const result: StoriesGateResult = { source: "code", score: Math.max(40, 100 - 10 * violations), violations, repassed, reverted };
     console.log(
-      `[stories-gate] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${bestA.unsourcedResearchNumbers?.length ?? 0}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, repassé=${repassed}, rejeté=${reverted}`,
+      `[stories-gate] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${bestA.unsourcedResearchNumbers?.length ?? 0}, témoignages inventés ${before.inventedTestimonials?.length ?? 0}→${bestA.inventedTestimonials?.length ?? 0}, vécus inventés ${before.inventedExperiences?.length ?? 0}→${bestA.inventedExperiences?.length ?? 0}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, repassé=${repassed}, rejeté=${reverted}`,
     );
     parsed.stories = best;
     parsed.quality_check = result;
