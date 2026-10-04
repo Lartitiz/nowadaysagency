@@ -265,3 +265,63 @@ Deno.test("nettoyage photo : garde les précisions source mais retire encore les
   assert(result.slides_html[0].html.includes("Un détail fourni"));
   assert(!result.slides_html[0].html.includes("LA MÉTHODE MAGIQUE"));
 });
+
+// ═══ GARDE-FOU DE NON-RÉGRESSION : carrousel PHOTO de référence (04/10/2026) ═══
+// Demande de Laetitia : « sécuriser contre les régressions ». Ce carrousel passe
+// par la composition de production ET par toutes les gardes déterministes, dans
+// l'ordre de production. Si UN élément de design ou UN mot de texte disparaît,
+// ce test échoue : couverture, habillages alternés (bord/carte/verre/colonne),
+// « Étape n · … », motif, titres de slide, sous-titre, invitation, texte entier,
+// et jamais de gros numéro d'étape ni de pagination.
+Deno.test("NON-RÉGRESSION photo : carrousel de référence complet après les gardes de production", async () => {
+  const { validatePhotoFormatting } = await import("../_shared/photo-formatting.ts");
+  const art = (treatment: string, position = "bottom_left") => ({ treatment, position, emphasis: null, reason: "t", surface: "veil", alignment: "left" });
+  const slides = [
+    { slide_number: 1, photo_index: 1, overlay_text: "Peindre à main levée, puis laisser le four révéler les couleurs", detail: "Amélie, céramiste", art_direction: art("opening") },
+    { slide_number: 2, photo_index: 2, kicker: "Avant la couleur, la forme", overlay_text: "Tout commence par la forme nue. Un bol encore blanc, sans aucun motif. Avant de peindre, je laisse la pièce exister telle qu'elle est : c'est sur elle que le décor viendra ensuite trouver sa place.", art_direction: art("editorial") },
+    { slide_number: 3, photo_index: 3, kicker: "Puis vient l'engobe", overlay_text: "Il habille la terre et prépare la surface qui accueillera le dessin. Rien n'est encore illustré, mais la pièce change déjà de visage.", art_direction: art("editorial", "top_left") },
+    { slide_number: 4, photo_index: 1, kicker: "Le geste à main levée", overlay_text: "Ensuite, le motif, à main levée. Chaque trait se pose directement sur la pièce, sans modèle reproduit. C'est pour cela que deux faïences au même motif ne sont jamais tout à fait identiques.", art_direction: art("editorial") },
+    { slide_number: 5, photo_index: 2, overlay_text: "Pourtant, à ce stade, les couleurs ne sont pas encore celles que vous découvrirez. C'est la cuisson qui les révèle. Je peins donc en sachant que le four aura le dernier mot.", art_direction: art("editorial", "top_left") },
+    { slide_number: 6, photo_index: 3, overlay_text: "Forme nue, engobe, motif, cuisson : quatre temps, une seule main.", cta_label: "Découvrir l'atelier", art_direction: art("closing") },
+  ];
+  const formatting = { version: "test", status: "completed", ...validatePhotoFormatting({
+    steps: [{ slide_number: 2, label: "la forme nue" }, { slide_number: 3, label: "l'engobe" }, { slide_number: 4, label: "le motif" }, { slide_number: 5, label: "la cuisson" }],
+    motifs: [{ slide_number: 6, reason: "Quatre temps", elements: [
+      { k: "text", x: 0, y: 40, text: "Forme nue", tone: "ink", size: 44 }, { k: "text", x: 260, y: 40, text: "engobe", tone: "ink", size: 44 },
+      { k: "text", x: 500, y: 40, text: "motif", tone: "ink", size: 44 }, { k: "text", x: 720, y: 40, text: "cuisson", tone: "accent", size: 44 }] }],
+  }, slides) };
+  assertEquals(formatting.steps.length, 4, "étapes validées");
+  assertEquals(formatting.motifs.length, 1, "motif validé");
+  const ch = { color_primary: "#3A4A3C", color_secondary: "#A9BCC8", color_accent: "#3A4A3C", color_background: "#FFFFFF", color_text: "#1A1A1A", font_title: "Georgia", font_body: "Arial" };
+  const result = runComposedByCodeGeneration({ slides, ch, reqBody: { photos: [{}, {}, {}] }, usage: {}, emitStatus: () => {}, tStart: Date.now(), formatting } as any);
+  // Mêmes gardes, même ordre que la production.
+  stripSlideNumberBadges(result);
+  stripDuplicateStepNumbers(result, { slides });
+  stripVisualHintText(result, { slides });
+  stripInventedSurtitres(result, { isPhotoCarousel: true, slides });
+  applyTitleBodyContrastGuard(result, { ch });
+  applyTextContrastGuard(result);
+  applyMinFontSizeGuard(result);
+
+  const html: string[] = result.slides_html.map((s: any) => s.html);
+  const text = (h: string) => h.replace(/<[^>]*>/g, " ").replace(/&#39;/g, "'").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/\s+/g, " ");
+  assertEquals(html.length, 6, "nombre de slides");
+  // Texte entier, titres de slide, sous-titre, invitation : rien ne disparaît.
+  slides.forEach((s: any, i) => {
+    for (const field of ["overlay_text", "kicker", "detail", "cta_label"]) {
+      if (s[field]) assert(text(html[i]).includes(s[field]), `slide ${i + 1} : ${field} perdu (« ${s[field]} »)`);
+    }
+  });
+  // Étapes « Étape n · … » sur les 4 slides prévues.
+  [1, 2, 3, 4].forEach((n) => assert(html[n].includes(`Étape ${n} · `), `« Étape ${n} · » perdu`));
+  // Motif dessiné.
+  assert(html[5].includes('data-photo-format="motif"'), "motif perdu");
+  // Habillages : au moins trois habillages différents sur les passages éditoriaux.
+  const styles = new Set(html.flatMap((h) => [...h.matchAll(/data-photo-style="([a-z]+)"/g)].map((m) => m[1])));
+  assert(styles.size >= 3, `alternance des habillages perdue : ${[...styles]}`);
+  // Jamais de gros numéro d'étape ni de pagination.
+  for (const [i, h] of html.entries()) {
+    assert(!/>\s*0[1-9]\s*</.test(h), `slide ${i + 1} : gros numéro d'étape`);
+    assert(!/\b\d+\s*\/\s*6\b/.test(text(h)), `slide ${i + 1} : pagination`);
+  }
+});
