@@ -777,3 +777,95 @@ Deno.test("correctPostStreamContent : chiffre de la recherche sans source -> cor
     mock.restore();
   }
 });
+
+// ═══ Passe dédiée « source ou qualitatif » (test réel du 04/10 après #1304) ═══
+// En vrai, la relecture générale ignorait l'instruction : les chiffres de la
+// recherche restaient sans source. Une passe courte ne fait plus que ça.
+const LI_SOURCED = "Je le pense vraiment : l'algorithme teste chaque post sur 2 à 5% de ton réseau (Hootsuite, 2025), et selon Richard van der Blom tout se joue en 48 à 72 heures. Publier plus ne change rien à ce mécanisme, publier mieux si.";
+const textReply = (t: string) => ({ status: 200, body: { content: [{ type: "text", text: t }], stop_reason: "end_turn", usage: { input_tokens: 5, output_tokens: 5 } } });
+
+Deno.test("runLinkedInTwoStep : la relecture ignore la consigne -> passe dédiée, source recopiée de la recherche", async () => {
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    textReply(JSON.stringify({ content: LI_UNSOURCED })),
+    textReply(JSON.stringify({ content: LI_UNSOURCED })),
+    textReply(LI_SOURCED),
+  ]);
+  try {
+    const res = await runLinkedInTwoStep({ ...LINKEDIN_BASE_PARAMS, researchSource: LI_DEPTH });
+    assertEquals(mock.anthropicCallCount, 3);
+    assertEquals(JSON.stringify(capturedBodies[2].system).includes("correctrice factuelle"), true);
+    assertEquals((capturedBodies[2].messages[0].content as string).includes("Hootsuite, 2025"), true);
+    assertEquals((await res.json()).content, LI_SOURCED);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("runLinkedInTwoStep : passe dédiée qui INVENTE une source absente de la recherche -> rejetée", async () => {
+  const invented = LI_UNSOURCED.replace("de ton réseau,", "de ton réseau (Statista, 2023),").replace("48 à 72 heures", "48 à 72 heures (Statista, 2023)");
+  const { mock } = installAnthropicBodyCapture([
+    textReply(JSON.stringify({ content: LI_UNSOURCED })),
+    textReply(JSON.stringify({ content: LI_UNSOURCED })),
+    textReply(invented),
+  ]);
+  try {
+    const res = await runLinkedInTwoStep({ ...LINKEDIN_BASE_PARAMS, researchSource: LI_DEPTH });
+    assertEquals((await res.json()).content, LI_UNSOURCED);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("runLinkedInTwoStep : passe dédiée qui passe en qualitatif -> gardée ; sans chiffre non sourcé, aucune passe en plus", async () => {
+  const qualitative = "Je le pense vraiment : l'algorithme teste chaque post sur une petite partie de ton réseau, et tout se joue dans les premiers jours. Publier plus ne change rien à ce mécanisme, publier mieux si.";
+  const { mock } = installAnthropicBodyCapture([
+    textReply(JSON.stringify({ content: LI_UNSOURCED })),
+    textReply(JSON.stringify({ content: LI_UNSOURCED })),
+    textReply(qualitative),
+  ]);
+  try {
+    const res = await runLinkedInTwoStep({ ...LINKEDIN_BASE_PARAMS, researchSource: LI_DEPTH });
+    assertEquals((await res.json()).content, qualitative);
+  } finally {
+    mock.restore();
+  }
+  const clean = installAnthropicBodyCapture([
+    textReply(JSON.stringify({ content: LI_SOURCED })),
+    textReply(JSON.stringify({ content: LI_SOURCED })),
+  ]);
+  try {
+    await runLinkedInTwoStep({ ...LINKEDIN_BASE_PARAMS, researchSource: LI_DEPTH });
+    assertEquals(clean.mock.anthropicCallCount, 2);
+  } finally {
+    clean.mock.restore();
+  }
+});
+
+Deno.test("correctPostStreamContent : la relecture ignore la consigne -> passe dédiée appliquée (runTextRedacGate)", async () => {
+  const content = "Je le dis franchement, l'algorithme teste chaque post sur 2 à 5% de ton réseau avant de décider s'il le pousse plus loin, et c'est pour ça que la première ligne compte autant que tout le reste du post.";
+  const sourced = content.replace("de ton réseau", "de ton réseau (Hootsuite, 2025)");
+  const { mock, capturedBodies } = installAnthropicBodyCapture([textReply(content), textReply(sourced)]);
+  try {
+    const result = await correctPostStreamContent(JSON.stringify({ content }), { ...POST_BASE_PARAMS, researchSource: LI_DEPTH });
+    assertEquals(JSON.stringify(capturedBodies.at(-1).system).includes("correctrice factuelle"), true);
+    assertEquals(JSON.parse(result!).content, sourced);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("applyStoriesCorrectionPass : chiffre de recherche sans source -> passe dédiée sur les textes balisés", async () => {
+  const parsed: any = { stories: [
+    { text: "Je vais être honnête avec toi aujourd'hui : l'algorithme de LinkedIn teste chaque post sur 2 à 5% de ton réseau avant de décider quoi en faire.", visual: { title_pill: "LE TEST" } },
+    { text: "Et c'est pour ça que je préfère publier moins souvent, mais mieux, en laissant chaque post vivre sa vie tranquillement.", visual: {} },
+  ] };
+  const fixed = "[STORY 1 - TEXT] Je vais être honnête avec toi aujourd'hui : l'algorithme de LinkedIn teste chaque post sur 2 à 5% de ton réseau (Hootsuite, 2025) avant de décider quoi en faire.\n[STORY 1 - TITLE] LE TEST\n[STORY 2 - TEXT] Et c'est pour ça que je préfère publier moins souvent, mais mieux, en laissant chaque post vivre sa vie tranquillement.";
+  const { mock } = installAnthropicBodyCapture([textReply(fixed.replace(" (Hootsuite, 2025)", "")), textReply(fixed)]);
+  try {
+    const gate = await applyStoriesCorrectionPass(parsed, { body: { context: "LinkedIn", answers: null }, fullContext: "", researchSource: LI_DEPTH });
+    assertEquals(parsed.stories[0].text.includes("(Hootsuite, 2025)"), true);
+    assertEquals(gate?.repassed, true);
+  } finally {
+    mock.restore();
+  }
+});
