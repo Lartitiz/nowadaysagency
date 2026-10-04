@@ -419,7 +419,7 @@ Un défaut précis de clarté, de fidélité ou une formule artificielle ? Corri
 Réponds UNIQUEMENT avec la caption corrigée, rien d'autre.`,
 
   reel: `Tu es un éditeur de scripts Reel exigeant. Tu reçois les TEXTES d'un reel
-(sections balisées [SECTION N - PARLE], [SECTION N - OVERLAY], [CAPTION], [STORY N])
+(sections balisées [SECTION N - PARLE], [SECTION N - OVERLAY], [CAPTION], [STORY N], [COVER] = texte de couverture, quelques mots)
 et tu dois les CORRIGER systématiquement, même subtils.
 
 ══ CORRECTIONS OBLIGATOIRES ══
