@@ -532,6 +532,19 @@ function carouselMismatchResponse(
 // gabarits actuels les rendent déjà centrées, en conservant haut/bas.
 // Normaliser à la sortie ET à la reprise d'un ancien plan évite un rejet
 // avant écriture, sans modifier ses textes, son ordre ou ses photos.
+/** Type de slide écrit par le modèle de structure : il répond parfois « text »
+ * ou « photo » au lieu des valeurs attendues (vu en live le 04/10/2026 : la
+ * génération photo échouait sur « Données invalides : slide_type … 'text' »).
+ * Variante reconnue → valeur attendue ; inconnue → undefined (champ facultatif). */
+export function normalizeSlideType(v: unknown): "photo_full" | "photo_integrated" | "text_only" | undefined {
+  const t = String(v ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (["photo_full", "photo_integrated", "text_only"].includes(t)) return t as any;
+  if (["text", "texte", "textonly", "text_slide", "texte_seul"].includes(t)) return "text_only";
+  if (["photo", "full_photo", "photo_plein_ecran", "fullphoto"].includes(t)) return "photo_full";
+  if (["integrated", "photo_integree", "integrated_photo"].includes(t)) return "photo_integrated";
+  return undefined;
+}
+
 function normalizeGeneratedPlanFields(slide: any): void {
   if (!slide || typeof slide !== "object") return;
   // Les champs optionnels non renseignés reviennent parfois à null depuis
@@ -540,6 +553,10 @@ function normalizeGeneratedPlanFields(slide: any): void {
   // Ne jamais toucher aux champs obligatoires ou à une valeur renseignée.
   for (const key of ["photo_index", "slide_type", "story_beat", "visual_anchor", "photo_observation", "image_relation", "factual_basis", "overlay_position"]) {
     if (slide[key] === null) delete slide[key];
+  }
+  if ("slide_type" in slide) {
+    const t = normalizeSlideType(slide.slide_type);
+    if (t) slide.slide_type = t; else delete slide.slide_type;
   }
   if (slide.overlay_position === "top_right") slide.overlay_position = "top_center";
   if (slide.overlay_position === "bottom_right") slide.overlay_position = "bottom_center";
@@ -624,7 +641,8 @@ export async function handleRequest(req: Request): Promise<Response> {
         source_ids: z.array(z.string().max(80)).max(20).optional(),
         image_role: z.string().max(2000).optional(),
         photo_index: z.number().optional(),
-        slide_type: z.enum(["photo_full", "photo_integrated", "text_only"]).optional(),
+        // Tolère les variantes renvoyées par la proposition de structure (« text »…).
+        slide_type: z.preprocess((v) => v == null ? undefined : normalizeSlideType(v), z.enum(["photo_full", "photo_integrated", "text_only"]).optional()),
         story_beat: z.string().max(300).optional(),
         visual_anchor: z.string().max(120).optional(),
         photo_observation: z.string().max(800).optional(),
@@ -1978,6 +1996,9 @@ Propose la structure optimale.`;
   }
 
   structureResult.slides.forEach(normalizeGeneratedPlanFields);
+  // Carrousel photo : toutes les slides sont des slides photo (consigne du
+  // prompt, que le modèle ne suit pas toujours).
+  if (isPhotoMode) for (const sl of structureResult.slides) if (sl && typeof sl === "object") sl.slide_type = "photo_full";
   const result = body.prefer_distinct_photos && isPhotoMode && hasPhotos
     ? assignDistinctStructurePhotos(structureResult, photos.length)
     : structureResult;
