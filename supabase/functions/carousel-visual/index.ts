@@ -1172,6 +1172,60 @@ export function stripVisualHintText(result: any, params: { slides: any[] }): voi
   if (removed > 0) console.log(`carousel-visual: ${removed} indication(s) visuelle(s) recopiée(s) en texte retirée(s)`);
 }
 
+/** Slide LONGUE du carrousel texte (plus de DENSE_SLIDE_WORDS mots) : un bloc
+ * décoratif qui ne fait que répéter un chiffre du texte (« 0,3 Wh », « 415 TWh
+ * → 945 TWh ») est retiré. Le modèle de mise en page le dessinait malgré la
+ * consigne (test réel du 04/10/2026), en plus du texte entier et de la slide
+ * « pause » qui montre déjà ce chiffre en grand. Le texte ancré
+ * (data-slide-text) n'est jamais touché. */
+export function stripDenseFigureEchoes(result: any, params: { isPhotoCarousel: boolean; isMixCarousel?: boolean; slides: any[] }): void {
+  // Mixte : composé par le code (schémas en cartes validés) — hors champ.
+  if (params.isPhotoCarousel || params.isMixCarousel || !Array.isArray(result?.slides_html)) return;
+  const nums = (t: string) => (t.replace(/(\d)[\s\u00a0\u202f](?=\d{3}\b)/g, "$1").match(/\d+(?:[.,]\d+)?/g) || []).map(x => x.replace(",", "."));
+  const dense = new Map<number, Set<string>>();
+  (params.slides || []).forEach((s: any, i: number) => {
+    if (i === 0 || !s || s.schema_pause || s.visual_schema || /^photo/.test(String(s.slide_type || "")) || wordCount(s) <= DENSE_SLIDE_WORDS) return;
+    dense.set(Number(s.slide_number) || i + 1, new Set(nums([s.title, s.body].filter(Boolean).join(" "))));
+  });
+  if (!dense.size) return;
+  let removed = 0;
+  const MARK = "<!--chiffre-repete-retire-->";
+  const echo = (inner: string, src: Set<string>): boolean => {
+    if (/data-slide-text|data-pptx-photo|\{\{PHOTO_|<img\b|data-photo-(?:format|step)/i.test(inner)) return false;
+    const txt = inner.replace(/<svg\b[\s\S]*?<\/svg>/gi, " ").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").trim();
+    const found = nums(txt);
+    return found.length > 0 && txt.split(/\s+/).filter(Boolean).length <= 16 && found.every(n => src.has(n));
+  };
+  result.slides_html = result.slides_html.map((slide: any) => {
+    const src = dense.get(Number(slide?.slide_number));
+    let html: string = slide?.html || "";
+    if (!src || !html) return slide;
+    const before = html;
+    // Cadre le plus intérieur (sans div imbriqué) qui ne contient que l'écho.
+    html = html.replace(/<(div|figure)\b([^>]*)>((?:(?!<\/?(?:div|figure)\b)[\s\S])*?)<\/\1>/gi, (m: string, _t: string, attrs: string, inner: string) => {
+      if (/data-slide-text|data-pptx-shape="background"|data-photo-(?:format|step)/i.test(attrs) || !echo(inner, src)) return m;
+      removed++;
+      return MARK;
+    });
+    // Élément texte isolé (hors cadre) qui n'est qu'un chiffre repris du texte.
+    html = html.replace(/<(p|span|small|strong|h[1-6])\b([^>]*)>([^<]*\d[^<]*)<\/\1>/gi, (m: string, _t: string, attrs: string, txt: string) => {
+      if (/data-slide-text|data-photo-(?:format|step)/i.test(attrs) || !echo(txt, src)) return m;
+      removed++;
+      return MARK;
+    });
+    // Cadres vidés (il ne reste que des marques et des traits décoratifs).
+    const emptied = new RegExp(`<(div|figure)\\b(?![^>]*data-pptx-shape="background")[^>]*>(?:\\s|${MARK}|<svg\\b[\\s\\S]*?<\\/svg>)*${MARK}(?:\\s|${MARK}|<svg\\b[\\s\\S]*?<\\/svg>)*<\\/\\1>`, "gi");
+    for (let k = 0; k < 3; k++) {
+      const next = html.replace(emptied, (m: string) => /data-slide-text|data-pptx-photo|\{\{PHOTO_|<img\b/i.test(m) ? m : MARK);
+      if (next === html) break;
+      html = next;
+    }
+    html = html.split(MARK).join("");
+    return html === before ? slide : { ...slide, html };
+  });
+  if (removed > 0) console.log(`carousel-visual: ${removed} chiffre(s) répété(s) retiré(s) sur des slides denses`);
+}
+
 export function stripSlideNumberBadges(result: any): void {
   if (!Array.isArray(result?.slides_html)) return;
   // "SLIDE 03", "SLIDE 03/08", "03/08", "3 - 8" → stamp. PAS "03" nu (ambigu avec une étape).
@@ -2529,6 +2583,7 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     stripSlideNumberBadges(result);
     stripDuplicateStepNumbers(result, { slides });
     stripVisualHintText(result, { slides });
+    stripDenseFigureEchoes(result, { isPhotoCarousel, isMixCarousel, slides });
     stripInventedSurtitres(result, { isPhotoCarousel, slides });
     injectPhotoBase64(result, { isPhotoCarousel, isMixCarousel, reqBody });
     forceGoogleFontsLink(result, { safeFontTitle, safeFontBody });

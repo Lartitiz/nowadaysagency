@@ -226,3 +226,50 @@ Deno.test("garde-fou : la consigne ne demande plus de dupliquer les chiffres d'u
   assert(all.includes("Sur une slide LONGUE"));
   assert(all.includes("SLIDES DENSES"));
 });
+
+// HTML réel du test du 04/10/2026 (slides 2 et 3, ~60-70 mots) : le modèle
+// répétait « 0,3 Wh » et « 415 TWh → 945 TWh » en grand au-dessus du texte.
+const { stripDenseFigureEchoes } = await import("./index.ts");
+const BODY2 = "Commençons par l'électricité. Selon Epoch AI (2024), une requête ChatGPT consomme environ 0,3 Wh, presque autant qu'une recherche Google. L'écart serait donc bien plus faible que ce qu'on entend partout. Cela ne veut pas dire que l'IA ne coûte rien : son poids se joue ailleurs que dans la question que l'on pose, et il faut regarder plus loin.";
+const BODY3 = "Ce qui pèse, c'est la somme de toutes ces requêtes, faites à chaque seconde dans le monde. On appelle cela l'inférence : le moment où le modèle répond. Répétée à très grande échelle, elle fait tourner des centres de données en continu. Selon l'AIE et l'Autorité de la concurrence (2025), leur consommation électrique mondiale pourrait passer de 415 TWh en 2024 à 945 TWh en 2030.";
+const HTML2 = `<div data-pptx-shape="background"><svg width="300" data-decorative="true"><path d="M0 15"></path></svg><div><h2 data-slide-text="title" data-pptx-editable="body">Une requête consomme <span>moins</span> qu'on ne le répète</h2></div><div><p data-pptx-editable="body">0,3 Wh</p><p data-pptx-editable="body">source : Epoch AI, 2024</p></div><p data-slide-text="body" data-pptx-editable="body">${BODY2}</p></div>`;
+const HTML3 = `<div data-pptx-shape="background"><div><h2 data-slide-text="title" data-pptx-editable="body">Le coût se joue dans <span>l'échelle</span></h2></div><div><div><p data-pptx-editable="body">2024</p><p data-pptx-editable="body">415 TWh</p></div><svg width="110" data-decorative="true"><path d="M5 50"></path></svg><div><p data-pptx-editable="body">2030</p><p data-pptx-editable="body">945 TWh</p></div></div><p data-slide-text="body" data-pptx-editable="body">${BODY3}</p></div>`;
+const DENSE_SRC = [
+  { slide_number: 1, title: "Couverture", body: "" },
+  { slide_number: 2, title: "Une requête consomme moins qu'on ne le répète", body: BODY2 },
+  { slide_number: 3, title: "Le coût se joue dans l'échelle", body: BODY3 },
+  { slide_number: 4, title: "", body: "", schema_pause: true, visual_schema: { type: "stats", items: [{ number: "415 TWh", label: "2024" }] } },
+];
+
+Deno.test("slide dense : le chiffre répété en grand est retiré, le texte ancré reste entier", () => {
+  const pause = `<div data-pptx-shape="background"><div><p>415 TWh</p><p>2024</p></div></div>`;
+  const result = { slides_html: [{ slide_number: 2, html: HTML2 }, { slide_number: 3, html: HTML3 }, { slide_number: 4, html: pause }] };
+  stripDenseFigureEchoes(result, { isPhotoCarousel: false, slides: DENSE_SRC });
+  const [s2, s3, s4] = result.slides_html.map((s: any) => s.html);
+  assert(!s2.includes(">0,3 Wh<") && !s2.includes("source : Epoch"), s2);
+  assert(!s3.includes(">415 TWh<") && !s3.includes(">945 TWh<") && !s3.includes('width="110"'), s3);
+  assert(s2.includes(BODY2) && s3.includes(BODY3), "texte entier");
+  assert(s2.includes('data-slide-text="title"') && s3.includes('data-pptx-shape="background"'));
+  assertEquals(s4, pause, "la slide pause garde son schéma");
+});
+
+Deno.test("slide dense : rien n'est retiré en photo, mixte, slide courte, chiffre absent du texte ou étape", () => {
+  for (const opts of [{ isPhotoCarousel: true }, { isPhotoCarousel: false, isMixCarousel: true }]) {
+    const r = { slides_html: [{ slide_number: 3, html: HTML3 }] };
+    stripDenseFigureEchoes(r, { ...opts, slides: DENSE_SRC });
+    assertEquals(r.slides_html[0].html, HTML3);
+  }
+  const short = [{ slide_number: 1, title: "c", body: "" }, { slide_number: 2, title: "Court", body: "Une requête consomme 0,3 Wh selon Epoch AI (2024)." }];
+  const r1 = { slides_html: [{ slide_number: 2, html: HTML2 }] };
+  stripDenseFigureEchoes(r1, { isPhotoCarousel: false, slides: short });
+  assertEquals(r1.slides_html[0].html, HTML2, "slide courte : chiffre en grand permis");
+  const other = HTML3.replace(">415 TWh<", ">99 TWh<").replace(">945 TWh<", ">12 TWh<").replace(">2024<", ">1999<").replace(">2030<", ">1998<");
+  const r2 = { slides_html: [{ slide_number: 3, html: other }] };
+  stripDenseFigureEchoes(r2, { isPhotoCarousel: false, slides: DENSE_SRC });
+  assertEquals(r2.slides_html[0].html, other, "chiffre absent du texte : pas un écho");
+  const step = HTML3.replace("<div><h2", `<div data-photo-format="etape" data-photo-step="2/5"><div data-pptx-editable="caption" data-photo-step-label="1">Étape 2 · L'échelle</div></div><div><h2`);
+  const src2 = DENSE_SRC.map(x => x.slide_number === 3 ? { ...x, body: x.body + " Étape 2." } : x);
+  const r3 = { slides_html: [{ slide_number: 3, html: step }] };
+  stripDenseFigureEchoes(r3, { isPhotoCarousel: false, slides: src2 });
+  assert(r3.slides_html[0].html.includes('data-photo-step="2/5"'), "étape gardée");
+});
