@@ -15,6 +15,7 @@
 //   deno test --no-check --allow-env --allow-read --node-modules-dir=none supabase/functions/carousel-visual/prompts_snapshot_test.ts
 
 import { assertSnapshot } from "https://deno.land/std@0.224.0/testing/snapshot.ts";
+import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { setTestEnv } from "../_shared/test-edge-harness.ts";
 
 setTestEnv();
@@ -41,6 +42,7 @@ const {
   buildTextCarouselPrompt,
   buildMixCarouselPrompt,
   buildCoherencePlan,
+  denseSlidesBlock,
 } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
@@ -196,4 +198,31 @@ Deno.test("buildCoherencePlan — 3 slides (pas d'ajout automatique de moments d
     { slide_number: 3, role: "cta", title: "Viens tourner" },
   ];
   await assertSnapshot(t, buildCoherencePlan(slides, CHARTE_MINIMALE, false));
+});
+
+
+// 04/10/2026 : slide de ~70 mots + carte « 1,5 % » dupliquée par le modèle de
+// mise en page (consigne « chiffres TOUJOURS mis en scène »). Une slide longue
+// garde son texte seul ; le chiffre en grand va sur la slide pause.
+const LONG = Array.from({ length: 60 }, (_, i) => `mot${i}`).join(" ") + " 1,5 %";
+const SLIDES = [
+  { slide_number: 1, title: "Couverture", body: LONG },
+  { slide_number: 2, title: "Longue", body: LONG },
+  { slide_number: 3, title: "", body: "", visual_schema: { type: "stats", items: [{ number: "1,5 %", label: "x" }] }, schema_pause: true },
+  { slide_number: 4, title: "Courte", body: "Une phrase courte avec 3 mots." },
+  { slide_number: 5, title: "Photo", body: LONG, slide_type: "photo_full" },
+];
+
+Deno.test("slides denses : listées (hors couverture, slide pause, photo), courtes exclues", () => {
+  const block = denseSlidesBlock(SLIDES);
+  assert(block.includes("SLIDES DENSES (plus de 45 mots) : 2."), block);
+  assertEquals(denseSlidesBlock(SLIDES.slice(2, 4)), "");
+});
+
+Deno.test("garde-fou : la consigne ne demande plus de dupliquer les chiffres d'une slide longue", () => {
+  const { systemPrompt, userPrompt } = buildTextCarouselPrompt({ ch: {}, safeFontTitle: "A", safeFontBody: "B", darkBrand: false, styleInstructions: "", slides: SLIDES, style: "", custom_overrides: null, visualBlock: denseSlidesBlock(SLIDES) });
+  const all = systemPrompt + userPrompt;
+  assert(!all.includes("TOUJOURS mis en scène"));
+  assert(all.includes("Sur une slide LONGUE"));
+  assert(all.includes("SLIDES DENSES"));
 });
