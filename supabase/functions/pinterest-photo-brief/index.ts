@@ -7,6 +7,9 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { parseAudienceAddress } from "../_shared/audience-address.ts";
+import { addressPassOptions } from "../_shared/audience-address-pass.ts";
+import { enforceAudienceAddressInFields } from "../_shared/audience-address-fields.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { finalizePinHtml } from "../_shared/pinterest-pin-guards.ts";
 import {
@@ -284,6 +287,14 @@ CHARTE : primary ${ch.color_primary}, secondary ${ch.color_secondary}, accent ${
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    // Tu ou vous (fiche de marque, 04/10/2026) : texte de l'overlay + titre et
+    // description SEO, AVANT la mise en forme (qui recopie l'overlay mot pour mot).
+    await enforceAudienceAddressInFields(
+      written,
+      ["overlay_text.title", "overlay_text.subtitle", "overlay_text.cta", "title", "description"],
+      parseAudienceAddress(ctx?.tone?.tone_register),
+      addressPassOptions("pinterest-photo-brief", 25_000),
+    );
     const overlayText = written.overlay_text;
     const textSpec = photoOverlayTextSpec(overlayText);
 

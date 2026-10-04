@@ -1096,3 +1096,92 @@ Deno.test("creativeDepthBlock : avec un cas personnel, recherche en mode appui",
     _deps.fetchDepthMaterial = original;
   }
 });
+
+// ═══ Tu ou vous partout (04/10/2026) ═══
+// Le réglage de la fiche de marque est contrôlé par le code sur les chemins
+// qui publiaient sans contrôle. Passe IA remplacée par une fausse passe.
+function fakeAddressPass() {
+  let calls = 0;
+  // deno-lint-ignore no-explicit-any
+  const pass = async (c: string, ..._rest: any[]) => {
+    calls++;
+    return c.replace(/\bTu as\b/g, "Vous avez").replace(/\bTU AS\b/g, "VOUS AVEZ")
+      .replace(/\bTon\b/g, "Votre").replace(/\bton\b/g, "votre").replace(/\bTON\b/g, "VOTRE")
+      .replace(/\btes\b/g, "vos");
+  };
+  return { pass, calls: () => calls };
+}
+
+Deno.test("tu/vous : reel au vous (script, écran, légende, couverture, stories de suite), timings recalculés après", async () => {
+  const { _deps, enforceReelAudienceAddress } = await import("./index.ts");
+  const original = _deps.audienceAddressPass;
+  const fake = fakeAddressPass();
+  _deps.audienceAddressPass = fake.pass as typeof original;
+  try {
+    const reel = {
+      script: [
+        { texte_parle: "Tu as 3 secondes pour accrocher.", texte_overlay: "TU AS 3 SECONDES" },
+        { texte_parle: "Je l'ai appris en 2 ans.", texte_overlay: "" },
+      ],
+      caption: { text: "Ton prochain reel commence ici.", cta: "Dites-moi en commentaire." },
+      cover_text: "TON ACCROCHE",
+      amplification_stories: [{ text: "Tu as vu le reel ?" }],
+      plan_tournage: [{ plan: "Filme-toi face caméra, tu verras." }],
+    };
+    await enforceReelAudienceAddress(reel, "vous");
+    assertEquals(fake.calls(), 1);
+    assertEquals(reel.script[0].texte_parle, "Vous avez 3 secondes pour accrocher.");
+    assertEquals(reel.script[0].texte_overlay, "VOUS AVEZ 3 SECONDES");
+    assertEquals(reel.caption.text, "Votre prochain reel commence ici.");
+    assertEquals(reel.cover_text, "VOTRE ACCROCHE");
+    assertEquals(reel.amplification_stories[0].text, "Vous avez vu le reel ?");
+    // Consigne de tournage = l'appli parle à l'utilisatrice : intacte.
+    assertEquals(reel.plan_tournage[0].plan, "Filme-toi face caméra, tu verras.");
+    // Sans réglage : aucun appel.
+    await enforceReelAudienceAddress({ script: [{ texte_parle: "Tu as raison." }] }, null);
+    assertEquals(fake.calls(), 1);
+  } finally {
+    _deps.audienceAddressPass = original;
+  }
+});
+
+Deno.test("tu/vous : newsletter courte, objet et aperçu corrigés sans relecture IA", async () => {
+  const { _deps } = await import("./index.ts");
+  const original = _deps.audienceAddressPass;
+  const fake = fakeAddressPass();
+  _deps.audienceAddressPass = fake.pass as typeof original;
+  try {
+    const nl = { subject: "Ton mardi a 2 heures de trop", preview_text: "Tu as déjà vécu ça.", content: "Je vous raconte ma semaine.", format: "newsletter" };
+    await applyNewsletterCorrectionPass(nl, { body: {}, fullContext: "", audienceAddress: "vous" });
+    assertEquals(fake.calls(), 1);
+    assertEquals(nl.subject, "Votre mardi a 2 heures de trop");
+    assertEquals(nl.preview_text, "Vous avez déjà vécu ça.");
+    assertEquals(nl.content, "Je vous raconte ma semaine.");
+  } finally {
+    _deps.audienceAddressPass = original;
+  }
+});
+
+Deno.test("tu/vous : carrousel recyclé (slides + légende) au vous", async () => {
+  const { _deps, enforceCarouselObjectAudienceAddress } = await import("./index.ts");
+  const original = _deps.audienceAddressPass;
+  const fake = fakeAddressPass();
+  _deps.audienceAddressPass = fake.pass as typeof original;
+  try {
+    const doc = { slides: [{ title: "Ton tarif", body: "Tu as le droit de le monter." }], caption: "Je l'ai fait en 2024." };
+    const out = await enforceCarouselObjectAudienceAddress(doc, "vous", "test");
+    assertEquals(out.slides[0].title, "Votre tarif");
+    assertEquals(out.slides[0].body, "Vous avez le droit de le monter.");
+    assertEquals(out.caption, "Je l'ai fait en 2024.");
+  } finally {
+    _deps.audienceAddressPass = original;
+  }
+});
+
+Deno.test("tu/vous : consigne voix photo, inchangée sans réglage, alignée sur la fiche sinon", async () => {
+  const { photoVoiceRule } = await import("./index.ts");
+  assertEquals(photoVoiceRule(null, "ancienne consigne"), "ancienne consigne");
+  const vous = photoVoiceRule("vous", "ancienne consigne");
+  assertEquals(vous.includes("VOUVOIE") && !vous.includes("n'impose ni"), true);
+  assertEquals(photoVoiceRule("tu", "x").includes("TUTOIE"), true);
+});

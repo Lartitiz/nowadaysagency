@@ -10,6 +10,9 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { parseAudienceAddress } from "../_shared/audience-address.ts";
+import { addressPassOptions } from "../_shared/audience-address-pass.ts";
+import { enforceAudienceAddressInJsonText, enforceAudienceAddressInText } from "../_shared/audience-address-fields.ts";
 
 const PINTEREST_PRINCIPLES = `
 Tu es expert·e en SEO Pinterest.
@@ -120,7 +123,15 @@ serve(async (req) => {
 
     systemPrompt = VOICE_PRIORITY + systemPrompt + (action === "pin" ? CONTENT_CLARITY_RULES : "");
     const usage: UsageSink = {};
-    const content = await callAnthropicSimple(getModelForAction("pinterest"), systemPrompt, userPrompt, 0.8, undefined, usage, 60_000);
+    let content = await callAnthropicSimple(getModelForAction("pinterest"), systemPrompt, userPrompt, 0.8, undefined, usage, 60_000);
+    // Tu ou vous (fiche de marque, 04/10/2026) sur les textes publiés : épingle,
+    // description de tableau, bio. Le nom et les mots-clés ne s'adressent à personne.
+    const audienceAddress = parseAudienceAddress(ctx?.tone?.tone_register);
+    if (audienceAddress && (action === "pin" || action === "board-description" || action === "bio")) {
+      const opts = addressPassOptions(`pinterest-ai:${action}`, 25_000);
+      content = (await enforceAudienceAddressInJsonText(content, ["**"], audienceAddress, opts))
+        ?? (/^\s*[[{]/.test(content) ? content : await enforceAudienceAddressInText(content, audienceAddress, opts));
+    }
     await logUsage(user.id, "content", "pinterest", usage.total_tokens, usage.model, workspace_id || undefined);
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {

@@ -7,6 +7,9 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { parseAudienceAddress } from "../_shared/audience-address.ts";
+import { addressPassOptions } from "../_shared/audience-address-pass.ts";
+import { enforceAudienceAddressInFields } from "../_shared/audience-address-fields.ts";
 import { buildPptxInvariants, formatInvariantsForPrompt, NEUTRAL_DEFAULT_PALETTE } from "../_shared/pptx-invariants.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { finalizePinHtml, normalizePinData, reportPinDataMismatch } from "../_shared/pinterest-pin-guards.ts";
@@ -309,6 +312,16 @@ Réponds en appelant l'outil save_pinterest_text.`;
     if (!written?.pin_data || typeof written.pin_data !== "object" || typeof written.pin_data.main_title !== "string") {
       throw new AnthropicError("L'IA n'a pas retourné un format valide. Réessaie.", 502);
     }
+
+    // Tu ou vous (fiche de marque, 04/10/2026) : textes du visuel + titre et
+    // description SEO, AVANT la mise en forme (qui recopie ces textes mot pour
+    // mot). Ni le badge ni le filigrane ne s'adressent au public.
+    await enforceAudienceAddressInFields(
+      written,
+      ["title", "description", "pin_data.main_title", "pin_data.elements[].label", "pin_data.elements[].description", "pin_data.cta_text"],
+      parseAudienceAddress(ctx?.tone?.tone_register),
+      addressPassOptions("pinterest-visual", 25_000),
+    );
 
     // Structure complétée par le code (badge_label, pin_type) AVANT la mise en
     // forme, pour que l'appel 2 reçoive le texte définitif. L'emoji est un
