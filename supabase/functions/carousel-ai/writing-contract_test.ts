@@ -48,7 +48,7 @@ Deno.test("mix texte-first : pas de ratio photo contradictoire", () => {
 
 Deno.test("actualité : source et opinion sans désaccord fabriqué", () => {
   assert(NEWS_WRITING.includes("source comme point d'entrée"));
-  assert(NEWS_WRITING.includes("sans désaccord, décalage ni quota d'opinions imposés"));
+  assert(NEWS_WRITING.includes("prends position à partir d'elle"));
 });
 
 for (const linkedIn of [false, true]) Deno.test(`texte : choix conservés, canal=${linkedIn ? "LinkedIn" : "Instagram"}`, () => {
@@ -72,4 +72,11 @@ Deno.test("photo courte : contrat commun, légende complémentaire et priorités
   for (const part of ["25 à 40", "caption.body", "2200", "citation exacte", "texte fourni", "passage protégé", "sans elle", "coupe mécanique"]) assert(p.includes(part), part);
   assert(photoWritingPrompt({carousel_type:"photo"},false,"").includes(p));
   for (const body of [{carousel_type:"text"},{carousel_type:"mix"},{carousel_type:"photo",no_overlay:true},{carousel_type:"photo",user_slides:[{text:"Exact"}]}]) assertEquals(photoReadingContract(body), "");
+});
+
+Deno.test("prise de position : thèse assumée, émotion partagée, aucune précaution inutile", () => {
+  const prompt = buildCarouselWritingSystem("VOIX", false, "IDENTITÉ", "CLARTÉ");
+  for (const rule of ["PROFONDEUR ET PRISE DE POSITION", "assume-la en première personne", "norme sociale", "expérience partagée", "Une opinion n'a pas besoin de source", "n'écris ni « sans garantie »", "too much"]) assert(prompt.includes(rule), rule);
+  assert(!prompt.includes("ne lui prête pas de peur ni de manque"));
+  assert(prompt.includes("nommer une émotion courante que le sujet soulève reste permis"));
 });

@@ -545,7 +545,7 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
    → ✅ "On a transformé la publication en demande d'autorisation. C'est une logique de cour, pas de métier."
    ❌ "Tu te compares à des comptes plus gros et tu te décourages."
    → ✅ "La comparaison est devenue le sport national du feed. C'est épuisant pour tout le monde."
-   → Pas de syndrome psy nommé (imposteur, peur du rejet, etc.) sauf si l'utilisatrice l'avait elle-même nommé.
+   → Pas de syndrome psy nommé (imposteur, etc.) sauf si l'utilisatrice l'avait elle-même nommé. Une émotion courante présentée comme partagée (« la peur du jugement », « on a appris aux femmes que… ») n'est pas un diagnostic : garde-la.
 
 12. RETOURNEMENT PAR NÉGATION EN SÉRIE (LE tic IA n°1 des contenus d'opinion) :
    → COMPTE sur l'ENSEMBLE (slides + caption) les occurrences de la famille, toutes variantes confondues : "C'est pas X. C'est Y." / "Pas X. Juste Y." / "X. Pas Y." / "Ce n'est pas X, c'est Y" / "X n'est plus Y. C'est Z."

@@ -45,6 +45,8 @@ async function verdict(doc:any, issues:string[]=[]){return {...await progression
 // Exercise the actual three handlers; only external services are faked.
 for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "photo"]) for (const news of [undefined, "ACTUALITÉ_TEST : annonce fournie sans résultat mesuré."]) Deno.test(`révision contextuelle branchée de bout en bout : ${variant}, actu=${!!news}, Max=${qualityMax}`, async () => {
   resetDeps();
+  let researched = "";
+  _deps.fetchDepthMaterial = (async (o: any) => { researched = o.subject; return "MATIÈRE_RECHERCHE_TEST : un mécanisme documenté du sujet, avec un fait sourcé (Source, 2025), assez long pour être gardé."; }) as any;
   const draft = { slides: [
     { slide_number: 1, slide_type: "text_only", title: "Les retours sur la maquette", body: "Une réponse commune permet de choisir entre les demandes." },
     { slide_number: 2, slide_type: "text_only", title: "Quand les retours se contredisent", body: "Les demandes se contredisent. C'est un signal, pas un accident." },
@@ -62,7 +64,8 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     assert(prompt.includes("Construis d'abord le propos entier"));
     assert(prompt.includes("ce qu'elle reprend de la précédente"));
     assert(prompt.includes("Retours par e-mail"));
-    if (news) { assert(prompt.includes("ACTUALITÉ_TEST")); assert(prompt.includes("sans désaccord, décalage ni quota d'opinions imposés")); }
+    assert(prompt.includes("MATIÈRE_RECHERCHE_TEST"), "la recherche nourrit aussi la rédaction avec une actu");
+    if (news) { assert(researched.includes("ACTUALITÉ_TEST")); assert(prompt.includes("ACTUALITÉ_TEST")); assert(prompt.includes("L'angle choisi (accroche et développement) est la thèse du carrousel")); }
     return JSON.stringify(draft);
   }) as any;
   const previousFetch = globalThis.fetch, key = Deno.env.get("ANTHROPIC_API_KEY");
@@ -233,6 +236,8 @@ function makeFakeSupabase(ownerId: string = TEST_USER_ID) {
 function resetDeps() {
   _deps.matchPhotos = async (doc) => doc;
   _deps.prepareNarrative = async () => null;
+  // Recherche « creuser le sujet » coupée par défaut (aucun réseau).
+  _deps.fetchDepthMaterial = async () => "";
   _deps.callCarouselWriter = ((options: any, sink: any) => _deps.callAnthropic(options, sink)) as any;
   // Juge du fil neutralisé par défaut (aucun réseau) ; les tests du fil le remplacent.
   _deps.reviewThread = (async (doc:any) => verdict(doc)) as any;

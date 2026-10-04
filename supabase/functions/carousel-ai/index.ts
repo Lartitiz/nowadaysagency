@@ -50,6 +50,7 @@ export const _deps = {
   reviewThread: reviewCarouselProgression,
   prepareNarrative: createContinuousNarrative,
   matchPhotos: matchFinalPhotos,
+  fetchDepthMaterial,
 };
 
 // ── Sortie structurée pour les deepening_questions ──
@@ -731,7 +732,6 @@ export async function handleRequest(req: Request): Promise<Response> {
 
     // L'utilisatrice a-t-elle fourni de la VRAIE matière (réponses d'approfondissement) ?
     // À capturer AVANT le fallback branding ci-dessous, qui remplit le même champ.
-    const hadUserDeepening = !!body.deepening_answers;
     const currentAuthoredText = authoredContentSource(body);
     const currentBrief = [body.subject, body.subject_details, body.photo_description, buildPhotoContextRecap(body.photo_contexts || body.photos), body.editorial_angle, body.objective,
       body.narrative_thread ? `${body.scenario_origin === "automatic" ? "FIL AUTOMATIQUE À RÉÉVALUER" : "FIL CONFIRMÉ À PRÉSERVER"} : ${body.narrative_thread}` : "",
@@ -745,21 +745,17 @@ export async function handleRequest(req: Request): Promise<Response> {
     let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn, ctx.profile) + "\n" + photoReadingContract(body);
     if (body.editorial_intent) systemPrompt += "\nINTENTION DU PLAN AUTOMATIQUE (proposition à confronter aux sources) :\n" + JSON.stringify(body.editorial_intent);
 
-    // Recherche « creuser le sujet » (lot D-bis, audit qualité 11-12/07) : quand la
-    // génération part SANS matière utilisatrice ni actu, on va chercher ce qu'il y a
-    // sous le sujet (mécanisme réel, contre-intuitif, limites) pour éviter le
-    // traitement de surface. Condiment : échec 100 % silencieux, borné à 25 s.
+    // Recherche « creuser le sujet » (lot D-bis, audit qualité 11-12/07) : on va
+    // chercher ce qu'il y a sous le sujet (mécanisme réel, lecture sociale, faits
+    // sourcés) pour éviter le traitement de surface. Depuis le 04/10/2026 elle tourne
+    // aussi avec une actu ou des réponses : l'actu ne donne que le déclencheur et les
+    // réponses le vécu, aucun des deux n'apporte les faits qui étayent une position.
+    // Condiment : échec 100 % silencieux, borné à 25 s.
     let depthBlock = "";
-    if (
-      type === "express_full" &&
-      !hadUserDeepening &&
-      // Audit 12/07 (lot F) : photo/mix n'étaient pas servis — un carrousel photo
-      // d'expertise restait sans matière anti-surface. Même mécanique condiment,
-      // échec silencieux, toujours coupé si deepening ou actu.
-      !(typeof body.news_context === "string" && body.news_context.trim())
-    ) {
-      const material = await fetchDepthMaterial({
-        subject: body.subject || "",
+    if (type === "express_full") {
+      const newsAngle = typeof body.news_context === "string" ? body.news_context.trim().slice(0, 600) : "";
+      const material = await _deps.fetchDepthMaterial({
+        subject: [body.subject || "", newsAngle].filter(Boolean).join("\n"),
         activity: ctx?.profile?.activite,
         model: getModelForAction("content"),
         apiKey: Deno.env.get("ANTHROPIC_API_KEY") || "",
