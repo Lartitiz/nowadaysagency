@@ -15,7 +15,7 @@ import {
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { AnthropicError } from "../_shared/anthropic.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
-import { handleRequest, _deps, normalizeSlideType } from "./index.ts";
+import { handleRequest, _deps, normalizeSlideType, writerTimeoutMs } from "./index.ts";
 import { createContinuousNarrative } from "./continuous-narrative.ts";
 
 Deno.test("prose continue : photos directes observées et refus photo conservé sans débit",async()=>{
@@ -168,6 +168,30 @@ for (const [userId, expected] of [[TEST_USER_ID, "claude-opus-5-5"], ["52e6c03c-
   await res.text();
   assertEquals(res.status, 200);
   assertEquals(model, expected);
+});
+// 04/10/2026 : 3 rédactions sur 8 coupées à 120 s fixes en prod. La rédaction
+// texte suit désormais le budget global : fin au plus tard 240 s après le début
+// de la requête, jamais moins de 120 s ; les réparations gardent leur plafond.
+Deno.test("délai de rédaction calé sur le budget global de la requête", () => {
+  assertEquals(writerTimeoutMs(0, 0), 240_000);
+  assertEquals(writerTimeoutMs(0, 30_000), 210_000);
+  assertEquals(writerTimeoutMs(0, 150_000), 120_000);
+});
+for (const type of ["express_full", "slides", "hooks"]) Deno.test(`rédaction ${type} : plus de coupure à 120 s, réparation inchangée`, async () => {
+  resetDeps();
+  const timeouts: number[] = [];
+  _deps.callCarouselWriter = (async (options: any, sink: any) => {
+    timeouts.push(options.abortTimeoutMs);
+    Object.assign(sink, { model: options.model, total_tokens: 1 });
+    // Toute relance éventuelle (réparation) garde son propre plafond de 120 s.
+    return JSON.stringify(type === "hooks" ? { hooks: [] } : { slides: [{ slide_number: 1, slide_type: "text_only", title: "Une seule", body: "Une seule slide." }], caption: {} });
+  }) as any;
+  _deps.callAnthropic = (async (_o: any, sink: any) => { Object.assign(sink, { total_tokens: 0 }); return "{}"; }) as any;
+  const res = await handleRequest(makeHooksRequest({ type, carousel_type: "storytelling", slide_count: 6 }));
+  await res.text();
+  assertEquals(res.status, 200);
+  assert(timeouts[0] > 200_000 && timeouts[0] <= 240_000, `rédaction : ${timeouts[0]}`);
+  for (const t of timeouts.slice(1)) assert(t <= 120_000, `réparation : ${t}`);
 });
 Deno.test("Max quota denial never calls writer or bills usage", async () => {
   resetDeps();
