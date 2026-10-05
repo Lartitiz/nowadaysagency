@@ -13,15 +13,14 @@
 // rédigent une couverture) et le garde-fou appliqué APRÈS la rédaction : il ne
 // touche que la slide 1 (et, si un sous-titre trop long doit partir, le début
 // de la slide 2). Les autres slides gardent leur texte développé.
+//
+// La consigne COVER_WRITING et ses plafonds (règle « couverture_accroche » du
+// socle commun) vivent dans socle.ts : réexportés ici à texte égal.
 
-export const COVER_HOOK_MAX_WORDS = 10;
-export const COVER_SUBTITLE_MAX_WORDS = 12;
+import { COVER_HOOK_MAX_WORDS, COVER_SUBTITLE_MAX_WORDS, COVER_WRITING } from "./socle.ts";
+export { COVER_HOOK_MAX_WORDS, COVER_SUBTITLE_MAX_WORDS, COVER_WRITING };
 
-export const COVER_WRITING = `COUVERTURE (SLIDE 1) ET SLIDE 2
-La première slide est une couverture : une ACCROCHE en titre, de 4 à ${COVER_HOOK_MAX_WORDS} mots (idéalement 5 à 8), et au plus un sous-titre de ${COVER_SUBTITLE_MAX_WORDS} mots, seulement s'il apporte une information utile (pour qui, ce qu'on y gagne, le cadre). Rien d'autre sur cette slide : ni petit titre au-dessus, ni paragraphe, ni annonce du plan.
-Une accroche crée une tension ou un manque qui donne envie de glisser. Formes qui marchent : une prise de position (« Publier tous les jours ne sert à rien. »), une erreur courante (« L'erreur qui rend une page de vente invisible »), une question qui pique et n'appelle pas un simple oui/non, une promesse concrète, une liste chiffrée (« 5 mots à bannir d'une bio »), « Ce que personne ne dit sur… », une actualité détournée, une histoire entamée en plein milieu. Varie la forme selon le sujet. Ces exemples sont neutres : l'accroche s'adresse au public en tu ou en vous comme le reste du carrousel.
-Interdits sur la couverture : le titre-étiquette qui nomme seulement le sujet (« Les tarifs dans l'artisanat », « 5 conseils pour une bonne com »), l'annonce (« Dans ce carrousel… »), le jargon, la promesse que la suite ne tient pas, un chiffre, un nom ou un vécu absents des sources.
-La slide 2 est une deuxième accroche : Instagram peut ouvrir le carrousel directement sur elle. Elle pose la thèse ou la première révélation dans une formulation qui se comprend sans la slide 1, sans « dans ce carrousel », « on commence » ni « voici pourquoi ».`;
+
 
 export type CoverKind = "text" | "photo" | "mix";
 

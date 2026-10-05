@@ -10,10 +10,15 @@
 //      ciblée, gardée seulement si le compte baisse sans perdre de chiffre.
 // Sans réglage (vide, « pas de préférence », valeur ambiguë) : rien ne change.
 
-// Module PUR (aucun import) : user-context.ts le lit pour la règle ferme.
+// Module PUR (seul import : socle.ts, pur lui aussi) : user-context.ts le lit pour la règle ferme.
 // L'appel IA de la passe vit dans audience-address-pass.ts.
+// La règle ferme (audienceAddressRule) vit dans socle.ts (règle « adresse_tu_vous »
+// du socle commun) : réexportée ici à texte égal.
 
-export type AudienceAddress = "tu" | "vous";
+import type { AudienceAddress } from "./socle.ts";
+export type { AudienceAddress } from "./socle.ts";
+export { audienceAddressRule } from "./socle.ts";
+
 
 
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -33,18 +38,6 @@ export function parseAudienceAddress(raw: unknown): AudienceAddress | null {
   return vous ? "vous" : "tu";
 }
 
-/** Règle ferme placée en tête de la rédaction. Chaîne vide sans réglage. */
-export function audienceAddressRule(addr: AudienceAddress | null | undefined): string {
-  if (addr === "vous") {
-    return `ADRESSE AU PUBLIC : VOUVOIEMENT (RÈGLE FERME, réglée dans sa fiche de marque)
-Dans tout texte destiné à son public (carrousel, couverture, légende, post, accroche, script, newsletter…), elle VOUVOIE la personne qui lit : « vous », « votre », « vos », impératifs en « -ez » (« Regardez », « Osez »). Jamais de « tu », « ton », « ta », « tes », « te », « t' » ni d'impératif tutoyé adressé au lecteur, même si un exemple, une réponse, une note ou un texte de référence tutoie. Une citation exacte entre guillemets garde ses mots. Ce réglage ne change pas la façon dont l'appli s'adresse à elle.`;
-  }
-  if (addr === "tu") {
-    return `ADRESSE AU PUBLIC : TUTOIEMENT (RÈGLE FERME, réglée dans sa fiche de marque)
-Dans tout texte destiné à son public (carrousel, couverture, légende, post, accroche, script, newsletter…), elle TUTOIE la personne qui lit : « tu », « ton », « ta », « tes », impératifs tutoyés (« Regarde », « Ose »). Pas de « vous », « votre », « vos » adressé au lecteur, même si un exemple, une réponse ou un texte de référence vouvoie ; « vous » reste possible seulement pour parler à plusieurs personnes à la fois (« beaucoup d'entre vous »). Une citation exacte entre guillemets garde ses mots. Ce réglage ne change pas la façon dont l'appli s'adresse à elle.`;
-  }
-  return "";
-}
 
 // ── Comptage ────────────────────────────────────────────────────────────────
 

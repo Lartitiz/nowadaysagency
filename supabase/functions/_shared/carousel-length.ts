@@ -1,4 +1,8 @@
 /** Length comes from the current brief, never from brand history. */
+// ONE_IDEA_RULE et ses repères (règle « une_idee_par_unite » du socle commun)
+// vivent dans socle.ts : réexportés ici à texte égal.
+import { LONG_SLIDE_WORDS, ONE_IDEA_RULE, TEXT_AUTO_MAX_SLIDES, TEXT_SLIDE_TARGET_WORDS } from "./socle.ts";
+export { LONG_SLIDE_WORDS, ONE_IDEA_RULE, TEXT_AUTO_MAX_SLIDES, TEXT_SLIDE_TARGET_WORDS };
 const numbers: Record<string, number> = { un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10, onze: 11, douze: 12, treize: 13, quatorze: 14, quinze: 15, seize: 16, vingt: 20 };
 const numeral = "(\\d{1,2}|" + Object.keys(numbers).join("|") + ")";
 const quantity = (value: string) => numbers[value.toLowerCase()] ?? Number(value);
@@ -8,10 +12,6 @@ export interface CarouselLength { exact?: number; items?: number; }
  * 11 slides en Auto, non publiables directement). Un nombre demandé
  * explicitement (jusqu'à 20) prime. */
 export const AUTO_MAX_SLIDES = 10;
-/** Longueur « Auto » du carrousel TEXTE : une idée par slide, jusqu'à 20
- * slides (04/10/2026, décision de Laetitia : « Jusqu'à 20 en texte »). Au-delà
- * de 10, l'appli le signale : publication depuis le téléphone, pas en direct. */
-export const TEXT_AUTO_MAX_SLIDES = 20;
 export function carouselLength(body: any): CarouselLength {
   const subject = String(body.subject || "");
   const slideRequest = subject.match(new RegExp(`\\b${numeral}\\s+(?:slides?|diapositives?)\\b`, "i"));
@@ -25,19 +25,6 @@ export function carouselLength(body: any): CarouselLength {
 export const isTextCarousel = (body: any) => !/photo|mix/i.test(String(body?.carousel_type || ""));
 /** Plafond de la longueur « Auto » selon le type de carrousel. */
 export const autoMaxSlides = (body: any) => isTextCarousel(body) ? TEXT_AUTO_MAX_SLIDES : AUTO_MAX_SLIDES;
-/** Rythme du carrousel TEXTE en longueur automatique (04/10/2026, carrousel de
- * référence de Laetitia : 16 slides, environ 25 mots par slide, de 4 à 48, une
- * idée par slide). Le texte n'est jamais raccourci : il est découpé. */
-export const TEXT_SLIDE_TARGET_WORDS = { min: 15, max: 35 };
-/** Au-delà, la slide est signalée dans les journaux (jamais coupée par le code). */
-export const LONG_SLIDE_WORDS = 50;
-export const ONE_IDEA_RULE = `DÉCOUPAGE : UNE IDÉE PAR SLIDE. Le carrousel se lit au rythme du pouce : chaque slide porte une seule idée, un seul pas du raisonnement, lisible d'un coup d'œil. Vise environ ${TEXT_SLIDE_TARGET_WORDS.min} à ${TEXT_SLIDE_TARGET_WORDS.max} mots par slide de développement (titre et texte compris), ${LONG_SLIDE_WORDS} au plus ; c'est un repère de découpage, pas un quota à remplir.
-- Quand un passage porte deux idées, ou dépasse ce repère, découpe-le sur deux slides qui se suivent (ou plus), sans raccourcir ni résumer : tout le texte reste, il est seulement réparti. On ne retire jamais une phrase, un exemple ou une nuance pour tenir dans une slide.
-- Une phrase forte, une question de relance ou un chiffre qui doit frapper peut avoir sa slide à lui seul, en une phrase (même de 4 ou 5 mots) : ces slides courtes donnent la respiration du carrousel. Une telle slide peut n'avoir que title (body vide) ou que body (title vide).
-- Une phrase peut commencer sur une slide et se poursuivre sur la suivante (la slide se termine sur une virgule, « et », deux-points ou points de suspension, la suivante reprend sans majuscule ni titre). Utilise-le quand la phrase porte une montée ou un enchaînement, pas à chaque slide.
-- Les titres ne sont pas obligatoires hors couverture : une slide de suite ou de respiration se passe de titre plutôt que d'en recevoir un artificiel.
-- Ce découpage prime sur le test « fusionne-les » du fil : en carrousel texte, on ne fusionne que les redites ; deux idées distinctes gardent chacune leur slide. Le nombre de slides suit le découpage, de 4 à ${TEXT_AUTO_MAX_SLIDES} : n'ajoute aucune slide pour remplir, ne regroupe pas pour en avoir moins.
-- La couverture (slide 1 : accroche seule) et la slide 2 (deuxième accroche) gardent leurs règles ; la dernière slide conclut, comme prévu.`;
 export function carouselLengthPrompt(body: any): string {
   const { exact, items } = carouselLength(body);
   const text = isTextCarousel(body), max = autoMaxSlides(body);
