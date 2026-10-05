@@ -10,7 +10,7 @@ const SELECTION_ACTIONS = [
   { id: "expand", icon: "📝", label: "Développer", prompt: "Développe ce texte en ajoutant plus de détails, des exemples concrets ou des arguments. Double la longueur environ." },
   { id: "shorten", icon: "✂️", label: "Raccourcir", prompt: "Raccourcis ce texte en gardant l'essentiel. Divise la longueur par 2 environ." },
   { id: "add_cta", icon: "🎯", label: "Ajouter un CTA", prompt: "Ajoute un appel à l'action naturel et engageant à la fin de ce texte. Le CTA doit être cohérent avec le contenu." },
-  { id: "punchier", icon: "🔥", label: "Rendre plus percutant", prompt: "Réécris ce texte pour qu'il soit plus percutant, plus direct, plus accrocheur. Utilise des phrases courtes qui claquent. Garde le même message." },
+  { id: "punchier", icon: "🔥", label: "Rendre plus percutant", prompt: "Réécris ce texte pour qu'il soit plus percutant, plus direct, plus accrocheur. Resserre les phrases, mais garde des phrases complètes et parlées qui s'enchaînent (pas de fragments sans verbe ni de phrases-slogans en série). Garde le même message." },
   { id: "hook", icon: "🪝", label: "Transformer en hook", prompt: "Transforme ce texte en accroche captivante pour les premières secondes d'un Reel ou le début d'un post. Max 2 phrases." },
   { id: "custom", icon: "💬", label: "Demander autre chose...", prompt: null },
 ] as const;

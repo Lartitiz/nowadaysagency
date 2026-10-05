@@ -132,13 +132,21 @@ export const RECYCLAGE_STORIES_LONGUEUR = `- Stories : une idée par story, le n
 // de son profil de voix (user-context.ts, « VOIX PERSONNELLE ») et de ses
 // réponses, jamais d'expressions génériques. Pinterest reste hors voix orale
 // (décision du 05/10/2026) : aucune de ces consignes n'y est injectée.
+// Ajout du 05/10/2026 (stories réelles jugées « très hachées » par Laetitia :
+// « 7 500 € ou 2 100 €. Même prestation. ») : la voix orale interdit aussi le
+// style haché ou télégraphique (VOIX_PARLEE_PAS_HACHEE), sur tous les formats
+// de la règle, stories comprises, toujours hors Pinterest. Mesure par le code :
+// redac-gate.ts, countChoppyFragments (télémétrie seulement).
+
+/** Pas de style haché : des phrases complètes et parlées qui s'enchaînent (commune à toutes les consignes de voix orale). */
+export const VOIX_PARLEE_PAS_HACHEE = `PAS DE STYLE HACHÉ : des phrases complètes, avec un verbe, qui s'enchaînent avec les liaisons de l'oral (« parce que », « du coup », « alors que », « et », ou celles qu'elle emploie dans ses textes), comme un message vocal. Jamais de fragments nominaux posés seuls (« Même prestation. », « Dans mon métier, pour des projets engagés. »), ni de phrases-slogans en série, ni de style télégraphique. Au lieu de « Deux prix. Même prestation. », écris « C'est exactement la même prestation, et pourtant le prix n'a rien à voir. » Une phrase courte reste possible quand la phrase d'avant l'amène, jamais en rafale.`;
 
 /** Consigne commune : carrousels, posts et légendes Instagram, newsletter, reels. */
-export const VOIX_ORALE = `SA VOIX ORALE : écris comme elle parle. Ta référence, ce sont SES textes (contenus de référence, profil de voix) et SES réponses : reprends ses mots du quotidien, ses tournures, sa façon d'entrer dans une idée, de relancer et de nuancer, plutôt que des formules d'article (« Il est essentiel de… », « Dans un monde où… », « On vit dans un système imparfait »). Les phrases s'enchaînent d'une unité à l'autre comme quand on parle : la suivante reprend ce que la précédente vient de poser, sans transition fabriquée. Une expression orale ne vient que d'elle : n'ajoute aucun tic absent de ses textes et de ses réponses (« Spoiler », « Bon, soyons honnêtes », « Petite confidence »), aucune hésitation, faute de langage ou confession plaquée pour faire parlé, aucun vécu ni témoignage qu'elle n'a pas donné. Sans texte de référence ni réponse : un oral simple et direct, sans familiarité ajoutée.`;
+export const VOIX_ORALE = `SA VOIX ORALE : écris comme elle parle. Ta référence, ce sont SES textes (contenus de référence, profil de voix) et SES réponses : reprends ses mots du quotidien, ses tournures, sa façon d'entrer dans une idée, de relancer et de nuancer, plutôt que des formules d'article (« Il est essentiel de… », « Dans un monde où… », « On vit dans un système imparfait »). Les phrases s'enchaînent d'une unité à l'autre comme quand on parle : la suivante reprend ce que la précédente vient de poser, sans transition fabriquée. Une expression orale ne vient que d'elle : n'ajoute aucun tic absent de ses textes et de ses réponses (« Spoiler », « Bon, soyons honnêtes », « Petite confidence »), aucune hésitation, faute de langage ou confession plaquée pour faire parlé, aucun vécu ni témoignage qu'elle n'a pas donné. Sans texte de référence ni réponse : un oral simple et direct, sans familiarité ajoutée. ${VOIX_PARLEE_PAS_HACHEE}`;
 /** LinkedIn (posts et carrousels) : même voix, registre un peu plus posé. */
 export const VOIX_ORALE_LINKEDIN = `${VOIX_ORALE} Sur LinkedIn, le registre peut être un peu plus posé (phrases un peu plus construites, moins de familiarités), mais ce sont toujours ses mots et ses tournures, pas un ton de communiqué ni d'article.`;
 /** Stories, point 8 des règles d'écriture (storiesBrief) : déjà orales, la source de la voix est précisée. */
-export const VOIX_ORALE_STORIES = "Ton oral, décontracté, comme si on parlait face caméra ou en message vocal, avec SES mots : reprends ses tournures (textes de référence, réponses) plutôt que des expressions orales génériques qu'elle n'emploie pas.";
+export const VOIX_ORALE_STORIES = `Ton oral, décontracté, comme si on parlait face caméra ou en message vocal, avec SES mots : reprends ses tournures (textes de référence, réponses) plutôt que des expressions orales génériques qu'elle n'emploie pas. ${VOIX_PARLEE_PAS_HACHEE}`;
 /** Légende photo, règle du corps (photoCaptionBrief). */
 export const VOIX_ORALE_LEGENDE_PHOTO = VOIX_ORALE;
 
@@ -197,7 +205,7 @@ ${RECIT_CONTINU_MOT_CLE}`;
 // ─── Couverture du reel, story 1, texte à l'écran du reel (05/10/2026) ──────
 
 /** Story 1 (hors face cam) : l'accroche seule + un mot clé mis en valeur par le rendu. */
-export const STORY1_ACCROCHE = `STORY 1 = L'ACCROCHE SEULE (story texte ou photo) : "text" ne contient que l'accroche, une phrase de 4 à 15 mots qui ouvre l'attente, rien d'autre ; la situation et la suite commencent en story 2. Dans "visual", "mot_cle" = LE mot (ou groupe de 1 à 3 mots, un chiffre possible) de cette accroche qui porte la tension, recopié EXACTEMENT : il sera mis en valeur sur l'image. Une story 1 face cam garde sa prise parlée.`;
+export const STORY1_ACCROCHE = `STORY 1 = L'ACCROCHE SEULE (story texte ou photo) : "text" ne contient que l'accroche, une vraie phrase parlée de 4 à 15 mots, avec un verbe, comme la première phrase d'un message vocal (jamais un titre, un slogan ni deux fragments), qui ouvre l'attente, rien d'autre ; la situation et la suite commencent en story 2. Dans "visual", "mot_cle" = LE mot (ou groupe de 1 à 3 mots, un chiffre possible) de cette accroche qui porte la tension, recopié EXACTEMENT : il sera mis en valeur sur l'image. Une story 1 face cam garde sa prise parlée.`;
 
 /** Texte à l'écran du reel : uniquement ses mots (remplace les rôles ANCRAGE / CONTREPOINT / PUNCHLINE). */
 export const REEL_TEXTE_ECRAN = `TEXTE À L'ÉCRAN (texte_overlay) : UNIQUEMENT SES MOTS. C'est un extrait recopié mot pour mot du texte_parle de la MÊME section (3 à 8 mots qui se suivent), jamais une information que l'oral ne dit pas, jamais une reformulation. Choisis l'extrait qui porte le mot ou le chiffre fort de la section : c'est lui qu'on retient en muet. Casse normale d'une phrase (pas de majuscules imposées, le rendu ne les force pas). null quand rien ne s'impose.`;
@@ -278,9 +286,9 @@ export const SOCLE_RULES: Readonly<Record<SocleRuleId, SocleRule>> = {
   voix_orale: {
     numero: 4,
     titre: "Sa voix orale",
-    principe: "Des phrases qui s'enchaînent, ses mots du quotidien, comme elle parle, tirés de ses textes de référence et de ses réponses ; aucun tic oral plaqué. Hors Pinterest.",
-    consignes: { commune: VOIX_ORALE, linkedin: VOIX_ORALE_LINKEDIN, stories: VOIX_ORALE_STORIES, legende_photo: VOIX_ORALE_LEGENDE_PHOTO },
-    controles: ["_shared/redac-gate.ts : retournements, formules moulées, vécus et témoignages inventés (contre les tics plaqués ; aucun contrôle ne mesure la voix elle-même)", "_shared/anthropic.ts : sanitizeSlop"],
+    principe: "Des phrases complètes qui s'enchaînent, ses mots du quotidien, comme elle parle, tirés de ses textes de référence et de ses réponses ; ni style haché ni tic oral plaqué. Hors Pinterest.",
+    consignes: { commune: VOIX_ORALE, linkedin: VOIX_ORALE_LINKEDIN, stories: VOIX_ORALE_STORIES, legende_photo: VOIX_ORALE_LEGENDE_PHOTO, pas_hachee: VOIX_PARLEE_PAS_HACHEE },
+    controles: ["_shared/redac-gate.ts : retournements, formules moulées, vécus et témoignages inventés (contre les tics plaqués)", "_shared/redac-gate.ts : countChoppyFragments (fragments sans verbe enchaînés, mesure seulement : journal stories-gate et slop_signals)", "_shared/correction-pass.ts : la relecture des stories remet en phrases parlées un passage haché", "_shared/anthropic.ts : sanitizeSlop"],
     origines: ["carousel-ai/writing-contract.ts", "_shared/format-briefs.ts"],
   },
   design_montre_lidee: {

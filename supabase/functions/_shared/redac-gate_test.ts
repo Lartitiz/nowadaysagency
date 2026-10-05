@@ -706,3 +706,28 @@ Deno.test("passe dédiée : en qualitatif, les mots qui annonçaient le chiffre 
   assertEquals(RESEARCH_SOURCING_PROMPT.includes("ajuste aussi les mots qui annonçaient le chiffre"), true);
   assertEquals(RESEARCH_SOURCING_PROMPT.includes("N'invente JAMAIS de source"), true);
 });
+
+// ── Style haché (retour de Laetitia du 05/10/2026, stories réelles) ──
+
+Deno.test("findChoppyFragments : repère « 7 500 € ou 2 100 €. Même prestation. » et laisse passer la voix parlée", async () => {
+  const { findChoppyFragments, countChoppyFragments } = await import("./redac-gate.ts");
+  const hachee = "7 500 € ou 2 100 €. Même prestation. C'est l'écart entre un devis fait à la main, et le même devis avec de l'IA générative dans mon process. Oui, j'utilise l'IA. Dans mon métier de communicante, pour des projets engagés. Et je sais que ça peut coincer.";
+  const a = findChoppyFragments(hachee);
+  assertEquals(a.runs, ["7 500 € ou 2 100 €. Même prestation."]);
+  assertEquals(a.fragments, 3);
+  // Sa voix : phrases complètes qui s'enchaînent, aucun fragment.
+  const parlee = "Sans l'IA, ce même accompagnement, je devrais vous le facturer 7 500 €. Avec, je peux le faire pour 2 100 € TTC. Et oui, je l'utilise, alors que je travaille avec des projets engagés.";
+  assertEquals(findChoppyFragments(parlee), { runs: [], fragments: 0 });
+  // Un fragment isolé est compté, mais ne fait pas de rafale.
+  assertEquals(countChoppyFragments("Je choisis le deuxième. Même avec mes doutes."), 0);
+  // Une question courte n'est pas un fragment ; chaque ligne est lue à part (petit titre, sticker).
+  assertEquals(countChoppyFragments("Et vous ? Et toi ?"), 0);
+  assertEquals(countChoppyFragments("Mes tarifs\nDeux prix."), 0);
+});
+
+Deno.test("measureSlopSignals : style haché mesuré (rafales et fragments)", async () => {
+  const { measureSlopSignals } = await import("./redac-gate.ts");
+  const signals = measureSlopSignals({ fullText: "Deux prix. Même prestation. Et pourtant je l'assume." });
+  assertEquals(signals.choppy_fragment_runs, 1);
+  assertEquals(signals.choppy_fragments, 2);
+});

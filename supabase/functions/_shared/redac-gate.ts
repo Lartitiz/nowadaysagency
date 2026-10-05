@@ -1763,6 +1763,59 @@ export function hookEndingSimilarity(hookText: string, endingText: string): numb
   return tokenSimilarity(hookText, endingText);
 }
 
+// ── Style haché (retour de Laetitia du 05/10/2026 sur des stories réelles :
+// « 7 500 € ou 2 100 €. Même prestation. ») : fragments courts SANS verbe
+// conjugué, enchaînés dans un même texte. Mesure seulement (journal
+// stories-gate et slop_signals) : aucun blocage, aucune passe déclenchée.
+// Heuristique volontairement simple : une phrase de 10 mots au plus, qui
+// n'est pas une question, sans pronom sujet ni verbe courant conjugué.
+// Chaque ligne (story, slide, section) est lue à part : un petit titre ou
+// une ligne de sticker n'est jamais enchaîné au texte qui suit.
+const CHOPPY_MAX_WORDS = 10;
+const SUBJECT_RE = /(?<![\p{L}])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|ce sont|y a)(?![\p{L}])|(?:j|c|ç|qu)['’])/iu;
+const COMMON_VERB_RE = /(?<![\p{L}])(?:est|sont|suis|es|était|étaient|étais|sera|serait|seront|ai|as|a|avons|avez|ont|avait|avais|aura|fait|font|fais|faisait|va|vais|vas|vont|allait|peut|peux|peuvent|pouvait|faut|fallait|veut|veux|voulait|doit|dois|doivent|devait|sait|sais|savait|dit|dis|disait|voit|vois|voyait|vient|viens|viennent|reste|restent|coûte|coûtent|change|changent|marche|marchent|compte|comptent|choisis|choisit|utilise|utilisent|travaille|travaillent|pense|pensent|crois|croit|aime|aiment|parle|parlent|trouve|trouvent|donne|donnent|prend|prends|prennent|met|mets|mettent|passe|passent|arrive|arrivent|semble|semblent|ressemble|ressemblent|devient|deviennent|existe|existent|manque|manquent|suffit|vaut|valent|permet|permettent)(?![\p{L}])/iu;
+
+function isChoppyFragment(sentence: string): boolean {
+  const s = sentence.trim();
+  if (!s || /\?\s*$/.test(s)) return false;
+  const words = s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w));
+  if (words.length === 0 || words.length > CHOPPY_MAX_WORDS) return false;
+  return !SUBJECT_RE.test(s) && !COMMON_VERB_RE.test(s);
+}
+
+/**
+ * Rafales de 2+ fragments sans verbe CONSÉCUTIFS dans une même ligne
+ * (« 7 500 € ou 2 100 €. Même prestation. »). Renvoie chaque rafale telle
+ * qu'écrite, et `fragments` = nombre total de fragments (isolés compris).
+ */
+export function findChoppyFragments(text: string): { runs: string[]; fragments: number } {
+  const runs: string[] = [];
+  let fragments = 0;
+  for (const line of (text || "").split(/\n+/)) {
+    const sentences = line.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter(Boolean);
+    let run: string[] = [];
+    const flush = () => {
+      if (run.length >= 2) runs.push(run.join(" "));
+      run = [];
+    };
+    for (const sentence of sentences) {
+      if (isChoppyFragment(sentence)) {
+        fragments++;
+        run.push(sentence);
+      } else {
+        flush();
+      }
+    }
+    flush();
+  }
+  return { runs, fragments };
+}
+
+/** Nombre de rafales de fragments sans verbe enchaînés (mesure du style haché). */
+export function countChoppyFragments(text: string): number {
+  return findChoppyFragments(text).runs.length;
+}
+
 export interface SlopSignals {
   staccato_inter_slides: number;
   anaphora_inter_slides: number;
@@ -1770,6 +1823,10 @@ export interface SlopSignals {
   opening_rhetorical_question: boolean;
   empty_adjectives: Record<string, number>;
   hook_ending_similarity: number;
+  /** Rafales de fragments sans verbe enchaînés dans une même ligne (style haché). */
+  choppy_fragment_runs: number;
+  /** Fragments courts sans verbe, isolés compris. */
+  choppy_fragments: number;
 }
 
 /** Agrège les 6 familles en un objet consultable (télémétrie, aucun calcul de score). */
@@ -1780,6 +1837,7 @@ export function measureSlopSignals(params: {
   slides?: any[];
 }): SlopSignals {
   const { fullText, hookText = "", endingText = "", slides } = params;
+  const choppy = findChoppyFragments(fullText);
   return {
     staccato_inter_slides: slides ? countStaccatoAcrossSlides(slides) : 0,
     anaphora_inter_slides: slides ? countAnaphoraAcrossSlides(slides) : 0,
@@ -1787,6 +1845,8 @@ export function measureSlopSignals(params: {
     opening_rhetorical_question: isOpeningRhetoricalQuestion(hookText || fullText),
     empty_adjectives: countEmptyAdjectives(fullText),
     hook_ending_similarity: hookText && endingText ? hookEndingSimilarity(hookText, endingText) : 0,
+    choppy_fragment_runs: choppy.runs.length,
+    choppy_fragments: choppy.fragments,
   };
 }
 

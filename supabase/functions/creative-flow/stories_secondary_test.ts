@@ -300,3 +300,10 @@ Deno.test("creative-flow recyclage : les stories structurées passent par finali
   const lay = fn.indexOf("finalizeStoriesLayout(sequence");
   assert(strip > 0 && corr > strip && lay > corr, `chaîne recyclage cassée : ${strip}, ${corr}, ${lay}`);
 });
+
+Deno.test("recyclage : la voix parlée, pas hachée, vaut pour chaque format recyclé (05/10/2026)", async () => {
+  const { VOIX_PARLEE_PAS_HACHEE } = await import("../_shared/socle.ts");
+  for (const f of ["stories", "carrousel", "reel", "linkedin", "newsletter"]) {
+    if (!recyclePrompt(f).includes(VOIX_PARLEE_PAS_HACHEE)) throw new Error(`recyclage ${f} sans la consigne`);
+  }
+});
