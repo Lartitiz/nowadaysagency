@@ -26,9 +26,15 @@ const AGENCY_ALIAS = /^laetitia\+[^@]*@nowadaysagency\.com$/i;
 // Boîtes Gmail de Laetitia : Gmail ignore les points et tout ce qui suit un « + »
 // dans la partie avant @, donc laetitia.mattioli+test@gmail.com arrive dans la même
 // boîte que laetitiamattioli@gmail.com — c'est forcément elle. Ajouté le 05/10/2026 :
-// son compte Gmail (inscrit le 28/02) faisait 82 % du coût IA de la semaine en recette,
-// et un 2e compte de test Gmail du 30/09 (validé par Laetitia).
-const LAETITIA_GMAIL_BOXES = new Set<string>(["laetitiamattioli"]);
+// son compte Gmail (inscrit le 28/02) faisait 82 % du coût IA de la semaine en recette.
+// Le 2e compte de recette du 30/09 est une AUTRE boîte, `laetitiamattiolitest` (lue
+// dans l'admin, confirmée par Laetitia) : la 1re règle ne l'attrapait pas, il restait
+// 52 % du coût « clientes » après #1368.
+const LAETITIA_GMAIL_BOXES = new Set<string>(["laetitiamattioli", "laetitiamattiolitest"]);
+
+// Domaines RÉSERVÉS par la norme (RFC 2606) : aucune vraie adresse ne peut y
+// exister. Les specs de recette s'y inscrivent (ex. qa-premiere-…@example.com).
+const RESERVED_DOMAIN = /@(example\.(com|org|net)|[^@]+\.(test|example|invalid))$/;
 const gmailBox = (v: string) => {
   const m = v.match(/^([^@]+)@(gmail|googlemail)\.com$/);
   return m ? m[1].split("+")[0].replace(/\./g, "") : null;
@@ -40,7 +46,7 @@ const norm = (e: string | null | undefined) => (e || "").trim().toLowerCase();
 export function isInternalEmail(e: string | null | undefined): boolean {
   const v = norm(e);
   if (!v) return false;
-  if (INTERNAL_EMAILS.has(v) || AGENCY_ALIAS.test(v)) return true;
+  if (INTERNAL_EMAILS.has(v) || AGENCY_ALIAS.test(v) || RESERVED_DOMAIN.test(v)) return true;
   const box = gmailBox(v);
   return !!box && LAETITIA_GMAIL_BOXES.has(box);
 }
