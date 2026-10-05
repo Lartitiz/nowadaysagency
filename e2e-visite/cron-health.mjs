@@ -174,6 +174,16 @@ try {
     for (const m of prev.modeles_non_tarifes || []) {
       console.log(`      ⚠️ S-1, modèle NON TARIFÉ « ${m.modele} » : ${m.appels} appels / ${m.tokens} tokens comptés 0 € → le delta de coût ci-dessus compare à une base SOUS-ÉVALUÉE`);
     }
+    // Qui a consommé : un pic se lit d'un coup d'œil (email masqué côté edge).
+    if (!d.top_consommatrices_7j) console.log("   top consommatrices : non mesuré (edge cron-health pas redéployée)");
+    else {
+      console.log("   top 5 consommatrices 7 j :");
+      for (const t of d.top_consommatrices_7j) {
+        console.log(`      ${String(t.email_masque).padEnd(30)} inscrite ${t.inscrite_le || "?"}  ${String(t.appels).padStart(4)} appels  ${String(t.tokens).padStart(9)} tokens  ≈ ${t.cout_estime_eur} €${t.part_du_cout_pct != null ? ` (${t.part_du_cout_pct} %)` : ""}  ${t.action_principale || ""}`);
+      }
+    }
+    const ci = d.comptes_internes_7j;
+    if (ci) console.log(`   comptes internes (admin + recette, HORS totaux) : ${ci.comptes} compte(s), ${ci.appels} appels / ${ci.tokens} tokens ≈ ${ci.cout_estime_eur} €`);
     console.log("   top actions 7 j (vs S-1) :");
     const prevActions = Object.fromEntries((prev.topActions || []).map((a) => [a.action, a.count]));
     for (const a of cur.topActions || []) console.log(`      ${String(a.action).padEnd(28)} ${String(a.count).padStart(4)}  (S-1 : ${prevActions[a.action] ?? 0})`);
