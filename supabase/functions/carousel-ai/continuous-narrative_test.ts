@@ -179,6 +179,26 @@ Deno.test("budget restant insuffisant : conserve le texte relu sans troisième t
   assertEquals(output?.doc.narrative_draft.repair.reason, "time-budget");
 });
 
+Deno.test("photos brutes envoyées sans pixels ni contexte : pas de récit continu (sinon « Choisis les photos »)", () => {
+  // Corps réel du mode « Photos brutes » (visite du 05/10) : le front n'envoie
+  // ni photos, ni photo_contexts, ni drapeau no_overlay. Le récit continu
+  // levait après coup « Choisis les photos du carrousel avant de générer ».
+  const pureDump = {
+    type: "express_full",
+    carousel_type: "photo",
+    subject: "Qui je suis",
+    photo_description: "",
+    slide_structure: null,
+    confirmed_structure: null,
+    scenario_origin: "automatic",
+  };
+  assert(!usesContinuousNarrative(pureDump));
+  assert(!usesContinuousNarrative({ ...pureDump, photos: [], photo_contexts: [] }));
+  assert(usesContinuousNarrative({ ...pureDump, photo_contexts: [{}] }));
+  assert(usesContinuousNarrative({ ...pureDump, photos: [{ base64: "x" }] }));
+  assert(usesContinuousNarrative({ ...pureDump, slide_structure: [{ photo_index: 1 }, {}] }));
+});
+
 Deno.test("scénarios humains, photos brutes et texte fourni gardent leur parcours", () => {
   for (
     const patch of [

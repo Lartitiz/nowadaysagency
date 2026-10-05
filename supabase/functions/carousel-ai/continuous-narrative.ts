@@ -15,8 +15,23 @@ import {
 
 export const NARRATIVE_VERSION = "continuous-prose-v3-photo-concise";
 export class NarrativePhotoMismatch extends Error {}
+/** Same evidence composeNarrative requires: pixels, contexts or a planned photo. */
+function hasPhotoEvidence(body: any): boolean {
+  const plan = body.confirmed_structure?.length
+    ? body.confirmed_structure
+    : body.slide_structure || [];
+  return Boolean(
+    body.photos?.length || body.photo_contexts?.length ||
+      plan.some((s: any) => (s?.photo_index || 0) > 0),
+  );
+}
+
 export function usesContinuousNarrative(body: any): boolean {
-  return ["photo", "mix"].includes(body.carousel_type) &&
+  // « Photos brutes » (photo dump) part en carousel_type "photo" SANS photos :
+  // seule la légende est écrite, les vraies photos restent côté client. Le
+  // récit continu exige des photos et levait « Choisis les photos » après
+  // toute la rédaction : ce cas garde le parcours classique.
+  return ["photo", "mix"].includes(body.carousel_type) && hasPhotoEvidence(body) &&
     !body.no_overlay && !body.user_slides?.length && !body.text_first &&
     (body.scenario_origin === "automatic" ||
       (!body.scenario_origin && !body.confirmed_structure?.length)) &&
