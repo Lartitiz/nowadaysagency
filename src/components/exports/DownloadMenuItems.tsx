@@ -1,9 +1,12 @@
-import { ImageIcon, FileText, Loader2, Sparkles, Image as ImageLucide } from "lucide-react";
+import { ImageIcon, FileText, FileDown, Loader2, Sparkles, Image as ImageLucide } from "lucide-react";
 import { DropdownMenuItem, DropdownMenuCheckboxItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 
 interface Props {
   onPng?: () => void;
   onPptxEditable?: () => void;
+  /** PDF « document LinkedIn » (une page par slide) : proposé pour les carrousels LinkedIn. */
+  onPdf?: () => void;
+  downloadingPdf?: boolean;
   downloadingPng?: boolean;
   downloadingPptx?: boolean;
   /** Nombre de slides — sert à afficher "(ZIP)" si >1 */
@@ -36,6 +39,8 @@ interface Props {
 export function DownloadMenuItems({
   onPng,
   onPptxEditable,
+  onPdf,
+  downloadingPdf,
   downloadingPng,
   downloadingPptx,
   count = 1,
@@ -74,6 +79,21 @@ export function DownloadMenuItems({
             <span>Images PNG{count > 1 ? " (ZIP)" : ""}</span>
             <span className="text-2xs text-muted-foreground">
               À publier directement
+            </span>
+          </div>
+        </DropdownMenuItem>
+      )}
+      {onPdf && (
+        <DropdownMenuItem onClick={onPdf} disabled={downloadingPdf}>
+          {downloadingPdf ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <FileDown className="h-4 w-4 mr-2" />
+          )}
+          <div className="flex flex-col">
+            <span>PDF : document LinkedIn</span>
+            <span className="text-2xs text-muted-foreground whitespace-normal max-w-[220px] leading-snug">
+              Une page par slide, à publier comme document sur LinkedIn
             </span>
           </div>
         </DropdownMenuItem>

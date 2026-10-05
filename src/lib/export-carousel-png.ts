@@ -391,6 +391,31 @@ export async function renderCarouselSlidesToBlobs(
 }
 
 /**
+ * Carrousel LinkedIn : télécharge les slides rendues en un PDF (une page
+ * 1080×1350 par slide), à publier comme document LinkedIn. Même rendu que la
+ * publication directe (JPEG 1080×1350, logo selon la case « Ajouter mon logo »),
+ * tout-ou-rien : une slide qui ne se rend pas arrête l'export au lieu de
+ * produire un document amputé.
+ */
+export async function exportCarouselPdf(
+  visualSlides: VisualSlide[],
+  fileName = "carrousel",
+  logoUrl?: string | null,
+): Promise<{ pages: number }> {
+  if (!visualSlides || visualSlides.length === 0) return { pages: 0 };
+  const rendered = await renderCarouselSlidesToBlobs(visualSlides, logoUrl);
+  const { slidesToPdfBlob } = await import("./carousel-pdf");
+  const pdf = await slidesToPdfBlob(rendered.map((r) => r.blob));
+  const url = URL.createObjectURL(pdf);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = exportFileName(`linkedin-${fileName}`, "pdf");
+  a.click();
+  URL.revokeObjectURL(url);
+  return { pages: rendered.length };
+}
+
+/**
  * Capture les visualSlides HTML en PNG (1080x1350, scale 2 = ~2160x2700)
  * et les télécharge :
  * - 1 slide → PNG seul

@@ -1,5 +1,5 @@
 /** A portable download name; the title inside the document remains untouched. */
-export function exportFileName(stem: string, extension: "zip" | "png" | "pptx"): string {
+export function exportFileName(stem: string, extension: "zip" | "png" | "pptx" | "pdf"): string {
   // Every retained character occupies at most two UTF-8 bytes. Keep room for
   // the extension and filesystem-added suffixes below the 255-byte limit.
   let safe = stem.normalize("NFC")

@@ -11,6 +11,8 @@ interface UseLinkedInCarouselCaptionParams {
   carouselSubMode: string | null;
   ideaText: string;
   newsContext?: string | null;
+  /** Réponses d'approfondissement : « Ton cas d'abord » et actu lus comme dans carousel-ai. */
+  answers?: Record<string, string> | null;
   editorialAngle: string | null;
   objective: string | null;
   workspaceId: string;
@@ -35,6 +37,7 @@ export function useLinkedInCarouselCaption({
   carouselSubMode,
   ideaText,
   newsContext,
+  answers,
   editorialAngle,
   objective,
   workspaceId,
@@ -71,6 +74,7 @@ export function useLinkedInCarouselCaption({
           action: "caption-for-carousel",
           subject: ideaText,
           ...(newsContext?.trim() ? { news_context: newsContext.trim().slice(0, 3800) } : {}),
+          ...(answers && Object.values(answers).some((v) => typeof v === "string" && v.trim()) ? { deepening_answers: answers } : {}),
           chosen_angle: typeof r.chosen_angle === "string"
             ? r.chosen_angle
             : (r.chosen_angle?.title || r.chosen_angle?.angle || (r.chosen_angle ? JSON.stringify(r.chosen_angle) : null)),
@@ -130,7 +134,7 @@ export function useLinkedInCarouselCaption({
       setCaptionLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, isLinkedInCarousel, carouselSubMode, ideaText, newsContext, editorialAngle, objective, workspaceId, session?.user?.id]);
+  }, [result, isLinkedInCarousel, carouselSubMode, ideaText, newsContext, answers, editorialAngle, objective, workspaceId, session?.user?.id]);
 
   // Auto-trigger après une génération de carrousel LinkedIn mix/photo si la légende est vide
   useEffect(() => {
