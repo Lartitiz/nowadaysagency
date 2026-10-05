@@ -19,6 +19,8 @@ const m = vi.hoisted(() => {
       let rows = (db[table] || []).filter(row => filters.every(([k, v]) => row[k] === v));
       for (const [key, asc] of [...orders].reverse()) rows.sort((a, b) => (a[key] > b[key] ? 1 : a[key] < b[key] ? -1 : 0) * (asc ? 1 : -1));
       rows = rows.slice(0, limit);
+      // Comme PostgREST : une mise à jour vide n'écrit rien et ne renvoie aucune ligne.
+      if (op === "update" && payload && typeof payload === "object" && Object.keys(payload).length === 0) rows = [];
       if (op === "update") { writes.push({ table, op, payload }); rows.forEach(row => Object.assign(row, payload)); }
       if (op === "insert") {
         writes.push({ table, op, payload });
@@ -204,6 +206,14 @@ describe("Structured review", () => {
     expect(m.db.brand_proposition).toEqual(before.brand_proposition);
     expect(m.db.brand_charter[0]).toMatchObject({ ...before.brand_charter[0], font_body: "Inter" });
     expect(m.db.brand_profile[0]).toMatchObject({ target_problem: "Problème", value_prop_difference: "Différence" });
+  });
+  it("validates a charter that is already filled instead of failing on an empty update", async () => {
+    m.db.brand_charter = [row("c1", { mood_keywords: ["élégant"], moodboard_description: "Maison de luxe" })];
+    const before = structuredClone(m.db.brand_charter);
+    render(<BrandingReview analysis={{ reviewed_sections: ["story", "persona", "value_proposition", "tone_style", "content_strategy", "offers"], charter: { confidence: "low", mood_keywords: ["raffiné"], visual_style_description: "Autre" } }} onDone={() => {}} />);
+    validateAll(); await screen.findByText("Fiche validée ! 🎉");
+    expect(m.toast.error).not.toHaveBeenCalled();
+    expect(m.db.brand_charter).toEqual(before);
   });
   it("blocks homonyms before any new offer is written, preserving existing associations", async () => {
     m.db.offers = [row("o1", { name: "Atelier", offer_type: "free", linked_freebie_id: "x", objections: [{ response: "Réponse" }] })];
