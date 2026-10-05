@@ -1942,6 +1942,14 @@ export function photoVoiceRule(addr: AudienceAddress | null | undefined, legacy:
  * sourcés qui étayent une position. L'actu ne donne que le déclencheur, les réponses
  * le vécu. Condiment : échec silencieux, borné à 20 s (budget reel 90 s + 45 s).
  */
+/** Stories sur son propre cas (« Ton cas d'abord », mode own_case) : aucune
+ * recherche « creuser le sujet », donc aucun chiffre de recherche (décision de
+ * Laetitia du 05/10/2026). L'actu, les autres formats et les stories sans cas
+ * fourni gardent la recherche. */
+export function skipDepthResearch(isStories: boolean, lived: { mode: string }): boolean {
+  return isStories && lived.mode === "own_case";
+}
+
 export async function creativeDepthBlock(params: { context?: string | null; newsContext?: string | null; activity?: string; livedCase?: string }): Promise<string> {
   const subject = typeof params.context === "string" ? params.context.trim() : "";
   if (!subject) return "";
@@ -3234,12 +3242,18 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     // Recherche « creuser le sujet » pour posts, posts LinkedIn, reels et stories (hors légende photo).
     if (step === "generate" && !deepResearch && !isPhotoMode && (isCaption || isLinkedIn || isReel || isStories)) {
       const lived = livedCaseFromCreativeBody(body);
-      if (lived.provided) console.log(`[creative-flow] cas personnel fourni (${lived.reasons.join(", ")}) — ton cas d'abord, recherche en appui`);
-      else if (lived.mode === "news_feeling") console.log(`[creative-flow] actu + ressenti fourni (${lived.reasons.join(", ")}) — son ressenti porte le contenu, recherche en profondeur`);
-      const depthBlock = await creativeDepthBlock({ context, newsContext, activity, livedCase: lived.provided ? lived.answers.join("\n") || String(context || "") : undefined });
-      if (depthBlock) {
-        systemPrompt += depthBlock;
-        researchSource = depthBlock;
+      if (skipDepthResearch(isStories, lived)) {
+        // Décision de Laetitia (05/10/2026) : des stories sur SON cas ne parlent
+        // que d'elle, sans aucun chiffre de recherche.
+        console.log(`[creative-flow] stories sur son propre cas (${lived.reasons.join(", ")}) — aucune recherche, aucun chiffre de recherche`);
+      } else {
+        if (lived.provided) console.log(`[creative-flow] cas personnel fourni (${lived.reasons.join(", ")}) — ton cas d'abord, recherche en appui`);
+        else if (lived.mode === "news_feeling") console.log(`[creative-flow] actu + ressenti fourni (${lived.reasons.join(", ")}) — son ressenti porte le contenu, recherche en profondeur`);
+        const depthBlock = await creativeDepthBlock({ context, newsContext, activity, livedCase: lived.provided ? lived.answers.join("\n") || String(context || "") : undefined });
+        if (depthBlock) {
+          systemPrompt += depthBlock;
+          researchSource = depthBlock;
+        }
       }
     }
 
