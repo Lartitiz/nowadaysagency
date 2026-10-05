@@ -19,7 +19,7 @@ import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, 
 import { streamAnthropicSSE, streamAnthropicToolSSE, createClientSSEStream, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.ts";
-import { livedCaseFromCreativeBody, LIVED_CASE_FIRST } from "../_shared/lived-case.ts";
+import { livedCaseFromCreativeBody, LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from "../_shared/lived-case.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief, positionDepthBlock } from "../_shared/format-briefs.ts";
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
@@ -920,9 +920,12 @@ export async function buildGeneratePrompt(params: {
     : (!isCarousel && !isLinkedIn && !isPinterest && !isNewsletter && !isPhotoMode) ? "caption" : null;
   // « Ton cas d'abord » (04/10/2026) : avec un cas personnel fourni, la lecture
   // sociale en « on / nous » laisse la place à son vécu, preuve centrale.
-  const livedCase = livedCaseFromCreativeBody(body).provided;
-  if (positionFormat) depthMandate += `\n\n${positionDepthBlock(positionFormat, !!newsContextBlock, livedCase)}`;
-  else if (isLinkedIn && livedCase) depthMandate += `\n\n${LIVED_CASE_FIRST}`;
+  // Actu (05/10/2026) : l'accroche de l'IA n'est jamais un vécu ; avec ses
+  // réponses, « l'actu déclenche, son ressenti porte le contenu ».
+  const caseMode = livedCaseFromCreativeBody(body).mode;
+  if (positionFormat) depthMandate += `\n\n${positionDepthBlock(positionFormat, !!newsContextBlock, caseMode)}`;
+  else if (isLinkedIn && caseMode === "own_case") depthMandate += `\n\n${LIVED_CASE_FIRST}`;
+  else if (isLinkedIn && caseMode === "news_feeling") depthMandate += `\n\n${NEWS_FEELING_FIRST}`;
 
   let systemPrompt = `${COMMON_PREFIX}
 
@@ -2936,7 +2939,8 @@ serve(async (req) => {
     // « Ton cas d'abord » (04/10/2026) : quand la personne a donné son propre cas,
     // son histoire de marque n'est pas jointe à la rédaction (elle racontait le
     // parcours de la marque à la place du récit fourni).
-    const ownCaseGeneration = step === "generate" && livedCaseFromCreativeBody(body).provided;
+    const caseForStory = livedCaseFromCreativeBody(body);
+    const ownCaseGeneration = step === "generate" && (caseForStory.provided || caseForStory.mode === "news_feeling");
     const brandingContext = formatContextForAI(ctx, ownCaseGeneration ? { ...CONTEXT_PRESETS.content, includeStory: false } : CONTEXT_PRESETS.content);
     // Champs de marque bruts (combat, mission, ton…) : le redac-gate s'en sert
     // pour détecter une recopie quasi mot pour mot (audit slop 18/08). Aucune
@@ -3213,6 +3217,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     if (step === "generate" && !deepResearch && !isPhotoMode && (isCaption || isLinkedIn || isReel || isStories)) {
       const lived = livedCaseFromCreativeBody(body);
       if (lived.provided) console.log(`[creative-flow] cas personnel fourni (${lived.reasons.join(", ")}) — ton cas d'abord, recherche en appui`);
+      else if (lived.mode === "news_feeling") console.log(`[creative-flow] actu + ressenti fourni (${lived.reasons.join(", ")}) — son ressenti porte le contenu, recherche en profondeur`);
       const depthBlock = await creativeDepthBlock({ context, newsContext, activity, livedCase: lived.provided ? lived.answers.join("\n") || String(context || "") : undefined });
       if (depthBlock) {
         systemPrompt += depthBlock;

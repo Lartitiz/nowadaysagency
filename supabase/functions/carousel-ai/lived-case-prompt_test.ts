@@ -2,8 +2,8 @@
 // que la personne a donné son propre cas ou non.
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { buildCarouselWritingSystem, carouselSubstance, CAROUSEL_SUBSTANCE, SOCIAL_READING } from "./writing-contract.ts";
-import { textWritingPrompt, mixWritingPrompt, userAnswersBlock } from "./variant-writing.ts";
-import { LIVED_CASE_FIRST } from "../_shared/lived-case.ts";
+import { textWritingPrompt, mixWritingPrompt, photoWritingPrompt, userAnswersBlock, newsWriting, NEWS_WRITING, NEWS_ORDER } from "./variant-writing.ts";
+import { LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from "../_shared/lived-case.ts";
 import { buildDepthBlock, supportPrompt } from "../_shared/depth-research.ts";
 import { positionDepthBlock } from "../_shared/format-briefs.ts";
 
@@ -73,5 +73,75 @@ Deno.test("posts, reels, stories : même règle dans le bloc de prise de positio
     assert(plain.includes("Creuse sous le sujet"));
     assert(!lived.includes("Creuse sous le sujet"));
     assert(lived.includes(LIVED_CASE_FIRST));
+  }
+});
+
+// ═══ Actu : « l'actu déclenche, ton ressenti porte le contenu » (05/10/2026) ═══
+const NEWS = "ACTUALITÉ : Meta lance Verified à 9,99 € par mois\nSource : Le Monde\n\nANGLE CHOISI :\nHook : J'ai peur de devoir payer pour exister";
+const FIELD_Q = "Quand tu parles de ce sujet, qu'est-ce qu'on te répond, et qu'est-ce que tu sens derrière ?";
+const ACTU_JE = { subject: "J'ai peur de devoir payer 9,99 € pour exister", news_context: NEWS, scenario_origin: "automatic" };
+const ACTU_NEUTRE = { ...ACTU_JE, subject: "Meta Verified passe à 9,99 € par mois" };
+const ACTU_RESSENTI = { ...ACTU_JE, deepening_answers: { [FIELD_Q]: "On me répond que c'est le prix de la visibilité. Moi j'y vois une taxe sur les petites marques, et ça me met en colère." } };
+
+Deno.test("actu sans réponse : prompts identiques à ceux d'une accroche neutre (comportement inchangé)", () => {
+  for (const build of [
+    (b: any) => textWritingPrompt(b, false, ""),
+    (b: any) => photoWritingPrompt({ ...b, carousel_type: "photo" }, false, ""),
+    (b: any) => mixWritingPrompt({ ...b, carousel_type: "mix" }, false, "", ""),
+  ]) {
+    const je = build(ACTU_JE);
+    assertEquals(je, build(ACTU_NEUTRE).replaceAll(JSON.stringify(ACTU_NEUTRE.subject), JSON.stringify(ACTU_JE.subject)));
+    assert(je.includes(SOCIAL_READING));
+    assert(!je.includes(LIVED_CASE_FIRST));
+    assert(!je.includes(NEWS_FEELING_FIRST));
+  }
+  assertEquals(newsWriting(ACTU_JE), NEWS_WRITING);
+  assertEquals(newsWriting(ACTU_NEUTRE), NEWS_WRITING);
+  assert(NEWS_WRITING.includes(NEWS_ORDER));
+});
+
+Deno.test("actu + ressenti : une consigne unique, son ressenti au cœur, sans « Ton cas d'abord »", () => {
+  const substance = carouselSubstance("news_feeling");
+  assert(substance.includes(NEWS_FEELING_FIRST));
+  assert(!substance.includes(LIVED_CASE_FIRST));
+  assert(!substance.includes(SOCIAL_READING));
+  for (const prompt of [textWritingPrompt(ACTU_RESSENTI, false, ""), mixWritingPrompt({ ...ACTU_RESSENTI, carousel_type: "mix" }, false, "", ""), photoWritingPrompt({ ...ACTU_RESSENTI, carousel_type: "photo" }, false, "")]) {
+    assert(prompt.includes("SON RESSENTI SUR L'ACTU"));
+    assert(prompt.includes(NEWS_FEELING_FIRST));
+    assert(prompt.includes("une taxe sur les petites marques"));
+    assert(!prompt.includes(LIVED_CASE_FIRST));
+    assert(!prompt.includes("SON CAS PERSONNEL"));
+    assert(!prompt.includes("au plus UN chiffre"));
+  }
+  // La phrase « l'actu reste le sujet jusqu'à la dernière slide » ne contredit plus son ressenti.
+  const news = newsWriting(ACTU_RESSENTI);
+  assert(!news.includes(NEWS_ORDER));
+  assert(news.includes("posée vite et juste"));
+  assert(news.includes("Termine sur sa position ou sur une question simple"));
+  assert(news.includes("conserve le fait déclencheur et sa source"));
+  assert(NEWS_FEELING_FIRST.includes("au plus 3 chiffres venus de la recherche"));
+  const system = buildCarouselWritingSystem("B", false, "I", "", "news_feeling");
+  assert(system.includes(NEWS_FEELING_FIRST) && !system.includes(LIVED_CASE_FIRST));
+});
+
+Deno.test("cas personnel sans actu : « Ton cas d'abord » inchangé (#1354)", () => {
+  assertEquals(carouselSubstance("own_case"), carouselSubstance(true));
+  assertEquals(buildCarouselWritingSystem("B", false, "I", "", "own_case"), buildCarouselWritingSystem("B", false, "I", "", true));
+  assertEquals(carouselSubstance("news"), CAROUSEL_SUBSTANCE);
+  assertEquals(carouselSubstance("none"), CAROUSEL_SUBSTANCE);
+  assert(textWritingPrompt(LIVED, false, "").includes(LIVED_CASE_FIRST));
+  assert(!textWritingPrompt(LIVED, false, "").includes(NEWS_FEELING_FIRST));
+});
+
+Deno.test("posts, reels, stories d'actu : ressenti au cœur, actu seule inchangée", () => {
+  for (const format of ["caption", "reel", "stories"] as const) {
+    assertEquals(positionDepthBlock(format, true, "news"), positionDepthBlock(format, true, false));
+    assertEquals(positionDepthBlock(format, false, "own_case"), positionDepthBlock(format, false, true));
+    const feeling = positionDepthBlock(format, true, "news_feeling");
+    assert(feeling.includes(NEWS_FEELING_FIRST));
+    assert(!feeling.includes(LIVED_CASE_FIRST));
+    assert(!feeling.includes("Creuse sous le sujet"));
+    assert(!feeling.includes("l'angle choisi est la THÈSE"));
+    assert(feeling.includes("FIN : la position assumée"));
   }
 });

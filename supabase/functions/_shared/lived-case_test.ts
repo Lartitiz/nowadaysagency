@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { detectLivedCase, livedCaseFromCarouselBody, livedCaseFromCreativeBody, userAnswerTexts, LIVED_ANSWER_WORDS } from "./lived-case.ts";
+import { detectLivedCase, livedCaseFromCarouselBody, livedCaseFromCreativeBody, userAnswerTexts, LIVED_ANSWER_WORDS, researchNumbersCapFor } from "./lived-case.ts";
 
 // Cas de référence (carrousel « Oui, j'utilise l'IA générative », 04/10/2026).
 const REFERENCE_ANSWERS = {
@@ -55,4 +55,49 @@ Deno.test("lived-case : réponses creative-flow en tableau {question, answer} �
   const lived = livedCaseFromCreativeBody({ context: "Fixer ses prix", answers: [{ question, answer: "J'ai longtemps facturé 300 € une journée de travail." }] });
   assert(lived.provided);
   assert(lived.reasons.includes("montant"));
+});
+
+// ═══ Actu : « l'actu déclenche, ton ressenti porte le contenu » (05/10/2026) ═══
+// Le sujet d'un contenu d'actu est l'accroche écrite par l'IA (NewsjackingPanel),
+// souvent en « je » : elle ne compte jamais comme vécu.
+const NEWS = "ACTUALITÉ : Meta lance Verified à 9,99 € par mois\nSource : Le Monde\n\nANGLE CHOISI :\nHook : J'ai peur de devoir payer 9,99 € pour exister";
+const FIELD_Q = "Quand tu parles de ce sujet, qu'est-ce qu'on te répond, et qu'est-ce que tu sens derrière ?";
+
+Deno.test("actu : l'accroche IA en « je » (montant + émotion) n'est pas un vécu", () => {
+  const subject = "J'ai peur de devoir payer 9,99 € pour exister sur Instagram";
+  // Sans actu, ce même sujet serait un vécu (garde #1354 intacte).
+  assert(livedCaseFromCarouselBody({ subject }).provided);
+  const c = livedCaseFromCarouselBody({ subject, news_context: NEWS });
+  assertEquals(c.provided, false);
+  assertEquals(c.mode, "news");
+  assertEquals(c.reasons, []);
+  const cf = livedCaseFromCreativeBody({ context: subject, news_context: NEWS });
+  assertEquals(cf.provided, false);
+  assertEquals(cf.mode, "news");
+});
+
+Deno.test("actu : ses réponses (même sans montant ni mot d'émotion) = ressenti qui porte le contenu", () => {
+  const answer = "On me dit que c'est normal de payer pour être vue. Moi je trouve ça injuste pour les petites marques.";
+  const c = livedCaseFromCarouselBody({ subject: "Meta veut 9,99 € pour me certifier", news_context: NEWS, deepening_answers: { [FIELD_Q]: answer } });
+  assertEquals(c.provided, false); // pas « Ton cas d'abord » : la recherche reste en profondeur
+  assertEquals(c.mode, "news_feeling");
+  assertEquals(c.answers, [answer]);
+  const emo = livedCaseFromCreativeBody({ context: "x", news_context: NEWS, answers: [{ question: FIELD_Q, answer: "J'ai honte de ne pas suivre." }] });
+  assertEquals(emo.mode, "news_feeling");
+  assert(emo.reasons.includes("emotion"));
+});
+
+Deno.test("actu : réponse trop courte, vide ou matière éditoriale seule = actu sans ressenti", () => {
+  for (const deepening_answers of [undefined, {}, { [FIELD_Q]: "oui" }, { [FIELD_Q]: "   " }, { "Brief éditorial choisi": "MATIÈRE ÉDITORIALE CHOISIE : je pense que…" }]) {
+    assertEquals(livedCaseFromCarouselBody({ subject: "J'ai peur de payer 9,99 €", news_context: NEWS, deepening_answers }).mode, "news");
+  }
+  // news_context vide = pas d'actu.
+  assertEquals(livedCaseFromCarouselBody({ subject: "Les tarifs", news_context: "  " }).mode, "none");
+});
+
+Deno.test("plafond de chiffres de recherche : 1 pour son cas, 3 pour l'actu, aucun sinon", () => {
+  assertEquals(researchNumbersCapFor(livedCaseFromCarouselBody({ subject: "Oui, j'utilise l'IA générative", deepening_answers: REFERENCE_ANSWERS })), 1);
+  assertEquals(researchNumbersCapFor(livedCaseFromCarouselBody({ subject: "J'ai peur de payer", news_context: NEWS })), 3);
+  assertEquals(researchNumbersCapFor(livedCaseFromCarouselBody({ subject: "x", news_context: NEWS, deepening_answers: REFERENCE_ANSWERS })), 3);
+  assertEquals(researchNumbersCapFor(livedCaseFromCarouselBody({ subject: "Pourquoi publier tous les jours ne sert à rien" })), undefined);
 });
