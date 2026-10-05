@@ -49,10 +49,12 @@ const FROZEN: Record<string, string> = {
   TEXT_SENSE_RULES: "e527fc955637f7d9955356298cf47a52dd0862afbcbccd8ca4affae990ed9d11",
   // Règle 4 réécrite le 05/10/2026 (consigne positive commune, PR voix orale) :
   // avant, VOIX_ORALE_STORIES = 15fd7cd6…5c67, VOIX_ORALE_LEGENDE_PHOTO = 269e744f…ddd2.
-  VOIX_ORALE: "b6540658834b0f58d7168d5a4de2f79ec7d7819344c2086f8e9d1eb2cd222876",
-  VOIX_ORALE_LINKEDIN: "1e6a5fd9ef39e88736928aa2be25b1c93573f0fb778f517ea344bd1bacad279d",
-  VOIX_ORALE_STORIES: "fb6f61ec2698eddb86725eb4c32432cf34a3f43f0860897699fe8a7e64792ade",
-  VOIX_ORALE_LEGENDE_PHOTO: "b6540658834b0f58d7168d5a4de2f79ec7d7819344c2086f8e9d1eb2cd222876",
+  // Puis le même jour, « pas de style haché » (VOIX_PARLEE_PAS_HACHEE) ajouté aux quatre :
+  // avant, VOIX_ORALE = b6540658…2876, LINKEDIN = 1e6a5fd9…279d, STORIES = fb6f61ec…2ade.
+  VOIX_ORALE: "f606d3cb7c73ac984ecbab81625925a8f3d228d2f98f0e93c7c8633df9805fba",
+  VOIX_ORALE_LINKEDIN: "826f0ab27829009e5df412b7d817534cf38199b766d00dd33be17aa37709645e",
+  VOIX_ORALE_STORIES: "500c89a979866a9b6b2876e8ac13986b779025018cc049f8aaa96aef8378d422",
+  VOIX_ORALE_LEGENDE_PHOTO: "f606d3cb7c73ac984ecbab81625925a8f3d228d2f98f0e93c7c8633df9805fba",
   LISIBLE_TAILLES_TITRES: "0f09b2bd9939575c37310935801517bc0decaae3d9d8c0ee134571f801637bcf",
   LISIBLE_TAILLE_CORPS: "855896ee84c93a51488b496199fee800bbdebfec855bd45c368db01518483034",
 };
@@ -68,7 +70,8 @@ const FROZEN_STEP7: Record<string, string> = {
   UNE_IDEE_REEL: "867e8fca7724b9d36abc1f72b67621a220399bd6581cd712b7f0b6f50ee2af4e",
   RECYCLAGE_CARROUSEL_LONGUEUR: "22ae5e81699523e65d24b7668624fa5cb4a069de242859f7769467427313cab6",
   RECYCLAGE_STORIES_LONGUEUR: "97cda22d003343a3a9f1ecfa1c01258751b40f170102c7e844c4d214642c9ae8",
-  STORY1_ACCROCHE: "a50fc3f426953e5a9e265e9e186e99a922f879fab6f418d481ed817f874a0ca6",
+  // Story 1 = une vraie phrase parlée (05/10/2026, style haché) ; avant : a50fc3f4…0ca6.
+  STORY1_ACCROCHE: "a790a01eec82b6721edde1b9041778de3e4b5de78ab9a22fe4c749b26ed78702",
   REEL_TEXTE_ECRAN: "59af4c0dce7b88ed78af96441b4a4568614594c55f39281412f3200c5b2b4576",
   REEL_COUVERTURE: "de240e0c01b706b30451ffc8467fb4a24a31328539d33ba2f206877313d9044c",
   "planAngleIndicatif(section)": "0e8fafcf977bbf5a0f53237e0d95706eb311f9907289853d65ebf903044f39c3",
@@ -340,4 +343,27 @@ Deno.test("registre : récit continu, photo et mixte à jour de l'étape 2", () 
     assert(SOCLE_FORMATS[fmt].regles.une_idee_par_unite.etat !== "contredite", fmt);
   }
   assertEquals(SOCLE_FORMATS.carrousel_mixte.regles.design_montre_lidee.etat, "oui");
+});
+
+Deno.test("voix parlée, pas hachée (05/10/2026) : dans toutes les consignes de voix orale, stories comprises, jamais sur Pinterest", async () => {
+  const { CORRECTION_PROMPTS } = await import("./correction-pass.ts");
+  const { BASE_SYSTEM_RULES } = await import("./base-prompts.ts");
+  for (const c of [socle.VOIX_ORALE, socle.VOIX_ORALE_LINKEDIN, socle.VOIX_ORALE_STORIES, socle.VOIX_ORALE_LEGENDE_PHOTO]) {
+    assert(c.includes(socle.VOIX_PARLEE_PAS_HACHEE), c.slice(0, 40));
+  }
+  assertStrictEquals(SOCLE_RULES.voix_orale.consignes.pas_hachee, socle.VOIX_PARLEE_PAS_HACHEE);
+  const stories = storiesBrief({ subject: "x", pre_gen_answers: { energy: "🔥 Punchy" } } as any);
+  assert(stories.includes(socle.VOIX_PARLEE_PAS_HACHEE), "stories sans la consigne");
+  assert(!stories.includes("Punchy = phrases courtes"), "Punchy pousse encore aux phrases courtes");
+  assert(!stories.includes("2-3 phrases max"), "plafond de 2-3 phrases encore présent");
+  assert(stories.includes("une vraie phrase parlée de 4 à 15 mots"), "story 1 pas formulée comme une phrase parlée");
+  for (const b of [reelBrief({ subject: "x" }), captionBrief(null), newsletterBrief(), linkedinBrief(null), photoCaptionBrief("x")]) {
+    assert(b.includes(socle.VOIX_PARLEE_PAS_HACHEE), b.slice(0, 40));
+  }
+  assert(!pinterestBrief(null, null).includes(socle.VOIX_PARLEE_PAS_HACHEE), "Pinterest reste hors voix orale");
+  assert(CAROUSEL_CONTINUITY.includes(socle.VOIX_PARLEE_PAS_HACHEE), "carrousel sans la consigne");
+  // Les passes de relecture ne recompressent pas.
+  assert(CORRECTION_PROMPTS.stories.includes("9. STYLE HACHÉ"), "relecture stories sans la remise en phrases");
+  assert(!CORRECTION_PROMPTS.stories.includes("plus courts"), "relecture stories qui raccourcit encore");
+  assert(!BASE_SYSTEM_RULES.includes("phrases courtes qui claquent"), "règle de base qui pousse aux phrases-slogans");
 });

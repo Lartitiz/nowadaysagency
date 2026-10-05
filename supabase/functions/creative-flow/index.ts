@@ -21,12 +21,12 @@ import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.ts";
 import { livedCaseFromCreativeBody, LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from "../_shared/lived-case.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief, positionDepthBlock } from "../_shared/format-briefs.ts";
-import { RECYCLAGE_CARROUSEL_LONGUEUR, RECYCLAGE_CARROUSEL_SLIDES, RECYCLAGE_STORIES_LONGUEUR, STORY1_ACCROCHE } from "../_shared/socle.ts";
+import { RECYCLAGE_CARROUSEL_LONGUEUR, RECYCLAGE_CARROUSEL_SLIDES, RECYCLAGE_STORIES_LONGUEUR, STORY1_ACCROCHE, VOIX_PARLEE_PAS_HACHEE } from "../_shared/socle.ts";
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, applyCorrectionPassReel, type CorrectionFormat, applyCorrectionPassStories, extractStoriesTexts, reinjectStoriesTexts, storiesAuditableText } from "../_shared/correction-pass.ts";
-import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, numbersIn, researchNumbers, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations, dropUserSourcedReversals, type ResearchNumbers } from "../_shared/redac-gate.ts";
+import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, numbersIn, researchNumbers, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations, dropUserSourcedReversals, findChoppyFragments, type ResearchNumbers } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks, fetchPreviousHooksByFormat } from "../_shared/previous-hooks.ts";
 import {
@@ -262,6 +262,7 @@ Un reel de 45 secondes sur UN point percutant > un reel de 60 secondes qui liste
 
 RÈGLE DE VOIX :
 Chaque format doit sonner comme si l'utilisatrice l'avait écrit elle-même. Si le contenu source contient des expressions ou tournures caractéristiques de sa voix, RÉUTILISE-les telles quelles, sans les remplacer par une formulation plus "propre". L'IA structure et amplifie, elle ne réécrit pas.
+${VOIX_PARLEE_PAS_HACHEE}
 
 SOURCE FICTIVE OU TEST :
 Un exemple explicitement fictif est une source valable. Rédige le contenu demandé en indiquant clairement dans le résultat que le cas est fictif ; garde uniquement les faits donnés. Ne refuse pas de rédiger au motif que le vécu n'est pas réel et ne transforme pas cet exemple en témoignage authentique.
@@ -381,7 +382,7 @@ export function buildAdjustPrompt(params: {
   } else if (adjustLower.includes("court")) {
     adjustGuidance = "Coupe les transitions faibles et les répétitions. Garde le sujet explicite, les faits de départ, les attributions et les exemples utiles. Ne sacrifie ni la compréhension ni la profondeur.";
   } else if (adjustLower.includes("punchy")) {
-    adjustGuidance = "Raccourcis les phrases longues et resserre chaque idée. Garde l'oralité, sans cheville de relance ni phrase isolée pour faire de l'effet. L'accroche doit claquer plus fort, avec un détail du sujet.";
+    adjustGuidance = "Resserre chaque idée et coupe les détours, en gardant des phrases complètes et parlées qui s'enchaînent : pas de fragments sans verbe, pas de phrases-slogans en série, sans cheville de relance ni phrase isolée pour faire de l'effet. L'accroche doit claquer plus fort, avec un détail du sujet.";
   } else if (adjustLower.includes("exemples") || adjustLower.includes("concret")) {
     adjustGuidance = "Remplace les conseils abstraits par des situations concrètes. Chaque point doit avoir un exemple terrain, un cas réel, ou un chiffre.";
   } else if (adjustLower.includes("storytelling") || adjustLower.includes("histoire")) {
@@ -1753,8 +1754,13 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
     }
     const violations = textRedacViolations(bestA);
     const result: StoriesGateResult = { source: "code", score: Math.max(40, 100 - 10 * violations), violations, repassed, reverted };
+    // Style haché (mesure seulement, 05/10/2026) : sur le texte des stories, sans les petits titres.
+    const storyTexts = (stories: any[]) => stories.map((st: any) => (typeof st?.text === "string" ? st.text : "")).join("\n");
+    const choppyBefore = findChoppyFragments(storyTexts(parsed.stories));
+    const choppyAfter = findChoppyFragments(storyTexts(best));
+    if (choppyAfter.runs.length) console.log(`[stories-gate] style haché : ${choppyAfter.runs.map((r) => `« ${r.slice(0, 80)} »`).join(" ; ")}`);
     console.log(
-      `[stories-gate] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${bestA.unsourcedResearchNumbers?.length ?? 0}, témoignages inventés ${before.inventedTestimonials?.length ?? 0}→${bestA.inventedTestimonials?.length ?? 0}, vécus inventés ${before.inventedExperiences?.length ?? 0}→${bestA.inventedExperiences?.length ?? 0}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, repassé=${repassed}, rejeté=${reverted}`,
+      `[stories-gate] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${bestA.unsourcedResearchNumbers?.length ?? 0}, témoignages inventés ${before.inventedTestimonials?.length ?? 0}→${bestA.inventedTestimonials?.length ?? 0}, vécus inventés ${before.inventedExperiences?.length ?? 0}→${bestA.inventedExperiences?.length ?? 0}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, fragments hachés ${choppyBefore.fragments}→${choppyAfter.fragments} (rafales ${choppyBefore.runs.length}→${choppyAfter.runs.length}), repassé=${repassed}, rejeté=${reverted}`,
     );
     parsed.stories = best;
     parsed.quality_check = result;

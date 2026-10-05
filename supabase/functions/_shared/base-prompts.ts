@@ -13,7 +13,7 @@ RÈGLES ABSOLUES :
 
 VOIX ET STYLE :
 - Oral assumé mais pas surjoué : l'oralité doit rester spontanée et varier d'un contenu à l'autre, ne réutilise pas systématiquement les mêmes chevilles de transition
-- Phrases rythmées par contrastes : des phrases longues pour dérouler + des phrases courtes qui claquent
+- Phrases rythmées par contrastes : des phrases longues pour dérouler + de temps en temps une phrase courte qui conclut, toujours une vraie phrase avec un verbe, jamais une série de fragments
 - Des apartés discrets si la voix et le sujet s’y prêtent, sans quota, entre parenthèses (en italique sauf pour la newsletter, qui part en texte brut sans aucun markdown)
 - Pas de phrases artificiellement coupées pour "faire court" : l'oral c'est fluide
 - Structure AIDA quand c'est pertinent : accroche > contexte > conseil > ouverture

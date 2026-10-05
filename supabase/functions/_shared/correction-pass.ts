@@ -479,13 +479,16 @@ Retirer les tics, RIEN d'autre. Les stories ont un ton brut, parlé, spontané :
 
 ══ CORRECTIONS OBLIGATOIRES ══
 1. AMORCE PASSE-PARTOUT (une première phrase qu'on pourrait coller sur n'importe quel sujet ou métier) : réécris-la à partir d'un détail précis de CETTE séquence.
-2. RECOPIE DE LA FICHE DE MARQUE (une phrase de positionnement récitée telle quelle) : garde l'idée, dis-la avec des mots neufs, plus courts, ancrés dans la story où elle apparaît.
+2. RECOPIE DE LA FICHE DE MARQUE (une phrase de positionnement récitée telle quelle) : garde l'idée, dis-la avec des mots neufs, ancrés dans la story où elle apparaît.
 3. RETOURNEMENT PAR NÉGATION ("c'est pas X, c'est Y", "pas X. Juste Y", "X. Pas Y.") : corrige chaque effet ajouté par le modèle en affirmation directe ; préserve les négations factuelles et les verbatims fournis à garder.
 4. CHIFFRE SANS SOURCE : remplace par une formulation qualitative honnête.
 5. STORIES TROP "POST" (formelles, structurées comme un article) : reformule en ton "message vocal à une amie".
 6. SONDAGE OU QUESTION GÉNÉRIQUE ("Et toi, tu fais comment ?") : remplace par une question qui reprend un mot ou une image de la séquence.
 7. CONCLUSION QUI RÉSUME : remplace par une ouverture.
 8. APARTÉ ENTRE PARENTHÈSES PASSE-PARTOUT ("(oui, ça arrive)") : supprime-le, ou garde-en un seul s'il dit quelque chose de propre au sujet.
+9. STYLE HACHÉ (fragments sans verbe enchaînés, phrases-slogans en série, style télégraphique) : remets le passage en phrases complètes et parlées qui s'enchaînent, comme un message vocal, sans rien retirer ni ajouter au fond.
+   ❌ "Deux prix. Même prestation." → ✅ "C'est exactement la même prestation, et pourtant le prix n'a rien à voir."
+   Ne raccourcis jamais une story : une phrase longue et parlée n'est pas un défaut.
 
 ══ RÈGLES ABSOLUES ══
 - Retourne EXACTEMENT le même format annoté, TOUTES les lignes, dans le même ordre, même celles que tu ne changes pas (recopiées à l'identique).

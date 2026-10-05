@@ -697,7 +697,7 @@ ${p.pre_gen_answers.vecu ? `VÉCU RÉCENT : "${p.pre_gen_answers.vecu}"
 
 ${p.pre_gen_answers.energy ? `ÉNERGIE CHOISIE : ${p.pre_gen_answers.energy}
 → L'énergie guide le ton de TOUTE la séquence, pas juste une story :
-  🔥 Punchy = phrases courtes, affirmations, rythme rapide, pas de détour
+  🔥 Punchy = rythme rapide, affirmations assumées, pas de détour, mais en phrases complètes et parlées qui s'enchaînent (jamais de fragments sans verbe ni de phrases-slogans en série)
   🫶 Intime = face cam, ton doux, confidence, proximité
   📚 Pédago = structure claire, tips concrets, progression logique
   😄 Drôle = auto-dérision, observations du quotidien, décalage
@@ -764,7 +764,7 @@ Si format = face cam :
 - Sous-titres OBLIGATOIRES (la plupart regardent sans le son)
 
 Si format = visuel/photo :
-- Même règle : l'accroche seule (4 à 15 mots) qui se comprend immédiatement, avec son "mot_cle" ; le récit commence en story 2
+- Même règle : l'accroche seule (une vraie phrase parlée de 4 à 15 mots) qui se comprend immédiatement, avec son "mot_cle" ; le récit commence en story 2
 - L'image fait le travail visuel ; l'accroche ouvre l'attente
 `;
 
@@ -940,7 +940,7 @@ GARDE-FOUS OBLIGATOIRES :
 15. Ne JAMAIS utiliser les expressions interdites du profil de voix.
 16. Le résultat doit sonner comme si l'utilisateur·ice l'avait écrit.
 17. ${STORIES_QUICK_RULE}
-18. La longueur du texte de chaque story doit être RÉALISTE : une story texte = 2-3 phrases max. Une story face cam = 15-30 secondes de parole (50-80 mots). Ne génère pas des pavés pour des stories.
+18. La longueur du texte de chaque story doit être RÉALISTE : une story texte = quelques phrases complètes et parlées (350 caractères au plus) ; si c'est trop long, découpe en deux stories, ne compresse jamais en fragments pour tenir. Une story face cam = 15-30 secondes de parole (50-80 mots). Ne génère pas des pavés pour des stories.
 
 Réponds en JSON strict :
 {
