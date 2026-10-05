@@ -1185,3 +1185,17 @@ Deno.test("tu/vous : consigne voix photo, inchangée sans réglage, alignée sur
   assertEquals(vous.includes("VOUVOIE") && !vous.includes("n'impose ni"), true);
   assertEquals(photoVoiceRule("tu", "x").includes("TUTOIE"), true);
 });
+
+// 05/10/2026 (Laetitia) : des stories sur son propre cas n'ont aucun chiffre de recherche.
+Deno.test("skipDepthResearch : stories + cas personnel → pas de recherche ; le reste inchangé", async () => {
+  const { skipDepthResearch } = await import("./index.ts");
+  const { livedCaseFromCreativeBody } = await import("../_shared/lived-case.ts");
+  const own = livedCaseFromCreativeBody({ context: "Pourquoi j'utilise l'IA", answers: [{ question: "Ton vécu ?", answer: "Sans l'IA, je devrais facturer 7 500 € au lieu de 2 100 € TTC, et ces outils me gênent aussi." }] });
+  assertEquals(own.mode, "own_case");
+  assertEquals(skipDepthResearch(true, own), true);
+  assertEquals(skipDepthResearch(false, own), false, "reels, posts, LinkedIn gardent la recherche en appui");
+  const none = livedCaseFromCreativeBody({ context: "Pourquoi publier tous les jours", answers: [] });
+  assertEquals(skipDepthResearch(true, none), false, "stories sans cas : recherche gardée");
+  const news = livedCaseFromCreativeBody({ context: "Meta Verified", news_context: "ACTUALITÉ : Meta Verified à 9,99 €", answers: [{ question: "Ressenti ?", answer: "Ça me met en colère pour les petites marques." }] });
+  assertEquals(skipDepthResearch(true, news), false, "actu : recherche gardée");
+});
