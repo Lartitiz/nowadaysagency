@@ -150,6 +150,12 @@ test.describe("Sonde anti-écran-figé — serveur muet (minuteurs de sécurité
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
 
+    // Depuis la refonte de l'accueil (#1163), le mini-diagnostic est replié
+    // dans un <details> : on l'ouvre comme une visiteuse.
+    const replie = page.getByText("Faire un mini-diagnostic Instagram", { exact: true }).first();
+    await replie.waitFor({ state: "visible", timeout: 20_000 });
+    await replie.click();
+
     const champ = page.getByPlaceholder("ton_compte_instagram");
     await expect(champ).toBeVisible({ timeout: 20_000 });
     await champ.fill("nowadaysagency");
