@@ -434,6 +434,21 @@ Deno.serve(async (req) => {
       "gpt-image-1": 0.22,
       "photoroom-v2": 0.05,
       "recraftv3-vector": 0.04,
+      // Higgsfield (05/10/2026, prix lus sur open.higgsfield.ai) : images
+      // routées là depuis #1228 tant que le crédit OpenAI direct est épuisé.
+      // Comptées 0 € « NON TARIFÉ » au bilan du 05/10 (22 appels).
+      // Marketing Studio (GPT Image 2.5) est facturé au TOKEN (image en sortie
+      // 30 $/Mtok, image en entrée 8 $, texte 5 $), réconcilié après coup par
+      // Higgsfield : aucun coût réel n'est stocké chez nous (higgsfield_image_spend
+      // ne garde que la RÉSERVATION, borne haute ~0,33 $). Forfait = tarif
+      // standard (hors remise -15 %) de la 4k high, 0,72 $, ÷ 4 pour la 2k high
+      // utilisée ici (¼ des pixels) ≈ 0,18 $, + prompt et photos d'entrée ≈ 0,02 $.
+      // PROVISOIRE, à recaler sur la facture Higgsfield.
+      "marketing-studio/image/flare": 0.2,
+      "marketing-studio/image/sunburst": 0.2,
+      // Soul 2 : prix fixe à l'image, 0,0057 $ en 1080p (la résolution du Studio).
+      "higgsfield-ai/soul/v2/standard": 0.0057,
+      "higgsfield-ai/soul/v2/image-to-image": 0.0057,
     };
 
     // ⚠️ Les chiffres ci-dessous sont les tarifs publics en DOLLARS repris tels

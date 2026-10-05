@@ -170,3 +170,25 @@ Deno.test("chaque modèle image par défaut (et le retour arrière) est tarifé 
     assert(tarifes.has(model), `« ${model} » absent de IMAGE_COST_EUR : ses images seraient comptées 0 €`);
   }
 });
+
+/**
+ * Bascule Higgsfield (#1228, 03/10/2026) : les 4 modèles d'IMAGE_MODELS
+ * (visual-studio) écrivent leur nom dans ai_usage. Ils sont restés absents de
+ * IMAGE_COST_EUR jusqu'au bilan du 05/10 (22 images comptées 0 €, « NON
+ * TARIFÉ »). Lu dans le SOURCE pour ne pas charger toute la fonction Studio.
+ */
+Deno.test("chaque modèle image Higgsfield est tarifé dans cron-health", async () => {
+  const studio = await Deno.readTextFile(new URL("../visual-studio/higgsfield-image.ts", import.meta.url));
+  const liste = studio.match(/export const IMAGE_MODELS = \[([\s\S]*?)\] as const;/);
+  assert(liste, "IMAGE_MODELS introuvable dans visual-studio/higgsfield-image.ts");
+  const modeles = [...liste[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  assert(modeles.length >= 4, `liste Higgsfield mal lue (${modeles.join(", ")})`);
+  const { MARKETING_CREATE_MODEL, MARKETING_FIDELITY_MODEL } = await import("./higgsfield-image-api.ts");
+  const src = await Deno.readTextFile(new URL("../cron-health/index.ts", import.meta.url));
+  const bloc = src.match(/const IMAGE_COST_EUR: Record<[^=]+= \{([\s\S]*?)\n    \};/);
+  assert(bloc, "IMAGE_COST_EUR introuvable dans cron-health/index.ts");
+  const tarifes = new Set([...bloc[1].matchAll(/^\s*"([^"]+)":/gm)].map((m) => m[1]));
+  for (const model of [...modeles, MARKETING_CREATE_MODEL, MARKETING_FIDELITY_MODEL]) {
+    assert(tarifes.has(model), `« ${model} » absent de IMAGE_COST_EUR : ses images seraient comptées 0 €`);
+  }
+});
