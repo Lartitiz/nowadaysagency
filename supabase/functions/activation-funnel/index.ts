@@ -7,17 +7,11 @@
 // Réplique la logique du tunnel de `admin-users?mode=stats` pour que les chiffres
 // COÏNCIDENT avec le dashboard admin.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isInternalEmail } from "../_shared/internal-accounts.ts";
 
-const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
-// Comptes internes exclus des stats (mêmes que admin-users).
-const EXCLUDED_EMAILS = [
-  ADMIN_EMAIL,
-  "laetitiatest@nowadaysagency.com", // Camille (visite quotidienne)
-];
-// Tout alias laetitia+…@ est un compte interne (qaneuf, qabranding, mobile, cs…) :
-// le domaine n'a qu'une seule boîte réelle, celle de l'admin.
-const isExcludedEmail = (e: string | null) =>
-  !!e && (EXCLUDED_EMAILS.includes(e) || /^laetitia\+[^@]*@nowadaysagency\.com$/i.test(e));
+// Comptes internes exclus des stats : liste UNIQUE partagée avec admin-users et
+// cron-health (_shared/internal-accounts.ts).
+const isExcludedEmail = isInternalEmail;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",

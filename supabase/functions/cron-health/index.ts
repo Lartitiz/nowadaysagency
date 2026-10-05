@@ -24,21 +24,16 @@
 // `CRON_STATS_SECRET` (header x-cron-secret).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jugerCredits, joursDepuisReset } from "./photoroom-alerte.ts";
+import { isInternalEmail, isTestAccountEmail, maskEmail } from "../_shared/internal-accounts.ts";
 
-const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
-// Comptes internes exclus (mêmes que activation-funnel / admin-users) + alias +cs/+qaneuf.
-const EXCLUDED_EMAILS = [
-  ADMIN_EMAIL,
-  "laetitiatest@nowadaysagency.com",
-  "laetitia+qaneuf0407@nowadaysagency.com",
-];
-const isExcludedEmail = (e: string | null) =>
-  !!e && (EXCLUDED_EMAILS.includes(e) || /^laetitia\+cs/i.test(e));
+// Comptes internes exclus : liste UNIQUE partagée avec activation-funnel et
+// admin-users (_shared/internal-accounts.ts — avant le 05/10/2026 cette edge n'en
+// excluait qu'une partie et la recette gonflait le bilan hebdo).
+const isExcludedEmail = isInternalEmail;
 // Le scope daily surveille les publications RÉELLES : le compte admin de Laetitia y
 // reste inclus (c'est notamment SA connexion LinkedIn ~60 j qu'il faut attraper) —
 // seuls les comptes de test en sortent. Le scope weekly exclut aussi l'admin (stats).
-const isTestEmail = (e: string | null) =>
-  !!e && ((e !== ADMIN_EMAIL && EXCLUDED_EMAILS.includes(e)) || /^laetitia\+cs/i.test(e));
+const isTestEmail = isTestAccountEmail;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -621,6 +616,7 @@ Deno.serve(async (req) => {
     // generated_carousels.quality_score (écrit seulement si un brouillon est sauvé)
     // tant que la table n'existe pas encore (migration Lovable en attente).
     let cqEvents: any[] | null = null;
+    let cqAll: any[] = []; // comptes internes compris (coût de la recette, plus bas)
     try {
       let cqRows: any[];
       try {
@@ -642,18 +638,19 @@ Deno.serve(async (req) => {
           (q) => q.gte("created_at", since35d),
         );
       }
+      cqAll = cqRows;
       cqEvents = cqRows.filter((e: any) => isClient(e.user_id));
     } catch (_) { /* table absente : repli sur les brouillons */ }
 
     // Relecture éditoriale (hors ai_usage, cf. REVIEW_COST_EUR_PER_MTOKEN) :
     // ajoutée au coût de la semaine et remontée par modèle. Un modèle de
     // relecture sans tarif rejoint `modeles_non_tarifes` comme les autres.
-    const addEditorialReview = (summary: any, from: number, to: number) => {
+    const addEditorialReview = (summary: any, from: number, to: number, events: any[] = cqEvents || []) => {
       const byModel: Record<string, { carrousels: number; input_tokens: number; output_tokens: number }> = {};
       // Issue de la relecture : « rejected » = payée puis jetée par la garde de
       // fidélité (2/2 le 28/09). `garde` compte la règle qui a bloqué.
       const issues: Record<string, number> = {}, garde: Record<string, number> = {};
-      for (const e of cqEvents || []) {
+      for (const e of events) {
         const u = e.content_preview?.editorial_usage;
         if (!u?.model || !inWindow(e.created_at, from, to)) continue;
         if (u.status) issues[u.status] = (issues[u.status] || 0) + 1;
@@ -686,6 +683,55 @@ Deno.serve(async (req) => {
     };
     addEditorialReview(aiCur, curFrom, curTo);
     addEditorialReview(aiPrev, prevFrom, prevTo);
+
+    // Top 5 consommatrices des 7 j : un pic de coût se lit d'un coup d'œil (qui,
+    // depuis quand inscrite, combien) au lieu d'être deviné dans l'échantillon —
+    // le bilan du 05/10/2026 (43,82 € vs 1,42 €) a dû être attribué à la recette
+    // à la lecture des sujets. Email MASQUÉ (la***@domaine), jamais complet.
+    const profileById = new Map(profiles.map((p: any) => [p.user_id, p]));
+    const aiCurByUser = new Map<string, any[]>();
+    for (const a of ai) {
+      if (!inWindow(a.created_at, curFrom, curTo)) continue;
+      const list = aiCurByUser.get(a.user_id) || [];
+      list.push(a);
+      aiCurByUser.set(a.user_id, list);
+    }
+    const top_consommatrices_7j = [...aiCurByUser.entries()]
+      .map(([userId, rows]) => {
+        const s = summarize(rows);
+        addEditorialReview(s, curFrom, curTo, (cqEvents || []).filter((e: any) => e.user_id === userId));
+        const p: any = profileById.get(userId);
+        return {
+          email_masque: maskEmail(p?.email),
+          inscrite_le: p?.created_at ? String(p.created_at).slice(0, 10) : null,
+          appels: s.appels,
+          tokens: s.tokens,
+          cout_estime_eur: s.cout_total_estime_eur,
+          part_du_cout_pct: aiCur.cout_total_estime_eur
+            ? Math.round((s.cout_total_estime_eur / aiCur.cout_total_estime_eur) * 100)
+            : null,
+          action_principale: s.topActions[0]?.action || null,
+        };
+      })
+      .sort((x, y) => y.cout_estime_eur - x.cout_estime_eur || y.tokens - x.tokens)
+      .slice(0, 5);
+
+    // Ce que les comptes INTERNES (admin + recette, _shared/internal-accounts.ts)
+    // ont consommé cette semaine, HORS des totaux ci-dessus : la recette coûte de
+    // vrais euros, on la voit sans qu'elle fausse l'usage des clientes.
+    const internalIds = new Set(
+      profiles.filter((p: any) => isExcludedEmail(p.email)).map((p: any) => p.user_id),
+    );
+    const aiInternes = summarize(
+      aiRows.filter((a: any) => internalIds.has(a.user_id) && inWindow(a.created_at, curFrom, curTo)),
+    );
+    addEditorialReview(aiInternes, curFrom, curTo, cqAll.filter((e: any) => internalIds.has(e.user_id)));
+    const comptes_internes_7j = {
+      comptes: aiInternes.utilisatrices,
+      appels: aiInternes.appels,
+      tokens: aiInternes.tokens,
+      cout_estime_eur: aiInternes.cout_total_estime_eur,
+    };
 
     const eventScoreStats = (rows: any[]) => {
       const vals = rows.map((r) => r.redac_score).filter((v: any) => typeof v === "number");
@@ -790,6 +836,8 @@ Deno.serve(async (req) => {
       scope,
       ia_7j: aiCur,
       ia_7j_precedents: aiPrev,
+      top_consommatrices_7j,
+      comptes_internes_7j,
       publications: { cette_semaine: publishedCur, semaine_precedente: publishedPrev },
       cohortes: cohorts,
       actives_cette_semaine: activeThisWeek.size,

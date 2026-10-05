@@ -1,18 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders, corsHeaders } from "../_shared/cors.ts";
+import { ADMIN_EMAIL, isInternalEmail } from "../_shared/internal-accounts.ts";
 
-const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
 // Comptes internes exclus des STATISTIQUES (mode=stats uniquement — ils restent
-// visibles dans la liste utilisatrices). L'usage des comptes de test Playwright/QA
-// polluait le tunnel d'activation et les actives semaine/mois.
-const EXCLUDED_STATS_EMAILS = [
-  ADMIN_EMAIL,
-  "laetitiatest@nowadaysagency.com", // « Camille » — compte test de référence (visite Playwright quotidienne)
-];
-// Tout alias laetitia+…@ est un compte interne (qaneuf, qabranding, mobile, cs…) :
-// le domaine n'a qu'une seule boîte réelle, celle de l'admin.
-const isExcludedStatsEmail = (e: string | null) =>
-  !!e && (EXCLUDED_STATS_EMAILS.includes(e) || /^laetitia\+[^@]*@nowadaysagency\.com$/i.test(e));
+// visibles dans la liste utilisatrices) : liste UNIQUE dans _shared/internal-accounts.ts.
+const isExcludedStatsEmail = isInternalEmail;
 const PLAN_PRICES: Record<string, number> = { outil: 39, binome: 350, pro: 79 };
 
 Deno.serve(async (req) => {
