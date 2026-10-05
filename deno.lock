@@ -3,6 +3,8 @@
   "specifiers": {
     "jsr:@std/assert@1": "1.0.19",
     "jsr:@std/internal@^1.0.12": "1.0.14",
+    "jsr:@supabase/functions-js@*": "2.117.2",
+    "jsr:@supabase/supabase-js@2": "2.117.2",
     "npm:@axe-core/playwright@^4.12.1": "4.12.1_playwright-core@1.61.1",
     "npm:@dnd-kit/core@^6.3.1": "6.3.1_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:@dnd-kit/sortable@10": "10.0.0_@dnd-kit+core@6.3.1__react@18.3.1__react-dom@18.3.1___react@18.3.1_react@18.3.1_react-dom@18.3.1__react@18.3.1",
@@ -32,6 +34,11 @@
     "npm:@radix-ui/react-toggle@^1.1.9": "1.1.14_@types+react@18.3.31_@types+react-dom@18.3.7__@types+react@18.3.31_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:@radix-ui/react-tooltip@^1.2.7": "1.2.12_@types+react@18.3.31_@types+react-dom@18.3.7__@types+react@18.3.31_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:@sentry/react@^10.40.0": "10.65.0_react@18.3.1",
+    "npm:@supabase/auth-js@2.117.2": "2.117.2",
+    "npm:@supabase/functions-js@2.117.2": "2.117.2",
+    "npm:@supabase/postgrest-js@2.117.2": "2.117.2",
+    "npm:@supabase/realtime-js@2.117.2": "2.117.2",
+    "npm:@supabase/storage-js@2.117.2": "2.117.2",
     "npm:@supabase/supabase-js@2.57.2": "2.57.2",
     "npm:@supabase/supabase-js@^2.95.3": "2.110.2",
     "npm:@tanstack/react-query@^5.83.0": "5.101.2_react@18.3.1",
@@ -68,6 +75,7 @@
     "npm:lucide-react@0.462": "0.462.0_react@18.3.1",
     "npm:mammoth@^1.12.1": "1.13.0",
     "npm:next-themes@0.3": "0.3.0_react@18.3.1_react-dom@18.3.1__react@18.3.1",
+    "npm:openai@^4.52.5": "4.104.0_zod@3.25.76",
     "npm:pdfjs-dist@^4.8.69": "4.10.38",
     "npm:postcss@^8.5.26": "8.5.28",
     "npm:postgres@^3.4.9": "3.4.9",
@@ -99,6 +107,22 @@
     },
     "@std/internal@1.0.14": {
       "integrity": "291516b3d4c35024d6ffbc0a9df5bf4c64116e05b50012cf846710152d2ffdf7"
+    },
+    "@supabase/functions-js@2.117.2": {
+      "integrity": "add71f09607b7f59af7de7a66a560ccac4fa70cbddb67d8919e536357aaa5dd2",
+      "dependencies": [
+        "npm:openai"
+      ]
+    },
+    "@supabase/supabase-js@2.117.2": {
+      "integrity": "25d69a2a93810fc5a396d40bc55b5a948ed0a44c5a7ed8e2da793c09240e77f1",
+      "dependencies": [
+        "npm:@supabase/auth-js",
+        "npm:@supabase/functions-js@2.117.2",
+        "npm:@supabase/postgrest-js",
+        "npm:@supabase/realtime-js",
+        "npm:@supabase/storage-js"
+      ]
     }
   },
   "npm": {
@@ -2097,6 +2121,13 @@
       ],
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@supabase/auth-js/-/auth-js-2.110.2.tgz"
     },
+    "@supabase/auth-js@2.117.2": {
+      "integrity": "sha512-Z3WnGwrphYZubrLbxp5Iv0tLA9A5GhvKzJ/ZXglxqwd2QEH2R4dXRltjVJ8sIn4xEW2BSFIGT0yALVJIgZeDYw==",
+      "dependencies": [
+        "tslib"
+      ],
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@supabase/auth-js/-/auth-js-2.117.2.tgz"
+    },
     "@supabase/auth-js@2.71.1": {
       "integrity": "sha512-mMIQHBRc+SKpZFRB2qtupuzulaUhFYupNyxqDj5Jp/LyPvcWvjaJzZzObv6URtL/O6lPxkanASnotGtNpS3H2Q==",
       "dependencies": [
@@ -2110,6 +2141,13 @@
         "tslib"
       ],
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@supabase/functions-js/-/functions-js-2.110.2.tgz"
+    },
+    "@supabase/functions-js@2.117.2": {
+      "integrity": "sha512-6DT4ZIjmZxa9ANKaBIrjc86AyKrX8M376ynvNeOBBVad3eP7x3UHqWfDR2ynFkHGzCuOpr1A+kObmnahxuwuog==",
+      "dependencies": [
+        "tslib"
+      ],
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@supabase/functions-js/-/functions-js-2.117.2.tgz"
     },
     "@supabase/functions-js@2.4.5": {
       "integrity": "sha512-v5GSqb9zbosquTo6gBwIiq7W9eQ7rE5QazsK/ezNiQXdCbY+bH8D9qEaBIkhVvX4ZRW5rP03gEfw5yw9tiq4EQ==",
@@ -2129,6 +2167,10 @@
       "integrity": "sha512-Gt0pqoXuIqX/8dvG0OKp/wMCobXNH3klNbUPBNyOfN0YA1IswrM3HyWFMOPk1Jy+BRaIyDPcFx4jLBwHNmlyfQ==",
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@supabase/phoenix/-/phoenix-0.4.4.tgz"
     },
+    "@supabase/phoenix@0.4.5": {
+      "integrity": "sha512-aAn9H9ovVyeApKy11OWOrrOGq8DV68yWeH4ud2lN9fzn4aO8Zb5GLL9m1pUg9nLqIcT+ZDfAcsZe0E/nqdv2lw==",
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@supabase/phoenix/-/phoenix-0.4.5.tgz"
+    },
     "@supabase/postgrest-js@1.21.3": {
       "integrity": "sha512-rg3DmmZQKEVCreXq6Am29hMVe1CzemXyIWVYyyua69y6XubfP+DzGfLxME/1uvdgwqdoaPbtjBDpEBhqxq1ZwA==",
       "dependencies": [
@@ -2143,13 +2185,28 @@
       ],
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@supabase/postgrest-js/-/postgrest-js-2.110.2.tgz"
     },
+    "@supabase/postgrest-js@2.117.2": {
+      "integrity": "sha512-V1Qhn+M8xzJqCasOxHZ2KG19Fj39PxU7weEAmOK65/KTsWCRXboB4hcQwFvxRvM7ZikeP9IZWNvQkfjvSxzYFw==",
+      "dependencies": [
+        "tslib"
+      ],
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@supabase/postgrest-js/-/postgrest-js-2.117.2.tgz"
+    },
     "@supabase/realtime-js@2.110.2": {
       "integrity": "sha512-z3jTOTPgyn6E3r6dVOOQ10He4yAMB2czjFw7xVdX3s16MHElna5rY1gVaePs0NIo6xvtMYbtmOXlFaFt/ePLpg==",
       "dependencies": [
-        "@supabase/phoenix",
+        "@supabase/phoenix@0.4.4",
         "tslib"
       ],
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@supabase/realtime-js/-/realtime-js-2.110.2.tgz"
+    },
+    "@supabase/realtime-js@2.117.2": {
+      "integrity": "sha512-lYXSAIg3eAKA58riUED6Vb+TCzF8jtx18uOoiCaVJ7ZMre6FWBpwB1MPeW+B6vykJT/hPdiuqwcSB7ILMS21ew==",
+      "dependencies": [
+        "@supabase/phoenix@0.4.5",
+        "tslib"
+      ],
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@supabase/realtime-js/-/realtime-js-2.117.2.tgz"
     },
     "@supabase/realtime-js@2.15.5": {
       "integrity": "sha512-/Rs5Vqu9jejRD8ZeuaWXebdkH+J7V6VySbCZ/zQM93Ta5y3mAmocjioa/nzlB6qvFmyylUgKVS1KpE212t30OA==",
@@ -2169,6 +2226,14 @@
       ],
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@supabase/storage-js/-/storage-js-2.110.2.tgz"
     },
+    "@supabase/storage-js@2.117.2": {
+      "integrity": "sha512-8gAJoVaxZa/War2kFRfJMxGk4M190Q7lJ70BofwGlRxU/u9pIodd6XyTvmXkxOKXWuIYtkDaYPZrIAUt1T/7FQ==",
+      "dependencies": [
+        "iceberg-js",
+        "tslib"
+      ],
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@supabase/storage-js/-/storage-js-2.117.2.tgz"
+    },
     "@supabase/supabase-js@2.110.2": {
       "integrity": "sha512-r9q9w4ZQ6mOjh36aqUNFSisBF611vzpO8JphBESr2Q1SWvmGFQeI7Jq7Y+PaNMZ6Zszz+S2yTlJStCpnaMSnQg==",
       "dependencies": [
@@ -2176,7 +2241,7 @@
         "@supabase/functions-js@2.110.2",
         "@supabase/postgrest-js@2.110.2",
         "@supabase/realtime-js@2.110.2",
-        "@supabase/storage-js"
+        "@supabase/storage-js@2.110.2"
       ],
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@supabase/supabase-js/-/supabase-js-2.110.2.tgz"
     },
@@ -2188,7 +2253,7 @@
         "@supabase/node-fetch",
         "@supabase/postgrest-js@1.21.3",
         "@supabase/realtime-js@2.15.5",
-        "@supabase/storage-js"
+        "@supabase/storage-js@2.117.2"
       ],
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@supabase/supabase-js/-/supabase-js-2.57.2.tgz"
     },
@@ -2432,10 +2497,25 @@
       "integrity": "sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==",
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@types/json-schema/-/json-schema-7.0.15.tgz"
     },
+    "@types/node-fetch@2.6.13": {
+      "integrity": "sha512-QGpRVpzSaUs30JBSGPjOg4Uveu384erbHBoT1zeONvyCfwQxIkUshLAOqN/k9EjGviPRmWTTe6aH2qySWKTVSw==",
+      "dependencies": [
+        "@types/node@22.20.1",
+        "form-data"
+      ],
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@types/node-fetch/-/node-fetch-2.6.13.tgz"
+    },
+    "@types/node@18.19.130": {
+      "integrity": "sha512-GRaXQx6jGfL8sKfaIDD6OupbIHBr9jv7Jnaml9tB7l4v068PAOXqfcujMMo5PhbIs6ggR1XODELqahT2R8v0fg==",
+      "dependencies": [
+        "undici-types@5.26.5"
+      ],
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@types/node/-/node-18.19.130.tgz"
+    },
     "@types/node@22.20.1": {
       "integrity": "sha512-EANqOCF9QFyra+4pfxUcX9STKJpCLjMbObVzljIJomAWSnuSIEAvyzEU53GaajbXJEgdh0iEcPL+DGvpUd4k1Q==",
       "dependencies": [
-        "undici-types"
+        "undici-types@6.21.0"
       ],
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@types/node/-/node-22.20.1.tgz"
     },
@@ -2477,7 +2557,7 @@
     "@types/ws@8.18.1": {
       "integrity": "sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==",
       "dependencies": [
-        "@types/node"
+        "@types/node@22.20.1"
       ],
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@types/ws/-/ws-8.18.1.tgz"
     },
@@ -2672,6 +2752,13 @@
       "deprecated": true,
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/abab/-/abab-2.0.6.tgz"
     },
+    "abort-controller@3.0.0": {
+      "integrity": "sha512-h8lQ8tacZYnR3vNQTgibj+tODHI5/+l06Au2Pcriv/Gmet0eaj4TwWH41sO9wnHDiQsEj19q0drzdWdeAHtweg==",
+      "dependencies": [
+        "event-target-shim"
+      ],
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/abort-controller/-/abort-controller-3.0.0.tgz"
+    },
     "acorn-globals@7.0.1": {
       "integrity": "sha512-umOSDSDrfHbTNPuNpC2NSnnA3LUrqpevPb4T9jRx4MagXNS0rs+gwiTcAvqCRmsD6utzsrzNt+ebm00SNWiC3Q==",
       "dependencies": [
@@ -2705,6 +2792,13 @@
         "debug"
       ],
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/agent-base/-/agent-base-6.0.2.tgz"
+    },
+    "agentkeepalive@4.6.0": {
+      "integrity": "sha512-kja8j7PjmncONqaTsB8fQ+wE2mSU2DJ9D4XKoJ5PFWIdRMa6SLSN1ff4mOr4jCbfRSsxR4keIiySJU0N9T5hIQ==",
+      "dependencies": [
+        "humanize-ms"
+      ],
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/agentkeepalive/-/agentkeepalive-4.6.0.tgz"
     },
     "ajv@6.15.0": {
       "integrity": "sha512-fgFx7Hfoq60ytK2c7DhnF8jIvzYgOMxfugjLOSMHjLIPgenqa7S7oaagATUq99mV6IYvN2tRmC0wnTYX6iPbMw==",
@@ -3531,6 +3625,10 @@
       "integrity": "sha512-kVscqXk4OCp68SZ0dkgEKVi6/8ij300KBWTJq32P/dYeWTSwK41WyTxalN1eRmA5Z9UU/LX9D7FWSmV9SAYx6g==",
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/esutils/-/esutils-2.0.3.tgz"
     },
+    "event-target-shim@5.0.1": {
+      "integrity": "sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==",
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/event-target-shim/-/event-target-shim-5.0.1.tgz"
+    },
     "eventemitter3@4.0.7": {
       "integrity": "sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==",
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/eventemitter3/-/eventemitter3-4.0.7.tgz"
@@ -3634,6 +3732,10 @@
       "integrity": "sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==",
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/flatted/-/flatted-3.4.2.tgz"
     },
+    "form-data-encoder@1.7.2": {
+      "integrity": "sha512-qfqtYan3rxrnCk1VYaA4H+Ms9xdpPqvLZa6xmMgFvhO32x7/3J/ExcTd6qpxM0vH2GdMI+poehyBZvqfMTto8A==",
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/form-data-encoder/-/form-data-encoder-1.7.2.tgz"
+    },
     "form-data@4.0.6": {
       "integrity": "sha512-vKatAh4SlVfgbv+YtmhiRjhEMJsYpsG1Y2rMQtR+SVSbytsSD1YGzDIcrAJmdFec88u/+VoGmxnl+80gL1tRCQ==",
       "dependencies": [
@@ -3644,6 +3746,14 @@
         "mime-types"
       ],
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/form-data/-/form-data-4.0.6.tgz"
+    },
+    "formdata-node@4.4.1": {
+      "integrity": "sha512-0iirZp3uVDjVGt9p49aTaqjk84TrglENEDuqfdlZQ1roC9CWlPk6Avf8EEnZNcAqPonwkG35x4n3ww/1THYAeQ==",
+      "dependencies": [
+        "node-domexception",
+        "web-streams-polyfill"
+      ],
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/formdata-node/-/formdata-node-4.4.1.tgz"
     },
     "fraction.js@5.3.4": {
       "integrity": "sha512-1X1NTtiJphryn/uLQz3whtY6jK3fTqoE3ohKs0tT+Ujr1W59oopxmoEh7Lu5p6vBaPbgoM0bzveAW4Qi5RyWDQ==",
@@ -3810,6 +3920,13 @@
     "https@1.0.0": {
       "integrity": "sha512-4EC57ddXrkaF0x83Oj8sM6SLQHAWXw90Skqu2M4AEWENZ3F02dFJE/GARA8igO79tcgYqGrD7ae4f5L3um2lgg==",
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/https/-/https-1.0.0.tgz"
+    },
+    "humanize-ms@1.2.1": {
+      "integrity": "sha512-Fl70vYtsAFb/C06PTS9dZBo7ihau+Tu/DNCk/OyHhea07S+aeMWpFFkUaXRa8fI+ScZbEI8dfSxwY7gxZ9SAVQ==",
+      "dependencies": [
+        "ms"
+      ],
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/humanize-ms/-/humanize-ms-1.2.1.tgz"
     },
     "iceberg-js@0.8.1": {
       "integrity": "sha512-1dhVQZXhcHje7798IVM+xoo/1ZdVfzOMIc8/rgVSijRK38EDqOJoGula9N/8ZI5RD8QTxNQtK/Gozpr+qUqRRA==",
@@ -4264,6 +4381,18 @@
       ],
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/next-themes/-/next-themes-0.3.0.tgz"
     },
+    "node-domexception@1.0.0": {
+      "integrity": "sha512-/jKZoMpw0F8GRwl4/eLROPA3cfcXtLApP0QzLmUT/HuPCZWyB7IY9ZrMeKw2O/nFIqPQB3PVM9aYm0F312AXDQ==",
+      "deprecated": true,
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/node-domexception/-/node-domexception-1.0.0.tgz"
+    },
+    "node-fetch@2.7.0": {
+      "integrity": "sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==",
+      "dependencies": [
+        "whatwg-url@5.0.0"
+      ],
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/node-fetch/-/node-fetch-2.7.0.tgz"
+    },
     "node-releases@2.0.51": {
       "integrity": "sha512-wRNIrw4DmVLKQlbgOMdkMx27Wrpzes2hh5Jtbi2bjPd+4wJstWIqP5A+lscnqbm0xxmT5Bpg8Lec5ItEBwx6BQ==",
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/node-releases/-/node-releases-2.0.51.tgz"
@@ -4283,6 +4412,24 @@
     "object-hash@3.0.0": {
       "integrity": "sha512-RSn9F68PjH9HqtltsSnqYC1XXoWe9Bju5+213R98cNGttag9q9yAOTzdbsqvIa7aNm5WffBZFpWYr2aWrklWAw==",
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/object-hash/-/object-hash-3.0.0.tgz"
+    },
+    "openai@4.104.0_zod@3.25.76": {
+      "integrity": "sha512-p99EFNsA/yX6UhVO93f5kJsDRLAg+CTA2RBqdHK4RtK8u5IJw32Hyb2dTGKbnnFmnuoBv5r7Z2CURI9sGZpSuA==",
+      "dependencies": [
+        "@types/node@18.19.130",
+        "@types/node-fetch",
+        "abort-controller",
+        "agentkeepalive",
+        "form-data-encoder",
+        "formdata-node",
+        "node-fetch",
+        "zod"
+      ],
+      "optionalPeers": [
+        "zod"
+      ],
+      "bin": true,
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/openai/-/openai-4.104.0.tgz"
     },
     "option@0.2.4": {
       "integrity": "sha512-pkEqbDyl8ou5cpq+VsnQbe/WlEy5qS7xPzMS1U55OCG9KPvwFD46zDbxQIj3egJSFc3D+XhYOPUzz49zQAVy7A==",
@@ -4484,7 +4631,7 @@
     "pptxgenjs@4.0.1": {
       "integrity": "sha512-TeJISr8wouAuXw4C1F/mC33xbZs/FuEG6nH9FG1Zj+nuPcGMP5YRHl6X+j3HSUnS1f3at6k75ZZXPMZlA5Lj9A==",
       "dependencies": [
-        "@types/node",
+        "@types/node@22.20.1",
         "https",
         "image-size",
         "jszip"
@@ -5140,6 +5287,10 @@
       "integrity": "sha512-DXtD3ZtEQzc7M8m4cXotyHR+FAS18C64asBYY5vqZexfYryNNnDc02W4hKg3rdQuqOYas1jkseX0+nZXjTXnvQ==",
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/underscore/-/underscore-1.13.8.tgz"
     },
+    "undici-types@5.26.5": {
+      "integrity": "sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==",
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/undici-types/-/undici-types-5.26.5.tgz"
+    },
     "undici-types@6.21.0": {
       "integrity": "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==",
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/undici-types/-/undici-types-6.21.0.tgz"
@@ -5253,7 +5404,7 @@
     "vite@5.4.21_@types+node@22.20.1": {
       "integrity": "sha512-o5a9xKjbtuhY6Bi5S3+HvbRERmouabWbyUcpXXUA1u+GNUKoROi9byOJ8M0nHbHYHkYICiMlqxkg1KkYmm25Sw==",
       "dependencies": [
-        "@types/node",
+        "@types/node@22.20.1",
         "esbuild@0.21.5",
         "postcss",
         "rollup"
@@ -5262,7 +5413,7 @@
         "fsevents@2.3.3"
       ],
       "optionalPeers": [
-        "@types/node"
+        "@types/node@22.20.1"
       ],
       "bin": true,
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/vite/-/vite-5.4.21.tgz"
@@ -5271,7 +5422,7 @@
       "integrity": "sha512-KrxIJ62Fd89gfysR4WotlgZABiz2dqFPgqGzX7s+CwsqLFomRH7777ZcrOD6+WVAh7khPQP41A+BKbpcJFrdEg==",
       "dependencies": [
         "@types/chai",
-        "@types/node",
+        "@types/node@22.20.1",
         "@vitest/expect",
         "@vitest/mocker",
         "@vitest/pretty-format",
@@ -5297,7 +5448,7 @@
         "why-is-node-running"
       ],
       "optionalPeers": [
-        "@types/node",
+        "@types/node@22.20.1",
         "jsdom"
       ],
       "bin": true,
@@ -5309,6 +5460,10 @@
         "xml-name-validator"
       ],
       "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/w3c-xmlserializer/-/w3c-xmlserializer-4.0.0.tgz"
+    },
+    "web-streams-polyfill@4.0.0-beta.3": {
+      "integrity": "sha512-QW95TCTaHmsYfHDybGMwO5IJIM93I/6vTRk+daHTWFPhwh+C8Cg7j7XyKrwrj8Ib6vYXe0ocYNrmzY4xAAN6ug==",
+      "tarball": "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/web-streams-polyfill/-/web-streams-polyfill-4.0.0-beta.3.tgz"
     },
     "web-vitals@5.3.0": {
       "integrity": "sha512-q6LWsLatGYZp5VGBIOvbTj6JBV2nOmC8KvWztXBmwJcfFAzhwKwbOxhUH306XY3CcaZDUlSmSuNPBsCn0bFu+g==",
@@ -5441,6 +5596,7 @@
     "https://deno.land/std@0.168.0/async/pool.ts": "6854d8cd675a74c73391c82005cbbe4cc58183bddcd1fbbd7c2bcda42b61cf69",
     "https://deno.land/std@0.168.0/async/retry.ts": "e8e5173623915bbc0ddc537698fa418cf875456c347eda1ed453528645b42e67",
     "https://deno.land/std@0.168.0/async/tee.ts": "3a47cc4e9a940904fd4341f0224907e199121c80b831faa5ec2b054c6d2eff5e",
+    "https://deno.land/std@0.168.0/encoding/base64.ts": "8605e018e49211efc767686f6f687827d7f5fd5217163e981d8d693105640d7a",
     "https://deno.land/std@0.168.0/fmt/colors.ts": "03ad95e543d2808bc43c17a3dd29d25b43d0f16287fe562a0be89bf632454a12",
     "https://deno.land/std@0.168.0/http/server.ts": "e99c1bee8a3f6571ee4cdeb2966efad465b8f6fe62bec1bdb59c1f007cc4d155",
     "https://deno.land/std@0.168.0/testing/_diff.ts": "a23e7fc2b4d8daa3e158fa06856bedf5334ce2a2831e8bf9e509717f455adb2c",
@@ -5536,6 +5692,7 @@
     "https://deno.land/std@0.224.0/path/_common/normalize_string.ts": "33edef773c2a8e242761f731adeb2bd6d683e9c69e4e3d0092985bede74f4ac3",
     "https://deno.land/std@0.224.0/path/_common/strip_trailing_separators.ts": "7024a93447efcdcfeaa9339a98fa63ef9d53de363f1fbe9858970f1bba02655a",
     "https://deno.land/std@0.224.0/path/_common/to_file_url.ts": "7f76adbc83ece1bba173e6e98a27c647712cab773d3f8cbe0398b74afc817883",
+    "https://deno.land/std@0.224.0/path/_interface.ts": "8dfeb930ca4a772c458a8c7bbe1e33216fe91c253411338ad80c5b6fa93ddba0",
     "https://deno.land/std@0.224.0/path/_os.ts": "8fb9b90fb6b753bd8c77cfd8a33c2ff6c5f5bc185f50de8ca4ac6a05710b2c15",
     "https://deno.land/std@0.224.0/path/dirname.ts": "85bd955bf31d62c9aafdd7ff561c4b5fb587d11a9a5a45e2b01aedffa4238a7c",
     "https://deno.land/std@0.224.0/path/from_file_url.ts": "911833ae4fd10a1c84f6271f36151ab785955849117dc48c6e43b929504ee069",
