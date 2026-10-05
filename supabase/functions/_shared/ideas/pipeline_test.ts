@@ -14,7 +14,7 @@ Deno.test("direct subjectless entry researches internally and formulates 4 devel
 Deno.test("a duplicate parallel idea is replaced once by a reserve candidate", async () => {
   let calls = 0;
   const result = await generateDeepIdeas({ context: "Céramiste", history: "" }, {
-    model: "claude-opus-5-5", apiKey: "", call: async (o) => { calls++; if (calls === 1) return JSON.stringify({ candidates: [1, 2, 3, 4, 5, 6].map(i => ({ ...idea, subject: `Piste ${i}` })), research_queries: [] }); const n = o.messages[0].content.match(/piste n°(\d)/)?.[1]; return JSON.stringify({ ideas: [{ ...idea, subject: n === "2" ? "Idée 1" : `Idée ${n}` }] }); },
+    model: "claude-opus-5-5", apiKey: "", call: async (o) => { calls++; if (calls === 1) return JSON.stringify({ candidates: [1, 2, 3, 4, 5, 6].map(i => ({ ...idea, subject: `Piste ${i}` })), research_queries: [] }); const prompt = o.messages[0].content as string; const n = prompt.match(/piste n°(\d)/)?.[1]; return JSON.stringify({ ideas: [{ ...idea, subject: n === "2" ? "Idée 1" : `Idée ${n}` }] }); },
     research: async (q) => { assertEquals(q.length, 0); return { sources: [], status: "not_needed" }; },
   });
   assertEquals(calls, 6); assertEquals(result.ideas.map(i => i.subject).sort(), ["Idée 1", "Idée 3", "Idée 4", "Idée 5"]);

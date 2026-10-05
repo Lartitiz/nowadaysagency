@@ -6,7 +6,7 @@ Deno.test("une couleur dite détectée doit exister dans les styles collectés",
     { confidence: "high", color_primary: "#AABBCC", color_secondary: "#123456", color_accent: "#abf" },
     "Couleurs détectées dans le CSS: #aabbcc (×4), #aabbcc80 (×2)\nCSS variable: --accent: #aabbcc",
   );
-  assertEquals(result, {
+  assertEquals<Record<string, string | null>>(result, {
     confidence: "high",
     color_primary: "#aabbcc",
     color_secondary: null,
@@ -19,7 +19,7 @@ Deno.test("sans couleur CSS vérifiée, la palette ne peut pas être présentée
     { confidence: "high", color_primary: "#ff00aa" },
     "Typographies détectées: Lora, Inter",
   );
-  assertEquals(result, { confidence: "low", color_primary: null });
+  assertEquals<Record<string, string | null>>(result, { confidence: "low", color_primary: null });
 });
 
 Deno.test("une palette proposée conserve sa provenance faible", () => {
