@@ -13,10 +13,27 @@ Deno.test("comptes internes : admin, Camille et tout alias laetitia+…@ de l'ag
   ]) assertEquals(isInternalEmail(e), true, e);
 });
 
+Deno.test("boîte Gmail perso de Laetitia : toutes ses variantes (points, +alias) sont internes", () => {
+  for (const e of [
+    "laetitiamattioli@gmail.com",
+    "LaetitiaMattioli@Gmail.com",
+    "laetitia.mattioli@gmail.com",
+    "laetitiamattioli+recette@gmail.com",
+    "l.aetitia.mattioli+qa3009@googlemail.com",
+  ]) assertEquals(isInternalEmail(e), true, e);
+  // Hors admin, donc visible comme compte de test dans la sonde daily.
+  assertEquals(isTestAccountEmail("laetitiamattioli+recette@gmail.com"), true);
+});
+
 Deno.test("jamais une cliente : autres domaines, homonymes, sous-domaines", () => {
   for (const e of [
     "laetitia@gmail.com",
     "laetitia+pro@gmail.com",
+    "laetitiamattioli@yahoo.fr",
+    "laetitiamattioli2@gmail.com",
+    "xlaetitiamattioli@gmail.com",
+    "laetitiamattioli@gmail.com.evil.fr",
+    "laetitia.mattioli.dupont@gmail.com",
     "camille@atelier.fr",
     "laetitia.dupont@nowadaysagency.com",
     "laetitia+x@nowadaysagency.com.evil.fr",

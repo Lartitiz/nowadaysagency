@@ -25,10 +25,22 @@ const AGENCY_ALIAS = /^laetitia\+[^@]*@nowadaysagency\.com$/i;
 
 const norm = (e: string | null | undefined) => (e || "").trim().toLowerCase();
 
+// Boîte Gmail PERSONNELLE de Laetitia (05/10/2026) : ses comptes de recette
+// gmail (inscrits le 28/02 et le 30/09) faisaient 91 % du coût du bilan hebdo
+// du 05/10, comptés comme des clientes. Gmail ignore les points et tout
+// suffixe `+…` : `laetitia.mattioli+recette@gmail.com` arrive dans la MÊME
+// boîte, donc ne peut appartenir qu'à elle. On compare la boîte normalisée,
+// jamais un préfixe (`laetitia@gmail.com` reste une cliente possible).
+const PERSONAL_GMAIL_BOX = "laetitiamattioli";
+function isPersonalGmail(v: string): boolean {
+  const m = v.match(/^([^@]+)@(gmail|googlemail)\.com$/);
+  return !!m && m[1].split("+")[0].replaceAll(".", "") === PERSONAL_GMAIL_BOX;
+}
+
 /** Admin + comptes de test : exclus de toutes les STATISTIQUES (coûts, tunnel, cohortes). */
 export function isInternalEmail(e: string | null | undefined): boolean {
   const v = norm(e);
-  return !!v && (INTERNAL_EMAILS.has(v) || AGENCY_ALIAS.test(v));
+  return !!v && (INTERNAL_EMAILS.has(v) || AGENCY_ALIAS.test(v) || isPersonalGmail(v));
 }
 
 /**
