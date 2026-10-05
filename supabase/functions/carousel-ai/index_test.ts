@@ -1107,3 +1107,38 @@ for (const lived of [true, false]) Deno.test(`ton cas d'abord : recherche et ré
     assert(!system.includes("TON CAS D'ABORD"));
   }
 });
+
+// Actu (05/10/2026, « l'actu déclenche, ton ressenti porte le contenu ») : le
+// sujet envoyé par le front est l'accroche écrite par l'IA (NewsjackingPanel),
+// souvent en « je ». Elle ne coupe plus la recherche de profondeur ; avec ses
+// réponses, son ressenti porte le contenu (consigne unique, sans « Ton cas d'abord »).
+for (const withFeeling of [false, true]) Deno.test(`actu : recherche en profondeur et consigne d'actu, ressenti fourni=${withFeeling}`, async () => {
+  resetDeps();
+  // deno-lint-ignore no-explicit-any
+  let research: any = null, system = "", user = "";
+  // deno-lint-ignore no-explicit-any
+  _deps.fetchDepthMaterial = (async (o: any) => { research = o; return "Meta Verified coûte 9,99 € par mois aux États-Unis depuis 2023 (Meta, 2023) ; assez long pour être gardé dans le bloc."; }) as any;
+  // deno-lint-ignore no-explicit-any
+  _deps.callAnthropic = (async (options: any) => { system = options.system; user = JSON.stringify(options.messages); throw new Error("arrêt du test après capture"); }) as any;
+  const news_context = "ACTUALITÉ : Meta lance Verified en France à 9,99 € par mois\nSource : Le Monde\nRésumé : abonnement de certification.\n\nANGLE CHOISI :\nVéhicule : declencheur_externe\nHook : J'ai peur de devoir payer 9,99 € pour exister\nDéveloppement : payer pour être vue.";
+  const deepening_answers = withFeeling
+    ? { "Quand tu parles de ce sujet, qu'est-ce qu'on te répond, et qu'est-ce que tu sens derrière ?": "On me répond que c'est le prix de la visibilité. Moi j'y vois une taxe sur les petites marques." }
+    : null;
+  await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: null, subject: "J'ai peur de devoir payer 9,99 € pour exister", news_context, deepening_answers, editorial_angle: null, objective: "visibilite", scenario_origin: "automatic" }));
+  assertEquals(research.mode, "depth");
+  assertEquals(research.livedCase, undefined);
+  assert(String(research.subject).includes("Meta lance Verified"));
+  assert(system.includes("MATIÈRE DE PROFONDEUR"));
+  assert(!system.includes("MATIÈRE D'APPUI"));
+  assert(!system.includes("TON CAS D'ABORD"));
+  assert(system.includes("ACTUALITÉ FOURNIE"));
+  if (withFeeling) {
+    assert(system.includes("L'ACTU DÉCLENCHE, SON RESSENTI PORTE LE CONTENU"));
+    assert(!system.includes("Le cas d'actualité reste le sujet jusqu'à la dernière slide"));
+    assert(user.includes("SON RESSENTI SUR L'ACTU"));
+  } else {
+    assert(!system.includes("L'ACTU DÉCLENCHE"));
+    assert(system.includes("Le cas d'actualité reste le sujet jusqu'à la dernière slide"));
+    assert(system.includes("un « on » ou « nous » collectif peut porter cette lecture"));
+  }
+});

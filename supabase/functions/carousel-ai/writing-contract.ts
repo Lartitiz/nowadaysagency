@@ -1,6 +1,6 @@
 import { COMMON, WRITE } from "../_shared/carousel-editorial-contract.ts";
 import { COVER_WRITING } from "../_shared/carousel-cover.ts";
-import { LIVED_CASE_FIRST } from "../_shared/lived-case.ts";
+import { LIVED_CASE_FIRST, NEWS_FEELING_FIRST, type CaseMode } from "../_shared/lived-case.ts";
 /** Carousel-specific writing policy. Layout contracts remain in the variant builders. */
 export const CAROUSEL_WRITING_VERSION = "fil-v11-couverture-accroche";
 
@@ -62,13 +62,17 @@ Examine aussi les titres et fins de paragraphes : une opposition de façade, une
  * Contrat de fond selon la matière : quand la personne a donné son propre cas
  * (lived-case.ts), la lecture sociale en « on / nous » laisse la place à la
  * règle « Ton cas d'abord » ; sinon le contrat de profondeur reste inchangé.
+ * Actu + ressenti fourni (« news_feeling », 05/10/2026) : la règle unique
+ * NEWS_FEELING_FIRST prend cette place ; actu sans réponse : inchangé.
  */
-export function carouselSubstance(livedCase = false): string {
-  return livedCase ? CAROUSEL_SUBSTANCE.replace(SOCIAL_READING, LIVED_CASE_FIRST) : CAROUSEL_SUBSTANCE;
+export function carouselSubstance(livedCase: boolean | CaseMode = false): string {
+  if (livedCase === true || livedCase === "own_case") return CAROUSEL_SUBSTANCE.replace(SOCIAL_READING, LIVED_CASE_FIRST);
+  if (livedCase === "news_feeling") return CAROUSEL_SUBSTANCE.replace(SOCIAL_READING, NEWS_FEELING_FIRST);
+  return CAROUSEL_SUBSTANCE;
 }
 
 /** `addressRule` : règle ferme tu/vous de la fiche de marque (audience-address.ts), en tête ; vide = inchangé. */
-export function buildCarouselWritingSystem(brandingContext: string, isLinkedIn: boolean, identity: string, clarity: string, livedCase = false, addressRule = ""): string {
+export function buildCarouselWritingSystem(brandingContext: string, isLinkedIn: boolean, identity: string, clarity: string, livedCase: boolean | CaseMode = false, addressRule = ""): string {
   return `${addressRule ? `${addressRule}\n\n` : ""}${COMMON}
 ${WRITE}
 ${clarity}

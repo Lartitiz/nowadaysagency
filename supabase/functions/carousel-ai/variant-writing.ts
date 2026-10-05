@@ -1,7 +1,7 @@
 import { PHOTO_NARRATIVE_CONTRACT } from "./photo-narrative.ts";
 import { carouselLengthPrompt } from "../_shared/carousel-length.ts";
 import { photoReadingContract, CAROUSEL_CONTINUITY, CAROUSEL_FACTS, CAROUSEL_TITLES, carouselStructureGuide, carouselSubstance } from "./writing-contract.ts";
-import { livedCaseFromCarouselBody, LIVED_CASE_FIRST } from "../_shared/lived-case.ts";
+import { livedCaseFromCarouselBody, LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from "../_shared/lived-case.ts";
 
 // Les SCHÉMAS (visual_schema) ne sont plus demandés à la rédaction depuis le
 // 03/10/2026 : un étage séparé les décide sur le texte final
@@ -21,11 +21,15 @@ export function userAnswersBlock(body: any): string {
   }
   const own = Object.entries(answers).filter(([k, v]) => k !== "Brief éditorial choisi" && typeof v === "string" && v.trim());
   if (!own.length) return "";
-  const lived = livedCaseFromCarouselBody(body).provided;
+  const mode = livedCaseFromCarouselBody(body).mode;
+  const label = mode === "own_case" ? "SON CAS PERSONNEL (ses réponses : la preuve centrale de ce carrousel, à raconter avec ses mots)"
+    : mode === "news_feeling" ? "SON RESSENTI SUR L'ACTU (ses réponses : le cœur de ce carrousel, à porter avec ses mots)"
+    : "RÉPONSES DE LA PERSONNE (sa matière, avec ses mots)";
+  const rule = mode === "own_case" ? LIVED_CASE_FIRST : mode === "news_feeling" ? NEWS_FEELING_FIRST : "";
   return `
-${lived ? "SON CAS PERSONNEL (ses réponses : la preuve centrale de ce carrousel, à raconter avec ses mots)" : "RÉPONSES DE LA PERSONNE (sa matière, avec ses mots)"} :
+${label} :
 ${own.map(([q, a]) => `- ${JSON.stringify(q)} → ${JSON.stringify(String(a).trim())}`).join("\n")}
-${lived ? LIVED_CASE_FIRST + "\n" : ""}`;
+${rule ? rule + "\n" : ""}`;
 }
 
 function briefAnswersRest(body: any): unknown {
@@ -44,7 +48,7 @@ ${body.slide_structure?.length ? `Répartition imposée : ${JSON.stringify(body.
 ${carouselLengthPrompt(body)}
 ${body.content_structure ? "La structure éditoriale choisie est à conserver. Ses rôles orientent le propos sans autoriser de faits ou d'émotions inventés." : "Choisis une progression adaptée à cette demande, sans arc dramatique imposé."}
 Canal : ${isLinkedIn ? "LinkedIn. Registre professionnel, vouvoiement par défaut sauf voix contraire. Légende optionnelle (gérée aussi par un appel dédié)." : "Instagram. Registre demandé ; à défaut, accessible et chaleureux. Fournis une légende fidèle au sujet."}
-${carouselSubstance(livedCaseFromCarouselBody(body).provided)}
+${carouselSubstance(livedCaseFromCarouselBody(body).mode)}
 ${CAROUSEL_CONTINUITY}
 ${CAROUSEL_TITLES}
 La légende a les champs hook, body, cta, hashtags. Elle peut être concise : aucun minimum à meubler, aucun envers du décor inventé. CTA vide si inutile ou non demandé. Trois hashtags pertinents maximum ; ne suggère aucune fabrication, origine ou propriété absente.
@@ -116,3 +120,20 @@ Chaque slide : slide_number, slide_type, photo_index, role, puis les champs prop
 export const NEWS_WRITING = `
 ACTUALITÉ : conserve le fait déclencheur et sa source comme point d'entrée visible. Situe les faits nécessaires avant le point de vue. Le cas d'actualité reste le sujet jusqu'à la dernière slide : la réaction personnelle et ce que la personne en tire pour son activité s'articulent au fil de l'analyse, en repartant chaque fois du cas, jamais dans une rubrique finale annoncée par son titre. Une réserve sur ce que la source permet d'affirmer tient dans la phrase où elle sert ; elle ne fait pas une slide à part. L'angle choisi (accroche et développement) est la thèse du carrousel : garde son idée forte et prends position à partir d'elle, avec la réaction personnelle et le lien métier qui en découlent. Ne transforme pas le branding en souvenir de lecture ou en expérience client. Si une information manque, ne fabrique pas de généralisation qui ressemble à un fait. Les photos choisies sont un support illustratif, pas une preuve de l'événement. Préserve la nuance et la position exprimées par la personne. Les limites de la source qualifient les affirmations concernées au moment où elles apparaissent ; ne les efface pas pour fluidifier le récit et n'invente aucune mesure ou omission. N'impose aucun lien commercial. Termine de préférence par une question simple, facile à répondre en commentaire (un chiffre, un oui ou non, un choix entre deux), reliée à la position défendue.
 `;
+
+/** Phrase d'ordre de NEWS_WRITING sans ressenti fourni : l'actu reste le sujet jusqu'au bout. */
+export const NEWS_ORDER = "Le cas d'actualité reste le sujet jusqu'à la dernière slide : la réaction personnelle et ce que la personne en tire pour son activité s'articulent au fil de l'analyse, en repartant chaque fois du cas, jamais dans une rubrique finale annoncée par son titre.";
+const NEWS_ENDING = "Termine de préférence par une question simple, facile à répondre en commentaire (un chiffre, un oui ou non, un choix entre deux), reliée à la position défendue.";
+
+/**
+ * Consigne d'actu selon la matière (05/10/2026, « l'actu déclenche, ton ressenti
+ * porte le contenu ») : sans réponse, NEWS_WRITING tel quel ; avec son ressenti,
+ * une seule consigne d'ordre (actu posée vite et juste, puis son ressenti jusqu'à
+ * la fin) au lieu de « l'actu reste le sujet jusqu'à la dernière slide ».
+ */
+export function newsWriting(body: any): string {
+  if (livedCaseFromCarouselBody(body).mode !== "news_feeling") return NEWS_WRITING;
+  return NEWS_WRITING
+    .replace(NEWS_ORDER, "L'actualité ouvre le contenu, posée vite et juste ; ensuite son ressenti, sa position et ce que ça dit de son métier portent la suite jusqu'à la fin (règle « L'ACTU DÉCLENCHE, SON RESSENTI PORTE LE CONTENU »), jamais dans une rubrique finale annoncée par son titre.")
+    .replace(NEWS_ENDING, "Termine sur sa position ou sur une question simple, facile à répondre en commentaire (un chiffre, un oui ou non, un choix entre deux), reliée à cette position.");
+}

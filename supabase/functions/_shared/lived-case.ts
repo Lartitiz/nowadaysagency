@@ -9,6 +9,14 @@
 // servies. Les sujets SANS vécu fourni (actu seule, aucune réponse) gardent la
 // recherche de profondeur telle que #1292 l'a rallumée.
 //
+// Actu (décision de Laetitia du 05/10/2026 : « l'actu déclenche, ton ressenti
+// porte le contenu »). Avec une actu (`news_context`), le sujet est l'accroche
+// écrite par l'IA (NewsjackingPanel) : elle ne compte JAMAIS comme vécu, seules
+// les réponses de l'utilisatrice comptent. Actu + réponses = mode
+// « news_feeling » : la recherche reste en profondeur pour l'actu et son
+// ressenti porte le contenu (NEWS_FEELING_FIRST). Actu sans réponse = mode
+// « news » : comportement d'actu inchangé (thèse + position assumée).
+//
 // Fonctions pures, sans dépendance : testées dans lived-case_test.ts.
 
 /** Seuil de mots des réponses au-delà duquel elles portent du vécu, même sans marqueur. */
@@ -20,8 +28,22 @@ const EDITORIAL_MATERIAL_PREFIX = /^\s*MATIÈRE ÉDITORIALE CHOISIE/;
 /** Clés qui portent la question ou un identifiant, pas la réponse de l'utilisatrice. */
 const NON_ANSWER_KEYS = new Set(["question", "q", "id", "placeholder", "label", "type", "key"]);
 
+/**
+ * Matière personnelle d'un contenu :
+ * - « own_case » : son propre cas hors actu (« Ton cas d'abord », #1354) ;
+ * - « news_feeling » : actu + ses réponses (son ressenti porte le contenu) ;
+ * - « news » : actu sans réponse (thèse + position, recherche de profondeur) ;
+ * - « none » : ni l'un ni l'autre.
+ */
+export type CaseMode = "own_case" | "news_feeling" | "news" | "none";
+
+/** Réponses à une actu : en dessous de ce nombre de mots (« oui », « je ne sais pas »), pas de ressenti porteur. */
+export const NEWS_FEELING_MIN_WORDS = 5;
+
 export interface LivedCase {
+  /** Cas personnel HORS actu (« Ton cas d'abord ») : recherche en appui, au plus un chiffre. */
   provided: boolean;
+  mode: CaseMode;
   /** Marqueurs trouvés : montant, avant-apres, emotion, reponses-developpees. */
   reasons: string[];
   /** Réponses de l'utilisatrice (valeurs seules, hors matière éditoriale). */
@@ -90,13 +112,34 @@ export function detectLivedCase(input: { answers?: string[]; brief?: string[] })
   if (paragraphs.some((p) => { const m = p.match(BEFORE_AFTER); return !!m && FIRST_PERSON.test(m[0]); })) reasons.push("avant-apres");
   if (EMOTION.test(all)) reasons.push("emotion");
   if (words(answers.join(" ")) > LIVED_ANSWER_WORDS) reasons.push("reponses-developpees");
-  return { provided: reasons.length > 0, reasons, answers };
+  return { provided: reasons.length > 0, mode: reasons.length > 0 ? "own_case" : "none", reasons, answers };
 }
+
+/**
+ * Avec une actu, seules les réponses de l'utilisatrice comptent : le sujet
+ * (accroche ou angle proposés par l'IA) n'est jamais lu comme un vécu. Toute
+ * réponse réelle à une actu est son ressenti ou sa position : elle porte le
+ * contenu, sans exiger de montant ni de mot d'émotion.
+ */
+export function detectCase(input: { answers?: string[]; brief?: string[]; hasNews?: boolean }): LivedCase {
+  if (!input.hasNews) return detectLivedCase(input);
+  const own = detectLivedCase({ answers: input.answers });
+  const feeling = own.provided || words(own.answers.join(" ")) >= NEWS_FEELING_MIN_WORDS;
+  return {
+    provided: false,
+    mode: feeling ? "news_feeling" : "news",
+    reasons: feeling ? (own.reasons.length ? own.reasons : ["reponse-actu"]) : [],
+    answers: own.answers,
+  };
+}
+
+const hasNewsContext = (value: unknown) => typeof value === "string" && value.trim().length > 0;
 
 /** Cas personnel d'un appel carousel-ai (réponses d'approfondissement + sujet et précisions). */
 export function livedCaseFromCarouselBody(body: any): LivedCase {
-  if (!body || typeof body !== "object") return { provided: false, reasons: [], answers: [] };
-  return detectLivedCase({
+  if (!body || typeof body !== "object") return { provided: false, mode: "none", reasons: [], answers: [] };
+  return detectCase({
+    hasNews: hasNewsContext(body.news_context),
     answers: userAnswerTexts(body.deepening_answers),
     brief: [body.subject, body.subject_details].filter((v) => typeof v === "string"),
   });
@@ -104,8 +147,9 @@ export function livedCaseFromCarouselBody(body: any): LivedCase {
 
 /** Cas personnel d'un appel creative-flow (réponses, relances, pré-questions + sujet). */
 export function livedCaseFromCreativeBody(body: any): LivedCase {
-  if (!body || typeof body !== "object") return { provided: false, reasons: [], answers: [] };
-  return detectLivedCase({
+  if (!body || typeof body !== "object") return { provided: false, mode: "none", reasons: [], answers: [] };
+  return detectCase({
+    hasNews: hasNewsContext(body.news_context),
     answers: userAnswerTexts(body.answers, body.followUpAnswers, body.preGenAnswers ?? body.pre_gen_answers),
     brief: [body.context].filter((v) => typeof v === "string"),
   });
@@ -113,3 +157,18 @@ export function livedCaseFromCreativeBody(body: any): LivedCase {
 
 /** Règle d'ordre commune à la rédaction (carrousel, posts, reels, stories, LinkedIn). */
 export const LIVED_CASE_FIRST = `TON CAS D'ABORD (la personne a donné son propre cas) : le cas personnel fourni (ses chiffres, son avant/après, ce qu'elle ressent, ses mots) est la preuve centrale du contenu, raconté en première personne avec sa voix. La recherche ne remplace aucun passage de ce vécu : au plus UN chiffre de recherche, seulement s'il appuie une phrase de son brief ou de ses réponses, avec sa source. Pas de lecture sociale générale en « on » ou « nous », pas de passage théorique ni de style article à la place de son récit. Son histoire de marque et son parcours ne sont pas racontés : le récit de ce contenu, c'est celui qu'elle vient de donner.`;
+
+
+/**
+ * Règle unique de l'actu avec ressenti fourni (05/10/2026) : remplace à la fois
+ * « Ton cas d'abord » (qui reléguait la recherche) et la phrase d'actu « le cas
+ * d'actualité reste le sujet jusqu'à la dernière slide » (qui reléguait son ressenti).
+ */
+export const NEWS_FEELING_FIRST = `L'ACTU DÉCLENCHE, SON RESSENTI PORTE LE CONTENU (la personne a répondu avec ses mots sur cette actualité) : pose l'actualité vite et juste au début (le fait, sa source, les seuls éléments exacts nécessaires pour comprendre), puis son ressenti, sa position et ce que ça dit de son métier portent la suite jusqu'à la fin, en première personne et avec ses mots. Son ressenti n'est pas une preuve d'appui glissée dans l'analyse : c'est le cœur du propos. Les faits de l'actu et de la recherche le situent et l'étayent, sans le remplacer par une revue de presse : au plus 3 chiffres venus de la recherche, chacun avec sa source dans la même phrase. Ce qu'on lui répond ou ce qu'elle observe est du terrain : reprends-le tel qu'elle le dit, sans ajouter de scène, de cliente ni de souvenir. Termine sur sa position ou sur une question simple, facile à répondre en commentaire, reliée à cette position.`;
+
+/** Plafond des chiffres venus de la seule recherche : 1 pour son cas, 3 pour l'actu, aucun sinon. */
+export function researchNumbersCapFor(c: Pick<LivedCase, "mode">): number | undefined {
+  if (c.mode === "own_case") return 1;
+  if (c.mode === "news" || c.mode === "news_feeling") return 3;
+  return undefined;
+}
