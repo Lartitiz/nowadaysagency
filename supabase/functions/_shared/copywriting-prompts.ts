@@ -104,7 +104,7 @@ LONGUEURS OPTIMALES
 - Engagement rapide / Reels / promos : captions courtes (< 150 caractères)
 - Carrousels : 8-10 slides, peu de texte par slide
 - Reels : 30-90 sec (storytelling), 7-30 sec (viral)
-- Stories séquencées : 5-7 stories par série
+- Stories séquencées : une idée par story, souvent 5 à 7 stories par série (le nombre suit le découpage)
 
 ═══════════════════════════════════════════════════
 PRIORITÉ VOIX (S'APPLIQUE À TOUT CE QUI PRÉCÈDE)
@@ -241,21 +241,21 @@ Le hook 0-3s peut être enrichi d'un PATTERN INTERRUPT à 2-3s (rupture d'attent
 
 REEL FACE CAM / TALKING HEAD (30-60 sec) :
 Type : confession, réaction, prise de position face caméra.
-- 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = ancrage (mot-clé).
+- 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = le passage du hook qui se lit seul (ses mots).
 - 3-15s : Contexte. Scène vécue RÉELLE si fournie par l'utilisatrice ; sinon constat général, sans date ni citation fabriquée. Jamais inventer "la semaine dernière" / "une cliente m'a dit".
-  Texte parlé = 2-3 phrases complètes. Overlay = contrepoint (info non dite à l'oral).
+  Texte parlé = 2-3 phrases complètes. Overlay = extrait de ses mots (le mot ou chiffre fort de la section).
 - 15-40s : Développement. Le cœur du message comme un récit, pas une liste.
   Au moins UN déplacement de perspective (nouvelle info, contre-pied, détail inattendu).
-  Texte parlé = 3-4 phrases. Overlay = punchline ou ancrage.
+  Texte parlé = 3-4 phrases. Overlay = extrait de ses mots.
 - 40-55s : Chute avec déplacement de perspective, le spectateur voit le sujet autrement.
 - 55-60s : CTA naturel (question ou invitation).
 
 REEL VOIX OFF + B-ROLL (30-60 sec) :
 Type : process, coulisses, transformation. Narration off sur images/vidéos.
-- 0-3s : Hook = résultat ou transformation annoncée. Overlay ancrage.
+- 0-3s : Hook = résultat ou transformation annoncée. Overlay = extrait du hook.
 - 3-12s : AVANT, la situation de départ (concrète, pas théorique).
 - 12-35s : PENDANT, le process ou le changement, raconté étape par étape.
-  Texte parlé fluide (pas de bullet points). Overlay contrepoint sur les images.
+  Texte parlé fluide (pas de bullet points). Overlay = extrait de ses mots sur les images.
 - 35-50s : APRÈS, le résultat observable (chiffres, retours, changement concret).
 - 50-60s : Leçon transférable + CTA léger.
 
@@ -276,8 +276,8 @@ CAPTION LONGUE (800-1500 caractères) :
 - Ouverture : question ou invitation au dialogue
 - Règle : la caption complète le visuel, elle ne le répète pas
 
-STORIES SÉQUENCÉES (5-7 stories) :
-- Story 1 : Amorce (texte + émotion : "Bon, faut que je te raconte un truc.")
+STORIES SÉQUENCÉES (une idée par story ; repère : 5 à 7 stories) :
+- Story 1 : Accroche seule (une phrase qui ouvre l'attente, avec son mot fort)
 - Story 2-3 : Développement (vidéo ou texte + images)
 - Story 4 : Interaction (sondage, question, quiz)
 - Story 5-6 : Conclusion + valeur

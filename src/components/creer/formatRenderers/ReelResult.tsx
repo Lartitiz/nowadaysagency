@@ -91,6 +91,8 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
     ? result.hashtags.filter((h: unknown) => typeof h === "string")
     : [];
   const coverText = typeof result?.cover_text === "string" && result.cover_text.trim() ? result.cover_text : null;
+  // Couverture = accroche seule + un mot clé mis en valeur (socle, 05/10/2026).
+  const coverKeyword = typeof result?.cover_mot_cle === "string" && result.cover_mot_cle.trim() ? result.cover_mot_cle.trim() : null;
   const amplificationStories = Array.isArray(result?.amplification_stories)
     ? result.amplification_stories.filter((a: any) => a && typeof a.text === "string")
     : [];
@@ -291,6 +293,7 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
           caption={caption}
           hashtags={hashtags}
           coverText={coverText}
+          coverKeyword={coverKeyword}
           amplificationStories={amplificationStories}
           personalTip={planTournage.length > 0 ? null : personalTip}
           montageDone={montageDone}
@@ -438,10 +441,25 @@ function TournageStep({ planTournage, personalTip }: { planTournage: any[]; pers
 
 /* ── Étape 4 — Légende et publication ─────────────────────────────────── */
 
+/** Texte de couverture avec son mot clé mis en valeur, s'il s'y trouve tel quel. */
+export function CoverWithKeyword({ text, keyword }: { text: string; keyword?: string | null }) {
+  const k = (keyword || "").trim();
+  const at = k ? text.toLocaleLowerCase("fr").indexOf(k.toLocaleLowerCase("fr")) : -1;
+  if (at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <mark data-cover-keyword className="rounded-sm bg-primary/15 px-0.5 font-semibold text-primary">{text.slice(at, at + k.length)}</mark>
+      {text.slice(at + k.length)}
+    </>
+  );
+}
+
 function CaptionStep({
   caption,
   hashtags,
   coverText,
+  coverKeyword = null,
   amplificationStories,
   personalTip,
   montageDone,
@@ -451,6 +469,7 @@ function CaptionStep({
   caption: any;
   hashtags: string[];
   coverText: string | null;
+  coverKeyword?: string | null;
   amplificationStories: any[];
   personalTip?: string | null;
   montageDone: boolean;
@@ -502,7 +521,9 @@ function CaptionStep({
       {coverText && (
         <div className="rounded-lg border border-border bg-card p-3">
           <p className="text-xs font-semibold text-muted-foreground mb-1">🖼️ Texte de la cover</p>
-          <p className="text-sm text-foreground">{coverText}</p>
+          <p className="text-sm text-foreground">
+            <CoverWithKeyword text={coverText} keyword={coverKeyword} />
+          </p>
         </div>
       )}
 

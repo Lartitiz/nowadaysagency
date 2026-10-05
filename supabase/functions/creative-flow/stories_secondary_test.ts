@@ -12,6 +12,7 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { installFetchMock, setTestEnv } from "../_shared/test-edge-harness.ts";
 import { buildVisionGenerateBrief, buildVisionTool } from "../_shared/vision-prompts.ts";
+import { RECYCLAGE_CARROUSEL_LONGUEUR, RECYCLAGE_STORIES_LONGUEUR } from "../_shared/socle.ts";
 import {
   adoptStructuredStories,
   coerceStoriesSequence,
@@ -197,13 +198,13 @@ Deno.test("creative-flow : en mode photo, les stories adoptent la forme structur
 // ═══ 2. RECYCLAGE ═══
 
 const FORMAT_LABELS: Record<string, string> = {
-  carrousel: "Carrousel Instagram (8 slides)",
+  carrousel: "Carrousel Instagram",
   reel: "Script Reel (30-60 sec)",
-  stories: "Séquence Stories (5 stories)",
+  stories: "Séquence Stories",
   linkedin: "Post LinkedIn",
   newsletter: "Email / Newsletter",
 };
-const OLD_STORIES_LINE = "- Stories : séquence de 5-7 stories. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle. Story 4 = interaction obligatoire.";
+const OLD_STORIES_LINE = "- Stories : une idée par story, le nombre suit le découpage. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle. Une story d'interaction au milieu ou vers la fin.";
 const recyclePrompt = (f: string) => buildRecycleSystemPrompt([f], FORMAT_LABELS, "[PREFIX]", "", "céramiste", "débutantes", "atelier");
 
 Deno.test("recyclage stories : séquence structurée demandée, indication visuelle hors du texte, aucune mise en page ; autres formats inchangés", () => {
@@ -214,8 +215,10 @@ Deno.test("recyclage stories : séquence structurée demandée, indication visue
     assert(p.includes(kept), `le prompt stories recyclé a perdu ${kept}`);
   }
   assert(p.includes('indication visuelle (dans "photo_directive", jamais dans le texte)'));
-  assert(p.includes("Story 4 = interaction obligatoire."), "règle d'interaction perdue");
-  assert(p.includes("séquence de 5-7 stories"), "longueur perdue");
+  assert(p.includes("Une story d'interaction (sticker) au milieu ou vers la fin de la séquence."), "règle d'interaction perdue");
+  // Une idée par story (socle, 05/10/2026) : plus de nombre fixe, la longueur suit le découpage.
+  assert(p.includes(RECYCLAGE_STORIES_LONGUEUR), "longueur perdue");
+  assert(!/5-7 stories|Story 4 =/.test(p), "nombre fixe de stories encore imposé");
   for (const w of LAYOUT_WORDS) assert(!p.includes(w), `le prompt stories recyclé demande « ${w} »`);
   for (const f of STORY_WRITER_LAYOUT_FIELDS) assert(!p.includes(`"${f}"`), `champ de mise en page « ${f} »`);
   // Les prompts des autres formats ne bougent pas (le LinkedIn en particulier).
@@ -224,6 +227,16 @@ Deno.test("recyclage stories : séquence structurée demandée, indication visue
     assert(other.includes(OLD_STORIES_LINE), `${f} : ligne stories modifiée`);
     assert(!other.includes("photo_directive") && !other.includes("IMPORTANT pour les stories"), `${f} : consigne stories ajoutée`);
   }
+});
+
+Deno.test("recyclage carrousel : une idée par slide, plus de « exactement 8 slides » (socle, 05/10/2026)", () => {
+  const p = recyclePrompt("carrousel");
+  assert(p.includes(RECYCLAGE_CARROUSEL_LONGUEUR), "consigne de longueur du socle absente");
+  for (const old of ["exactement 8 slides", "Pas moins de 8 slides", "- Carrousel : 8 slides", "Slides 2 à 8 : 2-4 phrases"]) {
+    assert(!p.includes(old), `nombre fixe encore imposé : « ${old} »`);
+  }
+  assert(p.includes("de 5 à 12 slides"), "bornes raisonnables absentes");
+  assert(p.includes("Le nombre de slides suit le découpage"), "découpage absent de la consigne finale");
 });
 
 const anthropicText = (text: string) => ({

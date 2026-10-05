@@ -51,6 +51,8 @@ export interface StoryVisualPlan {
   body_pill?: string | null;
   list_pills?: string[] | null;
   quote?: string | null;
+  /** Story 1 : mot clé de l'accroche, mis en valeur dans le texte (socle, 05/10/2026). */
+  mot_cle?: string | null;
   photo_directive?: string | null;
   /** Requête stock EN (2-4 mots) émise par le brief — sert aux suggestions Pexels (lot C). */
   photo_query_en?: string | null;
@@ -208,7 +210,33 @@ type Role = "title" | "body" | "aside" | "quote" | "attribution" | "item";
  * texte (box-decoration-break:clone), boîtes qui se touchent, coins courts.
  * Mode « nu » = pas de boîte, ombre portée (texte blanc sur photo).
  */
-function textBlock(text: string, st: StoryTextStyle, ctx: RenderCtx, role: Role, overrides: Partial<StoryTextStyle> = {}): string {
+/**
+ * Mot clé mis en valeur dans un bloc (story 1 : accroche + un mot clé). Le mot
+ * doit être un extrait exact du texte (casse ignorée) : sinon rien n'est mis en
+ * valeur et le texte s'affiche tel quel. Le style reste lisible sur chaque mode :
+ * surligné de la couleur des pastilles sur texte nu, couleur d'accent ou
+ * soulignement sur pastille.
+ */
+function highlightedHtml(text: string, keyword: string | null | undefined, s: StoryTextStyle, p: Palette): string {
+  const k = (keyword || "").trim();
+  const at = k ? text.toLocaleLowerCase("fr").indexOf(k.toLocaleLowerCase("fr")) : -1;
+  if (at < 0) return escapeHtml(text);
+  let css: string;
+  if (s.mode === "nu") {
+    css = `background:${p.pill};color:${textOn(p.pill, p.ink)};text-shadow:none;padding:0 0.12em;border-radius:0.12em;box-decoration-break:clone;-webkit-box-decoration-break:clone`;
+  } else if (s.mode === "col") {
+    css = "text-decoration:underline;text-decoration-thickness:0.08em;text-underline-offset:0.14em";
+  } else {
+    // Pastille blanche ou teintée : couleur d'accent si elle reste lisible sur
+    // le clair, sinon encre soulignée.
+    css = luminance(p.primary) > 0.45
+      ? "text-decoration:underline;text-decoration-thickness:0.08em;text-underline-offset:0.14em"
+      : `color:${p.primary}`;
+  }
+  return `${escapeHtml(text.slice(0, at))}<span data-story-keyword style="${css}">${escapeHtml(text.slice(at, at + k.length))}</span>${escapeHtml(text.slice(at + k.length))}`;
+}
+
+function textBlock(text: string, st: StoryTextStyle, ctx: RenderCtx, role: Role, overrides: Partial<StoryTextStyle> = {}, keyword: string | null = null): string {
   const s: StoryTextStyle = { ...st, ...overrides };
   const { p, style } = ctx;
   const radiusEm = style.corners === "droits" ? STORY_PILL.radiusDroitsEm : (s.radiusEm ?? STORY_PILL.radiusEm);
@@ -246,7 +274,7 @@ function textBlock(text: string, st: StoryTextStyle, ctx: RenderCtx, role: Role,
   }
   const css = [...base, ...look].filter(Boolean).join(";");
   // data-story-pptx : repère de mesure pour l'export PPTX natif (export-story-pptx).
-  return `<span data-story-pptx="${role}" data-story-mode="${s.mode}" style="${css}">${escapeHtml(text)}</span>`;
+  return `<span data-story-pptx="${role}" data-story-mode="${s.mode}" style="${css}">${keyword ? highlightedHtml(text, keyword, s, p) : escapeHtml(text)}</span>`;
 }
 
 /** Zone sticker : matérialisée en aperçu, espace vide (même encombrement) à l'export. */
@@ -411,6 +439,9 @@ export function buildStoryFrameHtml(
     : "";
 
   const title = (visual.title_pill || "").trim();
+  // Story 1 : le mot clé de l'accroche est mis en valeur (seulement s'il est
+  // retrouvé tel quel dans le texte affiché).
+  const keyword = typeof visual.mot_cle === "string" && visual.mot_cle.trim() ? visual.mot_cle.trim() : null;
   // Le texte complet porte la voix de la personne. Les résumés de body_pill
   // générés par l'IA sonnent souvent plus génériques : afficher la narration
   // telle quelle par défaut, même si elle est plus longue. Une modification
@@ -494,7 +525,7 @@ ${items.map((it) => `<div style="max-width:100%">${textBlock(it, itemStyle, ctx,
     const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
     inner = `<div style="${freePlacement || `height:100%;${SAFE};`}display:flex;flex-direction:column;${freePlacement ? "" : `justify-content:${justify};`}align-items:${align === "center" ? "center" : "flex-start"};text-align:${align};gap:60px">
 ${title ? `<div style="max-width:100%">${textBlock(title, titleStyle, ctx, "title")}</div>` : ""}
-${body ? `<div style="max-width:100%">${textBlock(body, bodyStyle, ctx, "body")}</div>` : ""}
+${body ? `<div style="max-width:100%">${textBlock(body, bodyStyle, ctx, "body", {}, keyword)}</div>` : ""}
 <div style="align-self:stretch">${stickerZoneHtml(story?.sticker, p, preview, onPhoto)}</div>
 </div>`;
   } else if (gabarit === "photo_pills" && wantsPhoto) {
@@ -502,14 +533,14 @@ ${body ? `<div style="max-width:100%">${textBlock(body, bodyStyle, ctx, "body")}
     const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
     inner = column(align, `${freePlacement ? "" : `justify-content:${justify};`}gap:34px`, [
       title ? textBlock(title, titleStyle, ctx, "title") : "",
-      body ? textBlock(body, bodyStyle, ctx, "body") : "",
+      body ? textBlock(body, bodyStyle, ctx, "body", {}, keyword) : "",
     ], freePlacement || undefined);
   } else {
     // fond_pills, et fallback des gabarits photo sans photo attachée.
     const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
     inner = column(align, `${freePlacement ? "" : `justify-content:${justify};`}gap:34px`, [
       title ? textBlock(title, titleStyle, ctx, "title") : "",
-      body ? textBlock(body, bodyStyle, ctx, "body") : "",
+      body ? textBlock(body, bodyStyle, ctx, "body", {}, keyword) : "",
     ], freePlacement || undefined);
   }
 

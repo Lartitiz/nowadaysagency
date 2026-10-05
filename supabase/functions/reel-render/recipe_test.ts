@@ -4,7 +4,9 @@ import {
   estimateOverlayLines,
   layoutOverlayText,
   OVERLAY_FONT_STEPS_PX,
+  OVERLAY_MIN_FONT_PX,
   overlayTextHeight,
+  splitOverlayText,
   type ReelRenderInput,
 } from "./recipe.ts";
 
@@ -59,8 +61,8 @@ Deno.test("mode silent : texte à l'écran, sans voix ni sous-titres audio", () 
   }) as any;
   const texte = r.scenes[0].elements[1];
   assertEquals(texte.type, "text");
-  // Les MAJUSCULES sont un choix de style appliqué par le rendu.
-  assertEquals(texte.text, "LE GESTE COMPTE.");
+  // Casse d'origine (socle 05/10/2026 : plus de majuscules forcées).
+  assertEquals(texte.text, "Le geste compte.");
   assertEquals(texte.duration, -2);
   assertEquals(r.elements, undefined);
 });
@@ -151,23 +153,24 @@ Deno.test("face caméra : un B-roll muet couvre une plage mais conserve la prise
   assertEquals(r.elements[0].type, "subtitles");
 });
 
-// ── Texte à l'écran (mode silencieux) : majuscules et boîte garanties par le code ──
+// ── Texte à l'écran (mode silencieux) : casse d'origine, plancher lisible, découpe ──
 
-function silentText(overlay: string, width = 1080, height = 1920) {
+function silentTexts(overlay: string, width = 1080, height = 1920, duration = 4) {
   const r = buildReelRecipe({
     voice_mode: "silent",
     width,
     height,
-    sections: [{ clip_url: "a.mp4", duration: 4, overlay_text: overlay }],
+    sections: [{ clip_url: "a.mp4", duration, overlay_text: overlay }],
   }) as any;
-  return r.scenes[0].elements.find((e: any) => e.type === "text");
+  return r.scenes[0].elements.filter((e: any) => e.type === "text");
 }
+const silentText = (overlay: string, width = 1080, height = 1920) => silentTexts(overlay, width, height)[0];
 
 const words = (t: string) => t.split(/\s+/).filter(Boolean);
 
-/** Chaque mot du texte d'origine est rendu, dans l'ordre, en majuscules. */
-function assertEveryWordRendered(source: string, rendered: string) {
-  assertEquals(words(rendered), words(source).map((w) => w.toLocaleUpperCase("fr-FR")));
+/** Chaque mot du texte d'origine est rendu, dans l'ordre, dans sa casse. */
+function assertEveryWordRendered(source: string, rendered: string[]) {
+  assertEquals(words(rendered.join(" ")), words(source));
 }
 
 /** Le texte, à la taille choisie, tient dans la boîte, et la boîte dans l'image. */
@@ -180,9 +183,11 @@ function assertFits(el: any, width = 1080, height = 1920) {
   assert(el.y + el.height <= Math.round(height * 0.86), "boîte trop basse (bandeau Instagram)");
 }
 
-Deno.test("texte à l'écran court (cas normal) : rendu validé STRICTEMENT inchangé", () => {
-  for (const overlay of ["9 PAGES. ZÉRO LECTURE.", "PARFAIT. DONC RATÉ.", "TON DEVIS TIENT SUR UNE PAGE ENTIÈRE MAINTENANT"]) {
-    const el = silentText(overlay);
+Deno.test("texte à l'écran court (cas normal) : boîte et style validés inchangés, casse d'origine", () => {
+  for (const overlay of ["9 pages. Zéro lecture.", "PARFAIT. DONC RATÉ.", "Ton devis tient sur une page entière maintenant"]) {
+    const all = silentTexts(overlay);
+    assertEquals(all.length, 1);
+    const el = all[0];
     assertEquals(el.text, overlay);
     assertEquals({ x: el.x, y: el.y, width: el.width, height: el.height, style: el.style, duration: el.duration }, {
       x: 70, y: 1229, width: 940, height: 422, style: "001", duration: -2,
@@ -198,11 +203,9 @@ Deno.test("texte à l'écran court (cas normal) : rendu validé STRICTEMENT inch
   }
 });
 
-Deno.test("texte à l'écran écrit en minuscules : rendu en MAJUSCULES quand même (style déterministe)", () => {
-  const el = silentText("parfait. donc raté.");
-  assertEquals(el.text, "PARFAIT. DONC RATÉ.");
-  assertEquals(el.settings["font-size"], "58px");
-  assertEquals(silentText("Écrire à l'œil").text, "ÉCRIRE À L'ŒIL");
+Deno.test("plus de majuscules forcées : le texte garde la casse écrite", () => {
+  assertEquals(silentText("parfait. donc raté.").text, "parfait. donc raté.");
+  assertEquals(silentText("Écrire à l'œil").text, "Écrire à l'œil");
 });
 
 const LONG_SPOKEN =
@@ -211,45 +214,64 @@ const LONG_SPOKEN =
   "Ce jour-là j'ai compris qu'un devis trop long ne rassure personne : il fatigue, il noie la décision, et la cliente " +
   "choisit au hasard ou ne choisit pas. Depuis, je n'écris plus que trois lignes et une seule question.";
 
-Deno.test("repli sur tout le texte parlé (overlay absent) : aucun mot perdu et la boîte tient le texte", () => {
-  const el = silentText(LONG_SPOKEN);
-  assertEveryWordRendered(LONG_SPOKEN, el.text);
-  assertFits(el);
-  // Trop long pour 58 px dans la boîte d'origine : la police a bien dû descendre.
-  assert(parseInt(el.settings["font-size"], 10) < 58);
+Deno.test("texte long : découpé en écrans successifs, jamais sous le plancher lisible, aucun mot perdu", () => {
+  const all = silentTexts(LONG_SPOKEN);
+  assert(all.length > 1, "le texte long aurait dû être découpé");
+  assertEveryWordRendered(LONG_SPOKEN, all.map((e: any) => e.text));
+  for (const el of all) {
+    assertFits(el);
+    assert(parseInt(el.settings["font-size"], 10) >= OVERLAY_MIN_FONT_PX, "police sous le plancher");
+    assertEquals([el.y, el.height], [1229, 422]); // la boîte validée, jamais agrandie
+  }
+  // Les écrans se suivent dans la scène : départs croissants, le dernier va jusqu'au bout.
+  const starts = all.map((e: any) => e.start);
+  assertEquals(starts[0], 0);
+  for (let i = 1; i < starts.length; i++) assert(starts[i] > starts[i - 1]);
+  assertEquals(all[all.length - 1].duration, -2);
 });
 
-Deno.test("texte intermédiaire : police réduite par palier, boîte d'origine conservée", () => {
+Deno.test("découpe : à la fin d'une phrase quand la phrase tient", () => {
+  const chunks = splitOverlayText(LONG_SPOKEN, 1080, 1920);
+  // Chaque écran sauf peut-être un morceau de phrase trop longue finit sur une ponctuation forte.
+  assert(chunks.filter((c) => /[.!?…]$/.test(c)).length >= chunks.length - 2, chunks.join(" | "));
+});
+
+Deno.test("texte intermédiaire : police réduite par palier, un seul écran, boîte d'origine", () => {
   const medium = "Un devis trop long ne rassure personne : il fatigue, il noie la décision et la cliente choisit au hasard.";
-  const el = silentText(medium);
-  assertEveryWordRendered(medium, el.text);
+  const all = silentTexts(medium);
+  assertEquals(all.length, 1);
+  const el = all[0];
+  assertEveryWordRendered(medium, [el.text]);
   assertFits(el);
   assert((OVERLAY_FONT_STEPS_PX as readonly number[]).includes(parseInt(el.settings["font-size"], 10)));
   assertEquals([el.y, el.height], [1229, 422]);
 });
 
-Deno.test("texte très long : la boîte s'agrandit vers le haut, jamais de coupe", () => {
+Deno.test("texte très long : autant d'écrans qu'il faut, jamais de coupe ni de police minuscule", () => {
   const huge = Array(4).fill(LONG_SPOKEN).join(" ");
-  const el = silentText(huge);
-  assertEveryWordRendered(huge, el.text);
-  assertFits(el);
-  assertEquals(el.y + el.height, 1229 + 422); // le bas de la boîte ne bouge pas
+  const all = silentTexts(huge, 1080, 1920, 40);
+  assertEveryWordRendered(huge, all.map((e: any) => e.text));
+  for (const el of all) {
+    assertFits(el);
+    assert(parseInt(el.settings["font-size"], 10) >= OVERLAY_MIN_FONT_PX);
+  }
 });
 
 Deno.test("mot unique plus long qu'une ligne : rendu entier et la boîte en tient compte", () => {
   const el = silentText("anticonstitutionnellementanticonstitutionnellement");
-  assertEquals(el.text, "ANTICONSTITUTIONNELLEMENTANTICONSTITUTIONNELLEMENT");
+  assertEquals(el.text, "anticonstitutionnellementanticonstitutionnellement");
   assertFits(el);
 });
 
 Deno.test("format réduit (720x1280) : la garde suit les proportions", () => {
-  const el = silentText(LONG_SPOKEN, 720, 1280);
-  assertEveryWordRendered(LONG_SPOKEN, el.text);
-  assertFits(el, 720, 1280);
+  const all = silentTexts(LONG_SPOKEN, 720, 1280);
+  assertEveryWordRendered(LONG_SPOKEN, all.map((e: any) => e.text));
+  for (const el of all) assertFits(el, 720, 1280);
 });
 
-Deno.test("layoutOverlayText est pur et ne coupe rien", () => {
+Deno.test("layoutOverlayText est pur, garde la casse et ne coupe rien", () => {
   const l = layoutOverlayText("  trois mots ici  ", 1080, 1920);
-  assertEquals(l.text, "TROIS MOTS ICI");
+  assertEquals(l.text, "trois mots ici");
   assertEquals(l.fontSizePx, 58);
+  assertEquals(OVERLAY_FONT_STEPS_PX[OVERLAY_FONT_STEPS_PX.length - 1], OVERLAY_MIN_FONT_PX);
 });

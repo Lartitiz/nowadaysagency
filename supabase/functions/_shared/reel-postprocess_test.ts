@@ -12,6 +12,10 @@ import {
   reelFaceCamViolations,
   reelTemplateLeaks,
   reelAuditableText,
+  dropReelOverlaysNotFromScript,
+  enforceReelCoverKeyword,
+  overlayFromScript,
+  reelOverlaysNotFromScript,
 } from "./reel-postprocess.ts";
 
 function sampleReel() {
@@ -371,4 +375,61 @@ Deno.test("finalizeReelScript : verrou du hook puis élisions, lecture_test et t
   assert(reel.lecture_test.startsWith("Mon accroche à moi."));
   assertEquals(reel.script[0].timing, "0-2 sec");
   assertEquals(reel.sections, reel.script);
+});
+
+
+// ═══ Socle (05/10/2026) : texte à l'écran = ses mots ; couverture = accroche + mot clé ═══
+
+Deno.test("texte à l'écran : uniquement des mots du texte parlé, dans l'ordre (casse et ponctuation ignorées)", () => {
+  assert(overlayFromScript("Plein d'abonnés. Zéro client.", "J'avais plein d'abonnés et zéro client."));
+  assert(overlayFromScript("10 000 abonnés", "J'ai 10 000 abonnés."));
+  assert(!overlayFromScript("Positionnement", "Je ne savais pas quoi dire."));
+  assert(!overlayFromScript("zéro client plein", "plein d'abonnés et zéro client")); // ordre inversé
+  assert(overlayFromScript(null, "x"));
+  assert(overlayFromScript("", "x"));
+});
+
+Deno.test("texte à l'écran inventé : signalé, puis retiré par le filet final ; le hook choisi est respecté", () => {
+  const parsed: any = {
+    script: [
+      { section: "hook", texte_parle: "Mon premier savon, je l'ai jeté.", texte_overlay: "PARFAIT DONC RATÉ" },
+      { section: "body", texte_parle: "Il n'avait plus aucun défaut.", texte_overlay: "plus aucun défaut" },
+      { section: "cta", texte_parle: "Montre-moi ton dernier raté.", texte_overlay: "TON RATÉ VAUT DE L'OR" },
+    ],
+  };
+  assertEquals(reelOverlaysNotFromScript(parsed), [1, 3]);
+  const dropped = dropReelOverlaysNotFromScript(parsed, { text_overlay: "PARFAIT DONC RATÉ" });
+  assertEquals(dropped, [3]);
+  assertEquals(parsed.script.map((s: any) => s.texte_overlay), ["PARFAIT DONC RATÉ", "plus aucun défaut", null]);
+  assertEquals(parsed.sections, parsed.script);
+});
+
+Deno.test("couverture : mot clé gardé s'il est dans l'accroche (casse de l'accroche), sinon nombre, sinon null", () => {
+  const a: any = { cover_text: "Mon premier savon était parfait", cover_mot_cle: "PARFAIT" };
+  enforceReelCoverKeyword(a);
+  assertEquals(a.cover_mot_cle, "parfait");
+  const b: any = { cover_text: "3 devis, zéro réponse", cover_mot_cle: "silence" };
+  enforceReelCoverKeyword(b);
+  assertEquals(b.cover_mot_cle, "3");
+  const c: any = { cover_text: "Personne ne lit mes devis", cover_mot_cle: "silence" };
+  enforceReelCoverKeyword(c);
+  assertEquals(c.cover_mot_cle, null);
+  const d: any = { cover_mot_cle: "x" };
+  enforceReelCoverKeyword(d);
+  assertEquals(d.cover_mot_cle, null);
+});
+
+Deno.test("finalizeReelScript applique les deux filets du socle", () => {
+  const parsed: any = {
+    cover_text: "Personne ne lit mes devis",
+    cover_mot_cle: "devis",
+    script: [
+      { section: "hook", timing: "0-3 sec", texte_parle: "Personne ne lit mes devis.", texte_overlay: "Personne ne lit" },
+      { section: "cta", timing: "3-6 sec", texte_parle: "Écris-moi.", texte_overlay: "LE SECRET" },
+    ],
+  };
+  finalizeReelScript(parsed, null);
+  assertEquals(parsed.script[0].texte_overlay, "Personne ne lit");
+  assertEquals(parsed.script[1].texte_overlay, null);
+  assertEquals(parsed.cover_mot_cle, "devis");
 });
