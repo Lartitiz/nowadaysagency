@@ -482,11 +482,14 @@ export function enforceReelCoverKeyword(parsed: any): void {
     return;
   }
   const words = raw.split(/\s+/).filter(Boolean).length;
-  if (raw && words <= 3 && cover.toLocaleLowerCase("fr").includes(raw.toLocaleLowerCase("fr"))) {
-    const at = cover.toLocaleLowerCase("fr").indexOf(raw.toLocaleLowerCase("fr"));
+  // Espaces insécables et ordinaires se valent pour la recherche (même longueur).
+  const fold = (x: string) => x.replace(/[\u00a0\u202f]/gu, " ").toLocaleLowerCase("fr");
+  const at = raw ? fold(cover).indexOf(fold(raw)) : -1;
+  if (raw && words <= 3 && at >= 0) {
     parsed.cover_mot_cle = cover.slice(at, at + raw.length);
     return;
   }
-  const num = cover.match(/\d+(?:[.,]\d+)?\s?(?:%|€|k|K)?/u);
+  // Repli : le premier nombre ENTIER, milliers séparés compris (« 7 500 € », pas « 7 »).
+  const num = cover.match(/\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?[ \u00a0\u202f]?(?:%|€|k|K)?|\d+(?:[.,]\d+)?[ \u00a0\u202f]?(?:%|€|k|K)?/u);
   parsed.cover_mot_cle = num ? num[0].trim() : null;
 }

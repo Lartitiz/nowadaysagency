@@ -218,11 +218,15 @@ export function storyKeyword(text: string, proposed: unknown): string | null {
   const t = (text || "").trim();
   if (!t) return null;
   const raw = typeof proposed === "string" ? proposed.trim().replace(/^["«“'\s]+|["»”'\s]+$/gu, "") : "";
+  // Espaces insécables (« 7 500 € ») et espaces ordinaires se valent pour la
+  // recherche ; même longueur, donc l'extrait renvoyé reste celui du texte.
+  const fold = (x: string) => x.replace(/[\u00a0\u202f]/gu, " ").toLocaleLowerCase("fr");
   if (raw && wordCount(raw) <= STORY_KEYWORD_MAX_WORDS) {
-    const at = t.toLocaleLowerCase("fr").indexOf(raw.toLocaleLowerCase("fr"));
+    const at = fold(t).indexOf(fold(raw));
     if (at >= 0) return t.slice(at, at + raw.length);
   }
-  const num = t.match(/\d+(?:[.,]\d+)?\s?(?:%|€)?/u);
+  // Repli : le premier nombre ENTIER, milliers séparés compris (« 7 500 € », pas « 7 »).
+  const num = t.match(/\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?[ \u00a0\u202f]?(?:%|€)?|\d+(?:[.,]\d+)?[ \u00a0\u202f]?(?:%|€)?/u);
   return num ? num[0].trim() : null;
 }
 
