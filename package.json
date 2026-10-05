@@ -125,6 +125,7 @@
     "protobufjs": "7.6.5",
     "@protobufjs/utf8": "1.1.2",
     "brace-expansion": "1.1.21",
+    "dompurify": "3.4.16",
     "browserslist": "4.29.3",
     "lodash": "4.18.1",
     "image-size": "2.0.4",
