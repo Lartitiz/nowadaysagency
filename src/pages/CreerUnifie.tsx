@@ -1496,6 +1496,7 @@ function CreerWorkspace() {
   // ── LinkedIn carousel caption: appel dédié à linkedin-ai/caption-for-carousel ──
   const { captionLoading, regenerateCaption } = useLinkedInCarouselCaption({
     newsContext: newsjackingContext,
+    answers,
     result,
     setResult,
     generating,
@@ -2507,6 +2508,25 @@ function CreerWorkspace() {
     }
   };
 
+  // Carrousel LinkedIn : un PDF se publie comme « document » LinkedIn (même rythme qu'Instagram, décision du 05/10/2026).
+  const handleExportVisualPdf = async () => {
+    if (visualSlides.length === 0) return;
+    if (isCarouselPublish && carouselVisualsStale) {
+      toast.warning("Les visuels ne reflètent pas tes dernières éditions. Mets-les à jour pour un export fidèle.");
+      return;
+    }
+    try {
+      toast.info("Export PDF en cours…");
+      const { exportCarouselPdf } = await import("@/lib/export-carousel-png");
+      const { getIncludeLogoPref } = await import("@/lib/export-logo");
+      const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
+      await exportCarouselPdf(visualSlides, ideaText || "carrousel", logoUrl);
+      toast.success("PDF téléchargé : publie-le comme document sur LinkedIn.");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'export");
+    }
+  };
+
   const handleExportHybridPptx = async () => {
     if (visualSlides.length === 0) return;
     if (isCarouselPublish && carouselVisualsStale) {
@@ -2705,6 +2725,7 @@ function CreerWorkspace() {
   const effectiveHandleExportPptx = isDemoMode ? demoToast : handleExportPptx;
   const effectiveHandleExportVisualPng = isDemoMode ? demoToast : handleExportVisualPng;
   const effectiveHandleExportHybridPptx = isDemoMode ? demoToast : handleExportHybridPptx;
+  const effectiveHandleExportVisualPdf = isDemoMode ? demoToast : handleExportVisualPdf;
 
   const ideaVersionSignature = useMemo(() => JSON.stringify([result?.raw, visualSlides, uploadedPhotos]), [result?.raw, visualSlides, uploadedPhotos]);
   const ideaSaveNotice = ideaSaving ? "Enregistrement du texte et des visuels…"
@@ -3138,6 +3159,7 @@ function CreerWorkspace() {
                 carouselQuality={carouselQuality}
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
                 onExportVisualPng={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPng : undefined}
+                onExportVisualPdf={selectedFormat === "carousel" && isLinkedInCarousel && visualSlides.length > 0 ? effectiveHandleExportVisualPdf : undefined}
                 logoAvailable={!!(charterData as any)?.logo_url}
                 onExportHybridPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportHybridPptx : undefined}
                 onOpenInCanva={selectedFormat === "carousel" && visualSlides.length > 0 && !isDemoMode ? handleOpenInCanva : undefined}

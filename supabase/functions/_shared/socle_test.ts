@@ -264,6 +264,8 @@ Deno.test("décisions de Laetitia inscrites dans les données (non branchées)",
   assertEquals(SOCLE_FORMATS.reel.regles.une_idee_par_unite.texte, SOCLE_DECISIONS.reels_courts.texte);
   assertEquals(SOCLE_FORMATS.pinterest.regles.voix_orale.cible, "N");
   assertEquals(SOCLE_FORMATS.pinterest.regles.voix_orale.texte, SOCLE_DECISIONS.pinterest_hors_voix_orale.texte);
+  assertEquals(SOCLE_FORMATS.carrousel_linkedin.regles.une_idee_par_unite.texte, SOCLE_DECISIONS.carrousel_linkedin_rythme.texte);
+  assert(/export PDF/.test(SOCLE_DECISIONS.carrousel_linkedin_rythme.texte));
   assertEquals(numerotationListe(5), { numeroter: true, de: 1, a: 5 });
   assertEquals(numerotationListe(undefined), { numeroter: false });
   assertEquals(numerotationListe(0), { numeroter: false });
