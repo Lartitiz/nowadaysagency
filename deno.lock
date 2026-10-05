@@ -95,7 +95,7 @@
     "npm:typescript@^5.8.3": "5.9.3",
     "npm:vaul@~0.9.9": "0.9.9_react@18.3.1_react-dom@18.3.1__react@18.3.1_@types+react@18.3.31_@types+react-dom@18.3.7__@types+react@18.3.31",
     "npm:vite@^6.4.3": "6.4.3_@types+node@22.20.1",
-    "npm:vitest@^3.2.7": "3.2.7_@types+node@22.20.1_jsdom@20.0.3_vite@5.4.21__@types+node@22.20.1",
+    "npm:vitest@^3.2.7": "3.2.7_@types+node@22.20.1_jsdom@20.0.3_vite@6.4.3__@types+node@22.20.1",
     "npm:zod@^3.25.76": "3.25.76"
   },
   "jsr": {
@@ -2267,7 +2267,7 @@
         "tinyrainbow"
       ]
     },
-    "@vitest/mocker@3.2.7_vite@5.4.21__@types+node@22.20.1_@types+node@22.20.1": {
+    "@vitest/mocker@3.2.7_vite@6.4.3__@types+node@22.20.1_@types+node@22.20.1": {
       "integrity": "sha512-Trr0hYO9CM3Wj6ksWHRhK9IZpIY6wTMO5u/MqXurMxT57sWBaOPEtP3Oq60ihZuh5JsiagKfz95OcxdEP6dBrA==",
       "dependencies": [
         "@vitest/spy",
@@ -4588,7 +4588,7 @@
       ],
       "bin": true
     },
-    "vitest@3.2.7_@types+node@22.20.1_jsdom@20.0.3_vite@5.4.21__@types+node@22.20.1": {
+    "vitest@3.2.7_@types+node@22.20.1_jsdom@20.0.3_vite@6.4.3__@types+node@22.20.1": {
       "integrity": "sha512-KrxIJ62Fd89gfysR4WotlgZABiz2dqFPgqGzX7s+CwsqLFomRH7777ZcrOD6+WVAh7khPQP41A+BKbpcJFrdEg==",
       "dependencies": [
         "@types/chai",
