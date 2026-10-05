@@ -1,5 +1,6 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ChevronRight } from "lucide-react";
+import { isInternalPath } from "@/lib/safe-redirect";
 
 export interface BreadcrumbItem {
   label: string;
@@ -25,7 +26,9 @@ export default function SubPageHeader({
   useFromParam = false,
 }: SubPageHeaderProps) {
   const [searchParams] = useSearchParams();
-  const fromParam = useFromParam ? searchParams.get("from") : null;
+  // ?from= vient de l'URL : un chemin interne seulement (ni javascript:, ni https:, ni /\evil.com).
+  const rawFrom = useFromParam ? searchParams.get("from") : null;
+  const fromParam = isInternalPath(rawFrom) ? rawFrom : null;
 
   // Build the crumb chain
   let crumbs: BreadcrumbItem[] = [];
