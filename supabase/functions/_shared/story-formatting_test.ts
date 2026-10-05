@@ -275,3 +275,11 @@ Deno.test("story 1 : mot clé absent du texte → premier nombre, sinon aucun (j
   assertEquals(storyKeyword("Personne ne lit mes devis.", "« devis »"), "devis");
   assertEquals(storyKeyword("", "x"), null);
 });
+
+// Vu en réel le 05/10/2026 : « 7 500 € ou 2 100 €. » donnait le mot clé « 7 ».
+Deno.test("storyKeyword : un montant avec milliers reste entier", () => {
+  assertEquals(storyKeyword("7 500 € ou 2 100 €. Même prestation.", "7 500 €"), "7 500 €");
+  assertEquals(storyKeyword("7 500 € ou 2 100 €. Même prestation.", null), "7 500 €");
+  assertEquals(storyKeyword("Il reste 12 % de marge.", null), "12 %");
+  assertEquals(storyKeyword("Une accroche sans chiffre.", "absent"), null);
+});

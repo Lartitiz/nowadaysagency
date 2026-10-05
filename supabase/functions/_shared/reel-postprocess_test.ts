@@ -433,3 +433,13 @@ Deno.test("finalizeReelScript applique les deux filets du socle", () => {
   assertEquals(parsed.script[1].texte_overlay, null);
   assertEquals(parsed.cover_mot_cle, "devis");
 });
+
+// 05/10/2026 : un montant avec milliers ne doit pas être coupé (« 7 » au lieu de « 7 500 € »).
+Deno.test("enforceReelCoverKeyword : un montant avec milliers reste entier", () => {
+  const a: any = { cover_text: "7 500 € ou 2 100 €", cover_mot_cle: "7 500 €" };
+  enforceReelCoverKeyword(a);
+  assertEquals(a.cover_mot_cle, "7 500 €");
+  const b: any = { cover_text: "7 500 € sans l'IA", cover_mot_cle: null };
+  enforceReelCoverKeyword(b);
+  assertEquals(b.cover_mot_cle, "7 500 €");
+});
