@@ -48,7 +48,9 @@ export const STORY_WRITER_LAYOUT_FIELDS = [
  * TEXTE, décision de Laetitia du 04/10/2026, comme les kicker du carrousel
  * photo) et la photo à prendre ou choisir (consigne de tournage écrite). */
 export const STORY_WRITER_PHOTO_FIELDS = ["photo_directive", "photo_query_en", "photo_index"] as const;
-export const STORY_WRITER_TEXT_FIELDS = ["title_pill"] as const;
+export const STORY_WRITER_TEXT_FIELDS = ["title_pill", "mot_cle"] as const;
+/** Mot clé de la story 1 (socle, 05/10/2026 : accroche seule + un mot clé) : 1 à 3 mots. */
+export const STORY_KEYWORD_MAX_WORDS = 3;
 const STORY_WRITER_KEPT_FIELDS = [...STORY_WRITER_TEXT_FIELDS, ...STORY_WRITER_PHOTO_FIELDS];
 
 type Story = Record<string, any>;
@@ -60,6 +62,8 @@ export interface StoryVisual {
   body_pill: string | null;
   list_pills: string[] | null;
   quote: string | null;
+  /** Story 1 seulement : mot clé de l'accroche, extrait exact du texte, mis en valeur au rendu. */
+  mot_cle?: string | null;
   photo_directive?: string | null;
   photo_query_en?: string | null;
   photo_index?: number | null;
@@ -205,8 +209,26 @@ function writerTitle(v: Record<string, unknown>): string | null {
   return typeof v.title_pill === "string" && v.title_pill.trim() ? v.title_pill.trim() : null;
 }
 
-/** Construit le plan visuel d'UNE story à partir de son texte final. */
-export function planStoryVisual(s: Story, previous: StoryVisual | null = null): StoryVisual | null {
+/**
+ * Mot clé de la story 1 : celui écrit par la rédaction s'il est un extrait
+ * exact du texte (casse ignorée, 1 à 3 mots), recopié avec la casse du texte ;
+ * sinon le premier nombre du texte ; sinon aucun (jamais un mot absent).
+ */
+export function storyKeyword(text: string, proposed: unknown): string | null {
+  const t = (text || "").trim();
+  if (!t) return null;
+  const raw = typeof proposed === "string" ? proposed.trim().replace(/^["«“'\s]+|["»”'\s]+$/gu, "") : "";
+  if (raw && wordCount(raw) <= STORY_KEYWORD_MAX_WORDS) {
+    const at = t.toLocaleLowerCase("fr").indexOf(raw.toLocaleLowerCase("fr"));
+    if (at >= 0) return t.slice(at, at + raw.length);
+  }
+  const num = t.match(/\d+(?:[.,]\d+)?\s?(?:%|€)?/u);
+  return num ? num[0].trim() : null;
+}
+
+/** Construit le plan visuel d'UNE story à partir de son texte final.
+ * `first` = story 1 de la séquence : son mot clé est gardé (vérifié). */
+export function planStoryVisual(s: Story, previous: StoryVisual | null = null, first = false): StoryVisual | null {
   if (!s || typeof s !== "object") return null;
   let faceCam = false;
   try { faceCam = s.face_cam === true; } catch { /* repli ci-dessous */ }
@@ -218,6 +240,10 @@ export function planStoryVisual(s: Story, previous: StoryVisual | null = null): 
     for (const k of STORY_WRITER_PHOTO_FIELDS) if (k in v) photo[k] = v[k];
     const title = writerTitle(v);
     base = { ...fallbackVisual(s, photo), title_pill: title };
+    if (first) {
+      const keyword = storyKeyword(storyText(s), v.mot_cle);
+      if (keyword) base.mot_cle = keyword;
+    }
     if (base.gabarit === "interaction") return base;
     const text = storyText(s);
     const list = detectStoryList(text);
@@ -247,18 +273,18 @@ export function formatStoriesVisuals(parsed: { stories?: unknown } | null | unde
   const gabarits: string[] = [];
   if (!parsed || !Array.isArray(parsed.stories)) return { version: STORY_FORMAT_VERSION, gabarits };
   let previous: StoryVisual | null = null;
-  for (const s of parsed.stories as Story[]) {
-    if (!s || typeof s !== "object") { gabarits.push("∅"); previous = null; continue; }
+  (parsed.stories as Story[]).forEach((s, index) => {
+    if (!s || typeof s !== "object") { gabarits.push("∅"); previous = null; return; }
     let visual: StoryVisual | null;
     try {
-      visual = planStoryVisual(s, previous);
+      visual = planStoryVisual(s, previous, index === 0);
     } catch {
       visual = fallbackVisual(s, {});
     }
     s.visual = visual;
     gabarits.push(visual ? visual.gabarit : "face_cam");
     previous = visual;
-  }
+  });
   return { version: STORY_FORMAT_VERSION, gabarits };
 }
 

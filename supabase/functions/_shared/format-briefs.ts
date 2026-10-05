@@ -5,7 +5,25 @@
 import { LINKEDIN_STORYTELLING_RULES, LINKEDIN_TEMPLATES } from "./copywriting-prompts.ts";
 import { LIVED_CASE_FIRST, NEWS_FEELING_FIRST, type CaseMode } from "./lived-case.ts";
 import type { AudienceAddress } from "./audience-address.ts";
-import { VOIX_ORALE_LEGENDE_PHOTO, VOIX_ORALE_STORIES } from "./socle.ts";
+import {
+  REEL_COUVERTURE,
+  REEL_SECTIONS,
+  REEL_TEXTE_ECRAN,
+  STORIES_QUICK_RULE,
+  STORY1_ACCROCHE,
+  UNE_IDEE_REEL,
+  UNE_IDEE_STORIES,
+  numerotationConsigne,
+  planAngleIndicatif,
+  VOIX_ORALE_LEGENDE_PHOTO,
+  VOIX_ORALE_STORIES,
+} from "./socle.ts";
+import { carouselLength } from "./carousel-length.ts";
+
+/** Nombre d'éléments annoncé par le sujet (« 5 erreurs… »), pour la numérotation (socle). */
+function annoncedItems(subject: string | null | undefined): number | undefined {
+  return carouselLength({ subject: subject || "" }).items;
+}
 
 export function carouselBrief(): string {
   return `FORMAT : CARROUSEL INSTAGRAM (8 slides minimum)
@@ -219,21 +237,19 @@ STRUCTURE :
   télégraphique). Au moins UNE section body explique le POURQUOI (mécanisme).
 - CTA (45-60s) : reformulation finale. Pas de répétition du hook.
 
-OVERLAY, 3 RÔLES POSSIBLES (choisir 1 par section) :
-- ANCRAGE : mot-clé ou concept qui reste à l'écran (ex: "POSITIONNEMENT")
-- CONTREPOINT : info que le texte parlé ne dit PAS (un chiffre, un fait complémentaire)
-- PUNCHLINE : chute visuelle, phrase d'impact différente du texte parlé
-INTERDIT : overlay qui résume ou condense le texte parlé. L'overlay COMPLÈTE, il ne RÉPÈTE PAS.
-3-8 mots max par overlay.
+${UNE_IDEE_REEL}
+
+${REEL_TEXTE_ECRAN}
 
 ══ RÈGLE SPÉCIALE FRAME 1 (overlay du hook 0-3s) ══
 
 50% des viewers regardent en MUTE. L'overlay de la frame 1 doit fonctionner SEUL,
-sans le son. C'est un MINI-HOOK lisible seul (promesse concrète, situation
-reconnaissable, ou affirmation contre-intuitive).
+sans le son : c'est le passage du hook parlé qui se comprend seul (promesse
+concrète, situation reconnaissable, ou affirmation contre-intuitive), recopié
+tel quel.
 
-❌ MAUVAIS : "POSITIONNEMENT" / "Stratégie Instagram" / "Mes conseils"
-✅ BON : "Plein d'abonnés. Zéro client." / "Pourquoi j'ai supprimé tous mes posts."
+❌ MAUVAIS : "Positionnement" / "Stratégie Instagram" / "Mes conseils" (des mots qu'elle ne dit pas)
+✅ BON (si elle le dit) : "Plein d'abonnés. Zéro client." / "Pourquoi j'ai supprimé tous mes posts."
 
 ══ DENSITÉ DE TEXTE PARLÉ (règle d'or : 1 seconde ≈ 2,5 mots) ══
 
@@ -285,7 +301,7 @@ INTERDITS :
 - Script qui LISTE des conseils au lieu de RACONTER + EXPLIQUER LE POURQUOI
 - Hook descriptif ("Aujourd'hui on va parler de...")
 - Hook impersonnel sans sujet humain
-- Texte overlay qui répète mot pour mot le texte parlé
+- Texte à l'écran qui dit ce qu'elle ne dit pas (information, chiffre ou formule absents de son texte parlé)
 - Script qu'on ne peut pas dire à voix haute naturellement
 - Sections juxtaposées sans connecteur oral
 - Conseil sans mécanisme expliqué`;
@@ -369,7 +385,7 @@ Génère le script normalement mais REMPLIS le champ "personal_tip" du JSON :
     type: "auto",
     type_label: "Auto-généré",
     text: "(génère un hook percutant de 5-12 mots adapté au sujet)",
-    text_overlay: "(génère un text overlay de 3-6 mots en MAJUSCULES)",
+    text_overlay: "(extrait de 3 à 6 mots du hook parlé, recopié tel quel)",
     format_label: "Auto",
     format_recommande: "auto",
     duree_cible: "30-45 sec",
@@ -410,16 +426,21 @@ INSPIRE-TOI du style identifié. NE COPIE PAS le contenu.`
     : "";
 
   // ── Angle éditorial imposé ──
+  // Plan d'angle INDICATIF (socle, 05/10/2026) : l'ordre des étapes est gardé,
+  // le nombre de sections suit le découpage (une idée par plan).
   const angleBlock = (params.editorial_angle && params.content_structure)
     ? `
 
 ANGLE ÉDITORIAL IMPOSÉ : ${params.editorial_angle}
 
-STRUCTURE À SUIVRE (obligatoire) :
+PLAN DE L'ANGLE (dans cet ordre) :
 ${params.content_structure}
 
-Chaque section du script DOIT correspondre aux étapes de cette structure. Adapte les timings pour que le script respecte ce déroulé.`
+${planAngleIndicatif("section", "sections")} Adapte les timings à ce déroulé ; le reel reste court.`
     : "";
+  // Liste annoncée avec un nombre : numérotation 1..N (socle, décision du 05/10/2026).
+  const reelNumbering = numerotationConsigne(annoncedItems(params.subject), "sections");
+  const numberingBlock = reelNumbering ? `\n\n${reelNumbering}` : "";
 
   // ── Métadonnées contextuelles ──
   const metaBlock = `
@@ -491,7 +512,7 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
       "timing": "15-35 sec",
       "format_visuel": "...",
       "texte_parle": "...",
-      "texte_overlay": "3-5 MOTS MAX",
+      "texte_overlay": "extrait de 3 à 8 mots de CE texte_parle, recopié tel quel",
       "cut": "changement de plan",
       "tip": null
     },
@@ -500,7 +521,7 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
       "timing": "35-45 sec",
       "format_visuel": "Retour face cam",
       "texte_parle": "...",
-      "texte_overlay": "PUNCHLINE FINALE 3-8 mots (JAMAIS le mot 'SAUVEGARDE' seul : une vraie chute)",
+      "texte_overlay": "la chute de CE texte_parle, extrait de 3 à 8 mots recopié tel quel (JAMAIS le mot 'SAUVEGARDE' seul)",
       "cut": null,
       "tip": null
     }
@@ -511,7 +532,8 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
     "cta": "..."
   },
   "hashtags": ["#...", "#...", "#...", "#...", "#..."],
-  "cover_text": "...",
+  "cover_text": "l'accroche seule, 4 à 10 mots tirés du hook",
+  "cover_mot_cle": "le mot (ou 1 à 3 mots) de cover_text mis en valeur, recopié exactement",
   "alt_text": "...",
   "amplification_stories": [
     {
@@ -549,17 +571,18 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
 }
 
 IMPORTANT :
-- Le tableau "script" doit avoir entre 3 et 6 sections (hook + body segments + cta)
+- Le tableau "script" doit avoir entre ${REEL_SECTIONS.min} et ${REEL_SECTIONS.max} sections (hook + body segments + cta), une idée par section
 - DUPLIQUE le contenu de "script" dans un champ "sections" (même structure) pour compat UI
 - Chaque section body a une indication de cut
-- Le texte overlay est COURT (3-5 mots), en MAJUSCULES
+- Le texte overlay est COURT (3-8 mots), extrait mot pour mot du texte_parle de sa section, sans majuscules imposées
+- ${REEL_COUVERTURE}
 - La caption ne répète PAS le script, elle offre un angle complémentaire
 - Les hashtags : 3-5 max, mix large + niche
 - Les amplification_stories : 2 stories à poster dans l'heure
 - "plan_tournage" = la SHOT LIST du reel : 3 à 6 plans à tourner AU TÉLÉPHONE, listés dans l'ordre de TOURNAGE le plus simple (toutes les prises face cam d'abord, puis les plans de coupe). Chaque "plan" est CONCRET et ancré dans l'activité RÉELLE de la marque (son lieu, ses gestes, ses objets — d'après le contexte de marque fourni ; JAMAIS un "plan de coupe générique" ni un décor qu'elle n'a probablement pas). Types : "face_cam" (elle parle), "b_roll" (elle fait, sans parler), "insert" (gros plan objet/écran/détail). Cohérence : chaque cut du script doit correspondre à un plan de cette liste ("sert_pour" le dit). Si le format est face cam pur, prévois quand même 1-2 plans de coupe b_roll pour faire respirer le montage. Bonus malin : indique quand un plan b_roll est RÉUTILISABLE pour de futurs reels.
 - Pas de markdown dans les valeurs JSON`;
 
-  return base + calibrage + metaBlock + inspirationBlock + hookBlock + subjectBlock + angleBlock + personalBlock + jsonBlock;
+  return base + calibrage + metaBlock + inspirationBlock + hookBlock + subjectBlock + angleBlock + numberingBlock + personalBlock + jsonBlock;
 }
 
 export interface StoriesBriefParams {
@@ -652,6 +675,8 @@ export function storiesBrief(p: StoriesBriefParams = {}): string {
   const isQuick = time_available === "5min";
   const priceBlock = objective === "vente" && p.price_range ? `\n- Gamme de prix : ${p.price_range}` : "";
   const launchBlock = p.is_launch ? "\n- Phase : LANCEMENT (orienter vers vente + preuve sociale)" : "\n- Phase : croisière";
+  // Liste annoncée avec un nombre : numérotation 1..N (socle, décision du 05/10/2026).
+  const storiesNumbering = numerotationConsigne(annoncedItems(p.subject), "stories");
 
   let preGenBlock = "";
   if (p.pre_gen_answers && (p.pre_gen_answers.vecu || p.pre_gen_answers.energy || p.pre_gen_answers.message_cle)) {
@@ -713,8 +738,7 @@ La story 1 décide de TOUT : une grande partie de l'audience part après.
 Le hook doit arrêter le swipe en 1-2 secondes.
 
 FORMAT : texte sur fond
-- La première phrase accroche en 8-15 mots ; elle ouvre la story, elle ne la remplace pas
-- Continue avec 1-2 phrases orales dans le même champ "text" pour installer la situation
+- ${STORY1_ACCROCHE}
 - Doit créer l'identification OU la curiosité immédiate
 - Le sondage/sticker complète le hook (pas l'inverse)
 `)
@@ -726,8 +750,7 @@ Le hook doit arrêter le swipe en 1-2 secondes.
 SELON LE FORMAT DE LA STORY 1 :
 
 Si format = texte sur fond :
-- Première phrase : 8-15 mots, puis 1-2 phrases qui continuent naturellement
-- Le hook désigne les premiers mots de la story, pas tout son texte
+- ${STORY1_ACCROCHE}
 - Doit créer l'identification OU la curiosité immédiate
 - Le sondage/sticker complète le hook (pas l'inverse)
 
@@ -738,8 +761,8 @@ Si format = face cam :
 - Sous-titres OBLIGATOIRES (la plupart regardent sans le son)
 
 Si format = visuel/photo :
-- Les 3-8 premiers mots doivent se comprendre immédiatement, puis le texte peut continuer sur 1-2 phrases
-- L'image fait le travail visuel ; le texte ouvre une attente et commence vraiment le récit
+- Même règle : l'accroche seule (4 à 15 mots) qui se comprend immédiatement, avec son "mot_cle" ; le récit commence en story 2
+- L'image fait le travail visuel ; l'accroche ouvre l'attente
 `;
 
   const structuresBlock = isQuick
@@ -778,7 +801,7 @@ DEMANDE :
 - Temps disponible : ${time_available}
 - Face cam : ${face_cam}
 - Sujet : ${p.subject || "au choix selon la ligne éditoriale"}${launchBlock}
-
+${storiesNumbering ? `\n${storiesNumbering}\n` : ""}
 ${structuresBlock}
 
 CORRESPONDANCE objectif x temps :
@@ -861,7 +884,7 @@ Tu écris le TEXTE de chaque story (et son petit titre éventuel) et tu dis quel
 
 RÈGLES :
 0. "title_pill" : OPTIONNEL, et null le plus souvent. Une story native, c'est UN bloc de texte posé sur la photo ; un titre + un texte dessous sur chaque story, c'est la signature d'un outil, pas d'une personne. Ne mets un "title_pill" (3-7 mots, pas de point final, affiché en capitales condensées type "Strong") QUE si la story annonce quelque chose qui se lit d'abord : une liste, une question posée à l'audience, une offre, une date. Jamais de titre qui répète ou résume le "text". Sur une séquence de 5 stories, 1 ou 2 titres maximum.
-1. "text" : LE TEXTE DE LA STORY, 350 caractères MAX. Ce qui est écrit sur la story, c'est ce qu'on lit : pas de résumé, pas de version raccourcie, pas de "titre puis texte". Un texte de 3-4 phrases qui raconte vraiment, c'est ce qui fait lire ; une accroche de 8 mots, on la swipe. Écrit comme on parle, jamais en formule. Si "text" dépasse 350 caractères, coupe "text" lui-même : une story ne doit pas dire plus.
+1. "text" : LE TEXTE DE LA STORY, 350 caractères MAX. Ce qui est écrit sur la story, c'est ce qu'on lit : pas de résumé, pas de version raccourcie, pas de "titre puis texte". Un texte de 3-4 phrases qui raconte vraiment, c'est ce qui fait lire ; une accroche de 8 mots, on la swipe (sauf la story 1 texte ou photo, qui est l'accroche seule). Écrit comme on parle, jamais en formule. ${UNE_IDEE_STORIES}
 2. Verbatim client : court, jamais inventé. S'il n'y a pas de vrai retour client fourni, n'en cite pas.
 3. Les stories, ce sont des IMAGES : une photo est le fond de TOUTES les stories (hors face cam), et elle illustre CE QUE DIT la story.
 4. Pour CHAQUE story non face-cam, remplis TOUJOURS "photo_directive" (quelle photo prendre ou choisir, CONCRÈTE et ancrée dans l'activité réelle, comme un plan de tournage : "ton plan de travail avec les pots en cours de séchage", pas "une jolie photo") ET "photo_query_en" (2-4 mots EN ANGLAIS décrivant une scène photographiable concrète équivalente, pour la recherche de photos libres de droits, ex "hands shaping clay bowl"). Jamais null.${p.photo_catalog && p.photo_catalog.length > 0 ? (() => {
@@ -913,7 +936,7 @@ GARDE-FOUS OBLIGATOIRES :
 14. PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature, imite les patterns de structure et de ton.
 15. Ne JAMAIS utiliser les expressions interdites du profil de voix.
 16. Le résultat doit sonner comme si l'utilisateur·ice l'avait écrit.
-17. Si le temps dispo est "5min", MAXIMUM 3 stories. Ne génère JAMAIS 5+ stories pour quelqu'un qui a 5 minutes — SAUF si un contenu source est fourni : alors le nombre de stories suit le texte (une idée par story, 10 max).
+17. ${STORIES_QUICK_RULE}
 18. La longueur du texte de chaque story doit être RÉALISTE : une story texte = 2-3 phrases max. Une story face cam = 15-30 secondes de parole (50-80 mots). Ne génère pas des pavés pour des stories.
 
 Réponds en JSON strict :
@@ -941,6 +964,7 @@ Réponds en JSON strict :
       },
       "visual": {
         "title_pill": null,
+        "mot_cle": "[story 1 seulement : le mot fort de l'accroche, recopié exactement ; null ailleurs]",
         "photo_directive": "[quelle photo prendre/choisir, concrète, ancrée dans l'activité]",
         "photo_query_en": "[2-4 mots anglais, scène photographiable]"${p.photo_catalog && p.photo_catalog.length > 0 ? `,
         "photo_index": null` : ""}
@@ -953,7 +977,7 @@ Réponds en JSON strict :
 }
 
 IMPORTANT :
-- Le champ "text" de la story 1 contient la story complète : ses premiers mots sont le hook, puis elle continue naturellement (une seule version, jamais un slogan séparé)
+- Story 1 texte ou photo : "text" = l'accroche seule (une seule version, jamais un slogan séparé en plus) ; la suite commence en story 2. Story 1 face cam : ses premiers mots sont le hook, puis elle continue naturellement
 - CHAQUE story a un "visual", SAUF les stories face cam : si "face_cam": true → "visual": null (c'est une vidéo à filmer, pas un visuel à rendre)
 - Le champ "narrative_angle" indique l'angle de narration choisi pour la séquence
 - Pas de markdown dans les valeurs JSON

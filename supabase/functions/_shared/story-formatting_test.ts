@@ -6,6 +6,7 @@ import {
   finalizeStoriesLayout,
   formatStoriesVisuals,
   STORY_WRITER_LAYOUT_FIELDS,
+  storyKeyword,
   stripStoriesWriterLayout,
 } from "./story-formatting.ts";
 
@@ -249,4 +250,28 @@ Deno.test("petit titre : jamais perdu par un gabarit qui ne l'affiche pas (liste
   assertEquals(parsed.stories[1].visual.title_pill, "Reçu en DM");
   assertEquals(parsed.stories[2].visual.gabarit, "liste");
   assertEquals(parsed.stories[2].visual.title_pill, "Mes trois vérifs");
+});
+
+// ═══ Socle (05/10/2026) : story 1 = accroche seule + un mot clé mis en valeur ═══
+
+Deno.test("story 1 : le mot clé écrit par la rédaction est gardé s'il est un extrait exact (casse du texte)", () => {
+  const seq: any = {
+    stories: [
+      { text: "J'ai jeté mon premier savon parfait.", visual: { mot_cle: "PARFAIT", photo_directive: "le savon" } },
+      { text: "Il n'avait aucun défaut.", visual: { mot_cle: "défaut", photo_directive: "mes mains" } },
+    ],
+  };
+  stripStoriesWriterLayout(seq);
+  formatStoriesVisuals(seq);
+  assertEquals(seq.stories[0].visual.mot_cle, "parfait");
+  // Seule la story 1 porte un mot clé.
+  assertEquals(seq.stories[1].visual.mot_cle, undefined);
+});
+
+Deno.test("story 1 : mot clé absent du texte → premier nombre, sinon aucun (jamais un mot inventé)", () => {
+  assertEquals(storyKeyword("3 devis, zéro réponse.", "silence"), "3");
+  assertEquals(storyKeyword("Personne ne lit mes devis.", "silence"), null);
+  assertEquals(storyKeyword("Personne ne lit mes devis.", "un groupe de mots beaucoup trop long"), null);
+  assertEquals(storyKeyword("Personne ne lit mes devis.", "« devis »"), "devis");
+  assertEquals(storyKeyword("", "x"), null);
 });

@@ -332,3 +332,33 @@ describe("buildStoryFrames", () => {
     expect(frames[2]?.story_number).toBe(3);
   });
 });
+
+describe("story 1 : mot clé de l'accroche mis en valeur (socle, 05/10/2026)", () => {
+  const story = (mot_cle: string | null, text = "J'ai jeté mon premier savon parfait.") => ({
+    text,
+    visual: { gabarit: "photo_pills", background: "photo", mot_cle },
+  });
+
+  it("met en valeur le mot clé retrouvé dans le texte, sans perdre un mot", () => {
+    const html = buildStoryFrameHtml(story("parfait"), branding, { preview: false, photoUrl: "https://example.com/p.jpg" })!;
+    expect(html).toContain("data-story-keyword");
+    expect(html).toMatch(/savon <span data-story-keyword[^>]*>parfait<\/span>\./);
+  });
+
+  it("n'invente rien : mot clé absent du texte → texte tel quel", () => {
+    const html = buildStoryFrameHtml(story("silence"), branding, { preview: false, photoUrl: "https://example.com/p.jpg" })!;
+    expect(html).not.toContain("data-story-keyword");
+    expect(html).toContain("J&#39;ai jeté mon premier savon parfait.".replace("&#39;", "'"));
+  });
+
+  it("sans mot clé (autres stories) : rendu inchangé", () => {
+    const html = buildStoryFrameHtml(story(null), branding, { preview: false })!;
+    expect(html).not.toContain("data-story-keyword");
+  });
+
+  it("le mot clé est échappé comme le reste du texte", () => {
+    const html = buildStoryFrameHtml(story("<b>", "Un <b> dans le texte"), branding, { preview: false })!;
+    expect(html).not.toContain("<b>");
+    expect(html).toContain("&lt;b&gt;");
+  });
+});

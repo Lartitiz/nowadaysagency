@@ -21,6 +21,7 @@ import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.ts";
 import { livedCaseFromCreativeBody, LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from "../_shared/lived-case.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief, positionDepthBlock } from "../_shared/format-briefs.ts";
+import { RECYCLAGE_CARROUSEL_LONGUEUR, RECYCLAGE_CARROUSEL_SLIDES, RECYCLAGE_STORIES_LONGUEUR, STORY1_ACCROCHE } from "../_shared/socle.ts";
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
@@ -37,6 +38,7 @@ import {
   extractReelTexts,
   reinjectReelTexts,
   reelTemplateLeaks,
+  reelOverlaysNotFromScript,
 } from "../_shared/reel-postprocess.ts";
 import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
 import { adoptStructuredStories, coerceStoriesSequence, finalizeStoriesLayout, stripStoriesWriterLayout } from "../_shared/story-formatting.ts";
@@ -102,7 +104,7 @@ const HOOKS_TOOL = {
             type: { type: "string", description: "vecu_perso | contre_intuition | objection_retournee | question_choc | fait_brut | scene_coupee" },
             type_label: { type: "string", description: "label court lisible du type, ex. « Vécu perso »" },
             text: { type: "string", description: "le hook PARLÉ, 8-20 mots, 1-2 phrases, tension immédiate" },
-            text_overlay: { type: "string", description: "overlay écran muet, 3-8 mots MAJUSCULES, autoporteur sans le son, ne répète pas le parlé mot pour mot" },
+            text_overlay: { type: "string", description: "texte à l'écran en muet : extrait de 3 à 8 mots du hook parlé (text), recopié tel quel, qui se comprend seul ; casse normale, pas de majuscules imposées" },
             format_recommande: { type: "string", description: "face_cam_confession | voix_off_broll | hook_loop" },
             format_label: { type: "string", description: "label lisible de la structure, ex. « Voix off + B-roll »" },
             duree_cible: { type: "string", description: "durée estimée du reel avec ce hook, ex. « ~30 sec »" },
@@ -209,9 +211,11 @@ export function buildRecycleSystemPrompt(
   // code. Seule la ligne stories change, et seulement dans le prompt stories :
   // les prompts des autres formats restent identiques à l'octet.
   const storiesStructured = fmtIds.includes("stories");
+  // Une idée par story (socle, 05/10/2026) : plus de nombre fixe, la longueur
+  // suit le découpage (RECYCLAGE_STORIES_LONGUEUR, bornes 3 à 10).
   const storiesLengthLine = storiesStructured
-    ? `- Stories : séquence de 5-7 stories. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle (dans "photo_directive", jamais dans le texte). Story 4 = interaction obligatoire.`
-    : `- Stories : séquence de 5-7 stories. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle. Story 4 = interaction obligatoire.`;
+    ? RECYCLAGE_STORIES_LONGUEUR
+    : `- Stories : une idée par story, le nombre suit le découpage. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle. Une story d'interaction au milieu ou vers la fin.`;
   return `${commonPrefix}
 
 ${ANTI_BIAS}
@@ -244,8 +248,8 @@ ${target ? `Sa cible : ${target}. Adapte le vocabulaire et les exemples à cette
 ${piliers ? `Ses piliers de contenu : ${piliers}. Le recyclage doit rester cohérent avec ces piliers.` : ""}
 
 LONGUEURS OBLIGATOIRES :
-- Carrousel : 8 slides (slide 1 = couverture, slides 2-7 = développement, slide 8 = punchline + CTA). Slide 1 : title = une accroche de 4 à 10 mots qui crée une tension, body = un sous-titre facultatif de 12 mots maximum (ou vide). Slides 2 à 8 : 2-4 phrases chacune ; la slide 2 relance comme une deuxième accroche compréhensible seule. Pas de slides d'1 mot.
-- Reel : script complet avec timecodes (0-3s hook, 3-15s contexte, 15-45s coeur, 45-60s CTA). Indique les cuts et le texte à l'écran.
+${RECYCLAGE_CARROUSEL_LONGUEUR}
+- Reel : script complet avec timecodes (0-3s hook, 3-15s contexte, 15-45s coeur, 45-60s CTA), une idée par plan, et le reel reste court. Indique les cuts et le texte à l'écran : un extrait de 3 à 8 mots de ce qu'elle dit dans ce plan (ses mots, son mot ou chiffre fort), sans majuscules imposées.
 ${storiesLengthLine}
 - LinkedIn : longueur selon la matière disponible. Prose fluide et ouverture qui situe le sujet. 0-2 hashtags si utiles.
 - Instagram (Carrousel, Reel, Stories) : 3 hashtags maximum en fin de légende. Jamais plus, même si la légende est longue. Choisis-les ciblés (pas de #love #life génériques).
@@ -253,7 +257,7 @@ ${storiesLengthLine}
 
 RÈGLE DE PROFONDEUR :
 Tu ne raccourcis JAMAIS une idée pour "faire court" ou "tout faire rentrer".
-Un carrousel de 8 slides qui va au bout d'UNE idée > un carrousel de 8 slides qui survole 3 idées.
+Un carrousel qui va au bout d'UNE idée, une slide par pas du raisonnement > un carrousel qui survole 3 idées.
 Un reel de 45 secondes sur UN point percutant > un reel de 60 secondes qui liste des conseils.
 
 RÈGLE DE VOIX :
@@ -276,14 +280,12 @@ Réponds UNIQUEMENT en JSON valide :
     ${fmtIds.map((f: string) => f === "carrousel"
       ? `"carrousel": {
       "slides": [
-        { "slide_number": 1, "title": "hook court", "body": "2-4 phrases" },
-        { "slide_number": 2, "title": "...", "body": "..." },
-        { "slide_number": 3, "title": "...", "body": "..." },
-        { "slide_number": 4, "title": "...", "body": "..." },
-        { "slide_number": 5, "title": "...", "body": "..." },
-        { "slide_number": 6, "title": "...", "body": "..." },
-        { "slide_number": 7, "title": "...", "body": "..." },
-        { "slide_number": 8, "title": "punchline + CTA", "body": "2-4 phrases" }
+        { "slide_number": 1, "title": "accroche de 4 à 10 mots", "body": "sous-titre facultatif (12 mots max) ou vide" },
+        { "slide_number": 2, "title": "...", "body": "une idée" },
+        { "slide_number": 3, "title": "...", "body": "une idée" },
+        { "slide_number": 4, "title": "...", "body": "une idée" },
+        { "slide_number": 5, "title": "...", "body": "une idée" },
+        { "slide_number": 6, "title": "punchline + CTA (la dernière slide : son numéro suit le découpage)", "body": "..." }
       ],
       "caption": { "hook": "1-2 phrases d'accroche", "body": "développement de la légende", "cta": "appel à l'action final", "hashtags": ["3 hashtags ciblés maximum, sans #, en rapport avec le sujet"] }
     }`
@@ -297,6 +299,7 @@ Réponds UNIQUEMENT en JSON valide :
           "sticker": null,
           "visual": {
             "title_pill": null,
+            "mot_cle": "story 1 seulement : le mot fort de l'accroche, recopié exactement ; null ailleurs",
             "photo_directive": "la photo qui porte cette story, concrète, ancrée dans l'activité",
             "photo_query_en": "2-4 mots anglais, scène photographiable"
           },
@@ -310,7 +313,7 @@ Réponds UNIQUEMENT en JSON valide :
     ${fmtIds.map((f: string) => `"${f}": "le sujet réel de ce contenu en 5-10 mots (pas 'recyclage', le VRAI sujet traité)"`).join(",\n    ")}
   }
 }
-${fmtIds.includes("carrousel") ? `\nIMPORTANT pour le carrousel : tu DOIS renvoyer un OBJET structuré avec exactement 8 slides (slide_number 1 à 8 ; slide 1 = title-accroche de 10 mots max + body sous-titre facultatif de 12 mots max ; slides 2 à 8 = title + body de 2-4 phrases) et une caption {hook, body, cta}. Pas une string. Pas moins de 8 slides. Les règles de longueur et d'arc narratif (slide 1 = hook, 2-7 = développement, 8 = punchline + CTA) s'appliquent au champ body des slides 2 à 8.` : ""}${storiesStructured ? `\nIMPORTANT pour les stories : tu DOIS renvoyer un OBJET { "stories": [...] } avec une entrée par story, pas une string. "text" = ce qui est écrit sur la story, tel que l'abonnée le lit : aucune indication visuelle ni de mise en scène dedans. L'indication visuelle va dans "photo_directive" (et "photo_query_en"). "sticker" = { "type", "label", "options" } sur la story d'interaction, null ailleurs. "title_pill" reste null, sauf si la story annonce une liste, une question, une offre ou une date. La mise en page de l'image (pastilles, liste, citation, fond, position) est décidée après, à partir de ton texte : tu n'en écris rien.` : ""}`;
+${fmtIds.includes("carrousel") ? `\nIMPORTANT pour le carrousel : tu DOIS renvoyer un OBJET structuré avec de ${RECYCLAGE_CARROUSEL_SLIDES.min} à ${RECYCLAGE_CARROUSEL_SLIDES.max} slides numérotées à la suite (slide_number 1 à N ; slide 1 = title-accroche de 10 mots max + body sous-titre facultatif de 12 mots max ; les suivantes = une idée chacune, title facultatif + body) et une caption {hook, body, cta}. Pas une string. Le nombre de slides suit le découpage : une idée par slide, n'ajoute rien pour remplir et ne tasse pas deux idées sur une slide. Arc narratif : slide 1 = accroche, puis le développement, la dernière = punchline + CTA.` : ""}${storiesStructured ? `\nIMPORTANT pour les stories : tu DOIS renvoyer un OBJET { "stories": [...] } avec une entrée par story, pas une string. "text" = ce qui est écrit sur la story, tel que l'abonnée le lit : aucune indication visuelle ni de mise en scène dedans. L'indication visuelle va dans "photo_directive" (et "photo_query_en"). "sticker" = { "type", "label", "options" } sur la story d'interaction, null ailleurs. "title_pill" reste null, sauf si la story annonce une liste, une question, une offre ou une date. ${STORY1_ACCROCHE} La mise en page de l'image (pastilles, liste, citation, fond, position) est décidée après, à partir de ton texte : tu n'en écris rien.` : ""}`;
 }
 
 export function buildFollowUpPrompt(params: {
@@ -557,8 +560,10 @@ RÈGLES ABSOLUES :
    - scene_coupee (« Scène coupée ») : on entre au milieu d'une scène, in medias res.
 2. text = ce qu'elle DIT (8-20 mots, 1-2 phrases, oral naturel, tension immédiate).
    ❌ "Aujourd'hui je vais te parler de..." ❌ hook descriptif ❌ slogan LinkedIn.
-3. text_overlay = ce qu'on LIT à l'écran en MUET (3-8 mots, MAJUSCULES). Il doit
-   fonctionner SEUL, sans le son, et COMPLÉTER le parlé, pas le répéter mot pour mot.
+3. text_overlay = ce qu'on LIT à l'écran en MUET (3-8 mots) : UNIQUEMENT ses mots,
+   un extrait du hook parlé (text) recopié tel quel, celui qui fonctionne SEUL sans
+   le son et porte son mot ou chiffre fort. Jamais une information que le parlé ne
+   dit pas. Casse normale d'une phrase, pas de majuscules imposées.
 4. AUCUN chiffre qui ne vient pas du brief, des réponses ou du branding.
 5. SINGULARITÉ : pas le hook consensuel de la niche. Ancre dans SON métier, SES mots,
    SA matière (contexte de marque ci-dessus).
@@ -1561,6 +1566,13 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
     const leaks = reelTemplateLeaks(parsed);
     if (leaks.length) {
       extras.push(`FUITES DE GABARIT DÉTECTÉES (réécris chacune) :\n${leaks.map((l) => `- ${l}`).join("\n")}`);
+    }
+    // Texte à l'écran = uniquement ses mots (socle, 05/10/2026). Le hook
+    // verrouillé n'est pas signalé (son choix prime) ; un overlay encore hors
+    // de ses mots après la passe est retiré par finalizeReelScript.
+    const offScript = reelOverlaysNotFromScript(parsed).filter((n) => !(n === 1 && hookVerrouille));
+    if (offScript.length) {
+      extras.push(`TEXTE À L'ÉCRAN HORS DE SES MOTS : ${offScript.map((n) => `[SECTION ${n} - OVERLAY]`).join(", ")} contient des mots que son texte parlé ne dit pas. Remplace chacun par un extrait de 3 à 8 mots recopié tel quel du [SECTION n - PARLE] de la même section (son mot ou son chiffre fort), sans majuscules imposées.`);
     }
     if (body.face_cam === "non") {
       extras.push(`CE REEL EST EN VOIX OFF (l'utilisatrice ne se montre pas) : aucun texte parlé ne doit dire "regarde la caméra" ni supposer qu'on la voit parler.`);
@@ -3099,9 +3111,9 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 
     // Format labels (used by recycle, declared here for broader scope)
     const formatLabels: Record<string, string> = {
-      carrousel: "Carrousel Instagram (8 slides)",
+      carrousel: "Carrousel Instagram",
       reel: "Script Reel (30-60 sec)",
-      stories: "Séquence Stories (5 stories)",
+      stories: "Séquence Stories",
       linkedin: "Post LinkedIn",
       newsletter: "Email / Newsletter",
     };

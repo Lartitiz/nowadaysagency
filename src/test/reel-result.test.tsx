@@ -1,7 +1,7 @@
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "test-user" } }) }));
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import ReelResult from "@/components/creer/formatRenderers/ReelResult";
+import ReelResult, { CoverWithKeyword } from "@/components/creer/formatRenderers/ReelResult";
 import { suggestStockKeywords, searchStockVideos } from "@/lib/stock-videos";
 import { listReelVideos } from "@/lib/reel-user-videos";
 
@@ -389,5 +389,18 @@ describe("ReelResult — le MP4 joint au contenu", () => {
     rerender(<ReelResult result={autre} onMp4Change={onMp4Change} />);
     // Une vidéo montée pour l'ancien script ne doit JAMAIS suivre le nouveau.
     expect(onMp4Change).toHaveBeenLastCalledWith(null);
+  });
+});
+
+describe("Couverture du reel : accroche + mot clé mis en valeur (socle, 05/10/2026)", () => {
+  it("met en valeur le mot clé présent dans l'accroche", () => {
+    const { container } = render(<CoverWithKeyword text="Mon premier savon était parfait" keyword="parfait" />);
+    expect(container.textContent).toBe("Mon premier savon était parfait");
+    expect(container.querySelector("mark[data-cover-keyword]")?.textContent).toBe("parfait");
+  });
+  it("mot clé absent : texte seul, rien de mis en valeur", () => {
+    const { container } = render(<CoverWithKeyword text="Personne ne lit mes devis" keyword="silence" />);
+    expect(container.textContent).toBe("Personne ne lit mes devis");
+    expect(container.querySelector("mark")).toBeNull();
   });
 });

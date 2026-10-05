@@ -29,9 +29,9 @@ import { buildCalendarContent } from "@/features/creer/build-calendar-content";
 // décoche). Le choix appartient à l'utilisatrice ; un point d'entrée peut
 // pré-cocher via l'URL (?format=stories ou ?format=carrousel,reel).
 const FORMATS = [
-  { id: "carrousel", label: "📑 Carrousel Instagram (8 slides)" },
+  { id: "carrousel", label: "📑 Carrousel Instagram" },
   { id: "reel", label: "🎬 Script Reel (30-60 sec)" },
-  { id: "stories", label: "📱 Séquence Stories (5 stories)" },
+  { id: "stories", label: "📱 Séquence Stories" },
   { id: "linkedin", label: "💼 Post LinkedIn" },
   { id: "newsletter", label: "📧 Email / Newsletter" },
 ];

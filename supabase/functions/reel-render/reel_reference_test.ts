@@ -8,7 +8,9 @@
  *   réseau : JSON → SubmitSchema (zod retire toute clé inconnue) ;
  *   rendu : buildReelRecipe.
  * Attendu : l'accroche choisie est verrouillée, chaque scène porte SON texte à
- * l'écran, et chaque mot de ce texte est rendu, dans la boîte.
+ * l'écran (uniquement ses mots : un texte inventé est retiré au profit du texte
+ * parlé), et chaque mot de ce texte est rendu, dans sa casse, dans la boîte, au
+ * plancher lisible (découpé en écrans si besoin).
  */
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
@@ -50,7 +52,7 @@ function referenceReel() {
         timing: "3-15 sec",
         format_visuel: "Plans de coupe sur les mains",
         texte_parle: "Je l'avais moulé, démoulé, poncé jusqu'à ce qu'il n'ait plus aucun défaut.",
-        texte_overlay: "zéro défaut, zéro âme", // écrit en minuscules : le rendu met en majuscules
+        texte_overlay: "plus aucun défaut", // extrait de ses mots, en minuscules : gardé tel quel
       },
       {
         section: "body",
@@ -64,7 +66,7 @@ function referenceReel() {
         timing: "35-45 sec",
         format_visuel: "caméra face, sourire",
         texte_parle: "Montre-moi ton dernier raté en commentaire.",
-        texte_overlay: "TON RATÉ VAUT DE L'OR",
+        texte_overlay: "TON RATÉ VAUT DE L'OR", // des mots qu'elle ne dit pas : retiré, son texte parlé passe à l'écran
       },
     ],
     sections: "DUPLIQUE ICI le contenu du tableau script" as unknown,
@@ -77,7 +79,6 @@ function referenceReel() {
 }
 
 const words = (t: string) => t.split(/\s+/).filter(Boolean);
-const upper = (t: string) => t.toLocaleUpperCase("fr-FR");
 
 function runProductionChain() {
   const parsed = referenceReel() as any;
@@ -117,23 +118,26 @@ Deno.test("NON-RÉGRESSION reel : face_cam=non → plus aucune trace de face cam
 Deno.test("NON-RÉGRESSION reel : chaque scène porte son texte à l'écran, chaque mot est rendu dans la boîte", () => {
   const { parsed, recipe } = runProductionChain();
   const expectedOnScreen = [
-    CHOSEN_HOOK.text_overlay,
-    "zéro défaut, zéro âme",
+    CHOSEN_HOOK.text_overlay, // hook choisi : son choix prime
+    "plus aucun défaut",
     BODY_2_SPOKEN, // repli : texte parlé ENTIER, jamais raccourci
-    "TON RATÉ VAUT DE L'OR",
+    "Montre-moi ton dernier raté en commentaire.", // overlay inventé retiré → ses mots
   ];
+  assertEquals(parsed.script[3].texte_overlay, null);
   assertEquals(recipe.scenes.length, parsed.script.length);
   recipe.scenes.forEach((scene: any, i: number) => {
     const texts = scene.elements.filter((e: any) => e.type === "text");
-    assertEquals(texts.length, 1, `scène ${i + 1} : un texte à l'écran`);
-    const el = texts[0];
-    // Chaque mot, dans l'ordre, en MAJUSCULES (style garanti par le rendu).
-    assertEquals(words(el.text), words(expectedOnScreen[i]).map(upper), `scène ${i + 1}`);
-    // Il tient dans la boîte, et la boîte dans l'image (hors bandeaux Instagram).
-    const size = parseInt(el.settings["font-size"], 10);
-    assert(overlayTextHeight(estimateOverlayLines(el.text, size, el.width), size) <= el.height, `scène ${i + 1} déborde`);
-    assert(el.x >= 0 && el.x + el.width <= recipe.width);
-    assert(el.y >= Math.round(recipe.height * 0.12) && el.y + el.height <= Math.round(recipe.height * 0.86));
+    assert(texts.length >= 1, `scène ${i + 1} : un texte à l'écran`);
+    // Chaque mot, dans l'ordre, dans la casse écrite (plus de majuscules forcées).
+    assertEquals(words(texts.map((e: any) => e.text).join(" ")), words(expectedOnScreen[i]), `scène ${i + 1}`);
+    for (const el of texts) {
+      // Il tient dans la boîte, et la boîte dans l'image (hors bandeaux Instagram).
+      const size = parseInt(el.settings["font-size"], 10);
+      assert(size >= 44, `scène ${i + 1} : police sous le plancher`);
+      assert(overlayTextHeight(estimateOverlayLines(el.text, size, el.width), size) <= el.height, `scène ${i + 1} déborde`);
+      assert(el.x >= 0 && el.x + el.width <= recipe.width);
+      assert(el.y >= Math.round(recipe.height * 0.12) && el.y + el.height <= Math.round(recipe.height * 0.86));
+    }
   });
   // Textes courts : rendu validé inchangé (58 px, boîte d'origine).
   for (const i of [0, 1, 3]) {

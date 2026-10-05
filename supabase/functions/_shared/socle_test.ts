@@ -30,7 +30,7 @@ import * as audienceAddress from "./audience-address.ts";
 import * as carouselLength from "./carousel-length.ts";
 import * as carouselCover from "./carousel-cover.ts";
 import * as senseDesign from "./carousel-sense-design.ts";
-import { photoCaptionBrief, storiesBrief } from "./format-briefs.ts";
+import { photoCaptionBrief, reelBrief, storiesBrief } from "./format-briefs.ts";
 
 async function sha256(text: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -51,6 +51,87 @@ const FROZEN: Record<string, string> = {
   LISIBLE_TAILLES_TITRES: "0f09b2bd9939575c37310935801517bc0decaae3d9d8c0ee134571f801637bcf",
   LISIBLE_TAILLE_CORPS: "855896ee84c93a51488b496199fee800bbdebfec855bd45c368db01518483034",
 };
+
+/**
+ * Étape 7 du socle (05/10/2026) : consignes NOUVELLES des stories, reels et du
+ * recyclage (une idée par unité, story 1 et couverture du reel, texte à l'écran).
+ * Changer l'une d'elles demande de mettre à jour son empreinte ici.
+ */
+const FROZEN_STEP7: Record<string, string> = {
+  UNE_IDEE_STORIES: "9a7b8cd034bb5294c169574c2a43f650c1af59a03a72ec6998aef33577b43639",
+  STORIES_QUICK_RULE: "bdfe30f2598d21567bf485a3041cff263752aafeee316c73d3ad62232d940231",
+  UNE_IDEE_REEL: "867e8fca7724b9d36abc1f72b67621a220399bd6581cd712b7f0b6f50ee2af4e",
+  RECYCLAGE_CARROUSEL_LONGUEUR: "22ae5e81699523e65d24b7668624fa5cb4a069de242859f7769467427313cab6",
+  RECYCLAGE_STORIES_LONGUEUR: "97cda22d003343a3a9f1ecfa1c01258751b40f170102c7e844c4d214642c9ae8",
+  STORY1_ACCROCHE: "a50fc3f426953e5a9e265e9e186e99a922f879fab6f418d481ed817f874a0ca6",
+  REEL_TEXTE_ECRAN: "59af4c0dce7b88ed78af96441b4a4568614594c55f39281412f3200c5b2b4576",
+  REEL_COUVERTURE: "de240e0c01b706b30451ffc8467fb4a24a31328539d33ba2f206877313d9044c",
+  "planAngleIndicatif(section)": "0e8fafcf977bbf5a0f53237e0d95706eb311f9907289853d65ebf903044f39c3",
+};
+
+Deno.test("étape 7 : empreintes des consignes stories, reels et recyclage", async () => {
+  const current: Record<string, string> = {
+    UNE_IDEE_STORIES: socle.UNE_IDEE_STORIES,
+    STORIES_QUICK_RULE: socle.STORIES_QUICK_RULE,
+    UNE_IDEE_REEL: socle.UNE_IDEE_REEL,
+    RECYCLAGE_CARROUSEL_LONGUEUR: socle.RECYCLAGE_CARROUSEL_LONGUEUR,
+    RECYCLAGE_STORIES_LONGUEUR: socle.RECYCLAGE_STORIES_LONGUEUR,
+    STORY1_ACCROCHE: socle.STORY1_ACCROCHE,
+    REEL_TEXTE_ECRAN: socle.REEL_TEXTE_ECRAN,
+    REEL_COUVERTURE: socle.REEL_COUVERTURE,
+    "planAngleIndicatif(section)": socle.planAngleIndicatif("section", "sections"),
+  };
+  for (const [name, text] of Object.entries(current)) assertEquals(await sha256(text), FROZEN_STEP7[name], `${name} a changé`);
+  assertEquals(socle.REEL_OVERLAY_MIN_FONT_PX, 44);
+  assertEquals([socle.STORIES_MAX, socle.STORIES_QUICK_MAX, socle.STORY_TEXT_MAX_CHARS], [10, 5, 350]);
+  assertEquals(socle.REEL_SECTIONS, { min: 3, max: 8 });
+  assertEquals([socle.RECYCLAGE_CARROUSEL_SLIDES, socle.RECYCLAGE_STORIES], [{ min: 5, max: 12 }, { min: 3, max: 10 }]);
+});
+
+Deno.test("étape 7 : stories branchées (une idée par story, 5 minutes, story 1 = accroche seule)", () => {
+  for (const time_available of ["5min", "15min", undefined]) {
+    for (const face_cam of ["oui", "non", undefined]) {
+      const b = storiesBrief({ subject: "x", time_available, face_cam } as any);
+      assert(b.includes(socle.UNE_IDEE_STORIES), "une idée par story absente");
+      assert(b.includes(`17. ${socle.STORIES_QUICK_RULE}`), "garde-fou 5 minutes absent");
+      assert(!b.includes('coupe "text" lui-même'), "consigne de coupe encore présente");
+      assert(!b.includes("MAXIMUM 3 stories"), "plafond de 3 stories encore présent");
+      assert(b.includes('"mot_cle"'), "mot clé de la story 1 absent du JSON");
+      if (!(time_available === "5min" && face_cam === "oui")) assert(b.includes(socle.STORY1_ACCROCHE), `story 1 accroche absente (${time_available}, ${face_cam})`);
+    }
+  }
+  // Liste annoncée avec un nombre : numérotation 1..N ; sinon rien.
+  assert(storiesBrief({ subject: "5 erreurs de tarifs" } as any).includes(socle.numerotationConsigne(5, "stories")));
+  assert(!storiesBrief({ subject: "mes tarifs" } as any).includes("LISTE ANNONCÉE"));
+});
+
+Deno.test("étape 7 : reel branché (une idée par plan, texte à l'écran = ses mots, couverture, plan indicatif, sans majuscules imposées)", () => {
+  const b = reelBrief({ subject: "x", editorial_angle: "Mythe", content_structure: "1. Le mythe\n2. La vérité" });
+  for (const part of [socle.UNE_IDEE_REEL, socle.REEL_TEXTE_ECRAN, socle.REEL_COUVERTURE, socle.planAngleIndicatif("section", "sections")]) {
+    assert(b.includes(part), part.slice(0, 40));
+  }
+  for (const old of ["CONTREPOINT", "MAJUSCULES", "STRUCTURE À SUIVRE (obligatoire)", "DOIT correspondre aux étapes", "entre 3 et 6 sections"]) {
+    assert(!b.includes(old), `reste : ${old}`);
+  }
+  assert(b.includes('"cover_mot_cle"'));
+  // Visibilité : le reel reste court (le calibrage qui coupe reste).
+  assert(reelBrief({ effectiveObjective: "visibilite", subject: "x" }).includes("DURÉE CIBLE : 15-25 secondes"));
+  assert(reelBrief({ subject: "3 erreurs de devis" }).includes(socle.numerotationConsigne(3, "sections")));
+  assert(!reelBrief({ subject: "mon devis" }).includes("LISTE ANNONCÉE"));
+});
+
+Deno.test("étape 7 : registre à jour (plus de « contredite » pour une idée par unité en stories, reels, recyclage)", () => {
+  for (const fmt of ["reel", "stories", "recyclage"] as const) {
+    assert(SOCLE_FORMATS[fmt].regles.une_idee_par_unite.etat !== "contredite", fmt);
+    for (const c of socleChemins(fmt)) assert(c.regles.une_idee_par_unite !== "contredite", c.id);
+  }
+  assertEquals(SOCLE_FORMATS.stories.regles.couverture_accroche.etat, "oui");
+  assertEquals(SOCLE_FORMATS.reel.regles.design_montre_lidee.etat, "oui");
+  assertStrictEquals(SOCLE_RULES.une_idee_par_unite.consignes.stories, socle.UNE_IDEE_STORIES);
+  assertStrictEquals(SOCLE_RULES.couverture_accroche.consignes.story_1, socle.STORY1_ACCROCHE);
+  assertStrictEquals(SOCLE_RULES.design_montre_lidee.consignes.reel_texte_ecran, socle.REEL_TEXTE_ECRAN);
+  assertEquals(socle.numerotationConsigne(null, "stories"), "");
+});
 
 Deno.test("textes de consigne identiques à ceux d'avant le déplacement", async () => {
   const current: Record<string, string> = {
