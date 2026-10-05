@@ -730,10 +730,11 @@ async function saveCharter(data: AnalysisResult["charter"], userId: string, work
   if (readError) throw readError;
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(payload, existing, overwrite);
-    if (Object.keys(toWrite).length > 0) {
-      const previousEvidence = existing.visual_evidence && typeof existing.visual_evidence === "object" && !Array.isArray(existing.visual_evidence) ? existing.visual_evidence : {};
-      toWrite.visual_evidence = { ...previousEvidence, ...Object.fromEntries(Object.keys(toWrite).map(key => [key, { source: "diagnostic", confidence: key === "moodboard_description" ? "low" : data.confidence || "low", reviewed_at: new Date().toISOString() }])) };
-    }
+    // Charte déjà remplie : rien à compléter. Une mise à jour vide ne renvoie
+    // aucune ligne côté PostgREST → writeOrThrow affichait « Aucune fiche enregistrée ».
+    if (Object.keys(toWrite).length === 0) return;
+    const previousEvidence = existing.visual_evidence && typeof existing.visual_evidence === "object" && !Array.isArray(existing.visual_evidence) ? existing.visual_evidence : {};
+    toWrite.visual_evidence = { ...previousEvidence, ...Object.fromEntries(Object.keys(toWrite).map(key => [key, { source: "diagnostic", confidence: key === "moodboard_description" ? "low" : data.confidence || "low", reviewed_at: new Date().toISOString() }])) };
     await writeOrThrow((supabase.from("brand_charter") as any).update(toWrite).eq("id", existing.id), "brand_charter.update");
   } else {
     const visual_evidence = Object.fromEntries(Object.keys(payload).map(key => [key, { source: "diagnostic", confidence: key === "moodboard_description" ? "low" : data.confidence || "low", reviewed_at: new Date().toISOString() }]));
