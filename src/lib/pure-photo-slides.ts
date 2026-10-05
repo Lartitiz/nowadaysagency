@@ -1,0 +1,35 @@
+// Carrousel « Photos brutes » : 1 photo = 1 slide photo pleine, AUCUN texte
+// sur la photo (seule la légende est écrite). Liste blanche (pas de spread) :
+// les champs des gabarits texte-sur-photo (kicker, points, big_number,
+// template, cta_label…) transportent du texte qui serait re-composé sur la photo.
+export function purePhotoSlides(slides: any[], photoCount: number): any[] {
+  const base = slides.slice(0, photoCount);
+  while (base.length < photoCount) base.push({ role: "body" });
+  return base.map((s: any, i: number) => ({
+    slide_number: i + 1,
+    role: s?.role || "body",
+    slide_type: "photo_full",
+    overlay_text: null,
+    title: "",
+    body: "",
+    photo_index: i + 1,
+  }));
+}
+
+/**
+ * Le raw déjà nettoyé, ou null s'il faut le nettoyer. Indispensable pour que
+ * l'effet qui l'applique s'ARRÊTE : chaque nettoyage crée un nouveau raw, qui
+ * re-déclenche l'effet ; sans ce test, la boucle ne finissait jamais et la
+ * pré-génération des visuels s'abandonnait à chaque tour (visite du 05/10 :
+ * « Analyse de ta charte graphique… » sans fin, aucun appel carousel-visual).
+ */
+export function purePhotoRawOrNull(raw: any, photoCount: number): any | null {
+  if (!raw || !Array.isArray(raw.slides) || raw.slides.length === 0 || photoCount === 0) return null;
+  const cleaned = purePhotoSlides(raw.slides, photoCount);
+  const already = raw.no_overlay === true && raw.carousel_type === "photo" &&
+    raw.slides.length === cleaned.length &&
+    raw.slides.every((s: any, i: number) =>
+      Object.keys(s).length === Object.keys(cleaned[i]).length &&
+      Object.entries(cleaned[i]).every(([k, v]) => s[k] === v));
+  return already ? null : { ...raw, slides: cleaned, no_overlay: true, carousel_type: "photo" };
+}
