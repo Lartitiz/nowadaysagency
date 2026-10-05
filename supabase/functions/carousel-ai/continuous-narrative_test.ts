@@ -7,9 +7,21 @@ import {
 import {
   composeNarrative,
   createContinuousNarrative,
+  narrativeAngleFamily,
   parseNarrative,
   usesContinuousNarrative,
 } from "./continuous-narrative.ts";
+import {
+  audienceAddressRule,
+  COVER_WRITING,
+  LIVED_CASE_FIRST,
+  NEWS_FEELING_FIRST,
+  RECIT_CONTINU_MOT_CLE,
+  RECIT_CONTINU_PARAGRAPHE,
+  RECIT_CONTINU_SERIE_PHOTO,
+  SOCLE_FAMILLES,
+} from "../_shared/socle.ts";
+import { COMMON } from "../_shared/carousel-editorial-contract.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
 const original = {
   idea: "Le temps de réparation change le choix d'un objet",
@@ -248,4 +260,96 @@ Deno.test("carrousel photo : chaque slide reste photo_full avec son texte, même
   assertEquals(out.slides.map((s: any) => s.slide_type), ["photo_full", "photo_full", "photo_full", "photo_full"]);
   assertEquals(out.slides.map((s: any) => s.overlay_text), ["Accroche du carrousel", ...n.paragraphs]);
   assert(out.slides.every((s: any) => Number.isInteger(s.photo_index)));
+});
+
+// ═══ Socle, étape 2 : le récit continu reçoit les règles du socle ═══════════
+
+const acceptAll = async (doc: any) => ({ ...await progressionReceipt(doc, "completed"), verdict: "acceptable" as const });
+async function systemFor(body: any, extra: Record<string, unknown> = {}): Promise<string> {
+  let system = "";
+  await createContinuousNarrative({
+    ...base,
+    body: { ...base.body, ...body },
+    usage: {},
+    ...extra,
+    write: async (o) => {
+      system ||= o.system || "";
+      return JSON.stringify({ ...original, paragraphs: body.slide_count ? original.paragraphs.slice(0, body.slide_count - 1) : original.paragraphs });
+    },
+    review: acceptAll,
+  });
+  return system;
+}
+
+Deno.test("socle : photo, vous, vécu fourni, série photo → tu/vous en tête, Ton cas d'abord, couverture, unité photo", async () => {
+  const system = await systemFor({
+    slide_count: undefined,
+    deepening_answers: { fait: "J'ai augmenté mes tarifs de 300 € l'an dernier et j'ai eu peur de perdre mes clientes." },
+    editorial_intent: { mode: "serie_visuelle" },
+  }, { audienceAddress: "vous" });
+  assert(system.startsWith(`${audienceAddressRule("vous")}\n\n${COMMON}`), "règle ferme tu/vous en tête");
+  for (const part of [LIVED_CASE_FIRST, COVER_WRITING, RECIT_CONTINU_MOT_CLE, RECIT_CONTINU_PARAGRAPHE, RECIT_CONTINU_SERIE_PHOTO, SOCLE_FAMILLES.J.cas_dabord.texte!, "25 à 40"]) {
+    assert(system.includes(part), part.slice(0, 60));
+  }
+  // Contradictions d'avant supprimées.
+  assert(!system.includes("sans minimum de mots"));
+  assert(!system.includes("3 à 19") && system.includes("de 3 à 9 paragraphes"));
+  assert(!system.includes(NEWS_FEELING_FIRST));
+});
+
+Deno.test("socle : mixte avec actu et ressenti → actu-ressenti, consigne d'actu, famille C ; sans réglage tu/vous, tête inchangée", async () => {
+  const system = await systemFor({
+    carousel_type: "mix",
+    news_context: "Meta change l'ordre du fil Instagram (source : Meta, 2026).",
+    deepening_answers: { ressenti: "Ça me fatigue, je publie déjà peu et je ne veux pas courir après l'algorithme." },
+  }, { newsContext: "Meta change l'ordre du fil Instagram (source : Meta, 2026)." });
+  assert(system.startsWith(COMMON), "aucune règle tu/vous sans réglage");
+  assert(system.includes(NEWS_FEELING_FIRST));
+  assert(system.includes("ACTUALITÉ : conserve le fait déclencheur"));
+  assert(system.includes(SOCLE_FAMILLES.C.couverture_accroche.texte!));
+  assert(!system.includes(LIVED_CASE_FIRST));
+  assert(!system.includes("25 à 40"), "le repère photo reste réservé au carrousel photo");
+  assert(system.includes("Prévois exactement 3 paragraphes"));
+});
+
+Deno.test("socle : famille d'angle du récit continu", () => {
+  assertEquals(narrativeAngleFamily({ editorial_angle: "histoire-cliente" }), "B");
+  assertEquals(narrativeAngleFamily({ editorial_intent: { mode: "liste" } }), "E");
+  assertEquals(narrativeAngleFamily({ news_context: "Une actu." }), "C");
+  assertEquals(narrativeAngleFamily({ editorial_angle: "Un brief libre, long, écrit par la personne." }), null);
+  assertEquals(narrativeAngleFamily({}), null);
+});
+
+Deno.test("socle : mot clé de couverture gardé seulement s'il est un extrait court de l'accroche", () => {
+  for (const carousel_type of ["photo", "mix"]) {
+    const body = { ...base.body, carousel_type };
+    const ok = composeNarrative({ ...original, cover_accent: "après l'achat" }, body);
+    assertEquals(ok.slides[0].cover_accent, "après l'achat");
+    assert(ok.slides.slice(1).every((s: any) => !("cover_accent" in s)));
+    for (const bad of ["avant l'achat", original.hook, ""]) {
+      assert(!("cover_accent" in composeNarrative({ ...original, cover_accent: bad }, body).slides[0]), bad);
+    }
+  }
+  assertEquals(parseNarrative(JSON.stringify({ ...original, cover_accent: " après l'achat " })).cover_accent, "après l'achat");
+});
+
+Deno.test("socle : en longueur Auto, un texte de plus de 9 paragraphes est réécrit une fois", async () => {
+  const long = { ...original, paragraphs: Array.from({ length: 12 }, (_, i) => `Paragraphe ${i + 1}, une idée distincte.`) };
+  const feedbacks: string[] = [];
+  let writes = 0;
+  const result = await createContinuousNarrative({
+    ...base,
+    body: { ...base.body, slide_count: undefined },
+    usage: {},
+    write: async (o) => {
+      writes++;
+      const sent = JSON.parse((o.messages[0].content as any)[0].text);
+      if (sent.feedback) feedbacks.push(sent.feedback);
+      return JSON.stringify(writes === 1 ? long : original);
+    },
+    review: acceptAll,
+  });
+  assertEquals(writes, 2);
+  assert(feedbacks[0].includes("12 paragraphes : 9 au plus"));
+  assertEquals(result?.doc.slides.length, 4);
 });

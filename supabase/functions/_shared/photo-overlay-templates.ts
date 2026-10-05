@@ -2,6 +2,7 @@ import { photoEditorialMarkup } from "./photo-editorial.ts";
 import { hexLuminance } from "./contrast-guard.ts";
 import type { PhotoFormat } from "./photo-format-types.ts";
 import { motifSvg, stepHeader } from "./format-render.ts";
+import { coverHookWithAccent } from "./carousel-design-plan.ts";
 
 // Composition PAR CODE des slides photo+overlay (chantier gabarits 13/07).
 //
@@ -64,6 +65,8 @@ export interface PhotoSlideSpec {
   // Mise en forme décidée APRÈS l'écriture (photo-formatting.ts) : étape +
   // frise de progression, motif libre proposé par l'IA. Jamais de texte modifié.
   photo_format?: PhotoFormat | null;
+  /** Couverture : mot clé de l'accroche mis en valeur (extrait exact, revérifié ici). */
+  cover_accent?: string | null;
 }
 
 export type PhotoStyle = "bord" | "carte" | "verre" | "colonne";
@@ -234,8 +237,8 @@ function detailHtml(text: string, marginTop = 22, color = "#FFFFFF"): string {
   return `<div data-pptx-editable="caption" style="position:relative;font-size:34px;line-height:1.4;font-weight:400;color:${color};margin-top:${marginTop}px;max-width:820px;">${escapeHtml(text)}</div>`;
 }
 
-function overlayAnchor(text: string, style: string, tag = "p"): string {
-  return `<${tag} data-slide-text="overlay" data-pptx-editable="overlay" style="margin:0;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere;${style}">${escapeHtml(text)}</${tag}>`;
+function overlayAnchor(text: string, style: string, tag = "p", inner?: string): string {
+  return `<${tag} data-slide-text="overlay" data-pptx-editable="overlay" style="margin:0;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere;${style}">${inner ?? escapeHtml(text)}</${tag}>`;
 }
 
 /** Taille de l'accroche de couverture selon sa longueur : une accroche courte
@@ -282,7 +285,7 @@ function tplCouverture(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): strin
   const fontTitle = cssFont(ch.font_title, "Georgia, serif");
   const text = s.overlay_text || "";
   const shadow = "text-shadow:0 2px 12px rgba(0,0,0,.35);";
-  const parts = overlayAnchor(text, `font-family:${fontTitle};font-size:${heroSize(text)}px;line-height:1.1;letter-spacing:-1px;color:#FFFFFF;max-width:900px;text-wrap:balance;${shadow}`, "h1") +
+  const parts = overlayAnchor(text, `font-family:${fontTitle};font-size:${heroSize(text)}px;line-height:1.1;letter-spacing:-1px;color:#FFFFFF;max-width:900px;text-wrap:balance;${shadow}`, "h1", coverHookWithAccent(text, s.cover_accent)) +
     (s.detail ? `<div data-pptx-editable="caption" style="position:relative;font-size:36px;line-height:1.35;font-weight:500;color:#FFFFFF;margin-top:32px;max-width:760px;${shadow}">${escapeHtml(s.detail)}</div>` : "");
   return fullDim(coverVeil(lum), veilRgb(ch)) + contentWrap("center", "center", parts);
 }

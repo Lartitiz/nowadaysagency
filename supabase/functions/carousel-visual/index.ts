@@ -2742,8 +2742,9 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     enforcePhotoSlideAnchorsGuard(result, { slides });
     stripDuplicateStepPrefixes(result);
     // Texte inventé (bulles, labels, eyebrows absents du texte) : retiré des
-    // slides du carrousel TEXTE, le texte ancré n'est jamais touché.
-    stripInventedSlideText(result, { isText: !isPhotoCarousel && !isMixCarousel, slides });
+    // slides du carrousel TEXTE et du MIXTE rendu par le modèle ; le texte
+    // ancré n'est jamais touché.
+    stripInventedSlideText(result, { isText: !isPhotoCarousel && !isMixCarousel, slides, mixModelRender: isMixCarousel && !mixComposed });
     logSchemaFidelityTelemetry(result, { slides, userId: user.id });
     const coverIllustrationDone = await applyCoverIllustration(result, { reqBody, slides, ch, userId: user.id, workspaceId, usage });
     // En DERNIER : la couverture illustrée remplace aussi du HTML.

@@ -8,6 +8,9 @@ export function visualSlidePayload(s: any, slideType: string, photoIndex: number
     slide_number: s.slide_number,
     role: s.role,
     slide_type: slideType,
+    // Couverture photo ou mixte : mot clé de l'accroche (récit continu), revérifié
+    // au rendu par carousel-visual sur le texte final ; ignoré s'il ne s'y trouve plus.
+    ...(typeof s.cover_accent === "string" && s.cover_accent.trim() ? { cover_accent: s.cover_accent } : {}),
     ...(slideType === "photo_full" ? {
       overlay_text: s.overlay_text,
       overlay_position: s.overlay_position || "bottom_center",

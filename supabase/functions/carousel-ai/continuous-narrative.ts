@@ -12,8 +12,24 @@ import {
   type ProgressionSource,
   reviewCarouselProgression,
 } from "../_shared/carousel-progression.ts";
+import { newsWriting } from "./variant-writing.ts";
+import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
+import { angleFamily, type AngleFamily } from "../_shared/angle-families.ts";
+import { coverAccentMaxWords, validExtract } from "../_shared/carousel-design-plan.ts";
+import {
+  audienceAddressRule,
+  type AudienceAddress,
+  PHOTO_AUTO_MAX_SLIDES,
+  RECIT_CONTINU_COUVERTURE,
+  RECIT_CONTINU_PARAGRAPHE,
+  recitContinuFamille,
+  recitContinuFond,
+  recitContinuLongueur,
+  VOIX_ORALE,
+  VOIX_ORALE_LINKEDIN,
+} from "../_shared/socle.ts";
 
-export const NARRATIVE_VERSION = "continuous-prose-v3-photo-concise";
+export const NARRATIVE_VERSION = "continuous-prose-v4-socle";
 export class NarrativePhotoMismatch extends Error {}
 /** Same evidence composeNarrative requires: pixels, contexts or a planned photo. */
 function hasPhotoEvidence(body: any): boolean {
@@ -44,8 +60,26 @@ export function usesContinuousNarrative(body: any): boolean {
 export interface Narrative {
   idea: string;
   hook: string;
+  /** Mot clé de l'accroche, mis en valeur sur la couverture (socle, règle 7). */
+  cover_accent?: string;
   paragraphs: string[];
   caption: { hook: string; body: string; cta: string; hashtags: string[] };
+}
+
+/**
+ * Famille d'angle du récit continu (socle, tableau 2b) : l'angle choisi, sinon
+ * l'intention du plan automatique, sinon l'actu (C) quand une actu est fournie.
+ * Angle inconnu ou texte libre : null (les règles telles quelles).
+ */
+export function narrativeAngleFamily(body: any): AngleFamily | null {
+  return angleFamily(body?.editorial_angle, "instagram_angles") ??
+    angleFamily(body?.editorial_intent?.mode, "editorial_intent") ??
+    (typeof body?.news_context === "string" && body.news_context.trim() ? "C" : null);
+}
+
+/** Mot clé de couverture gardé seulement s'il est un extrait exact et court de l'accroche. */
+function coverAccentOf(n: Narrative): string | undefined {
+  return validExtract(n.hook, n.cover_accent, coverAccentMaxWords(n.hook.trim().split(/\s+/).filter(Boolean).length));
 }
 const TOOL = {
   name: "ecrire_texte_suivi",
@@ -60,6 +94,7 @@ const TOOL = {
       },
       idea: { type: "string" },
       hook: { type: "string" },
+      cover_accent: { type: "string" },
       paragraphs: {
         type: "array",
         items: { type: "string" },
@@ -112,6 +147,7 @@ export function parseNarrative(raw: string, exact?: number): Narrative {
   return {
     idea: n.idea,
     hook: n.hook,
+    ...(typeof n.cover_accent === "string" && n.cover_accent.trim() ? { cover_accent: n.cover_accent.trim() } : {}),
     paragraphs: n.paragraphs,
     caption: {
       hook: typeof n.caption?.hook === "string" ? n.caption.hook : "",
@@ -135,6 +171,7 @@ export function composeNarrative(n: Narrative, body: any) {
     : body.slide_structure || [];
   const photos = body.photos?.length || body.photo_contexts?.length ||
     Math.max(0, ...plan.map((s: any) => s.photo_index || 0));
+  const coverAccent = coverAccentOf(n);
   if (!photos) {
     throw new AnthropicError(
       "Choisis les photos du carrousel avant de générer.",
@@ -192,6 +229,8 @@ export function composeNarrative(n: Narrative, body: any) {
               : {}),
           }),
         ...(ref.visual_anchor ? { visual_anchor: ref.visual_anchor } : {}),
+        // Mot clé de la couverture : revérifié au rendu sur le texte final.
+        ...(i === 0 && coverAccent ? { cover_accent: coverAccent } : {}),
       };
     }),
     caption: n.caption,
@@ -204,6 +243,8 @@ export async function createContinuousNarrative(options: {
   photoContext: string;
   newsContext: string;
   authoredText: string;
+  /** Tu ou vous de la fiche de marque : règle ferme en tête (socle, règle 2). */
+  audienceAddress?: AudienceAddress | null;
   startedAt: number;
   reserveMs?: number;
   usage: UsageSink;
@@ -246,22 +287,27 @@ export async function createContinuousNarrative(options: {
       const key of ["input_tokens", "output_tokens", "total_tokens"] as const
     ) target[key] = (target[key] || 0) + (sink[key] || 0);
   };
-  const system =
-    `${COMMON}\nTu écris le texte d'un carrousel comme un court essai, une réflexion ou un récit, dans la voix de la marque. Tu ne composes pas ses slides.
+  // Règles du socle (socle.ts) : tu/vous en tête, contrat de fond, voix orale, actu,
+  // couverture et mot clé, longueur sans contradiction, adaptation à l'angle.
+  const addressRule = audienceAddressRule(options.audienceAddress);
+  const hasNews = options.newsContext.trim().length > 0;
+  const system = [
+    `${addressRule ? `${addressRule}\n\n` : ""}${COMMON}\nTu écris le texte d'un carrousel comme un court essai, une réflexion ou un récit, dans la voix de la marque. Tu ne composes pas ses slides.
 Choisis UNE proposition précise qui mérite d'être développée avec les faits disponibles. Commence par ce qui intéresse le lecteur, puis fais évoluer sa compréhension. La suite doit avoir une nécessité : une conséquence, une objection, une nuance ou un exemple qui modifie la lecture du point précédent. Ne récite pas la fiche de marque. Tu peux laisser de côté la technique, les inspirations ou les offres si elles n'aident pas cette pensée.
 Une présentation factuelle bien liée ne suffit pas à une demande de récit : chaque paragraphe doit faire avancer ce que tu défends, pas ouvrir une nouvelle rubrique. Ne donne pas toute la réponse immédiatement pour remplir ensuite avec des descriptions. Pas de suspense artificiel. Une demande explicite de liste, tutoriel ou catalogue conserve sa forme.
 Les photos seront placées ensuite. Leur contexte peut éclairer les faits, mais leur ordre, leurs couleurs et leurs motifs ne dictent pas ton texte. Aucune référence « sur cette photo ». Ne fabrique ni conviction intime, ni souvenir ni fait technique pour rendre le propos intéressant. Tu peux développer une interprétation prudente de faits attestés.
 Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas à ordonner les paragraphes. photo_mismatch est réservé à une contradiction frontale avec une chose concrète que la demande promet de montrer ; retourne alors sa raison, sans inventer un récit. Un décalage d'ambiance ou une illustration indirecte ne justifient pas ce refus.
-Écris hook (accroche de couverture : 4 à 10 mots qui créent une tension ou un manque, jamais un titre-étiquette), puis paragraphs : les paragraphes PUBLICS successifs, sans titres de rubriques ni consignes pour un futur rédacteur. Chaque paragraphe est développé autant que nécessaire, sans minimum de mots ni slogan ajouté. Le dernier termine réellement ce propos, sans ouvrir automatiquement une offre commerciale. Caption résume fidèlement ; cta vide si aucune invitation utile n'est demandée. idea nomme précisément la proposition développée.
-${
-      exact
-        ? `Prévois exactement ${
-          exact - 1
-        } paragraphes de corps après le titre, pour les ${exact} pages choisies. Les paragraphes restent ceux d'un texte suivi.`
-        : "Choisis de 3 à 19 paragraphes selon la matière, sans inventer pour allonger."
-    }
-${carouselLengthPrompt(body)}
-${photoReadingContract(body)}`;
+Écris hook (accroche de couverture : 4 à 10 mots qui créent une tension ou un manque, jamais un titre-étiquette), puis paragraphs : les paragraphes PUBLICS successifs, sans titres de rubriques ni consignes pour un futur rédacteur. ${RECIT_CONTINU_PARAGRAPHE} Le dernier termine réellement ce propos, sans ouvrir automatiquement une offre commerciale. Caption résume fidèlement ; cta vide si aucune invitation utile n'est demandée. idea nomme précisément la proposition développée.`,
+    recitContinuFond(livedCaseFromCarouselBody(body).mode),
+    // Sa voix orale (socle, règle 4) : aussi sur le chemin par défaut photo et mixte.
+    body?.channel === "linkedin" ? VOIX_ORALE_LINKEDIN : VOIX_ORALE,
+    hasNews ? newsWriting(body).trim() : "",
+    RECIT_CONTINU_COUVERTURE,
+    recitContinuLongueur(exact),
+    carouselLengthPrompt(body),
+    recitContinuFamille(narrativeAngleFamily(body)),
+    photoReadingContract(body),
+  ].filter((part) => part.trim()).join("\n");
   const draft = async (feedback?: string, prior?: Narrative, final?: { exact: number; sink: UsageSink; timeout: number }) => {
     const sink: UsageSink = {};
     try {
@@ -330,6 +376,18 @@ ${photoReadingContract(body)}`;
   };
   options.emitStatus("writing");
   let narrative = await draft();
+  // Longueur Auto : 10 slides au plus en photo et mixte (socle). Une réécriture
+  // si le texte en demande plus ; sinon l'avertissement de structure le signale.
+  const autoMax = PHOTO_AUTO_MAX_SLIDES - 1;
+  if (!exact && narrative.paragraphs.length > autoMax && remaining() >= 150000) {
+    try {
+      const shorter = await draft(
+        `Le texte a ${narrative.paragraphs.length} paragraphes : ${autoMax} au plus. Regroupe les idées voisines sans en perdre ; déplace les détails secondaires dans caption.body.`,
+        narrative,
+      );
+      if (shorter.paragraphs.length <= autoMax) narrative = shorter;
+    } catch { /* le premier texte reste */ }
+  }
   options.emitStatus("correcting");
   let receipt = await judge(narrative);
   let repair: { attempted: boolean; accepted: boolean; reason: string } = {

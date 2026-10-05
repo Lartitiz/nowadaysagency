@@ -26,8 +26,9 @@
 //     #1359, #1360 et #1362) ;
 //   - les DÉCISIONS de Laetitia déjà prises (numérotation des listes, reels
 //     courts, Pinterest hors voix orale).
-// Les données d'adaptation sont DESCRIPTIVES pour l'instant : aucune consigne
-// ne les lit encore. Les brancher est l'objet des étapes suivantes.
+// Les données d'adaptation sont DESCRIPTIVES, sauf là où une étape les branche :
+// le récit continu des carrousels photo et mixte (étape 2, recitContinu*) lit
+// SOCLE_FAMILLES pour son adaptation à l'angle.
 //
 // Module PUR : seul import, le type des familles (angle-families.ts, pur).
 
@@ -172,6 +173,27 @@ Une accroche crée une tension ou un manque qui donne envie de glisser. Formes q
 Interdits sur la couverture : le titre-étiquette qui nomme seulement le sujet (« Les tarifs dans l'artisanat », « 5 conseils pour une bonne com »), l'annonce (« Dans ce carrousel… »), le jargon, la promesse que la suite ne tient pas, un chiffre, un nom ou un vécu absents des sources.
 La slide 2 est une deuxième accroche : Instagram peut ouvrir le carrousel directement sur elle. Elle pose la thèse ou la première révélation dans une formulation qui se comprend sans la slide 1, sans « dans ce carrousel », « on commence » ni « voici pourquoi ».`;
 
+// ═══ Récit continu photo et mixte : consignes (branchement plus bas) ═══════
+
+/** Longueur « Auto » des carrousels PHOTO et MIXTE : 10 slides au plus, la
+ * limite de la publication directe sur Instagram (03/10/2026, vu en live). Un
+ * nombre demandé explicitement (jusqu'à 20) prime. Réexporté par
+ * carousel-length.ts (AUTO_MAX_SLIDES). */
+export const PHOTO_AUTO_MAX_SLIDES = 10;
+
+/** Un paragraphe du récit continu = une slide (une photo en carrousel photo). */
+export const RECIT_CONTINU_PARAGRAPHE = "Chaque paragraphe devient une slide entière : une seule idée, un seul pas du raisonnement, développé autant que sa slide le permet (repère de longueur ci-dessous quand il y en a un), sans slogan ajouté.";
+
+/** Mot clé de couverture du récit continu (décision « couverture = accroche +
+ * un mot clé, quand le gabarit le permet »). Le code vérifie l'extrait au rendu :
+ * absent du texte final ou trop long, il est ignoré (l'élément cède, jamais le texte). */
+export const RECIT_CONTINU_MOT_CLE = "MOT CLÉ DE LA COUVERTURE : cover_accent est le mot ou le groupe de mots de hook qui porte l'accroche (5 mots au plus, moins de la moitié de hook), recopié EXACTEMENT ; il est mis en valeur sur la couverture. Vide si rien ne s'impose.";
+
+/** COVER_WRITING lu dans le récit continu : hook est la slide 1, le premier paragraphe la slide 2. */
+export const RECIT_CONTINU_COUVERTURE = `${COVER_WRITING}
+Dans ce texte suivi, hook est l'accroche de la slide 1 (sans sous-titre) et le premier paragraphe est la slide 2.
+${RECIT_CONTINU_MOT_CLE}`;
+
 // ─── Couverture du reel, story 1, texte à l'écran du reel (05/10/2026) ──────
 
 /** Story 1 (hors face cam) : l'accroche seule + un mot clé mis en valeur par le rendu. */
@@ -235,7 +257,7 @@ export const SOCLE_RULES: Readonly<Record<SocleRuleId, SocleRule>> = {
     principe: "Le vécu qu'elle a fourni est la preuve centrale ; la recherche passe en appui (au plus un chiffre). Actu : l'actu déclenche, son ressenti porte le contenu.",
     consignes: { own_case: LIVED_CASE_FIRST, news_feeling: NEWS_FEELING_FIRST },
     controles: ["_shared/lived-case.ts : detectCase, researchNumbersCapFor", "_shared/redac-gate.ts : plafond des chiffres de recherche"],
-    origines: ["_shared/lived-case.ts", "carousel-ai/writing-contract.ts", "carousel-ai/variant-writing.ts", "_shared/format-briefs.ts", "creative-flow/index.ts"],
+    origines: ["_shared/lived-case.ts", "carousel-ai/writing-contract.ts", "carousel-ai/variant-writing.ts", "carousel-ai/continuous-narrative.ts", "_shared/format-briefs.ts", "creative-flow/index.ts"],
   },
   adresse_tu_vous: {
     numero: 2,
@@ -243,15 +265,15 @@ export const SOCLE_RULES: Readonly<Record<SocleRuleId, SocleRule>> = {
     principe: "Le réglage de la fiche de marque est une règle ferme en tête de la rédaction, vérifiée par le code après coup.",
     consignes: { tu: audienceAddressRule("tu"), vous: audienceAddressRule("vous") },
     controles: ["_shared/audience-address.ts : checkAudienceAddress, enforceAudienceAddress", "_shared/audience-address-fields.ts : champs publics d'une sortie"],
-    origines: ["_shared/audience-address.ts", "_shared/user-context.ts", "carousel-ai/index.ts"],
+    origines: ["_shared/audience-address.ts", "_shared/user-context.ts", "carousel-ai/index.ts", "carousel-ai/continuous-narrative.ts"],
   },
   une_idee_par_unite: {
     numero: 3,
     titre: "Une idée par unité",
     principe: "Une idée par slide, plan, story ou paragraphe ; on découpe, on ne raccourcit jamais. Le nombre d'unités suit le découpage.",
-    consignes: { carrousel_texte: ONE_IDEA_RULE, stories: UNE_IDEE_STORIES, stories_5min: STORIES_QUICK_RULE, reel: UNE_IDEE_REEL, recyclage_carrousel: RECYCLAGE_CARROUSEL_LONGUEUR, recyclage_stories: RECYCLAGE_STORIES_LONGUEUR, plan_angle_reel: planAngleIndicatif("section", "sections") },
+    consignes: { carrousel_texte: ONE_IDEA_RULE, recit_continu: RECIT_CONTINU_PARAGRAPHE, stories: UNE_IDEE_STORIES, stories_5min: STORIES_QUICK_RULE, reel: UNE_IDEE_REEL, recyclage_carrousel: RECYCLAGE_CARROUSEL_LONGUEUR, recyclage_stories: RECYCLAGE_STORIES_LONGUEUR, plan_angle_reel: planAngleIndicatif("section", "sections") },
     controles: ["_shared/carousel-length.ts : carouselStructureIssues, longTextSlides (mesure seulement)", "creative-flow/index.ts : applyReelQualityPass (plafond de mots du reel, la durée prime)"],
-    origines: ["_shared/carousel-length.ts", "_shared/format-briefs.ts", "creative-flow/index.ts"],
+    origines: ["_shared/carousel-length.ts", "carousel-ai/continuous-narrative.ts", "_shared/format-briefs.ts", "creative-flow/index.ts"],
   },
   voix_orale: {
     numero: 4,
@@ -266,7 +288,7 @@ export const SOCLE_RULES: Readonly<Record<SocleRuleId, SocleRule>> = {
     titre: "Le design montre l'idée",
     principe: "La mise en forme est décidée après l'écriture, sur le texte final, sans ajouter ni retirer un mot ; quand rien ne s'y prête, le texte seul.",
     consignes: { carrousel_texte: TEXT_SENSE_RULES, reel_texte_ecran: REEL_TEXTE_ECRAN },
-    controles: ["_shared/carousel-sense-design.ts : validateTextSenseDesign", "_shared/invented-text-guard.ts : stripInventedSlideText", "_shared/reel-postprocess.ts : reelOverlaysNotFromScript", "_shared/story-formatting.ts : planStoryVisual (mot clé = extrait exact)"],
+    controles: ["_shared/carousel-sense-design.ts : validateTextSenseDesign", "_shared/invented-text-guard.ts : stripInventedSlideText (texte, et mixte rendu par le modèle)", "_shared/invented-text-guard.ts : stripInventedSlideText", "_shared/reel-postprocess.ts : reelOverlaysNotFromScript", "_shared/story-formatting.ts : planStoryVisual (mot clé = extrait exact)"],
     origines: ["_shared/carousel-sense-design.ts", "_shared/format-briefs.ts"],
   },
   lisible_dabord: {
@@ -281,9 +303,9 @@ export const SOCLE_RULES: Readonly<Record<SocleRuleId, SocleRule>> = {
     numero: 7,
     titre: "Couverture = accroche",
     principe: "Slide 1 : une accroche seule (4 à 10 mots), au plus un sous-titre de 12 mots, un mot clé mis en valeur ; la slide 2 relance.",
-    consignes: { carrousel: COVER_WRITING, story_1: STORY1_ACCROCHE, reel: REEL_COUVERTURE },
-    controles: ["_shared/carousel-cover.ts : enforceCover", "_shared/reel-postprocess.ts : enforceReelCoverKeyword", "_shared/story-formatting.ts : planStoryVisual (mot_cle de la story 1)"],
-    origines: ["_shared/carousel-cover.ts", "carousel-ai/writing-contract.ts", "_shared/format-briefs.ts"],
+    consignes: { carrousel: COVER_WRITING, recit_continu: RECIT_CONTINU_COUVERTURE, story_1: STORY1_ACCROCHE, reel: REEL_COUVERTURE },
+    controles: ["_shared/carousel-cover.ts : enforceCover", "_shared/carousel-design-plan.ts : coverHookWithAccent (mot clé des couvertures photo et mixte)", "_shared/reel-postprocess.ts : enforceReelCoverKeyword", "_shared/story-formatting.ts : planStoryVisual (mot_cle de la story 1)"],
+    origines: ["_shared/carousel-cover.ts", "carousel-ai/writing-contract.ts", "carousel-ai/continuous-narrative.ts", "_shared/format-briefs.ts"],
   },
 };
 
@@ -439,6 +461,52 @@ export function socleFamille(family: AngleFamily | null | undefined, rule: Socle
   return (family && SOCLE_FAMILLES[family]?.[rule]) || S;
 }
 
+// ═══ Branchement : récit continu des carrousels PHOTO et MIXTE ══════════════
+// Étape 2 du socle (05/10/2026). Le récit continu (carousel-ai/
+// continuous-narrative.ts) est le chemin par défaut des carrousels photo et
+// mixtes sans plan validé. Il recevait sa propre consigne, sans tu/vous en tête,
+// sans « Ton cas d'abord » ni actu-ressenti, sans COVER_WRITING, et se
+// contredisait (« sans minimum de mots » contre 25 à 40 mots par slide photo ;
+// 3 à 19 paragraphes contre 10 slides au plus). Il reçoit désormais ces règles
+// d'ici, adaptées à la famille d'angle.
+
+/** Nombre de paragraphes du récit continu (exact = nombre de slides demandé ou confirmé). */
+export function recitContinuLongueur(exact?: number): string {
+  return exact
+    ? `Prévois exactement ${exact - 1} paragraphes de corps après le titre, pour les ${exact} pages choisies. Les paragraphes restent ceux d'un texte suivi.`
+    : `Choisis de 3 à ${PHOTO_AUTO_MAX_SLIDES - 1} paragraphes selon la matière (${PHOTO_AUTO_MAX_SLIDES} slides au plus avec la couverture), sans inventer pour allonger. Quand la matière déborde, regroupe deux idées voisines ou déplace les détails secondaires dans caption.body, sans perdre d'idée.`;
+}
+
+/** Règles dont l'adaptation par famille s'écrit dans le récit continu. La voix
+ * orale reste hors de ce branchement (chantier voix orale, writing-contract.ts). */
+const RECIT_CONTINU_REGLES_FAMILLE: readonly SocleRuleId[] = ["cas_dabord", "une_idee_par_unite", "couverture_accroche"];
+/** C et D : leur adaptation de « Ton cas d'abord » parle de la recherche, que le
+ * récit continu ne reçoit pas ; le fond suit alors le mode détecté (vécu, actu-ressenti). */
+const RECIT_CONTINU_SANS_RECHERCHE: ReadonlySet<AngleFamily> = new Set<AngleFamily>(["C", "D"]);
+/** Famille J dans le récit continu : un paragraphe ne peut pas être vide (une
+ * série sans texte passe par le parcours « photos brutes »). */
+export const RECIT_CONTINU_SERIE_PHOTO = "Une photo = une unité : chaque paragraphe accompagne une seule photo et peut tenir en quelques mots ; aucun texte inventé pour le remplir.";
+
+/** Adaptation de la famille d'angle pour le récit continu ; chaîne vide sans famille ou sans adaptation. */
+export function recitContinuFamille(family: AngleFamily | null | undefined): string {
+  if (!family) return "";
+  const lines = RECIT_CONTINU_REGLES_FAMILLE.flatMap((rule) => {
+    const a = socleFamille(family, rule);
+    if (a.application !== "A" || !a.texte) return [];
+    if (rule === "cas_dabord" && RECIT_CONTINU_SANS_RECHERCHE.has(family)) return [];
+    const texte = family === "J" && rule === "une_idee_par_unite" ? RECIT_CONTINU_SERIE_PHOTO : a.texte;
+    return [`- ${SOCLE_RULES[rule].titre} : ${texte}`];
+  });
+  return lines.length ? `ADAPTATION À L'ANGLE DE CE CARROUSEL :\n${lines.join("\n")}` : "";
+}
+
+/** Contrat de fond selon la matière détectée (lived-case.ts) : vécu fourni ou actu avec ressenti. */
+export function recitContinuFond(caseMode: string | null | undefined): string {
+  if (caseMode === "own_case") return LIVED_CASE_FIRST;
+  if (caseMode === "news_feeling") return NEWS_FEELING_FIRST;
+  return "";
+}
+
 // ═══ Adaptation par format (tableau 1) ══════════════════════════════════════
 
 export type SocleFormat =
@@ -488,13 +556,15 @@ export const SOCLE_FORMATS: Readonly<Record<SocleFormat, SocleFormatInfo>> = {
     lisible_dabord: f("oui"), couverture_accroche: f("oui"),
   } },
   carrousel_photo: { unite: "slide (une photo)", regles: {
-    cas_dabord: f("en_partie", "S", "Non sur le chemin par défaut (récit continu)."), adresse_tu_vous: f("en_partie", "S", "Contrôle par le code ; pas de règle ferme en tête du récit continu."),
-    une_idee_par_unite: f("contredite", "S", "Récit continu : 3 à 19 paragraphes, « sans minimum de mots » contre 25 à 40 mots par slide."),
-    voix_orale: f("en_partie", "S", "Consigne VOIX_ORALE dans le fil commun (CAROUSEL_CONTINUITY) quand le plan est validé ; absente du récit continu, chemin par défaut."), design_montre_lidee: f("en_partie"), lisible_dabord: f("oui"), couverture_accroche: f("en_partie", "S", "Pas de mot clé mis en valeur."),
+    cas_dabord: f("oui", "S", "Récit continu compris (étape 2 du socle)."), adresse_tu_vous: f("oui", "S", "Règle ferme en tête du récit continu et contrôle par le code."),
+    une_idee_par_unite: f("en_partie", "S", "Un paragraphe = une slide, 10 slides au plus en Auto ; découpage non vérifié par le code."),
+    voix_orale: f("en_partie", "S", "Consigne VOIX_ORALE dans le fil commun (CAROUSEL_CONTINUITY) sur le plan validé comme sur le récit continu (chemin par défaut)."), design_montre_lidee: f("en_partie"), lisible_dabord: f("oui"),
+    couverture_accroche: f("en_partie", "S", "Mot clé sur le récit continu (chemin par défaut) ; pas sur le plan validé."),
   } },
   carrousel_mixte: { unite: "slide", regles: {
-    cas_dabord: f("en_partie", "S", "Oui en « texte d'abord »."), adresse_tu_vous: f("en_partie"), une_idee_par_unite: f("en_partie"),
-    voix_orale: f("en_partie", "S", "Consigne VOIX_ORALE dans le fil commun (CAROUSEL_CONTINUITY) quand le plan est validé ; absente du récit continu, chemin par défaut."), design_montre_lidee: f("en_partie", "S", "Mixte dessiné par l'IA : aucune garde contre le texte inventé."), lisible_dabord: f("oui"), couverture_accroche: f("en_partie", "S", "Pas de mot clé mis en valeur."),
+    cas_dabord: f("oui", "S", "Récit continu compris (étape 2 du socle)."), adresse_tu_vous: f("oui", "S", "Règle ferme en tête du récit continu et contrôle par le code."), une_idee_par_unite: f("en_partie"),
+    voix_orale: f("en_partie", "S", "Consigne VOIX_ORALE dans le fil commun (CAROUSEL_CONTINUITY) sur le plan validé comme sur le récit continu (chemin par défaut)."), design_montre_lidee: f("oui", "S", "Composé par le code, ou garde du texte inventé quand le modèle dessine le mixte."), lisible_dabord: f("oui"),
+    couverture_accroche: f("en_partie", "S", "Mot clé sur le récit continu (chemin par défaut) ; pas sur le plan validé ni sur le mixte rendu par le modèle."),
   } },
   carrousel_linkedin: { unite: "slide", regles: {
     cas_dabord: f("oui", "S", "Comme le type choisi."), adresse_tu_vous: f("oui", "S", "Vous par défaut si la fiche ne dit rien."), une_idee_par_unite: f("en_partie", "S", SOCLE_DECISIONS.carrousel_linkedin_rythme.texte),
@@ -573,12 +643,12 @@ export const SOCLE_CHEMINS: readonly SocleChemin[] = [
     regles: r("sans_objet", "sans_objet", "sans_objet", "sans_objet", "oui", "oui", "oui") },
   { id: "carrousel_design_ia", format: "carrousel_texte", fichiers: ["carousel-visual/index.ts", "_shared/invented-text-guard.ts", "_shared/font-size-guard.ts"], fonction: "buildTextCarouselPrompt / buildMixCarouselPrompt",
     regles: r("sans_objet", "sans_objet", "sans_objet", "sans_objet", "en_partie", "en_partie", "en_partie"),
-    note: "Charte avec texture, interdits, brief IA ou moodboard : l'IA dessine le HTML ; consignes décoratives restantes (gros numéro, alternance de couleurs)." },
+    note: "Charte avec texture, interdits, brief IA ou moodboard : l'IA dessine le HTML ; consignes décoratives restantes (gros numéro, alternance de couleurs). La garde du texte inventé couvre le texte et le mixte rendu par le modèle." },
   { id: "carrousel_photo_plan_valide", format: "carrousel_photo", fichiers: ["carousel-ai/variant-writing.ts"], fonction: "photoWritingPrompt",
     regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "en_partie") },
-  { id: "carrousel_recit_continu", format: "carrousel_photo", fichiers: ["carousel-ai/continuous-narrative.ts"], fonction: "récit continu (photo et mixte sans plan validé)",
-    regles: r("non", "en_partie", "contredite", "non", "sans_objet", "sans_objet", "en_partie"),
-    note: "Chemin par défaut des carrousels photo et mixtes : ni LIVED_CASE_FIRST, ni consigne d'actu, ni règle tu/vous en tête, ni VOIX_ORALE ; contrôle tu/vous et couverture après coup." },
+  { id: "carrousel_recit_continu", format: "carrousel_photo", fichiers: ["carousel-ai/continuous-narrative.ts", "_shared/socle.ts"], fonction: "récit continu (photo et mixte sans plan validé)",
+    regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "oui"),
+    note: "Chemin par défaut des carrousels photo et mixtes. Depuis l'étape 2 du socle : tu/vous en tête, LIVED_CASE_FIRST ou NEWS_FEELING_FIRST, VOIX_ORALE (VOIX_ORALE_LINKEDIN sur LinkedIn), consigne d'actu, COVER_WRITING et mot clé, 10 slides au plus en Auto, adaptation à la famille d'angle (recitContinu*). La recherche de profondeur ne lui est pas transmise." },
   { id: "carrousel_mixte_redaction", format: "carrousel_mixte", fichiers: ["carousel-ai/variant-writing.ts", "_shared/mix-layout-formatting.ts"], fonction: "mixWritingPrompt",
     regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "en_partie") },
   { id: "carrousel_linkedin", format: "carrousel_linkedin", fichiers: ["carousel-ai/index.ts", "carousel-ai/variant-writing.ts"], fonction: "textWritingPrompt (isLinkedIn)",

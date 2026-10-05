@@ -2,6 +2,7 @@ import { hexLuminance } from "./contrast-guard.ts";
 import type { PhotoFormat } from "./photo-format-types.ts";
 import { motifHeight, motifSvg, STEP_HEADER_H, stepHeader } from "./format-render.ts";
 import { mixSchemaBlock } from "./mix-schema-render.ts";
+import { coverHookWithAccent } from "./carousel-design-plan.ts";
 
 // Composition PAR CODE du carrousel MIXTE (photos + slides texte), maquette
 // validée avec Laetitia le 02/10/2026 (« Carrousel céramiste »).
@@ -66,6 +67,8 @@ export interface MixSlideSpec {
   /** Disposition proposée par l'étage de mise en page (mix-layout-formatting.ts),
    * APRÈS l'écriture. Validée ici ; refusée → choix déterministe habituel. */
   mix_layout?: MixLayoutProposal | null;
+  /** Couverture : mot clé de l'accroche mis en valeur (extrait exact, revérifié au rendu). */
+  cover_accent?: string | null;
 }
 
 /** Familles qu'une proposition peut demander : couverture, respiration, pause
@@ -275,7 +278,7 @@ function coverBlock(s: MixSlideSpec, t: Tokens, color: string, shadow: boolean):
   if (height() > H - 2 * 150) return null;
   const glow = shadow ? "text-shadow:0 2px 12px rgba(0,0,0,.35);" : "";
   const common = `margin:0;white-space:pre-wrap;overflow-wrap:anywhere;text-align:center;color:${color};${glow}`;
-  const hook = `<h1 data-slide-text="${c.hookField}" data-pptx-editable="${c.hookField}" style="${common}font-family:'${t.titleFont}', Georgia, serif;font-weight:400;font-size:${size}px;line-height:1.1;letter-spacing:-.01em;">${escapeHtml(c.hook)}</h1>`;
+  const hook = `<h1 data-slide-text="${c.hookField}" data-pptx-editable="${c.hookField}" style="${common}font-family:'${t.titleFont}', Georgia, serif;font-weight:400;font-size:${size}px;line-height:1.1;letter-spacing:-.01em;">${coverHookWithAccent(c.hook, s.cover_accent)}</h1>`;
   const sub = c.sub ? `<p ${c.subField === "body" ? 'data-slide-text="body" ' : ""}data-pptx-editable="${c.subField}" style="${common}font-family:'${t.bodyFont}', sans-serif;font-weight:500;font-size:${subSize}px;line-height:1.35;margin-top:32px;max-width:${width - 120}px;">${escapeHtml(c.sub)}</p>` : "";
   return `<div data-mix-text="1" data-cover="1" style="position:absolute;inset:0;padding:150px ${SIDE}px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;">${hook}${sub}</div>`;
 }
