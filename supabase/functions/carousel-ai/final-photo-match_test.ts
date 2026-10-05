@@ -242,3 +242,66 @@ Deno.test("modification ultérieure du texte ou de la photo invalide le reçu vi
     assert(checked.structure_warnings.some((s: string) => s.includes("Vérifie leurs associations")));
   }
 });
+
+// Visite du 05/10 (carrousel mixte, 2 photos importées) : le récit continu pose
+// une place photo sur chaque slide sauf la dernière (7 places pour 2 photos).
+// La vérification refusait à juste titre un portrait sur « fabrication du
+// savon » → 5-6 slides « image à choisir », « Créer les visuels » bloqué.
+const mixDoc = () => ({
+  carousel_type: "mix",
+  slides: [
+    { slide_type: "photo_full", overlay_text: "5 rituels slow pour ta com'", template: "couverture", overlay_position: "bottom_center", overlay_style: "narratif" },
+    { slide_type: "photo_integrated", title: "", body: "Je fabrique mes savons à la main, en petites séries." },
+    { slide_type: "photo_full", overlay_text: "Rituel 2 : écrire avant de publier." },
+    { slide_type: "photo_full", overlay_text: "Je t'écris à toi, une seule personne." },
+    { slide_type: "text_only", title: "", body: "Et toi, quel rituel ?" },
+  ], caption: { body: "Légende." },
+});
+const mixCall = (verifyAccepts = true) => {
+  let calls = 0;
+  return async () => JSON.stringify({ assignments: calls++
+    ? [{ slide: 1, photo: 2, accepted: verifyAccepts, reason: "Le visuel titre correspond à l'accroche." },
+      { slide: 4, photo: 1, accepted: true, reason: "Portrait en ambiance pour l'adresse directe." }]
+    : [{ slide: 1, photo: 2, relation: "literal", reason: "Le visuel titre correspond à l'accroche.", directive: "La couverture." },
+      { slide: 2, photo: null, relation: "missing", reason: "Aucune photo ne montre un savon fait main.", directive: "Un savon fait main." },
+      { slide: 3, photo: null, relation: "missing", reason: "Rien ne montre l'écriture.", directive: "Un carnet." },
+      { slide: 4, photo: 1, relation: "ambient", reason: "Portrait en ambiance pour l'adresse directe.", directive: "Un visage." }] });
+};
+
+Deno.test("mixte : une place photo sans photo importée qui la soutient devient une slide texte, les photos validées restent", async () => {
+  const doc = mixDoc();
+  const result = await matchFinalPhotos(doc, { ...options(), body: { ...options().body, carousel_type: "mix" }, call: mixCall() });
+  assertEquals(result.slides.map((s: any) => s.slide_type), ["photo_full", "text_only", "text_only", "photo_full", "text_only"]);
+  assertEquals(result.slides.map((s: any) => s.photo_index ?? null), [2, null, null, 1, null]);
+  // Le texte publié ne bouge pas : il change seulement de champ.
+  assertEquals(result.slides[1].body, doc.slides[1].body);
+  assertEquals(result.slides[2].body, "Rituel 2 : écrire avant de publier.");
+  assertEquals(result.slides[2].overlay_text, undefined);
+  // Plus rien à « choisir » : le front compte photo_directive sans photo_index.
+  assert(result.slides.every((s: any) => Number.isInteger(s.photo_index) || !s.photo_directive));
+  assertEquals(result.photo_review.verdict, "acceptable");
+  assertEquals(result.photo_review.issues, []);
+  assertEquals(result.photo_review.converted_to_text, [2, 3]);
+  assert(!(result.structure_warnings || []).some((w: string) => w.includes("image à choisir")));
+});
+
+Deno.test("mixte : une photo non confirmée par la vérification reste « image à choisir » (jamais masquée en texte)", async () => {
+  const result = await matchFinalPhotos(mixDoc(), { ...options(), body: { ...options().body, carousel_type: "mix" }, call: mixCall(false) });
+  assertEquals(result.slides[0].slide_type, "photo_full");
+  assertEquals(result.slides[0].photo_index, null);
+  assertEquals(result.slides[0].photo_match.status, "missing");
+  assertEquals(result.photo_review.verdict, "needs_images");
+});
+
+Deno.test("mixte : vérification indisponible → aucune conversion, places gardées « à choisir »", async () => {
+  const result = await matchFinalPhotos(mixDoc(), { ...options(), body: { ...options().body, carousel_type: "mix" }, call: async () => { throw new Error("boom"); } });
+  assertEquals(result.slides.map((s: any) => s.slide_type), mixDoc().slides.map((s) => s.slide_type));
+  assertEquals(result.photo_review.converted_to_text, []);
+});
+
+Deno.test("carrousel photo : une place sans photo reste une slide photo à compléter", async () => {
+  const result = await matchFinalPhotos(mixDoc(), { ...options(), body: { ...options().body, carousel_type: "photo" }, call: mixCall() });
+  assertEquals(result.slides[1].slide_type, "photo_integrated");
+  assertEquals(result.slides[2].slide_type, "photo_full");
+  assertEquals(result.photo_review.verdict, "needs_images");
+});
