@@ -251,7 +251,7 @@ Deno.test("modification de prose, schéma, légende ou ordre invalide le reçu ;
   // La relecture du fil ne lit que le texte : changer la photo d'une slide ne
   // dit pas « Le texte a changé » (même règle que final-photo-match).
   const photoOnly = structuredClone(original);
-  photoOnly.slides[0].photo_index = 4;
+  (photoOnly.slides[0] as any).photo_index = 4;
   assertEquals(invalidateProgressionReceipt(photoOnly).progression_review.execution_status, "completed");
   assertEquals(invalidateProgressionReceipt({ slides: doc.slides }), {
     slides: doc.slides,

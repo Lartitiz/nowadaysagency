@@ -54,9 +54,9 @@ Deno.test("validation : libellé d'étape court ; s'il répète le début du tex
 Deno.test("application : étapes seulement sur des slides habillées ; un motif sur voile du bord passe sur une surface de lecture", () => {
   const plan = validatePhotoFormatting({ steps: STEPS, motifs: [MOTIF] }, SLIDES);
   const out = applyPhotoFormatting(assignPhotoStyles(SLIDES), plan);
-  assertEquals(out.filter(s => s.photo_format?.step).map(s => s.photo_format.step.index), [1, 2, 3]);
+  assertEquals(out.filter(s => s.photo_format?.step).map(s => s.photo_format!.step!.index), [1, 2, 3]);
   const m = out.find(s => s.photo_format?.motif)!;
-  assert(["carte", "verre", "colonne"].includes(m.photo_style), m.photo_style);
+  assert(["carte", "verre", "colonne"].includes(m.photo_style as string), m.photo_style as string);
   assertEquals(applyPhotoFormatting(SLIDES, plan).filter(s => s.photo_format?.step).length, 0, "sans habillage : pas d'étapes partielles");
 });
 
@@ -69,7 +69,7 @@ Deno.test("application : un motif ne reste jamais dans la colonne étroite ; jam
   assert(out.filter(s => s.photo_style === "colonne").length <= 1);
   const auto = applyPhotoFormatting(assignPhotoStyles(SLIDES), plan);
   assert(auto.filter(s => s.photo_style === "colonne").length <= 1);
-  for (const s of auto.filter(s => s.photo_format?.motif)) assert(["carte", "verre"].includes(s.photo_style), `motif en ${s.photo_style}`);
+  for (const s of auto.filter(s => s.photo_format?.motif)) assert(["carte", "verre"].includes(s.photo_style as string), `motif en ${s.photo_style}`);
   const seq = applyPhotoFormatting(SLIDES.map((s, i) => i === 0 ? s : { ...s, photo_style: ["verre", "carte", "bord", "verre", "carte"][i - 1] }),
     validatePhotoFormatting({ steps: [], motifs: [{ ...MOTIF, slide_number: 4 }] }, SLIDES));
   for (let i = 2; i < seq.length; i++) assert(seq[i].photo_style !== seq[i - 1].photo_style, `deux ${seq[i].photo_style} d'affilée`);
