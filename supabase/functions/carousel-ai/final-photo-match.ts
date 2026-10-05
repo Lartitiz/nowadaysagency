@@ -174,8 +174,9 @@ export async function matchFinalPhotos(doc: any, options: {
   const warnings: string[] = [];
   // Mixed carousels are photos + design slides: the narrative composer offers
   // a photo slot on almost every slide (05/10: 7 slots for 2 imported photos).
-  // A slot that a completed selection found NO imported photo for becomes a
-  // text slide, same text. A rejected or unverified pairing stays to choose.
+  // A slot that a completed review left without an imported photo (none
+  // proposed, or the independent check rejected it) becomes a text slide,
+  // same text. Only an UNVERIFIED slot (technical failure) stays to choose.
   const isMix = (options.body.carousel_type || doc.carousel_type) === "mix";
   const convertedToText: number[] = [];
   const slides = doc.slides.map((s: any, i: number) => {
@@ -186,7 +187,7 @@ export async function matchFinalPhotos(doc: any, options: {
     const unverified = status !== "completed" || (assignment?.photo != null && !check);
     // Drop the old plan's visual claims; they describe a different assignment.
     const { visual_anchor: _a, photo_observation: _b, image_relation: _c, factual_basis: _d, ...clean } = s;
-    if (isMix && status === "completed" && assignment && assignment.photo == null) {
+    if (isMix && assignment && !accepted && !unverified) {
       convertedToText.push(i + 1);
       const { overlay_text, overlay_position: _p, overlay_style: _st, template: _t, kicker: _k, detail: _de, cta_label: _c2, photo_layout: _l, photo_index: _i, ...rest } = clean;
       const text = [rest.title, rest.body, overlay_text].filter((v: unknown) => typeof v === "string" && v.trim()).join("\n");

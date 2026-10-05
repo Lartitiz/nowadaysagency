@@ -285,12 +285,31 @@ Deno.test("mixte : une place photo sans photo importée qui la soutient devient 
   assert(!(result.structure_warnings || []).some((w: string) => w.includes("image à choisir")));
 });
 
-Deno.test("mixte : une photo non confirmée par la vérification reste « image à choisir » (jamais masquée en texte)", async () => {
+// Re-test live du 05/10 : il restait « 1 image à choisir » — le portrait
+// proposé pour « une liste d'ingrédients lisible » refusé par la vérification.
+// Un refus = aucune photo importée ne soutient le passage : slide texte aussi.
+Deno.test("mixte : une photo refusée par la vérification devient aussi une slide texte", async () => {
   const result = await matchFinalPhotos(mixDoc(), { ...options(), body: { ...options().body, carousel_type: "mix" }, call: mixCall(false) });
-  assertEquals(result.slides[0].slide_type, "photo_full");
+  assertEquals(result.slides[0].slide_type, "text_only");
+  assertEquals(result.slides[0].title, "5 rituels slow pour ta com'");
   assertEquals(result.slides[0].photo_index, null);
-  assertEquals(result.slides[0].photo_match.status, "missing");
-  assertEquals(result.photo_review.verdict, "needs_images");
+  assertEquals(result.slides[3].photo_index, 1);
+  assertEquals(result.photo_review.converted_to_text, [1, 2, 3]);
+  assertEquals(result.photo_review.verdict, "acceptable");
+});
+
+Deno.test("mixte : une slide restée sans contrôle (vérification partielle) reste « image à choisir »", async () => {
+  let calls = 0;
+  const call = async () => JSON.stringify({ assignments: calls++
+    ? [{ slide: 4, photo: 1, accepted: true, reason: "Portrait en ambiance." }]
+    : [{ slide: 1, photo: 2, relation: "literal", reason: "Le visuel titre.", directive: "La couverture." },
+      { slide: 2, photo: null, relation: "missing", reason: "Rien.", directive: "Un savon." },
+      { slide: 3, photo: null, relation: "missing", reason: "Rien.", directive: "Un carnet." },
+      { slide: 4, photo: 1, relation: "ambient", reason: "Portrait en ambiance.", directive: "Un visage." }] });
+  const result = await matchFinalPhotos(mixDoc(), { ...options(), startedAt: Date.now() - 240000, body: { ...options().body, carousel_type: "mix" }, call });
+  assertEquals(result.slides[0].slide_type, "photo_full");
+  assertEquals(result.slides[0].photo_match.status, "unverified");
+  assertEquals(result.photo_review.converted_to_text, [2, 3]);
 });
 
 Deno.test("mixte : vérification indisponible → aucune conversion, places gardées « à choisir »", async () => {
