@@ -172,18 +172,31 @@ export async function matchFinalPhotos(doc: any, options: {
     }
   }
   const warnings: string[] = [];
+  // Mixed carousels are photos + design slides: the narrative composer offers
+  // a photo slot on almost every slide (05/10: 7 slots for 2 imported photos).
+  // A slot that a completed selection found NO imported photo for becomes a
+  // text slide, same text. A rejected or unverified pairing stays to choose.
+  const isMix = (options.body.carousel_type || doc.carousel_type) === "mix";
+  const convertedToText: number[] = [];
   const slides = doc.slides.map((s: any, i: number) => {
     if (!isPhoto(s)) return s;
     const assignment = assignments.find(a => a.slide === i + 1);
     const check = checks.get(i + 1);
     const accepted = status === "completed" && assignment?.photo != null && check?.accepted === true;
     const unverified = status !== "completed" || (assignment?.photo != null && !check);
+    // Drop the old plan's visual claims; they describe a different assignment.
+    const { visual_anchor: _a, photo_observation: _b, image_relation: _c, factual_basis: _d, ...clean } = s;
+    if (isMix && status === "completed" && assignment && assignment.photo == null) {
+      convertedToText.push(i + 1);
+      const { overlay_text, overlay_position: _p, overlay_style: _st, template: _t, kicker: _k, detail: _de, cta_label: _c2, photo_layout: _l, photo_index: _i, ...rest } = clean;
+      const text = [rest.title, rest.body, overlay_text].filter((v: unknown) => typeof v === "string" && v.trim()).join("\n");
+      return { ...rest, slide_type: "text_only", photo_index: null,
+        title: i === 0 ? text : "", body: i === 0 ? "" : text, visual_schema: rest.visual_schema ?? null };
+    }
     const detail = accepted ? check.reason : unverified
       ? "La correspondance entre le texte et la photo n’a pas pu être vérifiée."
       : (check?.reason || assignment?.reason);
     if (!accepted) warnings.push(`Slide ${i + 1} : image à choisir. ${detail}`);
-    // Drop the old plan's visual claims; they describe a different assignment.
-    const { visual_anchor: _a, photo_observation: _b, image_relation: _c, factual_basis: _d, ...clean } = s;
     return { ...clean, photo_index: accepted ? assignment!.photo : null,
       photo_directive: assignment?.directive?.slice(0, 600) || `Une image qui accompagne ce passage : ${passages[i].text}`.slice(0, 600),
       photo_match: { status: accepted ? "matched" : unverified ? "unverified" : "missing", relation: assignment?.relation || "missing", reason: detail },
@@ -198,7 +211,7 @@ export async function matchFinalPhotos(doc: any, options: {
   }
   result.photo_review = { version: PHOTO_MATCH_VERSION, execution_status: status,
     verdict: status === "completed" ? warnings.length ? "needs_images" : "acceptable" : null,
-    reason, verification_attempts: attempts, issues: warnings, reviewed_material: progressionMaterial(result),
+    reason, verification_attempts: attempts, issues: warnings, converted_to_text: convertedToText, reviewed_material: progressionMaterial(result),
     assignments: slides.flatMap((s: any, i: number) => isPhoto(s) ? [{ slide: i + 1, photo: s.photo_index, ...s.photo_match }] : []),
   };
   result.generation_receipt = { ...result.generation_receipt, photo_match_version: PHOTO_MATCH_VERSION, duration_ms: Date.now() - options.startedAt };
