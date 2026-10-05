@@ -17,6 +17,9 @@
 //     carousel-length.ts, carousel-cover.ts, carousel-sense-design.ts,
 //     carousel-visual/index.ts, format-briefs.ts), qui les réexportent ou les
 //     interpolent : aucune sortie ne change (socle_test.ts, snapshots) ;
+//     exception, la règle 4 (voix_orale) : consigne positive commune réécrite
+//     le 05/10/2026 et branchée sur les carrousels, posts, légendes, LinkedIn,
+//     newsletter, reels et stories (pas Pinterest) ;
 //   - l'ADAPTATION PAR FAMILLE d'angle (S / A + texte / N, tableau 2b) ;
 //   - l'ADAPTATION PAR FORMAT et le REGISTRE DES CHEMINS de génération (quel
 //     chemin de code applique quelle règle, tableau 1, mis à jour après
@@ -85,15 +88,24 @@ export const ONE_IDEA_RULE = `DÉCOUPAGE : UNE IDÉE PAR SLIDE. Le carrousel se 
 - Ce découpage prime sur le test « fusionne-les » du fil : en carrousel texte, on ne fusionne que les redites ; deux idées distinctes gardent chacune leur slide. Le nombre de slides suit le découpage, de 4 à ${TEXT_AUTO_MAX_SLIDES} : n'ajoute aucune slide pour remplir, ne regroupe pas pour en avoir moins.
 - La couverture (slide 1 : accroche seule) et la slide 2 (deuxième accroche) gardent leurs règles ; la dernière slide conclut, comme prévu.`;
 
-// ═══ 4. voix_orale — sa voix orale (depuis format-briefs.ts) ═══════════════
-// Aucune consigne unique aujourd'hui : deux phrases de format-briefs.ts,
-// interpolées à leur place d'origine. Le carrousel texte dit encore l'inverse
-// (« Ne plaque ni oralité ni confession », writing-contract.ts).
+// ═══ 4. voix_orale — sa voix orale ═══════════════════════════════════════════
+// Consigne positive commune (05/10/2026, carrousel de référence de Laetitia :
+// elle écrit comme elle parle, ses phrases s'enchaînent d'une slide à l'autre,
+// ses mots plutôt que des formules d'article). Elle remplace « Ne plaque ni
+// oralité ni confession » (writing-contract.ts) : l'interdit des tics plaqués
+// reste, mais la voix orale est DEMANDÉE, à partir de SES textes de référence,
+// de son profil de voix (user-context.ts, « VOIX PERSONNELLE ») et de ses
+// réponses, jamais d'expressions génériques. Pinterest reste hors voix orale
+// (décision du 05/10/2026) : aucune de ces consignes n'y est injectée.
 
-/** Stories, point 8 des règles d'écriture (storiesBrief). */
-export const VOIX_ORALE_STORIES = "Ton oral, décontracté, comme si on parlait face caméra ou en message vocal.";
+/** Consigne commune : carrousels, posts et légendes Instagram, newsletter, reels. */
+export const VOIX_ORALE = `SA VOIX ORALE : écris comme elle parle. Ta référence, ce sont SES textes (contenus de référence, profil de voix) et SES réponses : reprends ses mots du quotidien, ses tournures, sa façon d'entrer dans une idée, de relancer et de nuancer, plutôt que des formules d'article (« Il est essentiel de… », « Dans un monde où… », « On vit dans un système imparfait »). Les phrases s'enchaînent d'une unité à l'autre comme quand on parle : la suivante reprend ce que la précédente vient de poser, sans transition fabriquée. Une expression orale ne vient que d'elle : n'ajoute aucun tic absent de ses textes et de ses réponses (« Spoiler », « Bon, soyons honnêtes », « Petite confidence »), aucune hésitation, faute de langage ou confession plaquée pour faire parlé, aucun vécu ni témoignage qu'elle n'a pas donné. Sans texte de référence ni réponse : un oral simple et direct, sans familiarité ajoutée.`;
+/** LinkedIn (posts et carrousels) : même voix, registre un peu plus posé. */
+export const VOIX_ORALE_LINKEDIN = `${VOIX_ORALE} Sur LinkedIn, le registre peut être un peu plus posé (phrases un peu plus construites, moins de familiarités), mais ce sont toujours ses mots et ses tournures, pas un ton de communiqué ni d'article.`;
+/** Stories, point 8 des règles d'écriture (storiesBrief) : déjà orales, la source de la voix est précisée. */
+export const VOIX_ORALE_STORIES = "Ton oral, décontracté, comme si on parlait face caméra ou en message vocal, avec SES mots : reprends ses tournures (textes de référence, réponses) plutôt que des expressions orales génériques qu'elle n'emploie pas.";
 /** Légende photo, règle du corps (photoCaptionBrief). */
-export const VOIX_ORALE_LEGENDE_PHOTO = "Garde l’oralité de la personne, sans ajouter d’imperfection obligatoire.";
+export const VOIX_ORALE_LEGENDE_PHOTO = VOIX_ORALE;
 
 // ═══ 5. design_montre_lidee — le design montre l'idée (depuis carousel-sense-design.ts) ═
 
@@ -188,10 +200,10 @@ export const SOCLE_RULES: Readonly<Record<SocleRuleId, SocleRule>> = {
   voix_orale: {
     numero: 4,
     titre: "Sa voix orale",
-    principe: "Des phrases qui s'enchaînent, ses mots du quotidien, comme elle parle.",
-    consignes: { stories: VOIX_ORALE_STORIES, legende_photo: VOIX_ORALE_LEGENDE_PHOTO },
-    controles: [],
-    origines: ["_shared/format-briefs.ts"],
+    principe: "Des phrases qui s'enchaînent, ses mots du quotidien, comme elle parle, tirés de ses textes de référence et de ses réponses ; aucun tic oral plaqué. Hors Pinterest.",
+    consignes: { commune: VOIX_ORALE, linkedin: VOIX_ORALE_LINKEDIN, stories: VOIX_ORALE_STORIES, legende_photo: VOIX_ORALE_LEGENDE_PHOTO },
+    controles: ["_shared/redac-gate.ts : retournements, formules moulées, vécus et témoignages inventés (contre les tics plaqués ; aucun contrôle ne mesure la voix elle-même)", "_shared/anthropic.ts : sanitizeSlop"],
+    origines: ["carousel-ai/writing-contract.ts", "_shared/format-briefs.ts"],
   },
   design_montre_lidee: {
     numero: 5,
@@ -393,33 +405,34 @@ const SANS_VISUEL = "Format texte seul : pas de design, de lisibilité ni de cou
 export const SOCLE_FORMATS: Readonly<Record<SocleFormat, SocleFormatInfo>> = {
   carrousel_texte: { unite: "slide", regles: {
     cas_dabord: f("oui"), adresse_tu_vous: f("oui"), une_idee_par_unite: f("en_partie", "S", "Seulement en longueur Auto ; un nombre demandé ou un plan d'angle la désactive."),
-    voix_orale: f("contredite", "S", "writing-contract.ts : « Ne plaque ni oralité ni confession »."),
+    voix_orale: f("consigne", "S", "VOIX_ORALE dans le fil commun (writing-contract.ts, CAROUSEL_CONTINUITY), à la place de « Ne plaque ni oralité ni confession »."),
     design_montre_lidee: f("oui", "S", "Oui si le code compose ; en partie si l'IA dessine (charte avec texture, interdits, brief IA ou moodboard)."),
     lisible_dabord: f("oui"), couverture_accroche: f("oui"),
   } },
   carrousel_photo: { unite: "slide (une photo)", regles: {
     cas_dabord: f("en_partie", "S", "Non sur le chemin par défaut (récit continu)."), adresse_tu_vous: f("en_partie", "S", "Contrôle par le code ; pas de règle ferme en tête du récit continu."),
     une_idee_par_unite: f("contredite", "S", "Récit continu : 3 à 19 paragraphes, « sans minimum de mots » contre 25 à 40 mots par slide."),
-    voix_orale: f("non"), design_montre_lidee: f("en_partie"), lisible_dabord: f("oui"), couverture_accroche: f("en_partie", "S", "Pas de mot clé mis en valeur."),
+    voix_orale: f("en_partie", "S", "Consigne VOIX_ORALE dans le fil commun (CAROUSEL_CONTINUITY) quand le plan est validé ; absente du récit continu, chemin par défaut."), design_montre_lidee: f("en_partie"), lisible_dabord: f("oui"), couverture_accroche: f("en_partie", "S", "Pas de mot clé mis en valeur."),
   } },
   carrousel_mixte: { unite: "slide", regles: {
     cas_dabord: f("en_partie", "S", "Oui en « texte d'abord »."), adresse_tu_vous: f("en_partie"), une_idee_par_unite: f("en_partie"),
-    voix_orale: f("non"), design_montre_lidee: f("en_partie", "S", "Mixte dessiné par l'IA : aucune garde contre le texte inventé."), lisible_dabord: f("oui"), couverture_accroche: f("en_partie", "S", "Pas de mot clé mis en valeur."),
+    voix_orale: f("en_partie", "S", "Consigne VOIX_ORALE dans le fil commun (CAROUSEL_CONTINUITY) quand le plan est validé ; absente du récit continu, chemin par défaut."), design_montre_lidee: f("en_partie", "S", "Mixte dessiné par l'IA : aucune garde contre le texte inventé."), lisible_dabord: f("oui"), couverture_accroche: f("en_partie", "S", "Pas de mot clé mis en valeur."),
   } },
   carrousel_linkedin: { unite: "slide", regles: {
     cas_dabord: f("oui", "S", "Comme le type choisi."), adresse_tu_vous: f("oui", "S", "Vous par défaut si la fiche ne dit rien."), une_idee_par_unite: f("en_partie", "S", SOCLE_DECISIONS.carrousel_linkedin_rythme.texte),
-    voix_orale: f("non"), design_montre_lidee: f("en_partie", "S", "Comme le type choisi."), lisible_dabord: f("en_partie", "S", "Rendu 1080×1350, exporté en PDF (document LinkedIn) ; la zone de sécurité Instagram des slides photo reste appliquée."), couverture_accroche: f("oui", "S", "Comme le type choisi."),
+    voix_orale: f("consigne", "A", "VOIX_ORALE_LINKEDIN : même voix, registre un peu plus posé (carouselContinuity)."), design_montre_lidee: f("en_partie", "S", "Comme le type choisi."), lisible_dabord: f("en_partie", "S", "Rendu 1080×1350, exporté en PDF (document LinkedIn) ; la zone de sécurité Instagram des slides photo reste appliquée."), couverture_accroche: f("oui", "S", "Comme le type choisi."),
   } },
   post_instagram: { unite: "paragraphe", regles: {
     cas_dabord: f("consigne"), adresse_tu_vous: f("oui"), une_idee_par_unite: f("en_partie"), voix_orale: f("consigne"),
     design_montre_lidee: f("sans_objet", "N", SANS_VISUEL), lisible_dabord: f("sans_objet", "N", SANS_VISUEL), couverture_accroche: f("sans_objet", "N", SANS_VISUEL),
   } },
   legende_photo: { unite: "paragraphe", regles: {
-    cas_dabord: f("non"), adresse_tu_vous: f("oui"), une_idee_par_unite: f("en_partie"), voix_orale: f("en_partie"),
+    cas_dabord: f("non"), adresse_tu_vous: f("oui"), une_idee_par_unite: f("en_partie"), voix_orale: f("consigne"),
     design_montre_lidee: f("sans_objet", "N", "La photo est le visuel."), lisible_dabord: f("sans_objet", "N", "La photo est le visuel."), couverture_accroche: f("sans_objet", "N", "La photo est le visuel."),
   } },
   post_linkedin: { unite: "paragraphe", regles: {
-    cas_dabord: f("consigne"), adresse_tu_vous: f("oui"), une_idee_par_unite: f("non"), voix_orale: f("en_partie"),
+    cas_dabord: f("consigne"), adresse_tu_vous: f("oui"), une_idee_par_unite: f("non"),
+    voix_orale: f("en_partie", "A", "VOIX_ORALE_LINKEDIN dans linkedinBrief (creative-flow : diffusé, non diffusé, photo) ; pas encore dans linkedin-ai ni dans l'exemple fictif."),
     design_montre_lidee: f("sans_objet", "N", SANS_VISUEL), lisible_dabord: f("sans_objet", "N", SANS_VISUEL), couverture_accroche: f("sans_objet", "N", SANS_VISUEL),
   } },
   reel: { unite: "plan", regles: {
@@ -437,7 +450,7 @@ export const SOCLE_FORMATS: Readonly<Record<SocleFormat, SocleFormatInfo>> = {
     lisible_dabord: f("en_partie", "S", "Corps à 0,7× au-delà de 300 caractères."), couverture_accroche: f("non", "S", "La story 1 porte l'accroche avec tout son texte, sans mot clé."),
   } },
   newsletter: { unite: "paragraphe", regles: {
-    cas_dabord: f("non"), adresse_tu_vous: f("oui"), une_idee_par_unite: f("non"), voix_orale: f("en_partie"),
+    cas_dabord: f("non"), adresse_tu_vous: f("oui"), une_idee_par_unite: f("non"), voix_orale: f("consigne"),
     design_montre_lidee: f("sans_objet", "N", SANS_VISUEL), lisible_dabord: f("sans_objet", "N", SANS_VISUEL), couverture_accroche: f("sans_objet", "N", SANS_VISUEL),
   } },
   pinterest: { unite: "épingle", regles: {
@@ -477,31 +490,31 @@ const TEXTE_SEUL = (cas: SocleEtat, adresse: SocleEtat, idee: SocleEtat, voix: S
 
 export const SOCLE_CHEMINS: readonly SocleChemin[] = [
   { id: "carrousel_texte_redaction", format: "carrousel_texte", fichiers: ["carousel-ai/index.ts", "carousel-ai/variant-writing.ts", "carousel-ai/writing-contract.ts"], fonction: "textWritingPrompt + buildCarouselWritingSystem",
-    regles: r("oui", "oui", "en_partie", "contredite", "sans_objet", "sans_objet", "oui") },
+    regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "oui") },
   { id: "carrousel_texte_design_code", format: "carrousel_texte", fichiers: ["carousel-visual/index.ts", "_shared/carousel-design-plan.ts", "_shared/carousel-sense-design.ts"], fonction: "runComposedByCodeGeneration + planTextSenseDesign",
     regles: r("sans_objet", "sans_objet", "sans_objet", "sans_objet", "oui", "oui", "oui") },
   { id: "carrousel_design_ia", format: "carrousel_texte", fichiers: ["carousel-visual/index.ts", "_shared/invented-text-guard.ts", "_shared/font-size-guard.ts"], fonction: "buildTextCarouselPrompt / buildMixCarouselPrompt",
     regles: r("sans_objet", "sans_objet", "sans_objet", "sans_objet", "en_partie", "en_partie", "en_partie"),
     note: "Charte avec texture, interdits, brief IA ou moodboard : l'IA dessine le HTML ; consignes décoratives restantes (gros numéro, alternance de couleurs)." },
   { id: "carrousel_photo_plan_valide", format: "carrousel_photo", fichiers: ["carousel-ai/variant-writing.ts"], fonction: "photoWritingPrompt",
-    regles: r("oui", "oui", "en_partie", "non", "sans_objet", "sans_objet", "en_partie") },
+    regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "en_partie") },
   { id: "carrousel_recit_continu", format: "carrousel_photo", fichiers: ["carousel-ai/continuous-narrative.ts"], fonction: "récit continu (photo et mixte sans plan validé)",
     regles: r("non", "en_partie", "contredite", "non", "sans_objet", "sans_objet", "en_partie"),
-    note: "Chemin par défaut des carrousels photo et mixtes : ni LIVED_CASE_FIRST, ni consigne d'actu, ni règle tu/vous en tête ; contrôle tu/vous et couverture après coup." },
+    note: "Chemin par défaut des carrousels photo et mixtes : ni LIVED_CASE_FIRST, ni consigne d'actu, ni règle tu/vous en tête, ni VOIX_ORALE ; contrôle tu/vous et couverture après coup." },
   { id: "carrousel_mixte_redaction", format: "carrousel_mixte", fichiers: ["carousel-ai/variant-writing.ts", "_shared/mix-layout-formatting.ts"], fonction: "mixWritingPrompt",
-    regles: r("oui", "oui", "en_partie", "non", "sans_objet", "sans_objet", "en_partie") },
+    regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "en_partie") },
   { id: "carrousel_linkedin", format: "carrousel_linkedin", fichiers: ["carousel-ai/index.ts", "carousel-ai/variant-writing.ts"], fonction: "textWritingPrompt (isLinkedIn)",
-    regles: r("oui", "oui", "en_partie", "non", "sans_objet", "sans_objet", "oui") },
+    regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "oui") },
   { id: "post_instagram", format: "post_instagram", fichiers: ["creative-flow/index.ts", "_shared/format-briefs.ts"], fonction: "captionBrief + positionDepthBlock",
     regles: TEXTE_SEUL("consigne", "oui", "en_partie", "consigne") },
   { id: "legende_photo", format: "legende_photo", fichiers: ["creative-flow/index.ts", "_shared/format-briefs.ts"], fonction: "photoCaptionBrief",
-    regles: TEXTE_SEUL("non", "oui", "en_partie", "en_partie") },
+    regles: TEXTE_SEUL("non", "oui", "en_partie", "consigne") },
   { id: "linkedin_diffuse", format: "post_linkedin", fichiers: ["creative-flow/index.ts"], fonction: "runLinkedInTwoStep",
-    regles: TEXTE_SEUL("consigne", "oui", "non", "en_partie") },
+    regles: TEXTE_SEUL("consigne", "oui", "non", "consigne") },
   { id: "linkedin_non_diffuse", format: "post_linkedin", fichiers: ["creative-flow/index.ts"], fonction: "applyLinkedInCorrectionPass",
-    regles: TEXTE_SEUL("consigne", "oui", "non", "en_partie") },
+    regles: TEXTE_SEUL("consigne", "oui", "non", "consigne") },
   { id: "linkedin_photo", format: "post_linkedin", fichiers: ["creative-flow/index.ts"], fonction: "LinkedIn photo",
-    regles: TEXTE_SEUL("consigne", "oui", "non", "en_partie") },
+    regles: TEXTE_SEUL("consigne", "oui", "non", "consigne") },
   { id: "linkedin_exemple_fictif", format: "post_linkedin", fichiers: ["creative-flow/index.ts"], fonction: "exemple fictif",
     regles: TEXTE_SEUL("sans_objet", "oui", "non", "en_partie"), note: "Hors familles : aucun vécu, aucune recherche, faits du brief seulement (à garder tel quel)." },
   { id: "reel", format: "reel", fichiers: ["creative-flow/index.ts", "_shared/format-briefs.ts", "reel-render/recipe.ts"], fonction: "reelBrief + passe de longueur",
@@ -509,7 +522,7 @@ export const SOCLE_CHEMINS: readonly SocleChemin[] = [
   { id: "stories", format: "stories", fichiers: ["creative-flow/index.ts", "_shared/format-briefs.ts", "_shared/story-formatting.ts"], fonction: "storiesBrief + story-formatting",
     regles: r("consigne", "oui", "contredite", "consigne", "oui", "en_partie", "non") },
   { id: "newsletter", format: "newsletter", fichiers: ["creative-flow/index.ts", "_shared/format-briefs.ts"], fonction: "newsletterBrief",
-    regles: TEXTE_SEUL("non", "oui", "non", "en_partie") },
+    regles: TEXTE_SEUL("non", "oui", "non", "consigne") },
   { id: "pinterest", format: "pinterest", fichiers: ["creative-flow/index.ts", "_shared/format-briefs.ts", "_shared/pinterest-two-step.ts", "pinterest-ai/index.ts", "pinterest-visual/index.ts", "pinterest-photo-brief/index.ts"], fonction: "pinterestBrief + épingle en deux appels",
     regles: r("non", "oui", "non", "contredite", "en_partie", "en_partie", "non") },
   { id: "recyclage", format: "recyclage", fichiers: ["creative-flow/index.ts"], fonction: "recyclage (tous formats)",

@@ -1,8 +1,9 @@
 import { COMMON, WRITE } from "../_shared/carousel-editorial-contract.ts";
 import { COVER_WRITING } from "../_shared/carousel-cover.ts";
 import { LIVED_CASE_FIRST, NEWS_FEELING_FIRST, type CaseMode } from "../_shared/lived-case.ts";
+import { VOIX_ORALE, VOIX_ORALE_LINKEDIN } from "../_shared/socle.ts";
 /** Carousel-specific writing policy. Layout contracts remain in the variant builders. */
-export const CAROUSEL_WRITING_VERSION = "fil-v11-couverture-accroche";
+export const CAROUSEL_WRITING_VERSION = "fil-v12-voix-orale";
 
 export const CAROUSEL_FACTS = `CHIFFRES ET FIGURES : conserve le lien entre une quantité et ce qu'elle mesure. Un nombre présent dans le brief n'autorise pas un autre fait portant le même nombre. Si tu reformules une même donnée sous une autre unité, annonce cette relation sans faire croire à une seconde preuve. Une métaphore peut rester si elle éclaire le sujet ; n'en introduis pas pour donner du poids à la conclusion.`;
 
@@ -54,9 +55,15 @@ Une précaution, une distinction ou une nuance se place là où elle sert le rai
 Une liste, une checklist ou une comparaison peut avoir des éléments indépendants : garde un cadre commun et un ordre lisible, sans fabriquer de causalité entre eux. Aucune histoire inventée ni recette narrative universelle.
 Relis enfin couverture, titres, corps et overlay_text comme un texte continu, sans dépendre de la légende Instagram pour comprendre les liens. Relie les passages avec la matière disponible ; ajouter « ensuite » ne répare pas un saut de raisonnement. Les nuances nécessaires restent présentes, et une note distincte explicitement demandée est conservée.
 La conclusion découle du chemin parcouru. Une action ou une question n'est ajoutée que si elle sert la demande, une seule au maximum.
-Préserve le registre, le je/tu/vous, l'humour, les hésitations et les bonnes phrases de la personne. Ne rends pas tout neutre ou télégraphique. Ne plaque ni oralité ni confession. Les contrastes utiles restent des contrastes, même avec une virgule ou une négation.
+Préserve le registre, le je/tu/vous, l'humour, les hésitations et les bonnes phrases de la personne. Ne rends pas tout neutre ou télégraphique. Les contrastes utiles restent des contrastes, même avec une virgule ou une négation.
+${VOIX_ORALE}
 Examine aussi les titres et fins de paragraphes : une opposition de façade, une révélation banale ou un slogan interchangeable ne devient pas pertinent parce qu'il contient le nom du produit. Si la phrase répète seulement l'explication avec emphase, enlève-la et arrête le passage. Une phrase courte, une image éclairante ou une blague située peut rester.
 `;
+
+/** Fil du carrousel avec la voix orale du canal (LinkedIn : registre un peu plus posé, mêmes mots). */
+export function carouselContinuity(isLinkedIn: boolean): string {
+  return isLinkedIn ? CAROUSEL_CONTINUITY.replace(VOIX_ORALE, VOIX_ORALE_LINKEDIN) : CAROUSEL_CONTINUITY;
+}
 
 /**
  * Contrat de fond selon la matière : quand la personne a donné son propre cas
@@ -78,7 +85,7 @@ ${WRITE}
 ${clarity}
 ${identity} Tu rédiges pour la personne un carrousel ${isLinkedIn ? "LinkedIn" : "Instagram"} fidèle à sa demande et agréable à lire.
 ${carouselSubstance(livedCase)}
-${CAROUSEL_CONTINUITY}
+${carouselContinuity(isLinkedIn)}
 ${CAROUSEL_TITLES}
 CONTEXTE DE MARQUE (repères, pas un vécu nouveau pour ce sujet) :
 ${brandingContext}
