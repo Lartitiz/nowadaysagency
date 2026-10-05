@@ -29,6 +29,7 @@ import { stripDuplicateStepPrefixHtml } from "../_shared/format-render.ts";
 import { applyTextSenseDesign, buildCarouselDesignPlan, describeCarouselDesignPlan, composeCoverSlide, composeEditorialSlide, editorialSlideText, formatEditorialSlides } from "../_shared/carousel-design-plan.ts";
 import { planTextSenseDesign, type TextSenseDesign } from "../_shared/carousel-sense-design.ts";
 import { stripInventedSlideText } from "../_shared/invented-text-guard.ts";
+import { LISIBLE_TAILLE_CORPS, LISIBLE_TAILLES_TITRES } from "../_shared/socle.ts";
 
 /**
  * Bloc partagé : templates HTML/CSS des schémas visuels (visual_schema).
@@ -308,14 +309,14 @@ PADDING : 80px sur les côtés, 60px en haut et en bas. JAMAIS de texte collé a
 
 TITRES (headlines) :
 - Font : ${ch.font_title}, font-weight: normal (JAMAIS bold), font-style: normal
-- Taille (échelle UNIQUE, pour toutes les slides) : accroche de couverture 120-168px (4-5 mots ≈ 168px, plus petit si elle est plus longue) ; titres 92-120px selon la longueur ; une phrase seule, courte, jusqu'à 150px. On ne réduit que si la slide reste longue.
+- ${LISIBLE_TAILLES_TITRES}
 - Couleur : ${ch.color_secondary} ou ${ch.color_text}
 - Line-height : 1.15
 - Un groupe de mots qui porte la bascule du propos peut passer en couleur accent ${ch.color_primary} et font-style: italic (sur la couverture : un seul groupe, extrait de l'accroche)
 
 CORPS DE TEXTE :
 - Font : ${ch.font_body}, font-weight: 400
-- Taille : 46-52px (jusqu'à 40px seulement si la slide reste longue)
+- ${LISIBLE_TAILLE_CORPS}
 - Couleur : ${ch.color_text}
 - Line-height : 1.45
 - Texte opaque, y compris secondaire : la hiérarchie vient de la taille et du placement

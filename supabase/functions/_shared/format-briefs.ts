@@ -5,6 +5,7 @@
 import { LINKEDIN_STORYTELLING_RULES, LINKEDIN_TEMPLATES } from "./copywriting-prompts.ts";
 import { LIVED_CASE_FIRST, NEWS_FEELING_FIRST, type CaseMode } from "./lived-case.ts";
 import type { AudienceAddress } from "./audience-address.ts";
+import { VOIX_ORALE_LEGENDE_PHOTO, VOIX_ORALE_STORIES } from "./socle.ts";
 
 export function carouselBrief(): string {
   return `FORMAT : CARROUSEL INSTAGRAM (8 slides minimum)
@@ -903,7 +904,7 @@ GARDE-FOUS OBLIGATOIRES :
 5. Si face cam → TOUJOURS mentionner sous-titres
 6. Story 1 = hook fort (c'est là que l'audience décroche)
 7. Publier TOUTE la séquence à la suite, dans un seul bloc. Choisis UN créneau conseillé (matin, midi ou soir) dans "publication_time" ; ne répartis jamais les stories d'une même histoire sur plusieurs moments.
-8. Ton oral, décontracté, comme si on parlait face caméra ou en message vocal. ${address.oral}
+8. ${VOIX_ORALE_STORIES} ${address.oral}
 9. Écriture inclusive point médian
 10. Expressions naturelles et orales, variées d'une story à l'autre : évite de réutiliser toujours la même cheville
 11. Aparté entre parenthèses : 1 MAXIMUM par séquence, jamais dans deux stories de suite, et uniquement s'il dit quelque chose de propre à ce sujet (un aparté qui pourrait aller dans n'importe quelle story est un tic : supprime-le)
@@ -1154,7 +1155,7 @@ CORPS :
 - Développe ce que la photo NE DIT PAS
 - Ton SENSORIEL : texture, lumière, chaleur, poids, odeur, son
 - 2-4 phrases qui avancent. Chaque phrase apporte du nouveau.
-- Garde l’oralité de la personne, sans ajouter d’imperfection obligatoire.
+- ${VOIX_ORALE_LEGENDE_PHOTO}
 
 FIN :
 - CTA doux : invitation, question, ou rien si la phrase finale se suffit

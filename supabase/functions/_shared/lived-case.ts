@@ -18,6 +18,11 @@
 // « news » : comportement d'actu inchangé (thèse + position assumée).
 //
 // Fonctions pures, sans dépendance : testées dans lived-case_test.ts.
+//
+// Les consignes LIVED_CASE_FIRST et NEWS_FEELING_FIRST vivent dans socle.ts
+// (règle « cas_dabord » du socle commun) : réexportées ici à texte égal.
+
+export { LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from "./socle.ts";
 
 /** Seuil de mots des réponses au-delà duquel elles portent du vécu, même sans marqueur. */
 export const LIVED_ANSWER_WORDS = 40;
@@ -155,16 +160,8 @@ export function livedCaseFromCreativeBody(body: any): LivedCase {
   });
 }
 
-/** Règle d'ordre commune à la rédaction (carrousel, posts, reels, stories, LinkedIn). */
-export const LIVED_CASE_FIRST = `TON CAS D'ABORD (la personne a donné son propre cas) : le cas personnel fourni (ses chiffres, son avant/après, ce qu'elle ressent, ses mots) est la preuve centrale du contenu, raconté en première personne avec sa voix. La recherche ne remplace aucun passage de ce vécu : au plus UN chiffre de recherche, seulement s'il appuie une phrase de son brief ou de ses réponses, avec sa source. Pas de lecture sociale générale en « on » ou « nous », pas de passage théorique ni de style article à la place de son récit. Son histoire de marque et son parcours ne sont pas racontés : le récit de ce contenu, c'est celui qu'elle vient de donner.`;
 
 
-/**
- * Règle unique de l'actu avec ressenti fourni (05/10/2026) : remplace à la fois
- * « Ton cas d'abord » (qui reléguait la recherche) et la phrase d'actu « le cas
- * d'actualité reste le sujet jusqu'à la dernière slide » (qui reléguait son ressenti).
- */
-export const NEWS_FEELING_FIRST = `L'ACTU DÉCLENCHE, SON RESSENTI PORTE LE CONTENU (la personne a répondu avec ses mots sur cette actualité) : pose l'actualité vite et juste au début (le fait, sa source, les seuls éléments exacts nécessaires pour comprendre), puis son ressenti, sa position et ce que ça dit de son métier portent la suite jusqu'à la fin, en première personne et avec ses mots. Son ressenti n'est pas une preuve d'appui glissée dans l'analyse : c'est le cœur du propos. Les faits de l'actu et de la recherche le situent et l'étayent, sans le remplacer par une revue de presse : au plus 3 chiffres venus de la recherche, chacun avec sa source dans la même phrase. Ce qu'on lui répond ou ce qu'elle observe est du terrain : reprends-le tel qu'elle le dit, sans ajouter de scène, de cliente ni de souvenir. Termine sur sa position ou sur une question simple, facile à répondre en commentaire, reliée à cette position.`;
 
 /** Plafond des chiffres venus de la seule recherche : 1 pour son cas, 3 pour l'actu, aucun sinon. */
 export function researchNumbersCapFor(c: Pick<LivedCase, "mode">): number | undefined {
