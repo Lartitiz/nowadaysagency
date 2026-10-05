@@ -11,6 +11,8 @@ import { numbersIn, runTextRedacGate } from "../_shared/redac-gate.ts";
 import { parseAudienceAddress, type AudienceAddress } from "../_shared/audience-address.ts";
 import { addressPassOptions } from "../_shared/audience-address-pass.ts";
 import { collectTextSlots, enforceAudienceAddressInSlots } from "../_shared/audience-address-fields.ts";
+import { angleFamily } from "../_shared/angle-families.ts";
+import { captionAnswersText, linkedInSocleBlock } from "./socle-linkedin.ts";
 
 // Plafond de la passe de correction (Haiku, édition mécanique à règles fermées,
 // sortie capée 4096 tokens) : bornée séparément de l'appel principal pour que
@@ -84,6 +86,7 @@ async function correctCrosspostJson(rawJson: string, abortTimeoutMs = CORRECTION
 // qui rédige un contenu. Le reste (analyse, checklist, angle choisi) parle à
 // l'utilisatrice et n'est pas touché.
 const ADDRESS_FIELDS: Record<string, string[]> = {
+  "summary": ["court_storytelling", "court_pro", "moyen_storytelling", "moyen_pro", "long_storytelling", "long_pro"],
   "caption-for-carousel": ["hook", "body", "cta"],
   "improve-post": ["improved_version", "hook_alternatives[]"],
   "adapt-instagram": ["hook", "full_text"],
@@ -226,7 +229,7 @@ serve(async (req) => {
 
     } else if (action === "summary") {
       const { passion, parcours, offre, cta } = params;
-      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\n${qualityBlocks}\n\nÉLÉMENTS FOURNIS :\n- Sa passion : "${passion || ""}"\n- Son parcours : "${parcours || ""}"\n- Ce qu'elle propose : "${offre || ""}"\n- Son appel à l'action : "${cta || ""}"\n\nGénère 6 versions du résumé LinkedIn, organisées par longueur et style.\n\nLONGUEURS :\n- Court (80-120 mots) : pour les profils qui débutent ou qui veulent l'essentiel\n- Moyen (180-220 mots) : le standard recommandé\n- Long (280-320 mots) : pour les profils avancés qui veulent tout raconter\n\nSTYLES :\n- Storytelling : narratif, personnel, avec un arc (avant → déclic → maintenant → invitation)\n- Pro : structuré, factuel, direct, avec des preuves concrètes\n\nRÈGLE CRITIQUE : les 3 premières lignes de CHAQUE version sont les seules visibles avant le clic "voir plus". Elles doivent ACCROCHER. Pas de "Bonjour, je suis [prénom]". Pas de "Bienvenue sur mon profil". Un hook. Direct.\n\nHOOKS LINKEDIN EFFICACES (à adapter, pas copier) :\n- Question provocante : "Et si ton problème n'était pas [X] mais [Y] ?"\n- Stat choc : "X% des [cible] font [erreur]. Je les aide à [solution]."\n- Mini-récit : "Il y a 3 ans, j'ai [moment déclic]. Aujourd'hui..."\n- Affirmation forte : "Je crois que [conviction]. C'est pour ça que..."\n- Confession : "J'ai longtemps cru que [croyance]. Jusqu'à [déclic]."\n\n${branding.storytelling?.step_7_polished ? "Utilise le storytelling comme base narrative pour les versions storytelling." : ""}\n\n- Max 2 600 caractères par version.\n- Intégrer naturellement des mots-clés SEO.\n- Aérer avec des sauts de ligne.\n- PAS de "Bonjour, je suis [prénom] et je suis passionnée par...".\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"court_storytelling": "...", "court_pro": "...", "moyen_storytelling": "...", "moyen_pro": "...", "long_storytelling": "...", "long_pro": "...", "hook_used": "le type de hook choisi pour les versions storytelling"}`;
+      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\n${qualityBlocks}\n\nÉLÉMENTS FOURNIS :\n- Sa passion : "${passion || ""}"\n- Son parcours : "${parcours || ""}"\n- Ce qu'elle propose : "${offre || ""}"\n- Son appel à l'action : "${cta || ""}"\n\nGénère 6 versions du résumé LinkedIn, organisées par longueur et style.\n\nLONGUEURS :\n- Court (80-120 mots) : pour les profils qui débutent ou qui veulent l'essentiel\n- Moyen (180-220 mots) : le standard recommandé\n- Long (280-320 mots) : pour les profils avancés qui veulent tout raconter\n\nSTYLES :\n- Storytelling : narratif, personnel, avec un arc (avant → déclic → maintenant → invitation)\n- Pro : structuré, factuel, direct, avec des preuves concrètes\n\nRÈGLE CRITIQUE : les 3 premières lignes de CHAQUE version sont les seules visibles avant le clic "voir plus". Elles doivent ACCROCHER. Pas de "Bonjour, je suis [prénom]". Pas de "Bienvenue sur mon profil". Un hook. Direct.\n\nHOOKS LINKEDIN EFFICACES (à adapter, pas copier) :\n- Question provocante : "Et si ton problème n'était pas [X] mais [Y] ?"\n- Stat choc (seulement avec un chiffre fourni) : "X% des [cible] font [erreur]. Je les aide à [solution]."\n- Mini-récit (seulement avec une durée fournie) : "Il y a 3 ans, j'ai [moment déclic]. Aujourd'hui..."\n- Affirmation forte : "Je crois que [conviction]. C'est pour ça que..."\n- Confession : "J'ai longtemps cru que [croyance]. Jusqu'à [déclic]."\n\n${branding.storytelling?.step_7_polished ? "Utilise le storytelling comme base narrative pour les versions storytelling." : ""}\n\n- Max 2 600 caractères par version.\n- Intégrer naturellement des mots-clés SEO.\n- Aérer avec des sauts de ligne.\n- PAS de "Bonjour, je suis [prénom] et je suis passionnée par...".\n${linkedInAddressLine(audienceAddress, "")}\n\nRéponds UNIQUEMENT en JSON sans backticks :\n{"court_storytelling": "...", "court_pro": "...", "moyen_storytelling": "...", "moyen_pro": "...", "long_storytelling": "...", "long_pro": "...", "hook_used": "le type de hook choisi pour les versions storytelling"}`;
       userPrompt = "Génère 6 versions de résumé LinkedIn.";
 
     } else if (action === "adapt-instagram") {
@@ -238,7 +241,7 @@ serve(async (req) => {
       const { sourceContent, sourceType, targetChannels, fileUrls } = params;
       const uploadedFiles = fileUrls || [];
 
-      const crosspostSystemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\n${LINKEDIN_STORYTELLING_RULES}\n\n${qualityBlocks}\n\nCONTENU SOURCE (${sourceType || "texte libre"}) :\n${sourceContent || "(voir fichiers joints)"}\n\nADAPTE pour : ${JSON.stringify(targetChannels)}\n\nRÈGLES :\n- Chaque canal prend un ANGLE DIFFÉRENT du contenu source\n- LinkedIn : voix fidèle, longueur selon la matière, 0-2 hashtags, fin naturelle\n- Instagram : ton complice, 800-1500 car., 3-5 hashtags, CTA doux\n- Reel : script avec hook 0-3s, timing, cuts, 30-60 sec\n- Stories : séquence 5 stories, ton intime, stickers\n\nNE PAS copier-coller entre les canaux. Chaque version est une réécriture.\n\nRETOURNE un JSON :\n{\n  "versions": {\n    "linkedin": { "full_text": "...", "character_count": 1200, "angle_choisi": "..." },\n    "instagram": { "full_text": "...", "character_count": 900, "angle_choisi": "..." },\n    "reel": { "script": "...", "duration": "30-60s", "angle_choisi": "..." },\n    "stories": { "sequence": [...], "angle_choisi": "..." }\n  }\n}\nN'inclus que les canaux demandés.`;
+      const crosspostSystemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\n${LINKEDIN_STORYTELLING_RULES}\n\n${qualityBlocks}\n\nCONTENU SOURCE (${sourceType || "texte libre"}) :\n${sourceContent || "(voir fichiers joints)"}\n\nADAPTE pour : ${JSON.stringify(targetChannels)}\n\nRÈGLES :\n- Chaque canal prend un ANGLE DIFFÉRENT du contenu source\n- LinkedIn : voix fidèle, longueur selon la matière, 0-2 hashtags, fin naturelle\n- Instagram : ton complice, longueur selon la matière, 3-5 hashtags, CTA doux\n- Reel : script avec hook 0-3s, timing, cuts, 30-60 sec\n- Stories : une story par idée, le nombre de stories suit le découpage de la source, ton intime, stickers\n\nNE PAS copier-coller entre les canaux. Chaque version est une réécriture.\n\nRETOURNE un JSON :\n{\n  "versions": {\n    "linkedin": { "full_text": "...", "character_count": 1200, "angle_choisi": "..." },\n    "instagram": { "full_text": "...", "character_count": 900, "angle_choisi": "..." },\n    "reel": { "script": "...", "duration": "30-60s", "angle_choisi": "..." },\n    "stories": { "sequence": [...], "angle_choisi": "..." }\n  }\n}\nN'inclus que les canaux demandés.\n\n${linkedInSocleBlock("crosspost", params)}`;
 
       // If files are provided, use multimodal call
       if (uploadedFiles.length > 0) {
@@ -325,7 +328,8 @@ serve(async (req) => {
 
     } else if (action === "caption-for-carousel") {
       const { subject, chosen_angle, slides_summary, editorial_angle, objective } = params;
-      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\n${LINKEDIN_STORYTELLING_RULES}\n\n${qualityBlocks}\n\nTu rédiges UNIQUEMENT la légende (caption) qui accompagne un carrousel LinkedIn (PDF de slides). Les slides portent déjà la valeur structurée : la légende complète, contextualise, donne envie de cliquer le PDF.\n\nCONTEXTE DU CARROUSEL :\n- Sujet : "${subject || ""}"\n${chosen_angle ? `- Angle choisi : "${chosen_angle}"\n` : ""}${editorial_angle ? `- Angle éditorial : "${editorial_angle}"\n` : ""}${objective ? `- Objectif : "${objective}"\n` : ""}${slides_summary ? `- Résumé des slides du PDF :\n${slides_summary}\n` : ""}\n\nRÈGLES LINKEDIN STRICTES :\n1. HOOK (max 210 caractères) : phrase d'accroche AVANT le "voir plus". DOIT donner envie d'ouvrir le carrousel. PAS la même phrase que la slide 1 du PDF — elle complète, elle ne répète pas.\n2. BODY : développe seulement ce que les informations fournies permettent de dire sur le sujet et ce que le PDF ne montre pas. Phrases complètes, paragraphes courts (2-4 lignes), aérés. PAS de listicle. PAS de phrases isolées sur des lignes séparées (anti-broetry).\n3. FIN : une invitation concrète à la conversation si elle sert le sujet, ou une dernière phrase qui aboutit. JAMAIS "Sauvegarde", "DM moi", "Tag une copine".\n4. HASHTAGS : 0 à 2 hashtags professionnels si utiles (secteur, métier, thématique). PAS de hashtags génériques type #motivation #life. Sans le "#" dans le tableau.\n5. PAS de tirets cadratins (—). Écriture inclusive (point médian quand pertinent).\n6. Ton : professionnel chaleureux, expert·e accessible. ${linkedInAddressLine(audienceAddress, "Vouvoiement par défaut sauf si la voix de marque dit le contraire.")}\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks ni texte avant/après :\n{\n  "hook": "max 210 caractères",\n  "body": "texte adapté aux faits disponibles",\n  "cta": "invitation utile ou chaîne vide",\n  "hashtags": []\n}`;
+      const answersText = captionAnswersText(params.deepening_answers);
+      systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${context}\n\n${LINKEDIN_STORYTELLING_RULES}\n\n${qualityBlocks}\n\nTu rédiges UNIQUEMENT la légende (caption) qui accompagne un carrousel LinkedIn (PDF de slides). Les slides portent déjà la valeur structurée : la légende complète, contextualise, donne envie de cliquer le PDF.\n\nCONTEXTE DU CARROUSEL :\n- Sujet : "${subject || ""}"\n${chosen_angle ? `- Angle choisi : "${chosen_angle}"\n` : ""}${editorial_angle ? `- Angle éditorial : "${editorial_angle}"\n` : ""}${objective ? `- Objectif : "${objective}"\n` : ""}${slides_summary ? `- Résumé des slides du PDF :\n${slides_summary}\n` : ""}${answersText ? `- Ses réponses (son vécu, ses mots, ses chiffres) :\n${answersText}\n` : ""}\n\nRÈGLES LINKEDIN STRICTES :\n1. HOOK (max 210 caractères) : phrase d'accroche AVANT le "voir plus". DOIT donner envie d'ouvrir le carrousel. PAS la même phrase que la slide 1 du PDF — elle complète, elle ne répète pas.\n2. BODY : développe seulement ce que les informations fournies permettent de dire sur le sujet et ce que le PDF ne montre pas. Phrases complètes, paragraphes courts (2-4 lignes), aérés. PAS de listicle. PAS de phrases isolées sur des lignes séparées (anti-broetry).\n3. FIN : une invitation concrète à la conversation si elle sert le sujet, ou une dernière phrase qui aboutit. JAMAIS "Sauvegarde", "DM moi", "Tag une copine".\n4. HASHTAGS : 0 à 2 hashtags professionnels si utiles (secteur, métier, thématique). PAS de hashtags génériques type #motivation #life. Sans le "#" dans le tableau.\n5. PAS de tirets cadratins (—). Écriture inclusive (point médian quand pertinent).\n6. Ton : professionnel chaleureux, expert·e accessible. ${linkedInAddressLine(audienceAddress, "Vouvoiement par défaut sauf si la voix de marque dit le contraire.")}\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks ni texte avant/après :\n{\n  "hook": "max 210 caractères",\n  "body": "texte adapté aux faits disponibles",\n  "cta": "invitation utile ou chaîne vide",\n  "hashtags": []\n}`;
       userPrompt = "Rédige la légende LinkedIn pour ce carrousel.";
 
     } else if (action === "improve-post") {
@@ -358,7 +362,7 @@ serve(async (req) => {
           body: JSON.stringify({
             model: "google/gemini-2.5-flash-lite",
             messages: [
-              { role: "system", content: `Tu es un expert LinkedIn. Voici les templates disponibles :\n${templateList.map(t => `- ${t.id}: ${t.label} (${t.desc}) [objectif: ${t.objectif}]`).join("\n")}\n\nPour le sujet donné, choisis LE meilleur template et explique pourquoi en 1 phrase.\nRéponds UNIQUEMENT en JSON sans backticks :\n{"template_id": "...", "reason": "..."}` },
+              { role: "system", content: `Tu es un expert LinkedIn. Voici les templates disponibles :\n${templateList.map(t => `- ${t.id}: ${t.label} (${t.desc}) [objectif: ${t.objectif}]`).join("\n")}\n\nPour le sujet donné, choisis LE meilleur template et explique pourquoi en 1 phrase. Si le sujet raconte son propre vécu, privilégie storytelling_pro ou coulisses_metier ; le cas d'une cliente, etude_de_cas ; une actualité, decryptage_expert ou prise_de_position (l'actu déclenche, sa position porte le post).\nRéponds UNIQUEMENT en JSON sans backticks :\n{"template_id": "...", "reason": "..."}` },
               { role: "user", content: `Sujet : "${suggestSujet}"` },
             ],
             max_tokens: 200,
@@ -377,8 +381,11 @@ serve(async (req) => {
       } finally {
         clearTimeout(sugTimer);
       }
+      // Famille d'angle du modèle choisi (socle commun) : lue par le code, pas par l'IA.
+      const chosen = tryParseAiJson(rawContent, "linkedin-ai:suggest-template") as any;
+      const family = angleFamily(chosen?.template_id, "linkedin_templates");
       // Don't log usage for this lightweight action
-      return new Response(JSON.stringify({ content: rawContent }), {
+      return new Response(JSON.stringify({ content: rawContent, family }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
 
@@ -387,6 +394,12 @@ serve(async (req) => {
     }
 
     systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + systemPrompt;
+    // Socle commun (05/10/2026) : « Ton cas d'abord » selon la famille de
+    // l'angle et une idée par paragraphe. Le crosspost l'a déjà dans son prompt.
+    if (action !== "crosspost") {
+      const socleBlock = linkedInSocleBlock(action, params);
+      if (socleBlock) systemPrompt += `\n\n${socleBlock}`;
+    }
 
     // Inject SERIES context for content-generating actions
     const seriesActions = new Set(["caption-for-carousel", "improve-post", "adapt-instagram", "crosspost"]);
@@ -413,7 +426,7 @@ serve(async (req) => {
 
     // LinkedIn correction pass — applied per action with awareness of output shape
     if (action === "caption-for-carousel") {
-      const inputText = [context, params.subject, params.chosen_angle, params.slides_summary].filter(Boolean).join("\n");
+      const inputText = [context, params.subject, params.chosen_angle, params.slides_summary, captionAnswersText(params.deepening_answers)].filter(Boolean).join("\n");
       content = await correctJsonField(content, "body", CORRECTION_TIMEOUT_MS, inputText);
     } else if (action === "improve-post") {
       const inputText = [context, params.postContent].filter(Boolean).join("\n");

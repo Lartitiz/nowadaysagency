@@ -258,6 +258,11 @@ export const SOCLE_DECISIONS = {
     regle: "une_idee_par_unite" as SocleRuleId,
     texte: "Les reels restent courts : on découpe en plans, et couper est permis pour tenir la durée.",
   },
+  carrousel_linkedin_rythme: {
+    date: "2026-10-05",
+    regle: "une_idee_par_unite" as SocleRuleId,
+    texte: "Carrousel LinkedIn : même rythme qu'Instagram (une idée par slide, jusqu'à 20 slides en texte), publié comme document LinkedIn grâce à l'export PDF (une page 1080×1350 par slide).",
+  },
   pinterest_hors_voix_orale: {
     date: "2026-10-05",
     regle: "voix_orale" as SocleRuleId,
@@ -414,8 +419,8 @@ export const SOCLE_FORMATS: Readonly<Record<SocleFormat, SocleFormatInfo>> = {
     voix_orale: f("en_partie", "S", "Consigne VOIX_ORALE dans le fil commun (CAROUSEL_CONTINUITY) quand le plan est validé ; absente du récit continu, chemin par défaut."), design_montre_lidee: f("en_partie", "S", "Mixte dessiné par l'IA : aucune garde contre le texte inventé."), lisible_dabord: f("oui"), couverture_accroche: f("en_partie", "S", "Pas de mot clé mis en valeur."),
   } },
   carrousel_linkedin: { unite: "slide", regles: {
-    cas_dabord: f("oui", "S", "Comme le type choisi."), adresse_tu_vous: f("oui", "S", "Vous par défaut si la fiche ne dit rien."), une_idee_par_unite: f("en_partie", "S", "Même rythme qu'Instagram pour l'instant."),
-    voix_orale: f("consigne", "A", "VOIX_ORALE_LINKEDIN : même voix, registre un peu plus posé (carouselContinuity)."), design_montre_lidee: f("en_partie", "S", "Comme le type choisi."), lisible_dabord: f("en_partie", "S", "Rendu au format Instagram (1080×1350)."), couverture_accroche: f("oui", "S", "Comme le type choisi."),
+    cas_dabord: f("oui", "S", "Comme le type choisi."), adresse_tu_vous: f("oui", "S", "Vous par défaut si la fiche ne dit rien."), une_idee_par_unite: f("en_partie", "S", SOCLE_DECISIONS.carrousel_linkedin_rythme.texte),
+    voix_orale: f("consigne", "A", "VOIX_ORALE_LINKEDIN : même voix, registre un peu plus posé (carouselContinuity)."), design_montre_lidee: f("en_partie", "S", "Comme le type choisi."), lisible_dabord: f("en_partie", "S", "Rendu 1080×1350, exporté en PDF (document LinkedIn) ; la zone de sécurité Instagram des slides photo reste appliquée."), couverture_accroche: f("oui", "S", "Comme le type choisi."),
   } },
   post_instagram: { unite: "paragraphe", regles: {
     cas_dabord: f("consigne"), adresse_tu_vous: f("oui"), une_idee_par_unite: f("en_partie"), voix_orale: f("consigne"),
@@ -526,8 +531,9 @@ export const SOCLE_CHEMINS: readonly SocleChemin[] = [
     regles: TEXTE_SEUL("non", "oui", "non", "en_partie") },
   { id: "brouillon_express", format: "calendrier_rapide", fichiers: ["generate-content/index.ts"], fonction: "type express-draft",
     regles: TEXTE_SEUL("non", "oui", "non", "en_partie") },
-  { id: "linkedin_ai", format: "post_linkedin", fichiers: ["linkedin-ai/index.ts"], fonction: "crosspost, caption-for-carousel, improve-post, adapt-instagram",
-    regles: TEXTE_SEUL("non", "oui", "non", "en_partie") },
+  { id: "linkedin_ai", format: "post_linkedin", fichiers: ["linkedin-ai/index.ts", "linkedin-ai/socle-linkedin.ts"], fonction: "crosspost, caption-for-carousel, improve-post, adapt-instagram, summary (linkedInSocleBlock)",
+    regles: TEXTE_SEUL("consigne", "oui", "consigne", "en_partie"),
+    note: "Famille de l'angle (K pour un texte repris, A pour le résumé, celle de l'angle ou C avec une actu pour la légende de carrousel) ; vécu détecté par lived-case.ts ; une idée par paragraphe sans nombre fixe. Aucune recherche : pas de plafond de chiffres de recherche, chiffres limités aux sources par runTextRedacGate." },
 ];
 
 /** Chemins d'un format. */

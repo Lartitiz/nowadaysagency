@@ -1,9 +1,10 @@
 import { exportFileName } from "@/lib/export-file-name";
+import { normalizeFormat } from "@/lib/format-normalizer";
 import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2, ExternalLink } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
-import { exportCarouselPng } from "@/lib/export-carousel-png";
+import { exportCarouselPdf, exportCarouselPng } from "@/lib/export-carousel-png";
 import { exportCarouselHybridPptx, type OriginalPhoto } from "@/lib/export-carousel-hybrid-pptx";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { ContentPreview } from "@/components/ContentPreview";
@@ -56,6 +57,7 @@ export function CalendarPostPreview({
   const { openInCanva, openingCanva } = useOpenInCanva();
   const [downloadingPng, setDownloadingPng] = useState(false);
   const [downloadingHybrid, setDownloadingHybrid] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [slideIndex, setSlideIndex] = useState(0);
   // Repartir de la 1ʳᵉ slide quand on change de post (sinon on reste sur un index élevé
   // d'un carrousel précédent — caption est un identifiant stable du contenu affiché).
@@ -82,6 +84,32 @@ export function CalendarPostPreview({
       setDownloadingPng(false);
     }
   }, [visualHtml, downloadingPng, theme, includeLogo, logoUrl]);
+
+  // ── PDF « document LinkedIn » (carrousel du canal LinkedIn) ──
+  const handleDownloadPdf = useCallback(async () => {
+    if (downloadingPdf) return;
+    setDownloadingPdf(true);
+    try {
+      if (visualHtml && visualHtml.length > 0) {
+        await exportCarouselPdf(visualHtml, theme || "carrousel", includeLogo ? logoUrl : null);
+      } else if (visualUrls && visualUrls.length > 0) {
+        // Visuels déjà rendus côté serveur : assemblés tels quels (comme le PNG).
+        const { imagesToPdfFile } = await import("@/lib/images-to-pdf");
+        const file = await imagesToPdfFile(visualUrls, `linkedin-${theme || "carrousel"}`);
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(file);
+        a.download = file.name;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } else return;
+      toast.success("PDF téléchargé : publie-le comme document sur LinkedIn.");
+    } catch (err: any) {
+      console.error("PDF export error:", err);
+      toast.error(err?.message || "Erreur lors du téléchargement du PDF");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }, [visualHtml, visualUrls, downloadingPdf, theme, includeLogo, logoUrl]);
 
   // ── PNG depuis Storage URLs (déjà rendus côté serveur) ──
   const handleDownloadFromUrls = useCallback(async () => {
@@ -241,11 +269,11 @@ export function CalendarPostPreview({
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={downloadingPng || downloadingHybrid}
+                  disabled={downloadingPng || downloadingHybrid || downloadingPdf}
                   className="gap-1.5 h-7 text-xs"
                   title="Télécharger"
                 >
-                  {(downloadingPng || downloadingHybrid)
+                  {(downloadingPng || downloadingHybrid || downloadingPdf)
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     : <Download className="h-3.5 w-3.5" />}
                   Télécharger
@@ -256,6 +284,8 @@ export function CalendarPostPreview({
                 <DownloadMenuItems
                   onPng={visualUrls && visualUrls.length > 0 ? handleDownloadFromUrls : handleDownloadImages}
                   onPptxEditable={visualHtml && visualHtml.length > 0 ? handleDownloadHybridPptx : undefined}
+                  onPdf={canal === "linkedin" && normalizeFormat(format) === "carousel" ? handleDownloadPdf : undefined}
+                  downloadingPdf={downloadingPdf}
                   downloadingPng={downloadingPng}
                   downloadingPptx={downloadingHybrid}
                   count={(visualUrls?.length ?? visualHtml?.length ?? 1)}
