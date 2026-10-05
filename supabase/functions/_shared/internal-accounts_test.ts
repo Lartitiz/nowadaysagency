@@ -10,6 +10,10 @@ Deno.test("comptes internes : admin, Camille et tout alias laetitia+…@ de l'ag
     "laetitia+membres-desktop@nowadaysagency.com",
     "Laetitia+Immo1707@NowadaysAgency.com",
     " laetitiatest@nowadaysagency.com ",
+    "laetitiamattioli@gmail.com",
+    "Laetitia.Mattioli@gmail.com",
+    "laetitiamattioli+recette3009@gmail.com",
+    "laetitia.mattioli+x@googlemail.com",
   ]) assertEquals(isInternalEmail(e), true, e);
 });
 
@@ -21,6 +25,10 @@ Deno.test("jamais une cliente : autres domaines, homonymes, sous-domaines", () =
     "laetitia.dupont@nowadaysagency.com",
     "laetitia+x@nowadaysagency.com.evil.fr",
     "xlaetitia+x@nowadaysagency.com",
+    "laetitiamattioli2@gmail.com",
+    "laetitiamattioli@gmail.com.fr",
+    "laetitiamattioli@outlook.com",
+    "laura@gmail.com",
     "",
     null,
     undefined,
@@ -33,6 +41,7 @@ Deno.test("comptes de test = internes SAUF l'admin (scope daily de cron-health)"
   assertEquals(isTestAccountEmail("laetitiatest@nowadaysagency.com"), true);
   assertEquals(isTestAccountEmail("laetitia+qaneuf0907@nowadaysagency.com"), true);
   assertEquals(isTestAccountEmail("cliente@exemple.fr"), false);
+  assertEquals(isTestAccountEmail("laetitiamattioli@gmail.com"), true);
 });
 
 Deno.test("maskEmail ne laisse jamais passer l'adresse complète", () => {
