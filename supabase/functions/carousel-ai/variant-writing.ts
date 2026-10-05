@@ -1,6 +1,6 @@
 import { PHOTO_NARRATIVE_CONTRACT } from "./photo-narrative.ts";
 import { carouselLengthPrompt } from "../_shared/carousel-length.ts";
-import { photoReadingContract, CAROUSEL_CONTINUITY, CAROUSEL_FACTS, CAROUSEL_TITLES, carouselStructureGuide, carouselSubstance } from "./writing-contract.ts";
+import { photoReadingContract, carouselContinuity, CAROUSEL_FACTS, CAROUSEL_TITLES, carouselStructureGuide, carouselSubstance } from "./writing-contract.ts";
 import { livedCaseFromCarouselBody, LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from "../_shared/lived-case.ts";
 
 // Les SCHÉMAS (visual_schema) ne sont plus demandés à la rédaction depuis le
@@ -49,7 +49,7 @@ ${carouselLengthPrompt(body)}
 ${body.content_structure ? "La structure éditoriale choisie est à conserver. Ses rôles orientent le propos sans autoriser de faits ou d'émotions inventés." : "Choisis une progression adaptée à cette demande, sans arc dramatique imposé."}
 Canal : ${isLinkedIn ? "LinkedIn. Registre professionnel, vouvoiement par défaut sauf voix contraire. Légende optionnelle (gérée aussi par un appel dédié)." : "Instagram. Registre demandé ; à défaut, accessible et chaleureux. Fournis une légende fidèle au sujet."}
 ${carouselSubstance(livedCaseFromCarouselBody(body).mode)}
-${CAROUSEL_CONTINUITY}
+${carouselContinuity(isLinkedIn)}
 ${CAROUSEL_TITLES}
 La légende a les champs hook, body, cta, hashtags. Elle peut être concise : aucun minimum à meubler, aucun envers du décor inventé. CTA vide si inutile ou non demandé. Trois hashtags pertinents maximum ; ne suggère aucune fabrication, origine ou propriété absente.
 `;

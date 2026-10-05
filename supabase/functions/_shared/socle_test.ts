@@ -30,7 +30,8 @@ import * as audienceAddress from "./audience-address.ts";
 import * as carouselLength from "./carousel-length.ts";
 import * as carouselCover from "./carousel-cover.ts";
 import * as senseDesign from "./carousel-sense-design.ts";
-import { photoCaptionBrief, reelBrief, storiesBrief } from "./format-briefs.ts";
+import { captionBrief, linkedinBrief, newsletterBrief, photoCaptionBrief, pinterestBrief, reelBrief, storiesBrief } from "./format-briefs.ts";
+import { buildCarouselWritingSystem, CAROUSEL_CONTINUITY, carouselContinuity } from "../carousel-ai/writing-contract.ts";
 
 async function sha256(text: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -46,8 +47,12 @@ const FROZEN: Record<string, string> = {
   ONE_IDEA_RULE: "4d21394cc74aacced74db7c2762c9a1a1828c1aa6d6e3ac5a4556a3020abcaf4",
   COVER_WRITING: "62d69ab65b61817f44bbdac4b057f1c909d15296675c0eb657c224ad1855495d",
   TEXT_SENSE_RULES: "e527fc955637f7d9955356298cf47a52dd0862afbcbccd8ca4affae990ed9d11",
-  VOIX_ORALE_STORIES: "15fd7cd6bec39dda32c62323b3feb798b436fb983553e68180a5d8010c0b5c67",
-  VOIX_ORALE_LEGENDE_PHOTO: "269e744f7ab570fa4dd419185c3855329658019f3492e1b6846d29095d41ddd2",
+  // Règle 4 réécrite le 05/10/2026 (consigne positive commune, PR voix orale) :
+  // avant, VOIX_ORALE_STORIES = 15fd7cd6…5c67, VOIX_ORALE_LEGENDE_PHOTO = 269e744f…ddd2.
+  VOIX_ORALE: "b6540658834b0f58d7168d5a4de2f79ec7d7819344c2086f8e9d1eb2cd222876",
+  VOIX_ORALE_LINKEDIN: "1e6a5fd9ef39e88736928aa2be25b1c93573f0fb778f517ea344bd1bacad279d",
+  VOIX_ORALE_STORIES: "fb6f61ec2698eddb86725eb4c32432cf34a3f43f0860897699fe8a7e64792ade",
+  VOIX_ORALE_LEGENDE_PHOTO: "b6540658834b0f58d7168d5a4de2f79ec7d7819344c2086f8e9d1eb2cd222876",
   LISIBLE_TAILLES_TITRES: "0f09b2bd9939575c37310935801517bc0decaae3d9d8c0ee134571f801637bcf",
   LISIBLE_TAILLE_CORPS: "855896ee84c93a51488b496199fee800bbdebfec855bd45c368db01518483034",
 };
@@ -142,6 +147,8 @@ Deno.test("textes de consigne identiques à ceux d'avant le déplacement", async
     ONE_IDEA_RULE: socle.ONE_IDEA_RULE,
     COVER_WRITING: socle.COVER_WRITING,
     TEXT_SENSE_RULES: socle.TEXT_SENSE_RULES,
+    VOIX_ORALE: socle.VOIX_ORALE,
+    VOIX_ORALE_LINKEDIN: socle.VOIX_ORALE_LINKEDIN,
     VOIX_ORALE_STORIES: socle.VOIX_ORALE_STORIES,
     VOIX_ORALE_LEGENDE_PHOTO: socle.VOIX_ORALE_LEGENDE_PHOTO,
     LISIBLE_TAILLES_TITRES: socle.LISIBLE_TAILLES_TITRES,
@@ -175,6 +182,29 @@ Deno.test("interpolations : voix orale et lisibilité à leur place d'origine", 
   assert(photoCaptionBrief("une tasse").includes(`- ${socle.VOIX_ORALE_LEGENDE_PHOTO}\n`));
   const cv = Deno.readTextFileSync(new URL("../carousel-visual/index.ts", import.meta.url));
   assert(cv.includes("- ${LISIBLE_TAILLES_TITRES}\n") && cv.includes("- ${LISIBLE_TAILLE_CORPS}\n"));
+});
+
+Deno.test("voix orale : consigne positive branchée partout sauf Pinterest", () => {
+  const v = socle.VOIX_ORALE;
+  // L'interdit des tics plaqués reste, la voix orale est demandée à partir de SES textes.
+  assert(/écris comme elle parle/.test(v) && /SES textes/.test(v) && /SES réponses/.test(v));
+  assert(/n'ajoute aucun tic/.test(v) && /aucun vécu ni témoignage/.test(v));
+  assert(socle.VOIX_ORALE_LINKEDIN.startsWith(v) && /plus posé/.test(socle.VOIX_ORALE_LINKEDIN));
+  // Carrousels (texte, photo et mixte sur plan validé, LinkedIn) : fil commun.
+  assert(CAROUSEL_CONTINUITY.includes(v) && !CAROUSEL_CONTINUITY.includes("Ne plaque ni oralité"));
+  assertStrictEquals(carouselContinuity(false), CAROUSEL_CONTINUITY);
+  assert(carouselContinuity(true).includes(socle.VOIX_ORALE_LINKEDIN));
+  assert(buildCarouselWritingSystem("", false, "", "").includes(v));
+  assert(buildCarouselWritingSystem("", true, "", "").includes(socle.VOIX_ORALE_LINKEDIN));
+  // Posts, légendes, newsletter, reels, LinkedIn, stories.
+  for (const [nom, brief] of [["caption", captionBrief(null)], ["legende", photoCaptionBrief("une tasse")], ["newsletter", newsletterBrief()], ["reel", reelBrief(null)]] as const) {
+    assert(brief.includes(v), `${nom} sans VOIX_ORALE`);
+  }
+  assert(linkedinBrief(null).includes(socle.VOIX_ORALE_LINKEDIN));
+  assert(storiesBrief({ subject: "x" } as any).includes(socle.VOIX_ORALE_STORIES));
+  // Pinterest : décision du 05/10/2026, ton clair et référencé.
+  const pin = pinterestBrief(null, null);
+  assert(!pin.includes(v) && !pin.includes("SA VOIX ORALE") && pin.includes("Moins de personnalité"));
 });
 
 Deno.test("les 7 règles nommées, dans l'ordre, avec leurs consignes", () => {

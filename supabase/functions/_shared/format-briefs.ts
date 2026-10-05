@@ -15,7 +15,9 @@ import {
   UNE_IDEE_STORIES,
   numerotationConsigne,
   planAngleIndicatif,
+  VOIX_ORALE,
   VOIX_ORALE_LEGENDE_PHOTO,
+  VOIX_ORALE_LINKEDIN,
   VOIX_ORALE_STORIES,
 } from "./socle.ts";
 import { carouselLength } from "./carousel-length.ts";
@@ -174,6 +176,7 @@ vu ça comme ça".
 
 ══ PROFONDEUR ORALE ══
 Explique le mécanisme, développe ce qui change le regard et ajoute les nuances utiles. Les transitions viennent des idées et de la façon de parler de la personne. Aucun nombre de marqueurs oraux imposé : on doit suivre le raisonnement sans entendre une collection de formules.
+${VOIX_ORALE}
 
 ══ ORALITÉ : MONOLOGUE, PAS SCRIPT TÉLÉ ══
 
@@ -1015,6 +1018,7 @@ ${linkedinTemplateContent ? `STRUCTURE ÉDITORIALE CHOISIE :\n${linkedinTemplate
 - Expliquer pourquoi une idée reçue existe ne passe pas par une concession suivie d'un retournement (« C'est logique, sur le papier. Sauf que ce n'est pas comme ça que ça marche. ») : énonce directement le mécanisme réel.
 - La fin achève le récit ou la réflexion : elle pose la position, ou une question simple et précise à laquelle on peut répondre en commentaire. Jamais un devoir adressé au lecteur (« il faut », « à vous de », « on doit »). Remercie les personnes citées si le brief le prévoit.
 - Aère pour la lecture sans découper mécaniquement chaque phrase. La longueur suit la matière disponible. Aucun chiffre, lieu, dialogue, résultat ou ressenti de l'autrice inventé.
+- ${VOIX_ORALE_LINKEDIN}
 - 0 à 2 emojis et 0 à 2 hashtags si pertinents. Respecte la voix et les préférences de la marque.`;
 }
 
@@ -1111,6 +1115,7 @@ CORPS :
 - Développe les exemples fournis et les explications utiles ; aucun quota d’anecdotes et aucun vécu à inventer.
 - Des nuances, des "oui mais", des zones grises. La newsletter n'est pas 
   un cours : c'est une réflexion partagée.
+- ${VOIX_ORALE}
 
 CONCLUSION :
 - JAMAIS de résumé ("Pour résumer, retiens que...").
@@ -1245,7 +1250,7 @@ CORPS :
 - Un exemple ou un détail fourni quand il est utile ; sinon, une explication précise, sans anecdote ni chiffre à inventer.
 - Apartés entre parenthèses *(comme ça)* ou en italique pour la respiration humaine.
 - Bucket brigades naturelles, variées d'une caption à l'autre : ne réutilise pas systématiquement la même cheville
-- Oralité fidèle à la personne, sans imperfection obligatoire
+- ${VOIX_ORALE}
 
 FIN :
 - Question PRÉCISE liée au sujet (pas "Et toi, qu'en penses-tu ?")
