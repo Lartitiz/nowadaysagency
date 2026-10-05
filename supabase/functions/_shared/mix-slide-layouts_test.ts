@@ -207,3 +207,14 @@ Deno.test("mix mise en forme : motif aligné sur le texte, texte atténué lisib
   assert(/viewBox="(\d+) /.exec(html)![1] !== "0", "le cadre doit commencer au premier élément");
   assert(!/<text[^>]*(fill-)?opacity/.test(html), "jamais d'opacité sur du texte");
 });
+
+Deno.test("mix : couverture (socle, règle 7) → mot clé de l'accroche en italique, sur photo et sur aplat ; extrait absent ignoré", () => {
+  const photo = composeMixSlide({ slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: "Un post viral ne remplace pas la confiance", cover_accent: "la confiance" }, CH, { ...mid, isFirst: true })!;
+  assertEquals(photo.layout, "couverture_photo");
+  assert(photo.html.includes('<span style="font-style:italic">la confiance</span>'));
+  const flat = composeMixSlide({ slide_number: 1, slide_type: "text_only", title: "Arrête de publier tous les jours.", body: "", cover_accent: "tous les jours" }, CH, { ...mid, isFirst: true })!;
+  assertEquals(flat.layout, "couverture_aplat");
+  assert(flat.html.includes('<span style="font-style:italic">tous les jours</span>'));
+  const none = composeMixSlide({ slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: "Un post viral ne remplace pas la confiance", cover_accent: "la fidélité" }, CH, { ...mid, isFirst: true })!;
+  assert(!none.html.includes("font-style:italic"));
+});

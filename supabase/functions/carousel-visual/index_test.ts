@@ -677,3 +677,26 @@ Deno.test("régénération : même si la mise en forme est redécidée, une disp
   assertEquals(r3.out.composed[4].layout_proposal?.status, "rejected");
   assert(visibleText(r3.out.composed[4].html).includes(edited.slides[4].overlay_text), "texte perdu");
 });
+
+// ═══ Socle, étape 2 : mot clé de couverture photo et mixte, de bout en bout ═══
+// récit continu (composeNarrative) → front (visualSlidePayload) → rendu par le code.
+Deno.test("couverture photo et mixte : le mot clé du récit continu arrive en italique sur la couverture", async () => {
+  const { visualSlidePayload } = await import("../../../src/lib/visual-slide-payload.ts");
+  const { composeMixCarousel } = await import("../_shared/mix-slide-layouts.ts");
+  const { composePhotoSlide } = await import("../_shared/photo-overlay-templates.ts");
+  const { composeNarrative } = await import("../carousel-ai/continuous-narrative.ts");
+  const ch = { color_primary: "#3A4A3C", color_secondary: "#A9BCC8", color_accent: "#3A4A3C", color_background: "#FFFFFF", color_text: "#1A1A1A", font_title: "Georgia", font_body: "Arial" };
+  const narrative = { idea: "Deux bols", hook: "Pourquoi deux bols ne sont jamais pareils", cover_accent: "jamais pareils", paragraphs: ["Le tour décide d'un millimètre.", "L'émail coule selon sa place.", "Ce bol n'existe qu'une fois."], caption: { hook: "", body: "", cta: "", hashtags: [] } };
+  const italic = '<span style="font-style:italic">jamais pareils</span>';
+  const mixDoc = composeNarrative(narrative, { carousel_type: "mix", photo_contexts: [{}, {}] });
+  const mixSent = mixDoc.slides.map((s: any) => visualSlidePayload(s, s.slide_type, s.photo_index ?? undefined));
+  assertEquals((mixSent[0] as any).cover_accent, "jamais pareils");
+  const mix = composeMixCarousel(mixSent as any, ch, 2)!;
+  assert(mix[0].html.includes(italic), "mixte : mot clé attendu sur la couverture");
+  assert(mix.slice(1).every((s) => !s.html.includes("font-style:italic\">")), "seule la couverture");
+  const photoDoc = composeNarrative(narrative, { carousel_type: "photo", photo_contexts: [{}, {}] });
+  const cover = visualSlidePayload(photoDoc.slides[0], "photo_full", 1) as any;
+  assert(composePhotoSlide(cover, ch as any, { isFirst: true, isLast: false }).html.includes(italic), "photo : mot clé attendu sur la couverture");
+  // Accroche modifiée après coup (couverture réécrite, édition) : le mot clé absent est ignoré.
+  assert(!composePhotoSlide({ ...cover, overlay_text: "Deux bols, deux histoires" }, ch as any, { isFirst: true, isLast: false }).html.includes("font-style:italic"));
+});

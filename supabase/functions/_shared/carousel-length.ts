@@ -1,7 +1,7 @@
 /** Length comes from the current brief, never from brand history. */
 // ONE_IDEA_RULE et ses repères (règle « une_idee_par_unite » du socle commun)
 // vivent dans socle.ts : réexportés ici à texte égal.
-import { LONG_SLIDE_WORDS, ONE_IDEA_RULE, TEXT_AUTO_MAX_SLIDES, TEXT_SLIDE_TARGET_WORDS } from "./socle.ts";
+import { LONG_SLIDE_WORDS, ONE_IDEA_RULE, PHOTO_AUTO_MAX_SLIDES, TEXT_AUTO_MAX_SLIDES, TEXT_SLIDE_TARGET_WORDS } from "./socle.ts";
 export { LONG_SLIDE_WORDS, ONE_IDEA_RULE, TEXT_AUTO_MAX_SLIDES, TEXT_SLIDE_TARGET_WORDS };
 const numbers: Record<string, number> = { un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7, huit: 8, neuf: 9, dix: 10, onze: 11, douze: 12, treize: 13, quatorze: 14, quinze: 15, seize: 16, vingt: 20 };
 const numeral = "(\\d{1,2}|" + Object.keys(numbers).join("|") + ")";
@@ -10,8 +10,8 @@ export interface CarouselLength { exact?: number; items?: number; }
 /** Longueur « Auto » des carrousels PHOTO et MIXTE : 10 slides au plus, la
  * limite de la publication directe sur Instagram (03/10/2026, vu en live :
  * 11 slides en Auto, non publiables directement). Un nombre demandé
- * explicitement (jusqu'à 20) prime. */
-export const AUTO_MAX_SLIDES = 10;
+ * explicitement (jusqu'à 20) prime. Valeur du socle (socle.ts). */
+export const AUTO_MAX_SLIDES = PHOTO_AUTO_MAX_SLIDES;
 export function carouselLength(body: any): CarouselLength {
   const subject = String(body.subject || "");
   const slideRequest = subject.match(new RegExp(`\\b${numeral}\\s+(?:slides?|diapositives?)\\b`, "i"));

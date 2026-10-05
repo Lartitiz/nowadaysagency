@@ -399,3 +399,12 @@ Deno.test("habillages : texte verbatim et ancre unique ; carte = shape natif, ve
   assert(colonne.includes('data-pptx-photo="2" style="position:absolute;top:0;left:560px;width:520px'));
   assert(!colonne.includes("data-photo-text-layout"), "pas de réglage haut/bas sur la colonne");
 });
+
+Deno.test("couverture photo (socle, règle 7) : mot clé de l'accroche en italique, texte rendu inchangé ; extrait invalide ignoré", () => {
+  const cover = (cover_accent: string) => composePhotoSlide(base({ slide_number: 1, overlay_text: "Ce salon ne racontait rien", cover_accent }), CH, { isFirst: true, isLast: false }).html;
+  const html = cover("racontait rien");
+  assert(html.includes('<span style="font-style:italic">racontait rien</span>'), "mot clé en italique attendu");
+  assert(/data-slide-text="overlay"[^>]*color:#FFFFFF/.test(html), "couleur de l'accroche inchangée");
+  assertEquals(html.replace(/<[^>]*>/g, "").includes("Ce salon ne racontait rien"), true);
+  for (const bad of ["ne racontait plus rien", "Ce salon ne racontait rien", ""]) assert(!cover(bad).includes("font-style:italic"), `extrait « ${bad} » accepté`);
+});

@@ -126,21 +126,24 @@ export function stripInventedTextFromHtml(html: string, source: string): { html:
   return { html: out, removed };
 }
 
-/** Garde sur tout le carrousel TEXTE (jamais photo ni mixte). */
-export function stripInventedSlideText(result: any, params: { isText: boolean; slides: any[] }): void {
-  if (!params.isText || !Array.isArray(result?.slides_html)) return;
+/** Garde sur tout le carrousel TEXTE, et sur le MIXTE quand le modèle a dessiné
+ * le HTML (`mixModelRender`, socle règle 5 : une slide hors gabarit fait rendre
+ * tout le mixte par le modèle ; ses slides photo sont alors gardées aussi). Le
+ * carrousel photo et le mixte composé par le code ne sont jamais touchés. */
+export function stripInventedSlideText(result: any, params: { isText: boolean; slides: any[]; mixModelRender?: boolean }): void {
+  if ((!params.isText && !params.mixModelRender) || !Array.isArray(result?.slides_html)) return;
   const bySlide = new Map<number, any>();
   (params.slides || []).forEach((s: any, i: number) => bySlide.set(Number(s?.slide_number) || i + 1, s));
   const touched: number[] = [];
   let total = 0;
   result.slides_html = result.slides_html.map((slide: any) => {
     const src = bySlide.get(Number(slide?.slide_number));
-    if (!src || src.visual_schema || /^photo/.test(String(src.slide_type || "")) || typeof slide?.html !== "string") return slide;
+    if (!src || src.visual_schema || (!params.mixModelRender && /^photo/.test(String(src.slide_type || ""))) || typeof slide?.html !== "string") return slide;
     const { html, removed } = stripInventedTextFromHtml(slide.html, slideSourceText(src));
     if (!removed) return slide;
     total += removed;
     touched.push(Number(slide.slide_number));
     return { ...slide, html };
   });
-  if (total) console.log(JSON.stringify({ event: "carousel_invented_text_removed", removed: total, slides: touched }));
+  if (total) console.log(JSON.stringify({ event: "carousel_invented_text_removed", removed: total, slides: touched, ...(params.mixModelRender ? { carousel: "mix_model_render" } : {}) }));
 }

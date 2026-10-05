@@ -149,6 +149,14 @@ function emphasize(text: string, extract: string | undefined, style: string): st
   if (!at) return escape(text);
   return `${escape(text.slice(0, at[0]))}<span style="${style}">${escape(text.slice(at[0], at[1]))}</span>${escape(text.slice(at[1]))}`;
 }
+/** Accroche d'une couverture PHOTO ou MIXTE (socle, règle 7 : couverture =
+ * accroche + un mot clé, quand le gabarit le permet) : le mot clé
+ * (`cover_accent`, extrait exact et court, validé ici) passe en italique, sans
+ * changer de couleur (sur photo, une couleur d'accent n'est pas garantie
+ * lisible). Absent ou invalide : le texte échappé tel quel. */
+export function coverHookWithAccent(hook: string, accent: unknown): string {
+  return emphasize(hook, validExtract(hook, accent, coverAccentMaxWords(wordsOf(hook))), "font-style:italic");
+}
 /** Groupe de mots en italique sur la couverture : au plus 60 % de l'accroche,
  * 5 mots au plus (« l'IA générative » dans « Oui, j'utilise l'IA générative. »). */
 export const coverAccentMaxWords = (hookWords: number) => Math.min(5, Math.max(1, Math.ceil(hookWords * .6)));

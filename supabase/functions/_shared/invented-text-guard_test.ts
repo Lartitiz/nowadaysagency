@@ -59,3 +59,25 @@ Deno.test("texte inventé : photo, mixte et schémas jamais touchés ; aucune sl
     if (slides[i].body) assert(plain(s.html).includes(slides[i].body), `slide ${i + 1} sans son texte`);
   }
 });
+
+Deno.test("texte inventé : mixte rendu par le modèle gardé, slides photo comprises ; mixte composé par le code jamais touché", () => {
+  const slides = [
+    { slide_number: 1, slide_type: "photo_full", overlay_text: "Une accroche sur photo" },
+    { slide_number: 2, slide_type: "photo_integrated", title: "Le geste", body: "Je tourne chaque bol à la main." },
+    { slide_number: 3, slide_type: "text_only", title: "Ce que ça change", body: "Chaque pièce est unique." },
+  ];
+  const make = () => ({ slides_html: [
+    { slide_number: 1, html: `<div><img src="data:image/png;base64,AAA"><h1 data-slide-text="overlay">Une accroche sur photo</h1><span>Swipe pour la suite</span></div>` },
+    { slide_number: 2, html: `<div><img src="data:image/png;base64,AAA"><span>ATELIER</span><h2 data-slide-text="title">Le geste</h2><p data-slide-text="body">Je tourne chaque bol à la main.</p></div>` },
+    { slide_number: 3, html: `<div><div style="border-radius:24px"><span>100 % fait main</span></div><h2 data-slide-text="title">Ce que ça change</h2><p data-slide-text="body">Chaque pièce est unique.</p></div>` },
+  ] });
+  const composed = make(), before = JSON.stringify(composed);
+  stripInventedSlideText(composed, { isText: false, slides, mixModelRender: false });
+  assertEquals(JSON.stringify(composed), before);
+  const r = make();
+  stripInventedSlideText(r, { isText: false, slides, mixModelRender: true });
+  const text = r.slides_html.map((s) => plain(s.html)).join(" | ");
+  for (const ko of ["Swipe pour la suite", "ATELIER", "100 % fait main"]) assert(!text.includes(ko), ko);
+  for (const ok of ["Une accroche sur photo", "Le geste", "Je tourne chaque bol à la main.", "Ce que ça change", "Chaque pièce est unique."]) assert(text.includes(ok), ok);
+  assert(r.slides_html.every((s) => s.html.includes("<img") || s.slide_number === 3), "les photos restent");
+});

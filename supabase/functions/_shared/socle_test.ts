@@ -164,3 +164,67 @@ Deno.test("socle.ts reste pur (seul import : le type des familles)", () => {
   const imports = [...src.matchAll(/^import .*$/gm)].map((m) => m[0]);
   assertEquals(imports, ['import type { AngleFamily } from "./angle-families.ts";']);
 });
+
+// ═══ Étape 2 : récit continu des carrousels photo et mixte ═══════════════════
+
+/** Empreintes des consignes ajoutées par l'étape 2 (05/10/2026) : les changer se voit dans la PR. */
+const FROZEN_RECIT_CONTINU: Record<string, string> = {
+  RECIT_CONTINU_PARAGRAPHE: "c41f2a2eae1b94beb2e9c8663c57ab7c33497e08153f8916b62ad49b9c57b988",
+  RECIT_CONTINU_MOT_CLE: "b24f5aec0cc076f6e4750922fcf37ec84da0076e79d2830985f59c86f6668a01",
+  RECIT_CONTINU_SERIE_PHOTO: "8dbe90ef92c72f23eccc8f7d0a1514f4aaac61a70beea8d75b3bdc8d4085ef8b",
+  "recitContinuLongueur()": "8c60a39d00b9271549f6173f9c7fa75b98a70bb9b5a6c54b624feac1d0bb4e14",
+  // Texte d'avant l'étape 2, déplacé de continuous-narrative.ts à texte égal.
+  "recitContinuLongueur(6)": "aeb0fc101ca8d85fd151cb3a83bbf294b4d70442f44891efae4e167231051c07",
+};
+
+Deno.test("récit continu : consignes verrouillées, sans les contradictions d'avant", async () => {
+  const current: Record<string, string> = {
+    RECIT_CONTINU_PARAGRAPHE: socle.RECIT_CONTINU_PARAGRAPHE,
+    RECIT_CONTINU_MOT_CLE: socle.RECIT_CONTINU_MOT_CLE,
+    RECIT_CONTINU_SERIE_PHOTO: socle.RECIT_CONTINU_SERIE_PHOTO,
+    "recitContinuLongueur()": socle.recitContinuLongueur(),
+    "recitContinuLongueur(6)": socle.recitContinuLongueur(6),
+  };
+  for (const [name, text] of Object.entries(current)) assertEquals(await sha256(text), FROZEN_RECIT_CONTINU[name], `${name} a changé`);
+  assertEquals(socle.recitContinuLongueur(6), "Prévois exactement 5 paragraphes de corps après le titre, pour les 6 pages choisies. Les paragraphes restent ceux d'un texte suivi.");
+  // 10 slides au plus en Auto : 9 paragraphes après la couverture (plus « 3 à 19 »).
+  assertEquals(socle.PHOTO_AUTO_MAX_SLIDES, 10);
+  assertStrictEquals(carouselLength.AUTO_MAX_SLIDES, socle.PHOTO_AUTO_MAX_SLIDES);
+  assert(socle.recitContinuLongueur().includes("de 3 à 9 paragraphes") && !socle.recitContinuLongueur().includes("19"));
+  assert(!/sans minimum de mots/.test(socle.RECIT_CONTINU_PARAGRAPHE));
+  assert(socle.RECIT_CONTINU_COUVERTURE.startsWith(socle.COVER_WRITING + "\n"));
+  assert(socle.RECIT_CONTINU_COUVERTURE.endsWith(socle.RECIT_CONTINU_MOT_CLE));
+  assertStrictEquals(SOCLE_RULES.couverture_accroche.consignes.recit_continu, socle.RECIT_CONTINU_COUVERTURE);
+  assertStrictEquals(SOCLE_RULES.une_idee_par_unite.consignes.recit_continu, socle.RECIT_CONTINU_PARAGRAPHE);
+});
+
+Deno.test("récit continu : fond selon la matière, adaptation selon la famille", () => {
+  assertStrictEquals(socle.recitContinuFond("own_case"), socle.LIVED_CASE_FIRST);
+  assertStrictEquals(socle.recitContinuFond("news_feeling"), socle.NEWS_FEELING_FIRST);
+  for (const m of ["news", "none", null, undefined]) assertEquals(socle.recitContinuFond(m), "");
+  assertEquals(socle.recitContinuFamille(null), "");
+  assertEquals(socle.recitContinuFamille("A"), "", "famille A : tout s'applique tel quel");
+  // J : une photo = une unité, mais jamais de paragraphe vide demandé (le schéma le refuse).
+  const j = socle.recitContinuFamille("J");
+  assert(j.includes(socle.RECIT_CONTINU_SERIE_PHOTO) && !j.includes("le texte peut être nul"));
+  assert(j.includes(SOCLE_FAMILLES.J.cas_dabord.texte!) && j.includes(SOCLE_FAMILLES.J.couverture_accroche.texte!));
+  // C et D : leur « Ton cas d'abord » parle de la recherche, que ce chemin ne reçoit pas.
+  for (const fam of ["C", "D"] as const) assert(!socle.recitContinuFamille(fam).includes("Ton cas d'abord"), fam);
+  assert(socle.recitContinuFamille("C").includes(SOCLE_FAMILLES.C.couverture_accroche.texte!));
+  assert(socle.recitContinuFamille("B").includes(SOCLE_FAMILLES.B.cas_dabord.texte!));
+  assert(socle.recitContinuFamille("E").includes(SOCLE_FAMILLES.E.une_idee_par_unite.texte!));
+  // La voix orale n'est pas branchée ici (chantier voix orale).
+  for (const fam of ANGLE_FAMILY_IDS) assert(!socle.recitContinuFamille(fam).includes("Sa voix orale"), fam);
+});
+
+Deno.test("registre : récit continu, photo et mixte à jour de l'étape 2", () => {
+  const recit = SOCLE_CHEMINS.find((c) => c.id === "carrousel_recit_continu")!;
+  assertEquals([recit.regles.cas_dabord, recit.regles.adresse_tu_vous, recit.regles.couverture_accroche], ["oui", "oui", "oui"]);
+  assertEquals(recit.regles.une_idee_par_unite, "en_partie");
+  for (const fmt of ["carrousel_photo", "carrousel_mixte"] as const) {
+    assertEquals(SOCLE_FORMATS[fmt].regles.cas_dabord.etat, "oui", fmt);
+    assertEquals(SOCLE_FORMATS[fmt].regles.adresse_tu_vous.etat, "oui", fmt);
+    assert(SOCLE_FORMATS[fmt].regles.une_idee_par_unite.etat !== "contredite", fmt);
+  }
+  assertEquals(SOCLE_FORMATS.carrousel_mixte.regles.design_montre_lidee.etat, "oui");
+});
