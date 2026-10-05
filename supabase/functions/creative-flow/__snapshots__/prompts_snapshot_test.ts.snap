@@ -992,8 +992,10 @@ RÈGLES ABSOLUES :
    - scene_coupee (« Scène coupée ») : on entre au milieu d'une scène, in medias res.
 2. text = ce qu'elle DIT (8-20 mots, 1-2 phrases, oral naturel, tension immédiate).
    ❌ "Aujourd'hui je vais te parler de..." ❌ hook descriptif ❌ slogan LinkedIn.
-3. text_overlay = ce qu'on LIT à l'écran en MUET (3-8 mots, MAJUSCULES). Il doit
-   fonctionner SEUL, sans le son, et COMPLÉTER le parlé, pas le répéter mot pour mot.
+3. text_overlay = ce qu'on LIT à l'écran en MUET (3-8 mots) : UNIQUEMENT ses mots,
+   un extrait du hook parlé (text) recopié tel quel, celui qui fonctionne SEUL sans
+   le son et porte son mot ou chiffre fort. Jamais une information que le parlé ne
+   dit pas. Casse normale d'une phrase, pas de majuscules imposées.
 4. AUCUN chiffre qui ne vient pas du brief, des réponses ou du branding.
 5. SINGULARITÉ : pas le hook consensuel de la niche. Ancre dans SON métier, SES mots,
    SA matière (contexte de marque ci-dessus).
@@ -1031,8 +1033,10 @@ RÈGLES ABSOLUES :
    - scene_coupee (« Scène coupée ») : on entre au milieu d'une scène, in medias res.
 2. text = ce qu'elle DIT (8-20 mots, 1-2 phrases, oral naturel, tension immédiate).
    ❌ "Aujourd'hui je vais te parler de..." ❌ hook descriptif ❌ slogan LinkedIn.
-3. text_overlay = ce qu'on LIT à l'écran en MUET (3-8 mots, MAJUSCULES). Il doit
-   fonctionner SEUL, sans le son, et COMPLÉTER le parlé, pas le répéter mot pour mot.
+3. text_overlay = ce qu'on LIT à l'écran en MUET (3-8 mots) : UNIQUEMENT ses mots,
+   un extrait du hook parlé (text) recopié tel quel, celui qui fonctionne SEUL sans
+   le son et porte son mot ou chiffre fort. Jamais une information que le parlé ne
+   dit pas. Casse normale d'une phrase, pas de majuscules imposées.
 4. AUCUN chiffre qui ne vient pas du brief, des réponses ou du branding.
 5. SINGULARITÉ : pas le hook consensuel de la niche. Ancre dans SON métier, SES mots,
    SA matière (contexte de marque ci-dessus).
@@ -1137,21 +1141,21 @@ Le hook 0-3s peut être enrichi d'un PATTERN INTERRUPT à 2-3s (rupture d'attent
 
 REEL FACE CAM / TALKING HEAD (30-60 sec) :
 Type : confession, réaction, prise de position face caméra.
-- 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = ancrage (mot-clé).
+- 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = le passage du hook qui se lit seul (ses mots).
 - 3-15s : Contexte. Scène vécue RÉELLE si fournie par l'utilisatrice ; sinon constat général, sans date ni citation fabriquée. Jamais inventer "la semaine dernière" / "une cliente m'a dit".
-  Texte parlé = 2-3 phrases complètes. Overlay = contrepoint (info non dite à l'oral).
+  Texte parlé = 2-3 phrases complètes. Overlay = extrait de ses mots (le mot ou chiffre fort de la section).
 - 15-40s : Développement. Le cœur du message comme un récit, pas une liste.
   Au moins UN déplacement de perspective (nouvelle info, contre-pied, détail inattendu).
-  Texte parlé = 3-4 phrases. Overlay = punchline ou ancrage.
+  Texte parlé = 3-4 phrases. Overlay = extrait de ses mots.
 - 40-55s : Chute avec déplacement de perspective, le spectateur voit le sujet autrement.
 - 55-60s : CTA naturel (question ou invitation).
 
 REEL VOIX OFF + B-ROLL (30-60 sec) :
 Type : process, coulisses, transformation. Narration off sur images/vidéos.
-- 0-3s : Hook = résultat ou transformation annoncée. Overlay ancrage.
+- 0-3s : Hook = résultat ou transformation annoncée. Overlay = extrait du hook.
 - 3-12s : AVANT, la situation de départ (concrète, pas théorique).
 - 12-35s : PENDANT, le process ou le changement, raconté étape par étape.
-  Texte parlé fluide (pas de bullet points). Overlay contrepoint sur les images.
+  Texte parlé fluide (pas de bullet points). Overlay = extrait de ses mots sur les images.
 - 35-50s : APRÈS, le résultat observable (chiffres, retours, changement concret).
 - 50-60s : Leçon transférable + CTA léger.
 
@@ -1172,8 +1176,8 @@ CAPTION LONGUE (800-1500 caractères) :
 - Ouverture : question ou invitation au dialogue
 - Règle : la caption complète le visuel, elle ne le répète pas
 
-STORIES SÉQUENCÉES (5-7 stories) :
-- Story 1 : Amorce (texte + émotion : "Bon, faut que je te raconte un truc.")
+STORIES SÉQUENCÉES (une idée par story ; repère : 5 à 7 stories) :
+- Story 1 : Accroche seule (une phrase qui ouvre l'attente, avec son mot fort)
 - Story 2-3 : Développement (vidéo ou texte + images)
 - Story 4 : Interaction (sondage, question, quiz)
 - Story 5-6 : Conclusion + valeur
@@ -1338,21 +1342,21 @@ Le hook 0-3s peut être enrichi d'un PATTERN INTERRUPT à 2-3s (rupture d'attent
 
 REEL FACE CAM / TALKING HEAD (30-60 sec) :
 Type : confession, réaction, prise de position face caméra.
-- 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = ancrage (mot-clé).
+- 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = le passage du hook qui se lit seul (ses mots).
 - 3-15s : Contexte. Scène vécue RÉELLE si fournie par l'utilisatrice ; sinon constat général, sans date ni citation fabriquée. Jamais inventer "la semaine dernière" / "une cliente m'a dit".
-  Texte parlé = 2-3 phrases complètes. Overlay = contrepoint (info non dite à l'oral).
+  Texte parlé = 2-3 phrases complètes. Overlay = extrait de ses mots (le mot ou chiffre fort de la section).
 - 15-40s : Développement. Le cœur du message comme un récit, pas une liste.
   Au moins UN déplacement de perspective (nouvelle info, contre-pied, détail inattendu).
-  Texte parlé = 3-4 phrases. Overlay = punchline ou ancrage.
+  Texte parlé = 3-4 phrases. Overlay = extrait de ses mots.
 - 40-55s : Chute avec déplacement de perspective, le spectateur voit le sujet autrement.
 - 55-60s : CTA naturel (question ou invitation).
 
 REEL VOIX OFF + B-ROLL (30-60 sec) :
 Type : process, coulisses, transformation. Narration off sur images/vidéos.
-- 0-3s : Hook = résultat ou transformation annoncée. Overlay ancrage.
+- 0-3s : Hook = résultat ou transformation annoncée. Overlay = extrait du hook.
 - 3-12s : AVANT, la situation de départ (concrète, pas théorique).
 - 12-35s : PENDANT, le process ou le changement, raconté étape par étape.
-  Texte parlé fluide (pas de bullet points). Overlay contrepoint sur les images.
+  Texte parlé fluide (pas de bullet points). Overlay = extrait de ses mots sur les images.
 - 35-50s : APRÈS, le résultat observable (chiffres, retours, changement concret).
 - 50-60s : Leçon transférable + CTA léger.
 
@@ -1373,8 +1377,8 @@ CAPTION LONGUE (800-1500 caractères) :
 - Ouverture : question ou invitation au dialogue
 - Règle : la caption complète le visuel, elle ne le répète pas
 
-STORIES SÉQUENCÉES (5-7 stories) :
-- Story 1 : Amorce (texte + émotion : "Bon, faut que je te raconte un truc.")
+STORIES SÉQUENCÉES (une idée par story ; repère : 5 à 7 stories) :
+- Story 1 : Accroche seule (une phrase qui ouvre l'attente, avec son mot fort)
 - Story 2-3 : Développement (vidéo ou texte + images)
 - Story 4 : Interaction (sondage, question, quiz)
 - Story 5-6 : Conclusion + valeur
@@ -1647,21 +1651,21 @@ Le hook 0-3s peut être enrichi d'un PATTERN INTERRUPT à 2-3s (rupture d'attent
 
 REEL FACE CAM / TALKING HEAD (30-60 sec) :
 Type : confession, réaction, prise de position face caméra.
-- 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = ancrage (mot-clé).
+- 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = le passage du hook qui se lit seul (ses mots).
 - 3-15s : Contexte. Scène vécue RÉELLE si fournie par l'utilisatrice ; sinon constat général, sans date ni citation fabriquée. Jamais inventer "la semaine dernière" / "une cliente m'a dit".
-  Texte parlé = 2-3 phrases complètes. Overlay = contrepoint (info non dite à l'oral).
+  Texte parlé = 2-3 phrases complètes. Overlay = extrait de ses mots (le mot ou chiffre fort de la section).
 - 15-40s : Développement. Le cœur du message comme un récit, pas une liste.
   Au moins UN déplacement de perspective (nouvelle info, contre-pied, détail inattendu).
-  Texte parlé = 3-4 phrases. Overlay = punchline ou ancrage.
+  Texte parlé = 3-4 phrases. Overlay = extrait de ses mots.
 - 40-55s : Chute avec déplacement de perspective, le spectateur voit le sujet autrement.
 - 55-60s : CTA naturel (question ou invitation).
 
 REEL VOIX OFF + B-ROLL (30-60 sec) :
 Type : process, coulisses, transformation. Narration off sur images/vidéos.
-- 0-3s : Hook = résultat ou transformation annoncée. Overlay ancrage.
+- 0-3s : Hook = résultat ou transformation annoncée. Overlay = extrait du hook.
 - 3-12s : AVANT, la situation de départ (concrète, pas théorique).
 - 12-35s : PENDANT, le process ou le changement, raconté étape par étape.
-  Texte parlé fluide (pas de bullet points). Overlay contrepoint sur les images.
+  Texte parlé fluide (pas de bullet points). Overlay = extrait de ses mots sur les images.
 - 35-50s : APRÈS, le résultat observable (chiffres, retours, changement concret).
 - 50-60s : Leçon transférable + CTA léger.
 
@@ -1682,8 +1686,8 @@ CAPTION LONGUE (800-1500 caractères) :
 - Ouverture : question ou invitation au dialogue
 - Règle : la caption complète le visuel, elle ne le répète pas
 
-STORIES SÉQUENCÉES (5-7 stories) :
-- Story 1 : Amorce (texte + émotion : "Bon, faut que je te raconte un truc.")
+STORIES SÉQUENCÉES (une idée par story ; repère : 5 à 7 stories) :
+- Story 1 : Accroche seule (une phrase qui ouvre l'attente, avec son mot fort)
 - Story 2-3 : Développement (vidéo ou texte + images)
 - Story 4 : Interaction (sondage, question, quiz)
 - Story 5-6 : Conclusion + valeur
@@ -2102,6 +2106,7 @@ CORPS :
 - Développe les exemples fournis et les explications utiles ; aucun quota d’anecdotes et aucun vécu à inventer.
 - Des nuances, des "oui mais", des zones grises. La newsletter n'est pas 
   un cours : c'est une réflexion partagée.
+- SA VOIX ORALE : écris comme elle parle. Ta référence, ce sont SES textes (contenus de référence, profil de voix) et SES réponses : reprends ses mots du quotidien, ses tournures, sa façon d'entrer dans une idée, de relancer et de nuancer, plutôt que des formules d'article (« Il est essentiel de… », « Dans un monde où… », « On vit dans un système imparfait »). Les phrases s'enchaînent d'une unité à l'autre comme quand on parle : la suivante reprend ce que la précédente vient de poser, sans transition fabriquée. Une expression orale ne vient que d'elle : n'ajoute aucun tic absent de ses textes et de ses réponses (« Spoiler », « Bon, soyons honnêtes », « Petite confidence »), aucune hésitation, faute de langage ou confession plaquée pour faire parlé, aucun vécu ni témoignage qu'elle n'a pas donné. Sans texte de référence ni réponse : un oral simple et direct, sans familiarité ajoutée.
 
 CONCLUSION :
 - JAMAIS de résumé ("Pour résumer, retiens que...").
@@ -2334,6 +2339,7 @@ Garde ses étapes de raisonnement et de position ; une étape qui appelle un fai
 - Expliquer pourquoi une idée reçue existe ne passe pas par une concession suivie d'un retournement (« C'est logique, sur le papier. Sauf que ce n'est pas comme ça que ça marche. ») : énonce directement le mécanisme réel.
 - La fin achève le récit ou la réflexion : elle pose la position, ou une question simple et précise à laquelle on peut répondre en commentaire. Jamais un devoir adressé au lecteur (« il faut », « à vous de », « on doit »). Remercie les personnes citées si le brief le prévoit.
 - Aère pour la lecture sans découper mécaniquement chaque phrase. La longueur suit la matière disponible. Aucun chiffre, lieu, dialogue, résultat ou ressenti de l'autrice inventé.
+- SA VOIX ORALE : écris comme elle parle. Ta référence, ce sont SES textes (contenus de référence, profil de voix) et SES réponses : reprends ses mots du quotidien, ses tournures, sa façon d'entrer dans une idée, de relancer et de nuancer, plutôt que des formules d'article (« Il est essentiel de… », « Dans un monde où… », « On vit dans un système imparfait »). Les phrases s'enchaînent d'une unité à l'autre comme quand on parle : la suivante reprend ce que la précédente vient de poser, sans transition fabriquée. Une expression orale ne vient que d'elle : n'ajoute aucun tic absent de ses textes et de ses réponses (« Spoiler », « Bon, soyons honnêtes », « Petite confidence »), aucune hésitation, faute de langage ou confession plaquée pour faire parlé, aucun vécu ni témoignage qu'elle n'a pas donné. Sans texte de référence ni réponse : un oral simple et direct, sans familiarité ajoutée. Sur LinkedIn, le registre peut être un peu plus posé (phrases un peu plus construites, moins de familiarités), mais ce sont toujours ses mots et ses tournures, pas un ton de communiqué ni d'article.
 - 0 à 2 emojis et 0 à 2 hashtags si pertinents. Respecte la voix et les préférences de la marque.
 
 RÉPONSES DE L'UTILISATRICE :
@@ -2523,21 +2529,21 @@ Le hook 0-3s peut être enrichi d'un PATTERN INTERRUPT à 2-3s (rupture d'attent
 
 REEL FACE CAM / TALKING HEAD (30-60 sec) :
 Type : confession, réaction, prise de position face caméra.
-- 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = ancrage (mot-clé).
+- 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = le passage du hook qui se lit seul (ses mots).
 - 3-15s : Contexte. Scène vécue RÉELLE si fournie par l'utilisatrice ; sinon constat général, sans date ni citation fabriquée. Jamais inventer "la semaine dernière" / "une cliente m'a dit".
-  Texte parlé = 2-3 phrases complètes. Overlay = contrepoint (info non dite à l'oral).
+  Texte parlé = 2-3 phrases complètes. Overlay = extrait de ses mots (le mot ou chiffre fort de la section).
 - 15-40s : Développement. Le cœur du message comme un récit, pas une liste.
   Au moins UN déplacement de perspective (nouvelle info, contre-pied, détail inattendu).
-  Texte parlé = 3-4 phrases. Overlay = punchline ou ancrage.
+  Texte parlé = 3-4 phrases. Overlay = extrait de ses mots.
 - 40-55s : Chute avec déplacement de perspective, le spectateur voit le sujet autrement.
 - 55-60s : CTA naturel (question ou invitation).
 
 REEL VOIX OFF + B-ROLL (30-60 sec) :
 Type : process, coulisses, transformation. Narration off sur images/vidéos.
-- 0-3s : Hook = résultat ou transformation annoncée. Overlay ancrage.
+- 0-3s : Hook = résultat ou transformation annoncée. Overlay = extrait du hook.
 - 3-12s : AVANT, la situation de départ (concrète, pas théorique).
 - 12-35s : PENDANT, le process ou le changement, raconté étape par étape.
-  Texte parlé fluide (pas de bullet points). Overlay contrepoint sur les images.
+  Texte parlé fluide (pas de bullet points). Overlay = extrait de ses mots sur les images.
 - 35-50s : APRÈS, le résultat observable (chiffres, retours, changement concret).
 - 50-60s : Leçon transférable + CTA léger.
 
@@ -2558,8 +2564,8 @@ CAPTION LONGUE (800-1500 caractères) :
 - Ouverture : question ou invitation au dialogue
 - Règle : la caption complète le visuel, elle ne le répète pas
 
-STORIES SÉQUENCÉES (5-7 stories) :
-- Story 1 : Amorce (texte + émotion : "Bon, faut que je te raconte un truc.")
+STORIES SÉQUENCÉES (une idée par story ; repère : 5 à 7 stories) :
+- Story 1 : Accroche seule (une phrase qui ouvre l'attente, avec son mot fort)
 - Story 2-3 : Développement (vidéo ou texte + images)
 - Story 4 : Interaction (sondage, question, quiz)
 - Story 5-6 : Conclusion + valeur
@@ -2732,6 +2738,7 @@ vu ça comme ça".
 
 ══ PROFONDEUR ORALE ══
 Explique le mécanisme, développe ce qui change le regard et ajoute les nuances utiles. Les transitions viennent des idées et de la façon de parler de la personne. Aucun nombre de marqueurs oraux imposé : on doit suivre le raisonnement sans entendre une collection de formules.
+SA VOIX ORALE : écris comme elle parle. Ta référence, ce sont SES textes (contenus de référence, profil de voix) et SES réponses : reprends ses mots du quotidien, ses tournures, sa façon d'entrer dans une idée, de relancer et de nuancer, plutôt que des formules d'article (« Il est essentiel de… », « Dans un monde où… », « On vit dans un système imparfait »). Les phrases s'enchaînent d'une unité à l'autre comme quand on parle : la suivante reprend ce que la précédente vient de poser, sans transition fabriquée. Une expression orale ne vient que d'elle : n'ajoute aucun tic absent de ses textes et de ses réponses (« Spoiler », « Bon, soyons honnêtes », « Petite confidence »), aucune hésitation, faute de langage ou confession plaquée pour faire parlé, aucun vécu ni témoignage qu'elle n'a pas donné. Sans texte de référence ni réponse : un oral simple et direct, sans familiarité ajoutée.
 
 ══ ORALITÉ : MONOLOGUE, PAS SCRIPT TÉLÉ ══
 
@@ -2795,21 +2802,19 @@ STRUCTURE :
   télégraphique). Au moins UNE section body explique le POURQUOI (mécanisme).
 - CTA (45-60s) : reformulation finale. Pas de répétition du hook.
 
-OVERLAY, 3 RÔLES POSSIBLES (choisir 1 par section) :
-- ANCRAGE : mot-clé ou concept qui reste à l'écran (ex: "POSITIONNEMENT")
-- CONTREPOINT : info que le texte parlé ne dit PAS (un chiffre, un fait complémentaire)
-- PUNCHLINE : chute visuelle, phrase d'impact différente du texte parlé
-INTERDIT : overlay qui résume ou condense le texte parlé. L'overlay COMPLÈTE, il ne RÉPÈTE PAS.
-3-8 mots max par overlay.
+UNE IDÉE PAR PLAN : chaque section du script (un plan, un cut) porte une seule idée. Si une section en porte deux, fais-en deux sections qui se suivent, chacune avec son plan. Le reel reste COURT : la durée de l'objectif prime, et pour la tenir on coupe les redites et les détails secondaires (jamais la couche mécanisme), on ne tasse pas deux idées dans une section.
+
+TEXTE À L'ÉCRAN (texte_overlay) : UNIQUEMENT SES MOTS. C'est un extrait recopié mot pour mot du texte_parle de la MÊME section (3 à 8 mots qui se suivent), jamais une information que l'oral ne dit pas, jamais une reformulation. Choisis l'extrait qui porte le mot ou le chiffre fort de la section : c'est lui qu'on retient en muet. Casse normale d'une phrase (pas de majuscules imposées, le rendu ne les force pas). null quand rien ne s'impose.
 
 ══ RÈGLE SPÉCIALE FRAME 1 (overlay du hook 0-3s) ══
 
 50% des viewers regardent en MUTE. L'overlay de la frame 1 doit fonctionner SEUL,
-sans le son. C'est un MINI-HOOK lisible seul (promesse concrète, situation
-reconnaissable, ou affirmation contre-intuitive).
+sans le son : c'est le passage du hook parlé qui se comprend seul (promesse
+concrète, situation reconnaissable, ou affirmation contre-intuitive), recopié
+tel quel.
 
-❌ MAUVAIS : "POSITIONNEMENT" / "Stratégie Instagram" / "Mes conseils"
-✅ BON : "Plein d'abonnés. Zéro client." / "Pourquoi j'ai supprimé tous mes posts."
+❌ MAUVAIS : "Positionnement" / "Stratégie Instagram" / "Mes conseils" (des mots qu'elle ne dit pas)
+✅ BON (si elle le dit) : "Plein d'abonnés. Zéro client." / "Pourquoi j'ai supprimé tous mes posts."
 
 ══ DENSITÉ DE TEXTE PARLÉ (règle d'or : 1 seconde ≈ 2,5 mots) ══
 
@@ -2861,7 +2866,7 @@ INTERDITS :
 - Script qui LISTE des conseils au lieu de RACONTER + EXPLIQUER LE POURQUOI
 - Hook descriptif ("Aujourd'hui on va parler de...")
 - Hook impersonnel sans sujet humain
-- Texte overlay qui répète mot pour mot le texte parlé
+- Texte à l'écran qui dit ce qu'elle ne dit pas (information, chiffre ou formule absents de son texte parlé)
 - Script qu'on ne peut pas dire à voix haute naturellement
 - Sections juxtaposées sans connecteur oral
 - Conseil sans mécanisme expliqué
@@ -2955,7 +2960,7 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
       "timing": "15-35 sec",
       "format_visuel": "...",
       "texte_parle": "...",
-      "texte_overlay": "3-5 MOTS MAX",
+      "texte_overlay": "extrait de 3 à 8 mots de CE texte_parle, recopié tel quel",
       "cut": "changement de plan",
       "tip": null
     },
@@ -2964,7 +2969,7 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
       "timing": "35-45 sec",
       "format_visuel": "Retour face cam",
       "texte_parle": "...",
-      "texte_overlay": "PUNCHLINE FINALE 3-8 mots (JAMAIS le mot 'SAUVEGARDE' seul : une vraie chute)",
+      "texte_overlay": "la chute de CE texte_parle, extrait de 3 à 8 mots recopié tel quel (JAMAIS le mot 'SAUVEGARDE' seul)",
       "cut": null,
       "tip": null
     }
@@ -2975,7 +2980,8 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
     "cta": "..."
   },
   "hashtags": ["#...", "#...", "#...", "#...", "#..."],
-  "cover_text": "...",
+  "cover_text": "l'accroche seule, 4 à 10 mots tirés du hook",
+  "cover_mot_cle": "le mot (ou 1 à 3 mots) de cover_text mis en valeur, recopié exactement",
   "alt_text": "...",
   "amplification_stories": [
     {
@@ -3011,10 +3017,11 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
 }
 
 IMPORTANT :
-- Le tableau "script" doit avoir entre 3 et 6 sections (hook + body segments + cta)
+- Le tableau "script" doit avoir entre 3 et 8 sections (hook + body segments + cta), une idée par section
 - DUPLIQUE le contenu de "script" dans un champ "sections" (même structure) pour compat UI
 - Chaque section body a une indication de cut
-- Le texte overlay est COURT (3-5 mots), en MAJUSCULES
+- Le texte overlay est COURT (3-8 mots), extrait mot pour mot du texte_parle de sa section, sans majuscules imposées
+- COUVERTURE (cover_text) : l'accroche SEULE, 4 à 10 mots, tirée du hook (ses mots), sans sous-titre ni annonce. "cover_mot_cle" = le mot (ou groupe de 1 à 3 mots, un chiffre possible) de cette accroche qui porte la tension, recopié EXACTEMENT : il est mis en valeur sur la couverture.
 - La caption ne répète PAS le script, elle offre un angle complémentaire
 - Les hashtags : 3-5 max, mix large + niche
 - Les amplification_stories : 2 stories à poster dans l'heure
@@ -3331,8 +3338,7 @@ Le hook doit arrêter le swipe en 1-2 secondes.
 SELON LE FORMAT DE LA STORY 1 :
 
 Si format = texte sur fond :
-- Première phrase : 8-15 mots, puis 1-2 phrases qui continuent naturellement
-- Le hook désigne les premiers mots de la story, pas tout son texte
+- STORY 1 = L'ACCROCHE SEULE (story texte ou photo) : "text" ne contient que l'accroche, une phrase de 4 à 15 mots qui ouvre l'attente, rien d'autre ; la situation et la suite commencent en story 2. Dans "visual", "mot_cle" = LE mot (ou groupe de 1 à 3 mots, un chiffre possible) de cette accroche qui porte la tension, recopié EXACTEMENT : il sera mis en valeur sur l'image. Une story 1 face cam garde sa prise parlée.
 - Doit créer l'identification OU la curiosité immédiate
 - Le sondage/sticker complète le hook (pas l'inverse)
 
@@ -3343,8 +3349,8 @@ Si format = face cam :
 - Sous-titres OBLIGATOIRES (la plupart regardent sans le son)
 
 Si format = visuel/photo :
-- Les 3-8 premiers mots doivent se comprendre immédiatement, puis le texte peut continuer sur 1-2 phrases
-- L'image fait le travail visuel ; le texte ouvre une attente et commence vraiment le récit
+- Même règle : l'accroche seule (4 à 15 mots) qui se comprend immédiatement, avec son "mot_cle" ; le récit commence en story 2
+- L'image fait le travail visuel ; l'accroche ouvre l'attente
 
 
 ══ TEXTE ET PHOTO DE CHAQUE STORY ══
@@ -3353,7 +3359,7 @@ Tu écris le TEXTE de chaque story (et son petit titre éventuel) et tu dis quel
 
 RÈGLES :
 0. "title_pill" : OPTIONNEL, et null le plus souvent. Une story native, c'est UN bloc de texte posé sur la photo ; un titre + un texte dessous sur chaque story, c'est la signature d'un outil, pas d'une personne. Ne mets un "title_pill" (3-7 mots, pas de point final, affiché en capitales condensées type "Strong") QUE si la story annonce quelque chose qui se lit d'abord : une liste, une question posée à l'audience, une offre, une date. Jamais de titre qui répète ou résume le "text". Sur une séquence de 5 stories, 1 ou 2 titres maximum.
-1. "text" : LE TEXTE DE LA STORY, 350 caractères MAX. Ce qui est écrit sur la story, c'est ce qu'on lit : pas de résumé, pas de version raccourcie, pas de "titre puis texte". Un texte de 3-4 phrases qui raconte vraiment, c'est ce qui fait lire ; une accroche de 8 mots, on la swipe. Écrit comme on parle, jamais en formule. Si "text" dépasse 350 caractères, coupe "text" lui-même : une story ne doit pas dire plus.
+1. "text" : LE TEXTE DE LA STORY, 350 caractères MAX. Ce qui est écrit sur la story, c'est ce qu'on lit : pas de résumé, pas de version raccourcie, pas de "titre puis texte". Un texte de 3-4 phrases qui raconte vraiment, c'est ce qui fait lire ; une accroche de 8 mots, on la swipe (sauf la story 1 texte ou photo, qui est l'accroche seule). Écrit comme on parle, jamais en formule. UNE IDÉE PAR STORY : chaque story porte une seule idée, un seul pas du récit. Si "text" dépasse 350 caractères ou porte deux idées, découpe-le en deux stories qui se suivent (ou plus), sans raccourcir ni résumer : tout le texte reste, il est seulement réparti, et la story suivante reprend là où la précédente s'arrête. Le nombre de stories suit ce découpage (10 au plus) ; les nombres de stories indiqués plus haut sont des repères, pas des quotas.
 2. Verbatim client : court, jamais inventé. S'il n'y a pas de vrai retour client fourni, n'en cite pas.
 3. Les stories, ce sont des IMAGES : une photo est le fond de TOUTES les stories (hors face cam), et elle illustre CE QUE DIT la story.
 4. Pour CHAQUE story non face-cam, remplis TOUJOURS "photo_directive" (quelle photo prendre ou choisir, CONCRÈTE et ancrée dans l'activité réelle, comme un plan de tournage : "ton plan de travail avec les pots en cours de séchage", pas "une jolie photo") ET "photo_query_en" (2-4 mots EN ANGLAIS décrivant une scène photographiable concrète équivalente, pour la recherche de photos libres de droits, ex "hands shaping clay bowl"). Jamais null.
@@ -3393,7 +3399,7 @@ GARDE-FOUS OBLIGATOIRES :
 5. Si face cam → TOUJOURS mentionner sous-titres
 6. Story 1 = hook fort (c'est là que l'audience décroche)
 7. Publier TOUTE la séquence à la suite, dans un seul bloc. Choisis UN créneau conseillé (matin, midi ou soir) dans "publication_time" ; ne répartis jamais les stories d'une même histoire sur plusieurs moments.
-8. Ton oral, décontracté, comme si on parlait face caméra ou en message vocal. Le "JE" raconte, le "VOUS/TU" n'intervient que ponctuellement pour interpeller.
+8. Ton oral, décontracté, comme si on parlait face caméra ou en message vocal, avec SES mots : reprends ses tournures (textes de référence, réponses) plutôt que des expressions orales génériques qu'elle n'emploie pas. Le "JE" raconte, le "VOUS/TU" n'intervient que ponctuellement pour interpeller.
 9. Écriture inclusive point médian
 10. Expressions naturelles et orales, variées d'une story à l'autre : évite de réutiliser toujours la même cheville
 11. Aparté entre parenthèses : 1 MAXIMUM par séquence, jamais dans deux stories de suite, et uniquement s'il dit quelque chose de propre à ce sujet (un aparté qui pourrait aller dans n'importe quelle story est un tic : supprime-le)
@@ -3402,7 +3408,7 @@ GARDE-FOUS OBLIGATOIRES :
 14. PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature, imite les patterns de structure et de ton.
 15. Ne JAMAIS utiliser les expressions interdites du profil de voix.
 16. Le résultat doit sonner comme si l'utilisateur·ice l'avait écrit.
-17. Si le temps dispo est "5min", MAXIMUM 3 stories. Ne génère JAMAIS 5+ stories pour quelqu'un qui a 5 minutes — SAUF si un contenu source est fourni : alors le nombre de stories suit le texte (une idée par story, 10 max).
+17. Si le temps dispo est "5min", la séquence reste courte en IDÉES (une à trois), pas en stories : une idée qui demande deux stories est découpée en deux, jamais raccourcie (5 stories au plus). Si un contenu source est fourni, le nombre de stories suit le texte (une idée par story, 10 au plus).
 18. La longueur du texte de chaque story doit être RÉALISTE : une story texte = 2-3 phrases max. Une story face cam = 15-30 secondes de parole (50-80 mots). Ne génère pas des pavés pour des stories.
 
 Réponds en JSON strict :
@@ -3430,6 +3436,7 @@ Réponds en JSON strict :
       },
       "visual": {
         "title_pill": null,
+        "mot_cle": "[story 1 seulement : le mot fort de l'accroche, recopié exactement ; null ailleurs]",
         "photo_directive": "[quelle photo prendre/choisir, concrète, ancrée dans l'activité]",
         "photo_query_en": "[2-4 mots anglais, scène photographiable]",
         "photo_index": null
@@ -3442,7 +3449,7 @@ Réponds en JSON strict :
 }
 
 IMPORTANT :
-- Le champ "text" de la story 1 contient la story complète : ses premiers mots sont le hook, puis elle continue naturellement (une seule version, jamais un slogan séparé)
+- Story 1 texte ou photo : "text" = l'accroche seule (une seule version, jamais un slogan séparé en plus) ; la suite commence en story 2. Story 1 face cam : ses premiers mots sont le hook, puis elle continue naturellement
 - CHAQUE story a un "visual", SAUF les stories face cam : si "face_cam": true → "visual": null (c'est une vidéo à filmer, pas un visuel à rendre)
 - Le champ "narrative_angle" indique l'angle de narration choisi pour la séquence
 - Pas de markdown dans les valeurs JSON

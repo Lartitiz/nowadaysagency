@@ -1516,7 +1516,7 @@ async function runGenerationAndRespond(
 }
 
 async function handleHooksRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const userPrompt = buildHooksPrompt(reqCtx.body);
+  const userPrompt = buildHooksPrompt(reqCtx.body, reqCtx.isLinkedIn);
   return runGenerationAndRespond("hooks", userPrompt, reqCtx);
 }
 
@@ -1526,12 +1526,12 @@ async function handleSlidesRequest(reqCtx: CarouselRequestContext): Promise<Resp
 }
 
 async function handleSuggestTopicsRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const userPrompt = buildSuggestTopicsPrompt(reqCtx.body);
+  const userPrompt = buildSuggestTopicsPrompt(reqCtx.body, reqCtx.isLinkedIn);
   return runGenerationAndRespond("suggest_topics", userPrompt, reqCtx);
 }
 
 async function handleSuggestAnglesRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const userPrompt = buildSuggestAnglesPrompt(reqCtx.body);
+  const userPrompt = buildSuggestAnglesPrompt(reqCtx.body, reqCtx.isLinkedIn);
   return runGenerationAndRespond("suggest_angles", userPrompt, reqCtx);
 }
 
@@ -2242,7 +2242,7 @@ function buildSystemPrompt(brandingContext: string, isLinkedIn = false, profile?
   return buildCarouselWritingSystem(brandingContext, isLinkedIn, buildIdentityBlock(profile, "rédactrice éditoriale"), CONTENT_CLARITY_RULES, livedCase, audienceAddressRule(audienceAddress));
 }
 
-function buildHooksPrompt(body: any): string {
+function buildHooksPrompt(body: any, isLinkedIn = false): string {
   const { carousel_type, subject, objective, slide_count, deepening_answers, chosen_angle } = body;
 
   let deepeningCtx = "";
@@ -2259,7 +2259,7 @@ function buildHooksPrompt(body: any): string {
     angleCtx = `\nANGLE CHOISI : "${chosen_angle.title}" — ${chosen_angle.description}\nLes hooks DOIVENT coller à cet angle.\n`;
   }
 
-  return `DEMANDE : Propose 3 accroches (hooks) pour un carrousel Instagram.
+  return `DEMANDE : Propose 3 accroches (hooks) pour un carrousel ${isLinkedIn ? "LinkedIn" : "Instagram"}.
 
 Type de carrousel : ${carousel_type}
 Sujet : ${subject}
@@ -2287,9 +2287,9 @@ function buildSlidesPrompt(body: any, isLinkedIn = false): string {
   return textWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { scenarioOrigin: body.scenario_origin, narrativeThread: body.narrative_thread }));
 }
 
-function buildSuggestTopicsPrompt(body: any): string {
+function buildSuggestTopicsPrompt(body: any, isLinkedIn = false): string {
   const { carousel_type, objective, recent_posts } = body;
-  return `DEMANDE : Suggère 5 sujets de carrousels Instagram.
+  return `DEMANDE : Suggère 5 sujets de carrousels ${isLinkedIn ? "LinkedIn" : "Instagram"}.
 
 Type de carrousel : ${carousel_type}
 Objectif : ${objective}
@@ -2312,7 +2312,7 @@ Retourne ce JSON exact :
 }`;
 }
 
-function buildSuggestAnglesPrompt(body: any): string {
+function buildSuggestAnglesPrompt(body: any, isLinkedIn = false): string {
   const { carousel_type, subject, objective, deepening_answers } = body;
 
   let deepeningCtx = "";
@@ -2324,7 +2324,7 @@ function buildSuggestAnglesPrompt(body: any): string {
     if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE :\n${answers}\n`;
   }
 
-  return `DEMANDE : Propose 3 angles éditoriaux pour un carrousel Instagram, basés sur les réponses de l'utilisatrice.
+  return `DEMANDE : Propose 3 angles éditoriaux pour un carrousel ${isLinkedIn ? "LinkedIn" : "Instagram"}, basés sur les réponses de l'utilisatrice.
 
 Type de carrousel : ${carousel_type}
 Sujet : ${subject}

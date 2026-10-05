@@ -162,7 +162,8 @@ export interface RenderPlanOptions {
 /**
  * Texte à l'écran d'une section en mode silencieux : le texte overlay écrit
  * pour l'écran, sinon (absent ou vide) TOUT le texte parlé — jamais coupé ;
- * c'est le rendu (reel-render/recipe.ts) qui adapte la taille pour qu'il tienne.
+ * c'est le rendu (reel-render/recipe.ts) qui le découpe en écrans successifs
+ * au plancher lisible, sans jamais le rétrécir en dessous.
  */
 export function silentOverlayText(s: { texte_parle?: unknown; texte_overlay?: unknown }): string | undefined {
   return [s.texte_overlay, s.texte_parle].find(

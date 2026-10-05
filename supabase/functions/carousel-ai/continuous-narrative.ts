@@ -25,6 +25,8 @@ import {
   recitContinuFamille,
   recitContinuFond,
   recitContinuLongueur,
+  VOIX_ORALE,
+  VOIX_ORALE_LINKEDIN,
 } from "../_shared/socle.ts";
 
 export const NARRATIVE_VERSION = "continuous-prose-v4-socle";
@@ -285,7 +287,7 @@ export async function createContinuousNarrative(options: {
       const key of ["input_tokens", "output_tokens", "total_tokens"] as const
     ) target[key] = (target[key] || 0) + (sink[key] || 0);
   };
-  // Règles du socle (socle.ts) : tu/vous en tête, contrat de fond, actu,
+  // Règles du socle (socle.ts) : tu/vous en tête, contrat de fond, voix orale, actu,
   // couverture et mot clé, longueur sans contradiction, adaptation à l'angle.
   const addressRule = audienceAddressRule(options.audienceAddress);
   const hasNews = options.newsContext.trim().length > 0;
@@ -297,6 +299,8 @@ Les photos seront placées ensuite. Leur contexte peut éclairer les faits, mais
 Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas à ordonner les paragraphes. photo_mismatch est réservé à une contradiction frontale avec une chose concrète que la demande promet de montrer ; retourne alors sa raison, sans inventer un récit. Un décalage d'ambiance ou une illustration indirecte ne justifient pas ce refus.
 Écris hook (accroche de couverture : 4 à 10 mots qui créent une tension ou un manque, jamais un titre-étiquette), puis paragraphs : les paragraphes PUBLICS successifs, sans titres de rubriques ni consignes pour un futur rédacteur. ${RECIT_CONTINU_PARAGRAPHE} Le dernier termine réellement ce propos, sans ouvrir automatiquement une offre commerciale. Caption résume fidèlement ; cta vide si aucune invitation utile n'est demandée. idea nomme précisément la proposition développée.`,
     recitContinuFond(livedCaseFromCarouselBody(body).mode),
+    // Sa voix orale (socle, règle 4) : aussi sur le chemin par défaut photo et mixte.
+    body?.channel === "linkedin" ? VOIX_ORALE_LINKEDIN : VOIX_ORALE,
     hasNews ? newsWriting(body).trim() : "",
     RECIT_CONTINU_COUVERTURE,
     recitContinuLongueur(exact),

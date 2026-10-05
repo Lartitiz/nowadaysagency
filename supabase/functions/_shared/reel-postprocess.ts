@@ -230,6 +230,9 @@ export function enforceSelectedReelHook(
  * passe de correction a échoué :
  * - le hook choisi reste verrouillé (l'instruction de la passe est probabiliste) ;
  * - élisions (après le verrou : corriger une coquille n'est pas réécrire) ;
+ * - texte à l'écran = uniquement ses mots (socle, 05/10/2026) : un overlay
+ *   absent de son texte parlé est retiré (le hook choisi est respecté) ;
+ * - mot clé de la couverture = extrait exact de cover_text, sinon retiré ;
  * - lecture_test = concat des texte_parle FINAUX ;
  * - timings recomptés sur la version FINALE du texte ;
  * - la prise face cam du plan de tournage couvre le monologue recompté.
@@ -241,6 +244,8 @@ export function finalizeReelScript(
 ): void {
   enforceSelectedReelHook(parsed, selectedHook);
   applyReelElisions(parsed);
+  dropReelOverlaysNotFromScript(parsed, selectedHook);
+  enforceReelCoverKeyword(parsed);
   rebuildReelLectureTest(parsed);
   recalibrateReelTimings(parsed);
   alignFaceCamTakeDuration(parsed);
@@ -399,4 +404,89 @@ export function reelTemplateLeaks(parsed: any): string[] {
     },
   );
   return leaks;
+}
+
+
+// ═══ Socle (05/10/2026) : texte à l'écran = ses mots, couverture = accroche + mot clé ═══
+
+/** Mots (lettres et chiffres) en minuscules, pour comparer sans la casse ni la ponctuation. */
+function screenWords(text: unknown): string[] {
+  if (typeof text !== "string") return [];
+  return text.toLocaleLowerCase("fr").normalize("NFC").replace(/[’ʼ]/g, "'").match(/[\p{L}\p{N}]+/gu) || [];
+}
+
+/**
+ * Le texte à l'écran vient-il uniquement de ses mots ? Vrai si chaque mot de
+ * l'overlay se retrouve, dans l'ordre, dans le texte parlé de la section
+ * (des mots peuvent être sautés, aucun ne peut être ajouté). Overlay vide : vrai.
+ */
+export function overlayFromScript(overlay: unknown, spoken: unknown): boolean {
+  const ov = screenWords(overlay);
+  if (ov.length === 0) return true;
+  const sp = screenWords(spoken);
+  let j = 0;
+  for (const w of sp) {
+    if (w === ov[j]) j++;
+    if (j === ov.length) return true;
+  }
+  return false;
+}
+
+/** Sections (numéros 1..N) dont le texte à l'écran ajoute des mots absents du texte parlé. */
+export function reelOverlaysNotFromScript(parsed: any): number[] {
+  const out: number[] = [];
+  sectionsOf(parsed).forEach((s, i) => {
+    if (!overlayFromScript(s.texte_overlay, s.texte_parle)) out.push(i + 1);
+  });
+  return out;
+}
+
+/**
+ * Filet déterministe, après la passe de correction : un texte à l'écran qui
+ * n'est pas fait de ses mots est retiré (null). En reel sans voix, le rendu
+ * affiche alors son texte parlé (reel-plan.ts : silentOverlayText). Le texte à
+ * l'écran du hook CHOISI par l'utilisatrice reste : c'est son choix.
+ * Retourne les numéros des sections retirées.
+ */
+export function dropReelOverlaysNotFromScript(
+  parsed: any,
+  selectedHook?: { text_overlay?: unknown } | null,
+): number[] {
+  const chosen = typeof selectedHook?.text_overlay === "string" && !selectedHook.text_overlay.trim().startsWith("(")
+    ? selectedHook.text_overlay.trim()
+    : "";
+  const dropped: number[] = [];
+  const script = sectionsOf(parsed);
+  script.forEach((s, i) => {
+    if (i === 0 && chosen && String(s.texte_overlay || "").trim() === chosen) return;
+    if (!overlayFromScript(s.texte_overlay, s.texte_parle)) {
+      s.texte_overlay = null;
+      dropped.push(i + 1);
+    }
+  });
+  if (dropped.length && Array.isArray(parsed?.script)) parsed.sections = parsed.script;
+  return dropped;
+}
+
+/**
+ * Couverture : le mot clé mis en valeur doit être un extrait exact de
+ * cover_text (casse ignorée). Sinon : le premier nombre de l'accroche s'il y
+ * en a un, sinon aucun mot clé (on ne met jamais en valeur un mot absent).
+ */
+export function enforceReelCoverKeyword(parsed: any): void {
+  if (!parsed || typeof parsed !== "object") return;
+  const cover = typeof parsed.cover_text === "string" ? parsed.cover_text.trim() : "";
+  const raw = typeof parsed.cover_mot_cle === "string" ? parsed.cover_mot_cle.trim().replace(/^["«“\s]+|["»”\s]+$/gu, "") : "";
+  if (!cover) {
+    if ("cover_mot_cle" in parsed) parsed.cover_mot_cle = null;
+    return;
+  }
+  const words = raw.split(/\s+/).filter(Boolean).length;
+  if (raw && words <= 3 && cover.toLocaleLowerCase("fr").includes(raw.toLocaleLowerCase("fr"))) {
+    const at = cover.toLocaleLowerCase("fr").indexOf(raw.toLocaleLowerCase("fr"));
+    parsed.cover_mot_cle = cover.slice(at, at + raw.length);
+    return;
+  }
+  const num = cover.match(/\d+(?:[.,]\d+)?\s?(?:%|€|k|K)?/u);
+  parsed.cover_mot_cle = num ? num[0].trim() : null;
 }

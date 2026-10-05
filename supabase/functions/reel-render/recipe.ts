@@ -23,6 +23,8 @@
  *    reprennent alors ce qu'elle a VRAIMENT dit sans code supplémentaire.
  */
 
+import { REEL_OVERLAY_MIN_FONT_PX } from "../_shared/socle.ts";
+
 export interface ReelSectionInput {
   /** URL publique du clip (banque libre ou vidéo de la créatrice). */
   clip_url: string;
@@ -89,25 +91,29 @@ const DEFAULT_SUBTITLE_SETTINGS = {
 // ── Texte à l'écran du mode silencieux ─────────────────────────────────────
 // Rendu validé : Montserrat gras 58 px, blanc sur bandeau sombre, centré, dans
 // une boîte fixe (marges 70 px, haut à 64 % de la hauteur, 22 % de haut).
-// Le code GARANTIT deux choses que l'écriture ne peut pas garantir :
-//  - les MAJUSCULES (choix de style) : appliquées ici, l'IA ou l'utilisatrice
-//    peuvent écrire en minuscules sans changer le rendu ;
-//  - la boîte TIENT le texte : si le texte est trop long (ex. repli sur tout le
-//    texte parlé quand texte_overlay manque), la police descend par paliers,
-//    puis la boîte s'agrandit vers le haut. Le texte n'est JAMAIS raccourci.
-// Un texte court (cas normal : 3-8 mots) garde exactement le rendu validé.
-export const OVERLAY_FONT_STEPS_PX = [58, 50, 44, 38, 32, 28, 24] as const;
+// Socle « lisible d'abord » (05/10/2026, décisions de Laetitia) :
+//  - la CASSE D'ORIGINE est gardée (plus de majuscules forcées) ;
+//  - la police descend par paliers jusqu'à un PLANCHER lisible
+//    (REEL_OVERLAY_MIN_FONT_PX), jamais en dessous : un texte qui ne tient pas
+//    à ce plancher est DÉCOUPÉ en écrans successifs dans la même scène (à la
+//    fin d'une phrase quand c'est possible, sinon entre deux mots). Le texte
+//    n'est JAMAIS raccourci : chaque mot passe à l'écran, dans l'ordre.
+// Un texte court (cas normal : 3-8 mots) garde exactement la boîte validée.
+
+export const OVERLAY_MIN_FONT_PX = REEL_OVERLAY_MIN_FONT_PX;
+export const OVERLAY_FONT_STEPS_PX = [58, 50, OVERLAY_MIN_FONT_PX] as const;
 const OVERLAY_MARGIN_X = 70;
 const OVERLAY_TOP_RATIO = 0.64;
 const OVERLAY_HEIGHT_RATIO = 0.22;
 /** Plus haut que ça, le bandeau couvrirait le haut de l'image (zone du profil Instagram). */
 const OVERLAY_MAX_TOP_RATIO = 0.12;
 /**
- * Largeur moyenne d'un caractère en MAJUSCULES Montserrat 700, en fraction de
- * la taille de police. Volontairement pessimiste (les capitales grasses
- * mesurent ~0,70 em en moyenne) : mieux vaut un palier trop tôt qu'un débord.
+ * Largeur moyenne d'un caractère Montserrat 700 en casse mixte, en fraction de
+ * la taille de police. Volontairement pessimiste (les minuscules grasses
+ * mesurent ~0,6 em, les capitales ~0,70 em) : mieux vaut découper un écran trop
+ * tôt qu'un débord, y compris si le texte a été écrit en capitales.
  */
-const OVERLAY_CHAR_EM = 0.78;
+const OVERLAY_CHAR_EM = 0.72;
 const OVERLAY_LINE_HEIGHT = 1.3;
 /** Marge intérieure verticale prise en compte (haut + bas). */
 const OVERLAY_PADDING_Y = 24;
@@ -147,7 +153,7 @@ export function overlayTextHeight(lines: number, fontSizePx: number): number {
 }
 
 export interface OverlayLayout {
-  /** Texte rendu : tous les mots d'origine, en MAJUSCULES. */
+  /** Texte rendu : les mots d'origine, dans leur casse d'origine. */
   text: string;
   fontSizePx: number;
   x: number;
@@ -158,35 +164,84 @@ export interface OverlayLayout {
   lines: number;
 }
 
+function overlayBox(width: number, height: number) {
+  return {
+    x: OVERLAY_MARGIN_X,
+    boxWidth: width - 2 * OVERLAY_MARGIN_X,
+    baseTop: Math.round(height * OVERLAY_TOP_RATIO),
+    baseHeight: Math.round(height * OVERLAY_HEIGHT_RATIO),
+  };
+}
+
+/** Le texte tient-il dans la boîte validée, au plancher lisible au moins ? */
+export function overlayFitsAtFloor(text: string, width: number, height: number): boolean {
+  const { boxWidth, baseHeight } = overlayBox(width, height);
+  return overlayTextHeight(estimateOverlayLines(text, OVERLAY_MIN_FONT_PX, boxWidth), OVERLAY_MIN_FONT_PX) <= baseHeight;
+}
+
 /**
- * Mise en page du texte à l'écran : majuscules + taille/boîte qui tiennent le
- * texte. Fonction pure. Ne retire, ne coupe ni ne remplace aucun mot.
+ * Mise en page d'UN écran de texte : casse d'origine + plus grande taille du
+ * palier qui tient dans la boîte validée. Fonction pure. Ne retire, ne coupe ni
+ * ne remplace aucun mot. Un écran qui ne tient pas au plancher (cas d'un mot
+ * isolé démesuré : splitOverlayText découpe tout le reste) garde le plancher et
+ * la boîte s'agrandit vers le haut, jamais au-dessus de la zone du profil.
  */
 export function layoutOverlayText(raw: string, width: number, height: number): OverlayLayout {
-  const text = raw.trim().toLocaleUpperCase("fr-FR");
-  const x = OVERLAY_MARGIN_X;
-  const boxWidth = width - 2 * OVERLAY_MARGIN_X;
-  const baseTop = Math.round(height * OVERLAY_TOP_RATIO);
-  const baseHeight = Math.round(height * OVERLAY_HEIGHT_RATIO);
+  const text = raw.trim();
+  const { x, boxWidth, baseTop, baseHeight } = overlayBox(width, height);
   for (const size of OVERLAY_FONT_STEPS_PX) {
     const lines = estimateOverlayLines(text, size, boxWidth);
     if (overlayTextHeight(lines, size) <= baseHeight) {
       return { text, fontSizePx: size, x, y: baseTop, width: boxWidth, height: baseHeight, lines };
     }
   }
-  // Même au plus petit palier la boîte d'origine ne suffit pas : on garde le
-  // bas de la boîte (au-dessus du bandeau Instagram) et on l'agrandit vers le
-  // haut. Si l'image entière ne suffit pas, la police continue de descendre.
   const bottom = baseTop + baseHeight;
   const maxHeight = bottom - Math.round(height * OVERLAY_MAX_TOP_RATIO);
-  let size: number = OVERLAY_FONT_STEPS_PX[OVERLAY_FONT_STEPS_PX.length - 1];
-  let lines = estimateOverlayLines(text, size, boxWidth);
-  while (overlayTextHeight(lines, size) > maxHeight && size > 12) {
-    size -= 2;
-    lines = estimateOverlayLines(text, size, boxWidth);
-  }
+  const size = OVERLAY_MIN_FONT_PX;
+  const lines = estimateOverlayLines(text, size, boxWidth);
   const boxHeight = Math.min(maxHeight, overlayTextHeight(lines, size));
   return { text, fontSizePx: size, x, y: bottom - boxHeight, width: boxWidth, height: boxHeight, lines };
+}
+
+/**
+ * Découpe le texte à l'écran en écrans successifs qui tiennent chacun au
+ * plancher lisible. Phrases entières regroupées tant qu'elles tiennent ; une
+ * phrase trop longue est répartie entre deux mots. Tous les mots, dans l'ordre :
+ * `chunks.join(" ")` redonne le texte (espaces normalisés).
+ */
+export function splitOverlayText(raw: string, width: number, height: number): string[] {
+  const text = raw.trim().replace(/\s+/g, " ");
+  if (!text) return [];
+  if (overlayFitsAtFloor(text, width, height)) return [text];
+  const fits = (t: string) => overlayFitsAtFloor(t, width, height);
+  const sentences = text.match(/[^.!?…]+(?:[.!?…]+|$)/gu)?.map((p) => p.trim()).filter(Boolean) || [text];
+  const chunks: string[] = [];
+  let current = "";
+  const pushWords = (sentence: string) => {
+    for (const word of sentence.split(" ")) {
+      const next = current ? `${current} ${word}` : word;
+      if (!current || fits(next)) current = next;
+      else {
+        chunks.push(current);
+        current = word;
+      }
+    }
+  };
+  for (const sentence of sentences) {
+    const next = current ? `${current} ${sentence}` : sentence;
+    if (fits(next)) {
+      current = next;
+    } else if (fits(sentence)) {
+      if (current) chunks.push(current);
+      current = sentence;
+    } else {
+      if (current) chunks.push(current);
+      current = "";
+      pushWords(sentence);
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
 }
 
 export function buildReelRecipe(input: ReelRenderInput): Record<string, unknown> {
@@ -227,24 +282,33 @@ export function buildReelRecipe(input: ReelRenderInput): Record<string, unknown>
         elements.push({ type: "voice", voice: ttsVoice, text: s.voice_text });
       } else if (input.voice_mode === "silent" && s.overlay_text) {
         // Le récit reste lisible, mais aucune piste audio n'est fabriquée.
-        const layout = layoutOverlayText(s.overlay_text, width, height);
-        elements.push({
-          type: "text",
-          text: layout.text,
-          style: "001",
-          duration: -2,
-          x: layout.x,
-          y: layout.y,
-          width: layout.width,
-          height: layout.height,
-          settings: {
-            "font-family": "Montserrat",
-            "font-size": `${layout.fontSizePx}px`,
-            "font-weight": "700",
-            color: "#FFFFFF",
-            "background-color": "#00000099",
-            "text-align": "center",
-          },
+        // Un texte trop long pour le plancher lisible passe en plusieurs
+        // écrans, à parts égales de la durée de la scène (jamais rétréci).
+        const chunks = splitOverlayText(s.overlay_text, width, height);
+        const share = chunks.length > 1 ? Math.round((s.duration / chunks.length) * 100) / 100 : 0;
+        chunks.forEach((chunk, k) => {
+          const layout = layoutOverlayText(chunk, width, height);
+          const timing = chunks.length > 1
+            ? { start: Math.round(k * share * 100) / 100, duration: k === chunks.length - 1 ? -2 : share }
+            : { duration: -2 };
+          elements.push({
+            type: "text",
+            text: layout.text,
+            style: "001",
+            ...timing,
+            x: layout.x,
+            y: layout.y,
+            width: layout.width,
+            height: layout.height,
+            settings: {
+              "font-family": "Montserrat",
+              "font-size": `${layout.fontSizePx}px`,
+              "font-weight": "700",
+              color: "#FFFFFF",
+              "background-color": "#00000099",
+              "text-align": "center",
+            },
+          });
         });
       }
     }

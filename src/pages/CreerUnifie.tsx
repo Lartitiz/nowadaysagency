@@ -1,4 +1,5 @@
 import { restoreCarouselPhotos } from "@/lib/restore-carousel-photos";
+import { purePhotoRawOrNull } from "@/lib/pure-photo-slides";
 import { recoverStudioPhotos } from "@/features/carousel-studio/bridge";
 import { CarouselStudioDialog } from "@/features/carousel-studio/CarouselStudioDialog";
 import { CreationUpgradeInvite } from "@/components/CreationUpgradeInvite";
@@ -1496,6 +1497,7 @@ function CreerWorkspace() {
   // ── LinkedIn carousel caption: appel dédié à linkedin-ai/caption-for-carousel ──
   const { captionLoading, regenerateCaption } = useLinkedInCarouselCaption({
     newsContext: newsjackingContext,
+    answers,
     result,
     setResult,
     generating,
@@ -1546,37 +1548,18 @@ function CreerWorkspace() {
   // ── Carrousel "juste photo" : on supprime tout overlay/title/body sur les slides
   // ET on tronque le nombre de slides au nombre de photos uploadées (1 photo = 1 slide).
   // La légende reste générée par l'IA.
-  const purePhotoStrippedRef = useRef<any>(null);
+  // purePhotoRawOrNull renvoie null sur un raw déjà nettoyé : sans ce point
+  // d'arrêt, chaque setResult re-déclenchait l'effet À L'INFINI (nouvel objet à
+  // chaque tour) et la pré-génération des visuels s'abandonnait à chaque
+  // changement de résultat — aucun appel carousel-visual (visite du 05/10).
   useEffect(() => {
     if (carouselSubMode !== "pure_photo") return;
-    const r: any = (result as any)?.raw;
-    if (!r?.slides || !Array.isArray(r.slides) || r.slides.length === 0) return;
-    if (purePhotoStrippedRef.current === r) return;
     // Source de vérité : snapshot pris au moment de la génération, sinon état UI courant.
     const photoCount = generatedWithPhotos.length || uploadedPhotos.length;
-    if (photoCount === 0) return;
-    purePhotoStrippedRef.current = r;
-    const baseSlides = r.slides.slice(0, photoCount);
-    // Si l'IA a produit moins de slides que de photos, on complète avec des slides vides.
-    while (baseSlides.length < photoCount) {
-      baseSlides.push({ slide_number: baseSlides.length + 1, role: "body" });
-    }
-    // Liste blanche (pas de spread) : les champs des gabarits texte-sur-photo
-    // (kicker, points, big_number, template, cta_label…) transportent du texte
-    // qui serait re-composé sur la photo — ils ne doivent PAS survivre ici.
-    const cleaned = baseSlides.map((s: any, i: number) => ({
-      slide_number: i + 1,
-      role: s.role || "body",
-      slide_type: "photo_full",
-      overlay_text: null,
-      title: "",
-      body: "",
-      photo_index: i + 1,
-    }));
+    if (!purePhotoRawOrNull((result as any)?.raw, photoCount)) return;
     setResult((prev: any) => {
-      if (!prev) return prev;
-      const nextRaw = { ...(prev.raw || {}), slides: cleaned, no_overlay: true, carousel_type: "photo" };
-      return { ...prev, raw: nextRaw };
+      const nextRaw = prev ? purePhotoRawOrNull(prev.raw, photoCount) : null;
+      return nextRaw ? { ...prev, raw: nextRaw } : prev;
     });
   }, [result, carouselSubMode, generatedWithPhotos.length, uploadedPhotos.length]);
 
@@ -2507,6 +2490,25 @@ function CreerWorkspace() {
     }
   };
 
+  // Carrousel LinkedIn : un PDF se publie comme « document » LinkedIn (même rythme qu'Instagram, décision du 05/10/2026).
+  const handleExportVisualPdf = async () => {
+    if (visualSlides.length === 0) return;
+    if (isCarouselPublish && carouselVisualsStale) {
+      toast.warning("Les visuels ne reflètent pas tes dernières éditions. Mets-les à jour pour un export fidèle.");
+      return;
+    }
+    try {
+      toast.info("Export PDF en cours…");
+      const { exportCarouselPdf } = await import("@/lib/export-carousel-png");
+      const { getIncludeLogoPref } = await import("@/lib/export-logo");
+      const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
+      await exportCarouselPdf(visualSlides, ideaText || "carrousel", logoUrl);
+      toast.success("PDF téléchargé : publie-le comme document sur LinkedIn.");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'export");
+    }
+  };
+
   const handleExportHybridPptx = async () => {
     if (visualSlides.length === 0) return;
     if (isCarouselPublish && carouselVisualsStale) {
@@ -2705,6 +2707,7 @@ function CreerWorkspace() {
   const effectiveHandleExportPptx = isDemoMode ? demoToast : handleExportPptx;
   const effectiveHandleExportVisualPng = isDemoMode ? demoToast : handleExportVisualPng;
   const effectiveHandleExportHybridPptx = isDemoMode ? demoToast : handleExportHybridPptx;
+  const effectiveHandleExportVisualPdf = isDemoMode ? demoToast : handleExportVisualPdf;
 
   const ideaVersionSignature = useMemo(() => JSON.stringify([result?.raw, visualSlides, uploadedPhotos]), [result?.raw, visualSlides, uploadedPhotos]);
   const ideaSaveNotice = ideaSaving ? "Enregistrement du texte et des visuels…"
@@ -3138,6 +3141,7 @@ function CreerWorkspace() {
                 carouselQuality={carouselQuality}
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
                 onExportVisualPng={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPng : undefined}
+                onExportVisualPdf={selectedFormat === "carousel" && isLinkedInCarousel && visualSlides.length > 0 ? effectiveHandleExportVisualPdf : undefined}
                 logoAvailable={!!(charterData as any)?.logo_url}
                 onExportHybridPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportHybridPptx : undefined}
                 onOpenInCanva={selectedFormat === "carousel" && visualSlides.length > 0 && !isDemoMode ? handleOpenInCanva : undefined}

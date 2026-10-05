@@ -291,6 +291,8 @@ interface Props {
   onOpenInCanva?: () => void;
   openingCanva?: boolean;
   onExportVisualPng?: () => void;
+  /** Carrousel LinkedIn : PDF « document LinkedIn » (une page par slide). */
+  onExportVisualPdf?: () => void;
   /** La charte a un logo : affiche la case « Ajouter mon logo » au téléchargement. */
   logoAvailable?: boolean;
   onSlidesUpdate?: (slides: any[], caption: any) => void;
@@ -362,6 +364,7 @@ export default function CreerStepResult({
   onOpenInCanva,
   openingCanva,
   onExportVisualPng,
+  onExportVisualPdf,
   logoAvailable,
   onSlidesUpdate,
   onStoriesUpdate,
@@ -856,6 +859,7 @@ export default function CreerStepResult({
               <DropdownMenuSubContent className="w-64">
                 <DownloadMenuItems
                   onPng={onExportVisualPng}
+                  onPdf={onExportVisualPdf}
                   onPptxEditable={onExportHybridPptx}
                   count={visualSlides?.length ?? 1}
                   logoAvailable={logoAvailable}

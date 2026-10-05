@@ -14,6 +14,11 @@ Deno.test("comptes internes : admin, Camille et tout alias laetitia+…@ de l'ag
     "Laetitia.Mattioli@gmail.com",
     "laetitiamattioli+recette3009@gmail.com",
     "laetitia.mattioli+x@googlemail.com",
+    "laetitiamattiolitest@gmail.com", // 2e compte de recette, inscrit le 30/09
+    "laetitia.mattioli.test@gmail.com",
+    "qa-premiere-mun4mvu8@example.com", // spec de recette, domaine réservé
+    "qa@demo.test",
+    "x@example.org",
   ]) assertEquals(isInternalEmail(e), true, e);
 });
 
@@ -29,6 +34,10 @@ Deno.test("jamais une cliente : autres domaines, homonymes, sous-domaines", () =
     "laetitiamattioli@gmail.com.fr",
     "laetitiamattioli@outlook.com",
     "laura@gmail.com",
+    "laetitiamattiolitest2@gmail.com",
+    "camille@example.com.fr",
+    "camille@monexample.com",
+    "camille@test.fr",
     "",
     null,
     undefined,
