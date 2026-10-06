@@ -1115,6 +1115,8 @@ async function finalizeCarousel(
     reserveMs?: number;
     /** Détail de l'étape fil (06/10/2026) : sans lui, 108-133 s de `thread_ms` restaient indécomposables. */
     timings?: Record<string, number>;
+    /** Durée mesurée de la rédaction : une réparation du fil réécrit tout le carrousel et prend à peu près autant. */
+    expectedRepairMs?: number;
     regenerate?: (
       draft: string,
       defects: string,
@@ -1192,12 +1194,22 @@ async function finalizeCarousel(
     receipt.report?.defects?.some((d: any) => d.severity === "minor" &&
       ["unclear_idea", "promise", "juxtaposition", "repetition", "rupture", "ending"].includes(d.type));
   const initialDefectCount = receipt.report?.defects?.length ?? 0;
-  // A single shared repair budget. No retry if a prior structural repair was attempted.
-  if (
-    !ownsText && !opts.repaired && opts.regenerate &&
+  const wantsRepair = !ownsText && !opts.repaired && !!opts.regenerate &&
     receipt.execution_status === "completed" &&
-    (receipt.verdict === "needs_repair" || minorContinuity) && remaining() >= 85_000
-  ) {
+    (receipt.verdict === "needs_repair" || minorContinuity);
+  // RÉPARATION PERDUE D'AVANCE (06/10/2026) : 13 slides, rédaction 82 s, il
+  // restait 35 s à la réparation → coupée (« repair-failed »), 35 s d'attente
+  // pour rien. Elle réécrit tout le carrousel : on ne la lance que si son délai
+  // couvre au moins la durée de la rédaction initiale. Sinon le brouillon jugé
+  // reste, avec ses défauts affichés — exactement l'issue d'une réparation coupée.
+  const repairTimeoutMs = Math.min(120_000, remaining() - 55_000);
+  const repairFits = remaining() >= 85_000 && repairTimeoutMs >= (opts.expectedRepairMs || 0);
+  if (wantsRepair && !repairFits) {
+    receipt.repair_skipped = "time-budget";
+    if (opts.timings) opts.timings.thread_repair_skipped = 1;
+  }
+  // A single shared repair budget. No retry if a prior structural repair was attempted.
+  if (wantsRepair && repairFits && opts.regenerate) {
     const sink: UsageSink = {};
     let repairReason = "candidate-failed-invariants";
     let candidateStatus: string | undefined;
@@ -1213,7 +1225,7 @@ async function finalizeCarousel(
             "\nMême nombre, ordre et associations photo. Sources :\n" +
             JSON.stringify(sources),
           sink,
-          Math.min(120_000, remaining() - 55_000),
+          repairTimeoutMs,
         )),
       );
       // Exact photo/type/order protection; only a genuinely automatic plan may change roles/intents.
@@ -1496,7 +1508,7 @@ async function runGenerationAndRespond(
   }
 
   if (type === "express_full" || type === "slides") {
-    content=await timed("thread_ms",finalizeCarousel(content,reqCtx,{usage,repaired:structuralRepair,regenerate,timings}));
+    content=await timed("thread_ms",finalizeCarousel(content,reqCtx,{usage,repaired:structuralRepair,regenerate,timings,expectedRepairMs:timings.write_ms}));
     // SCHÉMAS décidés après l'écriture et ses relectures, sur le texte final
     // (la rédaction ne les connaît plus : un changement d'écriture ne peut plus
     // les faire disparaître). Échec ou manque de temps → aucun schéma, texte livré.
