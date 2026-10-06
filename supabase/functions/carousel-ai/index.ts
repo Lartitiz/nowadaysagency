@@ -5,7 +5,7 @@ import { COMMON, PLAN, REPAIR } from "../_shared/carousel-editorial-contract.ts"
 import { reviewCarouselProgression, progressionReceipt, progressionWarnings, type ProgressionSource, type ProgressionResult } from "../_shared/carousel-progression.ts";
 import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts";
 import { PHOTO_NARRATIVE_CONTRACT, PHOTO_QUESTIONS_CONTRACT } from "./photo-narrative.ts";
-import { autoMaxSlides, carouselLength, carouselLengthPrompt, carouselStructureIssues, longTextSlides, structureRepairInstruction } from "../_shared/carousel-length.ts";
+import { autoMaxSlides, carouselLength, carouselLengthPrompt, carouselStructureIssues, longMixSlideIssues, longTextSlides, structureRepairInstruction } from "../_shared/carousel-length.ts";
 import { preservesCarouselScenario } from "../_shared/carousel-thread.ts";
 import { coverKind, coverRewritePrompt, enforceCover } from "../_shared/carousel-cover.ts";
 import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, newsWriting } from "./variant-writing.ts";
@@ -1695,7 +1695,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     const mismatch = carouselMismatchResponse(content, body, mixUsage, "mix", corsHeaders);
     if (mismatch) return mismatch;
   }
-  const threadMix = await repairCarouselStructure(content, { body, label: "mix", emitStatus, usage: mixUsage, regenerate: doRepair, startedAt });
+  const threadMix = await repairCarouselStructure(content, { body, label: "mix", inspect: (v) => { const p = tryParseAiJson(v); return [...carouselStructureIssues(p, body), ...longMixSlideIssues(p, body)]; }, emitStatus, usage: mixUsage, regenerate: doRepair, startedAt });
   content = threadMix.content;
 
   const editorialBaseline = content;
