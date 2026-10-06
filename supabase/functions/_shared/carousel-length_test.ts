@@ -92,3 +92,12 @@ Deno.test("consigne de réparation adaptée au défaut", () => {
   assert(structureRepairInstruction(["7 slides reçues, exactement 10 demandées."]).includes("nombre de slides"));
   assert(structureRepairInstruction(["La dernière slide doit conclure le propos (role:conclusion)."]).includes("conclusion"));
 });
+
+Deno.test("mixte : une slide de plus de 50 mots est signalée pour être redécoupée", async () => {
+  const { longMixSlideIssues } = await import("./carousel-length.ts");
+  const long = Array(51).fill("mot").join(" ");
+  const parsed = { slides: [{ title: "Couv" }, { body: long }, { body: "court" }] };
+  assertEquals(longMixSlideIssues(parsed, { carousel_type: "mix" }).length, 1);
+  assertEquals(longMixSlideIssues(parsed, { carousel_type: "mix", slide_count: 3 }).length, 0);
+  assertEquals(longMixSlideIssues(parsed, { carousel_type: "text" }).length, 0);
+});

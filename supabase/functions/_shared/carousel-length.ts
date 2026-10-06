@@ -96,6 +96,21 @@ export function longTextSlides(parsed: any, body: any): number[] {
   return slides.flatMap((s: any, i: number) => i > 0 && words(s) > LONG_SLIDE_WORDS ? [Number(s?.slide_number) || i + 1] : []);
 }
 
+/** Slides du carrousel MIXTE au-delà de LONG_SLIDE_WORDS mots (couverture
+ * exclue), à redécouper par la réparation. Rien quand la longueur est imposée
+ * ou que le plafond Auto est déjà atteint : découper ajouterait une slide. */
+export function longMixSlideIssues(parsed: any, body: any): string[] {
+  const slides = parsed?.slides;
+  if (!Array.isArray(slides) || !/mix/i.test(String(body?.carousel_type || "")) || carouselLength(body).exact) return [];
+  const room = autoMaxSlides(body) - slides.length;
+  if (room <= 0) return [];
+  const long = slides.flatMap((s: any, i: number) => {
+    const n = slideText(s).split(/\s+/).filter(Boolean).length;
+    return i > 0 && n > LONG_SLIDE_WORDS ? [`La slide ${Number(s?.slide_number) || i + 1} est trop longue (${n} mots, ${LONG_SLIDE_WORDS} au plus).`] : [];
+  });
+  return long.slice(0, room);
+}
+
 /** Consigne de réparation adaptée aux défauts relevés par
  * carouselStructureIssues (un défaut de liste ou de conclusion n'est pas un
  * défaut de nombre). */
@@ -105,6 +120,7 @@ export function structureRepairInstruction(issues: string[]): string {
   if (/slides reçues/.test(all)) asks.push("Corrige le nombre de slides demandé, en regroupant ou en découpant sans retirer d'idée.");
   if (/non repérés/.test(all)) asks.push("Fais apparaître chaque élément manquant de la liste promise, numéroté et expliqué.");
   if (/nomme un élément sans l'expliquer/.test(all)) asks.push("Explique chaque élément nommé, sur sa slide ou sur la slide qui suit.");
+  if (/est trop longue/.test(all)) asks.push(`Découpe chaque slide trop longue en deux slides consécutives, une idée chacune (${TEXT_SLIDE_TARGET_WORDS.min} à ${TEXT_SLIDE_TARGET_WORDS.max} mots), sans retirer ni répéter d'idée ; renumérote slide_number et garde photo_index sur la slide qui porte la photo.`);
   if (/dernière slide/i.test(all)) asks.push("Termine par une slide de conclusion (role:conclusion) qui conclut vraiment.");
   if (!asks.length) asks.push("Corrige ces défauts.");
   return asks.join("\n") + "\nN'invente aucun fait et ne change pas les choix validés.";
