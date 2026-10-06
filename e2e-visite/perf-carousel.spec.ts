@@ -89,6 +89,7 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
                 const review = doc.editorial_review;
                 detail = ` durées=${JSON.stringify(full.timings || "non renvoyées")}` +
                   (review ? ` relecture=${JSON.stringify({ status: review.status, pass: review.pass, total_edits: review.total_edits, error: review.error, model: review.model })}` : "") +
+                  (doc.progression_review ? ` fil=${JSON.stringify({ slides: doc.slides?.length, status: doc.progression_review.execution_status, verdict: doc.progression_review.verdict, defauts: (doc.progression_review.report?.defects || []).map((d: any) => `${d.severity}:${d.type}`), reparation: doc.progression_review.repair && { trigger: doc.progression_review.repair.trigger, accepted: doc.progression_review.repair.accepted, reason: doc.progression_review.repair.reason } })}` : "") +
                   (doc.structure_warnings?.length ? ` avertissements=${doc.structure_warnings.length}` : "");
               } catch { /* done sans JSON exploitable */ }
             }

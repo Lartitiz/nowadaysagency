@@ -1113,6 +1113,8 @@ async function finalizeCarousel(
     usage: UsageSink;
     repaired?: boolean;
     reserveMs?: number;
+    /** Détail de l'étape fil (06/10/2026) : sans lui, 108-133 s de `thread_ms` restaient indécomposables. */
+    timings?: Record<string, number>;
     regenerate?: (
       draft: string,
       defects: string,
@@ -1162,7 +1164,11 @@ async function finalizeCarousel(
     },
   ].filter((s) => s.text.trim());
   const remaining = () => 270_000 - (opts.reserveMs || 0) - (Date.now() - startedAt);
-  const judge = async (value: any): Promise<ProgressionResult> =>
+  const lap = async <T>(key: string, work: () => Promise<T>): Promise<T> => {
+    const t0 = Date.now();
+    try { return await work(); } finally { if (opts.timings) opts.timings[key] = (opts.timings[key] || 0) + Date.now() - t0; }
+  };
+  const judge = async (value: any, key = "thread_judge_ms"): Promise<ProgressionResult> => lap(key, () =>
     remaining() < 8_000
       ? progressionReceipt(value, "skipped", "time-budget")
       : _deps.reviewThread(value, {
@@ -1170,7 +1176,7 @@ async function finalizeCarousel(
         sourceContext: JSON.stringify(sources),
         preserveStructure: true,
         abortTimeoutMs: Math.min(45_000, remaining()),
-      });
+      }));
   const ownsText = body.type === "slides" || body.user_slides?.length;
   let receipt = ownsText
     ? await progressionReceipt(doc, "skipped", "user-authored")
@@ -1199,15 +1205,16 @@ async function finalizeCarousel(
     try {
       ctx.emitStatus("correcting");
       const draft = JSON.stringify(doc);
+      const regenerate = opts.regenerate;
       const candidate: any = tryParseAiJson(
-        await opts.regenerate(
+        await lap("thread_repair_ms", () => regenerate(
           draft,
           REPAIR + "\nDÉFAUTS DE FIL :\n" + receipt.issues.join("\n") +
             "\nMême nombre, ordre et associations photo. Sources :\n" +
             JSON.stringify(sources),
           sink,
           Math.min(120_000, remaining() - 55_000),
-        ),
+        )),
       );
       // Exact photo/type/order protection; only a genuinely automatic plan may change roles/intents.
       const scenario = (v: any) =>
@@ -1275,7 +1282,7 @@ async function finalizeCarousel(
           correction: { enabled: false },
         });
         const finalCandidate: any = tryParseAiJson(measured.content);
-        const checked = await judge(finalCandidate);
+        const checked = await judge(finalCandidate, "thread_recheck_ms");
         recordUsage(checked);
         candidateStatus = checked.execution_status;
         candidateVerdict = checked.verdict;
@@ -1301,6 +1308,7 @@ async function finalizeCarousel(
       repairReason = "repair-failed";
       /* Preserve the original reviewed draft and its defects. */
     } finally {
+      if (opts.timings) opts.timings.thread_repair_accepted = doc !== baseline ? 1 : 0;
       receipt.repair = { attempted: true, accepted: doc !== baseline,
         trigger: minorContinuity ? "minor_continuity" : "needs_repair",
         reason:repairReason,candidate_status:candidateStatus,candidate_verdict:candidateVerdict };
@@ -1335,7 +1343,7 @@ async function finalizeCarousel(
   // COUVERTURE (04/10/2026) : accroche de 10 mots max + sous-titre facultatif,
   // rien d'autre ; seule la slide 1 est touchée (cf. _shared/carousel-cover.ts).
   const coverSink: UsageSink = {};
-  const cover = await enforceCover(doc, {
+  const cover = await lap("thread_cover_ms", () => enforceCover(doc, {
     kind: coverKind(body.carousel_type),
     userAuthored: !!ownsText,
     selectedHook: typeof body.selected_hook === "string" ? body.selected_hook : body.selected_hook?.text ?? null,
@@ -1351,14 +1359,14 @@ async function finalizeCarousel(
       }, coverSink);
       return tryParseAiJson(raw, "carousel-ai:cover");
     },
-  });
+  }));
   for (const k of ["input_tokens", "output_tokens", "total_tokens"] as const) opts.usage[k] = (opts.usage[k] || 0) + (coverSink[k] || 0);
   if (cover.receipt) console.log(JSON.stringify({ event: "carousel_cover", ...cover.receipt }));
   // TU OU VOUS (04/10/2026) : contrôle par le code après rédaction ET
   // couverture ; passe courte ciblée si le texte contredit la fiche de marque.
   // Jamais sur le texte écrit par la personne.
   const finalDoc = !ownsText && ctx.audienceAddress
-    ? await enforceCarouselAudienceAddress(cover.doc, ctx.audienceAddress, remaining() < 15_000 ? 0 : Math.min(20_000, remaining() - 5_000))
+    ? await lap("thread_address_ms", () => enforceCarouselAudienceAddress(cover.doc, ctx.audienceAddress!, remaining() < 15_000 ? 0 : Math.min(20_000, remaining() - 5_000)))
     : cover.doc;
   return JSON.stringify(finalDoc);
 }
@@ -1488,7 +1496,7 @@ async function runGenerationAndRespond(
   }
 
   if (type === "express_full" || type === "slides") {
-    content=await timed("thread_ms",finalizeCarousel(content,reqCtx,{usage,repaired:structuralRepair,regenerate}));
+    content=await timed("thread_ms",finalizeCarousel(content,reqCtx,{usage,repaired:structuralRepair,regenerate,timings}));
     // SCHÉMAS décidés après l'écriture et ses relectures, sur le texte final
     // (la rédaction ne les connaît plus : un changement d'écriture ne peut plus
     // les faire disparaître). Échec ou manque de temps → aucun schéma, texte livré.
