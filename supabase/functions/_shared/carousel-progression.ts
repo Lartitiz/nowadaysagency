@@ -30,6 +30,8 @@ export interface ProgressionResult {
   report?: Record<string, any>;
   validation_details?: Record<string, unknown>;
   format_retry?: { attempted: boolean; initial_reason: string };
+  /** Réparation voulue mais non lancée : son délai n'aurait pas couvert une réécriture complète. */
+  repair_skipped?: "time-budget";
   repair?: { attempted: true; accepted: boolean; trigger: "needs_repair" | "minor_continuity"; reason?: string; candidate_status?: string; candidate_verdict?: string | null };
   reason?: string;
   usage?: UsageSink;

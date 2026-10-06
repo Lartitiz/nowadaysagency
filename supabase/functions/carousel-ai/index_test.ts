@@ -681,6 +681,48 @@ for(const variant of ["text","photo","mix"]) for(const outcome of ["acceptable",
   }finally {globalThis.fetch=oldFetch;Date.now=now;}
 });
 
+// 06/10/2026 : rédaction 82 s, 35 s laissés à la réparation → coupée pour rien.
+for (const writeMs of [80_000, 30_000]) Deno.test(`progression finale texte : réparation lancée seulement si son délai couvre la rédaction (${writeMs / 1000} s)`, async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch, now = Date.now; let offset = 0;
+  Date.now = () => now() + offset;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const draft = { slides: [
+    { slide_number: 1, role: "hook", title: "Les retours demandent une direction commune." },
+    { slide_number: 2, role: "body", title: "Les remarques contradictoires restent à départager." },
+    { slide_number: 3, role: "conclusion", title: "Le choix validé guide les corrections." },
+  ], caption: { body: "Un choix commun précède les modifications.", hashtags: [] } };
+  let writes = 0, judges = 0, repairTimeout = 0;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    writes++; Object.assign(sink, { model: o.model, total_tokens: 10 });
+    await Promise.resolve(); // le chrono démarre avant la réponse, comme un vrai appel réseau
+    if (writes === 1) offset += writeMs; else repairTimeout = o.abortTimeoutMs;
+    return JSON.stringify(draft);
+  }) as any;
+  _deps.reviewThread = async (doc: any) => {
+    // Le juge finit à 170 s : il reste 100 s, donc 45 s de délai de réparation.
+    if (judges++ === 0) offset = 170_000;
+    return verdict(doc, ["La conclusion est insuffisamment préparée."]);
+  };
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", subject: "Choisir une direction avant de modifier", slide_count: 3 }));
+    assertEquals(res.status, 200);
+    const data = await res.json(), doc = JSON.parse(data.content);
+    assertEquals(doc.progression_review.verdict, "needs_repair");
+    assert(doc.structure_warnings.length > 0);
+    if (writeMs > 45_000) {
+      assertEquals([writes, judges], [1, 1]);
+      assertEquals(doc.progression_review.repair_skipped, "time-budget");
+      assertEquals(data.timings.thread_repair_skipped, 1);
+    } else {
+      assertEquals(writes, 2);
+      assert(repairTimeout > 40_000 && repairTimeout <= 45_000);
+      assertEquals(doc.progression_review.repair_skipped, undefined);
+      assertEquals(doc.progression_review.repair.attempted, true);
+    }
+  } finally { globalThis.fetch = oldFetch; Date.now = now; }
+});
+
 Deno.test("texte utilisateur : pas de certification ni de réécriture globale automatique",async()=>{
   resetDeps();let judged=0;_deps.reviewThread=async(doc:any)=>{judged++;return verdict(doc);};
   _deps.callCarouselWriter=(async()=>JSON.stringify({slides:[{slide_number:1,title:"Mon titre",body:"Mon passage."}],caption:{}})) as any;
