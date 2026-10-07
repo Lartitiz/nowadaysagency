@@ -98,10 +98,14 @@ export function longTextSlides(parsed: any, body: any): number[] {
 
 /** Slides du carrousel MIXTE au-delà de LONG_SLIDE_WORDS mots (couverture
  * exclue), à redécouper par la réparation. Rien quand la longueur est imposée
- * ou que le plafond Auto est déjà atteint : découper ajouterait une slide. */
+ * ou que le plafond Auto est déjà atteint : découper ajouterait une slide.
+ * Rien non plus avec un plan de slides (07/10/2026) : la réparation doit
+ * garder le nombre de slides du plan, une découpe était donc TOUJOURS
+ * refusée après une réécriture complète (jusqu'à ~2 min d'attente pour rien). */
 export function longMixSlideIssues(parsed: any, body: any): string[] {
   const slides = parsed?.slides;
   if (!Array.isArray(slides) || !/mix/i.test(String(body?.carousel_type || "")) || carouselLength(body).exact) return [];
+  if (body?.confirmed_structure?.length || body?.slide_structure?.length) return [];
   const room = autoMaxSlides(body) - slides.length;
   if (room <= 0) return [];
   const long = slides.flatMap((s: any, i: number) => {
