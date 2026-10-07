@@ -419,7 +419,7 @@ export async function validatePptx(
   return { slideCount, mediaCount: mediaFiles.length, mediaMinBytes, mediaMinInk, texts, problems };
 }
 
-/** Extrait la plus grosse image du pptx (≈ le fond de slide) pour le regard UX. */
+/** Repli de renderSlideBackground (pptx-fond.ts) : la plus grosse image du pptx, brute. */
 export async function extractLargestMedia(filePath: string, outPath: string): Promise<string | null> {
   try {
     const zip = await JSZip.loadAsync(fs.readFileSync(filePath));
