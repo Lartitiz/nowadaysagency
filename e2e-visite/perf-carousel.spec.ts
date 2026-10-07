@@ -163,11 +163,22 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   else await genBtn.click();
   console.log("🚀 Clic Générer");
 
+  // ⏲ Jalon BROUILLON (07/10/2026) : les slides apparaissent grisées pendant
+  // l'écriture. On note quand la 1re s'affiche et on capture l'aperçu ~20 s après.
+  let tDraft: number | null = null;
+  page.getByTestId("carousel-draft-preview").waitFor({ state: "visible", timeout: 300000 }).then(async () => {
+    tDraft = Date.now();
+    console.log(`⏲ ✏️  1re slide BROUILLON affichée après ${((tDraft - tClickGen) / 1000).toFixed(1)}s`);
+    await page.waitForTimeout(20000);
+    await page.screenshot({ path: "e2e-visite/shots/perf-carousel-brouillon.png", fullPage: false });
+  }).catch(() => {});
+
   // ⏲ Jalon TEXTE : les actions du résultat ("Publier ou programmer") ne
   // s'affichent qu'une fois la génération terminée (generating=false + result).
   await expect(page.getByTestId("publish-or-schedule").first()).toBeVisible({ timeout: 300000 });
   const tTextReady = Date.now();
   console.log(`⏲ 📝 TEXTE affiché après ${((tTextReady - tClickGen) / 1000).toFixed(1)}s`);
+  if (!tDraft) console.log("⚠️ aucune slide brouillon affichée avant le texte final");
 
   // ⏲ Jalon VISUELS : deux rendus possibles des slides prêtes.
   //  - ancienne grille d'aperçus : une iframe srcDoc PAR slide (≥ 3) ;

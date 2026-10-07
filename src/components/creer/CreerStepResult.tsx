@@ -17,6 +17,7 @@ import NewsletterResult from "@/components/creer/formatRenderers/NewsletterResul
 import PinterestVisualResult from "@/components/creer/formatRenderers/PinterestVisualResult";
 import PinterestPhotoBriefResult from "@/components/creer/formatRenderers/PinterestPhotoBriefResult";
 import Confetti from "@/components/Confetti";
+import { CarouselDraftPreview, type DraftSlide } from "@/components/creer/CarouselDraftPreview";
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
 import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
@@ -245,6 +246,8 @@ interface Props {
    * null/undefined = pas d'info (messages rotatifs simulés, comportement historique).
    */
   generationStage?: string | null;
+  /** Carrousel : slides en brouillon reçues pendant l'écriture (affichées grisées). */
+  draftSlides?: DraftSlide[];
   streamingContent?: string;
   // Carrousel passé par l'étape structure → la rédaction est l'étape 2/2.
   step2of2?: boolean;
@@ -330,6 +333,7 @@ export default function CreerStepResult({
   format,
   generating,
   generationStage,
+  draftSlides,
   streamingContent,
   step2of2,
   qualityMax,
@@ -512,6 +516,27 @@ export default function CreerStepResult({
         );
       }
       // Si le contenu n'est pas encore extractible, montrer le skeleton
+    }
+
+    // Carrousel : les slides arrivent en brouillon pendant l'écriture.
+    if (format === "carousel" && draftSlides && draftSlides.length > 0) {
+      return (
+        <div className="py-6 space-y-4">
+          {step2of2 && (
+            <div className="text-center">
+              <span className="inline-block text-2xs font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 rounded-full px-3 py-1">
+                Étape 2 / 2 · Rédaction
+              </span>
+            </div>
+          )}
+          <CarouselDraftPreview slides={draftSlides} stage={generationStage} />
+          {qualityMax && (
+            <p className="text-xs text-center text-primary/80 font-medium">
+              ✨ Mode qualité Max activé — c'est plus long, mais plus soigné.
+            </p>
+          )}
+        </div>
+      );
     }
 
     // Mode skeleton : formats structurés (carousel, reel, story)

@@ -19,6 +19,7 @@ import {
   getStructurePromptForCombo,
 } from "@/lib/content-structures";
 import { renumberSlides } from "@/features/creer/format-mappers";
+import type { DraftSlide } from "@/components/creer/CarouselDraftPreview";
 
 // ── Types ──
 
@@ -334,6 +335,9 @@ export function useContentGenerator() {
   // "writing" → rédaction, "correcting" → relecture anti-patterns IA). Permet
   // à l'écran d'attente d'afficher la vraie étape au lieu de messages simulés.
   const [generationStage, setGenerationStage] = useState<string | null>(null);
+  // Slides du carrousel en BROUILLON pendant l'écriture (07/10/2026, évènement
+  // SSE `draft`) : affichées grisées, non modifiables, remplacées par le texte relu.
+  const [draftSlides, setDraftSlides] = useState<DraftSlide[]>([]);
 
   // Internal streaming wrapper — proxied to consumers via the hook's return.
   // Kept inside the hook so all callers share the same SSE state.
@@ -357,6 +361,7 @@ export function useContentGenerator() {
     streamReset();
     setQuestionsError(null);
     setGenerationStage(null);
+    setDraftSlides([]);
     setGenerating(false);
     setResult(null);
     setError(null);
@@ -400,6 +405,7 @@ export function useContentGenerator() {
     setQuotaExhausted(null);
     setResult(null);
     setGenerationStage(null);
+    setDraftSlides([]);
     const generationStartedAt = performance.now();
 
     // Defensive: bail early on non-canonical formats (e.g. "auto") so the user
@@ -477,7 +483,11 @@ export function useContentGenerator() {
                 ? { photo_catalog: params.photoCatalog.slice(0, 40) }
                 : {}),
             },
-            onStatus: (stage) => { if (epoch === generationEpoch.current) setGenerationStage(stage); },
+            onStatus: (stage, event) => {
+              if (epoch !== generationEpoch.current) return;
+              if (stage === "draft") { if (Array.isArray(event?.slides)) setDraftSlides(event.slides as DraftSlide[]); }
+              else setGenerationStage(stage);
+            },
           // 400s : pire cas serveur réel côté carousel-ai (mode photo) — appel
           // principal (120s) + retry plancher slides (120s) + passe correction
           // (60s) + re-passe redac-gate (60s) + relecture-gabarits (30s) = 390s,
@@ -725,6 +735,7 @@ export function useContentGenerator() {
       if (epoch === generationEpoch.current) {
         setGenerating(false);
         setGenerationStage(null);
+    setDraftSlides([]);
       }
     }
   }, [defaultWorkspaceId]);
@@ -1098,6 +1109,7 @@ export function useContentGenerator() {
     generate,
     generating,
     generationStage,
+    draftSlides,
     result,
     setResult,
     error,

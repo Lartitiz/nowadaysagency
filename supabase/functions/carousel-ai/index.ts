@@ -7,6 +7,7 @@ import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts
 import { PHOTO_NARRATIVE_CONTRACT, PHOTO_QUESTIONS_CONTRACT } from "./photo-narrative.ts";
 import { autoMaxSlides, carouselLength, carouselLengthPrompt, carouselStructureIssues, longMixSlideIssues, longTextSlides, structureRepairInstruction } from "../_shared/carousel-length.ts";
 import { preservesCarouselScenario } from "../_shared/carousel-thread.ts";
+import { draftSlidesTracker } from "../_shared/carousel-draft-stream.ts";
 import { coverKind, coverRewritePrompt, enforceCover } from "../_shared/carousel-cover.ts";
 import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, newsWriting } from "./variant-writing.ts";
 import { callCarouselWriter, pickCarouselWriter, CAROUSEL_WRITER_VERSION } from "./writer.ts";
@@ -1180,6 +1181,7 @@ async function finalizeCarousel(
         abortTimeoutMs: Math.min(45_000, remaining()),
       }));
   const ownsText = body.type === "slides" || body.user_slides?.length;
+  if (!ownsText) ctx.emitStatus("checking");
   let receipt = ownsText
     ? await progressionReceipt(doc, "skipped", "user-authored")
     : await judge(doc);
@@ -1441,8 +1443,11 @@ async function runGenerationAndRespond(
     const t0 = Date.now();
     try { return await work; } finally { timings[key] = (timings[key] || 0) + Date.now() - t0; }
   };
+  // SLIDES EN BROUILLON (07/10/2026) : chaque slide terminée part à l'écran
+  // pendant l'écriture (évènement status `draft`), le texte relu la remplace.
+  const draftStream = type === "express_full" ? { onText: draftSlidesTracker((slides) => emitStatus("draft", { slides })) } : {};
   let content = await timed("write_ms", isWriting
-    ? _deps.callCarouselWriter({ ...writingOptions, model: pickCarouselModel(body) }, usage)
+    ? _deps.callCarouselWriter({ ...writingOptions, ...draftStream, model: pickCarouselModel(body) }, usage)
     : _deps.callAnthropic({ ...writingOptions, model: getModelForAction(type === "deepening_questions" ? "questions" : "carousel") }, usage));
 
   // Contextual review for every generated carousel, legacy scan only on rollback.

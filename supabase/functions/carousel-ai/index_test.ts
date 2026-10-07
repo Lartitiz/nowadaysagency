@@ -1184,3 +1184,37 @@ for (const withFeeling of [false, true]) Deno.test(`actu : recherche en profonde
     assert(system.includes("un « on » ou « nous » collectif peut porter cette lecture"));
   }
 });
+
+// 07/10/2026 : slides en brouillon pendant l'écriture, puis étape « fil » annoncée.
+Deno.test("carrousel texte : slides en brouillon pendant l'écriture, seulement pour la 1re rédaction", async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const doc = { slides: [
+    { slide_number: 1, role: "hook", title: "Les retours demandent une direction commune." },
+    { slide_number: 2, role: "body", title: "Les remarques contradictoires restent à départager." },
+    { slide_number: 3, role: "conclusion", title: "Le choix validé guide les corrections." },
+  ], caption: { body: "Un choix commun précède les modifications.", hashtags: [] } };
+  const full = JSON.stringify(doc);
+  const streamed: boolean[] = [];
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    Object.assign(sink, { model: o.model, total_tokens: 10 });
+    streamed.push(typeof o.onText === "function");
+    if (o.onText) for (let cut = 1; cut <= full.length; cut += 9) o.onText(full.slice(0, cut));
+    return full;
+  }) as any;
+  _deps.reviewThread = async (d: any) => verdict(d);
+  try {
+    const req = makeHooksRequest({ type: "express_full", subject: "Choisir une direction", slide_count: 3 });
+    const res = await handleRequest(new Request(req.url, { method: "POST", headers: { "Content-Type": "application/json", Accept: "text/event-stream" }, body: await req.text() }));
+    const events = (await res.text()).split("\n\n").filter((l) => l.startsWith("data: ")).map((l) => JSON.parse(l.slice(6)));
+    const drafts = events.filter((e) => e.stage === "draft");
+    assertEquals(drafts.map((e) => e.slides.length), [1, 2, 3]);
+    assertEquals(drafts[2].slides[1], { n: 2, title: "Les remarques contradictoires restent à départager.", text: "" });
+    const stages = events.filter((e) => e.type === "status").map((e) => e.stage);
+    assert(stages.indexOf("checking") > stages.lastIndexOf("draft"));
+    assertEquals(events.at(-1).type, "done");
+    assertEquals(streamed[0], true);
+    assert(streamed.slice(1).every((s) => !s));
+  } finally { globalThis.fetch = oldFetch; }
+});

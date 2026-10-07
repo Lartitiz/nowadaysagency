@@ -21,7 +21,15 @@ export function carouselWriterDiagnostic(error: unknown): string {
 
 export const CAROUSEL_WRITER_VERSION = "opus55-fable51-medium-v2";
 export type CarouselWriterModel = "claude-opus-5" | "claude-opus-5-5" | "claude-fable-5-1" | "gpt-6-astra";
-export type CarouselWriterOptions = Omit<AnthropicOptions, "model"> & { model: CarouselWriterModel };
+export type CarouselWriterOptions = Omit<AnthropicOptions, "model"> & {
+  model: CarouselWriterModel;
+  /**
+   * Texte reçu jusqu'ici, à chaque morceau (07/10/2026 : slides montrées en
+   * brouillon pendant l'écriture). Réponse en flux, Anthropic sans outil
+   * seulement ; ailleurs ignoré. Le résultat final reste contrôlé à l'identique.
+   */
+  onText?: (text: string) => void;
+};
 
 // Mode Max : Claude Fable 5.1 (le modèle Anthropic le plus capable) depuis le
 // 02/10 ; Astra (OpenAI) le faisait avant et tombait avec le crédit OpenAI.
@@ -59,6 +67,7 @@ export function writerRequest(options: CarouselWriterOptions): Record<string, un
       model: options.model, system: system ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] : "",
       messages: options.messages, max_tokens: autoTool ? Math.max(maxTokens, NO_FORCED_TOOL_MIN_MAX_TOKENS) : maxTokens,
       thinking: { type: "adaptive" }, output_config: { effort: "medium" },
+      ...(streamsText(options) ? { stream: true } : {}),
       ...(options.tool ? {
         tools: [options.tool],
         tool_choice: autoTool ? { type: "auto", disable_parallel_tool_use: true } : { type: "tool", name: options.tool.name },
@@ -126,6 +135,50 @@ export function writerResponse(data: any, options: CarouselWriterOptions, sink?:
   return text;
 }
 
+const streamsText = (options: CarouselWriterOptions) => !!options.onText && !options.tool && options.model !== "gpt-6-astra";
+
+/**
+ * Relit une réponse Anthropic en flux et la reconstruit sous la forme d'une
+ * réponse classique : `writerResponse` applique ensuite les MÊMES contrôles
+ * (modèle, refus, coupure, usage). Seul le texte visible est transmis à
+ * `onText` ; la réflexion du modèle ne l'est jamais.
+ */
+export async function readWriterStream(body: ReadableStream<Uint8Array>, onText: (text: string) => void): Promise<any> {
+  const reader = body.getReader(), decoder = new TextDecoder();
+  const data: any = { usage: {} };
+  let buffer = "", text = "", textBlocks = 0;
+  const mergeUsage = (u: any) => {
+    for (const [k, v] of Object.entries(u || {})) if (typeof v === "number") data.usage[k] = v;
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    buffer += done ? decoder.decode() + "\n\n" : decoder.decode(value, { stream: true });
+    let end: number;
+    while ((end = buffer.indexOf("\n\n")) >= 0) {
+      const line = buffer.slice(0, end).split("\n").find((l) => l.startsWith("data:"));
+      buffer = buffer.slice(end + 2);
+      if (!line) continue;
+      let event: any;
+      try { event = JSON.parse(line.slice(5).trim()); } catch { continue; }
+      if (event.type === "message_start") { data.model = event.message?.model; mergeUsage(event.message?.usage); }
+      else if (event.type === "content_block_start" && event.content_block?.type === "text") { if (textBlocks++ > 0) text += "\n"; }
+      else if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
+        text += event.delta.text || "";
+        try { onText(text); } catch { /* l'affichage du brouillon ne casse jamais l'écriture */ }
+      } else if (event.type === "message_delta") {
+        if (event.delta?.stop_reason) data.stop_reason = event.delta.stop_reason;
+        mergeUsage(event.usage);
+      } else if (event.type === "error") {
+        const type = typeof event.error?.type === "string" && /^[a-z_]{1,60}$/.test(event.error.type) ? event.error.type : "unknown";
+        throw new CarouselWriterError(type === "overloaded_error" ? "Le modèle est momentanément saturé. Réessaie dans un instant." : "Le modèle de rédaction est indisponible. Réessaie dans un instant.", type === "overloaded_error" ? 429 : 502, `anthropic_stream_${type}`);
+      }
+    }
+    if (done) break;
+  }
+  data.content = [{ type: "text", text }];
+  return data;
+}
+
 export async function callCarouselWriter(options: CarouselWriterOptions, sink?: UsageSink): Promise<string> {
   const openai = options.model === "gpt-6-astra";
   const key = Deno.env.get(openai ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY");
@@ -147,6 +200,7 @@ export async function callCarouselWriter(options: CarouselWriterOptions, sink?: 
       const exhausted = type === "insufficient_quota" || code === "insufficient_quota" || code === "credit_balance_exhausted";
       throw new CarouselWriterError(response.status === 429 ? (exhausted ? `Le budget du fournisseur de rédaction est épuisé. ${openai ? "Le mode Max est indisponible ; tu peux utiliser le mode standard." : "La génération de carrousels est indisponible."} Aucun crédit décompté.` : "Le fournisseur refuse momentanément la génération (limite 429). Réessaie plus tard. Aucun crédit décompté.") : "Le modèle de rédaction est indisponible. Réessaie dans un instant.", response.status === 429 ? 429 : 502, `${openai ? "openai" : "anthropic"}_http_${response.status}${code ? "_" + code : type ? "_" + type : ""}`);
     }
+    if (streamsText(options) && response.body) return writerResponse(await readWriterStream(response.body, options.onText!), options, sink);
     const data = await response.json();
     // Opus 5.5 : l'outil n'est plus forcé. S'il répond sans l'appeler, on relance
     // UNE fois (même modèle, jamais de repli silencieux vers un autre).
