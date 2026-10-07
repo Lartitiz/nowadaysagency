@@ -177,3 +177,50 @@ const name = model === "gpt-6-astra" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY";
     assertEquals(calls, 1);
   } finally { globalThis.fetch = oldFetch; if(oldKey === undefined) Deno.env.delete(name); else Deno.env.set(name, oldKey); }
 });
+
+// 07/10/2026 : slides en brouillon pendant l'écriture → réponse en flux.
+const sse = (events: any[], chunk = 17) => {
+  const raw = events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join("");
+  return new ReadableStream<Uint8Array>({ start(c) { const b = new TextEncoder().encode(raw); for (let i = 0; i < b.length; i += chunk) c.enqueue(b.slice(i, i + chunk)); c.close(); } });
+};
+const streamed = (stop = "end_turn") => [
+  { type: "message_start", message: { model: "claude-opus-5-5", usage: { input_tokens: 10, output_tokens: 1, cache_read_input_tokens: 5 } } },
+  { type: "content_block_start", index: 0, content_block: { type: "thinking" } },
+  { type: "content_block_delta", index: 0, delta: { type: "thinking_delta", thinking: "secret" } },
+  { type: "content_block_start", index: 1, content_block: { type: "text" } },
+  { type: "content_block_delta", index: 1, delta: { type: "text_delta", text: '{"slides":[{"title":"A"},' } },
+  { type: "content_block_delta", index: 1, delta: { type: "text_delta", text: '{"title":"B"}]}' } },
+  { type: "message_delta", delta: { stop_reason: stop }, usage: { output_tokens: 20 } },
+  { type: "message_stop" },
+];
+Deno.test("rédaction en flux : texte visible seulement, mêmes contrôles et même usage qu'une réponse classique", async () => {
+  const oldFetch = globalThis.fetch, oldKey = Deno.env.get("ANTHROPIC_API_KEY");
+  Deno.env.set("ANTHROPIC_API_KEY", "test");
+  const seen: string[] = []; let body: any;
+  try {
+    globalThis.fetch = (async (_url: any, init: any) => { body = JSON.parse(init.body); return new Response(sse(streamed()), { status: 200, headers: { "content-type": "text/event-stream" } }); }) as typeof fetch;
+    const sink: any = {};
+    const text = await callCarouselWriter({ ...base, model: "claude-opus-5-5", onText: (t) => seen.push(t) }, sink);
+    assertEquals(body.stream, true);
+    assert(!("onText" in body));
+    assertEquals(text, '{"slides":[{"title":"A"},{"title":"B"}]}');
+    assertEquals(seen.at(-1), text);
+    assert(seen.every((t) => !t.includes("secret")));
+    assertEquals(sink, { model: "claude-opus-5-5", input_tokens: 15, output_tokens: 20, total_tokens: 35 });
+    // Coupure par max_tokens : même refus qu'en réponse classique.
+    globalThis.fetch = (async () => new Response(sse(streamed("max_tokens")), { status: 200 })) as typeof fetch;
+    await assertRejects(() => callCarouselWriter({ ...base, model: "claude-opus-5-5", onText: () => {} }), AnthropicError, "pas complète");
+    // Erreur en plein flux : erreur claire, jamais un texte tronqué livré.
+    globalThis.fetch = (async () => new Response(sse([streamed()[0], { type: "error", error: { type: "overloaded_error", message: "x" } }]), { status: 200 })) as typeof fetch;
+    await assertRejects(() => callCarouselWriter({ ...base, model: "claude-opus-5-5", onText: () => {} }), AnthropicError, "saturé");
+  } finally {
+    globalThis.fetch = oldFetch;
+    if (oldKey === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", oldKey);
+  }
+});
+Deno.test("rédaction en flux : jamais avec un outil ni pour Astra", () => {
+  assert(!("stream" in writerRequest({ ...base, model: "claude-opus-5-5", tool, onText: () => {} })));
+  assert(!("stream" in writerRequest({ ...base, model: "gpt-6-astra", onText: () => {} })));
+  assertEquals(writerRequest({ ...base, model: "claude-opus-5-5", onText: () => {} }).stream, true);
+  assert(!("stream" in writerRequest({ ...base, model: "claude-opus-5-5" })));
+});

@@ -651,6 +651,7 @@ function CreerWorkspace() {
     generate,
     generating,
     generationStage,
+    draftSlides,
     result,
     setResult,
     error,
@@ -3088,6 +3089,7 @@ function CreerWorkspace() {
                 format={selectedFormat || "post"}
                 generating={generating || demoGenerating || streaming || pinterestVisualGenerating}
                 generationStage={generationStage || streamStage}
+                draftSlides={selectedFormat === "carousel" ? draftSlides : undefined}
                 streamingContent={streaming ? streamingContent : undefined}
                 step2of2={selectedFormat === "carousel" && !!lastConfirmedStructure && (carouselSubMode === "photo" || carouselSubMode === "mix")}
                 qualityMax={qualityMax}
