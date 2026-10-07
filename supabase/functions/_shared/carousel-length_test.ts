@@ -100,4 +100,7 @@ Deno.test("mixte : une slide de plus de 50 mots est signalée pour être redéco
   assertEquals(longMixSlideIssues(parsed, { carousel_type: "mix" }).length, 1);
   assertEquals(longMixSlideIssues(parsed, { carousel_type: "mix", slide_count: 3 }).length, 0);
   assertEquals(longMixSlideIssues(parsed, { carousel_type: "text" }).length, 0);
+  // Avec un plan, la réparation garde son nombre de slides : découper serait refusé d'office.
+  assertEquals(longMixSlideIssues(parsed, { carousel_type: "mix", confirmed_structure: [{}, {}, {}] }).length, 0);
+  assertEquals(longMixSlideIssues(parsed, { carousel_type: "mix", slide_structure: [{}, {}, {}] }).length, 0);
 });
