@@ -18,6 +18,7 @@ import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
 import { validatePptx, extractLargestMedia, type PptxReport } from "./pptx-validate";
+import { renderSlideBackground } from "./pptx-fond";
 
 const HISTORY_DIR = process.env.NOWADAYS_VISITE_DATA || path.join(os.homedir(), ".nowadays-visite");
 
@@ -28,15 +29,15 @@ export interface PptxExportCheckOpts {
   validate?: { minSlides?: number; expectEditableText?: boolean; backgroundIsDecorative?: boolean };
   /** Nom du .pptx sauvé dans results/ (défaut : d'après le format). */
   outName?: string;
-  /** Nom de la capture du fond le plus lourd dans shots/ (omis = pas de capture). */
+  /** Nom de la capture du fond reconstitué (slide 1) dans shots/ (omis = pas de capture). */
   shotName?: string;
   /** false = ne PAS échouer sur défaut (juste historiser). Défaut : true (rouge sur défaut). */
   assert?: boolean;
 }
 
 /**
- * Télécharge le « PowerPoint : éditable » du carrousel affiché, le valide, extrait
- * le fond le plus lourd pour le regard, ajoute 1 ligne à l'historique PPTX, et —
+ * Télécharge le « PowerPoint : éditable » du carrousel affiché, le valide, reconstitue
+ * le fond de la slide 1 pour le regard, ajoute 1 ligne à l'historique PPTX, et —
  * sauf assert:false — échoue sur tout défaut. Renvoie le rapport de validation.
  */
 export async function exportAndCheckPptx(
@@ -94,10 +95,13 @@ export async function exportAndCheckPptx(
       `${report.problems.length} défaut(s)`,
   );
 
-  // Le fond le plus lourd est extrait pour « le regard » du cron (contraste, wraps,
-  // photo occultée à l'œil — ce que seule une capture ou une humaine attrape).
+  // Le fond de la slide 1 est RECONSTITUÉ (fond natif + images empilées, sans le
+  // texte) pour « le regard » du cron (contraste, photo occultée à l'œil — ce que
+  // seule une capture ou une humaine attrape). La plus grosse image seule ne suffit
+  // pas : c'est souvent un calque transparent (07/10). Repli : l'ancienne extraction.
   if (opts.shotName) {
-    const shot = await extractLargestMedia(pptxPath, path.join(dirname, "shots", opts.shotName));
+    const shotPath = path.join(dirname, "shots", opts.shotName);
+    const shot = (await renderSlideBackground(pptxPath, shotPath)) ?? (await extractLargestMedia(pptxPath, shotPath));
     if (shot) console.log(`👀 Fond extrait pour le regard : ${shot}`);
   }
 
