@@ -983,6 +983,16 @@ export interface EchoContext {
   subject?: string;
 }
 
+/**
+ * Échos d'accroche mesurés AVANT toute correction, ou undefined quand la garde
+ * n'était pas armée (aucune accroche précédente sur ce sujet). Le quality_check
+ * et la télémétrie ne voient que l'APRÈS : quand la garde a mordu, hook_echoes
+ * y est vide. Ce compteur seul dit si elle mord sur du vrai contenu.
+ */
+export function hookEchoesBefore(before: { hookEchoes: string[] }, echo?: EchoContext): number | undefined {
+  return echo?.previousHooks?.length ? before.hookEchoes.length : undefined;
+}
+
 /** `testimonySource` : brief + réponses + actu ; absent = témoignages et vécus non mesurés. */
 export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext, research?: ResearchNumbers, testimonySource?: string): RedacAnalysis {
   const doc = parsed?.carousel?.slides ? parsed.carousel : parsed;
@@ -1103,7 +1113,7 @@ export function redacScore(a: RedacAnalysis): number {
 }
 
 /** quality_check calculé (remplace l'auto-déclaré, qui rapportait faux). */
-function buildQualityCheck(a: RedacAnalysis, repassed: boolean, researchCap?: number) {
+function buildQualityCheck(a: RedacAnalysis, repassed: boolean, researchCap?: number, echoesBefore?: number) {
   const violations = redacViolations(a);
   return {
     source: "code",
@@ -1124,6 +1134,8 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean, researchCap?: nu
     duration_conflicts: a.durationConflicts,
     brand_copy_overlap: a.brandCopyOverlap.length,
     hook_echoes: a.hookEchoes,
+    // Avant la re-passe (null = garde non armée) : hook_echoes ci-dessus est l'après.
+    hook_echoes_before: echoesBefore ?? null,
     hashtags_count: a.hashtagsCount,
     corrected_by_repass: repassed,
   };
@@ -1207,6 +1219,8 @@ export interface RedacGateResult {
   score: number | null;
   /** Nombre de violations du document final (null si contenu illisible). */
   violations: number | null;
+  /** Échos d'accroche avant la re-passe ; absent si la garde n'était pas armée. */
+  hookEchoesBefore?: number;
 }
 
 interface CarouselCorrectionContext {
@@ -1412,7 +1426,7 @@ export async function runRedacGate(
   }
 
   const finalDoc = parseFenced(out) || parseFenced(content);
-  if (!finalDoc) return { content: out, repassed, before, after: before, score: redacScore(before), violations: redacViolations(before) };
+  if (!finalDoc) return { content: out, repassed, before, after: before, score: redacScore(before), violations: redacViolations(before), hookEchoesBefore: hookEchoesBefore(before, opts.echo) };
 
   // « Ton cas d'abord » (04/10/2026) : avec un cas personnel fourni, au plus
   // `researchNumbersCap` chiffres de la seule recherche. Au-delà, passe dédiée
@@ -1552,7 +1566,8 @@ export async function runRedacGate(
     after = dropUserSourcedReversals(analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo, research, opts.testimonySource), opts.correction.authoredText);
   }
   normalizeCaptionHashtags(finalDoc.parsed, opts.isLinkedIn);
-  finalDoc.parsed.quality_check = buildQualityCheck(after, repassed, opts.researchNumbersCap);
+  const echoesBefore = hookEchoesBefore(before, opts.echo);
+  finalDoc.parsed.quality_check = buildQualityCheck(after, repassed, opts.researchNumbersCap, echoesBefore);
 
   out = out.includes(finalDoc.raw)
     ? out.replace(finalDoc.raw, JSON.stringify(finalDoc.parsed, null, 2))
@@ -1562,7 +1577,7 @@ export async function runRedacGate(
     `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${after.unsourcedResearchNumbers?.length ?? 0}, chiffres de recherche repris ${before.researchNumbersUsed?.length ?? 0}→${after.researchNumbersUsed?.length ?? 0}${opts.researchNumbersCap !== undefined ? ` (plafond ${opts.researchNumbersCap}, cas personnel fourni)` : ""}, témoignages inventés ${before.inventedTestimonials?.length ?? 0}→${after.inventedTestimonials?.length ?? 0}, vécus inventés ${before.inventedExperiences?.length ?? 0}→${after.inventedExperiences?.length ?? 0}, durées contradictoires ${before.durationConflicts.length}→${after.durationConflicts.length}, recopie fiche marque ${before.brandCopyOverlap.length}→${after.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${after.hookEchoes.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
   );
 
-  return { content: out, repassed, before, after, score: redacScore(after), violations: redacViolations(after) };
+  return { content: out, repassed, before, after, score: redacScore(after), violations: redacViolations(after), hookEchoesBefore: echoesBefore };
 }
 
 function emptyAnalysis(): RedacAnalysis {
@@ -1920,6 +1935,8 @@ export interface TextGateResult {
   reverted: boolean;
   score: number;
   violations: number;
+  /** Échos d'accroche avant toute correction ; absent si la garde n'était pas armée. */
+  hookEchoesBefore?: number;
 }
 
 export async function runTextRedacGate(
@@ -2006,5 +2023,5 @@ export async function runTextRedacGate(
   opts.correction.logger?.(
     `[text-gate:${opts.format}] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${bestA.unsourcedResearchNumbers?.length ?? 0}, témoignages inventés ${before.inventedTestimonials?.length ?? 0}→${bestA.inventedTestimonials?.length ?? 0}, vécus inventés ${before.inventedExperiences?.length ?? 0}→${bestA.inventedExperiences?.length ?? 0}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, repassé=${repassed}, rejeté=${reverted}`,
   );
-  return { content: best, before, after: bestA, repassed, reverted, score, violations };
+  return { content: best, before, after: bestA, repassed, reverted, score, violations, hookEchoesBefore: hookEchoesBefore(before, opts.echo) };
 }

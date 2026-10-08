@@ -26,6 +26,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jugerCredits, joursDepuisReset } from "./photoroom-alerte.ts";
 import { compte, debutMoisUtc, jugerBudgetHiggsfield, somme } from "./higgsfield-alerte.ts";
+import { gardeRediteStats } from "./garde-redite.ts";
 import { isInternalEmail, isTestAccountEmail, maskEmail } from "../_shared/internal-accounts.ts";
 
 // Comptes internes exclus : liste UNIQUE partagée avec activation-funnel et
@@ -889,6 +890,16 @@ Deno.serve(async (req) => {
             cette_semaine: scoreStats(carCur),
             semaine_precedente: scoreStats(carPrev),
           },
+      // Garde anti-redite d'accroche (#915) : contenus où l'accroche redisait une
+      // accroche précédente AVANT correction (cf. garde-redite.ts). Clientes et
+      // comptes internes séparés, comme les coûts.
+      garde_anti_redite: cqEvents
+        ? {
+            cette_semaine: gardeRediteStats(cqEvents, (d) => inWindow(d, curFrom, curTo)),
+            semaine_precedente: gardeRediteStats(cqEvents, (d) => inWindow(d, prevFrom, prevTo)),
+            comptes_internes_7j: gardeRediteStats(cqAll.filter((e: any) => internalIds.has(e.user_id)), (d) => inWindow(d, curFrom, curTo)),
+          }
+        : null,
       retravail: { total_carrousels: carCur.length, retravailles, sujets_regeneres },
       par_format: parFormat,
       echantillon,

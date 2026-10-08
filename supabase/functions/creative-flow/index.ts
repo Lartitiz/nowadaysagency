@@ -26,7 +26,7 @@ import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool }
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, applyCorrectionPassReel, type CorrectionFormat, applyCorrectionPassStories, extractStoriesTexts, reinjectStoriesTexts, storiesAuditableText } from "../_shared/correction-pass.ts";
-import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, numbersIn, researchNumbers, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations, dropUserSourcedReversals, findChoppyFragments, type ResearchNumbers } from "../_shared/redac-gate.ts";
+import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, numbersIn, researchNumbers, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations, dropUserSourcedReversals, findChoppyFragments, hookEchoesBefore, type ResearchNumbers } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks, fetchPreviousHooksByFormat } from "../_shared/previous-hooks.ts";
 import {
@@ -1338,7 +1338,7 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
         await logContentQuality(
           userId,
           `recycle_${f}`,
-          { score: gate.score, violations: gate.violations, repassed: gate.repassed, content: gate.content },
+          { score: gate.score, violations: gate.violations, repassed: gate.repassed, content: gate.content, hookEchoesBefore: gate.hookEchoesBefore },
           (fUsage as any)?.model,
           workspace_id,
           typeof topicVal === "string" ? topicVal : undefined,
@@ -1478,8 +1478,10 @@ export function gateNumbers(baseParts: string[], researchSource?: string): { all
 // En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
 // (vision déjà coûteuse en wall-time). Les règles anti-broetry sont déjà
 // injectées AVANT les images dans le prompt photo LinkedIn (lignes 1272+).
-export async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<void> {
+/** Renvoie les échos d'accroche AVANT correction (undefined = garde non armée ou passe échouée). */
+export async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<number | undefined> {
   const { body, fullContext, brandGuardText, researchSource } = params;
+  let echoesBefore: number | undefined;
   try {
     // Gate rédactionnel (lots 3+4) : mesures en code injectées dans la
     // passe de correction existante — retournements (1 max), formules
@@ -1510,12 +1512,14 @@ export async function applyLinkedInCorrectionPass(parsed: any, params: { body: a
       testimonySource: testimonySourceText(body),
     });
     parsed.content = gate.content;
+    echoesBefore = gate.hookEchoesBefore;
   } catch (corrErr) {
     console.error("[creative-flow] correction-pass linkedin failed:", corrErr);
   }
   // Filet déterministe (hors try : s'applique même si la passe a échoué) :
   // élisions manquantes type « le avant/après » (vécu 21/07).
   fixElisionsInFields(parsed, ["content", "accroche"]);
+  return echoesBefore;
 }
 
 // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
@@ -1528,8 +1532,10 @@ export async function applyLinkedInCorrectionPass(parsed: any, params: { body: a
 // 3. Recalibrage déterministe des durées : la durée affichée découle du texte
 //    réel (2,5 mots/s). Mesuré à l'audit : durées déclarées sous-estimées de
 //    40-80 % (90 s réelles annoncées "50 sec" = pénalité de distribution).
-export async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[]; audienceAddress?: AudienceAddress | null }): Promise<void> {
+/** Renvoie les échos d'accroche AVANT correction (undefined = garde non armée, hook verrouillé ou passe échouée). */
+export async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[]; audienceAddress?: AudienceAddress | null }): Promise<number | undefined> {
   const { body, effectiveObjective, fullContext, researchSource, brandGuardText, echoSubject, previousHooks } = params;
+  let echoesBefore: number | undefined;
   if (body.face_cam === "non" && enforceReelNoFaceCam(parsed)) {
     console.log("[creative-flow] reel face_cam=non : structure convertie en voix off");
   }
@@ -1561,6 +1567,7 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
       reelResearch,
       testimonySourceText(body),
     );
+    if (!hookVerrouille) echoesBefore = hookEchoesBefore(reelRedac, { previousHooks, subject: echoSubject });
     const extras: string[] = [];
     const redacFix = buildTextFixInstructions(reelRedac);
     if (redacFix) extras.push(redacFix);
@@ -1644,6 +1651,7 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
   // test et les durées suivent le texte final).
   await enforceReelAudienceAddress(parsed, params.audienceAddress);
   finalizeReelScript(parsed, body.selected_hook);
+  return echoesBefore;
 }
 
 // ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══
@@ -1677,6 +1685,8 @@ export interface StoriesGateResult {
   violations: number;
   repassed: boolean;
   reverted: boolean;
+  /** Échos d'accroche AVANT correction ; absent si la garde n'était pas armée. */
+  hook_echoes_before?: number;
 }
 
 export async function applyStoriesCorrectionPass(parsed: any, params: { body: any; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<StoriesGateResult | null> {
@@ -1753,7 +1763,11 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
       }
     }
     const violations = textRedacViolations(bestA);
-    const result: StoriesGateResult = { source: "code", score: Math.max(40, 100 - 10 * violations), violations, repassed, reverted };
+    const echoesBefore = hookEchoesBefore(before, echo);
+    const result: StoriesGateResult = {
+      source: "code", score: Math.max(40, 100 - 10 * violations), violations, repassed, reverted,
+      ...(echoesBefore === undefined ? {} : { hook_echoes_before: echoesBefore }),
+    };
     // Style haché (mesure seulement, 05/10/2026) : sur le texte des stories, sans les petits titres.
     const storyTexts = (stories: any[]) => stories.map((st: any) => (typeof st?.text === "string" ? st.text : "")).join("\n");
     const choppyBefore = findChoppyFragments(storyTexts(parsed.stories));
@@ -1820,8 +1834,10 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
   previousHooks?: string[];
   /** Résultat de la passe stories (score APRÈS correction) : loggé tel quel, sans re-mesure. */
   storiesGate?: StoriesGateResult | null;
+  /** Échos d'accroche AVANT correction (reel / LinkedIn), rendus par leur passe. */
+  hookEchoesBefore?: number;
 }): Promise<void> {
-  const { userId, context, body, newsContext, fullContext, researchSource, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate } = params;
+  const { userId, context, body, newsContext, fullContext, researchSource, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate, hookEchoesBefore: echoesBefore } = params;
   const qualityNumbers = () =>
     gateNumbers([
       typeof context === "string" ? context : "",
@@ -1830,7 +1846,7 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
       typeof newsContext === "string" ? newsContext : "",
       fullContext || "",
     ], researchSource);
-  const logTextQuality = async (format: string, text: string, previewDoc: unknown, gate?: StoriesGateResult | null) => {
+  const logTextQuality = async (format: string, text: string, previewDoc: unknown, gate?: StoriesGateResult | null, hookEchoesBefore?: number) => {
     try {
       let score: number, violations: number, repassed = false;
       if (gate) {
@@ -1847,7 +1863,7 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
       await logContentQuality(
         userId,
         format,
-        { score, violations, repassed, content: JSON.stringify(previewDoc) },
+        { score, violations, repassed, content: JSON.stringify(previewDoc), hookEchoesBefore: gate ? gate.hook_echoes_before : hookEchoesBefore },
         finalUsage.model,
         workspace_id ?? undefined,
         typeof context === "string" ? context : undefined,
@@ -1861,9 +1877,9 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
     // Texte audité = texte des stories (les pastilles en sont des extraits depuis le 04/10/2026), même mesure que la passe.
     await logTextQuality("stories", storiesAuditableText(parsed.stories), { stories: parsed.stories }, storiesGate);
   } else if (isReel && Array.isArray(parsed?.script)) {
-    await logTextQuality("reel", reelAuditableText(parsed), { script: parsed.script });
+    await logTextQuality("reel", reelAuditableText(parsed), { script: parsed.script }, null, echoesBefore);
   } else if (isLinkedIn && typeof parsed?.content === "string" && parsed.content.trim()) {
-    await logTextQuality("linkedin", parsed.content, { subject: context, content: parsed.content });
+    await logTextQuality("linkedin", parsed.content, { subject: context, content: parsed.content }, null, echoesBefore);
   }
 }
 
@@ -2473,8 +2489,10 @@ export async function applyNewsletterCorrectionPass(parsed: any, params: {
   brandGuardText?: string; previousHooks?: string[];
   /** Tu ou vous de la fiche de marque : objet, aperçu et corps contrôlés après la relecture (04/10/2026). */
   audienceAddress?: AudienceAddress | null;
-}, emitStatus: StatusEmitter = () => {}): Promise<void> {
+}, emitStatus: StatusEmitter = () => {}): Promise<number | undefined> {
   const { body, fullContext, researchSource, context, newsContext, brandGuardText, previousHooks } = params;
+  // Échos d'accroche AVANT correction (undefined = garde non armée ou passe non lancée).
+  let echoesBefore: number | undefined;
   if (parsed.content && typeof parsed.content === "string" && parsed.content.length >= 200) {
     try {
       emitStatus("correcting");
@@ -2503,6 +2521,7 @@ export async function applyNewsletterCorrectionPass(parsed: any, params: {
         testimonySource: testimonySourceText(body),
       });
       Object.assign(parsed, reinjectNewsletterTexts(parsed, gate.content));
+      echoesBefore = gate.hookEchoesBefore;
     } catch (e) {
       console.error("[creative-flow newsletter] correction pass failed:", e);
     }
@@ -2510,6 +2529,7 @@ export async function applyNewsletterCorrectionPass(parsed: any, params: {
   // Tu ou vous : objet, texte d'aperçu et corps (même quand le corps est trop
   // court pour la relecture). Aucun appel si le texte est conforme.
   await enforceAudienceAddressInFields(parsed, NEWSLETTER_ADDRESS_FIELDS, params.audienceAddress, addrOpts("newsletter"));
+  return echoesBefore;
 }
 
 async function runNewsletterTwoStep(params: {
@@ -2555,7 +2575,7 @@ async function runNewsletterTwoStep(params: {
     parsed.preview_text?.length,
   );
 
-  await applyNewsletterCorrectionPass(parsed, params, emitStatus);
+  const nlEchoesBefore = await applyNewsletterCorrectionPass(parsed, params, emitStatus);
 
   // Nettoyage déterministe : un email part en texte brut, le markdown
   // résiduel (**gras**, *italique*) s'afficherait tel quel (audit 09/07).
@@ -2581,7 +2601,7 @@ async function runNewsletterTwoStep(params: {
       await logContentQuality(
         userId,
         "newsletter",
-        { score, violations, repassed: false, content: JSON.stringify({ subject: parsed.subject, content: parsed.content }) },
+        { score, violations, repassed: false, content: JSON.stringify({ subject: parsed.subject, content: parsed.content }), hookEchoesBefore: nlEchoesBefore },
         nlUsage.model,
         workspace_id,
         typeof context === "string" ? context : undefined,
@@ -3403,6 +3423,8 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     }
 
     // ═══ PASSE DE CORRECTION LinkedIn ═══
+    // Échos d'accroche AVANT correction (LinkedIn / reel) : télémétrie de la garde anti-redite.
+    let textEchoesBefore: number | undefined;
     if (
       step === "generate" &&
       contentType?.includes("linkedin") &&
@@ -3412,7 +3434,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       typeof parsed.content === "string" &&
       parsed.content.length >= 200
     ) {
-      await applyLinkedInCorrectionPass(parsed, { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
+      textEchoesBefore = await applyLinkedInCorrectionPass(parsed, { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
     }
 
     // L'accroche suit le début exact du post FINAL (après correction, photo
@@ -3431,7 +3453,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 
     // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
     if (isReel && step === "generate" && parsed && typeof parsed === "object" && Array.isArray(parsed.script)) {
-      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext, researchSource, brandGuardText, echoSubject, previousHooks, audienceAddress });
+      textEchoesBefore = await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext, researchSource, brandGuardText, echoSubject, previousHooks, audienceAddress });
     }
 
     // Tu ou vous des autres textes générés ici : légende Instagram (non
@@ -3469,7 +3491,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 
     // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
     if (step === "generate") {
-      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext, researchSource, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate });
+      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext, researchSource, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate, hookEchoesBefore: textEchoesBefore });
     }
 
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.
