@@ -41,3 +41,20 @@ describe("CarouselDraftPreview — plan envisagé pendant la réflexion", () => 
     expect(screen.getByText("La réponse trop rapide")).toBeInTheDocument();
   });
 });
+
+describe("CarouselDraftPreview — carrousels photo et mixte", () => {
+  it("met la photo déjà décidée en fond de la carte, texte seul sinon", () => {
+    const photos = [{ preview: "blob:photo-1" }, { preview: "blob:photo-2" }];
+    render(<CarouselDraftPreview stage="writing" photos={photos} slides={[
+      { n: 1, title: "Ouvrir l'atelier", text: "", photo: 1 },
+      { n: 2, title: "", text: "Le décor vient sur une forme déjà faite.", photo: 2 },
+      { n: 3, title: "", text: "Sans photo encore choisie." },
+      { n: 4, title: "", text: "Photo hors liste.", photo: 9 },
+    ]} />);
+    const cards = screen.getAllByTestId("draft-slide-photo");
+    expect(cards).toHaveLength(2);
+    expect(cards[1].querySelector("img")).toHaveAttribute("src", "blob:photo-2");
+    expect(screen.getByText("Le décor vient sur une forme déjà faite.")).toBeInTheDocument();
+    expect(screen.getByText("Photo hors liste.")).toBeInTheDocument();
+  });
+});

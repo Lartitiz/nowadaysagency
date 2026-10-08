@@ -128,6 +128,65 @@ async function emitPlannedTitles(system: string, userPrompt: string, emitStatus:
   }
 }
 
+/**
+ * Plan envisagé des carrousels photo et mixte (08/10/2026). Plan déjà validé à
+ * l'étape « structure » : ses titres partent tout de suite, sans aucun appel.
+ * Sinon, mêmes titres prévus que le carrousel texte (Haiku, texte seul : les
+ * photos ne lui sont pas envoyées). Jamais pour un photo dump sans texte.
+ */
+function startPhotoOutline(reqCtx: Pick<CarouselRequestContext, "body" | "emitStatus" | "isLinkedIn" | "systemPrompt">): { done: Promise<void>; usage: UsageSink } {
+  const { body, emitStatus, isLinkedIn } = reqCtx;
+  const usage: UsageSink = {};
+  if (body.no_overlay) return { done: Promise.resolve(), usage };
+  if (body.confirmed_structure?.length) {
+    const titles = plannedTitles({ titles: body.confirmed_structure.map((s: any) => s.title_suggestion) });
+    if (titles.length >= 2) emitStatus("outline", { titles });
+    return { done: Promise.resolve(), usage };
+  }
+  const prompt = (body.carousel_type === "mix" ? buildMixCarouselPrompt(body, isLinkedIn) : buildPhotoCarouselPrompt(body, isLinkedIn)) +
+    buildPhotoContextRecap(body.photo_contexts || body.photos) +
+    `\n\nSujet : "${body.subject || "non précisé"}"\n${body.photo_description ? `Description des photos : "${body.photo_description}"\n` : ""}${carouselLengthPrompt(body)}\nObjectif : ${body.objective || "non précisé"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}\n` : ""}${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
+  return { done: emitPlannedTitles(reqCtx.systemPrompt, prompt, emitStatus, usage), usage };
+}
+
+/** Attend le plan envisagé et ajoute ses jetons à la ligne de crédit (une seule ligne). */
+async function addOutlineUsage(reqCtx: CarouselRequestContext, usage: UsageSink): Promise<void> {
+  if (!reqCtx.outline) return;
+  await reqCtx.outline.done;
+  for (const k of ["input_tokens", "output_tokens", "total_tokens"] as const) {
+    if (reqCtx.outline.usage[k]) usage[k] = (usage[k] || 0) + reqCtx.outline.usage[k]!;
+  }
+  reqCtx.outline = undefined;
+}
+
+/** Durées par étape (ms) des carrousels photo et mixte, comme le carrousel texte. */
+function stageTimer(startedAt: number) {
+  const timings: Record<string, number> = { prep_ms: Date.now() - startedAt };
+  const timed = async <T>(key: string, work: Promise<T>): Promise<T> => {
+    const t0 = Date.now();
+    try { return await work; } finally { timings[key] = (timings[key] || 0) + Date.now() - t0; }
+  };
+  const done = (label: string) => {
+    timings.total_ms = Date.now() - startedAt;
+    console.log(JSON.stringify({ type: "carousel_timings", label, ...timings }));
+    return timings;
+  };
+  return { timings, timed, done };
+}
+
+/**
+ * Brouillon de la 1re rédaction seulement (une relance « trop court » ou une
+ * réparation arrive après et ne doit pas remplacer ce qui est lu à l'écran).
+ */
+function firstDraftStream(emitStatus: StatusEmitter): () => { onText?: (text: string) => void } {
+  let first = true;
+  return () => {
+    if (!first) return {};
+    first = false;
+    return { onText: draftSlidesTracker((slides) => emitStatus("draft", { slides })) };
+  };
+}
+
 const PHOTO_QUESTIONS_TOOL = {
   ...QUESTIONS_TOOL,
   description: "Zéro à deux précisions essentielles, sans questionnaire obligatoire.",
@@ -832,6 +891,12 @@ export async function handleRequest(req: Request): Promise<Response> {
     // Condiment : échec 100 % silencieux, borné à 25 s.
     // « Ton cas d'abord » (04/10/2026) : avec un cas personnel fourni, la recherche
     // ne fait que vérifier ou appuyer un point de ce cas (mode « support »).
+    // ATTENTE VIVANTE (08/10/2026) : plan envisagé des carrousels photo et
+    // mixte lancé AVANT la recherche (jusqu'à 25 s), en parallèle de tout le
+    // reste : ils attendaient ~3 min sur un écran fixe. Il n'en a pas besoin.
+    const outline = type === "express_full" && (body.carousel_type === "photo" || body.carousel_type === "mix")
+      ? startPhotoOutline({ body, emitStatus, isLinkedIn, systemPrompt })
+      : undefined;
     let depthBlock = "";
     if (type === "express_full") {
       const newsAngle = typeof body.news_context === "string" ? body.news_context.trim().slice(0, 600) : "";
@@ -975,6 +1040,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       corsHeaders,
       emitStatus,
       startedAt,
+      outline,
     };
 
     switch (type) {
@@ -1071,6 +1137,8 @@ interface CarouselRequestContext {
   emitStatus: StatusEmitter;
   /** Début de la requête (Date.now()) : budget temps global des étapes facultatives. */
   startedAt: number;
+  /** Plan envisagé en cours (carrousels photo et mixte) : ses jetons rejoignent la ligne de crédit. */
+  outline?: { done: Promise<void>; usage: UsageSink };
 }
 
 /** Contexte inter-contenus du gate : accroches du sujet + derniers contenus de la marque. */
@@ -1654,6 +1722,7 @@ async function handleSuggestAnglesRequest(reqCtx: CarouselRequestContext): Promi
 // ── Mix carousel mode ──
 async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<Response | null> {
   const usage: UsageSink = {};
+  const clock = stageTimer(ctx.startedAt);
   let output;
   // Derniers contenus de la marque : le rédacteur ne les redit pas (bilan
   // hebdo 05/10/2026). Lecture best-effort, [] en cas d'erreur.
@@ -1664,25 +1733,28 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
     newsContext:typeof ctx.newsContext === "string" ? ctx.newsContext : "",
     authoredText:ctx.currentAuthoredText, audienceAddress:ctx.audienceAddress, startedAt:ctx.startedAt, usage,
     emitStatus:ctx.emitStatus, write:_deps.callCarouselWriter, review:_deps.reviewThread, reserveMs:PHOTO_MATCH_RESERVE_MS,
+    onDraft:(slides)=>ctx.emitStatus("draft",{slides}), timings:clock.timings,
   }); } catch(error) {
     if(error instanceof NarrativePhotoMismatch) return carouselMismatchResponse(JSON.stringify({photo_mismatch:{reason:error.message}}),ctx.body,usage,ctx.body.carousel_type,ctx.corsHeaders);
     throw error;
   }
   if (!output) return null;
-  const measured = await runRedacGate(JSON.stringify(output.doc), {
+  const measured = await clock.timed("gate_ms", runRedacGate(JSON.stringify(output.doc), {
     isLinkedIn:ctx.isLinkedIn,inputText:ctx.gateInputText,researchText:ctx.researchText,researchNumbersCap:ctx.researchNumbersCap,testimonySource:ctx.testimonySource,
     // Mesure seule (correction coupée, aucun appel IA) : sans la fiche ni les
     // accroches précédentes, recopie de fiche et échos d'accroche comptaient 0.
     brandGuardText:ctx.brandGuardText,echo:echoContext(ctx),
     correction:{enabled:false},
-  });
-  const written = await finalizeCarousel(measured.content,ctx,{usage,repaired:output.repaired,regenerate:output.regenerate,reserveMs:PHOTO_MATCH_RESERVE_MS});
-  const matched = await _deps.matchPhotos(JSON.parse(written), {body:ctx.body,startedAt:ctx.startedAt,usage,emitStatus:ctx.emitStatus,call:_deps.callAnthropic});
+  }));
+  const written = await clock.timed("thread_ms", finalizeCarousel(measured.content,ctx,{usage,repaired:output.repaired,regenerate:output.regenerate,reserveMs:PHOTO_MATCH_RESERVE_MS,timings:clock.timings}));
+  const matched = await clock.timed("match_ms", _deps.matchPhotos(JSON.parse(written), {body:ctx.body,startedAt:ctx.startedAt,usage,emitStatus:ctx.emitStatus,call:_deps.callAnthropic}));
   const content = JSON.stringify(matched);
+  await addOutlineUsage(ctx, usage);
+  const timings = clock.done(`continuous_${ctx.body.carousel_type}`);
   await _deps.logUsage(ctx.userId,ctx.category,`carousel_${ctx.body.carousel_type}`,usage.total_tokens,usage.model,ctx.workspaceId);
   await logContentQuality(ctx.userId,`carousel_${ctx.body.carousel_type}`,measured,usage.model,ctx.workspaceId,ctx.body.subject,threadOutcome(written));
   return new Response(JSON.stringify({content,writing_version:CAROUSEL_WRITING_VERSION,
-    writer:{version:CAROUSEL_WRITER_VERSION,model:usage.model,effort:"medium"}}),
+    writer:{version:CAROUSEL_WRITER_VERSION,model:usage.model,effort:"medium"},timings}),
     {headers:{...ctx.corsHeaders,"Content-Type":"application/json"}});
 }
 
@@ -1700,6 +1772,8 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
   // One bounded repair shares the original sources, including selected photos.
   let doRepair: ((draft: string, defects: string, sink: UsageSink, abortTimeoutMs?: number) => Promise<string>) | undefined;
   const mixUsage: UsageSink = {};
+  const clock = stageTimer(startedAt);
+  const draftStream = firstDraftStream(emitStatus);
   emitStatus("writing");
 
   // Cible affichée à l'IA — même valeur que le plancher de retryIfTooShort plus
@@ -1734,6 +1808,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     });
 
     doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
+      ...draftStream(),
       model: pickCarouselModel(body),
       system: systemPrompt + "\n\n" + mixPrompt + PHOTO_MISMATCH_SYSTEM_REMINDER,
       messages: [{ role: "user", content: messageContent }],
@@ -1758,6 +1833,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     const textPrompt = mixPrompt + buildPhotoContextRecap(body.photo_contexts || body.photos) + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n${photoDescLine}\n${carouselLengthPrompt(body)}\nObjectif : ${body.objective || "non précisé ; déduire une intention prudente du brief et du contexte de marque"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
 
     doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
+      ...draftStream(),
       model: pickCarouselModel(body),
       system: systemPrompt,
       messages: [{ role: "user", content: textPrompt }],
@@ -1787,18 +1863,18 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     doGenerate = (sink: UsageSink) => write(sink).then(stripMixWriterLayoutFields);
     if (repair) doRepair = (draft, defects, sink, abortTimeoutMs) => repair(draft, defects, sink, abortTimeoutMs).then(out => keepDraftLayoutFields(draft, out));
   }
-  content = await doGenerate(mixUsage);
+  content = await clock.timed("write_ms", doGenerate(mixUsage));
   // Plancher déterministe de slides (audit carrousel photo 12/07) : le modèle
   // peut renvoyer un carrousel écrasé (1 slide vue en live ~1 run/2 en photo).
   // 0 slide = refus légitime (photo_mismatch), laissé au check ci-dessous ;
   // entre 1 et le plancher → UN retry, puis on livre ce qu'on a (gates ensuite).
-  content = await retryIfTooShort(content, doGenerate, mixUsage, carouselSlideFloor(body, 8), "mix");
+  content = await clock.timed("write_ms", retryIfTooShort(content, doGenerate, mixUsage, carouselSlideFloor(body, 8), "mix"));
 
   {
     const mismatch = carouselMismatchResponse(content, body, mixUsage, "mix", corsHeaders);
     if (mismatch) return mismatch;
   }
-  const threadMix = await repairCarouselStructure(content, { body, label: "mix", inspect: (v) => { const p = tryParseAiJson(v); return [...carouselStructureIssues(p, body), ...longMixSlideIssues(p, body)]; }, emitStatus, usage: mixUsage, regenerate: doRepair, startedAt });
+  const threadMix = await clock.timed("structure_ms", repairCarouselStructure(content, { body, label: "mix", inspect: (v) => { const p = tryParseAiJson(v); return [...carouselStructureIssues(p, body), ...longMixSlideIssues(p, body)]; }, emitStatus, usage: mixUsage, regenerate: doRepair, startedAt }));
   content = threadMix.content;
 
   const editorialBaseline = content;
@@ -1806,7 +1882,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
   try {
     if (semanticReviewEnabled || carouselNeedsPolish(content) || currentAuthoredText.trim()) {
       emitStatus("correcting");
-      const corrected = await applyGuardedCarouselCorrection(content, {
+      const corrected = await clock.timed("review_ms", applyGuardedCarouselCorrection(content, {
         inputText: gateInputText, researchText, testimonySource, brandGuardText, echo: echoContext(reqCtx),
         correction: { currentBrief, semanticReview: semanticReviewEnabled,
           enabled: reviewAllowed(startedAt),
@@ -1816,7 +1892,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
             authoredText: currentAuthoredText,
           abortTimeoutMs: CORRECTION_ABORT_MS,
         },
-      });
+      }));
       if (corrected && corrected !== content) {
         content = corrected;
       }
@@ -1849,7 +1925,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     content = capped.content;
   }
   // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
-  const gateMix = await runRedacGate(content, {
+  const gateMix = await clock.timed("gate_ms", runRedacGate(content, {
     isLinkedIn,
     onStatus: emitStatus,
     inputText: gateInputText,
@@ -1860,21 +1936,23 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     brandGuardText,
     captionEnding: captionEndingRule,
     correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: reviewAllowed(startedAt), skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
-  });
+  }));
   content = gateMix.content;
-  content = await finalizeCarousel(content,reqCtx,{usage:mixUsage,repaired:threadMix.repaired,regenerate:doRepair});
+  content = await clock.timed("thread_ms", finalizeCarousel(content,reqCtx,{usage:mixUsage,repaired:threadMix.repaired,regenerate:doRepair,timings:clock.timings}));
   {
     // SCHÉMAS du mixte : dessinés par le code en slide « pause » (piste B
     // validée par Laetitia le 03/10/2026, mix-schema-render.ts), seulement les
     // types que la mise en page sait dessiner (MIX_SCHEMA_TYPES).
-    const withSchemas = await addSchemasToContent(content, { isMix: true, usage: mixUsage, allowed: MIX_SCHEMAS_ENABLED && schemasAllowed(startedAt) });
+    const withSchemas = await clock.timed("schemas_ms", addSchemasToContent(content, { isMix: true, usage: mixUsage, allowed: MIX_SCHEMAS_ENABLED && schemasAllowed(startedAt) }));
     content = withSchemas.content;
     if (withSchemas.plan) console.log(JSON.stringify({ event: "carousel_schema_formatting", label: "mix", status: withSchemas.plan.status, proposed: withSchemas.plan.proposed ?? 0, rejected: withSchemas.plan.rejected ?? [], spotted: withSchemas.plan.spotted ?? [], schemas: withSchemas.plan.schemas.map(x => x.visual_schema.type) }));
   }
+  await addOutlineUsage(reqCtx, mixUsage);
+  const timings = clock.done("mix");
   await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspaceId, body.subject, threadOutcome(content));
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
-    writer: { version: CAROUSEL_WRITER_VERSION, model: mixUsage.model, effort: "medium" },
+    writer: { version: CAROUSEL_WRITER_VERSION, model: mixUsage.model, effort: "medium" }, timings,
   }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
@@ -1895,6 +1973,8 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   // Shares the same source-preserving repair and deadline as mixed carousels.
   let doRepair: ((draft: string, defects: string, sink: UsageSink, abortTimeoutMs?: number) => Promise<string>) | undefined;
   const photoUsage: UsageSink = {};
+  const clock = stageTimer(startedAt);
+  const draftStream = firstDraftStream(emitStatus);
   emitStatus("writing");
 
   // Cible affichée à l'IA, réutilisée dans le rappel de fin de message (recency,
@@ -1930,6 +2010,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     });
 
     doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
+      ...draftStream(),
       model: pickCarouselModel(body),
       system: systemPrompt + "\n\n" + photoPrompt + PHOTO_MISMATCH_SYSTEM_REMINDER,
       messages: [{ role: "user", content: messageContent }],
@@ -1952,6 +2033,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     const textPrompt = photoPrompt + buildPhotoContextRecap(body.photo_contexts || body.photos) + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\n${carouselLengthPrompt(body)}\nObjectif : ${body.objective || "non précisé ; déduire une intention prudente du brief et du contexte de marque"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
 
     doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
+      ...draftStream(),
       model: pickCarouselModel(body),
       system: systemPrompt,
       messages: [{ role: "user", content: textPrompt }],
@@ -1971,17 +2053,17 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     }, sink);
   }
 
-  content = await doGenerate(photoUsage);
+  content = await clock.timed("write_ms", doGenerate(photoUsage));
   // Plancher déterministe de slides (audit carrousel photo 12/07) : 1 slide
   // livrée sur 6 demandées vue en live ~1 run/2. 0 slide = refus légitime
   // (photo_mismatch), laissé au check ci-dessous.
-  content = await retryIfTooShort(content, doGenerate, photoUsage, carouselSlideFloor(body, 6), "photo");
+  content = await clock.timed("write_ms", retryIfTooShort(content, doGenerate, photoUsage, carouselSlideFloor(body, 6), "photo"));
 
   {
     const mismatch = carouselMismatchResponse(content, body, photoUsage, "photo", corsHeaders);
     if (mismatch) return mismatch;
   }
-  const threadPhoto = await repairCarouselStructure(content, { body, label: "photo", emitStatus, usage: photoUsage, regenerate: doRepair, startedAt });
+  const threadPhoto = await clock.timed("structure_ms", repairCarouselStructure(content, { body, label: "photo", emitStatus, usage: photoUsage, regenerate: doRepair, startedAt }));
   // Mise en page hors de l'écriture : gabarit, chiffre, liste, étape et
   // attribution sont posés ensuite, à partir du texte FINAL (assignPhotoTemplates,
   // après la relecture et le redac-gate, plus bas).
@@ -1991,7 +2073,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   try {
     if (semanticReviewEnabled || carouselNeedsPolish(content) || currentAuthoredText.trim()) {
       emitStatus("correcting");
-      const corrected = await applyGuardedCarouselCorrection(content, {
+      const corrected = await clock.timed("review_ms", applyGuardedCarouselCorrection(content, {
         inputText: gateInputText, researchText, testimonySource, brandGuardText, echo: echoContext(reqCtx),
         correction: { currentBrief, semanticReview: semanticReviewEnabled,
           enabled: reviewAllowed(startedAt),
@@ -2001,7 +2083,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
             authoredText: currentAuthoredText,
           abortTimeoutMs: CORRECTION_ABORT_MS,
         },
-      });
+      }));
       if (corrected && corrected !== content) {
         content = corrected;
       }
@@ -2028,7 +2110,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     if (capped.stripped > 0) console.warn(`carousel-ai(photo): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
     content = capped.content;
   }
-  const gatePhoto = await runRedacGate(content, {
+  const gatePhoto = await clock.timed("gate_ms", runRedacGate(content, {
     isLinkedIn,
     onStatus: emitStatus,
     inputText: gateInputText,
@@ -2039,7 +2121,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     brandGuardText,
     captionEnding: captionEndingRule,
     correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: reviewAllowed(startedAt), skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
-  });
+  }));
   content = gatePhoto.content;
   // Relecture-gabarits (13/07) : sur les textes DÉFINITIFS (post relecture
   // éditoriale et redac-gate), pose le gabarit visuel de chaque slide. Avant le
@@ -2049,20 +2131,22 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   // mis en valeur ne correspondait plus au texte final. Ces champs sont
   // désormais des extraits EXACTS du texte relu (aucune matière nouvelle à
   // relire) et la relecture ne les patche plus (carouselReviewFields).
-  content = await assignPhotoTemplates(content, {
+  content = await clock.timed("templates_ms", assignPhotoTemplates(content, {
     model: pickCorrectionModel(body),
     logger: (m) => console.log(m),
-  });
-  content = await finalizeCarousel(content,reqCtx,{usage:photoUsage,repaired:threadPhoto.repaired,regenerate:doRepair});
+  }));
+  content = await clock.timed("thread_ms", finalizeCarousel(content,reqCtx,{usage:photoUsage,repaired:threadPhoto.repaired,regenerate:doRepair,timings:clock.timings}));
   // Une réparation globale du fil (finalizeCarousel) peut réécrire les textes
   // après l'assignation : la mise en page est revérifiée contre le texte final,
   // un extrait qui n'y figure plus est retiré (reçus ré-empreints s'ils étaient
   // à jour).
   content = await revalidatePhotoLayoutContent(content, (m) => console.log(m));
+  await addOutlineUsage(reqCtx, photoUsage);
+  const timings = clock.done("photo");
   await _deps.logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspaceId, body.subject, threadOutcome(content));
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
-    writer: { version: CAROUSEL_WRITER_VERSION, model: photoUsage.model, effort: "medium" },
+    writer: { version: CAROUSEL_WRITER_VERSION, model: photoUsage.model, effort: "medium" }, timings,
   }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });

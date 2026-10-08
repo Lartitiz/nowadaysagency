@@ -19,6 +19,7 @@ import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";
 import { exportAndCheckPptx } from "./pptx-export-check";
+import { tapCarouselSse, watchWaitingScreen } from "./carousel-wait-probe";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(__dirname, "shots/carousel-mix");
@@ -50,6 +51,8 @@ test("carrousel mixte réel : upload → génération → export PPTX composé v
     }
   });
 
+  // Attente vivante (08/10/2026) : étapes serveur horodatées + écran d'attente capturé.
+  await tapCarouselSse(page);
   await page.goto("/creer?new=1", { waitUntil: "networkidle" });
   const closeBtn = page.locator('[data-testid="branding-banner-close"], button[aria-label*="ermer"]').first();
   if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) await closeBtn.click();
@@ -117,6 +120,7 @@ test("carrousel mixte réel : upload → génération → export PPTX composé v
   if (await genDir.isVisible().catch(() => false)) await genDir.click();
   else await genBtn.click();
   console.log("🚀 Générer cliqué (mixte)");
+  watchWaitingScreen(page, path.join(SHOTS, "mix-attente"));
 
   // Résultat OU erreur de validation : on course les deux. Signal « fini » =
   // « Publier ou programmer » (data-testid, écran résultat #608).

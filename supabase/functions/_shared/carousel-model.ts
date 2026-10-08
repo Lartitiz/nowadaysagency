@@ -25,8 +25,10 @@ export type CarouselWriterOptions = Omit<AnthropicOptions, "model"> & {
   model: CarouselWriterModel;
   /**
    * Texte reçu jusqu'ici, à chaque morceau (07/10/2026 : slides montrées en
-   * brouillon pendant l'écriture). Réponse en flux, Anthropic sans outil
-   * seulement ; ailleurs ignoré. Le résultat final reste contrôlé à l'identique.
+   * brouillon pendant l'écriture). Réponse en flux, Anthropic seulement ; avec
+   * un outil (08/10/2026, carrousels photo et mixte), c'est le JSON de l'outil
+   * en cours d'écriture. Astra : ignoré. Le résultat final reste contrôlé à
+   * l'identique.
    */
   onText?: (text: string) => void;
 };
@@ -135,21 +137,24 @@ export function writerResponse(data: any, options: CarouselWriterOptions, sink?:
   return text;
 }
 
-const streamsText = (options: CarouselWriterOptions) => !!options.onText && !options.tool && options.model !== "gpt-6-astra";
+const streamsText = (options: CarouselWriterOptions) => !!options.onText && options.model !== "gpt-6-astra";
 
 /**
  * Relit une réponse Anthropic en flux et la reconstruit sous la forme d'une
  * réponse classique : `writerResponse` applique ensuite les MÊMES contrôles
- * (modèle, refus, coupure, usage). Seul le texte visible est transmis à
+ * (modèle, refus, coupure, outil, usage). Seul le texte visible (ou, avec
+ * `toolName`, le JSON de cet outil en cours d'écriture) est transmis à
  * `onText` ; la réflexion du modèle ne l'est jamais.
  */
-export async function readWriterStream(body: ReadableStream<Uint8Array>, onText: (text: string) => void): Promise<any> {
+export async function readWriterStream(body: ReadableStream<Uint8Array>, onText: (text: string) => void, toolName?: string): Promise<any> {
   const reader = body.getReader(), decoder = new TextDecoder();
   const data: any = { usage: {} };
+  const blocks: any[] = [];
   let buffer = "", text = "", textBlocks = 0;
   const mergeUsage = (u: any) => {
     for (const [k, v] of Object.entries(u || {})) if (typeof v === "number") data.usage[k] = v;
   };
+  const show = (value: string) => { try { onText(value); } catch { /* l'affichage du brouillon ne casse jamais l'écriture */ } };
   for (;;) {
     const { done, value } = await reader.read();
     buffer += done ? decoder.decode() + "\n\n" : decoder.decode(value, { stream: true });
@@ -161,10 +166,20 @@ export async function readWriterStream(body: ReadableStream<Uint8Array>, onText:
       let event: any;
       try { event = JSON.parse(line.slice(5).trim()); } catch { continue; }
       if (event.type === "message_start") { data.model = event.message?.model; mergeUsage(event.message?.usage); }
-      else if (event.type === "content_block_start" && event.content_block?.type === "text") { if (textBlocks++ > 0) text += "\n"; }
-      else if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
+      else if (event.type === "content_block_start" && event.content_block?.type === "text") {
+        if (textBlocks++ > 0) text += "\n";
+        blocks[event.index] = { type: "text" };
+      } else if (event.type === "content_block_start" && event.content_block?.type === "tool_use") {
+        blocks[event.index] = { type: "tool_use", id: event.content_block.id, name: event.content_block.name, json: "" };
+      } else if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
         text += event.delta.text || "";
-        try { onText(text); } catch { /* l'affichage du brouillon ne casse jamais l'écriture */ }
+        if (!toolName) show(text);
+      } else if (event.type === "content_block_delta" && event.delta?.type === "input_json_delta") {
+        const block = blocks[event.index];
+        if (block?.type === "tool_use") {
+          block.json += event.delta.partial_json || "";
+          if (block.name === toolName) show(block.json);
+        }
       } else if (event.type === "message_delta") {
         if (event.delta?.stop_reason) data.stop_reason = event.delta.stop_reason;
         mergeUsage(event.usage);
@@ -175,7 +190,14 @@ export async function readWriterStream(body: ReadableStream<Uint8Array>, onText:
     }
     if (done) break;
   }
-  data.content = [{ type: "text", text }];
+  // Les arguments d'un outil arrivent en morceaux de JSON : relus en entier à la
+  // fin. Illisibles → pas d'entrée, et writerResponse refuse comme d'habitude.
+  const tools = blocks.filter((b) => b?.type === "tool_use").map((b) => {
+    let input: unknown;
+    try { input = b.json.trim() ? JSON.parse(b.json) : {}; } catch { input = undefined; }
+    return { type: "tool_use", id: b.id, name: b.name, input };
+  });
+  data.content = [{ type: "text", text }, ...tools];
   return data;
 }
 
@@ -200,8 +222,9 @@ export async function callCarouselWriter(options: CarouselWriterOptions, sink?: 
       const exhausted = type === "insufficient_quota" || code === "insufficient_quota" || code === "credit_balance_exhausted";
       throw new CarouselWriterError(response.status === 429 ? (exhausted ? `Le budget du fournisseur de rédaction est épuisé. ${openai ? "Le mode Max est indisponible ; tu peux utiliser le mode standard." : "La génération de carrousels est indisponible."} Aucun crédit décompté.` : "Le fournisseur refuse momentanément la génération (limite 429). Réessaie plus tard. Aucun crédit décompté.") : "Le modèle de rédaction est indisponible. Réessaie dans un instant.", response.status === 429 ? 429 : 502, `${openai ? "openai" : "anthropic"}_http_${response.status}${code ? "_" + code : type ? "_" + type : ""}`);
     }
-    if (streamsText(options) && response.body) return writerResponse(await readWriterStream(response.body, options.onText!), options, sink);
-    const data = await response.json();
+    const data = streamsText(options) && response.body
+      ? await readWriterStream(response.body, options.onText!, options.tool?.name)
+      : await response.json();
     // Opus 5.5 : l'outil n'est plus forcé. S'il répond sans l'appeler, on relance
     // UNE fois (même modèle, jamais de repli silencieux vers un autre).
     if (noForcedTool(options.model) && options.tool && data.stop_reason === "end_turn"
@@ -210,7 +233,8 @@ export async function callCarouselWriter(options: CarouselWriterOptions, sink?: 
       const retry = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST", signal: controller.signal,
         headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify(writerRequest(options)),
+        // Relance sans flux : le brouillon déjà affiché reste jusqu'au texte final.
+        body: JSON.stringify(writerRequest({ ...options, onText: undefined })),
       });
       if (!retry.ok) {
         await retry.body?.cancel();

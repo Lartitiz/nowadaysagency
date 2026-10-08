@@ -17,6 +17,7 @@ import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
 import { findRecentEchoes, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { angleFamily, type AngleFamily } from "../_shared/angle-families.ts";
 import { coverAccentMaxWords, validExtract } from "../_shared/carousel-design-plan.ts";
+import { type DraftSlide, draftNarrativeTracker } from "../_shared/carousel-draft-stream.ts";
 import {
   audienceAddressRule,
   type AudienceAddress,
@@ -258,6 +259,13 @@ export async function createContinuousNarrative(options: {
   reserveMs?: number;
   usage: UsageSink;
   emitStatus: (stage: string) => void;
+  /**
+   * Attente vivante (08/10/2026) : couverture et paragraphes de la 1re
+   * rédaction envoyés à l'écran au fil de l'écriture (brouillon, jamais réutilisé).
+   */
+  onDraft?: (slides: DraftSlide[]) => void;
+  /** Durées par étape (ms), complétées en place : write_ms, judge_ms, rewrite_ms. */
+  timings?: Record<string, number>;
   write?: typeof callCarouselWriter;
   review?: typeof reviewCarouselProgression;
 }) {
@@ -291,6 +299,15 @@ export async function createContinuousNarrative(options: {
     { id: "news", provenance: "provided_reference", text: options.newsContext },
   ].filter((s) => s.text.trim());
   const remaining = () => 270000 - (options.reserveMs || 0) - (Date.now() - options.startedAt);
+  const timed = async <T>(key: string, work: () => Promise<T>): Promise<T> => {
+    const t0 = Date.now();
+    try { return await work(); } finally {
+      if (options.timings) options.timings[key] = (options.timings[key] || 0) + Date.now() - t0;
+    }
+  };
+  // Seule la 1re rédaction part à l'écran : les réécritures arrivent après la
+  // relecture du fil et remplaceraient un brouillon déjà lu.
+  let showDraft = options.onDraft ? draftNarrativeTracker(options.onDraft) : undefined, writes = 0;
   const add = (sink: UsageSink, target: UsageSink = usage) => {
     for (
       const key of ["input_tokens", "output_tokens", "total_tokens"] as const
@@ -341,7 +358,10 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
           }
         }
       }
-      const text = await write({
+      const onText = showDraft;
+      showDraft = undefined;
+      const text = await timed(writes++ ? "rewrite_ms" : "write_ms", () => write({
+        ...(onText ? { onText } : {}),
         model: pickCarouselWriter(body),
         system: system + (final ? `\nRéécriture finale : conserve exactement ${final.exact - 1} paragraphes après le titre. Réécris la pensée entière, pas des cases de slides.` : ""),
         messages: [{
@@ -354,7 +374,7 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
         // live le 02/10 pour l'étape d'écriture → 140 s au lieu de 100 s. Le budget
         // global (remaining) borne toujours l'appel.
         abortTimeoutMs: Math.max(1000, Math.min(final?.timeout ?? (pickCarouselWriter(body) === "claude-fable-5-1" ? 140000 : 100000), remaining() - 40000)),
-      }, sink);
+      }, sink));
       usage.model = sink.model || pickCarouselWriter(body);
       return parseNarrative(text, final?.exact ?? exact);
     } finally {
@@ -376,11 +396,11 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
     if (remaining() < 12000) {
       return progressionReceipt(proof(n), "skipped", "time-budget");
     }
-    const receipt = await review(proof(n), {
+    const receipt = await timed("judge_ms", () => review(proof(n), {
       sources,
       sourceContext: JSON.stringify(sources),
       abortTimeoutMs: Math.min(35000, remaining() - 8000),
-    });
+    }));
     if (receipt.usage) add(receipt.usage);
     return receipt;
   };

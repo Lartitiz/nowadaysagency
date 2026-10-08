@@ -483,6 +483,7 @@ Deno.test("mix avec photos : rappel anti-refus dans le system, photo_mismatch re
   let capturedSystem = "";
   // deno-lint-ignore no-explicit-any
   _deps.callAnthropic = (async (params: any) => {
+    if (params?.tool?.name === "plan_envisage") return "{}"; // plan envisagé : hors sujet ici
     if (!capturedSystem) capturedSystem = String(params?.system ?? "");
     // Refus structuré : le handler doit court-circuiter AVANT correction/gates
     // (aucun autre appel IA) et ne JAMAIS débiter.
@@ -1131,6 +1132,7 @@ for (const carousel_type of ["photo", "mix"]) Deno.test(`photos suivent la derni
   _deps.callCarouselWriter = async () => JSON.stringify({idea:"La familiarité vient de l'usage",hook:"Ce qui devient familier",paragraphs:++writes === 1 ? initial : final,caption:{}});
   _deps.reviewThread = async doc => ({...await verdict(doc),issues:++reviews === 2 ? ["Développer la progression"] : [],report:{defects:reviews === 2 ? [{severity:"minor",type:"juxtaposition"}] : []}});
   _deps.callAnthropic = async o => {
+    if (o.tool?.name === "plan_envisage") return "{}"; // plan envisagé : hors sujet ici
     matches++;
     const payload = JSON.stringify(o.messages);
     visualInputs.push({writes,reviews,payload});
@@ -1476,5 +1478,123 @@ Deno.test("carrousel texte : sans contenus récents, ni consigne ni compteur", a
     const doc = JSON.parse((await res.json()).content);
     assert(!systems[0].includes("DÉJÀ ÉCRIT RÉCEMMENT"));
     assertEquals(doc.quality_check.recent_echoes, 0);
+  } finally { globalThis.fetch = oldFetch; resetDeps(); }
+});
+
+// 08/10/2026 : attente vivante des carrousels photo et mixte. Récit continu :
+// plan envisagé (Haiku, sans plan validé) puis couverture et paragraphes de la
+// 1re rédaction en brouillon ; le carrousel livré reste celui de la rédaction.
+for (const carousel_type of ["photo", "mix"]) Deno.test(`récit continu ${carousel_type} : plan envisagé puis paragraphes en brouillon, contenu final inchangé`, async () => {
+  resetDeps(); _deps.prepareNarrative = createContinuousNarrative;
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const narrative = { idea: "Le décor sert la table", hook: "Ce que la main laisse sur la table", caption: { hook: "Une table", body: "Le décor accompagne.", cta: "", hashtags: [] },
+    paragraphs: ["Le décor vient sur une forme déjà faite pour servir.", "À table, le motif accompagne le geste de chaque jour.", "Chaque pièce garde la trace de la main qui l'a peinte."] };
+  const full = JSON.stringify(narrative);
+  const streamed: boolean[] = [];
+  let logged: any[] = [], outlineCall: any = null;
+  _deps.callAnthropic = (async (o: any, sink: any) => {
+    if (o.tool?.name !== "plan_envisage") throw new Error("appel inattendu");
+    outlineCall = o;
+    Object.assign(sink, { input_tokens: 100, output_tokens: 20, total_tokens: 120 });
+    return JSON.stringify({ titles: ["La couverture", "La forme", "Le décor", "La main"] });
+  }) as any;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    Object.assign(sink, { model: o.model, input_tokens: 1000, output_tokens: 10, total_tokens: 1010 });
+    streamed.push(typeof o.onText === "function");
+    if (o.onText) for (let cut = 1; cut <= full.length; cut += 7) o.onText(full.slice(0, cut));
+    return full;
+  }) as any;
+  _deps.logUsage = (async (...args: any[]) => { logged = args; }) as any;
+  try {
+    const req = makeHooksRequest({ type: "express_full", carousel_type, scenario_origin: "automatic", subject: "Présenter mes pièces du quotidien",
+      photo_contexts: [{ context: "Assiette peinte" }, { context: "Atelier" }], slide_count: 4 });
+    const res = await handleRequest(new Request(req.url, { method: "POST", headers: { "Content-Type": "application/json", Accept: "text/event-stream" }, body: await req.text() }));
+    const events = (await res.text()).split("\n\n").filter((l) => l.startsWith("data: ")).map((l) => JSON.parse(l.slice(6)));
+    assertEquals(outlineCall.model, "claude-haiku-4-5");
+    assert(!JSON.stringify(outlineCall.messages).includes("base64"), "le plan n'envoie jamais les photos");
+    assertEquals(events.filter((e) => e.stage === "outline").map((e) => e.titles), [["La couverture", "La forme", "Le décor", "La main"]]);
+    const drafts = events.filter((e) => e.stage === "draft");
+    assertEquals(drafts.map((e) => e.slides.length), [1, 2, 3, 4]); // la couverture d'abord, seule
+    assertEquals(drafts[3].slides[0], { n: 1, title: "Ce que la main laisse sur la table", text: "" });
+    assertEquals(drafts[3].slides[3], { n: 4, title: "", text: "Chaque pièce garde la trace de la main qui l'a peinte." });
+    const stages = events.filter((e) => e.type === "status").map((e) => e.stage);
+    // (L'ordre plan/brouillon dépend des durées réelles ; l'écran préfère les slides.)
+    assert(stages.lastIndexOf("draft") < stages.indexOf("checking"));
+    assertEquals(streamed, [true]);
+    const done = JSON.parse(events.at(-1).full);
+    const doc = JSON.parse(done.content);
+    assertEquals(doc.narrative_draft.paragraphs, narrative.paragraphs);
+    assertEquals(doc.slides.length, 4);
+    assert(!doc.slides.some((s: any) => [s.title, s.overlay_text].includes("La forme")), "le plan n'entre jamais dans le carrousel");
+    assert(done.timings.write_ms >= 0 && done.timings.judge_ms >= 0 && done.timings.total_ms >= done.timings.prep_ms);
+    assertEquals(logged[3], 1010 + 120); // une seule ligne de crédit, jetons du plan compris
+  } finally { globalThis.fetch = oldFetch; resetDeps(); }
+});
+
+// Plan déjà validé à l'étape « structure » (parcours classique) : ses titres
+// partent tout de suite, sans appel au plan ; les slides de la 1re rédaction
+// (sortie d'outil) arrivent en brouillon avec leur photo.
+for (const carousel_type of ["photo", "mix"]) Deno.test(`carrousel ${carousel_type} à plan validé : plan immédiat sans appel, slides en brouillon avec leur photo`, async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const plan = [1, 2, 3].map((i) => ({ slide_number: i, role: i === 1 ? "hook" : i === 3 ? "conclusion" : "body", title_suggestion: ["Ouvrir l'atelier", "Le geste", "La table"][i - 1], strategic_note: "Note", photo_index: i, slide_type: "photo_full" }));
+  const written = { slides: plan.map((p, i) => ({ slide_number: i + 1, role: p.role, slide_type: "photo_full", photo_index: i + 1,
+    overlay_text: ["La forme choisie précède le décor.", "Le décor rappelle la vaisselle ancienne.", "Ces objets sont faits pour servir au quotidien."][i] })),
+    caption: { body: "Des pièces faites pour servir.", hashtags: [] } };
+  const full = JSON.stringify(written);
+  const streamed: boolean[] = [];
+  let outlineCalls = 0;
+  _deps.callAnthropic = (async (o: any, sink: any) => {
+    if (o.tool?.name === "plan_envisage") outlineCalls++;
+    Object.assign(sink, { model: o.model, total_tokens: 1 });
+    return JSON.stringify({ slides: [] });
+  }) as any;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    Object.assign(sink, { model: o.model, total_tokens: 10 });
+    streamed.push(typeof o.onText === "function");
+    if (o.onText) for (let cut = 1; cut <= full.length; cut += 11) o.onText(full.slice(0, cut));
+    return full;
+  }) as any;
+  try {
+    const req = makeHooksRequest({ type: "express_full", carousel_type, scenario_origin: "user_validated", confirmed_structure: plan, subject: "Présenter mes pièces du quotidien",
+      photo_contexts: plan.map(() => ({ context: "Assiette peinte" })) });
+    const res = await handleRequest(new Request(req.url, { method: "POST", headers: { "Content-Type": "application/json", Accept: "text/event-stream" }, body: await req.text() }));
+    const events = (await res.text()).split("\n\n").filter((l) => l.startsWith("data: ")).map((l) => JSON.parse(l.slice(6)));
+    assertEquals(outlineCalls, 0);
+    const statuses = events.filter((e) => e.type === "status");
+    assertEquals(statuses.filter((e) => e.stage === "outline").map((e) => e.titles), [["Ouvrir l'atelier", "Le geste", "La table"]]);
+    assert(statuses.findIndex((e) => e.stage === "outline") < statuses.findIndex((e) => e.stage === "writing"), "le plan validé part avant la rédaction");
+    const drafts = statuses.filter((e) => e.stage === "draft");
+    assertEquals(drafts.map((e) => e.slides.length), [1, 2, 3]);
+    assertEquals(drafts[2].slides[1], { n: 2, title: "Le décor rappelle la vaisselle ancienne.", text: "", photo: 2 });
+    assertEquals(streamed[0], true);
+    assert(streamed.slice(1).every((s) => !s), "réparations et relances ne repartent jamais à l'écran");
+    const done = JSON.parse(events.at(-1).full);
+    assert(done.timings.write_ms >= 0 && done.timings.gate_ms >= 0 && done.timings.thread_ms >= 0);
+  } finally { globalThis.fetch = oldFetch; resetDeps(); }
+});
+
+Deno.test("photo dump sans texte : aucun plan envisagé", async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  let outlineCalls = 0;
+  _deps.callAnthropic = (async (o: any, sink: any) => {
+    if (o.tool?.name === "plan_envisage") outlineCalls++;
+    Object.assign(sink, { model: o.model, total_tokens: 1 });
+    return JSON.stringify({ slides: [] });
+  }) as any;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    Object.assign(sink, { model: o.model, total_tokens: 10 });
+    return JSON.stringify({ slides: [1, 2, 3].map((n) => ({ slide_number: n, slide_type: "photo_full", photo_index: n, overlay_text: "" })), caption: { body: "Trois photos.", hashtags: [] } });
+  }) as any;
+  try {
+    const req = makeHooksRequest({ type: "express_full", carousel_type: "photo", no_overlay: true, subject: "Mes photos" });
+    const res = await handleRequest(new Request(req.url, { method: "POST", headers: { "Content-Type": "application/json", Accept: "text/event-stream" }, body: await req.text() }));
+    const events = (await res.text()).split("\n\n").filter((l) => l.startsWith("data: ")).map((l) => JSON.parse(l.slice(6)));
+    assertEquals(outlineCalls, 0);
+    assertEquals(events.filter((e) => e.stage === "outline"), []);
   } finally { globalThis.fetch = oldFetch; resetDeps(); }
 });
