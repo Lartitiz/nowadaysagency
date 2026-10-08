@@ -866,6 +866,15 @@ export function findBrandCopyOverlap(text: string, brandText: string | undefined
   return passages;
 }
 
+/**
+ * Passages de `text` qui reprennent `minWords` mots CONSÉCUTIFS de `sourceText`
+ * (même fenêtre que la recopie de fiche de marque). Sert aussi à comparer un
+ * contenu à ceux déjà écrits pour la même marque (_shared/recent-passages.ts).
+ */
+export function findSharedPassages(text: string, sourceText: string, minWords = BRAND_COPY_MIN_WORDS): string[] {
+  return findBrandCopyWindows(text, sourceText, minWords);
+}
+
 function findBrandCopyWindows(text: string, brandText: string, minWords: number): string[] {
   if (!text || !brandText) return [];
   const sourceWords = normalizeWordsForOverlap(brandText);

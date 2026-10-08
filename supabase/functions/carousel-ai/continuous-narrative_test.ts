@@ -353,3 +353,96 @@ Deno.test("socle : en longueur Auto, un texte de plus de 9 paragraphes est réé
   assert(feedbacks[0].includes("12 paragraphes : 9 au plus"));
   assertEquals(result?.doc.slides.length, 4);
 });
+
+// Bilan hebdo 05/10/2026 : cinq carrousels photo d'une même marque recopiaient
+// la même présentation. Les derniers contenus sont montrés au rédacteur, et une
+// redite mot pour mot déclenche UNE réécriture gardée seulement si elle redit moins.
+const recentTexts = [
+  "Des bols pour le quotidien\nLe premier prix ne dit pas combien de temps l'objet pourra servir.\nJe vis dans la Drôme, entourée d'arbres.",
+];
+const rewritten = {
+  ...original,
+  paragraphs: [
+    "Ce qu'on paie au départ ne renseigne pas sur la durée de vie de l'objet.",
+    ...original.paragraphs.slice(1),
+  ],
+};
+for (const verdict of ["acceptable", "needs_repair"] as const) {
+  Deno.test(`redite d'un contenu récent : réécriture ${verdict === "acceptable" ? "gardée" : "écartée (fil abîmé)"}`, async () => {
+    let writes = 0, reviews = 0;
+    const systems: string[] = [];
+    const output = await createContinuousNarrative({
+      ...base,
+      recentTexts,
+      usage: {},
+      write: async (o) => {
+        systems.push(String(o.system));
+        return JSON.stringify(++writes === 1 ? original : rewritten);
+      },
+      review: async (doc) => ({
+        ...await progressionReceipt(doc, "completed"),
+        verdict: ++reviews === 1 ? "acceptable" : verdict,
+      }),
+    });
+    assert(systems[0].includes("DÉJÀ ÉCRIT RÉCEMMENT"));
+    assert(systems[0].includes("entourée d'arbres"));
+    assertEquals(writes, 2);
+    assertEquals(reviews, 2);
+    const echo = output?.doc.narrative_draft.recent_echo;
+    assertEquals(echo.before, 1);
+    assertEquals(echo.accepted, verdict === "acceptable");
+    assertEquals(echo.after, verdict === "acceptable" ? 0 : 1);
+    assertEquals(echo.reason, verdict === "acceptable" ? "accepted" : "fil-degraded");
+    assertEquals(
+      output?.doc.slides[1].overlay_text,
+      (verdict === "acceptable" ? rewritten : original).paragraphs[0],
+    );
+  });
+}
+
+Deno.test("redite d'un contenu récent : candidate qui redit autant → texte d'origine, sans 2e relecture", async () => {
+  let writes = 0, reviews = 0;
+  const output = await createContinuousNarrative({
+    ...base,
+    recentTexts,
+    usage: {},
+    write: async () => { writes++; return JSON.stringify(original); },
+    review: async (doc) => { reviews++; return { ...await progressionReceipt(doc, "completed"), verdict: "acceptable" }; },
+  });
+  assertEquals([writes, reviews], [2, 1]);
+  assertEquals(output?.doc.narrative_draft.recent_echo.reason, "candidate-not-better");
+});
+
+Deno.test("redite : phrase fournie dans la demande du jour = pas une redite ; sans contenus récents, rien ne change", async () => {
+  for (const extra of [{ recentTexts, authoredText: "Le premier prix ne dit pas combien de temps l'objet pourra servir." }, {}]) {
+    let writes = 0;
+    const systems: string[] = [];
+    const output = await createContinuousNarrative({
+      ...base,
+      ...extra,
+      usage: {},
+      write: async (o) => { writes++; systems.push(String(o.system)); return JSON.stringify(original); },
+      review: async (doc) => ({ ...await progressionReceipt(doc, "completed"), verdict: "acceptable" }),
+    });
+    assertEquals(writes, 1);
+    assertEquals(output?.doc.narrative_draft.recent_echo.before, 0);
+    assertEquals(systems[0].includes("DÉJÀ ÉCRIT RÉCEMMENT"), "recentTexts" in extra);
+  }
+});
+
+Deno.test("redite : budget trop court → mesurée et tracée, pas de réécriture", async () => {
+  let writes = 0;
+  const output = await createContinuousNarrative({
+    ...base,
+    recentTexts,
+    startedAt: Date.now() - 180000,
+    usage: {},
+    write: async () => { writes++; return JSON.stringify(original); },
+    review: async (doc) => ({ ...await progressionReceipt(doc, "completed"), verdict: "acceptable" }),
+  });
+  assertEquals(writes, 1);
+  assertEquals(output?.doc.narrative_draft.recent_echo, {
+    before: 1, after: 1, attempted: false, accepted: false, reason: "time-budget",
+    passages: ["Le premier prix ne dit pas combien de temps l'objet pourra servir"],
+  });
+});

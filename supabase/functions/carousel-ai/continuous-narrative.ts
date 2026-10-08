@@ -14,6 +14,7 @@ import {
 } from "../_shared/carousel-progression.ts";
 import { newsWriting } from "./variant-writing.ts";
 import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
+import { findRecentEchoes, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { angleFamily, type AngleFamily } from "../_shared/angle-families.ts";
 import { coverAccentMaxWords, validExtract } from "../_shared/carousel-design-plan.ts";
 import {
@@ -55,6 +56,12 @@ export function usesContinuousNarrative(body: any): boolean {
     !(body.confirmed_structure || body.slide_structure || []).some((s: any) =>
       s.no_overlay
     );
+}
+
+/** Tout le texte public d'un récit (couverture, paragraphes, légende). */
+export function narrativeText(n: Narrative): string {
+  return [n.hook, ...n.paragraphs, n.caption.hook, n.caption.body, n.caption.cta]
+    .filter((t) => typeof t === "string" && t.trim()).join("\n");
 }
 
 export interface Narrative {
@@ -245,6 +252,8 @@ export async function createContinuousNarrative(options: {
   authoredText: string;
   /** Tu ou vous de la fiche de marque : règle ferme en tête (socle, règle 2). */
   audienceAddress?: AudienceAddress | null;
+  /** Textes des derniers contenus de la marque (_shared/recent-passages.ts) : à ne pas redire. */
+  recentTexts?: string[];
   startedAt: number;
   reserveMs?: number;
   usage: UsageSink;
@@ -307,6 +316,7 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
     carouselLengthPrompt(body),
     recitContinuFamille(narrativeAngleFamily(body)),
     photoReadingContract(body),
+    recentPassagesPrompt(options.recentTexts),
   ].filter((part) => part.trim()).join("\n");
   const draft = async (feedback?: string, prior?: Narrative, final?: { exact: number; sink: UsageSink; timeout: number }) => {
     const sink: UsageSink = {};
@@ -422,6 +432,45 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
       repair.reason = "repair-failed";
     }
   } else if (receipt.verdict === "needs_repair") repair.reason = "time-budget";
+  // Redite des contenus récents de la marque (bilan hebdo 05/10/2026) : mesure
+  // déterministe, puis UNE réécriture gardée seulement si elle redit moins sans
+  // abîmer le fil (même juge, même verdict exigé).
+  const requestText = sources.find((s) => s.id === "request")?.text || "";
+  const echoesOf = (n: Narrative) =>
+    findRecentEchoes(narrativeText(n), options.recentTexts, requestText);
+  let echoes = echoesOf(narrative);
+  const recentEcho: { before: number; after: number; attempted: boolean; accepted: boolean; reason: string; passages: string[] } = {
+    before: echoes.length, after: echoes.length, attempted: false, accepted: false,
+    reason: echoes.length ? "time-budget" : "not-needed", passages: echoes.slice(0, 5),
+  };
+  if (echoes.length) console.log(`[recent-echo] ${echoes.length} passage(s) déjà écrit(s) dans un contenu récent de la marque`);
+  if (echoes.length && remaining() >= 105000) {
+    recentEcho.attempted = true;
+    recentEcho.reason = "candidate-not-better";
+    try {
+      const candidate = await draft(
+        "Ces passages redisent mot pour mot des contenus récents de la marque. Réécris le texte entier sans les reprendre : reformule ou remplace-les par un autre fait des sources, sans ajouter de faits, en gardant la proposition et le fil :\n" +
+          echoes.map((e) => `- « ${e} »`).join("\n"),
+        narrative,
+      );
+      const left = echoesOf(candidate);
+      if (left.length < echoes.length) {
+        const checked = await judge(candidate);
+        const fineBefore = receipt.verdict !== "needs_repair";
+        if (checked.execution_status === "completed" && (checked.verdict === "acceptable" || !fineBefore)) {
+          narrative = candidate;
+          receipt = checked;
+          echoes = left;
+          recentEcho.accepted = true;
+          recentEcho.reason = "accepted";
+        } else recentEcho.reason = checked.execution_status === "completed" ? "fil-degraded" : `review-${checked.execution_status}`;
+      }
+    } catch {
+      recentEcho.reason = "repair-failed";
+    }
+    recentEcho.after = echoes.length;
+    console.log(`[recent-echo] réécriture ${recentEcho.reason} : ${recentEcho.before}→${recentEcho.after}`);
+  }
   const doc = composeNarrative(narrative, body);
   return {
     regenerate: async (_composed: string, feedback: string, sink: UsageSink, timeout = 100000) => {
@@ -442,6 +491,7 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
         ...narrative,
         review: receipt,
         repair,
+        recent_echo: recentEcho,
       },
     },
     repaired: repair.attempted,
