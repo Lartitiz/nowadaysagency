@@ -32,7 +32,8 @@ export interface ProgressionResult {
   format_retry?: { attempted: boolean; initial_reason: string };
   /** Réparation voulue mais non lancée : son délai n'aurait pas couvert une réécriture complète. */
   repair_skipped?: "time-budget";
-  repair?: { attempted: true; accepted: boolean; trigger: "needs_repair" | "minor_continuity"; reason?: string; candidate_status?: string; candidate_verdict?: string | null };
+  /** scope local = seules `slides` (numéros à partir de 1) réécrites ; expected_ms = durée prévue pour décider du lancement. */
+  repair?: { attempted: true; accepted: boolean; trigger: "needs_repair" | "minor_continuity"; scope?: "local" | "global"; slides?: number[]; expected_ms?: number; reason?: string; candidate_status?: string; candidate_verdict?: string | null };
   reason?: string;
   usage?: UsageSink;
 }

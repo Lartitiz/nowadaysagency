@@ -723,6 +723,130 @@ for (const writeMs of [80_000, 30_000]) Deno.test(`progression finale texte : r�
   } finally { globalThis.fetch = oldFetch; Date.now = now; }
 });
 
+// 08/10/2026 : rupture locale → seules les slides concernées et leurs voisines
+// sont réécrites ; le 2e juge relit TOUT et décide si la version est gardée.
+for (const outcome of ["local-accepted", "local-not-better", "global"]) Deno.test(`progression finale texte : réparation ${outcome}`, async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const draft = { slides: [
+    { slide_number: 1, role: "hook", title: "Les retours demandent une direction commune." },
+    { slide_number: 2, role: "body", title: "Les retours arrivent de trois personnes différentes." },
+    { slide_number: 3, role: "body", title: "Chacune défend une priorité différente pour la maquette." },
+    { slide_number: 4, role: "body", title: "La couleur du bouton change encore." },
+    { slide_number: 5, role: "body", title: "Le client tranche entre les priorités en une réunion." },
+    { slide_number: 6, role: "conclusion", title: "Le choix validé guide les corrections." },
+  ], caption: { body: "Un choix commun précède les modifications.", hashtags: [] } };
+  const fixed = "Tant que personne ne tranche, la couleur du bouton change encore.";
+  let writes = 0, judges = 0, repairPrompt = "";
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    writes++; Object.assign(sink, { model: o.model, total_tokens: 10 });
+    if (writes === 1) return JSON.stringify(draft);
+    repairPrompt = JSON.stringify(o.messages[0].content);
+    if (outcome === "global") return JSON.stringify({ ...draft, slides: draft.slides.map((s, i) => i === 3 ? { ...s, title: fixed } : s) });
+    return JSON.stringify({ slides: [draft.slides[2], { ...draft.slides[3], title: fixed }, draft.slides[4]] });
+  }) as any;
+  _deps.reviewThread = async (doc: any) => {
+    judges++;
+    const base = await progressionReceipt(doc, "completed");
+    const boundaries = doc.slides.slice(1).map((_: any, i: number) => ({ from: `slides.${i}`, to: `slides.${i + 1}`, kind: judges === 1 && i === 2 ? "rupture" : "progression", inherits: "x", advances: "y" }));
+    const good = judges === 2 && outcome !== "local-not-better";
+    const report = { trajectory: { kind: outcome === "global" && judges === 1 ? "descriptive_catalogue" : "developed_idea" }, boundaries,
+      defects: good ? [] : [{ type: "rupture", severity: "major", slide_ids: ["slides.3"], field_ids: ["slides.3.title"], reason: "Lien manquant.", repair: "Relier." }] };
+    return { ...base, verdict: good ? "acceptable" as const : "needs_repair" as const, report, issues: good ? [] : ["slide 4 : Lien manquant. Relier."] };
+  };
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", subject: "Choisir une direction avant de modifier", slide_count: 6 }));
+    assertEquals(res.status, 200);
+    const data = await res.json(), doc = JSON.parse(data.content);
+    assertEquals([writes, judges], [2, 2]);
+    const repair = doc.progression_review.repair ?? JSON.parse(data.content).progression_review.repair;
+    if (outcome === "global") {
+      assert(repairPrompt.includes("Même nombre, ordre et associations photo"));
+      assert(!repairPrompt.includes("RÉPARATION LOCALE"));
+      assertEquals(repair.scope, "global");
+    } else {
+      assert(repairPrompt.includes("RÉPARATION LOCALE : réécris SEULEMENT les slides 3, 4, 5 (sur 6"));
+      assertEquals(repair.scope, "local");
+      assertEquals(repair.slides, [3, 4, 5]);
+      assertEquals(data.timings.thread_repair_local, 3);
+    }
+    assertEquals(doc.slides.length, 6);
+    for (const i of [0, 1, 4, 5]) assertEquals(doc.slides[i].title, draft.slides[i].title);
+    if (outcome === "local-not-better") {
+      assertEquals(repair.accepted, false);
+      assertEquals(repair.candidate_verdict, "needs_repair");
+      assertEquals(doc.slides[3].title, draft.slides[3].title, "réparation refusée : brouillon jugé conservé");
+      assertEquals(doc.progression_review.verdict, "needs_repair");
+      assert(doc.structure_warnings.length > 0);
+    } else {
+      assertEquals(repair.accepted, true);
+      assertEquals(doc.slides[3].title, fixed);
+      assertEquals(doc.progression_review.verdict, "acceptable");
+      assertEquals(data.timings.thread_repair_accepted, 1);
+    }
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+// À 12 slides, rédaction 84 s, 65 s de délai : la réécriture complète est
+// sautée (#1385) mais une réparation locale de 3 slides (~46 s prévues) part.
+for (const local of [true, false]) Deno.test(`progression finale texte : budget de réparation ${local ? "locale" : "complète"} à 12 slides`, async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch, now = Date.now; let offset = 0;
+  Date.now = () => now() + offset;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const draft = { slides: Array.from({ length: 12 }, (_, i) => ({ slide_number: i + 1, role: i === 0 ? "hook" : i === 11 ? "conclusion" : "body", title: `Étape ${i + 1} : un choix précis à faire avant la maquette.` })),
+    caption: { body: "Un choix commun précède les modifications.", hashtags: [] } };
+  let writes = 0, judges = 0;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    writes++; Object.assign(sink, { model: o.model, total_tokens: 10 });
+    await Promise.resolve();
+    if (writes === 1) { offset += 84_000; return JSON.stringify(draft); }
+    return JSON.stringify({ slides: [5, 6, 7].map((i) => draft.slides[i]) });
+  }) as any;
+  _deps.reviewThread = async (doc: any) => {
+    // Le juge finit à 150 s : il reste 120 s, donc 65 s de délai de réparation.
+    if (judges++ === 0) offset = 150_000;
+    const base = await progressionReceipt(doc, "completed");
+    const report = { trajectory: { kind: local ? "developed_idea" : "descriptive_catalogue" },
+      boundaries: doc.slides.slice(1).map((_: any, i: number) => ({ from: `slides.${i}`, to: `slides.${i + 1}`, kind: i === 5 ? "rupture" : "progression" })),
+      defects: [{ type: "rupture", severity: "major", slide_ids: ["slides.6"], reason: "Lien manquant.", repair: "Relier." }] };
+    return { ...base, verdict: "needs_repair" as const, report, issues: ["slide 7 : Lien manquant. Relier."] };
+  };
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", subject: "Choisir une direction avant de modifier", slide_count: 12 }));
+    assertEquals(res.status, 200);
+    const data = await res.json(), doc = JSON.parse(data.content);
+    if (local) {
+      assertEquals([writes, judges], [2, 2]);
+      assertEquals(doc.progression_review.repair.scope, "local");
+      assertEquals(doc.progression_review.repair.slides, [6, 7, 8]);
+      assert(doc.progression_review.repair.expected_ms < 65_000);
+      assertEquals(doc.progression_review.repair_skipped, undefined);
+    } else {
+      assertEquals([writes, judges], [1, 1]);
+      assertEquals(doc.progression_review.repair_skipped, "time-budget");
+    }
+  } finally { globalThis.fetch = oldFetch; Date.now = now; }
+});
+
+// Le juge écrit une entrée par slide et par frontière : à 20 slides, 45 s fixes le coupaient.
+for (const n of [12, 20]) Deno.test(`progression finale texte : plafond du juge à ${n} slides`, async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const draft = { slides: Array.from({ length: n }, (_, i) => ({ slide_number: i + 1, role: i === 0 ? "hook" : i === n - 1 ? "conclusion" : "body", title: `Étape ${i + 1} : un choix précis à faire avant la maquette.` })),
+    caption: { body: "Un choix commun précède les modifications.", hashtags: [] } };
+  let cap = 0;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => { Object.assign(sink, { model: o.model, total_tokens: 10 }); return JSON.stringify(draft); }) as any;
+  _deps.reviewThread = async (doc: any, options: any) => { cap = options.abortTimeoutMs; return verdict(doc); };
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", subject: "Choisir une direction avant de modifier", slide_count: n }));
+    assertEquals(res.status, 200); await res.json();
+    assertEquals(cap, n === 20 ? 63_000 : 45_000);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
 Deno.test("texte utilisateur : pas de certification ni de réécriture globale automatique",async()=>{
   resetDeps();let judged=0;_deps.reviewThread=async(doc:any)=>{judged++;return verdict(doc);};
   _deps.callCarouselWriter=(async()=>JSON.stringify({slides:[{slide_number:1,title:"Mon titre",body:"Mon passage."}],caption:{}})) as any;
