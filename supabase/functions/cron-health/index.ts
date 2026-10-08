@@ -26,7 +26,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jugerCredits, joursDepuisReset } from "./photoroom-alerte.ts";
 import { compte, debutMoisUtc, jugerBudgetHiggsfield, somme } from "./higgsfield-alerte.ts";
-import { gardeRediteStats } from "./garde-redite.ts";
+import { gardeRediteStats, hasPreviewText } from "./garde-redite.ts";
 import { isInternalEmail, isTestAccountEmail, maskEmail } from "../_shared/internal-accounts.ts";
 
 // Comptes internes exclus : liste UNIQUE partagée avec activation-funnel et
@@ -845,7 +845,7 @@ Deno.serve(async (req) => {
     // jette »), repli sur les carrousels GARDÉS (generated_carousels) tant que les
     // events n'ont pas de content_preview (rows d'avant la migration).
     const cqCurPreview = (cqEvents || []).filter(
-      (e: any) => inWindow(e.created_at, curFrom, curTo) && e.content_preview,
+      (e: any) => inWindow(e.created_at, curFrom, curTo) && hasPreviewText(e.content_preview),
     );
     let echantillon_source: "events" | "brouillons";
     let echantillon: any[];

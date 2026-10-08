@@ -1199,3 +1199,91 @@ Deno.test("skipDepthResearch : stories + cas personnel → pas de recherche ; le
   const news = livedCaseFromCreativeBody({ context: "Meta Verified", news_context: "ACTUALITÉ : Meta Verified à 9,99 €", answers: [{ question: "Ressenti ?", answer: "Ça me met en colère pour les petites marques." }] });
   assertEquals(skipDepthResearch(true, news), false, "actu : recherche gardée");
 });
+
+// ── Garde anti-redite sur les chemins en flux (08/10/2026) ──────────────────
+// Posts LinkedIn (runLinkedInTwoStep) : ni garde ni ligne de télémétrie.
+// Posts Instagram (correctPostStreamContent) : le contrôle préalable mesurait
+// sans les accroches précédentes → un post dont le seul défaut est de redire
+// une accroche sortait « déjà propre » et la garde ne se déclenchait jamais.
+const ECHO_SUJET =
+  "Je voudrais. Euh. J'ai fait une série sur ça m'énerve, donc j'ai mis ça m'énerve. Les pensions qui maltraitent les chevaux.";
+const ECHO_PREVIOUS = [
+  "En 2026, on utilise encore l'immersion sur les chevaux. Et franchement, ça m'énerve.",
+  "En 2026, on désensibilise encore un cheval en secouant un drapeau devant lui jusqu'à ce qu'il arrête de bouger.",
+];
+const ECHO_POST =
+  "On est en 2026 et il y a encore des pros qui secouent un drapeau devant un cheval jusqu'à ce qu'il arrête de bouger. Ça a un nom : l'immersion.\n\nLe mécanisme est simple : on pousse le cheval dans sa zone rouge jusqu'à ce qu'il se fige.";
+const ECHO_FIXED =
+  "Ma jument a refusé le van ce matin, et je sais exactement pourquoi.\n\nLe mécanisme est simple : on pousse le cheval dans sa zone rouge jusqu'à ce qu'il se fige, puis on appelle ça du calme alors que c'est de la sidération.";
+const echoAnthropicOk = (text: string) => ({ status: 200, body: { content: [{ type: "text", text }], stop_reason: "end_turn", usage: { input_tokens: 50, output_tokens: 30 } } });
+
+// Capte les insertions dans content_quality_events (par-dessus le mock en place).
+function captureQualityInserts() {
+  const rows: any[] = [];
+  const inner = globalThis.fetch;
+  globalThis.fetch = (async (input: any, init?: any) => {
+    const url = typeof input === "string" ? input : input?.url ?? String(input);
+    if (url.includes("/rest/v1/content_quality_events") && init?.body) {
+      const b = JSON.parse(String(init.body));
+      rows.push(Array.isArray(b) ? b[0] : b);
+    }
+    return inner(input, init);
+  }) as typeof fetch;
+  return rows;
+}
+
+Deno.test("correctPostStreamContent : la redite d'accroche SEULE déclenche la correction (avant/après rapportés)", async () => {
+  const full = JSON.stringify({ content: ECHO_POST, accroche: "accroche" });
+  const { mock, capturedBodies } = installAnthropicBodyCapture([echoAnthropicOk(ECHO_FIXED)]);
+  // deno-lint-ignore no-explicit-any
+  let quality: any = null;
+  try {
+    const result = await correctPostStreamContent(full, {
+      ...POST_BASE_PARAMS, echoSubject: ECHO_SUJET, previousHooks: ECHO_PREVIOUS, onQuality: (q) => { quality = q; },
+    });
+    assertEquals(mock.anthropicCallCount, 1);
+    assertEquals((capturedBodies[0].messages[0].content as string).includes("ACCROCHE DÉJÀ UTILISÉE"), true);
+    assertEquals(JSON.parse(result!).content, ECHO_FIXED);
+    assertEquals(quality.hookEchoesBefore, 2);
+    assertEquals(quality.repassed, true);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("correctPostStreamContent : post court sans historique -> 0 appel, mesure rapportée sans compteur", async () => {
+  const clean =
+    "J'ai changé quatre mots dans ma bio la semaine dernière et les messages privés ont doublé en trois jours, ce qui m'a appris que la clarté compte plus que l'esthétique dans ce métier.";
+  const { mock } = installAnthropicBodyCapture([]);
+  // deno-lint-ignore no-explicit-any
+  let quality: any = null;
+  try {
+    const result = await correctPostStreamContent(JSON.stringify({ content: clean }), { ...POST_BASE_PARAMS, onQuality: (q) => { quality = q; } });
+    assertEquals(mock.anthropicCallCount, 0);
+    assertEquals(result, undefined);
+    assertEquals(quality.repassed, false); // < 200 caractères : mesuré, jamais relu
+    assertEquals(quality.hookEchoesBefore, undefined);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("runLinkedInTwoStep : garde anti-redite active + ligne content_quality_events avec hook_echoes_before et la vraie accroche", async () => {
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    echoAnthropicOk(JSON.stringify({ content: ECHO_POST })),
+    echoAnthropicOk(JSON.stringify({ content: ECHO_FIXED, accroche: "x", corrections_applied: ["accroche"] })),
+  ]);
+  const rows = captureQualityInserts();
+  try {
+    const res = await runLinkedInTwoStep({ ...LINKEDIN_BASE_PARAMS, echoSubject: ECHO_SUJET, previousHooks: ECHO_PREVIOUS });
+    assertEquals((capturedBodies[1].messages[0].content as string).includes("ACCROCHE DÉJÀ UTILISÉE"), true);
+    assertEquals((await res.json()).content, ECHO_FIXED);
+    assertEquals(rows.length, 1);
+    assertEquals(rows[0].format, "linkedin");
+    assertEquals(rows[0].redac_repassed, true);
+    assertEquals(rows[0].content_preview.hook_echoes_before, 2);
+    assertEquals(rows[0].content_preview.hook, "Ma jument a refusé le van ce matin, et je sais exactement pourquoi.");
+  } finally {
+    mock.restore();
+  }
+});
