@@ -14,16 +14,20 @@ const slideIndex = (id: unknown): number | null => {
   return m ? Number(m[1]) : null;
 };
 
+export type LocalRepairPlan = { targets: number[] } | { targets: null; reason: string };
+
 /**
- * Positions (0-based) des slides à réécrire, ou null quand le défaut est
- * global, mal localisé ou trop étendu (→ réécriture complète).
+ * Positions (0-based) des slides à réécrire, ou la raison qui impose une
+ * réécriture complète (défaut global, mal localisé ou trop étendu).
  */
-export function localRepairTargets(report: any, slideCount: number): number[] | null {
-  if (!report || slideCount < 4) return null;
-  if (report.trajectory?.kind === "descriptive_catalogue") return null;
+export function localRepairPlan(report: any, slideCount: number): LocalRepairPlan {
+  const full = (reason: string): LocalRepairPlan => ({ targets: null, reason });
+  if (!report) return full("no-report");
+  if (slideCount < 4) return full("short-carousel");
+  if (report.trajectory?.kind === "descriptive_catalogue") return full("descriptive_catalogue");
   const defects: any[] = Array.isArray(report.defects) ? report.defects : [];
   const ruptures = (Array.isArray(report.boundaries) ? report.boundaries : []).filter((b: any) => b?.kind === "rupture");
-  if (!defects.length && !ruptures.length) return null;
+  if (!defects.length && !ruptures.length) return full("unlocated");
   const targets = new Set<number>();
   const add = (i: number | null) => {
     if (i === null || i < 0 || i >= slideCount) return false;
@@ -31,26 +35,33 @@ export function localRepairTargets(report: any, slideCount: number): number[] | 
     return true;
   };
   for (const d of defects) {
-    if (GLOBAL_DEFECT_TYPES.has(d?.type)) return null;
+    if (GLOBAL_DEFECT_TYPES.has(d?.type)) return full(`global-defect:${d.type}`);
     // Une légende ne se répare pas dans les slides : réécriture complète.
     const fieldIds: string[] = Array.isArray(d?.field_ids) ? d.field_ids : [];
-    if (fieldIds.length && fieldIds.every((id) => /^(carousel\.)?(caption|instagram_caption)\b/.test(id))) return null;
+    if (fieldIds.length && fieldIds.every((id) => /^(carousel\.)?(caption|instagram_caption)\b/.test(id))) return full("caption");
     const ids: unknown[] = Array.isArray(d?.slide_ids) ? d.slide_ids : [];
-    if (!ids.length) return null;
+    if (!ids.length) return full("unlocated");
     for (const id of ids) {
       const i = slideIndex(id);
-      if (!add(i)) return null;
-      // Contrat REPAIR : un défaut local se travaille avec ses voisins.
-      add(i! - 1);
-      add(i! + 1);
+      if (!add(i)) return full("unlocated");
+      // Contrat REPAIR : un défaut local se travaille avec ses voisins. Une
+      // rupture désigne déjà les deux côtés du raccord (frontière ci-dessous).
+      if (d.type !== "rupture") {
+        add(i! - 1);
+        add(i! + 1);
+      }
     }
   }
   for (const b of ruptures) {
-    if (!add(slideIndex(b.from)) || !add(slideIndex(b.to))) return null;
+    if (!add(slideIndex(b.from)) || !add(slideIndex(b.to))) return full("unlocated");
   }
   // Au-delà de la moitié du carrousel, ce n'est plus local.
-  if (targets.size > Math.floor(slideCount / 2)) return null;
-  return [...targets].sort((a, b) => a - b);
+  if (targets.size > Math.floor(slideCount / 2)) return full(`too-wide:${targets.size}/${slideCount}`);
+  return { targets: [...targets].sort((a, b) => a - b) };
+}
+
+export function localRepairTargets(report: any, slideCount: number): number[] | null {
+  return localRepairPlan(report, slideCount).targets;
 }
 
 /**

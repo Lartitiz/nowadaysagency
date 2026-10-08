@@ -744,7 +744,7 @@ for (const outcome of ["local-accepted", "local-not-better", "global"]) Deno.tes
     if (writes === 1) return JSON.stringify(draft);
     repairPrompt = JSON.stringify(o.messages[0].content);
     if (outcome === "global") return JSON.stringify({ ...draft, slides: draft.slides.map((s, i) => i === 3 ? { ...s, title: fixed } : s) });
-    return JSON.stringify({ slides: [draft.slides[2], { ...draft.slides[3], title: fixed }, draft.slides[4]] });
+    return JSON.stringify({ slides: [draft.slides[2], { ...draft.slides[3], title: fixed }] });
   }) as any;
   _deps.reviewThread = async (doc: any) => {
     judges++;
@@ -765,11 +765,12 @@ for (const outcome of ["local-accepted", "local-not-better", "global"]) Deno.tes
       assert(repairPrompt.includes("Même nombre, ordre et associations photo"));
       assert(!repairPrompt.includes("RÉPARATION LOCALE"));
       assertEquals(repair.scope, "global");
+      assertEquals(repair.global_reason, "descriptive_catalogue");
     } else {
-      assert(repairPrompt.includes("RÉPARATION LOCALE : réécris SEULEMENT les slides 3, 4, 5 (sur 6"));
+      assert(repairPrompt.includes("RÉPARATION LOCALE : réécris SEULEMENT les slides 3, 4 (sur 6"));
       assertEquals(repair.scope, "local");
-      assertEquals(repair.slides, [3, 4, 5]);
-      assertEquals(data.timings.thread_repair_local, 3);
+      assertEquals(repair.slides, [3, 4]);
+      assertEquals(data.timings.thread_repair_local, 2);
     }
     assertEquals(doc.slides.length, 6);
     for (const i of [0, 1, 4, 5]) assertEquals(doc.slides[i].title, draft.slides[i].title);
@@ -789,7 +790,7 @@ for (const outcome of ["local-accepted", "local-not-better", "global"]) Deno.tes
 });
 
 // À 12 slides, rédaction 84 s, 65 s de délai : la réécriture complète est
-// sautée (#1385) mais une réparation locale de 3 slides (~46 s prévues) part.
+// sautée (#1385) mais une réparation locale de 2 slides (~44 s prévues) part.
 for (const local of [true, false]) Deno.test(`progression finale texte : budget de réparation ${local ? "locale" : "complète"} à 12 slides`, async () => {
   resetDeps();
   const oldFetch = globalThis.fetch, now = Date.now; let offset = 0;
@@ -802,7 +803,7 @@ for (const local of [true, false]) Deno.test(`progression finale texte : budget 
     writes++; Object.assign(sink, { model: o.model, total_tokens: 10 });
     await Promise.resolve();
     if (writes === 1) { offset += 84_000; return JSON.stringify(draft); }
-    return JSON.stringify({ slides: [5, 6, 7].map((i) => draft.slides[i]) });
+    return JSON.stringify({ slides: [5, 6].map((i) => draft.slides[i]) });
   }) as any;
   _deps.reviewThread = async (doc: any) => {
     // Le juge finit à 150 s : il reste 120 s, donc 65 s de délai de réparation.
@@ -820,7 +821,7 @@ for (const local of [true, false]) Deno.test(`progression finale texte : budget 
     if (local) {
       assertEquals([writes, judges], [2, 2]);
       assertEquals(doc.progression_review.repair.scope, "local");
-      assertEquals(doc.progression_review.repair.slides, [6, 7, 8]);
+      assertEquals(doc.progression_review.repair.slides, [6, 7]);
       assert(doc.progression_review.repair.expected_ms < 65_000);
       assertEquals(doc.progression_review.repair_skipped, undefined);
     } else {

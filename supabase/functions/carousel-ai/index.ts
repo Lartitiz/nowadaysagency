@@ -11,7 +11,7 @@ import { draftSlidesTracker } from "../_shared/carousel-draft-stream.ts";
 import { coverKind, coverRewritePrompt, enforceCover } from "../_shared/carousel-cover.ts";
 import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, newsWriting } from "./variant-writing.ts";
 import { callCarouselWriter, pickCarouselWriter, CAROUSEL_WRITER_VERSION } from "./writer.ts";
-import { expectedLocalRepairMs, localRepairInstruction, localRepairTargets, mergeLocalRepair } from "./thread-local-repair.ts";
+import { expectedLocalRepairMs, localRepairInstruction, localRepairPlan, mergeLocalRepair } from "./thread-local-repair.ts";
 import { authoredContentSource, currentContentContract, testimonySourceText } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -1252,7 +1252,8 @@ async function finalizeCarousel(
   // RÉPARATION LOCALE (08/10/2026) : des défauts qui touchent peu de slides ne
   // font réécrire que ces slides et leurs voisines (thread-local-repair.ts),
   // assez court pour tenir là où la réécriture complète était sautée.
-  const localTargets = wantsRepair ? localRepairTargets(receipt.report, doc.slides.length) : null;
+  const repairPlan = wantsRepair ? localRepairPlan(receipt.report, doc.slides.length) : null;
+  const localTargets = repairPlan?.targets ?? null;
   const expectedRepairMs = localTargets
     ? expectedLocalRepairMs(opts.expectedRepairMs || 0, localTargets.length, doc.slides.length)
     : (opts.expectedRepairMs || 0);
@@ -1387,6 +1388,7 @@ async function finalizeCarousel(
       receipt.repair = { attempted: true, accepted: doc !== baseline,
         trigger: minorContinuity ? "minor_continuity" : "needs_repair",
         scope: localTargets ? "local" : "global",
+        ...(repairPlan && !repairPlan.targets ? { global_reason: repairPlan.reason } : {}),
         ...(localTargets ? { slides: localTargets.map((i) => i + 1) } : {}),
         expected_ms: expectedRepairMs,
         reason:repairReason,candidate_status:candidateStatus,candidate_verdict:candidateVerdict };

@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { expectedLocalRepairMs, localRepairInstruction, localRepairTargets, mergeLocalRepair } from "./thread-local-repair.ts";
+import { expectedLocalRepairMs, localRepairInstruction, localRepairPlan, localRepairTargets, mergeLocalRepair } from "./thread-local-repair.ts";
 
 const boundaries = (n: number, ruptures: number[] = []) => Array.from({ length: n - 1 }, (_, i) => ({
   from: `slides.${i}`, to: `slides.${i + 1}`, kind: ruptures.includes(i) ? "rupture" : "progression",
@@ -8,9 +8,24 @@ const report = (over: Record<string, unknown> = {}) => ({
   trajectory: { kind: "developed_idea" }, defects: [], boundaries: boundaries(12), ...over,
 });
 
-Deno.test("cibles locales : rupture 6→7 + défaut sur la 7 → slides 6, 7, 8 seulement", () => {
+Deno.test("cibles locales : rupture 6→7 + défaut rupture sur la 7 → slides 6 et 7 seulement", () => {
   const r = report({ boundaries: boundaries(12, [5]), defects: [{ type: "rupture", severity: "major", slide_ids: ["slides.6"], field_ids: ["slides.6.body"] }] });
-  assertEquals(localRepairTargets(r, 12), [5, 6, 7]);
+  assertEquals(localRepairTargets(r, 12), [5, 6]);
+});
+
+// 08/10 en ligne : 11 slides, 2 « major:rupture » → la règle des voisines
+// poussait au-delà de la moitié et relançait la réécriture complète (61 s, refusée).
+Deno.test("cibles locales : deux ruptures éloignées dans 11 slides restent locales", () => {
+  const r = report({ boundaries: boundaries(11, [2, 7]), defects: [
+    { type: "rupture", severity: "major", slide_ids: ["slides.2", "slides.3"] },
+    { type: "rupture", severity: "major", slide_ids: ["slides.8"] },
+  ] });
+  assertEquals(localRepairTargets(r, 11), [2, 3, 7, 8]);
+});
+
+Deno.test("cibles locales : raison de la réécriture complète tracée", () => {
+  assertEquals(localRepairPlan(report({ defects: [{ type: "unclear_idea", severity: "major", slide_ids: ["slides.2"] }] }), 12), { targets: null, reason: "global-defect:unclear_idea" });
+  assertEquals(localRepairPlan(report({ defects: [{ type: "repetition", severity: "major", slide_ids: ["slides.1", "slides.5", "slides.9"] }] }), 12), { targets: null, reason: "too-wide:9/12" });
 });
 
 Deno.test("cibles locales : défauts globaux, légende, catalogue ou trop étendus → réécriture complète", () => {
@@ -22,7 +37,7 @@ Deno.test("cibles locales : défauts globaux, légende, catalogue ou trop étend
   assertEquals(localRepairTargets(report({ defects: [d("repetition", ["slides.1", "slides.5", "slides.9"])] }), 12), null);
   assertEquals(localRepairTargets(report({ boundaries: [{ from: null, to: null, kind: "rupture" }] }), 12), null);
   assertEquals(localRepairTargets(report(), 12), null, "rien de localisé");
-  assertEquals(localRepairTargets(report({ defects: [d("rupture", ["slides.1"])] }), 3), null, "3 slides : toujours complet");
+  assertEquals(localRepairTargets(report({ defects: [d("ending", ["slides.1"])] }), 3), null, "3 slides : toujours complet");
   assertEquals(localRepairTargets(null, 12), null);
 });
 
