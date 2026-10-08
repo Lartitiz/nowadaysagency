@@ -9,6 +9,9 @@
  * Coût réel ~1 crédit → tourne le LUNDI uniquement (jour du mode heavy),
  * ou à la demande via FORCE_CAROUSEL_PHOTO=1.
  *
+ * Attente (08/10/2026) : « Photos brutes » garde l'écran d'attente classique (pas de plan
+ * ni de brouillon : le texte est retiré à la fin) ; le mixte couvre l'attente vivante.
+ *
  * Parcours : /creer → sujet aligné sur les fixtures (gate photo_mismatch !) →
  * Instagram → Carrousel → « Photos brutes » → upload 2 fixtures → dump OFF →
  * générer → résultat avec slides visuelles, sans « Données invalides ».
