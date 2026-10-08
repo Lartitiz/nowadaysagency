@@ -1879,7 +1879,10 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
   } else if (isReel && Array.isArray(parsed?.script)) {
     await logTextQuality("reel", reelAuditableText(parsed), { script: parsed.script }, null, echoesBefore);
   } else if (isLinkedIn && typeof parsed?.content === "string" && parsed.content.trim()) {
-    await logTextQuality("linkedin", parsed.content, { subject: context, content: parsed.content }, null, echoesBefore);
+    // Sans `subject` : l'accroche enregistrée est la 1re ligne du POST (avec
+    // `subject`, c'était le sujet lui-même, inutile à la garde anti-redite qui
+    // retire les mots du sujet avant de comparer).
+    await logTextQuality("linkedin", parsed.content, { content: parsed.content }, null, echoesBefore);
   }
 }
 
@@ -2187,6 +2190,9 @@ export async function runLinkedInTwoStep(params: {
   researchSource?: string;
   /** Tu ou vous de la fiche de marque : contrôlé par le code après rédaction (04/10/2026). */
   audienceAddress?: AudienceAddress | null;
+  /** Sujet + accroches déjà écrites dessus : garde anti-redite (#915), absente de ce chemin jusqu'au 08/10/2026. */
+  echoSubject?: string;
+  previousHooks?: string[];
 }, emitStatus: StatusEmitter = () => {}): Promise<Response> {
   const { model, systemPrompt, userPrompt, corsHeaders, userId, body, fullContext } = params;
   const researchSource = params.researchSource || "";
@@ -2245,10 +2251,30 @@ export async function runLinkedInTwoStep(params: {
   ], researchSource);
   // Témoignages : seuls le brief, les réponses et l'actu peuvent fournir une parole rapportée.
   const liTestimonySource = testimonySourceText(body);
-  const liAnalyze = (t: string) => analyzeTextRedac(t, liAllowed, undefined, undefined, liResearch, liTestimonySource);
+  const liEcho = { previousHooks: params.previousHooks, subject: params.echoSubject };
+  const liAnalyze = (t: string) => analyzeTextRedac(t, liAllowed, undefined, liEcho, liResearch, liTestimonySource);
   const liRedac = liAnalyze(postText);
+  // Télémétrie (content_quality_events) : ce chemin, celui des posts LinkedIn
+  // réels, n'écrivait aucune ligne → invisible du bilan hebdo et des
+  // accroches précédentes lues par la garde anti-redite.
+  const logLinkedInQuality = async (content: unknown, repassed: boolean) => {
+    if (typeof content !== "string" || !content.trim()) return;
+    try {
+      const violations = textRedacViolations(liAnalyze(content));
+      await logContentQuality(
+        userId,
+        "linkedin",
+        { score: Math.max(40, 100 - 10 * violations), violations, repassed, content: JSON.stringify({ content }), hookEchoesBefore: hookEchoesBefore(liRedac, liEcho) },
+        genLkUsage.model,
+        workspace_id,
+        params.echoSubject,
+      );
+    } catch (e) {
+      console.error("[creative-flow] log qualité linkedin ignoré (génération intacte):", (e as any)?.message || e);
+    }
+  };
   const liExtraInstructions = buildTextFixInstructions(liRedac);
-  console.log(`[linkedin-gate] recherche=${researchSource ? "oui" : "non"}, chiffres de recherche sans source ${liRedac.unsourcedResearchNumbers?.length ?? 0}, chiffres inventés ${liRedac.fabricatedNumbers.length}, témoignages inventés ${liRedac.inventedTestimonials?.length ?? 0}, vécus inventés ${liRedac.inventedExperiences?.length ?? 0}`);
+  console.log(`[linkedin-gate] recherche=${researchSource ? "oui" : "non"}, chiffres de recherche sans source ${liRedac.unsourcedResearchNumbers?.length ?? 0}, chiffres inventés ${liRedac.fabricatedNumbers.length}, témoignages inventés ${liRedac.inventedTestimonials?.length ?? 0}, vécus inventés ${liRedac.inventedExperiences?.length ?? 0}, échos d'accroche ${liRedac.hookEchoes.length}`);
 
   // Step 2: Correction pass — short, focused prompt
   const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu corriges uniquement les défauts identifiés. Préserve les passages déjà naturels, les formulations personnelles et les nuances.
@@ -2439,6 +2465,7 @@ Réponds UNIQUEMENT en JSON :
     // L'accroche est dérivée du début exact du post (jamais l'inverse).
     alignLinkedInHookFields(merged);
 
+    await logLinkedInQuality(merged.content, !keepOriginal);
     await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
     return new Response(JSON.stringify(merged), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -2476,6 +2503,7 @@ Réponds UNIQUEMENT en JSON :
   fixElisionsInFields(fallbackParsed, ["content", "accroche"]);
   alignLinkedInHookFields(fallbackParsed);
 
+  await logLinkedInQuality(fallbackParsed.content, false);
   await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
   return new Response(JSON.stringify(fallbackParsed), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -2646,18 +2674,32 @@ export function retiredCarouselStreamResponse(corsHeaders: Record<string, string
 // l'event `done` final, dont elle peut remplacer la valeur `full`. Extraite
 // (plutôt qu'inline) pour être testable directement, même principe que
 // `runDeepResearchWebSearch` ci-dessus.
+/** Mesure du post final, pour la télémétrie (content_quality_events). */
+export interface PostStreamQuality {
+  score: number;
+  violations: number;
+  repassed: boolean;
+  content: string;
+  /** Échos d'accroche AVANT correction ; absent si la garde n'était pas armée. */
+  hookEchoesBefore?: number;
+}
+
 export async function correctPostStreamContent(
   full: string,
-  params: { body: any; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] },
+  params: {
+    body: any; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[];
+    /** Reçoit la mesure du post (avant/après garde) dès qu'elle existe. */
+    onQuality?: (q: PostStreamQuality) => void;
+  },
 ): Promise<string | undefined> {
-  const { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks } = params;
+  const { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks, onQuality } = params;
   let parsed: any;
   try {
     parsed = JSON.parse(full);
   } catch {
     return undefined; // JSON déjà invalide en amont (failOnTruncation l'aurait signalé)
   }
-  if (typeof parsed?.content !== "string" || parsed.content.length < 200) return undefined;
+  if (typeof parsed?.content !== "string" || !parsed.content.trim()) return undefined;
 
   try {
     const { allowed: postAllowed, research: postResearch } = gateNumbers([
@@ -2666,8 +2708,21 @@ export async function correctPostStreamContent(
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
     ], researchSource);
-    const postRedac = dropUserSourcedReversals(analyzeTextRedac(parsed.content, postAllowed, brandGuardText, undefined, postResearch, testimonySourceText(body)), authoredContentSource(body));
-    if (textRedacViolations(postRedac) === 0) return undefined; // déjà propre : pas d'appel IA de plus
+    // L'écho d'accroche est mesuré DÈS ce contrôle : sans lui, un post dont le
+    // seul défaut est de redire une accroche précédente sortait « déjà propre »
+    // et la garde anti-redite (#915) ne se déclenchait jamais seule.
+    const echo = { previousHooks, subject: echoSubject };
+    const postRedac = dropUserSourcedReversals(analyzeTextRedac(parsed.content, postAllowed, brandGuardText, echo, postResearch, testimonySourceText(body)), authoredContentSource(body));
+    const preViolations = textRedacViolations(postRedac);
+    const reportAsIs = () => onQuality?.({
+      score: Math.max(40, 100 - 10 * preViolations), violations: preViolations, repassed: false,
+      content: parsed.content, hookEchoesBefore: hookEchoesBefore(postRedac, echo),
+    });
+    // Trop court pour une relecture, ou déjà propre : pas d'appel IA de plus.
+    if (parsed.content.length < 200 || preViolations === 0) {
+      reportAsIs();
+      return undefined;
+    }
 
     // runTextRedacGate = correction → RE-mesure → garde anti-régression (la
     // correction n'est gardée que si elle ne dégrade aucun compteur mesuré,
@@ -2685,9 +2740,10 @@ export async function correctPostStreamContent(
       allowedNumbers: postAllowed,
       research: postResearch,
       brandGuardText,
-      echo: { previousHooks, subject: echoSubject },
+      echo,
       testimonySource: testimonySourceText(body),
     });
+    onQuality?.({ score: gate.score, violations: gate.violations, repassed: gate.repassed, content: gate.content, hookEchoesBefore: gate.hookEchoesBefore });
     if (!gate.repassed || gate.content === parsed.content) return undefined;
 
     parsed.content = gate.content;
@@ -2715,6 +2771,8 @@ function streamDefaultPostSSE(params: {
   previousHooks?: string[];
   /** Tu ou vous de la fiche de marque (04/10/2026). */
   audienceAddress?: AudienceAddress | null;
+  /** Format enregistré dans content_quality_events (post_instagram, post_pinterest…). */
+  qualityFormat?: string;
 }): Response {
   const { apiKey, model, systemPrompt, userPrompt, corsHeaders, userId, body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks } = params;
   const workspace_id = params.workspace_id ?? undefined;
@@ -2732,9 +2790,24 @@ function streamDefaultPostSSE(params: {
     corsHeaders,
     async (full, usage) => {
       await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
-      const corrected = await correctPostStreamContent(full, { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
+      let quality: PostStreamQuality | undefined;
+      const corrected = await correctPostStreamContent(full, { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks, onQuality: (q) => { quality = q; } });
       // Tu ou vous APRÈS la relecture (même place que les autres passes du flux).
       const addressed = await enforceAudienceAddressInJsonText(corrected ?? full, POST_ADDRESS_FIELDS, params.audienceAddress, addrOpts("post-stream"));
+      // Télémétrie : sans cette ligne, le post n'existait pas pour le bilan hebdo
+      // ni pour la garde anti-redite des contenus suivants (elle lit les accroches ici).
+      if (quality) {
+        let finalContent = quality.content;
+        try { const doc = JSON.parse(addressed ?? corrected ?? full); if (typeof doc?.content === "string") finalContent = doc.content; } catch { /* mesure gardée */ }
+        await logContentQuality(
+          userId,
+          params.qualityFormat || "post",
+          { score: quality.score, violations: quality.violations, repassed: quality.repassed, content: JSON.stringify({ content: finalContent }), hookEchoesBefore: quality.hookEchoesBefore },
+          usage?.model,
+          workspace_id,
+          echoSubject,
+        );
+      }
       return addressed ?? corrected;
     },
     { failOnTruncation: true },
@@ -3313,7 +3386,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       }
 
       if (isLinkedIn) {
-        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runLinkedInTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, researchSource, audienceAddress }, emitStatus));
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runLinkedInTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, researchSource, audienceAddress, echoSubject, previousHooks }, emitStatus));
       }
 
       if (isNewsletter) {
@@ -3324,7 +3397,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
         return retiredCarouselStreamResponse(corsHeaders);
       }
 
-      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks, audienceAddress });
+      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks, audienceAddress, qualityFormat: typeof contentType === "string" && contentType ? contentType : "post" });
     }
 
     // ── Call Anthropic ──

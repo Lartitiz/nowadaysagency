@@ -42,3 +42,12 @@ export function gardeRediteStats(
   }
   return stats;
 }
+
+/**
+ * L'extrait a-t-il du texte à juger ? Une ligne peut ne porter que
+ * `hook_echoes_before` (contenu illisible) : elle ne doit ni entrer dans
+ * l'échantillon du juge ni le faire basculer sur la source « events ».
+ */
+export function hasPreviewText(p: any): boolean {
+  return !!p && (!!p.hook || !!p.sujet || !!p.caption || (Array.isArray(p.apercu_slides) && p.apercu_slides.length > 0));
+}

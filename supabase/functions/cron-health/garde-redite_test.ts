@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { gardeRediteStats } from "./garde-redite.ts";
+import { gardeRediteStats, hasPreviewText } from "./garde-redite.ts";
 
 const from = Date.parse("2026-10-01T00:00:00Z");
 const to = Date.parse("2026-10-08T00:00:00Z");
@@ -42,4 +42,11 @@ Deno.test("hors fenêtre : ignoré", () => {
   ], inWindow);
   assertEquals(s.contenus, 0);
   assertEquals(s.a_mordu, 0);
+});
+
+Deno.test("hasPreviewText : un extrait réduit au compteur n'entre pas dans l'échantillon du juge", () => {
+  assertEquals(hasPreviewText({ hook_echoes_before: 1 }), false);
+  assertEquals(hasPreviewText(null), false);
+  assertEquals(hasPreviewText({ hook: "Ma jument a refusé le van", hook_echoes_before: 0 }), true);
+  assertEquals(hasPreviewText({ sujet: "", hook: "", apercu_slides: ["slide 1"], caption: "" }), true);
 });
