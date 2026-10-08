@@ -27,6 +27,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jugerCredits, joursDepuisReset } from "./photoroom-alerte.ts";
 import { compte, debutMoisUtc, jugerBudgetHiggsfield, somme } from "./higgsfield-alerte.ts";
 import { gardeRediteStats, hasPreviewText } from "./garde-redite.ts";
+import { filStats } from "./fil-reparations.ts";
 import { isInternalEmail, isTestAccountEmail, maskEmail } from "../_shared/internal-accounts.ts";
 
 // Comptes internes exclus : liste UNIQUE partagée avec activation-funnel et
@@ -898,6 +899,14 @@ Deno.serve(async (req) => {
             cette_semaine: gardeRediteStats(cqEvents, (d) => inWindow(d, curFrom, curTo)),
             semaine_precedente: gardeRediteStats(cqEvents, (d) => inWindow(d, prevFrom, prevTo)),
             comptes_internes_7j: gardeRediteStats(cqAll.filter((e: any) => internalIds.has(e.user_id)), (d) => inWindow(d, curFrom, curTo)),
+          }
+        : null,
+      // Contrôle du fil des carrousels (08/10/2026) : réparations tentées /
+      // GARDÉES par le 2e juge / sautées faute de temps (cf. fil-reparations.ts).
+      fil_carrousels: cqEvents
+        ? {
+            cette_semaine: filStats(cqEvents, (d) => inWindow(d, curFrom, curTo)),
+            semaine_precedente: filStats(cqEvents, (d) => inWindow(d, prevFrom, prevTo)),
           }
         : null,
       retravail: { total_carrousels: carCur.length, retravailles, sujets_regeneres },

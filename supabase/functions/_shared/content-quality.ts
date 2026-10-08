@@ -206,6 +206,27 @@ function buildSlopSignals(gateContent: unknown): Record<string, unknown> | null 
   return measureSlopSignals(inputs) as unknown as Record<string, unknown>;
 }
 
+/**
+ * Issue du contrôle du fil d'un carrousel (08/10/2026) : le bilan hebdo compte
+ * combien de réparations sont tentées, gardées par le 2e juge, sautées faute de
+ * temps — pour décider sur des chiffres si elles valent leur minute d'attente.
+ * Lu dans `progression_review` du carrousel FINAL ; rien si absent.
+ */
+export function threadOutcome(content: unknown): Record<string, unknown> | null {
+  let doc: any = content;
+  if (typeof content === "string") { try { doc = JSON.parse(content); } catch { return null; } }
+  const r = doc?.progression_review;
+  if (!r || typeof r !== "object") return null;
+  const repair = r.repair && typeof r.repair === "object" ? r.repair : null;
+  return {
+    status: r.execution_status ?? null,
+    verdict: r.verdict ?? null,
+    defauts: Array.isArray(r.report?.defects) ? r.report.defects.length : 0,
+    reparation: repair ? { scope: repair.scope ?? "full", acceptee: !!repair.accepted, raison: repair.reason ?? null } : null,
+    sautee: r.repair_skipped ?? null,
+  };
+}
+
 export async function logContentQuality(
   userId: string,
   format: string,
@@ -218,6 +239,8 @@ export async function logContentQuality(
   modelUsed?: string,
   workspaceId?: string,
   subject?: string,
+  /** Issue du contrôle du fil (carrousels), cf. threadOutcome. Rangée dans content_preview.fil. */
+  fil?: Record<string, unknown> | null,
 ): Promise<void> {
   // Contenu illisible (JSON non parsé) : rien à mesurer.
   if (gate.score == null) return;
@@ -236,9 +259,10 @@ export async function logContentQuality(
   const review = editorialUsage(gate.content);
   const basePreview = buildContentPreview(gate.content, subject);
   const withReview = basePreview && review ? { ...basePreview, editorial_usage: review } : basePreview;
-  const preview = typeof gate.hookEchoesBefore === "number"
+  const withEchoes = typeof gate.hookEchoesBefore === "number"
     ? { ...(withReview ?? {}), hook_echoes_before: gate.hookEchoesBefore }
     : withReview;
+  const preview = fil ? { ...(withEchoes ?? {}), fil } : withEchoes;
   const slopSignals = buildSlopSignals(gate.content);
 
   try {

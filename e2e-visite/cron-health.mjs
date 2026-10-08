@@ -253,6 +253,16 @@ try {
         console.log(`   garde anti-redite d'accroche : ${ligne(gr.cette_semaine)}  (S-1 : ${gr.semaine_precedente.a_mordu}/${gr.semaine_precedente.garde_armee})`);
         if (gr.comptes_internes_7j?.contenus) console.log(`      comptes internes : ${ligne(gr.comptes_internes_7j)}`);
       }
+      // Contrôle du fil des carrousels (08/10/2026) : la réparation coûte ~1 min
+      // (réparation + 2e relecture) ; on décide de la garder sur ce taux.
+      const fil = q.fil_carrousels;
+      if (fil === undefined) {
+        console.log("   fil des carrousels : non mesuré (edge cron-health pas redéployée)");
+      } else if (fil) {
+        const f = fil.cette_semaine, r = f.reparations, fp = fil.semaine_precedente;
+        console.log(`   fil des carrousels : ${f.carrousels} contrôlé(s), ${f.a_reparer} à réparer, ${f.controle_non_abouti} contrôle(s) non abouti(s)`);
+        console.log(`      réparations GARDÉES : ${r.gardees}/${r.tentees} (${pct(r.gardees, r.tentees)}) — locales ${r.locales_gardees}/${r.locales}, complètes ${r.completes_gardees}/${r.completes} ; sautées faute de temps : ${f.sautees_faute_de_temps}  (S-1 : ${fp.reparations.gardees}/${fp.reparations.tentees})`);
+      }
       const pf = q.par_format || {};
       const formats = Object.entries(pf).sort((a, b) => b[1].generes - a[1].generes);
       if (formats.length) {
