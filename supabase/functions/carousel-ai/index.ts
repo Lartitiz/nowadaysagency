@@ -11,6 +11,7 @@ import { draftSlidesTracker } from "../_shared/carousel-draft-stream.ts";
 import { coverKind, coverRewritePrompt, enforceCover } from "../_shared/carousel-cover.ts";
 import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, newsWriting } from "./variant-writing.ts";
 import { callCarouselWriter, pickCarouselWriter, CAROUSEL_WRITER_VERSION } from "./writer.ts";
+import { expectedLocalRepairMs, localRepairInstruction, localRepairTargets, mergeLocalRepair } from "./thread-local-repair.ts";
 import { authoredContentSource, currentContentContract, testimonySourceText } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -1171,6 +1172,10 @@ async function finalizeCarousel(
     const t0 = Date.now();
     try { return await work(); } finally { if (opts.timings) opts.timings[key] = (opts.timings[key] || 0) + Date.now() - t0; }
   };
+  // Le juge écrit une entrée par slide et par frontière : ~3 s de plus par slide
+  // (31-42 s mesurées à 12-14 slides). 45 s fixes coupaient le contrôle à 18-20
+  // slides, et le carrousel partait sans fil vérifié.
+  const judgeCapMs = 45_000 + Math.max(0, doc.slides.length - 14) * 3_000;
   const judge = async (value: any, key = "thread_judge_ms"): Promise<ProgressionResult> => lap(key, () =>
     remaining() < 8_000
       ? progressionReceipt(value, "skipped", "time-budget")
@@ -1178,7 +1183,7 @@ async function finalizeCarousel(
         sources,
         sourceContext: JSON.stringify(sources),
         preserveStructure: true,
-        abortTimeoutMs: Math.min(45_000, remaining()),
+        abortTimeoutMs: Math.min(judgeCapMs, remaining()),
       }));
   const ownsText = body.type === "slides" || body.user_slides?.length;
   if (!ownsText) ctx.emitStatus("checking");
@@ -1204,8 +1209,17 @@ async function finalizeCarousel(
   // pour rien. Elle réécrit tout le carrousel : on ne la lance que si son délai
   // couvre au moins la durée de la rédaction initiale. Sinon le brouillon jugé
   // reste, avec ses défauts affichés — exactement l'issue d'une réparation coupée.
-  const repairTimeoutMs = Math.min(120_000, remaining() - 55_000);
-  const repairFits = remaining() >= 85_000 && repairTimeoutMs >= (opts.expectedRepairMs || 0);
+  // RÉPARATION LOCALE (08/10/2026) : des défauts qui touchent peu de slides ne
+  // font réécrire que ces slides et leurs voisines (thread-local-repair.ts),
+  // assez court pour tenir là où la réécriture complète était sautée.
+  const localTargets = wantsRepair ? localRepairTargets(receipt.report, doc.slides.length) : null;
+  const expectedRepairMs = localTargets
+    ? expectedLocalRepairMs(opts.expectedRepairMs || 0, localTargets.length, doc.slides.length)
+    : (opts.expectedRepairMs || 0);
+  // Réserve après la réparation : le 2e juge (son plafond) + 10 s pour finir.
+  const recheckReserveMs = judgeCapMs + 10_000;
+  const repairTimeoutMs = Math.min(120_000, remaining() - recheckReserveMs);
+  const repairFits = repairTimeoutMs >= 30_000 && repairTimeoutMs >= expectedRepairMs;
   if (wantsRepair && !repairFits) {
     receipt.repair_skipped = "time-budget";
     if (opts.timings) opts.timings.thread_repair_skipped = 1;
@@ -1220,16 +1234,23 @@ async function finalizeCarousel(
       ctx.emitStatus("correcting");
       const draft = JSON.stringify(doc);
       const regenerate = opts.regenerate;
-      const candidate: any = tryParseAiJson(
+      if (opts.timings && localTargets) opts.timings.thread_repair_local = localTargets.length;
+      const written: any = tryParseAiJson(
         await lap("thread_repair_ms", () => regenerate(
           draft,
-          REPAIR + "\nDÉFAUTS DE FIL :\n" + receipt.issues.join("\n") +
-            "\nMême nombre, ordre et associations photo. Sources :\n" +
-            JSON.stringify(sources),
+          REPAIR + "\nDÉFAUTS DE FIL :\n" + receipt.issues.join("\n") + "\n" +
+            (localTargets ? localRepairInstruction(localTargets, doc) : "Même nombre, ordre et associations photo.") +
+            " Sources :\n" + JSON.stringify(sources),
           sink,
           repairTimeoutMs,
         )),
       );
+      // Slides réécrites remises à leur place : la suite contrôle le carrousel ENTIER.
+      const candidate: any = localTargets ? mergeLocalRepair(doc, localTargets, written) : written;
+      if (!candidate) {
+        repairReason = "local-candidate-mismatch";
+        throw new Error(repairReason);
+      }
       // Exact photo/type/order protection; only a genuinely automatic plan may change roles/intents.
       const scenario = (v: any) =>
         (body.scenario_origin === "automatic" || (!body.scenario_origin && !body.confirmed_structure?.length))
@@ -1314,17 +1335,20 @@ async function finalizeCarousel(
           repairReason = "accepted";
           doc.editorial_review = {
             ...baseline.editorial_review,
-            status: "superseded_by_global_repair",
+            status: localTargets ? "superseded_by_local_repair" : "superseded_by_global_repair",
           };
         }
       }
     } catch {
-      repairReason = "repair-failed";
+      if (repairReason !== "local-candidate-mismatch") repairReason = "repair-failed";
       /* Preserve the original reviewed draft and its defects. */
     } finally {
       if (opts.timings) opts.timings.thread_repair_accepted = doc !== baseline ? 1 : 0;
       receipt.repair = { attempted: true, accepted: doc !== baseline,
         trigger: minorContinuity ? "minor_continuity" : "needs_repair",
+        scope: localTargets ? "local" : "global",
+        ...(localTargets ? { slides: localTargets.map((i) => i + 1) } : {}),
+        expected_ms: expectedRepairMs,
         reason:repairReason,candidate_status:candidateStatus,candidate_verdict:candidateVerdict };
       for (
         const k of ["input_tokens", "output_tokens", "total_tokens"] as const
