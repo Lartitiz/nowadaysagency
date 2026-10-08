@@ -27,3 +27,17 @@ describe("CarouselDraftPreview — slides en brouillon pendant l'écriture", () 
     expect(screen.getByRole("status")).toHaveTextContent("J'ajuste l'enchaînement");
   });
 });
+
+describe("CarouselDraftPreview — plan envisagé pendant la réflexion", () => {
+  it("montre les titres prévus tant qu'aucune slide n'est écrite, puis les vraies slides", () => {
+    const outline = ["Couverture prévue", "Le constat prévu", "La conclusion prévue"];
+    const { rerender } = render(<CarouselDraftPreview slides={[]} outline={outline} stage="writing" />);
+    expect(screen.getByText("Plan envisagé, peut changer")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("voici le plan envisagé");
+    expect(screen.getByText("Le constat prévu")).toBeInTheDocument();
+    rerender(<CarouselDraftPreview slides={slides} outline={outline} stage="writing" />);
+    expect(screen.queryByText("Le constat prévu")).toBeNull();
+    expect(screen.getByText("Brouillon, sera relu")).toBeInTheDocument();
+    expect(screen.getByText("La réponse trop rapide")).toBeInTheDocument();
+  });
+});

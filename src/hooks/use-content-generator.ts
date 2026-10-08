@@ -338,6 +338,9 @@ export function useContentGenerator() {
   // Slides du carrousel en BROUILLON pendant l'écriture (07/10/2026, évènement
   // SSE `draft`) : affichées grisées, non modifiables, remplacées par le texte relu.
   const [draftSlides, setDraftSlides] = useState<DraftSlide[]>([]);
+  // Titres PRÉVUS (08/10/2026, évènement `outline`) : repère affiché pendant
+  // que le rédacteur réfléchit, remplacé par les vraies slides dès la 1re.
+  const [outlineTitles, setOutlineTitles] = useState<string[]>([]);
 
   // Internal streaming wrapper — proxied to consumers via the hook's return.
   // Kept inside the hook so all callers share the same SSE state.
@@ -362,6 +365,7 @@ export function useContentGenerator() {
     setQuestionsError(null);
     setGenerationStage(null);
     setDraftSlides([]);
+    setOutlineTitles([]);
     setGenerating(false);
     setResult(null);
     setError(null);
@@ -406,6 +410,7 @@ export function useContentGenerator() {
     setResult(null);
     setGenerationStage(null);
     setDraftSlides([]);
+    setOutlineTitles([]);
     const generationStartedAt = performance.now();
 
     // Defensive: bail early on non-canonical formats (e.g. "auto") so the user
@@ -486,6 +491,7 @@ export function useContentGenerator() {
             onStatus: (stage, event) => {
               if (epoch !== generationEpoch.current) return;
               if (stage === "draft") { if (Array.isArray(event?.slides)) setDraftSlides(event.slides as DraftSlide[]); }
+              else if (stage === "outline") { if (Array.isArray(event?.titles)) setOutlineTitles((event.titles as unknown[]).filter((t): t is string => typeof t === "string")); }
               else setGenerationStage(stage);
             },
           // 400s : pire cas serveur réel côté carousel-ai (mode photo) — appel
@@ -736,6 +742,7 @@ export function useContentGenerator() {
         setGenerating(false);
         setGenerationStage(null);
     setDraftSlides([]);
+    setOutlineTitles([]);
       }
     }
   }, [defaultWorkspaceId]);
@@ -1110,6 +1117,7 @@ export function useContentGenerator() {
     generating,
     generationStage,
     draftSlides,
+    outlineTitles,
     result,
     setResult,
     error,
