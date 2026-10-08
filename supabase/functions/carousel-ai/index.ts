@@ -27,7 +27,7 @@ import { carouselNeedsPolish, extractCarouselTexts, reinjectCarouselTexts } from
 import { audienceAddressRule, enforceAudienceAddress, parseAudienceAddress, type AudienceAddress, type AudienceAddressPass } from "../_shared/audience-address.ts";
 import { applyAudienceAddressPass } from "../_shared/audience-address-pass.ts";
 import { runRedacGate, applyGuardedCarouselCorrection, analyzeCarouselRedac, numbersIn, type CaptionEndingRule, type EchoContext } from "../_shared/redac-gate.ts";
-import { logContentQuality } from "../_shared/content-quality.ts";
+import { logContentQuality, threadOutcome } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import { fetchRecentContentTexts, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
@@ -1574,6 +1574,8 @@ async function runGenerationAndRespond(
   const editorialBaseline=content;
   if(type==="express_full" || type==="slides" || type==="hooks") content=await timed("review_ms",review(content));
 
+  let gateExpress: Awaited<ReturnType<typeof runRedacGate>> | null = null;
+
   // Garde DÉTERMINISTE : le prompt limite les schémas (max 2, jamais consécutifs)
   // mais le modèle déborde (3 consécutifs observés en prod le 04/07). On applique
   // la règle par code — le narratif prime, cf PR #112/#113.
@@ -1582,7 +1584,7 @@ async function runGenerationAndRespond(
     if (capped.stripped > 0) console.warn(`carousel-ai: ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
     content = capped.content;
     // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
-    const gateExpress = await timed("gate_ms", runRedacGate(content, {
+    gateExpress = await timed("gate_ms", runRedacGate(content, {
       isLinkedIn,
       onStatus: emitStatus,
       inputText: gateInputText,
@@ -1595,11 +1597,12 @@ async function runGenerationAndRespond(
       correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: reviewAllowed(startedAt), skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
     }));
     content = gateExpress.content;
-    await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspaceId, body.subject);
   }
 
   if (type === "express_full" || type === "slides") {
     content=await timed("thread_ms",finalizeCarousel(content,reqCtx,{usage,repaired:structuralRepair,regenerate,timings,expectedRepairMs:timings.write_ms}));
+    // Mesure écrite APRÈS le contrôle du fil : la ligne porte aussi son issue.
+    if (gateExpress) await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspaceId, body.subject, threadOutcome(content));
     // SCHÉMAS décidés après l'écriture et ses relectures, sur le texte final
     // (la rédaction ne les connaît plus : un changement d'écriture ne peut plus
     // les faire disparaître). Échec ou manque de temps → aucun schéma, texte livré.
@@ -1677,7 +1680,7 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
   const matched = await _deps.matchPhotos(JSON.parse(written), {body:ctx.body,startedAt:ctx.startedAt,usage,emitStatus:ctx.emitStatus,call:_deps.callAnthropic});
   const content = JSON.stringify(matched);
   await _deps.logUsage(ctx.userId,ctx.category,`carousel_${ctx.body.carousel_type}`,usage.total_tokens,usage.model,ctx.workspaceId);
-  await logContentQuality(ctx.userId,`carousel_${ctx.body.carousel_type}`,measured,usage.model,ctx.workspaceId,ctx.body.subject);
+  await logContentQuality(ctx.userId,`carousel_${ctx.body.carousel_type}`,measured,usage.model,ctx.workspaceId,ctx.body.subject,threadOutcome(written));
   return new Response(JSON.stringify({content,writing_version:CAROUSEL_WRITING_VERSION,
     writer:{version:CAROUSEL_WRITER_VERSION,model:usage.model,effort:"medium"}}),
     {headers:{...ctx.corsHeaders,"Content-Type":"application/json"}});
@@ -1869,7 +1872,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     if (withSchemas.plan) console.log(JSON.stringify({ event: "carousel_schema_formatting", label: "mix", status: withSchemas.plan.status, proposed: withSchemas.plan.proposed ?? 0, rejected: withSchemas.plan.rejected ?? [], spotted: withSchemas.plan.spotted ?? [], schemas: withSchemas.plan.schemas.map(x => x.visual_schema.type) }));
   }
   await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
-  await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspaceId, body.subject);
+  await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspaceId, body.subject, threadOutcome(content));
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
     writer: { version: CAROUSEL_WRITER_VERSION, model: mixUsage.model, effort: "medium" },
   }), {
@@ -2057,7 +2060,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   // à jour).
   content = await revalidatePhotoLayoutContent(content, (m) => console.log(m));
   await _deps.logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);
-  await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspaceId, body.subject);
+  await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspaceId, body.subject, threadOutcome(content));
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
     writer: { version: CAROUSEL_WRITER_VERSION, model: photoUsage.model, effort: "medium" },
   }), {
