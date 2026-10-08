@@ -240,6 +240,19 @@ try {
       if (rt) {
         console.log(`   retravail : ${rt.retravailles}/${rt.total_carrousels} carrousels réédités >15 min (${pct(rt.retravailles, rt.total_carrousels)})${rt.sujets_regeneres ? `, ${rt.sujets_regeneres} sujet(s) re-généré(s)` : ""}`);
       }
+      // Garde anti-redite d'accroche (#915) : compté AVANT correction, car le
+      // score et le quality_check ne voient que l'après. Absent = edge pas à jour.
+      const gr = q.garde_anti_redite;
+      if (gr === undefined) {
+        console.log("   garde anti-redite d'accroche : non mesurée (edge cron-health pas redéployée)");
+      } else if (gr) {
+        const ligne = (g) => {
+          const fmts = Object.entries(g.par_format || {}).map(([f, n]) => `${f}×${n}`).join(", ");
+          return `${g.a_mordu} contenu(s) dont l'accroche redisait une accroche précédente (${g.echos_avant} écho(s)), garde armée sur ${g.garde_armee}/${g.contenus}${fmts ? ` — ${fmts}` : ""}`;
+        };
+        console.log(`   garde anti-redite d'accroche : ${ligne(gr.cette_semaine)}  (S-1 : ${gr.semaine_precedente.a_mordu}/${gr.semaine_precedente.garde_armee})`);
+        if (gr.comptes_internes_7j?.contenus) console.log(`      comptes internes : ${ligne(gr.comptes_internes_7j)}`);
+      }
       const pf = q.par_format || {};
       const formats = Object.entries(pf).sort((a, b) => b[1].generes - a[1].generes);
       if (formats.length) {

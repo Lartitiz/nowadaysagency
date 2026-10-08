@@ -211,7 +211,10 @@ export async function logContentQuality(
   format: string,
   // Seuls score / violations / content sont lus : on accepte un objet minimal
   // (les stories fabriquent un gate léger sans re-passe LLM, cf. creative-flow).
-  gate: Pick<RedacGateResult, "score" | "violations" | "content" | "repassed">,
+  // `hookEchoesBefore` : échos d'accroche AVANT correction (absent = garde non
+  // armée). Rangé dans content_preview.hook_echoes_before : le bilan hebdo y lit
+  // si la garde anti-redite mord, l'après étant presque toujours vide.
+  gate: Pick<RedacGateResult, "score" | "violations" | "content" | "repassed"> & { hookEchoesBefore?: number },
   modelUsed?: string,
   workspaceId?: string,
   subject?: string,
@@ -232,7 +235,10 @@ export async function logContentQuality(
   };
   const review = editorialUsage(gate.content);
   const basePreview = buildContentPreview(gate.content, subject);
-  const preview = basePreview && review ? { ...basePreview, editorial_usage: review } : basePreview;
+  const withReview = basePreview && review ? { ...basePreview, editorial_usage: review } : basePreview;
+  const preview = typeof gate.hookEchoesBefore === "number"
+    ? { ...(withReview ?? {}), hook_echoes_before: gate.hookEchoesBefore }
+    : withReview;
   const slopSignals = buildSlopSignals(gate.content);
 
   try {
