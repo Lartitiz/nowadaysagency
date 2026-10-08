@@ -260,6 +260,8 @@ function makeFakeSupabase(ownerId: string = TEST_USER_ID) {
 function resetDeps() {
   _deps.matchPhotos = async (doc) => doc;
   _deps.prepareNarrative = async () => null;
+  // Derniers contenus de la marque : aucun par défaut (aucun réseau).
+  _deps.fetchRecentTexts = async () => [];
   // Recherche « creuser le sujet » coupée par défaut (aucun réseau).
   _deps.fetchDepthMaterial = async () => "";
   _deps.callCarouselWriter = ((options: any, sink: any) => _deps.callAnthropic(options, sink)) as any;
@@ -1387,4 +1389,41 @@ for (const outcome of ["ok", "fails"] as const) Deno.test(`carrousel texte : pla
     // Le plan n'entre jamais dans le carrousel livré.
     assert(!JSON.parse(JSON.parse(events.at(-1).full).content).slides.some((s: any) => s.title === "Le constat"));
   } finally { globalThis.fetch = oldFetch; }
+});
+
+// Bilan hebdo 05/10/2026 : sur le récit continu (photo, mixte), le contrôle qualité
+// mesurait sans la fiche de marque ni les accroches précédentes → recopie de fiche
+// comptée 0, d'où des 100/100. Et les derniers contenus doivent atteindre le rédacteur.
+for (const carousel_type of ["photo", "mix"]) Deno.test(`récit continu ${carousel_type} : recopie de fiche mesurée, contenus récents transmis au rédacteur`, async () => {
+  resetDeps(); _deps.prepareNarrative = createContinuousNarrative;
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const bio = "Je travaille surtout la faïence, parfois le grès, et je décore chaque pièce à main levée.";
+  const base = makeFakeSupabase();
+  const supabase = { ...base, from: (table: string) => {
+    const b = base.from(table);
+    if (table === "brand_profile") b.maybeSingle = () => Promise.resolve({ data: { voice_description: bio }, error: null });
+    return b;
+  } };
+  _deps.runPipeline = (async () => ({ ok: true, userId: TEST_USER_ID, supabase, corsHeaders: {}, quota: null })) as any;
+  _deps.fetchRecentTexts = async () => ["Des pavots peints\nJe vis dans la Drôme, entourée d'arbres et de nature."];
+  const systems: string[] = [];
+  _deps.callCarouselWriter = async (o, s) => {
+    systems.push(String(o.system));
+    if (s) Object.assign(s, { model: o.model, total_tokens: 10 });
+    return JSON.stringify({ idea: "Le décor sert la table", hook: "Ce que la main laisse sur la table", caption: {},
+      paragraphs: [bio, "Le décor vient sur une forme déjà faite pour servir.", "À table, le motif accompagne le geste de chaque jour."] });
+  };
+  const plan = [1, 2, 3, 4].map((i) => ({ slide_number: i, role: "description", title_suggestion: "Titre", strategic_note: "Photo", photo_index: i, slide_type: "photo_full",
+    contribution: "Relation transmise", inherits: "Point précédent", develops: "Conséquence", source_ids: ["brand"], image_role: "Ambiance" }));
+  try {
+    const response = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type, scenario_origin: "automatic", confirmed_structure: plan,
+      photo_contexts: plan.map(() => ({ context: "Assiette peinte" })), subject: "Présenter mes pièces du quotidien" }));
+    assertEquals(response.status, 200);
+    const doc = JSON.parse((await response.json()).content);
+    assert(systems[0].includes("DÉJÀ ÉCRIT RÉCEMMENT"));
+    assert(systems[0].includes("entourée d'arbres"));
+    assertEquals(doc.narrative_draft.recent_echo.before, 0);
+    assert(doc.quality_check.brand_copy_overlap >= 1, JSON.stringify(doc.quality_check));
+  } finally { globalThis.fetch = oldFetch; resetDeps(); }
 });
