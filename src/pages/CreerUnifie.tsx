@@ -3090,8 +3090,10 @@ function CreerWorkspace() {
                 format={selectedFormat || "post"}
                 generating={generating || demoGenerating || streaming || pinterestVisualGenerating}
                 generationStage={generationStage || streamStage}
-                draftSlides={selectedFormat === "carousel" ? draftSlides : undefined}
-                outlineTitles={selectedFormat === "carousel" ? outlineTitles : undefined}
+                // « Photos brutes » (pure_photo) : le texte écrit est retiré à la fin,
+                // un plan ou des brouillons de texte annonceraient autre chose (08/10/2026).
+                draftSlides={selectedFormat === "carousel" && carouselSubMode !== "pure_photo" ? draftSlides : undefined}
+                outlineTitles={selectedFormat === "carousel" && carouselSubMode !== "pure_photo" ? outlineTitles : undefined}
                 streamingContent={streaming ? streamingContent : undefined}
                 step2of2={selectedFormat === "carousel" && !!lastConfirmedStructure && (carouselSubMode === "photo" || carouselSubMode === "mix")}
                 qualityMax={qualityMax}
