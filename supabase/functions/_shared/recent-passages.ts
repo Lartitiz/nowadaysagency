@@ -16,7 +16,7 @@
 // bloquante. Toute erreur renvoie [] et la génération reste exactement celle
 // d'avant. Une garde qualité ne doit JAMAIS faire échouer une génération.
 import { getServiceClient } from "./plan-limiter.ts";
-import { findSharedPassages } from "./redac-gate.ts";
+import { findRecentEchoes } from "./redac-gate.ts";
 
 /** Au-delà, reprendre un fait de la marque redevient légitime. */
 const LOOKBACK_DAYS = 30;
@@ -108,28 +108,9 @@ export async function fetchRecentContentTexts(
   }
 }
 
-/**
- * Passages du nouveau texte qui reprennent mot pour mot (7 mots consécutifs ou
- * plus) un contenu récent de la marque. Un même passage n'est compté qu'une fois.
- * `currentRequest` = sujet, réponses et texte fournis maintenant (jamais comptés).
- */
-export function findRecentEchoes(text: string, recentTexts: string[] | undefined, currentRequest = ""): string[] {
-  if (!text || !recentTexts?.length) return [];
-  const found = new Map<string, string>();
-  for (const recent of recentTexts) {
-    for (const passage of findSharedPassages(text, recent)) {
-      // Une phrase que la personne vient de fournir dans SA demande se reprend :
-      // c'est sa matière du jour, pas une redite de l'IA.
-      if (currentRequest && findSharedPassages(passage, currentRequest).length) continue;
-      const key = passage.toLowerCase();
-      if (![...found.keys()].some((k) => k.includes(key))) {
-        for (const k of [...found.keys()]) if (key.includes(k)) found.delete(k);
-        found.set(key, passage);
-      }
-    }
-  }
-  return [...found.values()];
-}
+// Détection : `findRecentEchoes` vit dans redac-gate.ts (le gate la mesure sur
+// tous les carrousels) ; ré-exportée ici pour le récit continu.
+export { findRecentEchoes };
 
 /** Rappel pour le rédacteur : ce qui a déjà été écrit, à ne pas redire. */
 export function recentPassagesPrompt(recentTexts: string[] | undefined): string {

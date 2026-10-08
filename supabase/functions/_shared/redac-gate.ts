@@ -875,6 +875,29 @@ export function findSharedPassages(text: string, sourceText: string, minWords = 
   return findBrandCopyWindows(text, sourceText, minWords);
 }
 
+/**
+ * Passages du nouveau texte qui reprennent mot pour mot (7 mots consécutifs ou
+ * plus) un contenu récent de la marque. Un même passage n'est compté qu'une fois.
+ * `currentRequest` = sujet, réponses et texte fournis maintenant (jamais comptés).
+ */
+export function findRecentEchoes(text: string, recentTexts: string[] | undefined, currentRequest = ""): string[] {
+  if (!text || !recentTexts?.length) return [];
+  const found = new Map<string, string>();
+  for (const recent of recentTexts) {
+    for (const passage of findSharedPassages(text, recent)) {
+      // Une phrase que la personne vient de fournir dans SA demande se reprend :
+      // c'est sa matière du jour, pas une redite de l'IA.
+      if (currentRequest && findSharedPassages(passage, currentRequest).length) continue;
+      const key = passage.toLowerCase();
+      if (![...found.keys()].some((k) => k.includes(key))) {
+        for (const k of [...found.keys()]) if (key.includes(k)) found.delete(k);
+        found.set(key, passage);
+      }
+    }
+  }
+  return [...found.values()];
+}
+
 function findBrandCopyWindows(text: string, brandText: string, minWords: number): string[] {
   if (!text || !brandText) return [];
   const sourceWords = normalizeWordsForOverlap(brandText);
@@ -969,6 +992,8 @@ export interface RedacAnalysis {
   brandCopyOverlap: string[];
   /** Accroches DÉJÀ écrites pour ce sujet que celle-ci redit (cf. findHookEchoes). */
   hookEchoes: string[];
+  /** Passages repris mot pour mot d'un contenu récent de la marque (cf. findRecentEchoes). */
+  recentEchoes?: string[];
   /** Paroles rapportées ou rencontres qu'aucune source ne fournit (slides + légende). */
   inventedTestimonials?: string[];
   /** Vécu de l'autrice au passé qu'aucune source ne fournit (slides + légende). */
@@ -981,6 +1006,10 @@ export interface EchoContext {
   previousHooks?: string[];
   /** Sujet, dont les mots sont neutralisés avant comparaison (ils reviennent forcément). */
   subject?: string;
+  /** Textes des derniers contenus de la marque, tous sujets (_shared/recent-passages.ts). */
+  recentTexts?: string[];
+  /** Ce que la personne fournit maintenant (brief, réponses) : jamais compté comme redite. */
+  currentRequest?: string;
 }
 
 /**
@@ -1043,6 +1072,8 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, 
   // L'accroche d'un carrousel = le texte de sa slide 1, quel que soit le format
   // (le mixte et le photo portent `overlay_text`, pas `title`).
   const hookEchoes = findHookEchoes(slideTexts(slides[0]) || caption.hook || "", echo?.previousHooks, echo?.subject);
+  // Redite d'un contenu récent de la marque, tous sujets (bilan hebdo 05/10/2026).
+  const recentEchoes = findRecentEchoes(allText, echo?.recentTexts, echo?.currentRequest);
 
   // Témoignages et vécus au passé inventés (04/10/2026) : mêmes détecteurs que
   // la variante texte, sur slides + légende. Chaque slide est un paragraphe.
@@ -1052,7 +1083,7 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, 
   return {
     reversals, overlongSlides, overlongOverlays, ctaDuplicated, moulded,
     hashtagsCount, fabricatedNumbers, unsourcedResearchNumbers, researchNumbersUsed, durationConflicts, brandCopyOverlap, hookEchoes,
-    inventedTestimonials, inventedExperiences,
+    recentEchoes, inventedTestimonials, inventedExperiences,
   };
 }
 
@@ -1095,6 +1126,7 @@ export function redacViolations(a: RedacAnalysis): number {
     // Plafonné à 1 : c'est UNE accroche à réécrire, qu'elle fasse écho à un ou
     // à cinq contenus précédents.
     Math.min(1, a.hookEchoes.length) +
+    Math.min(2, a.recentEchoes?.length ?? 0) +
     Math.min(3, a.inventedTestimonials?.length ?? 0) +
     Math.min(3, a.inventedExperiences?.length ?? 0)
   );
@@ -1104,7 +1136,7 @@ export function redacViolations(a: RedacAnalysis): number {
 export function carouselRedacRawCount(a: RedacAnalysis): number {
   return a.reversals.length + Number(a.ctaDuplicated) + a.moulded.length + a.fabricatedNumbers.length +
     (a.unsourcedResearchNumbers?.length ?? 0) + a.durationConflicts.length + a.brandCopyOverlap.length +
-    a.hookEchoes.length + (a.inventedTestimonials?.length ?? 0) + (a.inventedExperiences?.length ?? 0);
+    a.hookEchoes.length + (a.recentEchoes?.length ?? 0) + (a.inventedTestimonials?.length ?? 0) + (a.inventedExperiences?.length ?? 0);
 }
 
 /** Score rédactionnel 0-100 (plancher 40), dérivé des violations. */
@@ -1134,6 +1166,7 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean, researchCap?: nu
     duration_conflicts: a.durationConflicts,
     brand_copy_overlap: a.brandCopyOverlap.length,
     hook_echoes: a.hookEchoes,
+    recent_echoes: a.recentEchoes?.length ?? 0,
     // Avant la re-passe (null = garde non armée) : hook_echoes ci-dessus est l'après.
     hook_echoes_before: echoesBefore ?? null,
     hashtags_count: a.hashtagsCount,
@@ -1205,6 +1238,11 @@ function buildFixInstructions(a: RedacAnalysis): string {
   if (a.hookEchoes.length) {
     lines.push(
       `ACCROCHE DÉJÀ UTILISÉE POUR CE SUJET : cette ouverture redit une accroche déjà écrite pour le même sujet :\n${a.hookEchoes.map((h) => `- « ${h} »`).join("\n")}\nL'audience voit la SÉRIE, pas un contenu isolé : deux publications qui ouvrent pareil donnent l'impression d'un contenu recyclé à la chaîne. Réécris l'accroche avec un angle d'attaque VRAIMENT différent — change ce sur quoi elle ouvre (une scène vécue plutôt qu'un constat, une question plutôt qu'une affirmation, un détail concret plutôt qu'une généralité). Garde le sujet et le fond du contenu, change l'entrée.`,
+    );
+  }
+  if (a.recentEchoes?.length) {
+    lines.push(
+      `PHRASES DÉJÀ PUBLIÉES DANS UN CONTENU RÉCENT DE LA MARQUE : ces passages reprennent mot pour mot un de ses derniers contenus :\n${a.recentEchoes.map((e) => `- « ${e} »`).join("\n")}\nL'audience suit le compte : la même phrase d'un contenu à l'autre se voit tout de suite. Reformule chaque passage avec des mots neufs, ou remplace-le par un autre fait des sources s'il ne sert pas ce propos. N'ajoute aucun fait.`,
     );
   }
   return lines.join("\n\n");
@@ -1289,11 +1327,12 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
     // still a regression even when the score already caps that penalty at 3.
     const counts = (a: RedacAnalysis) => [a.reversals.length, Number(a.ctaDuplicated), a.moulded.length,
       a.fabricatedNumbers.length, a.durationConflicts.length, a.brandCopyOverlap.length, a.hookEchoes.length,
-      a.unsourcedResearchNumbers?.length ?? 0, a.inventedTestimonials?.length ?? 0, a.inventedExperiences?.length ?? 0];
+      a.unsourcedResearchNumbers?.length ?? 0, a.inventedTestimonials?.length ?? 0, a.inventedExperiences?.length ?? 0,
+      a.recentEchoes?.length ?? 0];
     const beforeCounts = counts(before);
     const COUNT_NAMES = ["reversals", "cta-duplicated", "moulded",
       "fabricated-numbers", "duration-conflicts", "brand-copy", "hook-echoes", "unsourced-research-numbers",
-      "invented-testimonials", "invented-experiences"];
+      "invented-testimonials", "invented-experiences", "recent-echoes"];
     const regressions = counts(after).map((n, i) => n > beforeCounts[i] ? `regression:${COUNT_NAMES[i]}` : "").filter(Boolean);
     // Equal counts can still hide a new unsupported value (5 days → 9 days).
     // Reuse the detector's ordinal exclusions and decimal normalization.
@@ -1574,7 +1613,7 @@ export async function runRedacGate(
     : content.replace(first.raw, JSON.stringify(finalDoc.parsed, null, 2));
 
   console.log(
-    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${after.unsourcedResearchNumbers?.length ?? 0}, chiffres de recherche repris ${before.researchNumbersUsed?.length ?? 0}→${after.researchNumbersUsed?.length ?? 0}${opts.researchNumbersCap !== undefined ? ` (plafond ${opts.researchNumbersCap}, cas personnel fourni)` : ""}, témoignages inventés ${before.inventedTestimonials?.length ?? 0}→${after.inventedTestimonials?.length ?? 0}, vécus inventés ${before.inventedExperiences?.length ?? 0}→${after.inventedExperiences?.length ?? 0}, durées contradictoires ${before.durationConflicts.length}→${after.durationConflicts.length}, recopie fiche marque ${before.brandCopyOverlap.length}→${after.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${after.hookEchoes.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
+    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, chiffres de recherche sans source ${before.unsourcedResearchNumbers?.length ?? 0}→${after.unsourcedResearchNumbers?.length ?? 0}, chiffres de recherche repris ${before.researchNumbersUsed?.length ?? 0}→${after.researchNumbersUsed?.length ?? 0}${opts.researchNumbersCap !== undefined ? ` (plafond ${opts.researchNumbersCap}, cas personnel fourni)` : ""}, témoignages inventés ${before.inventedTestimonials?.length ?? 0}→${after.inventedTestimonials?.length ?? 0}, vécus inventés ${before.inventedExperiences?.length ?? 0}→${after.inventedExperiences?.length ?? 0}, durées contradictoires ${before.durationConflicts.length}→${after.durationConflicts.length}, recopie fiche marque ${before.brandCopyOverlap.length}→${after.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${after.hookEchoes.length}, redites récentes ${before.recentEchoes?.length ?? 0}→${after.recentEchoes?.length ?? 0}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
   );
 
   return { content: out, repassed, before, after, score: redacScore(after), violations: redacViolations(after), hookEchoesBefore: echoesBefore };

@@ -1427,3 +1427,54 @@ for (const carousel_type of ["photo", "mix"]) Deno.test(`récit continu ${carous
     assert(doc.quality_check.brand_copy_overlap >= 1, JSON.stringify(doc.quality_check));
   } finally { globalThis.fetch = oldFetch; resetDeps(); }
 });
+
+// 08/10/2026 : la redite d'un contenu récent est aussi mesurée sur les parcours
+// classiques (carrousel texte ici) : consigne au rédacteur + compteur du gate,
+// qui alimente la re-passe gardée.
+Deno.test("carrousel texte : contenus récents transmis au rédacteur, phrase reprise comptée par le gate", async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const repeated = "Je vis dans la Drôme, entourée d'arbres et de nature.";
+  _deps.fetchRecentTexts = async () => [`Des pavots peints\n${repeated}`];
+  const systems: string[] = [];
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    systems.push(String(o.system));
+    Object.assign(sink, { model: o.model, total_tokens: 10 });
+    return JSON.stringify({ slides: [
+      { slide_number: 1, role: "hook", title: "Ce que le paysage change à mes décors" },
+      { slide_number: 2, role: "body", title: repeated },
+      { slide_number: 3, role: "conclusion", title: "Chaque saison apporte ses couleurs aux pièces." },
+    ], caption: { body: "Le paysage nourrit les décors.", hashtags: [] } });
+  }) as any;
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", subject: "Ce que le paysage change à mes décors", slide_count: 3 }));
+    assertEquals(res.status, 200);
+    const doc = JSON.parse((await res.json()).content);
+    assert(systems[0].includes("DÉJÀ ÉCRIT RÉCEMMENT"));
+    assert(systems[0].includes("entourée d'arbres"));
+    assert(doc.quality_check.recent_echoes >= 1, JSON.stringify(doc.quality_check));
+  } finally { globalThis.fetch = oldFetch; resetDeps(); }
+});
+
+Deno.test("carrousel texte : sans contenus récents, ni consigne ni compteur", async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const systems: string[] = [];
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    systems.push(String(o.system));
+    Object.assign(sink, { model: o.model, total_tokens: 10 });
+    return JSON.stringify({ slides: [
+      { slide_number: 1, role: "hook", title: "Ce que le paysage change à mes décors" },
+      { slide_number: 2, role: "body", title: "Je vis dans la Drôme, entourée d'arbres et de nature." },
+      { slide_number: 3, role: "conclusion", title: "Chaque saison apporte ses couleurs aux pièces." },
+    ], caption: { body: "Le paysage nourrit les décors.", hashtags: [] } });
+  }) as any;
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", subject: "Ce que le paysage change à mes décors", slide_count: 3 }));
+    const doc = JSON.parse((await res.json()).content);
+    assert(!systems[0].includes("DÉJÀ ÉCRIT RÉCEMMENT"));
+    assertEquals(doc.quality_check.recent_echoes, 0);
+  } finally { globalThis.fetch = oldFetch; resetDeps(); }
+});

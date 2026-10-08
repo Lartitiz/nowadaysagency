@@ -26,10 +26,10 @@ import { validateInput, ValidationError, clampAiField } from "../_shared/input-v
 import { carouselNeedsPolish, extractCarouselTexts, reinjectCarouselTexts } from "../_shared/correction-pass.ts";
 import { audienceAddressRule, enforceAudienceAddress, parseAudienceAddress, type AudienceAddress, type AudienceAddressPass } from "../_shared/audience-address.ts";
 import { applyAudienceAddressPass } from "../_shared/audience-address-pass.ts";
-import { runRedacGate, applyGuardedCarouselCorrection, analyzeCarouselRedac, numbersIn, type CaptionEndingRule } from "../_shared/redac-gate.ts";
+import { runRedacGate, applyGuardedCarouselCorrection, analyzeCarouselRedac, numbersIn, type CaptionEndingRule, type EchoContext } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
-import { fetchRecentContentTexts } from "../_shared/recent-passages.ts";
+import { fetchRecentContentTexts, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
 import { addSchemasToContent } from "../_shared/schema-formatting.ts";
 import { keepDraftLayoutFields, stripMixWriterLayoutFields } from "../_shared/mix-layout-formatting.ts";
@@ -937,6 +937,13 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
     // aux précédentes et déclenche une re-passe si elle les redit. Lecture
     // best-effort — une erreur renvoie [] et ne change rien au flux.
     const previousHooks = await fetchPreviousHooks(userId, body.subject, undefined, workspace_id);
+    // Derniers contenus de la marque, tous sujets (bilan hebdo 05/10/2026) : le
+    // rédacteur ne les redit pas (consigne) et le gate mesure toute phrase reprise
+    // mot pour mot (re-passe gardée). Lecture best-effort, [] en cas d'erreur.
+    const recentTexts = (type === "express_full" || type === "slides")
+      ? await _deps.fetchRecentTexts(userId, workspace_id)
+      : [];
+    if (recentTexts.length) systemPrompt += `\n\n${recentPassagesPrompt(recentTexts)}`;
     if (previousHooks.length) {
       console.log(`[carousel-ai] ${previousHooks.length} accroche(s) déjà écrite(s) sur ce sujet — garde anti-redite active`);
     }
@@ -962,6 +969,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       captionEndingRule,
       recentBriefsContext,
       previousHooks,
+      recentTexts,
       brandVocabBlock,
       newsContext,
       corsHeaders,
@@ -1055,12 +1063,19 @@ interface CarouselRequestContext {
   recentBriefsContext: string;
   /** Accroches déjà écrites sur CE sujet : garde déterministe anti-redite (24/08). */
   previousHooks: string[];
+  /** Derniers contenus de la marque (_shared/recent-passages.ts) : redite mesurée par le gate. */
+  recentTexts: string[];
   brandVocabBlock: string;
   newsContext: any;
   corsHeaders: Record<string, string>;
   emitStatus: StatusEmitter;
   /** Début de la requête (Date.now()) : budget temps global des étapes facultatives. */
   startedAt: number;
+}
+
+/** Contexte inter-contenus du gate : accroches du sujet + derniers contenus de la marque. */
+function echoContext(c: CarouselRequestContext): EchoContext {
+  return { previousHooks: c.previousHooks, subject: c.body.subject, recentTexts: c.recentTexts, currentRequest: c.testimonySource };
 }
 
 // ── Mode « Mes slides » (assign_templates) : passe gabarits SEULE (15/07) ──
@@ -1356,7 +1371,7 @@ async function finalizeCarousel(
           researchNumbersCap: ctx.researchNumbersCap,
           testimonySource: ctx.testimonySource,
           brandGuardText: ctx.brandGuardText,
-          echo: { previousHooks: ctx.previousHooks, subject: ctx.body.subject },
+          echo: echoContext(ctx),
           correction: { enabled: false },
         });
         const finalCandidate: any = tryParseAiJson(measured.content);
@@ -1528,7 +1543,7 @@ async function runGenerationAndRespond(
       if (semanticReviewEnabled || carouselNeedsPolish(value) || currentAuthoredText.trim()) {
         emitStatus("correcting");
         const corrected = await applyGuardedCarouselCorrection(value, {
-          inputText: gateInputText, researchText, testimonySource, brandGuardText, echo: { previousHooks, subject: body.subject },
+          inputText: gateInputText, researchText, testimonySource, brandGuardText, echo: echoContext(reqCtx),
           correction: { currentBrief, semanticReview: semanticReviewEnabled,
             enabled: reviewAllowed(startedAt),
             skipIfShorterThan: 300,
@@ -1574,7 +1589,7 @@ async function runGenerationAndRespond(
       researchText,
       researchNumbersCap: reqCtx.researchNumbersCap,
       testimonySource,
-      echo: { previousHooks, subject: body.subject },
+      echo: echoContext(reqCtx),
       brandGuardText,
       captionEnding: captionEndingRule,
       correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: reviewAllowed(startedAt), skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
@@ -1639,9 +1654,7 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
   let output;
   // Derniers contenus de la marque : le rédacteur ne les redit pas (bilan
   // hebdo 05/10/2026). Lecture best-effort, [] en cas d'erreur.
-  const recentTexts = usesContinuousNarrative(ctx.body)
-    ? await _deps.fetchRecentTexts(ctx.userId, ctx.workspaceId)
-    : [];
+  const recentTexts = ctx.recentTexts;
   try { output = await _deps.prepareNarrative({
     body:ctx.body, brandingContext:ctx.brandingContext, recentTexts,
     photoContext:buildPhotoContextRecap(ctx.body.photo_contexts || ctx.body.photos),
@@ -1657,7 +1670,7 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
     isLinkedIn:ctx.isLinkedIn,inputText:ctx.gateInputText,researchText:ctx.researchText,researchNumbersCap:ctx.researchNumbersCap,testimonySource:ctx.testimonySource,
     // Mesure seule (correction coupée, aucun appel IA) : sans la fiche ni les
     // accroches précédentes, recopie de fiche et échos d'accroche comptaient 0.
-    brandGuardText:ctx.brandGuardText,echo:{previousHooks:ctx.previousHooks,subject:ctx.body.subject},
+    brandGuardText:ctx.brandGuardText,echo:echoContext(ctx),
     correction:{enabled:false},
   });
   const written = await finalizeCarousel(measured.content,ctx,{usage,repaired:output.repaired,regenerate:output.regenerate,reserveMs:PHOTO_MATCH_RESERVE_MS});
@@ -1791,7 +1804,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     if (semanticReviewEnabled || carouselNeedsPolish(content) || currentAuthoredText.trim()) {
       emitStatus("correcting");
       const corrected = await applyGuardedCarouselCorrection(content, {
-        inputText: gateInputText, researchText, testimonySource, brandGuardText, echo: { previousHooks, subject: body.subject },
+        inputText: gateInputText, researchText, testimonySource, brandGuardText, echo: echoContext(reqCtx),
         correction: { currentBrief, semanticReview: semanticReviewEnabled,
           enabled: reviewAllowed(startedAt),
           skipIfShorterThan: 300,
@@ -1840,7 +1853,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     researchText,
     researchNumbersCap: reqCtx.researchNumbersCap,
     testimonySource,
-    echo: { previousHooks, subject: body.subject },
+    echo: echoContext(reqCtx),
     brandGuardText,
     captionEnding: captionEndingRule,
     correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: reviewAllowed(startedAt), skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
@@ -1976,7 +1989,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     if (semanticReviewEnabled || carouselNeedsPolish(content) || currentAuthoredText.trim()) {
       emitStatus("correcting");
       const corrected = await applyGuardedCarouselCorrection(content, {
-        inputText: gateInputText, researchText, testimonySource, brandGuardText, echo: { previousHooks, subject: body.subject },
+        inputText: gateInputText, researchText, testimonySource, brandGuardText, echo: echoContext(reqCtx),
         correction: { currentBrief, semanticReview: semanticReviewEnabled,
           enabled: reviewAllowed(startedAt),
           skipIfShorterThan: 300,
@@ -2019,7 +2032,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     researchText,
     researchNumbersCap: reqCtx.researchNumbersCap,
     testimonySource,
-    echo: { previousHooks, subject: body.subject },
+    echo: echoContext(reqCtx),
     brandGuardText,
     captionEnding: captionEndingRule,
     correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: reviewAllowed(startedAt), skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
