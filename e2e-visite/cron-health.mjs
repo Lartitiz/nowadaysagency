@@ -10,6 +10,8 @@
  *   abonnements payés sans accès en base, périodes de facturation périmées.
  * Avec `--hebdo` : scope "weekly" (routine du lundi) — coûts IA, usage features,
  * rétention par cohorte, volume de publications.
+ * Dans les deux : budget images HIGGSFIELD du mois (crédit OpenAI épuisé depuis le
+ * 02/10/2026, toutes les images y passent ; au plafond, « budget images atteint »).
  *
  * Même plomberie que activation-funnel.mjs : secret partagé CRON_STATS_SECRET
  * (`.env.visite.local`), anon key du `.env`. Ne casse jamais le run (exit 0 partout) ;
@@ -38,6 +40,33 @@ const hebdo = process.argv.includes("--hebdo");
 if (!URL || !ANON || !SECRET) {
   console.log("santé : non branché (VITE_SUPABASE_* ou CRON_STATS_SECRET absent) — étape sautée.");
   process.exit(0);
+}
+
+
+// Budget images Higgsfield (bloc `higgsfield`, daily ET weekly). Absent = edge
+// live pas encore la version qui le remonte.
+function printHiggsfield(h) {
+  if (!h) {
+    console.log("🖼️ Budget images Higgsfield : non mesuré (edge cron-health pas redéployée)");
+    return;
+  }
+  if (h.erreur) {
+    console.log(`🖼️ Budget images Higgsfield : ⚠️ non lu (${h.erreur})`);
+    return;
+  }
+  console.log(`🖼️ Budget images Higgsfield (réservations, borne haute — pas la facture)${h.actif ? "" : "  ⚠️ Higgsfield DÉSACTIVÉ (HIGGSFIELD_IMAGE_ENABLED)"}`);
+  const plafond = h.plafond_usd != null ? `${h.plafond_usd} $ (${h.pct_utilise} %)` : "AUCUN";
+  console.log(`   réservé ce mois                : ${h.reserve_mois_usd} $ / ${plafond}, reste ${h.restant_usd ?? "?"} $ — ${h.images_mois} image(s)${h.incertaines_mois ? `, dont ${h.incertaines_mois} incertaine(s)` : ""}`);
+  const src = Object.entries(h.par_source || {}).map(([k, v]) => `${k} ${v.images} img / ${v.usd} $`).join(", ");
+  if (src) console.log(`      par source : ${src}`);
+  const proj = h.jours_avant_epuisement == null
+    ? "aucune dépense sur 7 j, pas d'épuisement en vue"
+    : h.epuisement_avant_reset
+      ? `épuisement estimé dans ${h.jours_avant_epuisement} j (vers le ${h.epuisement_estime})`
+      : `tient jusqu'au reset du ${h.prochain_reset} (épuisement théorique dans ${h.jours_avant_epuisement} j)`;
+  console.log(`   rythme 7 j                     : ${h.rythme_7j_usd_par_jour} $/j (${h.reserve_7j_usd} $ sur 7 j) — ${proj}`);
+  console.log(`   refus « budget »               : ${h.refus_budget ?? `non comptés (${h.refus_budget_note || "non journalisé"})`}`);
+  console.log(h.alerte ? `   🔴 ${h.alerte}` : "   ✅ pas d'alerte (seuils : > 80 % ou < 10 j avant le reset)");
 }
 
 try {
@@ -145,6 +174,7 @@ try {
       }
       if (fa.erreur_stripe) console.log(`   ⚠️ ${fa.erreur_stripe}`);
     }
+    printHiggsfield(d.higgsfield);
   } else {
     const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : "n/a");
     const delta = (cur, prev) => (prev ? `${cur >= prev ? "+" : ""}${Math.round(((cur - prev) / prev) * 100)}%` : "n/a");
@@ -231,6 +261,7 @@ try {
         if (e.caption) console.log(`        caption : ${e.caption}`);
       }
     }
+    printHiggsfield(d.higgsfield);
   }
 } catch (e) {
   console.log(`santé : erreur (${String(e.message).slice(0, 90)}) — étape sautée sans casser le run.`);
