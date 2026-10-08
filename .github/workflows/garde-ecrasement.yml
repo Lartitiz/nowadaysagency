@@ -1,0 +1,49 @@
+name: Garde anti-écrasement
+
+# Après chaque arrivée de code sur main (fusion Lovable, édition directe), vérifie
+# qu'aucune correction mergée depuis moins de 30 jours n'a été effacée sans être
+# vue — cas du 06/08/2026 sur nowadays-siteweb (PR #39). Ne bloque rien : ouvre
+# une alerte (issue « garde-ecrasement ») avec la liste exacte de ce qui a disparu.
+# Logique et tests : scripts/garde-ecrasement.mjs, src/test/garde-ecrasement.test.ts.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: garde-ecrasement-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  garde:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Chercher du code de corrections récentes effacé
+        run: node scripts/garde-ecrasement.mjs --range "${{ github.event.before }}..${{ github.sha }}" --report garde-report.md
+      - name: Ouvrir une alerte
+        if: hashFiles('garde-report.md') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create garde-ecrasement --color B60205 --description "Du code d'une correction récente a disparu de main" 2>/dev/null || true
+          gh issue create \
+            --title "⚠️ Garde anti-écrasement : du code de corrections récentes a disparu (${GITHUB_SHA::8})" \
+            --body-file garde-report.md \
+            --label garde-ecrasement \
+            --assignee "${{ github.repository_owner }}"
+      - name: Rendre l'alerte visible
+        if: hashFiles('garde-report.md') != ''
+        run: |
+          cat garde-report.md >> "$GITHUB_STEP_SUMMARY"
+          exit 1
