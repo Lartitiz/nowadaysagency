@@ -907,6 +907,8 @@ Deno.serve(async (req) => {
         ? {
             cette_semaine: filStats(cqEvents, (d) => inWindow(d, curFrom, curTo)),
             semaine_precedente: filStats(cqEvents, (d) => inWindow(d, prevFrom, prevTo)),
+            // Peu de clientes génèrent : les essais internes donnent un 1er chiffre.
+            comptes_internes_7j: filStats(cqAll.filter((e: any) => internalIds.has(e.user_id)), (d) => inWindow(d, curFrom, curTo)),
           }
         : null,
       retravail: { total_carrousels: carCur.length, retravailles, sujets_regeneres },
