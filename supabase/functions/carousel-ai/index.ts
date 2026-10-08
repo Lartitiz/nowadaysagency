@@ -1,6 +1,6 @@
 import { matchFinalPhotos, PHOTO_MATCH_RESERVE_MS } from "./final-photo-match.ts";
 import { buildConfirmedStructureBlock } from "./confirmed-structure.ts";
-import { createContinuousNarrative, NarrativePhotoMismatch } from "./continuous-narrative.ts";
+import { createContinuousNarrative, NarrativePhotoMismatch, usesContinuousNarrative } from "./continuous-narrative.ts";
 import { COMMON, PLAN, REPAIR } from "../_shared/carousel-editorial-contract.ts";
 import { reviewCarouselProgression, progressionReceipt, progressionWarnings, type ProgressionSource, type ProgressionResult } from "../_shared/carousel-progression.ts";
 import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts";
@@ -28,6 +28,7 @@ import { applyAudienceAddressPass } from "../_shared/audience-address-pass.ts";
 import { runRedacGate, applyGuardedCarouselCorrection, analyzeCarouselRedac, numbersIn, type CaptionEndingRule } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
+import { fetchRecentContentTexts } from "../_shared/recent-passages.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
 import { addSchemasToContent } from "../_shared/schema-formatting.ts";
 import { keepDraftLayoutFields, stripMixWriterLayoutFields } from "../_shared/mix-layout-formatting.ts";
@@ -55,6 +56,7 @@ export const _deps = {
   callCarouselWriter,
   reviewThread: reviewCarouselProgression,
   prepareNarrative: createContinuousNarrative,
+  fetchRecentTexts: fetchRecentContentTexts,
   matchPhotos: matchFinalPhotos,
   fetchDepthMaterial,
   audienceAddressPass: applyAudienceAddressPass,
@@ -1564,8 +1566,13 @@ async function handleSuggestAnglesRequest(reqCtx: CarouselRequestContext): Promi
 async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<Response | null> {
   const usage: UsageSink = {};
   let output;
+  // Derniers contenus de la marque : le rédacteur ne les redit pas (bilan
+  // hebdo 05/10/2026). Lecture best-effort, [] en cas d'erreur.
+  const recentTexts = usesContinuousNarrative(ctx.body)
+    ? await _deps.fetchRecentTexts(ctx.userId, ctx.workspaceId)
+    : [];
   try { output = await _deps.prepareNarrative({
-    body:ctx.body, brandingContext:ctx.brandingContext,
+    body:ctx.body, brandingContext:ctx.brandingContext, recentTexts,
     photoContext:buildPhotoContextRecap(ctx.body.photo_contexts || ctx.body.photos),
     newsContext:typeof ctx.newsContext === "string" ? ctx.newsContext : "",
     authoredText:ctx.currentAuthoredText, audienceAddress:ctx.audienceAddress, startedAt:ctx.startedAt, usage,
