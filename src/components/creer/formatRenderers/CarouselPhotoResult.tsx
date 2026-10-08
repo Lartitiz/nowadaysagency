@@ -1385,7 +1385,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
 
       {qualityCheck && (
         <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-          <Badge className={scoreColor}>Contrôle rédactionnel : {qualityCheck.score}/100</Badge>
+          <Badge className={scoreColor}>{qualityCheck.scored_on === "caption_only" ? "Contrôle de la légende" : "Contrôle rédactionnel"} : {qualityCheck.score}/100</Badge>
           <span>
             {computedQuality.slides_with_text} slide{computedQuality.slides_with_text > 1 ? "s" : ""} avec texte, {computedQuality.slides_without_text} sans
           </span>

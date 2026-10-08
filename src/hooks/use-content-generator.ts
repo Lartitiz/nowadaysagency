@@ -483,6 +483,8 @@ export function useContentGenerator() {
               quality_max: params.qualityMax || undefined,
               ...(params.narrativeThread && params.narrativeThread.trim() ? { narrative_thread: params.narrativeThread } : {}),
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
+              // « Photos brutes » : le texte des slides sera effacé, le serveur note la légende seule.
+              ...(params.carouselSubMode === "pure_photo" ? { photos_only: true } : {}),
               ...(params.textFirst ? { text_first: true } : {}),
               ...(params.textFirst && params.photoCatalog && params.photoCatalog.length > 0
                 ? { photo_catalog: params.photoCatalog.slice(0, 40) }
