@@ -262,6 +262,8 @@ try {
         const f = fil.cette_semaine, r = f.reparations, fp = fil.semaine_precedente;
         console.log(`   fil des carrousels : ${f.carrousels} contrôlé(s), ${f.a_reparer} à réparer, ${f.controle_non_abouti} contrôle(s) non abouti(s)`);
         console.log(`      réparations GARDÉES : ${r.gardees}/${r.tentees} (${pct(r.gardees, r.tentees)}) — locales ${r.locales_gardees}/${r.locales}, complètes ${r.completes_gardees}/${r.completes} ; sautées faute de temps : ${f.sautees_faute_de_temps}  (S-1 : ${fp.reparations.gardees}/${fp.reparations.tentees})`);
+        const fi = fil.comptes_internes_7j;
+        if (fi?.carrousels) console.log(`      comptes internes : ${fi.carrousels} contrôlé(s), réparations gardées ${fi.reparations.gardees}/${fi.reparations.tentees} (locales ${fi.reparations.locales_gardees}/${fi.reparations.locales}), sautées ${fi.sautees_faute_de_temps}, non aboutis ${fi.controle_non_abouti}`);
       }
       const pf = q.par_format || {};
       const formats = Object.entries(pf).sort((a, b) => b[1].generes - a[1].generes);
