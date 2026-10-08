@@ -1218,3 +1218,48 @@ Deno.test("carrousel texte : slides en brouillon pendant l'écriture, seulement 
     assert(streamed.slice(1).every((s) => !s));
   } finally { globalThis.fetch = oldFetch; }
 });
+
+// 08/10/2026 : titres prévus (Haiku) affichés pendant que le rédacteur réfléchit.
+for (const outcome of ["ok", "fails"] as const) Deno.test(`carrousel texte : plan envisagé pendant la réflexion (${outcome})`, async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const full = JSON.stringify({ slides: [
+    { slide_number: 1, role: "hook", title: "Les retours demandent une direction commune." },
+    { slide_number: 2, role: "body", title: "Les remarques contradictoires restent à départager." },
+    { slide_number: 3, role: "conclusion", title: "Le choix validé guide les corrections." },
+  ], caption: { body: "Un choix commun précède les modifications.", hashtags: [] } });
+  let outlineCall: any = null, logged: any[] = [];
+  _deps.callAnthropic = (async (o: any, sink: any) => {
+    if (o.tool?.name === "plan_envisage") {
+      outlineCall = o;
+      if (outcome === "fails") throw new Error("indisponible");
+      Object.assign(sink, { input_tokens: 100, output_tokens: 20, total_tokens: 120 });
+      return JSON.stringify({ titles: ["Couverture", " <b>Le constat</b> ", "", "La conclusion", 42] });
+    }
+    throw new Error("appel inattendu");
+  }) as any;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    Object.assign(sink, { model: o.model, input_tokens: 1000, output_tokens: 10, total_tokens: 1010 });
+    return full;
+  }) as any;
+  _deps.logUsage = (async (...args: any[]) => { logged = args; }) as any;
+  try {
+    const req = makeHooksRequest({ type: "express_full", subject: "Choisir une direction", slide_count: 3 });
+    const res = await handleRequest(new Request(req.url, { method: "POST", headers: { "Content-Type": "application/json", Accept: "text/event-stream" }, body: await req.text() }));
+    const events = (await res.text()).split("\n\n").filter((l) => l.startsWith("data: ")).map((l) => JSON.parse(l.slice(6)));
+    assertEquals(outlineCall.model, "claude-haiku-4-5");
+    assert(outlineCall.messages[0].content.includes("NE RÉDIGE PAS LE CARROUSEL"));
+    const outline = events.filter((e) => e.stage === "outline");
+    if (outcome === "ok") {
+      assertEquals(outline.map((e) => e.titles), [["Couverture", "Le constat", "La conclusion"]]);
+      assertEquals(logged[3], 1010 + 120); // une seule ligne de crédit, jetons du plan compris
+    } else {
+      assertEquals(outline, []);
+      assertEquals(logged[3], 1010);
+    }
+    assertEquals(events.at(-1).type, "done");
+    // Le plan n'entre jamais dans le carrousel livré.
+    assert(!JSON.parse(JSON.parse(events.at(-1).full).content).slides.some((s: any) => s.title === "Le constat"));
+  } finally { globalThis.fetch = oldFetch; }
+});

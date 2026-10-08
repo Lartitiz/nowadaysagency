@@ -87,6 +87,44 @@ const QUESTIONS_TOOL = {
   },
 };
 
+// PLAN ENVISAGÉ (08/10/2026) : le rédacteur réfléchit ~50 s avant d'écrire
+// sa première slide. Un appel court (Haiku) propose entre-temps les titres
+// prévus, affichés « plan envisagé » jusqu'à la 1re vraie slide. Ils ne sont
+// JAMAIS réutilisés dans le carrousel : simple repère pendant l'attente.
+const OUTLINE_TOOL = {
+  name: "plan_envisage",
+  description: "Titres prévus des slides du carrousel, dans l'ordre.",
+  input_schema: {
+    type: "object",
+    properties: { titles: { type: "array", items: { type: "string" }, maxItems: 20 } },
+    required: ["titles"],
+  },
+};
+const OUTLINE_INSTRUCTION = "\n\nNE RÉDIGE PAS LE CARROUSEL. Donne seulement le titre prévu de chaque slide, dans l'ordre (couverture comprise), en respectant la longueur demandée : quelques mots par titre.";
+
+export function plannedTitles(value: any): string[] {
+  const titles = Array.isArray(value?.titles) ? value.titles : [];
+  return titles
+    .filter((t: unknown): t is string => typeof t === "string")
+    .map((t: string) => t.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim().slice(0, 120))
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
+async function emitPlannedTitles(system: string, userPrompt: string, emitStatus: StatusEmitter, sink: UsageSink): Promise<void> {
+  try {
+    const raw = await _deps.callAnthropic({
+      model: getModelForAction("questions"), system,
+      messages: [{ role: "user", content: userPrompt + OUTLINE_INSTRUCTION }],
+      tool: OUTLINE_TOOL, max_tokens: 800, abortTimeoutMs: 20_000, maxRetries: 0,
+    }, sink);
+    const titles = plannedTitles(tryParseAiJson(raw));
+    if (titles.length >= 3) emitStatus("outline", { titles });
+  } catch {
+    /* Simple repère d'attente : son échec ne change rien à la génération. */
+  }
+}
+
 const PHOTO_QUESTIONS_TOOL = {
   ...QUESTIONS_TOOL,
   description: "Zéro à deux précisions essentielles, sans questionnaire obligatoire.",
@@ -1446,6 +1484,9 @@ async function runGenerationAndRespond(
   // SLIDES EN BROUILLON (07/10/2026) : chaque slide terminée part à l'écran
   // pendant l'écriture (évènement status `draft`), le texte relu la remplace.
   const draftStream = type === "express_full" ? { onText: draftSlidesTracker((slides) => emitStatus("draft", { slides })) } : {};
+  // Jetons comptés à part : le rédacteur réécrit `usage` en fin d'appel.
+  const outlineUsage: UsageSink = {};
+  const outline = type === "express_full" ? emitPlannedTitles(systemPrompt, userPrompt, emitStatus, outlineUsage) : Promise.resolve();
   let content = await timed("write_ms", isWriting
     ? _deps.callCarouselWriter({ ...writingOptions, ...draftStream, model: pickCarouselModel(body) }, usage)
     : _deps.callAnthropic({ ...writingOptions, model: getModelForAction(type === "deepening_questions" ? "questions" : "carousel") }, usage));
@@ -1527,6 +1568,8 @@ async function runGenerationAndRespond(
   // deepening_questions (variante texte) est gratuit — arbitrage 10/07/2026 :
   // un carrousel débite 2 crédits (rédaction express_full + carousel_visual),
   // les questions pré-chargées ne comptent pas (aligné sur creative-flow).
+  await outline;
+  for (const k of ["input_tokens", "output_tokens", "total_tokens"] as const) if (outlineUsage[k]) usage[k] = (usage[k] || 0) + outlineUsage[k]!;
   if (type !== "deepening_questions") {
     await _deps.logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspaceId);
   }

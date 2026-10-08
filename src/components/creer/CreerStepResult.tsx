@@ -248,6 +248,8 @@ interface Props {
   generationStage?: string | null;
   /** Carrousel : slides en brouillon reçues pendant l'écriture (affichées grisées). */
   draftSlides?: DraftSlide[];
+  /** Carrousel : titres prévus affichés pendant la réflexion, avant la 1re slide. */
+  outlineTitles?: string[];
   streamingContent?: string;
   // Carrousel passé par l'étape structure → la rédaction est l'étape 2/2.
   step2of2?: boolean;
@@ -334,6 +336,7 @@ export default function CreerStepResult({
   generating,
   generationStage,
   draftSlides,
+  outlineTitles,
   streamingContent,
   step2of2,
   qualityMax,
@@ -519,7 +522,7 @@ export default function CreerStepResult({
     }
 
     // Carrousel : les slides arrivent en brouillon pendant l'écriture.
-    if (format === "carousel" && draftSlides && draftSlides.length > 0) {
+    if (format === "carousel" && ((draftSlides?.length ?? 0) > 0 || (outlineTitles?.length ?? 0) > 0)) {
       return (
         <div className="py-6 space-y-4">
           {step2of2 && (
@@ -529,7 +532,7 @@ export default function CreerStepResult({
               </span>
             </div>
           )}
-          <CarouselDraftPreview slides={draftSlides} stage={generationStage} />
+          <CarouselDraftPreview slides={draftSlides ?? []} outline={outlineTitles} stage={generationStage} />
           {qualityMax && (
             <p className="text-xs text-center text-primary/80 font-medium">
               ✨ Mode qualité Max activé — c'est plus long, mais plus soigné.

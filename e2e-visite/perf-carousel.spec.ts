@@ -166,6 +166,11 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   // ⏲ Jalon BROUILLON (07/10/2026) : les slides apparaissent grisées pendant
   // l'écriture. On note quand la 1re s'affiche et on capture l'aperçu ~20 s après.
   let tDraft: number | null = null;
+  // Plan envisagé (08/10/2026) : titres prévus affichés pendant la réflexion.
+  page.getByTestId("carousel-outline").waitFor({ state: "visible", timeout: 120000 }).then(async () => {
+    console.log(`⏲ 🗂️  PLAN envisagé affiché après ${((Date.now() - tClickGen) / 1000).toFixed(1)}s`);
+    await page.screenshot({ path: "e2e-visite/shots/perf-carousel-plan.png", fullPage: false });
+  }).catch(() => {});
   page.getByTestId("carousel-draft-preview").waitFor({ state: "visible", timeout: 300000 }).then(async () => {
     tDraft = Date.now();
     console.log(`⏲ ✏️  1re slide BROUILLON affichée après ${((tDraft - tClickGen) / 1000).toFixed(1)}s`);
