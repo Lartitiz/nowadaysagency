@@ -7,6 +7,7 @@
 //                  retours bêta (beta_feedback) des 24 h, les « blocking » d'abord,
 //                  et total encore en statut "new" (backstop si un run saute),
 //                  crédits Photoroom restants (épuisés = 402 sur toutes les retouches),
+//                  budget images Higgsfield du mois (aussi en weekly) — bloc `higgsfield`,
 //                  + SANTÉ DE LA FACTURATION (incident Stripe 24-31/07) : événements que
 //                  Stripe n'arrive pas à livrer, abonnements payés sans accès en base,
 //                  périodes de facturation périmées — voir le bloc `facturation`.
@@ -24,6 +25,7 @@
 // `CRON_STATS_SECRET` (header x-cron-secret).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jugerCredits, joursDepuisReset } from "./photoroom-alerte.ts";
+import { compte, debutMoisUtc, jugerBudgetHiggsfield, somme } from "./higgsfield-alerte.ts";
 import { isInternalEmail, isTestAccountEmail, maskEmail } from "../_shared/internal-accounts.ts";
 
 // Comptes internes exclus : liste UNIQUE partagée avec activation-funnel et
@@ -74,6 +76,50 @@ async function photoroomCredits(now: number) {
     const jours = joursDepuisReset(now);
     const { moyenne_par_jour, rythme_significatif, alerte } = jugerCredits(restants, consommes, jours);
     return { restants, abonnement, consommes_mois: consommes, jours_depuis_reset: jours, moyenne_par_jour, rythme_significatif, alerte };
+  } catch (e) {
+    return { erreur: String((e as any)?.message || e).slice(0, 90) };
+  }
+}
+
+// ── Budget images HIGGSFIELD (crédit OpenAI épuisé depuis le 02/10/2026) ─────
+// Toutes les images passent par Higgsfield ; au plafond mensuel
+// HIGGSFIELD_IMAGE_MONTHLY_LIMIT_USD, chaque image est refusée « budget ». Le
+// calcul reproduit `higgsfield_image_month_used()` (deux tables, statut ≠ failed,
+// mois UTC) ; jugement dans `higgsfield-alerte.ts`. Les montants sont des
+// RÉSERVATIONS (borne haute), pas la facture réelle Higgsfield.
+// ⚠️ Les refus « budget » ne sont PAS journalisés en base (la voie synchrone
+// n'écrit aucune ligne, le Studio ne garde qu'un échec générique) : on ne peut pas
+// les compter, d'où `refus_budget: null` et l'alerte « plafond atteint » à la place.
+async function higgsfieldBudget(supabase: any, now: number) {
+  try {
+    const debutMois = debutMoisUtc(now);
+    const depuis7j = now - 7 * DAY;
+    const depuis = new Date(Math.min(debutMois, depuis7j)).toISOString();
+    const cols = "estimated_usd, status, created_at";
+    const [spend, studio] = await Promise.all([
+      fetchAllRows(supabase, "higgsfield_image_spend", `source, ${cols}`, (q) => q.gte("created_at", depuis)),
+      fetchAllRows(supabase, "studio_image_requests", cols, (q) => q.gte("created_at", depuis)),
+    ]);
+    const rows = [...spend, ...studio.map((r: any) => ({ ...r, source: "studio" }))];
+    const raw = Deno.env.get("HIGGSFIELD_IMAGE_MONTHLY_LIMIT_USD");
+    const plafond = raw ? Number(raw) : null;
+    const jugement = jugerBudgetHiggsfield(somme(rows, debutMois), somme(rows, depuis7j), plafond, now);
+    const duMois = rows.filter((r: any) => compte(r, debutMois) && Number(r.estimated_usd) > 0);
+    const parSource: Record<string, { images: number; usd: number }> = {};
+    for (const r of duMois) {
+      const s = (parSource[r.source] ||= { images: 0, usd: 0 });
+      s.images++;
+      s.usd = Math.round((s.usd + Number(r.estimated_usd)) * 100) / 100;
+    }
+    return {
+      actif: Deno.env.get("HIGGSFIELD_IMAGE_ENABLED") === "true" && Deno.env.get("HIGGSFIELD_DATA_USE_REVIEWED") === "true",
+      ...jugement,
+      images_mois: duMois.length,
+      incertaines_mois: duMois.filter((r: any) => r.status === "uncertain").length,
+      par_source: parSource,
+      refus_budget: null,
+      refus_budget_note: "non journalisé en base (seulement dans les logs des edges)",
+    };
   } catch (e) {
     return { erreur: String((e as any)?.message || e).slice(0, 90) };
   }
@@ -271,7 +317,7 @@ Deno.serve(async (req) => {
     const now = Date.now();
 
     if (scope === "daily") {
-      const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, clientErrors] = await Promise.all([
+      const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, clientErrors, higgsfield] = await Promise.all([
         fetchAllRows(
           supabase,
           "calendar_posts",
@@ -296,6 +342,7 @@ Deno.serve(async (req) => {
         photoroomCredits(now),
         facturationHealth(supabase, now),
         fetchAllRows(supabase, "client_error_events", "kind, route, asset, created_at", (q) => q.gte("created_at", new Date(now - DAY).toISOString())),
+        higgsfieldBudget(supabase, now),
       ]);
       const posts = postsRows.filter((p: any) => isClient(p.user_id));
       const conns = connRows.filter((c: any) => isClient(c.user_id));
@@ -388,6 +435,7 @@ Deno.serve(async (req) => {
         feedback_24h: { count: feedback24h.length, items: feedback24h.slice(0, 15) },
         feedback_new_total: feedbackNewTotal,
         photoroom_credits: photoroom,
+        higgsfield,
         facturation,
         client_errors_24h: { count: clientErrors.length, items: clientErrors.slice(-20) },
       });
@@ -395,7 +443,7 @@ Deno.serve(async (req) => {
 
     // ── scope "weekly" ──────────────────────────────────────────────────────
     const since35d = new Date(now - 35 * DAY).toISOString();
-    const [aiRows, calRows] = await Promise.all([
+    const [aiRows, calRows, higgsfield] = await Promise.all([
       fetchAllRows(
         supabase,
         "ai_usage",
@@ -403,6 +451,7 @@ Deno.serve(async (req) => {
         (q) => q.gte("created_at", since35d),
       ),
       fetchAllRows(supabase, "calendar_posts", "id, user_id, created_at, published_at, publish_status, status"),
+      higgsfieldBudget(supabase, now),
     ]);
     const ai = aiRows.filter((a: any) => isClient(a.user_id));
     const cal = calRows.filter((c: any) => isClient(c.user_id));
@@ -857,6 +906,7 @@ Deno.serve(async (req) => {
       cohortes: cohorts,
       actives_cette_semaine: activeThisWeek.size,
       qualite,
+      higgsfield,
     });
   } catch (e) {
     return json({ error: String((e as any)?.message || e) }, 500);
