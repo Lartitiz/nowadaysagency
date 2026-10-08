@@ -169,9 +169,10 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   // Plan envisagé (08/10/2026) : titres prévus affichés pendant la réflexion.
   page.getByTestId("carousel-outline").waitFor({ state: "visible", timeout: 120000 }).then(async () => {
     console.log(`⏲ 🗂️  PLAN envisagé affiché après ${((Date.now() - tClickGen) / 1000).toFixed(1)}s`);
+    await page.waitForTimeout(1500); // fin du fondu d'entrée des cartes
     await page.screenshot({ path: "e2e-visite/shots/perf-carousel-plan.png", fullPage: false });
   }).catch(() => {});
-  page.getByTestId("carousel-draft-preview").waitFor({ state: "visible", timeout: 300000 }).then(async () => {
+  page.getByRole("list", { name: "Slides en cours d'écriture" }).locator("li").first().waitFor({ state: "visible", timeout: 300000 }).then(async () => {
     tDraft = Date.now();
     console.log(`⏲ ✏️  1re slide BROUILLON affichée après ${((tDraft - tClickGen) / 1000).toFixed(1)}s`);
     await page.waitForTimeout(20000);
