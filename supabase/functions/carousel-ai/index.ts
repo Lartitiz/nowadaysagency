@@ -26,7 +26,7 @@ import { validateInput, ValidationError, clampAiField } from "../_shared/input-v
 import { carouselNeedsPolish, extractCarouselTexts, reinjectCarouselTexts } from "../_shared/correction-pass.ts";
 import { audienceAddressRule, enforceAudienceAddress, parseAudienceAddress, type AudienceAddress, type AudienceAddressPass } from "../_shared/audience-address.ts";
 import { applyAudienceAddressPass } from "../_shared/audience-address-pass.ts";
-import { runRedacGate, applyGuardedCarouselCorrection, analyzeCarouselRedac, numbersIn, type CaptionEndingRule, type EchoContext } from "../_shared/redac-gate.ts";
+import { runRedacGate, rescoreCaptionOnly, applyGuardedCarouselCorrection, analyzeCarouselRedac, numbersIn, type CaptionEndingRule, type EchoContext } from "../_shared/redac-gate.ts";
 import { logContentQuality, threadOutcome } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import { fetchRecentContentTexts, recentPassagesPrompt } from "../_shared/recent-passages.ts";
@@ -2141,6 +2141,11 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   // un extrait qui n'y figure plus est retiré (reçus ré-empreints s'ils étaient
   // à jour).
   content = await revalidatePhotoLayoutContent(content, (m) => console.log(m));
+  // « Photos brutes » : l'app effacera le texte des slides, la note affichée
+  // juge la légende seule (sinon « 60/100 » sur un carrousel sans texte).
+  if (body.photos_only === true) {
+    content = rescoreCaptionOnly(content, { inputText: gateInputText, researchText, researchNumbersCap: reqCtx.researchNumbersCap, brandGuardText, echo: echoContext(reqCtx), testimonySource, authoredText: currentAuthoredText });
+  }
   await addOutlineUsage(reqCtx, photoUsage);
   const timings = clock.done("photo");
   await _deps.logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);

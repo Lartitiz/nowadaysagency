@@ -124,6 +124,33 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
   }
 });
 const TEST_WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
+// Visite du 08/10 : « Photos brutes » affichait « Contrôle rédactionnel : 60/100 »,
+// note des slides que l'app efface. Avec photos_only, la note juge la légende seule.
+for (const photosOnly of [false, true]) Deno.test(`photo : note rédactionnelle, photos_only=${photosOnly}`, async () => {
+  resetDeps();
+  const tic = "Ce n'est pas un hasard. C'est un choix.";
+  const draft = { slides: [1, 2, 3].map((n) => ({ slide_number: n, slide_type: "photo_full", photo_index: n, overlay_text: `${tic} Passage ${n}.` })),
+    caption: { body: "Je fabrique mes savons à la main, en petites séries.", hashtags: [] } };
+  _deps.callAnthropic = (async (o: any, sink: any) => { Object.assign(sink, { model: o.model, total_tokens: 3 }); return JSON.stringify(draft); }) as any;
+  _deps.reviewThread = async (doc: any) => verdict(doc);
+  const previousFetch = globalThis.fetch, key = Deno.env.get("ANTHROPIC_API_KEY");
+  Deno.env.set("ANTHROPIC_API_KEY", "test-no-network");
+  globalThis.fetch = (() => Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text: "{}" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })))) as typeof fetch;
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: "photo", slide_count: 3, photo_contexts: [{ context: "a" }, { context: "b" }, { context: "c" }], ...(photosOnly ? { photos_only: true } : {}) }));
+    assertEquals(res.status, 200);
+    const parsed = JSON.parse((await res.json()).content.match(/\{[\s\S]*\}/)[0]);
+    if (photosOnly) {
+      assertEquals(parsed.quality_check.scored_on, "caption_only");
+      assertEquals(parsed.quality_check.reversal_negation_count, 0);
+    } else {
+      assertEquals(parsed.quality_check.scored_on, undefined);
+    }
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (key === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", key);
+  }
+});
 
 for(const qualityMax of [false, true]) Deno.test(`writer quota and usage, hooks/slides, Max=${qualityMax}`, async () => {
   for(const type of ["hooks", "slides"]) {

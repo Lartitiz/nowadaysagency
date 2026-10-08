@@ -1174,6 +1174,33 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean, researchCap?: nu
   };
 }
 
+/**
+ * « Photos brutes » (08/10/2026) : l'app efface tout le texte des slides et ne
+ * garde que la légende. La note affichée doit juger ce qui reste : on la
+ * recalcule sur la légende seule, avec les mêmes sources que le gate. La
+ * mesure du gate (redac_score loggué) reste celle de l'écriture complète.
+ */
+export function rescoreCaptionOnly(
+  content: string,
+  opts: { inputText?: string; researchText?: string; researchNumbersCap?: number; brandGuardText?: string; echo?: EchoContext; testimonySource?: string; authoredText?: string },
+): string {
+  const m = content.match(/\{[\s\S]*\}/);
+  if (!m) return content;
+  let parsed: any;
+  try { parsed = JSON.parse(m[0]); } catch { return content; }
+  const doc = parsed?.carousel?.slides ? parsed.carousel : parsed;
+  if (!doc || typeof doc !== "object") return content;
+  const allowedNumbers = opts.inputText !== undefined ? numbersIn(opts.inputText) : undefined;
+  const base = baseInputText(opts.inputText, opts.researchText);
+  const research = allowedNumbers ? researchNumbers(numbersIn(base), opts.researchText, base) : undefined;
+  const a = dropUserSourcedReversals(analyzeCarouselRedac({ caption: doc.caption ?? parsed.caption, slides: [] }, allowedNumbers, opts.brandGuardText, opts.echo, research, opts.testimonySource), opts.authoredText);
+  const prior = doc.quality_check ?? parsed.quality_check;
+  const qc = { ...buildQualityCheck(a, Boolean(prior?.corrected_by_repass), opts.researchNumbersCap), scored_on: "caption_only", full_writing_score: prior?.score ?? null };
+  if (doc !== parsed) doc.quality_check = qc;
+  parsed.quality_check = qc;
+  return content.replace(m[0], JSON.stringify(parsed, null, 2));
+}
+
 // ── Chute de caption imposée (caption v2, 12/07) ──
 // Le tirage par code d'une forme de chute (question / affirmation / invitation
 // impérative / confidence / sobre) n'est PAS respecté de façon fiable par le
