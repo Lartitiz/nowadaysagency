@@ -389,12 +389,15 @@ for (const verdict of ["acceptable", "needs_repair"] as const) {
     assertEquals(writes, 2);
     assertEquals(reviews, 2);
     const echo = output?.doc.narrative_draft.recent_echo;
+    assert(echo, "recent_echo manquant");
     assertEquals(echo.before, 1);
     assertEquals(echo.accepted, verdict === "acceptable");
     assertEquals(echo.after, verdict === "acceptable" ? 0 : 1);
     assertEquals(echo.reason, verdict === "acceptable" ? "accepted" : "fil-degraded");
+    const slide2 = output?.doc.slides[1];
+    assert(slide2 && "overlay_text" in slide2);
     assertEquals(
-      output?.doc.slides[1].overlay_text,
+      slide2.overlay_text,
       (verdict === "acceptable" ? rewritten : original).paragraphs[0],
     );
   });
