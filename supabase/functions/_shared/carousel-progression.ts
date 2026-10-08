@@ -202,6 +202,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
   // Select evidence by stable IDs; copying quotations was invalidating whole reviews.
   // The program attaches the exact source text, never a model-reconstructed quote.
   const fields = carouselEditorialFields(doc);
+  const rawPhotoSlideIds = new Set<string>(doc.slides.flatMap((s: any, i: number) => s?.no_overlay || doc.no_overlay ? [`slides.${i}`] : []));
   const slideFieldIds = fields.filter((f) => f.id.startsWith("slides.")).map((f) => f.id);
   const requestSourceIds = opts.sources.filter((s) => s.provenance === "user").map((s) => s.id);
   props.trajectory.properties.field_ids.items = { type: "string", ...(slideFieldIds.length ? { enum: slideFieldIds } : {}) };
@@ -269,6 +270,27 @@ export async function reviewCarouselProgression(doc: any, opts: {
     const parseAndValidate = () => {
       try { report = JSON.parse(raw); }
       catch { report = null; return "invalid-json"; }
+      // « Texte sur photo brute » ne vaut que pour une slide marquée no_text.
+      // Vu en ligne le 08/10/2026 : en « Tes photos en fond », le juge prenait
+      // le texte voulu sur chaque photo pour ce défaut et l'affichait à
+      // l'utilisatrice. Le reproche est retiré des slides qui portent du texte.
+      if (Array.isArray(report?.defects)) {
+        const before = report.defects.length;
+        report.defects = report.defects.flatMap((defect: any) => {
+          if (defect?.type !== "raw_photo_text" || !Array.isArray(defect.slide_ids)) return [defect];
+          const slideIds = defect.slide_ids.filter((id: string) => rawPhotoSlideIds.has(id));
+          return slideIds.length ? [{ ...defect, slide_ids: slideIds }] : [];
+        });
+        const dropped = before - report.defects.length;
+        if (dropped) {
+          report.dropped_raw_photo_defects = dropped;
+          if (report.verdict === "needs_repair" && !report.defects.length &&
+            report.trajectory?.kind !== "descriptive_catalogue" &&
+            !(Array.isArray(report.boundaries) && report.boundaries.some((b: any) => b?.kind === "rupture"))) {
+            report = { ...report, verdict: "acceptable", model_verdict: "needs_repair" };
+          }
+        }
+      }
       if (Array.isArray(report?.boundaries)) {
         report.boundaries = report.boundaries.map((boundary: any) => {
           if (boundary?.boundary_id === undefined) return boundary;

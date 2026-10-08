@@ -417,3 +417,47 @@ Deno.test("une liste demandée reste légitime ; le plan IA ne peut pas en inven
   report.trajectory.kind = "visual_only";
   assertEquals(validateProgressionReport(report, doc, sources), "trajectory-visual-text");
 });
+
+Deno.test("texte voulu sur photo : le reproche « photo brute » est retiré, une vraie photo brute le garde", async () => {
+  // Vu en ligne le 08/10/2026 (« Tes photos en fond ») : le juge citait « les
+  // photos brutes gardent zéro texte » sur des slides photo PRÉVUES avec texte.
+  const overlay = { slides: [
+    { slide_type: "photo_full", photo_index: 1, overlay_text: "Un signe donne un repère." },
+    { slide_type: "photo_full", photo_index: 2, overlay_text: "La pratique donne son sens au repère." },
+  ] };
+  const report = (): any => ({ ...valid(),
+    trajectory: { ...valid().trajectory, field_ids: ["slides.0.overlay_text", "slides.1.overlay_text"] },
+    boundaries: [{ ...valid().boundaries[0], from_field_ids: ["slides.0.overlay_text"], to_field_ids: ["slides.1.overlay_text"] }],
+    verdict: "needs_repair",
+    defects: [{ slide_ids: ["slides.0", "slides.1"], severity: "major", type: "raw_photo_text",
+      field_ids: ["slides.0.overlay_text"], reason: "Le contrat exige que les photos brutes gardent zéro texte.", repair: "Retirer le texte." }],
+  });
+  const out = await reviewCarouselProgression(overlay, { sources, call: async () => JSON.stringify(report()) });
+  assertEquals(out.execution_status, "completed");
+  assertEquals(out.verdict, "acceptable");
+  assertEquals(out.report?.model_verdict, "needs_repair");
+  assertEquals(out.report?.dropped_raw_photo_defects, 1);
+  assertEquals(out.issues, []);
+  assertEquals(progressionWarnings(out), []);
+
+  // Une autre faute du juge reste, elle : seul le faux reproche part.
+  const mixed = report();
+  mixed.defects.push({ slide_ids: ["slides.1"], severity: "major", type: "unsupported",
+    field_ids: ["slides.1.overlay_text"], reason: "Affirmation à sourcer.", repair: "Reprendre le brief." });
+  const kept = await reviewCarouselProgression(overlay, { sources, call: async () => JSON.stringify(mixed) });
+  assertEquals(kept.verdict, "needs_repair");
+  assertEquals(kept.issues.length, 1);
+  assert(kept.issues[0].startsWith("slide 2 : Affirmation à sourcer."));
+
+  // « Photos brutes » : la slide no_overlay qui porte du texte reste un défaut,
+  // et seule elle est citée.
+  const raw = { slides: [
+    { slide_type: "photo_full", photo_index: 1, overlay_text: "Un signe donne un repère.", no_overlay: true },
+    { slide_type: "photo_full", photo_index: 2, overlay_text: "La pratique donne son sens au repère." },
+  ] };
+  const rawOut = await reviewCarouselProgression(raw, { sources, call: async () => JSON.stringify(report()) });
+  assertEquals(rawOut.verdict, "needs_repair");
+  assertEquals(rawOut.report?.defects[0].slide_ids, ["slides.0"]);
+  assertEquals(rawOut.issues.length, 1);
+  assert(rawOut.issues[0].startsWith("slide 1 :"));
+});
