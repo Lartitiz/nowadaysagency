@@ -1,3 +1,5 @@
+import { progressionMaterial } from "../../supabase/functions/_shared/carousel-editorial-snapshot";
+
 // Carrousel « Photos brutes » : 1 photo = 1 slide photo pleine, AUCUN texte
 // sur la photo (seule la légende est écrite). Liste blanche (pas de spread) :
 // les champs des gabarits texte-sur-photo (kicker, points, big_number,
@@ -31,5 +33,28 @@ export function purePhotoRawOrNull(raw: any, photoCount: number): any | null {
     raw.slides.every((s: any, i: number) =>
       Object.keys(s).length === Object.keys(cleaned[i]).length &&
       Object.entries(cleaned[i]).every(([k, v]) => s[k] === v));
-  return already ? null : { ...raw, slides: cleaned, no_overlay: true, carousel_type: "photo" };
+  return already ? null : withoutTextReceipts({ ...raw, slides: cleaned, no_overlay: true, carousel_type: "photo" }, raw);
+}
+
+const FIL_TEXT_WARNINGS = [
+  "Le contrôle final du fil n’a pas abouti. Relis l’enchaînement des slides avant de publier.",
+  "Le texte a changé depuis sa relecture. Vérifie le fil avant de publier.",
+  "Le texte ou les photos ont changé depuis leur vérification. Vérifie leurs associations avant de publier.",
+];
+
+/**
+ * Le juge du fil a relu un texte que le nettoyage vient d'effacer : ses
+ * constats (et « le texte a changé ») parleraient d'un fil que l'utilisatrice
+ * ne verra jamais (visite du 08/10). Son reçu passe « sans objet » et
+ * s'empreint sur les slides nettoyées ; le reçu photo garde ses constats mais
+ * s'empreint aussi. Les autres avertissements (légende, photos) restent.
+ */
+function withoutTextReceipts(doc: any, before: any): any {
+  const fil = before.progression_review;
+  const drop = new Set([...FIL_TEXT_WARNINGS, ...(fil?.issues || [])]);
+  const out: any = { ...doc, structure_warnings: (before.structure_warnings || []).filter((w: string) => !drop.has(w)) };
+  const material = progressionMaterial(out);
+  if (fil) out.progression_review = { ...fil, execution_status: "not_applicable", verdict: null, reason: "pure-photo-no-text", reviewed_material: material };
+  if (before.photo_review) out.photo_review = { ...before.photo_review, reviewed_material: material };
+  return out;
 }
