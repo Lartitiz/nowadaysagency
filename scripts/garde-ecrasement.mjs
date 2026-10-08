@@ -264,6 +264,9 @@ function main() {
   }
   if (reportPath && alerts.length) {
     writeFileSync(reportPath, alerts.map((a) => formatReport(a.commit, a.findings)).join("\n\n---\n\n"));
+    // Titre de l'alerte : le commit FAUTIF, pas la tête de main au moment du lancement.
+    const first = alerts[0].commit;
+    writeFileSync(`${reportPath}.title`, `${first.sha.slice(0, 8)} « ${first.subject.slice(0, 60)} »`);
   }
 }
 

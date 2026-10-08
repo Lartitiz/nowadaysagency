@@ -1,0 +1,74 @@
+name: Alerte tests en échec sur main
+
+# Les tests (workflow « CI ») tournent à chaque arrivée de code sur main, mais
+# personne n'était prévenu quand ils échouaient (3 échecs le 03/10/2026, passés
+# inaperçus). Ici : CI rouge sur main → issue « ci-rouge » assignée à la
+# propriétaire (une seule à la fois : les échecs suivants s'y ajoutent en
+# commentaire) ; CI de nouveau verte sur main → l'issue se ferme toute seule.
+# Les étapes « continue-on-error » (lint informatif) ne déclenchent rien.
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  # Rejouer l'alerte sur un lancement donné (vérifier qu'elle arrive bien).
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Identifiant du lancement CI à examiner"
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+concurrency:
+  group: alerte-ci-rouge
+  cancel-in-progress: false
+
+jobs:
+  alerte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ouvrir, compléter ou fermer l'alerte
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          run=$(gh run view "$RUN_ID" --json conclusion,headSha,displayTitle,url,headBranch,jobs)
+          conclusion=$(jq -r .conclusion <<<"$run")
+          branch=$(jq -r .headBranch <<<"$run")
+          sha=$(jq -r '.headSha[0:8]' <<<"$run")
+          title=$(jq -r .displayTitle <<<"$run")
+          url=$(jq -r .url <<<"$run")
+          echo "Lancement $RUN_ID : $conclusion sur $branch ($sha)"
+          [ "$branch" = "main" ] || { echo "Pas main : rien à faire."; exit 0; }
+          gh label create ci-rouge --color D93F0B --description "Les tests échouent sur main" 2>/dev/null || true
+          open=$(gh issue list --label ci-rouge --state open --json number -q '.[0].number // empty')
+          if [ "$conclusion" = "failure" ]; then
+            failed=$(jq -r '.jobs[] | select(.conclusion=="failure") | "- **\(.name)** : " + ([.steps[] | select(.conclusion=="failure") | .name] | join(", "))' <<<"$run")
+            body=$(printf '%s\n' \
+              "Les tests ont **échoué** sur la version principale après la modification \`$sha\` — « $title »." \
+              "" \
+              "Étape(s) en échec :" \
+              "$failed" \
+              "" \
+              "Détail : $url" \
+              "" \
+              "**Que faire** : ouvrir le détail, corriger la cause (souvent une modification faite dans Lovable, ou une correction qui en a cassé une autre), puis vérifier que le lancement suivant redevient vert. Cette alerte se fermera toute seule.")
+            if [ -n "$open" ]; then
+              gh issue comment "$open" --body "Toujours en échec : $body"
+            else
+              gh issue create --title "🔴 Tests en échec sur main ($sha « ${title:0:60} »)" --body "$body" --label ci-rouge --assignee "$OWNER"
+            fi
+          elif [ "$conclusion" = "success" ] && [ -n "$open" ]; then
+            gh issue close "$open" --comment "✅ Les tests sont de nouveau verts sur main (\`$sha\` — « $title »). Alerte fermée automatiquement."
+          else
+            echo "Rien à faire ($conclusion)."
+          fi

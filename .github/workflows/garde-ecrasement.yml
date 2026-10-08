@@ -46,7 +46,7 @@ jobs:
         run: |
           gh label create garde-ecrasement --color B60205 --description "Du code d'une correction récente a disparu de main" 2>/dev/null || true
           gh issue create \
-            --title "⚠️ Garde anti-écrasement : du code de corrections récentes a disparu (${GITHUB_SHA::8})" \
+            --title "⚠️ Garde anti-écrasement : du code de corrections récentes a disparu ($(cat garde-report.md.title))" \
             --body-file garde-report.md \
             --label garde-ecrasement \
             --assignee "${{ github.repository_owner }}"
