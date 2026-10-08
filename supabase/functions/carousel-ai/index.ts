@@ -1355,6 +1355,8 @@ async function finalizeCarousel(
           researchText: ctx.researchText,
           researchNumbersCap: ctx.researchNumbersCap,
           testimonySource: ctx.testimonySource,
+          brandGuardText: ctx.brandGuardText,
+          echo: { previousHooks: ctx.previousHooks, subject: ctx.body.subject },
           correction: { enabled: false },
         });
         const finalCandidate: any = tryParseAiJson(measured.content);
@@ -1652,7 +1654,11 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
   }
   if (!output) return null;
   const measured = await runRedacGate(JSON.stringify(output.doc), {
-    isLinkedIn:ctx.isLinkedIn,inputText:ctx.gateInputText,researchText:ctx.researchText,researchNumbersCap:ctx.researchNumbersCap,testimonySource:ctx.testimonySource,correction:{enabled:false},
+    isLinkedIn:ctx.isLinkedIn,inputText:ctx.gateInputText,researchText:ctx.researchText,researchNumbersCap:ctx.researchNumbersCap,testimonySource:ctx.testimonySource,
+    // Mesure seule (correction coupée, aucun appel IA) : sans la fiche ni les
+    // accroches précédentes, recopie de fiche et échos d'accroche comptaient 0.
+    brandGuardText:ctx.brandGuardText,echo:{previousHooks:ctx.previousHooks,subject:ctx.body.subject},
+    correction:{enabled:false},
   });
   const written = await finalizeCarousel(measured.content,ctx,{usage,repaired:output.repaired,regenerate:output.regenerate,reserveMs:PHOTO_MATCH_RESERVE_MS});
   const matched = await _deps.matchPhotos(JSON.parse(written), {body:ctx.body,startedAt:ctx.startedAt,usage,emitStatus:ctx.emitStatus,call:_deps.callAnthropic});
