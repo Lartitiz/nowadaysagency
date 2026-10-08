@@ -9,6 +9,12 @@ name: Garde anti-écrasement
 on:
   push:
     branches: [main]
+  # Rejouer une plage à la main (ex. vérifier que l'alerte arrive bien).
+  workflow_dispatch:
+    inputs:
+      range:
+        description: "Plage de commits à vérifier (<avant>..<après>)"
+        required: true
 
 permissions:
   contents: read
@@ -30,7 +36,9 @@ jobs:
         with:
           node-version: 20
       - name: Chercher du code de corrections récentes effacé
-        run: node scripts/garde-ecrasement.mjs --range "${{ github.event.before }}..${{ github.sha }}" --report garde-report.md
+        env:
+          RANGE: ${{ inputs.range || format('{0}..{1}', github.event.before, github.sha) }}
+        run: node scripts/garde-ecrasement.mjs --range "$RANGE" --report garde-report.md
       - name: Ouvrir une alerte
         if: hashFiles('garde-report.md') != ''
         env:
