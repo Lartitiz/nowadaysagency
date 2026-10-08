@@ -6,6 +6,8 @@ export interface DraftSlide {
   n: number;
   title: string;
   text: string;
+  /** Photo déjà décidée pour cette slide (1 = première photo envoyée). */
+  photo?: number;
 }
 
 const STEPS = ["Écriture", "Relecture", "Enchaînement des slides"] as const;
@@ -22,7 +24,12 @@ const STAGE_STEP: Record<string, number> = { writing: 0, correcting: 1, checking
  * slide. D'ici là, `outline` (titres prévus par un appel court) occupe
  * l'écran, signalé « peut changer » ; les vraies slides le remplacent.
  */
-export function CarouselDraftPreview({ slides, outline, stage }: { slides: DraftSlide[]; outline?: string[]; stage?: string | null }) {
+/**
+ * Carrousels photo et mixte (08/10/2026) : quand la photo d'une slide est déjà
+ * décidée (plan validé), elle apparaît en fond de la carte. Sinon texte seul :
+ * le choix des photos se fait après l'écriture.
+ */
+export function CarouselDraftPreview({ slides, outline, stage, photos }: { slides: DraftSlide[]; outline?: string[]; stage?: string | null; photos?: { preview?: string }[] }) {
   // L'étape ne recule jamais : une correction APRÈS la vérification du fil
   // est une reprise de l'enchaînement, pas un retour à la relecture.
   const reached = useRef(0);
@@ -72,18 +79,31 @@ export function CarouselDraftPreview({ slides, outline, stage }: { slides: Draft
         </ol>
       ) : (
       <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2" aria-label="Slides en cours d'écriture">
-        {slides.map((s, i) => (
-          <li
-            key={s.n}
-            className={`aspect-[4/5] rounded-lg p-2.5 overflow-hidden animate-fade-in ${i === 0
-              ? "bg-primary/85 text-primary-foreground flex flex-col justify-end"
-              : "border border-dashed border-border bg-background/60 text-muted-foreground"}`}
-          >
-            {i > 0 && <span className="block text-2xs text-muted-foreground/70 mb-1">{s.n}</span>}
-            {s.title && <p className={`font-medium leading-snug line-clamp-4 ${i === 0 ? "text-sm" : "text-xs text-foreground/70"}`}>{s.title}</p>}
-            {s.text && i > 0 && <p className="mt-1 text-2xs leading-snug line-clamp-5">{s.text}</p>}
-          </li>
-        ))}
+        {slides.map((s, i) => {
+          const photo = s.photo ? photos?.[s.photo - 1]?.preview : undefined;
+          return photo ? (
+            <li key={s.n} className="relative aspect-[4/5] rounded-lg overflow-hidden animate-fade-in bg-muted" data-testid="draft-slide-photo">
+              <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover opacity-60" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent" aria-hidden="true" />
+              <div className="relative h-full p-2.5 flex flex-col justify-end text-white">
+                {i > 0 && <span className="block text-2xs text-white/70 mb-1">{s.n}</span>}
+                {s.title && <p className={`font-medium leading-snug line-clamp-4 ${i === 0 ? "text-sm" : "text-xs"}`}>{s.title}</p>}
+                {s.text && i > 0 && <p className="mt-1 text-2xs leading-snug line-clamp-5 text-white/85">{s.text}</p>}
+              </div>
+            </li>
+          ) : (
+            <li
+              key={s.n}
+              className={`aspect-[4/5] rounded-lg p-2.5 overflow-hidden animate-fade-in ${i === 0
+                ? "bg-primary/85 text-primary-foreground flex flex-col justify-end"
+                : "border border-dashed border-border bg-background/60 text-muted-foreground"}`}
+            >
+              {i > 0 && <span className="block text-2xs text-muted-foreground/70 mb-1">{s.n}</span>}
+              {s.title && <p className={`font-medium leading-snug line-clamp-4 ${i === 0 ? "text-sm" : "text-xs text-foreground/70"}`}>{s.title}</p>}
+              {s.text && i > 0 && <p className="mt-1 text-2xs leading-snug line-clamp-5">{s.text}</p>}
+            </li>
+          );
+        })}
         {current === 0 && (
           <li className="aspect-[4/5] rounded-lg border border-dashed border-border bg-secondary/40 animate-pulse flex items-center justify-center text-xs text-muted-foreground" aria-hidden="true">
             {slides.length + 1}

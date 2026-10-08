@@ -532,7 +532,7 @@ export default function CreerStepResult({
               </span>
             </div>
           )}
-          <CarouselDraftPreview slides={draftSlides ?? []} outline={outlineTitles} stage={generationStage} />
+          <CarouselDraftPreview slides={draftSlides ?? []} outline={outlineTitles} stage={generationStage} photos={photos} />
           {qualityMax && (
             <p className="text-xs text-center text-primary/80 font-medium">
               ✨ Mode qualité Max activé — c'est plus long, mais plus soigné.

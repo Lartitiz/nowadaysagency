@@ -218,9 +218,61 @@ Deno.test("rédaction en flux : texte visible seulement, mêmes contrôles et m�
     if (oldKey === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", oldKey);
   }
 });
-Deno.test("rédaction en flux : jamais avec un outil ni pour Astra", () => {
-  assert(!("stream" in writerRequest({ ...base, model: "claude-opus-5-5", tool, onText: () => {} })));
+Deno.test("rédaction en flux : avec ou sans outil, jamais pour Astra", () => {
+  assertEquals(writerRequest({ ...base, model: "claude-opus-5-5", tool, onText: () => {} }).stream, true);
   assert(!("stream" in writerRequest({ ...base, model: "gpt-6-astra", onText: () => {} })));
+  assert(!("stream" in writerRequest({ ...base, model: "gpt-6-astra", tool, onText: () => {} })));
   assertEquals(writerRequest({ ...base, model: "claude-opus-5-5", onText: () => {} }).stream, true);
   assert(!("stream" in writerRequest({ ...base, model: "claude-opus-5-5" })));
+});
+
+// 08/10/2026 : carrousels photo et mixte, rédigés par un outil → le JSON de
+// l'outil arrive en morceaux ; même résultat et mêmes contrôles qu'une réponse classique.
+const toolStream = (json: string, name = tool.name, stop = "tool_use") => [
+  { type: "message_start", message: { model: "claude-opus-5-5", usage: { input_tokens: 10, output_tokens: 1 } } },
+  { type: "content_block_start", index: 0, content_block: { type: "thinking" } },
+  { type: "content_block_delta", index: 0, delta: { type: "thinking_delta", thinking: "secret" } },
+  { type: "content_block_start", index: 1, content_block: { type: "tool_use", id: "t1", name, input: {} } },
+  ...json.match(/.{1,6}/gs)!.map((part) => ({ type: "content_block_delta", index: 1, delta: { type: "input_json_delta", partial_json: part } })),
+  { type: "content_block_stop", index: 1 },
+  { type: "message_delta", delta: { stop_reason: stop }, usage: { output_tokens: 30 } },
+  { type: "message_stop" },
+];
+Deno.test("rédaction en flux avec outil : JSON de l'outil montré au fil de l'eau, réponse finale identique", async () => {
+  const oldFetch = globalThis.fetch, oldKey = Deno.env.get("ANTHROPIC_API_KEY");
+  Deno.env.set("ANTHROPIC_API_KEY", "test");
+  const json = JSON.stringify({ slides: [{ title: "A — b" }, { title: "B" }] });
+  const seen: string[] = []; const bodies: any[] = [];
+  try {
+    globalThis.fetch = (async (_url: any, init: any) => { bodies.push(JSON.parse(init.body)); return new Response(sse(toolStream(json)), { status: 200 }); }) as typeof fetch;
+    const sink: any = {};
+    const text = await callCarouselWriter({ ...base, model: "claude-opus-5-5", tool, onText: (t) => seen.push(t) }, sink);
+    globalThis.fetch = (async () => new Response(JSON.stringify({ model: "claude-opus-5-5", stop_reason: "tool_use", usage: { input_tokens: 10, output_tokens: 30 },
+      content: [{ type: "tool_use", id: "t1", name: tool.name, input: JSON.parse(json) }] }), { status: 200 })) as typeof fetch;
+    const classic = await callCarouselWriter({ ...base, model: "claude-opus-5-5", tool }, {});
+    assertEquals(bodies[0].stream, true);
+    assertEquals(text, classic); // mêmes nettoyages (tirets) qu'en réponse classique
+    assertEquals(seen.at(-1), json);
+    assert(seen.length > 3 && seen.every((t) => !t.includes("secret")));
+    assertEquals(sink.total_tokens, 40);
+    // Outil absent (réponse en texte) : UNE relance, sans flux, comme avant.
+    const calls: any[] = [];
+    globalThis.fetch = (async (_url: any, init: any) => {
+      calls.push(JSON.parse(init.body));
+      return calls.length === 1
+        ? new Response(sse([toolStream("{}")[0], { type: "content_block_start", index: 0, content_block: { type: "text" } }, { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "Voici" } }, { type: "message_delta", delta: { stop_reason: "end_turn" }, usage: { output_tokens: 3 } }]), { status: 200 })
+        : new Response(JSON.stringify({ model: "claude-opus-5-5", stop_reason: "tool_use", usage: { input_tokens: 1, output_tokens: 1 }, content: [{ type: "tool_use", name: tool.name, input: { slides: [] } }] }), { status: 200 });
+    }) as typeof fetch;
+    assertEquals(await callCarouselWriter({ ...base, model: "claude-opus-5-5", tool, onText: () => {} }), JSON.stringify({ slides: [] }));
+    assertEquals(calls.length, 2);
+    assert(!("stream" in calls[1]));
+    // JSON d'outil illisible ou coupé : refus net, jamais un carrousel partiel.
+    globalThis.fetch = (async () => new Response(sse(toolStream('{"slides":[{"title":"A"}')), { status: 200 })) as typeof fetch;
+    await assertRejects(() => callCarouselWriter({ ...base, model: "claude-opus-5-5", tool, onText: () => {} }), AnthropicError, "invalide");
+    globalThis.fetch = (async () => new Response(sse(toolStream(json, tool.name, "max_tokens")), { status: 200 })) as typeof fetch;
+    await assertRejects(() => callCarouselWriter({ ...base, model: "claude-opus-5-5", tool, onText: () => {} }), AnthropicError, "pas complète");
+  } finally {
+    globalThis.fetch = oldFetch;
+    if (oldKey === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", oldKey);
+  }
 });
