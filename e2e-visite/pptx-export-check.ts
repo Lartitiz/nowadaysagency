@@ -33,6 +33,8 @@ export interface PptxExportCheckOpts {
   shotName?: string;
   /** false = ne PAS échouer sur défaut (juste historiser). Défaut : true (rouge sur défaut). */
   assert?: boolean;
+  /** false = ne pas écrire dans l'historique hebdo (contenus figés : même carrousel chaque jour). */
+  history?: boolean;
 }
 
 /**
@@ -107,7 +109,7 @@ export async function exportAndCheckPptx(
 
   // Historique hebdo (1 ligne/export, append-only). Écrit AVANT l'assertion pour
   // tracer AUSSI les exports défaillants. Non bloquant : jamais un échec de test.
-  try {
+  if (opts.history !== false) try {
     fs.mkdirSync(HISTORY_DIR, { recursive: true });
     fs.appendFileSync(
       path.join(HISTORY_DIR, "pptx-history.jsonl"),
