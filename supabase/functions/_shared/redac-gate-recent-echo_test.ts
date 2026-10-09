@@ -32,6 +32,7 @@ Deno.test("gate carrousel : quality_check expose recent_echoes (0 sans contenus 
   for (const [echo, n] of [[{ recentTexts }, 1], [undefined, 0]] as const) {
     const res = await runRedacGate(JSON.stringify(doc), { isLinkedIn: false, echo, correction: { enabled: false } });
     assertEquals(JSON.parse(res.content).quality_check.recent_echoes, n);
+    assert(res.score != null);
     assert(res.score <= 100);
   }
 });
