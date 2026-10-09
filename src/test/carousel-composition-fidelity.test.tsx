@@ -14,6 +14,12 @@ describe("fidélité après composition", () => {
       expect(result[0].html).toContain('Les bols à cerises');
     }
   });
+  it("garde aussi la photo posée en ambiance (« Tes photos en fond », 09/10)", () => {
+    const source = [{slide_number:1,slide_type:"photo_full",photo_index:2,photo_match:{status:"ambient_fallback"},overlay_text:"Mon métier"}];
+    const result = applyReviewedPhotoAssignments(source,[{slide_number:1,html:'<img data-pptx-photo="1" src="data:image/jpeg;base64,un"><p>Mon métier</p>'}],[{base64:"un"},{base64:"deux"}]);
+    expect(result[0].html).toContain('data:image/jpeg;base64,deux');
+    expect(result[0].html).not.toContain('base64,un"');
+  });
   it("refuses an unrecognizable photo slot and preserves manual/old visuals", () => {
     const html = [{slide_number:1,html:'<div>Les bols à cerises</div>'}];
     const slide = {slide_number:1,photo_index:1,photo_match:{status:"matched"}};

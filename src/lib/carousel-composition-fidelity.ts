@@ -10,7 +10,8 @@ export function applyReviewedPhotoAssignments(
   const known = new Set(photos.filter(p => p?.base64).map(dataUrl));
   return rendered.map(visual => {
     const slide = source.find((s, i) => (s.slide_number || i + 1) === visual.slide_number);
-    if (slide?.photo_match?.status !== "matched" || slide.editor_locked) return visual;
+    // Photo vérifiée OU posée en ambiance (« Tes photos en fond ») : le visuel garde celle affichée sur la carte.
+    if (!["matched", "ambient_fallback"].includes(slide?.photo_match?.status) || slide.editor_locked) return visual;
     const photo = photos[slide.photo_index - 1];
     if (!photo?.base64) throw new Error(`Slide ${visual.slide_number} : la photo choisie n’est plus disponible.`);
     const doc = new DOMParser().parseFromString(visual.html, "text/html");

@@ -318,9 +318,53 @@ Deno.test("mixte : vérification indisponible → aucune conversion, places gard
   assertEquals(result.photo_review.converted_to_text, []);
 });
 
-Deno.test("carrousel photo : une place sans photo reste une slide photo à compléter", async () => {
+Deno.test("carrousel photo : une place sans photo reste une slide photo, sa photo posée en ambiance (09/10)", async () => {
   const result = await matchFinalPhotos(mixDoc(), { ...options(), body: { ...options().body, carousel_type: "photo" }, call: mixCall() });
   assertEquals(result.slides[1].slide_type, "photo_integrated");
   assertEquals(result.slides[2].slide_type, "photo_full");
-  assertEquals(result.photo_review.verdict, "needs_images");
+  assert(result.slides.filter((s: any) => s.slide_type !== "text_only").every((s: any) => Number.isInteger(s.photo_index)));
+  assertEquals(result.photo_review.verdict, "acceptable");
+});
+
+// Choix de Laetitia (09/10/2026) : en « Tes photos en fond », une slide sans photo
+// vérifiée reçoit une photo de l'utilisatrice en ambiance au lieu de « Image à choisir ».
+Deno.test("Tes photos en fond : aucune photo vérifiée → ses photos posées en ambiance, alternées, sans alerte", async () => {
+  const doc: any = { carousel_type: "photo", slides: Array.from({ length: 6 }, (_, i) =>
+    ({ slide_type: "photo_full", overlay_text: `Passage ${i + 1} sur le savon.` })), caption: { body: "Légende." } };
+  const opts: any = { ...options(), body: { ...options().body, carousel_type: "photo" } };
+  const result = await matchFinalPhotos(doc, { ...opts, call: async () => JSON.stringify({ assignments:
+    [1, 2, 3, 4, 5, 6].map(slide => ({ slide, photo: null, relation: "missing", reason: "Aucune photo ne montre de savon.", directive: "Un savon artisanal." })) }) });
+  assertEquals(result.slides.map((s: any) => s.photo_index), [1, 2, 1, 2, 1, 2]);
+  assertEquals(result.slides.map((s: any) => s.photo_match.status), Array(6).fill("ambient_fallback"));
+  assertEquals(result.slides[0].photo_directive, "Un savon artisanal.");
+  assertEquals(result.photo_review.ambient_fallback, [1, 2, 3, 4, 5, 6]);
+  assertEquals(result.photo_review.verdict, "acceptable");
+  assertEquals(result.photo_review.issues, []);
+  assert(!result.structure_warnings.some((w: string) => w.includes("image à choisir")));
+});
+
+Deno.test("Tes photos en fond : la photo vérifiée reste, l'ambiance évite la photo refusée et la voisine", async () => {
+  const doc: any = { carousel_type: "photo", ...fixture() };
+  doc.slides = [doc.slides[0], doc.slides[1], { slide_type: "photo_full", overlay_text: "Un troisième passage." }];
+  const opts: any = { ...options(), body: { ...options().body, photos: [...options().body.photos, { base64: "dHJvaXM=" }], carousel_type: "photo" } };
+  let calls = 0;
+  const result = await matchFinalPhotos(doc, { ...opts, call: async () => JSON.stringify({ assignments: calls++
+    ? [{ slide: 1, photo: 2, accepted: true, reason: "Les cerises sont visibles." }, { slide: 2, photo: 1, accepted: false, reason: "Contradiction." }]
+    : [...proposals(), { slide: 3, photo: null, relation: "missing", reason: "Rien ne convient.", directive: "" }] }) });
+  // slide 1 : photo 2 vérifiée ; slide 2 : photo 1 refusée → la 3 (jamais utilisée) ;
+  // slide 3 : la 1 (moins utilisée, différente de la voisine 3).
+  assertEquals(result.slides.map((s: any) => s.photo_index), [2, 3, 1]);
+  assertEquals(result.slides.map((s: any) => s.photo_match.status), ["matched", "ambient_fallback", "ambient_fallback"]);
+  assertEquals(result.photo_review.verdict, "acceptable");
+});
+
+Deno.test("mixte et échec technique : pas d'ambiance imposée hors « Tes photos en fond »", async () => {
+  const fail = await matchFinalPhotos(fixture(), { ...options(), call: async () => { throw new Error("offline"); } });
+  assertEquals(fail.slides.map((s: any) => s.photo_index), [null, null, null]);
+  const mix: any = { ...fixture(), carousel_type: "mix" };
+  let calls = 0;
+  const out = await matchFinalPhotos(mix, { ...options(), call: async () => JSON.stringify({ assignments: calls++
+    ? accepted().map((a, i) => i ? a : { ...a, accepted: false, reason: "Ce sont des fleurs." }) : proposals() }) });
+  assertEquals(out.slides[0].slide_type, "text_only");
+  assertEquals(out.photo_review.ambient_fallback, []);
 });
