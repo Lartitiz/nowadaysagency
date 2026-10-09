@@ -47,6 +47,7 @@ Deno.test("séquence récap : consigne présente dans le brief stories seulement
   assert(brief.includes("SÉQUENCE RÉCAP (4 SUJETS"));
   assert(brief.includes("4. Raconter la fabrication et les gens, pas seulement l'objet"));
   assert(brief.includes("une ou deux stories par sujet"));
+  assert(brief.includes("Garde les noms tels qu'elle les écrit"));
   // 5 min : 5 stories au plus, une par sujet.
   const quick = storiesBrief({ subject: recap, time_available: "5min" });
   assert(quick.includes("une story par sujet"));
@@ -90,6 +91,8 @@ Deno.test("reel récap : consigne dans le brief reel et dans les hooks, seulemen
   const recap = `${RECAP_PREFIX}\n\n${VEILLE}`;
   const brief = reelBrief({ subject: recap });
   assert(brief.includes("REEL RÉCAP (4 SUJETS"));
-  assert(brief.includes("jusqu'à 90 secondes"));
+  assert(brief.includes("90 secondes au plus"));
+  assert(brief.includes("UNE seule section par sujet"));
+  assert(brief.includes("Garde les noms tels qu'elle les écrit"));
   assert(recapHooksLine(recap).includes("Chaque hook annonce la série"));
 });

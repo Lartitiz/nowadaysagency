@@ -132,6 +132,7 @@ L'utilisatrice veut une seule séquence qui couvre TOUS ses sujets, dans l'ordre
 - Story 1 : l'accroche annonce la série (ce que ces sujets ont en commun pour l'abonnée), pas seulement le premier sujet.
 - Puis ${perSubject} par sujet, numérotée${perSubject === "une story" ? "" : "s"} « 1. », « 2. »… au début du premier "text" de chaque sujet, avec SES mots et SES conclusions pour ce sujet. Aucun sujet omis, aucun sujet ajouté.
 - Le fil commun tient lieu d'angle dominant ; chaque sujet garde la position qu'elle lui donne.
+- Garde les noms tels qu'elle les écrit (personnes, marques, études, sources) : ne les retire pas et n'invente ni métier, ni titre, ni source à leur place.
 - Une seule story d'interaction, à la fin. ${maxStories} stories au plus en tout.`;
 }
 
@@ -144,9 +145,10 @@ export function recapReelBlock(subject: string | null | undefined): string | nul
 REEL RÉCAP (${subjects.length} SUJETS, PRIORITÉ SUR « UN REEL = UNE SEULE IDÉE » ET SUR L'ANCRAGE À UN SUJET) :
 L'utilisatrice veut un seul reel qui couvre TOUS ses sujets, dans l'ordre : ${subjectList(subjects)}.
 - Le hook annonce la série (ce que ces sujets ont en commun pour l'audience), pas seulement le premier sujet.
-- Puis une section par sujet, numérotée « 1. », « 2. »… dans le texte à l'écran, avec SES mots et SA conclusion pour ce sujet : l'essentiel de chaque sujet, sans le creuser comme un reel entier. Aucun sujet omis, aucun sujet ajouté.
+- Puis UNE seule section par sujet (jamais deux pour le même sujet), numérotée « 1. », « 2. »… dans le texte à l'écran, avec SES mots et SA conclusion pour ce sujet : l'essentiel en deux ou trois phrases, sans le creuser comme un reel entier. Aucun sujet omis, aucun sujet ajouté.
+- Garde les noms tels qu'elle les écrit (personnes, marques, études, sources) : ne les retire pas et n'invente ni métier, ni titre, ni source à leur place.
 - Les 3 couches (symptôme, mécanisme, conséquence) portent sur le fil commun, pas sur chaque sujet.
-- Durée : jusqu'à 90 secondes ; une seule question ou un seul appel à l'action, à la fin.`;
+- Durée : 90 secondes au plus, réparties à parts égales entre les sujets ; une seule question ou un seul appel à l'action, à la fin.`;
 }
 
 /** Ligne du prompt des hooks reel pour un reel récap (chaîne vide sinon). */

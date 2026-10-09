@@ -587,5 +587,7 @@ Deno.test("hooks reel : ligne REEL RÉCAP seulement pour un brief récap", () =>
   const veille = `1. ${block("Les Reels longs")}\n\n2. ${block("Les stats à 48 h")}`;
   const recap = buildHooksPrompt({ COMMON_PREFIX: "", excludeHooksRaw: [], context: `Récap de tous les sujets ci-dessous :\n\n${veille}` });
   assertStringIncludes(recap.systemPrompt, "REEL RÉCAP : le reel couvre 2 sujets");
+  assertStringIncludes(recap.systemPrompt, "8. REEL RÉCAP (prime sur les règles 1 à 6)");
+  assertStringIncludes(recap.userPrompt, "chaque hook annonce la série");
   assert(!buildHooksPrompt({ COMMON_PREFIX: "", excludeHooksRaw: [], context: veille }).systemPrompt.includes("REEL RÉCAP"));
 });
