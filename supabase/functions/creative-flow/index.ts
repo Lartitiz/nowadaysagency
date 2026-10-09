@@ -577,11 +577,12 @@ RÈGLES ABSOLUES :
    (face_cam_confession / voix_off_broll / hook_loop) et duree_cible = durée estimée
    cohérente avec l'objectif (visibilité → court ~20-30 s ; confiance/vente → ~40-60 s).${noFaceCam ? `
 7. L'UTILISATRICE NE VEUT PAS SE MONTRER : format_recommande ≠ face_cam_confession
-   pour les 3 hooks (voix off + b-roll ou hook loop uniquement).` : ""}${excludeBlock}`;
+   pour les 3 hooks (voix off + b-roll ou hook loop uniquement).` : ""}${recapLine ? `
+8. REEL RÉCAP (prime sur les règles 1 à 6) : chacun des 3 hooks ouvre la SÉRIE de sujets (ce qu'ils ont en commun, ou l'annonce de leur nombre), jamais un seul des sujets. Les types restent différents.` : ""}${excludeBlock}`;
   const userPrompt = `SUJET DU REEL : "${context || "?"}"
 Objectif : ${effectiveObjective || objective || "non précisé"}${answersBlock}
 
-Propose-moi 3 hooks de types différents pour ce reel.`;
+Propose-moi 3 hooks de types différents pour ce reel.${recapLine ? " C'est un reel récap : chaque hook annonce la série de sujets, pas un seul sujet." : ""}`;
   return { systemPrompt, userPrompt };
 }
 
