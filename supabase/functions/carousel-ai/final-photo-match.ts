@@ -187,8 +187,8 @@ export async function matchFinalPhotos(doc: any, options: {
   // sans photo vérifiée reçoit quand même une photo de l'utilisatrice, posée en
   // AMBIANCE, plutôt qu'« Image à choisir ». Vu en ligne le 08/10 : 0 photo
   // posée sur 6 slides, « Créer les visuels » bloqué. On prend la photo la
-  // moins utilisée, si possible ni refusée pour ce passage ni identique à la
-  // slide précédente. Le mixte garde sa conversion en slide texte.
+  // moins utilisée, si possible ni refusée pour ce passage ni identique à une
+  // slide voisine. Le mixte garde sa conversion en slide texte.
   const ambientFallback = !isMix && (options.body.carousel_type || doc.carousel_type) === "photo" && photos.length > 0;
   const ambient: number[] = [];
   const usage = new Map<number, number>(photos.map((p: any) => [p.id, 0]));
@@ -201,7 +201,9 @@ export async function matchFinalPhotos(doc: any, options: {
     const a = assignments.find(x => x.slide === slide);
     const rejected = a?.photo != null ? a.photo : null;
     const next = doc.slides[slide] && isPhoto(doc.slides[slide]) ? isAccepted(slide + 1) : null;
-    const score = (id: number) => [id === rejected ? 1 : 0, usage.get(id) || 0, id === previousPhoto || id === next ? 1 : 0, id];
+    // Voisine d'abord, usage ensuite : vu en ligne le 09/10, l'ordre inverse
+    // posait la même photo sur 3 slides d'affilée (les autres déjà très utilisées).
+    const score = (id: number) => [id === rejected ? 1 : 0, id === previousPhoto || id === next ? 1 : 0, usage.get(id) || 0, id];
     const id = [...usage.keys()].sort((x, y) => {
       const [a1, b1] = [score(x), score(y)];
       for (let k = 0; k < a1.length; k++) if (a1[k] !== b1[k]) return a1[k] - b1[k];

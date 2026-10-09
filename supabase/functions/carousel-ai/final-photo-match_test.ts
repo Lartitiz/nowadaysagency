@@ -368,3 +368,18 @@ Deno.test("mixte et échec technique : pas d'ambiance imposée hors « Tes photo
   assertEquals(out.slides[0].slide_type, "text_only");
   assertEquals(out.photo_review.ambient_fallback, []);
 });
+
+Deno.test("Tes photos en fond : pas trois fois la même photo d'affilée quand l'autre est déjà très utilisée", async () => {
+  // Vu en ligne le 09/10 : portrait vérifié sur 1, 2, 6, 7 → l'ambiance posait le visuel 2 sur 3, 4 et 5.
+  const doc: any = { carousel_type: "photo", slides: Array.from({ length: 7 }, (_, i) =>
+    ({ slide_type: "photo_full", overlay_text: `Passage ${i + 1}.` })), caption: { body: "Légende." } };
+  const opts: any = { ...options(), body: { ...options().body, carousel_type: "photo" } };
+  const ok = [1, 2, 6, 7];
+  let calls = 0;
+  const result = await matchFinalPhotos(doc, { ...opts, call: async () => JSON.stringify({ assignments: calls++
+    ? ok.map(slide => ({ slide, photo: 1, accepted: true, reason: "Portrait de la créatrice." }))
+    : [1, 2, 3, 4, 5, 6, 7].map(slide => ok.includes(slide)
+      ? { slide, photo: 1, relation: "ambient", reason: "Présence.", directive: "Portrait." }
+      : { slide, photo: null, relation: "missing", reason: "Rien.", directive: "" }) }) });
+  assertEquals(result.slides.map((s: any) => s.photo_index), [1, 1, 2, 1, 2, 1, 1]);
+});

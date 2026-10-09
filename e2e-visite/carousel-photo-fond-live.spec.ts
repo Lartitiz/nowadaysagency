@@ -176,17 +176,17 @@ test("carrousel « Tes photos en fond » : plan, brouillons sur photo, texte sur
   // Alerte « photo brute » sur des photos PRÉVUES avec texte (corrigé le 08/10).
   await expect(page.getByText(/photos? brutes? gard/i)).toHaveCount(0);
 
-  // Toutes les photos posées → on fabrique les visuels et on REGARDE le texte sur photo.
+  // Toutes les photos posées → les visuels se fabriquent (seuls depuis le 09/10,
+  // sinon via le bouton) : on attend l'éditeur et on REGARDE le texte sur photo.
   const creer = page.getByRole("button", { name: /Créer les visuels/i }).first();
-  if (aChoisir === 0 && (await creer.isEnabled().catch(() => false))) {
-    await creer.click();
-    await page
-      .waitForFunction(() => document.querySelectorAll("iframe, img[src^='data:'], img[src*='supabase']").length >= 2, { timeout: 180000 })
-      .catch(() => console.log("⚠️ moins de 2 slides visuelles détectées"));
-    await page.waitForTimeout(3000);
-    await page.screenshot({ path: path.join(SHOTS, "fond-3-visuels.png"), timeout: 30000 });
-    console.log("🖼️ visuels créés : capture fond-3-visuels.png");
-  } else {
-    console.log("⏭️ visuels non créés : il reste des images à choisir");
-  }
+  // isVisible() n'attend pas : isEnabled() attendait le bouton déjà remplacé par
+  // l'éditeur jusqu'à la fin du test (rouge du 09/10, visuels pourtant créés).
+  if ((await creer.isVisible()) && (await creer.isEnabled({ timeout: 2000 }).catch(() => false))) await creer.click();
+  const editeur = page.getByRole("heading", { name: /Personnaliser mon carrousel/i }).first();
+  await expect(editeur, "les visuels ne se sont pas affichés").toBeVisible({ timeout: 240000 });
+  await page.waitForTimeout(3000);
+  await page.screenshot({ path: path.join(SHOTS, "fond-3-visuels.png"), timeout: 30000 });
+  console.log("🖼️ visuels créés : capture fond-3-visuels.png");
+  // La page reste lourde (éditeur, polices) : la fermer évite un blocage à la fin du test.
+  await page.close();
 });
