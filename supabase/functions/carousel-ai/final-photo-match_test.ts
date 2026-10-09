@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { balancePhotoRepeats, matchFinalPhotos } from "./final-photo-match.ts";
+import { balancePhotoRepeats, matchFinalPhotos, photoMatchCallMs, photoMatchReserveMs } from "./final-photo-match.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
 import { invalidateProgressionReceipt, progressionMaterial } from "../_shared/carousel-editorial-snapshot.ts";
 const fixture = () => ({
@@ -465,4 +465,43 @@ Deno.test("Tes photos en fond : le cas du 09/10 de bout en bout, reçus à jour,
   // Dès qu'elle change une photo, le signalement disparaît avec les autres constats photo.
   const edited = structuredClone(allVerified); edited.slides[3].photo_index = 1;
   assert(!invalidateProgressionReceipt(edited).structure_warnings.includes(sentence));
+});
+
+// Réserve calculée (09/10/2026) : mesurée à 12-17,5 s pour l'association
+// entière (10 slides, 3 photos), elle était gardée à 95 s fixes.
+Deno.test("réserve d'association : fonction du nombre de photos lues, plafonnée comme l'ancien fixe", () => {
+  const photos = (n: number) => Array.from({ length: n }, () => ({ base64: "cG90" }));
+  assertEquals(photoMatchReserveMs({ photos: [] }), 0);
+  assertEquals(photoMatchReserveMs({ photos: [{ context: "sans pixels" }] }), 0);
+  assertEquals(photoMatchReserveMs({ photos: photos(1) }), 49000);
+  assertEquals(photoMatchReserveMs({ photos: photos(3) }), 59000);
+  assertEquals(photoMatchReserveMs({ photos: photos(10) }), 94000);
+  assertEquals(photoMatchReserveMs({ photos: photos(14) }), 94000); // 10 photos lues au plus
+  for (let n = 1; n <= 10; n++) {
+    assert(photoMatchCallMs(n) <= 45000);
+    // Plus de trois fois l'association ENTIÈRE la plus lente mesurée (17,5 s) en deux appels.
+    assert(photoMatchCallMs(n) >= 22500 && 2 * photoMatchCallMs(n) >= 2.5 * 17500);
+    assert(photoMatchReserveMs({ photos: photos(n) }) <= 95000);
+  }
+});
+
+for (const n of [1, 3, 10]) Deno.test(`pire cas (${n} photo(s)) : récit fini à la limite, chaque appel garde son temps et l'association finit avant 270 s`, async () => {
+  const body = { carousel_type: "photo", photos: Array.from({ length: n }, () => ({ base64: "cG90" })) };
+  const reserve = photoMatchReserveMs(body);
+  // Le récit a consommé tout son budget : il ne reste que la réserve.
+  const opts: any = { body, startedAt: Date.now() - (270000 - reserve), usage: {}, emitStatus() {} };
+  const caps: number[] = [];
+  const doc = { slides: [{ slide_type: "photo_full", overlay_text: "Un passage." }, { slide_type: "photo_full", overlay_text: "Un autre." }] };
+  opts.call = async (o: any) => {
+    caps.push(o.abortTimeoutMs);
+    opts.startedAt -= o.abortTimeoutMs; // chaque appel va jusqu'à son plafond
+    return JSON.stringify({ assignments: o.tool.name === "choisir_photos"
+      ? [1, 2].map(slide => ({ slide, photo: 1, relation: "ambient", reason: "Ambiance.", directive: "Ambiance." }))
+      : [1, 2].map(slide => ({ slide, photo: 1, accepted: true, reason: "Ambiance." })) });
+  };
+  const result = await matchFinalPhotos(doc, opts);
+  assertEquals(caps.length, 2);
+  for (const cap of caps) assert(cap >= photoMatchCallMs(n), `appel limité à ${cap} ms`);
+  assert(Date.now() - opts.startedAt <= 270000, "l'association finit avant 270 s");
+  assertEquals(result.photo_review.reason, "reviewed");
 });

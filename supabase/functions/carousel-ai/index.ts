@@ -1,4 +1,4 @@
-import { matchFinalPhotos, PHOTO_MATCH_RESERVE_MS } from "./final-photo-match.ts";
+import { matchFinalPhotos, photoMatchReserveMs } from "./final-photo-match.ts";
 import { buildConfirmedStructureBlock } from "./confirmed-structure.ts";
 import { createContinuousNarrative, NarrativePhotoMismatch, usesContinuousNarrative } from "./continuous-narrative.ts";
 import { COMMON, PLAN, REPAIR } from "../_shared/carousel-editorial-contract.ts";
@@ -1744,12 +1744,15 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
   // Derniers contenus de la marque : le rédacteur ne les redit pas (bilan
   // hebdo 05/10/2026). Lecture best-effort, [] en cas d'erreur.
   const recentTexts = ctx.recentTexts;
+  // Temps gardé pour l'association des photos, selon le nombre de photos
+  // (final-photo-match.ts) : le reste va à la rédaction, au juge et à sa réparation.
+  const matchReserveMs = photoMatchReserveMs(ctx.body);
   try { output = await _deps.prepareNarrative({
     body:ctx.body, brandingContext:ctx.brandingContext, recentTexts,
     photoContext:buildPhotoContextRecap(ctx.body.photo_contexts || ctx.body.photos),
     newsContext:typeof ctx.newsContext === "string" ? ctx.newsContext : "",
     authoredText:ctx.currentAuthoredText, audienceAddress:ctx.audienceAddress, startedAt:ctx.startedAt, usage,
-    emitStatus:ctx.emitStatus, write:_deps.callCarouselWriter, reserveMs:PHOTO_MATCH_RESERVE_MS,
+    emitStatus:ctx.emitStatus, write:_deps.callCarouselWriter, reserveMs:matchReserveMs,
     onDraft:(slides)=>ctx.emitStatus("draft",{slides}), timings:clock.timings,
   }); } catch(error) {
     if(error instanceof NarrativePhotoMismatch) return carouselMismatchResponse(JSON.stringify({photo_mismatch:{reason:error.message}}),ctx.body,usage,ctx.body.carousel_type,ctx.corsHeaders);
@@ -1765,7 +1768,7 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
   }));
   // Seul juge du récit photo/mixte (09/10/2026) : il répare si le délai couvre
   // la rédaction mesurée (write_ms), comme pour le texte ; sinon il la saute.
-  const written = await clock.timed("thread_ms", finalizeCarousel(measured.content,ctx,{usage,regenerate:output.regenerate,reserveMs:PHOTO_MATCH_RESERVE_MS,timings:clock.timings,expectedRepairMs:clock.timings.write_ms}));
+  const written = await clock.timed("thread_ms", finalizeCarousel(measured.content,ctx,{usage,regenerate:output.regenerate,reserveMs:matchReserveMs,timings:clock.timings,expectedRepairMs:clock.timings.write_ms}));
   const matched = await clock.timed("match_ms", _deps.matchPhotos(JSON.parse(written), {body:ctx.body,startedAt:ctx.startedAt,usage,emitStatus:ctx.emitStatus,call:_deps.callAnthropic}));
   const content = JSON.stringify(matched);
   await addOutlineUsage(ctx, usage);
