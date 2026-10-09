@@ -7,6 +7,7 @@ import {
 import {
   composeNarrative,
   createContinuousNarrative,
+  FINAL_JUDGE_RESERVE_MS,
   narrativeAngleFamily,
   parseNarrative,
   usesContinuousNarrative,
@@ -22,7 +23,7 @@ import {
   SOCLE_FAMILLES,
 } from "../_shared/socle.ts";
 import { COMMON } from "../_shared/carousel-editorial-contract.ts";
-import { progressionReceipt } from "../_shared/carousel-progression.ts";
+import { progressionJudgeCallMs, progressionReceipt } from "../_shared/carousel-progression.ts";
 const original = {
   idea: "Le temps de réparation change le choix d'un objet",
   hook: "Un objet se choisit aussi après l'achat",
@@ -450,4 +451,37 @@ Deno.test("redite : budget trop court → mesurée et tracée, pas de réécritu
     before: 1, after: 1, attempted: false, accepted: false, reason: "time-budget",
     passages: ["Le premier prix ne dit pas combien de temps l'objet pourra servir"],
   });
+});
+
+// 09/10/2026 (photo, 3 photos, 10 slides) : le juge du récit coupé à 35 s
+// (« Anthropic fetch timeout après 35000ms »), puis le juge final privé de temps.
+Deno.test("juge du récit : plafond d'un appel du juge, réserve laissée au juge final", async () => {
+  const caps: number[] = [];
+  await createContinuousNarrative({
+    ...base,
+    reserveMs: 95000,
+    startedAt: Date.now() - 42000,
+    usage: {},
+    write: async () => JSON.stringify(original),
+    review: async (doc, o) => { caps.push(o.abortTimeoutMs!); return { ...await progressionReceipt(doc, "completed"), verdict: "acceptable" }; },
+  });
+  assertEquals(caps.length, 1);
+  assert(caps[0] > 35000 && caps[0] <= progressionJudgeCallMs(original.paragraphs.length + 1), `plafond ${caps[0]}`);
+});
+
+Deno.test("juge du récit : sauté plutôt que de priver le juge final de son temps", async () => {
+  let reviews = 0;
+  const output = await createContinuousNarrative({
+    ...base,
+    reserveMs: 95000,
+    // Rédaction lente : il reste 62 s, moins que la réserve du juge final + 20 s.
+    startedAt: Date.now() - 113000,
+    usage: {},
+    write: async () => JSON.stringify(original),
+    review: async (doc) => { reviews++; return { ...await progressionReceipt(doc, "completed"), verdict: "acceptable" }; },
+  });
+  assertEquals(reviews, 0);
+  assertEquals(output?.doc.narrative_draft.review.execution_status, "skipped");
+  assertEquals(output?.doc.narrative_draft.review.reason, "time-budget");
+  assert(62000 - FINAL_JUDGE_RESERVE_MS < 20000);
 });

@@ -178,12 +178,25 @@ export function isPhotoChoiceDefect(defect: any): boolean {
   return PHOTO_CHOICE.test(`${defect.reason ?? ""} ${defect.repair ?? ""}`);
 }
 
+// Durée d'UN appel du juge : il écrit une entrée par slide et par frontière.
+// Mesuré en ligne : 31-42 s à 12-14 slides, 33 s puis plus de 35 s à 10 slides
+// en photo (09/10/2026, « Anthropic fetch timeout après 35000ms »). 60 s
+// jusqu'à 14 slides, +3 s par slide au-delà.
+export const progressionJudgeCallMs = (slides: number): number =>
+  60_000 + Math.max(0, slides - 14) * 3_000;
+// Temps propre à la relance de format, en plus du premier appel : le 09/10 la
+// relance n'avait que les 12 s restantes des 45 s et était coupée.
+export const PROGRESSION_FORMAT_RETRY_MS = 45_000;
+
 export async function reviewCarouselProgression(doc: any, opts: {
   sources: ProgressionSource[];
   sourceContext?: string;
   preserveStructure?: boolean;
   call?: (options: AnthropicOptions, usage?: UsageSink) => Promise<string>;
+  /** Temps total du contrôle (premier appel + relance de format). */
   abortTimeoutMs?: number;
+  /** Plafond de CHAQUE appel ; par défaut le temps total. */
+  callTimeoutMs?: number;
 }): Promise<ProgressionResult> {
   const receipt = await progressionReceipt(doc, "unavailable");
   if (!Array.isArray(doc?.slides) || !doc.slides.length) {
@@ -265,7 +278,25 @@ export async function reviewCarouselProgression(doc: any, opts: {
   const usage: UsageSink = {};
   const startedAt = Date.now();
   const budgetMs = opts.abortTimeoutMs ?? 45_000;
+  const callMs = Math.min(opts.callTimeoutMs ?? budgetMs, budgetMs);
   let formatRetry: ProgressionResult["format_retry"];
+  // Une ligne de journal par contrôle : durée réelle, issue et motif de refus
+  // du validateur (jamais le texte, les sources ni la réponse du modèle).
+  const logOutcome = (result: ProgressionResult, extra: Record<string, unknown> = {}) => {
+    console.log(JSON.stringify({
+      type: "carousel_progression_review",
+      status: result.execution_status,
+      verdict: result.verdict ?? null,
+      reason: result.reason ?? null,
+      format_retry: result.format_retry ?? null,
+      slides: doc.slides.length,
+      elapsed_ms: Date.now() - startedAt,
+      budget_ms: budgetMs,
+      call_ms: callMs,
+      ...extra,
+    }));
+    return result;
+  };
   const invoke = async (options: AnthropicOptions) => {
     const callUsage: UsageSink = {};
     try { return await (opts.call || callAnthropic)(options, callUsage); }
@@ -282,7 +313,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
       messages: [{ role: "user", content: input }],
       tool,
       max_tokens: Math.min(8192, 2048 + doc.slides.length * 400),
-      abortTimeoutMs: budgetMs,
+      abortTimeoutMs: callMs,
       maxRetries: 0,
       keepDashes: true,
     };
@@ -355,6 +386,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
       return validateProgressionReport(report, doc, opts.sources);
     };
     let error = parseAndValidate();
+    let retryError: string | undefined;
     if (error) {
       const initialVerdict = report?.verdict;
       const remainingMs = budgetMs - (Date.now() - startedAt);
@@ -362,7 +394,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
       if (remainingMs >= 8_000 && input.length + raw.length < 100_000) {
         formatRetry.attempted = true;
         try {
-          const retryRaw = await invoke({ ...options, abortTimeoutMs: remainingMs,
+          const retryRaw = await invoke({ ...options, abortTimeoutMs: Math.min(callMs, remainingMs),
             messages: [options.messages[0], { role: "assistant", content: raw }, {
               role: "user",
               content: `Ton rapport a été refusé par le validateur : ${error}. Corrige uniquement son format et ses références, sans réécrire le carrousel ni effacer un défaut pour obtenir acceptable. Utilise les IDs attendus et les valeurs du schéma. Pour chaque défaut, field_ids doit sélectionner les IDs exacts des champs de sequence.fields dans les slides citées, ou caption pour la légende. Le programme joint les textes exacts. Une omission se rattache au passage qui aurait besoin de l’explication. Garde une justification et une réparation non vides. Si un défaut ne peut pas être étayé, signale la limite au lieu d'inventer une preuve. Renvoie le rapport complet via le même outil.`,
@@ -373,7 +405,10 @@ export async function reviewCarouselProgression(doc: any, opts: {
           if (!error && ["needs_repair", "insufficient_evidence"].includes(initialVerdict) && report.verdict === "acceptable") {
             error = "format-verdict-regression";
           }
-        } catch { /* Keep the initial invalid result; never convert failure to approval. */ }
+        } catch (err) {
+          /* Keep the initial invalid result; never convert failure to approval. */
+          retryError = String((err as any)?.message ?? err).slice(0, 160);
+        }
       }
     }
     if (error) {
@@ -382,9 +417,10 @@ export async function reviewCarouselProgression(doc: any, opts: {
       const shape = (value: unknown) => Array.isArray(value)
         ? { type: "array", length: value.length, item_types: [...new Set(value.map((v) => typeof v))] }
         : { type: value === null ? "null" : typeof value, ...(typeof value === "string" ? { length: value.trim().length } : {}) };
-      return { ...receipt, execution_status: "invalid", reason: error, usage, format_retry: formatRetry,
-        validation_details: Object.fromEntries(Object.entries(report ?? {}).map(([key, value]) => [key, shape(value)])),
-      };
+      const validationDetails = Object.fromEntries(Object.entries(report ?? {}).map(([key, value]) => [key, shape(value)]));
+      return logOutcome({ ...receipt, execution_status: "invalid", reason: error, usage, format_retry: formatRetry,
+        validation_details: validationDetails,
+      }, { validation_details: validationDetails, ...(retryError ? { retry_error: retryError } : {}) });
     }
     const issues = report.defects.map((d: any) =>
       `${
@@ -403,7 +439,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
         "Une affirmation décisive reste à vérifier avec les sources disponibles.",
       );
     }
-    return {
+    return logOutcome({
       ...receipt,
       execution_status: "completed",
       verdict: report.verdict,
@@ -411,14 +447,14 @@ export async function reviewCarouselProgression(doc: any, opts: {
       issues,
       usage,
       ...(formatRetry ? { format_retry: formatRetry } : {}),
-    };
-  } catch {
-    return {
+    }, { defects: report.defects.length });
+  } catch (err) {
+    return logOutcome({
       ...receipt,
       execution_status: "unavailable",
       reason: "provider-failure",
       usage,
-    };
+    }, { error: String((err as any)?.message ?? err).slice(0, 160) });
   }
 }
 
