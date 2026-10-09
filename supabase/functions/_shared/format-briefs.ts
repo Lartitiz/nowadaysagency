@@ -23,7 +23,7 @@ import {
   VOIX_ORALE_STORIES,
 } from "./socle.ts";
 import { carouselLength } from "./carousel-length.ts";
-import { recapStoriesBlock } from "./multi-subject.ts";
+import { recapReelBlock, recapStoriesBlock } from "./multi-subject.ts";
 
 /** Nombre d'éléments annoncé par le sujet (« 5 erreurs… »), pour la numérotation (socle). */
 function annoncedItems(subject: string | null | undefined): number | undefined {
@@ -447,6 +447,8 @@ ${planAngleIndicatif("section", "sections")} Adapte les timings à ce déroulé 
   // Liste annoncée avec un nombre : numérotation 1..N (socle, décision du 05/10/2026).
   const reelNumbering = numerotationConsigne(annoncedItems(params.subject), "sections");
   const numberingBlock = reelNumbering ? `\n\n${reelNumbering}` : "";
+  // Brief à plusieurs sujets, choix « récap » à l'écran format (09/10/2026).
+  const recapBlock = recapReelBlock(params.subject) ?? "";
 
   // ── Métadonnées contextuelles ──
   const metaBlock = `
@@ -588,7 +590,7 @@ IMPORTANT :
 - "plan_tournage" = la SHOT LIST du reel : 3 à 6 plans à tourner AU TÉLÉPHONE, listés dans l'ordre de TOURNAGE le plus simple (toutes les prises face cam d'abord, puis les plans de coupe). Chaque "plan" est CONCRET et ancré dans l'activité RÉELLE de la marque (son lieu, ses gestes, ses objets — d'après le contexte de marque fourni ; JAMAIS un "plan de coupe générique" ni un décor qu'elle n'a probablement pas). Types : "face_cam" (elle parle), "b_roll" (elle fait, sans parler), "insert" (gros plan objet/écran/détail). Cohérence : chaque cut du script doit correspondre à un plan de cette liste ("sert_pour" le dit). Si le format est face cam pur, prévois quand même 1-2 plans de coupe b_roll pour faire respirer le montage. Bonus malin : indique quand un plan b_roll est RÉUTILISABLE pour de futurs reels.
 - Pas de markdown dans les valeurs JSON`;
 
-  return base + calibrage + metaBlock + inspirationBlock + hookBlock + subjectBlock + angleBlock + numberingBlock + personalBlock + jsonBlock;
+  return base + calibrage + metaBlock + inspirationBlock + hookBlock + subjectBlock + recapBlock + angleBlock + numberingBlock + personalBlock + jsonBlock;
 }
 
 export interface StoriesBriefParams {
