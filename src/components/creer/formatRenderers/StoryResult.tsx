@@ -1061,6 +1061,26 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
         frames={frames}
       />
 
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(v) => !v && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer la story {deleteTarget !== null ? deleteTarget + 1 : ""} ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette story sera retirée de la séquence et les suivantes seront renumérotées. Cette action est définitive.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Garder la story</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteTarget !== null && removeStory(deleteTarget)}
+            >
+              Supprimer cette story
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <RedFlagsChecker content={fullText} onFix={fixStoryExpressions} />
 
       <AiGeneratedMention />
