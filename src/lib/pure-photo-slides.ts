@@ -65,10 +65,14 @@ const FIL_TEXT_WARNINGS = [
  */
 function withoutTextReceipts(doc: any, before: any): any {
   const fil = before.progression_review;
-  const drop = new Set([...FIL_TEXT_WARNINGS, ...(fil?.issues || [])]);
+  // « La photo 3 revient sur 5 slides » (final-photo-match) : faux ici, chaque
+  // photo n'est plus posée qu'une fois (1 photo = 1 slide).
+  const repeats: string[] = before.photo_review?.repeat_warnings || [];
+  const drop = new Set([...FIL_TEXT_WARNINGS, ...(fil?.issues || []), ...repeats]);
   const out: any = { ...doc, structure_warnings: (before.structure_warnings || []).filter((w: string) => !drop.has(w)) };
   const material = progressionMaterial(out);
   if (fil) out.progression_review = { ...fil, execution_status: "not_applicable", verdict: null, reason: "pure-photo-no-text", reviewed_material: material };
-  if (before.photo_review) out.photo_review = { ...before.photo_review, reviewed_material: material };
+  if (before.photo_review) out.photo_review = { ...before.photo_review, reviewed_material: material,
+    ...(repeats.length ? { issues: (before.photo_review.issues || []).filter((w: string) => !repeats.includes(w)), repeat_warnings: [], repeated_photos: [] } : {}) };
   return out;
 }

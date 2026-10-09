@@ -460,6 +460,7 @@ Deno.test("Tes photos en fond : le cas du 09/10 de bout en bout, reçus à jour,
   const sentence = "La photo 3 revient sur 5 slides : tu peux en changer quelques-unes.";
   assert(allVerified.structure_warnings.includes(sentence));
   assertEquals(allVerified.photo_review.issues, [sentence]);
+  assertEquals(allVerified.photo_review.repeat_warnings, [sentence]);
   assertEquals(allVerified.photo_review.verdict, "acceptable");
   // Dès qu'elle change une photo, le signalement disparaît avec les autres constats photo.
   const edited = structuredClone(allVerified); edited.slides[3].photo_index = 1;
