@@ -17,6 +17,7 @@ import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock, buildBrandGuardText } from "../_shared/user-context.ts";
 import { checkQuota, isQaTestAccount, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
+import { COMPACT_PLAN_FORMAT, COMPACT_SLIDE_PROPERTIES, expandCompactPlan, PHOTO_NOTES_FIELD } from "./compact-plan.ts";
 import { callAnthropic, getModelForAction, SONNET_MODEL, AnthropicError, type UsageSink, type AnthropicModel, type AnthropicOptions } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { EDITORIAL_ANGLES_REFERENCE } from "../_shared/copywriting-prompts.ts";
@@ -521,6 +522,25 @@ const STRUCTURE_PROPOSAL_TOOL = {
           },
         },
       },
+      total_slides: { type: "number" },
+      carousel_type: { type: "string" },
+    },
+  },
+};
+
+// Plan compact avec photos (compact-plan.ts) : chaque photo décrite une fois,
+// champs redondants retirés ; le serveur reconstitue les champs par slide.
+const COMPACT_STRUCTURE_PROPOSAL_TOOL = {
+  ...STRUCTURE_PROPOSAL_TOOL,
+  input_schema: {
+    type: "object",
+    properties: {
+      photo_mismatch: PHOTO_MISMATCH_FIELD,
+      editorial_intent: EDITORIAL_INTENT_FIELD,
+      strategic_rationale: { type: "string" },
+      narrative_thread: { type: "string" },
+      photo_notes: PHOTO_NOTES_FIELD,
+      slides: { type: "array", items: { type: "object", properties: COMPACT_SLIDE_PROPERTIES } },
       total_slides: { type: "number" },
       carousel_type: { type: "string" },
     },
@@ -1286,7 +1306,8 @@ async function finalizeCarousel(
         "visual_observation_inferred_by_planner_not_verified_identity_or_history",
       text: JSON.stringify(
         // Sans numéro de photo : l'association finale se décide après le juge.
-        (body.confirmed_structure || []).map((s: any) => s.photo_observation).filter(Boolean),
+        // Dédoublonnée : le plan compact recopie la même observation sur chaque slide de la photo.
+        [...new Set((body.confirmed_structure || []).map((s: any) => s.photo_observation).filter(Boolean))],
       ),
     },
     {
@@ -2218,9 +2239,13 @@ async function handleExpressFullRequest(reqCtx: CarouselRequestContext): Promise
 }
 
 async function handleStructureProposalRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const { body, brandingContext, newsContext, corsHeaders } = reqCtx;
+  const { body, brandingContext, newsContext, corsHeaders, userId } = reqCtx;
   const { subject, carousel_type, objective, editorial_angle, deepening_answers, photos, photo_description } = body;
   const hasPhotos = photos && Array.isArray(photos) && photos.length > 0;
+  // Plan compact (09/10/2026) : réservé au compte test le temps de comparer
+  // durée et qualité avec l'ancien format ; plan_format "legacy" le désactive
+  // pour mesurer les deux sur le même déploiement.
+  const compactPlan = !!hasPhotos && isQaTestAccount(userId) && body.plan_format !== "legacy";
   const isPhotoMode = carousel_type === "photo";
   const isMixMode = carousel_type === "mix";
 
@@ -2278,23 +2303,26 @@ Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de b
   "editorial_intent": {"mode":"explication", "idea":"Proposition précise à développer, distincte du thème ou du parcours des photos", "reader_takeaway":"Ce que le développement permettra de comprendre", "basis_source_ids":["brand"], "inferred":true},
   "strategic_rationale": "2-3 phrases expliquant la logique narrative globale",
   "narrative_thread": "Intention et progression retenues ; promesse tenue de la couverture ; aboutissement. Cite les faits disponibles qui fondent ce choix. Le récit peut venir de l’histoire de marque et être accompagné indirectement par les photos.",
-  "slides": [
+${compactPlan ? `  "photo_notes": [
+    {"photo_index": 1, "observation": "Ce qui est visible et ce qui reste ambigu, sans histoire supposée.", "anchor": "Détail visible à préserver dans le cadrage."}
+  ],
+` : ""}  "slides": [
     {
       "slide_number": 1,
       "role": "hook",
-      "title_suggestion": "titre court proposé",
-      "strategic_note": "pourquoi cette slide à cette position",
-      "contribution": "Ce que cette page apporte au propos",
+      "title_suggestion": "titre court proposé",${compactPlan ? "" : `
+      "strategic_note": "pourquoi cette slide à cette position",`}
+      "contribution": "${compactPlan ? "Pourquoi cette page à cette position et ce qu'elle apporte au propos" : "Ce que cette page apporte au propos"}",
       "inherits": "Élément précis repris ou promesse de couverture",
       "develops": "Avancée du raisonnement, pas nouveau motif ou objet",
       "source_ids": ["brand"],
-      "image_role": "Ce que la photo accompagne, sans dicter le texte",
-      "story_beat": "Ce que cette slide fait comprendre ou raconte avec la matière fournie, et comment elle poursuit la précédente, en 1 phrase. Une étape du propos, sans émotion, événement ou bascule inventés ; une description de photo seule ne suffit pas."${hasPhotos ? `,
+${compactPlan ? "" : `      "image_role": "Ce que la photo accompagne, sans dicter le texte",
+`}      "story_beat": "Ce que cette slide fait comprendre ou raconte avec la matière fournie, et comment elle poursuit la précédente, en 1 phrase. Une étape du propos, sans émotion, événement ou bascule inventés ; une description de photo seule ne suffit pas."${hasPhotos ? `,
       "photo_index": 1,
       "slide_type": "photo_full",
-      "overlay_position": "bottom_left",
+      "overlay_position": "bottom_left",${compactPlan ? "" : `
       "visual_anchor": "Détail visible à préserver dans le cadrage ; ne dicte pas le texte.",
-      "photo_observation": "Ce qui est visible et ce qui reste ambigu, sans histoire supposée.",
+      "photo_observation": "Ce qui est visible et ce qui reste ambigu, sans histoire supposée.",`}
       "image_relation": "Ce que cette image accompagne dans le récit, même indirectement.",
       "factual_basis": "Faits et sources disponibles pour ce passage ; observation ou interprétation quand ce n’est pas un fait confirmé."` : ""}
     }
@@ -2306,8 +2334,11 @@ Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de b
 RAPPEL CRITIQUE sur les nouveaux champs :
 - "narrative_thread" = LE récit que le pass d'écriture exécutera. C'est la colonne vertébrale.
 - "story_beat" (par slide) = ce que la slide RACONTE dans ce récit, pas ce que la photo MONTRE. Une intention narrative.
-- "photo_observation", "image_relation" et "factual_basis" conservent séparément ce qui est vu, ce que l’image accompagne et les sources utilisables. Le rédacteur ne reverra pas les pixels.
-- story_beat sert le narrative_thread ; visual_anchor sert la composition. Une histoire de marque peut continuer sur une photo sans lien littéral avec sa phrase.`;
+${compactPlan ? `- photo_notes (une fois par photo), "image_relation" et "factual_basis" (par slide) conservent séparément ce qui est vu, ce que l’image accompagne et les sources utilisables. Le rédacteur ne reverra pas les pixels.
+- story_beat sert le narrative_thread ; anchor sert la composition. Une histoire de marque peut continuer sur une photo sans lien littéral avec sa phrase.
+
+${COMPACT_PLAN_FORMAT}` : `- "photo_observation", "image_relation" et "factual_basis" conservent séparément ce qui est vu, ce que l’image accompagne et les sources utilisables. Le rédacteur ne reverra pas les pixels.
+- story_beat sert le narrative_thread ; visual_anchor sert la composition. Une histoire de marque peut continuer sur une photo sans lien littéral avec sa phrase.`}`;
 
   const structureUserPrompt = `Sujet du carrousel : "${subject || "non précisé"}"
 ${hasNewsContextForStructure ? `Actualité de référence : "${(newsContext as string).split("\n")[0]?.slice(0, 120) || ""}…" — cette actu doit ancrer la structure proposée.` : ""}
@@ -2340,7 +2371,7 @@ Propose la structure optimale.`;
       messages: [{ role: "user", content: messageContent }],
       // Evidence fields add material per slide; avoid truncating the scenario.
       max_tokens: 8192,
-      tool: STRUCTURE_PROPOSAL_TOOL,
+      tool: compactPlan ? COMPACT_STRUCTURE_PROPOSAL_TOOL : STRUCTURE_PROPOSAL_TOOL,
     });
   } else {
     content = await _deps.callAnthropic({
@@ -2401,10 +2432,12 @@ Propose la structure optimale.`;
   // Carrousel photo : toutes les slides sont des slides photo (consigne du
   // prompt, que le modèle ne suit pas toujours).
   if (isPhotoMode) for (const sl of structureResult.slides) if (sl && typeof sl === "object") sl.slide_type = "photo_full";
-  const result = body.prefer_distinct_photos && isPhotoMode && hasPhotos
+  const assigned = body.prefer_distinct_photos && isPhotoMode && hasPhotos
     ? assignDistinctStructurePhotos(structureResult, photos.length)
     : structureResult;
-  return new Response(JSON.stringify({ result }), {
+  // Après la réattribution : l'observation suit la photo réellement posée.
+  const result = compactPlan ? expandCompactPlan(assigned) : assigned;
+  return new Response(JSON.stringify({ result, plan_format: compactPlan ? "compact" : "legacy" }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
