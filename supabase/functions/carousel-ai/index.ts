@@ -2,7 +2,7 @@ import { matchFinalPhotos, PHOTO_MATCH_RESERVE_MS } from "./final-photo-match.ts
 import { buildConfirmedStructureBlock } from "./confirmed-structure.ts";
 import { createContinuousNarrative, NarrativePhotoMismatch, usesContinuousNarrative } from "./continuous-narrative.ts";
 import { COMMON, PLAN, REPAIR } from "../_shared/carousel-editorial-contract.ts";
-import { reviewCarouselProgression, progressionReceipt, progressionWarnings, type ProgressionSource, type ProgressionResult } from "../_shared/carousel-progression.ts";
+import { reviewCarouselProgression, progressionReceipt, progressionWarnings, progressionJudgeCallMs, PROGRESSION_FORMAT_RETRY_MS, type ProgressionSource, type ProgressionResult } from "../_shared/carousel-progression.ts";
 import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts";
 import { PHOTO_NARRATIVE_CONTRACT, PHOTO_QUESTIONS_CONTRACT } from "./photo-narrative.ts";
 import { autoMaxSlides, carouselLength, carouselLengthPrompt, carouselStructureIssues, longMixSlideIssues, longTextSlides, structureRepairInstruction } from "../_shared/carousel-length.ts";
@@ -1295,8 +1295,14 @@ async function finalizeCarousel(
   };
   // Le juge écrit une entrée par slide et par frontière : ~3 s de plus par slide
   // (31-42 s mesurées à 12-14 slides). 45 s fixes coupaient le contrôle à 18-20
-  // slides, et le carrousel partait sans fil vérifié.
+  // slides, et le carrousel partait sans fil vérifié. judgeCapMs = durée
+  // ATTENDUE d'un contrôle, qui fixe la réserve laissée après une réparation.
   const judgeCapMs = 45_000 + Math.max(0, doc.slides.length - 14) * 3_000;
+  // 09/10/2026 (photo, 10 slides) : premier appel 33 s, rapport refusé, relance
+  // de format coupée après les 12 s restantes → « Le contrôle final du fil n'a
+  // pas abouti ». Chaque appel a son plafond et la relance son propre temps ;
+  // remaining() borne toujours le tout, donc le pire cas ne bouge pas.
+  const judgeCallMs = progressionJudgeCallMs(doc.slides.length);
   const judge = async (value: any, key = "thread_judge_ms"): Promise<ProgressionResult> => lap(key, () =>
     remaining() < 8_000
       ? progressionReceipt(value, "skipped", "time-budget")
@@ -1304,7 +1310,8 @@ async function finalizeCarousel(
         sources,
         sourceContext: JSON.stringify(sources),
         preserveStructure: true,
-        abortTimeoutMs: Math.min(judgeCapMs, remaining()),
+        abortTimeoutMs: Math.min(judgeCallMs + PROGRESSION_FORMAT_RETRY_MS, remaining()),
+        callTimeoutMs: judgeCallMs,
       }));
   const ownsText = body.type === "slides" || body.user_slides?.length;
   // « Photos brutes » : les slides n'ont plus de texte (vidées après

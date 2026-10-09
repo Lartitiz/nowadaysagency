@@ -8,6 +8,7 @@ import {
 import { AnthropicError, type UsageSink } from "../_shared/anthropic.ts";
 import { callCarouselWriter, pickCarouselWriter } from "./writer.ts";
 import {
+  progressionJudgeCallMs,
   progressionReceipt,
   type ProgressionSource,
   reviewCarouselProgression,
@@ -32,6 +33,8 @@ import {
 } from "../_shared/socle.ts";
 
 export const NARRATIVE_VERSION = "continuous-prose-v4-socle";
+/** Temps laissé au juge final (33 s mesurées à 10 slides le 09/10/2026). */
+export const FINAL_JUDGE_RESERVE_MS = 45000;
 export class NarrativePhotoMismatch extends Error {}
 /** Same evidence composeNarrative requires: pixels, contexts or a planned photo. */
 function hasPhotoEvidence(body: any): boolean {
@@ -392,14 +395,19 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
     ],
     caption: n.caption,
   });
+  // 09/10/2026 (photo, 10 slides) : 35 s fixes coupaient ce juge
+  // (« Anthropic fetch timeout après 35000ms »). Il a le plafond d'un appel du
+  // juge, mais laisse toujours au juge final, qui décide de l'alerte affichée,
+  // le temps d'un contrôle : sinon il est sauté plutôt que de le priver.
   const judge = async (n: Narrative) => {
-    if (remaining() < 12000) {
+    const budget = Math.min(progressionJudgeCallMs(n.paragraphs.length + 1), remaining() - FINAL_JUDGE_RESERVE_MS);
+    if (budget < 20000) {
       return progressionReceipt(proof(n), "skipped", "time-budget");
     }
     const receipt = await timed("judge_ms", () => review(proof(n), {
       sources,
       sourceContext: JSON.stringify(sources),
-      abortTimeoutMs: Math.min(35000, remaining() - 8000),
+      abortTimeoutMs: budget,
     }));
     if (receipt.usage) add(receipt.usage);
     return receipt;

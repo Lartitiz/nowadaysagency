@@ -5,6 +5,7 @@ import {
 import {
   progressionReceipt,
   isPhotoChoiceDefect,
+  progressionJudgeCallMs,
   progressionWarnings,
   reviewCarouselProgression,
   validateProgressionReport,
@@ -514,4 +515,45 @@ Deno.test("motifs du choix des photos : étroits", () => {
     assert(!isPhotoChoiceDefect({ type: "repetition", reason, repair: "" }), reason);
   }
   assert(!isPhotoChoiceDefect({ type: "raw_photo_text", reason: "Même photo, texte sur photo brute.", repair: "" }));
+});
+
+// 09/10/2026 (photo, 10 slides) : premier appel 33 s sur 45, relance de format
+// coupée après les 12 s restantes → contrôle « invalid », motif jamais journalisé.
+Deno.test("relance de format : son propre temps, et motif de refus journalisé", async () => {
+  const now = Date.now, log = console.log;
+  let offset = 0, calls = 0;
+  const timeouts: number[] = [], lines: string[] = [];
+  Date.now = () => now() + offset;
+  console.log = (line: unknown) => { lines.push(String(line)); };
+  try {
+    const out = await reviewCarouselProgression(doc, {
+      sources,
+      abortTimeoutMs: 105_000,
+      callTimeoutMs: 60_000,
+      call: async (options) => {
+        calls++;
+        timeouts.push(options.abortTimeoutMs!);
+        offset += 33_000;
+        return JSON.stringify(calls === 1 ? { ...valid(), conclusion: null } : { ...valid(), idea_read: null });
+      },
+    });
+    assertEquals(calls, 2);
+    assertEquals(timeouts, [60_000, 60_000]);
+    assertEquals(out.execution_status, "invalid");
+    const logged = lines.map((l) => { try { return JSON.parse(l); } catch { return null; } })
+      .find((l) => l?.type === "carousel_progression_review");
+    assertEquals(logged.status, "invalid");
+    assert(logged.reason);
+    assertEquals(logged.format_retry, { attempted: true, initial_reason: "missing-summary" });
+    assertEquals(logged.slides, doc.slides.length);
+    assert(logged.validation_details);
+    // Jamais de texte du carrousel ni des sources dans la ligne.
+    assert(!lines.join("\n").includes("Reconnaître"));
+  } finally { Date.now = now; console.log = log; }
+});
+
+Deno.test("plafond d'un appel du juge : 60 s jusqu'à 14 slides, +3 s par slide au-delà", () => {
+  assertEquals(progressionJudgeCallMs(10), 60_000);
+  assertEquals(progressionJudgeCallMs(14), 60_000);
+  assertEquals(progressionJudgeCallMs(20), 78_000);
 });

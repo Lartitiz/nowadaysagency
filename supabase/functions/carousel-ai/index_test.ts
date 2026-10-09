@@ -14,7 +14,7 @@ import {
   assertExists,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { AnthropicError } from "../_shared/anthropic.ts";
-import { progressionReceipt } from "../_shared/carousel-progression.ts";
+import { progressionReceipt, progressionJudgeCallMs, PROGRESSION_FORMAT_RETRY_MS } from "../_shared/carousel-progression.ts";
 import { handleRequest, _deps, normalizeSlideType, writerTimeoutMs } from "./index.ts";
 import { createContinuousNarrative } from "./continuous-narrative.ts";
 
@@ -707,7 +707,12 @@ for(const variant of ["text","photo","mix"]) for(const outcome of ["acceptable",
   }) as any;
   _deps.reviewThread=async(doc:any, options:any)=>{
     assert(options.sources.find((s:any)=>s.id==="request").text.includes("Demandes contradictoires."));
-    assert(options.abortTimeoutMs <= 45_000);
+    // Juge final : plafond par appel + temps propre de relance. Juge du récit
+    // (photo/mixte, sans callTimeoutMs) : un seul appel au plafond.
+    if (options.callTimeoutMs !== undefined) {
+      assertEquals(options.callTimeoutMs, progressionJudgeCallMs(doc.slides.length));
+      assert(options.abortTimeoutMs <= options.callTimeoutMs + PROGRESSION_FORMAT_RETRY_MS);
+    } else assert(options.abortTimeoutMs <= progressionJudgeCallMs(doc.slides.length));
     if (judges === 0 && outcome === "late-repair") offset = 160_000;
     if (judges === 0 && outcome === "too-late-repair") offset = 200_000;
     judges++;lastJudgedDoc=structuredClone(doc);
@@ -887,13 +892,15 @@ for (const n of [12, 20]) Deno.test(`progression finale texte : plafond du juge 
   globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
   const draft = { slides: Array.from({ length: n }, (_, i) => ({ slide_number: i + 1, role: i === 0 ? "hook" : i === n - 1 ? "conclusion" : "body", title: `Étape ${i + 1} : un choix précis à faire avant la maquette.` })),
     caption: { body: "Un choix commun précède les modifications.", hashtags: [] } };
-  let cap = 0;
+  let cap = 0, call = 0;
   _deps.callCarouselWriter = (async (o: any, sink: any) => { Object.assign(sink, { model: o.model, total_tokens: 10 }); return JSON.stringify(draft); }) as any;
-  _deps.reviewThread = async (doc: any, options: any) => { cap = options.abortTimeoutMs; return verdict(doc); };
+  _deps.reviewThread = async (doc: any, options: any) => { cap = options.abortTimeoutMs; call = options.callTimeoutMs; return verdict(doc); };
   try {
     const res = await handleRequest(makeHooksRequest({ type: "express_full", subject: "Choisir une direction avant de modifier", slide_count: n }));
     assertEquals(res.status, 200); await res.json();
-    assertEquals(cap, n === 20 ? 63_000 : 45_000);
+    // 09/10/2026 : 45 s pour l'appel ET sa relance de format → relance coupée.
+    assertEquals(call, n === 20 ? 78_000 : 60_000);
+    assertEquals(cap, call + 45_000);
   } finally { globalThis.fetch = oldFetch; }
 });
 
