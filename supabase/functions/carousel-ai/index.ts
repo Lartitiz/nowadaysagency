@@ -662,14 +662,21 @@ export function normalizeSlideType(v: unknown): "photo_full" | "photo_integrated
   return undefined;
 }
 
+/** Champs obligatoires d'une slide de confirmed_structure : un null y reste refusé. */
+const PLAN_REQUIRED_FIELDS = new Set(["slide_number", "role", "title_suggestion", "strategic_note"]);
+
 function normalizeGeneratedPlanFields(slide: any): void {
   if (!slide || typeof slide !== "object") return;
   // Les champs optionnels non renseignés reviennent parfois à null depuis
   // le modèle, notamment photo_index pour une slide sans photo. Le front
   // renvoie le plan tel quel : null et absence ont ici le même sens.
   // Ne jamais toucher aux champs obligatoires ou à une valeur renseignée.
-  for (const key of ["photo_index", "slide_type", "story_beat", "visual_anchor", "photo_observation", "image_relation", "factual_basis", "overlay_position"]) {
-    if (slide[key] === null) delete slide[key];
+  // 09/10/2026 : une liste écrite à la main avait oublié les champs ajoutés
+  // ensuite (image_role, contribution…) → « Données invalides :
+  // confirmed_structure.1.image_role: Expected string, received null » avant
+  // toute rédaction. Tout champ facultatif à null est donc retiré.
+  for (const key of Object.keys(slide)) {
+    if (slide[key] === null && !PLAN_REQUIRED_FIELDS.has(key)) delete slide[key];
   }
   if ("slide_type" in slide) {
     const t = normalizeSlideType(slide.slide_type);
