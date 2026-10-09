@@ -43,9 +43,10 @@ Deno.test("plan compact : un champ déjà écrit par le modèle n'est jamais éc
   assertEquals(expandCompactPlan({ slides: "x" }), { slides: "x" });
 });
 
-Deno.test("plan compact : le schéma par slide ne redemande plus les champs répétés ou redondants", () => {
-  for (const key of ["strategic_note", "image_role", "photo_observation", "visual_anchor"]) assert(!(key in COMPACT_SLIDE_PROPERTIES), key);
-  for (const key of ["contribution", "inherits", "develops", "story_beat", "image_relation", "factual_basis", "photo_index", "overlay_position"]) assert(key in COMPACT_SLIDE_PROPERTIES, key);
+Deno.test("plan compact : le schéma par slide ne répète plus la description des photos et garde tous les autres champs", () => {
+  for (const key of ["photo_observation", "visual_anchor"]) assert(!(key in COMPACT_SLIDE_PROPERTIES), key);
+  // Fusion strategic_note/contribution et image_role/image_relation essayée puis retirée (ton plus « IA »).
+  for (const key of ["strategic_note", "image_role", "contribution", "inherits", "develops", "story_beat", "image_relation", "factual_basis", "photo_index", "overlay_position"]) assert(key in COMPACT_SLIDE_PROPERTIES, key);
 });
 
 Deno.test("plan compact : la rédaction lit chaque information une fois, l'ancien plan reste lu en entier", () => {
