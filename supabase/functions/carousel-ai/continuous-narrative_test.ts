@@ -22,6 +22,7 @@ import {
   SOCLE_FAMILLES,
 } from "../_shared/socle.ts";
 import { COMMON } from "../_shared/carousel-editorial-contract.ts";
+import { photoMatchReserveMs } from "./final-photo-match.ts";
 const original = {
   idea: "Le temps de réparation change le choix d'un objet",
   hook: "Un objet se choisit aussi après l'achat",
@@ -375,4 +376,29 @@ Deno.test("redite : budget trop court → mesurée et tracée, pas de réécritu
     before: 1, after: 1, attempted: false, accepted: false, reason: "time-budget",
     passages: ["Le premier prix ne dit pas combien de temps l'objet pourra servir"],
   });
+});
+
+// Réserve d'association calculée (09/10/2026) : avec 95 s fixes, une rédaction
+// Fable partie après ~13 s de préparation était coupée à ~122 s (mesurée
+// jusqu'à 140 s). À 3 photos la réserve est de 59 s : Fable garde ses 140 s.
+Deno.test("réserve d'association à 3 photos : la rédaction Max garde ses 140 s après 13 s de préparation", async () => {
+  const photos = [1, 2, 3].map(() => ({ base64: "cG90" }));
+  const reserveMs = photoMatchReserveMs({ photos });
+  assertEquals(reserveMs, 59000);
+  const caps: number[] = [];
+  await createContinuousNarrative({
+    ...base,
+    body: { ...base.body, quality_max: true, photos },
+    startedAt: Date.now() - 13000,
+    reserveMs,
+    usage: {},
+    write: async (o, s) => {
+      caps.push(o.abortTimeoutMs || 0);
+      if (s) Object.assign(s, { model: o.model, total_tokens: 5 });
+      return JSON.stringify(original);
+    },
+  });
+  assertEquals(caps[0], 140000);
+  // L'ancienne réserve fixe coupait cette rédaction à ~122 s.
+  assert(270000 - 95000 - 13000 - 40000 < 125000);
 });

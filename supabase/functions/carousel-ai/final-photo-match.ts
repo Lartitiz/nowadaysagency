@@ -5,7 +5,34 @@ import { progressionMaterial } from "../_shared/carousel-editorial-snapshot.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
 
 export const PHOTO_MATCH_VERSION = "final-photo-match-v7";
-export const PHOTO_MATCH_RESERVE_MS = 95000;
+/** Plafond d'un appel d'association quand le temps le permet. */
+export const PHOTO_MATCH_CALL_CAP_MS = 45000;
+/**
+ * Durée garantie à chaque appel (sélection, vérification) quand le récit a
+ * consommé tout son budget. Mesuré le 09/10/2026 (10 slides, 3 photos) :
+ * association ENTIÈRE (deux appels) en 12 à 17,5 s sur 4 générations. 20 s
+ * plus 2,5 s par photo jointe (les images pèsent dans la lecture) : 27,5 s
+ * par appel à 3 photos, soit plus de trois fois l'appel mesuré.
+ */
+export function photoMatchCallMs(photoCount: number): number {
+  return Math.min(PHOTO_MATCH_CALL_CAP_MS, 20000 + 2500 * Math.max(0, photoCount));
+}
+/** Photos dont l'association lira les pixels (mêmes règles que matchFinalPhotos). */
+export function photoMatchPhotoCount(body: any): number {
+  return (body?.photos || []).slice(0, 10).filter((p: any) => p?.base64).length;
+}
+/**
+ * Temps gardé pour l'association à la fin du récit (photo et mixte) : deux
+ * appels garantis plus 4 s de marge. Avant le 09/10/2026 c'était 95 s fixes,
+ * pour une association qui en prend ~15 : le récit n'avait que 175 s, la
+ * rédaction lente (Fable, jusqu'à 140 s) était coupée à ~122 s et la réparation
+ * du fil presque toujours sautée. Sans pixels l'association ne lance aucun
+ * appel : rien à garder. 3 photos → 59 s ; 10 photos → 94 s (≈ l'ancien fixe).
+ */
+export function photoMatchReserveMs(body: any): number {
+  const count = photoMatchPhotoCount(body);
+  return count ? 2 * photoMatchCallMs(count) + 4000 : 0;
+}
 type Assignment = { slide: number; photo: number | null; relation: "literal" | "ambient" | "missing"; reason: string; directive: string };
 const isPhoto = (s: any) => ["photo_full", "photo_integrated"].includes(s?.slide_type);
 const str = (v: unknown) => typeof v === "string" && v.trim().length > 0 && v.length <= 1000;
@@ -180,7 +207,7 @@ export async function matchFinalPhotos(doc: any, options: {
         ? "\nContrôle indépendant : regarde chaque image retenue avec son texte. Refuse une association contradictoire ou une correspondance concrète non visible, même si la justification précédente la prétend correcte. accepted=false si la photo manque ou doit changer. Ne choisis pas une autre image et ne réécris pas le texte."
         : ""), messages: [{ role: "user", content }], tool: tool(verify, required, [...ids]), max_tokens: 6000,
         maxRetries: 0,
-        abortTimeoutMs: Math.max(1000, Math.min(45000, Math.floor((remaining() - 2000) / (verify ? 1 : 2)))),
+        abortTimeoutMs: Math.max(1000, Math.min(PHOTO_MATCH_CALL_CAP_MS, Math.floor((remaining() - 2000) / (verify ? 1 : 2)))),
       }, sink);
     } finally {
       for (const k of ["input_tokens", "output_tokens", "total_tokens"] as const) options.usage[k] = (options.usage[k] || 0) + (sink[k] || 0);

@@ -1,4 +1,4 @@
-import { matchFinalPhotos } from "./final-photo-match.ts";
+import { matchFinalPhotos, photoMatchReserveMs } from "./final-photo-match.ts";
 // Tests du contrat checkQuota → callAnthropic → logUsage pour carousel-ai.
 // La logique métier (prompts, gates, correction) reste non testée ici : ce fichier
 // vérifie uniquement l'ORCHESTRATION — quota bloque avant l'IA, l'IA réussie
@@ -781,7 +781,10 @@ for (const writeMs of [80_000, 30_000]) Deno.test(`progression finale texte : r�
 // préparation 13 s, rédaction 34 s, juge final 37 s. Avec le juge du récit en
 // plus (33 s), aucune réparation ne tenait (repair_skipped: time-budget). Seul,
 // le juge final laisse ~36 s à la réparation, assez pour réécrire (34 s).
-for (const carousel_type of ["photo", "mix"]) for (const writeMs of [34_000, 50_000]) Deno.test(`un seul juge ${carousel_type} : réparation lancée quand elle tient (rédaction ${writeMs / 1000} s)`, async () => {
+// Réserve d'association calculée (09/10/2026, 2 photos → 54 s au lieu de 95 s) :
+// la réparation a 41 s de plus, une rédaction de 50 s se répare aussi ; à 90 s
+// elle n'a toujours pas le temps.
+for (const carousel_type of ["photo", "mix"]) for (const writeMs of [34_000, 50_000, 90_000]) Deno.test(`un seul juge ${carousel_type} : réparation lancée quand elle tient (rédaction ${writeMs / 1000} s)`, async () => {
   resetDeps(); _deps.prepareNarrative = createContinuousNarrative;
   const oldFetch = globalThis.fetch, now = Date.now; let offset = 0;
   Date.now = () => now() + offset;
@@ -804,9 +807,11 @@ for (const carousel_type of ["photo", "mix"]) for (const writeMs of [34_000, 50_
     assertEquals(res.status, 200);
     const data = await res.json(), doc = JSON.parse(data.content);
     assert(!("judge_ms" in data.timings), "plus de juge du récit");
-    if (writeMs === 34_000) {
+    if (writeMs < 90_000) {
       assertEquals([writes, judges], [2, 2]);
-      assert(repairTimeout >= writeMs && repairTimeout <= 40_000, `délai de réparation ${repairTimeout}`);
+      // 270 s − réserve (54 s) − écoulé (13 + rédaction + 37 s) − 2e juge et marge (55 s).
+      const expected = 270_000 - photoMatchReserveMs({ photos: [1, 2].map(() => ({ base64: "aGVsbG8=" })) }) - (13_000 + writeMs + 37_000) - 55_000;
+      assert(repairTimeout >= writeMs && Math.abs(repairTimeout - expected) <= 50, `délai de réparation ${repairTimeout}`);
       assertEquals(doc.progression_review.repair.attempted, true);
       assertEquals(doc.progression_review.repair_skipped, undefined);
       assertEquals(doc.narrative_draft.repair.reason, "accepted-by-final-review");
@@ -1708,5 +1713,22 @@ Deno.test("photo dump sans texte : aucun plan envisagé", async () => {
     const events = (await res.text()).split("\n\n").filter((l) => l.startsWith("data: ")).map((l) => JSON.parse(l.slice(6)));
     assertEquals(outlineCalls, 0);
     assertEquals(events.filter((e) => e.stage === "outline"), []);
+  } finally { globalThis.fetch = oldFetch; resetDeps(); }
+});
+
+// Réserve d'association calculée (09/10/2026) : le récit photo/mixte reçoit
+// la réserve de SES photos (59 s à 3 photos), plus 95 s fixes.
+for (const carousel_type of ["photo", "mix"]) Deno.test(`récit continu ${carousel_type} : la réserve d'association dépend du nombre de photos`, async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const photos = [1, 2, 3].map((i) => ({ base64: "cG90", context: `Photo ${i}` }));
+  const seen: number[] = [];
+  _deps.prepareNarrative = (async (o: any) => { seen.push(o.reserveMs); throw new Error("arrêt du test"); }) as any;
+  try {
+    const req = makeHooksRequest({ type: "express_full", carousel_type, scenario_origin: "automatic", subject: "Mes pièces", photos, slide_count: 4 });
+    await (await handleRequest(new Request(req.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: await req.text() }))).text();
+    assertEquals(seen, [photoMatchReserveMs({ photos })]);
+    assertEquals(seen[0], 59000);
   } finally { globalThis.fetch = oldFetch; resetDeps(); }
 });
