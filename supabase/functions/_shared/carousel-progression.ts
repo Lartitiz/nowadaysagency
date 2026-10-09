@@ -12,7 +12,7 @@ import {
 } from "./carousel-editorial-contract.ts";
 import { progressionMaterial } from "./carousel-editorial-snapshot.ts";
 
-export const PROGRESSION_VERSION = "final-progression-v7-development";
+export const PROGRESSION_VERSION = "final-progression-v8-schema";
 export interface ProgressionSource {
   id: string;
   provenance: string;
@@ -211,7 +211,6 @@ export async function reviewCarouselProgression(doc: any, opts: {
   props.idea_read.description = "Une phrase non vide : idée réellement lue dans le texte.";
   props.conclusion.minLength = 1;
   props.conclusion.description = "Une phrase non vide expliquant si la conclusion est préparée. Même si aucune conclusion n'est présente, décrire ce constat.";
-  props.limits.description = "Tableau de chaînes ; [] si aucune limite, jamais null ni un objet.";
   props.slides.minItems = props.slides.maxItems = slideIds.length;
   props.slides.items.properties.id.enum = slideIds;
   props.slides.items.properties.contribution.minLength = 1;
@@ -229,6 +228,16 @@ export async function reviewCarouselProgression(doc: any, opts: {
     boundarySchema.properties[key].description = "Phrase non vide. Si le lien manque, décrire explicitement ce qui manque ; ne pas laisser vide et ne pas inventer de raccord.";
   }
   props.defects.items.properties.slide_ids.items.enum = slideIds;
+  // Schéma aligné sur validateProgressionReport (09/10/2026) : chaque règle du
+  // validateur que le schéma peut exprimer y figure, pour que le modèle ne
+  // produise pas un rapport que le programme refusera ensuite.
+  props.defects.items.properties.slide_ids.minItems = 1;
+  for (const key of ["reason", "repair"]) {
+    props.defects.items.properties[key].minLength = 1;
+  }
+  props.defects.items.properties.reason.description = "Phrase non vide : ce qui ne va pas.";
+  props.defects.items.properties.repair.description = "Phrase non vide : comment réparer, sans inventer de fait.";
+  props.limits.description = "Tableau de chaînes ; [] si aucune limite, jamais null ni un objet. Au moins une limite si verdict = insufficient_evidence.";
   // Select evidence by stable IDs; copying quotations was invalidating whole reviews.
   // The program attaches the exact source text, never a model-reconstructed quote.
   const fields = carouselEditorialFields(doc);
@@ -237,13 +246,34 @@ export async function reviewCarouselProgression(doc: any, opts: {
   const requestSourceIds = opts.sources.filter((s) => s.provenance === "user").map((s) => s.id);
   props.trajectory.properties.field_ids.items = { type: "string", ...(slideFieldIds.length ? { enum: slideFieldIds } : {}) };
   if (!slideFieldIds.length) props.trajectory.properties.field_ids.maxItems = 0;
+  else {
+    props.trajectory.properties.field_ids.minItems = 1;
+    // visual_only est refusé dès qu'une slide porte du texte.
+    props.trajectory.properties.kind.enum = props.trajectory.properties.kind.enum.filter((k: string) => k !== "visual_only");
+  }
+  props.trajectory.properties.request_source_ids.description = "IDs des sources de la demande ; au moins un si kind = requested_series.";
   props.trajectory.properties.request_source_ids.items = { type: "string", ...(requestSourceIds.length ? { enum: requestSourceIds } : {}) };
   if (!requestSourceIds.length) props.trajectory.properties.request_source_ids.maxItems = 0;
+  const slideFieldsOf = (slideId: string) => fields.filter((f) => f.id.startsWith(slideId + ".")).map((f) => f.id);
+  const sideSchema = (ids: string[], side: string) => ({ type: "array",
+    ...(ids.length ? { minItems: 1, items: { type: "string", enum: ids } } : { maxItems: 0, items: { type: "string" } }),
+    description: `Champs visibles de la slide ${side} qui portent réellement ce lien ; [] uniquement si cette slide n'a aucun texte.` });
   for (const side of ["from", "to"]) {
     props.boundaries.items.required.push(`${side}_field_ids`);
     props.boundaries.items.properties[`${side}_field_ids`] = { type: "array",
       items: { type: "string", ...(fields.length ? { enum: fields.map((f) => f.id) } : {}) },
       description: `Champs visibles de la slide ${side} qui portent réellement ce lien ; [] uniquement si cette slide n'a aucun texte.` };
+  }
+  // Le validateur exige des champs de CETTE frontière (boundary-evidence) :
+  // chaque frontière reçoit sa variante, avec les seuls champs de ses deux slides.
+  if (expectedBoundaries.length) {
+    boundarySchema.anyOf = expectedBoundaries.map((b: any) => ({
+      properties: {
+        boundary_id: { const: `${b.from}->${b.to}` },
+        from_field_ids: sideSchema(slideFieldsOf(b.from), "from"),
+        to_field_ids: sideSchema(slideFieldsOf(b.to), "to"),
+      },
+    }));
   }
   const defectSchema = props.defects.items;
   defectSchema.required = defectSchema.required.filter((key: string) => key !== "excerpt");
@@ -251,7 +281,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
   defectSchema.required.push("field_ids");
   defectSchema.properties.field_ids = { type: "array", minItems: 1,
     items: { type: "string", ...(fields.length ? { enum: fields.map((f) => f.id) } : {}) },
-    description: "IDs des champs visibles concernés, dans les slides citées (ou caption pour un défaut de légende). Pour une omission, choisis le passage qui manque d'explication. Ne recopie pas le texte." };
+    description: "IDs des champs visibles concernés, UNIQUEMENT dans les slides de slide_ids (préfixe identique, ex. slides.3.body pour slides.3) ou caption.* pour un défaut de légende. Si le passage est sur une autre slide, ajoute cette slide à slide_ids. Pour une omission, choisis le passage qui manque d'explication. Ne recopie pas le texte." };
   if (!fields.length) props.defects.maxItems = 0;
 
   const input = JSON.stringify({
@@ -309,7 +339,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
   try {
     const options: AnthropicOptions = {
       model: getModelForAction("carousel"),
-      system: COMMON + "\n\n" + JUDGE + "\nContrat de sortie : recopie exactement les IDs attendus, dans l'ordre fourni, sans renuméroter depuis 1. source_ids utilise seulement allowed_source_ids ; [] si aucune source utile. idea_read et conclusion sont des phrases non vides. limits est toujours un tableau de chaînes, éventuellement vide. Ne remplace aucun champ du schéma par une autre forme. Pour chaque défaut, sélectionne field_ids dans sequence.fields ; le programme joindra leurs textes exacts. Ne fournis pas de citation reconstruite. Pour chaque frontière, sélectionne boundary_id dans expected_boundary_ids_in_order, dans cet ordre ; le programme fournira from et to. inherits et advances sont des phrases non vides, même si elles constatent une absence de lien. Pour chaque frontière, from_field_ids et to_field_ids référencent exclusivement les champs visibles des deux slides voisines. Décris uniquement le lien porté par ces textes. Une photo et les sources peuvent vérifier un fait, jamais fournir un raccord absent. kind=rupture signifie un raccord MANQUANT ou INCOMPRÉHENSIBLE : jamais un contraste argumentatif utile, une nuance, une transition du constat vers les preuves ou une simple variation visuelle. Toute rupture ou défaut majeur impose needs_repair ; décris précisément le lien manquant. Un verdict favorable ne peut pas annuler ce constat.",
+      system: COMMON + "\n\n" + JUDGE + "\nContrat de sortie : recopie exactement les IDs attendus, dans l'ordre fourni, sans renuméroter depuis 1. source_ids utilise seulement allowed_source_ids ; [] si aucune source utile. idea_read et conclusion sont des phrases non vides. limits est toujours un tableau de chaînes, éventuellement vide. Ne remplace aucun champ du schéma par une autre forme. Pour chaque défaut, sélectionne field_ids dans sequence.fields, seulement parmi les champs des slides de slide_ids (ou caption.*) ; le programme joindra leurs textes exacts. reason et repair sont des phrases non vides. Ne fournis pas de citation reconstruite. Pour chaque frontière, sélectionne boundary_id dans expected_boundary_ids_in_order, dans cet ordre ; le programme fournira from et to. inherits et advances sont des phrases non vides, même si elles constatent une absence de lien. Pour chaque frontière, from_field_ids et to_field_ids référencent exclusivement les champs visibles des deux slides voisines. Décris uniquement le lien porté par ces textes. Une photo et les sources peuvent vérifier un fait, jamais fournir un raccord absent. kind=rupture signifie un raccord MANQUANT ou INCOMPRÉHENSIBLE : jamais un contraste argumentatif utile, une nuance, une transition du constat vers les preuves ou une simple variation visuelle. Toute rupture ou défaut majeur impose needs_repair ; décris précisément le lien manquant. Un verdict favorable ne peut pas annuler ce constat.",
       messages: [{ role: "user", content: input }],
       tool,
       max_tokens: Math.min(8192, 2048 + doc.slides.length * 400),

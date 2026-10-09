@@ -557,3 +557,67 @@ Deno.test("plafond d'un appel du juge : 60 s jusqu'à 14 slides, +3 s par slide 
   assertEquals(progressionJudgeCallMs(14), 60_000);
   assertEquals(progressionJudgeCallMs(20), 78_000);
 });
+
+// Schéma aligné sur le validateur (09/10/2026) : chaque motif de refus que le
+// schéma peut exprimer y figure, pour que le modèle ne produise pas un rapport
+// que validateProgressionReport refusera ensuite (rapport perdu, alerte « Le
+// contrôle final du fil n'a pas abouti »). Le validateur, lui, ne change pas.
+Deno.test("schéma du juge aligné sur le validateur : chaque motif reproduit est exclu par le schéma", async () => {
+  const three = { slides: [
+    { title: "Reconnaître", body: "Un signe donne un repère." },
+    { title: "Pratiquer", body: "La pratique donne son sens au repère." },
+    { title: "Choisir", body: "On garde le repère qui sert." },
+  ] };
+  let schema: any;
+  await reviewCarouselProgression(three, { sources, call: async (o) => {
+    schema = o.tool!.input_schema;
+    return "{}";
+  } });
+  const p = schema.properties;
+  const base = () => ({ ...valid(),
+    trajectory: { ...valid().trajectory, field_ids: ["slides.0.body"] },
+    slides: [0, 1, 2].map((i) => ({ id: `slides.${i}`, contribution: "Avance", source_ids: [] })),
+    boundaries: [0, 1].map((i) => ({ from: `slides.${i}`, to: `slides.${i + 1}`, from_field_ids: [`slides.${i}.body`],
+      to_field_ids: [`slides.${i + 1}.body`], inherits: "le repère", advances: "la suite", kind: "progression" })),
+  });
+  assertEquals(validateProgressionReport(base(), three, sources), null);
+
+  // boundary-evidence : un champ de l'autre slide (ou d'une autre frontière).
+  const crossed = base();
+  crossed.boundaries[0].from_field_ids = ["slides.1.body"];
+  assertEquals(validateProgressionReport(crossed, three, sources), "boundary-evidence:0:from");
+  const branches = p.boundaries.items.anyOf;
+  assertEquals(branches.map((b: any) => b.properties.boundary_id.const), ["slides.0->slides.1", "slides.1->slides.2"]);
+  assertEquals(branches[0].properties.from_field_ids.items.enum, ["slides.0.title", "slides.0.body"]);
+  assertEquals(branches[0].properties.to_field_ids.items.enum, ["slides.1.title", "slides.1.body"]);
+  assert(!branches[0].properties.from_field_ids.items.enum.includes("slides.1.body"));
+  assertEquals(branches[1].properties.from_field_ids.minItems, 1);
+
+  // defect-explanation : justification ou réparation vide.
+  const unexplained = { ...base(), verdict: "needs_repair", defects: [{ slide_ids: ["slides.0"], severity: "minor",
+    type: "unclear_idea", excerpt: "Un signe donne un repère.", field_ids: ["slides.0.body"], reason: "", repair: "Relier" }] };
+  assertEquals(validateProgressionReport(unexplained, three, sources), "defect-explanation:0");
+  assertEquals(p.defects.items.properties.reason.minLength, 1);
+  assertEquals(p.defects.items.properties.repair.minLength, 1);
+  assertEquals(p.defects.items.properties.slide_ids.minItems, 1);
+  assert(/UNIQUEMENT dans les slides de slide_ids/.test(p.defects.items.properties.field_ids.description));
+
+  // trajectory-evidence et trajectory-visual-text : slides avec texte.
+  const noEvidence = base();
+  noEvidence.trajectory.field_ids = [];
+  assertEquals(validateProgressionReport(noEvidence, three, sources), "trajectory-evidence");
+  assertEquals(p.trajectory.properties.field_ids.minItems, 1);
+  const visual = base();
+  visual.trajectory.kind = "visual_only";
+  assertEquals(validateProgressionReport(visual, three, sources), "trajectory-visual-text");
+  assert(!p.trajectory.properties.kind.enum.includes("visual_only"));
+});
+
+Deno.test("schéma du juge : photo sans texte, visual_only reste permis et les frontières acceptent []", async () => {
+  const silent = { no_overlay: true, slides: [{ photo_index: 1 }, { photo_index: 2 }] };
+  let schema: any;
+  await reviewCarouselProgression(silent, { sources, call: async (o) => { schema = o.tool!.input_schema; return "{}"; } });
+  assert(schema.properties.trajectory.properties.kind.enum.includes("visual_only"));
+  assertEquals(schema.properties.trajectory.properties.field_ids.maxItems, 0);
+  assertEquals(schema.properties.boundaries.items.anyOf[0].properties.from_field_ids.maxItems, 0);
+});
