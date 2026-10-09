@@ -171,6 +171,8 @@ test("carrousel « Tes photos en fond » : plan, brouillons sur photo, texte sur
   }
   await page.screenshot({ path: path.join(SHOTS, "fond-2-resultat.png"), timeout: 30000 });
   expect(textes.length, "aucun texte écrit pour les slides").toBeGreaterThanOrEqual(2);
+  // Depuis le 09/10 : une slide sans photo vérifiée reçoit une photo en ambiance.
+  expect(aChoisir, "des slides restent « Image à choisir » malgré les photos importées").toBe(0);
   // Alerte « photo brute » sur des photos PRÉVUES avec texte (corrigé le 08/10).
   await expect(page.getByText(/photos? brutes? gard/i)).toHaveCount(0);
 

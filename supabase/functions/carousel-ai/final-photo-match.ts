@@ -4,7 +4,7 @@ import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts
 import { progressionMaterial } from "../_shared/carousel-editorial-snapshot.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
 
-export const PHOTO_MATCH_VERSION = "final-photo-match-v5";
+export const PHOTO_MATCH_VERSION = "final-photo-match-v6";
 export const PHOTO_MATCH_RESERVE_MS = 95000;
 type Assignment = { slide: number; photo: number | null; relation: "literal" | "ambient" | "missing"; reason: string; directive: string };
 const isPhoto = (s: any) => ["photo_full", "photo_integrated"].includes(s?.slide_type);
@@ -179,12 +179,55 @@ export async function matchFinalPhotos(doc: any, options: {
   // same text. Only an UNVERIFIED slot (technical failure) stays to choose.
   const isMix = (options.body.carousel_type || doc.carousel_type) === "mix";
   const convertedToText: number[] = [];
+  const isAccepted = (slide: number) => {
+    const a = assignments.find(x => x.slide === slide);
+    return status === "completed" && a?.photo != null && checks.get(slide)?.accepted === true ? a.photo : null;
+  };
+  // « Tes photos en fond » (09/10/2026, choix de Laetitia) : une slide restée
+  // sans photo vérifiée reçoit quand même une photo de l'utilisatrice, posée en
+  // AMBIANCE, plutôt qu'« Image à choisir ». Vu en ligne le 08/10 : 0 photo
+  // posée sur 6 slides, « Créer les visuels » bloqué. On prend la photo la
+  // moins utilisée, si possible ni refusée pour ce passage ni identique à la
+  // slide précédente. Le mixte garde sa conversion en slide texte.
+  const ambientFallback = !isMix && (options.body.carousel_type || doc.carousel_type) === "photo" && photos.length > 0;
+  const ambient: number[] = [];
+  const usage = new Map<number, number>(photos.map((p: any) => [p.id, 0]));
+  doc.slides.forEach((s: any, i: number) => {
+    const id = isPhoto(s) ? isAccepted(i + 1) : null;
+    if (id != null) usage.set(id, (usage.get(id) || 0) + 1);
+  });
+  let previousPhoto: number | null = null;
+  const pickAmbient = (slide: number): number => {
+    const a = assignments.find(x => x.slide === slide);
+    const rejected = a?.photo != null ? a.photo : null;
+    const next = doc.slides[slide] && isPhoto(doc.slides[slide]) ? isAccepted(slide + 1) : null;
+    const score = (id: number) => [id === rejected ? 1 : 0, usage.get(id) || 0, id === previousPhoto || id === next ? 1 : 0, id];
+    const id = [...usage.keys()].sort((x, y) => {
+      const [a1, b1] = [score(x), score(y)];
+      for (let k = 0; k < a1.length; k++) if (a1[k] !== b1[k]) return a1[k] - b1[k];
+      return 0;
+    })[0];
+    usage.set(id, (usage.get(id) || 0) + 1);
+    return id;
+  };
   const slides = doc.slides.map((s: any, i: number) => {
     if (!isPhoto(s)) return s;
     const assignment = assignments.find(a => a.slide === i + 1);
     const check = checks.get(i + 1);
     const accepted = status === "completed" && assignment?.photo != null && check?.accepted === true;
     const unverified = status !== "completed" || (assignment?.photo != null && !check);
+    if (!accepted && ambientFallback) {
+      const { visual_anchor: _a, photo_observation: _b, image_relation: _c, factual_basis: _d, ...clean } = s;
+      const photo = pickAmbient(i + 1);
+      previousPhoto = photo;
+      ambient.push(i + 1);
+      return { ...clean, photo_index: photo,
+        photo_directive: assignment?.directive?.slice(0, 600) || `Une image qui accompagne ce passage : ${passages[i].text}`.slice(0, 600),
+        photo_match: { status: "ambient_fallback", relation: "ambient",
+          reason: "Photo posée en ambiance : aucune de tes photos ne montre précisément ce passage. Tu peux la changer." },
+      };
+    }
+    previousPhoto = accepted ? assignment!.photo : null;
     // Drop the old plan's visual claims; they describe a different assignment.
     const { visual_anchor: _a, photo_observation: _b, image_relation: _c, factual_basis: _d, ...clean } = s;
     if (isMix && assignment && !accepted && !unverified) {
@@ -212,7 +255,7 @@ export async function matchFinalPhotos(doc: any, options: {
   }
   result.photo_review = { version: PHOTO_MATCH_VERSION, execution_status: status,
     verdict: status === "completed" ? warnings.length ? "needs_images" : "acceptable" : null,
-    reason, verification_attempts: attempts, issues: warnings, converted_to_text: convertedToText, reviewed_material: progressionMaterial(result),
+    reason, verification_attempts: attempts, issues: warnings, converted_to_text: convertedToText, ambient_fallback: ambient, reviewed_material: progressionMaterial(result),
     assignments: slides.flatMap((s: any, i: number) => isPhoto(s) ? [{ slide: i + 1, photo: s.photo_index, ...s.photo_match }] : []),
   };
   result.generation_receipt = { ...result.generation_receipt, photo_match_version: PHOTO_MATCH_VERSION, duration_ms: Date.now() - options.startedAt };
