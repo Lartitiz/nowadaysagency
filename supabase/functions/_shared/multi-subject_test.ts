@@ -62,6 +62,8 @@ Deno.test("sujets sans numéro : titres isolés, « ## », « **…** », titre 
   assert(s[1].block.endsWith("Et toi ?"));
   const md = `## Tendances\n\n${para("Parler le langage de la plateforme sans se déguiser.")}\n\n**Fabrication**\n\n${para("Raconter les gens et le savoir-faire avant l'objet.")}`;
   assertEquals(splitBriefSubjects(md).map((x) => x.title), ["Tendances", "Fabrication"]);
+  const tight = `## Tendances\n${para("Parler le langage de la plateforme sans se déguiser.")}\n\n## Fabrication\n${para("Raconter les gens et le savoir-faire avant l'objet.")}`;
+  assertEquals(splitBriefSubjects(tight).map((x) => x.title), ["Tendances", "Fabrication"]);
   const labelled = `Sujet 1 : les Reels\n\n${para("Un test rapporté par une experte, pas une annonce.")}\n\nSujet 2 : les stats\n\n${para("La relation se construit sur des mois, pas sur deux jours.")}`;
   assertEquals(splitBriefSubjects(labelled).map((x) => x.title), ["les Reels", "les stats"]);
 });

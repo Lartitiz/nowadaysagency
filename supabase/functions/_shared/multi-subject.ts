@@ -55,11 +55,12 @@ function isUnnumberedHeading(lines: string[], i: number): boolean {
   const raw = lines[i].trim();
   if (!raw || raw.length > TITLE_MAX_CHARS) return false;
   const before = i === 0 || !lines[i - 1].trim();
-  const after = i + 1 < lines.length && !lines[i + 1].trim();
-  if (!before || !after) return false;
+  if (!before) return false;
   const marked = /^#{1,6}\s|^\*\*.+\*\*:?$|^__.+__:?$|^(?:sujet|point|partie|info)\s+\d{1,2}\s*[:.–—-]/i.test(raw);
-  // Sans marque de titre, une ligne qui finit comme une phrase est un paragraphe.
-  return marked || !/[.,;…!]$/.test(raw);
+  if (marked) return true;
+  // Sans marque de titre : seule entre deux lignes vides, et pas finie comme une phrase.
+  const after = i + 1 < lines.length && !lines[i + 1].trim();
+  return after && !/[.,;…!]$/.test(raw);
 }
 
 function blocksFrom(lines: string[], starts: { line: number; n: number; title: string }[]): BriefSubject[] {
