@@ -106,6 +106,14 @@ interface UseDoGenerateParams {
   resultSetters: ResultSetters;
 }
 
+/** Délai d'écran du plan (`structure_proposal`). Mesuré en ligne le 09/10/2026
+ * avec 3 photos et 10 slides : 55 à 64 s (un seul appel Sonnet, ~12 Ko de
+ * plan). L'ancien délai de 60 s coupait un plan sur deux, et l'app repartait en
+ * génération directe sans plan. 150 s = la coupure de la plateforme pour une
+ * réponse non streamée (504 IDLE_TIMEOUT) : attendre plus ne servirait à rien,
+ * couper avant perd des plans qui allaient arriver. */
+export const STRUCTURE_PROPOSAL_TIMEOUT_MS = 150_000;
+
 /**
  * Cœur de la génération de contenu — 6 sous-flux quasi indépendants selon le
  * format/sous-mode choisi : formats texte en streaming, épingle Pinterest
@@ -524,10 +532,9 @@ export function useDoGenerate({
           // Snapshot pour handleGenerateVisuals (résiste aux resets de state UI)
           setGeneratedWithPhotos(uploadedPhotos);
         }
-        const structureTimeout = carouselSubMode === "photo" && uploadedPhotos.length > 0 ? 60000 : 30000;
         const { data, error: fnError } = await invokeWithTimeout("carousel-ai", {
           body: structureBody,
-        }, structureTimeout);
+        }, STRUCTURE_PROPOSAL_TIMEOUT_MS);
         if (fnError) throw fnError;
         // Photos sans rapport avec le sujet : erreur actionnable de l'edge
         // (rien débité). Pas de repli en génération directe — elle verrait les

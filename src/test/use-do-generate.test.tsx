@@ -54,7 +54,7 @@ vi.mock("@/features/creer/post-generation-reset", () => ({
   resetPostGenerationState: mocks.resetPostGenerationState,
 }));
 
-import { useDoGenerate } from "@/hooks/use-do-generate";
+import { useDoGenerate, STRUCTURE_PROPOSAL_TIMEOUT_MS } from "@/hooks/use-do-generate";
 
 // Bag plat en entrée (overrides restent flats — aucun test n'a besoin de
 // connaître le regroupement interne) ; makeParams le réassemble dans la forme
@@ -384,7 +384,10 @@ describe("useDoGenerate — carrousels (structure, régénération, mix)", () =>
     expect(params.carousel.setStructureLoading).toHaveBeenNthCalledWith(1, true);
     const [fn, payload, timeout] = mocks.invokeWithTimeout.mock.calls[0];
     expect(fn).toBe("carousel-ai");
-    expect(timeout).toBe(60000); // photos → analyse vision, timeout élargi
+    // Mesuré en ligne le 09/10/2026 (3 photos, 10 slides) : 55 à 64 s. Un délai
+    // d'écran sous ~2 min coupe des plans valides → repli sans plan.
+    expect(timeout).toBe(STRUCTURE_PROPOSAL_TIMEOUT_MS);
+    expect(timeout).toBeGreaterThanOrEqual(120_000);
     expect(payload.body.type).toBe("structure_proposal");
     expect(payload.body.photos).toEqual([expect.objectContaining({ base64: "p1", vision: true })]);
     expect(params.photo.setGeneratedWithPhotos).toHaveBeenCalledWith(photos); // snapshot anti-reset
