@@ -1,6 +1,8 @@
 import CarouselModePicker from "./CarouselModePicker";
 import CarouselFormatPreview from "./CarouselFormatPreview";
 import ContentFormatPreview from "./ContentFormatPreview";
+import MultiSubjectChoice from "./MultiSubjectChoice";
+import { multiSubjectChoicePending } from "../../../supabase/functions/_shared/multi-subject";
 import { recommendContentFormat } from "@/lib/format-recommendation";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -93,9 +95,11 @@ interface Props {
   // sur l'étape format repart à zéro (le parent ignorait le format/sous-mode choisi).
   onSelectionChange?: (sel: { channel: ChannelId | null; format: string | null; carouselSubMode: "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null; slideLength: SlideLength }) => void;
   onBack: () => void;
+  /** Remplace le texte de l'idée (choix récap / un seul sujet d'un brief à plusieurs sujets). */
+  onIdeaChange?: (text: string) => void;
 }
 
-export default function CreerStepFormat({ idea, objective, forcedChannel, onChannelChange, initialFormat, initialChannel, initialCarouselSubMode, initialSlideLength, suggestedFormat, initialPhotos, initialPhotoDescription, newsjackingActive, onNext, onSelectionChange, onBack }: Props) {
+export default function CreerStepFormat({ idea, objective, forcedChannel, onChannelChange, initialFormat, initialChannel, initialCarouselSubMode, initialSlideLength, suggestedFormat, initialPhotos, initialPhotoDescription, newsjackingActive, onNext, onSelectionChange, onBack, onIdeaChange }: Props) {
   // Pré-sélection du canal : on déduit du format déjà choisi, sinon du format
   // suggéré par le newsjacking. Évite de juxtaposer « L'IA suggère : Carrousel »
   // (un format) avec « Sur quel canal publier ? » (un canal) — la suggestion
@@ -363,8 +367,15 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
   // éditorial (qui pilote l'écriture IA) n'a aucun sens dans ce mode.
   const showAngles = selectedFormat && selectedFormat !== "pinterest_inspiration" && !isLinkedInPhotoPost && carouselSubMode !== "user_slides" && (selectedFormat !== "carousel" || carouselSubMode !== null || selectedChannel === "linkedin");
 
+  // Stories sur un brief à plusieurs sujets : on demande quoi en faire (09/10/2026).
+  const multiSubjectPending = selectedFormat === "story" && !!onIdeaChange && multiSubjectChoicePending(idea);
+
   const handleNext = () => {
     if (!selectedFormat) return;
+    if (multiSubjectPending) {
+      toast.error("Ton texte contient plusieurs sujets : choisis une séquence récap ou un seul sujet.");
+      return;
+    }
     // Guard: carousel requires explicit sub-mode (text/photo/mix) — sinon on tombait silencieusement sur "text"
     if (selectedFormat === "carousel" && !carouselSubMode) {
       toast.error("Choisis le type de carrousel (Texte, Photo ou Mixte) avant de continuer.");
@@ -728,6 +739,10 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
       {/* Single-photo formats — preloaded photo confirmation banner — REMOVED.
           The toggle "📸 J'accompagne une photo" + the PhotoUploadZone below already convey the state. */}
 
+      {selectedFormat === "story" && onIdeaChange && (
+        <MultiSubjectChoice idea={idea} format={selectedFormat} onIdeaChange={onIdeaChange} />
+      )}
+
       {/* Single-photo upload zone — LinkedIn et Story acceptent jusqu'à 10 photos
           (LinkedIn : série / avant-après ; Story : une photo par story, réparties par l'IA) */}
       {formatAcceptsSinglePhoto(selectedFormat) && photoMode && (
@@ -1076,7 +1091,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
       {/* Navigation */}
       <div className="space-y-2 pt-2">
         <Button
-          disabled={!selectedFormat || (selectedFormat === "carousel" && !carouselSubMode) || mixForkPending || (selectedFormat === "pinterest_inspiration" && inspirationPhotos.length === 0)}
+          disabled={!selectedFormat || (selectedFormat === "carousel" && !carouselSubMode) || mixForkPending || multiSubjectPending || (selectedFormat === "pinterest_inspiration" && inspirationPhotos.length === 0)}
           onClick={handleNext}
           data-testid="creer-format-next"
           className="w-full gap-2"

@@ -2911,6 +2911,7 @@ function CreerWorkspace() {
                   setCarouselSubMode((prev) => (prev === sub ? prev : sub));
                 }}
                 onBack={() => { setStep("idea"); setNewsjackingContext(null); }}
+                onIdeaChange={setIdeaText}
               />
             )}
 
