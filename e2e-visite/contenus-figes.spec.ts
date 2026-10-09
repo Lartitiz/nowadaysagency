@@ -22,7 +22,7 @@ import { test, expect } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { installFigeReplay, FIGES_DIR } from "./fige-replay";
+import { installFigeReplay, FIGES_DIR, expectZoneMatches } from "./fige-replay";
 import { exportAndCheckPptx } from "./pptx-export-check";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -97,10 +97,8 @@ test("contenus figés — carrousel texte : texte, design et export identiques �
       (f.contentDocument?.body?.innerText || "").replace(/\s+/g, " ").trim());
     texts.push(text);
     await preview.scrollIntoViewIfNeeded();
-    await expect(preview, `slide ${i + 1} : aspect différent de la référence`).toHaveScreenshot(`carrousel-texte-slide-${String(i + 1).padStart(2, "0")}.png`, {
-      maxDiffPixelRatio: 0.01,
-      animations: "disabled",
-    });
+    await expectZoneMatches(page, preview, `carrousel-texte-slide-${String(i + 1).padStart(2, "0")}.png`,
+      `slide ${i + 1} : aspect différent de la référence`);
   }
 
   // Références à (re)poser : à l'enregistrement, ou quand on accepte un changement

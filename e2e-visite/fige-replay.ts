@@ -17,7 +17,7 @@
  *   await fige.save();   // n'écrit qu'en mode enregistrement
  * Mode : FIGE_RECORD=1 → enregistrement (coût réel, à faire rarement) ; sinon rejeu.
  */
-import type { Page, Route } from "@playwright/test";
+import { expect, type Locator, type Page, type Route } from "@playwright/test";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -38,6 +38,9 @@ export interface FigeFile {
   recordedAt: string;
   entries: FigeEntry[];
 }
+
+/** Fonctions sans IA qui peuvent partir en vrai pendant un rejeu (lectures). */
+export const LIVE_OK = new Set(["social-status", "check-subscription"]);
 
 export const fnOf = (url: string) => url.split("/functions/v1/")[1]?.split("?")[0] ?? "";
 
@@ -84,9 +87,16 @@ export async function installFigeReplay(page: Page, name: string) {
     }
     const hit = replay!(req.method(), fn);
     if (!hit) {
-      // Fonction pas enregistrée : elle part en vrai (lectures sans IA, en général).
       missing.add(fn);
-      return route.continue();
+      // Lectures sans IA : elles peuvent partir en vrai. Tout le reste est BLOQUÉ :
+      // un rejeu ne doit jamais payer une génération en douce. L'enregistrement est
+      // alors incomplet → le test le signale (« non enregistrées »), ré-enregistrer.
+      if (LIVE_OK.has(fn)) return route.continue();
+      return route.fulfill({
+        status: 503,
+        headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
+        body: JSON.stringify({ error: `contenus figés : réponse « ${fn} » non enregistrée` }),
+      });
     }
     replayed++;
     return route.fulfill({
@@ -109,4 +119,24 @@ export async function installFigeReplay(page: Page, name: string) {
       console.log(`💾 ${entries.length} réponse(s) enregistrée(s) → ${path.relative(process.cwd(), file)} (${(fs.statSync(file).size / 1024).toFixed(0)} Ko)`);
     },
   };
+}
+
+/**
+ * Capture d'une zone à taille FIXE (arrondie vers le bas) puis comparaison à la
+ * référence. toHaveScreenshot refuse toute différence de taille, et un arrondi
+ * de mise en page donne parfois 673 px au lieu de 674 pour la même slide
+ * (vu sur le carrousel mixte le 09/10) : faux rouge sans aucun changement visible.
+ */
+export async function expectZoneMatches(page: Page, locator: Locator, name: string, message: string) {
+  await locator.scrollIntoViewIfNeeded();
+  const box = await locator.boundingBox();
+  if (!box) throw new Error(`${message} (zone introuvable à l'écran)`);
+  // Coordonnées de la PAGE (une zone peut dépasser la hauteur de l'écran).
+  const scroll = await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }));
+  const clip = {
+    x: Math.ceil(box.x + scroll.x), y: Math.ceil(box.y + scroll.y),
+    width: Math.floor(box.width) - 1, height: Math.floor(box.height) - 1,
+  };
+  const shot = await page.screenshot({ clip, fullPage: true, animations: "disabled", mask: [page.locator("canvas")] });
+  expect(shot, message).toMatchSnapshot(name, { maxDiffPixelRatio: 0.01 });
 }
