@@ -4,7 +4,7 @@ import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts
 import { progressionMaterial } from "../_shared/carousel-editorial-snapshot.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
 
-export const PHOTO_MATCH_VERSION = "final-photo-match-v6";
+export const PHOTO_MATCH_VERSION = "final-photo-match-v7";
 export const PHOTO_MATCH_RESERVE_MS = 95000;
 type Assignment = { slide: number; photo: number | null; relation: "literal" | "ambient" | "missing"; reason: string; directive: string };
 const isPhoto = (s: any) => ["photo_full", "photo_integrated"].includes(s?.slide_type);
@@ -89,6 +89,60 @@ const failureCode = (error: unknown) => {
   return ["coverage", "reference"].includes(message) ? message : error instanceof SyntaxError ? "invalid-json"
     : Number.isInteger(code) && code >= 400 && code <= 599 ? `provider-${code}` : "call-failed";
 };
+
+/**
+ * « Tes photos en fond » (09/10/2026, choix de Laetitia) : une même photo au
+ * plus sur « slides photo ÷ photos disponibles », arrondi au-dessus. Vu en
+ * ligne le 09/10 : [1,2,3,3,2,3,3,2,3,2], photo 3 sur 5 slides, photo 1 sur 1.
+ * Sans aucun appel IA : seules les slides posées en AMBIANCE par le code
+ * changent de photo, jamais vers celle d'une slide voisine ; la photo refusée
+ * pour ce passage seulement en dernier recours (c'est elle qui, écartée par le
+ * choix d'ambiance, faisait reposer la photo 3). Une photo vérifiée n'a pas
+ * d'association de rechange vérifiée : elle reste, l'excès est signalé.
+ */
+export function balancePhotoRepeats(
+  slots: { photo: number | null; ambient: boolean; rejected: number | null }[], photoIds: number[],
+): { photos: (number | null)[]; moved: number[]; over: { photo: number; count: number; max: number }[] } {
+  const photos = slots.map(s => s.photo);
+  const placed = photos.filter((p): p is number => p != null).length;
+  if (photoIds.length < 2 || !placed) return { photos, moved: [], over: [] };
+  const max = Math.ceil(placed / photoIds.length);
+  const count = new Map<number, number>(photoIds.map(id => [id, 0]));
+  for (const p of photos) if (p != null) count.set(p, (count.get(p) || 0) + 1);
+  const moved = new Set<number>();
+  const neighbours = (i: number) => [photos[i - 1], photos[i + 1]];
+  const replacement = (i: number, p: number) => {
+    const rejected = (id: number) => Number(id === slots[i].rejected);
+    return photoIds.filter(id => id !== p && count.get(id)! < max && !neighbours(i).includes(id))
+      .sort((a, b) => rejected(a) - rejected(b) || count.get(a)! - count.get(b)! || a - b)[0];
+  };
+  const move = (i: number, q: number) => {
+    count.set(photos[i]!, count.get(photos[i]!)! - 1);
+    count.set(q, count.get(q)! + 1);
+    photos[i] = q;
+    moved.add(i + 1);
+  };
+  for (const p of [...count.keys()].sort((a, b) => count.get(b)! - count.get(a)! || a - b)) {
+    // Les slides collées à la même photo d'abord : on casse les suites.
+    const movable = slots.flatMap((s, i) => s.ambient && photos[i] === p ? [i] : [])
+      .sort((a, b) => Number(!neighbours(b).includes(p)) - Number(!neighbours(a).includes(p)) || a - b);
+    for (const i of movable) {
+      if (count.get(p)! <= max) break;
+      const q = replacement(i, p);
+      if (q != null) move(i, q);
+    }
+  }
+  // Puis une slide en ambiance collée à la même photo prend, si possible, une
+  // photo encore sous le seuil (même règle que le choix d'ambiance).
+  slots.forEach((s, i) => {
+    const p = photos[i];
+    if (!s.ambient || p == null || !neighbours(i).includes(p)) return;
+    const q = replacement(i, p);
+    if (q != null) move(i, q);
+  });
+  const over = [...count].flatMap(([photo, n]) => n > max ? [{ photo, count: n, max }] : []);
+  return { photos, moved: [...moved].sort((a, b) => a - b), over };
+}
 
 /** Runs only AFTER all narrative rewrites. Failed/unverified slots remain explicitly uncast. */
 export async function matchFinalPhotos(doc: any, options: {
@@ -248,7 +302,15 @@ export async function matchFinalPhotos(doc: any, options: {
       photo_match: { status: accepted ? "matched" : unverified ? "unverified" : "missing", relation: assignment?.relation || "missing", reason: detail },
     };
   });
-  const result = { ...doc, slides, structure_warnings: [...(doc.structure_warnings || []), ...warnings] };
+  const balance = ambientFallback ? balancePhotoRepeats(slides.map((s: any, i: number) => {
+    const assignment = assignments.find(a => a.slide === i + 1);
+    const ambientSlide = s?.photo_match?.status === "ambient_fallback";
+    return { photo: isPhoto(s) ? s.photo_index ?? null : null, ambient: ambientSlide,
+      rejected: ambientSlide && assignment?.photo != null ? assignment.photo : null };
+  }), photos.map((p: any) => p.id)) : { photos: [], moved: [], over: [] };
+  for (const n of balance.moved) slides[n - 1] = { ...slides[n - 1], photo_index: balance.photos[n - 1] };
+  const repeats = balance.over.map(o => `La photo ${o.photo} revient sur ${o.count} slides : tu peux en changer quelques-unes.`);
+  const result = { ...doc, slides, structure_warnings: [...(doc.structure_warnings || []), ...warnings, ...repeats] };
   // The prose reviewer saw precisely the same text. Rebind its snapshot after
   // photo-only changes; the separate receipt below records the visual verdict.
   if (result.progression_review) {
@@ -257,7 +319,10 @@ export async function matchFinalPhotos(doc: any, options: {
   }
   result.photo_review = { version: PHOTO_MATCH_VERSION, execution_status: status,
     verdict: status === "completed" ? warnings.length ? "needs_images" : "acceptable" : null,
-    reason, verification_attempts: attempts, issues: warnings, converted_to_text: convertedToText, ambient_fallback: ambient, reviewed_material: progressionMaterial(result),
+    // La répétition signalée suit les constats photo : elle s'efface dès que
+    // l'utilisatrice change une photo (invalidateProgressionReceipt).
+    reason, verification_attempts: attempts, issues: [...warnings, ...repeats], converted_to_text: convertedToText, ambient_fallback: ambient,
+    rebalanced: balance.moved, repeated_photos: balance.over, reviewed_material: progressionMaterial(result),
     assignments: slides.flatMap((s: any, i: number) => isPhoto(s) ? [{ slide: i + 1, photo: s.photo_index, ...s.photo_match }] : []),
   };
   result.generation_receipt = { ...result.generation_receipt, photo_match_version: PHOTO_MATCH_VERSION, duration_ms: Date.now() - options.startedAt };

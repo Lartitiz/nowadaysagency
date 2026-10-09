@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { matchFinalPhotos } from "./final-photo-match.ts";
+import { balancePhotoRepeats, matchFinalPhotos } from "./final-photo-match.ts";
 import { progressionReceipt } from "../_shared/carousel-progression.ts";
 import { invalidateProgressionReceipt, progressionMaterial } from "../_shared/carousel-editorial-snapshot.ts";
 const fixture = () => ({
@@ -382,4 +382,86 @@ Deno.test("Tes photos en fond : pas trois fois la même photo d'affilée quand l
       ? { slide, photo: 1, relation: "ambient", reason: "Présence.", directive: "Portrait." }
       : { slide, photo: null, relation: "missing", reason: "Rien.", directive: "" }) }) });
   assertEquals(result.slides.map((s: any) => s.photo_index), [1, 1, 2, 1, 2, 1, 1]);
+});
+
+// Test réel du 09/10/2026 : photos posées [1,2,3,3,2,3,3,2,3,2], photo 3 sur 5
+// slides, photo 1 sur 1. Seuil choisi par Laetitia : arrondi sup. de 10 ÷ 3 = 4.
+const CASE_0910 = [1, 2, 3, 3, 2, 3, 3, 2, 3, 2];
+Deno.test("répétition (09/10) : une slide en ambiance de la photo trop utilisée passe à la moins utilisée", () => {
+  const verified = new Set([1, 2, 3, 5, 6, 8, 9, 10]); // slides 4 et 7 posées en ambiance
+  const out = balancePhotoRepeats(CASE_0910.map((photo, i) => ({ photo, ambient: !verified.has(i + 1), rejected: null })), [1, 2, 3]);
+  // Slide 4 : la 3 passe à la 1 (seuil) ; slide 7 : plus collée à la 3 de la slide 6.
+  assertEquals(out.photos, [1, 2, 3, 1, 2, 3, 1, 2, 3, 2]);
+  assertEquals(out.moved, [4, 7]);
+  assertEquals(out.over, []);
+});
+
+Deno.test("répétition (09/10) : toutes vérifiées → rien ne bouge, l'excès est seulement signalé", () => {
+  const out = balancePhotoRepeats(CASE_0910.map(photo => ({ photo, ambient: false, rejected: null })), [1, 2, 3]);
+  assertEquals(out.photos, CASE_0910);
+  assertEquals(out.moved, []);
+  assertEquals(out.over, [{ photo: 3, count: 5, max: 4 }]);
+});
+
+Deno.test("répétition : jamais vers une voisine, la photo refusée pour ce passage seulement en dernier recours", () => {
+  const slot = (photo: number, ambient = false, rejected: number | null = null) => ({ photo, ambient, rejected });
+  // La 1 (refusée) et la 2 conviennent : la 2 d'abord.
+  assertEquals(balancePhotoRepeats([slot(3), slot(3, true, 1), slot(3), slot(2)], [1, 2, 3]).photos, [3, 2, 3, 2]);
+  // Seule la 1 (refusée) n'est pas voisine : elle est posée plutôt qu'un 5e passage de la 3.
+  assertEquals(balancePhotoRepeats(CASE_0910.map((p, i) => slot(p, i === 3, i === 3 ? 1 : null)), [1, 2, 3]).photos, [1, 2, 3, 1, 2, 3, 3, 2, 3, 2]);
+  // Collées mais sous le seuil : une photo encore disponible les sépare.
+  assertEquals(balancePhotoRepeats([slot(1), slot(1, true), slot(2), slot(3)], [1, 2, 3]).photos, [1, 3, 2, 3]);
+  // Toutes voisines : rien ne bouge, l'excès est signalé.
+  const stuck = balancePhotoRepeats([slot(1), slot(2, true), slot(1), slot(2), slot(2), slot(2)], [1, 2]);
+  assertEquals(stuck.photos, [1, 2, 1, 2, 2, 2]);
+  assertEquals(stuck.over, [{ photo: 2, count: 4, max: 3 }]);
+});
+
+Deno.test("répétition : répartition déjà équilibrée, une seule photo → aucun changement ; une slide texte coupe le voisinage", () => {
+  assertEquals(balancePhotoRepeats([1, 2, 3, 1, 2, 3, 1, 2, 3, 1].map(photo => ({ photo, ambient: true, rejected: null })), [1, 2, 3]).moved, []);
+  assertEquals(balancePhotoRepeats([1, 1, 1].map(photo => ({ photo, ambient: true, rejected: null })), [1]).over, []);
+  const mixed = balancePhotoRepeats([{ photo: 1, ambient: true, rejected: null }, { photo: null, ambient: false, rejected: null }, { photo: 1, ambient: true, rejected: null }], [1, 2]);
+  assertEquals(mixed.photos, [2, null, 1]);
+  assertEquals(mixed.over, []);
+});
+
+Deno.test("Tes photos en fond : le cas du 09/10 de bout en bout, reçus à jour, signalement seulement s'il reste un excès", async () => {
+  const doc: any = { carousel_type: "photo", slides: CASE_0910.map((_, i) => ({ slide_type: "photo_full", overlay_text: `Passage ${i + 1}.` })), caption: { body: "Légende." } };
+  doc.progression_review = { ...await progressionReceipt(doc, "completed"), verdict: "acceptable" };
+  const photos = [{ base64: "dW4=" }, { base64: "ZGV1eA==" }, { base64: "dHJvaXM=" }];
+  const opts: any = { ...options(), body: { photos, carousel_type: "photo" } };
+  const verified = [1, 2, 3, 5, 6, 8, 9, 10];
+  // Slides 4 et 7 : la photo 1 proposée puis refusée. Sans contrôle, le choix
+  // d'ambiance écarte la 1 (refusée) et la 2 (voisine) → la 3, comme le 09/10.
+  const run = (accept: number[]) => { let calls = 0; return matchFinalPhotos(structuredClone(doc), { ...opts, call: async () => JSON.stringify({ assignments: calls++
+    ? CASE_0910.map((photo, i) => accept.includes(i + 1)
+      ? { slide: i + 1, photo, accepted: true, reason: "Visible." }
+      : { slide: i + 1, photo: 1, accepted: false, reason: "Ce détail n'est pas visible." })
+    : CASE_0910.map((photo, i) => ({ slide: i + 1, photo: accept.includes(i + 1) ? photo : 1, relation: "ambient", reason: "Présence.", directive: "Atelier." })) }) }); };
+  const balanced = await run(verified);
+  assertEquals(balanced.photo_review.ambient_fallback, [4, 7]);
+  const counts = (r: any) => [1, 2, 3].map(id => r.slides.filter((s: any) => s.photo_index === id).length);
+  assert(Math.max(...counts(balanced)) <= 4, `répartition ${counts(balanced)}`);
+  assertEquals(balanced.slides.filter((s: any, i: number) => verified.includes(i + 1)).map((s: any) => s.photo_index), verified.map(n => CASE_0910[n - 1]));
+  assertEquals(balanced.slides.map((s: any) => s.photo_index), [1, 2, 3, 1, 2, 3, 1, 2, 3, 2]);
+  assertEquals(balanced.photo_review.rebalanced, [4, 7]);
+  assertEquals(balanced.photo_review.verdict, "acceptable");
+  assertEquals(balanced.photo_review.issues, []);
+  assertEquals(balanced.photo_review.repeated_photos, []);
+  assert(balanced.photo_review.rebalanced.length > 0);
+  // Les reçus sont pris sur les photos FINALES : rien n'apparaît « changé » à l'écran.
+  assertEquals(balanced.photo_review.assignments.map((a: any) => a.photo), balanced.slides.map((s: any) => s.photo_index));
+  assertEquals(balanced.photo_review.reviewed_material, progressionMaterial(balanced));
+  assertEquals(balanced.progression_review.reviewed_material, progressionMaterial(balanced));
+  assertEquals(invalidateProgressionReceipt(balanced).structure_warnings, balanced.structure_warnings);
+
+  const allVerified = await run(CASE_0910.map((_, i) => i + 1));
+  assertEquals(allVerified.slides.map((s: any) => s.photo_index), CASE_0910);
+  const sentence = "La photo 3 revient sur 5 slides : tu peux en changer quelques-unes.";
+  assert(allVerified.structure_warnings.includes(sentence));
+  assertEquals(allVerified.photo_review.issues, [sentence]);
+  assertEquals(allVerified.photo_review.verdict, "acceptable");
+  // Dès qu'elle change une photo, le signalement disparaît avec les autres constats photo.
+  const edited = structuredClone(allVerified); edited.slides[3].photo_index = 1;
+  assert(!invalidateProgressionReceipt(edited).structure_warnings.includes(sentence));
 });
