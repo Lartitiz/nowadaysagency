@@ -161,6 +161,23 @@ export function validateProgressionReport(
   return null;
 }
 
+/** Projection envoyée au juge : texte, ordre, types et no_text, sans photo posée. */
+export function withoutPhotoAssignments(material: string): any {
+  const m = JSON.parse(material);
+  return { ...m, slides: (m.slides || []).map(({ photo: _photo, ...slide }: any) => slide) };
+}
+
+// Remarques sur le CHOIX des photos (même photo sur plusieurs slides, photo
+// réutilisée, choix ou association d'image) : décidé après le juge, donc hors
+// de son ressort. Les motifs restent étroits pour ne pas toucher un défaut de
+// texte qui cite une photo (« cette photo montre… » non étayé, texte sur photo brute).
+const PHOTO_CHOICE = /\b(?:m[eê]mes?|identiques?)\s+(?:photos?|images?|visuels?)\b|\b(?:photos?|images?|visuels?)\s+(?:identiques?|r[ée]p[ée]t[ée]e?s?|r[ée]utilis[ée]e?s?|dupliqu[ée]e?s?|en double|reprises?)\b|\br[ée]p[ée]tition\s+(?:de\s+la\s+|des\s+|d['’]une\s+|de\s+l['’])?(?:photos?|images?|visuels?)\b|\b(?:choix|attribution|association|r[ée]partition)\s+(?:de\s+la\s+|des\s+|d['’]une\s+|de\s+l['’])?(?:photos?|images?|visuels?)\b|\b(?:photos?|images?)\s+(?:n°\s*)?\d+\s+(?:est\s+)?(?:r[ée]utilis|r[ée]p[ée]t|revient|r[ée]appara)/i;
+
+export function isPhotoChoiceDefect(defect: any): boolean {
+  if (!defect || defect.type === "raw_photo_text") return false;
+  return PHOTO_CHOICE.test(`${defect.reason ?? ""} ${defect.repair ?? ""}`);
+}
+
 export async function reviewCarouselProgression(doc: any, opts: {
   sources: ProgressionSource[];
   sourceContext?: string;
@@ -231,7 +248,11 @@ export async function reviewCarouselProgression(doc: any, opts: {
     allowed_source_ids: sourceIds,
     sources: opts.sources,
     // Do not send the writer's plan: it was filling gaps absent from the published text.
-    sequence: JSON.parse(receipt.reviewed_material),
+    // Ni la photo posée sur chaque slide : le juge passe AVANT matchFinalPhotos,
+    // qui choisit les photos à la fin. Les numéros vus ici étaient provisoires
+    // (attribués à tour de rôle) et le juge reprochait « la même photo répétée
+    // sur 3 slides » (09/10/2026). Le reçu, lui, garde les photos.
+    sequence: withoutPhotoAssignments(receipt.reviewed_material),
   });
   // No invisible truncation: preserve the draft and report the unperformed check.
   if (input.length > 100_000) {
@@ -270,6 +291,21 @@ export async function reviewCarouselProgression(doc: any, opts: {
     const parseAndValidate = () => {
       try { report = JSON.parse(raw); }
       catch { report = null; return "invalid-json"; }
+      // Le choix et la répétition des photos ne sont pas jugés ici (filet si le
+      // modèle en parle quand même) : ni affichés, ni cause de réparation.
+      if (Array.isArray(report?.defects)) {
+        const before = report.defects.length;
+        report.defects = report.defects.filter((defect: any) => !isPhotoChoiceDefect(defect));
+        const dropped = before - report.defects.length;
+        if (dropped) {
+          report.dropped_photo_choice_defects = dropped;
+          if (report.verdict === "needs_repair" && !report.defects.length &&
+            report.trajectory?.kind !== "descriptive_catalogue" &&
+            !(Array.isArray(report.boundaries) && report.boundaries.some((b: any) => b?.kind === "rupture"))) {
+            report = { ...report, verdict: "acceptable", model_verdict: "needs_repair" };
+          }
+        }
+      }
       // « Texte sur photo brute » ne vaut que pour une slide marquée no_text.
       // Vu en ligne le 08/10/2026 : en « Tes photos en fond », le juge prenait
       // le texte voulu sur chaque photo pour ce défaut et l'affichait à
