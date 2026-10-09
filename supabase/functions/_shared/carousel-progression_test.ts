@@ -4,6 +4,7 @@ import {
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   progressionReceipt,
+  isPhotoChoiceDefect,
   progressionWarnings,
   reviewCarouselProgression,
   validateProgressionReport,
@@ -460,4 +461,57 @@ Deno.test("texte voulu sur photo : le reproche « photo brute » est retiré, un
   assertEquals(rawOut.report?.defects[0].slide_ids, ["slides.0"]);
   assertEquals(rawOut.issues.length, 1);
   assert(rawOut.issues[0].startsWith("slide 1 :"));
+});
+
+Deno.test("le juge ne voit pas les photos posées et ne juge pas leur choix ni leur répétition", async () => {
+  // Vu le 09/10/2026 : le juge passe AVANT matchFinalPhotos et voyait des
+  // numéros de photo provisoires (attribués à tour de rôle). Il reprochait
+  // « la même photo répétée sur 3 slides », affiché à l'utilisatrice et cause
+  // de réparation, alors que les photos finales sont choisies après lui.
+  const overlay = { slides: [
+    { slide_type: "photo_full", photo_index: 1, overlay_text: "Un signe donne un repère." },
+    { slide_type: "photo_full", photo_index: 1, overlay_text: "La pratique donne son sens au repère." },
+  ] };
+  const report = (): any => ({ ...valid(),
+    trajectory: { ...valid().trajectory, field_ids: ["slides.0.overlay_text", "slides.1.overlay_text"] },
+    boundaries: [{ ...valid().boundaries[0], from_field_ids: ["slides.0.overlay_text"], to_field_ids: ["slides.1.overlay_text"] }],
+    verdict: "needs_repair",
+    defects: [{ slide_ids: ["slides.0", "slides.1"], severity: "major", type: "repetition",
+      field_ids: ["slides.1.overlay_text"], reason: "La même photo est répétée sur 2 slides.", repair: "Choisir une autre image." }],
+  });
+  let sent = "";
+  const out = await reviewCarouselProgression(overlay, { sources, call: async (options) => {
+    sent = String(options.messages[0].content);
+    return JSON.stringify(report());
+  } });
+  const sequence = JSON.parse(sent).sequence;
+  assert(sequence.slides.every((s: any) => !("photo" in s)), "aucun numéro de photo envoyé au juge");
+  assertEquals(sequence.slides[0].no_text, false);
+  // Le reçu, lui, garde les photos (invalidation du reçu photo côté écran).
+  assertEquals(JSON.parse(out.reviewed_material).slides[0].photo, 1);
+  assertEquals(out.verdict, "acceptable");
+  assertEquals(out.report?.model_verdict, "needs_repair");
+  assertEquals(out.report?.dropped_photo_choice_defects, 1);
+  assertEquals(progressionWarnings(out), []);
+
+  // Un défaut de TEXTE qui parle d'une photo reste, et le verdict aussi.
+  const mixed = report();
+  mixed.defects.push({ slide_ids: ["slides.1"], severity: "major", type: "unsupported",
+    field_ids: ["slides.1.overlay_text"], reason: "Le texte affirme ce que montre la photo sans source.", repair: "Reprendre le brief." });
+  const kept = await reviewCarouselProgression(overlay, { sources, call: async () => JSON.stringify(mixed) });
+  assertEquals(kept.verdict, "needs_repair");
+  assertEquals(kept.issues.length, 1);
+  assert(kept.issues[0].includes("Le texte affirme ce que montre la photo"));
+});
+
+Deno.test("motifs du choix des photos : étroits", () => {
+  for (const reason of ["La même photo revient sur trois slides.", "Image répétée en slides 2 et 5.", "Répétition de la photo du bol.",
+    "Le choix des photos ne suit pas le propos.", "La photo 2 est réutilisée plus loin.", "Photos identiques sur deux slides."]) {
+    assert(isPhotoChoiceDefect({ type: "repetition", reason, repair: "" }), reason);
+  }
+  for (const reason of ["Le texte affirme que cette photo montre un tour de potier.", "Redite du titre de la slide 2.",
+    "La slide 3 répète la même idée que la slide 2."]) {
+    assert(!isPhotoChoiceDefect({ type: "repetition", reason, repair: "" }), reason);
+  }
+  assert(!isPhotoChoiceDefect({ type: "raw_photo_text", reason: "Même photo, texte sur photo brute.", repair: "" }));
 });

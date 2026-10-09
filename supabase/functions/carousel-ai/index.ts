@@ -1278,10 +1278,8 @@ async function finalizeCarousel(
       provenance:
         "visual_observation_inferred_by_planner_not_verified_identity_or_history",
       text: JSON.stringify(
-        (body.confirmed_structure || []).map((s: any) => ({
-          photo: s.photo_index,
-          observation: s.photo_observation,
-        })),
+        // Sans numéro de photo : l'association finale se décide après le juge.
+        (body.confirmed_structure || []).map((s: any) => s.photo_observation).filter(Boolean),
       ),
     },
     {
