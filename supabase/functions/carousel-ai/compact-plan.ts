@@ -10,6 +10,10 @@
 // garde son photo_index et ce que l'image accompagne (image_relation). Le
 // serveur reconstitue ensuite les champs par slide que lisent la rédaction,
 // les juges, l'association finale et les visuels : rien ne change en aval.
+// La fusion strategic_note/contribution et image_role/image_relation et la
+// consigne « une phrase courte par champ » ont été essayées puis retirées
+// (09/10/2026) : ~10 s de moins, mais Laetitia trouvait les carrousels
+// obtenus plus « IA » (accroche et ouverture moins incarnées).
 
 /** Ce que le modèle écrit une seule fois par photo. */
 export const PHOTO_NOTES_FIELD = {
@@ -25,17 +29,19 @@ export const PHOTO_NOTES_FIELD = {
   },
 };
 
-/** Champs d'une slide du plan compact (sans strategic_note, image_role, photo_observation, visual_anchor). */
+/** Champs d'une slide du plan compact : tous ceux de l'ancien plan sauf photo_observation et visual_anchor. */
 export const COMPACT_SLIDE_PROPERTIES = {
   slide_number: { type: "number" },
   role: { type: "string" },
   title_suggestion: { type: "string" },
-  contribution: { type: "string", description: "Pourquoi cette page à cette position et ce qu'elle apporte au propos." },
+  strategic_note: { type: "string" },
+  contribution: { type: "string" },
   inherits: { type: "string" },
   develops: { type: "string" },
   source_ids: { type: "array", items: { type: "string" } },
+  image_role: { type: "string" },
   story_beat: { type: "string" },
-  image_relation: { type: "string", description: "Ce que la photo accompagne dans le récit, même indirectement, sans dicter le texte." },
+  image_relation: { type: "string", description: "Rôle de la photo : preuve visible, illustration, ambiance ou écho. Le texte peut raconter des faits de marque non visibles." },
   factual_basis: { type: "string", description: "Faits utilisables et leur source (brief/réponses/marque), observations ou interprétation explicitement présentée comme telle. Aucun fait déduit du scénario lui-même." },
   photo_index: { type: ["number", "null"] },
   slide_type: { type: "string" },
@@ -45,8 +51,7 @@ export const COMPACT_SLIDE_PROPERTIES = {
 /** Consigne ajoutée au prompt du plan compact : elle prime sur les noms de champs des contrats communs. */
 export const COMPACT_PLAN_FORMAT = `FORMAT DE SORTIE COMPACT (prime sur les noms de champs cités plus haut) :
 - Décris chaque photo UNE seule fois dans photo_notes : observation (ce qui est visible et ce qui reste ambigu, sans histoire supposée) et anchor (détail visible à préserver dans le cadrage). Ces deux champs tiennent lieu de photo_observation et visual_anchor : ne les répète pas dans les slides.
-- Dans chaque slide, contribution dit pourquoi la page est à cette position et ce qu'elle apporte ; elle tient lieu de strategic_note. image_relation dit ce que la photo accompagne ; elle tient lieu d'image_role.
-- Une phrase courte par champ, sans redire un autre champ. factual_basis peut citer brièvement plusieurs sources.`;
+- Chaque slide garde tous ses autres champs, photo_index compris.`;
 
 const ANCHOR_MAX = 120;
 
