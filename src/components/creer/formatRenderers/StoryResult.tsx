@@ -781,6 +781,17 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                         </>
                       )}
                     </Button>
+                    {stories.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2.5 text-2xs gap-1.5 font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteTarget(i)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Supprimer
+                      </Button>
+                    )}
                   </div>
                   <div className="space-y-1 pt-1">
                     <label htmlFor={`story-${i}-full-text`} className="text-2xs font-medium text-muted-foreground">
