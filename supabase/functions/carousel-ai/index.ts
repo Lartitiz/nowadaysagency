@@ -1742,7 +1742,7 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
     photoContext:buildPhotoContextRecap(ctx.body.photo_contexts || ctx.body.photos),
     newsContext:typeof ctx.newsContext === "string" ? ctx.newsContext : "",
     authoredText:ctx.currentAuthoredText, audienceAddress:ctx.audienceAddress, startedAt:ctx.startedAt, usage,
-    emitStatus:ctx.emitStatus, write:_deps.callCarouselWriter, review:_deps.reviewThread, reserveMs:PHOTO_MATCH_RESERVE_MS,
+    emitStatus:ctx.emitStatus, write:_deps.callCarouselWriter, reserveMs:PHOTO_MATCH_RESERVE_MS,
     onDraft:(slides)=>ctx.emitStatus("draft",{slides}), timings:clock.timings,
   }); } catch(error) {
     if(error instanceof NarrativePhotoMismatch) return carouselMismatchResponse(JSON.stringify({photo_mismatch:{reason:error.message}}),ctx.body,usage,ctx.body.carousel_type,ctx.corsHeaders);
@@ -1756,7 +1756,9 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
     brandGuardText:ctx.brandGuardText,echo:echoContext(ctx),
     correction:{enabled:false},
   }));
-  const written = await clock.timed("thread_ms", finalizeCarousel(measured.content,ctx,{usage,repaired:output.repaired,regenerate:output.regenerate,reserveMs:PHOTO_MATCH_RESERVE_MS,timings:clock.timings}));
+  // Seul juge du récit photo/mixte (09/10/2026) : il répare si le délai couvre
+  // la rédaction mesurée (write_ms), comme pour le texte ; sinon il la saute.
+  const written = await clock.timed("thread_ms", finalizeCarousel(measured.content,ctx,{usage,regenerate:output.regenerate,reserveMs:PHOTO_MATCH_RESERVE_MS,timings:clock.timings,expectedRepairMs:clock.timings.write_ms}));
   const matched = await clock.timed("match_ms", _deps.matchPhotos(JSON.parse(written), {body:ctx.body,startedAt:ctx.startedAt,usage,emitStatus:ctx.emitStatus,call:_deps.callAnthropic}));
   const content = JSON.stringify(matched);
   await addOutlineUsage(ctx, usage);

@@ -7,7 +7,6 @@ import {
 import {
   composeNarrative,
   createContinuousNarrative,
-  FINAL_JUDGE_RESERVE_MS,
   narrativeAngleFamily,
   parseNarrative,
   usesContinuousNarrative,
@@ -23,7 +22,6 @@ import {
   SOCLE_FAMILLES,
 } from "../_shared/socle.ts";
 import { COMMON } from "../_shared/carousel-editorial-contract.ts";
-import { progressionJudgeCallMs, progressionReceipt } from "../_shared/carousel-progression.ts";
 const original = {
   idea: "Le temps de réparation change le choix d'un objet",
   hook: "Un objet se choisit aussi après l'achat",
@@ -83,16 +81,13 @@ for (const quality_max of [false, true]) {
         if (s) Object.assign(s, { model: o.model, total_tokens: 5 });
         return JSON.stringify(original);
       },
-      review: async (doc) => {
-        events.push("review");
-        assert(doc.slides.every((s: any) => s.photo_index === undefined));
-        return {
-          ...await progressionReceipt(doc, "completed"),
-          verdict: "acceptable",
-        };
-      },
     });
-    assertEquals(events, ["write", "review"]);
+    // Un seul juge (09/10/2026) : le récit n'est plus relu ici, le juge final
+    // relit le carrousel composé, tel qu'il s'affiche.
+    assertEquals(events, ["write"]);
+    assertEquals(result?.doc.narrative_draft.review.execution_status, "skipped");
+    assertEquals(result?.doc.narrative_draft.review.reason, "final-review");
+    assertEquals(result?.doc.narrative_draft.repair.reason, "final-review");
     assertEquals(result?.doc.slides.map((s: any) => s.overlay_text), [
       original.hook,
       ...original.paragraphs,
@@ -135,61 +130,6 @@ Deno.test("mixte : la distribution conserve les paragraphes, le choix des photos
   assertEquals(doc.slides[0].overlay_position, "top_left");
   assert("photo_layout" in doc.slides[2]);
   assertEquals(doc.slides[2].photo_layout, "right_photo");
-});
-
-for (const accepted of [false, true]) {
-  Deno.test(`réécriture du texte avant composition : acceptée=${accepted}`, async () => {
-    let writes = 0, reviews = 0;
-    const changed = {
-      ...original,
-      paragraphs: [
-        ...original.paragraphs.slice(0, 2),
-        "La durée d'usage devient ainsi un critère concret, dès le choix initial.",
-      ],
-    };
-    const output = await createContinuousNarrative({
-      ...base,
-      usage: {},
-      write: async () => JSON.stringify(++writes === 1 ? original : changed),
-      review: async (doc) => ({
-        ...await progressionReceipt(doc, "completed"),
-        issues: ["Conclusion à relier"],
-        verdict: ++reviews === 2 && accepted ? "acceptable" : "needs_repair",
-      }),
-    });
-    assertEquals(writes, 2);
-    assertEquals(reviews, 2);
-    const last = output?.doc.slides.at(-1);
-    assert(last && "overlay_text" in last);
-    assertEquals(
-      last.overlay_text,
-      (accepted ? changed : original).paragraphs.at(-1),
-    );
-    assertEquals(
-      output?.doc.narrative_draft.repair.reason,
-      accepted ? "accepted" : "candidate-not-acceptable",
-    );
-  });
-}
-
-Deno.test("budget restant insuffisant : conserve le texte relu sans troisième tentative", async () => {
-  let writes = 0;
-  const output = await createContinuousNarrative({
-    ...base,
-    startedAt: Date.now() - 180000,
-    usage: {},
-    write: async () => {
-      writes++;
-      return JSON.stringify(original);
-    },
-    review: async (doc) => ({
-      ...await progressionReceipt(doc, "completed"),
-      issues: ["Propos faible"],
-      verdict: "needs_repair",
-    }),
-  });
-  assertEquals(writes, 1);
-  assertEquals(output?.doc.narrative_draft.repair.reason, "time-budget");
 });
 
 Deno.test("photos brutes envoyées sans pixels ni contexte : pas de récit continu (sinon « Choisis les photos »)", () => {
@@ -267,7 +207,6 @@ Deno.test("carrousel photo : chaque slide reste photo_full avec son texte, même
 
 // ═══ Socle, étape 2 : le récit continu reçoit les règles du socle ═══════════
 
-const acceptAll = async (doc: any) => ({ ...await progressionReceipt(doc, "completed"), verdict: "acceptable" as const });
 async function systemFor(body: any, extra: Record<string, unknown> = {}): Promise<string> {
   let system = "";
   await createContinuousNarrative({
@@ -279,7 +218,6 @@ async function systemFor(body: any, extra: Record<string, unknown> = {}): Promis
       system ||= o.system || "";
       return JSON.stringify({ ...original, paragraphs: body.slide_count ? original.paragraphs.slice(0, body.slide_count - 1) : original.paragraphs });
     },
-    review: acceptAll,
   });
   return system;
 }
@@ -350,7 +288,6 @@ Deno.test("socle : en longueur Auto, un texte de plus de 9 paragraphes est réé
       if (sent.feedback) feedbacks.push(sent.feedback);
       return JSON.stringify(writes === 1 ? long : original);
     },
-    review: acceptAll,
   });
   assertEquals(writes, 2);
   assert(feedbacks[0].includes("12 paragraphes : 9 au plus"));
@@ -370,52 +307,41 @@ const rewritten = {
     ...original.paragraphs.slice(1),
   ],
 };
-for (const verdict of ["acceptable", "needs_repair"] as const) {
-  Deno.test(`redite d'un contenu récent : réécriture ${verdict === "acceptable" ? "gardée" : "écartée (fil abîmé)"}`, async () => {
-    let writes = 0, reviews = 0;
-    const systems: string[] = [];
-    const output = await createContinuousNarrative({
-      ...base,
-      recentTexts,
-      usage: {},
-      write: async (o) => {
-        systems.push(String(o.system));
-        return JSON.stringify(++writes === 1 ? original : rewritten);
-      },
-      review: async (doc) => ({
-        ...await progressionReceipt(doc, "completed"),
-        verdict: ++reviews === 1 ? "acceptable" : verdict,
-      }),
-    });
-    assert(systems[0].includes("DÉJÀ ÉCRIT RÉCEMMENT"));
-    assert(systems[0].includes("entourée d'arbres"));
-    assertEquals(writes, 2);
-    assertEquals(reviews, 2);
-    const echo = output?.doc.narrative_draft.recent_echo;
-    assert(echo, "recent_echo manquant");
-    assertEquals(echo.before, 1);
-    assertEquals(echo.accepted, verdict === "acceptable");
-    assertEquals(echo.after, verdict === "acceptable" ? 0 : 1);
-    assertEquals(echo.reason, verdict === "acceptable" ? "accepted" : "fil-degraded");
-    const slide2 = output?.doc.slides[1];
-    assert(slide2 && "overlay_text" in slide2, "slide 2 sans overlay_text");
-    assertEquals(
-      slide2.overlay_text,
-      (verdict === "acceptable" ? rewritten : original).paragraphs[0],
-    );
+// Un seul juge (09/10/2026) : la réécriture est gardée dès qu'elle redit
+// moins ; le juge final relit ensuite le texte retenu et répare le fil.
+Deno.test("redite d'un contenu récent : réécriture gardée si elle redit moins, sans juge du récit", async () => {
+  let writes = 0;
+  const systems: string[] = [];
+  const output = await createContinuousNarrative({
+    ...base,
+    recentTexts,
+    usage: {},
+    write: async (o) => {
+      systems.push(String(o.system));
+      return JSON.stringify(++writes === 1 ? original : rewritten);
+    },
   });
-}
+  assert(systems[0].includes("DÉJÀ ÉCRIT RÉCEMMENT"));
+  assert(systems[0].includes("entourée d'arbres"));
+  assertEquals(writes, 2);
+  const echo = output?.doc.narrative_draft.recent_echo;
+  assert(echo, "recent_echo manquant");
+  assertEquals([echo.before, echo.after, echo.accepted, echo.reason], [1, 0, true, "accepted"]);
+  const slide2 = output?.doc.slides[1];
+  assert(slide2 && "overlay_text" in slide2, "slide 2 sans overlay_text");
+  assertEquals(slide2.overlay_text, rewritten.paragraphs[0]);
+  assertEquals(output?.doc.narrative_draft.review.reason, "final-review");
+});
 
-Deno.test("redite d'un contenu récent : candidate qui redit autant → texte d'origine, sans 2e relecture", async () => {
-  let writes = 0, reviews = 0;
+Deno.test("redite d'un contenu récent : candidate qui redit autant → texte d'origine", async () => {
+  let writes = 0;
   const output = await createContinuousNarrative({
     ...base,
     recentTexts,
     usage: {},
     write: async () => { writes++; return JSON.stringify(original); },
-    review: async (doc) => { reviews++; return { ...await progressionReceipt(doc, "completed"), verdict: "acceptable" }; },
   });
-  assertEquals([writes, reviews], [2, 1]);
+  assertEquals(writes, 2);
   assertEquals(output?.doc.narrative_draft.recent_echo.reason, "candidate-not-better");
 });
 
@@ -428,7 +354,6 @@ Deno.test("redite : phrase fournie dans la demande du jour = pas une redite ; sa
       ...extra,
       usage: {},
       write: async (o) => { writes++; systems.push(String(o.system)); return JSON.stringify(original); },
-      review: async (doc) => ({ ...await progressionReceipt(doc, "completed"), verdict: "acceptable" }),
     });
     assertEquals(writes, 1);
     assertEquals(output?.doc.narrative_draft.recent_echo.before, 0);
@@ -444,44 +369,10 @@ Deno.test("redite : budget trop court → mesurée et tracée, pas de réécritu
     startedAt: Date.now() - 180000,
     usage: {},
     write: async () => { writes++; return JSON.stringify(original); },
-    review: async (doc) => ({ ...await progressionReceipt(doc, "completed"), verdict: "acceptable" }),
   });
   assertEquals(writes, 1);
   assertEquals(output?.doc.narrative_draft.recent_echo, {
     before: 1, after: 1, attempted: false, accepted: false, reason: "time-budget",
     passages: ["Le premier prix ne dit pas combien de temps l'objet pourra servir"],
   });
-});
-
-// 09/10/2026 (photo, 3 photos, 10 slides) : le juge du récit coupé à 35 s
-// (« Anthropic fetch timeout après 35000ms »), puis le juge final privé de temps.
-Deno.test("juge du récit : plafond d'un appel du juge, réserve laissée au juge final", async () => {
-  const caps: number[] = [];
-  await createContinuousNarrative({
-    ...base,
-    reserveMs: 95000,
-    startedAt: Date.now() - 42000,
-    usage: {},
-    write: async () => JSON.stringify(original),
-    review: async (doc, o) => { caps.push(o.abortTimeoutMs!); return { ...await progressionReceipt(doc, "completed"), verdict: "acceptable" }; },
-  });
-  assertEquals(caps.length, 1);
-  assert(caps[0] > 35000 && caps[0] <= progressionJudgeCallMs(original.paragraphs.length + 1), `plafond ${caps[0]}`);
-});
-
-Deno.test("juge du récit : sauté plutôt que de priver le juge final de son temps", async () => {
-  let reviews = 0;
-  const output = await createContinuousNarrative({
-    ...base,
-    reserveMs: 95000,
-    // Rédaction lente : il reste 62 s, moins que la réserve du juge final + 20 s.
-    startedAt: Date.now() - 113000,
-    usage: {},
-    write: async () => JSON.stringify(original),
-    review: async (doc) => { reviews++; return { ...await progressionReceipt(doc, "completed"), verdict: "acceptable" }; },
-  });
-  assertEquals(reviews, 0);
-  assertEquals(output?.doc.narrative_draft.review.execution_status, "skipped");
-  assertEquals(output?.doc.narrative_draft.review.reason, "time-budget");
-  assert(62000 - FINAL_JUDGE_RESERVE_MS < 20000);
 });

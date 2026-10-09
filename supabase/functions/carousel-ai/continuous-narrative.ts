@@ -8,10 +8,8 @@ import {
 import { AnthropicError, type UsageSink } from "../_shared/anthropic.ts";
 import { callCarouselWriter, pickCarouselWriter } from "./writer.ts";
 import {
-  progressionJudgeCallMs,
   progressionReceipt,
   type ProgressionSource,
-  reviewCarouselProgression,
 } from "../_shared/carousel-progression.ts";
 import { newsWriting } from "./variant-writing.ts";
 import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
@@ -33,8 +31,6 @@ import {
 } from "../_shared/socle.ts";
 
 export const NARRATIVE_VERSION = "continuous-prose-v4-socle";
-/** Temps laissé au juge final (33 s mesurées à 10 slides le 09/10/2026). */
-export const FINAL_JUDGE_RESERVE_MS = 45000;
 export class NarrativePhotoMismatch extends Error {}
 /** Same evidence composeNarrative requires: pixels, contexts or a planned photo. */
 function hasPhotoEvidence(body: any): boolean {
@@ -267,15 +263,13 @@ export async function createContinuousNarrative(options: {
    * rédaction envoyés à l'écran au fil de l'écriture (brouillon, jamais réutilisé).
    */
   onDraft?: (slides: DraftSlide[]) => void;
-  /** Durées par étape (ms), complétées en place : write_ms, judge_ms, rewrite_ms. */
+  /** Durées par étape (ms), complétées en place : write_ms, rewrite_ms. */
   timings?: Record<string, number>;
   write?: typeof callCarouselWriter;
-  review?: typeof reviewCarouselProgression;
 }) {
   const { body, usage } = options;
   if (!usesContinuousNarrative(body)) return null;
-  const write = options.write || callCarouselWriter,
-    review = options.review || reviewCarouselProgression;
+  const write = options.write || callCarouselWriter;
   const exact = carouselLength(body).exact;
   // Deliberately exclude automatic headings, roles, suggested thread and brand-tour outline.
   const sources: ProgressionSource[] = [
@@ -395,23 +389,12 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
     ],
     caption: n.caption,
   });
-  // 09/10/2026 (photo, 10 slides) : 35 s fixes coupaient ce juge
-  // (« Anthropic fetch timeout après 35000ms »). Il a le plafond d'un appel du
-  // juge, mais laisse toujours au juge final, qui décide de l'alerte affichée,
-  // le temps d'un contrôle : sinon il est sauté plutôt que de le priver.
-  const judge = async (n: Narrative) => {
-    const budget = Math.min(progressionJudgeCallMs(n.paragraphs.length + 1), remaining() - FINAL_JUDGE_RESERVE_MS);
-    if (budget < 20000) {
-      return progressionReceipt(proof(n), "skipped", "time-budget");
-    }
-    const receipt = await timed("judge_ms", () => review(proof(n), {
-      sources,
-      sourceContext: JSON.stringify(sources),
-      abortTimeoutMs: budget,
-    }));
-    if (receipt.usage) add(receipt.usage);
-    return receipt;
-  };
+  // UN SEUL JUGE (09/10/2026, choix de Laetitia) : le juge du récit (~30 s)
+  // relisait presque le même texte que le juge final (~35 s), et ni l'un ni
+  // l'autre n'avait ensuite le temps de réparer (photo, 10 slides : réparation
+  // du récit exigeant 105 s quand il en restait ~95, réparation finale 85 s
+  // quand il en restait ~65). Seul le juge final relit le carrousel, tel qu'il
+  // s'affiche ; il répare (localement si possible) et rejuge avec ce temps.
   options.emitStatus("writing");
   let narrative = await draft();
   // Longueur Auto : 10 slides au plus en photo et mixte (socle). Une réécriture
@@ -426,43 +409,8 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
       if (shorter.paragraphs.length <= autoMax) narrative = shorter;
     } catch { /* le premier texte reste */ }
   }
-  options.emitStatus("correcting");
-  let receipt = await judge(narrative);
-  let repair: { attempted: boolean; accepted: boolean; reason: string } = {
-    attempted: false,
-    accepted: false,
-    reason: "not-needed",
-  };
-  if (receipt.verdict === "needs_repair" && remaining() >= 105000) {
-    repair = {
-      attempted: true,
-      accepted: false,
-      reason: "candidate-not-acceptable",
-    };
-    try {
-      const candidate = await draft(
-        "Réécris le texte entier pour résoudre ces défauts sans ajouter de faits :\n" +
-          receipt.issues.join("\n"),
-        narrative,
-      );
-      const checked = await judge(candidate);
-      if (
-        checked.execution_status === "completed" &&
-        checked.verdict === "acceptable"
-      ) {
-        narrative = candidate;
-        receipt = checked;
-        repair = { attempted: true, accepted: true, reason: "accepted" };
-      } else {repair.reason = checked.execution_status === "completed"
-          ? "candidate-not-acceptable"
-          : `review-${checked.execution_status}`;}
-    } catch {
-      repair.reason = "repair-failed";
-    }
-  } else if (receipt.verdict === "needs_repair") repair.reason = "time-budget";
   // Redite des contenus récents de la marque (bilan hebdo 05/10/2026) : mesure
-  // déterministe, puis UNE réécriture gardée seulement si elle redit moins sans
-  // abîmer le fil (même juge, même verdict exigé).
+  // déterministe, puis UNE réécriture.
   const requestText = sources.find((s) => s.id === "request")?.text || "";
   const echoesOf = (n: Narrative) =>
     findRecentEchoes(narrativeText(n), options.recentTexts, requestText);
@@ -472,6 +420,9 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
     reason: echoes.length ? "time-budget" : "not-needed", passages: echoes.slice(0, 5),
   };
   if (echoes.length) console.log(`[recent-echo] ${echoes.length} passage(s) déjà écrit(s) dans un contenu récent de la marque`);
+  // Réécriture gardée si elle redit moins : le juge final relit ensuite le
+  // texte retenu et le répare s'il a abîmé le fil. 105 s : la réécriture
+  // (~35 s) plus le juge final et sa marge.
   if (echoes.length && remaining() >= 105000) {
     recentEcho.attempted = true;
     recentEcho.reason = "candidate-not-better";
@@ -483,15 +434,10 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
       );
       const left = echoesOf(candidate);
       if (left.length < echoes.length) {
-        const checked = await judge(candidate);
-        const fineBefore = receipt.verdict !== "needs_repair";
-        if (checked.execution_status === "completed" && (checked.verdict === "acceptable" || !fineBefore)) {
-          narrative = candidate;
-          receipt = checked;
-          echoes = left;
-          recentEcho.accepted = true;
-          recentEcho.reason = "accepted";
-        } else recentEcho.reason = checked.execution_status === "completed" ? "fil-degraded" : `review-${checked.execution_status}`;
+        narrative = candidate;
+        echoes = left;
+        recentEcho.accepted = true;
+        recentEcho.reason = "accepted";
       }
     } catch {
       recentEcho.reason = "repair-failed";
@@ -517,11 +463,10 @@ Quand les pixels sont fournis, ils servent à vérifier les faits visibles, pas 
       narrative_draft: {
         version: NARRATIVE_VERSION,
         ...narrative,
-        review: receipt,
-        repair,
+        review: await progressionReceipt(proof(narrative), "skipped", "final-review"),
+        repair: { attempted: false, accepted: false, reason: "final-review" },
         recent_echo: recentEcho,
       },
     },
-    repaired: repair.attempted,
   };
 }

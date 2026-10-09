@@ -777,6 +777,48 @@ for (const writeMs of [80_000, 30_000]) Deno.test(`progression finale texte : r�
   } finally { globalThis.fetch = oldFetch; Date.now = now; }
 });
 
+// UN SEUL JUGE en photo et mixte (09/10/2026, mesuré en ligne, 10 slides) :
+// préparation 13 s, rédaction 34 s, juge final 37 s. Avec le juge du récit en
+// plus (33 s), aucune réparation ne tenait (repair_skipped: time-budget). Seul,
+// le juge final laisse ~36 s à la réparation, assez pour réécrire (34 s).
+for (const carousel_type of ["photo", "mix"]) for (const writeMs of [34_000, 50_000]) Deno.test(`un seul juge ${carousel_type} : réparation lancée quand elle tient (rédaction ${writeMs / 1000} s)`, async () => {
+  resetDeps(); _deps.prepareNarrative = createContinuousNarrative;
+  const oldFetch = globalThis.fetch, now = Date.now; let offset = 0;
+  Date.now = () => now() + offset;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const paragraphs = ["Le geste rend chaque dessin unique.", "Les formes restent utiles au quotidien.", "Quelques objets suffisent pour la table."];
+  let writes = 0, judges = 0, repairTimeout = 0;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    writes++; if (sink) Object.assign(sink, { model: o.model, total_tokens: 7 });
+    await Promise.resolve();
+    if (writes === 1) offset += writeMs; else repairTimeout = o.abortTimeoutMs;
+    return JSON.stringify({ idea: "Une singularité utile", hook: "Une pièce unique pour le quotidien", paragraphs, caption: {} });
+  }) as any;
+  _deps.reviewThread = async (doc: any) => {
+    // + 13 s de préparation (plan, photos), comptés ici pour garder write_ms exact.
+    if (judges++ === 0) { offset += 13_000 + 37_000; return verdict(doc, ["La conclusion est insuffisamment préparée."]); }
+    return verdict(doc);
+  };
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type, scenario_origin: "automatic", slide_count: 4, subject: "Une pièce peinte à la main reste utile", photos: [1, 2].map(() => ({ base64: "aGVsbG8=" })) }));
+    assertEquals(res.status, 200);
+    const data = await res.json(), doc = JSON.parse(data.content);
+    assert(!("judge_ms" in data.timings), "plus de juge du récit");
+    if (writeMs === 34_000) {
+      assertEquals([writes, judges], [2, 2]);
+      assert(repairTimeout >= writeMs && repairTimeout <= 40_000, `délai de réparation ${repairTimeout}`);
+      assertEquals(doc.progression_review.repair.attempted, true);
+      assertEquals(doc.progression_review.repair_skipped, undefined);
+      assertEquals(doc.narrative_draft.repair.reason, "accepted-by-final-review");
+    } else {
+      // Rédaction lente : la réparation n'aurait pas eu le temps de la refaire.
+      assertEquals([writes, judges], [1, 1]);
+      assertEquals(doc.narrative_draft.review.reason, "final-review");
+      assertEquals(doc.progression_review.repair_skipped, "time-budget");
+    }
+  } finally { globalThis.fetch = oldFetch; Date.now = now; resetDeps(); }
+});
+
 // 08/10/2026 : rupture locale → seules les slides concernées et leurs voisines
 // sont réécrites ; le 2e juge relit TOUT et décide si la version est gardée.
 for (const outcome of ["local-accepted", "local-not-better", "global"]) Deno.test(`progression finale texte : réparation ${outcome}`, async () => {
@@ -1131,7 +1173,7 @@ for(const carousel_type of ["photo","mix"])for(const quality_max of [false,true]
   try{
     const response=await handleRequest(makeHooksRequest({type:"express_full",carousel_type,quality_max,scenario_origin:"automatic",confirmed_structure:plan,photo_contexts:plan.map(()=>({context:"Objet réparable"})),subject:"Développer ce que permet la réparation",deepening_answers:{fait:"Les pièces peuvent être remplacées."}}));
     assertEquals(response.status,200);const doc=JSON.parse((await response.json()).content);
-    assertEquals(writes,1);assertEquals(reviews,2);
+    assertEquals(writes,1);assertEquals(reviews,1); // un seul juge : le juge final
     assertEquals(doc.slides.slice(1).map((s:any)=>s.overlay_text),paragraphs);
     assertEquals(doc.slides.map((s:any)=>s.photo_index),[1,2,3,4]);
     assertEquals(doc.narrative_draft.version,"continuous-prose-v4-socle");
@@ -1156,14 +1198,15 @@ for (const carousel_type of ["photo", "mix"]) for (const improved of [false, tru
   };
   _deps.reviewThread = async (doc) => {
     reviews++;
-    const defect = reviews === 2 || (reviews === 3 && !improved);
+    // Un seul juge (09/10/2026) : 1 = juge final, 2 = contrôle après réparation.
+    const defect = reviews === 1 || (reviews === 2 && !improved);
     return { ...await verdict(doc), issues: defect ? ["FACETTES_SANS_PROGRESSION"] : [], report: { defects: defect ? [{ severity: "minor", type: "unclear_idea" }] : [] } };
   };
   try {
     const response = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type, scenario_origin: "automatic", slide_count: 4, subject: "Une piece peinte a la main reste utile", photos: [1, 2].map(() => ({ base64: "aGVsbG8=" })) }));
     assertEquals(response.status, 200);
     const doc = JSON.parse((await response.json()).content);
-    assertEquals(writes, 2); assertEquals(reviews, 3);
+    assertEquals(writes, 2); assertEquals(reviews, 2);
     assertEquals(doc.slides.slice(1).map((s: any) => s.overlay_text || s.body), improved ? fixed : initial);
     assertEquals(doc.slides.map((s: any) => s.photo_index), carousel_type === "photo" ? [1, 2, 1, 2] : [1, 2, 1, null]);
     assertEquals(doc.progression_review.repair.accepted, improved);
@@ -1183,7 +1226,7 @@ for (const carousel_type of ["photo", "mix"]) Deno.test(`photos suivent la derni
   const initial = ["Un pot rose accompagne les fleurs.", "Sa forme prend place dans un intérieur.", "Les objets nous accompagnent."];
   const final = ["Les cerises peintes sur les bols rendent chaque repas familier.", "Cette présence quotidienne change notre regard sur les objets.", "L'usage rend ces objets familiers."];
   _deps.callCarouselWriter = async () => JSON.stringify({idea:"La familiarité vient de l'usage",hook:"Ce qui devient familier",paragraphs:++writes === 1 ? initial : final,caption:{}});
-  _deps.reviewThread = async doc => ({...await verdict(doc),issues:++reviews === 2 ? ["Développer la progression"] : [],report:{defects:reviews === 2 ? [{severity:"minor",type:"juxtaposition"}] : []}});
+  _deps.reviewThread = async doc => ({...await verdict(doc),issues:++reviews === 1 ? ["Développer la progression"] : [],report:{defects:reviews === 1 ? [{severity:"minor",type:"juxtaposition"}] : []}});
   _deps.callAnthropic = async o => {
     if (o.tool?.name === "plan_envisage") return "{}"; // plan envisagé : hors sujet ici
     matches++;
@@ -1197,7 +1240,7 @@ for (const carousel_type of ["photo", "mix"]) Deno.test(`photos suivent la derni
     assertEquals(response.status,200); const doc=JSON.parse((await response.json()).content);
     assertEquals(matches,2); assertEquals(doc.slides[1].photo_index,2);
     assertEquals(doc.progression_review.repair.reason,"accepted");
-    assertEquals(visualInputs.map(v => [v.writes,v.reviews]),[[2,3],[2,3]]);
+    assertEquals(visualInputs.map(v => [v.writes,v.reviews]),[[2,2],[2,2]]);
     assert(visualInputs.every(v => v.payload.includes(final[0]) && !v.payload.includes(initial[0])));
     assertEquals(doc.slides.slice(1).map((s:any)=>s.overlay_text||s.body),final);
     assertEquals(doc.photo_review.verdict,"acceptable");
@@ -1580,7 +1623,7 @@ for (const carousel_type of ["photo", "mix"]) Deno.test(`récit continu ${carous
     assertEquals(doc.narrative_draft.paragraphs, narrative.paragraphs);
     assertEquals(doc.slides.length, 4);
     assert(!doc.slides.some((s: any) => [s.title, s.overlay_text].includes("La forme")), "le plan n'entre jamais dans le carrousel");
-    assert(done.timings.write_ms >= 0 && done.timings.judge_ms >= 0 && done.timings.total_ms >= done.timings.prep_ms);
+    assert(done.timings.write_ms >= 0 && done.timings.thread_judge_ms >= 0 && !("judge_ms" in done.timings) && done.timings.total_ms >= done.timings.prep_ms);
     assertEquals(logged[3], 1010 + 120); // une seule ligne de crédit, jetons du plan compris
   } finally { globalThis.fetch = oldFetch; resetDeps(); }
 });
