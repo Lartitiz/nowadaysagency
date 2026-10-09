@@ -209,6 +209,8 @@ Deno.test("photos brutes envoyées sans pixels ni contexte : pas de récit conti
   assert(usesContinuousNarrative({ ...pureDump, photo_contexts: [{}] }));
   assert(usesContinuousNarrative({ ...pureDump, photos: [{ base64: "x" }] }));
   assert(usesContinuousNarrative({ ...pureDump, slide_structure: [{ photo_index: 1 }, {}] }));
+  // 09/10 : « Photos brutes » signalé par l'app = parcours classique allégé, jamais le récit continu.
+  assert(!usesContinuousNarrative({ ...pureDump, photo_contexts: [{}], photos_only: true }));
 });
 
 Deno.test("scénarios humains, photos brutes et texte fourni gardent leur parcours", () => {

@@ -1309,9 +1309,14 @@ async function finalizeCarousel(
         abortTimeoutMs: Math.min(judgeCapMs, remaining()),
       }));
   const ownsText = body.type === "slides" || body.user_slides?.length;
-  if (!ownsText) ctx.emitStatus("checking");
+  // « Photos brutes » : les slides n'ont plus de texte (vidées après
+  // l'écriture), il n'y a pas de fil à juger, réparer ni couverture à poser.
+  const photosOnly = body.photos_only === true;
+  if (!ownsText && !photosOnly) ctx.emitStatus("checking");
   let receipt = ownsText
     ? await progressionReceipt(doc, "skipped", "user-authored")
+    : photosOnly
+    ? await progressionReceipt(doc, "skipped", "pure-photo-no-text")
     : await judge(doc);
   const recordUsage = (r: ProgressionResult) => {
     for (
@@ -1501,14 +1506,14 @@ async function finalizeCarousel(
     })),
     duration_ms: Date.now() - startedAt,
   };
-  doc.structure_warnings = [
+  doc.structure_warnings = photosOnly ? [] : [
     ...carouselStructureIssues(doc, body),
     ...(ownsText ? [] : progressionWarnings(receipt)),
   ];
   // COUVERTURE (04/10/2026) : accroche de 10 mots max + sous-titre facultatif,
   // rien d'autre ; seule la slide 1 est touchée (cf. _shared/carousel-cover.ts).
   const coverSink: UsageSink = {};
-  const cover = await lap("thread_cover_ms", () => enforceCover(doc, {
+  const cover = photosOnly ? { doc, receipt: null } : await lap("thread_cover_ms", () => enforceCover(doc, {
     kind: coverKind(body.carousel_type),
     userAuthored: !!ownsText,
     selectedHook: typeof body.selected_hook === "string" ? body.selected_hook : body.selected_hook?.text ?? null,
@@ -1959,6 +1964,22 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
 }
 
 // ── Photo carousel mode ──
+/** « Photos brutes » : slides photo pleine page sans aucun texte (même liste blanche que l'app, src/lib/pure-photo-slides.ts). */
+export function emptySlidesText(content: string): string {
+  const m = content.match(/\{[\s\S]*\}/);
+  if (!m) return content;
+  let parsed: any;
+  try { parsed = JSON.parse(m[0]); } catch { return content; }
+  const doc = parsed?.carousel?.slides ? parsed.carousel : parsed;
+  if (!Array.isArray(doc?.slides)) return content;
+  doc.slides = doc.slides.map((s: any, i: number) => ({
+    slide_number: i + 1, role: s?.role || "body", slide_type: "photo_full",
+    overlay_text: null, title: "", body: "", photo_index: s?.photo_index ?? i + 1,
+  }));
+  doc.no_overlay = true;
+  return content.replace(m[0], JSON.stringify(parsed, null, 2));
+}
+
 async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
   const continuous = await continuousCarouselResponse(reqCtx);
   if (continuous) return continuous;
@@ -2057,13 +2078,21 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   // Plancher déterministe de slides (audit carrousel photo 12/07) : 1 slide
   // livrée sur 6 demandées vue en live ~1 run/2. 0 slide = refus légitime
   // (photo_mismatch), laissé au check ci-dessous.
-  content = await clock.timed("write_ms", retryIfTooShort(content, doGenerate, photoUsage, carouselSlideFloor(body, 6), "photo"));
+  // « Photos brutes » (09/10/2026) : l'app efface le texte des slides et ne
+  // garde que la légende. Le texte est écrit (la légende naît du même appel),
+  // puis vidé tout de suite : relecture et chasse aux tics ne portent plus que
+  // sur la légende, et ce qui ne sert qu'aux slides (2e essai si trop court,
+  // structure, gabarits, juge du fil, couverture) est sauté.
+  const photosOnly = body.photos_only === true;
+  if (!photosOnly) content = await clock.timed("write_ms", retryIfTooShort(content, doGenerate, photoUsage, carouselSlideFloor(body, 6), "photo"));
 
   {
     const mismatch = carouselMismatchResponse(content, body, photoUsage, "photo", corsHeaders);
     if (mismatch) return mismatch;
   }
-  const threadPhoto = await clock.timed("structure_ms", repairCarouselStructure(content, { body, label: "photo", emitStatus, usage: photoUsage, regenerate: doRepair, startedAt }));
+  const threadPhoto = photosOnly
+    ? { content: emptySlidesText(content), repaired: false }
+    : await clock.timed("structure_ms", repairCarouselStructure(content, { body, label: "photo", emitStatus, usage: photoUsage, regenerate: doRepair, startedAt }));
   // Mise en page hors de l'écriture : gabarit, chiffre, liste, étape et
   // attribution sont posés ensuite, à partir du texte FINAL (assignPhotoTemplates,
   // après la relecture et le redac-gate, plus bas).
@@ -2122,7 +2151,8 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     captionEnding: captionEndingRule,
     correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: reviewAllowed(startedAt), skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   }));
-  content = gatePhoto.content;
+  // La re-passe du gate réécrit tout le JSON : rien ne doit revenir sur les slides.
+  content = photosOnly ? emptySlidesText(gatePhoto.content) : gatePhoto.content;
   // Relecture-gabarits (13/07) : sur les textes DÉFINITIFS (post relecture
   // éditoriale et redac-gate), pose le gabarit visuel de chaque slide. Avant le
   // 04/10/2026 elle tournait AVANT la relecture sémantique quand celle-ci était
@@ -2131,7 +2161,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   // mis en valeur ne correspondait plus au texte final. Ces champs sont
   // désormais des extraits EXACTS du texte relu (aucune matière nouvelle à
   // relire) et la relecture ne les patche plus (carouselReviewFields).
-  content = await clock.timed("templates_ms", assignPhotoTemplates(content, {
+  if (!photosOnly) content = await clock.timed("templates_ms", assignPhotoTemplates(content, {
     model: pickCorrectionModel(body),
     logger: (m) => console.log(m),
   }));
