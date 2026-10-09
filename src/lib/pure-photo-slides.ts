@@ -15,6 +15,12 @@ export function purePhotoSlides(slides: any[], photoCount: number): any[] {
     title: "",
     body: "",
     photo_index: i + 1,
+    // Identifiant posé par l'éditeur : sans texte, il doit survivre au nettoyage.
+    // Le retirer faisait reconnaître à l'éditeur une « nouvelle » liste de slides,
+    // qu'il relisait et renvoyait avec l'identifiant → re-nettoyage → boucle
+    // infinie ~1 fois/s (contrôle qualité et sauvegarde jamais finis, vignettes
+    // blanches, retour forcé à la slide 1 — contenus figés du 08/10).
+    ...(s?.editor_id ? { editor_id: s.editor_id } : {}),
   }));
 }
 
