@@ -367,13 +367,16 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
   // éditorial (qui pilote l'écriture IA) n'a aucun sens dans ce mode.
   const showAngles = selectedFormat && selectedFormat !== "pinterest_inspiration" && !isLinkedInPhotoPost && carouselSubMode !== "user_slides" && (selectedFormat !== "carousel" || carouselSubMode !== null || selectedChannel === "linkedin");
 
-  // Stories sur un brief à plusieurs sujets : on demande quoi en faire (09/10/2026).
-  const multiSubjectPending = selectedFormat === "story" && !!onIdeaChange && multiSubjectChoicePending(idea);
+  // Stories ou reel sur un brief à plusieurs sujets : on demande quoi en faire (09/10/2026).
+  // « C'est un seul sujet » vaut pour ce texte-là : le modifier repose la question.
+  const [singleSubjectIdea, setSingleSubjectIdea] = useState<string | null>(null);
+  const multiSubjectFormat = selectedFormat === "story" || selectedFormat === "reel";
+  const multiSubjectPending = multiSubjectFormat && !!onIdeaChange && singleSubjectIdea !== idea && multiSubjectChoicePending(idea);
 
   const handleNext = () => {
     if (!selectedFormat) return;
     if (multiSubjectPending) {
-      toast.error("Ton texte contient plusieurs sujets : choisis une séquence récap ou un seul sujet.");
+      toast.error("Ton texte contient plusieurs sujets : choisis un récap, un seul sujet, ou indique que c'est un seul sujet.");
       return;
     }
     // Guard: carousel requires explicit sub-mode (text/photo/mix) — sinon on tombait silencieusement sur "text"
@@ -739,8 +742,8 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
       {/* Single-photo formats — preloaded photo confirmation banner — REMOVED.
           The toggle "📸 J'accompagne une photo" + the PhotoUploadZone below already convey the state. */}
 
-      {selectedFormat === "story" && onIdeaChange && (
-        <MultiSubjectChoice idea={idea} format={selectedFormat} onIdeaChange={onIdeaChange} />
+      {multiSubjectFormat && onIdeaChange && singleSubjectIdea !== idea && (
+        <MultiSubjectChoice idea={idea} format={selectedFormat} onIdeaChange={onIdeaChange} onSingleSubject={() => setSingleSubjectIdea(idea)} />
       )}
 
       {/* Single-photo upload zone — LinkedIn et Story acceptent jusqu'à 10 photos

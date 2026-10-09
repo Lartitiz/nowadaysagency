@@ -580,3 +580,12 @@ Deno.test("buildGeneratePrompt — reel et stories reçoivent la prise de positi
     assert(!r.systemPrompt.includes("PROFONDEUR ET PRISE DE POSITION"), JSON.stringify(flags));
   }
 });
+
+// Reel récap (09/10/2026) : la ligne n'apparaît qu'avec le préfixe récap.
+Deno.test("hooks reel : ligne REEL RÉCAP seulement pour un brief récap", () => {
+  const block = (t: string) => `${t}\n\n${"Une matière assez longue pour faire un vrai sujet. ".repeat(4)}`;
+  const veille = `1. ${block("Les Reels longs")}\n\n2. ${block("Les stats à 48 h")}`;
+  const recap = buildHooksPrompt({ COMMON_PREFIX: "", excludeHooksRaw: [], context: `Récap de tous les sujets ci-dessous :\n\n${veille}` });
+  assertStringIncludes(recap.systemPrompt, "REEL RÉCAP : le reel couvre 2 sujets");
+  assert(!buildHooksPrompt({ COMMON_PREFIX: "", excludeHooksRaw: [], context: veille }).systemPrompt.includes("REEL RÉCAP"));
+});

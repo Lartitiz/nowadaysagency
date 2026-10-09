@@ -90,6 +90,7 @@ import { downscalePhotosForVision } from "@/lib/image-vision";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
 
 import { useContentGenerator } from "@/hooks/use-content-generator";
+import { multiSubjectChoicePending } from "../../supabase/functions/_shared/multi-subject";
 import { normalizeFormat } from "@/lib/format-normalizer";
 import { stripFontImportLeakFromSlides } from "@/lib/strip-font-import-leak";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo, normalizeObjective } from "@/lib/content-structures";
@@ -969,7 +970,17 @@ function CreerWorkspace() {
       // Si un angle est déjà choisi (depuis la boîte à idées ou le calendrier),
       // on saute l'étape format. Le premier carrousel texte saute aussi les
       // questions ; les autres entrées gardent leurs choix de format et photos.
-      if (paramAuto && fmt === "carousel" && paramCarouselSubMode === "text") {
+      // Stories ou reel sur un texte à plusieurs sujets (calendrier, idée, lien) :
+      // l'écran format demande d'abord quoi en faire (09/10/2026). Un contenu du
+      // calendrier à plusieurs sujets passe dans le texte de l'idée, pour être choisi.
+      const multiInContent = !!calendarContent && multiSubjectChoicePending(calendarContent) && !multiSubjectChoicePending(subject);
+      if ((fmt === "story" || fmt === "reel") && (multiInContent || multiSubjectChoicePending(subject))) {
+        if (multiInContent) {
+          setIdeaText(`${subject.trim()}\n\n${calendarContent.trim()}`);
+          setExistingCalendarContent(null);
+        }
+        setStep("format");
+      } else if (paramAuto && fmt === "carousel" && paramCarouselSubMode === "text") {
         setStep("result");
       } else if ((fmt === "carousel" || fmt === "post") && !locState?.fromCalendar && !paramAngle && !paramAuto) {
         setStep("format");

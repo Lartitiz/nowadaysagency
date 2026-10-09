@@ -15,11 +15,11 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: (table: str
 const para = (s: string) => `${s} `.repeat(12);
 const VEILLE = `1. Les Reels longs pourraient toucher des non-abonnées\n\n${para("Un test rapporté par une experte.")}\n\n2. Ne pas juger un post à 48 h\n\n${para("La relation se construit sur des mois.")}\n\n3. Raconter la fabrication\n\n${para("Les gens et le savoir-faire avant l'objet.")}`;
 
-function Harness({ initial }: { initial: string }) {
+function Harness({ initial, format = "story" }: { initial: string; format?: string }) {
   const [idea, setIdea] = useState(initial);
   return <>
     <pre data-testid="idea">{idea}</pre>
-    <CreerStepFormat idea={idea} initialFormat="story" onNext={() => {}} onBack={() => {}} onIdeaChange={setIdea} />
+    <CreerStepFormat idea={idea} initialFormat={format} onNext={() => {}} onBack={() => {}} onIdeaChange={setIdea} />
   </>;
 }
 
@@ -63,5 +63,21 @@ describe("stories sur un brief à plusieurs sujets", () => {
   it("un brief ordinaire ne montre rien", () => {
     render(<Harness initial="Pourquoi publier tous les jours ne sert à rien" />);
     expect(screen.queryByTestId("multi-subject-choice")).not.toBeInTheDocument();
+  });
+
+  it("reel : même question, libellés de reel, sujets rangés au format reel", async () => {
+    render(<Harness initial={VEILLE} format="reel" />);
+    expect(screen.getByText("Un Reel porte une seule idée. Qu'est-ce qu'on fait ?")).toBeInTheDocument();
+    expect(screen.getByTestId("creer-format-next")).toBeDisabled();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "1. Les Reels longs pourraient toucher des non-abonnées" })); });
+    expect(m.inserts[0].rows.every((r: any) => r.format === "reel")).toBe(true);
+  });
+
+  it("« c'est un seul sujet » : le texte reste tel quel et Suivant se débloque", () => {
+    render(<Harness initial={VEILLE} />);
+    fireEvent.click(screen.getByRole("button", { name: "Non, c'est un seul sujet avec des intertitres" }));
+    expect(screen.getByTestId("idea").textContent).toBe(VEILLE);
+    expect(screen.queryByTestId("multi-subject-choice")).not.toBeInTheDocument();
+    expect(screen.getByTestId("creer-format-next")).not.toBeDisabled();
   });
 });

@@ -41,6 +41,7 @@ import {
   reelOverlaysNotFromScript,
 } from "../_shared/reel-postprocess.ts";
 import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
+import { recapHooksLine } from "../_shared/multi-subject.ts";
 import { adoptStructuredStories, coerceStoriesSequence, finalizeStoriesLayout, stripStoriesWriterLayout } from "../_shared/story-formatting.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
@@ -542,13 +543,14 @@ export function buildHooksPrompt(params: {
     ? `\n\nHOOKS DÉJÀ PROPOSÉS, REFUSÉS PAR L'UTILISATRICE :\n${excludeHooks.map((h) => `- "${h}"`).join("\n")}\nINTERDIT de les reproposer, même reformulés. Change d'angle, pas juste de mots.`
     : "";
   const noFaceCam = faceCam === "non";
+  const recapLine = recapHooksLine(context);
 
   const systemPrompt = `${COMMON_PREFIX}
 
 TA MISSION : proposer 3 HOOKS d'ouverture pour un REEL Instagram sur le sujet donné.
 Le hook = les 3 premières secondes. 50 % des viewers scrollent avant la 3e seconde :
 c'est LE levier de rétention. L'utilisatrice choisit UN hook, le script complet sera
-écrit dessus.
+écrit dessus.${recapLine}
 
 RÈGLES ABSOLUES :
 1. Les 3 hooks sont de TYPES DIFFÉRENTS, choisis parmi :
