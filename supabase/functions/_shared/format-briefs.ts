@@ -9,6 +9,8 @@ import {
   REEL_COUVERTURE,
   REEL_SECTIONS,
   REEL_TEXTE_ECRAN,
+  STORIES_MAX,
+  STORIES_QUICK_MAX,
   STORIES_QUICK_RULE,
   STORY1_ACCROCHE,
   UNE_IDEE_REEL,
@@ -21,6 +23,7 @@ import {
   VOIX_ORALE_STORIES,
 } from "./socle.ts";
 import { carouselLength } from "./carousel-length.ts";
+import { recapStoriesBlock } from "./multi-subject.ts";
 
 /** Nombre d'éléments annoncé par le sujet (« 5 erreurs… »), pour la numérotation (socle). */
 function annoncedItems(subject: string | null | undefined): number | undefined {
@@ -680,6 +683,8 @@ export function storiesBrief(p: StoriesBriefParams = {}): string {
   const launchBlock = p.is_launch ? "\n- Phase : LANCEMENT (orienter vers vente + preuve sociale)" : "\n- Phase : croisière";
   // Liste annoncée avec un nombre : numérotation 1..N (socle, décision du 05/10/2026).
   const storiesNumbering = numerotationConsigne(annoncedItems(p.subject), "stories");
+  // Brief à plusieurs sujets, choix « séquence récap » à l'écran format (09/10/2026).
+  const recapBlock = recapStoriesBlock(p.subject, isQuick ? STORIES_QUICK_MAX : STORIES_MAX);
 
   let preGenBlock = "";
   if (p.pre_gen_answers && (p.pre_gen_answers.vecu || p.pre_gen_answers.energy || p.pre_gen_answers.message_cle)) {
@@ -804,7 +809,7 @@ DEMANDE :
 - Temps disponible : ${time_available}
 - Face cam : ${face_cam}
 - Sujet : ${p.subject || "au choix selon la ligne éditoriale"}${launchBlock}
-${storiesNumbering ? `\n${storiesNumbering}\n` : ""}
+${storiesNumbering ? `\n${storiesNumbering}\n` : ""}${recapBlock ? `\n${recapBlock}\n` : ""}
 ${structuresBlock}
 
 CORRESPONDANCE objectif x temps :
