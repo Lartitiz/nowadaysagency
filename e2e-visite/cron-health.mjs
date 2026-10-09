@@ -265,6 +265,26 @@ try {
         const fi = fil.comptes_internes_7j;
         if (fi?.carrousels) console.log(`      comptes internes : ${fi.carrousels} contrôlé(s), réparations gardées ${fi.reparations.gardees}/${fi.reparations.tentees} (locales ${fi.reparations.locales_gardees}/${fi.reparations.locales}), sautées ${fi.sautees_faute_de_temps}, non aboutis ${fi.controle_non_abouti}`);
       }
+      // Durées des carrousels (09/10/2026, PR #1428) : budget photo/mixte
+      // (rédaction, juge, réparation, association des photos, borne 270 s).
+      const durees = q.durees_carrousels;
+      if (durees === undefined) {
+        console.log("   durées des carrousels : non mesurées (edge cron-health pas redéployée)");
+      } else if (durees) {
+        const ETAPES = [["total_ms", "total"], ["write_ms", "rédaction"], ["thread_judge_ms", "juge"], ["thread_repair_ms", "réparation"], ["thread_recheck_ms", "rejuge"], ["match_ms", "association"]];
+        const ligne = (label, d) => {
+          const etapes = ETAPES.flatMap(([k, nom]) => d.etapes?.[k] ? [`${nom} ${d.etapes[k].mediane}/${d.etapes[k].p90}/${d.etapes[k].max} s`] : []).join(", ");
+          return `      ${String(label).padEnd(18)} ${d.generations} génération(s) : ${etapes || "aucune durée"} ; réparations sautées ${d.reparations_sautees}, association non aboutie ${d.association_non_aboutie}, slides en ambiance ${d.slides_en_ambiance}, > 270 s ${d.au_dela_270s}, > 330 s ${d.au_dela_330s}`;
+        };
+        const cur = Object.entries(durees.cette_semaine || {});
+        const internes = Object.entries(durees.comptes_internes_7j || {});
+        console.log(`   durées des carrousels (médiane/90e centile/max) : ${cur.length ? "" : "aucune génération cliente mesurée"}`);
+        for (const [label, d] of cur) console.log(ligne(label, d));
+        if (internes.length) {
+          console.log("      comptes internes :");
+          for (const [label, d] of internes) console.log(ligne(label, d));
+        }
+      }
       const pf = q.par_format || {};
       const formats = Object.entries(pf).sort((a, b) => b[1].generes - a[1].generes);
       if (formats.length) {
