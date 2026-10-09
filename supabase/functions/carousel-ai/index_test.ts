@@ -1770,7 +1770,7 @@ for (const carousel_type of ["photo", "mix"]) Deno.test(`récit continu ${carous
   } finally { globalThis.fetch = oldFetch; resetDeps(); }
 });
 
-// ── Plan compact (09/10/2026) : réservé au compte test le temps de la comparaison ──
+// ── Plan compact (09/10/2026) : dès qu'il y a des photos (legacy : compte test seulement) ──
 const QA_USER_ID = "52e6c03c-a7de-4c20-9b4a-276751f976e8";
 function asQaAccount() {
   _deps.runPipeline = (async () => ({ ok: true, userId: QA_USER_ID, supabase: makeFakeSupabase(QA_USER_ID) as any, corsHeaders: {}, quota: null })) as any;
@@ -1786,8 +1786,8 @@ const COMPACT_REPLY = {
   total_slides: 3,
 };
 
-Deno.test("plan compact : compte test → photos décrites une fois, champs par slide reconstitués et repris par la rédaction", async () => {
-  resetDeps(); asQaAccount();
+Deno.test("plan compact : toutes les utilisatrices → photos décrites une fois, champs par slide reconstitués et repris par la rédaction", async () => {
+  resetDeps();
   let tool: any; let system = "";
   _deps.callAnthropic = (async (o: any) => { tool = o.tool; system = o.system; return JSON.stringify(COMPACT_REPLY); }) as any;
   const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", slide_count: 3, photos: [1, 2, 3].map(() => ({ base64: "aGVsbG8=" })) }));
@@ -1833,12 +1833,15 @@ Deno.test("plan compact : premier carrousel produit, l'observation suit la photo
   assertEquals(result.slides[2].image_relation, undefined);
 });
 
-for (const [label, qa, plan_format] of [["autre compte", false, undefined], ["compte test + legacy", true, "legacy"]] as const) Deno.test(`plan compact : ${label} → ancien format inchangé`, async () => {
+for (const [label, qa, plan_format, withPhotos] of [["compte test + legacy", true, "legacy", true], ["autre compte + legacy", false, "legacy", false], ["sans photos", false, undefined, false]] as const) Deno.test(`plan compact : ${label} → ancien format inchangé`, async () => {
   resetDeps(); if (qa) asQaAccount();
   let tool: any; let system = "";
   _deps.callAnthropic = (async (o: any) => { tool = o.tool; system = o.system; return JSON.stringify({ slides: [{ slide_number: 1, role: "hook", title_suggestion: "T", strategic_note: "N", photo_index: 1, photo_observation: "O" }], total_slides: 1 }); }) as any;
-  const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", photos: [{ base64: "aGVsbG8=" }], ...(plan_format ? { plan_format } : {}) }));
+  const legacyCase = plan_format === "legacy" && !qa;
+  const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", ...(withPhotos || legacyCase ? { photos: [{ base64: "aGVsbG8=" }] } : {}), ...(plan_format ? { plan_format } : {}) }));
   const out = await res.json();
+  // plan_format "legacy" n'est honoré que pour le compte test : ailleurs, compact.
+  if (legacyCase) { assertEquals(out.plan_format, "compact"); return; }
   assertEquals(out.plan_format, "legacy");
   assert(!("photo_notes" in tool.input_schema.properties));
   assert("photo_observation" in tool.input_schema.properties.slides.items.properties);

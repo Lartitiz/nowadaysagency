@@ -2242,10 +2242,10 @@ async function handleStructureProposalRequest(reqCtx: CarouselRequestContext): P
   const { body, brandingContext, newsContext, corsHeaders, userId } = reqCtx;
   const { subject, carousel_type, objective, editorial_angle, deepening_answers, photos, photo_description } = body;
   const hasPhotos = photos && Array.isArray(photos) && photos.length > 0;
-  // Plan compact (09/10/2026) : réservé au compte test le temps de comparer
-  // durée et qualité avec l'ancien format ; plan_format "legacy" le désactive
-  // pour mesurer les deux sur le même déploiement.
-  const compactPlan = !!hasPhotos && isQaTestAccount(userId) && body.plan_format !== "legacy";
+  // Plan compact (09/10/2026) dès qu'il y a des photos : ~51 s au lieu de ~61 s
+  // pour 3 photos et 10 slides, qualité comparée sur 4 carrousels réels.
+  // plan_format "legacy" reste possible sur le compte test pour remesurer.
+  const compactPlan = !!hasPhotos && !(isQaTestAccount(userId) && body.plan_format === "legacy");
   const isPhotoMode = carousel_type === "photo";
   const isMixMode = carousel_type === "mix";
 
