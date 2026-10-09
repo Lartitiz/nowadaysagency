@@ -3,7 +3,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Camera, Clock3, Download, FileDown, ImageIcon, Loader2, Palette, Play, Sparkles } from "lucide-react";
+import { Camera, Clock3, Download, FileDown, ImageIcon, Loader2, Palette, Play, Sparkles, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { formatSlideRole } from "@/lib/slide-roles";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
@@ -653,6 +663,20 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
   // Picker « toute la bibliothèque » : un seul dialog, ciblé sur une story.
   const [pickerFor, setPickerFor] = useState<number | null>(null);
 
+  // Suppression d'une story : confirmation obligatoire, jamais la dernière.
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+  const removeStory = useCallback((index: number) => {
+    setStories((prev) => {
+      if (prev.length <= 1) return prev;
+      const updated = prev.filter((_, i) => i !== index);
+      onStoriesUpdate?.(updated);
+      return updated;
+    });
+    setPickerFor((prev) => (prev === null ? null : prev === index ? null : prev > index ? prev - 1 : prev));
+    setDeleteTarget(null);
+    toast.success("Story supprimée. Les suivantes ont été renumérotées.");
+  }, [onStoriesUpdate]);
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between gap-2 px-1 flex-wrap">
@@ -757,6 +781,17 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                         </>
                       )}
                     </Button>
+                    {stories.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2.5 text-2xs gap-1.5 font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteTarget(i)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Supprimer
+                      </Button>
+                    )}
                   </div>
                   <div className="space-y-1 pt-1">
                     <label htmlFor={`story-${i}-full-text`} className="text-2xs font-medium text-muted-foreground">
@@ -1025,6 +1060,26 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
         stories={stories}
         frames={frames}
       />
+
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(v) => !v && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer la story {deleteTarget !== null ? deleteTarget + 1 : ""} ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette story sera retirée de la séquence et les suivantes seront renumérotées. Cette action est définitive.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Garder la story</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteTarget !== null && removeStory(deleteTarget)}
+            >
+              Supprimer cette story
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <RedFlagsChecker content={fullText} onFix={fixStoryExpressions} />
 

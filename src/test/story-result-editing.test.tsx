@@ -247,4 +247,51 @@ describe("Stories : édition et remplacement du résultat", () => {
     fireEvent.change(screen.getByLabelText("Texte affiché"), { target: { value: "Mon raccourci 2" } });
     expect(previewHtml()).toContain("Mon raccourci 2");
   });
+
+  it("supprime une story du milieu après confirmation et renumérote les suivantes", () => {
+    const onStoriesUpdate = vi.fn();
+    const result = {
+      stories: [
+        sequence("Première story").stories[0],
+        sequence("Story à enlever").stories[0],
+        sequence("Troisième story").stories[0],
+      ],
+    };
+    render(<StoryResult result={result} onStoriesUpdate={onStoriesUpdate} />);
+
+    const deleteButtons = screen.getAllByRole("button", { name: "Supprimer" });
+    expect(deleteButtons).toHaveLength(3);
+    fireEvent.click(deleteButtons[1]!);
+
+    expect(screen.getByText("Supprimer la story 2 ?")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Supprimer cette story" }));
+
+    const updated = onStoriesUpdate.mock.lastCall?.[0];
+    expect(updated).toHaveLength(2);
+    expect(updated.map((s: any) => s.text)).toEqual(["Première story", "Troisième story"]);
+    expect(screen.getByText("Story 1")).toBeInTheDocument();
+    expect(screen.getByText("Story 2")).toBeInTheDocument();
+    expect(screen.queryByText("Story 3")).not.toBeInTheDocument();
+    expect(screen.queryByText("Story à enlever")).not.toBeInTheDocument();
+  });
+
+  it("ne supprime rien si la confirmation est annulée", () => {
+    const onStoriesUpdate = vi.fn();
+    const result = {
+      stories: [sequence("Première story").stories[0], sequence("Deuxième story").stories[0]],
+    };
+    render(<StoryResult result={result} onStoriesUpdate={onStoriesUpdate} />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Supprimer" })[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "Garder la story" }));
+
+    expect(onStoriesUpdate).not.toHaveBeenCalled();
+    expect(screen.getByText("Première story")).toBeInTheDocument();
+    expect(screen.getByText("Deuxième story")).toBeInTheDocument();
+  });
+
+  it("ne propose pas de supprimer la dernière story restante", () => {
+    render(<StoryResult result={sequence("Unique story")} />);
+    expect(screen.queryByRole("button", { name: "Supprimer" })).not.toBeInTheDocument();
+  });
 });
