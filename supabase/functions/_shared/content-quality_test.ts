@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { buildContentPreview } from "./content-quality.ts";
+import { buildContentPreview, carouselDurations } from "./content-quality.ts";
 
 Deno.test("carrousel : aperçu depuis { slides, caption }", () => {
   const content = JSON.stringify({
@@ -120,4 +120,15 @@ Deno.test("editorialUsage : lit le total des passes de relecture, entrée et sor
   assertEquals(editorialUsage(JSON.stringify({ slides: [], editorial_review: { model: null, total_usage: { input_tokens: 0, output_tokens: 0 } } })), null);
   assertEquals(editorialUsage(JSON.stringify({ slides: [] })), null);
   assertEquals(editorialUsage("pas du json"), null);
+});
+
+Deno.test("durées du carrousel : nombres seulement, compteurs gardés, association résumée", () => {
+  const d = carouselDurations("continuous_photo", { prep_ms: 12000.4, write_ms: 30000, thread_repair_skipped: 1, label_bidon: "texte", bad_ms: NaN, neg_ms: -1 }, {
+    content: JSON.stringify({ slides: [{ overlay_text: "Secret" }, {}], photo_review: { execution_status: "unavailable", reason: "selection-timeout", ambient_fallback: [1, 2] } }),
+    photos: 3,
+  });
+  assertEquals(d, { label: "continuous_photo", prep_ms: 12000, write_ms: 30000, thread_repair_skipped: 1, photos: 3, slides: 2,
+    association: { status: "unavailable", raison: "selection-timeout", ambiance: 2 } });
+  assertEquals(carouselDurations("express_full", { total_ms: 5 }, { content: "pas du json", avantSchemas: true }), { label: "express_full", total_ms: 5, avant_schemas: true });
+  assertEquals(carouselDurations("photo", undefined), null);
 });

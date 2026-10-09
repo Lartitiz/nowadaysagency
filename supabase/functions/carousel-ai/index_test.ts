@@ -1732,3 +1732,40 @@ for (const carousel_type of ["photo", "mix"]) Deno.test(`récit continu ${carous
     assertEquals(seen[0], 59000);
   } finally { globalThis.fetch = oldFetch; resetDeps(); }
 });
+
+// Durées gardées en base (09/10/2026) : les journaux edge s'effacent en quelques
+// heures. La ligne content_quality_events du carrousel porte content_preview.durees.
+for (const carousel_type of ["photo", "mix"]) Deno.test(`récit continu ${carousel_type} : durées par étape enregistrées avec la mesure de qualité, sans texte`, async () => {
+  resetDeps(); _deps.prepareNarrative = createContinuousNarrative;
+  const oldFetch = globalThis.fetch;
+  const inserts: any[] = [];
+  globalThis.fetch = (async (input: any, init?: any) => {
+    const url = typeof input === "string" ? input : input.url;
+    if (url.includes("content_quality_events") && init?.body) inserts.push(JSON.parse(init.body));
+    return new Response("{}", { status: 503 });
+  }) as typeof fetch;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    if (sink) Object.assign(sink, { model: o.model, total_tokens: 7 });
+    return JSON.stringify({ idea: "Une singularité utile", hook: "Une pièce unique pour le quotidien",
+      paragraphs: ["Le geste rend chaque dessin unique.", "Les formes restent utiles au quotidien.", "Quelques objets suffisent pour la table."], caption: {} });
+  }) as any;
+  _deps.matchPhotos = async (doc: any) => ({ ...doc, photo_review: { execution_status: "completed", reason: "reviewed", ambient_fallback: [3] } });
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type, scenario_origin: "automatic", slide_count: 4,
+      subject: "Une pièce peinte à la main reste utile", photos: [1, 2].map(() => ({ base64: "aGVsbG8=" })) }));
+    assertEquals(res.status, 200);
+    const timings = (await res.json()).timings;
+    const row = [inserts].flat(2).find((r: any) => r?.content_preview?.durees);
+    assert(row, "aucune ligne avec durées");
+    const d = row.content_preview.durees;
+    assertEquals(d.label, `continuous_${carousel_type}`);
+    assertEquals(d.photos, 2);
+    assertEquals(d.slides, 4);
+    assertEquals(d.association, { status: "completed", raison: "reviewed", ambiance: 1 });
+    assertEquals(d.write_ms, timings.write_ms);
+    assertEquals(d.total_ms, timings.total_ms);
+    assert(typeof d.match_ms === "number" && typeof d.thread_judge_ms === "number");
+    assert(!JSON.stringify(d).includes("dessin"), "aucun texte du carrousel dans les durées");
+    assert(row.content_preview.fil, "l'issue du fil reste enregistrée");
+  } finally { globalThis.fetch = oldFetch; resetDeps(); }
+});

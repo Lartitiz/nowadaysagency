@@ -1,4 +1,4 @@
-import { matchFinalPhotos, photoMatchReserveMs } from "./final-photo-match.ts";
+import { matchFinalPhotos, photoMatchPhotoCount, photoMatchReserveMs } from "./final-photo-match.ts";
 import { buildConfirmedStructureBlock } from "./confirmed-structure.ts";
 import { createContinuousNarrative, NarrativePhotoMismatch, usesContinuousNarrative } from "./continuous-narrative.ts";
 import { COMMON, PLAN, REPAIR } from "../_shared/carousel-editorial-contract.ts";
@@ -27,7 +27,7 @@ import { carouselNeedsPolish, extractCarouselTexts, reinjectCarouselTexts } from
 import { audienceAddressRule, enforceAudienceAddress, parseAudienceAddress, type AudienceAddress, type AudienceAddressPass } from "../_shared/audience-address.ts";
 import { applyAudienceAddressPass } from "../_shared/audience-address-pass.ts";
 import { runRedacGate, rescoreCaptionOnly, applyGuardedCarouselCorrection, analyzeCarouselRedac, numbersIn, type CaptionEndingRule, type EchoContext } from "../_shared/redac-gate.ts";
-import { logContentQuality, threadOutcome } from "../_shared/content-quality.ts";
+import { carouselDurations, logContentQuality, threadOutcome } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import { fetchRecentContentTexts, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
@@ -1687,7 +1687,8 @@ async function runGenerationAndRespond(
   if (type === "express_full" || type === "slides") {
     content=await timed("thread_ms",finalizeCarousel(content,reqCtx,{usage,repaired:structuralRepair,regenerate,timings,expectedRepairMs:timings.write_ms}));
     // Mesure écrite APRÈS le contrôle du fil : la ligne porte aussi son issue.
-    if (gateExpress) await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspaceId, body.subject, threadOutcome(content));
+    if (gateExpress) await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspaceId, body.subject, threadOutcome(content),
+      carouselDurations(type, { ...timings, total_ms: Date.now() - startedAt }, { content, avantSchemas: true }));
     // SCHÉMAS décidés après l'écriture et ses relectures, sur le texte final
     // (la rédaction ne les connaît plus : un changement d'écriture ne peut plus
     // les faire disparaître). Échec ou manque de temps → aucun schéma, texte livré.
@@ -1774,7 +1775,8 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
   await addOutlineUsage(ctx, usage);
   const timings = clock.done(`continuous_${ctx.body.carousel_type}`);
   await _deps.logUsage(ctx.userId,ctx.category,`carousel_${ctx.body.carousel_type}`,usage.total_tokens,usage.model,ctx.workspaceId);
-  await logContentQuality(ctx.userId,`carousel_${ctx.body.carousel_type}`,measured,usage.model,ctx.workspaceId,ctx.body.subject,threadOutcome(written));
+  await logContentQuality(ctx.userId,`carousel_${ctx.body.carousel_type}`,measured,usage.model,ctx.workspaceId,ctx.body.subject,threadOutcome(written),
+    carouselDurations(`continuous_${ctx.body.carousel_type}`,timings,{content:matched,photos:photoMatchPhotoCount(ctx.body)}));
   return new Response(JSON.stringify({content,writing_version:CAROUSEL_WRITING_VERSION,
     writer:{version:CAROUSEL_WRITER_VERSION,model:usage.model,effort:"medium"},timings}),
     {headers:{...ctx.corsHeaders,"Content-Type":"application/json"}});
@@ -1972,7 +1974,8 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
   await addOutlineUsage(reqCtx, mixUsage);
   const timings = clock.done("mix");
   await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
-  await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspaceId, body.subject, threadOutcome(content));
+  await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspaceId, body.subject, threadOutcome(content),
+    carouselDurations("mix", timings, { content, photos: photoMatchPhotoCount(body) }));
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
     writer: { version: CAROUSEL_WRITER_VERSION, model: mixUsage.model, effort: "medium" }, timings,
   }), {
@@ -2196,7 +2199,8 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   await addOutlineUsage(reqCtx, photoUsage);
   const timings = clock.done("photo");
   await _deps.logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);
-  await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspaceId, body.subject, threadOutcome(content));
+  await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspaceId, body.subject, threadOutcome(content),
+    carouselDurations("photo", timings, { content, photos: photoMatchPhotoCount(body) }));
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
     writer: { version: CAROUSEL_WRITER_VERSION, model: photoUsage.model, effort: "medium" }, timings,
   }), {
