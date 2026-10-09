@@ -131,11 +131,19 @@ for (const photosOnly of [false, true]) Deno.test(`photo : note rédactionnelle,
   const tic = "Ce n'est pas un hasard. C'est un choix.";
   const draft = { slides: [1, 2, 3].map((n) => ({ slide_number: n, slide_type: "photo_full", photo_index: n, overlay_text: `${tic} Passage ${n}.` })),
     caption: { body: "Je fabrique mes savons à la main, en petites séries.", hashtags: [] } };
-  _deps.callAnthropic = (async (o: any, sink: any) => { Object.assign(sink, { model: o.model, total_tokens: 3 }); return JSON.stringify(draft); }) as any;
-  _deps.reviewThread = async (doc: any) => verdict(doc);
+  let judged = 0, templateCalls = 0;
+  _deps.callAnthropic = (async (o: any, sink: any) => {
+    Object.assign(sink, { model: o.model, total_tokens: 3 });
+    if (String(o.system).includes("GABARIT VISUEL")) templateCalls++;
+    return JSON.stringify(draft);
+  }) as any;
+  _deps.reviewThread = async (doc: any) => { judged++; return verdict(doc); };
   const previousFetch = globalThis.fetch, key = Deno.env.get("ANTHROPIC_API_KEY");
   Deno.env.set("ANTHROPIC_API_KEY", "test-no-network");
-  globalThis.fetch = (() => Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text: "{}" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })))) as typeof fetch;
+  globalThis.fetch = ((_u: unknown, init?: RequestInit) => {
+    if (String(init?.body ?? "").includes("GABARIT VISUEL")) templateCalls++;
+    return Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text: "{}" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
+  }) as typeof fetch;
   try {
     const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: "photo", slide_count: 3, photo_contexts: [{ context: "a" }, { context: "b" }, { context: "c" }], ...(photosOnly ? { photos_only: true } : {}) }));
     assertEquals(res.status, 200);
@@ -143,8 +151,19 @@ for (const photosOnly of [false, true]) Deno.test(`photo : note rédactionnelle,
     if (photosOnly) {
       assertEquals(parsed.quality_check.scored_on, "caption_only");
       assertEquals(parsed.quality_check.reversal_negation_count, 0);
+      // 09/10 : le texte des slides est vidé dès l'écriture ; ni juge du fil,
+      // ni gabarits, ni couverture ; la légende reste.
+      assertEquals(judged, 0);
+      assertEquals(templateCalls, 0);
+      assert(parsed.slides.every((sl: any) => sl.overlay_text === null && sl.title === "" && sl.body === "" && sl.slide_type === "photo_full"));
+      assertEquals(parsed.caption.body, draft.caption.body);
+      assertEquals(parsed.progression_review.reason, "pure-photo-no-text");
+      assertEquals(parsed.structure_warnings, []);
     } else {
       assertEquals(parsed.quality_check.scored_on, undefined);
+      assertEquals(judged, 1);
+      assert(templateCalls > 0, "mode photo normal : la mise en page tourne toujours");
+      assert(parsed.slides.some((sl: any) => String(sl.overlay_text || "").includes("Passage")));
     }
   } finally {
     globalThis.fetch = previousFetch;

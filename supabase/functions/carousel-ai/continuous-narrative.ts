@@ -50,7 +50,7 @@ export function usesContinuousNarrative(body: any): boolean {
   // récit continu exige des photos et levait « Choisis les photos » après
   // toute la rédaction : ce cas garde le parcours classique.
   return ["photo", "mix"].includes(body.carousel_type) && hasPhotoEvidence(body) &&
-    !body.no_overlay && !body.user_slides?.length && !body.text_first &&
+    !body.no_overlay && !body.photos_only && !body.user_slides?.length && !body.text_first &&
     (body.scenario_origin === "automatic" ||
       (!body.scenario_origin && !body.confirmed_structure?.length)) &&
     (carouselLength(body).exact ?? 4) >= 2 &&
