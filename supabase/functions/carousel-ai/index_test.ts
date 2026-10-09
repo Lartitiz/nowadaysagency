@@ -1262,6 +1262,22 @@ Deno.test("type de slide : variantes du modèle de structure normalisées (vu en
   assertEquals(result.slides.map((s: any) => s.slide_type), ["photo_full", "photo_full", "photo_full"]);
 });
 
+// 09/10/2026 (test réel, photo 10 slides) : le plan rendait image_role à null
+// sur 7 slides → « Données invalides » avant toute rédaction.
+Deno.test("plan renvoyé avec des champs facultatifs à null (image_role, contribution…) : accepté ; champ obligatoire à null : refusé", async () => {
+  resetDeps();
+  _deps.callAnthropic = (async () => JSON.stringify({ total_slides: 2, slides: [{ slide_number: 1, role: "hook", photo_index: 1 }, { slide_number: 2, role: "body", photo_index: 1 }] })) as any;
+  const slide = (n: number, extra: Record<string, unknown> = {}) => ({ slide_number: n, role: "body", title_suggestion: "t", strategic_note: "n", photo_index: 1,
+    image_role: null, contribution: null, inherits: null, develops: null, source_ids: null, story_beat: null, ...extra });
+  const send = (confirmed_structure: unknown[]) => handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", slide_count: 2,
+    photos: [{ base64: "aGVsbG8=" }], confirmed_structure }));
+  const ok = await send([slide(1), slide(2, { image_role: "Ambiance" })]);
+  assertEquals(ok.status, 200, await ok.clone().text());
+  const bad = await send([slide(1, { title_suggestion: null }), slide(2)]);
+  assertEquals(bad.status, 400);
+  assert((await bad.text()).includes("title_suggestion"));
+});
+
 Deno.test("structure confirmée renvoyée avec « text » : acceptée (plus de « Données invalides »)", async () => {
   resetDeps();
   _deps.callAnthropic = (async () => JSON.stringify({ total_slides: 2, slides: [{ slide_number: 1, role: "hook", photo_index: 1 }, { slide_number: 2, role: "body", photo_index: 1 }] })) as any;
