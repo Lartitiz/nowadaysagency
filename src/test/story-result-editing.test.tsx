@@ -164,12 +164,9 @@ describe("Stories : édition et remplacement du résultat", () => {
     expect(onStoriesUpdate.mock.lastCall?.[0][0].visual.body_pill).toBe("Les boutons en bois");
   });
 
-  it("répercute la pastille corrigée dans le texte quand ils sont identiques", () => {
-    const onStoriesUpdate = vi.fn();
-    render(<StoryResult result={sequence("Les boutons en nacre")} onStoriesUpdate={onStoriesUpdate} />);
-    fireEvent.change(screen.getByLabelText("Texte affiché"), { target: { value: "Les boutons en bois" } });
-    expect(screen.getByLabelText("Texte complet de la story 1")).toHaveValue("Les boutons en bois");
-    expect(onStoriesUpdate.mock.lastCall?.[0][0].text).toBe("Les boutons en bois");
+  it("n’affiche qu’un seul champ texte pour une story standard", () => {
+    render(<StoryResult result={sequence("Les boutons en nacre")} />);
+    expect(screen.queryByLabelText("Texte affiché")).toBeNull();
   });
 
   it("conserve une pastille personnalisée distincte du texte", () => {
@@ -190,7 +187,7 @@ describe("Stories : édition et remplacement du résultat", () => {
   it("garde une édition locale quand le parent renvoie le même contenu", () => {
     const initial = sequence("Les boutons en nacre");
     const { rerender } = render(<StoryResult result={initial} />);
-    fireEvent.change(screen.getByLabelText("Texte affiché"), { target: { value: "Les boutons en bois" } });
+    editNarration("Les boutons en bois");
     rerender(<StoryResult result={JSON.parse(JSON.stringify(initial))} />);
     expect(previewHtml()).toContain("Les boutons en bois");
   });
@@ -241,15 +238,13 @@ describe("Stories : édition et remplacement du résultat", () => {
   it("propose le texte complet dans le champ visuel quand l’IA l’a raccourci", () => {
     const full = "Sauf que ce petit avis inutile te rassure plus qu'il ne te fait fuir. Des études le montrent : ça sonne vrai.";
     render(<StoryResult result={sequence(full, { body_pill: "Une perfection qui paraît suspecte" })} />);
-    expect(screen.getByLabelText("Texte affiché")).toHaveValue(full);
     expect(previewHtml()).toContain(full);
     expect(previewHtml()).not.toContain("Une perfection qui paraît suspecte");
   });
 
-  it("garde la possibilité de raccourcir volontairement le texte du visuel", () => {
-    render(<StoryResult result={sequence("Le texte complet de départ", { body_pill: "Résumé généré" })} />);
-    fireEvent.change(screen.getByLabelText("Texte affiché"), { target: { value: "Mon raccourci" } });
-    expect(previewHtml()).toContain("Mon raccourci");
-    expect(previewHtml()).not.toContain("Le texte complet de départ");
+  it("garde modifiable une pastille personnalisée distincte", () => {
+    render(<StoryResult result={sequence("Le texte complet de départ", { body_pill: "Mon raccourci", body_pill_edited: true })} />);
+    fireEvent.change(screen.getByLabelText("Texte affiché"), { target: { value: "Mon raccourci 2" } });
+    expect(previewHtml()).toContain("Mon raccourci 2");
   });
 });

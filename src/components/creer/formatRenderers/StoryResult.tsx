@@ -760,7 +760,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                   </div>
                   <div className="space-y-1 pt-1">
                     <label htmlFor={`story-${i}-full-text`} className="text-2xs font-medium text-muted-foreground">
-                      Texte complet de la story
+                      Texte de la story
                     </label>
                     <Textarea
                       id={`story-${i}-full-text`}
@@ -926,7 +926,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                               />
                             </div>
                           )}
-                          {typeof story.visual.body_pill === "string" && (
+                          {typeof story.visual.body_pill === "string" && story.visual.body_pill_edited && getDisplayedBody(story) !== getStoryText(story) && (
                             <div className="space-y-1">
                               <label htmlFor={`story-${i}-body-pill`} className="text-2xs text-muted-foreground">Texte affiché</label>
                               <Textarea
