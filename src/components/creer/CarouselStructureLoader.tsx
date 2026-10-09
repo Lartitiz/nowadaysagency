@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
  * Loader de l'étape "structure" des carrousels photo/mix.
  *
  * Remplace l'ancien spinner figé + texte "ça prend quelques secondes" (qui
- * mentait : l'IA fait une analyse visuelle de toutes les photos, ~30 s).
+ * mentait : l'IA fait une analyse visuelle de toutes les photos ; mesuré le
+ * 09/10/2026 à 55-64 s pour 3 photos et 10 slides).
  *
  * Apporte :
  *  - une barre de progression animée (même ressenti que l'étape génération),
@@ -39,10 +40,12 @@ export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhot
     }, 3500);
 
     // Barre de progression : rapide au début, ralentit en approchant 90 %.
-    // Calée sur ~30 s (constante /14) car l'analyse vision dure souvent 25-40 s.
+    // Calée sur ~1 min (constante /25) : le plan dure 55-64 s avec 3 photos et
+    // 10 slides (mesure du 09/10/2026). À /14, elle restait figée à 90 % la
+    // moitié de l'attente.
     const progressInterval = setInterval(() => {
       const elapsed = (Date.now() - startTimeRef.current) / 1000;
-      const p = Math.min(90, 90 * (1 - Math.exp(-elapsed / 14)));
+      const p = Math.min(90, 90 * (1 - Math.exp(-elapsed / 25)));
       setProgress(Math.round(p));
     }, 300);
 
@@ -77,8 +80,8 @@ export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhot
           ne rien promettre que le flux ne fait plus. */}
       <p className="text-xs text-muted-foreground">
         {hasPhotos
-          ? "J'analyse tes photos une par une : compte une trentaine de secondes, puis je passe à la rédaction."
-          : "Je prépare la structure : quelques secondes, puis je passe à la rédaction."}
+          ? "J'analyse tes photos une par une : compte environ une minute, puis je passe à la rédaction."
+          : "Je prépare la structure : compte une petite minute, puis je passe à la rédaction."}
       </p>
     </div>
   );
