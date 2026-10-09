@@ -102,6 +102,17 @@ describe("Photos brutes : pas d'avertissement de fil sur un carrousel sans texte
     expect(shown.structure_warnings).toEqual([KEEP, "Slide 2 : image à choisir."]);
   });
 
+  it("pure_photo : « la photo revient sur N slides » disparaît (1 photo = 1 slide), « image à choisir » reste", () => {
+    const repeat = "La photo 1 revient sur 5 slides : tu peux en changer quelques-unes.";
+    const doc: any = { ...photoDoc("unavailable"), photo_review: { execution_status: "completed", issues: ["Slide 2 : image à choisir.", repeat],
+      repeat_warnings: [repeat], repeated_photos: [{ photo: 1, count: 5, max: 4 }], reviewed_material: "x" } };
+    doc.structure_warnings = [...doc.structure_warnings, "Slide 2 : image à choisir.", repeat];
+    const shown = invalidateProgressionReceipt(purePhotoRawOrNull(doc, 2)!);
+    expect(shown.structure_warnings).toEqual([KEEP, "Slide 2 : image à choisir."]);
+    expect(shown.photo_review.issues).toEqual(["Slide 2 : image à choisir."]);
+    expect(shown.photo_review.repeated_photos).toEqual([]);
+  });
+
   it("mode photo normal (texte gardé) : l'avertissement de fil reste", () => {
     const doc = photoDoc("unavailable");
     expect(invalidateProgressionReceipt({ ...doc, progression_review: { ...doc.progression_review, reviewed_material: progressionMaterial(doc) } }).structure_warnings).toContain(FAIL);

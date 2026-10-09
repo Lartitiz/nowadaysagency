@@ -322,7 +322,7 @@ export async function matchFinalPhotos(doc: any, options: {
     // La répétition signalée suit les constats photo : elle s'efface dès que
     // l'utilisatrice change une photo (invalidateProgressionReceipt).
     reason, verification_attempts: attempts, issues: [...warnings, ...repeats], converted_to_text: convertedToText, ambient_fallback: ambient,
-    rebalanced: balance.moved, repeated_photos: balance.over, reviewed_material: progressionMaterial(result),
+    rebalanced: balance.moved, repeated_photos: balance.over, repeat_warnings: repeats, reviewed_material: progressionMaterial(result),
     assignments: slides.flatMap((s: any, i: number) => isPhoto(s) ? [{ slide: i + 1, photo: s.photo_index, ...s.photo_match }] : []),
   };
   result.generation_receipt = { ...result.generation_receipt, photo_match_version: PHOTO_MATCH_VERSION, duration_ms: Date.now() - options.startedAt };
