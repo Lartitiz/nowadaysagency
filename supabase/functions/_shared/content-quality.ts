@@ -227,6 +227,42 @@ export function threadOutcome(content: unknown): Record<string, unknown> | null 
   };
 }
 
+const DURATION_COUNTERS = ["thread_repair_skipped", "thread_repair_local", "thread_repair_accepted"];
+
+/**
+ * Durées par étape d'un carrousel (09/10/2026). Les journaux edge
+ * (`carousel_timings`) s'effacent en quelques heures : impossible de mesurer
+ * la rédaction, le juge ou l'association des photos sur une semaine. Rangées
+ * dans content_preview.durees (sans migration) : nombres seulement, jamais de
+ * texte. `photos` = photos lues par l'association ; `association` = son issue.
+ */
+export function carouselDurations(
+  label: string,
+  timings: Record<string, unknown> | undefined,
+  extra: { content?: unknown; photos?: number; avantSchemas?: boolean } = {},
+): Record<string, unknown> | null {
+  if (!timings || typeof timings !== "object") return null;
+  const out: Record<string, unknown> = { label };
+  for (const [k, v] of Object.entries(timings)) {
+    if ((k.endsWith("_ms") || DURATION_COUNTERS.includes(k)) && typeof v === "number" && Number.isFinite(v) && v >= 0) out[k] = Math.round(v);
+  }
+  if (typeof extra.photos === "number") out.photos = extra.photos;
+  // Carrousel texte : la ligne s'écrit avant les schémas, total_ms s'arrête là.
+  if (extra.avantSchemas) out.avant_schemas = true;
+  let doc: any = extra.content;
+  if (typeof doc === "string") { try { doc = JSON.parse(doc); } catch { doc = null; } }
+  if (Array.isArray(doc?.slides)) out.slides = doc.slides.length;
+  const pr = doc?.photo_review;
+  if (pr && typeof pr === "object") {
+    out.association = {
+      status: pr.execution_status ?? null,
+      raison: pr.reason ?? null,
+      ambiance: Array.isArray(pr.ambient_fallback) ? pr.ambient_fallback.length : 0,
+    };
+  }
+  return out;
+}
+
 export async function logContentQuality(
   userId: string,
   format: string,
@@ -241,6 +277,8 @@ export async function logContentQuality(
   subject?: string,
   /** Issue du contrôle du fil (carrousels), cf. threadOutcome. Rangée dans content_preview.fil. */
   fil?: Record<string, unknown> | null,
+  /** Durées par étape (carrousels), cf. carouselDurations. Rangées dans content_preview.durees. */
+  durees?: Record<string, unknown> | null,
 ): Promise<void> {
   // Contenu illisible (JSON non parsé) : rien à mesurer.
   if (gate.score == null) return;
@@ -262,7 +300,8 @@ export async function logContentQuality(
   const withEchoes = typeof gate.hookEchoesBefore === "number"
     ? { ...(withReview ?? {}), hook_echoes_before: gate.hookEchoesBefore }
     : withReview;
-  const preview = fil ? { ...(withEchoes ?? {}), fil } : withEchoes;
+  const withFil = fil ? { ...(withEchoes ?? {}), fil } : withEchoes;
+  const preview = durees ? { ...(withFil ?? {}), durees } : withFil;
   const slopSignals = buildSlopSignals(gate.content);
 
   try {

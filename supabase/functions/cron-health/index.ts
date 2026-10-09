@@ -28,6 +28,7 @@ import { jugerCredits, joursDepuisReset } from "./photoroom-alerte.ts";
 import { compte, debutMoisUtc, jugerBudgetHiggsfield, somme } from "./higgsfield-alerte.ts";
 import { gardeRediteStats, hasPreviewText } from "./garde-redite.ts";
 import { filStats } from "./fil-reparations.ts";
+import { dureesStats } from "./durees-carrousels.ts";
 import { isInternalEmail, isTestAccountEmail, maskEmail } from "../_shared/internal-accounts.ts";
 
 // Comptes internes exclus : liste UNIQUE partagée avec activation-funnel et
@@ -909,6 +910,15 @@ Deno.serve(async (req) => {
             semaine_precedente: filStats(cqEvents, (d) => inWindow(d, prevFrom, prevTo)),
             // Peu de clientes génèrent : les essais internes donnent un 1er chiffre.
             comptes_internes_7j: filStats(cqAll.filter((e: any) => internalIds.has(e.user_id)), (d) => inWindow(d, curFrom, curTo)),
+          }
+        : null,
+      // Durées des carrousels par parcours (09/10/2026) : rédaction, juge,
+      // réparation, association des photos (cf. durees-carrousels.ts).
+      durees_carrousels: cqEvents
+        ? {
+            cette_semaine: dureesStats(cqEvents, (d) => inWindow(d, curFrom, curTo)),
+            semaine_precedente: dureesStats(cqEvents, (d) => inWindow(d, prevFrom, prevTo)),
+            comptes_internes_7j: dureesStats(cqAll.filter((e: any) => internalIds.has(e.user_id)), (d) => inWindow(d, curFrom, curTo)),
           }
         : null,
       retravail: { total_carrousels: carCur.length, retravailles, sujets_regeneres },
