@@ -15,13 +15,21 @@ export function purePhotoSlides(slides: any[], photoCount: number): any[] {
     title: "",
     body: "",
     photo_index: i + 1,
-    // Identifiant posé par l'éditeur : sans texte, il doit survivre au nettoyage.
-    // Le retirer faisait reconnaître à l'éditeur une « nouvelle » liste de slides,
-    // qu'il relisait et renvoyait avec l'identifiant → re-nettoyage → boucle
-    // infinie ~1 fois/s (contrôle qualité et sauvegarde jamais finis, vignettes
-    // blanches, retour forcé à la slide 1 — contenus figés du 08/10).
-    ...(s?.editor_id ? { editor_id: s.editor_id } : {}),
+    // Champs internes de l'éditeur (editor_id, editor_locked…, aucun texte) :
+    // ils doivent survivre au nettoyage. Les retirer faisait reconnaître à
+    // l'éditeur une « nouvelle » liste de slides, qu'il relisait et renvoyait
+    // avec ces champs → re-nettoyage → boucle infinie ~1 fois/s (contrôle
+    // qualité et sauvegarde jamais finis, vignettes blanches, retour forcé à la
+    // slide 1 — contenus figés du 08-09/10). #1412 ne gardait que editor_id.
+    ...editorFields(s),
   }));
+}
+
+/** Champs posés par l'éditeur sur chaque slide (documentOutput) : jamais du texte. */
+function editorFields(s: any): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(s || {})) if (k.startsWith("editor_")) out[k] = v;
+  return out;
 }
 
 /**

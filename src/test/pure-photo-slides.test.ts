@@ -42,7 +42,8 @@ describe("Photos brutes : nettoyage des slides", () => {
     // L'éditeur renvoie chaque slide avec `editor_id` (documentOutput). Le nettoyage
     // retirait ce champ → l'éditeur croyait recevoir une nouvelle liste → relecture,
     // renvoi avec l'identifiant → re-nettoyage, à l'infini.
-    const editorEcho = (r: any) => ({ ...r, slides: r.slides.map((s: any, i: number) => ({ ...s, editor_id: s.editor_id || `slide-${i}` })) });
+    // Exactement ce que renvoie documentOutput (src/lib/carousel-editor.ts).
+    const editorEcho = (r: any) => ({ ...r, slides: r.slides.map((s: any, i: number) => ({ ...s, editor_id: s.editor_id || `slide-${i}`, editor_locked: false })) });
     let current: any = raw;
     let cleanings = 0;
     for (let i = 0; i < 6; i++) {
@@ -52,6 +53,7 @@ describe("Photos brutes : nettoyage des slides", () => {
     }
     expect(cleanings).toBe(1);
     expect(current.slides.map((s: any) => s.editor_id)).toEqual(["slide-0", "slide-1"]);
+    expect(current.slides.every((s: any) => s.editor_locked === false)).toBe(true);
     // Le texte ne revient jamais pour autant.
     const withText = { ...current, slides: current.slides.map((s: any) => ({ ...s, kicker: "texte" })) };
     expect(purePhotoRawOrNull(withText, 2)!.slides.every((s: any) => !("kicker" in s) && s.editor_id)).toBe(true);
