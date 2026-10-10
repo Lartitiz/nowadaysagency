@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { forwardRef, useMemo } from "react";
 
 interface Props {
   password: string;
 }
 
-export default function PasswordStrengthIndicator({ password }: Props) {
+const PasswordStrengthIndicator = forwardRef<HTMLDivElement, Props>(
+  function PasswordStrengthIndicator({ password }, ref) {
   const { level, label, color, width } = useMemo(() => {
     if (password.length < 8)
       return { level: 0, label: "Trop court", color: "bg-error", width: "w-1/4" };
