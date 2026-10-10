@@ -385,9 +385,11 @@ describe("useDoGenerate — carrousels (structure, régénération, mix)", () =>
     const [fn, payload, timeout] = mocks.invokeWithTimeout.mock.calls[0];
     expect(fn).toBe("carousel-ai");
     // Mesuré en ligne le 09/10/2026 (3 photos, 10 slides) : 55 à 64 s. Un délai
-    // d'écran sous ~2 min coupe des plans valides → repli sans plan.
+    // d'écran sous ~2 min coupe des plans valides → repli sans plan. Depuis le
+    // 10/10, le serveur répond au plus tard à 160 s (second plan relancé à 80 s,
+    // STRUCTURE_DEADLINE_MS) : l'écran doit attendre au-delà.
     expect(timeout).toBe(STRUCTURE_PROPOSAL_TIMEOUT_MS);
-    expect(timeout).toBeGreaterThanOrEqual(120_000);
+    expect(timeout).toBeGreaterThanOrEqual(170_000);
     expect(payload.body.type).toBe("structure_proposal");
     expect(payload.body.photos).toEqual([expect.objectContaining({ base64: "p1", vision: true })]);
     expect(params.photo.setGeneratedWithPhotos).toHaveBeenCalledWith(photos); // snapshot anti-reset

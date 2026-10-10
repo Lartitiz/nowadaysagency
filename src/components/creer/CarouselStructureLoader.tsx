@@ -26,10 +26,14 @@ const MESSAGES_SANS_PHOTOS = [
   "J'ordonne tes idées pour que ça accroche…",
 ];
 
+// Un peu après la relance serveur du plan (80 s, carousel-ai/structure-hedge.ts).
+const SLOW_AFTER_S = 85;
+
 export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhotos?: boolean }) {
   const messages = hasPhotos ? MESSAGES_PHOTOS : MESSAGES_SANS_PHOTOS;
   const [messageIndex, setMessageIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [slow, setSlow] = useState(false);
   const startTimeRef = useRef(Date.now());
 
   useEffect(() => {
@@ -47,6 +51,8 @@ export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhot
       const elapsed = (Date.now() - startTimeRef.current) / 1000;
       const p = Math.min(90, 90 * (1 - Math.exp(-elapsed / 25)));
       setProgress(Math.round(p));
+      // Le serveur relance un second plan identique à 80 s (structure-hedge.ts).
+      if (elapsed >= SLOW_AFTER_S) setSlow(true);
     }, 300);
 
     return () => {
@@ -83,6 +89,11 @@ export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhot
           ? "J'analyse tes photos une par une : compte environ une minute, puis je passe à la rédaction."
           : "Je prépare la structure : compte une petite minute, puis je passe à la rédaction."}
       </p>
+      {slow && (
+        <p className="text-xs text-muted-foreground animate-fade-in">
+          C'est plus long que d'habitude : je relance la structure en parallèle, encore une minute environ.
+        </p>
+      )}
     </div>
   );
 }

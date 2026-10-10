@@ -311,6 +311,12 @@ export interface AnthropicOptions {
    * génération de questions en Haiku) pour transformer un blocage en retry rapide.
    */
   abortTimeoutMs?: number;
+  /**
+   * Annulation décidée par l'appelant (`callAnthropic` seulement) : coupe la
+   * tentative en cours et n'en relance AUCUNE. Ex. plan du carrousel doublé
+   * quand le premier appel traîne (carousel-ai/structure-hedge.ts).
+   */
+  signal?: AbortSignal;
   /** Nombre de nouvelles tentatives après le premier appel (2 par défaut). */
   maxRetries?: number;
   /**
@@ -728,19 +734,25 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
   }));
 
   const maxRetries = options.maxRetries ?? MAX_RETRIES;
+  const callerSignal = options.signal;
+  const cancelled = () => new AnthropicError("Appel à l'IA annulé.", 499);
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (callerSignal?.aborted) throw cancelled();
     if (attempt > 0) {
       const delay = RETRY_DELAYS[attempt - 1] || 6000;
       console.log(`Anthropic retry ${attempt}/${maxRetries} after ${delay}ms...`);
       await new Promise((r) => setTimeout(r, delay));
+      if (callerSignal?.aborted) throw cancelled();
     }
 
     // Abort optionnel par tentative : borne le temps d'attente d'un fetch qui
     // traîne et le convertit en retry (plutôt qu'un blocage de >1 min).
-    const ac = options.abortTimeoutMs ? new AbortController() : null;
-    const abortTimer = ac
+    const ac = options.abortTimeoutMs || callerSignal ? new AbortController() : null;
+    const abortTimer = ac && options.abortTimeoutMs
       ? setTimeout(() => ac.abort(), options.abortTimeoutMs)
       : null;
+    const onCallerAbort = () => ac?.abort();
+    callerSignal?.addEventListener("abort", onCallerAbort, { once: true });
 
     let response: Response;
     try {
@@ -757,6 +769,8 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
       });
     } catch (err) {
       if (abortTimer) clearTimeout(abortTimer);
+      callerSignal?.removeEventListener("abort", onCallerAbort);
+      if (callerSignal?.aborted) throw cancelled();
       // Timeout (abort) ou erreur réseau : retryable tant qu'il reste des tentatives.
       const isAbort = (err as any)?.name === "AbortError";
       console.error(JSON.stringify({
@@ -779,6 +793,7 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
       );
     }
     if (abortTimer) clearTimeout(abortTimer);
+    callerSignal?.removeEventListener("abort", onCallerAbort);
 
     if (response.ok) {
       const data = await response.json();
@@ -826,6 +841,7 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
           "anthropic-beta": "prompt-caching-2024-07-31",
         },
         body: JSON.stringify(fallbackBody),
+        signal: callerSignal,
       });
       if (fallbackRes.ok) {
         const data = await fallbackRes.json();
