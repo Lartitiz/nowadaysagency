@@ -5,6 +5,7 @@ import { recoverStudioPhotos } from "@/features/carousel-studio/bridge";
 import { CarouselStudioDialog } from "@/features/carousel-studio/CarouselStudioDialog";
 import { CreationUpgradeInvite } from "@/components/CreationUpgradeInvite";
 import { invalidateProgressionReceipt, rebindReceiptsAfterPhotoCast } from "../../supabase/functions/_shared/carousel-editorial-snapshot";
+import { splitCarouselWarnings } from "@/lib/carousel-warnings";
 import { pinterestCurrentText } from "@/lib/pinterest-current-text";
 import { prepareIdeaPhotos } from "@/features/creer/prepare-idea-photos";
 import { isDurableReelUrl, reelSourceKey } from "@/lib/reel-publication";
@@ -674,7 +675,7 @@ function CreerWorkspace() {
     streamStage,
     streamReset,
   } = useContentGenerator();
-  const currentStructureWarnings = useMemo(() => invalidateProgressionReceipt(result?.raw || {}).structure_warnings || [], [result?.raw]);
+  const currentWarnings = useMemo(() => splitCarouselWarnings(invalidateProgressionReceipt(result?.raw || {})), [result?.raw]);
 
   const [studioSlideId, setStudioSlideId] = useState<string | null>(null);
   const carouselCloudEnabled = workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive && step === "result" && selectedFormat === "carousel" && !!(result?.raw?.carousel_editor_version || result?.raw?.carousel_studio_version);
@@ -3247,10 +3248,18 @@ function CreerWorkspace() {
               />
             )}
 
-            {step === "result" && currentStructureWarnings.length > 0 && !generating && (
+            {step === "result" && currentWarnings.blocking.length > 0 && !generating && (
               <div role="alert" className="mt-4 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-foreground">
                 <p className="font-medium">Ce carrousel est à compléter avant de le publier.</p>
-                <ul className="mt-2 list-disc pl-5">{currentStructureWarnings.map((message: string, i: number) => <li key={i}>{message}</li>)}</ul>
+                <ul className="mt-2 list-disc pl-5">{currentWarnings.blocking.map((message: string, i: number) => <li key={i}>{message}</li>)}</ul>
+              </div>
+            )}
+
+            {step === "result" && currentWarnings.suggestions.length > 0 && !generating && (
+              <div data-testid="carousel-relecture" className="mt-4 rounded-lg border border-border bg-muted/40 p-4 text-sm text-foreground">
+                <p className="font-medium">Pistes de relecture (facultatif)</p>
+                <p className="mt-1 text-xs text-muted-foreground">{currentWarnings.blocking.length ? "" : "Ton carrousel est publiable tel quel. "}Ces passages gagneraient peut-être à être retouchés.</p>
+                <ul className="mt-2 list-disc pl-5">{currentWarnings.suggestions.map((message: string, i: number) => <li key={i}>{message}</li>)}</ul>
               </div>
             )}
 
