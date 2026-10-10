@@ -20,12 +20,15 @@ const PasswordStrengthIndicator = forwardRef<HTMLDivElement, Props>(
 
   if (!password) return null;
 
-  return (
-    <div className="flex items-center gap-2 h-5">
-      <div className="h-1.5 flex-1 rounded-[10px] bg-muted overflow-hidden">
-        <div className={`h-full ${color} ${width} transition-all duration-300 rounded-[10px]`} />
+    return (
+      <div ref={ref} className="flex items-center gap-2 h-5">
+        <div className="h-1.5 flex-1 rounded-[10px] bg-muted overflow-hidden">
+          <div className={`h-full ${color} ${width} transition-all duration-300 rounded-[10px]`} />
+        </div>
+        <span className="text-xs text-muted-foreground whitespace-nowrap">{label}</span>
       </div>
-      <span className="text-xs text-muted-foreground whitespace-nowrap">{label}</span>
-    </div>
-  );
-}
+    );
+  }
+);
+
+export default PasswordStrengthIndicator;
