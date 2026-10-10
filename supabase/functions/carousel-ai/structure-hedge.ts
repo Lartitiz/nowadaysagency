@@ -46,6 +46,9 @@ export interface HedgeOptions {
 }
 
 const errText = (e: unknown) => String((e as any)?.message || e).slice(0, 160);
+// Erreurs définitives (requête refusée, quota, limite de débit) : un second
+// appel identique échouerait pareil.
+const isFinalError = (e: unknown) => [400, 401, 402, 403, 413, 429].includes(Number((e as any)?.status));
 
 /**
  * `start(n, signal)` lance l'appel n° n (1 ou 2). `signal` est annulé dès que
@@ -89,7 +92,7 @@ export function hedgedStructureCall<T>(
           if (settled) return;
           if (n === 1) report.first_error = errText(err); else report.second_error = errText(err);
           // Échec du premier avant le départ du second : relance immédiate.
-          if (n === 1 && report.calls === 1) {
+          if (n === 1 && report.calls === 1 && !isFinalError(err)) {
             clearTimeout(hedgeTimer);
             launch(2);
             return;

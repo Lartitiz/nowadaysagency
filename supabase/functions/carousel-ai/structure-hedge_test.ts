@@ -76,6 +76,15 @@ Deno.test("deux échecs : l'erreur du second remonte", async () => {
   }, { hedgeAfterMs: 50, deadlineMs: 400 }), Error, "échec 2");
 });
 
+Deno.test("erreur définitive (quota, requête refusée) : pas de second appel", async () => {
+  const calls: number[] = [];
+  await assertRejects(() => hedgedStructureCall(async (n) => {
+    calls.push(n);
+    throw Object.assign(new Error("Trop de requêtes"), { status: 429 });
+  }, { hedgeAfterMs: 200, deadlineMs: 400 }), Error, "Trop de requêtes");
+  assertEquals(calls, [1]);
+});
+
 Deno.test("échéance : tout est annulé et une erreur claire remonte", async () => {
   const aborted: number[] = [];
   let report: HedgeReport | undefined;
