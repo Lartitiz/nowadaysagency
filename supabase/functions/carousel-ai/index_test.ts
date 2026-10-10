@@ -1292,6 +1292,41 @@ Deno.test("structure confirmée renvoyée avec « text » : acceptée (plus de �
 });
 
 
+// 10/10/2026 (mesure en ligne) : un plan photo revenait vide sans motif après
+// 72 s → « structure_vide » et carrousel sans plan. Un second appel identique
+// le rattrape ; deux plans vides gardent l'ancienne réponse.
+Deno.test("plan vide sans motif : second appel identique, plan rendu", async () => {
+  resetDeps();
+  const seen: any[] = [];
+  _deps.callAnthropic = (async (o: any) => {
+    seen.push(o);
+    return JSON.stringify(seen.length === 1 ? { total_slides: 0, slides: [] }
+      : { total_slides: 1, slides: [{ slide_number: 1, role: "hook", title_suggestion: "Titre", strategic_note: "n", photo_index: 1 }] });
+  }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", slide_count: 1, photos: [{ base64: "aGVsbG8=" }] }));
+  const { result } = await res.json();
+  assertEquals(result.slides.length, 1);
+  assertEquals(seen.length, 2);
+  assertEquals(seen[1].system, seen[0].system, "le second appel demande exactement le même plan");
+  assertEquals(JSON.stringify(seen[1].messages), JSON.stringify(seen[0].messages));
+  assert(seen[0].signal instanceof AbortSignal, "chaque appel reçoit un signal d'annulation");
+});
+
+Deno.test("plan vide deux fois : structure_vide comme avant ; refus photo : un seul appel", async () => {
+  resetDeps();
+  let calls = 0;
+  _deps.callAnthropic = (async () => { calls++; return JSON.stringify({ slides: [] }); }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", photos: [{ base64: "aGVsbG8=" }] }));
+  assertEquals((await res.json()).error, "structure_vide");
+  assertEquals(calls, 2);
+
+  calls = 0;
+  _deps.callAnthropic = (async () => { calls++; return JSON.stringify({ slides: [], photo_mismatch: { reason: "Les photos montrent un chat" } }); }) as any;
+  const refus = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", photos: [{ base64: "aGVsbG8=" }] }));
+  assertEquals((await refus.json()).error, "photo_mismatch");
+  assertEquals(calls, 1);
+});
+
 // ── Photo : la mise en page lit le texte FINAL (04/10/2026) ──
 // Avant : les gabarits (gros chiffre, liste, attribution) étaient posés AVANT
 // la relecture éditoriale ; la relecture corrigeait ensuite l'overlay et l'item

@@ -43,6 +43,7 @@ import { extractImagePayload } from "../_shared/image-utils.ts";
 import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex, normalizeOverlayStyles, analyzeMixComposition, assignDistinctStructurePhotos } from "../_shared/photo-slide-structure.ts";
 import { assignPhotoTemplates, assignTemplatesToProvidedSlides, revalidatePhotoLayoutContent, stripWriterLayoutFields } from "../_shared/photo-template-assign.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
+import { hedgedStructureCall, StructureDeadlineError } from "./structure-hedge.ts";
 
 // ── Seam d'injection de dépendances (tests) ──
 // Indirection pure : en prod, ces champs pointent vers les imports ci-dessus
@@ -2318,7 +2319,7 @@ ${deepening_answers ? `Réponses de personnalisation : ${JSON.stringify(deepenin
 ${hasPhotos ? `Nombre de photos : ${photos.length}` : ""}
 Propose la structure optimale.`;
 
-  let content: string;
+  let callOptions: AnthropicOptions;
   if (hasPhotos) {
     const messageContent: any[] = [];
     const photoCtxRecap = buildPhotoContextRecap(photos);
@@ -2334,27 +2335,58 @@ Propose la structure optimale.`;
       type: "text",
       text: "Choisis une proposition éditoriale étayée, construis sa progression, puis assigne les photos à ces étapes. Une visite des photos ne tient pas lieu de propos.",
     });
-    content = await _deps.callAnthropic({
+    callOptions = {
       model: getModelForAction("content"),
       system: structureSystemPrompt + PHOTO_MISMATCH_SYSTEM_REMINDER,
       messages: [{ role: "user", content: messageContent }],
       // Evidence fields add material per slide; avoid truncating the scenario.
       max_tokens: 8192,
       tool: STRUCTURE_PROPOSAL_TOOL,
-    });
+    };
   } else {
-    content = await _deps.callAnthropic({
+    callOptions = {
       model: getModelForAction("content"),
       system: structureSystemPrompt,
       messages: [{ role: "user", content: structureUserPrompt }],
       // Evidence fields add material per slide; avoid truncating the scenario.
       max_tokens: 8192,
       tool: STRUCTURE_PROPOSAL_TOOL,
-    });
+    };
   }
 
-  // PAS de logUsage — cet appel est gratuit
-  const structureResult: any = tryParseAiJson(content, "carousel-ai:structure_proposal");
+  // PAS de logUsage — cet appel est gratuit.
+  // Appel lent : un second appel identique part en parallèle (structure-hedge.ts).
+  // Un plan vide ou illisible sans motif (vu en ligne le 10/10 après 72 s)
+  // compte comme un échec : le second appel le rattrape.
+  const hasSlides = (r: any) => Array.isArray(r?.slides) && r.slides.length > 0;
+  const hasMismatch = (r: any) => typeof r?.photo_mismatch?.reason === "string" && r.photo_mismatch.reason.trim().length > 0;
+  let emptyPlans = 0;
+  let structureResult: any;
+  try {
+    structureResult = await hedgedStructureCall(async (_n, signal) => {
+      const content = await _deps.callAnthropic({ ...callOptions, signal });
+      const parsed: any = tryParseAiJson(content, "carousel-ai:structure_proposal");
+      if (!parsed || (!hasSlides(parsed) && !(hasPhotos && hasMismatch(parsed)))) {
+        emptyPlans++;
+        throw new Error(parsed ? "structure_vide" : "structure_illisible");
+      }
+      return parsed;
+    }, {
+      elapsedMs: Date.now() - reqCtx.startedAt,
+      onReport: (report) => console.log(JSON.stringify({ type: "carousel_structure_proposal", ...report, empty_plans: emptyPlans, photos: hasPhotos ? photos.length : 0 })),
+    });
+  } catch (err) {
+    const reason = (err as Error)?.message;
+    if (err instanceof StructureDeadlineError) {
+      return new Response(JSON.stringify({
+        error: "structure_timeout",
+        message: "La proposition de structure a pris trop de temps. Aucun crédit n'a été décompté.",
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (reason === "structure_vide") structureResult = { slides: [] };
+    else if (reason === "structure_illisible") structureResult = null;
+    else throw err;
+  }
 
   // Refus structuré : mêmes symptômes possibles que sur la génération (l'IA
   // voit les photos en vision) — sans ce chemin, un photo_mismatch partait

@@ -109,10 +109,13 @@ interface UseDoGenerateParams {
 /** Délai d'écran du plan (`structure_proposal`). Mesuré en ligne le 09/10/2026
  * avec 3 photos et 10 slides : 55 à 64 s (un seul appel Sonnet, ~12 Ko de
  * plan). L'ancien délai de 60 s coupait un plan sur deux, et l'app repartait en
- * génération directe sans plan. 150 s = la coupure de la plateforme pour une
- * réponse non streamée (504 IDLE_TIMEOUT) : attendre plus ne servirait à rien,
- * couper avant perd des plans qui allaient arriver. */
-export const STRUCTURE_PROPOSAL_TIMEOUT_MS = 150_000;
+ * génération directe sans plan. Le 10/10 : 56 à 72 s sur 12 mesures, mais un
+ * plan à 164 s (réponse 200, la plateforme ne coupe pas à 150 s) et un plan
+ * vide. Le serveur relance un second plan identique à 80 s ou dès un plan vide
+ * et répond au plus tard à 160 s (carousel-ai/structure-hedge.ts) : l'écran
+ * attend 10 s de plus (choix de Laetitia : attendre plutôt que doubler les
+ * plans normaux). */
+export const STRUCTURE_PROPOSAL_TIMEOUT_MS = 170_000;
 
 /**
  * Cœur de la génération de contenu — 6 sous-flux quasi indépendants selon le
