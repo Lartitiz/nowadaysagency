@@ -271,6 +271,16 @@ export function SlideFramePreview({ html, title, width = 180 }: { html: string; 
   );
 }
 
+// Les types de schéma sont des clés techniques (« before_after ») : jamais
+// affichées telles quelles à l'utilisatrice.
+const SCHEMA_LABELS: Record<string, string> = {
+  checklist: "liste à cocher", before_after: "avant / après", comparison: "comparaison",
+  stats: "chiffres clés", timeline: "frise", equation: "équation", matrix_2x2: "matrice 2 × 2",
+  pyramid: "pyramide", flowchart: "étapes", scale: "échelle",
+};
+const schemaLabel = (type: unknown) =>
+  SCHEMA_LABELS[String(type)] ?? String(type ?? "").replace(/_/g, " ");
+
 export default function CarouselResult({ result, visualSlides, onSlidesUpdate, onVisualSlidesUpdate, onStaleChange }: Props) {
   const rawSlides: SlideData[] = result?.slides || result?.carousel?.slides || [];
   const rawCaption: CaptionData = result?.caption || result?.carousel?.caption || {};
@@ -570,7 +580,7 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
                     {slide.visual_schema && (
                       <div className="flex items-center gap-1.5 mt-1">
                         <Badge className="bg-violet-100 text-violet-700 border-violet-200 text-2xs">
-                          📊 Schéma : {(slide.visual_schema as any).type}
+                          📊 Schéma : {schemaLabel((slide.visual_schema as any).type)}
                         </Badge>
                       </div>
                     )}

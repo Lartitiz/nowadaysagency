@@ -50,7 +50,7 @@ vi.mock('@/components/AppHeader', () => ({ default: () => null }));
 vi.mock('@/components/SubPageHeader', () => ({ default: () => null }));
 vi.mock('@/components/dashboard/ContentCoachingDialog', () => ({ default: () => null }));
 vi.mock('@/components/creer/CreerTransformTab', () => ({ default: () => <p>Choix Recycler et Crosspost</p> }));
-vi.mock('@/components/creer/CreerStepFormat', () => ({ default: (p: any) => <div><p>Format : {p.forcedChannel}</p><button onClick={p.onBack}>Retour idée</button></div> }));
+vi.mock('@/components/creer/CreerStepFormat', () => ({ default: (p: any) => <div><p>Format : {p.forcedChannel}</p><p>Sous-mode : {p.initialCarouselSubMode}</p><p>Idée : {p.idea}</p><button onClick={p.onBack}>Retour idée</button></div> }));
 vi.mock('@/components/creer/CreerStepResult', () => ({ default: (p: any) => { mocks.resultProps=p; return <div><pre data-testid="result">{JSON.stringify(p.result)}</pre><button onClick={p.onReset}>Réinitialiser</button><button onClick={p.onEdit}>Éditer le résultat</button></div>; } }));
 vi.mock('@/lib/posthog', () => ({ posthog: { capture: vi.fn() } }));
 vi.mock('@/lib/photo-storage', () => ({ userPhotoToBase64: (...args: any[]) => mocks.photoDecode(...args) }));
@@ -103,8 +103,13 @@ describe('initial creation draft through real React components', () => {
 
   it('sans photo produit, garde le choix manuel et ne lance aucune génération', async () => {
     mocks.photoRead.mockResolvedValue({ data: [], error: null });
-    mount('/creer?format=carousel&carouselSubMode=photo&firstProduct=1&auto=1');
+    mount('/creer?format=carousel&carouselSubMode=photo&firstProduct=1&auto=1&sujetSansPhoto=Mes%20fleurs%20locales');
     expect(await screen.findByText('Format :')).toBeVisible();
+    // Pré-réglé en texte sur l'idée du diagnostic, plutôt qu'un mode photo vide.
+    await waitFor(() => expect(loadFlowState()).toMatchObject({ carouselSubMode: 'text', ideaText: 'Mes fleurs locales' }));
+    // Le sélecteur de format reçoit bien le réglage final (il le fige au montage).
+    expect(screen.getByText('Sous-mode : text')).toBeVisible();
+    expect(screen.getByText('Idée : Mes fleurs locales')).toBeVisible();
     expect(mocks.generate).not.toHaveBeenCalled();
   });
 

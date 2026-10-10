@@ -32,6 +32,13 @@ describe("buildFirstContentUrl", () => {
     expect(url).not.toContain("format=post");
   });
 
+  it("produits : l'idée du diagnostic voyage en repli si aucune photo n'est trouvée", () => {
+    const url = buildFirstContentUrl({ sellsProducts: true, subject: "Ma gamme" });
+    expect(new URL(url, "https://x.fr").searchParams.get("sujetSansPhoto")).toBe("Ma gamme");
+    const generique = buildFirstContentUrl({ sellsProducts: true, subject: null });
+    expect(new URL(generique, "https://x.fr").searchParams.get("sujetSansPhoto")).toContain("3 erreurs fréquentes");
+  });
+
   it("produits sans idée : aucun sujet inventé n'est collé dans l'URL", () => {
     const url = buildFirstContentUrl({ sellsProducts: true, subject: null });
     expect(url).not.toContain("sujet=");

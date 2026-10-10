@@ -1,5 +1,6 @@
 import { restoreCarouselPhotos } from "@/lib/restore-carousel-photos";
 import { purePhotoRawOrNull } from "@/lib/pure-photo-slides";
+import { SUJET_PREMIER_CONTENU_GENERIQUE } from "@/lib/first-content-url";
 import { recoverStudioPhotos } from "@/features/carousel-studio/bridge";
 import { CarouselStudioDialog } from "@/features/carousel-studio/CarouselStudioDialog";
 import { CreationUpgradeInvite } from "@/components/CreationUpgradeInvite";
@@ -1018,7 +1019,7 @@ function CreerWorkspace() {
     // ils ne déclenchent pas d'auto-avancée destructrice.
     // Exception : en ?mode=transform, ?format pré-coche le sous-mode Recycler
     // (CreerTransformTab le lit dans l'URL) — on ne touche à rien sur ce chemin.
-    const ONE_SHOT_PARAMS = ["sujet", "subject", "format", "objectif", "objective", "auto", "angle", "carouselSubMode", "firstProduct", "idea_id"];
+    const ONE_SHOT_PARAMS = ["sujet", "subject", "format", "objectif", "objective", "auto", "angle", "carouselSubMode", "firstProduct", "sujetSansPhoto", "idea_id"];
     if (paramMode !== "transform" && ONE_SHOT_PARAMS.some((k) => searchParams.has(k))) {
       const cleaned = consumeFreshStart(searchParams);
       ONE_SHOT_PARAMS.forEach((k) => cleaned.delete(k));
@@ -1036,6 +1037,7 @@ function CreerWorkspace() {
       : [],
   );
   const firstProductRef = useRef(searchParams.get("firstProduct") === "1");
+  const sujetSansPhotoRef = useRef((searchParams.get("sujetSansPhoto") || "").trim());
   const libraryLoadedRef = useRef(false);
   const initialCreationId = useRef(creationId);
   useEffect(() => {
@@ -1064,6 +1066,20 @@ function CreerWorkspace() {
           libraryPhotoIdsRef.current = (sitePhotos ?? []).map((photo) => photo.id);
         }
         const ids = libraryPhotoIdsRef.current;
+        if (ids.length === 0 && firstProductRef.current) {
+          // 1er contenu « produits » sans aucune photo (pas de site, ou site sans
+          // photo) : l'écran de choix reste ouvert, sans génération automatique
+          // (#1147), mais pré-réglé en carrousel texte sur l'idée du diagnostic.
+          // Avant : mode photo vide (« il faut au moins une photo ») et aucun
+          // sujet, d'où un brouillon « Mon carrousel » / « Sans titre » au
+          // calendrier (passe compte neuf du 10/10).
+          if (cancelled) return;
+          firstProductRef.current = false;
+          autoGeneratePendingRef.current = false;
+          setCarouselSubMode("text");
+          setIdeaText(sujetSansPhotoRef.current || SUJET_PREMIER_CONTENU_GENERIQUE);
+          return;
+        }
         if (ids.length === 0) return; // le sélecteur manuel reste disponible
         const { data, error: qErr } = await supabase
           .from("user_photos")
@@ -2884,7 +2900,11 @@ function CreerWorkspace() {
             )}
 
             <Suspense fallback={<div className="py-12 flex justify-center"><Spinner className="h-8 w-8" /></div>}>
-            {step === "format" && (
+            {/* Monté APRÈS le chargement des photos de la photothèque : le
+                composant fige ses valeurs initiales (sous-mode, photos) au
+                montage, et le 1er contenu sans photo bascule le sous-mode en
+                texte pendant ce chargement. */}
+            {step === "format" && !isLoadingLibraryPhotos && (
               <CreerStepFormat
                 idea={ideaText}
                 objective={objective || undefined}

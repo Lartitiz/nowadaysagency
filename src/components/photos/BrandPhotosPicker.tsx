@@ -389,7 +389,12 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
                   ? `${confirmedProductUrls.length} photo${confirmedProductUrls.length > 1 ? "s de ton site prêtes" : " de ton site prête"} dans Mes photos pour ton premier carrousel. Tu pourras les remplacer ou en ajouter.`
                   : `${importedCount} photo${importedCount > 1 ? "s ajoutées" : " ajoutée"} à ta bibliothèque. Je les décris en arrière-plan : tu les retrouves dans Mes photos, prêtes pour tes contenus.`
                 : status === "empty"
-                  ? "Je n'ai pas trouvé de photo exploitable sur ton site. Tu pourras en ajouter dans la préparation du carrousel."
+                  ? isProduct
+                    // Sans photo, /creer part sur l'idée du diagnostic en carrousel texte.
+                    ? hasSite
+                      ? "Je n'ai pas trouvé de photo exploitable sur ton site : ton premier carrousel partira d'une idée de ton diagnostic. Tu pourras ajouter tes photos ensuite."
+                      : "Pas de site renseigné : ton premier carrousel partira d'une idée de ton diagnostic. Tu pourras ajouter tes photos ensuite."
+                    : "Je n'ai pas trouvé de photo exploitable sur ton site. Tu pourras en ajouter dans la préparation du carrousel."
                 : status === "error"
                   ? "Je n'ai pas pu lire les photos de ton site. Réessaie ou ajoute-les dans la préparation du carrousel."
                 : status === "importing" && isProduct
