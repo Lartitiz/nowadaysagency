@@ -230,6 +230,29 @@ describe("Structured review", () => {
     validateAll(); await waitFor(() => expect(m.toast.error).toHaveBeenCalled());
     expect(m.writes.filter(w => w.table === "offers")).toEqual([]);
   });
+  it("replaces the generic onboarding pillar with the analysed one instead of keeping it", async () => {
+    m.db.brand_strategy = [row("strat", { pillar_major: "Organisation & régularité", step_1_hidden_facets: "Priorité : augmenter la découvrabilité et le reach", updated_at: "2026-10-10" })];
+    render(<BrandingReview analysis={{ content_strategy: { pillars: ["Céramique du quotidien", "Coulisses"] } }} onDone={() => {}} />);
+    validateAll(); await screen.findByText("Fiche validée ! 🎉");
+    expect(m.db.brand_strategy[0].pillar_major).toBe("Céramique du quotidien");
+    expect(m.db.brand_strategy[0].pillar_minor_1).toBe("Coulisses");
+  });
+  it("keeps a pillar the person wrote herself", async () => {
+    m.db.brand_strategy = [row("strat", { pillar_major: "Mon pilier à moi", updated_at: "2026-10-10" })];
+    render(<BrandingReview analysis={{ content_strategy: { pillars: ["Autre pilier"] } }} onDone={() => {}} />);
+    validateAll(); await screen.findByText("Fiche validée ! 🎉");
+    expect(m.db.brand_strategy[0].pillar_major).toBe("Mon pilier à moi");
+  });
+  it("only mentions duplicate offer names when one really clashes, and no « existing info kept » banner without existing info", () => {
+    const { unmount } = render(<BrandingReview analysis={{ offers: { offers: [{ name: "Atelier" }] } }} onDone={() => {}} />);
+    expect(screen.queryByText(/informations existantes sont conservées/)).toBeNull();
+    fireEvent.click(screen.getByLabelText("Aller à « Tes offres »"));
+    expect(screen.queryByText(/existe déjà dans Mes offres/)).toBeNull();
+    unmount();
+    render(<BrandingReview existingOfferNames={[" atelier "]} analysis={{ offers: { offers: [{ name: "Atelier" }, { name: "Cours" }] } }} onDone={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Aller à « Tes offres »"));
+    expect(screen.getByText(/« Atelier » existe déjà dans Mes offres/)).toBeInTheDocument();
+  });
   it("creates multiple offers in one write with legacy workspace left null", async () => {
     m.state.workspace = "";
     render(<BrandingReview analysis={{ offers: { offers: [{ name: "A" }, { name: "B" }] } }} onDone={() => {}} />);

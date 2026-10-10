@@ -16,6 +16,7 @@ import { exportMirrorPDF } from "@/lib/mirror-pdf-export";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
+import { withoutOnboardingDefaults } from "@/lib/onboarding-strategy-defaults";
 import { resolveFirstContentDestination } from "@/lib/first-content-destination";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -157,7 +158,13 @@ function ScopedBrandingPage() {
         setOverview(data);
         const comp = calculateBrandingCompletion(data);
         setCompletion(comp);
-        setPreFilledSections(new Set(Object.entries(COMPLETION_TO_SECTION).filter(([key]) => comp[key as keyof BrandingCompletion] > 0).map(([, section]) => section)));
+        // « Déjà commencé » = ce que la personne a écrit. Les étiquettes que
+        // l'onboarding déduit de ses réponses à choix (pilier « Organisation &
+        // régularité »…) ne comptent pas : sur un compte de 10 min, la relecture
+        // affichait « Tu avais déjà commencé cette section » + bandeau
+        // « informations existantes conservées » alors qu'il n'y avait rien.
+        const authored = calculateBrandingCompletion({ ...data, strategy: withoutOnboardingDefaults(data.strategy) });
+        setPreFilledSections(new Set(Object.entries(COMPLETION_TO_SECTION).filter(([key]) => authored[key as keyof BrandingCompletion] > 0).map(([, section]) => section)));
         const auditToSection: Record<string, string> = { positionnement: "proposition", cible: "persona", ton_voix: "tone", offres: "offers", storytelling: "storytelling", contenu: "strategy" };
         const suggestions: Record<string, string> = {};
         for (const [key, pillar] of Object.entries(audit.data?.audit_detail || {})) {
@@ -521,6 +528,7 @@ function ScopedBrandingPage() {
                 sourcesUsed={analysisResult.sources_used || []}
                 sourcesFailed={analysisResult.sources_failed || []}
                 preFilledSections={preFilledSections}
+                existingOfferNames={(overview?.offersList || []).map((o: any) => o?.name).filter(Boolean)}
                 onReanalyzeWithBio={handleReanalyzeWithBio}
                 // Parcours d'inscription : valider sa fiche EST l'étape en cours.
                 // On retire donc « finir plus tard » — la création attend la fiche.
