@@ -154,7 +154,7 @@ export default function PreGenCoaching({ generationType, onComplete, onSkip }: P
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
-  const initials = user?.user_metadata?.first_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
+  const initials = user?.user_metadata?.first_name?.[0]?.toUpperCase() || user?.user_metadata?.prenom?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
   return (
     <div className="rounded-2xl border border-border bg-muted/30 overflow-hidden">

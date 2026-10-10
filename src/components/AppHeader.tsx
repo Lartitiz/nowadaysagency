@@ -194,7 +194,9 @@ function AppHeaderInner() {
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
   const totalPercent = totalLimit > 0 ? Math.round((totalUsed / totalLimit) * 100) : 0;
-  const firstName = user?.user_metadata?.first_name || user?.email?.split("@")[0] || "Toi";
+  // L'inscription écrit `prenom` (SignupForm) : sans ce repli, l'en-tête
+  // mobile/tablette affichait l'initiale de l'e-mail (« L » pour Maëlle).
+  const firstName = user?.user_metadata?.first_name || user?.user_metadata?.prenom || user?.email?.split("@")[0] || "Toi";
   const initial = firstName.charAt(0).toUpperCase();
 
   return (

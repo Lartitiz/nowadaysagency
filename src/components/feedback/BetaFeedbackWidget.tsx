@@ -74,13 +74,37 @@ export default function BetaFeedbackWidget() {
   // rectangles (pas un sondage par point) : un chevauchement même fin sur un
   // bord ne doit jamais être raté.
   const [overlapsClickable, setOverlapsClickable] = useState(false);
+  // Une barre FIXÉE en bas d'écran (« 0/7 validées » de la relecture de marque,
+  // « Enregistrer » du profil…) passait PAR-DESSUS le FAB : seul le badge BÊTA
+  // dépassait (passe compte neuf du 10/10). On sonde le point où le FAB se
+  // trouve normalement : si une barre large le recouvre, on le remonte au-dessus.
+  const [liftTo, setLiftTo] = useState<number | null>(null);
   useEffect(() => {
     let ticking = false;
+    const checkCover = (rect: DOMRect) => {
+      const baseBottom = window.matchMedia("(max-width: 767px)").matches ? 88 : 24;
+      const x = rect.left + rect.width / 2;
+      const y = window.innerHeight - baseBottom - rect.height / 2;
+      const top = document.elementFromPoint(x, y);
+      let lift: number | null = null;
+      if (top && !fabRef.current?.contains(top)) {
+        for (let el: Element | null = top; el && el !== document.body; el = el.parentElement) {
+          if (getComputedStyle(el).position !== "fixed") continue;
+          const r = el.getBoundingClientRect();
+          if (r.top > window.innerHeight / 2 && r.width > window.innerWidth / 2) {
+            lift = Math.round(window.innerHeight - r.top + 12);
+          }
+          break;
+        }
+      }
+      setLiftTo(lift);
+    };
     const checkOverlap = () => {
       const btn = fabRef.current;
       if (!btn) return;
       const rect = btn.getBoundingClientRect();
       if (rect.width === 0) return;
+      checkCover(rect);
       const candidates = document.querySelectorAll(
         'button, a[href], input, select, textarea, [role="button"]'
       );
@@ -215,6 +239,7 @@ export default function BetaFeedbackWidget() {
             "fixed bottom-6 right-6 max-md:bottom-[5.5rem] max-md:right-4 z-40 h-14 w-14 rounded-full bg-background border-2 border-primary shadow-lg flex items-center justify-center hover:scale-105 transition-all duration-300",
             (hiddenByScroll || overlapsClickable) && "max-md:translate-y-4 max-md:opacity-0 max-md:pointer-events-none",
           )}
+          style={liftTo !== null ? { bottom: liftTo } : undefined}
           aria-label="Donner un feedback"
         >
           <MessageSquarePlus className="h-6 w-6 text-primary" />

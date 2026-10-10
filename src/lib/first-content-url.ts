@@ -28,7 +28,13 @@ export interface FirstContentUrlOptions {
 export function buildFirstContentUrl({ sellsProducts, subject }: FirstContentUrlOptions): string {
   const sujet = (subject ?? "").trim();
   if (sellsProducts) {
-    return "/creer?format=carousel&carouselSubMode=photo&firstProduct=1&auto=1";
+    // Le sujet n'entre PAS comme `sujet` (le carrousel photo part des photos),
+    // mais voyage en repli : sans photo exploitable (pas de site, site sans
+    // photo), /creer bascule sur un carrousel texte avec cette idée au lieu de
+    // laisser la nouvelle inscrite devant un mode photo vide (passe du 10/10).
+    return `/creer?format=carousel&carouselSubMode=photo&firstProduct=1&auto=1&sujetSansPhoto=${encodeURIComponent(
+      sujet || SUJET_PREMIER_CONTENU_GENERIQUE,
+    )}`;
   }
   return `/creer?sujet=${encodeURIComponent(
     sujet || SUJET_PREMIER_CONTENU_GENERIQUE,
