@@ -2310,14 +2310,14 @@ ${compactPlan ? `  "photo_notes": [
     {
       "slide_number": 1,
       "role": "hook",
-      "title_suggestion": "titre court proposé",
-      "strategic_note": "pourquoi cette slide à cette position",
-      "contribution": "Ce que cette page apporte au propos",
+      "title_suggestion": "titre court proposé",${compactPlan ? "" : `
+      "strategic_note": "pourquoi cette slide à cette position",`}
+      "contribution": "${compactPlan ? "Pourquoi cette page à cette position et ce qu'elle apporte au propos" : "Ce que cette page apporte au propos"}",
       "inherits": "Élément précis repris ou promesse de couverture",
       "develops": "Avancée du raisonnement, pas nouveau motif ou objet",
       "source_ids": ["brand"],
-      "image_role": "Ce que la photo accompagne, sans dicter le texte",
-      "story_beat": "Ce que cette slide fait comprendre ou raconte avec la matière fournie, et comment elle poursuit la précédente, en 1 phrase. Une étape du propos, sans émotion, événement ou bascule inventés ; une description de photo seule ne suffit pas."${hasPhotos ? `,
+${compactPlan ? "" : `      "image_role": "Ce que la photo accompagne, sans dicter le texte",
+`}      "story_beat": "Ce que cette slide fait comprendre ou raconte avec la matière fournie, et comment elle poursuit la précédente, en 1 phrase. Une étape du propos, sans émotion, événement ou bascule inventés ; une description de photo seule ne suffit pas."${hasPhotos ? `,
       "photo_index": 1,
       "slide_type": "photo_full",
       "overlay_position": "bottom_left",${compactPlan ? "" : `

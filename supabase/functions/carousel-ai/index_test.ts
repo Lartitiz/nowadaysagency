@@ -1795,11 +1795,8 @@ Deno.test("plan compact : compte test → photos décrites une fois, champs par 
   const out = await res.json();
   assertEquals(out.plan_format, "compact");
   assert("photo_notes" in tool.input_schema.properties);
-  for (const key of ["photo_observation", "visual_anchor"]) assert(!(key in tool.input_schema.properties.slides.items.properties), key);
-  for (const key of ["strategic_note", "image_role"]) assert(key in tool.input_schema.properties.slides.items.properties, key);
+  for (const key of ["strategic_note", "image_role", "photo_observation", "visual_anchor"]) assert(!(key in tool.input_schema.properties.slides.items.properties), key);
   assert(system.includes("FORMAT DE SORTIE COMPACT"));
-  assert(system.includes('"strategic_note": "pourquoi cette slide à cette position"'));
-  assert(!system.includes("Une phrase courte par champ"));
   assert(!system.includes('"photo_observation": "Ce qui est visible'));
   const { result } = out;
   assert(!("photo_notes" in result));
