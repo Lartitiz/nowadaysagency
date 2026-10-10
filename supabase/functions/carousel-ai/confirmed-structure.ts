@@ -27,13 +27,11 @@ export function buildConfirmedStructureBlock(
       if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
       if (s.overlay_position) line += ` — Position du texte : ${s.overlay_position}`;
       line += ` — ${s.strategic_note}`;
-      // Plan compact : strategic_note et image_role sont reconstitués depuis
-      // contribution et image_relation ; ne pas les faire lire deux fois.
-      if (s.contribution && s.contribution !== s.strategic_note) line += `\n    → Apport : ${s.contribution}`;
+      if (s.contribution) line += `\n    → Apport : ${s.contribution}`;
       if (s.inherits) line += `\n    → Reprend : ${s.inherits}`;
       if (s.develops) line += `\n    → Fait avancer : ${s.develops}`;
       if (s.source_ids?.length) line += `\n    → Références : ${s.source_ids.join(", ")}`;
-      if (s.image_role && !(withStoryBeat && s.image_role === s.image_relation)) line += `\n    → Fonction de l’image : ${s.image_role}`;
+      if (s.image_role) line += `\n    → Fonction de l’image : ${s.image_role}`;
       if (withStoryBeat) {
         if (s.story_beat) line += `\n    → Raconte : ${s.story_beat}`;
         if (s.photo_observation) line += `\n    → Observation visuelle (analyse IA) : ${s.photo_observation}`;
