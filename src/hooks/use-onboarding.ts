@@ -14,6 +14,7 @@ import { posthog } from "@/lib/posthog";
 import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 import { isValidUrl } from "@/components/onboarding/OnboardingShared";
 import { rememberProductOrService } from "@/lib/product-or-service";
+import { ONBOARDING_BLOCKER_TO_INSIGHT, ONBOARDING_GOAL_TO_PILLAR } from "@/lib/onboarding-strategy-defaults";
 import type { CharterReferenceLink } from "@/components/branding/charter/CharterReferenceLinks";
 
 /* ────────────────────────────────────────────── helpers */
@@ -698,26 +699,11 @@ export function useOnboarding() {
 
       // 4. BRAND_STRATEGY — distill objectif & blocage into strategy
       const strategyData: Record<string, unknown> = {};
-      const goalToPillar: Record<string, string> = {
-        system: "Organisation & régularité",
-        visibility: "Visibilité & notoriété",
-        sell: "Conversion & ventes",
-        zen: "Communication sereine",
-        expert: "Autorité & expertise",
-      };
       if (answers.objectif) {
-        strategyData.pillar_major = goalToPillar[answers.objectif] || answers.objectif;
+        strategyData.pillar_major = ONBOARDING_GOAL_TO_PILLAR[answers.objectif] || answers.objectif;
       }
       if (answers.blocage) {
-        const blockerToInsight: Record<string, string> = {
-          invisible: "Priorité : augmenter la découvrabilité et le reach",
-          lost: "Priorité : structurer un plan de com' simple et actionnable",
-          no_time: "Priorité : automatiser et batcher pour gagner du temps",
-          fear: "Priorité : trouver un ton authentique sans se surexposer",
-          no_structure: "Priorité : canaliser les idées dans un cadre éditorial",
-          boring: "Priorité : développer une voix distinctive et engageante",
-        };
-        strategyData.step_1_hidden_facets = blockerToInsight[answers.blocage] || null;
+        strategyData.step_1_hidden_facets = ONBOARDING_BLOCKER_TO_INSIGHT[answers.blocage] || null;
       }
       if (Object.keys(strategyData).length > 0) {
         // Même scoping espace + update par id que brand_proposition ci-dessus.

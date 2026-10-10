@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { importTarget, readImportRows } from "@/lib/branding-import-persistence";
 import { isEmptyVal, fillOnlyEmpty } from "@/lib/fill-only-empty";
+import { withoutOnboardingDefaults } from "@/lib/onboarding-strategy-defaults";
 import { posthog } from "@/lib/posthog";
 import { BrandPhotosPicker } from "@/components/photos/BrandPhotosPicker";
 import { BrandLogoSuggestion } from "@/components/branding/BrandLogoSuggestion";
@@ -43,6 +44,8 @@ interface Props {
   onProgress?: (sections: string[]) => Promise<void>;
   /** Sections already filled by the user (won't be overwritten) */
   preFilledSections?: Set<string>;
+  /** Noms des offres déjà enregistrées dans l'espace (détection de doublon) */
+  existingOfferNames?: string[];
   /** Callback for Instagram bio paste + reanalysis */
   onReanalyzeWithBio?: (bio: string) => void;
   /** Callback for "describe project" fallback */
@@ -204,11 +207,16 @@ function StrategySection({ data }: { data: AnalysisResult["content_strategy"] })
 
 interface OfferItem { name?: string; price?: string; description?: string; target?: string; promise?: string }
 
-function OffersSection({ data, onUpdate, onDelete }: { data: AnalysisResult["offers"]; onUpdate?: (index: number, offer: OfferItem) => void; onDelete?: (index: number) => void }) {
+function OffersSection({ data, onUpdate, onDelete, existingOfferNames = [] }: { data: AnalysisResult["offers"]; onUpdate?: (index: number, offer: OfferItem) => void; onDelete?: (index: number) => void; existingOfferNames?: string[] }) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState<OfferItem>({});
 
   if (!data?.offers?.length) return null;
+
+  // On ne parle de doublon que s'il y en a un VRAI : la règle affichée en dur
+  // à toutes les inscrites laissait croire qu'elles avaient déjà des offres.
+  const existing = new Set(existingOfferNames.map(n => n.toLocaleLowerCase().trim()).filter(Boolean));
+  const clashes = data.offers.map(o => o.name?.trim()).filter((n): n is string => !!n && existing.has(n.toLocaleLowerCase()));
 
   const startEdit = (i: number) => {
     setEditDraft({ ...data.offers![i] });
@@ -225,7 +233,12 @@ function OffersSection({ data, onUpdate, onDelete }: { data: AnalysisResult["off
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <p className="text-xs text-muted-foreground sm:col-span-2">Les nouvelles fiches sont classées « payantes » par défaut ; tu pourras préciser leur type dans Mes offres. Un nom déjà présent doit être renommé ou retiré de cet import ; la fiche existante est conservée.</p>
+      <p className="text-xs text-muted-foreground sm:col-span-2">Les nouvelles fiches sont classées « payantes » par défaut ; tu pourras préciser leur type dans Mes offres.</p>
+      {clashes.length > 0 && (
+        <p className="text-xs text-warning bg-warning-bg border border-warning/30 rounded-[12px] px-3 py-2 sm:col-span-2">
+          {clashes.map(n => `« ${n} »`).join(", ")} {clashes.length > 1 ? "existent" : "existe"} déjà dans Mes offres : renomme ou retire {clashes.length > 1 ? "ces offres" : "cette offre"} de cet import. La fiche existante est conservée.
+        </p>
+      )}
       {data.offers.map((o, i) => (
         <div key={i} className="p-4 rounded-[12px] border border-border bg-background relative group">
           {editingIndex === i ? (
@@ -658,7 +671,9 @@ async function saveStrategy(data: AnalysisResult["content_strategy"], userId: st
   if (readError) throw readError;
   if (Object.keys(stratFields).length > 0) {
   if (existingStrat?.id) {
-    const toWrite = fillOnlyEmpty(stratFields, existingStrat, overwrite);
+    // Le pilier générique posé par l'onboarding (« Organisation & régularité »…)
+    // compte comme vide : sinon il bloquait le vrai pilier trouvé par l'analyse.
+    const toWrite = fillOnlyEmpty(stratFields, withoutOnboardingDefaults(existingStrat), overwrite);
     if (Object.keys(toWrite).length > 0) {
       await writeOrThrow((supabase.from("brand_strategy") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existingStrat.id), "brand_strategy.update");
     }
@@ -762,7 +777,7 @@ function sectionHasData(key: SectionKey, analysis: AnalysisResult): boolean {
 }
 
 // ─── Main Component ──────────────────────────────────────────
-export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFailed = [], onDone, onProgress, preFilledSections, onReanalyzeWithBio, onDescribeProject, allSourcesFailed = false, mandatory = false }: Props) {
+export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFailed = [], onDone, onProgress, preFilledSections, existingOfferNames, onReanalyzeWithBio, onDescribeProject, allSourcesFailed = false, mandatory = false }: Props) {
   const [productPhotosReady, setProductPhotosReady] = useState(false);
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
@@ -1135,7 +1150,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
         const isSaving = savingSection === sec.key;
         const isRefined = refinedSections.has(sec.key);
         const sectionBody = sec.key === "offers"
-          ? <OffersSection data={{ ...analysis.offers, offers: editedOffers }} onUpdate={handleOfferUpdate} onDelete={handleOfferDelete} />
+          ? <OffersSection data={{ ...analysis.offers, offers: editedOffers }} onUpdate={handleOfferUpdate} onDelete={handleOfferDelete} existingOfferNames={existingOfferNames} />
           : sec.key === "charter"
             ? (
               <>
