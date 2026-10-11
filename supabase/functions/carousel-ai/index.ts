@@ -43,7 +43,7 @@ import { extractImagePayload } from "../_shared/image-utils.ts";
 import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex, normalizeOverlayStyles, analyzeMixComposition, assignDistinctStructurePhotos } from "../_shared/photo-slide-structure.ts";
 import { assignPhotoTemplates, assignTemplatesToProvidedSlides, revalidatePhotoLayoutContent, stripWriterLayoutFields } from "../_shared/photo-template-assign.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
-import { hedgedStructureCall, StructureDeadlineError } from "./structure-hedge.ts";
+import { describePlanShape, hedgedStructureCall, reviveStringSlides, StructureDeadlineError } from "./structure-hedge.ts";
 
 // ── Seam d'injection de dépendances (tests) ──
 // Indirection pure : en prod, ces champs pointent vers les imports ci-dessus
@@ -715,6 +715,8 @@ export async function handleRequest(req: Request): Promise<Response> {
     const { userId, supabase } = r;
     // Banc d'essai du rédacteur (retour à Opus 5) : réservé au compte QA Camille.
     if (!isQaTestAccount(userId)) delete body.writer_bench;
+    // Relance du plan avancée pour l'observer en réel (structure-hedge.ts) : compte QA seulement.
+    if (!isQaTestAccount(userId)) delete body.qa_structure_hedge_after_ms;
 
     // Champs écrits par l'IA à une étape précédente (structure_proposal, choix
     // d'angle) puis renvoyés tels quels par le front pour la passe d'écriture :
@@ -2362,17 +2364,21 @@ Propose la structure optimale.`;
   const hasMismatch = (r: any) => typeof r?.photo_mismatch?.reason === "string" && r.photo_mismatch.reason.trim().length > 0;
   let emptyPlans = 0;
   let structureResult: any;
+  const qaHedgeAfter = Number(body.qa_structure_hedge_after_ms);
   try {
-    structureResult = await hedgedStructureCall(async (_n, signal) => {
+    structureResult = await hedgedStructureCall(async (n, signal) => {
       const content = await _deps.callAnthropic({ ...callOptions, signal });
-      const parsed: any = tryParseAiJson(content, "carousel-ai:structure_proposal");
+      const parsed: any = reviveStringSlides(tryParseAiJson(content, "carousel-ai:structure_proposal"));
       if (!parsed || (!hasSlides(parsed) && !(hasPhotos && hasMismatch(parsed)))) {
         emptyPlans++;
+        // Cause des plans vides inconnue (1 sur 12 le 10/10) : forme de la réponse, jamais le texte.
+        console.warn(JSON.stringify({ type: "carousel_structure_empty", call: n, ...describePlanShape(parsed, content) }));
         throw new Error(parsed ? "structure_vide" : "structure_illisible");
       }
       return parsed;
     }, {
       elapsedMs: Date.now() - reqCtx.startedAt,
+      ...(Number.isFinite(qaHedgeAfter) && qaHedgeAfter > 0 ? { hedgeAfterMs: qaHedgeAfter } : {}),
       onReport: (report) => console.log(JSON.stringify({ type: "carousel_structure_proposal", ...report, empty_plans: emptyPlans, photos: hasPhotos ? photos.length : 0 })),
     });
   } catch (err) {

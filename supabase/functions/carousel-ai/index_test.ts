@@ -1312,6 +1312,43 @@ Deno.test("plan vide sans motif : second appel identique, plan rendu", async () 
   assert(seen[0].signal instanceof AbortSignal, "chaque appel reçoit un signal d'annulation");
 });
 
+Deno.test("plan avec slides en texte JSON : accepté sans second appel", async () => {
+  resetDeps();
+  let calls = 0;
+  _deps.callAnthropic = (async () => { calls++; return JSON.stringify({ total_slides: 1, slides: JSON.stringify([{ slide_number: 1, role: "hook", title_suggestion: "T", strategic_note: "n", photo_index: 1 }]) }); }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", slide_count: 1, photos: [{ base64: "aGVsbG8=" }] }));
+  const { result } = await res.json();
+  assertEquals(result.slides.length, 1);
+  assertEquals(calls, 1);
+});
+
+Deno.test("relance du plan avancée : compte QA seulement", async () => {
+  const slow = (seen: number[]) => (async (o: any) => {
+    seen.push(Date.now());
+    await new Promise<void>((resolve, reject) => {
+      const t = setTimeout(resolve, seen.length === 1 ? 400 : 10);
+      o.signal?.addEventListener("abort", () => { clearTimeout(t); reject(new Error("annulé")); }, { once: true });
+    });
+    return JSON.stringify({ total_slides: 1, slides: [{ slide_number: 1, role: "hook", title_suggestion: "T", strategic_note: "n", photo_index: 1 }] });
+  }) as any;
+  const QA_ID = "52e6c03c-a7de-4c20-9b4a-276751f976e8";
+  const send = () => handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", slide_count: 1, photos: [{ base64: "aGVsbG8=" }], qa_structure_hedge_after_ms: 50 }));
+
+  resetDeps();
+  const other: number[] = [];
+  _deps.callAnthropic = slow(other);
+  assertEquals((await send()).status, 200);
+  assertEquals(other.length, 1, "une cliente ne peut pas avancer la relance");
+
+  resetDeps();
+  const qa: number[] = [];
+  _deps.runPipeline = (async () => ({ ok: true, userId: QA_ID, supabase: makeFakeSupabase(QA_ID), corsHeaders: {}, quota: null })) as any;
+  _deps.callAnthropic = slow(qa);
+  const qaRes = await send();
+  assertEquals(qaRes.status, 200, await qaRes.clone().text());
+  assertEquals(qa.length, 2, "le compte QA voit le second appel");
+});
+
 Deno.test("plan vide deux fois : structure_vide comme avant ; refus photo : un seul appel", async () => {
   resetDeps();
   let calls = 0;
