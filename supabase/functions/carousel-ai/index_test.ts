@@ -1349,6 +1349,32 @@ Deno.test("relance du plan avancée : compte QA seulement", async () => {
   assertEquals(qa.length, 2, "le compte QA voit le second appel");
 });
 
+// 11/10/2026 (test réel) : un plan à 7 slides pour 10 demandées. Le plan validé
+// fixe ensuite la longueur du carrousel : on redemande, puis le plus proche.
+Deno.test("plan à la mauvaise longueur : second appel ; aucun juste : le plus proche", async () => {
+  const plan = (n: number) => JSON.stringify({ total_slides: n, slides: Array.from({ length: n }, (_, i) => ({ slide_number: i + 1, role: i ? "body" : "hook", title_suggestion: "T", strategic_note: "n", photo_index: 1 })) });
+  const send = () => handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", slide_count: 10, photos: [{ base64: "aGVsbG8=" }] }));
+
+  resetDeps();
+  let calls = 0;
+  _deps.callAnthropic = (async () => plan(++calls === 1 ? 7 : 10)) as any;
+  assertEquals((await (await send()).json()).result.slides.length, 10);
+  assertEquals(calls, 2);
+
+  resetDeps();
+  calls = 0;
+  _deps.callAnthropic = (async () => plan(++calls === 1 ? 7 : 9)) as any;
+  assertEquals((await (await send()).json()).result.slides.length, 9, "le plus proche des 10 demandées");
+  assertEquals(calls, 2);
+
+  resetDeps();
+  calls = 0;
+  _deps.callAnthropic = (async () => { calls++; return plan(6); }) as any;
+  const auto = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", photos: [{ base64: "aGVsbG8=" }] }));
+  assertEquals((await auto.json()).result.slides.length, 6, "longueur automatique : aucun nombre imposé");
+  assertEquals(calls, 1);
+});
+
 Deno.test("plan vide deux fois : structure_vide comme avant ; refus photo : un seul appel", async () => {
   resetDeps();
   let calls = 0;
