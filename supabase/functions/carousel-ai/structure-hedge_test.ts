@@ -113,6 +113,16 @@ Deno.test("plan avec slides en texte JSON : remis en tableau ; autre forme incha
   const { reviveStringSlides } = await import("./structure-hedge.ts");
   const revived: any = reviveStringSlides({ total_slides: 1, slides: JSON.stringify([{ slide_number: 1 }]) });
   assertEquals(revived.slides, [{ slide_number: 1 }]);
+  // Cas vu en ligne : retours à la ligne bruts dans les valeurs (JSON.parse refuse).
+  const raw: any = reviveStringSlides({ slides: '[{"slide_number": 1, "story_beat": "ligne 1\nligne 2"}]' });
+  assertEquals(raw.slides.length, 1);
+  // Forme exacte du 11/10 : plusieurs slides + retours à la ligne bruts.
+  const many: any = reviveStringSlides({ slides: '[\n  {"slide_number": 1, "story_beat": "a\nb"},\n  {"slide_number": 2, "story_beat": "c"}\n]' });
+  assertEquals(many.slides.map((x: any) => x.slide_number), [1, 2]);
+  const fenced: any = reviveStringSlides({ slides: '```json\n[{"slide_number": 1}, {"slide_number": 2}]\n```' });
+  assertEquals(fenced.slides.length, 2);
+  const wrapped: any = reviveStringSlides({ slides: '{"slides": [{"slide_number": 1}]}' });
+  assertEquals(wrapped.slides.length, 1);
   const broken: any = reviveStringSlides({ slides: "[{ cassé" });
   assertEquals(broken.slides, "[{ cassé");
   assertEquals(reviveStringSlides(null), null);
