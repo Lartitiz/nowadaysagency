@@ -2365,6 +2365,15 @@ Propose la structure optimale.`;
   let emptyPlans = 0;
   let structureResult: any;
   const qaHedgeAfter = Number(body.qa_structure_hedge_after_ms);
+  // Longueur choisie : le plan validé fixe ensuite la longueur du carrousel
+  // (carouselLength donne la priorité à la structure confirmée). Un plan à 7
+  // slides pour 10 demandées (vu en ligne le 11/10) en donnerait 7 sans le
+  // dire : on redemande, et on garde le plan le plus proche si aucun ne tombe juste.
+  const exactSlides = carouselLength(body).exact;
+  let offLengthPlan: any = null;
+  const keepClosest = (plan: any) => {
+    if (!offLengthPlan || Math.abs(plan.slides.length - exactSlides!) < Math.abs(offLengthPlan.slides.length - exactSlides!)) offLengthPlan = plan;
+  };
   try {
     structureResult = await hedgedStructureCall(async (n, signal) => {
       const content = await _deps.callAnthropic({ ...callOptions, signal });
@@ -2375,21 +2384,28 @@ Propose la structure optimale.`;
         console.warn(JSON.stringify({ type: "carousel_structure_empty", call: n, ...describePlanShape(parsed, content) }));
         throw new Error(parsed ? "structure_vide" : "structure_illisible");
       }
+      if (exactSlides && hasSlides(parsed) && parsed.slides.length !== exactSlides) {
+        keepClosest(parsed);
+        console.warn(JSON.stringify({ type: "carousel_structure_length", call: n, slides: parsed.slides.length, requested: exactSlides }));
+        throw new Error("structure_longueur");
+      }
       return parsed;
     }, {
       elapsedMs: Date.now() - reqCtx.startedAt,
       ...(Number.isFinite(qaHedgeAfter) && qaHedgeAfter > 0 ? { hedgeAfterMs: qaHedgeAfter } : {}),
-      onReport: (report) => console.log(JSON.stringify({ type: "carousel_structure_proposal", ...report, empty_plans: emptyPlans, photos: hasPhotos ? photos.length : 0 })),
+      onReport: (report) => console.log(JSON.stringify({ type: "carousel_structure_proposal", ...report, empty_plans: emptyPlans, ...(offLengthPlan ? { off_length_slides: offLengthPlan.slides.length, requested_slides: exactSlides } : {}), photos: hasPhotos ? photos.length : 0 })),
     });
   } catch (err) {
     const reason = (err as Error)?.message;
-    if (err instanceof StructureDeadlineError) {
+    if (offLengthPlan) {
+      // Aucun plan à la bonne longueur : le plus proche plutôt que rien.
+      structureResult = offLengthPlan;
+    } else if (err instanceof StructureDeadlineError) {
       return new Response(JSON.stringify({
         error: "structure_timeout",
         message: "La proposition de structure a pris trop de temps. Aucun crédit n'a été décompté.",
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (reason === "structure_vide") structureResult = { slides: [] };
+    } else if (reason === "structure_vide") structureResult = { slides: [] };
     else if (reason === "structure_illisible") structureResult = null;
     else throw err;
   }
