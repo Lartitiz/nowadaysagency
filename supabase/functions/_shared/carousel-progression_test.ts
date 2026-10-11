@@ -5,6 +5,7 @@ import {
 import {
   progressionReceipt,
   isPhotoChoiceDefect,
+  isPhotoLimit,
   progressionJudgeCallMs,
   progressionWarnings,
   reviewCarouselProgression,
@@ -515,6 +516,61 @@ Deno.test("motifs du choix des photos : étroits", () => {
     assert(!isPhotoChoiceDefect({ type: "repetition", reason, repair: "" }), reason);
   }
   assert(!isPhotoChoiceDefect({ type: "raw_photo_text", reason: "Même photo, texte sur photo brute.", repair: "" }));
+});
+
+// Vu en ligne les 09-10/10/2026 (photo, 3 photos, Détaillé 10) malgré le
+// premier filet : remarques sur la variété des photos et la correspondance
+// image/texte, affichées sous « Ce carrousel est à compléter ».
+Deno.test("remarques sur la variété des photos et la correspondance image/texte : retirées", () => {
+  for (const reason of [
+    "Les dix photos sont le même portrait répété sans variation d'ambiance. Les photos sont posées après coup et ne sont pas à juger ici, mais signaler que l'ensemble manque de souffle.",
+    "Les photos 1 et 2 sont des portraits studio : la correspondance image/texte sur l'atelier n'est pas vérifiable.",
+    "Aucune photo ne montre l'atelier évoqué.",
+    "Les photos ne montrent pas le geste décrit.",
+    "Manque de variété des photos d'une slide à l'autre.",
+    "La cohérence entre le texte et les photos est faible.",
+    "Toutes les photos montrent le même visage.",
+  ]) assert(isPhotoChoiceDefect({ type: "unsupported", reason, repair: "" }), reason);
+  // Défauts de TEXTE qui parlent d'une photo : gardés.
+  for (const reason of [
+    "Le texte affirme ce que montre la photo sans source.",
+    "La slide décrit la photo au lieu de faire avancer l'idée.",
+    "La slide 4 redit la slide 2 sans variation.",
+    "Le passage manque de variété dans le rythme des phrases.",
+  ]) assert(!isPhotoChoiceDefect({ type: "repetition", reason, repair: "" }), reason);
+  // Le texte cité affirme lui-même une image : la correspondance reste à vérifier.
+  assert(!isPhotoChoiceDefect({ type: "unsupported", reason: "Aucune photo ne montre l'atelier.", repair: "" }, "Sur cette photo, mon atelier à Lyon."));
+  assert(isPhotoLimit("Correspondance image/texte non vérifiable sans les pixels."));
+  assert(!isPhotoLimit("Le chiffre de 30 % n'est pas sourcé."));
+});
+
+Deno.test("limite sur les photos retirée : insufficient_evidence ne tient plus sur elle seule", async () => {
+  const overlay = { slides: [
+    { slide_type: "photo_full", photo_index: 1, overlay_text: "Un signe donne un repère." },
+    { slide_type: "photo_full", photo_index: 1, overlay_text: "La pratique donne son sens au repère." },
+  ] };
+  const base = (): any => ({ ...valid(),
+    trajectory: { ...valid().trajectory, field_ids: ["slides.0.overlay_text", "slides.1.overlay_text"] },
+    boundaries: [{ ...valid().boundaries[0], from_field_ids: ["slides.0.overlay_text"], to_field_ids: ["slides.1.overlay_text"] }],
+  });
+  const photoOnly = { ...base(), verdict: "insufficient_evidence",
+    limits: ["Les photos 1 et 2 sont des portraits studio : correspondance image/texte non vérifiable."],
+    defects: [{ slide_ids: ["slides.1"], severity: "minor", type: "unsupported", field_ids: ["slides.1.overlay_text"],
+      reason: "Les dix photos sont le même portrait répété sans variation d'ambiance.", repair: "Varier les photos." }] };
+  const out = await reviewCarouselProgression(overlay, { sources, call: async () => JSON.stringify(photoOnly) });
+  assertEquals(out.execution_status, "completed");
+  assertEquals(out.verdict, "acceptable");
+  assertEquals(out.report?.model_verdict, "insufficient_evidence");
+  assertEquals(out.report?.dropped_photo_limits, 1);
+  assertEquals(out.report?.dropped_photo_choice_defects, 1);
+  assertEquals(progressionWarnings(out), []);
+
+  // Une limite de TEXTE garde le verdict et son avertissement.
+  const textLimit = { ...photoOnly, limits: [...photoOnly.limits, "Le chiffre de 30 % n'est pas sourcé."] };
+  const kept = await reviewCarouselProgression(overlay, { sources, call: async () => JSON.stringify(textLimit) });
+  assertEquals(kept.verdict, "insufficient_evidence");
+  assertEquals(kept.report?.limits, ["Le chiffre de 30 % n'est pas sourcé."]);
+  assertEquals(kept.issues, ["Une affirmation décisive reste à vérifier avec les sources disponibles."]);
 });
 
 // 09/10/2026 (photo, 10 slides) : premier appel 33 s sur 45, relance de format

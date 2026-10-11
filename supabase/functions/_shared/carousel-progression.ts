@@ -173,9 +173,38 @@ export function withoutPhotoAssignments(material: string): any {
 // texte qui cite une photo (« cette photo montre… » non étayé, texte sur photo brute).
 const PHOTO_CHOICE = /\b(?:m[eê]mes?|identiques?)\s+(?:photos?|images?|visuels?)\b|\b(?:photos?|images?|visuels?)\s+(?:identiques?|r[ée]p[ée]t[ée]e?s?|r[ée]utilis[ée]e?s?|dupliqu[ée]e?s?|en double|reprises?)\b|\br[ée]p[ée]tition\s+(?:de\s+la\s+|des\s+|d['’]une\s+|de\s+l['’])?(?:photos?|images?|visuels?)\b|\b(?:choix|attribution|association|r[ée]partition)\s+(?:de\s+la\s+|des\s+|d['’]une\s+|de\s+l['’])?(?:photos?|images?|visuels?)\b|\b(?:photos?|images?)\s+(?:n°\s*)?\d+\s+(?:est\s+)?(?:r[ée]utilis|r[ée]p[ée]t|revient|r[ée]appara)/i;
 
-export function isPhotoChoiceDefect(defect: any): boolean {
+// Vu en ligne les 09-10/10/2026 malgré PHOTO_CHOICE (photo, 3 photos, 10 slides) :
+// « Les dix photos sont le même portrait répété sans variation d'ambiance »,
+// « les photos 1 et 2 sont des portraits studio… la correspondance image/texte
+// n'est pas vérifiable ». Variété des photos, ce qu'elles montrent ou non,
+// correspondance image/texte : la vérification des photos (matchFinalPhotos)
+// en juge après la pose, pas le juge du fil.
+const PHOTO_SCOPE = [
+  /\bm[eê]mes?\s+(?:portraits?|visages?|clich[ée]s?)\b|\b(?:portraits?|clich[ée]s?)\s+(?:identiques?|r[ée]p[ée]t[ée]s?)\b/i,
+  /\b(?:photos?|images?|visuels?|portraits?|clich[ée]s?)\b[^.;]{0,80}\b(?:sans\s+variation|vari[ée]t[ée]|diversit[ée]|se\s+ressemblent|similaires|semblables)\b/i,
+  /\b(?:variation|vari[ée]t[ée]|diversit[ée])\s+(?:d['’]\s*|de\s+|des\s+)?(?:ambiances?|photos?|images?|visuels?|cadrages?)\b/i,
+  /\b(?:correspondance|concordance|ad[ée]quation|coh[ée]rence)\s+(?:entre\s+)?(?:(?:l['’]\s*|les?\s+|la\s+)?(?:textes?|propos)\s+et\s+)?(?:l['’]\s*|les?\s+|la\s+)?(?:images?|photos?|visuels?)\b/i,
+  /\b(?:images?|photos?)\s*\/\s*textes?\b|\btextes?\s*\/\s*(?:images?|photos?)\b/i,
+  /\b(?:photos?|images?|visuels?)\b[^.;]{0,60}\bne\s+(?:montre|correspond|illustre|repr[ée]sente)n?t?\s+pas\b|\baucune\s+(?:des\s+)?(?:photos?|images?)\s+ne\b/i,
+  /\b(?:photos?|images?)\s+(?:sont\s+|seront\s+)?(?:pos[ée]es?|choisies?|ajout[ée]es?)\s+apr[eè]s\b|\b(?:ne\s+sont\s+)?pas\s+[àa]\s+juger\b/i,
+  /\bportraits?\s+(?:de\s+|en\s+)?studio\b/i,
+  /\b(?:les\s+)?(?:\d+|deux|trois|quatre|cinq|six|sept|huit|neuf|dix)\s+(?:photos|images|visuels)\s+(?:sont|montrent|repr[ée]sentent)\b|\btoutes\s+les\s+(?:photos|images)\s+(?:sont|montrent|repr[ée]sentent)\b/i,
+];
+// Seule une affirmation visuelle EXPLICITE du texte cité engage la photo
+// (« cette photo montre… ») : ce défaut-là reste, c'est un défaut de texte.
+const VISUAL_CLAIM = /\b(?:cette|ces|sur\s+la|sur\s+les|la)\s+(?:photos?|images?)\b|\bon\s+(?:me\s+|nous\s+|te\s+|vous\s+)?(?:y\s+)?voit\b|\bci-dessus\b/i;
+
+export function isPhotoChoiceDefect(defect: any, citedText = ""): boolean {
   if (!defect || defect.type === "raw_photo_text") return false;
-  return PHOTO_CHOICE.test(`${defect.reason ?? ""} ${defect.repair ?? ""}`);
+  const text = `${defect.reason ?? ""} ${defect.repair ?? ""}`;
+  if (PHOTO_CHOICE.test(text)) return true;
+  return PHOTO_SCOPE.some((re) => re.test(text)) && !VISUAL_CLAIM.test(citedText);
+}
+
+/** Limite de vérification qui porte sur les photos (pixels, ce qu'elles montrent) : hors du ressort du juge. */
+export function isPhotoLimit(limit: unknown): boolean {
+  return typeof limit === "string" &&
+    /\b(?:photos?|images?|visuels?|pixels?|portraits?|clich[ée]s?)\b|\b(?:observations?|preuves?|v[ée]rifications?)\s+(?:visuelles?|photographiques?)\b/i.test(limit);
 }
 
 // Durée d'UN appel du juge : il écrit une entrée par slide et par frontière.
@@ -356,7 +385,9 @@ export async function reviewCarouselProgression(doc: any, opts: {
       // modèle en parle quand même) : ni affichés, ni cause de réparation.
       if (Array.isArray(report?.defects)) {
         const before = report.defects.length;
-        report.defects = report.defects.filter((defect: any) => !isPhotoChoiceDefect(defect));
+        const cited = (defect: any) => (Array.isArray(defect?.field_ids) ? defect.field_ids : [])
+          .map((id: string) => fields.find((f) => f.id === id)?.text ?? "").join(" ");
+        report.defects = report.defects.filter((defect: any) => !isPhotoChoiceDefect(defect, cited(defect)));
         const dropped = before - report.defects.length;
         if (dropped) {
           report.dropped_photo_choice_defects = dropped;
@@ -364,6 +395,21 @@ export async function reviewCarouselProgression(doc: any, opts: {
             report.trajectory?.kind !== "descriptive_catalogue" &&
             !(Array.isArray(report.boundaries) && report.boundaries.some((b: any) => b?.kind === "rupture"))) {
             report = { ...report, verdict: "acceptable", model_verdict: "needs_repair" };
+          }
+        }
+      }
+      // Même filet pour les limites : « la correspondance image/texte n'est pas
+      // vérifiable » faisait passer le verdict en insufficient_evidence.
+      if (Array.isArray(report?.limits)) {
+        const before = report.limits.length;
+        report.limits = report.limits.filter((limit: unknown) => !isPhotoLimit(limit));
+        const dropped = before - report.limits.length;
+        if (dropped) {
+          report.dropped_photo_limits = dropped;
+          // Le contrôle conservateur plus bas repasse en needs_repair s'il reste
+          // un défaut majeur, une rupture ou un catalogue.
+          if (report.verdict === "insufficient_evidence" && !report.limits.length) {
+            report = { ...report, verdict: "acceptable", model_verdict: "insufficient_evidence" };
           }
         }
       }
