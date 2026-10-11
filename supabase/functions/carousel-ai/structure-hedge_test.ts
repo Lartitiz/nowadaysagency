@@ -108,3 +108,21 @@ Deno.test("le temps de préparation déjà écoulé compte dans l'échéance et 
   assertEquals(v, "appel 2");
   assert(started[1] < 70, `second appel attendu ~20 ms après le début, pas ${started[1]} ms`);
 });
+
+Deno.test("plan avec slides en texte JSON : remis en tableau ; autre forme inchangée", async () => {
+  const { reviveStringSlides } = await import("./structure-hedge.ts");
+  const revived: any = reviveStringSlides({ total_slides: 1, slides: JSON.stringify([{ slide_number: 1 }]) });
+  assertEquals(revived.slides, [{ slide_number: 1 }]);
+  const broken: any = reviveStringSlides({ slides: "[{ cassé" });
+  assertEquals(broken.slides, "[{ cassé");
+  assertEquals(reviveStringSlides(null), null);
+});
+
+Deno.test("forme d'un plan vide : clés et types, jamais le texte", async () => {
+  const { describePlanShape } = await import("./structure-hedge.ts");
+  const shape = describePlanShape({ narrative_thread: "Mon récit secret", slides: "pas un tableau", photo_mismatch: { reason: " " } }, "{...}");
+  assertEquals(shape.slides_type, "string");
+  assertEquals(shape.mismatch, "reason:0");
+  assert(!JSON.stringify(shape).includes("secret"));
+  assertEquals(describePlanShape(null, "xx").parsed, false);
+});

@@ -109,3 +109,35 @@ export function hedgedStructureCall<T>(
     }, Math.max(0, left()));
   });
 }
+
+/**
+ * Plan reçu avec `slides` en TEXTE JSON au lieu d'un tableau (piste pour les
+ * plans vides du 10/10) : le remet en tableau, sinon laisse tel quel.
+ */
+export function reviveStringSlides<T>(plan: T): T {
+  const p = plan as any;
+  if (p && typeof p === "object" && typeof p.slides === "string") {
+    try {
+      const slides = JSON.parse(p.slides);
+      if (Array.isArray(slides)) {
+        console.warn(JSON.stringify({ type: "carousel_structure_slides_string", slides: slides.length }));
+        return { ...p, slides } as T;
+      }
+    } catch { /* forme inconnue : le journal du plan vide la décrira */ }
+  }
+  return plan;
+}
+
+/** Forme d'un plan refusé, sans aucun texte rédigé (clés, types, tailles). */
+export function describePlanShape(plan: unknown, raw: string): Record<string, unknown> {
+  const p = plan as any;
+  return {
+    raw_length: typeof raw === "string" ? raw.length : 0,
+    parsed: !!p,
+    keys: p && typeof p === "object" ? Object.keys(p).slice(0, 20) : [],
+    slides_type: p?.slides === undefined ? "absent" : Array.isArray(p.slides) ? `array:${p.slides.length}` : typeof p.slides,
+    slides_length: typeof p?.slides === "string" ? p.slides.length : undefined,
+    mismatch: p?.photo_mismatch === undefined ? "absent" : typeof p.photo_mismatch?.reason === "string" ? `reason:${p.photo_mismatch.reason.trim().length}` : typeof p.photo_mismatch,
+    total_slides: typeof p?.total_slides === "number" ? p.total_slides : undefined,
+  };
+}
