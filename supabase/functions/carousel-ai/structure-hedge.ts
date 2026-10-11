@@ -1,3 +1,5 @@
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
+
 // Plan du carrousel (structure_proposal) : rattrapage des appels lents.
 //
 // Le plan est un seul appel Sonnet non streamé (~55-62 s d'habitude) mais une
@@ -111,19 +113,28 @@ export function hedgedStructureCall<T>(
 }
 
 /**
- * Plan reçu avec `slides` en TEXTE JSON au lieu d'un tableau (piste pour les
- * plans vides du 10/10) : le remet en tableau, sinon laisse tel quel.
+ * Plan reçu avec `slides` en TEXTE au lieu d'un tableau. Vu en ligne le
+ * 11/10/2026 : c'était la cause des plans vides (slides_type "string",
+ * 12 216 caractères pour total_slides 10), et ce texte n'était pas du JSON
+ * strict. Lu avec le parseur souple (retours à la ligne bruts, guillemets
+ * simples, balises de code), sinon laissé tel quel.
  */
 export function reviveStringSlides<T>(plan: T): T {
   const p = plan as any;
   if (p && typeof p === "object" && typeof p.slides === "string") {
-    try {
-      const slides = JSON.parse(p.slides);
-      if (Array.isArray(slides)) {
-        console.warn(JSON.stringify({ type: "carousel_structure_slides_string", slides: slides.length }));
-        return { ...p, slides } as T;
-      }
-    } catch { /* forme inconnue : le journal du plan vide la décrira */ }
+    // Le parseur souple ne répare un texte à caractères bruts que dans un
+    // objet {…} : un tableau nu est donc enveloppé avant lecture.
+    const text = p.slides.trim().replace(/^```[a-z]*\s*\n?/i, "").replace(/\n?\s*```$/, "").trim();
+    const slides = tryParseAiJson(text.startsWith("[") ? `{"slides": ${text}}` : text, "carousel-ai:structure_proposal.slides");
+    const list = Array.isArray(slides) ? slides : Array.isArray((slides as any)?.slides) ? (slides as any).slides : null;
+    if (list) {
+      console.warn(JSON.stringify({ type: "carousel_structure_slides_string", slides: list.length }));
+      return { ...p, slides: list } as T;
+    }
+    let parse_error = "";
+    try { JSON.parse(p.slides); } catch (e) { parse_error = String((e as Error)?.message || e).slice(0, 120); }
+    const head = p.slides.trimStart().slice(0, 1), tail = p.slides.trimEnd().slice(-1);
+    console.warn(JSON.stringify({ type: "carousel_structure_slides_string_unreadable", length: p.slides.length, head, tail, parse_error }));
   }
   return plan;
 }
