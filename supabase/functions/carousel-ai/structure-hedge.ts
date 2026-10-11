@@ -125,7 +125,11 @@ export function reviveStringSlides<T>(plan: T): T {
     // Le parseur souple ne répare un texte à caractères bruts que dans un
     // objet {…} : un tableau nu est donc enveloppé avant lecture.
     const text = p.slides.trim().replace(/^```[a-z]*\s*\n?/i, "").replace(/\n?\s*```$/, "").trim();
-    const slides = tryParseAiJson(text.startsWith("[") ? `{"slides": ${text}}` : text, "carousel-ai:structure_proposal.slides");
+    const wrap = (t: string) => t.startsWith("[") ? `{"slides": ${t}}` : t;
+    let slides = tryParseAiJson(wrap(text), "carousel-ai:structure_proposal.slides");
+    // Vu le 11/10 : citation entre guillemets droits non échappés dans une
+    // valeur (« Expected ',' or '}' after property value », une seule ligne).
+    if (!slides) slides = tryParseAiJson(wrap(escapeInnerQuotes(text)), "carousel-ai:structure_proposal.slides+quotes");
     const list = Array.isArray(slides) ? slides : Array.isArray((slides as any)?.slides) ? (slides as any).slides : null;
     if (list) {
       console.warn(JSON.stringify({ type: "carousel_structure_slides_string", slides: list.length }));
@@ -151,4 +155,29 @@ export function describePlanShape(plan: unknown, raw: string): Record<string, un
     mismatch: p?.photo_mismatch === undefined ? "absent" : typeof p.photo_mismatch?.reason === "string" ? `reason:${p.photo_mismatch.reason.trim().length}` : typeof p.photo_mismatch,
     total_slides: typeof p?.total_slides === "number" ? p.total_slides : undefined,
   };
+}
+
+/**
+ * Échappe les guillemets droits À L'INTÉRIEUR d'une valeur JSON : dans une
+ * chaîne, un `"` qui n'est suivi (espaces mis à part) ni de `,` `}` `]` `:` ni
+ * de la fin du texte ne peut pas la fermer, c'est une citation. Heuristique :
+ * une citation suivie d'une virgule reste ambiguë et la lecture échoue comme avant.
+ */
+export function escapeInnerQuotes(text: string): string {
+  let out = "", inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inString && c === "\\") { out += c + (text[i + 1] ?? ""); i++; continue; }
+    if (c === '"') {
+      if (!inString) { inString = true; out += c; continue; }
+      let j = i + 1;
+      while (j < text.length && /\s/.test(text[j])) j++;
+      const next = text[j];
+      if (next === undefined || ",}]:".includes(next)) { inString = false; out += c; }
+      else out += '\\"';
+      continue;
+    }
+    out += c;
+  }
+  return out;
 }

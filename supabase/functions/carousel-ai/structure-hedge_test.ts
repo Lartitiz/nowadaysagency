@@ -136,3 +136,15 @@ Deno.test("forme d'un plan vide : clés et types, jamais le texte", async () => 
   assert(!JSON.stringify(shape).includes("secret"));
   assertEquals(describePlanShape(null, "xx").parsed, false);
 });
+
+Deno.test("slides en texte avec citation entre guillemets non échappés : lues", async () => {
+  const { reviveStringSlides, escapeInnerQuotes } = await import("./structure-hedge.ts");
+  const text = '[{"slide_number": 1, "story_beat": "Elle me dit "bonjour" puis repart", "role": "hook"}, {"slide_number": 2, "title_suggestion": "Le mot "juste"", "role": "body"}]';
+  const plan: any = reviveStringSlides({ slides: text });
+  assertEquals(plan.slides.length, 2);
+  assertEquals(plan.slides[0].story_beat, 'Elle me dit "bonjour" puis repart');
+  assertEquals(plan.slides[1].title_suggestion, 'Le mot "juste"');
+  // JSON valide : inchangé (échappements existants gardés).
+  const ok = '{"a": "dit \\"oui\\"", "b": [1, 2]}';
+  assertEquals(JSON.parse(escapeInnerQuotes(ok)), JSON.parse(ok));
+});
