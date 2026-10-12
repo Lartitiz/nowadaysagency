@@ -77,6 +77,11 @@ export interface GenerateParams {
   photoCatalog?: { index: number; description: string; kind?: string | null }[];
   // "Mode qualité Max" : escalade vers Opus pour la rédaction (plus soigné, plus lent)
   qualityMax?: boolean;
+  // Carrousel « Tes photos en fond » : photos d'ambiance libres de droit posées
+  // par l'app (src/lib/stock-ambient-photos.ts), à ajouter APRÈS les photos
+  // envoyées (appelé à chaque génération réussie, liste vide comprise). Sans
+  // ce rappel, les propositions du serveur sont ignorées.
+  onStockAmbientPhotos?: (added: import("@/components/creer/PhotoUploadZone").PhotoItem[]) => void;
 }
 
 export interface GenerateQuestionsParams {
@@ -712,10 +717,25 @@ export function useContentGenerator() {
         p.slides = renumberSlides(p.slides);
       }
 
+      // Photos d'ambiance libres de droit proposées par carousel-ai : téléchargées
+      // et posées ici, AVANT l'affichage, pour que le rendu des visuels parte
+      // directement des bonnes photos (photo d'origine gardée si l'import échoue).
+      let shown: any = parsed;
+      let stockAdded: import("@/components/creer/PhotoUploadZone").PhotoItem[] = [];
+      if (format === "carousel" && Array.isArray(p.slides) && p.slides.some((s: any) => s?.stock_ambient)) {
+        const { applyStockAmbientPhotos } = await import("@/lib/stock-ambient-photos");
+        const applied = params.onStockAmbientPhotos && params.carouselType === "photo"
+          ? await applyStockAmbientPhotos(p, Math.min(params.photos?.length || 0, 10))
+          : await applyStockAmbientPhotos(p, 10);
+        if (epoch !== generationEpoch.current) return null;
+        shown = applied.raw;
+        stockAdded = applied.added;
+      }
+
       const normalized: ContentResult = {
         type: format,
-        raw: parsed,
-        ...parsed,
+        raw: shown,
+        ...shown,
       };
 
       // Télémétrie de latence (PostHog, jamais ai_usage) : la lenteur de
@@ -726,6 +746,9 @@ export function useContentGenerator() {
         quality_max: !!params.qualityMax,
       });
 
+      // Même tick que setResult : photos et carrousel arrivent ensemble à l'écran.
+      // Appelé même sans ajout : les photos d'ambiance d'une génération précédente sont retirées.
+      if (format === "carousel" && params.carouselType === "photo") params.onStockAmbientPhotos?.(stockAdded);
       setResult(normalized);
       return normalized;
     } catch (e: any) {

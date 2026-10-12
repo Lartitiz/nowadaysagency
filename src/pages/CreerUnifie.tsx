@@ -19,6 +19,7 @@ import { handleQuotaError } from "@/lib/quota-error-handler";
 import { slideText } from "@/lib/slide-text";
 import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
 import { pickNonEmpty } from "@/features/creer/photo-source";
+import { ownPhotos } from "@/lib/stock-ambient-photos";
 import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason, REASON_IMAGE_MANQUANTE, INSTAGRAM_DIRECT_MAX_IMAGES, checkScheduleGuards, tokenExpiresBeforeSchedule } from "@/features/creer/publish-guards";
 import { startSocialConnect } from "@/lib/social-connect";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
@@ -1628,7 +1629,10 @@ function CreerWorkspace() {
     })();
     // Même repli que les visuels : si le state UI a été reset entre l'upload et
     // cette génération, le snapshot generatedWithPhotos tient encore les photos.
-    const photosForText = photosOverride ?? pickNonEmpty(uploadedPhotos, generatedWithPhotos);
+    // Mode photo : les photos d'ambiance libres de droit d'une génération précédente ne repartent pas.
+    const photosForText = carouselSubMode === "photo"
+      ? ownPhotos(photosOverride ?? pickNonEmpty(uploadedPhotos, generatedWithPhotos))
+      : photosOverride ?? pickNonEmpty(uploadedPhotos, generatedWithPhotos);
     // Snapshot des photos avant la génération finale (au cas où le state UI serait reset)
     if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length > 0) {
       setGeneratedWithPhotos(uploadedPhotos);
@@ -1645,7 +1649,14 @@ function CreerWorkspace() {
       scenarioOrigin: proposalOverride ? "automatic" : "user_validated",
       editorialIntent: (proposalOverride ?? structureProposal)?.editorial_intent,
       ...(narrativeThread ? { narrativeThread } : {}),
-      ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: photosForText.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: photosForText.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription,
+        // Photos d'ambiance libres de droit posées par l'app : ajoutées après les siennes.
+        onStockAmbientPhotos: (added: PhotoItem[]) => {
+          if (!isCurrentCreation()) return;
+          const next = [...photosForText, ...added];
+          setUploadedPhotos(next);
+          setGeneratedWithPhotos(next);
+        } } : {}),
       ...(carouselSubMode === "mix"
         ? (isTextFirstMix
             ? { carouselType: "mix", textFirst: true, ...(textFirstCatalog.length > 0 ? { photoCatalog: textFirstCatalog } : {}) }

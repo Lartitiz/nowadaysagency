@@ -305,6 +305,8 @@ function makeFakeSupabase(ownerId: string = TEST_USER_ID) {
 /** Réinitialise TOUS les champs de `_deps` avant chaque test (état de module partagé). */
 function resetDeps() {
   _deps.matchPhotos = async (doc) => doc;
+  // Photos libres de droit coupées par défaut (aucun réseau).
+  _deps.stockAmbient = async (doc: any) => doc;
   _deps.prepareNarrative = async () => null;
   // Derniers contenus de la marque : aucun par défaut (aucun réseau).
   _deps.fetchRecentTexts = async () => [];
@@ -1910,4 +1912,46 @@ Deno.test("plan : compte rendu gardé en base, sans texte, pour chaque issue", a
   _deps.logPlan = (async () => { throw new Error("base lente"); }) as any;
   _deps.callAnthropic = (async () => JSON.stringify({ total_slides: 3, slides: slides(3) })) as any;
   assertEquals((await send()).status, 200);
+});
+
+// Photos libres de droit (12/10/2026) : seulement en « Tes photos en fond »,
+// après l'association finale, avec le contexte de marque ; reçu dans les durées.
+for (const carousel_type of ["photo", "mix"]) Deno.test(`récit continu ${carousel_type} : photos d'ambiance libres de droit ${carousel_type === "photo" ? "proposées" : "jamais demandées"}`, async () => {
+  resetDeps(); _deps.prepareNarrative = createContinuousNarrative;
+  const oldFetch = globalThis.fetch;
+  const inserts: any[] = [];
+  globalThis.fetch = (async (input: any, init?: any) => {
+    const url = typeof input === "string" ? input : input.url;
+    if (url.includes("content_quality_events") && init?.body) inserts.push(JSON.parse(init.body));
+    return new Response("{}", { status: 503 });
+  }) as typeof fetch;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    if (sink) Object.assign(sink, { model: o.model, total_tokens: 7 });
+    return JSON.stringify({ idea: "Une singularité utile", hook: "Une pièce unique pour le quotidien",
+      paragraphs: ["Le geste rend chaque dessin unique.", "Les formes restent utiles au quotidien.", "Quelques objets suffisent pour la table."], caption: {} });
+  }) as any;
+  _deps.matchPhotos = async (doc: any) => ({ ...doc, photo_review: { execution_status: "completed", reason: "reviewed", ambient_fallback: [3] } });
+  const seen: any[] = [];
+  _deps.stockAmbient = (async (doc: any, opts: any) => {
+    seen.push({ matched: doc.photo_review?.reason, branding: typeof opts.brandingContext === "string" });
+    return { ...doc, slides: doc.slides.map((s: any, i: number) => i === 2 ? { ...s, stock_ambient: { id: "9" } } : s),
+      photo_review: { ...doc.photo_review, stock_ambient: { status: "completed", slides: [3] } } };
+  }) as any;
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type, scenario_origin: "automatic", slide_count: 4,
+      subject: "Une pièce peinte à la main reste utile", photos: [1, 2].map(() => ({ base64: "aGVsbG8=" })) }));
+    assertEquals(res.status, 200);
+    const json = await res.json();
+    const content = JSON.parse(json.content);
+    const d = [inserts].flat(2).find((r: any) => r?.content_preview?.durees).content_preview.durees;
+    if (carousel_type === "photo") {
+      assertEquals(seen, [{ matched: "reviewed", branding: true }]);
+      assertEquals(content.slides[2].stock_ambient, { id: "9" });
+      assertEquals(d.association.libres, 1);
+      assert(typeof json.timings.stock_ms === "number");
+    } else {
+      assertEquals(seen, []);
+      assertEquals(d.association.libres, undefined);
+    }
+  } finally { globalThis.fetch = oldFetch; resetDeps(); }
 });

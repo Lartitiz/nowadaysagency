@@ -42,6 +42,8 @@ export interface PhotoItem {
   stockPhotographer?: string;
   /** URL de la fiche source, pour le crédit. */
   stockSourceUrl?: string;
+  /** Posée par l'app en ambiance sur un carrousel (src/lib/stock-ambient-photos.ts), pas choisie par l'utilisatrice. */
+  stockAmbient?: boolean;
 }
 
 function mimeFromBase64(input: string, fallback = "image/jpeg"): string {

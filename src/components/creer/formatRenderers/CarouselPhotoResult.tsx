@@ -1152,6 +1152,12 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                             Image générée
                           </Badge>
                         )}
+                        {slide.cast_source === "stock_ambient" && (
+                          <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary border-transparent">
+                            <ImageIcon size={10} className="mr-1" />
+                            Photo libre de droit · remplace-la par la tienne si tu veux
+                          </Badge>
+                        )}
                         {slide.cast_source === "news_stock" && (
                           <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary border-transparent">
                             <Newspaper size={10} className="mr-1" />
