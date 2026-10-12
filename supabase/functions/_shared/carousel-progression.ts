@@ -112,7 +112,7 @@ export function validateProgressionReport(
   for (const [i, b] of report.boundaries.entries()) {
     if (!b || b.from !== ids[i] || b.to !== ids[i + 1]) return `boundary-reference:${i}:pair`;
     for (const key of ["inherits", "advances"]) if (!str(b[key])) return `boundary-reference:${i}:${key}:nonempty-string-required`;
-    if (!["progression", "common_criterion", "visual_pause", "rupture"].includes(b.kind)) return `boundary-reference:${i}:kind`;
+    if (!(BOUNDARY_KINDS as readonly string[]).includes(b.kind)) return `boundary-reference:${i}:kind`;
   }
   for (const [i, boundary] of report.boundaries.entries()) {
     for (const side of ["from", "to"] as const) {
@@ -123,18 +123,7 @@ export function validateProgressionReport(
     }
   }
   if (!Array.isArray(report.defects)) return "missing-defects";
-  const kinds = [
-    "unclear_idea",
-    "promise",
-    "juxtaposition",
-    "repetition",
-    "rupture",
-    "ending",
-    "unsupported",
-    "voice",
-    "omission",
-    "raw_photo_text",
-  ];
+  const kinds: readonly string[] = DEFECT_KINDS;
   for (const [i, d] of report.defects.entries()) {
     if (!d || !Array.isArray(d.slide_ids) || !d.slide_ids.length ||
       !d.slide_ids.every((id: string) => ids.includes(id))) return `defect-slide-reference:${i}`;
@@ -237,6 +226,21 @@ export function normalizeDefectSlideId(id: unknown, slideIds: string[], fieldIds
   const confirmed = candidates.filter((c) => cited.has(c));
   return confirmed.length === 1 ? confirmed[0] : null;
 }
+
+/** Valeur d'une liste fermée écrite avec une autre casse ou un autre séparateur (« Visual pause » → visual_pause). */
+export function normalizeEnumValue(value: unknown, allowed: readonly string[]): unknown {
+  if (typeof value !== "string" || allowed.includes(value)) return value;
+  const key = value.normalize("NFKC").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return allowed.includes(key) ? key : value;
+}
+
+/** Valeur refusée d'une liste fermée, pour le journal : un mot court tel quel, sinon sa seule forme. */
+export function enumValueForLog(value: unknown): string {
+  return typeof value === "string" && /^[A-Za-z_ -]{1,30}$/.test(value) ? value : idShape(value);
+}
+
+export const BOUNDARY_KINDS = ["progression", "common_criterion", "visual_pause", "rupture"] as const;
+export const DEFECT_KINDS = ["unclear_idea", "promise", "juxtaposition", "repetition", "rupture", "ending", "unsupported", "voice", "omission", "raw_photo_text"] as const;
 
 // Durée d'UN appel du juge : il écrit une entrée par slide et par frontière.
 // Mesuré en ligne : 31-42 s à 12-14 slides, 33 s puis plus de 35 s à 10 slides
@@ -419,6 +423,17 @@ export async function reviewCarouselProgression(doc: any, opts: {
         !Array.isArray(report.juger_progression)) {
         report = { ...report.juger_progression, report_unwrapped: true };
       }
+      // Listes fermées écrites avec une autre casse ou un autre séparateur (vu
+      // en ligne le 12/10/2026 : boundary-reference:0:kind, deux fois de suite).
+      // Une valeur inconnue reste telle quelle : refus, jamais deviné.
+      if (Array.isArray(report?.boundaries)) {
+        report.boundaries = report.boundaries.map((b: any) =>
+          b && typeof b === "object" ? { ...b, kind: normalizeEnumValue(b.kind, BOUNDARY_KINDS) } : b);
+      }
+      if (Array.isArray(report?.defects)) {
+        report.defects = report.defects.map((d: any) =>
+          d && typeof d === "object" ? { ...d, type: normalizeEnumValue(d.type, DEFECT_KINDS), severity: normalizeEnumValue(d.severity, ["major", "minor"]) } : d);
+      }
       // slide_ids sous une autre forme que l'ID attendu : remis en place quand
       // c'est sans ambiguïté, sinon laissés (refus et relance de format).
       if (Array.isArray(report?.defects)) {
@@ -528,8 +543,15 @@ export async function reviewCarouselProgression(doc: any, opts: {
         const bad = ids.filter((id: unknown) => !slideIds.includes(id as string));
         return bad.length || !ids.length ? [{ defect: i, shapes: bad.map(idShape).slice(0, 5), type: Array.isArray(d?.slide_ids) ? "array" : idShape(d?.slide_ids) }] : [];
       }).slice(0, 5);
+      const refusedKinds = (Array.isArray(report?.boundaries) ? report.boundaries : []).flatMap((b: any, i: number) =>
+        (BOUNDARY_KINDS as readonly string[]).includes(b?.kind) ? [] : [{ boundary: i, kind: enumValueForLog(b?.kind) }]).slice(0, 5);
+      const refusedDefectKinds = (Array.isArray(report?.defects) ? report.defects : []).flatMap((d: any, i: number) =>
+        (DEFECT_KINDS as readonly string[]).includes(d?.type) && ["major", "minor"].includes(d?.severity) ? []
+          : [{ defect: i, type: enumValueForLog(d?.type), severity: enumValueForLog(d?.severity) }]).slice(0, 5);
       return {
         ...(refused.length ? { refused_slide_ids: refused } : {}),
+        ...(refusedKinds.length ? { refused_boundary_kinds: refusedKinds } : {}),
+        ...(refusedDefectKinds.length ? { refused_defect_kinds: refusedDefectKinds } : {}),
         ...(report?.normalized_slide_ids ? { normalized_slide_ids: report.normalized_slide_ids.slice(0, 10) } : {}),
         ...(report?.report_unwrapped ? { report_unwrapped: true } : {}),
         ...(report?.defects_defaulted ? { defects_defaulted: true } : {}),
