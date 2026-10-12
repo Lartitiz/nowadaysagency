@@ -207,6 +207,37 @@ export function isPhotoLimit(limit: unknown): boolean {
     /\b(?:photos?|images?|visuels?|pixels?|portraits?|clich[ée]s?)\b|\b(?:observations?|preuves?|v[ée]rifications?)\s+(?:visuelles?|photographiques?)\b/i.test(limit);
 }
 
+/** Forme d'un ID sans son texte (lettres → a, nombres → 9), pour le journal. */
+export function idShape(value: unknown): string {
+  if (typeof value !== "string") return value === null ? "null" : typeof value;
+  return value.normalize("NFKC").replace(/\p{L}+/gu, "a").replace(/\d+/g, "9").slice(0, 40);
+}
+
+/**
+ * Remet sur l'ID attendu une slide citée sous une autre forme, seulement sans
+ * ambiguïté (vu en ligne le 11/10/2026 : rapports refusés `defect-slide-reference`).
+ * « slides.3.body » → slides.3 (l'ID de champ porte sa slide). « slide 4 », « 4 » :
+ * numérotation à partir de 0 ou de 1, tranchée par la seule lecture qui existe
+ * ou par les field_ids du défaut ; sinon l'ID reste tel quel et le rapport est refusé.
+ */
+export function normalizeDefectSlideId(id: unknown, slideIds: string[], fieldIds: unknown): string | null {
+  if (typeof id === "string" && slideIds.includes(id)) return id;
+  const raw = typeof id === "number" && Number.isInteger(id) ? String(id) : typeof id === "string" ? id.trim() : "";
+  const field = /^slides\.(\d+)\.\S+$/.exec(raw);
+  if (field) return slideIds.includes(`slides.${field[1]}`) ? `slides.${field[1]}` : null;
+  const numbered = /^(?:slides?[\s_.#-]*)?(\d+)$/i.exec(raw);
+  if (!numbered) return null;
+  const n = Number(numbered[1]);
+  const candidates = [...new Set([`slides.${n}`, `slides.${n - 1}`])].filter((c) => slideIds.includes(c));
+  if (candidates.length === 1) return candidates[0];
+  const cited = new Set((Array.isArray(fieldIds) ? fieldIds : []).flatMap((f: unknown) => {
+    const m = typeof f === "string" ? /^(slides\.\d+)\./.exec(f) : null;
+    return m ? [m[1]] : [];
+  }));
+  const confirmed = candidates.filter((c) => cited.has(c));
+  return confirmed.length === 1 ? confirmed[0] : null;
+}
+
 // Durée d'UN appel du juge : il écrit une entrée par slide et par frontière.
 // Mesuré en ligne : 31-42 s à 12-14 slides, 33 s puis plus de 35 s à 10 slides
 // en photo (09/10/2026, « Anthropic fetch timeout après 35000ms »). 60 s
@@ -381,6 +412,26 @@ export async function reviewCarouselProgression(doc: any, opts: {
     const parseAndValidate = () => {
       try { report = JSON.parse(raw); }
       catch { report = null; return "invalid-json"; }
+      // Rapport enveloppé dans le nom de l'outil (vu en ligne le 11/10/2026 sur
+      // une relance de format : { "juger_progression": {...} } → missing-summary).
+      if (report && typeof report === "object" && !Array.isArray(report) &&
+        Object.keys(report).length === 1 && report.juger_progression && typeof report.juger_progression === "object" &&
+        !Array.isArray(report.juger_progression)) {
+        report = { ...report.juger_progression, report_unwrapped: true };
+      }
+      // slide_ids sous une autre forme que l'ID attendu : remis en place quand
+      // c'est sans ambiguïté, sinon laissés (refus et relance de format).
+      if (Array.isArray(report?.defects)) {
+        const normalized: string[] = [];
+        report.defects = report.defects.map((defect: any) => {
+          if (!defect || !Array.isArray(defect.slide_ids) || defect.slide_ids.every((id: unknown) => slideIds.includes(id))) return defect;
+          const mapped = defect.slide_ids.map((id: unknown) => normalizeDefectSlideId(id, slideIds, defect.field_ids));
+          if (mapped.some((id: string | null) => id === null)) return defect;
+          defect.slide_ids.forEach((id: unknown) => { if (!slideIds.includes(id)) normalized.push(idShape(id)); });
+          return { ...defect, slide_ids: [...new Set(mapped)] };
+        });
+        if (normalized.length) report.normalized_slide_ids = normalized;
+      }
       // Le choix et la répétition des photos ne sont pas jugés ici (filet si le
       // modèle en parle quand même) : ni affichés, ni cause de réparation.
       if (Array.isArray(report?.defects)) {
@@ -459,11 +510,40 @@ export async function reviewCarouselProgression(doc: any, opts: {
             evidence: evidence.map((f: any) => ({ field_id: f.id, text: f.text })) };
         });
       }
+      // `defects` absent (vu le 11/10/2026 → missing-defects) : « aucun défaut »
+      // seulement pour un feu vert sans rupture ni catalogue. Un refus ou une
+      // preuve insuffisante sans ses défauts reste refusé (relance de format).
+      if (report && typeof report === "object" && (report.defects === undefined || report.defects === null) &&
+        report.verdict === "acceptable" && report.trajectory?.kind !== "descriptive_catalogue" &&
+        Array.isArray(report.boundaries) && !report.boundaries.some((b: any) => b?.kind === "rupture")) {
+        report = { ...report, defects: [], defects_defaulted: true };
+      }
       return validateProgressionReport(report, doc, opts.sources);
     };
+    // Diagnostic du journal, sans texte : forme des slide_ids refusés et des
+    // corrections appliquées, pour chaque rapport (premier et relance).
+    const diagnostic = () => {
+      const refused = (Array.isArray(report?.defects) ? report.defects : []).flatMap((d: any, i: number) => {
+        const ids = Array.isArray(d?.slide_ids) ? d.slide_ids : [d?.slide_ids];
+        const bad = ids.filter((id: unknown) => !slideIds.includes(id as string));
+        return bad.length || !ids.length ? [{ defect: i, shapes: bad.map(idShape).slice(0, 5), type: Array.isArray(d?.slide_ids) ? "array" : idShape(d?.slide_ids) }] : [];
+      }).slice(0, 5);
+      return {
+        ...(refused.length ? { refused_slide_ids: refused } : {}),
+        ...(report?.normalized_slide_ids ? { normalized_slide_ids: report.normalized_slide_ids.slice(0, 10) } : {}),
+        ...(report?.report_unwrapped ? { report_unwrapped: true } : {}),
+        ...(report?.defects_defaulted ? { defects_defaulted: true } : {}),
+      };
+    };
+    const shape = (value: unknown) => Array.isArray(value)
+      ? { type: "array", length: value.length, item_types: [...new Set(value.map((v) => typeof v))] }
+      : { type: value === null ? "null" : typeof value, ...(typeof value === "string" ? { length: value.trim().length } : {}) };
+    const shapeOf = (r: any) => Object.fromEntries(Object.entries(r && typeof r === "object" ? r : {}).map(([key, value]) => [key, shape(value)]));
     let error = parseAndValidate();
     let retryError: string | undefined;
+    let initialDiagnostic: Record<string, unknown> | undefined;
     if (error) {
+      initialDiagnostic = { ...diagnostic(), validation_details: shapeOf(report) };
       const initialVerdict = report?.verdict;
       const remainingMs = budgetMs - (Date.now() - startedAt);
       formatRetry = { attempted: false, initial_reason: error };
@@ -473,7 +553,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
           const retryRaw = await invoke({ ...options, abortTimeoutMs: Math.min(callMs, remainingMs),
             messages: [options.messages[0], { role: "assistant", content: raw }, {
               role: "user",
-              content: `Ton rapport a été refusé par le validateur : ${error}. Corrige uniquement son format et ses références, sans réécrire le carrousel ni effacer un défaut pour obtenir acceptable. Utilise les IDs attendus et les valeurs du schéma. Pour chaque défaut, field_ids doit sélectionner les IDs exacts des champs de sequence.fields dans les slides citées, ou caption pour la légende. Le programme joint les textes exacts. Une omission se rattache au passage qui aurait besoin de l’explication. Garde une justification et une réparation non vides. Si un défaut ne peut pas être étayé, signale la limite au lieu d'inventer une preuve. Renvoie le rapport complet via le même outil.`,
+              content: `Ton rapport a été refusé par le validateur : ${error}. Corrige uniquement son format et ses références, sans réécrire le carrousel ni effacer un défaut pour obtenir acceptable. Utilise les IDs attendus et les valeurs du schéma : slide_ids ne contient que des IDs de expected_slide_ids_in_order (slides.0, slides.1…), jamais un numéro de slide ni un ID de champ. Ne mets pas le rapport dans une clé juger_progression : ses champs sont l'entrée de l'outil. Pour chaque défaut, field_ids doit sélectionner les IDs exacts des champs de sequence.fields dans les slides citées, ou caption pour la légende. Le programme joint les textes exacts. Une omission se rattache au passage qui aurait besoin de l’explication. Garde une justification et une réparation non vides. Si un défaut ne peut pas être étayé, signale la limite au lieu d'inventer une preuve. Renvoie le rapport complet via le même outil.`,
             }],
           });
           raw = retryRaw;
@@ -490,13 +570,11 @@ export async function reviewCarouselProgression(doc: any, opts: {
     if (error) {
       // Record shape only: diagnose provider schema drift without persisting
       // unvalidated prose or any private source material in public projections.
-      const shape = (value: unknown) => Array.isArray(value)
-        ? { type: "array", length: value.length, item_types: [...new Set(value.map((v) => typeof v))] }
-        : { type: value === null ? "null" : typeof value, ...(typeof value === "string" ? { length: value.trim().length } : {}) };
-      const validationDetails = Object.fromEntries(Object.entries(report ?? {}).map(([key, value]) => [key, shape(value)]));
+      const validationDetails = shapeOf(report);
       return logOutcome({ ...receipt, execution_status: "invalid", reason: error, usage, format_retry: formatRetry,
         validation_details: validationDetails,
-      }, { validation_details: validationDetails, ...(retryError ? { retry_error: retryError } : {}) });
+      }, { validation_details: validationDetails, ...diagnostic(), ...(initialDiagnostic ? { initial: initialDiagnostic } : {}),
+        ...(retryError ? { retry_error: retryError } : {}) });
     }
     const issues = report.defects.map((d: any) =>
       `${
@@ -523,7 +601,7 @@ export async function reviewCarouselProgression(doc: any, opts: {
       issues,
       usage,
       ...(formatRetry ? { format_retry: formatRetry } : {}),
-    }, { defects: report.defects.length });
+    }, { defects: report.defects.length, ...diagnostic(), ...(initialDiagnostic ? { initial: initialDiagnostic } : {}) });
   } catch (err) {
     return logOutcome({
       ...receipt,
