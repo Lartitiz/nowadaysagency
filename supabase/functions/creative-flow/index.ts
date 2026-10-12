@@ -13,7 +13,8 @@ import { enforceAudienceAddressInFields, enforceAudienceAddressInJsonText, enfor
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
+import { tryParseAiJson, tryParseAiObject } from "../_shared/parse-ai-json.ts";
+
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, forcesDisabledThinking, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, streamAnthropicToolSSE, createClientSSEStream, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
@@ -2223,21 +2224,10 @@ export async function runLinkedInTwoStep(params: {
   console.log("[CORRECTION DEBUG] First call done, rawContent length:", rawContent?.length);
 
   // Parse the raw content to extract the post text
-  let postText = "";
-  try {
-    const parsed = JSON.parse(rawContent);
-    postText = parsed.content || parsed.full_text || rawContent;
-  } catch {
-    const match = rawContent.match(/\{[\s\S]*\}/);
-    if (match) {
-      try {
-        const parsed = JSON.parse(match[0]);
-        postText = parsed.content || parsed.full_text || rawContent;
-      } catch { postText = rawContent; }
-    } else {
-      postText = rawContent;
-    }
-  }
+  // Lecture tolérante (retours à la ligne bruts, prose autour) : sinon le JSON
+  // brut devenait le texte du post (relu, corrigé et affiché tel quel).
+  const rawParsed = tryParseAiObject(rawContent, "creative-flow:linkedin");
+  const postText: string = rawParsed?.content || rawParsed?.full_text || rawContent;
 
   // Gate rédactionnel (même patron que applyLinkedInCorrectionPass /
   // runNewsletterTwoStep) : mesures en code injectées dans la passe de
@@ -2395,24 +2385,12 @@ Réponds UNIQUEMENT en JSON :
   console.log("[CORRECTION DEBUG] Correction call done, correctedRaw length:", correctedRaw?.length);
 
   // Parse corrected content, fallback to original if correction fails
-  let finalResult: any = null;
-  try {
-    finalResult = JSON.parse(correctedRaw);
-  } catch {
-    const match = correctedRaw.match(/\{[\s\S]*\}/);
-    if (match) {
-      try { finalResult = JSON.parse(match[0]); } catch { finalResult = null; }
-    }
-  }
+  const finalResult: any = tryParseAiObject(correctedRaw, "creative-flow:linkedin-correction");
 
   // If correction succeeded, use it; otherwise fall back to original
   console.log("[CORRECTION DEBUG] finalResult.content present:", !!finalResult?.content);
   if (finalResult?.content) {
-    let originalParsed: any = {};
-    try { originalParsed = JSON.parse(rawContent); } catch {
-      const m = rawContent.match(/\{[\s\S]*\}/);
-      if (m) try { originalParsed = JSON.parse(m[0]); } catch { /* best-effort : on garde l'objet vide */ }
-    }
+    const originalParsed: any = rawParsed ?? {};
 
     // Garde anti-régression (même politique que runTextRedacGate) : la
     // correction n'est gardée que si elle ne dégrade aucun compteur mesuré —
@@ -2477,12 +2455,7 @@ Réponds UNIQUEMENT en JSON :
 
   console.log("[CORRECTION DEBUG] FALLBACK triggered — returning uncorrected post");
   // Fallback: return original if correction failed
-  let fallbackParsed: any;
-  try { fallbackParsed = JSON.parse(rawContent); } catch {
-    const m = rawContent.match(/\{[\s\S]*\}/);
-    if (m) try { fallbackParsed = JSON.parse(m[0]); } catch { fallbackParsed = { content: rawContent }; }
-    else fallbackParsed = { content: rawContent };
-  }
+  const fallbackParsed: any = rawParsed ? { ...rawParsed } : { content: rawContent };
   if (typeof fallbackParsed.content === "string" && liResearch) {
     fallbackParsed.content = (await enforceResearchNumberSources(
       fallbackParsed.content,
@@ -2587,17 +2560,8 @@ async function runNewsletterTwoStep(params: {
   emitStatus("writing");
   const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096, nlUsage, GENERATE_ABORT_MS);
 
-  let parsed: any;
-  try {
-    parsed = JSON.parse(rawContent);
-  } catch {
-    const match = rawContent.match(/\{[\s\S]*\}/);
-    if (match) {
-      try { parsed = JSON.parse(match[0]); } catch { parsed = { content: rawContent }; }
-    } else {
-      parsed = { content: rawContent };
-    }
-  }
+  // Lecture tolérante : sinon le JSON brut s'affichait comme texte de la newsletter.
+  let parsed: any = tryParseAiObject(rawContent, "creative-flow:newsletter") ?? { content: rawContent };
 
   console.log(
     `[creative-flow newsletter] subject:`,

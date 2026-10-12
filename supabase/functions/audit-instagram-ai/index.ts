@@ -8,6 +8,7 @@ import { isSafePublicUrl, scrapeInstagram } from "../_shared/scraping.ts";
 import { authenticateEdgeUser } from "../_shared/edge-auth.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { tryParseAiObject } from "../_shared/parse-ai-json.ts";
 
 const AuditInstagramSchema = z.object({
   auditTextData: z.object({
@@ -548,14 +549,9 @@ Réponds en JSON :
       }
     };
 
-    const extractJson = (raw: string): any => {
-      if (!raw) return {};
-      const s = raw.trim();
-      const start = s.indexOf("{");
-      const end = s.lastIndexOf("}");
-      if (start === -1 || end === -1 || end <= start) return {};
-      try { return JSON.parse(s.substring(start, end + 1)); } catch { return {}; }
-    };
+    // Lecture tolérante (retours à la ligne bruts, virgule finale) : un échec
+    // relançait un appel IA payant ; {} garde ce repli pour les vrais échecs.
+    const extractJson = (raw: string): any => (raw ? tryParseAiObject(raw, "audit-instagram-ai") : null) ?? {};
 
     const nonEmpty = (v: any) =>
       v != null && (typeof v === "object"

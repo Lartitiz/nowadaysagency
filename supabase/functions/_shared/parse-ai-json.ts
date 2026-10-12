@@ -163,3 +163,13 @@ export function tryParseAiJson<T = unknown>(raw: string | object, context?: stri
   }
   return parsed as T;
 }
+
+/**
+ * Objet JSON attendu d'une réponse IA en texte libre : lecture tolérante, et
+ * null si la réponse n'est pas un objet (tableau, texte, échec). Évite de
+ * recopier « try JSON.parse / catch match(/\{…\}/) » dans chaque fonction.
+ */
+export function tryParseAiObject<T extends Record<string, any> = Record<string, any>>(raw: string | object, context?: string): T | null {
+  const v = tryParseAiJson<unknown>(raw, context);
+  return v && typeof v === "object" && !Array.isArray(v) ? v as T : null;
+}

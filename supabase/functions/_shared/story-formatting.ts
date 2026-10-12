@@ -26,6 +26,7 @@
 // photo_pills avec le texte complet ; jamais de story sans plan visuel.
 
 import { enforceStoriesPhotoFirst } from "./story-photo-gate.ts";
+import { tryParseAiJson } from "./parse-ai-json.ts";
 
 export const STORY_FORMAT_VERSION = "story-formatting-v1";
 
@@ -307,14 +308,17 @@ export function coerceStoriesSequence(value: unknown): ({ stories: Story[] } & R
     if (typeof v === "string") {
       const t = v.trim();
       if (!/^[[{]/.test(t)) return null;
-      v = JSON.parse(t);
+      // Lecture tolérante (retours à la ligne bruts, virgule finale) : le modèle
+      // rend parfois la séquence en texte, comme `slides` du plan de carrousel.
+      v = tryParseAiJson(t, "stories:sequence");
+      if (v === null) return null;
     }
     let seq: Record<string, unknown>;
     if (Array.isArray(v)) seq = { stories: v };
     else if (v && typeof v === "object") seq = { ...(v as Record<string, unknown>) };
     else return null;
     let stories: unknown = seq.stories;
-    if (typeof stories === "string") stories = JSON.parse(stories);
+    if (typeof stories === "string") stories = tryParseAiJson(stories, "stories:sequence.stories");
     if (!Array.isArray(stories)) return null;
     const kept = (stories as unknown[]).filter((s): s is Story =>
       !!s && typeof s === "object" && !Array.isArray(s) && (!!storyText(s as Story) || hasSticker(s as Story))

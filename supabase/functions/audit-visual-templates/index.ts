@@ -8,6 +8,7 @@ import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { isSafePublicUrl } from "../_shared/scraping.ts";
+import { tryParseAiObject } from "../_shared/parse-ai-json.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
@@ -213,16 +214,8 @@ La description template_layout_description doit être TRÈS détaillée (200-500
     }, usage);
 
     // Parse JSON from response
-    let result: any;
-    try {
-      // Try to extract JSON from the response
-      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found in response");
-      }
-    } catch (parseErr) {
+    const result: any = tryParseAiObject(rawResponse, "audit-visual-templates");
+    if (!result) {
       console.error("Failed to parse AI response:", rawResponse.slice(0, 500));
       throw new Error("L'IA n'a pas retourné un format valide. Réessaie.");
     }

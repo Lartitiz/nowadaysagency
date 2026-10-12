@@ -1,3 +1,4 @@
+import { tryParseAiObject } from "./parse-ai-json.ts";
 /**
  * Perplexity Sonar — sourcing d'actus chaudes pour le newsjacking.
  *
@@ -245,20 +246,8 @@ Pour chaque actu : titre court (<90 caractères), résumé factuel en 2 phrases,
   const content: string = data?.choices?.[0]?.message?.content || "";
   const citations: string[] = Array.isArray(data?.citations) ? data.citations : [];
 
-  let parsed: { actus?: PerplexityActu[] } = {};
-  try {
-    parsed = JSON.parse(content.trim());
-  } catch {
-    const firstBrace = content.indexOf("{");
-    const lastBrace = content.lastIndexOf("}");
-    if (firstBrace !== -1 && lastBrace > firstBrace) {
-      try {
-        parsed = JSON.parse(content.slice(firstBrace, lastBrace + 1));
-      } catch (e) {
-        console.warn("[perplexity] JSON parse failed:", (e as Error).message);
-      }
-    }
-  }
+  // Lecture tolérante (texte autour, retours à la ligne bruts) ; {} = aucune actu.
+  const parsed: { actus?: PerplexityActu[] } = tryParseAiObject(content, "perplexity") ?? {};
 
   const actus = Array.isArray(parsed.actus) ? parsed.actus : [];
   const enriched = actus.map((a, i) => {

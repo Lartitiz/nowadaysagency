@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getServiceClient } from "../_shared/auth.ts";
+import { tryParseAiObject } from "../_shared/parse-ai-json.ts";
 
 // Rate-limit DURABLE (table Postgres) : survit aux cold starts, contrairement à une Map en mémoire.
 const RATE_WINDOW_MS = 3600000; // 1h
@@ -119,10 +120,8 @@ Retourne UNIQUEMENT un JSON valide :
     const text = data.choices?.[0]?.message?.content || "";
     
     // Parse JSON from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Invalid AI response");
-    
-    const result = JSON.parse(jsonMatch[0]);
+    const result = tryParseAiObject(text, "mini-audit-instagram");
+    if (!result) throw new Error("Invalid AI response");
     
     return new Response(JSON.stringify({
       handle: cleanHandle,

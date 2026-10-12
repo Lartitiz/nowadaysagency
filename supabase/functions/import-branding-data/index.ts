@@ -6,6 +6,7 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { tryParseAiObject } from "../_shared/parse-ai-json.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -97,12 +98,9 @@ Retourne uniquement le JSON, sans aucune explication autour.`;
     }, usage);
 
     // Parse JSON from response
-    let parsed: Record<string, string | null>;
-    try {
-      // Try to extract JSON from potential markdown code blocks
-      const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, result];
-      parsed = JSON.parse(jsonMatch[1]!.trim());
-    } catch {
+    // Lecture tolérante (balises de code, prose autour, retours à la ligne bruts).
+    const parsed = tryParseAiObject<Record<string, string | null>>(result, "import-branding-data");
+    if (!parsed) {
       return new Response(JSON.stringify({ error: "L'IA n'a pas retourné un format valide. Réessaie." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
