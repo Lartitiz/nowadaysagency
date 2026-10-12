@@ -122,8 +122,8 @@ export function hedgedStructureCall<T>(
 export function reviveStringSlides<T>(plan: T): T {
   const p = plan as any;
   if (p && typeof p === "object" && typeof p.slides === "string") {
-    // Le parseur souple ne répare un texte à caractères bruts que dans un
-    // objet {…} : un tableau nu est donc enveloppé avant lecture.
+    // Tableau enveloppé dans un objet : contournement d'avant la correction du
+    // parseur souple (12/10/2026, tableaux à caractères bruts), gardé car inoffensif.
     const text = p.slides.trim().replace(/^```[a-z]*\s*\n?/i, "").replace(/\n?\s*```$/, "").trim();
     const wrap = (t: string) => t.startsWith("[") ? `{"slides": ${t}}` : t;
     let slides = tryParseAiJson(wrap(text), "carousel-ai:structure_proposal.slides");

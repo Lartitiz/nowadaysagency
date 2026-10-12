@@ -78,3 +78,21 @@ describe("tryParseAiJson", () => {
     expect(tryParseAiJson('{"a":1}')).toEqual({ a: 1 });
   });
 });
+
+// 12/10/2026 : accroches et plan de carrousel rendus en texte par le modèle.
+describe("tableaux mal formés", () => {
+  const shape = (v: unknown) => Array.isArray(v) ? `tableau(${v.length})` : v === null ? "échec" : "objet";
+
+  it("lit un tableau à retour à la ligne brut, à un seul élément ou à virgule traînante", () => {
+    expect(shape(tryParseAiJson('[{"a":"x\ny"},{"a":"z"}]'))).toBe("tableau(2)");
+    expect(shape(tryParseAiJson('[{"a":"x\ny"}]'))).toBe("tableau(1)");
+    expect(shape(tryParseAiJson('Voici : [{"a":1}] voilà'))).toBe("tableau(1)");
+    expect(shape(tryParseAiJson('[{"a":1},{"a":2},]'))).toBe("tableau(2)");
+  });
+
+  it("garde les objets, la prose et refuse les réponses tronquées", () => {
+    expect(tryParseAiJson('Note [1] : {"a":1}')).toEqual({ a: 1 });
+    expect(tryParseAiJson('{"a":[1,2], "b": "x')).toBeNull();
+    expect(tryParseAiJson('[{"a":1},{"a":')).toBeNull();
+  });
+});

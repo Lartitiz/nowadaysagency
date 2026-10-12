@@ -116,48 +116,38 @@ function attemptParse(raw: string | object): unknown {
   // texte (ex: "strengths":[...] fermé, alors que l'objet englobant ne l'est pas).
   // Sans cette garde, on renvoie silencieusement ce sous-tableau au lieu de
   // signaler l'échec — un faux succès pire qu'un échec propre.
+  // Symétrique (12/10/2026) : un tableau voulu (le texte commence par `[`) ne
+  // retombe jamais sur un objet imbriqué. Avant, `[{…}]` à retour à la ligne
+  // brut revenait comme l'objet seul, et `[{…},{…}]` échouait : l'objet était
+  // tenté d'abord sur `{…},{…}` et son échec sautait le tableau (accroches et
+  // plan de carrousel rendus en texte, vu en ligne le 11/10).
   const looksLikeObject = cleaned.startsWith("{");
+  const looksLikeArray = cleaned.startsWith("[");
 
-  // Premier objet JSON repérable
-  const objMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (objMatch) {
-    try { return JSON.parse(objMatch[0]); } catch { /* on tente plus bas */ }
-  }
-
-  // Premier tableau JSON repérable
-  if (!looksLikeObject) {
-    const arrMatch = cleaned.match(/\[[\s\S]*\]/);
-    if (arrMatch) {
-      try { return JSON.parse(arrMatch[0]); } catch { /* on tente plus bas */ }
+  // Objet et tableau tentés séparément ; si les deux passent (prose autour),
+  // le plus long gagne : c'est lui qui englobe l'autre.
+  const pick = (text: string): { value: unknown } | undefined => {
+    let best: { value: unknown; size: number } | undefined;
+    for (const re of [looksLikeArray ? null : /\{[\s\S]*\}/, looksLikeObject ? null : /\[[\s\S]*\]/]) {
+      const m = re ? text.match(re) : null;
+      if (!m) continue;
+      try {
+        const value = JSON.parse(m[0]);
+        if (!best || m[0].length > best.size) best = { value, size: m[0].length };
+      } catch { /* l'autre forme peut passer */ }
     }
-  }
+    return best;
+  };
 
-  // Retours à la ligne / tabulations BRUTS dans une chaîne : JSON.parse lève
-  // « Bad control character in string literal ». Très fréquent quand l'IA rend
-  // un texte long (post LinkedIn/Instagram) dans un champ JSON.
-  try {
-    const escaped = escapeControlCharsInStrings(cleaned);
-    const objC = escaped.match(/\{[\s\S]*\}/);
-    if (objC) return JSON.parse(objC[0]);
-    if (!looksLikeObject) {
-      const arrC = escaped.match(/\[[\s\S]*\]/);
-      if (arrC) return JSON.parse(arrC[0]);
-    }
-  } catch { /* on tente plus bas */ }
-
-  // Dernier recours : réparations courantes (virgules traînantes, quotes simples
-  // de délimitation — jamais les apostrophes internes, cf. repairSingleQuotedJson)
-  try {
-    const fixed = escapeControlCharsInStrings(repairSingleQuotedJson(cleaned.replace(/,\s*([}\]])/g, "$1")));
-    const obj2 = fixed.match(/\{[\s\S]*\}/);
-    if (obj2) return JSON.parse(obj2[0]);
-    if (!looksLikeObject) {
-      const arr2 = fixed.match(/\[[\s\S]*\]/);
-      if (arr2) return JSON.parse(arr2[0]);
-    }
-  } catch { /* échec définitif */ }
-
-  return undefined;
+  const found = pick(cleaned)
+    // Retours à la ligne / tabulations BRUTS dans une chaîne : JSON.parse lève
+    // « Bad control character in string literal ». Très fréquent quand l'IA rend
+    // un texte long (post LinkedIn/Instagram) dans un champ JSON.
+    ?? pick(escapeControlCharsInStrings(cleaned))
+    // Dernier recours : virgules traînantes, quotes simples de délimitation
+    // (jamais les apostrophes internes, cf. repairSingleQuotedJson)
+    ?? pick(escapeControlCharsInStrings(repairSingleQuotedJson(cleaned.replace(/,\s*([}\]])/g, "$1"))));
+  return found ? found.value : undefined;
 }
 
 function excerpt(raw: string | object): string {
