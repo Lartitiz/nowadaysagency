@@ -11,6 +11,7 @@ import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 import { invalidateUserPlanCache } from "@/hooks/use-user-plan";
 import { isSafeRedirectTarget } from "@/lib/safe-redirect";
 import { withReadTimeout } from "@/lib/read-timeout";
+import { ensureProfileRow } from "@/lib/ensure-profile-row";
 
 interface AuthContextType {
   user: User | null;
@@ -65,6 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return "/onboarding";
       }
     } catch { /* storage indisponible — résolution normale */ }
+    // Ligne profiles perdue à l'inscription → la recréer AVANT de lire le
+    // statut, sinon « unknown » envoie vers /welcome au lieu de /onboarding.
+    await ensureProfileRow(authUser);
     try {
       const status = await resolveOnboardingStatus({
         profileUserId: userId,
@@ -135,6 +139,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           posthog.identify(currentSession.user.id, {
             email: currentSession.user.email,
           });
+          // Hors du callback : un appel Supabase awaité dedans peut bloquer le SDK.
+          const sessionUser = currentSession.user;
+          setTimeout(() => { void ensureProfileRow(sessionUser); }, 0);
           const path = window.location.pathname;
           const searchParams = new URLSearchParams(window.location.search);
           const redirectTo = searchParams.get("redirect");
@@ -171,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
 
         if (initialSession?.user) {
+          void ensureProfileRow(initialSession.user);
           const path = window.location.pathname;
           const urlParams = new URLSearchParams(window.location.search);
           const redirectTo = urlParams.get("redirect");
