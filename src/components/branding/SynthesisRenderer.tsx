@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import EditableText from "@/components/EditableText";
 import { parseToArray, safeParseJson } from "@/lib/branding-utils";
 import { friendlyError } from "@/lib/error-messages";
+import { parseAiJson } from "@/lib/parse-ai-json";
 
 type Section = "story" | "persona" | "value_proposition" | "tone_style" | "content_strategy";
 
@@ -874,8 +875,8 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
           body: { type: "generate-recap", storytelling: story, profile },
         });
         if (error) throw new Error(error.message);
-        const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-        const parsed = JSON.parse(raw);
+        // Contenu absent ou illisible : AiParseError, même toast d'erreur qu'avant.
+        const parsed = parseAiJson<any>(fnData?.content ?? "", "synthese-story");
         const { error: writeError } = await supabase.from("storytelling").update({ recap_summary: parsed } as any).eq("id", localData.id);
         if (writeError) throw writeError;
         queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
@@ -887,8 +888,8 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
           body: { type: "portrait", profile, persona: localData },
         });
         if (error) throw new Error(error.message);
-        const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-        const parsed = JSON.parse(raw);
+        // Contenu absent ou illisible : AiParseError, même toast d'erreur qu'avant.
+        const parsed = parseAiJson<any>(fnData?.content ?? "", "synthese-persona");
         const { error: writeError } = await supabase.from("persona").update({ portrait: parsed as any, portrait_prenom: parsed.prenom }).eq("id", localData.id);
         if (writeError) throw writeError;
         queryClient.invalidateQueries({ queryKey: ["persona"] });
@@ -902,8 +903,8 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
           body: { type: "generate-recap", strategy_data: localData, profile, persona: personaData, proposition: propositionData, tone: brandProfileData, editorial_line: editorialData },
         }, 120000);
         if (error) throw new Error(error.message);
-        const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-        const parsed = JSON.parse(raw);
+        // Contenu absent ou illisible : AiParseError, même toast d'erreur qu'avant.
+        const parsed = parseAiJson<any>(fnData?.content ?? "", "synthese-strategie");
         const { error: writeError } = await supabase.from("brand_strategy").update({ recap_summary: parsed } as any).eq("id", localData.id);
         if (writeError) throw writeError;
         queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
@@ -935,8 +936,7 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
           },
         });
         if (error) throw new Error(error.message);
-        const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-        const parsed = JSON.parse(raw);
+        const parsed = parseAiJson<any>(fnData?.content ?? "", "synthese-ton");
         const { error: writeError } = await (supabase.from("brand_profile") as any).update({ recap_summary: parsed }).eq("id", localData.id);
         if (writeError) throw writeError;
         queryClient.invalidateQueries({ queryKey: ["brand-profile"] });

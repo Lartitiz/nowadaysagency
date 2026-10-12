@@ -13,6 +13,7 @@ import { Sparkles, Copy, Check } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import { friendlyError } from "@/lib/error-messages";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 export default function PinterestCompte() {
   const { data: propositionHookData } = useBrandProposition();
@@ -49,8 +50,8 @@ export default function PinterestCompte() {
       const res = await invokeWithTimeout("pinterest-ai", { body: { action: "name", workspace_id: editor.workspaceId || undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
-      let parsed: string[];
-      try { parsed = JSON.parse(c); } catch { const m = c.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
+      const parsed = tryParseAiJson<string[]>(c, "pinterest-compte-nom");
+      if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Réponse IA illisible : aucun nom reçu.");
       setNameSuggestions(parsed);
     } catch (e: any) { if (editor.isCurrent()) toast.error("Erreur", { description: friendlyError(e) }); }
     finally { setGeneratingName(false); }
@@ -62,8 +63,8 @@ export default function PinterestCompte() {
       const res = await invokeWithTimeout("pinterest-ai", { body: { action: "bio", workspace_id: editor.workspaceId || undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
-      let parsed: string[];
-      try { parsed = JSON.parse(c); } catch { const m = c.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
+      const parsed = tryParseAiJson<string[]>(c, "pinterest-compte-bio");
+      if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Réponse IA illisible : aucune bio reçue.");
       setBioSuggestions(parsed);
     } catch (e: any) { if (editor.isCurrent()) toast.error("Erreur", { description: friendlyError(e) }); }
     finally { setGeneratingBio(false); }

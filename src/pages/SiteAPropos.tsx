@@ -20,6 +20,7 @@ import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { friendlyError } from "@/lib/error-messages";
+import { parseAiJson } from "@/lib/parse-ai-json";
 
 interface ValueBlock { title: string; description: string }
 
@@ -120,8 +121,7 @@ export default function SiteAPropos() {
       }
       const { data: fnData, error } = await invokeWithTimeout("website-ai", { body }, 90000);
       if (error) throw new Error(error.message);
-      const raw = fnData.content.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(raw);
+      const parsed = parseAiJson<any>(fnData?.content ?? "", "site-a-propos");
 
       const aboutData: AboutData = {
         angle,
@@ -199,8 +199,7 @@ export default function SiteAPropos() {
         },
       }, 90000);
       if (error) throw new Error(error.message);
-      const raw = fnData.content?.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(raw);
+      const parsed = parseAiJson<any>(fnData?.content ?? "", "site-a-propos-optimisation");
       setOptimizeResult(parsed);
       if (!text && url) setOriginalText("(contenu extrait de " + url + ")");
       setMode("optimize-result");

@@ -17,6 +17,7 @@ import { friendlyError } from "@/lib/error-messages";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { Sparkles, Copy, Check, Briefcase, BookOpen, Lightbulb, Smartphone, Save } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 const TOTAL_SECTIONS = 6;
 
@@ -90,8 +91,8 @@ function LinkedInProfilForm() {
       }
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
-      let parsed: string[];
-      try { parsed = JSON.parse(content); } catch { const m = content.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
+      const parsed = tryParseAiJson<string[]>(content, "linkedin-profil-titres");
+      if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Réponse IA illisible : aucun titre reçu.");
       setTitleSuggestions(parsed);
     } catch (e: any) {
       if (!store.active.current) return;

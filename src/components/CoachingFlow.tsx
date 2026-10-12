@@ -12,6 +12,7 @@ import { Loader2, ArrowRight, ArrowLeft, Check, Lightbulb, X, Sparkles, RotateCc
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
+import { parseAiJson } from "@/lib/parse-ai-json";
 
 interface CoachingFlowProps {
   module: string;
@@ -141,9 +142,8 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
 
       if (fullText) {
         try {
-          const jsonMatch = fullText.match(/\{[\s\S]*\}/);
-          const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
-          if (!parsed) throw new Error("No JSON");
+          const parsed = parseAiJson<any>(fullText, "coaching-module");
+          if (!parsed || typeof parsed !== "object") throw new Error("No JSON");
           setDiagnostic(parsed);
           setIterationCount(0);
           setPreviousDiagnostics([]);
@@ -203,9 +203,8 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
 
       if (fullText) {
         try {
-          const jsonMatch = fullText.match(/\{[\s\S]*\}/);
-          const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
-          if (!parsed) throw new Error("No JSON");
+          const parsed = parseAiJson<any>(fullText, "coaching-module");
+          if (!parsed || typeof parsed !== "object") throw new Error("No JSON");
 
           setPreviousDiagnostics(prev => [...prev, { diagnostic, feedback: adjustmentFeedback }]);
           setDiagnostic(parsed);

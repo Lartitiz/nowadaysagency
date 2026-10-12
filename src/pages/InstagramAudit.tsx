@@ -27,6 +27,7 @@ import { calculateAuditScore, type ProfileForScore } from "@/lib/audit-score";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 const AUDIT_LOADING_MESSAGES = [
   { time: 0, text: "📱 Lecture de ton profil..." },
@@ -378,63 +379,13 @@ function InstagramAuditForm() {
 
         const rawContent = typeof rawData?.content === "string" ? rawData.content : (typeof rawData === "string" ? rawData : "");
 
-        const cleaned = rawContent.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-
-        
-
-        try {
-
-          parsed = JSON.parse(cleaned);
-
-        } catch {
-
-          const startIdx = cleaned.indexOf("{");
-
-          if (startIdx !== -1) {
-
-            let depth = 0;
-
-            let endIdx = -1;
-
-            for (let i = startIdx; i < cleaned.length; i++) {
-
-              if (cleaned[i] === "{") depth++;
-
-              else if (cleaned[i] === "}") { depth--; if (depth === 0) { endIdx = i; break; } }
-
-            }
-
-            if (endIdx !== -1) {
-
-              try {
-
-                parsed = JSON.parse(cleaned.substring(startIdx, endIdx + 1));
-
-              } catch (innerErr) {
-
-                console.error("JSON extraction failed:", cleaned.substring(0, 500));
-
-                throw new Error("Format de réponse inattendu");
-
-              }
-
-            } else {
-
-              console.error("Unbalanced JSON. Content preview:", cleaned.substring(0, 500));
-
-              throw new Error("Format de réponse inattendu");
-
-            }
-
-          } else {
-
-            console.error("No JSON found. Raw content:", cleaned.substring(0, 500));
-
-            throw new Error("Format de réponse inattendu");
-
-          }
-
+        // Lecteur partagé (fences, prose autour, retours à la ligne bruts, virgules traînantes).
+        const json = tryParseAiJson<any>(rawContent, "instagram-audit");
+        if (!json || typeof json !== "object" || Array.isArray(json)) {
+          console.error("No JSON found. Raw content:", rawContent.substring(0, 500));
+          throw new Error("Format de réponse inattendu");
         }
+        parsed = json;
 
       }
 

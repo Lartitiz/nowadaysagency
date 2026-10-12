@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Sparkles, Copy, Check, Trash2 } from "lucide-react";
 import { friendlyError } from "@/lib/error-messages";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 const PERSON_TYPES = [
   { value: "client", label: "Client·e" },
@@ -121,8 +122,8 @@ ${prenom || "[Ton prénom]"}`;
       }
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
-      let parsed: string[];
-      try { parsed = JSON.parse(content); } catch { const m = content.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
+      const parsed = tryParseAiJson<string[]>(content, "linkedin-recommandations");
+      if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Réponse IA illisible : aucun message reçu.");
       setMessageVariants(parsed);
     } catch (e: any) {
       if (!store.active.current) return;

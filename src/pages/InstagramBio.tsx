@@ -26,6 +26,7 @@ import CharacterCounter from "@/components/bio/CharacterCounter";
 import BioHistoryDrawer from "@/components/bio/BioHistoryDrawer";
 import BioGeneratorView from "@/components/bio/BioGeneratorView";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 /* ═══════════════════════════════════════════════
    TYPES
@@ -231,38 +232,18 @@ export default function InstagramBio() {
         parsed = rawContent as BioAnalysis;
       } else {
         const content = typeof rawContent === "string" ? rawContent : "";
-        const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-
-        try {
-          parsed = JSON.parse(cleaned);
-        } catch {
-          const startIdx = cleaned.indexOf("{");
-          if (startIdx === -1) {
-            console.error("[Bio Audit] No JSON found in response:", cleaned.substring(0, 500));
-            throw new Error("parse_error");
-          }
-          let depth = 0;
-          let endIdx = -1;
-          for (let i = startIdx; i < cleaned.length; i++) {
-            if (cleaned[i] === "{") depth++;
-            else if (cleaned[i] === "}") { depth--; if (depth === 0) { endIdx = i; break; } }
-          }
-          if (endIdx === -1) {
-            console.error("[Bio Audit] Unbalanced JSON:", cleaned.substring(0, 500));
-            throw new Error("parse_error");
-          }
-          try {
-            parsed = JSON.parse(cleaned.substring(startIdx, endIdx + 1));
-          } catch (innerErr) {
-            console.error("[Bio Audit] JSON parse failed after extraction:", cleaned.substring(startIdx, startIdx + 500));
-            throw new Error("parse_error");
-          }
+        // Lecteur partagé (fences, prose autour, retours à la ligne bruts, virgules traînantes).
+        const json = tryParseAiJson<BioAnalysis>(content, "instagram-bio-audit");
+        if (!json || typeof json !== "object" || Array.isArray(json)) {
+          console.error("[Bio Audit] No JSON found in response:", content.substring(0, 500));
+          throw new Error("Réponse IA illisible : analyse de bio.");
         }
+        parsed = json;
       }
 
       if (!parsed || parsed.score === undefined) {
         console.error("[Bio Audit] Invalid parsed object:", JSON.stringify(parsed).substring(0, 500));
-        throw new Error("parse_error");
+        throw new Error("Réponse IA illisible : analyse de bio.");
       }
 
       setBioAnalysis(parsed);
@@ -314,36 +295,17 @@ export default function InstagramBio() {
         parsed = rawContent;
       } else {
         const content = typeof rawContent === "string" ? rawContent : "";
-        const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-
-        try {
-          parsed = JSON.parse(cleaned);
-        } catch {
-          const startIdx = cleaned.indexOf("{");
-          if (startIdx === -1) {
-            console.error("[Bio Generator] No JSON found in response:", cleaned.substring(0, 500));
-            throw new Error("parse_error");
-          }
-          let depth = 0;
-          let endIdx = -1;
-          for (let i = startIdx; i < cleaned.length; i++) {
-            if (cleaned[i] === "{") depth++;
-            else if (cleaned[i] === "}") { depth--; if (depth === 0) { endIdx = i; break; } }
-          }
-          if (endIdx === -1) {
-            console.error("[Bio Generator] Unbalanced JSON:", cleaned.substring(0, 500));
-            throw new Error("parse_error");
-          }
-          try {
-            parsed = JSON.parse(cleaned.substring(startIdx, endIdx + 1));
-          } catch (innerErr) {
-            console.error("[Bio Generator] JSON parse failed after extraction:", cleaned.substring(startIdx, startIdx + 500));
-            throw new Error("parse_error");
-          }
+        const json = tryParseAiJson<{ bios?: BioVersion[]; versions?: BioVersion[] }>(content, "instagram-bio-generation");
+        if (!json || typeof json !== "object" || Array.isArray(json)) {
+          console.error("[Bio Generator] No JSON found in response:", content.substring(0, 500));
+          throw new Error("Réponse IA illisible : bios.");
         }
+        parsed = json;
       }
 
-      setVersions(parsed.bios || parsed.versions || []);
+      const bios = parsed.bios || parsed.versions || [];
+      if (!Array.isArray(bios) || bios.length === 0) throw new Error("Réponse IA illisible : aucune bio reçue.");
+      setVersions(bios);
       setView("results");
     } catch (e: any) {
       console.error("[Bio Generator] Final error:", e?.message || e);

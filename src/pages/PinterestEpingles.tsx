@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Sparkles, Copy, Trash2 } from "lucide-react";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 interface BoardOption { id: string; name: string; }
 interface Pin { id?: string; subject: string; board_id: string; link_url: string; title: string; description: string; variant_type: string; }
@@ -37,8 +38,8 @@ export default function PinterestEpingles() {
       const res = await invokeWithTimeout("pinterest-ai", { body: { action: "pin", subject, board_name: boardName, workspace_id: editor.workspaceId || undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
-      let parsed: PinVariant[];
-      try { parsed = JSON.parse(c); } catch { const m = c.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
+      const parsed = tryParseAiJson<PinVariant[]>(c, "pinterest-epingles");
+      if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Réponse IA illisible : aucune épingle reçue.");
       setVariants(parsed);
     } catch (e: any) { console.error("Erreur technique:", e); if (editor.isCurrent()) toast.error("Erreur", { description: friendlyError(e) }); }
     finally { setGenerating(false); }

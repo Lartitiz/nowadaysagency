@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Sparkles } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 export default function PinterestMotsCles() {
   const editor = usePinterestEditor("pinterest_keywords", { keywords_raw: "", keywords_product: [], keywords_need: [], keywords_inspiration: [], keywords_english: [], checklist_titles: false, checklist_board_desc: false, checklist_pin_titles: false, checklist_pin_desc: false, checklist_profile_name: false, checklist_bio: false });
@@ -31,9 +32,11 @@ export default function PinterestMotsCles() {
       const res = await invokeWithTimeout("pinterest-ai", { body: { action: "keywords", workspace_id: editor.workspaceId || undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
-      let parsed: any;
-      try { parsed = JSON.parse(c); } catch { const m = c.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
-      if (editor.isCurrent() && parsed) setGenerated(parsed);
+      const parsed = tryParseAiJson<any>(c, "pinterest-mots-cles");
+      const hasKeywords = !!parsed && typeof parsed === "object"
+        && ["produit", "besoin", "inspiration", "anglais"].some((k) => Array.isArray(parsed[k]) && parsed[k].length > 0);
+      if (!hasKeywords) throw new Error("Réponse IA illisible : aucun mot-clé reçu.");
+      if (editor.isCurrent()) setGenerated(parsed);
     } catch (e: any) { console.error("Erreur technique:", e); if (editor.isCurrent()) toast.error("Erreur", { description: friendlyError(e) }); }
     finally { setGenerating(false); }
   };

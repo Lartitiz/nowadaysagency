@@ -5,6 +5,8 @@ const ERROR_PATTERNS: { test: RegExp; message: string }[] = [
   // à une cliente qui n'a rien consommé serait mensonger.
   { test: /quota_check_failed|impossible de vérifier ton abonnement/i, message: "Impossible de vérifier ton abonnement pour le moment. Réessaie dans un instant." },
   { test: /JSON/i, message: "L'IA a généré une réponse dans un format inattendu. Réessaie, ça devrait fonctionner." },
+  // Réponse IA lue mais vide ou mal formée (AiParseError et listes vides des pages).
+  { test: /réponse IA illisible/i, message: "L'IA a généré une réponse dans un format inattendu. Réessaie, ça devrait fonctionner." },
   { test: /edge function|functions?fetcherror|functions?httperror|send a request|non-?2xx/i, message: "Ce service est momentanément indisponible. Réessaie dans un instant — si ça persiste, contacte-nous." },
   { test: /fetch|network|Failed to fetch|ERR_NETWORK/i, message: "Problème de connexion. Vérifie ton Wi-Fi et réessaie." },
   { test: /timeout|timed out|504|524/i, message: "La requête a pris trop de temps. Réessaie dans quelques secondes." },

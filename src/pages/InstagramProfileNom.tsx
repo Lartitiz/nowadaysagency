@@ -12,6 +12,7 @@ import { Sparkles, Copy, Check, Loader2 } from "lucide-react";
 import AuditInsight from "@/components/AuditInsight";
 import ProfileSectionValidation from "@/components/ProfileSectionValidation";
 import { friendlyError } from "@/lib/error-messages";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 export default function InstagramProfileNom() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
@@ -30,12 +31,17 @@ export default function InstagramProfileNom() {
       }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
+      const json = tryParseAiJson<unknown>(content, "instagram-profil-nom");
       let parsed: string[];
-      try {
-        parsed = JSON.parse(content);
-      } catch {
+      if (json === null) {
+        // Pas de JSON du tout : on garde le repli ligne par ligne.
         parsed = content.split("\n").filter((l: string) => l.trim());
+      } else if (Array.isArray(json)) {
+        parsed = json.filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+      } else {
+        parsed = [];
       }
+      if (parsed.length === 0) throw new Error("Réponse IA illisible : aucun nom reçu.");
       setSuggestions(parsed.slice(0, 3));
     } catch (e: any) {
       toast.error("Erreur", { description: friendlyError(e) });

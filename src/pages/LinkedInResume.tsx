@@ -27,6 +27,7 @@ import { fr } from "date-fns/locale";
 import LinkedInPreview from "@/components/linkedin/LinkedInPreview";
 import CharacterCounter from "@/components/linkedin/CharacterCounter";
 import BioHistoryDrawer from "@/components/bio/BioHistoryDrawer";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 /* ─── Types ─── */
 interface AnalysisReco {
@@ -46,17 +47,10 @@ interface ResumeAnalysis {
 
 /* ─── Helpers ─── */
 function parseAnalysis(raw: string): ResumeAnalysis | null {
-  try {
-    let cleaned = raw.trim();
-    if (cleaned.startsWith("```json")) cleaned = cleaned.replace(/^```json\n?/, "").replace(/\n?```$/, "");
-    if (cleaned.startsWith("```")) cleaned = cleaned.replace(/^```\n?/, "").replace(/\n?```$/, "");
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    const parsed = match ? JSON.parse(match[0]) : JSON.parse(cleaned);
-    if (typeof parsed.score !== "number") return null;
-    return parsed as ResumeAnalysis;
-  } catch {
-    return null;
-  }
+  // Lecteur partagé : null si illisible, comme avant (l'appelant gère l'absence).
+  const parsed = tryParseAiJson<ResumeAnalysis>(raw, "linkedin-resume-analyse");
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || typeof parsed.score !== "number") return null;
+  return parsed;
 }
 
 const StatusIcon = ({ status }: { status: string }) => status === "good"
@@ -156,7 +150,7 @@ function LinkedInResumeForm() {
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       const parsed = parseAnalysis(content);
-      if (!parsed) throw new Error("Format de réponse invalide");
+      if (!parsed) throw new Error("Réponse IA illisible : analyse incomplète.");
       setAnalysis(parsed);
 
       const result = await store.save([{ id: profileId || crypto.randomUUID(), summary_final: textToAnalyze }]);
@@ -183,8 +177,10 @@ function LinkedInResumeForm() {
       }
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
-      let parsed: any;
-      try { parsed = JSON.parse(content); } catch { const m = content.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : {}; }
+      const parsed = tryParseAiJson<any>(content, "linkedin-resume-generation");
+      if (!parsed || typeof parsed !== "object" || (!parsed.court_storytelling && !parsed.storytelling)) {
+        throw new Error("Réponse IA illisible : aucun résumé reçu.");
+      }
       // New 6-version format
       if (parsed.court_storytelling) {
         setVersions({

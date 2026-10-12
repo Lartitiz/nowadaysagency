@@ -16,6 +16,7 @@ import { friendlyError } from "@/lib/error-messages";
 import { Copy, FileText, Loader2, RefreshCw, Pencil } from "lucide-react";
 import { saveImportRow, readImportRows, importTarget } from "@/lib/branding-import-persistence";
 import EditableText from "@/components/EditableText";
+import { parseAiJson } from "@/lib/parse-ai-json";
 
 interface RecapSummary {
   what_i_do: string[];
@@ -99,8 +100,7 @@ export default function PropositionRecapPage() {
         },
       }, 90000);
       if (error) throw new Error(error.message);
-      const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      const parsed = JSON.parse(raw);
+      const parsed = parseAiJson<any>(fnData?.content ?? "", "proposition-synthese");
       await persist({ recap_summary: parsed });
       toast.success("Synthèse générée !");
     } catch (e: any) {

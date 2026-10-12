@@ -20,6 +20,7 @@ import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import AuditInsight from "@/components/AuditInsight";
 import ProfileSectionValidation from "@/components/ProfileSectionValidation";
 import { PillarsSyncBanner } from "@/components/edito/PillarsSyncBanner";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 /* ─── Types ─── */
 interface Pillar {
@@ -390,11 +391,8 @@ export default function InstagramProfileEdito() {
       }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
-      let parsed: any;
-      try { parsed = JSON.parse(content); } catch {
-        const m = content.match(/\{[\s\S]*\}/);
-        if (m) parsed = JSON.parse(m[0]); else throw new Error("Format inattendu");
-      }
+      const parsed = tryParseAiJson<any>(content, "instagram-edito-piliers");
+      if (!parsed || typeof parsed !== "object") throw new Error("Format inattendu");
       if (parsed.pillars && Array.isArray(parsed.pillars)) {
         setEditorial((prev) => ({ ...prev, pillars: parsed.pillars }));
       }
@@ -423,11 +421,8 @@ export default function InstagramProfileEdito() {
       }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
-      let parsed: any;
-      try { parsed = JSON.parse(content); } catch {
-        const m = content.match(/\{[\s\S]*\}/);
-        if (m) parsed = JSON.parse(m[0]); else throw new Error("Format inattendu");
-      }
+      const parsed = tryParseAiJson<any>(content, "instagram-edito-formats");
+      if (!parsed || typeof parsed !== "object") throw new Error("Format inattendu");
       if (parsed.formats && Array.isArray(parsed.formats)) {
         setEditorial((prev) => ({ ...prev, preferred_formats: parsed.formats }));
       }
@@ -460,11 +455,9 @@ export default function InstagramProfileEdito() {
       }, 60000);
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
-      let parsed: any;
-      try { parsed = JSON.parse(content); } catch {
-        const m = content.match(/\{[\s\S]*\}/);
-        if (m) parsed = JSON.parse(m[0]); else { setRhythmSuggestion(content); return; }
-      }
+      const parsed = tryParseAiJson<any>(content, "instagram-edito-rythme");
+      // Pas de JSON lisible : on garde le repli texte brut comme avant.
+      if (!parsed || typeof parsed !== "object") { setRhythmSuggestion(content); return; }
       const text = parsed.suggestion || parsed.text || content;
       setRhythmSuggestion(text);
       // Store parsed recommendations for "Apply" button
