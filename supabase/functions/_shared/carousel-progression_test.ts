@@ -5,7 +5,9 @@ import {
 import {
   progressionReceipt,
   isPhotoChoiceDefect,
+  idShape,
   isPhotoLimit,
+  normalizeDefectSlideId,
   progressionJudgeCallMs,
   progressionWarnings,
   reviewCarouselProgression,
@@ -676,4 +678,130 @@ Deno.test("schéma du juge : photo sans texte, visual_only reste permis et les f
   assert(schema.properties.trajectory.properties.kind.enum.includes("visual_only"));
   assertEquals(schema.properties.trajectory.properties.field_ids.maxItems, 0);
   assertEquals(schema.properties.boundaries.items.anyOf[0].properties.from_field_ids.maxItems, 0);
+});
+
+// Refus du validateur vus en ligne le 11/10/2026 (2 contrôles sur 6, photo, 10 slides).
+const captureLog = async (run: () => Promise<any>) => {
+  const log = console.log, lines: string[] = [];
+  console.log = (line: unknown) => { lines.push(String(line)); };
+  try {
+    const out = await run();
+    const logged = lines.map((l) => { try { return JSON.parse(l); } catch { return null; } })
+      .find((l) => l?.type === "carousel_progression_review");
+    return { out, logged, text: lines.join("\n") };
+  } finally { console.log = log; }
+};
+const withDefect = (defect: Record<string, unknown>) => ({ ...valid(), verdict: "needs_repair",
+  defects: [{ severity: "minor", type: "voice", reason: "Raison", repair: "Correction", ...defect }] });
+
+Deno.test("rapport enveloppé dans le nom de l'outil : déballé, sans relance", async () => {
+  let calls = 0;
+  const { out, logged } = await captureLog(() => reviewCarouselProgression(doc, { sources, call: async () => {
+    calls++;
+    return JSON.stringify({ juger_progression: valid() });
+  } }));
+  assertEquals(calls, 1);
+  assertEquals(out.execution_status, "completed");
+  assertEquals(out.verdict, "acceptable");
+  assertEquals(logged.report_unwrapped, true);
+});
+
+Deno.test("enveloppe : un refus déballé reste un refus, une enveloppe à plusieurs clés n'est pas déballée", async () => {
+  const refused = await reviewCarouselProgression(doc, { sources, call: async () =>
+    JSON.stringify({ juger_progression: withDefect({ slide_ids: ["slides.1"], field_ids: ["slides.1.visual_schema.quote"] }) }) });
+  assertEquals(refused.execution_status, "completed");
+  assertEquals(refused.verdict, "needs_repair");
+  let calls = 0;
+  const other = await reviewCarouselProgression(doc, { sources, call: async () => {
+    calls++;
+    return JSON.stringify({ juger_progression: valid(), autre: 1 });
+  } });
+  assertEquals(calls, 2);
+  assertEquals(other.execution_status, "invalid");
+  assertEquals(other.reason, "missing-summary");
+});
+
+Deno.test("defects absent : [] seulement pour un feu vert sans rupture", async () => {
+  const { defects: _d, ...noDefects } = valid();
+  const { out, logged } = await captureLog(() => reviewCarouselProgression(doc, { sources, call: async () => JSON.stringify(noDefects) }));
+  assertEquals(out.execution_status, "completed");
+  assertEquals(out.verdict, "acceptable");
+  assertEquals(out.report?.defects, []);
+  assertEquals(logged.defects_defaulted, true);
+  // Refus, preuve insuffisante ou rupture sans défauts : jamais un feu vert.
+  for (const mutate of [
+    (r: any) => { r.verdict = "needs_repair"; },
+    (r: any) => { r.verdict = "insufficient_evidence"; r.limits = ["Source manquante"]; },
+    (r: any) => { r.boundaries[0].kind = "rupture"; },
+    (r: any) => { r.trajectory.kind = "descriptive_catalogue"; },
+  ]) {
+    const report: any = { ...valid(), trajectory: { ...valid().trajectory }, boundaries: valid().boundaries.map((b) => ({ ...b })) };
+    delete report.defects;
+    mutate(report);
+    const res = await reviewCarouselProgression(doc, { sources, call: async () => JSON.stringify(report) });
+    assertEquals(res.execution_status, "invalid");
+    assertEquals(res.reason, "missing-defects");
+    assertEquals(res.verdict, null);
+  }
+});
+
+Deno.test("slide_ids sous une autre forme : remis sur l'ID attendu sans ambiguïté", () => {
+  const ids = ["slides.0", "slides.1", "slides.2", "slides.3"];
+  assertEquals(normalizeDefectSlideId("slides.3.body", ids, []), "slides.3");
+  assertEquals(normalizeDefectSlideId("slides.2.visual_schema.quote", ids, []), "slides.2");
+  assertEquals(normalizeDefectSlideId("slides.9.body", ids, []), null);
+  assertEquals(normalizeDefectSlideId("caption.body", ids, []), null);
+  // « slide 4 » : seule la lecture à partir de 1 existe.
+  assertEquals(normalizeDefectSlideId("slide 4", ids, []), "slides.3");
+  assertEquals(normalizeDefectSlideId("Slide 0", ids, []), "slides.0");
+  // Deux lectures possibles : tranchées par les field_ids du défaut, sinon refus.
+  assertEquals(normalizeDefectSlideId("slide 2", ids, ["slides.1.body"]), "slides.1");
+  assertEquals(normalizeDefectSlideId("slide 2", ids, ["slides.2.title"]), "slides.2");
+  assertEquals(normalizeDefectSlideId(2, ids, ["slides.2.title"]), "slides.2");
+  assertEquals(normalizeDefectSlideId("slide 2", ids, []), null);
+  assertEquals(normalizeDefectSlideId("slide 2", ids, ["slides.1.body", "slides.2.body"]), null);
+  assertEquals(normalizeDefectSlideId("slide 7", ids, []), null);
+  assertEquals(normalizeDefectSlideId("la deuxième", ids, []), null);
+  assertEquals(idShape("slides.3.body"), "a.9.a");
+  assertEquals(idShape("Slide 4"), "a 9");
+  assertEquals(idShape(4), "number");
+});
+
+Deno.test("slide_ids normalisés dans le rapport, défaut et verdict gardés, formes journalisées sans texte", async () => {
+  let calls = 0;
+  const { out, logged, text } = await captureLog(() => reviewCarouselProgression(doc, { sources, call: async () => {
+    calls++;
+    return JSON.stringify(withDefect({ slide_ids: ["slides.1.visual_schema.quote", "slide 2"], field_ids: ["slides.1.visual_schema.quote"] }));
+  } }));
+  assertEquals(calls, 1);
+  assertEquals(out.execution_status, "completed");
+  assertEquals(out.verdict, "needs_repair");
+  assertEquals(out.report?.defects[0].slide_ids, ["slides.1"]);
+  assertEquals(logged.normalized_slide_ids, ["a.9.a_a.a", "a 9"]);
+  assert(!text.includes("Reconnaître"));
+});
+
+Deno.test("slide_ids ambigus : refus, relance, et formes refusées journalisées pour les deux rapports", async () => {
+  const doc3 = { ...doc, slides: [...doc.slides, { title: "Conclure", body: "Le repère prend sens." }] };
+  const report3 = () => {
+    const r: any = valid();
+    r.slides.push({ id: "slides.2", contribution: "Conclut", source_ids: [] });
+    r.boundaries.push({ from: "slides.1", to: "slides.2", from_field_ids: ["slides.1.visual_schema.quote"], to_field_ids: ["slides.2.body"], inherits: "le sens", advances: "la conclusion", kind: "progression" });
+    return r;
+  };
+  let calls = 0;
+  const { out, logged, text } = await captureLog(() => reviewCarouselProgression(doc3, { sources, call: async () => {
+    calls++;
+    const r = report3();
+    r.verdict = "needs_repair";
+    r.defects = [{ slide_ids: calls === 1 ? ["slide 2"] : ["deuxième slide"], severity: "minor", type: "voice", reason: "Raison", repair: "Correction" }];
+    return JSON.stringify(r);
+  } }));
+  assertEquals(calls, 2);
+  assertEquals(out.execution_status, "invalid");
+  assertEquals(out.reason, "defect-slide-reference:0");
+  assertEquals(logged.refused_slide_ids, [{ defect: 0, shapes: ["a a"], type: "array" }]);
+  assertEquals(logged.initial.refused_slide_ids, [{ defect: 0, shapes: ["a 9"], type: "array" }]);
+  assert(logged.initial.validation_details.defects);
+  assert(!text.includes("deuxième"));
 });
