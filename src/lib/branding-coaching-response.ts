@@ -1,4 +1,5 @@
 import type { InvokeError } from "@/lib/invoke-with-timeout";
+import { parseAiJson } from "@/lib/parse-ai-json";
 
 export interface AIResponse {
   question: string;
@@ -30,8 +31,8 @@ export function getInvokeErrorMessage(err: InvokeError): string {
 /** Parses the raw edge function payload (JSON string or already-parsed object) into an AIResponse. Throws on unparseable JSON. */
 export function parseAIResponseRaw(raw: unknown): AIResponse {
   if (typeof raw === "string") {
-    const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    return JSON.parse(cleaned) as AIResponse;
+    // Lecteur partagé : lève AiParseError si la réponse est illisible.
+    return parseAiJson<AIResponse>(raw, "branding-coaching-response");
   }
   return raw as AIResponse;
 }

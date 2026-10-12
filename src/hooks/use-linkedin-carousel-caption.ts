@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { handleQuotaError } from "@/lib/quota-error-handler";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 interface UseLinkedInCarouselCaptionParams {
   result: any;
@@ -93,18 +94,8 @@ export function useLinkedInCarouselCaption({
       const rawContent = data?.content ?? data;
       let parsed: any = rawContent;
       if (typeof rawContent === "string") {
-        try {
-          let cleaned = rawContent.trim();
-          if (cleaned.startsWith("```")) {
-            cleaned = cleaned.replace(/^```[a-z]*\s*\n?/i, "").replace(/\n?\s*```\s*$/, "");
-          }
-          parsed = JSON.parse(cleaned);
-        } catch {
-          const m = rawContent.match(/\{[\s\S]*\}/);
-          if (m) {
-            try { parsed = JSON.parse(m[0]); } catch { parsed = null; }
-          }
-        }
+        // Lecteur partagé : null si illisible, signalé juste en dessous.
+        parsed = tryParseAiJson<any>(rawContent, "linkedin-carrousel-legende");
       }
       if (!parsed || typeof parsed !== "object") {
         throw new Error("Légende illisible");

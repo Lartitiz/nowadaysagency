@@ -10,6 +10,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Copy, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
+import { parseAiJson } from "@/lib/parse-ai-json";
 
 const TESTIMONIAL_MESSAGE = `Hello [prénom] ! J'aimerais beaucoup avoir ton retour sur notre collaboration. Ça m'aiderait énormément.
 Si tu as 5 minutes, voici 4 questions :
@@ -50,8 +51,7 @@ export default function SiteTestimonials() {
       }, 90000);
       if (error) throw new Error(error.message);
       const raw = data?.content || "";
-      const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      setResult(JSON.parse(cleaned));
+      setResult(parseAiJson<any>(raw, "site-temoignage"));
     } catch (e: any) {
       console.error("Erreur technique:", e);
       toast.error(friendlyError(e));

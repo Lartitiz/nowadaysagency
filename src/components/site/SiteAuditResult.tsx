@@ -16,6 +16,7 @@ import {
 } from "@/lib/website-audit-score";
 import { friendlyError } from "@/lib/error-messages";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 interface SiteAuditResultProps {
   auditId: string;
@@ -104,17 +105,13 @@ function ScoreCircle({ score }: { score: number }) {
 /** Try to parse the AI diagnostic JSON from either a raw string or already-parsed object */
 function parseDiagnostic(raw: unknown): AiDiagnosticData | null {
   if (!raw) return null;
-  try {
-    if (typeof raw === "object" && raw !== null && "positif" in raw) return raw as AiDiagnosticData;
-    const str = typeof raw === "string" ? raw : JSON.stringify(raw);
-    // Strip potential markdown fences
-    const cleaned = str.replace(/^```json?\s*/i, "").replace(/\s*```$/i, "").trim();
-    const parsed = JSON.parse(cleaned);
-    if (parsed?.positif && parsed?.priorites && parsed?.premier_pas) return parsed as AiDiagnosticData;
-    return null;
-  } catch {
-    return null;
-  }
+  if (typeof raw === "object" && raw !== null && "positif" in raw) return raw as AiDiagnosticData;
+  const str = typeof raw === "string" ? raw : JSON.stringify(raw);
+  // Lecteur partagé : null si illisible (absence silencieuse au chargement,
+  // erreur affichée par l'appelant à la génération).
+  const parsed = tryParseAiJson<any>(str, "site-audit-diagnostic");
+  if (parsed?.positif && parsed?.priorites && parsed?.premier_pas) return parsed as AiDiagnosticData;
+  return null;
 }
 
 export default function SiteAuditResult({

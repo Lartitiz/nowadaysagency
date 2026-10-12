@@ -26,6 +26,10 @@ import Step7WhoYouAre from "@/components/site/Step7WhoYouAre";
 import Step8Guarantee from "@/components/site/Step8Guarantee";
 import Step9FaqCta from "@/components/site/Step9FaqCta";
 import Step10SeoLayout from "@/components/site/Step10SeoLayout";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
+
+// Actions de website-ai qui répondent en texte seul (pas de JSON attendu).
+const TEXT_ACTIONS = new Set(["benefits", "offer", "presentation"]);
 
 export default function SiteAccueil() {
   const { user } = useAuth();
@@ -103,11 +107,12 @@ export default function SiteAccueil() {
       if (error) throw new Error(error.message);
       const raw = result?.content || "";
       let parsed: any;
-      try {
-        const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-        parsed = JSON.parse(cleaned);
-      } catch {
+      if (TEXT_ACTIONS.has(action)) {
+        // Ces actions renvoient du texte seul (consigne de website-ai) : pas de JSON attendu.
         parsed = raw;
+      } else {
+        parsed = tryParseAiJson<any>(raw, `site-accueil-${action}`);
+        if (!parsed || typeof parsed !== "object") throw new Error("Réponse IA illisible : format inattendu.");
       }
       setAiResults((prev) => ({ ...prev, [action]: parsed }));
       return parsed;

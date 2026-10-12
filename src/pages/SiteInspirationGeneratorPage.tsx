@@ -14,6 +14,7 @@ import { useBrandCharter } from "@/hooks/use-branding";
 import { useAuth } from "@/contexts/AuthContext";
 import { friendlyError } from "@/lib/error-messages";
 import { Zap, Copy, Smartphone, Monitor, Palette, RefreshCw, ArrowRight, Sparkles } from "lucide-react";
+import { parseAiJson } from "@/lib/parse-ai-json";
 
 const SECTION_TYPES: Record<string, { emoji: string; title: string }> = {
   hero: { emoji: "🚀", title: "Section Hero" },
@@ -146,8 +147,7 @@ export default function SiteInspirationGeneratorPage() {
       let parsed: { variants: Variant[] };
       try {
         const raw = typeof content === "string" ? content : JSON.stringify(content);
-        const cleaned = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-        parsed = typeof content === "object" && content.variants ? content : JSON.parse(cleaned);
+        parsed = typeof content === "object" && content.variants ? content : parseAiJson<{ variants: Variant[] }>(raw, "site-inspiration");
       } catch {
         throw new Error("parse_error");
       }

@@ -35,6 +35,7 @@ import {
   ShoppingBag,
   ListChecks,
 } from "lucide-react";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 const STEPS = [
   { label: "Offre", icon: Target, emoji: "🎯" },
@@ -227,14 +228,8 @@ function InstagramLaunchScreen() {
       if (!visit.current) return;
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
-      let parsed: LaunchIdea[];
-      try {
-        parsed = JSON.parse(content);
-      } catch {
-        const match = content.match(/\[[\s\S]*\]/);
-        if (match) parsed = JSON.parse(match[0]);
-        else throw new Error("Format de réponse inattendu");
-      }
+      const parsed = tryParseAiJson<LaunchIdea[]>(content, "instagram-lancement-idees");
+      if (!Array.isArray(parsed)) throw new Error("Format de réponse inattendu");
       setLaunchIdeas(parsed);
     } catch (e: any) {
       console.error("Erreur technique:", e);

@@ -12,7 +12,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { toast } from "sonner";
-import { trackError } from "@/lib/error-tracker";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 /* ── Field-level emoji map ── */
 const FIELD_EMOJI: Record<string, string> = {
@@ -338,7 +338,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
       let fillInsights: Record<string, any> = {};
       if (fillResponse) {
         if (typeof fillResponse === "string") {
-          try { fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()); } catch (e) { trackError(e, { where: "branding.fiche.fillInsights" }); toast.error("L'IA a renvoyé une réponse inattendue. Réessaie dans un instant."); }
+          { const read = tryParseAiJson<Record<string, any>>(fillResponse, "branding.fiche.fillInsights"); if (read && typeof read === "object") fillInsights = read; else toast.error("L'IA a renvoyé une réponse inattendue. Réessaie dans un instant."); }
         } else if (typeof fillResponse === "object") {
           fillInsights = fillResponse.extracted_insights || fillResponse;
         }
@@ -576,7 +576,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
           let fillInsights: Record<string, any> = {};
           if (fillResponse) {
             if (typeof fillResponse === "string") {
-              try { fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()); } catch (e) { trackError(e, { where: "branding.fiche.fillInsights" }); toast.error("L'IA a renvoyé une réponse inattendue. Réessaie dans un instant."); }
+              { const read = tryParseAiJson<Record<string, any>>(fillResponse, "branding.fiche.fillInsights"); if (read && typeof read === "object") fillInsights = read; else toast.error("L'IA a renvoyé une réponse inattendue. Réessaie dans un instant."); }
             } else if (typeof fillResponse === "object") {
               fillInsights = fillResponse.extracted_insights || fillResponse;
             }
@@ -644,12 +644,10 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
         body: { type: "pitch", persona: freshPersona || data, profile: brandData || {} },
       }, 60000);
       if (pitchData?.content) {
-        let pitchParsed: any;
-        try {
-          pitchParsed = typeof pitchData.content === "string"
-            ? JSON.parse(pitchData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim())
-            : pitchData.content;
-        } catch (e) { trackError(e, { where: "branding.fiche.pitch" }); }
+        // null si illisible (warning loggué par le lecteur partagé) : pitch ignoré comme avant.
+        const pitchParsed: any = typeof pitchData.content === "string"
+          ? tryParseAiJson<any>(pitchData.content, "branding.fiche.pitch")
+          : pitchData.content;
         if (pitchParsed) {
           const pitchUpdate: Record<string, string> = {};
           if (pitchParsed.short) pitchUpdate.pitch_short = pitchParsed.short;

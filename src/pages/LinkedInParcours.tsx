@@ -16,6 +16,7 @@ import { handleQuotaError } from "@/lib/quota-error-handler";
 import { Sparkles, Copy, Check, Plus, Trash2, Lightbulb } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 interface Experience {
   id?: string;
@@ -122,9 +123,14 @@ function LinkedInParcoursForm() {
       }
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
-      let parsed: any;
-      try { parsed = JSON.parse(content); } catch { const m = content.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
-      if (parsed) setSkills(parsed);
+      const parsed = tryParseAiJson<any>(content, "linkedin-parcours-competences");
+      if (!parsed || typeof parsed !== "object" || (!Array.isArray(parsed.techniques) && !Array.isArray(parsed.comportementales))) {
+        throw new Error("Réponse IA illisible : aucune compétence reçue.");
+      }
+      setSkills({
+        techniques: Array.isArray(parsed.techniques) ? parsed.techniques : [],
+        comportementales: Array.isArray(parsed.comportementales) ? parsed.comportementales : [],
+      });
     } catch (e: any) {
       if (!store.active.current) return;
       console.error("Erreur technique:", e);

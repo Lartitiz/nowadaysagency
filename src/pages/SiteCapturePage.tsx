@@ -12,6 +12,7 @@ import { Copy, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { friendlyError } from "@/lib/error-messages";
+import { parseAiJson } from "@/lib/parse-ai-json";
 
 interface CaptureResult {
   title: string;
@@ -96,8 +97,7 @@ function WorkspaceCapturePage({ workspaceId }: { workspaceId: string }) {
       if (!isCurrent()) return;
       if (error) throw new Error(error.message);
       const raw = data?.content || "";
-      const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      const generated = JSON.parse(cleaned);
+      const generated = parseAiJson<any>(raw, "site-page-capture");
       if (!generated || typeof generated.title !== "string") throw new Error("Réponse de génération invalide");
       updateDraft({ result: generated });
     } catch (e: unknown) {

@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { trackError } from "@/lib/error-tracker";
 import { toast } from "sonner";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 export interface CompletionCtx {
   column: string;
@@ -149,9 +149,10 @@ async function fillMissingPersonaFields(
   let fillInsights: Record<string, any> = {};
   if (fillResponse) {
     if (typeof fillResponse === "string") {
-      try {
-        fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-      } catch (e) { trackError(e, { where: "branding.coaching.fillInsights" }); toast.error("L'IA a renvoyé une réponse inattendue. Réessaie dans un instant."); }
+      // Lecteur partagé : null si illisible (warning déjà loggué), même toast qu'avant.
+      const read = tryParseAiJson<Record<string, any>>(fillResponse, "branding.coaching.fillInsights");
+      if (read && typeof read === "object") fillInsights = read;
+      else toast.error("L'IA a renvoyé une réponse inattendue. Réessaie dans un instant.");
     } else if (typeof fillResponse === "object") {
       fillInsights = fillResponse.extracted_insights || fillResponse;
     }
@@ -207,12 +208,10 @@ async function generatePersonaPitches(currentPersona: Record<string, any>, ctx: 
     }, 60000);
 
     if (pitchData?.content) {
-      let pitchParsed: any;
-      try {
-        pitchParsed = typeof pitchData.content === "string"
-          ? JSON.parse(pitchData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim())
-          : pitchData.content;
-      } catch (e) { trackError(e, { where: "branding.coaching.pitch" }); }
+      // null si illisible (warning loggué par le lecteur partagé) : pitch ignoré comme avant.
+      const pitchParsed: any = typeof pitchData.content === "string"
+        ? tryParseAiJson<any>(pitchData.content, "branding.coaching.pitch")
+        : pitchData.content;
 
       if (pitchParsed) {
         const pitchUpdate: Record<string, string> = {};

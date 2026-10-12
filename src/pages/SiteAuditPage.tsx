@@ -26,6 +26,7 @@ import { useDiagnosticCache } from "@/hooks/use-diagnostic-cache";
 import DiagnosticCacheBanner from "@/components/audit/DiagnosticCacheBanner";
 import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import { parseAiJson } from "@/lib/parse-ai-json";
 
 // ── Loading messages ──
 const LOADING_MESSAGES = [
@@ -341,7 +342,7 @@ const SiteAuditPage = () => {
       if (error) throw new Error(error.message);
       const raw = data?.content || data;
       let parsed;
-      try { const str = typeof raw === "string" ? raw : JSON.stringify(raw); parsed = typeof raw === "object" && raw.first_impression ? raw : JSON.parse(str.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim()); } catch { throw new Error("Format de réponse inattendu"); }
+      try { const str = typeof raw === "string" ? raw : JSON.stringify(raw); parsed = typeof raw === "object" && raw.first_impression ? raw : parseAiJson(str, "site-audit-capture"); } catch { throw new Error("Format de réponse inattendu"); }
       setScreenshotResult(parsed);
     } catch (err) { if (active.current) toast.error(friendlyError(err)); } finally { setScreenshotLoading(false); }
   };

@@ -21,6 +21,7 @@ import RedFlagsChecker from "@/components/RedFlagsChecker";
 import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { friendlyError } from "@/lib/error-messages";
+import { tryParseAiJson } from "@/lib/parse-ai-json";
 
 // ── Types ──
 type ScreenshotType = "profile" | "about" | "feed" | "experience" | "other";
@@ -259,15 +260,9 @@ function LinkedInAuditForm() {
         throw new Error(errorMsg);
       }
 
-      let parsed: AuditResult;
       const content = res.data?.content || "";
-      try {
-        parsed = JSON.parse(content);
-      } catch {
-        const match = content.match(/\{[\s\S]*\}/);
-        if (match) parsed = JSON.parse(match[0]);
-        else throw new Error("Format de réponse inattendu");
-      }
+      const parsed = tryParseAiJson<AuditResult>(content, "linkedin-audit");
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Format de réponse inattendu");
 
       setResult(parsed);
 
