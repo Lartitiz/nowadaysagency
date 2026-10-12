@@ -50,6 +50,13 @@
       "when": 1791144537690,
       "tag": "0006_carousel_media_backup_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791809191603,
+      "tag": "0007_owner_workspace_single_creation",
+      "breakpoints": true
     }
   ]
 }
