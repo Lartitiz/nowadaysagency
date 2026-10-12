@@ -45,6 +45,8 @@ Deno.test("stock-ambient : une description qui montre une personne, une main ou 
   assert(!acceptableAlt("Woman holding a cup of tea"));
   assert(!acceptableAlt("Hands kneading clay"));
   assert(!acceptableAlt("Soap bars in a cosmetic bottle"));
+  assert(!acceptableAlt("Colorful craft supplies for DIY projects"));
+  assert(!acceptableAlt("Organized jars on wooden shelves"));
   assert(!acceptableAlt(""));
 });
 
@@ -56,8 +58,16 @@ Deno.test("stock-ambient : lecture stricte des requêtes et des choix", () => {
   assertEquals([...q.entries()], [[3, "linen texture morning light"]]);
   const p = { id: "1", url: "u", thumbnail: "t", alt: "a", photographer: "", photographer_url: "", source_url: "" };
   const candidates = new Map([[3, [p]], [5, [p, { ...p, id: "2" }]]]);
-  const c = parseChoices(JSON.stringify({ choices: [{ slide: 3, photo: "1" }, { slide: 5, photo: "1" }, { slide: 7, photo: "2" }] }), candidates);
+  const ok = (photo: string) => ({ photo, people: false, products_or_text: false });
+  const c = parseChoices(JSON.stringify({ choices: [{ slide: 3, photo: "1" }, { slide: 5, photo: "1" }, { slide: 7, photo: "2" }], checks: [ok("1"), ok("2")] }), candidates);
   assertEquals([...c.keys()], [3]);
+  // Produit, texte ou personne déclaré, ou contrôle absent : jamais choisie (vu en réel : des savons faits main chez une savonnière).
+  const pick = (checks: any[]) => [...parseChoices(JSON.stringify({ choices: [{ slide: 5, photo: "2" }], checks }), candidates).keys()];
+  assertEquals(pick([ok("2")]), [5]);
+  assertEquals(pick([{ photo: "2", people: false, products_or_text: true }]), []);
+  assertEquals(pick([{ photo: "2", people: true, products_or_text: false }]), []);
+  assertEquals(pick([]), []);
+  assertEquals(pick([ok("2"), { photo: "2", people: false, products_or_text: true }]), []);
 });
 
 Deno.test("stock-ambient : photo vérifiée posée sur la slide, la photo de l'utilisatrice reste en secours", async () => {
@@ -68,10 +78,11 @@ Deno.test("stock-ambient : photo vérifiée posée sur la slide, la photo de l'u
     if (opts.tool.name === "requetes_ambiance") {
       return JSON.stringify({ queries: [{ slide: 2, query: "linen texture" }, { slide: 3, query: "linen texture" }] });
     }
-    return JSON.stringify({ choices: [{ slide: 2, photo: "11", reason: "Lin calme" }, { slide: 3, photo: "12", reason: "Lumière" }] });
+    return JSON.stringify({ choices: [{ slide: 2, photo: "11", reason: "Lin calme" }, { slide: 3, photo: "12", reason: "Lumière" }],
+      checks: ["11", "12", "13"].map((photo) => ({ photo, people: false, products_or_text: false })) });
   }) as any;
   const out = await addStockAmbientPhotos(doc(["ambient_fallback", "ambient_fallback", "ambient_fallback"]), {
-    body: body(3), startedAt: Date.now(), usage: {}, call, apiKey: "k", logger: () => {},
+    body: body(3), startedAt: Date.now(), usage: {}, call, apiKey: "k", logger: () => {}, brandingContext: "Savonnerie artisanale à froid",
     fetchImpl: fakeFetch({ "linen texture": [pexelsPhoto(10, "Woman on linen"), pexelsPhoto(11, "Linen texture"), pexelsPhoto(12, "Linen fold"), pexelsPhoto(13, "Linen in light")] }, calls),
   });
   // Une seule recherche par requête identique.
@@ -84,6 +95,8 @@ Deno.test("stock-ambient : photo vérifiée posée sur la slide, la photo de l'u
   assertEquals(out.photo_review.stock_ambient.status, "completed");
   assertEquals(out.photo_review.stock_ambient.slides, [2, 3]);
   // La photo décrite avec une personne n'est jamais montrée au vérificateur ; candidats distincts entre slides.
+  // Le vérificateur sait ce que vend la marque (pour refuser ses produits).
+  assert(prompts[1].messages[0].content[0].text.includes("Savonnerie artisanale"));
   const shown = prompts[1].messages[0].content.filter((c: any) => c.type === "image").map((c: any) => c.source.url);
   assert(!shown.some((u: string) => u.includes("/10/")));
   assertEquals(new Set(shown).size, shown.length);
