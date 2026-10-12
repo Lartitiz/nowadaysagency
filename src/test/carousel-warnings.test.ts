@@ -30,14 +30,43 @@ describe("Avertissements carrousel : manques vs pistes de relecture", () => {
     expect(out.suggestions).toHaveLength(1);
   });
 
-  it("contrôle non abouti, texte modifié et photo répétée = suggestions", () => {
+  it("texte modifié et photo répétée = suggestions ; contrôle non abouti = rien (panne de notre côté)", () => {
     const out = splitCarouselWarnings({ structure_warnings: [
       "Le contrôle final du fil n’a pas abouti. Relis l’enchaînement des slides avant de publier.",
       "Le texte a changé depuis sa relecture. Vérifie le fil avant de publier.",
       "La photo 3 revient sur 4 slides : tu peux en changer quelques-unes.",
     ] });
     expect(out.blocking).toEqual([]);
-    expect(out.suggestions).toHaveLength(3);
+    expect(out.suggestions).toHaveLength(2);
+    expect(out.suggestions.join(" ")).not.toMatch(/pas pu être relu|n’a pas abouti/);
+  });
+
+  // 12/10/2026 : en photo et mixte, les constats du juge portaient sur les
+  // photos ou sur des faits de la fiche de marque. Le juge répare en coulisses.
+  it("photo et mixte : constats du juge non affichés, photo répétée et retouches gardées", () => {
+    for (const mode of ["photo", "mix"]) {
+      const out = splitCarouselWarnings({ structure_warnings: [RAW, "La photo 3 revient sur 4 slides : tu peux en changer quelques-unes."], progression_review: receipt }, mode);
+      expect(out).toEqual({ blocking: [], suggestions: ["La photo 3 revient sur 4 slides : tu peux en changer quelques-unes."] });
+    }
+    // Sans sous-mode (carrousel rouvert) : le type enregistré décide.
+    expect(splitCarouselWarnings({ carousel_type: "photo", structure_warnings: [RAW], progression_review: receipt }).suggestions).toEqual([]);
+    // Texte : le constat reste.
+    expect(splitCarouselWarnings({ carousel_type: "analyse argumentée", structure_warnings: [RAW], progression_review: receipt }, "text").suggestions).toHaveLength(1);
+  });
+
+  it("texte : libellés qui disent quoi faire (chiffre à vérifier, rapprochement plaqué)", () => {
+    const report = (defects: any[]) => ({ structure_warnings: ["i1"], progression_review: { execution_status: "completed", issues: ["i1"],
+      report: { verdict: "needs_repair", trajectory: { kind: "developed_idea" }, boundaries: [], defects } } });
+    const out = splitCarouselWarnings(report([
+      { slide_ids: ["slides.3"], type: "unsupported", excerpt: "5 à 10 fois plus d'enregistrements", reason: "Deux affirmations chiffrées décisives, source datée 2026 invérifiable.", repair: "Retirer ou sourcer." },
+      { slide_ids: ["slides.5"], type: "juxtaposition", excerpt: "Comme mes savons", reason: "Analogie décorative plaquée sur la démonstration.", repair: "Relier." },
+      { slide_ids: ["slides.6"], type: "unsupported", excerpt: "Une étude Buffer", reason: "L'étude Buffer est présentée sans source.", repair: "Sourcer." },
+    ]), "text");
+    expect(out.suggestions).toEqual([
+      "Slide 4 : à relire, vérifie ce chiffre ou cette étude, sa source n’est pas confirmée (« 5 à 10 fois plus d'enregistrements »).",
+      "Slide 6 : à relire, le rapprochement paraît plaqué, montre en quoi il éclaire ton propos (« Comme mes savons »).",
+      "Slide 7 : à relire, vérifie ce chiffre ou cette étude, sa source n’est pas confirmée (« Une étude Buffer »).",
+    ]);
   });
 
   it("ruptures et extrait long : libellés courts", () => {

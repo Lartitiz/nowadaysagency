@@ -675,7 +675,7 @@ function CreerWorkspace() {
     streamStage,
     streamReset,
   } = useContentGenerator();
-  const currentWarnings = useMemo(() => splitCarouselWarnings(invalidateProgressionReceipt(result?.raw || {})), [result?.raw]);
+  const currentWarnings = useMemo(() => splitCarouselWarnings(invalidateProgressionReceipt(result?.raw || {}), carouselSubMode), [result?.raw, carouselSubMode]);
 
   const [studioSlideId, setStudioSlideId] = useState<string | null>(null);
   const carouselCloudEnabled = workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive && step === "result" && selectedFormat === "carousel" && !!(result?.raw?.carousel_editor_version || result?.raw?.carousel_studio_version);
