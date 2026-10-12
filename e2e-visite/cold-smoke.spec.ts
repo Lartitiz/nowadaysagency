@@ -165,7 +165,15 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
   // 3) ENTRÉE dans le diagnostic — se charge et avance de quelques écrans SANS
   //    écran blanc (classe de bug historique #261/#267). On ne déroule PAS les
   //    12 étapes (fragile en quotidien → qa-neuf périodique).
-  await page.goto("/onboarding", { waitUntil: "domcontentloaded" });
+  // 🔑 12/10 — PAS de rechargement quand on y est déjà : le SIGNED_IN route vers
+  // /onboarding AVANT la fin de l'insert `profiles` de SignupForm (et du
+  // chargement des espaces). Un `page.goto` à ce moment ANNULE ces requêtes
+  // (net::ERR_ABORTED) → faux signaux « Signup profile insert failed / Failed
+  // to load workspaces: Failed to fetch ». Prouvé par `requestfailed` : ni base
+  // froide ni bug de l'app (ligne profiles + espace bien créés côté serveur).
+  if (new URL(page.url()).pathname !== "/onboarding") {
+    await page.goto("/onboarding", { waitUntil: "domcontentloaded" });
+  }
   // Écran d'accueil du diagnostic : « Hey 👋 Bienvenue » + « C'est parti ».
   const welcomeCta = page.getByRole("button", { name: /C'est parti|Commencer/i }).first();
   await expect(welcomeCta, "L'accueil du diagnostic ne se charge pas (écran blanc ?)").toBeVisible({ timeout: 15000 });
