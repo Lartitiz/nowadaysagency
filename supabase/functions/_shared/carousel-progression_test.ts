@@ -5,8 +5,10 @@ import {
 import {
   progressionReceipt,
   isPhotoChoiceDefect,
+  enumValueForLog,
   idShape,
   isPhotoLimit,
+  normalizeEnumValue,
   normalizeDefectSlideId,
   progressionJudgeCallMs,
   progressionWarnings,
@@ -804,4 +806,44 @@ Deno.test("slide_ids ambigus : refus, relance, et formes refusées journalisées
   assertEquals(logged.initial.refused_slide_ids, [{ defect: 0, shapes: ["a 9"], type: "array" }]);
   assert(logged.initial.validation_details.defects);
   assert(!text.includes("deuxième"));
+});
+
+// Rejugement après réparation refusé deux fois `boundary-reference:0:kind` (12/10/2026).
+Deno.test("listes fermées : casse et séparateur remis en forme, valeur inconnue refusée et journalisée", async () => {
+  assertEquals(normalizeEnumValue("Visual pause", ["visual_pause"]), "visual_pause");
+  assertEquals(normalizeEnumValue("common-criterion", ["common_criterion"]), "common_criterion");
+  assertEquals(normalizeEnumValue("RUPTURE", ["rupture"]), "rupture");
+  assertEquals(normalizeEnumValue("contraste", ["rupture"]), "contraste");
+  assertEquals(normalizeEnumValue(undefined, ["rupture"]), undefined);
+  assertEquals(enumValueForLog("contrast"), "contrast");
+  assertEquals(enumValueForLog("Une longue phrase du carrousel, avec virgule"), "a a a a a, a a");
+  assertEquals(enumValueForLog(undefined), "undefined");
+
+  const fixed = await captureLog(() => reviewCarouselProgression(doc, { sources, call: async () => {
+    const r: any = valid();
+    r.boundaries[0].kind = "Progression";
+    return JSON.stringify(r);
+  } }));
+  assertEquals(fixed.out.execution_status, "completed");
+  assertEquals(fixed.out.report?.boundaries[0].kind, "progression");
+
+  // Une rupture écrite « Rupture » reste une rupture : jamais de feu vert.
+  const rupture = await reviewCarouselProgression(doc, { sources, call: async () => {
+    const r: any = valid();
+    r.boundaries[0].kind = "Rupture";
+    return JSON.stringify(r);
+  } });
+  assertEquals(rupture.execution_status, "completed");
+  assertEquals(rupture.verdict, "needs_repair");
+
+  const unknown = await captureLog(() => reviewCarouselProgression(doc, { sources, call: async () => {
+    const r: any = withDefect({ slide_ids: ["slides.1"], field_ids: ["slides.1.visual_schema.quote"], type: "style" });
+    r.boundaries[0].kind = "contrast";
+    return JSON.stringify(r);
+  } }));
+  assertEquals(unknown.out.execution_status, "invalid");
+  assertEquals(unknown.out.reason, "boundary-reference:0:kind");
+  assertEquals(unknown.logged.refused_boundary_kinds, [{ boundary: 0, kind: "contrast" }]);
+  assertEquals(unknown.logged.refused_defect_kinds, [{ defect: 0, type: "style", severity: "minor" }]);
+  assertEquals(unknown.logged.initial.refused_boundary_kinds, [{ boundary: 0, kind: "contrast" }]);
 });
