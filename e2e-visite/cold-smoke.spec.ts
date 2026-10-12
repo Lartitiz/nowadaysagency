@@ -66,6 +66,29 @@ async function shot(page: Page, name: string) {
   await page.screenshot({ path: path.join(SHOTS, `${name}.png`) }).catch(() => {});
 }
 
+/**
+ * Attend la fin des fondus (framer-motion part d'opacity 0) : l'opacité EFFECTIVE
+ * de l'élément = produit des opacités de ses ancêtres. Sans ça, la capture tombe
+ * au milieu du fondu et un écran à moitié transparent ressemble à un écran blanc.
+ * Best-effort : ne fait pas échouer le smoke (la visibilité est déjà prouvée).
+ */
+async function waitFullyOpaque(loc: ReturnType<Page["locator"]>) {
+  await expect
+    .poll(
+      () =>
+        loc
+          .evaluate((el) => {
+            let o = 1;
+            for (let n: Element | null = el; n; n = n.parentElement) o *= Number(getComputedStyle(n).opacity);
+            return o;
+          })
+          .catch(() => 0),
+      { timeout: 5000 },
+    )
+    .toBeGreaterThan(0.99)
+    .catch(() => console.log("ℹ️  fondu pas terminé à la capture (best-effort)"));
+}
+
 /** Nettoyage indépendant du navigateur : login API → token → edge delete-account. */
 async function deleteThrowawayAccount(): Promise<string> {
   if (!SUPABASE_URL || !ANON) return "skip (config Supabase absente)";
@@ -121,16 +144,23 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
   await page.waitForURL((u) => u.pathname === "/onboarding" || u.pathname === "/dashboard", {
     timeout: 30000,
   });
-  await page.waitForTimeout(1500);
+  // 🔑 12/10 — l'ancienne vérif `getByText(/Bienvenue|…/).isVisible({timeout})`
+  // passait sur un écran VIDE : (1) le toast sonner « Compte créé ! 🎉 /
+  // Bienvenue ! On prépare ton espace… » satisfaisait la regex ; (2) isVisible()
+  // n'attend pas (son timeout est ignoré). On attend donc un VRAI élément de
+  // la page — jamais un texte libre que le toast pourrait fournir — puis la
+  // fin du fondu framer-motion avant la capture.
+  // Bouton de l'accueil du diagnostic OU titre dans <main> du dashboard (le
+  // Toaster sonner est monté hors de <main> ; le squelette de chargement n'a
+  // aucun titre). `.or()` plutôt qu'un test d'URL : une redirection tardive
+  // /dashboard → /onboarding ne fausse pas le choix.
+  const landing = page
+    .getByRole("button", { name: /C'est parti/i })
+    .or(page.locator("main").getByRole("heading"))
+    .first();
+  await expect(landing, "Atterrissage nouveau·lle SANS guidage ni contenu (écran blanc ?)").toBeVisible({ timeout: 15000 });
+  await waitFullyOpaque(landing);
   await shot(page, "01-dashboard-nouveau");
-  const guided = await page
-    .getByText(
-      /Hey|Bienvenue|C'est parti|Termine ton diagnostic|Reprendre|premier contenu|Tes premiers pas|Salut/i,
-    )
-    .first()
-    .isVisible({ timeout: 8000 })
-    .catch(() => false);
-  expect(guided, "Atterrissage nouveau·lle SANS guidage ni contenu (écran blanc ?)").toBe(true);
 
   // 3) ENTRÉE dans le diagnostic — se charge et avance de quelques écrans SANS
   //    écran blanc (classe de bug historique #261/#267). On ne déroule PAS les
@@ -139,6 +169,7 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
   // Écran d'accueil du diagnostic : « Hey 👋 Bienvenue » + « C'est parti ».
   const welcomeCta = page.getByRole("button", { name: /C'est parti|Commencer/i }).first();
   await expect(welcomeCta, "L'accueil du diagnostic ne se charge pas (écran blanc ?)").toBeVisible({ timeout: 15000 });
+  await waitFullyOpaque(welcomeCta);
   await shot(page, "02-diagnostic-accueil");
   await welcomeCta.click();
 
@@ -159,7 +190,10 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
   // deux mots ? », OnboardingPhase1Profile). Sans cette mise à jour, le
   // best-effort imprimait « étape 2 non atteinte » à CHAQUE run, même quand le
   // diagnostic avançait parfaitement.
-  const step2 = await page.getByText(/tu fais quoi, en deux mots/i).first().isVisible({ timeout: 8000 }).catch(() => false);
+  // toBeVisible (qui ATTEND) et non isVisible({ timeout }) dont le délai est ignoré.
+  const step2 = await expect(page.getByText(/tu fais quoi, en deux mots/i).first())
+    .toBeVisible({ timeout: 8000 })
+    .then(() => true, () => false);
   await shot(page, "04-diagnostic-etape2");
   if (!step2) console.log("ℹ️  étape 2 non atteinte au clic Suivant (best-effort) — l'entrée diagnostic reste OK");
 
