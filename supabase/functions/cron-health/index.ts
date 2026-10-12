@@ -29,6 +29,8 @@ import { compte, debutMoisUtc, jugerBudgetHiggsfield, somme } from "./higgsfield
 import { gardeRediteStats, hasPreviewText } from "./garde-redite.ts";
 import { filStats } from "./fil-reparations.ts";
 import { dureesStats } from "./durees-carrousels.ts";
+import { planStats } from "./plan-carrousels.ts";
+import { CAROUSEL_PLAN_FORMAT } from "../_shared/carousel-plan-format.ts";
 import { isInternalEmail, isTestAccountEmail, maskEmail } from "../_shared/internal-accounts.ts";
 
 // Comptes internes exclus : liste UNIQUE partagée avec activation-funnel et
@@ -684,6 +686,10 @@ Deno.serve(async (req) => {
     // tant que la table n'existe pas encore (migration Lovable en attente).
     let cqEvents: any[] | null = null;
     let cqAll: any[] = []; // comptes internes compris (coût de la recette, plus bas)
+    // Lignes du plan des carrousels (format carousel_plan, aucun contenu ni
+    // score) : mises à part, sinon elles gonfleraient « N notés sur M ».
+    let planAll: any[] = [];
+    let planClients: any[] | null = null;
     try {
       let cqRows: any[];
       try {
@@ -705,6 +711,9 @@ Deno.serve(async (req) => {
           (q) => q.gte("created_at", since35d),
         );
       }
+      planAll = cqRows.filter((e: any) => e.format === CAROUSEL_PLAN_FORMAT);
+      planClients = planAll.filter((e: any) => isClient(e.user_id));
+      cqRows = cqRows.filter((e: any) => e.format !== CAROUSEL_PLAN_FORMAT);
       cqAll = cqRows;
       cqEvents = cqRows.filter((e: any) => isClient(e.user_id));
     } catch (_) { /* table absente : repli sur les brouillons */ }
@@ -919,6 +928,15 @@ Deno.serve(async (req) => {
             cette_semaine: dureesStats(cqEvents, (d) => inWindow(d, curFrom, curTo)),
             semaine_precedente: dureesStats(cqEvents, (d) => inWindow(d, prevFrom, prevTo)),
             comptes_internes_7j: dureesStats(cqAll.filter((e: any) => internalIds.has(e.user_id)), (d) => inWindow(d, curFrom, curTo)),
+          }
+        : null,
+      // Plan des carrousels (12/10/2026) : durée, second appel, plans vides ou de
+      // mauvaise longueur, au-delà des 170 s de l'écran (cf. plan-carrousels.ts).
+      plan_carrousels: planClients
+        ? {
+            cette_semaine: planStats(planClients, (d) => inWindow(d, curFrom, curTo)),
+            semaine_precedente: planStats(planClients, (d) => inWindow(d, prevFrom, prevTo)),
+            comptes_internes_7j: planStats(planAll.filter((e: any) => internalIds.has(e.user_id)), (d) => inWindow(d, curFrom, curTo)),
           }
         : null,
       retravail: { total_carrousels: carCur.length, retravailles, sujets_regeneres },

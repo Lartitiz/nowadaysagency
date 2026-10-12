@@ -27,7 +27,7 @@ import { carouselNeedsPolish, extractCarouselTexts, reinjectCarouselTexts } from
 import { audienceAddressRule, enforceAudienceAddress, parseAudienceAddress, type AudienceAddress, type AudienceAddressPass } from "../_shared/audience-address.ts";
 import { applyAudienceAddressPass } from "../_shared/audience-address-pass.ts";
 import { runRedacGate, rescoreCaptionOnly, applyGuardedCarouselCorrection, analyzeCarouselRedac, numbersIn, type CaptionEndingRule, type EchoContext } from "../_shared/redac-gate.ts";
-import { carouselDurations, logContentQuality, threadOutcome } from "../_shared/content-quality.ts";
+import { carouselDurations, carouselPlanReport, logCarouselPlan, logContentQuality, threadOutcome } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import { fetchRecentContentTexts, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
@@ -43,7 +43,7 @@ import { extractImagePayload } from "../_shared/image-utils.ts";
 import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex, normalizeOverlayStyles, analyzeMixComposition, assignDistinctStructurePhotos } from "../_shared/photo-slide-structure.ts";
 import { assignPhotoTemplates, assignTemplatesToProvidedSlides, revalidatePhotoLayoutContent, stripWriterLayoutFields } from "../_shared/photo-template-assign.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
-import { describePlanShape, hedgedStructureCall, reviveStringSlides, StructureDeadlineError } from "./structure-hedge.ts";
+import { describePlanShape, type HedgeReport, hedgedStructureCall, reviveStringSlides, StructureDeadlineError } from "./structure-hedge.ts";
 
 // ── Seam d'injection de dépendances (tests) ──
 // Indirection pure : en prod, ces champs pointent vers les imports ci-dessus
@@ -62,6 +62,7 @@ export const _deps = {
   matchPhotos: matchFinalPhotos,
   fetchDepthMaterial,
   audienceAddressPass: applyAudienceAddressPass,
+  logPlan: logCarouselPlan,
 };
 
 // ── Sortie structurée pour les deepening_questions ──
@@ -2220,7 +2221,55 @@ async function handleExpressFullRequest(reqCtx: CarouselRequestContext): Promise
   return runGenerationAndRespond("express_full", userPrompt, reqCtx);
 }
 
+// Compte rendu du plan, rempli par proposeStructure et gardé en base
+// (content_quality_events, format carousel_plan) : nombres seulement.
+interface StructureTelemetry {
+  hedge: HedgeReport | null;
+  emptyPlans: number;
+  offLengthPlans: number;
+  requestedSlides: number | null;
+  model?: string;
+}
+
 async function handleStructureProposalRequest(reqCtx: CarouselRequestContext): Promise<Response> {
+  const t: StructureTelemetry = { hedge: null, emptyPlans: 0, offLengthPlans: 0, requestedSlides: null };
+  let res: Response | null = null;
+  let thrown: unknown = undefined;
+  try {
+    res = await proposeStructure(reqCtx, t);
+    return res;
+  } catch (e) {
+    thrown = e ?? "autre";
+    throw e;
+  } finally {
+    await recordStructureProposal(reqCtx, t, res, thrown);
+  }
+}
+
+async function recordStructureProposal(reqCtx: CarouselRequestContext, t: StructureTelemetry, res: Response | null, thrown: unknown): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const response = res ? await res.clone().json().catch(() => null) : null;
+    const photos = Array.isArray(reqCtx.body?.photos) ? reqCtx.body.photos.length : 0;
+    const plan = carouselPlanReport({
+      carouselType: reqCtx.body?.carousel_type,
+      durationMs: Date.now() - reqCtx.startedAt,
+      hedge: t.hedge, emptyPlans: t.emptyPlans, offLengthPlans: t.offLengthPlans,
+      photos, requestedSlides: t.requestedSlides, response, thrown,
+    });
+    // Jamais plus de 2 s ajoutées au plan, même si la base traîne.
+    await Promise.race([
+      _deps.logPlan(reqCtx.userId, reqCtx.workspaceId, plan, t.model),
+      new Promise<void>((resolve) => { timer = setTimeout(resolve, 2_000); }),
+    ]);
+  } catch (e) {
+    console.error("[carousel-ai] compte rendu du plan ignoré :", (e as any)?.message || e);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function proposeStructure(reqCtx: CarouselRequestContext, t: StructureTelemetry): Promise<Response> {
   const { body, brandingContext, newsContext, corsHeaders } = reqCtx;
   const { subject, carousel_type, objective, editorial_angle, deepening_answers, photos, photo_description } = body;
   const hasPhotos = photos && Array.isArray(photos) && photos.length > 0;
@@ -2355,6 +2404,7 @@ Propose la structure optimale.`;
       tool: STRUCTURE_PROPOSAL_TOOL,
     };
   }
+  t.model = callOptions.model;
 
   // PAS de logUsage — cet appel est gratuit.
   // Appel lent : un second appel identique part en parallèle (structure-hedge.ts).
@@ -2370,6 +2420,7 @@ Propose la structure optimale.`;
   // slides pour 10 demandées (vu en ligne le 11/10) en donnerait 7 sans le
   // dire : on redemande, et on garde le plan le plus proche si aucun ne tombe juste.
   const exactSlides = carouselLength(body).exact;
+  t.requestedSlides = exactSlides ?? null;
   let offLengthPlan: any = null;
   const keepClosest = (plan: any) => {
     if (!offLengthPlan || Math.abs(plan.slides.length - exactSlides!) < Math.abs(offLengthPlan.slides.length - exactSlides!)) offLengthPlan = plan;
@@ -2380,12 +2431,14 @@ Propose la structure optimale.`;
       const parsed: any = reviveStringSlides(tryParseAiJson(content, "carousel-ai:structure_proposal"));
       if (!parsed || (!hasSlides(parsed) && !(hasPhotos && hasMismatch(parsed)))) {
         emptyPlans++;
+        t.emptyPlans = emptyPlans;
         // Cause des plans vides inconnue (1 sur 12 le 10/10) : forme de la réponse, jamais le texte.
         console.warn(JSON.stringify({ type: "carousel_structure_empty", call: n, ...describePlanShape(parsed, content) }));
         throw new Error(parsed ? "structure_vide" : "structure_illisible");
       }
       if (exactSlides && hasSlides(parsed) && parsed.slides.length !== exactSlides) {
         keepClosest(parsed);
+        t.offLengthPlans++;
         console.warn(JSON.stringify({ type: "carousel_structure_length", call: n, slides: parsed.slides.length, requested: exactSlides }));
         throw new Error("structure_longueur");
       }
@@ -2393,7 +2446,7 @@ Propose la structure optimale.`;
     }, {
       elapsedMs: Date.now() - reqCtx.startedAt,
       ...(Number.isFinite(qaHedgeAfter) && qaHedgeAfter > 0 ? { hedgeAfterMs: qaHedgeAfter } : {}),
-      onReport: (report) => console.log(JSON.stringify({ type: "carousel_structure_proposal", ...report, empty_plans: emptyPlans, ...(offLengthPlan ? { off_length_slides: offLengthPlan.slides.length, requested_slides: exactSlides } : {}), photos: hasPhotos ? photos.length : 0 })),
+      onReport: (report) => (t.hedge = report, console.log(JSON.stringify({ type: "carousel_structure_proposal", ...report, empty_plans: emptyPlans, ...(offLengthPlan ? { off_length_slides: offLengthPlan.slides.length, requested_slides: exactSlides } : {}), photos: hasPhotos ? photos.length : 0 }))),
     });
   } catch (err) {
     const reason = (err as Error)?.message;

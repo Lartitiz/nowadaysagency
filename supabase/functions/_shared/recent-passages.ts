@@ -16,6 +16,7 @@
 // bloquante. Toute erreur renvoie [] et la génération reste exactement celle
 // d'avant. Une garde qualité ne doit JAMAIS faire échouer une génération.
 import { getServiceClient } from "./plan-limiter.ts";
+import { CAROUSEL_PLAN_FORMAT } from "./carousel-plan-format.ts";
 import { findRecentEchoes } from "./redac-gate.ts";
 
 /** Au-delà, reprendre un fait de la marque redevient légitime. */
@@ -82,7 +83,8 @@ export async function fetchRecentContentTexts(
     const [saved, events] = await Promise.all([
       scope(sb.from("generated_carousels").select("hook_text, slides, caption, created_at"))
         .gte("created_at", since).order("created_at", { ascending: false }).limit(limit),
-      scope(sb.from("content_quality_events").select("content_preview, created_at"))
+      // Lignes du plan des carrousels (carousel_plan) : aucun texte, écartées.
+      scope(sb.from("content_quality_events").select("content_preview, created_at")).neq("format", CAROUSEL_PLAN_FORMAT)
         .gte("created_at", since).order("created_at", { ascending: false }).limit(limit * 2),
     ]);
     const rows: { at: string; text: string }[] = [];
