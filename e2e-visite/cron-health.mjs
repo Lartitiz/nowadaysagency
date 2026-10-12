@@ -285,6 +285,28 @@ try {
           for (const [label, d] of internes) console.log(ligne(label, d));
         }
       }
+      // Plan des carrousels (12/10/2026) : gratuit, gardé en base depuis
+      // (format carousel_plan). L'écran attend 170 s, le second appel part à 80 s.
+      const plan = q.plan_carrousels;
+      if (plan === undefined) {
+        console.log("   plan des carrousels : non mesuré (edge cron-health pas redéployée)");
+      } else if (plan) {
+        const ligne = (type, p) => {
+          const duree = p.duree ? `durée ${p.duree.mediane}/${p.duree.p90}/${p.duree.max} s` : "aucune durée";
+          const erreurs = Object.entries(p.erreurs || {}).map(([k, n]) => `${k}×${n}`).join(", ");
+          const photos = p.slides_obtenues ? `, slides avec photo ${p.slides_avec_photo}/${p.slides_obtenues}` : "";
+          return `      ${String(type).padEnd(18)} ${p.plans} plan(s) : ${duree} ; second appel ${p.second_appel}/${p.plans} (${pct(p.second_appel, p.plans)}, gagné ${p.gagnes_par_second}), plans vides ${p.avec_plan_vide} (${p.reponses_vides} réponse(s)), mauvaise longueur ${p.mauvaise_longueur} (rendus hors longueur ${p.longueur_approchee}), > 170 s ${p.au_dela_170s}${photos}${erreurs ? `, erreurs : ${erreurs}` : ""}`;
+        };
+        const cur = Object.entries(plan.cette_semaine || {});
+        const prev = Object.values(plan.semaine_precedente || {}).reduce((n, p) => n + p.plans, 0);
+        const internes = Object.entries(plan.comptes_internes_7j || {});
+        console.log(`   plan des carrousels (médiane/90e centile/max) : ${cur.length ? "" : "aucun plan client mesuré"}  (S-1 : ${prev} plan(s))`);
+        for (const [type, p] of cur) console.log(ligne(type, p));
+        if (internes.length) {
+          console.log("      comptes internes :");
+          for (const [type, p] of internes) console.log(ligne(type, p));
+        }
+      }
       const pf = q.par_format || {};
       const formats = Object.entries(pf).sort((a, b) => b[1].generes - a[1].generes);
       if (formats.length) {

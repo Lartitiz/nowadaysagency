@@ -12,6 +12,7 @@
 // une liste vide, et le gate retombe exactement sur son comportement d'avant.
 // Une garde qualité ne doit JAMAIS pouvoir faire échouer une génération.
 import { getServiceClient } from "./plan-limiter.ts";
+import { CAROUSEL_PLAN_FORMAT } from "./carousel-plan-format.ts";
 
 /** Fenêtre de recherche : au-delà, une reprise du même angle est légitime. */
 const LOOKBACK_DAYS = 30;
@@ -58,6 +59,8 @@ export async function fetchPreviousHooks(
       .from("content_quality_events")
       .select("content_preview, created_at")
       .eq("user_id", userId)
+      // Lignes du plan des carrousels : aucun contenu, elles prendraient la place des accroches.
+      .neq("format", CAROUSEL_PLAN_FORMAT)
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       // On filtre le sujet côté code (la clé est normalisée) : on ratisse donc

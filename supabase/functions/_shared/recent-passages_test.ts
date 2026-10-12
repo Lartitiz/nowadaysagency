@@ -52,6 +52,7 @@ function fakeClient(tables: Record<string, any>, calls: string[] = []) {
     from(name: string) {
       const q: any = {
         select: () => q, gte: () => q, order: () => q, limit: () => q,
+        neq: (col: string, v: string) => { calls.push(`${name}.${col}!=${v}`); return q; },
         eq: (col: string, v: string) => { calls.push(`${name}.${col}=${v}`); return q; },
         is: (col: string) => { calls.push(`${name}.${col} is null`); return q; },
         then: (ok: any, ko: any) => Promise.resolve(tables[name]).then(ok, ko),
@@ -71,7 +72,8 @@ Deno.test("lecture : fusionne carrousels gardés et extraits, plus récent d'abo
     ] },
   }, calls));
   assertEquals(texts, ["Récent", "Gardé"]);
-  assertEquals(calls, ["generated_carousels.workspace_id=w1", "content_quality_events.workspace_id=w1"]);
+  // Lignes du plan des carrousels (sans texte) écartées en base : elles prendraient la place des contenus.
+  assertEquals(calls, ["generated_carousels.workspace_id=w1", "content_quality_events.workspace_id=w1", "content_quality_events.format!=carousel_plan"]);
 });
 
 Deno.test("lecture : erreur ou table absente → [] (la génération ne dépend jamais de cette garde)", async () => {

@@ -20,6 +20,7 @@
 import { getServiceClient, isQaTestAccount } from "./plan-limiter.ts";
 import { measureSlopSignals, type RedacGateResult } from "./redac-gate.ts";
 import { subjectKey } from "./previous-hooks.ts";
+import { CAROUSEL_PLAN_FORMAT } from "./carousel-plan-format.ts";
 
 const trunc = (s: unknown, n: number): string =>
   typeof s === "string" ? s.replace(/\s+/g, " ").trim().slice(0, n) : "";
@@ -320,5 +321,96 @@ export async function logContentQuality(
     if (error) throw error;
   } catch (e) {
     console.error("[content-quality] insert ignoré (génération intacte) :", (e as any)?.message || e);
+  }
+}
+
+// ── Plan des carrousels (structure_proposal), 12/10/2026 ──
+// Le plan est gratuit et n'écrit rien d'autre en base : son compte rendu ne
+// partait que dans les journaux edge (carousel_structure_proposal), effacés en
+// quelques heures. Un plan à 164 s (10/10) n'aurait été vu par aucune routine.
+// Une ligne par plan dans content_quality_events (sans migration), format
+// CAROUSEL_PLAN_FORMAT, redac_score null, content_preview.plan : nombres et
+// codes seulement, JAMAIS de texte du plan. Ces lignes n'ont pas de contenu :
+// les lectures de contenus (previous-hooks, recent-passages, cron-health) les écartent.
+export { CAROUSEL_PLAN_FORMAT };
+
+/** Code court d'une erreur du plan, jamais son message (qui peut citer la réponse). */
+export function carouselPlanErrorCode(e: unknown): string | null {
+  if (e == null || e === "") return null;
+  const msg = String((e as any)?.message ?? e);
+  const known = msg.match(/\b(structure_(?:vide|illisible|longueur|timeout)|photo_mismatch)\b/);
+  if (known) return known[1];
+  if (/timeout|trop de temps/i.test(msg)) return "delai";
+  if (/abort|annul/i.test(msg)) return "annule";
+  const status = Number((e as any)?.status) || Number(msg.match(/\b([45]\d\d)\b/)?.[1]);
+  return status ? `http_${status}` : "autre";
+}
+
+export interface CarouselPlanInput {
+  carouselType?: unknown;
+  durationMs: number;
+  /** Compte rendu du rattrapage (structure-hedge.ts), null si l'appel n'a pas eu lieu. */
+  hedge?: { winner: 1 | 2 | null; calls: number; timed_out?: boolean; first_error?: string; second_error?: string } | null;
+  emptyPlans: number;
+  offLengthPlans: number;
+  photos: number;
+  requestedSlides: number | null;
+  /** Réponse rendue à l'écran : { result } ou { error }. */
+  response?: { result?: any; error?: unknown } | null;
+  /** Exception levée par le plan (réponse 500 générique à l'écran). */
+  thrown?: unknown;
+}
+
+export function carouselPlanReport(i: CarouselPlanInput): Record<string, unknown> {
+  const slides = Array.isArray(i.response?.result?.slides) ? i.response!.result.slides : null;
+  const type = ["photo", "mix"].includes(String(i.carouselType)) ? String(i.carouselType) : "texte";
+  const responseError = i.response?.error;
+  const erreur = i.thrown !== undefined
+    ? carouselPlanErrorCode(i.thrown) ?? "autre"
+    : responseError === undefined || responseError === null ? null
+    // Le 500 « Impossible de parser la structure proposée » n'a pas de code.
+    : /^[a-z_]{3,40}$/.test(String(responseError)) ? String(responseError) : "structure_illisible";
+  const requested = typeof i.requestedSlides === "number" && i.requestedSlides > 0 ? i.requestedSlides : null;
+  const h = i.hedge;
+  return {
+    type,
+    duree_ms: Math.max(0, Math.round(i.durationMs)),
+    appels: h?.calls ?? 0,
+    gagnant: h?.winner ?? null,
+    delai_depasse: !!h?.timed_out,
+    plans_vides: i.emptyPlans,
+    mauvaise_longueur: i.offLengthPlans,
+    photos: i.photos,
+    slides_demandees: requested,
+    slides_obtenues: slides ? slides.length : null,
+    slides_avec_photo: slides ? slides.filter((s: any) => Number.isInteger(s?.photo_index) && s.photo_index > 0).length : null,
+    // Plan rendu à une longueur autre que celle demandée (le plus proche gardé).
+    longueur_approchee: !!(slides && requested && slides.length !== requested),
+    erreur,
+    erreurs_appels: [h?.first_error, h?.second_error].map((e) => carouselPlanErrorCode(e)).filter(Boolean),
+  };
+}
+
+/** Écrit la ligne du plan. Comptes QA exclus ; un échec n'atteint jamais l'écran. */
+export async function logCarouselPlan(
+  userId: string,
+  workspaceId: string | null | undefined,
+  plan: Record<string, unknown>,
+  modelUsed?: string,
+  client: any = undefined,
+): Promise<void> {
+  if (!userId || isQaTestAccount(userId)) return;
+  try {
+    const { error } = await (client ?? getServiceClient()).from("content_quality_events").insert({
+      user_id: userId,
+      workspace_id: workspaceId || null,
+      format: CAROUSEL_PLAN_FORMAT,
+      model: modelUsed || null,
+      redac_score: null,
+      content_preview: { plan },
+    });
+    if (error) throw error;
+  } catch (e) {
+    console.error("[content-quality] plan non enregistré (plan intact) :", (e as any)?.message || e);
   }
 }

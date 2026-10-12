@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { buildContentPreview, carouselDurations } from "./content-quality.ts";
+import { buildContentPreview, CAROUSEL_PLAN_FORMAT, carouselDurations, carouselPlanErrorCode, carouselPlanReport, logCarouselPlan } from "./content-quality.ts";
 
 Deno.test("carrousel : aperçu depuis { slides, caption }", () => {
   const content = JSON.stringify({
@@ -131,4 +131,57 @@ Deno.test("durées du carrousel : nombres seulement, compteurs gardés, associat
     association: { status: "unavailable", raison: "selection-timeout", ambiance: 2 } });
   assertEquals(carouselDurations("express_full", { total_ms: 5 }, { content: "pas du json", avantSchemas: true }), { label: "express_full", total_ms: 5, avant_schemas: true });
   assertEquals(carouselDurations("photo", undefined), null);
+});
+
+// ── Plan des carrousels (12/10/2026) : nombres et codes seulement ──
+
+const planSlides = (n: number, withPhoto = n) => Array.from({ length: n }, (_, i) => ({
+  slide_number: i + 1, title_suggestion: `Titre secret ${i}`, strategic_note: "Note secrète", ...(i < withPhoto ? { photo_index: 1 } : {}),
+}));
+
+Deno.test("plan : compte rendu d'un plan rattrapé par le second appel, sans aucun texte", () => {
+  const plan = carouselPlanReport({
+    carouselType: "photo", durationMs: 123_456.7,
+    hedge: { winner: 2, calls: 2, first_error: "structure_vide" },
+    emptyPlans: 1, offLengthPlans: 0, photos: 3, requestedSlides: 10,
+    response: { result: { slides: planSlides(10, 8), narrative_thread: "Fil secret" } },
+  });
+  assertEquals(plan, {
+    type: "photo", duree_ms: 123_457, appels: 2, gagnant: 2, delai_depasse: false,
+    plans_vides: 1, mauvaise_longueur: 0, photos: 3, slides_demandees: 10, slides_obtenues: 10,
+    slides_avec_photo: 8, longueur_approchee: false, erreur: null, erreurs_appels: ["structure_vide"],
+  });
+  assertEquals(/secret/i.test(JSON.stringify(plan)), false, "jamais de texte du plan");
+});
+
+Deno.test("plan : erreurs rendues à l'écran et exceptions réduites à un code", () => {
+  const base = { durationMs: 1, emptyPlans: 0, offLengthPlans: 0, photos: 0, requestedSlides: null };
+  assertEquals(carouselPlanReport({ ...base, hedge: { winner: null, calls: 2, timed_out: true }, response: { error: "structure_timeout" } }).erreur, "structure_timeout");
+  assertEquals(carouselPlanReport({ ...base, response: { error: "Impossible de parser la structure proposée" } }).erreur, "structure_illisible");
+  assertEquals(carouselPlanReport({ ...base, thrown: Object.assign(new Error("Anthropic API error: overloaded « citation »"), { status: 529 }) }).erreur, "http_529");
+  assertEquals(carouselPlanReport({ ...base, carouselType: "storytelling", response: null }).type, "texte");
+  assertEquals(carouselPlanErrorCode("Anthropic fetch timeout après 35000ms"), "delai");
+  assertEquals(carouselPlanErrorCode("La proposition de structure a pris trop de temps."), "delai");
+  assertEquals(carouselPlanErrorCode(undefined), null);
+  assertEquals(carouselPlanErrorCode("Le modèle a écrit n'importe quoi"), "autre");
+});
+
+Deno.test("plan : plan le plus proche rendu à une autre longueur que demandée", () => {
+  const plan = carouselPlanReport({ carouselType: "mix", durationMs: 5, hedge: { winner: null, calls: 2, first_error: "structure_longueur", second_error: "structure_longueur" },
+    emptyPlans: 0, offLengthPlans: 2, photos: 2, requestedSlides: 10, response: { result: { slides: planSlides(9, 4) } } });
+  assertEquals([plan.mauvaise_longueur, plan.longueur_approchee, plan.slides_obtenues, plan.slides_avec_photo, plan.erreur], [2, true, 9, 4, null]);
+  assertEquals(plan.erreurs_appels, ["structure_longueur", "structure_longueur"]);
+});
+
+Deno.test("plan : écrit dans content_quality_events au format carousel_plan ; compte test jamais", async () => {
+  const inserts: any[] = [];
+  const client = { from: (t: string) => ({ insert: (row: any) => { inserts.push({ t, row }); return Promise.resolve({ error: null }); } }) };
+  await logCarouselPlan("52e6c03c-a7de-4c20-9b4a-276751f976e8", "w1", { duree_ms: 1 }, "m", client);
+  assertEquals(inserts.length, 0, "Camille (compte test) n'écrit rien");
+  await logCarouselPlan("u1", "w1", { duree_ms: 1 }, "claude-sonnet", client);
+  assertEquals(inserts, [{ t: "content_quality_events", row: {
+    user_id: "u1", workspace_id: "w1", format: CAROUSEL_PLAN_FORMAT, model: "claude-sonnet", redac_score: null, content_preview: { plan: { duree_ms: 1 } },
+  } }]);
+  // Échec d'écriture : avalé, le plan n'en sait rien.
+  await logCarouselPlan("u1", null, {}, undefined, { from: () => ({ insert: () => Promise.resolve({ error: { message: "statement timeout" } }) }) });
 });

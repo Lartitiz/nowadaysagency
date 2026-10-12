@@ -310,6 +310,8 @@ function resetDeps() {
   _deps.fetchRecentTexts = async () => [];
   // Recherche « creuser le sujet » coupée par défaut (aucun réseau).
   _deps.fetchDepthMaterial = async () => "";
+  // Compte rendu du plan : rien en base par défaut (aucun réseau).
+  _deps.logPlan = async () => {};
   _deps.callCarouselWriter = ((options: any, sink: any) => _deps.callAnthropic(options, sink)) as any;
   // Juge du fil neutralisé par défaut (aucun réseau) ; les tests du fil le remplacent.
   _deps.reviewThread = (async (doc:any) => verdict(doc)) as any;
@@ -1866,4 +1868,46 @@ for (const carousel_type of ["photo", "mix"]) Deno.test(`récit continu ${carous
     assert(!JSON.stringify(d).includes("dessin"), "aucun texte du carrousel dans les durées");
     assert(row.content_preview.fil, "l'issue du fil reste enregistrée");
   } finally { globalThis.fetch = oldFetch; resetDeps(); }
+});
+
+// 12/10/2026 : le compte rendu du plan est gardé en base (bilan du lundi), pas
+// seulement dans les journaux edge. Nombres et codes seulement, jamais de texte.
+Deno.test("plan : compte rendu gardé en base, sans texte, pour chaque issue", async () => {
+  const rows: any[] = [];
+  const capture = () => { _deps.logPlan = (async (userId: string, ws: unknown, plan: any, model?: string) => { rows.push({ userId, ws, plan, model }); }) as any; };
+  const slides = (n: number) => Array.from({ length: n }, (_, i) => ({ slide_number: i + 1, role: i ? "body" : "hook", title_suggestion: "Titre confidentiel", strategic_note: "Note confidentielle", ...(i ? {} : { photo_index: 1 }) }));
+  const send = (extra: Record<string, unknown> = {}) => handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: "photo", slide_count: 3, photos: [{ base64: "aGVsbG8=" }, { base64: "aGVsbG8=" }], ...extra }));
+
+  // Plan vide rattrapé par le second appel.
+  resetDeps(); capture();
+  let calls = 0;
+  _deps.callAnthropic = (async () => JSON.stringify(++calls === 1 ? { slides: [] } : { total_slides: 3, slides: slides(3) })) as any;
+  assertEquals((await send()).status, 200);
+  assertEquals(rows.length, 1);
+  const r = rows[0];
+  assertEquals([r.userId, r.ws], [TEST_USER_ID, TEST_WORKSPACE_ID]);
+  assert(typeof r.model === "string" && r.model.length > 0);
+  const { duree_ms, ...rest } = r.plan;
+  assert(typeof duree_ms === "number" && duree_ms >= 0);
+  assertEquals(rest, { type: "photo", appels: 2, gagnant: 2, delai_depasse: false, plans_vides: 1, mauvaise_longueur: 0, photos: 2,
+    slides_demandees: 3, slides_obtenues: 3, slides_avec_photo: 1, longueur_approchee: false, erreur: null, erreurs_appels: ["structure_vide"] });
+  assertEquals(/confidentiel/i.test(JSON.stringify(rows)), false, "jamais de texte du plan");
+
+  // Deux plans vides : erreur structure_vide rendue à l'écran, et gardée.
+  resetDeps(); capture(); rows.length = 0;
+  _deps.callAnthropic = (async () => JSON.stringify({ slides: [] })) as any;
+  assertEquals((await (await send()).json()).error, "structure_vide");
+  assertEquals([rows[0].plan.erreur, rows[0].plan.plans_vides, rows[0].plan.slides_obtenues], ["structure_vide", 2, null]);
+
+  // Erreur définitive de l'API (pas de second appel) : levée comme avant, gardée en code.
+  resetDeps(); capture(); rows.length = 0;
+  _deps.callAnthropic = (async () => { throw Object.assign(new Error("Rate limited « détail »"), { status: 429 }); }) as any;
+  await send().catch(() => null);
+  assertEquals([rows[0].plan.erreur, rows[0].plan.appels], ["http_429", 1]);
+
+  // Une base qui échoue ne casse jamais le plan.
+  resetDeps();
+  _deps.logPlan = (async () => { throw new Error("base lente"); }) as any;
+  _deps.callAnthropic = (async () => JSON.stringify({ total_slides: 3, slides: slides(3) })) as any;
+  assertEquals((await send()).status, 200);
 });
