@@ -189,6 +189,8 @@ export interface PhotoManifestEntry {
   stockSource?: string;
   stockPhotographer?: string;
   stockSourceUrl?: string;
+  /** Photo d'ambiance posée par l'app (src/lib/stock-ambient-photos.ts). */
+  stockAmbient?: boolean;
   /** true → le base64 est dans IndexedDB sous la clé `id`. */
   local: boolean;
   /** Ancien format inline (rétro-compat) — base64 directement dans le manifeste. */
@@ -286,6 +288,7 @@ export async function savePhotos(photos: any[]): Promise<void> {
         userPhotoId: p.userPhotoId,
         edited: !!p.edited,
         stockSource: p.stockSource, stockPhotographer: p.stockPhotographer, stockSourceUrl: p.stockSourceUrl,
+        ...(p.stockAmbient ? { stockAmbient: true } : {}),
         local: !isLibraryOriginal,
       });
       if (!isLibraryOriginal && p.base64 && idbAvailable()) {

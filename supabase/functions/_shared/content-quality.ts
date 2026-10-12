@@ -259,6 +259,8 @@ export function carouselDurations(
       status: pr.execution_status ?? null,
       raison: pr.reason ?? null,
       ambiance: Array.isArray(pr.ambient_fallback) ? pr.ambient_fallback.length : 0,
+      // Photos libres de droit proposées par le serveur (carousel-ai/stock-ambient.ts).
+      ...(pr.stock_ambient ? { libres: Array.isArray(pr.stock_ambient.slides) ? pr.stock_ambient.slides.length : 0, libres_statut: pr.stock_ambient.status ?? null } : {}),
     };
   }
   return out;

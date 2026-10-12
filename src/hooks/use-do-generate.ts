@@ -9,6 +9,7 @@ import { usePhotoWishlistMutations } from "@/hooks/use-photo-wishlist";
 import { savePhotos } from "@/hooks/use-flow-persistence";
 import { AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 import { pickNonEmpty } from "@/features/creer/photo-source";
+import { ownPhotos } from "@/lib/stock-ambient-photos";
 import { renumberSlides } from "@/features/creer/format-mappers";
 import { generatePinterestVisual, generatePinterestPhotoBrief } from "@/features/creer/pinterest-generation";
 import { resetPostGenerationState } from "@/features/creer/post-generation-reset";
@@ -530,7 +531,7 @@ export function useDoGenerate({
         // garde le plein format via uploadedPhotos / generatedWithPhotos.
         if (carouselSubMode === "photo" && uploadedPhotos.length > 0) {
           structureBody.photos = await downscalePhotosForVision(
-            uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType }))
+            ownPhotos(uploadedPhotos).map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType }))
           );
           // Snapshot pour handleGenerateVisuals (résiste aux resets de state UI)
           setGeneratedWithPhotos(uploadedPhotos);
@@ -611,7 +612,10 @@ export function useDoGenerate({
       setStep("result");
       // Même repli que les visuels : après une génération, uploadedPhotos peut avoir
       // été reset (re-render, onglet) alors que le snapshot tient encore les photos.
-      const regenPhotos = pickNonEmpty(uploadedPhotos, generatedWithPhotos);
+      // Mode photo : sans les photos d'ambiance libres de droit posées par l'app (elles sont reproposées).
+      const regenPhotos = carouselSubMode === "photo"
+        ? ownPhotos(pickNonEmpty(uploadedPhotos, generatedWithPhotos))
+        : pickNonEmpty(uploadedPhotos, generatedWithPhotos);
       await generate({
         format: "carousel",
         subject: enrichedSubject,
@@ -623,7 +627,13 @@ export function useDoGenerate({
         confirmedStructure: lastConfirmedStructure,
         scenarioOrigin: lastScenarioOrigin || "user_validated",
         ...(lastNarrativeThread ? { narrativeThread: lastNarrativeThread } : {}),
-        ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: regenPhotos.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription } : {}),
+        ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: regenPhotos.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription,
+          onStockAmbientPhotos: (added: any[]) => {
+            if (isCurrent && !isCurrent()) return;
+            const next = [...regenPhotos, ...added];
+            setUploadedPhotos(next);
+            setGeneratedWithPhotos(next);
+          } } : {}),
         ...(carouselSubMode === "mix"
         ? (isTextFirstMix
             ? { carouselType: "mix", textFirst: true, ...(textFirstCatalog.length > 0 ? { photoCatalog: textFirstCatalog } : {}) }

@@ -1,4 +1,5 @@
 import { matchFinalPhotos, photoMatchPhotoCount, photoMatchReserveMs } from "./final-photo-match.ts";
+import { addStockAmbientPhotos } from "./stock-ambient.ts";
 import { buildConfirmedStructureBlock } from "./confirmed-structure.ts";
 import { createContinuousNarrative, NarrativePhotoMismatch, usesContinuousNarrative } from "./continuous-narrative.ts";
 import { COMMON, PLAN, REPAIR } from "../_shared/carousel-editorial-contract.ts";
@@ -60,6 +61,7 @@ export const _deps = {
   prepareNarrative: createContinuousNarrative,
   fetchRecentTexts: fetchRecentContentTexts,
   matchPhotos: matchFinalPhotos,
+  stockAmbient: addStockAmbientPhotos,
   fetchDepthMaterial,
   audienceAddressPass: applyAudienceAddressPass,
   logPlan: logCarouselPlan,
@@ -1774,7 +1776,14 @@ async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<
   // Seul juge du récit photo/mixte (09/10/2026) : il répare si le délai couvre
   // la rédaction mesurée (write_ms), comme pour le texte ; sinon il la saute.
   const written = await clock.timed("thread_ms", finalizeCarousel(measured.content,ctx,{usage,regenerate:output.regenerate,reserveMs:matchReserveMs,timings:clock.timings,expectedRepairMs:clock.timings.write_ms}));
-  const matched = await clock.timed("match_ms", _deps.matchPhotos(JSON.parse(written), {body:ctx.body,startedAt:ctx.startedAt,usage,emitStatus:ctx.emitStatus,call:_deps.callAnthropic}));
+  let matched = await clock.timed("match_ms", _deps.matchPhotos(JSON.parse(written), {body:ctx.body,startedAt:ctx.startedAt,usage,emitStatus:ctx.emitStatus,call:_deps.callAnthropic}));
+  // « Tes photos en fond » : les slides posées en ambiance (aucune photo ne
+  // montrait le passage) reçoivent une photo libre de droit vérifiée, sans
+  // personne ni produit (12/10/2026). L'écran la pose ; la photo d'origine reste en secours.
+  if (ctx.body.carousel_type === "photo") {
+    matched = await clock.timed("stock_ms", _deps.stockAmbient(matched, {body:ctx.body,startedAt:ctx.startedAt,usage,brandingContext:ctx.brandingContext,call:_deps.callAnthropic}));
+    if (matched?.photo_review?.stock_ambient && matched.generation_receipt) matched.generation_receipt = {...matched.generation_receipt,duration_ms:Date.now()-ctx.startedAt};
+  }
   const content = JSON.stringify(matched);
   await addOutlineUsage(ctx, usage);
   const timings = clock.done(`continuous_${ctx.body.carousel_type}`);
