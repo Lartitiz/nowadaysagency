@@ -75,14 +75,17 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
       });
       if (error) throw error;
       if (data.user) {
-        const { error: profileError } = await supabase.from("profiles").insert({
+        // ON CONFLICT DO NOTHING : le filet ensureProfileRow (AuthContext, au
+        // SIGNED_IN) peut avoir créé la ligne une fraction de seconde avant.
+        const { error: profileError } = await supabase.from("profiles").upsert({
           user_id: data.user.id,
           prenom: values.prenom,
           activite: values.activite?.trim() || "",
           canaux: [],
-        });
+        }, { onConflict: "user_id", ignoreDuplicates: true });
         // Non bloquant : lac_prenom/lac_activite (localStorage) servent de repli,
-        // et handleFinish ré-écrit le profil en fin d'onboarding.
+        // ensureProfileRow recrée la ligne au prochain chargement si cette
+        // requête est perdue, et handleFinish ré-écrit le profil en fin d'onboarding.
         if (profileError) console.error("Signup profile insert failed:", profileError);
       }
       if (data.session) {
