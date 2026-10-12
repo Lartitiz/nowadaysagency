@@ -8,6 +8,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { type UsageSink, extractUsage, SONNET_MODEL, forcesDisabledThinking, sanitizeStyleDeep } from "../_shared/anthropic.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { tryParseAiObject } from "../_shared/parse-ai-json.ts";
 
 const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 50000;
@@ -372,18 +373,12 @@ Précisions sur charter :
 
     const data = await resp.json();
     if (usageOut) Object.assign(usageOut, extractUsage(data, SONNET_MODEL));
-    const textContent = data.content?.find((c: { type: string }) => c.type === "text")?.text || "{}";
-
-    try {
-      return JSON.parse(textContent);
-    } catch {
-      console.error("Failed to parse Claude response as JSON:", textContent.slice(0, 500));
-      const jsonMatch = textContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-      throw new Error("Réponse Claude invalide (pas du JSON)");
-    }
+    const textContent = data.content?.find((c: { type: string }) => c.type === "text")?.text || "";
+    // Lecture tolérante (balises de code, prose autour, retours à la ligne bruts).
+    // Une réponse sans texte n'est plus un objet vide accepté en silence.
+    const parsed = tryParseAiObject(textContent, "analyze-brand");
+    if (!parsed) throw new Error("Réponse Claude invalide (pas du JSON)");
+    return parsed;
   };
 
   // Ce fichier appelle l'API Anthropic en fetch brut (hors callAnthropic/

@@ -32,3 +32,10 @@ Deno.test("la logique de lecture reste identique entre le serveur et le site", a
   const front = await Deno.readTextFile(new URL("../../../src/lib/parse-ai-json.ts", import.meta.url));
   assertEquals(logic(front), logic(edge));
 });
+
+Deno.test("tryParseAiObject : objet toléré, tableau ou texte refusés", async () => {
+  const { tryParseAiObject } = await import("./parse-ai-json.ts");
+  assertEquals(tryParseAiObject('```json\n{"content":"ligne 1\nligne 2"}\n```'), { content: "ligne 1\nligne 2" });
+  assertEquals(tryParseAiObject('[{"a":1}]'), null);
+  assertEquals(tryParseAiObject("Voici ton post sans JSON."), null);
+});

@@ -19,6 +19,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
+import { tryParseAiObject } from "../_shared/parse-ai-json.ts";
 
 const BodySchema = z.object({
   subject: z.string().min(1).max(2000),
@@ -133,16 +134,9 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown) :
 
   const aiData = await aiResponse.json().catch(() => ({}));
   const text: string = aiData?.choices?.[0]?.message?.content || "";
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) {
+  const parsed = tryParseAiObject<{ primary?: unknown; keywords?: unknown }>(text, "stock-photo-keywords");
+  if (!parsed) {
     console.error("[stock-photo-keywords] réponse IA non parsable", text.slice(0, 200));
-    return json({ error: "Suggestion de mots-clés indisponible." }, 502);
-  }
-
-  let parsed: { primary?: unknown; keywords?: unknown };
-  try {
-    parsed = JSON.parse(match[0]);
-  } catch {
     return json({ error: "Suggestion de mots-clés indisponible." }, 502);
   }
 

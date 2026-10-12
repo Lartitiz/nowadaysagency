@@ -1,6 +1,7 @@
 // Carousel writing/review provider boundary, shared for edge bundle isolation.
 // Other generators keep their models. No silent provider/model fallback.
 import { AnthropicError, sanitizeStyle, sanitizeStyleDeep, type AnthropicOptions, type UsageSink } from "./anthropic.ts";
+import { tryParseAiObject } from "./parse-ai-json.ts";
 
 // Erreur typée avec un code de diagnostic SÛR (aucun secret, aucun message
 // fournisseur) : la relecture l'écrit dans editorial_review.error au lieu d'un
@@ -100,6 +101,15 @@ export function writerRequest(options: CarouselWriterOptions): Record<string, un
   };
 }
 
+/** Texte JSON d'un rédacteur sans outil : valide tel quel, réécrit si récupérable, sinon inchangé. */
+export function strictJsonText(text: string): string {
+  try { JSON.parse(text); return text; } catch { /* lecture tolérante */ }
+  const value = tryParseAiObject(text, "carousel-writer:text");
+  if (!value) return text;
+  console.log(JSON.stringify({ type: "carousel_writer_json_repaired", length: text.length }));
+  return JSON.stringify(value);
+}
+
 export function writerResponse(data: any, options: CarouselWriterOptions, sink?: UsageSink): string {
   const openai = options.model === "gpt-6-astra";
   if (data.model !== options.model && !data.model?.startsWith(options.model + "-20")) {
@@ -125,6 +135,11 @@ export function writerResponse(data: any, options: CarouselWriterOptions, sink?:
     const blocks = openai ? (data.output || []).filter((b: any) => b.type === "message").flatMap((b: any) => b.content || []) : data.content || [];
     text = blocks.filter((b: any) => b.type === (openai ? "output_text" : "text")).map((b: any) => b.text).join("\n");
     if (!options.keepDashes) text = sanitizeStyle(text);
+    // JSON pas strict (balises de code, retour à la ligne brut, virgule finale) :
+    // réécrit une fois ici en JSON valide. Sinon chaque contrôle en aval
+    // (correction, relecture, schémas, télémétrie) le relisait à la main et se
+    // sautait en silence. Un JSON déjà valide reste identique.
+    text = strictJsonText(text);
   }
   if (!text.trim()) throw new CarouselWriterError("L'IA a renvoyé une réponse vide. Réessaie.", 502, "empty");
   const input = data.usage?.input_tokens, output = data.usage?.output_tokens;

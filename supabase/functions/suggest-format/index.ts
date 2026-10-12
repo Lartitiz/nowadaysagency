@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { tryParseAiObject } from "../_shared/parse-ai-json.ts";
 
 
 serve(async (req) => {
@@ -127,9 +128,8 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown), avec ces champs :
     const tokensUsed = aiData.usage?.total_tokens ?? ((aiData.usage?.prompt_tokens ?? 0) + (aiData.usage?.completion_tokens ?? 0));
     const text = aiData.choices?.[0]?.message?.content || "";
 
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Invalid AI response");
-    const suggestion = JSON.parse(jsonMatch[0]);
+    const suggestion = tryParseAiObject(text, "suggest-format");
+    if (!suggestion) throw new Error("Invalid AI response");
 
     // Log usage (utilisateur déjà résolu plus haut — plus de getUser redondant).
     if (authUserId) {

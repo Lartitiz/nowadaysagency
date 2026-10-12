@@ -6,6 +6,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { callAnthropic, AnthropicError, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { tryParseAiObject } from "../_shared/parse-ai-json.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -126,10 +127,8 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
       abortTimeoutMs: 60_000,
     }, usage);
 
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Failed to parse AI response");
-
-    const result = JSON.parse(jsonMatch[0]);
+    const result = tryParseAiObject(content, "generate-comment");
+    if (!result) throw new Error("Failed to parse AI response");
 
     await logUsage(user.id, "dm_comment", "comment", usage.total_tokens, usage.model);
 

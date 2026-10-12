@@ -1,6 +1,7 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { storiesBrief } from "./format-briefs.ts";
 import {
+  coerceStoriesSequence,
   detectStoryList,
   detectStoryQuote,
   finalizeStoriesLayout,
@@ -282,4 +283,9 @@ Deno.test("storyKeyword : un montant avec milliers reste entier", () => {
   assertEquals(storyKeyword("7 500 € ou 2 100 €. Même prestation.", null), "7 500 €");
   assertEquals(storyKeyword("Il reste 12 % de marge.", null), "12 %");
   assertEquals(storyKeyword("Une accroche sans chiffre.", "absent"), null);
+});
+
+Deno.test("séquence de stories rendue en texte avec retours à la ligne bruts : lue", () => {
+  const seq = coerceStoriesSequence({ stories: '[{"text":"Bonjour\ntoi"},{"text":"Suite"},]' });
+  assertEquals(seq?.stories.length, 2);
 });
