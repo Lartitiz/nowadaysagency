@@ -290,7 +290,8 @@ Deno.test("recyclage stories : séquence sans texte → null (le format est rete
 });
 
 Deno.test("creative-flow recyclage : les stories structurées passent par finalizeRecycledStories avant toute garde texte", async () => {
-  const src = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
+  // Le recyclage vit dans formats/recycle.ts depuis le lot 3 (13/10/2026).
+  const src = await Deno.readTextFile(new URL("./formats/recycle.ts", import.meta.url));
   const run = src.slice(src.indexOf("const runFormat = async (f: string)"));
   const structured = run.indexOf("if (structuredStories) {");
   const finalize = run.indexOf("await finalizeRecycledStories(resultVal");
