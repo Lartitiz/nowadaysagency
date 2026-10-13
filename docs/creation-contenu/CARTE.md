@@ -120,7 +120,27 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 
 ## 3. Fonctions serveur
 
-### `creative-flow` (~3 600 lignes) : reel, stories, post Instagram, LinkedIn, newsletter, Pinterest texte, recyclage
+### `creative-flow` : reel, stories, post Instagram, LinkedIn, newsletter, Pinterest texte, recyclage
+
+**Organisation des fichiers** (découpage du lot 3, 13/10/2026 : code déplacé
+à l'identique, comportement inchangé)
+
+| Fichier | Contenu | Modifier ce fichier touche… |
+|---|---|---|
+| `index.ts` (~1 650 l.) | Handler : aiguillage des `step`, construction des prompts, post-traitement final, télémétrie | tous les formats |
+| `shared.ts` | Délais IA, `gateNumbers`, `_deps`, `addrOpts`, `POST_ADDRESS_FIELDS`, `QUESTIONS_TOOL`, `extractImagePayload`, `photoVoiceRule` | tous les formats |
+| `formats/linkedin.ts` | `runLinkedInTwoStep`, `applyLinkedInCorrectionPass`, `streamLinkedInPhotoVision`, brief fictif | LinkedIn |
+| `formats/newsletter.ts` | `runNewsletterTwoStep`, `applyNewsletterCorrectionPass` | la newsletter |
+| `formats/stories.ts` | `applyStoriesCorrectionPass`, `finalizeRecycledStories` | les stories, y compris recyclées |
+| `formats/reel.ts` | `applyReelQualityPass`, `normalizeHooksResponse`, `enforceReelAudienceAddress` | le reel |
+| `formats/post.ts` | `streamDefaultPostSSE`, `correctPostStreamContent`, `POST_TOOL` | le post Instagram / la légende |
+| `formats/photo.ts` | `runVisionQuestions`, `runVisionGenerate` | le mode photo, tous formats |
+| `formats/recycle.ts` | `buildRecycleSystemPrompt`, `handleRecycleStep` | le recyclage |
+| `formats/carousel.ts` | contrôle tu / vous d'un carrousel, réponse 410 du streaming retiré | le recyclage en carrousel, l'ajustement carrousel |
+
+`index.ts` réexporte tout ce qui était exporté avant : les tests et les
+appelants n'ont pas changé d'import.
+
 
 **Aiguillage**
 - Par `step` : `angles`, `questions`, `follow-up`, `hooks`, `generate`,
@@ -141,7 +161,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
   `carouselBrief`, `reelBrief`, `storiesBrief`, `linkedinBrief`,
   `pinterestBrief`, `newsletterBrief`, `captionBrief`, `photoCaptionBrief`.
 
-**Passes spécifiques à un format** (même fichier)
+**Passes spécifiques à un format** (fichiers `formats/*`, voir ci-dessus)
 
 | Format | Fonctions |
 |---|---|
@@ -159,7 +179,7 @@ un format en casse un autre.
   `FORMAT_STRUCTURES`, `WRITING_RESOURCES` et `VISUAL_ANALOGIES`, et le
   contexte de lancement pour les stories et les reels.
 - `buildQuestionsPrompt` : sa propre détection de format (`ctypeQ`).
-- `buildRecycleSystemPrompt` : un bloc par format recyclé.
+- `buildRecycleSystemPrompt` (`formats/recycle.ts`) : un bloc par format recyclé.
 - Le handler principal :
   - recherche approfondie (légende, LinkedIn, reel, stories) ;
   - accroches précédentes (stories) ;
@@ -340,6 +360,7 @@ régression, corrige le code et pas le snapshot.
 | Fichier | Ce qu'il fige |
 |---|---|
 | `creative-flow/prompts_snapshot_test.ts` | angles ; questions (Instagram, LinkedIn, newsletter) ; follow-up ; hooks ; dictation (LinkedIn) ; adjust (carrousel) ; generate : carrousel, newsletter, LinkedIn, reel, stories avec vente |
+| `creative-flow/handler_contract_test.ts` (lot 3) | le câblage du handler pour 17 parcours (questions, hooks, generate par format, adjust, recyclage, photo, streaming SSE, carrousel retiré) : tous les appels à Claude, la réponse au front, les crédits. Références générées sur le code d'avant le découpage. |
 | `creative-flow/prompts_snapshot_formats_test.ts` (lot 2) | generate : post Instagram, Pinterest texte, légende photo, stories sans vente, newsletter avec angle ; questions : Pinterest, reel, stories, post Instagram ; recyclage (5 formats) ; mode photo : questions et brief + outil pour 6 formats, série avant / après |
 | `carousel-ai/prompts_snapshot_test.ts` (lot 2) | rédaction des carrousels : système (Instagram, LinkedIn, cas personnel, ressenti sur une actu) ; consignes texte / photo / mixte × Instagram / LinkedIn ; accroche et angle choisis ; actualité avec et sans ressenti ; guides de structure par type |
 | `carousel-visual/prompts_snapshot_test.ts` | mise en forme visuelle des carrousels |
@@ -431,3 +452,6 @@ Ce sont des constats, pas des corrections : rien n'a été modifié dans ce lot.
   - le paramètre d'URL `calendar_id` est envoyé mais jamais lu par
     /creer : c'est le state `calendarPostId` qui porte le lien ;
   - « Approfondir » (`handleNavigateToDeepen`) n'envoie pas `postDate`.
+- **Questions sans angle** (relevé au lot 3) : `step: "questions"` sans
+  `angle` plante en 500 (`buildQuestionsPrompt` lit `angle.title`). Le front
+  envoie toujours un angle aujourd'hui.
