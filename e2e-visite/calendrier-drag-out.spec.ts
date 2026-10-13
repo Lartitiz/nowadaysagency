@@ -73,10 +73,17 @@ async function gridOccurrence(page: Page, panelHeading: Locator, title: string):
  * donc le premier jour dont le repère reste à distance des deux bords. */
 async function safeDayCell(page: Page): Promise<Locator> {
   const vh = page.viewportSize()?.height ?? 900;
-  for (const day of ["12", "13", "11", "19", "20", "18", "5", "6", "7"]) {
+  // 🔑 13/10 — le jour doit aussi être VIDE : des runs interrompus (Mac en
+  // veille) avaient laissé 5 posts « QA drag 330 » sur le 12 ; la case
+  // n'en montre que 3 + « +2 autres », et le post fraîchement planifié
+  // tombait sous le pli → « introuvable dans la grille » 3 fois de suite
+  // alors que la planification avait marché (toast vu).
+  for (const day of ["12", "13", "11", "19", "20", "18", "5", "6", "7", "14", "15", "21", "22"]) {
     const cell = page.locator("div").filter({ hasText: new RegExp(`^${day}$`) }).last();
     const box = await cell.boundingBox().catch(() => null);
-    if (box && box.y > 140 && box.y + box.height < vh - 180) return cell;
+    if (!box || box.y <= 140 || box.y + box.height >= vh - 180) continue;
+    const dayText = (await cell.locator("xpath=..").innerText().catch(() => "")).trim();
+    if (dayText === day) return cell;
   }
   throw new Error("aucune cellule jour hors des bords (zone d'auto-scroll) dans la grille");
 }
