@@ -289,6 +289,8 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 5. **Workspace first** : toute requête de données passe par useWorkspaceFilter
 6. **L'outil est universel** : les textes, exemples et prompts IA internes doivent parler à tout le monde
 7. **Corrections ciblées > refactorisations larges** : on corrige chirurgicalement, on ne refait pas tout
+8. **Création de contenu : lire `docs/creation-contenu/CARTE.md` avant de toucher un générateur** (fichiers par format, modules partagés à risque, tests à lancer)
+
 ## Vocabulaire UI (conventions — audit UX 04/07/2026)
 
 | Règle | Détail |
