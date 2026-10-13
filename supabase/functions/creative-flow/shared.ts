@@ -8,6 +8,7 @@ import { applyAudienceAddressPass } from "../_shared/audience-address-pass.ts";
 import { type AudienceAddressFieldsOptions } from "../_shared/audience-address-fields.ts";
 import { fetchDepthMaterial } from "../_shared/depth-research.ts";
 import { numbersIn, researchNumbers, type ResearchNumbers } from "../_shared/redac-gate.ts";
+import { type AudienceAddress } from "../_shared/audience-address.ts";
 
 // ── Timeouts IA (audit latences 17/08) ──────────────────────────────────
 // abortTimeoutMs PAR TENTATIVE (callAnthropic retente jusqu'à 2 fois en cas
@@ -54,3 +55,28 @@ export function addrOpts(scope: string, abortTimeoutMs = CORRECTION_ABORT_MS): A
 
 /** Légende, post, épingle, légende photo, script reel vision : texte + accroche. */
 export const POST_ADDRESS_FIELDS = ["content", "accroche"];
+
+/**
+ * Detect the actual media_type of an image payload so we never claim
+ * image/jpeg when the bytes are image/png (Anthropic returns a 400 otherwise).
+ *  1) If a data URL prefix is present, trust it (strip it from the data).
+ *  2) Otherwise, sniff base64 magic bytes (PNG / JPEG / WEBP / GIF).
+ *  3) Fall back to the caller-provided mime, then image/jpeg.
+ */
+export function extractImagePayload(input: string, fallbackMime?: string): { media_type: string; data: string } {
+  const m = input.match(/^data:(image\/[a-z0-9.+-]+);base64,(.*)$/i);
+  if (m) return { media_type: m[1].toLowerCase(), data: m[2] };
+  const head = input.slice(0, 16);
+  let sniffed: string | undefined;
+  if (head.startsWith("iVBORw0KGgo")) sniffed = "image/png";
+  else if (head.startsWith("/9j/")) sniffed = "image/jpeg";
+  else if (head.startsWith("UklGR")) sniffed = "image/webp";
+  else if (head.startsWith("R0lGOD")) sniffed = "image/gif";
+  return { media_type: sniffed || fallbackMime || "image/jpeg", data: input };
+}
+
+/** Consigne voix des chemins photo : sans réglage, inchangée ; avec réglage, la forme de la fiche. */
+export function photoVoiceRule(addr: AudienceAddress | null | undefined, legacy: string): string {
+  if (!addr) return legacy;
+  return `Respecte la personne grammaticale et le registre de cette marque : si elle écrit au « je », garde ses mots. Pour s'adresser à son public, elle ${addr === "vous" ? "VOUVOIE (« vous », « votre », « vos »)" : "TUTOIE (« tu », « ton », « ta », « tes »)"} : règle ferme de sa fiche de marque.`;
+}
