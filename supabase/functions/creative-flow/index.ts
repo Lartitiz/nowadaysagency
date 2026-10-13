@@ -9,7 +9,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback, buildBrandGuardText } from "../_shared/user-context.ts";
 import { enforceAudienceAddress, parseAudienceAddress, type AudienceAddress } from "../_shared/audience-address.ts";
 import { applyAudienceAddressPass } from "../_shared/audience-address-pass.ts";
-import { enforceAudienceAddressInFields, enforceAudienceAddressInJsonText, enforceAudienceAddressInText, type AudienceAddressFieldsOptions } from "../_shared/audience-address-fields.ts";
+import { enforceAudienceAddressInFields, enforceAudienceAddressInJsonText, enforceAudienceAddressInText } from "../_shared/audience-address-fields.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
@@ -19,7 +19,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, forcesDisabledThinking, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, streamAnthropicToolSSE, createClientSSEStream, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
-import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.ts";
+import { buildDepthBlock } from "../_shared/depth-research.ts";
 import { livedCaseFromCreativeBody, LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from "../_shared/lived-case.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief, positionDepthBlock } from "../_shared/format-briefs.ts";
 import { RECYCLAGE_CARROUSEL_LONGUEUR, RECYCLAGE_CARROUSEL_SLIDES, RECYCLAGE_STORIES_LONGUEUR, STORY1_ACCROCHE, VOIX_PARLEE_PAS_HACHEE } from "../_shared/socle.ts";
@@ -27,7 +27,7 @@ import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool }
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, applyCorrectionPassReel, type CorrectionFormat, applyCorrectionPassStories, extractStoriesTexts, reinjectStoriesTexts, storiesAuditableText } from "../_shared/correction-pass.ts";
-import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, numbersIn, researchNumbers, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations, dropUserSourcedReversals, findChoppyFragments, hookEchoesBefore, type ResearchNumbers } from "../_shared/redac-gate.ts";
+import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, numbersIn, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations, dropUserSourcedReversals, findChoppyFragments, hookEchoesBefore } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks, fetchPreviousHooksByFormat } from "../_shared/previous-hooks.ts";
 import {
@@ -44,21 +44,10 @@ import {
 import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
 import { recapHooksLine } from "../_shared/multi-subject.ts";
 import { adoptStructuredStories, coerceStoriesSequence, finalizeStoriesLayout, stripStoriesWriterLayout } from "../_shared/story-formatting.ts";
+import { GENERATE_ABORT_MS, CORRECTION_ABORT_MS, ADJUST_ABORT_MS, LIGHT_ABORT_MS, gateNumbers, _deps, addrOpts, POST_ADDRESS_FIELDS } from "./shared.ts";
+export { gateNumbers, _deps, POST_ADDRESS_FIELDS } from "./shared.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
-
-// ── Timeouts IA (audit latences 17/08) ──────────────────────────────────
-// abortTimeoutMs PAR TENTATIVE (callAnthropic retente jusqu'à 2 fois en cas
-// d'erreur/timeout, cf. anthropic.ts) : le step `generate` en tournait sans
-// AUCUNE limite (oubli lors d'un refactor precedent — questions/follow-up/
-// hooks l'étaient déjà, pas lui), tout comme les passes de correction
-// enchaînées derrière (LinkedIn/reel/newsletter/carrousel/recycle). Un fetch
-// qui traîne côté Anthropic pouvait donc pendre indéfiniment sans jamais
-// libérer la requête ni basculer en retry.
-const GENERATE_ABORT_MS = 90_000; // appel principal (Sonnet, jusqu'à 8192 tokens de sortie)
-const CORRECTION_ABORT_MS = 45_000; // passe de correction (Haiku, édition mécanique à règles fermées)
-const ADJUST_ABORT_MS = 60_000; // édition d'un contenu déjà généré, plus court qu'une génération complète
-const LIGHT_ABORT_MS = 30_000; // angles / dictation : sortie courte
 
 // ── Sortie structurée pour les steps `questions` / `follow-up` ──
 // Le tool forcé (tool_choice) fait garantir le JSON par l'API elle-même :
@@ -1465,18 +1454,6 @@ function normalizeHooksResponse(parsed: any, params: { body: any; rawContent: st
   return null;
 }
 
-// ═══ PASSE DE CORRECTION LinkedIn ═══
-// Liste blanche des chiffres (04/10/2026) : ceux du brief, des réponses, du
-// branding et de l'actu passent tels quels ; ceux que SEULE la recherche
-// (« creuser le sujet » ou deep research) fournit passent aussi, mais le gate
-// exige leur source dans la même phrase (findUnsourcedResearchNumbers).
-export function gateNumbers(baseParts: string[], researchSource?: string): { allowed: Set<string>; research?: ResearchNumbers } {
-  const baseText = baseParts.join("\n");
-  const base = numbersIn(baseText);
-  if (!researchSource?.trim()) return { allowed: base };
-  return { allowed: new Set([...base, ...numbersIn(researchSource)]), research: researchNumbers(base, researchSource, baseText) };
-}
-
 // Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe
 // spécialisée qui chasse cascades, anaphores, formules manufacturées, CTA génériques.
 // En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
@@ -1890,33 +1867,8 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
   }
 }
 
-/**
- * Bloc Deep Research (recherche web via l'outil Anthropic web_search), extrait
- * de serve() pour être testable directement (deno test, sans vrai serveur
- * HTTP — voir index_test.ts). Comportement inchangé : ne débite un crédit
- * `deep_research` QUE si la recherche web a réellement réussi (searchResponse.ok).
- * Renvoie le texte à ajouter au systemPrompt, "" si rien à ajouter (échec ou
- * réponse vide).
- */
-/** Dépendances remplaçables en test (même patron que carousel-ai). */
-export const _deps = { fetchDepthMaterial, audienceAddressPass: applyAudienceAddressPass };
-
-// ═══ TU OU VOUS (fiche de marque) SUR TOUS LES TEXTES PUBLIÉS (04/10/2026) ═══
-// Le réglage « je m'adresse à mon public en tu / vous » est une règle ferme
-// en tête de rédaction (user-context.ts) ; ici, le contrôle par le code après
-// rédaction, chemin par chemin. Une passe courte ne part QUE si le texte
-// contredit le réglage, et n'est gardée que si le compte baisse sans chiffre
-// perdu ni ajouté (audience-address.ts). Sans réglage : aucun appel, rien ne
-// change. Seuls les champs publiés sont listés : jamais les conseils que
-// l'appli adresse à l'utilisatrice (tip, personal_tip, consignes de tournage).
-function addrOpts(scope: string, abortTimeoutMs = CORRECTION_ABORT_MS): AudienceAddressFieldsOptions {
-  return { pass: _deps.audienceAddressPass, abortTimeoutMs, scope: `creative-flow:${scope}`, logger: (m) => console.log(`[creative-flow ${scope}] ${m}`) };
-}
-
 /** Champs publiés d'une séquence de stories (texte, petit titre, sticker), AVANT la mise en forme. */
 export const STORIES_ADDRESS_FIELDS = ["stories[].text", "stories[].visual.title_pill", "stories[].sticker.label", "stories[].sticker.question", "stories[].sticker.options[]"];
-/** Légende, post, épingle, légende photo, script reel vision : texte + accroche. */
-export const POST_ADDRESS_FIELDS = ["content", "accroche"];
 /** Newsletter : objet, aperçu (deux noms selon le chemin), corps, accroche, invitation. */
 export const NEWSLETTER_ADDRESS_FIELDS = ["subject", "preview_text", "preheader", "content", "accroche", "cta_suggestion"];
 /** Accroches de reel proposées à l'étape « hooks » : ce qu'elle dira et ce qu'on lira. */
@@ -1992,6 +1944,14 @@ export async function creativeDepthBlock(params: { context?: string | null; news
   return buildDepthBlock(material, mode);
 }
 
+/**
+ * Bloc Deep Research (recherche web via l'outil Anthropic web_search), extrait
+ * de serve() pour être testable directement (deno test, sans vrai serveur
+ * HTTP — voir index_test.ts). Comportement inchangé : ne débite un crédit
+ * `deep_research` QUE si la recherche web a réellement réussi (searchResponse.ok).
+ * Renvoie le texte à ajouter au systemPrompt, "" si rien à ajouter (échec ou
+ * réponse vide).
+ */
 export async function runDeepResearchWebSearch(params: {
   userId: string;
   workspaceId?: string;
