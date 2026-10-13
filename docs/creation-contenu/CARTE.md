@@ -421,7 +421,27 @@ Restent sans snapshot :
 
 ---
 
-## 6. Points d'attention relevés pendant la cartographie
+## 6. Garde-fous automatiques (lot 4)
+
+| Garde-fou | Où | Bloque la CI ? | Ce qu'il empêche |
+|---|---|---|---|
+| Frontières entre formats | `supabase/functions/creative-flow/boundaries_test.ts` | oui (`npm run test:edges`) | un format qui importe le fichier d'un autre format ; une dépendance circulaire vers `index.ts` ; un fichier de `formats/` absent de cette carte |
+| Snapshots et contrats par format | voir section 5 | oui | qu'un prompt, un appel à Claude ou une réponse change sans qu'on le voie |
+| Contrat calendrier → /creer | `src/test/calendar-creer-contract.test.ts` | oui (`npm test`) | une clé du navigate state renommée d'un seul côté |
+| Rapport d'impact | `scripts/impact-creation.mjs`, étape « Impact sur la création de contenu » de la CI | non (informatif) | qu'une retouche « pour un format » en touche d'autres sans qu'on le sache : il liste les formats concernés, les fichiers partagés modifiés (avec leur zone) et les prompts figés qui changent |
+| Règles pour les IA qui codent | `CLAUDE.md`, section « Création de contenu » | — | les modifications fourre-tout dans les fichiers communs |
+
+Le rapport d'impact se lit dans l'onglet *Actions* de GitHub : ouvrir le
+lancement « CI », puis son résumé. En local :
+`node scripts/impact-creation.mjs --base origin/main`.
+
+Une exception aux frontières (un format qui DOIT en importer un autre) se
+déclare dans `IMPORTS_AUTORISES` de `boundaries_test.ts`, avec sa raison.
+Aujourd'hui : le recyclage importe les stories et le carrousel.
+
+---
+
+## 7. Points d'attention relevés pendant la cartographie
 
 Ce sont des constats, pas des corrections : rien n'a été modifié dans ce lot.
 
