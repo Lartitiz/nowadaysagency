@@ -198,6 +198,17 @@ try {
     for (const m of cur.modeles_non_tarifes || []) {
       console.log(`      🔴 modèle NON TARIFÉ « ${m.modele} » : ${m.appels} appels / ${m.tokens} tokens comptés 0 € → ajouter son tarif dans cron-health/index.ts`);
     }
+    // Intégrité (12/10, #1458) : un compte ne doit avoir qu'UN espace owner.
+    // Seuil : nouveaux_7j > 0 = 🔴 (le verrou SQL anti-doublon a sauté ou un
+    // autre chemin en crée) ; le stock ancien est connu et reste neutre.
+    const eo = d.espaces_owner_multiples;
+    if (!eo) console.log("   🏠 espaces owner multiples : non mesuré (edge cron-health pas redéployée)");
+    else {
+      console.log(`   🏠 espaces owner multiples : ${eo.comptes} comptes, ${eo.nouveaux_7j} nouveaux sur 7 j${eo.nouveaux_7j > 0 ? " 🔴 doublon d'espace récent → vérifier le verrou de create_default_tasks / ensure_owner_workspace" : " ✅"}`);
+      for (const it of (eo.items || []).filter((i) => new Date(i.dernier_ajout).getTime() >= Date.now() - 7 * 86400000)) {
+        console.log(`      ${it.email}${it.interne ? " (interne)" : ""} : ${it.espaces} espaces, dernier ajouté ${it.dernier_ajout}`);
+      }
+    }
     // … et ceux de la S-1, sinon un « S-1 : X € ⚠️ incomplet » est illisible :
     // on sait que la base de comparaison ment, sans pouvoir dire à cause de quoi
     // (angle mort trouvé au bilan du 17/08/2026, la S-1 sortait « 1,29 € incomplet »).

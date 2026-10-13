@@ -448,7 +448,7 @@ Deno.serve(async (req) => {
 
     // ── scope "weekly" ──────────────────────────────────────────────────────
     const since35d = new Date(now - 35 * DAY).toISOString();
-    const [aiRows, calRows, higgsfield] = await Promise.all([
+    const [aiRows, calRows, higgsfield, ownerRows] = await Promise.all([
       fetchAllRows(
         supabase,
         "ai_usage",
@@ -457,7 +457,34 @@ Deno.serve(async (req) => {
       ),
       fetchAllRows(supabase, "calendar_posts", "id, user_id, created_at, published_at, publish_status, status"),
       higgsfieldBudget(supabase, now),
+      fetchAllRows(supabase, "workspace_members", "user_id, workspace_id, joined_at", (q) => q.eq("role", "owner")),
     ]);
+
+    // Comptes à PLUSIEURS espaces owner (12/10, #1458) : l'auto-réparation
+    // workspace + le trigger d'insert profiles en créaient deux à l'inscription
+    // (6 comptes trouvés, dont 2 nés ainsi). Le verrou SQL l'empêche désormais ;
+    // `nouveaux_7j` > 0 = il a sauté (régénération de schéma) ou un autre chemin
+    // en crée. Tous comptes, internes compris (marqués) : c'est de l'intégrité.
+    const ownersByUser = new Map<string, any[]>();
+    for (const r of ownerRows) ownersByUser.set(r.user_id, [...(ownersByUser.get(r.user_id) || []), r]);
+    const emailOf = new Map(profiles.map((p: any) => [p.user_id, p.email]));
+    const doublonsOwner = [...ownersByUser.entries()]
+      .filter(([, rows]) => rows.length > 1)
+      .map(([userId, rows]) => {
+        const dates = rows.map((r: any) => r.joined_at).sort();
+        return {
+          email: emailOf.get(userId) || userId,
+          interne: !isClient(userId),
+          espaces: rows.length,
+          dernier_ajout: dates[dates.length - 1],
+        };
+      })
+      .sort((x, y) => String(y.dernier_ajout).localeCompare(String(x.dernier_ajout)));
+    const espaces_owner_multiples = {
+      comptes: doublonsOwner.length,
+      nouveaux_7j: doublonsOwner.filter((d) => new Date(d.dernier_ajout).getTime() >= now - 7 * DAY).length,
+      items: doublonsOwner.slice(0, 15),
+    };
     const ai = aiRows.filter((a: any) => isClient(a.user_id));
     const cal = calRows.filter((c: any) => isClient(c.user_id));
 
@@ -957,6 +984,7 @@ Deno.serve(async (req) => {
       actives_cette_semaine: activeThisWeek.size,
       qualite,
       higgsfield,
+      espaces_owner_multiples,
     });
   } catch (e) {
     return json({ error: String((e as any)?.message || e) }, 500);
