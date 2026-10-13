@@ -240,16 +240,16 @@ un format en casse un autre.
 
 | Fonction | Aiguillage | Quota | Tests |
 |---|---|---|---|
-| `generate-content` (~650 l.) | `type` : `bio-audit`, `bio-generator`, `caption`, `calendar-quick`, `express-draft`, `weekly-suggestions`, `playground`, `edito-*`, `instagram-nom`, `launch-ideas`, `rhythm-adapt`… | `audit` (bio-audit) sinon `content` | ⚠️ aucun test serveur |
+| `generate-content` (~650 l.) | `type` : `bio-audit`, `bio-generator`, `caption`, `calendar-quick`, `express-draft`, `weekly-suggestions`, `playground`, `edito-*`, `instagram-nom`, `launch-ideas`, `rhythm-adapt`… | `audit` (bio-audit) sinon `content` | `contract_test.ts` |
 | `linkedin-ai` (~600 l. + `socle-linkedin.ts`) | `action` : `crosspost`, `caption-for-carousel`, `improve-post`, `adapt-instagram`, actions profil (`title`, `summary`…) | `categoryMap` : `content` / `adaptation` / `bio_profile` | `socle-linkedin_test.ts` + tests front `crosspost-*`, `linkedin-*` |
-| `pinterest-ai` (~150 l.) | `name`, `bio`, `board-description`, `pin`, `keywords` | `content` | ⚠️ aucun test |
+| `pinterest-ai` (~150 l.) | `name`, `bio`, `board-description`, `pin`, `keywords` | `content` | `contract_test.ts` |
 | `pinterest-visual` | `pin_type` (infographie, checklist, mini_tuto, avant_apres, schema_visuel) | `content` | `index_test.ts` |
 | `pinterest-photo-brief` | `pin_type` (photo_product, photo_lifestyle, photo_flat_lay) | `content` | `index_test.ts` |
 | `pinterest-inspiration` | mode unique | `content` | via mock front |
 | `ai-text-action` (menu sur sélection) | action de réécriture | `adaptation` | `index_test.ts` |
 | `newsjacking-ai` / `-angles` / `-from-url` | recherche web / angles | `deep_research` / `content` | `newsjacking-ai/index_test.ts` seulement |
-| `storytelling-ai` | `improve`, `generate-story`, `generate-pitch`, `generate-recap` | `content` | ⚠️ aucun test |
-| `inspire-ai` | capture d'écran → format conseillé | `content` | ⚠️ aucun test |
+| `storytelling-ai` | `improve`, `generate-story`, `generate-pitch`, `generate-recap` | `content` | `contract_test.ts` |
+| `inspire-ai` | capture d'écran → format conseillé | `content` | `contract_test.ts` |
 | `reel-render` | `archive`, `submit`, `status` (json2video, pas d'IA) | sans quota | `recipe_test`, `archive-url_test`, `reel_reference_test` |
 
 ---
@@ -328,52 +328,75 @@ fonctions qui ne s'appellent pas « carousel »**.
 Commandes : `npm test` (front, Vitest) ; `npm run test:edges` (serveur,
 Deno) ; `npm run visite` (Playwright sur l'app réelle, `e2e-visite/`).
 
-### Ce qui fige déjà le texte des prompts (snapshots)
+### Ce qui fige le texte des prompts (snapshots)
 
-- **`creative-flow/prompts_snapshot_test.ts`** fige :
-  - angles, questions (Instagram, LinkedIn, newsletter), follow-up,
-    hooks, dictation (LinkedIn) ;
-  - adjust (carrousel) ;
-  - generate pour : carrousel, newsletter, LinkedIn, reel, stories avec
-    vente (2 variantes).
-- **`carousel-visual/prompts_snapshot_test.ts`** fige les prompts de mise en
-  forme des carrousels.
-- **`_shared/carousel-editorial-snapshot_test.ts`** et `socle_test.ts`
-  figent la relecture et les règles communes.
+Un snapshot garde une copie exacte du prompt envoyé à Claude. Si une
+modification change ce texte, le test échoue et montre la différence.
+**Dérive voulue** : régénère avec `-- --update` (commande en tête de chaque
+fichier), puis relis le diff du `.snap` comme une relecture de prompt.
+**Le diff touche un format que tu ne voulais pas modifier** : c'est une
+régression, corrige le code et pas le snapshot.
+
+| Fichier | Ce qu'il fige |
+|---|---|
+| `creative-flow/prompts_snapshot_test.ts` | angles ; questions (Instagram, LinkedIn, newsletter) ; follow-up ; hooks ; dictation (LinkedIn) ; adjust (carrousel) ; generate : carrousel, newsletter, LinkedIn, reel, stories avec vente |
+| `creative-flow/prompts_snapshot_formats_test.ts` (lot 2) | generate : post Instagram, Pinterest texte, légende photo, stories sans vente, newsletter avec angle ; questions : Pinterest, reel, stories, post Instagram ; recyclage (5 formats) ; mode photo : questions et brief + outil pour 6 formats, série avant / après |
+| `carousel-ai/prompts_snapshot_test.ts` (lot 2) | rédaction des carrousels : système (Instagram, LinkedIn, cas personnel, ressenti sur une actu) ; consignes texte / photo / mixte × Instagram / LinkedIn ; accroche et angle choisis ; actualité avec et sans ressenti ; guides de structure par type |
+| `carousel-visual/prompts_snapshot_test.ts` | mise en forme visuelle des carrousels |
+| `generate-content/contract_test.ts` (lot 2) | 14 `type` appelés par le front (bio-audit, bio-generator, caption, calendar-quick, express-draft, weekly-suggestions…) |
+| `pinterest-ai/contract_test.ts` (lot 2) | les 5 actions (name, bio, board-description, pin, keywords) |
+| `storytelling-ai/contract_test.ts` (lot 2) | les 4 types (improve, generate-story, generate-pitch, generate-recap) |
+| `inspire-ai/contract_test.ts` (lot 2) | texte collé et capture d'écran |
+| `_shared/carousel-editorial-snapshot_test.ts`, `socle_test.ts` | la relecture des carrousels et les règles communes |
+
+Les fichiers `contract_test.ts` font passer une vraie requête dans le
+handler déployé (Supabase et Claude simulés, voir
+`_shared/test-edge-harness.ts`). Ils vérifient aussi :
+- la forme de la réponse renvoyée au front ;
+- le quota : un seul `logUsage` dans la bonne catégorie, et **aucun** si
+  l'appel IA échoue.
+
+Les fonctions qui importent le `serve()` de std/http (generate-content,
+pinterest-ai, storytelling-ai) passent par `captureStdServeHandler`, qui
+intercepte ce démarrage sans modifier le code de production.
 
 ### Tests par format
 
 | Format | Serveur (Deno) | Front (`src/test/`) | Bout en bout |
 |---|---|---|---|
-| Carrousel | `carousel-ai/*_test.ts` (dont `index_test.ts`, ~2 000 l.), `_shared/carousel-*_test.ts`, `redac-gate-carousel-vecu_test.ts`, `carousel-visual/index_test.ts`, `carousel-slide-image/prompt_test.ts` | ~45 `carousel-*.test.ts(x)`, `use-carousel-*`, `use-generate-visuals`, `use-user-slides-generate`, `export-carousel-pptx-*`, `pptx-*`, `pure-photo-*` | `e2e/pptx-mixed-text.spec.ts`, `e2e/pptx-hybrid-photo-occultee.spec.ts`, `e2e-visite/carousel-*-live.spec.ts` |
+| Carrousel | `carousel-ai/*_test.ts` (dont `index_test.ts`, ~2 000 l., et `prompts_snapshot_test.ts`), `_shared/carousel-*_test.ts`, `redac-gate-carousel-vecu_test.ts`, `carousel-visual/index_test.ts`, `carousel-slide-image/prompt_test.ts` | ~45 `carousel-*.test.ts(x)`, `use-carousel-*`, `use-generate-visuals`, `use-user-slides-generate`, `export-carousel-pptx-*`, `pptx-*`, `pure-photo-*` | `e2e/pptx-mixed-text.spec.ts`, `e2e/pptx-hybrid-photo-occultee.spec.ts`, `e2e-visite/carousel-*-live.spec.ts` |
 | Reel | `creative-flow/index_test.ts` (`applyReelQualityPass`), `_shared/reel-*_test.ts`, `reel-render/*_test.ts` | `reel-*.test.ts(x)` | `e2e-visite/reel-angles-live` |
 | Stories | `creative-flow/index_test.ts`, `stories_secondary_test.ts`, `_shared/story-*_test.ts` | `story-*`, `multi-subject-stories` | `e2e-visite/stories-visuelles` |
-| Post Instagram | `creative-flow/index_test.ts` (`correctPostStreamContent`) | `r1-*`, `publish-guards` | — |
+| Post Instagram | `creative-flow/index_test.ts` (`correctPostStreamContent`), `prompts_snapshot_formats_test.ts` | `r1-*`, `publish-guards` | — |
 | LinkedIn | `creative-flow/index_test.ts` (`runLinkedInTwoStep`), `linkedin-ai/socle-linkedin_test.ts` | `linkedin-*`, `use-linkedin-carousel-caption` | — |
 | Newsletter | `creative-flow/index_test.ts` | `newsletter-word-count` | `e2e-visite/newsletter-live` |
-| Pinterest | `pinterest-visual/index_test.ts`, `pinterest-photo-brief/index_test.ts`, `_shared/pinterest-*_test.ts` | `pinterest-persistence`, `export-pinterest-editable-pptx` | `e2e-visite/pinterest-visual-feedback` |
-| Recyclage | `stories_secondary_test.ts` (stories et carrousel recyclés) | — | `e2e-visite/recycle-live`, `verif-recycler-decoche` |
+| Pinterest | `pinterest-ai/contract_test.ts`, `pinterest-visual/index_test.ts`, `pinterest-photo-brief/index_test.ts`, `_shared/pinterest-*_test.ts`, `prompts_snapshot_formats_test.ts` (texte) | `pinterest-persistence`, `export-pinterest-editable-pptx` | `e2e-visite/pinterest-visual-feedback` |
+| Recyclage | `stories_secondary_test.ts`, `prompts_snapshot_formats_test.ts` | — | `e2e-visite/recycle-live`, `verif-recycler-decoche` |
+| Bio Instagram, brouillons rapides | `generate-content/contract_test.ts` | — | — |
+| Storytelling, inspiration | `storytelling-ai/contract_test.ts`, `inspire-ai/contract_test.ts` | — | — |
 | Crosspost | — | `crosspost-{flow,preview,services,continuity}` | — |
 | Parcours /creer | — | `creation-*`, `creer-*`, `use-do-generate`, `use-format-next`, `generation-lifecycle`, `hook-selection-step`, `content-preview-*`, `draft-conflict-save` | `e2e/premier-contenu-reprise.authed.spec.ts`, `e2e-visite/fonctionnel-t1`, `quota-etape4`, `creer-429`, `contenus-figes*` |
-| Calendrier ↔ générateur | — | `idea-to-calendar`, `r3-calendar-persistence`, `use-calendar-save`, `build-calendar-content`, `calendar-caption` | `e2e-visite/calendrier-*` |
+| Calendrier ↔ générateur | — | `calendar-creer-contract` (clés du navigate state), `idea-to-calendar`, `r3-calendar-persistence`, `use-calendar-save`, `build-calendar-content`, `calendar-caption` | `e2e-visite/calendrier-*` |
 
-### Trous identifiés (à combler au lot 2)
+### Trous restants
 
-Rien ne fige aujourd'hui :
-1. **`creative-flow` generate** pour : post Instagram (seulement des
-   assertions partielles), Pinterest texte, légende photo, stories sans
-   objectif de vente.
-2. **`creative-flow` questions** pour : Pinterest, reel, stories.
-3. **Le recyclage** (`buildRecycleSystemPrompt`), quel que soit le format.
-4. **Les prompts photo** (`runVisionQuestions`, `runVisionGenerate`).
-5. **Les prompts des passes de correction**, par format.
-6. **`carousel-ai`** : pas de snapshot des prompts de rédaction (la forme
-   des sorties est testée par `index_test.ts`).
-7. **`generate-content`** (bio, légende, calendar-quick, express-draft),
-   **`pinterest-ai`**, **`storytelling-ai`** et **`inspire-ai`** : aucun
-   test serveur.
-8. **Le navigate state calendrier → /creer** : pas de test qui vérifie que
-   les deux côtés utilisent les mêmes clés.
+Comblés au lot 2 :
+- les formats `creative-flow` non figés ;
+- le recyclage et le mode photo ;
+- les prompts de rédaction des carrousels ;
+- generate-content, pinterest-ai, storytelling-ai et inspire-ai ;
+- le contrat calendrier → /creer (`src/test/calendar-creer-contract.test.ts`).
+
+Restent sans snapshot :
+1. **Les prompts des passes de correction** par format
+   (`_shared/correction-pass.ts`). Leur comportement est testé, pas leur
+   texte.
+2. **`linkedin-ai`** (crosspost, caption-for-carousel, improve-post), en
+   dehors de `socle-linkedin_test.ts`.
+3. **`carousel-ai` de bout en bout** : la forme et le câblage sont testés
+   par `index_test.ts`, mais pas l'assemblage final du prompt dans le
+   handler (blocs identité, clarté et structure confirmée). Seuls les
+   morceaux sont figés.
 
 ---
 
@@ -404,3 +427,7 @@ Ce sont des constats, pas des corrections : rien n'a été modifié dans ce lot.
     `workspace_id`.
 - **`carousel-ai-candidate`** est retirée (répond 410) mais le dossier
   existe encore.
+- **Calendrier → /creer** (relevé au lot 2) :
+  - le paramètre d'URL `calendar_id` est envoyé mais jamais lu par
+    /creer : c'est le state `calendarPostId` qui porte le lien ;
+  - « Approfondir » (`handleNavigateToDeepen`) n'envoie pas `postDate`.
