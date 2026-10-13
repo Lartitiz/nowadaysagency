@@ -421,7 +421,7 @@ Restent sans snapshot :
 
 ---
 
-## 6. Garde-fous automatiques (lot 4)
+## 6. Garde-fous automatiques (lots 4 et 5)
 
 | Garde-fou | Où | Bloque la CI ? | Ce qu'il empêche |
 |---|---|---|---|
@@ -430,6 +430,8 @@ Restent sans snapshot :
 | Contrat calendrier → /creer | `src/test/calendar-creer-contract.test.ts` | oui (`npm test`) | une clé du navigate state renommée d'un seul côté |
 | Rapport d'impact | `scripts/impact-creation.mjs`, étape « Impact sur la création de contenu » de la CI | non (informatif) | qu'une retouche « pour un format » en touche d'autres sans qu'on le sache : il liste les formats concernés, les fichiers partagés modifiés (avec leur zone) et les prompts figés qui changent |
 | Règles pour les IA qui codent | `CLAUDE.md`, section « Création de contenu » | — | les modifications fourre-tout dans les fichiers communs |
+| Vérification après Lovable | `scripts/verif-post-lovable.sh`, section 7 | — (à lancer à la main) | un chantier Lovable qui casse un format sans passer par une PR |
+| Échecs par format en production | `src/lib/generation-telemetry.ts` → Sentry | — | une panne d'un seul format noyée dans des erreurs anonymes |
 
 Le rapport d'impact se lit dans l'onglet *Actions* de GitHub : ouvrir le
 lancement « CI », puis son résumé. En local :
@@ -438,6 +440,46 @@ lancement « CI », puis son résumé. En local :
 Une exception aux frontières (un format qui DOIT en importer un autre) se
 déclare dans `IMPORTS_AUTORISES` de `boundaries_test.ts`, avec sa raison.
 Aujourd'hui : le recyclage importe les stories et le carrousel.
+
+### Le circuit d'une modification (lot 5)
+
+**Lovable directement sur `main`** convient pour l'interface : textes, styles,
+un écran. Dès que la modification touche un générateur, passer par une
+branche et une PR (Claude Code) :
+- un fichier de `supabase/functions/` listé en section 3 ;
+- un module `_shared` en zone rouge ou orange ;
+- `creative-flow/index.ts` ou `shared.ts`.
+
+La CI tourne alors **avant** la mise en production, et le rapport d'impact
+est sous les yeux avant de fusionner.
+
+**Après chaque chantier Lovable** : `bash scripts/verif-post-lovable.sh`.
+Pour comparer à un commit précis : `DEPUIS=<commit> bash scripts/verif-post-lovable.sh`.
+Sa section 7 « Création de contenu » :
+- lance les tests des générateurs (snapshots, contrats, frontières entre formats) ;
+- affiche le rapport d'impact depuis le commit d'avant le chantier.
+
+**Après la mise en production d'un changement de générateur** : générer une
+fois, dans l'app, chaque format listé par le rapport d'impact. Des tests sur
+l'app réelle existent pour plusieurs formats (compte test « Camille »,
+`e2e-visite/README.md`). Exemple :
+`npm run visite -- newsletter-live reel-angles-live stories-visuelles recycle-live carousel-photo-live carousel-mix-live`.
+
+**En production, Sentry** reçoit chaque génération ratée, groupée par
+fonction, format et type d'erreur (`src/lib/generation-telemetry.ts`). Les
+filtres utiles dans Sentry :
+- `generation_format` : `linkedin`, `post`, `stories`, `reel`,
+  `newsletter`, `carousel:mix`, `post+photo`… ;
+- `generation_function` : la fonction serveur ;
+- `generation_step` : `generate`, `questions`, `hooks`… ;
+- `generation_error` : `SERVER_ERROR`, `TIMEOUT`, `NETWORK`, `GENERATION_ERROR`…
+
+Une hausse sur un seul format juste après un déploiement désigne le coupable.
+
+Ce qui n'est pas remonté :
+- le texte de l'utilisatrice, jamais ;
+- le quota atteint, la session expirée et l'accès refusé, qui ne sont pas
+  des pannes.
 
 ---
 

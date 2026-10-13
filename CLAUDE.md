@@ -299,6 +299,7 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 4. **Les snapshots sont le filet.** Après une modification, lance `npm run test:edges`. Seuls les snapshots du format visé ont le droit de changer. Régénère avec `-- --update` (commande en tête de chaque fichier de test), puis relis le diff du `.snap`. Si un snapshot d'un AUTRE format change, c'est une régression : corrige le code, ne régénère pas.
 5. **Nouveau comportement = nouveau cas de test**, dans le snapshot ou le `contract_test.ts` du format.
 6. **Rapport d'impact.** La CI écrit dans le résumé du lancement les formats touchés et les prompts dont le texte change (`scripts/impact-creation.mjs`). Lis-le avant de fusionner.
+7. **Circuit.** Toucher un générateur = branche + PR, pas Lovable directement sur `main`. Après un chantier Lovable : `bash scripts/verif-post-lovable.sh` (section 7). En production, les échecs de génération arrivent dans Sentry étiquetés par format (`src/lib/generation-telemetry.ts`) : tout nouvel appel à un générateur passe par `invokeWithTimeout`, `invokeWithHeartbeat` ou `useStreamingInvoke` pour en bénéficier.
 
 ## Vocabulaire UI (conventions — audit UX 04/07/2026)
 

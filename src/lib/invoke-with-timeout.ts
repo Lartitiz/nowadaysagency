@@ -1,6 +1,7 @@
 import { trackUpgrade } from "@/lib/upgrade-events";
 import { withIdeaBrief } from "@/lib/idea-brief-request";
 import { supabase } from "@/integrations/supabase/client";
+import { reportGenerationFailure } from "@/lib/generation-telemetry";
 
 export type InvokeErrorCode = "TIMEOUT" | "RATE_LIMIT" | "AUTH" | "SESSION_UNAVAILABLE" | "FORBIDDEN" | "SERVER_ERROR" | "GENERATION_ERROR" | "NETWORK" | "UNKNOWN";
 export interface InvokeError {
@@ -84,6 +85,10 @@ export async function invokeWithTimeout(
         message: "La réponse prend trop de temps. Le traitement peut encore se terminer : vérifie son résultat avant de relancer." } });
     }, timeoutMs);
   });
-  try { return await Promise.race([run(), timeout]); }
+  try {
+    const result = await Promise.race([run(), timeout]);
+    if (result.error) reportGenerationFailure(functionName, options.body, result.error.code);
+    return result;
+  }
   finally { clearTimeout(timer!); }
 }

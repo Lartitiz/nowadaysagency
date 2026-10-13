@@ -1,6 +1,7 @@
 import { withIdeaBrief } from "@/lib/idea-brief-request";
 import { supabase } from "@/integrations/supabase/client";
 import type { InvokeError } from "./invoke-with-timeout";
+import { reportGenerationFailure } from "@/lib/generation-telemetry";
 
 const CONNECTION_INTERRUPTED = "La connexion au service de génération a été interrompue. Réessaie dans quelques instants.";
 function serviceMessage(value: unknown, fallback = "Erreur de génération."): string {
@@ -21,6 +22,17 @@ function serviceMessage(value: unknown, fallback = "Erreur de génération."): s
  * être substituable sans changer le code appelant.
  */
 export async function invokeWithHeartbeat(
+  functionName: string,
+  options: Parameters<typeof invokeWithHeartbeatRaw>[1] = {},
+  timeoutMs = 180000,
+): Promise<{ data: any; error: InvokeError | null }> {
+  const result = await invokeWithHeartbeatRaw(functionName, options, timeoutMs);
+  // Échec étiqueté par format dans Sentry (lot 5, voir generation-telemetry.ts).
+  if (result.error) reportGenerationFailure(functionName, options.body, result.error.code);
+  return result;
+}
+
+async function invokeWithHeartbeatRaw(
   functionName: string,
   options: {
     body?: any;
