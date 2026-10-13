@@ -1,21 +1,21 @@
 import { extractCarouselTexts, reinjectCarouselTexts } from "../_shared/correction-pass.ts";
 import { alignLinkedInHookFields } from "../_shared/linkedin-hook.ts";
-import { authoredContentSource, currentContentContract, testimonySourceText } from "../_shared/editorial-voice.ts";
+import { currentContentContract } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES, claritySourceBlock } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ANTI_BIAS, PREGEN_INJECTION_RULES, EDITORIAL_ANGLES_REFERENCE, VISUAL_ANALOGIES, LINKEDIN_TEMPLATES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback, buildBrandGuardText } from "../_shared/user-context.ts";
 import { enforceAudienceAddress, parseAudienceAddress, type AudienceAddress } from "../_shared/audience-address.ts";
-import { enforceAudienceAddressInFields, enforceAudienceAddressInJsonText, enforceAudienceAddressInText } from "../_shared/audience-address-fields.ts";
+import { enforceAudienceAddressInFields, enforceAudienceAddressInText } from "../_shared/audience-address-fields.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, forcesDisabledThinking, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
-import { streamAnthropicToolSSE, createClientSSEStream, runWithHeartbeatSSE } from "../_shared/anthropic-stream.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, forcesDisabledThinking, type UsageSink } from "../_shared/anthropic.ts";
+import { runWithHeartbeatSSE } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { buildDepthBlock } from "../_shared/depth-research.ts";
 import { livedCaseFromCreativeBody, LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from "../_shared/lived-case.ts";
@@ -25,7 +25,7 @@ import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool }
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, type CorrectionFormat, storiesAuditableText } from "../_shared/correction-pass.ts";
-import { analyzeTextRedac, numbersIn, runRedacGate, runTextRedacGate, textRedacViolations, dropUserSourcedReversals, hookEchoesBefore } from "../_shared/redac-gate.ts";
+import { analyzeTextRedac, numbersIn, runRedacGate, runTextRedacGate, textRedacViolations, hookEchoesBefore } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks, fetchPreviousHooksByFormat } from "../_shared/previous-hooks.ts";
 import { reelAuditableText } from "../_shared/reel-postprocess.ts";
@@ -38,6 +38,9 @@ import { extractImagePayload, photoVoiceRule } from "./shared.ts";
 import { isExplicitlyFictionalBrief, isFactualFictionalLinkedInBrief, alignFactualLinkedInHook, buildFictionalLinkedInQuestions, applyLinkedInCorrectionPass, streamLinkedInPhotoVision, runLinkedInTwoStep } from "./formats/linkedin.ts";
 import { STORIES_ADDRESS_FIELDS, type StoriesGateResult, applyStoriesCorrectionPass, finalizeRecycledStories } from "./formats/stories.ts";
 import { HOOKS_ADDRESS_FIELDS, normalizeHooksResponse, applyReelQualityPass } from "./formats/reel.ts";
+import { streamDefaultPostSSE } from "./formats/post.ts";
+export { correctPostStreamContent } from "./formats/post.ts";
+export type { PostStreamQuality } from "./formats/post.ts";
 export { HOOKS_ADDRESS_FIELDS, applyReelQualityPass, enforceReelAudienceAddress } from "./formats/reel.ts";
 export { STORIES_ADDRESS_FIELDS, applyStoriesCorrectionPass, finalizeRecycledStories } from "./formats/stories.ts";
 export type { StoriesGateResult } from "./formats/stories.ts";
@@ -127,36 +130,6 @@ const FOLLOW_UP_TOOL = {
       },
     },
     required: ["follow_up_questions"],
-  },
-};
-
-// ── Sortie structurée pour le POST (Instagram) et le Pinterest en streaming ──
-// Même remède que les questions : le tool forcé fait garantir le JSON par l'API.
-// Le post streamait en TEXTE LIBRE avec un prompt « Réponds UNIQUEMENT en JSON »
-// (forme identique au schéma ci-dessous) — Sonnet (thinking off) cassait ce JSON
-// par intermittence (saut de ligne ET guillemet droit non échappé dans `content`)
-// → le blob ```json fuyait au rendu (filets front #511/#524). En passant par le
-// tool, le JSON assemblé côté Anthropic est valide par construction. Le schéma
-// REPREND À L'IDENTIQUE la forme demandée dans le prompt (cf. bloc « Réponds
-// UNIQUEMENT en JSON » du step generate) — le prompt reste inchangé, seule la
-// couche de transport devient déterministe.
-const POST_TOOL = {
-  name: "rediger_post",
-  description: "Retourne le post rédigé (contenu prêt à poster) au format structuré.",
-  input_schema: {
-    type: "object",
-    properties: {
-      content: { type: "string", description: "Le contenu complet, prêt à poster." },
-      accroche: { type: "string", description: "La première phrase / accroche." },
-      format: { type: "string" },
-      pillar: { type: "string" },
-      objectif: { type: "string" },
-      personal_tip: {
-        type: ["string", "null"],
-        description: "Conseil d'incarnation SEULEMENT si demandé plus haut, sinon null.",
-      },
-    },
-    required: ["content", "accroche"],
   },
 };
 
@@ -1586,161 +1559,6 @@ export function retiredCarouselStreamResponse(corsHeaders: Record<string, string
     error: "carousel_flow_retired",
     message: "Ce circuit de carrousel est retiré. Les carrousels se génèrent avec carousel-ai.",
   }), { status: 410, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-}
-
-// Non-LinkedIn, non-Carousel (= POST Instagram + Pinterest) : streaming
-// par TOOL FORCÉ. Le prompt demande déjà un JSON `{content, accroche, …}` ;
-// en texte libre Sonnet le cassait par intermittence (fuite du blob ```json
-// au rendu). Le tool fait garantir le JSON par l'API — le stream recolle
-// les `input_json_delta`, donc le live « rédige en temps réel » est
-// préservé à l'identique (cf. streamAnthropicToolSSE). Relance serveur sur
-// overloaded / complétion vide conservée (bug post IG intermittent 10/07).
-// Gate rédactionnel du post streamé (audit slop 18/08, constat 2) : ce chemin
-// — celui réellement utilisé en prod pour post Instagram/Pinterest — n'avait
-// ni détection ni re-passe de correction, contrairement à LinkedIn/newsletter/
-// carrousel. Le live déjà streamé au client n'est pas rejoué : cette fonction
-// tourne dans le onDone de createClientSSEStream, juste avant l'émission de
-// l'event `done` final, dont elle peut remplacer la valeur `full`. Extraite
-// (plutôt qu'inline) pour être testable directement, même principe que
-// `runDeepResearchWebSearch` ci-dessus.
-/** Mesure du post final, pour la télémétrie (content_quality_events). */
-export interface PostStreamQuality {
-  score: number;
-  violations: number;
-  repassed: boolean;
-  content: string;
-  /** Échos d'accroche AVANT correction ; absent si la garde n'était pas armée. */
-  hookEchoesBefore?: number;
-}
-
-export async function correctPostStreamContent(
-  full: string,
-  params: {
-    body: any; fullContext: string; researchSource?: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[];
-    /** Reçoit la mesure du post (avant/après garde) dès qu'elle existe. */
-    onQuality?: (q: PostStreamQuality) => void;
-  },
-): Promise<string | undefined> {
-  const { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks, onQuality } = params;
-  let parsed: any;
-  try {
-    parsed = JSON.parse(full);
-  } catch {
-    return undefined; // JSON déjà invalide en amont (failOnTruncation l'aurait signalé)
-  }
-  if (typeof parsed?.content !== "string" || !parsed.content.trim()) return undefined;
-
-  try {
-    const { allowed: postAllowed, research: postResearch } = gateNumbers([
-      typeof body.context === "string" ? body.context : "",
-      body.answers ? JSON.stringify(body.answers) : "",
-      typeof body.news_context === "string" ? body.news_context : "",
-      fullContext || "",
-    ], researchSource);
-    // L'écho d'accroche est mesuré DÈS ce contrôle : sans lui, un post dont le
-    // seul défaut est de redire une accroche précédente sortait « déjà propre »
-    // et la garde anti-redite (#915) ne se déclenchait jamais seule.
-    const echo = { previousHooks, subject: echoSubject };
-    const postRedac = dropUserSourcedReversals(analyzeTextRedac(parsed.content, postAllowed, brandGuardText, echo, postResearch, testimonySourceText(body)), authoredContentSource(body));
-    const preViolations = textRedacViolations(postRedac);
-    const reportAsIs = () => onQuality?.({
-      score: Math.max(40, 100 - 10 * preViolations), violations: preViolations, repassed: false,
-      content: parsed.content, hookEchoesBefore: hookEchoesBefore(postRedac, echo),
-    });
-    // Trop court pour une relecture, ou déjà propre : pas d'appel IA de plus.
-    if (parsed.content.length < 200 || preViolations === 0) {
-      reportAsIs();
-      return undefined;
-    }
-
-    // runTextRedacGate = correction → RE-mesure → garde anti-régression (la
-    // correction n'est gardée que si elle ne dégrade aucun compteur mesuré,
-    // cf. échantillon live 18/08 : Haiku introduisait des retournements).
-    const gate = await runTextRedacGate(parsed.content, {
-      format: "instagram_caption",
-      correction: {
-        logger: (m) => console.log(`[creative-flow post-stream] ${m}`),
-        authoredText: authoredContentSource(body),
-        sourceContext: [authoredContentSource(body), fullContext, researchSource].filter(Boolean).join("\n"),
-        // Édition mécanique à règles fermées → Haiku (cf. #364)
-        model: "claude-haiku-4-5",
-        abortTimeoutMs: CORRECTION_ABORT_MS,
-      },
-      allowedNumbers: postAllowed,
-      research: postResearch,
-      brandGuardText,
-      echo,
-      testimonySource: testimonySourceText(body),
-    });
-    onQuality?.({ score: gate.score, violations: gate.violations, repassed: gate.repassed, content: gate.content, hookEchoesBefore: gate.hookEchoesBefore });
-    if (!gate.repassed || gate.content === parsed.content) return undefined;
-
-    parsed.content = gate.content;
-    return JSON.stringify(parsed);
-  } catch (e) {
-    console.error("[creative-flow post-stream] correction pass failed:", e);
-    return undefined;
-  }
-}
-
-function streamDefaultPostSSE(params: {
-  apiKey: string;
-  model: AnthropicModel;
-  systemPrompt: string;
-  userPrompt: string;
-  corsHeaders: Record<string, string>;
-  userId: string;
-  workspace_id?: string | null | undefined;
-  body: any;
-  fullContext: string;
-  researchSource?: string;
-  brandGuardText?: string;
-  /** Sujet + accroches déjà écrites dessus : garde déterministe anti-redite (24/08). */
-  echoSubject?: string;
-  previousHooks?: string[];
-  /** Tu ou vous de la fiche de marque (04/10/2026). */
-  audienceAddress?: AudienceAddress | null;
-  /** Format enregistré dans content_quality_events (post_instagram, post_pinterest…). */
-  qualityFormat?: string;
-}): Response {
-  const { apiKey, model, systemPrompt, userPrompt, corsHeaders, userId, body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks } = params;
-  const workspace_id = params.workspace_id ?? undefined;
-  return createClientSSEStream(
-    () => streamAnthropicToolSSE(
-      apiKey,
-      model,
-      systemPrompt,
-      [{ role: "user", content: userPrompt! }],
-      0.85,
-      4096,
-      POST_TOOL,
-      60_000,
-    ),
-    corsHeaders,
-    async (full, usage) => {
-      await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
-      let quality: PostStreamQuality | undefined;
-      const corrected = await correctPostStreamContent(full, { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks, onQuality: (q) => { quality = q; } });
-      // Tu ou vous APRÈS la relecture (même place que les autres passes du flux).
-      const addressed = await enforceAudienceAddressInJsonText(corrected ?? full, POST_ADDRESS_FIELDS, params.audienceAddress, addrOpts("post-stream"));
-      // Télémétrie : sans cette ligne, le post n'existait pas pour le bilan hebdo
-      // ni pour la garde anti-redite des contenus suivants (elle lit les accroches ici).
-      if (quality) {
-        let finalContent = quality.content;
-        try { const doc = JSON.parse(addressed ?? corrected ?? full); if (typeof doc?.content === "string") finalContent = doc.content; } catch { /* mesure gardée */ }
-        await logContentQuality(
-          userId,
-          params.qualityFormat || "post",
-          { score: quality.score, violations: quality.violations, repassed: quality.repassed, content: JSON.stringify({ content: finalContent }), hookEchoesBefore: quality.hookEchoesBefore },
-          usage?.model,
-          workspace_id,
-          echoSubject,
-        );
-      }
-      return addressed ?? corrected;
-    },
-    { failOnTruncation: true },
-  );
 }
 
 // Vision-anchored questions: let Claude SEE ALL photos (1..10) to ask grounded questions.
