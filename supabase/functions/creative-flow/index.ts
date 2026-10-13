@@ -1,4 +1,4 @@
-import { extractCarouselTexts, extractNewsletterTexts, reinjectCarouselTexts, reinjectNewsletterTexts } from "../_shared/correction-pass.ts";
+import { extractCarouselTexts, reinjectCarouselTexts } from "../_shared/correction-pass.ts";
 import { structureLossReason } from "../_shared/text-structure-guard.ts";
 import { alignLinkedInHookFields } from "../_shared/linkedin-hook.ts";
 import { authoredContentSource, currentContentContract, testimonySourceText } from "../_shared/editorial-voice.ts";
@@ -45,6 +45,8 @@ import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
 import { recapHooksLine } from "../_shared/multi-subject.ts";
 import { adoptStructuredStories, coerceStoriesSequence, finalizeStoriesLayout, stripStoriesWriterLayout } from "../_shared/story-formatting.ts";
 import { GENERATE_ABORT_MS, CORRECTION_ABORT_MS, ADJUST_ABORT_MS, LIGHT_ABORT_MS, gateNumbers, _deps, addrOpts, POST_ADDRESS_FIELDS } from "./shared.ts";
+import { applyNewsletterCorrectionPass, runNewsletterTwoStep } from "./formats/newsletter.ts";
+export { NEWSLETTER_ADDRESS_FIELDS, applyNewsletterCorrectionPass } from "./formats/newsletter.ts";
 export { gateNumbers, _deps, POST_ADDRESS_FIELDS } from "./shared.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
@@ -1869,8 +1871,6 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
 
 /** Champs publiés d'une séquence de stories (texte, petit titre, sticker), AVANT la mise en forme. */
 export const STORIES_ADDRESS_FIELDS = ["stories[].text", "stories[].visual.title_pill", "stories[].sticker.label", "stories[].sticker.question", "stories[].sticker.options[]"];
-/** Newsletter : objet, aperçu (deux noms selon le chemin), corps, accroche, invitation. */
-export const NEWSLETTER_ADDRESS_FIELDS = ["subject", "preview_text", "preheader", "content", "accroche", "cta_suggestion"];
 /** Accroches de reel proposées à l'étape « hooks » : ce qu'elle dira et ce qu'on lira. */
 export const HOOKS_ADDRESS_FIELDS = ["hooks[].text", "hooks[].text_overlay"];
 
@@ -2442,132 +2442,6 @@ Réponds UNIQUEMENT en JSON :
   await logLinkedInQuality(fallbackParsed.content, false);
   await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
   return new Response(JSON.stringify(fallbackParsed), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-// Newsletter : même pattern que LinkedIn — pas de streaming de texte,
-// mais heartbeat SSE + étapes réelles (writing → correcting).
-export async function applyNewsletterCorrectionPass(parsed: any, params: {
-  body: any; fullContext: string; researchSource?: string; context?: string | null; newsContext?: string | null;
-  brandGuardText?: string; previousHooks?: string[];
-  /** Tu ou vous de la fiche de marque : objet, aperçu et corps contrôlés après la relecture (04/10/2026). */
-  audienceAddress?: AudienceAddress | null;
-}, emitStatus: StatusEmitter = () => {}): Promise<number | undefined> {
-  const { body, fullContext, researchSource, context, newsContext, brandGuardText, previousHooks } = params;
-  // Échos d'accroche AVANT correction (undefined = garde non armée ou passe non lancée).
-  let echoesBefore: number | undefined;
-  if (parsed.content && typeof parsed.content === "string" && parsed.content.length >= 200) {
-    try {
-      emitStatus("correcting");
-      const { allowed: nlAllowed, research: nlResearch } = gateNumbers([
-        typeof body.context === "string" ? body.context : "",
-        body.answers ? JSON.stringify(body.answers) : "",
-        typeof body.news_context === "string" ? body.news_context : "",
-        fullContext || "",
-      ], researchSource);
-      // runTextRedacGate = mesure → correction → RE-mesure → garde anti-régression
-      // (cf. échantillon live 18/08 : la passe Haiku introduisait des retournements).
-      const gate = await runTextRedacGate(extractNewsletterTexts(parsed), {
-        format: "newsletter",
-        correction: {
-          logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
-          sourceContext: [newsContext, context, JSON.stringify(body.answers || []), JSON.stringify(body.followUpAnswers || []), researchSource].filter(Boolean).join("\n"),
-          authoredText: authoredContentSource(body),
-          // Édition mécanique à règles fermées → Haiku (cf. #364)
-          model: "claude-haiku-4-5",
-          abortTimeoutMs: CORRECTION_ABORT_MS,
-        },
-        allowedNumbers: nlAllowed,
-        research: nlResearch,
-        brandGuardText,
-        echo: { previousHooks, subject: typeof context === "string" ? context : undefined },
-        testimonySource: testimonySourceText(body),
-      });
-      Object.assign(parsed, reinjectNewsletterTexts(parsed, gate.content));
-      echoesBefore = gate.hookEchoesBefore;
-    } catch (e) {
-      console.error("[creative-flow newsletter] correction pass failed:", e);
-    }
-  }
-  // Tu ou vous : objet, texte d'aperçu et corps (même quand le corps est trop
-  // court pour la relecture). Aucun appel si le texte est conforme.
-  await enforceAudienceAddressInFields(parsed, NEWSLETTER_ADDRESS_FIELDS, params.audienceAddress, addrOpts("newsletter"));
-  return echoesBefore;
-}
-
-async function runNewsletterTwoStep(params: {
-  model: AnthropicModel;
-  systemPrompt: string;
-  userPrompt: string;
-  corsHeaders: Record<string, string>;
-  userId: string;
-  workspace_id?: string | null | undefined;
-  body: any;
-  context?: string | null;
-  newsContext?: string | null;
-  fullContext: string;
-  researchSource?: string;
-  brandGuardText?: string;
-  /** Accroches déjà écrites sur ce sujet : garde déterministe anti-redite (24/08). */
-  previousHooks?: string[];
-  /** Tu ou vous de la fiche de marque (04/10/2026). */
-  audienceAddress?: AudienceAddress | null;
-}, emitStatus: StatusEmitter = () => {}): Promise<Response> {
-  const { model, systemPrompt, userPrompt, corsHeaders, userId, body, context, newsContext, fullContext, researchSource, brandGuardText, previousHooks } = params;
-  const workspace_id = params.workspace_id ?? undefined;
-  const nlUsage: UsageSink = {};
-  emitStatus("writing");
-  const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096, nlUsage, GENERATE_ABORT_MS);
-
-  // Lecture tolérante : sinon le JSON brut s'affichait comme texte de la newsletter.
-  let parsed: any = tryParseAiObject(rawContent, "creative-flow:newsletter") ?? { content: rawContent };
-
-  console.log(
-    `[creative-flow newsletter] subject:`,
-    parsed.subject?.length,
-    "preview:",
-    parsed.preview_text?.length,
-  );
-
-  const nlEchoesBefore = await applyNewsletterCorrectionPass(parsed, params, emitStatus);
-
-  // Nettoyage déterministe : un email part en texte brut, le markdown
-  // résiduel (**gras**, *italique*) s'afficherait tel quel (audit 09/07).
-  parsed = stripMarkdownFromNewsletter(parsed);
-
-  if (parsed.content && typeof parsed.content === "string") {
-    parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
-  }
-
-  // Télémétrie qualité newsletter (retour SSE anticipé → loggée ici, pas
-  // dans la queue commune). Même mesure légère que les autres formats.
-  if (typeof parsed.content === "string" && parsed.content.trim()) {
-    try {
-      const { allowed: nlAllowed, research: nlResearch } = gateNumbers([
-        typeof context === "string" ? context : "",
-        body.answers ? JSON.stringify(body.answers) : "",
-        typeof newsContext === "string" ? newsContext : "",
-        fullContext || "",
-      ], researchSource);
-      const a = analyzeTextRedac(parsed.content, nlAllowed, brandGuardText, undefined, nlResearch);
-      const violations = textRedacViolations(a);
-      const score = Math.max(40, 100 - 10 * violations);
-      await logContentQuality(
-        userId,
-        "newsletter",
-        { score, violations, repassed: false, content: JSON.stringify({ subject: parsed.subject, content: parsed.content }), hookEchoesBefore: nlEchoesBefore },
-        nlUsage.model,
-        workspace_id,
-        typeof context === "string" ? context : undefined,
-      );
-    } catch (e) {
-      console.error("[creative-flow] log qualité newsletter ignoré (génération intacte):", (e as any)?.message || e);
-    }
-  }
-
-  await logUsage(userId, "content", "creative_flow", nlUsage.total_tokens, nlUsage.model, workspace_id);
-  return new Response(JSON.stringify(parsed), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
