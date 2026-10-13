@@ -80,3 +80,31 @@ export function photoVoiceRule(addr: AudienceAddress | null | undefined, legacy:
   if (!addr) return legacy;
   return `Respecte la personne grammaticale et le registre de cette marque : si elle écrit au « je », garde ses mots. Pour s'adresser à son public, elle ${addr === "vous" ? "VOUVOIE (« vous », « votre », « vos »)" : "TUTOIE (« tu », « ton », « ta », « tes »)"} : règle ferme de sa fiche de marque.`;
 }
+
+// ── Sortie structurée pour les steps `questions` / `follow-up` ──
+// Le tool forcé (tool_choice) fait garantir le JSON par l'API elle-même :
+// fini les 502 « réponse IA illisible » quand Haiku glisse un guillemet non
+// échappé ou un saut de ligne brut dans du JSON texte (vu 2× de suite le
+// 05/07 sur le parcours story). Les prompts restent inchangés — c'est la
+// couche de transport qui devient déterministe, pas une règle de plus.
+export const QUESTIONS_TOOL = {
+  name: "poser_questions",
+  description: "Retourne les 3 questions de brief à poser à l'utilisatrice.",
+  input_schema: {
+    type: "object",
+    properties: {
+      questions: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            question: { type: "string" },
+            placeholder: { type: "string" },
+          },
+          required: ["question", "placeholder"],
+        },
+      },
+    },
+    required: ["questions"],
+  },
+};

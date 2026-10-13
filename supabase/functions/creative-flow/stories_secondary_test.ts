@@ -191,7 +191,9 @@ Deno.test("creative-flow : en mode photo, les stories adoptent la forme structur
   const finalize = block.indexOf("finalizeStoriesLayout(parsed");
   assert(adopt >= 0 && strip > adopt && finalize > strip, `ordre cassé : ${adopt}, ${strip}, ${finalize}`);
   // La génération photo utilise le tool structuré (miroir du prompt).
-  const vision = src.slice(src.indexOf("async function runVisionGenerate("));
+  // runVisionGenerate vit dans formats/photo.ts depuis le lot 3 (13/10/2026).
+  const photoSrc = await Deno.readTextFile(new URL("./formats/photo.ts", import.meta.url));
+  const vision = photoSrc.slice(photoSrc.indexOf("async function runVisionGenerate("));
   assert(vision.slice(0, 9000).includes("tool: buildVisionTool(contentType)"));
 });
 
