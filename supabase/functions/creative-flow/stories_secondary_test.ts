@@ -294,7 +294,9 @@ Deno.test("creative-flow recyclage : les stories structurées passent par finali
   const finalize = run.indexOf("await finalizeRecycledStories(resultVal");
   const textGate = run.indexOf("await runTextRedacGate(resultVal");
   assert(structured > 0 && finalize > structured && textGate > finalize, `ordre cassé : ${structured}, ${finalize}, ${textGate}`);
-  const fn = src.slice(src.indexOf("export async function finalizeRecycledStories("));
+  // finalizeRecycledStories vit dans formats/stories.ts depuis le lot 3 (13/10/2026).
+  const storiesSrc = await Deno.readTextFile(new URL("./formats/stories.ts", import.meta.url));
+  const fn = storiesSrc.slice(storiesSrc.indexOf("export async function finalizeRecycledStories("));
   const strip = fn.indexOf("stripStoriesWriterLayout(sequence)");
   const corr = fn.indexOf("applyStoriesCorrectionPass(sequence");
   const lay = fn.indexOf("finalizeStoriesLayout(sequence");
