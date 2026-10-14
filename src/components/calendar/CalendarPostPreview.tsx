@@ -3,7 +3,7 @@ import { normalizeFormat } from "@/lib/format-normalizer";
 import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2, ExternalLink } from "lucide-react";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { exportCarouselPdf, exportCarouselPng } from "@/lib/export-carousel-png";
 import { exportCarouselHybridPptx, type OriginalPhoto } from "@/lib/export-carousel-hybrid-pptx";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
@@ -16,6 +16,9 @@ import { toast } from "sonner";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { getIncludeLogoPref, setIncludeLogoPref } from "@/lib/export-logo";
 import { useOpenInCanva } from "@/hooks/use-open-in-canva";
+import StoryFramePreview from "@/components/stories/StoryFramePreview";
+import { buildStoryFrameHtml, type StoryFrameBranding } from "@/lib/story-visual";
+import { resolveLibraryPhotoUrls } from "@/lib/story-photos";
 
 interface Props {
   photoComposition?: boolean;
