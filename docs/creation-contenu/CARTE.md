@@ -525,6 +525,7 @@ après le découpage, ils doivent tous passer sans être retouchés.
 | `carousel-editor-heavy-undo.test.tsx` | Annuler / Rétablir à l'identique après une mise en page, un thème, « Appliquer à toutes les slides », « Police et couleur sur toutes les slides », un collage sur une autre slide |
 | `carousel-editor-roundtrip.test.tsx` | Aller-retour `readCarouselDocument` → retouches → `documentOutput` → `mergeEditorRaw` → relecture identique ; branchement comme `CreerUnifie.tsx` : une seule émission par retouche, reçu de sauvegarde gardé, pas de relecture sur un écho, réouverture identique, régénération relue une fois |
 | `carousel-editor-export-fidelity.test.tsx` | Après chaque retouche (texte, style, déplacement, taille, rotation, ombre, filtre, fond, police, verrou, ordre, masquage, duplication, photo, mise en page, thème, report), sur le vrai HTML du serveur : `data-pptx-editable`, `data-pptx-photo`, `data-pptx-shape` et `data-slide-text` restent sur les mêmes éléments |
+| `carousel-editor-wiring.test.tsx` (lot E3-0) | Branchement des commandes que les autres tests ne passent pas par l'écran : encadré « Contrôle qualité » (bilan, Revérifier, Appliquer la correction, Voir cet élément), sélection multiple (aligner, centrer, grouper, dégrouper), flèches et Suppr dans l'aperçu, boutons des slides (monter, descendre, supprimer, verrouiller), calques masqués / retirés / remis, fond de la slide, texte sur la photo, intensité du voile, aperçu Instagram |
 
 ---
 

@@ -49,7 +49,14 @@ Reste du lot 8 :
   manquantes » et « Repartir de zéro ? » (affichage pur).
 
 ## En attente
-- **E3** : découper CarouselEditor.tsx par mission. Préalables remplis (#1476 et #1477 fusionnées le 14/10/2026). Prompt prêt : `docs/robustesse/prompt-lot-e3.md`.
+- **E3** : découper CarouselEditor.tsx par mission (plan validé par Laetitia le
+  14/10/2026, détail dans `gros-fichiers.md`, fiche 8). Une PR par morceau :
+  - **E3-0** (en cours) : tests de branchement `carousel-editor-wiring.test.tsx`
+    (20 cas : contrôle qualité, aligner / grouper, flèches, boutons des slides,
+    calques masqués / retirés, fond, texte sur la photo, voile, aperçu Instagram) ;
+  - E3-1 outils de calcul et petites briques ; E3-2 barre d'outils flottante ;
+    E3-3 reste de l'aperçu ; E3-4 et E3-5 panneau de réglages ; E3-6 en-tête,
+    contrôle qualité, miniatures, « Toutes les slides » et « Mes styles ».
   Points d'attention relevés par E2 : `CARTE.md`, section 7 (écho reconnu à la
   référence, `inputKey`).
 - **G4** : découper les autres gros fichiers, après la cartographie (carte 1).
