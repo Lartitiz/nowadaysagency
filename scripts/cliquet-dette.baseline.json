@@ -26,7 +26,7 @@
       "any": 47
     },
     "src/components/creer/CarouselEditor.tsx": {
-      "lignes": 2250,
+      "lignes": 1905,
       "any": 4
     },
     "src/components/creer/CreerStepFormat.tsx": {
@@ -184,10 +184,6 @@
     "supabase/functions/newsjacking-ai/index.ts": {
       "lignes": 947,
       "any": 14
-    },
-    "supabase/functions/visual-studio/index.ts": {
-      "lignes": 841,
-      "any": 0
     }
   }
 }
