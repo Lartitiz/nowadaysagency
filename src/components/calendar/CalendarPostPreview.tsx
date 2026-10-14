@@ -3,7 +3,7 @@ import { normalizeFormat } from "@/lib/format-normalizer";
 import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2, ExternalLink } from "lucide-react";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { exportCarouselPdf, exportCarouselPng } from "@/lib/export-carousel-png";
 import { exportCarouselHybridPptx, type OriginalPhoto } from "@/lib/export-carousel-hybrid-pptx";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
@@ -16,6 +16,9 @@ import { toast } from "sonner";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { getIncludeLogoPref, setIncludeLogoPref } from "@/lib/export-logo";
 import { useOpenInCanva } from "@/hooks/use-open-in-canva";
+import StoryFramePreview from "@/components/stories/StoryFramePreview";
+import { buildStoryFrameHtml, type StoryFrameBranding } from "@/lib/story-visual";
+import { resolveLibraryPhotoUrls } from "@/lib/story-photos";
 
 interface Props {
   photoComposition?: boolean;
@@ -64,6 +67,56 @@ export function CalendarPostPreview({
   useEffect(() => { setSlideIndex(0); }, [caption, format, canal]);
   const [includeLogo, setIncludeLogo] = useState(getIncludeLogoPref());
   const logoUrl = (charterData as any)?.logo_url || null;
+
+  // ── Visuels de stories : reconstruits du JSON persisté, comme dans l'atelier.
+  // Sans ça, l'aperçu calendrier d'une série de stories tombait sur le cadre
+  // générique 📱 de SocialMockup (les stories n'ont pas de mediaUrls).
+  const isStorySerie = format === "story_serie" && Array.isArray(storiesData) && storiesData.length > 0;
+  const storyBranding: StoryFrameBranding | null = charterData
+    ? {
+        color_primary: (charterData as any).color_primary,
+        color_secondary: (charterData as any).color_secondary,
+        color_background: (charterData as any).color_background,
+        color_text: (charterData as any).color_text,
+        story_assemblage: (charterData as any).story_assemblage ?? null,
+        story_pill_color: (charterData as any).story_pill_color ?? null,
+        story_corners: (charterData as any).story_corners ?? null,
+        story_align: (charterData as any).story_align ?? null,
+      }
+    : null;
+  const storyPhotoIdsSignature = useMemo(
+    () =>
+      (isStorySerie ? storiesData : [])
+        .map((s: any) => s?.visual?.photo_id)
+        .filter(Boolean)
+        .sort()
+        .join(","),
+    [isStorySerie, storiesData],
+  );
+  const [storyLibraryUrls, setStoryLibraryUrls] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    if (!storyPhotoIdsSignature) {
+      setStoryLibraryUrls(new Map());
+      return;
+    }
+    let cancelled = false;
+    resolveLibraryPhotoUrls(storiesData || [])
+      .then((map) => { if (!cancelled) setStoryLibraryUrls(map); })
+      .catch(() => { if (!cancelled) setStoryLibraryUrls(new Map()); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storyPhotoIdsSignature]);
+  const storyFrames = useMemo(
+    () =>
+      isStorySerie
+        ? storiesData.map((s: any) => {
+            const v = s?.visual;
+            const photoUrl = v?.photo_url || (v?.photo_id ? storyLibraryUrls.get(v.photo_id) ?? null : null);
+            return buildStoryFrameHtml(s, storyBranding, { photoUrl, preview: true });
+          })
+        : [],
+    [isStorySerie, storiesData, storyBranding, storyLibraryUrls],
+  );
   const handleIncludeLogoChange = (v: boolean) => { setIncludeLogo(v); setIncludeLogoPref(v); };
 
   const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
@@ -445,6 +498,61 @@ export function CalendarPostPreview({
                 <iframe srcDoc={vs.html} title={`Slide ${vs.slide_number}`} width="1080" height="1350" style={{ border: "none", pointerEvents: "none" }} sandbox="allow-same-origin allow-scripts" />
               </div>
             </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── Série de stories : vrais visuels 9:16 reconstruits du JSON persisté ──
+  if (isStorySerie && storyFrames.some(Boolean)) {
+    const rendered = storyFrames
+      .map((html, i) => ({ html, n: i + 1 }))
+      .filter((f): f is { html: string; n: number } => Boolean(f.html));
+    const idx = Math.min(slideIndex, rendered.length - 1);
+    if (compact) {
+      return (
+        <div className="space-y-2">
+          <Toolbar />
+          <div className="relative flex justify-center">
+            <span className="absolute top-2 right-2 z-10 text-2xs font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">
+              {idx + 1}/{rendered.length}
+            </span>
+            {idx > 0 && (
+              <button onClick={() => setSlideIndex(i => i - 1)} aria-label="Précédente" className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white">
+                <ChevronLeft className="h-4 w-4 text-gray-700" />
+              </button>
+            )}
+            {idx < rendered.length - 1 && (
+              <button onClick={() => setSlideIndex(i => i + 1)} aria-label="Suivante" className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white">
+                <ChevronRight className="h-4 w-4 text-gray-700" />
+              </button>
+            )}
+            <StoryFramePreview html={rendered[idx].html} title={`Story ${rendered[idx].n}`} fluid className="max-w-[220px]" />
+          </div>
+          <div className="flex justify-center gap-1 pt-1">
+            {rendered.map((_, i) => (
+              <button key={i} onClick={() => setSlideIndex(i)} className={`rounded-full transition-all ${i === idx ? "w-1.5 h-1.5 bg-primary" : "w-1.5 h-1.5 bg-muted-foreground/30"}`} />
+            ))}
+          </div>
+          {caption && (
+            <div className="mt-3 pt-3 border-t border-border">
+              <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Légende</p>
+              <div className="text-xs text-foreground whitespace-pre-wrap line-clamp-6 leading-relaxed">{caption}</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div className="py-2 space-y-4 overflow-y-auto max-h-[60vh]">
+        <Toolbar />
+        {rendered.map((f) => (
+          <div key={f.n} className="rounded-xl border border-border overflow-hidden bg-card max-w-[240px] mx-auto">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 border-b border-border">
+              <span className="text-xs font-medium text-muted-foreground">Story {f.n}</span>
+            </div>
+            <StoryFramePreview html={f.html} title={`Story ${f.n}`} fluid className="border-0 rounded-none" />
           </div>
         ))}
       </div>
