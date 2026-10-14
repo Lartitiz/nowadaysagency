@@ -87,7 +87,7 @@ export function normalizeAngleId(raw: unknown): string {
  * - calendar_coaching : calendar-coaching/index.ts (13 angles, libellés) ;
  * - idea_lenses : _shared/copywriting-prompts.ts IDEA_LENSES ;
  * - stories_structures / stories_narration / stories_vente : _shared/format-briefs.ts (storiesBrief) ;
- * - reel_structures : format-briefs.ts reelBrief ; reel_hooks : creative-flow/index.ts HOOKS_TOOL ;
+ * - reel_structures : _shared/format-briefs/reel.ts (reelBrief) ; reel_hooks : creative-flow/index.ts HOOKS_TOOL ;
  * - launch : src/lib/launch-templates.ts CONTENT_TYPES ;
  * - photo_series : photo-dump-plan, inspire-ai ; reprise : recyclage, crosspost, slides fournies.
  */

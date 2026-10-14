@@ -33,6 +33,7 @@ function scan(): Record<Exclude<AngleSource, "photo_series" | "reprise">, string
   const cs = read("src/lib/content-structures.ts");
   const cp = read("supabase/functions/_shared/copywriting-prompts.ts");
   const fb = read("supabase/functions/_shared/format-briefs.ts");
+  const reel = read("supabase/functions/_shared/format-briefs/reel.ts");
   const idsAndLabels = (block: string) => [...all(block, /^\s{4}id: "([^"]+)"/gm), ...all(block, /^\s{4}label: "([^"]+)"/gm)];
   const coaching = slice(read("supabase/functions/calendar-coaching/index.ts"), "ANGLES ÉDITORIAUX NOWADAYS", "RÈGLES DE PROFONDEUR");
   const hooks = slice(read("supabase/functions/creative-flow/index.ts"), "const HOOKS_TOOL", "const FOLLOW_UP_TOOL");
@@ -52,7 +53,7 @@ function scan(): Record<Exclude<AngleSource, "photo_series" | "reprise">, string
     stories_structures: all(slice(fb, "const structuresBlock", "return `FORMAT : SÉQUENCE STORIES"), /^- ([a-z_]+) : /gm),
     stories_narration: (fb.match(/"narrative_angle": "([^"]+)"/)?.[1] || "").split("|").map((s) => s.trim()),
     stories_vente: all(fb, /^ {4}([a-z]+): `SÉQUENCE /gm),
-    reel_structures: all(slice(fb, "CHOIX DE STRUCTURE", "Ne choisis PAS"), /^- ([a-z_]+) :/gm),
+    reel_structures: all(slice(reel, "CHOIX DE STRUCTURE", "Ne choisis PAS"), /^- ([a-z_]+) :/gm),
     reel_hooks: (hooks.match(/type: \{ type: "string", description: "([^"]+)" \}/)?.[1] || "").split("|").map((s) => s.trim()),
     launch: all(slice(read("src/lib/launch-templates.ts"), "export const CONTENT_TYPES", "export const STORY_SEQUENCE_TEMPLATES"), /id: "([^"]+)"/g),
   };

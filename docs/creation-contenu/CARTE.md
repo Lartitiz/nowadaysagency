@@ -225,9 +225,9 @@ appelants n'ont pas changé d'import.
   `pinterestBrief`, `newsletterBrief`, `captionBrief`, `photoCaptionBrief`.
   Découpage en cours (14/10/2026) : un fichier par format dans
   `_shared/format-briefs/` (`carousel.ts`, `pinterest.ts`, `newsletter.ts`,
-  `caption.ts`, `photo-caption.ts`, `position.ts`, `linkedin.ts`, plus
-  `common.ts` pour `annoncedItems`). `format-briefs.ts` les réexporte et
-  garde encore reel et stories. Pour retoucher un brief, modifie SON fichier ;
+  `caption.ts`, `photo-caption.ts`, `position.ts`, `linkedin.ts`, `reel.ts`,
+  plus `common.ts` pour `annoncedItems`). `format-briefs.ts` les réexporte
+  et garde encore les stories. Pour retoucher un brief, modifie SON fichier ;
   `format-briefs/boundaries_test.ts` interdit qu'un brief en importe un
   autre (sauf `common.ts`) ou importe `position.ts`.
 
