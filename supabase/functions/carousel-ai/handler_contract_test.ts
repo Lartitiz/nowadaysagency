@@ -305,6 +305,23 @@ const CASES: { name: string; body: Record<string, unknown>; text: string }[] = [
   { name: "express_full — mixte, récit continu (scénario automatique, mot de couverture)", text: "",
     body: { type: "express_full", carousel_type: "mix", subject: "Les trois gestes qui changent un premier bol", objective: "confiance",
       scenario_origin: "automatic", slide_count: 4, photo_contexts: PHOTO_CONTEXTS } },
+  // ── Fiche 2, lot 0 (gros-fichiers.md) : assemblage du prompt système et cas limites ──
+  { name: "hooks — LinkedIn", text: JSON.stringify({ hooks: [{ text: "J'ai arrêté les remises.", type: "contre_intuition" }] }),
+    body: { type: "hooks", carousel_type: "storytelling", channel: "linkedin", subject: SUBJECT, objective: "engagement" } },
+  { name: "express_full — texte avec actu, ressenti et lancement", text: JSON.stringify(TEXT_DOC),
+    body: { type: "express_full", carousel_type: "prise_de_position", subject: SUBJECT, objective: "confiance", deepening_answers: ANSWERS,
+      news_context: "Une étude publiée cette semaine montre que les artisan·es baissent leurs prix en fin d'année.",
+      launch_context: { phase: "teasing", chapter_label: "Avant l'ouverture", audience_phase: "curiosité", objective: "faire attendre", angle_suggestion: "les coulisses" } } },
+  { name: "structure_proposal — mixte avec actu", text: "",
+    body: { type: "structure_proposal", carousel_type: "mix", subject: "Les trois gestes qui changent un premier bol", objective: "confiance",
+      news_context: "Les cours de poterie affichent complet partout cet automne.", photo_contexts: PHOTO_CONTEXTS } },
+  { name: "structure_proposal — photo, une photo par slide", text: "",
+    body: { type: "structure_proposal", carousel_type: "photo", subject: "Une journée d'atelier, du premier café à la cuisson", objective: "visibilite",
+      photos: PHOTOS, prefer_distinct_photos: true } },
+  { name: "deepening_questions — photos sans sujet", text: "",
+    body: { type: "deepening_questions", carousel_type: "photo", photo_contexts: PHOTO_CONTEXTS } },
+  { name: "type inconnu refusé (400)", text: "",
+    body: { type: "inconnu", carousel_type: "storytelling", subject: SUBJECT } },
 ];
 
 for (const c of CASES) {

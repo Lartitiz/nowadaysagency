@@ -372,6 +372,8 @@ Ordre des lots (une PR chacun, sans session Lovable ouverte pendant la fusion, p
 
 Plus tard, et seulement si un besoin réel apparaît : regrouper les 3 relectures et les 4 paires `doGenerate` / `doRepair` en un seul endroit. Ce n'est plus un déplacement à l'identique : il faut une PR à part, avec le contrat du handler comme juge.
 
+**Avancement (14/10/2026)** : lot 0 fait. `carousel-ai/handler_contract_test.ts` figeait déjà 18 parcours (lots 8 et 8b, 1 à 14, 17, 18, 20, 21, 22 et le premier cas limite de la liste ci-dessus) ; 6 cas ajoutés : accroches LinkedIn, texte avec actu + ressenti + lancement, structure mixte avec actu, structure photo « une photo par slide », questions photo sans sujet, type inconnu (400). Le prompt système assemblé par `handleRequest` est donc figé avec ses blocs actu et lancement. Restent couverts par `index_test.ts` seulement (comportement, pas texte) : le refus photo, la Qualité Max refusée, `CAROUSEL_SEMANTIC_REVIEW=false` et l'erreur Anthropic. Aucune ligne d'`index.ts` touchée. Lot 0b fait : `_shared/test-carousel-ai-source.ts` (outil de test) met bout à bout tout le code de `carousel-ai/`, sous-dossiers compris, hors tests et hors `layout.ts` ; `schema-formatting_test`, `photo-template-assign_test`, `mix-layout-formatting_test` et `linkedin-ai/socle-linkedin_test` le lisent au lieu d'`index.ts` seul.
+
 ---
 
 ### 3. `supabase/functions/creative-flow/index.ts` — 1686 lignes

@@ -12,7 +12,6 @@ import { useCreationEntryKey } from "@/hooks/use-creation-entry-key";
 import { useTextEditHistory } from "@/hooks/use-text-edit-history";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { slideText } from "@/lib/slide-text";
@@ -105,6 +104,7 @@ import { useCarouselQuality } from "@/hooks/use-carousel-quality";
 import CarouselSaveStatus from "@/components/creer/CarouselSaveStatus";
 import { useCreerExports } from "@/hooks/use-creer-exports";
 import { useLaunchSequence } from "@/hooks/use-launch-sequence";
+import { useReelHooks } from "@/hooks/use-reel-hooks";
 import LaunchSequenceResults from "@/components/creer/LaunchSequenceResults";
 import { publishReelToInstagram, publishImageToInstagram, publishRenderedCarouselToInstagram, resolveWorkspaceParam } from "@/lib/instagram-publish";
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
@@ -266,15 +266,9 @@ function CreerWorkspace() {
   const [selectedFormat, setSelectedFormat] = useState<string | null>(canalConflict ? null : (ps?.selectedFormat || paramFormat || null));
   const [editorialAngle, setEditorialAngle] = useState<string | null>(ps?.editorialAngle || null);
   const [answers, setAnswers] = useState<Record<string, string>>(ps?.answers || {});
-  // Lot 7 reels : choix de l'angle d'attaque avant génération. Les hooks ne sont
-  // PAS persistés (safeStep retombe sur "format" au reload) ; le hook choisi est
-  // gardé en state pour que « Régénérer » réécrive sur le MÊME angle.
-  const [reelHooks, setReelHooks] = useState<ReelHook[]>([]);
-  const [hooksLoading, setHooksLoading] = useState(false);
-  const [hooksRefreshing, setHooksRefreshing] = useState(false);
-  const [hooksError, setHooksError] = useState<string | null>(null);
-  const [selectedReelHook, setSelectedReelHook] = useState<ReelHook | null>(null);
-  const pendingReelAnswersRef = useRef<Record<string, string>>({});
+  // Lot 7 reels : choix de l'angle d'attaque avant génération (use-reel-hooks.ts).
+  const reelHooksStep = useReelHooks();
+  const { reelHooks, hooksLoading, hooksRefreshing, hooksError, selectedReelHook, setSelectedReelHook, pendingReelAnswersRef } = reelHooksStep;
   const [editContent, setEditContent] = useState(ps?.editContent || "");
   // Texte de l'étape « Modifier » à son ouverture (ou à la dernière sauvegarde) :
   // sert à savoir s'il reste des modifications non appliquées.
@@ -1207,74 +1201,13 @@ function CreerWorkspace() {
     setStep("format");
   };
 
-  // ─── Lot 7 reels : étape de choix du hook ───
-  // Appel GRATUIT (step "hooks" hors BILLED_STEPS côté edge). Jamais bloquant :
-  // en cas d'échec, l'écran propose « Continuer sans choisir » (= hook auto,
-  // comportement historique).
-  const fetchReelHooks = async (ans: Record<string, string>, excludeHooks?: string[]) => {
-    const isRefresh = !!excludeHooks?.length;
-    if (isRefresh) setHooksRefreshing(true);
-    else { setHooksLoading(true); setReelHooks([]); }
-    setHooksError(null);
-    try {
-      // Ré-indexation par le TEXTE de la question (même logique que doGenerate) :
-      // l'edge reçoit "vraie question → réponse", pas "q_0 → réponse".
-      const textById = new Map(questions.map((q) => [q.id, q.question]));
-      const answersArray = Object.entries(ans)
-        .filter(([, v]) => v && v.trim())
-        .map(([id, v]) => ({ question: textById.get(id) || id, answer: v }));
-      const { data, error: fnError } = await invokeWithTimeout("creative-flow", {
-        body: {
-          step: "hooks",
-          contentType: "reel",
-          context: ideaText,
-          objective: objective || null,
-          face_cam: "oui",
-          answers: answersArray.length > 0 ? answersArray : null,
-          workspace_id: workspaceId && workspaceId !== session?.user?.id ? workspaceId : null,
-          ...(excludeHooks?.length ? { exclude_hooks: excludeHooks.slice(0, 12) } : {}),
-        },
-      }, 60000);
-      if (fnError) throw fnError;
-      const hooks = Array.isArray((data as any)?.hooks) ? (data as any).hooks : [];
-      if (hooks.length === 0) throw new Error("empty");
-      setReelHooks(hooks.slice(0, 3));
-    } catch (e) {
-      console.error("[CreerUnifie] fetchReelHooks failed:", e);
-      // Un refresh raté garde les cartes précédentes (toujours utilisables) —
-      // mais il DOIT le dire. Sans message, l'écran affichait des angles et des
-      // boutons qui semblaient ne rien faire, sans la moindre explication
-      // (vécu live 03/08, sujet « brader mes savons »).
-      const raw = (e as any)?.message;
-      // "empty" = charge vide renvoyée en 200 par une edge pas encore
-      // redéployée : message technique, jamais montré tel quel.
-      const detail = typeof raw === "string" && raw.trim() && raw !== "empty" ? raw.trim() : null;
-      setHooksError(
-        isRefresh
-          ? detail
-            ? `Pas de nouveaux angles : ${detail.charAt(0).toLowerCase()}${detail.slice(1)}`
-            : "Je n'ai pas réussi à trouver 3 autres angles. Ceux-ci restent valables."
-          : detail || "Je n'ai pas réussi à préparer les angles d'attaque.",
-      );
-    } finally {
-      setHooksLoading(false);
-      setHooksRefreshing(false);
-    }
-  };
-
-  const handleHookSelect = async (hook: ReelHook) => {
-    if (generating || streaming) return;
-    setSelectedReelHook(hook);
-    setStep("result");
-    await doGenerate(pendingReelAnswersRef.current, hook);
-  };
-
-  const handleHookSkip = async () => {
-    if (generating || streaming) return;
-    setSelectedReelHook(null);
-    setStep("result");
-    await doGenerate(pendingReelAnswersRef.current);
-  };
+  // ─── Lot 7 reels : étape de choix du hook (use-reel-hooks.ts) ───
+  const fetchReelHooks = (ans: Record<string, string>, excludeHooks?: string[]) =>
+    reelHooksStep.fetchReelHooks(ans, excludeHooks, { questions, ideaText, objective, workspaceId, userId: session?.user?.id });
+  const handleHookSelect = (hook: ReelHook) =>
+    reelHooksStep.handleHookSelect(hook, { generating, streaming, setStep, doGenerate });
+  const handleHookSkip = () =>
+    reelHooksStep.handleHookSkip({ generating, streaming, setStep, doGenerate });
 
   const handleQuestionsNext = async (ans: Record<string, string>) => {
     if (generating || structureLoading || streaming) return; // garde anti double-clic (évite une 2e génération facturée)

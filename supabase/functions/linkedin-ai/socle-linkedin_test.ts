@@ -3,6 +3,7 @@
 //   deno test --no-check --allow-env --allow-read --node-modules-dir=none supabase/functions/linkedin-ai/socle-linkedin_test.ts
 
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { carouselAiSource } from "../_shared/test-carousel-ai-source.ts";
 import { LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from "../_shared/lived-case.ts";
 import { captionAnswersText, LINKEDIN_ONE_IDEA_RULE, linkedInAiCaseMode, linkedInAiFamily, linkedInSocleBlock } from "./socle-linkedin.ts";
 
@@ -76,7 +77,7 @@ Deno.test("réponses de la légende : valeurs seules, vides ignorées", () => {
 });
 
 Deno.test("carousel-ai : accroches, sujets et angles ne disent plus « Instagram » pour un carrousel LinkedIn", () => {
-  const src = Deno.readTextFileSync(new URL("../carousel-ai/index.ts", import.meta.url));
+  const src = carouselAiSource(); // tout carousel-ai hors layout.ts (fiche 2, lot 0b)
   assert(!/pour un carrousel Instagram|de carrousels Instagram\./.test(src));
   for (const fn of ["buildHooksPrompt", "buildSuggestTopicsPrompt", "buildSuggestAnglesPrompt"]) {
     assert(src.includes(`function ${fn}(body: any, isLinkedIn = false)`), fn);
