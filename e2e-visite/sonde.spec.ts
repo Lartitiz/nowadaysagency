@@ -5,6 +5,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { ECRANS } from "./ecrans";
 import { detectClipped, type Clipped } from "./detect-clipped";
+import { detectPlantage, type Plantage } from "./detect-plantage";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SONDE_DIR = path.join(__dirname, "sonde");
@@ -43,6 +44,9 @@ type Sonde = {
   // trop court). Cf. le calendrier du 01/08 : la 3ᵉ carte tranchée en deux et le
   // bouton « +6 autres » poussé hors du cadre — une journée sans issue.
   clipped: Clipped[];
+  // Écran de plantage React (ErrorBoundary global « 😵 » ou LocalErrorBoundary).
+  // Erreur RATTRAPÉE par React → invisible pour `pageerror` : on lit le DOM.
+  plantages: Plantage[];
   a11y: Array<{ id: string; impact: string; help: string; nodes: number; sample: string }> | null;
 };
 
@@ -63,6 +67,7 @@ for (const e of ECRANS) {
       requestFailed: [],
       brokenImages: [],
       clipped: [],
+      plantages: [],
       a11y: null,
     };
 
@@ -157,6 +162,15 @@ for (const e of ECRANS) {
     // masqués — et on exige une coupe franche (> 16 px), pas un arrondi.
     try {
       s.clipped = await page.evaluate(detectClipped);
+    } catch {
+      /* ignore */
+    }
+
+    // Écran de plantage : un composant a planté au rendu, React l'a rattrapé et
+    // affiche son écran de secours. Aucune `pageerror` dans ce cas → sans cette
+    // lecture du DOM, un écran entièrement cassé passait en simple console.error.
+    try {
+      s.plantages = await page.evaluate(detectPlantage);
     } catch {
       /* ignore */
     }

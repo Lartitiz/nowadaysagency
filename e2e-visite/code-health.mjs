@@ -78,7 +78,14 @@ const ISOLATED_NPM_ENV = { ...process.env, npm_config_cache: join("/tmp", "npm-c
 
 // ── Section 1 : dépendances (bun audit --json) ─────────────────────────────
 async function auditDeps() {
-  const { stdout } = await runToleratingNonZero("bun", ["audit", "--json"], { cwd: REPO_ROOT }, 60_000);
+  // 12/10/2026 : un audit figé (réseau) a dépassé 60 s alors qu'à la main il
+  // répond en < 1 s → une 2e tentative avant de déclarer l'étape sautée.
+  let stdout;
+  try {
+    ({ stdout } = await runToleratingNonZero("bun", ["audit", "--json"], { cwd: REPO_ROOT }, 90_000));
+  } catch {
+    ({ stdout } = await runToleratingNonZero("bun", ["audit", "--json"], { cwd: REPO_ROOT }, 90_000));
+  }
   const advisories = JSON.parse(stdout);
   const counts = { critical: 0, high: 0, moderate: 0, low: 0 };
   const criticalOrHigh = [];
@@ -271,7 +278,15 @@ async function main() {
     (knip?.ok && knip.newIssues > 0) ||
     (dup && baseline?.duplication?.percentage != null && dup.percentage - baseline.duplication.percentage > 0.5);
 
-  console.log(`\nVERDICT: ${warn ? "WARN" : "OK"}`);
+  // Une étape sautée ne doit JAMAIS donner « OK » : le 12/10/2026, l'audit a
+  // dépassé son délai, le verdict a dit OK et 2 failles critiques nouvelles
+  // (tinypool) sont passées inaperçues. WARN l'emporte (vrai signal mesuré).
+  const sautees = [!deps && "dépendances", !knip?.ok && "code mort", !dup && "duplication"].filter(Boolean);
+  const verdict = warn ? "WARN" : sautees.length ? "INCOMPLET" : "OK";
+  if (sautees.length) {
+    console.log(`\n⚠️ étape(s) non mesurée(s) : ${sautees.join(", ")} — relancer (ex. \`bun audit\`) avant de conclure « rien de neuf »`);
+  }
+  console.log(`\nVERDICT: ${verdict}`);
 
   saveBaseline({
     updatedAt: new Date().toISOString(),

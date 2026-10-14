@@ -39,23 +39,40 @@ Reste du lot 8 :
 - carrousel texte : le libellé du bouton n'entre dans la slide que si l'utilisatrice le modifie ou le retire ; à l'arrivée des visuels, il reste seulement dans le HTML (lecture dans `src/hooks/use-generate-visuals.ts`, fichier d'une autre conversation le 14/10/2026).
 
 ## Découpage de CreerUnifie.tsx (fiche 1 de `docs/robustesse/gros-fichiers.md`)
-- **Lot A** (#1482, en cours) : tests 1 à 11 en rendu réel (`src/test/creer-entrees-calendrier-brief`,
+- **Lot A** (#1482, fusionné le 14/10/2026) : tests 1 à 11 en rendu réel (`src/test/creer-entrees-calendrier-brief`,
   `creer-reprise-modifier-reset`, `creer-publication-exports`, `creer-angles-reel-photos`).
   Corrige aussi 3 bugs qu'ils ont révélés (décision de Laetitia du 14/10/2026) : vidéo
   du reel perdue au rechargement, sujet vide en ouvrant l'atelier depuis le calendrier
   (`theme`), « 1 photo n'ont ». Le PPTX texte avec visuels périmés n'est pas un bug
   (il ignore les visuels).
-- **Lot B**, après fusion du lot A : sortir `LowCreditsBanner`, la fenêtre « photos
-  manquantes » et « Repartir de zéro ? » (affichage pur).
+- **Lot B** (#1496, fusionné le 14/10/2026) : `LowCreditsBanner`, la fenêtre « photos manquantes » et
+  « Repartir de zéro ? » sortis à l'identique dans `src/components/creer/LowCreditsBanner.tsx`,
+  `PhotoMissingDialog.tsx`, `ConfirmResetDialog.tsx` (affichage pur ; état et actions
+  restent dans la page). Rangés dans « Parcours /creer » du rapport d'impact.
+  Fenêtre « photos manquantes » testée sur la vraie page /creer par
+  `src/test/creer-photos-manquantes.test.tsx` (#1505, fusionné le 14/10/2026).
+- **Lot C** ensuite : fonctions pures (`creer-step.ts`, `draft-conflict.ts`,
+  `pending-stream.ts`, `edit-text-from-result.ts`, `content-brief.ts`), voir la fiche 1.
 
 ## En attente
 - **E3** : découper CarouselEditor.tsx par mission (plan validé par Laetitia le
   14/10/2026, détail dans `gros-fichiers.md`, fiche 8). Une PR par morceau :
-  - **E3-0** (en cours) : tests de branchement `carousel-editor-wiring.test.tsx`
+  - **E3-0** (#1495, fusionnée) : tests de branchement `carousel-editor-wiring.test.tsx`
     (20 cas : contrôle qualité, aligner / grouper, flèches, boutons des slides,
     calques masqués / retirés, fond, texte sur la photo, voile, aperçu Instagram) ;
-  - E3-1 outils de calcul et petites briques ; E3-2 barre d'outils flottante ;
-    E3-3 reste de l'aperçu ; E3-4 et E3-5 panneau de réglages ; E3-6 en-tête,
+  - **E3-1** (#1498, fusionnée) : `CarouselEditorParts/canvas-geometry.ts` et `PanelBits.tsx`
+    (CarouselEditor.tsx : 3 816 → 3 626 lignes) ;
+  - **E3-2** (#1500, fusionnée) : `CarouselEditorParts/CanvasToolbar.tsx`, la barre d'outils
+    flottante (CarouselEditor.tsx : 3 626 → 3 441 lignes) ;
+  - **E3-3** (#1507, fusionnée) : `CarouselEditorParts/SlideCanvas.tsx` (l'aperçu) et
+    `canvas-events.ts` (ses réactions souris / clavier, corps de `bind` inchangé)
+    (CarouselEditor.tsx : 3 441 → 2 250 lignes) ;
+  - **E3-4** (#1512, fusionnée) : `LayersPanel.tsx` (calques, sélection multiple),
+    `SlideSettings.tsx` (onglets Slide et Carrousel) et `panel-controls.tsx`
+    (curseur, couleurs ; avancé depuis E3-5) (CarouselEditor.tsx : 2 250 → 1 905 lignes) ;
+  - **E3-5** (en cours) : `TextSettings.tsx` et `ElementSettings.tsx` (photo, bloc),
+    l'onglet « Élément » (CarouselEditor.tsx : 1 905 → 1 516 lignes) ;
+  - E3-6 en-tête,
     contrôle qualité, miniatures, « Toutes les slides » et « Mes styles ».
   Points d'attention relevés par E2 : `CARTE.md`, section 7 (écho reconnu à la
   référence, `inputKey`).
