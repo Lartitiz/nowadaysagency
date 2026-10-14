@@ -1,26 +1,25 @@
 import { imageInputPaths, inheritedPhotoSource } from "./photo-preservation.ts";
 import { soulStyles, selectSoulStyles, resolveSoulStyle } from "./soul-direction.ts";
-import { prepareIntegration } from "./integration-direction.ts";
 import { activeReferences, adviceTurn, independentRequest, explicitRoles, dialogueHistory, CONVERSATION_SYSTEM, type ConversationContext } from "./conversation.ts";
 import { exactReference, validTargets, repairTargets, targetProblems, sceneInputs, asksIntegration, sceneWithoutPlaceholders, withoutPlaceholders } from "./scene-workflow.ts";
 import { resolvePersonMemory } from "./person-reference.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { schema } from "./request-schema.ts";
-import { BUCKET, canWrite, charterReferences, download, store, unwrap, visionFromStorage } from "./storage.ts";
+import { BUCKET, charterReferences, unwrap, visionFromStorage } from "./storage.ts";
 import { translateStudioError } from "./errors.ts";
 import type { StudioContext } from "./actions/context.ts";
 import { archiveSession, createSession, readComposition, selectReferences } from "./actions/session.ts";
 import { updateReference } from "./actions/reference.ts";
 import { saveComposition } from "./actions/composition.ts";
 import { saveToLibrary } from "./actions/save.ts";
+import { prepareNextProposal } from "./actions/pilot.ts";
+import { generate } from "./actions/generate.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { callAnthropic, SONNET_MODEL } from "../_shared/anthropic.ts";
 import {
   checkQuota,
   getServiceClient,
   isQaTestAccount,
-  PLAN_LIMITS,
-  quotaDeniedResponse,
 } from "../_shared/plan-limiter.ts";
 import {
   cleanStudioSummary,
@@ -33,7 +32,6 @@ import {
   studioSystem,
 } from "./contract.ts";
 import {
-  generateImage,
   imageModel,
   legacyReferences,
   type Reference,
@@ -47,23 +45,17 @@ import {
 } from "./competencies.ts";
 import {
   SOUL2_MODEL, soul2Enabled, soul2Eligible,
-  failHiggsfieldImage,
   higgsfieldImagesEnabled,
   marketingFidelityEligible,
   MARKETING_MAX_IMAGES,
-  marketingPromptTooLong, marketingPromptCandidate, MARKETING_PROMPT_ERROR,
   routeToMarketingStudio,
   imageCallback,
   reconcileHiggsfieldImage,
-  submitHiggsfieldImage,
 } from "./higgsfield-image.ts";
 import { handleMemory, readMemory } from "./memory.ts";
 import { missingObject } from "./storage-errors.ts";
-import { executeStudioJob } from "./worker.ts";
-import { applyPreparedReferences } from "./product-fidelity-studio.ts";
 import { isWornProduct, onlyAdditions, preferredProductGroup, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
 
-declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void };
 export async function handleStudioRequest(req: Request): Promise<Response> {
   const callback = await imageCallback(req);
   if (callback) return callback;
@@ -84,7 +76,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
   const p = parsed.data,
     sb = getServiceClient(),
     actor = pipe.userId;
-  const ctx: StudioContext = { sb, actor, p, json };
+  const ctx: StudioContext = { sb, actor, p, json, corsHeaders: pipe.corsHeaders };
   try {
     const member = unwrap(
       await sb
@@ -1078,263 +1070,11 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       }
     }
     if (p.action === "composition_save") session = await saveComposition(ctx, session, references);
-    if (p.action === "pilot" || p.action === "retry") {
-      if (session.revision !== p.revision) throw new Error("studio_conflict");
-      const active = unwrap(
-        await sb.from("visual_studio_versions").select("id").eq(
-          "session_id",
-          session.id,
-        ).eq("status", "processing"),
-      );
-      if (active.length) throw new Error("studio_busy");
-      let next = session.proposal;
-      if (p.action === "retry") {
-        const failed = unwrap(
-          await sb.from("visual_studio_versions").select("proposal").eq(
-            "id",
-            p.version_id,
-          ).eq("session_id", session.id).eq("status", "failed").single(),
-        );
-        next = {
-          ...failed.proposal,
-          id: crypto.randomUUID(),
-          shots: [],
-          cost: 1,
-        };
-        // New proposal (not a submitted job): apply the current routing so the
-        // confirmation shows the provider that will really be used.
-        if (higgsfieldImagesEnabled() && marketingFidelityEligible(next)) next = routeToMarketingStudio(next);
-      } else {
-        if (!next || next.id !== p.proposal_id || !next.shots?.length) {
-          throw new Error("studio_conflict");
-        }
-        next = {
-          ...next,
-          id: crypto.randomUUID(),
-          shots: [],
-          cost: 1,
-          summary: "Créer uniquement la première image prévue dans la série, pour valider sa direction avant la suite.",
-          // The complete first-shot prompt remains authoritative; the plan-wide
-          // change list can contain contradictory instructions for later shots.
-          change: [],
-        };
-      }
-      if (next?.provider === "higgsfield" && next.soul_style) resolveSoulStyle(next.soul_style.id, await soulStyles());
-      session = unwrap(
-        await sb.from("visual_studio_sessions").update({
-          proposal: next,
-          revision: session.revision + 1,
-        }).eq("id", session.id).eq("revision", p.revision).select("*").single(),
-      );
-    }
+    if (p.action === "pilot" || p.action === "retry") session = await prepareNextProposal(ctx, session);
     if (p.action === "generate") {
-      if (!p.proposal_id) {
-        return json({ error: "Confirme une proposition." }, 400);
-      }
-      const existing = await sb
-        .from("visual_studio_versions")
-        .select("id")
-        .eq("id", p.proposal_id)
-        .eq("session_id", session.id)
-        .maybeSingle();
-      if (existing.error) throw existing.error;
-      if (!existing.data) {
-        if (generative(session.proposal?.operation) && !p.studio_version) {
-          return json(
-            { error: "Recharge le Studio avant de confirmer cette création." },
-            409,
-          );
-        }
-        if (!session.proposal || session.proposal.id !== p.proposal_id) {
-          return json(
-            {
-              error: "Cette proposition a changé. Vérifie la dernière demande.",
-            },
-            409,
-          );
-        }
-        if (session.proposal.provider === "higgsfield" && session.proposal.soul_style) resolveSoulStyle(session.proposal.soul_style.id, await soulStyles());
-        if (session.proposal.scene_workflow?.phase === "integration") {
-          const workflow = session.proposal.scene_workflow;
-          const baseId = session.proposal.viewed_version_id || session.proposal.viewed_reference_id;
-          if (!workflow.approved_scene_id && (!baseId || p.approved_scene_id !== baseId || session.proposal.viewed_version_id && p.viewed_version_id !== baseId)) return json({ error: "Valide la scène affichée avant d’intégrer les références." }, 409);
-          if (!workflow.approved_scene_id) {
-            session = unwrap(await sb.from("visual_studio_sessions").update({ proposal: { ...session.proposal,
-              scene_workflow: { ...workflow, scene_version_id: baseId, scene_path: session.proposal.input_path,
-                approved_scene_id: baseId, approved_at: new Date().toISOString() } },
-            }).eq("id", session.id).eq("revision", session.revision).select("*").single());
-          }
-        }
-        // Pending proposals prepared before the temporary Higgsfield routing: reroute
-        // BEFORE the atomic claim, so no OpenAI call and no resubmission can happen.
-        if (marketingFidelityEligible(session.proposal) && higgsfieldImagesEnabled()) {
-          if (imageInputPaths(session.proposal).length > MARKETING_MAX_IMAGES) {
-            return json({ error: `Cette retouche utilise plus de ${MARKETING_MAX_IMAGES} images. Retire quelques références puis réessaie. Rien n’a été décompté.` }, 409);
-          }
-          session = unwrap(await sb.from("visual_studio_sessions").update({ proposal: routeToMarketingStudio(session.proposal) })
-            .eq("id", session.id).eq("revision", session.revision).select("*").single());
-        }
-        // Old prepared direct-photo proposals must not bypass the new policy after reload.
-        if (session.proposal.visual_kind === "photo" && session.proposal.person_reference?.mode !== "sheet" &&
-          (session.proposal.operation === "create" || session.proposal.scene_workflow?.phase === "direct") &&
-          (session.proposal.provider !== "higgsfield" || session.proposal.model !== SOUL2_MODEL)) {
-          return json({ error: "Cette ancienne proposition doit être repréparée : une nouvelle photo commence par une scène à valider. Utilise Modifier ma demande." }, 409);
-        }
-        if (
-          !Deno.env.get(
-            generative(session.proposal.operation)
-              ? (session.proposal.provider === "higgsfield"
-                ? "HIGGSFIELD_API_KEY"
-                : "OPENAI_API_KEY")
-              : "PHOTOROOM_API_KEY",
-          )
-        ) {
-          return json(
-            { error: "Le service photo est momentanément indisponible." },
-            503,
-          );
-        }
-        const quota = await checkQuota(actor, "photo_retouch", p.workspace_id);
-        if (quota.reason === "error") return quotaDeniedResponse(quota, pipe.corsHeaders);
-        if (
-          generative(session.proposal.operation) &&
-          !premiumAllowed(quota.plan, isQaTestAccount(actor))
-        ) {
-          return json(
-            {
-              error:
-                "Cette création est disponible en Premium. Rien n’a été décompté.",
-            },
-            403,
-          );
-        }
-        if (!quota.allowed) return quotaDeniedResponse(quota, pipe.corsHeaders);
-        const workflow = session.proposal.scene_workflow;
-        if (workflow?.phase === "integration" && !session.proposal.integration_preparation &&
-          session.proposal.input_path === workflow.scene_path) {
-          const prepared = await prepareIntegration(session.proposal, path => visionFromStorage(sb, BUCKET, path));
-          if (!(await canWrite(sb, actor, p.workspace_id))) return json({ error: "Les droits de cet espace ont changé." }, 403);
-          session = unwrap(await sb.from("visual_studio_sessions").update({ proposal: prepared })
-            .eq("id", session.id).eq("revision", session.revision).select("*").single());
-        }
-        // Check the final prepared prompt before creating a processing version or
-        // reserving usage. Keep the proposal and originals available for editing.
-        if (marketingPromptTooLong(session.proposal)) {
-          // Lengths only (no user content) to see which confirmed field still overflows.
-          const pr = session.proposal;
-          console.warn("[visual-studio:prompt-too-long]", JSON.stringify({ request_id: p.request_id, operation: pr.operation,
-            phase: pr.scene_workflow?.phase || null, prompt: marketingPromptCandidate(pr).length, summary: pr.summary?.length || 0,
-            image_prompt: pr.image_prompt?.length || 0, preserve: (pr.preserve || []).join("; ").length, change: (pr.change || []).join("; ").length,
-            accepted: (pr.scene_workflow?.accepted_changes || []).length, references: pr.references?.length || 0, shots: pr.shots?.length || 0 }));
-          return json({ error: MARKETING_PROMPT_ERROR }, 409);
-        }
-        const exempt = isQaTestAccount(actor) || quota.plan === "admin";
-        const limits = PLAN_LIMITS[quota.plan] || PLAN_LIMITS.free;
-        const claim = unwrap(
-          await sb.rpc("studio_confirm_generation", {
-            p_actor: actor,
-            p_session: session.id,
-            p_proposal: p.proposal_id,
-            p_total_limit: quota.usage ? quota.usage.total.used + (quota.available_total ?? 0) : 9999,
-            // Plafond DUR (grille du 01/10/2026) : les crédits bonus ne lèvent
-            // plus le plafond images (cf. HARD_CAP_CATEGORIES, plan-limiter).
-            p_image_limit: limits.photo_retouch,
-            p_charge: !exempt,
-            p_base_total: limits.total,
-          }),
-        );
-        if (claim.claimed) {
-          const batch = async () => {
-            for (const version of (claim.versions || [claim.version])) {
-              const readInputs = async () => {
-                const proposal = version.proposal;
-                const paths = imageInputPaths(proposal);
-                // Very old snapshots without an explicit source must still use the
-                // stored source as pixels, with the same manifest and prompt roles.
-                if (!paths.length && proposal.operation !== "create" && session.source_path) {
-                  proposal.input_path = session.source_path;
-                  paths.push(...imageInputPaths(proposal));
-                }
-                const inputs = await Promise.all(
-                  paths
-                    .filter(Boolean)
-                    .map((path: string) => download(sb, BUCKET, path)),
-                );
-                // Product references go out cropped and cut out, with their geometry
-                // pinned in the shot instructions when the provider prompt still fits.
-                await applyPreparedReferences(sb, proposal, paths.filter(Boolean), inputs,
-                  (candidate) => proposal.provider !== "higgsfield" || !marketingPromptTooLong(candidate));
-                return inputs;
-              };
-              const work = version.proposal.provider === "higgsfield"
-                ? (async () => {
-                  let inputs: Blob[];
-                  try {
-                    if (!(await canWrite(sb, actor, p.workspace_id))) throw new Error("Droits retirés");
-                    inputs = await readInputs();
-                  } catch {
-                    await failHiggsfieldImage(sb, version.id);
-                    return;
-                  }
-                  // Once submission starts, a lost receipt must never become a retryable failure.
-                  await submitHiggsfieldImage(sb, version, inputs);
-                })().catch((error) => console.error("[studio:higgsfield-worker]", error instanceof Error ? error.message : "worker failed"))
-                : executeStudioJob({
-                  readSource: readInputs,
-                  generate: async (inputs) => {
-                    if (!(await canWrite(sb, actor, p.workspace_id))) {
-                      throw new Error("Droits retirés");
-                    }
-                    return generateImage(version.proposal, inputs);
-                  },
-                  store: (blob) => store(sb, BUCKET, version.result_path, blob),
-                  complete: async () => {
-                    unwrap(
-                      await sb.rpc("studio_complete_generation", {
-                        p_version: version.id,
-                      }),
-                    );
-                  },
-                  fail: async () => {
-                    unwrap(
-                      await sb
-                        .from("visual_studio_versions")
-                        .update({
-                          status: "failed",
-                          error_message:
-                            "La création a échoué. Aucune image décomptée.",
-                          completed_at: new Date().toISOString(),
-                        })
-                        .eq("id", version.id)
-                        .eq("status", "processing")
-                        .select("id")
-                      .single(),
-                    );
-                  },
-                  uncertain: async () => {
-                    unwrap(
-                      await sb.from("visual_studio_versions").update({
-                        status: "uncertain",
-                        error_message:
-                          "La réponse du service photo a été perdue. Le résultat est incertain. Aucun crédit Studio n’a été décompté pour l’instant ; si l’image est retrouvée, elle comptera une fois. Recharge la session pour vérifier son état avant de relancer cette demande.",
-                        completed_at: new Date().toISOString(),
-                      }).eq("id", version.id).eq("status", "processing")
-                        .select("id").single(),
-                    );
-                  },
-                }).catch(() =>
-                  console.error(
-                    "[visual-studio] task state could not be persisted",
-                  )
-                );
-              await work;
-            }
-          };
-          if (typeof EdgeRuntime !== "undefined") {
-            EdgeRuntime.waitUntil(batch());
-          } else await batch();
-        }
-      }
+      const result = await generate(ctx, session);
+      if (result instanceof Response) return result;
+      session = result;
     }
     if (p.action === "save") return await saveToLibrary(ctx, session);
     let versions = unwrap(
