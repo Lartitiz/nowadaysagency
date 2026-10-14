@@ -20,6 +20,12 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
 | 7 | #1468 | Une seule version du texte modifié (carrousel et stories remis dans la structure, « Ajuster » par format, pas de débit sur réponse vide) |
 | E1 | #1469 | Contrat des étiquettes `data-*` serveur → éditeur visuel → export, testé |
 
+## Ouverts, en attente de fusion (14/10/2026)
+| Lot | PR | Contenu |
+|---|---|---|
+| E2 | #1476 | Éditeur visuel figé par 6 fichiers de tests `src/test/carousel-editor-*.test.tsx` (poignées et magnétisme, réglages avancés, photo glissée, annuler après opération lourde, aller-retour avec `mergeEditorRaw`, étiquettes d'export). Aucun code de l'éditeur modifié |
+| E2 bis | #1477 | Corrige les 2 bugs trouvés par E2 (bloc tourné qui saute de largeur, lien de police ajouté à une slide verrouillée). Construite sur #1476 : fusionner #1476 d'abord |
+
 ## Lancés en conversations séparées (cartes du 14/10/2026)
 1. Cartographier les gros fichiers et poser un cliquet anti-dette (G1).
 2. Figer l'éditeur visuel par des tests (E2).
@@ -29,7 +35,9 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
 6. Finir de séparer texte et design du carrousel (lot 8).
 
 ## En attente
-- **E3** : découper CarouselEditor.tsx par mission, après E2.
+- **E3** : découper CarouselEditor.tsx par mission, après la fusion de #1476 et #1477.
+  Points d'attention relevés par E2 : `CARTE.md`, section 7 (écho reconnu à la
+  référence, `inputKey`).
 - **G4** : découper les autres gros fichiers, après la cartographie (carte 1).
 - **G2** : une fiche « mission » par grande zone, avec des règles que Lovable lit.
 - **G3, à trancher par Laetitia** : faire passer Lovable par les tests avant la
