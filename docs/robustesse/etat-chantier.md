@@ -19,6 +19,12 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
 | 6 | #1466 | Ne jamais perdre une modification (copie avant Régénérer, frappe de « Modifier » sauvegardée, Retour protégé) |
 | 7 | #1468 | Une seule version du texte modifié (carrousel et stories remis dans la structure, « Ajuster » par format, pas de débit sur réponse vide) |
 | E1 | #1469 | Contrat des étiquettes `data-*` serveur → éditeur visuel → export, testé |
+| E2 | #1476 | Éditeur visuel figé par 6 fichiers de tests `src/test/carousel-editor-*.test.tsx` (poignées et magnétisme, réglages avancés, photo glissée, annuler après opération lourde, aller-retour avec `mergeEditorRaw`, étiquettes d'export). Aucun code de l'éditeur modifié |
+
+## Ouverts, en attente de fusion (14/10/2026)
+| Lot | PR | Contenu |
+|---|---|---|
+| E2 bis | #1477 | Corrige les 2 bugs trouvés par E2 (bloc tourné qui saute de largeur, lien de police ajouté à une slide verrouillée) |
 
 ## Lancés en conversations séparées (cartes du 14/10/2026)
 1. Cartographier les gros fichiers et poser un cliquet anti-dette (G1).
@@ -28,8 +34,20 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
 5. Poser les petits verrous de la création (lot 10).
 6. Finir de séparer texte et design du carrousel (lot 8).
 
+## En cours de relecture
+| Lot | PR | Contenu |
+|---|---|---|
+| 8 | #1475 | Carrousel : choix de design de `carousel-ai` isolés dans `carousel-ai/layout.ts` (sortie identique, figée par `carousel-ai/handler_contract_test.ts`) ; frontière design / écriture testée (`_shared/carousel-design-boundaries_test.ts`) ; libellé du bouton d'appel à l'action rangé dans la slide (`cta_label`) |
+
+Reste du lot 8, pour un lot 8b :
+- parcours de `carousel-ai` pas encore figés : `structure_proposal`, `suggest_topics`, `suggest_angles`, `deepening_questions` (texte et photos) et le récit continu photo / mixte (chemin par défaut en production quand il y a des photos) ;
+- dernier choix de design encore fait à l'écriture : le mot mis en valeur sur la couverture (`cover_accent`, `carousel-ai/continuous-narrative.ts`), seule exception de `CARROUSEL_AI_AUTORISES` ;
+- carrousel texte : le libellé du bouton n'entre dans la slide que si l'utilisatrice le modifie ou le retire ; à l'arrivée des visuels, il reste seulement dans le HTML (lecture dans `src/hooks/use-generate-visuals.ts`, fichier d'une autre conversation le 14/10/2026).
+
 ## En attente
-- **E3** : découper CarouselEditor.tsx par mission, après E2.
+- **E3** : découper CarouselEditor.tsx par mission, après la fusion de #1477.
+  Points d'attention relevés par E2 : `CARTE.md`, section 7 (écho reconnu à la
+  référence, `inputKey`).
 - **G4** : découper les autres gros fichiers, après la cartographie (carte 1).
 - **G2** : une fiche « mission » par grande zone, avec des règles que Lovable lit.
 - **G3, à trancher par Laetitia** : faire passer Lovable par les tests avant la
