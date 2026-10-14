@@ -319,6 +319,13 @@ aussi pour ses importeurs.
 Régénérer : `node scripts/carte-impact.mjs` (tous les modules), ou
 `node scripts/carte-impact.mjs redac-gate format-briefs` (quelques modules).
 
+**Sous-dossiers (14/10/2026).** Quand un module est découpé en dossier
+(`_shared/redac-gate/numbers.ts`), `carte-impact.mjs` le nomme d'après son
+chemin (`redac-gate/numbers`). Le rapport d'impact de la CI
+(`scripts/impact-creation.mjs`, `zoneOf`) lit la zone sur le **premier
+segment** du nom : `redac-gate/numbers` est en zone orange comme
+`redac-gate`, `format-briefs/reel` en zone verte comme `format-briefs`.
+
 ### 🔴 Zone rouge : touche presque tout
 
 Ne pas modifier pour corriger un seul format. Ajouter plutôt un paramètre ou
