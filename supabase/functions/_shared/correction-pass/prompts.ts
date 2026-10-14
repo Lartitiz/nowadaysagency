@@ -3,7 +3,7 @@
 // correction-pass.ts réexporte CORRECTION_PROMPTS ; CAROUSEL_CORRECTION_PROMPT
 // n'est exporté que de ce sous-module (chemin balisé du carrousel).
 
-import type { CorrectionFormat } from "../correction-pass.ts";
+import type { CorrectionFormat } from "./options.ts";
 
 /**
  * Prompts de correction par format. Chaque prompt suit la même structure :

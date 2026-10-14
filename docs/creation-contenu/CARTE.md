@@ -402,7 +402,9 @@ fonctions qui ne s'appellent pas « carousel »**.
 
 > Découpage en cours de `correction-pass.ts` (fiche 9 de
 > `docs/robustesse/gros-fichiers.md`) : les prompts de relecture sont dans
-> `_shared/correction-pass/prompts.ts` (14/10/2026). Un sous-dossier garde la
+> `_shared/correction-pass/prompts.ts`, les réglages dans `options.ts`,
+> l'extraction et la réinjection des textes dans `fields.ts`, le repérage des
+> carrousels à relire dans `polish-scan.ts` (14/10/2026). Un sous-dossier garde la
 > zone et le rang (écriture) de son module d'origine.
 
 > ⚠️ **Piège principal** : `redac-gate.ts` et `correction-pass.ts` importent
