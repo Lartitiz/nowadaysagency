@@ -1008,6 +1008,8 @@ Rayon d'impact (`node scripts/carte-impact.mjs correction-pass`) : **9 fonctions
   - **Lot 4** : `passes.ts`.
   - **Lot 5** (optionnel, mesuré) : l'import direct dans `audience-address-pass.ts`.
 
+**Avancement (14/10/2026)** : lot 0 fait. `_shared/correction-pass-prompts_snapshot_test.ts` (points 1 et 5 : 16 snapshots de prompts, liste des 23 exports), `correction-pass-calls_snapshot_test.ts` (points 2 et 3 : 16 requêtes figées avec Claude simulé, replis sur l'original), `correction-pass-reinject_test.ts` (point 4). Prochain : lot 1, `prompts.ts`.
+
 **Ordre global conseillé**
 1. La correction de la zone orange dans `scripts/impact-creation.mjs` (valable pour les fiches 2 et 3).
 2. `correction-pass` (fiche 3) : c'est le plus petit, et `redac-gate` en dépend.

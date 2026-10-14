@@ -452,6 +452,8 @@ régression, corrige le code et pas le snapshot.
 | `storytelling-ai/contract_test.ts` (lot 2) | les 4 types (improve, generate-story, generate-pitch, generate-recap) |
 | `inspire-ai/contract_test.ts` (lot 2) | texte collé et capture d'écran |
 | `ai-text-action/contract_test.ts` (lot 9) | menu IA sur sélection : quota (refus → 429 sans appel IA ; succès → un seul débit « adaptation » après l'IA ; échec IA → aucun débit), connexion (sans jeton ou jeton refusé → 401), espace (`workspace_id` d'autrui → 403 avant le quota ; espace partagé → branding, quota et débit sur cet espace) |
+| `_shared/correction-pass-prompts_snapshot_test.ts` (14/10/2026, avant découpage) | les 6 prompts de relecture par format, le prompt « fidélité aux sources » (avec et sans source), les 3 prompts des passes factuelles ; plus la liste exacte des 23 exports de `correction-pass.ts` |
+| `_shared/correction-pass-calls_snapshot_test.ts` (14/10/2026, avant découpage) | la requête envoyée à Claude et le résultat de chaque relecture (texte, carrousel balisé, stories, reel, 3 passes factuelles), Claude simulé ; les replis sur l'original (réponse courte, sans marqueur, hors bornes, erreur) |
 | `_shared/carousel-editorial-snapshot_test.ts`, `socle_test.ts` | la relecture des carrousels et les règles communes |
 
 Les fichiers `contract_test.ts` font passer une vraie requête dans le
@@ -498,9 +500,10 @@ Comblés au lot 9 (14/10/2026) :
 - `SelectionMenu` et `SelectionMenuProvider` (`src/test/selection-menu.test.tsx`).
 
 Restent sans snapshot :
-1. **Les prompts des passes de correction** par format
-   (`_shared/correction-pass.ts`). Leur comportement est testé, pas leur
-   texte.
+1. ~~**Les prompts des passes de correction**~~ : comblé le 14/10/2026 par
+   `_shared/correction-pass-prompts_snapshot_test.ts` (texte des prompts) et
+   `correction-pass-calls_snapshot_test.ts` (requêtes envoyées, dont le
+   prompt du carrousel balisé, non exporté).
 2. **`linkedin-ai`** (crosspost, caption-for-carousel, improve-post), en
    dehors de `socle-linkedin_test.ts`.
 3. ~~**`carousel-ai` de bout en bout**~~ : comblé au lot 8 par
