@@ -1,6 +1,7 @@
 import { withIdeaBrief } from "@/lib/idea-brief-request";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { reportGenerationFailure } from "@/lib/generation-telemetry";
 
 interface UseStreamingInvokeReturn {
   /** Le contenu accumulé au fur et à mesure du streaming */
@@ -212,6 +213,9 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
       setError(msg);
       setStreaming(false);
       if (err?._isQuota) throw err;
+      // Échec étiqueté par format dans Sentry (lot 5, voir generation-telemetry.ts).
+      reportGenerationFailure(functionName, body, err?.name === "AbortError" ? "TIMEOUT"
+        : /session a expiré|Non authentifié|pas accès/.test(err?.message || "") ? "AUTH" : "STREAM_ERROR");
       const wrapped = new Error(msg);
       (wrapped as any).cause = err;
       throw wrapped;

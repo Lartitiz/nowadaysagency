@@ -47,6 +47,40 @@ export async function captureServeHandler(modulePath: string): Promise<Handler> 
   return captured;
 }
 
+/**
+ * Même chose que captureServeHandler, pour les edges qui importent le
+ * `serve()` de std/http (generate-content, pinterest-ai, storytelling-ai…) :
+ * celui-là ouvre un VRAI socket au chargement, impossible en CI (pas de
+ * --allow-net). On relit donc la source, on remplace SEULEMENT cet import par
+ * un `serve` qui capte le handler, on rend absolus les imports relatifs, et
+ * on charge le résultat en module `data:`. Le code de prod n'est pas modifié ;
+ * la fonction testée est le handler tel qu'il est déployé.
+ */
+export async function captureStdServeHandler(moduleUrl: string): Promise<Handler> {
+  const source = await Deno.readTextFile(new URL(moduleUrl));
+  const STD_SERVE_IMPORT = /import\s*\{\s*serve\s*\}\s*from\s*["']https:\/\/deno\.land\/std@[^"']+\/http\/server\.ts["'];?/;
+  if (!STD_SERVE_IMPORT.test(source)) {
+    throw new Error(`captureStdServeHandler: pas d'import serve() de std/http dans ${moduleUrl} (utilise captureServeHandler)`);
+  }
+  const key = `__stdServeCaptured_${crypto.randomUUID().replaceAll("-", "")}`;
+  const rewritten = source
+    .replace(STD_SERVE_IMPORT, `const serve = (h: any) => { (globalThis as any)["${key}"] = h; };`)
+    .replace(
+      /(\bfrom\s*|\bimport\s*\(\s*|^import\s*)(["'])(\.{1,2}\/[^"']+)\2/gm,
+      (_m, prefix, quote, spec) => `${prefix}${quote}${new URL(spec, moduleUrl).href}${quote}`,
+    );
+  const bytes = new TextEncoder().encode(rewritten);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  await import(`data:application/typescript;base64,${btoa(binary)}`);
+  // deno-lint-ignore no-explicit-any
+  const captured = (globalThis as any)[key] as Handler | undefined;
+  if (!captured) throw new Error(`captureStdServeHandler: aucun serve() capté pour ${moduleUrl}`);
+  return captured;
+}
+
 export interface FetchMockConfig {
   /**
    * Simule la réponse de l'API Anthropic (POST https://api.anthropic.com/v1/messages).

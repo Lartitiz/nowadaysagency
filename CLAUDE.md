@@ -289,6 +289,18 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 5. **Workspace first** : toute requête de données passe par useWorkspaceFilter
 6. **L'outil est universel** : les textes, exemples et prompts IA internes doivent parler à tout le monde
 7. **Corrections ciblées > refactorisations larges** : on corrige chirurgicalement, on ne refait pas tout
+8. **Création de contenu : lire `docs/creation-contenu/CARTE.md` avant de toucher un générateur** (fichiers par format, modules partagés à risque, tests à lancer) et suivre la section ci-dessous
+
+## Création de contenu : modifier un générateur sans casser les autres
+
+1. **Un format = un fichier.** Dans `creative-flow`, chaque format a son fichier : `formats/linkedin.ts`, `formats/stories.ts`, `formats/reel.ts`, etc. Pour modifier un format, modifie SON fichier. `index.ts` et `shared.ts` touchent tous les formats.
+2. **Un format n'importe jamais le fichier d'un autre format.** Le code commun va dans `creative-flow/shared.ts`. Le test `creative-flow/boundaries_test.ts` bloque la CI sinon.
+3. **Fichiers partagés : vérifier le rayon d'impact avant d'y toucher.** `node scripts/carte-impact.mjs <module>` liste les fonctions atteintes. Zone rouge ou orange (CARTE.md, section 4) : ne modifie pas le module pour un seul format. Ajoute un paramètre, ou fais la correction dans le fichier du format.
+4. **Les snapshots sont le filet.** Après une modification, lance `npm run test:edges`. Seuls les snapshots du format visé ont le droit de changer. Régénère avec `-- --update` (commande en tête de chaque fichier de test), puis relis le diff du `.snap`. Si un snapshot d'un AUTRE format change, c'est une régression : corrige le code, ne régénère pas.
+5. **Nouveau comportement = nouveau cas de test**, dans le snapshot ou le `contract_test.ts` du format.
+6. **Rapport d'impact.** La CI écrit dans le résumé du lancement les formats touchés et les prompts dont le texte change (`scripts/impact-creation.mjs`). Lis-le avant de fusionner.
+7. **Circuit.** Toucher un générateur = branche + PR, pas Lovable directement sur `main`. Après un chantier Lovable : `bash scripts/verif-post-lovable.sh` (section 7). En production, les échecs de génération arrivent dans Sentry étiquetés par format (`src/lib/generation-telemetry.ts`) : tout nouvel appel à un générateur passe par `invokeWithTimeout`, `invokeWithHeartbeat` ou `useStreamingInvoke` pour en bénéficier.
+
 ## Vocabulaire UI (conventions — audit UX 04/07/2026)
 
 | Règle | Détail |

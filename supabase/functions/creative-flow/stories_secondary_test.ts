@@ -191,7 +191,9 @@ Deno.test("creative-flow : en mode photo, les stories adoptent la forme structur
   const finalize = block.indexOf("finalizeStoriesLayout(parsed");
   assert(adopt >= 0 && strip > adopt && finalize > strip, `ordre cassé : ${adopt}, ${strip}, ${finalize}`);
   // La génération photo utilise le tool structuré (miroir du prompt).
-  const vision = src.slice(src.indexOf("async function runVisionGenerate("));
+  // runVisionGenerate vit dans formats/photo.ts depuis le lot 3 (13/10/2026).
+  const photoSrc = await Deno.readTextFile(new URL("./formats/photo.ts", import.meta.url));
+  const vision = photoSrc.slice(photoSrc.indexOf("async function runVisionGenerate("));
   assert(vision.slice(0, 9000).includes("tool: buildVisionTool(contentType)"));
 });
 
@@ -288,13 +290,16 @@ Deno.test("recyclage stories : séquence sans texte → null (le format est rete
 });
 
 Deno.test("creative-flow recyclage : les stories structurées passent par finalizeRecycledStories avant toute garde texte", async () => {
-  const src = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
+  // Le recyclage vit dans formats/recycle.ts depuis le lot 3 (13/10/2026).
+  const src = await Deno.readTextFile(new URL("./formats/recycle.ts", import.meta.url));
   const run = src.slice(src.indexOf("const runFormat = async (f: string)"));
   const structured = run.indexOf("if (structuredStories) {");
   const finalize = run.indexOf("await finalizeRecycledStories(resultVal");
   const textGate = run.indexOf("await runTextRedacGate(resultVal");
   assert(structured > 0 && finalize > structured && textGate > finalize, `ordre cassé : ${structured}, ${finalize}, ${textGate}`);
-  const fn = src.slice(src.indexOf("export async function finalizeRecycledStories("));
+  // finalizeRecycledStories vit dans formats/stories.ts depuis le lot 3 (13/10/2026).
+  const storiesSrc = await Deno.readTextFile(new URL("./formats/stories.ts", import.meta.url));
+  const fn = storiesSrc.slice(storiesSrc.indexOf("export async function finalizeRecycledStories("));
   const strip = fn.indexOf("stripStoriesWriterLayout(sequence)");
   const corr = fn.indexOf("applyStoriesCorrectionPass(sequence");
   const lay = fn.indexOf("finalizeStoriesLayout(sequence");

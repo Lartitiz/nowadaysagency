@@ -24,6 +24,19 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Historique complet : le rapport d'impact ci-dessous compare à la base.
+          fetch-depth: 0
+
+      # Informatif, ne bloque jamais : quels formats de contenu cette modification
+      # peut toucher (y compris par un module partagé) et quels prompts figés
+      # changent. Lisible dans le résumé du lancement. Lot 4 « robustesse
+      # création de contenu » (docs/creation-contenu/CARTE.md).
+      - name: Impact sur la création de contenu
+        continue-on-error: true
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+        run: node scripts/impact-creation.mjs --base "$BASE" --head HEAD --summary "$GITHUB_STEP_SUMMARY"
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
