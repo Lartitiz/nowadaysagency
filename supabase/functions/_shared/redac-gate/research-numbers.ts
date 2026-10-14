@@ -213,9 +213,6 @@ export function findResearchNumbersUsed(units: string[], research?: ResearchNumb
   return found;
 }
 
-export const UNSOURCED_RESEARCH_FIX = (items: string[]) =>
-  `CHIFFRES DE LA RECHERCHE REPRIS SANS LEUR SOURCE : ces chiffres ne viennent que de la matière de recherche, et la phrase qui les reprend ne cite pas leur source :\n${items.map((n) => `- ${n}`).join("\n")}\nPour CHACUN : si la matière de recherche donne la source de ce chiffre, ajoute-la DANS LA MÊME PHRASE (ou dans la phrase juste avant, si elle introduit l'étude), de façon discrète (« (Nom, année) » ou « selon Nom ») ; sinon, remplace le chiffre par une formulation qualitative honnête (« une petite partie de ton réseau », « les premiers jours »). N'invente JAMAIS de source, de nom ou d'année. Ne touche pas au reste du texte.`;
-
 /** Noms propres et années ajoutés par une correction : ils doivent venir de la recherche. */
 function inventedSourceTokens(before: string, after: string, researchText: string): string[] {
   // Les marqueurs « [SLIDE 1 - BODY] » des textes balisés ne sont pas des sources.

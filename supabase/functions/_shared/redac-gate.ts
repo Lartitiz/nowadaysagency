@@ -11,16 +11,14 @@ import { carouselEditorialFields } from "./carousel-editorial-review.ts";
 // Le quality_check émis au front est celui calculé ici (source: "code").
 
 import { applyCorrectionPass, applyCorrectionPassCarousel, extractCarouselTexts, reinjectCarouselTexts, type CorrectionFormat, type CorrectionOptions } from "./correction-pass.ts";
-import { wordCount, sentencesOf, tokenSimilarity } from "./redac-gate/text-utils.ts";
 import { MOULDED_VERBATIMS, findReversals, dropUserSourcedReversals } from "./redac-gate/reversals.ts";
 import { numbersIn, findFabricatedNumbers } from "./redac-gate/numbers.ts";
-import { findDurationConflicts } from "./redac-gate/durations.ts";
 // Découpage (fiche 7) : les familles sorties vivent dans ./redac-gate/ ; ce
 // fichier réexporte ce qui était public, sous le même nom.
 export { dropUserSourcedReversals } from "./redac-gate/reversals.ts";
 export { numbersIn } from "./redac-gate/numbers.ts";
-import { slideTexts, slideBody } from "./redac-gate/carousel-analysis.ts";
-import { type EchoContext, findHookEchoes, findBrandCopyOverlap, findRecentEchoes, hookEchoesBefore, textHook } from "./redac-gate/echoes.ts";
+import { slideTexts } from "./redac-gate/carousel-analysis.ts";
+import { type EchoContext, findHookEchoes, findBrandCopyOverlap, hookEchoesBefore, textHook } from "./redac-gate/echoes.ts";
 export type { EchoContext } from "./redac-gate/echoes.ts";
 export { findHookEchoes, findBrandCopyOverlap, findSharedPassages, findRecentEchoes, hookEchoesBefore, textHook } from "./redac-gate/echoes.ts";
 export { fixFrenchElisions, fixElisionsInFields, countStaccatoAcrossSlides, countAnaphoraAcrossSlides, countResultConclusionOpeners, isOpeningRhetoricalQuestion, countEmptyAdjectives, hookEndingSimilarity, findChoppyFragments, countChoppyFragments, measureSlopSignals } from "./redac-gate/slop-signals.ts";
@@ -28,233 +26,17 @@ export type { SlopSignals } from "./redac-gate/slop-signals.ts";
 import { type RedacAnalysis, type TextRedacAnalysis, redacViolations, carouselRedacRawCount, redacScore, textRedacViolations, textRedacRawCount } from "./redac-gate/scoring.ts";
 export type { RedacAnalysis, TextRedacAnalysis } from "./redac-gate/scoring.ts";
 export { redacViolations, carouselRedacRawCount, redacScore, textRedacViolations, textRedacRawCount } from "./redac-gate/scoring.ts";
-import { type ResearchNumbers, researchNumbers, baseInputText, UNSOURCED_RESEARCH_FIX, findUnsourcedResearchNumbers, findResearchNumbersUsed, enforceResearchNumberSources, emptiedMarkers, enforceResearchNumberCap } from "./redac-gate/research-numbers.ts";
+import { type ResearchNumbers, researchNumbers, baseInputText, findUnsourcedResearchNumbers, enforceResearchNumberSources, emptiedMarkers, enforceResearchNumberCap } from "./redac-gate/research-numbers.ts";
 export type { ResearchNumbers } from "./redac-gate/research-numbers.ts";
 export { researchNumbers, findUnsourcedResearchNumbers, findResearchNumbersUsed, enforceResearchNumberSources, emptiedMarkers, enforceResearchNumberCap } from "./redac-gate/research-numbers.ts";
-import { INVENTED_EXPERIENCE_FIX, INVENTED_TESTIMONY_FIX, findInventedTestimonials, findInventedExperiences, enforceNoInventedTestimonials } from "./redac-gate/testimony.ts";
+import { findInventedTestimonials, findInventedExperiences, enforceNoInventedTestimonials } from "./redac-gate/testimony.ts";
 export { findInventedTestimonials, findInventedExperiences, enforceNoInventedTestimonials } from "./redac-gate/testimony.ts";
+import { analyzeCarouselRedac, normalizeCaptionHashtags, buildQualityCheck, captionEndingViolated, type CaptionEndingRule, emptyAnalysis } from "./redac-gate/carousel-analysis.ts";
+export { analyzeCarouselRedac, normalizeCaptionHashtags, rescoreCaptionOnly, captionEndingViolated } from "./redac-gate/carousel-analysis.ts";
+export type { CaptionEndingRule } from "./redac-gate/carousel-analysis.ts";
+import { buildFixInstructions, buildTextFixInstructions } from "./redac-gate/fix-instructions.ts";
+export { buildTextFixInstructions } from "./redac-gate/fix-instructions.ts";
 
-
-/** `testimonySource` : brief + réponses + actu ; absent = témoignages et vécus non mesurés. */
-export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext, research?: ResearchNumbers, testimonySource?: string): RedacAnalysis {
-  const doc = parsed?.carousel?.slides ? parsed.carousel : parsed;
-  const slides: any[] = Array.isArray(doc?.slides) ? doc.slides : [];
-  const caption = doc?.caption ?? doc?.instagram_caption ?? parsed?.caption ?? parsed?.instagram_caption ?? {};
-  const slidesText = slides.map(slideTexts).join("\n");
-  const captionText = typeof caption === "string" ? caption : [caption.hook, caption.body, caption.cta].filter(Boolean).join(" ");
-  const allText = [slidesText, captionText].join("\n");
-
-  const reversals = findReversals(allText);
-  const brandCopyOverlap = findBrandCopyOverlap(allText, brandGuardText);
-
-  const overlongSlides = slides
-    .map((s: any) => ({ slide: s?.slide_number ?? 0, words: wordCount(slideBody(s)) }))
-    .filter((x) => x.words > 55); // 50 (règle, corps seul) + tolérance de comptage
-
-  // Overlay = phrase posée SUR la photo : la règle 5-25 mots n'avait aucun gate
-  // (30 mots vus en live, audit 12/07 lot D). Seuil 28 = 25 + tolérance.
-  const overlongOverlays = slides
-    .filter((s: any) => typeof s?.overlay_text === "string" && s.overlay_text.trim())
-    .map((s: any) => ({ slide: s?.slide_number ?? 0, words: wordCount(s.overlay_text) }))
-    .filter((x) => x.words > 28);
-
-  // CTA de caption ≡ CTA de la dernière slide (la caption doit COMPLÉTER, pas répéter)
-  const lastSlide = slides[slides.length - 1];
-  const ctaDuplicated = Boolean(
-    caption?.cta && lastSlide && tokenSimilarity(caption.cta, slideTexts(lastSlide)) >= 0.7,
-  );
-
-  const moulded = MOULDED_VERBATIMS.map((re) => allText.match(re)?.[0]).filter(Boolean) as string[];
-
-  const hashtagsCount = Array.isArray(caption?.hashtags) ? caption.hashtags.length : 0;
-
-  // Chiffres : on analyse aussi les schémas visuels (stats affichées sur les slides)
-  const schemaText = slides
-    .map((s: any) => (s?.visual_schema ? JSON.stringify(s.visual_schema) : ""))
-    .join("\n");
-  const fabricatedNumbers = allowedNumbers
-    ? findFabricatedNumbers(allText + "\n" + schemaText, allowedNumbers)
-    : [];
-  // Une slide se lit d'un bloc (titre + corps) : la source peut être dans l'un, le chiffre dans l'autre.
-  const unsourcedResearchNumbers = findUnsourcedResearchNumbers(
-    "", research, [...slides.map(slideTexts), ...sentencesOf(captionText)],
-  );
-  const researchNumbersUsed = findResearchNumbersUsed([...slides.map(slideTexts), captionText, schemaText], research);
-
-  const durationConflicts = findDurationConflicts(slidesText, captionText);
-  // L'accroche d'un carrousel = le texte de sa slide 1, quel que soit le format
-  // (le mixte et le photo portent `overlay_text`, pas `title`).
-  const hookEchoes = findHookEchoes(slideTexts(slides[0]) || caption.hook || "", echo?.previousHooks, echo?.subject);
-  // Redite d'un contenu récent de la marque, tous sujets (bilan hebdo 05/10/2026).
-  const recentEchoes = findRecentEchoes(allText, echo?.recentTexts, echo?.currentRequest);
-
-  // Témoignages et vécus au passé inventés (04/10/2026) : mêmes détecteurs que
-  // la variante texte, sur slides + légende. Chaque slide est un paragraphe.
-  const inventedTestimonials = findInventedTestimonials(allText, testimonySource);
-  const inventedExperiences = findInventedExperiences(allText, testimonySource);
-
-  return {
-    reversals, overlongSlides, overlongOverlays, ctaDuplicated, moulded,
-    hashtagsCount, fabricatedNumbers, unsourcedResearchNumbers, researchNumbersUsed, durationConflicts, brandCopyOverlap, hookEchoes,
-    recentEchoes, inventedTestimonials, inventedExperiences,
-  };
-}
-
-/**
- * Normalise les hashtags de la caption : cap par canal (3 Instagram, 2 LinkedIn),
- * sans « # » (convention du schéma), dédoublonnés, espaces retirés. Le prompt
- * demandait 3 et le modèle en sortait 7-8, tantôt avec tantôt sans « # ».
- */
-export function normalizeCaptionHashtags(parsed: any, isLinkedIn: boolean): void {
-  const caption = parsed?.caption;
-  if (!caption || !Array.isArray(caption.hashtags)) return;
-  const max = isLinkedIn ? 2 : 3;
-  const seen = new Set<string>();
-  const clean: string[] = [];
-  for (const h of caption.hashtags) {
-    if (typeof h !== "string") continue;
-    const tag = h.trim().replace(/^#+/, "").replace(/\s+/g, "");
-    if (!tag) continue;
-    const key = tag.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    clean.push(tag);
-    if (clean.length >= max) break;
-  }
-  caption.hashtags = clean;
-}
-
-
-/** quality_check calculé (remplace l'auto-déclaré, qui rapportait faux). */
-function buildQualityCheck(a: RedacAnalysis, repassed: boolean, researchCap?: number, echoesBefore?: number) {
-  const violations = redacViolations(a);
-  return {
-    source: "code",
-    scope: "lexical_only_not_editorial_progression",
-    length_policy: "layout_telemetry_only",
-    score: redacScore(a),
-    reversal_negation_count: a.reversals.length,
-    slides_over_50_words: a.overlongSlides,
-    overlays_over_28_words: a.overlongOverlays,
-    caption_cta_duplicates_slide: a.ctaDuplicated,
-    moulded_verbatims: a.moulded,
-    fabricated_numbers: a.fabricatedNumbers.length,
-    unsourced_research_numbers: a.unsourcedResearchNumbers?.length ?? 0,
-    research_numbers_used: a.researchNumbersUsed?.length ?? 0,
-    research_numbers_cap: researchCap ?? null,
-    invented_testimonials: a.inventedTestimonials?.length ?? 0,
-    invented_experiences: a.inventedExperiences?.length ?? 0,
-    duration_conflicts: a.durationConflicts,
-    brand_copy_overlap: a.brandCopyOverlap.length,
-    hook_echoes: a.hookEchoes,
-    recent_echoes: a.recentEchoes?.length ?? 0,
-    // Avant la re-passe (null = garde non armée) : hook_echoes ci-dessus est l'après.
-    hook_echoes_before: echoesBefore ?? null,
-    hashtags_count: a.hashtagsCount,
-    corrected_by_repass: repassed,
-  };
-}
-
-/**
- * « Photos brutes » (08/10/2026) : l'app efface tout le texte des slides et ne
- * garde que la légende. La note affichée doit juger ce qui reste : on la
- * recalcule sur la légende seule, avec les mêmes sources que le gate. La
- * mesure du gate (redac_score loggué) reste celle de l'écriture complète.
- */
-export function rescoreCaptionOnly(
-  content: string,
-  opts: { inputText?: string; researchText?: string; researchNumbersCap?: number; brandGuardText?: string; echo?: EchoContext; testimonySource?: string; authoredText?: string },
-): string {
-  const m = content.match(/\{[\s\S]*\}/);
-  if (!m) return content;
-  let parsed: any;
-  try { parsed = JSON.parse(m[0]); } catch { return content; }
-  const doc = parsed?.carousel?.slides ? parsed.carousel : parsed;
-  if (!doc || typeof doc !== "object") return content;
-  const allowedNumbers = opts.inputText !== undefined ? numbersIn(opts.inputText) : undefined;
-  const base = baseInputText(opts.inputText, opts.researchText);
-  const research = allowedNumbers ? researchNumbers(numbersIn(base), opts.researchText, base) : undefined;
-  const a = dropUserSourcedReversals(analyzeCarouselRedac({ caption: doc.caption ?? parsed.caption, slides: [] }, allowedNumbers, opts.brandGuardText, opts.echo, research, opts.testimonySource), opts.authoredText);
-  const prior = doc.quality_check ?? parsed.quality_check;
-  const qc = { ...buildQualityCheck(a, Boolean(prior?.corrected_by_repass), opts.researchNumbersCap), scored_on: "caption_only", full_writing_score: prior?.score ?? null };
-  if (doc !== parsed) doc.quality_check = qc;
-  parsed.quality_check = qc;
-  return content.replace(m[0], JSON.stringify(parsed, null, 2));
-}
-
-// ── Chute de caption imposée (caption v2, 12/07) ──
-// Le tirage par code d'une forme de chute (question / affirmation / invitation
-// impérative / confidence / sobre) n'est PAS respecté de façon fiable par le
-// modèle (re-test v3 : 5/7 questions pour ~1-2 attendues). Le gate mesure la
-// conformité et la re-passe ciblée corrige — même patron que le reste du gate.
-
-export interface CaptionEndingRule {
-  /** true = la chute imposée est une question ; false = toute autre forme (aucun « ? »). */
-  requiresQuestion: boolean;
-  /** Description de la forme imposée, réinjectée telle quelle dans la re-passe. */
-  instruction: string;
-}
-
-/** La caption viole-t-elle la forme de chute imposée ? */
-export function captionEndingViolated(parsed: any, rule?: CaptionEndingRule): boolean {
-  if (!rule) return false;
-  const caption = parsed?.caption;
-  if (!caption || typeof caption !== "object") return false;
-  const cta = String(caption.cta || "").trim();
-  const bodyTail = String(caption.body || "").trim().split("\n").filter(Boolean).pop() || "";
-  const tail = (cta || bodyTail).trim();
-  if (rule.requiresQuestion) return !/\?/.test(cta + " " + bodyTail);
-  // Forme non-question : un « ? » dans le cta, ou une fin de caption en question, = violation.
-  return /\?/.test(cta) || /\?\s*$/.test(tail);
-}
-
-/** Construit les instructions ciblées de la re-passe à partir des mesures. */
-function buildFixInstructions(a: RedacAnalysis): string {
-  const lines: string[] = [];
-  if (a.reversals.length > 0) {
-    lines.push(
-      `RETOURNEMENTS PAR NÉGATION : ${a.reversals.length} détectés, aucun effet ajouté n’est autorisé (caption comprise). Réécris chaque passage signalé en affirmation directe, en préservant les négations factuelles et verbatims fournis à garder (même sens, sans « pas X, c'est Y »). Une concession suivie de « Sauf que… » disparaît, et une antithèse en deux phrases miroir (« On croit en faire plus. On en fait souvent moins. ») devient une seule phrase qui dit le mécanisme (« Publier trop vite coupe l'élan du post précédent. ») :\n${a.reversals.map((r) => `- « ${r} »`).join("\n")}`,
-    );
-  }
-  // Length is layout telemetry only: preserve useful prose and transitions.
-  if (a.ctaDuplicated) {
-    lines.push(
-      `CTA DUPLIQUÉ : le "cta" de la caption répète la dernière slide. Réécris le cta de la CAPTION pour qu'il soit COMPLÉMENTAIRE (autre formulation, autre angle d'invitation), pas une copie.`,
-    );
-  }
-  for (const m of a.moulded) {
-    lines.push(`FORMULE MOULÉE : « ${m} » est une signature IA récurrente. Réécris-la autrement (ou supprime-la).`);
-  }
-  if (a.fabricatedNumbers.length) {
-    lines.push(
-      `CHIFFRES SANS SOURCE : ces chiffres ne viennent ni du brief, ni des réponses de l'utilisatrice, ni de son branding, ni de l'actu fournie :\n${a.fabricatedNumbers.map((n) => `- ${n}`).join("\n")}\nRemplace CHACUN par une formulation qualitative honnête (« une bonne partie », « plusieurs semaines », « la plupart », « bien plus cher »). N'invente JAMAIS de statistique, de prix, de durée ou de proportion. Si un schéma visuel de type stats n'a plus de chiffre à afficher, transforme-le en slide texte.`,
-    );
-  }
-  if (a.unsourcedResearchNumbers?.length) lines.push(UNSOURCED_RESEARCH_FIX(a.unsourcedResearchNumbers));
-  if (a.inventedTestimonials?.length) lines.push(INVENTED_TESTIMONY_FIX(a.inventedTestimonials));
-  if (a.inventedExperiences?.length) lines.push(INVENTED_EXPERIENCE_FIX(a.inventedExperiences));
-  if (a.durationConflicts.length) {
-    lines.push(
-      `DURÉES QUI SE CONTREDISENT entre les slides et la légende :\n${a.durationConflicts.map((c) => `- ${c}`).join("\n")}\nC'est le MÊME fait raconté deux fois avec deux chiffres différents — devant l'audience, ça décrédibilise tout le contenu. Choisis UNE durée et emploie EXACTEMENT la même des deux côtés (ou retire-la d'un des deux). Ne « fais pas la moyenne » : garde celle du brief si le brief en donne une.`,
-    );
-  }
-  if (a.brandCopyOverlap.length) {
-    lines.push(
-      `PASSAGES RECOPIÉS DE LA FICHE DE MARQUE : ces extraits reprennent quasi mot pour mot un champ de la fiche de marque de l'utilisatrice (combat, mission, ton, expressions, convictions) :\n${a.brandCopyOverlap.map((o) => `- « ${o} »`).join("\n")}\nCette fiche est la MATIÈRE de l'utilisatrice, jamais son texte final. Reformule CHAQUE extrait avec des mots neufs, garde le sens et l'intensité, mais ne recopie plus la fiche de marque telle quelle.`,
-    );
-  }
-  if (a.hookEchoes.length) {
-    lines.push(
-      `ACCROCHE DÉJÀ UTILISÉE POUR CE SUJET : cette ouverture redit une accroche déjà écrite pour le même sujet :\n${a.hookEchoes.map((h) => `- « ${h} »`).join("\n")}\nL'audience voit la SÉRIE, pas un contenu isolé : deux publications qui ouvrent pareil donnent l'impression d'un contenu recyclé à la chaîne. Réécris l'accroche avec un angle d'attaque VRAIMENT différent — change ce sur quoi elle ouvre (une scène vécue plutôt qu'un constat, une question plutôt qu'une affirmation, un détail concret plutôt qu'une généralité). Garde le sujet et le fond du contenu, change l'entrée.`,
-    );
-  }
-  if (a.recentEchoes?.length) {
-    lines.push(
-      `PHRASES DÉJÀ PUBLIÉES DANS UN CONTENU RÉCENT DE LA MARQUE : ces passages reprennent mot pour mot un de ses derniers contenus :\n${a.recentEchoes.map((e) => `- « ${e} »`).join("\n")}\nL'audience suit le compte : la même phrase d'un contenu à l'autre se voit tout de suite. Reformule chaque passage avec des mots neufs, ou remplace-le par un autre fait des sources s'il ne sert pas ce propos. N'ajoute aucun fait.`,
-    );
-  }
-  return lines.join("\n\n");
-}
 
 export interface RedacGateResult {
   content: string;
@@ -627,9 +409,6 @@ export async function runRedacGate(
   return { content: out, repassed, before, after, score: redacScore(after), violations: redacViolations(after), hookEchoesBefore: echoesBefore };
 }
 
-function emptyAnalysis(): RedacAnalysis {
-  return { reversals: [], overlongSlides: [], overlongOverlays: [], ctaDuplicated: false, moulded: [], hashtagsCount: 0, fabricatedNumbers: [], durationConflicts: [], brandCopyOverlap: [], hookEchoes: [] };
-}
 
 // ── Variante TEXTE (lot 4) : LinkedIn et newsletter ──
 // Mêmes mesures que le gate carrousel, sur un texte brut. Le résultat s'injecte
@@ -650,38 +429,6 @@ export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>, bra
   return { reversals, moulded, fabricatedNumbers, unsourcedResearchNumbers, inventedTestimonials, inventedExperiences, brandCopyOverlap, hookEchoes };
 }
 
-
-/** Instructions ciblées pour la passe de correction texte ("" si rien à corriger). */
-export function buildTextFixInstructions(a: TextRedacAnalysis): string {
-  const lines: string[] = [];
-  if (a.reversals.length > 0) {
-    lines.push(
-      `RETOURNEMENTS PAR NÉGATION : ${a.reversals.length} détectés, aucun effet ajouté n’est autorisé. Réécris chaque passage signalé en affirmation directe, en préservant les négations factuelles et verbatims fournis à garder. Une concession suivie de « Sauf que… » (« C'est logique, sur le papier. Sauf que ce n'est pas comme ça que ça marche ») disparaît : pose directement le mécanisme réel, sans concession ni « sauf que ». Une antithèse en deux phrases miroir (« On croit en faire plus. On en fait souvent moins. ») devient une seule phrase qui dit le mécanisme (« Publier trop vite coupe l'élan du post précédent. ») :\n${a.reversals.map((r) => `- « ${r} »`).join("\n")}`,
-    );
-  }
-  for (const m of a.moulded) {
-    lines.push(`FORMULE MOULÉE : « ${m} » est une signature IA récurrente. Réécris-la autrement (ou supprime-la).`);
-  }
-  if (a.fabricatedNumbers.length) {
-    lines.push(
-      `CHIFFRES SANS SOURCE : ces chiffres ne viennent ni du brief, ni des réponses de l'utilisatrice, ni de son branding, ni de l'actu fournie :\n${a.fabricatedNumbers.map((n) => `- ${n}`).join("\n")}\nRemplace CHACUN par une formulation qualitative honnête (« une bonne partie », « plusieurs heures », « bien plus cher »). N'invente JAMAIS de statistique, de prix, de durée ou de proportion.`,
-    );
-  }
-  if (a.unsourcedResearchNumbers?.length) lines.push(UNSOURCED_RESEARCH_FIX(a.unsourcedResearchNumbers));
-  if (a.inventedTestimonials?.length) lines.push(INVENTED_TESTIMONY_FIX(a.inventedTestimonials));
-  if (a.inventedExperiences?.length) lines.push(INVENTED_EXPERIENCE_FIX(a.inventedExperiences));
-  if (a.brandCopyOverlap.length) {
-    lines.push(
-      `PASSAGES RECOPIÉS DE LA FICHE DE MARQUE : ces extraits reprennent quasi mot pour mot un champ de la fiche de marque de l'utilisatrice (combat, mission, ton, expressions, convictions) :\n${a.brandCopyOverlap.map((o) => `- « ${o} »`).join("\n")}\nCette fiche est la MATIÈRE de l'utilisatrice, jamais son texte final. Reformule CHAQUE extrait avec des mots neufs, garde le sens et l'intensité, mais ne recopie plus la fiche de marque telle quelle.`,
-    );
-  }
-  if (a.hookEchoes.length) {
-    lines.push(
-      `ACCROCHE DÉJÀ UTILISÉE POUR CE SUJET : cette ouverture redit une accroche déjà écrite pour le même sujet :\n${a.hookEchoes.map((h) => `- « ${h} »`).join("\n")}\nL'audience voit la SÉRIE, pas un contenu isolé : deux publications qui ouvrent pareil donnent l'impression d'un contenu recyclé à la chaîne. Réécris l'accroche avec un angle d'attaque VRAIMENT différent — change ce sur quoi elle ouvre (une scène vécue plutôt qu'un constat, une question plutôt qu'une affirmation, un détail concret plutôt qu'une généralité). Garde le sujet et le fond du contenu, change l'entrée.`,
-    );
-  }
-  return lines.join("\n\n");
-}
 
 // ── Gate texte complet : mesure → correction → RE-mesure → garde anti-régression ──
 // Diagnostic 18/08 (recyclage, échantillon live) : la passe de correction Haiku

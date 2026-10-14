@@ -129,12 +129,6 @@ export function findInventedExperiences(text: string, sourceText?: string): stri
   return experiencePassages(text || "");
 }
 
-export const INVENTED_EXPERIENCE_FIX = (items: string[]) =>
-  `VÉCU PERSONNEL INVENTÉ : ces passages racontent une expérience de l'autrice au passé (« j'ai essayé », « je pensais », « résultat : »), alors que ni le brief, ni les réponses, ni l'actu ne la fournissent :\n${items.map((t) => `- « ${t} »`).join("\n")}\nRéécris CHAQUE passage en opinion au présent (« Je pense que… », « Pour moi… ») ou en constat général (« c'est courant », « souvent, la portée baisse même »). Garde l'idée et la position ; aucun test, essai, résultat ou croyance passée de l'autrice.`;
-
-export const INVENTED_TESTIMONY_FIX = (items: string[]) =>
-  `TÉMOIGNAGE INVENTÉ : ces phrases rapportent la parole d'une personne rencontrée (cliente, amie, artisane…) ou une rencontre, alors que ni le brief, ni les réponses, ni l'actu ne la fournissent :\n${items.map((t) => `- « ${t} »`).join("\n")}\nRetire CHAQUE témoignage et garde l'idée qu'il portait, dite comme un constat général au présent ou comme l'opinion de l'autrice. Aucune personne, parole rapportée ou scène de remplacement.`;
-
 /**
  * Filet dédié (04/10/2026) : s'il reste un témoignage ou un vécu au passé
  * inventé après la relecture, UNE passe courte qui ne fait que le retirer. Gardée seulement si
