@@ -341,6 +341,7 @@ découpage en cours : code déplacé à l'identique, `index.ts` réexporte ce qu
 | `carousel-ai/steps/questions.ts` (lot 5) | Questions d'approfondissement (gratuites) : variante photo / mixte avec vision, variante texte via `runGenerationAndRespond` | les questions de tous les carrousels |
 | `carousel-ai/modes/text.ts` (lot 5) | Parcours texte : `handleHooksRequest`, `handleSlidesRequest`, `handleSuggestTopicsRequest`, `handleSuggestAnglesRequest` (appels `build…Prompt(reqCtx.body, reqCtx.isLinkedIn)`) | accroches, slides, idées de sujets et d'angles |
 | `carousel-ai/modes/mix.ts` (lot 6) | Parcours mixte avec plan validé, ou quand le récit continu ne s'applique pas (`handleMixCarouselRequest`) : vision ou texte, relance si trop court, refus photo, structure, relecture, fusion du plan, indexes photo, redac-gate, fil, schémas ; nettoyage « texte d'abord » (`enforceTextFirstDirectives`) | le carrousel mixte |
+| `carousel-ai/modes/photo.ts` (lot 6) | Parcours photo avec plan validé, ou quand le récit continu ne s'applique pas (`handlePhotoCarouselRequest`, `emptySlidesText`) : vision, relance si trop court, refus photo, structure, relecture, fusion du plan, indexes photo, redac-gate, gabarits posés sur le texte final, fil, « photos brutes » | le carrousel photo |
 
 `carousel-ai/boundaries_test.ts` garde ce rangement : aucun fichier n'importe
 `index.ts` ; `shared.ts` et `tools.ts` n'importent ni `modes/` ni `steps/` ; un
@@ -451,7 +452,7 @@ une fonction dédiée, ou faire la correction dans le module du format.
 | `user-context` | 35 | Branding, voix, profil injectés dans les prompts |
 | `audience-address` | 35 | Tu / vous |
 | `parse-ai-json` | 31 | Lecture du JSON renvoyé par l'IA |
-| `copywriting-prompts` | 22 | Consignes de rédaction (aussi audits, coaching, site…) |
+| `copywriting-prompts` | 21 | Consignes de rédaction (aussi audits, coaching, site…). `carousel-ai` n'en fait plus partie depuis le découpage de son `index.ts` (fiche 2, lot 2) : il importait `EDITORIAL_ANGLES_REFERENCE` sans jamais s'en servir |
 | `base-prompts` | 19 | Consignes de base (aussi coaching, branding, site…) |
 
 ### 🟠 Zone orange : la chaîne de relecture des textes
