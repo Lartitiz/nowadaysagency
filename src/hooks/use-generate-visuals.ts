@@ -15,6 +15,10 @@ import type { CarouselColors } from "@/components/creer/formatRenderers/Carousel
 
 interface UseGenerateVisualsParams {
   result: any;
+  /** Identifiant stable de la création (CreerUnifie). Borne les essais
+   * automatiques : une retouche du texte crée un nouvel objet `result` mais
+   * garde le même identifiant, elle ne rouvre donc pas de budget. */
+  creationId?: string;
   visualLoading: boolean;
   contentGenerating?: boolean;
   allowAutomatic?: boolean;
@@ -52,12 +56,14 @@ interface UseGenerateVisualsParams {
  * Possède aussi son propre effet de pré-génération en arrière-plan : dès que
  * le texte du carrousel est prêt (`result` avec des slides), on tente de
  * générer les visuels sans attendre le clic, avec un budget de 2 essais par
- * résultat avant de laisser la main au bouton manuel.
+ * rédaction (création + écriture du texte) avant de laisser la main au bouton
+ * manuel. Une retouche du texte ne rouvre jamais ce budget.
  *
  * Retourne `{ handleGenerateVisuals }`.
  */
 export function useGenerateVisuals({
   result,
+  creationId,
   visualLoading,
   contentGenerating = false,
   allowAutomatic = true,
@@ -84,7 +90,13 @@ export function useGenerateVisuals({
   onMixLayoutMemos,
 }: UseGenerateVisualsParams) {
   const luminanceCacheRef = useRef<Map<string, { top: number; center: number; bottom: number }>>(new Map());
-  const autoVisualsAttemptRef = useRef<{ result: any; n: number }>({ result: null, n: 0 });
+  const autoVisualsAttemptRef = useRef<{ key: string | null; n: number }>({ key: null, n: 0 });
+  // Numéro de rédaction : +1 à chaque nouvelle écriture du texte par l'IA
+  // (contentGenerating passe à true). Les retouches manuelles ne passent pas
+  // par là : elles gardent le même numéro, donc le même budget d'essais.
+  const writingRef = useRef({ generating: false, epoch: 0 });
+  if (contentGenerating && !writingRef.current.generating) writingRef.current.epoch += 1;
+  writingRef.current.generating = contentGenerating;
 
   // A previous result remains visible while its replacement is written. Never
   // render it into the newly cleared visuals, or accept its late response.
@@ -476,7 +488,11 @@ export function useGenerateVisuals({
   // Dès que le texte du carrousel est prêt, on lance la génération des visuels
   // en arrière-plan pendant que l'utilisatrice lit, pour qu'ils soient déjà là
   // (ou en cours) quand elle scrolle. Frontend only — ne touche pas l'edge.
-  // Compteur de tentatives PAR résultat (et non un simple "déjà lancé").
+  // Compteur de tentatives PAR rédaction (et non un simple "déjà lancé").
+  // Clé stable = creationId + numéro de rédaction, jamais l'identité de
+  // `result` : chaque retouche du texte crée un nouvel objet `result`, et un
+  // compteur rangé par objet relançait un rendu facturé à chaque retouche
+  // une fois les 2 essais échoués (constat du 14/10/2026).
   // Une 1re tentative auto qui échoue ou baile (edge lente/timeout, état
   // transitoire) ne doit PAS désactiver l'auto-génération pour toujours :
   // sinon l'utilisatrice se retrouve sans visuels et doit cliquer
@@ -504,9 +520,10 @@ export function useGenerateVisuals({
         !Number.isInteger(s?.photo_index),
     );
     if (hasUncastPhotoSlide) return;
-    // Tentatives bornées par résultat : 1 essai + 1 retry sur échec transitoire.
-    if (autoVisualsAttemptRef.current.result !== result) {
-      autoVisualsAttemptRef.current = { result, n: 0 };
+    // Tentatives bornées par rédaction : 1 essai + 1 retry sur échec transitoire.
+    const attemptKey = `${creationId ?? ""}:${writingRef.current.epoch}`;
+    if (autoVisualsAttemptRef.current.key !== attemptKey) {
+      autoVisualsAttemptRef.current = { key: attemptKey, n: 0 };
     }
     if (autoVisualsAttemptRef.current.n >= 2) return; // on laisse la main au bouton manuel
     autoVisualsAttemptRef.current.n += 1;
