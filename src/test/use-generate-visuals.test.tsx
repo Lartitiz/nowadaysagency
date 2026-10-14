@@ -5,7 +5,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 // en arrière-plan. Deux contrats critiques :
 // 1. En mode background, JAMAIS de toast ni de mur quota surgissant sans clic —
 //    l'état d'échec passe par setVisualsAutoError, près du bouton.
-// 2. L'auto-déclenchement est borné à 2 tentatives par résultat (1 essai +
+// 2. L'auto-déclenchement est borné à 2 tentatives par rédaction (1 essai +
 //    1 retry), chaque tentative étant un rendu FACTURÉ côté edge.
 
 const mocks = vi.hoisted(() => ({
@@ -60,6 +60,7 @@ function makeTextResult() {
 function makeParams(overrides: Record<string, any> = {}) {
   return {
     result: makeTextResult(),
+    creationId: undefined as string | undefined,
     visualLoading: false,
     contentGenerating: false,
     allowAutomatic: true,
@@ -416,6 +417,74 @@ describe("useGenerateVisuals — pré-génération background silencieuse", () =
     expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(2);
     // Et toujours aucun toast : les échecs auto restent silencieux.
     expect(mocks.toast.error).not.toHaveBeenCalled();
+  });
+
+  it("après deux échecs, les retouches de texte ne relancent AUCUNE création payante", async () => {
+    mocks.invokeWithHeartbeat.mockRejectedValue(new Error("edge lente"));
+    const params = makeParams({ step: "result", creationId: "creation-1" });
+    const { result, rerender } = renderHook((p) => useGenerateVisuals(p), { initialProps: params });
+    await waitFor(() => expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(1));
+    rerender({ ...params, visualLoading: true });
+    rerender({ ...params, visualLoading: false });
+    await waitFor(() => expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(2));
+
+    // Trois retouches : chacune crée un nouvel objet `result` (onSlidesUpdate).
+    let current = params;
+    for (const title of ["Retouche 1", "Retouche 2", "Retouche 3"]) {
+      const edited = makeTextResult();
+      edited.raw.slides[0].title = title;
+      current = { ...params, result: edited };
+      rerender(current);
+      await act(async () => {});
+    }
+    expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(2);
+
+    // Seul le bouton « Regénérer visuels » relance.
+    await act(() => result.current.handleGenerateVisuals());
+    expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(3);
+  });
+
+  it("une retouche après un échec n'ouvre pas un nouveau budget (1 seul nouvel essai au total)", async () => {
+    mocks.invokeWithHeartbeat.mockRejectedValue(new Error("edge lente"));
+    const params = makeParams({ step: "result", creationId: "creation-1" });
+    const { rerender } = renderHook((p) => useGenerateVisuals(p), { initialProps: params });
+    await waitFor(() => expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(1));
+    const edited = makeTextResult();
+    edited.raw.slides[0].title = "Retouche";
+    rerender({ ...params, result: edited, visualLoading: true });
+    rerender({ ...params, result: edited, visualLoading: false });
+    await waitFor(() => expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(2));
+    const edited2 = makeTextResult();
+    edited2.raw.slides[0].title = "Retouche 2";
+    rerender({ ...params, result: edited2 });
+    await act(async () => {});
+    expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(2);
+  });
+
+  it("une nouvelle création (autre creationId) retrouve son essai automatique", async () => {
+    mocks.invokeWithHeartbeat.mockRejectedValue(new Error("edge lente"));
+    const params = makeParams({ step: "result", creationId: "creation-1" });
+    const { rerender } = renderHook((p) => useGenerateVisuals(p), { initialProps: params });
+    await waitFor(() => expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(1));
+    rerender({ ...params, visualLoading: true });
+    rerender({ ...params, visualLoading: false });
+    await waitFor(() => expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(2));
+    rerender({ ...params, creationId: "creation-2", result: makeTextResult() });
+    await waitFor(() => expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(3));
+  });
+
+  it("une nouvelle rédaction du texte (régénération) retrouve son essai automatique", async () => {
+    mocks.invokeWithHeartbeat.mockRejectedValue(new Error("edge lente"));
+    const params = makeParams({ step: "result", creationId: "creation-1" });
+    const { rerender } = renderHook((p) => useGenerateVisuals(p), { initialProps: params });
+    await waitFor(() => expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(1));
+    rerender({ ...params, visualLoading: true });
+    rerender({ ...params, visualLoading: false });
+    await waitFor(() => expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(2));
+    rerender({ ...params, contentGenerating: true });
+    await act(async () => {});
+    rerender({ ...params, result: makeTextResult(), contentGenerating: false });
+    await waitFor(() => expect(mocks.invokeWithHeartbeat).toHaveBeenCalledTimes(3));
   });
 
   it("l'auto-déclenchement ne court-circuite jamais le dialog photos manquantes", async () => {
