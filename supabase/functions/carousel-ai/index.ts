@@ -1,15 +1,12 @@
-import { photoMatchPhotoCount, photoMatchReserveMs } from "./final-photo-match.ts";
-import { NarrativePhotoMismatch } from "./continuous-narrative.ts";
-import { PHOTO_NARRATIVE_CONTRACT, PHOTO_QUESTIONS_CONTRACT } from "./photo-narrative.ts";
-import { autoMaxSlides, carouselLength, carouselLengthPrompt, carouselStructureIssues, longMixSlideIssues, longTextSlides } from "../_shared/carousel-length.ts";
-import { draftSlidesTracker } from "../_shared/carousel-draft-stream.ts";
+import { photoMatchPhotoCount } from "./final-photo-match.ts";
+import { carouselLengthPrompt, carouselStructureIssues, longMixSlideIssues } from "../_shared/carousel-length.ts";
 import { newsWriting } from "./variant-writing.ts";
 import { CAROUSEL_WRITER_VERSION } from "./writer.ts";
 import { authoredContentSource, currentContentContract, testimonySourceText } from "../_shared/editorial-voice.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildBrandGuardText } from "../_shared/user-context.ts";
 import { isQaTestAccount, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { getModelForAction, AnthropicError, type UsageSink, type AnthropicOptions } from "../_shared/anthropic.ts";
+import { getModelForAction, AnthropicError, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { photoReadingContract, CAROUSEL_WRITING_VERSION } from "./writing-contract.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -21,7 +18,7 @@ import { carouselDurations, logContentQuality, threadOutcome } from "../_shared/
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import { recentPassagesPrompt } from "../_shared/recent-passages.ts";
 // Mise en forme (schémas, disposition, gabarits) : étape isolée dans layout.ts (lot 8).
-import { assignPhotoTemplates, assignTemplatesToProvidedSlides, capVisualSchemas, logSchemaFormatting, normalizeOverlayStyles, placeMixSchemas, placeTextSchemas, revalidatePhotoLayoutContent, withoutMixWriterLayout, withoutPhotoWriterLayout } from "./layout.ts";
+import { assignPhotoTemplates, assignTemplatesToProvidedSlides, capVisualSchemas, logSchemaFormatting, normalizeOverlayStyles, placeMixSchemas, revalidatePhotoLayoutContent, withoutMixWriterLayout, withoutPhotoWriterLayout } from "./layout.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { buildDepthBlock } from "../_shared/depth-research.ts";
@@ -29,12 +26,16 @@ import { livedCaseFromCarouselBody, researchNumbersCapFor } from "../_shared/liv
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { mergeConfirmedStructure, normalizePhotoIndexes, maxStructurePhotoIndex, analyzeMixComposition } from "../_shared/photo-slide-structure.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
-import { _deps, type CarouselRequestContext, buildPhotoContextRecap, normalizeGeneratedPlanFields, normalizeSlideType, pickCorrectionModel, echoContext, writerTimeoutMs, pickCarouselModel, reviewAllowed, CORRECTION_ABORT_MS, stageTimer, carouselMismatchResponse, firstDraftStream, pushPhotoWithContext, retryIfTooShort, carouselSlideFloor } from "./shared.ts";
-import { PHOTO_QUESTIONS_TOOL, QUESTIONS_TOOL, PHOTO_MISMATCH_SYSTEM_REMINDER, MIX_CAROUSEL_TOOL, PHOTO_CAROUSEL_TOOL } from "./tools.ts";
-import { buildSystemPrompt, buildHooksPrompt, buildSlidesPrompt, buildSuggestTopicsPrompt, buildSuggestAnglesPrompt, buildMixCarouselNewsReactionPrompt, buildMixCarouselPrompt, buildPhotoCarouselNewsReactionPrompt, buildPhotoCarouselPrompt, buildExpressFullPrompt, buildDeepeningQuestionsPrompt } from "./prompts.ts";
-import { startPhotoOutline, emitPlannedTitles, addOutlineUsage } from "./outline.ts";
+import { _deps, type CarouselRequestContext, buildPhotoContextRecap, normalizeGeneratedPlanFields, normalizeSlideType, pickCorrectionModel, echoContext, pickCarouselModel, reviewAllowed, CORRECTION_ABORT_MS, stageTimer, carouselMismatchResponse, firstDraftStream, pushPhotoWithContext, retryIfTooShort, carouselSlideFloor } from "./shared.ts";
+import { PHOTO_MISMATCH_SYSTEM_REMINDER, MIX_CAROUSEL_TOOL, PHOTO_CAROUSEL_TOOL } from "./tools.ts";
+import { buildSystemPrompt, buildMixCarouselNewsReactionPrompt, buildMixCarouselPrompt, buildPhotoCarouselNewsReactionPrompt, buildPhotoCarouselPrompt, buildExpressFullPrompt } from "./prompts.ts";
+import { startPhotoOutline, addOutlineUsage } from "./outline.ts";
 import { handleStructureProposalRequest } from "./steps/structure.ts";
 import { repairCarouselStructure, finalizeCarousel } from "./steps/finalize.ts";
+import { handleHooksRequest, handleSlidesRequest, handleSuggestTopicsRequest, handleSuggestAnglesRequest } from "./modes/text.ts";
+import { handleDeepeningQuestionsRequest } from "./steps/questions.ts";
+import { continuousCarouselResponse } from "./steps/continuous.ts";
+import { runGenerationAndRespond } from "./steps/generate.ts";
 
 // Fiche 2 (docs/robustesse/gros-fichiers.md) : déplacés à l'identique, réexportés pour les tests.
 export { _deps, writerTimeoutMs, normalizeSlideType } from "./shared.ts";
@@ -522,221 +523,6 @@ async function handleAssignTemplatesRequest(body: any, corsHeaders: Record<strin
   });
 }
 
-// Partagée par hooks / slides / express_full (texte standard) / suggest_topics /
-// suggest_angles / deepening_questions (variante texte) : un seul appel IA,
-// passe de correction JSON conditionnelle, quality-gate rédactionnel + cap des
-// visual_schema (uniquement express_full/slides), puis logUsage.
-async function runGenerationAndRespond(
-  type: string,
-  userPrompt: string,
-  reqCtx: CarouselRequestContext,
-): Promise<Response> {
-  const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, systemPrompt, gateInputText, researchText, testimonySource, brandGuardText, captionEndingRule, isLinkedIn, previousHooks, corsHeaders, emitStatus, startedAt } = reqCtx;
-
-  // L1 : Haiku pour les deepening_questions (tâche structurée et bornée).
-  const isWriting = ["express_full", "slides", "hooks"].includes(type);
-  const usage: UsageSink = {};
-  if (type !== "deepening_questions") emitStatus("writing");
-  const writingOptions: Omit<AnthropicOptions, "model"> = {
-    system: systemPrompt,
-    messages: [{ role: "user", content: userPrompt }],
-    // Carrousel texte jusqu'à 20 slides (04/10/2026) : la réflexion adaptative
-    // compte dans ce plafond, 8192 laissait peu de marge à un texte découpé
-    // une idée par slide. Un plafond plus haut ne coûte que ce qui est écrit.
-    max_tokens: type === "deepening_questions" ? 1024 : 16000,
-    // Le carrousel tournait au défaut API (1.0), plus chaud que les autres
-    // canaux (0.8) → on cadre la créativité du format vitrine. Les questions
-    // (Haiku, tâche bornée) gardent le comportement par défaut.
-    ...(type === "deepening_questions" ? {} : { temperature: 0.85 }),
-    // Questions = appel Haiku court et borné : 30s/tentative pour qu'un fetch
-    // qui traîne bascule en retry plutôt que de bloquer le chemin d'activation.
-    // Les autres types (express_full/slides/hooks) tournaient SANS limite avant
-    // ce correctif (audit timeouts 17/08) — 120s aligné sur la convention
-    // "génération standard" du reste des edges du repo. Depuis le 04/10/2026 la
-    // rédaction suit le budget global (writerTimeoutMs) au lieu de 120 s fixes.
-    ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: (body.carousel_type === "photo" || body.carousel_type === "mix") ? PHOTO_QUESTIONS_TOOL : QUESTIONS_TOOL } : { abortTimeoutMs: writerTimeoutMs(startedAt) }),
-  };
-  // Durées par étape (ms), renvoyées avec la réponse : sans elles la lenteur du
-  // 30/09 (~190 s) n'était décomposable qu'en devinant entre deux évènements SSE.
-  const timings: Record<string, number> = { prep_ms: Date.now() - startedAt };
-  const timed = async <T>(key: string, work: Promise<T>): Promise<T> => {
-    const t0 = Date.now();
-    try { return await work; } finally { timings[key] = (timings[key] || 0) + Date.now() - t0; }
-  };
-  // SLIDES EN BROUILLON (07/10/2026) : chaque slide terminée part à l'écran
-  // pendant l'écriture (évènement status `draft`), le texte relu la remplace.
-  const draftStream = type === "express_full" ? { onText: draftSlidesTracker((slides) => emitStatus("draft", { slides })) } : {};
-  // Jetons comptés à part : le rédacteur réécrit `usage` en fin d'appel.
-  const outlineUsage: UsageSink = {};
-  const outline = type === "express_full" ? emitPlannedTitles(systemPrompt, userPrompt, emitStatus, outlineUsage) : Promise.resolve();
-  let content = await timed("write_ms", isWriting
-    ? _deps.callCarouselWriter({ ...writingOptions, ...draftStream, model: pickCarouselModel(body) }, usage)
-    : _deps.callAnthropic({ ...writingOptions, model: getModelForAction(type === "deepening_questions" ? "questions" : "carousel") }, usage));
-
-  // Contextual review for every generated carousel, legacy scan only on rollback.
-  // Ne rejette jamais : une relecture en échec rend le texte reçu.
-  const review = async (value: string): Promise<string> => {
-    try {
-      if (semanticReviewEnabled || carouselNeedsPolish(value) || currentAuthoredText.trim()) {
-        emitStatus("correcting");
-        const corrected = await applyGuardedCarouselCorrection(value, {
-          inputText: gateInputText, researchText, testimonySource, brandGuardText, echo: echoContext(reqCtx),
-          correction: { currentBrief, semanticReview: semanticReviewEnabled,
-            enabled: reviewAllowed(startedAt),
-            skipIfShorterThan: 300,
-            logger: (msg) => console.log(msg),
-            model: pickCorrectionModel(body),
-            authoredText: currentAuthoredText,
-            abortTimeoutMs: CORRECTION_ABORT_MS,
-          },
-        });
-        if (corrected && corrected !== value) return corrected;
-      } else {
-        console.log("[correction-pass:carousel-json] SKIPPED (scan déterministe propre, texte)");
-      }
-    } catch (correctionError) {
-      console.error("Correction pass failed in carousel-ai:", correctionError);
-    }
-    return value;
-  };
-
-  const regenerate=(draft:string,defects:string,sink:UsageSink,abortTimeoutMs=120_000)=>_deps.callCarouselWriter({
-    ...writingOptions,abortTimeoutMs,model:pickCarouselModel(body),messages:[{role:"user",content:userPrompt+"\n\nBROUILLON À COMPLÉTER :\n"+draft+"\n\n"+defects}],
-  },sink);
-  let structuralRepair=false;
-  if(type==="express_full" || type==="slides") {
-    const repaired=await timed("structure_ms",repairCarouselStructure(content,{body,label:type,emitStatus,usage,startedAt,regenerate}));
-    content=repaired.content;structuralRepair=repaired.repaired;
-  }
-  const editorialBaseline=content;
-  if(type==="express_full" || type==="slides" || type==="hooks") content=await timed("review_ms",review(content));
-
-  let gateExpress: Awaited<ReturnType<typeof runRedacGate>> | null = null;
-
-  // Garde DÉTERMINISTE sur les schémas (max 2, jamais consécutifs) : layout.ts.
-  if (type === "express_full" || type === "slides") {
-    content = capVisualSchemas(content, "carousel-ai");
-    // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
-    gateExpress = await timed("gate_ms", runRedacGate(content, {
-      isLinkedIn,
-      onStatus: emitStatus,
-      inputText: gateInputText,
-      researchText,
-      researchNumbersCap: reqCtx.researchNumbersCap,
-      testimonySource,
-      echo: echoContext(reqCtx),
-      brandGuardText,
-      captionEnding: captionEndingRule,
-      correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: reviewAllowed(startedAt), skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
-    }));
-    content = gateExpress.content;
-  }
-
-  if (type === "express_full" || type === "slides") {
-    content=await timed("thread_ms",finalizeCarousel(content,reqCtx,{usage,repaired:structuralRepair,regenerate,timings,expectedRepairMs:timings.write_ms}));
-    // Mesure écrite APRÈS le contrôle du fil : la ligne porte aussi son issue.
-    if (gateExpress) await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspaceId, body.subject, threadOutcome(content),
-      carouselDurations(type, { ...timings, total_ms: Date.now() - startedAt }, { content, avantSchemas: true }));
-    // SCHÉMAS décidés après l'écriture et ses relectures, sur le texte final
-    // (la rédaction ne les connaît plus : un changement d'écriture ne peut plus
-    // les faire disparaître). Échec ou manque de temps → aucun schéma, texte livré.
-    const withSchemas = await timed("schemas_ms", placeTextSchemas(content, { usage, startedAt, maxSlides: carouselLength(body).exact ? 0 : autoMaxSlides(body) }));
-    content = withSchemas.content;
-    const finalParsed = tryParseAiJson<any>(content);
-    console.log(JSON.stringify({ event: "carousel_rhythm", label: type, slides: Array.isArray(finalParsed?.slides) ? finalParsed.slides.length : 0, long_slides: longTextSlides(finalParsed, body) }));
-    logSchemaFormatting(type, withSchemas.plan);
-  }
-
-  // deepening_questions (variante texte) est gratuit — arbitrage 10/07/2026 :
-  // un carrousel débite 2 crédits (rédaction express_full + carousel_visual),
-  // les questions pré-chargées ne comptent pas (aligné sur creative-flow).
-  await outline;
-  for (const k of ["input_tokens", "output_tokens", "total_tokens"] as const) if (outlineUsage[k]) usage[k] = (usage[k] || 0) + outlineUsage[k]!;
-  if (type !== "deepening_questions") {
-    await _deps.logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspaceId);
-  }
-
-  timings.total_ms = Date.now() - startedAt;
-  if (isWriting) console.log(JSON.stringify({ type: "carousel_timings", label: type, review_before_judge: true, ...timings }));
-  return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
-    ...(isWriting ? { writer: { version: CAROUSEL_WRITER_VERSION, model: usage.model, effort: "medium" }, timings } : {}),
-  }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-async function handleHooksRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const userPrompt = buildHooksPrompt(reqCtx.body, reqCtx.isLinkedIn);
-  return runGenerationAndRespond("hooks", userPrompt, reqCtx);
-}
-
-async function handleSlidesRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const userPrompt = buildSlidesPrompt(reqCtx.body, reqCtx.isLinkedIn);
-  return runGenerationAndRespond("slides", userPrompt, reqCtx);
-}
-
-async function handleSuggestTopicsRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const userPrompt = buildSuggestTopicsPrompt(reqCtx.body, reqCtx.isLinkedIn);
-  return runGenerationAndRespond("suggest_topics", userPrompt, reqCtx);
-}
-
-async function handleSuggestAnglesRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const userPrompt = buildSuggestAnglesPrompt(reqCtx.body, reqCtx.isLinkedIn);
-  return runGenerationAndRespond("suggest_angles", userPrompt, reqCtx);
-}
-
-// ── Mix carousel mode ──
-async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<Response | null> {
-  const usage: UsageSink = {};
-  const clock = stageTimer(ctx.startedAt);
-  let output;
-  // Derniers contenus de la marque : le rédacteur ne les redit pas (bilan
-  // hebdo 05/10/2026). Lecture best-effort, [] en cas d'erreur.
-  const recentTexts = ctx.recentTexts;
-  // Temps gardé pour l'association des photos, selon le nombre de photos
-  // (final-photo-match.ts) : le reste va à la rédaction, au juge et à sa réparation.
-  const matchReserveMs = photoMatchReserveMs(ctx.body);
-  try { output = await _deps.prepareNarrative({
-    body:ctx.body, brandingContext:ctx.brandingContext, recentTexts,
-    photoContext:buildPhotoContextRecap(ctx.body.photo_contexts || ctx.body.photos),
-    newsContext:typeof ctx.newsContext === "string" ? ctx.newsContext : "",
-    authoredText:ctx.currentAuthoredText, audienceAddress:ctx.audienceAddress, startedAt:ctx.startedAt, usage,
-    emitStatus:ctx.emitStatus, write:_deps.callCarouselWriter, reserveMs:matchReserveMs,
-    onDraft:(slides)=>ctx.emitStatus("draft",{slides}), timings:clock.timings,
-  }); } catch(error) {
-    if(error instanceof NarrativePhotoMismatch) return carouselMismatchResponse(JSON.stringify({photo_mismatch:{reason:error.message}}),ctx.body,usage,ctx.body.carousel_type,ctx.corsHeaders);
-    throw error;
-  }
-  if (!output) return null;
-  const measured = await clock.timed("gate_ms", runRedacGate(JSON.stringify(output.doc), {
-    isLinkedIn:ctx.isLinkedIn,inputText:ctx.gateInputText,researchText:ctx.researchText,researchNumbersCap:ctx.researchNumbersCap,testimonySource:ctx.testimonySource,
-    // Mesure seule (correction coupée, aucun appel IA) : sans la fiche ni les
-    // accroches précédentes, recopie de fiche et échos d'accroche comptaient 0.
-    brandGuardText:ctx.brandGuardText,echo:echoContext(ctx),
-    correction:{enabled:false},
-  }));
-  // Seul juge du récit photo/mixte (09/10/2026) : il répare si le délai couvre
-  // la rédaction mesurée (write_ms), comme pour le texte ; sinon il la saute.
-  const written = await clock.timed("thread_ms", finalizeCarousel(measured.content,ctx,{usage,regenerate:output.regenerate,reserveMs:matchReserveMs,timings:clock.timings,expectedRepairMs:clock.timings.write_ms}));
-  let matched = await clock.timed("match_ms", _deps.matchPhotos(JSON.parse(written), {body:ctx.body,startedAt:ctx.startedAt,usage,emitStatus:ctx.emitStatus,call:_deps.callAnthropic}));
-  // « Tes photos en fond » : les slides posées en ambiance (aucune photo ne
-  // montrait le passage) reçoivent une photo libre de droit vérifiée, sans
-  // personne ni produit (12/10/2026). L'écran la pose ; la photo d'origine reste en secours.
-  if (ctx.body.carousel_type === "photo") {
-    matched = await clock.timed("stock_ms", _deps.stockAmbient(matched, {body:ctx.body,startedAt:ctx.startedAt,usage,brandingContext:ctx.brandingContext,call:_deps.callAnthropic}));
-    if (matched?.photo_review?.stock_ambient && matched.generation_receipt) matched.generation_receipt = {...matched.generation_receipt,duration_ms:Date.now()-ctx.startedAt};
-  }
-  const content = JSON.stringify(matched);
-  await addOutlineUsage(ctx, usage);
-  const timings = clock.done(`continuous_${ctx.body.carousel_type}`);
-  await _deps.logUsage(ctx.userId,ctx.category,`carousel_${ctx.body.carousel_type}`,usage.total_tokens,usage.model,ctx.workspaceId);
-  await logContentQuality(ctx.userId,`carousel_${ctx.body.carousel_type}`,measured,usage.model,ctx.workspaceId,ctx.body.subject,threadOutcome(written),
-    carouselDurations(`continuous_${ctx.body.carousel_type}`,timings,{content:matched,photos:photoMatchPhotoCount(ctx.body)}));
-  return new Response(JSON.stringify({content,writing_version:CAROUSEL_WRITING_VERSION,
-    writer:{version:CAROUSEL_WRITER_VERSION,model:usage.model,effort:"medium"},timings}),
-    {headers:{...ctx.corsHeaders,"Content-Type":"application/json"}});
-}
-
 async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
   const continuous = await continuousCarouselResponse(reqCtx);
   if (continuous) return continuous;
@@ -1153,96 +939,4 @@ async function handleExpressFullRequest(reqCtx: CarouselRequestContext): Promise
   // ── Standard text carousel ──
   const userPrompt = buildExpressFullPrompt(body, isLinkedIn);
   return runGenerationAndRespond("express_full", userPrompt, reqCtx);
-}
-
-// ── Photo / mix carousel: vision-informed questions ──
-async function handleDeepeningQuestionsVisionRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const { body, isLinkedIn, brandingContext, brandVocabBlock, recentBriefsContext, systemPrompt, corsHeaders } = reqCtx;
-  const isMix = body.carousel_type === "mix";
-  const channelLabel = isLinkedIn ? "LinkedIn" : "Instagram";
-  const formatLabel = isMix
-    ? `carrousel ${channelLabel} MIXTE (slides photo + slides texte alternées)`
-    : `carrousel photo ${channelLabel}`;
-
-  // Détecte si l'utilisatrice a vraiment écrit un sujet, ou si c'est juste un fallback automatique
-  const rawSubject = (body.subject || "").trim();
-  const isFallbackSubject = !rawSubject || rawSubject === "Carrousel basé sur les photos uploadées";
-  const hasWrittenIntent = !isFallbackSubject || !!(body.photo_description && body.photo_description.trim().length > 0);
-
-  // A photo-only discovery needs no invented objective or new questionnaire.
-  // Explicit subjects/angles still reach the factual clarification pass.
-  if (!hasWrittenIntent && !body.objective && !body.editorial_angle) {
-    return new Response(JSON.stringify({ content: JSON.stringify({ questions: [] }), writing_version: CAROUSEL_WRITING_VERSION }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const messageContent: any[] = [];
-  body.photos.slice(0, 10).forEach((photo: any, idx: number) => {
-    pushPhotoWithContext(messageContent, photo, idx);
-  });
-  const photoCtxRecap = buildPhotoContextRecap(body.photos);
-
-  messageContent.push({
-    type: "text",
-    text: `Prépare les éventuelles précisions pour un ${formatLabel}.
-Sujet : ${hasWrittenIntent ? rawSubject : "aucun sujet explicite ; photos sélectionnées"}
-Description : ${body.photo_description || ""}
-Objectif : ${body.objective || "non précisé"}
-Réponses déjà fournies : ${JSON.stringify(body.deepening_answers || {})}
-${photoCtxRecap}
-CONTEXTE DE MARQUE : ${brandingContext}
-${recentBriefsContext || ""}
-${PHOTO_NARRATIVE_CONTRACT}
-${PHOTO_QUESTIONS_CONTRACT}
-Réponds en JSON : {"questions":[{"question":"...","placeholder":"..."}]}. Tableau vide si aucune précision essentielle.`,
-  });
-
-  const deepeningUsage: UsageSink = {};
-  const content = await _deps.callAnthropic({
-    model: getModelForAction("questions"),
-    system: systemPrompt,
-    messages: [{ role: "user", content: messageContent }],
-    max_tokens: 4096,
-    // Questions ancrées sur photos : borne chaque tentative à 60s pour
-    // éviter le blocage indéfini d'un fetch qui traîne.
-    abortTimeoutMs: 60000,
-    tool: PHOTO_QUESTIONS_TOOL,
-  }, deepeningUsage);
-
-  // PAS de logUsage — les questions d'approfondissement sont gratuites
-  // (arbitrage 10/07/2026 : un carrousel débite 2 crédits, rédaction +
-  // visuel ; aligné sur creative-flow où le step "questions" est gratuit).
-  return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION }), {
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-async function handleDeepeningQuestionsRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const { body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock } = reqCtx;
-
-  // ── Photo / mix carousel: vision-informed questions ──
-  if ((body.carousel_type === "photo" || body.carousel_type === "mix") && body.photos && body.photos.length > 0) {
-    return handleDeepeningQuestionsVisionRequest(reqCtx);
-  }
-
-  // The same optional-question contract applies when images are unavailable.
-  const isPhotoNarrative = body.carousel_type === "photo" || body.carousel_type === "mix";
-  const userPrompt = isPhotoNarrative
-    ? `Prépare les éventuelles précisions pour un carrousel ${body.carousel_type}.
-Sujet : ${body.subject || "aucun sujet explicite"}
-Objectif : ${body.objective || "non précisé"}
-Description des photos : ${body.photo_description || "non fournie"}
-Réponses déjà fournies : ${JSON.stringify(body.deepening_answers || {})}
-Angle proposé : ${body.editorial_angle || "non précisé"}
-Structure proposée : ${body.content_structure || "non précisée"}
-CONTEXTE DE MARQUE : ${brandingContext}
-${brandVocabBlock || ""}
-${recentBriefsContext || ""}
-${PHOTO_NARRATIVE_CONTRACT}
-${PHOTO_QUESTIONS_CONTRACT}
-Réponds en JSON : {"questions":[{"question":"...","placeholder":"..."}]}. Tableau vide si aucune précision essentielle.`
-    : buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock);
-
-  return runGenerationAndRespond("deepening_questions", userPrompt, reqCtx);
 }
