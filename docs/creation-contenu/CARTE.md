@@ -672,16 +672,15 @@ Ce sont des constats, pas des corrections : rien n'a été modifié dans ce lot.
     `workspace_id`.
 - **`carousel-ai-candidate`** est retirée (répond 410) mais le dossier
   existe encore.
-- **Éditeur visuel du carrousel (relevé au lot E2, 14/10/2026, non corrigé)** :
-  - *Bug* : redimensionner un bloc **tourné** part de sa boîte englobante à
-    l'écran (`getBoundingClientRect`), pas de sa vraie largeur. Un texte de
-    600 px tourné de 45° passe à ~497 px dès qu'on touche sa poignée
-    (`startResize` dans `CarouselEditor.tsx`). La poignée du coin fait le
-    même saut de largeur. Figé dans `carousel-editor-resize-snap.test.tsx`.
-  - *Bug mineur* : « Police et couleur sur toutes les slides » ajoute le lien
-    de la police Google aux slides **verrouillées** (`ensureFontLink` ne
-    vérifie pas le verrou). Rien ne change à l'œil, mais le HTML d'une slide
-    verrouillée est modifié. Figé dans
+- **Éditeur visuel du carrousel (relevé au lot E2, 14/10/2026)** :
+  - *Corrigé le 14/10/2026* : redimensionner un bloc **tourné** partait de sa
+    boîte englobante à l'écran (`getBoundingClientRect`) ; un texte de 600 px
+    tourné de 45° passait à ~497 px dès qu'on touchait sa poignée.
+    `startResize` part maintenant de la vraie taille du bloc (`offsetWidth`).
+    Test : `carousel-editor-resize-snap.test.tsx`.
+  - *Corrigé le 14/10/2026* : « Police et couleur sur toutes les slides »
+    ajoutait le lien de la police Google aux slides **verrouillées** ;
+    `ensureFontLink` respecte maintenant le verrou. Test :
     `carousel-editor-advanced-styles.test.tsx`.
   - *Point d'attention pour le découpage (lot E3)* : l'éditeur reconnaît son
     propre écho à la **référence** des slides, de la légende et des visuels

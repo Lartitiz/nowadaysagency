@@ -1748,7 +1748,7 @@ export const googleFontUrl = (families: string[]) =>
   `https://fonts.googleapis.com/css2?${families.map((f) => `family=${encodeURIComponent(f).replace(/%20/g, "+")}:wght@400;700`).join("&")}&display=swap`;
 /** Ajoute la police à la slide (lien Google Fonts) : l'aperçu et l'export la chargent. */
 export function ensureFontLink(slide: EditorSlide, family: string): EditorSlide {
-  if (!GOOGLE_FONTS.some((f) => f.family === family)) return slide;
+  if (slide.locked || !GOOGLE_FONTS.some((f) => f.family === family)) return slide;
   const href = googleFontUrl([family]);
   if (slide.html.includes(href.replace(/&/g, "&amp;")) || slide.html.includes(href)) return slide;
   const doc = parse(slide.html);
