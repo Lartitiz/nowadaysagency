@@ -459,7 +459,9 @@ fonctions qui ne s'appellent pas « carousel »**.
 > durées contradictoires dans `durations.ts` (lot 1, 14/10/2026), les redites
 > (accroche, fiche de marque, contenus récents) dans `echoes.ts`, les élisions
 > et mesures « slop » dans `slop-signals.ts`, les textes d'une slide dans
-> `carousel-analysis.ts` (lot 2). Le reste est encore dans `redac-gate.ts`,
+> `carousel-analysis.ts` (lot 2), les types et formules de score dans
+> `scoring.ts`, les chiffres de la recherche dans `research-numbers.ts`, les
+> témoignages et vécus inventés dans `testimony.ts` (lot 3). Le reste est encore dans `redac-gate.ts`,
 > qui réexporte tout ce qui était public.
 
 > ⚠️ **Piège principal** : `redac-gate.ts` et `correction-pass.ts` importent
