@@ -33,6 +33,8 @@ interface UserRow {
   last_sign_in: string | null;
   created_at: string;
   branding_score: number;
+  /** Espace owner le plus ancien (edge admin-users) ; absent = edge pas à jour. */
+  own_workspace_id?: string | null;
 }
 
 type SortKey = "prenom" | "email" | "plan" | "branding_score" | "ai_usage_count" | "last_sign_in" | "created_at";
@@ -181,7 +183,31 @@ export default function AdminUsersTab() {
         }
       }
 
-      // 2. Pas de workspace existant → en créer un
+      // 2. Rejoindre SON espace existant en manager (policy « Admin can add
+      // workspace members »). Avant le 14/10, on créait ici un NOUVEL espace
+      // dont elle devenait owner → 2 espaces owner (Marion, Augustine), ses
+      // données d'un côté, ce que l'admin générait de l'autre.
+      if (u.own_workspace_id === undefined) {
+        toast.error("Liste des utilisatrices pas à jour : recharge la page (edge admin-users).");
+        return;
+      }
+      if (u.own_workspace_id) {
+        const { error: joinErr } = await supabase
+          .from("workspace_members")
+          .insert({ workspace_id: u.own_workspace_id, user_id: user.id, role: "manager" } as any);
+        // 23505 = déjà membre (autre rôle) : on peut quand même ouvrir l'espace.
+        if (joinErr && joinErr.code !== "23505") {
+          console.error("Erreur ajout admin:", joinErr);
+          toast.error("Impossible de rejoindre l'espace de cette utilisatrice");
+          return;
+        }
+        const ok = await switchWorkspace(u.own_workspace_id);
+        if (!ok) return;
+        navigate("/dashboard");
+        return;
+      }
+
+      // 3. Aucun espace du tout (ne devrait plus arriver : trigger + auto-réparation) → en créer un
       const { data: ws, error: wsErr } = await supabase
         .from("workspaces")
         .insert({ name: u.prenom || u.email, created_by: user.id } as any)
@@ -194,7 +220,7 @@ export default function AdminUsersTab() {
         return;
       }
 
-      // 3. Ajouter l'admin EN PREMIER (creator can bootstrap)
+      // 4. Ajouter l'admin EN PREMIER (creator can bootstrap)
       const { error: adminErr } = await supabase
         .from("workspace_members")
         .insert({ workspace_id: ws.id, user_id: user.id, role: "manager" } as any);
@@ -205,7 +231,7 @@ export default function AdminUsersTab() {
         return;
       }
 
-      // 4. Puis ajouter la cliente comme owner
+      // 5. Puis ajouter la cliente comme owner
       const { error: clientErr } = await supabase
         .from("workspace_members")
         .insert({ workspace_id: ws.id, user_id: u.user_id, role: "owner" } as any);
