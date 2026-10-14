@@ -206,7 +206,8 @@ Deno.test("mise en forme : deux listes ou deux citations d'affilée → la secon
 // La mise en forme dérive titre / items / citation du texte : elle doit tourner
 // APRÈS la correction, sinon un texte corrigé aurait des pastilles périmées.
 Deno.test("creative-flow : stripStoriesWriterLayout → applyStoriesCorrectionPass → finalizeStoriesLayout, dans cet ordre", async () => {
-  const src = await Deno.readTextFile(new URL("../creative-flow/index.ts", import.meta.url));
+  // Chaîne de finition sortie d'index.ts dans postprocess.ts (fiche 3, lot E, 14/10/2026).
+  const src = await Deno.readTextFile(new URL("../creative-flow/postprocess.ts", import.meta.url));
   const block = src.slice(src.indexOf('if (isStories && step === "generate") {'));
   const strip = block.indexOf("stripStoriesWriterLayout(parsed)");
   const correction = block.indexOf("applyStoriesCorrectionPass(parsed");

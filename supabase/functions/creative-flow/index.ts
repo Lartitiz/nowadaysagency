@@ -1,9 +1,7 @@
-import { alignLinkedInHookFields } from "../_shared/linkedin-hook.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { CORE_PRINCIPLES, ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
-import { enforceAudienceAddressInFields } from "../_shared/audience-address-fields.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField, adjustContentField } from "../_shared/input-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
@@ -18,17 +16,12 @@ import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { hookEchoesBefore } from "../_shared/redac-gate.ts";
 import { fetchPreviousHooks, fetchPreviousHooksByFormat } from "../_shared/previous-hooks.ts";
-import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
-import { adoptStructuredStories, finalizeStoriesLayout, stripStoriesWriterLayout } from "../_shared/story-formatting.ts";
-import { gateNumbers, _deps, addrOpts, POST_ADDRESS_FIELDS } from "./shared.ts";
-import { applyNewsletterCorrectionPass, runNewsletterTwoStep } from "./formats/newsletter.ts";
-import { photoVoiceRule } from "./shared.ts";
-import { isExplicitlyFictionalBrief, isFactualFictionalLinkedInBrief, alignFactualLinkedInHook, buildFictionalLinkedInQuestions, applyLinkedInCorrectionPass, streamLinkedInPhotoVision, runLinkedInTwoStep } from "./formats/linkedin.ts";
-import { STORIES_ADDRESS_FIELDS, type StoriesGateResult, applyStoriesCorrectionPass, finalizeRecycledStories } from "./formats/stories.ts";
-import { HOOKS_ADDRESS_FIELDS, normalizeHooksResponse, applyReelQualityPass } from "./formats/reel.ts";
+import { gateNumbers } from "./shared.ts";
+import { runNewsletterTwoStep } from "./formats/newsletter.ts";
+import { isExplicitlyFictionalBrief, buildFictionalLinkedInQuestions, streamLinkedInPhotoVision, runLinkedInTwoStep } from "./formats/linkedin.ts";
 import { streamDefaultPostSSE } from "./formats/post.ts";
 import { runVisionQuestions, runVisionGenerate } from "./formats/photo.ts";
-import { enforceCarouselObjectAudienceAddress, retiredCarouselStreamResponse } from "./formats/carousel.ts";
+import { retiredCarouselStreamResponse } from "./formats/carousel.ts";
 import { handleRecycleStep } from "./formats/recycle.ts";
 export { buildRecycleSystemPrompt } from "./formats/recycle.ts";
 export { enforceCarouselObjectAudienceAddress, retiredCarouselStreamResponse } from "./formats/carousel.ts";
@@ -50,6 +43,7 @@ import { skipDepthResearch, creativeDepthBlock, runDeepResearchWebSearch } from 
 export { skipDepthResearch, creativeDepthBlock, runDeepResearchWebSearch } from "./research.ts";
 import { callOptionsForStep } from "./call-options.ts";
 import { buildRequestContext } from "./context.ts";
+import { finishGenerated } from "./postprocess.ts";
 
 import { buildGeneratePrompt } from "./prompts/generate.ts";
 export { buildGeneratePrompt } from "./prompts/generate.ts";
@@ -401,91 +395,9 @@ serve(async (req) => {
       );
     }
 
-    if (step === "generate" && isLinkedIn && !isPhotoMode && isFactualFictionalLinkedInBrief(context) && typeof parsed.content === "string") {
-      alignFactualLinkedInHook(parsed);
-    }
-
-    // (step === "recycle" ne passe plus par ici : pipeline parallèle dédié plus haut.)
-
-    // ═══ NORMALISATION HOOKS (lot 7) ═══
-    if (step === "hooks" && parsed && typeof parsed === "object") {
-      const hooksEarlyExit = normalizeHooksResponse(parsed, { body, rawContent, corsHeaders });
-      if (hooksEarlyExit) return hooksEarlyExit;
-      // Tu ou vous : le hook choisi part tel quel dans le script final.
-      await enforceAudienceAddressInFields(parsed, HOOKS_ADDRESS_FIELDS, audienceAddress, addrOpts("hooks", 20_000));
-    }
-
-    // Ajustement : le contenu réécrit suit le réglage tu/vous.
-    if (step === "adjust" && parsed && typeof parsed === "object") {
-      await enforceAudienceAddressInFields(parsed, ["content"], audienceAddress, addrOpts("adjust"));
-    }
-
-    // ═══ PASSE DE CORRECTION LinkedIn ═══
-    // Échos d'accroche AVANT correction (LinkedIn / reel) : télémétrie de la garde anti-redite.
-    let textEchoesBefore: number | undefined;
-    if (
-      step === "generate" &&
-      contentType?.includes("linkedin") &&
-      !body.photo_mode &&
-      !isFactualFictionalLinkedInBrief(context) &&
-      parsed && typeof parsed === "object" &&
-      typeof parsed.content === "string" &&
-      parsed.content.length >= 200
-    ) {
-      textEchoesBefore = await applyLinkedInCorrectionPass(parsed, { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
-    }
-
-    // L'accroche suit le début exact du post FINAL (après correction, photo
-    // comprise) : la correction peut avoir changé la première ligne.
-    if (step === "generate" && isLinkedIn && parsed && typeof parsed === "object" && typeof parsed.content === "string") {
-      // Tu ou vous (non diffusé, photo, exemple fictif) : AVANT l'alignement de l'accroche.
-      await enforceAudienceAddressInFields(parsed, ["content"], audienceAddress, addrOpts("linkedin"));
-      alignLinkedInHookFields(parsed);
-    }
-
-    if (isNewsletter && step === "generate" && parsed && typeof parsed === "object") {
-      await applyNewsletterCorrectionPass(parsed, { body, fullContext, researchSource, context, newsContext, brandGuardText, previousHooks, audienceAddress });
-      Object.assign(parsed, stripMarkdownFromNewsletter(parsed));
-      if (typeof parsed.content === "string") parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
-    }
-
-    // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
-    if (isReel && step === "generate" && parsed && typeof parsed === "object" && Array.isArray(parsed.script)) {
-      textEchoesBefore = await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext, researchSource, brandGuardText, echoSubject, previousHooks, audienceAddress });
-    }
-
-    // Tu ou vous des autres textes générés ici : légende Instagram (non
-    // streamée), légende photo, épingle, script de reel en mode photo,
-    // carrousel. LinkedIn, newsletter, reel et stories ont leur propre place.
-    if (
-      step === "generate" && parsed && typeof parsed === "object" &&
-      !isLinkedIn && !isNewsletter && !isStories && !(isReel && Array.isArray(parsed.script))
-    ) {
-      if (Array.isArray(parsed.slides ?? parsed.carousel?.slides)) {
-        Object.assign(parsed, await enforceCarouselObjectAudienceAddress(parsed, audienceAddress, "carousel"));
-      } else {
-        await enforceAudienceAddressInFields(parsed, POST_ADDRESS_FIELDS, audienceAddress, addrOpts(isPinterest ? "pinterest" : isPhotoMode ? "photo-caption" : "post"));
-      }
-    }
-
-    // ═══ STORIES : texte d'abord, mise en forme ensuite (04/10/2026) ═══
-    // 1. La rédaction n'écrit que du texte : tout choix de mise en page qu'elle
-    //    aurait quand même écrit est retiré (restent le petit titre, du texte,
-    //    et la photo à prendre).
-    // 2. La correction ne touche que le texte et le petit titre.
-    // 3. La mise en forme lit le texte FINAL et pose le plan visuel par code,
-    //    puis la garde photo d'abord et les photos de la bibliothèque.
-    let storiesGate: StoriesGateResult | null = null;
-    if (isStories && step === "generate") {
-      // Mode photo (vision) : même séquence structurée que le flux principal,
-      // donc même chaîne ci-dessous (04/10/2026).
-      if (isPhotoMode) adoptStructuredStories(parsed);
-      stripStoriesWriterLayout(parsed);
-      storiesGate = await applyStoriesCorrectionPass(parsed, { body, fullContext, researchSource, brandGuardText, echoSubject, previousHooks });
-      // Tu ou vous : texte, petit titre et sticker, AVANT la mise en forme (les pastilles en sont extraites).
-      await enforceAudienceAddressInFields(parsed, STORIES_ADDRESS_FIELDS, audienceAddress, addrOpts("stories"));
-      finalizeStoriesLayout(parsed, { storiesPhotoCatalog, logger: (m) => console.log(m) });
-    }
+    // Chaîne de finition par format : postprocess.ts (fiche 3, lot E).
+    const { earlyExit, storiesGate, textEchoesBefore } = await finishGenerated(parsed, { step, isLinkedIn, isPhotoMode, isNewsletter, isReel, isPinterest, isStories, context, contentType, body, rawContent, corsHeaders, audienceAddress, fullContext, researchSource, brandGuardText, echoSubject, previousHooks, newsContext, effectiveObjective, storiesPhotoCatalog });
+    if (earlyExit) return earlyExit;
 
     // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
     if (step === "generate") {
