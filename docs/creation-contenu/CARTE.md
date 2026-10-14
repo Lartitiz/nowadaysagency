@@ -57,6 +57,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 |---|---|
 | `src/pages/CreerUnifie.tsx` (~3 500 lignes) | Orchestre tout le parcours : environ 85 `useState`, une cinquantaine de comparaisons `format === …` sans `switch`, plus `carouselSubMode` et `isLinkedInCarousel`. **C'est le fichier le plus couplé du front.** |
 | `src/components/creer/CreerStepIdea.tsx` → `CreerStepFormat.tsx` → `CreerStepQuestions.tsx` → `HookSelectionStep.tsx` (reel) / `StructureReviewStep.tsx` (carrousel photo et mixte) / `UserSlidesStep.tsx` / `PinterestInspirationStep.tsx` → `CreerStepResult.tsx` → `CreerStepEdit.tsx` | Les étapes. Le type `Step` est en tête de `CreerUnifie.tsx`. Le stepper visible (`CreerStepper.tsx`) n'affiche que 4 étapes. |
+| `src/components/creer/LowCreditsBanner.tsx`, `PhotoMissingDialog.tsx`, `ConfirmResetDialog.tsx` | Affichage pur sorti de `CreerUnifie.tsx` (lot B, 14/10/2026) : bandeau « Plus que X crédits », fenêtre « Ce carrousel gagnerait à avoir des photos », fenêtre « Repartir de zéro ? ». Leur état (ouverte, type de carrousel) et ce que font les boutons restent dans la page. Tests en rendu réel : `src/test/creer-reprise-modifier-reset.test.tsx`, `creation-initial-draft.test.tsx`. |
 | `src/components/creer/CreerStepResult.tsx` | Le `switch (format)` qui choisit le bon `formatRenderers/*`. **C'est le point d'aiguillage naturel par format.** |
 | `src/hooks/use-format-next.ts` | Passage de l'étape format à l'étape suivante (et Pinterest inspiration). |
 | `src/hooks/use-do-generate.ts` | Lance la génération selon le format : SSE texte, carrousel, Pinterest visuel ou photo. |
@@ -158,7 +159,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 
 ### Quota dans le parcours
 
-- `LowCreditsBanner` (défini dans `CreerUnifie.tsx`) et la pastille
+- `LowCreditsBanner` (`src/components/creer/LowCreditsBanner.tsx`, affiché par `CreerUnifie.tsx`) et la pastille
   « N crédits restants ».
 - `QuotaWallModal` n'est **pas** monté dans /creer : il est global, dans
   `AppHeader.tsx`, déclenché par `handleQuotaError`
