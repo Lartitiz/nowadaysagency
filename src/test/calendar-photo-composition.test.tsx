@@ -6,6 +6,8 @@ vi.mock("@/hooks/use-open-in-canva", () => ({ useOpenInCanva: () => ({ openInCan
 vi.mock("@/hooks/use-story-export", () => ({ useStoryExport: () => ({ hasFrames: false, frameCount: 0 }) }));
 vi.mock("@/lib/export-logo", () => ({ getIncludeLogoPref: () => false, setIncludeLogoPref: vi.fn() }));
 afterEach(cleanup);
+// jsdom n'a pas ResizeObserver (utilisé par StoryFramePreview en mode fluid).
+vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 it.each(["post", "story_serie"])("shows a composed %s without a caption or a generation prompt", format => {
   render(<CalendarPostPreview photoComposition canal="instagram" format={format} caption="" theme="Alba" username="alba" displayName="Alba"
     mediaUrls={["https://example.test/alba.png"]} visualUrls={["https://example.test/alba.png"]}
