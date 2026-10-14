@@ -504,6 +504,61 @@ export function CalendarPostPreview({
     );
   }
 
+  // ── Série de stories : vrais visuels 9:16 reconstruits du JSON persisté ──
+  if (isStorySerie && storyFrames.some(Boolean)) {
+    const rendered = storyFrames
+      .map((html, i) => ({ html, n: i + 1 }))
+      .filter((f): f is { html: string; n: number } => Boolean(f.html));
+    const idx = Math.min(slideIndex, rendered.length - 1);
+    if (compact) {
+      return (
+        <div className="space-y-2">
+          <Toolbar />
+          <div className="relative flex justify-center">
+            <span className="absolute top-2 right-2 z-10 text-2xs font-semibold bg-black/60 text-white px-2 py-0.5 rounded-full">
+              {idx + 1}/{rendered.length}
+            </span>
+            {idx > 0 && (
+              <button onClick={() => setSlideIndex(i => i - 1)} aria-label="Précédente" className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white">
+                <ChevronLeft className="h-4 w-4 text-gray-700" />
+              </button>
+            )}
+            {idx < rendered.length - 1 && (
+              <button onClick={() => setSlideIndex(i => i + 1)} aria-label="Suivante" className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white">
+                <ChevronRight className="h-4 w-4 text-gray-700" />
+              </button>
+            )}
+            <StoryFramePreview html={rendered[idx].html} title={`Story ${rendered[idx].n}`} fluid className="max-w-[220px]" />
+          </div>
+          <div className="flex justify-center gap-1 pt-1">
+            {rendered.map((_, i) => (
+              <button key={i} onClick={() => setSlideIndex(i)} className={`rounded-full transition-all ${i === idx ? "w-1.5 h-1.5 bg-primary" : "w-1.5 h-1.5 bg-muted-foreground/30"}`} />
+            ))}
+          </div>
+          {caption && (
+            <div className="mt-3 pt-3 border-t border-border">
+              <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Légende</p>
+              <div className="text-xs text-foreground whitespace-pre-wrap line-clamp-6 leading-relaxed">{caption}</div>
+            </div>
+          )}
+        </div>
+      );
+    }
+    return (
+      <div className="py-2 space-y-4 overflow-y-auto max-h-[60vh]">
+        <Toolbar />
+        {rendered.map((f) => (
+          <div key={f.n} className="rounded-xl border border-border overflow-hidden bg-card max-w-[240px] mx-auto">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 border-b border-border">
+              <span className="text-xs font-medium text-muted-foreground">Story {f.n}</span>
+            </div>
+            <StoryFramePreview html={f.html} title={`Story ${f.n}`} fluid className="border-0 rounded-none" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   let parsed: any = null;
   try { parsed = JSON.parse(caption); } catch { /* plain text */ }
 
