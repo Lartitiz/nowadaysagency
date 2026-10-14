@@ -4,9 +4,10 @@ import { prepareIntegration } from "./integration-direction.ts";
 import { activeReferences, adviceTurn, independentRequest, explicitRoles, dialogueHistory, CONVERSATION_SYSTEM, type ConversationContext } from "./conversation.ts";
 import { exactReference, validTargets, repairTargets, targetProblems, sceneInputs, asksIntegration, sceneWithoutPlaceholders, withoutPlaceholders } from "./scene-workflow.ts";
 import { resolvePersonMemory } from "./person-reference.ts";
-import { compositionSchema } from "./composition.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { schema } from "./request-schema.ts";
+import { BUCKET, canWrite, charterReferences, download, store, unwrap, visionFromStorage } from "./storage.ts";
+import { translateStudioError } from "./errors.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { callAnthropic, SONNET_MODEL } from "../_shared/anthropic.ts";
 import {
@@ -31,13 +32,11 @@ import {
   imageModel,
   legacyReferences,
   type Reference,
-  visionBlock,
 } from "./media.ts";
 import {
   COMPETENCIES,
   isIdentity,
   MAX_REFERENCES,
-  REFERENCE_ROLES,
   RULES_VERSION,
   searchTerms,
 } from "./competencies.ts";
@@ -60,157 +59,6 @@ import { applyPreparedReferences } from "./product-fidelity-studio.ts";
 import { isWornProduct, onlyAdditions, preferredProductGroup, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
 
 declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void };
-const schema = z.object({
-  studio_version: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
-  action: z.enum([
-    "create",
-    "styles",
-    "read",
-    "message",
-    "generate",
-    "save",
-    "reference",
-    "selection",
-    "memory_save",
-    "memory_apply",
-    "pilot",
-    "composition_save",
-    "composition_read",
-    "retry",
-    "archive",
-    "restore",
-  ]),
-  workspace_id: z.string().uuid(),
-  session_id: z.string().uuid(),
-  photo_id: z.string().uuid().optional(),
-  reference_role: z.enum(REFERENCE_ROLES).optional(),
-  role_source: z.enum(["library", "user", "conversation"]).optional(),
-  subject_group: z.string().max(100).optional(),
-  new_request: z.boolean().optional(),
-  composition: compositionSchema.optional(),
-  composition_use_image: z.boolean().optional(),
-  composition_history_id: z.string().uuid().optional(),
-  charter_index: z.number().int().min(0).max(8).optional(),
-  reference_id: z.string().uuid().optional(),
-  reference_ids: z.array(z.string().uuid()).max(MAX_REFERENCES).optional(),
-  memory_id: z.string().uuid().optional(),
-  memory_revision: z.number().int().min(-1).optional(),
-  memory_kind: z.enum(["preference", "direction", "casting"]).optional(),
-  memory_name: z.string().trim().min(1).max(120).optional(),
-  memory_note: z.string().trim().min(1).max(1500).optional(),
-  fictional_model: z.literal(true).optional(),
-  remove: z.boolean().optional(),
-  viewed_reference_id: z.string().uuid().nullable().optional(),
-  proposal_id: z.string().uuid().optional(),
-  approved_scene_id: z.string().uuid().optional(),
-  version_id: z.string().uuid().optional(),
-  viewed_version_id: z.string().uuid().nullable().optional(),
-  branch_reference_mode: z.enum(["version", "current"]).optional(),
-  revision: z.number().int().nonnegative().optional(),
-  message: z.string().trim().min(1).max(6000).optional(),
-  request_id: z.string().uuid().optional(),
-});
-const BUCKET = "visual-studio";
-function requireValue<T>(
-  value: T,
-  message = "Ressource indisponible",
-): NonNullable<T> {
-  if (value == null) throw new Error(message);
-  return value;
-}
-function unwrap<T>(result: {
-  data: T;
-  error: { message: string } | null;
-}): NonNullable<T> {
-  if (result.error) throw new Error(result.error.message);
-  return requireValue(result.data);
-}
-async function download(
-  sb: ReturnType<typeof getServiceClient>,
-  bucket: string,
-  path: string,
-) {
-  const blob = unwrap(await sb.storage.from(bucket).download(path));
-  if (!/^image\/(jpeg|png|webp)$/.test(blob.type) || blob.size > 15_000_000) {
-    throw new Error("Photo non prise en charge");
-  }
-  return blob;
-}
-async function visionFromStorage(
-  sb: ReturnType<typeof getServiceClient>,
-  bucket: string,
-  path: string,
-) {
-  const resized = async (width: number) => {
-    const { data, error } = await sb.storage.from(bucket).download(path, {
-      transform: { width, quality: 80, resize: "contain" },
-    });
-    return error ? null : data;
-  };
-  // The interpreter never needs more than ~1568 px (the vision model downsizes
-  // beyond that). Loading full originals for every reference exhausted the
-  // worker memory (546 WORKER_RESOURCE_LIMIT). Generation still uses originals.
-  // Several references plus the parent version travel in one request (and its
-  // base64 copy is duplicated in the JSON body): keep each one small.
-  for (const width of [1024, 768]) {
-    const light = await resized(width);
-    if (light && /^image\/(jpeg|png|webp)$/.test(light.type) && light.size <= 1_500_000) {
-      return await visionBlock(light);
-    }
-  }
-  return await visionBlock(await download(sb, bucket, path), resized);
-}
-async function store(
-  sb: ReturnType<typeof getServiceClient>,
-  bucket: string,
-  path: string,
-  blob: Blob,
-) {
-  const { error } = await sb.storage
-    .from(bucket)
-    .upload(path, blob, { contentType: blob.type, upsert: true });
-  if (error) throw error;
-}
-async function canWrite(
-  sb: ReturnType<typeof getServiceClient>,
-  actor: string,
-  workspace: string,
-) {
-  const row = unwrap(
-    await sb
-      .from("workspace_members")
-      .select("role")
-      .eq("user_id", actor)
-      .eq("workspace_id", workspace)
-      .single(),
-  );
-  return ["owner", "manager", "editor"].includes(row.role);
-}
-async function charterReferences(
-  sb: ReturnType<typeof getServiceClient>,
-  workspace: string,
-): Promise<{ path: string; name: string }[]> {
-  const { data, error } = await sb.from("brand_charter").select(
-    "moodboard_images",
-  ).eq("workspace_id", workspace).maybeSingle();
-  if (error) throw error;
-  if (!Array.isArray(data?.moodboard_images)) return [];
-  const members = unwrap(
-    await sb.from("workspace_members").select("user_id").eq(
-      "workspace_id",
-      workspace,
-    ),
-  );
-  const owners = new Set(members.map((m) => m.user_id));
-  return data.moodboard_images.filter((
-    r: unknown,
-  ): r is { path: string; name: string } =>
-    !!r && typeof r === "object" && (!("role" in r) || r.role !== "avoid") &&
-    "path" in r && typeof r.path === "string" &&
-    !r.path.includes("..") && owners.has(r.path.split("/")[0]) && "name" in r &&
-    typeof r.name === "string"
-  ).slice(0, 9);
-}
 export async function handleStudioRequest(req: Request): Promise<Response> {
   const callback = await imageCallback(req);
   if (callback) return callback;
@@ -1959,37 +1807,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       "[visual-studio]",
       message.replace(/https?:\/\/\S+/g, "[url]"),
     );
-    const known: Record<string, string> = {
-      studio_soul_style_unavailable: "Ce preset Soul n’est plus disponible. Modifie ta demande ou choisis sans preset.",
-      studio_soul_prompt_missing: "La consigne photographique est incomplète. Modifie ta demande avant de générer.",
-      studio_integration_sources: "Chaque personne et produit doit être associé à ses originaux. Reprécise les références avant l’intégration.",
-      studio_reference_limit:
-        "Garde jusqu’à huit références. Retire une référence avant d’ajouter cette direction.",
-      studio_image_too_large:
-        "Cette photo dépasse 5 Mo. Ajoute une version plus légère pour que le Studio puisse l’examiner.",
-      studio_interpretation_limit:
-        "Tu as envoyé beaucoup de demandes. Réessaie un peu plus tard.",
-      studio_memory_limit:
-        "La marque conserve déjà 100 éléments. Retire une ancienne préférence pour en ajouter une.",
-      studio_casting_source:
-        "Choisis une image de mannequin fictif. Une photo de personne réelle ne devient pas un mannequin fictif.",
-      studio_busy:
-        "Une image est déjà en cours dans cet espace. Reprends sa session.",
-      studio_quota: "Le quota a changé. Recharge la session.",
-      studio_proposal_changed:
-        "Cette proposition a changé. Vérifie la dernière demande.",
-      studio_conflict: "La session a changé. Recharge-la.",
-      studio_archived: "Cette session est archivée. Restaure-la pour continuer.",
-    };
-    const key = Object.keys(known).find((k) => message.includes(k));
-    return json(
-      {
-        error: key
-          ? known[key]
-          : message.startsWith("Intégration à préciser :") ? message : "Le Studio est momentanément indisponible. Ta demande reste conservée ; réessaie.",
-      },
-      key ? 409 : 503,
-    );
+    const translated = translateStudioError(message);
+    return json({ error: translated.error }, translated.status);
   }
 }
 
