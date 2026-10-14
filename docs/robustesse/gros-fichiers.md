@@ -654,7 +654,7 @@ Une PR par lot. À chaque lot : `npm run test:edges`, le `deno check` ci-dessus,
 2. **Lot 1** : `request-schema.ts`, `storage.ts`, `errors.ts`. *Fait (14/10/2026) : `index.ts` 2001 → 1815 lignes, aucun `.snap` modifié. La lecture des erreurs de téléchargement est dans `storage-errors.ts` (#1481). Les numéros de ligne ci-dessus datent d'avant ce lot.*
 3. **Lot 2** : `actions/session.ts`, `actions/reference.ts`, `actions/composition.ts`, `actions/save.ts`. *Fait (14/10/2026) : chaque action reçoit `(ctx, session, references)` (`actions/context.ts`) et renvoie la session ou la `Response` ; `index.ts` 1815 → 1518 lignes, aucun `.snap` modifié.*
 4. **Lot 3** : `actions/pilot.ts` et `actions/generate.ts` (crédits : relire le diff ligne à ligne). *Fait (14/10/2026) : corps de `generate` identique ligne à ligne (seul `pipe.corsHeaders` devient `ctx.corsHeaders`), `EdgeRuntime` déclaré dans `generate.ts` ; `index.ts` 1518 → 1258 lignes, aucun `.snap` modifié.*
-5. **Lot 4** : `read-state.ts`.
+5. **Lot 4** : `read-state.ts`. *Fait (14/10/2026) : `readState(ctx, session, writable)`, corps identique ligne à ligne (167 lignes) ; `index.ts` 1258 → 1087 lignes, aucun `.snap` modifié.*
 6. **Lots 5 à 8** : la branche `message`, un fichier `turn/*` par PR, dans cet ordre : `brand-context`, `interpret`, `proposal`, et `guardrails` en dernier, éventuellement en deux PR (921-1143, puis 1144-1304).
 
 Pendant ces lots : pas de fusion de PR pendant une session Lovable ouverte (cf. CLAUDE.md), et aucun changement de comportement mêlé au déplacement.
