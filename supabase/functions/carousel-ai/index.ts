@@ -1,6 +1,5 @@
 import { photoMatchPhotoCount, photoMatchReserveMs } from "./final-photo-match.ts";
-import { buildConfirmedStructureBlock } from "./confirmed-structure.ts";
-import { NarrativePhotoMismatch, usesContinuousNarrative } from "./continuous-narrative.ts";
+import { NarrativePhotoMismatch } from "./continuous-narrative.ts";
 import { COMMON, PLAN, REPAIR } from "../_shared/carousel-editorial-contract.ts";
 import { progressionReceipt, progressionWarnings, progressionJudgeCallMs, PROGRESSION_FORMAT_RETRY_MS, type ProgressionSource, type ProgressionResult } from "../_shared/carousel-progression.ts";
 import { carouselEditorialFields } from "../_shared/carousel-editorial-review.ts";
@@ -9,22 +8,21 @@ import { autoMaxSlides, carouselLength, carouselLengthPrompt, carouselStructureI
 import { preservesCarouselScenario } from "../_shared/carousel-thread.ts";
 import { draftSlidesTracker } from "../_shared/carousel-draft-stream.ts";
 import { coverKind, coverRewritePrompt, enforceCover } from "../_shared/carousel-cover.ts";
-import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, newsWriting } from "./variant-writing.ts";
+import { newsWriting } from "./variant-writing.ts";
 import { CAROUSEL_WRITER_VERSION } from "./writer.ts";
 import { expectedLocalRepairMs, localRepairInstruction, localRepairPlan, mergeLocalRepair } from "./thread-local-repair.ts";
 import { authoredContentSource, currentContentContract, testimonySourceText } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock, buildBrandGuardText } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildBrandGuardText } from "../_shared/user-context.ts";
 import { isQaTestAccount, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getModelForAction, SONNET_MODEL, AnthropicError, type UsageSink, type AnthropicOptions } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { EDITORIAL_ANGLES_REFERENCE } from "../_shared/copywriting-prompts.ts";
-import { photoReadingContract, buildCarouselWritingSystem, carouselSubstance, CAROUSEL_CONTINUITY, CAROUSEL_TITLES as SLIDE_TITLE_RULES, CAROUSEL_WRITING_VERSION } from "./writing-contract.ts";
+import { photoReadingContract, carouselSubstance, CAROUSEL_CONTINUITY, CAROUSEL_TITLES as SLIDE_TITLE_RULES, CAROUSEL_WRITING_VERSION } from "./writing-contract.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
 import { carouselNeedsPolish, extractCarouselTexts, reinjectCarouselTexts } from "../_shared/correction-pass.ts";
-import { audienceAddressRule, enforceAudienceAddress, parseAudienceAddress, type AudienceAddress, type AudienceAddressPass } from "../_shared/audience-address.ts";
+import { enforceAudienceAddress, parseAudienceAddress, type AudienceAddress, type AudienceAddressPass } from "../_shared/audience-address.ts";
 import { runRedacGate, rescoreCaptionOnly, applyGuardedCarouselCorrection, analyzeCarouselRedac, numbersIn, type CaptionEndingRule } from "../_shared/redac-gate.ts";
 import { carouselDurations, carouselPlanReport, logContentQuality, threadOutcome } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
@@ -34,98 +32,18 @@ import { assignPhotoTemplates, assignTemplatesToProvidedSlides, capVisualSchemas
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { buildDepthBlock } from "../_shared/depth-research.ts";
-import { livedCaseFromCarouselBody, researchNumbersCapFor, type CaseMode } from "../_shared/lived-case.ts";
+import { livedCaseFromCarouselBody, researchNumbersCapFor } from "../_shared/lived-case.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex, analyzeMixComposition, assignDistinctStructurePhotos } from "../_shared/photo-slide-structure.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { describePlanShape, type HedgeReport, hedgedStructureCall, reviveStringSlides, StructureDeadlineError } from "./structure-hedge.ts";
 import { _deps, type CarouselRequestContext, buildPhotoContextRecap, normalizeGeneratedPlanFields, normalizeSlideType, pickCorrectionModel, REPAIR_START_LIMIT_MS, echoContext, writerTimeoutMs, pickCarouselModel, reviewAllowed, CORRECTION_ABORT_MS, stageTimer, carouselMismatchResponse, firstDraftStream, pushPhotoWithContext, retryIfTooShort, carouselSlideFloor } from "./shared.ts";
-import { OUTLINE_INSTRUCTION, OUTLINE_TOOL, PHOTO_QUESTIONS_TOOL, QUESTIONS_TOOL, PHOTO_MISMATCH_SYSTEM_REMINDER, MIX_CAROUSEL_TOOL, PHOTO_CAROUSEL_TOOL, STRUCTURE_PROPOSAL_TOOL } from "./tools.ts";
-// Fiche 2, lot 1 (docs/robustesse/gros-fichiers.md) : déplacés à l'identique, réexportés pour les tests.
+import { PHOTO_QUESTIONS_TOOL, QUESTIONS_TOOL, PHOTO_MISMATCH_SYSTEM_REMINDER, MIX_CAROUSEL_TOOL, PHOTO_CAROUSEL_TOOL, STRUCTURE_PROPOSAL_TOOL } from "./tools.ts";
+import { buildSystemPrompt, buildHooksPrompt, buildSlidesPrompt, buildSuggestTopicsPrompt, buildSuggestAnglesPrompt, buildMixCarouselNewsReactionPrompt, buildMixCarouselPrompt, buildPhotoCarouselNewsReactionPrompt, buildPhotoCarouselPrompt, buildExpressFullPrompt, buildDeepeningQuestionsPrompt } from "./prompts.ts";
+import { startPhotoOutline, emitPlannedTitles, addOutlineUsage } from "./outline.ts";
+// Fiche 2 (docs/robustesse/gros-fichiers.md) : déplacés à l'identique, réexportés pour les tests.
 export { _deps, writerTimeoutMs, normalizeSlideType } from "./shared.ts";
-
-export function plannedTitles(value: any): string[] {
-  const titles = Array.isArray(value?.titles) ? value.titles : [];
-  return titles
-    .filter((t: unknown): t is string => typeof t === "string")
-    .map((t: string) => t.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim().slice(0, 120))
-    .filter(Boolean)
-    .slice(0, 20);
-}
-
-async function emitPlannedTitles(system: string, userPrompt: string, emitStatus: StatusEmitter, sink: UsageSink): Promise<void> {
-  try {
-    const raw = await _deps.callAnthropic({
-      model: getModelForAction("questions"), system,
-      messages: [{ role: "user", content: userPrompt + OUTLINE_INSTRUCTION }],
-      tool: OUTLINE_TOOL, max_tokens: 800, abortTimeoutMs: 20_000, maxRetries: 0,
-    }, sink);
-    const titles = plannedTitles(tryParseAiJson(raw));
-    if (titles.length >= 3) emitStatus("outline", { titles });
-  } catch {
-    /* Simple repère d'attente : son échec ne change rien à la génération. */
-  }
-}
-
-/**
- * Plan envisagé des carrousels photo et mixte (08/10/2026). Plan déjà validé à
- * l'étape « structure » : ses titres partent tout de suite, sans aucun appel.
- * Sinon, mêmes titres prévus que le carrousel texte (Haiku, texte seul : les
- * photos ne lui sont pas envoyées). Jamais pour un photo dump sans texte.
- */
-function startPhotoOutline(reqCtx: Pick<CarouselRequestContext, "body" | "emitStatus" | "isLinkedIn" | "systemPrompt">): { done: Promise<void>; usage: UsageSink } {
-  const { body, emitStatus, isLinkedIn } = reqCtx;
-  const usage: UsageSink = {};
-  if (body.no_overlay) return { done: Promise.resolve(), usage };
-  if (body.confirmed_structure?.length) {
-    const titles = plannedTitles({ titles: body.confirmed_structure.map((s: any) => s.title_suggestion) });
-    if (titles.length >= 2) emitStatus("outline", { titles });
-    return { done: Promise.resolve(), usage };
-  }
-  const prompt = (body.carousel_type === "mix" ? buildMixCarouselPrompt(body, isLinkedIn) : buildPhotoCarouselPrompt(body, isLinkedIn)) +
-    buildPhotoContextRecap(body.photo_contexts || body.photos) +
-    `\n\nSujet : "${body.subject || "non précisé"}"\n${body.photo_description ? `Description des photos : "${body.photo_description}"\n` : ""}${carouselLengthPrompt(body)}\nObjectif : ${body.objective || "non précisé"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}\n` : ""}${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
-  return { done: emitPlannedTitles(reqCtx.systemPrompt, prompt, emitStatus, usage), usage };
-}
-
-/** Attend le plan envisagé et ajoute ses jetons à la ligne de crédit (une seule ligne). */
-async function addOutlineUsage(reqCtx: CarouselRequestContext, usage: UsageSink): Promise<void> {
-  if (!reqCtx.outline) return;
-  await reqCtx.outline.done;
-  for (const k of ["input_tokens", "output_tokens", "total_tokens"] as const) {
-    if (reqCtx.outline.usage[k]) usage[k] = (usage[k] || 0) + reqCtx.outline.usage[k]!;
-  }
-  reqCtx.outline = undefined;
-}
-
-// ── Régime « texte d'abord » (lot 1 casting) ──
-// Le carrousel mixte est rédigé SANS photos : chaque slide photo sort avec une
-// photo_directive (l'image idéale, en français) + photo_query_en (mots-clés banque
-// d'images) + éventuellement library_photo_index (match STRICT dans le catalogue
-// bibliothèque envoyé par le front). Le casting des images se fait ensuite, slide
-// par slide, dans l'écran résultat.
-function buildTextFirstBlock(body: any): string {
-  if (!body?.text_first) return "";
-  const catalog = Array.isArray(body.photo_catalog) ? body.photo_catalog : [];
-  const catalogBlock = catalog.length > 0
-    ? `\n═══ CATALOGUE BIBLIOTHÈQUE (photos existantes de l'utilisatrice) ═══\n${catalog.map((p: any) => `- Photo ${p.index}${p.kind ? ` [${p.kind}]` : ""} : ${p.description}`).join("\n")}\n\nRÈGLE DE MATCHING (STRICTE) : pour une slide photo, si UNE photo du catalogue correspond VRAIMENT à sa directive (même sujet ET même ambiance — pas juste le même thème), renseigne "library_photo_index" avec son numéro. AU MOINDRE DOUTE → null. Un carrousel avec des slides « image à choisir » vaut mieux qu'un faux match. N'assigne jamais deux fois la même photo du catalogue.\n`
-    : "";
-  return `\n═══ RÉGIME « TEXTE D'ABORD » — AUCUNE PHOTO FOURNIE ═══
-
-Ce carrousel est rédigé AVANT que les images existent : l'utilisatrice choisira ou créera chaque image ENSUITE, slide par slide. Le récit commande ; les images serviront le récit — jamais l'inverse.
-
-RÈGLES SPÉCIFIQUES (remplacent les règles de composition liées aux photos fournies) :
-- Slides photo (photo_full + photo_integrated) : entre 2 et 4 MAXIMUM. Chaque image devra être trouvée ou créée par l'utilisatrice — sois économe, ne mets une slide photo que là où une image PORTE le récit. La règle « au moins 50% de slides photo » ne s'applique PAS ici.
-- Slide 1 = photo_full (hook visuel). Dernière slide = text_only.
-- "photo_index" : TOUJOURS null sur toutes les slides (aucune photo n'est fournie).
-- Pour CHAQUE slide photo, renseigne EN PLUS :
-  · "photo_directive" : 1-2 phrases en FRANÇAIS décrivant l'image idéale — concrète et tournable (sujet précis, cadrage, lumière, ambiance), ancrée dans l'activité et l'univers de l'utilisatrice, cohérente avec l'overlay de la slide. Pas de « une jolie photo inspirante ».
-  · "photo_query_en" : 2-4 mots-clés en ANGLAIS pour une banque d'images (ex : "hands pottery clay").
-  · "library_photo_index" : numéro du catalogue si match STRICT, sinon null.${catalog.length === 0 ? ` (Aucun catalogue fourni : null partout.)` : ""}
-  · "news_entity" : SI le contexte actualité porte sur une personnalité, une marque, une œuvre ou un événement PRÉCIS et nommé, ET que CETTE slide gagnerait à montrer une vraie photo de presse de cette entité, renseigne le nom exact tel qu'on le chercherait dans une banque d'images (ex : "Zendaya", "Patagonia", "Jeux Olympiques Paris"). Sinon null. Au plus 1-2 slides avec news_entity.
-- INTERDIT dans photo_directive : demander l'image d'une personnalité réelle, d'une marque tierce ou d'un événement d'actualité précis (droit à l'image). L'image illustre TON propos et TON terrain — l'actu vit dans le TEXTE des slides. Une photo réelle de l'entité ne peut venir QUE d'une banque de presse libre de droits, via "news_entity" : la photo_directive reste l'alternative générique SANS l'entité.
-${catalogBlock}`;
-}
+export { plannedTitles } from "./outline.ts";
 
 // Post-traitement text_first : force photo_index à null partout (l'IA recopie
 // parfois le photo_index des exemples JSON) et télémétrie des directives manquantes.
@@ -2026,209 +1944,4 @@ Réponds en JSON : {"questions":[{"question":"...","placeholder":"..."}]}. Table
     : buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock);
 
   return runGenerationAndRespond("deepening_questions", userPrompt, reqCtx);
-}
-
-function buildSystemPrompt(brandingContext: string, isLinkedIn = false, profile?: any, livedCase: boolean | CaseMode = false, audienceAddress: AudienceAddress | null = null): string {
-  return buildCarouselWritingSystem(brandingContext, isLinkedIn, buildIdentityBlock(profile, "rédactrice éditoriale"), CONTENT_CLARITY_RULES, livedCase, audienceAddressRule(audienceAddress));
-}
-
-function buildHooksPrompt(body: any, isLinkedIn = false): string {
-  const { carousel_type, subject, objective, slide_count, deepening_answers, chosen_angle } = body;
-
-  let deepeningCtx = "";
-  if (deepening_answers) {
-    const answers = Object.entries(deepening_answers)
-      .filter(([, v]) => v && (v as string).trim())
-      .map(([k, v]) => `- ${k}: ${v}`)
-      .join("\n");
-    if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE (utilise son vécu, ses mots, ses exemples) :\n${answers}\n\nINTÉGRATION DES RÉPONSES :\n- Les réponses de l'utilisatrice sont du contenu AUTHENTIQUE. Utilise ses mots exacts.\n- Son vécu et ses expressions doivent apparaître naturellement dans les hooks, pas être reformulés en jargon IA.\n- Si elle a donné une anecdote, elle peut devenir le hook ou l'exemple concret.\n`;
-  }
-
-  let angleCtx = "";
-  if (chosen_angle) {
-    angleCtx = `\nANGLE CHOISI : "${chosen_angle.title}" — ${chosen_angle.description}\nLes hooks DOIVENT coller à cet angle.\n`;
-  }
-
-  return `DEMANDE : Propose 3 accroches (hooks) pour un carrousel ${isLinkedIn ? "LinkedIn" : "Instagram"}.
-
-Type de carrousel : ${carousel_type}
-Sujet : ${subject}
-Objectif : ${objective}
-Nombre de slides : ${slide_count || 7}
-${deepeningCtx}${angleCtx}
-RÈGLES HOOKS CARROUSEL :
-- 4 à 10 MOTS par hook (idéalement 5 à 8) : c'est le titre de la couverture
-- Doit stopper le scroll : tension ou manque (prise de position, erreur courante, question qui pique, promesse concrète, liste chiffrée, « ce que personne ne dit sur… », actu détournée, histoire entamée)
-- Spécifique au sujet, pas générique ; jamais un titre-étiquette qui nomme seulement le sujet
-- 3 types DIFFÉRENTS de hooks
-${deepeningCtx ? "- ANCRE les hooks dans le vécu et les mots de l'utilisatrice" : ""}
-
-Retourne ce JSON exact :
-{
-  "hooks": [
-    { "id": "A", "text": "[HOOK 4-10 MOTS]", "word_count": 8, "style": "curiosité" },
-    { "id": "B", "text": "[HOOK 4-10 MOTS]", "word_count": 7, "style": "provocation" },
-    { "id": "C", "text": "[HOOK 4-10 MOTS]", "word_count": 9, "style": "résultat" }
-  ]
-}`;
-}
-
-function buildSlidesPrompt(body: any, isLinkedIn = false): string {
-  return textWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { scenarioOrigin: body.scenario_origin, narrativeThread: body.narrative_thread }));
-}
-
-function buildSuggestTopicsPrompt(body: any, isLinkedIn = false): string {
-  const { carousel_type, objective, recent_posts } = body;
-  return `DEMANDE : Suggère 5 sujets de carrousels ${isLinkedIn ? "LinkedIn" : "Instagram"}.
-
-Type de carrousel : ${carousel_type}
-Objectif : ${objective}
-${recent_posts ? `Derniers posts (pour ne pas répéter) : ${recent_posts}` : ""}
-
-Pour chaque sujet, donne :
-- Le sujet
-- Pourquoi c'est pertinent maintenant
-- L'angle recommandé
-
-Retourne ce JSON exact :
-{
-  "topics": [
-    { "subject": "...", "why_now": "...", "angle": "..." },
-    { "subject": "...", "why_now": "...", "angle": "..." },
-    { "subject": "...", "why_now": "...", "angle": "..." },
-    { "subject": "...", "why_now": "...", "angle": "..." },
-    { "subject": "...", "why_now": "...", "angle": "..." }
-  ]
-}`;
-}
-
-function buildSuggestAnglesPrompt(body: any, isLinkedIn = false): string {
-  const { carousel_type, subject, objective, deepening_answers } = body;
-
-  let deepeningCtx = "";
-  if (deepening_answers) {
-    const answers = Object.entries(deepening_answers)
-      .filter(([, v]) => v && (v as string).trim())
-      .map(([k, v]) => `- ${k}: ${v}`)
-      .join("\n");
-    if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE :\n${answers}\n`;
-  }
-
-  return `DEMANDE : Propose 3 angles éditoriaux pour un carrousel ${isLinkedIn ? "LinkedIn" : "Instagram"}, basés sur les réponses de l'utilisatrice.
-
-Type de carrousel : ${carousel_type}
-Sujet : ${subject}
-Objectif : ${objective}
-${deepeningCtx}
-
-Chaque angle doit être :
-- DIFFÉRENT des autres (approche narrative, ton, structure)
-- ANCRÉ dans les réponses de l'utilisatrice (utilise ses mots, son vécu)
-- CONCRET (pas juste "angle personnel" mais comment concrètement)
-
-Retourne ce JSON exact :
-{
-  "angles": [
-    { "id": "A", "emoji": "🔥", "title": "Titre court de l'angle (3-5 mots)", "description": "2 phrases max décrivant comment le carrousel serait construit avec cet angle." },
-    { "id": "B", "emoji": "📖", "title": "...", "description": "..." },
-    { "id": "C", "emoji": "🎯", "title": "...", "description": "..." }
-  ]
-}`;
-}
-
-
-function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string, isLinkedIn: boolean = false, recentBriefsContext?: string, brandVocabBlock?: string): string {
-  const { carousel_type, subject, objective, editorial_angle, content_structure } = body;
-
-  const CAROUSEL_TYPE_LABELS: Record<string, string> = {
-    tips: "Tips / Astuces", tutoriel: "Tutoriel pas-à-pas", prise_de_position: "Prise de position",
-    mythe_realite: "Mythe vs Réalité", storytelling: "Storytelling personnel", etude_de_cas: "Étude de cas cliente",
-    checklist: "Checklist", comparatif: "Comparatif A vs B", before_after: "Before / After",
-    promo: "Promo / Offre", coulisses: "Coulisses", photo_dump: "Photo dump",
-  };
-
-  const OBJ_LABELS: Record<string, string> = {
-    saves: "Engagement (saves)", shares: "Portée (partages)", conversion: "Conversion", community: "Communauté (lien)",
-  };
-
-  const brandingBlock = brandingContext
-    ? `\n\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n\nUtilise ce contexte pour personnaliser tes questions : mentionne son domaine d'activité, sa cible, ses offres ou son positionnement quand c'est pertinent. Les questions doivent montrer que tu connais son univers.`
-    : "";
-
-  // If editorial_angle is present, adapt questions to the angle + structure
-  let formatLabel: string;
-  let angleBlock = "";
-  if (editorial_angle && content_structure) {
-    formatLabel = editorial_angle;
-    angleBlock = `\n\nANGLE ÉDITORIAL : ${editorial_angle}\nSTRUCTURE DU CARROUSEL :\n${content_structure}\n\nLes questions doivent aider la personne à compléter cette structure avec les faits, exemples ou expériences disponibles.`;
-  } else {
-    formatLabel = CAROUSEL_TYPE_LABELS[carousel_type] || carousel_type;
-  }
-
-  return `Tu dois générer exactement 3 questions d'approfondissement pour aider à créer un carrousel ${formatLabel}.
-
-══════════════════════════════════════
-SUJET COURANT — PRIORITÉ ABSOLUE
-══════════════════════════════════════
-"${subject || "non précisé"}"
-
-Tout ce qui suit (objectif, branding, historique, angle) est SECONDAIRE.
-Les 3 questions doivent toutes porter sur CE sujet précis.
-Si une question pourrait concerner un autre sujet, elle est invalide.
-
-OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}
-${objective ? `\nOriente les questions vers cet objectif. Cherche les informations utiles pour cet objectif, sans imposer témoignage, anecdote, résultat ni provocation.\n` : ""}${brandingBlock}${brandVocabBlock || ""}${recentBriefsContext || ""}${angleBlock}
-${isLinkedIn ? `\nATTENTION : c'est un carrousel LINKEDIN. Les questions doivent orienter vers du contenu expert et professionnel :\n- Demander des données, des résultats concrets, des leçons métier\n- Chercher l'expertise spécifique (pas juste l'émotion)\n- Orienter vers du contenu qui positionne comme référence sur le sujet` : ""}
-
-══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
-Réfléchis silencieusement à :
-1. Quel est le SUJET COURANT ? (ré-extraire 1 mot-clé)
-2. Quel vocabulaire métier puis-je intégrer ?
-3. Y a-t-il un sujet identique dans l'historique récent ? Si oui, quelle question NE PAS reposer ?
-
-TON RÔLE : aider à compléter la matière utile à ce sujet, en tenant compte de ce que la personne a déjà fourni.
-
-RÈGLES :
-- ANCRAGE SUJET (règle n°1, non négociable) : chaque question doit contenir un mot du sujet courant ou un aspect directement déductible. Une question qui ne référence pas le sujet courant est invalide — réécris-la.
-- Demande les faits, choix, explications, exemples ou expériences qui manquent pour relier les slides. Une émotion ou une conviction est facultative.
-- Ne redemande pas une réponse déjà présente dans le sujet, le contexte des photos ou les réponses fournies.
-- Si le contexte branding est présent, adapte les questions à son activité et sa cible
-- ${recentBriefsContext ? "MÉMOIRE ANTI-RÉPÉTITION : l'historique liste des sujets DIFFÉRENTS déjà traités. N'importe JAMAIS leur contenu, vocabulaire ou scènes dans tes questions sur le sujet courant." : ""}
-- ${isLinkedIn ? "Vouvoyez l'utilisatrice, restez professionnel·le et chaleureux·se" : "Tutoie l'utilisatrice, sois directe et chaleureuse"}
-- Chaque question fait 1-2 phrases max
-- Le placeholder est un court exemple SPÉCIFIQUE au sujet courant (5-8 mots)
-
-INTERDITS :
-- Questions interchangeables d'un user à l'autre (= sans vocabulaire métier)
-- Questions trop larges qui pourraient s'appliquer à n'importe quel sujet
-- ⚠️ Questions qui réutilisent une scène, un lieu, un personnage venu de l'historique des briefs précédents
-
-Réponds UNIQUEMENT en JSON valide, sans texte autour :
-{
-  "questions": [
-    { "question": "...", "placeholder": "..." },
-    { "question": "...", "placeholder": "..." },
-    { "question": "...", "placeholder": "..." }
-  ]
-}`;
-}
-
-function buildExpressFullPrompt(body: any, isLinkedIn = false): string {
-  return textWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { scenarioOrigin: body.scenario_origin, narrativeThread: body.narrative_thread }));
-}
-
-function buildPhotoCarouselPrompt(body: any, isLinkedIn = false): string {
-  return photoWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { scenarioOrigin: body.scenario_origin, narrativeThread: body.narrative_thread, withStoryBeat: true }));
-}
-
-function buildPhotoCarouselNewsReactionPrompt(body: any, isLinkedIn = false): string {
-  return buildPhotoCarouselPrompt(body, isLinkedIn) + newsWriting(body);
-}
-
-function buildMixCarouselPrompt(body: any, isLinkedIn = false): string {
-  return mixWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { scenarioOrigin: body.scenario_origin, narrativeThread: body.narrative_thread, withStoryBeat: true }), buildTextFirstBlock(body));
-}
-
-function buildMixCarouselNewsReactionPrompt(body: any, isLinkedIn = false): string {
-  return buildMixCarouselPrompt(body, isLinkedIn) + newsWriting(body);
 }

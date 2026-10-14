@@ -331,6 +331,8 @@ découpage en cours : code déplacé à l'identique, `index.ts` réexporte ce qu
 |---|---|---|
 | `carousel-ai/shared.ts` (lot 1) | `_deps` (ce que les tests remplacent), budgets de temps (`CORRECTION_ABORT_MS`, `REPAIR_START_LIMIT_MS`, `REVIEW_START_LIMIT_MS`, `writerTimeoutMs`, `reviewAllowed`), choix des modèles, photos et leur contexte pour Claude, chronos et brouillon affiché, relance d'un carrousel trop court, refus photo sans crédit, `normalizeSlideType` et champs du plan, `CarouselRequestContext` / `echoContext` | **tous les parcours** |
 | `carousel-ai/tools.ts` (lot 1) | Formats de sortie imposés à l'IA : questions, plan envisagé, carrousel mixte et photo, structure proposée ; rappel « ne refuse pas mes photos » (`PHOTO_MISMATCH_SYSTEM_REMINDER`) | les parcours qui utilisent l'outil modifié |
+| `carousel-ai/prompts.ts` (lot 2) | Textes des prompts : système (`buildSystemPrompt`), accroches, slides, sujets, angles, questions d'approfondissement, carrousel express, photo et mixte (avec leurs variantes « actu »), bloc « texte d'abord » (`buildTextFirstBlock`). Aucune lecture en base, aucun appel à Claude | le parcours dont le prompt change (`buildSystemPrompt` : **tous**) |
+| `carousel-ai/outline.ts` (lot 2) | « Plan envisagé » : `plannedTitles`, `emitPlannedTitles`, `startPhotoOutline`, `addOutlineUsage` (titres affichés pendant l'attente, jamais réutilisés) | l'affichage d'attente des carrousels texte, photo et mixte |
 
 `carousel-ai/boundaries_test.ts` garde ce rangement : aucun fichier n'importe
 `index.ts` ; `shared.ts` et `tools.ts` n'importent ni `modes/` ni `steps/` ; un
