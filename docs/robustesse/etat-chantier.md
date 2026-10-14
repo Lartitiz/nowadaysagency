@@ -39,14 +39,18 @@ Reste du lot 8 :
 - carrousel texte : le libellé du bouton n'entre dans la slide que si l'utilisatrice le modifie ou le retire ; à l'arrivée des visuels, il reste seulement dans le HTML (lecture dans `src/hooks/use-generate-visuals.ts`, fichier d'une autre conversation le 14/10/2026).
 
 ## Découpage de CreerUnifie.tsx (fiche 1 de `docs/robustesse/gros-fichiers.md`)
-- **Lot A** (#1482, en cours) : tests 1 à 11 en rendu réel (`src/test/creer-entrees-calendrier-brief`,
+- **Lot A** (#1482, fusionné le 14/10/2026) : tests 1 à 11 en rendu réel (`src/test/creer-entrees-calendrier-brief`,
   `creer-reprise-modifier-reset`, `creer-publication-exports`, `creer-angles-reel-photos`).
   Corrige aussi 3 bugs qu'ils ont révélés (décision de Laetitia du 14/10/2026) : vidéo
   du reel perdue au rechargement, sujet vide en ouvrant l'atelier depuis le calendrier
   (`theme`), « 1 photo n'ont ». Le PPTX texte avec visuels périmés n'est pas un bug
   (il ignore les visuels).
-- **Lot B**, après fusion du lot A : sortir `LowCreditsBanner`, la fenêtre « photos
-  manquantes » et « Repartir de zéro ? » (affichage pur).
+- **Lot B** (PR en cours) : `LowCreditsBanner`, la fenêtre « photos manquantes » et
+  « Repartir de zéro ? » sortis à l'identique dans `src/components/creer/LowCreditsBanner.tsx`,
+  `PhotoMissingDialog.tsx`, `ConfirmResetDialog.tsx` (affichage pur ; état et actions
+  restent dans la page). Rangés dans « Parcours /creer » du rapport d'impact.
+- **Lot C** ensuite : fonctions pures (`creer-step.ts`, `draft-conflict.ts`,
+  `pending-stream.ts`, `edit-text-from-result.ts`, `content-brief.ts`), voir la fiche 1.
 
 ## En attente
 - **E3** : découper CarouselEditor.tsx par mission (plan validé par Laetitia le
