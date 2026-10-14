@@ -162,8 +162,8 @@
       "any": 19
     },
     "supabase/functions/cron-health/index.ts": {
-      "lignes": 992,
-      "any": 104
+      "lignes": 959,
+      "any": 99
     },
     "supabase/functions/deep-diagnostic/index.ts": {
       "lignes": 1084,

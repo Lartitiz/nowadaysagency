@@ -89,6 +89,16 @@ try {
     for (const f of d.failed_48h.items || []) console.log(`      🔴 ${f.canal} le ${f.quand} — ${f.erreur || "sans message"}`);
     console.log(`   posts bloqués en "publishing"  : ${d.stuck_publishing}${d.stuck_publishing ? "  🔴 worker planté en route ?" : ""}`);
     console.log(`   programmés en retard (>45 min) : ${d.overdue_scheduled}${d.overdue_scheduled ? "  🔴 cron pg de publication mort ? (régé schéma)" : ""}`);
+    // Automates de la base (edge ≥ 14/10/2026 + migration cron_jobs_health) :
+    // leur dernier passage réel, même quand personne ne programme rien.
+    const cp = d.crons_pg;
+    if (!cp) console.log("   automates de la base (pg_cron) : non mesurés (edge cron-health pas redéployée)");
+    else if (cp.erreur) console.log(`   automates de la base (pg_cron) : ⚠️ non lus (${cp.erreur.slice(0, 90)}) — migration cron_jobs_health pas appliquée ?`);
+    else {
+      const pannes = cp.jobs.filter((j) => j.en_panne);
+      console.log(`   automates de la base (pg_cron) : ${cp.jobs.length - pannes.length}/${cp.jobs.length} passés à l'heure${pannes.length ? "  🔴" : " ✅"}`);
+      for (const j of pannes) console.log(`      🔴 ${j.nom} — ${j.raison}`);
+    }
     console.log(`   publiés dans les 24 h          : ${d.published_24h}`);
     console.log(`   connexions sociales à risque   : ${(d.connections_at_risk || []).length} / ${d.connections_total}`);
     for (const c of d.connections_at_risk || []) console.log(`      ⚠️ ${c.platform} (${c.compte || "?"}) — ${c.etat} (${c.jours} j)`);
@@ -225,6 +235,13 @@ try {
     if (!cur.relecture_editoriale) console.log("      relecture carrousels : non mesurée (edge cron-health pas redéployée)");
     for (const r of cur.relecture_editoriale || []) {
       console.log(`      modèle ${r.modele} (relecture) : ${r.carrousels} carrousels, ${r.input_tokens + r.output_tokens} tokens (${r.input_tokens} entrée / ${r.output_tokens} sortie) ≈ ${r.cout_estime_eur} €`);
+    }
+    // Issue de la relecture (payée puis gardée, ou jetée par la garde de fidélité).
+    const ri = cur.relecture_issues;
+    if (ri && Object.keys(ri).length) {
+      const { garde, ...statuts } = ri;
+      const g = garde ? ` — bloquées par : ${Object.entries(garde).map(([k, v]) => `${k} ×${v}`).join(", ")}` : "";
+      console.log(`      issue de la relecture : ${Object.entries(statuts).map(([k, v]) => `${k} ${v}`).join(", ")}${g}`);
     }
     if (cur.cout_total_estime_eur != null) {
       console.log(
@@ -373,7 +390,9 @@ try {
         ? "toutes générations"
         : q.echantillon_source === "brouillons"
           ? "carrousels gardés seulement"
-          : q.echantillon_source || "?";
+          : q.echantillon_source === "comptes_internes"
+            ? "⚠️ COMPTES INTERNES — aucune cliente cette semaine, à juger quand même, à ne pas lire comme la qualité clientes"
+            : q.echantillon_source || "?";
       console.log(`   échantillon à juger (grille : singularité, hook, ancrage métier, tics, fidélité) : ${ech.length} contenu(s) [${srcLabel}]`);
       for (const e of ech) {
         const flags = `${e.au_calendrier ? " 📅" : ""}${e.retravaille ? " ✏️retravaillé" : ""}${e.quality_score != null ? ` [gate ${e.quality_score}]` : ""}`;
