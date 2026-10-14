@@ -10,7 +10,9 @@
 //                  budget images Higgsfield du mois (aussi en weekly) — bloc `higgsfield`,
 //                  + SANTÉ DE LA FACTURATION (incident Stripe 24-31/07) : événements que
 //                  Stripe n'arrive pas à livrer, abonnements payés sans accès en base,
-//                  périodes de facturation périmées — voir le bloc `facturation`.
+//                  périodes de facturation périmées — voir le bloc `facturation`,
+//                  + erreurs JS des 24 h (vraies clientes à part des comptes internes)
+//                  et santé des E-MAILS (envoyés, échecs, file bloquée) — `emails_24h`.
 // scope "weekly" : coûts IA (tokens par modèle, 7 j vs 7 j précédents), coûts estimés
 //                  en € (texte Anthropic + images gpt-image/Photoroom/Recraft), usage
 //                  (action_type), rétention par cohorte hebdo d'inscription,
@@ -30,6 +32,7 @@ import { gardeRediteStats, hasPreviewText } from "./garde-redite.ts";
 import { filStats } from "./fil-reparations.ts";
 import { dureesStats } from "./durees-carrousels.ts";
 import { planStats } from "./plan-carrousels.ts";
+import { clientErrorsStats, emailsStats, FILE_BLOQUEE_APRES_MS } from "./sante-emails.ts";
 import { CAROUSEL_PLAN_FORMAT } from "../_shared/carousel-plan-format.ts";
 import { isInternalEmail, isTestAccountEmail, maskEmail } from "../_shared/internal-accounts.ts";
 
@@ -276,6 +279,26 @@ async function facturationHealth(supabase: any, now: number) {
   return out;
 }
 
+// Santé des e-mails (14/10/2026) : envoyés / échecs sur 24 h, file email_queue
+// bloquée. Jugement dans sante-emails.ts. Jamais d'adresse en sortie.
+async function emailsHealth(supabase: any, now: number, emailOf: (id: string | null | undefined) => string | undefined) {
+  try {
+    const [sends, queue, templates] = await Promise.all([
+      fetchAllRows(supabase, "email_sends", "user_id, to_email, template_id, status, error, sent_at", (q) =>
+        q.gte("sent_at", new Date(now - DAY).toISOString()),
+      ),
+      fetchAllRows(supabase, "email_queue", "user_id, scheduled_at, sent, cancelled", (q) =>
+        q.eq("sent", false).eq("cancelled", false).lt("scheduled_at", new Date(now - FILE_BLOQUEE_APRES_MS).toISOString()),
+      ),
+      fetchAllRows(supabase, "email_templates", "id, name"),
+    ]);
+    const nom = new Map(templates.map((t: any) => [t.id, t.name]));
+    return emailsStats(sends, queue, emailOf, isExcludedEmail, (id) => (id ? nom.get(id) ?? null : null), now);
+  } catch (e) {
+    return { erreur: String((e as any)?.message || e).slice(0, 90) };
+  }
+}
+
 // PostgREST plafonne silencieusement chaque select à 1000 lignes (leçon PR #456 :
 // ai_usage avait dépassé le seuil et les stats étaient fausses sans aucune erreur).
 // Toute lecture de table qui grossit passe donc par cette boucle paginée — même
@@ -320,9 +343,11 @@ Deno.serve(async (req) => {
     );
     const isClient = (userId: string) => !excludedIds.has(userId);
     const now = Date.now();
+    const emailOfId = new Map(profiles.map((p: any) => [p.user_id, p.email]));
+    const emailOfUser = (id: string | null | undefined) => (id ? (emailOfId.get(id) as string | undefined) : undefined);
 
     if (scope === "daily") {
-      const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, clientErrors, higgsfield] = await Promise.all([
+      const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, clientErrors, higgsfield, emails] = await Promise.all([
         fetchAllRows(
           supabase,
           "calendar_posts",
@@ -346,8 +371,9 @@ Deno.serve(async (req) => {
         fetchAllRows(supabase, "beta_feedback", "user_id", (q) => q.eq("status", "new")),
         photoroomCredits(now),
         facturationHealth(supabase, now),
-        fetchAllRows(supabase, "client_error_events", "kind, route, asset, created_at", (q) => q.gte("created_at", new Date(now - DAY).toISOString())),
+        fetchAllRows(supabase, "client_error_events", "user_id, kind, route, asset, created_at", (q) => q.gte("created_at", new Date(now - DAY).toISOString())),
         higgsfieldBudget(supabase, now),
+        emailsHealth(supabase, now, emailOfUser),
       ]);
       const posts = postsRows.filter((p: any) => isClient(p.user_id));
       const conns = connRows.filter((c: any) => isClient(c.user_id));
@@ -442,7 +468,9 @@ Deno.serve(async (req) => {
         photoroom_credits: photoroom,
         higgsfield,
         facturation,
-        client_errors_24h: { count: clientErrors.length, items: clientErrors.slice(-20) },
+        // Admin + comptes de test à part (isInternalEmail) : seules les vraies clientes alertent.
+        client_errors_24h: clientErrorsStats(clientErrors, emailOfUser, isExcludedEmail),
+        emails_24h: emails,
       });
     }
 
