@@ -251,7 +251,7 @@ un format en casse un autre.
   À vérifier avant toute suppression : un autre appelant que le front
   peut exister.
 
-### `carousel-ai` (~2 800 lignes + 10 modules locaux) : carrousels
+### `carousel-ai` (~2 800 lignes + 11 modules locaux) : carrousels
 
 **Aiguillage**
 - `switch (type)` : `hooks`, `slides`, `express_full`,
@@ -265,7 +265,28 @@ un format en casse un autre.
 **Modules locaux**
 `confirmed-structure`, `continuous-narrative`, `final-photo-match`,
 `photo-narrative`, `stock-ambient`, `structure-hedge`,
-`thread-local-repair`, `variant-writing`, `writer`, `writing-contract`.
+`thread-local-repair`, `variant-writing`, `writer`, `writing-contract`,
+`layout`.
+
+**Écriture d'un côté, mise en forme de l'autre (lot 8, 14/10/2026)**
+- `carousel-ai` écrit : texte, structure du récit (`slide_type`,
+  `photo_index`), légende.
+- Les choix de design qu'il fait encore avant de répondre passent tous par
+  `carousel-ai/layout.ts` :
+  - schémas proposés après l'écriture (`placeTextSchemas`, `placeMixSchemas`) ;
+  - plafond des schémas (`capVisualSchemas`) ;
+  - disposition du mixte et gabarits photo écrits par la rédaction, ignorés
+    (`withoutMixWriterLayout`, `withoutPhotoWriterLayout`) ;
+  - styles d'overlay (`normalizeOverlayStyles`) ;
+  - gabarits photo et leur revérification (`assignPhotoTemplates`,
+    `revalidatePhotoLayoutContent`, `assignTemplatesToProvidedSlides`).
+- Code déplacé à l'identique, appelé aux mêmes endroits et dans le même ordre
+  (les gabarits photo passent avant la réparation du fil, puis sont
+  revérifiés).
+- Modifier une de ces étapes : modifie `layout.ts` (ou le module `_shared`
+  qu'il appelle), pas `index.ts`. Le contrat du handler montre ce qui change.
+- Reste dans l'écriture, à sortir plus tard : le mot mis en valeur sur la
+  couverture (`cover_accent`, `continuous-narrative.ts`).
 
 **Quota**
 - Catégorie `carousel` pour `slides` et `express_full`, y compris photo et
@@ -397,6 +418,7 @@ régression, corrige le code et pas le snapshot.
 | `creative-flow/prompts_snapshot_test.ts` | angles ; questions (Instagram, LinkedIn, newsletter) ; follow-up ; hooks ; dictation (LinkedIn) ; adjust (carrousel) ; generate : carrousel, newsletter, LinkedIn, reel, stories avec vente |
 | `creative-flow/handler_contract_test.ts` (lot 3) | le câblage du handler pour 17 parcours (questions, hooks, generate par format, adjust, recyclage, photo, streaming SSE, carrousel retiré) : tous les appels à Claude, la réponse au front, les crédits. Références générées sur le code d'avant le découpage. |
 | `creative-flow/prompts_snapshot_formats_test.ts` (lot 2) | generate : post Instagram, Pinterest texte, légende photo, stories sans vente, newsletter avec angle ; questions : Pinterest, reel, stories, post Instagram ; recyclage (5 formats) ; mode photo : questions et brief + outil pour 6 formats, série avant / après |
+| `carousel-ai/handler_contract_test.ts` (lot 8) | le câblage du handler pour 9 parcours (texte Instagram et LinkedIn, slides, accroches, mixte validé, mixte texte d'abord, photo validée, photos brutes, « Mes slides ») : tous les appels à Claude (rédaction, relectures, juges, schémas, gabarits), le carrousel renvoyé au front, les crédits. Références générées avant le déplacement vers `layout.ts`. |
 | `carousel-ai/prompts_snapshot_test.ts` (lot 2) | rédaction des carrousels : système (Instagram, LinkedIn, cas personnel, ressenti sur une actu) ; consignes texte / photo / mixte × Instagram / LinkedIn ; accroche et angle choisis ; actualité avec et sans ressenti ; guides de structure par type |
 | `carousel-visual/prompts_snapshot_test.ts` | mise en forme visuelle des carrousels |
 | `generate-content/contract_test.ts` (lot 2) | 14 `type` appelés par le front (bio-audit, bio-generator, caption, calendar-quick, express-draft, weekly-suggestions…) |
@@ -455,10 +477,11 @@ Restent sans snapshot :
    texte.
 2. **`linkedin-ai`** (crosspost, caption-for-carousel, improve-post), en
    dehors de `socle-linkedin_test.ts`.
-3. **`carousel-ai` de bout en bout** : la forme et le câblage sont testés
-   par `index_test.ts`, mais pas l'assemblage final du prompt dans le
-   handler (blocs identité, clarté et structure confirmée). Seuls les
-   morceaux sont figés.
+3. ~~**`carousel-ai` de bout en bout**~~ : comblé au lot 8 par
+   `carousel-ai/handler_contract_test.ts` (prompt assemblé par le handler,
+   blocs identité, clarté et structure confirmée compris). Pas encore figés :
+   `structure_proposal`, `suggest_*`, `deepening_questions` et le récit
+   continu photo / mixte.
 4. **Le prompt de `ai-text-action`** : son câblage est testé, pas le texte
    envoyé à Claude.
 
@@ -484,6 +507,7 @@ après le découpage, ils doivent tous passer sans être retouchés.
 | Garde-fou | Où | Bloque la CI ? | Ce qu'il empêche |
 |---|---|---|---|
 | Frontières entre formats | `supabase/functions/creative-flow/boundaries_test.ts` | oui (`npm run test:edges`) | un format qui importe le fichier d'un autre format ; une dépendance circulaire vers `index.ts` ; un fichier de `formats/` absent de cette carte |
+| Frontière design / écriture du carrousel (lot 8) | `supabase/functions/_shared/carousel-design-boundaries_test.ts` | oui (`npm run test:edges`) | un module de design qui importe un module d'écriture ; un module neutre qui fait passer de l'un à l'autre ; un nouveau chemin caché de `carousel-visual` vers l'écriture ; un fichier de `carousel-ai` autre que `layout.ts` qui importe le design ; un module partagé du carrousel non rangé |
 | Frontière texte / design (lot 9) | `supabase/functions/_shared/design-text-boundaries_test.ts` | oui (`npm run test:edges`) | qu'une fonction de design (`carousel-visual`, `pinterest-visual`, `carousel-slide-image`, `visual-studio`) importe, directement ou par ricochet, la chaîne d'écriture des textes (`redac-gate`, `correction-pass`, `carousel-model`, `format-briefs`, `copywriting-prompts`) |
 | Snapshots et contrats par format | voir section 5 | oui | qu'un prompt, un appel à Claude ou une réponse change sans qu'on le voie |
 | Contrat calendrier → /creer | `src/test/calendar-creer-contract.test.ts` | oui (`npm test`) | une clé du navigate state renommée d'un seul côté |
@@ -499,6 +523,33 @@ lancement « CI », puis son résumé. En local :
 Une exception aux frontières (un format qui DOIT en importer un autre) se
 déclare dans `IMPORTS_AUTORISES` de `boundaries_test.ts`, avec sa raison.
 Aujourd'hui : le recyclage importe les stories et le carrousel.
+
+Frontière design / écriture du carrousel : les modules sont rangés en trois
+listes (`DESIGN`, `WRITING`, `NEUTRAL`) en tête de
+`carousel-design-boundaries_test.ts`. Un nouveau module partagé du carrousel
+doit y être rangé. Les exceptions voulues sont dans `IMPORTS_AUTORISES` et
+`CARROUSEL_AI_AUTORISES`, chacune avec sa raison. Aujourd'hui :
+- schémas et gabarits photo → reçu de relecture (`carousel-editorial-snapshot`) :
+  poser un schéma ou un gabarit périme ce reçu ;
+- plafond des schémas → liste des champs texte (`carousel-editorial-review`) ;
+- design « au service du sens » → règle commune du socle ;
+- `carousel-visual` → contrat `COMPOSE` et tailles de lecture du socle ;
+- `continuous-narrative` → `carousel-design-plan` (mot de couverture).
+
+Le chemin `carousel-visual → … → carousel-editorial-review` relevé le
+14/10/2026 passe par `schema-formatting` et `carousel-editorial-snapshot`
+(pas par `carousel-editorial-contract`, qui n'importe rien) : c'est la
+première exception ci-dessus.
+
+### Bouton d'appel à l'action du carrousel texte (lot 8, 14/10/2026)
+
+Le bouton de la dernière slide est dessiné dans le HTML (`data-slide-cta`).
+Le modifier ou le retirer depuis l'écran de résultat
+(`formatRenderers/CarouselResult.tsx`, `updateCta` / `removeCta`) range aussi
+son libellé dans la slide : `cta_label`, comme `patchElement` de l'éditeur
+visuel (`""` = retiré). Une slide texte ne l'envoie pas à `carousel-visual`
+(`visualSlidePayload`) : le rendu ne change pas. Test :
+`src/test/carousel-result-cta.test.tsx`.
 
 **Ce que couvre le rapport d'impact** (complété au lot 9) :
 - fonctions serveur : les générateurs de texte, plus `carousel-visual`,
@@ -526,6 +577,12 @@ qui ne sert plus fait aussi échouer le test. Aujourd'hui, une seule :
 `pinterest-visual` → `audience-address-pass` → `correction-pass` (→
 `carousel-model`, `reel-postprocess` → `redac-gate`). L'épingle visuelle écrit
 aussi un titre et une description, qui passent le contrôle tu / vous.
+
+Les deux frontières se complètent : celle du lot 9 regarde, fonction par
+fonction, si un module de design atteint la chaîne de réécriture des textes ;
+celle du lot 8 range chaque module partagé du carrousel (design, écriture,
+neutre) et vérifie que `carousel-ai` ne fait ses choix de design que par
+`layout.ts`.
 
 ### Contrat des étiquettes HTML du carrousel (lot E1, 14/10/2026)
 

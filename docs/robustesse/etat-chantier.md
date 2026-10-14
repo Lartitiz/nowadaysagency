@@ -34,6 +34,16 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
 5. Poser les petits verrous de la création (lot 10).
 6. Finir de séparer texte et design du carrousel (lot 8).
 
+## En cours de relecture
+| Lot | PR | Contenu |
+|---|---|---|
+| 8 | #1475 | Carrousel : choix de design de `carousel-ai` isolés dans `carousel-ai/layout.ts` (sortie identique, figée par `carousel-ai/handler_contract_test.ts`) ; frontière design / écriture testée (`_shared/carousel-design-boundaries_test.ts`) ; libellé du bouton d'appel à l'action rangé dans la slide (`cta_label`) |
+
+Reste du lot 8, pour un lot 8b :
+- parcours de `carousel-ai` pas encore figés : `structure_proposal`, `suggest_topics`, `suggest_angles`, `deepening_questions` (texte et photos) et le récit continu photo / mixte (chemin par défaut en production quand il y a des photos) ;
+- dernier choix de design encore fait à l'écriture : le mot mis en valeur sur la couverture (`cover_accent`, `carousel-ai/continuous-narrative.ts`), seule exception de `CARROUSEL_AI_AUTORISES` ;
+- carrousel texte : le libellé du bouton n'entre dans la slide que si l'utilisatrice le modifie ou le retire ; à l'arrivée des visuels, il reste seulement dans le HTML (lecture dans `src/hooks/use-generate-visuals.ts`, fichier d'une autre conversation le 14/10/2026).
+
 ## En attente
 - **E3** : découper CarouselEditor.tsx par mission, après la fusion de #1476 et #1477.
   Points d'attention relevés par E2 : `CARTE.md`, section 7 (écho reconnu à la
