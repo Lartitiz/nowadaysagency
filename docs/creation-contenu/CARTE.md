@@ -334,6 +334,7 @@ découpage en cours : code déplacé à l'identique, `index.ts` réexporte ce qu
 | `carousel-ai/tools.ts` (lot 1) | Formats de sortie imposés à l'IA : questions, plan envisagé, carrousel mixte et photo, structure proposée ; rappel « ne refuse pas mes photos » (`PHOTO_MISMATCH_SYSTEM_REMINDER`) | les parcours qui utilisent l'outil modifié |
 | `carousel-ai/prompts.ts` (lot 2) | Textes des prompts : système (`buildSystemPrompt`), accroches, slides, sujets, angles, questions d'approfondissement, carrousel express, photo et mixte (avec leurs variantes « actu »), bloc « texte d'abord » (`buildTextFirstBlock`). Aucune lecture en base, aucun appel à Claude | le parcours dont le prompt change (`buildSystemPrompt` : **tous**) |
 | `carousel-ai/outline.ts` (lot 2) | « Plan envisagé » : `plannedTitles`, `emitPlannedTitles`, `startPhotoOutline`, `addOutlineUsage` (titres affichés pendant l'attente, jamais réutilisés) | l'affichage d'attente des carrousels texte, photo et mixte |
+| `carousel-ai/steps/structure.ts` (lot 3) | Proposition de plan (`structure_proposal`, gratuite) : prompt système écrit en ligne, double appel de secours (`hedgedStructureCall`), bonne longueur, refus photo, une photo par slide, compte rendu en base (`recordStructureProposal`) | la proposition de plan des carrousels texte, photo et mixte |
 
 `carousel-ai/boundaries_test.ts` garde ce rangement : aucun fichier n'importe
 `index.ts` ; `shared.ts` et `tools.ts` n'importent ni `modes/` ni `steps/` ; un
