@@ -159,6 +159,19 @@ async function visionFromStorage(
   }
   return await visionBlock(await download(sb, bucket, path), resized);
 }
+// A download error carries no readable code: storage-js (2.95.3) reads the body
+// only for JSON calls, so a missing object arrives as StorageUnknownError with
+// message "{}" and the raw Response (Supabase: HTTP 400 + statusCode "404",
+// or HTTP 404). Read that response instead of the empty error fields.
+async function missingObject(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const known = error as { statusCode?: unknown; message?: unknown; originalError?: unknown };
+  if (String(known.statusCode) === "404" || known.message === "Object not found") return true;
+  if (!(known.originalError instanceof Response)) return false;
+  if (known.originalError.status === 404) return true;
+  const body = await known.originalError.clone().json().catch(() => null);
+  return String(body?.statusCode) === "404" || body?.message === "Object not found";
+}
 async function store(
   sb: ReturnType<typeof getServiceClient>,
   bucket: string,
@@ -1818,13 +1831,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       const object = await sb.storage.from(BUCKET).download(v.result_path);
       if (object.data) {
         unwrap(await sb.rpc("studio_complete_generation", { p_version: v.id }));
-      } else if (
-        v.status === "processing" &&
-        object.error &&
-        (("statusCode" in object.error &&
-          String(object.error.statusCode) === "404") ||
-          object.error.message === "Object not found")
-      ) {
+      } else if (v.status === "processing" && await missingObject(object.error)) {
         unwrap(
           await sb
             .from("visual_studio_versions")

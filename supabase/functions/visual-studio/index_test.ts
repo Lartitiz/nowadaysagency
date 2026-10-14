@@ -1581,3 +1581,37 @@ Deno.test("the selected scene cited by version ID or as an unlisted source still
     } finally { f.restore(); }
   }
 });
+
+Deno.test("a stuck version whose stored result is missing becomes uncertain, never on another storage error", async () => {
+  // Supabase answers a missing object with HTTP 400 + statusCode "404" (or a plain 404);
+  // storage-js hides both behind an empty StorageUnknownError on downloads.
+  for (const [status, body, expected] of [
+    [400, { statusCode: "404", error: "not_found", message: "Object not found" }, "uncertain"],
+    [404, { message: "not found" }, "uncertain"],
+    [500, { statusCode: "500", error: "internal", message: "Internal error" }, "processing"],
+  ] as const) {
+    const f = fixture("owner", true);
+    const mock = globalThis.fetch;
+    const updates: Record<string, unknown>[] = [];
+    Object.assign(f.version, { status: "processing", created_at: "2026-01-01T00:00:00.000Z" });
+    globalThis.fetch = (input, init) => {
+      const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+      if (url.pathname === `/storage/v1/object/visual-studio/${f.version.result_path}`) {
+        return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
+      }
+      if (url.pathname === "/rest/v1/visual_studio_versions" && init?.method === "PATCH") {
+        const patch = JSON.parse(String(init.body));
+        updates.push(patch);
+        Object.assign(f.version, patch);
+      }
+      return mock(input, init);
+    };
+    try {
+      const res = await handleStudioRequest(request({ ...base, action: "read" }));
+      assertEquals(res.status, 200, String(status));
+      assertEquals(f.version.status, expected, String(status));
+      assertEquals(updates.length, expected === "uncertain" ? 1 : 0, String(status));
+      assertEquals(f.requests.some((p) => p.includes("studio_complete_generation")), false);
+    } finally { f.restore(); }
+  }
+});
