@@ -10,7 +10,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # lovable-sync-* : travail Lovable mis de côté, récupéré par une PR ouverte
+    # automatiquement (lovable-sync-pr.yml) ; ses tests s'affichent dans cette PR.
+    branches: [main, "lovable-sync-*"]
   pull_request:
     branches: [main]
 
