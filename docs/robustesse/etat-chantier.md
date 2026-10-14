@@ -55,7 +55,8 @@ Reste du lot 8 :
   `pending-stream.ts`, `edit-text-from-result.ts`, `content-brief.ts`), voir la fiche 1.
 
 ## En attente
-- **E3** : découper CarouselEditor.tsx par mission (plan validé par Laetitia le
+- **E3, terminé le 14/10/2026** (3 816 → 1 155 lignes, 16 fichiers dans
+  `src/components/creer/CarouselEditorParts/`) : découper CarouselEditor.tsx par mission (plan validé par Laetitia le
   14/10/2026, détail dans `gros-fichiers.md`, fiche 8). Une PR par morceau :
   - **E3-0** (#1495, fusionnée) : tests de branchement `carousel-editor-wiring.test.tsx`
     (20 cas : contrôle qualité, aligner / grouper, flèches, boutons des slides,
@@ -72,7 +73,7 @@ Reste du lot 8 :
     (curseur, couleurs ; avancé depuis E3-5) (CarouselEditor.tsx : 2 250 → 1 905 lignes) ;
   - **E3-5** (#1517, fusionnée) : `TextSettings.tsx` et `ElementSettings.tsx` (photo, bloc),
     l'onglet « Élément » (CarouselEditor.tsx : 1 905 → 1 516 lignes) ;
-  - **E3-6** (en cours) : `EditorHeader.tsx`, `QualityPanel.tsx`, `SlideStrip.tsx`,
+  - **E3-6** (#1518, dernière PR du lot) : `EditorHeader.tsx`, `QualityPanel.tsx`, `SlideStrip.tsx`,
     `AllSlidesPanel.tsx` (CarouselEditor.tsx : 1 516 → 1 155 lignes, fin du découpage).
   Points d'attention relevés par E2 : `CARTE.md`, section 7 (écho reconnu à la
   référence, `inputKey`).
