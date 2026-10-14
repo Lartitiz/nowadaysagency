@@ -67,6 +67,56 @@ export function CalendarPostPreview({
   useEffect(() => { setSlideIndex(0); }, [caption, format, canal]);
   const [includeLogo, setIncludeLogo] = useState(getIncludeLogoPref());
   const logoUrl = (charterData as any)?.logo_url || null;
+
+  // ── Visuels de stories : reconstruits du JSON persisté, comme dans l'atelier.
+  // Sans ça, l'aperçu calendrier d'une série de stories tombait sur le cadre
+  // générique 📱 de SocialMockup (les stories n'ont pas de mediaUrls).
+  const isStorySerie = format === "story_serie" && Array.isArray(storiesData) && storiesData.length > 0;
+  const storyBranding: StoryFrameBranding | null = charterData
+    ? {
+        color_primary: (charterData as any).color_primary,
+        color_secondary: (charterData as any).color_secondary,
+        color_background: (charterData as any).color_background,
+        color_text: (charterData as any).color_text,
+        story_assemblage: (charterData as any).story_assemblage ?? null,
+        story_pill_color: (charterData as any).story_pill_color ?? null,
+        story_corners: (charterData as any).story_corners ?? null,
+        story_align: (charterData as any).story_align ?? null,
+      }
+    : null;
+  const storyPhotoIdsSignature = useMemo(
+    () =>
+      (isStorySerie ? storiesData : [])
+        .map((s: any) => s?.visual?.photo_id)
+        .filter(Boolean)
+        .sort()
+        .join(","),
+    [isStorySerie, storiesData],
+  );
+  const [storyLibraryUrls, setStoryLibraryUrls] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    if (!storyPhotoIdsSignature) {
+      setStoryLibraryUrls(new Map());
+      return;
+    }
+    let cancelled = false;
+    resolveLibraryPhotoUrls(storiesData || [])
+      .then((map) => { if (!cancelled) setStoryLibraryUrls(map); })
+      .catch(() => { if (!cancelled) setStoryLibraryUrls(new Map()); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storyPhotoIdsSignature]);
+  const storyFrames = useMemo(
+    () =>
+      isStorySerie
+        ? storiesData.map((s: any) => {
+            const v = s?.visual;
+            const photoUrl = v?.photo_url || (v?.photo_id ? storyLibraryUrls.get(v.photo_id) ?? null : null);
+            return buildStoryFrameHtml(s, storyBranding, { photoUrl, preview: true });
+          })
+        : [],
+    [isStorySerie, storiesData, storyBranding, storyLibraryUrls],
+  );
   const handleIncludeLogoChange = (v: boolean) => { setIncludeLogo(v); setIncludeLogoPref(v); };
 
   const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
