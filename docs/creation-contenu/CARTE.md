@@ -421,7 +421,8 @@ fonctions qui ne s'appellent pas « carousel »**.
 > `docs/robustesse/gros-fichiers.md`) : les prompts de relecture sont dans
 > `_shared/correction-pass/prompts.ts`, les réglages dans `options.ts`,
 > l'extraction et la réinjection des textes dans `fields.ts`, le repérage des
-> carrousels à relire dans `polish-scan.ts` (14/10/2026). Un sous-dossier garde la
+> carrousels à relire dans `polish-scan.ts`, les passes factuelles dans
+> `factual-passes.ts` (14/10/2026). Un sous-dossier garde la
 > zone et le rang (écriture) de son module d'origine.
 
 > ⚠️ **Piège principal** : `redac-gate.ts` et `correction-pass.ts` importent
