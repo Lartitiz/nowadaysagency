@@ -273,7 +273,7 @@ export const SOCLE_RULES: Readonly<Record<SocleRuleId, SocleRule>> = {
     principe: "Le réglage de la fiche de marque est une règle ferme en tête de la rédaction, vérifiée par le code après coup.",
     consignes: { tu: audienceAddressRule("tu"), vous: audienceAddressRule("vous") },
     controles: ["_shared/audience-address.ts : checkAudienceAddress, enforceAudienceAddress", "_shared/audience-address-fields.ts : champs publics d'une sortie"],
-    origines: ["_shared/audience-address.ts", "_shared/user-context.ts", "carousel-ai/index.ts", "carousel-ai/continuous-narrative.ts"],
+    origines: ["_shared/audience-address.ts", "_shared/user-context.ts", "carousel-ai/steps/finalize.ts", "carousel-ai/continuous-narrative.ts"],
   },
   une_idee_par_unite: {
     numero: 3,
@@ -645,7 +645,7 @@ const r = (cas: SocleEtat, adresse: SocleEtat, idee: SocleEtat, voix: SocleEtat,
 const TEXTE_SEUL = (cas: SocleEtat, adresse: SocleEtat, idee: SocleEtat, voix: SocleEtat): R => r(cas, adresse, idee, voix, "sans_objet", "sans_objet", "sans_objet");
 
 export const SOCLE_CHEMINS: readonly SocleChemin[] = [
-  { id: "carrousel_texte_redaction", format: "carrousel_texte", fichiers: ["carousel-ai/index.ts", "carousel-ai/variant-writing.ts", "carousel-ai/writing-contract.ts"], fonction: "textWritingPrompt + buildCarouselWritingSystem",
+  { id: "carrousel_texte_redaction", format: "carrousel_texte", fichiers: ["carousel-ai/prompts.ts", "carousel-ai/variant-writing.ts", "carousel-ai/writing-contract.ts"], fonction: "textWritingPrompt + buildCarouselWritingSystem",
     regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "oui") },
   { id: "carrousel_texte_design_code", format: "carrousel_texte", fichiers: ["carousel-visual/index.ts", "_shared/carousel-design-plan.ts", "_shared/carousel-sense-design.ts"], fonction: "runComposedByCodeGeneration + planTextSenseDesign",
     regles: r("sans_objet", "sans_objet", "sans_objet", "sans_objet", "oui", "oui", "oui") },
@@ -659,7 +659,7 @@ export const SOCLE_CHEMINS: readonly SocleChemin[] = [
     note: "Chemin par défaut des carrousels photo et mixtes. Depuis l'étape 2 du socle : tu/vous en tête, LIVED_CASE_FIRST ou NEWS_FEELING_FIRST, VOIX_ORALE (VOIX_ORALE_LINKEDIN sur LinkedIn), consigne d'actu, COVER_WRITING et mot clé, 10 slides au plus en Auto, adaptation à la famille d'angle (recitContinu*). La recherche de profondeur ne lui est pas transmise." },
   { id: "carrousel_mixte_redaction", format: "carrousel_mixte", fichiers: ["carousel-ai/variant-writing.ts", "_shared/mix-layout-formatting.ts"], fonction: "mixWritingPrompt",
     regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "en_partie") },
-  { id: "carrousel_linkedin", format: "carrousel_linkedin", fichiers: ["carousel-ai/index.ts", "carousel-ai/variant-writing.ts"], fonction: "textWritingPrompt (isLinkedIn)",
+  { id: "carrousel_linkedin", format: "carrousel_linkedin", fichiers: ["carousel-ai/prompts.ts", "carousel-ai/variant-writing.ts"], fonction: "textWritingPrompt (isLinkedIn)",
     regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "oui") },
   { id: "post_instagram", format: "post_instagram", fichiers: ["creative-flow/index.ts", "creative-flow/prompts/generate.ts", "creative-flow/formats/post.ts", "_shared/format-briefs/caption.ts", "_shared/format-briefs/position.ts"], fonction: "captionBrief + positionDepthBlock",
     regles: TEXTE_SEUL("consigne", "oui", "en_partie", "consigne") },

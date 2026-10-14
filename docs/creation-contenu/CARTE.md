@@ -306,7 +306,7 @@ un format en casse un autre.
   À vérifier avant toute suppression : un autre appelant que le front
   peut exister.
 
-### `carousel-ai` (~2 800 lignes + 11 modules locaux) : carrousels
+### `carousel-ai` (`index.ts` ~480 lignes + 11 fichiers sortis d'`index.ts` + 11 modules locaux) : carrousels
 
 **Aiguillage**
 - `switch (type)` : `hooks`, `slides`, `express_full`,
@@ -534,7 +534,7 @@ régression, corrige le code et pas le snapshot.
 | `creative-flow/handler_contract_test.ts` (lot 3) | le câblage du handler pour 17 parcours (questions, hooks, generate par format, adjust, recyclage, photo, streaming SSE, carrousel retiré) : tous les appels à Claude, la réponse au front, les crédits. Références générées sur le code d'avant le découpage. |
 | `creative-flow/handler_contract_more_test.ts` (14/10/2026, avant découpage de `index.ts`) | le handler avec une marque remplie (profil, fiche de marque, voix, offres : `COMMON_PREFIX`, `QUESTIONS_PREFIX`, vocabulaire métier, bloc voix) ; calendrier avec lancement, objectif (4 clés + valeur libre), éléments personnels, actualité, variation, série ; angles, dictée, étape inconnue, corps invalide, Claude en 529, JSON illisible (502 sans crédit), recherche web (crédits `deep_research` puis `content`), stories en mode photo, reel sans face cam, LinkedIn « exemple fictif » ; détection du format pour 14 valeurs de `contentType` |
 | `creative-flow/prompts_snapshot_formats_test.ts` (lot 2) | generate : post Instagram, Pinterest texte, légende photo, stories sans vente, newsletter avec angle ; questions : Pinterest, reel, stories, post Instagram ; recyclage (5 formats) ; mode photo : questions et brief + outil pour 6 formats, série avant / après |
-| `carousel-ai/handler_contract_test.ts` (lot 8) | le câblage du handler pour 9 parcours (texte Instagram et LinkedIn, slides, accroches, mixte validé, mixte texte d'abord, photo validée, photos brutes, « Mes slides ») : tous les appels à Claude (rédaction, relectures, juges, schémas, gabarits), le carrousel renvoyé au front, les crédits. Références générées avant le déplacement vers `layout.ts`. |
+| `carousel-ai/handler_contract_test.ts` (lot 8) | le câblage du handler pour 9 parcours (texte Instagram et LinkedIn, slides, accroches, mixte validé, mixte texte d'abord, photo validée, photos brutes, « Mes slides ») : tous les appels à Claude (rédaction, relectures, juges, schémas, gabarits), le carrousel renvoyé au front, les crédits. Références générées avant le déplacement vers `layout.ts`. Complété au lot 8b (18 parcours) puis avant le découpage d'`index.ts` (fiche 2, lot 0 : 24 cas, dont accroches LinkedIn, actu + lancement, structure mixte avec actu, une photo par slide, type inconnu). |
 | `carousel-ai/prompts_snapshot_test.ts` (lot 2) | rédaction des carrousels : système (Instagram, LinkedIn, cas personnel, ressenti sur une actu) ; consignes texte / photo / mixte × Instagram / LinkedIn ; accroche et angle choisis ; actualité avec et sans ressenti ; guides de structure par type |
 | `carousel-visual/prompts_snapshot_test.ts` | mise en forme visuelle des carrousels |
 | `generate-content/contract_test.ts` (lot 2) | 14 `type` appelés par le front (bio-audit, bio-generator, caption, calendar-quick, express-draft, weekly-suggestions…) |
@@ -603,7 +603,8 @@ Restent sans snapshot :
    blocs identité, clarté et structure confirmée compris), complété au lot 8b :
    `structure_proposal` (texte et photo), `suggest_topics`, `suggest_angles`,
    `deepening_questions` (texte, photo, mixte) et le récit continu photo /
-   mixte en scénario automatique. Les 18 parcours de `carousel-ai` sont figés.
+   mixte en scénario automatique. Les 18 parcours de `carousel-ai` sont figés
+   (24 cas depuis le lot 0 de la fiche 2, avant le découpage d'`index.ts`).
    Limite : le juge du fil y répond une forme invalide, sa réparation n'est
    pas jouée (comportement testé dans `index_test.ts`).
 4. **Le prompt de `ai-text-action`** : son câblage est testé, pas le texte
