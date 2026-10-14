@@ -33,6 +33,8 @@ const mocks = vi.hoisted(() => ({
     selectedRow: null as any,
     updateError: null as any,
     briefError: null as any,
+    /** Version actuelle de la fiche calendrier ; null = pas de conflit simulé. */
+    calendarUpdatedAt: null as string | null,
   },
 }));
 
@@ -68,11 +70,23 @@ vi.mock("@/integrations/supabase/client", () => ({
       },
       update: (row: any) => ({
         eq: (col: string, val: any) => {
-          mocks.db.ops.push({ table, type: "update", row, eq: [col, val] });
+          const op = { table, type: "update", row, eq: [col, val], filters: [[col, val]] as any[] };
+          mocks.db.ops.push(op);
           if (row.auto_publish !== undefined && mocks.db.schedError) {
             return { error: mocks.db.schedError };
           }
-          return { error: table === "content_briefs" ? mocks.db.briefError : null, select: () => ({ single: async () => ({ data: mocks.db.updateError ? null : { id: val }, error: mocks.db.updateError }) }) };
+          // Écriture conditionnelle (version attendue) : refusée si la fiche a bougé.
+          const result = () => {
+            const expected = op.filters.find(([c]: any) => c === "updated_at")?.[1];
+            if (expected !== undefined && mocks.db.calendarUpdatedAt && expected !== mocks.db.calendarUpdatedAt) return { data: null, error: null };
+            return { data: mocks.db.updateError ? null : { id: val, updated_at: "2026-09-12T10:00:00Z" }, error: mocks.db.updateError };
+          };
+          const builder: any = {
+            error: table === "content_briefs" ? mocks.db.briefError : null,
+            eq: (c: string, v: any) => { op.filters.push([c, v]); return builder; },
+            select: () => ({ single: async () => result(), maybeSingle: async () => result() }),
+          };
+          return builder;
         },
       }),
     }),
@@ -563,6 +577,31 @@ describe('publication immédiate — suivi après succès réseau', () => {
     await act(async () => { await result.current.recordImmediatePublication({ canal: 'linkedin', caption: 'Lin', postId: 'li-1' }); });
     expect(inserts()).toHaveLength(0);
     expect(updates()[0]).toMatchObject({ eq: ['id', 'existing'], row: { publish_status: 'published', scheduled_publish_at: null } });
+  });
+  it('fiche du calendrier inchangée : écriture conditionnée à sa version d’ouverture', async () => {
+    const { result } = renderHook(() => useCalendarSave(makeParams({ calendarPostId: 'existing' })));
+    await act(async () => { expect(await result.current.recordImmediatePublication({ canal: 'instagram', caption: 'Légende publiée', postId: 'ig-1' })).toBe(true); });
+    const [write] = updates().filter(o => o.table === 'calendar_posts');
+    expect(write.filters).toEqual([['id', 'existing'], ['updated_at', '2026-09-12T08:00:00Z']]);
+    expect(write.row).toMatchObject({ content_draft: 'Légende publiée', published_post_id: 'ig-1' });
+    expect(mocks.toast.warning).not.toHaveBeenCalled();
+  });
+  it('fiche modifiée ailleurs : garde l’autre version et ajoute seulement le suivi de publication', async () => {
+    mocks.db.calendarUpdatedAt = '2026-09-12T08:30:00Z';
+    try {
+      const { result } = renderHook(() => useCalendarSave(makeParams({ calendarPostId: 'existing' })));
+      await act(async () => { expect(await result.current.recordImmediatePublication({ canal: 'instagram', caption: 'Légende publiée', postId: 'ig-1' })).toBe(true); });
+      const writes = updates().filter(o => o.table === 'calendar_posts');
+      expect(writes).toHaveLength(2);
+      const tracking = writes[1];
+      expect(tracking.filters).toEqual([['id', 'existing']]);
+      expect(tracking.row).toMatchObject({ status: 'published', publish_status: 'published', published_post_id: 'ig-1', auto_publish: false, scheduled_publish_at: null });
+      // Rien du contenu de cet onglet : la version faite ailleurs reste.
+      for (const key of ['content_draft', 'accroche', 'theme', 'format', 'story_sequence_detail', 'media_urls']) expect(tracking.row).not.toHaveProperty(key);
+      expect(mocks.toast.warning).toHaveBeenCalledWith(expect.stringContaining('on a gardé cette autre version'), expect.anything());
+    } finally {
+      mocks.db.calendarUpdatedAt = null;
+    }
   });
   it('publication immédiate puis sauvegarde calendrier → réutilise la ligne publiée sans insert', async () => {
     const params = makeParams();

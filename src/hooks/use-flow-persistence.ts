@@ -65,13 +65,160 @@ const BACKUP_PREFIX = STORAGE_KEY + "_backup";
 // User-scoping registry: set from AuthContext on session changes.
 // When null, we degrade gracefully (no backup write, no backup read).
 let currentFlowUserId: string | null = null;
-export function setFlowUserId(id: string | null) { currentFlowUserId = id; }
+export function setFlowUserId(id: string | null) { currentFlowUserId = id; if (id) startTabPresence(); }
 function getFlowUserId(): string | null { return currentFlowUserId; }
 let currentFlowWorkspaceId: string | null = null;
 function scopeSuffix() { return currentFlowWorkspaceId ? `:${currentFlowWorkspaceId}` : ""; }
 function flowStorageKey() { return STORAGE_KEY + scopeSuffix(); }
 function photosStorageKey() { return PHOTOS_KEY + scopeSuffix(); }
 function backupKeyFor(userId: string) { return `${BACKUP_PREFIX}:${userId}${scopeSuffix()}`; }
+
+// ════════════════════════════════════════════════════════════════════════
+// Une copie de secours PAR ONGLET (lot 10, 14/10/2026).
+// Avant : une seule copie localStorage par compte et par espace, réécrite par
+// chaque onglet → le dernier onglet qui écrit gagne. Un onglet qui perdait sa
+// sessionStorage (navigateur relancé, nouvel onglet) reprenait le brouillon
+// d'UN AUTRE onglet, parfois encore ouvert : deux onglets sur la même idée.
+// Maintenant :
+//   • chaque onglet écrit sa propre copie (`…:tab:<id>`), rien ne s'écrase ;
+//   • chaque onglet signale sa présence (horodatage rafraîchi régulièrement) ;
+//   • un onglet sans sessionStorage ne reprend QUE sa propre copie ou celle d'un
+//     onglet fermé (la plus récente), et la fait sienne (photos comprises) pour
+//     qu'aucun autre onglet ne la reprenne aussi. Après une remise à zéro dans
+//     cet onglet, les copies d'autres onglets plus anciennes ne reviennent pas.
+// ════════════════════════════════════════════════════════════════════════
+const TAB_KEY = "creer_flow_tab";
+const RESET_KEY = "creer_flow_reset_at";
+const PRESENCE_PREFIX = "creer_flow_presence";
+// Les navigateurs ralentissent les minuteurs des onglets en arrière-plan
+// (jusqu'à un passage par minute) : la présence doit tenir plus longtemps.
+const PRESENCE_EVERY_MS = 20_000;
+const PRESENCE_TTL_MS = 2 * 60_000;
+const STALE_BACKUP_MS = 30 * 24 * 60 * 60_000;
+
+function currentTabId(create: boolean): string | null {
+  try {
+    let id = sessionStorage.getItem(TAB_KEY);
+    if (!id && create) {
+      id = newPhotoId();
+      sessionStorage.setItem(TAB_KEY, id);
+    }
+    return id;
+  } catch {
+    return null;
+  }
+}
+function tabBackupKey(base: string, tabId: string) { return `${base}:tab:${tabId}`; }
+function ownBackupKey(base: string): string | null {
+  const id = currentTabId(true);
+  return id ? tabBackupKey(base, id) : null;
+}
+function markTabPresent() {
+  const id = currentTabId(false);
+  if (!id) return;
+  try { localStorage.setItem(`${PRESENCE_PREFIX}:${id}`, String(Date.now())); } catch { /* stockage plein ou indisponible : présence non signalée */ }
+}
+let presenceStarted = false;
+function startTabPresence() {
+  if (presenceStarted || typeof window === "undefined") return;
+  presenceStarted = true;
+  markTabPresent();
+  const timer = setInterval(markTabPresent, PRESENCE_EVERY_MS) as unknown as { unref?: () => void };
+  timer?.unref?.();
+  try { document.addEventListener("visibilitychange", markTabPresent); } catch { /* hors navigateur */ }
+}
+function tabIsOpen(tabId: string): boolean {
+  try {
+    const seen = Number(localStorage.getItem(`${PRESENCE_PREFIX}:${tabId}`));
+    return Number.isFinite(seen) && seen > 0 && Date.now() - seen < PRESENCE_TTL_MS;
+  } catch {
+    return false;
+  }
+}
+/** Copies de secours d'un préfixe : l'ancienne copie unique (onglet inconnu) et celles par onglet. */
+function backupsUnder(base: string): { key: string; tabId: string | null }[] {
+  const out: { key: string; tabId: string | null }[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key === base) out.push({ key, tabId: null });
+      else if (key?.startsWith(base + ":tab:")) out.push({ key, tabId: key.slice(base.length + 5) });
+    }
+  } catch { /* stockage indisponible : aucune copie */ }
+  return out;
+}
+function ownsSessionItem(key: string, userId: string): boolean {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return false;
+    const owner = JSON.parse(raw).ownerId;
+    return !owner || owner === userId;
+  } catch {
+    return false;
+  }
+}
+function resetMarkerKey(userId: string) { return `${RESET_KEY}:${userId}${scopeSuffix()}`; }
+
+/**
+ * Onglet sans brouillon en sessionStorage : reprend sa propre copie de secours
+ * ou la plus récente d'un onglet FERMÉ (jamais celle d'un onglet encore
+ * ouvert), avec ses photos, et la range sous son propre identifiant.
+ */
+function adoptClosedTabBackup(userId: string) {
+  try {
+    if (ownsSessionItem(flowStorageKey(), userId) || ownsSessionItem(photosStorageKey(), userId)) return;
+    const me = currentTabId(true);
+    const resetAt = Number(sessionStorage.getItem(resetMarkerKey(userId))) || 0;
+    const base = backupKeyFor(userId);
+    const photosBase = photosBackupKeyFor(userId);
+    let best: { key: string; tabId: string | null; raw: string; ts: number } | null = null;
+    for (const candidate of backupsUnder(base)) {
+      if (candidate.tabId && candidate.tabId !== me && tabIsOpen(candidate.tabId)) continue;
+      const raw = localStorage.getItem(candidate.key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as FlowState;
+      if (parsed.ownerId && parsed.ownerId !== userId) continue;
+      const ts = Number(parsed.ts) || 0;
+      if (candidate.tabId !== me && ts <= resetAt) continue;
+      // Sa propre copie passe avant celle de tout autre onglet.
+      const mine = candidate.tabId === me, bestIsMine = best?.tabId === me;
+      if (!best || (mine && !bestIsMine) || (mine === bestIsMine && ts > best.ts)) best = { ...candidate, raw, ts };
+    }
+    // Ménage : copies d'onglets fermés depuis plus de 30 jours.
+    for (const candidate of [...backupsUnder(base), ...backupsUnder(photosBase)]) {
+      if (candidate.key === best?.key || (candidate.tabId && tabIsOpen(candidate.tabId))) continue;
+      try {
+        const ts = Number(JSON.parse(localStorage.getItem(candidate.key) || "{}").ts) || 0;
+        if (ts && Date.now() - ts > STALE_BACKUP_MS) localStorage.removeItem(candidate.key);
+      } catch { /* copie illisible : laissée en place */ }
+    }
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(PRESENCE_PREFIX + ":") && Date.now() - (Number(localStorage.getItem(key)) || 0) > 24 * 60 * 60_000) {
+        localStorage.removeItem(key);
+      }
+    }
+    if (!best || !me) return;
+    sessionStorage.setItem(flowStorageKey(), best.raw);
+    const mine = tabBackupKey(base, me);
+    if (best.key !== mine) {
+      localStorage.setItem(mine, best.raw);
+      localStorage.removeItem(best.key);
+    }
+    const photosKey = best.tabId ? tabBackupKey(photosBase, best.tabId) : photosBase;
+    const photos = localStorage.getItem(photosKey);
+    if (photos) {
+      sessionStorage.setItem(photosStorageKey(), photos);
+      const myPhotos = tabBackupKey(photosBase, me);
+      if (photosKey !== myPhotos) {
+        localStorage.setItem(myPhotos, photos);
+        localStorage.removeItem(photosKey);
+      }
+    }
+    startTabPresence();
+    markTabPresent();
+  } catch { /* La copie reste en place si la reprise échoue. */ }
+}
 export function setFlowWorkspaceId(id: string | null) {
   currentFlowWorkspaceId = id || null;
   if (!id) return;
@@ -85,11 +232,13 @@ export function setFlowWorkspaceId(id: string | null) {
     if ((parsed.workspaceId && parsed.workspaceId !== id) || (parsed.ownerId && parsed.ownerId !== owner)) return;
     const migrated = JSON.stringify({ ...parsed, workspaceId: id, ownerId: owner });
     sessionStorage.setItem(flowStorageKey(), migrated);
-    if (owner) localStorage.setItem(backupKeyFor(owner), migrated);
+    const ownFlowKey = owner ? ownBackupKey(backupKeyFor(owner)) : null;
+    if (ownFlowKey) localStorage.setItem(ownFlowKey, migrated);
     const photos = sessionStorage.getItem(PHOTOS_KEY) || (owner ? localStorage.getItem(`${PHOTOS_BACKUP_PREFIX}:${owner}`) : null);
     if (photos) {
       sessionStorage.setItem(photosStorageKey(), photos);
-      if (owner) localStorage.setItem(photosBackupKeyFor(owner), photos);
+      const ownPhotosKey = owner ? ownBackupKey(photosBackupKeyFor(owner)) : null;
+      if (ownPhotosKey) localStorage.setItem(ownPhotosKey, photos);
     }
     sessionStorage.removeItem(STORAGE_KEY);
     sessionStorage.removeItem(PHOTOS_KEY);
@@ -118,7 +267,11 @@ export function saveFlowState(state: Partial<FlowState>) {
     // Initial typing is work too; explicit reset alone removes the backup.
     if (userId && merged.step) {
       try {
-        localStorage.setItem(backupKeyFor(userId), JSON.stringify(merged));
+        const key = ownBackupKey(backupKeyFor(userId));
+        if (!key) throw new Error("tab_id_unavailable");
+        localStorage.setItem(key, JSON.stringify(merged));
+        startTabPresence();
+        markTabPresent();
       } catch { toast.warning("La copie de secours n’a pas pu être enregistrée. Enregistre ton contenu dans Mes idées avant de fermer cet onglet.", { id: "carousel-storage-warning" }); }
     }
   } catch {
@@ -134,18 +287,14 @@ export function loadFlowState(): FlowState | null {
       if (!parsed.ownerId || parsed.ownerId === getFlowUserId()) return parsed;
       // Another account may have used this tab. Try this account's own backup.
     }
-    // Fallback: try localStorage backup (survives tab recycling) — scoped per user.
+    // Fallback: copie de secours d'un onglet fermé (survit au recyclage d'onglet).
     const userId = getFlowUserId();
     if (!userId) return null; // No blind rehydration when user is unknown.
-    const backup = localStorage.getItem(backupKeyFor(userId));
-    if (backup) {
-      const parsed = JSON.parse(backup) as FlowState;
-      if (parsed.ownerId && parsed.ownerId !== userId) return null;
-      // Re-hydrate sessionStorage from backup
-      sessionStorage.setItem(flowStorageKey(), backup);
-      return parsed;
-    }
-    return null;
+    adoptClosedTabBackup(userId);
+    const adopted = sessionStorage.getItem(flowStorageKey());
+    if (!adopted || adopted === raw) return null;
+    const parsed = JSON.parse(adopted) as FlowState;
+    return parsed.ownerId && parsed.ownerId !== userId ? null : parsed;
   } catch {
     return null;
   }
@@ -156,7 +305,13 @@ export function clearFlowState() {
     sessionStorage.removeItem(flowStorageKey());
     const userId = getFlowUserId();
     if (userId) {
+      // Sa propre copie seulement : celles des autres onglets restent.
+      const own = currentTabId(false);
+      if (own) localStorage.removeItem(tabBackupKey(backupKeyFor(userId), own));
       localStorage.removeItem(backupKeyFor(userId));
+      // Après une remise à zéro, ne pas faire réapparaître un brouillon plus
+      // ancien laissé par un autre onglet.
+      sessionStorage.setItem(resetMarkerKey(userId), String(Date.now()));
     } // An unknown session must never sweep other accounts' backups.
   } catch {}
   clearPhotos();
@@ -246,7 +401,7 @@ async function idbGet(key: string, prefix: string): Promise<any> {
     });
   } finally { db.close(); }
 }
-async function idbClearAll(): Promise<void> {
+async function idbClearAll(keep: Set<string> = new Set()): Promise<void> {
   const prefix = photoRecordPrefix();
   if (!idbAvailable()) return;
   try {
@@ -256,7 +411,10 @@ async function idbClearAll(): Promise<void> {
         const tx = db.transaction(IDB_STORE, "readwrite");
         const store = tx.objectStore(IDB_STORE);
         const req = store.getAllKeys();
-        req.onsuccess = () => req.result.forEach(k => { if (String(k).startsWith(prefix)) store.delete(k); });
+        req.onsuccess = () => req.result.forEach(k => {
+          const key = String(k);
+          if (key.startsWith(prefix) && !keep.has(key.slice(prefix.length))) store.delete(k);
+        });
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
@@ -301,7 +459,8 @@ export async function savePhotos(photos: any[]): Promise<void> {
     try {
       sessionStorage.setItem(photosStorageKey(), payload);
       const userId = getFlowUserId();
-      if (userId) localStorage.setItem(photosBackupKeyFor(userId), payload);
+      const key = userId ? ownBackupKey(photosBackupKeyFor(userId)) : null;
+      if (key) localStorage.setItem(key, payload);
     } catch {}
     try {
       await Promise.all(writes);
@@ -335,8 +494,9 @@ export function loadPhotos(): PhotoManifestEntry[] {
     if (!raw) {
       const userId = getFlowUserId();
       if (userId) {
-        const b = localStorage.getItem(photosBackupKeyFor(userId));
-        if (b) { sessionStorage.setItem(photosStorageKey(), b); raw = b; }
+        adoptClosedTabBackup(userId);
+        raw = sessionStorage.getItem(photosStorageKey());
+        if (raw && JSON.parse(raw).ownerId && JSON.parse(raw).ownerId !== userId) raw = null;
       }
     }
     if (!raw) return [];
@@ -398,13 +558,23 @@ export async function loadPhotosLocal(): Promise<any[]> {
 
 export function clearPhotos() {
   try { sessionStorage.removeItem(photosStorageKey()); } catch {}
+  const keep = new Set<string>();
   try {
     const userId = getFlowUserId();
     if (userId) {
+      const own = currentTabId(false);
+      if (own) localStorage.removeItem(tabBackupKey(photosBackupKeyFor(userId), own));
       localStorage.removeItem(photosBackupKeyFor(userId));
+      // Les photos encore citées par la copie d'un autre onglet restent.
+      for (const { key } of backupsUnder(photosBackupKeyFor(userId))) {
+        try {
+          const photos = JSON.parse(localStorage.getItem(key) || "{}").photos;
+          if (Array.isArray(photos)) photos.forEach((p: any) => p?.id && keep.add(p.id));
+        } catch { /* manifeste illisible : ignoré */ }
+      }
     }
-  } catch {}
-  void idbClearAll();
+  } catch { /* stockage indisponible */ }
+  void idbClearAll(keep);
 }
 
 /**

@@ -683,6 +683,19 @@ snapshot[`handler creative-flow — adjust — réponse sans contenu 1`] = `
 }\`
 `;
 
+snapshot[`handler creative-flow — adjust — contenu trop long 1`] = `
+'── STATUT 400
+
+── RÉPONSE AU FRONT
+{"error":"Données invalides: content: Le texte à ajuster est trop long (15 000 caractères au maximum). Raccourcis-le ou ajuste-le en plusieurs fois."}
+
+── CRÉDITS
+[]
+
+── APPELS À CLAUDE (0)
+'
+`;
+
 snapshot[`handler creative-flow — recycle — LinkedIn + newsletter 1`] = `
 \`── STATUT 200
 
