@@ -26,7 +26,7 @@
       "any": 47
     },
     "src/components/creer/CarouselEditor.tsx": {
-      "lignes": 3816,
+      "lignes": 1516,
       "any": 4
     },
     "src/components/creer/CreerStepFormat.tsx": {
@@ -90,7 +90,7 @@
       "any": 14
     },
     "src/pages/CreerUnifie.tsx": {
-      "lignes": 3587,
+      "lignes": 3480,
       "any": 68
     },
     "src/pages/InstagramAudit.tsx": {
@@ -158,7 +158,7 @@
       "any": 8
     },
     "supabase/functions/carousel-ai/index.ts": {
-      "lignes": 2823,
+      "lignes": 2792,
       "any": 63
     },
     "supabase/functions/carousel-visual/index.ts": {
@@ -166,7 +166,7 @@
       "any": 155
     },
     "supabase/functions/creative-flow/index.ts": {
-      "lignes": 1686,
+      "lignes": 1687,
       "any": 19
     },
     "supabase/functions/cron-health/index.ts": {
@@ -184,10 +184,6 @@
     "supabase/functions/newsjacking-ai/index.ts": {
       "lignes": 947,
       "any": 14
-    },
-    "supabase/functions/visual-studio/index.ts": {
-      "lignes": 2001,
-      "any": 0
     }
   }
 }

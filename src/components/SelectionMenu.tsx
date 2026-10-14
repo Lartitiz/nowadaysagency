@@ -5,6 +5,15 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Même plafond que le serveur (ai-text-action, MAX_ACTION_PROMPT).
+const MAX_CUSTOM_PROMPT = 1000;
+
+/** Message du serveur quand il y en a un (texte trop long, quota…), sinon message générique. */
+export function selectionActionErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message.trim() : "";
+  return message || "Oups, quelque chose a coincé";
+}
+
 const SELECTION_ACTIONS = [
   { id: "rewrite", icon: "✨", label: "Reformuler", prompt: "Reformule ce texte en gardant le même sens mais avec des mots différents. Garde le même ton et la même longueur." },
   { id: "expand", icon: "📝", label: "Développer", prompt: "Développe ce texte en ajoutant plus de détails, des exemples concrets ou des arguments. Double la longueur environ." },
@@ -50,8 +59,8 @@ export default function SelectionMenu({ selectedText, position, isVisible, onAct
     try {
       const res = await onAction(selectedText, action.prompt);
       setResult(res);
-    } catch {
-      toast.error("Oups, quelque chose a coincé");
+    } catch (error) {
+      toast.error(selectionActionErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -63,8 +72,8 @@ export default function SelectionMenu({ selectedText, position, isVisible, onAct
     try {
       const res = await onAction(selectedText, customPrompt);
       setResult(res);
-    } catch {
-      toast.error("Oups, quelque chose a coincé");
+    } catch (error) {
+      toast.error(selectionActionErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -188,6 +197,7 @@ export default function SelectionMenu({ selectedText, position, isVisible, onAct
           <textarea
             value={customPrompt}
             onChange={(e) => setCustomPrompt(e.target.value)}
+            maxLength={MAX_CUSTOM_PROMPT}
             placeholder="Dis-moi ce que tu veux faire avec ce texte..."
             className="w-full text-sm border border-input rounded-lg p-2 resize-none h-20 bg-background text-foreground focus:border-primary focus:ring-1 focus:ring-ring/20"
             autoFocus

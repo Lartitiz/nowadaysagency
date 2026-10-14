@@ -47,7 +47,9 @@ Deno.test("verifyState: rejette un payload altéré (data modifiée, signature d
 Deno.test("verifyState: rejette une signature altérée", async () => {
   const state = await signState({ user_id: "user-1" }, SECRET);
   const [data, sig] = state.split(".");
-  const tamperedSig = sig.slice(0, -1) + (sig.at(-1) === "A" ? "B" : "A");
+  // Premier caractère et non dernier : les 2 bits de poids faible du dernier
+  // caractère base64url sont du bourrage, les changer ne modifie pas toujours les octets.
+  const tamperedSig = (sig[0] === "A" ? "B" : "A") + sig.slice(1);
   const decoded = await verifyState(`${data}.${tamperedSig}`, SECRET);
   assertEquals(decoded, null);
 });

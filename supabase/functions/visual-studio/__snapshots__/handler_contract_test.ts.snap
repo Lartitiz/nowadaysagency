@@ -189,14 +189,14 @@ snapshot[`contrat Studio — read — rattrapage des versions bloquées (résult
 '── STATUT 200
 ── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
 session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","active_reference_ids","conversation_branch_id","source_url"]
-versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"],["id(9)","processing",null]]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"],["id(9)","uncertain",null]]
 quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
 generative_allowed : true
 writable : true
 charter_references : []
 suggested_photos : []
 composition_history : []
-── REQUÊTES (16)
+── REQUÊTES (17)
 GET /auth/v1/user
 GET /rest/v1/workspace_members [role]
 GET /rest/v1/visual_studio_sessions [*]
@@ -205,6 +205,7 @@ GET /rest/v1/visual_studio_versions [*]
 GET /storage/v1/object/visual-studio/id(2)/id(3)/version
 POST /rest/v1/rpc/studio_complete_generation
 GET /storage/v1/object/visual-studio/id(2)/id(3)/lost
+PATCH /rest/v1/visual_studio_versions [id]
 GET /rest/v1/visual_studio_sessions [*]
 GET /rest/v1/visual_studio_versions [*]
 GET /rest/v1/visual_studio_compositions [id,title,created_at]
@@ -224,7 +225,8 @@ studio_complete_generation : [{"p_version":"id(4)"}]
  },
  {
   "id": "id(9)",
-  "status": "processing"
+  "status": "uncertain",
+  "error_message": "La création a été interrompue et aucun résultat n’est disponible. Aucun crédit Studio n’a été décompté pour l’instant ; son issue chez le fournisseur reste inconnue."
  }
 ]
 ── SESSION ENREGISTRÉE

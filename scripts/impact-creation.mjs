@@ -79,7 +79,7 @@ export const FORMAT_BRIEF_FILES = {
 };
 /** Écrans du front → format touché. */
 export const FRONT_FILES = [
-  [/^src\/pages\/CreerUnifie\.tsx$/, "Parcours /creer (tous formats)"],
+  [/^src\/pages\/CreerUnifie\.tsx$|^src\/components\/creer\/(LowCreditsBanner|PhotoMissingDialog|ConfirmResetDialog)\.tsx$/, "Parcours /creer (tous formats)"],
   [/^src\/components\/creer\/formatRenderers\/Carousel/, "Carrousels : écran de résultat"],
   [/^src\/components\/creer\/CarouselEditor|^src\/lib\/carousel-editor\.ts$/, "Carrousels : éditeur visuel"],
   [/^src\/lib\/export-carousel-/, "Carrousels : exports"],
@@ -98,7 +98,12 @@ export const RED = new Set(["cors", "plan-limiter", "rate-limiter", "anthropic",
   "input-validators", "user-context", "audience-address", "parse-ai-json", "copywriting-prompts", "base-prompts"]);
 export const ORANGE = new Set(["carousel-editorial-review", "redac-gate", "correction-pass", "carousel-model",
   "text-structure-guard", "content-clarity", "audience-address-pass"]);
-export const zoneOf = (mod) => (RED.has(mod) ? "rouge" : ORANGE.has(mod) ? "orange" : "verte");
+// La zone se lit sur le premier segment : un sous-module (`redac-gate/numbers`,
+// nom donné par carte-impact.mjs) hérite de la zone de son module d'origine.
+export const zoneOf = (mod) => {
+  const root = mod.split("/")[0];
+  return RED.has(root) ? "rouge" : ORANGE.has(root) ? "orange" : "verte";
+};
 const ZONE_ICON = { rouge: "🔴", orange: "🟠", verte: "🟢" };
 
 const isTest = (p) => /_test\.ts$|\.test\.tsx?$|\.spec\.ts$|__snapshots__\//.test(p);

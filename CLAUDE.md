@@ -200,7 +200,7 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 
 1. **Jauge visible en continu** (AiCreditsCounter dans le header) — Badge avec ring SVG circulaire. 4 paliers : Confort (>50%, vert), Attention (20-50%, orange, pulse), Urgence (<20%, rouge, pulse, CTA), Épuisé (0, rouge statique, date renouvellement + CTA).
 
-2. **Banner "derniers crédits"** (dans CreerUnifie.tsx) — Quand il reste 1 à 4 crédits (plan free uniquement). Ton bienveillant.
+2. **Banner "derniers crédits"** (`src/components/creer/LowCreditsBanner.tsx`, affiché dans /creer) — Quand il reste 1 à 4 crédits (plan free uniquement). Ton bienveillant.
 
 3. **Modal interstitiel à 0 crédit** (QuotaWallModal) — Bilan positif du mois + date de renouvellement avec compte à rebours + CTA Premium + alternatives en attendant.
 
@@ -313,6 +313,7 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 6. **Rapport d'impact.** La CI écrit dans le résumé du lancement les formats touchés et les prompts dont le texte change (`scripts/impact-creation.mjs`). Lis-le avant de fusionner.
 7. **Circuit.** Toucher un générateur = branche + PR, pas Lovable directement sur `main`. Après un chantier Lovable : `bash scripts/verif-post-lovable.sh` (section 7). En production, les échecs de génération arrivent dans Sentry étiquetés par format (`src/lib/generation-telemetry.ts`) : tout nouvel appel à un générateur passe par `invokeWithTimeout`, `invokeWithHeartbeat` ou `useStreamingInvoke` pour en bénéficier.
 8. **Étiquettes HTML du carrousel (`data-*`).** Le serveur, l'éditeur visuel et les exports se parlent par ces attributs. Liste officielle : `supabase/functions/_shared/carousel-dom-contract.ts`. Ajouter ou renommer un attribut = le déclarer là ET le faire des deux côtés ; `src/test/carousel-dom-contract.test.ts` (noms) et `carousel-dom-contract-roundtrip.test.tsx` (serveur → éditeur → export) bloquent sinon.
+9. **Carrousel : écriture et mise en forme séparées.** `carousel-ai` écrit le texte ; ses choix de design (schémas, disposition, gabarits photo, styles d'overlay) passent par `carousel-ai/layout.ts`, jamais en direct dans `index.ts`. Un module de design n'importe pas un module d'écriture : `_shared/carousel-design-boundaries_test.ts` bloque sinon (exceptions commentées dans ce fichier, nouveau module partagé à y ranger). Le câblage complet est figé par `carousel-ai/handler_contract_test.ts`.
 
 ## Vocabulaire UI (conventions — audit UX 04/07/2026)
 

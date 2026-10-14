@@ -31,9 +31,8 @@ import { runRedacGate, rescoreCaptionOnly, applyGuardedCarouselCorrection, analy
 import { carouselDurations, carouselPlanReport, logCarouselPlan, logContentQuality, threadOutcome } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import { fetchRecentContentTexts, recentPassagesPrompt } from "../_shared/recent-passages.ts";
-import { limitVisualSchemas } from "../_shared/schema-limit.ts";
-import { addSchemasToContent } from "../_shared/schema-formatting.ts";
-import { keepDraftLayoutFields, stripMixWriterLayoutFields } from "../_shared/mix-layout-formatting.ts";
+// Mise en forme (schémas, disposition, gabarits) : étape isolée dans layout.ts (lot 8).
+import { assignPhotoTemplates, assignTemplatesToProvidedSlides, capVisualSchemas, logSchemaFormatting, normalizeOverlayStyles, placeMixSchemas, placeTextSchemas, revalidatePhotoLayoutContent, withoutMixWriterLayout, withoutPhotoWriterLayout } from "./layout.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.ts";
@@ -41,8 +40,7 @@ import { livedCaseFromCarouselBody, researchNumbersCapFor, type CaseMode } from 
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
-import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex, normalizeOverlayStyles, analyzeMixComposition, assignDistinctStructurePhotos } from "../_shared/photo-slide-structure.ts";
-import { assignPhotoTemplates, assignTemplatesToProvidedSlides, revalidatePhotoLayoutContent, stripWriterLayoutFields } from "../_shared/photo-template-assign.ts";
+import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex, analyzeMixComposition, assignDistinctStructurePhotos } from "../_shared/photo-slide-structure.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { describePlanShape, type HedgeReport, hedgedStructureCall, reviveStringSlides, StructureDeadlineError } from "./structure-hedge.ts";
 
@@ -548,16 +546,8 @@ const CORRECTION_ABORT_MS = 60_000;
 // Jamais atteints en conditions normales (réparation décidée vers 100-115 s).
 const REPAIR_START_LIMIT_MS = 150_000;
 const REVIEW_START_LIMIT_MS = 270_000;
-// Étage SCHÉMAS (03/10/2026) : lancé seulement s'il reste du temps avant la
-// coupure de la plateforme (~400 s) ; il s'arrête de lui-même à 25 s.
-/** Schémas sur le carrousel mixte : dessinés par mix-slide-layouts (slide « pause »). */
-export const MIX_SCHEMAS_ENABLED = true;
-const SCHEMA_START_LIMIT_MS = 330_000;
-const schemasAllowed = (startedAt: number): boolean => {
-  const ok = Date.now() - startedAt <= SCHEMA_START_LIMIT_MS;
-  if (!ok) console.log(JSON.stringify({ type: "carousel_time_budget", skipped: "schemas", elapsed_ms: Date.now() - startedAt }));
-  return ok;
-};
+// Étage SCHÉMAS : budget et interrupteur du mixte dans layout.ts (lot 8).
+export { MIX_SCHEMAS_ENABLED } from "./layout.ts";
 // Délai de la RÉDACTION texte (04/10/2026) : 3 générations sur 8 coupées à
 // 120 s fixes (« La rédaction a dépassé le délai prévu »), alors qu'Opus 5.5 en
 // réflexion adaptative écrit un carrousel long en 100-150 s et que la recherche
@@ -1667,13 +1657,9 @@ async function runGenerationAndRespond(
 
   let gateExpress: Awaited<ReturnType<typeof runRedacGate>> | null = null;
 
-  // Garde DÉTERMINISTE : le prompt limite les schémas (max 2, jamais consécutifs)
-  // mais le modèle déborde (3 consécutifs observés en prod le 04/07). On applique
-  // la règle par code — le narratif prime, cf PR #112/#113.
+  // Garde DÉTERMINISTE sur les schémas (max 2, jamais consécutifs) : layout.ts.
   if (type === "express_full" || type === "slides") {
-    const capped = limitVisualSchemas(content);
-    if (capped.stripped > 0) console.warn(`carousel-ai: ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
-    content = capped.content;
+    content = capVisualSchemas(content, "carousel-ai");
     // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
     gateExpress = await timed("gate_ms", runRedacGate(content, {
       isLinkedIn,
@@ -1698,11 +1684,11 @@ async function runGenerationAndRespond(
     // SCHÉMAS décidés après l'écriture et ses relectures, sur le texte final
     // (la rédaction ne les connaît plus : un changement d'écriture ne peut plus
     // les faire disparaître). Échec ou manque de temps → aucun schéma, texte livré.
-    const withSchemas = await timed("schemas_ms", addSchemasToContent(content, { isMix: false, usage, allowed: schemasAllowed(startedAt), maxSlides: carouselLength(body).exact ? 0 : autoMaxSlides(body) }));
+    const withSchemas = await timed("schemas_ms", placeTextSchemas(content, { usage, startedAt, maxSlides: carouselLength(body).exact ? 0 : autoMaxSlides(body) }));
     content = withSchemas.content;
     const finalParsed = tryParseAiJson<any>(content);
     console.log(JSON.stringify({ event: "carousel_rhythm", label: type, slides: Array.isArray(finalParsed?.slides) ? finalParsed.slides.length : 0, long_slides: longTextSlides(finalParsed, body) }));
-    if (withSchemas.plan) console.log(JSON.stringify({ event: "carousel_schema_formatting", label: type, status: withSchemas.plan.status, proposed: withSchemas.plan.proposed ?? 0, rejected: withSchemas.plan.rejected ?? [], spotted: withSchemas.plan.spotted ?? [], schemas: withSchemas.plan.schemas.map(x => x.visual_schema.type) }));
+    logSchemaFormatting(type, withSchemas.plan);
   }
 
   // deepening_questions (variante texte) est gratuit — arbitrage 10/07/2026 :
@@ -1890,16 +1876,9 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     }, sink);
   }
 
-  // DISPOSITION hors de la rédaction (04/10/2026) : la rédaction du mixte
-  // n'écrit que le texte et la structure (slide_type, photo_index). Ce qu'elle
-  // écrirait quand même en photo_layout / overlay_position / overlay_style est
-  // ignoré ; une réparation garde ceux du brouillon (structure confirmée). La
-  // disposition est choisie au rendu par mix-layout-formatting.ts.
-  {
-    const write = doGenerate, repair = doRepair;
-    doGenerate = (sink: UsageSink) => write(sink).then(stripMixWriterLayoutFields);
-    if (repair) doRepair = (draft, defects, sink, abortTimeoutMs) => repair(draft, defects, sink, abortTimeoutMs).then(out => keepDraftLayoutFields(draft, out));
-  }
+  // DISPOSITION hors de la rédaction (04/10/2026) : ce que la rédaction du
+  // mixte écrirait quand même en disposition est ignoré (layout.ts).
+  ({ write: doGenerate, repair: doRepair } = withoutMixWriterLayout(doGenerate, doRepair));
   content = await clock.timed("write_ms", doGenerate(mixUsage));
   // Plancher déterministe de slides (audit carrousel photo 12/07) : le modèle
   // peut renvoyer un carrousel écrasé (1 slide vue en live ~1 run/2 en photo).
@@ -1956,11 +1935,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
       console.warn(JSON.stringify({ event: "carousel_mix_composition", ...comp }));
     }
   }
-  {
-    const capped = limitVisualSchemas(content);
-    if (capped.stripped > 0) console.warn(`carousel-ai(mix): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
-    content = capped.content;
-  }
+  content = capVisualSchemas(content, "carousel-ai(mix)");
   // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
   const gateMix = await clock.timed("gate_ms", runRedacGate(content, {
     isLinkedIn,
@@ -1977,12 +1952,10 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
   content = gateMix.content;
   content = await clock.timed("thread_ms", finalizeCarousel(content,reqCtx,{usage:mixUsage,repaired:threadMix.repaired,regenerate:doRepair,timings:clock.timings}));
   {
-    // SCHÉMAS du mixte : dessinés par le code en slide « pause » (piste B
-    // validée par Laetitia le 03/10/2026, mix-schema-render.ts), seulement les
-    // types que la mise en page sait dessiner (MIX_SCHEMA_TYPES).
-    const withSchemas = await clock.timed("schemas_ms", addSchemasToContent(content, { isMix: true, usage: mixUsage, allowed: MIX_SCHEMAS_ENABLED && schemasAllowed(startedAt) }));
+    // SCHÉMAS du mixte : slide « pause » dessinée par le code (layout.ts).
+    const withSchemas = await clock.timed("schemas_ms", placeMixSchemas(content, { usage: mixUsage, startedAt }));
     content = withSchemas.content;
-    if (withSchemas.plan) console.log(JSON.stringify({ event: "carousel_schema_formatting", label: "mix", status: withSchemas.plan.status, proposed: withSchemas.plan.proposed ?? 0, rejected: withSchemas.plan.rejected ?? [], spotted: withSchemas.plan.spotted ?? [], schemas: withSchemas.plan.schemas.map(x => x.visual_schema.type) }));
+    logSchemaFormatting("mix", withSchemas.plan);
   }
   await addOutlineUsage(reqCtx, mixUsage);
   const timings = clock.done("mix");
@@ -2129,7 +2102,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   // Mise en page hors de l'écriture : gabarit, chiffre, liste, étape et
   // attribution sont posés ensuite, à partir du texte FINAL (assignPhotoTemplates,
   // après la relecture et le redac-gate, plus bas).
-  content = stripWriterLayoutFields(threadPhoto.content);
+  content = withoutPhotoWriterLayout(threadPhoto.content);
   const editorialBaseline = content;
   // Short photo overlays need the same contextual review as text slides.
   try {
@@ -2167,11 +2140,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   }
   // Un overlay long en style « minimal »/« technique » rend un pavé (lot E).
   content = normalizeOverlayStyles(content);
-  {
-    const capped = limitVisualSchemas(content);
-    if (capped.stripped > 0) console.warn(`carousel-ai(photo): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
-    content = capped.content;
-  }
+  content = capVisualSchemas(content, "carousel-ai(photo)");
   const gatePhoto = await clock.timed("gate_ms", runRedacGate(content, {
     isLinkedIn,
     onStatus: emitStatus,
