@@ -1,27 +1,12 @@
-import { INSTAGRAM_DIRECT_MAX_IMAGES, instagramTooManyImagesReason } from "@/features/creer/publish-guards";
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { CarouselQuality } from "@/hooks/use-carousel-quality";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Undo2,
-  Redo2,
-  Plus,
-  Copy,
-  ArrowLeft,
-  ArrowRight,
-  Trash2,
   LockKeyhole,
-  Unlock,
-  ImagePlus,
-  Keyboard,
   ZoomIn,
   ZoomOut,
-  Smartphone,
-  Bookmark,
-  X,
   Maximize2,
   Minimize2,
   ChevronDown,
@@ -41,7 +26,6 @@ import {
   carouselThemes,
   composeLayout,
   ensureFontLink,
-  GOOGLE_FONTS,
   LAYOUTS,
   slidePhotoSource,
   type LayoutVariant,
@@ -78,18 +62,20 @@ import {
   readCarouselDocument,
   renumberDocument,
   replacePhoto,
-  restyleSlide,
   type CarouselDocument,
   type EditorSlide,
 } from "@/lib/carousel-editor";
 import { type CanvasApi, type CanvasBox } from "@/components/creer/CarouselEditorParts/canvas-geometry";
-import { PanelSection, SlideThumb } from "@/components/creer/CarouselEditorParts/PanelBits";
 import SlideCanvas from "@/components/creer/CarouselEditorParts/SlideCanvas";
 import { LayersPanel, MultiSelectPanel } from "@/components/creer/CarouselEditorParts/LayersPanel";
 import { CarouselThemeSettings, SlideTabSettings } from "@/components/creer/CarouselEditorParts/SlideSettings";
 import { alphaOf, range, toHex } from "@/components/creer/CarouselEditorParts/panel-controls";
 import { TextSettings } from "@/components/creer/CarouselEditorParts/TextSettings";
 import { BlockSettings, PhotoSettings } from "@/components/creer/CarouselEditorParts/ElementSettings";
+import { EditorHeader } from "@/components/creer/CarouselEditorParts/EditorHeader";
+import { QualityPanel } from "@/components/creer/CarouselEditorParts/QualityPanel";
+import { SlideStrip } from "@/components/creer/CarouselEditorParts/SlideStrip";
+import { AllSlidesPanel, SavedStylesPanel } from "@/components/creer/CarouselEditorParts/AllSlidesPanel";
 
 
 interface Props {
@@ -118,25 +104,6 @@ const inputKey = (raw: any, visuals: any) => [
   raw.slides || raw.carousel?.slides,
   raw.caption || raw.carousel?.caption,
   visuals,
-];
-const SHORTCUTS: [string, string][] = [
-  ["⌘Z", "Annuler"],
-  ["⌘⇧Z · Ctrl+Y", "Rétablir"],
-  ["⌘C · ⌘X · ⌘V", "Copier · couper · coller (aussi sur une autre slide)"],
-  ["⌘D", "Dupliquer l’élément"],
-  ["⌘A", "Tout sélectionner"],
-  ["Maj + clic", "Ajouter / retirer de la sélection"],
-  ["Tab · Maj+Tab", "Élément suivant · précédent"],
-  ["Entrée · double-clic", "Écrire dans le texte choisi"],
-  ["Échap", "Valider la saisie · choisir le cadre · désélectionner"],
-  ["⌘B · ⌘I · ⌘U", "Gras · italique · souligné (mots choisis en écrivant)"],
-  ["Flèches · Maj+flèches", "Déplacer de 1 px · 10 px"],
-  ["Suppr", "Retirer l’élément"],
-  ["⌘] · ⌘[", "Passer devant · derrière"],
-  ["⌘G · ⌘⇧G", "Grouper · dégrouper"],
-  ["⌘⇧L", "Verrouiller · déverrouiller l’élément"],
-  ["Alt + glisser", "Déplacer le texte seul, hors de son cadre"],
-  ["⌘ + glisser", "Placer librement, sans repères"],
 ];
 
 export default function CarouselEditor({
@@ -772,287 +739,43 @@ export default function CarouselEditor({
       }
       onHistoryKey(event);
     }}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="font-display text-3xl text-primary">Personnaliser mon carrousel</h2>
-          <p className="text-xs text-muted-foreground">
-            Clique sur un élément ou choisis-le dans les calques. Tes retouches ne
-            consomment aucun crédit IA.
-          </p>
-        </div>
-        <div className="flex gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!history.current.past.length}
-            onClick={() => undo()}
-            aria-label="Annuler la modification"
-            aria-keyshortcuts="Meta+Z Control+Z"
-            title="Annuler (⌘Z / Ctrl+Z)"
-            className="gap-1.5"
-          >
-            <Undo2 size={15} /> Annuler
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!history.current.future.length}
-            onClick={() => undo(true)}
-            aria-label="Rétablir la modification"
-            aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z Control+Y"
-            title="Rétablir (⌘⇧Z / Ctrl+⇧Z / Ctrl+Y)"
-            className="gap-1.5"
-          >
-            <Redo2 size={15} /> Rétablir
-          </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setInstaOpen(true)} aria-label="Aperçu Instagram">
-            <Smartphone size={15} /> <span className="hidden sm:inline">Aperçu Instagram</span>
-          </Button>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5" aria-label="Voir les raccourcis clavier">
-                <Keyboard size={15} /> <span className="hidden sm:inline">Raccourcis</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-80 text-xs">
-              <p className="mb-2 font-semibold">Raccourcis clavier</p>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-                {SHORTCUTS.map(([keys, label]) => (
-                  <Fragment key={keys}>
-                    <dt className="whitespace-nowrap font-mono text-2xs">{keys}</dt>
-                    <dd>{label}</dd>
-                  </Fragment>
-                ))}
-              </dl>
-              <p className="mt-2 text-muted-foreground">Sur PC, Ctrl remplace ⌘. Clique d’abord dans l’aperçu.</p>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
+      <EditorHeader
+        history={history}
+        setInstaOpen={setInstaOpen}
+        undo={undo}
+      />
       {toolsPortal && createPortal(
-        <div className="grid gap-3 md:grid-cols-2">
-      {cloudTools}
-      {quality && quality.status !== "idle" && (
-        <div
-          className="min-w-0 rounded-xl border p-3 space-y-2 text-sm"
-          aria-label="Contrôle qualité"
-        >
-          <div className="flex items-start justify-between gap-2">
-            <p role="status" className="min-w-0 flex-1">
-              {quality.status === "checking"
-                ? "Contrôle de toutes les slides…"
-                : quality.status === "error"
-                  ? quality.message
-                  : quality.issues.length
-                    ? `${quality.issues.filter((i) => i.severity === "error").length} point(s) bloquant(s) · ${quality.issues.filter((i) => i.severity === "warning").length} conseil(s)`
-                    : "Contrôle terminé : aucun problème détecté"}
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={quality.recheck}
-              disabled={quality.status === "checking"}
-            >
-              Revérifier
-            </Button>
-          </div>
-          {!!quality.issues.length && (
-            <details>
-              <summary className="cursor-pointer">
-                Voir les points à vérifier
-              </summary>
-              <ul className="max-h-64 overflow-auto space-y-2 pt-2">
-                {quality.issues.map((issue, index) => (
-                  <li
-                    key={`${issue.slide}-${issue.elementId}-${index}`}
-                    className="rounded border p-2"
-                  >
-                    <p>
-                      Slide {issue.slide + 1} —{" "}
-                      {issue.severity === "error" ? "À corriger : " : ""}
-                      {issue.message}
-                    </p>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setActive(issue.slide);
-                        setSelected(issue.elementId);
-                      }}
-                    >
-                      Voir cet élément
-                    </Button>
-                    {issue.fix && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={document.slides[issue.slide]?.locked}
-                        onClick={() => {
-                          const target = current.current.slides[issue.slide];
-                          if (!target || target.locked) return;
-                          commit({
-                            ...current.current,
-                            slides: current.current.slides.map((s, i) =>
-                              i === issue.slide
-                                ? patchElement(s, issue.elementId, {
-                                    styles: issue.fix,
-                                  })
-                                : s,
-                            ),
-                          });
-                          setActive(issue.slide);
-                          setSelected(issue.elementId);
-                        }}
-                      >
-                        Appliquer la correction
-                      </Button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Bloquent la publication : textes coupés, textes trop petits pour le
-            mobile et images manquantes. Le contraste et les textes posés sur
-            une photo ou une transparence restent des conseils : vérifie-les à
-            l’œil.
-          </p>
-
-        </div>
-      )}
-        </div>,
+        <QualityPanel
+          cloudTools={cloudTools}
+          commit={commit}
+          current={current}
+          document={document}
+          quality={quality}
+          setActive={setActive}
+          setSelected={setSelected}
+        />,
         toolsPortal,
       )}
-      <div
-        className="flex gap-2 overflow-x-auto pb-2"
-        aria-label="Slides du carrousel"
-      >
-        {document.slides.map((s, i) => (
-          <button
-            key={s.id}
-            type="button"
-            data-thumb={i}
-            style={{ touchAction: "none" }}
-            onPointerDown={(e) => {
-              thumbDrag.current = { from: i, x: e.clientX, moved: false };
-              (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-            }}
-            onPointerMove={(e) => {
-              const d = thumbDrag.current;
-              if (!d || (!d.moved && Math.abs(e.clientX - d.x) < 6)) return;
-              d.moved = true;
-              setDragSlide(d.from);
-              setDropAt(Math.min(thumbIndexAt(e.clientX), current.current.slides.length - 1));
-            }}
-            onPointerUp={(e) => {
-              const d = thumbDrag.current;
-              thumbDrag.current = null;
-              setDragSlide(null);
-              setDropAt(null);
-              if (d?.moved) {
-                justDragged.current = true;
-                const at = thumbIndexAt(e.clientX);
-                reorder(d.from, at > d.from ? at - 1 : at);
-              }
-            }}
-            onPointerCancel={() => {
-              thumbDrag.current = null;
-              setDragSlide(null);
-              setDropAt(null);
-            }}
-            onClick={() => {
-              if (justDragged.current) {
-                justDragged.current = false;
-                return;
-              }
-              setActive(i);
-              setSelected(null);
-            }}
-            aria-label={`Sélectionner la slide ${i + 1}`}
-            aria-pressed={i === active}
-            title="Clique pour ouvrir, glisse pour changer l’ordre"
-            className={`relative shrink-0 cursor-grab rounded-lg border p-1 text-2xs ${i === active ? "border-primary ring-2 ring-primary/40" : "bg-background"} ${dragSlide === i ? "opacity-50" : ""} ${dropAt === i && dragSlide !== i ? "outline outline-2 outline-offset-2 outline-primary" : ""}`}
-          >
-            <SlideThumb html={s.html} />
-            <span className="mt-0.5 block text-center font-semibold">
-              {i + 1}
-              {s.locked ? " 🔒" : ""}
-            </span>
-          </button>
-        ))}
-      </div>
-      {document.slides.length > INSTAGRAM_DIRECT_MAX_IMAGES && (
-        <p className="text-xs text-muted-foreground">
-          {instagramTooManyImagesReason(document.slides.length)}
-        </p>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => move(-1)}
-          disabled={active === 0}
-          aria-label="Monter la slide"
-        >
-          <ArrowLeft size={14} />
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => move(1)}
-          disabled={active === document.slides.length - 1}
-          aria-label="Descendre la slide"
-        >
-          <ArrowRight size={14} />
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={document.slides.length >= CAROUSEL_MAX_SLIDES}
-          onClick={() => add()}
-        >
-          <Plus size={14} className="mr-1" />
-          Ajouter
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={document.slides.length >= CAROUSEL_MAX_SLIDES}
-          onClick={() => add(true)}
-        >
-          <Copy size={14} className="mr-1" />
-          Dupliquer
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => changeSlide({ ...slide, locked: !slide.locked })}
-        >
-          {slide.locked ? <Unlock size={14} /> : <LockKeyhole size={14} />}
-          <span className="ml-1">
-            {slide.locked ? "Déverrouiller" : "Verrouiller"}
-          </span>
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={document.slides.length <= 2 || slide.locked}
-          onClick={() => {
-            commit(
-              renumberDocument({
-                ...document,
-                slides: document.slides.filter((s) => s.id !== slide.id),
-              }),
-            );
-            setActive(Math.max(0, active - 1));
-            setSelected(null);
-          }}
-        >
-          <Trash2 size={14} className="mr-1" />
-          Supprimer
-        </Button>
-      </div>
+      <SlideStrip
+        active={active}
+        add={add}
+        changeSlide={changeSlide}
+        commit={commit}
+        current={current}
+        document={document}
+        dragSlide={dragSlide}
+        dropAt={dropAt}
+        justDragged={justDragged}
+        move={move}
+        reorder={reorder}
+        setActive={setActive}
+        setDragSlide={setDragSlide}
+        setDropAt={setDropAt}
+        setSelected={setSelected}
+        slide={slide}
+        thumbDrag={thumbDrag}
+        thumbIndexAt={thumbIndexAt}
+      />
       <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_280px] lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Téléphone : l'aperçu reste visible (collé sous l'en-tête, plus petit)
             pendant qu'on fait défiler les réglages en dessous. */}
@@ -1338,108 +1061,24 @@ export default function CarouselEditor({
             <CarouselThemeSettings applyCarouselTheme={applyCarouselTheme} themes={themes} />
             )}
             {panelTab === "element" && element && element.role !== "background" && (
-            <PanelSection title="Toutes les slides">
-            {element?.kind === "text" && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={() =>
-                  commit({
-                    ...document,
-                    slides: document.slides.map((s) => {
-                      const restyled = restyleSlide(
-                        s,
-                        Object.fromEntries(
-                          ["font-family", "color"]
-                            .filter((k) => css[k])
-                            .map((k) => [k, css[k]]),
-                        ),
-                        "texts",
-                      );
-                      // Une police Google suit sur chaque slide (aperçu et export).
-                      const google = GOOGLE_FONTS.find((f) => (css["font-family"] || "").includes(f.family));
-                      return google ? ensureFontLink(restyled, google.family) : restyled;
-                    }),
-                  })
-                }
-              >
-                Police et couleur sur toutes les slides
-              </Button>
-            )}
-            {document.slides.length > 1 && (
-              <label className="block text-xs">
-                Appliquer à toutes les slides
-                <select
-                  aria-label="Appliquer à toutes les slides"
-                  className="mt-1 w-full rounded border bg-background p-2"
-                  value=""
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v) applyAll({ style: v !== "position", position: v !== "style" });
-                  }}
-                >
-                  <option value="">Reporter cet élément sur les autres slides…</option>
-                  <option value="style">Son style (police, taille, couleurs)</option>
-                  <option value="position">Sa position et sa largeur</option>
-                  <option value="both">Son style et sa position</option>
-                </select>
-              </label>
-            )}
-            </PanelSection>
+            <AllSlidesPanel
+              applyAll={applyAll}
+              commit={commit}
+              css={css}
+              document={document}
+              element={element}
+            />
             )}
             {panelTab === "element" && element && savedStyles && element.role !== "background" && (
-              <div className="space-y-2 rounded-lg border p-2" aria-label="Mes styles">
-                <p className="flex items-center gap-1.5 text-xs font-medium">
-                  <Bookmark size={13} /> Mes styles
-                </p>
-                {savedStyles.list.filter((st) => st.kind === styleKind(element)).length > 0 ? (
-                  <div className="flex flex-wrap gap-1">
-                    {savedStyles.list
-                      .filter((st) => st.kind === styleKind(element))
-                      .map((st) => (
-                        <span key={st.id} className="inline-flex items-center rounded-full border bg-background text-2xs">
-                          <button
-                            type="button"
-                            className="flex items-center gap-1 py-1 pl-2 pr-1 hover:text-primary"
-                            title="Appliquer ce style"
-                            onClick={() => applySaved(st)}
-                          >
-                            {st.styles.color || st.styles["background-color"] ? (
-                              <span className="h-3 w-3 rounded-full border" style={{ background: st.styles.color || st.styles["background-color"] }} />
-                            ) : null}
-                            {st.name}
-                          </button>
-                          <button
-                            type="button"
-                            aria-label={`Supprimer le style ${st.name}`}
-                            className="rounded-full p-1 text-muted-foreground hover:text-destructive"
-                            onClick={() => savedStyles.remove(st.id)}
-                          >
-                            <X size={11} />
-                          </button>
-                        </span>
-                      ))}
-                  </div>
-                ) : (
-                  <p className="text-2xs text-muted-foreground">
-                    Enregistre le style de cet élément pour le réappliquer d’un clic dans tes prochains carrousels.
-                  </p>
-                )}
-                <div className="flex gap-1">
-                  <input
-                    aria-label="Nom du style"
-                    placeholder="Nom (ex. Titre rose)"
-                    value={styleName}
-                    maxLength={60}
-                    onChange={(e) => setStyleName(e.target.value)}
-                    className="min-w-0 flex-1 rounded border bg-background px-2 py-1 text-xs"
-                  />
-                  <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={saveStyle}>
-                    Enregistrer ce style
-                  </Button>
-                </div>
-              </div>
+              <SavedStylesPanel
+                applySaved={applySaved}
+                element={element}
+                saveStyle={saveStyle}
+                savedStyles={savedStyles}
+                setStyleName={setStyleName}
+                styleKind={styleKind}
+                styleName={styleName}
+              />
             )}
           </fieldset>
         </div>

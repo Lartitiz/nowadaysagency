@@ -866,7 +866,8 @@ Les trois fonctions Pinterest n'importent pas `redac-gate`. Elles y arrivent par
 
 ### 8. `src/components/creer/CarouselEditor.tsx` — 3816 lignes
 
-Découpage validé par Laetitia le 14/10/2026 (lot E3). Les tests qui le
+Découpage validé par Laetitia le 14/10/2026 et fait le jour même (lot E3,
+PR #1495, #1498, #1500, #1507, #1512, #1517, #1518) : 3 816 → 1 155 lignes. Les tests qui le
 protègent : `src/test/carousel-editor-*.test.tsx` (lot E2, plus
 `carousel-editor-wiring.test.tsx` du lot E3-0) et les autres
 `src/test/carousel-*.test.tsx` qui montent l'éditeur. Ils doivent passer sans
