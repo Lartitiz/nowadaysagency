@@ -612,6 +612,10 @@ visuel (`""` = retiré). Une slide texte ne l'envoie pas à `carousel-visual`
 Un nouveau générateur ou un nouvel écran de création s'ajoute dans
 `FUNCTION_LABELS` ou `FRONT_FILES` de `scripts/impact-creation.mjs`, avec son
 cas dans `src/test/impact-creation.test.ts`.
+Les briefs de `_shared/format-briefs/` ont leur propre table,
+`FORMAT_BRIEF_FILES` : une retouche de `format-briefs/reel.ts` annonce
+« Reel », pas tous les formats de creative-flow. Un nouveau fichier de brief
+doit y figurer, sinon `src/test/impact-creation.test.ts` échoue.
 
 **Frontière texte / design** (lot 9). Une fonction de design ne doit pas
 embarquer la chaîne d'écriture des textes : sinon une retouche « pour
