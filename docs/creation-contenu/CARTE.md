@@ -104,7 +104,10 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 - **Longueurs maximales côté serveur** (400 en français, sans appel IA ni débit) :
   `ai-text-action` 8 000 caractères sélectionnés et 1 000 de consigne ;
   `creative-flow` étape `adjust`, champ `content` 15 000 caractères (cas
-  `adjust — contenu trop long` du contrat).
+  `adjust — contenu trop long` du contrat). Le menu IA (`SelectionMenu.tsx`)
+  affiche ce message du serveur au lieu de « Oups, quelque chose a coincé », et
+  sa demande libre est plafonnée à 1 000 caractères
+  (`src/test/selection-menu-error.test.tsx`).
 
 ### Une seule version du texte modifié (lot 7, 14/10/2026)
 
