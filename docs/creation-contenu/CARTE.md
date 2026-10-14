@@ -477,21 +477,6 @@ après le découpage, ils doivent tous passer sans être retouchés.
 | `carousel-editor-roundtrip.test.tsx` | Aller-retour `readCarouselDocument` → retouches → `documentOutput` → `mergeEditorRaw` → relecture identique ; branchement comme `CreerUnifie.tsx` : une seule émission par retouche, reçu de sauvegarde gardé, pas de relecture sur un écho, réouverture identique, régénération relue une fois |
 | `carousel-editor-export-fidelity.test.tsx` | Après chaque retouche (texte, style, déplacement, taille, rotation, ombre, filtre, fond, police, verrou, ordre, masquage, duplication, photo, mise en page, thème, report), sur le vrai HTML du serveur : `data-pptx-editable`, `data-pptx-photo`, `data-pptx-shape` et `data-slide-text` restent sur les mêmes éléments |
 
-### Éditeur visuel du carrousel : comportement figé (lot E2, 14/10/2026)
-
-Avant le découpage de `CarouselEditor.tsx` (lot E3), six fichiers de tests
-figent ce que fait l'éditeur aujourd'hui. Ils ne modifient pas l'éditeur ;
-après le découpage, ils doivent tous passer sans être retouchés.
-
-| Fichier (`src/test/`) | Ce qui est protégé |
-|---|---|
-| `carousel-editor-resize-snap.test.tsx` | Poignées (droite, gauche, bas, coin ; largeur mini 60 px ; le coin agrandit aussi le texte), magnétisme (centre de la slide, bords des autres blocs, 8 px de portée, ⌘/Ctrl pour placer librement), repères roses, slide verrouillée |
-| `carousel-editor-advanced-styles.test.tsx` | Rotation (remplace l'angle, garde une transformation existante, réglages rapprochés annulés en une fois), filtres photo (luminosité, contraste, saturation, noir et blanc, photo d'origine), ombre portée, ombre du texte, polices Google (lien ajouté une seule fois, report sur toutes les slides) |
-| `carousel-editor-photo-drop.test.tsx` | Photo glissée depuis l'ordinateur : cadre sous le pointeur, sinon cadre vide, sinon première photo ; cadre éclairé au survol ; fichier non image, format refusé, slide verrouillée, ajout impossible ; annulation |
-| `carousel-editor-heavy-undo.test.tsx` | Annuler / Rétablir à l'identique après une mise en page, un thème, « Appliquer à toutes les slides », « Police et couleur sur toutes les slides », un collage sur une autre slide |
-| `carousel-editor-roundtrip.test.tsx` | Aller-retour `readCarouselDocument` → retouches → `documentOutput` → `mergeEditorRaw` → relecture identique ; branchement comme `CreerUnifie.tsx` : une seule émission par retouche, reçu de sauvegarde gardé, pas de relecture sur un écho, réouverture identique, régénération relue une fois |
-| `carousel-editor-export-fidelity.test.tsx` | Après chaque retouche (texte, style, déplacement, taille, rotation, ombre, filtre, fond, police, verrou, ordre, masquage, duplication, photo, mise en page, thème, report), sur le vrai HTML du serveur : `data-pptx-editable`, `data-pptx-photo`, `data-pptx-shape` et `data-slide-text` restent sur les mêmes éléments |
-
 ---
 
 ## 6. Garde-fous automatiques (lots 4 et 5)
