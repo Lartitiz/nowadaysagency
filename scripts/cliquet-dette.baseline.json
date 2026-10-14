@@ -133,14 +133,6 @@
       "lignes": 1491,
       "any": 0
     },
-    "supabase/functions/_shared/correction-pass.ts": {
-      "lignes": 1234,
-      "any": 14
-    },
-    "supabase/functions/_shared/format-briefs.ts": {
-      "lignes": 1273,
-      "any": 3
-    },
     "supabase/functions/_shared/instagram-insights.ts": {
       "lignes": 880,
       "any": 21

@@ -1108,9 +1108,9 @@ cours :
 
 | Ordre | Fichier | Pourquoi à ce moment-là |
 |---|---|---|
-| 0 | `scripts/impact-creation.mjs` | Avant tout découpage d'un module partagé : faire calculer la zone (rouge / orange / verte) sur le premier segment du nom, sinon le rapport de CI annonce « zone verte » pour `redac-gate/numbers` (voir « Pièges communs »). |
-| 1 | `_shared/format-briefs.ts` (fiche 10) | Risque faible : un seul appelant serveur (creative-flow), des fonctions pures. Bon premier essai de la méthode. |
-| 2 | `_shared/correction-pass.ts` (fiche 9) | Le plus fort taux de corrections ; les prompts de correction ne sont figés nulle part : poser les snapshots d'abord. |
+| 0 ✅ | `scripts/impact-creation.mjs` (fait le 14/10/2026, #1479) | Avant tout découpage d'un module partagé : faire calculer la zone (rouge / orange / verte) sur le premier segment du nom, sinon le rapport de CI annonce « zone verte » pour `redac-gate/numbers` (voir « Pièges communs »). |
+| 1 ✅ | `_shared/format-briefs.ts` (fiche 10, terminée le 14/10/2026 : 1 273 → 18 lignes) | Risque faible : un seul appelant serveur (creative-flow), des fonctions pures. Bon premier essai de la méthode. |
+| 2 ✅ | `_shared/correction-pass.ts` (fiche 9, terminée le 14/10/2026 : 1 234 → 39 lignes) | Le plus fort taux de corrections ; les prompts de correction ne sont figés nulle part : poser les snapshots d'abord. |
 | 3 | `creative-flow/index.ts` (fiche 3) | Suite logique du lot 3 du 13/10, mêmes tests de contrat déjà en place. |
 | 4 | `_shared/redac-gate.ts` (fiche 7) | Zone orange (9 fonctions) : après correction-pass, dont il dépend. |
 | 5 | `carousel-ai/index.ts` (fiche 2) | Très modifié ; un contrat du handler à poser d'abord, comme pour creative-flow. |
