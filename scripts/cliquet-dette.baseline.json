@@ -157,10 +157,6 @@
       "lignes": 2792,
       "any": 155
     },
-    "supabase/functions/creative-flow/index.ts": {
-      "lignes": 985,
-      "any": 10
-    },
     "supabase/functions/cron-health/index.ts": {
       "lignes": 959,
       "any": 99
