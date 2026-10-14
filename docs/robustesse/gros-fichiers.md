@@ -457,6 +457,8 @@ Une PR par lot, dans cet ordre :
 7. **Lot F (comportement, à part)** : lectures en base des stories vers `formats/stories.ts`, suppression de la branche morte `recycle`, une seule détection de format. Ce sont des changements de code, pas des déplacements : ils sortent du découpage.
 À chaque lot : CARTE.md (tableau « Organisation des fichiers ») et `scripts/impact-creation.mjs` mis à jour dans la même PR, pas de session Lovable ouverte pendant la fusion.
 
+**Avancement (14/10/2026)** : lot T fait (`creative-flow/handler_contract_more_test.ts`, 23 cas + 14 valeurs de `contentType`). Points 1 à 3 couverts tels quels ; point 4 (détection du format) couvert par le contrat du handler, sans extraire `detectFormatFlags`, pour ne toucher aucune ligne de `index.ts` dans ce lot. Prochain : lot A.
+
 ---
 
 ### 4. `src/pages/VisualStudioPage.tsx` — 2059 lignes
