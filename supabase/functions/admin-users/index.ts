@@ -126,7 +126,7 @@ function countNonNull(row: Record<string, unknown> | null, fields: string[]): nu
 
 async function getList(supabase: any, monthStart: string) {
   // Fetch all data in parallel
-  const [profilesRes, subsRes, aiRes, brandRes, personaRes, storyRes, propRes, stratRes] = await Promise.all([
+  const [profilesRes, subsRes, aiRes, brandRes, personaRes, storyRes, propRes, stratRes, ownerRes] = await Promise.all([
     supabase.from("profiles").select("user_id, prenom, email, activite, type_activite, created_at"),
     supabase.from("subscriptions").select("user_id, plan, status"),
     supabase.from("ai_usage").select("user_id").gte("created_at", monthStart),
@@ -135,7 +135,15 @@ async function getList(supabase: any, monthStart: string) {
     supabase.from("storytelling").select("user_id, " + STORYTELLING_FIELDS.join(", ")),
     supabase.from("brand_proposition").select("user_id, " + PROPOSITION_FIELDS.join(", ")),
     supabase.from("brand_strategy").select("user_id, " + STRATEGY_FIELDS.join(", ")),
+    supabase.from("workspace_members").select("user_id, workspace_id").eq("role", "owner").order("joined_at", { ascending: true }),
   ]);
+
+  // Espace PROPRE de chaque utilisatrice (le plus ancien dont elle est owner,
+  // même règle qu'ensure_owner_workspace). « Ouvrir son espace » (admin) doit
+  // y rattacher l'admin en manager : l'admin ne peut pas le lire elle-même
+  // (RLS), et sans lui le front CRÉAIT un 2e espace owner (Marion, Augustine).
+  const ownWorkspaceMap = new Map<string, string>();
+  for (const m of ownerRes.data || []) if (!ownWorkspaceMap.has(m.user_id)) ownWorkspaceMap.set(m.user_id, m.workspace_id);
 
   // Auth users for last_sign_in_at (paginé : l'API plafonne à 1000 par page)
   const authUsers = await listAllAuthUsers(supabase);
@@ -186,6 +194,7 @@ async function getList(supabase: any, monthStart: string) {
       last_sign_in: authMap.get(uid) || null,
       created_at: p.created_at,
       branding_score: Math.round((filled / TOTAL_BRANDING_FIELDS) * 100),
+      own_workspace_id: ownWorkspaceMap.get(uid) || null,
     };
   });
 
