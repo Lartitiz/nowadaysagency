@@ -1,9 +1,10 @@
 // Consigne de rédaction finale (étape `generate`) de creative-flow : choix du
 // brief par format, structures et ressources exclues par format, JSON de sortie,
 // contexte de lancement. Déplacée À L'IDENTIQUE depuis index.ts (fiche 3,
-// lot C, 14/10/2026), qui la réexporte. Fait encore 2 lectures en base pour les
-// stories (garde-fou vente, catalogue photos) : à sortir dans formats/stories.ts
-// au lot F. Touche TOUS les formats : voir docs/creation-contenu/CARTE.md.
+// lot C, 14/10/2026), qui la réexporte. Ne lit plus la base (lot F) : le garde-fou
+// vente et le catalogue photos des stories arrivent dans `storiesData`, lus avant
+// par le handler (loadStoriesGenerateData, formats/stories.ts). Touche TOUS les
+// formats : voir docs/creation-contenu/CARTE.md.
 
 import { currentContentContract } from "../../_shared/editorial-voice.ts";
 import { FORMAT_STRUCTURES, WRITING_RESOURCES, CHAIN_OF_THOUGHT, ANTI_BIAS, PREGEN_INJECTION_RULES, VISUAL_ANALOGIES } from "../../_shared/copywriting-prompts.ts";
@@ -11,11 +12,15 @@ import { type AudienceAddress } from "../../_shared/audience-address.ts";
 import { livedCaseFromCreativeBody, LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from "../../_shared/lived-case.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief, positionDepthBlock } from "../../_shared/format-briefs.ts";
 import { isFactualFictionalLinkedInBrief } from "../formats/linkedin.ts";
+import type { StoriesPhotoCatalog } from "../formats/stories.ts";
+
+/** Vrai quand buildGeneratePrompt rédige avec le brief stories : seul cas où il
+ * lui faut `storiesData` (le handler ne lit la base que dans ce cas, comme avant). */
+export function generateUsesStoriesBrief(p: { isStories: boolean; isCarousel: boolean; isReel: boolean; isLinkedIn: boolean; isPhotoMode: boolean; context: string }): boolean {
+  return p.isStories && !p.isCarousel && !p.isReel && !(p.isLinkedIn && !p.isPhotoMode && isFactualFictionalLinkedInBrief(p.context));
+}
 
 export async function buildGeneratePrompt(params: {
-  supabase: any;
-  userId: string;
-  workspace_id?: string | null;
   body: any;
   COMMON_PREFIX: string;
   context: string;
@@ -43,9 +48,11 @@ export async function buildGeneratePrompt(params: {
   isPhotoMode: boolean;
   /** Tu ou vous de la fiche de marque : remplace les consignes d'adresse figées des stories (04/10/2026). */
   audienceAddress?: AudienceAddress | null;
+  /** Garde-fou vente et catalogue photos des stories, lus en base par le handler (loadStoriesGenerateData). */
+  storiesData?: { storiesGardeFouAlerte: string | null; storiesPhotoCatalog: StoriesPhotoCatalog };
 }): Promise<{ systemPrompt: string; userPrompt: string; storiesPhotoCatalog: { index: number; id: string; description: string; preferred?: boolean }[] }> {
   const {
-    supabase, userId, workspace_id, body, COMMON_PREFIX, context, contentType, editorialFormat, editorialFormatLabel,
+    body, COMMON_PREFIX, context, contentType, editorialFormat, editorialFormatLabel,
     angle, answers, followUpAnswers, calendarBlock, objectiveBlock, newsContextBlock, preGenBlock, effectiveObjective,
     pinterest_link, pinterest_board, variation, previousContent,
     isCarousel, isReel, isStories, isLinkedIn, isPinterest, isNewsletter, isPhotoMode,
@@ -89,73 +96,10 @@ export async function buildGeneratePrompt(params: {
       inspiration_context: body.inspiration_context,
     });
   } else if (isStories) {
-    // Garde-fou : 3 séquences vente sur 7 jours (migré depuis stories-ai)
-    if (effectiveObjective === "vente") {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const gardeFouCol = workspace_id ? "workspace_id" : "user_id";
-      const gardeFouVal = workspace_id || userId;
-      const { count } = await supabase
-        .from("stories_sequences")
-        .select("id", { count: "exact", head: true })
-        .eq(gardeFouCol, gardeFouVal)
-        .eq("objective", "vente")
-        .gte("created_at", sevenDaysAgo);
-      if ((count ?? 0) >= 3) {
-        storiesGardeFouAlerte = "⚠️ Tes stories récentes sont très orientées vente. Reviens à de la connexion ou de l'éducation pour maintenir la confiance. Ratio sain : 80% connexion/éducation, 20% vente.";
-      }
-    }
-    // Catalogue bibliothèque (lot B) : l'IA écrit la séquence en SACHANT
-    // quelles photos existent (descriptions écrites par photo-describe à
-    // l'upload). Index courts dans le prompt (jamais d'UUID : trop long,
-    // risque de recopie erronée) ; la résolution index → id se fait après
-    // le parse, côté edge, de façon déterministe.
-    // Lot D : les photos CHOISIES à l'étape format (preferred_photo_ids)
-    // passent en tête du catalogue, marquées « chosen » — le brief les
-    // traite en priorité absolue et le post-parse garantit leur placement.
-    {
-      const catCol = workspace_id ? "workspace_id" : "user_id";
-      const catVal = workspace_id || userId;
-      const rawPreferred = (body as Record<string, unknown>).preferred_photo_ids;
-      const preferredIds: string[] = Array.isArray(rawPreferred)
-        ? rawPreferred.filter((x: unknown): x is string => typeof x === "string").slice(0, 10)
-        : [];
-      const { data: catRows, error: catErr } = await supabase
-        .from("user_photos")
-        .select("id, description")
-        .eq(catCol, catVal)
-        .eq("status", "ready")
-        .order("created_at", { ascending: false })
-        .limit(60);
-      if (catErr) {
-        // Jamais bloquant : sans catalogue, la génération garde le
-        // comportement historique (directives seules).
-        console.warn("[creative-flow] catalogue photos illisible:", catErr.message);
-      }
-      type CatRow = { id: string; description: string | null };
-      const rows = (catRows || []) as CatRow[];
-      // Les préférées passent MÊME sans description (photo fraîchement
-      // uploadée, describe encore en cours) ; le reste doit être décrit.
-      const preferredRows = preferredIds
-        .map((id) => rows.find((r) => r.id === id))
-        .filter((r): r is CatRow => !!r);
-      const otherRows = rows
-        .filter(
-          (r) =>
-            !preferredIds.includes(r.id) &&
-            typeof r.description === "string" &&
-            r.description.trim().length > 0,
-        )
-        .slice(0, Math.max(0, 40 - preferredRows.length));
-      storiesPhotoCatalog = [...preferredRows, ...otherRows].map((r, i) => ({
-        index: i + 1,
-        id: r.id,
-        description:
-          typeof r.description === "string" && r.description.trim().length > 0
-            ? r.description.trim()
-            : "photo choisie par l'utilisatrice (pas encore décrite)",
-        preferred: preferredIds.includes(r.id),
-      }));
-    }
+    // Garde-fou vente et catalogue photos : lus en base AVANT par le handler
+    // (loadStoriesGenerateData, formats/stories.ts — lot F, 14/10/2026).
+    storiesGardeFouAlerte = params.storiesData?.storiesGardeFouAlerte ?? null;
+    storiesPhotoCatalog = params.storiesData?.storiesPhotoCatalog ?? [];
     depthMandate = storiesBrief({
       objective: effectiveObjective,
       price_range: body.price_range,
