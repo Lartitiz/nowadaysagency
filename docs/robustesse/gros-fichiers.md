@@ -874,7 +874,7 @@ Les trois fonctions Pinterest n'importent pas `redac-gate`. Elles y arrivent par
 - Lot 2 fait : `redac-gate/echoes.ts` (avec le type `EchoContext`, propre aux redites, au lieu de `scoring.ts`), `slop-signals.ts`, et `carousel-analysis.ts` amorcé avec `slideTexts` / `slideBody` (les mesures de style en ont besoin ; sans ça, `slop-signals` importerait `redac-gate.ts`). `redac-gate.ts` → ~1 340 lignes, aucun snapshot modifié.
 - Lot 3 fait : `redac-gate/scoring.ts` (types `RedacAnalysis`, `TextRedacAnalysis` et formules ; casse le cycle `textRedacRawCount`), `research-numbers.ts` (avec `emptiedMarkers`, `enforceResearchNumberCap`), `testimony.ts`. Les constantes `*_FIX` y sont exportées en attendant le lot 4. `redac-gate.ts` → ~800 lignes, aucun snapshot modifié.
 - Lot 4 fait : `redac-gate/carousel-analysis.ts` complété (`analyzeCarouselRedac`, `buildQualityCheck`, `rescoreCaptionOnly`, `emptyAnalysis`, hashtags, chute de légende), `fix-instructions.ts` (`buildFixInstructions`, `buildTextFixInstructions` et les 3 constantes `*_FIX`). `redac-gate.ts` → ~540 lignes, consignes identiques au snapshot.
-- Prochain : lot 5 (`carousel-gate`, `text-gate`).
+- Lot 5 fait : `redac-gate/carousel-gate.ts` (`protectOrderPrefixes`, `applyGuardedCarouselCorrection`, `runRedacGate`), `text-gate.ts` (`analyzeTextRedac`, `runTextRedacGate`). **Fiche 7 terminée** : `redac-gate.ts` 2 093 → 35 lignes (sommaire de réexports nommés, 43 valeurs + 8 types), aucun snapshot modifié sur l'ensemble des lots.
 
 ---
 
@@ -1126,7 +1126,7 @@ cours :
 | 1 ✅ | `_shared/format-briefs.ts` (fiche 10, terminée le 14/10/2026 : 1 273 → 18 lignes) | Risque faible : un seul appelant serveur (creative-flow), des fonctions pures. Bon premier essai de la méthode. |
 | 2 ✅ | `_shared/correction-pass.ts` (fiche 9, terminée le 14/10/2026 : 1 234 → 39 lignes) | Le plus fort taux de corrections ; les prompts de correction ne sont figés nulle part : poser les snapshots d'abord. |
 | 3 ✅ | `creative-flow/index.ts` (fiche 3, terminée le 14/10/2026 : 1 687 → ~440 lignes, lot F compris) | Suite logique du lot 3 du 13/10, mêmes tests de contrat déjà en place. |
-| 4 | `_shared/redac-gate.ts` (fiche 7) | Zone orange (9 fonctions) : après correction-pass, dont il dépend. |
+| 4 ✅ | `_shared/redac-gate.ts` (fiche 7, terminée le 14/10/2026 : 2 093 → 35 lignes) | Zone orange (9 fonctions) : après correction-pass, dont il dépend. |
 | 5 | `carousel-ai/index.ts` (fiche 2) | Très modifié ; un contrat du handler à poser d'abord, comme pour creative-flow. |
 | 6 | Studio visuel, serveur puis page (fiches 5 et 4) | Indépendant de la création de contenu : peut avancer en parallèle des lignes 1 à 5. |
 | 7 | `carousel-visual/index.ts` (fiche 6) | Après la fusion du chantier en cours sur le contrat `data-*`. |

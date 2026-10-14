@@ -454,19 +454,16 @@ fonctions qui ne s'appellent pas « carousel »**.
 > sommaire : pour retoucher une relecture, modifie le fichier de sa mission. Un sous-dossier garde la
 > zone et le rang (écriture) de son module d'origine.
 >
-> Découpage de `redac-gate.ts` en cours (fiche 7) : les outils de texte sont
-> dans `_shared/redac-gate/text-utils.ts`, les retournements et formules
-> moulées dans `reversals.ts`, les chiffres inventés dans `numbers.ts`, les
-> durées contradictoires dans `durations.ts` (lot 1, 14/10/2026), les redites
-> (accroche, fiche de marque, contenus récents) dans `echoes.ts`, les élisions
-> et mesures « slop » dans `slop-signals.ts`, les textes d'une slide dans
-> `carousel-analysis.ts` (lot 2), les types et formules de score dans
-> `scoring.ts`, les chiffres de la recherche dans `research-numbers.ts`, les
-> témoignages et vécus inventés dans `testimony.ts` (lot 3), l'analyse du
-> carrousel (mesures, hashtags, `quality_check`, chute de légende) complétée
-> dans `carousel-analysis.ts` et le texte des consignes de re-passe dans
-> `fix-instructions.ts` (lot 4). Le reste est encore dans `redac-gate.ts`,
-> qui réexporte tout ce qui était public.
+> Découpage de `redac-gate.ts` (fiche 7, terminé le 14/10/2026) : chaque
+> famille vit dans `_shared/redac-gate/` : outils de texte (`text-utils.ts`),
+> retournements (`reversals.ts`), chiffres inventés (`numbers.ts`), durées
+> (`durations.ts`), redites (`echoes.ts`), élisions et mesures « slop »
+> (`slop-signals.ts`), types et scores (`scoring.ts`), chiffres de la recherche
+> (`research-numbers.ts`), témoignages inventés (`testimony.ts`), analyse du
+> carrousel (`carousel-analysis.ts`), texte des consignes de re-passe
+> (`fix-instructions.ts`), gate carrousel (`carousel-gate.ts`) et gate texte
+> (`text-gate.ts`). `redac-gate.ts` n'est plus qu'un sommaire de réexports :
+> pour retoucher une mesure ou un gate, modifie le fichier de sa mission.
 
 > ⚠️ **Piège principal** : `redac-gate.ts` et `correction-pass.ts` importent
 > `carousel-editorial-review.ts` et `carousel-model.ts`. Une retouche
