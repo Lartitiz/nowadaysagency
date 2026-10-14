@@ -27,8 +27,6 @@ Deno.test("callOptionsForStep : réglages par étape", () => {
   assertEquals(pick(callOptionsForStep({ ...base, step: "adjust" })), { maxTokens: 8192, tempText: 0.85, model: "content", abortMs: ADJUST_ABORT_MS, tool: undefined, fictif: false });
   assertEquals(pick(callOptionsForStep({ ...base, step: "angles" })).abortMs, LIGHT_ABORT_MS);
   assertEquals(pick(callOptionsForStep({ ...base, step: "dictation" })).abortMs, LIGHT_ABORT_MS);
-  // Branche morte (le recyclage sort avant l'appel) recopiée telle quelle.
-  assertEquals(pick(callOptionsForStep({ ...base, step: "recycle" })), { maxTokens: 12288, tempText: 0.85, model: "content", abortMs: undefined, tool: undefined, fictif: false });
 });
 
 Deno.test("callOptionsForStep : LinkedIn, température 0.7 hors questions, 0.2 et 1200 tokens pour l'exemple fictif", () => {

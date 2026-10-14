@@ -1,8 +1,9 @@
 // Réglages de l'appel à Claude par étape (modèle, tokens, température, délai,
 // outil structuré) pour creative-flow. Extraits À L'IDENTIQUE du handler
 // (fiche 3, lot B, 14/10/2026) dans une fonction pure, testable sans réseau
-// (call-options_test.ts). La branche `recycle` de maxTokens est morte (le
-// recyclage sort avant) : recopiée telle quelle, à supprimer dans une PR à part.
+// (call-options_test.ts). Le recyclage n'arrive jamais ici : le handler le
+// confie à handleRecycleStep (formats/recycle.ts) avant l'appel (lot F, 14/10/2026 :
+// branche morte `recycle ? 12288` retirée).
 // Voir docs/creation-contenu/CARTE.md.
 
 import { getModelForAction } from "../_shared/anthropic.ts";
@@ -23,7 +24,7 @@ export function callOptionsForStep(params: {
   // → stop_reason "max_tokens" → échec systématique en ~40 s. Un plafond haut ne
   // coûte rien tant qu'il n'est pas consommé.
   const factualFictionalLinkedIn = step === "generate" && isLinkedIn && !isPhotoMode && isFactualFictionalLinkedInBrief(context);
-  const maxTokens = step === "questions" ? 800 : step === "hooks" ? 1400 : step === "recycle" ? 12288 : factualFictionalLinkedIn ? 1200 : 8192;
+  const maxTokens = step === "questions" ? 800 : step === "hooks" ? 1400 : factualFictionalLinkedIn ? 1200 : 8192;
   const isLinkedInText = !!contentType?.includes("linkedin") && step !== "questions";
   const tempText = factualFictionalLinkedIn ? 0.2 : isLinkedInText ? 0.7 : 0.85;
   // L1 : Haiku pour les steps `questions` et `follow-up` (3-5× plus rapide que Sonnet,
