@@ -1319,8 +1319,8 @@ function SlideCanvas({
     const start = {
       x: e.clientX,
       y: e.clientY,
-      w: r.width,
-      h: r.height,
+      w: el.offsetWidth || r.width, // vraie taille du bloc (la boîte à l'écran grandit s'il est tourné)
+      h: el.offsetHeight || r.height,
       left: numberOr(computed.left, 0),
       font: numberOr(computed.fontSize, 40),
       position: computed.position === "absolute" ? "absolute" : "relative",
