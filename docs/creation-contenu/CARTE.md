@@ -452,6 +452,12 @@ fonctions qui ne s'appellent pas « carousel »**.
 > `factual-passes.ts` (14/10/2026). `correction-pass.ts` n'est plus qu'un
 > sommaire : pour retoucher une relecture, modifie le fichier de sa mission. Un sous-dossier garde la
 > zone et le rang (écriture) de son module d'origine.
+>
+> Découpage de `redac-gate.ts` en cours (fiche 7) : les outils de texte sont
+> dans `_shared/redac-gate/text-utils.ts`, les retournements et formules
+> moulées dans `reversals.ts`, les chiffres inventés dans `numbers.ts`, les
+> durées contradictoires dans `durations.ts` (lot 1, 14/10/2026). Le reste est
+> encore dans `redac-gate.ts`, qui réexporte tout ce qui était public.
 
 > ⚠️ **Piège principal** : `redac-gate.ts` et `correction-pass.ts` importent
 > `carousel-editorial-review.ts` et `carousel-model.ts`. Une retouche
