@@ -74,11 +74,15 @@ Deno.test("garde-fou : la rédaction ne décide plus des schémas, l'étage sép
     for (const shape of ["before_after:{", "comparison:{", "quote_big:{", "Zéro à deux schémas"]) assert(!p.includes(shape), `consigne de schéma revenue dans l'écriture : ${shape}`);
     assert(p.includes("visual_schema:null"), "l'écriture doit laisser visual_schema à null");
   }
+  // Lot 8 (14/10/2026) : l'étage vit dans carousel-ai/layout.ts, appelé par index.ts.
   const src = await Deno.readTextFile(new URL("../carousel-ai/index.ts", import.meta.url));
-  assert(/addSchemasToContent\(content, \{ isMix: false/.test(src), "étage de schémas absent du carrousel texte");
-  assert(/addSchemasToContent\(content, \{ isMix: true/.test(src), "étage de schémas absent du carrousel mixte");
+  const layout = await Deno.readTextFile(new URL("../carousel-ai/layout.ts", import.meta.url));
+  assert(/placeTextSchemas\(content, \{/.test(src), "étage de schémas absent du carrousel texte");
+  assert(/placeMixSchemas\(content, \{/.test(src), "étage de schémas absent du carrousel mixte");
+  assert(/addSchemasToContent\(content, \{ isMix: false/.test(layout), "étage de schémas texte vidé dans layout.ts");
+  assert(/addSchemasToContent\(content, \{ isMix: true/.test(layout), "étage de schémas mixte vidé dans layout.ts");
   // Mixte : schémas actifs, dessinés par le code (slide « pause »).
-  assert(/export const MIX_SCHEMAS_ENABLED = true;/.test(src), "schémas du mixte désactivés");
+  assert(/export const MIX_SCHEMAS_ENABLED = true;/.test(layout), "schémas du mixte désactivés");
 });
 
 Deno.test("schémas : motifs de rejet tracés (télémétrie)", () => {

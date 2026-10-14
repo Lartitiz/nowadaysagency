@@ -221,19 +221,23 @@ describe("poignées de redimensionnement", () => {
       expect(savedEl('[data-slide-text="title"]').style.width).toBe("");
     } finally { width.mockRestore(); }
   });
-  it("BUG relevé au lot E2 : un texte tourné change brusquement de largeur dès qu'on touche sa poignée", () => {
-    // La largeur de départ est lue sur la boîte ENGLOBANTE à l'écran
-    // (getBoundingClientRect), qui pour un bloc tourné n'est pas sa largeur.
+  it("un texte tourné garde sa largeur quand on touche sa poignée (corrigé après le lot E2)", () => {
+    // La largeur de départ est celle du bloc (offsetWidth), pas sa boîte
+    // englobante à l'écran, plus grande ou plus petite quand il est tourné.
     // Bloc de 600 × 100 tourné de 45° : boîte englobante de 495 × 495.
-    // Tirer la poignée de 1 px fait passer le bloc de 600 à 497 px.
-    // Comportement attendu une fois corrigé : 602px. Voir CARTE.md, section 7.
     const { width, title } = setup();
     try {
       title.style.transform = "rotate(45deg)";
       title.getBoundingClientRect = () => rect(80, 100, 495, 495);
+      Object.defineProperty(title, "offsetWidth", { configurable: true, value: 600 });
+      Object.defineProperty(title, "offsetHeight", { configurable: true, value: 100 });
       choose(title, 100, 120);
       pull("e", 1, 0);
-      expect(savedEl('[data-slide-text="title"]').style.width).toBe("497px");
+      expect(savedEl('[data-slide-text="title"]').style.width).toBe("602px");
+      pull("se", 50, 0);
+      // Le coin agrandit le texte en proportion de la vraie largeur : 60 × 700 / 600.
+      expect(savedEl('[data-slide-text="title"]').style.width).toBe("700px");
+      expect(savedEl('[data-slide-text="title"]').style.fontSize).toBe("70px");
     } finally { width.mockRestore(); }
   });
   it("slide verrouillée : aucune poignée, rien ne bouge", () => {

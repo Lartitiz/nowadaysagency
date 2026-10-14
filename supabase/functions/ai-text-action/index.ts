@@ -40,6 +40,29 @@ function buildDriftFixInstructions(
   return lines.join("\n\n");
 }
 
+// ── Limites de longueur (lot 10, 14/10/2026) ──
+// Le menu IA agit sur une SÉLECTION (quelques phrases à une newsletter entière)
+// et la réponse est plafonnée à 1 024 tokens (≈ 4 000 caractères) : au-delà de
+// 8 000 caractères sélectionnés, la réécriture serait de toute façon coupée.
+// La consigne vient des boutons du menu (≈ 300 caractères) ou de la zone
+// « Demander autre chose… » (quelques lignes). Refus AVANT tout appel IA et
+// avant le contrôle de quota : rien n'est débité.
+export const MAX_SELECTED_TEXT = 8000;
+export const MAX_ACTION_PROMPT = 1000;
+
+export function textActionInputError(selectedText: unknown, actionPrompt: unknown): string | null {
+  if (typeof selectedText !== "string" || typeof actionPrompt !== "string" || !selectedText.trim() || !actionPrompt.trim()) {
+    return "Sélectionne un texte et choisis une action.";
+  }
+  if (selectedText.length > MAX_SELECTED_TEXT) {
+    return `Le texte sélectionné est trop long (${selectedText.length.toLocaleString("fr-FR")} caractères, ${MAX_SELECTED_TEXT.toLocaleString("fr-FR")} au maximum). Sélectionne un passage plus court, par exemple un paragraphe à la fois.`;
+  }
+  if (actionPrompt.length > MAX_ACTION_PROMPT) {
+    return `Ta consigne est trop longue (${actionPrompt.length.toLocaleString("fr-FR")} caractères, ${MAX_ACTION_PROMPT.toLocaleString("fr-FR")} au maximum). Résume ce que tu veux en quelques phrases.`;
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -51,8 +74,9 @@ Deno.serve(async (req) => {
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const { workspace_id, selected_text, action_prompt } = await req.json();
-    if (!selected_text || !action_prompt) {
-      return new Response(JSON.stringify({ error: "Missing selected_text or action_prompt" }), {
+    const inputError = textActionInputError(selected_text, action_prompt);
+    if (inputError) {
+      return new Response(JSON.stringify({ error: inputError }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

@@ -25,25 +25,17 @@ import { ownPhotos } from "@/lib/stock-ambient-photos";
 import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason, REASON_IMAGE_MANQUANTE, INSTAGRAM_DIRECT_MAX_IMAGES, checkScheduleGuards, tokenExpiresBeforeSchedule } from "@/features/creer/publish-guards";
 import { startSocialConnect } from "@/lib/social-connect";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
-import { useSearchParams, useLocation, useNavigate, useNavigationType, Link } from "react-router-dom";
-import { versConnexions, memoriseRetour, recordCreationResume } from "@/lib/retour-apres-detour";
+import { useSearchParams, useLocation, useNavigate, useNavigationType } from "react-router-dom";
+import { versConnexions, recordCreationResume } from "@/lib/retour-apres-detour";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { posthog } from "@/lib/posthog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import PublishOrScheduleDialog from "@/components/creer/PublishOrScheduleDialog";
 import { useSocialConnections } from "@/hooks/use-social-connections";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import LowCreditsBanner from "@/components/creer/LowCreditsBanner";
+import PhotoMissingDialog from "@/components/creer/PhotoMissingDialog";
+import ConfirmResetDialog from "@/components/creer/ConfirmResetDialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Loader2, Palette, RefreshCw, Sparkles, Undo2, Redo2 } from "lucide-react";
@@ -119,43 +111,6 @@ import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/l
 
 // Phase 4: streaming SSE is now encapsulated inside useContentGenerator
 import { useUserPlan } from "@/hooks/use-user-plan";
-
-function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string }) {
-  const [dismissed, setDismissed] = useState(false);
-  const shouldShow = !dismissed && plan === "free" && remaining < 5 && remaining > 0;
-
-  useEffect(() => {
-    if (shouldShow) {
-      posthog.capture("low_credits_banner_shown", { remaining, plan });
-    }
-  }, [shouldShow]);
-
-  if (!shouldShow) return null;
-
-  return (
-    <div className="mb-4 rounded-xl border border-warning/30 bg-warning-bg px-4 py-3 flex items-center justify-between gap-3">
-      <div className="flex items-center gap-2 min-w-0">
-        <Sparkles className="h-5 w-5 shrink-0 text-warning" strokeWidth={1.75} />
-        <p className="text-sm text-warning">
-          <span className="font-medium">Plus que {remaining} crédit{remaining > 1 ? "s" : ""}</span> ce mois-ci.
-          {" "}Tes brouillons et tes contenus restent accessibles.
-        </p>
-      </div>
-      <Link
-        to="/pricing"
-        onClick={() => {
-          posthog.capture("low_credits_banner_cta_clicked", { remaining, plan });
-          // Elle est en pleine création : les tarifs proposeront d'y revenir.
-          memoriseRetour();
-        }}
-        className="shrink-0 text-xs font-medium text-warning hover:text-warning underline underline-offset-2 transition-colors"
-      >
-        Découvrir le Premium
-      </Link>
-      <button aria-label="Masquer cette invitation" onClick={() => setDismissed(true)} className="p-2">×</button>
-    </div>
-  );
-}
 
 type Step = "idea" | "format" | "questions" | "hook_selection" | "structure_review" | "inspiration_proposals" | "user_slides" | "result" | "edit";
 
@@ -904,6 +859,7 @@ function CreerWorkspace() {
     const obj = paramObjectif || locState.objectif || locState.objective || null;
 
     if (subject) setIdeaText(subject);
+    else if (locState.fromCalendar && typeof locState.theme === "string" && locState.theme.trim()) setIdeaText(locState.theme.trim()); // atelier du calendrier : sujet dans `theme`
     if (obj) setObjective(normalizeObjective(obj) ?? obj);
     if (locState?.existingContent) setExistingCalendarContent(locState.existingContent);
 
@@ -1150,7 +1106,7 @@ function CreerWorkspace() {
         if (cancelled) return;
         if (items.length === 0) throw new Error("Impossible de charger la photo.");
         if (failedCount > 0) {
-          toast.warning(`${failedCount} photo${failedCount > 1 ? "s" : ""} n'ont pas pu être chargées. Vérifie ta sélection avant de créer le contenu.`);
+          toast.warning(failedCount > 1 ? `${failedCount} photos n'ont pas pu être chargées. Vérifie ta sélection avant de créer le contenu.` : "1 photo n'a pas pu être chargée. Vérifie ta sélection avant de créer le contenu.");
         }
         setUploadedPhotos(items);
         if (items.length > 0) savePhotos(items);
@@ -2185,9 +2141,8 @@ function CreerWorkspace() {
     activeReelScope.current = reelScope;
     return () => { activeReelScope.current = "unmounted"; };
   }, [reelScope]);
-  const [reelArtifact, setReelArtifact] = useState(() => ({
-    scope: reelScope, url: ps?.reelSourceKey === reelSource ? ps?.reelMp4Url || null : null,
-  }));
+  // Au rechargement, le résultat arrive après le 1er rendu : la vidéo suit le script sauvegardé.
+  const [reelArtifact, setReelArtifact] = useState(() => { const source = result ? reelSource : reelSourceKey(ps?.result?.raw || ps?.result); return { scope: `${workspaceId}:${creationId}:${source}`, url: ps?.reelSourceKey === source ? ps?.reelMp4Url || null : null }; });
   const reelMp4Url = reelArtifact.scope === reelScope && isDurableReelUrl(reelArtifact.url) ? reelArtifact.url : null;
   const setReelMp4Url = useCallback((url: string | null) => {
     if (activeReelScope.current === reelScope) setReelArtifact({ scope: reelScope, url });
@@ -3456,97 +3411,35 @@ function CreerWorkspace() {
         }}
       />
 
-      {/* Dialog "photos manquantes" : remplace le downgrade silencieux des
-          carrousels mix/photo générés sans photos uploadées (cas typique :
-          entrée par le coaching, qui ne propose pas d'upload). */}
-      <AlertDialog
+      <PhotoMissingDialog
         open={photoMissingDialog.open}
+        rawType={photoMissingDialog.rawType}
         onOpenChange={(open) => {
           if (!open) setPhotoMissingDialog({ open: false, rawType: null });
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Ce carrousel gagnerait à avoir des photos</AlertDialogTitle>
-            <AlertDialogDescription>
-              L'IA a structuré un carrousel{" "}
-              <strong>{photoMissingDialog.rawType === "mix" ? "mixte (texte + photos)" : "photo"}</strong>,
-              mais aucune photo n'a été uploadée. Tu peux en ajouter maintenant
-              ou continuer en mode texte uniquement.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel
-              onClick={() => setPhotoMissingDialog({ open: false, rawType: null })}
-            >
-              Annuler
-            </AlertDialogCancel>
-            <Button
-              variant="outline"
-              onClick={() => {
-                // Continuer en texte : relance la génération avec forceText.
-                setPhotoMissingDialog({ open: false, rawType: null });
-                handleGenerateVisuals({ forceText: true });
-              }}
-            >
-              Continuer en texte
-            </Button>
-            <AlertDialogAction
-              onClick={() => {
-                // Ajouter des photos : retour à l'étape format, on force le
-                // sub-mode mix pour exposer la zone d'upload. Le contexte
-                // (sujet, angle, réponses, format) est préservé.
-                setCarouselSubMode("mix");
-                setPhotoMissingDialog({ open: false, rawType: null });
-                setStep("format");
-              }}
-            >
-              Ajouter des photos
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      {/* Garde anti-perte : confirmation avant "Nouveau contenu" quand un
-          travail est en cours (texte généré et/ou photos uploadées). Évite
-          d'effacer photos + contenu par un clic réflexe. */}
-      <AlertDialog open={confirmResetOpen} onOpenChange={setConfirmResetOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Repartir de zéro ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {uploadedPhotos.length > 0 ? (
-                <>
-                  Tu as un contenu en cours avec{" "}
-                  <strong>
-                    {uploadedPhotos.length} photo{uploadedPhotos.length > 1 ? "s" : ""}
-                  </strong>
-                  . « Nouveau contenu » efface le texte généré et retire les
-                  photos. Cette action est irréversible.
-                </>
-              ) : (
-                <>
-                  Tu as un contenu en cours. « Nouveau contenu » efface le texte
-                  généré et repart d'une page blanche. Cette action est
-                  irréversible.
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel onClick={() => setConfirmResetOpen(false)}>
-              Garder mon contenu
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setConfirmResetOpen(false);
-                handleReset();
-              }}
-            >
-              Repartir de zéro
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onContinueText={() => {
+          // Continuer en texte : relance la génération avec forceText.
+          setPhotoMissingDialog({ open: false, rawType: null });
+          handleGenerateVisuals({ forceText: true });
+        }}
+        onAddPhotos={() => {
+          // Ajouter des photos : retour à l'étape format, on force le
+          // sub-mode mix pour exposer la zone d'upload. Le contexte
+          // (sujet, angle, réponses, format) est préservé.
+          setCarouselSubMode("mix");
+          setPhotoMissingDialog({ open: false, rawType: null });
+          setStep("format");
+        }}
+      />
+      <ConfirmResetDialog
+        open={confirmResetOpen}
+        onOpenChange={setConfirmResetOpen}
+        photoCount={uploadedPhotos.length}
+        onConfirm={() => {
+          setConfirmResetOpen(false);
+          handleReset();
+        }}
+      />
       {studioSlideId && carouselCloudEnabled && editingIdeaId && <CarouselStudioDialog
         key={`${workspaceId}:${studioSlideId}`}
         userId={session!.user.id} workspaceId={workspaceId} isOwnSpace={isOwnSpace} ideaId={editingIdeaId}

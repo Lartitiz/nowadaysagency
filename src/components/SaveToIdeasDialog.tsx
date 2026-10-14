@@ -1,6 +1,7 @@
 // ============= Full file contents =============
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -9,6 +10,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { externalizeCarouselMedia } from "@/lib/carousel-media";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { clearFlowState } from "@/hooks/use-flow-persistence";
+import { resumeIdea } from "@/lib/resume-idea";
+import { cleanIdeaTitle } from "@/lib/idea-to-calendar";
+
+/**
+ * L'idée a changé ailleurs (autre onglet, autre appareil) depuis son ouverture,
+ * ou elle a été supprimée : rien n'a été écrit. Même contrôle que l'autosave
+ * carrousel (`use-carousel-autosave.ts`) et le retour vers le calendrier
+ * (`use-calendar-save.ts`) : `updated_at` attendu, jamais d'écrasement en douce.
+ */
+class IdeaVersionConflict extends Error {
+  constructor(readonly deleted: boolean) {
+    super("idea_version_conflict");
+  }
+}
 
 const TAG_OPTIONS = [
   { id: "education", label: "Éducation" },
@@ -69,6 +85,33 @@ export function SaveToIdeasDialog({
   const savingRef = useRef(false);
   const scopeRef = useRef("");
   scopeRef.current = `${user?.id || ""}:${workspaceId || ""}`;
+  const [conflict, setConflict] = useState<{ ideaId: string; deleted: boolean } | null>(null);
+
+  // Version de l'idée lue À L'OUVERTURE du contenu (pas au moment d'enregistrer :
+  // sinon on validerait en douce la version d'un autre onglet), puis mise à jour
+  // après chacune de nos propres écritures.
+  const versionRead = useRef<{ id: string; promise: Promise<string | null> } | null>(null);
+  const readVersion = (id: string): Promise<string | null> => {
+    if (versionRead.current?.id === id) return versionRead.current.promise;
+    const promise = (async () => {
+      const { data, error } = await supabase.from("saved_ideas").select("updated_at").eq("id", id).maybeSingle();
+      if (error) throw error;
+      if (!data) throw new IdeaVersionConflict(true);
+      return (data as { updated_at?: string | null }).updated_at ?? null;
+    })();
+    versionRead.current = { id, promise };
+    promise.catch(() => { if (versionRead.current?.promise === promise) versionRead.current = null; });
+    return promise;
+  };
+  const rememberVersion = (id: string, updatedAt: string | null | undefined) => {
+    versionRead.current = { id, promise: Promise.resolve(updatedAt ?? null) };
+  };
+  useEffect(() => {
+    setConflict(null);
+    if (editingIdeaId && user?.id) void readVersion(editingIdeaId).catch(() => {});
+    // Capture la version quand l'idée est ouverte, pas après l'avoir modifiée.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingIdeaId, user?.id]);
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
@@ -84,7 +127,7 @@ export function SaveToIdeasDialog({
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async ({ asCopy = false }: { asCopy?: boolean } = {}) => {
     if (savingRef.current) return;
     if (!user) { toast.error("Reconnecte-toi pour enregistrer ton contenu."); return; }
     const scope = scopeRef.current;
@@ -103,6 +146,10 @@ export function SaveToIdeasDialog({
     setSaving(true);
     onSavingChange?.(true);
     try {
+      // Version attendue lue avant tout envoi de photos : un conflit déjà connu
+      // ne doit rien téléverser.
+      const updatesExisting = !onSaveContent && !!editingIdeaId && !asCopy;
+      const expectedUpdatedAt = updatesExisting ? await readVersion(editingIdeaId!) : null;
       prepared = onPrepareContent ? await onPrepareContent(contentData) : undefined;
       if (!isCurrent()) { await rollbackPrepared(); return; }
       const preparedContent = prepared ? prepared.contentData : contentData;
@@ -167,31 +214,41 @@ export function SaveToIdeasDialog({
       writeStarted = true;
       if (onSaveContent) {
         targetId = await onSaveContent(baseFields);
-      } else if (editingIdeaId) {
+      } else if (updatesExisting) {
         isUpdate = true;
         // On range le contenu SUR l'idée de départ sans lui voler son identité :
         // le titre et l'angle notés par l'utilisatrice restent, seuls le contenu,
         // le format/canal et les notes sont mis à jour.
         const { titre: _titre, angle: _angle, ...contentFields } = baseFields;
-        const { error } = await supabase
+        // Écriture conditionnelle : seulement si l'idée est encore dans la
+        // version ouverte ici. Sinon, aucune ligne touchée → conflit.
+        let query = supabase
           .from("saved_ideas")
           .update({ ...contentFields, updated_at: new Date().toISOString() } as any)
-          .eq("id", editingIdeaId).select("id").single();
+          .eq("id", editingIdeaId!);
+        query = expectedUpdatedAt === null ? query.is("updated_at", null) : query.eq("updated_at", expectedUpdatedAt);
+        const { data: updated, error } = await query.select("id,updated_at").maybeSingle();
         if (error) {
           setSaving(false);
           console.error("Update idea error:", error);
           throw error;
         }
-        targetId = editingIdeaId;
+        if (!updated) {
+          const { data: stillThere } = await supabase.from("saved_ideas").select("id").eq("id", editingIdeaId!).maybeSingle();
+          throw new IdeaVersionConflict(!stillThere);
+        }
+        rememberVersion(editingIdeaId!, (updated as { updated_at?: string | null }).updated_at);
+        targetId = editingIdeaId!;
       } else {
         const { data: newIdea, error } = await supabase.from("saved_ideas").insert({
           user_id: user.id,
           workspace_id: workspaceId !== user.id ? workspaceId : undefined,
           ...baseFields,
+          ...(asCopy ? { titre: `${baseFields.titre} (copie)` } : {}),
           type: "draft",
           status: "to_explore",
           source_module: sourceModule,
-        } as any).select("id").single();
+        } as any).select("id,updated_at").single();
 
         if (error) {
           setSaving(false);
@@ -199,10 +256,12 @@ export function SaveToIdeasDialog({
           throw error;
         }
         targetId = newIdea?.id ?? null;
+        if (targetId) rememberVersion(targetId, (newIdea as { updated_at?: string | null }).updated_at);
       }
 
       if (!isCurrent()) return;
       if (!targetId) throw new Error("L’enregistrement n’a pas été confirmé.");
+      setConflict(null);
       // Close once the text is safe; the result keeps a visible progress status.
       onOpenChange(false);
       // Do not claim a complete save before the visuals have also been attached.
@@ -210,10 +269,19 @@ export function SaveToIdeasDialog({
         ? await attachVisualsInBackground(targetId, currentContent) : true;
       if (prepared || provenance.length) onSaved?.(targetId, complete, currentContent);
       else onSaved?.(targetId, complete);
-      if (complete) toast.success(isUpdate ? "Contenu mis à jour dans Mes idées → En cours." : "Contenu enregistré dans Mes idées → En cours.");
+      if (complete) toast.success(isUpdate ? "Contenu mis à jour dans Mes idées → En cours."
+        : asCopy ? "Copie enregistrée dans Mes idées → En cours. L’autre version n’a pas été touchée."
+        : "Contenu enregistré dans Mes idées → En cours.");
       setSelectedTags([]);
       setNote("");
     } catch (error) {
+      if (error instanceof IdeaVersionConflict) {
+        // Réponse reçue : rien n'a été écrit, les photos préparées sont inutiles.
+        await rollbackPrepared();
+        if (!isCurrent()) return;
+        setConflict({ ideaId: editingIdeaId!, deleted: error.deleted });
+        return;
+      }
       // A transport failure can arrive after commit: keep media unless SQL
       // explicitly rejected the write, or no write was attempted.
       const code = (error as { code?: string })?.code || "";
@@ -236,13 +304,16 @@ export function SaveToIdeasDialog({
         toast.loading(`Visuels en cours d'ajout… ${done}/${t}`, { id: toastId });
       });
       if (urls.length !== total) throw new Error("Tous les visuels n’ont pas pu être enregistrés.");
-      const { error: visualError } = await supabase
+      const { data: withVisuals, error: visualError } = await supabase
         .from("saved_ideas")
         .update({
           content_data: await externalizeCarouselMedia({ ...currentContent, visual_urls: urls, visual_html: visualSlides }, user?.id || ""),
         } as any)
-        .eq("id", ideaId).select("id").single();
+        .eq("id", ideaId).select("id,updated_at").single();
       if (visualError) throw visualError;
+      // Notre propre écriture : la version attendue suit, sinon le prochain
+      // enregistrement verrait un faux conflit.
+      if (versionRead.current?.id === ideaId) rememberVersion(ideaId, (withVisuals as { updated_at?: string | null } | null)?.updated_at);
       toast.success("Texte et visuels enregistrés ✓", { id: toastId });
       return true;
     } catch (e) {
@@ -316,11 +387,72 @@ export function SaveToIdeasDialog({
             />
           </div>
 
-          <Button onClick={handleSave} disabled={saving} className="w-full rounded-pill">
-            {saving ? "Enregistrement du contenu…" : "Enregistrer dans Mes idées"}
-          </Button>
+          {conflict ? (
+            <div role="alert" className="space-y-3 rounded-xl border border-primary/30 bg-rose-pale p-3">
+              <p className="text-sm font-medium text-foreground">
+                {conflict.deleted ? "Cette idée n’existe plus dans Mes idées" : "Une version plus récente existe"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {conflict.deleted
+                  ? "Elle a été supprimée depuis que tu l’as ouverte. Ton contenu est toujours là : enregistre-le comme nouvelle idée."
+                  : "Cette idée a été modifiée ailleurs (un autre onglet ou un autre appareil) depuis que tu l’as ouverte. Pour ne rien perdre, on n’a rien écrasé. Qu’est-ce qu’on fait ?"}
+              </p>
+              <div className="flex flex-col gap-2">
+                <Button onClick={() => void handleSave({ asCopy: true })} disabled={saving} className="w-full rounded-pill">
+                  {saving ? "Enregistrement de la copie…" : conflict.deleted ? "Enregistrer comme nouvelle idée" : "Enregistrer une copie de mon contenu"}
+                </Button>
+                {!conflict.deleted && <ReloadLatestButton ideaId={conflict.ideaId} disabled={saving} />}
+              </div>
+            </div>
+          ) : (
+            <Button onClick={() => void handleSave()} disabled={saving} className="w-full rounded-pill">
+              {saving ? "Enregistrement du contenu…" : "Enregistrer dans Mes idées"}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Abandonne le contenu ouvert ici et rouvre la dernière version enregistrée de
+ * l'idée (même chemin que « Ouvrir l'éditeur » depuis Mes idées). Composant à
+ * part : il n'est monté qu'en cas de conflit, donc toujours sous le routeur.
+ */
+function ReloadLatestButton({ ideaId, disabled }: { ideaId: string; disabled?: boolean }) {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const reload = async () => {
+    setLoading(true);
+    try {
+      const { data: idea, error } = await supabase.from("saved_ideas").select("*").eq("id", ideaId).maybeSingle();
+      if (error) throw error;
+      if (!idea) throw new Error("idea_not_found");
+      const params = new URLSearchParams({
+        sujet: cleanIdeaTitle(idea.titre),
+        angle: idea.angle || "",
+        format: idea.format || "",
+        canal: idea.canal || "instagram",
+        objectif: idea.objectif || "",
+        idea_id: idea.id,
+      });
+      // La copie de secours du navigateur porte encore l'ancienne version :
+      // on la retire, sinon /creer proposerait de la reprendre.
+      clearFlowState();
+      navigate(`/creer?${params.toString()}`, { state: { resumeIdea: resumeIdea(idea as any), ideaId: idea.id } });
+    } catch (error) {
+      console.error("Reload latest idea failed:", error);
+      toast.error("Impossible de recharger la dernière version. Ton contenu est toujours là : enregistre plutôt une copie.");
+      setLoading(false);
+    }
+  };
+  return (
+    <>
+      <Button variant="outline" onClick={() => void reload()} disabled={disabled || loading} className="w-full rounded-pill">
+        {loading ? "Chargement de la dernière version…" : "Recharger la dernière version"}
+      </Button>
+      <p className="text-xs text-muted-foreground">En rechargeant, les modifications faites ici sont abandonnées.</p>
+    </>
   );
 }

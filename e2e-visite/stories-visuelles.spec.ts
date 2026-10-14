@@ -203,14 +203,36 @@ test("Stories — génération + aperçus visuels rendus", async ({ page }) => {
   // Exports dans le panneau minimal (#608) : héros Canva visible, téléchargements
   // dans le menu « Autres actions » → Télécharger.
   await expect(page.getByRole("button", { name: /ouvrir dans canva/i })).toBeVisible();
-  await page.getByTestId("more-actions").first().click();
-  await page.getByRole("menuitem", { name: /télécharger/i }).first().click();
-  await expect(page.getByRole("menuitem", { name: /Images PNG/i })).toBeVisible();
+  const ouvrirSousMenuTelecharger = async () => {
+    await page.getByTestId("more-actions").first().click();
+    await page.getByRole("menuitem", { name: /télécharger/i }).first().click();
+    await expect(page.getByRole("menuitem", { name: /Images PNG/i })).toBeVisible({ timeout: 5000 });
+  };
+  await ouvrirSousMenuTelecharger();
 
   // Export PPTX natif : téléchargement + validation de CONTENU (jszip) — le nom
   // de fichier ne suffit pas, cf. e2e-visite/pptx-validate.ts.
+  //
+  // Clic FRAGILE (14/10) : « element was detached from the DOM, retrying » puis
+  // timeout, et le nouvel essai de la spec refaisait une génération PAYANTE.
+  // Cause : le sous-menu Radix « Télécharger » est un portail qui se FERME dès
+  // que la souris survole un autre item du menu principal (et se rouvre au
+  // survol du déclencheur). Le clic souris de Playwright déplace le pointeur
+  // jusqu'à « PowerPoint » en traversant le menu → le sous-menu se démonte sous
+  // le clic, en boucle. Parade : (1) valider l'item AU CLAVIER (Radix déclenche
+  // le même `click()` sur Entrée) → aucun déplacement de souris ; (2) si le
+  // sous-menu s'est quand même refermé, le rouvrir et réessayer dans une petite
+  // boucle — SANS jamais relancer la génération.
   const dlPromise = page.waitForEvent("download", { timeout: 120_000 });
-  await page.getByRole("menuitem", { name: /PowerPoint/i }).click();
+  const itemPptx = page.getByRole("menuitem", { name: /PowerPoint/i });
+  await expect(async () => {
+    if (!(await itemPptx.isVisible())) {
+      await page.keyboard.press("Escape");
+      await page.keyboard.press("Escape");
+      await ouvrirSousMenuTelecharger();
+    }
+    await itemPptx.press("Enter", { timeout: 5000 });
+  }).toPass({ timeout: 60_000, intervals: [500, 1000, 2000] });
   const download = await dlPromise;
   console.log(`PPTX téléchargé : ${download.suggestedFilename()}`);
   expect(download.suggestedFilename()).toMatch(/\.pptx$/);

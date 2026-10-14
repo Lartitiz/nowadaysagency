@@ -44,12 +44,19 @@ describe("editable carousel persistence", () => {
       result: { raw: output.raw },
       visualSlides: output.visualSlides,
     });
-    const key = "creer_flow_state_backup:carousel-test-user";
+    // Copie de secours de cet onglet (une par onglet depuis le lot 10).
+    const key = Object.keys(localStorage).find((k) =>
+      k.startsWith("creer_flow_state_backup:carousel-test-user:tab:"),
+    )!;
     const backup = JSON.parse(localStorage.getItem(key)!);
     expect(backup.result.raw.visual_html).toBeUndefined();
     backup.ts = Date.now() - 3 * 60 * 60 * 1000;
     localStorage.setItem(key, JSON.stringify(backup));
+    // Onglet fermé : plus de sessionStorage ni de signal de présence.
     sessionStorage.clear();
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith("creer_flow_presence:"))
+      .forEach((k) => localStorage.removeItem(k));
     const restored = loadFlowState()!;
     const document = readCarouselDocument(
       restored.result.raw,

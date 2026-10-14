@@ -650,12 +650,12 @@ Niveau : **élevé** pour la branche `message`, **faible à moyen** pour le rest
 - Le reste (actions courtes, stockage, réponse « read ») se déplace sans danger une fois le contrat posé.
 
 Une PR par lot. À chaque lot : `npm run test:edges`, le `deno check` ci-dessus, et `node supabase/tests/visual-studio.mjs` si du SQL est touché (normalement jamais).
-1. **Lot 0** : les tests 1 à 5, sans toucher au code. Générer les références sur `main`.
-2. **Lot 1** : `request-schema.ts`, `storage.ts`, `errors.ts`.
-3. **Lot 2** : `actions/session.ts`, `actions/reference.ts`, `actions/composition.ts`, `actions/save.ts`.
-4. **Lot 3** : `actions/pilot.ts` et `actions/generate.ts` (crédits : relire le diff ligne à ligne).
-5. **Lot 4** : `read-state.ts`.
-6. **Lots 5 à 8** : la branche `message`, un fichier `turn/*` par PR, dans cet ordre : `brand-context`, `interpret`, `proposal`, et `guardrails` en dernier, éventuellement en deux PR (921-1143, puis 1144-1304).
+1. **Lot 0** : les tests 1 à 5, sans toucher au code. Générer les références sur `main`. *Fait (#1478, 14/10/2026) : `prompts_snapshot_test.ts`, `handler_contract_test.ts`, harnais `contract_harness.ts`.*
+2. **Lot 1** : `request-schema.ts`, `storage.ts`, `errors.ts`. *Fait (14/10/2026) : `index.ts` 2001 → 1815 lignes, aucun `.snap` modifié. La lecture des erreurs de téléchargement est dans `storage-errors.ts` (#1481). Les numéros de ligne ci-dessus datent d'avant ce lot.*
+3. **Lot 2** : `actions/session.ts`, `actions/reference.ts`, `actions/composition.ts`, `actions/save.ts`. *Fait (14/10/2026) : chaque action reçoit `(ctx, session, references)` (`actions/context.ts`) et renvoie la session ou la `Response` ; `index.ts` 1815 → 1518 lignes, aucun `.snap` modifié.*
+4. **Lot 3** : `actions/pilot.ts` et `actions/generate.ts` (crédits : relire le diff ligne à ligne). *Fait (14/10/2026) : corps de `generate` identique ligne à ligne (seul `pipe.corsHeaders` devient `ctx.corsHeaders`), `EdgeRuntime` déclaré dans `generate.ts` ; `index.ts` 1518 → 1258 lignes, aucun `.snap` modifié.*
+5. **Lot 4** : `read-state.ts`. *Fait (14/10/2026) : `readState(ctx, session, writable)`, corps identique ligne à ligne (167 lignes) ; `index.ts` 1258 → 1087 lignes, aucun `.snap` modifié.*
+6. **Lots 5 à 8** : la branche `message`, un fichier `turn/*` par PR, dans cet ordre : `brand-context`, `interpret`, `proposal`, et `guardrails` en dernier, éventuellement en deux PR (921-1143, puis 1144-1304). *Lot 5 fait (14/10/2026) : `turn/brand-context.ts`, `loadBrandContext(ctx, message)` renvoie `{ memory, brandContext, catalogue }` ; corps identique sauf `searchTerms(message)` (la demande déjà vérifiée par index.ts) ; `index.ts` 1087 → 990 lignes, aucun `.snap` modifié. Lot 6 fait (14/10/2026) : `turn/interpret.ts`, `interpret(ctx, input)` (rôles déclarés appliqués en place, vision, appel à Claude et réparations) renvoie la réponse 503 ou `{ statedRoles, selectedReference, vision, availableSoulStyles, intent, interpreterArgs }` ; corps identique (151 lignes), références passées sans copie (vérifié : une copie fait échouer le test des rôles en place) ; `index.ts` 990 → 841 lignes. Lot 7 fait (14/10/2026) : `turn/proposal.ts`, `saveProposal(ctx, input)` (proposition, routage Soul 2 / Marketing, messages, journal, enregistrement avec `revision`) renvoie la réponse anticipée ou la session enregistrée ; corps identique (151 lignes) sauf `message.slice` (demande déjà vérifiée) et `return updated.data` ; `index.ts` 841 → 686 lignes, sorti de la liste du cliquet (moins de 800 lignes). Lot 8 fait (14/10/2026) : `turn/guardrails.ts`, `applyGuardrails(ctx, input)` (règles métier après Claude, en une seule PR) renvoie la réponse anticipée ou ce dont la proposition a besoin ; corps identique (382 lignes) ; `requestReferences` et `intent` passés sans copie ; nouveau test « mannequin de la mémoire : ajouté aux références de la demande enregistrées » (une copie du tableau à l'entrée des règles passait inaperçue des 199 tests). `index.ts` 686 → 299 lignes. **Fiche 5 terminée.***
 
 Pendant ces lots : pas de fusion de PR pendant une session Lovable ouverte (cf. CLAUDE.md), et aucun changement de comportement mêlé au déplacement.
 
@@ -866,15 +866,55 @@ Les trois fonctions Pinterest n'importent pas `redac-gate`. Elles y arrivent par
 
 ### 8. `src/components/creer/CarouselEditor.tsx` — 3816 lignes
 
-**Pas de fiche détaillée ici** : son découpage est déjà planifié (lots E2/E3
-du chantier éditeur carrousel), et une autre conversation travaille en ce
-moment sur l'éditeur et sur `src/lib/carousel-editor.ts` (contrat des
-attributs `data-*`, `supabase/functions/_shared/carousel-dom-contract.ts`).
+Découpage validé par Laetitia le 14/10/2026 (lot E3). Les tests qui le
+protègent : `src/test/carousel-editor-*.test.tsx` (lot E2, plus
+`carousel-editor-wiring.test.tsx` du lot E3-0) et les autres
+`src/test/carousel-*.test.tsx` qui montent l'éditeur. Ils doivent passer sans
+être retouchés.
 
-Ce que dit le classement : c'est le plus long fichier du dépôt, mais il est
-« seulement » 8ᵉ, parce qu'il a été modifié 34 fois en 90 jours et jamais par
-un commit de correction identifiable. Le cliquet anti-dette le gèle à 3816
-lignes et 4 `any` : le chantier E2/E3 le fera baisser (`--update`).
+**Ce qu'il mélange** (lignes au 14/10/2026, commit `ff1ebdc5`) :
+
+| Lignes | Mission |
+|---|---|
+| 1-280 | Outils de calcul sur la slide (élément sous le pointeur, repères, verrou), liste des raccourcis |
+| 282-368 | Petites briques : section repliable, miniature, forme du cadre photo |
+| 370-1722 | `SlideCanvas`, l'aperçu : réactions souris / clavier dans l'iframe (`bind`, ~700 lignes), poignées, barre d'outils flottante, dessins par-dessus l'aperçu |
+| 1724-1862 | Le cœur : document, historique, `emit`, écho (`inputKey`) |
+| 1863-2394 | Les actions (copier / coller, raccourcis, grouper, styles, thèmes, polices) |
+| 2395-2793 | En-tête, encadré « Contrôle qualité » (portail), miniatures, colonne de l'aperçu |
+| 2794-3745 | Panneau de réglages : calques, onglets, texte, photo, bloc, slide, carrousel, « Toutes les slides », « Mes styles » |
+| 3747-3816 | Légende, vérificateur, fenêtres Instagram et photo |
+
+**Découpage** : dossier `src/components/creer/CarouselEditorParts/`. Le nom
+commence par `CarouselEditor` exprès : le test du contrat `data-*`
+(`carousel-dom-contract.test.ts`) et le rapport d'impact
+(`scripts/impact-creation.mjs`) ne regardent que les chemins
+`src/components/creer/CarouselEditor…`. Un dossier `carousel-editor/` leur
+échapperait.
+
+| PR | Contenu |
+|---|---|
+| E3-0 | Tests de branchement seuls |
+| E3-1 | `canvas-geometry.ts` (outils de calcul), `PanelBits.tsx` (petites briques) |
+| E3-2 | `CanvasToolbar.tsx` (barre flottante) |
+| E3-3 | `SlideCanvas.tsx` + `canvas-events.ts` (l'aperçu fait 1 350 lignes : au-delà des 800 du cliquet, il part en deux) |
+| E3-4 | `LayersPanel.tsx` (calques et sélection multiple), `SlideSettings.tsx` (onglets Slide et Carrousel), `panel-controls.tsx` |
+| E3-5 | `TextSettings.tsx`, `ElementSettings.tsx` (`PhotoSettings`, `BlockSettings`) |
+| E3-6 | `EditorHeader.tsx`, `QualityPanel.tsx`, `SlideStrip.tsx`, `AllSlidesPanel.tsx` |
+
+**Ne bouge pas** : le cœur (document, historique, `emit`, écho). C'est là
+qu'est née la boucle infinie corrigée par `ec445582`.
+
+**Règles du déplacement** :
+- l'état tapé mais pas encore validé (nom d'un style, recherche de police)
+  reste dans `CarouselEditor` : déplacé dans un panneau qui disparaît, il
+  serait perdu en changeant d'onglet ;
+- la barre flottante et les réactions de l'aperçu lisent `latest.current`
+  (les actions du dernier rendu), jamais une copie ;
+- la variable `document` de l'éditeur est le carrousel, pas la page :
+  `tsc` attrape toute confusion dans un fichier déplacé ;
+- pas de retouche de l'éditeur par Lovable pendant le lot ;
+- après chaque PR : `node scripts/cliquet-dette.mjs --update` dans la même PR.
 
 ---
 

@@ -35,6 +35,8 @@ interface SlideData {
   body?: string;
   visual_suggestion?: string;
   visual_schema?: Record<string, any> | null;
+  /** Libellé du bouton d'appel à l'action de la slide (même champ que l'éditeur visuel et les carrousels photo / mixte). */
+  cta_label?: string | null;
 }
 
 interface CaptionData {
@@ -412,29 +414,43 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
     });
   }, [onSlidesUpdate, remapVisuals]);
 
-  // Édition / retrait du bouton d'appel à l'action (CTA) : n'existe que dans le
-  // HTML du visuel (data-slide-cta), pas dans les slides structurées.
-  const patchCtaVisual = useCallback((slideNumber: number, html: string) => {
+  // Édition / retrait du bouton d'appel à l'action (CTA) : le bouton est dessiné
+  // dans le HTML du visuel (data-slide-cta), et son libellé est aussi rangé dans
+  // la slide (cta_label, comme patchElement de l'éditeur visuel ; "" = retiré).
+  // Sauvegarde et calendrier le retrouvent sans relire le HTML (lot 8).
+  const patchCtaVisual = useCallback((slideNumber: number, html: string): boolean => {
     const visuals = visualSlidesRef.current;
-    if (!visuals?.length || !onVisualSlidesUpdate) return;
+    if (!visuals?.length || !onVisualSlidesUpdate) return false;
     const vi = visuals.findIndex((v) => v.slide_number === slideNumber);
-    if (vi < 0) return;
+    if (vi < 0) return false;
     const next = [...visuals];
     next[vi] = { ...next[vi], html };
     onVisualSlidesUpdate(next);
+    return true;
   }, [onVisualSlidesUpdate]);
+
+  const setSlideCtaLabel = useCallback((slideNumber: number, label: string) => {
+    setSlides(prev => {
+      const i = prev.findIndex((s, idx) => (s.slide_number || idx + 1) === slideNumber);
+      if (i < 0 || prev[i].cta_label === label) return prev;
+      const updated = [...prev];
+      updated[i] = { ...updated[i], cta_label: label };
+      onSlidesUpdate?.(updated, captionRef.current);
+      return updated;
+    });
+  }, [onSlidesUpdate]);
 
   const updateCta = useCallback((slideNumber: number, currentHtml: string, value: string) => {
     const oldText = getSlideCtaText(currentHtml) || "";
     if (value === oldText) return;
     const patched = replaceSlideText(currentHtml, "cta", oldText, value);
-    if (patched) patchCtaVisual(slideNumber, patched);
-  }, [patchCtaVisual]);
+    if (patched && patchCtaVisual(slideNumber, patched)) setSlideCtaLabel(slideNumber, value);
+  }, [patchCtaVisual, setSlideCtaLabel]);
 
   const removeCta = useCallback((slideNumber: number, currentHtml: string) => {
     const patched = removeSlideCta(currentHtml);
-    if (patched) patchCtaVisual(slideNumber, patched);
-  }, [patchCtaVisual]);
+    if (patched && patchCtaVisual(slideNumber, patched)) setSlideCtaLabel(slideNumber, "");
+  }, [patchCtaVisual, setSlideCtaLabel]);
 
   // Confirmation de suppression : index de la slide à supprimer (null = fermé).
   const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
