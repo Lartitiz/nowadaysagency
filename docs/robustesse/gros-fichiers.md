@@ -871,7 +871,8 @@ Les trois fonctions Pinterest n'importent pas `redac-gate`. Elles y arrivent par
 - Test 6 : `redac-gate-golden_snapshot_test.ts` (texte corrigé, texte dont la correction dérive, carrousel corrigé, carrousel dont la correction est refusée).
 - **Constat relevé par les tests (non corrigé, changement de code)** : `inventedSourceTokens` compte tout mot à majuscule ajouté par la correction comme une source inventée. Une correction qui remplace « 42 % des artisans… » par « … possible. Une bonne partie des artisans… » est donc refusée à cause du « Une » en début de phrase. À traiter dans une PR à part, après le découpage.
 - Lot 1 fait : `redac-gate/text-utils.ts`, `reversals.ts`, `numbers.ts`, `durations.ts` (code déplacé à l'identique ; `redac-gate.ts` réexporte `numbersIn` et `dropUserSourcedReversals`, les autres symboles restent internes). `redac-gate.ts` : 2 093 → ~1 800 lignes, aucun snapshot modifié, rayon d'impact inchangé.
-- Prochain : lot 2 (`echoes`, `slop-signals`).
+- Lot 2 fait : `redac-gate/echoes.ts` (avec le type `EchoContext`, propre aux redites, au lieu de `scoring.ts`), `slop-signals.ts`, et `carousel-analysis.ts` amorcé avec `slideTexts` / `slideBody` (les mesures de style en ont besoin ; sans ça, `slop-signals` importerait `redac-gate.ts`). `redac-gate.ts` → ~1 340 lignes, aucun snapshot modifié.
+- Prochain : lot 3 (`scoring`, `research-numbers`, `testimony`).
 
 ---
 

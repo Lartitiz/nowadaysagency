@@ -457,8 +457,11 @@ fonctions qui ne s'appellent pas « carousel »**.
 > Découpage de `redac-gate.ts` en cours (fiche 7) : les outils de texte sont
 > dans `_shared/redac-gate/text-utils.ts`, les retournements et formules
 > moulées dans `reversals.ts`, les chiffres inventés dans `numbers.ts`, les
-> durées contradictoires dans `durations.ts` (lot 1, 14/10/2026). Le reste est
-> encore dans `redac-gate.ts`, qui réexporte tout ce qui était public.
+> durées contradictoires dans `durations.ts` (lot 1, 14/10/2026), les redites
+> (accroche, fiche de marque, contenus récents) dans `echoes.ts`, les élisions
+> et mesures « slop » dans `slop-signals.ts`, les textes d'une slide dans
+> `carousel-analysis.ts` (lot 2). Le reste est encore dans `redac-gate.ts`,
+> qui réexporte tout ce qui était public.
 
 > ⚠️ **Piège principal** : `redac-gate.ts` et `correction-pass.ts` importent
 > `carousel-editorial-review.ts` et `carousel-model.ts`. Une retouche

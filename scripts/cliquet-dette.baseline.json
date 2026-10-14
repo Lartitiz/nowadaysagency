@@ -138,8 +138,8 @@
       "any": 21
     },
     "supabase/functions/_shared/redac-gate.ts": {
-      "lignes": 1803,
-      "any": 23
+      "lignes": 1344,
+      "any": 17
     },
     "supabase/functions/_shared/scraping.ts": {
       "lignes": 1223,

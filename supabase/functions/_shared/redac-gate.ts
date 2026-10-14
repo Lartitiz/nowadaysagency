@@ -11,7 +11,7 @@ import { carouselEditorialFields } from "./carousel-editorial-review.ts";
 // Le quality_check émis au front est celui calculé ici (source: "code").
 
 import { applyCorrectionPass, applyCorrectionPassCarousel, applyResearchExcessPass, applyResearchSourcingPass, applyTestimonyRemovalPass, extractCarouselTexts, reinjectCarouselTexts, type CorrectionFormat, type CorrectionOptions } from "./correction-pass.ts";
-import { FRENCH_NUMERALS, wordCount, sentencesOf, normalizeWordsForOverlap, wordsWithOffsets, tokenSimilarity } from "./redac-gate/text-utils.ts";
+import { FRENCH_NUMERALS, wordCount, sentencesOf, tokenSimilarity } from "./redac-gate/text-utils.ts";
 import { MOULDED_VERBATIMS, findReversals, dropUserSourcedReversals } from "./redac-gate/reversals.ts";
 import { NUMBER_TOKEN, measuredMultipliers, numbersIn, findFabricatedNumbers } from "./redac-gate/numbers.ts";
 import { findDurationConflicts } from "./redac-gate/durations.ts";
@@ -19,6 +19,12 @@ import { findDurationConflicts } from "./redac-gate/durations.ts";
 // fichier réexporte ce qui était public, sous le même nom.
 export { dropUserSourcedReversals } from "./redac-gate/reversals.ts";
 export { numbersIn } from "./redac-gate/numbers.ts";
+import { slideTexts, slideBody } from "./redac-gate/carousel-analysis.ts";
+import { type EchoContext, findHookEchoes, findBrandCopyOverlap, findRecentEchoes, hookEchoesBefore, textHook } from "./redac-gate/echoes.ts";
+export type { EchoContext } from "./redac-gate/echoes.ts";
+export { findHookEchoes, findBrandCopyOverlap, findSharedPassages, findRecentEchoes, hookEchoesBefore, textHook } from "./redac-gate/echoes.ts";
+export { fixFrenchElisions, fixElisionsInFields, countStaccatoAcrossSlides, countAnaphoraAcrossSlides, countResultConclusionOpeners, isOpeningRhetoricalQuestion, countEmptyAdjectives, hookEndingSimilarity, findChoppyFragments, countChoppyFragments, measureSlopSignals } from "./redac-gate/slop-signals.ts";
+export type { SlopSignals } from "./redac-gate/slop-signals.ts";
 
 
 
@@ -473,231 +479,8 @@ export async function enforceResearchNumberCap<A extends { researchNumbersUsed?:
 }
 
 
-// ── Recopie de la fiche de marque (audit slop 18/08) ──
-// Constat du corpus mesuré le 18/08 : le champ combat_cause d'une fiche de
-// marque ressortait QUASI MOT POUR MOT dans 4 contenus sur 7 générés dans le
-// même run. Chaque contenu pris seul était correct — c'est la RÉPÉTITION
-// LITTÉRALE d'un même passage qui trahit la machine dès que deux contenus
-// cohabitent sur le même feed. Symétrique à findFabricatedNumbers() : au lieu
-// d'une liste blanche de chiffres autorisés, une liste de passages à NE PAS
-// recopier (les champs de marque bruts, fournis en entrée).
-// ── Écho d'accroche entre contenus d'un MÊME sujet (bilan hebdo 24/08/2026) ──
-//
-// Le trou trouvé par le juge : trois reels générés sur le même sujet ouvraient
-// par « En 2026, on utilise encore l'immersion… », « En 2026, on désensibilise
-// encore… », « On est en 2026 et il y a encore des pros qui… ». Le gate leur a
-// mis 100/100 À TOUS LES TROIS — et c'est logique : il note chaque contenu
-// ISOLÉMENT. Il compte des tics dans UN texte, il n'a jamais vu les autres.
-// Une régénération qui reformule la même ouverture est pourtant le défaut le
-// plus visible pour l'audience, qui, elle, voit la série.
-//
-// 🔑 LE PIÈGE À ÉVITER, ET IL EST DE TAILLE : le sujet lui-même revient
-// forcément dans les accroches. « Le rond de longe, on en parle ? » et « Et si
-// le rond de longe faisait l'inverse ? » partagent quatre mots — mais ce sont
-// les mots du SUJET, pas une redite de formulation. D'où le retrait des tokens
-// du sujet avant toute comparaison : on ne compare que ce que la rédaction a
-// choisi d'ajouter.
-
-/** Fenêtre d'ouverture comparée : au-delà, ce n'est plus l'accroche. */
-const HOOK_WINDOW_WORDS = 8;
-/** Similarité globale (hors sujet) à partir de laquelle deux accroches redisent la même chose. */
-const HOOK_SIMILARITY_THRESHOLD = 0.6;
-
-/** Mots trop courants pour porter à eux seuls une redite de formulation. */
-const HOOK_STOPWORDS = new Set([
-  "le", "la", "les", "un", "une", "des", "du", "de", "d", "l", "et", "ou", "mais",
-  "que", "qui", "quoi", "dont", "ce", "cet", "cette", "ces", "on", "je", "tu", "il",
-  "elle", "nous", "vous", "ils", "elles", "se", "sa", "son", "ses", "mon", "ma",
-  "mes", "ton", "ta", "tes", "au", "aux", "en", "dans", "sur", "pour", "par",
-  "avec", "sans", "est", "sont", "a", "as", "ai", "y", "ne", "pas", "plus", "si",
-  "tout", "tous", "toute", "toutes", "c", "s", "n", "j", "t", "m", "qu",
-]);
-
-/** Un token porte-t-il assez de matière pour signer une redite ? */
-function isDistinctiveToken(w: string): boolean {
-  if (HOOK_STOPWORDS.has(w)) return false;
-  return /\d/.test(w) || w.length >= 4;
-}
-
-/**
- * Tokens d'une accroche, PRIVÉS des mots du sujet : deux contenus du même sujet
- * partagent son vocabulaire par construction, ce n'est pas une redite.
- */
-function hookTokens(text: string, subject?: string): string[] {
-  const sujet = new Set(normalizeWordsForOverlap(subject || ""));
-  return normalizeWordsForOverlap(text).filter((w) => !sujet.has(w));
-}
-
-/** Plus long n-gramme commun aux deux ouvertures, s'il porte au moins un mot distinctif. */
-function sharedOpening(a: string[], b: string[]): string | null {
-  const fa = a.slice(0, HOOK_WINDOW_WORDS);
-  const fb = b.slice(0, HOOK_WINDOW_WORDS);
-  let best: string[] = [];
-  for (let i = 0; i < fa.length; i++) {
-    for (let j = 0; j < fb.length; j++) {
-      let k = 0;
-      while (i + k < fa.length && j + k < fb.length && fa[i + k] === fb[j + k]) k++;
-      if (k > best.length) best = fa.slice(i, i + k);
-    }
-  }
-  if (best.length < 2) return null;
-  if (!best.some(isDistinctiveToken)) return null;
-  return best.join(" ");
-}
-
-/**
- * Accroches déjà écrites pour ce sujet que la nouvelle redit.
- *
- * Deux signaux, l'un sur la forme d'ouverture, l'autre sur le fond :
- *  - une ouverture commune d'au moins 2 mots dont un distinctif (« en 2026 ») ;
- *  - une similarité de vocabulaire hors sujet ≥ 60 % (même angle reformulé).
- * Renvoie les accroches précédentes en cause, tronquées pour l'instruction.
- */
-export function findHookEchoes(
-  hook: string,
-  previousHooks: string[] | undefined,
-  subject?: string,
-): string[] {
-  if (!hook || !previousHooks?.length) return [];
-  const cur = hookTokens(hook, subject);
-  if (cur.length < 2) return [];
-
-  const echoes: string[] = [];
-  for (const prev of previousHooks) {
-    if (!prev || typeof prev !== "string") continue;
-    const prevTok = hookTokens(prev, subject);
-    if (prevTok.length < 2) continue;
-
-    const opening = sharedOpening(cur, prevTok);
-    // La similarité globale ne se prononce que sur des accroches assez fournies
-    // (4 tokens hors sujet de chaque côté), sinon deux titres courts se
-    // ressemblent mécaniquement.
-    const similar =
-      cur.length >= 4 && prevTok.length >= 4 &&
-      tokenSimilarity(cur.join(" "), prevTok.join(" ")) >= HOOK_SIMILARITY_THRESHOLD;
-
-    if (opening || similar) {
-      echoes.push(prev.replace(/\s+/g, " ").trim().slice(0, 120));
-    }
-  }
-  return echoes;
-}
-
-const BRAND_COPY_MIN_WORDS = 7;
 
 
-/**
- * Passages du texte généré qui recopient `minWords` mots CONSÉCUTIFS d'un
- * champ de marque fourni en entrée (brandText). Volontairement une fenêtre
- * large (7 mots par défaut) : un mot de vocabulaire métier partagé seul
- * (« savon », « saponification ») ne peut jamais déclencher — il faut une
- * SÉQUENCE entière recopiée. Fusionne les fenêtres qui se chevauchent en un
- * seul passage pour ne pas remonter dix fois la même phrase longue.
- */
-/**
- * Expressions COURTES (3 à 6 mots) listées telles quelles dans la fiche de
- * marque : items séparés par virgule / point-virgule / retour à la ligne, ou
- * verbatims entre guillemets. Une fiche écrite en fragments (« sans vendre son
- * âme », « safe place ») passait sous la fenêtre de 7 mots : la recopie était
- * invisible (audit stories 07/09/2026, fiche de Laetitia).
- */
-function shortBrandExpressions(brandText: string): string[] {
-  const out = new Set<string>();
-  const segments = (brandText || "").split(/[\n,;«»"“”]+/);
-  for (const seg of segments) {
-    const words = normalizeWordsForOverlap(seg);
-    if (words.length >= 3 && words.length <= 6) out.add(words.join(" "));
-  }
-  return [...out];
-}
-
-export function findBrandCopyOverlap(text: string, brandText: string | undefined, minWords = BRAND_COPY_MIN_WORDS): string[] {
-  if (!text || !brandText) return [];
-  const passages = findBrandCopyWindows(text, brandText, minWords);
-  const normalizedText = " " + normalizeWordsForOverlap(text).join(" ") + " ";
-  for (const expr of shortBrandExpressions(brandText)) {
-    if (normalizedText.includes(" " + expr + " ") && !passages.some((p) => normalizeWordsForOverlap(p).join(" ").includes(expr))) {
-      passages.push(expr);
-    }
-  }
-  return passages;
-}
-
-/**
- * Passages de `text` qui reprennent `minWords` mots CONSÉCUTIFS de `sourceText`
- * (même fenêtre que la recopie de fiche de marque). Sert aussi à comparer un
- * contenu à ceux déjà écrits pour la même marque (_shared/recent-passages.ts).
- */
-export function findSharedPassages(text: string, sourceText: string, minWords = BRAND_COPY_MIN_WORDS): string[] {
-  return findBrandCopyWindows(text, sourceText, minWords);
-}
-
-/**
- * Passages du nouveau texte qui reprennent mot pour mot (7 mots consécutifs ou
- * plus) un contenu récent de la marque. Un même passage n'est compté qu'une fois.
- * `currentRequest` = sujet, réponses et texte fournis maintenant (jamais comptés).
- */
-export function findRecentEchoes(text: string, recentTexts: string[] | undefined, currentRequest = ""): string[] {
-  if (!text || !recentTexts?.length) return [];
-  const found = new Map<string, string>();
-  for (const recent of recentTexts) {
-    for (const passage of findSharedPassages(text, recent)) {
-      // Une phrase que la personne vient de fournir dans SA demande se reprend :
-      // c'est sa matière du jour, pas une redite de l'IA.
-      if (currentRequest && findSharedPassages(passage, currentRequest).length) continue;
-      const key = passage.toLowerCase();
-      if (![...found.keys()].some((k) => k.includes(key))) {
-        for (const k of [...found.keys()]) if (key.includes(k)) found.delete(k);
-        found.set(key, passage);
-      }
-    }
-  }
-  return [...found.values()];
-}
-
-function findBrandCopyWindows(text: string, brandText: string, minWords: number): string[] {
-  if (!text || !brandText) return [];
-  const sourceWords = normalizeWordsForOverlap(brandText);
-  if (sourceWords.length < minWords) return [];
-  const sourceGrams = new Set<string>();
-  for (let i = 0; i + minWords <= sourceWords.length; i++) {
-    sourceGrams.add(sourceWords.slice(i, i + minWords).join(" "));
-  }
-  if (sourceGrams.size === 0) return [];
-
-  const genWords = wordsWithOffsets(text);
-  const matchedStart: boolean[] = new Array(genWords.length).fill(false);
-  for (let i = 0; i + minWords <= genWords.length; i++) {
-    const gram = genWords.slice(i, i + minWords).map((w) => w.word).join(" ");
-    if (sourceGrams.has(gram)) matchedStart[i] = true;
-  }
-
-  const found: string[] = [];
-  let i = 0;
-  while (i < matchedStart.length) {
-    if (!matchedStart[i]) { i++; continue; }
-    let j = i;
-    while (j < matchedStart.length && matchedStart[j]) j++;
-    // Fenêtres qui démarrent en i..j-1 → passage complet [i, (j-1)+minWords).
-    const spanStart = genWords[i].start;
-    const spanEnd = genWords[j - 1 + minWords - 1].end;
-    found.push(text.slice(spanStart, spanEnd).replace(/\s+/g, " ").trim());
-    i = j;
-  }
-  return found;
-}
-
-
-function slideTexts(s: any): string {
-  return [...carouselEditorialFields({ slides: [s] }).map(f => f.text),
-    ...(typeof s?.big_number === "number" ? [String(s.big_number)] : []),
-  ].join(" ");
-}
-
-/** Corps mesurable d'une slide pour la règle « 50 mots » (titre exclu). */
-function slideBody(s: any): string {
-  return [s?.body, s?.overlay_text].filter(Boolean).join(" ");
-}
 
 
 export interface RedacAnalysis {
@@ -727,27 +510,7 @@ export interface RedacAnalysis {
   inventedExperiences?: string[];
 }
 
-/** Contexte inter-contenus : ce que le gate ne peut pas voir dans le document seul. */
-export interface EchoContext {
-  /** Accroches des contenus précédents du MÊME sujet, pour la même utilisatrice. */
-  previousHooks?: string[];
-  /** Sujet, dont les mots sont neutralisés avant comparaison (ils reviennent forcément). */
-  subject?: string;
-  /** Textes des derniers contenus de la marque, tous sujets (_shared/recent-passages.ts). */
-  recentTexts?: string[];
-  /** Ce que la personne fournit maintenant (brief, réponses) : jamais compté comme redite. */
-  currentRequest?: string;
-}
 
-/**
- * Échos d'accroche mesurés AVANT toute correction, ou undefined quand la garde
- * n'était pas armée (aucune accroche précédente sur ce sujet). Le quality_check
- * et la télémétrie ne voient que l'APRÈS : quand la garde a mordu, hook_echoes
- * y est vide. Ce compteur seul dit si elle mord sur du vrai contenu.
- */
-export function hookEchoesBefore(before: { hookEchoes: string[] }, echo?: EchoContext): number | undefined {
-  return echo?.previousHooks?.length ? before.hookEchoes.length : undefined;
-}
 
 /** `testimonySource` : brief + réponses + actu ; absent = témoignages et vécus non mesurés. */
 export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext, research?: ResearchNumbers, testimonySource?: string): RedacAnalysis {
@@ -1398,12 +1161,6 @@ export interface TextRedacAnalysis {
   hookEchoes: string[];
 }
 
-/** Accroche d'un texte libre : sa 1re ligne non vide, tronquée à une phrase. */
-export function textHook(text: string): string {
-  const ligne = (text || "").split(/\n+/).map((l) => l.trim()).find(Boolean) || "";
-  const phrase = ligne.split(/(?<=[.!?…])\s/)[0] || ligne;
-  return phrase.slice(0, 200);
-}
 
 /** `testimonySource` : brief + réponses + actu ; absent = témoignages non mesurés. */
 export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext, research?: ResearchNumbers, testimonySource?: string): TextRedacAnalysis {
@@ -1433,222 +1190,6 @@ export function textRedacViolations(a: TextRedacAnalysis): number {
   );
 }
 
-/**
- * Élisions françaises manquantes — correction DÉTERMINISTE, classe non ambiguë
- * uniquement : « le avant/après » → « l'avant/après », « de avant » → « d'avant »,
- * « que après » → « qu'après » (vu au re-test du 21/07 : post LinkedIn « On
- * montre le avant/après qui brille »). Volontairement étroit : pas de règle
- * générale déterminant+voyelle (« le onze », « la ouate » sont légitimes), et
- * « qu'on + nom » (→ « qu'un ») reste à la passe de correction probabiliste —
- * indécidable sans lexique (« qu'on rénove » est correct).
- */
-export function fixFrenchElisions(text: string): string {
-  if (!text) return text;
-  return text
-    .replace(/\b([Ll])e (?=(?:avant|après)\b)/g, (_m, l) => `${l}'`)
-    .replace(/\b([Dd])e (?=(?:avant|après)\b)/g, (_m, d) => `${d}'`)
-    .replace(/\b([Qq])ue (?=(?:avant|après)\b)/g, (_m, q) => `${q}u'`)
-    // Variantes tout-en-majuscules (overlays de reels, covers)
-    .replace(/\bLE (?=(?:AVANT|APRÈS)\b)/g, "L'")
-    .replace(/\bDE (?=(?:AVANT|APRÈS)\b)/g, "D'")
-    .replace(/\bQUE (?=(?:AVANT|APRÈS)\b)/g, "QU'");
-}
-
-/** Applique fixFrenchElisions à une liste de champs texte d'un objet (mutation en place). */
-export function fixElisionsInFields(obj: Record<string, unknown> | null | undefined, fields: string[]): void {
-  if (!obj || typeof obj !== "object") return;
-  for (const f of fields) {
-    if (typeof obj[f] === "string") obj[f] = fixFrenchElisions(obj[f] as string);
-  }
-}
-
-// ── Mesure seule (audit slop 18/08/2026, lot 5) ──
-// 6 familles de tics mesurées dans le corpus mais AUCUNE encore détectée en
-// code. Compteurs PURS (aucun effet de bord, aucune re-passe déclenchée) :
-// branchés en télémétrie (`content-quality.ts`) pour calibrer des seuils sur
-// des vraies données avant d'activer quoi que ce soit. Un mot comme
-// « authentique » est parfois juste — on mesure une FRÉQUENCE, pas une
-// interdiction.
-
-/** Corps mesurable d'une slide pour les familles inter-slides (mêmes champs que slideTexts). */
-function slideTextForSlop(s: any): string {
-  return slideTexts(s);
-}
-
-/**
- * Rafales de 3+ slides CONSÉCUTIVES courtes (≤ maxWords mots chacune) — le
- * rythme ternaire/staccato qui ne se voit qu'en enchaînant les slides, jamais
- * à l'intérieur d'un seul champ (angle mort de `analyzeCarouselRedac`).
- */
-export function countStaccatoAcrossSlides(slides: any[], maxWords = 6): number {
-  let bursts = 0;
-  let run = 0;
-  for (const s of slides || []) {
-    const words = wordCount(slideTextForSlop(s));
-    if (words > 0 && words <= maxWords) {
-      run++;
-      if (run === 3) bursts++;
-    } else {
-      run = 0;
-    }
-  }
-  return bursts;
-}
-
-/**
- * Rafales de 3+ slides CONSÉCUTIVES qui démarrent par le même mot — anaphore
- * vue seulement en enchaînant les slides (même angle mort que le staccato).
- */
-export function countAnaphoraAcrossSlides(slides: any[]): number {
-  const firstWords = (slides || []).map((s) => {
-    const m = slideTextForSlop(s).trim().match(/^\p{L}+/u);
-    return m ? m[0].toLowerCase() : "";
-  });
-  let bursts = 0;
-  let run = 1;
-  for (let i = 1; i <= firstWords.length; i++) {
-    if (i < firstWords.length && firstWords[i] && firstWords[i] === firstWords[i - 1]) {
-      run++;
-    } else {
-      if (run >= 3) bursts++;
-      run = 1;
-    }
-  }
-  return bursts;
-}
-
-// « Résultat : » / « Conclusion : » EN DÉBUT DE PHRASE uniquement — l'usage
-// courant du nom commun (« Le résultat de l'enquête… ») n'est pas un tic.
-const RESULT_CONCLUSION_OPENER_RE = /(?:^|[.!?]\s+|\n)(?:Résultat|Conclusion)\s*[:.]/gi;
-
-/** Occurrences de « Résultat : » / « Conclusion : » en ouverture de phrase. */
-export function countResultConclusionOpeners(text: string): string[] {
-  return [...(text || "").matchAll(RESULT_CONCLUSION_OPENER_RE)].map((m) => m[0].trim());
-}
-
-/** La 1re phrase du texte se termine-t-elle par « ? » (question rhétorique d'ouverture) ? */
-export function isOpeningRhetoricalQuestion(text: string): boolean {
-  const first = (text || "").trim().split(/(?<=[.!?])\s+/)[0] || "";
-  return /\?\s*$/.test(first.trim());
-}
-
-// Adjectifs vides candidats (audit 18/08) : SEUIL à calibrer, pas une liste
-// noire — « authentique »/« aligné »/« puissant » sont parfois le mot juste.
-// \b évite les faux positifs sur les mots composés/apparentés
-// (« désaligné », « impuissant », « alignement » ne matchent PAS).
-// \b est ASCII-only en JS/Deno : « é » n'est pas un \w, donc \b après
-// « aligné » échoue silencieusement (transition non-mot → non-mot). On
-// utilise des frontières Unicode explicites (lookaround sur \p{L}) à la place.
-const EMPTY_ADJECTIVES: Record<string, RegExp> = {
-  authentique: /(?<![\p{L}])authentiques?(?![\p{L}])/giu,
-  aligné: /(?<![\p{L}])aligné(?:e|es|s)?(?![\p{L}])/giu,
-  puissant: /(?<![\p{L}])puissante?s?(?![\p{L}])/giu,
-};
-
-/** Occurrences par adjectif vide candidat (fréquence brute, pas de blocage). */
-export function countEmptyAdjectives(text: string): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const [name, re] of Object.entries(EMPTY_ADJECTIVES)) {
-    out[name] = ((text || "").match(re) || []).length;
-  }
-  return out;
-}
-
-/**
- * Similarité lexicale entre l'ouverture (hook) et la chute d'un même contenu
- * — la même mesure que `tokenSimilarity` (déjà appliquée au CTA↔dernière
- * slide), ici sur hook↔chute, jamais comparés jusqu'ici.
- */
-export function hookEndingSimilarity(hookText: string, endingText: string): number {
-  return tokenSimilarity(hookText, endingText);
-}
-
-// ── Style haché (retour de Laetitia du 05/10/2026 sur des stories réelles :
-// « 7 500 € ou 2 100 €. Même prestation. ») : fragments courts SANS verbe
-// conjugué, enchaînés dans un même texte. Mesure seulement (journal
-// stories-gate et slop_signals) : aucun blocage, aucune passe déclenchée.
-// Heuristique volontairement simple : une phrase de 10 mots au plus, qui
-// n'est pas une question, sans pronom sujet ni verbe courant conjugué.
-// Chaque ligne (story, slide, section) est lue à part : un petit titre ou
-// une ligne de sticker n'est jamais enchaîné au texte qui suit.
-const CHOPPY_MAX_WORDS = 10;
-const SUBJECT_RE = /(?<![\p{L}])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|ce sont|y a)(?![\p{L}])|(?:j|c|ç|qu)['’])/iu;
-const COMMON_VERB_RE = /(?<![\p{L}])(?:est|sont|suis|es|était|étaient|étais|sera|serait|seront|ai|as|a|avons|avez|ont|avait|avais|aura|fait|font|fais|faisait|va|vais|vas|vont|allait|peut|peux|peuvent|pouvait|faut|fallait|veut|veux|voulait|doit|dois|doivent|devait|sait|sais|savait|dit|dis|disait|voit|vois|voyait|vient|viens|viennent|reste|restent|coûte|coûtent|change|changent|marche|marchent|compte|comptent|choisis|choisit|utilise|utilisent|travaille|travaillent|pense|pensent|crois|croit|aime|aiment|parle|parlent|trouve|trouvent|donne|donnent|prend|prends|prennent|met|mets|mettent|passe|passent|arrive|arrivent|semble|semblent|ressemble|ressemblent|devient|deviennent|existe|existent|manque|manquent|suffit|vaut|valent|permet|permettent)(?![\p{L}])/iu;
-
-function isChoppyFragment(sentence: string): boolean {
-  const s = sentence.trim();
-  if (!s || /\?\s*$/.test(s)) return false;
-  const words = s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w));
-  if (words.length === 0 || words.length > CHOPPY_MAX_WORDS) return false;
-  return !SUBJECT_RE.test(s) && !COMMON_VERB_RE.test(s);
-}
-
-/**
- * Rafales de 2+ fragments sans verbe CONSÉCUTIFS dans une même ligne
- * (« 7 500 € ou 2 100 €. Même prestation. »). Renvoie chaque rafale telle
- * qu'écrite, et `fragments` = nombre total de fragments (isolés compris).
- */
-export function findChoppyFragments(text: string): { runs: string[]; fragments: number } {
-  const runs: string[] = [];
-  let fragments = 0;
-  for (const line of (text || "").split(/\n+/)) {
-    const sentences = line.split(/(?<=[.!?…])\s+/).map((x) => x.trim()).filter(Boolean);
-    let run: string[] = [];
-    const flush = () => {
-      if (run.length >= 2) runs.push(run.join(" "));
-      run = [];
-    };
-    for (const sentence of sentences) {
-      if (isChoppyFragment(sentence)) {
-        fragments++;
-        run.push(sentence);
-      } else {
-        flush();
-      }
-    }
-    flush();
-  }
-  return { runs, fragments };
-}
-
-/** Nombre de rafales de fragments sans verbe enchaînés (mesure du style haché). */
-export function countChoppyFragments(text: string): number {
-  return findChoppyFragments(text).runs.length;
-}
-
-export interface SlopSignals {
-  staccato_inter_slides: number;
-  anaphora_inter_slides: number;
-  result_conclusion_openers: number;
-  opening_rhetorical_question: boolean;
-  empty_adjectives: Record<string, number>;
-  hook_ending_similarity: number;
-  /** Rafales de fragments sans verbe enchaînés dans une même ligne (style haché). */
-  choppy_fragment_runs: number;
-  /** Fragments courts sans verbe, isolés compris. */
-  choppy_fragments: number;
-}
-
-/** Agrège les 6 familles en un objet consultable (télémétrie, aucun calcul de score). */
-export function measureSlopSignals(params: {
-  fullText: string;
-  hookText?: string;
-  endingText?: string;
-  slides?: any[];
-}): SlopSignals {
-  const { fullText, hookText = "", endingText = "", slides } = params;
-  const choppy = findChoppyFragments(fullText);
-  return {
-    staccato_inter_slides: slides ? countStaccatoAcrossSlides(slides) : 0,
-    anaphora_inter_slides: slides ? countAnaphoraAcrossSlides(slides) : 0,
-    result_conclusion_openers: countResultConclusionOpeners(fullText).length,
-    opening_rhetorical_question: isOpeningRhetoricalQuestion(hookText || fullText),
-    empty_adjectives: countEmptyAdjectives(fullText),
-    hook_ending_similarity: hookText && endingText ? hookEndingSimilarity(hookText, endingText) : 0,
-    choppy_fragment_runs: choppy.runs.length,
-    choppy_fragments: choppy.fragments,
-  };
-}
 
 /** Instructions ciblées pour la passe de correction texte ("" si rien à corriger). */
 export function buildTextFixInstructions(a: TextRedacAnalysis): string {
