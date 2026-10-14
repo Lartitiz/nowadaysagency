@@ -10,7 +10,10 @@
 //     même : ignorés à la sortie de l'écriture ;
 //   - harmonisation des styles d'overlay (photo, mixte) ;
 //   - gabarits photo (couverture, chiffre, liste, citation, finale…) posés sur
-//     le texte FINAL, puis revérifiés après la dernière réparation du fil.
+//     le texte FINAL, puis revérifiés après la dernière réparation du fil ;
+//   - récit continu photo / mixte (lot 8b) : gabarit, style et position du
+//     texte sur photo, disposition du mixte et mot mis en valeur sur la
+//     couverture (cover_accent), posés passage par passage.
 //
 // Code déplacé À L'IDENTIQUE depuis index.ts : mêmes appels, même ordre, même
 // sortie (prouvé par handler_contract_test.ts, généré avant le déplacement).
@@ -28,6 +31,7 @@ import { addSchemasToContent, type SchemaPlan } from "../_shared/schema-formatti
 import { keepDraftLayoutFields, stripMixWriterLayoutFields } from "../_shared/mix-layout-formatting.ts";
 import { normalizeOverlayStyles } from "../_shared/photo-slide-structure.ts";
 import { assignPhotoTemplates, assignTemplatesToProvidedSlides, revalidatePhotoLayoutContent, stripWriterLayoutFields } from "../_shared/photo-template-assign.ts";
+import { coverAccentMaxWords, validExtract } from "../_shared/carousel-design-plan.ts";
 
 // Gabarits photo : posés sur le texte définitif (après relecture et redac-gate),
 // revérifiés après une réparation globale du fil, et seuls pour « Mes slides ».
@@ -93,4 +97,43 @@ export function withoutMixWriterLayout(write: MixWrite, repair: MixRepair | unde
 // après la relecture et le redac-gate).
 export function withoutPhotoWriterLayout(content: string): string {
   return stripWriterLayoutFields(content);
+}
+
+// RÉCIT CONTINU photo / mixte (lot 8b, 14/10/2026) : continuous-narrative.ts
+// écrit les passages et leur structure (slide_type, rôle, photo_index) ;
+// la mise en forme de chaque passage vient d'ici. Code déplacé à l'identique
+// depuis composeNarrative (mêmes champs, même ordre, même sortie).
+
+/** Mot clé de couverture gardé seulement s'il est un extrait exact et court de
+ * l'accroche (même longueur maximale et même règle que le rendu, sinon
+ * carousel-visual le refuserait). L'IA le propose en écrivant (socle, règle 7). */
+export function narrativeCoverAccent(hook: string, accent: string | undefined): string | undefined {
+  return validExtract(hook, accent, coverAccentMaxWords(hook.trim().split(/\s+/).filter(Boolean).length));
+}
+
+/** Passage plein écran (photo_full) : style, position et gabarit du texte sur
+ * la photo ; les champs de gabarit restent vides. */
+// deno-lint-ignore no-explicit-any
+export function narrativePhotoLayout(i: number, last: boolean, ref: any) {
+  return {
+    overlay_position: ref.overlay_position || "bottom_center",
+    overlay_style: "narratif",
+    template: i === 0 ? "couverture" : last ? "finale" : "profonde",
+    kicker: null,
+    detail: null,
+    cta_label: null,
+  };
+}
+
+/** Passage du mixte hors plein écran : aucun schéma ; disposition seulement
+ * celle d'une structure confirmée. Un défaut posé ici passait pour un choix et
+ * la disposition est décidée au rendu (mix-layout-formatting.ts). */
+// deno-lint-ignore no-explicit-any
+export function narrativeMixLayout(slideType: string, ref: any) {
+  return {
+    visual_schema: null,
+    ...(slideType === "photo_integrated" && ref.photo_layout
+      ? { photo_layout: ref.photo_layout }
+      : {}),
+  };
 }

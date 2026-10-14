@@ -15,7 +15,7 @@ import { newsWriting } from "./variant-writing.ts";
 import { livedCaseFromCarouselBody } from "../_shared/lived-case.ts";
 import { findRecentEchoes, recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { angleFamily, type AngleFamily } from "../_shared/angle-families.ts";
-import { coverAccentMaxWords, validExtract } from "../_shared/carousel-design-plan.ts";
+import { narrativeCoverAccent, narrativeMixLayout, narrativePhotoLayout } from "./layout.ts";
 import { type DraftSlide, draftNarrativeTracker } from "../_shared/carousel-draft-stream.ts";
 import {
   audienceAddressRule,
@@ -84,10 +84,6 @@ export function narrativeAngleFamily(body: any): AngleFamily | null {
     (typeof body?.news_context === "string" && body.news_context.trim() ? "C" : null);
 }
 
-/** Mot clé de couverture gardé seulement s'il est un extrait exact et court de l'accroche. */
-function coverAccentOf(n: Narrative): string | undefined {
-  return validExtract(n.hook, n.cover_accent, coverAccentMaxWords(n.hook.trim().split(/\s+/).filter(Boolean).length));
-}
 const TOOL = {
   name: "ecrire_texte_suivi",
   description: "Livre un texte continu avant toute composition de slides.",
@@ -178,7 +174,8 @@ export function composeNarrative(n: Narrative, body: any) {
     : body.slide_structure || [];
   const photos = body.photos?.length || body.photo_contexts?.length ||
     Math.max(0, ...plan.map((s: any) => s.photo_index || 0));
-  const coverAccent = coverAccentOf(n);
+  // Mise en forme (gabarits, mot de couverture) : carousel-ai/layout.ts.
+  const coverAccent = narrativeCoverAccent(n.hook, n.cover_accent);
   if (!photos) {
     throw new AnthropicError(
       "Choisis les photos du carrousel avant de générer.",
@@ -215,25 +212,11 @@ export function composeNarrative(n: Narrative, body: any) {
           ? null
           : ref.photo_index || (i % photos) + 1,
         ...(slide_type === "photo_full"
-          ? {
-            overlay_text: text,
-            overlay_position: ref.overlay_position || "bottom_center",
-            overlay_style: "narratif",
-            template: i === 0 ? "couverture" : last ? "finale" : "profonde",
-            kicker: null,
-            detail: null,
-            cta_label: null,
-          }
+          ? { overlay_text: text, ...narrativePhotoLayout(i, last, ref) }
           : {
             title: i === 0 ? text : "",
             body: i === 0 ? "" : text,
-            visual_schema: null,
-            // Disposition : seulement celle d'une structure confirmée. Un
-            // défaut posé ici passait pour un choix et la disposition est
-            // décidée au rendu (mix-layout-formatting.ts).
-            ...(slide_type === "photo_integrated" && ref.photo_layout
-              ? { photo_layout: ref.photo_layout }
-              : {}),
+            ...narrativeMixLayout(slide_type, ref),
           }),
         ...(ref.visual_anchor ? { visual_anchor: ref.visual_anchor } : {}),
         // Mot clé de la couverture : revérifié au rendu sur le texte final.

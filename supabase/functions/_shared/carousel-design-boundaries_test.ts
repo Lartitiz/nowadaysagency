@@ -73,9 +73,8 @@ const IMPORTS_AUTORISES: Record<string, Record<string, string>> = {
 
 /** Fichiers de carousel-ai (hors layout.ts) qui importent un module de design, et pourquoi. */
 const CARROUSEL_AI_AUTORISES: Record<string, Record<string, string>> = {
-  "continuous-narrative.ts": {
-    "carousel-design-plan": "le récit continu choisit le mot mis en valeur sur la couverture (cover_accent) avec la même longueur maximale et la même règle d'extrait exact que le rendu, sinon carousel-visual le refuserait. À déplacer dans layout.ts quand ce choix quittera l'écriture.",
-  },
+  // Vide depuis le lot 8b (14/10/2026) : le mot de couverture du récit continu
+  // (cover_accent) est validé dans layout.ts.
 };
 
 const IMPORT_RE = /(?:import|export)[^'"]*?from\s*['"](\.[^'"]+)['"]|import\(\s*['"](\.[^'"]+)['"]\s*\)/g;
