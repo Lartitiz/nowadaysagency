@@ -24,15 +24,7 @@ import {
   X,
   Maximize2,
   Minimize2,
-  Eye,
-  EyeOff,
-  ChevronUp,
   ChevronDown,
-  Type,
-  Image as ImageIcon,
-  Square,
-  Layers,
-  RotateCcw,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -59,7 +51,6 @@ import {
   type LayoutVariant,
   addPreset,
   groupElements,
-  PRESETS,
   setLayerLocked,
   ungroupElement,
   type PresetKind,
@@ -74,13 +65,8 @@ import {
   listLayers,
   moveLayer,
   removeLayer,
-  restoreLayer,
-  setLayerHidden,
   type RemovedLayer,
-  addShapeElement,
-  addPhotoFrame,
   photoShapeOf,
-  addTextElement,
   duplicateElement,
   setShapeFill,
   setVeilAlpha,
@@ -95,7 +81,6 @@ import {
   listDocumentFonts,
   makeSlide,
   patchElement,
-  positionPhotoText,
   readCarouselDocument,
   renumberDocument,
   replacePhoto,
@@ -106,6 +91,9 @@ import {
 import { numberOr, type AlignMode, type CanvasApi, type CanvasBox } from "@/components/creer/CarouselEditorParts/canvas-geometry";
 import { PanelSection, SlideThumb, PhotoShapePicker } from "@/components/creer/CarouselEditorParts/PanelBits";
 import SlideCanvas from "@/components/creer/CarouselEditorParts/SlideCanvas";
+import { LayersPanel, MultiSelectPanel } from "@/components/creer/CarouselEditorParts/LayersPanel";
+import { CarouselThemeSettings, SlideTabSettings } from "@/components/creer/CarouselEditorParts/SlideSettings";
+import { alphaOf, range, toHex } from "@/components/creer/CarouselEditorParts/panel-controls";
 
 
 interface Props {
@@ -676,61 +664,7 @@ export default function CarouselEditor({
     next = patchElement(next, selected, { styles: { "font-family": value } });
     changeSlide(next);
   };
-  const range = (
-    label: string,
-    value: number,
-    min: number,
-    max: number,
-    onValue: (n: number) => void,
-    step = 1,
-  ) => (
-    <label className="block text-xs space-y-1">
-      <span className="flex items-center justify-between gap-2">
-        <span>{label}</span>
-        <input
-          aria-label={`${label} (valeur)`}
-          type="number"
-          min={min}
-          max={max}
-          step={step}
-          value={Math.round(value * 10) / 10}
-          onChange={(e) => {
-            const n = Number(e.target.value);
-            if (Number.isNaN(n)) return;
-            onValue(Math.min(max, Math.max(min, n)));
-          }}
-          className="w-16 rounded-md border border-input bg-background px-1 py-0.5 text-right text-xs"
-        />
-      </span>
-      <input
-        aria-label={label}
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onValue(Number(e.target.value))}
-        className="w-full accent-primary"
-      />
-    </label>
-
-  );
   const css = element?.style || {};
-  const toHex = (value: string | undefined, fallback: string) => {
-    if (/^#[0-9a-f]{6}$/i.test(value || "")) return value!;
-    const rgb = value?.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-    return rgb
-      ? `#${rgb
-          .slice(1)
-          .map((v) => Number(v).toString(16).padStart(2, "0"))
-          .join("")}`
-      : fallback;
-  };
-  const alphaOf = (value: string | undefined) => {
-    if (!value || value === "transparent") return 0;
-    const m = value.match(/^rgba\([^)]*,\s*([\d.]+)\s*\)/);
-    return m ? Number(m[1]) : 1;
-  };
   const fillHex = toHex(css["background-color"], "#ffffff");
   const fillAlpha = alphaOf(css["background-color"]);
   const fill = (hex: string, alpha: number) =>
@@ -1242,127 +1176,19 @@ export default function CarouselEditor({
               <ChevronDown size={14} className={sheetOpen ? "" : "rotate-180"} aria-hidden="true" />
             </span>
           </button>
-          <PanelSection title={`Calques (${layers.length})`} storageKey="Calques" icon={<Layers size={14} aria-hidden="true" />}>
-          <div className="space-y-1">
-            <p className="text-2xs text-muted-foreground">Le plus haut en premier.</p>
-            <ul
-              aria-label="Calques de la slide"
-              className="max-h-72 space-y-0.5 overflow-auto rounded-md border bg-background p-1"
-            >
-              {layers.map((layer, i) => {
-                const Icon =
-                  layer.kind === "photo"
-                    ? ImageIcon
-                    : layer.kind === "text"
-                      ? Type
-                      : Square;
-                const peers = layers.filter((l) => l.topLevel);
-                const rank = peers.findIndex((l) => l.id === layer.id);
-                return (
-                  <li
-                    key={layer.id}
-                    className={`flex items-center gap-1 rounded px-1 ${selected === layer.id ? "bg-primary/10 ring-1 ring-primary" : group.includes(layer.id) ? "bg-primary/5 ring-1 ring-dashed ring-primary/60" : "hover:bg-muted"}`}
-                    style={{ paddingLeft: 4 + layer.depth * 16 }}
-                  >
-                    <button
-                      type="button"
-                      aria-pressed={group.includes(layer.id)}
-                      aria-label={`Choisir le calque ${layer.label}`}
-                      onClick={(e) => (e.shiftKey ? selectAdd(layer.id) : selectOne(layer.id))}
-                      className={`flex min-w-0 flex-1 items-center gap-1.5 py-1.5 text-left text-xs ${layer.hidden ? "text-muted-foreground line-through" : ""}`}
-                    >
-                      <Icon size={13} className="shrink-0" aria-hidden="true" />
-                      <span className="truncate">{layer.label}</span>
-                    </button>
-                    {layer.topLevel && (
-                      <>
-                        <button
-                          type="button"
-                          disabled={slide.locked || rank <= 0}
-                          aria-label={`Monter le calque ${layer.label}`}
-                          title="Monter (passer devant)"
-                          onClick={() => changeSlide(moveLayer(slide, layer.id, "up"))}
-                          className="rounded p-1 hover:bg-muted disabled:opacity-30"
-                        >
-                          <ChevronUp size={13} />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={slide.locked || rank === peers.length - 1}
-                          aria-label={`Descendre le calque ${layer.label}`}
-                          title="Descendre (passer derrière)"
-                          onClick={() => changeSlide(moveLayer(slide, layer.id, "down"))}
-                          className="rounded p-1 hover:bg-muted disabled:opacity-30"
-                        >
-                          <ChevronDown size={13} />
-                        </button>
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      disabled={slide.locked || layer.fixed}
-                      aria-pressed={!!layer.locked}
-                      aria-label={`${layer.locked ? "Déverrouiller" : "Verrouiller"} le calque ${layer.label}`}
-                      title={layer.locked ? "Déverrouiller" : "Verrouiller : il ne bougera plus par erreur"}
-                      onClick={() => lockElement(layer.id, !layer.locked)}
-                      className={`rounded p-1 hover:bg-muted disabled:opacity-30 ${layer.locked ? "text-primary" : "opacity-40 hover:opacity-100"}`}
-                    >
-                      {layer.locked ? <LockKeyhole size={13} /> : <Unlock size={13} />}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={slide.locked || layer.fixed}
-                      aria-label={`${layer.hidden ? "Afficher" : "Masquer"} le calque ${layer.label}`}
-                      title={layer.hidden ? "Afficher" : "Masquer (ni exporté ni publié)"}
-                      onClick={() => changeSlide(setLayerHidden(slide, layer.id, !layer.hidden))}
-                      className="rounded p-1 hover:bg-muted disabled:opacity-30"
-                    >
-                      {layer.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={slide.locked || layer.fixed || layer.locked}
-                      aria-label={`Retirer le calque ${layer.label}`}
-                      title={layer.frame ? "Retirer le fond (garder le texte)" : "Retirer"}
-                      onClick={() => remove(layer.id)}
-                      className="rounded p-1 hover:bg-muted disabled:opacity-30"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            {!!removedLayers.length && (
-              <details className="text-xs">
-                <summary className="cursor-pointer py-1">
-                  Éléments retirés ({removedLayers.length})
-                </summary>
-                <ul className="space-y-1 pt-1" aria-label="Éléments retirés">
-                  {removedLayers.map((r, i) => (
-                    <li key={`${r.label}-${i}`} className="flex items-center justify-between gap-2 rounded border px-2 py-1">
-                      <span className="truncate">
-                        {r.unwrapOf ? `Fond : ${r.label}` : r.label}
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={slide.locked}
-                        onClick={() => {
-                          changeSlide(restoreLayer(slide, i));
-                          setSelected(null);
-                        }}
-                      >
-                        <RotateCcw size={13} className="mr-1" />
-                        Remettre
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
-          </div>
-          </PanelSection>
+          <LayersPanel
+            changeSlide={changeSlide}
+            group={group}
+            layers={layers}
+            lockElement={lockElement}
+            remove={remove}
+            removedLayers={removedLayers}
+            selectAdd={selectAdd}
+            selectOne={selectOne}
+            selected={selected}
+            setSelected={setSelected}
+            slide={slide}
+          />
           <div role="tablist" aria-label="Réglages" className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
             {([
               ["element", "Élément"],
@@ -1392,50 +1218,15 @@ export default function CarouselEditor({
             </p>
           )}
           {panelTab === "element" && group.length > 1 && !slide.locked && (
-            <div className="space-y-2 rounded-lg border border-dashed border-primary/60 p-2" aria-label="Sélection multiple">
-              <p className="text-xs font-medium">
-                {group.length} éléments sélectionnés · glisse-les ou aligne-les :
-              </p>
-              <div className="grid grid-cols-3 gap-1">
-                {([
-                  ["left", "À gauche"],
-                  ["center", "Centrés"],
-                  ["right", "À droite"],
-                  ["top", "En haut"],
-                  ["middle", "Au milieu"],
-                  ["bottom", "En bas"],
-                ] as [AlignMode, string][]).map(([mode, label]) => (
-                  <Button key={mode} size="sm" variant="outline" className="h-7 px-1 text-2xs" onClick={() => canvasApi.current?.align(mode)}>
-                    {label}
-                  </Button>
-                ))}
-              </div>
-              {group.length > 2 && (
-                <div className="grid grid-cols-2 gap-1">
-                  <Button size="sm" variant="outline" className="h-7 px-1 text-2xs" onClick={() => canvasApi.current?.align("spread-x")}>
-                    Répartir en largeur
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-7 px-1 text-2xs" onClick={() => canvasApi.current?.align("spread-y")}>
-                    Répartir en hauteur
-                  </Button>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-1">
-                <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={groupSelection} title="⌘G">
-                  Grouper
-                </Button>
-                <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={copySelection}>
-                  <Copy size={12} className="mr-1" /> Copier
-                </Button>
-                <Button size="sm" variant="outline" className="h-7 text-2xs" onClick={() => removeMany(group)}>
-                  <Trash2 size={12} className="mr-1" /> Retirer
-                </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-2xs" onClick={() => selectOne(selected)}>
-                  Ne garder que le premier
-                </Button>
-              </div>
-              <p className="text-2xs text-muted-foreground">Maj + clic pour ajouter ou retirer un élément.</p>
-            </div>
+            <MultiSelectPanel
+              canvasApi={canvasApi}
+              copySelection={copySelection}
+              group={group}
+              groupSelection={groupSelection}
+              removeMany={removeMany}
+              selectOne={selectOne}
+              selected={selected}
+            />
           )}
           {panelTab === "element" && element && !slide.locked && listLayers(slide.html).find((l) => l.id === element.id)?.locked && (
             <div role="status" className="flex items-center justify-between gap-2 rounded-lg border p-2 text-xs">
@@ -1916,160 +1707,24 @@ export default function CarouselEditor({
             )}
             </>)}
             {panelTab === "slide" && (<>
-            <PanelSection title="Ajouter" defaultOpen>
-            <div className="grid grid-cols-2 gap-2">
-              {hasClip && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="col-span-2"
-                  onClick={paste}
-                  title="⌘/Ctrl + V"
-                >
-                  Coller {clipboard.current.items.length > 1 ? `les ${clipboard.current.items.length} éléments copiés` : "l’élément copié"}
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => changeSlide(addTextElement(slide))}
-              >
-                Ajouter un texte
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const out = addShapeElement(slide);
-                  if (!out.id) return;
-                  changeSlide(out.slide);
-                  setSelected(out.id);
-                }}
-              >
-                Ajouter une forme
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="col-span-2"
-                onClick={() => {
-                  const out = addPhotoFrame(slide);
-                  if (!out.id) return;
-                  changeSlide(out.slide);
-                  selectOne(out.id);
-                }}
-              >
-                <ImagePlus size={14} className="mr-1" />
-                Ajouter un cadre photo
-              </Button>
-            </div>
-            <label className="block text-xs">
-              Ajouter un élément tout fait
-              <select
-                aria-label="Ajouter un élément tout fait"
-                className="mt-1 w-full rounded border bg-background p-2"
-                value=""
-                onChange={(e) => e.target.value && addReady(e.target.value as PresetKind)}
-              >
-                <option value="">Flèche, numéro, pastille, ligne…</option>
-                {PRESETS.map((p) => (
-                  <option key={p.kind} value={p.kind}>{p.label}</option>
-                ))}
-              </select>
-            </label>
-            {onOpenStudio && <Button variant="outline" size="sm" className="w-full" disabled={slide.locked} onClick={() => onOpenStudio(slide.id)}>Créer / remplacer avec le Studio</Button>}
-            {onAddPhoto && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={() => setPhotoOpen(true)}
-              >
-                <ImagePlus size={14} className="mr-1" />
-                Ajouter / changer la photo
-              </Button>
-            )}
-            </PanelSection>
-            <PanelSection title="Mise en page de la slide" defaultOpen>
-            <div className="grid grid-cols-3 gap-2" role="group" aria-label="Mises en page">
-              {layoutPreviews.map((l) => (
-                <button
-                  key={l.variant}
-                  type="button"
-                  disabled={slide.locked}
-                  onClick={() => changeLayout(l.variant)}
-                  className={`rounded-lg border p-1 text-center text-2xs hover:border-primary disabled:opacity-50 ${slide.data.layout_variant === l.variant ? "border-primary ring-1 ring-primary" : ""}`}
-                  aria-label={`Mise en page ${l.label}`}
-                >
-                  <SlideThumb html={l.preview.html} />
-                  <span className="mt-0.5 block leading-tight">{l.label}</span>
-                </button>
-              ))}
-            </div>
-            <p className="flex items-center gap-1 text-2xs text-muted-foreground">
-              Textes, photo et couleurs gardés.
-              <Info size={12} aria-label="Tous les textes, la photo et les couleurs sont gardés ; les formes et décors ajoutés à la main ne le sont pas. Tu peux annuler." role="img">
-                <title>Tous les textes, la photo et les couleurs sont gardés ; les formes et décors ajoutés à la main ne le sont pas. Tu peux annuler.</title>
-              </Info>
-            </p>
-            {slide.html.includes("data-photo-text-layout") && (
-              <label className="block text-xs">
-                Texte sur la photo
-                <select
-                  aria-label="Texte sur la photo"
-                  className="mt-1 w-full rounded border bg-background p-2"
-                  value={slide.data.overlay_position === "center" ? "center" : String(slide.data.overlay_position || "").startsWith("top") ? "top_left" : "bottom_left"}
-                  onChange={(e) => changeSlide(positionPhotoText(slide, e.target.value as "top_left" | "bottom_left" | "center"))}
-                >
-                  <option value="top_left">En haut</option>
-                  <option value="bottom_left">En bas</option>
-                  <option value="center">Au centre</option>
-                </select>
-              </label>
-            )}
-            <label className="flex items-center justify-between text-xs">
-              Fond de la slide
-              <input
-                aria-label="Fond de la slide"
-                type="color"
-                value={toHex(
-                  (
-                    new DOMParser().parseFromString(slide.html, "text/html")
-                      .body.firstElementChild as HTMLElement
-                  )?.style.backgroundColor,
-                  "#faf7f2",
-                )}
-                onChange={(e) =>
-                  changeSlide(
-                    restyleSlide(slide, { "background-color": e.target.value }),
-                    `background-${slide.id}`,
-                  )
-                }
-              />
-            </label>
-            </PanelSection>
+            <SlideTabSettings
+              addReady={addReady}
+              changeLayout={changeLayout}
+              changeSlide={changeSlide}
+              clipboard={clipboard}
+              hasClip={hasClip}
+              layoutPreviews={layoutPreviews}
+              onAddPhoto={onAddPhoto}
+              onOpenStudio={onOpenStudio}
+              paste={paste}
+              selectOne={selectOne}
+              setPhotoOpen={setPhotoOpen}
+              setSelected={setSelected}
+              slide={slide}
+            />
             </>)}
             {panelTab === "carrousel" && (
-            <PanelSection title="Thème du carrousel" defaultOpen>
-              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Thèmes">
-                {themes.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => applyCarouselTheme(t.id)}
-                    className="flex items-center gap-2 rounded-lg border p-2 text-left text-xs hover:border-primary"
-                    aria-label={`Appliquer le thème ${t.label}`}
-                  >
-                    <span className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-md border" style={{ background: t.background }}>
-                      <span style={{ color: t.heading, fontWeight: 700, lineHeight: 1 }}>Aa</span>
-                      <span className="mt-0.5 h-1 w-5 rounded" style={{ background: t.text }} />
-                    </span>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-              <p className="text-2xs text-muted-foreground">Change toutes les slides (sauf les slides photo).</p>
-            </PanelSection>
+            <CarouselThemeSettings applyCarouselTheme={applyCarouselTheme} themes={themes} />
             )}
             {panelTab === "element" && element && element.role !== "background" && (
             <PanelSection title="Toutes les slides">

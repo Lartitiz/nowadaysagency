@@ -898,8 +898,8 @@ commence par `CarouselEditor` exprès : le test du contrat `data-*`
 | E3-1 | `canvas-geometry.ts` (outils de calcul), `PanelBits.tsx` (petites briques) |
 | E3-2 | `CanvasToolbar.tsx` (barre flottante) |
 | E3-3 | `SlideCanvas.tsx` + `canvas-events.ts` (l'aperçu fait 1 350 lignes : au-delà des 800 du cliquet, il part en deux) |
-| E3-4 | `LayersPanel.tsx`, `MultiSelectPanel.tsx`, `SlideSettings.tsx` |
-| E3-5 | `TextSettings.tsx`, `PhotoSettings.tsx`, `BlockSettings.tsx`, `panel-controls.tsx` |
+| E3-4 | `LayersPanel.tsx` (calques et sélection multiple), `SlideSettings.tsx` (onglets Slide et Carrousel), `panel-controls.tsx` |
+| E3-5 | `TextSettings.tsx`, `PhotoSettings.tsx`, `BlockSettings.tsx` |
 | E3-6 | `EditorHeader.tsx`, `QualityPanel.tsx`, `SlideStrip.tsx`, `AllSlidesPanel.tsx` |
 
 **Ne bouge pas** : le cœur (document, historique, `emit`, écho). C'est là

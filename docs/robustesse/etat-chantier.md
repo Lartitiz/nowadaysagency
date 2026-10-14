@@ -62,10 +62,13 @@ Reste du lot 8 :
     (CarouselEditor.tsx : 3 816 → 3 626 lignes) ;
   - **E3-2** (#1500, fusionnée) : `CarouselEditorParts/CanvasToolbar.tsx`, la barre d'outils
     flottante (CarouselEditor.tsx : 3 626 → 3 441 lignes) ;
-  - **E3-3** (en cours) : `CarouselEditorParts/SlideCanvas.tsx` (l'aperçu) et
+  - **E3-3** (#1507, fusionnée) : `CarouselEditorParts/SlideCanvas.tsx` (l'aperçu) et
     `canvas-events.ts` (ses réactions souris / clavier, corps de `bind` inchangé)
     (CarouselEditor.tsx : 3 441 → 2 250 lignes) ;
-  - E3-4 et E3-5 panneau de réglages ; E3-6 en-tête,
+  - **E3-4** (en cours) : `LayersPanel.tsx` (calques, sélection multiple),
+    `SlideSettings.tsx` (onglets Slide et Carrousel) et `panel-controls.tsx`
+    (curseur, couleurs ; avancé depuis E3-5) (CarouselEditor.tsx : 2 250 → 1 905 lignes) ;
+  - E3-5 réglages de l'élément ; E3-6 en-tête,
     contrôle qualité, miniatures, « Toutes les slides » et « Mes styles ».
   Points d'attention relevés par E2 : `CARTE.md`, section 7 (écho reconnu à la
   référence, `inputKey`).
