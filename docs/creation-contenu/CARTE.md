@@ -223,11 +223,12 @@ appelants n'ont pas changé d'import.
 - Les briefs par format sont dans `_shared/format-briefs.ts` :
   `carouselBrief`, `reelBrief`, `storiesBrief`, `linkedinBrief`,
   `pinterestBrief`, `newsletterBrief`, `captionBrief`, `photoCaptionBrief`.
-  Découpage en cours (14/10/2026) : un fichier par format dans
+  Depuis le découpage du 14/10/2026 : un fichier par format dans
   `_shared/format-briefs/` (`carousel.ts`, `pinterest.ts`, `newsletter.ts`,
   `caption.ts`, `photo-caption.ts`, `position.ts`, `linkedin.ts`, `reel.ts`,
-  plus `common.ts` pour `annoncedItems`). `format-briefs.ts` les réexporte
-  et garde encore les stories. Pour retoucher un brief, modifie SON fichier ;
+  `stories.ts`, plus `common.ts` pour `annoncedItems`). `format-briefs.ts`
+  n'est plus qu'un sommaire qui les réexporte (les imports existants ne
+  changent pas). Pour retoucher un brief, modifie SON fichier ;
   `format-briefs/boundaries_test.ts` interdit qu'un brief en importe un
   autre (sauf `common.ts`) ou importe `position.ts`.
 
