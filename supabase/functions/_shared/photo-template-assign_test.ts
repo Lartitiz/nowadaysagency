@@ -1,4 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { carouselAiSource } from "./test-carousel-ai-source.ts";
 import { applyTemplateAssignments } from "./photo-template-assign.ts";
 
 const parsedWith = (slides: any[]) => ({ slides: JSON.parse(JSON.stringify(slides)) });
@@ -197,7 +198,7 @@ Deno.test("écriture photo : les champs de mise en page sont retirés, le texte 
   // Garde-fou : carousel-ai retire ces champs AVANT la passe des gabarits, et
   // le schéma de sortie de la rédaction photo ne les propose plus.
   // Lot 8 : le retrait passe par carousel-ai/layout.ts (withoutPhotoWriterLayout).
-  const src = await Deno.readTextFile(new URL("../carousel-ai/index.ts", import.meta.url));
+  const src = carouselAiSource(); // tout carousel-ai hors layout.ts (fiche 2, lot 0b)
   const layout = await Deno.readTextFile(new URL("../carousel-ai/layout.ts", import.meta.url));
   assert(/return stripWriterLayoutFields\(content\);/.test(layout), "layout.ts ne retire plus les champs de mise en page");
   const strip = src.indexOf("withoutPhotoWriterLayout(threadPhoto.content)");

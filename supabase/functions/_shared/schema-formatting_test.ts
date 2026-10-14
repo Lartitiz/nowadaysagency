@@ -1,4 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { carouselAiSource } from "./test-carousel-ai-source.ts";
 import { addSchemasToContent, planSchemas, schemaEligible, schemaShapeOk, validateSchemaPlan } from "./schema-formatting.ts";
 import { invalidateProgressionReceipt, progressionMaterial } from "./carousel-editorial-snapshot.ts";
 import { mixWritingPrompt, textWritingPrompt } from "../carousel-ai/variant-writing.ts";
@@ -75,7 +76,7 @@ Deno.test("garde-fou : la rédaction ne décide plus des schémas, l'étage sép
     assert(p.includes("visual_schema:null"), "l'écriture doit laisser visual_schema à null");
   }
   // Lot 8 (14/10/2026) : l'étage vit dans carousel-ai/layout.ts, appelé par index.ts.
-  const src = await Deno.readTextFile(new URL("../carousel-ai/index.ts", import.meta.url));
+  const src = carouselAiSource(); // tout carousel-ai hors layout.ts (fiche 2, lot 0b)
   const layout = await Deno.readTextFile(new URL("../carousel-ai/layout.ts", import.meta.url));
   assert(/placeTextSchemas\(content, \{/.test(src), "étage de schémas absent du carrousel texte");
   assert(/placeMixSchemas\(content, \{/.test(src), "étage de schémas absent du carrousel mixte");

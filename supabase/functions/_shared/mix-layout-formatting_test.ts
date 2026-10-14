@@ -1,4 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { carouselAiSource } from "./test-carousel-ai-source.ts";
 import { applyMixFormatting, composeMixCarousel, composeMixSlide, type MixCharter, type MixSlideSpec } from "./mix-slide-layouts.ts";
 import {
   applyMixLayouts,
@@ -43,7 +44,7 @@ Deno.test("disposition mixte : la rédaction ne demande plus photo_layout ni ove
     // slide_type et photo_index restent à la rédaction (structure du récit).
     for (const kept of ["photo_full", "photo_integrated", "text_only", "photo_index", "overlay_text"]) assert(p.includes(kept), kept);
   }
-  const src = await Deno.readTextFile(new URL("../carousel-ai/index.ts", import.meta.url));
+  const src = carouselAiSource(); // tout carousel-ai hors layout.ts (fiche 2, lot 0b)
   const tool = /const MIX_CAROUSEL_TOOL = \{[\s\S]*?\n\};/.exec(src)?.[0] || "";
   assert(tool.includes("livrer_carrousel_mixte"), "outil mixte introuvable");
   for (const field of ["photo_layout", "overlay_position", "overlay_style"]) assert(!tool.includes(field), `outil mixte : ${field}`);
