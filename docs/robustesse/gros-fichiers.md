@@ -650,9 +650,9 @@ Niveau : **élevé** pour la branche `message`, **faible à moyen** pour le rest
 - Le reste (actions courtes, stockage, réponse « read ») se déplace sans danger une fois le contrat posé.
 
 Une PR par lot. À chaque lot : `npm run test:edges`, le `deno check` ci-dessus, et `node supabase/tests/visual-studio.mjs` si du SQL est touché (normalement jamais).
-1. **Lot 0** : les tests 1 à 5, sans toucher au code. Générer les références sur `main`.
-2. **Lot 1** : `request-schema.ts`, `storage.ts`, `errors.ts`.
-3. **Lot 2** : `actions/session.ts`, `actions/reference.ts`, `actions/composition.ts`, `actions/save.ts`.
+1. **Lot 0** : les tests 1 à 5, sans toucher au code. Générer les références sur `main`. *Fait (#1478, 14/10/2026) : `prompts_snapshot_test.ts`, `handler_contract_test.ts`, harnais `contract_harness.ts`.*
+2. **Lot 1** : `request-schema.ts`, `storage.ts`, `errors.ts`. *Fait (14/10/2026) : `index.ts` 2001 → 1815 lignes, aucun `.snap` modifié. La lecture des erreurs de téléchargement est dans `storage-errors.ts` (#1481). Les numéros de ligne ci-dessus datent d'avant ce lot.*
+3. **Lot 2** : `actions/session.ts`, `actions/reference.ts`, `actions/composition.ts`, `actions/save.ts`. *Fait (14/10/2026) : chaque action reçoit `(ctx, session, references)` (`actions/context.ts`) et renvoie la session ou la `Response` ; `index.ts` 1815 → 1518 lignes, aucun `.snap` modifié.*
 4. **Lot 3** : `actions/pilot.ts` et `actions/generate.ts` (crédits : relire le diff ligne à ligne).
 5. **Lot 4** : `read-state.ts`.
 6. **Lots 5 à 8** : la branche `message`, un fichier `turn/*` par PR, dans cet ordre : `brand-context`, `interpret`, `proposal`, et `guardrails` en dernier, éventuellement en deux PR (921-1143, puis 1144-1304).
