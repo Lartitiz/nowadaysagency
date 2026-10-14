@@ -476,6 +476,25 @@ Une exception aux frontières (un format qui DOIT en importer un autre) se
 déclare dans `IMPORTS_AUTORISES` de `boundaries_test.ts`, avec sa raison.
 Aujourd'hui : le recyclage importe les stories et le carrousel.
 
+### Contrat des étiquettes HTML du carrousel (lot E1, 14/10/2026)
+
+Le HTML d'une slide est écrit par le serveur (`carousel-visual`, `carousel-ai`
+et leurs modules `_shared`), retouché par l'éditeur visuel
+(`src/lib/carousel-editor.ts`, `CarouselEditor.tsx`) puis relu par les exports
+PNG / PPTX. Ils se parlent par des attributs `data-*` (`data-slide-text`,
+`data-pptx-editable`, `data-pptx-photo`…). La liste officielle, avec le rôle de
+chacun et qui l'écrit / qui le lit, est dans
+`supabase/functions/_shared/carousel-dom-contract.ts`.
+
+- `src/test/carousel-dom-contract.test.ts` relit le code : attribut non déclaré,
+  attribut partagé qui n'est plus écrit par le serveur ou plus lu par le front,
+  attribut réservé à un côté qui passe de l'autre, valeur de `data-slide-text`
+  inconnue → la CI bloque.
+- `src/test/carousel-dom-contract-roundtrip.test.tsx` fait passer du vrai HTML
+  serveur (texte éditorial, photo, photo « verre », mixte, slide texte de l'IA
+  ancrée) dans l'éditeur : texte retrouvé, retouche écrite dans le HTML et les
+  données, étiquettes d'export conservées, aller-retour sauvegarde → réouverture.
+
 ### Le circuit d'une modification (lot 5)
 
 **Lovable directement sur `main`** convient pour l'interface : textes, styles,
