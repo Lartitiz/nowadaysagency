@@ -44,6 +44,17 @@ describe("rapport d'impact création de contenu", () => {
     expect(zoneOf("story-formatting")).toBe("verte");
   });
 
+  it("un sous-module de _shared garde la zone de son module d'origine", () => {
+    expect(zoneOf("redac-gate/numbers")).toBe("orange");
+    expect(zoneOf("socle/regles")).toBe("rouge");
+    expect(zoneOf("format-briefs/reel")).toBe("verte");
+    // Préfixe commun mais module différent : pas de confusion.
+    expect(zoneOf("audience-address-pass")).toBe("orange");
+    const { shared } = analyzeImpact(["supabase/functions/_shared/redac-gate/numbers.ts"],
+      new Map([["redac-gate/numbers", new Set(["creative-flow", "linkedin-ai"])]]));
+    expect(shared[0]).toMatchObject({ module: "redac-gate/numbers", zone: "orange" });
+  });
+
   it("ignore les tests et les fichiers sans rapport avec la création de contenu", () => {
     const { formats, shared } = analyzeImpact([
       "supabase/functions/creative-flow/index_test.ts",
