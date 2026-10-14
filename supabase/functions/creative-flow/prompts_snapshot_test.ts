@@ -393,6 +393,17 @@ Deno.test("buildAdjustPrompt — « Ajoute des chiffres » sans angle ni format"
   })));
 });
 
+Deno.test("buildAdjustPrompt — carrousel retouché dans « Modifier » (repères à conserver)", async (t) => {
+  await assertSnapshot(t, promptDoc(buildAdjustPrompt({
+    COMMON_PREFIX,
+    editorialFormatLabel: null,
+    effectiveObjective: null,
+    angle: null,
+    currentContent: "--- SLIDE 1 (hook) ---\nLe talent n'existe pas.\n\n--- SLIDE 2 (cta) ---\nEnregistre ce post.\n\n--- CAPTION ---\nCe qui existe, c'est la régularité.",
+    adjustment: "Plus punchy",
+  })));
+});
+
 // ── step "dictation" ──
 
 Deno.test("buildDictationPrompt — dictée vocale vers post LinkedIn", async (t) => {

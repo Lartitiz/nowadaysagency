@@ -105,3 +105,39 @@ describe("CreerStepEdit — la frappe n'est jamais perdue", () => {
     expect(onBack).not.toHaveBeenCalled();
   });
 });
+
+// Lot 7 (14/10/2026) : le bon type de contenu pour l'ajustement, pas de faux succès.
+describe("CreerStepEdit — ajustement par format", () => {
+  it.each([
+    ["reel", "reel"], ["story", "stories"], ["carousel", "carousel"],
+    ["pinterest_visual", "post_pinterest"], ["post", "instagram_post"], ["newsletter", "newsletter"],
+  ])("format %s → contentType %s", async (format, contentType) => {
+    invoke.mockClear();
+    invoke.mockResolvedValue({ data: { content: "Ajusté" }, error: null });
+    render(<CreerStepEdit content="Texte" format={format} onSave={vi.fn()} onBack={vi.fn()} onCopy={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Plus punchy/ }));
+    await waitFor(() => expect(invoke).toHaveBeenCalled());
+    expect(invoke.mock.calls[0][1].body.contentType).toBe(contentType);
+  });
+
+  it("une réponse sans texte n'affiche pas « Contenu ajusté ! » et garde le texte", async () => {
+    const { toast } = await import("sonner");
+    vi.mocked(toast.success).mockClear();
+    vi.mocked(toast.error).mockClear();
+    invoke.mockResolvedValue({ data: {}, error: null });
+    render(<CreerStepEdit content="Mon texte" format="post" onSave={vi.fn()} onBack={vi.fn()} onCopy={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Plus court/ }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(toast.success).not.toHaveBeenCalledWith("Contenu ajusté !");
+    expect(screen.getByRole("textbox")).toHaveValue("Mon texte");
+  });
+
+  it("« Appliquer et revenir » reste sur l'écran si le texte n'a pas pu être appliqué", async () => {
+    const onBack = vi.fn();
+    render(<CreerStepEdit content="Texte" savedContent="Texte" format="carousel" onSave={() => false} onBack={onBack} onCopy={vi.fn()} />);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Texte sans repères" } });
+    fireEvent.click(screen.getByRole("button", { name: /Retour/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Appliquer et revenir" }));
+    expect(onBack).not.toHaveBeenCalled();
+  });
+});

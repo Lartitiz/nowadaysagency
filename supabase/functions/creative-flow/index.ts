@@ -152,6 +152,17 @@ Réponds UNIQUEMENT en JSON :
   return { systemPrompt, userPrompt };
 }
 
+// Carrousel et stories retouchés dans « Modifier » : le texte est découpé par des
+// lignes repères que le front relit pour remettre chaque texte à sa place
+// (src/features/creer/edited-text.ts, lot 7 du 14/10/2026). Sans ces repères,
+// l'ajustement ne peut pas être enregistré. Bloc absent pour les autres formats.
+const ADJUST_MARKER_RE = /^[ \t]*---[ \t]*(?:SLIDE[ \t]+\d+|STORY[ \t]+\d+|CAPTION)\b.*---[ \t]*$/;
+function adjustMarkersBlock(currentContent: string): string {
+  const markers = String(currentContent || "").split("\n").filter((l) => ADJUST_MARKER_RE.test(l)).length;
+  if (!markers) return "";
+  return `\n\nREPÈRES À CONSERVER : le contenu est découpé par ${markers} lignes repères de la forme « --- … --- ». Recopie chacune de ces lignes à l'identique et dans le même ordre, sans en ajouter, en retirer ni en fusionner : elles servent à remettre chaque texte à sa place. Ajuste seulement le texte entre les repères.`;
+}
+
 export function buildAdjustPrompt(params: {
   COMMON_PREFIX: string;
   editorialFormatLabel?: string | null;
@@ -201,7 +212,7 @@ ${currentContent}
 """
 
 AJUSTEMENT DEMANDÉ : ${adjustment}
-${adjustGuidance ? `\nGUIDE :\n${adjustGuidance}` : ""}
+${adjustGuidance ? `\nGUIDE :\n${adjustGuidance}` : ""}${adjustMarkersBlock(currentContent)}
 
 Réécris le contenu avec l'ajustement demandé. Garde la structure, les anecdotes et les mots de l'utilisatrice. Change UNIQUEMENT ce qui est lié à l'ajustement.
 Ne raccourcis JAMAIS la profondeur sauf si l'ajustement demande explicitement de raccourcir.
@@ -1534,6 +1545,16 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       console.warn("[creative-flow] parse échec, raw=", String(rawContent || "").slice(0, 500));
       return new Response(
         JSON.stringify({ error: "La génération a échoué (réponse IA illisible). Réessaie." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Ajustement sans texte (JSON valide mais vide) : erreur claire, sans débit.
+    // Avant le 14/10/2026, le front gardait l'ancien texte et le crédit partait.
+    if (step === "adjust" && (typeof parsed?.content !== "string" || !parsed.content.trim())) {
+      console.warn("[creative-flow] adjust sans contenu, raw=", String(rawContent || "").slice(0, 300));
+      return new Response(
+        JSON.stringify({ error: "L'ajustement n'a rien renvoyé. Ton texte est inchangé, réessaie." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

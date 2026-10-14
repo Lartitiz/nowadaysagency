@@ -94,6 +94,26 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 - Tout nouveau bouton qui relance la génération d'un résultat existant appelle
   `regenerationBackup.begin(regenerationSnapshot())` avant `doGenerate`.
 
+### Une seule version du texte modifié (lot 7, 14/10/2026)
+
+- **Carrousel et stories** : le texte de l'étape « Modifier » est remis à sa
+  place dans les slides / stories, repère par repère (« --- SLIDE n --- »,
+  « --- CAPTION --- », « --- STORY n --- »), par `applyEditedText`
+  (`src/features/creer/edited-text.ts`). Plus de copie à plat `edited_text` pour
+  ces formats : l'écran de résultat, le calendrier et la publication lisent la
+  même structure. Un repère supprimé : refus clair, l'écran reste ouvert.
+  Le visuel du carrousel suit (`replaceSlideText`, sinon « visuels à mettre à jour »).
+- **Autres formats** (post, LinkedIn, newsletter, Pinterest, reel) : `edited_text`
+  comme avant. Une retouche directe des slides, des stories ou du script du reel
+  efface l'ancienne copie à plat (`withoutEditedText`).
+- **« Ajuster »** : le bon type de contenu par format (reel, stories, carrousel,
+  Pinterest) ; consigne de garder les repères (`adjustMarkersBlock` dans
+  `creative-flow`) ; une réponse sans texte renvoie 502 sans débit, et le front
+  n'affiche plus « Contenu ajusté ! » à tort.
+- Tests : `src/test/edited-text.test.ts`, `src/test/creer-step-edit.test.tsx`,
+  cas `adjust — carrousel` et `adjust — réponse sans contenu` du contrat
+  `creative-flow`.
+
 ### Aller-retour avec le calendrier (navigate state)
 
 - **Départ** : `src/pages/Calendar.tsx` (state `fromCalendar`, `postId`,

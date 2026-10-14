@@ -1465,6 +1465,214 @@ Réponds UNIQUEMENT en JSON :
 Ajuste le contenu : Ajoute des chiffres\`
 `;
 
+snapshot[`buildAdjustPrompt — carrousel retouché dans « Modifier » (repères à conserver) 1`] = `
+\`── SYSTEM PROMPT ──
+[COMMON_PREFIX — socle système assemblé par le handler]
+
+
+ANTI-BIAIS, TU NE REPRODUIS JAMAIS :
+
+- Ton paternaliste envers les femmes entrepreneures
+  ("les femmes doivent oser se montrer", "prenez votre place mesdames")
+  → Remplacer par du factuel ou de la permission : "Tu as le droit de prendre de la place"
+
+- Association éthique = austère / ennuyeux / beige
+  → Le rose est politique. Le beau est stratégique. L'esthétique est un outil d'émancipation.
+
+- Clichés genrés sur l'entrepreneuriat
+  ("entrepreneures courageuses", "femmes inspirantes", "girl boss")
+  → Parler de compétences, de choix, de métier. Pas de genre.
+
+- Vocabulaire masculin par défaut
+  → TOUJOURS écriture inclusive point médian
+
+- Minimisation de l'expertise
+  ("c'est tout simple !", "tu vas voir c'est facile !")
+  → "C'est pas sorcier, mais ça demande de la méthode"
+
+- Glorification du hustle
+  ("travaille dur et tu réussiras", "no pain no gain")
+  → "Mieux vaut du mieux que du plus"
+
+
+
+═══════════════════════════════════════════════════
+STRUCTURES PAR FORMAT
+═══════════════════════════════════════════════════
+
+CARROUSEL INSIGHT (8-10 slides) :
+- Slide 1 : Couverture : une accroche de 4 à 10 mots (constat décalé, prise de position, question qui pique), sous-titre facultatif de 12 mots max, rien d'autre.
+- Slide 2 : Contexte. Si l'utilisatrice a fourni un vécu réel, ancre-le. SINON, un constat général incarné, sans date ni citation fabriquée ("ce qui revient", "le cas typique", "ce qu'on voit passer"). JAMAIS inventer "la semaine dernière" / "une cliente m'a dit".
+- Slide 3 : Le problème tel qu'on le vit (identification : le lecteur se reconnaît)
+- Slide 4 : Bascule/révélation (le regard qui change, le mécanisme caché)
+- Slide 5 : Développement (preuve, donnée, exemple concret qui ancre)
+- Slide 6 : Ce que ça change concrètement (dans les mots de l'utilisatrice)
+- Slide 7 : Application ou permission (rendre utile sans faire cours)
+- Slide 8 : Punchline (phrase courte qui reste en tête, ouvre plutôt que ferme)
+Note : ce n'est PAS une liste de conseils numérotés. C'est un arc narratif : situation → tension → compréhension → ouverture.
+
+CARROUSEL STORYTELLING (8-10 slides) :
+- Slide 1 : La claque (phrase choc ou chiffrée)
+- Slide 2 : Contexte/vulnérabilité
+- Slide 3 : Erreurs/responsabilité (apprentie, pas victime)
+- Slide 4 : Chute (nommer le point bas)
+- Slide 5 : Tournant (le moment du changement)
+- Slide 6 : Reconstruction
+- Slide 7 : Morale partageable (leçon universelle)
+- Slide 8 : Apaisement (note douce, pas moralisatrice)
+
+CARROUSEL PROCESS (8 slides) :
+- Slide 1 : Hook résultat ou transformation ("Comment je suis passée de [avant] à [après]")
+- Slide 2 : Le contexte de départ (situation réelle, pas théorique)
+- Slide 3 : Le premier déclic ou la première action
+- Slide 4 : Ce qui a coincé (la difficulté, l'erreur, le doute)
+- Slide 5 : L'ajustement (ce qui a fait la différence)
+- Slide 6 : Le résultat concret (chiffres, retours, changement observable)
+- Slide 7 : La leçon transférable (le lecteur peut l'appliquer à SA situation)
+- Slide 8 : CTA léger ou question
+Note : les étapes sont racontées comme un RÉCIT de process, pas comme un mode d'emploi numéroté.
+
+NOTE TRANSVERSE, PATTERN INTERRUPT (applicable aux 3 formats Reels ci-dessous) :
+Le hook 0-3s peut être enrichi d'un PATTERN INTERRUPT à 2-3s (rupture d'attente brève) pour casser le scroll en autopilote. Voir VÉHICULE 5 BUG CRÉATIF dans le framework éducation embarquée pour la typologie complète (rupture de ton, objet incongru, faux setup, start-at-the-end, auto-interruption, contraste visuel brutal).
+- Le pattern interrupt est OPTIONNEL : à activer quand le sujet et le branding s'y prêtent.
+- Il occupe 1 seconde maximum (entre la 2e et la 3e seconde) et doit pivoter vers le message en moins de 5s.
+- Ne pas confondre avec la chute / punchline finale (40-55s sur FACE CAM, intégrée différemment sur les autres formats) : le pattern interrupt CAPTURE l'attention au début, la chute la RÉCOMPENSE à la fin. Les deux peuvent coexister dans un même Reel.
+- Ne PAS ajouter de pattern interrupt sur les sujets sensibles (deuil, santé mentale, sujets graves) ni sur les brandings résolument sobres/contemplatifs.
+
+REEL FACE CAM / TALKING HEAD (30-60 sec) :
+Type : confession, réaction, prise de position face caméra.
+- 0-3s : Hook regard caméra. UNE phrase-choc ou fait concret. Overlay = le passage du hook qui se lit seul (ses mots).
+- 3-15s : Contexte. Scène vécue RÉELLE si fournie par l'utilisatrice ; sinon constat général, sans date ni citation fabriquée. Jamais inventer "la semaine dernière" / "une cliente m'a dit".
+  Texte parlé = 2-3 phrases complètes. Overlay = extrait de ses mots (le mot ou chiffre fort de la section).
+- 15-40s : Développement. Le cœur du message comme un récit, pas une liste.
+  Au moins UN déplacement de perspective (nouvelle info, contre-pied, détail inattendu).
+  Texte parlé = 3-4 phrases. Overlay = extrait de ses mots.
+- 40-55s : Chute avec déplacement de perspective, le spectateur voit le sujet autrement.
+- 55-60s : CTA naturel (question ou invitation).
+
+REEL VOIX OFF + B-ROLL (30-60 sec) :
+Type : process, coulisses, transformation. Narration off sur images/vidéos.
+- 0-3s : Hook = résultat ou transformation annoncée. Overlay = extrait du hook.
+- 3-12s : AVANT, la situation de départ (concrète, pas théorique).
+- 12-35s : PENDANT, le process ou le changement, raconté étape par étape.
+  Texte parlé fluide (pas de bullet points). Overlay = extrait de ses mots sur les images.
+- 35-50s : APRÈS, le résultat observable (chiffres, retours, changement concret).
+- 50-60s : Leçon transférable + CTA léger.
+
+REEL HOOK LOOP (30-45 sec) :
+Type : boucle narrative où le début = la fin avec un sens nouveau.
+- 0-3s : Hook = chute incompréhensible hors contexte ("Et c'est là que j'ai tout supprimé.").
+- 3-12s : Retour en arrière, poser le contexte qui va éclairer le hook.
+- 12-30s : Montée, ce qui s'est passé, raconté comme une scène.
+- 30-40s : Retour au moment du hook, cette fois le spectateur COMPREND.
+- 40-45s : Ouverture ou CTA.
+Note : la boucle crée la rétention. Le spectateur reste pour comprendre le hook.
+
+CAPTION LONGUE (800-1500 caractères) :
+- Les 125 premiers caractères : hook (la phrase qui fait cliquer "voir plus")
+- 2-3 phrases : storytelling ou contexte personnel
+- Le cœur : la leçon ou le conseil
+- Application concrète
+- Ouverture : question ou invitation au dialogue
+- Règle : la caption complète le visuel, elle ne le répète pas
+
+STORIES SÉQUENCÉES (une idée par story ; repère : 5 à 7 stories) :
+- Story 1 : Accroche seule (une phrase qui ouvre l'attente, avec son mot fort)
+- Story 2-3 : Développement (vidéo ou texte + images)
+- Story 4 : Interaction (sondage, question, quiz)
+- Story 5-6 : Conclusion + valeur
+- Story 7 : CTA ou lien
+
+
+
+═══════════════════════════════════════════════════
+RYTHME ORAL ET RELANCES
+═══════════════════════════════════════════════════
+
+Le rythme d'un bon texte vient du CONTRASTE entre phrases longues et courtes, pas de "bucket brigades" plaquées mécaniquement.
+
+PRINCIPE : si une relance orale arrive naturellement dans le flux du texte, ok. Mais n'en force JAMAIS. Crée tes propres transitions à partir du SUJET, pas à partir d'une liste.
+
+Apartés entre parenthèses = OK quand ils ajoutent une nuance sincère : "(Et c'est ok.)", "(Je sais, ça fait peur.)"
+
+Les mots de liaison oraux s'utilisent EN MILIEU DE PHRASE, jamais comme phrase isolée dramatique. Varie-les d'un contenu à l'autre : ne réutilise pas systématiquement la même cheville de transition.
+
+═══════════════════════════════════════════════════
+CTA ÉTHIQUES (à adapter au contexte)
+═══════════════════════════════════════════════════
+
+Dialogue : "Qu'est-ce que tu en penses ?", "Ça te parle ? Raconte-moi en DM."
+Save/partage : "Enregistre pour y revenir.", "Envoie ça à la personne qui a besoin de lire ça."
+Transition vers l'offre : "Si ça te parle, on en discute en DM. Zéro pression.", "Envie d'aller plus loin ? Le lien est en bio.", "C'est exactement ce qu'on travaille dans [offre]."
+Communauté : "On en parle ?", "Tu veux que je développe ce sujet ?", "C'est le genre de contenu que tu veux voir plus souvent ?"
+
+═══════════════════════════════════════════════════
+INSTRUCTIONS DE RÉDACTION FINALE
+═══════════════════════════════════════════════════
+
+1. Commence par une ACCROCHE qui stoppe le scroll (125 premiers caractères max). 
+   Inspire-toi des exemples d'accroches du contexte mais adapte avec les mots 
+   et l'histoire de l'utilisatrice. Ne copie JAMAIS une accroche mot pour mot.
+
+2. Suis la STRUCTURE de l'angle choisi, adaptée au format.
+
+3. Le rythme oral vient du SUJET et du ton de l'utilisatrice, pas d'une liste 
+   de relances. Si une transition orale arrive naturellement, garde-la. 
+   Si tu dois chercher une relance dans ta mémoire, c'est que le texte n'en a pas besoin.
+
+4. Utilise les MOTS de l'utilisatrice tirés de ses réponses aux questions. 
+   Si elle dit "j'ai flippé", écris "j'ai flippé".
+
+5. Quand une action sert le contenu ou est demandée, termine par un CTA ÉTHIQUE adapté à l'objectif. Sinon, une fin concrète suffit. Possibilités :
+   - Visibilité → CTA partage/save
+   - Engagement → CTA question/dialogue
+   - Confiance → CTA save/identification
+   - Vente → CTA invitation douce
+   - Crédibilité → CTA save/partage
+
+6. Le contenu doit passer le TEST DU CAFÉ : est-ce qu'on peut le lire 
+   à voix haute sans avoir l'air d'un robot ?
+
+7. Vérifie que le contenu ne tombe dans AUCUNE des erreurs courantes 
+   (pas de hook faible, pas de jargon, pas de CTA agressif, etc.)
+
+
+
+
+
+
+
+CONTENU ACTUEL :
+"""
+--- SLIDE 1 (hook) ---
+Le talent n'existe pas.
+
+--- SLIDE 2 (cta) ---
+Enregistre ce post.
+
+--- CAPTION ---
+Ce qui existe, c'est la régularité.
+"""
+
+AJUSTEMENT DEMANDÉ : Plus punchy
+
+GUIDE :
+Resserre chaque idée et coupe les détours, en gardant des phrases complètes et parlées qui s'enchaînent : pas de fragments sans verbe, pas de phrases-slogans en série, sans cheville de relance ni phrase isolée pour faire de l'effet. L'accroche doit claquer plus fort, avec un détail du sujet.
+
+REPÈRES À CONSERVER : le contenu est découpé par 3 lignes repères de la forme « --- … --- ». Recopie chacune de ces lignes à l'identique et dans le même ordre, sans en ajouter, en retirer ni en fusionner : elles servent à remettre chaque texte à sa place. Ajuste seulement le texte entre les repères.
+
+Réécris le contenu avec l'ajustement demandé. Garde la structure, les anecdotes et les mots de l'utilisatrice. Change UNIQUEMENT ce qui est lié à l'ajustement.
+Ne raccourcis JAMAIS la profondeur sauf si l'ajustement demande explicitement de raccourcir.
+
+Réponds UNIQUEMENT en JSON :
+{
+  "content": "..."
+}
+
+── USER PROMPT ──
+Ajuste le contenu : Plus punchy\`
+`;
+
 snapshot[`buildDictationPrompt — dictée vocale vers post LinkedIn 1`] = `
 \`── SYSTEM PROMPT ──
 [COMMON_PREFIX — socle système assemblé par le handler]
