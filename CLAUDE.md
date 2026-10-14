@@ -215,6 +215,12 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 - Vérification après chaque implémentation : `npx tsc --noEmit --skipLibCheck`
 - Préférer les corrections ciblées aux refactorisations larges
 
+### Lovable ↔ GitHub (mis à jour le 14/10/2026)
+- Ne pas fusionner de PR sur GitHub pendant une session Lovable ouverte : Lovable met alors son travail de côté sur une branche `lovable-sync-<horodatage>` (26 fois du 29/09 au 14/10/2026).
+- Si Lovable affiche « Un push vers votre dépôt a remplacé votre travail » : garder **la version du dépôt**. Le workflow `.github/workflows/lovable-sync-pr.yml` ouvre une PR de récupération (ou une issue `lovable-sync`) ; la fusionner en « Create a merge commit », jamais squash ni rebase.
+- `deno.json` garde `"nodeModulesDir": "auto"` (décision du 14/10/2026) : la version `"manual"` faite par Lovable le 08/10 n'a pas été reprise, Lovable redéploie sans souci en `auto`. Repasser en `manual` seulement si l'erreur « File exists (os error 17) » revient.
+- Sessions Claude Code dans le cloud : l'installation des dépendances échoue (`bun.lock` pointe vers le registre de Lovable, 403) et la suppression de branches GitHub est refusée (403). La CI de la PR sert de vérification ; les branches se suppriment à la main sur GitHub.
+
 ### Patterns Supabase / Edge Functions
 
 **Quota IA :**
