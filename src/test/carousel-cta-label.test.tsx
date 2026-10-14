@@ -11,7 +11,7 @@ const raw = () => ({
   slides: [
     { slide_number: 1, title: "J'ai arrêté les remises", body: "" },
     { slide_number: 2, title: "Et toi ?", body: "Tu affiches tes prix ?" },
-  ],
+  ] as Record<string, unknown>[],
   caption: { hook: "", body: "", cta: "", hashtags: [] },
 });
 

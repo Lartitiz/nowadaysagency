@@ -35,7 +35,7 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
 ## Lot 8b (14/10/2026)
 - Fait : les 18 parcours de `carousel-ai` sont figés par `carousel-ai/handler_contract_test.ts` (structure proposée, sujets, angles, questions, récit continu photo / mixte ajoutés) ; la mise en forme du récit continu (gabarits, style du texte sur photo, disposition du mixte, mot de couverture `cover_accent`) passe par `carousel-ai/layout.ts`, sortie identique ; `CARROUSEL_AI_AUTORISES` est vide.
 - Décision de Laetitia du 14/10/2026 : le mot de couverture reste proposé par l'IA dans l'appel d'écriture (aucun changement de prompt ni de crédits) ; seule sa validation est dans `layout.ts`.
-- **Reste (petit lot, après la fusion de #1470)** : carrousel texte, ranger le libellé du bouton dans la slide (`cta_label`) dès l'arrivée des visuels, en le lisant dans le HTML (`data-slide-cta`), sans changer le rendu. Décision de Laetitia du 14/10/2026 : oui. `src/hooks/use-generate-visuals.ts` était encore en travaux (#1470) ; une slide texte ne doit pas envoyer `cta_label` à `carousel-visual` (`composeEditorialSlide` bascule alors sur le rendu IA).
+- Fait après la fusion de #1470 : carrousel texte, le libellé du bouton est rangé dans la slide (`cta_label`) dès l'arrivée des visuels (`src/lib/carousel-cta-label.ts`, appelé par `onCtaLabels` de `use-generate-visuals.ts`), sans changer le rendu ; une slide texte n'envoie toujours pas `cta_label` à `carousel-visual`. Le lot 8 est terminé.
 
 ## Découpage de CreerUnifie.tsx (fiche 1 de `docs/robustesse/gros-fichiers.md`)
 - **Lot A** (#1482, fusionné le 14/10/2026) : tests 1 à 11 en rendu réel (`src/test/creer-entrees-calendrier-brief`,

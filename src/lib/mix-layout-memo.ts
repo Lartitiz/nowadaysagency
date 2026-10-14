@@ -76,3 +76,9 @@ export function mergeEditorRaw<R extends Record<string, any>>(current: Record<st
   }
   return merged as R;
 }
+
+/** Résultat de /creer avec un `raw` recalculé ; le même objet si rien n'a changé
+ * (pas de sauvegarde inutile). */
+export function withRaw<T extends { raw?: unknown }>(prev: T, raw: unknown): T {
+  return !raw || raw === prev?.raw ? prev : { ...prev, raw };
+}
