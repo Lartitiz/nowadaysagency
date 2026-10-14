@@ -1,5 +1,7 @@
-// Scope daily de cron-health : erreurs JS clientes séparées des comptes internes,
-// et santé des e-mails (14/10/2026). Logique pure, testée par sante-emails_test.ts.
+// Scope daily de cron-health (14/10/2026) : blocs `client_errors_24h` (erreurs JS,
+// vraies clientes séparées des comptes internes) et `emails_24h` (envoyés, échecs,
+// file email_queue bloquée). Lecture dans `santeQuotidienne`, jugement en fonctions
+// pures testées par sante-emails_test.ts. Jamais d'adresse e-mail en sortie.
 //
 // Pourquoi séparer les erreurs JS : le 14/10 au matin, 5 `creer/render` sont
 // sortis sans qu'on puisse dire s'ils venaient d'une cliente ou de la visite
@@ -9,7 +11,7 @@
 const HOUR = 3600000;
 const DAY = 24 * HOUR;
 
-type EmailOf = (userId: string | null | undefined) => string | null | undefined;
+type EmailOf = Map<string, string | null | undefined>; // user_id → email (profiles)
 type IsInternal = (email: string | null | undefined) => boolean;
 
 /**
@@ -18,7 +20,7 @@ type IsInternal = (email: string | null | undefined) => boolean;
  * compté côté clientes — mieux vaut une fausse alerte qu'un écran planté caché.
  */
 const userIsInternal = (userId: string | null | undefined, emailOf: EmailOf, isInternal: IsInternal) =>
-  !!userId && isInternal(emailOf(userId));
+  !!userId && isInternal(emailOf.get(userId));
 
 export function clientErrorsStats(rows: any[], emailOf: EmailOf, isInternal: IsInternal) {
   const clientes = rows.filter((e) => !userIsInternal(e.user_id, emailOf, isInternal));
@@ -114,4 +116,32 @@ export function emailsStats(
     internes: bilan(internes),
     alerte: raisons.length ? raisons.join(" ; ") : null,
   };
+}
+
+type FetchAllRows = (supabase: any, table: string, columns: string, modify?: (q: any) => any) => Promise<any[]>;
+
+/** Lit les tables (lecture paginée `fetchAllRows` de index.ts) et rend les deux blocs. */
+export async function santeQuotidienne(
+  supabase: any,
+  now: number,
+  fetchAllRows: FetchAllRows,
+  emailOf: EmailOf,
+  isInternal: IsInternal,
+) {
+  const erreur = (e: unknown) => ({ erreur: String((e as any)?.message || e).slice(0, 90) });
+  const depuis24h = new Date(now - DAY).toISOString();
+  const [erreursJs, emails] = await Promise.all([
+    fetchAllRows(supabase, "client_error_events", "user_id, kind, route, asset, created_at", (q) => q.gte("created_at", depuis24h))
+      .then((rows) => clientErrorsStats(rows, emailOf, isInternal)),
+    Promise.all([
+      fetchAllRows(supabase, "email_sends", "user_id, to_email, template_id, status, error, sent_at", (q) => q.gte("sent_at", depuis24h)),
+      fetchAllRows(supabase, "email_queue", "user_id, scheduled_at, sent, cancelled", (q) =>
+        q.eq("sent", false).eq("cancelled", false).lt("scheduled_at", new Date(now - FILE_BLOQUEE_APRES_MS).toISOString())),
+      fetchAllRows(supabase, "email_templates", "id, name"),
+    ]).then(([sends, queue, templates]) => {
+      const nom = new Map(templates.map((t) => [t.id, t.name]));
+      return emailsStats(sends, queue, emailOf, isInternal, (id) => (id ? nom.get(id) ?? null : null), now);
+    }).catch(erreur),
+  ]);
+  return { client_errors_24h: erreursJs, emails_24h: emails };
 }

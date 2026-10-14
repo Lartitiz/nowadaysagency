@@ -1,14 +1,13 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { clientErrorsStats, emailsStats } from "./sante-emails.ts";
+import { clientErrorsStats, emailsStats, santeQuotidienne } from "./sante-emails.ts";
 import { isInternalEmail } from "../_shared/internal-accounts.ts";
 
 const NOW = Date.parse("2026-10-14T08:00:00Z");
-const PROFILS: Record<string, string> = {
+const emailOf = new Map(Object.entries({
   camille: "laetitiatest@nowadaysagency.com", // compte test de la visite
   admin: "laetitia@nowadaysagency.com",
   lea: "lea@cliente.fr",
-};
-const emailOf = (id: string | null | undefined) => (id ? PROFILS[id] : undefined);
+}));
 const ago = (h: number) => new Date(NOW - h * 3600000).toISOString();
 
 // ── Le matin du 14/10 : 5 creer/render venus de la visite automatique ─────────
@@ -72,4 +71,14 @@ Deno.test("e-mails : file bloquée > 1 h → 🔴 ; 59 min = pas encore ; intern
   assertEquals(s.file_bloquee, { count: 1, plus_ancienne: ago(3), internes: 1 });
   assertEquals(s.envoyes, 0, "0 envoyé n'alerte pas seul");
   assertEquals(s.alerte, "1 e-mail(s) en attente depuis > 1 h (cron d'envoi mort ?)");
+});
+
+Deno.test("santeQuotidienne : une table e-mails illisible n'empêche pas les erreurs JS", async () => {
+  const fake = (_s: unknown, table: string) =>
+    table === "client_error_events"
+      ? Promise.resolve([{ user_id: "lea", kind: "render", route: "creer", asset: null, created_at: ago(1) }])
+      : Promise.reject(new Error(`relation ${table} does not exist`));
+  const s = await santeQuotidienne(null, NOW, fake, emailOf, isInternalEmail);
+  assertEquals(s.client_errors_24h.render, 1);
+  assertEquals(s.emails_24h, { erreur: "relation email_sends does not exist" });
 });
