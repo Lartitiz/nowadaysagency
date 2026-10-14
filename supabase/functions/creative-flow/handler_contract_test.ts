@@ -113,7 +113,7 @@ async function run(body: Record<string, unknown>, text: string, stream = false) 
     const res = await handler(new Request(URL_FN, { method: "POST", headers, body: JSON.stringify(body) }));
     const raw = await res.text();
     const out = stream
-      ? raw.split("\n\n").filter((chunk) => chunk.trim() && !chunk.includes('"heartbeat"')).join("\n\n")
+      ? raw.split("\n\n").filter((chunk: string) => chunk.trim() && !chunk.includes('"heartbeat"')).join("\n\n")
       : raw;
     return {
       doc: [
