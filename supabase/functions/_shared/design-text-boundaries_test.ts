@@ -111,8 +111,11 @@ function chain(parent: Map<string, string | null>, end: string): string {
   return out.join(" → ");
 }
 
+/** Module d'écriture, sous-fichiers compris (`format-briefs/caption` compte comme `format-briefs`). */
+const isWriting = (mod: string | null) => !!mod && MODULES_ECRITURE.includes(mod.split("/")[0]);
+
 const reachedWriting = (parent: Map<string, string | null>) =>
-  [...parent.keys()].filter((f) => MODULES_ECRITURE.includes(sharedModule(f) ?? ""));
+  [...parent.keys()].filter((f) => isWriting(sharedModule(f)));
 
 Deno.test("frontière texte / design — les modules d'écriture existent toujours", async () => {
   for (const mod of MODULES_ECRITURE) {
@@ -128,7 +131,7 @@ for (const fn of FONCTIONS_DESIGN) {
       for (const spec of localImports((await readOrNull(file))!)) {
         const mod = sharedModule(new URL(spec, file).href);
         assert(
-          !mod || !MODULES_ECRITURE.includes(mod),
+          !isWriting(mod),
           `${shortName(file)} importe _shared/${mod}.ts, un module d'écriture des textes. ` +
             `Une fonction de design ne doit pas dépendre de la chaîne de rédaction : déplace ce dont elle a besoin dans un module neutre.`,
         );

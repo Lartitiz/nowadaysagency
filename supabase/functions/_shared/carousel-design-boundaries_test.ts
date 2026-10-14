@@ -92,8 +92,12 @@ async function localImports(rel: string): Promise<string[]> {
   return out;
 }
 
-/** Nom de module de _shared (sans .ts), ou null pour un autre fichier. */
-const sharedName = (rel: string): string | null => rel.startsWith("_shared/") ? rel.slice(8, -3) : null;
+/**
+ * Nom de module de _shared (sans .ts), ou null pour un autre fichier. Un
+ * sous-module (`_shared/correction-pass/prompts.ts`, découpage des gros
+ * fichiers) prend le rang de son module d'origine (`correction-pass`).
+ */
+const sharedName = (rel: string): string | null => rel.startsWith("_shared/") ? rel.slice(8, -3).split("/")[0] : null;
 
 async function reachable(entry: string): Promise<Set<string>> {
   const seen = new Set<string>();
@@ -159,7 +163,7 @@ Deno.test("frontière design / écriture — l'écriture atteinte par carousel-v
   for (const targets of Object.values(IMPORTS_AUTORISES)) {
     for (const t of Object.keys(targets)) for (const rel of await reachable(`_shared/${t}.ts`)) opened.add(rel);
   }
-  const writingReached = [...CAROUSEL_VISUAL].map(sharedName).filter((n): n is string => !!n && WRITING.has(n)).sort();
+  const writingReached = [...new Set([...CAROUSEL_VISUAL].map(sharedName))].filter((n): n is string => !!n && WRITING.has(n)).sort();
   const writingOpened = [...opened].map(sharedName).filter((n): n is string => !!n && WRITING.has(n));
   for (const name of writingReached) {
     assert(writingOpened.includes(name), `carousel-visual atteint _shared/${name}.ts (écriture) par un chemin non déclaré.`);
