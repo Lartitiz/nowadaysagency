@@ -60,9 +60,12 @@ Reste du lot 8 :
     calques masqués / retirés, fond, texte sur la photo, voile, aperçu Instagram) ;
   - **E3-1** (#1498, fusionnée) : `CarouselEditorParts/canvas-geometry.ts` et `PanelBits.tsx`
     (CarouselEditor.tsx : 3 816 → 3 626 lignes) ;
-  - **E3-2** (en cours) : `CarouselEditorParts/CanvasToolbar.tsx`, la barre d'outils
+  - **E3-2** (#1500, fusionnée) : `CarouselEditorParts/CanvasToolbar.tsx`, la barre d'outils
     flottante (CarouselEditor.tsx : 3 626 → 3 441 lignes) ;
-    E3-3 reste de l'aperçu ; E3-4 et E3-5 panneau de réglages ; E3-6 en-tête,
+  - **E3-3** (en cours) : `CarouselEditorParts/SlideCanvas.tsx` (l'aperçu) et
+    `canvas-events.ts` (ses réactions souris / clavier, corps de `bind` inchangé)
+    (CarouselEditor.tsx : 3 441 → 2 250 lignes) ;
+  - E3-4 et E3-5 panneau de réglages ; E3-6 en-tête,
     contrôle qualité, miniatures, « Toutes les slides » et « Mes styles ».
   Points d'attention relevés par E2 : `CARTE.md`, section 7 (écho reconnu à la
   référence, `inputKey`).
