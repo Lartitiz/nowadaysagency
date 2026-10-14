@@ -57,7 +57,14 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
   simples, pas de hook, filtre workspace gardé tel quel, décision de Laetitia du
   14/10/2026). Le nombre de photos est passé en argument au lieu de `loadPhotos()`.
   Une seule PR pour les cinq. Aucun test modifié.
-- **Lot D** ensuite : exports (`use-creer-exports.ts`), voir la fiche 1.
+- **Lot D** (PR à venir, 14/10/2026) : les 8 exports + `useOpenInCanva` sortis à l'identique
+  dans `src/hooks/use-creer-exports.ts` (un seul hook, 11 paramètres, décision de
+  Laetitia du 14/10/2026). Appelé à la place des exports, même ordre des hooks ;
+  `demoToast` et `effectiveHandle…` restent dans la page. Code comparé par script
+  à l'original. Aucun test modifié. Écart avec la fiche : en démo, seuls les 4
+  exports du carrousel passent par `demoToast` ; les 3 exports Pinterest restent
+  actifs (inchangé).
+- **Lot E** ensuite : séquence de lancement (`use-launch-sequence.ts`), voir la fiche 1.
 
 ## Découpage du Studio, `visual-studio/index.ts` (fiche 5) : terminé le 14/10/2026
 2001 → 299 lignes ; `index.ts` n'est plus qu'un aiguilleur des 16 actions.
