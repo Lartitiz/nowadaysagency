@@ -184,10 +184,6 @@
     "supabase/functions/newsjacking-ai/index.ts": {
       "lignes": 947,
       "any": 14
-    },
-    "supabase/functions/visual-studio/index.ts": {
-      "lignes": 841,
-      "any": 0
     }
   }
 }
