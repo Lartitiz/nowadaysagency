@@ -323,6 +323,20 @@ un format en casse un autre.
 `thread-local-repair`, `variant-writing`, `writer`, `writing-contract`,
 `layout`.
 
+**Fichiers sortis d'`index.ts`** (fiche 2 de `docs/robustesse/gros-fichiers.md`,
+découpage en cours : code déplacé à l'identique, `index.ts` réexporte ce qui
+était exporté)
+
+| Fichier | Contenu | Modifier ce fichier touche… |
+|---|---|---|
+| `carousel-ai/shared.ts` (lot 1) | `_deps` (ce que les tests remplacent), budgets de temps (`CORRECTION_ABORT_MS`, `REPAIR_START_LIMIT_MS`, `REVIEW_START_LIMIT_MS`, `writerTimeoutMs`, `reviewAllowed`), choix des modèles, photos et leur contexte pour Claude, chronos et brouillon affiché, relance d'un carrousel trop court, refus photo sans crédit, `normalizeSlideType` et champs du plan, `CarouselRequestContext` / `echoContext` | **tous les parcours** |
+| `carousel-ai/tools.ts` (lot 1) | Formats de sortie imposés à l'IA : questions, plan envisagé, carrousel mixte et photo, structure proposée ; rappel « ne refuse pas mes photos » (`PHOTO_MISMATCH_SYSTEM_REMINDER`) | les parcours qui utilisent l'outil modifié |
+
+`carousel-ai/boundaries_test.ts` garde ce rangement : aucun fichier n'importe
+`index.ts` ; `shared.ts` et `tools.ts` n'importent ni `modes/` ni `steps/` ; un
+fichier de `modes/` n'importe pas un autre mode ; chaque fichier sorti
+d'`index.ts` est cité ici.
+
 **Écriture d'un côté, mise en forme de l'autre (lot 8, 14/10/2026)**
 - `carousel-ai` écrit : texte, structure du récit (`slide_type`,
   `photo_index`), légende.
@@ -608,6 +622,7 @@ après le découpage, ils doivent tous passer sans être retouchés.
 | Garde-fou | Où | Bloque la CI ? | Ce qu'il empêche |
 |---|---|---|---|
 | Frontières entre formats | `supabase/functions/creative-flow/boundaries_test.ts` | oui (`npm run test:edges`) | un format qui importe le fichier d'un autre format ; une dépendance circulaire vers `index.ts` ; un fichier de `formats/` absent de cette carte |
+| Frontières dans carousel-ai (fiche 2) | `supabase/functions/carousel-ai/boundaries_test.ts` | oui (`npm run test:edges`) | une dépendance circulaire vers `index.ts` ; `shared.ts` ou `tools.ts` qui importe un parcours ; un mode qui en importe un autre ; un fichier sorti d'`index.ts` absent de cette carte |
 | Frontière design / écriture du carrousel (lot 8) | `supabase/functions/_shared/carousel-design-boundaries_test.ts` | oui (`npm run test:edges`) | un module de design qui importe un module d'écriture ; un module neutre qui fait passer de l'un à l'autre ; un nouveau chemin caché de `carousel-visual` vers l'écriture ; un fichier de `carousel-ai` autre que `layout.ts` qui importe le design ; un module partagé du carrousel non rangé |
 | Frontière texte / design (lot 9) | `supabase/functions/_shared/design-text-boundaries_test.ts` | oui (`npm run test:edges`) | qu'une fonction de design (`carousel-visual`, `pinterest-visual`, `carousel-slide-image`, `visual-studio`) importe, directement ou par ricochet, la chaîne d'écriture des textes (`redac-gate`, `correction-pass`, `carousel-model`, `format-briefs`, `copywriting-prompts`) |
 | Snapshots et contrats par format | voir section 5 | oui | qu'un prompt, un appel à Claude ou une réponse change sans qu'on le voie |
