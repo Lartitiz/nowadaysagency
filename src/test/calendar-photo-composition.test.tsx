@@ -15,3 +15,11 @@ it.each(["post", "story_serie"])("shows a composed %s without a caption or a gen
   expect(screen.queryByText(/Génère d'abord/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Régénère le carrousel/)).not.toBeInTheDocument();
 });
+
+it("renders the real story visuals for a story_serie instead of the generic 📱 placeholder", () => {
+  render(<CalendarPostPreview canal="instagram" format="story_serie" caption="Ma légende" theme="Alba" username="alba" displayName="Alba"
+    storiesData={[{ text: "Bienvenue dans ma séquence", visual: { gabarit: "fond_pills", background: "fond_couleur" } }]}
+    onNavigateToGenerator={vi.fn()} hasAngle hasTheme />);
+  expect(screen.getByTitle("Story 1")).toBeInTheDocument();
+  expect(screen.queryByText("📱")).not.toBeInTheDocument();
+});
