@@ -1,5 +1,5 @@
 import { INSTAGRAM_DIRECT_MAX_IMAGES, instagramTooManyImagesReason } from "@/features/creer/publish-guards";
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { createPortal } from "react-dom";
 import type { CarouselQuality } from "@/hooks/use-carousel-quality";
@@ -20,7 +20,6 @@ import {
   ZoomIn,
   ZoomOut,
   Smartphone,
-  Pipette,
   Bookmark,
   X,
   Maximize2,
@@ -103,7 +102,6 @@ import {
   readCarouselDocument,
   renumberDocument,
   replacePhoto,
-  placeToolbar,
   restyleSlide,
   syncGlass,
   type CarouselDocument,
@@ -125,9 +123,9 @@ import {
   snapTo,
   isInlineText,
   type CanvasBox,
-  isFullBleedBox,
 } from "@/components/creer/CarouselEditorParts/canvas-geometry";
 import { PanelSection, SlideThumb, PhotoShapePicker } from "@/components/creer/CarouselEditorParts/PanelBits";
+import CanvasToolbar, { type SelectionBox } from "@/components/creer/CarouselEditorParts/CanvasToolbar";
 
 
 interface Props {
@@ -249,21 +247,7 @@ function SlideCanvas({
     [guides, setGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null }),
     [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null),
     [box, setBox] = useState<
-      | (CanvasBox & {
-          kind: "photo" | "veil" | "text" | "shape";
-          bold?: boolean;
-          italic?: boolean;
-          underline?: boolean;
-          editorial?: boolean;
-          glass?: boolean;
-          emptyFrame?: boolean;
-          radius?: string;
-          locked?: boolean;
-          /** L'élément verrouillé (lui-même ou son groupe), à déverrouiller. */
-          lockedId?: string;
-          fontSize?: number;
-          align?: string;
-        })
+      | SelectionBox
       | null
     >(null);
   const scale = width / 1080 || 1;
@@ -1195,191 +1179,6 @@ function SlideCanvas({
     return { ...base, right: -size / 2, bottom: -size / 2, cursor: "nwse-resize" };
   };
 
-  // Barre d'outils flottante au-dessus de l'élément choisi (comme Canva).
-  const apply = (word: Record<string, string>, whole: Record<string, string>) => {
-    if (!selected) return;
-    if (tools.current.format(word)) return;
-    tools.current.finish();
-    latest.current.onMove(selected, whole);
-  };
-  const keep = (e: React.MouseEvent) => e.preventDefault(); // garde la sélection dans la slide
-  const pickerInput = useRef<HTMLInputElement>(null);
-  const applyPicked = (value: string) => {
-    if (!selected || !box) return;
-    const m = value.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-    const hex = m ? `#${m.slice(1, 4).map((v) => Number(v).toString(16).padStart(2, "0")).join("")}` : value;
-    if (!/^#[0-9a-f]{6}$/i.test(hex)) return;
-    if (box.kind === "text") apply({ color: hex }, { color: hex });
-    else latest.current.onFill?.(selected, hex);
-  };
-  const selectedIssue = issues.find((i) => i.elementId === selected && (i.severity === "error" || i.fix || i.kind === "overflow"));
-  // La barre se place là où elle ne cache pas l'élément : au-dessus s'il y a
-  // la place, sinon en dessous, sinon du côté le plus libre. Sa vraie taille
-  // est mesurée (elle passe sur deux lignes quand la slide est étroite).
-  const toolbarRef = useRef<HTMLDivElement>(null);
-  const [toolbarSize, setToolbarSize] = useState({ w: 300, h: 40 });
-  useLayoutEffect(() => {
-    const el = toolbarRef.current;
-    if (!el) return;
-    const w = el.offsetWidth;
-    const h = el.offsetHeight;
-    if (w !== toolbarSize.w || h !== toolbarSize.h) setToolbarSize({ w, h });
-  });
-  const toolbarPosition = () =>
-    box
-      ? placeToolbar(
-          { left: box.left * scale, top: box.top * scale, width: box.width * scale, height: box.height * scale },
-          { width: toolbarSize.w, height: toolbarSize.h },
-          { width, height: width * 1.25 },
-        )
-      : { left: 0, top: 0 };
-  const toolButton = "flex h-8 min-w-8 items-center justify-center rounded-md px-1.5 text-xs font-semibold hover:bg-muted aria-pressed:bg-primary/15";
-  const toolbar =
-    box && selected && !slide.locked && box.kind !== "veil" && dropping === false ? (
-      <div
-        ref={toolbarRef}
-        role="toolbar"
-        aria-label="Barre d’outils de l’élément"
-        onMouseDown={keep}
-        className="absolute z-10 flex max-w-[calc(100%-8px)] flex-wrap items-center gap-0.5 rounded-lg border bg-background p-1 shadow-lg"
-        style={toolbarPosition()}
-      >
-        {selectedIssue && !box.locked && (
-          <button
-            type="button"
-            className="flex h-8 items-center gap-1 rounded-md bg-amber-100 px-2 text-2xs font-semibold text-amber-900 hover:bg-amber-200"
-            title={selectedIssue.message}
-            onClick={() => {
-              tools.current.finish();
-              if (selectedIssue.fix) latest.current.onMove(selected, selectedIssue.fix);
-              else if (selectedIssue.kind === "overflow" && box.kind === "text") fitRef.current(selected);
-              else latest.current.onSelect(selected);
-            }}
-          >
-            ! {selectedIssue.fix || (selectedIssue.kind === "overflow" && box.kind === "text") ? "Corriger" : "À vérifier"}
-          </button>
-        )}
-        {box.kind === "photo" && !box.locked && cropId !== selected && onReplacePhoto && (
-          <button type="button" className={toolButton} onClick={onReplacePhoto} title={box.emptyFrame ? "Mettre une photo dans ce cadre (ou glisse une photo dessus)" : "Mettre une autre photo dans ce cadre (ou glisse une photo dessus)"}>
-            <ImagePlus size={14} className="mr-1" /> {box.emptyFrame ? "Ajouter une photo" : "Remplacer"}
-          </button>
-        )}
-        {box.kind === "photo" && !box.locked && cropId !== selected && !isFullBleedBox(box) && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <button type="button" className={toolButton} title="Forme du cadre : carré, arrondi, rond, arche…">
-                Forme
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-auto p-2">
-              <PhotoShapePicker
-                current={photoShapeOf(box.radius)}
-                onPick={(radius) => latest.current.onMove(selected, { "border-radius": radius, overflow: "hidden" })}
-              />
-            </PopoverContent>
-          </Popover>
-        )}
-        {box.kind === "photo" && !box.locked && !box.emptyFrame && cropId !== selected && (
-          <button type="button" className={toolButton} onClick={() => setCropId(selected)} title="Recadrer (double-clic sur la photo)">
-            Recadrer
-          </button>
-        )}
-        {box.locked && (
-          <button type="button" className={toolButton} aria-label="Déverrouiller l’élément" onClick={() => latest.current.onLock?.(box.lockedId || selected, false)}>
-            <Unlock size={14} className="mr-1" /> Déverrouiller
-          </button>
-        )}
-        {!box.locked && box.kind === "text" && (
-          <>
-            <button type="button" className={toolButton} aria-pressed={!!box.bold} aria-label="Gras" title="Gras (sur les mots choisis en écrivant)"
-              onClick={() => apply({ "font-weight": "toggle" }, { "font-weight": box.bold ? "400" : "700" })}>B</button>
-            <button type="button" className={`${toolButton} italic`} aria-pressed={!!box.italic} aria-label="Italique"
-              onClick={() => apply({ "font-style": "toggle" }, { "font-style": box.italic ? "normal" : "italic" })}>I</button>
-            <button type="button" className={`${toolButton} underline`} aria-pressed={!!box.underline} aria-label="Souligné"
-              onClick={() => apply({ "text-decoration": "toggle" }, { "text-decoration": box.underline ? "none" : "underline" })}>U</button>
-            <button type="button" className={toolButton} aria-label="Réduire le texte"
-              onClick={() => { tools.current.finish(); latest.current.onMove(selected, { "font-size": `${Math.max(18, Math.round((box.fontSize || 40) - 4))}px` }); }}>A−</button>
-            <button type="button" className={toolButton} aria-label="Agrandir le texte"
-              onClick={() => { tools.current.finish(); latest.current.onMove(selected, { "font-size": `${Math.min(200, Math.round((box.fontSize || 40) + 4))}px` }); }}>A+</button>
-            <button type="button" className={toolButton} aria-label="Changer l’alignement"
-              title="Alignement"
-              onClick={() => { tools.current.finish(); latest.current.onMove(selected, { "text-align": box.align === "left" || box.align === "start" ? "center" : box.align === "center" ? "right" : "left" }); }}>
-              {box.align === "center" ? "≡" : box.align === "right" ? "⫶" : "☰"}
-            </button>
-          </>
-        )}
-        {!box.locked && (
-          <>
-        {box.kind !== "photo" &&
-          colors.map((c) => (
-            <button
-              key={c}
-              type="button"
-              aria-label={`${box.kind === "text" ? "Couleur du texte" : "Couleur du fond"} ${c}`}
-              title={box.kind === "text" ? (editingId ? "Couleur des mots choisis (ou du texte)" : "Couleur du texte") : "Couleur du fond"}
-              className="m-0.5 h-5 w-5 rounded-full border border-black/20"
-              style={{ background: c }}
-              onClick={() =>
-                box.kind === "text"
-                  ? apply({ color: c }, { color: c })
-                  : latest.current.onFill?.(selected, c)
-              }
-            />
-          ))}
-        {box.kind !== "photo" && (
-          <>
-            <button
-              type="button"
-              className={toolButton}
-              aria-label="Pipette : prendre une couleur à l’écran"
-              title="Pipette : prendre une couleur sur la photo ou ailleurs à l’écran"
-              onClick={async () => {
-                const picker = (window as unknown as { EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
-                if (!picker) {
-                  // Safari / Firefox : le sélecteur de couleur du système a sa propre pipette.
-                  pickerInput.current?.click();
-                  return;
-                }
-                try {
-                  const { sRGBHex } = await new picker().open();
-                  applyPicked(sRGBHex);
-                } catch {
-                  // Pipette annulée (Échap).
-                }
-              }}
-            >
-              <Pipette size={14} />
-            </button>
-            <input
-              ref={pickerInput}
-              type="color"
-              aria-hidden="true"
-              tabIndex={-1}
-              className="sr-only"
-              onChange={(e) => applyPicked(e.target.value)}
-            />
-          </>
-        )}
-        {box.kind === "text" && !editingId && (
-          <button type="button" className={toolButton} onClick={() => tools.current.startEditing(selected)}>Écrire</button>
-        )}
-        {box.kind === "text" && editingId && box.editorial && (
-          <span className="px-1 text-2xs text-muted-foreground">Mots : utilise la phrase mise en valeur</span>
-        )}
-        <button type="button" className={toolButton} aria-label="Copier l’élément" title="Copier (⌘/Ctrl + C), puis coller ici ou sur une autre slide"
-          onClick={() => { tools.current.finish(); latest.current.onCopy(); }}>Copier</button>
-        {box.kind !== "photo" && !box.glass && (
-          <button type="button" className={toolButton} aria-label="Dupliquer l’élément" title="Dupliquer"
-            onClick={() => { tools.current.finish(); latest.current.onDuplicate?.(selected); }}><Copy size={14} /></button>
-        )}
-        <button type="button" className={toolButton} aria-label="Retirer l’élément" title="Retirer"
-          onClick={() => { tools.current.finish(); latest.current.onRemove(selected); }}><Trash2 size={14} /></button>
-            <button type="button" className={toolButton} aria-label="Verrouiller l’élément" title="Verrouiller (⌘⇧L) : il ne bougera plus par erreur"
-              onClick={() => { tools.current.finish(); latest.current.onLock?.(selected, true); }}><LockKeyhole size={14} /></button>
-          </>
-        )}
-      </div>
-    ) : null;
   return (
     <div className={zoom > 1 ? "max-h-[75vh] overflow-auto rounded-xl" : undefined}>
       <div
@@ -1486,7 +1285,23 @@ function SlideCanvas({
             </button>
           </div>
         )}
-        {toolbar}
+        <CanvasToolbar
+          box={box}
+          selected={selected}
+          slide={slide}
+          dropping={dropping}
+          scale={scale}
+          width={width}
+          issues={issues}
+          tools={tools}
+          latest={latest}
+          fitRef={fitRef}
+          cropId={cropId}
+          setCropId={setCropId}
+          onReplacePhoto={onReplacePhoto}
+          colors={colors}
+          editingId={editingId}
+        />
         {extraBoxes.map((b, i) => (
           <div
             key={i}
