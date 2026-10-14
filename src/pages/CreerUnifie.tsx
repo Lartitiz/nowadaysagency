@@ -2059,8 +2059,7 @@ function CreerWorkspace() {
   const automaticVisualsAllowed = useRef(!ps?.result && !ps?.pendingStream && !locState.resumeIdea?.raw);
   if (generating || streaming || userSlidesBuilding) automaticVisualsAllowed.current = true;
   const { handleGenerateVisuals } = useGenerateVisuals({
-    result,
-    creationId,
+    result, creationId,
     allowAutomatic: automaticVisualsAllowed.current,
     contentGenerating: generating || streaming || userSlidesBuilding || structureLoading || photoDumpResolving,
     visualLoading,
