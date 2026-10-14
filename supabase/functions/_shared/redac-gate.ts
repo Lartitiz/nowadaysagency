@@ -11,163 +11,17 @@ import { carouselEditorialFields } from "./carousel-editorial-review.ts";
 // Le quality_check émis au front est celui calculé ici (source: "code").
 
 import { applyCorrectionPass, applyCorrectionPassCarousel, applyResearchExcessPass, applyResearchSourcingPass, applyTestimonyRemovalPass, extractCarouselTexts, reinjectCarouselTexts, type CorrectionFormat, type CorrectionOptions } from "./correction-pass.ts";
-
-// ── Détection de la famille « retournement par négation » ──
-// Mêmes variantes que la règle ANTI_SLOP : "Ce n'est pas X, c'est Y" /
-// "Pas X. Y." / "X n'est plus Y. C'est Z." / "Je ne dis pas X. Je dis Y."
-const REVERSAL_PATTERNS: RegExp[] = [
-  // Nominal antithesis: punctuation/newlines and curly apostrophes included.
-  // Deliberately exclude factual fragments such as « Pas dimanche » / « Pas de stock ».
-  /(?:^|[.!?]\s+)[^.!?\n]{2,100}[.!]\s+Pas (?:un(?:e)?|des|du|de la|de l['’]|le|la|les|l['’])\s*[^.!?\n]{2,100}[.!?]?/i,
-  /\bn(?:'|’)est pas [^.!?\n]{2,90}[.,:] ?[Cc](?:'|’)est\b/,
-  /\bc(?:'|’)est pas [^.!?\n]{2,90}[.,:] ?[Cc](?:'|’)est\b/,
-  /\bne sont pas [^.!?\n]{2,90}[.,:] ?[Cc]e sont\b/,
-  /\bn(?:'|’)est plus [^.!?\n]{2,90}\. ?[Cc](?:'|’)est\b/,
-  /(?:^|[.!?]\s+)Pas (?:parce que|pour|un|une|de|du|des|le|la|les|ça)\b[^.!?\n]{0,80}[.:] ?(?:[CcJj](?:'|’)|Juste|Parce que|Mais)/,
-  /\bJe ne [^.!?\n]{2,60} pas(?: ça)?[^.!?\n]{0,40}\. ?Je [^\s]+ (?:parce que|pour|que)\b/,
-  /(?:^|[.!?]\s+)Pas [^.!?\n]{2,60}\. ?(?:C(?:'|’)est|Juste|Plutôt)\b/,
-  // ── Formes COURTES, mesurées hors radar sur le corpus stories du 07/09/2026
-  // (5 des 7 retournements d'une séquence passaient sans être comptés) ──
-  // « Et non, c'est pas parce que ça marchait pas. »
-  /\bEt non, c(?:'|’)est pas\b/,
-  // « Pas "amélioré un peu". Calmées. » (négation citée, puis un mot seul)
-  /(?:^|[.!?]\s+)Pas ["'«“‘][^"'»”’\n]{2,60}["'»”’]\. ?\p{Lu}[^.!?\n]{0,40}[.!]/u,
-  // « C'est pas de ta faute. » / « Ce n'est pas de votre faute. »
-  /\bc(?:'|’)est pas de (?:ta|votre|sa|leur) faute\b/i,
-  // « Pas pour les raisons que tu crois. »
-  /\bpas pour les raisons que (?:tu crois|vous croyez|tu penses|vous pensez)\b/i,
-  // « … comme une crème. Pas comme un produit ménager. »
-  /\bcomme [^.!?\n]{2,50}\. ?Pas comme\b/,
-  // ── Concession de paille + « Sauf que… » vide (test réel LinkedIn 04/10/2026) ──
-  // « C'est logique, sur le papier. Sauf que ce n'est pas tout à fait comme ça
-  // que ça fonctionne. » La concession n'est comptée QUE suivie d'un « Sauf que »
-  // ou « Mais non » : « en théorie… En pratique, [mécanisme] » reste permis.
-  /(?:^|[.!?]\s+)(?:C(?:'|’)est (?:logique|séduisant|tentant|cohérent)|Ça (?:se tient|paraît logique|semble logique)), (?:sur le papier|en théorie)[.!] ?(?:Sauf que|Mais non)\b[^.!?\n]{0,90}/,
-  /(?:^|[.!?]\s+)(?:Sur le papier|En théorie), (?:ça se tient|c(?:'|’)est logique|ça paraît logique|ça marche|tout se tient)[.!] ?(?:Sauf que|Mais non)\b[^.!?\n]{0,90}/,
-  // « Sauf que » en OUVERTURE de phrase suivi d'une négation vide (sans le
-  // mécanisme). Un « sauf que » factuel en milieu de phrase, ou « Sauf que la
-  // livraison a du retard », ne compte pas.
-  /(?:^|[.!?]\s+|\n\s*)Sauf que (?:non\b|(?:ce n(?:'|’)est|c(?:'|’)est|ça n(?:'|’)est) pas (?:tout à fait|vraiment|si simple|aussi simple|exactement|comme ça|ce qui se passe|le cas)|ça ne (?:marche|fonctionne|se passe) pas (?:comme ça|vraiment|tout à fait|ainsi|du tout))[^.!?\n]{0,80}/,
-  // ── Antithèse croyance / réalité en deux phrases miroir (re-test réel 04/10/2026) ──
-  // « On croit en faire plus. On en fait souvent moins. » / « Tu penses gagner du
-  // temps. Tu en perds. » : la 2e phrase est une chute courte (≤ 50 caractères)
-  // qui renverse la 1re. Une explication développée après « On pense que… » ne compte pas.
-  /(?:^|[.!?]\s+|\n\s*)(?:On|Tu|Vous|Nous) (?:croit|crois|croyez|croyons|pense|penses|pensez|pensons|s['’]imagine|t['’]imagines|vous imaginez|a l['’]impression d(?:e |['’])|as l['’]impression d(?:e |['’]))[^.!?\n]{2,60}[.!] ?(?:Mais |En réalité,? |En fait,? |Au final,? |Résultat ?: )?(?:on|tu|vous|nous|On|Tu|Vous|Nous)\b[^.!?\n]{2,45}[.!]/,
-  // ── Contraste « pas X. Y » au MÊME verbe (re-test réel LinkedIn 04/10/2026) ──
-  // « Je ne cherche pas à produire plus de pièces. Je cherche les quelques-unes
-  // qui ont une vraie identité. » / « On n'achète pas un objet. On achète une
-  // histoire. » : la 2e phrase reprend le sujet ET le verbe niés pour renverser.
-  /(?:^|[.!?]\s+|\n\s*)(Je|Tu|On|Nous|Vous|Il|Elle|Ils|Elles) ne (\p{L}+) pas\b[^.!?\n]{2,90}[.!] ?(?:Mais |Non, )?\1 \2\b/iu,
-  /(?:^|[.!?]\s+|\n\s*)(?:Je|J['’]) n['’](\p{L}+) pas\b[^.!?\n]{2,90}[.!] ?(?:Mais |Non, )?J['’]\1\b/iu,
-  /(?:^|[.!?]\s+|\n\s*)(Tu|On|Nous|Vous|Il|Elle|Ils|Elles) n['’](\p{L}+) pas\b[^.!?\n]{2,90}[.!] ?(?:Mais |Non, )?\1 \2\b/iu,
-  // ── « X, pas Y. » en fin de phrase (re-test réel LinkedIn 04/10/2026) ──
-  // « … ont vu leurs résultats baisser, pas augmenter. » : contraste plaqué en
-  // queue de phrase (1 à 3 mots). Les tournures figées restent permises :
-  // « pas plus », « pas encore », « pas toujours », « pas forcément », « ou pas »…
-  /[^.!?\n]{8,}, pas (?!(?:plus|moins|encore|toujours|forcément|vraiment|du tout|mal|trop|question|seulement|tant|si|non plus|à pas|d['’]un coup|besoin|grave|sûr|sûre|certain|certaine|facile|simple|évident|moi|toi|lui|elle|nous|vous|eux|elles|ça|celui-là|celle-là)\b)(?:[\p{L}'’-]+\s?){1,3}[.!]/u,
-  // Même contraste avec un sujet nom repris par un pronom (re-test réel 04/10/2026) :
-  // « Instagram ne regarde pas combien tu publies. Il regarde ce que les gens font… »
-  /(?:^|[.!?]\s+|\n\s*)(?:L['’]|Le |La |Les |Ton |Ta |Tes |Votre |Vos |Mon |Ma |Mes )?\p{Lu}?[\p{L}'’-]+(?: [\p{L}'’-]+){0,3} ne (\p{L}+) pas\b[^.!?\n]{2,90}[.!] ?(?:Mais )?(?:Il|Elle|Ils|Elles) \1\b/u,
-  /(?:^|[.!?]\s+|\n\s*)(?:L['’]|Le |La |Les |Ton |Ta |Tes |Votre |Vos |Mon |Ma |Mes )?\p{Lu}?[\p{L}'’-]+(?: [\p{L}'’-]+){0,3} n['’](\p{L}+) pas\b[^.!?\n]{2,90}[.!] ?(?:Mais )?(?:Il|Elle|Ils|Elles) \1\b/u,
-];
-
-// Formules moulées repérées à l'identique dans deux contenus générés à 30 min
-// d'écart : si on les laisse, elles se voient dès que deux posts cohabitent.
-const MOULDED_VERBATIMS: RegExp[] = [
-  // Toutes les fins possibles (« justifier », « dénigrer », « me plaindre »…) :
-  // c'est l'OUVERTURE qui est moulée, vue à l'identique dans des contenus distincts.
-  /Je ne dis pas ça pour /i,
-  /L(?:'|’)IA structure, toi tu incarnes/i,
-  // Amorce de prise de position suggérée par DEPTH_LAYER_DUAL, devenue un tic :
-  // mesurée dans 5/10 carrousels du corpus qualité 11/07, toujours même position.
-  /Ce qui me (?:dérange|gêne)\b/i,
-];
-
-const wordCount = (s: string) => (s || "").trim().split(/\s+/).filter(Boolean).length;
-
-// ── Chiffres inventés (lot 3) ──
-// Politique (arbitrage 10/07) : aucun chiffre précis qui ne vient pas de
-// l'utilisatrice (brief, réponses, branding) ou de l'actu fournie. L'audit a
-// montré des stats fabriquées ET contradictoires entre contenus (pertes
-// « 10-20 % » vs « 20-30 % » vs « une sur trois » dans le même carrousel).
-
-const NUMBER_TOKEN = /\d+(?:[.,]\d+)?/g;
-
-/** Multipliers/ratios need their own source: « deux usages » does not prove « deux fois plus ». */
-function measuredMultipliers(text: string): Array<{ raw: string; key: string; value: string; index: number }> {
-  const number = "(?:\\d+(?:[.,]\\d+)?|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|vingt|cent)";
-  const re = new RegExp(`(?<!\\p{L})(${number})\\s+fois\\s+(plus|moins|sur\\s+(${number}))(?!\\p{L})`, "giu");
-  const valueOf = (word: string) => String(FRENCH_NUMERALS[word.toLowerCase()] ?? Number(word.replace(",", ".")));
-  return [...text.matchAll(re)].map(m => ({ raw: m[0], value: valueOf(m[1]),
-    key: m[3] ? `ratio:${valueOf(m[1])}/${valueOf(m[3])}` : `multiplier:${valueOf(m[1])}:${m[2].toLowerCase()}`,
-    index: m.index!,
-  }));
-}
+import { FRENCH_NUMERALS, wordCount, sentencesOf, normalizeWordsForOverlap, wordsWithOffsets, tokenSimilarity } from "./redac-gate/text-utils.ts";
+import { MOULDED_VERBATIMS, findReversals, dropUserSourcedReversals } from "./redac-gate/reversals.ts";
+import { NUMBER_TOKEN, measuredMultipliers, numbersIn, findFabricatedNumbers } from "./redac-gate/numbers.ts";
+import { findDurationConflicts } from "./redac-gate/durations.ts";
+// Découpage (fiche 7) : les familles sorties vivent dans ./redac-gate/ ; ce
+// fichier réexporte ce qui était public, sous le même nom.
+export { dropUserSourcedReversals } from "./redac-gate/reversals.ts";
+export { numbersIn } from "./redac-gate/numbers.ts";
 
 
-/**
- * Durées écrites en lettres (« trois semaines », « six mois ») : NUMBER_TOKEN ne
- * voit que les chiffres, et un vécu inventé passait avec ses durées (« J'ai mis
- * trois semaines… », re-test réel 04/10/2026). « un / une » ne comptent pas.
- */
-function letterDurations(text: string): Array<{ raw: string; value: string; index: number }> {
-  const re = /(?<!\p{L})(deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|quinze|vingt|trente|quarante|cinquante|soixante|cent)\s+(secondes|minutes|heures|jours|journées|semaines|mois|ans|années)(?!\p{L})/giu;
-  return [...text.matchAll(re)].map((m) => ({ raw: m[0], value: String(FRENCH_NUMERALS[m[1].toLowerCase()]), index: m.index! }));
-}
 
-/** Tokens numériques d'un texte (pour construire la liste blanche d'entrée). */
-// Pourcentage : la valeur seule ne suffit pas (« depuis 21 ans » dans le
-// branding n'autorise pas « +21 % », vu en test réel LinkedIn le 04/10/2026).
-const PERCENT_AFTER = /^\s?(?:%|pour\s?cent\b)/i;
-const pctKey = (value: string) => `pct:${value}`;
-
-export function numbersIn(text: string): Set<string> {
-  const out = new Set<string>();
-  for (const m of (text || "").matchAll(NUMBER_TOKEN)) {
-    const value = m[0].replace(",", ".");
-    out.add(value);
-    if (PERCENT_AFTER.test(text.slice(m.index! + m[0].length, m.index! + m[0].length + 10))) out.add(pctKey(value));
-  }
-  for (const m of letterDurations(text || "")) out.add(m.value);
-  for (const m of measuredMultipliers(text || "")) {
-    out.add(m.key);
-    out.add(m.value);
-    if (m.key.startsWith("ratio:")) out.add(m.key.split("/")[1]);
-  }
-  return out;
-}
-
-/** Chiffres du texte absents de la liste blanche, avec un extrait de contexte. */
-function findFabricatedNumbers(text: string, allowed: Set<string>): string[] {
-  const found: string[] = [];
-  const seenValues = new Set<string>();
-  for (const m of (text || "").matchAll(NUMBER_TOKEN)) {
-    const tok = m[0].replace(",", ".");
-    const isPercent = PERCENT_AFTER.test(text.slice(m.index! + m[0].length, m.index! + m[0].length + 10));
-    if (allowed.has(tok) && (!isPercent || allowed.has(pctKey(tok)))) continue;
-    // Ordinaux (« 1er », « 2e », « 1ʳᵉ ») : pas des statistiques.
-    const after = text.slice(m.index! + m[0].length, m.index! + m[0].length + 3);
-    if (/^(?:er|re|e\b|ᵉ|ʳ)/.test(after)) continue;
-    // Dédup par VALEUR : « 35 » relevé trois fois = un seul chiffre à traiter.
-    if (seenValues.has(tok)) continue;
-    seenValues.add(tok);
-    const ctx = text.slice(Math.max(0, m.index! - 30), m.index! + m[0].length + 30).replace(/\s+/g, " ").trim();
-    found.push(`${m[0]} (« …${ctx}… »)`);
-  }
-  for (const m of letterDurations(text || "")) {
-    if (allowed.has(m.value) || seenValues.has(m.value)) continue;
-    seenValues.add(m.value);
-    const ctx = text.slice(Math.max(0, m.index - 30), m.index + m.raw.length + 30).replace(/\s+/g, " ").trim();
-    found.push(`${m.raw} (« …${ctx}… »)`);
-  }
-  for (const m of measuredMultipliers(text || "")) {
-    if (allowed.has(m.key) || seenValues.has(m.value)) continue;
-    seenValues.add(m.value);
-    const ctx = text.slice(Math.max(0, m.index - 30), m.index + m.raw.length + 40).replace(/\s+/g, " ").trim();
-    found.push(`${m.raw} (« …${ctx}… »)`);
-  }
-  return found;
-}
 
 // ── Chiffres venus SEULEMENT de la recherche : autorisés avec leur source (04/10/2026) ──
 // Test réel après #1298/#1299/#1300 : la recherche « creuser le sujet » rejoignait
@@ -292,10 +146,6 @@ function hasSourceMention(sentence: string): boolean {
   return SOURCE_MENTIONS.some((re) => re.test(sentence));
 }
 
-/** Phrases d'un texte (coupe sur . ! ? … suivis d'un blanc, et sur les retours à la ligne). */
-function sentencesOf(text: string): string[] {
-  return (text || "").split(/(?<=[.!?…])\s+|\n+/).map((s) => s.trim()).filter(Boolean);
-}
 
 /**
  * Phrases avec leur couverture de source : citée dans la phrase, ou dans la
@@ -622,82 +472,6 @@ export async function enforceResearchNumberCap<A extends { researchNumbersUsed?:
   return kept ? { content: candidate, analysis: after, applied: true } : { content: text, analysis: before, applied: false };
 }
 
-// ── Cohérence des durées slides ↔ caption (bilan hebdo 17/08/2026) ──
-// Trou trouvé au juge /5 : un carrousel « avant/après » notait « Trois semaines
-// sans visite » en slide 2 et « Un mois entre les deux photos » en légende — deux
-// chiffres qui décrivent le MÊME fait, et le gate lui a mis 100/100.
-// Pourquoi ça passait : NUMBER_TOKEN ne voit que les CHIFFRES (\d), donc les
-// nombres écrits EN LETTRES échappaient déjà à `findFabricatedNumbers` ; et rien
-// ne relisait les slides CONTRE la caption (les deux textes n'étaient comparés
-// que pour le CTA). Une contradiction interne est pourtant le défaut le plus
-// coûteux : il décrédibilise la publication devant l'audience de la cliente.
-
-const FRENCH_NUMERALS: Record<string, number> = {
-  un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7,
-  huit: 8, neuf: 9, dix: 10, onze: 11, douze: 12, quinze: 15, vingt: 20,
-  trente: 30, quarante: 40, cinquante: 50, soixante: 60, cent: 100,
-};
-
-/** Durée exprimée en JOURS, pour comparer « trois semaines » et « un mois ». */
-const DURATION_UNITS: Array<{ re: RegExp; days: number }> = [
-  { re: /^secondes?$/, days: 1 / 86400 },
-  { re: /^minutes?$/, days: 1 / 1440 },
-  { re: /^heures?$/, days: 1 / 24 },
-  { re: /^(?:jours?|journées?)$/, days: 1 },
-  { re: /^semaines?$/, days: 7 },
-  { re: /^mois$/, days: 30 },
-  { re: /^trimestres?$/, days: 90 },
-  { re: /^(?:ans?|années?)$/, days: 365 },
-];
-
-interface Duration { raw: string; days: number }
-
-/** Durées d'un texte, chiffrées (« 3 semaines ») ou en lettres (« trois semaines »). */
-function extractDurations(text: string): Duration[] {
-  const out: Duration[] = [];
-  const words = "(?:" + Object.keys(FRENCH_NUMERALS).join("|") + ")";
-  const re = new RegExp(`(\\d+(?:[.,]\\d+)?|${words})\\s+(\\p{L}+)`, "giu");
-  for (const m of (text || "").matchAll(re)) {
-    const qty = /^\d/.test(m[1]) ? parseFloat(m[1].replace(",", ".")) : FRENCH_NUMERALS[m[1].toLowerCase()];
-    if (!qty || !Number.isFinite(qty)) continue;
-    const unit = DURATION_UNITS.find((u) => u.re.test(m[2].toLowerCase()));
-    if (!unit) continue;
-    out.push({ raw: `${m[1]} ${m[2]}`, days: qty * unit.days });
-  }
-  return out;
-}
-
-/**
- * Durées PROCHES mais DIFFÉRENTES entre les slides et la caption = très
- * probablement le même fait raconté deux fois avec deux chiffres.
- *
- * Volontairement étroit pour ne pas crier à tort :
- *  - il faut une durée de CHAQUE côté ;
- *  - une durée commune aux deux côtés désamorce tout (le fait est cohérent) ;
- *  - on ne retient que les écarts du même ORDRE DE GRANDEUR (rapport ≤ 3) —
- *    « 2 minutes » côté slide et « 10 ans » côté caption parlent d'autre chose.
- */
-function findDurationConflicts(slidesText: string, captionText: string): string[] {
-  const a = extractDurations(slidesText);
-  const b = extractDurations(captionText);
-  if (!a.length || !b.length) return [];
-  const same = (x: number, y: number) => Math.abs(x - y) < 1e-9;
-  if (a.some((x) => b.some((y) => same(x.days, y.days)))) return [];
-
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const x of a) {
-    for (const y of b) {
-      const ratio = Math.max(x.days, y.days) / Math.min(x.days, y.days);
-      if (ratio > 3) continue;
-      const key = `${x.raw}|${y.raw}`.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(`slides « ${x.raw} » vs légende « ${y.raw} »`);
-    }
-  }
-  return out;
-}
 
 // ── Recopie de la fiche de marque (audit slop 18/08) ──
 // Constat du corpus mesuré le 18/08 : le champ combat_cause d'une fiche de
@@ -811,23 +585,6 @@ export function findHookEchoes(
 
 const BRAND_COPY_MIN_WORDS = 7;
 
-/** Mots normalisés (accents gardés, ponctuation ignorée) pour comparer deux textes. */
-function normalizeWordsForOverlap(text: string): string[] {
-  return (text || "").toLowerCase().match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu) || [];
-}
-
-interface OffsetWord { word: string; start: number; end: number }
-
-/** Comme normalizeWordsForOverlap, mais garde la position dans le texte source. */
-function wordsWithOffsets(text: string): OffsetWord[] {
-  const out: OffsetWord[] = [];
-  const re = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text || ""))) {
-    out.push({ word: m[0].toLowerCase(), start: m.index, end: m.index + m[0].length });
-  }
-  return out;
-}
 
 /**
  * Passages du texte généré qui recopient `minWords` mots CONSÉCUTIFS d'un
@@ -930,17 +687,6 @@ function findBrandCopyWindows(text: string, brandText: string, minWords: number)
   return found;
 }
 
-/** Similarité lexicale grossière (Jaccard sur tokens > 3 lettres). */
-function tokenSimilarity(a: string, b: string): number {
-  const tok = (s: string) =>
-    new Set((s || "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter((w) => w.length > 3));
-  const ta = tok(a);
-  const tb = tok(b);
-  if (!ta.size || !tb.size) return 0;
-  let inter = 0;
-  for (const w of ta) if (tb.has(w)) inter++;
-  return inter / Math.min(ta.size, tb.size);
-}
 
 function slideTexts(s: any): string {
   return [...carouselEditorialFields({ slides: [s] }).map(f => f.text),
@@ -953,25 +699,6 @@ function slideBody(s: any): string {
   return [s?.body, s?.overlay_text].filter(Boolean).join(" ");
 }
 
-function findReversals(text: string): string[] {
-  const found: string[] = [];
-  // Analyse phrase par phrase pour remonter des extraits actionnables
-  const sentences = (text || "").split(/(?<=[.!?])\s+/);
-  for (let i = 0; i < sentences.length; i++) {
-    const window = sentences.slice(i, i + 2).join(" ");
-    for (const re of REVERSAL_PATTERNS) {
-      const m = window.match(re);
-      if (m) {
-        found.push(m[0].slice(0, 140));
-        break;
-      }
-    }
-  }
-  // Un même passage vu depuis deux fenêtres (concession + « Sauf que… », puis
-  // « Sauf que… » seul) ne compte qu'une fois : on garde l'extrait le plus long.
-  const unique = [...new Set(found)];
-  return unique.filter((f) => !unique.some((g) => g !== f && g.includes(f)));
-}
 
 export interface RedacAnalysis {
   reversals: string[];
@@ -1691,23 +1418,6 @@ export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>, bra
   return { reversals, moulded, fabricatedNumbers, unsourcedResearchNumbers, inventedTestimonials, inventedExperiences, brandCopyOverlap, hookEchoes };
 }
 
-/**
- * Retire des retournements ceux que l'utilisatrice a ÉCRITS elle-même (brief,
- * réponses, message clé) : « Un savon ça se choisit comme une crème, pas comme
- * un produit ménager » fourni en message clé n'est pas un tic du modèle.
- */
-export function dropUserSourcedReversals<T extends { reversals: string[] }>(a: T, userSourceText: string | undefined): T {
-  if (!userSourceText || !a.reversals.length) return a;
-  const src = normalizeWordsForOverlap(userSourceText).join(" ");
-  if (!src) return a;
-  const kept = a.reversals.filter((r) => {
-    const words = normalizeWordsForOverlap(r);
-    // Exige tout le passage détecté : partager quelques mots ne suffit pas.
-    const probe = words.length >= 3 ? words.join(" ") : "";
-    return !(probe && src.includes(probe));
-  });
-  return kept.length === a.reversals.length ? a : { ...a, reversals: kept };
-}
 
 /** Nombre de violations — même formule que redacViolations, pour la variante texte. */
 export function textRedacViolations(a: TextRedacAnalysis): number {
