@@ -1,0 +1,193 @@
+{
+  "seuil": 800,
+  "fichiers": {
+    "src/components/admin/AdminStatsTab.tsx": {
+      "lignes": 882,
+      "any": 1
+    },
+    "src/components/branding/BrandingCoachingFlow.tsx": {
+      "lignes": 1101,
+      "any": 26
+    },
+    "src/components/branding/BrandingFicheCards.tsx": {
+      "lignes": 851,
+      "any": 28
+    },
+    "src/components/branding/BrandingReview.tsx": {
+      "lignes": 1411,
+      "any": 28
+    },
+    "src/components/branding/SynthesisRenderer.tsx": {
+      "lignes": 1081,
+      "any": 19
+    },
+    "src/components/calendar/CalendarPostDialog.tsx": {
+      "lignes": 1062,
+      "any": 47
+    },
+    "src/components/creer/CarouselEditor.tsx": {
+      "lignes": 3816,
+      "any": 4
+    },
+    "src/components/creer/CreerStepFormat.tsx": {
+      "lignes": 1120,
+      "any": 2
+    },
+    "src/components/creer/CreerStepResult.tsx": {
+      "lignes": 1096,
+      "any": 10
+    },
+    "src/components/creer/NewsjackingPanel.tsx": {
+      "lignes": 1165,
+      "any": 3
+    },
+    "src/components/creer/ReelMontage.tsx": {
+      "lignes": 917,
+      "any": 0
+    },
+    "src/components/creer/formatRenderers/CarouselPhotoResult.tsx": {
+      "lignes": 1517,
+      "any": 26
+    },
+    "src/components/creer/formatRenderers/StoryResult.tsx": {
+      "lignes": 1089,
+      "any": 18
+    },
+    "src/hooks/use-content-generator.ts": {
+      "lignes": 1185,
+      "any": 26
+    },
+    "src/hooks/use-onboarding.ts": {
+      "lignes": 923,
+      "any": 15
+    },
+    "src/lib/carousel-editor.ts": {
+      "lignes": 1808,
+      "any": 6
+    },
+    "src/lib/export-carousel-hybrid-pptx.ts": {
+      "lignes": 1767,
+      "any": 4
+    },
+    "src/lib/export-carousel-pptx.ts": {
+      "lignes": 2296,
+      "any": 41
+    },
+    "src/lib/pptx-font-mapping.ts": {
+      "lignes": 1155,
+      "any": 0
+    },
+    "src/pages/BrandCharterPage.tsx": {
+      "lignes": 1360,
+      "any": 18
+    },
+    "src/pages/Calendar.tsx": {
+      "lignes": 1156,
+      "any": 57
+    },
+    "src/pages/ChatGuidePage.tsx": {
+      "lignes": 1187,
+      "any": 14
+    },
+    "src/pages/CreerUnifie.tsx": {
+      "lignes": 3587,
+      "any": 68
+    },
+    "src/pages/InstagramAudit.tsx": {
+      "lignes": 813,
+      "any": 41
+    },
+    "src/pages/InstagramBio.tsx": {
+      "lignes": 855,
+      "any": 28
+    },
+    "src/pages/InstagramLaunchPlan.tsx": {
+      "lignes": 892,
+      "any": 15
+    },
+    "src/pages/InstagramStats.tsx": {
+      "lignes": 1412,
+      "any": 93
+    },
+    "src/pages/OfferWorkshopPage.tsx": {
+      "lignes": 880,
+      "any": 37
+    },
+    "src/pages/SharedCalendarPage.tsx": {
+      "lignes": 1126,
+      "any": 2
+    },
+    "src/pages/VisualStudioPage.tsx": {
+      "lignes": 2059,
+      "any": 1
+    },
+    "src/pages/WelcomePage.tsx": {
+      "lignes": 958,
+      "any": 50
+    },
+    "supabase/functions/_shared/anthropic.ts": {
+      "lignes": 927,
+      "any": 20
+    },
+    "supabase/functions/_shared/copywriting-prompts.ts": {
+      "lignes": 1491,
+      "any": 0
+    },
+    "supabase/functions/_shared/correction-pass.ts": {
+      "lignes": 1234,
+      "any": 14
+    },
+    "supabase/functions/_shared/format-briefs.ts": {
+      "lignes": 1273,
+      "any": 3
+    },
+    "supabase/functions/_shared/instagram-insights.ts": {
+      "lignes": 880,
+      "any": 21
+    },
+    "supabase/functions/_shared/redac-gate.ts": {
+      "lignes": 2093,
+      "any": 23
+    },
+    "supabase/functions/_shared/scraping.ts": {
+      "lignes": 1223,
+      "any": 0
+    },
+    "supabase/functions/branding-coaching/index.ts": {
+      "lignes": 929,
+      "any": 8
+    },
+    "supabase/functions/carousel-ai/index.ts": {
+      "lignes": 2823,
+      "any": 63
+    },
+    "supabase/functions/carousel-visual/index.ts": {
+      "lignes": 2792,
+      "any": 155
+    },
+    "supabase/functions/creative-flow/index.ts": {
+      "lignes": 1686,
+      "any": 19
+    },
+    "supabase/functions/cron-health/index.ts": {
+      "lignes": 992,
+      "any": 104
+    },
+    "supabase/functions/deep-diagnostic/index.ts": {
+      "lignes": 1084,
+      "any": 18
+    },
+    "supabase/functions/diagnostic-enrichment/index.ts": {
+      "lignes": 882,
+      "any": 9
+    },
+    "supabase/functions/newsjacking-ai/index.ts": {
+      "lignes": 947,
+      "any": 14
+    },
+    "supabase/functions/visual-studio/index.ts": {
+      "lignes": 2001,
+      "any": 0
+    }
+  }
+}
