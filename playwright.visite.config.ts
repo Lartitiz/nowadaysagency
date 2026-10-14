@@ -20,6 +20,13 @@ if (fs.existsSync(envPath)) {
 
 const AUTH_FILE = path.join(__dirname, "e2e-visite/.auth/camille.json");
 
+// VISITE_SANS_CREDIT=1 (verdict SANS_CREDIT de e2e-visite/machine-check.mjs : Mac sur
+// batterie faible ou capot fermé) écarte les specs qui PAIENT une génération réelle :
+// sur une machine qui va s'endormir, elles finissent en faux rouges payés pour rien.
+const SPECS_PAYANTES =
+  /(fonctionnel-t1|perf-carousel|stories-visuelles|carousel-mix-live|carousel-photo-live|carousel-photo-fond-live|packshot-live)\.spec\.ts/;
+const IGNORES = [/cold-smoke\.spec\.ts/, ...(process.env.VISITE_SANS_CREDIT ? [SPECS_PAYANTES] : [])];
+
 export default defineConfig({
   testDir: "./e2e-visite",
   timeout: 90_000,
@@ -49,7 +56,7 @@ export default defineConfig({
       dependencies: ["setup"],
       // cold-smoke a son propre config (contexte non authentifié) — ne PAS le
       // rejouer ici avec la session Camille.
-      testIgnore: /cold-smoke\.spec\.ts/,
+      testIgnore: IGNORES,
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1440, height: 900 },
@@ -61,7 +68,7 @@ export default defineConfig({
     {
       name: "mobile",
       dependencies: ["setup"],
-      testIgnore: /cold-smoke\.spec\.ts/,
+      testIgnore: IGNORES,
       use: {
         browserName: "chromium",
         viewport: { width: 390, height: 844 },
