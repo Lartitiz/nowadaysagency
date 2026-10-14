@@ -28,6 +28,16 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
 5. Poser les petits verrous de la création (lot 10).
 6. Finir de séparer texte et design du carrousel (lot 8).
 
+## Découpage de CreerUnifie.tsx (fiche 1 de `docs/robustesse/gros-fichiers.md`)
+- **Lot A** (#1482, en cours) : tests 1 à 11 en rendu réel (`src/test/creer-entrees-calendrier-brief`,
+  `creer-reprise-modifier-reset`, `creer-publication-exports`, `creer-angles-reel-photos`).
+  Corrige aussi 3 bugs qu'ils ont révélés (décision de Laetitia du 14/10/2026) : vidéo
+  du reel perdue au rechargement, sujet vide en ouvrant l'atelier depuis le calendrier
+  (`theme`), « 1 photo n'ont ». Le PPTX texte avec visuels périmés n'est pas un bug
+  (il ignore les visuels).
+- **Lot B**, après fusion du lot A : sortir `LowCreditsBanner`, la fenêtre « photos
+  manquantes » et « Repartir de zéro ? » (affichage pur).
+
 ## En attente
 - **E3** : découper CarouselEditor.tsx par mission, après E2.
 - **G4** : découper les autres gros fichiers, après la cartographie (carte 1).
