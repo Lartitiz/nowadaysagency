@@ -27,7 +27,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jugerCredits, joursDepuisReset } from "./photoroom-alerte.ts";
 import { feedbackNewItems, ontGenere, type FeedbackNewRow } from "./feedback-new.ts";
 import { compte, debutMoisUtc, jugerBudgetHiggsfield, somme } from "./higgsfield-alerte.ts";
-import { gardeRediteStats, hasPreviewText } from "./garde-redite.ts";
+import { gardeRediteStats } from "./garde-redite.ts";
+import { construireEchantillon } from "./echantillon.ts";
+import { jugerCrons, type CronJobRow } from "./crons-pg.ts";
 import { filStats } from "./fil-reparations.ts";
 import { dureesStats } from "./durees-carrousels.ts";
 import { planStats } from "./plan-carrousels.ts";
@@ -325,7 +327,7 @@ Deno.serve(async (req) => {
     const emailOf = new Map<string, string>(profiles.map((p: any) => [p.user_id, p.email]));
 
     if (scope === "daily") {
-      const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, sante, higgsfield] = await Promise.all([
+      const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, sante, higgsfield, cronsPg] = await Promise.all([
         fetchAllRows(
           supabase,
           "calendar_posts",
@@ -347,6 +349,9 @@ Deno.serve(async (req) => {
         photoroomCredits(now), facturationHealth(supabase, now),
         santeQuotidienne(supabase, now, fetchAllRows, emailOf, isExcludedEmail),
         higgsfieldBudget(supabase, now),
+        // Absente tant que la migration cron_jobs_health n'est pas appliquée → « non mesuré ».
+        supabase.rpc("cron_jobs_health").then(({ data, error }: { data: CronJobRow[] | null; error: { message: string } | null }) =>
+          error ? { erreur: error.message } : { jobs: jugerCrons(data || [], now) }),
       ]);
       const posts = postsRows.filter((p: any) => isClient(p.user_id));
       const conns = connRows.filter((c: any) => isClient(c.user_id));
@@ -438,6 +443,7 @@ Deno.serve(async (req) => {
         connections_at_risk: connectionsAtRisk.slice(0, 20),
         feedback_24h: { count: feedback24h.length, items: feedback24h.slice(0, 15) },
         feedback_new_total: feedbackNewTotal,
+        crons_pg: cronsPg,
         feedback_new_items: feedbackNewItems(fbNewRows.filter((f: FeedbackNewRow) => isClient(f.user_id))),
         photoroom_credits: photoroom,
         higgsfield,
@@ -869,52 +875,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    const trunc = (s: any, n: number) => (typeof s === "string" ? s.replace(/\s+/g, " ").trim().slice(0, n) : "");
-    const slideApercu = (slides: any): string[] => {
-      if (!Array.isArray(slides)) return [];
-      return slides.slice(0, 4).map((sl: any) => {
-        const t = sl?.title || sl?.heading || sl?.text || sl?.body || sl?.content || "";
-        if (typeof t === "string" && t.trim()) return trunc(t, 120);
-        return trunc(typeof sl === "string" ? sl : JSON.stringify(sl), 120);
-      });
-    };
-    // Échantillon pour le juge : PRIORITÉ aux content_quality_events (écrits à
-    // CHAQUE génération → le juge n'est plus aveugle les semaines « génère-mais-
-    // jette »), repli sur les carrousels GARDÉS (generated_carousels) tant que les
-    // events n'ont pas de content_preview (rows d'avant la migration).
-    const cqCurPreview = (cqEvents || []).filter(
-      (e: any) => inWindow(e.created_at, curFrom, curTo) && hasPreviewText(e.content_preview),
-    );
-    let echantillon_source: "events" | "brouillons";
-    let echantillon: any[];
-    if (cqCurPreview.length) {
-      echantillon_source = "events";
-      echantillon = cqCurPreview.slice(0, 15).map((e: any, i: number) => {
-        const p = e.content_preview || {};
-        return {
-          ref: `c${i + 1}`,
-          format: e.format,
-          sujet: trunc(p.sujet, 100),
-          hook: trunc(p.hook, 140),
-          caption: trunc(p.caption, 300),
-          apercu_slides: Array.isArray(p.apercu_slides) ? p.apercu_slides.slice(0, 4) : [],
-          quality_score: typeof e.redac_score === "number" ? e.redac_score : null,
-        };
-      });
-    } else {
-      echantillon_source = "brouillons";
-      echantillon = carCur.slice(0, 15).map((c: any, i: number) => ({
-        ref: `c${i + 1}`,
-        format: c.carousel_type,
-        sujet: trunc(c.subject, 100),
-        hook: trunc(c.hook_text, 140),
-        caption: trunc(c.caption, 300),
-        apercu_slides: slideApercu(c.slides),
-        quality_score: typeof c.quality_score === "number" ? c.quality_score : null,
-        retravaille: estRetravaille(c),
-        au_calendrier: !!c.calendar_post_id,
-      }));
-    }
+    // Échantillon pour le juge (sources et repli « comptes internes » : echantillon.ts).
+    const { echantillon, echantillon_source } = construireEchantillon({
+      clientEvents: (cqEvents || []).filter((e: any) => inWindow(e.created_at, curFrom, curTo)),
+      internalEvents: cqAll.filter((e: any) => internalIds.has(e.user_id) && inWindow(e.created_at, curFrom, curTo)),
+      carrouselsGardes: carCur,
+      estRetravaille,
+    });
 
     const qualite = {
       score_gate: cqEvents && cqEvents.length
