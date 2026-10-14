@@ -15,17 +15,17 @@ export function callOptionsForStep(params: {
   step: string;
   isLinkedIn: boolean;
   isPhotoMode: boolean;
-  contentType?: string | null;
   context?: string | null;
 }) {
-  const { step, isLinkedIn, isPhotoMode, contentType, context } = params;
+  const { step, isLinkedIn, isPhotoMode, context } = params;
   // 8192 pour la génération de contenu : le JSON reel (script + duplicata `sections`
   // + `lecture_test` + shot list) dépasse le défaut de 4096 de callAnthropicSimple
   // → stop_reason "max_tokens" → échec systématique en ~40 s. Un plafond haut ne
   // coûte rien tant qu'il n'est pas consommé.
   const factualFictionalLinkedIn = step === "generate" && isLinkedIn && !isPhotoMode && isFactualFictionalLinkedInBrief(context);
   const maxTokens = step === "questions" ? 800 : step === "hooks" ? 1400 : factualFictionalLinkedIn ? 1200 : 8192;
-  const isLinkedInText = !!contentType?.includes("linkedin") && step !== "questions";
+  // Même détection du format que le reste du handler (isLinkedIn, format-flags.ts, lot F3).
+  const isLinkedInText = isLinkedIn && step !== "questions";
   const tempText = factualFictionalLinkedIn ? 0.2 : isLinkedInText ? 0.7 : 0.85;
   // L1 : Haiku pour les steps `questions` et `follow-up` (3-5× plus rapide que Sonnet,
   // suffisant pour des questions structurées en JSON). Sonnet reste pour la génération de contenu.

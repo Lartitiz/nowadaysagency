@@ -35,13 +35,15 @@ export { photoVoiceRule } from "./shared.ts";
 export { NEWSLETTER_ADDRESS_FIELDS, applyNewsletterCorrectionPass } from "./formats/newsletter.ts";
 export { gateNumbers, _deps, POST_ADDRESS_FIELDS } from "./shared.ts";
 import { buildHooksPrompt } from "./formats/reel.ts";
-import { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAnglesPrompt, resolveFormatHint, buildQuestionsPrompt } from "./prompts/assist.ts";
-export { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAnglesPrompt, resolveFormatHint, buildQuestionsPrompt } from "./prompts/assist.ts";
+import { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAnglesPrompt, buildQuestionsPrompt } from "./prompts/assist.ts";
+export { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAnglesPrompt, buildQuestionsPrompt } from "./prompts/assist.ts";
+export { resolveFormatHint, detectFormatFlags } from "./format-flags.ts";
 export { buildHooksPrompt } from "./formats/reel.ts";
 import { logGenerationQualityTelemetry } from "./telemetry.ts";
 import { skipDepthResearch, creativeDepthBlock, runDeepResearchWebSearch } from "./research.ts";
 export { skipDepthResearch, creativeDepthBlock, runDeepResearchWebSearch } from "./research.ts";
 import { callOptionsForStep } from "./call-options.ts";
+import { detectFormatFlags, personaChannel } from "./format-flags.ts";
 import { buildRequestContext } from "./context.ts";
 import { finishGenerated } from "./postprocess.ts";
 
@@ -119,8 +121,11 @@ serve(async (req) => {
     }).passthrough());
     const { step, contentType, context, profile, angle, answers, followUpAnswers, content: currentContent, adjustment, calendarContext, preGenAnswers, sourceText, formats, targetFormat, workspace_id, deepResearch, objective, editorialFormat, editorialFormatLabel, variation, previousContent, pinterest_link, pinterest_board, recent_briefs_context: recentBriefsFromBody, series_id, episode_number, news_context: newsContext } = body;
 
-    // Determine channel from contentType for persona selection
-    const channelFromType = contentType?.includes("linkedin") ? "linkedin" : contentType?.includes("instagram") || contentType?.includes("carousel") || contentType?.includes("reel") || contentType?.includes("stories") ? "instagram" : undefined;
+    // Format demandé : une seule détection pour tout le handler (format-flags.ts, lot F3).
+    const formatFlags = detectFormatFlags(contentType, angle, body);
+    const { isCarousel, isReel, isStories, isLinkedIn, isPinterest, isNewsletter, isCaption, isPhotoMode } = formatFlags;
+    // Canal du persona (getUserContext) tiré de la même détection.
+    const channelFromType = personaChannel(formatFlags);
 
     const ctx = await getUserContext(supabase, userId, workspace_id, channelFromType);
 
@@ -137,16 +142,6 @@ serve(async (req) => {
     let systemPrompt = "";
     let userPrompt: string | null = "";
 
-    // ── Format detection (outer scope — used by generate + streaming) ──
-    const formatHint = resolveFormatHint(contentType, angle);
-    const isCarousel = formatHint.includes("carrousel") || formatHint.includes("carousel");
-    const isReel = formatHint.includes("reel") || formatHint.includes("script");
-    const isStories = formatHint.includes("stories") || formatHint.includes("story");
-    const isLinkedIn = formatHint.includes("linkedin") || contentType === "post_linkedin";
-    const isPinterest = formatHint.includes("pinterest") || contentType === "post_pinterest";
-    const isNewsletter = formatHint.includes("newsletter") || formatHint.includes("email") || contentType === "post_newsletter";
-    const isCaption = !isCarousel && !isReel && !isStories && !isLinkedIn && !isPinterest && !isNewsletter;
-    const isPhotoMode = body.photo_mode === true;
 
     // Catalogue de photos de la bibliothèque (stories, lot B) : rempli au moment
     // du brief, relu après le parse pour résoudre photo_index → photo_id.
@@ -355,7 +350,7 @@ serve(async (req) => {
     } else if (step === "generate" && body.photo_mode && body.photos?.[0]?.base64) {
       rawContent = await runVisionGenerate({ body, contentType, context, answers, systemPrompt, finalUsage, audienceAddress });
     } else {
-      const { maxTokens, tempText, modelForCall, abortMs, structuredTool } = callOptionsForStep({ step, isLinkedIn, isPhotoMode, contentType, context });
+      const { maxTokens, tempText, modelForCall, abortMs, structuredTool } = callOptionsForStep({ step, isLinkedIn, isPhotoMode, context });
       rawContent = structuredTool
         ? await callAnthropic({
             model: modelForCall,

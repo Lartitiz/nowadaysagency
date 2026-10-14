@@ -197,6 +197,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 | `prompts/generate.ts` | `buildGeneratePrompt` : consigne de rédaction finale (brief par format, exclusions par format, JSON de sortie, contexte de lancement). Ne lit jamais la base : les données des stories arrivent dans `storiesData` | tous les formats |
 | `context.ts` | `buildRequestContext` : actualité, branding, vocabulaire métier, voix, éléments personnels, **`COMMON_PREFIX`** (préfixe de tous les prompts), `QUESTIONS_PREFIX`, calendrier, objectif. Aucune lecture en base (reçoit `ctx`) | **tous les formats, toutes les étapes** : zone la plus sensible |
 | `postprocess.ts` | `finishGenerated` : chaîne de finition après la réponse de Claude (hooks normalisés, tu / vous, passes LinkedIn, newsletter, reel, mise en forme des stories). Le retour anticipé des hooks remonte au handler (`earlyExit`) | tous les formats |
+| `format-flags.ts` | `detectFormatFlags`, `resolveFormatHint`, `personaChannel` : **la** détection du format (contentType, sinon format de livraison de l'angle), utilisée par le handler, les questions, la température et la passe LinkedIn (`format-flags_test.ts`). Le mode photo garde sa lecture propre pour la consigne vision | tous les formats |
 | `research.ts` | Recherches qui ajoutent des faits au prompt : `skipDepthResearch`, `creativeDepthBlock` (« creuser le sujet »), `runDeepResearchWebSearch` (recherche web, crédit `deep_research` seulement si elle réussit) | posts, reels, stories |
 | `telemetry.ts` | `logGenerationQualityTelemetry` : note du texte final dans `content_quality_events`, sans appel IA | stories, reel, LinkedIn |
 | `call-options.ts` | `callOptionsForStep` : modèle, tokens, température, délai et outil structuré par étape (fonction pure, `call-options_test.ts`) | tous les formats |
@@ -220,7 +221,8 @@ sortis d'`index.ts` n'importent jamais `index.ts`, et ni `formats/*` ni
 - Par `step` : `angles`, `questions`, `follow-up`, `hooks`, `generate`,
   `adjust`, `recycle`, `dictation`. Une chaîne de `if / else if` dans le
   handler principal. Tout autre `step` renvoie 400.
-- Le format vient de `resolveFormatHint(contentType, angle)`, puis des
+- Le format vient de `detectFormatFlags(contentType, angle, body)`
+  (`format-flags.ts`, une seule détection depuis le lot F3), puis des
   drapeaux `isCarousel`, `isReel`, `isStories`, `isLinkedIn`,
   `isPinterest`, `isNewsletter`, `isCaption` et `isPhotoMode`, détectés
   **par sous-chaîne**. Le front envoie des noms différents pour un même

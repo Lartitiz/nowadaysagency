@@ -37,6 +37,8 @@ Deno.test("callOptionsForStep : LinkedIn, température 0.7 hors questions, 0.2 e
   // Mode photo ou étape autre que generate : pas de réglage « fictif ».
   assertEquals(pick(callOptionsForStep({ ...li, step: "generate", context: FICTIF, isPhotoMode: true })).fictif, false);
   assertEquals(pick(callOptionsForStep({ ...li, step: "adjust", context: FICTIF })).fictif, false);
-  // Température par sous-chaîne du contentType, pas par isLinkedIn (constat de la fiche 3).
-  assertEquals(pick(callOptionsForStep({ ...base, step: "generate", isLinkedIn: true, contentType: "post" })).tempText, 0.85);
+  // Lot F3 : la température suit isLinkedIn (même détection que la consigne),
+  // plus la sous-chaîne du contentType brut. Ex. : angle LinkedIn sans contentType.
+  assertEquals(pick(callOptionsForStep({ ...base, step: "generate", isLinkedIn: true, contentType: "" })).tempText, 0.7);
+  assertEquals(pick(callOptionsForStep({ ...base, step: "generate", isLinkedIn: false, contentType: "linkedin_carrousel" })).tempText, 0.85);
 });

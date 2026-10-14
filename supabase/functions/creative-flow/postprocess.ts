@@ -71,7 +71,7 @@ export async function finishGenerated(parsed: any, params: {
   let textEchoesBefore: number | undefined;
   if (
     step === "generate" &&
-    contentType?.includes("linkedin") &&
+    isLinkedIn &&
     !body.photo_mode &&
     !isFactualFictionalLinkedInBrief(context) &&
     parsed && typeof parsed === "object" &&

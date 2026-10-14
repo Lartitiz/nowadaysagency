@@ -1,5 +1,5 @@
 // Consignes des étapes d'assistance de creative-flow : angles, questions,
-// suivi, ajustement, dictée, et choix du format (resolveFormatHint). Déplacées
+// suivi, ajustement et dictée (le choix du format vit dans format-flags.ts). Déplacées
 // À L'IDENTIQUE depuis index.ts (fiche 3, lot A, 14/10/2026), qui les
 // réexporte. Ces étapes servent TOUS les formats : une modification ici se voit
 // dans les snapshots de chaque format (prompts_snapshot_test.ts,
@@ -11,6 +11,7 @@
 
 import { FORMAT_STRUCTURES, WRITING_RESOURCES, FRAMEWORK_SELECTION, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE } from "../../_shared/copywriting-prompts.ts";
 import { claritySourceBlock } from "../../_shared/content-clarity.ts";
+import { detectFormatFlags } from "../format-flags.ts";
 
 export function buildFollowUpPrompt(params: {
   QUESTIONS_PREFIX: string;
@@ -225,19 +226,6 @@ Réponds UNIQUEMENT en JSON :
   return { systemPrompt, userPrompt };
 }
 
-/**
- * Format qui choisit la branche de rédaction. Le format demandé par
- * l'utilisatrice (`contentType`) prime TOUJOURS ; `angle.format_livraison`
- * (suggestion IA du step "angles") ne sert que s'il n'y a pas de contentType.
- * Avant : format_livraison passait devant, un angle « carrousel » pouvait
- * faire rédiger un carrousel pour un post LinkedIn demandé.
- */
-export function resolveFormatHint(contentType: string | null | undefined, angle: { format_livraison?: unknown } | null | undefined): string {
-  const requested = typeof contentType === "string" ? contentType.trim().toLowerCase() : "";
-  if (requested) return requested;
-  return typeof angle?.format_livraison === "string" ? angle.format_livraison.toLowerCase() : "";
-}
-
 export function buildQuestionsPrompt(params: {
   QUESTIONS_PREFIX: string;
   brandingContext: string;
@@ -255,10 +243,12 @@ export function buildQuestionsPrompt(params: {
   // Canal détecté par inclusion : le front envoie « linkedin_post » (questions)
   // et « post_linkedin » (génération) ; une égalité stricte laissait passer
   // « linkedin_post » → canal « Instagram » dans les questions d'un parcours LinkedIn.
-  const ctypeQ = String(contentType || "").toLowerCase();
-  const isLinkedIn = ctypeQ.includes("linkedin");
-  const isNewsletterQ = !isLinkedIn && (ctypeQ.includes("newsletter") || ctypeQ.includes("email"));
-  const isPinterestQ = !isLinkedIn && !isNewsletterQ && ctypeQ.includes("pinterest");
+  // Même détection que le reste du handler (format-flags.ts, lot F3) : sans
+  // contentType, le format de livraison de l'angle choisi compte aussi.
+  const flagsQ = detectFormatFlags(contentType, angle);
+  const isLinkedIn = flagsQ.isLinkedIn;
+  const isNewsletterQ = !isLinkedIn && flagsQ.isNewsletter;
+  const isPinterestQ = !isLinkedIn && !isNewsletterQ && flagsQ.isPinterest;
   const channelLabel = isLinkedIn ? "LinkedIn" : isNewsletterQ ? "Newsletter" : isPinterestQ ? "Pinterest" : "Instagram";
   const linkedinStory = isLinkedIn && /storytelling|coulisses|récit|histoire/i.test([editorialFormatLabel, angle?.title].filter(Boolean).join(" "));
   const channelGuidance = linkedinStory
