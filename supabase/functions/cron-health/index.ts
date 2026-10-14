@@ -25,6 +25,7 @@
 // `CRON_STATS_SECRET` (header x-cron-secret).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { jugerCredits, joursDepuisReset } from "./photoroom-alerte.ts";
+import { feedbackNewItems, ontGenere, type FeedbackNewRow } from "./feedback-new.ts";
 import { compte, debutMoisUtc, jugerBudgetHiggsfield, somme } from "./higgsfield-alerte.ts";
 import { gardeRediteStats, hasPreviewText } from "./garde-redite.ts";
 import { filStats } from "./fil-reparations.ts";
@@ -342,10 +343,7 @@ Deno.serve(async (req) => {
           "user_id, type, severity, content, details, page_url, screenshot_url, status, created_at",
           (q) => q.gte("created_at", new Date(now - DAY).toISOString()),
         ),
-        // Backstop : tout ce qui est encore en "new" quel que soit l'âge — si un run
-        // de la routine saute, rien ne reste invisible (le passage à "seen"/"done"
-        // dans l'onglet admin fait redescendre ce compteur).
-        fetchAllRows(supabase, "beta_feedback", "user_id", (q) => q.eq("status", "new")),
+        fetchAllRows(supabase, "beta_feedback", "user_id, type, severity, content, page_url, created_at", (q) => q.eq("status", "new")),
         photoroomCredits(now), facturationHealth(supabase, now),
         santeQuotidienne(supabase, now, fetchAllRows, emailOf, isExcludedEmail),
         higgsfieldBudget(supabase, now),
@@ -440,6 +438,7 @@ Deno.serve(async (req) => {
         connections_at_risk: connectionsAtRisk.slice(0, 20),
         feedback_24h: { count: feedback24h.length, items: feedback24h.slice(0, 15) },
         feedback_new_total: feedbackNewTotal,
+        feedback_new_items: feedbackNewItems(fbNewRows.filter((f: FeedbackNewRow) => isClient(f.user_id))),
         photoroom_credits: photoroom,
         higgsfield,
         facturation,
@@ -665,6 +664,7 @@ Deno.serve(async (req) => {
         du: new Date(from).toISOString().slice(0, 10),
         inscrites: cohort.length,
         actives_cette_semaine: cohort.filter((p: any) => activeThisWeek.has(p.user_id)).length,
+        ont_genere_depuis_inscription: ontGenere(cohort, [...ai, ...cal]),
       });
     }
 

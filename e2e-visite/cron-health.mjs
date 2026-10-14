@@ -104,6 +104,12 @@ try {
       }
       if (d.feedback_new_total > d.feedback_24h.count) {
         console.log(`   feedbacks encore « new » (tous âges) : ${d.feedback_new_total}  ⚠️ des plus anciens jamais traités dans l'onglet admin`);
+        // Contenu des anciens (edge ≥ 14/10/2026) : à citer au bilan du lundi.
+        const veille = Date.now() - 24 * 3600 * 1000;
+        for (const f of (d.feedback_new_items || []).filter((x) => new Date(x.quand).getTime() < veille)) {
+          const sev = f.severite ? ` [${f.severite}]` : "";
+          console.log(`      ⏳ ${f.type}${sev} — « ${f.contenu} »${f.page ? ` (page ${f.page})` : ""} — ${String(f.quand).slice(0, 10)}`);
+        }
       }
     }
     // Crédits Photoroom (absent si l'edge live n'est pas encore la version qui les remonte).
@@ -263,7 +269,13 @@ try {
     console.log(`   publications : ${d.publications.cette_semaine} cette semaine (S-1 : ${d.publications.semaine_precedente})`);
     console.log(`   actives cette semaine : ${d.actives_cette_semaine}`);
     console.log("   rétention par cohorte d'inscription (active = ≥1 génération ou post sur 7 j) :");
-    for (const c of d.cohortes || []) console.log(`      ${c.semaine} (du ${c.du}) : ${c.actives_cette_semaine}/${c.inscrites} actives (${pct(c.actives_cette_semaine, c.inscrites)})`);
+    for (const c of d.cohortes || []) {
+      // ont_genere_depuis_inscription : edge ≥ 14/10/2026 (absent sinon).
+      const act = c.ont_genere_depuis_inscription != null
+        ? ` — ${c.ont_genere_depuis_inscription}/${c.inscrites} ont créé au moins 1 contenu depuis l'inscription (${pct(c.ont_genere_depuis_inscription, c.inscrites)})`
+        : "";
+      console.log(`      ${c.semaine} (du ${c.du}) : ${c.actives_cette_semaine}/${c.inscrites} actives (${pct(c.actives_cette_semaine, c.inscrites)})${act}`);
+    }
 
     // ── Qualité de la génération (absent si l'edge live n'est pas encore à jour) ──
     const q = d.qualite;
