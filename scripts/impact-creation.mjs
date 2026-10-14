@@ -79,7 +79,7 @@ export const FORMAT_BRIEF_FILES = {
 };
 /** Écrans du front → format touché. */
 export const FRONT_FILES = [
-  [/^src\/pages\/CreerUnifie\.tsx$|^src\/components\/creer\/(LowCreditsBanner|PhotoMissingDialog|ConfirmResetDialog|LaunchSequenceResults)\.tsx$|^src\/hooks\/use-launch-sequence\.ts$|^src\/features\/creer\/(creer-step|draft-conflict|pending-stream|edit-text-from-result|content-brief)\.ts$|^src\/hooks\/use-creer-exports\.ts$/, "Parcours /creer (tous formats)"],
+  [/^src\/pages\/CreerUnifie\.tsx$|^src\/components\/creer\/(LowCreditsBanner|PhotoMissingDialog|ConfirmResetDialog|LaunchSequenceResults)\.tsx$|^src\/hooks\/use-(launch-sequence|reel-hooks)\.ts$|^src\/features\/creer\/(creer-step|draft-conflict|pending-stream|edit-text-from-result|content-brief)\.ts$|^src\/hooks\/use-creer-exports\.ts$/, "Parcours /creer (tous formats)"],
   [/^src\/components\/creer\/formatRenderers\/Carousel/, "Carrousels : écran de résultat"],
   [/^src\/components\/creer\/CarouselEditor|^src\/lib\/carousel-editor\.ts$/, "Carrousels : éditeur visuel"],
   [/^src\/lib\/export-carousel-/, "Carrousels : exports"],
