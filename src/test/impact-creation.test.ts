@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeImpact, diffSnapshots, formatReport, parseSnapshots, zoneOf } from "../../scripts/impact-creation.mjs";
+import { analyzeImpact, diffSnapshots, formatReport, FUNCTION_LABELS, parseSnapshots, zoneOf } from "../../scripts/impact-creation.mjs";
 
 // Rapport d'impact « création de contenu » (lot 4, 13/10/2026) : la CI dit
 // quels formats une modification peut toucher et quels prompts figés changent.
@@ -58,6 +58,48 @@ describe("rapport d'impact création de contenu", () => {
   it("reconnaît les écrans du parcours /creer", () => {
     const { formats } = analyzeImpact(["src/components/creer/formatRenderers/StoryResult.tsx", "src/pages/CreerUnifie.tsx"], usage);
     expect([...formats.keys()].sort()).toEqual(["Parcours /creer (tous formats)", "Écran de résultat : Story"]);
+  });
+
+  it("nomme les fonctions de design et de vidéo (lot 9)", () => {
+    const { formats } = analyzeImpact([
+      "supabase/functions/visual-studio/index.ts",
+      "supabase/functions/visual-direction-suggest/index.ts",
+      "supabase/functions/studio-video/higgsfield.ts",
+    ], usage);
+    expect([...formats.keys()].sort()).toEqual([
+      "Charte : direction photo et vidéo suggérée",
+      "Studio vidéo",
+      "Studio visuel : images et retouches photo",
+    ]);
+  });
+
+  it("chaque fonction de création de contenu a une étiquette lisible", () => {
+    for (const fn of ["visual-studio", "visual-direction-suggest", "studio-video", "carousel-visual", "carousel-slide-image", "pinterest-visual"]) {
+      expect(FUNCTION_LABELS[fn], fn).toMatch(/\S/);
+    }
+  });
+
+  it("reconnaît les fichiers front du carrousel, du reel et de l'étape « Modifier » (lot 9)", () => {
+    const cases: [string, string][] = [
+      ["src/hooks/use-generate-visuals.ts", "Carrousels : lancement de la mise en forme visuelle"],
+      ["src/lib/carousel-editor.ts", "Carrousels : éditeur visuel"],
+      ["src/components/creer/CarouselEditor.tsx", "Carrousels : éditeur visuel"],
+      ["src/components/creer/ReelMontage.tsx", "Reel : écran de montage"],
+      ["src/hooks/use-user-slides-generate.ts", "Carrousels : slides écrites par l'utilisatrice"],
+      ["src/features/creer/edited-text.ts", "Parcours /creer : étape « Modifier » (tous formats)"],
+      ["src/components/creer/CreerStepEdit.tsx", "Parcours /creer : étape « Modifier » (tous formats)"],
+      ["src/hooks/use-regeneration-backup.ts", "Parcours /creer : filet « Régénérer » / « Changer d'angle » (tous formats)"],
+    ];
+    for (const [file, label] of cases) {
+      const { formats } = analyzeImpact([file], usage);
+      expect([...formats.keys()], file).toEqual([label]);
+      expect([...formats.get(label)!][0]).toBe(`\`${file}\` modifié`);
+    }
+  });
+
+  it("les tests de ces fichiers front ne déclenchent rien", () => {
+    const { formats } = analyzeImpact(["src/test/use-generate-visuals.test.ts", "src/components/creer/CarouselEditor.test.tsx"], usage);
+    expect(formats.size).toBe(0);
   });
 
   it("lit les entrées d'un .snap et repère celles qui changent", () => {

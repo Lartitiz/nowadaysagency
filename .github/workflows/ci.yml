@@ -76,6 +76,13 @@ jobs:
       - name: Code mort (knip)
         run: npm run knip
 
+      # Cliquet anti-dette (lot G1, 14/10/2026) : même principe que knip, dette
+      # gelée. Les gros fichiers « fourre-tout » (docs/robustesse/gros-fichiers.md)
+      # ne peuvent plus grossir ni gagner de `any`, et aucun nouveau fichier ne
+      # dépasse 800 lignes. Référence : scripts/cliquet-dette.baseline.json.
+      - name: Cliquet anti-dette (gros fichiers)
+        run: node scripts/cliquet-dette.mjs
+
       - name: Unit tests
         run: npm test
 
