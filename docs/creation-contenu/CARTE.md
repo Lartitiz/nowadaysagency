@@ -191,19 +191,23 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 
 | Fichier | Contenu | Modifier ce fichier touche… |
 |---|---|---|
-| `index.ts` (~1 650 l.) | Handler : aiguillage des `step`, construction des prompts, post-traitement final, télémétrie | tous les formats |
-| `shared.ts` | Délais IA, `gateNumbers`, `_deps`, `addrOpts`, `POST_ADDRESS_FIELDS`, `QUESTIONS_TOOL`, `extractImagePayload`, `photoVoiceRule` | tous les formats |
+| `index.ts` (~1 230 l.) | Handler : aiguillage des `step`, consigne `generate`, post-traitement final, télémétrie | tous les formats |
+| `shared.ts` | Délais IA, `gateNumbers`, `_deps`, `addrOpts`, `POST_ADDRESS_FIELDS`, `QUESTIONS_TOOL`, `FOLLOW_UP_TOOL`, `extractImagePayload`, `photoVoiceRule` | tous les formats |
+| `prompts/assist.ts` | Consignes des étapes d'assistance : `buildAnglesPrompt`, `buildQuestionsPrompt`, `buildFollowUpPrompt`, `buildAdjustPrompt` (+ repères `ADJUST_MARKER_RE`), `buildDictationPrompt`, `resolveFormatHint` | tous les formats (étapes avant et après la rédaction) |
 | `formats/linkedin.ts` | `runLinkedInTwoStep`, `applyLinkedInCorrectionPass`, `streamLinkedInPhotoVision`, brief fictif | LinkedIn |
 | `formats/newsletter.ts` | `runNewsletterTwoStep`, `applyNewsletterCorrectionPass` | la newsletter |
 | `formats/stories.ts` | `applyStoriesCorrectionPass`, `finalizeRecycledStories` | les stories, y compris recyclées |
-| `formats/reel.ts` | `applyReelQualityPass`, `normalizeHooksResponse`, `enforceReelAudienceAddress` | le reel |
+| `formats/reel.ts` | `applyReelQualityPass`, `normalizeHooksResponse`, `enforceReelAudienceAddress`, étape `hooks` (`HOOKS_TOOL`, `buildHooksPrompt`) | le reel |
 | `formats/post.ts` | `streamDefaultPostSSE`, `correctPostStreamContent`, `POST_TOOL` | le post Instagram / la légende |
 | `formats/photo.ts` | `runVisionQuestions`, `runVisionGenerate` | le mode photo, tous formats |
 | `formats/recycle.ts` | `buildRecycleSystemPrompt`, `handleRecycleStep` | le recyclage |
 | `formats/carousel.ts` | contrôle tu / vous d'un carrousel, réponse 410 du streaming retiré | le recyclage en carrousel, l'ajustement carrousel |
 
 `index.ts` réexporte tout ce qui était exporté avant : les tests et les
-appelants n'ont pas changé d'import.
+appelants n'ont pas changé d'import. Découpage d'`index.ts` en cours (fiche 3
+de `docs/robustesse/gros-fichiers.md`) : `prompts/*` et les autres fichiers
+sortis d'`index.ts` n'importent jamais `index.ts`, et ni `formats/*` ni
+`shared.ts` ne les importent (`boundaries_test.ts`).
 
 
 **Aiguillage**

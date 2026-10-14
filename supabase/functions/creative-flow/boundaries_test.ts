@@ -10,6 +10,14 @@
 //   3. shared.ts n'importe aucun format (il est commun à tous) ;
 //   4. chaque fichier de formats/ est décrit dans CARTE.md.
 //
+// Découpage d'index.ts (fiche 3 de docs/robustesse/gros-fichiers.md) : les
+// fichiers d'orchestration sortis d'index.ts (prompts/*, et les fichiers à la
+// racine du dossier autres qu'index.ts et shared.ts) suivent les mêmes règles :
+//   5. ils n'importent jamais index.ts ;
+//   6. ni un format ni shared.ts ne les importe (le commun ne dépend pas de
+//      l'orchestration, et formats/* → prompts/* recréerait un cycle) ;
+//   7. chacun est décrit dans CARTE.md.
+//
 // Un test rouge ici : déplace le code partagé dans shared.ts plutôt que
 // d'importer un format depuis un autre, ou ajoute l'exception avec sa raison.
 
@@ -75,5 +83,54 @@ Deno.test("frontières — chaque fichier de formats/ est décrit dans CARTE.md"
   const carte = await Deno.readTextFile(new URL("../../../docs/creation-contenu/CARTE.md", import.meta.url));
   for (const file of formatFiles) {
     assert(carte.includes(`formats/${file}`), `formats/${file} n'apparaît pas dans docs/creation-contenu/CARTE.md : ajoute-le au tableau « Organisation des fichiers ».`);
+  }
+});
+
+// ── Fichiers d'orchestration sortis d'index.ts (fiche 3) ────────────────────
+const ORCH_SUBDIRS = ["prompts"];
+const orchFiles: string[] = [];
+for await (const e of Deno.readDir(DIR)) {
+  if (e.isFile && e.name.endsWith(".ts") && !e.name.endsWith("_test.ts") && e.name !== "index.ts" && e.name !== "shared.ts") orchFiles.push(e.name);
+}
+for (const sub of ORCH_SUBDIRS) {
+  try {
+    for await (const e of Deno.readDir(new URL(`./${sub}/`, DIR))) {
+      if (e.isFile && e.name.endsWith(".ts") && !e.name.endsWith("_test.ts")) orchFiles.push(`${sub}/${e.name}`);
+    }
+  } catch (err) {
+    if (!(err instanceof Deno.errors.NotFound)) throw err;
+  }
+}
+orchFiles.sort();
+const orchHrefs = new Set(orchFiles.map((f) => new URL(f, DIR).href));
+
+Deno.test("frontières — les fichiers sortis d'index.ts sont bien trouvés", () => {
+  assert(orchFiles.includes("prompts/assist.ts"), `fichiers trouvés : ${orchFiles.join(", ")}`);
+});
+
+for (const file of orchFiles) {
+  Deno.test(`frontières — ${file} n'importe pas index.ts`, async () => {
+    const url = new URL(file, DIR);
+    const src = await Deno.readTextFile(url);
+    for (const spec of localImports(src)) {
+      assert(new URL(spec, url).href !== new URL("index.ts", DIR).href, `${file} importe index.ts : dépendance circulaire. Passe ce dont il a besoin dans shared.ts.`);
+    }
+  });
+}
+
+Deno.test("frontières — ni formats/* ni shared.ts n'importent un fichier sorti d'index.ts", async () => {
+  for (const file of [...formatFiles.map((f) => `formats/${f}`), "shared.ts"]) {
+    const url = new URL(file, DIR);
+    const src = await Deno.readTextFile(url);
+    for (const spec of localImports(src)) {
+      assert(!orchHrefs.has(new URL(spec, url).href), `${file} importe ${spec} : un format ou le commun ne dépend pas de l'orchestration (risque de cycle).`);
+    }
+  }
+});
+
+Deno.test("frontières — chaque fichier sorti d'index.ts est décrit dans CARTE.md", async () => {
+  const carte = await Deno.readTextFile(new URL("../../../docs/creation-contenu/CARTE.md", import.meta.url));
+  for (const file of orchFiles) {
+    assert(carte.includes(`creative-flow/${file}`) || carte.includes(`\`${file}\``), `${file} n'apparaît pas dans docs/creation-contenu/CARTE.md : ajoute-le au tableau « Organisation des fichiers ».`);
   }
 });

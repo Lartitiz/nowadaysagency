@@ -108,3 +108,28 @@ export const QUESTIONS_TOOL = {
     required: ["questions"],
   },
 };
+
+// Questions de suivi (étape follow-up). Déplacé À L'IDENTIQUE depuis index.ts
+// (fiche 3, lot A, 14/10/2026), à côté de QUESTIONS_TOOL.
+export const FOLLOW_UP_TOOL = {
+  name: "poser_questions_suivi",
+  description: "Retourne 1 à 2 questions d'approfondissement.",
+  input_schema: {
+    type: "object",
+    properties: {
+      follow_up_questions: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            question: { type: "string" },
+            placeholder: { type: "string" },
+            why: { type: "string" },
+          },
+          required: ["question", "placeholder"],
+        },
+      },
+    },
+    required: ["follow_up_questions"],
+  },
+};
