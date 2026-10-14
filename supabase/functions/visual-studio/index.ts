@@ -54,6 +54,7 @@ import {
   submitHiggsfieldImage,
 } from "./higgsfield-image.ts";
 import { handleMemory, readMemory } from "./memory.ts";
+import { missingObject } from "./storage-errors.ts";
 import { executeStudioJob } from "./worker.ts";
 import { applyPreparedReferences } from "./product-fidelity-studio.ts";
 import { isWornProduct, onlyAdditions, preferredProductGroup, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
@@ -1818,13 +1819,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       const object = await sb.storage.from(BUCKET).download(v.result_path);
       if (object.data) {
         unwrap(await sb.rpc("studio_complete_generation", { p_version: v.id }));
-      } else if (
-        v.status === "processing" &&
-        object.error &&
-        (("statusCode" in object.error &&
-          String(object.error.statusCode) === "404") ||
-          object.error.message === "Object not found")
-      ) {
+      } else if (v.status === "processing" && await missingObject(object.error)) {
         unwrap(
           await sb
             .from("visual_studio_versions")

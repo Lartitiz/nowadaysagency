@@ -21,12 +21,12 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
 | E1 | #1469 | Contrat des étiquettes `data-*` serveur → éditeur visuel → export, testé |
 | 9 | #1472 | Rapport d'impact élargi, frontière texte / design par fonction (`_shared/design-text-boundaries_test.ts`), contrat `ai-text-action` |
 | 8 | #1475 | Carrousel : choix de design de `carousel-ai` isolés dans `carousel-ai/layout.ts` (sortie identique, figée par `carousel-ai/handler_contract_test.ts`) ; frontière design / écriture par module (`_shared/carousel-design-boundaries_test.ts`) ; libellé du bouton d'appel à l'action rangé dans la slide (`cta_label`). Fusionnée le 14/10/2026 |
+| E2 | #1476 | Éditeur visuel figé par 6 fichiers de tests `src/test/carousel-editor-*.test.tsx` (poignées et magnétisme, réglages avancés, photo glissée, annuler après opération lourde, aller-retour avec `mergeEditorRaw`, étiquettes d'export). Aucun code de l'éditeur modifié |
 
 ## Ouverts, en attente de fusion (14/10/2026)
 | Lot | PR | Contenu |
 |---|---|---|
-| E2 | #1476 | Éditeur visuel figé par 6 fichiers de tests `src/test/carousel-editor-*.test.tsx` (poignées et magnétisme, réglages avancés, photo glissée, annuler après opération lourde, aller-retour avec `mergeEditorRaw`, étiquettes d'export). Aucun code de l'éditeur modifié |
-| E2 bis | #1477 | Corrige les 2 bugs trouvés par E2 (bloc tourné qui saute de largeur, lien de police ajouté à une slide verrouillée). Construite sur #1476 : fusionner #1476 d'abord |
+| E2 bis | #1477 | Corrige les 2 bugs trouvés par E2 (bloc tourné qui saute de largeur, lien de police ajouté à une slide verrouillée) |
 
 ## Lancés en conversations séparées (cartes du 14/10/2026)
 1. Cartographier les gros fichiers et poser un cliquet anti-dette (G1).
@@ -43,7 +43,7 @@ Reste du lot 8 :
 - carrousel texte : le libellé du bouton n'entre dans la slide que si l'utilisatrice le modifie ou le retire ; à l'arrivée des visuels, il reste seulement dans le HTML (lecture dans `src/hooks/use-generate-visuals.ts`, fichier d'une autre conversation le 14/10/2026).
 
 ## En attente
-- **E3** : découper CarouselEditor.tsx par mission, après la fusion de #1476 et #1477.
+- **E3** : découper CarouselEditor.tsx par mission, après la fusion de #1477.
   Points d'attention relevés par E2 : `CARTE.md`, section 7 (écho reconnu à la
   référence, `inputKey`).
 - **G4** : découper les autres gros fichiers, après la cartographie (carte 1).
