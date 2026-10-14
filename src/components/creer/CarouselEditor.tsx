@@ -83,7 +83,6 @@ import {
   type RemovedLayer,
   addShapeElement,
   addPhotoFrame,
-  PHOTO_SHAPES,
   photoShapeOf,
   addTextElement,
   duplicateElement,
@@ -110,6 +109,25 @@ import {
   type CarouselDocument,
   type EditorSlide,
 } from "@/lib/carousel-editor";
+import {
+  clamp,
+  numberOr,
+  VEIL,
+  isPhotoEl,
+  isFullBleed,
+  pickAt,
+  frameOf,
+  followGlass,
+  type Handle,
+  type AlignMode,
+  type CanvasApi,
+  isLockedEl,
+  snapTo,
+  isInlineText,
+  type CanvasBox,
+  isFullBleedBox,
+} from "@/components/creer/CarouselEditorParts/canvas-geometry";
+import { PanelSection, SlideThumb, PhotoShapePicker } from "@/components/creer/CarouselEditorParts/PanelBits";
 
 
 interface Props {
@@ -139,75 +157,6 @@ const inputKey = (raw: any, visuals: any) => [
   raw.caption || raw.carousel?.caption,
   visuals,
 ];
-const clamp = (n: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, n));
-const numberOr = (value: string | undefined, fallback: number) =>
-  Number.isFinite(parseFloat(value || "")) ? parseFloat(value!) : fallback;
-
-const VEIL = "[data-injected-scrim]";
-const isPhotoEl = (el: HTMLElement) =>
-  el.tagName === "IMG" ||
-  el.hasAttribute("data-pptx-photo") ||
-  el.hasAttribute("data-editor-photo");
-/** Photo qui couvre toute la slide : on la recadre, on ne déplace pas son cadre. */
-const isFullBleed = (el: HTMLElement) => {
-  const r = el.getBoundingClientRect();
-  return r.width >= 1075 && r.height >= 1345;
-};
-/** Élément choisi sous le pointeur : le plus proche, sinon le premier calque
- * en dessous (la photo est souvent recouverte par le calque de mise en page). */
-function pickAt(doc: Document, target: EventTarget | null, x: number, y: number) {
-  let found: HTMLElement | null = null;
-  const direct = (target as HTMLElement | null)?.closest?.<HTMLElement>("[data-editor-id]");
-  if (direct && !direct.matches(VEIL)) found = direct;
-  else
-    for (const node of doc.elementsFromPoint?.(x, y) || []) {
-      const hit = node.closest<HTMLElement>("[data-editor-id]");
-      if (hit && !hit.matches(VEIL)) {
-        found = hit;
-        break;
-      }
-    }
-  if (found && !isPassiveShape(found)) return found;
-  // Sur le fond : un élément fin (ligne, filet) tout proche est visé, à
-  // 12 px près, comme dans Canva. Le plus petit l'emporte.
-  let best: HTMLElement | null = null,
-    area = Infinity;
-  doc.querySelectorAll<HTMLElement>("[data-editor-id]").forEach((el) => {
-    if (el.matches(VEIL) || isPassiveShape(el)) return;
-    const r = el.getBoundingClientRect();
-    if (!r.width && !r.height) return;
-    if (x < r.left - 12 || x > r.right + 12 || y < r.top - 12 || y > r.bottom + 12) return;
-    if (r.width * r.height < area) {
-      best = el;
-      area = r.width * r.height;
-    }
-  });
-  return best || found;
-}
-/** Cadre le plus large qui contient l'élément (carte, verre, colonne) : on le
- * déplace avec ses textes, comme un groupe dans Canva. */
-function frameOf(el: HTMLElement): HTMLElement {
-  let frame = el;
-  for (
-    let p = el.parentElement?.closest<HTMLElement>("[data-editor-id]");
-    p;
-    p = p.parentElement?.closest<HTMLElement>("[data-editor-id]")
-  )
-    if (p.matches("[data-pptx-shape],[data-editor-shape]") && !isPassiveShape(p)) frame = p;
-  return frame;
-}
-/** La copie floue du verre suit le cadre pendant qu'on le glisse. */
-function followGlass(el: HTMLElement) {
-  const blur = el.matches("[data-photo-glass]")
-    ? el.querySelector<HTMLElement>("[data-photo-glass-blur]")
-    : null;
-  if (!blur) return;
-  blur.style.left = `${-numberOr(el.style.left, 0)}px`;
-  blur.style.top = `${-numberOr(el.style.top, 0)}px`;
-  blur.style.removeProperty("bottom");
-}
-type Handle = "e" | "w" | "s" | "se";
 const SHORTCUTS: [string, string][] = [
   ["⌘Z", "Annuler"],
   ["⌘⇧Z · Ctrl+Y", "Rétablir"],
@@ -227,145 +176,6 @@ const SHORTCUTS: [string, string][] = [
   ["Alt + glisser", "Déplacer le texte seul, hors de son cadre"],
   ["⌘ + glisser", "Placer librement, sans repères"],
 ];
-type AlignMode = "left" | "center" | "right" | "top" | "middle" | "bottom" | "spread-x" | "spread-y";
-interface CanvasApi {
-  align: (mode: AlignMode) => void;
-  copy: (ids: string[]) => ClipboardElement[];
-  /** Boîtes affichées (repère de la slide), pour grouper / dégrouper sans rien décaler. */
-  rects: (ids: string[]) => Record<string, ElementRect>;
-  /** Zoom dans la photo (recadrage), sans agrandir son cadre. */
-  zoomPhoto: (id: string, zoom: number) => void;
-}
-/** Élément verrouillé (lui ou le groupe qui le contient). */
-const isLockedEl = (el: HTMLElement) => !!el.closest("[data-editor-locked]");
-const SNAP = 8;
-/**
- * Repères d'alignement : bords et centre de la slide, bords et centres des
- * autres éléments. Renvoie la correction à appliquer et les lignes à dessiner.
- */
-function snapTo(doc: Document, el: HTMLElement) {
-  const r = el.getBoundingClientRect();
-  const xs = [0, 540, 1080],
-    ys = [0, 675, 1350];
-  doc.querySelectorAll<HTMLElement>("[data-editor-id]").forEach((o) => {
-    if (o === el || o.contains(el) || el.contains(o) || o.matches(VEIL) || isPassiveShape(o)) return;
-    const b = o.getBoundingClientRect();
-    if (!b.width || !b.height) return;
-    xs.push(b.left, b.left + b.width / 2, b.right);
-    ys.push(b.top, b.top + b.height / 2, b.bottom);
-  });
-  const best = (values: number[], targets: number[]) => {
-    let out: { delta: number; line: number } | null = null;
-    for (const v of values)
-      for (const t of targets) {
-        const delta = t - v;
-        if (Math.abs(delta) <= SNAP && (!out || Math.abs(delta) < Math.abs(out.delta))) out = { delta, line: t };
-      }
-    return out;
-  };
-  return {
-    x: best([r.left, r.left + r.width / 2, r.right], xs),
-    y: best([r.top, r.top + r.height / 2, r.bottom], ys),
-  };
-}
-/** Texte modifiable directement sur la slide (pas une photo ni un cadre). */
-const isInlineText = (el: HTMLElement) =>
-  !isPhotoEl(el) && !el.matches(VEIL) && !el.querySelector("[data-editor-id]") && !!el.textContent?.trim() &&
-  !el.closest("svg");
-interface CanvasBox {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-}
-
-/**
- * Section repliable du panneau de réglages. Fermée, elle reste dans la page
- * (masquée) ; son état ouvert / fermé est mémorisé par titre.
- */
-function PanelSection({ title, defaultOpen = false, storageKey, icon, children }: { title: string; defaultOpen?: boolean; storageKey?: string; icon?: ReactNode; children: ReactNode }) {
-  const key = `carousel-panel:${storageKey || title}`;
-  const [open, setOpen] = useState(() => {
-    try {
-      const saved = window.localStorage.getItem(key);
-      return saved === null ? defaultOpen : saved === "1";
-    } catch {
-      return defaultOpen;
-    }
-  });
-  return (
-    <div className="rounded-lg border">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() =>
-          setOpen((o) => {
-            try {
-              window.localStorage.setItem(key, o ? "0" : "1");
-            } catch {
-              // Stockage indisponible : l'état reste pour la session.
-            }
-            return !o;
-          })
-        }
-        className="flex w-full items-center justify-between px-2.5 py-2 text-left text-xs font-semibold hover:bg-muted/50"
-      >
-        <span className="flex items-center gap-1.5">{icon}{title}</span>
-        <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
-      </button>
-      <div hidden={!open} className="space-y-3 px-2.5 pb-2.5">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-/** Miniature réelle d'une slide (rendu du HTML exporté, réduit). */
-function SlideThumb({ html }: { html: string }) {
-  const W = 84;
-  return (
-    <span className="relative block overflow-hidden rounded-md bg-white" style={{ width: W, height: W * 1.25 }} aria-hidden="true">
-      <iframe
-        title=""
-        tabIndex={-1}
-        // Comme l'aperçu : pas de scripts ; une origine opaque empêchait certaines slides photo de s'afficher.
-        sandbox="allow-same-origin"
-        srcDoc={`<!doctype html><html><head><style>html,body{margin:0;width:1080px;height:1350px;overflow:hidden}</style></head><body>${html}</body></html>`}
-        style={{ position: "absolute", width: 1080, height: 1350, border: 0, transform: `scale(${W / 1080})`, transformOrigin: "top left", pointerEvents: "none" }}
-      />
-    </span>
-  );
-}
-
-/** Une photo plein écran n'a pas de cadre à mettre en forme. */
-const isFullBleedBox = (b: { width: number; height: number }) => b.width >= 1075 && b.height >= 1345;
-/** Choix de la forme d'un cadre photo : un aperçu par forme. */
-function PhotoShapePicker({ current, onPick }: { current: string | null; onPick: (radius: string) => void }) {
-  // Le choix s'affiche tout de suite, sans attendre la nouvelle mesure du cadre.
-  const [picked, setPicked] = useState(current);
-  useEffect(() => setPicked(current), [current]);
-  return (
-    <div className="flex gap-1" role="group" aria-label="Forme du cadre photo">
-      {PHOTO_SHAPES.map((shape) => (
-        <button
-          key={shape.key}
-          type="button"
-          aria-pressed={picked === shape.key}
-          aria-label={`Forme ${shape.label}`}
-          title={shape.label}
-          onClick={() => {
-            setPicked(shape.key);
-            onPick(shape.radius);
-          }}
-          className="flex w-14 flex-col items-center gap-1 rounded-md p-1 text-2xs hover:bg-muted aria-pressed:bg-primary/15 aria-pressed:font-semibold"
-        >
-          <span className="block h-10 w-8 bg-primary/60" style={{ borderRadius: shape.radius }} />
-          {shape.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 function SlideCanvas({
   slide,

@@ -57,7 +57,9 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 |---|---|
 | `src/pages/CreerUnifie.tsx` (~3 500 lignes) | Orchestre tout le parcours : environ 85 `useState`, une cinquantaine de comparaisons `format === …` sans `switch`, plus `carouselSubMode` et `isLinkedInCarousel`. **C'est le fichier le plus couplé du front.** |
 | `src/components/creer/CreerStepIdea.tsx` → `CreerStepFormat.tsx` → `CreerStepQuestions.tsx` → `HookSelectionStep.tsx` (reel) / `StructureReviewStep.tsx` (carrousel photo et mixte) / `UserSlidesStep.tsx` / `PinterestInspirationStep.tsx` → `CreerStepResult.tsx` → `CreerStepEdit.tsx` | Les étapes. Le type `Step` est en tête de `CreerUnifie.tsx`. Le stepper visible (`CreerStepper.tsx`) n'affiche que 4 étapes. |
+| `src/components/creer/LowCreditsBanner.tsx`, `PhotoMissingDialog.tsx`, `ConfirmResetDialog.tsx` | Affichage pur sorti de `CreerUnifie.tsx` (lot B, 14/10/2026) : bandeau « Plus que X crédits », fenêtre « Ce carrousel gagnerait à avoir des photos », fenêtre « Repartir de zéro ? ». Leur état (ouverte, type de carrousel) et ce que font les boutons restent dans la page. Tests en rendu réel : `src/test/creer-reprise-modifier-reset.test.tsx`, `creation-initial-draft.test.tsx` ; fenêtre des photos manquantes : `photo-missing-dialog.test.tsx`. |
 | `src/components/creer/CreerStepResult.tsx` | Le `switch (format)` qui choisit le bon `formatRenderers/*`. **C'est le point d'aiguillage naturel par format.** |
+| `src/components/creer/CarouselEditor.tsx` + `CarouselEditorParts/` | Éditeur visuel du carrousel (après création des visuels). Découpage par mission en cours (lot E3, plan : `docs/robustesse/gros-fichiers.md`, fiche 8). Déjà sortis : `canvas-geometry.ts` (outils de calcul sur la slide affichée : élément sous le pointeur, repères, verrou) et `PanelBits.tsx` (section repliable, miniature, forme du cadre photo). Le cœur (document, historique, écho `inputKey`) reste dans `CarouselEditor.tsx`. |
 | `src/hooks/use-format-next.ts` | Passage de l'étape format à l'étape suivante (et Pinterest inspiration). |
 | `src/hooks/use-do-generate.ts` | Lance la génération selon le format : SSE texte, carrousel, Pinterest visuel ou photo. |
 | `src/hooks/use-content-generator.ts` | Appels réels aux fonctions serveur. `switch` par format, questions, streaming (`streamInvoke`, table `contentTypeMap`). |
@@ -158,7 +160,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 
 ### Quota dans le parcours
 
-- `LowCreditsBanner` (défini dans `CreerUnifie.tsx`) et la pastille
+- `LowCreditsBanner` (`src/components/creer/LowCreditsBanner.tsx`, affiché par `CreerUnifie.tsx`) et la pastille
   « N crédits restants ».
 - `QuotaWallModal` n'est **pas** monté dans /creer : il est global, dans
   `AppHeader.tsx`, déclenché par `handleQuotaError`
@@ -525,6 +527,7 @@ après le découpage, ils doivent tous passer sans être retouchés.
 | `carousel-editor-heavy-undo.test.tsx` | Annuler / Rétablir à l'identique après une mise en page, un thème, « Appliquer à toutes les slides », « Police et couleur sur toutes les slides », un collage sur une autre slide |
 | `carousel-editor-roundtrip.test.tsx` | Aller-retour `readCarouselDocument` → retouches → `documentOutput` → `mergeEditorRaw` → relecture identique ; branchement comme `CreerUnifie.tsx` : une seule émission par retouche, reçu de sauvegarde gardé, pas de relecture sur un écho, réouverture identique, régénération relue une fois |
 | `carousel-editor-export-fidelity.test.tsx` | Après chaque retouche (texte, style, déplacement, taille, rotation, ombre, filtre, fond, police, verrou, ordre, masquage, duplication, photo, mise en page, thème, report), sur le vrai HTML du serveur : `data-pptx-editable`, `data-pptx-photo`, `data-pptx-shape` et `data-slide-text` restent sur les mêmes éléments |
+| `carousel-editor-wiring.test.tsx` (lot E3-0) | Branchement des commandes que les autres tests ne passent pas par l'écran : encadré « Contrôle qualité » (bilan, Revérifier, Appliquer la correction, Voir cet élément), sélection multiple (aligner, centrer, grouper, dégrouper), flèches et Suppr dans l'aperçu, boutons des slides (monter, descendre, supprimer, verrouiller), calques masqués / retirés / remis, fond de la slide, texte sur la photo, intensité du voile, aperçu Instagram |
 
 ---
 

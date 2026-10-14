@@ -62,7 +62,7 @@ export const CREATIVE_FLOW_FILES = {
 };
 /** Écrans du front → format touché. */
 export const FRONT_FILES = [
-  [/^src\/pages\/CreerUnifie\.tsx$/, "Parcours /creer (tous formats)"],
+  [/^src\/pages\/CreerUnifie\.tsx$|^src\/components\/creer\/(LowCreditsBanner|PhotoMissingDialog|ConfirmResetDialog)\.tsx$/, "Parcours /creer (tous formats)"],
   [/^src\/components\/creer\/formatRenderers\/Carousel/, "Carrousels : écran de résultat"],
   [/^src\/components\/creer\/CarouselEditor|^src\/lib\/carousel-editor\.ts$/, "Carrousels : éditeur visuel"],
   [/^src\/lib\/export-carousel-/, "Carrousels : exports"],

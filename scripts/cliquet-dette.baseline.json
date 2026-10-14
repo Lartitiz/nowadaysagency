@@ -26,7 +26,7 @@
       "any": 47
     },
     "src/components/creer/CarouselEditor.tsx": {
-      "lignes": 3816,
+      "lignes": 3626,
       "any": 4
     },
     "src/components/creer/CreerStepFormat.tsx": {
@@ -90,7 +90,7 @@
       "any": 14
     },
     "src/pages/CreerUnifie.tsx": {
-      "lignes": 3587,
+      "lignes": 3480,
       "any": 68
     },
     "src/pages/InstagramAudit.tsx": {
