@@ -51,8 +51,14 @@ Reste du lot 8 :
   restent dans la page). Rangés dans « Parcours /creer » du rapport d'impact.
   Fenêtre « photos manquantes » testée sur la vraie page /creer par
   `src/test/creer-photos-manquantes.test.tsx` (#1505, fusionné le 14/10/2026).
-- **Lot C** ensuite : fonctions pures (`creer-step.ts`, `draft-conflict.ts`,
-  `pending-stream.ts`, `edit-text-from-result.ts`, `content-brief.ts`), voir la fiche 1.
+- **Lot C** (PR en cours) : fonctions sorties à l'identique dans `src/features/creer/` :
+  `creer-step.ts` (`Step`, `resolveSafeStep`, `FORMAT_MAP`, `SUPPORTED_FORMATS`,
+  `ONE_SHOT_PARAMS`), `draft-conflict.ts`, `pending-stream.ts`,
+  `edit-text-from-result.ts`, `content-brief.ts` (écrit en base : deux fonctions
+  simples, pas de hook, filtre workspace gardé tel quel, décision de Laetitia du
+  14/10/2026). Le nombre de photos est passé en argument au lieu de `loadPhotos()`.
+  Une seule PR pour les cinq. Aucun test modifié.
+- **Lot D** ensuite : exports (`use-creer-exports.ts`), voir la fiche 1.
 
 ## Découpage du Studio, `visual-studio/index.ts` (fiche 5) : terminé le 14/10/2026
 2001 → 299 lignes ; `index.ts` n'est plus qu'un aiguilleur des 16 actions.
