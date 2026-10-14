@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { saveFlowState, loadFlowState, setFlowUserId, loadPhotosLocal, clearFlowState, setFlowWorkspaceId } from "@/hooks/use-flow-persistence";
 vi.mock("sonner", () => ({ toast: { warning: vi.fn() } }));
+/** Onglet fermé : sa sessionStorage disparaît et il ne signale plus sa présence. */
+function closeTab() {
+  sessionStorage.clear();
+  Object.keys(localStorage).filter(k => k.startsWith("creer_flow_presence:")).forEach(k => localStorage.removeItem(k));
+}
 beforeEach(() => { sessionStorage.clear(); localStorage.clear(); setFlowUserId("owner"); setFlowWorkspaceId(null); });
 describe("durable creation context", () => {
   it("isolates drafts and resets across workspaces", () => {
@@ -12,10 +17,11 @@ describe("durable creation context", () => {
   it("keeps source context, calendar identity and video beyond the old expiry", () => {
     saveFlowState({step:"result", newsjackingContext:"Source factuelle", calendarPostId:"calendar", calendarPostDate:"2026-09-12", reelMp4Url:"https://example.test/video.mp4", result:{raw:{content:"Brouillon"}}});
     saveFlowState({creationId:"same-attempt"});
-    const key = "creer_flow_state_backup:owner";
+    // Copie de secours de cet onglet (une par onglet depuis le lot 10).
+    const key = Object.keys(localStorage).find(k => k.startsWith("creer_flow_state_backup:owner:tab:"))!;
     const backup = JSON.parse(localStorage.getItem(key)!);
     backup.ts = Date.now() - 86400000;
-    localStorage.setItem(key,JSON.stringify(backup)); sessionStorage.clear();
+    localStorage.setItem(key,JSON.stringify(backup)); closeTab();
     expect(loadFlowState()).toMatchObject({newsjackingContext:"Source factuelle",creationId:"same-attempt",calendarPostId:"calendar",reelMp4Url:"https://example.test/video.mp4"});
   });
   it("rejects a session belonging to a different user", () => {

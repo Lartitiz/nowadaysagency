@@ -70,6 +70,8 @@ vi.mock('@/components/creer/PhotoUploadZone', () => ({ PhotoUploadZone: (p: any)
 </div> }));
 function App() { const nav = useNavigate(); return <><button onClick={() => nav('/ailleurs')}>Quitter</button><button onClick={() => nav('/creer')}>Créer</button><button onClick={() => nav('/creer?new=1')}>Nouveau explicite</button><button onClick={() => nav('/creer?sujet=Autre%20sujet')}>Autre intention</button><button onClick={() => nav('/creer?canal=pinterest')}>Canal Pinterest</button><button onClick={() => nav('/creer?mode=transform')}>Transformer</button><button onClick={() => nav(-1)}>Historique précédent</button><Routes><Route path="/creer" element={<CreerUnifie/>}/><Route path="/ailleurs" element={<p>Ailleurs</p>}/></Routes></>; }
 function mount(url: any = '/creer') { return render(<StrictMode><MemoryRouter initialEntries={[url]}><App/></MemoryRouter></StrictMode>); }
+/** Onglet fermé : sa sessionStorage disparaît et il ne signale plus sa présence (lot 10). */
+function closeTab() { sessionStorage.clear(); Object.keys(localStorage).filter(k => k.startsWith('creer_flow_presence:')).forEach(k => localStorage.removeItem(k)); }
 function type(text: string) { fireEvent.change(screen.getByRole('textbox'), { target: { value: text } }); }
 beforeEach(() => { cleanup(); vi.spyOn(window, 'scrollTo').mockImplementation(() => {}); vi.clearAllMocks(); sessionStorage.clear(); localStorage.clear(); mocks.user='owner'; mocks.workspace='A'; mocks.ready=true; mocks.brandChecking=false; setFlowUserId('owner'); setFlowWorkspaceId('A'); mocks.photoRead.mockResolvedValue({data:[{id:'library-1',name:'Portrait'}],error:null}); mocks.photoDecode.mockResolvedValue({base64:'data:image/png;base64,AA==',name:'Portrait',mimeType:'image/png'}); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); window.history.replaceState(null, '', '/'); });
@@ -147,7 +149,7 @@ describe('initial creation draft through real React components', () => {
     expect(loadFlowState()).toMatchObject({creationId:'same-id',editingIdeaId:'idea-id',incomingBriefId:'brief-id'});
   });
   it('persists an intentionally emptied subject through closing the tab', () => {
-    saveFlowState({step:'idea',ideaText:'Ancien texte'}); const app=mount(); type(''); app.unmount(); sessionStorage.clear();
+    saveFlowState({step:'idea',ideaText:'Ancien texte'}); const app=mount(); type(''); app.unmount(); closeTab();
     mount(); expect(screen.getByRole('textbox')).toHaveValue(''); expect(loadFlowState()?.ideaText).toBe('');
   });
   it('keeps account and workspace drafts through A → B → A, including an empty B', () => {
@@ -198,11 +200,11 @@ describe('initial creation draft through real React components', () => {
     const subject=screen.getAllByRole('textbox').find(x => x.tagName==='TEXTAREA')!;
     fireEvent.change(subject,{target:{value:'Sujet photo'}}); fireEvent.change(subject,{target:{value:''}});
     expect(loadPhotos()).toMatchObject([{id:'photo-1',userPhotoId:'library-1',context:'Contexte photo'}]);
-    app.unmount(); sessionStorage.clear(); app=mount(); await waitFor(() => expect(screen.getByTestId('photos')).toHaveTextContent('Portrait'));
+    app.unmount(); closeTab(); app=mount(); await waitFor(() => expect(screen.getByTestId('photos')).toHaveTextContent('Portrait'));
     expect(screen.getByLabelText('Description photo')).toHaveValue('Description exacte'); expect(screen.getAllByRole('textbox').find(x => x.tagName==='TEXTAREA')).toHaveValue('');
     expect(loadFlowState()?.ideaText).toBe('Une idée texte distincte');
     fireEvent.click(screen.getByText('Retirer photos')); expect(loadPhotos()).toEqual([]);
-    app.unmount(); sessionStorage.clear(); mount(); expect(screen.getByTestId('photos')).toBeEmptyDOMElement();
+    app.unmount(); closeTab(); mount(); expect(screen.getByTestId('photos')).toBeEmptyDOMElement();
   });
   it('undoes the initial idea, persists the restored value and clears history across spaces', async () => {
     const app=mount(); type('Idée corrigée');
@@ -253,7 +255,7 @@ describe('initial creation draft through real React components', () => {
     fireEvent.click(screen.getByText('Réinitialiser')); fireEvent.click(screen.getByRole('button',{name:'Repartir de zéro'}));
     expect(screen.getByRole('textbox')).toHaveValue(''); act(() => old('late-id'));
     expect(loadFlowState()?.editingIdeaId).toBeNull(); expect(loadFlowState()?.calendarPostId).toBeNull(); expect(loadFlowState()?.result).toBeUndefined();
-    app.unmount(); sessionStorage.clear(); mount(); expect(screen.getByRole('textbox')).toHaveValue('');
+    app.unmount(); closeTab(); mount(); expect(screen.getByRole('textbox')).toHaveValue('');
   });
   it('keeps a photo-only draft when saving it through the text-only conflict path is unsupported', async () => {
     saveFlowState({step:'idea',ideaText:'',photoEntry:true,photoSubject:'',creationId:'photo-draft'});
@@ -323,7 +325,7 @@ it.each(['stories','sequences','slides'])('persists story updates immutably for 
   act(() => mocks.resultProps.onStoriesUpdate(updated));
   await waitFor(() => expect(loadFlowState()?.result?.raw?.[alias]).toEqual(updated));
   expect(raw[alias]).toEqual(original);
-  app.unmount(); sessionStorage.clear(); mount(); await screen.findByTestId('result');
+  app.unmount(); closeTab(); mount(); await screen.findByTestId('result');
   expect(mocks.resultProps.result).toMatchObject({[alias]:updated,custom:{keep:true},caption:'Distincte'});
 });
 
@@ -383,7 +385,7 @@ it.each(['text','photo','mix','pure_photo','user_slides'])('preserves saved caro
   expect(mocks.visualsProps.allowAutomatic).toBe(false);
   expect(loadFlowState()).toMatchObject({editingIdeaId:'saved-carousel',result:{raw}});
   if(mode==='user_slides') expect(mocks.resultProps.onChangeAngle).toBeUndefined();
-  app.unmount(); sessionStorage.clear(); mount();await screen.findByTestId('result');
+  app.unmount(); closeTab(); mount();await screen.findByTestId('result');
   expect(loadFlowState()).toMatchObject({editingIdeaId:'saved-carousel',carouselSubMode:mode,result:{raw}});
   expect(mocks.visualsProps.allowAutomatic).toBe(false);
 });

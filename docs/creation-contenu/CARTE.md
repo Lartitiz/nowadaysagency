@@ -66,7 +66,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 | `src/features/creer/pinterest-generation.ts` | Pinterest visuel et photo. |
 | `src/lib/content-structures.ts` | Angles et structures par format (`CONTENT_STRUCTURES`, `CONTENT_TYPE_SPECS`, `getAnglesForType`), plus la correspondance format → fonction serveur. |
 | `src/lib/idea-brief-request.ts` | Mise en forme du brief envoyé au serveur. |
-| `src/hooks/use-flow-persistence.ts` | Brouillon local du parcours (sessionStorage + sauvegarde localStorage par utilisatrice), conflit dans `DraftConflictDialog.tsx`. |
+| `src/hooks/use-flow-persistence.ts` | Brouillon local du parcours (sessionStorage + copie de secours localStorage par utilisatrice et par onglet), conflit dans `DraftConflictDialog.tsx`. |
 | `src/lib/first-content-url.ts`, `first-content-destination.ts` | Premier contenu de l'onboarding (toujours un carrousel, `auto=1`). |
 
 ### Sauvegarde
@@ -106,6 +106,12 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
   version d'ouverture. Sinon on garde la version faite ailleurs et on y ajoute
   seulement le suivi (publié, lien du post, programmation coupée), avec un
   message. Tests : `src/test/use-calendar-save.test.tsx`.
+- **Copie de secours du navigateur, une par onglet** (`use-flow-persistence.ts`) :
+  chaque onglet écrit sa propre copie et signale sa présence. Un onglet qui a
+  perdu sa sessionStorage ne reprend que sa propre copie ou celle d'un onglet
+  fermé, jamais celle d'un onglet encore ouvert ; photos comprises. Test :
+  `src/test/flow-backup-tabs.test.tsx`. Dans les tests, « fermer l'onglet » =
+  vider sessionStorage ET retirer `creer_flow_presence:*` (`closeTab()`).
 - **Longueurs maximales côté serveur** (400 en français, sans appel IA ni débit) :
   `ai-text-action` 8 000 caractères sélectionnés et 1 000 de consigne ;
   `creative-flow` étape `adjust`, champ `content` 15 000 caractères (cas
