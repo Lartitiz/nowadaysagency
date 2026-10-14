@@ -213,13 +213,35 @@ export function findResearchNumbersUsed(units: string[], research?: ResearchNumb
   return found;
 }
 
+// Mots courants qu'une majuscule de début de phrase ne transforme pas en nom de
+// source (constat de la fiche 7, 14/10/2026 : « … possible. Une bonne partie
+// des artisans… » était refusé à cause de « Une »).
+const COMMON_SENTENCE_STARTS = new Set([
+  "un", "une", "le", "la", "les", "des", "du", "de", "ce", "cet", "cette", "ces", "et", "mais", "ou", "donc", "or", "ni", "car",
+  "on", "il", "elle", "ils", "elles", "nous", "vous", "je", "tu", "moi", "toi", "lui", "eux", "leur", "leurs",
+  "son", "sa", "ses", "mon", "ma", "mes", "ton", "ta", "tes", "notre", "nos", "votre", "vos",
+  "beaucoup", "plusieurs", "certains", "certaines", "peu", "plupart", "chaque", "tout", "tous", "toute", "toutes",
+  "souvent", "parfois", "toujours", "jamais", "aujourd'hui", "depuis", "pour", "par", "dans", "en", "au", "aux", "chez",
+  "avec", "sans", "sur", "sous", "entre", "avant", "après", "quand", "si", "comme", "ainsi", "alors", "puis", "ensuite",
+  "enfin", "pourtant", "cependant", "selon", "résultat", "ici", "là", "oui", "non", "c'est", "il y a",
+]);
+
 /** Noms propres et années ajoutés par une correction : ils doivent venir de la recherche. */
 function inventedSourceTokens(before: string, after: string, researchText: string): string[] {
   // Les marqueurs « [SLIDE 1 - BODY] » des textes balisés ne sont pas des sources.
   const tokens = (t: string) => new Set((t.replace(/\[[^\]\n]{1,40}\]/g, " ").match(/\p{Lu}[\p{L}\d'’-]+|(?<!\d)(?:19|20)\d{2}(?!\d)/gu) || []));
   const had = tokens(before);
+  // Un mot déjà présent dans le texte (en minuscules) n'est pas une source ajoutée.
+  const hadWords = new Set((before.toLowerCase().match(/[\p{L}\d'’-]+/gu) || []).map((w) => w.replace(/’/g, "'")));
+  const isCommonWord = (tok: string) => {
+    const lower = tok.toLowerCase().replace(/’/g, "'");
+    if (COMMON_SENTENCE_STARTS.has(lower) || hadWords.has(lower)) return true;
+    // « L'artisanat », « D'abord » : article élidé + nom commun (minuscule après l'apostrophe).
+    const elided = tok.match(/^\p{Lu}['’](\p{L}+)/u);
+    return !!elided && elided[1][0] === elided[1][0].toLowerCase();
+  };
   const research = researchText.toLowerCase();
-  return [...tokens(after)].filter((tok) => !had.has(tok) && !research.includes(tok.toLowerCase()));
+  return [...tokens(after)].filter((tok) => !had.has(tok) && !isCommonWord(tok) && !research.includes(tok.toLowerCase()));
 }
 
 /**

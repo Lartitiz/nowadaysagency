@@ -98,15 +98,36 @@ Deno.test("enforceResearchNumberSources : la source de la recherche recopiée es
   assertEquals(result.analysis.unsourcedResearchNumbers?.length ?? 0, 0);
 });
 
-// Constat (fiche 7) : inventedSourceTokens prend tout mot à majuscule ajouté
-// pour un nom de source. « … possible. Une bonne partie… » est donc refusé à
-// cause de « Une » en début de phrase. Le cas ci-dessous garde la phrase en
-// minuscules ; la correction du constat est un changement de code, hors de ce lot.
 Deno.test("enforceResearchNumberSources : un chiffre passé en formulation qualitative est gardé", async () => {
   const qualitative = "Vendre en direct, c'est possible, et une bonne partie des artisans d'art le font déjà, et leurs clientes reviennent.";
   const { result } = await sourcing(qualitative);
   assertEquals(result.applied, true);
   assertEquals(result.content, qualitative);
+});
+
+// Corrigé le 14/10/2026 (constat de la fiche 7) : un mot courant en majuscule
+// de début de phrase (« Une », « Beaucoup », « L'artisanat ») n'est pas une source.
+Deno.test("enforceResearchNumberSources : « Une bonne partie… » en début de phrase n'est pas une source inventée", async () => {
+  for (const qualitative of [
+    "Vendre en direct, c'est possible. Une bonne partie des artisans d'art le font déjà, et leurs clientes reviennent.",
+    "Vendre en direct, c'est possible. Beaucoup d'artisans d'art le font déjà, et leurs clientes reviennent.",
+    "Vendre en direct, c'est possible. L'artisanat d'art le fait souvent, et les clientes reviennent.",
+  ]) {
+    const { result } = await sourcing(qualitative);
+    assertEquals(result.applied, true, qualitative);
+    assertEquals(result.content, qualitative);
+  }
+});
+
+Deno.test("enforceResearchNumberSources : une source inventée reste refusée, même en début de phrase", async () => {
+  for (const invented of [
+    "Vendre en direct, c'est possible. Bpifrance l'a mesuré : 42 % des artisans d'art le font déjà, et leurs clientes reviennent.",
+    "Vendre en direct, c'est possible. Selon une étude de 2021, 42 % des artisans d'art le font déjà, et leurs clientes reviennent.",
+  ]) {
+    const { result } = await sourcing(invented);
+    assertEquals(result.applied, false, invented);
+    assertEquals(result.content, TEXT);
+  }
 });
 
 Deno.test("enforceResearchNumberSources : une correction qui ajoute un autre défaut est refusée", async () => {
