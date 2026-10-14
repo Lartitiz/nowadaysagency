@@ -25,9 +25,6 @@ import {
   Maximize2,
   Minimize2,
   ChevronDown,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
   Info,
 } from "lucide-react";
 import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
@@ -45,7 +42,6 @@ import {
   composeLayout,
   ensureFontLink,
   GOOGLE_FONTS,
-  googleFontUrl,
   LAYOUTS,
   slidePhotoSource,
   type LayoutVariant,
@@ -59,14 +55,12 @@ import {
   type ClipboardElement,
   documentColors,
   setElementHtml,
-  setEmphasis,
   editorialVeilAlpha,
   setEditorialVeilAlpha,
   listLayers,
   moveLayer,
   removeLayer,
   type RemovedLayer,
-  photoShapeOf,
   duplicateElement,
   setShapeFill,
   setVeilAlpha,
@@ -88,12 +82,14 @@ import {
   type CarouselDocument,
   type EditorSlide,
 } from "@/lib/carousel-editor";
-import { numberOr, type AlignMode, type CanvasApi, type CanvasBox } from "@/components/creer/CarouselEditorParts/canvas-geometry";
-import { PanelSection, SlideThumb, PhotoShapePicker } from "@/components/creer/CarouselEditorParts/PanelBits";
+import { type CanvasApi, type CanvasBox } from "@/components/creer/CarouselEditorParts/canvas-geometry";
+import { PanelSection, SlideThumb } from "@/components/creer/CarouselEditorParts/PanelBits";
 import SlideCanvas from "@/components/creer/CarouselEditorParts/SlideCanvas";
 import { LayersPanel, MultiSelectPanel } from "@/components/creer/CarouselEditorParts/LayersPanel";
 import { CarouselThemeSettings, SlideTabSettings } from "@/components/creer/CarouselEditorParts/SlideSettings";
 import { alphaOf, range, toHex } from "@/components/creer/CarouselEditorParts/panel-controls";
+import { TextSettings } from "@/components/creer/CarouselEditorParts/TextSettings";
+import { BlockSettings, PhotoSettings } from "@/components/creer/CarouselEditorParts/ElementSettings";
 
 
 interface Props {
@@ -1245,329 +1241,32 @@ export default function CarouselEditor({
           >
             {panelTab === "element" && (<>
             {element?.kind === "text" && (
-              <>
-                <PanelSection title="Texte" defaultOpen>
-                <Textarea
-                  aria-label="Texte sélectionné"
-                  value={element.text}
-                  rows={3}
-                  onChange={(e) => {
-                    setFitId(element.id);
-                    changeSlide(
-                      patchElement(slide, element.id, { text: e.target.value }),
-                      `text-${slide.id}-${element.id}`,
-                    );
-                  }}
-                />
-                {range(
-                  "Taille du texte",
-                  parseFloat(css["font-size"]) || 40,
-                  18,
-                  160,
-                  (n) => style({ "font-size": `${n}px` }, "font"),
-                )}
-                <div className="space-y-1 text-xs">
-                  <span>Police</span>
-                  <Popover onOpenChange={(open) => {
-                    // Aperçu : les polices Google se chargent dans la page à l'ouverture.
-                    if (!open || window.document.querySelector("link[data-font-preview]")) return;
-                    const link = window.document.createElement("link");
-                    link.rel = "stylesheet";
-                    link.href = googleFontUrl(GOOGLE_FONTS.map((f) => f.family));
-                    link.setAttribute("data-font-preview", "true");
-                    window.document.head.append(link);
-                  }}>
-                    <PopoverTrigger asChild>
-                      <Button size="sm" variant="outline" aria-label="Choisir une police" className="h-8 w-full justify-between font-normal">
-                        <span className="truncate" style={{ fontFamily: css["font-family"] || undefined }}>
-                          {(css["font-family"] || "").split(",")[0].replace(/['"]/g, "").trim() || "Police du thème"}
-                        </span>
-                        <ChevronDown size={14} aria-hidden="true" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-72 p-2">
-                      <input
-                        aria-label="Chercher une police"
-                        placeholder="Chercher (ex. Playfair)"
-                        value={fontQuery}
-                        onChange={(e) => setFontQuery(e.target.value)}
-                        className="mb-2 w-full rounded border bg-background px-2 py-1 text-xs"
-                      />
-                      <div className="max-h-72 space-y-0.5 overflow-auto" role="listbox" aria-label="Polices">
-                        {[
-                          ...documentFonts.map((f) => ({ label: f.label, value: f.value, family: undefined as string | undefined, tag: "Ton carrousel" })),
-                          ...["Arial, sans-serif", "Georgia, serif", "Verdana, sans-serif", "Trebuchet MS, sans-serif"].map((f) => ({ label: f.split(",")[0], value: f, family: undefined as string | undefined, tag: "Classique" })),
-                          ...GOOGLE_FONTS.map((f) => ({
-                            label: f.family,
-                            value: `'${f.family}', ${f.kind === "serif" ? "serif" : f.kind === "script" ? "cursive" : "sans-serif"}`,
-                            family: f.family as string | undefined,
-                            tag: { serif: "Serif", sans: "Sans", display: "Affiche", script: "Manuscrite" }[f.kind],
-                          })),
-                        ]
-                          .filter((f) => f.label.toLowerCase().includes(fontQuery.toLowerCase()))
-                          .map((f) => (
-                            <button
-                              key={`${f.tag}-${f.value}`}
-                              type="button"
-                              role="option"
-                              aria-selected={(css["font-family"] || "") === f.value || (!!f.family && (css["font-family"] || "").includes(f.family))}
-                              onClick={() => pickFont(f.value, f.family)}
-                              className="flex w-full items-baseline justify-between rounded px-2 py-1.5 text-left hover:bg-muted aria-selected:bg-primary/10"
-                            >
-                              <span style={{ fontFamily: f.value, fontSize: 18 }}>{f.label}</span>
-                              <span className="text-2xs text-muted-foreground">{f.tag}</span>
-                            </button>
-                          ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="flex items-center justify-between gap-2 text-xs">
-                  <label className="flex items-center gap-2">
-                    Couleur
-                    <input
-                      aria-label="Couleur du texte"
-                      type="color"
-                      value={toHex(css.color, "#222222")}
-                      onChange={(e) => style({ color: e.target.value })}
-                    />
-                  </label>
-                  <div role="group" aria-label="Alignement du texte" className="flex gap-0.5">
-                    {([
-                      ["left", AlignLeft, "Aligné à gauche"],
-                      ["center", AlignCenter, "Centré"],
-                      ["right", AlignRight, "Aligné à droite"],
-                    ] as const).map(([value, Icon, label]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        aria-label={label}
-                        title={label}
-                        aria-pressed={(css["text-align"] || "left") === value}
-                        onClick={() => style({ "text-align": value })}
-                        className="rounded p-1.5 hover:bg-muted aria-pressed:bg-primary/15"
-                      >
-                        <Icon size={14} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                </PanelSection>
-                <PanelSection title="Typographie avancée">
-                {range(
-                  "Interligne",
-                  parseFloat(css["line-height"]) < 3
-                    ? parseFloat(css["line-height"]) || 1.3
-                    : 1.3,
-                  1,
-                  2,
-                  (n) => style({ "line-height": String(n) }),
-                  0.1,
-                )}
-                <label className="block text-xs">
-                  Graisse
-                  <select
-                    aria-label="Graisse"
-                    className="mt-1 w-full rounded border bg-background p-2"
-                    value={String(parseInt(css["font-weight"], 10) || 400)}
-                    onChange={(e) => style({ "font-weight": e.target.value })}
-                  >
-                    {[["300", "Fine"], ["400", "Normale"], ["500", "Moyenne"], ["600", "Demi-grasse"], ["700", "Grasse"], ["800", "Extra-grasse"]].map(([v, l]) => (
-                      <option key={v} value={v}>{l}</option>
-                    ))}
-                  </select>
-                </label>
-                {range(
-                  "Espacement des lettres",
-                  parseFloat(css["letter-spacing"]) || 0,
-                  -5,
-                  30,
-                  (n) => style({ "letter-spacing": n ? `${n}px` : "" }, "spacing"),
-                  0.5,
-                )}
-                <label className="block text-xs">
-                  Casse
-                  <select
-                    aria-label="Casse"
-                    className="mt-1 w-full rounded border bg-background p-2"
-                    value={css["text-transform"] || "none"}
-                    onChange={(e) => style({ "text-transform": e.target.value === "none" ? "" : e.target.value })}
-                  >
-                    <option value="none">Comme écrit</option>
-                    <option value="uppercase">MAJUSCULES</option>
-                    <option value="lowercase">minuscules</option>
-                    <option value="capitalize">Capitales Initiales</option>
-                  </select>
-                </label>
-                <label className="flex items-center justify-between text-xs">
-                  Ombre du texte
-                  <input
-                    aria-label="Ombre du texte"
-                    type="checkbox"
-                    checked={textShadowOn}
-                    onChange={(e) => style({ "text-shadow": e.target.checked ? "0 2px 10px rgba(0,0,0,0.45)" : "none" })}
-                  />
-                </label>
-                </PanelSection>
-                {element.emphasis && !!element.emphasis.choices.length && (
-                  <PanelSection title="Phrase mise en valeur" defaultOpen>
-                    <label className="block text-xs">
-                      Phrase mise en valeur
-                      <select
-                        aria-label="Phrase mise en valeur"
-                        className="mt-1 w-full rounded border bg-background p-2"
-                        value={element.emphasis.choices.includes(element.emphasis.sentence) ? element.emphasis.sentence : ""}
-                        onChange={(e) => e.target.value && changeSlide(setEmphasis(slide, element.id, { sentence: e.target.value }))}
-                      >
-                        {!element.emphasis.choices.includes(element.emphasis.sentence) && (
-                          <option value="">{element.emphasis.sentence ? "Extrait actuel" : "Choisir une phrase…"}</option>
-                        )}
-                        {element.emphasis.choices.map((c) => (
-                          <option key={c} value={c}>
-                            {c.length > 60 ? `${c.slice(0, 60)}…` : c}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="flex items-center justify-between text-xs">
-                      Couleur de la phrase mise en valeur
-                      <input
-                        aria-label="Couleur de la phrase mise en valeur"
-                        type="color"
-                        value={toHex(element.emphasis.color, toHex(css.color, "#222222"))}
-                        onChange={(e) =>
-                          changeSlide(
-                            setEmphasis(slide, element.id, { color: e.target.value }),
-                            `${slide.id}-${element.id}-emphasis`,
-                          )
-                        }
-                      />
-                    </label>
-                  </PanelSection>
-                )}
-              </>
+              <TextSettings
+                changeSlide={changeSlide}
+                css={css}
+                documentFonts={documentFonts}
+                element={element}
+                fontQuery={fontQuery}
+                pickFont={pickFont}
+                setFitId={setFitId}
+                setFontQuery={setFontQuery}
+                slide={slide}
+                style={style}
+                textShadowOn={textShadowOn}
+              />
             )}
             {element?.kind === "photo" && (
-              <>
-                <PanelSection title="Photo" defaultOpen>
-                <label className="block text-xs">
-                  Affichage de la photo
-                  <select
-                    aria-label="Affichage de la photo"
-                    className="mt-1 w-full rounded border bg-background p-2"
-                    value={css["object-fit"] === "contain" || css["background-size"] === "contain" ? "contain" : "cover"}
-                    onChange={(e) => style({
-                      "object-fit": e.target.value,
-                      "background-size": e.target.value,
-                      "background-repeat": "no-repeat",
-                      "object-position": "50% 50%",
-                      "background-position": "50% 50%",
-                      "--editor-zoom": "1",
-                      "--editor-base-transform": "",
-                      transform: "none",
-                    })}
-                  >
-                    <option value="cover">Remplir le cadre</option>
-                    <option value="contain">Voir toute la photo</option>
-                  </select>
-                </label>
-                {range(
-                  "Cadrage horizontal",
-                  numberOr(
-                    (
-                      css["object-position"] ||
-                      css["background-position"] ||
-                      "50% 50%"
-                    ).split(" ")[0],
-                    50,
-                  ),
-                  0,
-                  100,
-                  (n) => {
-                    const y =
-                      (
-                        css["object-position"] ||
-                        css["background-position"] ||
-                        "50% 50%"
-                      ).split(" ")[1] || "50%";
-                    style({
-                      "object-position": `${n}% ${y}`,
-                      "background-position": `${n}% ${y}`,
-                    });
-                  },
-                )}
-                {range(
-                  "Cadrage vertical",
-                  numberOr(
-                    (
-                      css["object-position"] ||
-                      css["background-position"] ||
-                      "50% 50%"
-                    ).split(" ")[1],
-                    50,
-                  ),
-                  0,
-                  100,
-                  (n) => {
-                    const x = (
-                      css["object-position"] ||
-                      css["background-position"] ||
-                      "50% 50%"
-                    ).split(" ")[0];
-                    style({
-                      "object-position": `${x} ${n}%`,
-                      "background-position": `${x} ${n}%`,
-                    });
-                  },
-                )}
-                {range(
-                  "Zoom photo",
-                  Number(css["--editor-zoom"]) || 1,
-                  1,
-                  3,
-                  (n) => canvasApi.current?.zoomPhoto(element.id, n),
-                  0.05,
-                )}
-                {range(
-                  "Opacité photo",
-                  css.opacity ? Number(css.opacity) : 1,
-                  0.2,
-                  1,
-                  (n) => style({ opacity: String(n) }),
-                  0.05,
-                )}
-                </PanelSection>
-                <PanelSection title="Cadre de la photo">
-                {measured && (measured.width < 1075 || measured.height < 1345) && (
-                  <>
-                        {range("Position horizontale", coord("left"), -500, 1080, (n) => style({ position: css.position || "absolute", left: `${n}px` }))}
-                    {range("Position verticale", coord("top"), -500, 1350, (n) => style({ position: css.position || "absolute", top: `${n}px` }))}
-                    {range("Largeur du cadre", parseFloat(css.width) || Math.round(measured.width), 60, 1080, (n) => style({ width: `${n}px` }))}
-                    {range("Hauteur du cadre", parseFloat(css.height) || Math.round(measured.height), 60, 1350, (n) => style({ height: `${n}px` }))}
-                  </>
-                )}
-                {measured && (measured.width < 1075 || measured.height < 1345) && (
-                  <PhotoShapePicker current={photoShapeOf(css["border-radius"])} onPick={(radius) => style({ "border-radius": radius, overflow: "hidden" })} />
-                )}
-                {range("Arrondi des coins", Math.min(200, parseFloat(css["border-radius"] || css["border-top-left-radius"]) || 0), 0, 200, (n) => style({ "border-radius": `${n}px`, overflow: "hidden" }))}
-                </PanelSection>
-                <PanelSection title="Retouche de la photo">
-                {range("Luminosité", filterValue("brightness", 1), 0.5, 1.5, (n) => setFilter({ brightness: n }), 0.05)}
-                {range("Contraste", filterValue("contrast", 1), 0.5, 1.5, (n) => setFilter({ contrast: n }), 0.05)}
-                {range("Saturation", filterValue("saturate", 1), 0, 2, (n) => setFilter({ saturate: n }), 0.05)}
-                <div className="flex flex-wrap gap-1">
-                  <Button size="sm" variant="outline" aria-pressed={filterValue("saturate", 1) === 0} onClick={() => setFilter({ saturate: filterValue("saturate", 1) === 0 ? 1 : 0 })}>
-                    Noir et blanc
-                  </Button>
-                  {css.filter && (
-                    <Button size="sm" variant="ghost" onClick={() => style({ filter: "" })}>
-                      Photo d’origine
-                    </Button>
-                  )}
-                </div>
-                {measured && (measured.width < 1075 || measured.height < 1345) && borderControls}
-                </PanelSection>
-              </>
+              <PhotoSettings
+                borderControls={borderControls}
+                canvasApi={canvasApi}
+                coord={coord}
+                css={css}
+                element={element}
+                filterValue={filterValue}
+                measured={measured}
+                setFilter={setFilter}
+                style={style}
+              />
             )}
             {element?.editorialVeil &&
               range(
@@ -1592,109 +1291,21 @@ export default function CarouselEditor({
                 0.05,
               )}
             {element && element.kind !== "photo" && element.role !== "veil" && element.role !== "background" && (
-              <>
-                <PanelSection title="Position et taille">
-                {range(
-                  "Position horizontale",
-                  coord("left"),
-                  -500,
-                  1080,
-                  (n) =>
-                    style({
-                      position:
-                        css.position === "absolute" ? "absolute" : "relative",
-                      left: `${n}px`,
-                    }),
-                )}
-                {range(
-                  "Position verticale",
-                  coord("top"),
-                  -500,
-                  1350,
-                  (n) =>
-                    style({
-                      position:
-                        css.position === "absolute" ? "absolute" : "relative",
-                      top: `${n}px`,
-                    }),
-                )}
-                {range(
-                  "Largeur du bloc",
-                  parseFloat(css.width) || Math.round(measured?.width || 800),
-                  60,
-                  1080,
-                  (n) => style({ width: `${n}px`, "max-width": "none", ...(css.right ? { right: "auto" } : {}) }),
-                )}
-                {element.kind === "shape" &&
-                  range(
-                    "Hauteur du bloc",
-                    parseFloat(css[element.frame ? "min-height" : "height"]) || Math.round(measured?.height || 300),
-                    40,
-                    1350,
-                    (n) => style({ [element.frame ? "min-height" : "height"]: `${n}px` }),
-                  )}
-                </PanelSection>
-                <PanelSection title="Style du bloc" defaultOpen>
-                {element.role !== "glass" && (
-                  <div className="flex flex-wrap gap-1" role="group" aria-label="Styles de bloc tout faits">
-                    {blockPresets.map((preset) => (
-                      <Button key={preset.label} size="sm" variant="outline" className="h-7 text-2xs" onClick={() => applyBlockPreset(preset)}>
-                        {preset.label}
-                      </Button>
-                    ))}
-                  </div>
-                )}
-                <details className="space-y-3 text-xs">
-                  <summary className="cursor-pointer py-1 font-medium">Personnaliser (bordure, ombre, fond, rotation)</summary>
-                  <div className="space-y-3 pt-2">
-                {range("Arrondi des coins", parseFloat(css["border-radius"] || css["border-top-left-radius"]) || 0, 0, 200, (n) => style({ "border-radius": `${n}px` }))}
-                {borderControls}
-                {element.role !== "glass" && range("Rotation", rotation, -180, 180, rotate)}
-                {!!rotation && (
-                  <p className="text-2xs text-muted-foreground">
-                    La rotation apparaît sur l’image publiée ; dans l’export PowerPoint, un texte tourné reste droit.
-                  </p>
-                )}
-                <label className="flex items-center justify-between text-xs">
-                  Fond du bloc
-                  <input
-                    aria-label="Fond du bloc"
-                    type="color"
-                    value={fillHex}
-                    onChange={(e) => fill(e.target.value, fillAlpha || 1)}
-                  />
-                </label>
-                {range(
-                  "Opacité du fond",
-                  fillAlpha,
-                  0,
-                  1,
-                  (n) => fill(fillHex, n),
-                  0.05,
-                )}
-                <div className="flex flex-wrap gap-1">
-                  <Button size="sm" variant="outline" onClick={() => fill(fillHex, 0)}>
-                    Fond transparent
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    aria-pressed={css["z-index"] === "30"}
-                    onClick={() =>
-                      style(
-                        css["z-index"] === "30"
-                          ? { "z-index": "" }
-                          : { "z-index": "30", ...(css.position ? {} : { position: "relative" }) },
-                      )
-                    }
-                  >
-                    {css["z-index"] === "30" ? "Remettre à sa place" : "Premier plan"}
-                  </Button>
-                </div>
-                  </div>
-                </details>
-                </PanelSection>
-              </>
+              <BlockSettings
+                applyBlockPreset={applyBlockPreset}
+                blockPresets={blockPresets}
+                borderControls={borderControls}
+                coord={coord}
+                css={css}
+                element={element}
+                fill={fill}
+                fillAlpha={fillAlpha}
+                fillHex={fillHex}
+                measured={measured}
+                rotate={rotate}
+                rotation={rotation}
+                style={style}
+              />
             )}
             {element?.frame && element.role !== "background" && (
               <Button
