@@ -9209,6 +9209,17 @@ export type Database = {
         }
         Returns: string
       }
+      cron_jobs_health: {
+        Args: never
+        Returns: {
+          active: boolean
+          jobname: string
+          last_message: string
+          last_start: string
+          last_status: string
+          schedule: string
+        }[]
+      }
       crosspost_can_write: {
         Args: { personal_owner: string; ws: string }
         Returns: boolean
