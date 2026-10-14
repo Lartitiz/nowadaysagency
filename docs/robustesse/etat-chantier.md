@@ -42,6 +42,16 @@ Reste du lot 8 :
 - dernier choix de design encore fait à l'écriture : le mot mis en valeur sur la couverture (`cover_accent`, `carousel-ai/continuous-narrative.ts`), seule exception de `CARROUSEL_AI_AUTORISES` ;
 - carrousel texte : le libellé du bouton n'entre dans la slide que si l'utilisatrice le modifie ou le retire ; à l'arrivée des visuels, il reste seulement dans le HTML (lecture dans `src/hooks/use-generate-visuals.ts`, fichier d'une autre conversation le 14/10/2026).
 
+## Découpage de CreerUnifie.tsx (fiche 1 de `docs/robustesse/gros-fichiers.md`)
+- **Lot A** (#1482, en cours) : tests 1 à 11 en rendu réel (`src/test/creer-entrees-calendrier-brief`,
+  `creer-reprise-modifier-reset`, `creer-publication-exports`, `creer-angles-reel-photos`).
+  Corrige aussi 3 bugs qu'ils ont révélés (décision de Laetitia du 14/10/2026) : vidéo
+  du reel perdue au rechargement, sujet vide en ouvrant l'atelier depuis le calendrier
+  (`theme`), « 1 photo n'ont ». Le PPTX texte avec visuels périmés n'est pas un bug
+  (il ignore les visuels).
+- **Lot B**, après fusion du lot A : sortir `LowCreditsBanner`, la fenêtre « photos
+  manquantes » et « Repartir de zéro ? » (affichage pur).
+
 ## En attente
 - **E3** : découper CarouselEditor.tsx par mission, après la fusion de #1477.
   Points d'attention relevés par E2 : `CARTE.md`, section 7 (écho reconnu à la
