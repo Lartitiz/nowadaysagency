@@ -72,6 +72,28 @@ const TOOL_INPUTS: Record<string, unknown> = {
     reperage: [{ slide_number: 3, relation: "chiffres" }],
     schemas: [{ slide_number: 3, reason: "Le chiffre écrit devient lisible d'un coup d'œil.", visual_schema: { type: "stats", items: [{ number: "40 %", label: "de mon temps à perte" }] } }],
   },
+  // Lot 8b : questions, structure proposée et récit continu photo / mixte.
+  poser_questions: { questions: [{ question: "La dernière fois qu'on t'a demandé une remise ?", placeholder: "Ce que tu as répondu" }] },
+  livrer_structure_carrousel: {
+    editorial_intent: { mode: "reflexion", idea: "Un prix juste se montre dans le geste.", reader_takeaway: "Le temps passé fait le prix.", basis_source_ids: ["request"], inferred: false },
+    strategic_rationale: "Montrer le temps derrière chaque pièce.",
+    narrative_thread: "Du tour au four, le temps compté explique le prix.",
+    slides: [1, 2, 3, 4].map((n) => ({
+      slide_number: n, role: n === 1 ? "hook" : n === 4 ? "cta" : "body", title_suggestion: `Étape ${n}`, strategic_note: `Rôle ${n}`,
+      story_beat: `Passage ${n} du propos`, photo_index: n === 4 ? 1 : n, slide_type: "photo_full", overlay_position: "bottom_left",
+    })),
+  },
+  ecrire_texte_suivi: {
+    idea: "Un prix juste se montre dans le geste.",
+    hook: "Ce que tu paies vraiment dans un bol",
+    cover_accent: "vraiment dans un bol",
+    paragraphs: [
+      "Chaque bol passe trois fois entre mes mains : tournage, tournassage, émaillage.",
+      "En notant mes heures pendant un mois, j'ai vu que 40 % de mon temps partait dans des pièces vendues à perte.",
+      "Mes prix sont publics depuis. Enregistre ce post pour y repenser.",
+    ],
+    caption: { hook: "Un bol, trois passages.", body: "Voilà pourquoi je n'ai plus de remises.", cta: "Tu affiches tes prix ?", hashtags: ["ceramique"] },
+  },
   poser_les_gabarits: { slides: [
     { slide_number: 1, template: "couverture" },
     { slide_number: 2, template: "profonde" },
@@ -236,6 +258,10 @@ const MIX_STRUCTURE = MIX_DOC.slides.map((s) => ({
   slide_type: s.slide_type, ...(s.photo_index ? { photo_index: s.photo_index } : {}),
 }));
 
+// Photo minuscule (1 pixel) : la structure proposée photo envoie les images à Claude.
+const PIXEL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+const PHOTOS = PHOTO_CONTEXTS.map((p) => ({ base64: PIXEL, context: p.context, mimeType: "image/png" }));
+
 const CASES: { name: string; body: Record<string, unknown>; text: string }[] = [
   { name: "express_full — texte Instagram (schéma proposé après l'écriture)", text: JSON.stringify(TEXT_DOC),
     body: { type: "express_full", carousel_type: "prise_de_position", subject: SUBJECT, objective: "confiance", deepening_answers: ANSWERS } },
@@ -258,6 +284,27 @@ const CASES: { name: string; body: Record<string, unknown>; text: string }[] = [
     body: { type: "express_full", carousel_type: "photo", subject: "Une journée d'atelier", objective: "visibilite", photos_only: true, slide_count: 4 } },
   { name: "assign_templates — « Mes slides » (gabarits seuls, sans crédit)", text: "",
     body: { type: "assign_templates", carousel_type: "photo", slides: PHOTO_DOC.slides.map(({ slide_number, overlay_text, photo_index }) => ({ slide_number, overlay_text, photo_index })) } },
+  // ── Lot 8b ──
+  { name: "structure_proposal — texte (gratuit)", text: "",
+    body: { type: "structure_proposal", carousel_type: "storytelling", subject: SUBJECT, objective: "confiance", deepening_answers: ANSWERS } },
+  { name: "structure_proposal — photo (photos vues par Claude)", text: "",
+    body: { type: "structure_proposal", carousel_type: "photo", subject: "Une journée d'atelier, du premier café à la cuisson", objective: "visibilite", photos: PHOTOS } },
+  { name: "suggest_topics — texte", text: JSON.stringify({ topics: [{ subject: SUBJECT, why_now: "Les demandes de remise reviennent avant Noël.", angle: "Mon refus raconté" }] }),
+    body: { type: "suggest_topics", carousel_type: "storytelling", objective: "confiance" } },
+  { name: "suggest_angles — texte", text: JSON.stringify({ angles: [{ id: "A", emoji: "🔥", title: "Le refus assumé", description: "Raconter le non et ce qui a suivi." }] }),
+    body: { type: "suggest_angles", carousel_type: "storytelling", subject: SUBJECT, objective: "confiance", deepening_answers: ANSWERS } },
+  { name: "deepening_questions — texte", text: "",
+    body: { type: "deepening_questions", carousel_type: "storytelling", subject: SUBJECT, objective: "confiance" } },
+  { name: "deepening_questions — photo", text: "",
+    body: { type: "deepening_questions", carousel_type: "photo", subject: "Une journée d'atelier", objective: "visibilite", photo_contexts: PHOTO_CONTEXTS } },
+  { name: "deepening_questions — mixte", text: "",
+    body: { type: "deepening_questions", carousel_type: "mix", subject: "Les trois gestes qui changent un premier bol", objective: "confiance", photo_contexts: PHOTO_CONTEXTS } },
+  { name: "express_full — photo, récit continu (scénario automatique, mot de couverture)", text: "",
+    body: { type: "express_full", carousel_type: "photo", subject: "Une journée d'atelier, du premier café à la cuisson", objective: "visibilite",
+      scenario_origin: "automatic", slide_count: 4, photo_contexts: PHOTO_CONTEXTS } },
+  { name: "express_full — mixte, récit continu (scénario automatique, mot de couverture)", text: "",
+    body: { type: "express_full", carousel_type: "mix", subject: "Les trois gestes qui changent un premier bol", objective: "confiance",
+      scenario_origin: "automatic", slide_count: 4, photo_contexts: PHOTO_CONTEXTS } },
 ];
 
 for (const c of CASES) {

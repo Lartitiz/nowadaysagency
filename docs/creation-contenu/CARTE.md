@@ -316,14 +316,21 @@ un format en casse un autre.
     (`withoutMixWriterLayout`, `withoutPhotoWriterLayout`) ;
   - styles d'overlay (`normalizeOverlayStyles`) ;
   - gabarits photo et leur revérification (`assignPhotoTemplates`,
-    `revalidatePhotoLayoutContent`, `assignTemplatesToProvidedSlides`).
+    `revalidatePhotoLayoutContent`, `assignTemplatesToProvidedSlides`) ;
+  - récit continu photo / mixte (lot 8b) : gabarit, style et position du texte
+    sur photo (`narrativePhotoLayout`), disposition du mixte
+    (`narrativeMixLayout`) et mot mis en valeur sur la couverture
+    (`narrativeCoverAccent`, `cover_accent`). `continuous-narrative.ts` écrit
+    les passages et leur structure, puis appelle ces fonctions passage par
+    passage.
 - Code déplacé à l'identique, appelé aux mêmes endroits et dans le même ordre
   (les gabarits photo passent avant la réparation du fil, puis sont
   revérifiés).
 - Modifier une de ces étapes : modifie `layout.ts` (ou le module `_shared`
   qu'il appelle), pas `index.ts`. Le contrat du handler montre ce qui change.
-- Reste dans l'écriture, à sortir plus tard : le mot mis en valeur sur la
-  couverture (`cover_accent`, `continuous-narrative.ts`).
+- Le mot de couverture est toujours PROPOSÉ par l'IA dans l'appel d'écriture
+  du récit continu (même prompt, socle règle 7) ; sa validation et sa pose
+  sur la slide 1 sont dans `layout.ts`. Sortie identique (lot 8b, 14/10/2026).
 
 **Quota**
 - Catégorie `carousel` pour `slides` et `express_full`, y compris photo et
@@ -539,9 +546,12 @@ Restent sans snapshot :
    dehors de `socle-linkedin_test.ts`.
 3. ~~**`carousel-ai` de bout en bout**~~ : comblé au lot 8 par
    `carousel-ai/handler_contract_test.ts` (prompt assemblé par le handler,
-   blocs identité, clarté et structure confirmée compris). Pas encore figés :
-   `structure_proposal`, `suggest_*`, `deepening_questions` et le récit
-   continu photo / mixte.
+   blocs identité, clarté et structure confirmée compris), complété au lot 8b :
+   `structure_proposal` (texte et photo), `suggest_topics`, `suggest_angles`,
+   `deepening_questions` (texte, photo, mixte) et le récit continu photo /
+   mixte en scénario automatique. Les 18 parcours de `carousel-ai` sont figés.
+   Limite : le juge du fil y répond une forme invalide, sa réparation n'est
+   pas jouée (comportement testé dans `index_test.ts`).
 4. **Le prompt de `ai-text-action`** : son câblage est testé, pas le texte
    envoyé à Claude.
 
@@ -595,7 +605,13 @@ doit y être rangé. Les exceptions voulues sont dans `IMPORTS_AUTORISES` et
 - plafond des schémas → liste des champs texte (`carousel-editorial-review`) ;
 - design « au service du sens » → règle commune du socle ;
 - `carousel-visual` → contrat `COMPOSE` et tailles de lecture du socle ;
-- `continuous-narrative` → `carousel-design-plan` (mot de couverture).
+- `CARROUSEL_AI_AUTORISES` est vide depuis le lot 8b : dans `carousel-ai`,
+  seul `layout.ts` importe le design.
+
+Deux tests de frontière coexistent : celui-ci (par module du carrousel, lot 8)
+et `_shared/design-text-boundaries_test.ts` (par fonction de design, lot 9).
+Leurs listes de modules d'écriture sont tenues à part : un module d'écriture
+ajouté se range dans les deux.
 
 Le chemin `carousel-visual → … → carousel-editorial-review` relevé le
 14/10/2026 passe par `schema-formatting` et `carousel-editorial-snapshot`
