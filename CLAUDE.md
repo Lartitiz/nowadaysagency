@@ -221,6 +221,12 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 - `deno.json` garde `"nodeModulesDir": "auto"` (décision du 14/10/2026) : la version `"manual"` faite par Lovable le 08/10 n'a pas été reprise, Lovable redéploie sans souci en `auto`. Repasser en `manual` seulement si l'erreur « File exists (os error 17) » revient.
 - Sessions Claude Code dans le cloud : l'installation des dépendances échoue (`bun.lock` pointe vers le registre de Lovable, 403) et la suppression de branches GitHub est refusée (403). La CI de la PR sert de vérification ; les branches se suppriment à la main sur GitHub.
 
+### Gros fichiers : cliquet anti-dette (lot G1, 14/10/2026)
+- Les fichiers de plus de 800 lignes de `src/` et `supabase/functions/` (hors tests et types générés) ont leur taille et leur nombre de `as any` / `: any` gelés dans `scripts/cliquet-dette.baseline.json`. La CI (`node scripts/cliquet-dette.mjs`) échoue si l'un d'eux grossit ou gagne un `any`, ou si un nouveau fichier dépasse 800 lignes.
+- CI rouge sur ce point : mettre le code ajouté dans un fichier à part (un fichier = une mission), importé par le gros fichier. Ne mettre la référence à jour que si la hausse est voulue : `node scripts/cliquet-dette.mjs --update --accepter-hausse`, et committer le `.json` avec le code.
+- Un fichier a maigri : `node scripts/cliquet-dette.mjs --update` fait baisser la référence (jamais monter).
+- Avant de découper un gros fichier : lire sa fiche dans `docs/robustesse/gros-fichiers.md` (missions, découpage proposé, tests à poser d'abord).
+
 ### Patterns Supabase / Edge Functions
 
 **Quota IA :**
