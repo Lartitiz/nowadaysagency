@@ -15,6 +15,7 @@ import { saveToLibrary } from "./actions/save.ts";
 import { prepareNextProposal } from "./actions/pilot.ts";
 import { generate } from "./actions/generate.ts";
 import { readState } from "./read-state.ts";
+import { loadBrandContext } from "./turn/brand-context.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { callAnthropic, SONNET_MODEL } from "../_shared/anthropic.ts";
 import {
@@ -38,7 +39,6 @@ import {
   isIdentity,
   MAX_REFERENCES,
   RULES_VERSION,
-  searchTerms,
 } from "./competencies.ts";
 import {
   SOUL2_MODEL, soul2Enabled, soul2Eligible,
@@ -48,7 +48,7 @@ import {
   routeToMarketingStudio,
   imageCallback,
 } from "./higgsfield-image.ts";
-import { handleMemory, readMemory } from "./memory.ts";
+import { handleMemory } from "./memory.ts";
 import { isWornProduct, onlyAdditions, preferredProductGroup, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
 
 export async function handleStudioRequest(req: Request): Promise<Response> {
@@ -280,104 +280,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             409,
           );
         }
-        // Read only brand fields useful for visual direction, scoped to the active workspace.
-        const [charter, profile, proposition, strategy, recentCatalogue] =
-          await Promise.all([
-            sb
-              .from("brand_charter")
-              .select(
-                "color_primary,color_secondary,color_accent,color_background,color_text,font_title,font_body,photo_style,mood_keywords,visual_donts,moodboard_description,mood_board_urls,visual_direction",
-              )
-              .eq("workspace_id", p.workspace_id)
-              .maybeSingle(),
-            sb
-              .from("brand_profile")
-              .select(
-                "mission,offer,target_description,voice_description,things_to_avoid",
-              )
-              .eq("workspace_id", p.workspace_id)
-              .maybeSingle(),
-            sb
-              .from("brand_proposition")
-              .select("version_final,version_one_liner")
-              .eq("workspace_id", p.workspace_id)
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle(),
-            sb
-              .from("brand_strategy")
-              .select(
-                "creative_concept,pillar_major,pillar_minor_1,pillar_minor_2",
-              )
-              .eq("workspace_id", p.workspace_id)
-              .maybeSingle(),
-            sb
-              .from("user_photos")
-              .select("id,name,kind,description")
-              .eq("workspace_id", p.workspace_id)
-              .eq("status", "ready")
-              .is("removed_from_library_at", null)
-              .order("created_at", { ascending: false })
-              .limit(60),
-          ]);
-        for (
-          const result of [
-            charter,
-            profile,
-            proposition,
-            strategy,
-            recentCatalogue,
-          ]
-        ) {
-          if (result.error) throw result.error;
-        }
-        const memory = await readMemory(sb, p.workspace_id);
-        // Keep the exact brand context supplied to the interpreter with the
-        // resulting version. Later edits to the charter must not rewrite the
-        // history of an image that was already generated.
-        const brandContext = {
-          captured_at: new Date().toISOString(),
-          charter: charter.data,
-          identity: profile.data,
-          proposition: proposition.data,
-          strategy: strategy.data,
-          memory: memory.map((item) => ({
-            id: item.id,
-            kind: item.kind,
-            name: item.name,
-            note: item.note,
-            revision: item.revision,
-          })),
-        };
-        const terms = searchTerms(p.message);
-        let catalogue = recentCatalogue;
-        if (terms.length) {
-          const matches = await sb.from("user_photos").select(
-            "id,name,kind,description",
-          )
-            .eq("workspace_id", p.workspace_id).eq("status", "ready").is(
-              "removed_from_library_at",
-              null,
-            )
-            .or(
-              terms.flatMap(
-                (t) => [`name.ilike.%${t}%`, `description.ilike.%${t}%`],
-              ).join(","),
-            )
-            .order("created_at", { ascending: false }).limit(40);
-          if (matches.error) throw matches.error;
-          const seen = new Set<string>();
-          catalogue = {
-            ...recentCatalogue,
-            error: null,
-            data: [...(matches.data || []), ...(recentCatalogue.data || [])]
-              .filter((row) => {
-                if (seen.has(row.id)) return false;
-                seen.add(row.id);
-                return true;
-              }).slice(0, 80),
-          };
-        }
+        const { memory, brandContext, catalogue } = await loadBrandContext(ctx, p.message);
         const statedRoles = explicitRoles(p.message!, requestReferences);
         for (const ref of requestReferences) {
           const stated = statedRoles.get(ref.id);
