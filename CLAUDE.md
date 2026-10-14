@@ -200,7 +200,7 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 
 1. **Jauge visible en continu** (AiCreditsCounter dans le header) — Badge avec ring SVG circulaire. 4 paliers : Confort (>50%, vert), Attention (20-50%, orange, pulse), Urgence (<20%, rouge, pulse, CTA), Épuisé (0, rouge statique, date renouvellement + CTA).
 
-2. **Banner "derniers crédits"** (dans CreerUnifie.tsx) — Quand il reste 1 à 4 crédits (plan free uniquement). Ton bienveillant.
+2. **Banner "derniers crédits"** (`src/components/creer/LowCreditsBanner.tsx`, affiché dans /creer) — Quand il reste 1 à 4 crédits (plan free uniquement). Ton bienveillant.
 
 3. **Modal interstitiel à 0 crédit** (QuotaWallModal) — Bilan positif du mois + date de renouvellement avec compte à rebours + CTA Premium + alternatives en attendant.
 

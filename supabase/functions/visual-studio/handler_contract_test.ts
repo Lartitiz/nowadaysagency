@@ -271,3 +271,24 @@ Deno.test("quota generate — succès : un seul claim, avant l'appel fournisseur
     assertEquals(f.requests.slice(before).some((r) => PROVIDERS.test(r)), false);
   } finally { f.restore(); }
 });
+
+// ── 4 bis. Ajouts EN PLACE à requestReferences (lot 8) ──────────────────────
+// Le mannequin repris de la mémoire est AJOUTÉ au tableau requestReferences
+// par les règles du tour (turn/guardrails.ts), puis ce même tableau donne les
+// reference_ids du message et du contexte enregistrés (turn/proposal.ts). Une
+// copie du tableau entre les deux ferait disparaître le mannequin de ces
+// listes sans changer la proposition : ce test le fige.
+Deno.test("mannequin de la mémoire : ajouté aux références de la demande enregistrées", async () => {
+  const f = studioFixture({ actor: id(17) });
+  try {
+    f.session.proposal = null;
+    f.memories.push({ id: id(90), kind: "casting", name: "Nora", note: "Identité Nora", revision: 1, references: [{ id: id(91), path: "nora.jpg", role: "casting" }] });
+    f.setIntents({ operation: "create", summary: "Nora en veste rouge", image_prompt: "Nora scene",
+      person_reference: { mode: "scene", name: "Nora", stable_traits: "Boucles courtes", variable_details: "Veste rouge", views: [], memory_ids: [id(90)], uses_existing_identity: true } });
+    const { status } = await f.send({ ...base, action: "message", revision: 0, request_id: id(92), reference_ids: [], message: "Nora en veste rouge" });
+    assertEquals(status, 200);
+    assertEquals(f.session.messages.at(-2).reference_ids, [id(91)]);
+    assertEquals(f.session.source_metadata.studio_context.reference_ids, [id(91)]);
+    assertEquals(f.session.references.map((ref: Row) => ref.id), [id(91)]);
+  } finally { f.restore(); }
+});

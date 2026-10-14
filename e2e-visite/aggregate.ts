@@ -39,13 +39,14 @@ type Sonde = {
   requestFailed: Array<{ url: string; error: string }>;
   brokenImages: string[];
   clipped: Array<{ selector: string; hiddenPx: number; sample: string }>;
+  plantages?: Array<{ kind: "global" | "local"; titre: string }>;
   a11y: Array<{ id: string; impact: string; help: string; nodes: number; sample: string }> | null;
 };
 
 type Finding = { bac: "dur" | "observation"; type: string; ecran: string; detail: string };
 
 // globalTeardown : lit tous les JSON de sonde/ et les trie en deux bacs.
-// 🔴 dur = casse le vert (JS non catché, 5xx, requête essentielle échouée, page non chargée).
+// 🔴 dur = casse le vert (JS non catché, écran de plantage React, 5xx, requête essentielle échouée, page non chargée).
 // 🟡 observation = n'invalide PAS le vert (4xx d'API, console.error, débordement, lenteur, a11y).
 export default function () {
   if (!fs.existsSync(SONDE_DIR)) return; // aucune sonde lancée (ex : run de specs fonctionnelles seules)
@@ -75,6 +76,18 @@ export default function () {
     for (const n of s.network)
       if (n.status >= 500)
         dur.push({ bac: "dur", type: "réseau-5xx", ecran, detail: `${n.status} ${n.method} ${n.url}` });
+    // Écran de plantage React (ErrorBoundary) : l'erreur est rattrapée, donc
+    // absente de pageErrors — mais l'utilisatrice voit un écran cassé.
+    for (const p of s.plantages || [])
+      dur.push({
+        bac: "dur",
+        type: "ecran-plantage",
+        ecran,
+        detail:
+          p.kind === "global"
+            ? `écran entier remplacé par l'écran de plantage « 😵 ${p.titre} » (${s.url})`
+            : `bloc remplacé par l'écran de plantage local « ${p.titre} » (${s.url})`,
+      });
     for (const img of s.brokenImages || [])
       dur.push({ bac: "dur", type: "image-cassée", ecran, detail: img });
 
