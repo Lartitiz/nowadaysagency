@@ -57,14 +57,23 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
   simples, pas de hook, filtre workspace gardé tel quel, décision de Laetitia du
   14/10/2026). Le nombre de photos est passé en argument au lieu de `loadPhotos()`.
   Une seule PR pour les cinq. Aucun test modifié.
-- **Lot D** (PR à venir, 14/10/2026) : les 8 exports + `useOpenInCanva` sortis à l'identique
+- **Lot D** (#1538, fusionné le 14/10/2026) : les 8 exports + `useOpenInCanva` sortis à l'identique
   dans `src/hooks/use-creer-exports.ts` (un seul hook, 11 paramètres, décision de
   Laetitia du 14/10/2026). Appelé à la place des exports, même ordre des hooks ;
   `demoToast` et `effectiveHandle…` restent dans la page. Code comparé par script
   à l'original. Aucun test modifié. Écart avec la fiche : en démo, seuls les 4
   exports du carrousel passent par `demoToast` ; les 3 exports Pinterest restent
   actifs (inchangé).
-- **Lot E** ensuite : séquence de lancement (`use-launch-sequence.ts`), voir la fiche 1.
+- **Lot E** (PR en cours) : séquence de lancement sortie à l'identique dans
+  `src/hooks/use-launch-sequence.ts` (états + génération des 5 chapitres) et
+  `src/components/creer/LaunchSequenceResults.tsx` (attente puis onglets). Écart avec
+  la fiche (décision de Laetitia du 14/10/2026) : les états sont lus tôt par la
+  sauvegarde `CREER_RESULT_KEY` alors que `generate` n'existe que plus bas ; le hook
+  est donc appelé à la place des anciens états et reçoit `generate`, le sujet et
+  l'objectif au lancement. Aucun test ne couvrait la séquence : test en rendu réel
+  ajouté d'abord (`src/test/creer-sequence-lancement.test.tsx`, 5 cas, vérifié sur
+  l'ancien code et contre deux pannes volontaires). Aucun test existant modifié.
+- **Lot F** ensuite : angles du reel (`use-reel-hooks.ts`), voir la fiche 1.
 
 ## Découpage du Studio, `visual-studio/index.ts` (fiche 5) : terminé le 14/10/2026
 2001 → 299 lignes ; `index.ts` n'est plus qu'un aiguilleur des 16 actions.

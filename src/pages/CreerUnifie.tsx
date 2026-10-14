@@ -31,7 +31,6 @@ import { startSocialConnect } from "@/lib/social-connect";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { useSearchParams, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { versConnexions, recordCreationResume } from "@/lib/retour-apres-detour";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import CreerTransformTab from "@/components/creer/CreerTransformTab";
@@ -95,7 +94,7 @@ import { useContentGenerator } from "@/hooks/use-content-generator";
 import { multiSubjectChoicePending } from "../../supabase/functions/_shared/multi-subject";
 import { normalizeFormat } from "@/lib/format-normalizer";
 import { stripFontImportLeakFromSlides } from "@/lib/strip-font-import-leak";
-import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo, normalizeObjective } from "@/lib/content-structures";
+import { EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, normalizeObjective } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 // DEMO_DATA n'est plus importé directement — on utilise demoData du context
@@ -104,6 +103,8 @@ import { useCarouselAutosave } from "@/hooks/use-carousel-autosave";
 import { useCarouselQuality } from "@/hooks/use-carousel-quality";
 import CarouselSaveStatus from "@/components/creer/CarouselSaveStatus";
 import { useCreerExports } from "@/hooks/use-creer-exports";
+import { useLaunchSequence } from "@/hooks/use-launch-sequence";
+import LaunchSequenceResults from "@/components/creer/LaunchSequenceResults";
 import { publishReelToInstagram, publishImageToInstagram, publishRenderedCarouselToInstagram, resolveWorkspaceParam } from "@/lib/instagram-publish";
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
 import { useBrandCharter } from "@/hooks/use-branding";
@@ -453,9 +454,7 @@ function CreerWorkspace() {
     countContentBriefs(session.user.id, workspaceId).then(setBriefsCount);
   }, [step, session?.user?.id, workspaceId]);
 
-  const [launchResults, setLaunchResults] = useState<any[]>([]);
-  const [launchIndex, setLaunchIndex] = useState(0);
-  const [launchGenerating, setLaunchGenerating] = useState(false);
+  const { launchResults, setLaunchResults, launchIndex, setLaunchIndex, launchGenerating, runLaunchSequence } = useLaunchSequence();
 
   // Post-generation states
   const [saving, setSaving] = useState(false);
@@ -2272,40 +2271,9 @@ function CreerWorkspace() {
     photoBriefOverlayHtml,
   });
 
-  // ── Launch sequence (5 chapters) ──
-
-  const handleLaunchSequence = async (format: string, angle: string) => {
-    if (launchGenerating) return; // garde anti double-clic (chaque chapitre est facturé)
-    const structureId = getStructureForCombo(format, angle);
-    const structure = CONTENT_STRUCTURES[structureId];
-    if (!structure) return;
-
-    setLaunchGenerating(true);
-    setLaunchResults([]);
-    const chapters = 5;
-    const results: any[] = [];
-
-    try {
-      for (let i = 0; i < chapters; i++) {
-        setLaunchIndex(i);
-        const chapterSubject = `${ideaText} — Chapitre ${i + 1}/${chapters}`;
-        const res = await generate({
-          format: format as any,
-          subject: chapterSubject,
-          objective: objective || undefined,
-          editorialAngle: angle,
-        });
-        results.push(res);
-      }
-      setLaunchResults(results);
-    } catch (e: any) {
-      // Sans ce filet, une erreur au chapitre N laissait le spinner tourner à l'infini.
-      if (results.length > 0) setLaunchResults(results); // garde les chapitres déjà générés
-      toast.error(e?.message || "Erreur pendant la génération de la séquence. Réessaie.");
-    } finally {
-      setLaunchGenerating(false);
-    }
-  };
+  // ── Launch sequence (5 chapters) : use-launch-sequence.ts ──
+  const handleLaunchSequence = (format: string, angle: string) =>
+    runLaunchSequence(format, angle, { generate, ideaText, objective });
 
   // ── Étape "format" → "questions" (et raccourcis directs vers d'autres étapes) ──
   const { handleFormatNext } = useFormatNext({
@@ -2922,48 +2890,21 @@ function CreerWorkspace() {
 
             {/* Launch mode: multi-chapter results */}
             {isLaunchMode && (
-              <div className="space-y-4 animate-fade-in">
-                {launchGenerating ? (
-                  <div className="py-12 text-center space-y-3">
-                    <Spinner className="h-8 w-8 mx-auto" />
-                    <p className="text-sm font-medium text-foreground">
-                      Génération du chapitre {launchIndex + 1}/5…
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Ce format génère une séquence de 5 posts (un par chapitre).
-                    </p>
-                  </div>
-                ) : (
-                  <Tabs defaultValue="0">
-                    <TabsList className="w-full flex-wrap h-auto gap-1">
-                      {launchResults.map((_, i) => (
-                        <TabsTrigger key={i} value={String(i)} className="text-xs">
-                          Chapitre {i + 1}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                    {launchResults.map((res, i) => (
-                      <TabsContent key={i} value={String(i)}>
-                        <CreerStepResult
-                          result={res?.raw || res}
-                          format={selectedFormat || "post"}
-                          generating={false}
-                          onEdit={handleEdit}
-                          onResultTextChange={(text) => setLaunchResults((prev) => prev.map((chapter, index) => index !== i ? chapter : chapter?.raw ? { ...chapter, raw: { ...chapter.raw, edited_text: text, content: text } } : { ...chapter, edited_text: text, content: text }))}
-                          onReset={requestReset}
-                          onRegenerate={handleRegenerate}
-                          onCopy={handleCopy}
-                          usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos.length : undefined}
-                          photos={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
-                          sourceIdea={ideaText}
-                          sourceObjective={objective}
-                          sourceAngle={editorialAngle}
-                        />
-                      </TabsContent>
-                    ))}
-                  </Tabs>
-                )}
-              </div>
+              <LaunchSequenceResults
+                launchGenerating={launchGenerating}
+                launchIndex={launchIndex}
+                launchResults={launchResults}
+                setLaunchResults={setLaunchResults}
+                selectedFormat={selectedFormat}
+                onEdit={handleEdit}
+                onReset={requestReset}
+                onRegenerate={handleRegenerate}
+                onCopy={handleCopy}
+                photos={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
+                ideaText={ideaText}
+                objective={objective}
+                editorialAngle={editorialAngle}
+              />
             )}
 
             {step === "edit" && (
