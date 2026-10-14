@@ -1599,8 +1599,9 @@ Deno.test("a stuck version whose stored result is missing becomes uncertain, nev
       if (url.pathname === `/storage/v1/object/visual-studio/${f.version.result_path}`) {
         return Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
       }
-      if (url.pathname === "/rest/v1/visual_studio_versions" && init?.method === "PATCH") {
-        const patch = JSON.parse(String(init.body));
+      const ri = init as RequestInit | undefined;
+      if (url.pathname === "/rest/v1/visual_studio_versions" && ri?.method === "PATCH") {
+        const patch = JSON.parse(String(ri.body));
         updates.push(patch);
         Object.assign(f.version, patch);
       }
