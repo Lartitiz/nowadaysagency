@@ -223,6 +223,13 @@ appelants n'ont pas changé d'import.
 - Les briefs par format sont dans `_shared/format-briefs.ts` :
   `carouselBrief`, `reelBrief`, `storiesBrief`, `linkedinBrief`,
   `pinterestBrief`, `newsletterBrief`, `captionBrief`, `photoCaptionBrief`.
+  Découpage en cours (14/10/2026) : un fichier par format dans
+  `_shared/format-briefs/` (`carousel.ts`, `pinterest.ts`, `newsletter.ts`,
+  `caption.ts`, `photo-caption.ts`, `position.ts`, plus `common.ts` pour
+  `annoncedItems`). `format-briefs.ts` les réexporte et garde encore reel,
+  stories et LinkedIn. Pour retoucher un brief, modifie SON fichier ;
+  `format-briefs/boundaries_test.ts` interdit qu'un brief en importe un
+  autre (sauf `common.ts`) ou importe `position.ts`.
 
 **Passes spécifiques à un format** (fichiers `formats/*`, voir ci-dessus)
 
@@ -423,7 +430,7 @@ fonctions qui ne s'appellent pas « carousel »**.
 
 | Module | Fonctions touchées |
 |---|---|
-| `format-briefs` (briefs reel, stories, LinkedIn, newsletter, Pinterest, légende) | creative-flow |
+| `format-briefs` et `format-briefs/*` (briefs reel, stories, LinkedIn, newsletter, Pinterest, légende, prise de position) | creative-flow |
 | `story-formatting`, `linkedin-hook`, `multi-subject`, `vision-prompts`, `strip-markdown` | creative-flow |
 | `carousel-length`, `carousel-plan-format`, `content-quality`, `previous-hooks`, `recent-briefs`, `depth-research` | carousel-ai, creative-flow (⚠️ deux fonctions : le carrousel ET les autres formats) |
 | `carousel-cover`, `carousel-thread`, `carousel-progression`, `carousel-draft-stream`, `recent-passages`, `schema-limit`, `photo-slide-structure`, `photo-template-assign` | carousel-ai |
