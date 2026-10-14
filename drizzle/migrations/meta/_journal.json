@@ -57,6 +57,13 @@
       "when": 1791809191603,
       "tag": "0007_owner_workspace_single_creation",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791994760791,
+      "tag": "0008_cron_jobs_health",
+      "breakpoints": true
     }
   ]
 }
