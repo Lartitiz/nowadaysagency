@@ -1,0 +1,89 @@
+name: Sauvegarde Lovable → PR
+
+# Quand une PR est fusionnée sur GitHub pendant une session Lovable, Lovable ne
+# peut pas pousser sur main : il met le travail de côté sur une branche
+# « lovable-sync-<horodatage> » et rien ne prévient. 26 branches de ce type entre
+# le 29/09 et le 14/10/2026, dont une correction perdue (deno.json, 08/10).
+# Ici : dès qu'une branche lovable-sync-* arrive avec du travail absent de main,
+# une PR vers main est ouverte et assignée à la propriétaire, avec la marche à
+# suivre (fusion classique, jamais squash ni rebase). Si GitHub refuse la PR
+# (historiques sans lien, création de PR interdite aux Actions), une issue
+# « lovable-sync » la remplace avec le lien de comparaison.
+# Les tests (workflow « CI ») tournent aussi sur ces branches : leur résultat
+# s'affiche dans la PR.
+
+on:
+  push:
+    branches: ["lovable-sync-*"]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: lovable-sync-pr-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Ouvrir la PR de récupération (ou l'alerte)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          BRANCH: ${{ github.ref_name }}
+          SERVER: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          existing=$(gh pr list --head "$BRANCH" --state open --json url -q '.[0].url // empty')
+          if [ -n "$existing" ]; then
+            echo "PR déjà ouverte : $existing"; exit 0
+          fi
+          git fetch -q origin main
+          # Commits dont le contenu n'est pas déjà dans main (git cherry ignore
+          # ceux repris à l'identique par une autre fusion).
+          missing=$(git cherry origin/main HEAD | grep -c '^+' || true)
+          if [ "$missing" = "0" ]; then
+            echo "Tout le contenu de $BRANCH est déjà dans main : rien à faire."; exit 0
+          fi
+          when=$(date -u -d "@${BRANCH##*-}" '+%d/%m/%Y %H:%M UTC' 2>/dev/null || echo "?")
+          commits=$(git log --format='- %s' origin/main..HEAD | head -15)
+          files=$(git diff --stat "$(git merge-base origin/main HEAD 2>/dev/null || echo origin/main)" HEAD | tail -15)
+          body=$(printf '%s\n' \
+            "Lovable n'a pas pu enregistrer ce travail sur main le $when (une PR a été fusionnée sur GitHub pendant la session) et l'a mis de côté sur \`$BRANCH\`." \
+            "" \
+            "**Commits concernés ($missing absents de main) :**" \
+            "$commits" \
+            "" \
+            '```' \
+            "$files" \
+            '```' \
+            "" \
+            "**Que faire :**" \
+            "1. Dans Lovable, au message « Un push vers votre dépôt a remplacé votre travail », garder **la version du dépôt** (le travail est ici, il n'est pas perdu)." \
+            "2. Vérifier que les tests (CI) passent sur cette PR." \
+            "3. Fusionner avec **« Create a merge commit »**, jamais « Squash » ni « Rebase »." \
+            "4. Si ce travail n'est plus voulu : fermer la PR." \
+            "" \
+            "_PR ouverte automatiquement par le workflow « Sauvegarde Lovable → PR »._")
+          gh label create lovable-sync --color FB3D80 --description "Travail Lovable mis de côté à récupérer" 2>/dev/null || true
+          if url=$(gh pr create --base main --head "$BRANCH" \
+                --title "Récupérer le travail Lovable du $when ($BRANCH)" \
+                --body "$body" --label lovable-sync --assignee "$OWNER" 2>pr-err.txt); then
+            echo "PR ouverte : $url"
+          else
+            echo "PR refusée par GitHub : $(cat pr-err.txt)"
+            if gh issue list --label lovable-sync --state open --search "$BRANCH in:title" --json number -q '.[0].number // empty' | grep -q .; then
+              echo "Alerte déjà ouverte."; exit 0
+            fi
+            gh issue create --label lovable-sync --assignee "$OWNER" \
+              --title "Travail Lovable à récupérer ($BRANCH)" \
+              --body "$(printf '%s\n' "$body" "" "⚠️ La PR n'a pas pu être ouverte automatiquement : $(cat pr-err.txt)" "" "Comparer : $SERVER/$GH_REPO/compare/main...$BRANCH" "Si GitHub indique que les historiques ne sont pas liés, fusionner en local avec \`git merge --allow-unrelated-histories origin/$BRANCH\`.")"
+          fi
