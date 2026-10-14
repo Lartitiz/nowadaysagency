@@ -904,6 +904,8 @@ function CreerWorkspace() {
     const obj = paramObjectif || locState.objectif || locState.objective || null;
 
     if (subject) setIdeaText(subject);
+    // « Ouvrir dans l'atelier » (fiche du calendrier) envoie le sujet du post dans `theme`.
+    else if (locState.fromCalendar && typeof locState.theme === "string" && locState.theme.trim()) setIdeaText(locState.theme.trim());
     if (obj) setObjective(normalizeObjective(obj) ?? obj);
     if (locState?.existingContent) setExistingCalendarContent(locState.existingContent);
 
@@ -1150,7 +1152,9 @@ function CreerWorkspace() {
         if (cancelled) return;
         if (items.length === 0) throw new Error("Impossible de charger la photo.");
         if (failedCount > 0) {
-          toast.warning(`${failedCount} photo${failedCount > 1 ? "s" : ""} n'ont pas pu être chargées. Vérifie ta sélection avant de créer le contenu.`);
+          toast.warning(failedCount > 1
+            ? `${failedCount} photos n'ont pas pu être chargées. Vérifie ta sélection avant de créer le contenu.`
+            : "1 photo n'a pas pu être chargée. Vérifie ta sélection avant de créer le contenu.");
         }
         setUploadedPhotos(items);
         if (items.length > 0) savePhotos(items);
@@ -2185,9 +2189,12 @@ function CreerWorkspace() {
     activeReelScope.current = reelScope;
     return () => { activeReelScope.current = "unmounted"; };
   }, [reelScope]);
-  const [reelArtifact, setReelArtifact] = useState(() => ({
-    scope: reelScope, url: ps?.reelSourceKey === reelSource ? ps?.reelMp4Url || null : null,
-  }));
+  const [reelArtifact, setReelArtifact] = useState(() => {
+    // Au rechargement, le résultat n'est restauré qu'après le premier rendu :
+    // la vidéo se rattache alors au script sauvegardé, sinon elle était perdue.
+    const source = result ? reelSource : reelSourceKey(ps?.result?.raw || ps?.result);
+    return { scope: `${workspaceId}:${creationId}:${source}`, url: ps?.reelSourceKey === source ? ps?.reelMp4Url || null : null };
+  });
   const reelMp4Url = reelArtifact.scope === reelScope && isDurableReelUrl(reelArtifact.url) ? reelArtifact.url : null;
   const setReelMp4Url = useCallback((url: string | null) => {
     if (activeReelScope.current === reelScope) setReelArtifact({ scope: reelScope, url });

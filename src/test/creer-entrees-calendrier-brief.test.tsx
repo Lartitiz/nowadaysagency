@@ -133,20 +133,19 @@ describe('calendrier → /creer (rendu réel)', () => {
     expect(mocks.formatNext).not.toHaveBeenCalled();
     expect(mocks.generate).not.toHaveBeenCalled();
     expect(mocks.generateQuestions).not.toHaveBeenCalled();
-    // Comportement actuel (à vérifier) : l'atelier envoie `theme`, que /creer ne lit
-    // pas (il lit `sujet`/`subject`) → le sujet du contenu arrive vide.
-    expect(loadFlowState()?.ideaText).toBe('');
+    // L'atelier envoie le sujet du post dans `theme` (et pas `sujet`).
+    expect(loadFlowState()?.ideaText).toBe('Thème du post');
   });
 
-  it('CalendarPostDialog › handleOpenAtelier sans resumeIdea : ouvre l’étape format, sujet vide (theme non lu)', async () => {
+  it('CalendarPostDialog › handleOpenAtelier sans resumeIdea : ouvre l’étape format avec le sujet du post', async () => {
     mount({
       pathname: '/creer',
       search: '?canal=instagram',
       state: { resumeIdea: undefined, fromCalendar: true, calendarPostId: 'cal-5', theme: 'Mon thème', objectif: '', angle: '', format: 'post_carrousel', notes: '', postDate: '2026-11-08', existingContent: '', existingAccroche: null },
     });
     expect(await screen.findByText(/^Format :/)).toBeInTheDocument();
-    expect(screen.getByText(/^Idée :/)).toHaveTextContent(/^Idée :$/);
-    await waitFor(() => expect(loadFlowState()).toMatchObject({ step: 'format', selectedFormat: 'carousel', calendarPostId: 'cal-5', calendarPostDate: '2026-11-08', ideaText: '' }));
+    await waitFor(() => expect(screen.getByText(/^Idée :/)).toHaveTextContent('Idée : Mon thème'));
+    await waitFor(() => expect(loadFlowState()).toMatchObject({ step: 'format', selectedFormat: 'carousel', calendarPostId: 'cal-5', calendarPostDate: '2026-11-08', ideaText: 'Mon thème' }));
     expect(mocks.formatNext).not.toHaveBeenCalled();
     expect(mocks.generate).not.toHaveBeenCalled();
   });

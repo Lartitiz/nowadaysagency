@@ -205,8 +205,7 @@ describe('photos', () => {
       return { base64: `data:image/png;base64,${photo.id}`, name: photo.name, mimeType: 'image/png' };
     });
     mount({ pathname: '/creer', search: '', state: { libraryPhotoIds: ['library-1', 'library-2'] } });
-    // Texte actuel (accord à revoir au singulier : « 1 photo n'ont pas pu… »).
-    await waitFor(() => expect(mocks.toast.warning).toHaveBeenCalledWith("1 photo n'ont pas pu être chargées. Vérifie ta sélection avant de créer le contenu."));
+    await waitFor(() => expect(mocks.toast.warning).toHaveBeenCalledWith("1 photo n'a pas pu être chargée. Vérifie ta sélection avant de créer le contenu."));
     await waitFor(() => expect(loadPhotos().map((p) => p.userPhotoId)).toEqual(['library-1']));
     // Le nom de la photo, assez descriptif, devient le sujet.
     await waitFor(() => expect(loadFlowState()).toMatchObject({ step: 'format', ideaText: 'Portrait de face' }));

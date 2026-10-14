@@ -220,15 +220,22 @@ describe('handleReset', () => {
 
   const raw = { sections: [{ label: 'Accroche', texte_parle: 'Bonjour' }] };
 
-  it('comportement actuel (bug probable) : au rechargement, la vidéo montée du reel n’est pas reprise', async () => {
-    // Le résultat n'est restauré qu'APRÈS le premier rendu (effet) : la clé du
-    // script vaut alors « [] », différente de reelSourceKey sauvegardée, et
-    // l'effet de sauvegarde écrase aussitôt reelMp4Url par null.
+  it('au rechargement, la vidéo montée du reel est reprise avec son script', async () => {
+    // Le résultat n'est restauré qu'après le premier rendu : la vidéo se rattache
+    // au script sauvegardé (avant le 14/10/2026, elle était perdue).
     saveFlowState({ step: 'result', ideaText: 'Reel', selectedFormat: 'reel', result: { type: 'reel', raw }, creationId: 'reel-creation', reelMp4Url: video, reelSourceKey: reelSourceKey(raw) });
     mount();
     await screen.findByTestId('result');
-    expect(mocks.resultProps.reelMp4Url).toBeNull();
+    await waitFor(() => expect(mocks.resultProps.reelMp4Url).toBe(video));
+    await waitFor(() => expect(loadFlowState()).toMatchObject({ reelMp4Url: video, reelSourceKey: reelSourceKey(raw) }));
+  });
+
+  it('au rechargement, une vidéo sauvegardée pour un autre script n’est pas reprise', async () => {
+    saveFlowState({ step: 'result', ideaText: 'Reel', selectedFormat: 'reel', result: { type: 'reel', raw }, creationId: 'reel-creation', reelMp4Url: video, reelSourceKey: reelSourceKey({ sections: [{ texte_parle: 'Ancien script' }] }) });
+    mount();
+    await screen.findByTestId('result');
     await waitFor(() => expect(loadFlowState()).toMatchObject({ reelMp4Url: null, reelSourceKey: reelSourceKey(raw) }));
+    expect(mocks.resultProps.reelMp4Url).toBeNull();
   });
 
   it('vide le brouillon, la copie du résultat, le suivi de publication et la vidéo du reel', async () => {

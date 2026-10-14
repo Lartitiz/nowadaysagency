@@ -252,7 +252,9 @@ describe('exports du carrousel', () => {
     expect(mocks.exportHybrid).not.toHaveBeenCalled();
   });
 
-  it('comportement actuel : visuels périmés → le PPTX texte part quand même, avec les anciens visuels', async () => {
+  // Le PPTX texte est construit depuis le texte des slides (à jour) : exportCarouselPptx
+  // ignore les visuels qu'on lui passe, il n'a donc pas à être bloqué.
+  it('visuels périmés → le PPTX texte reste disponible', async () => {
     await ouvrirCarrousel();
     act(() => mocks.resultProps.onCarouselStaleChange(true));
     await act(async () => { await mocks.resultProps.onExportPptx(); });
