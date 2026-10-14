@@ -101,6 +101,11 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
   elle n'a pas bougé. Sinon rien n'est écrasé : « Enregistrer une copie de mon
   contenu » ou « Recharger la dernière version ». Test :
   `src/test/save-to-ideas-version.test.tsx`.
+- **Publication immédiate** (`recordImmediatePublication`, `use-calendar-save.ts`) :
+  la fiche du calendrier ouverte n'est réécrite que si elle est encore dans sa
+  version d'ouverture. Sinon on garde la version faite ailleurs et on y ajoute
+  seulement le suivi (publié, lien du post, programmation coupée), avec un
+  message. Tests : `src/test/use-calendar-save.test.tsx`.
 - **Longueurs maximales côté serveur** (400 en français, sans appel IA ni débit) :
   `ai-text-action` 8 000 caractères sélectionnés et 1 000 de consigne ;
   `creative-flow` étape `adjust`, champ `content` 15 000 caractères (cas

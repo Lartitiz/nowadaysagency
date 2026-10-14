@@ -157,6 +157,7 @@ export function useCalendarSave({
         story_sequence_detail: { ...(storyDetail || {}), ...(visualSlides.length ? { visual_html: visualSlides } : {}) },
         ...(selectedFormat === "reel" ? { media_urls: isDurableReelUrl(reelMp4Url) ? [reelMp4Url] : [] } : publishableImageUrl ? { media_urls: [publishableImageUrl] } : {}),
       };
+      let keptNewerVersion = false;
       let id = selectedFormat === "reel" || activeScope.current !== editorScope
         ? publicationCalendarId : publishedCalendarId.current || calendarPostId;
       if (selectedFormat === "reel" && !id) {
@@ -175,6 +176,35 @@ export function useCalendarSave({
             || (existing.workspace_id || null) !== (workspaceId !== session.user.id ? workspaceId : null)) {
             throw readError || new Error("Publication non retrouvée dans le calendrier");
           }
+        }
+      } else if (id && id === calendarPostId) {
+        // Fiche du calendrier ouverte ici : même contrôle de version que le
+        // retour vers le calendrier. Le post est DÉJÀ en ligne : en cas de
+        // conflit (ou de version illisible), on n'écrase pas la version plus
+        // récente faite ailleurs, on y ajoute seulement le suivi de publication
+        // (statut, lien du post, plus de programmation pour ne pas republier).
+        const expectedUpdatedAt = await readVersion(id).catch(() => null);
+        let applied = false;
+        if (expectedUpdatedAt) {
+          const { data, error } = await supabase.from("calendar_posts").update(payload)
+            .eq("id", id).eq("updated_at", expectedUpdatedAt).select("id,updated_at").maybeSingle();
+          if (error) throw error;
+          if (data?.id === id) {
+            applied = true;
+            if (activeScope.current === editorScope && data.updated_at) {
+              versionRead.current = { id, promise: Promise.resolve(data.updated_at) };
+              saveFlowState({ calendarPostUpdatedAt: data.updated_at });
+            }
+          }
+        }
+        if (!applied) {
+          const { data, error } = await supabase.from("calendar_posts").update({
+            date, status: "published", publish_status: "published", published_at: payload.published_at,
+            published_post_id: payload.published_post_id, publish_error: null,
+            auto_publish: false, scheduled_publish_at: null, updated_at: payload.updated_at,
+          }).eq("id", id).select("id").single();
+          if (error || data?.id !== id) throw error || new Error("Publication non retrouvée dans le calendrier");
+          keptNewerVersion = true;
         }
       } else if (id) {
         const update = supabase.from("calendar_posts").update(payload).eq("id", id);
@@ -208,6 +238,9 @@ export function useCalendarSave({
       if (currentBriefId) {
         const { error } = await supabase.from("content_briefs").update({ calendar_post_id: id }).eq("id", currentBriefId);
         if (error) throw error;
+      }
+      if (keptNewerVersion) {
+        toast.warning("Ton contenu est publié. Sa fiche du calendrier avait été modifiée ailleurs entre-temps : on a gardé cette autre version et on l’a marquée comme publiée. Ne le republie pas.", { duration: 12000 });
       }
       return true;
     } catch (error) {
