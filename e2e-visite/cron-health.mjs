@@ -8,6 +8,8 @@
  * + santé de la FACTURATION (incident Stripe 24-31/07 : 8 jours de webhook en 500 sans
  *   qu'aucune sonde ne le voie) — événements que Stripe n'arrive pas à livrer,
  *   abonnements payés sans accès en base, périodes de facturation périmées.
+ * + erreurs JS (vraies clientes à part des comptes test) et santé des E-MAILS
+ *   (envoyés, échecs, file email_queue bloquée).
  * Avec `--hebdo` : scope "weekly" (routine du lundi) — coûts IA, usage features,
  * rétention par cohorte, volume de publications.
  * Dans les deux : budget images HIGGSFIELD du mois (crédit OpenAI épuisé depuis le
@@ -117,19 +119,49 @@ try {
       const conso = pr.consommes_mois != null ? `, consommés ${pr.consommes_mois} (${rythme})` : "";
       console.log(`   crédits Photoroom restants     : ${pr.restants}${pr.abonnement ? ` / ${pr.abonnement}` : ""}${conso}${pr.alerte ? `  🔴 ${pr.alerte}` : ""}`);
     }
-    // Erreurs JS remontées par le navigateur des clientes (#949). Catégories fermées,
-    // aucun message : on voit QUEL écran casse, pas pourquoi. ⚠️ comptes test inclus
-    // (l'edge ne filtre pas) : un run de visite peut en produire.
+    // Erreurs JS remontées par le navigateur (#949). Catégories fermées, aucun
+    // message : on voit QUEL écran casse, pas pourquoi. Depuis le 14/10, l'edge
+    // sépare les vraies clientes (alerte) des comptes internes/test (info) ; sans
+    // `internes`, c'est l'ancienne edge : tout mélangé, comptes test inclus.
     const ce = d.client_errors_24h;
     if (ce) {
-      const parEcran = {};
-      for (const e of ce.items || []) {
-        const k = `${e.route}/${e.kind}`;
-        parEcran[k] = (parEcran[k] || 0) + 1;
+      const nouveau = !!ce.internes;
+      const parEcran = ce.par_ecran || {};
+      if (!ce.par_ecran) {
+        for (const e of ce.items || []) {
+          const k = `${e.route}/${e.kind}`;
+          parEcran[k] = (parEcran[k] || 0) + 1;
+        }
       }
       const detail = Object.entries(parEcran).map(([k, n]) => `${k}×${n}`).join(", ");
-      console.log(`   erreurs JS clientes (24 h)     : ${ce.count}${ce.count ? `  🟡 ${detail}${ce.count > (ce.items || []).length ? " (20 dernières)" : ""}` : ""}`);
+      const internes = nouveau
+        ? ` (comptes internes/test : ${ce.internes.count}${ce.internes.count ? ` — ${Object.entries(ce.internes.par_ecran || {}).map(([k, n]) => `${k}×${n}`).join(", ")}` : ""})`
+        : "  ⚠️ comptes test INCLUS (edge cron-health pas redéployée)";
+      const icone = ce.render ? "🔴" : "🟡";
+      console.log(`   erreurs JS clientes (24 h)     : ${ce.count}${ce.count ? `  ${icone} ${detail}${ce.count > (ce.items || []).length ? " (20 dernières)" : ""}` : ""}${internes}`);
+      if (ce.render) console.log(`      🔴 ${ce.render} écran(s) planté(s) vu(s) par une VRAIE cliente (kind render = écran d'erreur)`);
       for (const e of ce.items || []) console.log(`      • ${e.route} — ${e.kind}${e.asset ? ` (${e.asset})` : ""} — ${e.created_at}`);
+    }
+
+    // ── E-mails (14/10) : envoyés, échecs, file bloquée — hors comptes internes.
+    // Seuils (jugés côté edge, sante-emails.ts) : 🔴 si échec > 0 ou file bloquée
+    // (> 1 h) ; 0 envoyé n'est PAS une alerte (on ne sait pas ce qui était attendu).
+    const em = d.emails_24h;
+    if (!em) {
+      console.log("✉️ E-mails : non mesuré (edge cron-health pas redéployée)");
+    } else if (em.erreur) {
+      console.log(`✉️ E-mails : ⚠️ non lus (${em.erreur})`);
+    } else {
+      console.log("✉️ E-mails (24 h, hors comptes internes)");
+      const ign = em.ignores ? ` (+ ${em.ignores} ignoré(s) : désabonnée, plafond ou adresse de test)` : "";
+      console.log(`   envoyés                        : ${em.envoyes}${ign}${em.envoyes ? "" : "  (0 : normal s'il n'y avait rien à envoyer — pas jugé)"}`);
+      console.log(`   échecs                         : ${em.echecs}${em.echecs ? "  🔴" : " ✅"}`);
+      for (const f of em.echecs_items || []) console.log(`      🔴 ${f.type} [${f.statut}] le ${f.quand} — ${f.erreur || "sans message"}`);
+      const fb = em.file_bloquee || {};
+      console.log(`   en attente depuis > 1 h        : ${fb.count ?? 0}${fb.count ? `  🔴 file bloquée (cron d'envoi email-trigger mort ?) — plus ancienne due le ${fb.plus_ancienne}` : " ✅"}${fb.internes ? ` (+ ${fb.internes} interne(s))` : ""}`);
+      const it = em.internes;
+      if (it && (it.envoyes || it.echecs || it.ignores)) console.log(`   comptes internes (info)        : ${it.envoyes} envoyé(s), ${it.echecs} échec(s), ${it.ignores} ignoré(s)`);
+      console.log(em.alerte ? `   🔴 ${em.alerte}` : "   ✅ pas d'alerte");
     }
 
     // ── Facturation (incident Stripe 24-31/07) ────────────────────────────────
