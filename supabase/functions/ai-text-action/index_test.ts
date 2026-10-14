@@ -6,7 +6,7 @@
 //
 // Lancer : deno test --allow-env --allow-read supabase/functions/ai-text-action/index_test.ts
 
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   captureServeHandler,
   installFetchMock,
@@ -19,6 +19,8 @@ import {
 setTestEnv();
 const MODULE_URL = new URL("./index.ts", import.meta.url).href;
 const handler = await captureServeHandler(MODULE_URL);
+// Après la capture (un import statique lancerait le vrai Deno.serve).
+const { MAX_ACTION_PROMPT, MAX_SELECTED_TEXT } = await import(MODULE_URL);
 
 const REQUEST_BODY = {
   selected_text: "Le café du coin est bon, l'accueil est chaleureux.",
@@ -86,6 +88,71 @@ Deno.test("texte source contient déjà un retournement -> pas de re-passe (déf
     assertEquals(res.status, 200);
     const body = await res.json();
     assertEquals(body.result, "Ce n'est pas un café ordinaire, c'est une expérience mémorable.");
+    assertEquals(mock.anthropicCallCount, 1);
+    assertEquals(mock.aiUsageInserts.length, 1);
+  } finally {
+    mock.restore();
+  }
+});
+
+// ── Limites de longueur (lot 10, 14/10/2026) : refus clair, sans appel IA ni débit ──
+
+async function rejectedWith(body: Record<string, unknown>) {
+  const mock = installFetchMock({ anthropic: () => anthropicTextSuccess("ne doit pas être appelé") });
+  try {
+    const res = await handler(authedRequest(`${TEST_SUPABASE_URL}/functions/v1/ai-text-action`, body));
+    const json = await res.json();
+    assertEquals(mock.anthropicCallCount, 0);
+    assertEquals(mock.aiUsageInserts.length, 0);
+    return { status: res.status, error: json.error as string };
+  } finally {
+    mock.restore();
+  }
+}
+
+Deno.test("texte sélectionné trop long -> 400 en français, aucun appel IA, aucun crédit", async () => {
+  const { status, error } = await rejectedWith({
+    selected_text: "a".repeat(MAX_SELECTED_TEXT + 1),
+    action_prompt: "raccourcis ce passage",
+  });
+  assertEquals(status, 400);
+  assertStringIncludes(error, "Le texte sélectionné est trop long");
+  assertStringIncludes(error, "Sélectionne un passage plus court");
+});
+
+Deno.test("consigne trop longue -> 400 en français, aucun appel IA, aucun crédit", async () => {
+  const { status, error } = await rejectedWith({
+    selected_text: REQUEST_BODY.selected_text,
+    action_prompt: "b".repeat(MAX_ACTION_PROMPT + 1),
+  });
+  assertEquals(status, 400);
+  assertStringIncludes(error, "Ta consigne est trop longue");
+});
+
+Deno.test("champ manquant ou non texte -> 400 en français, aucun appel IA", async () => {
+  for (const body of [
+    { action_prompt: "raccourcis" },
+    { selected_text: REQUEST_BODY.selected_text },
+    { selected_text: ["pas", "un texte"], action_prompt: "raccourcis" },
+    { selected_text: "   ", action_prompt: "raccourcis" },
+  ]) {
+    const { status, error } = await rejectedWith(body);
+    assertEquals(status, 400);
+    assertEquals(error, "Sélectionne un texte et choisis une action.");
+  }
+});
+
+Deno.test("pile à la limite -> accepté (1 appel IA, 1 crédit)", async () => {
+  const mock = installFetchMock({ anthropic: () => anthropicTextSuccess("Version courte.") });
+  try {
+    const res = await handler(
+      authedRequest(`${TEST_SUPABASE_URL}/functions/v1/ai-text-action`, {
+        selected_text: "Le café est bon. ".repeat(500).slice(0, MAX_SELECTED_TEXT),
+        action_prompt: "c".repeat(MAX_ACTION_PROMPT),
+      }),
+    );
+    assertEquals(res.status, 200);
+    await res.json();
     assertEquals(mock.anthropicCallCount, 1);
     assertEquals(mock.aiUsageInserts.length, 1);
   } finally {

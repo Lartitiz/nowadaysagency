@@ -196,8 +196,11 @@ Deno.test("écriture photo : les champs de mise en page sont retirés, le texte 
   assertEquals(stripWriterLayoutFields("pas du json"), "pas du json");
   // Garde-fou : carousel-ai retire ces champs AVANT la passe des gabarits, et
   // le schéma de sortie de la rédaction photo ne les propose plus.
+  // Lot 8 : le retrait passe par carousel-ai/layout.ts (withoutPhotoWriterLayout).
   const src = await Deno.readTextFile(new URL("../carousel-ai/index.ts", import.meta.url));
-  const strip = src.indexOf("stripWriterLayoutFields(threadPhoto.content)");
+  const layout = await Deno.readTextFile(new URL("../carousel-ai/layout.ts", import.meta.url));
+  assert(/return stripWriterLayoutFields\(content\);/.test(layout), "layout.ts ne retire plus les champs de mise en page");
+  const strip = src.indexOf("withoutPhotoWriterLayout(threadPhoto.content)");
   assert(strip > 0 && strip < src.indexOf("assignPhotoTemplates(content", strip), "retrait avant la passe des gabarits");
   const tool = src.slice(src.indexOf("const PHOTO_CAROUSEL_TOOL"), src.indexOf("caption:", src.indexOf("const PHOTO_CAROUSEL_TOOL")));
   for (const f of WRITER_LAYOUT_FIELDS) assert(!new RegExp(`\\n\\s+${f}: \\{`).test(tool), `schéma d'écriture : ${f}`);
