@@ -10,6 +10,7 @@ import { tryParseAiJson } from "../../_shared/parse-ai-json.ts";
 import { applyCorrectionPassReel } from "../../_shared/correction-pass.ts";
 import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, hookEchoesBefore } from "../../_shared/redac-gate.ts";
 import { countReelSpokenWords, enforceReelNoFaceCam, enforceSelectedReelHook, finalizeReelScript, reelAuditableText, extractReelTexts, reinjectReelTexts, reelTemplateLeaks, reelOverlaysNotFromScript } from "../../_shared/reel-postprocess.ts";
+import { recapHooksLine } from "../../_shared/multi-subject.ts";
 import { CORRECTION_ABORT_MS, addrOpts, gateNumbers } from "../shared.ts";
 
 // ═══ NORMALISATION HOOKS (lot 7) ═══
@@ -219,4 +220,107 @@ export async function enforceReelAudienceAddress(parsed: any, addr: AudienceAddr
   } catch (e) {
     console.error("[creative-flow reel] contrôle tu/vous ignoré (script intact) :", e);
   }
+}
+
+// ═══ ÉTAPE « hooks » (lot 7) : outil structuré + consigne ═══
+// Déplacés À L'IDENTIQUE depuis index.ts (fiche 3, lot A, 14/10/2026).
+// _shared/angle-families_test.ts lit dans ce fichier la liste des types de
+// hook (de la déclaration de l'outil jusqu'à la fonction de consigne) : ne pas
+// écrire leurs noms exacts dans un commentaire placé avant elles.
+
+// Lot 7 reels : 3 hooks d'ouverture proposés AVANT la génération complète.
+// Le schéma reprend la forme exacte de `selected_hook` attendue par reelBrief
+// (format-briefs.ts) : le choix de l'utilisatrice repart tel quel au step generate.
+export const HOOKS_TOOL = {
+  name: "proposer_hooks",
+  description: "Retourne 3 hooks d'ouverture de reel, de types différents.",
+  input_schema: {
+    type: "object",
+    properties: {
+      hooks: {
+        type: "array",
+        description: "TABLEAU de 3 objets hook — jamais une chaîne de caractères, jamais du JSON stringifié",
+        items: {
+          type: "object",
+          properties: {
+            type: { type: "string", description: "vecu_perso | contre_intuition | objection_retournee | question_choc | fait_brut | scene_coupee" },
+            type_label: { type: "string", description: "label court lisible du type, ex. « Vécu perso »" },
+            text: { type: "string", description: "le hook PARLÉ, 8-20 mots, 1-2 phrases, tension immédiate" },
+            text_overlay: { type: "string", description: "texte à l'écran en muet : extrait de 3 à 8 mots du hook parlé (text), recopié tel quel, qui se comprend seul ; casse normale, pas de majuscules imposées" },
+            format_recommande: { type: "string", description: "face_cam_confession | voix_off_broll | hook_loop" },
+            format_label: { type: "string", description: "label lisible de la structure, ex. « Voix off + B-roll »" },
+            duree_cible: { type: "string", description: "durée estimée du reel avec ce hook, ex. « ~30 sec »" },
+          },
+          required: ["type", "type_label", "text", "text_overlay", "format_recommande", "format_label", "duree_cible"],
+        },
+      },
+    },
+    required: ["hooks"],
+  },
+};
+
+export function buildHooksPrompt(params: {
+  COMMON_PREFIX: string;
+  answers?: any[];
+  excludeHooksRaw: unknown;
+  faceCam?: string | null;
+  context: string;
+  effectiveObjective?: string | null;
+  objective?: string | null;
+}): { systemPrompt: string; userPrompt: string } {
+  const { COMMON_PREFIX, answers, excludeHooksRaw, faceCam, context, effectiveObjective, objective } = params;
+  // Lot 7 reels : proposer 3 angles d'attaque AVANT la génération complète.
+  // Étape gratuite (hors BILLED_STEPS) ; le hook choisi repart en selected_hook.
+  const answersBlock = answers?.length
+    ? "\n\nMATIÈRE DU BRIEF (réponses de l'utilisatrice, sa vraie voix) :\n" +
+      answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
+    : "";
+  const excludeHooks: string[] = Array.isArray(excludeHooksRaw)
+    ? excludeHooksRaw.filter((x: unknown): x is string => typeof x === "string").slice(0, 12)
+    : [];
+  const excludeBlock = excludeHooks.length
+    ? `\n\nHOOKS DÉJÀ PROPOSÉS, REFUSÉS PAR L'UTILISATRICE :\n${excludeHooks.map((h) => `- "${h}"`).join("\n")}\nINTERDIT de les reproposer, même reformulés. Change d'angle, pas juste de mots.`
+    : "";
+  const noFaceCam = faceCam === "non";
+  const recapLine = recapHooksLine(context);
+
+  const systemPrompt = `${COMMON_PREFIX}
+
+TA MISSION : proposer 3 HOOKS d'ouverture pour un REEL Instagram sur le sujet donné.
+Le hook = les 3 premières secondes. 50 % des viewers scrollent avant la 3e seconde :
+c'est LE levier de rétention. L'utilisatrice choisit UN hook, le script complet sera
+écrit dessus.${recapLine}
+
+RÈGLES ABSOLUES :
+1. Les 3 hooks sont de TYPES DIFFÉRENTS, choisis parmi :
+   - vecu_perso (« Vécu perso ») : un moment vécu, raconté en Je. UNIQUEMENT si la
+     matière du brief contient un vrai vécu — n'invente JAMAIS une anecdote.
+   - contre_intuition (« Contre-intuition ») : affirmation qui renverse une croyance.
+   - objection_retournee (« Objection retournée ») : la phrase qu'on lui oppose, puis le retournement.
+   - question_choc (« Question choc ») : question qui pique, jamais rhétorique molle.
+   - fait_brut (« Fait brut ») : fait concret/chiffre FOURNI (brief ou branding), sec, sans emballage.
+   - scene_coupee (« Scène coupée ») : on entre au milieu d'une scène, in medias res.
+2. text = ce qu'elle DIT (8-20 mots, 1-2 phrases, oral naturel, tension immédiate).
+   ❌ "Aujourd'hui je vais te parler de..." ❌ hook descriptif ❌ slogan LinkedIn.
+3. text_overlay = ce qu'on LIT à l'écran en MUET (3-8 mots) : UNIQUEMENT ses mots,
+   un extrait du hook parlé (text) recopié tel quel, celui qui fonctionne SEUL sans
+   le son et porte son mot ou chiffre fort. Jamais une information que le parlé ne
+   dit pas. Casse normale d'une phrase, pas de majuscules imposées.
+4. AUCUN chiffre qui ne vient pas du brief, des réponses ou du branding.
+5. SINGULARITÉ : pas le hook consensuel de la niche. Ancre dans SON métier, SES mots,
+   SA matière (contexte de marque ci-dessus).
+5bis. FRANÇAIS IRRÉPROCHABLE — relis chaque hook à voix haute : élisions (« l'avant/après »,
+   jamais « le avant/après ») et homophones (« qu'UN marchand de biens, ça… », jamais
+   « qu'on marchand de biens ») ; le hook choisi part TEL QUEL dans le script final.
+6. format_recommande = la structure que ce hook appelle naturellement
+   (face_cam_confession / voix_off_broll / hook_loop) et duree_cible = durée estimée
+   cohérente avec l'objectif (visibilité → court ~20-30 s ; confiance/vente → ~40-60 s).${noFaceCam ? `
+7. L'UTILISATRICE NE VEUT PAS SE MONTRER : format_recommande ≠ face_cam_confession
+   pour les 3 hooks (voix off + b-roll ou hook loop uniquement).` : ""}${recapLine ? `
+8. REEL RÉCAP (prime sur les règles 1 à 6) : chacun des 3 hooks ouvre la SÉRIE de sujets (ce qu'ils ont en commun, ou l'annonce de leur nombre), jamais un seul des sujets. Les types restent différents.` : ""}${excludeBlock}`;
+  const userPrompt = `SUJET DU REEL : "${context || "?"}"
+Objectif : ${effectiveObjective || objective || "non précisé"}${answersBlock}
+
+Propose-moi 3 hooks de types différents pour ce reel.${recapLine ? " C'est un reel récap : chaque hook annonce la série de sujets, pas un seul sujet." : ""}`;
+  return { systemPrompt, userPrompt };
 }

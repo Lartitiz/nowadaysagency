@@ -36,7 +36,7 @@ function scan(): Record<Exclude<AngleSource, "photo_series" | "reprise">, string
   const reel = read("supabase/functions/_shared/format-briefs/reel.ts");
   const idsAndLabels = (block: string) => [...all(block, /^\s{4}id: "([^"]+)"/gm), ...all(block, /^\s{4}label: "([^"]+)"/gm)];
   const coaching = slice(read("supabase/functions/calendar-coaching/index.ts"), "ANGLES ÉDITORIAUX NOWADAYS", "RÈGLES DE PROFONDEUR");
-  const hooks = slice(read("supabase/functions/creative-flow/index.ts"), "const HOOKS_TOOL", "const FOLLOW_UP_TOOL");
+  const hooks = slice(read("supabase/functions/creative-flow/formats/reel.ts"), "const HOOKS_TOOL", "export function buildHooksPrompt");
   return {
     instagram_angles: idsAndLabels(slice(cs, "export const EDITORIAL_ANGLES", "export const LINKEDIN_EDITORIAL_ANGLES")),
     linkedin_angles: idsAndLabels(slice(cs, "export const LINKEDIN_EDITORIAL_ANGLES", "export const PINTEREST_EDITORIAL_ANGLES")),
