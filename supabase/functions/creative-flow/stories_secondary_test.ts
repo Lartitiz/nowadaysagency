@@ -182,7 +182,8 @@ Deno.test("vision stories : stories sérialisées en chaîne → adoptées ; ré
 });
 
 Deno.test("creative-flow : en mode photo, les stories adoptent la forme structurée AVANT le retrait / la correction / la mise en forme", async () => {
-  const src = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
+  // Chaîne de finition sortie d'index.ts dans postprocess.ts (fiche 3, lot E, 14/10/2026).
+  const src = await Deno.readTextFile(new URL("./postprocess.ts", import.meta.url));
   const start = src.indexOf('if (isStories && step === "generate") {');
   assert(start > 0);
   const block = src.slice(start, start + 1200);

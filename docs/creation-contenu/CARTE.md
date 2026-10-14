@@ -190,11 +190,12 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 
 | Fichier | Contenu | Modifier ce fichier touche… |
 |---|---|---|
-| `index.ts` (~530 l.) | Handler : lecture, quota, validation, lecture du contexte en base, aiguillage des `step`, enrichissements, appel, post-traitement final | tous les formats |
+| `index.ts` (~440 l.) | Handler : lecture, quota, validation, lecture du contexte en base, aiguillage des `step`, enrichissements, aiguillage streaming, appel, lecture de la réponse, crédit, erreurs | tous les formats |
 | `shared.ts` | Délais IA, `gateNumbers`, `_deps`, `addrOpts`, `POST_ADDRESS_FIELDS`, `QUESTIONS_TOOL`, `FOLLOW_UP_TOOL`, `extractImagePayload`, `photoVoiceRule` | tous les formats |
 | `prompts/assist.ts` | Consignes des étapes d'assistance : `buildAnglesPrompt`, `buildQuestionsPrompt`, `buildFollowUpPrompt`, `buildAdjustPrompt` (+ repères `ADJUST_MARKER_RE`), `buildDictationPrompt`, `resolveFormatHint` | tous les formats (étapes avant et après la rédaction) |
 | `prompts/generate.ts` | `buildGeneratePrompt` : consigne de rédaction finale (brief par format, exclusions par format, JSON de sortie, contexte de lancement ; 2 lectures en base pour les stories) | tous les formats |
 | `context.ts` | `buildRequestContext` : actualité, branding, vocabulaire métier, voix, éléments personnels, **`COMMON_PREFIX`** (préfixe de tous les prompts), `QUESTIONS_PREFIX`, calendrier, objectif. Aucune lecture en base (reçoit `ctx`) | **tous les formats, toutes les étapes** : zone la plus sensible |
+| `postprocess.ts` | `finishGenerated` : chaîne de finition après la réponse de Claude (hooks normalisés, tu / vous, passes LinkedIn, newsletter, reel, mise en forme des stories). Le retour anticipé des hooks remonte au handler (`earlyExit`) | tous les formats |
 | `research.ts` | Recherches qui ajoutent des faits au prompt : `skipDepthResearch`, `creativeDepthBlock` (« creuser le sujet »), `runDeepResearchWebSearch` (recherche web, crédit `deep_research` seulement si elle réussit) | posts, reels, stories |
 | `telemetry.ts` | `logGenerationQualityTelemetry` : note du texte final dans `content_quality_events`, sans appel IA | stories, reel, LinkedIn |
 | `call-options.ts` | `callOptionsForStep` : modèle, tokens, température, délai et outil structuré par étape (fonction pure, `call-options_test.ts`) | tous les formats |

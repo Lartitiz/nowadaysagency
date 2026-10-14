@@ -36,6 +36,8 @@ const TOOL_INPUTS: Record<string, unknown> = {
     { question: "Qu'est-ce que ça a changé pour toi ?", placeholder: "Concrètement" },
   ] },
   poser_questions_suivi: { questions: [{ question: "Et après ?", placeholder: "La suite" }] },
+  // Aucune accroche récupérable : seul le cas « hooks sans accroche » le demande.
+  proposer_hooks: { hooks: [] },
   rediger_contenu_visuel: { content: "Les mains dans la terre, j'ai compris que mon prix était juste.", accroche: "Les mains dans la terre.", pillar: "coulisses", objectif: "confiance" },
 };
 
@@ -178,6 +180,7 @@ const CASES: { name: string; body: unknown; text: string; seed?: Seed; status?: 
       { section: "hook", timing: "0-3 sec", texte_parle: "J'ai arrêté les remises.", texte_overlay: "REMISES" },
       { section: "developpement", timing: "3-20 sec", texte_parle: "La cliente a signé quand même.", texte_overlay: "ELLE A SIGNÉ" },
     ], caption: { text: "Le prix juste.", hashtags: ["ceramique"] } }) },
+  { name: "hooks sans accroche récupérable — reel (502 renvoyé par le handler, lot E)", body: { step: "hooks", contentType: "reel", context: CONTEXT, answers: ANSWERS }, text: "" },
   { name: "LinkedIn exemple fictif sur les seuls faits du brief — generate", body: { step: "generate", contentType: "post_linkedin",
     context: "Écris un exemple fictif de post LinkedIn, uniquement avec les faits du brief : une céramiste refuse une remise et la cliente signe.", answers: ANSWERS }, text: POST_JSON },
 ];
