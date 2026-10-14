@@ -111,6 +111,21 @@ if node scripts/impact-creation.mjs --base "${DEPUIS:-HEAD~1}" > /tmp/verif-impa
   fi
 fi
 
+echo "════════ 8. Gros fichiers : cliquet anti-dette (lot G1, 14/10/2026) ════════"
+# Les fichiers de plus de 800 lignes ne doivent ni grossir ni gagner de `any`
+# (référence : scripts/cliquet-dette.baseline.json). La CI bloque pareil.
+if node scripts/cliquet-dette.mjs >/tmp/verif-cliquet.log 2>&1; then
+  if grep -q "ont maigri" /tmp/verif-cliquet.log; then
+    ok "Aucun gros fichier n'a grossi, et certains ont maigri :"
+    sed 's/^/   /' /tmp/verif-cliquet.log
+  else
+    ok "Aucun gros fichier n'a grossi"
+  fi
+else
+  fail "Des gros fichiers ont grossi (la CI sera rouge) :"
+  sed 's/^/   /' /tmp/verif-cliquet.log
+fi
+
 echo ""
 echo "════════════════════════════════════════════"
 if [ "$FAIL" -ne 0 ]; then

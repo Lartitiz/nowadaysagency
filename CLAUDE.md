@@ -221,6 +221,12 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 - `deno.json` garde `"nodeModulesDir": "auto"` (décision du 14/10/2026) : la version `"manual"` faite par Lovable le 08/10 n'a pas été reprise, Lovable redéploie sans souci en `auto`. Repasser en `manual` seulement si l'erreur « File exists (os error 17) » revient.
 - Sessions Claude Code dans le cloud : l'installation des dépendances échoue (`bun.lock` pointe vers le registre de Lovable, 403) et la suppression de branches GitHub est refusée (403). La CI de la PR sert de vérification ; les branches se suppriment à la main sur GitHub.
 
+### Gros fichiers : cliquet anti-dette (lot G1, 14/10/2026)
+- Les fichiers de plus de 800 lignes de `src/` et `supabase/functions/` (hors tests et types générés) ont leur taille et leur nombre de `as any` / `: any` gelés dans `scripts/cliquet-dette.baseline.json`. La CI (`node scripts/cliquet-dette.mjs`) échoue si l'un d'eux grossit ou gagne un `any`, ou si un nouveau fichier dépasse 800 lignes.
+- CI rouge sur ce point : mettre le code ajouté dans un fichier à part (un fichier = une mission), importé par le gros fichier. Ne mettre la référence à jour que si la hausse est voulue : `node scripts/cliquet-dette.mjs --update --accepter-hausse`, et committer le `.json` avec le code.
+- Un fichier a maigri : `node scripts/cliquet-dette.mjs --update` fait baisser la référence (jamais monter).
+- Avant de découper un gros fichier : lire sa fiche dans `docs/robustesse/gros-fichiers.md` (missions, découpage proposé, tests à poser d'abord).
+
 ### Patterns Supabase / Edge Functions
 
 **Quota IA :**
@@ -295,7 +301,7 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 5. **Workspace first** : toute requête de données passe par useWorkspaceFilter
 6. **L'outil est universel** : les textes, exemples et prompts IA internes doivent parler à tout le monde
 7. **Corrections ciblées > refactorisations larges** : on corrige chirurgicalement, on ne refait pas tout
-8. **Création de contenu : lire `docs/creation-contenu/CARTE.md` avant de toucher un générateur** (fichiers par format, modules partagés à risque, tests à lancer) et suivre la section ci-dessous
+8. **Création de contenu : lire `docs/creation-contenu/CARTE.md` avant de toucher un générateur** (état du chantier robustesse : `docs/robustesse/etat-chantier.md`) (fichiers par format, modules partagés à risque, tests à lancer) et suivre la section ci-dessous
 
 ## Création de contenu : modifier un générateur sans casser les autres
 
@@ -305,8 +311,8 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 4. **Les snapshots sont le filet.** Après une modification, lance `npm run test:edges`. Seuls les snapshots du format visé ont le droit de changer. Régénère avec `-- --update` (commande en tête de chaque fichier de test), puis relis le diff du `.snap`. Si un snapshot d'un AUTRE format change, c'est une régression : corrige le code, ne régénère pas.
 5. **Nouveau comportement = nouveau cas de test**, dans le snapshot ou le `contract_test.ts` du format.
 6. **Rapport d'impact.** La CI écrit dans le résumé du lancement les formats touchés et les prompts dont le texte change (`scripts/impact-creation.mjs`). Lis-le avant de fusionner.
-8. **Étiquettes HTML du carrousel (`data-*`).** Le serveur, l'éditeur visuel et les exports se parlent par ces attributs. Liste officielle : `supabase/functions/_shared/carousel-dom-contract.ts`. Ajouter ou renommer un attribut = le déclarer là ET le faire des deux côtés ; `src/test/carousel-dom-contract.test.ts` (noms) et `carousel-dom-contract-roundtrip.test.tsx` (serveur → éditeur → export) bloquent sinon.
 7. **Circuit.** Toucher un générateur = branche + PR, pas Lovable directement sur `main`. Après un chantier Lovable : `bash scripts/verif-post-lovable.sh` (section 7). En production, les échecs de génération arrivent dans Sentry étiquetés par format (`src/lib/generation-telemetry.ts`) : tout nouvel appel à un générateur passe par `invokeWithTimeout`, `invokeWithHeartbeat` ou `useStreamingInvoke` pour en bénéficier.
+8. **Étiquettes HTML du carrousel (`data-*`).** Le serveur, l'éditeur visuel et les exports se parlent par ces attributs. Liste officielle : `supabase/functions/_shared/carousel-dom-contract.ts`. Ajouter ou renommer un attribut = le déclarer là ET le faire des deux côtés ; `src/test/carousel-dom-contract.test.ts` (noms) et `carousel-dom-contract-roundtrip.test.tsx` (serveur → éditeur → export) bloquent sinon.
 
 ## Vocabulaire UI (conventions — audit UX 04/07/2026)
 
