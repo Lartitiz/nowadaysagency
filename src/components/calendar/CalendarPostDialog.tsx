@@ -601,7 +601,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
       if (format) params.set("format", format);
       if (editingPost?.id) params.set("calendar_id", editingPost.id);
       params.set("from", "/calendrier");
-      navigate("/creer?" + params.toString(), { state: { fromCalendar: true, calendarPostId: editingPost?.id, theme, objectif, angle, format, notes, existingContent: contentDraft, existingAccroche: accroche } });
+      navigate("/creer?" + params.toString(), { state: { fromCalendar: true, calendarPostId: editingPost?.id, theme, objectif, angle, format, notes, postDate: selectedDate, existingContent: contentDraft, existingAccroche: accroche } });
     }, 100);
   };
 

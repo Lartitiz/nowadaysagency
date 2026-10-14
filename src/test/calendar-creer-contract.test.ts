@@ -47,10 +47,8 @@ const ENVOIS: { nom: string; bloc: string; state: string[]; params: string[] }[]
     state: [...CLES_STATE_COMMUNES, "postDate"], params: PARAMS_URL },
   { nom: "CalendarPostDialog › handleNavigateToGenerator", bloc: corps(dialog, "handleNavigateToGenerator"),
     state: [...CLES_STATE_COMMUNES, "postDate"], params: PARAMS_URL },
-  // Pas de postDate ici aujourd'hui : /creer retombe alors sur la date du
-  // brouillon local (calendarPostDate). Constat relevé dans CARTE.md.
   { nom: "CalendarPostDialog › handleNavigateToDeepen", bloc: corps(dialog, "handleNavigateToDeepen"),
-    state: CLES_STATE_COMMUNES, params: [...PARAMS_URL, "format"] },
+    state: [...CLES_STATE_COMMUNES, "postDate"], params: [...PARAMS_URL, "format"] },
   { nom: "CalendarPostDialog › handleOpenAtelier", bloc: corps(dialog, "handleOpenAtelier"),
     state: [...CLES_STATE_COMMUNES, "postDate", "resumeIdea"], params: [] },
 ];
@@ -78,5 +76,12 @@ describe("contrat calendrier → /creer", () => {
     // fromCalendar = !!calendarPostId : sans cet identifiant, « Sauvegarder
     // dans le calendrier » crée un nouveau post au lieu de remplir l'ancien.
     expect(creer).toMatch(/const fromCalendar = !!calendarPostId/);
+  });
+
+  it("sans state, le lien vers le post vient du paramètre calendar_id", () => {
+    // Le calendrier envoie calendar_id dans l'URL ET calendarPostId dans le
+    // state : si le state est perdu, l'URL suffit à retrouver le post.
+    expect(creer).toMatch(/useState<string \| null>\(locState\?\.calendarPostId \|\| searchParams\.get\("calendar_id"\)/);
+    for (const e of ENVOIS.filter((x) => x.params.length)) expect(e.bloc, e.nom).toContain('params.set("calendar_id"');
   });
 });
