@@ -29,11 +29,24 @@ interface Props {
   subject?: string;
   newsContext?: string | null;
   workspaceId?: string;
-  onSave: (editedContent: string) => void;
+  /** Retourne false si le texte n'a pas pu être appliqué (l'écran reste ouvert). */
+  onSave: (editedContent: string) => boolean | void;
   onBack: () => void;
   onCopy: (text: string) => void;
   onCalendar?: () => void;
 }
+
+// Type de contenu envoyé à l'ajustement : avant le 14/10/2026, tout ce qui
+// n'était ni LinkedIn ni newsletter partait comme un post Instagram.
+const ADJUST_CONTENT_TYPES: Record<string, string> = {
+  linkedin: "linkedin_post",
+  newsletter: "newsletter",
+  reel: "reel",
+  story: "stories",
+  carousel: "carousel",
+  pinterest_visual: "post_pinterest",
+  pinterest_photo: "post_pinterest",
+};
 
 const ADJUSTMENTS = [
   { id: "shorter", label: "Plus court", emoji: "✂️" },
@@ -80,7 +93,7 @@ export default function CreerStepEdit({ content, savedContent, onDraftChange, fo
       const { data, error } = await invokeWithTimeout("creative-flow", {
         body: {
           step: "adjust",
-          contentType: format === "linkedin" ? "linkedin_post" : format === "newsletter" ? "newsletter" : "instagram_post",
+          contentType: ADJUST_CONTENT_TYPES[format] || "instagram_post",
           content: editedContent,
           adjustment: ADJUSTMENTS.find((a) => a.id === adjustmentId)?.label || adjustmentId,
           context: subject || "",
@@ -92,8 +105,13 @@ export default function CreerStepEdit({ content, savedContent, onDraftChange, fo
       }, 90000);
       if (error) throw new Error(error.message);
 
-      const adjusted = typeof data === "string" ? data : data?.content || data?.text || data?.adjusted || editedContent;
+      const adjusted = typeof data === "string" ? data : data?.content || data?.text || data?.adjusted;
       if (!active.current) return;
+      if (typeof adjusted !== "string" || !adjusted.trim()) {
+        // Avant : l'ancien texte restait et on affichait quand même « Contenu ajusté ! ».
+        toast.error("L'ajustement n'a rien renvoyé. Ton texte est inchangé, réessaie.");
+        return;
+      }
       history.change(adjusted);
       toast.success("Contenu ajusté !");
     } catch (e: any) {
@@ -208,8 +226,7 @@ export default function CreerStepEdit({ content, savedContent, onDraftChange, fo
             <AlertDialogCancel>Continuer à modifier</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                onSave(editedContent);
-                onBack();
+                if (onSave(editedContent) !== false) onBack();
               }}
             >
               Appliquer et revenir

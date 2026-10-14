@@ -159,6 +159,11 @@ const CASES: { name: string; body: Record<string, unknown>; text: string; stream
   { name: "generate — Pinterest texte", body: { step: "generate", contentType: "post_pinterest", context: CONTEXT, answers: ANSWERS },
     text: JSON.stringify({ content: "Céramique : pourquoi afficher ses prix", accroche: "Afficher ses prix", format: "pinterest" }) },
   { name: "adjust — post LinkedIn", body: { step: "adjust", contentType: "linkedin_post", context: CONTEXT, adjustment: "Plus court", content: "J'ai arrêté les remises il y a un an. La cliente a signé." }, text: POST_JSON },
+  // Lot 7 (14/10/2026) : carrousel retouché dans « Modifier », repères à conserver.
+  { name: "adjust — carrousel (repères conservés)", body: { step: "adjust", contentType: "carousel", context: CONTEXT, adjustment: "Plus punchy", content: "--- SLIDE 1 (hook) ---\nJ'ai arrêté les remises.\n\n--- SLIDE 2 (cta) ---\nEnregistre ce post.\n\n--- CAPTION ---\nLe prix juste." },
+    text: JSON.stringify({ content: "--- SLIDE 1 (hook) ---\nFini les remises.\n\n--- SLIDE 2 (cta) ---\nEnregistre ce post.\n\n--- CAPTION ---\nLe prix juste." }) },
+  // Lot 7 : JSON valide mais sans texte → 502, aucun crédit débité.
+  { name: "adjust — réponse sans contenu", body: { step: "adjust", contentType: "instagram_post", context: CONTEXT, adjustment: "Plus court", content: "J'ai arrêté les remises." }, text: "{}" },
   { name: "recycle — LinkedIn + newsletter", body: { step: "recycle", contentType: "recycle", context: "Recyclage de contenu en 2 formats", profile: {}, sourceText: "J'ai arrêté les remises il y a un an : la cliente a signé quand même, et j'affiche maintenant une grille publique sur mon site.", formats: ["linkedin", "newsletter"] },
     text: JSON.stringify({
       results: {

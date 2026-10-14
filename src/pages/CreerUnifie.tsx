@@ -19,6 +19,8 @@ import { handleQuotaError } from "@/lib/quota-error-handler";
 import { slideText } from "@/lib/slide-text";
 import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
 import { pickNonEmpty } from "@/features/creer/photo-source";
+import { applyEditedText, structuredEditText, withoutEditedText } from "@/features/creer/edited-text";
+import { replaceSlideText } from "@/lib/carousel-html-edit";
 import { ownPhotos } from "@/lib/stock-ambient-photos";
 import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason, REASON_IMAGE_MANQUANTE, INSTAGRAM_DIRECT_MAX_IMAGES, checkScheduleGuards, tokenExpiresBeforeSchedule } from "@/features/creer/publish-guards";
 import { startSocialConnect } from "@/lib/social-connect";
@@ -1798,6 +1800,19 @@ function CreerWorkspace() {
     const r = result?.raw || result;
     let text = "";
 
+    // Carrousel et stories : la structure est la seule source de vérité (lot 7),
+    // le texte à plat est reconstruit à partir d'elle à chaque ouverture.
+    const structured = structuredEditText(selectedFormat, r);
+    if (structured !== null) {
+      // Ancienne sauvegarde à plat (avant le 14/10/2026) : on la rouvre pour
+      // qu'elle soit remise à sa place à l'enregistrement, au lieu de la perdre.
+      const legacy = typeof r?.edited_text === "string" && /^--- (SLIDE|STORY) \d+/m.test(r.edited_text) ? r.edited_text : null;
+      setEditContent(legacy ?? structured);
+      setEditBaseline(structured);
+      setStep("edit");
+      return;
+    }
+
     // Si une édition manuelle a déjà été sauvegardée, on la rouvre telle quelle.
     if (typeof r?.edited_text === "string") {
       setEditContent(r.edited_text);
@@ -1809,43 +1824,12 @@ function CreerWorkspace() {
     if (!r) {
       // Pas de résultat IA — utiliser le contenu existant du calendrier ou le brouillon
       text = existingCalendarContent || "";
-    } else if (selectedFormat === "carousel" && Array.isArray(r?.slides)) {
-      const slidesText = (r.slides as any[])
-        .map((s: any) => {
-          const header = `--- SLIDE ${s.slide_number} (${s.role || ""}) ---`;
-          const parts = [s.title, s.body].filter(Boolean);
-          return `${header}\n${parts.join("\n")}`;
-        })
-        .join("\n\n");
-      const captionParts: string[] = [];
-      if (r.caption?.hook) captionParts.push(r.caption.hook);
-      if (r.caption?.body) captionParts.push(r.caption.body);
-      if (r.caption?.cta) captionParts.push(r.caption.cta);
-      const captionText = captionParts.length > 0
-        ? `\n\n--- CAPTION ---\n${captionParts.join("\n\n")}`
-        : "";
-      const hashtagsText = r.caption?.hashtags?.length > 0
-        ? `\n\n${(r.caption.hashtags as string[]).map((h: string) => `#${h.replace(/^#/, "")}`).join(" ")}`
-        : "";
-      text = slidesText + captionText + hashtagsText;
-
     } else if (selectedFormat === "reel" && Array.isArray(r?.sections)) {
       text = (r.sections as any[])
         .map((s: any) => {
           const header = `--- ${s.label || s.section_label || `Section ${s.section_number || ""}`} (${s.timing || ""}) ---`;
           const parts = [s.texte_parle, s.texte_overlay, s.action].filter(Boolean);
           return `${header}\n${parts.join("\n")}`;
-        })
-        .join("\n\n");
-
-    } else if (selectedFormat === "story" && (Array.isArray(r?.stories) || Array.isArray(r?.sequences) || Array.isArray(r?.slides))) {
-      const stories = (Array.isArray(r.stories) && r.stories) || (Array.isArray(r.sequences) && r.sequences) || (Array.isArray(r.slides) && r.slides) || [];
-      text = (stories as any[])
-        .map((s: any, i: number) => {
-          const header = `--- STORY ${s.number || i + 1} (${s.type || s.format || ""}) ---`;
-          const content = s.text || s.texte || s.content || s.instruction || "";
-          const sticker = s.sticker ? `\n🏷️ Sticker : ${s.sticker}` : "";
-          return `${header}\n${content}${sticker}`;
         })
         .join("\n\n");
 
@@ -3196,7 +3180,12 @@ function CreerWorkspace() {
                 canAutoPublish={!!publishChannel}
                 reelMp4Url={reelMp4Url}
                 onReelMp4Change={setReelMp4Url}
-                onReelResultChange={(nextReel) => setResult((prev) => prev ? { ...prev, raw: nextReel } : prev)}
+                onReelResultChange={(nextReel) => setResult((prev) => {
+                  if (!prev) return prev;
+                  // Script retouché directement : il prime sur le texte à plat de « Modifier » (lot 7).
+                  const scriptChanged = JSON.stringify([nextReel?.sections, nextReel?.script]) !== JSON.stringify([prev.raw?.sections, prev.raw?.script]);
+                  return { ...prev, raw: scriptChanged ? withoutEditedText(nextReel) : nextReel };
+                })}
                 reelWorkspaceId={workspaceId}
                 onPublishOrSchedule={effectiveHandleAddToCalendar}
                 publishOrScheduleLabel={fromCalendar ? "Sauvegarder dans le calendrier" : undefined}
@@ -3232,7 +3221,8 @@ function CreerWorkspace() {
                   // de slide (swap photo, réordo, add/delete, texte) sont perdues au reload.
                   setResult((prev: any) => {
                     if (!prev?.raw) return prev;
-                    const nextRaw = { ...prev.raw, slides };
+                    // Retouche directe des slides : plus récente que le texte à plat (lot 7).
+                    const nextRaw = { ...withoutEditedText(prev.raw), slides };
                     if (prev.raw.caption) nextRaw.caption = caption;
                     else if (prev.raw.carousel?.caption) nextRaw.carousel = { ...prev.raw.carousel, caption };
                     // L'IA n'avait fourni AUCUNE légende : sans cette branche, la légende
@@ -3260,7 +3250,7 @@ function CreerWorkspace() {
                     if (!prev?.raw) return prev;
                     const key = Array.isArray(prev.raw.stories) ? "stories"
                       : Array.isArray(prev.raw.sequences) ? "sequences" : "slides";
-                    return { ...prev, raw: { ...prev.raw, [key]: stories } };
+                    return { ...prev, raw: { ...withoutEditedText(prev.raw), [key]: stories } };
                   });
                 } : undefined}
                 photoBriefOverlayHtml={photoBriefOverlayHtml}
@@ -3379,12 +3369,32 @@ function CreerWorkspace() {
                 workspaceId={workspaceId}
                 format={selectedFormat || "post"}
                 onSave={(edited) => {
+                  // Carrousel et stories : le texte retrouve sa place dans les slides /
+                  // stories (lot 7). Autres formats : gardé dans edited_text, que les
+                  // chemins de sauvegarde (calendrier/idées) préfèrent à la version IA.
+                  const applied = applyEditedText(selectedFormat, result?.raw, edited);
+                  if (applied.ok === false) {
+                    toast.error(applied.error, { duration: 10000 });
+                    return false;
+                  }
                   setEditContent(edited);
                   setEditBaseline(edited);
-                  // Persiste le texte édité DANS le résultat (auto-scopé : remplacé à chaque
-                  // nouvelle génération). Les chemins de sauvegarde (calendrier/idées) le
-                  // préfèrent à la version IA d'origine — sinon l'édition était perdue.
-                  setResult((prev) => (prev ? { ...prev, raw: { ...(prev.raw || {}), edited_text: edited } } : prev));
+                  setResult((prev) => (prev ? { ...prev, raw: applied.raw } : prev));
+                  // Le visuel suit le texte, comme pour une retouche directe sur la slide.
+                  if (applied.slideChanges.length && visualSlides.length) {
+                    let next = visualSlides;
+                    let stale = false;
+                    for (const change of applied.slideChanges) {
+                      const slideNumber = applied.raw.slides?.[change.index]?.slide_number || change.index + 1;
+                      const vi = next.findIndex((v) => v.slide_number === slideNumber);
+                      if (vi < 0) { stale = true; continue; }
+                      const patched = replaceSlideText(next[vi].html, change.field, change.oldText, change.newText);
+                      if (!patched) { stale = true; continue; }
+                      next = next.map((v, i) => (i === vi ? { ...v, html: patched } : v));
+                    }
+                    setVisualSlides(next);
+                    if (stale) setCarouselVisualsStale(true);
+                  }
                   toast.success("Modifications appliquées. Enregistre cette version pour la retrouver plus tard.");
                 }}
                 onBack={() => setStep("result")}
