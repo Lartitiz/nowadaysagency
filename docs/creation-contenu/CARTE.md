@@ -460,6 +460,7 @@ régression, corrige le code et pas le snapshot.
 | `pinterest-ai/contract_test.ts` (lot 2) | les 5 actions (name, bio, board-description, pin, keywords) |
 | `storytelling-ai/contract_test.ts` (lot 2) | les 4 types (improve, generate-story, generate-pitch, generate-recap) |
 | `inspire-ai/contract_test.ts` (lot 2) | texte collé et capture d'écran |
+| `_shared/format-briefs_snapshot_test.ts` (14/10/2026, avant découpage) | chaque brief de `format-briefs.ts`, branche par branche, sans passer par creative-flow : reel (objectifs, face cam non, hook partiel, inspiration, angle imposé, numérotation, récap, éléments perso), stories (5 min, 5 gammes de vente, photos, tu / vous, garde-fou, récap), chaque gabarit LinkedIn, Pinterest, newsletter, légende photo, post Instagram par objectif, prise de position (3 formats × actu × vécu) ; plus la liste exacte des exports |
 | `ai-text-action/contract_test.ts` (lot 9) | menu IA sur sélection : quota (refus → 429 sans appel IA ; succès → un seul débit « adaptation » après l'IA ; échec IA → aucun débit), connexion (sans jeton ou jeton refusé → 401), espace (`workspace_id` d'autrui → 403 avant le quota ; espace partagé → branding, quota et débit sur cet espace) |
 | `_shared/carousel-editorial-snapshot_test.ts`, `socle_test.ts` | la relecture des carrousels et les règles communes |
 
