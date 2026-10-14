@@ -411,8 +411,9 @@ fonctions qui ne s'appellent pas « carousel »**.
 
 | Module | Fonctions touchées |
 |---|---|
-| `carousel-editorial-review` | ai-text-action, carousel-ai, carousel-visual, creative-flow, engagement-insight, generate-content, linkedin-ai, pinterest-ai, pinterest-photo-brief, pinterest-visual |
-| `redac-gate`, `correction-pass`, `carousel-model`, `text-structure-guard` | ai-text-action, carousel-ai, creative-flow, engagement-insight, generate-content, linkedin-ai, pinterest-ai, pinterest-photo-brief, pinterest-visual |
+| `carousel-editorial-review` | ai-text-action, carousel-ai, carousel-visual, creative-flow, engagement-insight, generate-content, linkedin-ai |
+| `redac-gate`, `correction-pass`, `carousel-model` | ai-text-action, carousel-ai, creative-flow, engagement-insight, generate-content, linkedin-ai (sans les 3 fonctions Pinterest depuis le 14/10/2026 : `audience-address-pass` n'importe plus que `correction-pass/options.ts`) |
+| `text-structure-guard` | les mêmes + pinterest-ai, pinterest-photo-brief, pinterest-visual |
 | `content-clarity` | les mêmes + inspire-ai |
 | `audience-address-pass` | carousel-ai, creative-flow, generate-content, linkedin-ai, pinterest-* |
 
@@ -631,9 +632,10 @@ LinkedIn » dans `redac-gate` change aussi une mise en forme ou une épingle.
 Le test suit tous les imports (directs et indirects). Un lien indirect voulu
 se déclare dans `LIENS_INDIRECTS_AUTORISES`, avec sa raison ; une exception
 qui ne sert plus fait aussi échouer le test. Aujourd'hui, une seule :
-`pinterest-visual` → `audience-address-pass` → `correction-pass` (→
-`carousel-model`, `reel-postprocess` → `redac-gate`). L'épingle visuelle écrit
-aussi un titre et une description, qui passent le contrôle tu / vous.
+`pinterest-visual` → `audience-address-pass` → `correction-pass/options.ts`
+(depuis le 14/10/2026, plus `carousel-model` ni `redac-gate` derrière).
+L'épingle visuelle écrit aussi un titre et une description, qui passent le
+contrôle tu / vous.
 
 Les deux frontières se complètent : celle du lot 9 regarde, fonction par
 fonction, si un module de design atteint la chaîne de réécriture des textes ;

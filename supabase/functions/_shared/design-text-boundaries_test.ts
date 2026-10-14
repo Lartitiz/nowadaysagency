@@ -41,7 +41,8 @@ const LIENS_INDIRECTS_AUTORISES: Record<string, Record<string, string>> = {
   "pinterest-visual": {
     "audience-address-pass":
       "l'épingle visuelle écrit aussi du texte (titre, description) : elle passe le contrôle tu / vous, " +
-      "qui réécrit les phrases fautives avec correction-pass (→ carousel-model, reel-postprocess → redac-gate)",
+      "qui réécrit les phrases fautives et déballe la réponse avec correction-pass/options.ts (unwrapCorrectionOutput) ; " +
+      "depuis le 14/10/2026, plus de chemin vers carousel-model ni redac-gate",
   },
 };
 

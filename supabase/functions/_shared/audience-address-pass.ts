@@ -1,6 +1,6 @@
 // Passe IA courte du contrôle tu/vous (cf. audience-address.ts, module pur).
 import { callAnthropicSimple } from "./anthropic.ts";
-import { unwrapCorrectionOutput } from "./correction-pass.ts";
+import { unwrapCorrectionOutput } from "./correction-pass/options.ts";
 import { keepStructureOrRevert } from "./text-structure-guard.ts";
 import { audienceAddressFixPrompt, type AudienceAddressPass } from "./audience-address.ts";
 
