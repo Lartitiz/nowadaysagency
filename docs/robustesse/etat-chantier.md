@@ -45,10 +45,12 @@ Reste du lot 8 :
   du reel perdue au rechargement, sujet vide en ouvrant l'atelier depuis le calendrier
   (`theme`), « 1 photo n'ont ». Le PPTX texte avec visuels périmés n'est pas un bug
   (il ignore les visuels).
-- **Lot B** (PR en cours) : `LowCreditsBanner`, la fenêtre « photos manquantes » et
+- **Lot B** (#1496, fusionné le 14/10/2026) : `LowCreditsBanner`, la fenêtre « photos manquantes » et
   « Repartir de zéro ? » sortis à l'identique dans `src/components/creer/LowCreditsBanner.tsx`,
   `PhotoMissingDialog.tsx`, `ConfirmResetDialog.tsx` (affichage pur ; état et actions
   restent dans la page). Rangés dans « Parcours /creer » du rapport d'impact.
+  Fenêtre « photos manquantes » testée sur la vraie page /creer par
+  `src/test/creer-photos-manquantes.test.tsx` (#1505, fusionné le 14/10/2026).
 - **Lot C** ensuite : fonctions pures (`creer-step.ts`, `draft-conflict.ts`,
   `pending-stream.ts`, `edit-text-from-result.ts`, `content-brief.ts`), voir la fiche 1.
 
