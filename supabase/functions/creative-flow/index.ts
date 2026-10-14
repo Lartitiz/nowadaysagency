@@ -45,7 +45,8 @@ import { callOptionsForStep } from "./call-options.ts";
 import { buildRequestContext } from "./context.ts";
 import { finishGenerated } from "./postprocess.ts";
 
-import { buildGeneratePrompt } from "./prompts/generate.ts";
+import { buildGeneratePrompt, generateUsesStoriesBrief } from "./prompts/generate.ts";
+import { loadStoriesGenerateData } from "./formats/stories.ts";
 export { buildGeneratePrompt } from "./prompts/generate.ts";
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -199,8 +200,12 @@ serve(async (req) => {
       }));
 
     } else if (step === "generate") {
+      // Stories : garde-fou vente et catalogue photos lus ici, la consigne ne touche pas la base (lot F).
+      const storiesData = generateUsesStoriesBrief({ isStories, isCarousel, isReel, isLinkedIn, isPhotoMode, context })
+        ? await loadStoriesGenerateData({ supabase, userId, workspace_id, body, effectiveObjective })
+        : undefined;
       const genResult = await buildGeneratePrompt({
-        supabase, userId, workspace_id, body, COMMON_PREFIX, context, contentType, editorialFormat, editorialFormatLabel,
+        storiesData, body, COMMON_PREFIX, context, contentType, editorialFormat, editorialFormatLabel,
         angle, answers, followUpAnswers, calendarBlock, objectiveBlock, newsContextBlock, preGenBlock, effectiveObjective,
         pinterest_link, pinterest_board, variation, previousContent,
         isCarousel, isReel, isStories, isLinkedIn, isPinterest, isNewsletter, isPhotoMode, audienceAddress,

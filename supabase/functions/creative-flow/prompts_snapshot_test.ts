@@ -52,6 +52,7 @@ const {
   buildGeneratePrompt,
   resolveFormatHint,
 } = await import("./index.ts");
+const { loadStoriesGenerateData } = await import("./formats/stories.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -82,14 +83,10 @@ function promptDoc(p: { systemPrompt: string; userPrompt: string }): string {
   return `── SYSTEM PROMPT ──\n${p.systemPrompt}\n\n── USER PROMPT ──\n${p.userPrompt}`;
 }
 
-// buildGeneratePrompt ne touche la base QUE sur le chemin stories (garde-fou
-// vente + catalogue photos). Sur tous les autres chemins, ce fake garantit la
-// pureté : le moindre .from() fait échouer le test.
-const supabaseInterdit = {
-  from(table: string): never {
-    throw new Error(`buildGeneratePrompt ne doit faire AUCUNE requête sur ce chemin (table demandée : ${table})`);
-  },
-};
+// buildGeneratePrompt ne touche plus la base (lot F, 14/10/2026) : le garde-fou
+// vente et le catalogue photos des stories sont lus avant par
+// loadStoriesGenerateData (formats/stories.ts), puis passés dans `storiesData`.
+// Les cas stories ci-dessous lisent le fake via cette fonction.
 
 // Fake minimal des deux requêtes du chemin stories, façon postgrest chaîné
 // (mêmes conventions que les fakes .single()/.maybeSingle() du harnais).
@@ -120,7 +117,6 @@ function fakeSupabaseStories(opts: { venteCount: number; photos: { id: string; d
 
 // Base commune des params de buildGeneratePrompt — chaque cas surcharge.
 const GENERATE_BASE = {
-  supabase: supabaseInterdit,
   userId: "test-user-id",
   workspace_id: null,
   body: {},
@@ -414,8 +410,8 @@ Deno.test("buildDictationPrompt — dictée vocale vers post LinkedIn", async (t
   })));
 });
 
-// ── step "generate" (un cas par famille de format ; le chemin stories est le
-// seul à toucher la base — partout ailleurs supabaseInterdit fait foi) ──
+// ── step "generate" (un cas par famille de format ; la consigne ne lit jamais
+// la base, voir le test « aucune lecture en base » plus bas) ──
 
 Deno.test("buildGeneratePrompt — carrousel avec angle, réponses et follow-up (aucune requête DB)", async (t) => {
   const r = await buildGeneratePrompt({
@@ -519,15 +515,17 @@ Deno.test("buildGeneratePrompt — stories objectif vente : garde-fou 3 séquenc
       { id: "photo-bols", description: "Étagère de bols émaillés bleu nuit, rangés par taille" },
     ],
   });
+  const body = {
+    time_available: "15min",
+    face_cam: "non",
+    price_range: "premium",
+    preferred_photo_ids: ["photo-choisie-sans-description"],
+  };
+  const storiesData = await loadStoriesGenerateData({ supabase, userId: "test-user-id", workspace_id: null, body, effectiveObjective: "vente" });
   const r = await buildGeneratePrompt({
     ...GENERATE_BASE,
-    supabase,
-    body: {
-      time_available: "15min",
-      face_cam: "non",
-      price_range: "premium",
-      preferred_photo_ids: ["photo-choisie-sans-description"],
-    },
+    storiesData,
+    body,
     contentType: "stories",
     effectiveObjective: "vente",
     isStories: true,
@@ -572,7 +570,7 @@ Deno.test("buildGeneratePrompt — reel et stories reçoivent la prise de positi
 
   const stories = await buildGeneratePrompt({
     ...GENERATE_BASE,
-    supabase: fakeSupabaseStories({ venteCount: 0, photos: [] }),
+    storiesData: await loadStoriesGenerateData({ supabase: fakeSupabaseStories({ venteCount: 0, photos: [] }), userId: "test-user-id", workspace_id: null, body: {} }),
     contentType: "stories",
     isStories: true,
     angle: null,
@@ -601,4 +599,12 @@ Deno.test("hooks reel : ligne REEL RÉCAP seulement pour un brief récap", () =>
   assertStringIncludes(recap.systemPrompt, "8. REEL RÉCAP (prime sur les règles 1 à 6)");
   assertStringIncludes(recap.userPrompt, "chaque hook annonce la série");
   assert(!buildHooksPrompt({ COMMON_PREFIX: "", excludeHooksRaw: [], context: veille }).systemPrompt.includes("REEL RÉCAP"));
+});
+
+// Lot F (14/10/2026) : la consigne generate n'interroge plus la base ; les
+// lectures des stories vivent dans formats/stories.ts.
+Deno.test("buildGeneratePrompt — aucune lecture en base dans prompts/generate.ts", async () => {
+  const src = await Deno.readTextFile(new URL("./prompts/generate.ts", import.meta.url));
+  assert(!/\.from\(\s*["']/.test(src), "prompts/generate.ts lit une table : passe par loadStoriesGenerateData (formats/stories.ts)");
+  assert(!/\bsupabase\b/.test(src), "prompts/generate.ts reçoit un client supabase : les lectures se font dans le handler");
 });

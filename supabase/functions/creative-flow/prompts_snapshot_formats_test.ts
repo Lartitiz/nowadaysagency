@@ -41,6 +41,7 @@ const realListen = Deno.listen;
   // deno-lint-ignore no-explicit-any
 }) as any;
 const { buildQuestionsPrompt, buildGeneratePrompt, buildRecycleSystemPrompt } = await import("./index.ts");
+const { loadStoriesGenerateData } = await import("./formats/stories.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -65,13 +66,8 @@ function promptDoc(p: { systemPrompt: string; userPrompt: string }): string {
   return `── SYSTEM PROMPT ──\n${p.systemPrompt}\n\n── USER PROMPT ──\n${p.userPrompt}`;
 }
 
-// Hors stories, buildGeneratePrompt ne doit toucher AUCUNE table.
-const supabaseInterdit = {
-  from(table: string): never {
-    throw new Error(`buildGeneratePrompt ne doit faire AUCUNE requête sur ce chemin (table demandée : ${table})`);
-  },
-};
-
+// buildGeneratePrompt ne lit plus la base (lot F) : les cas stories passent par
+// loadStoriesGenerateData (formats/stories.ts) avec ce fake.
 function fakeSupabaseStories(opts: { venteCount: number; photos: { id: string; description: string | null }[] }) {
   return {
     from(table: string) {
@@ -94,7 +90,6 @@ function fakeSupabaseStories(opts: { venteCount: number; photos: { id: string; d
 }
 
 const GENERATE_BASE = {
-  supabase: supabaseInterdit,
   userId: "test-user-id",
   workspace_id: null,
   body: {},
@@ -173,7 +168,7 @@ Deno.test("generate — légende photo (mode photo, description fournie)", async
 Deno.test("generate — stories sans objectif de vente (aucune photo en bibliothèque)", async (t) => {
   const r = await buildGeneratePrompt({
     ...GENERATE_BASE,
-    supabase: fakeSupabaseStories({ venteCount: 0, photos: [] }),
+    storiesData: await loadStoriesGenerateData({ supabase: fakeSupabaseStories({ venteCount: 0, photos: [] }), userId: "test-user-id", workspace_id: null, body: { time_available: "5min", face_cam: "oui" }, effectiveObjective: "visibilite" }),
     body: { time_available: "5min", face_cam: "oui" },
     contentType: "stories",
     effectiveObjective: "visibilite",
