@@ -51,10 +51,12 @@ Reste du lot 8 :
 ## En attente
 - **E3** : découper CarouselEditor.tsx par mission (plan validé par Laetitia le
   14/10/2026, détail dans `gros-fichiers.md`, fiche 8). Une PR par morceau :
-  - **E3-0** (en cours) : tests de branchement `carousel-editor-wiring.test.tsx`
+  - **E3-0** (#1495, fusionnée) : tests de branchement `carousel-editor-wiring.test.tsx`
     (20 cas : contrôle qualité, aligner / grouper, flèches, boutons des slides,
     calques masqués / retirés, fond, texte sur la photo, voile, aperçu Instagram) ;
-  - E3-1 outils de calcul et petites briques ; E3-2 barre d'outils flottante ;
+  - **E3-1** (en cours) : `CarouselEditorParts/canvas-geometry.ts` et `PanelBits.tsx`
+    (CarouselEditor.tsx : 3 816 → 3 626 lignes) ;
+  - E3-2 barre d'outils flottante ;
     E3-3 reste de l'aperçu ; E3-4 et E3-5 panneau de réglages ; E3-6 en-tête,
     contrôle qualité, miniatures, « Toutes les slides » et « Mes styles ».
   Points d'attention relevés par E2 : `CARTE.md`, section 7 (écho reconnu à la
