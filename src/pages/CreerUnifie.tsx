@@ -18,6 +18,11 @@ import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { slideText } from "@/lib/slide-text";
 import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
+import { countContentBriefs, saveContentBrief } from "@/features/creer/content-brief";
+import { flattenResultForEdit } from "@/features/creer/edit-text-from-result";
+import { parsePendingStreamText } from "@/features/creer/pending-stream";
+import { computeDraftConflict } from "@/features/creer/draft-conflict";
+import { type Step, resolveSafeStep, FORMAT_MAP, SUPPORTED_FORMATS, ONE_SHOT_PARAMS } from "@/features/creer/creer-step";
 import { pickNonEmpty } from "@/features/creer/photo-source";
 import { applyEditedText, structuredEditText, withoutEditedText } from "@/features/creer/edited-text";
 import { replaceSlideText } from "@/lib/carousel-html-edit";
@@ -112,7 +117,6 @@ import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/l
 // Phase 4: streaming SSE is now encapsulated inside useContentGenerator
 import { useUserPlan } from "@/hooks/use-user-plan";
 
-type Step = "idea" | "format" | "questions" | "hook_selection" | "structure_review" | "inspiration_proposals" | "user_slides" | "result" | "edit";
 
 
 export default function CreerUnifie() {
@@ -185,57 +189,10 @@ function CreerWorkspace() {
   const aurianaDemoActive = locState?.demoScenario === "auriana-carousel" || existingFlowState?.demoScenario === "auriana-carousel";
 
   // ── Garde-fou « il y a déjà un contenu en cours » ──
-  // Une nouvelle intention de création (recyclage, actu, brief, raccourci sujet…)
-  // qui arrive alors qu'un brouillon significatif existe : on demande au lieu de
-  // silencieusement restaurer l'ancien contenu (et donc ignorer la demande).
-  const [draftConflict] = useState(() => {
-    if (aurianaDemoActive) return null;
-    // Les photos ont leur propre sauvegarde : une sélection peut exister
-    // sans fiche de flux (ancien brouillon ou sauvegarde partielle).
-    if (!existingFlowState && loadPhotos().length === 0) return null;
-    const d = { ...existingFlowState, step: existingFlowState?.step ?? "idea" };
-    const hasDraftContent = !!(d.ideaText || d.photoSubject || d.photoDescription || loadPhotos().length || d.result || d.editContent || d.selectedFormat);
-    if (!hasDraftContent) return null;
-    const newSubject = (paramSujet || locState.sujet || locState.subject || "").trim();
-    const hasNewIntent = !!(
-      isFreshStart ||
-      newSubject ||
-      locState.fromRecycle ||
-      locState.fromBrief ||
-      locState.fromCalendar ||
-      locState.context ||
-      locState.libraryPhotoIds?.length ||
-      locState.resumeIdea ||
-      paramIdeaId ||
-      paramAuto ||
-      paramFormat ||
-      (loadPhotos().length > 0 && paramCanal && paramCanal !== (deriveCanalFromState(d) || d.forcedChannel))
-    );
-    if (!hasNewIntent) return null;
-    // A verified Studio return resumes this exact saved idea, not a new draft.
-    if (locState.carouselStudioResume === true && locState.ideaId === d.editingIdeaId) return null;
-    // Même sujet que le brouillon → pas de conflit, on reprend simplement.
-    const hasSource = !!(paramIdeaId || locState.ideaId || locState.fromBrief || locState.fromCalendar || locState.fromRecycle || locState.resumeIdea || locState.libraryPhotoIds?.length);
-    if (!isFreshStart && !hasSource && newSubject && newSubject === d.ideaText?.trim()) return null;
-    return {
-      draft: {
-        step: d.step,
-        ideaText: d.ideaText || "",
-        selectedFormat: d.selectedFormat ?? null,
-        result: d.result ?? null,
-        editContent: d.editContent || "",
-        editingIdeaId: d.editingIdeaId ?? null,
-        visualSlides: d.visualSlides ?? [],
-        questions: d.questions ?? [],
-        answers: d.answers ?? {},
-        isLinkedInCarousel: d.isLinkedInCarousel ?? false,
-        photoCount: loadPhotos().length,
-        photoSubject: d.photoSubject, photoDescription: d.photoDescription,
-        forcedChannel: d.forcedChannel,
-      },
-      newSubject,
-    };
-  });
+  const [draftConflict] = useState(() => computeDraftConflict({
+    existingFlowState, photoCount: loadPhotos().length, aurianaDemoActive, isFreshStart,
+    paramSujet, paramIdeaId, paramAuto, paramFormat, paramCanal, locState,
+  }));
   const [conflictResolved, setConflictResolved] = useState(false);
   const conflictPending = !!draftConflict && !conflictResolved;
 
@@ -291,54 +248,11 @@ function CreerWorkspace() {
     (FORCED_CANALS as readonly string[]).includes(paramCanal || "") ? (paramCanal as ForcedChannel) : ps?.forcedChannel ?? null);
   const restoredCanal = deriveCanalFromState(ps);
   const canalConflict = !!forcedChannel && !!restoredCanal && restoredCanal !== forcedChannel;
-  // Restore step — allow "result" and "edit" if their data is available
-  const safeStep = (() => {
-    if (!ps?.step) return "idea";
-    // Canal forcé ≠ canal du brouillon → on repart au choix du format sur le bon canal.
-    if (canalConflict) {
-      const hasIdea = !!(ps?.ideaText || paramSujet || locState.sujet || locState.subject);
-      return hasIdea ? "format" : "idea";
-    }
-    if (ps.step === "result" && ps.result) return "result";
-    // Génération interrompue (reload/fermeture mi-streaming) : le crédit est déjà
-    // débité — on restaure le texte déjà écrit au lieu de renvoyer à l'étape format.
-    if (ps.step === "result" && !ps.result && (ps.pendingStream?.text?.length ?? 0) > 40) return "result";
-    if (ps.step === "edit" && ps.editContent) return "edit";
-    // structure_review dépend de `structureProposal`, qui n'est PAS persisté →
-    // au reload il repart à null et l'écran serait vide. On retombe donc sur
-    // l'étape format (ou idée) plutôt que sur un écran mort.
-    if (ps.step === "structure_review") {
-      return ps.selectedFormat ? "format" : "idea";
-    }
-    // hook_selection dépend des hooks générés, non persistés → au reload
-    // l'écran serait vide. On retombe sur format (mêmes raisons que structure_review).
-    if (ps.step === "hook_selection") {
-      return ps.selectedFormat ? "format" : "idea";
-    }
-    // Le brouillon « Mes slides » est persisté, y compris avant le design.
-    if (ps.step === "user_slides") {
-      return "user_slides";
-    }
-    // Si flow photo/mix/pure_photo avec photos retrouvées, garder le step en cours
-    if (["questions", "inspiration_proposals"].includes(ps.step)) {
-      const isPhotoFlow = ps.carouselSubMode === "photo" || ps.carouselSubMode === "mix" || ps.carouselSubMode === "pure_photo";
-      if (isPhotoFlow && loadPhotos().length > 0) return ps.step as Step;
-      // Questions persistées → on peut restaurer l'étape telle quelle (elles
-      // sont réhydratées dans useContentGenerator par l'effet de mount plus
-      // bas). Sans ça, un reload en pleines questions renvoyait à l'étape
-      // format et RÉGÉNÉRAIT d'autres questions (réponses orphelines).
-      if (ps.step === "questions" && (ps.questions?.length ?? 0) > 0) return "questions";
-      // Mode 1er contenu : le récap « Générer mon premier contenu » se suffit
-      // du sujet (pas besoin des questions) → on y revient tel quel.
-      if (ps.step === "questions" && ps.autoFlow && ps.ideaText) return "questions";
-      return ps.selectedFormat ? "format" : "idea";
-    }
-    // États avec données volatiles non persistées (result/edit invalides)
-    if (["result", "edit"].includes(ps.step)) {
-      return ps.selectedFormat ? "format" : "idea";
-    }
-    return ps.step as Step;
-  })();
+  const safeStep = resolveSafeStep(ps, {
+    canalConflict,
+    hasIdea: !!(ps?.ideaText || paramSujet || locState.sujet || locState.subject),
+    photoCount: loadPhotos().length,
+  });
   const [step, setStep] = useState<Step>(safeStep);
   
   const ideaHistory = useTextEditHistory(ps?.ideaText ?? (paramSujet || locState.sujet || locState.subject || ""));
@@ -537,13 +451,7 @@ function CreerWorkspace() {
   // Charger le nombre de briefs existants quand on arrive sur les questions
   useEffect(() => {
     if (step !== "questions" || !session?.user?.id) return;
-    let q = supabase.from("content_briefs")
-      .select("id", { count: "exact", head: true });
-    // Scope workspace : un·e manager voit le compteur de l'espace actif, pas le sien.
-    q = workspaceId && workspaceId !== session.user.id
-      ? q.eq("workspace_id", workspaceId)
-      : q.eq("user_id", session.user.id);
-    q.then(({ count }: any) => setBriefsCount(count || 0));
+    countContentBriefs(session.user.id, workspaceId).then(setBriefsCount);
   }, [step, session?.user?.id, workspaceId]);
 
   const [launchResults, setLaunchResults] = useState<any[]>([]);
@@ -704,30 +612,8 @@ function CreerWorkspace() {
       if (raw?.overlay_html) setPhotoBriefOverlayHtml(raw.overlay_html);
     } else if (!ps?.result && !result && (ps?.pendingStream?.text?.length ?? 0) > 40 && safeStep === "result") {
       // Génération interrompue : on reconstruit un résultat depuis le texte déjà
-      // streamé — le crédit était débité. Le stream étant coupé net, le JSON est
-      // souvent TRONQUÉ : JSON.parse échoue et le repli { content: texte brut }
-      // affichait le JSON tel quel dans la préviz (vu au re-test live 04/07).
-      // On extrait donc "content" même d'un JSON incomplet.
-      const text = ps!.pendingStream!.text;
-      let parsed: any;
-      try {
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
-      } catch {
-        parsed = null;
-      }
-      if (!parsed) {
-        const contentMatch = text.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)/);
-        if (contentMatch) {
-          try {
-            parsed = { content: JSON.parse(`"${contentMatch[1]}"`) };
-          } catch {
-            parsed = { content: contentMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"') };
-          }
-        } else {
-          parsed = { content: text.replace(/^```(?:json)?\s*/, "").replace(/```\s*$/, "") };
-        }
-      }
+      // streamé — le crédit était débité (JSON tronqué : voir pending-stream.ts).
+      const parsed = parsePendingStreamText(ps!.pendingStream!.text);
       setResult({ type: (ps!.pendingStream!.format || ps?.selectedFormat || "post") as any, raw: parsed });
       saveFlowState({ pendingStream: null });
       toast("💾 J'ai récupéré le texte généré avant l'interruption.", {
@@ -872,19 +758,6 @@ function CreerWorkspace() {
     const fmtRaw = paramFormat || locState?.format;
     const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null;
 
-    // Mapping vers les formats canoniques de CreerUnifie/use-content-generator
-    // Couvre les valeurs venues du calendrier ET de saved_ideas (boîte à idées).
-    const FORMAT_MAP: Record<string, string> = {
-      "post_photo": "post",
-      "post_texte": "post",
-      "post_carrousel": "carousel",
-      "carrousel": "carousel",
-      "story_serie": "story",
-    };
-    const SUPPORTED_FORMATS = new Set([
-      "post", "carousel", "reel", "story", "linkedin",
-      "newsletter", "pinterest", "pinterest_visual", "pinterest_inspiration", "pinterest_photo",
-    ]);
     const fmtMapped = fmtRaw ? (FORMAT_MAP[fmtRaw] || fmtRaw) : null;
     const fmt = fmtMapped && SUPPORTED_FORMATS.has(fmtMapped) ? fmtMapped : null;
 
@@ -1000,7 +873,6 @@ function CreerWorkspace() {
     // ils ne déclenchent pas d'auto-avancée destructrice.
     // Exception : en ?mode=transform, ?format pré-coche le sous-mode Recycler
     // (CreerTransformTab le lit dans l'URL) — on ne touche à rien sur ce chemin.
-    const ONE_SHOT_PARAMS = ["sujet", "subject", "format", "objectif", "objective", "auto", "angle", "carouselSubMode", "firstProduct", "sujetSansPhoto", "idea_id"];
     if (paramMode !== "transform" && ONE_SHOT_PARAMS.some((k) => searchParams.has(k))) {
       const cleaned = consumeFreshStart(searchParams);
       ONE_SHOT_PARAMS.forEach((k) => cleaned.delete(k));
@@ -1414,32 +1286,11 @@ function CreerWorkspace() {
     // récent envoyé à l'IA et provoquent des questions hors-sujet.
     if (session?.user?.id && Object.keys(ans).length > 0 && ideaText.trim().length > 0) {
       try {
-        if (incomingBriefId) {
-          // Vient de « Créer à partir de ce brief » : on met à jour le brief
-          // existant au lieu d'en créer un doublon.
-          const { error } = await supabase.from("content_briefs").update({
-            objective: objective || null,
-            format: selectedFormat || null,
-            editorial_angle: editorialAngle || null,
-            questions: questions.map(q => ({ id: q.id, question: q.question })),
-            answers: ans,
-          } as any).eq("id", incomingBriefId);
-          if (error) throw error;
-          setCurrentBriefId(incomingBriefId);
-        } else {
-          const { data: briefData, error } = await supabase.from("content_briefs").insert({
-            user_id: session.user.id,
-            workspace_id: workspaceId && workspaceId !== session.user.id ? workspaceId : null,
-            subject: ideaText,
-            objective: objective || null,
-            format: selectedFormat || null,
-            editorial_angle: editorialAngle || null,
-            questions: questions.map(q => ({ id: q.id, question: q.question })),
-            answers: ans,
-          } as any).select("id").maybeSingle();
-          if (error) throw error;
-          if (briefData?.id) setCurrentBriefId(briefData.id);
-        }
+        const briefId = await saveContentBrief({
+          userId: session.user.id, workspaceId, incomingBriefId, ideaText, objective,
+          selectedFormat, editorialAngle, questions, answers: ans,
+        });
+        if (briefId) setCurrentBriefId(briefId);
       } catch (e) {
         console.error("[CreerUnifie] Failed to save content brief:", e);
       }
@@ -1754,7 +1605,6 @@ function CreerWorkspace() {
 
   const handleEdit = () => {
     const r = result?.raw || result;
-    let text = "";
 
     // Carrousel et stories : la structure est la seule source de vérité (lot 7),
     // le texte à plat est reconstruit à partir d'elle à chaque ouverture.
@@ -1777,54 +1627,7 @@ function CreerWorkspace() {
       return;
     }
 
-    if (!r) {
-      // Pas de résultat IA — utiliser le contenu existant du calendrier ou le brouillon
-      text = existingCalendarContent || "";
-    } else if (selectedFormat === "reel" && Array.isArray(r?.sections)) {
-      text = (r.sections as any[])
-        .map((s: any) => {
-          const header = `--- ${s.label || s.section_label || `Section ${s.section_number || ""}`} (${s.timing || ""}) ---`;
-          const parts = [s.texte_parle, s.texte_overlay, s.action].filter(Boolean);
-          return `${header}\n${parts.join("\n")}`;
-        })
-        .join("\n\n");
-
-    } else if (selectedFormat === "linkedin" && (r?.hook || r?.full_text)) {
-      if (r.full_text) {
-        text = r.full_text;
-      } else {
-        text = [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
-      }
-      if (Array.isArray(r.hashtags) && r.hashtags.length > 0) {
-        text += `\n\n${(r.hashtags as string[]).join(" ")}`;
-      }
-
-    } else if (selectedFormat === "pinterest_visual" && (r?.title || r?.description)) {
-      text = `📌 TITRE :\n${r.title || ""}\n\n📝 DESCRIPTION :\n${r.description || ""}`;
-
-    } else if (selectedFormat === "pinterest_photo" && (r?.title || r?.photo_brief)) {
-      text = `📌 TITRE :\n${r.title || ""}\n\n📝 DESCRIPTION :\n${r.description || ""}\n\n📷 BRIEF PHOTO :\n• Sujet : ${r?.photo_brief?.what || ""}\n• Cadrage : ${r?.photo_brief?.framing || ""}\n• Lumière : ${r?.photo_brief?.lighting || ""}\n• Accessoires : ${(r?.photo_brief?.props || []).join(", ")}\n• Couleurs : ${r?.photo_brief?.colors || ""}\n• Ambiance : ${r?.photo_brief?.mood || ""}`;
-
-    } else if (selectedFormat === "newsletter") {
-      text = r.body ?? r.content ?? r.text ?? "";
-    } else if (r?.content) {
-      text = r.content;
-    } else if (r?.post) {
-      text = r.post;
-    } else if (r?.text) {
-      text = r.text;
-    } else if (r?.hook && r?.body) {
-      text = [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
-    } else if (typeof r === "string") {
-      text = r;
-    } else {
-      text = JSON.stringify(r, null, 2);
-    }
-
-    // Fallback: si texte vide ou juste "null", utiliser le contenu existant
-    if ((!text || text === "null" || !text.trim()) && existingCalendarContent) {
-      text = existingCalendarContent;
-    }
+    const text = flattenResultForEdit(selectedFormat, r, existingCalendarContent);
 
     setEditContent(text);
     setEditBaseline(text);

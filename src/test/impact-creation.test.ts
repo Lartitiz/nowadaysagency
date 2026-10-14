@@ -108,6 +108,19 @@ describe("rapport d'impact création de contenu", () => {
     }
   });
 
+  it("reconnaît les fonctions sorties de CreerUnifie (lot C)", () => {
+    for (const file of [
+      "src/features/creer/creer-step.ts",
+      "src/features/creer/draft-conflict.ts",
+      "src/features/creer/pending-stream.ts",
+      "src/features/creer/edit-text-from-result.ts",
+      "src/features/creer/content-brief.ts",
+    ]) {
+      const { formats } = analyzeImpact([file], usage);
+      expect([...formats.keys()], file).toEqual(["Parcours /creer (tous formats)"]);
+    }
+  });
+
   it("les tests de ces fichiers front ne déclenchent rien", () => {
     const { formats } = analyzeImpact(["src/test/use-generate-visuals.test.ts", "src/components/creer/CarouselEditor.test.tsx"], usage);
     expect(formats.size).toBe(0);

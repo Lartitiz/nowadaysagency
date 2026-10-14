@@ -45,12 +45,18 @@ Reste du lot 8 :
   du reel perdue au rechargement, sujet vide en ouvrant l'atelier depuis le calendrier
   (`theme`), « 1 photo n'ont ». Le PPTX texte avec visuels périmés n'est pas un bug
   (il ignore les visuels).
-- **Lot B** (PR en cours) : `LowCreditsBanner`, la fenêtre « photos manquantes » et
+- **Lot B** (#1496, fusionné le 14/10/2026) : `LowCreditsBanner`, la fenêtre « photos manquantes » et
   « Repartir de zéro ? » sortis à l'identique dans `src/components/creer/LowCreditsBanner.tsx`,
   `PhotoMissingDialog.tsx`, `ConfirmResetDialog.tsx` (affichage pur ; état et actions
   restent dans la page). Rangés dans « Parcours /creer » du rapport d'impact.
-- **Lot C** ensuite : fonctions pures (`creer-step.ts`, `draft-conflict.ts`,
-  `pending-stream.ts`, `edit-text-from-result.ts`, `content-brief.ts`), voir la fiche 1.
+- **Lot C** (PR en cours) : fonctions sorties à l'identique dans `src/features/creer/` :
+  `creer-step.ts` (`Step`, `resolveSafeStep`, `FORMAT_MAP`, `SUPPORTED_FORMATS`,
+  `ONE_SHOT_PARAMS`), `draft-conflict.ts`, `pending-stream.ts`,
+  `edit-text-from-result.ts`, `content-brief.ts` (écrit en base : deux fonctions
+  simples, pas de hook, filtre workspace gardé tel quel, décision de Laetitia du
+  14/10/2026). Le nombre de photos est passé en argument au lieu de `loadPhotos()`.
+  Une seule PR pour les cinq. Aucun test modifié.
+- **Lot D** ensuite : exports (`use-creer-exports.ts`), voir la fiche 1.
 
 ## En attente
 - **E3** : découper CarouselEditor.tsx par mission (plan validé par Laetitia le
