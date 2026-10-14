@@ -171,20 +171,31 @@ Deno.test("frontière design / écriture — l'écriture atteinte par carousel-v
   assertEquals(writingReached, ["angle-families", "carousel-editorial-contract", "carousel-editorial-review", "carousel-editorial-snapshot", "socle"]);
 });
 
+/** Fichiers de carousel-ai hors tests, sous-dossiers compris (steps/, modes/ depuis le découpage d'index.ts, fiche 2). */
+async function carouselAiFiles(dir = "", out: string[] = []): Promise<string[]> {
+  for await (const e of Deno.readDir(new URL(`carousel-ai/${dir}`, FUNCTIONS))) {
+    if (e.isDirectory && e.name !== "__snapshots__") await carouselAiFiles(`${dir}${e.name}/`, out);
+    else if (e.isFile && e.name.endsWith(".ts") && !e.name.endsWith("_test.ts")) out.push(`${dir}${e.name}`);
+  }
+  return out.sort();
+}
+
 Deno.test("frontière design / écriture — dans carousel-ai, seul layout.ts importe le design", async () => {
-  for await (const e of Deno.readDir(new URL("carousel-ai/", FUNCTIONS))) {
-    if (!e.isFile || !e.name.endsWith(".ts") || e.name.endsWith("_test.ts") || e.name === "layout.ts") continue;
-    for (const dep of await localImports(`carousel-ai/${e.name}`)) {
+  const files = await carouselAiFiles();
+  assert(files.includes("index.ts") && files.some((f) => f.includes("/")), `fichiers trouvés : ${files.join(", ")}`);
+  for (const file of files) {
+    if (file === "layout.ts") continue;
+    for (const dep of await localImports(`carousel-ai/${file}`)) {
       const target = sharedName(dep);
       if (!target || !DESIGN.has(target)) continue;
-      assert(CARROUSEL_AI_AUTORISES[e.name]?.[target],
-        `carousel-ai/${e.name} importe _shared/${target}.ts (design). Passe par carousel-ai/layout.ts, ` +
+      assert(CARROUSEL_AI_AUTORISES[file]?.[target],
+        `carousel-ai/${file} importe _shared/${target}.ts (design). Passe par carousel-ai/layout.ts, ` +
           `ou ajoute l'exception justifiée dans CARROUSEL_AI_AUTORISES.`);
     }
+    // normalizeOverlayStyles (style des overlays) vit dans un module neutre de structure : il passe aussi par layout.ts.
+    const src = await Deno.readTextFile(new URL(`carousel-ai/${file}`, FUNCTIONS));
+    assert(!/import \{[^}]*\bnormalizeOverlayStyles\b[^}]*\} from "(?:\.\.\/)+_shared\//.test(src), `carousel-ai/${file} importe normalizeOverlayStyles en direct : passe par layout.ts.`);
   }
-  // normalizeOverlayStyles (style des overlays) vit dans un module neutre de structure : il passe aussi par layout.ts.
-  const index = await Deno.readTextFile(new URL("carousel-ai/index.ts", FUNCTIONS));
-  assert(!/import \{[^}]*\bnormalizeOverlayStyles\b[^}]*\} from "\.\.\/_shared\//.test(index), "index.ts importe normalizeOverlayStyles en direct : passe par layout.ts.");
 });
 
 Deno.test("frontière design / écriture — layout.ts n'importe aucun module de rédaction", async () => {
