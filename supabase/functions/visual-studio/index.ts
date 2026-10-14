@@ -8,6 +8,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { schema } from "./request-schema.ts";
 import { BUCKET, canWrite, charterReferences, download, store, unwrap, visionFromStorage } from "./storage.ts";
 import { translateStudioError } from "./errors.ts";
+import type { StudioContext } from "./actions/context.ts";
+import { archiveSession, createSession, readComposition, selectReferences } from "./actions/session.ts";
+import { updateReference } from "./actions/reference.ts";
+import { saveComposition } from "./actions/composition.ts";
+import { saveToLibrary } from "./actions/save.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { callAnthropic, SONNET_MODEL } from "../_shared/anthropic.ts";
 import {
@@ -79,6 +84,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
   const p = parsed.data,
     sb = getServiceClient(),
     actor = pipe.userId;
+  const ctx: StudioContext = { sb, actor, p, json };
   try {
     const member = unwrap(
       await sb
@@ -93,7 +99,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       return json({ error: "Cet espace est en lecture seule." }, 403);
     }
     if (p.action === "styles") return json({ styles: await soulStyles() });
-    let sessionResult = await sb
+    const sessionResult = await sb
       .from("visual_studio_sessions")
       .select("*")
       .eq("id", p.session_id)
@@ -101,93 +107,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       .maybeSingle();
     if (sessionResult.error) throw sessionResult.error;
     if (p.action === "create") {
-      const photo = p.photo_id
-        ? unwrap(
-          await sb
-            .from("user_photos")
-            .select("*")
-            .eq("id", p.photo_id)
-            .eq("workspace_id", p.workspace_id)
-            .eq("status", "ready")
-            .is("removed_from_library_at", null)
-            .single(),
-        )
-        : null;
-      if (
-        sessionResult.data &&
-        sessionResult.data.source_photo_id !== (photo?.id || null)
-      ) {
-        return json({ error: "Cette session utilise une autre photo." }, 409);
-      }
-      if (!sessionResult.data) {
-        const { error } = await sb.from("visual_studio_sessions").insert({
-          id: p.session_id,
-          workspace_id: p.workspace_id,
-          user_id: actor,
-          source_photo_id: photo?.id || null,
-          name: (photo?.name || "Nouvelle idée").slice(0, 120),
-          source_path: photo
-            ? `${p.workspace_id}/${p.session_id}/original`
-            : null,
-          source_ready: !photo,
-          references: photo ? null : [],
-          source_metadata: {
-            kind: photo?.kind,
-            description: photo?.description,
-            input_path: photo?.storage_path,
-          },
-          messages: [
-            {
-              role: "assistant",
-              text:
-                "Quelle image aimerais-tu créer, améliorer ou imaginer ? Tu peux commencer par une question. Je m’appuie sur ta marque et les références que tu choisis. Rien n’est généré avant ta confirmation.",
-            },
-          ],
-        });
-        if (error && error.code !== "23505") throw error;
-      }
-      sessionResult = await sb
-        .from("visual_studio_sessions")
-        .select("*")
-        .eq("id", p.session_id)
-        .eq("workspace_id", p.workspace_id)
-        .single();
-      const sourceSession = unwrap(sessionResult);
-      if (sourceSession.source_photo_id !== (photo?.id || null)) {
-        throw new Error("studio_conflict");
-      }
-      if (!sourceSession.source_ready) {
-        const existing = await sb.storage
-          .from(BUCKET)
-          .download(sourceSession.source_path);
-        if (existing.error) {
-          const original = await download(
-            sb,
-            "user-photos",
-            sourceSession.source_metadata.input_path,
-          );
-          const uploaded = await sb.storage
-            .from(BUCKET)
-            .upload(sourceSession.source_path, original, {
-              contentType: original.type,
-              upsert: false,
-            });
-          if (
-            uploaded.error &&
-            uploaded.error.message !== "The resource already exists"
-          ) {
-            throw uploaded.error;
-          }
-        }
-        unwrap(
-          await sb
-            .from("visual_studio_sessions")
-            .update({ source_ready: true })
-            .eq("id", p.session_id)
-            .select("id")
-            .single(),
-        );
-      }
+      const refused = await createSession(ctx, sessionResult);
+      if (refused) return refused;
     }
     let session = unwrap(
       await sb
@@ -207,171 +128,25 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       );
     }
     if (p.action === "archive" || p.action === "restore") {
-      if (p.revision == null) throw new Error("studio_conflict");
-      session = unwrap(await sb.rpc("studio_set_session_archived", {
-        p_workspace: p.workspace_id,
-        p_session: session.id,
-        p_revision: p.revision,
-        p_archive: p.action === "archive",
-      }));
+      session = await archiveSession(ctx, session);
     } else if (session.archived_at && !["read", "composition_read"].includes(p.action)) {
       throw new Error("studio_archived");
     }
-    if (p.action === "composition_read") {
-      if (!p.composition_history_id) throw new Error("studio_conflict");
-      const saved = unwrap(await sb.from("visual_studio_compositions").select("*")
-        .eq("id", p.composition_history_id).eq("session_id", session.id)
-        .eq("workspace_id", p.workspace_id).single());
-      const signed = saved.background_path
-        ? await sb.storage.from(BUCKET).createSignedUrl(saved.background_path, 900)
-        : null;
-      return json({ composition: {
-        id: saved.id,
-        design: saved.design,
-        created_at: saved.created_at,
-        background_url: signed?.data?.signedUrl || null,
-      } });
-    }
+    if (p.action === "composition_read") return await readComposition(ctx, session);
     let references: Reference[] = legacyReferences(session);
     if (p.action === "memory_save" || p.action === "memory_apply") {
       session = await handleMemory(sb, actor, p, session, references);
       references = legacyReferences(session);
     }
     if (p.action === "selection") {
-      const active = unwrap(await sb.from("visual_studio_versions").select("id").eq("session_id", session.id).eq("status", "processing"));
-      if (active.length) return json({ error: "Attends le résultat avant de changer les références." }, 409);
-      if (p.revision !== session.revision || !p.reference_ids || p.reference_ids.some(id => !references.some(ref => ref.id === id))) throw new Error("studio_conflict");
-      const previous = session.source_metadata?.studio_context as ConversationContext | undefined;
-      session = unwrap(await sb.from("visual_studio_sessions").update({
-        source_metadata: { ...session.source_metadata, studio_context: {
-          ...(p.new_request ? {} : previous), reference_ids: [...new Set(p.reference_ids)],
-          branch_id: p.viewed_version_id || null,
-          start_index: p.new_request ? session.messages.length : previous?.start_index || 0,
-        } }, proposal: null, ...(p.new_request ? { brief: "" } : {}),
-        revision: session.revision + 1, updated_at: new Date().toISOString(),
-      }).eq("id", session.id).eq("revision", p.revision).select("*").single());
+      const result = await selectReferences(ctx, session, references);
+      if (result instanceof Response) return result;
+      session = result;
     }
     if (p.action === "reference") {
-      if (
-        (!p.photo_id && !p.reference_id && !p.version_id && p.charter_index == null) ||
-        p.revision !== session.revision
-      ) {
-        return json(
-          {
-            code: "refresh_request",
-            error: "Recharge la session avant de choisir une référence.",
-          },
-          409,
-        );
-      }
-      const active = unwrap(
-        await sb
-          .from("visual_studio_versions")
-          .select("id")
-          .eq("session_id", session.id)
-          .eq("status", "processing"),
-      );
-      if (active.length) {
-        return json(
-          { error: "Attends le résultat avant de changer les références." },
-          409,
-        );
-      }
-      const matches = (r: Reference) =>
-        p.reference_id ? r.id === p.reference_id
-        : p.version_id ? r.version_id === p.version_id
-        : r.photo_id === p.photo_id;
-      const found = references.find(matches);
-      if (p.remove) {
-        references = references.filter((r) => !matches(r));
-      } else if (found) {
-        if (p.subject_group && p.subject_group !== found.id && !references.some(ref => ref.id === p.subject_group && ref.role === (p.reference_role || found.role))) throw new Error("studio_conflict");
-        references = references.map((r) =>
-          r === found ? { ...r, role: p.reference_role || r.role, role_source: p.reference_role === "auto" ? "library" : p.role_source || "user", role_explicit: p.reference_role === "auto" ? false : r.role_explicit, subject_group: p.reference_role && p.reference_role !== r.role ? undefined : r.subject_group, ...(p.subject_group !== undefined ? { subject_group: p.subject_group } : {}) } : r
-        );
-      } else {
-        if (!p.photo_id && !p.version_id && p.charter_index == null) {
-          throw new Error("studio_conflict");
-        }
-        if (references.length >= MAX_REFERENCES) {
-          return json(
-            {
-              error:
-                "Garde jusqu’à huit références par demande. Retire-en une pour en choisir une autre.",
-            },
-            400,
-          );
-        }
-        const charterImage = p.charter_index == null
-          ? null
-          : (await charterReferences(sb, p.workspace_id))[p.charter_index];
-        if (p.charter_index != null && !charterImage) {
-          throw new Error("studio_conflict");
-        }
-        const generated = p.version_id ? unwrap(
-          await sb.from("visual_studio_versions").select("*")
-            .eq("id", p.version_id).eq("session_id", session.id)
-            .eq("status", "ready").single(),
-        ) : null;
-        const photo = charterImage || generated ? null : unwrap(
-          await sb.from("user_photos").select("*")
-            .eq("id", p.photo_id).eq("workspace_id", p.workspace_id).eq(
-              "status",
-              "ready",
-            ).is("removed_from_library_at", null).single(),
-        );
-        const id = crypto.randomUUID(),
-          path = generated?.result_path || `${p.workspace_id}/${session.id}/reference-${id}`;
-        if (!generated) {
-          const blob = await download(
-            sb,
-            charterImage ? "moodboards" : "user-photos",
-            charterImage?.path || photo!.storage_path,
-          );
-          await store(sb, BUCKET, path, blob);
-        }
-        references = [
-          ...references,
-          {
-            id,
-            photo_id: photo?.id || null,
-            version_id: generated?.id,
-            path,
-            role: charterImage ? "style" : p.reference_role || "auto",
-            role_source: p.role_source || "library",
-            subject_group: p.subject_group,
-            name: (charterImage?.name || photo?.name || generated?.proposal?.summary || "Référence").slice(
-              0,
-              120,
-            ),
-            kind: photo?.kind,
-            description: photo?.description?.slice(0, 500),
-          },
-        ];
-      }
-      session = unwrap(
-        await sb
-          .from("visual_studio_sessions")
-          .update({
-            references,
-            source_metadata: { ...session.source_metadata, studio_context: {
-              ...session.source_metadata?.studio_context,
-              start_index: session.source_metadata?.studio_context?.start_index || 0,
-              branch_id: session.source_metadata?.studio_context?.branch_id || null,
-              reference_ids: [...new Set([
-                ...activeReferences(session, references),
-                ...(!p.remove && !found ? [references[references.length - 1].id] : []),
-              ])].filter(id => references.some(ref => ref.id === id)),
-            } },
-            proposal: null,
-            revision: session.revision + 1,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", session.id)
-          .eq("revision", p.revision)
-          .select("*")
-          .single(),
-      );
+      const result = await updateReference(ctx, session, references);
+      if (result instanceof Response) return result;
+      session = result;
     }
     if (p.action === "message") {
       if (!p.message || p.revision == null || !p.request_id) {
@@ -1302,42 +1077,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         session = updated.data;
       }
     }
-    if (p.action === "composition_save") {
-      if (!p.composition || p.revision !== session.revision) {
-        throw new Error("studio_conflict");
-      }
-      let backgroundPath = session.composition?.background_path || null;
-      if (p.composition_use_image === false) backgroundPath = null;
-      else if (p.composition_history_id) {
-        const source = unwrap(
-          await sb.from("visual_studio_compositions").select("background_path")
-            .eq("id", p.composition_history_id)
-            .eq("session_id", session.id).eq("workspace_id", p.workspace_id)
-            .single(),
-        );
-        backgroundPath = source.background_path;
-      } else if (p.viewed_version_id) {
-        const source = unwrap(
-          await sb.from("visual_studio_versions").select("result_path").eq(
-            "id",
-            p.viewed_version_id,
-          ).eq("session_id", session.id).eq("status", "ready").single(),
-        );
-        backgroundPath = source.result_path;
-      } else if (p.viewed_reference_id) {
-        backgroundPath = references.find((r) =>
-          r.id === p.viewed_reference_id
-        )?.path || null;
-      }
-      session = unwrap(await sb.rpc("studio_save_composition", {
-        p_actor: actor,
-        p_workspace: p.workspace_id,
-        p_session: session.id,
-        p_revision: p.revision,
-        p_design: p.composition,
-        p_background_path: backgroundPath,
-      }));
-    }
+    if (p.action === "composition_save") session = await saveComposition(ctx, session, references);
     if (p.action === "pilot" || p.action === "retry") {
       if (session.revision !== p.revision) throw new Error("studio_conflict");
       const active = unwrap(
@@ -1596,44 +1336,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         }
       }
     }
-    if (p.action === "save") {
-      const v = unwrap(
-        await sb
-          .from("visual_studio_versions")
-          .select("*")
-          .eq("id", p.version_id)
-          .eq("session_id", session.id)
-          .eq("status", "ready")
-          .single(),
-      );
-      if (!v.library_photo_id) {
-        const result = await download(sb, BUCKET, v.result_path);
-        const originalPath = Object.hasOwn(v.proposal, "original_path")
-          ? v.proposal.original_path
-          : session.source_path;
-        await store(
-          sb,
-          "user-photos",
-          `${v.user_id}/studio_${v.id}.jpg`,
-          result,
-        );
-        if (originalPath) {
-          await store(
-            sb,
-            "user-photos",
-            `${v.user_id}/studio_${v.id}_original.jpg`,
-            await download(sb, BUCKET, originalPath),
-          );
-        }
-      }
-      const photoId = unwrap(
-        await sb.rpc("studio_save_library", {
-          p_actor: actor,
-          p_version: v.id,
-        }),
-      );
-      return json({ photo_id: photoId });
-    }
+    if (p.action === "save") return await saveToLibrary(ctx, session);
     let versions = unwrap(
       await sb
         .from("visual_studio_versions")
