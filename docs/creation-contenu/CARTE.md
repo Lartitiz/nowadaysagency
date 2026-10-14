@@ -417,12 +417,14 @@ fonctions qui ne s'appellent pas « carousel »**.
 | `content-clarity` | les mêmes + inspire-ai |
 | `audience-address-pass` | carousel-ai, creative-flow, generate-content, linkedin-ai, pinterest-* |
 
-> Découpage en cours de `correction-pass.ts` (fiche 9 de
+> Découpage de `correction-pass.ts` (fiche 9 de
 > `docs/robustesse/gros-fichiers.md`) : les prompts de relecture sont dans
 > `_shared/correction-pass/prompts.ts`, les réglages dans `options.ts`,
 > l'extraction et la réinjection des textes dans `fields.ts`, le repérage des
-> carrousels à relire dans `polish-scan.ts`, les passes factuelles dans
-> `factual-passes.ts` (14/10/2026). Un sous-dossier garde la
+> carrousels à relire dans `polish-scan.ts`, les relectures (texte, carrousel,
+> stories, reel) dans `passes.ts`, les passes factuelles dans
+> `factual-passes.ts` (14/10/2026). `correction-pass.ts` n'est plus qu'un
+> sommaire : pour retoucher une relecture, modifie le fichier de sa mission. Un sous-dossier garde la
 > zone et le rang (écriture) de son module d'origine.
 
 > ⚠️ **Piège principal** : `redac-gate.ts` et `correction-pass.ts` importent
