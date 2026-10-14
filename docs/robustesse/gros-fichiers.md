@@ -866,15 +866,55 @@ Les trois fonctions Pinterest n'importent pas `redac-gate`. Elles y arrivent par
 
 ### 8. `src/components/creer/CarouselEditor.tsx` — 3816 lignes
 
-**Pas de fiche détaillée ici** : son découpage est déjà planifié (lots E2/E3
-du chantier éditeur carrousel), et une autre conversation travaille en ce
-moment sur l'éditeur et sur `src/lib/carousel-editor.ts` (contrat des
-attributs `data-*`, `supabase/functions/_shared/carousel-dom-contract.ts`).
+Découpage validé par Laetitia le 14/10/2026 (lot E3). Les tests qui le
+protègent : `src/test/carousel-editor-*.test.tsx` (lot E2, plus
+`carousel-editor-wiring.test.tsx` du lot E3-0) et les autres
+`src/test/carousel-*.test.tsx` qui montent l'éditeur. Ils doivent passer sans
+être retouchés.
 
-Ce que dit le classement : c'est le plus long fichier du dépôt, mais il est
-« seulement » 8ᵉ, parce qu'il a été modifié 34 fois en 90 jours et jamais par
-un commit de correction identifiable. Le cliquet anti-dette le gèle à 3816
-lignes et 4 `any` : le chantier E2/E3 le fera baisser (`--update`).
+**Ce qu'il mélange** (lignes au 14/10/2026, commit `ff1ebdc5`) :
+
+| Lignes | Mission |
+|---|---|
+| 1-280 | Outils de calcul sur la slide (élément sous le pointeur, repères, verrou), liste des raccourcis |
+| 282-368 | Petites briques : section repliable, miniature, forme du cadre photo |
+| 370-1722 | `SlideCanvas`, l'aperçu : réactions souris / clavier dans l'iframe (`bind`, ~700 lignes), poignées, barre d'outils flottante, dessins par-dessus l'aperçu |
+| 1724-1862 | Le cœur : document, historique, `emit`, écho (`inputKey`) |
+| 1863-2394 | Les actions (copier / coller, raccourcis, grouper, styles, thèmes, polices) |
+| 2395-2793 | En-tête, encadré « Contrôle qualité » (portail), miniatures, colonne de l'aperçu |
+| 2794-3745 | Panneau de réglages : calques, onglets, texte, photo, bloc, slide, carrousel, « Toutes les slides », « Mes styles » |
+| 3747-3816 | Légende, vérificateur, fenêtres Instagram et photo |
+
+**Découpage** : dossier `src/components/creer/CarouselEditorParts/`. Le nom
+commence par `CarouselEditor` exprès : le test du contrat `data-*`
+(`carousel-dom-contract.test.ts`) et le rapport d'impact
+(`scripts/impact-creation.mjs`) ne regardent que les chemins
+`src/components/creer/CarouselEditor…`. Un dossier `carousel-editor/` leur
+échapperait.
+
+| PR | Contenu |
+|---|---|
+| E3-0 | Tests de branchement seuls |
+| E3-1 | `canvas-geometry.ts` (outils de calcul), `PanelBits.tsx` (petites briques) |
+| E3-2 | `CanvasToolbar.tsx` (barre flottante) |
+| E3-3 | `SlideCanvas.tsx` + `canvas-events.ts` (l'aperçu fait 1 350 lignes : au-delà des 800 du cliquet, il part en deux) |
+| E3-4 | `LayersPanel.tsx`, `MultiSelectPanel.tsx`, `SlideSettings.tsx` |
+| E3-5 | `TextSettings.tsx`, `PhotoSettings.tsx`, `BlockSettings.tsx`, `panel-controls.tsx` |
+| E3-6 | `EditorHeader.tsx`, `QualityPanel.tsx`, `SlideStrip.tsx`, `AllSlidesPanel.tsx` |
+
+**Ne bouge pas** : le cœur (document, historique, `emit`, écho). C'est là
+qu'est née la boucle infinie corrigée par `ec445582`.
+
+**Règles du déplacement** :
+- l'état tapé mais pas encore validé (nom d'un style, recherche de police)
+  reste dans `CarouselEditor` : déplacé dans un panneau qui disparaît, il
+  serait perdu en changeant d'onglet ;
+- la barre flottante et les réactions de l'aperçu lisent `latest.current`
+  (les actions du dernier rendu), jamais une copie ;
+- la variable `document` de l'éditeur est le carrousel, pas la page :
+  `tsc` attrape toute confusion dans un fichier déplacé ;
+- pas de retouche de l'éditeur par Lovable pendant le lot ;
+- après chaque PR : `node scripts/cliquet-dette.mjs --update` dans la même PR.
 
 ---
 
