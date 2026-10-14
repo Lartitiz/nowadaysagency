@@ -64,10 +64,8 @@ const CASES: Case[] = [
   { name: "read — lecture simple", setup: (f) => { f.session.references = [plate]; }, body: { action: "read" } },
   // Rattrapage dans `read` d'images bloquées depuis plus de 20 min. Version au
   // résultat stocké : terminée (studio_complete_generation). Version au résultat
-  // perdu : reste « processing ». Le code prévoit « uncertain », mais avec
-  // supabase-js 2.95.3 l'erreur d'un téléchargement manquant n'a ni
-  // statusCode "404" ni message « Object not found » (StorageUnknownError,
-  // message "{}") : branche inatteignable, signalée dans la PR, figée telle quelle.
+  // perdu : « uncertain », sans crédit décompté (storage-errors.ts lit la réponse
+  // d'origine, que supabase-js 2.95.3 ne décode pas au téléchargement).
   { name: "read — rattrapage des versions bloquées (résultat stocké / perdu)", fixture: { missing: [`${SPACE}/${SESSION}/lost`] },
     setup: (f) => {
       Object.assign(f.version, { status: "processing", created_at: OLD });
