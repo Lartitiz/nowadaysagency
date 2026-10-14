@@ -51,7 +51,7 @@ Reste du lot 8 :
   restent dans la page). Rangés dans « Parcours /creer » du rapport d'impact.
   Fenêtre « photos manquantes » testée sur la vraie page /creer par
   `src/test/creer-photos-manquantes.test.tsx` (#1505, fusionné le 14/10/2026).
-- **Lot C** (PR en cours) : fonctions sorties à l'identique dans `src/features/creer/` :
+- **Lot C** (#1508, fusionné le 14/10/2026) : fonctions sorties à l'identique dans `src/features/creer/` :
   `creer-step.ts` (`Step`, `resolveSafeStep`, `FORMAT_MAP`, `SUPPORTED_FORMATS`,
   `ONE_SHOT_PARAMS`), `draft-conflict.ts`, `pending-stream.ts`,
   `edit-text-from-result.ts`, `content-brief.ts` (écrit en base : deux fonctions
