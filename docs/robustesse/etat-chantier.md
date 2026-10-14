@@ -22,11 +22,7 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
 | 9 | #1472 | Rapport d'impact élargi, frontière texte / design par fonction (`_shared/design-text-boundaries_test.ts`), contrat `ai-text-action` |
 | 8 | #1475 | Carrousel : choix de design de `carousel-ai` isolés dans `carousel-ai/layout.ts` (sortie identique, figée par `carousel-ai/handler_contract_test.ts`) ; frontière design / écriture par module (`_shared/carousel-design-boundaries_test.ts`) ; libellé du bouton d'appel à l'action rangé dans la slide (`cta_label`). Fusionnée le 14/10/2026 |
 | E2 | #1476 | Éditeur visuel figé par 6 fichiers de tests `src/test/carousel-editor-*.test.tsx` (poignées et magnétisme, réglages avancés, photo glissée, annuler après opération lourde, aller-retour avec `mergeEditorRaw`, étiquettes d'export). Aucun code de l'éditeur modifié |
-
-## Ouverts, en attente de fusion (14/10/2026)
-| Lot | PR | Contenu |
-|---|---|---|
-| E2 bis | #1477 | Corrige les 2 bugs trouvés par E2 (bloc tourné qui saute de largeur, lien de police ajouté à une slide verrouillée) |
+| E2 bis | #1477 | Corrige les 2 bugs trouvés par E2 : un bloc tourné ne saute plus de largeur quand on tire sa poignée ; « Police et couleur sur toutes les slides » ne touche plus les slides verrouillées. Fusionnée le 14/10/2026 |
 
 ## Lancés en conversations séparées (cartes du 14/10/2026)
 1. Cartographier les gros fichiers et poser un cliquet anti-dette (G1).
@@ -53,7 +49,7 @@ Reste du lot 8 :
   manquantes » et « Repartir de zéro ? » (affichage pur).
 
 ## En attente
-- **E3** : découper CarouselEditor.tsx par mission, après la fusion de #1477.
+- **E3** : découper CarouselEditor.tsx par mission. Préalables remplis (#1476 et #1477 fusionnées le 14/10/2026). Prompt prêt : `docs/robustesse/prompt-lot-e3.md`.
   Points d'attention relevés par E2 : `CARTE.md`, section 7 (écho reconnu à la
   référence, `inputKey`).
 - **G4** : découper les autres gros fichiers, après la cartographie (carte 1).
@@ -93,3 +89,7 @@ L'installation par défaut échoue (registre Lovable, deno.land et esm.sh bloqu�
   (cdn.sheetjs.com bloqué), puis remettre `package.json` tel quel ;
 - appliquer à la main `patches/mammoth@1.12.1.patch` dans `node_modules/mammoth`.
 La CI de la PR reste la référence.
+
+## Notes techniques (sessions Claude Code dans le cloud)
+- La CI principale (`ci.yml`) ne tourne que sur les PR qui visent `main` : une PR empilée sur une autre branche n'est pas vérifiée. Changer la base d'une PR ne relance pas la CI ; il faut un nouveau commit.
+- Installer les dépendances sans `bun` (registre Lovable refusé) : voir la section « Méthode » de `docs/robustesse/prompt-lot-e3.md`.
