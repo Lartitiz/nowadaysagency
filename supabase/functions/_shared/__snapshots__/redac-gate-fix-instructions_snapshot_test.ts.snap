@@ -1,0 +1,81 @@
+export const snapshot = {};
+
+snapshot[`buildTextFixInstructions : toutes les familles 1`] = `
+"RETOURNEMENTS PAR NÉGATION : 1 détectés, aucun effet ajouté n’est autorisé. Réécris chaque passage signalé en affirmation directe, en préservant les négations factuelles et verbatims fournis à garder. Une concession suivie de « Sauf que… » (« C'est logique, sur le papier. Sauf que ce n'est pas comme ça que ça marche ») disparaît : pose directement le mécanisme réel, sans concession ni « sauf que ». Une antithèse en deux phrases miroir (« On croit en faire plus. On en fait souvent moins. ») devient une seule phrase qui dit le mécanisme (« Publier trop vite coupe l'élan du post précédent. ») :
+- « n'est pas un choix esthétique. C'est »
+
+FORMULE MOULÉE : « Ce qui me dérange » est une signature IA récurrente. Réécris-la autrement (ou supprime-la).
+
+FORMULE MOULÉE : « Je ne dis pas ça pour  » est une signature IA récurrente. Réécris-la autrement (ou supprime-la).
+
+CHIFFRES SANS SOURCE : ces chiffres ne viennent ni du brief, ni des réponses de l'utilisatrice, ni de son branding, ni de l'actu fournie :
+- 70 (« …70 % des clientes ne le savent pas… »)
+Remplace CHACUN par une formulation qualitative honnête (« une bonne partie », « plusieurs heures », « bien plus cher »). N'invente JAMAIS de statistique, de prix, de durée ou de proportion.
+
+CHIFFRES DE LA RECHERCHE REPRIS SANS LEUR SOURCE : ces chiffres ne viennent que de la matière de recherche, et la phrase qui les reprend ne cite pas leur source :
+- 42 (« 42 % des artisans d'art vendent en direct. ») — dans la recherche : « Selon l'Insee (2023), 42 % des artisans d'art vendent en direct. »
+Pour CHACUN : si la matière de recherche donne la source de ce chiffre, ajoute-la DANS LA MÊME PHRASE (ou dans la phrase juste avant, si elle introduit l'étude), de façon discrète (« (Nom, année) » ou « selon Nom ») ; sinon, remplace le chiffre par une formulation qualitative honnête (« une petite partie de ton réseau », « les premiers jours »). N'invente JAMAIS de source, de nom ou d'année. Ne touche pas au reste du texte.
+
+TÉMOIGNAGE INVENTÉ : ces phrases rapportent la parole d'une personne rencontrée (cliente, amie, artisane…) ou une rencontre, alors que ni le brief, ni les réponses, ni l'actu ne la fournissent :
+- « Une cliente me disait récemment qu'elle ne comprenait pas mes prix. »
+Retire CHAQUE témoignage et garde l'idée qu'il portait, dite comme un constat général au présent ou comme l'opinion de l'autrice. Aucune personne, parole rapportée ou scène de remplacement.
+
+VÉCU PERSONNEL INVENTÉ : ces passages racontent une expérience de l'autrice au passé (« j'ai essayé », « je pensais », « résultat : »), alors que ni le brief, ni les réponses, ni l'actu ne la fournissent :
+- « J'ai essayé de baisser mes prix. Résultat : rien n'a changé. »
+Réécris CHAQUE passage en opinion au présent (« Je pense que… », « Pour moi… ») ou en constat général (« c'est courant », « souvent, la portée baisse même »). Garde l'idée et la position ; aucun test, essai, résultat ou croyance passée de l'autrice.
+
+PASSAGES RECOPIÉS DE LA FICHE DE MARQUE : ces extraits reprennent quasi mot pour mot un champ de la fiche de marque de l'utilisatrice (combat, mission, ton, expressions, convictions) :
+- « Je me bats pour que chaque artisane puisse vivre dignement de son savoir-faire »
+Cette fiche est la MATIÈRE de l'utilisatrice, jamais son texte final. Reformule CHAQUE extrait avec des mots neufs, garde le sens et l'intensité, mais ne recopie plus la fiche de marque telle quelle.
+
+ACCROCHE DÉJÀ UTILISÉE POUR CE SUJET : cette ouverture redit une accroche déjà écrite pour le même sujet :
+- « J'ai arrêté les remises sur mes bols »
+L'audience voit la SÉRIE, pas un contenu isolé : deux publications qui ouvrent pareil donnent l'impression d'un contenu recyclé à la chaîne. Réécris l'accroche avec un angle d'attaque VRAIMENT différent — change ce sur quoi elle ouvre (une scène vécue plutôt qu'un constat, une question plutôt qu'une affirmation, un détail concret plutôt qu'une généralité). Garde le sujet et le fond du contenu, change l'entrée."
+`;
+
+snapshot[`buildFixInstructions (carrousel) : consignes envoyées au correcteur, chute en question 1`] = `
+\`RETOURNEMENTS PAR NÉGATION : 1 détectés, aucun effet ajouté n’est autorisé (caption comprise). Réécris chaque passage signalé en affirmation directe, en préservant les négations factuelles et verbatims fournis à garder (même sens, sans « pas X, c'est Y »). Une concession suivie de « Sauf que… » disparaît, et une antithèse en deux phrases miroir (« On croit en faire plus. On en fait souvent moins. ») devient une seule phrase qui dit le mécanisme (« Publier trop vite coupe l'élan du post précédent. ») :
+- « n'est pas un choix esthétique. C'est »
+
+CTA DUPLIQUÉ : le "cta" de la caption répète la dernière slide. Réécris le cta de la CAPTION pour qu'il soit COMPLÉMENTAIRE (autre formulation, autre angle d'invitation), pas une copie.
+
+FORMULE MOULÉE : « Ce qui me dérange » est une signature IA récurrente. Réécris-la autrement (ou supprime-la).
+
+CHIFFRES SANS SOURCE : ces chiffres ne viennent ni du brief, ni des réponses de l'utilisatrice, ni de son branding, ni de l'actu fournie :
+- 70 (« …t trois semaines pour un bol. 70 % des clientes ne le savent p… »)
+- trois semaines (« …u'on oublie le temps. Il faut trois semaines pour un bol. 70 % des cliente… »)
+Remplace CHACUN par une formulation qualitative honnête (« une bonne partie », « plusieurs semaines », « la plupart », « bien plus cher »). N'invente JAMAIS de statistique, de prix, de durée ou de proportion. Si un schéma visuel de type stats n'a plus de chiffre à afficher, transforme-le en slide texte.
+
+CHIFFRES DE LA RECHERCHE REPRIS SANS LEUR SOURCE : ces chiffres ne viennent que de la matière de recherche, et la phrase qui les reprend ne cite pas leur source :
+- 42 (« Les chiffres 42 % des artisans d'art vendent en direct. Je me bats pour que chaque artisane puisse vivre dignement de son savoir-faire sans brader son travail. ») — dans la recherche : « Selon l'Insee (2023), 42 % des artisans d'art vendent en direct. »
+Pour CHACUN : si la matière de recherche donne la source de ce chiffre, ajoute-la DANS LA MÊME PHRASE (ou dans la phrase juste avant, si elle introduit l'étude), de façon discrète (« (Nom, année) » ou « selon Nom ») ; sinon, remplace le chiffre par une formulation qualitative honnête (« une petite partie de ton réseau », « les premiers jours »). N'invente JAMAIS de source, de nom ou d'année. Ne touche pas au reste du texte.
+
+TÉMOIGNAGE INVENTÉ : ces phrases rapportent la parole d'une personne rencontrée (cliente, amie, artisane…) ou une rencontre, alors que ni le brief, ni les réponses, ni l'actu ne la fournissent :
+- « Une cliente Une cliente me disait récemment qu'elle ne comprenait pas mes prix. »
+Retire CHAQUE témoignage et garde l'idée qu'il portait, dite comme un constat général au présent ou comme l'opinion de l'autrice. Aucune personne, parole rapportée ou scène de remplacement.
+
+VÉCU PERSONNEL INVENTÉ : ces passages racontent une expérience de l'autrice au passé (« j'ai essayé », « je pensais », « résultat : »), alors que ni le brief, ni les réponses, ni l'actu ne la fournissent :
+- « J'ai arrêté les remises Ce n'est pas un choix esthétique. »
+- « J'ai testé une baisse. Résultat : rien n'a changé. »
+Réécris CHAQUE passage en opinion au présent (« Je pense que… », « Pour moi… ») ou en constat général (« c'est courant », « souvent, la portée baisse même »). Garde l'idée et la position ; aucun test, essai, résultat ou croyance passée de l'autrice.
+
+DURÉES QUI SE CONTREDISENT entre les slides et la légende :
+- slides « trois semaines » vs légende « un mois »
+C'est le MÊME fait raconté deux fois avec deux chiffres différents — devant l'audience, ça décrédibilise tout le contenu. Choisis UNE durée et emploie EXACTEMENT la même des deux côtés (ou retire-la d'un des deux). Ne « fais pas la moyenne » : garde celle du brief si le brief en donne une.
+
+PASSAGES RECOPIÉS DE LA FICHE DE MARQUE : ces extraits reprennent quasi mot pour mot un champ de la fiche de marque de l'utilisatrice (combat, mission, ton, expressions, convictions) :
+- « Je me bats pour que chaque artisane puisse vivre dignement de son savoir-faire sans brader son travail »
+Cette fiche est la MATIÈRE de l'utilisatrice, jamais son texte final. Reformule CHAQUE extrait avec des mots neufs, garde le sens et l'intensité, mais ne recopie plus la fiche de marque telle quelle.
+
+ACCROCHE DÉJÀ UTILISÉE POUR CE SUJET : cette ouverture redit une accroche déjà écrite pour le même sujet :
+- « J'ai arrêté les remises sur mes bols »
+L'audience voit la SÉRIE, pas un contenu isolé : deux publications qui ouvrent pareil donnent l'impression d'un contenu recyclé à la chaîne. Réécris l'accroche avec un angle d'attaque VRAIMENT différent — change ce sur quoi elle ouvre (une scène vécue plutôt qu'un constat, une question plutôt qu'une affirmation, un détail concret plutôt qu'une généralité). Garde le sujet et le fond du contenu, change l'entrée.
+
+PHRASES DÉJÀ PUBLIÉES DANS UN CONTENU RÉCENT DE LA MARQUE : ces passages reprennent mot pour mot un de ses derniers contenus :
+- « Chaque pièce sort de mon atelier après de longues heures de tournage et de patience »
+L'audience suit le compte : la même phrase d'un contenu à l'autre se voit tout de suite. Reformule chaque passage avec des mots neufs, ou remplace-le par un autre fait des sources s'il ne sert pas ce propos. N'ajoute aucun fait.
+
+CHUTE DE CAPTION NON CONFORME : la forme imposée pour cette génération est « une question ouverte sur le sujet ». La caption ne contient aucune question : réécris le champ "cta" de la CAPTION en question spécifique au sujet.\`
+`;
+
+snapshot[`buildFixInstructions (carrousel) : chute imposée sans question, cta en question 1`] = `\`CHUTE DE CAPTION NON CONFORME : la forme imposée pour cette génération est « une confidence courte ». La caption se termine par une question alors que la forme imposée n'en est pas une : réécris le champ "cta" de la CAPTION dans la forme imposée, SANS aucun point d'interrogation. Garde le sens, change la forme.\``;

@@ -864,6 +864,14 @@ Les trois fonctions Pinterest n'importent pas `redac-gate`. Elles y arrivent par
   - **Lot 5** : `carousel-gate`, `text-gate`.
 - À faire **après** le découpage de `correction-pass` (fiche 3), dont il dépend.
 
+**Avancement (14/10/2026)** : lot 0 fait (tests seuls, aucune ligne de `redac-gate.ts` touchée ; la correction de zone de `impact-creation.mjs` était déjà faite, #1479).
+- Test 1 : `redac-gate-exports_test.ts` (43 valeurs + 8 types).
+- Test 2 : `redac-gate-fix-instructions_snapshot_test.ts` (`buildTextFixInstructions` ; `buildFixInstructions` captée dans la requête de `runRedacGate`, toutes familles et les deux formes de chute de légende).
+- Tests 3 à 5 : `redac-gate-safety-nets_test.ts`.
+- Test 6 : `redac-gate-golden_snapshot_test.ts` (texte corrigé, texte dont la correction dérive, carrousel corrigé, carrousel dont la correction est refusée).
+- **Constat relevé par les tests (non corrigé, changement de code)** : `inventedSourceTokens` compte tout mot à majuscule ajouté par la correction comme une source inventée. Une correction qui remplace « 42 % des artisans… » par « … possible. Une bonne partie des artisans… » est donc refusée à cause du « Une » en début de phrase. À traiter dans une PR à part, après le découpage.
+- Prochain : lot 1 (`text-utils`, `reversals`, `numbers`, `durations`).
+
 ---
 
 ### 8. `src/components/creer/CarouselEditor.tsx` — 3816 lignes
@@ -1113,7 +1121,7 @@ cours :
 | 0 ✅ | `scripts/impact-creation.mjs` (fait le 14/10/2026, #1479) | Avant tout découpage d'un module partagé : faire calculer la zone (rouge / orange / verte) sur le premier segment du nom, sinon le rapport de CI annonce « zone verte » pour `redac-gate/numbers` (voir « Pièges communs »). |
 | 1 ✅ | `_shared/format-briefs.ts` (fiche 10, terminée le 14/10/2026 : 1 273 → 18 lignes) | Risque faible : un seul appelant serveur (creative-flow), des fonctions pures. Bon premier essai de la méthode. |
 | 2 ✅ | `_shared/correction-pass.ts` (fiche 9, terminée le 14/10/2026 : 1 234 → 39 lignes) | Le plus fort taux de corrections ; les prompts de correction ne sont figés nulle part : poser les snapshots d'abord. |
-| 3 | `creative-flow/index.ts` (fiche 3) | Suite logique du lot 3 du 13/10, mêmes tests de contrat déjà en place. |
+| 3 ✅ | `creative-flow/index.ts` (fiche 3, terminée le 14/10/2026 : 1 687 → ~440 lignes, lot F compris) | Suite logique du lot 3 du 13/10, mêmes tests de contrat déjà en place. |
 | 4 | `_shared/redac-gate.ts` (fiche 7) | Zone orange (9 fonctions) : après correction-pass, dont il dépend. |
 | 5 | `carousel-ai/index.ts` (fiche 2) | Très modifié ; un contrat du handler à poser d'abord, comme pour creative-flow. |
 | 6 | Studio visuel, serveur puis page (fiches 5 et 4) | Indépendant de la création de contenu : peut avancer en parallèle des lignes 1 à 5. |
