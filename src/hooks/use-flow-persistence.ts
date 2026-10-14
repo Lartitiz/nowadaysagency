@@ -24,6 +24,8 @@ interface FlowState {
   editorialAngle: string | null;
   answers: Record<string, string>;
   editContent: string;
+  /** Texte de l'étape « Modifier » à son ouverture ou à la dernière sauvegarde. */
+  editBaseline?: string | null;
   result: any;
   visualSlides: { slide_number: number; html: string }[];
   savedId: string | null;

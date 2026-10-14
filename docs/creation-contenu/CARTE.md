@@ -79,6 +79,21 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 | `calendar_posts` | Envoi vers le calendrier ou retour vers le post d'origine | `src/hooks/use-calendar-save.ts` |
 | Storage `calendar-visuals`, `calendar-media` | Images et vidéos | `src/features/creer/upload-helpers.ts`, `src/lib/carousel-media.ts` |
 
+### Ne jamais perdre une modification (lot 6, 14/10/2026)
+
+- **« Régénérer » et « Changer d'angle »** gardent la version d'avant, retouches
+  comprises (`src/hooks/use-regeneration-backup.ts`). Si la nouvelle génération
+  échoue, elle revient toute seule. Si elle réussit, un toast propose « Revenir à
+  ma version précédente ». Pendant la régénération, la copie de secours du
+  navigateur garde l'ancienne version au lieu d'un résultat vide.
+- **Étape « Modifier »** (`CreerStepEdit`) : la frappe part dans la copie de
+  secours au fil de l'eau (`onDraftChange`, 400 ms) ; « Retour » avec des
+  modifications non appliquées demande d'abord (appliquer, continuer, ou revenir
+  sans les appliquer). `editBaseline` mémorise la dernière version appliquée.
+- Tests : `src/test/regeneration-backup.test.tsx`, `src/test/creer-step-edit.test.tsx`.
+- Tout nouveau bouton qui relance la génération d'un résultat existant appelle
+  `regenerationBackup.begin(regenerationSnapshot())` avant `doGenerate`.
+
 ### Aller-retour avec le calendrier (navigate state)
 
 - **Départ** : `src/pages/Calendar.tsx` (state `fromCalendar`, `postId`,

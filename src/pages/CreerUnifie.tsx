@@ -60,6 +60,7 @@ import { useFormatNext } from "@/hooks/use-format-next";
 import { useGenerateVisuals } from "@/hooks/use-generate-visuals";
 import { applyMixRenderMemory, mergeEditorRaw } from "@/lib/mix-layout-memo";
 import { useDoGenerate } from "@/hooks/use-do-generate";
+import { useRegenerationBackup } from "@/hooks/use-regeneration-backup";
 import CreerStepIdea from "@/components/creer/CreerStepIdea";
 // Code-splitting : les étapes après l'écran « idée » sont chargées à la demande
 // (chunk /creer initial allégé → premier écran plus rapide).
@@ -403,6 +404,9 @@ function CreerWorkspace() {
   const [selectedReelHook, setSelectedReelHook] = useState<ReelHook | null>(null);
   const pendingReelAnswersRef = useRef<Record<string, string>>({});
   const [editContent, setEditContent] = useState(ps?.editContent || "");
+  // Texte de l'étape « Modifier » à son ouverture (ou à la dernière sauvegarde) :
+  // sert à savoir s'il reste des modifications non appliquées.
+  const [editBaseline, setEditBaseline] = useState<string | null>(ps?.editBaseline ?? null);
   const [existingCalendarContent, setExistingCalendarContent] = useState<string | null>(null);
   const [calendarPostId, setCalendarPostId] = useState<string | null>(locState?.calendarPostId || searchParams.get("calendar_id") || ps?.calendarPostId || null);
   const [calendarPostDate, setCalendarPostDate] = useState<string | null>(locState?.postDate || ps?.calendarPostDate || null);
@@ -676,6 +680,20 @@ function CreerWorkspace() {
     streamStage,
     streamReset,
   } = useContentGenerator();
+  // Filet « Régénérer » / « Changer d'angle » : la version d'avant (retouches
+  // comprises) revient si la nouvelle échoue, et reste à un clic sinon.
+  const regenerationBackup = useRegenerationBackup({
+    result,
+    step,
+    busy: generating || streaming || structureLoading || photoDumpResolving || hooksLoading,
+    restore: (snapshot) => {
+      setResult(snapshot.result);
+      setVisualSlides(snapshot.visualSlides);
+      setEditContent(snapshot.editContent);
+      setStep("result");
+    },
+  });
+  const regenerationSnapshot = () => ({ result, visualSlides, editContent });
   const currentWarnings = useMemo(() => splitCarouselWarnings(invalidateProgressionReceipt(result?.raw || {}), carouselSubMode), [result?.raw, carouselSubMode]);
 
   const [studioSlideId, setStudioSlideId] = useState<string | null>(null);
@@ -811,8 +829,11 @@ function CreerWorkspace() {
         editorialAngle,
         answers,
         editContent,
-        result: result || undefined,
-        visualSlides,
+        editBaseline,
+        // Régénération en cours : la copie de secours garde la version d'avant,
+        // pour qu'un rechargement ne la perde pas.
+        result: result || regenerationBackup.pending?.result || undefined,
+        visualSlides: !result && regenerationBackup.pending ? regenerationBackup.pending.visualSlides : visualSlides,
         savedId,
         questions: questions || [],
         inspirationAnalysis: inspirationAnalysis || undefined,
@@ -829,7 +850,7 @@ function CreerWorkspace() {
         autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat,
         calendarPostId, calendarPostDate,
     });
-  }, [conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate]);
+  }, [conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate, regenerationBackup.pending, editBaseline]);
 
   // Filet anti-perte : pendant le streaming, sauvegarder le texte déjà reçu
   // (throttle ~1,5 s). Sans ça, un reload/fermeture mi-génération repartait à
@@ -1503,7 +1524,9 @@ function CreerWorkspace() {
       await handleGenerateVisuals();
       return;
     }
+    regenerationBackup.begin(regenerationSnapshot());
     await doGenerate(answers);
+    regenerationBackup.settleIfNotStarted();
   };
 
   // Drapeau qui force une régénération une fois que le nouveau editorialAngle a été commité dans le state.
@@ -1516,12 +1539,13 @@ function CreerWorkspace() {
     // angle (selectedHook prime sur HOOK_AUTO côté edge). On le vide pour que
     // l'IA en génère un nouveau, cohérent avec le nouvel angle.
     if (selectedFormat === "reel") setSelectedReelHook(null);
+    regenerationBackup.begin(regenerationSnapshot());
     setPendingAngleRegen(true);
   };
   useEffect(() => {
     if (!pendingAngleRegen) return;
     setPendingAngleRegen(false);
-    doGenerate(answers);
+    doGenerate(answers).finally(regenerationBackup.settleIfNotStarted);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingAngleRegen, editorialAngle]);
 
@@ -1777,6 +1801,7 @@ function CreerWorkspace() {
     // Si une édition manuelle a déjà été sauvegardée, on la rouvre telle quelle.
     if (typeof r?.edited_text === "string") {
       setEditContent(r.edited_text);
+      setEditBaseline(r.edited_text);
       setStep("edit");
       return;
     }
@@ -1862,6 +1887,7 @@ function CreerWorkspace() {
     }
 
     setEditContent(text);
+    setEditBaseline(text);
     setStep("edit");
   };
 
@@ -3344,12 +3370,17 @@ function CreerWorkspace() {
             {step === "edit" && (
               <CreerStepEdit
                 content={editContent}
+                savedContent={editBaseline ?? undefined}
+                // Chaque frappe part dans la copie de secours : un rechargement
+                // ou un onglet fermé ne perd plus le texte en cours.
+                onDraftChange={setEditContent}
                 subject={ideaText}
                 newsContext={newsjackingContext}
                 workspaceId={workspaceId}
                 format={selectedFormat || "post"}
                 onSave={(edited) => {
                   setEditContent(edited);
+                  setEditBaseline(edited);
                   // Persiste le texte édité DANS le résultat (auto-scopé : remplacé à chaque
                   // nouvelle génération). Les chemins de sauvegarde (calendrier/idées) le
                   // préfèrent à la version IA d'origine — sinon l'édition était perdue.
