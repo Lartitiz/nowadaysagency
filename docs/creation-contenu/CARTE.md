@@ -410,6 +410,7 @@ régression, corrige le code et pas le snapshot.
 | `pinterest-ai/contract_test.ts` (lot 2) | les 5 actions (name, bio, board-description, pin, keywords) |
 | `storytelling-ai/contract_test.ts` (lot 2) | les 4 types (improve, generate-story, generate-pitch, generate-recap) |
 | `inspire-ai/contract_test.ts` (lot 2) | texte collé et capture d'écran |
+| `ai-text-action/contract_test.ts` (lot 9) | menu IA sur sélection : quota (refus → 429 sans appel IA ; succès → un seul débit « adaptation » après l'IA ; échec IA → aucun débit), connexion (sans jeton ou jeton refusé → 401), espace (`workspace_id` d'autrui → 403 avant le quota ; espace partagé → branding, quota et débit sur cet espace) |
 | `_shared/carousel-editorial-snapshot_test.ts`, `socle_test.ts` | la relecture des carrousels et les règles communes |
 
 Les fichiers `contract_test.ts` font passer une vraie requête dans le
@@ -438,6 +439,7 @@ intercepte ce démarrage sans modifier le code de production.
 | Bio Instagram, brouillons rapides | `generate-content/contract_test.ts` | — | — |
 | Storytelling, inspiration | `storytelling-ai/contract_test.ts`, `inspire-ai/contract_test.ts` | — | — |
 | Crosspost | — | `crosspost-{flow,preview,services,continuity}` | — |
+| Menu IA sur sélection de texte | `ai-text-action/index_test.ts` (re-passe de dérive), `ai-text-action/contract_test.ts` | `selection-menu` (appel via `invokeWithTimeout`, « Copier », erreur, mode démo) | — |
 | Parcours /creer | — | `creation-*`, `creer-*`, `use-do-generate`, `use-format-next`, `generation-lifecycle`, `hook-selection-step`, `content-preview-*`, `draft-conflict-save` | `e2e/premier-contenu-reprise.authed.spec.ts`, `e2e-visite/fonctionnel-t1`, `quota-etape4`, `creer-429`, `contenus-figes*` |
 | Calendrier ↔ générateur | — | `calendar-creer-contract` (clés du navigate state), `idea-to-calendar`, `r3-calendar-persistence`, `use-calendar-save`, `build-calendar-content`, `calendar-caption` | `e2e-visite/calendrier-*` |
 
@@ -450,6 +452,10 @@ Comblés au lot 2 :
 - generate-content, pinterest-ai, storytelling-ai et inspire-ai ;
 - le contrat calendrier → /creer (`src/test/calendar-creer-contract.test.ts`).
 
+Comblés au lot 9 (14/10/2026) :
+- `ai-text-action` : quota, connexion et espace (`contract_test.ts`) ;
+- `SelectionMenu` et `SelectionMenuProvider` (`src/test/selection-menu.test.tsx`).
+
 Restent sans snapshot :
 1. **Les prompts des passes de correction** par format
    (`_shared/correction-pass.ts`). Leur comportement est testé, pas leur
@@ -460,6 +466,8 @@ Restent sans snapshot :
    par `index_test.ts`, mais pas l'assemblage final du prompt dans le
    handler (blocs identité, clarté et structure confirmée). Seuls les
    morceaux sont figés.
+4. **Le prompt de `ai-text-action`** : son câblage est testé, pas le texte
+   envoyé à Claude.
 
 ---
 
@@ -468,6 +476,7 @@ Restent sans snapshot :
 | Garde-fou | Où | Bloque la CI ? | Ce qu'il empêche |
 |---|---|---|---|
 | Frontières entre formats | `supabase/functions/creative-flow/boundaries_test.ts` | oui (`npm run test:edges`) | un format qui importe le fichier d'un autre format ; une dépendance circulaire vers `index.ts` ; un fichier de `formats/` absent de cette carte |
+| Frontière texte / design (lot 9) | `supabase/functions/_shared/design-text-boundaries_test.ts` | oui (`npm run test:edges`) | qu'une fonction de design (`carousel-visual`, `pinterest-visual`, `carousel-slide-image`, `visual-studio`) importe, directement ou par ricochet, la chaîne d'écriture des textes (`redac-gate`, `correction-pass`, `carousel-model`, `format-briefs`, `copywriting-prompts`) |
 | Snapshots et contrats par format | voir section 5 | oui | qu'un prompt, un appel à Claude ou une réponse change sans qu'on le voie |
 | Contrat calendrier → /creer | `src/test/calendar-creer-contract.test.ts` | oui (`npm test`) | une clé du navigate state renommée d'un seul côté |
 | Rapport d'impact | `scripts/impact-creation.mjs`, étape « Impact sur la création de contenu » de la CI | non (informatif) | qu'une retouche « pour un format » en touche d'autres sans qu'on le sache : il liste les formats concernés, les fichiers partagés modifiés (avec leur zone) et les prompts figés qui changent |
@@ -482,6 +491,33 @@ lancement « CI », puis son résumé. En local :
 Une exception aux frontières (un format qui DOIT en importer un autre) se
 déclare dans `IMPORTS_AUTORISES` de `boundaries_test.ts`, avec sa raison.
 Aujourd'hui : le recyclage importe les stories et le carrousel.
+
+**Ce que couvre le rapport d'impact** (complété au lot 9) :
+- fonctions serveur : les générateurs de texte, plus `carousel-visual`,
+  `carousel-slide-image`, `pinterest-visual`, `pinterest-photo-brief`,
+  `visual-studio` (studio visuel), `visual-direction-suggest` (direction photo
+  et vidéo de la charte) et `studio-video` ;
+- écrans et fichiers du front : `CreerUnifie.tsx`, les écrans de résultat,
+  l'éditeur visuel du carrousel (`CarouselEditor.tsx`, `src/lib/carousel-editor.ts`),
+  les exports, `use-generate-visuals.ts` (mise en forme visuelle),
+  `use-user-slides-generate.ts` (slides écrites par l'utilisatrice),
+  `ReelMontage.tsx`, l'étape « Modifier » (`CreerStepEdit.tsx`,
+  `src/features/creer/edited-text.ts`), le filet « Régénérer »
+  (`use-regeneration-backup.ts`), le lancement des générations et le lien
+  calendrier → générateur.
+Un nouveau générateur ou un nouvel écran de création s'ajoute dans
+`FUNCTION_LABELS` ou `FRONT_FILES` de `scripts/impact-creation.mjs`, avec son
+cas dans `src/test/impact-creation.test.ts`.
+
+**Frontière texte / design** (lot 9). Une fonction de design ne doit pas
+embarquer la chaîne d'écriture des textes : sinon une retouche « pour
+LinkedIn » dans `redac-gate` change aussi une mise en forme ou une épingle.
+Le test suit tous les imports (directs et indirects). Un lien indirect voulu
+se déclare dans `LIENS_INDIRECTS_AUTORISES`, avec sa raison ; une exception
+qui ne sert plus fait aussi échouer le test. Aujourd'hui, une seule :
+`pinterest-visual` → `audience-address-pass` → `correction-pass` (→
+`carousel-model`, `reel-postprocess` → `redac-gate`). L'épingle visuelle écrit
+aussi un titre et une description, qui passent le contrôle tu / vous.
 
 ### Contrat des étiquettes HTML du carrousel (lot E1, 14/10/2026)
 
