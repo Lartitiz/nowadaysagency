@@ -655,7 +655,7 @@ Une PR par lot. À chaque lot : `npm run test:edges`, le `deno check` ci-dessus,
 3. **Lot 2** : `actions/session.ts`, `actions/reference.ts`, `actions/composition.ts`, `actions/save.ts`. *Fait (14/10/2026) : chaque action reçoit `(ctx, session, references)` (`actions/context.ts`) et renvoie la session ou la `Response` ; `index.ts` 1815 → 1518 lignes, aucun `.snap` modifié.*
 4. **Lot 3** : `actions/pilot.ts` et `actions/generate.ts` (crédits : relire le diff ligne à ligne). *Fait (14/10/2026) : corps de `generate` identique ligne à ligne (seul `pipe.corsHeaders` devient `ctx.corsHeaders`), `EdgeRuntime` déclaré dans `generate.ts` ; `index.ts` 1518 → 1258 lignes, aucun `.snap` modifié.*
 5. **Lot 4** : `read-state.ts`. *Fait (14/10/2026) : `readState(ctx, session, writable)`, corps identique ligne à ligne (167 lignes) ; `index.ts` 1258 → 1087 lignes, aucun `.snap` modifié.*
-6. **Lots 5 à 8** : la branche `message`, un fichier `turn/*` par PR, dans cet ordre : `brand-context`, `interpret`, `proposal`, et `guardrails` en dernier, éventuellement en deux PR (921-1143, puis 1144-1304).
+6. **Lots 5 à 8** : la branche `message`, un fichier `turn/*` par PR, dans cet ordre : `brand-context`, `interpret`, `proposal`, et `guardrails` en dernier, éventuellement en deux PR (921-1143, puis 1144-1304). *Lot 5 fait (14/10/2026) : `turn/brand-context.ts`, `loadBrandContext(ctx, message)` renvoie `{ memory, brandContext, catalogue }` ; corps identique sauf `searchTerms(message)` (la demande déjà vérifiée par index.ts) ; `index.ts` 1087 → 990 lignes, aucun `.snap` modifié. Lot 6 fait (14/10/2026) : `turn/interpret.ts`, `interpret(ctx, input)` (rôles déclarés appliqués en place, vision, appel à Claude et réparations) renvoie la réponse 503 ou `{ statedRoles, selectedReference, vision, availableSoulStyles, intent, interpreterArgs }` ; corps identique (151 lignes), références passées sans copie (vérifié : une copie fait échouer le test des rôles en place) ; `index.ts` 990 → 841 lignes. Lot 7 fait (14/10/2026) : `turn/proposal.ts`, `saveProposal(ctx, input)` (proposition, routage Soul 2 / Marketing, messages, journal, enregistrement avec `revision`) renvoie la réponse anticipée ou la session enregistrée ; corps identique (151 lignes) sauf `message.slice` (demande déjà vérifiée) et `return updated.data` ; `index.ts` 841 → 686 lignes, sorti de la liste du cliquet (moins de 800 lignes). Lot 8 fait (14/10/2026) : `turn/guardrails.ts`, `applyGuardrails(ctx, input)` (règles métier après Claude, en une seule PR) renvoie la réponse anticipée ou ce dont la proposition a besoin ; corps identique (382 lignes) ; `requestReferences` et `intent` passés sans copie ; nouveau test « mannequin de la mémoire : ajouté aux références de la demande enregistrées » (une copie du tableau à l'entrée des règles passait inaperçue des 199 tests). `index.ts` 686 → 299 lignes. **Fiche 5 terminée.***
 
 Pendant ces lots : pas de fusion de PR pendant une session Lovable ouverte (cf. CLAUDE.md), et aucun changement de comportement mêlé au déplacement.
 
@@ -898,8 +898,8 @@ commence par `CarouselEditor` exprès : le test du contrat `data-*`
 | E3-1 | `canvas-geometry.ts` (outils de calcul), `PanelBits.tsx` (petites briques) |
 | E3-2 | `CanvasToolbar.tsx` (barre flottante) |
 | E3-3 | `SlideCanvas.tsx` + `canvas-events.ts` (l'aperçu fait 1 350 lignes : au-delà des 800 du cliquet, il part en deux) |
-| E3-4 | `LayersPanel.tsx`, `MultiSelectPanel.tsx`, `SlideSettings.tsx` |
-| E3-5 | `TextSettings.tsx`, `PhotoSettings.tsx`, `BlockSettings.tsx`, `panel-controls.tsx` |
+| E3-4 | `LayersPanel.tsx` (calques et sélection multiple), `SlideSettings.tsx` (onglets Slide et Carrousel), `panel-controls.tsx` |
+| E3-5 | `TextSettings.tsx`, `ElementSettings.tsx` (`PhotoSettings`, `BlockSettings`) |
 | E3-6 | `EditorHeader.tsx`, `QualityPanel.tsx`, `SlideStrip.tsx`, `AllSlidesPanel.tsx` |
 
 **Ne bouge pas** : le cœur (document, historique, `emit`, écho). C'est là
@@ -1094,6 +1094,8 @@ Une PR par lot :
 5. **Lot 4** : `stories.ts` + `angle-families_test.ts` (3 listes stories) mis à jour.
 6. **Lot 5 (documentation et outils)** : CARTE.md, `SOCLE_CHEMINS` et `origines` dans `socle.ts` (zone rouge : ne changer que des chaînes de chemin), table par format dans `impact-creation.mjs`.
 Ce découpage est indépendant de celui de `index.ts` (fiche 1) : on peut le faire en premier, c'est le moins risqué des deux.
+
+**Avancement (14/10/2026)** : lot T fait (`_shared/format-briefs_snapshot_test.ts`, 104 cas + liste des exports). Lot 1 fait : `common.ts`, `carousel.ts`, `pinterest.ts`, `newsletter.ts`, `caption.ts`, `photo-caption.ts`, `position.ts` déplacés à l'identique, sommaire en `export *` (sans `common.ts`, qui reste interne), frontières dans `_shared/format-briefs/boundaries_test.ts`. `format-briefs.ts` : 1 273 → 976 lignes. Reste : lots 2 (LinkedIn), 3 (reel), 4 (stories), 5 (outils et doc).
 
 ---
 

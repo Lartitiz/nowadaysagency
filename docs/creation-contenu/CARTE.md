@@ -57,7 +57,9 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 |---|---|
 | `src/pages/CreerUnifie.tsx` (~3 500 lignes) | Orchestre tout le parcours : environ 85 `useState`, une cinquantaine de comparaisons `format === …` sans `switch`, plus `carouselSubMode` et `isLinkedInCarousel`. **C'est le fichier le plus couplé du front.** |
 | `src/components/creer/CreerStepIdea.tsx` → `CreerStepFormat.tsx` → `CreerStepQuestions.tsx` → `HookSelectionStep.tsx` (reel) / `StructureReviewStep.tsx` (carrousel photo et mixte) / `UserSlidesStep.tsx` / `PinterestInspirationStep.tsx` → `CreerStepResult.tsx` → `CreerStepEdit.tsx` | Les étapes. Le type `Step` est en tête de `CreerUnifie.tsx`. Le stepper visible (`CreerStepper.tsx`) n'affiche que 4 étapes. |
+| `src/components/creer/LowCreditsBanner.tsx`, `PhotoMissingDialog.tsx`, `ConfirmResetDialog.tsx` | Affichage pur sorti de `CreerUnifie.tsx` (lot B, 14/10/2026) : bandeau « Plus que X crédits », fenêtre « Ce carrousel gagnerait à avoir des photos », fenêtre « Repartir de zéro ? ». Leur état (ouverte, type de carrousel) et ce que font les boutons restent dans la page. Tests en rendu réel : `src/test/creer-reprise-modifier-reset.test.tsx`, `creation-initial-draft.test.tsx` ; fenêtre des photos manquantes : `photo-missing-dialog.test.tsx` (boutons seuls) et `creer-photos-manquantes.test.tsx` (sur la vraie page : texte « mixte » / « photo », « Continuer en texte » relance en texte, « Ajouter des photos » revient au format en mixte sans perdre sujet, angle ni réponses, « Annuler » ne lance rien). |
 | `src/components/creer/CreerStepResult.tsx` | Le `switch (format)` qui choisit le bon `formatRenderers/*`. **C'est le point d'aiguillage naturel par format.** |
+| `src/components/creer/CarouselEditor.tsx` + `CarouselEditorParts/` | Éditeur visuel du carrousel (après création des visuels). Découpage par mission en cours (lot E3, plan : `docs/robustesse/gros-fichiers.md`, fiche 8). Déjà sortis : `canvas-geometry.ts` (outils de calcul sur la slide affichée : élément sous le pointeur, repères, verrou) `PanelBits.tsx` (section repliable, miniature, forme du cadre photo) `CanvasToolbar.tsx` (barre d'outils flottante au-dessus de l'élément choisi), `SlideCanvas.tsx` (l'aperçu d'une slide : iframe, cadre de sélection, poignées, repères) `canvas-events.ts` (ses réactions à la souris et au clavier), `LayersPanel.tsx` (calques, sélection multiple), `SlideSettings.tsx` (onglets Slide et Carrousel) `panel-controls.tsx` (curseur avec sa valeur, conversion de couleurs), `TextSettings.tsx` (réglages d'un texte) et `ElementSettings.tsx` (réglages d'une photo et d'un bloc). Les tests du contrat `data-*` ne lisent que les fichiers suivis par git : `git add` avant de les lancer en local. Le cœur (document, historique, écho `inputKey`) reste dans `CarouselEditor.tsx`. |
 | `src/hooks/use-format-next.ts` | Passage de l'étape format à l'étape suivante (et Pinterest inspiration). |
 | `src/hooks/use-do-generate.ts` | Lance la génération selon le format : SSE texte, carrousel, Pinterest visuel ou photo. |
 | `src/hooks/use-content-generator.ts` | Appels réels aux fonctions serveur. `switch` par format, questions, streaming (`streamInvoke`, table `contentTypeMap`). |
@@ -158,7 +160,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 
 ### Quota dans le parcours
 
-- `LowCreditsBanner` (défini dans `CreerUnifie.tsx`) et la pastille
+- `LowCreditsBanner` (`src/components/creer/LowCreditsBanner.tsx`, affiché par `CreerUnifie.tsx`) et la pastille
   « N crédits restants ».
 - `QuotaWallModal` n'est **pas** monté dans /creer : il est global, dans
   `AppHeader.tsx`, déclenché par `handleQuotaError`
@@ -221,6 +223,13 @@ appelants n'ont pas changé d'import.
 - Les briefs par format sont dans `_shared/format-briefs.ts` :
   `carouselBrief`, `reelBrief`, `storiesBrief`, `linkedinBrief`,
   `pinterestBrief`, `newsletterBrief`, `captionBrief`, `photoCaptionBrief`.
+  Découpage en cours (14/10/2026) : un fichier par format dans
+  `_shared/format-briefs/` (`carousel.ts`, `pinterest.ts`, `newsletter.ts`,
+  `caption.ts`, `photo-caption.ts`, `position.ts`, plus `common.ts` pour
+  `annoncedItems`). `format-briefs.ts` les réexporte et garde encore reel,
+  stories et LinkedIn. Pour retoucher un brief, modifie SON fichier ;
+  `format-briefs/boundaries_test.ts` interdit qu'un brief en importe un
+  autre (sauf `common.ts`) ou importe `position.ts`.
 
 **Passes spécifiques à un format** (fichiers `formats/*`, voir ci-dessus)
 
@@ -366,6 +375,13 @@ aussi pour ses importeurs.
 Régénérer : `node scripts/carte-impact.mjs` (tous les modules), ou
 `node scripts/carte-impact.mjs redac-gate format-briefs` (quelques modules).
 
+**Sous-dossiers (14/10/2026).** Quand un module est découpé en dossier
+(`_shared/redac-gate/numbers.ts`), `carte-impact.mjs` le nomme d'après son
+chemin (`redac-gate/numbers`). Le rapport d'impact de la CI
+(`scripts/impact-creation.mjs`, `zoneOf`) lit la zone sur le **premier
+segment** du nom : `redac-gate/numbers` est en zone orange comme
+`redac-gate`, `format-briefs/reel` en zone verte comme `format-briefs`.
+
 ### 🔴 Zone rouge : touche presque tout
 
 Ne pas modifier pour corriger un seul format. Ajouter plutôt un paramètre ou
@@ -421,7 +437,7 @@ fonctions qui ne s'appellent pas « carousel »**.
 
 | Module | Fonctions touchées |
 |---|---|
-| `format-briefs` (briefs reel, stories, LinkedIn, newsletter, Pinterest, légende) | creative-flow |
+| `format-briefs` et `format-briefs/*` (briefs reel, stories, LinkedIn, newsletter, Pinterest, légende, prise de position) | creative-flow |
 | `story-formatting`, `linkedin-hook`, `multi-subject`, `vision-prompts`, `strip-markdown` | creative-flow |
 | `carousel-length`, `carousel-plan-format`, `content-quality`, `previous-hooks`, `recent-briefs`, `depth-research` | carousel-ai, creative-flow (⚠️ deux fonctions : le carrousel ET les autres formats) |
 | `carousel-cover`, `carousel-thread`, `carousel-progression`, `carousel-draft-stream`, `recent-passages`, `schema-limit`, `photo-slide-structure`, `photo-template-assign` | carousel-ai |
@@ -458,6 +474,7 @@ régression, corrige le code et pas le snapshot.
 | `pinterest-ai/contract_test.ts` (lot 2) | les 5 actions (name, bio, board-description, pin, keywords) |
 | `storytelling-ai/contract_test.ts` (lot 2) | les 4 types (improve, generate-story, generate-pitch, generate-recap) |
 | `inspire-ai/contract_test.ts` (lot 2) | texte collé et capture d'écran |
+| `_shared/format-briefs_snapshot_test.ts` (14/10/2026, avant découpage) | chaque brief de `format-briefs.ts`, branche par branche, sans passer par creative-flow : reel (objectifs, face cam non, hook partiel, inspiration, angle imposé, numérotation, récap, éléments perso), stories (5 min, 5 gammes de vente, photos, tu / vous, garde-fou, récap), chaque gabarit LinkedIn, Pinterest, newsletter, légende photo, post Instagram par objectif, prise de position (3 formats × actu × vécu) ; plus la liste exacte des exports |
 | `ai-text-action/contract_test.ts` (lot 9) | menu IA sur sélection : quota (refus → 429 sans appel IA ; succès → un seul débit « adaptation » après l'IA ; échec IA → aucun débit), connexion (sans jeton ou jeton refusé → 401), espace (`workspace_id` d'autrui → 403 avant le quota ; espace partagé → branding, quota et débit sur cet espace) |
 | `_shared/correction-pass-prompts_snapshot_test.ts` (14/10/2026, avant découpage) | les 6 prompts de relecture par format, le prompt « fidélité aux sources » (avec et sans source), les 3 prompts des passes factuelles ; plus la liste exacte des 23 exports de `correction-pass.ts` |
 | `_shared/correction-pass-calls_snapshot_test.ts` (14/10/2026, avant découpage) | la requête envoyée à Claude et le résultat de chaque relecture (texte, carrousel balisé, stories, reel, 3 passes factuelles), Claude simulé ; les replis sur l'original (réponse courte, sans marqueur, hors bornes, erreur) |
