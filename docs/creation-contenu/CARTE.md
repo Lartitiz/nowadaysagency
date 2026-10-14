@@ -420,7 +420,7 @@ intercepte ce démarrage sans modifier le code de production.
 
 | Format | Serveur (Deno) | Front (`src/test/`) | Bout en bout |
 |---|---|---|---|
-| Carrousel | `carousel-ai/*_test.ts` (dont `index_test.ts`, ~2 000 l., et `prompts_snapshot_test.ts`), `_shared/carousel-*_test.ts`, `redac-gate-carousel-vecu_test.ts`, `carousel-visual/index_test.ts`, `carousel-slide-image/prompt_test.ts` | ~45 `carousel-*.test.ts(x)`, `use-carousel-*`, `use-generate-visuals`, `use-user-slides-generate`, `export-carousel-pptx-*`, `pptx-*`, `pure-photo-*` | `e2e/pptx-mixed-text.spec.ts`, `e2e/pptx-hybrid-photo-occultee.spec.ts`, `e2e-visite/carousel-*-live.spec.ts` |
+| Carrousel | `carousel-ai/*_test.ts` (dont `index_test.ts`, ~2 000 l., et `prompts_snapshot_test.ts`), `_shared/carousel-*_test.ts`, `redac-gate-carousel-vecu_test.ts`, `carousel-visual/index_test.ts`, `carousel-slide-image/prompt_test.ts` | ~50 `carousel-*.test.ts(x)` (dont `carousel-editor-*`, lot E2), `use-carousel-*`, `use-generate-visuals`, `use-user-slides-generate`, `export-carousel-pptx-*`, `pptx-*`, `pure-photo-*` | `e2e/pptx-mixed-text.spec.ts`, `e2e/pptx-hybrid-photo-occultee.spec.ts`, `e2e-visite/carousel-*-live.spec.ts` |
 | Reel | `creative-flow/index_test.ts` (`applyReelQualityPass`), `_shared/reel-*_test.ts`, `reel-render/*_test.ts` | `reel-*.test.ts(x)` | `e2e-visite/reel-angles-live` |
 | Stories | `creative-flow/index_test.ts`, `stories_secondary_test.ts`, `_shared/story-*_test.ts` | `story-*`, `multi-subject-stories` | `e2e-visite/stories-visuelles` |
 | Post Instagram | `creative-flow/index_test.ts` (`correctPostStreamContent`), `prompts_snapshot_formats_test.ts` | `r1-*`, `publish-guards` | — |
@@ -453,6 +453,21 @@ Restent sans snapshot :
    par `index_test.ts`, mais pas l'assemblage final du prompt dans le
    handler (blocs identité, clarté et structure confirmée). Seuls les
    morceaux sont figés.
+
+### Éditeur visuel du carrousel : comportement figé (lot E2, 14/10/2026)
+
+Avant le découpage de `CarouselEditor.tsx` (lot E3), six fichiers de tests
+figent ce que fait l'éditeur aujourd'hui. Ils ne modifient pas l'éditeur ;
+après le découpage, ils doivent tous passer sans être retouchés.
+
+| Fichier (`src/test/`) | Ce qui est protégé |
+|---|---|
+| `carousel-editor-resize-snap.test.tsx` | Poignées (droite, gauche, bas, coin ; largeur mini 60 px ; le coin agrandit aussi le texte), magnétisme (centre de la slide, bords des autres blocs, 8 px de portée, ⌘/Ctrl pour placer librement), repères roses, slide verrouillée |
+| `carousel-editor-advanced-styles.test.tsx` | Rotation (remplace l'angle, garde une transformation existante, réglages rapprochés annulés en une fois), filtres photo (luminosité, contraste, saturation, noir et blanc, photo d'origine), ombre portée, ombre du texte, polices Google (lien ajouté une seule fois, report sur toutes les slides) |
+| `carousel-editor-photo-drop.test.tsx` | Photo glissée depuis l'ordinateur : cadre sous le pointeur, sinon cadre vide, sinon première photo ; cadre éclairé au survol ; fichier non image, format refusé, slide verrouillée, ajout impossible ; annulation |
+| `carousel-editor-heavy-undo.test.tsx` | Annuler / Rétablir à l'identique après une mise en page, un thème, « Appliquer à toutes les slides », « Police et couleur sur toutes les slides », un collage sur une autre slide |
+| `carousel-editor-roundtrip.test.tsx` | Aller-retour `readCarouselDocument` → retouches → `documentOutput` → `mergeEditorRaw` → relecture identique ; branchement comme `CreerUnifie.tsx` : une seule émission par retouche, reçu de sauvegarde gardé, pas de relecture sur un écho, réouverture identique, régénération relue une fois |
+| `carousel-editor-export-fidelity.test.tsx` | Après chaque retouche (texte, style, déplacement, taille, rotation, ombre, filtre, fond, police, verrou, ordre, masquage, duplication, photo, mise en page, thème, report), sur le vrai HTML du serveur : `data-pptx-editable`, `data-pptx-photo`, `data-pptx-shape` et `data-slide-text` restent sur les mêmes éléments |
 
 ---
 
@@ -564,6 +579,26 @@ Ce sont des constats, pas des corrections : rien n'a été modifié dans ce lot.
     `workspace_id`.
 - **`carousel-ai-candidate`** est retirée (répond 410) mais le dossier
   existe encore.
+- **Éditeur visuel du carrousel (relevé au lot E2, 14/10/2026, non corrigé)** :
+  - *Bug* : redimensionner un bloc **tourné** part de sa boîte englobante à
+    l'écran (`getBoundingClientRect`), pas de sa vraie largeur. Un texte de
+    600 px tourné de 45° passe à ~497 px dès qu'on touche sa poignée
+    (`startResize` dans `CarouselEditor.tsx`). La poignée du coin fait le
+    même saut de largeur. Figé dans `carousel-editor-resize-snap.test.tsx`.
+  - *Bug mineur* : « Police et couleur sur toutes les slides » ajoute le lien
+    de la police Google aux slides **verrouillées** (`ensureFontLink` ne
+    vérifie pas le verrou). Rien ne change à l'œil, mais le HTML d'une slide
+    verrouillée est modifié. Figé dans
+    `carousel-editor-advanced-styles.test.tsx`.
+  - *Point d'attention pour le découpage (lot E3)* : l'éditeur reconnaît son
+    propre écho à la **référence** des slides, de la légende et des visuels
+    (`inputKey`). Un parent qui recrée ces objets, même identiques, fait relire
+    l'éditeur, vide son historique et peut boucler (commit `ec445582`).
+    `mergeEditorRaw` garde la référence ; tout nouveau branchement doit en
+    faire autant.
+  - *Sans effet* : à la relecture, les données d'une slide portent aussi
+    `editor_id` et `editor_locked` (recopiés de la sortie, réécrits à chaque
+    enregistrement).
 - **Corrigé le 14/10/2026** (relevé aux lots 2 et 3) :
   - /creer lit maintenant le paramètre d'URL `calendar_id` quand le state
     `calendarPostId` manque (lien rouvert, state perdu) ;
