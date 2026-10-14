@@ -15,7 +15,7 @@
 //   - les TEXTES DE CONSIGNE actuels de chaque règle, DÉPLACÉS ICI À TEXTE ÉGAL
 //     depuis leurs fichiers d'origine (lived-case.ts, audience-address.ts,
 //     carousel-length.ts, carousel-cover.ts, carousel-sense-design.ts,
-//     carousel-visual/index.ts, format-briefs.ts), qui les réexportent ou les
+//     carousel-visual/index.ts, format-briefs/*.ts), qui les réexportent ou les
 //     interpolent : aucune sortie ne change (socle_test.ts, snapshots) ;
 //     exception, la règle 4 (voix_orale) : consigne positive commune réécrite
 //     le 05/10/2026 et branchée sur les carrousels, posts, légendes, LinkedIn,
@@ -92,8 +92,8 @@ export const ONE_IDEA_RULE = `DÉCOUPAGE : UNE IDÉE PAR SLIDE. Le carrousel se 
 // ─── Une idée par unité HORS carrousel texte : stories, reels, recyclage ────
 // (étape 7 du socle, 05/10/2026, décisions de Laetitia : « on découpe, on ne
 // raccourcit pas », sauf les reels qui restent courts ; plan d'angle indicatif ;
-// recyclage sans nombre fixe d'unités.) Interpolées dans format-briefs.ts
-// (storiesBrief, reelBrief) et creative-flow (buildRecycleSystemPrompt).
+// recyclage sans nombre fixe d'unités.) Interpolées dans format-briefs/stories.ts
+// et format-briefs/reel.ts (storiesBrief, reelBrief) et creative-flow (buildRecycleSystemPrompt).
 
 /** Stories : au plus 10 par séquence (garde-fou historique), 350 caractères par story. */
 export const STORIES_MAX = 10;
@@ -265,7 +265,7 @@ export const SOCLE_RULES: Readonly<Record<SocleRuleId, SocleRule>> = {
     principe: "Le vécu qu'elle a fourni est la preuve centrale ; la recherche passe en appui (au plus un chiffre). Actu : l'actu déclenche, son ressenti porte le contenu.",
     consignes: { own_case: LIVED_CASE_FIRST, news_feeling: NEWS_FEELING_FIRST },
     controles: ["_shared/lived-case.ts : detectCase, researchNumbersCapFor", "_shared/redac-gate.ts : plafond des chiffres de recherche"],
-    origines: ["_shared/lived-case.ts", "carousel-ai/writing-contract.ts", "carousel-ai/variant-writing.ts", "carousel-ai/continuous-narrative.ts", "_shared/format-briefs.ts", "creative-flow/index.ts"],
+    origines: ["_shared/lived-case.ts", "carousel-ai/writing-contract.ts", "carousel-ai/variant-writing.ts", "carousel-ai/continuous-narrative.ts", "_shared/format-briefs/position.ts", "creative-flow/index.ts"],
   },
   adresse_tu_vous: {
     numero: 2,
@@ -281,7 +281,7 @@ export const SOCLE_RULES: Readonly<Record<SocleRuleId, SocleRule>> = {
     principe: "Une idée par slide, plan, story ou paragraphe ; on découpe, on ne raccourcit jamais. Le nombre d'unités suit le découpage.",
     consignes: { carrousel_texte: ONE_IDEA_RULE, recit_continu: RECIT_CONTINU_PARAGRAPHE, stories: UNE_IDEE_STORIES, stories_5min: STORIES_QUICK_RULE, reel: UNE_IDEE_REEL, recyclage_carrousel: RECYCLAGE_CARROUSEL_LONGUEUR, recyclage_stories: RECYCLAGE_STORIES_LONGUEUR, plan_angle_reel: planAngleIndicatif("section", "sections") },
     controles: ["_shared/carousel-length.ts : carouselStructureIssues, longTextSlides (mesure seulement)", "creative-flow/index.ts : applyReelQualityPass (plafond de mots du reel, la durée prime)"],
-    origines: ["_shared/carousel-length.ts", "carousel-ai/continuous-narrative.ts", "_shared/format-briefs.ts", "creative-flow/index.ts"],
+    origines: ["_shared/carousel-length.ts", "carousel-ai/continuous-narrative.ts", "_shared/format-briefs/reel.ts", "_shared/format-briefs/stories.ts", "creative-flow/index.ts"],
   },
   voix_orale: {
     numero: 4,
@@ -289,7 +289,7 @@ export const SOCLE_RULES: Readonly<Record<SocleRuleId, SocleRule>> = {
     principe: "Des phrases complètes qui s'enchaînent, ses mots du quotidien, comme elle parle, tirés de ses textes de référence et de ses réponses ; ni style haché ni tic oral plaqué. Hors Pinterest.",
     consignes: { commune: VOIX_ORALE, linkedin: VOIX_ORALE_LINKEDIN, stories: VOIX_ORALE_STORIES, legende_photo: VOIX_ORALE_LEGENDE_PHOTO, pas_hachee: VOIX_PARLEE_PAS_HACHEE },
     controles: ["_shared/redac-gate.ts : retournements, formules moulées, vécus et témoignages inventés (contre les tics plaqués)", "_shared/redac-gate.ts : countChoppyFragments (fragments sans verbe enchaînés, mesure seulement : journal stories-gate et slop_signals)", "_shared/correction-pass.ts : la relecture des stories remet en phrases parlées un passage haché", "_shared/anthropic.ts : sanitizeSlop"],
-    origines: ["carousel-ai/writing-contract.ts", "_shared/format-briefs.ts"],
+    origines: ["carousel-ai/writing-contract.ts", "_shared/format-briefs/reel.ts", "_shared/format-briefs/stories.ts", "_shared/format-briefs/linkedin.ts", "_shared/format-briefs/newsletter.ts", "_shared/format-briefs/caption.ts", "_shared/format-briefs/photo-caption.ts"],
   },
   design_montre_lidee: {
     numero: 5,
@@ -297,7 +297,7 @@ export const SOCLE_RULES: Readonly<Record<SocleRuleId, SocleRule>> = {
     principe: "La mise en forme est décidée après l'écriture, sur le texte final, sans ajouter ni retirer un mot ; quand rien ne s'y prête, le texte seul.",
     consignes: { carrousel_texte: TEXT_SENSE_RULES, reel_texte_ecran: REEL_TEXTE_ECRAN },
     controles: ["_shared/carousel-sense-design.ts : validateTextSenseDesign", "_shared/invented-text-guard.ts : stripInventedSlideText (texte, et mixte rendu par le modèle)", "_shared/invented-text-guard.ts : stripInventedSlideText", "_shared/reel-postprocess.ts : reelOverlaysNotFromScript", "_shared/story-formatting.ts : planStoryVisual (mot clé = extrait exact)"],
-    origines: ["_shared/carousel-sense-design.ts", "_shared/format-briefs.ts"],
+    origines: ["_shared/carousel-sense-design.ts", "_shared/format-briefs/reel.ts"],
   },
   lisible_dabord: {
     numero: 6,
@@ -313,7 +313,7 @@ export const SOCLE_RULES: Readonly<Record<SocleRuleId, SocleRule>> = {
     principe: "Slide 1 : une accroche seule (4 à 10 mots), au plus un sous-titre de 12 mots, un mot clé mis en valeur ; la slide 2 relance.",
     consignes: { carrousel: COVER_WRITING, recit_continu: RECIT_CONTINU_COUVERTURE, story_1: STORY1_ACCROCHE, reel: REEL_COUVERTURE },
     controles: ["_shared/carousel-cover.ts : enforceCover", "_shared/carousel-design-plan.ts : coverHookWithAccent (mot clé des couvertures photo et mixte)", "_shared/reel-postprocess.ts : enforceReelCoverKeyword", "_shared/story-formatting.ts : planStoryVisual (mot_cle de la story 1)"],
-    origines: ["_shared/carousel-cover.ts", "carousel-ai/writing-contract.ts", "carousel-ai/continuous-narrative.ts", "_shared/format-briefs.ts"],
+    origines: ["_shared/carousel-cover.ts", "carousel-ai/writing-contract.ts", "carousel-ai/continuous-narrative.ts", "_shared/format-briefs/reel.ts", "_shared/format-briefs/stories.ts"],
   },
 };
 
@@ -661,9 +661,9 @@ export const SOCLE_CHEMINS: readonly SocleChemin[] = [
     regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "en_partie") },
   { id: "carrousel_linkedin", format: "carrousel_linkedin", fichiers: ["carousel-ai/index.ts", "carousel-ai/variant-writing.ts"], fonction: "textWritingPrompt (isLinkedIn)",
     regles: r("oui", "oui", "en_partie", "consigne", "sans_objet", "sans_objet", "oui") },
-  { id: "post_instagram", format: "post_instagram", fichiers: ["creative-flow/index.ts", "creative-flow/formats/post.ts", "_shared/format-briefs.ts"], fonction: "captionBrief + positionDepthBlock",
+  { id: "post_instagram", format: "post_instagram", fichiers: ["creative-flow/index.ts", "creative-flow/formats/post.ts", "_shared/format-briefs/caption.ts", "_shared/format-briefs/position.ts"], fonction: "captionBrief + positionDepthBlock",
     regles: TEXTE_SEUL("consigne", "oui", "en_partie", "consigne") },
-  { id: "legende_photo", format: "legende_photo", fichiers: ["creative-flow/index.ts", "creative-flow/formats/photo.ts", "_shared/format-briefs.ts"], fonction: "photoCaptionBrief",
+  { id: "legende_photo", format: "legende_photo", fichiers: ["creative-flow/index.ts", "creative-flow/formats/photo.ts", "_shared/format-briefs/photo-caption.ts"], fonction: "photoCaptionBrief",
     regles: TEXTE_SEUL("non", "oui", "en_partie", "consigne") },
   { id: "linkedin_diffuse", format: "post_linkedin", fichiers: ["creative-flow/index.ts", "creative-flow/formats/linkedin.ts"], fonction: "runLinkedInTwoStep",
     regles: TEXTE_SEUL("consigne", "oui", "non", "consigne") },
@@ -673,13 +673,13 @@ export const SOCLE_CHEMINS: readonly SocleChemin[] = [
     regles: TEXTE_SEUL("consigne", "oui", "non", "consigne") },
   { id: "linkedin_exemple_fictif", format: "post_linkedin", fichiers: ["creative-flow/index.ts", "creative-flow/formats/linkedin.ts"], fonction: "exemple fictif",
     regles: TEXTE_SEUL("sans_objet", "oui", "non", "en_partie"), note: "Hors familles : aucun vécu, aucune recherche, faits du brief seulement (à garder tel quel)." },
-  { id: "reel", format: "reel", fichiers: ["creative-flow/index.ts", "creative-flow/formats/reel.ts", "_shared/format-briefs.ts", "_shared/reel-postprocess.ts", "reel-render/recipe.ts"], fonction: "reelBrief + passe de longueur + finalizeReelScript + rendu",
+  { id: "reel", format: "reel", fichiers: ["creative-flow/index.ts", "creative-flow/formats/reel.ts", "_shared/format-briefs/reel.ts", "_shared/reel-postprocess.ts", "reel-render/recipe.ts"], fonction: "reelBrief + passe de longueur + finalizeReelScript + rendu",
     regles: r("consigne", "oui", "consigne", "consigne", "oui", "oui", "en_partie") },
-  { id: "stories", format: "stories", fichiers: ["creative-flow/index.ts", "creative-flow/formats/stories.ts", "_shared/format-briefs.ts", "_shared/story-formatting.ts"], fonction: "storiesBrief + story-formatting",
+  { id: "stories", format: "stories", fichiers: ["creative-flow/index.ts", "creative-flow/formats/stories.ts", "_shared/format-briefs/stories.ts", "_shared/story-formatting.ts"], fonction: "storiesBrief + story-formatting",
     regles: r("consigne", "oui", "consigne", "consigne", "oui", "en_partie", "oui") },
-  { id: "newsletter", format: "newsletter", fichiers: ["creative-flow/index.ts", "creative-flow/formats/newsletter.ts", "_shared/format-briefs.ts"], fonction: "newsletterBrief",
+  { id: "newsletter", format: "newsletter", fichiers: ["creative-flow/index.ts", "creative-flow/formats/newsletter.ts", "_shared/format-briefs/newsletter.ts"], fonction: "newsletterBrief",
     regles: TEXTE_SEUL("non", "oui", "non", "consigne") },
-  { id: "pinterest", format: "pinterest", fichiers: ["creative-flow/index.ts", "_shared/format-briefs.ts", "_shared/pinterest-two-step.ts", "pinterest-ai/index.ts", "pinterest-visual/index.ts", "pinterest-photo-brief/index.ts"], fonction: "pinterestBrief + épingle en deux appels",
+  { id: "pinterest", format: "pinterest", fichiers: ["creative-flow/index.ts", "_shared/format-briefs/pinterest.ts", "_shared/pinterest-two-step.ts", "pinterest-ai/index.ts", "pinterest-visual/index.ts", "pinterest-photo-brief/index.ts"], fonction: "pinterestBrief + épingle en deux appels",
     regles: r("non", "oui", "non", "contredite", "en_partie", "en_partie", "non") },
   { id: "recyclage", format: "recyclage", fichiers: ["creative-flow/formats/recycle.ts"], fonction: "recyclage (tous formats)",
     regles: r("non", "oui", "consigne", "consigne", "en_partie", "en_partie", "en_partie") },

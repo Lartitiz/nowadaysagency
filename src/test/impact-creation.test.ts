@@ -1,5 +1,6 @@
+import fs from "node:fs";
 import { describe, expect, it } from "vitest";
-import { analyzeImpact, diffSnapshots, formatReport, FUNCTION_LABELS, parseSnapshots, zoneOf } from "../../scripts/impact-creation.mjs";
+import { analyzeImpact, diffSnapshots, FORMAT_BRIEF_FILES, formatReport, FUNCTION_LABELS, parseSnapshots, zoneOf } from "../../scripts/impact-creation.mjs";
 
 // Rapport d'impact « création de contenu » (lot 4, 13/10/2026) : la CI dit
 // quels formats une modification peut toucher et quels prompts figés changent.
@@ -119,5 +120,29 @@ describe("rapport d'impact création de contenu", () => {
 
   it("dit clairement quand rien n'est touché", () => {
     expect(formatReport(analyzeImpact(["README.md"], usage), [])).toContain("Aucun générateur de contenu touché.");
+  });
+
+  it("un brief de _shared/format-briefs/ ne remonte que son format", () => {
+    const briefUsage = new Map<string, Set<string>>([
+      ["format-briefs", new Set(["creative-flow"])],
+      ["format-briefs/reel", new Set(["creative-flow"])],
+      ["format-briefs/common", new Set(["creative-flow"])],
+    ]);
+    const reel = analyzeImpact(["supabase/functions/_shared/format-briefs/reel.ts"], briefUsage);
+    expect([...reel.formats.keys()]).toEqual(["Reel"]);
+    expect(reel.shared[0]).toMatchObject({ module: "format-briefs/reel", zone: "verte" });
+    const common = analyzeImpact(["supabase/functions/_shared/format-briefs/common.ts"], briefUsage);
+    expect([...common.formats.keys()].sort()).toEqual(["Reel", "Stories"]);
+    // Le sommaire (réexports) garde la règle générale : tous les formats de creative-flow.
+    const sommaire = analyzeImpact(["supabase/functions/_shared/format-briefs.ts"], briefUsage);
+    expect([...sommaire.formats.keys()][0]).toMatch(/^Tous les formats de creative-flow/);
+  });
+
+  it("chaque fichier de _shared/format-briefs/ a son libellé dans FORMAT_BRIEF_FILES", () => {
+    const modules = fs.readdirSync("supabase/functions/_shared/format-briefs")
+      .filter((f) => f.endsWith(".ts") && !f.endsWith("_test.ts"))
+      .map((f) => `format-briefs/${f.slice(0, -3)}`);
+    expect(modules.length).toBeGreaterThan(0);
+    for (const mod of modules) expect(FORMAT_BRIEF_FILES[mod], mod).toBeDefined();
   });
 });

@@ -60,6 +60,23 @@ export const CREATIVE_FLOW_FILES = {
   "formats/recycle.ts": "Recyclage",
   "formats/carousel.ts": "Recyclage et ajustement en carrousel",
 };
+/**
+ * Briefs de _shared/format-briefs/ (découpage du 14/10/2026) → formats touchés.
+ * Une retouche du brief reel annonce « Reel », pas tous les formats de
+ * creative-flow. Le sommaire format-briefs.ts (réexports) garde la règle générale.
+ */
+export const FORMAT_BRIEF_FILES = {
+  "format-briefs/reel": ["Reel"],
+  "format-briefs/stories": ["Stories"],
+  "format-briefs/linkedin": ["Post LinkedIn"],
+  "format-briefs/newsletter": ["Newsletter"],
+  "format-briefs/caption": ["Post Instagram / légende"],
+  "format-briefs/photo-caption": ["Mode photo (tous formats)"],
+  "format-briefs/pinterest": ["Pinterest texte"],
+  "format-briefs/carousel": ["Carrousel (brief de creative-flow)"],
+  "format-briefs/position": ["Post Instagram / légende", "Reel", "Stories"],
+  "format-briefs/common": ["Reel", "Stories"],
+};
 /** Écrans du front → format touché. */
 export const FRONT_FILES = [
   [/^src\/pages\/CreerUnifie\.tsx$/, "Parcours /creer (tous formats)"],
@@ -107,6 +124,11 @@ export function analyzeImpact(files, usage) {
       const content = fns.filter((f) => FUNCTION_LABELS[f]);
       const zone = zoneOf(mod);
       shared.push({ module: mod, zone, functions: fns, content });
+      // Brief d'un format : seulement ce format, pas tous ceux de creative-flow.
+      if (FORMAT_BRIEF_FILES[mod]) {
+        for (const label of FORMAT_BRIEF_FILES[mod]) add(label, `via \`_shared/${mod}.ts\``);
+        continue;
+      }
       // Zone rouge : une seule ligne plutôt que la liste de tous les générateurs.
       if (zone === "rouge" && content.length) add(ALL_GENERATORS, `via \`_shared/${mod}.ts\`, zone rouge`);
       else for (const f of content) add(FUNCTION_LABELS[f], `via \`_shared/${mod}.ts\``);
