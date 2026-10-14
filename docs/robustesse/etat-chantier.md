@@ -21,6 +21,7 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
 | E1 | #1469 | Contrat des étiquettes `data-*` serveur → éditeur visuel → export, testé |
 | 9 | #1472 | Rapport d'impact élargi, frontière texte / design par fonction (`_shared/design-text-boundaries_test.ts`), contrat `ai-text-action` |
 | 8 | #1475 | Carrousel : choix de design de `carousel-ai` isolés dans `carousel-ai/layout.ts` (sortie identique, figée par `carousel-ai/handler_contract_test.ts`) ; frontière design / écriture par module (`_shared/carousel-design-boundaries_test.ts`) ; libellé du bouton d'appel à l'action rangé dans la slide (`cta_label`). Fusionnée le 14/10/2026 |
+| 10 | #1474 | Petits verrous de la création : longueurs maximales côté serveur (`ai-text-action` 8 000 / 1 000 caractères, `adjust` 15 000) avec message clair dans le menu IA ; « Enregistrer dans Mes idées » et la publication immédiate n'écrasent plus une version modifiée ailleurs (copie ou rechargement proposés) ; copie de secours du navigateur une par onglet, jamais reprise par un onglet encore ouvert. Fusionnée le 14/10/2026 |
 | E2 | #1476 | Éditeur visuel figé par 6 fichiers de tests `src/test/carousel-editor-*.test.tsx` (poignées et magnétisme, réglages avancés, photo glissée, annuler après opération lourde, aller-retour avec `mergeEditorRaw`, étiquettes d'export). Aucun code de l'éditeur modifié |
 
 ## Ouverts, en attente de fusion (14/10/2026)
@@ -33,7 +34,7 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
 2. Figer l'éditeur visuel par des tests (E2).
 3. Borner la relance automatique des visuels (crédits consommés en arrière-plan, à confirmer).
 4. Étendre les garde-fous au design et à l'édition (lot 9).
-5. Poser les petits verrous de la création (lot 10).
+5. ~~Poser les petits verrous de la création (lot 10)~~ : fusionné (#1474).
 6. Finir de séparer texte et design du carrousel (lot 8).
 
 ## Prochain : lot 8b (prompt prêt le 14/10/2026, pas encore lancé)
@@ -53,6 +54,11 @@ Reste du lot 8 :
   manquantes » et « Repartir de zéro ? » (affichage pur).
 
 ## En attente
+- **Lot 10, limite connue** : un onglet « gelé » par le navigateur (manque de
+  mémoire) ne signale plus sa présence ; un nouvel onglet peut alors reprendre
+  son brouillon. Les contrôles de version évitent l'écrasement silencieux en base.
+  Dans les tests, « fermer l'onglet » = vider sessionStorage ET retirer
+  `creer_flow_presence:*` (`closeTab()`).
 - **E3** : découper CarouselEditor.tsx par mission, après la fusion de #1477.
   Points d'attention relevés par E2 : `CARTE.md`, section 7 (écho reconnu à la
   référence, `inputKey`).
