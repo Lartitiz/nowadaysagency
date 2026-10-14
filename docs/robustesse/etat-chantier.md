@@ -55,7 +55,7 @@ Reste du lot 8 :
   `pending-stream.ts`, `edit-text-from-result.ts`, `content-brief.ts`), voir la fiche 1.
 
 ## En attente
-- **E3, terminé le 14/10/2026** (3 816 → 1 155 lignes, 16 fichiers dans
+- **E3, terminé le 14/10/2026** (3 816 → 1 155 lignes, 14 fichiers dans
   `src/components/creer/CarouselEditorParts/`) : découper CarouselEditor.tsx par mission (plan validé par Laetitia le
   14/10/2026, détail dans `gros-fichiers.md`, fiche 8). Une PR par morceau :
   - **E3-0** (#1495, fusionnée) : tests de branchement `carousel-editor-wiring.test.tsx`
