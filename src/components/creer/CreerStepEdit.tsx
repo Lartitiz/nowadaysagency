@@ -7,10 +7,24 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Copy, Save, CalendarDays, Loader2, Undo2, Redo2 } from "lucide-react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 interface Props {
   content: string;
+  /** Dernière version appliquée (« Sauver ») : au-delà, les modifications sont en attente. */
+  savedContent?: string;
+  /** Texte en cours, transmis au fil de la frappe pour la copie de secours. */
+  onDraftChange?: (text: string) => void;
   format: string;
   subject?: string;
   newsContext?: string | null;
@@ -36,9 +50,25 @@ const QUALITY_CHECKLIST = [
   "Le CTA est naturel et non agressif ?",
 ];
 
-export default function CreerStepEdit({ content, format, subject, newsContext, workspaceId, onSave, onBack, onCopy, onCalendar }: Props) {
+export default function CreerStepEdit({ content, savedContent, onDraftChange, format, subject, newsContext, workspaceId, onSave, onBack, onCopy, onCalendar }: Props) {
   const history = useTextEditHistory(content);
   const editedContent = history.value;
+  const [confirmBackOpen, setConfirmBackOpen] = useState(false);
+  // Copie de secours au fil de la frappe (lot 6, 14/10/2026) : avant, le texte
+  // ne quittait cet écran qu'au clic sur « Sauver ».
+  const draftChange = useRef(onDraftChange);
+  draftChange.current = onDraftChange;
+  useEffect(() => {
+    if (!draftChange.current || editedContent === content) return;
+    const timer = setTimeout(() => draftChange.current?.(editedContent), 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editedContent]);
+  const hasUnsavedChanges = editedContent !== (savedContent ?? content);
+  const handleBack = () => {
+    if (hasUnsavedChanges) setConfirmBackOpen(true);
+    else onBack();
+  };
   const active = useRef(true);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const [adjusting, setAdjusting] = useState<string | null>(null);
@@ -149,7 +179,7 @@ export default function CreerStepEdit({ content, format, subject, newsContext, w
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2">
-        <Button variant="ghost" size="sm" onClick={onBack} className="gap-1">
+        <Button variant="ghost" size="sm" onClick={handleBack} className="gap-1">
           <ArrowLeft className="h-3.5 w-3.5" /> Retour
         </Button>
         <div className="flex-1" />
@@ -165,6 +195,38 @@ export default function CreerStepEdit({ content, format, subject, newsContext, w
           </Button>
         )}
       </div>
+
+      <AlertDialog open={confirmBackOpen} onOpenChange={setConfirmBackOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tu as des modifications non appliquées</AlertDialogTitle>
+            <AlertDialogDescription>
+              Si tu reviens maintenant, elles ne seront pas gardées dans ton contenu.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuer à modifier</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                onSave(editedContent);
+                onBack();
+              }}
+            >
+              Appliquer et revenir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+          <button
+            type="button"
+            className="text-xs text-muted-foreground underline underline-offset-2 self-center"
+            onClick={() => {
+              setConfirmBackOpen(false);
+              onBack();
+            }}
+          >
+            Revenir sans les appliquer
+          </button>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
