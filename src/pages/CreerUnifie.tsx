@@ -54,7 +54,8 @@ import { useSelectInspirationProposal } from "@/hooks/use-select-inspiration-pro
 import { useCalendarSave } from "@/hooks/use-calendar-save";
 import { useFormatNext } from "@/hooks/use-format-next";
 import { useGenerateVisuals } from "@/hooks/use-generate-visuals";
-import { applyMixRenderMemory, mergeEditorRaw } from "@/lib/mix-layout-memo";
+import { applyMixRenderMemory, mergeEditorRaw, withRaw } from "@/lib/mix-layout-memo";
+import { withVisualCtaLabels } from "@/lib/carousel-cta-label";
 import { useDoGenerate } from "@/hooks/use-do-generate";
 import { useRegenerationBackup } from "@/hooks/use-regeneration-backup";
 import CreerStepIdea from "@/components/creer/CreerStepIdea";
@@ -1772,11 +1773,9 @@ function CreerWorkspace() {
     setPhotoMissingDialog,
     setVisualChunkProgress,
     refreshPlan,
-    onMixLayoutMemos: (memos, receipt, formattingMemo) => setResult((prev: any) => {
-      if (!prev?.raw) return prev;
-      const raw = applyMixRenderMemory(prev.raw, { memos, receipt, formattingMemo });
-      return raw === prev.raw ? prev : { ...prev, raw };
-    }),
+    onMixLayoutMemos: (memos, receipt, formattingMemo) => setResult((prev: any) => withRaw(prev, prev?.raw && applyMixRenderMemory(prev.raw, { memos, receipt, formattingMemo }))),
+    // Carrousel texte : libellé du bouton rangé dans la slide (lot 8b, src/lib/carousel-cta-label.ts).
+    onCtaLabels: (visuals) => setResult((prev) => withRaw(prev, prev?.raw && withVisualCtaLabels(prev.raw, visuals))),
   });
 
   // ═══ Casting automatique bibliothèque (régime texte d'abord) ═══

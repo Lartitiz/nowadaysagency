@@ -659,6 +659,14 @@ visuel (`""` = retiré). Une slide texte ne l'envoie pas à `carousel-visual`
 (`visualSlidePayload`) : le rendu ne change pas. Test :
 `src/test/carousel-result-cta.test.tsx`.
 
+Depuis le lot 8b (14/10/2026), le libellé est aussi rangé **à l'arrivée des
+visuels** du carrousel texte : `use-generate-visuals.ts` passe les visuels à
+`onCtaLabels`, et `/creer` applique `withVisualCtaLabels`
+(`src/lib/carousel-cta-label.ts`) : bouton dessiné → `cta_label` = son libellé ;
+plus de bouton alors qu'un libellé était rangé → `""`. Le HTML ne change pas.
+Carrousels photo et mixte non concernés (le libellé vient du serveur). Tests :
+`src/test/carousel-cta-label.test.tsx`, `use-generate-visuals.test.tsx`.
+
 **Ce que couvre le rapport d'impact** (complété au lot 9) :
 - fonctions serveur : les générateurs de texte, plus `carousel-visual`,
   `carousel-slide-image`, `pinterest-visual`, `pinterest-photo-brief`,

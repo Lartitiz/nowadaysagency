@@ -145,6 +145,34 @@ describe("useGenerateVisuals — appel manuel (avant-plan)", () => {
     expect(sent[1]).not.toHaveProperty("photo_layout");
   });
 
+  it("carrousel texte : les visuels arrivés partent vers onCtaLabels, sans cta_label envoyé à carousel-visual (lot 8b)", async () => {
+    const onCtaLabels = vi.fn();
+    const html = [{ slide_number: 1, html: "<div><h1>T1</h1><p>B1</p></div>" }, { slide_number: 2, html: '<div><h1>T2</h1><p>B2</p><div data-slide-cta="1"><span data-slide-text="cta">Enregistre ce post</span></div></div>' }];
+    mocks.invokeWithHeartbeat.mockResolvedValueOnce({ data: { result: { slides_html: html } }, error: null });
+    const params = makeParams({ onCtaLabels });
+    const { result } = renderHook(() => useGenerateVisuals(params));
+    await act(() => result.current.handleGenerateVisuals());
+    expect(mocks.invokeWithHeartbeat.mock.calls[0][1].body.slides.every((s: any) => !("cta_label" in s))).toBe(true);
+    expect(onCtaLabels).toHaveBeenCalledTimes(1);
+    const committed = onCtaLabels.mock.calls[0][0];
+    expect(committed.map((v: any) => v.slide_number)).toEqual([1, 2]);
+    expect(committed[1].html).toContain("Enregistre ce post");
+  });
+
+  it("carrousel photo : onCtaLabels n'est pas appelé (le libellé vient déjà du serveur)", async () => {
+    const onCtaLabels = vi.fn();
+    mocks.invokeWithHeartbeat.mockResolvedValueOnce(okVisuals);
+    const params = makeParams({ onCtaLabels, carouselSubMode: "photo", uploadedPhotos: [{ base64: "data:image/jpeg;base64,TEST", mimeType: "image/jpeg" }],
+      result: { raw: { carousel_type: "photo", slides: [
+        { slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: "T1" },
+        { slide_number: 2, slide_type: "photo_full", photo_index: 1, overlay_text: "T2", cta_label: "Enregistre" },
+      ] } } });
+    const { result } = renderHook(() => useGenerateVisuals(params));
+    await act(() => result.current.handleGenerateVisuals());
+    expect(params.setVisualSlides).toHaveBeenCalled();
+    expect(onCtaLabels).not.toHaveBeenCalled();
+  });
+
   it("une transition perdue dans le HTML conserve le texte et les visuels mais ne dit pas succès",async()=>{
     const params=makeParams();mocks.invokeWithHeartbeat.mockResolvedValueOnce({data:{result:{slides_html:[{slide_number:1,html:"<p>T1</p>"},{slide_number:2,html:"<p>T2 B2</p>"}]}},error:null});
     const {result}=renderHook(()=>useGenerateVisuals(params));await act(()=>result.current.handleGenerateVisuals());

@@ -45,6 +45,9 @@ interface UseGenerateVisualsParams {
   /** Carrousel mixte : dispositions dessinées à garder sur les slides (même
    * ordre) et reçu de l'étage de disposition (statut, cause d'un échec). */
   onMixLayoutMemos?: (memos: unknown[] | null, receipt?: unknown, formattingMemo?: unknown) => void;
+  /** Carrousel texte : visuels arrivés, pour ranger le libellé du bouton
+   * d'appel à l'action dans la slide (cta_label, lot 8b). Le HTML ne change pas. */
+  onCtaLabels?: (visuals: { slide_number: number; html: string }[]) => void;
 }
 
 /**
@@ -88,6 +91,7 @@ export function useGenerateVisuals({
   setVisualChunkProgress,
   refreshPlan,
   onMixLayoutMemos,
+  onCtaLabels,
 }: UseGenerateVisualsParams) {
   const luminanceCacheRef = useRef<Map<string, { top: number; center: number; bottom: number }>>(new Map());
   const autoVisualsAttemptRef = useRef<{ key: string | null; n: number }>({ key: null, n: 0 });
@@ -442,6 +446,9 @@ export function useGenerateVisuals({
       if ((Array.isArray(data.result?.mix_layout_memos) || data.result?.mix_layout) && slidesSource === rawSlides) {
         onMixLayoutMemos?.(Array.isArray(data.result?.mix_layout_memos) ? data.result.mix_layout_memos : null, data.result?.mix_layout, data.result?.mix_formatting_memo);
       }
+      // Carrousel texte : le libellé du bouton dessiné rejoint la slide (cta_label),
+      // comme après « Modifier » ou « Retirer ». Jamais renvoyé à carousel-visual.
+      if (carouselSubMode === "text" && slidesSource === rawSlides) onCtaLabels?.(committedSlides);
       const fidelityWarnings = carouselCompositionWarnings(carouselSubMode === "pure_photo" ? slidesSource : rawSlides, committedSlides, carouselSubMode === "pure_photo");
       setVisualsAutoError(fidelityWarnings.length ? fidelityWarnings.join(" ") : null);
       if (fidelityWarnings.length) {
