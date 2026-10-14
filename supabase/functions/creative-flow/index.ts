@@ -1090,6 +1090,9 @@ serve(async (req) => {
       contentType: z.string().max(100).optional().nullable(),
       context: z.string().max(8000).optional().nullable(),
       adjustment: z.string().max(2000).optional().nullable(),
+      // Texte à ajuster (step "adjust", lot 10 du 14/10/2026) : une newsletter
+      // longue tient largement ; au-delà, refus 400 sans appel IA ni débit.
+      content: z.string().max(15000, "Le texte à ajuster est trop long (15 000 caractères au maximum). Raccourcis-le ou ajuste-le en plusieurs fois.").optional().nullable(),
       sourceText: z.string().max(10000).optional().nullable(),
       targetFormat: z.string().max(100).optional().nullable(),
       workspace_id: z.string().uuid().optional().nullable(),

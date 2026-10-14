@@ -94,6 +94,18 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 - Tout nouveau bouton qui relance la génération d'un résultat existant appelle
   `regenerationBackup.begin(regenerationSnapshot())` avant `doGenerate`.
 
+### Pas d'écrasement entre onglets ni de texte démesuré (lot 10, 14/10/2026)
+
+- **« Enregistrer dans Mes idées » sur une idée déjà ouverte** (`SaveToIdeasDialog`,
+  `editingIdeaId`) : version `updated_at` lue à l'ouverture, écriture seulement si
+  elle n'a pas bougé. Sinon rien n'est écrasé : « Enregistrer une copie de mon
+  contenu » ou « Recharger la dernière version ». Test :
+  `src/test/save-to-ideas-version.test.tsx`.
+- **Longueurs maximales côté serveur** (400 en français, sans appel IA ni débit) :
+  `ai-text-action` 8 000 caractères sélectionnés et 1 000 de consigne ;
+  `creative-flow` étape `adjust`, champ `content` 15 000 caractères (cas
+  `adjust — contenu trop long` du contrat).
+
 ### Une seule version du texte modifié (lot 7, 14/10/2026)
 
 - **Carrousel et stories** : le texte de l'étape « Modifier » est remis à sa
