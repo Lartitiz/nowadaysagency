@@ -510,10 +510,10 @@ Ce sont des constats, pas des corrections : rien n'a été modifié dans ce lot.
     `workspace_id`.
 - **`carousel-ai-candidate`** est retirée (répond 410) mais le dossier
   existe encore.
-- **Calendrier → /creer** (relevé au lot 2) :
-  - le paramètre d'URL `calendar_id` est envoyé mais jamais lu par
-    /creer : c'est le state `calendarPostId` qui porte le lien ;
-  - « Approfondir » (`handleNavigateToDeepen`) n'envoie pas `postDate`.
-- **Questions sans angle** (relevé au lot 3) : `step: "questions"` sans
-  `angle` plante en 500 (`buildQuestionsPrompt` lit `angle.title`). Le front
-  envoie toujours un angle aujourd'hui.
+- **Corrigé le 14/10/2026** (relevé aux lots 2 et 3) :
+  - /creer lit maintenant le paramètre d'URL `calendar_id` quand le state
+    `calendarPostId` manque (lien rouvert, state perdu) ;
+  - « Approfondir » (`handleNavigateToDeepen`) envoie `postDate` : le retour
+    au calendrier tombe sur le bon jour ;
+  - `step: "questions"` sans `angle` ne plante plus en 500 : le prompt dit
+    qu'aucun angle n'est choisi (cas « questions — sans angle » du contrat).

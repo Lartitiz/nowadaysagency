@@ -138,6 +138,8 @@ const PHOTO = "data:image/png;base64,iVBORw0KGgo=";
 const CASES: { name: string; body: Record<string, unknown>; text: string; stream?: boolean }[] = [
   { name: "questions — post Instagram", body: { step: "questions", contentType: "instagram_post", context: CONTEXT, angle: ANGLE }, text: "" },
   { name: "questions — LinkedIn", body: { step: "questions", contentType: "linkedin_post", context: CONTEXT, angle: ANGLE }, text: "" },
+  // Sans angle choisi : répondait 500 (angle.title sur undefined) avant le 14/10/2026.
+  { name: "questions — sans angle", body: { step: "questions", contentType: "instagram_post", context: CONTEXT }, text: "" },
   { name: "hooks — reel", body: { step: "hooks", contentType: "reel", context: CONTEXT, answers: ANSWERS }, text: "" },
   { name: "generate — reel", body: { step: "generate", contentType: "reel", context: CONTEXT, answers: ANSWERS, face_cam: "oui",
     selected_hook: TOOL_INPUTS.proposer_hooks && (TOOL_INPUTS.proposer_hooks as any).hooks[0] },

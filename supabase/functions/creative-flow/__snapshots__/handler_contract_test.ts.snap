@@ -134,6 +134,73 @@ snapshot[`handler creative-flow — questions — LinkedIn 1`] = `
 }\`
 `;
 
+snapshot[`handler creative-flow — questions — sans angle 1`] = `
+\`── STATUT 200
+
+── RÉPONSE AU FRONT
+{"questions":[{"question":"Qu'est-ce qui t'a fait arrêter les remises ?","placeholder":"Le moment précis"},{"question":"Qu'a répondu la cliente ?","placeholder":"Ses mots"},{"question":"Qu'est-ce que ça a changé pour toi ?","placeholder":"Concrètement"}]}
+
+── CRÉDITS
+[]
+
+── APPELS À CLAUDE (1)
+{
+ "messages": [
+  {
+   "role": "user",
+   "content": "Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : \\\\"Pourquoi je ne fais plus de remises sur mes créations\\\\"."
+  }
+ ],
+ "max_tokens": 800,
+ "tool_choice": {
+  "type": "tool",
+  "name": "poser_questions"
+ },
+ "tools": [
+  {
+   "name": "poser_questions",
+   "description": "Retourne les 3 questions de brief à poser à l'utilisatrice.",
+   "input_schema": {
+    "type": "object",
+    "properties": {
+     "questions": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "question": {
+         "type": "string"
+        },
+        "placeholder": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "question",
+        "placeholder"
+       ]
+      }
+     }
+    },
+    "required": [
+     "questions"
+    ]
+   }
+  }
+ ],
+ "system": [
+  {
+   "type": "text",
+   "text": "\\\\nRÈGLES ABSOLUES :\\\\n- Tu ne dis JAMAIS de gros mots, de jurons, ni de langage vulgaire (pas de \\\\"merde\\\\", \\\\"fais chier\\\\", \\\\"putain\\\\", \\\\"bordel\\\\", etc.). Tu restes toujours courtois·e, professionnel·le et bienveillant·e, même quand tu es direct·e.\\\\n- Tu ne mets JAMAIS de tirets longs (—). Remplace toujours par : ou ;\\\\n- Tu utilises l'écriture inclusive avec le point médian (créateur·ice, utilisateur·ice)\\\\n- Tu tutoies l'utilisatrice par défaut (sauf si son profil de voix indique le vouvoiement)\\\\n- Tu ne fais JAMAIS de promesses exagérées ni de chiffres vendeurs vides\\\\n- Tu restes concret·e, actionnable, et bienveillant·e\\\\n- Tu ne mets JAMAIS de cercles ni de ronds décoratifs dans les visuels\\\\n- Tu ne suggères JAMAIS de fonds avec des formes rondes ou circulaires\\\\n- Quand tu suggères des choix typographiques : les titres sont en Libre Baskerville (non gras), le corps de texte est en IBM Plex Sans\\\\n- Ton ton est direct, chaleureux, professionnel mais accessible\\\\n\\\\nVOIX ET STYLE :\\\\n- Oral assumé mais pas surjoué : l'oralité doit rester spontanée et varier d'un contenu à l'autre, ne réutilise pas systématiquement les mêmes chevilles de transition\\\\n- Phrases rythmées par contrastes : des phrases longues pour dérouler + de temps en temps une phrase courte qui conclut, toujours une vraie phrase avec un verbe, jamais une série de fragments\\\\n- Des apartés discrets si la voix et le sujet s’y prêtent, sans quota, entre parenthèses (en italique sauf pour la newsletter, qui part en texte brut sans aucun markdown)\\\\n- Pas de phrases artificiellement coupées pour \\\\"faire court\\\\" : l'oral c'est fluide\\\\n- Structure AIDA quand c'est pertinent : accroche > contexte > conseil > ouverture\\\\n- Relances orales naturelles quand ça sert le rythme (jamais mécaniques, jamais plaquées)\\\\n- L'humour vient du ton, pas des blagues\\\\n- Vulnérabilité sans pathos : enseignement, pas plainte\\\\n- Aller au bout des idées, ne pas raccourcir artificiellement\\\\n\\\\nCE QU'ON NE FAIT JAMAIS :\\\\n- Pas de jargon marketing bro (funnel, growth hacking, closer, mindset)\\\\n- Pas de tirets longs (—) : utilise : ou ;\\\\n- Pas d'injonction à la productivité (\\\\"poste 3 fois par jour\\\\")\\\\n- Pas de formules vides (\\\\"passe au niveau supérieur\\\\", \\\\"explose tes résultats\\\\")\\\\n- Pas de ton corporate ou condescendant\\\\n- Pas de listes à puces quand un paragraphe fluide marche mieux\\\\n- Pas de vulgarité ni de langage grossier, même pour \\\\"faire naturel\\\\"\\\\n\\\\n\\\\n\\\\nTu n'écris PAS comme une IA qui a reçu un brief.\\\\nTu écris comme cette personne parlerait si elle avait trouvé les mots justes.\\\\n\\\\nSon activité : (non renseignée). Sa cible : (non renseignée). Son ton naturel : (non renseigné).\\\\n\\\\nSi un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES tics de langage, SES tournures, SES expressions favorites. Le contenu doit sonner comme elle, pas comme \\\\"un post bien écrit par une IA\\\\".\\\\n\\\\n\\\\n\\\\nNOTE : Le profil est très peu rempli. Les résultats seront plus pertinents une fois le Branding et les Offres complétés.\\\\n\\\\n\\\\nCONTEXTE BRANDING DE L'UTILISATRICE :\\\\nNOTE : Le profil est très peu rempli. Les résultats seront plus pertinents une fois le Branding et les Offres complétés.\\\\n\\\\n\\\\n\\\\n══════════════════════════════════════\\\\nSUJET COURANT — PRIORITÉ ABSOLUE\\\\n══════════════════════════════════════\\\\n\\\\"Pourquoi je ne fais plus de remises sur mes créations\\\\"\\\\n\\\\nTout ce qui suit (angle, branding, historique) est SECONDAIRE par rapport à ce sujet.\\\\nLes 3 questions doivent toutes porter sur CE sujet précis.\\\\nSi une question pourrait concerner un autre sujet, elle est invalide.\\\\n\\\\n══════════════════════════════════════\\\\nANGLE & CANAL\\\\n══════════════════════════════════════\\\\n- Canal : Instagram\\\\n\\\\n- Angle : pas d'angle choisi, pars du sujet.\\\\n\\\\n\\\\n\\\\n\\\\n══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══\\\\n\\\\nRéfléchis silencieusement à :\\\\n1. Quel est le SUJET COURANT ? (ré-extraire 1 mot-clé du bloc ci-dessus)\\\\n2. Quel vocabulaire métier de l'utilisatrice puis-je intégrer naturellement ?\\\\n3. Y a-t-il un sujet identique dans l'historique récent ? Si oui, quelle question NE PAS reposer ?\\\\n\\\\nPuis pose les 3 questions qui maximisent la matière personnelle apportée sur CE sujet.\\\\n\\\\nPose exactement 3 questions pour récupérer SA matière première sur le sujet courant. Ces questions doivent extraire les faits, intentions et formulations personnels utiles à ce contenu.\\\\n\\\\nRÈGLES :\\\\n1. ANCRAGE SUJET (règle n°1, non négociable) : chaque question DOIT contenir un mot du sujet courant ou un aspect concret directement déductible du sujet courant. Une question qui ne référence pas le sujet courant est invalide — réécris-la.\\\\n2. Priorise ce qui manque pour écrire juste sur CE sujet : un fait précis, un exemple, un choix, une nuance. Creuse une conviction quand elle sert le propos, sans imposer une introspection. Ne redemande pas une information déjà fournie.\\\\n3. Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.\\\\n4. Questions OUVERTES (pas oui/non).\\\\n   Tutoie l'utilisatrice comme le reste de l'interface. Ne présuppose pas une motivation, une émotion, un bénéfice produit ou une rencontre ; laisse-la confirmer ou dire qu'elle ne sait pas.\\\\n5. Choisis des questions complémentaires parmi les types utiles au sujet, sans quota par type :\\\\n   - ANECDOTE : un moment précis vécu sur ce sujet\\\\n   - POINT DE VUE : ce que la personne pense de ce sujet, sans conflit obligatoire\\\\n   - PROCESS / MÉTHODE : ce qu'elle fait concrètement\\\\n   - OBSERVATION : ce qu'elle voit revenir\\\\n   - CONVICTION : ce qu'elle défend quand c'est pertinent\\\\n   ⚠️ INTERDIT de faire 3 questions \\\\"Raconte-moi une fois où…\\\\". Une question peut recueillir la scène, les autres son intention et son ressenti ou son choix.\\\\n6. Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment).\\\\n7. Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet courant.\\\\n8. ORIENTÉES vers l'objectif sans écraser l'intention du sujet : vente peut demander un choix ou un résultat réel ; engagement un vécu ou une émotion ; visibilité un regard personnel ; crédibilité une méthode ou une preuve. N'exige ni conflit, ni transformation, ni chiffre lorsque la personne raconte simplement ce qu'elle aime faire.\\\\n\\\\n\\\\nINTERDIT — NE FAIS JAMAIS ÇA :\\\\n- Questions génériques type \\\\"Qu'est-ce qui te passionne dans ton métier ?\\\\", \\\\"Quel est ton parcours ?\\\\", \\\\"Qu'est-ce qui te différencie ?\\\\"\\\\n- Questions de coaching de vie déconnectées du sujet\\\\n- Questions trop larges qui pourraient s'appliquer à N'IMPORTE QUEL sujet\\\\n- 3 questions qui commencent toutes par \\\\"Raconte-moi\\\\" ou \\\\"Il y a eu un moment où\\\\"\\\\n- Questions interchangeables d'un user à l'autre (= sans vocabulaire métier)\\\\n- ⚠️ Questions qui mentionnent des éléments venus de l'historique des briefs précédents (scènes, lieux, personnages, anecdotes d'anciens briefs) — l'historique ne sert PAS de matière narrative pour le sujet courant\\\\n- Chaque question DOIT mentionner le sujet courant ou un aspect concret du sujet courant\\\\n\\\\nCherche des formulations propres au sujet courant ; ne reprends aucun exemple de question prévu pour un autre sujet.\\\\n\\\\nRéponds UNIQUEMENT en JSON :\\\\n{\\\\n  \\\\"questions\\\\": [\\\\n    {\\\\n      \\\\"question\\\\": \\\\"...\\\\",\\\\n      \\\\"placeholder\\\\": \\\\"...\\\\"\\\\n    }\\\\n  ]\\\\n}",
+   "cache_control": {
+    "type": "ephemeral"
+   }
+  }
+ ],
+ "temperature": 0.85
+}\`
+`;
+
 snapshot[`handler creative-flow — hooks — reel 1`] = `
 \`── STATUT 200
 

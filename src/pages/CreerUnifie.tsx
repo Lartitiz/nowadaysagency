@@ -404,7 +404,7 @@ function CreerWorkspace() {
   const pendingReelAnswersRef = useRef<Record<string, string>>({});
   const [editContent, setEditContent] = useState(ps?.editContent || "");
   const [existingCalendarContent, setExistingCalendarContent] = useState<string | null>(null);
-  const [calendarPostId, setCalendarPostId] = useState<string | null>(locState?.calendarPostId || ps?.calendarPostId || null);
+  const [calendarPostId, setCalendarPostId] = useState<string | null>(locState?.calendarPostId || searchParams.get("calendar_id") || ps?.calendarPostId || null);
   const [calendarPostDate, setCalendarPostDate] = useState<string | null>(locState?.postDate || ps?.calendarPostDate || null);
   const fromCalendar = !!calendarPostId;
 

@@ -447,10 +447,10 @@ ANGLE & CANAL
 ══════════════════════════════════════
 - Canal : ${channelLabel}
 ${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
-- Angle : ${angle.title}
+${angle ? `- Angle : ${angle.title}
 - Structure : ${(angle.structure || []).join(" → ")}
 - Ton : ${angle.tone}
-${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}
+${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}` : "- Angle : pas d'angle choisi, pars du sujet."}
 ${calendarBlock}${objectiveBlock}${newsContextBlock}
 ${recentBriefsContext}
 ${newsContextBlock ? "\n⚠️ NEWSJACKING ACTIF : au moins 1 question sur 3 doit aider à faire le pont entre cette actualité et le vécu / l'opinion / l'expertise de l'utilisatrice (pas une question générique sur le sujet).\n" : ""}
