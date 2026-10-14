@@ -54,6 +54,27 @@ Reste du lot 8 :
 - **Lot C** ensuite : fonctions pures (`creer-step.ts`, `draft-conflict.ts`,
   `pending-stream.ts`, `edit-text-from-result.ts`, `content-brief.ts`), voir la fiche 1.
 
+## Découpage du Studio, `visual-studio/index.ts` (fiche 5) : terminé le 14/10/2026
+2001 → 299 lignes ; `index.ts` n'est plus qu'un aiguilleur des 16 actions.
+- **Lot 0** (#1478) : contrat du handler (16 actions : statut, clés, requêtes
+  ordonnées, session enregistrée), snapshots de ce qui part vers Claude (6 tours),
+  traduction des erreurs, rôles modifiés en place, ordre du quota dans `generate`.
+  Harnais commun : `visual-studio/contract_harness.ts`.
+- **Bug corrigé** (#1481) : une image bloquée dont le résultat est perdu restait
+  « en cours » pour toujours (erreur de téléchargement vide avec supabase-js 2.95.3) ;
+  elle passe en « incertaine » (`storage-errors.ts`).
+- **Lots 1 à 4** (#1485, #1487, #1488, #1491) : `request-schema.ts`, `storage.ts`,
+  `errors.ts`, `actions/*` (session, reference, composition, save, pilot, generate),
+  `read-state.ts`. Crédits du Studio inchangés : fonctions SQL
+  `studio_confirm_generation` / `studio_complete_generation`, pas `logUsage`.
+- **Lots 5 à 8** (#1497, #1502, #1509, #1516) : branche `message` en
+  `turn/brand-context.ts`, `turn/interpret.ts`, `turn/guardrails.ts`, `turn/proposal.ts`.
+  Références et `intent` passés sans copie (règles qui modifient en place). Un test
+  ajouté au lot 8 couvre l'ajout du mannequin de la mémoire aux références de la
+  demande, qu'une copie aurait effacé sans qu'aucun autre test ne le voie.
+- Méthode qui a marché : comparer par script le code déplacé à l'original, puis
+  essayer volontairement une copie des objets pour vérifier que le filet la voit.
+
 ## En attente
 - **E3, terminé le 14/10/2026** (3 816 → 1 155 lignes, 14 fichiers dans
   `src/components/creer/CarouselEditorParts/`) : découper CarouselEditor.tsx par mission (plan validé par Laetitia le
@@ -113,6 +134,7 @@ L'installation par défaut échoue (registre Lovable, deno.land et esm.sh bloqu�
   temps de l'installation la ligne `xlsx` de `package.json` par `"0.18.5"`
   (cdn.sheetjs.com bloqué), puis remettre `package.json` tel quel ;
 - appliquer à la main `patches/mammoth@1.12.1.patch` dans `node_modules/mammoth`.
+- Variante sans changer de version de Deno : faire pointer `esm.sh/@supabase/supabase-js` vers une petite cale locale qui appelle `createClient` avec `autoRefreshToken: false` (sinon fausses « fuites d'intervalle »).
 La CI de la PR reste la référence.
 
 ## Notes techniques (sessions Claude Code dans le cloud)
