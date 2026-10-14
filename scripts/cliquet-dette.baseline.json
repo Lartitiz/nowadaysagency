@@ -146,8 +146,8 @@
       "any": 8
     },
     "supabase/functions/carousel-ai/index.ts": {
-      "lignes": 2233,
-      "any": 53
+      "lignes": 1946,
+      "any": 38
     },
     "supabase/functions/carousel-visual/index.ts": {
       "lignes": 2792,
