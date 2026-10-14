@@ -13,29 +13,25 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, forcesDisabledThinking, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, type UsageSink } from "../_shared/anthropic.ts";
 import { runWithHeartbeatSSE } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
-import { buildDepthBlock } from "../_shared/depth-research.ts";
 import { livedCaseFromCreativeBody, LIVED_CASE_FIRST, NEWS_FEELING_FIRST } from "../_shared/lived-case.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief, positionDepthBlock } from "../_shared/format-briefs.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
-import { applyCorrectionPass, storiesAuditableText } from "../_shared/correction-pass.ts";
-import { analyzeTextRedac, textRedacViolations, hookEchoesBefore } from "../_shared/redac-gate.ts";
-import { logContentQuality } from "../_shared/content-quality.ts";
+import { applyCorrectionPass } from "../_shared/correction-pass.ts";
+import { hookEchoesBefore } from "../_shared/redac-gate.ts";
 import { fetchPreviousHooks, fetchPreviousHooksByFormat } from "../_shared/previous-hooks.ts";
-import { reelAuditableText } from "../_shared/reel-postprocess.ts";
 import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
 import { adoptStructuredStories, finalizeStoriesLayout, stripStoriesWriterLayout } from "../_shared/story-formatting.ts";
-import { GENERATE_ABORT_MS, ADJUST_ABORT_MS, LIGHT_ABORT_MS, gateNumbers, _deps, addrOpts, POST_ADDRESS_FIELDS } from "./shared.ts";
+import { gateNumbers, _deps, addrOpts, POST_ADDRESS_FIELDS } from "./shared.ts";
 import { applyNewsletterCorrectionPass, runNewsletterTwoStep } from "./formats/newsletter.ts";
 import { photoVoiceRule } from "./shared.ts";
 import { isExplicitlyFictionalBrief, isFactualFictionalLinkedInBrief, alignFactualLinkedInHook, buildFictionalLinkedInQuestions, applyLinkedInCorrectionPass, streamLinkedInPhotoVision, runLinkedInTwoStep } from "./formats/linkedin.ts";
 import { STORIES_ADDRESS_FIELDS, type StoriesGateResult, applyStoriesCorrectionPass, finalizeRecycledStories } from "./formats/stories.ts";
 import { HOOKS_ADDRESS_FIELDS, normalizeHooksResponse, applyReelQualityPass } from "./formats/reel.ts";
 import { streamDefaultPostSSE } from "./formats/post.ts";
-import { QUESTIONS_TOOL } from "./shared.ts";
 import { runVisionQuestions, runVisionGenerate } from "./formats/photo.ts";
 import { enforceCarouselObjectAudienceAddress, retiredCarouselStreamResponse } from "./formats/carousel.ts";
 import { handleRecycleStep } from "./formats/recycle.ts";
@@ -50,11 +46,14 @@ export { isExplicitlyFictionalBrief, isFactualFictionalLinkedInBrief, alignFactu
 export { photoVoiceRule } from "./shared.ts";
 export { NEWSLETTER_ADDRESS_FIELDS, applyNewsletterCorrectionPass } from "./formats/newsletter.ts";
 export { gateNumbers, _deps, POST_ADDRESS_FIELDS } from "./shared.ts";
-import { HOOKS_TOOL, buildHooksPrompt } from "./formats/reel.ts";
-import { FOLLOW_UP_TOOL } from "./shared.ts";
+import { buildHooksPrompt } from "./formats/reel.ts";
 import { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAnglesPrompt, resolveFormatHint, buildQuestionsPrompt } from "./prompts/assist.ts";
 export { buildFollowUpPrompt, buildAdjustPrompt, buildDictationPrompt, buildAnglesPrompt, resolveFormatHint, buildQuestionsPrompt } from "./prompts/assist.ts";
 export { buildHooksPrompt } from "./formats/reel.ts";
+import { logGenerationQualityTelemetry } from "./telemetry.ts";
+import { skipDepthResearch, creativeDepthBlock, runDeepResearchWebSearch } from "./research.ts";
+export { skipDepthResearch, creativeDepthBlock, runDeepResearchWebSearch } from "./research.ts";
+import { callOptionsForStep } from "./call-options.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -373,223 +372,6 @@ Réponds UNIQUEMENT en JSON :
   const userPrompt = "Rédige mon contenu à partir de mes réponses et de l'angle choisi.";
 
   return { systemPrompt, userPrompt, storiesPhotoCatalog };
-}
-
-// ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
-// Les carrousels loggent leur score de gate à chaque génération (Brique 1,
-// content_quality_events) → le juge du bilan hebdo les note. Les autres
-// formats en étaient absents (angle mort connu). Mesure LÉGÈRE
-// (analyzeTextRedac, zéro appel LLM) sur le texte FINAL, MÊME formule de
-// score que redacScore sur les dimensions du texte libre (retournements /
-// formules moulées / chiffres inventés), + aperçu pour l'échantillon du juge.
-// Fire-and-forget : logContentQuality n'interrompt jamais la génération et
-// exclut déjà les comptes QA. La newsletter (retour SSE anticipé) se logge
-// dans son propre bloc ; le LinkedIn STREAMÉ reste hors couverture ici (il
-// ne passe pas par cette queue) — angle mort résiduel connu.
-async function logGenerationQualityTelemetry(parsed: any, params: {
-  userId: string;
-  context: string;
-  body: any;
-  newsContext?: string | null;
-  fullContext: string;
-  researchSource?: string;
-  brandGuardText?: string;
-  finalUsage: UsageSink;
-  workspace_id?: string | null;
-  isStories: boolean;
-  isReel: boolean;
-  isLinkedIn: boolean;
-  /** Accroches déjà écrites sur ce sujet : la redite compte dans le score mesuré (24/08). */
-  previousHooks?: string[];
-  /** Résultat de la passe stories (score APRÈS correction) : loggé tel quel, sans re-mesure. */
-  storiesGate?: StoriesGateResult | null;
-  /** Échos d'accroche AVANT correction (reel / LinkedIn), rendus par leur passe. */
-  hookEchoesBefore?: number;
-}): Promise<void> {
-  const { userId, context, body, newsContext, fullContext, researchSource, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate, hookEchoesBefore: echoesBefore } = params;
-  const qualityNumbers = () =>
-    gateNumbers([
-      typeof context === "string" ? context : "",
-      body.answers ? JSON.stringify(body.answers) : "",
-      (body.preGenAnswers || body.pre_gen_answers) ? JSON.stringify(body.preGenAnswers || body.pre_gen_answers) : "",
-      typeof newsContext === "string" ? newsContext : "",
-      fullContext || "",
-    ], researchSource);
-  const logTextQuality = async (format: string, text: string, previewDoc: unknown, gate?: StoriesGateResult | null, hookEchoesBefore?: number) => {
-    try {
-      let score: number, violations: number, repassed = false;
-      if (gate) {
-        ({ score, violations, repassed } = gate);
-      } else {
-        const { allowed, research } = qualityNumbers();
-        const a = analyzeTextRedac(text, allowed, brandGuardText, {
-          previousHooks,
-          subject: typeof context === "string" ? context : undefined,
-        }, research);
-        violations = textRedacViolations(a);
-        score = Math.max(40, 100 - 10 * violations);
-      }
-      await logContentQuality(
-        userId,
-        format,
-        { score, violations, repassed, content: JSON.stringify(previewDoc), hookEchoesBefore: gate ? gate.hook_echoes_before : hookEchoesBefore },
-        finalUsage.model,
-        workspace_id ?? undefined,
-        typeof context === "string" ? context : undefined,
-      );
-    } catch (e) {
-      console.error(`[creative-flow] log qualité ${format} ignoré (génération intacte):`, (e as any)?.message || e);
-    }
-  };
-
-  if (isStories && Array.isArray(parsed?.stories)) {
-    // Texte audité = texte des stories (les pastilles en sont des extraits depuis le 04/10/2026), même mesure que la passe.
-    await logTextQuality("stories", storiesAuditableText(parsed.stories), { stories: parsed.stories }, storiesGate);
-  } else if (isReel && Array.isArray(parsed?.script)) {
-    await logTextQuality("reel", reelAuditableText(parsed), { script: parsed.script }, null, echoesBefore);
-  } else if (isLinkedIn && typeof parsed?.content === "string" && parsed.content.trim()) {
-    // Sans `subject` : l'accroche enregistrée est la 1re ligne du POST (avec
-    // `subject`, c'était le sujet lui-même, inutile à la garde anti-redite qui
-    // retire les mots du sujet avant de comparer).
-    await logTextQuality("linkedin", parsed.content, { content: parsed.content }, null, echoesBefore);
-  }
-}
-
-/**
- * Recherche « creuser le sujet » pour posts, reels et stories (04/10/2026, même
- * logique que le carrousel depuis #1292) : mécanisme réel, lecture sociale et faits
- * sourcés qui étayent une position. L'actu ne donne que le déclencheur, les réponses
- * le vécu. Condiment : échec silencieux, borné à 20 s (budget reel 90 s + 45 s).
- */
-/** Stories sur son propre cas (« Ton cas d'abord », mode own_case) : aucune
- * recherche « creuser le sujet », donc aucun chiffre de recherche (décision de
- * Laetitia du 05/10/2026). L'actu, les autres formats et les stories sans cas
- * fourni gardent la recherche. */
-export function skipDepthResearch(isStories: boolean, lived: { mode: string }): boolean {
-  return isStories && lived.mode === "own_case";
-}
-
-export async function creativeDepthBlock(params: { context?: string | null; newsContext?: string | null; activity?: string; livedCase?: string }): Promise<string> {
-  const subject = typeof params.context === "string" ? params.context.trim() : "";
-  if (!subject) return "";
-  const newsAngle = typeof params.newsContext === "string" ? params.newsContext.trim().slice(0, 600) : "";
-  // « Ton cas d'abord » (04/10/2026) : cas personnel fourni → vérification d'un point, au plus un fait.
-  const mode = params.livedCase?.trim() ? "support" : "depth";
-  const material = await _deps.fetchDepthMaterial({
-    mode,
-    livedCase: params.livedCase,
-    subject: [subject.slice(0, 1500), newsAngle].filter(Boolean).join("\n"),
-    activity: params.activity,
-    model: getModelForAction("content"),
-    apiKey: Deno.env.get("ANTHROPIC_API_KEY") || "",
-    logger: (m) => console.log(`[creative-flow] ${m}`),
-    timeoutMs: 20_000,
-  });
-  return buildDepthBlock(material, mode);
-}
-
-/**
- * Bloc Deep Research (recherche web via l'outil Anthropic web_search), extrait
- * de serve() pour être testable directement (deno test, sans vrai serveur
- * HTTP — voir index_test.ts). Comportement inchangé : ne débite un crédit
- * `deep_research` QUE si la recherche web a réellement réussi (searchResponse.ok).
- * Renvoie le texte à ajouter au systemPrompt, "" si rien à ajouter (échec ou
- * réponse vide).
- */
-export async function runDeepResearchWebSearch(params: {
-  userId: string;
-  workspaceId?: string;
-  calendarContext?: { theme?: string } | null;
-  context?: string | null;
-  contentType?: string | null;
-  profile?: { activite?: string } | null;
-  effectiveObjective?: string | null;
-  objective?: string | null;
-  editorialFormatLabel?: string | null;
-  angle?: { title?: string } | null;
-}): Promise<string> {
-  const { userId, workspaceId, calendarContext, context, contentType, profile, effectiveObjective, objective, editorialFormatLabel, angle } = params;
-
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  const theme = calendarContext?.theme || context || contentType || "contenu";
-  const activite = profile?.activite || "";
-
-  // Build targeted research prompt based on objective and editorial format
-  const researchObjective = effectiveObjective || objective || "";
-  const researchAngle = editorialFormatLabel || angle?.title || "";
-  let researchFocus = "";
-  if (researchObjective.includes("vente") || researchObjective.includes("conversion")) {
-    researchFocus = "Cherche en priorité : des témoignages, des études de cas, des chiffres de transformation (avant/après), des statistiques de conversion ou de résultats clients.";
-  } else if (researchObjective.includes("credibilite") || researchObjective.includes("crédibilité")) {
-    researchFocus = "Cherche en priorité : des études scientifiques, des rapports sectoriels, des données chiffrées officielles, des avis d'experts reconnus.";
-  } else if (researchObjective.includes("visibilite") || researchObjective.includes("visibilité")) {
-    researchFocus = "Cherche en priorité : des tendances émergentes, des chiffres surprenants ou contre-intuitifs, des faits viralisables, des comparaisons frappantes.";
-  } else if (researchObjective.includes("confiance") || researchObjective.includes("engagement")) {
-    researchFocus = "Cherche en priorité : des histoires humaines, des situations vécues universelles, des sondages d'opinion, des verbatims ou témoignages.";
-  }
-
-  let researchAngleHint = "";
-  if (researchAngle.toLowerCase().includes("mythe") || researchAngle.toLowerCase().includes("déconstruire")) {
-    researchAngleHint = "Le contenu va déconstruire un mythe. Cherche des données qui CONTREDISENT une croyance courante sur le sujet.";
-  } else if (researchAngle.toLowerCase().includes("enquête") || researchAngle.toLowerCase().includes("décryptage")) {
-    researchAngleHint = "Le contenu est une enquête/décryptage. Cherche des données récentes et des tendances que peu de gens connaissent.";
-  } else if (researchAngle.toLowerCase().includes("test") || researchAngle.toLowerCase().includes("grandeur nature")) {
-    researchAngleHint = "Le contenu est un retour d'expérience. Cherche des benchmarks, des moyennes sectorielles, des résultats comparatifs.";
-  }
-
-  const searchModel = getModelForAction("content");
-  const searchResponse = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey!,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: searchModel,
-      // Fetch brut (hors helpers) : la garde thinking Sonnet 5 doit être posée
-      // ici aussi, sinon le thinking adaptatif mange le budget de recherche.
-      ...(forcesDisabledThinking(searchModel) ? { thinking: { type: "disabled" } } : {}),
-      max_tokens: 2048,
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
-      messages: [{
-        role: "user",
-        content: `Recherche des données récentes sur le sujet suivant : ${theme}.
-Contexte professionnel : ${activite}.
-${researchFocus ? `\n${researchFocus}` : ""}
-${researchAngleHint ? `\n${researchAngleHint}` : ""}
-
-Résume les 3-5 points les plus pertinents. Pour chaque point, donne :
-- Le fait ou la donnée
-- La source (nom du média, de l'étude, ou de l'organisme)
-- Pourquoi c'est intéressant pour du contenu social media
-
-Privilégie les sources françaises et européennes quand elles existent.`,
-      }],
-    }),
-  });
-
-  if (!searchResponse.ok) {
-    console.error("Deep research web search failed:", searchResponse.status);
-    return "";
-  }
-
-  const searchData = await searchResponse.json();
-  const webSearchTokens = (searchData.usage?.input_tokens ?? 0) + (searchData.usage?.output_tokens ?? 0);
-  // Extract all text blocks from the response
-  const textParts: string[] = [];
-  for (const block of (searchData.content || [])) {
-    if (block.type === "text") {
-      textParts.push(block.text);
-    }
-  }
-  const researchResult = textParts.join("\n\n");
-
-  // Log deep research usage only when the web search actually succeeded
-  await logUsage(userId, "deep_research", "web_search", webSearchTokens || undefined, searchModel, workspaceId);
-
-  if (!researchResult.trim()) return "";
-  return `\n\n--- RECHERCHE WEB ---\n${researchResult}\n--- FIN RECHERCHE ---\n\nUtilise ces données pour étayer la position du contenu avec des faits concrets, des chiffres, des exemples récents, intégrés naturellement. Tout chiffre repris reste attaché à sa source (mention discrète : nom, année) ; jamais de chiffre sans source.`;
 }
 
 serve(async (req) => {
@@ -1031,34 +813,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     } else if (step === "generate" && body.photo_mode && body.photos?.[0]?.base64) {
       rawContent = await runVisionGenerate({ body, contentType, context, answers, systemPrompt, finalUsage, audienceAddress });
     } else {
-      // 8192 pour la génération de contenu : le JSON reel (script + duplicata `sections`
-      // + `lecture_test` + shot list) dépasse le défaut de 4096 de callAnthropicSimple
-      // → stop_reason "max_tokens" → échec systématique en ~40 s. Un plafond haut ne
-      // coûte rien tant qu'il n'est pas consommé.
-      const factualFictionalLinkedIn = step === "generate" && isLinkedIn && !isPhotoMode && isFactualFictionalLinkedInBrief(context);
-      const maxTokens = step === "questions" ? 800 : step === "hooks" ? 1400 : step === "recycle" ? 12288 : factualFictionalLinkedIn ? 1200 : 8192;
-      const isLinkedInText = !!contentType?.includes("linkedin") && step !== "questions";
-      const tempText = factualFictionalLinkedIn ? 0.2 : isLinkedInText ? 0.7 : 0.85;
-      // L1 : Haiku pour les steps `questions` et `follow-up` (3-5× plus rapide que Sonnet,
-      // suffisant pour des questions structurées en JSON). Sonnet reste pour la génération de contenu.
-      const modelForCall = (step === "questions" || step === "follow-up")
-        ? getModelForAction("questions")
-        : getModelForAction("content");
-      // Questions/follow-up = appels Haiku courts et bornés : on plafonne chaque
-      // tentative à 30s pour qu'un fetch qui traîne bascule vite en retry plutôt
-      // que de faire patienter l'utilisatrice >1 min sur le chemin d'activation.
-      // `generate` (et adjust/angles/dictation) suivaient le même chemin sans
-      // aucune limite jusqu'ici — le générateur le plus utilisé de l'outil
-      // tournait sans filet (audit latences 17/08).
-      const abortMs = (step === "questions" || step === "follow-up") ? 30000
-        : step === "hooks" ? 45000
-        : step === "generate" ? GENERATE_ABORT_MS
-        : step === "adjust" ? ADJUST_ABORT_MS
-        : (step === "angles" || step === "dictation") ? LIGHT_ABORT_MS
-        : undefined;
-      // `hooks` reste sur le modèle content (Sonnet) : le hook est LE levier de
-      // rétention du reel, la qualité prime sur les ~5 s gagnées avec Haiku.
-      const structuredTool = step === "questions" ? QUESTIONS_TOOL : step === "follow-up" ? FOLLOW_UP_TOOL : step === "hooks" ? HOOKS_TOOL : undefined;
+      const { maxTokens, tempText, modelForCall, abortMs, structuredTool } = callOptionsForStep({ step, isLinkedIn, isPhotoMode, contentType, context });
       rawContent = structuredTool
         ? await callAnthropic({
             model: modelForCall,
