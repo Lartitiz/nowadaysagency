@@ -30,6 +30,7 @@ import { gardeRediteStats, hasPreviewText } from "./garde-redite.ts";
 import { filStats } from "./fil-reparations.ts";
 import { dureesStats } from "./durees-carrousels.ts";
 import { planStats } from "./plan-carrousels.ts";
+import { santeQuotidienne } from "./sante-emails.ts"; // erreurs JS clientes à part + e-mails
 import { CAROUSEL_PLAN_FORMAT } from "../_shared/carousel-plan-format.ts";
 import { isInternalEmail, isTestAccountEmail, maskEmail } from "../_shared/internal-accounts.ts";
 
@@ -320,9 +321,10 @@ Deno.serve(async (req) => {
     );
     const isClient = (userId: string) => !excludedIds.has(userId);
     const now = Date.now();
+    const emailOf = new Map<string, string>(profiles.map((p: any) => [p.user_id, p.email]));
 
     if (scope === "daily") {
-      const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, clientErrors, higgsfield] = await Promise.all([
+      const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, sante, higgsfield] = await Promise.all([
         fetchAllRows(
           supabase,
           "calendar_posts",
@@ -344,9 +346,8 @@ Deno.serve(async (req) => {
         // de la routine saute, rien ne reste invisible (le passage à "seen"/"done"
         // dans l'onglet admin fait redescendre ce compteur).
         fetchAllRows(supabase, "beta_feedback", "user_id", (q) => q.eq("status", "new")),
-        photoroomCredits(now),
-        facturationHealth(supabase, now),
-        fetchAllRows(supabase, "client_error_events", "kind, route, asset, created_at", (q) => q.gte("created_at", new Date(now - DAY).toISOString())),
+        photoroomCredits(now), facturationHealth(supabase, now),
+        santeQuotidienne(supabase, now, fetchAllRows, emailOf, isExcludedEmail),
         higgsfieldBudget(supabase, now),
       ]);
       const posts = postsRows.filter((p: any) => isClient(p.user_id));
@@ -442,7 +443,7 @@ Deno.serve(async (req) => {
         photoroom_credits: photoroom,
         higgsfield,
         facturation,
-        client_errors_24h: { count: clientErrors.length, items: clientErrors.slice(-20) },
+        ...sante, // client_errors_24h (vraies clientes, internes à part) + emails_24h
       });
     }
 
@@ -467,7 +468,6 @@ Deno.serve(async (req) => {
     // en crée. Tous comptes, internes compris (marqués) : c'est de l'intégrité.
     const ownersByUser = new Map<string, any[]>();
     for (const r of ownerRows) ownersByUser.set(r.user_id, [...(ownersByUser.get(r.user_id) || []), r]);
-    const emailOf = new Map(profiles.map((p: any) => [p.user_id, p.email]));
     const doublonsOwner = [...ownersByUser.entries()]
       .filter(([, rows]) => rows.length > 1)
       .map(([userId, rows]) => {
