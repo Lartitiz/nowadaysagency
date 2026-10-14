@@ -43,6 +43,10 @@ export const FUNCTION_LABELS = {
   "newsjacking-from-url": "Newsjacking",
   "reel-render": "Montage des reels",
   "content-coaching": "Idées de contenu",
+  // Lot 9 (14/10/2026) : fonctions de design et de vidéo, absentes jusque-là.
+  "visual-studio": "Studio visuel : images et retouches photo",
+  "visual-direction-suggest": "Charte : direction photo et vidéo suggérée",
+  "studio-video": "Studio vidéo",
 };
 
 /** Fichiers de creative-flow → format touché (lot 3). */
@@ -60,8 +64,13 @@ export const CREATIVE_FLOW_FILES = {
 export const FRONT_FILES = [
   [/^src\/pages\/CreerUnifie\.tsx$/, "Parcours /creer (tous formats)"],
   [/^src\/components\/creer\/formatRenderers\/Carousel/, "Carrousels : écran de résultat"],
-  [/^src\/components\/creer\/CarouselEditor/, "Carrousels : éditeur"],
+  [/^src\/components\/creer\/CarouselEditor|^src\/lib\/carousel-editor\.ts$/, "Carrousels : éditeur visuel"],
   [/^src\/lib\/export-carousel-/, "Carrousels : exports"],
+  [/^src\/hooks\/use-generate-visuals\.ts$/, "Carrousels : lancement de la mise en forme visuelle"],
+  [/^src\/hooks\/use-user-slides-generate\.ts$/, "Carrousels : slides écrites par l'utilisatrice"],
+  [/^src\/components\/creer\/ReelMontage\.tsx$/, "Reel : écran de montage"],
+  [/^src\/components\/creer\/CreerStepEdit\.tsx$|^src\/features\/creer\/edited-text\.ts$/, "Parcours /creer : étape « Modifier » (tous formats)"],
+  [/^src\/hooks\/use-regeneration-backup\.ts$/, "Parcours /creer : filet « Régénérer » / « Changer d'angle » (tous formats)"],
   [/^src\/components\/creer\/formatRenderers\/(\w+)Result\.tsx$/, (m) => `Écran de résultat : ${m[1]}`],
   [/^src\/hooks\/use-(do-generate|content-generator|format-next)\.ts$/, "Parcours /creer : lancement des générations (tous formats)"],
   [/^src\/pages\/Calendar\.tsx$|^src\/components\/calendar\/CalendarPostDialog\.tsx$/, "Lien calendrier → générateur"],

@@ -47,9 +47,13 @@ Deno.test("disposition mixte : la rédaction ne demande plus photo_layout ni ove
   const tool = /const MIX_CAROUSEL_TOOL = \{[\s\S]*?\n\};/.exec(src)?.[0] || "";
   assert(tool.includes("livrer_carrousel_mixte"), "outil mixte introuvable");
   for (const field of ["photo_layout", "overlay_position", "overlay_style"]) assert(!tool.includes(field), `outil mixte : ${field}`);
+  // Lot 8 : le filtre vit dans carousel-ai/layout.ts (withoutMixWriterLayout).
   const handler = /async function handleMixCarouselRequest[\s\S]*?\n}\n/.exec(src)?.[0] || "";
-  assert(/then\(stripMixWriterLayoutFields\)/.test(handler), "la sortie de rédaction mixte n'est plus filtrée");
-  assert(/keepDraftLayoutFields\(draft, out\)/.test(handler), "une réparation peut changer la disposition");
+  assert(/withoutMixWriterLayout\(doGenerate, doRepair\)/.test(handler), "la sortie de rédaction mixte n'est plus filtrée");
+  const layout = await Deno.readTextFile(new URL("../carousel-ai/layout.ts", import.meta.url));
+  const wrap = /export function withoutMixWriterLayout[\s\S]*?\n}\n/.exec(layout)?.[0] || "";
+  assert(/then\(stripMixWriterLayoutFields\)/.test(wrap), "la sortie de rédaction mixte n'est plus filtrée");
+  assert(/keepDraftLayoutFields\(draft, out\)/.test(wrap), "une réparation peut changer la disposition");
 });
 
 Deno.test("disposition mixte : ce que la rédaction écrirait quand même est ignoré, texte intact", () => {

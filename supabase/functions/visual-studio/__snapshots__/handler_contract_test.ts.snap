@@ -1,0 +1,1637 @@
+export const snapshot = {};
+
+snapshot[`contrat Studio — create — nouvelle session depuis une photo (copie de l'original) 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (20)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/user_photos [*]
+POST /rest/v1/visual_studio_sessions
+GET /rest/v1/visual_studio_sessions [*]
+GET /storage/v1/object/visual-studio/id(2)/id(3)/original
+GET /storage/v1/object/user-photos/id(11)/bol.jpg
+POST /storage/v1/object/visual-studio/id(2)/id(3)/original
+PATCH /rest/v1/visual_studio_sessions [id]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+(aucune)
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": null,
+ "brief": "",
+ "source_metadata": {
+  "kind": "product",
+  "description": "Bol en céramique bleu cobalt",
+  "input_path": "id(11)/bol.jpg"
+ },
+ "source_ready": true,
+ "composition": null,
+ "source_path": "id(2)/id(3)/original",
+ "name": "Bol bleu",
+ "archived_at": null,
+ "revision": 0,
+ "messages": [
+  {
+   "role": "assistant",
+   "text": "Quelle image aimerais-tu créer, améliorer ou imaginer ? Tu peux commencer par une question. Je m’appuie sur ta marque et les références que tu choisis. Rien n’est généré avant ta confirmation."
+  }
+ ],
+ "proposal": null
+}'
+`;
+
+snapshot[`contrat Studio — styles — presets Soul 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["styles"]
+styles : 6 presets (General, Nature light, Warm ambient, Editorial street style, Subtle flash, Theatrical light)
+── REQUÊTES (2)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+── FONCTIONS SQL (hors has_role)
+(aucune)
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [],
+ "brief": "",
+ "source_metadata": {},
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 0,
+ "messages": [],
+ "proposal": {
+  "id": "id(4)",
+  "operation": "background",
+  "summary": "Fond crème",
+  "background_prompt": "cream",
+  "cost": 1
+ }
+}'
+`;
+
+snapshot[`contrat Studio — read — lecture simple 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (14)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/reference-plate
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+(aucune)
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [
+  {
+   "id": "id(40)",
+   "photo_id": "id(41)",
+   "path": "id(2)/id(3)/reference-plate",
+   "role": "product",
+   "role_source": "user",
+   "name": "Assiette"
+  }
+ ],
+ "brief": "",
+ "source_metadata": {},
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 0,
+ "messages": [],
+ "proposal": {
+  "id": "id(4)",
+  "operation": "background",
+  "summary": "Fond crème",
+  "background_prompt": "cream",
+  "cost": 1
+ }
+}'
+`;
+
+snapshot[`contrat Studio — read — rattrapage des versions bloquées (résultat stocké / perdu) 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"],["id(9)","uncertain",null]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (17)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /storage/v1/object/visual-studio/id(2)/id(3)/version
+POST /rest/v1/rpc/studio_complete_generation
+GET /storage/v1/object/visual-studio/id(2)/id(3)/lost
+PATCH /rest/v1/visual_studio_versions [id]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+studio_complete_generation : [{"p_version":"id(4)"}]
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ },
+ {
+  "id": "id(9)",
+  "status": "uncertain",
+  "error_message": "La création a été interrompue et aucun résultat n’est disponible. Aucun crédit Studio n’a été décompté pour l’instant ; son issue chez le fournisseur reste inconnue."
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [],
+ "brief": "",
+ "source_metadata": {},
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 0,
+ "messages": [],
+ "proposal": {
+  "id": "id(4)",
+  "operation": "background",
+  "summary": "Fond crème",
+  "background_prompt": "cream",
+  "cost": 1
+ }
+}'
+`;
+
+snapshot[`contrat Studio — message — conseil sans image 1`] = `
+\`── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","updated_at","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (24)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [id]
+POST /rest/v1/rpc/studio_reserve_interpretation
+GET /rest/v1/brand_profile [mission,offer,target_description,voice_description,things_to_avoid]
+GET /rest/v1/brand_proposition [version_final,version_one_liner]
+GET /rest/v1/brand_strategy [creative_concept,pillar_major,pillar_minor_1,pillar_minor_2]
+GET /rest/v1/user_photos [id,name,kind,description]
+GET /rest/v1/brand_charter [color_primary,color_secondary,color_accent,color_background,color_text,font_title,font_body,photo_style,mood_keywords,visual_donts,moodboard_description,mood_board_urls,visual_direction]
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/user_photos [id,name,kind,description]
+POST api.anthropic.com/v1/messages
+PATCH /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+studio_reserve_interpretation : [{"p_actor":"id(11)","p_session":"id(3)","p_request":"id(30)"}]
+── APPELS À CLAUDE : 1 (claude-haiku-4-5)
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [],
+ "brief": "",
+ "source_metadata": {
+  "studio_context": {
+   "reference_ids": [],
+   "branch_id": null,
+   "start_index": 0,
+   "targets": [],
+   "decisions": {}
+  }
+ },
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 1,
+ "messages": [
+  {
+   "id": "id(30)",
+   "role": "user",
+   "text": "Qu'en penses-tu : fond clair ou sombre ?",
+   "reference_ids": [],
+   "viewed_version_id": null,
+   "request_scope": "continue",
+   "reference_snapshot": []
+  },
+  {
+   "role": "assistant",
+   "viewed_version_id": null,
+   "viewed_reference_id": null,
+   "text": "Un fond clair.",
+   "operation": "advise",
+   "suggestions": [],
+   "suggested_photo_ids": [],
+   "suggested_memory_ids": []
+  }
+ ],
+ "proposal": null,
+ "updated_at": "<date>"
+}\`
+`;
+
+snapshot[`contrat Studio — message — proposition d'affiche avec texte exact 1`] = `
+\`── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","updated_at","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (28)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [id]
+POST /rest/v1/rpc/studio_reserve_interpretation
+GET /rest/v1/brand_profile [mission,offer,target_description,voice_description,things_to_avoid]
+GET /rest/v1/brand_proposition [version_final,version_one_liner]
+GET /rest/v1/brand_strategy [creative_concept,pillar_major,pillar_minor_1,pillar_minor_2]
+GET /rest/v1/user_photos [id,name,kind,description]
+GET /rest/v1/brand_charter [color_primary,color_secondary,color_accent,color_background,color_text,font_title,font_body,photo_style,mood_keywords,visual_donts,moodboard_description,mood_board_urls,visual_direction]
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/user_photos [id,name,kind,description]
+GET /storage/v1/render/image/authenticated/visual-studio/id(2)/id(3)/reference-plate
+GET /storage/v1/render/image/authenticated/visual-studio/id(2)/id(3)/reference-mood
+POST api.anthropic.com/v1/messages
+PATCH /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/reference-mood
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/reference-plate
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+studio_reserve_interpretation : [{"p_actor":"id(11)","p_session":"id(3)","p_request":"id(31)"}]
+── APPELS À CLAUDE : 1 (claude-sonnet-4-6)
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [
+  {
+   "id": "id(40)",
+   "photo_id": "id(41)",
+   "path": "id(2)/id(3)/reference-plate",
+   "role": "product",
+   "role_source": "user",
+   "name": "Assiette"
+  },
+  {
+   "id": "id(42)",
+   "photo_id": "id(43)",
+   "path": "id(2)/id(3)/reference-mood",
+   "role": "style",
+   "role_source": "conversation",
+   "name": "Ambiance"
+  }
+ ],
+ "brief": "",
+ "source_metadata": {
+  "studio_context": {
+   "reference_ids": [
+    "id(40)",
+    "id(42)"
+   ],
+   "branch_id": null,
+   "start_index": 0,
+   "targets": [],
+   "decisions": {}
+  }
+ },
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 1,
+ "messages": [
+  {
+   "id": "id(31)",
+   "role": "user",
+   "text": "Une affiche avec mon assiette, titre Marché de Noël",
+   "reference_ids": [
+    "id(40)",
+    "id(42)"
+   ],
+   "viewed_version_id": null,
+   "request_scope": "continue",
+   "reference_snapshot": [
+    {
+     "id": "id(40)",
+     "name": "Assiette",
+     "path": "id(2)/id(3)/reference-plate",
+     "role": "product"
+    },
+    {
+     "id": "id(42)",
+     "name": "Ambiance",
+     "path": "id(2)/id(3)/reference-mood",
+     "role": "style"
+    }
+   ]
+  },
+  {
+   "role": "assistant",
+   "viewed_version_id": null,
+   "viewed_reference_id": "id(40)",
+   "text": "Affiche de l'assiette, titre Marché de Noël.",
+   "operation": "product",
+   "suggestions": [],
+   "suggested_photo_ids": [],
+   "suggested_memory_ids": []
+  }
+ ],
+ "proposal": {
+  "operation": "product",
+  "shots": [],
+  "summary": "Affiche de l'assiette, titre Marché de Noël.",
+  "visual_kind": "graphic",
+  "photo_treatment": "unspecified",
+  "product_placement": "À plat sur la table.",
+  "exact_text": [
+   "Marché de Noël"
+  ],
+  "reference_use": [
+   {
+    "id": "id(40)",
+    "role": "product"
+   },
+   {
+    "id": "id(42)",
+    "role": "style"
+   }
+  ],
+  "uses_selected_version": false,
+  "background_prompt": "",
+  "image_prompt": "Poster of the plate lying flat. Text: Marché de Noël.",
+  "format": "square",
+  "preserve": [],
+  "change": [],
+  "brief": "",
+  "suggestions": [],
+  "suggested_memory_ids": [],
+  "suggested_photo_ids": [],
+  "requires_real_subject": true,
+  "id": "<uuid-1>",
+  "viewed_version_id": null,
+  "viewed_reference_id": "id(40)",
+  "cost": 1,
+  "references": [
+   {
+    "id": "id(40)",
+    "photo_id": "id(41)",
+    "path": "id(2)/id(3)/reference-plate",
+    "role": "product",
+    "role_source": "user",
+    "name": "Assiette"
+   },
+   {
+    "id": "id(42)",
+    "photo_id": "id(43)",
+    "path": "id(2)/id(3)/reference-mood",
+    "role": "style",
+    "role_source": "conversation",
+    "name": "Ambiance"
+   }
+  ],
+  "reference_snapshot": [
+   {
+    "id": "id(40)",
+    "photo_id": "id(41)",
+    "path": "id(2)/id(3)/reference-plate",
+    "role": "product",
+    "role_source": "user",
+    "name": "Assiette"
+   },
+   {
+    "id": "id(42)",
+    "photo_id": "id(43)",
+    "path": "id(2)/id(3)/reference-mood",
+    "role": "style",
+    "role_source": "conversation",
+    "name": "Ambiance"
+   }
+  ],
+  "planning_references": [],
+  "input_path": null,
+  "original_path": "id(2)/id(3)/reference-plate",
+  "subject_kind": null,
+  "prompt_author": "claude-sonnet-4-6",
+  "model": "gpt-image-2.5-sunburst",
+  "provider": "default",
+  "rules_version": "studio-competencies-11-source-light-preservation",
+  "brand_context": {
+   "captured_at": "<date>",
+   "charter": {
+    "mission": "Ateliers artisanaux"
+   },
+   "identity": {
+    "mission": "Ateliers artisanaux"
+   },
+   "proposition": {
+    "mission": "Ateliers artisanaux"
+   },
+   "strategy": {
+    "mission": "Ateliers artisanaux"
+   },
+   "memory": []
+  },
+  "warning": "Cette transformation redessine l’image. Elle peut modifier des détails du produit ou du visage. Compare le résultat aux références avant de l’utiliser."
+ },
+ "updated_at": "<date>"
+}\`
+`;
+
+snapshot[`contrat Studio — generate — fond Photoroom confirmé (claim, génération, stockage, fin) 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/id(4)?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (21)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [id]
+POST /rest/v1/rpc/has_role
+POST /rest/v1/rpc/studio_confirm_generation
+GET /storage/v1/object/visual-studio/original
+GET /rest/v1/workspace_members [role]
+POST image-api.photoroom.com/v2/edit
+POST /storage/v1/object/visual-studio/id(2)/id(3)/id(4)
+POST /rest/v1/rpc/studio_complete_generation
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/id(4)
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+studio_confirm_generation : [{"p_actor":"id(11)","p_session":"id(3)","p_proposal":"id(4)","p_total_limit":9999,"p_image_limit":5,"p_charge":false,"p_base_total":23}]
+studio_complete_generation : [{"p_version":"id(4)"}]
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [],
+ "brief": "",
+ "source_metadata": {},
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 0,
+ "messages": [],
+ "proposal": {
+  "id": "id(4)",
+  "operation": "background",
+  "summary": "Fond crème",
+  "background_prompt": "cream",
+  "cost": 1
+ }
+}'
+`;
+
+snapshot[`contrat Studio — save — version enregistrée dans la bibliothèque (propriétaire) 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["photo_id"]
+photo_id : "id(900)"
+── REQUÊTES (10)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /storage/v1/object/visual-studio/id(2)/id(3)/version
+POST /storage/v1/object/user-photos/id(11)/studio_id(4).jpg
+GET /storage/v1/object/visual-studio/id(2)/id(3)/original
+POST /storage/v1/object/user-photos/id(11)/studio_id(4)_original.jpg
+POST /rest/v1/rpc/studio_save_library
+── FONCTIONS SQL (hors has_role)
+studio_save_library : [{"p_actor":"id(11)","p_version":"id(4)"}]
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [],
+ "brief": "",
+ "source_metadata": {},
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 0,
+ "messages": [],
+ "proposal": {
+  "id": "id(4)",
+  "operation": "background",
+  "summary": "Fond crème",
+  "background_prompt": "cream",
+  "cost": 1,
+  "original_path": "id(2)/id(3)/original"
+ }
+}'
+`;
+
+snapshot[`contrat Studio — reference — ajout d'une photo de la bibliothèque 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","updated_at","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (19)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [id]
+GET /rest/v1/user_photos [*]
+GET /storage/v1/object/user-photos/id(11)/bol.jpg
+POST /storage/v1/object/visual-studio/id(2)/id(3)/reference-<uuid-1>
+PATCH /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/reference-<uuid-1>
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+(aucune)
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [
+  {
+   "id": "<uuid-1>",
+   "photo_id": "id(5)",
+   "path": "id(2)/id(3)/reference-<uuid-1>",
+   "role": "product",
+   "role_source": "library",
+   "name": "Bol bleu",
+   "kind": "product",
+   "description": "Bol en céramique bleu cobalt"
+  }
+ ],
+ "brief": "",
+ "source_metadata": {
+  "studio_context": {
+   "start_index": 0,
+   "branch_id": null,
+   "reference_ids": [
+    "<uuid-1>"
+   ]
+  }
+ },
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 1,
+ "messages": [],
+ "proposal": null,
+ "updated_at": "<date>"
+}'
+`;
+
+snapshot[`contrat Studio — reference — changement de rôle d'une référence jointe 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","updated_at","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (17)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [id]
+PATCH /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/reference-mood
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/reference-plate
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+(aucune)
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [
+  {
+   "id": "id(40)",
+   "photo_id": "id(41)",
+   "path": "id(2)/id(3)/reference-plate",
+   "role": "product",
+   "role_source": "user",
+   "name": "Assiette"
+  },
+  {
+   "id": "id(42)",
+   "photo_id": "id(43)",
+   "path": "id(2)/id(3)/reference-mood",
+   "role": "style",
+   "role_source": "user",
+   "name": "Ambiance"
+  }
+ ],
+ "brief": "",
+ "source_metadata": {
+  "studio_context": {
+   "start_index": 0,
+   "branch_id": null,
+   "reference_ids": [
+    "id(40)",
+    "id(42)"
+   ]
+  }
+ },
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 1,
+ "messages": [],
+ "proposal": null,
+ "updated_at": "<date>"
+}'
+`;
+
+snapshot[`contrat Studio — reference — retrait 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","updated_at","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (16)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [id]
+PATCH /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/reference-plate
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+(aucune)
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [
+  {
+   "id": "id(40)",
+   "photo_id": "id(41)",
+   "path": "id(2)/id(3)/reference-plate",
+   "role": "product",
+   "role_source": "user",
+   "name": "Assiette"
+  }
+ ],
+ "brief": "",
+ "source_metadata": {
+  "studio_context": {
+   "start_index": 0,
+   "branch_id": null,
+   "reference_ids": [
+    "id(40)"
+   ]
+  }
+ },
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 1,
+ "messages": [],
+ "proposal": null,
+ "updated_at": "<date>"
+}'
+`;
+
+snapshot[`contrat Studio — reference — image de la charte 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","updated_at","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : [{"index":0,"name":"Charte terracotta","url":"https://studio.test/storage/v1/object/sign/moodboards/id(11)/charte.jpg?token=t"}]
+suggested_photos : []
+composition_history : []
+── REQUÊTES (22)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [id]
+GET /rest/v1/brand_charter [moodboard_images]
+GET /rest/v1/workspace_members [user_id]
+GET /storage/v1/object/moodboards/id(11)/charte.jpg
+POST /storage/v1/object/visual-studio/id(2)/id(3)/reference-<uuid-1>
+PATCH /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/reference-<uuid-1>
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+GET /rest/v1/workspace_members [user_id]
+POST /storage/v1/object/sign/moodboards/id(11)/charte.jpg
+── FONCTIONS SQL (hors has_role)
+(aucune)
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [
+  {
+   "id": "<uuid-1>",
+   "photo_id": null,
+   "path": "id(2)/id(3)/reference-<uuid-1>",
+   "role": "style",
+   "role_source": "library",
+   "name": "Charte terracotta"
+  }
+ ],
+ "brief": "",
+ "source_metadata": {
+  "studio_context": {
+   "start_index": 0,
+   "branch_id": null,
+   "reference_ids": [
+    "<uuid-1>"
+   ]
+  }
+ },
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 1,
+ "messages": [],
+ "proposal": null,
+ "updated_at": "<date>"
+}'
+`;
+
+snapshot[`contrat Studio — selection — nouvelle demande 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","updated_at","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (17)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [id]
+PATCH /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/reference-mood
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/reference-plate
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+(aucune)
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [
+  {
+   "id": "id(40)",
+   "photo_id": "id(41)",
+   "path": "id(2)/id(3)/reference-plate",
+   "role": "product",
+   "role_source": "user",
+   "name": "Assiette"
+  },
+  {
+   "id": "id(42)",
+   "photo_id": "id(43)",
+   "path": "id(2)/id(3)/reference-mood",
+   "role": "auto",
+   "role_source": "library",
+   "name": "Ambiance"
+  }
+ ],
+ "brief": "",
+ "source_metadata": {
+  "studio_context": {
+   "reference_ids": [
+    "id(42)"
+   ],
+   "branch_id": "id(4)",
+   "start_index": 1
+  }
+ },
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 1,
+ "messages": [
+  {
+   "role": "user",
+   "text": "Avant"
+  }
+ ],
+ "proposal": null,
+ "updated_at": "<date>"
+}'
+`;
+
+snapshot[`contrat Studio — memory_save — nouvelle préférence de marque 1`] = `
+\`── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (15)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/studio_brand_memory [*]
+POST /rest/v1/rpc/studio_write_memory
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+studio_write_memory : [{"p_actor":"id(11)","p_workspace":"id(2)","p_id":"id(60)","p_revision":0,"p_kind":"preference","p_name":"Lumière naturelle","p_note":"Jamais d'effet plastique","p_references":[],"p_remove":false}]
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [],
+ "brief": "",
+ "source_metadata": {},
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 0,
+ "messages": [],
+ "proposal": {
+  "id": "id(4)",
+  "operation": "background",
+  "summary": "Fond crème",
+  "background_prompt": "cream",
+  "cost": 1
+ }
+}\`
+`;
+
+snapshot[`contrat Studio — memory_apply — mannequin joint à la session 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","updated_at","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (18)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/studio_brand_memory [*]
+GET /rest/v1/visual_studio_versions [id]
+PATCH /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/nora.jpg
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/reference-plate
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+(aucune)
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [
+  {
+   "id": "id(40)",
+   "photo_id": "id(41)",
+   "path": "id(2)/id(3)/reference-plate",
+   "role": "product",
+   "role_source": "user",
+   "name": "Assiette"
+  },
+  {
+   "id": "id(62)",
+   "path": "nora.jpg",
+   "role": "casting",
+   "name": "Nora",
+   "memory_id": "id(61)",
+   "description": "Identité Nora"
+  }
+ ],
+ "brief": "\\\\nIdentité choisie : Nora. Identité Nora",
+ "source_metadata": {
+  "studio_context": {
+   "start_index": 0,
+   "branch_id": null,
+   "reference_ids": [
+    "id(40)",
+    "id(62)"
+   ]
+  }
+ },
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 1,
+ "messages": [],
+ "proposal": null,
+ "updated_at": "<date>"
+}'
+`;
+
+snapshot[`contrat Studio — pilot — première image d'une série 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (15)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [id]
+PATCH /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+(aucune)
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [],
+ "brief": "",
+ "source_metadata": {},
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 1,
+ "messages": [],
+ "proposal": {
+  "id": "<uuid-1>",
+  "operation": "create",
+  "summary": "Créer uniquement la première image prévue dans la série, pour valider sa direction avant la suite.",
+  "background_prompt": "cream",
+  "cost": 1,
+  "image_prompt": "Profil",
+  "change": [],
+  "shots": []
+ }
+}'
+`;
+
+snapshot[`contrat Studio — retry — nouvelle proposition depuis une version en échec 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","failed",null]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (15)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [id]
+GET /rest/v1/visual_studio_versions [proposal]
+PATCH /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+(aucune)
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "failed"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [],
+ "brief": "",
+ "source_metadata": {},
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 1,
+ "messages": [],
+ "proposal": {
+  "id": "<uuid-1>",
+  "operation": "edit",
+  "summary": "Lumière douce",
+  "image_prompt": "Soft light",
+  "input_path": "in",
+  "shots": [],
+  "cost": 1
+ }
+}'
+`;
+
+snapshot[`contrat Studio — composition_save — affiche posée sur la version affichée 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : [{"id":"id(700)","title":"Marché de Noël","created_at":"<date>"}]
+── REQUÊTES (15)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [result_path]
+POST /rest/v1/rpc/studio_save_composition
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+POST /storage/v1/object/sign/visual-studio/original
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+studio_save_composition : [{"p_actor":"id(11)","p_workspace":"id(2)","p_session":"id(3)","p_revision":0,"p_design":{"logo_data_url":null,"title":"Marché de Noël","body":"Samedi","footer":"10 h–18 h","format":"portrait","layout":"image_top","background":"#ffffff","foreground":"#000000","accent":"#fb3d80","font":"sans-serif","align":"left"},"p_background_path":"id(2)/id(3)/version"}]
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [],
+ "brief": "",
+ "source_metadata": {},
+ "source_ready": true,
+ "composition": {
+  "design": {
+   "logo_data_url": null,
+   "title": "Marché de Noël",
+   "body": "Samedi",
+   "footer": "10 h–18 h",
+   "format": "portrait",
+   "layout": "image_top",
+   "background": "#ffffff",
+   "foreground": "#000000",
+   "accent": "#fb3d80",
+   "font": "sans-serif",
+   "align": "left"
+  },
+  "background_path": "id(2)/id(3)/version"
+ },
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 1,
+ "messages": [],
+ "proposal": {
+  "id": "id(4)",
+  "operation": "background",
+  "summary": "Fond crème",
+  "background_prompt": "cream",
+  "cost": 1
+ }
+}'
+`;
+
+snapshot[`contrat Studio — composition_read — composition enregistrée 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["composition"]
+composition : {"id":"id(80)","design":{"title":"Affiche"},"created_at":"<date>","background_url":"https://studio.test/storage/v1/object/sign/visual-studio/fond.jpg?token=t"}
+── REQUÊTES (6)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_compositions [*]
+POST /storage/v1/object/sign/visual-studio/fond.jpg
+── FONCTIONS SQL (hors has_role)
+(aucune)
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [],
+ "brief": "",
+ "source_metadata": {},
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 0,
+ "messages": [],
+ "proposal": {
+  "id": "id(4)",
+  "operation": "background",
+  "summary": "Fond crème",
+  "background_prompt": "cream",
+  "cost": 1
+ }
+}'
+`;
+
+snapshot[`contrat Studio — archive 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : false
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (14)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+POST /rest/v1/rpc/studio_set_session_archived
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+studio_set_session_archived : [{"p_workspace":"id(2)","p_session":"id(3)","p_revision":0,"p_archive":true}]
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [],
+ "brief": "",
+ "source_metadata": {},
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": "<date>",
+ "revision": 1,
+ "messages": [],
+ "proposal": null
+}'
+`;
+
+snapshot[`contrat Studio — restore 1`] = `
+'── STATUT 200
+── RÉPONSE : clés ["session","versions","composition_history","quota","generative_allowed","writable","memory","charter_references","suggested_photos"]
+session : clés ["id","workspace_id","user_id","source_photo_id","references","brief","source_metadata","source_ready","composition","source_path","name","archived_at","revision","messages","proposal","active_reference_ids","conversation_branch_id","source_url"]
+versions : [["id(4)","ready","https://studio.test/storage/v1/object/sign/visual-studio/id(2)/id(3)/version?token=t"]]
+quota : {"allowed":true,"plan":"admin","remaining":9999,"remaining_total":9999}
+generative_allowed : true
+writable : true
+charter_references : []
+suggested_photos : []
+composition_history : []
+── REQUÊTES (14)
+GET /auth/v1/user
+GET /rest/v1/workspace_members [role]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_sessions [*]
+POST /rest/v1/rpc/studio_set_session_archived
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_sessions [*]
+GET /rest/v1/visual_studio_versions [*]
+GET /rest/v1/visual_studio_compositions [id,title,created_at]
+POST /rest/v1/rpc/has_role
+POST /storage/v1/object/sign/visual-studio/original
+POST /storage/v1/object/sign/visual-studio/id(2)/id(3)/version
+GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
+GET /rest/v1/brand_charter [moodboard_images]
+── FONCTIONS SQL (hors has_role)
+studio_set_session_archived : [{"p_workspace":"id(2)","p_session":"id(3)","p_revision":0,"p_archive":false}]
+── APPELS À CLAUDE : 0
+── VERSIONS EN BASE
+[
+ {
+  "id": "id(4)",
+  "status": "ready"
+ }
+]
+── SESSION ENREGISTRÉE
+{
+ "id": "id(3)",
+ "workspace_id": "id(2)",
+ "user_id": "id(11)",
+ "source_photo_id": "id(5)",
+ "references": [],
+ "brief": "",
+ "source_metadata": {},
+ "source_ready": true,
+ "composition": null,
+ "source_path": "original",
+ "name": "Photo",
+ "archived_at": null,
+ "revision": 1,
+ "messages": [],
+ "proposal": null
+}'
+`;
