@@ -1,0 +1,57 @@
+// Contrat d'entrée du Studio : le corps JSON envoyé par le front (16 actions).
+// Déplacé tel quel depuis index.ts (fiche 5, lot 1, docs/robustesse/gros-fichiers.md).
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { compositionSchema } from "./composition.ts";
+import { MAX_REFERENCES, REFERENCE_ROLES } from "./competencies.ts";
+
+export const schema = z.object({
+  studio_version: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
+  action: z.enum([
+    "create",
+    "styles",
+    "read",
+    "message",
+    "generate",
+    "save",
+    "reference",
+    "selection",
+    "memory_save",
+    "memory_apply",
+    "pilot",
+    "composition_save",
+    "composition_read",
+    "retry",
+    "archive",
+    "restore",
+  ]),
+  workspace_id: z.string().uuid(),
+  session_id: z.string().uuid(),
+  photo_id: z.string().uuid().optional(),
+  reference_role: z.enum(REFERENCE_ROLES).optional(),
+  role_source: z.enum(["library", "user", "conversation"]).optional(),
+  subject_group: z.string().max(100).optional(),
+  new_request: z.boolean().optional(),
+  composition: compositionSchema.optional(),
+  composition_use_image: z.boolean().optional(),
+  composition_history_id: z.string().uuid().optional(),
+  charter_index: z.number().int().min(0).max(8).optional(),
+  reference_id: z.string().uuid().optional(),
+  reference_ids: z.array(z.string().uuid()).max(MAX_REFERENCES).optional(),
+  memory_id: z.string().uuid().optional(),
+  memory_revision: z.number().int().min(-1).optional(),
+  memory_kind: z.enum(["preference", "direction", "casting"]).optional(),
+  memory_name: z.string().trim().min(1).max(120).optional(),
+  memory_note: z.string().trim().min(1).max(1500).optional(),
+  fictional_model: z.literal(true).optional(),
+  remove: z.boolean().optional(),
+  viewed_reference_id: z.string().uuid().nullable().optional(),
+  proposal_id: z.string().uuid().optional(),
+  approved_scene_id: z.string().uuid().optional(),
+  version_id: z.string().uuid().optional(),
+  viewed_version_id: z.string().uuid().nullable().optional(),
+  branch_reference_mode: z.enum(["version", "current"]).optional(),
+  revision: z.number().int().nonnegative().optional(),
+  message: z.string().trim().min(1).max(6000).optional(),
+  request_id: z.string().uuid().optional(),
+});
+export type StudioParams = z.infer<typeof schema>;

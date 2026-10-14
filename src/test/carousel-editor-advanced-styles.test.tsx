@@ -206,15 +206,16 @@ describe("choix de police (Google Fonts)", () => {
     expect(title(1).style.fontFamily).not.toMatch(/Playfair/);
     expect(saved(1).querySelectorAll('link[href*="Playfair+Display"]')).toHaveLength(0);
   });
-  it("BUG relevé au lot E2 : une slide verrouillée reçoit quand même le lien de la police Google", () => {
-    // Le style d'une slide verrouillée n'est pas touché (restyleSlide la protège),
-    // mais ensureFontLink ne vérifie pas le verrou : son HTML change (un lien de
-    // police invisible est ajouté). Une fois corrigé : 0 lien. Voir CARTE.md, section 7.
+  it("une slide verrouillée ne reçoit pas le lien de la police Google (corrigé après le lot E2)", () => {
     render(<Harness lockSecond />);
     chooseLayer(/Choisir le calque Titre/);
     pick("Playfair Display");
+    const lockedBefore = saved(1).body.innerHTML;
     fireEvent.click(button("Police et couleur sur toutes les slides"));
     expect(title(1).style.fontFamily).not.toMatch(/Playfair/);
-    expect(saved(1).querySelectorAll('link[href*="Playfair+Display"]')).toHaveLength(1);
+    expect(saved(1).querySelectorAll('link[href*="Playfair+Display"]')).toHaveLength(0);
+    expect(saved(1).body.innerHTML).toBe(lockedBefore);
+    // La slide non verrouillée, elle, a bien sa police.
+    expect(saved(0).querySelectorAll('link[href*="Playfair+Display"]')).toHaveLength(1);
   });
 });

@@ -57,7 +57,9 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 |---|---|
 | `src/pages/CreerUnifie.tsx` (~3 500 lignes) | Orchestre tout le parcours : environ 85 `useState`, une cinquantaine de comparaisons `format === …` sans `switch`, plus `carouselSubMode` et `isLinkedInCarousel`. **C'est le fichier le plus couplé du front.** |
 | `src/components/creer/CreerStepIdea.tsx` → `CreerStepFormat.tsx` → `CreerStepQuestions.tsx` → `HookSelectionStep.tsx` (reel) / `StructureReviewStep.tsx` (carrousel photo et mixte) / `UserSlidesStep.tsx` / `PinterestInspirationStep.tsx` → `CreerStepResult.tsx` → `CreerStepEdit.tsx` | Les étapes. Le type `Step` est en tête de `CreerUnifie.tsx`. Le stepper visible (`CreerStepper.tsx`) n'affiche que 4 étapes. |
+| `src/components/creer/LowCreditsBanner.tsx`, `PhotoMissingDialog.tsx`, `ConfirmResetDialog.tsx` | Affichage pur sorti de `CreerUnifie.tsx` (lot B, 14/10/2026) : bandeau « Plus que X crédits », fenêtre « Ce carrousel gagnerait à avoir des photos », fenêtre « Repartir de zéro ? ». Leur état (ouverte, type de carrousel) et ce que font les boutons restent dans la page. Tests en rendu réel : `src/test/creer-reprise-modifier-reset.test.tsx`, `creation-initial-draft.test.tsx` ; fenêtre des photos manquantes : `photo-missing-dialog.test.tsx` (boutons seuls) et `creer-photos-manquantes.test.tsx` (sur la vraie page : texte « mixte » / « photo », « Continuer en texte » relance en texte, « Ajouter des photos » revient au format en mixte sans perdre sujet, angle ni réponses, « Annuler » ne lance rien). |
 | `src/components/creer/CreerStepResult.tsx` | Le `switch (format)` qui choisit le bon `formatRenderers/*`. **C'est le point d'aiguillage naturel par format.** |
+| `src/components/creer/CarouselEditor.tsx` + `CarouselEditorParts/` | Éditeur visuel du carrousel (après création des visuels). Découpage par mission en cours (lot E3, plan : `docs/robustesse/gros-fichiers.md`, fiche 8). Déjà sortis : `canvas-geometry.ts` (outils de calcul sur la slide affichée : élément sous le pointeur, repères, verrou) `PanelBits.tsx` (section repliable, miniature, forme du cadre photo) `CanvasToolbar.tsx` (barre d'outils flottante au-dessus de l'élément choisi), `SlideCanvas.tsx` (l'aperçu d'une slide : iframe, cadre de sélection, poignées, repères) `canvas-events.ts` (ses réactions à la souris et au clavier), `LayersPanel.tsx` (calques, sélection multiple), `SlideSettings.tsx` (onglets Slide et Carrousel) `panel-controls.tsx` (curseur avec sa valeur, conversion de couleurs), `TextSettings.tsx` (réglages d'un texte) et `ElementSettings.tsx` (réglages d'une photo et d'un bloc). Les tests du contrat `data-*` ne lisent que les fichiers suivis par git : `git add` avant de les lancer en local. Le cœur (document, historique, écho `inputKey`) reste dans `CarouselEditor.tsx`. |
 | `src/hooks/use-format-next.ts` | Passage de l'étape format à l'étape suivante (et Pinterest inspiration). |
 | `src/hooks/use-do-generate.ts` | Lance la génération selon le format : SSE texte, carrousel, Pinterest visuel ou photo. |
 | `src/hooks/use-content-generator.ts` | Appels réels aux fonctions serveur. `switch` par format, questions, streaming (`streamInvoke`, table `contentTypeMap`). |
@@ -66,7 +68,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 | `src/features/creer/pinterest-generation.ts` | Pinterest visuel et photo. |
 | `src/lib/content-structures.ts` | Angles et structures par format (`CONTENT_STRUCTURES`, `CONTENT_TYPE_SPECS`, `getAnglesForType`), plus la correspondance format → fonction serveur. |
 | `src/lib/idea-brief-request.ts` | Mise en forme du brief envoyé au serveur. |
-| `src/hooks/use-flow-persistence.ts` | Brouillon local du parcours (sessionStorage + sauvegarde localStorage par utilisatrice), conflit dans `DraftConflictDialog.tsx`. |
+| `src/hooks/use-flow-persistence.ts` | Brouillon local du parcours (sessionStorage + copie de secours localStorage par utilisatrice et par onglet), conflit dans `DraftConflictDialog.tsx`. |
 | `src/lib/first-content-url.ts`, `first-content-destination.ts` | Premier contenu de l'onboarding (toujours un carrousel, `auto=1`). |
 
 ### Sauvegarde
@@ -93,6 +95,32 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 - Tests : `src/test/regeneration-backup.test.tsx`, `src/test/creer-step-edit.test.tsx`.
 - Tout nouveau bouton qui relance la génération d'un résultat existant appelle
   `regenerationBackup.begin(regenerationSnapshot())` avant `doGenerate`.
+
+### Pas d'écrasement entre onglets ni de texte démesuré (lot 10, 14/10/2026)
+
+- **« Enregistrer dans Mes idées » sur une idée déjà ouverte** (`SaveToIdeasDialog`,
+  `editingIdeaId`) : version `updated_at` lue à l'ouverture, écriture seulement si
+  elle n'a pas bougé. Sinon rien n'est écrasé : « Enregistrer une copie de mon
+  contenu » ou « Recharger la dernière version ». Test :
+  `src/test/save-to-ideas-version.test.tsx`.
+- **Publication immédiate** (`recordImmediatePublication`, `use-calendar-save.ts`) :
+  la fiche du calendrier ouverte n'est réécrite que si elle est encore dans sa
+  version d'ouverture. Sinon on garde la version faite ailleurs et on y ajoute
+  seulement le suivi (publié, lien du post, programmation coupée), avec un
+  message. Tests : `src/test/use-calendar-save.test.tsx`.
+- **Copie de secours du navigateur, une par onglet** (`use-flow-persistence.ts`) :
+  chaque onglet écrit sa propre copie et signale sa présence. Un onglet qui a
+  perdu sa sessionStorage ne reprend que sa propre copie ou celle d'un onglet
+  fermé, jamais celle d'un onglet encore ouvert ; photos comprises. Test :
+  `src/test/flow-backup-tabs.test.tsx`. Dans les tests, « fermer l'onglet » =
+  vider sessionStorage ET retirer `creer_flow_presence:*` (`closeTab()`).
+- **Longueurs maximales côté serveur** (400 en français, sans appel IA ni débit) :
+  `ai-text-action` 8 000 caractères sélectionnés et 1 000 de consigne ;
+  `creative-flow` étape `adjust`, champ `content` 15 000 caractères (cas
+  `adjust — contenu trop long` du contrat). Le menu IA (`SelectionMenu.tsx`)
+  affiche ce message du serveur au lieu de « Oups, quelque chose a coincé », et
+  sa demande libre est plafonnée à 1 000 caractères
+  (`src/test/selection-menu-error.test.tsx`).
 
 ### Une seule version du texte modifié (lot 7, 14/10/2026)
 
@@ -132,7 +160,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 
 ### Quota dans le parcours
 
-- `LowCreditsBanner` (défini dans `CreerUnifie.tsx`) et la pastille
+- `LowCreditsBanner` (`src/components/creer/LowCreditsBanner.tsx`, affiché par `CreerUnifie.tsx`) et la pastille
   « N crédits restants ».
 - `QuotaWallModal` n'est **pas** monté dans /creer : il est global, dans
   `AppHeader.tsx`, déclenché par `handleQuotaError`
@@ -258,7 +286,7 @@ un format en casse un autre.
   À vérifier avant toute suppression : un autre appelant que le front
   peut exister.
 
-### `carousel-ai` (~2 800 lignes + 10 modules locaux) : carrousels
+### `carousel-ai` (~2 800 lignes + 11 modules locaux) : carrousels
 
 **Aiguillage**
 - `switch (type)` : `hooks`, `slides`, `express_full`,
@@ -272,7 +300,28 @@ un format en casse un autre.
 **Modules locaux**
 `confirmed-structure`, `continuous-narrative`, `final-photo-match`,
 `photo-narrative`, `stock-ambient`, `structure-hedge`,
-`thread-local-repair`, `variant-writing`, `writer`, `writing-contract`.
+`thread-local-repair`, `variant-writing`, `writer`, `writing-contract`,
+`layout`.
+
+**Écriture d'un côté, mise en forme de l'autre (lot 8, 14/10/2026)**
+- `carousel-ai` écrit : texte, structure du récit (`slide_type`,
+  `photo_index`), légende.
+- Les choix de design qu'il fait encore avant de répondre passent tous par
+  `carousel-ai/layout.ts` :
+  - schémas proposés après l'écriture (`placeTextSchemas`, `placeMixSchemas`) ;
+  - plafond des schémas (`capVisualSchemas`) ;
+  - disposition du mixte et gabarits photo écrits par la rédaction, ignorés
+    (`withoutMixWriterLayout`, `withoutPhotoWriterLayout`) ;
+  - styles d'overlay (`normalizeOverlayStyles`) ;
+  - gabarits photo et leur revérification (`assignPhotoTemplates`,
+    `revalidatePhotoLayoutContent`, `assignTemplatesToProvidedSlides`).
+- Code déplacé à l'identique, appelé aux mêmes endroits et dans le même ordre
+  (les gabarits photo passent avant la réparation du fil, puis sont
+  revérifiés).
+- Modifier une de ces étapes : modifie `layout.ts` (ou le module `_shared`
+  qu'il appelle), pas `index.ts`. Le contrat du handler montre ce qui change.
+- Reste dans l'écriture, à sortir plus tard : le mot mis en valeur sur la
+  couverture (`cover_accent`, `continuous-narrative.ts`).
 
 **Quota**
 - Catégorie `carousel` pour `slides` et `express_full`, y compris photo et
@@ -325,6 +374,13 @@ aussi pour ses importeurs.
 
 Régénérer : `node scripts/carte-impact.mjs` (tous les modules), ou
 `node scripts/carte-impact.mjs redac-gate format-briefs` (quelques modules).
+
+**Sous-dossiers (14/10/2026).** Quand un module est découpé en dossier
+(`_shared/redac-gate/numbers.ts`), `carte-impact.mjs` le nomme d'après son
+chemin (`redac-gate/numbers`). Le rapport d'impact de la CI
+(`scripts/impact-creation.mjs`, `zoneOf`) lit la zone sur le **premier
+segment** du nom : `redac-gate/numbers` est en zone orange comme
+`redac-gate`, `format-briefs/reel` en zone verte comme `format-briefs`.
 
 ### 🔴 Zone rouge : touche presque tout
 
@@ -404,6 +460,7 @@ régression, corrige le code et pas le snapshot.
 | `creative-flow/prompts_snapshot_test.ts` | angles ; questions (Instagram, LinkedIn, newsletter) ; follow-up ; hooks ; dictation (LinkedIn) ; adjust (carrousel) ; generate : carrousel, newsletter, LinkedIn, reel, stories avec vente |
 | `creative-flow/handler_contract_test.ts` (lot 3) | le câblage du handler pour 17 parcours (questions, hooks, generate par format, adjust, recyclage, photo, streaming SSE, carrousel retiré) : tous les appels à Claude, la réponse au front, les crédits. Références générées sur le code d'avant le découpage. |
 | `creative-flow/prompts_snapshot_formats_test.ts` (lot 2) | generate : post Instagram, Pinterest texte, légende photo, stories sans vente, newsletter avec angle ; questions : Pinterest, reel, stories, post Instagram ; recyclage (5 formats) ; mode photo : questions et brief + outil pour 6 formats, série avant / après |
+| `carousel-ai/handler_contract_test.ts` (lot 8) | le câblage du handler pour 9 parcours (texte Instagram et LinkedIn, slides, accroches, mixte validé, mixte texte d'abord, photo validée, photos brutes, « Mes slides ») : tous les appels à Claude (rédaction, relectures, juges, schémas, gabarits), le carrousel renvoyé au front, les crédits. Références générées avant le déplacement vers `layout.ts`. |
 | `carousel-ai/prompts_snapshot_test.ts` (lot 2) | rédaction des carrousels : système (Instagram, LinkedIn, cas personnel, ressenti sur une actu) ; consignes texte / photo / mixte × Instagram / LinkedIn ; accroche et angle choisis ; actualité avec et sans ressenti ; guides de structure par type |
 | `carousel-visual/prompts_snapshot_test.ts` | mise en forme visuelle des carrousels |
 | `generate-content/contract_test.ts` (lot 2) | 14 `type` appelés par le front (bio-audit, bio-generator, caption, calendar-quick, express-draft, weekly-suggestions…) |
@@ -463,10 +520,11 @@ Restent sans snapshot :
    texte.
 2. **`linkedin-ai`** (crosspost, caption-for-carousel, improve-post), en
    dehors de `socle-linkedin_test.ts`.
-3. **`carousel-ai` de bout en bout** : la forme et le câblage sont testés
-   par `index_test.ts`, mais pas l'assemblage final du prompt dans le
-   handler (blocs identité, clarté et structure confirmée). Seuls les
-   morceaux sont figés.
+3. ~~**`carousel-ai` de bout en bout**~~ : comblé au lot 8 par
+   `carousel-ai/handler_contract_test.ts` (prompt assemblé par le handler,
+   blocs identité, clarté et structure confirmée compris). Pas encore figés :
+   `structure_proposal`, `suggest_*`, `deepening_questions` et le récit
+   continu photo / mixte.
 4. **Le prompt de `ai-text-action`** : son câblage est testé, pas le texte
    envoyé à Claude.
 
@@ -484,6 +542,7 @@ après le découpage, ils doivent tous passer sans être retouchés.
 | `carousel-editor-heavy-undo.test.tsx` | Annuler / Rétablir à l'identique après une mise en page, un thème, « Appliquer à toutes les slides », « Police et couleur sur toutes les slides », un collage sur une autre slide |
 | `carousel-editor-roundtrip.test.tsx` | Aller-retour `readCarouselDocument` → retouches → `documentOutput` → `mergeEditorRaw` → relecture identique ; branchement comme `CreerUnifie.tsx` : une seule émission par retouche, reçu de sauvegarde gardé, pas de relecture sur un écho, réouverture identique, régénération relue une fois |
 | `carousel-editor-export-fidelity.test.tsx` | Après chaque retouche (texte, style, déplacement, taille, rotation, ombre, filtre, fond, police, verrou, ordre, masquage, duplication, photo, mise en page, thème, report), sur le vrai HTML du serveur : `data-pptx-editable`, `data-pptx-photo`, `data-pptx-shape` et `data-slide-text` restent sur les mêmes éléments |
+| `carousel-editor-wiring.test.tsx` (lot E3-0) | Branchement des commandes que les autres tests ne passent pas par l'écran : encadré « Contrôle qualité » (bilan, Revérifier, Appliquer la correction, Voir cet élément), sélection multiple (aligner, centrer, grouper, dégrouper), flèches et Suppr dans l'aperçu, boutons des slides (monter, descendre, supprimer, verrouiller), calques masqués / retirés / remis, fond de la slide, texte sur la photo, intensité du voile, aperçu Instagram |
 
 ---
 
@@ -492,6 +551,7 @@ après le découpage, ils doivent tous passer sans être retouchés.
 | Garde-fou | Où | Bloque la CI ? | Ce qu'il empêche |
 |---|---|---|---|
 | Frontières entre formats | `supabase/functions/creative-flow/boundaries_test.ts` | oui (`npm run test:edges`) | un format qui importe le fichier d'un autre format ; une dépendance circulaire vers `index.ts` ; un fichier de `formats/` absent de cette carte |
+| Frontière design / écriture du carrousel (lot 8) | `supabase/functions/_shared/carousel-design-boundaries_test.ts` | oui (`npm run test:edges`) | un module de design qui importe un module d'écriture ; un module neutre qui fait passer de l'un à l'autre ; un nouveau chemin caché de `carousel-visual` vers l'écriture ; un fichier de `carousel-ai` autre que `layout.ts` qui importe le design ; un module partagé du carrousel non rangé |
 | Frontière texte / design (lot 9) | `supabase/functions/_shared/design-text-boundaries_test.ts` | oui (`npm run test:edges`) | qu'une fonction de design (`carousel-visual`, `pinterest-visual`, `carousel-slide-image`, `visual-studio`) importe, directement ou par ricochet, la chaîne d'écriture des textes (`redac-gate`, `correction-pass`, `carousel-model`, `format-briefs`, `copywriting-prompts`) |
 | Snapshots et contrats par format | voir section 5 | oui | qu'un prompt, un appel à Claude ou une réponse change sans qu'on le voie |
 | Contrat calendrier → /creer | `src/test/calendar-creer-contract.test.ts` | oui (`npm test`) | une clé du navigate state renommée d'un seul côté |
@@ -507,6 +567,33 @@ lancement « CI », puis son résumé. En local :
 Une exception aux frontières (un format qui DOIT en importer un autre) se
 déclare dans `IMPORTS_AUTORISES` de `boundaries_test.ts`, avec sa raison.
 Aujourd'hui : le recyclage importe les stories et le carrousel.
+
+Frontière design / écriture du carrousel : les modules sont rangés en trois
+listes (`DESIGN`, `WRITING`, `NEUTRAL`) en tête de
+`carousel-design-boundaries_test.ts`. Un nouveau module partagé du carrousel
+doit y être rangé. Les exceptions voulues sont dans `IMPORTS_AUTORISES` et
+`CARROUSEL_AI_AUTORISES`, chacune avec sa raison. Aujourd'hui :
+- schémas et gabarits photo → reçu de relecture (`carousel-editorial-snapshot`) :
+  poser un schéma ou un gabarit périme ce reçu ;
+- plafond des schémas → liste des champs texte (`carousel-editorial-review`) ;
+- design « au service du sens » → règle commune du socle ;
+- `carousel-visual` → contrat `COMPOSE` et tailles de lecture du socle ;
+- `continuous-narrative` → `carousel-design-plan` (mot de couverture).
+
+Le chemin `carousel-visual → … → carousel-editorial-review` relevé le
+14/10/2026 passe par `schema-formatting` et `carousel-editorial-snapshot`
+(pas par `carousel-editorial-contract`, qui n'importe rien) : c'est la
+première exception ci-dessus.
+
+### Bouton d'appel à l'action du carrousel texte (lot 8, 14/10/2026)
+
+Le bouton de la dernière slide est dessiné dans le HTML (`data-slide-cta`).
+Le modifier ou le retirer depuis l'écran de résultat
+(`formatRenderers/CarouselResult.tsx`, `updateCta` / `removeCta`) range aussi
+son libellé dans la slide : `cta_label`, comme `patchElement` de l'éditeur
+visuel (`""` = retiré). Une slide texte ne l'envoie pas à `carousel-visual`
+(`visualSlidePayload`) : le rendu ne change pas. Test :
+`src/test/carousel-result-cta.test.tsx`.
 
 **Ce que couvre le rapport d'impact** (complété au lot 9) :
 - fonctions serveur : les générateurs de texte, plus `carousel-visual`,
@@ -534,6 +621,12 @@ qui ne sert plus fait aussi échouer le test. Aujourd'hui, une seule :
 `pinterest-visual` → `audience-address-pass` → `correction-pass` (→
 `carousel-model`, `reel-postprocess` → `redac-gate`). L'épingle visuelle écrit
 aussi un titre et une description, qui passent le contrôle tu / vous.
+
+Les deux frontières se complètent : celle du lot 9 regarde, fonction par
+fonction, si un module de design atteint la chaîne de réécriture des textes ;
+celle du lot 8 range chaque module partagé du carrousel (design, écriture,
+neutre) et vérifie que `carousel-ai` ne fait ses choix de design que par
+`layout.ts`.
 
 ### Contrat des étiquettes HTML du carrousel (lot E1, 14/10/2026)
 
@@ -623,16 +716,15 @@ Ce sont des constats, pas des corrections : rien n'a été modifié dans ce lot.
     `workspace_id`.
 - **`carousel-ai-candidate`** est retirée (répond 410) mais le dossier
   existe encore.
-- **Éditeur visuel du carrousel (relevé au lot E2, 14/10/2026, non corrigé)** :
-  - *Bug* : redimensionner un bloc **tourné** part de sa boîte englobante à
-    l'écran (`getBoundingClientRect`), pas de sa vraie largeur. Un texte de
-    600 px tourné de 45° passe à ~497 px dès qu'on touche sa poignée
-    (`startResize` dans `CarouselEditor.tsx`). La poignée du coin fait le
-    même saut de largeur. Figé dans `carousel-editor-resize-snap.test.tsx`.
-  - *Bug mineur* : « Police et couleur sur toutes les slides » ajoute le lien
-    de la police Google aux slides **verrouillées** (`ensureFontLink` ne
-    vérifie pas le verrou). Rien ne change à l'œil, mais le HTML d'une slide
-    verrouillée est modifié. Figé dans
+- **Éditeur visuel du carrousel (relevé au lot E2, 14/10/2026)** :
+  - *Corrigé le 14/10/2026* : redimensionner un bloc **tourné** partait de sa
+    boîte englobante à l'écran (`getBoundingClientRect`) ; un texte de 600 px
+    tourné de 45° passait à ~497 px dès qu'on touchait sa poignée.
+    `startResize` part maintenant de la vraie taille du bloc (`offsetWidth`).
+    Test : `carousel-editor-resize-snap.test.tsx`.
+  - *Corrigé le 14/10/2026* : « Police et couleur sur toutes les slides »
+    ajoutait le lien de la police Google aux slides **verrouillées** ;
+    `ensureFontLink` respecte maintenant le verrou. Test :
     `carousel-editor-advanced-styles.test.tsx`.
   - *Point d'attention pour le découpage (lot E3)* : l'éditeur reconnaît son
     propre écho à la **référence** des slides, de la légende et des visuels

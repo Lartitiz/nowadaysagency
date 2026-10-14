@@ -64,10 +64,8 @@ const CASES: Case[] = [
   { name: "read — lecture simple", setup: (f) => { f.session.references = [plate]; }, body: { action: "read" } },
   // Rattrapage dans `read` d'images bloquées depuis plus de 20 min. Version au
   // résultat stocké : terminée (studio_complete_generation). Version au résultat
-  // perdu : reste « processing ». Le code prévoit « uncertain », mais avec
-  // supabase-js 2.95.3 l'erreur d'un téléchargement manquant n'a ni
-  // statusCode "404" ni message « Object not found » (StorageUnknownError,
-  // message "{}") : branche inatteignable, signalée dans la PR, figée telle quelle.
+  // perdu : « uncertain », sans crédit décompté (storage-errors.ts lit la réponse
+  // d'origine, que supabase-js 2.95.3 ne décode pas au téléchargement).
   { name: "read — rattrapage des versions bloquées (résultat stocké / perdu)", fixture: { missing: [`${SPACE}/${SESSION}/lost`] },
     setup: (f) => {
       Object.assign(f.version, { status: "processing", created_at: OLD });
@@ -271,5 +269,26 @@ Deno.test("quota generate — succès : un seul claim, avant l'appel fournisseur
     assertEquals((await f.send({ ...base, action: "generate", proposal_id: PROPOSAL })).status, 200);
     assertEquals(f.rpcBodies.studio_confirm_generation.length, 1);
     assertEquals(f.requests.slice(before).some((r) => PROVIDERS.test(r)), false);
+  } finally { f.restore(); }
+});
+
+// ── 4 bis. Ajouts EN PLACE à requestReferences (lot 8) ──────────────────────
+// Le mannequin repris de la mémoire est AJOUTÉ au tableau requestReferences
+// par les règles du tour (turn/guardrails.ts), puis ce même tableau donne les
+// reference_ids du message et du contexte enregistrés (turn/proposal.ts). Une
+// copie du tableau entre les deux ferait disparaître le mannequin de ces
+// listes sans changer la proposition : ce test le fige.
+Deno.test("mannequin de la mémoire : ajouté aux références de la demande enregistrées", async () => {
+  const f = studioFixture({ actor: id(17) });
+  try {
+    f.session.proposal = null;
+    f.memories.push({ id: id(90), kind: "casting", name: "Nora", note: "Identité Nora", revision: 1, references: [{ id: id(91), path: "nora.jpg", role: "casting" }] });
+    f.setIntents({ operation: "create", summary: "Nora en veste rouge", image_prompt: "Nora scene",
+      person_reference: { mode: "scene", name: "Nora", stable_traits: "Boucles courtes", variable_details: "Veste rouge", views: [], memory_ids: [id(90)], uses_existing_identity: true } });
+    const { status } = await f.send({ ...base, action: "message", revision: 0, request_id: id(92), reference_ids: [], message: "Nora en veste rouge" });
+    assertEquals(status, 200);
+    assertEquals(f.session.messages.at(-2).reference_ids, [id(91)]);
+    assertEquals(f.session.source_metadata.studio_context.reference_ids, [id(91)]);
+    assertEquals(f.session.references.map((ref: Row) => ref.id), [id(91)]);
   } finally { f.restore(); }
 });

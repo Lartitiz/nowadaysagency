@@ -49,6 +49,14 @@ export const longText = z.string().max(MAX_TEXT);
 export const urlField = z.string().url().max(2048);
 export const optionalUrl = z.string().url().max(2048).optional().nullable().or(z.literal(""));
 
+/**
+ * creative-flow, step "adjust" : texte à ajuster (lot 10, 14/10/2026). Une
+ * newsletter longue tient largement ; au-delà, refus 400 sans appel IA ni débit.
+ */
+export const adjustContentField = z.string()
+  .max(15000, "Le texte à ajuster est trop long (15 000 caractères au maximum). Raccourcis-le ou ajuste-le en plusieurs fois.")
+  .optional().nullable();
+
 /* ─── generate-content ─── */
 
 export const GenerateContentSchema = z.object({

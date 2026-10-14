@@ -163,7 +163,10 @@ Deno.test("callback: state invalide/falsifié -> rejeté (protection anti-CSRF)"
   const calls = installMockFetch({});
   try {
     const goodState = await makeState();
-    const tampered = goodState.slice(0, -2) + "xx";
+    // On remplace le PREMIER caractère de la signature : il porte 6 bits utiles,
+    // donc le changer altère toujours les octets décodés (le dernier n'en porte que 4).
+    const [data, sig] = goodState.split(".");
+    const tampered = `${data}.${sig[0] === "A" ? "B" : "A"}${sig.slice(1)}`;
     const res = await call(callbackReq({ code: "some-code", state: tampered }));
     assertEquals(res.status, 302);
     assertStringIncludes(res.headers.get("Location")!, "connected=error");

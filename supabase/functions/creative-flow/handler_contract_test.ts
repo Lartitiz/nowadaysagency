@@ -91,7 +91,7 @@ function requestDoc(req: any): string {
   return JSON.stringify(rest, null, 1);
 }
 
-async function run(body: Record<string, unknown>, text: string, stream = false) {
+async function run(body: Record<string, unknown>, text: string, stream = false, userId?: string) {
   // deno-lint-ignore no-explicit-any
   const requests: any[] = [];
   const mock = installFetchMock({ anthropic: (req) => reply(req, text) });
@@ -100,6 +100,11 @@ async function run(body: Record<string, unknown>, text: string, stream = false) 
   // deno-lint-ignore no-explicit-any
   globalThis.fetch = (async (input: any, init?: any) => {
     const url = typeof input === "string" ? input : input?.url ?? String(input);
+    // Autre compte : ne consomme pas la limite de 20 requêtes/minute des autres cas.
+    if (userId && url.split("?")[0] === `${TEST_SUPABASE_URL}/auth/v1/user`) {
+      return new Response(JSON.stringify({ id: userId, email: "autre@example.com", aud: "authenticated", role: "authenticated" }),
+        { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     if (url.startsWith("https://api.anthropic.com/v1/messages")) {
       const req = init?.body ? JSON.parse(init.body as string) : null;
       requests.push(req);
@@ -135,7 +140,7 @@ const ANGLE = { title: "Le mythe du prix cassé", structure: ["constat", "bascul
 const ANSWERS = [{ question: "Qu'a répondu la cliente ?", answer: "Elle a signé quand même." }];
 const PHOTO = "data:image/png;base64,iVBORw0KGgo=";
 
-const CASES: { name: string; body: Record<string, unknown>; text: string; stream?: boolean }[] = [
+const CASES: { name: string; body: Record<string, unknown>; text: string; stream?: boolean; userId?: string }[] = [
   { name: "questions — post Instagram", body: { step: "questions", contentType: "instagram_post", context: CONTEXT, angle: ANGLE }, text: "" },
   { name: "questions — LinkedIn", body: { step: "questions", contentType: "linkedin_post", context: CONTEXT, angle: ANGLE }, text: "" },
   // Sans angle choisi : répondait 500 (angle.title sur undefined) avant le 14/10/2026.
@@ -164,6 +169,8 @@ const CASES: { name: string; body: Record<string, unknown>; text: string; stream
     text: JSON.stringify({ content: "--- SLIDE 1 (hook) ---\nFini les remises.\n\n--- SLIDE 2 (cta) ---\nEnregistre ce post.\n\n--- CAPTION ---\nLe prix juste." }) },
   // Lot 7 : JSON valide mais sans texte → 502, aucun crédit débité.
   { name: "adjust — réponse sans contenu", body: { step: "adjust", contentType: "instagram_post", context: CONTEXT, adjustment: "Plus court", content: "J'ai arrêté les remises." }, text: "{}" },
+  // Lot 10 (14/10/2026) : texte à ajuster au-delà de 15 000 caractères → 400, aucun appel ni crédit.
+  { name: "adjust — contenu trop long", body: { step: "adjust", contentType: "instagram_post", context: CONTEXT, adjustment: "Plus court", content: "J'ai arrêté les remises. ".repeat(700) }, text: POST_JSON, userId: "test-user-texte-long" },
   { name: "recycle — LinkedIn + newsletter", body: { step: "recycle", contentType: "recycle", context: "Recyclage de contenu en 2 formats", profile: {}, sourceText: "J'ai arrêté les remises il y a un an : la cliente a signé quand même, et j'affiche maintenant une grille publique sur mon site.", formats: ["linkedin", "newsletter"] },
     text: JSON.stringify({
       results: {
@@ -183,7 +190,7 @@ const CASES: { name: string; body: Record<string, unknown>; text: string; stream
 
 for (const c of CASES) {
   Deno.test(`handler creative-flow — ${c.name}`, async (t) => {
-    const { doc } = await run(c.body, c.text, c.stream);
+    const { doc } = await run(c.body, c.text, c.stream, c.userId);
     await assertSnapshot(t, doc);
   });
 }

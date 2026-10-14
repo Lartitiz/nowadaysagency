@@ -8,7 +8,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock,
 import { parseAudienceAddress, type AudienceAddress } from "../_shared/audience-address.ts";
 import { enforceAudienceAddressInFields } from "../_shared/audience-address-fields.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
+import { validateInput, ValidationError, clampAiField, adjustContentField } from "../_shared/input-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
@@ -1090,6 +1090,7 @@ serve(async (req) => {
       contentType: z.string().max(100).optional().nullable(),
       context: z.string().max(8000).optional().nullable(),
       adjustment: z.string().max(2000).optional().nullable(),
+      content: adjustContentField,
       sourceText: z.string().max(10000).optional().nullable(),
       targetFormat: z.string().max(100).optional().nullable(),
       workspace_id: z.string().uuid().optional().nullable(),
