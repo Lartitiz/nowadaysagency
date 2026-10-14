@@ -257,6 +257,9 @@ export default function AdaptiveHome() {
     },
     enabled: !!wsFilter.value,
     staleTime: 5 * 60 * 1000,
+    // Un contenu coché « publié » au calendrier doit disparaître du rappel dès
+    // le retour à l'accueil, sans attendre la fin du cache.
+    refetchOnMount: "always",
     retry: 1,
   });
 
