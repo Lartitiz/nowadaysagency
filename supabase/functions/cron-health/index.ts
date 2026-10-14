@@ -345,7 +345,12 @@ Deno.serve(async (req) => {
         // Backstop : tout ce qui est encore en "new" quel que soit l'âge — si un run
         // de la routine saute, rien ne reste invisible (le passage à "seen"/"done"
         // dans l'onglet admin fait redescendre ce compteur).
-        fetchAllRows(supabase, "beta_feedback", "user_id", (q) => q.eq("status", "new")),
+        fetchAllRows(
+          supabase,
+          "beta_feedback",
+          "user_id, type, severity, content, page_url, created_at",
+          (q) => q.eq("status", "new"),
+        ),
         photoroomCredits(now), facturationHealth(supabase, now),
         santeQuotidienne(supabase, now, fetchAllRows, emailOf, isExcludedEmail),
         higgsfieldBudget(supabase, now),
@@ -427,7 +432,21 @@ Deno.serve(async (req) => {
           statut: f.status,
           quand: f.created_at,
         }));
-      const feedbackNewTotal = fbNewRows.filter((f: any) => isClient(f.user_id)).length;
+      const fbNewClients = fbNewRows.filter((f: any) => isClient(f.user_id));
+      const feedbackNewTotal = fbNewClients.length;
+      // Contenu des « new » (les plus anciens d'abord) : le bilan du lundi doit
+      // pouvoir les citer en une ligne sans ouvrir l'admin (avant le 14/10/2026
+      // seul le nombre remontait).
+      const feedbackNewItems = fbNewClients
+        .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        .slice(0, 10)
+        .map((f: any) => ({
+          type: f.type,
+          severite: f.severity,
+          contenu: (f.content || "").slice(0, 160),
+          page: f.page_url,
+          quand: f.created_at,
+        }));
 
       return json({
         generated_at: new Date().toISOString(),
@@ -440,6 +459,7 @@ Deno.serve(async (req) => {
         connections_at_risk: connectionsAtRisk.slice(0, 20),
         feedback_24h: { count: feedback24h.length, items: feedback24h.slice(0, 15) },
         feedback_new_total: feedbackNewTotal,
+        feedback_new_items: feedbackNewItems,
         photoroom_credits: photoroom,
         higgsfield,
         facturation,
@@ -655,6 +675,10 @@ Deno.serve(async (req) => {
       ...ai.filter((a: any) => inWindow(a.created_at, curFrom, curTo)).map((a: any) => a.user_id),
       ...cal.filter((c: any) => inWindow(c.created_at, curFrom, curTo)).map((c: any) => c.user_id),
     ]);
+    // Activation de chaque cohorte : ≥1 génération ou ≥1 post DEPUIS l'inscription
+    // (ai_usage lu sur 35 j = couvre les 5 cohortes). Distingue « jamais démarré »
+    // de « a essayé puis décroché » — invisible avec les seules actives (14/10/2026).
+    const everActive = new Set([...ai.map((a: any) => a.user_id), ...cal.map((c: any) => c.user_id)]);
     const clients = profiles.filter((p: any) => !isExcludedEmail(p.email));
     const cohorts = [];
     for (let w = 0; w < 5; w++) {
@@ -665,6 +689,7 @@ Deno.serve(async (req) => {
         du: new Date(from).toISOString().slice(0, 10),
         inscrites: cohort.length,
         actives_cette_semaine: cohort.filter((p: any) => activeThisWeek.has(p.user_id)).length,
+        ont_genere_depuis_inscription: cohort.filter((p: any) => everActive.has(p.user_id)).length,
       });
     }
 
