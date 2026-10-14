@@ -340,6 +340,7 @@ découpage en cours : code déplacé à l'identique, `index.ts` réexporte ce qu
 | `carousel-ai/steps/continuous.ts` (lot 5) | `continuousCarouselResponse` : récit continu (prose, juge du fil, association des photos, photos d'ambiance, crédit). Dans `steps/` car le photo ET le mixte l'appellent | carrousels photo et mixte |
 | `carousel-ai/steps/questions.ts` (lot 5) | Questions d'approfondissement (gratuites) : variante photo / mixte avec vision, variante texte via `runGenerationAndRespond` | les questions de tous les carrousels |
 | `carousel-ai/modes/text.ts` (lot 5) | Parcours texte : `handleHooksRequest`, `handleSlidesRequest`, `handleSuggestTopicsRequest`, `handleSuggestAnglesRequest` (appels `build…Prompt(reqCtx.body, reqCtx.isLinkedIn)`) | accroches, slides, idées de sujets et d'angles |
+| `carousel-ai/modes/mix.ts` (lot 6) | Parcours mixte avec plan validé, ou quand le récit continu ne s'applique pas (`handleMixCarouselRequest`) : vision ou texte, relance si trop court, refus photo, structure, relecture, fusion du plan, indexes photo, redac-gate, fil, schémas ; nettoyage « texte d'abord » (`enforceTextFirstDirectives`) | le carrousel mixte |
 
 `carousel-ai/boundaries_test.ts` garde ce rangement : aucun fichier n'importe
 `index.ts` ; `shared.ts` et `tools.ts` n'importent ni `modes/` ni `steps/` ; un
