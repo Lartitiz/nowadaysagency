@@ -118,7 +118,7 @@ export default function CanvasToolbar({
         role="toolbar"
         aria-label="Barre d’outils de l’élément"
         onMouseDown={keep}
-        className="absolute z-10 flex max-w-[calc(100%-8px)] flex-wrap items-center gap-0.5 rounded-lg border bg-background p-1 shadow-lg"
+        className="absolute z-10 flex w-max max-w-[calc(100%-8px)] flex-wrap items-center gap-0.5 rounded-lg border bg-background p-1 shadow-lg"
         style={toolbarPosition()}
       >
         {selectedIssue && !box.locked && (

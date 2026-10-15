@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import CarouselEditor from "@/components/creer/CarouselEditor";
+import { shortcutLabel } from "@/components/creer/CarouselEditorParts/EditorHeader";
 import { readCarouselDocument } from "@/lib/carousel-editor";
 
 vi.mock("@/components/creer/PhotoSwapDialog", () => ({ default: () => null }));
@@ -95,5 +96,50 @@ describe("editor keyboard shortcuts", () => {
       expect(screen.getByText("Raccourcis clavier")).toBeTruthy();
       expect(screen.getByText("Dupliquer l’élément")).toBeTruthy();
     } finally { width.mockRestore(); }
+  });
+  // 15/10/2026 : après un clic à côté de la slide, le focus est sur la page
+  // (body) et ⌘Z ne faisait plus rien.
+  it("⌘Z, ⌘⇧Z, ⌘C/V and Suppr still work when the focus left the editor", () => {
+    const { width, key, title } = setup();
+    try {
+      fireEvent.pointerDown(title); fireEvent.pointerUp(title);
+      key("d", { metaKey: true });
+      const count = () => (slideDoc().body.textContent!.match(/Mon atelier/g) || []).length;
+      expect(count()).toBe(2);
+      const page = (k: string, extra: Record<string, boolean> = {}) => fireEvent.keyDown(document.body, { key: k, ...extra });
+      page("z", { ctrlKey: true });
+      expect(count()).toBe(1);
+      page("z", { ctrlKey: true, shiftKey: true });
+      expect(count()).toBe(2);
+      page("y", { ctrlKey: true });
+      expect(count()).toBe(2);
+      page("z", { metaKey: true });
+      expect(count()).toBe(1);
+      fireEvent.pointerDown(title); fireEvent.pointerUp(title);
+      page("c", { ctrlKey: true });
+      page("v", { ctrlKey: true });
+      expect(count()).toBe(2);
+      page("Delete");
+      expect(count()).toBe(1);
+      page("z", { ctrlKey: true });
+      expect(count()).toBe(2);
+    } finally { width.mockRestore(); }
+  });
+  it("leaves the keys of other fields of the page alone", () => {
+    const { width, key, title } = setup();
+    const other = document.createElement("input");
+    document.body.appendChild(other);
+    try {
+      fireEvent.pointerDown(title); fireEvent.pointerUp(title);
+      key("d", { metaKey: true });
+      fireEvent.keyDown(other, { key: "z", ctrlKey: true });
+      expect((slideDoc().body.textContent!.match(/Mon atelier/g) || []).length).toBe(2);
+    } finally { other.remove(); width.mockRestore(); }
+  });
+  it("shows Ctrl instead of ⌘ on PC", () => {
+    expect(shortcutLabel("⌘Z", false)).toBe("Ctrl+Z");
+    expect(shortcutLabel("⌘G · ⌘⇧G", false)).toBe("Ctrl+G · Ctrl+Maj+G");
+    expect(shortcutLabel("⌘ + glisser", false)).toBe("Ctrl + glisser");
+    expect(shortcutLabel("⌘Z", true)).toBe("⌘Z");
   });
 });

@@ -386,6 +386,47 @@ export default function CarouselEditor({
     }
     return false;
   };
+  // Clavier sur la section de l'éditeur (panneau, boutons, vignettes).
+  const onEditorKey = (event: KeyboardEvent, target: HTMLElement) => {
+    const typing = /INPUT|TEXTAREA|SELECT/.test(target.tagName) || target.isContentEditable;
+    if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && (event.key === "c" || event.key === "v") && !typing && !window.getSelection()?.toString()) {
+      event.preventDefault();
+      if (event.key === "c") copySelection();
+      else paste();
+      return;
+    }
+    // Tab garde son rôle de navigation dans le panneau ; il ne change d'élément que dans l'aperçu.
+    if (event.key !== "Tab" && !typing && shortcut(event)) {
+      event.preventDefault();
+      return;
+    }
+    onHistoryKey(event);
+  };
+  // Focus sorti de l'éditeur (clic sur la page autour, bouton devenu inactif) :
+  // ⌘Z, ⌘C/V, Suppr… marchent quand même, comme dans Canva, tant que
+  // personne n'écrit dans un autre champ de la page.
+  const pageKey = useRef<(event: KeyboardEvent) => void>(() => {});
+  pageKey.current = (event) => {
+    const body = window.document.body;
+    if ((event.target !== body && event.target !== window.document.documentElement) || !editorRoot.current?.isConnected) return;
+    const mod = event.metaKey || event.ctrlKey;
+    if ((event.key === "Delete" || event.key === "Backspace") && !mod && !event.altKey && selected && !slide.locked) {
+      const removable = listLayers(slide.html).filter((l) => group.includes(l.id) && !l.locked && !l.fixed).map((l) => l.id);
+      if (!removable.length) return;
+      event.preventDefault();
+      removeMany(removable);
+      editorRoot.current.focus({ preventScroll: true });
+      return;
+    }
+    if (!mod) return;
+    onEditorKey(event, body);
+    if (event.defaultPrevented && window.document.activeElement === body) editorRoot.current.focus({ preventScroll: true });
+  };
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => pageKey.current(event);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, []);
   // Réordonner en glissant une vignette (souris ou doigt).
   const thumbDrag = useRef<{ from: number; x: number; moved: boolean } | null>(null);
   const justDragged = useRef(false);
@@ -724,21 +765,7 @@ export default function CarouselEditor({
   );
   if (!slide) return null;
   return (
-    <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className={`min-w-0 w-full space-y-4 md:pb-0 ${sheetOpen ? "pb-[52vh]" : "pb-16"}`} onKeyDown={(event) => {
-      const tag = (event.target as HTMLElement).tagName;
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && (event.key === "c" || event.key === "v") && !/INPUT|TEXTAREA|SELECT/.test(tag) && !(event.target as HTMLElement).isContentEditable && !window.getSelection()?.toString()) {
-        event.preventDefault();
-        if (event.key === "c") copySelection();
-        else paste();
-        return;
-      }
-      // Tab garde son rôle de navigation dans le panneau ; il ne change d'élément que dans l'aperçu.
-      if (event.key !== "Tab" && !/INPUT|TEXTAREA|SELECT/.test(tag) && !(event.target as HTMLElement).isContentEditable && shortcut(event.nativeEvent)) {
-        event.preventDefault();
-        return;
-      }
-      onHistoryKey(event);
-    }}>
+    <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className={`min-w-0 w-full space-y-4 md:pb-0 ${sheetOpen ? "pb-[52vh]" : "pb-16"}`} onKeyDown={(event) => onEditorKey(event.nativeEvent, event.target as HTMLElement)}>
       <EditorHeader
         history={history}
         setInstaOpen={setInstaOpen}
