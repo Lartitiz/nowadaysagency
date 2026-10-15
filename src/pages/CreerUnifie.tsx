@@ -35,7 +35,7 @@ import PhotoMissingDialog from "@/components/creer/PhotoMissingDialog";
 import ConfirmResetDialog from "@/components/creer/ConfirmResetDialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Loader2, Palette, RefreshCw, Sparkles, Undo2, Redo2 } from "lucide-react";
+import { Loader2, Palette, Sparkles, Undo2, Redo2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -107,6 +107,7 @@ import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
 import { useGenerationReloadGuard } from "@/hooks/use-generation-reload-guard";
+import ResultEmptyState from "@/components/creer/ResultEmptyState";
 import { loadFlowState, saveFlowState as persistFlowState, clearFlowState, savePhotos as persistPhotos, loadPhotos, setFlowWorkspaceId, setFlowUserId } from "@/hooks/use-flow-persistence";
 import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
@@ -1772,45 +1773,7 @@ function CreerWorkspace() {
             )}
 
             {step === "result" && !autoGeneratePendingRef.current && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !structureLoading && !photoDumpResolving && !result && (
-              <div className="py-12 text-center space-y-4 animate-fade-in">
-                {/* Quota épuisé pendant la génération : dire la vérité (les crédits),
-                    pas « Session expirée » — et pas de Réessayer qui ne peut que re-échouer. */}
-                {quotaExhausted ? (
-                  <p className="text-sm font-medium text-foreground">{quotaExhausted}</p>
-                ) : interruptedGeneration && !error ? (
-                  <div className="space-y-1" data-testid="creation-interrompue">
-                    <p className="text-sm font-medium text-foreground">Ta création a été interrompue par le rechargement de la page.</p>
-                    <p className="text-sm text-muted-foreground">Relance-la : elle repart de ton idée et de tes réponses.</p>
-                  </div>
-                ) : error ? (
-                  <p className="text-destructive font-medium">{error}</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Session expirée ou contenu indisponible.</p>
-                )}
-                <div className="flex gap-3 justify-center">
-                  {quotaExhausted ? (
-                    <button
-                      onClick={() => navigate("/pricing")}
-                      className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition"
-                    >
-                      Voir les plans →
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleRegenerate}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition"
-                    >
-                      <RefreshCw className="h-4 w-4" strokeWidth={1.75} /> {interruptedGeneration && !error ? "Relancer la création" : "Réessayer"}
-                    </button>
-                  )}
-                  <button
-                    onClick={requestReset}
-                    className="px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm font-medium hover:opacity-90 transition"
-                  >
-                    ← Recommencer
-                  </button>
-                </div>
-              </div>
+              <ResultEmptyState quotaExhausted={quotaExhausted} error={error} interrupted={interruptedGeneration} onPricing={() => navigate("/pricing")} onRetry={handleRegenerate} onReset={requestReset} />
             )}
 
             {step === "result" && !isLaunchMode && (generating || demoGenerating || streaming || pinterestVisualGenerating || result) && (
