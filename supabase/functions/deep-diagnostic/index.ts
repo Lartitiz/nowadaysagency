@@ -19,7 +19,6 @@ export { runFastDiagnostic } from "./fast-diagnostic.ts";
 const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 55000;
 
-/** Handler HTTP du diagnostic. Exporté pour les tests de contrat (handler_contract_test.ts). */
 export async function handleDeepDiagnostic(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
 
@@ -415,11 +414,4 @@ export async function handleDeepDiagnostic(req: Request): Promise<Response> {
     );
   }
 }
-
-// `import.meta.main` n'est vrai que lorsque ce fichier est le point d'entrée
-// Deno (invocation directe par le runtime edge) — faux quand un test `import`e
-// ce module. `serve()` ne tente donc jamais de binder un port pendant les
-// tests (qui tournent avec --allow-env --allow-read, sans --allow-net).
-if (import.meta.main) {
-  serve(handleDeepDiagnostic);
-}
+if (import.meta.main) serve(handleDeepDiagnostic); // runtime edge seulement : un test qui importe ce fichier n'ouvre aucun port
