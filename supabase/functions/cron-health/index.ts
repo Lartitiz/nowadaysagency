@@ -35,7 +35,8 @@ import { isInternalEmail, isTestAccountEmail, maskEmail } from "../_shared/inter
 import { fetchAllRows, DAY } from "./lecture.ts";
 import { higgsfieldBudget } from "./higgsfield-budget.ts";
 import { bilanQuotidien } from "./quotidien.ts";
-import { IMAGE_COST_EUR, REVIEW_COST_EUR_PER_MTOKEN, TEXT_COST_EUR_PER_MTOKEN, ZERO_COST_LABELS } from "./tarifs.ts";
+import { inWindow, week } from "./fenetres.ts";
+import { addEditorialReview, summarize } from "./couts.ts";
 
 // Comptes internes exclus : liste UNIQUE partagée avec activation-funnel et
 // admin-users (_shared/internal-accounts.ts — avant le 05/10/2026 cette edge n'en
@@ -122,62 +123,9 @@ Deno.serve(async (req) => {
     const ai = aiRows.filter((a: any) => isClient(a.user_id));
     const cal = calRows.filter((c: any) => isClient(c.user_id));
 
-    const inWindow = (iso: string | null, from: number, to: number) => {
-      if (!iso) return false;
-      const t = new Date(iso).getTime();
-      return t >= from && t < to;
-    };
-    const week = (offset: number) => [now - (offset + 1) * 7 * DAY, now - offset * 7 * DAY] as const;
-    const [curFrom, curTo] = week(0);
-    const [prevFrom, prevTo] = week(1);
+    const [curFrom, curTo] = week(now, 0);
+    const [prevFrom, prevTo] = week(now, 1);
 
-    const summarize = (rows: any[]) => {
-      const byModel: Record<string, { appels: number; tokens: number }> = {};
-      const byAction: Record<string, number> = {};
-      let tokens = 0;
-      for (const r of rows) {
-        tokens += r.tokens_used || 0;
-        const m = r.model_used || "inconnu";
-        byModel[m] = byModel[m] || { appels: 0, tokens: 0 };
-        byModel[m].appels++;
-        byModel[m].tokens += r.tokens_used || 0;
-        const a = r.action_type || "inconnu";
-        byAction[a] = (byAction[a] || 0) + 1;
-      }
-      const topActions = Object.entries(byAction)
-        .sort((x, y) => y[1] - x[1])
-        .slice(0, 12)
-        .map(([action, count]) => ({ action, count }));
-      const coutImagesEur = Object.entries(byModel).reduce(
-        (s, [m, v]) => s + (IMAGE_COST_EUR[m] || 0) * v.appels,
-        0,
-      );
-      const coutTexteEur = Object.entries(byModel).reduce(
-        (s, [m, v]) => s + ((TEXT_COST_EUR_PER_MTOKEN[m] || 0) * v.tokens) / 1_000_000,
-        0,
-      );
-      // Garde déterministe contre le sous-comptage silencieux : tout modèle vu
-      // dans ai_usage mais absent des DEUX grilles tarifaires a contribué 0 € au
-      // total. On le remonte au lieu de le taire — le total reste affiché (il
-      // reste utile), mais il est explicitement signalé comme INCOMPLET.
-      const modelesNonTarifes = Object.entries(byModel)
-        .filter(([m]) => !(m in TEXT_COST_EUR_PER_MTOKEN) && !(m in IMAGE_COST_EUR) && !ZERO_COST_LABELS.has(m))
-        .map(([m, v]) => ({ modele: m, appels: v.appels, tokens: v.tokens }))
-        .sort((a, b) => b.tokens - a.tokens);
-      const round2 = (n: number) => Math.round(n * 100) / 100;
-      return {
-        appels: rows.length,
-        tokens,
-        byModel,
-        topActions,
-        utilisatrices: new Set(rows.map((r) => r.user_id)).size,
-        cout_images_estime_eur: round2(coutImagesEur),
-        cout_texte_estime_eur: round2(coutTexteEur),
-        cout_total_estime_eur: round2(coutImagesEur + coutTexteEur),
-        modeles_non_tarifes: modelesNonTarifes,
-        cout_incomplet: modelesNonTarifes.length > 0,
-      };
-    };
     const aiCur = summarize(ai.filter((a: any) => inWindow(a.created_at, curFrom, curTo)));
     const aiPrev = summarize(ai.filter((a: any) => inWindow(a.created_at, prevFrom, prevTo)));
 
@@ -190,7 +138,7 @@ Deno.serve(async (req) => {
     const clients = profiles.filter((p: any) => !isExcludedEmail(p.email));
     const cohorts = [];
     for (let w = 0; w < 5; w++) {
-      const [from, to] = week(w);
+      const [from, to] = week(now, w);
       const cohort = clients.filter((p: any) => inWindow(p.created_at, from, to));
       cohorts.push({
         semaine: `S-${w}`,
@@ -278,47 +226,8 @@ Deno.serve(async (req) => {
       cqEvents = cqRows.filter((e: any) => isClient(e.user_id));
     } catch (_) { /* table absente : repli sur les brouillons */ }
 
-    // Relecture éditoriale (hors ai_usage, cf. REVIEW_COST_EUR_PER_MTOKEN) :
-    // ajoutée au coût de la semaine et remontée par modèle. Un modèle de
-    // relecture sans tarif rejoint `modeles_non_tarifes` comme les autres.
-    const addEditorialReview = (summary: any, from: number, to: number, events: any[] = cqEvents || []) => {
-      const byModel: Record<string, { carrousels: number; input_tokens: number; output_tokens: number }> = {};
-      // Issue de la relecture : « rejected » = payée puis jetée par la garde de
-      // fidélité (2/2 le 28/09). `garde` compte la règle qui a bloqué.
-      const issues: Record<string, number> = {}, garde: Record<string, number> = {};
-      for (const e of events) {
-        const u = e.content_preview?.editorial_usage;
-        if (!u?.model || !inWindow(e.created_at, from, to)) continue;
-        if (u.status) issues[u.status] = (issues[u.status] || 0) + 1;
-        for (const g of Array.isArray(u.guard) ? u.guard : []) {
-          const k = String(g).replace(/^(lost-number|new-unsupported-number):.*/, "$1");
-          garde[k] = (garde[k] || 0) + 1;
-        }
-        const m = (byModel[u.model] ||= { carrousels: 0, input_tokens: 0, output_tokens: 0 });
-        m.carrousels++;
-        m.input_tokens += Number(u.input_tokens) || 0;
-        m.output_tokens += Number(u.output_tokens) || 0;
-      }
-      let cout = 0;
-      const relecture = Object.entries(byModel).map(([modele, v]) => {
-        // L'API peut renvoyer un nom daté (claude-opus-5-5-2026xxxx).
-        const tarif = REVIEW_COST_EUR_PER_MTOKEN[modele] ?? REVIEW_COST_EUR_PER_MTOKEN[modele.replace(/-20\d{6}$/, "")];
-        const c = tarif ? (tarif.input * v.input_tokens + tarif.output * v.output_tokens) / 1_000_000 : 0;
-        cout += c;
-        if (!tarif) {
-          summary.modeles_non_tarifes.push({ modele: `${modele} (relecture)`, appels: v.carrousels, tokens: v.input_tokens + v.output_tokens });
-          summary.cout_incomplet = true;
-        }
-        return { modele, ...v, cout_estime_eur: Math.round(c * 100) / 100 };
-      });
-      const round2 = (n: number) => Math.round(n * 100) / 100;
-      summary.relecture_editoriale = relecture;
-      summary.relecture_issues = { ...issues, ...(Object.keys(garde).length ? { garde } : {}) };
-      summary.cout_texte_estime_eur = round2(summary.cout_texte_estime_eur + cout);
-      summary.cout_total_estime_eur = round2(summary.cout_total_estime_eur + cout);
-    };
-    addEditorialReview(aiCur, curFrom, curTo);
-    addEditorialReview(aiPrev, prevFrom, prevTo);
+    addEditorialReview(aiCur, curFrom, curTo, cqEvents || []);
+    addEditorialReview(aiPrev, prevFrom, prevTo, cqEvents || []);
 
     // Top 5 consommatrices des 7 j : un pic de coût se lit d'un coup d'œil (qui,
     // depuis quand inscrite, combien) au lieu d'être deviné dans l'échantillon —
