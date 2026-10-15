@@ -66,28 +66,9 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import "@/features/visual-studio/studio.css";
-
-const CHAT_WIDTH_KEY = "visual-studio-chat-width";
-const CHAT_WIDTH_DEFAULT = 430;
-const CHAT_WIDTH_MIN = 340;
-const CHAT_WIDTH_MAX = 760;
-
-
-function referenceRoleForPhoto(photo: UserPhotoRow): StudioReference["role"] {
-  if (photo.kind === "produit" || photo.kind === "produit_porte") return "product";
-  if (photo.kind === "portrait") return "person";
-  if (photo.kind === "ambiance") return "style";
-  return "auto";
-}
-function readAttachedIds(key: string): string[] {
-  try {
-    const value = JSON.parse(localStorage.getItem(key) || "[]");
-    return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
-  } catch { return []; }
-}
-function writeAttachedIds(key: string, ids: string[]) {
-  try { localStorage.setItem(key, JSON.stringify(ids)); } catch { /* The session still contains the references. */ }
-}
+import { readAttachedIds, referenceRoleForPhoto, writeAttachedIds } from "@/features/visual-studio/attachments";
+import { useChatWidth } from "@/features/visual-studio/useChatWidth";
+import { proposalGenerateLabelFor, readyFollowUpFor } from "@/features/visual-studio/proposal-labels";
 
 export default function VisualStudioPage() {
   const { user } = useAuth(),
@@ -183,71 +164,8 @@ function Studio({
     setUrlParams(next);
   };
   const isMobile = useIsMobile();
-  const gridRef = useRef<HTMLDivElement>(null);
-  const chatWidthLatest = useRef(CHAT_WIDTH_DEFAULT);
+  const { gridRef, chatWidth, wide, startChatResize, resetChatWidth, onResizerKey } = useChatWidth();
   const openCastingRef = useRef<(() => void) | null>(null);
-  const [chatWidth, setChatWidth] = useState(() => {
-    try {
-      const value = Number(localStorage.getItem(CHAT_WIDTH_KEY));
-      return Number.isFinite(value) && value >= CHAT_WIDTH_MIN && value <= CHAT_WIDTH_MAX
-        ? value
-        : CHAT_WIDTH_DEFAULT;
-    } catch {
-      return CHAT_WIDTH_DEFAULT;
-    }
-  });
-  chatWidthLatest.current = chatWidth;
-  const [wide, setWide] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches,
-  );
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 768px)");
-    const onChange = (e: MediaQueryListEvent) => setWide(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-  const persistChatWidth = useCallback((value: number) => {
-    try {
-      localStorage.setItem(CHAT_WIDTH_KEY, String(value));
-    } catch {
-      /* Le réglage de largeur reste pour la session. */
-    }
-  }, []);
-  const startChatResize = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      const handle = e.currentTarget;
-      handle.setPointerCapture(e.pointerId);
-      handle.dataset.resizing = "true";
-      const move = (ev: PointerEvent) => {
-        const grid = gridRef.current;
-        if (!grid) return;
-        const rect = grid.getBoundingClientRect();
-        const next = Math.min(
-          CHAT_WIDTH_MAX,
-          Math.max(CHAT_WIDTH_MIN, Math.round(ev.clientX - rect.left)),
-        );
-        chatWidthLatest.current = next;
-        setChatWidth(next);
-      };
-      const end = () => {
-        handle.removeEventListener("pointermove", move);
-        handle.removeEventListener("pointerup", end);
-        handle.removeEventListener("pointercancel", end);
-        delete handle.dataset.resizing;
-        persistChatWidth(chatWidthLatest.current);
-      };
-      handle.addEventListener("pointermove", move);
-      handle.addEventListener("pointerup", end);
-      handle.addEventListener("pointercancel", end);
-    },
-    [persistChatWidth],
-  );
-  const resetChatWidth = useCallback(() => {
-    setChatWidth(CHAT_WIDTH_DEFAULT);
-    chatWidthLatest.current = CHAT_WIDTH_DEFAULT;
-    persistChatWidth(CHAT_WIDTH_DEFAULT);
-  }, [persistChatWidth]);
 
   const roleWritable = ["owner", "manager", "editor"].includes(role);
   const [compositionOpen, setCompositionOpen] = useState(false);
@@ -907,25 +825,7 @@ function Studio({
       .filter((v) => v.status === "ready")
       .find((v) => v.id !== version?.id)?.url ??
       undefined);
-  const sceneReferenceNames = version?.proposal.planning_references
-    ?.map((reference) => reference.name.trim())
-    .filter(Boolean);
-  const identitySheet = version?.status === "ready" && !!version.proposal.person_reference &&
-    !["scene", "integration"].includes(version.proposal.scene_workflow?.phase as string);
-  const productName = identitySheet
-    ? (references.find((r: any) => r.role === "product")?.name?.trim() || "")
-    : "";
-  const readyFollowUp = identitySheet
-    ? `Voilà ton mannequin. Prochaine étape : la photo portée, avec ${productName ? `« ${productName} »` : "ton produit"}. Tu veux que je prépare la scène ?`
-    : version?.status === "ready"
-    ? version.proposal.scene_workflow?.phase === "scene"
-      ? `Voilà la scène. Qu’est-ce que tu veux faire maintenant ? Tu peux me demander de la modifier ou d’y intégrer ${sceneReferenceNames?.length ? sceneReferenceNames.join(" et ") : "tes références"}.`
-      : version.proposal.scene_workflow?.phase === "integration"
-      ? "Voilà l’intégration. Qu’est-ce que tu veux ajuster maintenant ? Réponds-moi directement ici."
-      : version.proposal.operation === "background" || version.proposal.operation === "edit"
-      ? "Voilà la nouvelle version. Qu’est-ce que tu veux ajuster maintenant ? Réponds-moi directement ici."
-      : "Voilà l’image. Qu’est-ce que tu veux faire maintenant ? Réponds-moi directement ici."
-    : null;
+  const { identitySheet, productName, readyFollowUp } = readyFollowUpFor(version, references);
   const label = version
     ? `Version ${
       current!.versions.filter((v) => v.status === "ready").findIndex((v) =>
@@ -994,13 +894,7 @@ function Studio({
     generating ||
     !current?.quota.allowed ||
     !!draft.trim() || !!error || premiumBlocked || insufficientSeries || (proposal.scene_workflow?.phase === "integration" && !!proposal.viewed_version_id && proposal.viewed_version_id !== selectedId);
-  const proposalGenerateLabel = !proposal ? "" : proposal.cost > 1
-    ? `Générer la série · ${proposal.cost} images`
-    : proposal.scene_workflow?.phase === "scene" && proposal.operation === "create"
-    ? "Créer la scène · 1 image"
-    : proposal.scene_workflow?.phase === "integration" && !proposal.scene_workflow.approved_scene_id
-    ? "Valider cette scène et intégrer mes références · 1 image"
-    : "Générer cette image · 1 image";
+  const proposalGenerateLabel = proposalGenerateLabelFor(proposal);
   async function runProposalGenerate() {
     if (!proposal) return;
     const result = await mutate("generate", {
@@ -1786,19 +1680,7 @@ function Studio({
                       tabIndex={0}
                       onPointerDown={startChatResize}
                       onDoubleClick={resetChatWidth}
-                      onKeyDown={(e) => {
-                        if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-                        e.preventDefault();
-                        setChatWidth((w) => {
-                          const next = Math.min(
-                            CHAT_WIDTH_MAX,
-                            Math.max(CHAT_WIDTH_MIN, w + (e.key === "ArrowLeft" ? -24 : 24)),
-                          );
-                          chatWidthLatest.current = next;
-                          persistChatWidth(next);
-                          return next;
-                        });
-                      }}
+                      onKeyDown={onResizerKey}
                     />
                   )}
                 </section>
