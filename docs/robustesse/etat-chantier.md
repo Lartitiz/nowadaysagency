@@ -95,7 +95,7 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
   de leurs effets compte ; le fichier contient donc 5 hooks (`useLibraryPhotosPreload`,
   `usePhotosRehydration`, `usePhotosSnapshot`, `useAddCarouselPhoto`, `useLibraryAutoCast`),
   chacun appelé à la place exacte de son bloc. Aucun test modifié.
-- **Lot I** (PR en cours) : sauvegarde locale sortie à l'identique dans
+- **Lot I** (#1579, fusionné le 15/10/2026) : sauvegarde locale sortie à l'identique dans
   `src/hooks/use-creer-flow-persistence.ts`, même méthode qu'en H (un hook par bloc,
   à la place exacte du bloc) : `useFreshEntryCleanup`, `useCreerResultSession`,
   `useRestorePersistedFlow`, `useAutoPersistFlow`. Seul déplacement : le nettoyage
@@ -103,8 +103,12 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
   reste avant `useCreerResultSession`, et le seul effet qu'il double (compteur de
   briefs) n'en dépend pas. `regeneration-backup.test.tsx` lit la page ET le nouveau
   fichier (vérifications inchangées).
-- **Lot J** ensuite : arrivée depuis ailleurs (`use-creer-entry-init.ts`, le plus
-  risqué), voir la fiche 1.
+- **Lot J** (PR en cours) : arrivée depuis ailleurs sortie à l'identique dans
+  `src/hooks/use-creer-entry-init.ts`, appelé à la place exacte de l'effet.
+  `handleFormatNext` (déclaré plus bas) passe par un relais
+  `(...args) => handleFormatNext(...args)`, lu seulement quand l'effet tourne.
+  `calendar-creer-contract.test.ts` lit la page ET le nouveau fichier. Vérifié
+  contre une panne volontaire (relais coupé → 3 tests rouges). Dernier lot de la fiche 1.
 
 ## Découpage du Studio, `visual-studio/index.ts` (fiche 5) : terminé le 14/10/2026
 2001 → 299 lignes ; `index.ts` n'est plus qu'un aiguilleur des 16 actions.

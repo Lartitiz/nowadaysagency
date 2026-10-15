@@ -170,6 +170,11 @@ describe("rapport d'impact création de contenu", () => {
     expect([...formats.keys()]).toEqual(["Parcours /creer (tous formats)"]);
   });
 
+  it("reconnaît l'arrivée sur /creer sortie de CreerUnifie (lot J)", () => {
+    const { formats } = analyzeImpact(["src/hooks/use-creer-entry-init.ts"], usage);
+    expect([...formats.keys()]).toEqual(["Parcours /creer (tous formats)"]);
+  });
+
   it("les tests de ces fichiers front ne déclenchent rien", () => {
     const { formats } = analyzeImpact(["src/test/use-generate-visuals.test.ts", "src/components/creer/CarouselEditor.test.tsx"], usage);
     expect(formats.size).toBe(0);
