@@ -1,0 +1,1001 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`generate — LinkedIn (chemin de secours) > sujet du calendrier → libellé « [Contenu existant] » 1`] = `
+{
+  "body": {
+    "angle": {
+      "structure": [
+        "Hook",
+        "Problème",
+        "Contexte",
+        "Point clé 1",
+        "Point clé 2",
+        "Point clé 3",
+        "Synthèse",
+        "CTA",
+      ],
+      "title": "Mythe à déconstruire",
+      "tone": "direct, chaleureux, professionnel",
+    },
+    "answers": [],
+    "contentType": "post_linkedin",
+    "context": "Mon sujet
+
+[Contenu existant]
+Le texte déjà écrit dans le calendrier",
+    "editorialFormat": "mythe",
+    "objective": null,
+    "photo_description": "<undefined>",
+    "photo_mode": true,
+    "photos": [
+      {
+        "base64": "allégée(px1)",
+        "context": "contexte 1",
+        "libraryContext": "biblio 1",
+        "mimeType": "image/png",
+      },
+    ],
+    "step": "generate",
+    "workspace_id": "workspace",
+  },
+  "fn": "creative-flow",
+  "onStatus": "undefined",
+  "timeout": 180000,
+}
+`;
+
+exports[`generate — carrousel (carousel-ai express_full) > actu de 4 000 caractères 1`] = `
+{
+  "body": {
+    "carousel_type": null,
+    "channel": "instagram",
+    "confirmed_structure": null,
+    "content_structure": null,
+    "deepening_answers": null,
+    "editorial_angle": null,
+    "news_context": "<3800 car.>",
+    "objective": null,
+    "photo_contexts": "<undefined>",
+    "photo_description": "<undefined>",
+    "photos": "<undefined>",
+    "quality_max": "<undefined>",
+    "scenario_origin": "automatic",
+    "slide_count": "<undefined>",
+    "slide_structure": null,
+    "subject": "Sujet",
+    "subject_details": "<undefined>",
+    "type": "express_full",
+    "workspace_id": "workspace",
+  },
+  "fn": "carousel-ai",
+  "onStatus": "function",
+  "timeout": 400000,
+}
+`;
+
+exports[`generate — carrousel (carousel-ai express_full) > mixte 1`] = `
+{
+  "body": {
+    "carousel_type": "mix",
+    "channel": "instagram",
+    "confirmed_structure": null,
+    "content_structure": null,
+    "deepening_answers": null,
+    "editorial_angle": null,
+    "objective": null,
+    "photo_contexts": [
+      {
+        "context": "contexte 1",
+        "libraryContext": "biblio 1",
+      },
+      {
+        "context": "contexte 2",
+        "libraryContext": "biblio 2",
+      },
+      {
+        "context": "contexte 3",
+        "libraryContext": "biblio 3",
+      },
+      {
+        "context": "contexte 4",
+        "libraryContext": "biblio 4",
+      },
+      {
+        "context": "contexte 5",
+        "libraryContext": "biblio 5",
+      },
+      {
+        "context": "contexte 6",
+        "libraryContext": "biblio 6",
+      },
+      {
+        "context": "contexte 7",
+        "libraryContext": "biblio 7",
+      },
+      {
+        "context": "contexte 8",
+        "libraryContext": "biblio 8",
+      },
+      {
+        "context": "contexte 9",
+        "libraryContext": "biblio 9",
+      },
+      {
+        "context": "contexte 10",
+        "libraryContext": "biblio 10",
+      },
+    ],
+    "photo_description": "<undefined>",
+    "photos": [
+      {
+        "base64": "allégée(px1)",
+        "context": "contexte 1",
+        "libraryContext": "biblio 1",
+        "mimeType": "image/png",
+        "userPhotoId": "photo-1",
+      },
+      {
+        "base64": "allégée(px2)",
+        "context": "contexte 2",
+        "libraryContext": "biblio 2",
+        "mimeType": "image/png",
+        "userPhotoId": "photo-2",
+      },
+      {
+        "base64": "allégée(px3)",
+        "context": "contexte 3",
+        "libraryContext": "biblio 3",
+        "mimeType": "image/png",
+        "userPhotoId": "photo-3",
+      },
+      {
+        "base64": "allégée(px4)",
+        "context": "contexte 4",
+        "libraryContext": "biblio 4",
+        "mimeType": "image/png",
+        "userPhotoId": "photo-4",
+      },
+      {
+        "base64": "allégée(px5)",
+        "context": "contexte 5",
+        "libraryContext": "biblio 5",
+        "mimeType": "image/png",
+        "userPhotoId": "photo-5",
+      },
+      {
+        "base64": "allégée(px6)",
+        "context": "contexte 6",
+        "libraryContext": "biblio 6",
+        "mimeType": "image/png",
+        "userPhotoId": "photo-6",
+      },
+      {
+        "base64": "allégée(px7)",
+        "context": "contexte 7",
+        "libraryContext": "biblio 7",
+        "mimeType": "image/png",
+        "userPhotoId": "photo-7",
+      },
+      {
+        "base64": "allégée(px8)",
+        "context": "contexte 8",
+        "libraryContext": "biblio 8",
+        "mimeType": "image/png",
+        "userPhotoId": "photo-8",
+      },
+      {
+        "base64": "allégée(px9)",
+        "context": "contexte 9",
+        "libraryContext": "biblio 9",
+        "mimeType": "image/png",
+        "userPhotoId": "photo-9",
+      },
+      {
+        "base64": "allégée(px10)",
+        "context": "contexte 10",
+        "libraryContext": "biblio 10",
+        "mimeType": "image/png",
+        "userPhotoId": "photo-10",
+      },
+      {
+        "base64": "allégée(px11)",
+        "context": "contexte 11",
+        "libraryContext": "biblio 11",
+        "mimeType": "image/png",
+        "userPhotoId": "photo-11",
+      },
+      {
+        "base64": "allégée(px12)",
+        "context": "contexte 12",
+        "libraryContext": "biblio 12",
+        "mimeType": "image/png",
+        "userPhotoId": "photo-12",
+      },
+    ],
+    "quality_max": "<undefined>",
+    "scenario_origin": "automatic",
+    "slide_count": "<undefined>",
+    "slide_structure": null,
+    "subject": "Sujet",
+    "subject_details": "<undefined>",
+    "type": "express_full",
+    "workspace_id": "workspace",
+  },
+  "fn": "carousel-ai",
+  "onStatus": "function",
+  "timeout": 400000,
+}
+`;
+
+exports[`generate — carrousel (carousel-ai express_full) > photo automatique 1`] = `
+{
+  "body": {
+    "carousel_type": "photo",
+    "channel": "instagram",
+    "confirmed_structure": null,
+    "content_structure": null,
+    "deepening_answers": null,
+    "editorial_angle": null,
+    "objective": null,
+    "photo_contexts": [
+      {
+        "context": "contexte 1",
+        "libraryContext": "biblio 1",
+      },
+      {
+        "context": "contexte 2",
+        "libraryContext": "biblio 2",
+      },
+    ],
+    "photo_description": "Atelier",
+    "photos": [
+      {
+        "base64": "allégée(px1)",
+        "context": "contexte 1",
+        "libraryContext": "biblio 1",
+        "mimeType": "image/png",
+        "userPhotoId": "photo-1",
+      },
+      {
+        "base64": "allégée(px2)",
+        "context": "contexte 2",
+        "libraryContext": "biblio 2",
+        "mimeType": "image/png",
+        "userPhotoId": "photo-2",
+      },
+    ],
+    "quality_max": "<undefined>",
+    "scenario_origin": "automatic",
+    "slide_count": "<undefined>",
+    "slide_structure": null,
+    "subject": "Sujet",
+    "subject_details": "<undefined>",
+    "type": "express_full",
+    "workspace_id": "workspace",
+  },
+  "fn": "carousel-ai",
+  "onStatus": "function",
+  "timeout": 400000,
+}
+`;
+
+exports[`generate — carrousel (carousel-ai express_full) > photo plan validé 1`] = `
+{
+  "body": {
+    "carousel_type": "photo",
+    "channel": "instagram",
+    "confirmed_structure": [
+      {
+        "photo_index": 1,
+        "role": "hook",
+        "slide_number": 1,
+        "slide_type": "photo_full",
+        "strategic_note": "Note",
+        "title_suggestion": "Plan",
+      },
+    ],
+    "content_structure": null,
+    "deepening_answers": null,
+    "editorial_angle": null,
+    "objective": null,
+    "photo_contexts": [
+      {
+        "context": "contexte 1",
+        "libraryContext": "biblio 1",
+      },
+    ],
+    "photo_description": "<undefined>",
+    "photos": "<undefined>",
+    "quality_max": "<undefined>",
+    "scenario_origin": "user_validated",
+    "slide_count": "<undefined>",
+    "slide_structure": null,
+    "subject": "Sujet",
+    "subject_details": "<undefined>",
+    "type": "express_full",
+    "workspace_id": "workspace",
+  },
+  "fn": "carousel-ai",
+  "onStatus": "function",
+  "timeout": 400000,
+}
+`;
+
+exports[`generate — carrousel (carousel-ai express_full) > photos brutes 1`] = `
+{
+  "body": {
+    "carousel_type": "photo",
+    "channel": "instagram",
+    "confirmed_structure": null,
+    "content_structure": null,
+    "deepening_answers": null,
+    "editorial_angle": null,
+    "objective": null,
+    "photo_contexts": [
+      {
+        "context": "contexte 1",
+        "libraryContext": "biblio 1",
+      },
+      {
+        "context": "contexte 2",
+        "libraryContext": "biblio 2",
+      },
+    ],
+    "photo_description": "<undefined>",
+    "photos": "<undefined>",
+    "photos_only": true,
+    "quality_max": "<undefined>",
+    "scenario_origin": "automatic",
+    "slide_count": "<undefined>",
+    "slide_structure": null,
+    "subject": "Sujet",
+    "subject_details": "<undefined>",
+    "type": "express_full",
+    "workspace_id": "workspace",
+  },
+  "fn": "carousel-ai",
+  "onStatus": "function",
+  "timeout": 400000,
+}
+`;
+
+exports[`generate — carrousel (carousel-ai express_full) > qualité max, récit, intention, longueur 1`] = `
+{
+  "body": {
+    "carousel_type": null,
+    "channel": "linkedin",
+    "confirmed_structure": null,
+    "content_structure": null,
+    "deepening_answers": null,
+    "editorial_angle": null,
+    "editorial_intent": {
+      "basis_source_ids": [
+        "s1",
+      ],
+      "idea": "Idée",
+      "inferred": false,
+      "mode": "explain",
+      "reader_takeaway": "Retenir",
+    },
+    "narrative_thread": "Le fil du récit",
+    "objective": null,
+    "photo_contexts": "<undefined>",
+    "photo_description": "<undefined>",
+    "photos": "<undefined>",
+    "quality_max": true,
+    "scenario_origin": "automatic",
+    "slide_count": 7,
+    "slide_structure": [
+      {
+        "slide_number": 1,
+        "type": "text_only",
+      },
+    ],
+    "subject": "Sujet",
+    "subject_details": "<undefined>",
+    "type": "express_full",
+    "workspace_id": "espace-explicite",
+  },
+  "fn": "carousel-ai",
+  "onStatus": "function",
+  "timeout": 400000,
+}
+`;
+
+exports[`generate — carrousel (carousel-ai express_full) > récit vide et actu blanche ignorés 1`] = `
+{
+  "body": {
+    "carousel_type": null,
+    "channel": "instagram",
+    "confirmed_structure": null,
+    "content_structure": null,
+    "deepening_answers": null,
+    "editorial_angle": null,
+    "objective": null,
+    "photo_contexts": "<undefined>",
+    "photo_description": "<undefined>",
+    "photos": "<undefined>",
+    "quality_max": "<undefined>",
+    "scenario_origin": "automatic",
+    "slide_count": "<undefined>",
+    "slide_structure": null,
+    "subject": "Sujet",
+    "subject_details": "<undefined>",
+    "type": "express_full",
+    "workspace_id": "workspace",
+  },
+  "fn": "carousel-ai",
+  "onStatus": "function",
+  "timeout": 400000,
+}
+`;
+
+exports[`generate — carrousel (carousel-ai express_full) > sujet venu du calendrier 1`] = `
+{
+  "body": {
+    "carousel_type": null,
+    "channel": "instagram",
+    "confirmed_structure": null,
+    "content_structure": null,
+    "deepening_answers": null,
+    "editorial_angle": null,
+    "objective": null,
+    "photo_contexts": "<undefined>",
+    "photo_description": "<undefined>",
+    "photos": "<undefined>",
+    "quality_max": "<undefined>",
+    "scenario_origin": "automatic",
+    "slide_count": "<undefined>",
+    "slide_structure": null,
+    "subject": "Mon sujet",
+    "subject_details": "Le texte déjà écrit dans le calendrier",
+    "type": "express_full",
+    "workspace_id": "workspace",
+  },
+  "fn": "carousel-ai",
+  "onStatus": "function",
+  "timeout": 400000,
+}
+`;
+
+exports[`generate — carrousel (carousel-ai express_full) > texte 1`] = `
+{
+  "body": {
+    "carousel_type": null,
+    "channel": "instagram",
+    "confirmed_structure": null,
+    "content_structure": "<577 car.>",
+    "deepening_answers": {
+      "Q1 ?": "R1",
+    },
+    "editorial_angle": "mythe",
+    "objective": "visibilite",
+    "photo_contexts": "<undefined>",
+    "photo_description": "<undefined>",
+    "photos": "<undefined>",
+    "quality_max": "<undefined>",
+    "scenario_origin": "automatic",
+    "slide_count": "<undefined>",
+    "slide_structure": null,
+    "subject": "Sujet",
+    "subject_details": "<undefined>",
+    "type": "express_full",
+    "workspace_id": "workspace",
+  },
+  "fn": "carousel-ai",
+  "onStatus": "function",
+  "timeout": 400000,
+}
+`;
+
+exports[`generate — carrousel (carousel-ai express_full) > texte d'abord (catalogue de 45) 1`] = `
+{
+  "body": {
+    "carousel_type": "mix",
+    "channel": "instagram",
+    "confirmed_structure": null,
+    "content_structure": null,
+    "deepening_answers": null,
+    "editorial_angle": null,
+    "objective": null,
+    "photo_catalog": [
+      {
+        "description": "photo 1",
+        "index": 1,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 2",
+        "index": 2,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 3",
+        "index": 3,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 4",
+        "index": 4,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 5",
+        "index": 5,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 6",
+        "index": 6,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 7",
+        "index": 7,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 8",
+        "index": 8,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 9",
+        "index": 9,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 10",
+        "index": 10,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 11",
+        "index": 11,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 12",
+        "index": 12,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 13",
+        "index": 13,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 14",
+        "index": 14,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 15",
+        "index": 15,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 16",
+        "index": 16,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 17",
+        "index": 17,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 18",
+        "index": 18,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 19",
+        "index": 19,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 20",
+        "index": 20,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 21",
+        "index": 21,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 22",
+        "index": 22,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 23",
+        "index": 23,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 24",
+        "index": 24,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 25",
+        "index": 25,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 26",
+        "index": 26,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 27",
+        "index": 27,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 28",
+        "index": 28,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 29",
+        "index": 29,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 30",
+        "index": 30,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 31",
+        "index": 31,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 32",
+        "index": 32,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 33",
+        "index": 33,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 34",
+        "index": 34,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 35",
+        "index": 35,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 36",
+        "index": 36,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 37",
+        "index": 37,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 38",
+        "index": 38,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 39",
+        "index": 39,
+        "kind": "produit",
+      },
+      {
+        "description": "photo 40",
+        "index": 40,
+        "kind": "produit",
+      },
+    ],
+    "photo_contexts": "<undefined>",
+    "photo_description": "<undefined>",
+    "photos": "<undefined>",
+    "quality_max": "<undefined>",
+    "scenario_origin": "automatic",
+    "slide_count": "<undefined>",
+    "slide_structure": null,
+    "subject": "Sujet",
+    "subject_details": "<undefined>",
+    "text_first": true,
+    "type": "express_full",
+    "workspace_id": "workspace",
+  },
+  "fn": "carousel-ai",
+  "onStatus": "function",
+  "timeout": 400000,
+}
+`;
+
+exports[`generate — post Instagram (creative-flow) > angle connu (titre et étapes de structure) 1`] = `
+{
+  "body": {
+    "angle": {
+      "structure": [
+        "Hook",
+        "Problème",
+        "Contexte",
+        "Point clé 1",
+        "Point clé 2",
+        "Point clé 3",
+        "Synthèse",
+        "CTA",
+      ],
+      "title": "Mythe à déconstruire",
+      "tone": "direct, chaleureux, oral assumé",
+    },
+    "answers": [
+      {
+        "answer": "R",
+        "question": "Q ?",
+      },
+    ],
+    "contentType": "instagram_post",
+    "context": "Mon sujet
+
+[Contenu existant à approfondir]
+Le texte déjà écrit dans le calendrier",
+    "editorial_angle": "mythe",
+    "objective": "vente",
+    "photo_description": "<undefined>",
+    "photo_mode": "<undefined>",
+    "photos": "<undefined>",
+    "step": "generate",
+    "workspace_id": "workspace",
+  },
+  "fn": "creative-flow",
+  "onStatus": "undefined",
+  "timeout": 150000,
+}
+`;
+
+exports[`generate — post Instagram (creative-flow) > mode photo : photos allégées, 10 au plus 1`] = `
+{
+  "body": {
+    "angle": "<undefined>",
+    "answers": [],
+    "contentType": "instagram_post",
+    "context": "Sujet",
+    "editorial_angle": "<undefined>",
+    "objective": null,
+    "photo_description": "Desc",
+    "photo_mode": true,
+    "photos": [
+      {
+        "base64": "allégée(px1)",
+        "context": "contexte 1",
+        "libraryContext": "biblio 1",
+        "mimeType": "image/png",
+      },
+      {
+        "base64": "allégée(px2)",
+        "context": "contexte 2",
+        "libraryContext": "biblio 2",
+        "mimeType": "image/png",
+      },
+      {
+        "base64": "allégée(px3)",
+        "context": "contexte 3",
+        "libraryContext": "biblio 3",
+        "mimeType": "image/png",
+      },
+      {
+        "base64": "allégée(px4)",
+        "context": "contexte 4",
+        "libraryContext": "biblio 4",
+        "mimeType": "image/png",
+      },
+      {
+        "base64": "allégée(px5)",
+        "context": "contexte 5",
+        "libraryContext": "biblio 5",
+        "mimeType": "image/png",
+      },
+      {
+        "base64": "allégée(px6)",
+        "context": "contexte 6",
+        "libraryContext": "biblio 6",
+        "mimeType": "image/png",
+      },
+      {
+        "base64": "allégée(px7)",
+        "context": "contexte 7",
+        "libraryContext": "biblio 7",
+        "mimeType": "image/png",
+      },
+      {
+        "base64": "allégée(px8)",
+        "context": "contexte 8",
+        "libraryContext": "biblio 8",
+        "mimeType": "image/png",
+      },
+      {
+        "base64": "allégée(px9)",
+        "context": "contexte 9",
+        "libraryContext": "biblio 9",
+        "mimeType": "image/png",
+      },
+      {
+        "base64": "allégée(px10)",
+        "context": "contexte 10",
+        "libraryContext": "biblio 10",
+        "mimeType": "image/png",
+      },
+    ],
+    "step": "generate",
+    "workspace_id": "workspace",
+  },
+  "fn": "creative-flow",
+  "onStatus": "undefined",
+  "timeout": 150000,
+}
+`;
+
+exports[`generate — reel (creative-flow) > preGenAnswers fournis, hook choisi, angle, actu 1`] = `
+{
+  "body": {
+    "answers": [
+      {
+        "answer": "R",
+        "question": "Q ?",
+      },
+    ],
+    "contentType": "reel",
+    "content_structure": "<525 car.>",
+    "context": "Mon sujet
+
+[Contenu existant à approfondir]
+Le texte déjà écrit dans le calendrier",
+    "editorial_angle": "storytelling",
+    "face_cam": "non",
+    "news_context": "Actu",
+    "objective": null,
+    "pre_gen_answers": {
+      "anecdote": "X",
+    },
+    "selected_hook": {
+      "id": "h1",
+      "text": "Accroche",
+    },
+    "step": "generate",
+    "time_available": "30min",
+    "workspace_id": "workspace",
+  },
+  "fn": "creative-flow",
+  "onStatus": "undefined",
+  "timeout": 180000,
+}
+`;
+
+exports[`generate — reel (creative-flow) > réponses seules : rangées par position ET envoyées en paires 1`] = `
+{
+  "body": {
+    "answers": [
+      {
+        "answer": "A",
+        "question": "Ton anecdote ?",
+      },
+      {
+        "answer": "B",
+        "question": "Ton émotion ?",
+      },
+      {
+        "answer": "C",
+        "question": "Ta conviction ?",
+      },
+    ],
+    "contentType": "reel",
+    "content_structure": null,
+    "context": "Sujet",
+    "editorial_angle": null,
+    "face_cam": "oui",
+    "objective": null,
+    "pre_gen_answers": {
+      "anecdote": "A",
+      "conviction": "C",
+      "emotion": "B",
+    },
+    "selected_hook": null,
+    "step": "generate",
+    "time_available": "flexible",
+    "workspace_id": "workspace",
+  },
+  "fn": "creative-flow",
+  "onStatus": "undefined",
+  "timeout": 180000,
+}
+`;
+
+exports[`generate — reel (creative-flow) > sans réponses ni caméra : face_cam « oui », réponses vides 1`] = `
+{
+  "body": {
+    "answers": [],
+    "contentType": "reel",
+    "content_structure": null,
+    "context": "Sujet",
+    "editorial_angle": null,
+    "face_cam": "oui",
+    "objective": null,
+    "pre_gen_answers": null,
+    "selected_hook": null,
+    "step": "generate",
+    "time_available": "flexible",
+    "workspace_id": "workspace",
+  },
+  "fn": "creative-flow",
+  "onStatus": "undefined",
+  "timeout": 180000,
+}
+`;
+
+exports[`generate — stories (creative-flow) > mode photo avec 12 photos : 10 identifiants au plus 1`] = `
+{
+  "body": {
+    "answers": [],
+    "contentType": "stories",
+    "context": "Sujet",
+    "editorial_angle": "<undefined>",
+    "face_cam": "flexible",
+    "objective": null,
+    "pre_gen_answers": null,
+    "preferred_photo_ids": [
+      "photo-1",
+      "photo-2",
+      "photo-3",
+      "photo-4",
+      "photo-5",
+      "photo-6",
+      "photo-7",
+      "photo-8",
+      "photo-9",
+      "photo-10",
+    ],
+    "step": "generate",
+    "time_available": "flexible",
+    "workspace_id": "workspace",
+  },
+  "fn": "creative-flow",
+  "onStatus": "undefined",
+  "timeout": 150000,
+}
+`;
+
+exports[`generate — stories (creative-flow) > réponses en paires 1`] = `
+{
+  "body": {
+    "answers": [
+      {
+        "answer": "R1",
+        "question": "Q1 ?",
+      },
+    ],
+    "contentType": "stories",
+    "context": "Mon sujet
+
+[Contenu existant à approfondir]
+Le texte déjà écrit dans le calendrier",
+    "editorial_angle": "coulisses",
+    "face_cam": "flexible",
+    "objective": null,
+    "pre_gen_answers": null,
+    "step": "generate",
+    "time_available": "flexible",
+    "workspace_id": "workspace",
+  },
+  "fn": "creative-flow",
+  "onStatus": "undefined",
+  "timeout": 150000,
+}
+`;
