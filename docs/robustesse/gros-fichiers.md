@@ -1541,7 +1541,7 @@ Code mort repéré (à retirer dans un lot à part, pas pendant un déplacement)
 
 Hors découpage, à noter pour plus tard :
 - **Connecteurs intelligents** : les `save*` écrivent directement en base, sans passer par la détection de changement de branding. Normal pour un premier remplissage (champs vides), mais en reprise d'onboarding (`allow_overwrite`) le positionnement ou le ton peuvent changer sans suggestion de mise à jour. À trancher, pas à corriger en déplaçant.
-- **Vocabulaire UI** : les boutons « OK » des offres (l. 252) et de la charte (l. 372) ne respectent pas « verbe + objet » (« Enregistrer l'offre », « Enregistrer ma charte »). Petit lot à part : les tests de la charte cliquent sur « OK », il faudra les mettre à jour dans la même PR.
+- **Vocabulaire UI** : les boutons « OK » des offres (l. 252) et de la charte (l. 372) ne respectent pas « verbe + objet » (« Enregistrer l'offre », « Enregistrer ma charte »). Petit lot à part : les tests de la charte cliquent sur « OK », il faudra les mettre à jour dans la même PR. ✅ Fait le 15/10/2026 : « Appliquer mes modifications » dans les deux cas (rien n'est enregistré en base à ce clic, seulement à la validation de la carte : « Enregistrer » aurait été trompeur).
 
 **Tests qui le protègent aujourd'hui**
 

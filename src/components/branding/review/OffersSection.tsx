@@ -44,7 +44,7 @@ export function OffersSection({ data, onUpdate, onDelete, existingOfferNames = [
               <input value={editDraft.target || ""} onChange={e => setEditDraft(d => ({ ...d, target: e.target.value }))} placeholder="Pour qui ?" className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
               <input value={editDraft.promise || ""} onChange={e => setEditDraft(d => ({ ...d, promise: e.target.value }))} placeholder="Promesse" className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
               <div className="flex gap-2 pt-1">
-                <button onClick={confirmEdit} className="inline-flex items-center gap-1 text-xs font-medium text-success hover:text-success"><Check className="h-3.5 w-3.5" /> OK</button>
+                <button onClick={confirmEdit} className="inline-flex items-center gap-1 text-xs font-medium text-success hover:text-success"><Check className="h-3.5 w-3.5" /> Appliquer mes modifications</button>
                 <button onClick={cancelEdit} className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /> Annuler</button>
               </div>
             </div>
