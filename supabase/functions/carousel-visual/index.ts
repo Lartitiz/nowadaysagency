@@ -2407,7 +2407,9 @@ Adapte le design system ci-dessus au style "${style}". Le style influence l'ambi
             console.warn(`carousel-visual: URL template non sûre, ignorée: ${url}`);
             continue;
           }
-          const headRes = await fetch(url, { method: "HEAD" });
+          // redirect "manual" : une URL publique qui redirige (3xx) vers une adresse
+          // interne n'est pas suivie — la réponse 3xx n'est pas « ok », image ignorée.
+          const headRes = await fetch(url, { method: "HEAD", redirect: "manual" });
           if (headRes.ok) {
             const contentLength = parseInt(headRes.headers.get("content-length") || "0", 10);
             if (contentLength > 0 && contentLength < 5_000_000) {

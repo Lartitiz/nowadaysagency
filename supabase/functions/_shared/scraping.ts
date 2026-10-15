@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+const BRAND_ANALYZER_HEADERS = { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" };
 
 export function isSafePublicUrl(rawUrl: string): boolean {
   try {
@@ -127,24 +128,25 @@ export async function safeFetchFollow(
   rawUrl: string,
   signal: AbortSignal,
   maxRedirects = 4,
+  headers: Record<string, string> = { "User-Agent": USER_AGENT },
 ): Promise<{ response: Response; finalUrl: string } | null> {
   let url = rawUrl;
   for (let i = 0; i <= maxRedirects; i++) {
     if (!isSafePublicUrl(url)) return null;
     const response = await fetch(url, {
       signal,
-      headers: { "User-Agent": USER_AGENT },
+      headers,
       redirect: "manual",
     });
     if (response.status >= 300 && response.status < 400) {
       const loc = response.headers.get("location");
       if (!loc) return { response, finalUrl: url };
+      await response.body?.cancel().catch(() => {}); // libère le corps de la redirection
       try {
         url = new URL(loc, url).toString();
       } catch {
         return null;
       }
-      await response.body?.cancel().catch(() => {}); // libère le corps de la redirection
       continue;
     }
     return { response, finalUrl: url };
@@ -183,10 +185,10 @@ export async function fetchExternalCss(html: string, baseUrl: string, signal?: A
   for (const cssUrl of cssUrls) {
     if (!isSafePublicUrl(cssUrl)) continue;
     try {
-      const resp = await fetch(cssUrl, {
-        signal,
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-      });
+      // safeFetchFollow : chaque redirection est revérifiée (anti-SSRF).
+      const fetched = await safeFetchFollow(cssUrl, signal ?? new AbortController().signal, 4, BRAND_ANALYZER_HEADERS);
+      if (!fetched) continue;
+      const resp = fetched.response;
       if (resp.ok) {
         externalCss += "\n" + (await resp.text()).slice(0, 120000);
       } else {
@@ -488,12 +490,15 @@ function scoreUrl(href: string, baseHostname: string): number {
 /** Récupère le XML d'un sitemap. Retourne "" si absent/illisible. */
 async function fetchSitemapXml(sitemapUrl: string, signal: AbortSignal): Promise<string> {
   try {
-    if (!isSafePublicUrl(sitemapUrl)) return "";
-    const resp = await fetch(sitemapUrl, {
-      signal,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-    });
-    if (!resp.ok) return "";
+    // safeFetchFollow : revérifie chaque redirection (un sitemap « public » qui
+    // redirige vers 127.0.0.1 / 169.254.169.254 est refusé).
+    const fetched = await safeFetchFollow(sitemapUrl, signal, 4, BRAND_ANALYZER_HEADERS);
+    if (!fetched) return "";
+    const resp = fetched.response;
+    if (!resp.ok) {
+      await resp.body?.cancel().catch(() => {});
+      return "";
+    }
     const xml = await resp.text();
     if (!xml.includes("<urlset") && !xml.includes("<sitemapindex")) return "";
     return xml;
@@ -675,11 +680,12 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
   // HTML brut de l'accueil (1 fetch) : infos visuelles + liens « à propos »
   let rawHtml = "";
   try {
-    const resp = await fetch(formattedUrl, {
-      signal,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-    });
-    if (resp.ok) rawHtml = await resp.text();
+    // safeFetchFollow : l'adresse d'arrivée de CHAQUE redirection est revérifiée
+    // (sinon un site public qui redirige vers une adresse interne ferait lire au
+    // serveur une page interne, ensuite résumée dans le diagnostic).
+    const fetched = await safeFetchFollow(formattedUrl, signal, 4, BRAND_ANALYZER_HEADERS);
+    if (fetched?.response.ok) rawHtml = await fetched.response.text();
+    else await fetched?.response.body?.cancel().catch(() => {});
   } catch {
     // ignore
   }
@@ -810,13 +816,12 @@ export async function scrapeLinkedin(url: string, signal: AbortSignal): Promise<
   try {
     if (!isSafePublicUrl(url)) return null;
 
-    const resp = await fetch(url, {
-      signal,
-      headers: {
-        "User-Agent": USER_AGENT,
-        "Accept": "text/html,application/xhtml+xml",
-      },
+    const fetched = await safeFetchFollow(url, signal, 4, {
+      "User-Agent": USER_AGENT,
+      "Accept": "text/html,application/xhtml+xml",
     });
+    if (!fetched) return null;
+    const resp = fetched.response;
 
     if (!resp.ok) return null;
     const html = await resp.text();
