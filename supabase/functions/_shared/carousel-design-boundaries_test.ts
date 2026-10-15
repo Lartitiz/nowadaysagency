@@ -44,7 +44,7 @@ const WRITING = new Set([
 /** Neutres : infrastructure commune (appels IA, quota, sécurité, JSON, images, structure du récit). */
 const NEUTRAL = new Set([
   "anthropic", "anthropic-stream", "auth", "cors", "guard-demo", "image-utils", "input-validators",
-  "parse-ai-json", "photo-slide-structure", "plan-limiter", "rate-limiter", "request-pipeline", "scraping",
+  "parse-ai-json", "photo-slide-structure", "plan-limiter", "rate-limiter", "request-pipeline", "safe-fetch", "scraping",
   "workspace-guard",
 ]);
 

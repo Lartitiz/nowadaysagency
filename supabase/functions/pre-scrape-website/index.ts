@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { scrapeWebsite, extractVisualInfo, fetchExternalCss, isSafePublicUrl } from "../_shared/scraping.ts";
+import { scrapeWebsite, extractVisualInfo, fetchExternalCss, isSafePublicUrl, safeFetchFollow } from "../_shared/scraping.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 
 serve(async (req) => {
@@ -57,20 +57,19 @@ serve(async (req) => {
       // SSRF guard: same validation that scrapeWebsite() applies internally — never fetch
       // internal/private hosts (localhost, 10.x, 169.254.x metadata, etc.).
       if (isSafePublicUrl(formattedUrl)) {
-        const resp = await fetch(formattedUrl, {
-          signal: controller.signal,
-          redirect: "follow",
-          headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+        // Each redirect hop is re-validated BEFORE being followed (a public URL may 30x to an internal one).
+        const got = await safeFetchFollow(formattedUrl, controller.signal, 4, {
+          "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)",
         });
-        // Re-validate the final URL after redirects (a public URL may 30x to an internal one).
+        const resp = got?.response;
         // Skip absurdly large declared bodies (visual hints are optional anyway).
-        const contentLength = Number(resp.headers.get("content-length") || 0);
-        if (resp.ok && contentLength <= 5_000_000 && isSafePublicUrl(resp.url || formattedUrl)) {
+        const contentLength = Number(resp?.headers.get("content-length") || 0);
+        if (got && resp?.ok && contentLength <= 5_000_000) {
           const html = await resp.text();
           // Les couleurs des sites modernes vivent dans des feuilles de style
           // EXTERNES : sans elles, extractVisualInfo ne voyait quasiment rien
           // et l'IA « proposait » une palette inventée présentée comme détectée.
-          const externalCss = await fetchExternalCss(html, resp.url || formattedUrl, controller.signal);
+          const externalCss = await fetchExternalCss(html, got.finalUrl, controller.signal);
           styleHints = extractVisualInfo(html, externalCss);
         }
       }

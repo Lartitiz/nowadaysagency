@@ -9,6 +9,7 @@ import { type UsageSink, extractUsage, SONNET_MODEL, forcesDisabledThinking, san
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { tryParseAiObject } from "../_shared/parse-ai-json.ts";
+const BRAND_UA = { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" };
 
 const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 50000;
@@ -86,10 +87,8 @@ serve(async (req) => {
             for (const cssUrl of cssUrls) {
               if (!isSafePublicUrl(cssUrl)) continue;
               try {
-                const cssResp = await fetch(cssUrl, {
-                  signal: controller.signal,
-                  headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-                });
+                const cssResp = (await safeFetchFollow(cssUrl, controller.signal, 4, BRAND_UA))?.response;
+                if (!cssResp) continue; // redirection vers une adresse interne refusée
                 if (cssResp.ok) {
                   externalCss += "\n" + (await cssResp.text()).slice(0, 120000);
                 } else {
@@ -401,10 +400,8 @@ async function fetchImageBlock(
 ): Promise<Record<string, unknown> | null> {
   try {
     if (!isSafePublicUrl(imageUrl)) return null;
-    const resp = await fetch(imageUrl, {
-      signal,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-    });
+    const resp = (await safeFetchFollow(imageUrl, signal ?? AbortSignal.timeout(15_000), 4, BRAND_UA))?.response;
+    if (!resp) return null; // redirection vers une adresse interne refusée
     if (!resp.ok) { await resp.body?.cancel().catch(() => {}); return null; }
 
     const ct = (resp.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();

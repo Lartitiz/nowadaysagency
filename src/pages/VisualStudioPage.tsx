@@ -150,7 +150,7 @@ function Studio({
     setPhotosOpen, toolsOpen, setToolsOpen, selectedReference, premiumBlocked, insufficientSeries,
     generating, editDraft, setAutoSend, openPhoto, mutate, syncAttachments, sceneAttachments,
     updateSelection, addReferencePhotos, addLocalFiles, send, setSessionArchived,
-  } = useStudioSession({ role, userId, workspaceId, sessionId, photoId, carouselReturnId, navigate, cache, studioPath, contentPath });
+  } = useStudioSession({ role, userId, workspaceId, sessionId, photoId, carouselReturnId, navigate, cache, studioPath });
   const source = selectedReference?.url ||
       (current?.session.references === undefined
         ? current?.session.source_url

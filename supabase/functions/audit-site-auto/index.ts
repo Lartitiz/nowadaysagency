@@ -30,6 +30,7 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import {
   isSafePublicUrl,
+  safeFetchFollow,
   fetchExternalCss,
   extractVisualInfo,
   fetchSitemapUrls,
@@ -206,18 +207,14 @@ async function fetchPage(url: string, path: string, withExternalCss = false, kee
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
 
-    const resp = await fetch(fullUrl, {
-      headers: { "User-Agent": USER_AGENT },
-      signal: controller.signal,
-      redirect: "follow",
-    });
+    // Each redirect hop is re-validated BEFORE being followed (a public URL may 30x to an internal one).
+    const got = await safeFetchFollow(fullUrl, controller.signal, 4, { "User-Agent": USER_AGENT });
     clearTimeout(timeout);
-
-    // Re-validate the final URL after redirects (a public URL may 30x to an internal one).
-    if (resp.url && !isSafePublicUrl(resp.url)) {
+    if (!got) {
       result.error = "Redirection non autorisée";
       return result;
     }
+    const resp = got.response;
 
     if (!resp.ok) {
       result.error = `HTTP ${resp.status}`;

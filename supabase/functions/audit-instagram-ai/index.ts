@@ -4,7 +4,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { isSafePublicUrl, scrapeInstagram } from "../_shared/scraping.ts";
+import { isSafePublicUrl, safeFetchFollow, scrapeInstagram } from "../_shared/scraping.ts";
 import { authenticateEdgeUser } from "../_shared/edge-auth.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -53,9 +53,10 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; media_ty
     if (!isSafePublicUrl(url)) return null; // anti-SSRF : bloque IP privées / métadata
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
-    const resp = await fetch(url, { signal: controller.signal });
+    const got = await safeFetchFollow(url, controller.signal); // redirections revérifiées
     clearTimeout(timeout);
-    if (!resp.ok) return null;
+    const resp = got?.response;
+    if (!resp?.ok) return null;
     const buffer = await resp.arrayBuffer();
     
     // Skip images larger than 3MB to avoid Edge Function memory/timeout issues
