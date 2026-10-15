@@ -19,7 +19,7 @@ export default function WelcomeStep({ onNext }: WelcomeStepProps) {
         </p>
         <div className="space-y-4 text-left">
           <p className="text-base text-muted-foreground leading-relaxed">
-            Ici, on ne va pas juste "créer un compte". En 3 minutes, je vais comprendre ton activité et là où tu en es dans ta com.
+            Ici, on ne va pas juste "créer un compte". Je te pose quelques questions (2 minutes), puis on crée ensemble ton premier contenu. Compte environ 7 minutes en tout.
           </p>
           <p className="text-base text-foreground font-medium leading-relaxed">
             L'idée ? Que tu puisses gagner un max de temps dans ta communication.

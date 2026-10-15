@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ChoiceCard, VoiceInput } from "./OnboardingShared";
+import { ChoiceCard, ChoiceChip, VoiceInput } from "./OnboardingShared";
 import {
   TIME_OPTIONS, CHANNELS, DESIRED_CHANNELS,
 } from "@/lib/onboarding-constants";
@@ -42,16 +42,16 @@ export function CanauxCombinedScreen({ answers, set, onNext }: {
   const filteredDesired = DESIRED_CHANNELS.filter(c => !answers.canaux.includes(c.key));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="text-center space-y-2">
         <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Tes canaux de communication</h1>
         <p className="text-sm text-muted-foreground italic">dis-moi où tu en es et où tu veux aller</p>
       </div>
       <div className="space-y-2">
         <h2 className="text-sm font-semibold text-foreground">Tu communiques déjà sur...</h2>
-        <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
           {CHANNELS.map(o => (
-            <ChoiceCard key={o.key} emoji={o.emoji} label={o.label} selected={answers.canaux.includes(o.key)} onClick={() => toggleCanal(o.key)} />
+            <ChoiceChip key={o.key} emoji={o.emoji} label={o.label} selected={answers.canaux.includes(o.key)} onClick={() => toggleCanal(o.key)} />
           ))}
         </div>
       </div>
@@ -61,9 +61,9 @@ export function CanauxCombinedScreen({ answers, set, onNext }: {
           <div className="space-y-2">
             <h2 className="text-sm font-semibold text-foreground">Et tu aimerais te lancer sur...</h2>
             <p className="text-xs text-muted-foreground italic mb-1">même si c'est juste une envie</p>
-            <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
               {filteredDesired.map(o => (
-                <ChoiceCard key={o.key} emoji={o.emoji} label={o.label} selected={answers.desired_channels.includes(o.key)} onClick={() => toggleDesired(o.key)} />
+                <ChoiceChip key={o.key} emoji={o.emoji} label={o.label} selected={answers.desired_channels.includes(o.key)} onClick={() => toggleDesired(o.key)} />
               ))}
             </div>
           </div>
@@ -76,19 +76,34 @@ export function CanauxCombinedScreen({ answers, set, onNext }: {
   );
 }
 
-/* ── Objectif (Step 6) ── */
-export function ObjectifScreen({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+/* ── Objectif + temps (une seule étape) ──
+   Les deux réponses sont des choix simples : l'écran avance tout seul quand
+   les deux sont données (voir Onboarding.tsx). */
+export function ObjectifScreen({ value, onChange, temps, onTempsChange }: {
+  value: string;
+  onChange: (v: string) => void;
+  temps: string;
+  onTempsChange: (v: string) => void;
+}) {
   const { user } = useAuth();
   const { objectives } = getOnboardingVariant(user?.email);
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="text-center space-y-2">
         <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Et si tout marchait bien dans 6 mois, ça ressemblerait à quoi ?</h1>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-2">
         {objectives.map(o => (
           <ChoiceCard key={o.key} emoji={o.emoji} label={o.label} selected={value === o.key} onClick={() => onChange(o.key)} />
         ))}
+      </div>
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold text-foreground">Et tu peux y consacrer combien de temps par semaine ?</h2>
+        <div className="flex flex-wrap gap-2">
+          {TIME_OPTIONS.map(t => (
+            <ChoiceChip key={t.key} emoji={t.emoji} label={t.label} selected={temps === t.key} onClick={() => onTempsChange(t.key)} />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -113,56 +128,34 @@ export function BlocageScreen({ value, onChange }: { value: string; onChange: (v
   );
 }
 
-/* ── Temps (Step 8) ── */
-export function TempsScreen({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+/* ── Deux questions libres et facultatives, sur un seul écran ──
+   (« ce que tu changerais » + « ce qui te rend différente »). Dernière étape
+   avant le diagnostic : le bouton le lance. */
+export function OpenQuestionsScreen({ change, onChangeChange, uniqueness, onUniquenessChange, onNext }: {
+  change: string;
+  onChangeChange: (v: string) => void;
+  uniqueness: string;
+  onUniquenessChange: (v: string) => void;
+  onNext: () => void;
+}) {
+  const filled = !!(change.trim() || uniqueness.trim());
   return (
-    <div className="space-y-8">
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Tu peux consacrer combien de temps à ta com' par semaine ?</h1>
-        <p className="text-sm text-muted-foreground italic">sois honnête, on s'adapte</p>
+    <div className="space-y-5">
+      <div className="text-center space-y-1">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">Pour aller plus loin</h1>
+        <p className="text-sm text-muted-foreground italic">facultatif, pas de mauvaise réponse</p>
       </div>
-      <div className="space-y-3">
-        {TIME_OPTIONS.map(t => (
-          <ChoiceCard key={t.key} emoji={t.emoji} label={t.label} selected={value === t.key} onClick={() => onChange(t.key)} />
-        ))}
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold text-foreground">Si tu pouvais changer UNE chose dans ta com' demain, ce serait quoi ?</h2>
+        <VoiceInput value={change} onChange={onChangeChange} label="Ce que tu changerais dans ta com'" placeholder="Ex : trouver ma ligne éditoriale, publier plus régulièrement..." multiline rows={2} />
       </div>
-    </div>
-  );
-}
-
-/* ── Change priority (Step 9) ── */
-export function ChangeScreen({ value, onChange, onNext }: { value: string; onChange: (v: string) => void; onNext: () => void }) {
-  return (
-    <div className="space-y-8">
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-          Si tu pouvais changer UNE chose dans ta com' demain, ce serait quoi ?
-        </h1>
-        <p className="text-sm text-muted-foreground italic">pas de mauvaise réponse, dis ce qui te vient</p>
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold text-foreground">C'est quoi LE truc qui te rend différente des autres dans ton domaine ?</h2>
+        <VoiceInput value={uniqueness} onChange={onUniquenessChange} label="Ce qui te rend différente" placeholder="Ex : mon approche est très humaine, je mets les gens à l'aise..." multiline rows={2} autoFocus={false} />
       </div>
-      <VoiceInput value={value} onChange={onChange} placeholder="Ex : avoir un feed Instagram cohérent, trouver ma ligne éditoriale..." multiline />
       <div className="text-center space-y-2">
-        <Button onClick={onNext} className="rounded-full px-8">{value.trim() ? "Suivant →" : "Passer →"}</Button>
-        <p className="text-xs text-muted-foreground">Tu pourras compléter ça plus tard dans ton branding.</p>
-      </div>
-    </div>
-  );
-}
-
-/* ── Uniqueness (Step 10) ── */
-export function UniquenessScreen({ value, onChange, onNext }: { value: string; onChange: (v: string) => void; onNext: () => void }) {
-  return (
-    <div className="space-y-8">
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-          C'est quoi LE truc qui te rend différente des autres dans ton domaine ?
-        </h1>
-        <p className="text-sm text-muted-foreground italic">même si tu penses que c'est pas grand-chose</p>
-      </div>
-      <VoiceInput value={value} onChange={onChange} placeholder="Ex : mon approche est très humaine, je mets les gens à l'aise..." multiline />
-      <div className="text-center space-y-2">
-        <Button onClick={onNext} className="rounded-full px-8">{value.trim() ? "Voir mon diagnostic →" : "Passer et voir mon diagnostic →"}</Button>
-        <p className="text-xs text-muted-foreground">Tu pourras compléter ça plus tard dans ton branding.</p>
+        <Button onClick={onNext} className="rounded-full px-8">{filled ? "Voir mon diagnostic →" : "Passer et voir mon diagnostic →"}</Button>
+        <p className="text-xs text-muted-foreground">Tu pourras compléter ça plus tard dans ta fiche de marque.</p>
       </div>
     </div>
   );

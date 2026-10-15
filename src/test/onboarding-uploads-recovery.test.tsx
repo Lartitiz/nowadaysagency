@@ -109,6 +109,18 @@ describe("reprise des captures de l'onboarding", () => {
     expect(result.current.step).toBe(11);
   });
 
+  it("saute les écrans fusionnés le 15/10 (7 = temps, 9 = différence)", async () => {
+    localStorage.setItem("lac_onboarding_step", "6");
+    localStorage.setItem("lac_onboarding_ts", new Date().toISOString());
+    const { result } = renderHook(() => useOnboarding());
+    await waitFor(() => expect(result.current.draftRestored).toBe(true));
+    expect(result.current.step).toBe(6);
+    act(() => result.current.next());
+    expect(result.current.step).toBe(8);
+    act(() => result.current.prev());
+    expect(result.current.step).toBe(6);
+  });
+
   it("retrouve les documents du compte avant de lancer le diagnostic", async () => {
     localStorage.setItem("lac_onboarding_upload_ids:qa-a", JSON.stringify(["file-a"]));
     const { result } = renderHook(() => useOnboarding());
@@ -158,7 +170,7 @@ describe("reprise des captures de l'onboarding", () => {
     expect(m.writes.find(w => w.table === "profiles" && w.operation === "update")?.data.onboarding_completed).toBe(true);
     expect(m.writes.find(w => w.table === "user_plan_config" && w.operation === "update")?.data.onboarding_completed).toBe(true);
     expect(localStorage.getItem("lac_onboarding_answers")).toBeNull();
-    expect(m.navigate).toHaveBeenCalledWith("/welcome", { replace: true });
+    expect(m.navigate).toHaveBeenCalledWith("/dashboard", { replace: true });
   });
 
   it("ne révoque pas un onboarding déjà terminé pendant une relance volontaire", async () => {
@@ -184,7 +196,7 @@ describe("reprise des captures de l'onboarding", () => {
 
     m.failCompletion = false;
     await act(async () => { await result.current.handleDiagnosticComplete(); });
-    expect(m.navigate).toHaveBeenCalledWith("/welcome", { replace: true });
+    expect(m.navigate).toHaveBeenCalledWith("/dashboard", { replace: true });
     log.mockRestore();
   });
 
@@ -200,7 +212,7 @@ describe("reprise des captures de l'onboarding", () => {
 
     m.failSave = false;
     await act(async () => { await result.current.handleDiagnosticComplete(); });
-    expect(m.navigate).toHaveBeenCalledWith("/welcome", { replace: true });
+    expect(m.navigate).toHaveBeenCalledWith("/dashboard", { replace: true });
     log.mockRestore();
   });
 });

@@ -11,6 +11,7 @@ import { BrandLogoSuggestion } from "@/components/branding/BrandLogoSuggestion";
 
 import EditableText from "@/components/EditableText";
 import { buildFirstContentUrl } from "@/lib/first-content-url";
+import { markWelcomeSeen } from "@/lib/mark-welcome-seen";
 import { sellsProducts as profileSellsProducts } from "@/lib/product-or-service";
 import { toast as sonnerToast } from "sonner";
 import {
@@ -31,7 +32,6 @@ import {
   BookOpen,
   Compass,
   ShoppingBag,
-  ClipboardList,
   Image as ImageIcon,
   type LucideIcon,
 } from "lucide-react";
@@ -72,7 +72,7 @@ const STEPS = [
     num: "1.",
     title: "Pose tes fondations",
     icon: Palette,
-    module: "Identité de marque",
+    module: "Mon espace › Mon identité",
     time: "30 min",
     desc: "Définis ton positionnement, ta cible, ton ton de communication. C'est la base de tout.",
     cta: "C'est ta première étape.",
@@ -81,7 +81,7 @@ const STEPS = [
     num: "2.",
     title: "Audite et optimise tes canaux",
     icon: Smartphone,
-    module: "Audit Instagram",
+    module: "Mon espace › Instagram",
     time: "15 min",
     desc: "Analyse ton profil et ta bio. L'outil te dit exactement quoi améliorer.",
   },
@@ -89,7 +89,7 @@ const STEPS = [
     num: "3.",
     title: "Crée tes premiers contenus",
     icon: Sparkles,
-    module: "Atelier créatif",
+    module: "Créer",
     time: "20 min",
     desc: "Posts, Reels, Stories, Carrousels. L'outil t'accompagne de l'idée au texte final.",
   },
@@ -97,7 +97,7 @@ const STEPS = [
     num: "4.",
     title: "Planifie et engage",
     icon: Calendar,
-    module: "Calendrier + Contacts",
+    module: "Calendrier",
     time: "15 min",
     desc: "Planifie tes publications et mets en place ta routine d'engagement.",
   },
@@ -562,22 +562,8 @@ export default function WelcomePage() {
     const pendingPremium = new URLSearchParams(window.location.search).get("offer") === "outil" || sessionStorage.getItem("lac_pending_offer") === "outil" || user.user_metadata?.pending_offer === "outil";
     if (pendingPremium) sessionStorage.removeItem("lac_pending_offer");
     navigate(pendingPremium ? "/pricing?selected=premium" : destination);
-    // Fire-and-forget en arrière-plan ; si la ligne n'existe pas encore
-    // (update 0 ligne silencieux), on la crée.
-    (supabase.from("user_plan_config") as any)
-      .update({ welcome_seen: true })
-      .eq("user_id", user.id)
-      .select("user_id")
-      .then(({ data, error }: any) => {
-        if (error) { console.error("markSeen error:", error); return; }
-        if (!data?.length) {
-          (supabase.from("user_plan_config") as any)
-            .insert({ user_id: user.id, welcome_seen: true })
-            .then(({ error: insError }: any) => {
-              if (insError) console.error("markSeen insert error:", insError);
-            });
-        }
-      });
+    // En arrière-plan ; crée la ligne si elle manque.
+    void markWelcomeSeen(user.id);
   };
 
   // CTA « Générer mon premier contenu » : si la marque captée à l'inscription
@@ -678,7 +664,15 @@ export default function WelcomePage() {
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Ton branding pré-rempli
             </h2>
-            {brandingStillLoading ? (
+            {brandReviewPending ? (
+              // La fiche attend sa relecture : elle ne s'affichera pas ici
+              // avant d'être validée — inutile de faire tourner une attente.
+              <div className="rounded-xl bg-card border border-border p-5">
+                <p className="text-sm text-muted-foreground">
+                  Ta fiche de marque est prête. Tu la relis en une minute juste avant ton premier contenu.
+                </p>
+              </div>
+            ) : brandingStillLoading ? (
               <div className="rounded-2xl bg-[hsl(var(--rose-pale))]/50 border border-border p-8 flex flex-col items-center justify-center gap-3">
                 <div className="flex gap-1.5">
                   {[0, 1, 2].map(i => (
@@ -923,14 +917,14 @@ export default function WelcomePage() {
             {sellsProducts && !productPhotosReady && !brandReviewPending ? (
               <><Sparkles className="h-4 w-4" strokeWidth={1.75} /> Préparation de tes photos…</>
             ) : brandReviewPending ? (
-              <><ClipboardList className="h-4 w-4" strokeWidth={1.75} /> Valider ma fiche de marque</>
+              <><Sparkles className="h-4 w-4" strokeWidth={1.75} /> Créer mon premier contenu</>
             ) : (
-              <><Sparkles className="h-4 w-4" strokeWidth={1.75} /> Créer mon premier carrousel</>
+              <><Sparkles className="h-4 w-4" strokeWidth={1.75} /> Créer mon premier contenu</>
             )}
           </Button>
           {brandReviewPending && (
             <p className="text-xs text-muted-foreground text-center -mt-1">
-              Une minute de relecture, et tes contenus parleront vraiment de toi.
+              Avant, je te montre ta fiche de marque à relire : une minute, et tes contenus parleront vraiment de toi.
             </p>
           )}
           {/* En mode produits on ne démarre PAS sur ce sujet (on part des

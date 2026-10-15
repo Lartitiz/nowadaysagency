@@ -21,8 +21,7 @@ import ProductServiceScreen from "@/components/onboarding/steps/ProductServiceSc
 import OnboardingPhase1Profile from "@/components/onboarding/OnboardingPhase1Profile";
 import OnboardingPhase2Import from "@/components/onboarding/OnboardingPhase2Import";
 import {
-  CanauxCombinedScreen, ObjectifScreen, BlocageScreen, TempsScreen,
-  ChangeScreen, UniquenessScreen,
+  CanauxCombinedScreen, ObjectifScreen, BlocageScreen, OpenQuestionsScreen,
 } from "@/components/onboarding/OnboardingPhase3Branding";
 
 /* ─── Step validation schemas ─── */
@@ -43,24 +42,26 @@ const stepValidators: Record<number, { schema: z.ZodType<any>; getData: (a: Answ
     message: "Sélectionne au moins un canal (ou 'Rien pour l'instant')",
   },
   5: {
-    schema: z.object({ objectif: z.string().min(1) }),
-    getData: (a) => ({ objectif: a.objectif }),
-    message: "Choisis un objectif pour continuer",
+    schema: z.object({ objectif: z.string().min(1), temps: z.string().min(1) }),
+    getData: (a) => ({ objectif: a.objectif, temps: a.temps }),
+    message: "Choisis un objectif et ton temps par semaine pour continuer",
   },
   6: {
     schema: z.object({ blocage: z.string().min(1) }),
     getData: (a) => ({ blocage: a.blocage }),
     message: "Choisis ton blocage principal pour continuer",
   },
+  // Le temps est demandé avec l'objectif (étape 5) ; le numéro 7 est sauté
+  // (un brouillon restauré dessus affiche l'écran 5, d'où ce validateur).
   7: {
-    schema: z.object({ temps: z.string().min(1) }),
-    getData: (a) => ({ temps: a.temps }),
-    message: "Indique le temps que tu peux y consacrer",
+    schema: z.object({ objectif: z.string().min(1), temps: z.string().min(1) }),
+    getData: (a) => ({ objectif: a.objectif, temps: a.temps }),
+    message: "Choisis un objectif et ton temps par semaine pour continuer",
   },
 
-  // Steps 8 & 9 (rédactions libres) sont FACULTATIFS — on ne bloque pas une
-  // inscription pressée sur « ce que tu changerais » / « ce qui te rend
-  // différente ». Les valeurs vides sont gérées en aval (diagnostic + branding).
+  // Étape 8 (deux questions libres, l'ancien 9 inclus) est FACULTATIVE — on ne
+  // bloque pas une inscription pressée sur « ce que tu changerais » / « ce qui
+  // te rend différente ». Les valeurs vides sont gérées en aval.
 };
 
 const variants = {
@@ -137,11 +138,9 @@ export default function Onboarding() {
   useEffect(() => {
     if (!pendingAutoNext) return;
     if (step !== 5 && step !== 6 && step !== 7) return;
-    const field = step === 5 ? answers.objectif
-      : step === 6 ? answers.blocage
-      : step === 7 ? answers.temps
-      : null;
-    if (field) {
+    // Écran 5 (objectif + temps) : on avance quand les DEUX sont choisis.
+    const ready = step === 6 ? !!answers.blocage : !!(answers.objectif && answers.temps);
+    if (ready) {
       const timer = setTimeout(() => { validatedNext(); setPendingAutoNext(false); }, 400);
       return () => clearTimeout(timer);
     }
@@ -189,16 +188,16 @@ export default function Onboarding() {
                     ? <OnboardingPhase2Import answers={answers} set={set} files={isDemoMode ? [{ id: "demo-file", name: "profil_instagram_lea.png", url: "" }] : uploadedFiles} uploading={uploading} onUpload={isDemoMode ? () => {} : handleFileUpload} onRemove={isDemoMode ? () => {} : removeFile} onNext={next} onLeave={triggerPreScrape} isDemoMode={isDemoMode} />
                     : <p className="text-center text-sm text-muted-foreground" role="status">Je retrouve tes captures…</p>)}
                   {step === 4 && <CanauxCombinedScreen answers={answers} set={set} onNext={validatedNext} />}
-                  {step === 5 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
+                  {/* 7 = ancien écran « temps », absorbé par le 5 (brouillons restaurés). */}
+                  {(step === 5 || step === 7) && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} temps={answers.temps} onTempsChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
                   {step === 6 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
-                  {step === 7 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
-                  {step === 8 && <ChangeScreen value={answers.change_priority} onChange={v => set("change_priority", v)} onNext={validatedNext} />}
-                  {/* Étape 9 : on affiche le loader du diagnostic TOUT DE SUITE (next() d'abord),
+                  {/* Dernière étape de questions : on affiche le loader du diagnostic TOUT DE SUITE (next() d'abord),
                       puis la sauvegarde profil (handleFinish) part en arrière-plan. Le loader
                       lui-même (DiagnosticLoading, step 10) est rendu HORS de l'AnimatePresence
                       ci-dessous : sinon l'animation de sortie de l'étape 9 suspendait son
                       montage → écran « blanc » pendant le calcul deep-diagnostic (run QA T5). */}
-                  {step === 9 && <UniquenessScreen value={answers.uniqueness} onChange={v => set("uniqueness", v)} onNext={handleUniquenessNext} />}
+                  {/* 8 = les deux questions libres (l'ancien 9 compris) : son bouton lance le diagnostic. */}
+                  {(step === 8 || step === 9) && <OpenQuestionsScreen change={answers.change_priority} onChangeChange={v => set("change_priority", v)} uniqueness={answers.uniqueness} onUniquenessChange={v => set("uniqueness", v)} onNext={handleUniquenessNext} />}
 
                 </motion.div>
               </AnimatePresence>

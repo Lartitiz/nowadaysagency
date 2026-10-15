@@ -22,8 +22,27 @@ export function ChoiceCard({ emoji, label, selected, onClick }: {
   );
 }
 
+/* ── ChoiceChip : version compacte de ChoiceCard, pour tenir sans défiler ── */
+export function ChoiceChip({ emoji, label, selected, onClick }: {
+  emoji: string;
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={selected}
+      className={`inline-flex items-center gap-1.5 rounded-full border-2 px-3.5 py-2 text-sm font-medium transition-colors ${
+        selected ? "border-primary bg-secondary text-foreground" : "border-border bg-card text-foreground hover:border-primary/40"
+      }`}>
+      <span aria-hidden>{emoji}</span>
+      <span>{label}</span>
+      {selected && <span className="text-primary font-bold" aria-hidden>✓</span>}
+    </button>
+  );
+}
+
 /* ── VoiceInput ── */
-export function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = true, multiline = false, showVoiceTip = false }: {
+export function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = true, multiline = false, showVoiceTip = false, rows = 4, label }: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
@@ -31,6 +50,10 @@ export function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = 
   autoFocus?: boolean;
   multiline?: boolean;
   showVoiceTip?: boolean;
+  /** Hauteur du champ multiligne (en lignes). */
+  rows?: number;
+  /** Nom lu par les lecteurs d'écran (sinon : le texte d'exemple). */
+  label?: string;
 }) {
   const { isListening, isSupported, toggle, error } = useSpeechRecognition(
     (transcript) => onChange(value ? value + " " + transcript : transcript),
@@ -52,10 +75,10 @@ export function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = 
             value={value}
             onChange={e => onChange(e.target.value)}
             placeholder={placeholder}
-            aria-label={placeholder}
+            aria-label={label || placeholder}
             autoFocus={autoFocus}
             autoComplete="off"
-            rows={4}
+            rows={rows}
             className="w-full text-base p-4 pr-12 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50 resize-none"
           />
           <div className="absolute right-3 bottom-3">

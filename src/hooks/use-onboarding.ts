@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { getActivityExamples } from "@/lib/activity-examples";
 import { TOTAL_STEPS } from "@/lib/onboarding-constants";
+import { nextOnboardingStep, prevOnboardingStep, onboardingProgress, onboardingTimeRemaining } from "@/lib/onboarding-steps";
+import { markWelcomeSeen } from "@/lib/mark-welcome-seen";
 import { type DiagnosticData } from "@/lib/diagnostic-data";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -48,11 +50,9 @@ function getStepName(step: number): string {
     2: "product_or_service",
     3: "links_docs",
     4: "canaux_combined",
-    5: "objectif",
+    5: "objectif_temps",
     6: "blocage",
-    7: "temps",
-    8: "affinage_1",
-    9: "affinage_2",
+    8: "questions_libres",
     10: "building_diagnostic",
   };
 
@@ -399,7 +399,7 @@ export function useOnboarding() {
   }, []);
 
   const next = useCallback(() => setStep(s => {
-    const newStep = s + 1;
+    const newStep = nextOnboardingStep(s);
     posthog.capture("onboarding_step_completed", {
       step: s,
       next_step: newStep,
@@ -407,19 +407,11 @@ export function useOnboarding() {
     });
     return newStep;
   }), []);
-  const prev = useCallback(() => setStep(s => Math.max(0, s - 1)), []);
+  const prev = useCallback(() => setStep(prevOnboardingStep), []);
 
-  // Endowed progress
-  const progress = step === 0 ? 15 : step >= TOTAL_STEPS ? 100 : Math.max(15, ((step + 1) / TOTAL_STEPS) * 100);
-
-  // Time remaining estimate
-  const getTimeRemaining = (currentStep: number): string => {
-    const stepsLeft = TOTAL_STEPS - currentStep;
-    if (stepsLeft <= 1) return "Presque fini !";
-    if (stepsLeft <= 3) return "Dernière ligne droite · ~1 min";
-    if (stepsLeft <= 5) return "Plus que ~2 min";
-    return "~3 min";
-  };
+  // Progression et temps restant : écrans fusionnés pris en compte.
+  const progress = onboardingProgress(step, TOTAL_STEPS);
+  const getTimeRemaining = onboardingTimeRemaining;
 
   // Keyboard shortcut
   useEffect(() => {
@@ -873,7 +865,10 @@ export function useOnboarding() {
       navigate("/branding?from=onboarding&next=creer", { replace: true });
       return;
     }
-    navigate("/welcome", { replace: true });
+    // « Aller à mon espace » : le récapitulatif de fin d'onboarding remplace
+    // la page de bienvenue (15/10/2026) — on la marque vue.
+    await markWelcomeSeen(user.id);
+    navigate("/dashboard", { replace: true });
   };
 
   const getPlaceholder = (field: string) => {
