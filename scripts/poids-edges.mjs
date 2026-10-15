@@ -47,6 +47,20 @@ const functions = fs
 console.log(`Poids envoyé à Lovable par edge function (dossier + _shared ${mb(sharedSize)}) ; plafond garde ${mb(LIMIT)}`);
 for (const f of functions.slice(0, 5)) console.log(`  ${mb(f.size).padStart(9)}  ${f.name}`);
 
+// Un .snap rangé dans supabase/functions/ part au déploiement : interdit, même
+// petit (c'est par accumulation de .snap que le plafond a été dépassé le 15/10).
+const allFiles = listFiles(FUNCTIONS);
+const misplacedSnaps = allFiles.filter((f) => f.file.endsWith(".snap"));
+const stdSnapshotImports = allFiles
+  .filter((f) => f.file.endsWith(".ts"))
+  .filter((f) => /from\s+["']https:\/\/deno\.land\/std@[^"']*\/testing\/snapshot\.ts["']/.test(fs.readFileSync(path.join(FUNCTIONS, f.file), "utf8")));
+if (misplacedSnaps.length || stdSnapshotImports.length) {
+  for (const f of misplacedSnaps) console.log(`::error::supabase/functions/${f.file} : snapshot rangé dans un dossier déployé.`);
+  for (const f of stdSnapshotImports) console.log(`::error::supabase/functions/${f.file} : importer assertSnapshot depuis supabase/edge-tests/snapshot.ts, pas depuis std.`);
+  console.log("\nLes .snap vivent dans supabase/edge-tests/snapshots/ (même arborescence que supabase/functions/).");
+  process.exitCode = 1;
+}
+
 const tooBig = functions.filter((f) => f.size > LIMIT);
 for (const f of functions.filter((f) => f.size > WARN && f.size <= LIMIT)) {
   console.log(`::warning::${f.name} pèse ${mb(f.size)} (plus de ${mb(WARN)}) : proche du refus Lovable.`);
@@ -65,4 +79,4 @@ if (tooBig.length) {
   );
   process.exit(1);
 }
-console.log("✓ toutes les edge functions sont sous le plafond.");
+if (!process.exitCode) console.log("✓ toutes les edge functions sont sous le plafond.");

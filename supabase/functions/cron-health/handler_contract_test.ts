@@ -7,7 +7,7 @@
 // Lancer : deno test --no-check --no-lock --allow-env --allow-read --node-modules-dir=none supabase/functions/cron-health/handler_contract_test.ts
 // Régénérer (seulement si le changement de sortie est voulu) : ajouter `-- --update`.
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { assertSnapshot } from "https://deno.land/std@0.224.0/testing/snapshot.ts";
+import { assertSnapshot } from "../../edge-tests/snapshot.ts";
 import { captureServeHandler } from "../_shared/test-edge-harness.ts";
 import { figerHeure, installerFauxFetch, poserEnv, requeteCron, type FauxMonde } from "./contract_harness.ts";
 import { ilYa, MAINTENANT, mondeComplet } from "./contract_donnees.ts";
