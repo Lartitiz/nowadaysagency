@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from "react";
+import { readableError } from "@/lib/error-messages";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PhotoEditDialog } from "./PhotoEditDialog";
@@ -29,7 +30,7 @@ export default function PostPhotoEditor({ photo, onChange }: {
   const beginEdit = async () => {
     setBusy(true);
     try { setSource(await currentData()); setEditing(true); }
-    catch (error) { toast.error(error instanceof Error ? error.message : "Photo indisponible."); }
+    catch (error) { toast.error(readableError(error, "La photo ne s’ouvre pas. Réessaie ou choisis-en une autre.")); }
     finally { setBusy(false); }
   };
   const apply = async (next: PhotoItem) => {
@@ -43,7 +44,7 @@ export default function PostPhotoEditor({ photo, onChange }: {
       setEditing(false); setReplacing(false);
       toast.success("Photo mise à jour, ta légende est conservée.");
       return true;
-    } catch (error) { toast.error(error instanceof Error ? error.message : "La photo n'a pas pu être enregistrée. Réessaie."); return false; }
+    } catch (error) { toast.error(readableError(error, "La photo n'a pas pu être enregistrée. Réessaie.")); return false; }
     finally { setBusy(false); }
   };
   const applyEdit = (data: string) => apply({
@@ -58,7 +59,7 @@ export default function PostPhotoEditor({ photo, onChange }: {
       <Button variant="outline" disabled={busy} onClick={async () => {
         setBusy(true);
         try { setSource(await currentData()); setPreparing(true); }
-        catch (error) { toast.error(error instanceof Error ? error.message : "Photo indisponible."); }
+        catch (error) { toast.error(readableError(error, "La photo ne s’ouvre pas. Réessaie ou choisis-en une autre.")); }
         finally { setBusy(false); }
       }}>Adapter le format et la lumière</Button>
       <Button variant="outline" disabled={busy} onClick={beginEdit}>Retoucher la photo</Button>

@@ -1,4 +1,5 @@
 import { versTarifs } from "@/lib/retour-apres-detour";
+import { readableError } from "@/lib/error-messages";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -549,7 +550,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
       setLibraryPickSlideIdx(null);
     } catch (e) {
       toast.error("Cette photo n'a pas pu être chargée", {
-        description: e instanceof Error ? e.message : "Réessaie dans un instant.",
+        description: readableError(e, "Réessaie dans un instant."),
       });
     } finally {
       setLibraryImporting(false);

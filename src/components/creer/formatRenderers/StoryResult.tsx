@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { readableError } from "@/lib/error-messages";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -274,7 +275,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     try {
       await exportStoryPng(await buildExportFrames(), result?.structure_type || "sequence");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Export impossible. Réessaie.");
+      toast.error(readableError(error, "Export impossible. Réessaie."));
     } finally {
       setExporting(false);
     }
@@ -287,7 +288,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
         fileName: result?.structure_type || "sequence",
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Export impossible. Réessaie.");
+      toast.error(readableError(error, "Export impossible. Réessaie."));
     } finally {
       setExportingPptx(false);
     }

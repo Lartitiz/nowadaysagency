@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { posthog } from "@/lib/posthog-lazy";
 import type { CategoryUsage } from "@/hooks/use-user-plan";
 import { isFairUsePlan } from "@/lib/plan-limits";
+import { QUOTA_TYPES } from "@/lib/quota-message";
 
 interface AiCreditsCounterProps {
   plan: string;
@@ -15,6 +16,33 @@ interface AiCreditsCounterProps {
   bonusCredits?: number;
 }
 
+/**
+ * Ce qui reste par type (carrousels, images, vidéos, audits) : les plafonds
+ * du mois que les crédits bonus ne lèvent pas. Un type aligné sur le compteur
+ * global (ex. audits en Premium) n'est pas un plafond : on ne l'affiche pas.
+ */
+function RemainingByType({ usage }: { usage: Record<string, CategoryUsage> }) {
+  const totalLimit = usage.total?.limit ?? 0;
+  const rows = QUOTA_TYPES.flatMap((t) => {
+    const u = usage[t.key];
+    if (!u || u.limit >= 9999 || (u.limit > 0 && u.limit >= totalLimit)) return [];
+    const left = Math.max(0, u.limit - u.used);
+    const name = t.label.charAt(0).toUpperCase() + t.label.slice(1);
+    return [{ key: t.key, name, value: u.limit === 0 ? "avec Premium" : `${left} sur ${u.limit}`, out: u.limit > 0 && left === 0 }];
+  });
+  if (rows.length === 0) return null;
+  return (
+    <div className="mt-3 space-y-1 border-t border-border pt-3" data-testid="credits-par-type">
+      <p className="text-xs font-semibold text-foreground">Il te reste ce mois-ci</p>
+      {rows.map((r) => (
+        <div key={r.key} className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">{r.name}</span>
+          <span className={`font-mono-ui font-semibold ${r.out ? "text-error" : "text-foreground"}`}>{r.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function AiCreditsCounter({ plan, usage, bonusCredits = 0 }: AiCreditsCounterProps) {
   const total = usage.total;
@@ -40,16 +68,30 @@ export default function AiCreditsCounter({ plan, usage, bonusCredits = 0 }: AiCr
   }, [isUnlimited, pctVal, plan, remaining, total?.limit]);
 
   if (isUnlimited) {
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-success-bg text-success"
-        title="Crédits illimités"
-      >
+    const badge = (
+      <span className="inline-flex items-center gap-1">
         <Sparkles className="h-3 w-3" />
         {/* icône seule sur mobile : le mot « Illimité » mangeait la place du
             sélecteur d'espace dans la barre du haut (comptes multi-espaces) */}
         <span className="hidden sm:inline">Illimité</span>
       </span>
+    );
+    const unlimitedClass = "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-success-bg text-success";
+    // Admin / démo à 9999 : rien à détailler.
+    if (!total || total.limit >= 9999) return <span className={unlimitedClass} title="Crédits illimités">{badge}</span>;
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button className={`${unlimitedClass} transition-colors hover:opacity-80`} aria-label="Textes sans compter, voir ce qui reste">
+            {badge}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-64 p-4">
+          <p className="text-sm font-semibold text-foreground">Tes textes : sans compter</p>
+          <RemainingByType usage={usage} />
+          <Link to="/abonnement" className="block mt-3 text-xs font-semibold text-primary hover:underline">Voir mon abonnement →</Link>
+        </PopoverContent>
+      </Popover>
     );
   }
 
@@ -169,9 +211,10 @@ export default function AiCreditsCounter({ plan, usage, bonusCredits = 0 }: AiCr
               </p>
             ) : (
               <p className="text-xs text-muted-foreground mt-1">
-                Tu as utilisé tes crédits pour : {total.used > 0 ? "contenus, audits, coaching…" : "rien encore ce mois-ci."}
+                1 crédit = 1 création par l'IA (un texte, un carrousel, une image…). Ils reviennent le {nextMonthLabel}.
               </p>
             )}
+            <RemainingByType usage={usage} />
 
             {/* Palier messages */}
             {isWarning && (

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { readableError } from "@/lib/error-messages";
 import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { useTextEditHistory } from "@/hooks/use-text-edit-history";
 import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
@@ -116,7 +117,7 @@ export default function CreerStepEdit({ content, savedContent, onDraftChange, fo
       toast.success("Contenu ajusté !");
     } catch (e: any) {
       if (!active.current) return;
-      toast.error(e?.message || "Erreur lors de l'ajustement");
+      toast.error(readableError(e, "L'ajustement n'a pas abouti. Réessaie dans un instant."));
     } finally {
       if (active.current) setAdjusting(null);
     }

@@ -1,5 +1,6 @@
 
 import { useCallback, useRef } from "react";
+import { readableError } from "@/lib/error-messages";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -205,7 +206,7 @@ function Studio({
         role: targetReference?.role || "subject",
       });
     } catch (cause) {
-      if (alive.current) setError(cause instanceof Error ? cause.message : "Préparation impossible.");
+      if (alive.current) setError(readableError(cause, "La préparation n’a pas abouti. Réessaie dans un instant."));
     } finally {
       if (alive.current) setBusy("");
     }
@@ -264,7 +265,7 @@ function Studio({
         setCompositionOpen(true);
       }
     } catch (e) {
-      if (alive.current) setError(e instanceof Error ? e.message : "Composition indisponible.");
+      if (alive.current) setError(readableError(e, "La composition ne s’ouvre pas. Réessaie dans un instant."));
     } finally {
       if (alive.current) setBusy("");
     }
@@ -282,7 +283,7 @@ function Studio({
         setMoreCompositions(page.hasMore);
       }
     } catch (e) {
-      if (alive.current) setError(e instanceof Error ? e.message : "Historique indisponible.");
+      if (alive.current) setError(readableError(e, "L’historique ne se charge pas. Réessaie dans un instant."));
     } finally {
       if (alive.current) setOlderCompositionsBusy(false);
     }

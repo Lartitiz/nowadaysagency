@@ -965,10 +965,10 @@ export default function CreerStepResult({
           {isCarousel && result && (
             <DropdownMenuItem
               onClick={onRegenerate}
-              title="Régénère le carrousel sur le même sujet (consomme 1 crédit)."
+              title="Régénère le carrousel sur le même sujet (compte pour 1 carrousel du mois)."
               className="gap-2"
             >
-              <RefreshCw className="h-4 w-4" /> Nouvelle proposition
+              <RefreshCw className="h-4 w-4" /> Nouvelle proposition <span className="ml-auto text-2xs text-muted-foreground">1 carrousel</span>
             </DropdownMenuItem>
           )}
           {onChangeAngle && result && (() => {

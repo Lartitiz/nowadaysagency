@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { readableError } from "@/lib/error-messages";
 import { Camera, Check, Images, Loader2, Plus, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -207,9 +208,7 @@ export default function StoryPhotoSuggestions({
       if (requestId !== searchRequestId.current) return;
       setFailed(true);
       toast.error(
-        e instanceof Error
-          ? e.message
-          : "La recherche de photos est momentanément indisponible.",
+        readableError(e, "La recherche de photos est momentanément indisponible."),
       );
     } finally {
       if (requestId === searchRequestId.current) setSearching(false);
@@ -244,7 +243,7 @@ export default function StoryPhotoSuggestions({
           .catch((e) => console.warn("[bibliothèque]", e));
       }
     } catch (e: any) {
-      toast.error(e?.message || "Impossible de lire cette image");
+      toast.error(readableError(e, "Cette image ne s'ouvre pas. Essaie une autre photo (JPG ou PNG)."));
     }
   }
 
@@ -256,7 +255,7 @@ export default function StoryPhotoSuggestions({
       setWishlisted(true);
       toast.success("Ajouté à « Photos à prendre »");
     } catch (e: any) {
-      toast.error(e?.message || "Ajout impossible");
+      toast.error(readableError(e, "La photo n'a pas pu être ajoutée. Réessaie."));
     } finally {
       setWishlistBusy(false);
     }

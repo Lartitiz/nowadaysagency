@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
+import { readableError } from "@/lib/error-messages";
 import { Upload, X, GripVertical, Wand2, Undo2, Globe, Library, Loader2, Images, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
@@ -287,7 +288,7 @@ export function PhotoUploadZone({
           : "1 photo choisie par l'IA. Tu peux en changer.",
       );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "L'IA n'a pas pu choisir de photos.");
+      toast.error(readableError(e, "L'IA n'a pas pu choisir de photos."));
     } finally {
       setAutoPicking(false);
     }

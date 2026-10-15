@@ -38,23 +38,23 @@
       "any": 10
     },
     "src/components/creer/NewsjackingPanel.tsx": {
-      "lignes": 1165,
+      "lignes": 1166,
       "any": 3
     },
     "src/components/creer/ReelMontage.tsx": {
-      "lignes": 917,
+      "lignes": 918,
       "any": 0
     },
     "src/components/creer/formatRenderers/CarouselPhotoResult.tsx": {
-      "lignes": 1517,
+      "lignes": 1518,
       "any": 26
     },
     "src/components/creer/formatRenderers/StoryResult.tsx": {
-      "lignes": 1089,
+      "lignes": 1090,
       "any": 18
     },
     "src/hooks/use-content-generator.ts": {
-      "lignes": 1185,
+      "lignes": 1181,
       "any": 26
     },
     "src/hooks/use-onboarding.ts": {

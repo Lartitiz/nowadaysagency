@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { readableError } from "@/lib/error-messages";
 import { useOpenInCanva } from "@/hooks/use-open-in-canva";
 import { pickNonEmpty } from "@/features/creer/photo-source";
 import { pinterestCurrentText } from "@/lib/pinterest-current-text";
@@ -59,7 +60,7 @@ export function useCreerExports({
       );
       toast.success("PPTX éditable téléchargé !");
     } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de l'export");
+      toast.error(readableError(e, "L'export n'a pas abouti. Réessaie dans un instant."));
     }
   };
 
@@ -84,7 +85,7 @@ export function useCreerExports({
         toast.success(visualSlides.length > 1 ? "ZIP des images téléchargé !" : "PNG téléchargé !");
       }
     } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de l'export");
+      toast.error(readableError(e, "L'export n'a pas abouti. Réessaie dans un instant."));
     }
   };
 
@@ -103,7 +104,7 @@ export function useCreerExports({
       await exportCarouselPdf(visualSlides, ideaText || "carrousel", logoUrl);
       toast.success("PDF téléchargé : publie-le comme document sur LinkedIn.");
     } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de l'export");
+      toast.error(readableError(e, "L'export n'a pas abouti. Réessaie dans un instant."));
     }
   };
 
@@ -128,7 +129,7 @@ export function useCreerExports({
       );
       toast.success("PowerPoint éditable téléchargé !");
     } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de l'export");
+      toast.error(readableError(e, "L'export n'a pas abouti. Réessaie dans un instant."));
     }
   };
 
@@ -169,7 +170,7 @@ export function useCreerExports({
       await exportPinterestVisualPng(pinterestPinHtml, ideaText || "epingle-pinterest", logoUrl);
       toast.success("PNG téléchargé !");
     } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de l'export");
+      toast.error(readableError(e, "L'export n'a pas abouti. Réessaie dans un instant."));
     }
   };
 
@@ -183,7 +184,7 @@ export function useCreerExports({
       await exportPinterestVisualPng(photoBriefOverlayHtml, ideaText || "overlay-pinterest", logoUrl);
       toast.success("PNG téléchargé !");
     } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de l'export");
+      toast.error(readableError(e, "L'export n'a pas abouti. Réessaie dans un instant."));
     }
   };
 
@@ -206,7 +207,7 @@ export function useCreerExports({
       );
       toast.success("PPTX éditable téléchargé !");
     } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de l'export");
+      toast.error(readableError(e, "L'export n'a pas abouti. Réessaie dans un instant."));
     }
   };
 

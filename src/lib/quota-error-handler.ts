@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import { partirVersTarifs } from "@/lib/retour-apres-detour";
+import { quotaLimitMessage } from "@/lib/quota-message";
 
 // Callback global pour ouvrir le modal quand quota total épuisé
 let _quotaWallCallback: ((data: {
@@ -38,7 +39,9 @@ export function handleQuotaError(error: any): boolean {
 
   if (!isQuota) return false;
 
-  const serverMessage = error?.data?.message || error?.message || msg;
+  // Phrase qui nomme la limite atteinte (carrousels, images, vidéos ou
+  // crédits) ; le texte du serveur ne sert plus que de secours.
+  const serverMessage = quotaLimitMessage(quota) || error?.data?.message || error?.message || msg;
   const reason = quota?.reason || error?.data?.category;
 
   // Plans payants (grille 01/10/2026) : plafond du mois atteint (carrousels,
@@ -46,7 +49,7 @@ export function handleQuotaError(error: any): boolean {
   // Premium » ni de lien vers les tarifs pour quelqu'un qui paie déjà : on dit
   // clairement ce qui est atteint et quand ça se renouvelle.
   const paidPlan = quota?.plan === "outil" || quota?.plan === "binome";
-  if (paidPlan && !serverMessage.includes("disponible à partir")) {
+  if (paidPlan && quota?.reason !== "not_available") {
     toast("Plafond du mois atteint 🌸", {
       description: serverMessage || "Tes plafonds se renouvellent le 1er du mois prochain.",
       action: reason === "total" && quota?.eligible_solutions?.includes("credits") ? { label: "Ajouter des crédits", onClick: () => { partirVersTarifs(); } } : undefined,
@@ -68,11 +71,9 @@ export function handleQuotaError(error: any): boolean {
   // Sinon → toast classique (catégorie spécifique ou fonctionnalité premium)
   const friendlyTitle = reason === "not_available"
     ? "Fonctionnalité premium ✨"
-    : reason === "category" ? "Plafond du mois atteint" : "Crédits utilisés";
+    : reason === "category" ? "Plafond du mois atteint" : "Crédits du mois utilisés";
 
-  const friendlyDescription = serverMessage.includes("disponible à partir")
-    ? serverMessage
-    : serverMessage || "Tes crédits se renouvellent le 1er du mois prochain.";
+  const friendlyDescription = serverMessage || "Tes crédits se renouvellent le 1er du mois prochain.";
 
   toast(friendlyTitle, {
     description: friendlyDescription,

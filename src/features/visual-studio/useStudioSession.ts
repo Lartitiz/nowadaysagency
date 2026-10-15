@@ -1,4 +1,5 @@
 import { useCarouselStudioReturn } from "@/features/carousel-studio/useCarouselStudioReturn";
+import { readableError } from "@/lib/error-messages";
 import { recordCreationResume } from "@/lib/retour-apres-detour";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { NavigateFunction } from "react-router-dom";
@@ -262,7 +263,7 @@ export function useStudioSession({
         }
       } catch (e) {
         if (alive.current) {
-          setError(e instanceof Error ? e.message : "Ouverture impossible.");
+          setError(readableError(e, "La session ne s’ouvre pas. Recharge la page pour réessayer."));
         }
       } finally {
         actionLock.current = false;
@@ -321,7 +322,7 @@ export function useStudioSession({
       }
       if (alive.current) {
         setError(
-          e instanceof Error ? e.message : "La demande n’a pas pu aboutir.",
+          readableError(e, "La demande n’a pas pu aboutir."),
         );
         void state.refetch();
       }
@@ -435,7 +436,7 @@ export function useStudioSession({
         toast.success(`${attachedCount} photo${attachedCount > 1 ? "s" : ""} de référence ajoutée${attachedCount > 1 ? "s" : ""}`);
         return;
       }
-      const message = cause instanceof Error ? cause.message : "Impossible d’ajouter ces photos.";
+      const message = readableError(cause, "Impossible d’ajouter ces photos.");
       if (!sessionId && latest) {
         writeDraft(draftKey(userId, workspaceId, targetId), draftRef.current);
         navigate(studioPath(targetId), { replace: true });
@@ -463,7 +464,7 @@ export function useStudioSession({
         await addReferencePhotos(result.photoIds.map((id) => ({ id, kind: "autre" } as UserPhotoRow)));
       }
     } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : "Import impossible.");
+      toast.error(readableError(cause, "L’import n’a pas abouti. Réessaie avec une photo de moins de 5 Mo."));
     } finally {
       if (fileInput.current) fileInput.current.value = "";
       if (alive.current && !actionLock.current) setBusy("");
@@ -562,7 +563,7 @@ export function useStudioSession({
         navigate(studioPath(id), { replace: true });
       } catch (e) {
         if (alive.current) {
-          setError(e instanceof Error ? e.message : "Réessaie l’envoi.");
+          setError(readableError(e, "Ton message n’est pas parti. Réessaie l’envoi."));
           if (e instanceof StudioRequestError && e.code === "refresh_request") {
             sent.current = null;
           }
@@ -654,9 +655,7 @@ export function useStudioSession({
     } catch (e) {
       if (alive.current) {
         setError(
-          e instanceof Error
-            ? e.message
-            : "L’image reste dans la session. Réessaie l’enregistrement.",
+          readableError(e, "L’image reste dans la session. Réessaie l’enregistrement."),
         );
       }
     } finally {
@@ -685,7 +684,7 @@ export function useStudioSession({
       }
       toast.success(archive ? "Session archivée. Ses images restent disponibles." : "Session restaurée.");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Impossible de modifier cette session.");
+      toast.error(readableError(e, "Impossible de modifier cette session."));
       await sessions.refetch();
     } finally {
       setSessionAction(null);

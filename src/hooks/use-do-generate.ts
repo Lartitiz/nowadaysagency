@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { readableError } from "@/lib/error-messages";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -364,7 +365,7 @@ export function useDoGenerate({
           setStep("format");
           return;
         }
-        toast.error(e?.message || "Erreur lors de la génération");
+        toast.error(readableError(e, "La création n'a pas abouti. Réessaie dans un instant."));
         return;
       }
       return;
