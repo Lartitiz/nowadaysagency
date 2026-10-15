@@ -8,9 +8,8 @@
 //      fichier du dossier (morceaux sans état) ; evidence.ts n'importe que routes.ts ;
 //   3. seuls fast-diagnostic.ts (logUsage) et index.ts (checkQuota) importent
 //      _shared/plan-limiter.ts ;
-//   4. seuls fast-diagnostic.ts et index.ts importent _shared/anthropic.ts
-//      (tool.ts a le droit au type AnthropicTool, en `import type`).
-// Tant que fast-diagnostic.ts n'existe pas (lot 3), index.ts porte les deux.
+//   4. seul fast-diagnostic.ts importe _shared/anthropic.ts (tool.ts a le
+//      droit au type AnthropicTool, en `import type`).
 
 import { assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
@@ -43,7 +42,7 @@ const importsOf = async (file: string) => {
 const nom = (href: string) => href.startsWith(DIR.href) ? href.slice(DIR.href.length) : href;
 
 Deno.test("frontières deep-diagnostic — les fichiers sortis d'index.ts sont bien trouvés", () => {
-  for (const f of ["routes.ts", "tool.ts", "parse.ts", "evidence.ts", "fallback.ts"]) {
+  for (const f of ["routes.ts", "tool.ts", "parse.ts", "evidence.ts", "fallback.ts", "prompts.ts", "fast-diagnostic.ts"]) {
     assert(files.includes(f), `fichiers trouvés : ${files.join(", ")}`);
   }
 });
@@ -76,7 +75,7 @@ for (const file of files) {
         assert(["index.ts", "fast-diagnostic.ts"].includes(file), `${file} importe plan-limiter.ts : quota et crédits restent dans index.ts (checkQuota) et fast-diagnostic.ts (logUsage).`);
       }
       if (href === ANTHROPIC) {
-        assert(["index.ts", "fast-diagnostic.ts"].includes(file) || (file === "tool.ts" && typeOnly),
+        assert(file === "fast-diagnostic.ts" || (file === "tool.ts" && typeOnly),
           `${file} importe anthropic.ts : seul l'appel du diagnostic parle à Claude.`);
       }
     }
