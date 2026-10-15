@@ -1,14 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
-import { supabase } from "@/integrations/supabase/client";
 import { posthog } from "@/lib/posthog-lazy";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { readableError } from "@/lib/error-messages";
 import { downscalePhotosForVision } from "@/lib/image-vision";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
-import { workspaceScopeFilter } from "@/lib/workspace-scope";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   EDITORIAL_ANGLES,
@@ -32,6 +30,7 @@ import { buildStoryGenerateBody, STORY_GENERATE_TIMEOUT_MS } from "@/features/cr
 import { buildPostGenerateBody, POST_GENERATE_TIMEOUT_MS } from "@/features/creer/generator/bodies/post";
 import { buildLinkedinGenerateBody, LINKEDIN_GENERATE_TIMEOUT_MS } from "@/features/creer/generator/bodies/linkedin";
 import { readGenerateResponse } from "@/features/creer/generator/read-generate-response";
+import { fetchRecentBriefsContext, buildCarouselQuestionsRequest, buildQuestionsRequest, parseQuestions } from "@/features/creer/generator/questions-request";
 export type { GenerateParams, GenerateQuestionsParams, Question, ContentResult, GenerateStreamParams } from "@/features/creer/generator/types";
 
 // ── Hook ──
@@ -298,7 +297,7 @@ export function useContentGenerator() {
   const generateQuestions = useCallback(
     async (params: GenerateQuestionsParams) => {
       const epoch = ++questionsEpoch.current;
-      const { format, subject, editorialAngle, objective, workspaceId } = params;
+      const { format, subject, workspaceId } = params;
       const effectiveWorkspaceId = workspaceId || defaultWorkspaceId;
       setQuestionsError(null);
 
@@ -319,156 +318,17 @@ export function useContentGenerator() {
           existingContentQ = subject.slice(idx + CALENDAR_MARKER_Q.length);
         }
 
-        // Fetch recent briefs (sujets uniquement) pour mémoire anti-répétition.
-        // ⚠️ On NE PASSE PAS les "réponses marquantes" : elles polluent le prompt
-        // et l'IA finit par mélanger un ancien vécu avec le sujet courant.
-        let recentBriefsContext = "";
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user?.id) {
-            let q = supabase
-              .from("content_briefs")
-              .select("subject, format, editorial_angle, created_at")
-              .order("created_at", { ascending: false })
-              .limit(8); // marge pour filtrer les sujets vides
-            const { column, value } = workspaceScopeFilter(effectiveWorkspaceId, user.id);
-            q = q.eq(column, value);
-            const { data: briefs } = await q;
-            const cleanBriefs = (briefs || [])
-              .filter((b: any) => typeof b.subject === "string" && b.subject.trim().length > 0)
-              .slice(0, 3);
-            if (cleanBriefs.length > 0) {
-              const lines = cleanBriefs.map((b: any, i: number) => {
-                const subj = b.subject.trim();
-                const safeSubj = subj.length > 120 ? subj.slice(0, 117) + "..." : subj;
-                const parts = [`Brief #${i + 1} — sujet : "${safeSubj}"`];
-                if (b.format) parts.push(`format : ${b.format}`);
-                if (b.editorial_angle) parts.push(`angle : ${b.editorial_angle}`);
-                return parts.join(" · ");
-              });
-              recentBriefsContext = `\n══ HISTORIQUE RÉCENT (${cleanBriefs.length} brief${cleanBriefs.length > 1 ? "s" : ""}, indicatif) ══\n${lines.join("\n")}\n\nUSAGE STRICT : ne re-pose pas une question déjà posée pour ces sujets passés. Ces briefs ne décrivent PAS le sujet courant — ne mélange jamais leur contenu avec le sujet courant.\n`;
-              const RECENT_BRIEFS_MAX = 1500;
-              if (recentBriefsContext.length > RECENT_BRIEFS_MAX) {
-                recentBriefsContext = recentBriefsContext.slice(0, RECENT_BRIEFS_MAX - 20) + "\n... (tronqué)\n";
-              }
-            }
-          }
-        } catch (e) {
-          // non-blocking
-          console.warn("[generateQuestions] could not fetch recent briefs:", e);
-        }
+        const recentBriefsContext = await fetchRecentBriefsContext(effectiveWorkspaceId);
+        const requestCtx = { effectiveSubjectQ, existingContentQ, effectiveWorkspaceId, recentBriefsContext };
 
         if (format === "carousel") {
-          const structurePrompt = editorialAngle
-            ? getStructurePromptForCombo(format, editorialAngle)
-            : null;
-
-          const hasPhotos = (params.photos?.length ?? 0) > 0;
-          const isPhotoLikeMode = params.carouselSubMode === "photo" || params.carouselSubMode === "mix" || params.carouselSubMode === "pure_photo";
-          const visionMode = hasPhotos && isPhotoLikeMode;
-          // pure_photo réutilise la pipeline "photo" côté backend (le post-process
-          // côté client supprimera ensuite tout overlay_text/title/body).
-          const effectiveSubMode = params.carouselSubMode === "pure_photo" ? "photo" : params.carouselSubMode;
-
-          const res = await invokeWithTimeout("carousel-ai", {
-            body: {
-              type: "deepening_questions",
-              channel: params.channel || "instagram",
-              // Sans ce champ, la ligne ai_usage (catégorie suggestion) partait
-              // avec workspace_id NULL — hors du périmètre de comptage du quota.
-              workspace_id: effectiveWorkspaceId || null,
-              subject: effectiveSubjectQ,
-              subject_details: existingContentQ || undefined,
-              objective: objective || null,
-              editorial_angle: editorialAngle || null,
-              content_structure: structurePrompt || null,
-              recent_briefs_context: recentBriefsContext || undefined,
-              carousel_type: visionMode ? effectiveSubMode : undefined,
-              // Vision uniquement (questions ancrées) : photos allégées + cap à 10
-              // (le schéma zod de carousel-ai refuse au-delà de 10).
-              photos: visionMode
-                ? (await downscalePhotosForVision(params.photos!.slice(0, 10)))?.map((p) => ({ base64: p.base64, mimeType: p.mimeType, context: p.context, libraryContext: p.libraryContext }))
-                : undefined,
-              photo_description: visionMode ? params.photoDescription || undefined : undefined,
-              ...(params.newsContext && params.newsContext.trim() ? { news_context: params.newsContext.slice(0, 3800) } : {}),
-            },
-          }, visionMode ? 90000 : 60000);
+          const { body, timeoutMs } = await buildCarouselQuestionsRequest(params, requestCtx);
+          const res = await invokeWithTimeout("carousel-ai", { body }, timeoutMs);
           data = res.data;
           invokeError = res.error;
         } else {
-          // Build angle context for creative-flow questions
-          let angleObj: { title: string; structure: string[]; tone: string };
-          if (editorialAngle) {
-            const found = EDITORIAL_ANGLES.find((a) => a.id === editorialAngle);
-            const structId = getStructureForCombo(format, editorialAngle);
-            const struct = structId ? CONTENT_STRUCTURES[structId] : null;
-            angleObj = {
-              title: found?.label || editorialAngle,
-              structure: struct?.steps.map((s) => s.label) || [],
-              tone: "direct, chaleureux, oral assumé",
-            };
-          } else {
-            angleObj = {
-              title: "libre",
-              structure: [],
-              tone: "direct, chaleureux, oral assumé",
-            };
-          }
-
-          const hasPhotosCF = (params.photos?.length ?? 0) > 0 && !!params.photos?.[0]?.base64;
-          // Aligné sur le déclenchement vision de la génération (qui exige photoMode).
-          // `photoMode` est de toute façon auto-activé dès qu'une photo est présente
-          // sur un format compatible (cf. CreerStepFormat), donc post/linkedin sont couverts.
-          // Évite le cas "questions ancrées sur la photo" puis "génération sans la photo".
-          const photoModeCF = hasPhotosCF && params.photoMode === true;
-
-          const res = await invokeWithTimeout("creative-flow", {
-            body: {
-              step: "questions",
-              // Étape gratuite, mais le workspace scope aussi le contexte branding
-              // (getUserContext) et la mémoire anti-répétition côté serveur.
-              workspace_id: effectiveWorkspaceId || undefined,
-              // Le canal pilote le libellé des questions côté serveur
-              // (« …sur LinkedIn / Pinterest… » et pas « Instagram »).
-              contentType:
-                format === "linkedin"
-                  ? "linkedin_post"
-                  : format === "newsletter"
-                  ? "newsletter"
-                  : format === "pinterest"
-                  ? "post_pinterest"
-                  : "instagram_post",
-              context: (() => {
-                const CONTEXT_MAX = 7800;
-                const base = effectiveSubjectQ;
-                if (!existingContentQ) {
-                  return base.length > CONTEXT_MAX ? base.slice(0, CONTEXT_MAX - 3) + "..." : base;
-                }
-                const suffix = `\n\n[Contenu existant à approfondir]\n`;
-                const reservedForSubject = Math.min(base.length, Math.floor(CONTEXT_MAX * 0.4));
-                const remaining = CONTEXT_MAX - reservedForSubject - suffix.length;
-                const safeSubject = base.length > reservedForSubject ? base.slice(0, reservedForSubject - 3) + "..." : base;
-                const safeExisting = existingContentQ.length > remaining
-                  ? existingContentQ.slice(0, remaining - 3) + "..."
-                  : existingContentQ;
-                return safeSubject + suffix + safeExisting;
-              })(),
-              angle: angleObj,
-              objective: objective || null,
-              recent_briefs_context: recentBriefsContext || undefined,
-              photo_mode: photoModeCF || undefined,
-              // Vision uniquement (questions ancrées creative-flow) : photos allégées.
-              photos: photoModeCF
-                ? (await downscalePhotosForVision(params.photos!.slice(0, 10)))?.map(p => ({
-                    base64: p.base64,
-                    mimeType: p.mimeType || "image/jpeg",
-                    context: p.context, libraryContext: p.libraryContext,
-                  }))
-                : undefined,
-              photo_description: photoModeCF ? params.photoDescription || undefined : undefined,
-              ...(params.newsContext && params.newsContext.trim() ? { news_context: params.newsContext.slice(0, 3800) } : {}),
-            },
-          }, photoModeCF ? 180000 : 60000);
+          const { body, timeoutMs } = await buildQuestionsRequest(params, requestCtx);
+          const res = await invokeWithTimeout("creative-flow", { body }, timeoutMs);
           data = res.data;
           invokeError = res.error;
         }
@@ -479,22 +339,7 @@ export function useContentGenerator() {
 
         // carousel-ai wraps its response in { content: "..." } — unwrap before parsing
         const rawContent = data?.content || data;
-        const parsed = parseAIJson(rawContent);
-        let parsedQuestions: Question[] = [];
-
-        if (Array.isArray(parsed)) {
-          parsedQuestions = parsed.map((q: any, i: number) => ({
-            id: q.id || `q_${i}`,
-            question: q.question || q.label || q.text || String(q),
-            placeholder: q.placeholder || q.hint || "",
-          }));
-        } else if (parsed?.questions && Array.isArray(parsed.questions)) {
-          parsedQuestions = parsed.questions.map((q: any, i: number) => ({
-            id: q.id || `q_${i}`,
-            question: q.question || q.label || q.text || String(q),
-            placeholder: q.placeholder || q.hint || "",
-          }));
-        }
+        const parsedQuestions = parseQuestions(rawContent);
 
         setQuestions(parsedQuestions);
         return parsedQuestions;
