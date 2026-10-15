@@ -145,10 +145,6 @@
       "lignes": 2792,
       "any": 155
     },
-    "supabase/functions/cron-health/index.ts": {
-      "lignes": 959,
-      "any": 99
-    },
     "supabase/functions/deep-diagnostic/index.ts": {
       "lignes": 1084,
       "any": 18
