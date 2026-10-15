@@ -1555,6 +1555,8 @@ Jamais testés : `savePersona` (âge/métier dans `portrait.qui_elle_est`, exist
 
 **Lot T fait (15/10/2026).** Tests 1 et 2 : `src/test/branding-review-save.test.tsx` (33 cas, via « Je valide tout »). Tests 3 à 6 : `src/test/branding-review-behaviors.test.tsx` (10 cas, faux `BrandingCoachingFlow` qui appelle `onComplete`).
 
+**Lot 1 fait (15/10/2026).** Affichage pur sorti dans `src/components/branding/review/` (`types.ts`, `ReviewBits.tsx`, `SectionViews.tsx`, `OffersSection.tsx`, `CharterSection.tsx`), à l'identique (seuls des `export` ajoutés). `BrandingReview.tsx` : 1411 → 1013 lignes ; il réexporte `AnalysisResult`, `CharterSection` et `normalizeHex`.
+
 > **Constat du lot T (non corrigé, pas un déplacement).** En compte personnel (espace = id de l'utilisatrice), `saveCharter`, `saveTone`, `saveValueProp`, `saveStrategy` et `fillBrandProfileSynthesis` lisent leur fiche unique avec `.eq("user_id", …)` **sans** `.is("workspace_id", null)`, contrairement à `readImportRows` (histoire, client·e idéal·e, offres). Une personne qui a aussi un espace nommé peut donc voir la charte (ou le profil) de cet autre espace complétée, ou la validation bloquée par « plusieurs lignes ». À corriger dans la PR « un seul helper de portée » (étape 7), avec un test qui pose une ligne `workspace_id: "w9"` en compte personnel.
 
 **Risque et ordre conseillé**
