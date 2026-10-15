@@ -1,0 +1,113 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`brouillon rapide > corps exact envoyé, délai 150 s, statut idée → en rédaction 1`] = `
+[
+  "generate-content",
+  {
+    "body": {
+      "angle": "Storytelling",
+      "canal": "pinterest",
+      "format": "epingle",
+      "notes": "N",
+      "objectif": null,
+      "profile": {
+        "instagram_username": "lea",
+        "prenom": "Léa",
+      },
+      "theme": "Mon sujet",
+      "type": "calendar-quick",
+      "workspace_id": undefined,
+    },
+  },
+  150000,
+]
+`;
+
+exports[`navigation vers /creer > approfondir → URL et state exacts 1`] = `
+[
+  "/creer?sujet=Sujet&objectif=vente&format=post_carrousel&calendar_id=p1&from=%2Fcalendrier",
+  {
+    "state": {
+      "angle": "Storytelling",
+      "calendarPostId": "p1",
+      "existingAccroche": "Accroche",
+      "existingContent": "Brouillon",
+      "format": "post_carrousel",
+      "fromCalendar": true,
+      "notes": "N",
+      "objectif": "vente",
+      "postDate": "2026-11-03",
+      "theme": "Sujet",
+    },
+  },
+]
+`;
+
+exports[`navigation vers /creer > atelier sans resumeIdea → state exact 1`] = `
+[
+  "/creer?canal=instagram",
+  {
+    "state": {
+      "angle": "Storytelling",
+      "angleSuggestion": undefined,
+      "audiencePhase": "froid",
+      "calendarPostId": "p1",
+      "category": "cat",
+      "chapter": 2,
+      "chapterLabel": "Ch",
+      "contentType": "teasing",
+      "contentTypeEmoji": undefined,
+      "existingAccroche": "Accroche",
+      "existingContent": "Brouillon",
+      "format": "post_carrousel",
+      "fromCalendar": true,
+      "launchId": "L1",
+      "notes": "N",
+      "objectif": "vente",
+      "objective": "obj",
+      "postDate": "2026-11-03",
+      "resumeIdea": undefined,
+      "theme": "Sujet",
+    },
+  },
+]
+`;
+
+exports[`navigation vers /creer > générer : LinkedIn 1`] = `"/creer?canal=linkedin&calendar_id=p1&sujet=Sujet&from=%2Fcalendrier"`;
+
+exports[`navigation vers /creer > générer : newsletter 1`] = `"/creer?format=newsletter&calendar_id=p1&sujet=Sujet&from=%2Fcalendrier"`;
+
+exports[`navigation vers /creer > générer : reel 1`] = `"/creer?format=reel&calendar_id=p1&sujet=Sujet&from=%2Fcalendrier"`;
+
+exports[`navigation vers /creer > générer : stories 1`] = `"/creer?format=story&calendar_id=p1&sujet=Sujet&from=%2Fcalendrier"`;
+
+exports[`navigation vers /creer > générer un carrousel avec angle → carousel_type + state complet 1`] = `
+[
+  "/creer?format=carousel&calendar_id=p1&sujet=Sujet&objectif=vente&from=%2Fcalendrier&carousel_type=storytelling",
+  {
+    "state": {
+      "angle": "Storytelling",
+      "calendarPostId": "p1",
+      "category": "cat",
+      "contentType": "teasing",
+      "existingAccroche": "Accroche",
+      "existingContent": "Brouillon",
+      "format": "post_carrousel",
+      "fromCalendar": true,
+      "launchContext": {
+        "audiencePhase": "froid",
+        "chapter": 2,
+        "chapterLabel": "Ch",
+        "contentType": "teasing",
+        "launchId": "L1",
+      },
+      "launchId": "L1",
+      "notes": "N",
+      "objectif": "vente",
+      "objective": "obj",
+      "postDate": "2026-11-03",
+      "theme": "Sujet",
+    },
+  },
+]
+`;
