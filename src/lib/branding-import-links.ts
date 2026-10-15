@@ -6,6 +6,11 @@ export interface ImportLinks {
   linkedin: string;
 }
 
+/** handleReanalyzeWithBio colle « [BIO: …] » au compte Instagram : jamais à afficher. */
+export function cleanInstagramLink(value?: string | null): string {
+  return String(value || "").replace(/\s*\[BIO:[\s\S]*$/, "").trim();
+}
+
 const EMPTY: ImportLinks = { website: "", instagram: "", linkedin: "" };
 
 /**
@@ -27,8 +32,7 @@ export async function loadImportLinks(column: string, value: string): Promise<Im
     ]);
     const a = autofill.data || {};
     const p = profile.data || {};
-    // handleReanalyzeWithBio colle « [BIO: …] » au compte Instagram enregistré.
-    const savedInstagram = String(a.instagram_handle || "").replace(/\s*\[BIO:[\s\S]*$/, "").trim();
+    const savedInstagram = cleanInstagramLink(a.instagram_handle);
     const handle = p.instagram_username ? `@${String(p.instagram_username).replace(/^@/, "")}` : "";
     return {
       website: a.website_url || p.website_url || "",

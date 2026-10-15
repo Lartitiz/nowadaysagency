@@ -16,7 +16,7 @@ import { resolveFirstContentDestination } from "@/lib/first-content-destination"
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { loadIdentityOverview, type IdentityOverview } from "@/lib/identity-overview";
-import { loadImportLinks } from "@/lib/branding-import-links";
+import { cleanInstagramLink, loadImportLinks } from "@/lib/branding-import-links";
 import { useQueryClient } from "@tanstack/react-query";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
 import BrandingIdentityCard from "@/components/branding/BrandingIdentityCard";
@@ -170,7 +170,7 @@ function ScopedBrandingPage() {
           setPendingReviewId(pending.data.id);
           setAnalysisResult(pending.data.analysis_result);
           setImportPhaseNew("reviewing");
-          setReanalyzeUrls({ website: pending.data.website_url || "", instagram: pending.data.instagram_handle || "", linkedin: pending.data.linkedin_url || "" });
+          setReanalyzeUrls({ website: pending.data.website_url || "", instagram: cleanInstagramLink(pending.data.instagram_handle), linkedin: pending.data.linkedin_url || "" });
         }
       } catch {
         if (!cancelled) setLoadError(true);
@@ -212,7 +212,7 @@ function ScopedBrandingPage() {
         setImportPhaseNew("reviewing");
         setReanalyzeUrls({
           website: pending.website_url || "",
-          instagram: pending.instagram_handle || "",
+          instagram: cleanInstagramLink(pending.instagram_handle),
           linkedin: pending.linkedin_url || "",
         });
         setAwaitingEnrichment(false);
@@ -262,7 +262,7 @@ function ScopedBrandingPage() {
     setImportAnalyzing(true);
     setAnalysisError(null);
     setAnalysisSources({ website: data.website, instagram: data.instagram, linkedin: data.linkedin, hasDocuments: data.files.length > 0 });
-    setReanalyzeUrls({ website: data.website, instagram: data.instagram, linkedin: data.linkedin });
+    setReanalyzeUrls({ website: data.website, instagram: cleanInstagramLink(data.instagram), linkedin: data.linkedin });
 
     // Log event
     logEvent("autofill_started");
