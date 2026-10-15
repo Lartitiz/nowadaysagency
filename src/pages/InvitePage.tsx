@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { WORKSPACE_SHARING_ENABLED } from "@/config/feature-flags";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 
 interface InvitationData {
@@ -26,7 +27,8 @@ export default function InvitePage() {
 
   // Fetch invitation on mount
   useEffect(() => {
-    if (!token) {
+    // Mode Binôme coupé le 15/10/2026 : les anciennes invitations ne s'ouvrent plus.
+    if (!token || !WORKSPACE_SHARING_ENABLED) {
       setStatus("invalid");
       return;
     }

@@ -1,3 +1,4 @@
+import { WORKSPACE_SHARING_ENABLED } from "@/config/feature-flags";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -426,14 +427,14 @@ export default function AdminUsersTab() {
 
                 {/* Actions */}
                 <div className="space-y-2 pt-2">
-                  <Button
+                  {WORKSPACE_SHARING_ENABLED && <Button
                     className="w-full"
                     onClick={() => openUserWorkspace(selectedUser)}
                     disabled={switching}
                   >
                     <Eye className="w-4 h-4 mr-2" />
                     {switching ? "Ouverture..." : "Ouvrir son espace"}
-                  </Button>
+                  </Button>}
                   <Button
                     variant="outline"
                     className="w-full text-warning border-warning/30 hover:bg-warning-bg"

@@ -47,3 +47,13 @@ export function isModuleHidden(moduleId: string): boolean {
   const flag = MODULE_FLAGS.find(f => f.id === moduleId);
   return flag ? !flag.enabled : false;
 }
+
+/**
+ * Mode Binôme (partage d'espace) : une manager entre dans l'espace d'une
+ * cliente (sélecteur d'espace, invitations « manager », bouton admin « Ouvrir
+ * son espace »). Coupé le 15/10/2026 (décision de Laetitia) : les clientes
+ * Binôme passent en Premium avec un code promo, chacune reste dans son propre
+ * espace. Les données et les droits côté serveur restent en place : remettre
+ * `true` suffit à tout réafficher.
+ */
+export const WORKSPACE_SHARING_ENABLED = false;

@@ -18,3 +18,14 @@ export function pickActiveWorkspace<T extends { id: string; _role: string }>(
     null
   );
 }
+
+/**
+ * Espaces proposés à l'utilisatrice. Partage coupé : seulement ceux dont elle
+ * est `owner` (une ancienne invitation « manager » n'ouvre plus l'espace d'une
+ * cliente). Sans aucun espace owner (cas réparé ailleurs), on garde la liste.
+ */
+export function visibleWorkspaces<T extends { _role: string }>(loaded: T[], sharingEnabled: boolean): T[] {
+  if (sharingEnabled) return loaded;
+  const own = loaded.filter((w) => w._role === "owner");
+  return own.length ? own : loaded;
+}

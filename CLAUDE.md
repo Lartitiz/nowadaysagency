@@ -237,6 +237,7 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 **Workspace isolation :**
 - Utiliser le hook `useWorkspaceFilter` pour filtrer les données par workspace
 - NE PAS hardcoder `.eq("user_id", user.id)` partout
+- Mode Binôme (partage d'espace manager → cliente) COUPÉ le 15/10/2026 : `WORKSPACE_SHARING_ENABLED = false` (`src/config/feature-flags.ts`). Chacune reste dans son propre espace ; les clientes Binôme passent en Premium par code promo. Ne pas réparer ni étendre le mode manager tant que l'interrupteur est coupé.
 
 **Tables spéciales :**
 - `voice_profile` et `brand_charter` : accessibles par `user_id` du propriétaire OU par `workspace_id` (policies workspace ajoutées volontairement pour le mode Binôme : la manager accède au branding de sa cliente). Côté front, requêter via `useWorkspaceFilter` comme les autres tables.
