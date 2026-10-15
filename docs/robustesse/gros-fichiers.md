@@ -568,6 +568,8 @@ Une PR par lot, et `npm test` doit rester vert sans toucher aux tests existants 
 
 Vérification à chaque lot : `npx tsc --noEmit --skipLibCheck`, `npx vitest run src/test/visual-studio.test.tsx` et `npm run build`.
 
+**Avancement (15/10/2026)** : lot 0 fait. `src/test/visual-studio-page-net.test.tsx` (14 tests, aucune ligne de la page touchée) : garde d'entrée (chargement, aucun espace, démo, sans appel au Studio), bandeau « session archivée » et restauration, largeur réglable (flèches ±24, bornes 340-760, double-clic à 430, valeur hors bornes, pas de poignée sur petit écran), tiroir d'outils (photo proposée en `subject`, charte en `charter_index`, « Reprendre » une composition, compositions plus anciennes avec `20 + n`), menu Options (avant / après et mockup renvoient l'image en `composition`), galerie au-delà de 20 images, relance mannequin (« Préparer la scène », « Le garder pour ma marque »), « Corriger les textes de cette affiche », et l'instantané d'écran sur 4 états (boutons, titres, appels serveur) figé dans `src/test/__snapshots__/visual-studio-page-net.test.tsx.snap`. Vérifié : changer le pas des flèches ou le rôle d'une photo proposée fait échouer le filet.
+
 ---
 
 ### 5. `supabase/functions/visual-studio/index.ts` — 2001 lignes
@@ -1130,7 +1132,7 @@ cours :
 | 3 ✅ | `creative-flow/index.ts` (fiche 3, terminée le 14/10/2026 : 1 687 → ~440 lignes, lot F compris) | Suite logique du lot 3 du 13/10, mêmes tests de contrat déjà en place. |
 | 4 ✅ | `_shared/redac-gate.ts` (fiche 7, terminée le 14/10/2026 : 2 093 → 35 lignes) | Zone orange (9 fonctions) : après correction-pass, dont il dépend. |
 | 5 ✅ | `carousel-ai/index.ts` (fiche 2, terminée le 14/10/2026 : 2 792 → 483 lignes) | Très modifié ; un contrat du handler à poser d'abord, comme pour creative-flow. |
-| 6 | Studio visuel, serveur puis page (fiches 5 et 4) | Indépendant de la création de contenu : peut avancer en parallèle des lignes 1 à 5. |
+| 6 | Studio visuel, serveur puis page (fiches 5 et 4) — serveur ✅ (fiche 5 terminée le 14/10/2026), page en cours (fiche 4) | Indépendant de la création de contenu : peut avancer en parallèle des lignes 1 à 5. |
 | 7 | `carousel-visual/index.ts` (fiche 6) | Après la fusion du chantier en cours sur le contrat `data-*`. |
 | 8 | `src/pages/CreerUnifie.tsx` (fiche 1) | Le plus risqué : commencer par le lot A (tests seuls), puis l'affichage pur, et garder l'arrivée depuis le calendrier pour la fin. Pas de session Lovable ouverte sur /creer pendant ces PR. |
 
