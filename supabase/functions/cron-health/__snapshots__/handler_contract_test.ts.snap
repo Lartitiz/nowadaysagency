@@ -1,0 +1,1562 @@
+export const snapshot = {};
+
+snapshot[`daily : JSON complet sur la base de référence 1`] = `
+{
+  client_errors_24h: {
+    count: 2,
+    internes: {
+      count: 1,
+      par_ecran: {
+        "/creer/render": 1,
+      },
+    },
+    items: [
+      {
+        asset: null,
+        created_at: "2026-10-09T06:00:00.000Z",
+        kind: "render",
+        route: "/creer",
+      },
+      {
+        asset: "index.js",
+        created_at: "2026-10-09T04:00:00.000Z",
+        kind: "chunk",
+        route: "/",
+      },
+    ],
+    par_ecran: {
+      "//chunk": 1,
+      "/creer/render": 1,
+    },
+    render: 1,
+  },
+  connections_at_risk: [
+    {
+      compte: "marie.photo",
+      etat: "expirée",
+      jours: -2,
+      platform: "instagram",
+    },
+    {
+      compte: "jo-linkedin",
+      etat: "expire bientôt",
+      jours: 3,
+      platform: "linkedin",
+    },
+    {
+      compte: "laetitia",
+      etat: "linkedin vieillissante (~60 j max)",
+      jours: 55,
+      platform: "linkedin",
+    },
+  ],
+  connections_total: 7,
+  crons_pg: {
+    jobs: [
+      {
+        dernier_passage: "2026-10-09T07:57:00.000Z",
+        en_panne: false,
+        nom: "social-publish-scheduled",
+        raison: null,
+        statut: "succeeded",
+      },
+      {
+        dernier_passage: "2026-10-09T05:00:00.000Z",
+        en_panne: true,
+        nom: "email-trigger",
+        raison: "dernier passage en échec : permission denied",
+        statut: "failed",
+      },
+    ],
+  },
+  emails_24h: {
+    alerte: "1 e-mail(s) en échec ; 1 e-mail(s) en attente depuis > 1 h (cron d'envoi mort ?)",
+    echecs: 1,
+    echecs_items: [
+      {
+        erreur: "boîte pleine",
+        quand: "2026-10-09T01:00:00.000Z",
+        statut: "bounced",
+        type: "Relance J+3",
+      },
+    ],
+    envoyes: 1,
+    file_bloquee: {
+      count: 1,
+      internes: 1,
+      plus_ancienne: "2026-10-09T05:00:00.000Z",
+    },
+    ignores: 0,
+    internes: {
+      echecs: 1,
+      envoyes: 0,
+      ignores: 0,
+    },
+  },
+  facturation: {
+    abonnements_app_chez_stripe: 2,
+    abonnements_hors_app: 1,
+    abonnements_stripe_actifs: 3,
+    evenements_recus: {
+      dernier: "2026-10-09T05:00:00.000Z",
+      h24: 1,
+      j7: 2,
+    },
+    livraisons_en_echec: {
+      count: 3,
+      plus_ancien: "2026-10-07T08:00:00.000Z",
+      types: [
+        {
+          n: 2,
+          type: "invoice.payment_failed",
+        },
+        {
+          n: 1,
+          type: "customer.subscription.updated",
+        },
+      ],
+    },
+    payantes_sans_acces: {
+      count: 1,
+      items: [
+        {
+          abo: "sub_orpheline",
+          depuis: "2026-10-07T08:00:00.000Z",
+        },
+      ],
+    },
+    periodes_perimees: {
+      count: 2,
+      items: [
+        {
+          abo: "sub_perime",
+          fin_periode: "2026-10-04T08:00:00.000Z",
+          plan: "premium",
+        },
+        {
+          abo: "sub_vide",
+          fin_periode: null,
+          plan: "binome",
+        },
+      ],
+    },
+  },
+  failed_48h: {
+    count: 2,
+    items: [
+      {
+        canal: "instagram",
+        erreur: "Erreur Instagram : xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        quand: "2026-10-08T20:00:00.000Z",
+      },
+      {
+        canal: "linkedin",
+        erreur: null,
+        quand: "2026-10-09T03:00:00.000Z",
+      },
+    ],
+  },
+  feedback_24h: {
+    count: 3,
+    items: [
+      {
+        capture: true,
+        contenu: "Impossible de publier yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+        detail: "Détail zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+        page: "/calendrier",
+        quand: "2026-10-09T02:00:00.000Z",
+        severite: "blocking",
+        statut: "new",
+        type: "bug",
+      },
+      {
+        capture: false,
+        contenu: "Petit décalage du bouton",
+        detail: null,
+        page: "/creer",
+        quand: "2026-10-09T06:00:00.000Z",
+        severite: "minor",
+        statut: "new",
+        type: "bug",
+      },
+      {
+        capture: false,
+        contenu: "Une idée",
+        detail: null,
+        page: "/",
+        quand: "2026-10-09T05:00:00.000Z",
+        severite: null,
+        statut: "seen",
+        type: "idea",
+      },
+    ],
+  },
+  feedback_new_items: [
+    {
+      contenu: "Vieux retour pas traité",
+      page: "/branding",
+      quand: "2026-10-06T08:00:00.000Z",
+      severite: "annoying",
+      type: "bug",
+    },
+    {
+      contenu: "Impossible de publier yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+      page: "/calendrier",
+      quand: "2026-10-09T02:00:00.000Z",
+      severite: "blocking",
+      type: "bug",
+    },
+    {
+      contenu: "Petit décalage du bouton",
+      page: "/creer",
+      quand: "2026-10-09T06:00:00.000Z",
+      severite: "minor",
+      type: "bug",
+    },
+  ],
+  feedback_new_total: 3,
+  generated_at: "2026-10-09T08:00:00.000Z",
+  higgsfield: {
+    actif: true,
+    alerte: null,
+    epuisement_avant_reset: false,
+    epuisement_estime: "2027-08-28",
+    images_mois: 3,
+    incertaines_mois: 1,
+    jours_avant_epuisement: 323.2,
+    par_source: {
+      creer: {
+        images: 2,
+        usd: 0.66,
+      },
+      studio: {
+        images: 1,
+        usd: 0.4,
+      },
+    },
+    pct_utilise: 2.1,
+    plafond_usd: 50,
+    prochain_reset: "2026-11-01",
+    refus_budget: null,
+    refus_budget_note: "non journalisé en base (seulement dans les logs des edges)",
+    reserve_7j_usd: 1.06,
+    reserve_mois_usd: 1.06,
+    restant_usd: 48.94,
+    rythme_7j_usd_par_jour: 0.15,
+  },
+  overdue_scheduled: 1,
+  photoroom_credits: {
+    abonnement: 1000,
+    alerte: null,
+    consommes_mois: 210,
+    jours_depuis_reset: 1,
+    moyenne_par_jour: null,
+    restants: 790,
+    rythme_significatif: false,
+  },
+  published_24h: 1,
+  scope: "daily",
+  stuck_publishing: 1,
+  studio_images_bloquees: {
+    count: 1,
+  },
+}
+`;
+
+snapshot[`daily : liste des requêtes (tables, colonnes, filtres) 1`] = `
+[
+  "GET beta_feedback user_id,type,severity,content,details,page_url,screenshot_url,status,created_at created_at=gte.2026-10-08T08:00:00.000Z [0+1000]",
+  "GET beta_feedback user_id,type,severity,content,page_url,created_at status=eq.new [0+1000]",
+  "GET calendar_posts user_id,canal,publish_status,publish_error,scheduled_publish_at,published_at,updated_at publish_status=in.(failed,publishing,scheduled,published) [0+1000]",
+  "GET client_error_events user_id,kind,route,asset,created_at created_at=gte.2026-10-08T08:00:00.000Z [0+1000]",
+  "GET email_queue user_id,scheduled_at,sent,cancelled cancelled=eq.false scheduled_at=lt.2026-10-09T07:00:00.000Z sent=eq.false [0+1000]",
+  "GET email_sends user_id,to_email,template_id,status,error,sent_at sent_at=gte.2026-10-08T08:00:00.000Z [0+1000]",
+  "GET email_templates id,name [0+1000]",
+  "GET higgsfield_image_spend source,estimated_usd,status,created_at created_at=gte.2026-10-01T00:00:00.000Z [0+1000]",
+  "GET profiles user_id,email,created_at [0+1000]",
+  "GET social_connections user_id,platform,platform_account_name,token_expires_at,updated_at [0+1000]",
+  "GET studio_image_requests estimated_usd,status,created_at created_at=gte.2026-10-01T00:00:00.000Z [0+1000]",
+  "GET subscriptions stripe_subscription_id,status,plan,current_period_end,studio_months_paid,updated_at [0+1000]",
+  "GET webhook_events event_type,processed_at processed_at=gte.2026-10-02T08:00:00.000Z [0+1000]",
+  "HEAD visual_studio_versions id created_at=lt.2026-10-09T07:00:00.000Z status=eq.processing (count)",
+  "photoroom GET /v1/account",
+  "rpc cron_jobs_health",
+  "stripe GET /v1/events?limit=100",
+  "stripe GET /v1/subscriptions?status=active&limit=100",
+]
+`;
+
+snapshot[`daily dégradé : sans clés Photoroom/Stripe, RPC des crons en erreur, plafond Higgsfield absent 1`] = `
+{
+  client_errors_24h: {
+    count: 2,
+    internes: {
+      count: 1,
+      par_ecran: {
+        "/creer/render": 1,
+      },
+    },
+    items: [
+      {
+        asset: null,
+        created_at: "2026-10-09T06:00:00.000Z",
+        kind: "render",
+        route: "/creer",
+      },
+      {
+        asset: "index.js",
+        created_at: "2026-10-09T04:00:00.000Z",
+        kind: "chunk",
+        route: "/",
+      },
+    ],
+    par_ecran: {
+      "//chunk": 1,
+      "/creer/render": 1,
+    },
+    render: 1,
+  },
+  connections_at_risk: [
+    {
+      compte: "marie.photo",
+      etat: "expirée",
+      jours: -2,
+      platform: "instagram",
+    },
+    {
+      compte: "jo-linkedin",
+      etat: "expire bientôt",
+      jours: 3,
+      platform: "linkedin",
+    },
+    {
+      compte: "laetitia",
+      etat: "linkedin vieillissante (~60 j max)",
+      jours: 55,
+      platform: "linkedin",
+    },
+  ],
+  connections_total: 7,
+  crons_pg: {
+    erreur: "function cron_jobs_health() does not exist",
+  },
+  emails_24h: {
+    alerte: "1 e-mail(s) en échec ; 1 e-mail(s) en attente depuis > 1 h (cron d'envoi mort ?)",
+    echecs: 1,
+    echecs_items: [
+      {
+        erreur: "boîte pleine",
+        quand: "2026-10-09T01:00:00.000Z",
+        statut: "bounced",
+        type: "Relance J+3",
+      },
+    ],
+    envoyes: 1,
+    file_bloquee: {
+      count: 1,
+      internes: 1,
+      plus_ancienne: "2026-10-09T05:00:00.000Z",
+    },
+    ignores: 0,
+    internes: {
+      echecs: 1,
+      envoyes: 0,
+      ignores: 0,
+    },
+  },
+  facturation: {
+    abonnements_stripe_actifs: 3,
+    erreur_stripe: "STRIPE_SECRET_KEY absent — vérification côté Stripe impossible",
+    evenements_recus: {
+      dernier: "2026-10-09T05:00:00.000Z",
+      h24: 1,
+      j7: 2,
+    },
+    periodes_perimees: {
+      count: 2,
+      items: [
+        {
+          abo: "sub_perime",
+          fin_periode: "2026-10-04T08:00:00.000Z",
+          plan: "premium",
+        },
+        {
+          abo: "sub_vide",
+          fin_periode: null,
+          plan: "binome",
+        },
+      ],
+    },
+  },
+  failed_48h: {
+    count: 2,
+    items: [
+      {
+        canal: "instagram",
+        erreur: "Erreur Instagram : xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        quand: "2026-10-08T20:00:00.000Z",
+      },
+      {
+        canal: "linkedin",
+        erreur: null,
+        quand: "2026-10-09T03:00:00.000Z",
+      },
+    ],
+  },
+  feedback_24h: {
+    count: 3,
+    items: [
+      {
+        capture: true,
+        contenu: "Impossible de publier yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+        detail: "Détail zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+        page: "/calendrier",
+        quand: "2026-10-09T02:00:00.000Z",
+        severite: "blocking",
+        statut: "new",
+        type: "bug",
+      },
+      {
+        capture: false,
+        contenu: "Petit décalage du bouton",
+        detail: null,
+        page: "/creer",
+        quand: "2026-10-09T06:00:00.000Z",
+        severite: "minor",
+        statut: "new",
+        type: "bug",
+      },
+      {
+        capture: false,
+        contenu: "Une idée",
+        detail: null,
+        page: "/",
+        quand: "2026-10-09T05:00:00.000Z",
+        severite: null,
+        statut: "seen",
+        type: "idea",
+      },
+    ],
+  },
+  feedback_new_items: [
+    {
+      contenu: "Vieux retour pas traité",
+      page: "/branding",
+      quand: "2026-10-06T08:00:00.000Z",
+      severite: "annoying",
+      type: "bug",
+    },
+    {
+      contenu: "Impossible de publier yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+      page: "/calendrier",
+      quand: "2026-10-09T02:00:00.000Z",
+      severite: "blocking",
+      type: "bug",
+    },
+    {
+      contenu: "Petit décalage du bouton",
+      page: "/creer",
+      quand: "2026-10-09T06:00:00.000Z",
+      severite: "minor",
+      type: "bug",
+    },
+  ],
+  feedback_new_total: 3,
+  generated_at: "2026-10-09T08:00:00.000Z",
+  higgsfield: {
+    actif: true,
+    alerte: "HIGGSFIELD_IMAGE_MONTHLY_LIMIT_USD absent ou invalide — TOUTES les images Higgsfield sont refusées « budget »",
+    epuisement_avant_reset: null,
+    epuisement_estime: null,
+    images_mois: 3,
+    incertaines_mois: 1,
+    jours_avant_epuisement: null,
+    par_source: {
+      creer: {
+        images: 2,
+        usd: 0.66,
+      },
+      studio: {
+        images: 1,
+        usd: 0.4,
+      },
+    },
+    pct_utilise: null,
+    plafond_usd: null,
+    prochain_reset: "2026-11-01",
+    refus_budget: null,
+    refus_budget_note: "non journalisé en base (seulement dans les logs des edges)",
+    reserve_7j_usd: 1.06,
+    reserve_mois_usd: 1.06,
+    restant_usd: null,
+    rythme_7j_usd_par_jour: 0.15,
+  },
+  overdue_scheduled: 1,
+  photoroom_credits: {
+    erreur: "PHOTOROOM_API_KEY absent",
+  },
+  published_24h: 1,
+  scope: "daily",
+  stuck_publishing: 1,
+  studio_images_bloquees: {
+    count: 1,
+  },
+}
+`;
+
+snapshot[`daily dégradé : Stripe et Photoroom en erreur HTTP 1`] = `
+{
+  facturation: {
+    abonnements_stripe_actifs: 3,
+    evenements_recus: {
+      dernier: "2026-10-09T05:00:00.000Z",
+      h24: 1,
+      j7: 2,
+    },
+    livraisons_en_echec: {
+      erreur: 'HTTP 500 {"error":{"message":"panne Stripe"}}',
+    },
+    payantes_sans_acces: {
+      erreur: 'HTTP 401 {"error":{"message":"clé invalide"}}',
+    },
+    periodes_perimees: {
+      count: 2,
+      items: [
+        {
+          abo: "sub_perime",
+          fin_periode: "2026-10-04T08:00:00.000Z",
+          plan: "premium",
+        },
+        {
+          abo: "sub_vide",
+          fin_periode: null,
+          plan: "binome",
+        },
+      ],
+    },
+  },
+  photoroom_credits: {
+    erreur: 'HTTP 402 {"detail":"plus de crédits"}',
+  },
+}
+`;
+
+snapshot[`daily dégradé : tables en erreur (studio, e-mails, abonnements) 1`] = `
+{
+  emails_24h: {
+    erreur: "relation en panne",
+  },
+  facturation: {
+    abonnements_app_chez_stripe: 2,
+    abonnements_hors_app: 1,
+    evenements_recus: {
+      erreur: "relation en panne",
+    },
+    livraisons_en_echec: {
+      count: 3,
+      plus_ancien: "2026-10-07T08:00:00.000Z",
+      types: [
+        {
+          n: 2,
+          type: "invoice.payment_failed",
+        },
+        {
+          n: 1,
+          type: "customer.subscription.updated",
+        },
+      ],
+    },
+    payantes_sans_acces: {
+      count: 2,
+      items: [
+        {
+          abo: "sub_ok",
+          depuis: "2026-08-30T08:00:00.000Z",
+        },
+        {
+          abo: "sub_orpheline",
+          depuis: "2026-10-07T08:00:00.000Z",
+        },
+      ],
+    },
+    periodes_perimees: {
+      erreur: "relation en panne",
+    },
+  },
+  higgsfield: {
+    erreur: "relation en panne",
+  },
+  studio_images_bloquees: {
+    erreur: "relation en panne",
+  },
+}
+`;
+
+snapshot[`weekly : JSON complet sur la base de référence 1`] = `
+{
+  actives_cette_semaine: 3,
+  cohortes: [
+    {
+      actives_cette_semaine: 1,
+      du: "2026-10-02",
+      inscrites: 1,
+      ont_genere_depuis_inscription: 1,
+      semaine: "S-0",
+    },
+    {
+      actives_cette_semaine: 0,
+      du: "2026-09-25",
+      inscrites: 0,
+      ont_genere_depuis_inscription: 0,
+      semaine: "S-1",
+    },
+    {
+      actives_cette_semaine: 1,
+      du: "2026-09-18",
+      inscrites: 1,
+      ont_genere_depuis_inscription: 1,
+      semaine: "S-2",
+    },
+    {
+      actives_cette_semaine: 0,
+      du: "2026-09-11",
+      inscrites: 0,
+      ont_genere_depuis_inscription: 0,
+      semaine: "S-3",
+    },
+    {
+      actives_cette_semaine: 1,
+      du: "2026-09-04",
+      inscrites: 1,
+      ont_genere_depuis_inscription: 1,
+      semaine: "S-4",
+    },
+  ],
+  comptes_internes_7j: {
+    appels: 3,
+    comptes: 3,
+    cout_estime_eur: 2.23,
+    tokens: 210000,
+  },
+  espaces_owner_multiples: {
+    comptes: 2,
+    items: [
+      {
+        dernier_ajout: "2026-10-07T08:00:00.000Z",
+        email: "marie@client.fr",
+        espaces: 2,
+        interne: false,
+      },
+      {
+        dernier_ajout: "2026-07-01T08:00:00.000Z",
+        email: "laetitia@nowadaysagency.com",
+        espaces: 2,
+        interne: true,
+      },
+    ],
+    nouveaux_7j: 1,
+  },
+  generated_at: "2026-10-09T08:00:00.000Z",
+  higgsfield: {
+    actif: true,
+    alerte: null,
+    epuisement_avant_reset: false,
+    epuisement_estime: "2027-08-28",
+    images_mois: 3,
+    incertaines_mois: 1,
+    jours_avant_epuisement: 323.2,
+    par_source: {
+      creer: {
+        images: 2,
+        usd: 0.66,
+      },
+      studio: {
+        images: 1,
+        usd: 0.4,
+      },
+    },
+    pct_utilise: 2.1,
+    plafond_usd: 50,
+    prochain_reset: "2026-11-01",
+    refus_budget: null,
+    refus_budget_note: "non journalisé en base (seulement dans les logs des edges)",
+    reserve_7j_usd: 1.06,
+    reserve_mois_usd: 1.06,
+    restant_usd: 48.94,
+    rythme_7j_usd_par_jour: 0.15,
+  },
+  ia_7j: {
+    appels: 8,
+    byModel: {
+      "claude-sonnet-5": {
+        appels: 1,
+        tokens: 120000,
+      },
+      "composition-code": {
+        appels: 1,
+        tokens: 0,
+      },
+      "google/gemini-2.5-flash": {
+        appels: 1,
+        tokens: 40000,
+      },
+      "gpt-image-2": {
+        appels: 2,
+        tokens: 0,
+      },
+      "higgsfield-ai/soul/v2/standard": {
+        appels: 1,
+        tokens: 0,
+      },
+      "modele-mystere": {
+        appels: 1,
+        tokens: 5000,
+      },
+      inconnu: {
+        appels: 1,
+        tokens: 300,
+      },
+    },
+    cout_images_estime_eur: 0.31,
+    cout_incomplet: true,
+    cout_texte_estime_eur: 0.62,
+    cout_total_estime_eur: 0.93,
+    modeles_non_tarifes: [
+      {
+        appels: 1,
+        modele: "modele-mystere",
+        tokens: 5000,
+      },
+      {
+        appels: 1,
+        modele: "inconnu",
+        tokens: 300,
+      },
+      {
+        appels: 1,
+        modele: "relecteur-inconnu (relecture)",
+        tokens: 6000,
+      },
+    ],
+    relecture_editoriale: [
+      {
+        carrousels: 1,
+        cout_estime_eur: 0.11,
+        input_tokens: 12000,
+        modele: "claude-opus-5-5-20261001",
+        output_tokens: 3000,
+      },
+      {
+        carrousels: 1,
+        cout_estime_eur: 0,
+        input_tokens: 5000,
+        modele: "relecteur-inconnu",
+        output_tokens: 1000,
+      },
+    ],
+    relecture_issues: {
+      applied: 1,
+      garde: {
+        "hook-drift": 1,
+        "lost-number": 2,
+        "new-unsupported-number": 1,
+      },
+      rejected: 1,
+    },
+    tokens: 165300,
+    topActions: [
+      {
+        action: "studio_image",
+        count: 3,
+      },
+      {
+        action: "generate_carousel",
+        count: 2,
+      },
+      {
+        action: "generate_post",
+        count: 1,
+      },
+      {
+        action: "inconnu",
+        count: 1,
+      },
+      {
+        action: "audit_instagram",
+        count: 1,
+      },
+    ],
+    utilisatrices: 3,
+  },
+  ia_7j_precedents: {
+    appels: 2,
+    byModel: {
+      "claude-fable-5-1": {
+        appels: 1,
+        tokens: 50000,
+      },
+      "claude-haiku-4-5": {
+        appels: 1,
+        tokens: 30000,
+      },
+    },
+    cout_images_estime_eur: 0,
+    cout_incomplet: false,
+    cout_texte_estime_eur: 1.49,
+    cout_total_estime_eur: 1.49,
+    modeles_non_tarifes: [],
+    relecture_editoriale: [
+      {
+        carrousels: 1,
+        cout_estime_eur: 0.28,
+        input_tokens: 8000,
+        modele: "gpt-6-astra",
+        output_tokens: 4000,
+      },
+    ],
+    relecture_issues: {
+      applied: 1,
+    },
+    tokens: 80000,
+    topActions: [
+      {
+        action: "generate_post",
+        count: 1,
+      },
+      {
+        action: "generate_carousel",
+        count: 1,
+      },
+    ],
+    utilisatrices: 2,
+  },
+  publications: {
+    cette_semaine: 1,
+    semaine_precedente: 1,
+  },
+  qualite: {
+    durees_carrousels: {
+      cette_semaine: {},
+      comptes_internes_7j: {},
+      semaine_precedente: {},
+    },
+    echantillon: [
+      {
+        apercu_slides: [],
+        caption: "",
+        format: "carousel",
+        hook: "Ta lumière te trahit",
+        quality_score: 78,
+        ref: "c1",
+        sujet: "",
+      },
+      {
+        apercu_slides: [],
+        caption: "",
+        format: "carousel",
+        hook: "Il y a 3 ans",
+        quality_score: 52,
+        ref: "c2",
+        sujet: "",
+      },
+    ],
+    echantillon_source: "events",
+    fil_carrousels: {
+      cette_semaine: {
+        a_reparer: 0,
+        carrousels: 0,
+        controle_non_abouti: 0,
+        reparations: {
+          completes: 0,
+          completes_gardees: 0,
+          gardees: 0,
+          locales: 0,
+          locales_gardees: 0,
+          tentees: 0,
+        },
+        sautees_faute_de_temps: 0,
+      },
+      comptes_internes_7j: {
+        a_reparer: 0,
+        carrousels: 0,
+        controle_non_abouti: 0,
+        reparations: {
+          completes: 0,
+          completes_gardees: 0,
+          gardees: 0,
+          locales: 0,
+          locales_gardees: 0,
+          tentees: 0,
+        },
+        sautees_faute_de_temps: 0,
+      },
+      semaine_precedente: {
+        a_reparer: 0,
+        carrousels: 0,
+        controle_non_abouti: 0,
+        reparations: {
+          completes: 0,
+          completes_gardees: 0,
+          gardees: 0,
+          locales: 0,
+          locales_gardees: 0,
+          tentees: 0,
+        },
+        sautees_faute_de_temps: 0,
+      },
+    },
+    garde_anti_redite: {
+      cette_semaine: {
+        a_mordu: 0,
+        contenus: 3,
+        echos_avant: 0,
+        garde_armee: 0,
+        par_format: {},
+      },
+      comptes_internes_7j: {
+        a_mordu: 0,
+        contenus: 1,
+        echos_avant: 0,
+        garde_armee: 0,
+        par_format: {},
+      },
+      semaine_precedente: {
+        a_mordu: 0,
+        contenus: 1,
+        echos_avant: 0,
+        garde_armee: 0,
+        par_format: {},
+      },
+    },
+    par_format: {
+      story: {
+        au_calendrier: 0,
+        generes: 1,
+        publies: 0,
+      },
+      tips: {
+        au_calendrier: 2,
+        generes: 2,
+        publies: 1,
+      },
+    },
+    plan_carrousels: {
+      cette_semaine: {},
+      comptes_internes_7j: {},
+      semaine_precedente: {},
+    },
+    retravail: {
+      retravailles: 1,
+      sujets_regeneres: 1,
+      total_carrousels: 3,
+    },
+    score_gate: {
+      cette_semaine: {
+        moyenne: 65,
+        n: 2,
+        repasses: 1,
+        sous_60: 1,
+        sur: 3,
+      },
+      semaine_precedente: {
+        moyenne: 61,
+        n: 1,
+        repasses: 0,
+        sous_60: 0,
+        sur: 1,
+      },
+      source: "events",
+    },
+  },
+  scope: "weekly",
+  top_consommatrices_7j: [
+    {
+      action_principale: "studio_image",
+      appels: 3,
+      cout_estime_eur: 0.89,
+      email_masque: "ma***@client.fr",
+      inscrite_le: "2026-10-05",
+      part_du_cout_pct: 96,
+      tokens: 120000,
+    },
+    {
+      action_principale: "audit_instagram",
+      appels: 2,
+      cout_estime_eur: 0.04,
+      email_masque: "sa***@client.fr",
+      inscrite_le: "2026-09-09",
+      part_du_cout_pct: 4,
+      tokens: 40000,
+    },
+    {
+      action_principale: "generate_post",
+      appels: 3,
+      cout_estime_eur: 0,
+      email_masque: "jo***@client.fr",
+      inscrite_le: "2026-09-20",
+      part_du_cout_pct: 0,
+      tokens: 5300,
+    },
+  ],
+}
+`;
+
+snapshot[`weekly : liste des requêtes (tables, colonnes, filtres) 1`] = `
+[
+  "GET ai_usage user_id,created_at,action_type,model_used,tokens_used created_at=gte.2026-09-04T08:00:00.000Z [0+1000]",
+  "GET calendar_posts id,user_id,created_at,published_at,publish_status,status [0+1000]",
+  "GET content_quality_events user_id,format,redac_score,redac_repassed,created_at,content_preview created_at=gte.2026-09-04T08:00:00.000Z [0+1000]",
+  "GET generated_carousels user_id,carousel_type,subject,hook_text,caption,slides,slide_count,quality_score,calendar_post_id,status,created_at,updated_at created_at=gte.2026-09-04T08:00:00.000Z [0+1000]",
+  "GET higgsfield_image_spend source,estimated_usd,status,created_at created_at=gte.2026-10-01T00:00:00.000Z [0+1000]",
+  "GET profiles user_id,email,created_at [0+1000]",
+  "GET studio_image_requests estimated_usd,status,created_at created_at=gte.2026-10-01T00:00:00.000Z [0+1000]",
+  "GET workspace_members user_id,workspace_id,joined_at role=eq.owner [0+1000]",
+]
+`;
+
+snapshot[`weekly qualité : colonne content_preview absente → relecture sans elle 1`] = `
+{
+  comptes_internes_7j: {
+    appels: 3,
+    comptes: 3,
+    cout_estime_eur: 2.03,
+    tokens: 210000,
+  },
+  ia_7j: {
+    appels: 8,
+    byModel: {
+      "claude-sonnet-5": {
+        appels: 1,
+        tokens: 120000,
+      },
+      "composition-code": {
+        appels: 1,
+        tokens: 0,
+      },
+      "google/gemini-2.5-flash": {
+        appels: 1,
+        tokens: 40000,
+      },
+      "gpt-image-2": {
+        appels: 2,
+        tokens: 0,
+      },
+      "higgsfield-ai/soul/v2/standard": {
+        appels: 1,
+        tokens: 0,
+      },
+      "modele-mystere": {
+        appels: 1,
+        tokens: 5000,
+      },
+      inconnu: {
+        appels: 1,
+        tokens: 300,
+      },
+    },
+    cout_images_estime_eur: 0.31,
+    cout_incomplet: true,
+    cout_texte_estime_eur: 0.51,
+    cout_total_estime_eur: 0.82,
+    modeles_non_tarifes: [
+      {
+        appels: 1,
+        modele: "modele-mystere",
+        tokens: 5000,
+      },
+      {
+        appels: 1,
+        modele: "inconnu",
+        tokens: 300,
+      },
+    ],
+    relecture_editoriale: [],
+    relecture_issues: {},
+    tokens: 165300,
+    topActions: [
+      {
+        action: "studio_image",
+        count: 3,
+      },
+      {
+        action: "generate_carousel",
+        count: 2,
+      },
+      {
+        action: "generate_post",
+        count: 1,
+      },
+      {
+        action: "inconnu",
+        count: 1,
+      },
+      {
+        action: "audit_instagram",
+        count: 1,
+      },
+    ],
+    utilisatrices: 3,
+  },
+  qualite: {
+    durees_carrousels: {
+      cette_semaine: {},
+      comptes_internes_7j: {},
+      semaine_precedente: {},
+    },
+    echantillon: [
+      {
+        apercu_slides: [
+          "1",
+        ],
+        au_calendrier: true,
+        caption: "Légende",
+        format: "tips",
+        hook: "Ta lumière te trahit",
+        quality_score: 82,
+        ref: "c1",
+        retravaille: true,
+        sujet: "Trois erreurs de lumière",
+      },
+      {
+        apercu_slides: [],
+        au_calendrier: true,
+        caption: "",
+        format: "tips",
+        hook: "Encore la lumière",
+        quality_score: 55,
+        ref: "c2",
+        retravaille: false,
+        sujet: "trois erreurs de LUMIÈRE",
+      },
+      {
+        apercu_slides: [],
+        au_calendrier: false,
+        caption: "Légende",
+        format: "story",
+        hook: "Il y a 3 ans",
+        quality_score: null,
+        ref: "c3",
+        retravaille: false,
+        sujet: "Mon parcours",
+      },
+    ],
+    echantillon_source: "brouillons",
+    fil_carrousels: {
+      cette_semaine: {
+        a_reparer: 0,
+        carrousels: 0,
+        controle_non_abouti: 0,
+        reparations: {
+          completes: 0,
+          completes_gardees: 0,
+          gardees: 0,
+          locales: 0,
+          locales_gardees: 0,
+          tentees: 0,
+        },
+        sautees_faute_de_temps: 0,
+      },
+      comptes_internes_7j: {
+        a_reparer: 0,
+        carrousels: 0,
+        controle_non_abouti: 0,
+        reparations: {
+          completes: 0,
+          completes_gardees: 0,
+          gardees: 0,
+          locales: 0,
+          locales_gardees: 0,
+          tentees: 0,
+        },
+        sautees_faute_de_temps: 0,
+      },
+      semaine_precedente: {
+        a_reparer: 0,
+        carrousels: 0,
+        controle_non_abouti: 0,
+        reparations: {
+          completes: 0,
+          completes_gardees: 0,
+          gardees: 0,
+          locales: 0,
+          locales_gardees: 0,
+          tentees: 0,
+        },
+        sautees_faute_de_temps: 0,
+      },
+    },
+    garde_anti_redite: {
+      cette_semaine: {
+        a_mordu: 0,
+        contenus: 3,
+        echos_avant: 0,
+        garde_armee: 0,
+        par_format: {},
+      },
+      comptes_internes_7j: {
+        a_mordu: 0,
+        contenus: 1,
+        echos_avant: 0,
+        garde_armee: 0,
+        par_format: {},
+      },
+      semaine_precedente: {
+        a_mordu: 0,
+        contenus: 1,
+        echos_avant: 0,
+        garde_armee: 0,
+        par_format: {},
+      },
+    },
+    par_format: {
+      story: {
+        au_calendrier: 0,
+        generes: 1,
+        publies: 0,
+      },
+      tips: {
+        au_calendrier: 2,
+        generes: 2,
+        publies: 1,
+      },
+    },
+    plan_carrousels: {
+      cette_semaine: {},
+      comptes_internes_7j: {},
+      semaine_precedente: {},
+    },
+    retravail: {
+      retravailles: 1,
+      sujets_regeneres: 1,
+      total_carrousels: 3,
+    },
+    score_gate: {
+      cette_semaine: {
+        moyenne: 65,
+        n: 2,
+        repasses: 1,
+        sous_60: 1,
+        sur: 3,
+      },
+      semaine_precedente: {
+        moyenne: 61,
+        n: 1,
+        repasses: 0,
+        sous_60: 0,
+        sur: 1,
+      },
+      source: "events",
+    },
+  },
+}
+`;
+
+snapshot[`weekly qualité : table content_quality_events absente → repli sur les brouillons 1`] = `
+{
+  ia_7j: {
+    appels: 8,
+    byModel: {
+      "claude-sonnet-5": {
+        appels: 1,
+        tokens: 120000,
+      },
+      "composition-code": {
+        appels: 1,
+        tokens: 0,
+      },
+      "google/gemini-2.5-flash": {
+        appels: 1,
+        tokens: 40000,
+      },
+      "gpt-image-2": {
+        appels: 2,
+        tokens: 0,
+      },
+      "higgsfield-ai/soul/v2/standard": {
+        appels: 1,
+        tokens: 0,
+      },
+      "modele-mystere": {
+        appels: 1,
+        tokens: 5000,
+      },
+      inconnu: {
+        appels: 1,
+        tokens: 300,
+      },
+    },
+    cout_images_estime_eur: 0.31,
+    cout_incomplet: true,
+    cout_texte_estime_eur: 0.51,
+    cout_total_estime_eur: 0.82,
+    modeles_non_tarifes: [
+      {
+        appels: 1,
+        modele: "modele-mystere",
+        tokens: 5000,
+      },
+      {
+        appels: 1,
+        modele: "inconnu",
+        tokens: 300,
+      },
+    ],
+    relecture_editoriale: [],
+    relecture_issues: {},
+    tokens: 165300,
+    topActions: [
+      {
+        action: "studio_image",
+        count: 3,
+      },
+      {
+        action: "generate_carousel",
+        count: 2,
+      },
+      {
+        action: "generate_post",
+        count: 1,
+      },
+      {
+        action: "inconnu",
+        count: 1,
+      },
+      {
+        action: "audit_instagram",
+        count: 1,
+      },
+    ],
+    utilisatrices: 3,
+  },
+  qualite: {
+    durees_carrousels: null,
+    echantillon: [
+      {
+        apercu_slides: [
+          "1",
+        ],
+        au_calendrier: true,
+        caption: "Légende",
+        format: "tips",
+        hook: "Ta lumière te trahit",
+        quality_score: 82,
+        ref: "c1",
+        retravaille: true,
+        sujet: "Trois erreurs de lumière",
+      },
+      {
+        apercu_slides: [],
+        au_calendrier: true,
+        caption: "",
+        format: "tips",
+        hook: "Encore la lumière",
+        quality_score: 55,
+        ref: "c2",
+        retravaille: false,
+        sujet: "trois erreurs de LUMIÈRE",
+      },
+      {
+        apercu_slides: [],
+        au_calendrier: false,
+        caption: "Légende",
+        format: "story",
+        hook: "Il y a 3 ans",
+        quality_score: null,
+        ref: "c3",
+        retravaille: false,
+        sujet: "Mon parcours",
+      },
+    ],
+    echantillon_source: "brouillons",
+    fil_carrousels: null,
+    garde_anti_redite: null,
+    par_format: {
+      story: {
+        au_calendrier: 0,
+        generes: 1,
+        publies: 0,
+      },
+      tips: {
+        au_calendrier: 2,
+        generes: 2,
+        publies: 1,
+      },
+    },
+    plan_carrousels: null,
+    retravail: {
+      retravailles: 1,
+      sujets_regeneres: 1,
+      total_carrousels: 3,
+    },
+    score_gate: {
+      cette_semaine: {
+        moyenne: 69,
+        n: 2,
+        sous_60: 1,
+        sur: 3,
+      },
+      semaine_precedente: {
+        moyenne: 70,
+        n: 1,
+        sous_60: 0,
+        sur: 1,
+      },
+      source: "brouillons",
+    },
+  },
+}
+`;
+
+snapshot[`weekly qualité : table complète sans aucun événement 1`] = `
+{
+  qualite: {
+    durees_carrousels: {
+      cette_semaine: {},
+      comptes_internes_7j: {},
+      semaine_precedente: {},
+    },
+    echantillon: [
+      {
+        apercu_slides: [
+          "1",
+        ],
+        au_calendrier: true,
+        caption: "Légende",
+        format: "tips",
+        hook: "Ta lumière te trahit",
+        quality_score: 82,
+        ref: "c1",
+        retravaille: true,
+        sujet: "Trois erreurs de lumière",
+      },
+      {
+        apercu_slides: [],
+        au_calendrier: true,
+        caption: "",
+        format: "tips",
+        hook: "Encore la lumière",
+        quality_score: 55,
+        ref: "c2",
+        retravaille: false,
+        sujet: "trois erreurs de LUMIÈRE",
+      },
+      {
+        apercu_slides: [],
+        au_calendrier: false,
+        caption: "Légende",
+        format: "story",
+        hook: "Il y a 3 ans",
+        quality_score: null,
+        ref: "c3",
+        retravaille: false,
+        sujet: "Mon parcours",
+      },
+    ],
+    echantillon_source: "brouillons",
+    fil_carrousels: {
+      cette_semaine: {
+        a_reparer: 0,
+        carrousels: 0,
+        controle_non_abouti: 0,
+        reparations: {
+          completes: 0,
+          completes_gardees: 0,
+          gardees: 0,
+          locales: 0,
+          locales_gardees: 0,
+          tentees: 0,
+        },
+        sautees_faute_de_temps: 0,
+      },
+      comptes_internes_7j: {
+        a_reparer: 0,
+        carrousels: 0,
+        controle_non_abouti: 0,
+        reparations: {
+          completes: 0,
+          completes_gardees: 0,
+          gardees: 0,
+          locales: 0,
+          locales_gardees: 0,
+          tentees: 0,
+        },
+        sautees_faute_de_temps: 0,
+      },
+      semaine_precedente: {
+        a_reparer: 0,
+        carrousels: 0,
+        controle_non_abouti: 0,
+        reparations: {
+          completes: 0,
+          completes_gardees: 0,
+          gardees: 0,
+          locales: 0,
+          locales_gardees: 0,
+          tentees: 0,
+        },
+        sautees_faute_de_temps: 0,
+      },
+    },
+    garde_anti_redite: {
+      cette_semaine: {
+        a_mordu: 0,
+        contenus: 0,
+        echos_avant: 0,
+        garde_armee: 0,
+        par_format: {},
+      },
+      comptes_internes_7j: {
+        a_mordu: 0,
+        contenus: 0,
+        echos_avant: 0,
+        garde_armee: 0,
+        par_format: {},
+      },
+      semaine_precedente: {
+        a_mordu: 0,
+        contenus: 0,
+        echos_avant: 0,
+        garde_armee: 0,
+        par_format: {},
+      },
+    },
+    par_format: {
+      story: {
+        au_calendrier: 0,
+        generes: 1,
+        publies: 0,
+      },
+      tips: {
+        au_calendrier: 2,
+        generes: 2,
+        publies: 1,
+      },
+    },
+    plan_carrousels: {
+      cette_semaine: {},
+      comptes_internes_7j: {},
+      semaine_precedente: {},
+    },
+    retravail: {
+      retravailles: 1,
+      sujets_regeneres: 1,
+      total_carrousels: 3,
+    },
+    score_gate: {
+      cette_semaine: {
+        moyenne: 69,
+        n: 2,
+        sous_60: 1,
+        sur: 3,
+      },
+      semaine_precedente: {
+        moyenne: 70,
+        n: 1,
+        sous_60: 0,
+        sur: 1,
+      },
+      source: "brouillons",
+    },
+  },
+}
+`;
