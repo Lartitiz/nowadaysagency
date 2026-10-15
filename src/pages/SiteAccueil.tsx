@@ -43,6 +43,7 @@ export default function SiteAccueil() {
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [aiResults, setAiResults] = useState<Record<string, any>>({});
   const [brandingPercent, setBrandingPercent] = useState(100);
+  const [readyThreshold, setReadyThreshold] = useState(0);
   const [showCoaching, setShowCoaching] = useState(false);
   const [coachingBrief, setCoachingBrief] = useState<PreGenBrief | null>(null);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
@@ -63,9 +64,10 @@ export default function SiteAccueil() {
       } else if (urlStep) {
         setStep(urlStep);
       }
-      const { getBrandingCompletion } = await import("@/lib/branding-completion");
+      const { getBrandingCompletion, BRANDING_READY_THRESHOLD } = await import("@/lib/branding-completion");
       const { percent } = await getBrandingCompletion({ column, value });
       setBrandingPercent(percent);
+      setReadyThreshold(BRANDING_READY_THRESHOLD);
       setLoading(false);
     };
     load();
@@ -232,9 +234,9 @@ export default function SiteAccueil() {
           <p className="mt-1 text-sm text-muted-foreground italic">Chaque section a un rôle précis. On les construit une par une.</p>
         </div>
 
-        {brandingPercent < 50 && (
+        {brandingPercent < readyThreshold && (
           <div className="rounded-xl bg-rose-pale border border-primary/20 p-4 mb-6">
-            <p className="text-sm text-foreground">💡 Plus ton branding est complet, plus les textes générés seront pertinents. <Link to="/branding" className="text-primary-text font-semibold hover:underline">Compléter mon branding →</Link></p>
+            <p className="text-sm text-foreground">💡 Plus ton identité est complète, plus les textes générés seront pertinents. <Link to="/branding" className="text-primary-text font-semibold hover:underline">Compléter mon identité →</Link></p>
           </div>
         )}
 

@@ -32,7 +32,7 @@ const NAV_ITEMS = [
 ];
 
 const BREADCRUMB_LABELS: Record<string, string> = {
-  "/branding": "Mon identité de marque",
+  "/branding": "Mon identité",
   "/branding/audit": "Audit de marque",
   "/branding/offres": "Mes offres",
   "/branding/coaching": "Coaching identité",

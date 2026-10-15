@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Globe, Upload, FileText, X } from "lucide-react";
+import { Globe, Instagram, Linkedin, Upload, FileText, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -9,10 +9,12 @@ import { toast } from "sonner";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 
 interface BrandingImportProps {
-  onAnalyze: (data: { website?: string; files: File[] }) => void;
+  onAnalyze: (data: { website?: string; instagram?: string; linkedin?: string; files: File[] }) => void;
   onSkip: () => void;
   loading?: boolean;
   initialWebsite?: string;
+  initialInstagram?: string;
+  initialLinkedin?: string;
   reanalyzeWarning?: boolean;
 }
 
@@ -22,14 +24,20 @@ const MAX_FILE_SIZE = UX_UPLOAD_LIMITS.media;
 // so don't offer them here or they'd be silently dropped after analysis.
 const ACCEPTED_EXTENSIONS = ".pdf,.docx,.doc,.txt,.md";
 
-export default function BrandingImport({ onAnalyze, onSkip, loading = false, initialWebsite = "", reanalyzeWarning = false }: BrandingImportProps) {
+// Instagram et LinkedIn étaient proposés ici jusqu'en mars 2026 (retirés sans
+// explication, alors que analyze-brand les lit toujours). Remis le 15/10/2026
+// (chantier F) : ces deux sites bloquent parfois la lecture, d'où la phrase
+// qui conseille le site ou un document, et la relecture qui signale l'échec.
+export default function BrandingImport({ onAnalyze, onSkip, loading = false, initialWebsite = "", initialInstagram = "", initialLinkedin = "", reanalyzeWarning = false }: BrandingImportProps) {
   const [website, setWebsite] = useState(initialWebsite);
+  const [instagram, setInstagram] = useState(initialInstagram);
+  const [linkedin, setLinkedin] = useState(initialLinkedin);
   const [files, setFiles] = useState<File[]>([]);
   const [docsOpen, setDocsOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const hasAnyInput = website.trim() || files.length > 0;
+  const hasAnyInput = website.trim() || instagram.trim() || linkedin.trim() || files.length > 0;
 
   const handleFiles = useCallback((newFiles: FileList | File[]) => {
     const accepted: File[] = [];
@@ -53,58 +61,63 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
 
   const handleSubmit = () => {
     if (!hasAnyInput) return;
-    onAnalyze({ website: website.trim() || undefined, files });
+    onAnalyze({ website: website.trim() || undefined, instagram: instagram.trim() || undefined, linkedin: linkedin.trim() || undefined, files });
   };
 
   const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.1 } } };
   const fadeUp = { hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" as const } } };
 
   return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4">
+    <div className="flex justify-center px-0 py-2 sm:px-4 sm:py-6">
       {/* initial={false} : pas d'anim d'entrée à opacity 0 — sous la charge de
           re-renders du live, l'anim restait figée à opacity ~0 → formulaire
           invisible (« écran blanc »). On rend directement à l'état visible. */}
       <motion.div className="w-full max-w-[560px]" variants={stagger} initial={false} animate="visible">
         {/* Header */}
-        <motion.div variants={fadeUp} className="text-center mb-10">
-          <h1 className="font-display text-3xl sm:text-4xl text-foreground leading-tight mb-3">
-            {reanalyzeWarning ? "Réanalyser mes liens" : "Dis-moi où te trouver"}
+        <motion.div variants={fadeUp} className="text-center mb-6">
+          <h1 className="font-display text-2xl sm:text-3xl text-foreground leading-tight mb-2">
+            {reanalyzeWarning ? "Actualiser mon identité depuis mes liens" : "Remplir mon identité à partir de mes liens"}
           </h1>
-          <p className="font-mono-ui text-sm text-muted-foreground leading-relaxed max-w-[480px] mx-auto">
+          <p className="text-sm text-muted-foreground leading-relaxed max-w-[480px] mx-auto">
             {reanalyzeWarning
-              ? "Modifie tes liens si besoin, puis relance l'analyse. Les sections que tu as verrouillées ne seront pas touchées."
-              : "Dépose tes liens et je m'occupe du reste. Je vais analyser ta présence en ligne et pré-remplir ton branding. Tu n'auras qu'à ajuster."}
+              ? "Modifie tes liens si besoin, puis relance la lecture. Les rubriques que tu as validées ne seront pas touchées."
+              : "Je lis ce que tu as déjà publié et je remplis ta fiche. Tu relis et tu corriges ensuite. Un seul lien suffit."}
           </p>
         </motion.div>
 
-        {/* Website URL input */}
-        <motion.div variants={fadeUp} className="mb-4">
-          <div className="relative">
-            <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <Input
-              type="url"
-              placeholder="https://monsite.com"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              className="pl-10 h-12 rounded-[14px] bg-card border-border text-foreground placeholder:text-muted-foreground/60"
-            />
-          </div>
+        {/* Liens : site, Instagram, LinkedIn */}
+        <motion.div variants={fadeUp} className="mb-3 space-y-2.5">
+          {([
+            { id: "import-website", label: "Mon site", icon: Globe, type: "url", placeholder: "https://monsite.com", value: website, set: setWebsite },
+            { id: "import-instagram", label: "Mon compte Instagram", icon: Instagram, type: "text", placeholder: "@moncompte", value: instagram, set: setInstagram },
+            { id: "import-linkedin", label: "Mon profil LinkedIn", icon: Linkedin, type: "url", placeholder: "https://linkedin.com/in/monprofil", value: linkedin, set: setLinkedin },
+          ] as const).map(({ id, label, icon: Icon, type, placeholder, value, set }) => (
+            <div key={id} className="relative">
+              <label htmlFor={id} className="sr-only">{label}</label>
+              <Icon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" aria-hidden="true" />
+              <Input
+                id={id}
+                type={type}
+                placeholder={placeholder}
+                aria-label={label}
+                value={value}
+                onChange={(e) => set(e.target.value)}
+                className="pl-10 h-11 rounded-[14px] bg-card border-border text-foreground placeholder:text-muted-foreground/60"
+              />
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground">Instagram et LinkedIn bloquent parfois la lecture : ton site ou un document donnent le meilleur résultat.</p>
         </motion.div>
 
-        {reanalyzeWarning && (
-          <motion.div variants={fadeUp} className="bg-warning-bg border border-warning/30 rounded-[16px] p-4 mb-4 text-sm text-warning">
-            ⚠️ Attention : relancer l'analyse va proposer de nouvelles données pour les sections que tu n'as pas verrouillées. Les sections validées ne seront pas touchées.
-          </motion.div>
-        )}
 
 
         {/* Document upload */}
-        <motion.div variants={fadeUp} className="mb-6">
+        <motion.div variants={fadeUp} className="mb-5">
           <Collapsible open={docsOpen} onOpenChange={setDocsOpen}>
             <CollapsibleTrigger className="w-full text-left">
-              <div className="rounded-[20px] border border-dashed border-border bg-card/60 hover:bg-card transition-colors p-4 cursor-pointer">
+              <div className="rounded-[20px] border border-dashed border-border bg-card/60 hover:bg-card transition-colors px-4 py-3 cursor-pointer">
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-primary" /> Tu as aussi des documents ? (plaquette, business plan, présentation...)
+                  <FileText className="h-4 w-4 text-primary shrink-0" /> Ajouter des documents (plaquette, présentation…)
                 </p>
               </div>
             </CollapsibleTrigger>
@@ -140,21 +153,21 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
         </motion.div>
 
         {/* CTA */}
-        <motion.div variants={fadeUp} className="text-center space-y-4">
+        <motion.div variants={fadeUp} className="text-center space-y-3">
           <Button
             onClick={handleSubmit}
             disabled={!hasAnyInput || loading}
-            className="w-full sm:w-auto bg-primary hover:bg-bordeaux text-primary-foreground rounded-[12px] px-10 py-6 text-base font-semibold shadow-cta hover:shadow-strong hover:scale-[1.02] transition-all duration-200"
+            className="w-full sm:w-auto bg-primary hover:bg-bordeaux text-primary-foreground rounded-[12px] px-10 py-5 text-base font-semibold shadow-cta hover:shadow-strong hover:scale-[1.02] transition-all duration-200"
           >
             {loading ? (
               <span className="flex items-center gap-2">
                 <Spinner className="h-4 w-4 text-primary-foreground" />
-                Analyse en cours...
+                Lecture en cours…
               </span>
-            ) : reanalyzeWarning ? "Réanalyser ✨" : "Analyse mon projet ✨"}
+            ) : reanalyzeWarning ? "Actualiser mon identité" : "Remplir mon identité"}
           </Button>
-          <button onClick={onSkip} className="block mx-auto font-mono-ui text-sm text-muted-foreground hover:text-foreground transition-colors">
-            {reanalyzeWarning ? "← Retour au branding" : "Je préfère remplir manuellement →"}
+          <button type="button" onClick={onSkip} className="block mx-auto text-sm text-muted-foreground hover:text-foreground transition-colors">
+            {reanalyzeWarning ? "← Retour à mon identité" : "← Je préfère remplir moi-même"}
           </button>
         </motion.div>
       </motion.div>

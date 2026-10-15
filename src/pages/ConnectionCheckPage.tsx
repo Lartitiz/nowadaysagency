@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { RefreshCw, ArrowRight, CheckCircle2, AlertTriangle, XCircle, Info, Loader2 } from "lucide-react";
 import SocialConnectionsCard from "@/components/SocialConnectionsCard";
-import { fetchBrandingData, calculateBrandingCompletion } from "@/lib/branding-completion";
+import { fetchBrandingData, calculateBrandingCompletion, isBrandingReady } from "@/lib/branding-completion";
 
 interface Check {
   category: string;
@@ -128,7 +128,7 @@ export default function ConnectionCheckPage() {
       for (const [label, pct] of sections) {
         results.push({ category: "Identité", name: label, status: pct >= 80 ? "ok" : pct > 0 ? "warning" : "info", detail: `${pct}%` });
       }
-      results.push({ category: "Identité", name: "Complétude branding", status: comp.total >= 70 ? "ok" : comp.total > 0 ? "warning" : "info", detail: `${comp.total}%` });
+      results.push({ category: "Identité", name: "Complétude branding", status: isBrandingReady(comp.total) ? "ok" : comp.total > 0 ? "warning" : "info", detail: `${comp.total}%` });
     } catch (e: any) {
       results.push({ category: "Identité", name: "Complétude branding", status: "error", detail: e?.message || "Erreur de calcul" });
     }

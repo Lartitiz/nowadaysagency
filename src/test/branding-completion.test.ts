@@ -141,3 +141,12 @@ describe("calculateBrandingCompletion", () => {
     expect(result.total).toBeLessThan(100);
   });
 });
+
+describe("seuil unique de la fiche Mon identité", async () => {
+  const { BRANDING_READY_THRESHOLD, isBrandingReady } = await import("@/lib/branding-completion");
+  it("vaut 60 % (choix de Laetitia du 15/10/2026)", () => {
+    expect(BRANDING_READY_THRESHOLD).toBe(60);
+    expect(isBrandingReady(59)).toBe(false);
+    expect(isBrandingReady(60)).toBe(true);
+  });
+});

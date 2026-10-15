@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { ArrowRight, ChevronDown, FileText, Palette, PenLine, UserRound } from "lucide-react";
+import BrandingProgressHeader from "@/components/branding/BrandingProgressHeader";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { identityPresentation, type IdentityOverview } from "@/lib/identity-overview";
 
 interface Props {
   data: IdentityOverview;
+  completionTotal: number;
   onImport: () => void;
   onReanalyze?: () => void;
   onShowSynthesis: () => void;
@@ -34,7 +35,7 @@ function More({ title, children }: { title: string; children: React.ReactNode })
   return <details className="group mt-6"><summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">{title}<ChevronDown className="h-4 w-4 shrink-0 group-open:rotate-180" aria-hidden="true" /></summary><div className="border-t border-border">{children}</div></details>;
 }
 
-export default function BrandingIdentityCard({ data, onImport, onReanalyze, onShowSynthesis, pendingReview, onReview, auditSuggestions, onApplySuggestion, onDismissSuggestion }: Props) {
+export default function BrandingIdentityCard({ data, completionTotal, onImport, onReanalyze, onShowSynthesis, pendingReview, onReview, auditSuggestions, onApplySuggestion, onDismissSuggestion }: Props) {
   const [applying, setApplying] = useState<string | null>(null);
   const [params, setParams] = useSearchParams();
   const area = AREAS.some(a => a.key === params.get("rubrique")) ? params.get("rubrique") : "about";
@@ -44,19 +45,9 @@ export default function BrandingIdentityCard({ data, onImport, onReanalyze, onSh
   const hasBasics = !!(basics.activity || basics.audience || basics.difference || data.publics.length);
   const selectArea = (key: string) => { const next = new URLSearchParams(params); next.set("rubrique", key); setParams(next); };
   return <div>
-    <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
-      <p className="text-sm text-muted-foreground">Mon espace <span aria-hidden="true">/</span> Mon activité</p>
-      <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="gap-2">Autres actions <ChevronDown className="h-4 w-4" /></Button></DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={onImport}>Importer mes informations</DropdownMenuItem>
-          {onReanalyze && <DropdownMenuItem onSelect={onReanalyze}>Actualiser depuis mes sources</DropdownMenuItem>}
-          <DropdownMenuItem onSelect={onShowSynthesis}>Résumer mon activité</DropdownMenuItem>
-          <DropdownMenuItem asChild><Link to="/branding/audit">Vérifier ma communication</Link></DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <BrandingProgressHeader total={completionTotal} onImport={onImport} onReanalyze={onReanalyze} onShowSynthesis={onShowSynthesis} />
     <div className="grid gap-7 md:grid-cols-[220px_minmax(0,1fr)] md:gap-10">
-      <nav aria-label="Rubriques de mon activité" className="flex flex-col gap-1 md:sticky md:top-24 md:self-start">
+      <nav aria-label="Rubriques de mon identité" className="flex flex-col gap-1 md:sticky md:top-24 md:self-start">
         {AREAS.map(({ key, title, detail, icon: Icon }) => <button key={key} type="button" onClick={() => selectArea(key)} aria-current={area === key ? "page" : undefined}
           className={`flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors ${area === key ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
           <Icon className="h-5 w-5 shrink-0" aria-hidden="true" /><span><span className="block text-sm font-semibold">{title}</span><span className="mt-0.5 block text-xs text-muted-foreground">{detail}</span></span>
