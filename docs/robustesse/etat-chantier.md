@@ -73,15 +73,19 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
   l'objectif au lancement. Aucun test ne couvrait la séquence : test en rendu réel
   ajouté d'abord (`src/test/creer-sequence-lancement.test.tsx`, 5 cas, vérifié sur
   l'ancien code et contre deux pannes volontaires). Aucun test existant modifié.
-- **Lot F** (PR en cours) : angles d'attaque du reel sortis à l'identique dans
+- **Lot F** (#1552, fusionné le 14/10/2026) : angles d'attaque du reel sortis à l'identique dans
   `src/hooks/use-reel-hooks.ts` (états, `fetchReelHooks`, `handleHookSelect`,
   `handleHookSkip`). Même solution qu'au lot E : `selectedReelHook` est passé à
   `useDoGenerate` et `hooksLoading` est lu tôt, alors que `doGenerate` et `questions`
   n'existent que plus bas ; le hook est appelé à la place des anciens états et ses
   actions reçoivent ce contexte au moment de l'appel. Déjà couvert par les tests du
   lot A (`creer-angles-reel-photos`), aucun test modifié.
-- **Lot G** ensuite : publication (`use-reel-artifact.ts` puis `use-creer-publish.ts`,
-  avec réécriture de `reel-editor-scope` et `reel-publication`), voir la fiche 1.
+- **Lot G**, en deux PR :
+  - **G1** (PR en cours) : vidéo du reel liée à son script, sortie à l'identique dans
+    `src/hooks/use-reel-artifact.ts`. `reel-editor-scope.test.tsx` lit désormais ce
+    fichier (seuls le chemin et le repère de fin changent, les vérifications restent).
+  - **G2** ensuite : publication et programmation (`use-creer-publish.ts`), avec
+    `reel-publication.test.ts` à faire pointer vers le nouveau fichier.
 
 ## Découpage du Studio, `visual-studio/index.ts` (fiche 5) : terminé le 14/10/2026
 2001 → 299 lignes ; `index.ts` n'est plus qu'un aiguilleur des 16 actions.
