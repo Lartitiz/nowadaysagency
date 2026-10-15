@@ -6,7 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { pickActiveWorkspace } from "@/lib/workspace-select";
+import { pickActiveWorkspace, visibleWorkspaces } from "@/lib/workspace-select";
+import { WORKSPACE_SHARING_ENABLED } from "@/config/feature-flags";
 
 export interface Workspace {
   id: string;
@@ -184,6 +185,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      // Mode Binôme coupé : les espaces partagés (manager…) ne sont plus proposés.
+      loaded = visibleWorkspaces(loaded, WORKSPACE_SHARING_ENABLED);
       setWorkspaces(loaded.map(({ _role, ...ws }) => ws));
 
       // L'espace « propre » = celui dont on est `owner`. Sert de défaut et de
@@ -303,6 +306,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (requestId !== contextRequestId.current || !role) return false;
+
+      if (!WORKSPACE_SHARING_ENABLED && role !== "owner") {
+        setSwitchingWorkspaceId(null);
+        setLoading(false);
+        toast.error("Le partage d'espace n'est plus disponible : chacune travaille dans son propre espace.");
+        return false;
+      }
 
       // Publier le contexte complet seulement quand espace ET rôle sont
       // confirmés. React groupe ces mises à jour dans le même rendu.

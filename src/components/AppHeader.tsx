@@ -2,6 +2,7 @@ import BrandLogo from "@/components/BrandLogo";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { WORKSPACE_SHARING_ENABLED } from "@/config/feature-flags";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {   Sparkles, CalendarDays,  User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake,  Search, ChevronDown, Check, Plus,   Wrench,  Menu } from "lucide-react";
 import { useMobileNav } from "@/contexts/MobileNavContext";
@@ -464,7 +465,7 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
               <Film className="h-4 w-4" /> 🎬 Mode démo
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/admin/coaching")} className="gap-2 cursor-pointer">
-              <GraduationCap className="h-4 w-4" /> 🎓 Mes client·es
+              <GraduationCap className="h-4 w-4" /> 👥 Utilisatrices
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/admin/audit")} className="gap-2 cursor-pointer">
               <Search className="h-4 w-4" /> 🔧 Audit app
@@ -543,11 +544,13 @@ export function WorkspaceSwitcher({
             <span className="truncate">{ws.name}</span>
           </DropdownMenuItem>
         ))}
+        {WORKSPACE_SHARING_ENABLED && <>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => navigate("/admin/coaching")} className="gap-2 cursor-pointer">
           <Plus className="h-3.5 w-3.5 shrink-0" />
           Nouveau client
         </DropdownMenuItem>
+        </>}
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -31,6 +31,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { MODULE_FLAGS } from "@/config/feature-flags";
 import PurchaseHistory from "@/components/settings/PurchaseHistory";
 import WorkspaceMembersSection from "@/components/settings/WorkspaceMembersSection";
+import { WORKSPACE_SHARING_ENABLED } from "@/config/feature-flags";
 import PromoCodeInput from "@/components/PromoCodeInput";
 import { isFairUsePlan } from "@/lib/plan-limits";
 import {
@@ -248,7 +249,7 @@ function SettingsContent() {
         </Section>
 
           </TabsContent>
-          <TabsContent value="connections" forceMount className="data-[state=inactive]:hidden"><p className="mb-4 text-sm text-muted-foreground">Espace actuel : <strong>{activeWorkspace?.name || "Mon activité"}</strong>. Les connexions et les membres concernent cet espace.</p>
+          <TabsContent value="connections" forceMount className="data-[state=inactive]:hidden"><p className="mb-4 text-sm text-muted-foreground">Espace actuel : <strong>{activeWorkspace?.name || "Mon activité"}</strong>. Les connexions concernent cet espace.</p>
         {/* ─── Connexions réseaux ─── */}
         <Section icon={<Share2 className="h-4 w-4" />} title="Mes connexions">
           <div className="space-y-3">
@@ -262,7 +263,7 @@ function SettingsContent() {
         </Section>
 
         {/* ─── Membres de l'espace (owner/manager) ─── */}
-        <WorkspaceMembersSection />
+        {WORKSPACE_SHARING_ENABLED && <WorkspaceMembersSection />}
 
           </TabsContent>
           <TabsContent value="preferences" forceMount className="data-[state=inactive]:hidden">

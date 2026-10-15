@@ -9,6 +9,14 @@ const data = vi.hoisted(() => ({
   invalidate: vi.fn(),
   setFlowWorkspaceId: vi.fn(),
   toastError: vi.fn(),
+  sharing: true,
+}));
+
+// Ces scénarios testent la bascule entre espaces partagés : partage rallumé
+// (coupé en production depuis le 15/10/2026, dernier test ci-dessous).
+vi.mock("@/config/feature-flags", async (original) => ({
+  ...(await original<typeof import("@/config/feature-flags")>()),
+  get WORKSPACE_SHARING_ENABLED() { return data.sharing; },
 }));
 
 vi.mock("@/hooks/use-flow-persistence", () => ({ setFlowWorkspaceId: data.setFlowWorkspaceId }));
@@ -51,6 +59,7 @@ beforeEach(() => {
   data.invalidate.mockClear();
   data.setFlowWorkspaceId.mockClear();
   data.toastError.mockClear();
+  data.sharing = true;
 });
 
 afterEach(cleanup);
@@ -195,4 +204,29 @@ it("G3: a newly granted workspace is added only with its verified role", async (
   expect(result.current.activeWorkspace?.id).toBe("D");
   expect(result.current.activeRole).toBe("manager");
   expect(result.current.workspaces.map((workspace) => workspace.id)).toEqual(["A", "B", "C", "D"]);
+});
+
+it("partage coupé : seuls les espaces owner sont proposés et une bascule vers un espace partagé est refusée", async () => {
+  data.sharing = false;
+  localStorage.setItem("active_workspace_id", "B");
+  const view = renderHook(() => useWorkspace(), {
+    wrapper: ({ children }: any) => <WorkspaceProvider>{children}</WorkspaceProvider>,
+  });
+  await waitFor(() => expect(view.result.current.loading).toBe(false));
+  expect(view.result.current.activeWorkspace?.id).toBe("A");
+  expect(view.result.current.workspaces.map((w) => w.id)).toEqual(["A"]);
+  expect(view.result.current.isMultiWorkspace).toBe(false);
+  let done!: Promise<boolean>;
+  act(() => {
+    done = view.result.current.switchWorkspace("B");
+  });
+  let ok = true;
+  await act(async () => {
+    data.roleRequests[0].resolve({ data: { role: "manager", workspaces: { id: "B", name: "B" } }, error: null });
+    ok = await done;
+  });
+  expect(ok).toBe(false);
+  expect(view.result.current.activeWorkspace?.id).toBe("A");
+  expect(view.result.current.activeRole).toBe("owner");
+  expect(data.toastError).toHaveBeenCalled();
 });
