@@ -2,21 +2,20 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import BrandingPage from "@/pages/BrandingPage";
-const m = vi.hoisted(() => ({ scope: "A", ready: true, reads: [] as any[], pending: null as any }));
+const m = vi.hoisted(() => ({ scope: "A", ready: true, reads: [] as any[], pending: null as any, profile: null as any }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "owner" } }) }));
 vi.mock("@/contexts/DemoContext", () => ({ useDemoContext: () => ({ isDemoMode: false }) }));
 vi.mock("@/contexts/WorkspaceContext", () => ({ useWorkspace: () => ({ loading: !m.ready }) }));
 vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceFilter: () => ({ column: "workspace_id", value: m.scope }), useWorkspaceId: () => m.scope, useWorkspaceReady: () => m.ready }));
 vi.mock("@/lib/identity-overview", async original => ({ ...await original<typeof import("@/lib/identity-overview")>(), loadIdentityOverview: () => new Promise((resolve, reject) => m.reads.push({ resolve, reject })) }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: (table: string) => {
- const q: any = { select: () => q, eq: () => q, is: () => q, order: () => q, limit: () => q, maybeSingle: () => Promise.resolve({ data: table === "branding_autofill" ? m.pending : null, error: null }) }; return q;
+ const q: any = { select: () => q, eq: () => q, is: () => q, order: () => q, limit: () => q, maybeSingle: () => Promise.resolve({ data: table === "branding_autofill" ? m.pending : table === "profiles" ? m.profile : null, error: null }) }; return q;
 } } }));
-vi.mock("@/hooks/use-branding-mirror", () => ({ useBrandingMirror: () => ({ mirrorOpen: false, setMirrorOpen: vi.fn() }) }));
 vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({ invalidateQueries: vi.fn() }) }));
 vi.mock("@/components/AppHeader", () => ({ default: () => null }));
 vi.mock("@/components/branding/BrandingDangerZone", () => ({ default: () => null }));
 vi.mock("@/components/branding/BrandingSynthesisSheet", () => ({ default: () => null }));
-vi.mock("@/components/branding/BrandingImport", () => ({ default: () => <div>Import volontaire</div> }));
+vi.mock("@/components/branding/BrandingImport", () => ({ default: ({ initialWebsite, initialInstagram }: any) => <div>Import volontaire {initialWebsite} {initialInstagram}</div> }));
 vi.mock("@/components/branding/BrandingReview", () => ({ default: ({ onDone }: any) => <button onClick={() => onDone(false)}>Relire plus tard</button> }));
 vi.mock("@/components/CoachingFlow", () => ({ default: () => null }));
 vi.mock("@/lib/posthog", () => ({ posthog: { capture: vi.fn() } }));
@@ -24,7 +23,7 @@ vi.mock("framer-motion", () => ({ motion: { div: ({ children }: any) => <div>{ch
 const data = (name = "") => ({ storytellingList: [], publics: [], persona: null, proposition: name ? { version_final: name } : null, brandProfile: null, strategy: null, offersList: [], charter: null });
 const ui = () => <MemoryRouter><BrandingPage /></MemoryRouter>;
 const answer = async (i: number, name = "") => { await act(async () => m.reads[i].resolve(data(name))); };
-beforeEach(() => { m.scope = "A"; m.ready = true; m.reads = []; m.pending = null; });
+beforeEach(() => { m.scope = "A"; m.ready = true; m.reads = []; m.pending = null; m.profile = null; });
 describe("identity page state", () => {
  it("waits for the workspace and keeps import optional on a truly empty account", async () => {
   m.ready = false; const view = render(ui()); expect(m.reads).toHaveLength(0);
@@ -52,5 +51,13 @@ describe("identity page state", () => {
   expect(screen.getByText("Des propositions importées sont à relire.")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Les ouvrir" }));
   expect(screen.getByRole("button", { name: "Relire plus tard" })).toBeInTheDocument();
+ });
+ it("shows progress with the shared threshold and opens the import with known links", async () => {
+  m.profile = { website_url: "https://atelier.fr", instagram_url: "", instagram_username: "atelier", linkedin_url: "" };
+  render(ui()); await answer(0, "Présentation existante");
+  expect(screen.getByRole("progressbar", { name: /Mon identité remplie à \d+ %/ })).toBeInTheDocument();
+  expect(screen.getByText(/pour une fiche suffisante/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Remplir à partir de mon site, Instagram ou LinkedIn" }));
+  expect(await screen.findByText("Import volontaire https://atelier.fr @atelier")).toBeInTheDocument();
  });
 });

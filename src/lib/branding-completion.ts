@@ -100,6 +100,18 @@ export async function fetchBrandingData(
   return (await fetchBrandingDataWithStatus(filter, fallbackFilter)).data;
 }
 
+/**
+ * LE seuil unique (choix de Laetitia du 15/10/2026) : à partir de 60 % la fiche
+ * « Mon identité » est suffisante. En dessous, l'app invite à la compléter
+ * (Tes premiers pas, bandeaux de création, barre de /branding). Ne pas
+ * réintroduire de seuil propre à un écran : passer par isBrandingReady.
+ */
+export const BRANDING_READY_THRESHOLD = 60;
+
+export function isBrandingReady(total: number): boolean {
+  return total >= BRANDING_READY_THRESHOLD;
+}
+
 function filled(val: unknown): boolean {
   if (val === null || val === undefined) return false;
   if (typeof val === "string") return val.trim().length > 0;

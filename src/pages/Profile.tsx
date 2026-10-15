@@ -309,19 +309,31 @@ export default function Profile() {
       
       <main className="mx-auto max-w-2xl px-4 py-8 pb-40 md:pb-28 animate-fade-in">
         <h1 className="font-display text-3xl font-bold text-bordeaux mb-2">Mon profil</h1>
-        <p className="text-sm text-muted-foreground mb-6">Tes infos de base. Pour tout ce qui concerne ta marque (mission, ton, positionnement), c'est dans le module Branding.</p>
+        <p className="text-sm text-muted-foreground mb-6">Tes infos pratiques : prénom, canaux, rythme et liens.</p>
 
-        {/* Link to Branding */}
-        <Link
-          to="/branding"
-          className="flex items-center justify-between rounded-2xl bg-rose-pale border border-border p-4 mb-6 group hover:border-primary/40 transition-colors"
-        >
-          <div>
-            <p className="text-sm font-semibold text-foreground flex items-center gap-1.5"><Palette className="h-4 w-4 text-primary" strokeWidth={1.75} />Module Branding</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Mission, cible détaillée, ton, positionnement, verbatims...</p>
+        {/* Une seule entrée vers Mon identité (chantier F du 15/10/2026) : la
+            carte « Module Branding » et l'encadré « ont déménagé » menaient au
+            même endroit. */}
+        <div className="rounded-2xl bg-rose-pale border border-border p-4 mb-6">
+          <Link to="/branding" className="flex items-center justify-between group">
+            <div>
+              <p className="text-sm font-semibold text-foreground flex items-center gap-1.5"><Palette className="h-4 w-4 text-primary" strokeWidth={1.75} />Mon identité</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Ce que tu fais, ta cliente idéale, tes thématiques, ton ton. C'est ce que lit l'IA.</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+          </Link>
+          <div className="flex flex-wrap gap-2 pt-3">
+            <Link to="/branding/section?section=persona" className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors">
+              Ma cliente idéale →
+            </Link>
+            <Link to="/branding/section?section=content_strategy" className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors">
+              Mes thématiques →
+            </Link>
+            <Link to="/branding/section?section=tone_style" className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors">
+              Mon ton →
+            </Link>
           </div>
-          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-        </Link>
+        </div>
 
         <div className="rounded-2xl bg-card p-6 border border-border space-y-5">
           {/* Prénom */}
@@ -332,8 +344,9 @@ export default function Profile() {
 
           {/* Activité */}
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Activité</label>
-            <Input value={current.activite} onChange={(e) => update("activite", e.target.value)} className="rounded-[10px] h-12" placeholder="Ex : Photographe, coach, graphiste..." />
+            <label htmlFor="profile-activite" className="text-sm font-medium mb-1.5 block">Mon métier en quelques mots</label>
+            <Input id="profile-activite" value={current.activite} onChange={(e) => update("activite", e.target.value)} className="rounded-[10px] h-12" placeholder="Ex : Photographe, coach, graphiste..." />
+            <p className="text-xs text-muted-foreground mt-1">Ta présentation complète (ce que tu fais, pour qui) est dans Mon identité.</p>
           </div>
 
           {/* Type d'activité */}
@@ -346,28 +359,6 @@ export default function Profile() {
                   {t.label}
                 </button>
               ))}
-            </div>
-          </div>
-
-          {/* Cible / thématiques / ton : une seule source de vérité, le module
-              Branding (versions plus riches : persona, stratégie, ton & style).
-              Les avoir aussi ici créait deux versions contradictoires que l'IA
-              mélangeait dans ses prompts. */}
-          <div className="rounded-xl bg-rose-pale/60 border border-border p-4 space-y-2">
-            <p className="text-sm font-semibold text-foreground">Ta cliente idéale, tes thématiques et ton ton ont déménagé 🎨</p>
-            <p className="text-xs text-muted-foreground">
-              Ils vivent dans ton identité de marque, en version plus complète — c'est elle que lit l'IA.
-            </p>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Link to="/branding/section?section=persona" className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors">
-                Ma cliente idéale →
-              </Link>
-              <Link to="/branding/section?section=content_strategy" className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors">
-                Mes thématiques →
-              </Link>
-              <Link to="/branding/section?section=tone_style" className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors">
-                Mon ton →
-              </Link>
             </div>
           </div>
 
@@ -418,7 +409,10 @@ export default function Profile() {
 
         {/* Links */}
         <div className="rounded-2xl bg-card p-6 border border-border space-y-4 mt-6">
-          <label className="text-sm font-medium mb-1 flex items-center gap-1.5"><Link2 className="h-4 w-4 text-primary" strokeWidth={1.75} />Mes liens</label>
+          <div>
+            <label className="text-sm font-medium flex items-center gap-1.5"><Link2 className="h-4 w-4 text-primary" strokeWidth={1.75} />Mes liens</label>
+            <p className="text-xs text-muted-foreground mt-1">Rangés ici une seule fois : ils sont proposés d'office pour remplir Mon identité.</p>
+          </div>
           <div>
             <label htmlFor="profile-website" className="text-xs text-muted-foreground mb-1 block">Site web</label>
             <Input id="profile-website" value={current.websiteUrl} onChange={(e) => update("websiteUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://monsite.com" />

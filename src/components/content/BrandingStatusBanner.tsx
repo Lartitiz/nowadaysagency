@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
-import { fetchBrandingDataWithStatus, calculateBrandingCompletion } from "@/lib/branding-completion";
+import { fetchBrandingDataWithStatus, calculateBrandingCompletion, isBrandingReady } from "@/lib/branding-completion";
 
 const SECTION_LABELS: Record<string, string> = {
   storytelling: "ton histoire",
@@ -47,7 +47,7 @@ export default function BrandingStatusBanner() {
 
   const total = completion.total;
 
-  if (total >= 80) {
+  if (isBrandingReady(total)) {
     if (completeDismissed) return null;
     const dismissComplete = () => {
       localStorage.setItem(COMPLETE_DISMISS_KEY, "true");
@@ -56,15 +56,15 @@ export default function BrandingStatusBanner() {
     };
     return (
       <Banner onDismiss={dismissComplete}>
-        ✨ Ton identité de marque est bien remplie : l'IA personnalise ce contenu avec ton ton, ta cible et tes valeurs.
+        ✨ Ton identité est bien remplie : l'IA personnalise ce contenu avec ton ton, ta cible et tes valeurs.
       </Banner>
     );
   }
 
-  if (total >= 40) {
+  if (total > 0) {
     return (
       <Banner onDismiss={() => setDismissed(true)}>
-        💡 Ton contenu sera plus pertinent si tu complètes ton identité de marque.
+        💡 Ton contenu sera plus pertinent si tu complètes ton identité ({total} % rempli).
         {missing.length > 0 && <> Il te manque : {missing.join(", ")}. </>}
         <Link to="/branding" className="text-primary-text hover:underline font-medium ml-1">
           Compléter →
@@ -75,7 +75,7 @@ export default function BrandingStatusBanner() {
 
   return (
     <Banner onDismiss={() => setDismissed(true)} borderClass="border-primary/20">
-      🎯 Pour que l'IA génère du contenu qui te ressemble, commence par remplir ton identité de marque.{" "}
+      🎯 Pour que l'IA écrive des contenus qui te ressemblent, commence par remplir ton identité.{" "}
       <Link to="/branding" className="text-primary-text hover:underline font-medium">
         Commencer →
       </Link>

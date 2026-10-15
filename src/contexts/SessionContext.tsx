@@ -12,6 +12,7 @@ import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import {
   fetchBrandingData,
   calculateBrandingCompletion,
+  isBrandingReady,
   type BrandingCompletion,
 } from "@/lib/branding-completion";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,7 +119,7 @@ async function buildTasks(
   ]);
   const completion = calculateBrandingCompletion(raw);
   const tasks: SessionTask[] = [];
-  const brandingLow = completion.total < 60;
+  const brandingLow = !isBrandingReady(completion.total);
 
   // 1. Branding if low
   if (brandingLow) {

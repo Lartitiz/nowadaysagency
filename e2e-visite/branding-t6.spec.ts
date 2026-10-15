@@ -1,7 +1,7 @@
 /**
  * T6 — Import de marque + Review
  *
- * Parcours : /branding → saisir une URL → "Analyse mon projet ✨"
+ * Parcours : /branding → saisir une URL → « Remplir mon identité »
  *            → analyze-brand (intercepté) → BrandingReview
  *
  * Stratégie :
@@ -69,7 +69,7 @@ test("T6c — /branding charge et affiche la section d'import", async ({ page })
   await page.goto("/branding", { waitUntil: "networkidle" });
 
   // La page doit charger sans erreur
-  await expect(page.getByText(/dis-moi où te trouver|identité de marque|branding/i).first())
+  await expect(page.getByText(/remplir mon identité|mon identité|branding/i).first())
     .toBeVisible({ timeout: 10000 });
 
   await page.screenshot({ path: path.join(SHOTS, "t6c-branding-initial.png"), fullPage: true });
@@ -106,17 +106,10 @@ async function openImportForm(page: Page) {
   try {
     await expect(urlInput).toBeVisible({ timeout: 5000 });
   } catch {
-    // 🔑 18/09 (#1027) — la fiche d'identité n'expose plus de bouton
-    // « Réanalyser » : l'import et la réanalyse sont passés dans le menu
-    // « Autres actions » (« Importer mes informations » / « Actualiser depuis
-    // mes sources »). On ouvre le menu puis on prend l'entrée disponible.
-    const menu = page.getByRole("button", { name: /autres actions/i });
-    await expect(menu).toBeVisible({ timeout: 10000 });
-    await menu.click();
-    const entree = page.getByRole("menuitem", {
-      name: /importer mes informations|actualiser depuis mes sources/i,
-    }).first();
-    await expect(entree).toBeVisible({ timeout: 8000 });
+    // 🔑 15/10/2026 (chantier F) — l'import est un bouton visible en haut de la
+    // fiche : « Remplir à partir de mon site, Instagram ou LinkedIn ».
+    const entree = page.getByRole("button", { name: /remplir à partir de mon site/i });
+    await expect(entree).toBeVisible({ timeout: 10000 });
     await entree.click();
     await expect(urlInput).toBeVisible({ timeout: 10000 });
   }
@@ -140,8 +133,8 @@ test("T6a — Import URL → BrandingReview s'affiche", async ({ page }) => {
   // Saisir une URL
   await urlInput.fill("https://camille-ceramique.fr");
 
-  // Cliquer "Analyse mon projet ✨"
-  const analyseBtn = page.getByRole("button", { name: /analyse mon projet|analyser/i });
+  // Cliquer « Remplir mon identité »
+  const analyseBtn = page.getByRole("button", { name: /^remplir mon identité|analyse mon projet/i });
   await expect(analyseBtn).toBeVisible({ timeout: 3000 });
   await analyseBtn.click();
 
@@ -170,7 +163,7 @@ test("T6b — Erreur analyze-brand → message Oups sans crash", async ({ page }
   const urlInput = await openImportForm(page);
   await urlInput.fill("https://site-inexistant.fr");
 
-  const analyseBtn = page.getByRole("button", { name: /analyse mon projet|analyser/i });
+  const analyseBtn = page.getByRole("button", { name: /^remplir mon identité|analyse mon projet/i });
   await expect(analyseBtn).toBeVisible({ timeout: 3000 });
   await analyseBtn.click();
 

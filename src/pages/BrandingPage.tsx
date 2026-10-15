@@ -8,19 +8,15 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { creationReturnPath } from "@/lib/creation-navigation";
 import AppHeader from "@/components/AppHeader";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Eye, RefreshCw, CheckCircle2, AlertTriangle, Zap, Download, Lightbulb } from "lucide-react";
-import { useBrandingMirror } from "@/hooks/use-branding-mirror";
-import { exportMirrorPDF } from "@/lib/mirror-pdf-export";
-import AiLoadingIndicator from "@/components/AiLoadingIndicator";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ArrowLeft } from "lucide-react";
 import { calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { withoutOnboardingDefaults } from "@/lib/onboarding-strategy-defaults";
 import { resolveFirstContentDestination } from "@/lib/first-content-destination";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { loadIdentityOverview, type IdentityOverview } from "@/lib/identity-overview";
+import { loadImportLinks } from "@/lib/branding-import-links";
 import { useQueryClient } from "@tanstack/react-query";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
 import BrandingIdentityCard from "@/components/branding/BrandingIdentityCard";
@@ -93,7 +89,6 @@ function ScopedBrandingPage() {
   // ~30-90s). Tant qu'elle n'est pas arrivée, on affiche un écran d'attente
   // plutôt que de retomber sur l'accueil marque vide.
   const [awaitingEnrichment, setAwaitingEnrichment] = useState(false);
-  const { mirrorOpen, setMirrorOpen, mirrorLoading, mirrorData, refreshMirror } = useBrandingMirror();
   // Reanalyze mode
   const [reanalyzeMode, setReanalyzeMode] = useState(false);
   const [reanalyzeUrls, setReanalyzeUrls] = useState<{ website?: string; instagram?: string; linkedin?: string }>({});
@@ -401,7 +396,24 @@ function ScopedBrandingPage() {
     logEvent("autofill_abandoned");
   };
 
-  const handleStartReanalyze = () => {
+  // Propose d'office les liens déjà connus (dernier import, sinon Mon profil)
+  // pour ne pas les faire retaper. Chargés AVANT d'ouvrir le formulaire : un
+  // remontage après coup effacerait ce que la personne a commencé à taper.
+  const prefillImportLinks = async () => {
+    if (isDemoMode || reanalyzeUrls.website || reanalyzeUrls.instagram || reanalyzeUrls.linkedin) return;
+    const links = await loadImportLinks(column, value);
+    if (mounted.current) setReanalyzeUrls(links);
+  };
+
+  const handleOpenImport = async () => {
+    await prefillImportLinks();
+    if (!mounted.current) return;
+    setForceImport(true); setImportPhaseNew("form"); setImportAnalyzing(false);
+  };
+
+  const handleStartReanalyze = async () => {
+    await prefillImportLinks();
+    if (!mounted.current) return;
     setReanalyzeMode(true);
     setImportPhaseNew("form");
     setAnalysisResult(null);
@@ -466,7 +478,7 @@ function ScopedBrandingPage() {
           {topView === "error" && (
             <motion.div key="error" initial={false} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
               <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-4 mt-8">
-                <h2 className="text-xl font-semibold">Impossible de charger ton identité de marque</h2>
+                <h2 className="text-xl font-semibold">Impossible de charger ton identité</h2>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
                   Les informations ne sont pas disponibles pour le moment. Réessaie avant de les modifier.
                 </p>
@@ -482,7 +494,10 @@ function ScopedBrandingPage() {
                 loading={importAnalyzing}
                 onAnalyze={handleStartAnalysis}
                 onSkip={handleSkipImport}
+                key={`${reanalyzeUrls.website}|${reanalyzeUrls.instagram}|${reanalyzeUrls.linkedin}`}
                 initialWebsite={reanalyzeUrls.website}
+                initialInstagram={reanalyzeUrls.instagram}
+                initialLinkedin={reanalyzeUrls.linkedin}
                 reanalyzeWarning={reanalyzeMode}
               />
             </motion.div>
@@ -603,8 +618,9 @@ function ScopedBrandingPage() {
                 <>
                   <BrandingIdentityCard
                     data={overview}
+                    completionTotal={completion.total}
                     onReanalyze={!isDemoMode && completion.total > 0 ? handleStartReanalyze : undefined}
-                    onImport={() => { setForceImport(true); setImportPhaseNew("form"); setImportAnalyzing(false); }}
+                    onImport={handleOpenImport}
                     onShowSynthesis={() => setShowSynthesis(true)}
                     pendingReview={!!analysisResult && reviewDeferred}
                     onReview={() => { setReviewDeferred(false); setImportPhaseNew("reviewing"); }}
@@ -660,47 +676,6 @@ function ScopedBrandingPage() {
         </>
       </main>
 
-      <Sheet open={mirrorOpen} onOpenChange={setMirrorOpen}>
-        <SheetContent side="right" className="overflow-y-auto sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle className="text-lg font-display flex items-center gap-2"><Eye className="h-5 w-5 text-primary" strokeWidth={1.75} /> Mirror</SheetTitle>
-          </SheetHeader>
-          {mirrorLoading ? (
-            <div className="py-6"><AiLoadingIndicator context="branding" isLoading={mirrorLoading} /></div>
-          ) : mirrorData ? (
-            <div className="space-y-6 mt-4">
-              <div className="text-center space-y-2">
-                <p className="text-4xl font-bold font-display" style={{ color: mirrorData.coherence_score >= 70 ? 'hsl(var(--chart-2))' : mirrorData.coherence_score >= 40 ? 'hsl(var(--chart-4))' : 'hsl(var(--destructive))' }}>{mirrorData.coherence_score}/100</p>
-                <Progress value={mirrorData.coherence_score} className="h-2.5 mx-auto max-w-[200px]" />
-                <p className="text-xs text-muted-foreground">Score de cohérence</p>
-              </div>
-              <p className="text-sm text-foreground leading-relaxed bg-muted/50 rounded-xl p-3 border border-border">{mirrorData.summary}</p>
-              {mirrorData.alignments?.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-chart-2" /> Ce qui est aligné</h4>
-                  <div className="space-y-2">{mirrorData.alignments.map((a: any, i: number) => <div key={i} className="rounded-lg bg-chart-2/10 border border-chart-2/20 p-3"><p className="text-xs font-semibold text-foreground">{a.aspect}</p><p className="text-xs text-muted-foreground mt-0.5">{a.detail}</p></div>)}</div>
-                </div>
-              )}
-              {mirrorData.gaps?.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5"><AlertTriangle className="h-4 w-4 text-chart-4" /> Les écarts à ajuster</h4>
-                  <div className="space-y-2">{mirrorData.gaps.map((g: any, i: number) => <div key={i} className="rounded-lg bg-chart-4/10 border border-chart-4/20 p-3 space-y-1"><p className="text-xs font-semibold text-foreground">{g.aspect}</p><p className="text-xs text-muted-foreground"><span className="font-medium">Déclaré :</span> {g.declared}</p><p className="text-xs text-muted-foreground"><span className="font-medium">Réalité :</span> {g.actual}</p><p className="text-xs text-primary font-medium mt-1"><Lightbulb className="inline h-3.5 w-3.5 mr-1 -mt-0.5" strokeWidth={1.75} />{g.suggestion}</p></div>)}</div>
-                </div>
-              )}
-              {mirrorData.quick_wins?.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5"><Zap className="h-4 w-4 text-primary" /> 3 quick wins</h4>
-                  <div className="space-y-1.5">{mirrorData.quick_wins.map((qw: string, i: number) => <div key={i} className="flex gap-2 text-xs text-foreground"><span className="text-primary font-bold shrink-0">{i + 1}.</span><span>{qw}</span></div>)}</div>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 gap-2 text-xs" onClick={refreshMirror}><RefreshCw className="h-3.5 w-3.5" /> Refaire l'analyse</Button>
-                <Button variant="outline" size="sm" className="flex-1 gap-2 text-xs" onClick={() => exportMirrorPDF(mirrorData)}><Download className="h-3.5 w-3.5" /> Exporter PDF</Button>
-              </div>
-            </div>
-          ) : null}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }

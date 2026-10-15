@@ -132,7 +132,7 @@ function buildRecommendation(
         ctaRoute: "/creer",
         icon: "Sparkles",
         alternatives: [
-          { title: "Affiner mon identité de marque", route: "/branding", icon: "Palette" },
+          { title: "Affiner mon identité", route: "/branding", icon: "Palette" },
           { title: "Faire un audit Instagram", route: "/instagram/audit", icon: "Search" },
         ],
       };
@@ -141,7 +141,7 @@ function buildRecommendation(
     const next = getNextEmptySection(bc);
     const remaining = 7 - sectionsFilled;
     return {
-      title: "Affine ton identité de marque",
+      title: "Affine ton identité",
       explanation: `Encore ${remaining} section${remaining > 1 ? "s" : ""} d'identité à compléter pour des contenus encore plus précis.`,
       ctaLabel: "Compléter →",
       ctaRoute: next.activeRoute,
@@ -178,7 +178,7 @@ function buildRecommendation(
       icon: "Sparkles",
       alternatives: [
         { title: "Faire un audit Instagram", route: "/instagram/audit", icon: "Search" },
-        { title: "Enrichir ton identité de marque", route: "/branding", icon: "Palette" },
+        { title: "Enrichir ton identité", route: "/branding", icon: "Palette" },
       ],
     };
   }
@@ -191,7 +191,7 @@ function buildRecommendation(
     ctaRoute: "/creer",
     icon: "Sparkles",
     alternatives: [
-      { title: "Mettre à jour ton identité de marque", route: "/branding", icon: "Palette" },
+      { title: "Mettre à jour ton identité", route: "/branding", icon: "Palette" },
       { title: "Faire ta routine d'engagement", route: "/instagram/routine", icon: "Heart" },
     ],
   };
