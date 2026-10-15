@@ -806,7 +806,7 @@ export default function CarouselEditor({
             className={
               fullscreen
                 ? "w-full max-w-[min(1080px,calc((100vh-6rem)*0.8))]"
-                : "mx-auto w-full max-w-[min(540px,36vh)] md:max-w-[min(540px,calc((100vh-290px)*0.8))]"
+                : "mx-auto w-full max-w-[min(540px,36vh)] md:max-w-[min(540px,max(240px,calc((100vh-250px)*0.8)))]"
             }
           >
           <SlideCanvas
