@@ -74,9 +74,11 @@ function RecapView({ data, prenom, onComplete, onCreateFirst, onShowFull }: Prop
           </p>
         )}
         {data.summary && (
-          <p className="rounded-2xl bg-card border border-border px-4 py-3 text-sm text-foreground leading-relaxed line-clamp-4">
-            {data.summary}
-          </p>
+          // La coupe à 4 lignes vit sur le texte, pas sur la carte : sur la
+          // carte, le bas de la 5e ligne débordait dans la marge intérieure.
+          <div className="rounded-2xl bg-card border border-border px-4 py-3">
+            <p className="text-sm text-foreground leading-relaxed line-clamp-4">{data.summary}</p>
+          </div>
         )}
         <p className="text-sm text-center text-muted-foreground">
           Où tu en es : <span className="font-semibold text-foreground">{diagnosticLevel(data.totalScore)}</span>
