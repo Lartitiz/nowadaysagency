@@ -135,8 +135,10 @@ describe("rapport d'impact création de contenu", () => {
   });
 
   it("reconnaît les fonctions sorties de CalendarPostDialog (fiche 13)", () => {
-    const { formats } = analyzeImpact(["src/features/calendar/post-dialog-helpers.ts"], usage);
-    expect([...formats.keys()]).toEqual(["Lien calendrier → générateur"]);
+    for (const file of ["src/features/calendar/post-dialog-helpers.ts", "src/hooks/use-calendar-post-navigation.ts"]) {
+      const { formats } = analyzeImpact([file], usage);
+      expect([...formats.keys()], file).toEqual(["Lien calendrier → générateur"]);
+    }
   });
 
   it("reconnaît les morceaux sortis de use-content-generator (fiche 17)", () => {

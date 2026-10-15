@@ -24,8 +24,9 @@ const creer = lire("src/pages/CreerUnifie.tsx") + "\n" + lire("src/hooks/use-cre
 const calendar = lire("src/pages/Calendar.tsx");
 // Fenêtre d'un post du calendrier : liste de fichiers (fiche 13 de
 // docs/robustesse/gros-fichiers.md). Le jour où les handlers de navigation
-// sortent dans un hook, on ajoute son chemin ici : rien d'autre à changer.
-const FICHIERS_DIALOG = ["src/components/calendar/CalendarPostDialog.tsx"];
+// sortent dans un hook, on ajoute son chemin ici : rien d'autre à changer
+// (fait au lot 7 : use-calendar-post-navigation.ts).
+const FICHIERS_DIALOG = ["src/components/calendar/CalendarPostDialog.tsx", "src/hooks/use-calendar-post-navigation.ts"];
 const dialog = FICHIERS_DIALOG.map(lire).join("\n");
 
 /** Corps d'une fonction `const nom = …` jusqu'à la déclaration `const handle…` suivante. */

@@ -90,7 +90,7 @@ export const FRONT_FILES = [
   [/^src\/hooks\/use-regeneration-backup\.ts$/, "Parcours /creer : filet « Régénérer » / « Changer d'angle » (tous formats)"],
   [/^src\/components\/creer\/formatRenderers\/(\w+)Result\.tsx$/, (m) => `Écran de résultat : ${m[1]}`],
   [/^src\/hooks\/use-(do-generate|content-generator|format-next)\.ts$|^src\/features\/creer\/generator\//, "Parcours /creer : lancement des générations (tous formats)"],
-  [/^src\/pages\/Calendar\.tsx$|^src\/components\/calendar\/CalendarPostDialog\.tsx$|^src\/features\/calendar\/post-dialog-helpers\.ts$/, "Lien calendrier → générateur"],
+  [/^src\/pages\/Calendar\.tsx$|^src\/components\/calendar\/CalendarPostDialog\.tsx$|^src\/features\/calendar\/post-dialog-helpers\.ts$|^src\/hooks\/use-calendar-post-navigation\.ts$/, "Lien calendrier → générateur"],
 ];
 
 /** Zones de docs/creation-contenu/CARTE.md, section 4. */
