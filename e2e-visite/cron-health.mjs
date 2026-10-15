@@ -223,6 +223,12 @@ try {
       if (fa.erreur_stripe) console.log(`   ⚠️ ${fa.erreur_stripe}`);
     }
     printHiggsfield(d.higgsfield);
+    // Studio (15/10/2026) : images « en cours » depuis > 1 h = le rattrapage
+    // automatique (cron studio-reconcile-images) ne les débloque plus. Seuil > 0 = ⚠️.
+    const sb = d.studio_images_bloquees;
+    if (!sb) console.log("🖼️ Studio : non mesuré (edge cron-health pas redéployée)");
+    else if (sb.erreur) console.log(`🖼️ Studio : ⚠️ non lu (${sb.erreur.slice(0, 90)})`);
+    else console.log(`🖼️ Studio : ${sb.count} image(s) bloquée(s) en cours depuis > 1 h${sb.count ? "  ⚠️ rattrapage auto (cron studio-reconcile-images) en échec ?" : " ✅"}`);
   } else {
     const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : "n/a");
     const delta = (cur, prev) => (prev ? `${cur >= prev ? "+" : ""}${Math.round(((cur - prev) / prev) * 100)}%` : "n/a");
