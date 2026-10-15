@@ -90,8 +90,8 @@
       "any": 14
     },
     "src/pages/CreerUnifie.tsx": {
-      "lignes": 2739,
-      "any": 37
+      "lignes": 2445,
+      "any": 27
     },
     "src/pages/InstagramAudit.tsx": {
       "lignes": 813,
@@ -138,7 +138,7 @@
       "any": 21
     },
     "supabase/functions/_shared/scraping.ts": {
-      "lignes": 1223,
+      "lignes": 1216,
       "any": 0
     },
     "supabase/functions/branding-coaching/index.ts": {
