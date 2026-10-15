@@ -1,0 +1,105 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`instantané d'écran : intégration prête après une scène 1`] = `
+{
+  "buttons": [
+    "Bibliothèque",
+    "Photos",
+    "Clips vidéo",
+    "Mes sessions",
+    "Outils et créations",
+    "Options",
+    "Image sélectionnée×",
+    " [Ajouter des images]",
+    " [Depuis ma bibliothèque]",
+    "Envoyer (inactif)",
+    "Mémoire de marque",
+    "Assiette",
+  ],
+  "headings": [
+    "Studio visuel",
+    "Images créées dans cette discussion",
+  ],
+  "requests": [
+    "action,session_id,workspace_id · read",
+  ],
+}
+`;
+
+exports[`instantané d'écran : proposition à confirmer 1`] = `
+{
+  "buttons": [
+    "Bibliothèque",
+    "Photos",
+    "Clips vidéo",
+    "Mes sessions",
+    "Options",
+    " [Ajouter des images]",
+    " [Depuis ma bibliothèque]",
+    "Générer cette image · 1 image",
+    "Mémoire de marque",
+  ],
+  "headings": [
+    "Studio visuel",
+    "Une nouvelle image",
+    "Images créées dans cette discussion",
+    "Tout commence par ton idée",
+  ],
+  "requests": [
+    "action,session_id,workspace_id · read",
+  ],
+}
+`;
+
+exports[`instantané d'écran : sans session 1`] = `
+{
+  "buttons": [
+    "Bibliothèque",
+    "Photos",
+    "Clips vidéo",
+    "Mes sessions",
+    " [Ajouter des images]",
+    " [Depuis ma bibliothèque]",
+    "Envoyer (inactif)",
+  ],
+  "headings": [
+    "Studio visuel",
+    "Images créées dans cette discussion",
+    "Tout commence par ton idée",
+  ],
+  "requests": [],
+}
+`;
+
+exports[`instantané d'écran : série en échec partiel 1`] = `
+{
+  "buttons": [
+    "Bibliothèque",
+    "Photos",
+    "Clips vidéo",
+    "Mes sessions",
+    "Réessayer cette image seulement",
+    "Réessayer cette image seulement",
+    "Options",
+    "Image sélectionnée×",
+    " [Ajouter des images]",
+    " [Depuis ma bibliothèque]",
+    "Envoyer (inactif)",
+    "Mémoire de marque",
+  ],
+  "headings": [
+    "Studio visuel",
+    "Images créées dans cette discussion",
+  ],
+  "requests": [
+    "action,session_id,workspace_id · read",
+  ],
+}
+`;
+
+exports[`relance mannequin : « Préparer la scène » envoie la demande, « Le garder pour ma marque » ouvre la mémoire 1`] = `
+{
+  "branch_reference_mode": "current",
+  "reference_ids": undefined,
+}
+`;
