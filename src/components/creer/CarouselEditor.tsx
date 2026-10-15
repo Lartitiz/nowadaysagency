@@ -73,6 +73,7 @@ import { alphaOf, range, toHex } from "@/components/creer/CarouselEditorParts/pa
 import { TextSettings } from "@/components/creer/CarouselEditorParts/TextSettings";
 import { BlockSettings, PhotoSettings } from "@/components/creer/CarouselEditorParts/ElementSettings";
 import { EditorHeader } from "@/components/creer/CarouselEditorParts/EditorHeader";
+import { useEditorKeys } from "@/components/creer/CarouselEditorParts/editor-keys";
 import { QualityPanel } from "@/components/creer/CarouselEditorParts/QualityPanel";
 import { SlideStrip } from "@/components/creer/CarouselEditorParts/SlideStrip";
 import { AllSlidesPanel, SavedStylesPanel } from "@/components/creer/CarouselEditorParts/AllSlidesPanel";
@@ -386,47 +387,7 @@ export default function CarouselEditor({
     }
     return false;
   };
-  // Clavier sur la section de l'éditeur (panneau, boutons, vignettes).
-  const onEditorKey = (event: KeyboardEvent, target: HTMLElement) => {
-    const typing = /INPUT|TEXTAREA|SELECT/.test(target.tagName) || target.isContentEditable;
-    if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && (event.key === "c" || event.key === "v") && !typing && !window.getSelection()?.toString()) {
-      event.preventDefault();
-      if (event.key === "c") copySelection();
-      else paste();
-      return;
-    }
-    // Tab garde son rôle de navigation dans le panneau ; il ne change d'élément que dans l'aperçu.
-    if (event.key !== "Tab" && !typing && shortcut(event)) {
-      event.preventDefault();
-      return;
-    }
-    onHistoryKey(event);
-  };
-  // Focus sorti de l'éditeur (clic sur la page autour, bouton devenu inactif) :
-  // ⌘Z, ⌘C/V, Suppr… marchent quand même, comme dans Canva, tant que
-  // personne n'écrit dans un autre champ de la page.
-  const pageKey = useRef<(event: KeyboardEvent) => void>(() => {});
-  pageKey.current = (event) => {
-    const body = window.document.body;
-    if ((event.target !== body && event.target !== window.document.documentElement) || !editorRoot.current?.isConnected) return;
-    const mod = event.metaKey || event.ctrlKey;
-    if ((event.key === "Delete" || event.key === "Backspace") && !mod && !event.altKey && selected && !slide.locked) {
-      const removable = listLayers(slide.html).filter((l) => group.includes(l.id) && !l.locked && !l.fixed).map((l) => l.id);
-      if (!removable.length) return;
-      event.preventDefault();
-      removeMany(removable);
-      editorRoot.current.focus({ preventScroll: true });
-      return;
-    }
-    if (!mod) return;
-    onEditorKey(event, body);
-    if (event.defaultPrevented && window.document.activeElement === body) editorRoot.current.focus({ preventScroll: true });
-  };
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => pageKey.current(event);
-    window.addEventListener("keydown", listener);
-    return () => window.removeEventListener("keydown", listener);
-  }, []);
+  const onEditorKey = useEditorKeys({ editorRoot, copySelection, paste, shortcut, onHistoryKey, removeMany, selected, group, slide });
   // Réordonner en glissant une vignette (souris ou doigt).
   const thumbDrag = useRef<{ from: number; x: number; moved: boolean } | null>(null);
   const justDragged = useRef(false);
