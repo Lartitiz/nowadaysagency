@@ -7,9 +7,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Keyboard, Redo2, Smartphone, Undo2 } from "lucide-react";
 import type { CarouselDocument } from "@/lib/carousel-editor";
 
+// Sur PC, les raccourcis s'affichent avec Ctrl (et Maj) au lieu de ⌘ (et ⇧).
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+export const shortcutLabel = (keys: string, mac = IS_MAC) =>
+  mac ? keys : keys.replace(/⌘ \+/g, "Ctrl +").replace(/⌘⇧/g, "Ctrl+Maj+").replace(/⌘/g, "Ctrl+");
+
 const SHORTCUTS: [string, string][] = [
   ["⌘Z", "Annuler"],
-  ["⌘⇧Z · Ctrl+Y", "Rétablir"],
+  [IS_MAC ? "⌘⇧Z" : "⌘⇧Z · Ctrl+Y", "Rétablir"],
   ["⌘C · ⌘X · ⌘V", "Copier · couper · coller (aussi sur une autre slide)"],
   ["⌘D", "Dupliquer l’élément"],
   ["⌘A", "Tout sélectionner"],
@@ -50,7 +55,7 @@ export function EditorHeader({ history, setInstaOpen, undo }: {
             onClick={() => undo()}
             aria-label="Annuler la modification"
             aria-keyshortcuts="Meta+Z Control+Z"
-            title="Annuler (⌘Z / Ctrl+Z)"
+            title={`Annuler (${shortcutLabel("⌘Z")})`}
             className="gap-1.5"
           >
             <Undo2 size={15} /> Annuler
@@ -62,7 +67,7 @@ export function EditorHeader({ history, setInstaOpen, undo }: {
             onClick={() => undo(true)}
             aria-label="Rétablir la modification"
             aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z Control+Y"
-            title="Rétablir (⌘⇧Z / Ctrl+⇧Z / Ctrl+Y)"
+            title={`Rétablir (${shortcutLabel(SHORTCUTS[1][0])})`}
             className="gap-1.5"
           >
             <Redo2 size={15} /> Rétablir
@@ -81,12 +86,12 @@ export function EditorHeader({ history, setInstaOpen, undo }: {
               <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
                 {SHORTCUTS.map(([keys, label]) => (
                   <Fragment key={keys}>
-                    <dt className="whitespace-nowrap font-mono text-2xs">{keys}</dt>
+                    <dt className="whitespace-nowrap font-mono text-2xs">{shortcutLabel(keys)}</dt>
                     <dd>{label}</dd>
                   </Fragment>
                 ))}
               </dl>
-              <p className="mt-2 text-muted-foreground">Sur PC, Ctrl remplace ⌘. Clique d’abord dans l’aperçu.</p>
+              <p className="mt-2 text-muted-foreground">Ils marchent partout dans l’éditeur, même après un clic à côté de la slide.</p>
             </PopoverContent>
           </Popover>
         </div>

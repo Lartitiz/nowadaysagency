@@ -73,6 +73,7 @@ import { alphaOf, range, toHex } from "@/components/creer/CarouselEditorParts/pa
 import { TextSettings } from "@/components/creer/CarouselEditorParts/TextSettings";
 import { BlockSettings, PhotoSettings } from "@/components/creer/CarouselEditorParts/ElementSettings";
 import { EditorHeader } from "@/components/creer/CarouselEditorParts/EditorHeader";
+import { useEditorKeys } from "@/components/creer/CarouselEditorParts/editor-keys";
 import { QualityPanel } from "@/components/creer/CarouselEditorParts/QualityPanel";
 import { SlideStrip } from "@/components/creer/CarouselEditorParts/SlideStrip";
 import { AllSlidesPanel, SavedStylesPanel } from "@/components/creer/CarouselEditorParts/AllSlidesPanel";
@@ -386,6 +387,7 @@ export default function CarouselEditor({
     }
     return false;
   };
+  const onEditorKey = useEditorKeys({ editorRoot, copySelection, paste, shortcut, onHistoryKey, removeMany, selected, group, slide });
   // Réordonner en glissant une vignette (souris ou doigt).
   const thumbDrag = useRef<{ from: number; x: number; moved: boolean } | null>(null);
   const justDragged = useRef(false);
@@ -724,21 +726,7 @@ export default function CarouselEditor({
   );
   if (!slide) return null;
   return (
-    <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className={`min-w-0 w-full space-y-4 md:pb-0 ${sheetOpen ? "pb-[52vh]" : "pb-16"}`} onKeyDown={(event) => {
-      const tag = (event.target as HTMLElement).tagName;
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && (event.key === "c" || event.key === "v") && !/INPUT|TEXTAREA|SELECT/.test(tag) && !(event.target as HTMLElement).isContentEditable && !window.getSelection()?.toString()) {
-        event.preventDefault();
-        if (event.key === "c") copySelection();
-        else paste();
-        return;
-      }
-      // Tab garde son rôle de navigation dans le panneau ; il ne change d'élément que dans l'aperçu.
-      if (event.key !== "Tab" && !/INPUT|TEXTAREA|SELECT/.test(tag) && !(event.target as HTMLElement).isContentEditable && shortcut(event.nativeEvent)) {
-        event.preventDefault();
-        return;
-      }
-      onHistoryKey(event);
-    }}>
+    <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className={`min-w-0 w-full space-y-4 md:pb-0 ${sheetOpen ? "pb-[52vh]" : "pb-16"}`} onKeyDown={(event) => onEditorKey(event.nativeEvent, event.target as HTMLElement)}>
       <EditorHeader
         history={history}
         setInstaOpen={setInstaOpen}
