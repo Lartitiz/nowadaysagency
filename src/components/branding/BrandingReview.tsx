@@ -60,7 +60,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
     setEditedCharter(charter);
   }, []);
 
-  const { validated, savingSection, showConfetti, refinedSections, toReview, validatingAll, handleKeepAsIs, handleToReview, handleValidate, handleValidateAll, completeCoaching } = useReviewValidation({
+  const { validated, savingSection, showConfetti, refinedSections, toReview, validatingAll, wroteSomething, handleKeepAsIs, handleToReview, handleValidate, handleValidateAll, completeCoaching } = useReviewValidation({
     analysis, onProgress, preFilledSections, editedOffers, editedCharter, goNext, setIndex, total, setCoachingSection,
   });
   const waitingForPhotos = mandatory && finished && !productPhotosReady;
@@ -154,6 +154,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
           handleValidateAll={handleValidateAll}
           validatingAll={validatingAll}
           savingSection={savingSection}
+          recheckHint={analysis.allow_overwrite === true && wroteSomething}
         />
       )}
 

@@ -1540,7 +1540,7 @@ Repères : 28 `any` gelés dans `scripts/cliquet-dette.baseline.json`. Aucun tes
 Code mort repéré (à retirer dans un lot à part, pas pendant un déplacement) : props `onDescribeProject` et `allSourcesFailed`, états `projectText` / `showProjectInput` (l. 52-54, 876-877) ; `BrandingPage.tsx` ne les passe jamais. ✅ Retiré le 15/10/2026 (étape 7).
 
 Hors découpage, à noter pour plus tard :
-- **Connecteurs intelligents** : les `save*` écrivent directement en base, sans passer par la détection de changement de branding. Normal pour un premier remplissage (champs vides), mais en reprise d'onboarding (`allow_overwrite`) le positionnement ou le ton peuvent changer sans suggestion de mise à jour. À trancher, pas à corriger en déplaçant.
+- **Connecteurs intelligents** : les `save*` écrivent directement en base, sans passer par la détection de changement de branding. Normal pour un premier remplissage (champs vides), mais en reprise d'onboarding (`allow_overwrite`) le positionnement ou le ton peuvent changer sans suggestion de mise à jour. ✅ Tranché le 15/10/2026 (étape 7) : pas d'analyse automatique (1 crédit à chaque fois) ; la carte de fin affiche un rappel de relire offres, ton et stratégie quand `allow_overwrite` est posé et qu'au moins une section a été réécrite (`ReviewEndCard`, prop `recheckHint`).
 - **Vocabulaire UI** : les boutons « OK » des offres (l. 252) et de la charte (l. 372) ne respectent pas « verbe + objet » (« Enregistrer l'offre », « Enregistrer ma charte »). Petit lot à part : les tests de la charte cliquent sur « OK », il faudra les mettre à jour dans la même PR. ✅ Fait le 15/10/2026 : « Appliquer mes modifications » dans les deux cas (rien n'est enregistré en base à ce clic, seulement à la validation de la carte : « Enregistrer » aurait été trompeur).
 
 **Tests qui le protègent aujourd'hui**
@@ -1589,7 +1589,7 @@ Une PR par lot. À chaque lot : `npx tsc --noEmit -p tsconfig.app.json`, `npx vi
 4. **Lot 3 (navigation)** : `review/use-review-carousel.ts`.
 5. **Lot 4 (validation)** : `review/use-review-validation.ts`. Le plus délicat : relire le diff ligne à ligne (`written`, `savingRef`, ordre `markValidated` → `clearToReview` → `goNext`).
 6. **Lot 5 (écrans)** : `ReviewHeader.tsx`, `ReviewCard.tsx`, `ReviewEndCard.tsx`, `ReviewStickyBar.tsx`. Mettre à jour la ligne 15 du classement dans ce document.
-7. **Après le découpage, PR séparées (changements de comportement, pas des déplacements)** : retrait du code mort (`onDescribeProject`, `allSourcesFailed`, `projectText`) ; un seul helper de portée dans `branding-review-save.ts` à la place des 8 copies (en gardant la règle actuelle, test 2 à l'appui) ; boutons « OK » renommés ; décision sur les connecteurs intelligents en cas d'`allow_overwrite`.
+7. **Après le découpage, PR séparées (changements de comportement, pas des déplacements)** : retrait du code mort (`onDescribeProject`, `allSourcesFailed`, `projectText`) ; un seul helper de portée dans `branding-review-save.ts` à la place des 8 copies (en gardant la règle actuelle, test 2 à l'appui) ; boutons « OK » renommés ; décision sur les connecteurs intelligents en cas d'`allow_overwrite`. **Les 4 faites le 15/10/2026 : fiche 14 close.**
 
 ---
 
