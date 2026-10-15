@@ -19,25 +19,33 @@ const EMPTY: ImportLinks = { website: "", instagram: "", linkedin: "" };
  * l'inscription ou dans Mon profil). La personne n'a pas à les retaper.
  * Lecture seule ; en cas d'erreur, champs vides (l'import reste utilisable).
  */
-export async function loadImportLinks(column: string, value: string): Promise<ImportLinks> {
+export async function loadImportLinks(
+  column: string,
+  value: string,
+  profile: { column: string; value: string },
+): Promise<ImportLinks> {
   try {
-    const scoped = (table: string, fields: string) => {
-      let q = (supabase.from(table as any) as any).select(fields).eq(column, value);
-      if (column === "user_id" && table !== "profiles") q = q.is("workspace_id", null);
-      return q;
-    };
-    const [autofill, profile] = await Promise.all([
-      scoped("branding_autofill", "website_url, instagram_handle, linkedin_url").order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      scoped("profiles", "website_url, instagram_url, instagram_username, linkedin_url").limit(1).maybeSingle(),
+    let autofillQuery = (supabase.from("branding_autofill") as any)
+      .select("website_url, instagram_handle, linkedin_url").eq(column, value);
+    if (column === "user_id") autofillQuery = autofillQuery.is("workspace_id", null);
+    // Le profil a son propre filtre (propriétaire de l'espace) : filtrer
+    // profiles par workspace_id ne trouvait rien (vu en réel le 15/10/2026).
+    const [autofill, prof] = await Promise.all([
+      autofillQuery.order("created_at", { ascending: false }).limit(5),
+      profile.value
+        ? (supabase.from("profiles") as any).select("website_url, instagram_url, instagram_username, linkedin_url").eq(profile.column, profile.value).maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
-    const a = autofill.data || {};
-    const p = profile.data || {};
-    const savedInstagram = cleanInstagramLink(a.instagram_handle);
+    // Dernier lien NON VIDE des imports récents : un import fait avec un
+    // document seul laisse des liens vides qui masquaient les précédents.
+    const rows: any[] = Array.isArray(autofill.data) ? autofill.data : [];
+    const latest = (pick: (r: any) => string) => rows.map(pick).find(Boolean) || "";
+    const p = prof.data || {};
     const handle = p.instagram_username ? `@${String(p.instagram_username).replace(/^@/, "")}` : "";
     return {
-      website: a.website_url || p.website_url || "",
-      instagram: savedInstagram || p.instagram_url || handle || "",
-      linkedin: a.linkedin_url || p.linkedin_url || "",
+      website: latest(r => r.website_url) || p.website_url || "",
+      instagram: latest(r => cleanInstagramLink(r.instagram_handle)) || p.instagram_url || handle || "",
+      linkedin: latest(r => r.linkedin_url) || p.linkedin_url || "",
     };
   } catch {
     return EMPTY;
