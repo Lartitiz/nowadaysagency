@@ -4,19 +4,10 @@ import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
 import { posthog } from "@/lib/posthog-lazy";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { readableError } from "@/lib/error-messages";
-import { downscalePhotosForVision } from "@/lib/image-vision";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  EDITORIAL_ANGLES,
-  CONTENT_STRUCTURES,
-  LINKEDIN_EDITORIAL_ANGLES,
-  PINTEREST_EDITORIAL_ANGLES,
-  PINTEREST_VISUAL_ANGLES,
-  getStructureForCombo,
-  getStructurePromptForCombo,
-} from "@/lib/content-structures";
+import { getStructureForCombo, getStructurePromptForCombo } from "@/lib/content-structures";
 import type { DraftSlide } from "@/components/creer/CarouselDraftPreview";
 
 // Types, lecture tolérante du JSON et messages d'erreur : src/features/creer/generator/
@@ -31,6 +22,7 @@ import { buildPostGenerateBody, POST_GENERATE_TIMEOUT_MS } from "@/features/cree
 import { buildLinkedinGenerateBody, LINKEDIN_GENERATE_TIMEOUT_MS } from "@/features/creer/generator/bodies/linkedin";
 import { readGenerateResponse } from "@/features/creer/generator/read-generate-response";
 import { fetchRecentBriefsContext, buildCarouselQuestionsRequest, buildQuestionsRequest, parseQuestions } from "@/features/creer/generator/questions-request";
+import { buildStreamBody } from "@/features/creer/generator/stream-body";
 export type { GenerateParams, GenerateQuestionsParams, Question, ContentResult, GenerateStreamParams } from "@/features/creer/generator/types";
 
 // ── Hook ──
@@ -363,103 +355,14 @@ export function useContentGenerator() {
   const generateStream = useCallback(
     async (params: GenerateStreamParams): Promise<ContentResult | null> => {
       const epoch = ++generationEpoch.current;
-      const {
-        format,
-        subject,
-        objective,
-        editorialAngle,
-        answers,
-        workspaceId,
-        photoMode,
-        photos,
-        photoDescription,
-        deepResearch,
-        pinterestLink,
-        pinterestBoard,
-        newsContext,
-      } = params;
+      const { format } = params;
 
       streamReset();
       setError(null);
       setQuotaExhausted(null);
       setResult(null);
 
-      const contentTypeMap: Record<string, string> = {
-        post: "post_instagram",
-        linkedin: "post_linkedin",
-        newsletter: "post_newsletter",
-        pinterest: "post_pinterest",
-      };
-
-      // Resolve angle across all 4 catalogs (same lookup CreerUnifie used)
-      const angleObj = editorialAngle
-        ? (() => {
-            const found =
-              EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) ||
-              LINKEDIN_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) ||
-              PINTEREST_EDITORIAL_ANGLES.find((a) => a.id === editorialAngle) ||
-              PINTEREST_VISUAL_ANGLES.find((a) => a.id === editorialAngle);
-            const structureId = getStructureForCombo(format, editorialAngle);
-            const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
-            return found
-              ? {
-                  title: found.label,
-                  structure: structure?.steps.map((s) => s.label),
-                  tone: "direct, chaleureux, oral assumé",
-                }
-              : undefined;
-          })()
-        : undefined;
-
-      const ans = answers || {};
-      const hasAnswers = Object.keys(ans).length > 0;
-      // `ans` est désormais indexé par le TEXTE de la question (ré-indexé en amont
-      // dans CreerUnifie). Le bloc anecdote/émotion/conviction reste positionnel
-      // (1re/2e/3e réponse) — comme avant, mais via les valeurs et non les clés `q_0`.
-      const ansValues = Object.values(ans);
-
-      const streamBody: any = {
-        step: "generate",
-        contentType: contentTypeMap[format] || "post_instagram",
-        context: subject,
-        angle: angleObj,
-        answers: hasAnswers
-          ? Object.entries(ans).map(([q, a]) => ({ question: q, answer: a }))
-          : undefined,
-        preGenAnswers: hasAnswers
-          ? {
-              anecdote: (ans as any).anecdote || ansValues[0] || undefined,
-              emotion: (ans as any).emotion || ansValues[1] || undefined,
-              conviction: (ans as any).conviction || ansValues[2] || undefined,
-            }
-          : undefined,
-        workspace_id: workspaceId || defaultWorkspaceId || undefined,
-        objective: objective || undefined,
-        editorialFormat: editorialAngle || undefined,
-        editorialFormatLabel: editorialAngle || undefined,
-        ...(photoMode
-          ? {
-              photo_mode: true,
-              photo_description: photoDescription,
-              // Vision uniquement (stream post/LinkedIn/Pinterest) : photos
-              // allégées, le master plein format reste côté client.
-              ...(photos && photos.length > 0 && photos[0]?.base64
-                ? {
-                    photos: (await downscalePhotosForVision(photos.slice(0, 10)))?.map((p) => ({
-                      base64: p.base64,
-                      mimeType: p.mimeType || "image/jpeg",
-                      context: p.context, libraryContext: p.libraryContext,
-                    })),
-                  }
-                : {}),
-            }
-          : {}),
-        ...(deepResearch ? { deepResearch: true } : {}),
-        ...(newsContext && newsContext.trim().length > 0 ? { news_context: newsContext.slice(0, 3800) } : {}),
-        ...(format === "pinterest" && (pinterestLink || pinterestBoard)
-          ? { pinterest_link: pinterestLink, pinterest_board: pinterestBoard }
-          : {}),
-      };
+      const streamBody = await buildStreamBody(params, defaultWorkspaceId);
 
       let fullText = "";
       try {
