@@ -693,7 +693,10 @@ visuels** du carrousel texte : `use-generate-visuals.ts` passe les visuels à
 (`src/lib/carousel-cta-label.ts`) : bouton dessiné → `cta_label` = son libellé ;
 plus de bouton alors qu'un libellé était rangé → `""`. Le HTML ne change pas.
 Carrousels photo et mixte non concernés (le libellé vient du serveur). Tests :
-`src/test/carousel-cta-label.test.tsx`, `use-generate-visuals.test.tsx`.
+`src/test/carousel-cta-label.test.tsx`, `use-generate-visuals.test.tsx`, et
+sur la vraie page `/creer` `src/test/creer-cta-label-visuels.test.tsx`
+(visuels arrivés → `cta_label` affiché, sauvegardé et restauré ; aucun
+`cta_label` dans la demande à `carousel-visual`).
 
 **Ce que couvre le rapport d'impact** (complété au lot 9) :
 - fonctions serveur : les générateurs de texte, plus `carousel-visual`,
