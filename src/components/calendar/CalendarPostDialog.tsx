@@ -1,6 +1,5 @@
 import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { calendarPublishCaption } from "../../../supabase/functions/_shared/calendar-caption";
-import { resumeCrosspost } from "@/lib/crosspost-content";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -21,7 +20,7 @@ import { toast } from "sonner";
 
 import { CalendarPostMetadata } from "./CalendarPostMetadata";
 import { CalendarPostPreview } from "./CalendarPostPreview";
-import { isoToLocalInput, ANGLE_TO_CAROUSEL, draftFromPost } from "@/features/calendar/post-dialog-helpers";
+import { isoToLocalInput, draftFromPost } from "@/features/calendar/post-dialog-helpers";
 import { PostContextHeader } from "./post-dialog/PostContextHeader";
 import { PostContentViewerSheet } from "./post-dialog/PostContentViewerSheet";
 import { PostEditionBlock } from "./post-dialog/PostEditionBlock";
@@ -30,6 +29,7 @@ import { useCalendarPostMedia } from "@/hooks/use-calendar-post-media";
 import { useCalendarQuickGenerate } from "@/hooks/use-calendar-quick-generate";
 import { useCalendarPostAutosave } from "@/hooks/use-calendar-post-autosave";
 import { useCalendarPostPublish } from "@/hooks/use-calendar-post-publish";
+import { useCalendarPostNavigation } from "@/hooks/use-calendar-post-navigation";
 
 interface Props {
   open: boolean;
@@ -238,77 +238,10 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
     setContentDraft, setAccroche, setStatus,
   });
 
-  const handleSmartGenerate = () => {
-    if (!theme.trim()) { toast.error("Il me faut un sujet !"); return; }
-    const fmt = format || "post_carrousel";
-    if (fmt === "post_carrousel" || fmt === "carousel" || fmt === "reel" || fmt === "story_serie" || postCanal === "linkedin") {
-      handleNavigateToGenerator("generate"); return;
-    }
-    handleQuickGenerate();
-  };
-
-  const handleOpenAtelier = async () => {
-    if (theme.trim() && onAutoSave) await onAutoSave(buildSaveData(), effectiveId);
-    onOpenChange(false);
-    setTimeout(() => {
-      const detail = savedPreviewContent as any;
-      const resumeIdea = resumeCrosspost(detail, format) || (detail?.slides && detail?.visual_html?.length && /^carousel/.test(detail.type || "")
-        ? { format: "carousel", raw: { ...detail, carousel_type: detail.type === "carousel_photo" ? "photo" : detail.type === "carousel_mix" ? "mix" : detail.carousel_type || "text" } } : undefined);
-      if (resumeIdea?.raw._crosspost && contentDraft !== editingPost?.content_draft && contentDraft != null) resumeIdea.raw.edited_text = contentDraft;
-      navigate("/creer?canal=" + (postCanal || "instagram"), {
-        state: { resumeIdea, fromCalendar: true, calendarPostId: editingPost?.id, theme, objectif, angle, format, notes, postDate: selectedDate, existingContent: contentDraft, existingAccroche: accroche, launchId: editingPost?.launch_id, contentType: editingPost?.content_type, contentTypeEmoji: editingPost?.content_type_emoji, category: editingPost?.category, objective: editingPost?.objective, angleSuggestion: editingPost?.angle_suggestion, chapter: (editingPost as any)?.chapter, chapterLabel: (editingPost as any)?.chapter_label, audiencePhase: (editingPost as any)?.audience_phase },
-      });
-    }, 100);
-  };
-
-  const handleNavigateToGenerator = async (mode: "generate" | "regenerate" | "view") => {
-    if (theme.trim() && onAutoSave) await onAutoSave(buildSaveData(), effectiveId);
-    onOpenChange(false);
-    setTimeout(() => {
-      const params = new URLSearchParams();
-      if (editingPost?.id) params.set("calendar_id", editingPost.id);
-      if (theme) params.set("sujet", theme);
-      if (objectif) params.set("objectif", objectif);
-      params.set("from", "/calendrier");
-      const state = { fromCalendar: true, calendarPostId: editingPost?.id, theme, objectif, angle, format, notes, postDate: selectedDate, existingContent: contentDraft, existingAccroche: accroche, launchId: editingPost?.launch_id, contentType: editingPost?.content_type, category: editingPost?.category, objective: editingPost?.objective, ...(editingPost?.launch_id ? { launchContext: { launchId: editingPost.launch_id, contentType: editingPost.content_type, chapter: (editingPost as any)?.chapter, chapterLabel: (editingPost as any)?.chapter_label, audiencePhase: (editingPost as any)?.audience_phase } } : {}) };
-      const fmt = format || "post_carrousel";
-      if (postCanal === "newsletter" || fmt === "newsletter_standard") navigate(`/creer?format=newsletter&${params.toString()}`, { state });
-      else if (postCanal === "linkedin") navigate(`/creer?canal=linkedin&${params.toString()}`, { state });
-      else if (fmt === "post_carrousel" || fmt === "carousel") {
-        if (angle && ANGLE_TO_CAROUSEL[angle]) params.set("carousel_type", ANGLE_TO_CAROUSEL[angle]);
-        navigate(`/creer?format=carousel&${params.toString()}`, { state });
-      } else if (fmt === "reel") navigate(`/creer?format=reel&${params.toString()}`, { state });
-      else if (fmt === "story_serie") navigate(`/creer?format=story&${params.toString()}`, { state });
-      else navigate(`/creer?canal=${postCanal || "instagram"}&${params.toString()}`, { state });
-    }, 100);
-  };
-
-  const handleNavigateToDeepen = async () => {
-    if (theme.trim() && onAutoSave) await onAutoSave(buildSaveData(), effectiveId);
-    onOpenChange(false);
-    setTimeout(() => {
-      const params = new URLSearchParams();
-      if (theme) params.set("sujet", theme);
-      if (objectif) params.set("objectif", objectif);
-      if (format) params.set("format", format);
-      if (editingPost?.id) params.set("calendar_id", editingPost.id);
-      params.set("from", "/calendrier");
-      navigate("/creer?" + params.toString(), { state: { fromCalendar: true, calendarPostId: editingPost?.id, theme, objectif, angle, format, notes, postDate: selectedDate, existingContent: contentDraft, existingAccroche: accroche } });
-    }, 100);
-  };
-
-  const handleNavigateToFormat = (targetFormat: string) => {
-    const params = new URLSearchParams();
-    if (theme) params.set("sujet", theme);
-    if (objectif) params.set("objectif", objectif);
-    if (editingPost?.id) params.set("calendar_id", editingPost.id);
-    params.set("from", "/calendrier");
-    if (targetFormat === "carousel") navigate(`/creer?format=carousel&${params.toString()}`);
-    else if (targetFormat === "reel") navigate(`/creer?format=reel&${params.toString()}`);
-    else if (targetFormat === "story") navigate(`/creer?format=story&${params.toString()}`);
-    else if (targetFormat === "linkedin") navigate(`/creer?canal=linkedin&${params.toString()}`);
-    else navigate("/transformer");
-  };
+  const { handleSmartGenerate, handleOpenAtelier, handleNavigateToGenerator, handleNavigateToDeepen, handleNavigateToFormat } = useCalendarPostNavigation({
+    theme, format, postCanal, objectif, angle, notes, selectedDate, contentDraft, accroche, editingPost,
+    savedPreviewContent, effectiveId, buildSaveData, onAutoSave, onOpenChange, navigate, handleQuickGenerate,
+  });
 
   // ── Render ──
 

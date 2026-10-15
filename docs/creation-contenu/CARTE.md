@@ -156,8 +156,10 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 - **Départ** : `src/pages/Calendar.tsx` (state `fromCalendar`, `postId`,
   `calendarPostId`, `theme`, `objectif`, `angle`, `format`, `notes`,
   `postDate`, `existingContent`, `canal` + paramètres d'URL), plus
-  `CalendarPostDialog.tsx` (`resumeIdea`, `existingAccroche`, `launchId`,
-  `contentType`…) et `CalendarCoachingDialog.tsx`.
+  la fenêtre d'un post (`CalendarPostDialog.tsx`, dont les départs vivent dans
+  `src/hooks/use-calendar-post-navigation.ts` depuis le lot 7 de la fiche 13 :
+  `resumeIdea`, `existingAccroche`, `launchId`, `contentType`…) et
+  `CalendarCoachingDialog.tsx`.
 - **Lecture** : `src/hooks/use-creer-entry-init.ts` (arrivée) et `locState` dans `CreerUnifie.tsx` (`fromCalendar = !!calendarPostId`).
 - **Retour** : `handleAddToCalendar` → `handleSaveBackToCalendar`
   (`use-calendar-save.ts`), qui renvoie vers `/calendrier?date=…&post=…`.
