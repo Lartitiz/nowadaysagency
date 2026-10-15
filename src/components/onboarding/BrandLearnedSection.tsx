@@ -35,7 +35,7 @@ type LearnedData = {
   charterConfidence: string | null;
 };
 
-/* Honnêteté sur la provenance — même règle que BrandingReview/CharterSection.
+/* Honnêteté sur la provenance — même règle que branding/review/CharterSection.
    Sans ça, une palette d'ambiance inventée (cas 2 du prompt d'enrichissement)
    s'affichait sous « Tes couleurs », donc comme une lecture du site. Une
    invention présentée comme une détection est un bug invisible. */

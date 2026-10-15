@@ -5,7 +5,7 @@ import { colorsLabel } from "@/components/onboarding/BrandLearnedSection";
    Elle affichait les couleurs de la fiche à valider sous un « Tes couleurs »
    à plat — y compris quand l'IA les avait INVENTÉES (cas 2 du prompt
    diagnostic-enrichment, confidence "low"). Une invention présentée comme une
-   détection = fallback silencieux. Même règle que BrandingReview/CharterSection. */
+   détection = fallback silencieux. Même règle que branding/review/CharterSection. */
 
 describe("colorsLabel — provenance honnête des couleurs à l'onboarding", () => {
   it("low → « palette proposée », jamais « tes couleurs » ni « détectées »", () => {
