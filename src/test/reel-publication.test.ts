@@ -7,7 +7,8 @@ import { isDurableReelUrl, reelSourceKey } from '@/lib/reel-publication';
 const video = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4`;
 const raw = { sections:[{texte_parle:'Script',texte_overlay:'Overlay',timing:'0-3 sec'}],caption:{text:'Ma légende',cta:'Et toi ?'},hashtags:['#atelier'] };
 function handler(overrides: Record<string,unknown>={}) {
- const source = readFileSync('src/pages/CreerUnifie.tsx','utf8');
+ // handlePublishInstagram vit dans use-creer-publish.ts depuis le lot G2 du découpage de CreerUnifie.
+ const source = readFileSync('src/hooks/use-creer-publish.ts','utf8');
  const sf = ts.createSourceFile('creator.tsx',source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);let code='';
  function visit(n:ts.Node) { if(ts.isVariableDeclaration(n)&&n.name.getText(sf)==='handlePublishInstagram') code=n.initializer!.getText(sf);ts.forEachChild(n,visit); }visit(sf);
  const deps = {

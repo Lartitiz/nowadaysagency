@@ -81,11 +81,16 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
   actions reçoivent ce contexte au moment de l'appel. Déjà couvert par les tests du
   lot A (`creer-angles-reel-photos`), aucun test modifié.
 - **Lot G**, en deux PR :
-  - **G1** (PR en cours) : vidéo du reel liée à son script, sortie à l'identique dans
+  - **G1** (#1562, fusionné le 15/10/2026) : vidéo du reel liée à son script, sortie à l'identique dans
     `src/hooks/use-reel-artifact.ts`. `reel-editor-scope.test.tsx` lit désormais ce
     fichier (seuls le chemin et le repère de fin changent, les vérifications restent).
-  - **G2** ensuite : publication et programmation (`use-creer-publish.ts`), avec
-    `reel-publication.test.ts` à faire pointer vers le nouveau fichier.
+  - **G2** (PR en cours) : publication et programmation sorties à l'identique dans
+    `src/hooks/use-creer-publish.ts` (32 paramètres, appelé au même endroit, après
+    `useCalendarSave`). Les états `publishingInstagram` / `publishingLinkedIn` restent
+    dans la page (le premier sert aussi à `useReelArtifact`). `reel-publication.test.ts`
+    lit désormais ce fichier (seul le chemin change). Couvert aussi par
+    `creer-publication-exports` (lot A, test 7).
+- **Lot H** ensuite : photos (`use-creer-photos.ts`), voir la fiche 1.
 
 ## Découpage du Studio, `visual-studio/index.ts` (fiche 5) : terminé le 14/10/2026
 2001 → 299 lignes ; `index.ts` n'est plus qu'un aiguilleur des 16 actions.
