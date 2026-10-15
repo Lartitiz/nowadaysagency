@@ -84,7 +84,10 @@ describe("useRegenerationBackup", () => {
 });
 
 describe("branchement dans /creer", () => {
-  const creer = fs.readFileSync(path.resolve(__dirname, "../pages/CreerUnifie.tsx"), "utf8");
+  // La sauvegarde au fil de l'eau vit dans use-creer-flow-persistence.ts depuis
+  // le lot I du découpage de CreerUnifie : on lit les deux fichiers.
+  const creer = fs.readFileSync(path.resolve(__dirname, "../pages/CreerUnifie.tsx"), "utf8")
+    + "\n" + fs.readFileSync(path.resolve(__dirname, "../hooks/use-creer-flow-persistence.ts"), "utf8");
   it("Régénérer et Changer d'angle gardent la version d'avant", () => {
     const regen = creer.slice(creer.indexOf("const handleRegenerate = "), creer.indexOf("const handleChangeAngle = "));
     expect(regen.indexOf("regenerationBackup.begin(")).toBeGreaterThan(-1);
