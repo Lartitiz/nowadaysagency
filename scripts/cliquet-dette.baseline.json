@@ -133,10 +133,6 @@
       "lignes": 2792,
       "any": 155
     },
-    "supabase/functions/deep-diagnostic/index.ts": {
-      "lignes": 1084,
-      "any": 18
-    },
     "supabase/functions/diagnostic-enrichment/index.ts": {
       "lignes": 882,
       "any": 9
