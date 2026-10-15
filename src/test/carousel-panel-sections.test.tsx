@@ -7,7 +7,10 @@ import CarouselEditor from "@/components/creer/CarouselEditor";
 vi.mock("@/components/creer/PhotoSwapDialog", () => ({ default: () => null }));
 beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} }));
 // Les calques sont repliés par défaut : ces tests les ouvrent.
-beforeEach(() => window.localStorage.setItem("carousel-panel:Calques", "1"));
+beforeEach(() => {
+  window.localStorage.setItem("carousel-panel:Calques", "1");
+  window.localStorage.setItem("carousel-editor:mode", "complet"); // panneau complet (« Plus d'outils »), chantier D
+});
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
@@ -36,10 +39,13 @@ describe("settings panel sections", () => {
     fireEvent.click(screen.getByRole("button", { name: /Choisir le calque Titre/ }));
     expect(section("Typographie avancée").getAttribute("aria-expanded")).toBe("true");
   });
-  it("on phone the panel is a bottom sheet that opens when an element is chosen", () => {
+  // Chantier D (15/10/2026) : le tiroir fixe du téléphone passait sous le menu du bas
+  // et la barre du résultat (poignée invisible) ; le panneau suit maintenant la slide.
+  it("on phone the panel stays in the page, right under the slide (no hidden bottom sheet)", () => {
     render(<CarouselEditor result={raw} visualSlides={visuals} onChange={() => {}} />);
-    expect(screen.getByLabelText("Ouvrir les réglages")).toBeTruthy();
+    expect(screen.queryByLabelText("Ouvrir les réglages")).toBeNull();
+    expect(document.querySelector(".fixed.bottom-0")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /Choisir le calque Titre/ }));
-    expect(screen.getByLabelText("Replier les réglages")).toBeTruthy();
+    expect(section("Typographie avancée")).toBeTruthy();
   });
 });

@@ -1,12 +1,13 @@
 // Colonne de droite simplifiée (03/10/2026) : onglets Élément / Slide / Carrousel,
 // calques repliés, une seule liste de polices, styles de bloc tout faits.
 import React, { useState } from "react";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import CarouselEditor from "@/components/creer/CarouselEditor";
 
 vi.mock("@/components/creer/PhotoSwapDialog", () => ({ default: () => null }));
 beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} }));
+beforeEach(() => window.localStorage.setItem("carousel-editor:mode", "complet"));  // panneau complet (« Plus d'outils »), chantier D
 afterEach(() => {
   cleanup();
   window.localStorage.clear();

@@ -10,6 +10,7 @@ vi.mock("@/components/creer/PhotoSwapDialog", () => ({ default: () => null }));
 beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} }));
 // Sections repliées par défaut : ces tests les ouvrent.
 beforeEach(() => {
+  window.localStorage.setItem("carousel-editor:mode", "complet"); // panneau complet (« Plus d'outils »), chantier D
   for (const title of ["Calques", "Typographie avancée", "Retouche de la photo", "Toutes les slides"])
     window.localStorage.setItem(`carousel-panel:${title}`, "1");
 });

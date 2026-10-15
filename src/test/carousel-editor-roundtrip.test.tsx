@@ -29,7 +29,10 @@ vi.mock("@/components/creer/PhotoSwapDialog", () => ({
   ),
 }));
 beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} }));
-beforeEach(() => window.localStorage.setItem("carousel-panel:Calques", "1"));
+beforeEach(() => {
+  window.localStorage.setItem("carousel-panel:Calques", "1");
+  window.localStorage.setItem("carousel-editor:mode", "complet"); // panneau complet (« Plus d'outils »), chantier D
+});
 afterEach(() => {
   cleanup();
   window.localStorage.clear();

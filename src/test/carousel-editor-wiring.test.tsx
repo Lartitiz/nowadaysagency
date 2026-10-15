@@ -19,6 +19,7 @@ vi.mock("@/components/creer/PhotoSwapDialog", () => ({ default: () => null }));
 beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} }));
 beforeEach(() => {
   vi.clearAllMocks();
+  window.localStorage.setItem("carousel-editor:mode", "complet"); // panneau complet (« Plus d'outils »), chantier D
   window.localStorage.setItem("carousel-panel:Calques", "1");
 });
 afterEach(() => {
@@ -239,9 +240,9 @@ describe("boutons des slides", () => {
     render(<Harness />);
     const before = saved();
     fireEvent.click(screen.getByLabelText("Sélectionner la slide 2"));
-    fireEvent.click(buttonText("Supprimer"));
+    fireEvent.click(buttonText("Supprimer la slide"));
     expect(saved().slides.map((s: any) => s.title)).toEqual(["Un", undefined]);
-    expect(buttonText("Supprimer").disabled).toBe(true);
+    expect(buttonText("Supprimer la slide").disabled).toBe(true);
     undo();
     expect(saved()).toEqual(before);
   });

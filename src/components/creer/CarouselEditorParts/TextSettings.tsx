@@ -2,11 +2,10 @@
 // photo, bloc), déplacé à l'identique depuis CarouselEditor.tsx. Les valeurs
 // de l'éditeur arrivent en props, sous leur nom d'origine ; l'état tapé (recherche
 // de police) reste dans CarouselEditor pour survivre au changement d'onglet.
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { AlignCenter, AlignLeft, AlignRight, ChevronDown } from "lucide-react";
-import { GOOGLE_FONTS, googleFontUrl, listDocumentFonts, patchElement, setEmphasis, type EditorElement, type EditorSlide } from "@/lib/carousel-editor";
+import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
+import { listDocumentFonts, patchElement, setEmphasis, type EditorElement, type EditorSlide } from "@/lib/carousel-editor";
+import { FontPicker } from "@/components/creer/CarouselEditorParts/FontPicker";
 import { PanelSection } from "@/components/creer/CarouselEditorParts/PanelBits";
 import { range, toHex } from "@/components/creer/CarouselEditorParts/panel-controls";
 
@@ -48,59 +47,7 @@ export function TextSettings({ changeSlide, css, documentFonts, element, fontQue
                 )}
                 <div className="space-y-1 text-xs">
                   <span>Police</span>
-                  <Popover onOpenChange={(open) => {
-                    // Aperçu : les polices Google se chargent dans la page à l'ouverture.
-                    if (!open || window.document.querySelector("link[data-font-preview]")) return;
-                    const link = window.document.createElement("link");
-                    link.rel = "stylesheet";
-                    link.href = googleFontUrl(GOOGLE_FONTS.map((f) => f.family));
-                    link.setAttribute("data-font-preview", "true");
-                    window.document.head.append(link);
-                  }}>
-                    <PopoverTrigger asChild>
-                      <Button size="sm" variant="outline" aria-label="Choisir une police" className="h-8 w-full justify-between font-normal">
-                        <span className="truncate" style={{ fontFamily: css["font-family"] || undefined }}>
-                          {(css["font-family"] || "").split(",")[0].replace(/['"]/g, "").trim() || "Police du thème"}
-                        </span>
-                        <ChevronDown size={14} aria-hidden="true" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-72 p-2">
-                      <input
-                        aria-label="Chercher une police"
-                        placeholder="Chercher (ex. Playfair)"
-                        value={fontQuery}
-                        onChange={(e) => setFontQuery(e.target.value)}
-                        className="mb-2 w-full rounded border bg-background px-2 py-1 text-xs"
-                      />
-                      <div className="max-h-72 space-y-0.5 overflow-auto" role="listbox" aria-label="Polices">
-                        {[
-                          ...documentFonts.map((f) => ({ label: f.label, value: f.value, family: undefined as string | undefined, tag: "Ton carrousel" })),
-                          ...["Arial, sans-serif", "Georgia, serif", "Verdana, sans-serif", "Trebuchet MS, sans-serif"].map((f) => ({ label: f.split(",")[0], value: f, family: undefined as string | undefined, tag: "Classique" })),
-                          ...GOOGLE_FONTS.map((f) => ({
-                            label: f.family,
-                            value: `'${f.family}', ${f.kind === "serif" ? "serif" : f.kind === "script" ? "cursive" : "sans-serif"}`,
-                            family: f.family as string | undefined,
-                            tag: { serif: "Serif", sans: "Sans", display: "Affiche", script: "Manuscrite" }[f.kind],
-                          })),
-                        ]
-                          .filter((f) => f.label.toLowerCase().includes(fontQuery.toLowerCase()))
-                          .map((f) => (
-                            <button
-                              key={`${f.tag}-${f.value}`}
-                              type="button"
-                              role="option"
-                              aria-selected={(css["font-family"] || "") === f.value || (!!f.family && (css["font-family"] || "").includes(f.family))}
-                              onClick={() => pickFont(f.value, f.family)}
-                              className="flex w-full items-baseline justify-between rounded px-2 py-1.5 text-left hover:bg-muted aria-selected:bg-primary/10"
-                            >
-                              <span style={{ fontFamily: f.value, fontSize: 18 }}>{f.label}</span>
-                              <span className="text-2xs text-muted-foreground">{f.tag}</span>
-                            </button>
-                          ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                  <FontPicker css={css} documentFonts={documentFonts} fontQuery={fontQuery} pickFont={pickFont} setFontQuery={setFontQuery} />
                 </div>
                 <div className="flex items-center justify-between gap-2 text-xs">
                   <label className="flex items-center gap-2">

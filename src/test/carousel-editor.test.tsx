@@ -31,7 +31,10 @@ beforeAll(() =>
   ),
 );
 // Les calques sont repliés par défaut : ces tests les ouvrent.
-beforeEach(() => window.localStorage.setItem("carousel-panel:Calques", "1"));
+beforeEach(() => {
+  window.localStorage.setItem("carousel-panel:Calques", "1");
+  window.localStorage.setItem("carousel-editor:mode", "complet"); // panneau complet (« Plus d'outils »), chantier D
+});
 afterEach(cleanup);
 const html =
   '<style>p{margin:0}</style><div style="position:relative;width:1080px;height:1350px;color:#123456"><h1 data-slide-text="title">Mon <em>atelier</em></h1><p data-slide-text="body">40 % des pièces sont bleues.</p><strong>40 %</strong></div>';
@@ -302,7 +305,7 @@ describe("carousel editor interaction", () => {
     render(<Harness />);
     fireEvent.click(screen.getByRole("button", { name: "Dupliquer" }));
     expect(screen.getByLabelText("Sélectionner la slide 3")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /^Supprimer$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Supprimer la slide$/ }));
     expect(screen.queryByLabelText("Sélectionner la slide 3")).toBeNull();
     fireEvent.click(screen.getByLabelText("Annuler la modification"));
     expect(screen.getByLabelText("Sélectionner la slide 3")).toBeTruthy();
