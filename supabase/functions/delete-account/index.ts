@@ -162,6 +162,8 @@ export async function handleDeleteAccountRequest(req: Request): Promise<Response
       "engagement_weekly_linkedin",
       "generated_carousels",
       "generated_posts",
+      // Sans clé étrangère vers auth.users : rien ne l'efface par cascade.
+      "higgsfield_image_spend",
       "frontend_debug_logs",
       "highlight_categories",
       "import_mappings",

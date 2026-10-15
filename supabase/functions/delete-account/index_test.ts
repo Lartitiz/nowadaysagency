@@ -50,6 +50,10 @@ function installMockFetch(opts: MockOpts) {
   const deletedTables: string[] = [];
   const deletedQueries: Record<string, string> = {};
   const stripeCalls: string[] = [];
+  // Journal ordonné de TOUS les appels de stockage et de suppression (pas
+  // seulement le dernier) : sert à prouver que l'inventaire des fichiers
+  // précède l'effacement des lignes.
+  const events: string[] = [];
   let authUserDeleted = false;
 
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -83,7 +87,14 @@ function installMockFetch(opts: MockOpts) {
       return json(opts.activeSubscription ? [opts.activeSubscription] : []);
     }
 
+    if (path === "/storage/v1/bucket") {
+      return json(["user-photos", "visual-studio", "studio-video", "crosspost-sources"].map((id) => ({ id, name: id })));
+    }
+
     if (path.startsWith("/storage/v1/object/list/")) {
+      const bucket = path.replace("/storage/v1/object/list/", "");
+      const prefix = JSON.parse(String(init?.body ?? "{}")).prefix;
+      events.push(`list:${bucket}:${prefix}`);
       return json([]); // aucun fichier -> remove() jamais appelé
     }
 
@@ -106,6 +117,7 @@ function installMockFetch(opts: MockOpts) {
         return json({ message: `constraint violation on ${table}`, code: "23503" }, 409);
       }
       deletedTables.push(table);
+      events.push(`delete:${table}`);
       // Une même table peut être vidée en PLUSIEURS requêtes (les tables sans
       // colonne propriétaire passent par chacun de leurs parents) : on cumule,
       // sinon la dernière requête efface la trace des précédentes.
@@ -117,7 +129,7 @@ function installMockFetch(opts: MockOpts) {
     return json([]);
   }) as typeof fetch;
 
-  return { deletedTables, deletedQueries, stripeCalls, get authUserDeleted() { return authUserDeleted; } };
+  return { deletedTables, deletedQueries, stripeCalls, events, get authUserDeleted() { return authUserDeleted; } };
 }
 
 function restore() {
@@ -346,6 +358,31 @@ Deno.test("delete-account: supprime les données récentes avant leurs parents w
     before("calendar_posts", "series");
     before("series", "workspaces");
     assert(mock.authUserDeleted);
+  } finally {
+    restore();
+  }
+});
+
+Deno.test("delete-account: RGPD 14/10 — fichiers Studio, vidéos et crosspost inventoriés AVANT l'effacement des lignes, et higgsfield_image_spend effacée", async () => {
+  const WS = "44444444-4444-4444-8444-444444444444";
+  const mock = installMockFetch({
+    callerId: SELF_USER_ID, callerEmail: "cliente@example.com", activeSubscription: null,
+    parentIds: { workspaces: [WS] },
+  });
+  try {
+    const res = await call(req({}));
+    assertEquals(res.status, 200);
+    for (const expected of [
+      `list:user-photos:${SELF_USER_ID}`,
+      `list:visual-studio:${WS}`,
+      `list:studio-video:${WS}`,
+      `list:crosspost-sources:workspace/${WS}`,
+      `list:crosspost-sources:user/${SELF_USER_ID}`,
+    ]) assert(mock.events.includes(expected), `${expected} attendu`);
+    const lastList = mock.events.findLastIndex((e) => e.startsWith("list:"));
+    const firstDelete = mock.events.findIndex((e) => e.startsWith("delete:"));
+    assert(lastList >= 0 && firstDelete > lastList, "les fichiers doivent être inventoriés avant toute suppression de ligne");
+    assert(mock.deletedQueries["higgsfield_image_spend"]?.includes(`user_id=eq.${SELF_USER_ID}`));
   } finally {
     restore();
   }
