@@ -1,4 +1,3 @@
-import { SavedContentPreview } from "@/components/SavedContentPreview";
 import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { reelCalendarCaption } from "../../../supabase/functions/_shared/reel-caption";
 import { calendarPublishCaption } from "../../../supabase/functions/_shared/calendar-caption";
@@ -26,23 +25,21 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Trash2, ChevronDown, Upload, Loader2, Check, Send, CalendarClock, Lightbulb } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
-import { type CalendarPost, STATUS_LABELS, STATUSES, statusStyles, OBJECTIFS } from "@/lib/calendar-constants";
-import { format as formatDate } from "date-fns";
-import { fr } from "date-fns/locale";
+import { type CalendarPost } from "@/lib/calendar-constants";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { publishToInstagram, publishReelToInstagram, isPublicImageUrl, isPublicVideoUrl, isNotConnectedError } from "@/lib/instagram-publish";
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
 import { toast } from "sonner";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { RevertToOriginalButton } from "@/components/ContentPreview";
 
-import { CalendarPostMetadata, FORMAT_OPTIONS_BY_CANAL } from "./CalendarPostMetadata";
+import { CalendarPostMetadata } from "./CalendarPostMetadata";
 import { CalendarPostContent } from "./CalendarPostContent";
 import { CalendarPostPreview } from "./CalendarPostPreview";
 import { INSTAGRAM_DIRECT_MAX_IMAGES, instagramTooManyImagesReason } from "@/features/creer/publish-guards";
-import { isoToLocalInput, ANGLE_TO_CAROUSEL, CANAL_META, angleLabelOf, draftFromPost } from "@/features/calendar/post-dialog-helpers";
+import { isoToLocalInput, ANGLE_TO_CAROUSEL, draftFromPost } from "@/features/calendar/post-dialog-helpers";
+import { PostContextHeader } from "./post-dialog/PostContextHeader";
+import { PostContentViewerSheet } from "./post-dialog/PostContentViewerSheet";
 
 interface Props {
   open: boolean;
@@ -739,51 +736,8 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
     />
   );
 
-  // En-tête de contexte : un coup d'œil sur « quel réseau · quel format · quelle date · quel statut »
-  const canalMeta = CANAL_META[postCanal] || { emoji: "", label: postCanal };
-  const formatMeta = format ? (FORMAT_OPTIONS_BY_CANAL[postCanal] || []).find((f) => f.id === format) : null;
-  const objectifMeta = objectif ? OBJECTIFS.find((o) => o.id === objectif) : null;
-  const dateLabel = selectedDate ? formatDate(new Date(selectedDate + "T00:00:00"), "EEE d MMM", { locale: fr }) : null;
-  const angleLabel = angleLabelOf(angle);
-
   const contextHeader = (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-base leading-none" aria-hidden="true">{canalMeta.emoji}</span>
-        <span className="text-sm font-semibold text-foreground">
-          {formatMeta ? `${formatMeta.label} ${canalMeta.label}` : canalMeta.label}
-        </span>
-        {dateLabel && (
-          <>
-            <span className="text-border">·</span>
-            <span className="text-xs text-muted-foreground">{dateLabel}</span>
-          </>
-        )}
-        {/* Badge de statut cliquable : changer le statut sans ouvrir « Détails » */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button type="button" className={cn("ml-auto inline-flex items-center gap-1 rounded-pill border px-2.5 py-0.5 text-2xs font-medium transition-opacity hover:opacity-80", statusStyles[status] || "bg-card border-border text-foreground")} aria-label="Changer le statut du post">
-              {STATUS_LABELS[status] || status}
-              <ChevronDown className="h-3 w-3 opacity-70" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            {STATUSES.map((s) => (
-              <DropdownMenuItem key={s.id} onClick={() => setStatus(s.id)} className={cn(status === s.id && "font-medium text-primary")}>
-                {s.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      {(objectifMeta || angleLabel) && (
-        <p className="text-2xs text-muted-foreground">
-          {objectifMeta && <span>{objectifMeta.emoji} {objectifMeta.label}</span>}
-          {objectifMeta && angleLabel && <span className="mx-1.5 text-border">·</span>}
-          {angleLabel && <span>{angleLabel}</span>}
-        </p>
-      )}
-    </div>
+    <PostContextHeader postCanal={postCanal} format={format} objectif={objectif} angle={angle} selectedDate={selectedDate} status={status} setStatus={setStatus} />
   );
 
   // Panneau "Détails" repliable : reprend tous les réglages (statut, date, canal, format, objectif, angle, série)
@@ -988,45 +942,12 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
     </Dialog>
 
     {/* Content Viewer Sheet */}
-    <Sheet open={showContentViewer} onOpenChange={setShowContentViewer}>
-      <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle className="font-display">
-            {(editingPost?.story_sequence_detail as any)?.type === "reel" ? "🎬 Script complet"
-              : (editingPost?.story_sequence_detail as any)?.type === "carousel" ? "📑 Slides détaillées"
-              : (editingPost?.story_sequence_detail as any)?.type === "carousel_photo" ? "📸 Carrousel photo"
-              : (editingPost?.story_sequence_detail as any)?.type === "carousel_mix" ? "✨ Carrousel mixte"
-              : "📱 Séquence complète"}
-          </SheetTitle>
-          <SheetDescription className="sr-only">Visualisation du contenu généré</SheetDescription>
-        </SheetHeader>
-        <div className="mt-4 space-y-4">
-          {showContentViewer && editingPost && <SavedContentPreview
-            key={`${editingPost.id}:${showContentViewer}`}
-            target={{ table: "calendar_posts", id: editingPost.id, scope: { column, value } }}
-            editable={!/^carousel/.test((savedPreviewContent as any)?.type || "")}
-            onLoaded={(row) => { if (previewMounted.current) setSavedPreviewContent(row.story_sequence_detail); }}
-            onSaved={(receipt) => {
-              if (previewMounted.current) setSavedPreviewContent(receipt.row.story_sequence_detail);
-            }}
-          />}
-          {/^carousel/.test((editingPost?.story_sequence_detail as any)?.type || "") && <Button variant="outline" onClick={() => { setShowContentViewer(false); void handleOpenAtelier(); }}>Modifier dans l’éditeur de carrousel</Button>}
-          {editingPost && (editingPost as any).original_content_data && (
-            <RevertToOriginalButton onRevert={async () => {
-              const original = (editingPost as any).original_content_data;
-              const { error } = await supabase.from("calendar_posts").update({ story_sequence_detail: original, updated_at: new Date().toISOString() } as any).eq("id", editingPost.id);
-              if (error) {
-                console.error("Erreur technique:", error);
-                toast.error("Erreur", { description: friendlyError(error) });
-                return;
-              }
-              toast.success("Version originale restaurée");
-              setShowContentViewer(false);
-            }} />
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
+    <PostContentViewerSheet
+      showContentViewer={showContentViewer} setShowContentViewer={setShowContentViewer}
+      editingPost={editingPost} column={column} value={value}
+      savedPreviewContent={savedPreviewContent} setSavedPreviewContent={setSavedPreviewContent}
+      previewMounted={previewMounted} handleOpenAtelier={handleOpenAtelier}
+    />
     </>
   );
 }

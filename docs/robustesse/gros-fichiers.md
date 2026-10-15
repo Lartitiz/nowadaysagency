@@ -1474,6 +1474,7 @@ Une PR par lot (pas de session Lovable ouverte sur /calendrier pendant ces PR) :
 2. **Lot 1** : `src/features/calendar/post-dialog-helpers.ts` (fonctions pures). Risque très faible.
    **Fait le 15/10/2026** : `isoToLocalInput`, `ANGLE_TO_CAROUSEL`, `CANAL_META` (ex-table `canalMeta`), `ANGLE_ID_LABELS` + `angleLabelOf(angle)`, `draftFromPost(editingPost)`. Corps identiques ; le type commun de `Props` n'est pas touché (optionnel, laissé). Test `src/test/post-dialog-helpers.test.ts` ; fichier reconnu par le rapport d'impact (« Lien calendrier → générateur »). Les 52 cas du lot T passent sans retouche.
 3. **Lot 2** : `PostContextHeader.tsx` et `PostContentViewerSheet.tsx`.
+   **Fait le 15/10/2026** : dossier `src/components/calendar/post-dialog/`. `PostContextHeader` reçoit `postCanal`, `format`, `objectif`, `angle`, `selectedDate`, `status`, `setStatus` et calcule lui-même réseau, format, date et libellés (`aria-label` gardé). `PostContentViewerSheet` reçoit `savedPreviewContent` / `setSavedPreviewContent` / `previewMounted` / `handleOpenAtelier` et la portée `{ column, value }`. JSX déplacé à l'identique. Cas ajouté au lot T : statut changé depuis le menu de l'en-tête (une panne volontaire sur ce menu n'était vue par aucun test).
 4. **Lot 3** : `PostEditionBlock.tsx` et `PostActionsFooter.tsx`.
 5. **Lot 4** : `use-calendar-post-media.ts` et `use-calendar-quick-generate.ts`.
 6. **Lot 5** : `use-calendar-post-autosave.ts` (attention à l'ordre d'appel, test 2 obligatoire).
