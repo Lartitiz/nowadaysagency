@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useProfileFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/use-profile";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { PageLoader } from "@/components/ui/spinner";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -15,6 +15,7 @@ import SaveButton from "@/components/SaveButton";
 import { Button } from "@/components/ui/button";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useActiveChannels, ALL_CHANNELS, type ChannelId } from "@/hooks/use-active-channels";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const ACTIVITY_TYPES = [
   { id: "creatrice", label: "Créatrice / Artisane" },
@@ -56,6 +57,23 @@ const TIME_OPTIONS = [
   { key: "5_10h", label: "5-10h" },
   { key: "more_10h", label: "Plus de 10h" },
 ];
+
+// Page découpée en 4 onglets (plan simplicité du 15/10/2026) : elle faisait
+// près de 3 écrans de haut. L'onglet ouvert est dans l'adresse (?onglet=…) pour
+// qu'un lien puisse mener directement à « Mes canaux » par exemple.
+const PROFILE_TABS = [
+  { id: "moi", label: "Moi" },
+  { id: "canaux", label: "Mes canaux" },
+  { id: "rythme", label: "Mon rythme" },
+  { id: "liens", label: "Mes liens" },
+] as const;
+type ProfileTab = typeof PROFILE_TABS[number]["id"];
+
+// L'onboarding range dans profiles des valeurs à lui (« 1h », « sell »…) qui ne
+// correspondent à aucun bouton ici : on ne garde qu'une valeur que la page sait
+// afficher, en préférant user_plan_config qui est déjà au bon format.
+const firstKnown = (keys: { key: string }[], ...values: (string | null | undefined)[]) =>
+  values.find(v => !!v && keys.some(k => k.key === v)) || "";
 
 interface ProfileData {
   prenom: string;
@@ -120,8 +138,8 @@ function FrequencySelector({ label, value, options, onChange }: {
   onChange: (v: number) => void;
 }) {
   return (
-    <div>
-      <label className="text-xs font-medium text-foreground mb-1.5 block">{label}</label>
+    <div className="sm:flex sm:items-center sm:gap-4">
+      <label className="text-xs font-medium text-foreground mb-1.5 block sm:mb-0 sm:w-48 sm:shrink-0">{label}</label>
       <div className="flex gap-2">
         {options.map((n) => (
           <button
@@ -145,6 +163,10 @@ function FrequencySelector({ label, value, options, onChange }: {
 export default function Profile() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  // profiles n'a pas de workspace_id rempli : on le vise par user_id (celui de
+  // la propriétaire de l'espace). Avant le 15/10/2026, l'enregistrement visait
+  // workspace_id, ne touchait aucune ligne et affichait quand même « enregistré ».
+  const profileFilter = useProfileFilter();
   const {
     data: hookProfileData,
     isLoading: profileQueryLoading,
@@ -169,6 +191,23 @@ export default function Profile() {
   const hasChanges = JSON.stringify(current) !== JSON.stringify(saved);
   useUnsavedChanges(hasChanges);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("onglet");
+  const tab: ProfileTab = PROFILE_TABS.some(t => t.id === tabParam) ? (tabParam as ProfileTab) : "moi";
+  const setTab = (next: string) => {
+    const params = new URLSearchParams(searchParams);
+    if (next === "moi") params.delete("onglet"); else params.set("onglet", next);
+    setSearchParams(params, { replace: true });
+  };
+  // Un point signale l'onglet qui a une modification pas encore enregistrée.
+  const changed = (...fields: (keyof ProfileData)[]) => fields.some(f => JSON.stringify(current[f]) !== JSON.stringify(saved[f]));
+  const tabHasChanges: Record<ProfileTab, boolean> = {
+    moi: changed("prenom", "activite", "typeActivite"),
+    canaux: false,
+    rythme: changed("mainGoal", "level", "weeklyTime", "postsPerWeek", "storiesPerWeek", "linkedinPostsPerWeek"),
+    liens: changed("websiteUrl", "instagramUrl", "linkedinUrl"),
+  };
+
   useEffect(() => {
     if (!user) return;
     // On attend que la requête profil react-query soit retombée (succès ou erreur).
@@ -186,7 +225,11 @@ export default function Profile() {
     const load = async () => {
       setLoadError(false);
       const data = hookProfileData as any;
-      const { data: config, error: configError } = await (supabase.from("user_plan_config") as any).select("main_goal, level, weekly_time").eq(column, value).maybeSingle();
+      let { data: config, error: configError } = await (supabase.from("user_plan_config") as any).select("main_goal, level, weekly_time").eq(column, value).maybeSingle();
+      // Anciennes lignes sans workspace_id : on les retrouve par la propriétaire.
+      if (!configError && !config && column === "workspace_id" && profileFilter.value) {
+        ({ data: config, error: configError } = await (supabase.from("user_plan_config") as any).select("main_goal, level, weekly_time").eq("user_id", profileFilter.value).maybeSingle());
+      }
       if (cancelled) return;
       if (configError) {
         console.error("Profile config load error:", configError);
@@ -203,9 +246,9 @@ export default function Profile() {
           probleme: data.probleme_principal || "",
           piliers: data.piliers || [],
           tons: data.tons || [],
-          mainGoal: (data as any).main_goal || config?.main_goal || "",
-          level: (data as any).level || config?.level || "",
-          weeklyTime: (data as any).weekly_time || config?.weekly_time || "",
+          mainGoal: firstKnown(GOAL_OPTIONS, config?.main_goal, (data as any).main_goal),
+          level: firstKnown(LEVEL_OPTIONS, config?.level, (data as any).level),
+          weeklyTime: firstKnown(TIME_OPTIONS, config?.weekly_time, (data as any).weekly_time),
           postsPerWeek: (data as any).posts_per_week ?? null,
           storiesPerWeek: (data as any).stories_per_week ?? null,
           linkedinPostsPerWeek: (data as any).linkedin_posts_per_week ?? null,
@@ -220,7 +263,7 @@ export default function Profile() {
     };
     load();
     return () => { cancelled = true; };
-  }, [user?.id, hookProfileData, profileQueryLoading, profileQueryError, column, value]);
+  }, [user?.id, hookProfileData, profileQueryLoading, profileQueryError, column, value, profileFilter.value]);
 
   const handleRetry = async () => {
     setLoading(true);
@@ -234,10 +277,10 @@ export default function Profile() {
 
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user || !profileFilter.value) return;
     setSaving(true);
     try {
-      const { error } = await (supabase
+      const { data: updated, error } = await (supabase
         .from("profiles") as any)
         .update({
           prenom: current.prenom,
@@ -253,8 +296,11 @@ export default function Profile() {
           instagram_url: current.instagramUrl,
           linkedin_url: current.linkedinUrl,
         })
-        .eq(column, value);
+        .eq(profileFilter.column, profileFilter.value)
+        .select("user_id");
       if (error) throw error;
+      // Aucune ligne touchée = rien d'enregistré : on le dit au lieu d'afficher un faux succès.
+      if (!updated?.length) throw new Error("Profil introuvable : rien n'a été enregistré.");
       queryClient.invalidateQueries({ queryKey: ["profile"] });
 
       // Sync to user_plan_config
@@ -263,9 +309,16 @@ export default function Profile() {
         if (current.mainGoal) configUpdate.main_goal = current.mainGoal;
         if (current.level) configUpdate.level = current.level;
         if (current.weeklyTime) configUpdate.weekly_time = current.weeklyTime;
-        const { error: configError } = await (supabase.from("user_plan_config") as any)
+        let { data: configRows, error: configError } = await (supabase.from("user_plan_config") as any)
           .update(configUpdate)
-          .eq(column, value);
+          .eq(column, value)
+          .select("user_id");
+        if (!configError && !configRows?.length && column === "workspace_id") {
+          ({ data: configRows, error: configError } = await (supabase.from("user_plan_config") as any)
+            .update(configUpdate)
+            .eq("user_id", profileFilter.value)
+            .select("user_id"));
+        }
         if (configError) throw configError;
       }
 
@@ -307,14 +360,14 @@ export default function Profile() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       
-      <main className="mx-auto max-w-2xl px-4 py-8 pb-40 md:pb-28 animate-fade-in">
+      <main className="mx-auto max-w-2xl px-4 py-8 pb-28 md:pb-12 animate-fade-in">
         <h1 className="font-display text-3xl font-bold text-bordeaux mb-2">Mon profil</h1>
-        <p className="text-sm text-muted-foreground mb-6">Tes infos pratiques : prénom, canaux, rythme et liens.</p>
+        <p className="text-sm text-muted-foreground mb-4">Tes infos pratiques : prénom, canaux, rythme et liens.</p>
 
         {/* Une seule entrée vers Mon identité (chantier F du 15/10/2026) : la
             carte « Module Branding » et l'encadré « ont déménagé » menaient au
             même endroit. */}
-        <div className="rounded-2xl bg-rose-pale border border-border p-4 mb-6">
+        <div className="rounded-2xl bg-rose-pale border border-border p-4 mb-5">
           <Link to="/branding" className="flex items-center justify-between group">
             <div>
               <p className="text-sm font-semibold text-foreground flex items-center gap-1.5"><Palette className="h-4 w-4 text-primary" strokeWidth={1.75} />Mon identité</p>
@@ -335,112 +388,143 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="rounded-2xl bg-card p-6 border border-border space-y-5">
-          {/* Prénom */}
-          <div>
-            <label htmlFor="profile-prenom" className="text-sm font-medium mb-1.5 block">Prénom</label>
-            <Input id="profile-prenom" value={current.prenom} onChange={(e) => update("prenom", e.target.value)} className="rounded-[10px] h-12" />
-          </div>
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="grid w-full grid-cols-4 h-auto rounded-xl p-1 mb-4">
+            {PROFILE_TABS.map(t => (
+              <TabsTrigger key={t.id} value={t.id} className="relative rounded-lg px-1 py-2 text-xs sm:text-sm whitespace-normal leading-tight">
+                {t.label}
+                {tabHasChanges[t.id] && (
+                  <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary" aria-label="modifié, pas encore enregistré" />
+                )}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-          {/* Activité */}
-          <div>
-            <label htmlFor="profile-activite" className="text-sm font-medium mb-1.5 block">Mon métier en quelques mots</label>
-            <Input id="profile-activite" value={current.activite} onChange={(e) => update("activite", e.target.value)} className="rounded-[10px] h-12" placeholder="Ex : Photographe, coach, graphiste..." />
-            <p className="text-xs text-muted-foreground mt-1">Ta présentation complète (ce que tu fais, pour qui) est dans Mon identité.</p>
-          </div>
+          <TabsContent value="moi" className="mt-0 space-y-4">
+            <div className="rounded-2xl bg-card p-5 sm:p-6 border border-border space-y-5">
+              {/* Prénom */}
+              <div>
+                <label htmlFor="profile-prenom" className="text-sm font-medium mb-1.5 block">Prénom</label>
+                <Input id="profile-prenom" value={current.prenom} onChange={(e) => update("prenom", e.target.value)} className="rounded-[10px] h-12" />
+              </div>
 
-          {/* Type d'activité */}
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Type d'activité</label>
-            <div className="grid grid-cols-2 gap-3">
-              {ACTIVITY_TYPES.map((t) => (
-                <button key={t.id} onClick={() => update("typeActivite", t.id)}
-                  className={`rounded-lg border-2 p-3 text-left text-sm font-medium transition-all ${activityFamily(current.typeActivite) === t.id ? "border-primary bg-secondary" : "border-border hover:border-primary/40"}`}>
-                  {t.label}
-                </button>
-              ))}
+              {/* Activité */}
+              <div>
+                <label htmlFor="profile-activite" className="text-sm font-medium mb-1.5 block">Mon métier en quelques mots</label>
+                <Input id="profile-activite" value={current.activite} onChange={(e) => update("activite", e.target.value)} className="rounded-[10px] h-12" placeholder="Ex : Photographe, coach, graphiste..." />
+                <p className="text-xs text-muted-foreground mt-1">Ta présentation complète (ce que tu fais, pour qui) est dans Mon identité.</p>
+              </div>
+
+              {/* Type d'activité */}
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Type d'activité</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {ACTIVITY_TYPES.map((t) => (
+                    <button key={t.id} onClick={() => update("typeActivite", t.id)}
+                      className={`rounded-lg border-2 px-3 py-2.5 text-left text-sm font-medium transition-all ${activityFamily(current.typeActivite) === t.id ? "border-primary bg-secondary" : "border-border hover:border-primary/40"}`}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
+            <ProfileSaveBar hasChanges={hasChanges} saving={saving} onSave={handleSave} />
+          </TabsContent>
 
-          {/* ─── Canaux ─── */}
-          <ChannelSelector />
-        </div>
+          <TabsContent value="canaux" className="mt-0 space-y-4">
+            <div className="rounded-2xl bg-card p-5 sm:p-6 border border-border">
+              <ChannelSelector />
+            </div>
+            {/* Les canaux s'enregistrent au clic ; le bouton n'apparaît ici que
+                pour une modification laissée dans un autre onglet. */}
+            {hasChanges && (
+              <ProfileSaveBar hasChanges={hasChanges} saving={saving} onSave={handleSave} />
+            )}
+          </TabsContent>
 
-        {/* New section: Objective, Level, Time */}
-        <div className="rounded-2xl bg-card p-6 border border-border space-y-5 mt-6">
-          <div>
-            <label className="text-sm font-medium mb-2 flex items-center gap-1.5"><Target className="h-4 w-4 text-primary" strokeWidth={1.75} />Mon objectif principal</label>
-            <ChipSelector options={GOAL_OPTIONS} value={current.mainGoal} onChange={(v: string) => update("mainGoal", v)} />
-          </div>
+          <TabsContent value="rythme" className="mt-0 space-y-4">
+            <div className="rounded-2xl bg-card p-5 sm:p-6 border border-border space-y-5">
+              <div>
+                <label className="text-sm font-medium mb-2 flex items-center gap-1.5"><Target className="h-4 w-4 text-primary" strokeWidth={1.75} />Mon objectif principal</label>
+                <ChipSelector options={GOAL_OPTIONS} value={current.mainGoal} onChange={(v: string) => update("mainGoal", v)} />
+              </div>
 
-          <div>
-            <label className="text-sm font-medium mb-2 flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-primary" strokeWidth={1.75} />Mon niveau en com'</label>
-            <ChipSelector options={LEVEL_OPTIONS} value={current.level} onChange={(v: string) => update("level", v)} />
-          </div>
+              <div>
+                <label className="text-sm font-medium mb-2 flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-primary" strokeWidth={1.75} />Mon niveau en com'</label>
+                <ChipSelector options={LEVEL_OPTIONS} value={current.level} onChange={(v: string) => update("level", v)} />
+              </div>
 
-          <div>
-            <label className="text-sm font-medium mb-2 flex items-center gap-1.5"><Clock className="h-4 w-4 text-primary" strokeWidth={1.75} />Mon temps dispo par semaine</label>
-            <ChipSelector options={TIME_OPTIONS} value={current.weeklyTime} onChange={(v: string) => update("weeklyTime", v)} />
-          </div>
-        </div>
+              <div>
+                <label className="text-sm font-medium mb-2 flex items-center gap-1.5"><Clock className="h-4 w-4 text-primary" strokeWidth={1.75} />Mon temps dispo par semaine</label>
+                <ChipSelector options={TIME_OPTIONS} value={current.weeklyTime} onChange={(v: string) => update("weeklyTime", v)} />
+              </div>
+            </div>
+            <div className="rounded-2xl bg-card p-5 sm:p-6 border border-border space-y-4">
+              <label className="text-sm font-medium mb-1 flex items-center gap-1.5"><BarChart3 className="h-4 w-4 text-primary" strokeWidth={1.75} />Ma fréquence souhaitée</label>
+              <FrequencySelector
+                label="Posts Instagram par semaine"
+                value={current.postsPerWeek}
+                options={[1, 2, 3, 4, 5]}
+                onChange={(v) => update("postsPerWeek", v)}
+              />
+              <FrequencySelector
+                label="Stories par semaine"
+                value={current.storiesPerWeek}
+                options={[0, 3, 5, 7, 10]}
+                onChange={(v) => update("storiesPerWeek", v)}
+              />
+              <FrequencySelector
+                label="Posts LinkedIn par semaine"
+                value={current.linkedinPostsPerWeek}
+                options={[0, 1, 2, 3]}
+                onChange={(v) => update("linkedinPostsPerWeek", v)}
+              />
+            </div>
+            <ProfileSaveBar hasChanges={hasChanges} saving={saving} onSave={handleSave} />
+          </TabsContent>
 
-        {/* Frequency */}
-        <div className="rounded-2xl bg-card p-6 border border-border space-y-5 mt-6">
-          <label className="text-sm font-medium mb-1 flex items-center gap-1.5"><BarChart3 className="h-4 w-4 text-primary" strokeWidth={1.75} />Ma fréquence souhaitée</label>
-          <FrequencySelector
-            label="Posts Instagram par semaine"
-            value={current.postsPerWeek}
-            options={[1, 2, 3, 4, 5]}
-            onChange={(v) => update("postsPerWeek", v)}
-          />
-          <FrequencySelector
-            label="Stories par semaine"
-            value={current.storiesPerWeek}
-            options={[0, 3, 5, 7, 10]}
-            onChange={(v) => update("storiesPerWeek", v)}
-          />
-          <FrequencySelector
-            label="Posts LinkedIn par semaine"
-            value={current.linkedinPostsPerWeek}
-            options={[0, 1, 2, 3]}
-            onChange={(v) => update("linkedinPostsPerWeek", v)}
-          />
-        </div>
-
-        {/* Links */}
-        <div className="rounded-2xl bg-card p-6 border border-border space-y-4 mt-6">
-          <div>
-            <label className="text-sm font-medium flex items-center gap-1.5"><Link2 className="h-4 w-4 text-primary" strokeWidth={1.75} />Mes liens</label>
-            <p className="text-xs text-muted-foreground mt-1">Rangés ici une seule fois : ils sont proposés d'office pour remplir Mon identité.</p>
-          </div>
-          <div>
-            <label htmlFor="profile-website" className="text-xs text-muted-foreground mb-1 block">Site web</label>
-            <Input id="profile-website" value={current.websiteUrl} onChange={(e) => update("websiteUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://monsite.com" />
-          </div>
-          <div>
-            <label htmlFor="profile-instagram" className="text-xs text-muted-foreground mb-1 block">Instagram</label>
-            <Input id="profile-instagram" value={current.instagramUrl} onChange={(e) => update("instagramUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://instagram.com/moncompte" />
-          </div>
-          <div>
-            <label htmlFor="profile-linkedin" className="text-xs text-muted-foreground mb-1 block">LinkedIn</label>
-            <Input id="profile-linkedin" value={current.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://linkedin.com/in/monprofil" />
-          </div>
-        </div>
+          <TabsContent value="liens" className="mt-0 space-y-4">
+            <div className="rounded-2xl bg-card p-5 sm:p-6 border border-border space-y-4">
+              <div>
+                <label className="text-sm font-medium flex items-center gap-1.5"><Link2 className="h-4 w-4 text-primary" strokeWidth={1.75} />Mes liens</label>
+                <p className="text-xs text-muted-foreground mt-1">Rangés ici une seule fois : ils sont proposés d'office pour remplir Mon identité.</p>
+              </div>
+              <div>
+                <label htmlFor="profile-website" className="text-xs text-muted-foreground mb-1 block">Site web</label>
+                <Input id="profile-website" value={current.websiteUrl} onChange={(e) => update("websiteUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://monsite.com" />
+              </div>
+              <div>
+                <label htmlFor="profile-instagram" className="text-xs text-muted-foreground mb-1 block">Instagram</label>
+                <Input id="profile-instagram" value={current.instagramUrl} onChange={(e) => update("instagramUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://instagram.com/moncompte" />
+              </div>
+              <div>
+                <label htmlFor="profile-linkedin" className="text-xs text-muted-foreground mb-1 block">LinkedIn</label>
+                <Input id="profile-linkedin" value={current.linkedinUrl} onChange={(e) => update("linkedinUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://linkedin.com/in/monprofil" />
+              </div>
+            </div>
+            <ProfileSaveBar hasChanges={hasChanges} saving={saving} onSave={handleSave} />
+          </TabsContent>
+        </Tabs>
 
         {/* Welcome page link */}
-        <div className="mt-6 text-center">
+        <div className="mt-5 text-center">
           <Link to="/welcome" className="text-xs text-muted-foreground hover:text-primary transition-colors underline">
             Revoir la page de bienvenue
           </Link>
         </div>
       </main>
 
-      {/* Sticky save button — au-dessus de la barre d'onglets mobile */}
-      <div className="fixed bottom-14 md:bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border p-4 z-40">
-        <div className="mx-auto max-w-2xl">
-          <SaveButton hasChanges={hasChanges} saving={saving} onSave={handleSave} />
-        </div>
-      </div>
+    </div>
+  );
+}
+
+// Bouton posé sous le contenu de l'onglet (il ne flotte plus par-dessus la
+// page). Seulement quand une modification attend, il reste collé en bas de
+// l'écran pour qu'on n'ait pas à le chercher.
+function ProfileSaveBar({ hasChanges, saving, onSave }: { hasChanges: boolean; saving: boolean; onSave: () => Promise<void> }) {
+  return (
+    <div className={hasChanges || saving ? "sticky bottom-16 md:bottom-4 z-30 rounded-pill bg-background" : undefined}>
+      <SaveButton hasChanges={hasChanges} saving={saving} onSave={onSave} label="Enregistrer mes infos" />
     </div>
   );
 }
@@ -469,10 +553,10 @@ function ChannelSelector() {
   };
 
   return (
-    <div className="pt-2">
+    <div>
       <label className="text-sm font-medium mb-2 flex items-center gap-1.5"><Smartphone className="h-4 w-4 text-primary" strokeWidth={1.75} />Mes canaux de communication</label>
       <p className="text-xs text-muted-foreground mb-3">
-        Sélectionne les canaux que tu utilises ou que tu veux développer. L'outil s'adapte.
+        Sélectionne les canaux que tu utilises ou que tu veux développer. L'outil s'adapte. Chaque clic est enregistré tout de suite.
       </p>
       <div className="space-y-2">
         {ALL_CHANNELS.map((ch) => {
@@ -482,7 +566,7 @@ function ChannelSelector() {
               key={ch.id}
               onClick={() => toggle(ch.id)}
               disabled={saving || !canEdit}
-              className={`w-full flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left text-sm font-medium transition-all ${
+              className={`w-full flex items-center gap-3 rounded-xl border-2 px-4 py-2.5 text-left text-sm font-medium transition-all ${
                 active
                   ? "border-primary bg-secondary"
                   : "border-border hover:border-primary/40"
