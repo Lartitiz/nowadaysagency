@@ -260,7 +260,7 @@ describe("BrandingReview — portée des lectures et écritures", () => {
     expect(m.reads.length).toBeGreaterThan(0);
     for (const r of m.reads) {
       expect(r.filters).toContainEqual(["user_id", "u1"]);
-      expect(r.filters.some(([k, v]) => k === "workspace_id" && v !== null)).toBe(false);
+      expect(r.filters).toContainEqual(["workspace_id", null]);
     }
     const inserts = m.writes.filter(w => w.op === "insert");
     expect(new Set(inserts.map(w => w.table))).toEqual(new Set(["storytelling", "persona", "brand_proposition", "brand_profile", "brand_strategy", "offers", "brand_charter"]));
@@ -279,11 +279,9 @@ describe("BrandingReview — portée des lectures et écritures", () => {
     for (const w of inserts) for (const p of [].concat(w.payload)) expect(p).toMatchObject({ user_id: "u1", workspace_id: "w1" });
   });
 
-  // Constat du lot T (non corrigé ici, voir la fiche 14) : les tables à fiche
-  // unique (brand_charter, brand_profile, brand_proposition, brand_strategy) sont
-  // lues sur user_id SANS `workspace_id is null` ; une ligne d'un autre espace de
-  // la même personne peut donc être complétée. Les tables lues par readImportRows
-  // (storytelling, persona, offers) sont, elles, bien cloisonnées :
+  // Constat du lot T, corrigé à l'étape 7 (helper reviewScope) : en compte
+  // personnel, toutes les lectures, tables à fiche unique comprises, filtrent
+  // aussi `workspace_id is null` ; une ligne d'un autre espace n'est jamais touchée.
   it("espace = id de l'utilisatrice : l'histoire d'un autre espace n'est ni lue ni modifiée", async () => {
     m.state.workspace = "u1";
     m.db.storytelling = [row("autre-espace", { workspace_id: "w9", is_primary: true, step_6_full_story: null })];
@@ -291,6 +289,25 @@ describe("BrandingReview — portée des lectures et écritures", () => {
     await validateAll({ story: { full_story: "Histoire IA" } });
     expect(m.db.storytelling[0]).toEqual(before);
     expect(m.db.storytelling[1]).toMatchObject({ user_id: "u1", workspace_id: null, step_6_full_story: "Histoire IA" });
+  });
+
+  it("espace = id de l'utilisatrice : charte, profil, proposition et stratégie d'un autre espace ne sont ni lus ni modifiés", async () => {
+    m.state.workspace = "u1";
+    m.db.brand_charter = [row("charte-w9", { workspace_id: "w9", color_primary: null })];
+    m.db.brand_profile = [row("profil-w9", { workspace_id: "w9", voice_description: null, content_editorial_line: null })];
+    m.db.brand_proposition = [row("prop-w9", { workspace_id: "w9", step_1_what: null })];
+    m.db.brand_strategy = [row("strat-w9", { workspace_id: "w9", pillar_major: null, updated_at: "2026-01-01" })];
+    const before = structuredClone({ c: m.db.brand_charter[0], p: m.db.brand_profile[0], v: m.db.brand_proposition[0], s: m.db.brand_strategy[0] });
+    await validateAll({
+      value_proposition: { key_phrase: "Phrase" },
+      tone_style: { voice_description: "Voix" },
+      content_strategy: { pillars: ["Pilier"], editorial_line: "Ligne" },
+      charter: { color_primary: "#123456" },
+    });
+    expect({ c: m.db.brand_charter[0], p: m.db.brand_profile[0], v: m.db.brand_proposition[0], s: m.db.brand_strategy[0] }).toEqual(before);
+    expect(m.db.brand_charter[1]).toMatchObject({ user_id: "u1", workspace_id: null, color_primary: "#123456" });
+    expect(m.db.brand_strategy[1]).toMatchObject({ user_id: "u1", workspace_id: null, pillar_major: "Pilier" });
+    expect(m.db.brand_profile.filter(r => r.workspace_id === null)).toHaveLength(1);
   });
 });
 
