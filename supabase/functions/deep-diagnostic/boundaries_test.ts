@@ -42,7 +42,7 @@ const importsOf = async (file: string) => {
 const nom = (href: string) => href.startsWith(DIR.href) ? href.slice(DIR.href.length) : href;
 
 Deno.test("frontières deep-diagnostic — les fichiers sortis d'index.ts sont bien trouvés", () => {
-  for (const f of ["routes.ts", "tool.ts", "parse.ts", "evidence.ts", "fallback.ts", "prompts.ts", "fast-diagnostic.ts", "sources.ts"]) {
+  for (const f of ["routes.ts", "tool.ts", "parse.ts", "evidence.ts", "fallback.ts", "prompts.ts", "fast-diagnostic.ts", "sources.ts", "enrichment.ts", "save.ts"]) {
     assert(files.includes(f), `fichiers trouvés : ${files.join(", ")}`);
   }
 });
