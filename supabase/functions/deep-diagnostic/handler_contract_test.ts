@@ -1,5 +1,5 @@
 // Contrat du handler de deep-diagnostic (fiche 12, lot T, 15/10/2026).
-// Fait tourner le VRAI handler (serve() capté par captureStdServeHandler) sur
+// Fait tourner le VRAI handler (handleDeepDiagnostic, exporté au lot 0) sur
 // une base en mémoire (contract_harness.ts) et fige, pour chaque cas : statut,
 // réponse JSON, chaque appel à Claude, corps envoyé à diagnostic-enrichment,
 // lignes insérées par table, crédits et liste des requêtes. C'est le filet du
@@ -10,11 +10,11 @@
 // Régénérer (seulement si le changement de sortie est voulu) : ajouter --allow-write et `-- --update`, puis relire le diff du .snap.
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { assertSnapshot } from "../../edge-tests/snapshot.ts";
-import { captureStdServeHandler, setTestEnv } from "../_shared/test-edge-harness.ts";
+import { setTestEnv } from "../_shared/test-edge-harness.ts";
+import { handleDeepDiagnostic as handler } from "./index.ts";
 import { installerFauxFetch, requeteDiagnostic, type FauxMonde } from "./contract_harness.ts";
 
 setTestEnv();
-const handler = await captureStdServeHandler(new URL("./index.ts", import.meta.url).href);
 
 // deno-lint-ignore no-explicit-any
 type Row = Record<string, any>;

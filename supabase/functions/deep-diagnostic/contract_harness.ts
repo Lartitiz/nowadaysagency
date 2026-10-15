@@ -1,6 +1,6 @@
 // Harnais de test UNIQUEMENT (fiche 12, lot T) — jamais importé par du code de prod.
-// Fait tourner le vrai handler de deep-diagnostic (capté par
-// captureStdServeHandler) sur une base en mémoire :
+// Fait tourner le vrai handler de deep-diagnostic (handleDeepDiagnostic,
+// exporté au lot 0) sur une base en mémoire :
 // - un faux PostgREST qui sert des tables remplies et applique les filtres
 //   `eq.` réellement envoyés (workspace_members, scrape_cache, quota…) ;
 // - la capture de chaque insertion par table (diagnostic_results,

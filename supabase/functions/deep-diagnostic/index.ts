@@ -354,7 +354,7 @@ export async function runFastDiagnostic(opts: {
   return { analysisResult, usageLog };
 }
 
-serve(async (req) => {
+export async function handleDeepDiagnostic(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
@@ -883,8 +883,8 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-});
-
+}
+if (import.meta.main) serve(handleDeepDiagnostic); // runtime edge seulement : un test qui importe ce fichier n'ouvre aucun port
 // ====== ACTIVITY INSIGHTS ======
 
 const ACTIVITY_INSIGHTS: Record<string, { strengths: string[]; tips: string[]; priority: string }> = {
