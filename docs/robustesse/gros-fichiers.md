@@ -2047,7 +2047,7 @@ cours :
 | 10 ✅ | `export-carousel-hybrid-pptx.ts` (fiche 15, terminée le 15/10/2026 : 1 767 → 98 lignes) | Calme (3 corrections) ; ne pas croiser avec une PR qui renomme un attribut `data-*`. |
 | 11 ✅ | `BrandingReview.tsx` (fiche 14, terminée le 15/10/2026 : 1 411 → 184 lignes) | Indépendant de la création de contenu ; écrit dans 7 tables : tests d'écriture d'abord. |
 | 12 | `ReelMontage.tsx` (fiche 16) | Un seul parent (`ReelResult.tsx`) ; le rendu MP4 en dernier. |
-| 13 | `deep-diagnostic/index.ts` (fiche 12) | 12 corrections sur 20 commits : contrat du handler et snapshots des prompts avant tout. |
+| 13 ✅ | `deep-diagnostic/index.ts` (fiche 12, découpage terminé le 15/10/2026 : 1 084 → 195 lignes ; lot 7 de comportement à part) | 12 corrections sur 20 commits : contrat du handler et snapshots des prompts avant tout. |
 | 14 | `use-content-generator.ts`, `CreerStepResult.tsx`, `CalendarPostDialog.tsx` (fiches 17, 11, 13) | **Après la fin de la fiche 1** (lot J de `CreerUnifie`) : ces trois fichiers sont branchés sur /creer, et `CalendarPostDialog` porte le lien calendrier → /creer. |
 
 Règles valables pour chaque PR de découpage :
