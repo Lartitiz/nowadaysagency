@@ -19,7 +19,6 @@ import {
   getStructureForCombo,
   getStructurePromptForCombo,
 } from "@/lib/content-structures";
-import { renumberSlides } from "@/features/creer/format-mappers";
 import type { DraftSlide } from "@/components/creer/CarouselDraftPreview";
 
 // Types, lecture tolérante du JSON et messages d'erreur : src/features/creer/generator/
@@ -28,6 +27,11 @@ import type { GenerateParams, GenerateQuestionsParams, Question, ContentResult, 
 import { parseAIJson } from "@/features/creer/generator/tolerant-json";
 import { cleanErrorMessage, quotaInlineMessage } from "@/features/creer/generator/error-messages";
 import { buildCarouselGenerateBody, CAROUSEL_GENERATE_TIMEOUT_MS } from "@/features/creer/generator/bodies/carousel";
+import { buildReelGenerateBody, REEL_GENERATE_TIMEOUT_MS } from "@/features/creer/generator/bodies/reel";
+import { buildStoryGenerateBody, STORY_GENERATE_TIMEOUT_MS } from "@/features/creer/generator/bodies/story";
+import { buildPostGenerateBody, POST_GENERATE_TIMEOUT_MS } from "@/features/creer/generator/bodies/post";
+import { buildLinkedinGenerateBody, LINKEDIN_GENERATE_TIMEOUT_MS } from "@/features/creer/generator/bodies/linkedin";
+import { readGenerateResponse } from "@/features/creer/generator/read-generate-response";
 export type { GenerateParams, GenerateQuestionsParams, Question, ContentResult, GenerateStreamParams } from "@/features/creer/generator/types";
 
 // ── Hook ──
@@ -191,42 +195,9 @@ export function useContentGenerator() {
         }
 
         case "reel": {
-          // Mapper les answers des questions vers le format pre_gen_answers attendu par reels-ai
-          let effectivePreGenAnswers = preGenAnswers || null;
-          if (!effectivePreGenAnswers && answers && Object.keys(answers).length > 0) {
-            const vals = Object.values(answers);
-            effectivePreGenAnswers = {
-              anecdote: vals[0] || undefined,
-              emotion: vals[1] || undefined,
-              conviction: vals[2] || undefined,
-            };
-          }
-
           const res = await invokeWithTimeout("creative-flow", {
-            body: {
-              step: "generate",
-              contentType: "reel",
-              context: effectiveSubject + (existingContent ? `\n\n[Contenu existant à approfondir]\n${existingContent}` : ""),
-              objective: objective || null,
-              face_cam: faceCam || "oui",
-              time_available: timeAvailable || "flexible",
-              pre_gen_answers: effectivePreGenAnswers,
-              // Le mapping positionnel ci-dessus perd le TEXTE des questions (et
-              // étiquette « émotion » une réponse factuelle) : on envoie aussi les
-              // paires question → réponse, comme pour le post et les stories.
-              answers: answers
-                ? Object.entries(answers).map(([k, v]) => ({ question: k, answer: v }))
-                : [],
-              selected_hook: selectedHook || null,
-              editorial_angle: editorialAngle || null,
-              content_structure: structurePrompt || null,
-              workspace_id: effectiveWorkspaceId || null,
-              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
-            },
-            // Budget serveur (audit latences 17/08) : génération bornée à 90s
-            // + passe qualité reel bornée à 45s = 135s pire cas par tentative,
-            // marge incluse pour rester au-dessus du filet serveur.
-          }, 180000);
+            body: await buildReelGenerateBody(params, { effectiveSubject, existingContent, structurePrompt, structureId, effectiveWorkspaceId }),
+          }, REEL_GENERATE_TIMEOUT_MS);
           data = res.data;
           invokeError = res.error;
           break;
@@ -234,116 +205,26 @@ export function useContentGenerator() {
 
         case "story": {
           const res = await invokeWithTimeout("creative-flow", {
-            body: {
-              step: "generate",
-              contentType: "stories",
-              editorial_angle: editorialAngle || undefined,
-              context: effectiveSubject + (existingContent ? `\n\n[Contenu existant à approfondir]\n${existingContent}` : ""),
-              objective: objective || null,
-              face_cam: faceCam || "flexible",
-              time_available: timeAvailable || "flexible",
-              pre_gen_answers: preGenAnswers || null,
-              // Réponses aux questions de l'étape 3 : sans elles, le brief
-              // arrivait vide côté edge (« RÉPONSES DE L'UTILISATRICE : »
-              // suivi de rien) et la séquence s'écrivait sans sa matière.
-              answers: answers
-                ? Object.entries(answers).map(([k, v]) => ({ question: k, answer: v }))
-                : [],
-              workspace_id: effectiveWorkspaceId || null,
-              // Photos de la bibliothèque choisies à l'étape format (lot D) :
-              // le brief les traite en priorité absolue, une par story.
-              ...(params.photoMode && params.photos?.length
-                ? {
-                    preferred_photo_ids: params.photos
-                      .map((p) => p.userPhotoId)
-                      .filter((id): id is string => !!id)
-                      .slice(0, 10),
-                  }
-                : {}),
-              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
-            },
-            // Budget serveur : génération seule bornée à 90s (pas de passe de
-            // correction pour les stories), marge incluse.
-          }, 150000);
+            body: await buildStoryGenerateBody(params, { effectiveSubject, existingContent, structurePrompt, structureId, effectiveWorkspaceId }),
+          }, STORY_GENERATE_TIMEOUT_MS);
           data = res.data;
           invokeError = res.error;
           break;
         }
 
         case "post": {
-          const angle = editorialAngle
-            ? EDITORIAL_ANGLES.find((a) => a.id === editorialAngle)
-            : undefined;
-          const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
-
           const res = await invokeWithTimeout("creative-flow", {
-            body: {
-              step: "generate",
-              contentType: "instagram_post",
-              editorial_angle: editorialAngle || undefined,
-              context: effectiveSubject + (existingContent ? `\n\n[Contenu existant à approfondir]\n${existingContent}` : ""),
-              angle: angle
-                ? {
-                    title: angle.label,
-                    structure: structure?.steps.map((s) => s.label),
-                    tone: "direct, chaleureux, oral assumé",
-                  }
-                : undefined,
-              answers: answers
-                ? Object.entries(answers).map(([k, v]) => ({ question: k, answer: v }))
-                : [],
-              objective: objective || null,
-              workspace_id: effectiveWorkspaceId || null,
-              photo_mode: params.photoMode || undefined,
-              // Vision uniquement côté edge (jamais de rendu) : versions allégées,
-              // le master plein format reste côté client.
-              photos: params.photoMode && params.photos?.length
-                ? (await downscalePhotosForVision(params.photos.slice(0, 10)))?.map(p => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context, libraryContext: p.libraryContext }))
-                : undefined,
-              photo_description: params.photoMode ? params.photoDescription : undefined,
-              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
-            },
-            // Budget serveur : génération seule bornée à 90s (pas de passe de
-            // correction pour le post Instagram/Pinterest), marge incluse.
-          }, 150000);
+            body: await buildPostGenerateBody(params, { effectiveSubject, existingContent, structurePrompt, structureId, effectiveWorkspaceId }),
+          }, POST_GENERATE_TIMEOUT_MS);
           data = res.data;
           invokeError = res.error;
           break;
         }
 
         case "linkedin": {
-          // LinkedIn is now handled via creative-flow streaming in CreerUnifie.
-          // This fallback exists for edge cases only.
-          const angle = editorialAngle
-            ? EDITORIAL_ANGLES.find((a) => a.id === editorialAngle)
-            : undefined;
-          const structure = structureId ? CONTENT_STRUCTURES[structureId] : undefined;
           const res = await invokeWithTimeout("creative-flow", {
-            body: {
-              step: "generate",
-              contentType: "post_linkedin",
-              context: effectiveSubject + (existingContent ? `\n\n[Contenu existant]\n${existingContent}` : ""),
-              angle: angle
-                ? { title: angle.label, structure: structure?.steps.map((s) => s.label), tone: "direct, chaleureux, professionnel" }
-                : undefined,
-              objective: objective || null,
-              editorialFormat: editorialAngle || null,
-              answers: answers
-                ? Object.entries(answers).map(([k, v]) => ({ question: k, answer: v }))
-                : [],
-              workspace_id: effectiveWorkspaceId || null,
-              photo_mode: params.photoMode || undefined,
-              // Vision uniquement (cf. case "post") : photos allégées.
-              photos: params.photoMode && params.photos?.length
-                ? (await downscalePhotosForVision(params.photos.slice(0, 10)))?.map((p) => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context, libraryContext: p.libraryContext }))
-                : undefined,
-              photo_description: params.photoMode ? params.photoDescription : undefined,
-              ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
-            },
-            // Budget serveur : génération bornée à 90s + passe de correction
-            // LinkedIn bornée à 45s (skip en photo_mode) = 135s pire cas,
-            // marge incluse.
-          }, 180000);
+            body: await buildLinkedinGenerateBody(params, { effectiveSubject, existingContent, structurePrompt, structureId, effectiveWorkspaceId }),
+          }, LINKEDIN_GENERATE_TIMEOUT_MS);
           data = res.data;
           invokeError = res.error;
           break;
@@ -356,44 +237,8 @@ export function useContentGenerator() {
 
       if (epoch !== generationEpoch.current) return null;
 
-      // Quota : détection par le CODE structuré, AVANT le throw générique. Les
-      // helpers d'invocation renvoient TOUJOURS le couple { data, error.isRateLimit }
-      // sur un limit_reached — l'ancien throw générique sur invokeError passait donc
-      // en premier, perdait data.quota (plan/usage du QuotaWallModal) et laissait la
-      // détection retomber sur des substrings de message (fragiles depuis que les
-      // messages quota n'emploient plus les mots « crédit »/« quota », PR #308).
-      if (data?.error === "limit_reached" && data?.quota?.reason !== "error") {
-        throw Object.assign(new Error(data?.message || invokeError?.message || "limit_reached"), { _isQuota: true, data });
-      }
-      if (invokeError) throw new Error(invokeError.message || "Erreur edge function");
-      if (data?.error) throw new Error(data.message || data.error);
-
-      // Edge functions wrap response in { content: "..." } — unwrap before parsing
-      const rawContent = data?.content ?? data;
-      const parsed = parseAIJson(rawContent);
-      if (!parsed) throw new Error("La génération n'a pas fonctionné comme prévu. Réessaie, ça marche en général au deuxième essai 🌸");
-
-      // Garde de forme : un JSON valide mais sans contenu exploitable (format
-      // partiel renvoyé par l'IA) crasherait au rendu (.map sur non-array) et
-      // serait persisté → l'ErrorBoundary reboucle. On le traite ici comme un
-      // échec propre et réessayable, jamais comme un résultat affichable.
+      const parsed = readGenerateResponse(format, data, invokeError);
       const p: any = parsed;
-      const hasUsableContent =
-        format === "carousel"
-          ? Array.isArray(p.slides) && p.slides.length > 0
-          : format === "reel"
-            ? (Array.isArray(p.sections) && p.sections.length > 0) || !!p.full_text
-            : format === "story"
-              ? Array.isArray(p.stories) || Array.isArray(p.sequences) || Array.isArray(p.slides)
-              : true;
-      if (!hasUsableContent) throw new Error("La génération n'a pas fonctionné comme prévu. Réessaie, ça marche en général au deuxième essai 🌸");
-
-      // L'IA renvoie parfois des slide_number fantaisistes (« SLIDE 4.5 » vu en
-      // live sur un carrousel mixte) : on renumérote 1..N dès la réception —
-      // l'ordre du tableau fait foi (rendu, appariement visuels, exports).
-      if (format === "carousel" && Array.isArray(p.slides)) {
-        p.slides = renumberSlides(p.slides);
-      }
 
       // Photos d'ambiance libres de droit proposées par carousel-ai : téléchargées
       // et posées ici, AVANT l'affichage, pour que le rendu des visuels parte

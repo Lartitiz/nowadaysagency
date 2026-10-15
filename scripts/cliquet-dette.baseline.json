@@ -41,10 +41,6 @@
       "lignes": 1090,
       "any": 18
     },
-    "src/hooks/use-content-generator.ts": {
-      "lignes": 845,
-      "any": 21
-    },
     "src/hooks/use-onboarding.ts": {
       "lignes": 918,
       "any": 15
