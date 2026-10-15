@@ -185,10 +185,8 @@ export async function fetchExternalCss(html: string, baseUrl: string, signal?: A
   for (const cssUrl of cssUrls) {
     if (!isSafePublicUrl(cssUrl)) continue;
     try {
-      // safeFetchFollow : chaque redirection est revérifiée (anti-SSRF).
-      const fetched = await safeFetchFollow(cssUrl, signal ?? new AbortController().signal, 4, BRAND_ANALYZER_HEADERS);
-      if (!fetched) continue;
-      const resp = fetched.response;
+      const resp = (await safeFetchFollow(cssUrl, signal ?? new AbortController().signal, 4, BRAND_ANALYZER_HEADERS))?.response;
+      if (!resp) continue; // redirection vers une adresse interne refusée
       if (resp.ok) {
         externalCss += "\n" + (await resp.text()).slice(0, 120000);
       } else {
@@ -490,15 +488,9 @@ function scoreUrl(href: string, baseHostname: string): number {
 /** Récupère le XML d'un sitemap. Retourne "" si absent/illisible. */
 async function fetchSitemapXml(sitemapUrl: string, signal: AbortSignal): Promise<string> {
   try {
-    // safeFetchFollow : revérifie chaque redirection (un sitemap « public » qui
-    // redirige vers 127.0.0.1 / 169.254.169.254 est refusé).
-    const fetched = await safeFetchFollow(sitemapUrl, signal, 4, BRAND_ANALYZER_HEADERS);
-    if (!fetched) return "";
-    const resp = fetched.response;
-    if (!resp.ok) {
-      await resp.body?.cancel().catch(() => {});
-      return "";
-    }
+    // safeFetchFollow : revérifie chaque redirection (anti-SSRF).
+    const resp = (await safeFetchFollow(sitemapUrl, signal, 4, BRAND_ANALYZER_HEADERS))?.response;
+    if (!resp?.ok) return "";
     const xml = await resp.text();
     if (!xml.includes("<urlset") && !xml.includes("<sitemapindex")) return "";
     return xml;
@@ -680,9 +672,7 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
   // HTML brut de l'accueil (1 fetch) : infos visuelles + liens « à propos »
   let rawHtml = "";
   try {
-    // safeFetchFollow : l'adresse d'arrivée de CHAQUE redirection est revérifiée
-    // (sinon un site public qui redirige vers une adresse interne ferait lire au
-    // serveur une page interne, ensuite résumée dans le diagnostic).
+    // safeFetchFollow : revérifie l'adresse d'arrivée de CHAQUE redirection (anti-SSRF).
     const fetched = await safeFetchFollow(formattedUrl, signal, 4, BRAND_ANALYZER_HEADERS);
     if (fetched?.response.ok) rawHtml = await fetched.response.text();
     else await fetched?.response.body?.cancel().catch(() => {});
@@ -816,14 +806,12 @@ export async function scrapeLinkedin(url: string, signal: AbortSignal): Promise<
   try {
     if (!isSafePublicUrl(url)) return null;
 
-    const fetched = await safeFetchFollow(url, signal, 4, {
+    const resp = (await safeFetchFollow(url, signal, 4, {
       "User-Agent": USER_AGENT,
       "Accept": "text/html,application/xhtml+xml",
-    });
-    if (!fetched) return null;
-    const resp = fetched.response;
+    }))?.response;
 
-    if (!resp.ok) return null;
+    if (!resp?.ok) return null;
     const html = await resp.text();
 
     const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
