@@ -26,7 +26,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Trash2, ChevronDown, Upload, Loader2, Check, Send, CalendarClock, Lightbulb } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
-import { type CalendarPost, STATUS_LABELS, STATUSES, statusStyles, OBJECTIFS, ANGLES } from "@/lib/calendar-constants";
+import { type CalendarPost, STATUS_LABELS, STATUSES, statusStyles, OBJECTIFS } from "@/lib/calendar-constants";
 import { format as formatDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +42,7 @@ import { CalendarPostMetadata, FORMAT_OPTIONS_BY_CANAL } from "./CalendarPostMet
 import { CalendarPostContent } from "./CalendarPostContent";
 import { CalendarPostPreview } from "./CalendarPostPreview";
 import { INSTAGRAM_DIRECT_MAX_IMAGES, instagramTooManyImagesReason } from "@/features/creer/publish-guards";
+import { isoToLocalInput, ANGLE_TO_CAROUSEL, CANAL_META, angleLabelOf, draftFromPost } from "@/features/calendar/post-dialog-helpers";
 
 interface Props {
   open: boolean;
@@ -57,12 +58,6 @@ interface Props {
   prefillData?: { theme?: string; notes?: string } | null;
 }
 
-/** ISO → valeur d'un <input type="datetime-local"> (heure locale, "YYYY-MM-DDTHH:mm"). */
-function isoToLocalInput(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export function CalendarPostDialog(props: Props) {
   const { user } = useAuth();
@@ -163,12 +158,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
       setObjectif(editingPost.objectif || null);
       setPostCanal(editingPost.canal || "instagram");
       setFormat((editingPost as any).format || null);
-      const ssd = editingPost.story_sequence_detail as any;
-      const draft = (editingPost as any).content_draft
-        || ssd?.full_content
-        || (ssd?.stories ? ssd.stories.map((s: any) => `${s.text || ""}`).join("\n\n") : null)
-        || (ssd?.script ? ssd.script.map((s: any) => s.texte_parle || "").join("\n\n") : null)
-        || null;
+      const draft = draftFromPost(editingPost);
       setContentDraft(draft);
       setSavedDraft(draft);
       setAccroche((editingPost as any).accroche || null);
@@ -509,13 +499,6 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
     } finally { setSavingSchedule(false); }
   };
 
-  const ANGLE_TO_CAROUSEL: Record<string, string> = {
-    "Storytelling": "storytelling", "Mythe à déconstruire": "mythe_realite",
-    "Coup de gueule": "prise_de_position", "Enquête / décryptage": "prise_de_position",
-    "Conseil contre-intuitif": "tips", "Test grandeur nature": "etude_de_cas",
-    "Before / After": "before_after", "Histoire cliente": "etude_de_cas",
-    "Regard philosophique": "prise_de_position", "Surf sur l'actu": "prise_de_position",
-  };
 
   const handleQuickGenerate = async () => {
     if (!theme.trim()) { toast.error("Il me faut un sujet !", { description: "Remplis le thème au-dessus." }); return; }
@@ -757,24 +740,11 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
   );
 
   // En-tête de contexte : un coup d'œil sur « quel réseau · quel format · quelle date · quel statut »
-  const canalMeta = ({
-    instagram: { emoji: "📸", label: "Instagram" },
-    linkedin: { emoji: "💼", label: "LinkedIn" },
-    pinterest: { emoji: "📌", label: "Pinterest" },
-    newsletter: { emoji: "✉️", label: "Newsletter" },
-  } as Record<string, { emoji: string; label: string }>)[postCanal] || { emoji: "", label: postCanal };
+  const canalMeta = CANAL_META[postCanal] || { emoji: "", label: postCanal };
   const formatMeta = format ? (FORMAT_OPTIONS_BY_CANAL[postCanal] || []).find((f) => f.id === format) : null;
   const objectifMeta = objectif ? OBJECTIFS.find((o) => o.id === objectif) : null;
   const dateLabel = selectedDate ? formatDate(new Date(selectedDate + "T00:00:00"), "EEE d MMM", { locale: fr }) : null;
-  // Libellé d'angle lisible : certains vieux posts stockent un id brut (« storytelling_pro »).
-  const ANGLE_ID_LABELS: Record<string, string> = {
-    storytelling: "Storytelling", storytelling_pro: "Storytelling",
-    mythe_realite: "Mythe à déconstruire", prise_de_position: "Prise de position",
-    tips: "Conseil", etude_de_cas: "Étude de cas", before_after: "Before / After",
-  };
-  const angleLabel = angle
-    ? (ANGLES.includes(angle) ? angle : (ANGLE_ID_LABELS[angle] || (angle.charAt(0).toUpperCase() + angle.slice(1).replace(/_/g, " "))))
-    : null;
+  const angleLabel = angleLabelOf(angle);
 
   const contextHeader = (
     <div className="space-y-1.5">
