@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { versTarifs } from "@/lib/retour-apres-detour";
 import { trackUpgrade } from "@/lib/upgrade-events";
+import { quotaLimitMessage } from "@/lib/quota-message";
 
-type Quota = { allowed: boolean; plan: string; reason?: string; category?: string; message?: string; renews_at?: string };
+type Quota = { allowed: boolean; plan: string; reason?: string; category?: string; message?: string; renews_at?: string; usage?: Record<string, { used: number; limit: number }> };
 export function AccessNotice({ quota, premiumBlocked, insufficient, onRetry }: {
   quota?: Quota; premiumBlocked?: boolean; insufficient?: boolean; onRetry: () => void;
 }) {
@@ -25,7 +26,7 @@ export function AccessNotice({ quota, premiumBlocked, insufficient, onRetry }: {
   return <div role="status" className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-3 text-sm">
     <p>{unknown ? "Impossible de vérifier ton accès pour le moment. Aucun achat n’est nécessaire pour réessayer." :
       premiumBlocked ? "La création de scènes et l’intégration de références sont incluses dans Premium. Tu peux continuer à préparer ton idée gratuitement." :
-      insufficient ? "Il ne reste pas assez d’images pour toute cette série. Réduis le nombre d’images ou attends le renouvellement mensuel." : quota?.message}</p>
+      insufficient ? "Il ne reste pas assez d’images pour toute cette série. Réduis le nombre d’images ou attends le renouvellement mensuel." : quotaLimitMessage(quota) || quota?.message}</p>
     {hardCap && <p>Les packs de crédits n’augmentent pas les plafonds d’images, de carrousels ou de vidéos.</p>}
     <div className="flex flex-wrap gap-2">
       {unknown ? <Button variant="outline" onClick={onRetry}>Réessayer la vérification</Button> : <>
