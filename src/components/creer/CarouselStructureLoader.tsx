@@ -86,8 +86,8 @@ export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhot
           ne rien promettre que le flux ne fait plus. */}
       <p className="text-xs text-muted-foreground">
         {hasPhotos
-          ? "J'analyse tes photos une par une : compte environ une minute, puis je passe à la rédaction."
-          : "Je prépare la structure : compte une petite minute, puis je passe à la rédaction."}
+          ? "J'analyse tes photos une par une (environ une minute), puis je rédige les slides. Compte 3 à 4 minutes en tout pour ton carrousel."
+          : "Je prépare le plan (environ une minute), puis je rédige les slides. Compte 3 à 4 minutes en tout pour ton carrousel."}
       </p>
       {slow && (
         <p className="text-xs text-muted-foreground animate-fade-in">

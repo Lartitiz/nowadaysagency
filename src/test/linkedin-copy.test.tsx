@@ -92,10 +92,8 @@ describe("/creer — « Copier le texte » du résultat", () => {
     const onCopy = vi.fn();
     render(<MemoryRouter><CreerStepResult result={result} format={format} generating={false}
       onEdit={vi.fn()} onReset={vi.fn()} onRegenerate={vi.fn()} onCopy={onCopy} /></MemoryRouter>);
-    const trigger = screen.getAllByRole("button", { name: /Autres actions/ }).at(-1)!;
-    trigger.focus();
-    fireEvent.keyDown(trigger, { key: "Enter" });
-    fireEvent.click(screen.getByRole("menuitem", { name: /Copier le texte/ }));
+    // Chantier C : pour un texte, « Copier mon texte » est un bouton visible.
+    fireEvent.click(screen.getByRole("button", { name: /Copier mon texte/ }));
     return onCopy;
   };
 

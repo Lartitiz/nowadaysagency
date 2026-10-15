@@ -7,7 +7,7 @@
  * - La séquence de stories s'affiche (cartes "Story 1", "Story 2"…)
  * - Au moins un aperçu visuel 9:16 est rendu (iframe du renderer déterministe)
  * - Les exports vivent dans le panneau minimal (#608) : héros « Ouvrir dans
- *   Canva » + menu « Autres actions » → Télécharger (PNG / PowerPoint éditable)
+ *   Canva » + PNG / PowerPoint éditable, dans « Télécharger mes visuels » (chantier C)
  * - La zone sticker de l'aperçu mentionne « à poser dans Instagram »
  */
 
@@ -200,14 +200,15 @@ test("Stories — génération + aperçus visuels rendus", async ({ page }) => {
     ).toBeLessThan(0.08);
   }
 
-  // Exports dans le panneau minimal (#608) : héros Canva visible, téléchargements
-  // dans le menu « Autres actions » → Télécharger.
-  await expect(page.getByRole("button", { name: /ouvrir dans canva/i })).toBeVisible();
+  // Exports (chantier C, 15/10/2026) : bouton « Télécharger mes visuels » de la
+  // barre d'actions → PNG, PowerPoint et « Ouvrir dans Canva » dans le même menu.
   const ouvrirSousMenuTelecharger = async () => {
-    await page.getByTestId("more-actions").first().click();
-    await page.getByRole("menuitem", { name: /télécharger/i }).first().click();
+    await page.getByTestId("download-visuals").first().click();
     await expect(page.getByRole("menuitem", { name: /Images PNG/i })).toBeVisible({ timeout: 5000 });
   };
+  await ouvrirSousMenuTelecharger();
+  await expect(page.getByRole("menuitem", { name: /ouvrir dans canva/i })).toBeVisible();
+  await page.keyboard.press("Escape");
   await ouvrirSousMenuTelecharger();
 
   // Export PPTX natif : téléchargement + validation de CONTENU (jszip) — le nom
