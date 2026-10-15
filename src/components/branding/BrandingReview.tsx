@@ -29,10 +29,6 @@ interface Props {
   existingOfferNames?: string[];
   /** Callback for Instagram bio paste + reanalysis */
   onReanalyzeWithBio?: (bio: string) => void;
-  /** Callback for "describe project" fallback */
-  onDescribeProject?: (text: string) => void;
-  /** If true, all sources failed */
-  allSourcesFailed?: boolean;
   /**
    * Parcours d'inscription : valider sa fiche EST l'étape en cours (pas de
    * « finir plus tard », pas de raccourci vers la création). Hors onboarding
@@ -42,7 +38,7 @@ interface Props {
 }
 
 // ─── Main Component ──────────────────────────────────────────
-export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFailed = [], onDone, onProgress, preFilledSections, existingOfferNames, onReanalyzeWithBio, onDescribeProject, allSourcesFailed = false, mandatory = false }: Props) {
+export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFailed = [], onDone, onProgress, preFilledSections, existingOfferNames, onReanalyzeWithBio, mandatory = false }: Props) {
   const [productPhotosReady, setProductPhotosReady] = useState(false);
   const [coachingSection, setCoachingSection] = useState<SectionKey | null>(null);
 
@@ -76,10 +72,6 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
     }
     if (canComplete) onDone(true);
   };
-
-  // Project description fallback
-  const [projectText, setProjectText] = useState("");
-  const [showProjectInput, setShowProjectInput] = useState(false);
 
   const validatedCount = validated.size;
   const allDone = validatedCount === 7;
