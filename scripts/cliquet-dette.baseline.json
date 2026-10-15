@@ -117,10 +117,6 @@
       "lignes": 1126,
       "any": 2
     },
-    "src/pages/VisualStudioPage.tsx": {
-      "lignes": 1319,
-      "any": 0
-    },
     "src/pages/WelcomePage.tsx": {
       "lignes": 958,
       "any": 50
