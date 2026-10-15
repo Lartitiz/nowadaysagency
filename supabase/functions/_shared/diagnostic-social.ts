@@ -2,7 +2,7 @@ import { decryptConnTokens } from "./token-crypto.ts";
 import { refreshTokenIfNeeded } from "./instagram-graph.ts";
 import { fetchInstagramInsights } from "./instagram-insights.ts";
 import { fetchLinkedInInsights } from "./linkedin-insights.ts";
-import { isSafePublicUrl, safeFetchFollow } from "./scraping.ts";
+import { isSafePublicUrl, safeFetchFollow } from "./safe-fetch.ts";
 
 export interface SocialDiagnosticEvidence {
   text: string;

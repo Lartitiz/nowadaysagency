@@ -8,7 +8,7 @@
 // (Le passage à /rest/posts viendra avec l'ajout des images/carrousels.)
 
 import { stripInlineMarkdown } from "./strip-markdown.ts";
-import { safeFetchFollow } from "./scraping.ts";
+import { safeFetchFollow } from "./safe-fetch.ts";
 
 /** Lit un média à publier : jamais une adresse interne, redirections revérifiées (anti-SSRF). */
 async function fetchPublicMedia(url: string): Promise<Response | null> {
