@@ -93,7 +93,7 @@ export function installerFauxFetch(monde: FauxMonde): FauxFetch {
       requetes.push(`stockage ${method} ${cle}`);
       const octets = monde.fichiers?.[cle];
       if (!octets) return json({ statusCode: "404", error: "not_found", message: "Object not found" }, 400);
-      return new Response(octets, { status: 200, headers: { "Content-Type": "application/octet-stream" } });
+      return new Response(octets as unknown as BodyInit, { status: 200, headers: { "Content-Type": "application/octet-stream" } });
     }
     if (path === "/auth/v1/user") {
       requetes.push("auth GET /user");
