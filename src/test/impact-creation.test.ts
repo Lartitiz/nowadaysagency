@@ -97,6 +97,7 @@ describe("rapport d'impact création de contenu", () => {
       ["src/lib/carousel-editor.ts", "Carrousels : éditeur visuel"],
       ["src/components/creer/CarouselEditor.tsx", "Carrousels : éditeur visuel"],
       ["src/components/creer/ReelMontage.tsx", "Reel : écran de montage"],
+      ["src/features/reel-montage/types.ts", "Reel : écran de montage"],
       ["src/hooks/use-user-slides-generate.ts", "Carrousels : slides écrites par l'utilisatrice"],
       ["src/features/creer/edited-text.ts", "Parcours /creer : étape « Modifier » (tous formats)"],
       ["src/components/creer/CreerStepEdit.tsx", "Parcours /creer : étape « Modifier » (tous formats)"],

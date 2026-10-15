@@ -51,13 +51,10 @@ import {
 } from "@/lib/reel-user-videos";
 import { StudioVideoPanel } from "@/features/studio-video/StudioVideoPanel";
 import { readStudioVideo, type StudioVideoJob } from "@/features/studio-video/api";
+import { fromMine, fromStock, set, type MontageMode, type Phase, type ReelMontageProject, type Section, type SelectedClip, type StudioCutaway } from "@/features/reel-montage/types";
 
-interface Section {
-  timing?: string;
-  texte_parle?: string;
-  texte_overlay?: string;
-  format_visuel?: string;
-}
+// Réexportation : ReelResult.tsx et les tests importent ce type depuis ce fichier (fiche 16, lot 1).
+export type { ReelMontageProject } from "@/features/reel-montage/types";
 
 interface Props {
   sections: Section[];
@@ -77,65 +74,6 @@ interface Props {
    */
   onMp4Ready?: (url: string | null) => void;
 }
-
-type Phase = "idle" | "rendering" | "done" | "error";
-
-/** Clip retenu pour une section : banque libre ou vidéo de la créatrice. */
-interface SelectedClip {
-  id: string;
-  url: string;
-  thumbnail: string | null;
-  /** Durée du clip source (pour la fenêtre), null si inconnue. */
-  duration: number | null;
-  source: "stock" | "mine" | "studio";
-  studioJobId?: string;
-  label: string;
-  /** Seconde d'entrée dans le clip (fenêtre choisie). */
-  seek: number;
-}
-
-interface StudioCutaway { jobId: string; url: string; duration: number; start: number; seek: number; label: string }
-export interface ReelMontageProject {
-  version: 1;
-  sectionTexts: string[];
-  montageMode: MontageMode | null;
-  voiceMode: "recorded" | "silent";
-  clips: (SelectedClip | null)[];
-  voiceClips: (VoiceClip | null)[];
-  cutaways: (StudioCutaway | null)[];
-}
-
-function fromStock(v: StockVideo): SelectedClip {
-  return {
-    id: `stock-${v.id}`,
-    url: v.url,
-    thumbnail: v.thumbnail || null,
-    duration: v.duration,
-    source: "stock",
-    label: "Banque libre",
-    seek: 0,
-  };
-}
-
-function fromMine(v: UserReelVideo, duration: number | null): SelectedClip {
-  return {
-    id: `mine-${v.url}`,
-    url: v.url,
-    thumbnail: null,
-    duration,
-    source: "mine",
-    label: v.name,
-    seek: 0,
-  };
-}
-
-/**
- * "filme" = prise face cam, on garde le son ; "cache" = comportement existant
- * (clip muet + voix posée). Fourche à deux modes ÉGAUX (décidée le 01/08) :
- * `null` tant que la cliente n'a pas choisi — aucun des deux n'est un défaut,
- * beaucoup de clientes ne se montreront jamais.
- */
-type MontageMode = "filme" | "cache";
 
 export default function ReelMontage({ sections, subject, workspaceId, initialProject, onProjectChange, onPhaseChange, onMp4Ready }: Props) {
   const { user } = useAuth();
@@ -908,11 +846,4 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
       </Dialog>
     </div>
   );
-}
-
-// Petit helper immuable : remplace l'index i d'un tableau.
-function set<T>(arr: T[], i: number, v: T): T[] {
-  const copy = arr.slice();
-  copy[i] = v;
-  return copy;
 }

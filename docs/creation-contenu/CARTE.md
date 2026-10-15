@@ -31,7 +31,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 |---|---|---|---|
 | Carrousel (texte / photo / mixte / « Mes slides » / photos brutes) | `carousel-ai` | `formatRenderers/CarouselResult.tsx`, `CarouselPhotoResult.tsx`, `CarouselEditor.tsx` | `carousel-visual` (mise en forme), `carousel-slide-image` (image d'une slide), `carousel-media-backfill` (admin) |
 | Carrousel LinkedIn | `carousel-ai` (`isLinkedIn`) | idem, plus l'export PDF `src/lib/carousel-pdf.ts` | `linkedin-ai` action `caption-for-carousel` |
-| Reel | `creative-flow` (`step: "hooks"` puis `"generate"`) | `ReelResult.tsx`, `ReelMontage.tsx` | `reel-render` (montage vidéo, sans IA) |
+| Reel | `creative-flow` (`step: "hooks"` puis `"generate"`) | `ReelResult.tsx`, `ReelMontage.tsx` (+ `src/features/reel-montage/`) | `reel-render` (montage vidéo, sans IA) |
 | Stories | `creative-flow` | `StoryResult.tsx`, `StoryPhotoSuggestions.tsx` | — |
 | Post Instagram (légende) | `creative-flow` (SSE `streamDefaultPostSSE`) | `PostResult.tsx`, `PostPhotoEditor.tsx` | — |
 | Post LinkedIn | `creative-flow` (SSE `runLinkedInTwoStep`) | `LinkedInResult.tsx` | `linkedin-ai` (`improve-post`, page `LinkedInPostGenerator.tsx`) |
@@ -710,7 +710,7 @@ sur la vraie page `/creer` `src/test/creer-cta-label-visuels.test.tsx`
   l'éditeur visuel du carrousel (`CarouselEditor.tsx`, `src/lib/carousel-editor.ts`),
   les exports, `use-generate-visuals.ts` (mise en forme visuelle),
   `use-user-slides-generate.ts` (slides écrites par l'utilisatrice),
-  `ReelMontage.tsx`, l'étape « Modifier » (`CreerStepEdit.tsx`,
+  `ReelMontage.tsx` et `src/features/reel-montage/`, l'étape « Modifier » (`CreerStepEdit.tsx`,
   `src/features/creer/edited-text.ts`), le filet « Régénérer »
   (`use-regeneration-backup.ts`), le lancement des générations et le lien
   calendrier → générateur.
