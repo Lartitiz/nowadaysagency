@@ -1535,7 +1535,7 @@ Repères : 28 `any` gelés dans `scripts/cliquet-dette.baseline.json`. Aucun tes
 | `review/ReviewStickyBar.tsx` | Barre fixe du bas | Texte « x/7 validées », « Fiche validée ! 🎉 » et « Finir plus tard » vérifiés par les tests. |
 | `BrandingReview.tsx` (reste) | Le composant principal qui assemble : props, offres et charte modifiées, bio Instagram, coaching en surimpression, choix des écrans | ~150 lignes visées. Garder `export default` et les réexportations. |
 
-Code mort repéré (à retirer dans un lot à part, pas pendant un déplacement) : props `onDescribeProject` et `allSourcesFailed`, états `projectText` / `showProjectInput` (l. 52-54, 876-877) ; `BrandingPage.tsx` ne les passe jamais.
+Code mort repéré (à retirer dans un lot à part, pas pendant un déplacement) : props `onDescribeProject` et `allSourcesFailed`, états `projectText` / `showProjectInput` (l. 52-54, 876-877) ; `BrandingPage.tsx` ne les passe jamais. ✅ Retiré le 15/10/2026 (étape 7).
 
 Hors découpage, à noter pour plus tard :
 - **Connecteurs intelligents** : les `save*` écrivent directement en base, sans passer par la détection de changement de branding. Normal pour un premier remplissage (champs vides), mais en reprise d'onboarding (`allow_overwrite`) le positionnement ou le ton peuvent changer sans suggestion de mise à jour. À trancher, pas à corriger en déplaçant.
