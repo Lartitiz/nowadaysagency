@@ -1,7 +1,7 @@
 import BrandLogo from "@/components/BrandLogo";
 import { useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut,  Plus, Trash2, Image, BarChart3, IdCard,  Sparkles, Lightbulb } from "lucide-react";
+import { ChevronDown, Check, Home, UserRound, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut,  Plus, Trash2, Image, BarChart3, IdCard,  Sparkles, Lightbulb } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { isRouteVisible } from "@/config/feature-flags";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -33,7 +33,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     items: [
       { label: "Mes idées", path: "/idees", description: "Idées et contenus enregistrés", icon: <Lightbulb size={18} /> },
       { label: "Mes photos", path: "/photos", description: "Bibliothèque et retouches", icon: <Image size={18} /> },
-      { label: "Mes statistiques", path: "/instagram/stats", description: "Comprendre ce qui fonctionne", icon: <BarChart3 size={18} /> },
+      { label: "Mes statistiques", path: "/instagram/stats", description: "Instagram, LinkedIn, site et ventes", icon: <BarChart3 size={18} /> },
       { label: "Mon identité", path: "/branding", description: "Mon activité, ma voix et mon style", icon: <Palette size={18} /> },
       { label: "Mes offres", path: "/branding/offres", description: "Produits et services", icon: <ClipboardList size={18} /> },
     ],
@@ -133,7 +133,7 @@ export default function AppSidebar() {
             </nav>
             <div className="flex shrink-0 items-center gap-2">
               {planLoading ? <span role="status" className="text-xs text-muted-foreground">Crédits…</span> : <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />}
-              <NotificationBell />
+              <NotificationBell only="desktop" />
               <button type="button" aria-label="Mon compte" onClick={() => { setOpen(true); setWsPopoverOpen(true); }} className="h-9 w-9 shrink-0 rounded-full border border-border bg-rose-pale text-sm font-semibold text-bordeaux">{initial}</button>
             </div>
           </div>
@@ -216,6 +216,16 @@ export default function AppSidebar() {
           >
             <Settings size={16} />
             Paramètres
+          </Link>
+          <Link
+            to="/profil"
+            onClick={() => setOpen(false)}
+            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body transition-colors ${
+              isActive("/profil") ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"
+            }`}
+          >
+            <UserRound size={16} />
+            Mon profil
           </Link>
           <Link to="/abonnement" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors">
             <CreditCard size={16} />

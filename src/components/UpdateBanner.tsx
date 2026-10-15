@@ -13,9 +13,12 @@ export default function UpdateBanner() {
   return (
     <div
       role="status"
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 rounded-full bg-foreground text-background shadow-lg px-4 py-2 text-sm animate-in fade-in slide-in-from-bottom-2"
+      // Téléphone : au-dessus de la barre du bas (min-h-14 + zone de sécurité)
+      // et à gauche du bouton d'avis (right-4, 3,5 rem de large), sans rien recouvrir.
+      className="fixed z-[60] flex items-center justify-between gap-3 rounded-full bg-foreground text-background shadow-lg px-4 py-2 text-sm animate-in fade-in slide-in-from-bottom-2 left-4 right-20 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] md:left-1/2 md:right-auto md:bottom-4 md:-translate-x-1/2 md:justify-start"
     >
-      <span>Une nouvelle version est disponible</span>
+      <span className="md:hidden">Nouvelle version</span>
+      <span className="hidden md:inline">Une nouvelle version est disponible</span>
       <button
         onClick={() => window.location.reload()}
         className="flex items-center gap-1.5 rounded-full bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold hover:opacity-90 transition-opacity"

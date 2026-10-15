@@ -43,7 +43,7 @@ const SECTIONS = [
   { key: "stories", emoji: "📌", label: "Stories à la une", icon: BookmarkCheck, route: "/instagram/profil/stories", moduleRoute: "/instagram/profil/stories", moduleLabel: "Module highlights", heavy: true },
   { key: "epingles", emoji: "📌", label: "Posts épinglés", icon: Pin, route: "/instagram/profil/epingles", moduleRoute: "/instagram/profil/epingles", moduleLabel: "Choisir mes posts", heavy: false },
   { key: "feed", emoji: "🎨", label: "Mon feed", icon: Palette, route: "/instagram/profil/feed", moduleRoute: "/instagram/profil/feed", moduleLabel: "Recommandations", heavy: false },
-  { key: "edito", emoji: "📊", label: "Ma ligne éditoriale", icon: BarChart3, route: "/instagram/profil/edito", moduleRoute: "/instagram/rythme", moduleLabel: "Ligne éditoriale", heavy: true },
+  { key: "edito", emoji: "📊", label: "Ma ligne éditoriale", icon: BarChart3, route: "/instagram/profil/edito", moduleRoute: "/instagram/profil/edito", moduleLabel: "Ligne éditoriale", heavy: true },
 ];
 
 function scoreBadge(score: number | null) {

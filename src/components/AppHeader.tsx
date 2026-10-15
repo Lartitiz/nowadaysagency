@@ -41,6 +41,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   "/idees": "Mes idées",
   "/calendrier": "Calendrier",
   "/instagram": "Instagram",
+  "/instagram/stats": "Mes statistiques",
   "/linkedin": "LinkedIn",
   "/pinterest": "Pinterest",
   "/site": "Améliorer mon site",
@@ -75,7 +76,7 @@ function Breadcrumb() {
 
   if (!matchedPath) return null;
 
-  let label = BREADCRUMB_LABELS[matchedPath];
+  const label = BREADCRUMB_LABELS[matchedPath];
   const section = searchParams.get("section");
   const sectionLabel = section ? SECTION_LABELS[section] : null;
 
@@ -242,7 +243,7 @@ function AppHeaderInner() {
 
           <div className="flex items-center gap-2 shrink-0">
             {planLoading ? <span role="status" className="text-xs text-muted-foreground">Vérification…</span> : !planVerified ? <button className="text-xs text-primary underline" onClick={() => void refreshPlan()}>Vérifier mon accès</button> : <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />}
-            <NotificationBell />
+            <NotificationBell only="tablet" />
             <AvatarMenu
               initial={initial}
               firstName={firstName}
@@ -284,7 +285,7 @@ function AppHeaderInner() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {planLoading ? <span role="status" className="text-xs text-muted-foreground">Vérification…</span> : !planVerified ? <button className="text-xs text-primary underline" onClick={() => void refreshPlan()}>Vérifier mon accès</button> : <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />}
-            <NotificationBell />
+            <NotificationBell only="mobile" />
             <AvatarMenu
               initial={initial}
               firstName={firstName}

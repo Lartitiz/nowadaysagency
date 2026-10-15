@@ -56,7 +56,6 @@ const InstagramProfileEdito = lazy(() => import("./pages/InstagramProfileEdito")
 const InstagramLaunch = lazy(() => import("./pages/InstagramLaunch"));
 const InstagramLaunchPlan = lazy(() => import("./pages/InstagramLaunchPlan"));
 const InstagramLaunchRecommendation = lazy(() => import("./pages/InstagramLaunchRecommendation"));
-const InstagramRythme = lazy(() => import("./pages/InstagramRythme"));
 const InstagramEngagement = lazy(() => import("./pages/InstagramEngagement"));
 const InstagramStats = lazy(() => import("./pages/InstagramStats"));
 const CreerUnifie = lazy(() => import("./pages/CreerUnifie"));
@@ -303,7 +302,8 @@ function AnimatedRoutes() {
                 <Route path="/instagram/lancement" element={<ProtectedRoute><InstagramLaunch /></ProtectedRoute>} />
                 <Route path="/instagram/lancement/plan" element={<ProtectedRoute><InstagramLaunchPlan /></ProtectedRoute>} />
                 <Route path="/instagram/lancement/recommandation" element={<ProtectedRoute><InstagramLaunchRecommendation /></ProtectedRoute>} />
-                <Route path="/instagram/rythme" element={<ProtectedRoute><InstagramRythme /></ProtectedRoute>} />
+                {/* Ancienne page « Ton temps & ton rythme » : fusionnée dans la ligne éditoriale (même sujet, une seule page). */}
+                <Route path="/instagram/rythme" element={<Navigate to="/instagram/profil/edito" replace />} />
                 <Route path="/instagram/routine" element={<ProtectedRoute><InstagramEngagement /></ProtectedRoute>} />
                 <Route path="/instagram/engagement" element={<Navigate to="/instagram/routine" replace />} />
                 <Route path="/instagram/stories" element={<SmartRedirect to="/creer" mergeParams={{ format: "story" }} />} />
