@@ -160,7 +160,7 @@ export function useRestorePersistedFlow({
 }
 
 export function useAutoPersistFlow({
-  conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, editBaseline, result, regenerationBackup, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, aurianaDemoActive, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate, saveFlowState, streaming, streamingContent,
+  conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, editBaseline, result, regenerationBackup, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, aurianaDemoActive, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate, saveFlowState,
 }: Record<string, any> & { saveFlowState: SaveFlowState }) {
   // Auto-persist state on changes
   useEffect(() => {
@@ -196,25 +196,6 @@ export function useAutoPersistFlow({
         calendarPostId, calendarPostDate,
     });
   }, [conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate, regenerationBackup.pending, editBaseline]);
-
-  // Filet anti-perte : pendant le streaming, sauvegarder le texte déjà reçu
-  // (throttle ~1,5 s). Sans ça, un reload/fermeture mi-génération repartait à
-  // l'étape format et JETAIT le texte — crédit déjà débité (QA compte neuf 04/07).
-  const lastStreamSaveRef = useRef(0);
-  useEffect(() => {
-    if (!streaming || !streamingContent) return;
-    const now = Date.now();
-    if (now - lastStreamSaveRef.current < 1500) return;
-    lastStreamSaveRef.current = now;
-    saveFlowState({
-      step: "result",
-      pendingStream: { text: streamingContent, format: selectedFormat || "post", ts: now },
-    });
-  }, [streaming, streamingContent, selectedFormat]);
-
-  // Une fois le résultat en place (stream terminé ou restauration), purger le
-  // texte partiel : il ne doit resservir qu'en cas d'interruption réelle.
-  useEffect(() => {
-    if (result) saveFlowState({ pendingStream: null });
-  }, [result]);
+  // Texte reçu en streaming, génération en cours et purge du texte partiel :
+  // use-generation-reload-guard.ts (15/10/2026).
 }

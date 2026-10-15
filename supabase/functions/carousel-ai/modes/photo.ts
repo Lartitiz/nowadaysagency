@@ -19,6 +19,7 @@ import { logContentQuality, threadOutcome, carouselDurations } from "../../_shar
 import { photoMatchPhotoCount } from "../final-photo-match.ts";
 import { CAROUSEL_WRITING_VERSION } from "../writing-contract.ts";
 import { CAROUSEL_WRITER_VERSION } from "../writer.ts";
+import { clientStillThere } from "../../_shared/anthropic-stream.ts";
 
 // ── Photo carousel mode ──
 /** « Photos brutes » : slides photo pleine page sans aucun texte (même liste blanche que l'app, src/lib/pure-photo-slides.ts). */
@@ -231,7 +232,7 @@ export async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext)
   }
   await addOutlineUsage(reqCtx, photoUsage);
   const timings = clock.done("photo");
-  await _deps.logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);
+  if (clientStillThere(emitStatus, "carousel_photo")) await _deps.logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspaceId, body.subject, threadOutcome(content),
     carouselDurations("photo", timings, { content, photos: photoMatchPhotoCount(body) }));
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,

@@ -347,7 +347,27 @@ export function createClientSSEStream(
  * (vraies étapes de génération au lieu d'une barre simulée).
  * En mode non-SSE le handler reçoit un no-op — toujours sûr à appeler.
  */
-export type StatusEmitter = (stage: string, data?: Record<string, unknown>) => void;
+export type StatusEmitter = ((stage: string, data?: Record<string, unknown>) => void) & {
+  /** Posé par runWithHeartbeatSSE : vrai quand la cliente n'est plus là pour
+   * recevoir le résultat (page rechargée ou fermée). Absent hors SSE. */
+  clientGone?: () => boolean;
+};
+
+/**
+ * Débit à la livraison (15/10/2026). LinkedIn, newsletter et carrousel n'envoient
+ * le texte qu'à la toute fin (`done`) : si la cliente a rechargé ou fermé la page
+ * avant, elle ne reçoit RIEN — le crédit ne doit pas partir. Appelé juste avant
+ * `logUsage` : renvoie false (et journalise) quand la connexion est déjà coupée.
+ * Sans SSE (aucun `clientGone`), on débite toujours, comme avant.
+ */
+export function clientStillThere(emitStatus: unknown, label: string): boolean {
+  const gone = (emitStatus as { clientGone?: () => boolean } | undefined)?.clientGone;
+  if (typeof gone === "function" && gone()) {
+    console.warn(JSON.stringify({ event: "billing_skipped_client_gone", label }));
+    return false;
+  }
+  return true;
+}
 
 /**
  * Wrap an existing async handler (that returns a normal JSON Response) into
@@ -365,13 +385,17 @@ export function runWithHeartbeatSSE(
   intervalMs = 10000,
 ): Response {
   const encoder = new TextEncoder();
+  // Cliente partie (rechargement, onglet fermé) : flux annulé par le runtime
+  // ou écriture refusée. Le travail continue côté serveur,
+  // mais les parcours facturés ne débitent plus (clientStillThere).
+  let clientGone = false;
 
   const stream = new ReadableStream({
     async start(controller) {
       let closed = false;
       const safeEnqueue = (chunk: Uint8Array) => {
         if (closed) return;
-        try { controller.enqueue(chunk); } catch { /* controller closed */ }
+        try { controller.enqueue(chunk); } catch { clientGone = true; /* flux fermé côté cliente */ }
       };
       const safeClose = () => {
         if (closed) return;
@@ -404,6 +428,7 @@ export function runWithHeartbeatSSE(
       const emitStatus: StatusEmitter = (stage, data) => {
         safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: "status", stage, ...(data || {}) })}\n\n`));
       };
+      emitStatus.clientGone = () => clientGone;
 
       try {
         const response = await work(emitStatus);
@@ -427,6 +452,9 @@ export function runWithHeartbeatSSE(
         safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", error: String((err as any)?.message || err) })}\n\n`));
         safeClose();
       }
+    },
+    cancel() {
+      clientGone = true;
     },
   });
 

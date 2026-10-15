@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { runWithHeartbeatSSE } from "./anthropic-stream.ts";
+import { clientStillThere, runWithHeartbeatSSE, type StatusEmitter } from "./anthropic-stream.ts";
 
 // 01/10 : flux carrousel fermé sans done/error (edge coupée pendant l'écriture)
 // → le front affichait « Réponse vide du serveur ». La coupure doit produire un error.
@@ -24,4 +24,33 @@ Deno.test("SSE : fin normale, un beforeunload tardif n'ajoute rien", async () =>
   globalThis.dispatchEvent(new Event("beforeunload"));
   assertStringIncludes(text, '"type":"done"');
   assertEquals(text.includes('"type":"error"'), false);
+});
+
+// 15/10/2026 : débit à la livraison. Page rechargée pendant la rédaction →
+// le flux est annulé, `clientStillThere` répond false au moment de débiter.
+Deno.test("SSE : cliente partie avant la fin → clientStillThere false", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  let atBilling: boolean | null = null;
+  const finished = new Promise<void>((done) => {
+    runWithHeartbeatSSE({}, async (emit) => {
+      await gate;
+      atBilling = clientStillThere(emit, "test");
+      done();
+      return new Response("{}");
+    }, 60_000).body!.getReader().cancel();
+  });
+  release();
+  await finished;
+  assertEquals(atBilling, false);
+});
+
+Deno.test("SSE : cliente restée → clientStillThere true ; hors SSE → true", async () => {
+  let atBilling: boolean | null = null;
+  const res = runWithHeartbeatSSE({}, async (emit) => { atBilling = clientStillThere(emit, "test"); return new Response("{}"); }, 60_000);
+  await res.text();
+  assertEquals(atBilling, true);
+  const noop: StatusEmitter = () => {};
+  assertEquals(clientStillThere(noop, "test"), true);
+  assertEquals(clientStillThere(undefined, "test"), true);
 });

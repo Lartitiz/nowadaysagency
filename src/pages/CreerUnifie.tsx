@@ -17,7 +17,7 @@ import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/f
 import { countContentBriefs, saveContentBrief } from "@/features/creer/content-brief";
 import { flattenResultForEdit } from "@/features/creer/edit-text-from-result";
 import { computeDraftConflict } from "@/features/creer/draft-conflict";
-import { type Step, resolveSafeStep } from "@/features/creer/creer-step";
+import { type Step, resolveSafeStep, isInterruptedGeneration } from "@/features/creer/creer-step";
 import { pickNonEmpty } from "@/features/creer/photo-source";
 import { applyEditedText, structuredEditText, withoutEditedText } from "@/features/creer/edited-text";
 import { replaceSlideText } from "@/lib/carousel-html-edit";
@@ -35,7 +35,7 @@ import PhotoMissingDialog from "@/components/creer/PhotoMissingDialog";
 import ConfirmResetDialog from "@/components/creer/ConfirmResetDialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Loader2, Palette, RefreshCw, Sparkles, Undo2, Redo2 } from "lucide-react";
+import { Loader2, Palette, Sparkles, Undo2, Redo2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -106,6 +106,8 @@ import LaunchSequenceResults from "@/components/creer/LaunchSequenceResults";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
+import { useGenerationReloadGuard } from "@/hooks/use-generation-reload-guard";
+import ResultEmptyState from "@/components/creer/ResultEmptyState";
 import { loadFlowState, saveFlowState as persistFlowState, clearFlowState, savePhotos as persistPhotos, loadPhotos, setFlowWorkspaceId, setFlowUserId } from "@/hooks/use-flow-persistence";
 import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
@@ -573,9 +575,17 @@ function CreerWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aurianaDemoActive, isDemoMode]);
 
-  // Auto-persist state on changes + filet streaming (use-creer-flow-persistence.ts)
+  // Auto-persist state on changes (use-creer-flow-persistence.ts)
   useAutoPersistFlow({
-    conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, editBaseline, result, regenerationBackup, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, aurianaDemoActive, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate, saveFlowState, streaming, streamingContent,
+    conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, editBaseline, result, regenerationBackup, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, aurianaDemoActive, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate, saveFlowState,
+  });
+
+  // Filets anti-perte au rechargement en pleine génération (texte reçu,
+  // génération en cours, purge) : use-generation-reload-guard.ts.
+  const interruptedGeneration = useGenerationReloadGuard({
+    restoredInterrupted: safeStep === "result" && isInterruptedGeneration(ps),
+    step, result, streaming, streamingContent, selectedFormat, conflictPending, saveFlowState,
+    busy: generating || streaming || structureLoading || photoDumpResolving || pinterestVisualGenerating,
   });
 
   // Pre-fill from URL/state & auto-advance (use-creer-entry-init.ts)
@@ -1763,40 +1773,7 @@ function CreerWorkspace() {
             )}
 
             {step === "result" && !autoGeneratePendingRef.current && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !structureLoading && !photoDumpResolving && !result && (
-              <div className="py-12 text-center space-y-4 animate-fade-in">
-                {/* Quota épuisé pendant la génération : dire la vérité (les crédits),
-                    pas « Session expirée » — et pas de Réessayer qui ne peut que re-échouer. */}
-                {quotaExhausted ? (
-                  <p className="text-sm font-medium text-foreground">{quotaExhausted}</p>
-                ) : error ? (
-                  <p className="text-destructive font-medium">{error}</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Session expirée ou contenu indisponible.</p>
-                )}
-                <div className="flex gap-3 justify-center">
-                  {quotaExhausted ? (
-                    <button
-                      onClick={() => navigate("/pricing")}
-                      className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition"
-                    >
-                      Voir les plans →
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleRegenerate}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition"
-                    >
-                      <RefreshCw className="h-4 w-4" strokeWidth={1.75} /> Réessayer
-                    </button>
-                  )}
-                  <button
-                    onClick={requestReset}
-                    className="px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm font-medium hover:opacity-90 transition"
-                  >
-                    ← Recommencer
-                  </button>
-                </div>
-              </div>
+              <ResultEmptyState quotaExhausted={quotaExhausted} error={error} interrupted={interruptedGeneration} onPricing={() => navigate("/pricing")} onRetry={handleRegenerate} onReset={requestReset} />
             )}
 
             {step === "result" && !isLaunchMode && (generating || demoGenerating || streaming || pinterestVisualGenerating || result) && (
