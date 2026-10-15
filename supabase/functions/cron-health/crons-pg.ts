@@ -48,3 +48,11 @@ export function jugerCrons(rows: CronJobRow[], now: number): CronJobVerdict[] {
     return { nom: r.jobname, dernier_passage: r.last_start, statut: r.last_status, en_panne: raison !== null, raison };
   });
 }
+
+// Lecture + jugement (fonction SQL absente tant que la migration
+// cron_jobs_health n'est pas appliquée → { erreur } → « non mesuré »).
+// deno-lint-ignore no-explicit-any
+export async function lireCronsPg(supabase: any, now: number): Promise<{ jobs: CronJobVerdict[] } | { erreur: string }> {
+  const { data, error } = await supabase.rpc("cron_jobs_health");
+  return error ? { erreur: error.message } : { jobs: jugerCrons((data || []) as CronJobRow[], now) };
+}

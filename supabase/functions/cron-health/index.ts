@@ -29,7 +29,8 @@ import { feedbackNewItems, ontGenere, type FeedbackNewRow } from "./feedback-new
 import { compte, debutMoisUtc, jugerBudgetHiggsfield, somme } from "./higgsfield-alerte.ts";
 import { gardeRediteStats } from "./garde-redite.ts";
 import { construireEchantillon } from "./echantillon.ts";
-import { jugerCrons, type CronJobRow } from "./crons-pg.ts";
+import { lireCronsPg } from "./crons-pg.ts";
+import { studioImagesBloquees } from "./studio-bloquees.ts";
 import { filStats } from "./fil-reparations.ts";
 import { dureesStats } from "./durees-carrousels.ts";
 import { planStats } from "./plan-carrousels.ts";
@@ -349,19 +350,8 @@ Deno.serve(async (req) => {
         photoroomCredits(now), facturationHealth(supabase, now),
         santeQuotidienne(supabase, now, fetchAllRows, emailOf, isExcludedEmail),
         higgsfieldBudget(supabase, now),
-        // Absente tant que la migration cron_jobs_health n'est pas appliquée → « non mesuré ».
-        supabase.rpc("cron_jobs_health").then(({ data, error }: { data: CronJobRow[] | null; error: { message: string } | null }) =>
-          error ? { erreur: error.message } : { jobs: jugerCrons(data || [], now) }),
-        // Images Studio « en cours » depuis > 1 h (15/10/2026) : le cron
-        // studio-reconcile-images les rattrape en 20 min normalement. S'il en
-        // reste, il échoue en silence (WARNING avalé, job « succeeded »).
-        supabase
-          .from("visual_studio_versions")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "processing")
-          .lt("created_at", new Date(now - HOUR).toISOString())
-          .then(({ count, error }: { count: number | null; error: { message: string } | null }) =>
-            error ? { erreur: error.message } : { count: count ?? 0 }),
+        lireCronsPg(supabase, now), // automates pg_cron
+        studioImagesBloquees(supabase, now), // images Studio « en cours » > 1 h
       ]);
       const posts = postsRows.filter((p: any) => isClient(p.user_id));
       const conns = connRows.filter((c: any) => isClient(c.user_id));
@@ -453,8 +443,7 @@ Deno.serve(async (req) => {
         connections_at_risk: connectionsAtRisk.slice(0, 20),
         feedback_24h: { count: feedback24h.length, items: feedback24h.slice(0, 15) },
         feedback_new_total: feedbackNewTotal,
-        crons_pg: cronsPg,
-        studio_images_bloquees: studioBloquees,
+        crons_pg: cronsPg, studio_images_bloquees: studioBloquees,
         feedback_new_items: feedbackNewItems(fbNewRows.filter((f: FeedbackNewRow) => isClient(f.user_id))),
         photoroom_credits: photoroom,
         higgsfield,
