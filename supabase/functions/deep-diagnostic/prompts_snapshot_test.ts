@@ -17,6 +17,7 @@ import { installerFauxFetch, requeteDiagnostic } from "./contract_harness.ts";
 import { DIAGNOSTIC_TOOL } from "./tool.ts";
 import { isDegenerateDiagnostic, robustJsonParse, stripMarkupFromSummary } from "./parse.ts";
 import { buildFallbackDiagnostic } from "./fallback.ts";
+import { buildDiagnosticUserPrompt, DIAGNOSTIC_SYSTEM_PROMPT } from "./prompts.ts";
 
 setTestEnv();
 
@@ -87,6 +88,36 @@ Deno.test("prompt utilisateur : profil avec clés seules (sans *Label), canaux e
 
 Deno.test("prompt utilisateur : ni profil ni réponses libres", async (t) => {
   await assertSnapshot(t, texteUtilisateur(await premiereRequeteClaude({})));
+});
+
+Deno.test("prompt système envoyé = DIAGNOSTIC_SYSTEM_PROMPT (prompts.ts, lot 2)", async () => {
+  const r = await premiereRequeteClaude({ profile: { activity: "céramiste" } });
+  const texte = typeof r.system === "string" ? r.system : r.system.map((b: Row) => b.text).join("");
+  assertEquals(texte, DIAGNOSTIC_SYSTEM_PROMPT);
+});
+
+Deno.test("prompt utilisateur (direct) : 4 sources fixées à la main, dans l'ordre d'insertion", async (t) => {
+  await assertSnapshot(t, buildDiagnosticUserPrompt({
+    profile: { activity: "céramiste" },
+    freeformAnswers: null,
+    scrapedContent: {
+      website: "Atelier de céramique à Lyon. Réserver un atelier.",
+      about: "À propos (texte fourni) : je façonne des bols.",
+      instagram_public: "@atelier_test — céramique utilitaire",
+      connected_social: "Compte : @atelier_test\nBio : bols et tasses",
+    },
+    sourcesUsed: ["website", "about", "instagram_public", "instagram_connected"],
+    sourcesFailed: [],
+    instagramScreenshots: [],
+  }));
+});
+
+Deno.test("prompt utilisateur (direct) : libellés des sources en échec, alerte « aucune source » selon les captures", async (t) => {
+  const base = { profile: null, freeformAnswers: null, scrapedContent: {}, sourcesUsed: [], instagramHandle: "atelier_test", websiteUrl: "monsite.fr" };
+  const echecs = buildDiagnosticUserPrompt({ ...base, sourcesFailed: ["website", "linkedin", "instagram_public", "instagram", "social_screenshot"], instagramScreenshots: [] });
+  const avecCapture = buildDiagnosticUserPrompt({ ...base, sourcesFailed: [], instagramScreenshots: [{}] });
+  assertEquals(avecCapture.includes("Aucune source en ligne"), false, "une capture reçue suffit à retirer l'alerte");
+  await assertSnapshot(t, { echecs, avecCapture });
 });
 
 // ── 3. Repli quand Claude échoue ────────────────────────────────────────────

@@ -396,6 +396,73 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
 - Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`
 `;
 
+snapshot[`prompt utilisateur (direct) : 4 sources fixées à la main, dans l'ordre d'insertion 1`] = `
+\`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : non renseigné
+Objectif principal : non renseigné
+Blocage principal : non renseigné
+Temps disponible/semaine : non renseigné
+
+=== SOURCE: WEBSITE ===
+Atelier de céramique à Lyon. Réserver un atelier.
+
+=== SOURCE: ABOUT ===
+À propos (texte fourni) : je façonne des bols.
+
+=== SOURCE: INSTAGRAM_PUBLIC ===
+@atelier_test — céramique utilitaire
+
+=== SOURCE: CONNECTED_SOCIAL ===
+Compte : @atelier_test
+Bio : bols et tasses
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`
+`;
+
+snapshot[`prompt utilisateur (direct) : libellés des sources en échec, alerte « aucune source » selon les captures 1`] = `
+{
+  avecCapture: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+  echecs: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+
+⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
+
+
+⚠️ Sources non analysées (scraping échoué) : Site web (monsite.fr), LinkedIn, instagram_public, Instagram (@atelier_test), social_screenshot. NE PAS inventer de score pour ces sources. Mettre leur score à null dans "scores".
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+}
+`;
+
 snapshot[`repli — rien du tout 1`] = `
 {
   _fallback: true,
