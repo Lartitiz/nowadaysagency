@@ -135,16 +135,27 @@ test("contenus figés — carrousel texte : texte, design et export identiques �
   // La barre flottante mesurait une largeur qui dépendait de sa place : boucle de
   // rendu et page blanche en choisissant le titre, vue sur un écran étroit.
   await page.setViewportSize({ width: 800, height: 600 });
+  // L'aperçu se remesure (et se recharge) après le changement de taille : un clic
+  // trop tôt tombe sur l'ancien document et ne choisit rien (sonde rouge à tort).
+  await page.waitForTimeout(1500);
   await vignettes.first().click();
+  await page.waitForTimeout(800);
   const titre = page.frameLocator('iframe[title^="Éditeur de la slide"]').locator("[data-slide-text]").first();
   await titre.scrollIntoViewIfNeeded();
   await titre.click();
   await page.waitForTimeout(1500);
+  // Un clic parfois perdu juste après le changement de taille : un second essai.
+  // La page blanche, elle, reste détectée (erreur « Maximum update depth »).
+  const barre = page.getByRole("toolbar", { name: /Barre d.outils de l.élément/ });
+  if (!(await barre.isVisible().catch(() => false))) {
+    await titre.click();
+    await page.waitForTimeout(1500);
+  }
   expect(boucles, "page blanche en choisissant un texte dans l'éditeur (boucle de rendu)").toEqual([]);
   await expect(page.getByRole("toolbar", { name: /Barre d.outils de l.élément/ }), "la barre de l'élément ne s'affiche pas").toBeVisible();
   console.log("🖼️ Éditeur : choisir un texte ✅ (pas de page blanche)");
   // Écran du résultat : 3 actions au plus, bouton principal visible (chantier C, ligne 🎛️).
-  // En dernier (chantier D, 15/10/2026) : ses changements de taille d'écran, placés
-  // avant l'étape 4, empêchaient le clic sur le titre de choisir le texte.
+  // En dernier (chantier D, 15/10/2026) : ses changements de taille d'écran ne
+  // doivent pas précéder le clic de l'étape 4.
   await sondeResultatActions(page, "carrousel");
 });
