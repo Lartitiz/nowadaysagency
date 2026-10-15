@@ -18,7 +18,9 @@ const lire = (rel: string) => fs.readFileSync(path.join(RACINE, rel), "utf8");
 // vérifie que chaque clé envoyée et attendue existe des DEUX côtés. Si tu
 // renommes une clé, renomme-la partout, puis mets à jour les listes ci-dessous.
 
-const creer = lire("src/pages/CreerUnifie.tsx");
+// Depuis le lot J du découpage de CreerUnifie, la lecture du state et de l'URL
+// à l'arrivée vit dans use-creer-entry-init.ts : on lit les deux fichiers.
+const creer = lire("src/pages/CreerUnifie.tsx") + "\n" + lire("src/hooks/use-creer-entry-init.ts");
 const calendar = lire("src/pages/Calendar.tsx");
 const dialog = lire("src/components/calendar/CalendarPostDialog.tsx");
 

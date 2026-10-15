@@ -17,7 +17,7 @@ import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/f
 import { countContentBriefs, saveContentBrief } from "@/features/creer/content-brief";
 import { flattenResultForEdit } from "@/features/creer/edit-text-from-result";
 import { computeDraftConflict } from "@/features/creer/draft-conflict";
-import { type Step, resolveSafeStep, FORMAT_MAP, SUPPORTED_FORMATS, ONE_SHOT_PARAMS } from "@/features/creer/creer-step";
+import { type Step, resolveSafeStep } from "@/features/creer/creer-step";
 import { pickNonEmpty } from "@/features/creer/photo-source";
 import { applyEditedText, structuredEditText, withoutEditedText } from "@/features/creer/edited-text";
 import { replaceSlideText } from "@/lib/carousel-html-edit";
@@ -40,7 +40,6 @@ import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 
-import { consumeFreshStart } from "@/lib/creation-navigation";
 import BrandReviewGate from "@/components/branding/BrandReviewGate";
 import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 import { useLinkedInCarouselCaption } from "@/hooks/use-linkedin-carousel-caption";
@@ -85,7 +84,6 @@ import { downscalePhotosForVision } from "@/lib/image-vision";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
 
 import { useContentGenerator } from "@/hooks/use-content-generator";
-import { multiSubjectChoicePending } from "../../supabase/functions/_shared/multi-subject";
 import { normalizeFormat } from "@/lib/format-normalizer";
 import { stripFontImportLeakFromSlides } from "@/lib/strip-font-import-leak";
 import { EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, normalizeObjective } from "@/lib/content-structures";
@@ -101,6 +99,7 @@ import { useLaunchSequence } from "@/hooks/use-launch-sequence";
 import { useReelHooks } from "@/hooks/use-reel-hooks";
 import { useReelArtifact } from "@/hooks/use-reel-artifact";
 import { useCreerPublish } from "@/hooks/use-creer-publish";
+import { useCreerEntryInit } from "@/hooks/use-creer-entry-init";
 import { creerResultKey, useFreshEntryCleanup, useCreerResultSession, useRestorePersistedFlow, useAutoPersistFlow } from "@/hooks/use-creer-flow-persistence";
 import { useLibraryPhotosPreload, usePhotosRehydration, usePhotosSnapshot, useAddCarouselPhoto, useLibraryAutoCast } from "@/hooks/use-creer-photos";
 import LaunchSequenceResults from "@/components/creer/LaunchSequenceResults";
@@ -579,171 +578,12 @@ function CreerWorkspace() {
     conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, editBaseline, result, regenerationBackup, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, aurianaDemoActive, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate, saveFlowState, streaming, streamingContent,
   });
 
-  // Pre-fill from URL/state & auto-advance (only when URL params are present)
-  const initDone = useRef(false);
-  // L'effet dépend de location.search : notre propre nettoyage des paramètres
-  // (plus bas) le re-déclenche une fois. Ce drapeau absorbe cet écho — sans
-  // lui, le re-run voyait sujet/format vides et pouvait renvoyer à l'étape
-  // idée alors que l'init venait de lancer le parcours.
-  const justStrippedRef = useRef(false);
-  useEffect(() => {
-    // Conflit brouillon vs nouvelle demande : on ne touche à rien tant que
-    // l'utilisatrice n'a pas tranché (voir DraftConflictDialog).
-    if (conflictPending || ((brandReviewChecking || brandReviewPending) && !flowShownRef.current)) return;
-    if (justStrippedRef.current) {
-      justStrippedRef.current = false;
-      return;
-    }
-    // If we restored from persistence, skip URL-based init
-    if (ps && !hasUrlParams) {
-      initDone.current = true;
-      return;
-    }
-    // This entry is consumed once. Background brand refetches and remaining
-    // channel params must never replay it after location.state was cleared.
-    if (initDone.current) return;
-    initDone.current = true;
-
-    const subject = paramSujet || locState.sujet || locState.subject || "";
-    const obj = paramObjectif || locState.objectif || locState.objective || null;
-
-    if (subject) setIdeaText(subject);
-    else if (locState.fromCalendar && typeof locState.theme === "string" && locState.theme.trim()) setIdeaText(locState.theme.trim()); // atelier du calendrier : sujet dans `theme`
-    if (obj) setObjective(normalizeObjective(obj) ?? obj);
-    if (locState?.existingContent) setExistingCalendarContent(locState.existingContent);
-
-    // Newsjacking context arriving from "Créer depuis cette actu" (IdeaDetailSheet)
-    // — preserves the actu block so the generated content stays a real newsjacking.
-    if (locState?.context && typeof locState.context === "string" && locState.context.trim()) {
-      setNewsjackingContext(locState.context.trim().slice(0, 3800));
-    }
-
-    const fmtRaw = paramFormat || locState?.format;
-    const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null;
-
-    const fmtMapped = fmtRaw ? (FORMAT_MAP[fmtRaw] || fmtRaw) : null;
-    const fmt = fmtMapped && SUPPORTED_FORMATS.has(fmtMapped) ? fmtMapped : null;
-
-    if (fmt) setSelectedFormat(fmt);
-    if (paramCarouselSubMode) setCarouselSubMode(paramCarouselSubMode);
-
-    // Saved output is an editing request, never an automatic regeneration.
-    if (locState.resumeIdea?.raw && locState.resumeIdea?.format) {
-      const { raw, format } = locState.resumeIdea;
-      setSelectedFormat(format);
-      setResult({ type: format, raw });
-      setEditingIdeaId(locState.ideaId || paramIdeaId || null);
-      setEditorialAngle(locState.angle || paramAngle || null);
-      setIsLinkedInCarousel(format === "carousel" && paramCanal === "linkedin");
-      setCarouselSubMode(raw.user_slides === true ? "user_slides" : ["text", "photo", "mix", "pure_photo", "user_slides"].includes(raw.carousel_type) ? raw.carousel_type : null);
-      setVisualSlides(stripFontImportLeakFromSlides(Array.isArray(raw.visual_html) ? raw.visual_html : []));
-      setPinterestPinHtml(raw.pin_html || null);
-      setPhotoBriefOverlayHtml(raw.overlay_html || null);
-      setSavedId(null);
-      setStep("result");
-    }
-    // « Créer à partir de ce brief » (boîte à idées) : on réutilise les questions
-    // et réponses déjà saisies et on atterrit directement sur l'étape questions
-    // pré-remplie, au lieu de tout recommencer.
-    if (!locState.resumeIdea?.raw && locState?.fromBrief && Array.isArray(locState.questions) && locState.questions.length > 0) {
-      const briefAngle = locState?.angle || paramAngle || undefined;
-      const restoredAnswers = locState.answers && typeof locState.answers === "object"
-        ? locState.answers as Record<string, string>
-        : {};
-      const restoredBriefId = typeof locState.briefId === "string" ? locState.briefId : null;
-      if (briefAngle) setEditorialAngle(briefAngle);
-      setQuestions(locState.questions as any);
-      setAnswers(restoredAnswers);
-      setBriefPrefillAnswers(restoredAnswers);
-      setIncomingBriefId(restoredBriefId);
-      setStep("questions");
-      // Persister la reprise AVANT d'effacer son ordre d'initialisation : un
-      // refresh immédiat retrouve les questions, les réponses et le même brief.
-      saveFlowState({
-        step: "questions",
-        ideaText: subject,
-        objective: obj,
-        selectedFormat: fmt,
-        editorialAngle: briefAngle || null,
-        questions: locState.questions as any,
-        answers: restoredAnswers,
-        incomingBriefId: restoredBriefId,
-      });
-      // Les paramètres sujet/format rejoueraient handleFormatNext au refresh et
-      // déclencheraient une nouvelle génération de questions.
-      window.history.replaceState({}, "", location.pathname);
-      return;
-    }
-
-    if (!locState.resumeIdea?.raw && fmt && subject.trim()) {
-      // Build enriched subject directly from locState to avoid race condition
-      // (setExistingCalendarContent is async and not yet available)
-      const calendarContent = locState?.existingContent || null;
-      const enrichedSubject = calendarContent
-        ? subject + "\n\n[Contenu existant à approfondir]\n" + calendarContent
-        : subject;
-      const calendarAngle = locState?.angle || paramAngle || undefined;
-      if (calendarAngle) setEditorialAngle(calendarAngle);
-
-      // Si un angle est déjà choisi (depuis la boîte à idées ou le calendrier),
-      // on saute l'étape format. Le premier carrousel texte saute aussi les
-      // questions ; les autres entrées gardent leurs choix de format et photos.
-      // Stories ou reel sur un texte à plusieurs sujets (calendrier, idée, lien) :
-      // l'écran format demande d'abord quoi en faire (09/10/2026). Un contenu du
-      // calendrier à plusieurs sujets passe dans le texte de l'idée, pour être choisi.
-      const multiInContent = !!calendarContent && multiSubjectChoicePending(calendarContent) && !multiSubjectChoicePending(subject);
-      if ((fmt === "story" || fmt === "reel") && (multiInContent || multiSubjectChoicePending(subject))) {
-        if (multiInContent) {
-          setIdeaText(`${subject.trim()}\n\n${calendarContent.trim()}`);
-          setExistingCalendarContent(null);
-        }
-        setStep("format");
-      } else if (paramAuto && fmt === "carousel" && paramCarouselSubMode === "text") {
-        setStep("result");
-      } else if ((fmt === "carousel" || fmt === "post") && !locState?.fromCalendar && !paramAngle && !paramAuto) {
-        setStep("format");
-      } else {
-        // Autres raccourcis préremplis : le flux normal prépare les questions.
-        handleFormatNext(fmt, calendarAngle, { overrideSubject: enrichedSubject });
-      }
-    } else if (!locState.resumeIdea?.raw && locState?.fromCalendar && subject) {
-      // Calendar fallback path (already handled above with FORMAT_MAP)
-      if (locState.angle) setEditorialAngle(locState.angle);
-      setStep("format");
-    } else if (!locState.resumeIdea?.raw && subject.trim()) {
-      // Sujet présent mais format absent ou non-supporté (ex : coach « Surprise »
-      // qui renvoie recommended_format="auto") → ouvrir l'étape format pour
-      // choisir canal + format, au lieu de retomber sur l'étape « idée ».
-      setStep("format");
-    } else if (!locState.resumeIdea?.raw && fmt) {
-      setStep("format");
-    } else if (!locState.resumeIdea?.raw && !ps) {
-      setStep("idea");
-    }
-    // Clean up location.state after reading it to prevent re-init on tab switch
-    if (location.state) {
-      window.history.replaceState({}, '', window.location.href);
-    }
-
-    // ── Paramètres « à usage unique » : consommés = retirés ──
-    // ?sujet/?format/?auto/… sont des ORDRES de démarrage, pas un état d'URL.
-    // Laissés collés, chaque remontage de la page (reload, onglet recyclé,
-    // retour de veille) REJOUAIT toute cette init : questions régénérées,
-    // résultat effacé par resetGenerator, retour au récap — vécu le 13/08 sur
-    // le 1er contenu post-onboarding (« ça a sauté, revenu au début »). La
-    // reprise après reload passe désormais par la persistance du flux
-    // (use-flow-persistence), comme pour ?new=1. ?canal/?from/?mode restent :
-    // ils ne déclenchent pas d'auto-avancée destructrice.
-    // Exception : en ?mode=transform, ?format pré-coche le sous-mode Recycler
-    // (CreerTransformTab le lit dans l'URL) — on ne touche à rien sur ce chemin.
-    if (paramMode !== "transform" && ONE_SHOT_PARAMS.some((k) => searchParams.has(k))) {
-      const cleaned = consumeFreshStart(searchParams);
-      ONE_SHOT_PARAMS.forEach((k) => cleaned.delete(k));
-      justStrippedRef.current = true;
-      setSearchParams(cleaned, { replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search, conflictPending, brandReviewChecking, brandReviewPending]);
+  // Pre-fill from URL/state & auto-advance (use-creer-entry-init.ts)
+  const { initDone, justStrippedRef } = useCreerEntryInit({
+    conflictPending, brandReviewChecking, brandReviewPending, flowShownRef, ps, hasUrlParams, location, locState, searchParams, setSearchParams, paramSujet, paramObjectif, paramFormat, paramIdeaId, paramAngle, paramCanal, paramAuto, paramMode, saveFlowState, setIdeaText, setObjective, setExistingCalendarContent, setNewsjackingContext, setSelectedFormat, setCarouselSubMode, setResult, setEditingIdeaId, setEditorialAngle, setIsLinkedInCarousel, setVisualSlides, setPinterestPinHtml, setPhotoBriefOverlayHtml, setSavedId, setStep, setQuestions, setAnswers, setBriefPrefillAnswers, setIncomingBriefId,
+    // useFormatNext est déclaré plus bas : relais lu seulement quand l'effet tourne.
+    handleFormatNext: (...args: Parameters<typeof handleFormatNext>) => handleFormatNext(...args),
+  });
 
   // ── Library photos → preload as if uploaded (chemin /photos → /creer, use-creer-photos.ts) ──
   const { libraryPhotoIdsRef, firstProductRef, initialCreationId } = useLibraryPhotosPreload({
