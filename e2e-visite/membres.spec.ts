@@ -1,4 +1,18 @@
 import { test, expect } from "@playwright/test";
+import { WORKSPACE_SHARING_ENABLED } from "../src/config/feature-flags";
+
+// Mode Binôme coupé le 15/10/2026 (#1639) : la section Membres n'existe plus.
+// La sonde vérifie alors qu'elle reste absente et qu'une invitation ne s'ouvre
+// pas ; l'ancien parcours ne tourne que si l'interrupteur est rallumé.
+test("mode Binôme masqué : pas de section Membres, invitations fermées", async ({ page }) => {
+  test.skip(WORKSPACE_SHARING_ENABLED, "partage d'espace rallumé : voir le test suivant");
+  await page.goto("/parametres", { waitUntil: "networkidle" });
+  await expect(page.getByRole("tab", { name: /mon espace/i })).toBeVisible({ timeout: 15_000 });
+  // forceMount : les onglets inactifs sont dans la page, donc 0 = vraiment absente.
+  await expect(page.getByRole("heading", { name: "Membres de l'espace" })).toHaveCount(0);
+  await page.goto("/invite/sonde-jeton-inexistant");
+  await expect(page.getByText("Invitation invalide")).toBeVisible({ timeout: 15_000 });
+});
 
 // Section « Membres de l'espace » (/parametres) : liste, invitation par lien,
 // invitations en attente, révocation. Autonettoyant : l'invitation créée pour
@@ -7,6 +21,7 @@ import { test, expect } from "@playwright/test";
 // Email jetable distinct par projet : desktop et mobile tournent en parallèle
 // sur le même workspace, un email partagé provoque un 409 « déjà en attente ».
 test("membres : liste, invitation, lien, révocation", async ({ page }, testInfo) => {
+  test.skip(!WORKSPACE_SHARING_ENABLED, "mode Binôme masqué depuis le 15/10/2026");
   const DUMMY_EMAIL = `laetitia+membres-${testInfo.project.name}@nowadaysagency.com`;
   const shot = (name: string) =>
     page.screenshot({
