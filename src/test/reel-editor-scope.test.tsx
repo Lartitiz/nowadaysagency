@@ -4,8 +4,9 @@ import { it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 import { isDurableReelUrl, reelSourceKey } from '@/lib/reel-publication';
-const source = readFileSync('src/pages/CreerUnifie.tsx','utf8');
-const block = source.slice(source.indexOf('  const reelSource ='),source.indexOf('  // ── Sauvegarde dans le calendrier',source.indexOf('  const reelSource =')));
+// Le bloc vit dans use-reel-artifact.ts depuis le lot G1 du découpage de CreerUnifie.
+const source = readFileSync('src/hooks/use-reel-artifact.ts','utf8');
+const block = source.slice(source.indexOf('  const reelSource ='),source.indexOf('  return {',source.indexOf('  const reelSource =')));
 const js = ts.transpileModule(block,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
 const useActualEditor = new Function('useRef','useState','useEffect','useCallback','isDurableReelUrl','reelSourceKey',
   `return function(props) { const {result,workspaceId,creationId,ps,saveFlowState}=props; const setPublishingInstagram=()=>{}; ${js}; return {reelMp4Url,setReelMp4Url}; };`
