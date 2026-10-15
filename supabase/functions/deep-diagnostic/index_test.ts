@@ -1,12 +1,8 @@
 // Régression du fix "pas de crédit sur fallback IA" (PR #843 — voir CLAUDE.md,
 // pattern checkQuota -> appel IA -> logUsage UNIQUEMENT en cas de succès).
 //
-// Particularité (même cas que creative-flow) : deep-diagnostic utilise
-// `serve()` de std/http qui ouvre un VRAI socket TCP au chargement du module,
-// incompatible avec la CI (`deno test --allow-env --allow-read`, SANS
-// --allow-net). La phase 1 + décision de facturation est donc extraite en
-// fonction exportée `runFastDiagnostic` (voir index.ts), testée directement,
-// et on neutralise Deno.listen() le temps de l'import.
+// Le handler n'appelle serve() que si index.ts est le point d'entrée
+// (`import.meta.main`, lot 0 de la fiche 12) : un import statique suffit.
 //
 // Lancer : deno test --allow-env --allow-read --no-check --node-modules-dir=none supabase/functions/deep-diagnostic/index_test.ts
 
@@ -17,31 +13,9 @@ import {
   anthropicToolSuccess,
   anthropicFailure,
 } from "../_shared/test-edge-harness.ts";
+import { runFastDiagnostic, normalizeDiagnosticRoute, finalizeDiagnosticEvidence } from "./index.ts";
 
 setTestEnv();
-
-// Importer index.ts exécute AUSSI `serve(handler)` en haut de fichier (effet
-// de bord non testé ici). Sans neutraliser Deno.listen(), ça tente un vrai
-// socket TCP et plante en CI (pas de --allow-net). On neutralise AVANT
-// l'import (obligatoirement dynamique : un import statique s'exécute avant
-// tout le reste du fichier, trop tôt pour patcher Deno.listen).
-const realListen = Deno.listen;
-// deno-lint-ignore no-explicit-any
-(Deno as any).listen = () => ({
-  [Symbol.asyncIterator]() {
-    return { next: () => new Promise(() => {}) }; // ne se résout jamais : pas de crash, juste une tâche de fond inerte
-  },
-  accept: () => new Promise(() => {}),
-  close() {},
-  addr: { transport: "tcp", hostname: "localhost", port: 0 },
-  rid: -1,
-  ref() {},
-  unref() {},
-  // deno-lint-ignore no-explicit-any
-}) as any;
-const { runFastDiagnostic, normalizeDiagnosticRoute, finalizeDiagnosticEvidence } = await import("./index.ts");
-// deno-lint-ignore no-explicit-any
-(Deno as any).listen = realListen;
 
 const BASE_OPTS = {
   systemPrompt: "Tu es une experte en diagnostic de communication (test).",

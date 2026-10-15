@@ -4,7 +4,7 @@
 // le diagnostic de repli servi quand Claude échoue, figés AVANT le découpage
 // d'index.ts : un lot qui déplace du code à l'identique ne change aucun .snap.
 //
-// Avant le lot 2, les prompts passent par le vrai handler (contract_harness.ts) ;
+// Avant le lot 2, les prompts passent par le vrai handler (handleDeepDiagnostic) ;
 // les fonctions internes sont chargées par chargerInternes() sans toucher à
 // index.ts. Après les lots 1 et 2, importer directement les nouveaux fichiers.
 //
@@ -12,11 +12,11 @@
 // Régénérer (seulement si le changement est voulu) : ajouter --allow-write et `-- --update`, puis relire le diff du .snap.
 import { assertEquals, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { assertSnapshot } from "../../edge-tests/snapshot.ts";
-import { captureStdServeHandler, setTestEnv } from "../_shared/test-edge-harness.ts";
+import { setTestEnv } from "../_shared/test-edge-harness.ts";
+import { handleDeepDiagnostic as handler } from "./index.ts";
 import { chargerInternes, installerFauxFetch, requeteDiagnostic } from "./contract_harness.ts";
 
 setTestEnv();
-const handler = await captureStdServeHandler(new URL("./index.ts", import.meta.url).href);
 const internes = await chargerInternes();
 
 // deno-lint-ignore no-explicit-any

@@ -119,6 +119,9 @@ jobs:
       - name: cron-health edge type-check
         run: deno check --no-config --no-lock --node-modules-dir=none supabase/functions/cron-health/index.ts
 
+      - name: deep-diagnostic edge type-check
+        run: deno check --no-config --no-lock --node-modules-dir=none supabase/functions/deep-diagnostic/index.ts
+
       - name: Build
         run: npm run build
 
