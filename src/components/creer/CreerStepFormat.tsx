@@ -1,6 +1,6 @@
-import CarouselModePicker from "./CarouselModePicker";
-import CarouselFormatPreview from "./CarouselFormatPreview";
-import ContentFormatPreview from "./ContentFormatPreview";
+import CarouselModePicker, { defaultCarouselMode } from "./CarouselModePicker";
+import FormatChoiceCards, { type FormatChoice } from "./FormatChoiceCards";
+import FormatMoreOptions from "./FormatMoreOptions";
 import MultiSubjectChoice from "./MultiSubjectChoice";
 import { multiSubjectChoicePending } from "../../../supabase/functions/_shared/multi-subject";
 import { recommendContentFormat } from "@/lib/format-recommendation";
@@ -114,7 +114,10 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
     forcedChannel && initialFormat && (initialChannel || deduceChannel(initialFormat)) !== forcedChannel ? null : (initialFormat || (forcedChannel === "newsletter" ? "newsletter" : null))
   );
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
-  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | "user_slides" | null>(initialCarouselSubMode ?? null);
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | "user_slides" | null>(
+    // Un carrousel arrive toujours avec un type conseillé déjà choisi (chantier B).
+    initialCarouselSubMode ?? (initialFormat === "carousel" ? defaultCarouselMode((initialPhotos?.length ?? 0) > 0) : null)
+  );
   const [slideLength, setSlideLength] = useState<SlideLength>(initialSlideLength ?? "auto");
   // Lot 4 : fourche du mixte hors newsjacking. null = pas encore choisi (on
   // affiche les deux entrées), false = « j'ai mes photos » (upload classique),
@@ -235,8 +238,8 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
       setUploadedPhotos(initialPhotos!);
       setPhotoDescription(initialPhotoDescription ?? "");
       if (id === "carousel") {
-        // Laisser l'utilisateur choisir le type de carrousel (sous-picker affiché)
-        setCarouselSubMode(opts?.keepCarouselSubMode ?? null);
+        // Type conseillé déjà choisi (photos présentes → « Tes photos en fond »), modifiable en un clic.
+        setCarouselSubMode(opts?.keepCarouselSubMode ?? defaultCarouselMode(true));
         setPhotoMode(false);
       } else if (formatAcceptsSinglePhoto(id)) {
         setCarouselSubMode(null);
@@ -248,9 +251,10 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
         setPhotoMode(false);
       }
     } else {
-      setCarouselSubMode(opts?.keepCarouselSubMode ?? null);
+      const mode = id === "carousel" ? (opts?.keepCarouselSubMode ?? defaultCarouselMode(uploadedPhotos.length > 0)) : null;
+      setCarouselSubMode(mode);
       // Préserver les photos uploadées si on entre en mode carousel mix/photo/pure_photo
-      if (!(id === "carousel" && (opts?.keepCarouselSubMode === "mix" || opts?.keepCarouselSubMode === "photo" || opts?.keepCarouselSubMode === "pure_photo"))) {
+      if (!(id === "carousel" && (mode === "mix" || mode === "photo" || mode === "pure_photo"))) {
         setUploadedPhotos([]);
         setPhotoDescription("");
       }
@@ -312,6 +316,41 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [forcedChannel]);
 
+  // Page « quel format ? » : cartes compactes et format conseillé (chantier B, 15/10/2026).
+  const recommendation = selectedChannel ? recommendContentFormat(selectedChannel, initialPhotos?.length || 0, idea) : null;
+  const pageOneChoices: FormatChoice[] =
+    selectedChannel === "instagram"
+      ? typeEntries
+          .filter(([id, spec]) => spec.channel === "instagram" && (multiPhotos ? id === "carousel" : !hasPreloadedPhotos || formatAcceptsSinglePhoto(id) || id === "carousel"))
+          .map(([id, spec]) => ({ id, label: spec.label, preview: id, comingSoon: spec.comingSoon, desc: id === "carousel" ? "Plusieurs slides à faire défiler" : id === "reel" ? "Une vidéo verticale, avec ton script" : id === "story" ? "Une séquence de visuels verticaux" : "Une photo et sa légende" }))
+      : selectedChannel === "linkedin"
+        ? [
+            { id: "linkedin", label: "Post", emoji: "📝", desc: "1300-2000 caractères, photo en option" },
+            { id: "carousel", label: "Carrousel", preview: "carousel", desc: "Plusieurs slides à faire défiler" },
+          ]
+        : selectedChannel === "pinterest"
+          ? [
+              ...(!hasPreloadedPhotos ? [{ id: "pinterest", label: "Texte SEO", emoji: "📝", desc: "Titre + description SEO" }] : []),
+              { id: "pinterest_visual", label: "Visuel", emoji: "🎨", desc: "Infographie, checklist, schéma" },
+              { id: "pinterest_inspiration", label: "Inspiration", emoji: "🔍", desc: "Partir d'une épingle existante" },
+            ]
+          : [];
+  // Le format suggéré par l'actu prime sur la recommandation calculée, s'il est dans ce canal.
+  const suggestedHere = suggestedFormat && selectedChannel === deduceChannel(suggestedFormat) ? suggestedFormat : null;
+  const pageOneRecommended = pageOneChoices.find((c) => c.id === (suggestedHere ?? recommendation?.format) && !c.comingSoon) ?? null;
+  const pageOneRecommendedId = pageOneRecommended?.id;
+  const pageOneRecommendedReason = pageOneRecommended && !suggestedHere ? recommendation?.reason : undefined;
+  const pickPageOneFormat = (id: string) => {
+    if (selectedChannel === "linkedin") {
+      setLinkedinSubMode(id === "carousel" ? "carousel" : "text");
+    } else if (selectedChannel === "pinterest") {
+      setPinterestSubMode(id === "pinterest_visual" ? "visual" : id === "pinterest_inspiration" ? ("inspiration" as any) : "text");
+    }
+    const recommendedMode = id === recommendation?.format ? recommendation?.mode : undefined;
+    handleFormatSelect(id, recommendedMode ? { keepCarouselSubMode: recommendedMode } : undefined);
+  };
+  const onPageOne = !!selectedChannel && !selectedFormat && pageOneChoices.length > 0;
+
   const renderAngleCard = (angle: EditorialAngle, isRecommended: boolean) => {
     const structureId = selectedFormat ? getStructureForCombo(selectedFormat, angle.id) : null;
     const structure = structureId ? CONTENT_STRUCTURES[structureId] : null;
@@ -372,6 +411,14 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
   const [singleSubjectIdea, setSingleSubjectIdea] = useState<string | null>(null);
   const multiSubjectFormat = selectedFormat === "story" || selectedFormat === "reel";
   const multiSubjectPending = multiSubjectFormat && !!onIdeaChange && singleSubjectIdea !== idea && multiSubjectChoicePending(idea);
+
+  const showLength = selectedFormat === "carousel" && (carouselSubMode === "text" || carouselSubMode === "photo" || carouselSubMode === "mix");
+  const LENGTH_LABELS: Record<SlideLength, string> = { auto: "auto", short: "4 slides", classic: "7 slides", long: "10 slides" };
+  const chosenAngle = selectedAngle ? [...recommended, ...others].find((a) => a.id === selectedAngle) : null;
+  const moreOptionsSummary = [
+    showLength ? `Longueur ${LENGTH_LABELS[slideLength]}` : null,
+    showAngles ? (chosenAngle ? chosenAngle.label : "angle choisi par l'IA") : null,
+  ].filter(Boolean).join(" · ");
 
   const handleNext = () => {
     if (!selectedFormat) return;
@@ -546,139 +593,15 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
         </p>
       )}
 
-      {selectedChannel && !selectedFormat && !suggestedFormat && (() => {
-        const recommendation = recommendContentFormat(selectedChannel, initialPhotos?.length || 0, idea);
-        return (
-          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-2">
-            <p className="text-sm font-semibold text-foreground">Pour commencer : {recommendation.label}</p>
-            <p className="text-sm text-muted-foreground">{recommendation.reason}</p>
-            <Button type="button" onClick={() => handleFormatSelect(recommendation.format, { keepCarouselSubMode: recommendation.mode })}>Choisir ce format</Button>
-            <p className="text-xs text-muted-foreground">Ou choisis un autre format ci-dessous.</p>
-          </div>
-        );
-      })()}
-
-      {/* LinkedIn sub-mode selection */}
-      {selectedChannel === "linkedin" && !selectedFormat && (
-        <div className="space-y-3 animate-fade-in">
-          <p className="text-sm font-semibold text-foreground">Quel format LinkedIn ?</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            <button
-              onClick={() => { setLinkedinSubMode("text"); handleFormatSelect("linkedin"); }}
-              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
-            >
-              <span className="text-2xl block mb-1">📝</span>
-              <span className="text-xs font-semibold text-foreground">Post</span>
-              <p className="text-2xs text-muted-foreground mt-0.5">1300-2000 caractères, photo en option</p>
-            </button>
-            {!hasPreloadedPhotos && (
-              <button
-                onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "text" }); }}
-                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
-              >
-                <CarouselFormatPreview mode="text" />
-                <span className="text-xs font-semibold text-foreground">Texte design</span>
-                <p className="text-2xs text-muted-foreground mt-0.5">Texte mis en page aux couleurs de ta marque</p>
-              </button>
-            )}
-            <button
-              onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "mix" }); }}
-              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
-            >
-              <CarouselFormatPreview mode="mix" />
-              <span className="text-xs font-semibold text-foreground">Photos + slides design</span>
-              <p className="text-2xs text-muted-foreground mt-0.5">Alternance de photos et de slides texte</p>
-            </button>
-            <button
-              onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "photo" }); }}
-              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
-            >
-              <CarouselFormatPreview mode="photo" />
-              <span className="text-xs font-semibold text-foreground">Tes photos en fond</span>
-              <p className="text-2xs text-muted-foreground mt-0.5">Photos plein écran + texte court par-dessus</p>
-            </button>
-            <button
-              onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "pure_photo" }); }}
-              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
-            >
-              <CarouselFormatPreview mode="pure_photo" />
-              <span className="text-xs font-semibold text-foreground">Photos brutes</span>
-              <p className="text-2xs text-muted-foreground mt-0.5">Tes photos au bon format, l'IA écrit juste le post</p>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Pinterest sub-mode selection */}
-      {selectedChannel === "pinterest" && !selectedFormat && (
-        <div className="space-y-3 animate-fade-in">
-          <p className="text-sm font-semibold text-foreground">Quel format d'épingle ?</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {!hasPreloadedPhotos && (
-              <button
-                onClick={() => { setPinterestSubMode("text"); handleFormatSelect("pinterest"); }}
-                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
-              >
-                <span className="text-2xl block mb-1">📝</span>
-                <span className="text-xs font-semibold text-foreground">Texte SEO</span>
-                <p className="text-2xs text-muted-foreground mt-0.5">Titre + description SEO</p>
-              </button>
-            )}
-            <button
-              onClick={() => { setPinterestSubMode("visual"); handleFormatSelect("pinterest_visual"); }}
-              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
-            >
-              <span className="text-2xl block mb-1">🎨</span>
-              <span className="text-xs font-semibold text-foreground">Visuel</span>
-              <p className="text-2xs text-muted-foreground mt-0.5">Infographie, checklist, schéma</p>
-            </button>
-            <button
-              onClick={() => { setPinterestSubMode("inspiration" as any); handleFormatSelect("pinterest_inspiration"); }}
-              className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
-            >
-              <span className="text-2xl block mb-1">🔍</span>
-              <span className="text-xs font-semibold text-foreground">Inspiration</span>
-              <p className="text-2xs text-muted-foreground mt-0.5">Partir d'une épingle existante</p>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Format selection (Instagram sub-grid) */}
-      {selectedChannel === "instagram" && !selectedFormat && (
-        <div className="space-y-3">
-          <p className="text-sm font-semibold text-foreground">Quel format Instagram ?</p>
-          <div className="grid grid-cols-2 gap-2">
-            {typeEntries
-              .filter(([id, spec]) => spec.channel === "instagram" && (multiPhotos ? id === "carousel" : !hasPreloadedPhotos || formatAcceptsSinglePhoto(id) || id === "carousel"))
-              .map(([id, spec]) => {
-                const isRecommended = priorityTypes.includes(id);
-                return (
-                  <button
-                    key={id}
-                    onClick={() => handleFormatSelect(id)}
-                    disabled={spec.comingSoon}
-                    data-testid={`creer-format-${id}`}
-                    className={`relative rounded-xl border-2 p-3 text-center transition-all ${
-                      spec.comingSoon
-                        ? "opacity-40 cursor-not-allowed border-border bg-muted"
-                        : "border-border bg-card hover:border-primary/40"
-                    }`}
-                  >
-                    <ContentFormatPreview format={id} />
-                    <span className="text-sm font-semibold text-foreground">{spec.label}</span>
-                    <p className="mt-1 text-xs text-muted-foreground">{id === "carousel" ? "Plusieurs slides à faire défiler" : id === "reel" ? "Une vidéo verticale, avec ton script" : id === "story" ? "Une séquence de visuels verticaux" : "Une photo et sa légende"}</p>
-                    {spec.comingSoon && (
-                      <Badge variant="secondary" className="absolute top-1 right-1 text-2xs">Bientôt</Badge>
-                    )}
-                    {isRecommended && !spec.comingSoon && (
-                      <p className="text-2xs text-primary mt-0.5">Recommandé 🎯</p>
-                    )}
-                  </button>
-                );
-              })}
-          </div>
-        </div>
+      {/* Choix du format en cartes compactes, le conseillé en avant (chantier B). */}
+      {selectedChannel && selectedChannel !== "newsletter" && !selectedFormat && pageOneChoices.length > 0 && (
+        <FormatChoiceCards
+          title={selectedChannel === "instagram" ? "Quel format Instagram ?" : selectedChannel === "linkedin" ? "Quel format LinkedIn ?" : "Quel format d'épingle ?"}
+          choices={pageOneChoices}
+          recommendedId={pageOneRecommendedId}
+          recommendedReason={pageOneRecommendedReason}
+          onPick={pickPageOneFormat}
+        />
       )}
 
       {/* Channel back button removed — chip at the top now handles it */}
@@ -775,48 +698,6 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
       {/* All five modes stay visible, including when one has been selected. */}
       {selectedFormat === "carousel" && (selectedChannel === "instagram" || selectedChannel === "linkedin") && (
         <CarouselModePicker value={carouselSubMode} photos={uploadedPhotos.map(p => p.base64).filter(Boolean)} onChange={(mode) => { setCarouselSubMode(mode); setPhotoWarning(false); }} />
-      )}
-
-      {/* Longueur du carrousel — puces discrètes, seulement pour les sous-modes
-          où l'IA décide du nombre de slides (pas pure_photo : 1 photo = 1 slide,
-          ni user_slides : l'utilisatrice écrit ses slides elle-même). */}
-      {selectedFormat === "carousel" &&
-        (carouselSubMode === "text" || carouselSubMode === "photo" || carouselSubMode === "mix") && (
-        <div className="space-y-1.5 animate-fade-in">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">Longueur :</span>
-            {([
-              { id: "auto" as const, label: "Auto : l'IA adapte" },
-              { id: "short" as const, label: "Court · 4 slides" },
-              { id: "classic" as const, label: "Classique · 7 slides" },
-              { id: "long" as const, label: "Détaillé · 10 slides" },
-            ]).map((opt) => (
-              <button
-                key={opt.id}
-                type="button"
-                onClick={() => setSlideLength(opt.id)}
-                aria-pressed={slideLength === opt.id}
-                className={cn(
-                  "rounded-full px-3 py-1 text-xs transition-colors border",
-                  slideLength === opt.id
-                    ? "border-primary bg-primary/10 text-primary font-medium"
-                    : "border-border text-muted-foreground hover:border-primary/40"
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          {carouselSubMode === "text" && slideLength === "auto" && (
-            <p className="text-2xs text-muted-foreground pl-1" data-testid="carousel-text-auto-length">
-              En Auto, le carrousel texte met une idée par slide, jusqu'à 20 slides.
-              {selectedChannel === "instagram" && " Au-delà de 10, il se publie depuis l'appli Instagram de ton téléphone (pas en direct depuis l'outil)."}
-            </p>
-          )}
-          <p className="text-2xs text-muted-foreground pl-1">
-            Tu pourras toujours supprimer ou ajouter des slides après la génération.
-          </p>
-        </div>
       )}
 
       {/* Photo dump (pure_photo uniquement) : l'app complète la séquence photo —
@@ -979,48 +860,103 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
         </div>
       )}
 
-      {/* Angle selection — collapsed by default, expert override available */}
-      {showAngles && !expandAngles && (
-        <div className="space-y-2 animate-fade-in">
-          <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-3.5">
-            <div className="flex items-start gap-2.5">
-              <Wand2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-primary">L'IA te propose une façon d'aborder ton sujet</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Selon ton idée, ton objectif et ta voix de marque.</p>
-              </div>
+      {/* Plus d'options (chantier B) : longueur, façon d'aborder et structure, réglées par défaut. */}
+      {(showLength || showAngles) && (
+        <FormatMoreOptions summary={moreOptionsSummary}>
+        {/* Longueur du carrousel — puces discrètes, seulement pour les sous-modes
+            où l'IA décide du nombre de slides (pas pure_photo : 1 photo = 1 slide,
+            ni user_slides : l'utilisatrice écrit ses slides elle-même). */}
+        {selectedFormat === "carousel" &&
+          (carouselSubMode === "text" || carouselSubMode === "photo" || carouselSubMode === "mix") && (
+          <div className="space-y-1.5 animate-fade-in">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">Longueur :</span>
+              {([
+                { id: "auto" as const, label: "Auto : l'IA adapte" },
+                { id: "short" as const, label: "Court · 4 slides" },
+                { id: "classic" as const, label: "Classique · 7 slides" },
+                { id: "long" as const, label: "Détaillé · 10 slides" },
+              ]).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setSlideLength(opt.id)}
+                  aria-pressed={slideLength === opt.id}
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs transition-colors border",
+                    slideLength === opt.id
+                      ? "border-primary bg-primary/10 text-primary font-medium"
+                      : "border-border text-muted-foreground hover:border-primary/40"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
+            {carouselSubMode === "text" && slideLength === "auto" && (
+              <p className="text-2xs text-muted-foreground pl-1" data-testid="carousel-text-auto-length">
+                En Auto, le carrousel texte met une idée par slide, jusqu'à 20 slides.
+                {selectedChannel === "instagram" && " Au-delà de 10, il se publie depuis l'appli Instagram de ton téléphone (pas en direct depuis l'outil)."}
+              </p>
+            )}
+            <p className="text-2xs text-muted-foreground pl-1">
+              Tu pourras toujours supprimer ou ajouter des slides après la génération.
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setExpandAngles(true)}
-            className="rounded-lg border border-primary/30 bg-card px-3 py-2 text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
-          >
-            Personnaliser ma façon d’aborder le sujet
-          </button>
-        </div>
-      )}
-
-      {showAngles && expandAngles && (
-        <div className="space-y-3 animate-fade-in">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-foreground">Comment tu veux en parler ?</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Chaque approche donne un ton et une structure différente.</p>
-            </div>
+        )}
+        {/* Angle selection — collapsed by default, expert override available */}
+        {showAngles && !expandAngles && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Façon d'aborder le sujet :</span> l'IA la choisit selon ton idée, ton objectif et ta voix de marque.
+            </p>
             <button
               type="button"
-              onClick={() => { setExpandAngles(false); setSelectedAngle(undefined); }}
-              className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2 transition-colors shrink-0"
+              onClick={() => setExpandAngles(true)}
+              className="rounded-lg border border-primary/30 bg-card px-3 py-2 text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
             >
-              ← Choix auto
+              Personnaliser ma façon d’aborder le sujet
             </button>
           </div>
+        )}
 
-          <div className="space-y-2">
-            {[...recommended, ...others].map((a) => renderAngleCard(a, true))}
+        {showAngles && expandAngles && (
+          <div className="space-y-3 animate-fade-in">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Comment tu veux en parler ?</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Chaque approche donne un ton et une structure différente.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setExpandAngles(false); setSelectedAngle(undefined); }}
+                className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2 transition-colors shrink-0"
+              >
+                ← Choix auto
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {[...recommended, ...others].map((a) => renderAngleCard(a, true))}
+            </div>
           </div>
-        </div>
+        )}
+        {/* Structure info (hidden for Pinterest formats) */}
+        {selectedStructure && selectedAngle && selectedChannel !== "pinterest" && (
+          <div className="rounded-lg bg-muted/50 border border-border p-2.5 space-y-1 animate-fade-in">
+            <p className="text-xs font-semibold text-foreground">
+              Structure : {selectedStructure.label} ({selectedStructure.steps.length} étapes)
+            </p>
+            <ul className="space-y-0.5">
+              {selectedStructure.steps.map((s, i) => (
+                <li key={i} className="text-2xs text-muted-foreground flex items-start gap-1">
+                  <span className="font-mono text-primary/60">{i + 1}.</span> {s.label} — {s.desc}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        </FormatMoreOptions>
       )}
 
       {/* Pinterest specifics */}
@@ -1074,46 +1010,33 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
         </div>
       )}
 
-      {/* Structure info (hidden for Pinterest formats) */}
-      {selectedStructure && selectedAngle && selectedChannel !== "pinterest" && (
-        <div className="rounded-lg bg-muted/50 border border-border p-2.5 space-y-1 animate-fade-in">
-          <p className="text-xs font-semibold text-foreground">
-            Structure : {selectedStructure.label} ({selectedStructure.steps.length} étapes)
-          </p>
-          <ul className="space-y-0.5">
-            {selectedStructure.steps.map((s, i) => (
-              <li key={i} className="text-2xs text-muted-foreground flex items-start gap-1">
-                <span className="font-mono text-primary/60">{i + 1}.</span> {s.label} — {s.desc}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-
-      {/* Navigation */}
-      <div className="space-y-2 pt-2">
-        <Button
-          disabled={!selectedFormat || (selectedFormat === "carousel" && !carouselSubMode) || mixForkPending || multiSubjectPending || (selectedFormat === "pinterest_inspiration" && inspirationPhotos.length === 0)}
-          onClick={handleNext}
-          data-testid="creer-format-next"
-          className="w-full gap-2"
-          size="lg"
-        >
-          Suivant <ArrowRight className="h-4 w-4" />
-        </Button>
-        <p className="text-2xs text-muted-foreground text-center">
-          {mixForkPending
-            ? "Choisis d'abord comment construire ton carrousel mixte, juste au-dessus."
-            : carouselSubMode === "user_slides"
-              ? "Prochaine étape : tu colles ton texte, slide par slide."
-              : "Quelques précisions ensuite, avec la possibilité de passer les questions."}
-        </p>
-        <div className="flex justify-center">
-          <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 text-muted-foreground">
+      {/* Navigation — collée en bas de l'écran pour que « Suivant » reste visible
+          sans défiler, même avec la zone de photos (chantier B). Au-dessus de la
+          barre du bas sur téléphone. */}
+      <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] md:bottom-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 pb-3 bg-background/95 backdrop-blur-sm border-t border-border/60 space-y-1">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 text-muted-foreground shrink-0">
             <ArrowLeft className="h-3.5 w-3.5" /> Retour
           </Button>
+          <Button
+            disabled={onPageOne ? !pageOneRecommended : (!selectedFormat || (selectedFormat === "carousel" && !carouselSubMode) || mixForkPending || multiSubjectPending || (selectedFormat === "pinterest_inspiration" && inspirationPhotos.length === 0))}
+            onClick={onPageOne ? () => pageOneRecommended && pickPageOneFormat(pageOneRecommended.id) : handleNext}
+            data-testid="creer-format-next"
+            className="flex-1 gap-2"
+            size="lg"
+          >
+            {onPageOne && pageOneRecommended ? `Suivant : ${pageOneRecommended.label}` : "Suivant"} <ArrowRight className="h-4 w-4" />
+          </Button>
         </div>
+        <p className="text-2xs text-muted-foreground text-center">
+          {onPageOne
+            ? "Ou touche un autre format juste au-dessus."
+            : mixForkPending
+              ? "Choisis d'abord comment construire ton carrousel mixte, juste au-dessus."
+              : carouselSubMode === "user_slides"
+                ? "Prochaine étape : tu colles ton texte, slide par slide."
+                : "Quelques précisions ensuite, avec la possibilité de passer les questions."}
+        </p>
       </div>
     </div>
   );

@@ -30,7 +30,7 @@
       "any": 4
     },
     "src/components/creer/CreerStepFormat.tsx": {
-      "lignes": 1120,
+      "lignes": 1043,
       "any": 2
     },
     "src/components/creer/CreerStepResult.tsx": {
@@ -90,7 +90,7 @@
       "any": 14
     },
     "src/pages/CreerUnifie.tsx": {
-      "lignes": 2159,
+      "lignes": 2136,
       "any": 21
     },
     "src/pages/InstagramAudit.tsx": {

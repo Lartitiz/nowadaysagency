@@ -89,7 +89,9 @@ export default function BetaFeedbackWidget() {
       let lift: number | null = null;
       if (top && !fabRef.current?.contains(top)) {
         for (let el: Element | null = top; el && el !== document.body; el = el.parentElement) {
-          if (getComputedStyle(el).position !== "fixed") continue;
+          // « sticky » : la barre « Suivant » collée en bas de l'écran Format de /creer (chantier B).
+          const pos = getComputedStyle(el).position;
+          if (pos !== "fixed" && pos !== "sticky") continue;
           const r = el.getBoundingClientRect();
           if (r.top > window.innerHeight / 2 && r.width > window.innerWidth / 2) {
             lift = Math.round(window.innerHeight - r.top + 12);

@@ -528,7 +528,7 @@ export default function CreerStepResult({
           {step2of2 && (
             <div className="text-center">
               <span className="inline-block text-2xs font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 rounded-full px-3 py-1">
-                Étape 2 / 2 · Rédaction
+                Puis la rédaction des slides
               </span>
             </div>
           )}
@@ -555,7 +555,7 @@ export default function CreerStepResult({
         {step2of2 && (
           <div className="text-center">
             <span className="inline-block text-2xs font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 rounded-full px-3 py-1">
-              Étape 2 / 2 · Rédaction
+              Puis la rédaction des slides
             </span>
           </div>
         )}
