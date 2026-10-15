@@ -1,7 +1,7 @@
 // Écritures de la relecture de marque (BrandingReview) : une fonction par
 // section, dans 7 tables. Sorti de BrandingReview.tsx à l'identique (fiche 14
-// de docs/robustesse/gros-fichiers.md, lot 2). La colonne de portée reste
-// choisie à la main dans chaque fonction (voir le constat du lot T dans la fiche).
+// de docs/robustesse/gros-fichiers.md, lot 2). La portée (espace ou compte
+// personnel) passe par un seul helper, reviewScope (étape 7).
 import { supabase } from "@/integrations/supabase/client";
 import { importTarget, readImportRows } from "@/lib/branding-import-persistence";
 import { isEmptyVal, fillOnlyEmpty } from "@/lib/fill-only-empty";
@@ -23,6 +23,29 @@ async function writeOrThrow(query: any, ctx: string) {
 }
 
 /**
+ * Portée des écritures de la relecture. Espace nommé : `workspace_id`. Compte
+ * personnel (espace = id de l'utilisatrice) : `user_id` ET `workspace_id is
+ * null`, la même règle que readImportRows. Sans ce second filtre, une personne
+ * qui a aussi un espace nommé voyait la fiche de cet espace complétée, ou la
+ * validation bloquée par « plusieurs lignes » (constat du lot T, fiche 14).
+ */
+function reviewScope(userId: string, workspaceId: string) {
+  const inWorkspace = !!workspaceId && workspaceId !== userId;
+  return {
+    column: inWorkspace ? "workspace_id" : "user_id",
+    value: inWorkspace ? workspaceId : userId,
+    /** Valeur de `workspace_id` à l'insertion. */
+    workspaceId: inWorkspace ? workspaceId : null,
+  };
+}
+
+/** Lecture d'une fiche unique dans la portée de la relecture. */
+function selectInScope(table: string, columns: string, scope: ReturnType<typeof reviewScope>) {
+  const query = (supabase.from(table as any) as any).select(columns).eq(scope.column, scope.value);
+  return scope.column === "user_id" ? query.is("workspace_id", null) : query;
+}
+
+/**
  * Upsert ciblé de quelques colonnes de `brand_profile` (la table de synthèse lue
  * par la génération via _shared/user-context.ts), en complétant uniquement les
  * champs vides (fillOnlyEmpty n'écrase jamais une saisie existante).
@@ -37,18 +60,16 @@ async function fillBrandProfileSynthesis(
   overwrite = false,
 ) {
   if (Object.keys(fields).length === 0) return;
-  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
-  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
+  const scope = reviewScope(userId, workspaceId);
   const selectCols = `id, ${Object.keys(fields).join(", ")}`;
-  const { data: existing, error: readError } = await (supabase.from("brand_profile") as any)
-    .select(selectCols).eq(filterCol, filterVal).maybeSingle();
+  const { data: existing, error: readError } = await selectInScope("brand_profile", selectCols, scope).maybeSingle();
   if (readError) throw readError;
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing, overwrite);
     if (Object.keys(toWrite).length === 0) return;
     await writeOrThrow((supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "brand_profile.synthesis.update");
   } else {
-    await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null, updated_at: new Date().toISOString(), ...fields }), "brand_profile.synthesis.insert");
+    await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: scope.workspaceId, updated_at: new Date().toISOString(), ...fields }), "brand_profile.synthesis.insert");
   }
 }
 
@@ -64,10 +85,9 @@ async function saveStory(data: AnalysisResult["story"], userId: string, workspac
   if (data.full_story) fields.step_6_full_story = data.full_story;
 
   if (Object.keys(fields).length === 0) return;
-  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
-  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
+  const scope = reviewScope(userId, workspaceId);
 
-  const existing = importTarget(await readImportRows("storytelling", { column: filterCol, value: filterVal, userId }), true);
+  const existing = importTarget(await readImportRows("storytelling", { column: scope.column, value: scope.value, userId }), true);
 
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing, false);
@@ -78,7 +98,7 @@ async function saveStory(data: AnalysisResult["story"], userId: string, workspac
   } else {
     await writeOrThrow((supabase.from("storytelling") as any).insert({
       user_id: userId,
-      workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null,
+      workspace_id: scope.workspaceId,
       is_primary: true,
       title: "Mon histoire fondatrice",
       story_type: "fondatrice",
@@ -111,10 +131,9 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
   if (data.brands_they_follow?.length) fields.step_4_inspiring = data.brands_they_follow.join(", ");
 
   if (Object.keys(fields).length === 0) return;
-  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
-  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
+  const scope = reviewScope(userId, workspaceId);
 
-  const existing = importTarget(await readImportRows("persona", { column: filterCol, value: filterVal, userId }), true);
+  const existing = importTarget(await readImportRows("persona", { column: scope.column, value: scope.value, userId }), true);
 
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing, overwrite);
@@ -143,7 +162,7 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
     if (Object.keys(qui).length > 0) fields.portrait = { qui_elle_est: qui };
     await writeOrThrow((supabase.from("persona") as any).insert({
       user_id: userId,
-      workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null,
+      workspace_id: scope.workspaceId,
       is_primary: true,
       updated_at: new Date().toISOString(),
       ...fields,
@@ -168,10 +187,8 @@ async function saveValueProp(data: AnalysisResult["value_proposition"], userId: 
   // Preuves/témoignages : extraits + affichés mais jamais sauvegardés jusqu'ici.
   // On les range dans step_2c_feedback (« validation reçue » de la proposition).
   if (data.proofs?.length) fields.step_2c_feedback = data.proofs.join("\n");
-  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
-  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
-  const { data: existing, error: readError } = await (supabase.from("brand_proposition") as any)
-    .select("id, step_1_what, version_one_liner, version_final, step_2a_process, step_2d_refuse, step_3_for_whom, step_2c_feedback").eq(filterCol, filterVal).maybeSingle();
+  const scope = reviewScope(userId, workspaceId);
+  const { data: existing, error: readError } = await selectInScope("brand_proposition", "id, step_1_what, version_one_liner, version_final, step_2a_process, step_2d_refuse, step_3_for_whom, step_2c_feedback", scope).maybeSingle();
   if (readError) throw readError;
   if (Object.keys(fields).length > 0) {
   if (existing?.id) {
@@ -181,7 +198,7 @@ async function saveValueProp(data: AnalysisResult["value_proposition"], userId: 
       await writeOrThrow((supabase.from("brand_proposition") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "brand_proposition.update");
     }
   } else {
-    await writeOrThrow((supabase.from("brand_proposition") as any).insert({ user_id: userId, workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null, updated_at: new Date().toISOString(), ...fields }), "brand_proposition.insert");
+    await writeOrThrow((supabase.from("brand_proposition") as any).insert({ user_id: userId, workspace_id: scope.workspaceId, updated_at: new Date().toISOString(), ...fields }), "brand_proposition.insert");
   }
   }
 
@@ -212,31 +229,27 @@ async function saveTone(data: AnalysisResult["tone_style"], userId: string, work
   if (data.channels?.length) fields.channels = data.channels;
   if (data.visual_style) fields.visual_style = data.visual_style;
   if (Object.keys(fields).length === 0) return;
-  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
-  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
-  const { data: existing, error: readError } = await (supabase.from("brand_profile") as any)
-    .select("id, tone_keywords, voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, tone_do, tone_dont, combat_cause, key_expressions, things_to_avoid, target_verbatims, channels, visual_style").eq(filterCol, filterVal).maybeSingle();
+  const scope = reviewScope(userId, workspaceId);
+  const { data: existing, error: readError } = await selectInScope("brand_profile", "id, tone_keywords, voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, tone_do, tone_dont, combat_cause, key_expressions, things_to_avoid, target_verbatims, channels, visual_style", scope).maybeSingle();
   if (readError) throw readError;
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing, overwrite);
     if (Object.keys(toWrite).length === 0) return;
     await writeOrThrow((supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "brand_profile.update");
   } else {
-    await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null, updated_at: new Date().toISOString(), ...fields }), "brand_profile.insert");
+    await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: scope.workspaceId, updated_at: new Date().toISOString(), ...fields }), "brand_profile.insert");
   }
 }
 async function saveStrategy(data: AnalysisResult["content_strategy"], userId: string, workspaceId: string, overwrite = false) {
   if (!data) return;
-  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
-  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
+  const scope = reviewScope(userId, workspaceId);
   const stratFields: Record<string, any> = {};
   if (data.pillars?.[0]) stratFields.pillar_major = data.pillars[0];
   if (data.pillars?.[1]) stratFields.pillar_minor_1 = data.pillars[1];
   if (data.pillars?.[2]) stratFields.pillar_minor_2 = data.pillars[2];
   if (data.pillars?.[3]) stratFields.pillar_minor_3 = data.pillars[3]; // 4e pilier (était jeté)
   if (data.creative_twist) stratFields.creative_concept = data.creative_twist;
-  const { data: existingStrat, error: readError } = await (supabase.from("brand_strategy") as any)
-    .select("id, pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept").eq(filterCol, filterVal).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+  const { data: existingStrat, error: readError } = await selectInScope("brand_strategy", "id, pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept", scope).order("updated_at", { ascending: false }).limit(1).maybeSingle();
   if (readError) throw readError;
   if (Object.keys(stratFields).length > 0) {
   if (existingStrat?.id) {
@@ -247,7 +260,7 @@ async function saveStrategy(data: AnalysisResult["content_strategy"], userId: st
       await writeOrThrow((supabase.from("brand_strategy") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existingStrat.id), "brand_strategy.update");
     }
   } else {
-    await writeOrThrow((supabase.from("brand_strategy") as any).insert({ user_id: userId, workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null, updated_at: new Date().toISOString(), ...stratFields }), "brand_strategy.insert");
+    await writeOrThrow((supabase.from("brand_strategy") as any).insert({ user_id: userId, workspace_id: scope.workspaceId, updated_at: new Date().toISOString(), ...stratFields }), "brand_strategy.insert");
   }
   }
   if (data.editorial_line || data.formats?.length || data.rhythm || data.pillars?.length) {
@@ -256,8 +269,7 @@ async function saveStrategy(data: AnalysisResult["content_strategy"], userId: st
     if (data.editorial_line) profileFields.content_editorial_line = data.editorial_line;
     if (data.formats?.length) profileFields.content_formats = data.formats;
     if (data.rhythm) profileFields.content_frequency = data.rhythm;
-    const { data: existingProfile, error: readError } = await (supabase.from("brand_profile") as any)
-      .select("id, content_pillars, content_editorial_line, content_formats, content_frequency").eq(filterCol, filterVal).maybeSingle();
+    const { data: existingProfile, error: readError } = await selectInScope("brand_profile", "id, content_pillars, content_editorial_line, content_formats, content_frequency", scope).maybeSingle();
   if (readError) throw readError;
     if (existingProfile?.id) {
       const toWrite = fillOnlyEmpty(profileFields, existingProfile, overwrite);
@@ -265,15 +277,14 @@ async function saveStrategy(data: AnalysisResult["content_strategy"], userId: st
         await writeOrThrow((supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existingProfile.id), "brand_profile.content.update");
       }
     } else {
-      await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null, updated_at: new Date().toISOString(), ...profileFields }), "brand_profile.content.insert");
+      await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: scope.workspaceId, updated_at: new Date().toISOString(), ...profileFields }), "brand_profile.content.insert");
     }
   }
 }
 async function saveOffers(data: AnalysisResult["offers"], userId: string, workspaceId: string, overwrite = false) {
   if (!data?.offers?.length) return;
-  const col = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
-  const val = workspaceId && workspaceId !== userId ? workspaceId : userId;
-  const existing = await readImportRows("offers", { column: col, value: val, userId });
+  const scope = reviewScope(userId, workspaceId);
+  const existing = await readImportRows("offers", { column: scope.column, value: scope.value, userId });
   const names = new Set(existing.map(o => (o.name || "").toLocaleLowerCase().trim()));
   const payload = data.offers.map(offer => {
     const name = offer.name?.trim();
@@ -283,7 +294,7 @@ async function saveOffers(data: AnalysisResult["offers"], userId: string, worksp
     names.add(normalized);
     return {
       user_id: userId,
-      workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null,
+      workspace_id: scope.workspaceId,
       name,
       offer_type: "paid",
       price_text: offer.price || null,
@@ -306,11 +317,9 @@ async function saveCharter(data: AnalysisResult["charter"], userId: string, work
   if (data.font_body) payload.font_body = data.font_body;
   if (data.mood_keywords?.length) payload.mood_keywords = data.mood_keywords;
   if (data.visual_style_description) payload.moodboard_description = data.visual_style_description;
-  const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
-  const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
+  const scope = reviewScope(userId, workspaceId);
   if (Object.keys(payload).length === 0) return;
-  const { data: existing, error: readError } = await (supabase.from("brand_charter") as any)
-    .select("*").eq(filterCol, filterVal).maybeSingle();
+  const { data: existing, error: readError } = await selectInScope("brand_charter", "*", scope).maybeSingle();
   if (readError) throw readError;
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(payload, existing, overwrite);
@@ -322,7 +331,7 @@ async function saveCharter(data: AnalysisResult["charter"], userId: string, work
     await writeOrThrow((supabase.from("brand_charter") as any).update(toWrite).eq("id", existing.id), "brand_charter.update");
   } else {
     const visual_evidence = Object.fromEntries(Object.keys(payload).map(key => [key, { source: "diagnostic", confidence: key === "moodboard_description" ? "low" : data.confidence || "low", reviewed_at: new Date().toISOString() }]));
-    await writeOrThrow((supabase.from("brand_charter") as any).insert({ user_id: userId, workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null, ...payload, visual_evidence }), "brand_charter.insert");
+    await writeOrThrow((supabase.from("brand_charter") as any).insert({ user_id: userId, workspace_id: scope.workspaceId, ...payload, visual_evidence }), "brand_charter.insert");
   }
 }
 
