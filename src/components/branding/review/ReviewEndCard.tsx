@@ -18,9 +18,12 @@ interface ReviewEndCardProps {
   handleValidateAll: () => void;
   validatingAll: boolean;
   savingSection: SectionKey | null;
+  /** Reprise d'onboarding qui a remplacé la fiche : les connecteurs intelligents
+      ne sont pas passés, on invite à relire le reste (décision du 15/10/2026). */
+  recheckHint?: boolean;
 }
 
-export function ReviewEndCard({ validated, toReview, goTo, mandatory, setProductPhotosReady, completeReview, canComplete, productPhotosReady, handleValidateAll, validatingAll, savingSection }: ReviewEndCardProps) {
+export function ReviewEndCard({ validated, toReview, goTo, mandatory, setProductPhotosReady, completeReview, canComplete, productPhotosReady, handleValidateAll, validatingAll, savingSection, recheckHint = false }: ReviewEndCardProps) {
   const pending = SECTIONS.filter((s) => !validated.has(s.key));
   const done = pending.length === 0;
   return (
@@ -34,6 +37,12 @@ export function ReviewEndCard({ validated, toReview, goTo, mandatory, setProduct
           ? "Tes choix sont enregistrés. Les informations manquantes restent à compléter quand tu en as besoin depuis Mon identité."
           : `${pending.length} carte${pending.length > 1 ? "s attendent" : " attend"} encore ta réponse. Reprends-${pending.length > 1 ? "les" : "la"} une par une, ou valide tout d'un coup si l'analyse te convient.`}
       </p>
+
+      {done && recheckHint && (
+        <p className="text-sm text-foreground bg-rose-pale rounded-[12px] px-4 py-3 mb-5 max-w-md mx-auto leading-relaxed">
+          💡 Ta fiche a été mise à jour avec tes nouvelles réponses. Quand tu as un moment, relis tes offres, ton ton et ta stratégie dans Mon identité pour vérifier qu'ils collent toujours.
+        </p>
+      )}
 
       {!done && (
         <div className="flex flex-wrap justify-center gap-2 mb-5">

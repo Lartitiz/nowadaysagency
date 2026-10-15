@@ -1,0 +1,15 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`generate — quota > JSON d'erreur sans message → phrase par défaut 1`] = `"Une erreur est survenue. Réessaie 🌸"`;
+
+exports[`generate — quota > limit_reached (code) passe avant l'erreur générique : quota posé, error vide 1`] = `"Tu as fait tes 3 carrousels du mois. Ils reviennent le 1er mars. En attendant, tu peux écrire des posts, des reels ou des stories."`;
+
+exports[`generateStream — quota et erreurs > autre erreur → message lisible 1`] = `"Le serveur a mis trop de temps."`;
+
+exports[`generateStream — quota et erreurs > erreur quota du flux → quota posé, error vide 1`] = `"Tu as fait tes 3 carrousels du mois. Ils reviennent le 1er mars. En attendant, tu peux écrire des posts, des reels ou des stories."`;
+
+exports[`markQuotaExhausted / clearQuotaExhausted > message serveur « disponible à partir… » gardé tel quel 1`] = `"Tes carrousels seront de nouveau disponibles à partir du 1er novembre."`;
+
+exports[`markQuotaExhausted / clearQuotaExhausted > objet quota lisible → phrase qui nomme la limite ; effacé ensuite 1`] = `"Tu as fait tes 3 carrousels du mois. Ils reviennent le 1er mars. En attendant, tu peux écrire des posts, des reels ou des stories."`;
+
+exports[`markQuotaExhausted / clearQuotaExhausted > sans rien de lisible → phrase de secours 1`] = `"Une erreur est survenue. Réessaie 🌸"`;

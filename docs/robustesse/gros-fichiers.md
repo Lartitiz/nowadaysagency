@@ -1540,7 +1540,7 @@ Repères : 28 `any` gelés dans `scripts/cliquet-dette.baseline.json`. Aucun tes
 Code mort repéré (à retirer dans un lot à part, pas pendant un déplacement) : props `onDescribeProject` et `allSourcesFailed`, états `projectText` / `showProjectInput` (l. 52-54, 876-877) ; `BrandingPage.tsx` ne les passe jamais. ✅ Retiré le 15/10/2026 (étape 7).
 
 Hors découpage, à noter pour plus tard :
-- **Connecteurs intelligents** : les `save*` écrivent directement en base, sans passer par la détection de changement de branding. Normal pour un premier remplissage (champs vides), mais en reprise d'onboarding (`allow_overwrite`) le positionnement ou le ton peuvent changer sans suggestion de mise à jour. À trancher, pas à corriger en déplaçant.
+- **Connecteurs intelligents** : les `save*` écrivent directement en base, sans passer par la détection de changement de branding. Normal pour un premier remplissage (champs vides), mais en reprise d'onboarding (`allow_overwrite`) le positionnement ou le ton peuvent changer sans suggestion de mise à jour. ✅ Tranché le 15/10/2026 (étape 7) : pas d'analyse automatique (1 crédit à chaque fois) ; la carte de fin affiche un rappel de relire offres, ton et stratégie quand `allow_overwrite` est posé et qu'au moins une section a été réécrite (`ReviewEndCard`, prop `recheckHint`).
 - **Vocabulaire UI** : les boutons « OK » des offres (l. 252) et de la charte (l. 372) ne respectent pas « verbe + objet » (« Enregistrer l'offre », « Enregistrer ma charte »). Petit lot à part : les tests de la charte cliquent sur « OK », il faudra les mettre à jour dans la même PR. ✅ Fait le 15/10/2026 : « Appliquer mes modifications » dans les deux cas (rien n'est enregistré en base à ce clic, seulement à la validation de la carte : « Enregistrer » aurait été trompeur).
 
 **Tests qui le protègent aujourd'hui**
@@ -1589,7 +1589,7 @@ Une PR par lot. À chaque lot : `npx tsc --noEmit -p tsconfig.app.json`, `npx vi
 4. **Lot 3 (navigation)** : `review/use-review-carousel.ts`.
 5. **Lot 4 (validation)** : `review/use-review-validation.ts`. Le plus délicat : relire le diff ligne à ligne (`written`, `savingRef`, ordre `markValidated` → `clearToReview` → `goNext`).
 6. **Lot 5 (écrans)** : `ReviewHeader.tsx`, `ReviewCard.tsx`, `ReviewEndCard.tsx`, `ReviewStickyBar.tsx`. Mettre à jour la ligne 15 du classement dans ce document.
-7. **Après le découpage, PR séparées (changements de comportement, pas des déplacements)** : retrait du code mort (`onDescribeProject`, `allSourcesFailed`, `projectText`) ; un seul helper de portée dans `branding-review-save.ts` à la place des 8 copies (en gardant la règle actuelle, test 2 à l'appui) ; boutons « OK » renommés ; décision sur les connecteurs intelligents en cas d'`allow_overwrite`.
+7. **Après le découpage, PR séparées (changements de comportement, pas des déplacements)** : retrait du code mort (`onDescribeProject`, `allSourcesFailed`, `projectText`) ; un seul helper de portée dans `branding-review-save.ts` à la place des 8 copies (en gardant la règle actuelle, test 2 à l'appui) ; boutons « OK » renommés ; décision sur les connecteurs intelligents en cas d'`allow_overwrite`. **Les 4 faites le 15/10/2026 : fiche 14 close.**
 
 ---
 
@@ -1896,10 +1896,12 @@ Tous dans `src/test/`, en rendu du vrai hook (`renderHook(useContentGenerator)`)
 
 Niveau : **moyen**. Un seul appelant (`CreerUnifie`), pas de test qui lit le texte du fichier, et l'essentiel du code à déplacer fabrique des objets : c'est rassurant. Mais **toutes** les générations de /creer passent par ici, le fichier bouge beaucoup (21 commits depuis le 17/07/2026, dont 11 sur le carrousel : #1451, #1410, #1389, #1387, #1166, #1148, #1067…) et la protection actuelle tient en 7 cas. Une clé oubliée dans un corps de demande ne casse rien de visible : le serveur l'ignore et le contenu est juste moins bon (exemples vécus : réponses aux questions perdues pour le reel #1043 et les stories #1042). Les tests 1 et 5 rendent ce risque visible. Le point le plus fragile est l'ordre des `await` et des vérifications d'époque : il reste dans le hook.
 
-Coordination : **une autre session découpe `CreerUnifie.tsx` en ce moment** (fiche 1). Le lot I est fusionné le 15/10/2026 (#1579, `use-creer-flow-persistence.ts`) ; le lot J (`use-creer-entry-init.ts`, arrivée depuis ailleurs) est le suivant. Ce découpage-ci ne touche **pas** la page tant que le chemin, le nom `useContentGenerator` et les 24 clés rendues restent identiques. Ne pas ouvrir une PR de ce chantier qui modifie `CreerUnifie.tsx`, `use-do-generate.ts` ou les 8 tests de page pendant le lot J ; s'annoncer avant de fusionner. Pas de session Lovable ouverte sur /creer pendant ces PR.
+Coordination : la fiche 1 (`CreerUnifie.tsx`) est terminée depuis le 15/10/2026 (lot J, #1581) ; plus de conflit avec la page. Ce découpage-ci ne touche toujours **pas** la page : chemin, nom `useContentGenerator` et 24 clés rendues identiques. Pas de session Lovable ouverte sur /creer pendant ces PR.
 
 Une PR par lot :
 1. **Lot T** : tests 1 à 6 ci-dessus. Aucun code touché. Verts avant tout déplacement.
+   **Fait le 15/10/2026** : `src/test/content-generator-bodies.test.tsx` (20 cas, corps de `generate`), `-response` (24, lecture de la réponse), `-quota` (9, vrai `handleQuotaError`), `-questions` (23), `-stream` (15, dont le contrat des 24 clés) ; snapshots dans `src/test/__snapshots__/` (chaînes de plus de 200 caractères notées `<N car.>`, date de renouvellement du quota fixée). Vérifié contre trois pannes volontaires (paires question → réponse du reel retirées, plafond du catalogue 40 → 50, clé `streamError` oubliée) : rouges à chaque fois.
+   **Constat** (figé par un test, à corriger dans sa propre PR après le découpage) : `parseAIJson` cherche un tableau AVANT de sauver le champ `content`. Un post au JSON cassé (guillemets non échappés) qui contient une liste (`"hashtags": ["a"]`) s'affiche donc comme la liste `["a"]` au lieu du texte.
 2. **Lot 1** : `generator/types.ts`, `generator/tolerant-json.ts`, `generator/error-messages.ts` (le hook réexporte les types).
 3. **Lot 2** : `generator/bodies/carousel.ts` (le plus modifié, à faire seul).
 4. **Lot 3** : `generator/bodies/reel.ts`, `story.ts`, `post.ts`, `linkedin.ts` + `generator/read-generate-response.ts`.

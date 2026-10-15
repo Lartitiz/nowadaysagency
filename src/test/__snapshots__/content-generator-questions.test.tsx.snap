@@ -1,0 +1,211 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`generateQuestions — autres formats (creative-flow questions) > angle connu, mode photo (vision 180 s) 1`] = `
+{
+  "body": {
+    "angle": {
+      "structure": [
+        "Hook",
+        "Problème",
+        "Contexte",
+        "Point clé 1",
+        "Point clé 2",
+        "Point clé 3",
+        "Synthèse",
+        "CTA",
+      ],
+      "title": "Mythe à déconstruire",
+      "tone": "direct, chaleureux, oral assumé",
+    },
+    "contentType": "instagram_post",
+    "context": "Sujet",
+    "news_context": "Actu",
+    "objective": null,
+    "photo_description": "Desc",
+    "photo_mode": true,
+    "photos": [
+      {
+        "base64": "allégée(px1)",
+        "context": "contexte 1",
+        "libraryContext": "<undefined>",
+        "mimeType": "image/jpeg",
+      },
+      {
+        "base64": "allégée(px2)",
+        "context": "contexte 2",
+        "libraryContext": "<undefined>",
+        "mimeType": "image/png",
+      },
+    ],
+    "recent_briefs_context": "<undefined>",
+    "step": "questions",
+    "workspace_id": "workspace",
+  },
+  "fn": "creative-flow",
+  "timeout": 180000,
+}
+`;
+
+exports[`generateQuestions — carrousel (carousel-ai deepening_questions) > mixte sans photo : pas de vision 1`] = `
+{
+  "body": {
+    "carousel_type": "<undefined>",
+    "channel": "linkedin",
+    "content_structure": null,
+    "editorial_angle": null,
+    "news_context": "Actu",
+    "objective": null,
+    "photo_description": "<undefined>",
+    "photos": "<undefined>",
+    "recent_briefs_context": "<undefined>",
+    "subject": "Sujet",
+    "subject_details": "<undefined>",
+    "type": "deepening_questions",
+    "workspace_id": "workspace",
+  },
+  "fn": "carousel-ai",
+  "timeout": 60000,
+}
+`;
+
+exports[`generateQuestions — carrousel (carousel-ai deepening_questions) > photo avec photos (vision, 90 s) 1`] = `
+{
+  "body": {
+    "carousel_type": "photo",
+    "channel": "instagram",
+    "content_structure": null,
+    "editorial_angle": null,
+    "objective": null,
+    "photo_description": "Desc",
+    "photos": [
+      {
+        "base64": "allégée(px1)",
+        "context": "contexte 1",
+        "libraryContext": "<undefined>",
+        "mimeType": "<undefined>",
+      },
+      {
+        "base64": "allégée(px2)",
+        "context": "contexte 2",
+        "libraryContext": "<undefined>",
+        "mimeType": "image/png",
+      },
+      {
+        "base64": "allégée(px3)",
+        "context": "contexte 3",
+        "libraryContext": "<undefined>",
+        "mimeType": "<undefined>",
+      },
+      {
+        "base64": "allégée(px4)",
+        "context": "contexte 4",
+        "libraryContext": "<undefined>",
+        "mimeType": "image/png",
+      },
+      {
+        "base64": "allégée(px5)",
+        "context": "contexte 5",
+        "libraryContext": "<undefined>",
+        "mimeType": "<undefined>",
+      },
+      {
+        "base64": "allégée(px6)",
+        "context": "contexte 6",
+        "libraryContext": "<undefined>",
+        "mimeType": "image/png",
+      },
+      {
+        "base64": "allégée(px7)",
+        "context": "contexte 7",
+        "libraryContext": "<undefined>",
+        "mimeType": "<undefined>",
+      },
+      {
+        "base64": "allégée(px8)",
+        "context": "contexte 8",
+        "libraryContext": "<undefined>",
+        "mimeType": "image/png",
+      },
+      {
+        "base64": "allégée(px9)",
+        "context": "contexte 9",
+        "libraryContext": "<undefined>",
+        "mimeType": "<undefined>",
+      },
+      {
+        "base64": "allégée(px10)",
+        "context": "contexte 10",
+        "libraryContext": "<undefined>",
+        "mimeType": "image/png",
+      },
+    ],
+    "recent_briefs_context": "<undefined>",
+    "subject": "Sujet",
+    "subject_details": "<undefined>",
+    "type": "deepening_questions",
+    "workspace_id": "workspace",
+  },
+  "fn": "carousel-ai",
+  "timeout": 90000,
+}
+`;
+
+exports[`generateQuestions — carrousel (carousel-ai deepening_questions) > photos brutes envoyées comme photo 1`] = `
+{
+  "body": {
+    "carousel_type": "photo",
+    "channel": "instagram",
+    "content_structure": null,
+    "editorial_angle": null,
+    "objective": null,
+    "photo_description": "<undefined>",
+    "photos": [
+      {
+        "base64": "allégée(px1)",
+        "context": "contexte 1",
+        "libraryContext": "<undefined>",
+        "mimeType": "<undefined>",
+      },
+    ],
+    "recent_briefs_context": "<undefined>",
+    "subject": "Sujet",
+    "subject_details": "<undefined>",
+    "type": "deepening_questions",
+    "workspace_id": "workspace",
+  },
+  "fn": "carousel-ai",
+  "timeout": 90000,
+}
+`;
+
+exports[`generateQuestions — carrousel (carousel-ai deepening_questions) > texte, sujet du calendrier 1`] = `
+{
+  "body": {
+    "carousel_type": "<undefined>",
+    "channel": "instagram",
+    "content_structure": "<577 car.>",
+    "editorial_angle": "mythe",
+    "objective": "vente",
+    "photo_description": "<undefined>",
+    "photos": "<undefined>",
+    "recent_briefs_context": "<undefined>",
+    "subject": "Mon sujet",
+    "subject_details": "Le texte du calendrier",
+    "type": "deepening_questions",
+    "workspace_id": "workspace",
+  },
+  "fn": "carousel-ai",
+  "timeout": 60000,
+}
+`;
+
+exports[`generateQuestions — mémoire anti-répétition (content_briefs) > 3 sujets non vides gardés, 120 caractères max, filtre sur le workspace 1`] = `
+"
+══ HISTORIQUE RÉCENT (3 briefs, indicatif) ══
+Brief #1 — sujet : "Premier sujet" · format : post · angle : mythe
+Brief #2 — sujet : "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx..."
+Brief #3 — sujet : "Troisième" · format : carousel
+
+USAGE STRICT : ne re-pose pas une question déjà posée pour ces sujets passés. Ces briefs ne décrivent PAS le sujet courant — ne mélange jamais leur contenu avec le sujet courant.
+"
+`;

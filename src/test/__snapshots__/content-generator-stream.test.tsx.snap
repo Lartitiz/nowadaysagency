@@ -1,0 +1,220 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`generateStream — corps envoyé à creative-flow > LinkedIn, angle du catalogue LinkedIn, recherche, actu 1`] = `
+{
+  "angle": {
+    "structure": [
+      "Hook",
+      "Problème",
+      "Contexte",
+      "Point clé 1",
+      "Point clé 2",
+      "Point clé 3",
+      "Synthèse",
+      "CTA",
+    ],
+    "title": "Décryptage expert",
+    "tone": "direct, chaleureux, oral assumé",
+  },
+  "answers": "<undefined>",
+  "contentType": "post_linkedin",
+  "context": "Sujet",
+  "deepResearch": true,
+  "editorialFormat": "decryptage_expert",
+  "editorialFormatLabel": "decryptage_expert",
+  "news_context": "Actu",
+  "objective": "<undefined>",
+  "preGenAnswers": "<undefined>",
+  "step": "generate",
+  "workspace_id": "espace-explicite",
+}
+`;
+
+exports[`generateStream — corps envoyé à creative-flow > Pinterest, angle visuel, lien et tableau, photos 1`] = `
+{
+  "angle": {
+    "structure": [
+      "Hook",
+      "Problème",
+      "Contexte",
+      "Point clé 1",
+      "Point clé 2",
+      "Point clé 3",
+      "Synthèse",
+      "CTA",
+    ],
+    "title": "Infographie",
+    "tone": "direct, chaleureux, oral assumé",
+  },
+  "answers": "<undefined>",
+  "contentType": "post_pinterest",
+  "context": "Sujet",
+  "editorialFormat": "infographie",
+  "editorialFormatLabel": "infographie",
+  "objective": "<undefined>",
+  "photo_description": "Desc",
+  "photo_mode": true,
+  "photos": [
+    {
+      "base64": "allégée(px1)",
+      "context": "contexte 1",
+      "libraryContext": "<undefined>",
+      "mimeType": "image/jpeg",
+    },
+    {
+      "base64": "allégée(px2)",
+      "context": "contexte 2",
+      "libraryContext": "<undefined>",
+      "mimeType": "image/jpeg",
+    },
+    {
+      "base64": "allégée(px3)",
+      "context": "contexte 3",
+      "libraryContext": "<undefined>",
+      "mimeType": "image/jpeg",
+    },
+    {
+      "base64": "allégée(px4)",
+      "context": "contexte 4",
+      "libraryContext": "<undefined>",
+      "mimeType": "image/jpeg",
+    },
+    {
+      "base64": "allégée(px5)",
+      "context": "contexte 5",
+      "libraryContext": "<undefined>",
+      "mimeType": "image/jpeg",
+    },
+    {
+      "base64": "allégée(px6)",
+      "context": "contexte 6",
+      "libraryContext": "<undefined>",
+      "mimeType": "image/jpeg",
+    },
+    {
+      "base64": "allégée(px7)",
+      "context": "contexte 7",
+      "libraryContext": "<undefined>",
+      "mimeType": "image/jpeg",
+    },
+    {
+      "base64": "allégée(px8)",
+      "context": "contexte 8",
+      "libraryContext": "<undefined>",
+      "mimeType": "image/jpeg",
+    },
+    {
+      "base64": "allégée(px9)",
+      "context": "contexte 9",
+      "libraryContext": "<undefined>",
+      "mimeType": "image/jpeg",
+    },
+    {
+      "base64": "allégée(px10)",
+      "context": "contexte 10",
+      "libraryContext": "<undefined>",
+      "mimeType": "image/jpeg",
+    },
+  ],
+  "pinterest_board": "Tableau",
+  "pinterest_link": "https://exemple.fr",
+  "preGenAnswers": "<undefined>",
+  "step": "generate",
+  "workspace_id": "workspace",
+}
+`;
+
+exports[`generateStream — corps envoyé à creative-flow > newsletter sans réponses ni angle 1`] = `
+{
+  "angle": "<undefined>",
+  "answers": "<undefined>",
+  "contentType": "post_newsletter",
+  "context": "Sujet",
+  "editorialFormat": "<undefined>",
+  "editorialFormatLabel": "<undefined>",
+  "objective": "<undefined>",
+  "preGenAnswers": "<undefined>",
+  "step": "generate",
+  "workspace_id": "workspace",
+}
+`;
+
+exports[`generateStream — corps envoyé à creative-flow > post Instagram, angle du catalogue Instagram, réponses 1`] = `
+{
+  "angle": {
+    "structure": [
+      "Hook",
+      "Problème",
+      "Contexte",
+      "Point clé 1",
+      "Point clé 2",
+      "Point clé 3",
+      "Synthèse",
+      "CTA",
+    ],
+    "title": "Mythe à déconstruire",
+    "tone": "direct, chaleureux, oral assumé",
+  },
+  "answers": [
+    {
+      "answer": "A",
+      "question": "Ton anecdote ?",
+    },
+    {
+      "answer": "B",
+      "question": "Ton émotion ?",
+    },
+    {
+      "answer": "C",
+      "question": "Ta conviction ?",
+    },
+  ],
+  "contentType": "post_instagram",
+  "context": "Sujet
+
+[Contenu existant à approfondir]
+Texte",
+  "editorialFormat": "mythe",
+  "editorialFormatLabel": "mythe",
+  "objective": "vente",
+  "preGenAnswers": {
+    "anecdote": "A",
+    "conviction": "C",
+    "emotion": "B",
+  },
+  "step": "generate",
+  "workspace_id": "workspace",
+}
+`;
+
+exports[`generateStream — corps envoyé à creative-flow > réponses déjà nommées anecdote / émotion / conviction 1`] = `
+{
+  "angle": "<undefined>",
+  "answers": [
+    {
+      "answer": "Conv",
+      "question": "conviction",
+    },
+    {
+      "answer": "Anec",
+      "question": "anecdote",
+    },
+    {
+      "answer": "Émo",
+      "question": "emotion",
+    },
+  ],
+  "contentType": "post_instagram",
+  "context": "Sujet",
+  "editorialFormat": "<undefined>",
+  "editorialFormatLabel": "<undefined>",
+  "objective": "<undefined>",
+  "preGenAnswers": {
+    "anecdote": "Anec",
+    "conviction": "Conv",
+    "emotion": "Émo",
+  },
+  "step": "generate",
+  "workspace_id": "workspace",
+}
+`;

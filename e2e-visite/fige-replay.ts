@@ -137,6 +137,11 @@ export async function expectZoneMatches(page: Page, locator: Locator, name: stri
     x: Math.ceil(box.x + scroll.x), y: Math.ceil(box.y + scroll.y),
     width: Math.floor(box.width) - 1, height: Math.floor(box.height) - 1,
   };
+  // La barre d'actions du résultat est collée en bas de l'écran (chantier C,
+  // 15/10/2026) : sans ça, elle recouvre le bas de la zone sur l'image.
+  // Masquée le temps de la photo seulement (la suite de la spec s'en sert).
+  const hide = await page.addStyleTag({ content: '[data-testid="result-actions"]{visibility:hidden !important}' });
   const shot = await page.screenshot({ clip, fullPage: true, animations: "disabled", mask: [page.locator("canvas")] });
+  await hide.evaluate((el) => el.remove());
   expect(shot, message).toMatchSnapshot(name, { maxDiffPixelRatio: 0.01 });
 }

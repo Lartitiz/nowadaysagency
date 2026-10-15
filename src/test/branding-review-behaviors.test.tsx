@@ -162,6 +162,37 @@ describe("BrandingReview — coaching dans la relecture", () => {
   });
 });
 
+describe("BrandingReview — reprise d'onboarding qui remplace la fiche", () => {
+  const RAPPEL = /relis tes offres, ton ton et ta stratégie/;
+
+  it("fiche remplacée : la carte de fin invite à relire le reste de l'identité", async () => {
+    render(<BrandingReview analysis={{ ...ANALYSIS, allow_overwrite: true }} onDone={() => {}} />);
+    fireEvent.click(screen.getAllByText("Je valide tout")[0]);
+    await screen.findByText("Ta relecture est terminée");
+    expect(screen.getByText(RAPPEL)).toBeInTheDocument();
+  });
+
+  it("sans remplacement, pas de rappel", async () => {
+    render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
+    fireEvent.click(screen.getAllByText("Je valide tout")[0]);
+    await screen.findByText("Ta relecture est terminée");
+    expect(screen.queryByText(RAPPEL)).toBeNull();
+  });
+
+  it("remplacement autorisé mais tout gardé tel quel : rien n'a changé, pas de rappel", async () => {
+    const tout = new Set(["story", "persona", "value_proposition", "tone_style", "content_strategy", "offers", "charter"]);
+    const progress = vi.fn().mockResolvedValue(undefined);
+    render(<BrandingReview analysis={{ ...ANALYSIS, allow_overwrite: true }} preFilledSections={tout} onProgress={progress} onDone={() => {}} />);
+    for (let i = 0; i < 7; i++) {
+      fireEvent.click(screen.getByText("Garder tel quel"));
+      if (i < 6) await screen.findByText(`${i + 1}/7 validées`);
+    }
+    await screen.findByText("Ta relecture est terminée");
+    expect(m.writes).toEqual([]);
+    expect(screen.queryByText(RAPPEL)).toBeNull();
+  });
+});
+
 describe("BrandingReview — bio Instagram", () => {
   it("Instagram inaccessible → coller sa bio puis réanalyser avec le texte nettoyé", () => {
     const reanalyze = vi.fn();
