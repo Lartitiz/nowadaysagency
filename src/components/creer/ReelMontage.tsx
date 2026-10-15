@@ -15,22 +15,17 @@ import { readableError } from "@/lib/error-messages";
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Loader2, Search, Film, Download, Upload } from "lucide-react";
+import { Loader2, Film, Download } from "lucide-react";
 import { toast } from "sonner";
 import {
   submitReelRender,
   pollReelRender,
   archiveReelMp4,
-  sectionDuration,
-  voiceSectionDuration,
 } from "@/lib/reel-render";
 import { useBrandCharter } from "@/hooks/use-branding";
 import type { VoiceClip } from "@/lib/reel-voice";
-import { readStudioVideo, type StudioVideoJob } from "@/features/studio-video/api";
 import { MontageModeFork, MontageModeSummary } from "@/features/reel-montage/MontageModeChoice";
 import { MontageVoiceChoice } from "@/features/reel-montage/MontageVoiceChoice";
 import { StudioClipDialog } from "@/features/reel-montage/StudioClipDialog";
@@ -39,7 +34,9 @@ import { assembleRefusal, chosenClips, voiceGuards } from "@/features/reel-monta
 import { buildMontagePlan } from "@/features/reel-montage/build-montage-plan";
 import { useReelStockSearch } from "@/features/reel-montage/use-reel-stock-search";
 import { useReelMyVideos } from "@/features/reel-montage/use-reel-my-videos";
-import { fromStock, set, type MontageMode, type Phase, type ReelMontageProject, type Section, type SelectedClip, type StudioCutaway } from "@/features/reel-montage/types";
+import { useReelStudioReturn } from "@/features/reel-montage/use-reel-studio-return";
+import { MontagePassageCard } from "@/features/reel-montage/MontagePassageCard";
+import { type MontageMode, type Phase, type ReelMontageProject, type Section, type SelectedClip, type StudioCutaway } from "@/features/reel-montage/types";
 
 // Réexportation : ReelResult.tsx et les tests importent ce type depuis ce fichier (fiche 16, lot 1).
 export type { ReelMontageProject } from "@/features/reel-montage/types";
@@ -72,36 +69,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
 
   const [clips, setClips] = useState<(SelectedClip | null)[]>(() => initialProject?.clips?.length === spoken.length ? initialProject.clips : spoken.map(() => null));
   const [cutaways, setCutaways] = useState<(StudioCutaway | null)[]>(() => initialProject?.cutaways?.length === spoken.length ? initialProject.cutaways : spoken.map(() => null));
-  const [studioTarget, setStudioTarget] = useState<{ index: number; create: boolean } | null>(null);
-  const [pendingCutaway, setPendingCutaway] = useState<{ index: number; job: StudioVideoJob } | null>(null);
-  const reelReturn = new URLSearchParams(window.location.search);
-  const returnPassage = reelReturn.get("studio_passage");
-  const highlightedPassage = returnPassage !== null && /^\d+$/.test(returnPassage) && Number(returnPassage) < spoken.length
-    ? Number(returnPassage) : null;
-  const returnedClipId = reelReturn.get("studio_clip");
-  const pendingLibraryKey = workspaceId ? `studio-video-for-reel:${workspaceId}` : null;
-  let pendingLibraryClip: string | null = null;
-  try { pendingLibraryClip = pendingLibraryKey ? sessionStorage.getItem(pendingLibraryKey) : null; } catch { /* Le sélecteur du Studio reste disponible. */ }
-  const returnClipLoaded = useRef(false);
-  useEffect(() => {
-    const clipId = returnedClipId && highlightedPassage !== null ? returnedClipId : pendingLibraryClip;
-    const target = returnedClipId && highlightedPassage !== null ? highlightedPassage : spoken.length ? 0 : null;
-    if (returnClipLoaded.current || !workspaceId || target === null || !clipId) return;
-    returnClipLoaded.current = true;
-    void readStudioVideo(workspaceId, clipId).then(({ job }) => {
-      if (job.status === "ready" && job.video_url) setPendingCutaway({ index: target, job });
-      else toast.error("Ce clip du Studio n’est pas encore disponible.");
-    }).catch(() => toast.error("Impossible de retrouver ce clip du Studio.")).finally(() => {
-      if (pendingLibraryKey && pendingLibraryClip === clipId) try { sessionStorage.removeItem(pendingLibraryKey); } catch { /* Sans effet sur le montage. */ }
-    });
-  }, [workspaceId, highlightedPassage, returnedClipId, pendingLibraryClip, pendingLibraryKey, spoken.length]);
-  useEffect(() => {
-    if (highlightedPassage === null || !montageMode) return;
-    const frame = requestAnimationFrame(() => {
-      document.getElementById(`studio-reel-passage-${highlightedPassage}`)?.scrollIntoView?.({ block: "center" });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [highlightedPassage, montageMode]);
+  const { studioTarget, setStudioTarget, pendingCutaway, setPendingCutaway, highlightedPassage } = useReelStudioReturn({ spoken, workspaceId, montageMode });
   const [associationTexts, setAssociationTexts] = useState(() => initialProject?.sectionTexts || sectionTexts);
   const [needsReview, setNeedsReview] = useState(() => !!initialProject && JSON.stringify(initialProject.sectionTexts) !== JSON.stringify(sectionTexts));
   const sectionFingerprint = JSON.stringify(sectionTexts);
@@ -310,184 +278,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
 
           <div className="space-y-2">
             {spoken.map((s, i) => (
-              <Card key={i} id={`studio-reel-passage-${i}`} className={i === highlightedPassage ? "border-primary ring-2 ring-primary/20" : "border-border"}>
-                <CardContent className="p-3 space-y-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {s.timing && <Badge variant="secondary" className="font-mono text-2xs">{s.timing}</Badge>}
-                    <span className="text-2xs text-muted-foreground">
-                      {montageMode === "filme"
-                        ? clips[i]?.duration != null
-                          ? `${Math.round(clips[i]!.duration as number)} s (ta prise)`
-                          : "durée : celle de ta prise, une fois choisie"
-                        : `≈ ${sectionDuration(s)} s`}
-                    </span>
-                  </div>
-                  {s.texte_parle && (
-                    <p className="text-xs text-foreground leading-snug line-clamp-2">{s.texte_parle}</p>
-                  )}
-
-                  {montageMode === "cache" && (
-                    <>
-                      <div className="flex gap-1.5">
-                        <Input
-                          value={keywords[i] ?? ""}
-                          onChange={(e) => setKeywords((K) => set(K, i, e.target.value))}
-                          onKeyDown={(e) => e.key === "Enter" && runSearch(i, keywords[i] ?? "")}
-                          placeholder="mots-clés du plan (ex: mains savon atelier)"
-                          className="h-8 text-xs"
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 shrink-0"
-                          onClick={() => runSearch(i, keywords[i] ?? "")}
-                          disabled={loading[i]}
-                        >
-                          {loading[i] ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Search className="h-3.5 w-3.5" />
-                          )}
-                        </Button>
-                      </div>
-
-                      {results[i]?.length > 0 && (
-                        <div className="flex gap-1.5 overflow-x-auto pb-1">
-                          {results[i].map((v) => {
-                            const selected = clips[i]?.id === `stock-${v.id}`;
-                            return (
-                              <button
-                                key={v.id}
-                                type="button"
-                                onClick={() => setClips((C) => set(C, i, fromStock(v)))}
-                                className={`relative shrink-0 rounded-md overflow-hidden border-2 ${
-                                  selected ? "border-primary" : "border-transparent"
-                                }`}
-                                aria-label={selected ? "Clip sélectionné" : "Choisir ce clip"}
-                              >
-                                <img src={v.thumbnail} alt="" className="h-24 w-[54px] object-cover" loading="lazy" />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-2xs"
-                      onClick={() => openFilePicker(i)}
-                      disabled={uploadingSection !== null}
-                    >
-                      {uploadingSection === i ? (
-                        <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                      ) : (
-                        <Upload className="h-3.5 w-3.5 mr-1" />
-                      )}
-                      Ma vidéo
-                    </Button>
-                    {myVideos.length > 0 && (
-                      <select
-                        className="h-7 rounded-md border border-input bg-background px-2 text-2xs text-muted-foreground max-w-[190px]"
-                        value={clips[i]?.source === "mine" ? clips[i]?.url : ""}
-                        onChange={(e) => e.target.value && pickFromLibrary(i, e.target.value)}
-                        aria-label="Reprendre une de mes vidéos"
-                      >
-                        <option value="">Mes vidéos déjà déposées…</option>
-                        {myVideos.map((v) => (
-                          <option key={v.url} value={v.url}>
-                            {v.name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    {clips[i]?.source === "mine" && (
-                      <Badge variant="secondary" className="text-2xs max-w-[160px] truncate">
-                        Ma vidéo · {clips[i]?.label}
-                      </Badge>
-                    )}
-                    {clips[i]?.source === "studio" && <Badge variant="secondary" className="text-2xs">Clip du Studio · {clips[i]?.label}</Badge>}
-                  </div>
-
-                  {workspaceId && <div className="space-y-2 rounded-md border border-primary/15 bg-primary/5 p-2">
-                    <p className="text-2xs font-medium">Ajouter un plan du Studio sur ce passage</p>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button type="button" variant="outline" size="sm" onClick={() => setStudioTarget({ index: i, create: false })}>Choisir un clip du Studio</Button>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setStudioTarget({ index: i, create: true })}>Créer un clip dans le Studio</Button>
-                      <a href={`/photos/studio?reel_passage=${i}`} className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm hover:bg-accent hover:text-accent-foreground">
-                        Préparer une image dans Studio photo
-                      </a>
-                    </div>
-                    {pendingCutaway?.index === i && <div className="space-y-2 rounded-md border bg-background p-2">
-                      <p className="text-xs">Prévisualisation pour ce passage : {s.texte_parle}</p>
-                      {pendingCutaway.job.video_url && <video src={pendingCutaway.job.video_url} controls muted playsInline preload="metadata" className="w-full max-w-xs rounded bg-black" />}
-                      <p className="text-2xs text-muted-foreground">Le clip sera muet dans le Reel ; la voix et les sous-titres restent sur le passage.</p>
-                      <div className="flex gap-2">
-                        <Button type="button" size="sm" disabled={montageMode === "filme" && !clips[i]} onClick={() => {
-                          const job = pendingCutaway.job;
-                          const sceneLength = montageMode === "filme" ? clips[i]?.duration || sectionDuration(s) :
-                            voiceClips[i]?.duration ? voiceSectionDuration(voiceClips[i]!.duration) : sectionDuration(s);
-                          if (montageMode === "cache" && !clips[i]) {
-                            if (job.duration < sceneLength) {
-                              toast.error("Ce clip est trop court pour porter toute la voix de ce passage. Choisis une vidéo de fond, puis ajoute-le comme plan.");
-                              return;
-                            }
-                            setClips(C => set(C, i, { id: `studio-${job.id}`, studioJobId: job.id, url: job.video_url!,
-                              thumbnail: null, duration: job.duration, source: "studio", label: job.source_name, seek: 0 }));
-                          } else {
-                            setCutaways(C => set(C, i, { jobId: job.id, url: job.video_url!,
-                              duration: Math.min(job.duration, sceneLength), start: 0, seek: 0, label: job.source_name }));
-                          }
-                          setPendingCutaway(null);
-                        }}>Insérer dans ce passage</Button>
-                        <Button type="button" size="sm" variant="ghost" onClick={() => setPendingCutaway(null)}>Garder sans insérer</Button>
-                      </div>
-                      {montageMode === "filme" && !clips[i] && <p className="text-2xs">Choisis d’abord ta prise face caméra : elle portera la voix sous le plan.</p>}
-                    </div>}
-                    {cutaways[i] && <div className="space-y-1">
-                      <p className="text-2xs">Plan inséré : {cutaways[i]!.label} · {cutaways[i]!.duration} s</p>
-                      <label className="block text-2xs">Début du plan dans ce passage : {cutaways[i]!.start.toFixed(1)} s
-                        <input type="range" min={0} max={Math.max(0, (montageMode === "filme" ? clips[i]?.duration || sectionDuration(s) :
-                          voiceClips[i]?.duration ? voiceSectionDuration(voiceClips[i]!.duration) : sectionDuration(s)) - cutaways[i]!.duration)}
-                          step={0.5} value={cutaways[i]!.start} className="block w-full" aria-label="Placer le plan du Studio dans ce passage"
-                          onChange={e => setCutaways(C => C[i] ? set(C, i, { ...C[i]!, start: Number(e.target.value) }) : C)} />
-                      </label>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => setCutaways(C => set(C, i, null))}>Retirer ce plan</Button>
-                    </div>}
-                  </div>}
-
-                  {montageMode === "cache" &&
-                    clips[i]?.source === "mine" &&
-                    clips[i]?.duration != null &&
-                    (clips[i]!.duration as number) > sectionDuration(s) + 0.5 && (
-                      <div className="space-y-1">
-                        <label className="text-2xs text-muted-foreground">
-                          Fenêtre : {Math.round(clips[i]!.seek)} s →{" "}
-                          {Math.round(clips[i]!.seek + sectionDuration(s))} s (sur{" "}
-                          {Math.round(clips[i]!.duration as number)} s)
-                        </label>
-                        <input
-                          type="range"
-                          min={0}
-                          max={Math.max(0, (clips[i]!.duration as number) - sectionDuration(s))}
-                          step={0.5}
-                          value={clips[i]!.seek}
-                          onChange={(e) =>
-                            setClips((C) => {
-                              const c = C[i];
-                              return c ? set(C, i, { ...c, seek: Number(e.target.value) }) : C;
-                            })
-                          }
-                          className="w-full"
-                          aria-label="Choisir la fenêtre de lecture dans ma vidéo"
-                        />
-                      </div>
-                    )}
-                </CardContent>
-              </Card>
+              <MontagePassageCard key={i} s={s} i={i} montageMode={montageMode} clips={clips} setClips={setClips} cutaways={cutaways} setCutaways={setCutaways} voiceClips={voiceClips} keywords={keywords} setKeywords={setKeywords} results={results} loading={loading} runSearch={runSearch} uploadingSection={uploadingSection} openFilePicker={openFilePicker} myVideos={myVideos} pickFromLibrary={pickFromLibrary} workspaceId={workspaceId} pendingCutaway={pendingCutaway} setPendingCutaway={setPendingCutaway} setStudioTarget={setStudioTarget} highlightedPassage={highlightedPassage} />
             ))}
           </div>
 
