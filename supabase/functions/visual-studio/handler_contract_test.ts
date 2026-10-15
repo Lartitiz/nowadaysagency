@@ -23,7 +23,7 @@
 // fonctions SQL studio_confirm_generation / studio_complete_generation, pas
 // par logUsage.
 
-import { assertSnapshot } from "https://deno.land/std@0.224.0/testing/snapshot.ts";
+import { assertSnapshot } from "../../edge-tests/snapshot.ts";
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { id, PROPOSAL, SESSION, SPACE, stable, studioFixture, type StudioFixture } from "./contract_harness.ts";
 

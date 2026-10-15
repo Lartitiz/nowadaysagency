@@ -10,7 +10,7 @@
 //
 // Lancer : deno test --no-check --allow-env --allow-read --node-modules-dir=none supabase/functions/_shared/redac-gate-fix-instructions_snapshot_test.ts
 
-import { assertSnapshot } from "https://deno.land/std@0.224.0/testing/snapshot.ts";
+import { assertSnapshot } from "../../edge-tests/snapshot.ts";
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { anthropicTextSuccess, installFetchMock, setTestEnv } from "./test-edge-harness.ts";
 import { analyzeCarouselRedac, buildTextFixInstructions, numbersIn, researchNumbers, runRedacGate, type TextRedacAnalysis } from "./redac-gate.ts";
