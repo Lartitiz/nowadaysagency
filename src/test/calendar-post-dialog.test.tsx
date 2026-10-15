@@ -19,6 +19,7 @@ const m = vi.hoisted(() => ({
   updates: [] as { table: string; patch: any; id: string }[],
   updateError: [] as (object | null)[],
   brief: null as any,
+  uploads: [] as { bucket: string; path: string }[],
   invoke: vi.fn(),
   publishIg: vi.fn(),
   publishReel: vi.fn(),
@@ -61,7 +62,13 @@ vi.mock("@/integrations/supabase/client", () => {
     };
     return q;
   };
-  return { supabase: { from, auth: { getSession: async () => ({ data: { session: { user: { id: "u1" } } } }) }, storage: { from: () => ({}) } } };
+  const storage = {
+    from: (bucket: string) => ({
+      upload: async (path: string) => { m.uploads.push({ bucket, path }); return { error: null }; },
+      getPublicUrl: (path: string) => ({ data: { publicUrl: `https://cdn.test/${bucket}/${path}` } }),
+    }),
+  };
+  return { supabase: { from, auth: { getSession: async () => ({ data: { session: { user: { id: "u1" } } } }) }, storage } };
 });
 // Champs à dictée : de simples champs.
 vi.mock("@/components/ui/input-with-voice", () => ({ InputWithVoice: (p: any) => <input {...p} /> }));
@@ -140,7 +147,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   m.user = { id: "u1" }; m.workspace = { column: "user_id", value: "u1" }; m.workspaceId = "u1";
   m.social = { connected: true, known: true, expiry: null, refresh: vi.fn() };
-  m.updates.length = 0; m.updateError.length = 0; m.brief = null;
+  m.updates.length = 0; m.updateError.length = 0; m.brief = null; m.uploads.length = 0;
   m.confirm.mockResolvedValue(true);
 });
 
@@ -187,6 +194,26 @@ describe("en-tête de contexte", () => {
     fireEvent.click(item("Prêt à publier"));
     expect(meta().status).toBe("ready");
     expect(screen.getByLabelText("Changer le statut du post").textContent).toContain("Prêt à publier");
+  });
+});
+
+describe("visuels", () => {
+  it("envoi dans calendar-media sous l'id de l'utilisatrice ; fichier trop lourd refusé ; visuel retiré", async () => {
+    m.workspaceId = "w2";
+    renderDialog({ editingPost: post() });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const ok = new File(["x"], "photo.JPG", { type: "image/jpeg" });
+    const lourd = new File(["x"], "lourd.png", { type: "image/png" });
+    Object.defineProperty(lourd, "size", { value: 11 * 1024 * 1024 });
+    fireEvent.change(input, { target: { files: [ok, lourd] } });
+    expect(await screen.findByAltText("Visuel 1")).toBeInTheDocument();
+    expect(m.uploads).toHaveLength(1);
+    expect(m.uploads[0].bucket).toBe("calendar-media");
+    expect(m.uploads[0].path).toMatch(/^u1\/\d+-[a-z0-9]+\.jpg$/);
+    expect(m.toast.error).toHaveBeenCalledTimes(1);
+    expect(screen.queryByAltText("Visuel 2")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Supprimer le visuel 1"));
+    expect(screen.queryByAltText("Visuel 1")).toBeNull();
   });
 });
 
