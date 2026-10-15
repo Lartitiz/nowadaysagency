@@ -3,7 +3,7 @@ import { UserRound, ScanEye, NotebookPen, Rocket } from "lucide-react";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { HubConnectBanner } from "@/components/hub";
 import InstagramProfileCoaching from "@/components/instagram/InstagramProfileCoaching";
-import { PresenceLayout, PresenceScope, PresenceCreate, PresenceCard, PresenceChoices, PresenceLink } from "@/components/hub/PresenceLayout";
+import { PresenceLayout, PresenceScope, PresenceCreate, PresenceCard, PresenceLink } from "@/components/hub/PresenceLayout";
 
 export default function InstagramHub() { return <PresenceScope page={InstagramSpace} />; }
 
@@ -15,10 +15,7 @@ function InstagramSpace() {
     <div className="grid gap-4 sm:grid-cols-2">
       <PresenceCard title="Mon profil" description="Nom, bio, stories à la une, posts épinglés et feed." icon={UserRound} to="/instagram/profil" />
       <PresenceCard title="Faire le point" description="Un audit de ton profil et des recommandations pour avancer." icon={ScanEye} to="/instagram/audit" />
-      <PresenceChoices title="Ma ligne éditoriale" description="Tes sujets, tes formats et un rythme qui te convient." icon={NotebookPen}>
-        <PresenceLink to="/instagram/profil/edito">Mes sujets et mes piliers</PresenceLink>
-        <PresenceLink to="/instagram/rythme">Mes formats et mon rythme</PresenceLink>
-      </PresenceChoices>
+      <PresenceCard title="Ma ligne éditoriale" description="Tes sujets, tes formats et un rythme qui te convient." icon={NotebookPen} to="/instagram/profil/edito" />
       <PresenceCard title="Préparer un lancement" description="Ton offre, un plan, puis les contenus à créer." icon={Rocket} to="/instagram/lancement" />
     </div>
     <nav aria-label="Suivi Instagram" className="my-6 flex flex-wrap gap-x-6 gap-y-1">

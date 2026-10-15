@@ -23,7 +23,37 @@ interface Notification {
   created_at: string;
 }
 
-export default function NotificationBell() {
+// Les barres du haut téléphone, tablette et ordinateur sont toutes montées et
+// masquées en CSS : sans ce filtre, trois cloches vivaient en même temps (trois
+// lectures, trois abonnements, des pastilles « non lu » qui divergent).
+const SHELL_QUERIES = {
+  mobile: "(max-width: 767px)",
+  tablet: "(min-width: 768px) and (max-width: 1023px)",
+  desktop: "(min-width: 1024px)",
+} as const;
+
+type Shell = keyof typeof SHELL_QUERIES;
+
+function useShellMatch(only?: Shell) {
+  const query = only ? SHELL_QUERIES[only] : null;
+  const [matches, setMatches] = useState(() => !query || typeof window === "undefined" || !window.matchMedia || window.matchMedia(query).matches);
+  useEffect(() => {
+    if (!query || typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia(query);
+    const onChange = () => setMatches(mql.matches);
+    onChange();
+    mql.addEventListener?.("change", onChange);
+    return () => mql.removeEventListener?.("change", onChange);
+  }, [query]);
+  return matches;
+}
+
+export default function NotificationBell({ only }: { only?: Shell } = {}) {
+  if (!useShellMatch(only)) return null;
+  return <NotificationBellInner />;
+}
+
+function NotificationBellInner() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();

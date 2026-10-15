@@ -26,8 +26,12 @@ it("ouvre les outils secondaires et respecte les flags et accès contractuels", 
   expect(menu.getByRole("link", { name: "Améliorer mon site" })).toHaveAttribute("href", "/site");
   expect(menu.getByRole("link", { name: "Coach IA" })).toHaveAttribute("href", "/dashboard/guide");
   expect(menu.queryByRole("link", { name: "Mon accompagnement" })).not.toBeInTheDocument();
-  expect(menu.queryByRole("link", { name: "Pinterest" })).not.toBeInTheDocument();
+  // Pinterest est de nouveau visible pour toutes (décision du 15/10/2026) ; le SEO reste masqué.
+  expect(menu.getByRole("link", { name: "Pinterest" })).toHaveAttribute("href", "/pinterest");
+  expect(menu.queryByRole("link", { name: "SEO" })).not.toBeInTheDocument();
   expect(menu.queryByRole("link", { name: /Admin/ })).not.toBeInTheDocument();
+  // Seule porte vers le profil sur ordinateur (le menu de l'avatar n'existe qu'en téléphone/tablette).
+  expect(menu.getByRole("link", { name: "Mon profil" })).toHaveAttribute("href", "/profil");
 });
 it("ferme le menu en naviguant sans vider le brouillon avant le garde-fou de Créer", () => {
   saveFlowState({ step: "idea", ideaText: "Texte initial à conserver" });
