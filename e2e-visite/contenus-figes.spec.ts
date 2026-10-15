@@ -33,6 +33,8 @@ test("contenus figés — carrousel texte : texte, design et export identiques �
   test.skip(test.info().project.name !== "desktop", "desktop uniquement (images de référence prises en desktop)");
   test.setTimeout(600_000);
 
+  const boucles: string[] = [];
+  page.on("pageerror", (e) => { if (/Maximum update depth/.test(e.message)) boucles.push(e.message.slice(0, 200)); });
   const fige = await installFigeReplay(page, "carrousel-texte");
   test.skip(!fige.available, "aucun enregistrement : lancer une fois avec FIGE_RECORD=1");
   console.log(fige.recording ? "🔴 ENREGISTREMENT (génération réelle)" : "▶️ REJEU (zéro crédit IA)");
@@ -127,4 +129,17 @@ test("contenus figés — carrousel texte : texte, design et export identiques �
   });
   expect(report.slideCount, "le PowerPoint n'a pas autant de slides que l'éditeur").toBe(n);
   console.log(`✅ Contenus figés — carrousel texte : ${n} slides identiques à la référence, export PowerPoint valide.`);
+
+  // ── 4 : choisir un texte ne fait pas planter l'éditeur (15/10/2026, #1582) ──
+  // La barre flottante mesurait une largeur qui dépendait de sa place : boucle de
+  // rendu et page blanche en choisissant le titre, vue sur un écran étroit.
+  await page.setViewportSize({ width: 800, height: 600 });
+  await vignettes.first().click();
+  const titre = page.frameLocator('iframe[title^="Éditeur de la slide"]').locator("[data-slide-text]").first();
+  await titre.scrollIntoViewIfNeeded();
+  await titre.click();
+  await page.waitForTimeout(1500);
+  expect(boucles, "page blanche en choisissant un texte dans l'éditeur (boucle de rendu)").toEqual([]);
+  await expect(page.getByRole("toolbar", { name: /Barre d.outils de l.élément/ }), "la barre de l'élément ne s'affiche pas").toBeVisible();
+  console.log("🖼️ Éditeur : choisir un texte ✅ (pas de page blanche)");
 });
