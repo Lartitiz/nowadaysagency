@@ -1,6 +1,6 @@
 import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
-import { Sentry } from "@/lib/sentry";
+import { Sentry } from "@/lib/sentry-lazy";
 import { MESSAGES } from "@/lib/messages";
 import { Button } from "@/components/ui/button";
 

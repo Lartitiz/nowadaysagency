@@ -8,7 +8,7 @@ import { detectPlantage } from "../../e2e-visite/detect-plantage";
 // on lance le détecteur sur le DOM obtenu : si un libellé change dans le front,
 // ce test casse avant que la sonde ne devienne aveugle.
 
-vi.mock("@/lib/sentry", () => ({ Sentry: { captureReactException: vi.fn() } }));
+vi.mock("@/lib/sentry-lazy", () => ({ Sentry: { captureReactException: vi.fn() } }));
 vi.mock("@/lib/client-error-monitor", () => ({ reportClientError: vi.fn() }));
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";

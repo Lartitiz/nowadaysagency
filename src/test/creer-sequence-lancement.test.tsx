@@ -53,7 +53,7 @@ vi.mock('@/components/creer/CreerStepResult', () => ({ default: (p: any) => { mo
 vi.mock('@/components/creer/PublishOrScheduleDialog', () => ({ default: () => null }));
 vi.mock('@/components/SaveToIdeasDialog', () => ({ SaveToIdeasDialog: () => null }));
 vi.mock('@/components/creer/PhotoUploadZone', () => ({ PhotoUploadZone: (p: any) => <span data-testid="photos">{p.initialPhotos.map((x: any) => x.name).join(',')}</span> }));
-vi.mock('@/lib/posthog', () => ({ posthog: { capture: vi.fn() } }));
+vi.mock('@/lib/posthog-lazy', () => ({ posthog: { capture: vi.fn() } }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: (table: string) => {
   const q: any = { then: (resolve: any, reject: any) => Promise.resolve(table === 'user_photos' ? mocks.photoRead() : { data: [], error: null }).then(resolve, reject) };
   for (const key of ['select', 'eq', 'in', 'order', 'limit', 'insert', 'update', 'not', 'is']) q[key] = () => q;

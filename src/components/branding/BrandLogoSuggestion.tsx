@@ -25,7 +25,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { posthog } from "@/lib/posthog";
+import { posthog } from "@/lib/posthog-lazy";
 import { base64ToFile } from "@/components/photos/SitePhotoImportDialog";
 
 type Status = "loading" | "ready" | "hidden" | "saving" | "done";

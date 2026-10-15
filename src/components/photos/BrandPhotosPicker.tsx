@@ -28,7 +28,7 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useSocialConnections } from "@/hooks/use-social-connections";
 import { useUploadLibraryPhotos } from "@/hooks/use-user-photos";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { posthog } from "@/lib/posthog";
+import { posthog } from "@/lib/posthog-lazy";
 import {
   base64ToFile,
   fileNameFromUrl,

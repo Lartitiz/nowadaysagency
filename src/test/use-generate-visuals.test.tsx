@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("sonner", () => ({ toast: mocks.toast }));
 vi.mock("@/lib/invoke-with-heartbeat", () => ({ invokeWithHeartbeat: mocks.invokeWithHeartbeat }));
 vi.mock("@/lib/quota-error-handler", () => ({ handleQuotaError: mocks.handleQuotaError }));
-vi.mock("@/lib/posthog", () => ({ posthog: { capture: mocks.capture } }));
+vi.mock("@/lib/posthog-lazy", () => ({ posthog: { capture: mocks.capture } }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { from: () => ({ insert: mocks.dbInsert }) },
 }));

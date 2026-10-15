@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Échecs de génération étiquetés par format dans Sentry (lot 5, 13/10/2026).
 const captureMessage = vi.fn();
-vi.mock("@/lib/sentry", () => ({ Sentry: { captureMessage: (...args: unknown[]) => captureMessage(...args) } }));
+vi.mock("@/lib/sentry-lazy", () => ({ Sentry: { captureMessage: (...args: unknown[]) => captureMessage(...args) } }));
 
 const { describeGeneration, creativeFlowFormat, reportGenerationFailure } = await import("@/lib/generation-telemetry");
 

@@ -17,7 +17,7 @@ vi.mock("@/hooks/use-workspace-query", () => ({
   useWorkspaceId: () => "ws-1",
 }));
 vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({ invalidateQueries: vi.fn() }) }));
-vi.mock("@/lib/posthog", () => ({ posthog: { capture: vi.fn() } }));
+vi.mock("@/lib/posthog-lazy", () => ({ posthog: { capture: vi.fn() } }));
 vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: m.scan }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {

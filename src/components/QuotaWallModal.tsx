@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { versTarifs } from "@/lib/retour-apres-detour";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Sparkles, Calendar, ArrowRight } from "lucide-react";
-import { posthog } from "@/lib/posthog";
+import { posthog } from "@/lib/posthog-lazy";
 import type { CategoryUsage } from "@/hooks/use-user-plan";
 
 interface QuotaWallModalProps {

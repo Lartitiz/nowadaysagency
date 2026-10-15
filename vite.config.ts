@@ -1,7 +1,48 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+
+// Page d'accueil (cible des pubs) : le morceau de JS/CSS de LandingPage n'est
+// connu qu'après le téléchargement du JS principal, ce qui ajoute un aller-retour
+// réseau avant le premier affichage. Ce plugin ajoute au HTML un petit script
+// qui, UNIQUEMENT sur « / », demande ces fichiers dès la lecture de la page
+// (modulepreload / preload). Aucun changement de découpage des chunks : c'est
+// une simple anticipation de téléchargement, les autres pages ne chargent rien de plus.
+function preloadLandingOnHome(): Plugin {
+  return {
+    name: "preload-landing-on-home",
+    apply: "build",
+    transformIndexHtml: {
+      order: "post",
+      handler(html, ctx) {
+        const bundle = ctx.bundle;
+        if (!bundle) return html;
+        const chunks = Object.values(bundle).filter((c) => c.type === "chunk") as any[];
+        const landing = chunks.find((c) => c.facadeModuleId?.endsWith("/src/pages/LandingPage.tsx"));
+        const entry = chunks.find((c) => c.isEntry);
+        if (!landing || !entry) return html;
+        const already = new Set<string>([entry.fileName, ...entry.imports]);
+        const js: string[] = [];
+        const css: string[] = [];
+        const walk = (name: string) => {
+          const c = bundle[name] as any;
+          if (!c || c.type !== "chunk" || already.has(name) || js.includes(name)) return;
+          js.push(name);
+          for (const f of c.viteMetadata?.importedCss ?? []) if (!css.includes(f)) css.push(f);
+          for (const dep of c.imports) walk(dep);
+        };
+        walk(landing.fileName);
+        const files = JSON.stringify({ js: js.map((f) => "/" + f), css: css.map((f) => "/" + f) });
+        const script =
+          `<script>(function(){if(location.pathname!=="/")return;var f=${files};` +
+          `f.js.forEach(function(h){var l=document.createElement("link");l.rel="modulepreload";l.crossOrigin="";l.href=h;document.head.appendChild(l);});` +
+          `f.css.forEach(function(h){var l=document.createElement("link");l.rel="preload";l.as="style";l.crossOrigin="";l.href=h;document.head.appendChild(l);});})();</script>`;
+        return html.replace("</head>", `    ${script}\n  </head>`);
+      },
+    },
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -35,7 +76,7 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [react(), mode === "development" && componentTagger(), preloadLandingOnHome()].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

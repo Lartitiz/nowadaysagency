@@ -6,7 +6,7 @@ vi.mock("@/lib/invoke-with-heartbeat", () => ({ invokeWithHeartbeat: mocks.invok
 vi.mock("@/hooks/use-streaming-invoke", () => ({ useStreamingInvoke: () => ({ invoke:mocks.stream,reset:mocks.reset }) }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user:{id:"owner"} }) }));
 vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "workspace" }));
-vi.mock("@/lib/posthog", () => ({ posthog:{capture:vi.fn()} }));
+vi.mock("@/lib/posthog-lazy", () => ({ posthog:{capture:vi.fn()} }));
 vi.mock("@/lib/quota-error-handler", () => ({ handleQuotaError: () => false }));
 vi.mock("@/lib/image-vision", () => ({ downscalePhotosForVision: async (photos: any[]) => photos.map(p => ({ ...p, base64: "scaled-pixels" })) }));
 import { useContentGenerator } from "@/hooks/use-content-generator";

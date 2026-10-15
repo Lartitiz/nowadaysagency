@@ -4,7 +4,7 @@ import { memoriseRetour } from "@/lib/retour-apres-detour";
 import { Sparkles } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
-import { posthog } from "@/lib/posthog";
+import { posthog } from "@/lib/posthog-lazy";
 import type { CategoryUsage } from "@/hooks/use-user-plan";
 import { isFairUsePlan } from "@/lib/plan-limits";
 

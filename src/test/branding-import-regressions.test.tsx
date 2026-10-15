@@ -56,7 +56,7 @@ vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => m.client }));
 vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: async () => ({ data: { extracted: m.state.extracted }, error: null }) }));
 vi.mock("@/lib/file-extractors", () => ({ extractTextFromFile: vi.fn(), ACCEPTED_MIME_TYPES: ".txt" }));
 vi.mock("sonner", () => ({ toast: m.toast }));
-vi.mock("@/lib/posthog", () => ({ posthog: { capture: vi.fn() } }));
+vi.mock("@/lib/posthog-lazy", () => ({ posthog: { capture: vi.fn() } }));
 vi.mock("@/components/AppHeader", () => ({ default: () => null }));
 vi.mock("@/components/SubPageHeader", () => ({ default: () => null }));
 vi.mock("@/components/Confetti", () => ({ default: () => null }));

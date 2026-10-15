@@ -52,7 +52,7 @@ vi.mock('@/components/dashboard/ContentCoachingDialog', () => ({ default: () => 
 vi.mock('@/components/creer/CreerTransformTab', () => ({ default: () => <p>Choix Recycler et Crosspost</p> }));
 vi.mock('@/components/creer/CreerStepFormat', () => ({ default: (p: any) => <div><p>Format : {p.forcedChannel}</p><p>Sous-mode : {p.initialCarouselSubMode}</p><p>Idée : {p.idea}</p><button onClick={p.onBack}>Retour idée</button></div> }));
 vi.mock('@/components/creer/CreerStepResult', () => ({ default: (p: any) => { mocks.resultProps=p; return <div><pre data-testid="result">{JSON.stringify(p.result)}</pre><button onClick={p.onReset}>Réinitialiser</button><button onClick={p.onEdit}>Éditer le résultat</button></div>; } }));
-vi.mock('@/lib/posthog', () => ({ posthog: { capture: vi.fn() } }));
+vi.mock('@/lib/posthog-lazy', () => ({ posthog: { capture: vi.fn() } }));
 vi.mock('@/lib/photo-storage', () => ({ userPhotoToBase64: (...args: any[]) => mocks.photoDecode(...args) }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: (table: string) => {
   const q: any = { then: (resolve: any) => Promise.resolve(table === 'user_photos' ? mocks.photoRead() : { data: [], error: null }).then(resolve) };

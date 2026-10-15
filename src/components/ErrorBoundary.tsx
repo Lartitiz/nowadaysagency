@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { Sentry } from "@/lib/sentry";
+import { Sentry } from "@/lib/sentry-lazy";
 import { reportClientError } from "@/lib/client-error-monitor";
 import { Button } from "@/components/ui/button";
 import { MESSAGES } from "@/lib/messages";

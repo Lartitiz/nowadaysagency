@@ -52,7 +52,7 @@ vi.mock('@/components/creer/CreerStepFormat', () => ({ default: (p: any) => <div
 vi.mock('@/components/creer/CreerStepResult', () => ({ default: (p: any) => <div data-testid="result"><button onClick={() => p.onGenerateVisuals?.()}>Mettre en forme</button></div> }));
 vi.mock('@/components/creer/PublishOrScheduleDialog', () => ({ default: () => null }));
 vi.mock('@/components/SaveToIdeasDialog', () => ({ SaveToIdeasDialog: () => null }));
-vi.mock('@/lib/posthog', () => ({ posthog: { capture: () => {} } }));
+vi.mock('@/lib/posthog-lazy', () => ({ posthog: { capture: () => {} } }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: () => {
   const q: any = { then: (resolve: any, reject: any) => Promise.resolve({ data: [], error: null }).then(resolve, reject) };
   for (const key of ['select', 'eq', 'in', 'order', 'limit', 'insert', 'update', 'upsert', 'not', 'is']) q[key] = () => q;

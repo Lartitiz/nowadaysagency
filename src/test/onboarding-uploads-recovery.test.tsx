@@ -24,7 +24,7 @@ vi.mock("@/hooks/use-workspace-query", () => ({
   useProfileUserId: () => m.userId,
 }));
 vi.mock("react-router-dom", () => ({ useNavigate: () => m.navigate }));
-vi.mock("@/lib/posthog", () => ({ posthog: { capture: vi.fn() } }));
+vi.mock("@/lib/posthog-lazy", () => ({ posthog: { capture: vi.fn() } }));
 vi.mock("@/lib/onboarding-status", () => ({ resolveOnboardingStatus: async () => {
   if (m.statusDelay) await new Promise(resolve => setTimeout(resolve, 700));
   return "needs";

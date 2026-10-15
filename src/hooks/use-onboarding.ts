@@ -10,7 +10,7 @@ import { TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { type DiagnosticData } from "@/lib/diagnostic-data";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { posthog } from "@/lib/posthog";
+import { posthog } from "@/lib/posthog-lazy";
 import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 import { isValidUrl } from "@/components/onboarding/OnboardingShared";
 import { rememberProductOrService } from "@/lib/product-or-service";

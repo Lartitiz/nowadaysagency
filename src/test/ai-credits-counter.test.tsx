@@ -16,7 +16,7 @@ vi.mock("react-router-dom", () => ({
 const mocks = vi.hoisted(() => ({
   capture: vi.fn(),
 }));
-vi.mock("@/lib/posthog", () => ({ posthog: { capture: mocks.capture } }));
+vi.mock("@/lib/posthog-lazy", () => ({ posthog: { capture: mocks.capture } }));
 
 import AiCreditsCounter from "@/components/AiCreditsCounter";
 

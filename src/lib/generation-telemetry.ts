@@ -11,7 +11,7 @@
 // le message d'erreur brut. Seulement des catégories fermées.
 // Ne compte pas comme un échec : quota atteint, session expirée, accès refusé.
 
-import { Sentry } from "@/lib/sentry";
+import { Sentry } from "@/lib/sentry-lazy";
 
 /** Edge functions de création de contenu suivies (les autres sont ignorées). */
 export const GENERATION_FUNCTIONS = new Set([
