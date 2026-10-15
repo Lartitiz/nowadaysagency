@@ -40,6 +40,7 @@ const ChatGuidePage = lazy(() => import("./pages/ChatGuidePage"));
 
 const Profile = lazy(() => import("./pages/Profile"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const HelpPage = lazy(() => import("./pages/HelpPage"));
 const OrganizationHub = lazy(() => import("./pages/OrganizationHub"));
 const IdeasPage = lazy(() => import("./pages/IdeasPage"));
 const BrandingPage = lazy(() => import("./pages/BrandingPage"));
@@ -264,6 +265,7 @@ function AnimatedRoutes() {
               <Route path="/photos" element={<ProtectedRoute><PhotosPage /></ProtectedRoute>} />
               <Route path="/profil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/parametres" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/aide" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
               <Route path="/parametres/connexions" element={<ProtectedRoute><ConnectionCheckPage /></ProtectedRoute>} />
               <Route path="/abonnement" element={<ProtectedRoute><AbonnementPage /></ProtectedRoute>} />
               <Route path="/accompagnement" element={<Navigate to="/dashboard" replace />} />
