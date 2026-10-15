@@ -1905,6 +1905,7 @@ Une PR par lot :
 2. **Lot 1** : `generator/types.ts`, `generator/tolerant-json.ts`, `generator/error-messages.ts` (le hook réexporte les types).
    **Fait le 15/10/2026** : déplacement vérifié ligne à ligne (seuls changent les `export` ajoutés, les en-têtes et les imports). `QUOTA_EXHAUSTED_MESSAGE` n'existait plus : `error-messages.ts` contient `cleanErrorMessage` et `quotaInlineMessage`. Dossier `src/features/creer/generator/` reconnu par le rapport d'impact (`impact-creation.mjs` + cas de test). Hook : 1 181 → 889 lignes, 26 → 21 `any` (référence du cliquet baissée). Aucun snapshot du lot T modifié.
 3. **Lot 2** : `generator/bodies/carousel.ts` (le plus modifié, à faire seul).
+   **Fait le 15/10/2026** : `buildCarouselGenerateBody(params, ctx)` + `CAROUSEL_GENERATE_TIMEOUT_MS` (commentaire du budget gardé). Corps et choix de `carousel_type` déplacés à l'identique ; `onStatus`, l'appel et l'époque restent dans le hook. Snapshots du lot T inchangés ; panne volontaire dans le nouveau fichier (catalogue 40 → 50) vue par `content-generator-bodies`. Hook : 889 → 845 lignes.
 4. **Lot 3** : `generator/bodies/reel.ts`, `story.ts`, `post.ts`, `linkedin.ts` + `generator/read-generate-response.ts`.
 5. **Lot 4** : `generator/questions-request.ts`.
 6. **Lot 5** : `generator/stream-body.ts`.
