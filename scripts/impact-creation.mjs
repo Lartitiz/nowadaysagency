@@ -85,7 +85,7 @@ export const FRONT_FILES = [
   [/^src\/lib\/export-carousel-/, "Carrousels : exports"],
   [/^src\/hooks\/use-generate-visuals\.ts$/, "Carrousels : lancement de la mise en forme visuelle"],
   [/^src\/hooks\/use-user-slides-generate\.ts$/, "Carrousels : slides écrites par l'utilisatrice"],
-  [/^src\/components\/creer\/ReelMontage\.tsx$/, "Reel : écran de montage"],
+  [/^src\/components\/creer\/ReelMontage\.tsx$|^src\/features\/reel-montage\//, "Reel : écran de montage"],
   [/^src\/components\/creer\/CreerStepEdit\.tsx$|^src\/features\/creer\/edited-text\.ts$/, "Parcours /creer : étape « Modifier » (tous formats)"],
   [/^src\/hooks\/use-regeneration-backup\.ts$/, "Parcours /creer : filet « Régénérer » / « Changer d'angle » (tous formats)"],
   [/^src\/components\/creer\/formatRenderers\/(\w+)Result\.tsx$/, (m) => `Écran de résultat : ${m[1]}`],
