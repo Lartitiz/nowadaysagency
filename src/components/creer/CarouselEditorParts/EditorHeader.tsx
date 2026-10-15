@@ -4,8 +4,9 @@
 import { Fragment, type MutableRefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Keyboard, Redo2, Smartphone, Undo2 } from "lucide-react";
+import { Keyboard, Redo2, SlidersHorizontal, Smartphone, Undo2 } from "lucide-react";
 import type { CarouselDocument } from "@/lib/carousel-editor";
+import type { EditorMode } from "@/components/creer/CarouselEditorParts/editor-mode";
 
 // Sur PC, les raccourcis s'affichent avec Ctrl (et Maj) au lieu de ⌘ (et ⇧).
 const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -32,22 +33,21 @@ const SHORTCUTS: [string, string][] = [
   ["⌘ + glisser", "Placer librement, sans repères"],
 ];
 
-/** Titre et boutons du haut de l'éditeur. */
-export function EditorHeader({ history, setInstaOpen, undo }: {
+/** Titre et boutons du haut de l'éditeur (une ligne), avec le passage au mode complet. */
+export function EditorHeader({ history, mode, setInstaOpen, setMode, undo }: {
   history: MutableRefObject<{ past: CarouselDocument[]; future: CarouselDocument[]; key: string; time: number }>;
+  mode: EditorMode;
   setInstaOpen: (open: boolean) => void;
+  setMode: (mode: EditorMode) => void;
   undo: (redo?: boolean) => unknown;
 }) {
   return (
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="font-display text-3xl text-primary">Personnaliser mon carrousel</h2>
-          <p className="text-xs text-muted-foreground">
-            Clique sur un élément ou choisis-le dans les calques. Tes retouches ne
-            consomment aucun crédit IA.
-          </p>
+        <div className="min-w-0">
+          <h2 className="font-display text-xl text-primary md:text-2xl">Personnaliser mon carrousel</h2>
+          <p className="hidden text-xs text-muted-foreground md:block">Tes retouches ne coûtent aucun crédit.</p>
         </div>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           <Button
             variant="outline"
             size="sm"
@@ -55,10 +55,9 @@ export function EditorHeader({ history, setInstaOpen, undo }: {
             onClick={() => undo()}
             aria-label="Annuler la modification"
             aria-keyshortcuts="Meta+Z Control+Z"
-            title={`Annuler (${shortcutLabel("⌘Z")})`}
-            className="gap-1.5"
+            className="gap-1.5 px-2 sm:px-3"
           >
-            <Undo2 size={15} /> Annuler
+            <Undo2 size={15} /> <span className="hidden sm:inline">Annuler</span>
           </Button>
           <Button
             variant="outline"
@@ -67,18 +66,18 @@ export function EditorHeader({ history, setInstaOpen, undo }: {
             onClick={() => undo(true)}
             aria-label="Rétablir la modification"
             aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z Control+Y"
-            title={`Rétablir (${shortcutLabel(SHORTCUTS[1][0])})`}
-            className="gap-1.5"
+            className="gap-1.5 px-2 sm:px-3"
           >
-            <Redo2 size={15} /> Rétablir
+            <Redo2 size={15} /> <span className="hidden sm:inline">Rétablir</span>
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setInstaOpen(true)} aria-label="Aperçu Instagram">
+          <Button variant="outline" size="sm" className="gap-1.5 px-2 sm:px-3" onClick={() => setInstaOpen(true)} aria-label="Aperçu Instagram">
             <Smartphone size={15} /> <span className="hidden sm:inline">Aperçu Instagram</span>
           </Button>
+          {mode === "complet" && (
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5" aria-label="Voir les raccourcis clavier">
-                <Keyboard size={15} /> <span className="hidden sm:inline">Raccourcis</span>
+              <Button variant="outline" size="sm" className="hidden gap-1.5 md:inline-flex" aria-label="Voir les raccourcis clavier">
+                <Keyboard size={15} /> Raccourcis
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-80 text-xs">
@@ -94,6 +93,16 @@ export function EditorHeader({ history, setInstaOpen, undo }: {
               <p className="mt-2 text-muted-foreground">Ils marchent partout dans l’éditeur, même après un clic à côté de la slide.</p>
             </PopoverContent>
           </Popover>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            aria-pressed={mode === "complet"}
+            onClick={() => setMode(mode === "simple" ? "complet" : "simple")}
+            className="gap-1.5 border-primary/40 text-primary"
+          >
+            <SlidersHorizontal size={15} /> {mode === "simple" ? "Plus d’outils" : "Mode simple"}
+          </Button>
         </div>
       </div>
   );

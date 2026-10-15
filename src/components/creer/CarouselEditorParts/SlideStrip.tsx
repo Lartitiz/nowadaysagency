@@ -6,10 +6,13 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Copy, LockKeyhole, Plus, Trash2, Unlock } from "lucide-react";
 import { INSTAGRAM_DIRECT_MAX_IMAGES, instagramTooManyImagesReason } from "@/features/creer/publish-guards";
 import { CAROUSEL_MAX_SLIDES, renumberDocument, type CarouselDocument, type EditorSlide } from "@/lib/carousel-editor";
+import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
 import { SlideThumb } from "@/components/creer/CarouselEditorParts/PanelBits";
 
 /** Bande des miniatures et boutons des slides. */
-export function SlideStrip({ active, add, changeSlide, commit, current, document, dragSlide, dropAt, justDragged, move, reorder, setActive, setDragSlide, setDropAt, setSelected, slide, thumbDrag, thumbIndexAt }: {
+export function SlideStrip({ simple = false, active, add, changeSlide, commit, current, document, dragSlide, dropAt, justDragged, move, reorder, setActive, setDragSlide, setDropAt, setSelected, slide, thumbDrag, thumbIndexAt }: {
+  /** Mode simple : flèches, dupliquer et verrouiller passent dans « Plus d'outils ». */
+  simple?: boolean;
   active: number;
   add: (duplicate?: boolean) => void;
   changeSlide: (next: EditorSlide, key?: string) => void;
@@ -31,8 +34,9 @@ export function SlideStrip({ active, add, changeSlide, commit, current, document
 }) {
   return (
     <>
+    <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-3">
       <div
-        className="flex gap-2 overflow-x-auto pb-2"
+        className="flex min-w-0 gap-1.5 overflow-x-auto pb-1 md:flex-1"
         aria-label="Slides du carrousel"
       >
         {document.slides.map((s, i) => (
@@ -79,22 +83,18 @@ export function SlideStrip({ active, add, changeSlide, commit, current, document
             aria-label={`Sélectionner la slide ${i + 1}`}
             aria-pressed={i === active}
             title="Clique pour ouvrir, glisse pour changer l’ordre"
-            className={`relative shrink-0 cursor-grab rounded-lg border p-1 text-2xs ${i === active ? "border-primary ring-2 ring-primary/40" : "bg-background"} ${dragSlide === i ? "opacity-50" : ""} ${dropAt === i && dragSlide !== i ? "outline outline-2 outline-offset-2 outline-primary" : ""}`}
+            className={`relative shrink-0 cursor-grab rounded-lg border p-0.5 text-2xs ${i === active ? "border-primary ring-2 ring-primary/40" : "bg-background"} ${dragSlide === i ? "opacity-50" : ""} ${dropAt === i && dragSlide !== i ? "outline outline-2 outline-offset-2 outline-primary" : ""}`}
           >
-            <SlideThumb html={s.html} />
-            <span className="mt-0.5 block text-center font-semibold">
+            <SlideThumb html={s.html} width={48} />
+            <span className="block text-center font-semibold leading-tight">
               {i + 1}
               {s.locked ? " 🔒" : ""}
             </span>
           </button>
         ))}
       </div>
-      {document.slides.length > INSTAGRAM_DIRECT_MAX_IMAGES && (
-        <p className="text-xs text-muted-foreground">
-          {instagramTooManyImagesReason(document.slides.length)}
-        </p>
-      )}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex shrink-0 flex-wrap gap-1.5">
+        {!simple && (<>
         <Button
           size="sm"
           variant="outline"
@@ -113,6 +113,7 @@ export function SlideStrip({ active, add, changeSlide, commit, current, document
         >
           <ArrowRight size={14} />
         </Button>
+        </>)}
         <Button
           size="sm"
           variant="outline"
@@ -120,8 +121,9 @@ export function SlideStrip({ active, add, changeSlide, commit, current, document
           onClick={() => add()}
         >
           <Plus size={14} className="mr-1" />
-          Ajouter
+          Ajouter une slide
         </Button>
+        {!simple && (<>
         <Button
           size="sm"
           variant="outline"
@@ -141,6 +143,7 @@ export function SlideStrip({ active, add, changeSlide, commit, current, document
             {slide.locked ? "Déverrouiller" : "Verrouiller"}
           </span>
         </Button>
+        </>)}
         <Button
           size="sm"
           variant="outline"
@@ -157,9 +160,16 @@ export function SlideStrip({ active, add, changeSlide, commit, current, document
           }}
         >
           <Trash2 size={14} className="mr-1" />
-          Supprimer
+          Supprimer la slide
         </Button>
       </div>
+    </div>
+      {document.slides.length > INSTAGRAM_DIRECT_MAX_IMAGES && (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {document.slides.length} slides : au-delà de {INSTAGRAM_DIRECT_MAX_IMAGES}, publie-le depuis l’appli Instagram.
+          <HelpTip label="nombre de slides">{instagramTooManyImagesReason(document.slides.length)}</HelpTip>
+        </p>
+      )}
     </>
   );
 }

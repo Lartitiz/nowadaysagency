@@ -2,15 +2,12 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { CarouselQuality } from "@/hooks/use-carousel-quality";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   LockKeyhole,
   ZoomIn,
   ZoomOut,
   Maximize2,
   Minimize2,
-  ChevronDown,
-  Info,
 } from "lucide-react";
 import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
@@ -77,6 +74,10 @@ import { useEditorKeys } from "@/components/creer/CarouselEditorParts/editor-key
 import { QualityPanel } from "@/components/creer/CarouselEditorParts/QualityPanel";
 import { SlideStrip } from "@/components/creer/CarouselEditorParts/SlideStrip";
 import { AllSlidesPanel, SavedStylesPanel } from "@/components/creer/CarouselEditorParts/AllSlidesPanel";
+import { SimplePanel } from "@/components/creer/CarouselEditorParts/SimplePanel";
+import { CaptionField } from "@/components/creer/CarouselEditorParts/CaptionField";
+import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
+import { useEditorMode } from "@/components/creer/CarouselEditorParts/editor-mode";
 
 
 interface Props {
@@ -132,7 +133,6 @@ export default function CarouselEditor({
     [measured, setMeasured] = useState<CanvasBox | null>(null),
     [extra, setExtra] = useState<string[]>([]),
     [zoom, setZoom] = useState(1),
-    [sheetOpen, setSheetOpen] = useState(false),
     [panelTab, setPanelTab] = useState<"element" | "slide" | "carrousel">("slide"),
     [instaOpen, setInstaOpen] = useState(false),
     [fitId, setFitId] = useState<string | null>(null),
@@ -140,6 +140,7 @@ export default function CarouselEditor({
     [dragSlide, setDragSlide] = useState<number | null>(null),
     [dropAt, setDropAt] = useState<number | null>(null),
     [hasClip, setHasClip] = useState(false);
+  const [mode, setMode] = useEditorMode();
   // Sélection multiple (Maj + clic) : l'élément principal + les autres.
   const group = selected ? [selected, ...extra.filter((id) => id !== selected)] : [];
   const canvasApi = useRef<CanvasApi | null>(null);
@@ -167,10 +168,9 @@ export default function CarouselEditor({
   useEffect(() => setExtra([]), [active]);
   // Colonne de droite : un élément choisi ouvre « Élément », un clic dans le vide « Slide ».
   useEffect(() => setPanelTab(selected ? "element" : "slide"), [selected]);
-  // Téléphone : toucher un élément ouvre le tiroir des réglages.
+  // Téléphone : toucher un élément remonte l'aperçu sous l'en-tête.
   useEffect(() => {
     if (!selected) return;
-    setSheetOpen(true);
     // L'aperçu remonte sous l'en-tête pour rester visible au-dessus du tiroir.
     if (typeof window !== "undefined" && window.innerWidth < 768) {
       const preview = window.document.querySelector<HTMLElement>("[data-canvas-sticky]");
@@ -726,9 +726,11 @@ export default function CarouselEditor({
   );
   if (!slide) return null;
   return (
-    <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className={`min-w-0 w-full space-y-4 md:pb-0 ${sheetOpen ? "pb-[52vh]" : "pb-16"}`} onKeyDown={(event) => onEditorKey(event.nativeEvent, event.target as HTMLElement)}>
+    <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-3" onKeyDown={(event) => onEditorKey(event.nativeEvent, event.target as HTMLElement)}>
       <EditorHeader
         history={history}
+        mode={mode}
+        setMode={setMode}
         setInstaOpen={setInstaOpen}
         undo={undo}
       />
@@ -745,6 +747,7 @@ export default function CarouselEditor({
         toolsPortal,
       )}
       <SlideStrip
+        simple={mode === "simple"}
         active={active}
         add={add}
         changeSlide={changeSlide}
@@ -764,7 +767,7 @@ export default function CarouselEditor({
         thumbDrag={thumbDrag}
         thumbIndexAt={thumbIndexAt}
       />
-      <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_280px] lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid items-start gap-3 md:grid-cols-[minmax(0,1fr)_280px] md:gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Téléphone : l'aperçu reste visible (collé sous l'en-tête, plus petit)
             pendant qu'on fait défiler les réglages en dessous. */}
         <div
@@ -778,14 +781,18 @@ export default function CarouselEditor({
             if (fullscreen && e.key === "Escape" && !selected) setFullscreen(false);
           }}
         >
-          <div className="mb-1 flex items-center justify-end gap-1">
+          <div className="mb-1 flex flex-wrap items-center justify-end gap-1">
+            {!fullscreen && <p className="mr-auto flex min-w-0 items-center gap-1.5 text-2xs text-muted-foreground md:text-xs">
+              Slide {active + 1} / {document.slides.length} · <span className="hidden md:inline">Double-clic : écrire · Glisser : déplacer</span><span className="md:hidden">Touche un élément, glisse-le</span>
+              <HelpTip label="gestes sur la slide">Double-clique (ou touche « Écrire ») pour écrire dans un texte. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses (⌘/Ctrl pour placer librement). Glisse une photo plein écran pour la recadrer (double-clic pour une photo encadrée), les poignées pour agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre.</HelpTip>
+            </p>}
             {!fullscreen && (
               <>
-                <Button size="sm" variant="ghost" className="h-7 px-2" aria-label="Dézoomer l’aperçu" disabled={zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - 0.5))}>
+                <Button size="sm" variant="ghost" className="hidden h-7 px-2 md:inline-flex" aria-label="Dézoomer l’aperçu" disabled={zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - 0.5))}>
                   <ZoomOut size={14} />
                 </Button>
-                <span className="w-10 text-center text-2xs tabular-nums text-muted-foreground">{Math.round(zoom * 100)} %</span>
-                <Button size="sm" variant="ghost" className="h-7 px-2" aria-label="Zoomer l’aperçu" disabled={zoom >= 3} onClick={() => setZoom((z) => Math.min(3, z + 0.5))}>
+                <span className="hidden w-10 text-center text-2xs tabular-nums text-muted-foreground md:inline">{Math.round(zoom * 100)} %</span>
+                <Button size="sm" variant="ghost" className="hidden h-7 px-2 md:inline-flex" aria-label="Zoomer l’aperçu" disabled={zoom >= 3} onClick={() => setZoom((z) => Math.min(3, z + 0.5))}>
                   <ZoomIn size={14} />
                 </Button>
               </>
@@ -799,7 +806,7 @@ export default function CarouselEditor({
             className={
               fullscreen
                 ? "w-full max-w-[min(1080px,calc((100vh-6rem)*0.8))]"
-                : "mx-auto w-full max-w-[min(540px,36vh)] md:max-w-[540px]"
+                : "mx-auto w-full max-w-[min(540px,36vh)] md:max-w-[min(540px,max(240px,calc((100vh-250px)*0.8)))]"
             }
           >
           <SlideCanvas
@@ -854,35 +861,15 @@ export default function CarouselEditor({
               setSelected(out.id);
             }}
             colors={palette}
+            simple={mode === "simple"}
           />
-          <p className="mt-2 hidden items-center justify-center gap-1 text-xs text-muted-foreground md:flex">
-            Slide {active + 1} / {document.slides.length} · Double-clic : écrire · Glisser : déplacer · Glisser dans le vide : choisir plusieurs
-            <Info size={13} role="img" aria-label="Double-clique un texte pour l’écrire sur la slide. Glisse un bloc pour le déplacer (il s’aligne sur les repères roses ; ⌘/Ctrl pour placer librement), une photo plein écran pour la recadrer (double-clic pour recadrer une photo encadrée), les poignées pour l’agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, trace un cadre qui choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre.">
-              <title>Double-clique un texte pour l’écrire sur la slide. Glisse un bloc pour le déplacer (il s’aligne sur les repères roses ; ⌘/Ctrl pour placer librement), une photo plein écran pour la recadrer (double-clic pour recadrer une photo encadrée), les poignées pour l’agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, trace un cadre qui choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre.</title>
-            </Info>
-          </p>
-          <p className="mt-1 text-center text-2xs text-muted-foreground md:hidden">
-            Slide {active + 1} / {document.slides.length} · Touche un élément, glisse-le ; « Écrire » pour changer un texte.
-          </p>
           </div>
         </div>
-        {/* Téléphone : le panneau devient un tiroir qui remonte du bas de l'écran. */}
-        <div
-          className={`fixed inset-x-0 bottom-0 z-40 min-w-0 space-y-4 overflow-y-auto rounded-t-2xl border-t bg-card px-4 pb-4 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] transition-[max-height] md:static md:z-auto md:max-h-none md:overflow-visible md:rounded-xl md:border md:p-4 md:shadow-none ${sheetOpen ? "max-h-[50vh]" : "max-h-14 overflow-hidden"}`}
-        >
-          <button
-            type="button"
-            aria-expanded={sheetOpen}
-            aria-label={sheetOpen ? "Replier les réglages" : "Ouvrir les réglages"}
-            onClick={() => setSheetOpen((o) => !o)}
-            className="sticky top-0 z-10 -mx-4 flex w-[calc(100%+2rem)] flex-col items-center gap-1 bg-card px-4 pb-2 pt-2 md:hidden"
-          >
-            <span className="h-1.5 w-10 rounded-full bg-muted-foreground/30" aria-hidden="true" />
-            <span className="flex w-full items-center justify-between text-xs font-semibold">
-              {element ? layers.find((l) => l.id === element.id)?.label || "Élément" : "Réglages"}
-              <ChevronDown size={14} className={sheetOpen ? "" : "rotate-180"} aria-hidden="true" />
-            </span>
-          </button>
+        {/* Panneau sous la slide sur téléphone ; à côté (avec son propre défilement) sur ordinateur. */}
+        <div className="min-w-0 space-y-4 md:sticky md:top-28 md:max-h-[calc(100vh-15rem)] md:overflow-y-auto md:rounded-xl md:border md:bg-card md:p-4">
+          {mode === "simple" ? (
+            <SimplePanel canvasApi={canvasApi} changeSlide={changeSlide} css={css} documentFonts={documentFonts} element={element} elements={elements} fill={fill} fillAlpha={fillAlpha} fillHex={fillHex} filterValue={filterValue} fontQuery={fontQuery} onAddPhoto={onAddPhoto} onMore={() => setMode("complet")} palette={palette} pickFont={pickFont} selectOne={selectOne} setFilter={setFilter} setFitId={setFitId} setFontQuery={setFontQuery} setPhotoOpen={setPhotoOpen} slide={slide} style={style} />
+          ) : (<>
           <LayersPanel
             changeSlide={changeSlide}
             group={group}
@@ -1069,22 +1056,10 @@ export default function CarouselEditor({
               />
             )}
           </fieldset>
+          </>)}
         </div>
       </div>
-      <label className="block space-y-2">
-        <span className="font-medium text-sm">Légende du carrousel</span>
-        <Textarea
-          aria-label="Légende du carrousel"
-          rows={6}
-          value={captionText(document.caption)}
-          onChange={(e) =>
-            commit(
-              { ...document, caption: captionFromText(e.target.value) },
-              "caption",
-            )
-          }
-        />
-      </label>
+      <CaptionField value={captionText(document.caption)} onChange={(text) => commit({ ...document, caption: captionFromText(text) }, "caption")} />
       <RedFlagsChecker
         content={[
           captionText(document.caption),

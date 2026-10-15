@@ -1,3 +1,4 @@
+import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import type { useCarouselAutosave } from "@/hooks/use-carousel-autosave";
@@ -21,13 +22,17 @@ export default function CarouselSaveStatus({
               : "Sauvegarde automatique en préparation…";
   return (
     <div
-      className="rounded-xl border p-3 space-y-2 text-sm"
+      className="rounded-xl border px-3 py-2 space-y-1 text-xs"
       aria-label="Sauvegarde automatique"
     >
-      <p role="status" aria-live="polite">
-        {label}
-      </p>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <p role="status" aria-live="polite" className="flex items-center gap-1.5">
+          {label}
+          <HelpTip label="sauvegarde">
+            Les retouches sont enregistrées automatiquement. Sont gardées les 3 dernières versions et la dernière de
+            chaque jour précédent (8 au plus, selon leur taille). Restaurer garde d’abord la version actuelle.
+          </HelpTip>
+        </p>
         <Link className="underline" to="/idees">
           Retrouver dans Mes idées
         </Link>
@@ -72,11 +77,6 @@ export default function CarouselSaveStatus({
           </ul>
         </details>
       )}
-      <p className="text-xs text-muted-foreground">
-        Les retouches sont enregistrées automatiquement. Sont gardées les 3
-        dernières versions et la dernière de chaque jour précédent (8 au plus,
-        selon leur taille). Restaurer garde d’abord la version actuelle.
-      </p>
     </div>
   );
 }

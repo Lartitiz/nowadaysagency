@@ -32,6 +32,7 @@ export default function SlideCanvas({
   onFill,
   onDuplicate,
   colors,
+  simple,
   group,
   onSelectAdd,
   onSelectMany,
@@ -61,6 +62,8 @@ export default function SlideCanvas({
   onDuplicate: (id: string) => void;
   /** Couleurs du carrousel proposées dans la barre d'outils. */
   colors: string[];
+  /** Mode simple de l'éditeur : barre flottante allégée. */
+  simple?: boolean;
   /** Éléments sélectionnés ensemble (Maj + clic), l'élément principal compris. */
   group: string[];
   onSelectAdd: (id: string) => void;
@@ -473,6 +476,7 @@ export default function SlideCanvas({
           onReplacePhoto={onReplacePhoto}
           colors={colors}
           editingId={editingId}
+          simple={simple}
         />
         {extraBoxes.map((b, i) => (
           <div

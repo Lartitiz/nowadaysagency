@@ -259,9 +259,10 @@ describe("Stories : édition et remplacement du résultat", () => {
     };
     render(<StoryResult result={result} onStoriesUpdate={onStoriesUpdate} />);
 
-    const deleteButtons = screen.getAllByRole("button", { name: "Supprimer" });
-    expect(deleteButtons).toHaveLength(3);
-    fireEvent.click(deleteButtons[1]!);
+    // Une story à la fois (chantier D) : les 3 sont dans la page, on va sur la 2e puis on la supprime.
+    expect(screen.getAllByRole("button", { name: "Supprimer", hidden: true })).toHaveLength(3);
+    fireEvent.click(screen.getByRole("button", { name: "Voir la story 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Supprimer" }));
 
     expect(screen.getByText("Supprimer la story 2 ?")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Supprimer cette story" }));
@@ -288,6 +289,21 @@ describe("Stories : édition et remplacement du résultat", () => {
     expect(onStoriesUpdate).not.toHaveBeenCalled();
     expect(screen.getByText("Première story")).toBeInTheDocument();
     expect(screen.getByText("Deuxième story")).toBeInTheDocument();
+  });
+
+  it("montre une story à la fois, avec les numéros et précédente / suivante (chantier D)", () => {
+    const result = { stories: [sequence("Première story").stories[0], sequence("Deuxième story").stories[0], sequence("Troisième story").stories[0]] };
+    render(<StoryResult result={result} />);
+    const visibleTexts = () => screen.getAllByRole("textbox", { name: /Texte complet de la story/ }).map((t) => (t as HTMLTextAreaElement).value);
+    expect(visibleTexts()).toEqual(["Première story"]);
+    expect(screen.getByRole("button", { name: "Story précédente" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Story suivante" }));
+    expect(visibleTexts()).toEqual(["Deuxième story"]);
+    fireEvent.click(screen.getByRole("button", { name: "Voir la story 3" }));
+    expect(visibleTexts()).toEqual(["Troisième story"]);
+    expect(screen.getByRole("button", { name: "Story suivante" })).toBeDisabled();
+    // Les autres stories restent dans la page (export, lecture de la séquence).
+    expect(screen.getByTitle("Aperçu story 1")).toBeInTheDocument();
   });
 
   it("ne propose pas de supprimer la dernière story restante", () => {

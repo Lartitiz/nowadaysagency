@@ -22,7 +22,7 @@
       "any": 47
     },
     "src/components/creer/CarouselEditor.tsx": {
-      "lignes": 1143,
+      "lignes": 1118,
       "any": 4
     },
     "src/components/creer/CreerStepFormat.tsx": {
@@ -38,7 +38,7 @@
       "any": 26
     },
     "src/components/creer/formatRenderers/StoryResult.tsx": {
-      "lignes": 1090,
+      "lignes": 1070,
       "any": 18
     },
     "src/hooks/use-onboarding.ts": {

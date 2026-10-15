@@ -46,8 +46,8 @@ export function PanelSection({ title, defaultOpen = false, storageKey, icon, chi
 }
 
 /** Miniature réelle d'une slide (rendu du HTML exporté, réduit). */
-export function SlideThumb({ html }: { html: string }) {
-  const W = 84;
+export function SlideThumb({ html, width = 84 }: { html: string; width?: number }) {
+  const W = width;
   return (
     <span className="relative block overflow-hidden rounded-md bg-white" style={{ width: W, height: W * 1.25 }} aria-hidden="true">
       <iframe

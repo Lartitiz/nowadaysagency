@@ -8,7 +8,10 @@ import type { CarouselStylesApi, SavedCarouselStyle } from "@/hooks/use-carousel
 vi.mock("@/components/creer/PhotoSwapDialog", () => ({ default: () => null }));
 beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} }));
 // Les calques sont repliés par défaut : ces tests les ouvrent.
-beforeEach(() => window.localStorage.setItem("carousel-panel:Calques", "1"));
+beforeEach(() => {
+  window.localStorage.setItem("carousel-panel:Calques", "1");
+  window.localStorage.setItem("carousel-editor:mode", "complet"); // panneau complet (« Plus d'outils »), chantier D
+});
 afterEach(cleanup);
 
 const raw = { slides: [{ slide_number: 1, title: "Titre", body: "Corps" }, { slide_number: 2, title: "Suite", body: "Fin" }], caption: { body: "L" } };
