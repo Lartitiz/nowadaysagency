@@ -59,7 +59,7 @@ describe("CharterSection — édition directe", () => {
     fireEvent.change(primaryInput, { target: { value: "fb3d80" } });
     const bodyFontInput = screen.getByDisplayValue("Inter");
     fireEvent.change(bodyFontInput, { target: { value: "IBM Plex Mono" } });
-    fireEvent.click(screen.getByText("OK"));
+    fireEvent.click(screen.getByText("Appliquer mes modifications"));
 
     expect(onUpdate).toHaveBeenCalledTimes(1);
     const updated = onUpdate.mock.calls[0][0];
@@ -75,7 +75,7 @@ describe("CharterSection — édition directe", () => {
 
     fireEvent.change(screen.getByDisplayValue("#E8B96A"), { target: { value: "" } });
     fireEvent.change(screen.getByDisplayValue("#D98C6A"), { target: { value: "n'importe quoi" } });
-    fireEvent.click(screen.getByText("OK"));
+    fireEvent.click(screen.getByText("Appliquer mes modifications"));
 
     const updated = onUpdate.mock.calls[0][0];
     expect(updated.color_secondary).toBeUndefined();
@@ -97,7 +97,7 @@ describe("CharterSection — édition directe", () => {
     render(<CharterSection data={{ confidence: "low", font_title: "Lora" }} onUpdate={onUpdate} />);
     fireEvent.click(screen.getByText(/ajouter mes couleurs/i));
     fireEvent.change(screen.getAllByPlaceholderText(/vide = retirer/i)[0], { target: { value: "#91014B" } });
-    fireEvent.click(screen.getByText("OK"));
+    fireEvent.click(screen.getByText("Appliquer mes modifications"));
     expect(onUpdate.mock.calls[0][0].color_primary).toBe("#91014B");
   });
 });

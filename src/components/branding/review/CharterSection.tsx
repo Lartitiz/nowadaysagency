@@ -94,7 +94,7 @@ export function CharterSection({ data, onUpdate }: { data: AnalysisResult["chart
           <input value={draft.font_body || ""} onChange={(e) => setDraft((d) => ({ ...d, font_body: e.target.value }))} placeholder="Police du texte courant" className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
         </div>
         <div className="flex gap-3 pt-1">
-          <button onClick={confirmEdit} className="inline-flex items-center gap-1 text-xs font-medium text-success"><Check className="h-3.5 w-3.5" /> OK</button>
+          <button onClick={confirmEdit} className="inline-flex items-center gap-1 text-xs font-medium text-success"><Check className="h-3.5 w-3.5" /> Appliquer mes modifications</button>
           <button onClick={cancelEdit} className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /> Annuler</button>
         </div>
       </div>
