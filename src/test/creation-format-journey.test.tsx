@@ -56,3 +56,40 @@ it("offers and forwards an explicit ten-slide carousel", () => {
   fireEvent.click(screen.getByRole('button',{name:/Suivant/}));
   expect(onNext.mock.calls.at(-1)?.at(-1)).toBe('long');
 });
+
+describe("écran Format allégé (chantier B, 15/10/2026)", () => {
+  it("carrousel sans photos : Texte design déjà choisi, Suivant actif, longueur et angle rangés dans « Plus d'options »", () => {
+    const onNext = vi.fn();
+    render(<CreerStepFormat {...base} forcedChannel="instagram" initialFormat="carousel" onNext={onNext} />);
+    expect(screen.getByTestId("carousel-mode-text")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("creer-format-more-options")).not.toHaveAttribute("open");
+    expect(screen.getByTestId("creer-format-more-options")).toHaveTextContent("Longueur auto · angle choisi par l'IA");
+    fireEvent.click(screen.getByTestId("creer-format-next"));
+    expect(onNext.mock.calls[0][2]).toBe("text");
+  });
+
+  it("carrousel choisi avec des photos : « Tes photos en fond » conseillé et déjà choisi", () => {
+    const photos = [{ id: "p1", base64: "data:image/png;base64,AAA" }, { id: "p2", base64: "data:image/png;base64,BBB" }] as any;
+    render(<CreerStepFormat {...base} forcedChannel="instagram" initialPhotos={photos} />);
+    fireEvent.click(screen.getByTestId("creer-format-carousel"));
+    expect(screen.getByTestId("carousel-mode-photo")).toHaveAttribute("aria-pressed", "true");
+    for (const id of ["text", "photo", "mix", "pure_photo", "user_slides"]) expect(screen.getByTestId(`carousel-mode-${id}`)).toBeInTheDocument();
+  });
+
+  it("page « quel format ? » : le format conseillé est en avant et Suivant le choisit", () => {
+    render(<CreerStepFormat {...base} idea="3 erreurs à éviter" forcedChannel="instagram" />);
+    expect(screen.getByTestId("creer-format-recommendation")).toHaveTextContent("Conseillé pour ton idée : ton sujet");
+    const next = screen.getByTestId("creer-format-next");
+    expect(next).toHaveTextContent("Suivant : Carrousel");
+    fireEvent.click(next);
+    expect(screen.getByText("Choisis le rendu de ton carrousel")).toBeInTheDocument();
+    expect(screen.getByTestId("carousel-mode-text")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("LinkedIn : Post ou Carrousel, puis les 5 types de carrousel", () => {
+    render(<CreerStepFormat {...base} forcedChannel="linkedin" />);
+    expect(screen.getByTestId("creer-format-linkedin")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("creer-format-carousel"));
+    for (const id of ["text", "photo", "mix", "pure_photo", "user_slides"]) expect(screen.getByTestId(`carousel-mode-${id}`)).toBeInTheDocument();
+  });
+});
