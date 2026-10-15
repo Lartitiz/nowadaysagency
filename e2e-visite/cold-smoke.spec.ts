@@ -89,6 +89,28 @@ async function waitFullyOpaque(loc: ReturnType<Page["locator"]>) {
     .catch(() => console.log("ℹ️  fondu pas terminé à la capture (best-effort)"));
 }
 
+/**
+ * Sonde « presque pas de défilement » (plan simplicité, 15/10/2026) : le
+ * bouton principal de l'écran est-il visible SANS défiler, sur ordinateur
+ * (1280×900, la taille du smoke) et sur téléphone (390×844) ? Informatif :
+ * n'échoue jamais le smoke, le bilan sort en une ligne « 🧭 Défilement ».
+ */
+const FORMATS = [
+  { nom: "ordi", width: 1280, height: 900 },
+  { nom: "téléphone", width: 390, height: 844 },
+];
+async function boutonSansDefiler(page: Page, bouton: ReturnType<Page["locator"]>, ecran: string, sink: string[]) {
+  for (const f of FORMATS) {
+    await page.setViewportSize({ width: f.width, height: f.height });
+    await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
+    await page.waitForTimeout(500);
+    const box = await bouton.boundingBox().catch(() => null);
+    const ok = !!box && box.y >= 0 && box.y + box.height <= f.height;
+    sink.push(`${ok ? "✅" : "❌"} ${ecran} (${f.nom}${box ? `, bas du bouton à ${Math.round(box.y + box.height)} px` : ", bouton introuvable"})`);
+  }
+  await page.setViewportSize({ width: FORMATS[0].width, height: FORMATS[0].height });
+}
+
 /** Nettoyage indépendant du navigateur : login API → token → edge delete-account. */
 async function deleteThrowawayAccount(): Promise<string> {
   if (!SUPABASE_URL || !ANON) return "skip (config Supabase absente)";
@@ -120,6 +142,7 @@ test.afterAll(async () => {
 
 test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diagnostic", async ({ page }) => {
   const signals: string[] = [];
+  const defilement: string[] = [];
   attachSignals(page, signals);
   console.log(`compte jetable : ${EMAIL}`);
 
@@ -179,6 +202,7 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
   await expect(welcomeCta, "L'accueil du diagnostic ne se charge pas (écran blanc ?)").toBeVisible({ timeout: 15000 });
   await waitFullyOpaque(welcomeCta);
   await shot(page, "02-diagnostic-accueil");
+  await boutonSansDefiler(page, welcomeCta, "accueil", defilement);
   await welcomeCta.click();
 
   // Étape 1 « Dis-moi qui tu es » (prénom + activité sur un écran, pré-remplis à l'inscription)
@@ -186,6 +210,7 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
   const etape1 = page.getByText(/Dis-moi qui tu es/i).first();
   await expect(etape1, "Le diagnostic ne démarre pas après « C'est parti » (écran blanc ?)").toBeVisible({ timeout: 12000 });
   await shot(page, "03-diagnostic-etape1");
+  await boutonSansDefiler(page, page.getByRole("button", { name: /^Suivant/ }).first(), "qui tu es", defilement);
 
   // Un pas de plus — BEST-EFFORT (informationnel, ne fait PAS échouer le smoke) :
   // Suivant → écran « Tu proposes plutôt quoi ? ». On capture ce qui s'affiche
@@ -202,6 +227,20 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
     .then(() => true, () => false);
   await shot(page, "04-diagnostic-etape2");
   if (!step2) console.log("ℹ️  étape 2 non atteinte au clic Suivant (best-effort) — l'entrée diagnostic reste OK");
+  if (step2) {
+    await boutonSansDefiler(page, page.getByRole("button", { name: /^Suivant/ }).first(), "produits ou services", defilement);
+    // Un écran de plus, sans rien saisir de réel : le choix « Des produits »
+    // et l'activité pré-remplie suffisent pour atteindre l'écran des liens.
+    await page.getByRole("button", { name: /Des produits/ }).click().catch(() => {});
+    await page.getByRole("button", { name: /^Suivant/ }).first().click().catch(() => {});
+    const passer = page.getByRole("button", { name: /Passer cette étape|Continuer/ }).first();
+    if (await passer.waitFor({ timeout: 8000 }).then(() => true, () => false)) {
+      await boutonSansDefiler(page, passer, "site et Instagram", defilement);
+    }
+  }
+  const okDefil = defilement.filter(l => l.startsWith("✅")).length;
+  console.log(`🧭 Défilement : bouton visible sans défiler sur ${okDefil}/${defilement.length} écrans`);
+  for (const l of defilement.filter(l => !l.startsWith("✅"))) console.log("   -", l);
 
   // Bilan signaux (n'échoue pas le test : reporté pour le regard du cron).
   if (signals.length) {
