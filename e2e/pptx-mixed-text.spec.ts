@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import JSZip from 'jszip';
+import { compareToReference } from './pptx-reference';
 
 test('mixed paragraph exports every word once as editable text, with no dark text baked into the raster', async ({ page }) => {
   test.setTimeout(120000);
@@ -12,6 +13,7 @@ test('mixed paragraph exports every word once as editable text, with no dark tex
     for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
     return btoa(binary);
   });
+  await compareToReference('pptx-mixed-text', Buffer.from(base64, 'base64'));
   const zip = await JSZip.loadAsync(Buffer.from(base64, 'base64'));
   const xml = await zip.file('ppt/slides/slide1.xml')!.async('string');
   const text = [...xml.matchAll(/<a:t>(.*?)<\/a:t>/g)].map(m => m[1]).join('');

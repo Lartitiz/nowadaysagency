@@ -29,6 +29,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { validatePptx } from "../e2e-visite/pptx-validate";
+import { compareToReference } from "./pptx-reference";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -142,6 +143,7 @@ test("export hybride : une photo en ENCART n'est jamais occultée par le raster"
   const out = path.join(__dirname, "..", "test-results", "pptx-encart.pptx");
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, Buffer.from(b64, "base64"));
+  await compareToReference("pptx-encart", Buffer.from(b64, "base64"));
   console.log(`📦 PPTX écrit : ${out}`);
   const report = await validatePptx(out, { minSlides: 5, expectEditableText: true, backgroundIsDecorative: true });
   console.log(

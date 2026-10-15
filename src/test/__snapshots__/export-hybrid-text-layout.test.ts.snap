@@ -1,0 +1,270 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`addBlockToSlide — options passées à pptxgenjs > bloc aligné à droite : la marge part vers la gauche 1`] = `
+{
+  "options": {
+    "align": "right",
+    "bold": false,
+    "color": "1A1A1A",
+    "fit": "shrink",
+    "fontFace": "IBM Plex Sans",
+    "fontSize": 19.8,
+    "h": 0.844,
+    "italic": false,
+    "lineSpacingMultiple": 1.25,
+    "margin": 0,
+    "valign": "top",
+    "w": 4.861,
+    "wrap": true,
+    "x": 0,
+    "y": 2.083,
+  },
+  "text": "Un paragraphe sur deux lignes dans la slide",
+}
+`;
+
+exports[`addBlockToSlide — options passées à pptxgenjs > bloc aligné à gauche hors carte 1`] = `
+{
+  "options": {
+    "align": "left",
+    "bold": false,
+    "color": "1A1A1A",
+    "fit": "shrink",
+    "fontFace": "IBM Plex Sans",
+    "fontSize": 20,
+    "h": 0.844,
+    "italic": false,
+    "lineSpacingMultiple": 1.25,
+    "margin": 0,
+    "valign": "top",
+    "w": 4.917,
+    "wrap": true,
+    "x": 0.694,
+    "y": 2.083,
+  },
+  "text": "Un paragraphe sur deux lignes dans la slide",
+}
+`;
+
+exports[`addBlockToSlide — options passées à pptxgenjs > bloc centré : la marge de largeur se répartit des deux côtés 1`] = `
+{
+  "options": {
+    "align": "center",
+    "bold": false,
+    "color": "1A1A1A",
+    "fit": "shrink",
+    "fontFace": "IBM Plex Sans",
+    "fontSize": 20,
+    "h": 0.844,
+    "italic": false,
+    "lineSpacingMultiple": 1.25,
+    "margin": 0,
+    "valign": "top",
+    "w": 4.917,
+    "wrap": true,
+    "x": 0.319,
+    "y": 2.083,
+  },
+  "text": "Un paragraphe sur deux lignes dans la slide",
+}
+`;
+
+exports[`addBlockToSlide — options passées à pptxgenjs > bloc dans une carte : la boîte s'arrête au bord intérieur de la carte 1`] = `
+{
+  "options": {
+    "align": "left",
+    "bold": false,
+    "color": "1A1A1A",
+    "fit": "shrink",
+    "fontFace": "IBM Plex Sans",
+    "fontSize": 17.4,
+    "h": 0.844,
+    "italic": false,
+    "lineSpacingMultiple": 1.25,
+    "margin": 0,
+    "valign": "top",
+    "w": 2.847,
+    "wrap": true,
+    "x": 0.833,
+    "y": 2.222,
+  },
+  "text": "Un paragraphe sur deux lignes dans la slide",
+}
+`;
+
+exports[`addBlockToSlide — options passées à pptxgenjs > bloc multi-lignes collé au bord droit : police réduite, jamais sous 80 % 1`] = `
+{
+  "options": {
+    "align": "left",
+    "bold": false,
+    "color": "1A1A1A",
+    "fit": "shrink",
+    "fontFace": "IBM Plex Sans",
+    "fontSize": 16.9,
+    "h": 0.844,
+    "italic": false,
+    "lineSpacingMultiple": 1.25,
+    "margin": 0,
+    "valign": "top",
+    "w": 4.167,
+    "wrap": true,
+    "x": 3.333,
+    "y": 2.083,
+  },
+  "text": "Un paragraphe sur deux lignes dans la slide",
+}
+`;
+
+exports[`addBlockToSlide — options passées à pptxgenjs > carte trop étroite : repli sur la boîte HTML 1`] = `
+{
+  "options": {
+    "align": "left",
+    "bold": false,
+    "color": "1A1A1A",
+    "fit": "shrink",
+    "fontFace": "IBM Plex Sans",
+    "fontSize": 16,
+    "h": 0.844,
+    "italic": false,
+    "lineSpacingMultiple": 1.25,
+    "margin": 0,
+    "valign": "top",
+    "w": 0.208,
+    "wrap": true,
+    "x": 0.833,
+    "y": 2.222,
+  },
+  "text": "OK",
+}
+`;
+
+exports[`addBlockToSlide — options passées à pptxgenjs > petite police gardée quand le bloc suivant est trop près 1`] = `
+{
+  "options": {
+    "align": "left",
+    "bold": false,
+    "color": "1A1A1A",
+    "fit": "shrink",
+    "fontFace": "IBM Plex Sans",
+    "fontSize": 12,
+    "h": 0.567,
+    "italic": false,
+    "lineSpacingMultiple": 1.25,
+    "margin": 0,
+    "valign": "top",
+    "w": 4.917,
+    "wrap": true,
+    "x": 0.694,
+    "y": 2.083,
+  },
+  "text": "Un paragraphe sur deux lignes dans la slide",
+}
+`;
+
+exports[`addBlockToSlide — options passées à pptxgenjs > petite police montée vers 15 pt quand il y a la place 1`] = `
+{
+  "options": {
+    "align": "left",
+    "bold": false,
+    "color": "1A1A1A",
+    "fit": "shrink",
+    "fontFace": "IBM Plex Sans",
+    "fontSize": 15,
+    "h": 0.567,
+    "italic": false,
+    "lineSpacingMultiple": 1.25,
+    "margin": 0,
+    "valign": "top",
+    "w": 4.917,
+    "wrap": true,
+    "x": 0.694,
+    "y": 2.083,
+  },
+  "text": "Un paragraphe sur deux lignes dans la slide",
+}
+`;
+
+exports[`addBlockToSlide — options passées à pptxgenjs > runs avec surligneur et majuscules : chemin multi-runs 1`] = `
+{
+  "options": {
+    "align": "left",
+    "bold": false,
+    "color": "1A1A1A",
+    "fit": "shrink",
+    "fontFace": "IBM Plex Sans",
+    "fontSize": 20,
+    "h": 0.844,
+    "italic": false,
+    "lineSpacingMultiple": 1.25,
+    "margin": 0,
+    "valign": "top",
+    "w": 4.917,
+    "wrap": true,
+    "x": 0.694,
+    "y": 2.083,
+  },
+  "text": [
+    {
+      "options": {
+        "bold": false,
+        "color": "1A1A1A",
+        "italic": false,
+      },
+      "text": "UN MOT ",
+    },
+    {
+      "options": {
+        "bold": true,
+        "color": "FB3D80",
+        "highlight": "FFE561",
+        "italic": false,
+      },
+      "text": "SURLIGNÉ",
+    },
+  ],
+}
+`;
+
+exports[`addBlockToSlide — options passées à pptxgenjs > titre sans police : police de titre de la charte ; couleur illisible : couleur de la charte 1`] = `
+{
+  "align": "left",
+  "bold": false,
+  "charSpacing": undefined,
+  "color": "91014B",
+  "fit": "shrink",
+  "fontFace": "Libre Baskerville",
+  "fontSize": 20,
+  "h": 0.8444444444444444,
+  "italic": false,
+  "lineSpacingMultiple": 1.25,
+  "margin": 0,
+  "valign": "top",
+  "w": 4.916666666666667,
+  "wrap": true,
+  "x": 0.6944444444444444,
+  "y": 2.0833333333333335,
+}
+`;
+
+exports[`addBlockToSlide — options passées à pptxgenjs > une seule ligne : wrap:false 1`] = `
+{
+  "options": {
+    "align": "left",
+    "bold": false,
+    "color": "1A1A1A",
+    "fit": "shrink",
+    "fontFace": "IBM Plex Sans",
+    "fontSize": 20,
+    "h": 0.497,
+    "italic": false,
+    "lineSpacingMultiple": 1.25,
+    "margin": 0,
+    "valign": "top",
+    "w": 2.458,
+    "wrap": false,
+    "x": 0.694,
+    "y": 2.083,
+  },
+  "text": "LE CONSTAT",
+}
+`;

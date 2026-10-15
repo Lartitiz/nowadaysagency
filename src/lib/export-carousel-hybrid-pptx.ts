@@ -44,7 +44,7 @@ export interface OriginalPhoto {
   mimeType?: string;
 }
 
-interface PhotoZone {
+export interface PhotoZone {
   el: HTMLElement;
   photoIndex: number; // 1-indexé
   rect: { x: number; y: number; w: number; h: number };
@@ -523,7 +523,7 @@ async function captureBody(doc: Document): Promise<string> {
 // ---------------------------------------------------------------------------
 
 /** Find the smallest element whose textContent contains the overlay text. */
-function findOverlayElement(doc: Document, overlayText: string): HTMLElement | null {
+export function findOverlayElement(doc: Document, overlayText: string): HTMLElement | null {
   const target = overlayText.trim().toLowerCase();
   if (!target || target.length < 3) return null;
 
@@ -544,7 +544,7 @@ function findOverlayElement(doc: Document, overlayText: string): HTMLElement | n
   return best;
 }
 
-interface BlockRender {
+export interface BlockRender {
   el?: Element;
   text: string;
   /** Runs typographiques inline. Si présent + length >= 2 → exporté en multi-runs. */
@@ -584,7 +584,7 @@ function blockFromElement(el: HTMLElement, doc: Document, kind: EditableBlock["k
   };
 }
 
-function applyTextTransform(text: string, transform: string): string {
+export function applyTextTransform(text: string, transform: string): string {
   switch (transform) {
     case "uppercase":
       return text.toUpperCase();
@@ -604,7 +604,7 @@ function applyTextTransform(text: string, transform: string): string {
  * parenthèses des gradients ne séparent pas les couches).
  * Retourne `"none"` si plus aucune couche ne reste.
  */
-function stripDataUrlsFromBackground(bgImage: string): string {
+export function stripDataUrlsFromBackground(bgImage: string): string {
   const parts: string[] = [];
   let depth = 0;
   let start = 0;
@@ -634,7 +634,7 @@ function stripDataUrlsFromBackground(bgImage: string): string {
  * masquage / capture / unmask en fonction de la disponibilité des
  * originalPhotos correspondants.
  */
-function extractPhotoZones(doc: Document, fallbackPhotoIndex?: number): PhotoZone[] {
+export function extractPhotoZones(doc: Document, fallbackPhotoIndex?: number): PhotoZone[] {
   const win = doc.defaultView;
   if (!win) return [];
 
@@ -721,7 +721,7 @@ function extractPhotoZones(doc: Document, fallbackPhotoIndex?: number): PhotoZon
  *  - la photo n'est qu'un ENCART dans ce fond → l'effacer troue le raster
  *    AILLEURS que sous la photo : il faut le repeindre en natif, SOUS la photo.
  */
-interface ClearedBackdrop {
+export interface ClearedBackdrop {
   el: HTMLElement;
   rect: { x: number; y: number; w: number; h: number };
   /** Hex 6 chars sans `#`. */
@@ -784,7 +784,7 @@ export function zoneOverlapsRect(
  * éléments déjà promus en shape natif (data-pptx-shape-hide) sont déjà
  * transparents ici → ignorés naturellement.
  */
-function clearOpaqueBackdropsBehindZone(zone: PhotoZone, doc: Document): ClearedBackdrop[] {
+export function clearOpaqueBackdropsBehindZone(zone: PhotoZone, doc: Document): ClearedBackdrop[] {
   const win = doc.defaultView;
   if (!win) return [];
   const zr = zone.rect;
@@ -834,7 +834,7 @@ function clearOpaqueBackdropsBehindZone(zone: PhotoZone, doc: Document): Cleared
 }
 
 /** Police à chasse fixe ? (IBM Plex Mono, Courier…) */
-function isMonoFont(fontFamily: string | undefined | null): boolean {
+export function isMonoFont(fontFamily: string | undefined | null): boolean {
   return /mono|courier/i.test(fontFamily || "");
 }
 
@@ -851,7 +851,7 @@ function isMonoFont(fontFamily: string | undefined | null): boolean {
  * - Sinon : slack forfaitaire — 25 % pour les mono (substitution Courier plus
  *   large + letter-spacing), 18 % pour le reste (serif de substitution).
  */
-function desiredTextWidthIn(block: BlockRender): number {
+export function desiredTextWidthIn(block: BlockRender): number {
   const wRaw = pxToInches(block.rect.w, PX_PER_IN);
   // Photo copy is laid out against pixels and local reading surfaces. Font
   // substitution must never enlarge its frame across the photograph/card.
@@ -875,7 +875,7 @@ function desiredTextWidthIn(block: BlockRender): number {
  * slack de largeur au bord intérieur de la carte parente et (2) de rendre le
  * plancher MIN_FONT_PT conditionnel à la place réellement disponible.
  */
-interface BlockLayoutContext {
+export interface BlockLayoutContext {
   siblings: BlockRender[];
   cards: ShapeBlock[];
 }
@@ -894,7 +894,7 @@ const BUDGET_GAP_LINES = 0.5;
  * Les PILULES sont exclues : elles sont élargies nativement pour épouser leur
  * label (#420) — borner le label à la pilule d'origine casserait ce mécanisme.
  */
-function parentCardOf(block: BlockRender, cards: ShapeBlock[]): ShapeBlock | null {
+export function parentCardOf(block: BlockRender, cards: ShapeBlock[]): ShapeBlock | null {
   const b = block.rect;
   let best: ShapeBlock | null = null;
   for (const c of cards) {
@@ -914,7 +914,7 @@ function parentCardOf(block: BlockRender, cards: ShapeBlock[]): ShapeBlock | nul
  * carte, sinon le bas de la slide. C'est le budget que le plancher
  * MIN_FONT_PT n'a pas le droit de dépasser.
  */
-function verticalBudgetPx(block: BlockRender, ctx: BlockLayoutContext, card: ShapeBlock | null): number {
+export function verticalBudgetPx(block: BlockRender, ctx: BlockLayoutContext, card: ShapeBlock | null): number {
   const b = block.rect;
   let limit = SLIDE_H_PX;
   for (const s of ctx.siblings) {
@@ -937,7 +937,7 @@ function verticalBudgetPx(block: BlockRender, ctx: BlockLayoutContext, card: Sha
  * monte en f → hauteur totale ≈ f². Une seule ligne (wrap:false) : la largeur
  * mesurée rect.w grossit en f et doit tenir dans la boîte.
  */
-function maxFitPt(block: BlockRender, wIn: number, budgetPx: number, isSingleLine: boolean): number {
+export function maxFitPt(block: BlockRender, wIn: number, budgetPx: number, isSingleLine: boolean): number {
   const naturalPt = fontSizePxToPtRaw(block.style.fontSizePx, PX_PER_IN);
   if (naturalPt <= 0) return MIN_FONT_PT;
   const lhPx = Math.max(1, block.style.lineHeight);
@@ -966,7 +966,7 @@ function maxFitPt(block: BlockRender, wIn: number, budgetPx: number, isSingleLin
   return Math.floor(naturalPt * Math.max(1, f) * 10) / 10;
 }
 
-function addBlockToSlide(
+export function addBlockToSlide(
   slide: PptxGenJS.Slide,
   block: BlockRender,
   charter: HybridCharter | null | undefined,
