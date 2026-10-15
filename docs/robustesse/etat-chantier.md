@@ -38,6 +38,11 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
 - Fait après la fusion de #1470 : carrousel texte, le libellé du bouton est rangé dans la slide (`cta_label`) dès l'arrivée des visuels (`src/lib/carousel-cta-label.ts`, appelé par `onCtaLabels` de `use-generate-visuals.ts`), sans changer le rendu ; une slide texte n'envoie toujours pas `cta_label` à `carousel-visual`. Le lot 8 est terminé.
 
 ## Découpage de CreerUnifie.tsx (fiche 1 de `docs/robustesse/gros-fichiers.md`)
+**Terminé le 15/10/2026** : 3 587 → 2 159 lignes (lots A à J). Il reste dans la page le
+câblage entre les hooks, `handleReset`, la génération (`handleRegenerate`,
+`handleChangeAngle`, `handleConfirmStructure`), la sauvegarde (`persistCarousel`,
+`handleSave`) et le JSX qui choisit l'étape (dont `<CreerStepResult>`, à ne pas sortir :
+voir la fiche).
 - **Lot A** (#1482, fusionné le 14/10/2026) : tests 1 à 11 en rendu réel (`src/test/creer-entrees-calendrier-brief`,
   `creer-reprise-modifier-reset`, `creer-publication-exports`, `creer-angles-reel-photos`).
   Corrige aussi 3 bugs qu'ils ont révélés (décision de Laetitia du 14/10/2026) : vidéo
@@ -103,7 +108,7 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
   reste avant `useCreerResultSession`, et le seul effet qu'il double (compteur de
   briefs) n'en dépend pas. `regeneration-backup.test.tsx` lit la page ET le nouveau
   fichier (vérifications inchangées).
-- **Lot J** (PR en cours) : arrivée depuis ailleurs sortie à l'identique dans
+- **Lot J** (#1581, fusionné le 15/10/2026) : arrivée depuis ailleurs sortie à l'identique dans
   `src/hooks/use-creer-entry-init.ts`, appelé à la place exacte de l'effet.
   `handleFormatNext` (déclaré plus bas) passe par un relais
   `(...args) => handleFormatNext(...args)`, lu seulement quand l'effet tourne.
