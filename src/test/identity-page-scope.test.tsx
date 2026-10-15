@@ -19,7 +19,7 @@ vi.mock("@/components/branding/BrandingSynthesisSheet", () => ({ default: () => 
 vi.mock("@/components/branding/BrandingImport", () => ({ default: () => <div>Import volontaire</div> }));
 vi.mock("@/components/branding/BrandingReview", () => ({ default: ({ onDone }: any) => <button onClick={() => onDone(false)}>Relire plus tard</button> }));
 vi.mock("@/components/CoachingFlow", () => ({ default: () => null }));
-vi.mock("@/lib/posthog", () => ({ posthog: { capture: vi.fn() } }));
+vi.mock("@/lib/posthog-lazy", () => ({ posthog: { capture: vi.fn() } }));
 vi.mock("framer-motion", () => ({ motion: { div: ({ children }: any) => <div>{children}</div> } }));
 const data = (name = "") => ({ storytellingList: [], publics: [], persona: null, proposition: name ? { version_final: name } : null, brandProfile: null, strategy: null, offersList: [], charter: null });
 const ui = () => <MemoryRouter><BrandingPage /></MemoryRouter>;

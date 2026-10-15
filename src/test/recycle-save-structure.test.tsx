@@ -12,7 +12,7 @@ vi.mock('@/components/ui/textarea-with-voice',()=>({TextareaWithVoice:(p:any)=><
 vi.mock('@/components/BaseReminder',()=>({default:()=>null}));
 vi.mock('@/components/AiLoadingIndicator',()=>({default:()=>null}));
 vi.mock('@/components/calendar/AddToCalendarDialog',()=>({AddToCalendarDialog:(p:any)=>p.open?<button onClick={()=>p.onConfirm('2026-09-30')}>Confirmer calendrier QA</button>:null}));
-vi.mock('@/lib/posthog',()=>({posthog:{capture:()=>{}}}));
+vi.mock('@/lib/posthog-lazy',()=>({posthog:{capture:()=>{}}}));
 // StoryResult réel = charte, bibliothèque photo, exports : ici on vérifie seulement qu'il reçoit la séquence.
 vi.mock('@/components/creer/formatRenderers/StoryResult',()=>({default:(p:any)=><div data-testid="story-result">{p.result.stories.map((s:any,i:number)=><p key={i} data-gabarit={s.visual?.gabarit??'face_cam'}>{s.text}</p>)}</div>}));
 vi.mock('@/lib/invoke-with-timeout',()=>({invokeWithTimeout:async()=>({data:m.response??{results:{carrousel:m.raw}},error:null})}));

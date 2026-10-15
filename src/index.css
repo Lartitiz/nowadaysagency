@@ -1,4 +1,4 @@
-/* Fonts loaded via index.html : Instrument Serif + Hanken Grotesk (charte Nowadays) */
+/* Fonts : Instrument Serif + Hanken Grotesk, auto-hébergées (public/fonts, @font-face dans index.html) */
 
 @tailwind base;
 @tailwind components;

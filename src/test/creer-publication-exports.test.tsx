@@ -63,7 +63,7 @@ vi.mock('@/components/creer/CreerStepFormat', () => ({ default: () => <p>Format 
 vi.mock('@/components/creer/CreerStepResult', () => ({ default: (p: any) => { mocks.resultProps = p; return <pre data-testid="result">{JSON.stringify(p.result)}</pre>; } }));
 vi.mock('@/components/creer/PublishOrScheduleDialog', () => ({ default: (p: any) => { mocks.publishProps = p; return null; } }));
 vi.mock('@/components/SaveToIdeasDialog', () => ({ SaveToIdeasDialog: () => null }));
-vi.mock('@/lib/posthog', () => ({ posthog: { capture: vi.fn() } }));
+vi.mock('@/lib/posthog-lazy', () => ({ posthog: { capture: vi.fn() } }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: () => {
   const q: any = { then: (resolve: any, reject: any) => Promise.resolve({ data: [], error: null }).then(resolve, reject) };
   for (const key of ['select', 'eq', 'in', 'order', 'limit', 'insert', 'update', 'not', 'is']) q[key] = () => q;

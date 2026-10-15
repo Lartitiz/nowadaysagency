@@ -1,5 +1,5 @@
 import { useEffect, lazy, Suspense } from "react";
-import * as Sentry from "@sentry/react";
+import { Sentry } from "@/lib/sentry-lazy";
 import { toast } from "sonner";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";

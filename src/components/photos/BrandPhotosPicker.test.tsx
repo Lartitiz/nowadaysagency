@@ -24,7 +24,7 @@ vi.mock("@/hooks/use-social-connections", () => ({
   }),
 }));
 vi.mock("@/hooks/use-user-photos", () => ({ useUploadLibraryPhotos: () => ({ mutate: m.upload }) }));
-vi.mock("@/lib/posthog", () => ({ posthog: { capture: vi.fn() } }));
+vi.mock("@/lib/posthog-lazy", () => ({ posthog: { capture: vi.fn() } }));
 vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: m.scan }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {

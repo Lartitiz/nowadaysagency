@@ -44,7 +44,7 @@ describe("menu IA sur sélection de texte", () => {
     m.invoke.mockResolvedValue({ data: { result: "Café bon, accueil chaleureux." }, error: null });
     render(<SelectionMenuProvider><p>contenu</p></SelectionMenuProvider>);
 
-    fireEvent.click(screen.getByRole("button", { name: /Raccourcir/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Raccourcir/ }));
 
     expect(await screen.findByText("Café bon, accueil chaleureux.")).toBeInTheDocument();
     expect(m.invoke).toHaveBeenCalledTimes(1);
@@ -62,7 +62,7 @@ describe("menu IA sur sélection de texte", () => {
     m.invoke.mockResolvedValue({ data: { result: "Une version plus percutante." }, error: null });
     render(<SelectionMenuProvider><p>contenu</p></SelectionMenuProvider>);
 
-    fireEvent.click(screen.getByRole("button", { name: /Rendre plus percutant/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Rendre plus percutant/ }));
     fireEvent.click(await screen.findByRole("button", { name: /Copier/ }));
 
     expect(writeText).toHaveBeenCalledWith("Une version plus percutante.");
@@ -74,7 +74,7 @@ describe("menu IA sur sélection de texte", () => {
     m.invoke.mockResolvedValue({ data: null, error: { message: "quota" } });
     render(<SelectionMenuProvider><p>contenu</p></SelectionMenuProvider>);
 
-    fireEvent.click(screen.getByRole("button", { name: /Reformuler/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Reformuler/ }));
 
     await waitFor(() => expect(m.toast.error).toHaveBeenCalled());
     expect(screen.queryByRole("button", { name: /Copier/ })).not.toBeInTheDocument();
@@ -84,7 +84,7 @@ describe("menu IA sur sélection de texte", () => {
     m.demo = true;
     render(<SelectionMenuProvider><p>contenu</p></SelectionMenuProvider>);
 
-    fireEvent.click(screen.getByRole("button", { name: /Raccourcir/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /Raccourcir/ }));
 
     expect(await screen.findByRole("button", { name: /Copier/ }, { timeout: 3000 })).toBeInTheDocument();
     expect(m.invoke).not.toHaveBeenCalled();

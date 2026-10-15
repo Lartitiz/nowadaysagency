@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
 import { handleQuotaError } from "@/lib/quota-error-handler";
-import { posthog } from "@/lib/posthog";
+import { posthog } from "@/lib/posthog-lazy";
 import { stripFontImportLeakFromSlides } from "@/lib/strip-font-import-leak";
 import { downscalePhotosForVision } from "@/lib/image-vision";
 import { AURIANA_DEMO_SUBJECT } from "@/lib/demo-auriana-data";

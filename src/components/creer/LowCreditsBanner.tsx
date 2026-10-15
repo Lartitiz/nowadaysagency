@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Sparkles } from "lucide-react";
-import { posthog } from "@/lib/posthog";
+import { posthog } from "@/lib/posthog-lazy";
 import { memoriseRetour } from "@/lib/retour-apres-detour";
 
 export default function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string }) {

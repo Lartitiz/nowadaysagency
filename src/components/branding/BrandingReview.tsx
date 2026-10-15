@@ -14,7 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { importTarget, readImportRows } from "@/lib/branding-import-persistence";
 import { isEmptyVal, fillOnlyEmpty } from "@/lib/fill-only-empty";
 import { withoutOnboardingDefaults } from "@/lib/onboarding-strategy-defaults";
-import { posthog } from "@/lib/posthog";
+import { posthog } from "@/lib/posthog-lazy";
 import { BrandPhotosPicker } from "@/components/photos/BrandPhotosPicker";
 import { BrandLogoSuggestion } from "@/components/branding/BrandLogoSuggestion";
 

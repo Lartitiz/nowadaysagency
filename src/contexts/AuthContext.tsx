@@ -3,7 +3,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { posthog } from "@/lib/posthog";
+import { posthog } from "@/lib/posthog-lazy";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { clearAppStorage } from "@/lib/storage-cleanup";
 import { setFlowUserId } from "@/hooks/use-flow-persistence";

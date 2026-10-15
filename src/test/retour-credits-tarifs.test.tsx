@@ -25,7 +25,7 @@ vi.mock("react-router-dom", () => ({
     </a>
   ),
 }));
-vi.mock("@/lib/posthog", () => ({ posthog: { capture: vi.fn() } }));
+vi.mock("@/lib/posthog-lazy", () => ({ posthog: { capture: vi.fn() } }));
 vi.mock("@/components/AppHeader", () => ({ default: () => null }));
 vi.mock("@/components/Confetti", () => ({ default: () => null }));
 vi.mock("@/contexts/WorkspaceContext", () => ({ useWorkspace: () => ({ switchWorkspace: vi.fn().mockResolvedValue(true) }) }));

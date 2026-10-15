@@ -1,4 +1,4 @@
-import { posthog } from "@/lib/posthog";
+import { posthog } from "@/lib/posthog-lazy";
 import { hasAnalyticsConsent } from "@/lib/analytics-consent";
 
 // Explicit allow-list: never collect briefs, account identifiers, session ids or URLs.

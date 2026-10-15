@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import BrandLogo from "@/components/BrandLogo";
 import SignupForm from "@/components/landing/SignupForm";
-import MiniDiagnostic from "@/components/landing/MiniDiagnostic";
+// Replié dans un <details> : chargé seulement quand la visiteuse l'ouvre
+// (il embarque framer-motion, ~110 Ko, inutile pour le premier affichage).
+const MiniDiagnostic = lazy(() => import("@/components/landing/MiniDiagnostic"));
 import "./public-landing.css";
 const views = {
   creer: {
@@ -10,6 +12,7 @@ const views = {
     description:
       "Un post LinkedIn, un carrousel Instagram, une newsletter… Tu pars de ton idée, de ton texte ou de tes photos.",
     image: "/landing/capture-creer.png",
+    small: "/landing/capture-creer-640.webp",
     alt: "Les entrées de création : Instagram, LinkedIn, newsletter et Pinterest",
   },
   carrousel: {
@@ -18,6 +21,7 @@ const views = {
     description:
       "Relis les propositions, modifie les textes et vérifie le rendu de ton carrousel.",
     image: "/landing/capture-carrousel.png",
+    small: "/landing/capture-carrousel-640.webp",
     alt: "L’éditeur de carrousel : textes modifiables et aperçus",
   },
   calendrier: {
@@ -26,6 +30,7 @@ const views = {
     description:
       "Retrouve tes contenus par date et par canal, avec leur état d’avancement.",
     image: "/landing/capture-calendrier.png",
+    small: "/landing/capture-calendrier-640.webp",
     alt: "Le calendrier mensuel rempli de contenus fictifs",
   },
 } as const;
@@ -38,6 +43,7 @@ export default function PublicLanding({
   const [mobileNav, setMobileNav] = useState(false);
   const [view, setView] = useState<View>("creer");
   const [zoomedView, setZoomedView] = useState<View | null>(null);
+  const [diagnosticOpened, setDiagnosticOpened] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     if (zoomedView && !dialogRef.current?.open) dialogRef.current?.showModal();
@@ -112,8 +118,10 @@ export default function PublicLanding({
             </div>
             <div className="hero-person">
               <img
-                src="/landing/laetitia-portrait-fourni.webp"
+                src="/landing/laetitia-portrait-mini.webp"
                 alt="Laetitia"
+                width={120}
+                height={180}
                 decoding="async"
               />
               <p>
@@ -168,14 +176,23 @@ export default function PublicLanding({
               </span>
               <div className="mini-studio">
                 <img
-                  src="/landing/studio-resultat-fourni.webp"
+                  src="/landing/studio-resultat-480.webp"
+                  srcSet="/landing/studio-resultat-320.webp 320w, /landing/studio-resultat-480.webp 480w"
+                  sizes="(max-width: 600px) 175px, 215px"
                   alt="Exemple de rendu IA : une femme portant la veste fleurie dans une cour"
+                  width={480}
+                  height={640}
+                  fetchPriority="high"
                   decoding="async"
                 />
                 <span className="studio-input">
                   <img
                     src="/landing/studio-produit-fourni.webp"
+                    srcSet="/landing/studio-produit-220.webp 220w, /landing/studio-produit-fourni.webp 440w"
+                    sizes="80px"
                     alt="La veste utilisée comme référence"
+                    width={440}
+                    height={660}
                     decoding="async"
                   />
                 </span>
@@ -397,7 +414,11 @@ export default function PublicLanding({
                 <img
                   id="view-image"
                   src={views[view].image}
+                  srcSet={`${views[view].small} 640w, ${views[view].image} 1100w`}
+                  sizes="(max-width: 600px) 82vw, 860px"
                   alt={views[view].alt}
+                  width={1100}
+                  height={760}
                   loading="lazy"
                   decoding="async"
                 />
@@ -435,7 +456,11 @@ export default function PublicLanding({
                 <div className="source-product">
                   <img
                     src="/landing/studio-produit-fourni.webp"
+                    srcSet="/landing/studio-produit-220.webp 220w, /landing/studio-produit-fourni.webp 440w"
+                    sizes="(max-width: 600px) 110px, 210px"
                     alt="Photo de départ : veste noire aux motifs floraux colorés"
+                    width={440}
+                    height={660}
                     loading="lazy"
                     decoding="async"
                   />
@@ -449,7 +474,11 @@ export default function PublicLanding({
                 <img
                   className="source-scene"
                   src="/landing/studio-scene-fournie.webp"
+                  srcSet="/landing/studio-scene-260.webp 260w, /landing/studio-scene-fournie.webp 440w"
+                  sizes="(max-width: 600px) 115px, 210px"
                   alt="Scène de départ : une cour avec une table et un vélo"
+                  width={440}
+                  height={587}
                   loading="lazy"
                   decoding="async"
                 />
@@ -462,7 +491,11 @@ export default function PublicLanding({
               <span>La mise en scène</span>
               <img
                 src="/landing/studio-resultat-fourni.webp"
+                srcSet="/landing/studio-resultat-480.webp 480w, /landing/studio-resultat-fourni.webp 800w"
+                sizes="(max-width: 600px) 210px, 390px"
                 alt="Résultat fourni : une femme porte la veste fleurie dans le décor de la cour"
+                width={800}
+                height={1067}
                 loading="lazy"
                 decoding="async"
               />
@@ -474,7 +507,7 @@ export default function PublicLanding({
           <figure className="diagnostic-card">
             <div className="audit-sheet">
               <span className="eyebrow">EXEMPLE DE PISTES À TRAVAILLER</span>
-              <h4>Par où commencer ?</h4>
+              <h3>Par où commencer ?</h3>
               <div>
                 <span>01</span>
                 <p>
@@ -512,9 +545,18 @@ export default function PublicLanding({
             <span className="feature-tags">
               Instagram · Site web · Recommandations
             </span>
-            <details className="landing-mini-diagnostic">
+            <details
+              className="landing-mini-diagnostic"
+              onToggle={(event) => {
+                if (event.currentTarget.open) setDiagnosticOpened(true);
+              }}
+            >
               <summary>Faire un mini-diagnostic Instagram</summary>
-              <MiniDiagnostic />
+              {diagnosticOpened && (
+                <Suspense fallback={null}>
+                  <MiniDiagnostic />
+                </Suspense>
+              )}
             </details>
           </div>
         </section>
@@ -561,6 +603,8 @@ export default function PublicLanding({
             <img
               src="/landing/laetitia-portrait-fourni.webp"
               alt="Laetitia, créatrice de L’Assistant Com’"
+              width={640}
+              height={960}
               loading="lazy"
               decoding="async"
             />

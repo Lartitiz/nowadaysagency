@@ -1,10 +1,12 @@
-import { ReactNode, useCallback } from "react";
+import { ReactNode, Suspense, lazy, useCallback } from "react";
 import { useTextSelection } from "@/hooks/use-text-selection";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
-import SelectionMenu from "./SelectionMenu";
+// Chargé seulement à la première sélection de texte : le menu embarque
+// framer-motion (~100 Ko), inutile au démarrage (page d'accueil comprise).
+const SelectionMenu = lazy(() => import("./SelectionMenu"));
 
 export default function SelectionMenuProvider({ children }: { children: ReactNode }) {
   const { selection, menuPosition, isVisible, close } = useTextSelection();
@@ -41,13 +43,15 @@ export default function SelectionMenuProvider({ children }: { children: ReactNod
     <>
       {children}
       {selection && menuPosition && (
-        <SelectionMenu
-          selectedText={selection.text}
-          position={menuPosition}
-          isVisible={isVisible}
-          onAction={handleAction}
-          onClose={close}
-        />
+        <Suspense fallback={null}>
+          <SelectionMenu
+            selectedText={selection.text}
+            position={menuPosition}
+            isVisible={isVisible}
+            onAction={handleAction}
+            onClose={close}
+          />
+        </Suspense>
       )}
     </>
   );

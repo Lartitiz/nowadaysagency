@@ -49,7 +49,7 @@ vi.mock('@/components/creer/CreerStepFormat', () => ({ default: (p: any) => <div
 vi.mock('@/components/creer/CreerStepResult', () => ({ default: (p: any) => { mocks.resultProps = p; return <div><pre data-testid="result">{JSON.stringify(p.result)}</pre><button onClick={p.onReset}>Réinitialiser</button><button onClick={p.onEdit}>Éditer le résultat</button></div>; } }));
 vi.mock('@/components/creer/PublishOrScheduleDialog', () => ({ default: (p: any) => { mocks.publishProps = p; return null; } }));
 vi.mock('@/components/SaveToIdeasDialog', () => ({ SaveToIdeasDialog: () => null }));
-vi.mock('@/lib/posthog', () => ({ posthog: { capture: (...args: any[]) => mocks.capture(...args) } }));
+vi.mock('@/lib/posthog-lazy', () => ({ posthog: { capture: (...args: any[]) => mocks.capture(...args) } }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: () => {
   const q: any = { then: (resolve: any, reject: any) => Promise.resolve({ data: [], error: null }).then(resolve, reject) };
   for (const key of ['select', 'eq', 'in', 'order', 'limit', 'insert', 'update', 'upsert', 'not', 'is']) q[key] = () => q;

@@ -1,5 +1,6 @@
 import posthog from 'posthog-js';
 import { hasAnalyticsConsent } from './analytics-consent';
+import { registerPostHogClient } from './posthog-lazy';
 
 let initialized = false;
 
@@ -18,6 +19,7 @@ export function initPostHog() {
     autocapture: true,
   });
   initialized = true;
+  registerPostHogClient(posthog);
   posthog.opt_in_capturing();
 }
 

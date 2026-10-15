@@ -39,7 +39,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 
 import { DEMO_AUTOFILL_RESULT } from "@/lib/demo-autofill-data";
 import { toast } from "sonner";
-import { posthog } from "@/lib/posthog";
+import { posthog } from "@/lib/posthog-lazy";
 
 // Map completion keys to analysis section keys
 const COMPLETION_TO_SECTION: Record<string, string> = {

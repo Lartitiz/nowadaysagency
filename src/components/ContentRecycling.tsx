@@ -17,7 +17,7 @@ import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Mic, MicOff, Sparkles, Loader2, Copy, RefreshCw, Upload, X, Plus, CalendarDays, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
 import { UX_UPLOAD_LIMITS } from "@/lib/upload-limits";
-import { posthog } from "@/lib/posthog";
+import { posthog } from "@/lib/posthog-lazy";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { isRecycleRefusal, isRecycledStoriesSequence, recycledStoriesText } from "@/lib/recycle-result";

@@ -1,4 +1,4 @@
-import { Sentry } from "@/lib/sentry";
+import { Sentry } from "@/lib/sentry-lazy";
 import { reportClientError } from "@/lib/client-error-monitor";
 
 export function trackError(error: unknown, context?: Record<string, any>) {
