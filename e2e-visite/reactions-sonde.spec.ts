@@ -37,13 +37,13 @@ test.describe("sonde de réaction (< 2 s)", () => {
   // Couvre la classe « je change un réglage, l'écran doit réagir » (bug canaux
   // #622). Réversible : on bascule le canal SEO puis on le remet — net nul.
   test("canaux : basculer un canal produit un toast immédiat", async ({ page }) => {
-    await page.goto("/profil", { waitUntil: "networkidle" });
+    await page.goto("/profil?onglet=canaux", { waitUntil: "networkidle" });
 
     const label = page.getByText("Mes canaux de communication");
     if (!(await label.isVisible({ timeout: 15_000 }).catch(() => false))) {
       test.skip(true, "section canaux absente sur ce compte");
     }
-    const section = label.locator(".."); // le conteneur <div class="pt-2">
+    const section = label.locator(".."); // le conteneur de la liste des canaux (onglet « Mes canaux »)
     const seoBtn = section.getByRole("button", { name: /SEO/i }).first();
     if (!(await seoBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
       test.skip(true, "canal SEO absent (jeu de canaux différent)");

@@ -8,9 +8,11 @@ interface SaveButtonProps {
   saving: boolean;
   onSave: () => Promise<void> | void;
   className?: string;
+  /** Libellé au repos (verbe + objet de préférence). */
+  label?: string;
 }
 
-export default function SaveButton({ hasChanges, saving, onSave, className }: SaveButtonProps) {
+export default function SaveButton({ hasChanges, saving, onSave, className, label = "Sauvegarder" }: SaveButtonProps) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [wasSaving, setWasSaving] = useState(false);
 
@@ -49,7 +51,7 @@ export default function SaveButton({ hasChanges, saving, onSave, className }: Sa
           ✅ Enregistré
         </>
       ) : (
-        "Sauvegarder"
+        label
       )}
     </Button>
   );
