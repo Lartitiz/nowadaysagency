@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Camera, Clock3, Download, FileDown, ImageIcon, Loader2, Palette, Play, Sparkles, Trash2 } from "lucide-react";
+import { Camera, Clock3, Download, FileDown, ImageIcon, Loader2, Palette, Play, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +35,8 @@ import { useUserPhotos } from "@/hooks/use-user-photos";
 import { getSignedPhotoUrls, type UserPhotoRow } from "@/lib/photo-storage";
 import StorySequenceReaderDialog from "@/components/stories/StorySequenceReaderDialog";
 import StoryVisualDirectControls from "@/components/stories/StoryVisualDirectControls";
+import StoryNav from "@/components/stories/StoryNav";
+import StoryPersonalAnchor from "@/components/stories/StoryPersonalAnchor";
 
 /** Photos signées d'avance, dans lesquelles chaque story pioche. */
 const LIBRARY_POOL = 12;
@@ -117,6 +119,8 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
   const [stories, setStories] = useState(() => rawStories.map(withStoryVisualFallback));
   const [readerOpen, setReaderOpen] = useState(false);
   const [personalAnchor, setPersonalAnchor] = useState("");
+  const [currentStory, setCurrentStory] = useState(0);
+  const shownStory = Math.min(currentStory, Math.max(0, stories.length - 1));
 
   const rawSignature = JSON.stringify(rawStories);
   const prevSignature = useRef(rawSignature);
@@ -722,36 +726,12 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
       </div>
 
       {result?.personal_tip && stories.length > 0 && (
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2" data-story-personal-anchor>
-          <div className="flex items-start gap-2">
-            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <div>
-              <p className="text-sm font-semibold text-foreground">Le détail qui rendra cette séquence vraiment tienne</p>
-              <p className="text-xs text-muted-foreground">{result.personal_tip}</p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <div className="flex-1 space-y-1">
-              <label htmlFor="story-personal-anchor" className="text-2xs font-medium text-muted-foreground">
-                Ce que tu as vraiment pensé, vu ou dit
-              </label>
-              <Textarea
-                id="story-personal-anchor"
-                value={personalAnchor}
-                onChange={(event) => setPersonalAnchor(event.target.value)}
-                className="min-h-[64px] resize-y bg-background text-sm"
-                placeholder="Ex. Là, je me suis dit : il y a un truc qui cloche."
-              />
-            </div>
-            <Button type="button" size="sm" onClick={insertPersonalAnchor} disabled={!personalAnchor.trim()}>
-              Ajouter à la story 1
-            </Button>
-          </div>
-        </div>
+        <StoryPersonalAnchor tip={result.personal_tip} value={personalAnchor} onChange={setPersonalAnchor} onInsert={() => { insertPersonalAnchor(); setCurrentStory(0); }} />
       )}
+      <StoryNav count={stories.length} current={shownStory} onChange={setCurrentStory} />
       <div className="space-y-2" data-selection-enabled="true">
         {stories.map((story: any, i: number) => (
-          <Card key={i} className="border-border">
+          <Card key={i} className="border-border" hidden={i !== shownStory}>
             <CardContent className="p-3">
               <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="flex-1 min-w-0 space-y-1.5">
