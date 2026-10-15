@@ -32,6 +32,7 @@ import {
   imageCallback,
 } from "./higgsfield-image.ts";
 import { handleMemory } from "./memory.ts";
+import { FREE_LIMIT_MESSAGE, freeInterpretationCapReached } from "./free-interpretation-cap.ts";
 import { isWornProduct, onlyAdditions, preferredProductGroup, referencesAtVersion, referencesDiffer } from "./branch-context.ts";
 
 export async function handleStudioRequest(req: Request): Promise<Response> {
@@ -246,6 +247,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             409,
           );
         }
+        if (await freeInterpretationCapReached(sb, actor, p.workspace_id)) return json({ code: "free_daily_limit", error: FREE_LIMIT_MESSAGE }, 429);
         const reserved = unwrap(
           await sb.rpc("studio_reserve_interpretation", {
             p_actor: actor,
