@@ -27,7 +27,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 import { isSafePublicUrl, safeFetchFollow } from "../_shared/scraping.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
-import { readOwnerProfile } from "./profile-owner.ts";
+import { readOwnerProfile } from "../_shared/profile-owner.ts";
 
 // Borne chaque fetch de scraping : un site qui pend ne doit pas manger le budget
 // temps de l'audit (l'appel IA a besoin de la quasi-totalité des 190s du client).

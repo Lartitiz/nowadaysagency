@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useProfileUserId, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useSocialConnections } from "@/hooks/use-social-connections";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 
@@ -98,6 +98,8 @@ function ScopedSitePhotoImportDialog({
 }: SitePhotoImportDialogProps) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
+  // Site pré-rempli depuis le profil de la propriétaire (la cliente en mode Binôme).
+  const profileUserId = useProfileUserId();
   const { connected, known: connectionsKnown, loading: connectionsLoading, refresh: refreshConnections } = useSocialConnections();
   const instagramConnected = !!connected.instagram;
 
@@ -131,12 +133,12 @@ function ScopedSitePhotoImportDialog({
     }
     setSource(initialSource);
     resetResults();
-    if (!user?.id || prefilledFor.current === user.id) return;
-    prefilledFor.current = user.id;
+    if (!profileUserId || prefilledFor.current === profileUserId) return;
+    prefilledFor.current = profileUserId;
     void supabase
       .from("profiles")
       .select("website_url")
-      .eq("user_id", user.id)
+      .eq("user_id", profileUserId)
       .maybeSingle()
       .then(({ data }) => {
         // Le champ profil peut contenir du texte libre (vu en QA : une
@@ -147,7 +149,7 @@ function ScopedSitePhotoImportDialog({
           setUrl((cur) => cur || candidate);
         }
       });
-  }, [open, user?.id, initialSource]);
+  }, [open, profileUserId, initialSource]);
 
   async function runScan() {
     const target = url.trim();

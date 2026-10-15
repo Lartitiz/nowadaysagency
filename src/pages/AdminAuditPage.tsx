@@ -12,6 +12,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
+import { profileChecks } from "@/lib/admin-audit-profile-checks";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -181,39 +182,26 @@ async function checkDataCoherence(): Promise<AuditResult[]> {
     });
   }
 
-  // 6. Instagram audit exists?
-  const { data: profiles } = await (supabase.from("profiles" as any) as any)
-    .select("id, first_name, instagram_handle");
-  for (const p of (profiles || []).filter((p: any) => p.instagram_handle)) {
-    const { data: audit } = await (supabase.from("instagram_audit" as any) as any)
-      .select("id")
-      .eq("user_id", p.id)
-      .maybeSingle();
-    if (!audit) {
-      results.push({
-        status: "info",
-        category: "Données",
-        title: `${p.first_name || "User"} : Instagram sans audit`,
-        detail: `Handle @${p.instagram_handle} renseigné mais jamais audité.`,
-      });
-    }
-  }
-
-  // 7. Orphan branding (brand_profile without matching profile)
-  const { data: allBrandProfiles } = await (supabase.from("brand_profile" as any) as any).select("user_id");
-  for (const b of allBrandProfiles || []) {
-    const { data: profile } = await (supabase.from("profiles" as any) as any)
-      .select("id")
-      .eq("id", b.user_id)
-      .maybeSingle();
-    if (!profile) {
-      results.push({
-        status: "error",
-        category: "Données",
-        title: "Brand profile orphelin",
-        detail: `brand_profile.user_id = ${b.user_id.slice(0, 8)}… mais ce profil n'existe pas.`,
-      });
-    }
+  // 6-7. Instagram sans audit, branding orphelin (profiles relié par user_id).
+  const [profilesRes, auditsRes, brandRes] = await Promise.all([
+    (supabase.from("profiles" as any) as any).select("user_id, prenom, instagram_username"),
+    (supabase.from("instagram_audit" as any) as any).select("user_id"),
+    (supabase.from("brand_profile" as any) as any).select("user_id"),
+  ]);
+  const profileCheckError = profilesRes.error || auditsRes.error || brandRes.error;
+  if (profileCheckError) {
+    results.push({
+      status: "warning",
+      category: "Données",
+      title: "Contrôle des profils impossible",
+      detail: profileCheckError.message,
+    });
+  } else {
+    results.push(...profileChecks(
+      profilesRes.data || [],
+      (auditsRes.data || []).map((a: any) => a.user_id),
+      (brandRes.data || []).map((b: any) => b.user_id),
+    ));
   }
 
   if (results.length === 0) {

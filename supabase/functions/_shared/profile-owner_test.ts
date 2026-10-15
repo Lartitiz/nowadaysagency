@@ -36,3 +36,13 @@ Deno.test("propriétaire introuvable : rend null sans lire le profil de quelqu'u
   assertEquals(await readOwnerProfile(sb, "manager-1", "ws-1", "instagram_bio"), null);
   assertEquals(calls.some((c) => c.startsWith("profiles")), false);
 });
+
+// Fonctions qui reçoivent un workspace_id : le profil se lit chez la propriétaire
+// de l'espace, jamais par l'id de la personne connectée (la manager en Binôme).
+for (const fn of ["photo-dump-plan", "product-on-model", "carousel-slide-image", "audit-branding"]) {
+  Deno.test(`${fn} : profil lu via readOwnerProfile, pas par l'id de la personne connectée`, async () => {
+    const src = await Deno.readTextFile(new URL(`../${fn}/index.ts`, import.meta.url));
+    assertEquals(/from\("profiles"\)[^;]*?\.eq\("user_id", userId\)/s.test(src), false);
+    assertEquals(src.includes("readOwnerProfile("), true);
+  });
+}

@@ -24,7 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { sellsProducts as profileSellsProducts } from "@/lib/product-or-service";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useProfileUserId, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useSocialConnections } from "@/hooks/use-social-connections";
 import { useUploadLibraryPhotos } from "@/hooks/use-user-photos";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -91,6 +91,8 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   const workspaceId = useWorkspaceId();
+  // Profil de la propriétaire de l'espace (la cliente en mode Binôme).
+  const profileUserId = useProfileUserId();
   const { connected, accountNames, loading: connectionsLoading } = useSocialConnections();
   const instagramConnected = !!connected.instagram;
   const connectedInstagramHandle = normalizeInstagramHandle(accountNames.instagram);
@@ -131,7 +133,7 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
       return;
     }
     // On attend de savoir si Instagram est connecté avant de lancer.
-    if (connectionsLoading) return;
+    if (connectionsLoading || !profileUserId) return;
     if (scanStarted.current || workspaceId === user.id) return;
     scanStarted.current = true;
     let scannedProduct: boolean | null = null;
@@ -140,11 +142,11 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
       const { data: profile } = await supabase
         .from("profiles")
         .select("website_url, instagram_url, instagram_username, product_or_service, type_activite")
-        .eq("user_id", user.id)
+        .eq("user_id", profileUserId)
         .maybeSingle();
       const websiteUrl = (profile?.website_url ?? "").trim();
       const siteOk = looksLikeUrl(websiteUrl);
-      const productActivity = profileSellsProducts(profile, user.id);
+      const productActivity = profileSellsProducts(profile, profileUserId);
       scannedProduct = productActivity;
       setIsProduct(productActivity);
       setHasSite(siteOk);
@@ -278,6 +280,7 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
     isDemoMode,
     user?.id,
     workspaceId,
+    profileUserId,
     connectionsLoading,
     instagramConnected,
     connectedInstagramHandle,

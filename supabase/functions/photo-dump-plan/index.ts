@@ -26,6 +26,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { readOwnerProfile } from "../_shared/profile-owner.ts";
 import { callAnthropic, AnthropicError, SONNET_MODEL } from "../_shared/anthropic.ts";
 
 const BodySchema = z.object({
@@ -132,7 +133,8 @@ serve(async (req) => {
         .not("description", "is", null)
         .order("created_at", { ascending: false })
         .limit(60),
-      supabase.from("profiles").select("activite, type_activite").eq("user_id", userId).maybeSingle(),
+      // Profil de la propriétaire de l'espace (la cliente en mode Binôme).
+      readOwnerProfile(supabase, userId, body.workspace_id, "activite, type_activite").then((data) => ({ data })),
       supabase
         .from("brand_charter")
         .select("photo_style, mood_keywords, visual_donts, moodboard_description")

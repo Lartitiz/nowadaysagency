@@ -26,6 +26,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { readOwnerProfile } from "../_shared/profile-owner.ts";
 import { getServiceClient, isQaTestAccount, logUsage } from "../_shared/plan-limiter.ts";
 import { fetchWithRetry } from "../_shared/http-retry.ts";
 import { openaiImageModel } from "../_shared/openai-image-model.ts";
@@ -104,7 +105,8 @@ serve(async (req) => {
         .select("photo_style, mood_keywords, visual_donts, moodboard_description")
         .eq(col, val)
         .maybeSingle(),
-      supabase.from("profiles").select("activite").eq("user_id", userId).maybeSingle(),
+      // Profil de la propriétaire de l'espace (la cliente en mode Binôme).
+      readOwnerProfile(supabase, userId, bodyWorkspaceId, "activite").then((data) => ({ data })),
     ]);
 
     // Route temporaire et réversible (03/10/2026) : crédit OpenAI direct épuisé

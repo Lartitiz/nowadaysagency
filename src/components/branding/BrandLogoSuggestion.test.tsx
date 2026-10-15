@@ -9,12 +9,15 @@ const m = vi.hoisted(() => ({
   upload: vi.fn(),
   update: vi.fn(),
   insert: vi.fn(),
+  owner: "user-test",
+  profileReads: [] as string[],
 }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "user-test" } }) }));
 vi.mock("@/contexts/DemoContext", () => ({ useDemoContext: () => ({ isDemoMode: m.demo }) }));
 vi.mock("@/hooks/use-workspace-query", () => ({
   useWorkspaceFilter: () => ({ column: "workspace_id", value: "ws-1" }),
   useWorkspaceId: () => "ws-1",
+  useProfileUserId: () => m.owner,
 }));
 vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({ invalidateQueries: vi.fn() }) }));
 vi.mock("@/lib/posthog-lazy", () => ({ posthog: { capture: vi.fn() } }));
@@ -23,9 +26,12 @@ vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: (table: string) => ({
       select: () => ({
-        eq: () => ({
-          maybeSingle: async () =>
-            table === "profiles" ? { data: { website_url: m.website } } : { data: m.charter, error: null },
+        eq: (_col: string, val: string) => ({
+          maybeSingle: async () => {
+            if (table !== "profiles") return { data: m.charter, error: null };
+            m.profileReads.push(val);
+            return { data: { website_url: m.website } };
+          },
         }),
       }),
       update: (payload: unknown) => ({ eq: async () => { m.update(payload); return { error: null }; } }),
@@ -45,6 +51,8 @@ beforeEach(() => {
   m.demo = false;
   m.website = "www.mon-site.fr";
   m.charter = null;
+  m.owner = "user-test";
+  m.profileReads = [];
   vi.clearAllMocks();
   m.scan.mockImplementation(async (_fn: string, { body }: { body: { mode: string } }) =>
     body.mode === "logo"
@@ -97,6 +105,21 @@ describe("BrandLogoSuggestion", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Ce n'est pas mon logo" }));
     expect(container).toBeEmptyDOMElement();
     expect(m.upload).not.toHaveBeenCalled();
+  });
+
+  it("mode Binôme : lit le site dans le profil de la cliente, pas celui de la manager", async () => {
+    m.owner = "cliente-1";
+    render(<BrandLogoSuggestion placement="brand_review" />);
+    await screen.findByAltText("Logo trouvé sur ton site");
+    expect(m.profileReads).toEqual(["cliente-1"]);
+  });
+
+  it("attend de connaître la propriétaire de l'espace avant de lire le profil", async () => {
+    m.owner = "";
+    render(<BrandLogoSuggestion placement="welcome" />);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(m.profileReads).toEqual([]);
+    expect(m.scan).not.toHaveBeenCalled();
   });
 
   it("reste masqué en mode démo", () => {
