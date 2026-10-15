@@ -1,10 +1,10 @@
 import { assertEquals, assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { COMPOSED_BY_CODE_MODEL } from "./plan-limiter.ts";
 
-// Le fichier de cron-health qui porte les grilles de prix. Un seul chemin à
-// changer quand elles sortiront d'index.ts (fiche 18, lot 3 : `tarifs.ts`) ; les
-// regex tolèrent n'importe quelle indentation de l'accolade fermante.
-const CRON_HEALTH_TARIFS = new URL("../cron-health/index.ts", import.meta.url);
+// Le fichier de cron-health qui porte les grilles de prix (sorties d'index.ts au
+// lot 3 de la fiche 18) ; les regex tolèrent n'importe quelle indentation de
+// l'accolade fermante.
+const CRON_HEALTH_TARIFS = new URL("../cron-health/tarifs.ts", import.meta.url);
 
 /**
  * Garde anti-dérive (13/08/2026).
@@ -24,7 +24,7 @@ Deno.test("l'étiquette « sans appel modèle » est la MÊME dans plan-limiter 
   const src = await Deno.readTextFile(CRON_HEALTH_TARIFS);
 
   const bloc = src.match(/const ZERO_COST_LABELS = new Set<string>\(\[([^\]]*)\]\)/);
-  assert(bloc, "ZERO_COST_LABELS introuvable dans cron-health/index.ts");
+  assert(bloc, "ZERO_COST_LABELS introuvable dans cron-health/tarifs.ts");
 
   const labels = [...bloc[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
   assert(
@@ -138,7 +138,7 @@ Deno.test("tout modèle de rédaction ou de relecture carrousel est tarifé dans
 
   const grille = (nom: string) => {
     const bloc = src.match(new RegExp(`const ${nom}: Record<[^=]+= \\{([\\s\\S]*?)\\n\\s*\\};`));
-    assert(bloc, `${nom} introuvable dans cron-health/index.ts`);
+    assert(bloc, `${nom} introuvable dans cron-health/tarifs.ts`);
     return new Set([...bloc[1].matchAll(/^\s*"([^"]+)":/gm)].map((m) => m[1]));
   };
   const texte = grille("TEXT_COST_EUR_PER_MTOKEN");
@@ -167,7 +167,7 @@ Deno.test("chaque modèle image par défaut (et le retour arrière) est tarifé 
   const { OPENAI_IMAGE_MODEL_DEFAULTS } = await import("./openai-image-model.ts");
   const src = await Deno.readTextFile(CRON_HEALTH_TARIFS);
   const bloc = src.match(/const IMAGE_COST_EUR: Record<[^=]+= \{([\s\S]*?)\n\s*\};/);
-  assert(bloc, "IMAGE_COST_EUR introuvable dans cron-health/index.ts");
+  assert(bloc, "IMAGE_COST_EUR introuvable dans cron-health/tarifs.ts");
   const tarifes = new Set([...bloc[1].matchAll(/^\s*"([^"]+)":/gm)].map((m) => m[1]));
   for (const model of [...Object.values(OPENAI_IMAGE_MODEL_DEFAULTS), "gpt-image-2"]) {
     assert(tarifes.has(model), `« ${model} » absent de IMAGE_COST_EUR : ses images seraient comptées 0 €`);
@@ -189,7 +189,7 @@ Deno.test("chaque modèle image Higgsfield est tarifé dans cron-health", async 
   const { MARKETING_CREATE_MODEL, MARKETING_FIDELITY_MODEL } = await import("./higgsfield-image-api.ts");
   const src = await Deno.readTextFile(CRON_HEALTH_TARIFS);
   const bloc = src.match(/const IMAGE_COST_EUR: Record<[^=]+= \{([\s\S]*?)\n\s*\};/);
-  assert(bloc, "IMAGE_COST_EUR introuvable dans cron-health/index.ts");
+  assert(bloc, "IMAGE_COST_EUR introuvable dans cron-health/tarifs.ts");
   const tarifes = new Set([...bloc[1].matchAll(/^\s*"([^"]+)":/gm)].map((m) => m[1]));
   for (const model of [...modeles, MARKETING_CREATE_MODEL, MARKETING_FIDELITY_MODEL]) {
     assert(tarifes.has(model), `« ${model} » absent de IMAGE_COST_EUR : ses images seraient comptées 0 €`);

@@ -461,7 +461,7 @@ export async function checkQuota(
  * `modeles_non_tarifes` de `cron-health` ne peut pas distinguer les deux et
  * signale les deux — à raison. On lève donc l'ambiguïté À LA SOURCE.
  *
- * ⚠️ Ce littéral est recopié dans `cron-health/index.ts` (`ZERO_COST_LABELS`),
+ * ⚠️ Ce littéral est recopié dans `cron-health/tarifs.ts` (`ZERO_COST_LABELS`),
  * qui n'importe VOLONTAIREMENT rien de `_shared/` pour rester déployable seule.
  * Toute modification doit toucher les deux.
  */

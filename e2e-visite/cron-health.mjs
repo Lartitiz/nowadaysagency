@@ -257,7 +257,7 @@ try {
     // Un modèle absent des grilles tarifaires compte 0 € : il doit CRIER, sinon
     // le total ment en silence (cas `claude-sonnet-5`, ~1 mois de sous-comptage).
     for (const m of cur.modeles_non_tarifes || []) {
-      console.log(`      🔴 modèle NON TARIFÉ « ${m.modele} » : ${m.appels} appels / ${m.tokens} tokens comptés 0 € → ajouter son tarif dans cron-health/index.ts`);
+      console.log(`      🔴 modèle NON TARIFÉ « ${m.modele} » : ${m.appels} appels / ${m.tokens} tokens comptés 0 € → ajouter son tarif dans cron-health/tarifs.ts`);
     }
     // Intégrité (12/10, #1458) : un compte ne doit avoir qu'UN espace owner.
     // Seuil : nouveaux_7j > 0 = 🔴 (le verrou SQL anti-doublon a sauté ou un
