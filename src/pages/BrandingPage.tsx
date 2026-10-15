@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef, useLayoutEffect } from "react
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter, useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
+import { useProfileFilter, useWorkspaceFilter, useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { creationReturnPath } from "@/lib/creation-navigation";
@@ -63,6 +63,7 @@ function ScopedBrandingPage() {
   const { column, value } = useWorkspaceFilter();
   const { loading: workspaceLoading } = useWorkspace();
   const workspaceId = useWorkspaceId();
+  const profileFilter = useProfileFilter();
   const queryClient = useQueryClient();
   const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, offers: 0, charter: 0, total: 0 });
   const [loading, setLoading] = useState(true);
@@ -401,7 +402,7 @@ function ScopedBrandingPage() {
   // remontage après coup effacerait ce que la personne a commencé à taper.
   const prefillImportLinks = async () => {
     if (isDemoMode || reanalyzeUrls.website || reanalyzeUrls.instagram || reanalyzeUrls.linkedin) return;
-    const links = await loadImportLinks(column, value);
+    const links = await loadImportLinks(column, value, profileFilter);
     if (mounted.current) setReanalyzeUrls(links);
   };
 
