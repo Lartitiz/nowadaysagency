@@ -4,8 +4,8 @@ import ts from 'typescript';
 import { reelCalendarCaption } from '../../supabase/functions/_shared/reel-caption';
 
 function calendarHandler(draft: string) {
-  const source = readFileSync('src/components/calendar/CalendarPostDialog.tsx', 'utf8');
-  const file = ts.createSourceFile('CalendarPostDialog.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const source = readFileSync('src/hooks/use-calendar-post-publish.ts', 'utf8');
+  const file = ts.createSourceFile('use-calendar-post-publish.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   let callback = '';
   function visit(node: ts.Node) {
     if (ts.isVariableDeclaration(node) && node.name.getText(file) === 'handlePublishInstagram') callback = node.initializer!.getText(file);

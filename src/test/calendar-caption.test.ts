@@ -52,10 +52,12 @@ describe("carrousel texte enregistré au calendrier", () => {
   });
 });
 
-// Exécute le vrai code de CalendarPostDialog (extrait par l'AST) avec des dépendances factices.
+// Exécute le vrai code de publication de la fenêtre du calendrier (hook
+// use-calendar-post-publish.ts depuis le lot 6 de la fiche 13, extrait par l'AST)
+// avec des dépendances factices.
 function dialogSnippet(name: string): string {
-  const source = readFileSync("src/components/calendar/CalendarPostDialog.tsx", "utf8");
-  const file = ts.createSourceFile("CalendarPostDialog.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const source = readFileSync("src/hooks/use-calendar-post-publish.ts", "utf8");
+  const file = ts.createSourceFile("use-calendar-post-publish.ts", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   let snippet = "";
   const visit = (node: ts.Node) => {
     if (ts.isVariableDeclaration(node) && node.name.getText(file) === name) snippet = node.initializer!.getText(file);
