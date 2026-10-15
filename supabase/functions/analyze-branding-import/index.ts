@@ -32,7 +32,11 @@ import { logUsage, checkQuota } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { isSafePublicUrl } from "../_shared/scraping.ts";
+import { isSafePublicUrl, safeFetchFollow } from "../_shared/scraping.ts";
+
+// anti-SSRF : chaque redirection est revérifiée AVANT d'être suivie (plus de requête vers une cible interne).
+const IMPORTER_HEADERS = { "User-Agent": "Mozilla/5.0 (compatible; BrandingImporter/1.0)" };
+const fetchSafe = (url: string) => safeFetchFollow(url, AbortSignal.timeout(20_000), 4, IMPORTER_HEADERS);
 
 // ── HTML to text helper ──
 function htmlToText(html: string): string {
@@ -55,12 +59,8 @@ function htmlToText(html: string): string {
 async function fetchPageText(url: string): Promise<string> {
   if (!isSafePublicUrl(url)) return ""; // anti-SSRF : pas d'IP interne / localhost
   try {
-    const resp = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandingImporter/1.0)" },
-      redirect: "follow",
-    });
-    // Re-valide l'URL finale au cas où une redirection pointerait vers une cible interne
-    if (!resp.ok || !isSafePublicUrl(resp.url)) return "";
+    const resp = (await fetchSafe(url))?.response;
+    if (!resp?.ok) return "";
     const html = await resp.text();
     return htmlToText(html);
   } catch {
@@ -109,11 +109,8 @@ async function fetchSocialProfile(type: string, url: string): Promise<{ type: st
 
     if (!isSafePublicUrl(fetchUrl)) return { type, text: "" }; // anti-SSRF
 
-    const resp = await fetch(fetchUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandingImporter/1.0)" },
-      redirect: "follow",
-    });
-    if (!resp.ok || !isSafePublicUrl(resp.url)) return { type, text: "" };
+    const resp = (await fetchSafe(fetchUrl))?.response;
+    if (!resp?.ok) return { type, text: "" };
     const html = await resp.text();
     const text = htmlToText(html);
     return { type, text: text.length > 50 ? text : "" };
@@ -159,13 +156,10 @@ Deno.serve(async (req) => {
       }
 
       // Fetch homepage
-      const homepageResp = await fetch(homepageUrl, {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandingImporter/1.0)" },
-        redirect: "follow",
-      });
+      const homepageResp = (await fetchSafe(homepageUrl).catch(() => null))?.response;
 
       // Une redirection vers une cible interne est traitée comme un échec
-      if (!homepageResp.ok || !isSafePublicUrl(homepageResp.url)) {
+      if (!homepageResp?.ok) {
         // Don't fail if we have other sources
         if (!text && (!social_links || social_links.length === 0)) {
           return new Response(

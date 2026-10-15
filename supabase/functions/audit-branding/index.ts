@@ -25,7 +25,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, AuditBrandingSchema } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
-import { isSafePublicUrl } from "../_shared/scraping.ts";
+import { isSafePublicUrl, safeFetchFollow } from "../_shared/scraping.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 // Borne chaque fetch de scraping : un site qui pend ne doit pas manger le budget
@@ -47,16 +47,15 @@ function htmlToText(html: string): string {
     .trim();
 }
 
+const AUDITOR_HEADERS = { "User-Agent": "Mozilla/5.0 (compatible; BrandingAuditor/1.0)" };
+
 async function fetchPageText(url: string): Promise<string> {
   try {
     if (!isSafePublicUrl(url)) return ""; // anti-SSRF : bloque IP privées / métadata
-    const resp = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandingAuditor/1.0)" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
-    });
-    if (!resp.ok) return "";
-    const html = await resp.text();
+    // anti-SSRF : chaque redirection est revérifiée (jamais vers une adresse interne)
+    const got = await safeFetchFollow(url, AbortSignal.timeout(SCRAPE_TIMEOUT_MS), 4, AUDITOR_HEADERS);
+    if (!got?.response.ok) return "";
+    const html = await got.response.text();
     return htmlToText(html);
   } catch {
     return "";
@@ -88,13 +87,9 @@ async function fetchSiteContent(url: string): Promise<string> {
   if (!isSafePublicUrl(url)) return ""; // anti-SSRF : bloque IP privées / métadata
   let html: string;
   try {
-    const homepageResp = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandingAuditor/1.0)" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
-    });
-    if (!homepageResp.ok) return "";
-    html = await homepageResp.text();
+    const got = await safeFetchFollow(url, AbortSignal.timeout(SCRAPE_TIMEOUT_MS), 4, AUDITOR_HEADERS);
+    if (!got?.response.ok) return "";
+    html = await got.response.text();
   } catch {
     return ""; // site injoignable ou trop lent : l'audit continue sur les autres sources
   }
