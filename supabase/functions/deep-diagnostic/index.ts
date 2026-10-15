@@ -8,7 +8,9 @@ import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/w
 import { finalizeDiagnosticEvidence } from "./evidence.ts";
 import { runFastDiagnostic } from "./fast-diagnostic.ts";
 import { DIAGNOSTIC_SYSTEM_PROMPT, buildDiagnosticUserPrompt } from "./prompts.ts";
-import { collectDiagnosticSources, MAX_TEXT_PER_SOURCE } from "./sources.ts";
+import { collectDiagnosticSources } from "./sources.ts";
+import { startBrandingEnrichment } from "./enrichment.ts";
+import { saveDiagnostic } from "./save.ts";
 
 // Réexports : index_test.ts importe ces fonctions depuis ./index.ts.
 export { normalizeDiagnosticRoute } from "./routes.ts";
@@ -117,65 +119,9 @@ export async function handleDeepDiagnostic(req: Request): Promise<Response> {
     // résultat. `savedDiagId` n'existe pas encore → null : l'edge retrouve la
     // dernière ligne diagnostic_results au moment d'écrire branding_prefill.
     try {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-      // Build enrichment prompt: include style hints + full cached website content
-      let enrichmentPrompt = userPrompt.slice(0, 16000);
-
-      // Add full cached content if available (the userPrompt already has a truncated version)
-      if (websiteUrl) {
-        try {
-          const { data: fullCache } = await supabaseAdmin
-            .from("scrape_cache")
-            .select("content, style_hints")
-            .eq("user_id", profileUserId)
-            .eq("url", websiteUrl)
-            .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (fullCache?.content && fullCache.content.length > MAX_TEXT_PER_SOURCE) {
-            enrichmentPrompt += `\n\n=== CONTENU COMPLET DU SITE (pour enrichissement approfondi) ===\n${fullCache.content}`;
-          }
-          // Repli si le cache n'a pas d'indices visuels (cache périmé > 1 h, ou
-          // ligne écrite avant le fix CSS) : on a déjà pu les extraire nous-mêmes
-          // au scrape direct plus haut. Sans ce `else if`, ces couleurs étaient
-          // calculées puis PERDUES ici — l'IA recevait 0 couleur et inventait une
-          // palette d'ambiance (cas 2 du prompt d'enrichissement).
-          if (fullCache?.style_hints) {
-            enrichmentPrompt += `\n\n${fullCache.style_hints}`;
-          } else if (cachedStyleHints) {
-            enrichmentPrompt += `\n\n${cachedStyleHints}`;
-          }
-        } catch {
-          // Fallback: use cached style hints already extracted
-          if (cachedStyleHints) {
-            enrichmentPrompt += `\n\n${cachedStyleHints}`;
-          }
-        }
-      } else if (cachedStyleHints) {
-        enrichmentPrompt += `\n\n${cachedStyleHints}`;
-      }
-
-      fetch(`${supabaseUrl}/functions/v1/diagnostic-enrichment`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${serviceRoleKey}`,
-        },
-        body: JSON.stringify({
-          userId,
-          workspaceId,
-          userPrompt: enrichmentPrompt,
-          websiteStyleHints: cachedStyleHints,
-          savedDiagId: null,
-          isOnboarding,
-          // Remplacement explicitement confirmé à l'écran (espace déjà brandé).
-          allowOverwrite: allowOverwrite === true,
-        }),
-      }).catch(() => {});
+      await startBrandingEnrichment({
+        supabaseAdmin, userId, workspaceId, profileUserId, userPrompt, websiteUrl, cachedStyleHints, isOnboarding, allowOverwrite,
+      });
     } catch {
       // Ignorer
     }
@@ -198,47 +144,9 @@ export async function handleDeepDiagnostic(req: Request): Promise<Response> {
     finalizeDiagnosticEvidence(analysisResult, sourcesUsed, sourcesFailed, instagramScreenshots.length);
 
     // ====== SAVE TO DB (fast: only diagnostic essentials) ======
-    // Non bloquant : le diagnostic vient d'être généré avec succès — un échec
-    // de sauvegarde ne doit pas priver l'utilisatrice du résultat déjà obtenu
-    // (savedDiag?.id reste undefined, la réponse est renvoyée quand même).
-    const { data: savedDiag, error: diagInsertError } = await supabaseAdmin
-      .from("diagnostic_results")
-      .insert({
-        user_id: userId,
-        workspace_id: workspaceId,
-        summary: (analysisResult as any).summary || null,
-        strengths: (analysisResult as any).strengths || null,
-        weaknesses: (analysisResult as any).weaknesses || null,
-        scores: (analysisResult as any).scores || null,
-        priorities: (analysisResult as any).priorities || null,
-        branding_prefill: null, // sera rempli par phase 2
-        sources_used: sourcesUsed,
-        sources_failed: sourcesFailed,
-        raw_analysis: analysisResult,
-      })
-      .select("id")
-      .single();
-    if (diagInsertError) console.error("deep-diagnostic: échec sauvegarde (non bloquant):", diagInsertError);
-
-    // audit_recommendations + logUsage en parallèle
-    const priorities = (analysisResult as any).priorities;
-    const fastSaves: Promise<any>[] = [];
-
-    if (priorities?.length > 0) {
-      fastSaves.push(
-        Promise.resolve(
-          supabaseAdmin.from("audit_recommendations").insert(
-            priorities.map((p: any, i: number) => ({
-              user_id: userId, workspace_id: workspaceId,
-              label: p.title, titre: p.title, module: "diagnostic",
-              route: p.route || "/dashboard", detail: [p.why, p.first_step, p.example].filter(Boolean).join("\n") || null,
-              temps_estime: p.time || null, priorite: p.impact || "medium",
-              position: i + 1, completed: false,
-            }))
-          ).then(({ error }) => { if (error) console.error("Save recommendations failed:", error); })
-        ).catch((e: unknown) => console.error("Save recommendations failed:", e))
-      );
-    }
+    const { savedDiagId, fastSaves } = await saveDiagnostic(supabaseAdmin, {
+      userId, workspaceId, analysisResult, sourcesUsed, sourcesFailed,
+    });
 
     // Crédit débité UNIQUEMENT si l'IA a réellement répondu (usageLog est null
     // sur le chemin fallback et pendant l'onboarding — voir runFastDiagnostic).
@@ -255,7 +163,7 @@ export async function handleDeepDiagnostic(req: Request): Promise<Response> {
     return new Response(
       JSON.stringify({
         success: true,
-        id: savedDiag?.id,
+        id: savedDiagId,
         diagnostic: { ...analysisResult, branding_prefill: null },
         sources_used: sourcesUsed,
         sources_failed: sourcesFailed,
