@@ -1553,6 +1553,10 @@ Jamais testés : `savePersona` (âge/métier dans `portrait.qui_elle_est`, exist
 5. Un test « réexportations » : `BrandingReview.tsx` exporte bien `default`, `CharterSection`, `normalizeHex` (+ le type `AnalysisResult`, vérifié par `tsc`).
 6. Bio Instagram : `sources_failed: ["instagram"]` → « Coller ma bio Instagram → », saisie, « Réanalyser avec ma bio » appelle `onReanalyzeWithBio` avec le texte nettoyé.
 
+**Lot T fait (15/10/2026).** Tests 1 et 2 : `src/test/branding-review-save.test.tsx` (33 cas, via « Je valide tout »). Tests 3 à 6 : `src/test/branding-review-behaviors.test.tsx` (10 cas, faux `BrandingCoachingFlow` qui appelle `onComplete`).
+
+> **Constat du lot T (non corrigé, pas un déplacement).** En compte personnel (espace = id de l'utilisatrice), `saveCharter`, `saveTone`, `saveValueProp`, `saveStrategy` et `fillBrandProfileSynthesis` lisent leur fiche unique avec `.eq("user_id", …)` **sans** `.is("workspace_id", null)`, contrairement à `readImportRows` (histoire, client·e idéal·e, offres). Une personne qui a aussi un espace nommé peut donc voir la charte (ou le profil) de cet autre espace complétée, ou la validation bloquée par « plusieurs lignes ». À corriger dans la PR « un seul helper de portée » (étape 7), avec un test qui pose une ligne `workspace_id: "w9"` en compte personnel.
+
 **Risque et ordre conseillé**
 
 Niveau : **moyen**. Le fichier est très corrigé : 16 commits depuis le 17/07/2026, dont 7 corrections, presque toutes sur l'écriture en base (`#1437` faux « déjà commencé », `#1383` charte déjà remplie qui plantait, `#976` fiabilisation des imports, `#657` refaire son onboarding, `#645` type de la fiche, `622b61ce6` vraies couleurs du site, `#735` « Je valide tout » remonté). Les bugs passés sont des « verts menteurs » (succès affiché alors que rien n'est écrit) et des écrasements de saisie : c'est exactement ce que le découpage des écritures peut réveiller. L'affichage, lui, est sans risque (composants purs). Bonne nouvelle : aucun test ne lit le texte du fichier, et un seul écran le monte.
