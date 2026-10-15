@@ -2,7 +2,8 @@
  * Budgets de temps de l'export de visuels (PPTX hybride, pont Canva).
  *
  * Ces constantes vivent à part parce que DEUX modules doivent s'accorder dessus :
- * le fabricant (`export-carousel-hybrid-pptx.ts`, lourd — html2canvas + pptxgenjs,
+ * le fabricant (`export-carousel-hybrid-pptx.ts` et son dossier `export-carousel-hybrid/`,
+ * dont `capture.ts` qui borne chaque capture ; lourd — html2canvas + pptxgenjs,
  * chargé à la demande) et l'appelant (`use-open-in-canva.ts`, léger). Les mettre
  * ici évite au second de tirer le premier dans le bundle principal.
  *
