@@ -177,6 +177,19 @@ describe("chargement du post", () => {
   });
 });
 
+describe("en-tête de contexte", () => {
+  it("réseau, format, date, objectif, angle, et statut changé depuis le menu", () => {
+    renderDialog({ editingPost: post({ format: "reel", objectif: "vente", angle: "storytelling_pro" }) });
+    expect(screen.getByText("Reel Instagram")).toBeInTheDocument();
+    expect(screen.getByText("💰 Vente")).toBeInTheDocument();
+    expect(screen.getByText("Storytelling")).toBeInTheDocument();
+    expect(screen.getByLabelText("Changer le statut du post").textContent).toContain("Idée");
+    fireEvent.click(item("Prêt à publier"));
+    expect(meta().status).toBe("ready");
+    expect(screen.getByLabelText("Changer le statut du post").textContent).toContain("Prêt à publier");
+  });
+});
+
 describe("enregistrement automatique", () => {
   it("rien à l'ouverture ; une frappe → un seul enregistrement après 1,2 s ; le 2e réutilise l'id du 1er", async () => {
     const { props } = renderDialog();
