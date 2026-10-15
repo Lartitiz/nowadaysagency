@@ -14,7 +14,7 @@ import { enforceAudienceAddressInFields, enforceAudienceAddressInJsonText } from
 import { logUsage } from "../../_shared/plan-limiter.ts";
 import { tryParseAiJson, tryParseAiObject } from "../../_shared/parse-ai-json.ts";
 import { callAnthropicSimple, type UsageSink, type AnthropicModel } from "../../_shared/anthropic.ts";
-import { streamAnthropicSSE, createClientSSEStream, type StatusEmitter } from "../../_shared/anthropic-stream.ts";
+import { streamAnthropicSSE, createClientSSEStream, clientStillThere, type StatusEmitter } from "../../_shared/anthropic-stream.ts";
 import { buildVisionGenerateBrief } from "../../_shared/vision-prompts.ts";
 import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, runTextRedacGate, textRedacRawCount, textRedacViolations, hookEchoesBefore } from "../../_shared/redac-gate.ts";
 import { logContentQuality } from "../../_shared/content-quality.ts";
@@ -231,7 +231,7 @@ export async function runLinkedInTwoStep(params: {
     }
     await enforceAudienceAddressInFields(parsed, ["content"], params.audienceAddress, addrOpts("linkedin-fictif"));
     alignFactualLinkedInHook(parsed);
-    await logUsage(userId, "content", "creative_flow", usage.total_tokens, usage.model, workspace_id);
+    if (clientStillThere(emitStatus, "linkedin")) await logUsage(userId, "content", "creative_flow", usage.total_tokens, usage.model, workspace_id);
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -467,7 +467,7 @@ Réponds UNIQUEMENT en JSON :
     alignLinkedInHookFields(merged);
 
     await logLinkedInQuality(merged.content, !keepOriginal);
-    await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
+    if (clientStillThere(emitStatus, "linkedin")) await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
     return new Response(JSON.stringify(merged), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -500,7 +500,7 @@ Réponds UNIQUEMENT en JSON :
   alignLinkedInHookFields(fallbackParsed);
 
   await logLinkedInQuality(fallbackParsed.content, false);
-  await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
+  if (clientStillThere(emitStatus, "linkedin")) await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
   return new Response(JSON.stringify(fallbackParsed), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });

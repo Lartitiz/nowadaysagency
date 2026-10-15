@@ -10,7 +10,7 @@ import { enforceAudienceAddressInFields } from "../../_shared/audience-address-f
 import { logUsage } from "../../_shared/plan-limiter.ts";
 import { tryParseAiObject } from "../../_shared/parse-ai-json.ts";
 import { callAnthropicSimple, type UsageSink, type AnthropicModel } from "../../_shared/anthropic.ts";
-import { type StatusEmitter } from "../../_shared/anthropic-stream.ts";
+import { clientStillThere, type StatusEmitter } from "../../_shared/anthropic-stream.ts";
 import { analyzeTextRedac, runTextRedacGate, textRedacViolations, hookEchoesBefore } from "../../_shared/redac-gate.ts";
 import { logContentQuality } from "../../_shared/content-quality.ts";
 import { stripMarkdownFromNewsletter } from "../../_shared/strip-markdown.ts";
@@ -139,7 +139,7 @@ export async function runNewsletterTwoStep(params: {
     }
   }
 
-  await logUsage(userId, "content", "creative_flow", nlUsage.total_tokens, nlUsage.model, workspace_id);
+  if (clientStillThere(emitStatus, "newsletter")) await logUsage(userId, "content", "creative_flow", nlUsage.total_tokens, nlUsage.model, workspace_id);
   return new Response(JSON.stringify(parsed), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });

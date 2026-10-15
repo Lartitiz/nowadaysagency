@@ -17,7 +17,7 @@ import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/f
 import { countContentBriefs, saveContentBrief } from "@/features/creer/content-brief";
 import { flattenResultForEdit } from "@/features/creer/edit-text-from-result";
 import { computeDraftConflict } from "@/features/creer/draft-conflict";
-import { type Step, resolveSafeStep } from "@/features/creer/creer-step";
+import { type Step, resolveSafeStep, isInterruptedGeneration } from "@/features/creer/creer-step";
 import { pickNonEmpty } from "@/features/creer/photo-source";
 import { applyEditedText, structuredEditText, withoutEditedText } from "@/features/creer/edited-text";
 import { replaceSlideText } from "@/lib/carousel-html-edit";
@@ -106,6 +106,7 @@ import LaunchSequenceResults from "@/components/creer/LaunchSequenceResults";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
+import { useGenerationReloadGuard } from "@/hooks/use-generation-reload-guard";
 import { loadFlowState, saveFlowState as persistFlowState, clearFlowState, savePhotos as persistPhotos, loadPhotos, setFlowWorkspaceId, setFlowUserId } from "@/hooks/use-flow-persistence";
 import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
@@ -573,9 +574,17 @@ function CreerWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aurianaDemoActive, isDemoMode]);
 
-  // Auto-persist state on changes + filet streaming (use-creer-flow-persistence.ts)
+  // Auto-persist state on changes (use-creer-flow-persistence.ts)
   useAutoPersistFlow({
-    conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, editBaseline, result, regenerationBackup, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, aurianaDemoActive, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate, saveFlowState, streaming, streamingContent,
+    conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, editBaseline, result, regenerationBackup, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, aurianaDemoActive, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate, saveFlowState,
+  });
+
+  // Filets anti-perte au rechargement en pleine génération (texte reçu,
+  // génération en cours, purge) : use-generation-reload-guard.ts.
+  const interruptedGeneration = useGenerationReloadGuard({
+    restoredInterrupted: safeStep === "result" && isInterruptedGeneration(ps),
+    step, result, streaming, streamingContent, selectedFormat, conflictPending, saveFlowState,
+    busy: generating || streaming || structureLoading || photoDumpResolving || pinterestVisualGenerating,
   });
 
   // Pre-fill from URL/state & auto-advance (use-creer-entry-init.ts)
@@ -1768,6 +1777,11 @@ function CreerWorkspace() {
                     pas « Session expirée » — et pas de Réessayer qui ne peut que re-échouer. */}
                 {quotaExhausted ? (
                   <p className="text-sm font-medium text-foreground">{quotaExhausted}</p>
+                ) : interruptedGeneration && !error ? (
+                  <div className="space-y-1" data-testid="creation-interrompue">
+                    <p className="text-sm font-medium text-foreground">Ta création a été interrompue par le rechargement de la page.</p>
+                    <p className="text-sm text-muted-foreground">Relance-la : elle repart de ton idée et de tes réponses.</p>
+                  </div>
                 ) : error ? (
                   <p className="text-destructive font-medium">{error}</p>
                 ) : (
@@ -1786,7 +1800,7 @@ function CreerWorkspace() {
                       onClick={handleRegenerate}
                       className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition"
                     >
-                      <RefreshCw className="h-4 w-4" strokeWidth={1.75} /> Réessayer
+                      <RefreshCw className="h-4 w-4" strokeWidth={1.75} /> {interruptedGeneration && !error ? "Relancer la création" : "Réessayer"}
                     </button>
                   )}
                   <button

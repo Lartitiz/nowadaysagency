@@ -21,6 +21,7 @@ import { logContentQuality, threadOutcome, carouselDurations } from "../../_shar
 import { photoMatchPhotoCount } from "../final-photo-match.ts";
 import { CAROUSEL_WRITING_VERSION } from "../writing-contract.ts";
 import { CAROUSEL_WRITER_VERSION } from "../writer.ts";
+import { clientStillThere } from "../../_shared/anthropic-stream.ts";
 
 // Post-traitement text_first : force photo_index à null partout (l'IA recopie
 // parfois le photo_index des exemples JSON) et télémétrie des directives manquantes.
@@ -242,7 +243,7 @@ export async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): 
   }
   await addOutlineUsage(reqCtx, mixUsage);
   const timings = clock.done("mix");
-  await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
+  if (clientStillThere(emitStatus, "carousel_mix")) await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspaceId, body.subject, threadOutcome(content),
     carouselDurations("mix", timings, { content, photos: photoMatchPhotoCount(body) }));
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,

@@ -17,6 +17,7 @@ import { carouselLength, autoMaxSlides, longTextSlides } from "../../_shared/car
 import { tryParseAiJson } from "../../_shared/parse-ai-json.ts";
 import { CAROUSEL_WRITING_VERSION } from "../writing-contract.ts";
 import { CAROUSEL_WRITER_VERSION } from "../writer.ts";
+import { clientStillThere } from "../../_shared/anthropic-stream.ts";
 
 // Partagée par hooks / slides / express_full (texte standard) / suggest_topics /
 // suggest_angles / deepening_questions (variante texte) : un seul appel IA,
@@ -149,7 +150,7 @@ export async function runGenerationAndRespond(
   await outline;
   for (const k of ["input_tokens", "output_tokens", "total_tokens"] as const) if (outlineUsage[k]) usage[k] = (usage[k] || 0) + outlineUsage[k]!;
   if (type !== "deepening_questions") {
-    await _deps.logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspaceId);
+    if (clientStillThere(emitStatus, `carousel_${type}`)) await _deps.logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspaceId);
   }
 
   timings.total_ms = Date.now() - startedAt;

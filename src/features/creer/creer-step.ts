@@ -23,6 +23,17 @@ export const SUPPORTED_FORMATS = new Set([
 // Paramètres d'URL à usage unique, retirés une fois l'init consommée.
 export const ONE_SHOT_PARAMS = ["sujet", "subject", "format", "objectif", "objective", "auto", "angle", "carouselSubMode", "firstProduct", "sujetSansPhoto", "idea_id"];
 
+/** Une génération a été coupée par un rechargement (ou une fermeture) : l'étape
+ * résultat était ouverte, la génération lancée depuis moins de 30 min, et rien
+ * d'exploitable n'a été reçu. */
+const INTERRUPTED_GENERATION_MAX_AGE_MS = 30 * 60_000;
+export function isInterruptedGeneration(ps: PersistedFlow, now = Date.now()): boolean {
+  if (!ps || ps.step !== "result" || ps.result) return false;
+  if ((ps.pendingStream?.text?.length ?? 0) > 40) return false;
+  const ts = Number(ps.generationInFlight?.ts) || 0;
+  return ts > 0 && now - ts < INTERRUPTED_GENERATION_MAX_AGE_MS;
+}
+
 // Restore step — allow "result" and "edit" if their data is available
 export function resolveSafeStep(ps: PersistedFlow, { canalConflict, hasIdea, photoCount }: { canalConflict: boolean; hasIdea: boolean; photoCount: number }): Step {
   if (!ps?.step) return "idea";
@@ -34,6 +45,11 @@ export function resolveSafeStep(ps: PersistedFlow, { canalConflict, hasIdea, pho
   // Génération interrompue (reload/fermeture mi-streaming) : le crédit est déjà
   // débité — on restaure le texte déjà écrit au lieu de renvoyer à l'étape format.
   if (ps.step === "result" && !ps.result && (ps.pendingStream?.text?.length ?? 0) > 40) return "result";
+  // Rechargement en pleine génération SANS texte reçu (LinkedIn, newsletter,
+  // carrousel : le texte n'arrive qu'à la fin ; post pendant ses 1res secondes) :
+  // on reste sur l'étape résultat, qui annonce l'interruption et propose de
+  // relancer, au lieu de renvoyer à l'étape 2 sans un mot (15/10/2026).
+  if (isInterruptedGeneration(ps)) return "result";
   if (ps.step === "edit" && ps.editContent) return "edit";
   // structure_review dépend de `structureProposal`, qui n'est PAS persisté →
   // au reload il repart à null et l'écran serait vide. On retombe donc sur

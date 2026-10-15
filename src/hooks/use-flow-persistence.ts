@@ -37,6 +37,10 @@ interface FlowState {
   // Un reload/fermeture mi-streaming renvoyait à l'étape format et jetait le
   // texte alors que le crédit était déjà débité — on le restaure à la place.
   pendingStream?: { text: string; format: string; ts: number } | null;
+  /** Génération en cours (posé au départ, retiré à l'arrivée du résultat ou de
+   * l'erreur). Encore présent au rechargement = création interrompue par le
+   * rechargement : on le dit au lieu de renvoyer à l'étape 2 (15/10/2026). */
+  generationInFlight?: { format: string; ts: number } | null;
   demoScenario?: string | null;
   editingIdeaId?: string | null;
   /** Brief repris depuis « Mes idées » : conservé après un rechargement pour

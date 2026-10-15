@@ -13,6 +13,7 @@ import { addOutlineUsage } from "../outline.ts";
 import { logContentQuality, threadOutcome, carouselDurations } from "../../_shared/content-quality.ts";
 import { CAROUSEL_WRITING_VERSION } from "../writing-contract.ts";
 import { CAROUSEL_WRITER_VERSION } from "../writer.ts";
+import { clientStillThere } from "../../_shared/anthropic-stream.ts";
 
 // ── Mix carousel mode ──
 export async function continuousCarouselResponse(ctx: CarouselRequestContext): Promise<Response | null> {
@@ -58,7 +59,7 @@ export async function continuousCarouselResponse(ctx: CarouselRequestContext): P
   const content = JSON.stringify(matched);
   await addOutlineUsage(ctx, usage);
   const timings = clock.done(`continuous_${ctx.body.carousel_type}`);
-  await _deps.logUsage(ctx.userId,ctx.category,`carousel_${ctx.body.carousel_type}`,usage.total_tokens,usage.model,ctx.workspaceId);
+  if (clientStillThere(ctx.emitStatus, `carousel_${ctx.body.carousel_type}`)) await _deps.logUsage(ctx.userId,ctx.category,`carousel_${ctx.body.carousel_type}`,usage.total_tokens,usage.model,ctx.workspaceId);
   await logContentQuality(ctx.userId,`carousel_${ctx.body.carousel_type}`,measured,usage.model,ctx.workspaceId,ctx.body.subject,threadOutcome(written),
     carouselDurations(`continuous_${ctx.body.carousel_type}`,timings,{content:matched,photos:photoMatchPhotoCount(ctx.body)}));
   return new Response(JSON.stringify({content,writing_version:CAROUSEL_WRITING_VERSION,
