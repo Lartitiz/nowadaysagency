@@ -69,6 +69,7 @@ vi.mock("framer-motion", () => ({
 }));
 
 import BrandingReview, { type AnalysisResult } from "@/components/branding/BrandingReview";
+import { SAVE_FNS, QUERY_KEYS } from "@/lib/branding-review-save";
 
 const row = (id: string, fields: any = {}) => ({ id, user_id: "u1", workspace_id: "w1", ...fields });
 
@@ -290,5 +291,50 @@ describe("BrandingReview — portée des lectures et écritures", () => {
     await validateAll({ story: { full_story: "Histoire IA" } });
     expect(m.db.storytelling[0]).toEqual(before);
     expect(m.db.storytelling[1]).toMatchObject({ user_id: "u1", workspace_id: null, step_6_full_story: "Histoire IA" });
+  });
+});
+
+// Lot 2 (15/10/2026) : les écritures vivent dans src/lib/branding-review-save.ts,
+// appelables sans l'écran. Cas qui ne passent pas par « Je valide tout ».
+describe("SAVE_FNS — appel direct", () => {
+  it("donnée absente ou vide → aucune lecture ni écriture", async () => {
+    for (const key of Object.keys(SAVE_FNS) as (keyof typeof SAVE_FNS)[]) {
+      await SAVE_FNS[key](undefined, "u1", "w1");
+    }
+    await SAVE_FNS.offers({ offers: [] }, "u1", "w1");
+    await SAVE_FNS.charter({ confidence: "high" }, "u1", "w1");
+    expect(m.reads).toEqual([]);
+    expect(m.writes).toEqual([]);
+  });
+
+  it("offre sans nom → erreur, rien d'écrit", async () => {
+    await expect(SAVE_FNS.offers({ offers: [{ name: "  " }] }, "u1", "w1")).rejects.toThrow("Donne un nom à chaque offre");
+    expect(m.writes).toEqual([]);
+  });
+
+  it("deux offres du même nom dans l'import → erreur avant toute écriture", async () => {
+    await expect(SAVE_FNS.offers({ offers: [{ name: "Atelier" }, { name: "atelier " }] }, "u1", "w1")).rejects.toThrow("existe déjà");
+    expect(m.writes).toEqual([]);
+  });
+
+  it("une mise à jour qui ne touche aucune ligne n'est pas un succès", async () => {
+    m.db.brand_charter = [row("c1", { color_primary: null })];
+    // La ligne disparaît entre la lecture et l'écriture (supprimée ailleurs).
+    const realFrom = m.from.getMockImplementation()!;
+    let calls = 0;
+    m.from.mockImplementation((table: string) => {
+      if (table === "brand_charter" && ++calls === 2) m.db.brand_charter = [];
+      return realFrom(table);
+    });
+    try {
+      await expect(SAVE_FNS.charter({ color_primary: "#123456" }, "u1", "w1")).rejects.toThrow("Aucune fiche enregistrée");
+    } finally {
+      m.from.mockImplementation(realFrom);
+    }
+  });
+
+  it("QUERY_KEYS : chaque section rafraîchit au moins un cache", () => {
+    expect(Object.keys(QUERY_KEYS).sort()).toEqual(Object.keys(SAVE_FNS).sort());
+    for (const keys of Object.values(QUERY_KEYS)) expect(keys.length).toBeGreaterThan(0);
   });
 });
