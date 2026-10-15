@@ -354,7 +354,6 @@ export async function runFastDiagnostic(opts: {
   return { analysisResult, usageLog };
 }
 
-/** Handler HTTP du diagnostic. Exporté pour les tests de contrat (handler_contract_test.ts). */
 export async function handleDeepDiagnostic(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
 
@@ -885,15 +884,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
     );
   }
 }
-
-// `import.meta.main` n'est vrai que lorsque ce fichier est le point d'entrée
-// Deno (invocation directe par le runtime edge) — faux quand un test `import`e
-// ce module. `serve()` ne tente donc jamais de binder un port pendant les
-// tests (qui tournent avec --allow-env --allow-read, sans --allow-net).
-if (import.meta.main) {
-  serve(handleDeepDiagnostic);
-}
-
+if (import.meta.main) serve(handleDeepDiagnostic); // runtime edge seulement : un test qui importe ce fichier n'ouvre aucun port
 // ====== ACTIVITY INSIGHTS ======
 
 const ACTIVITY_INSIGHTS: Record<string, { strengths: string[]; tips: string[]; priority: string }> = {
