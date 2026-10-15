@@ -9,7 +9,7 @@
  *   - posts bloqués en "publishing" (worker mort en route)
  *   - posts "scheduled" en retard de plus de 45 min (pg_cron
  *     trigger_publish_due_posts mort ou edge social-publish-scheduled down —
- *     cf. le seuil identique dans supabase/functions/cron-health/index.ts)
+ *     cf. le seuil identique dans supabase/functions/cron-health/quotidien.ts)
  *   - connexions sociales déjà EXPIRÉES (pas "expire bientôt", qui est une
  *     variation attendue au fil de l'eau — cf. etat côté edge)
  *
