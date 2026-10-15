@@ -1313,7 +1313,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
             </h2>
             <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto leading-relaxed">
               {done
-                ? "Tes choix sont enregistrés. Les informations manquantes restent à compléter quand tu en as besoin depuis ton Branding."
+                ? "Tes choix sont enregistrés. Les informations manquantes restent à compléter quand tu en as besoin depuis Mon identité."
                 : `${pending.length} carte${pending.length > 1 ? "s attendent" : " attend"} encore ta réponse. Reprends-${pending.length > 1 ? "les" : "la"} une par une, ou valide tout d'un coup si l'analyse te convient.`}
             </p>
 
@@ -1339,7 +1339,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
               {done ? (
                 <button onClick={completeReview} disabled={!canComplete} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 disabled:cursor-wait">
-                  {mandatory && !productPhotosReady ? "Un instant…" : mandatory ? "Créer mon premier contenu →" : "Voir mon branding complet →"}
+                  {mandatory && !productPhotosReady ? "Un instant…" : mandatory ? "Créer mon premier contenu →" : "Voir mon identité complète →"}
                 </button>
               ) : (
                 <>
@@ -1368,7 +1368,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
               <div className="flex items-center gap-3 shrink-0">
                 {allDone ? (
                   <button onClick={completeReview} disabled={waitingForPhotos} className="text-sm font-semibold text-primary-text hover:underline whitespace-nowrap disabled:opacity-50 disabled:cursor-wait">
-                    {mandatory ? finished ? waitingForPhotos ? "Un instant…" : "Créer mon premier contenu →" : "Voir la suite →" : "Voir mon branding complet →"}
+                    {mandatory ? finished ? waitingForPhotos ? "Un instant…" : "Créer mon premier contenu →" : "Voir la suite →" : "Voir mon identité complète →"}
                   </button>
                 ) : (
                   <>
@@ -1388,7 +1388,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                       <button
                         onClick={() => onDone(false)}
                         className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 whitespace-nowrap"
-                        title="Les cartes validées sont gardées ; tu pourras finir le reste depuis ta page branding."
+                        title="Les cartes validées sont gardées ; tu pourras finir le reste depuis Mon identité."
                       >
                         Finir plus tard
                       </button>

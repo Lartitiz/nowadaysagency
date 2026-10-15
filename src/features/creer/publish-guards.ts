@@ -90,7 +90,7 @@ export function extractLinkedInText(raw: RawResult): string {
  * Le contenu affiché est-il destiné au canal Instagram ? Conditionne l'AFFICHAGE
  * du bouton « Publier sur Instagram » : un post LinkedIn, une épingle Pinterest ou
  * une newsletter ne doivent pas le montrer du tout (même désactivé). Le crosspost
- * vers un autre canal passe par /linkedin/crosspost (régénération), pas par ici.
+ * vers un autre canal passe par Créer → Transformer → Crosspost (régénération), pas par ici.
  */
 export function isInstagramPublishTarget(args: {
   selectedFormat: string | null | undefined;

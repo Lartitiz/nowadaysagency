@@ -51,6 +51,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   "/communaute": "Communauté",
   "/accompagnement": "Accompagnement",
   "/profil": "Mon profil",
+  "/aide": "Aide",
   "/settings": "Paramètres",
   "/abonnement": "Abonnement",
 };
@@ -474,8 +475,8 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
           </>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => window.open("mailto:laetitia@nowadaysagency.com", "_blank")} className="gap-2 cursor-pointer">
-          <HelpCircle className="h-4 w-4" /> Aide & support
+        <DropdownMenuItem onClick={() => navigate("/aide")} className="gap-2 cursor-pointer">
+          <HelpCircle className="h-4 w-4" /> Aide
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={signOut} className="gap-2 cursor-pointer text-destructive focus:text-destructive">

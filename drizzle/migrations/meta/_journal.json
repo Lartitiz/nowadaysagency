@@ -64,6 +64,13 @@
       "when": 1791994760791,
       "tag": "0008_cron_jobs_health",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792051812679,
+      "tag": "0009_studio_complete_generation_cron",
+      "breakpoints": true
     }
   ]
 }

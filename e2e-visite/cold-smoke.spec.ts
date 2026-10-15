@@ -181,25 +181,23 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
   await shot(page, "02-diagnostic-accueil");
   await welcomeCta.click();
 
-  // Étape 1 « Dis-moi qui tu es » (prénom + activité, pré-remplis à l'inscription)
+  // Étape 1 « Dis-moi qui tu es » (prénom + activité sur un écran, pré-remplis à l'inscription)
   // — preuve que l'onboarding démarre sans crasher après l'accueil.
   const etape1 = page.getByText(/Dis-moi qui tu es/i).first();
   await expect(etape1, "Le diagnostic ne démarre pas après « C'est parti » (écran blanc ?)").toBeVisible({ timeout: 12000 });
   await shot(page, "03-diagnostic-etape1");
 
   // Un pas de plus — BEST-EFFORT (informationnel, ne fait PAS échouer le smoke) :
-  // Suivant → étape 2 « Tu te reconnais dans quoi ? ». On capture ce qui s'affiche
+  // Suivant → écran « Tu proposes plutôt quoi ? ». On capture ce qui s'affiche
   // pour le regard du cron ; l'assertion dure est déjà passée à l'étape 1 (pas
   // d'écran blanc). Dérouler tout le diagnostic reste au harnais qa-neuf.
+  // 🔑 15/10 — prénom et « tu fais quoi, en deux mots ? » sont désormais sur
+  // le MÊME écran (chantier A, démarrage raccourci) : le pas suivant est donc
+  // l'écran produits/services.
   const suivant = page.locator("button:visible", { hasText: /suivant/i }).first();
   await suivant.click({ timeout: 5000 }).catch(() => {});
-  // 🔑 18/09 — « Tu te reconnais dans quoi ? » n'existe plus dans le code : le
-  // pas suivant est l'étape profil (« Enchantée <prénom> 👋 / tu fais quoi, en
-  // deux mots ? », OnboardingPhase1Profile). Sans cette mise à jour, le
-  // best-effort imprimait « étape 2 non atteinte » à CHAQUE run, même quand le
-  // diagnostic avançait parfaitement.
   // toBeVisible (qui ATTEND) et non isVisible({ timeout }) dont le délai est ignoré.
-  const step2 = await expect(page.getByText(/tu fais quoi, en deux mots/i).first())
+  const step2 = await expect(page.getByText(/Tu proposes plutôt quoi/i).first())
     .toBeVisible({ timeout: 8000 })
     .then(() => true, () => false);
   await shot(page, "04-diagnostic-etape2");

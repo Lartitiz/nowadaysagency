@@ -40,6 +40,7 @@ const ChatGuidePage = lazy(() => import("./pages/ChatGuidePage"));
 
 const Profile = lazy(() => import("./pages/Profile"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const HelpPage = lazy(() => import("./pages/HelpPage"));
 const OrganizationHub = lazy(() => import("./pages/OrganizationHub"));
 const IdeasPage = lazy(() => import("./pages/IdeasPage"));
 const BrandingPage = lazy(() => import("./pages/BrandingPage"));
@@ -114,7 +115,6 @@ const BrandingSectionPage = lazy(() => import("./pages/BrandingSectionPage"));
 const IntakePage = lazy(() => import("./pages/IntakePage"));
 const LinkedInPostGenerator = lazy(() => import("./pages/LinkedInPostGenerator"));
 const LinkedInCommentStrategy = lazy(() => import("./pages/LinkedInCommentStrategy"));
-const LinkedInCrosspost = lazy(() => import("./pages/LinkedInCrosspost"));
 
 const CheckoutBinomePage = lazy(() => import("./pages/CheckoutBinomePage"));
 const InvitePage = lazy(() => import("./pages/InvitePage"));
@@ -264,6 +264,7 @@ function AnimatedRoutes() {
               <Route path="/photos" element={<ProtectedRoute><PhotosPage /></ProtectedRoute>} />
               <Route path="/profil" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/parametres" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+              <Route path="/aide" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
               <Route path="/parametres/connexions" element={<ProtectedRoute><ConnectionCheckPage /></ProtectedRoute>} />
               <Route path="/abonnement" element={<ProtectedRoute><AbonnementPage /></ProtectedRoute>} />
               <Route path="/accompagnement" element={<Navigate to="/dashboard" replace />} />
@@ -331,7 +332,8 @@ function AnimatedRoutes() {
               <Route path="/linkedin/engagement" element={<ProtectedRoute><LinkedInEngagement /></ProtectedRoute>} />
               <Route path="/linkedin/post" element={<ProtectedRoute><LinkedInPostGenerator /></ProtectedRoute>} />
               <Route path="/linkedin/comment-strategy" element={<ProtectedRoute><LinkedInCommentStrategy /></ProtectedRoute>} />
-              <Route path="/linkedin/crosspost" element={<ProtectedRoute><LinkedInCrosspost /></ProtectedRoute>} />
+              {/* « Adapter un contenu » faisait doublon avec Créer → Transformer (décision de Laetitia du 15/10/2026) : adresse gardée pour les liens partagés. */}
+              <Route path="/linkedin/crosspost" element={<Navigate to="/creer?mode=transform" replace />} />
               {/* Pinterest module */}
               <Route path="/pinterest" element={<ProtectedRoute><PinterestHub /></ProtectedRoute>} />
               <Route path="/pinterest/compte" element={<ProtectedRoute><PinterestCompte /></ProtectedRoute>} />

@@ -14,7 +14,7 @@
 // Lancer (flags de la CI, script npm test:edges) :
 //   deno test --no-check --allow-env --allow-read --node-modules-dir=none supabase/functions/_shared/format-briefs_snapshot_test.ts
 
-import { assertSnapshot } from "https://deno.land/std@0.224.0/testing/snapshot.ts";
+import { assertSnapshot } from "../../edge-tests/snapshot.ts";
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import * as briefs from "./format-briefs.ts";
 import {

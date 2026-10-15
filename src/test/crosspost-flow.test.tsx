@@ -16,7 +16,6 @@ vi.mock('@/components/SubPageHeader', () => ({ default: () => null }));
 vi.mock('@/components/calendar/AddToCalendarDialog', () => ({ AddToCalendarDialog: (p: any) => p.open ? <button disabled={p.loading} onClick={() => p.onConfirm('2026-10-02')}>Confirmer la date</button> : null }));
 vi.mock('@/components/SaveToIdeasDialog', () => ({ SaveToIdeasDialog: () => null }));
 import CrosspostFlow from '@/components/CrosspostFlow';
-import LinkedInCrosspost from '@/pages/LinkedInCrosspost';
 import { crosspostScope, readCrosspost } from '@/lib/crosspost-persistence';
 const output = { versions: { linkedin: { full_text: 'Résultat LinkedIn' }, reel: { script: 'Script Reel complet' } } };
 const response = { data: { content: JSON.stringify(output) }, error: null };
@@ -26,7 +25,7 @@ beforeEach(() => {
   mocks.rpc.mockImplementation(async (_name: any,args: any) => ({ data: { id: args.p_post_id, replayed: false }, error: null }));
 });
 describe('both crosspost entry points', () => {
-  it.each([CrosspostFlow,LinkedInCrosspost])('generates and saves all versions with owner + structure', async Component => {
+  it.each([CrosspostFlow])('generates and saves all versions with owner + structure', async Component => {
     const view = render(<Component />);
     fireEvent.change(view.getByPlaceholderText('Colle ton contenu ici...'), { target: { value: 'Ma source' } });
     fireEvent.click(view.getByText('✨ Adapter pour chaque canal'));

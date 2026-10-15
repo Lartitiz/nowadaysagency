@@ -10,7 +10,7 @@
 // Dérive VOULUE d'un prompt : régénère et relis le diff du .snap.
 //   deno test --no-check --allow-env --allow-read --allow-write --node-modules-dir=none supabase/functions/inspire-ai/contract_test.ts -- --update
 
-import { assertSnapshot } from "https://deno.land/std@0.224.0/testing/snapshot.ts";
+import { assertSnapshot } from "../../edge-tests/snapshot.ts";
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   anthropicTextSuccess,

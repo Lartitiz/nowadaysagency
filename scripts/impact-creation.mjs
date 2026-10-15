@@ -106,7 +106,7 @@ export const zoneOf = (mod) => {
 };
 const ZONE_ICON = { rouge: "🔴", orange: "🟠", verte: "🟢" };
 
-const isTest = (p) => /_test\.ts$|\.test\.tsx?$|\.spec\.ts$|__snapshots__\//.test(p);
+const isTest = (p) => /_test\.ts$|\.test\.tsx?$|\.spec\.ts$|__snapshots__\/|\.snap$|^supabase\/edge-tests\//.test(p);
 
 /**
  * Formats et modules partagés touchés par une liste de fichiers modifiés.
@@ -240,7 +240,7 @@ function main() {
     const impact = analyzeImpact(files, sharedUsage());
     const snapshots = files
       .filter((f) => f.endsWith(".snap"))
-      .map((f) => ({ file: f.replace(/^supabase\/functions\//, ""), ...diffSnapshots(showOrEmpty(base, f), showOrEmpty(head, f)) }));
+      .map((f) => ({ file: f.replace(/^supabase\/(functions|edge-tests\/snapshots)\//, ""), ...diffSnapshots(showOrEmpty(base, f), showOrEmpty(head, f)) }));
     report = formatReport(impact, snapshots);
   } catch (e) {
     report = `### Création de contenu : rapport d'impact indisponible\n\nBase de comparaison introuvable (${base || "aucune"}) : ${e.message}\n`;

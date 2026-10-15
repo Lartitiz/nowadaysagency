@@ -28,7 +28,7 @@ interface Props {
   data: DiagnosticData;
   prenom: string;
   onComplete: () => void;
-  /** CTA principal « Générer mon premier contenu » (création directe, sans passer par /welcome). */
+  /** Bouton principal « Créer mon premier contenu » (relecture de la fiche si elle attend, puis création). */
   onCreateFirst?: () => void;
   hasInstagram?: boolean;
   hasWebsite?: boolean;
@@ -36,12 +36,101 @@ interface Props {
   sourcesFailed?: string[];
 }
 
-export default function DiagnosticView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
-  return <SlideView data={data} prenom={prenom} onComplete={onComplete} onCreateFirst={onCreateFirst} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />;
+/* Fin d'onboarding = UN récapitulatif court, sans défilement (15/10/2026).
+   Les 9 diapositives d'avant restent à un clic (« Voir le diagnostic
+   complet ») : rien n'est retiré, tout est rangé. */
+export default function DiagnosticView(props: Props) {
+  const [full, setFull] = useState(false);
+  return full
+    ? <SlideView {...props} onBackToRecap={() => setFull(false)} />
+    : <RecapView {...props} onShowFull={() => setFull(true)} />;
+}
+
+/* ═══ Récapitulatif court ═══ */
+function RecapView({ data, prenom, onComplete, onCreateFirst, onShowFull }: Props & { onShowFull: () => void }) {
+  const [showConfetti, setShowConfetti] = useState(false);
+  // La fiche « à valider » peut arriver PENDANT la lecture (enrichissement
+  // asynchrone) : on la surveille pour annoncer la relecture avant le clic.
+  const { pending: brandReviewPending } = usePendingBrandReview({ pollMs: 5000 });
+  useEffect(() => {
+    const timer = setTimeout(() => setShowConfetti(true), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const strengths = data.strengths.slice(0, 2).map(s => normalizeStrength(s).title).filter(Boolean);
+  const weaknesses = data.weaknesses.slice(0, 2).map(w => w.title).filter(Boolean);
+  const firstPriority = data.priorities[0]?.title;
+
+  return (
+    <div className="flex-1 flex items-center justify-center px-5 py-4">
+      {showConfetti && <Confetti />}
+      <div className="max-w-xl w-full space-y-4">
+        <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground leading-tight text-center">
+          {prenom ? `${prenom}, voilà ce que je vois.` : "Voilà ce que je vois."}
+        </h1>
+        {data.isFallback && (
+          <p className="rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
+            ⚠️ <span className="font-medium">Diagnostic simplifié.</span> Mon analyse complète n'a pas abouti cette fois. Tu pourras la relancer depuis ton espace.
+          </p>
+        )}
+        {data.summary && (
+          // La coupe à 4 lignes vit sur le texte, pas sur la carte : sur la
+          // carte, le bas de la 5e ligne débordait dans la marge intérieure.
+          <div className="rounded-2xl bg-card border border-border px-4 py-3">
+            <p className="text-sm text-foreground leading-relaxed line-clamp-4">{data.summary}</p>
+          </div>
+        )}
+        <p className="text-sm text-center text-muted-foreground">
+          Où tu en es : <span className="font-semibold text-foreground">{diagnosticLevel(data.totalScore)}</span>
+        </p>
+        {(strengths.length > 0 || weaknesses.length > 0) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            {strengths.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground">Ce qui marche déjà</p>
+                {strengths.map((t, i) => <p key={i} className="flex gap-1.5 text-foreground line-clamp-2"><span className="text-success shrink-0">✓</span>{t}</p>)}
+              </div>
+            )}
+            {weaknesses.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground">Ce qu'on va travailler</p>
+                {weaknesses.map((t, i) => <p key={i} className="flex gap-1.5 text-foreground line-clamp-2"><span className="text-warning shrink-0">→</span>{t}</p>)}
+              </div>
+            )}
+          </div>
+        )}
+        {firstPriority && (
+          <p className="text-sm text-foreground line-clamp-2">
+            <span className="font-semibold">🎯 Par où commencer :</span> {firstPriority}
+          </p>
+        )}
+        <div className="flex flex-col items-center gap-2 pt-1">
+          <Button onClick={onCreateFirst || onComplete} size="lg" className="rounded-full px-10 text-base shadow-lg">
+            Créer mon premier contenu
+          </Button>
+          {brandReviewPending && onCreateFirst && (
+            <p className="text-xs text-muted-foreground text-center max-w-xs">
+              Avant, je te montre ta fiche de marque à relire : une minute, et tes contenus parleront vraiment de toi.
+            </p>
+          )}
+          <div className="flex items-center gap-4 text-sm">
+            <button type="button" onClick={onShowFull} className="text-primary underline-offset-4 hover:underline">
+              Voir le diagnostic complet
+            </button>
+            {onCreateFirst && (
+              <button type="button" onClick={onComplete} className="text-muted-foreground underline-offset-4 hover:underline">
+                Aller à mon espace
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ═══ Slides — mode unique, mobile et ordinateur ═══ */
-function SlideView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
+function SlideView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed, onBackToRecap }: Props & { onBackToRecap: () => void }) {
   const [slide, setSlide] = useState(0);
   const [touchStart, setTouchStart] = useState(0);
   const isMobile = useIsMobile();
@@ -131,6 +220,11 @@ function SlideView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasW
             </Button>
           </div>
         )}
+        <div className="text-center mt-3">
+          <button type="button" onClick={onBackToRecap} className="text-xs text-muted-foreground underline-offset-4 hover:underline">
+            ← Revenir au résumé
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -421,26 +515,26 @@ function FinalSection({ onComplete, onCreateFirst }: { onComplete: () => void; o
       <p className="text-lg font-display font-bold text-foreground">On y va ?</p>
       {onCreateFirst ? (
         <div className="flex flex-col items-center gap-3">
-          {/* Si une fiche de marque attend sa relecture, la prochaine action
-              n'est PAS de créer : c'est de valider ce qu'on a capté. Le bouton
-              le dit, au lieu de promettre un contenu puis de rediriger. */}
+          {/* Un seul nom pour le premier contenu, partout. Si une fiche de
+              marque attend sa relecture, la phrase sous le bouton annonce ce
+              détour d'une minute au lieu de le cacher. */}
           <Button
             onClick={onCreateFirst}
             size="lg"
             className="rounded-full px-10 text-base shadow-lg"
           >
-            {brandReviewPending ? "📋 Valider ce que j'ai capté sur ta marque" : "✨ Générer mon premier contenu"}
+            Créer mon premier contenu
           </Button>
           {brandReviewPending && (
             <p className="text-xs text-muted-foreground max-w-xs">
-              Une minute de relecture, et tes contenus parleront vraiment de toi.
+              Avant, je te montre ta fiche de marque à relire : une minute, et tes contenus parleront vraiment de toi.
             </p>
           )}
           <button
             onClick={onComplete}
             className="text-sm text-muted-foreground underline-offset-4 hover:underline"
           >
-            Découvrir mon espace d'abord →
+            Aller à mon espace
           </button>
         </div>
       ) : (
@@ -449,7 +543,7 @@ function FinalSection({ onComplete, onCreateFirst }: { onComplete: () => void; o
           size="lg"
           className="rounded-full px-10 text-base shadow-lg"
         >
-          Découvrir mon espace →
+          Aller à mon espace
         </Button>
       )}
     </div>

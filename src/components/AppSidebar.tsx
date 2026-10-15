@@ -1,7 +1,7 @@
 import BrandLogo from "@/components/BrandLogo";
 import { useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, Check, Home, UserRound, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut,  Plus, Trash2, Image, BarChart3, IdCard,  Sparkles, Lightbulb } from "lucide-react";
+import { ChevronDown, Check, Home, UserRound, CircleHelp, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut,  Plus, Trash2, Image, BarChart3, IdCard,  Sparkles, Lightbulb } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { isRouteVisible } from "@/config/feature-flags";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -230,6 +230,10 @@ export default function AppSidebar() {
           <Link to="/abonnement" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors">
             <CreditCard size={16} />
             Mon abonnement
+          </Link>
+          <Link to="/aide" onClick={() => setOpen(false)} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body transition-colors ${isActive("/aide") ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"}`}>
+            <CircleHelp size={16} />
+            Aide
           </Link>
         </div>
 

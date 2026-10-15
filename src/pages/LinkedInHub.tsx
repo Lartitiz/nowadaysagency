@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { UserRound, ScanEye, ScanText, Repeat2 } from "lucide-react";
+import { UserRound, ScanEye, ScanText } from "lucide-react";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { HubConnectBanner } from "@/components/hub";
 import LinkedInCoaching from "@/components/linkedin/LinkedInCoaching";
@@ -21,7 +21,6 @@ function LinkedInSpace() {
       </PresenceChoices>
       <PresenceCard title="Faire le point" description="Relire ton profil et identifier tes priorités." icon={ScanEye} to="/linkedin/audit" />
       <PresenceCard title="Analyser un post" description="Retravailler un texte que tu as déjà écrit." icon={ScanText} to="/linkedin/post" />
-      <PresenceCard title="Adapter un contenu" description="Préparer plusieurs versions à partir d’un même contenu." icon={Repeat2} to="/linkedin/crosspost" />
     </div>
     <nav aria-label="Organisation LinkedIn" className="my-6 flex flex-wrap gap-x-6 gap-y-1">
       <PresenceLink to="/calendrier?canal=linkedin">Mon calendrier</PresenceLink>

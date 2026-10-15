@@ -16,13 +16,14 @@ export function callOptionsForStep(params: {
   isLinkedIn: boolean;
   isPhotoMode: boolean;
   context?: string | null;
+  contentType?: string;
 }) {
   const { step, isLinkedIn, isPhotoMode, context } = params;
   // 8192 pour la génération de contenu : le JSON reel (script + duplicata `sections`
   // + `lecture_test` + shot list) dépasse le défaut de 4096 de callAnthropicSimple
   // → stop_reason "max_tokens" → échec systématique en ~40 s. Un plafond haut ne
   // coûte rien tant qu'il n'est pas consommé.
-  const factualFictionalLinkedIn = step === "generate" && isLinkedIn && !isPhotoMode && isFactualFictionalLinkedInBrief(context);
+  const factualFictionalLinkedIn = step === "generate" && isLinkedIn && !isPhotoMode && isFactualFictionalLinkedInBrief(context ?? "");
   const maxTokens = step === "questions" ? 800 : step === "hooks" ? 1400 : factualFictionalLinkedIn ? 1200 : 8192;
   // Même détection du format que le reste du handler (isLinkedIn, format-flags.ts, lot F3).
   const isLinkedInText = isLinkedIn && step !== "questions";

@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import { useWorkspaceId, useProfileUserId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 
 const SOURCE_TYPES = [
-  // TODO: à réactiver quand le générateur newsletter sera prêt (aligné avec LinkedInCrosspost)
+  // TODO: à réactiver quand le générateur newsletter sera prêt 
   // { id: "newsletter", label: "📧 Ma newsletter" },
   { id: "instagram", label: "📸 Mon post Instagram" },
   { id: "linkedin", label: "💼 Mon post LinkedIn" },

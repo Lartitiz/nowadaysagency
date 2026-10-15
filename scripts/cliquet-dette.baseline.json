@@ -58,7 +58,7 @@
       "any": 26
     },
     "src/hooks/use-onboarding.ts": {
-      "lignes": 923,
+      "lignes": 918,
       "any": 15
     },
     "src/lib/carousel-editor.ts": {
@@ -118,8 +118,8 @@
       "any": 2
     },
     "src/pages/WelcomePage.tsx": {
-      "lignes": 958,
-      "any": 50
+      "lignes": 952,
+      "any": 46
     },
     "supabase/functions/_shared/anthropic.ts": {
       "lignes": 927,
