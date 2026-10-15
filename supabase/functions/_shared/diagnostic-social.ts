@@ -2,6 +2,7 @@ import { decryptConnTokens } from "./token-crypto.ts";
 import { refreshTokenIfNeeded } from "./instagram-graph.ts";
 import { fetchInstagramInsights } from "./instagram-insights.ts";
 import { fetchLinkedInInsights } from "./linkedin-insights.ts";
+import { isSafePublicUrl, safeFetchFollow } from "./scraping.ts";
 
 export interface SocialDiagnosticEvidence {
   text: string;
@@ -34,10 +35,10 @@ async function graphJson(url: URL, signal: AbortSignal): Promise<any> {
 }
 
 async function readMediaImage(url: string, signal: AbortSignal) {
-  const target = new URL(url);
-  if (target.protocol !== "https:") return null;
-  const response = await fetch(target, { signal });
-  if (!response.ok) return null;
+  // anti-SSRF : https public uniquement, chaque redirection revérifiée
+  if (!url.startsWith("https://") || !isSafePublicUrl(url)) return null;
+  const response = (await safeFetchFollow(url, signal))?.response;
+  if (!response?.ok) return null;
   const type = response.headers.get("content-type")?.split(";")[0];
   if (type !== "image/jpeg" && type !== "image/png" && type !== "image/webp") return null;
   const declaredSize = Number(response.headers.get("content-length"));

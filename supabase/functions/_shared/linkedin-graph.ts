@@ -8,6 +8,12 @@
 // (Le passage à /rest/posts viendra avec l'ajout des images/carrousels.)
 
 import { stripInlineMarkdown } from "./strip-markdown.ts";
+import { safeFetchFollow } from "./scraping.ts";
+
+/** Lit un média à publier : jamais une adresse interne, redirections revérifiées (anti-SSRF). */
+async function fetchPublicMedia(url: string): Promise<Response | null> {
+  return (await safeFetchFollow(url, AbortSignal.timeout(60_000)))?.response ?? null;
+}
 
 const UGC_POSTS_URL = "https://api.linkedin.com/v2/ugcPosts";
 
@@ -42,8 +48,8 @@ export function isLinkedInImageUrl(url: unknown): url is string {
  */
 async function uploadImageAsset(conn: any, author: string, imageUrl: string): Promise<string> {
   // 1) Octets de l'image (URL publique calendar-media).
-  const imgRes = await fetch(imageUrl);
-  if (!imgRes.ok) throw new Error("Image inaccessible pour la publication LinkedIn.");
+  const imgRes = await fetchPublicMedia(imageUrl);
+  if (!imgRes?.ok) throw new Error("Image inaccessible pour la publication LinkedIn.");
   const bytes = new Uint8Array(await imgRes.arrayBuffer());
   const contentType = imgRes.headers.get("content-type") || "image/jpeg";
 
@@ -179,8 +185,8 @@ export async function publishDocumentToLinkedIn(conn: any, text: string, pdfUrl:
   };
 
   // 1) Récupère le PDF.
-  const pdfRes = await fetch(pdfUrl);
-  if (!pdfRes.ok) throw new Error("PDF inaccessible pour la publication LinkedIn.");
+  const pdfRes = await fetchPublicMedia(pdfUrl);
+  if (!pdfRes?.ok) throw new Error("PDF inaccessible pour la publication LinkedIn.");
   const pdfBytes = new Uint8Array(await pdfRes.arrayBuffer());
 
   // 2) initializeUpload : LinkedIn renvoie une uploadUrl + l'URN du document.

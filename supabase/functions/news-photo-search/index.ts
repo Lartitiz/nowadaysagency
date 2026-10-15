@@ -27,7 +27,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
-import { isSafePublicUrl } from "../_shared/scraping.ts";
+import { isSafePublicUrl, safeFetchFollow } from "../_shared/scraping.ts";
 
 const BodySchema = z.object({
   mode: z.enum(["search", "download"]).default("search"),
@@ -73,11 +73,12 @@ serve(async (req) => {
       return json({ error: "URL refusée." }, 400);
     }
     try {
-      const res = await fetch(body.url, {
-        redirect: "follow",
-        headers: { "User-Agent": "LAssistantCom/1.0 (nowadays-assistant.fr)" },
-        signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+      // anti-SSRF : chaque redirection est revérifiée (jamais vers une adresse interne)
+      const got = await safeFetchFollow(body.url, AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS), 4, {
+        "User-Agent": "LAssistantCom/1.0 (nowadays-assistant.fr)",
       });
+      if (!got) return json({ error: "URL refusée." }, 400);
+      const res = got.response;
       if (!res.ok) return json({ error: `Téléchargement impossible (HTTP ${res.status}).` }, 502);
       const type = res.headers.get("content-type") || "";
       if (!type.startsWith("image/")) {

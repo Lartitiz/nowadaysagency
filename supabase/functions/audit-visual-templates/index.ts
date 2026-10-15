@@ -7,7 +7,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
-import { isSafePublicUrl } from "../_shared/scraping.ts";
+import { isSafePublicUrl, safeFetchFollow } from "../_shared/scraping.ts";
 import { tryParseAiObject } from "../_shared/parse-ai-json.ts";
 
 serve(async (req) => {
@@ -107,9 +107,10 @@ serve(async (req) => {
           console.error(`Blocked unsafe image URL: ${url}`);
           continue;
         }
-        const resp = await fetch(url);
-        if (!resp.ok) {
-          console.error(`Failed to fetch image: ${url} — ${resp.status}`);
+        const got = await safeFetchFollow(url, AbortSignal.timeout(30_000)); // redirections revérifiées
+        const resp = got?.response;
+        if (!resp?.ok) {
+          console.error(`Failed to fetch image: ${url} — ${resp?.status ?? "redirection refusée"}`);
           continue;
         }
         const arrayBuffer = await resp.arrayBuffer();
