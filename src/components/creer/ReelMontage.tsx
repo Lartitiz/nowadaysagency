@@ -1,4 +1,3 @@
-import { useAuth } from "@/contexts/AuthContext";
 import { readableError } from "@/lib/error-messages";
 import { reelSourceKey } from "@/lib/reel-publication";
 // build 2026-07-23c
@@ -20,11 +19,9 @@ import { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Film, Download, Mic, Upload, Video, EyeOff, VolumeX } from "lucide-react";
+import { Loader2, Search, Film, Download, Upload } from "lucide-react";
 import { toast } from "sonner";
-import ReelVoiceRecorder from "@/components/creer/ReelVoiceRecorder";
 import {
   searchStockVideos,
   suggestStockKeywords,
@@ -49,8 +46,10 @@ import {
   loadVideoDuration,
   type UserReelVideo,
 } from "@/lib/reel-user-videos";
-import { StudioVideoPanel } from "@/features/studio-video/StudioVideoPanel";
 import { readStudioVideo, type StudioVideoJob } from "@/features/studio-video/api";
+import { MontageModeFork, MontageModeSummary } from "@/features/reel-montage/MontageModeChoice";
+import { MontageVoiceChoice } from "@/features/reel-montage/MontageVoiceChoice";
+import { StudioClipDialog } from "@/features/reel-montage/StudioClipDialog";
 import { fromMine, fromStock, set, type MontageMode, type Phase, type ReelMontageProject, type Section, type SelectedClip, type StudioCutaway } from "@/features/reel-montage/types";
 
 // Réexportation : ReelResult.tsx et les tests importent ce type depuis ce fichier (fiche 16, lot 1).
@@ -76,7 +75,6 @@ interface Props {
 }
 
 export default function ReelMontage({ sections, subject, workspaceId, initialProject, onProjectChange, onPhaseChange, onMp4Ready }: Props) {
-  const { user } = useAuth();
   const spoken = sections.filter((s) => typeof s.texte_parle === "string" && s.texte_parle.trim());
   const sectionTexts = spoken.map(s => s.texte_parle || "");
   const { data: charter } = useBrandCharter();
@@ -464,104 +462,13 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
       </div>
 
       {!montageMode ? (
-        // Fourche à deux modes ÉGAUX : aucun n'est présélectionné, beaucoup de
-        // clientes ne se montreront jamais.
-        <div className="space-y-2">
-          <p className="text-2xs text-muted-foreground">Comment veux-tu ce reel ?</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setMontageMode("filme")}
-              className="rounded-md border border-border p-3 text-left hover:border-primary/50"
-            >
-              <span className="flex items-center gap-1.5 text-xs font-medium">
-                <Video className="h-3.5 w-3.5" /> Je me filme
-              </span>
-              <span className="block text-2xs text-muted-foreground mt-1">
-                Tu apparais à la caméra : on garde ta voix et le son tels quels, sous-titres compris.
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setMontageMode("cache")}
-              className="rounded-md border border-border p-3 text-left hover:border-primary/50"
-            >
-              <span className="flex items-center gap-1.5 text-xs font-medium">
-                <EyeOff className="h-3.5 w-3.5" /> Je ne me montre pas
-              </span>
-              <span className="block text-2xs text-muted-foreground mt-1">
-                Tes vidéos ou des clips libres de droit, avec ta voix enregistrée ou sans voix.
-              </span>
-            </button>
-          </div>
-        </div>
+        <MontageModeFork setMontageMode={setMontageMode} />
       ) : (
         <>
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-2xs text-muted-foreground">
-              {montageMode === "filme"
-                ? "Une prise face cam par phrase : ta voix est déjà dedans, les sous-titres suivent."
-                : voiceMode === "silent"
-                  ? "Un clip par phrase, sans piste voix : le texte reste visible à l'écran."
-                  : "Un clip par phrase, ta voix off par-dessus, les sous-titres suivent."}
-            </p>
-            <button
-              type="button"
-              onClick={() => setMontageMode(null)}
-              className="text-2xs text-muted-foreground underline shrink-0"
-            >
-              Changer
-            </button>
-          </div>
+          <MontageModeSummary montageMode={montageMode} voiceMode={voiceMode} setMontageMode={setMontageMode} />
 
           {montageMode === "cache" && (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setVoiceMode("recorded")}
-                  className={`flex-1 rounded-md border px-3 py-2 text-left ${
-                    voiceMode === "recorded" ? "border-primary bg-primary/5" : "border-border"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5 text-xs font-medium">
-                    <Mic className="h-3.5 w-3.5" /> Ma voix off
-                  </span>
-                  <span className="block text-2xs text-muted-foreground">J'enregistre en lisant le script</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVoiceMode("silent")}
-                  className={`flex-1 rounded-md border px-3 py-2 text-left ${
-                    voiceMode === "silent" ? "border-primary bg-primary/5" : "border-border"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5 text-xs font-medium">
-                    <VolumeX className="h-3.5 w-3.5" /> Sans voix
-                  </span>
-                  <span className="block text-2xs text-muted-foreground">Texte à l'écran ; ajoute ta musique dans Instagram si tu veux</span>
-                </button>
-              </div>
-
-              {/* Mention honnête : le moteur coupe le son des clips (`muted: true`
-                  dans recipe.ts) et pose la voix par-dessus. Une prise face cam où
-                  elle parle sort donc muette dans CE mode — on le dit plutôt que
-                  de laisser croire à un micro cassé ; le mode "Je me filme" existe
-                  pour ce cas. */}
-              <p className="text-2xs text-muted-foreground">
-                Le son de tes vidéos n'est pas conservé dans ce mode. Choisis « Ma voix off » pour
-                raconter le reel, ou « Sans voix » pour un montage visuel avec texte à l'écran. Pour une
-                prise face cam où tu parles, choisis « Je me filme ».
-              </p>
-
-              {voiceMode === "recorded" && (
-                <ReelVoiceRecorder
-                  texts={spoken.map((s) => s.texte_parle as string)}
-                  initialClips={voiceClips}
-                  onVoicesChange={setVoiceClips}
-                />
-              )}
-            </>
+            <MontageVoiceChoice voiceMode={voiceMode} setVoiceMode={setVoiceMode} spoken={spoken} voiceClips={voiceClips} setVoiceClips={setVoiceClips} />
           )}
 
           {montageMode === "filme" && (
@@ -829,21 +736,8 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
           )}
         </>
       )}
-      <Dialog open={!!studioTarget} onOpenChange={open => { if (!open) setStudioTarget(null); }}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Studio vidéo · passage {studioTarget ? studioTarget.index + 1 : ""}</DialogTitle>
-            <DialogDescription>Le Reel reste ouvert. Le clip créé sera aussi conservé dans le Studio.
-              {studioTarget?.create && spoken[studioTarget.index]?.texte_parle &&
-                <span className="block mt-2">Phrase à illustrer : « {spoken[studioTarget.index].texte_parle} »</span>}
-            </DialogDescription></DialogHeader>
-          {studioTarget && workspaceId && <StudioVideoPanel workspaceId={workspaceId} writable={studioTarget.create}
-            draftKey={user ? `studio-video:${user.id}:${workspaceId}:reel:${JSON.stringify([subject, sectionTexts, studioTarget.index])}` : undefined}
-            showComposer={studioTarget.create} initialPrompt={studioTarget.create && spoken[studioTarget.index]?.texte_parle
-              ? `Plan de coupe sans texte à l'écran : montrer concrètement l'idée « ${spoken[studioTarget.index].texte_parle.slice(0, 680)} ». Le plan doit pouvoir se placer sous la voix du Reel.`
-              : ""}
-            onPickClip={job => { setPendingCutaway({ index: studioTarget.index, job }); setStudioTarget(null); }} />}
-        </DialogContent>
-      </Dialog>
+      <StudioClipDialog studioTarget={studioTarget} setStudioTarget={setStudioTarget} spoken={spoken} workspaceId={workspaceId}
+        subject={subject} sectionTexts={sectionTexts} setPendingCutaway={setPendingCutaway} />
     </div>
   );
 }

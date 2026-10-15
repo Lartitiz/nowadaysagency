@@ -37,10 +37,6 @@
       "lignes": 1166,
       "any": 3
     },
-    "src/components/creer/ReelMontage.tsx": {
-      "lignes": 849,
-      "any": 0
-    },
     "src/components/creer/formatRenderers/CarouselPhotoResult.tsx": {
       "lignes": 1518,
       "any": 26
