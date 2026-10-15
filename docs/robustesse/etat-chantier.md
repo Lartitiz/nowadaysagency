@@ -90,12 +90,21 @@ Détail technique de la création de contenu : `docs/creation-contenu/CARTE.md`.
     dans la page (le premier sert aussi à `useReelArtifact`). `reel-publication.test.ts`
     lit désormais ce fichier (seul le chemin change). Couvert aussi par
     `creer-publication-exports` (lot A, test 7).
-- **Lot H** (PR en cours) : photos sorties à l'identique dans `src/hooks/use-creer-photos.ts`.
+- **Lot H** (#1574, fusionné le 15/10/2026) : photos sorties à l'identique dans `src/hooks/use-creer-photos.ts`.
   Écart avec la fiche (« un hook ») : les 5 blocs sont à 4 endroits de la page et l'ordre
   de leurs effets compte ; le fichier contient donc 5 hooks (`useLibraryPhotosPreload`,
   `usePhotosRehydration`, `usePhotosSnapshot`, `useAddCarouselPhoto`, `useLibraryAutoCast`),
   chacun appelé à la place exacte de son bloc. Aucun test modifié.
-- **Lot I** ensuite : sauvegarde locale (`use-creer-flow-persistence.ts`), voir la fiche 1.
+- **Lot I** (PR en cours) : sauvegarde locale sortie à l'identique dans
+  `src/hooks/use-creer-flow-persistence.ts`, même méthode qu'en H (un hook par bloc,
+  à la place exacte du bloc) : `useFreshEntryCleanup`, `useCreerResultSession`,
+  `useRestorePersistedFlow`, `useAutoPersistFlow`. Seul déplacement : le nettoyage
+  d'entrée est appelé ~30 lignes plus bas (il a besoin de `setEditingIdeaId`) ; il
+  reste avant `useCreerResultSession`, et le seul effet qu'il double (compteur de
+  briefs) n'en dépend pas. `regeneration-backup.test.tsx` lit la page ET le nouveau
+  fichier (vérifications inchangées).
+- **Lot J** ensuite : arrivée depuis ailleurs (`use-creer-entry-init.ts`, le plus
+  risqué), voir la fiche 1.
 
 ## Découpage du Studio, `visual-studio/index.ts` (fiche 5) : terminé le 14/10/2026
 2001 → 299 lignes ; `index.ts` n'est plus qu'un aiguilleur des 16 actions.

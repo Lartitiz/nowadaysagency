@@ -16,7 +16,6 @@ import { slideText } from "@/lib/slide-text";
 import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
 import { countContentBriefs, saveContentBrief } from "@/features/creer/content-brief";
 import { flattenResultForEdit } from "@/features/creer/edit-text-from-result";
-import { parsePendingStreamText } from "@/features/creer/pending-stream";
 import { computeDraftConflict } from "@/features/creer/draft-conflict";
 import { type Step, resolveSafeStep, FORMAT_MAP, SUPPORTED_FORMATS, ONE_SHOT_PARAMS } from "@/features/creer/creer-step";
 import { pickNonEmpty } from "@/features/creer/photo-source";
@@ -102,6 +101,7 @@ import { useLaunchSequence } from "@/hooks/use-launch-sequence";
 import { useReelHooks } from "@/hooks/use-reel-hooks";
 import { useReelArtifact } from "@/hooks/use-reel-artifact";
 import { useCreerPublish } from "@/hooks/use-creer-publish";
+import { creerResultKey, useFreshEntryCleanup, useCreerResultSession, useRestorePersistedFlow, useAutoPersistFlow } from "@/hooks/use-creer-flow-persistence";
 import { useLibraryPhotosPreload, usePhotosRehydration, usePhotosSnapshot, useAddCarouselPhoto, useLibraryAutoCast } from "@/hooks/use-creer-photos";
 import LaunchSequenceResults from "@/components/creer/LaunchSequenceResults";
 import { useBrandCharter } from "@/hooks/use-branding";
@@ -167,7 +167,6 @@ function CreerWorkspace() {
   const paramCalendarDate = searchParams.get("calendar_date") || "";
 
   const isFreshStart = searchParams.get("new") === "1";
-  const clearedFreshStart = useRef(false);
 
   // Location state (from calendar, etc.)
   const locState = (location.state as any) || {};
@@ -406,34 +405,6 @@ function CreerWorkspace() {
 
 
 
-  // When arriving at /creer without params AND no persisted in-progress flow, clear state
-  // This distinguishes "fresh sidebar click" from "page reload mid-flow"
-  useEffect(() => {
-    if (!hasSomeContext && !shouldRestore && !conflictPending) {
-      clearFlowState();
-      sessionStorage.removeItem(CREER_RESULT_KEY);
-      setStep("idea");
-      setSelectedFormat(null);
-      setEditorialAngle(null);
-      setIdeaText("");
-      setObjective(null);
-      setAnswers({});
-      setEditContent("");
-      setEditingIdeaId(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Remove ?new=1 from URL after a fresh start so reloads don't wipe the flow
-  useEffect(() => {
-    if (isFreshStart && !conflictPending) {
-      if (!clearedFreshStart.current) {
-        clearFlowState();
-        clearedFreshStart.current = true;
-      }
-      setSearchParams(consumeFreshStart(searchParams), { replace: true });
-    }
-  }, [isFreshStart, conflictPending, searchParams, setSearchParams]);
 
   // Le canal demandé via l'URL (?canal=) est géré de façon déterministe à
   // l'initialisation (canalConflict ci-dessus) + pré-sélectionné dans
@@ -461,6 +432,14 @@ function CreerWorkspace() {
   const orphanedEmptyDraft = ps?.step === "idea" && !ps?.ideaText?.trim() && !ps?.result && !ps?.editContent &&
     !ps?.photoSubject && !ps?.photoDescription && loadPhotos().length === 0;
   const [editingIdeaId, setEditingIdeaId] = useState<string | null>(paramIdeaId ?? (typeof locState.ideaId === "string" ? locState.ideaId : null) ?? (orphanedEmptyDraft ? null : ps?.editingIdeaId) ?? null);
+  // Entrée « à blanc » et ?new=1 : nettoyage du brouillon (use-creer-flow-persistence.ts).
+  // Appelé ici (et non plus haut) car il a besoin de setEditingIdeaId ; toujours
+  // AVANT useCreerResultSession, qui relit ce que ce nettoyage efface.
+  const CREER_RESULT_KEY = creerResultKey(session?.user?.id, workspaceId, creationId);
+  useFreshEntryCleanup({
+    hasSomeContext, shouldRestore, conflictPending, isFreshStart, searchParams, setSearchParams, CREER_RESULT_KEY,
+    setStep, setSelectedFormat, setEditorialAngle, setIdeaText, setObjective, setAnswers, setEditContent, setEditingIdeaId,
+  });
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
   // Visual states (carousel only)
@@ -482,32 +461,8 @@ function CreerWorkspace() {
   const [carouselVisualsStale, setCarouselVisualsStale] = useState(false);
   
 
-  // ── Persist generated result to sessionStorage ──
-  const CREER_RESULT_KEY = `creer_unifie_result:${session?.user?.id || "demo"}:${workspaceId}:${creationId}`;
-  const resultRestoredRef = useRef(false);
-
-  useEffect(() => {
-    if (resultRestoredRef.current) return;
-    if (searchParams.get("format") || searchParams.get("sujet")) return;
-    resultRestoredRef.current = true;
-    try {
-      const raw = sessionStorage.getItem(CREER_RESULT_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw);
-      if (saved.visualSlides?.length) setVisualSlides(stripFontImportLeakFromSlides(saved.visualSlides));
-      if (saved.launchResults?.length) setLaunchResults(saved.launchResults);
-    } catch { /* corrupt — ignore */ }
-  }, []);
-
-  useEffect(() => {
-    if (step === "idea" || step === "format") return;
-    try {
-      sessionStorage.setItem(CREER_RESULT_KEY, JSON.stringify({
-        visualSlides,
-        launchResults,
-      }));
-    } catch { /* quota — ignore */ }
-  }, [step, visualSlides, launchResults]);
+  // ── Persist generated result to sessionStorage (use-creer-flow-persistence.ts) ──
+  useCreerResultSession({ CREER_RESULT_KEY, searchParams, step, visualSlides, launchResults, setVisualSlides, setLaunchResults });
 
   const {
     generate,
@@ -579,38 +534,8 @@ function CreerWorkspace() {
   }, [result?.raw, conflictPending, photosRestored]);
   const carouselQuality = useCarouselQuality(visualSlides, selectedFormat === "carousel" && step === "result" && !visualLoading && !generating);
 
-  // Réhydrate les questions persistées : elles vivent dans useContentGenerator
-  // (initialisées à [] à chaque mount) alors que le flux les sauvegarde. Sans
-  // ça, restaurer l'étape "questions" afficherait un écran vide.
-  useEffect(() => {
-    if ((ps?.questions?.length ?? 0) > 0 && questions.length === 0) {
-      setQuestions(ps!.questions as any);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Restore result from persisted state
-  useEffect(() => {
-    if (ps?.result && !result) {
-      setResult(ps.result);
-      // Re-hydrate les states dédiés Pinterest depuis result.raw : sinon, au refresh,
-      // pinterestPinHtml / photoBriefOverlayHtml repartent à null et les boutons
-      // "Exporter en PNG" et "Ajouter au calendrier" deviennent muets (no-op).
-      const raw: any = (ps.result as any)?.raw;
-      if (raw?.pin_html) setPinterestPinHtml(raw.pin_html);
-      if (raw?.overlay_html) setPhotoBriefOverlayHtml(raw.overlay_html);
-    } else if (!ps?.result && !result && (ps?.pendingStream?.text?.length ?? 0) > 40 && safeStep === "result") {
-      // Génération interrompue : on reconstruit un résultat depuis le texte déjà
-      // streamé — le crédit était débité (JSON tronqué : voir pending-stream.ts).
-      const parsed = parsePendingStreamText(ps!.pendingStream!.text);
-      setResult({ type: (ps!.pendingStream!.format || ps?.selectedFormat || "post") as any, raw: parsed });
-      saveFlowState({ pendingStream: null });
-      toast("💾 J'ai récupéré le texte généré avant l'interruption.", {
-        description: "Vérifie-le : il peut être incomplet. « Regénérer » en refait une version (1 crédit).",
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Réhydrate les questions et le résultat persistés (use-creer-flow-persistence.ts)
+  useRestorePersistedFlow({ ps, questions, setQuestions, result, setResult, setPinterestPinHtml, setPhotoBriefOverlayHtml, safeStep, saveFlowState });
 
   // Warn if AI forgot the carousel caption
   const warnedCaptionRef = useRef<any>(null);
@@ -649,61 +574,10 @@ function CreerWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aurianaDemoActive, isDemoMode]);
 
-  // Auto-persist state on changes
-  useEffect(() => {
-    if (conflictPending) return;
-    // Persist empty edits as well: an empty field must never revive old text.
-    saveFlowState({
-        step,
-        ideaText,
-        objective,
-        selectedFormat,
-        editorialAngle,
-        answers,
-        editContent,
-        editBaseline,
-        // Régénération en cours : la copie de secours garde la version d'avant,
-        // pour qu'un rechargement ne la perde pas.
-        result: result || regenerationBackup.pending?.result || undefined,
-        visualSlides: !result && regenerationBackup.pending ? regenerationBackup.pending.visualSlides : visualSlides,
-        savedId,
-        questions: questions || [],
-        inspirationAnalysis: inspirationAnalysis || undefined,
-        inspirationProposals: inspirationProposals || [],
-        inspirationImagePreview: inspirationImagePreview || null,
-        demoScenario: aurianaDemoActive ? "auriana-carousel" : undefined,
-        editingIdeaId,
-        incomingBriefId, currentBriefId,
-        carouselSubMode,
-        slideLength,
-        userSlidesInput,
-        photoDescription, photoSubject, photoEntry, forcedChannel,
-        isLinkedInCarousel,
-        autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat,
-        calendarPostId, calendarPostDate,
-    });
-  }, [conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate, regenerationBackup.pending, editBaseline]);
-
-  // Filet anti-perte : pendant le streaming, sauvegarder le texte déjà reçu
-  // (throttle ~1,5 s). Sans ça, un reload/fermeture mi-génération repartait à
-  // l'étape format et JETAIT le texte — crédit déjà débité (QA compte neuf 04/07).
-  const lastStreamSaveRef = useRef(0);
-  useEffect(() => {
-    if (!streaming || !streamingContent) return;
-    const now = Date.now();
-    if (now - lastStreamSaveRef.current < 1500) return;
-    lastStreamSaveRef.current = now;
-    saveFlowState({
-      step: "result",
-      pendingStream: { text: streamingContent, format: selectedFormat || "post", ts: now },
-    });
-  }, [streaming, streamingContent, selectedFormat]);
-
-  // Une fois le résultat en place (stream terminé ou restauration), purger le
-  // texte partiel : il ne doit resservir qu'en cas d'interruption réelle.
-  useEffect(() => {
-    if (result) saveFlowState({ pendingStream: null });
-  }, [result]);
+  // Auto-persist state on changes + filet streaming (use-creer-flow-persistence.ts)
+  useAutoPersistFlow({
+    conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, editBaseline, result, regenerationBackup, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, aurianaDemoActive, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate, saveFlowState, streaming, streamingContent,
+  });
 
   // Pre-fill from URL/state & auto-advance (only when URL params are present)
   const initDone = useRef(false);
