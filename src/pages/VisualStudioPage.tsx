@@ -1,7 +1,6 @@
 import { useCarouselStudioReturn } from "@/features/carousel-studio/useCarouselStudioReturn";
 import { recordCreationResume } from "@/lib/retour-apres-detour";
 import { ReferenceCards } from "@/features/visual-studio/ReferenceCards";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -58,6 +57,8 @@ import { useChatWidth } from "@/features/visual-studio/useChatWidth";
 import { proposalGenerateLabelFor, readyFollowUpFor } from "@/features/visual-studio/proposal-labels";
 import { StudioSessionsDialog } from "@/features/visual-studio/StudioSessionsDialog";
 import { StudioProposalCard } from "@/features/visual-studio/StudioProposalCard";
+import { StudioToolsSheet } from "@/features/visual-studio/StudioToolsSheet";
+import { StudioImageStream } from "@/features/visual-studio/StudioImageStream";
 import { StudioToolDialogs, type StudioExistingTool, type StudioPreparation } from "@/features/visual-studio/StudioToolDialogs";
 
 export default function VisualStudioPage() {
@@ -890,6 +891,49 @@ function Studio({
       document.querySelector(".studio-stage")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }
+  async function resumeComposition(entry: StudioCompositionEntry) {
+    setBusy("composition_read");
+    setError("");
+    try {
+      const result = await studioRequest<{ composition: {
+        id: string;
+        design: StudioComposition;
+        background_url: string | null;
+      } }>({
+        action: "composition_read",
+        workspace_id: workspaceId,
+        session_id: sessionId,
+        composition_history_id: entry.id,
+      });
+      if (alive.current) {
+        setSelectedComposition(result.composition);
+        setCompositionDraft(undefined);
+        setCompositionOpen(true);
+      }
+    } catch (e) {
+      if (alive.current) setError(e instanceof Error ? e.message : "Composition indisponible.");
+    } finally {
+      if (alive.current) setBusy("");
+    }
+  }
+  async function loadOlderCompositions() {
+    if (!sessionId) return;
+    setOlderCompositionsBusy(true);
+    setError("");
+    try {
+      const page = await listOlderStudioCompositions(
+        workspaceId, sessionId, 20 + olderCompositions.length,
+      );
+      if (alive.current) {
+        setOlderCompositions((existing) => [...existing, ...page.items]);
+        setMoreCompositions(page.hasMore);
+      }
+    } catch (e) {
+      if (alive.current) setError(e instanceof Error ? e.message : "Historique indisponible.");
+    } finally {
+      if (alive.current) setOlderCompositionsBusy(false);
+    }
+  }
   function chat(mobile = false) {
     return (
       <div className="studio-chat-inner">
@@ -1058,150 +1102,22 @@ function Studio({
                       </div>
                     ))}
                   {hasExtraTools && (
-                  <Sheet open={toolsOpen} onOpenChange={setToolsOpen}>
-                  <SheetContent side="left" className="w-[92vw] sm:max-w-md overflow-y-auto">
-                    <SheetHeader><SheetTitle>Outils et créations</SheetTitle></SheetHeader>
-                  <div className="studio-references">
-                    {!!current?.suggested_photos?.length && (
-                      <div className="my-4">
-                        <h3 className="font-medium text-sm">
-                          Photos proposées · choisis celle qui convient
-                        </h3>
-                        <div className="studio-versions">
-                          {current.suggested_photos
-                            .filter(
-                              (p) =>
-                                !references.some((r) => r.photo_id === p.id),
-                            )
-                            .map((photo) => (
-                              <button
-                                type="button"
-                                key={photo.id}
-                                disabled={!writable || !!busy || generating}
-                                onClick={() =>
-                                  void mutate("reference", {
-                                    photo_id: photo.id,
-                                    reference_role: "subject",
-                                    revision: current.session.revision,
-                                  })}
-                              >
-                                <img src={photo.url} alt={photo.name} />
-                                <span>Choisir {photo.name}</span>
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {!!current?.charter_references?.length && (
-                    <details className="my-4 text-sm">
-                      <summary>Références visuelles de ma charte</summary>
-                      <p className="text-xs text-muted-foreground my-2">
-                        Choisis une ambiance à joindre à cette demande.
-                      </p>
-                      <div className="studio-versions">
-                        {current.charter_references.map((r) => (
-                          <button
-                            type="button"
-                            key={r.index}
-                            disabled={!writable || !!busy || generating}
-                            onClick={() =>
-                              void mutate("reference", {
-                                charter_index: r.index,
-                                revision: current.session.revision,
-                              })}
-                          >
-                            <img src={r.url} alt={r.name} />
-                            <span>Utiliser {r.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </details>
-                  )}
-                  {current && (
-                    <div className="flex flex-wrap gap-2 my-3">
-                      {!!compositionHistory.length && (
-                        <details className="w-full text-sm">
-                          <summary>Compositions enregistrées · {compositionHistory.length}{moreCompositions && current.composition_history?.length === 20 ? "+" : ""}</summary>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {compositionHistory.map((entry) => (
-                              <Button
-                                key={entry.id}
-                                variant="outline"
-                                size="sm"
-                                disabled={!writable || !!busy}
-                                onClick={async () => {
-                                  setBusy("composition_read");
-                                  setError("");
-                                  try {
-                                    const result = await studioRequest<{ composition: {
-                                      id: string;
-                                      design: StudioComposition;
-                                      background_url: string | null;
-                                    } }>({
-                                      action: "composition_read",
-                                      workspace_id: workspaceId,
-                                      session_id: sessionId,
-                                      composition_history_id: entry.id,
-                                    });
-                                    if (alive.current) {
-                                      setSelectedComposition(result.composition);
-                                      setCompositionDraft(undefined);
-                                      setCompositionOpen(true);
-                                    }
-                                  } catch (e) {
-                                    if (alive.current) setError(e instanceof Error ? e.message : "Composition indisponible.");
-                                  } finally {
-                                    if (alive.current) setBusy("");
-                                  }
-                                }}
-                              >
-                                Reprendre {entry.title.slice(0, 48) || "Composition"} · {new Date(entry.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
-                              </Button>
-                            ))}
-                          </div>
-                          {moreCompositions && current.composition_history?.length === 20 && (
-                            <Button variant="ghost" size="sm" className="mt-2" disabled={olderCompositionsBusy}
-                              onClick={async () => {
-                                if (!sessionId) return;
-                                setOlderCompositionsBusy(true);
-                                setError("");
-                                try {
-                                  const page = await listOlderStudioCompositions(
-                                    workspaceId, sessionId, 20 + olderCompositions.length,
-                                  );
-                                  if (alive.current) {
-                                    setOlderCompositions((existing) => [...existing, ...page.items]);
-                                    setMoreCompositions(page.hasMore);
-                                  }
-                                } catch (e) {
-                                  if (alive.current) setError(e instanceof Error ? e.message : "Historique indisponible.");
-                                } finally {
-                                  if (alive.current) setOlderCompositionsBusy(false);
-                                }
-                              }}
-                            >{olderCompositionsBusy ? "Chargement…" : "Voir les compositions plus anciennes"}</Button>
-                          )}
-                        </details>
-                      )}
-                      <Button
-                        variant="ghost"
-                        disabled={!writable || !!busy}
-                        onClick={() => { setToolsOpen(false); setExistingTool("before_after"); }}
-                      >
-                        Avant / après
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        disabled={!writable || !!busy}
-                        onClick={() => { setToolsOpen(false); setExistingTool("mockup"); }}
-                      >
-                        Mockup d’offre
-                      </Button>
-                    </div>
-                  )}
-                  </SheetContent>
-                  </Sheet>
+                  <StudioToolsSheet
+                    open={toolsOpen}
+                    onOpenChange={setToolsOpen}
+                    current={current}
+                    references={references}
+                    compositionHistory={compositionHistory}
+                    moreCompositions={moreCompositions}
+                    olderCompositionsBusy={olderCompositionsBusy}
+                    writable={writable}
+                    busy={busy}
+                    generating={generating}
+                    mutate={mutate}
+                    onResumeComposition={(entry) => void resumeComposition(entry)}
+                    onLoadOlderCompositions={() => void loadOlderCompositions()}
+                    onOpenTool={setExistingTool}
+                  />
                   )}
                 </section>
               </div>
@@ -1527,42 +1443,24 @@ function Studio({
                     <h3 className="font-display text-2xl">Tout commence par ton idée</h3>
                     <p>Une photo, une affiche, une illustration ou un visuel encore à imaginer : décris-le dans la conversation. Le Studio reformulera ta demande avant de créer.</p>
                   </div>}
-                  {!!current?.versions.length && <div className="studio-image-stream">
-                    {current.versions.length > galleryLimit && <Button variant="outline" onClick={() => setGalleryLimit((limit) => limit + 20)}>Voir les images plus anciennes</Button>}
-                    {current.versions.slice(-galleryLimit).map((item) => {
-                      const number = current.versions.findIndex((entry) => entry.id === item.id) + 1;
-                      const selected = selectedId === item.id;
-                      return <article
-                        key={item.id}
-                        className={`studio-image-card${selected ? " selected" : ""}`}
-                        role={item.status === "ready" ? "option" : undefined}
-                        aria-selected={item.status === "ready" ? selected : undefined}
-                        tabIndex={item.status === "ready" ? 0 : undefined}
-                        onClick={item.status === "ready" ? () => {
-                          setSelectedId(item.id);
-                          setCompare(false);
-                          if (item.proposal.scene_workflow?.phase === "scene" && writable && !generating) void syncAttachments(sceneAttachments(item), item.id);
-                        } : undefined}
-                        onKeyDown={item.status === "ready" ? (event) => {
-                          if (event.key !== "Enter" && event.key !== " ") return;
-                          event.preventDefault();
-                          setSelectedId(item.id);
-                          setCompare(false);
-                          if (item.proposal.scene_workflow?.phase === "scene" && writable && !generating) void syncAttachments(sceneAttachments(item), item.id);
-                        } : undefined}
-                      >
-                        <div className="studio-image-card-head">
-                          <strong>Image {number}{item.proposal.series_size ? ` · série ${(item.proposal.series_index || 0) + 1}/${item.proposal.series_size}` : ""}</strong>
-                          <span>{item.status === "processing" ? "Création en cours" : item.status === "ready" ? "Prête" : item.status === "failed" ? "Échec" : "À vérifier"}</span>
-                        </div>
-                        {item.url ? <div className={selected && compare && comparisonSource ? "studio-comparison" : "studio-image-single"}>
-                          {selected && compare && comparisonSource && <figure><img src={comparisonSource} alt="Source de comparaison" /><figcaption>Source</figcaption></figure>}
-                          <figure><img src={item.url} alt={`Image ${number} créée dans cette discussion`} loading="lazy" onError={() => setError("L’aperçu a expiré. Réessaie pour le recharger, sans régénérer.")} /><figcaption>{cleanStudioSummary(item.proposal.summary)}</figcaption></figure>
-                        </div> : <p className="p-5 text-sm">{item.error_message || "Le résultat apparaîtra ici dès qu’il sera prêt."}</p>}
-                        {carouselReturn.ticket && item.status === "ready" && <div className="studio-image-card-actions"><Button size="sm" disabled={!writable || !!busy || carouselReturn.busy || !!generating} onClick={() => void carouselReturn.returnToCarousel(item)}>{carouselReturn.busy ? "Enregistrement…" : "Utiliser dans cette slide"}</Button></div>}
-                      </article>;
-                    })}
-                  </div>}
+                  {!!current?.versions.length && <StudioImageStream
+                    current={current}
+                    galleryLimit={galleryLimit}
+                    onShowOlder={() => setGalleryLimit((limit) => limit + 20)}
+                    selectedId={selectedId}
+                    compare={compare}
+                    comparisonSource={comparisonSource}
+                    onSelectVersion={(item) => {
+                      setSelectedId(item.id);
+                      setCompare(false);
+                      if (item.proposal.scene_workflow?.phase === "scene" && writable && !generating) void syncAttachments(sceneAttachments(item), item.id);
+                    }}
+                    setError={setError}
+                    carouselReturn={carouselReturn}
+                    writable={writable}
+                    busy={busy}
+                    generating={generating}
+                  />}
                   {!!references.length && <details className="studio-source-details">
                     <summary>Images apportées dans la discussion · {references.length}</summary>
                     <div className="studio-versions" aria-label="Références de la discussion">
