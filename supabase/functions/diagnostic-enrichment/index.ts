@@ -226,7 +226,7 @@ Précisions importantes :
     // Aucun timeout côté client ne surveille cet appel : diagnostic-enrichment n'est
     // JAMAIS invoqué depuis le navigateur (grep confirmé : aucun
     // invokeWithTimeout("diagnostic-enrichment"...) dans src/) — seulement en
-    // fire-and-forget serveur-à-serveur depuis deep-diagnostic (index.ts L655),
+    // fire-and-forget serveur-à-serveur depuis deep-diagnostic/enrichment.ts,
     // qui n'attend pas sa réponse. Le pattern « double timeout qui perd la
     // réponse » corrigé sur audit-branding (#839) ne s'applique donc pas ici :
     // rien ne peut couper la connexion avant l'edge. Seule limite réelle : le

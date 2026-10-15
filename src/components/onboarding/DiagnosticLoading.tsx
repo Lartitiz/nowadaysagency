@@ -252,11 +252,13 @@ export default function DiagnosticLoading({
           // inscrite — constaté au run exploratoire qa-neuf du 29/07/2026.
           //
           // ⚠️ Deux champs doivent RESTER des clés côté edge, ne pas les
-          // « humaniser » ici : `blocker` (comparé à "invisible",
-          // deep-diagnostic L776/L808) et `activityType` (clé de lookup dans
-          // ACTIVITY_INSIGHTS, L738). On envoie donc la clé ET un libellé
-          // compagnon `*Label`, à consommer par le PROMPT de l'edge.
-          // Les autres champs ne servent QUE de texte de prompt (L418-434) →
+          // « humaniser » ici : `blocker` (comparé à "invisible" dans
+          // buildFallbackDiagnostic, deep-diagnostic/fallback.ts) et
+          // `activityType` (clé de lookup dans ACTIVITY_INSIGHTS, même fichier).
+          // On envoie donc la clé ET un libellé compagnon `*Label`, à consommer
+          // par le PROMPT de l'edge.
+          // Les autres champs ne servent QUE de texte de prompt
+          // (buildDiagnosticUserPrompt, deep-diagnostic/prompts.ts) →
           // libellé humain directement, sans risque.
           profile: {
             activity: answers.activite || "",
