@@ -9,9 +9,9 @@ const CRON_HEALTH_TARIFS = new URL("../cron-health/tarifs.ts", import.meta.url);
 /**
  * Garde anti-dérive (13/08/2026).
  *
- * `cron-health` n'importe VOLONTAIREMENT rien de `_shared/` pour rester une edge
- * déployable seule : l'étiquette « rendu sans appel modèle » y est donc RECOPIÉE
- * en dur dans `ZERO_COST_LABELS`. Une duplication silencieuse dérive toujours —
+ * `cron-health` ne charge pas `plan-limiter.ts` (gros module) : l'étiquette
+ * « rendu sans appel modèle » y est donc RECOPIÉE en dur dans `ZERO_COST_LABELS`
+ * (`cron-health/tarifs.ts`). Une duplication silencieuse dérive toujours —
  * et ici la dérive serait invisible à l'œil nu : le bilan hebdo se remettrait
  * simplement à crier « modèle NON TARIFÉ composition-code » à chaque carrousel
  * photo, et on réapprendrait à ignorer l'alerte. Exactement le mécanisme que la
@@ -161,7 +161,7 @@ Deno.test("tout modèle de rédaction ou de relecture carrousel est tarifé dans
  * Bascule GPT Image 2.5 (28/09/2026) : le modèle image est désormais choisi par
  * `_shared/openai-image-model.ts`. Si un défaut change sans que cron-health
  * connaisse son tarif, le bilan hebdo compterait ces images ZÉRO (le piège
- * #697). On relit le source de cron-health, qui n'importe rien de `_shared/`.
+ * #697). On relit le source des grilles de cron-health (`tarifs.ts`).
  */
 Deno.test("chaque modèle image par défaut (et le retour arrière) est tarifé dans cron-health", async () => {
   const { OPENAI_IMAGE_MODEL_DEFAULTS } = await import("./openai-image-model.ts");

@@ -1,5 +1,5 @@
 // Contrat du handler de cron-health (fiche 18, lot T, 15/10/2026).
-// Fait tourner le VRAI handler (index.ts, capté sans toucher au code) sur une base
+// Fait tourner le VRAI handler (handleCronHealthRequest d'index.ts) sur une base
 // en mémoire (contract_donnees.ts) et fige le JSON entier des deux scopes, ainsi
 // que la liste des requêtes envoyées. C'est le filet du découpage d'index.ts :
 // un lot qui déplace du code à l'identique ne doit changer AUCUN snapshot.
@@ -8,11 +8,9 @@
 // Régénérer (seulement si le changement de sortie est voulu) : ajouter `-- --update`.
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { assertSnapshot } from "../../edge-tests/snapshot.ts";
-import { captureServeHandler } from "../_shared/test-edge-harness.ts";
+import { handleCronHealthRequest as handler } from "./index.ts";
 import { figerHeure, installerFauxFetch, poserEnv, requeteCron, type FauxMonde } from "./contract_harness.ts";
 import { ilYa, MAINTENANT, mondeComplet } from "./contract_donnees.ts";
-
-const handler = await captureServeHandler(new URL("./index.ts", import.meta.url).href);
 
 interface Resultat {
   status: number;
