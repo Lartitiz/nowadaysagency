@@ -100,6 +100,7 @@ export const REVIEW_COST_EUR_PER_MTOKEN: Record<string, { input: number; output:
 // photo et on réapprendrait à ignorer l'alerte, ce qui recréerait le bug
 // qu'elle est censée empêcher.
 // ⚠️ `composition-code` est la recopie de COMPOSED_BY_CODE_MODEL
-// (`_shared/plan-limiter.ts`) : cette edge n'importe rien de `_shared/` pour
-// rester déployable seule. Toute modification doit toucher les deux.
+// (`_shared/plan-limiter.ts`), gardée pour ne pas charger ce gros module dans
+// cette edge (elle importe d'autres modules de `_shared/` depuis #1364 et #1450).
+// Toute modification doit toucher les deux : `_shared/usage-labels_test.ts` y veille.
 export const ZERO_COST_LABELS = new Set<string>(["composition-code"]);

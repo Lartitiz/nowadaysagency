@@ -109,6 +109,9 @@ jobs:
       - name: Studio video edge type-check
         run: deno check --no-config --no-lock --node-modules-dir=none supabase/functions/studio-video/index.ts
 
+      - name: cron-health edge type-check
+        run: deno check --no-config --no-lock --node-modules-dir=none supabase/functions/cron-health/index.ts
+
       - name: Build
         run: npm run build
 

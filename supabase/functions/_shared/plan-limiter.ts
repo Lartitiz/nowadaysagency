@@ -462,8 +462,8 @@ export async function checkQuota(
  * signale les deux — à raison. On lève donc l'ambiguïté À LA SOURCE.
  *
  * ⚠️ Ce littéral est recopié dans `cron-health/tarifs.ts` (`ZERO_COST_LABELS`),
- * qui n'importe VOLONTAIREMENT rien de `_shared/` pour rester déployable seule.
- * Toute modification doit toucher les deux.
+ * pour ne pas charger ce module dans cron-health. Toute modification doit toucher
+ * les deux (`usage-labels_test.ts` y veille).
  */
 export const COMPOSED_BY_CODE_MODEL = "composition-code";
 

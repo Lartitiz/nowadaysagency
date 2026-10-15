@@ -46,7 +46,7 @@ const cors = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-Deno.serve(async (req) => {
+export async function handleCronHealthRequest(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
     const secret = Deno.env.get("CRON_STATS_SECRET");
@@ -78,4 +78,11 @@ Deno.serve(async (req) => {
   } catch (e) {
     return json({ error: String((e as any)?.message || e) }, 500);
   }
-});
+}
+
+// Comme check-subscription : les tests importent handleCronHealthRequest sans
+// ouvrir de listener. Déployé, index.ts est le point d'entrée (import.meta.main
+// vrai) : comportement inchangé.
+if (import.meta.main) {
+  Deno.serve(handleCronHealthRequest);
+}
