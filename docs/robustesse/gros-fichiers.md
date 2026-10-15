@@ -1561,6 +1561,8 @@ Jamais testés : `savePersona` (âge/métier dans `portrait.qui_elle_est`, exist
 
 **Lot 3 fait (15/10/2026).** Navigation sortie dans `src/components/branding/review/use-review-carousel.ts` (`useReviewCarousel(coachingSection)` : carte en cours, `goTo` / `goNext` / `goPrev`, flèches du clavier, swipe), à l'identique. `toReview` et `validatingAll` restent dans le composant (validation, lot 4). `BrandingReview.tsx` : 685 → 647 lignes.
 
+**Lot 4 fait (15/10/2026).** Validation sortie dans `src/components/branding/review/use-review-validation.ts` (`validated`, `written`, `savingRef`, `markValidated`, « à revoir », confettis, `logEvent`, « Garder tel quel », « C'est bon », « Je valide tout »), à l'identique, listes de dépendances comprises. Seul changement de forme : la fin du coaching devient `completeCoaching(section)` (même corps, la section passée en paramètre). `editedOffers` / `editedCharter` sont déclarés avant l'appel du hook. `BrandingReview.tsx` : 647 → 487 lignes.
+
 > **Constat du lot T (non corrigé, pas un déplacement).** En compte personnel (espace = id de l'utilisatrice), `saveCharter`, `saveTone`, `saveValueProp`, `saveStrategy` et `fillBrandProfileSynthesis` lisent leur fiche unique avec `.eq("user_id", …)` **sans** `.is("workspace_id", null)`, contrairement à `readImportRows` (histoire, client·e idéal·e, offres). Une personne qui a aussi un espace nommé peut donc voir la charte (ou le profil) de cet autre espace complétée, ou la validation bloquée par « plusieurs lignes ». À corriger dans la PR « un seul helper de portée » (étape 7), avec un test qui pose une ligne `workspace_id: "w9"` en compte personnel.
 
 **Risque et ordre conseillé**
