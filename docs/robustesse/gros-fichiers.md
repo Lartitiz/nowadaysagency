@@ -1559,6 +1559,8 @@ Jamais testés : `savePersona` (âge/métier dans `portrait.qui_elle_est`, exist
 
 **Lot 2 fait (15/10/2026).** Écritures sorties dans `src/lib/branding-review-save.ts` (`writeOrThrow`, `fillBrandProfileSynthesis`, les 7 `save*`, `SAVE_FNS`, `QUERY_KEYS`), à l'identique : colonne de portée toujours choisie à la main. `BrandingReview.tsx` : 1013 → 685 lignes, sorti du cliquet. `branding-review-save.test.tsx` gagne 5 cas qui appellent `SAVE_FNS` directement (donnée vide, offre sans nom, homonymes dans l'import, mise à jour sans ligne, `QUERY_KEYS`).
 
+**Lot 3 fait (15/10/2026).** Navigation sortie dans `src/components/branding/review/use-review-carousel.ts` (`useReviewCarousel(coachingSection)` : carte en cours, `goTo` / `goNext` / `goPrev`, flèches du clavier, swipe), à l'identique. `toReview` et `validatingAll` restent dans le composant (validation, lot 4). `BrandingReview.tsx` : 685 → 647 lignes.
+
 > **Constat du lot T (non corrigé, pas un déplacement).** En compte personnel (espace = id de l'utilisatrice), `saveCharter`, `saveTone`, `saveValueProp`, `saveStrategy` et `fillBrandProfileSynthesis` lisent leur fiche unique avec `.eq("user_id", …)` **sans** `.is("workspace_id", null)`, contrairement à `readImportRows` (histoire, client·e idéal·e, offres). Une personne qui a aussi un espace nommé peut donc voir la charte (ou le profil) de cet autre espace complétée, ou la validation bloquée par « plusieurs lignes ». À corriger dans la PR « un seul helper de portée » (étape 7), avec un test qui pose une ligne `workspace_id: "w9"` en compte personnel.
 
 **Risque et ordre conseillé**

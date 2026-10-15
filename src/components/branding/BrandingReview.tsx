@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Sparkles, ArrowLeft, Lock, Instagram, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { SAVE_FNS, QUERY_KEYS } from "@/lib/branding-review-save";
+import { useReviewCarousel } from "@/components/branding/review/use-review-carousel";
 import { posthog } from "@/lib/posthog-lazy";
 import { BrandPhotosPicker } from "@/components/photos/BrandPhotosPicker";
 import { BrandLogoSuggestion } from "@/components/branding/BrandLogoSuggestion";
@@ -73,24 +74,9 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
   const [coachingSection, setCoachingSection] = useState<SectionKey | null>(null);
   const [refinedSections, setRefinedSections] = useState<Set<SectionKey>>(new Set());
 
-  /* ── Carrousel : une section par carte ────────────────────────────────────
-     La longue page qui empilait les 7 sections ne disait ni où on en était ni
-     ce qu'il restait à faire. Une carte à la fois, avec une réponse explicite
-     (« c'est bon » / « à revoir »), rend l'étape lisible ; les « à revoir »
-     sont rappelées à la fin au lieu de se perdre dans le scroll.
-     Le swipe est un RACCOURCI tactile, jamais le seul moyen de répondre :
-     sur ordinateur il n'y a pas de doigt, et un swipe seul ne dit pas si on a
-     validé ou seulement regardé. ── */
-  const total = SECTIONS.length;
-  const [index, setIndex] = useState(0);
+  const { total, index, setIndex, finished, goTo, goNext, goPrev, handleTouchStart, handleTouchEnd } = useReviewCarousel(coachingSection);
   const [toReview, setToReview] = useState<Set<SectionKey>>(new Set());
   const [validatingAll, setValidatingAll] = useState(false);
-  const touchStartX = useRef<number | null>(null);
-  const finished = index >= total;
-
-  const goTo = useCallback((i: number) => setIndex(Math.max(0, Math.min(total, i))), [total]);
-  const goNext = useCallback(() => setIndex((i) => Math.min(total, i + 1)), [total]);
-  const goPrev = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
   const waitingForPhotos = mandatory && finished && !productPhotosReady;
   const canComplete = !mandatory || (finished && productPhotosReady);
   const completeReview = () => {
@@ -99,29 +85,6 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
       return;
     }
     if (canComplete) onDone(true);
-  };
-
-  useEffect(() => {
-    if (coachingSection) return;
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      // On ne vole pas les flèches d'un champ en cours de saisie (couleurs, offres…).
-      if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
-      if (e.key === "ArrowRight") goNext();
-      if (e.key === "ArrowLeft") goPrev();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [coachingSection, goNext, goPrev]);
-
-  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0]?.clientX ?? null; };
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const start = touchStartX.current;
-    touchStartX.current = null;
-    if (start == null) return;
-    const dx = (e.changedTouches[0]?.clientX ?? start) - start;
-    if (Math.abs(dx) < 60) return; // seuil : un scroll vertical ne doit pas changer de carte
-    if (dx < 0) goNext(); else goPrev();
   };
 
   // Editable offers state
