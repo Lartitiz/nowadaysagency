@@ -71,7 +71,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 | `src/components/creer/CarouselEditor.tsx` + `CarouselEditorParts/` | Éditeur visuel du carrousel (après création des visuels), découpé par mission au lot E3 (plan : `docs/robustesse/gros-fichiers.md`, fiche 8). `CarouselEditor.tsx` garde le cœur : document, historique Annuler / Rétablir, `emit` et écho `inputKey`, actions, mise en page des colonnes. Dans `CarouselEditorParts/` : `SlideCanvas.tsx` (aperçu d'une slide : iframe, cadre de sélection, poignées, repères), `canvas-events.ts` (ses réactions souris / clavier), `CanvasToolbar.tsx` (barre flottante), `canvas-geometry.ts` (calculs sur la slide affichée), `EditorHeader.tsx` (titre, Annuler / Rétablir, raccourcis), `QualityPanel.tsx` (encadré sauvegarde / contrôle qualité), `SlideStrip.tsx` (miniatures et boutons des slides), `LayersPanel.tsx` (calques, sélection multiple), `TextSettings.tsx` et `ElementSettings.tsx` (onglet Élément), `SlideSettings.tsx` (onglets Slide et Carrousel), `AllSlidesPanel.tsx` (« Toutes les slides », « Mes styles »), `PanelBits.tsx` et `panel-controls.tsx` (petites briques). Les morceaux reçoivent les valeurs de l'éditeur en props, sous leur nom d'origine ; l'état tapé reste dans `CarouselEditor`. Les tests du contrat `data-*` ne lisent que les fichiers suivis par git : `git add` avant de les lancer en local. |
 | `src/hooks/use-format-next.ts` | Passage de l'étape format à l'étape suivante (et Pinterest inspiration). |
 | `src/hooks/use-do-generate.ts` | Lance la génération selon le format : SSE texte, carrousel, Pinterest visuel ou photo. |
-| `src/hooks/use-content-generator.ts` | Appels réels aux fonctions serveur. `switch` par format, questions, streaming (`streamInvoke`, table `contentTypeMap`). |
+| `src/hooks/use-content-generator.ts` + `src/features/creer/generator/` | Appels réels aux fonctions serveur, découpés au lot 17 (`docs/robustesse/gros-fichiers.md`, fiche 17, 15/10/2026). Le hook garde le nom, les états, les compteurs d'époque, les **appels** (`invokeWithHeartbeat`, `invokeWithTimeout`, `streamInvoke`) et les 24 clés rendues ; il réexporte les types. Dans `generator/` : `types.ts`, `tolerant-json.ts` (`parseAIJson`, à ne pas confondre avec `src/lib/parse-ai-json.ts`), `error-messages.ts`, `bodies/` (un corps de demande + son délai par format : `carousel`, `reel`, `story`, `post`, `linkedin` ; un format n'importe jamais un autre, `src/test/content-generator-boundaries.test.ts`), `read-generate-response.ts` (quota avant l'erreur générique, garde de forme, renumérotation), `questions-request.ts` (mémoire anti-répétition, questions), `stream-body.ts` (table `contentTypeMap`, angle dans les 4 catalogues). Filet : `src/test/content-generator-*.test.tsx` (snapshots des corps envoyés, à ne jamais régénérer pour un autre format que celui visé). |
 | `src/hooks/use-generate-visuals.ts` | Mise en forme des carrousels (`carousel-visual`). |
 | `src/hooks/use-user-slides-generate.ts` | Carrousel « Mes slides ». |
 | `src/features/creer/pinterest-generation.ts` | Pinterest visuel et photo. |
@@ -304,7 +304,9 @@ un format en casse un autre.
 
 **Appelants front**
 - `use-content-generator.ts` : `generate` pour reel, stories,
-  instagram_post et post_linkedin, `questions`, et le streaming.
+  instagram_post et post_linkedin, `questions`, et le streaming. Le hook
+  fait les appels ; les corps vivent dans `src/features/creer/generator/`
+  (`bodies/*.ts`, `questions-request.ts`, `stream-body.ts`).
 - `CreerUnifie.tsx` : `hooks`.
 - `CreerStepEdit.tsx` : `adjust`.
 - `ContentRecycling.tsx` : `recycle`.
