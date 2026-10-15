@@ -168,32 +168,3 @@ export function requeteDiagnostic(corps: unknown, authentifiee = true): Request 
   });
 }
 
-/**
- * Fonctions internes d'index.ts (non exportées avant le lot 1 de la fiche 12),
- * chargées pour les tests sans toucher au code de prod : même réécriture que
- * captureStdServeHandler (serve() neutralisé, imports relatifs rendus
- * absolus), plus une ligne `export { … }` ajoutée à la fin. Après le lot 1,
- * les tests importeront ces fonctions depuis leurs nouveaux fichiers.
- */
-export async function chargerInternes(): Promise<{
-  robustJsonParse: (raw: string) => Row;
-  isDegenerateDiagnostic: (result: Row) => boolean;
-  stripMarkupFromSummary: (result: Row) => Row;
-  buildFallbackDiagnostic: (profile: unknown, freeformAnswers: unknown, sourcesUsed: string[]) => Row;
-  DIAGNOSTIC_TOOL: Row;
-}> {
-  const moduleUrl = new URL("./index.ts", import.meta.url).href;
-  const source = await Deno.readTextFile(new URL(moduleUrl));
-  const STD_SERVE_IMPORT = /import\s*\{\s*serve\s*\}\s*from\s*["']https:\/\/deno\.land\/std@[^"']+\/http\/server\.ts["'];?/;
-  if (!STD_SERVE_IMPORT.test(source)) throw new Error("chargerInternes : import serve() de std/http introuvable");
-  const rewritten = source
-    .replace(STD_SERVE_IMPORT, "const serve = (_h: unknown) => {};")
-    .replace(
-      /(\bfrom\s*|\bimport\s*\(\s*|^import\s*)(["'])(\.{1,2}\/[^"']+)\2/gm,
-      (_m, prefix, quote, spec) => `${prefix}${quote}${new URL(spec, moduleUrl).href}${quote}`,
-    ) + "\nexport { robustJsonParse, isDegenerateDiagnostic, stripMarkupFromSummary, buildFallbackDiagnostic, DIAGNOSTIC_TOOL };\n";
-  const bytes = new TextEncoder().encode(rewritten);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return await import(`data:application/typescript;base64,${btoa(binary)}`);
-}

@@ -4,9 +4,8 @@
 // le diagnostic de repli servi quand Claude échoue, figés AVANT le découpage
 // d'index.ts : un lot qui déplace du code à l'identique ne change aucun .snap.
 //
-// Avant le lot 2, les prompts passent par le vrai handler (handleDeepDiagnostic) ;
-// les fonctions internes sont chargées par chargerInternes() sans toucher à
-// index.ts. Après les lots 1 et 2, importer directement les nouveaux fichiers.
+// Avant le lot 2, les prompts passent par le vrai handler (handleDeepDiagnostic).
+// Depuis le lot 1, outil, lecture et repli sont importés de leurs fichiers.
 //
 // Lancer : deno test --no-check --allow-env --allow-read --node-modules-dir=none supabase/functions/deep-diagnostic/prompts_snapshot_test.ts
 // Régénérer (seulement si le changement est voulu) : ajouter --allow-write et `-- --update`, puis relire le diff du .snap.
@@ -14,10 +13,12 @@ import { assertEquals, assertThrows } from "https://deno.land/std@0.224.0/assert
 import { assertSnapshot } from "../../edge-tests/snapshot.ts";
 import { setTestEnv } from "../_shared/test-edge-harness.ts";
 import { handleDeepDiagnostic as handler } from "./index.ts";
-import { chargerInternes, installerFauxFetch, requeteDiagnostic } from "./contract_harness.ts";
+import { installerFauxFetch, requeteDiagnostic } from "./contract_harness.ts";
+import { DIAGNOSTIC_TOOL } from "./tool.ts";
+import { isDegenerateDiagnostic, robustJsonParse, stripMarkupFromSummary } from "./parse.ts";
+import { buildFallbackDiagnostic } from "./fallback.ts";
 
 setTestEnv();
-const internes = await chargerInternes();
 
 // deno-lint-ignore no-explicit-any
 type Row = Record<string, any>;
@@ -55,7 +56,7 @@ Deno.test("prompt système, outil rendre_diagnostic et réglages de l'appel", as
   const r = await premiereRequeteClaude({ profile: { activity: "céramiste" } });
   const { messages: _m, ...reglages } = r;
   await assertSnapshot(t, reglages);
-  assertEquals(r.tools[0], JSON.parse(JSON.stringify(internes.DIAGNOSTIC_TOOL)), "l'outil envoyé est DIAGNOSTIC_TOOL tel quel");
+  assertEquals(r.tools[0], JSON.parse(JSON.stringify(DIAGNOSTIC_TOOL)), "l'outil envoyé est DIAGNOSTIC_TOOL tel quel");
 });
 
 // ── 2. Prompt utilisateur selon le profil ───────────────────────────────────
@@ -98,33 +99,33 @@ Deno.test("repli : une branche par cas", async (t) => {
     ["score plafonné et tous les points", { activity: "a", activityType: "artisane", blocker: "invisible", objective: "o" }, { uniqueness: "u" }, ["website", "about"]],
   ];
   for (const [nom, profil, reponses, sources] of cas) {
-    await assertSnapshot(t, internes.buildFallbackDiagnostic(profil, reponses, sources), { name: `repli — ${nom}` });
+    await assertSnapshot(t, buildFallbackDiagnostic(profil, reponses, sources), { name: `repli — ${nom}` });
   }
 });
 
 // ── 4. Lecture de la réponse ────────────────────────────────────────────────
 
 Deno.test("robustJsonParse : bloc ```json, virgule finale, caractère de contrôle, JSON coupé, texte sans JSON", () => {
-  assertEquals(internes.robustJsonParse("```json\n{\"summary\": \"ok\"}\n```"), { summary: "ok" });
-  assertEquals(internes.robustJsonParse("{\"a\": [1, 2,], \"b\": 3,}"), { a: [1, 2], b: 3 });
+  assertEquals(robustJsonParse("```json\n{\"summary\": \"ok\"}\n```"), { summary: "ok" });
+  assertEquals(robustJsonParse("{\"a\": [1, 2,], \"b\": 3,}"), { a: [1, 2], b: 3 });
   // Caractère de contrôle dans une chaîne : le parseur partagé (tryParseAiJson) le garde tel quel.
-  assertEquals(internes.robustJsonParse("{\"summary\": \"un\u0001deux\"}"), { summary: "un\u0001deux" });
-  assertEquals(internes.robustJsonParse("{\"summary\": \"ok\", \"strengths\": [{\"title\": \"A\"}], \"weaknesses\": \"coupé au mil"),
+  assertEquals(robustJsonParse("{\"summary\": \"un\u0001deux\"}"), { summary: "un\u0001deux" });
+  assertEquals(robustJsonParse("{\"summary\": \"ok\", \"strengths\": [{\"title\": \"A\"}], \"weaknesses\": \"coupé au mil"),
     { summary: "ok", strengths: [{ title: "A" }] });
-  assertThrows(() => internes.robustJsonParse("Désolée, je ne peux pas."), Error, "impossible de parser le JSON");
+  assertThrows(() => robustJsonParse("Désolée, je ne peux pas."), Error, "impossible de parser le JSON");
 });
 
 Deno.test("isDegenerateDiagnostic : forces ET faiblesses vides (ou absentes) seulement", () => {
-  assertEquals(internes.isDegenerateDiagnostic({ strengths: [], weaknesses: [] }), true);
-  assertEquals(internes.isDegenerateDiagnostic({ summary: "<summary>…</summary>" }), true);
-  assertEquals(internes.isDegenerateDiagnostic({ strengths: [{}], weaknesses: [] }), false);
-  assertEquals(internes.isDegenerateDiagnostic({ strengths: [], weaknesses: [{}] }), false);
+  assertEquals(isDegenerateDiagnostic({ strengths: [], weaknesses: [] }), true);
+  assertEquals(isDegenerateDiagnostic({ summary: "<summary>…</summary>" }), true);
+  assertEquals(isDegenerateDiagnostic({ strengths: [{}], weaknesses: [] }), false);
+  assertEquals(isDegenerateDiagnostic({ strengths: [], weaknesses: [{}] }), false);
 });
 
 Deno.test("stripMarkupFromSummary : coupe à la première balise, sinon objet inchangé", () => {
   const sain = { summary: "Rien à couper.", x: 1 };
-  assertEquals(internes.stripMarkupFromSummary(sain) === sain, true);
-  assertEquals(internes.stripMarkupFromSummary({ summary: "Début. <strengths/> suite", x: 1 }), { summary: "Début.", x: 1 });
-  assertEquals(internes.stripMarkupFromSummary({ summary: "a < b et c > d" }).summary, "a < b et c > d", "pas une balise");
-  assertEquals(internes.stripMarkupFromSummary({ summary: 3 }).summary, 3);
+  assertEquals(stripMarkupFromSummary(sain) === sain, true);
+  assertEquals(stripMarkupFromSummary({ summary: "Début. <strengths/> suite", x: 1 }), { summary: "Début.", x: 1 });
+  assertEquals(stripMarkupFromSummary({ summary: "a < b et c > d" }).summary, "a < b et c > d", "pas une balise");
+  assertEquals(stripMarkupFromSummary({ summary: 3 }).summary, 3);
 });
