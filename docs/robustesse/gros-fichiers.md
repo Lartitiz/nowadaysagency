@@ -1371,6 +1371,7 @@ Une PR par lot, dans cet ordre :
 7. **Lot 5** : `enrichment.ts` et `save.ts`. `index.ts` passe sous 800 lignes : `node scripts/cliquet-dette.mjs --update` fait baisser la référence (ou la retire de la liste).
    ✅ Fait le 15/10/2026 : `startBrandingEnrichment(…)` (le `fetch` part sans être attendu, try/catch « Ignorer » resté dans le handler) et `saveDiagnostic(supabaseAdmin, …)` qui renvoie `{ savedDiagId, fastSaves }` ; le crédit est ajouté à `fastSaves` dans le handler. `index.ts` : 195 lignes (référence du cliquet déjà retirée au lot 1). `save.ts` type le client en `SupabaseClient` (le `deno check` strict refusait le `({ error })` implicite sur un client `any`). Aucun `.snap` modifié.
 8. **Lot 6 (documentation)** : remplacer les numéros de ligne cités dans `DiagnosticLoading.tsx` (l. 256-260) et `diagnostic-enrichment/index.ts` (l. 229) par le fichier et le repère. Ce sont des commentaires seulement.
+   ✅ Fait le 15/10/2026 (commentaires seulement ; `diagnostic-enrichment/index.ts` garde sa taille au cliquet).
 9. **Lot 7 (comportement, à part)** : libellé `instagram_public` dans `failedLabels`, une seule lecture de `scrape_cache`, commentaire « 3 credits », ligne des routes du prompt générée depuis `DIAGNOSTIC_ROUTES`, décision sur le chemin payant jamais appelé par le front. Ce sont des changements de code, pas des déplacements : ils sortent du découpage, et chacun change un snapshot (diff à relire).
 
 À chaque lot : `npm run test:edges`, `deno check` de la fonction, `npx eslint supabase/functions/deep-diagnostic/`, et `npx tsc --noEmit --skipLibCheck` si un fichier front est touché (lot 6). Pas de fusion pendant une session Lovable ouverte. Après la fusion, tester un vrai onboarding sur le site en ligne (`e2e-visite/onboarding-diagnostic.spec.ts` simule l'edge et ne prouve donc rien sur ce fichier).
@@ -2052,7 +2053,7 @@ cours :
 | 10 ✅ | `export-carousel-hybrid-pptx.ts` (fiche 15, terminée le 15/10/2026 : 1 767 → 98 lignes) | Calme (3 corrections) ; ne pas croiser avec une PR qui renomme un attribut `data-*`. |
 | 11 ✅ | `BrandingReview.tsx` (fiche 14, terminée le 15/10/2026 : 1 411 → 184 lignes) | Indépendant de la création de contenu ; écrit dans 7 tables : tests d'écriture d'abord. |
 | 12 ✅ | `ReelMontage.tsx` (fiche 16, terminée le 15/10/2026 : 918 → 156 lignes) | Un seul parent (`ReelResult.tsx`) ; le rendu MP4 en dernier. |
-| 13 | `deep-diagnostic/index.ts` (fiche 12) | 12 corrections sur 20 commits : contrat du handler et snapshots des prompts avant tout. |
+| 13 ✅ | `deep-diagnostic/index.ts` (fiche 12, découpage terminé le 15/10/2026 : 1 084 → 195 lignes ; lot 7 de comportement à part) | 12 corrections sur 20 commits : contrat du handler et snapshots des prompts avant tout. |
 | 14 | `use-content-generator.ts`, `CreerStepResult.tsx`, `CalendarPostDialog.tsx` (fiches 17, 11, 13) | **Après la fin de la fiche 1** (lot J de `CreerUnifie`) : ces trois fichiers sont branchés sur /creer, et `CalendarPostDialog` porte le lien calendrier → /creer. |
 
 Règles valables pour chaque PR de découpage :
