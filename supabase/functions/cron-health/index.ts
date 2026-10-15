@@ -327,7 +327,7 @@ Deno.serve(async (req) => {
     const emailOf = new Map<string, string>(profiles.map((p: any) => [p.user_id, p.email]));
 
     if (scope === "daily") {
-      const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, sante, higgsfield, cronsPg] = await Promise.all([
+      const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, sante, higgsfield, cronsPg, studioBloquees] = await Promise.all([
         fetchAllRows(
           supabase,
           "calendar_posts",
@@ -352,6 +352,16 @@ Deno.serve(async (req) => {
         // Absente tant que la migration cron_jobs_health n'est pas appliquée → « non mesuré ».
         supabase.rpc("cron_jobs_health").then(({ data, error }: { data: CronJobRow[] | null; error: { message: string } | null }) =>
           error ? { erreur: error.message } : { jobs: jugerCrons(data || [], now) }),
+        // Images Studio « en cours » depuis > 1 h (15/10/2026) : le cron
+        // studio-reconcile-images les rattrape en 20 min normalement. S'il en
+        // reste, il échoue en silence (WARNING avalé, job « succeeded »).
+        supabase
+          .from("visual_studio_versions")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "processing")
+          .lt("created_at", new Date(now - HOUR).toISOString())
+          .then(({ count, error }: { count: number | null; error: { message: string } | null }) =>
+            error ? { erreur: error.message } : { count: count ?? 0 }),
       ]);
       const posts = postsRows.filter((p: any) => isClient(p.user_id));
       const conns = connRows.filter((c: any) => isClient(c.user_id));
@@ -444,6 +454,7 @@ Deno.serve(async (req) => {
         feedback_24h: { count: feedback24h.length, items: feedback24h.slice(0, 15) },
         feedback_new_total: feedbackNewTotal,
         crons_pg: cronsPg,
+        studio_images_bloquees: studioBloquees,
         feedback_new_items: feedbackNewItems(fbNewRows.filter((f: FeedbackNewRow) => isClient(f.user_id))),
         photoroom_credits: photoroom,
         higgsfield,
