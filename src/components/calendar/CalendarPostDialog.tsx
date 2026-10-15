@@ -23,11 +23,9 @@ import { ChevronDown } from "lucide-react";
 import { getGuide } from "@/lib/production-guides";
 import { type CalendarPost } from "@/lib/calendar-constants";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { publishToInstagram, publishReelToInstagram, isPublicImageUrl, isPublicVideoUrl, isNotConnectedError } from "@/lib/instagram-publish";
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
 import { toast } from "sonner";
-import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 
 import { CalendarPostMetadata } from "./CalendarPostMetadata";
 import { CalendarPostPreview } from "./CalendarPostPreview";
@@ -37,6 +35,8 @@ import { PostContextHeader } from "./post-dialog/PostContextHeader";
 import { PostContentViewerSheet } from "./post-dialog/PostContentViewerSheet";
 import { PostEditionBlock } from "./post-dialog/PostEditionBlock";
 import { PostActionsFooter } from "./post-dialog/PostActionsFooter";
+import { useCalendarPostMedia } from "@/hooks/use-calendar-post-media";
+import { useCalendarQuickGenerate } from "@/hooks/use-calendar-quick-generate";
 
 interface Props {
   open: boolean;
@@ -71,7 +71,6 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
   const [ownerName, setOwnerName] = useState("Moi");
   const [igUsername, setIgUsername] = useState("");
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
   const [publishingInstagram, setPublishingInstagram] = useState(false);
   const [publishingLinkedIn, setPublishingLinkedIn] = useState(false);
   // Publication programmée
@@ -105,7 +104,6 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
   const [format, setFormat] = useState<string | null>(null);
   const [contentDraft, setContentDraft] = useState<string | null>(null);
   const [accroche, setAccroche] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [dialogTab, setDialogTab] = useState<"edit" | "preview" | "meta">("edit");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -249,31 +247,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
 
   // ── Handlers ──
 
-  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-    setUploading(true);
-    try {
-      const newUrls: string[] = [];
-      for (const file of Array.from(files)) {
-        const sizeErr = uxSizeError(file, UX_UPLOAD_LIMITS.media);
-        if (sizeErr) { toast.error(sizeErr); continue; }
-        const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-        const path = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error } = await supabase.storage.from("calendar-media").upload(path, file, { contentType: file.type });
-        if (error) throw error;
-        const { data } = supabase.storage.from("calendar-media").getPublicUrl(path);
-        if (data?.publicUrl) newUrls.push(data.publicUrl);
-      }
-      setMediaUrls(prev => [...prev, ...newUrls]);
-    } catch (err: any) {
-      toast.error("Erreur upload", { description: friendlyError(err) });
-    } finally {
-      setUploading(false);
-    }
-  };
+  const { uploading, handleMediaUpload } = useCalendarPostMedia(setMediaUrls);
 
   const handleSave = () => {
     if (!theme.trim()) return;
@@ -494,34 +468,10 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
   };
 
 
-  const handleQuickGenerate = async () => {
-    if (!theme.trim()) { toast.error("Il me faut un sujet !", { description: "Remplis le thème au-dessus." }); return; }
-    setIsGenerating(true);
-    try {
-      const validObjectifs = ["visibilite", "confiance", "vente", "credibilite"];
-      const safeObjectif = objectif && validObjectifs.includes(objectif) ? objectif : null;
-      const res = await invokeWithTimeout("generate-content", {
-        body: { type: "calendar-quick", theme, objectif: safeObjectif, angle, format: format || "post_carrousel", notes, profile: profileData || {}, canal: postCanal, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-        // Budget serveur pire cas (LinkedIn) : génération 60s + passe de
-        // correction 60s = 120s bornées côté edge (audit timeouts 17/08).
-        // Marge de 30s côté client pour ne pas courir la même ligne d'arrivée.
-      }, 150000);
-      // Handle quota limit
-      if (res.data?.error === "limit_reached") {
-        toast("Plus de crédits ce mois-ci 🌸", { description: res.data.message || "Tes crédits se renouvellent le 1er du mois." });
-        setIsGenerating(false);
-        return;
-      }
-      if (res.error) throw res.error;
-      const generated = res.data?.content || "";
-      setContentDraft(generated);
-      setAccroche(generated.split(/[.\n]/)[0]?.trim() || null);
-      if (status === "idea" || status === "a_rediger") setStatus("drafting");
-      toast.success("Contenu généré !");
-    } catch (e: any) {
-      toast.error(e?.isTimeout ? "Ça prend plus longtemps que prévu" : "Erreur de génération", { description: friendlyError(e) });
-    } finally { setIsGenerating(false); }
-  };
+  const { isGenerating, handleQuickGenerate } = useCalendarQuickGenerate({
+    theme, objectif, angle, format, notes, profileData, postCanal, workspaceId, user, status,
+    setContentDraft, setAccroche, setStatus,
+  });
 
   const handleSmartGenerate = () => {
     if (!theme.trim()) { toast.error("Il me faut un sujet !"); return; }
