@@ -17,6 +17,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { installFigeReplay, FIGES_DIR, LIVE_OK, expectZoneMatches } from "./fige-replay";
+import { sondeResultatActions } from "./resultat-actions-sonde";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PHOTOS = [path.join(__dirname, "fixtures-portrait-test.jpg"), path.join(__dirname, "fixtures-cover-test.jpg")];
@@ -223,6 +224,7 @@ test("contenus figés — story", async ({ page }) => {
   const frames = await bigFrames(page, "Aperçu story");
   expect(frames.length, "story : aucun aperçu rendu").toBeGreaterThan(0);
   await compareZones(page, name, fige, frames.map((f, i) => ({ label: `story-${i + 1}`, locator: f })));
+  await sondeResultatActions(page, "stories");
 });
 
 test("contenus figés — reel", async ({ page }) => {
@@ -272,4 +274,5 @@ test("contenus figés — post Instagram", async ({ page }) => {
       if (await more.isVisible().catch(() => false)) await more.click();
     },
   }]);
+  await sondeResultatActions(page, "post");
 });
