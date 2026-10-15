@@ -119,7 +119,8 @@ export function SimplePanel({ canvasApi, changeSlide, css, documentFonts, elemen
               <Textarea
                 aria-label="Texte sélectionné"
                 value={text.text}
-                rows={3}
+                rows={2}
+                className="min-h-[60px] text-sm"
                 onChange={(e) => {
                   setFitId(text.id);
                   changeSlide(patchElement(slide, text.id, { text: e.target.value }), `text-${slide.id}-${text.id}`);

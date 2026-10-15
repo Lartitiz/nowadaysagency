@@ -127,17 +127,6 @@ async function start(page: Page, name: string) {
   return fige;
 }
 
-/** Aperçus larges (slides, stories) : iframes titrées et assez grandes pour ne pas être des vignettes. */
-async function bigFrames(page: Page, titlePrefix?: string): Promise<Locator[]> {
-  const all = page.locator(titlePrefix ? `iframe[title^="${titlePrefix}"]` : "iframe[title]");
-  const out: Locator[] = [];
-  for (let i = 0; i < await all.count(); i++) {
-    const box = await all.nth(i).boundingBox();
-    if (box && box.width >= 150) out.push(all.nth(i));
-  }
-  return out;
-}
-
 /** Éditeur de carrousel complètement prêt (mise en page et contrôle qualité terminés). */
 async function editorReady(page: Page) {
   await expect(page.getByText(/Personnaliser mon carrousel/i).first()).toBeVisible({ timeout: 300000 });
@@ -220,9 +209,17 @@ test("contenus figés — story", async ({ page }) => {
   await expect(page.getByText(/^Story 1$/).first()).toBeVisible({ timeout: 300000 });
   await page.waitForTimeout(2500);
   if (fige.recording) { await fige.save(); await dumpStructure(page, name); }
-  const frames = await bigFrames(page, "Aperçu story");
-  expect(frames.length, "story : aucun aperçu rendu").toBeGreaterThan(0);
-  await compareZones(page, name, fige, frames.map((f, i) => ({ label: `story-${i + 1}`, locator: f })));
+  // Une story à la fois (chantier D, 15/10/2026) : on affiche chaque story par son numéro avant de la comparer.
+  const n = await page.locator('iframe[title^="Aperçu story"]').count();
+  expect(n, "story : aucun aperçu rendu").toBeGreaterThan(0);
+  await compareZones(page, name, fige, Array.from({ length: n }, (_, i) => ({
+    label: `story-${i + 1}`,
+    locator: page.locator(`iframe[title="Aperçu story ${i + 1}"]`),
+    before: async () => {
+      const tab = page.getByRole("button", { name: `Voir la story ${i + 1}` });
+      if (await tab.isVisible().catch(() => false)) await tab.click();
+    },
+  })));
 });
 
 test("contenus figés — reel", async ({ page }) => {

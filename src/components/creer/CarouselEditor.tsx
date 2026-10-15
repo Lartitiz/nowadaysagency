@@ -781,14 +781,18 @@ export default function CarouselEditor({
             if (fullscreen && e.key === "Escape" && !selected) setFullscreen(false);
           }}
         >
-          <div className="mb-1 flex items-center justify-end gap-1">
+          <div className="mb-1 flex flex-wrap items-center justify-end gap-1">
+            {!fullscreen && <p className="mr-auto flex min-w-0 items-center gap-1.5 text-2xs text-muted-foreground md:text-xs">
+              Slide {active + 1} / {document.slides.length} · <span className="hidden md:inline">Double-clic : écrire · Glisser : déplacer</span><span className="md:hidden">Touche un élément, glisse-le</span>
+              <HelpTip label="gestes sur la slide">Double-clique (ou touche « Écrire ») pour écrire dans un texte. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses (⌘/Ctrl pour placer librement). Glisse une photo plein écran pour la recadrer (double-clic pour une photo encadrée), les poignées pour agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre.</HelpTip>
+            </p>}
             {!fullscreen && (
               <>
-                <Button size="sm" variant="ghost" className="h-7 px-2" aria-label="Dézoomer l’aperçu" disabled={zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - 0.5))}>
+                <Button size="sm" variant="ghost" className="hidden h-7 px-2 md:inline-flex" aria-label="Dézoomer l’aperçu" disabled={zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - 0.5))}>
                   <ZoomOut size={14} />
                 </Button>
-                <span className="w-10 text-center text-2xs tabular-nums text-muted-foreground">{Math.round(zoom * 100)} %</span>
-                <Button size="sm" variant="ghost" className="h-7 px-2" aria-label="Zoomer l’aperçu" disabled={zoom >= 3} onClick={() => setZoom((z) => Math.min(3, z + 0.5))}>
+                <span className="hidden w-10 text-center text-2xs tabular-nums text-muted-foreground md:inline">{Math.round(zoom * 100)} %</span>
+                <Button size="sm" variant="ghost" className="hidden h-7 px-2 md:inline-flex" aria-label="Zoomer l’aperçu" disabled={zoom >= 3} onClick={() => setZoom((z) => Math.min(3, z + 0.5))}>
                   <ZoomIn size={14} />
                 </Button>
               </>
@@ -802,7 +806,7 @@ export default function CarouselEditor({
             className={
               fullscreen
                 ? "w-full max-w-[min(1080px,calc((100vh-6rem)*0.8))]"
-                : "mx-auto w-full max-w-[min(540px,36vh)] md:max-w-[min(540px,calc((100vh-260px)*0.8))]"
+                : "mx-auto w-full max-w-[min(540px,36vh)] md:max-w-[min(540px,calc((100vh-290px)*0.8))]"
             }
           >
           <SlideCanvas
@@ -859,10 +863,6 @@ export default function CarouselEditor({
             colors={palette}
             simple={mode === "simple"}
           />
-          <p className="mt-1 flex items-center justify-center gap-1.5 text-2xs text-muted-foreground md:text-xs">
-            Slide {active + 1} / {document.slides.length} · <span className="hidden md:inline">Double-clic : écrire · Glisser : déplacer</span><span className="md:hidden">Touche un élément, glisse-le</span>
-            <HelpTip label="gestes sur la slide">Double-clique (ou touche « Écrire ») pour écrire dans un texte. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses (⌘/Ctrl pour placer librement). Glisse une photo plein écran pour la recadrer (double-clic pour une photo encadrée), les poignées pour agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre.</HelpTip>
-          </p>
           </div>
         </div>
         {/* Panneau sous la slide sur téléphone ; à côté (avec son propre défilement) sur ordinateur. */}

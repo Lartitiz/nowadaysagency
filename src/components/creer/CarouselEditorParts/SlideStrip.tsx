@@ -34,8 +34,9 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
 }) {
   return (
     <>
+    <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-3">
       <div
-        className="flex gap-1.5 overflow-x-auto pb-1"
+        className="flex min-w-0 gap-1.5 overflow-x-auto pb-1 md:flex-1"
         aria-label="Slides du carrousel"
       >
         {document.slides.map((s, i) => (
@@ -92,13 +93,7 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
           </button>
         ))}
       </div>
-      {document.slides.length > INSTAGRAM_DIRECT_MAX_IMAGES && (
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          {document.slides.length} slides : au-delà de {INSTAGRAM_DIRECT_MAX_IMAGES}, publie-le depuis l’appli Instagram.
-          <HelpTip label="nombre de slides">{instagramTooManyImagesReason(document.slides.length)}</HelpTip>
-        </p>
-      )}
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex shrink-0 flex-wrap gap-1.5">
         {!simple && (<>
         <Button
           size="sm"
@@ -168,6 +163,13 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
           Supprimer la slide
         </Button>
       </div>
+    </div>
+      {document.slides.length > INSTAGRAM_DIRECT_MAX_IMAGES && (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {document.slides.length} slides : au-delà de {INSTAGRAM_DIRECT_MAX_IMAGES}, publie-le depuis l’appli Instagram.
+          <HelpTip label="nombre de slides">{instagramTooManyImagesReason(document.slides.length)}</HelpTip>
+        </p>
+      )}
     </>
   );
 }

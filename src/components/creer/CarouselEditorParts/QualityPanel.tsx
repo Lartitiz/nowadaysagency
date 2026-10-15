@@ -17,11 +17,11 @@ export function QualityPanel({ cloudTools, commit, current, document, quality, s
   setSelected: (id: string | null) => void;
 }) {
   return (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-2 md:grid-cols-2">
       {cloudTools}
       {quality && quality.status !== "idle" && (
         <div
-          className="min-w-0 rounded-xl border p-3 space-y-2 text-sm"
+          className="min-w-0 rounded-xl border px-3 py-2 space-y-1 text-xs"
           aria-label="Contrôle qualité"
         >
           <div className="flex items-start justify-between gap-2">
