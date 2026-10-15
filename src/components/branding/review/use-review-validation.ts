@@ -192,6 +192,9 @@ export function useReviewValidation({ analysis, onProgress, preFilledSections, e
 
   return {
     validated, savingSection, showConfetti, refinedSections, toReview, validatingAll,
+    // Au moins une section réécrite (validée ou affinée) : relu à chaque rendu,
+    // donc à jour dès que `validated` change.
+    wroteSomething: written.current.size > 0,
     handleKeepAsIs, handleToReview, handleValidate, handleValidateAll, completeCoaching,
   };
 }
