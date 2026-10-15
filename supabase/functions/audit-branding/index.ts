@@ -27,6 +27,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 import { isSafePublicUrl, safeFetchFollow } from "../_shared/scraping.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { readOwnerProfile } from "./profile-owner.ts";
 
 // Borne chaque fetch de scraping : un site qui pend ne doit pas manger le budget
 // temps de l'audit (l'appel IA a besoin de la quasi-totalité des 190s du client).
@@ -190,11 +191,8 @@ Deno.serve(async (req) => {
         sourcesUsed.push("instagram");
       } else {
         // No audit available — try to enrich from profiles table (onboarding data)
-        const { data: profileIG } = await sbService
-          .from("profiles")
-          .select("instagram_bio, instagram_display_name, instagram_highlights, instagram_pillars, instagram_feed_description, instagram_frequency, instagram_followers")
-          .eq(filterCol === "workspace_id" ? "workspace_id" : "user_id", filterVal)
-          .maybeSingle();
+        const profileIG = await readOwnerProfile(sbService, user.id, workspace_id,
+          "instagram_bio, instagram_display_name, instagram_highlights, instagram_pillars, instagram_feed_description, instagram_frequency, instagram_followers");
 
         const parts: string[] = [];
         if (profileIG?.instagram_display_name) parts.push(`Nom : ${profileIG.instagram_display_name}`);
