@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({ workspace: "A", invoke: vi.fn(), scan: vi.fn() }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "user-test" } }) }));
-vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => m.workspace, useWorkspaceReady: () => true }));
+vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => m.workspace, useWorkspaceReady: () => true, useProfileUserId: () => "user-test" }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {
   functions: { invoke: m.invoke },
   from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) }),

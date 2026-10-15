@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useProfileUserId, useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { posthog } from "@/lib/posthog-lazy";
 import { base64ToFile } from "@/components/photos/SitePhotoImportDialog";
@@ -51,6 +51,9 @@ export function BrandLogoSuggestion({ placement, className, onApplied }: BrandLo
   const { isDemoMode } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  // Le site se lit dans le profil de la propriétaire de l'espace (la cliente
+  // en mode Binôme), pas dans celui de la personne connectée.
+  const profileUserId = useProfileUserId();
   const queryClient = useQueryClient();
 
   const [status, setStatus] = useState<Status>("loading");
@@ -62,7 +65,7 @@ export function BrandLogoSuggestion({ placement, className, onApplied }: BrandLo
       setStatus("hidden");
       return;
     }
-    if (!value || started.current) return;
+    if (!value || !profileUserId || started.current) return;
     started.current = true;
 
     void (async () => {
@@ -71,7 +74,7 @@ export function BrandLogoSuggestion({ placement, className, onApplied }: BrandLo
           .select("logo_url")
           .eq(column, value)
           .maybeSingle(),
-        supabase.from("profiles").select("website_url").eq("user_id", user.id).maybeSingle(),
+        supabase.from("profiles").select("website_url").eq("user_id", profileUserId).maybeSingle(),
       ]);
       if (charter?.logo_url) {
         setStatus("hidden");
@@ -98,7 +101,7 @@ export function BrandLogoSuggestion({ placement, className, onApplied }: BrandLo
       console.error("[BrandLogoSuggestion] detection failed:", e);
       setStatus("hidden");
     });
-  }, [isDemoMode, user?.id, column, value]);
+  }, [isDemoMode, user?.id, column, value, profileUserId]);
 
   if (status === "hidden" || status === "loading" || !logoUrl) return null;
 

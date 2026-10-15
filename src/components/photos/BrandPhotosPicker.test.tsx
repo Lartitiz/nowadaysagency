@@ -12,10 +12,12 @@ const m = vi.hoisted(() => ({
   existingSources: [] as string[],
   scan: vi.fn(),
   upload: vi.fn(),
+  owner: "user-test",
+  profileReads: [] as string[],
 }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "user-test" } }) }));
 vi.mock("@/contexts/DemoContext", () => ({ useDemoContext: () => ({ isDemoMode: m.demo }) }));
-vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "ws-1" }));
+vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "ws-1", useProfileUserId: () => m.owner }));
 vi.mock("@/hooks/use-social-connections", () => ({
   useSocialConnections: () => ({
     connected: { instagram: m.instagram },
@@ -37,7 +39,7 @@ vi.mock("@/integrations/supabase/client", () => ({
           };
           return query;
         } }
-      : { select: () => ({ eq: () => ({ maybeSingle: async () => ({
+      : { select: () => ({ eq: (_col: string, val: string) => ({ maybeSingle: async () => (m.profileReads.push(val), {
           data: { website_url: m.website, instagram_username: m.profileInstagram, instagram_url: null, type_activite: m.activityType, product_or_service: m.productOrService },
         }) }) }) },
   },
@@ -59,6 +61,8 @@ beforeEach(() => {
   m.activityType = "artisane";
   m.productOrService = "services";
   m.existingSources = [];
+  m.owner = "user-test";
+  m.profileReads = [];
   vi.clearAllMocks();
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -204,6 +208,22 @@ describe("BrandPhotosPicker", () => {
 
     expect(m.scan.mock.calls.some(([, options]) => options?.body?.mode === "instagram")).toBe(false);
     expect(screen.getByText(/compte Instagram connecté n'a pas pu être identifié/)).toBeInTheDocument();
+  });
+
+  it("mode Binôme : lit le site dans le profil de la cliente, pas celui de la manager", async () => {
+    m.owner = "cliente-1";
+    m.scan.mockResolvedValue({ data: { images } });
+    render(<BrandPhotosPicker placement="welcome" />);
+    await screen.findByAltText("Portrait");
+    expect(m.profileReads).toEqual(["cliente-1"]);
+  });
+
+  it("attend de connaître la propriétaire de l'espace avant de scanner", async () => {
+    m.owner = "";
+    render(<BrandPhotosPicker placement="welcome" />);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(m.profileReads).toEqual([]);
+    expect(m.scan).not.toHaveBeenCalled();
   });
 
   it("reste masqué en mode démo", () => {
