@@ -1563,6 +1563,8 @@ Jamais testés : `savePersona` (âge/métier dans `portrait.qui_elle_est`, exist
 
 **Lot 4 fait (15/10/2026).** Validation sortie dans `src/components/branding/review/use-review-validation.ts` (`validated`, `written`, `savingRef`, `markValidated`, « à revoir », confettis, `logEvent`, « Garder tel quel », « C'est bon », « Je valide tout »), à l'identique, listes de dépendances comprises. Seul changement de forme : la fin du coaching devient `completeCoaching(section)` (même corps, la section passée en paramètre). `editedOffers` / `editedCharter` sont déclarés avant l'appel du hook. `BrandingReview.tsx` : 647 → 487 lignes.
 
+**Lot 5 fait (15/10/2026) : fiche terminée.** Écrans sortis dans `review/ReviewHeader.tsx` (avec la bio Instagram et le calcul des sources), `ReviewCard.tsx`, `ReviewEndCard.tsx` et `ReviewStickyBar.tsx`, à l'identique ; chaque bloc reçoit ses valeurs en props typées. `BrandingReview.tsx` : 487 → 184 lignes (1 411 au départ). Restent à faire, en PR séparées : étape 7 ci-dessous (code mort, helper de portée qui corrige le constat du lot T, boutons « OK », connecteurs intelligents).
+
 > **Constat du lot T (non corrigé, pas un déplacement).** En compte personnel (espace = id de l'utilisatrice), `saveCharter`, `saveTone`, `saveValueProp`, `saveStrategy` et `fillBrandProfileSynthesis` lisent leur fiche unique avec `.eq("user_id", …)` **sans** `.is("workspace_id", null)`, contrairement à `readImportRows` (histoire, client·e idéal·e, offres). Une personne qui a aussi un espace nommé peut donc voir la charte (ou le profil) de cet autre espace complétée, ou la validation bloquée par « plusieurs lignes ». À corriger dans la PR « un seul helper de portée » (étape 7), avec un test qui pose une ligne `workspace_id: "w9"` en compte personnel.
 
 **Risque et ordre conseillé**
@@ -2029,7 +2031,7 @@ cours :
 | 8 | `src/pages/CreerUnifie.tsx` (fiche 1) | Le plus risqué : commencer par le lot A (tests seuls), puis l'affichage pur, et garder l'arrivée depuis le calendrier pour la fin. Pas de session Lovable ouverte sur /creer pendant ces PR. |
 | 9 ✅ | `cron-health/index.ts` (fiche 18, terminée le 15/10/2026 : 959 → 88 lignes) | Risque faible : lecture seule, aucune utilisatrice touchée ; mais une régression prive Laetitia de ses alertes sans prévenir, d'où le contrat du handler d'abord. |
 | 10 ✅ | `export-carousel-hybrid-pptx.ts` (fiche 15, terminée le 15/10/2026 : 1 767 → 98 lignes) | Calme (3 corrections) ; ne pas croiser avec une PR qui renomme un attribut `data-*`. |
-| 11 | `BrandingReview.tsx` (fiche 14) | Indépendant de la création de contenu ; écrit dans 7 tables : tests d'écriture d'abord. |
+| 11 ✅ | `BrandingReview.tsx` (fiche 14, terminée le 15/10/2026 : 1 411 → 184 lignes) | Indépendant de la création de contenu ; écrit dans 7 tables : tests d'écriture d'abord. |
 | 12 | `ReelMontage.tsx` (fiche 16) | Un seul parent (`ReelResult.tsx`) ; le rendu MP4 en dernier. |
 | 13 | `deep-diagnostic/index.ts` (fiche 12) | 12 corrections sur 20 commits : contrat du handler et snapshots des prompts avant tout. |
 | 14 | `use-content-generator.ts`, `CreerStepResult.tsx`, `CalendarPostDialog.tsx` (fiches 17, 11, 13) | **Après la fin de la fiche 1** (lot J de `CreerUnifie`) : ces trois fichiers sont branchés sur /creer, et `CalendarPostDialog` porte le lien calendrier → /creer. |
