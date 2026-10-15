@@ -1,18 +1,11 @@
 import { useCarouselStudioReturn } from "@/features/carousel-studio/useCarouselStudioReturn";
 import { recordCreationResume } from "@/lib/retour-apres-detour";
-import { ReferenceCards } from "@/features/visual-studio/ReferenceCards";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
-  Ellipsis,
-  ImagePlus,
-  Library,
-  Loader2,
-  Plus,
   RefreshCw,
-  SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
 import { StudioCompositionEditor } from "@/features/visual-studio/StudioCompositionEditor";
@@ -21,13 +14,6 @@ import { StudioMemoryPanel } from "@/features/visual-studio/StudioMemoryPanel";
 import { cleanStudioSummary } from "@/features/visual-studio/summary";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
 import { useUploadLibraryPhotos } from "@/hooks/use-user-photos";
 import type { VideoSource } from "@/features/studio-video/StudioVideoPanel";
@@ -59,6 +45,8 @@ import { StudioSessionsDialog } from "@/features/visual-studio/StudioSessionsDia
 import { StudioProposalCard } from "@/features/visual-studio/StudioProposalCard";
 import { StudioToolsSheet } from "@/features/visual-studio/StudioToolsSheet";
 import { StudioImageStream } from "@/features/visual-studio/StudioImageStream";
+import { StudioMessageList } from "@/features/visual-studio/StudioMessageList";
+import { StudioComposer } from "@/features/visual-studio/StudioComposer";
 import { StudioToolDialogs, type StudioExistingTool, type StudioPreparation } from "@/features/visual-studio/StudioToolDialogs";
 
 export default function VisualStudioPage() {
@@ -943,70 +931,29 @@ function Studio({
                 className="studio-messages"
                 aria-live="polite"
               >
-                {!current && (
-                  <div className="studio-message">
-                    <p>
-                      Quel visuel t’aiderait aujourd’hui ? Décris ton idée, pose
-                      une question ou choisis une photo. Je m’appuie sur
-                      l’identité de ta marque pour t’aider à préciser le
-                      résultat.
-                    </p>
-                  </div>
-                )}
-                {current?.session.messages.map((m, i) => proposal &&
-                  i === current.session.messages.length - 1 &&
-                  m.role === "assistant" && m.text === proposal.summary ? null : (
-                  <div
-                    key={m.id || i}
-                    className={m.role === "user"
-                      ? "studio-message mine"
-                      : "studio-message"}
-                  >
-                    <span className="block text-xs font-semibold mb-1">
-                      {m.role === "user" ? "Toi" : "Studio"}
-                    </span>
-                    {!!m.reference_ids?.length && <div className="studio-attached-images" aria-label="Images jointes à ce message">
-                      {m.reference_ids.map((id, index) => {
-                        const ref = m.reference_snapshot?.find((item) => item.id === id) || references.find((item) => item.id === id);
-                        return <div key={`${id}:${index}`} className="studio-attached-image">
-                          {ref?.url && <img src={ref.url} alt="" />}
-                          <span>Image {index + 1}{ref ? ` · ${ref.name}` : " · référence conservée"}</span>
-                        </div>;
-                      })}
-                    </div>}
-                    <p className="whitespace-pre-wrap">{m.role === "assistant" ? cleanStudioSummary(m.text) : m.text}</p>
-                    {!!m.suggestions?.length && m.role === "assistant" && <ul className="list-disc pl-5 mt-2 text-sm">{m.suggestions.map((suggestion, index) => <li key={index}>{suggestion}</li>)}</ul>}
-                    {m.suggested_memory_ids?.map((id) => {
-                      const item = current.memory?.find((entry) => entry.id === id);
-                      return item ? <Button key={id} variant="outline" className="my-2 max-w-full h-auto whitespace-normal break-words py-2" disabled={!writable || !!busy || !!generating || references.some((r) => r.memory_id === id)} onClick={() => void mutate("memory_apply", {memory_id:id,revision:current.session.revision})}>{item.kind === "casting" ? "Utiliser ce mannequin" : "Utiliser cette direction"} · {item.name}</Button> : null;
-                    })}
-                    {m.operation === "compose" && (
-                      <Button
-                        variant="link"
-                        disabled={!writable}
-                        onClick={() => {
-                          setSelectedComposition(null);
-                          setCompositionDraft(m.composition ? { ...m.composition, logo_data_url: current?.session.composition?.design.logo_data_url || null } : undefined);
-                          setCompositionOpen(true);
-                        }}
-                      >
-                        Corriger les textes de cette affiche
-                      </Button>
-                    )}
-                    {m.operation === "existing_tool" && (
-                      <Button
-                        variant="link"
-                        className="px-0"
-                        onClick={() => m.existing_tool === "preparation"
-                          ? void openPreparation(m)
-                          : setExistingTool(m.existing_tool || "mockup")}
-                      >
-                        {m.existing_tool === "preparation" ? "Préparer cette photo sans la redessiner" : m.existing_tool === "before_after" ? "Créer l’avant/après" : "Créer le mockup"}
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                {proposal && <div className="studio-chat-confirmation"><StudioProposalCard
+                <StudioMessageList
+                  current={current}
+                  proposal={proposal}
+                  references={references}
+                  writable={writable}
+                  busy={busy}
+                  generating={generating}
+                  mutate={mutate}
+                  readyFollowUp={readyFollowUp}
+                  identitySheet={identitySheet}
+                  productName={productName}
+                  editDraft={editDraft}
+                  setAutoSend={setAutoSend}
+                  openCastingRef={openCastingRef}
+                  onEditComposition={(m) => {
+                    setSelectedComposition(null);
+                    setCompositionDraft(m.composition ? { ...m.composition, logo_data_url: current?.session.composition?.design.logo_data_url || null } : undefined);
+                    setCompositionOpen(true);
+                  }}
+                  onOpenExistingTool={(m) => m.existing_tool === "preparation"
+                    ? void openPreparation(m)
+                    : setExistingTool(m.existing_tool || "mockup")}
+                  proposalCard={proposal && <StudioProposalCard
                   proposal={proposal}
                   current={current}
                   references={references}
@@ -1022,85 +969,8 @@ function Studio({
                   setError={setError}
                   editDraft={editDraft}
                   mutate={mutate}
-                /></div>}
-                {!proposal && readyFollowUp && (
-                  <div className="studio-message">
-                    <span className="block text-xs font-semibold mb-1">Studio</span>
-                    <p>{readyFollowUp}</p>
-                    {identitySheet && (
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        <Button type="button" variant="outline" className="h-auto whitespace-normal py-2"
-                          disabled={!writable || !!busy || !!generating}
-                          onClick={() => {
-                            const text = `Ce mannequin me convient. Prépare maintenant la scène : elle porte ${productName ? `« ${productName} »` : "mon produit"}, dans la direction artistique choisie.`;
-                            editDraft(text);
-                            setAutoSend(text);
-                          }}>
-                          {productName ? `Préparer la scène avec « ${productName} »` : "Préparer la scène"}
-                        </Button>
-                        <Button type="button" variant="outline" className="h-auto whitespace-normal py-2"
-                          disabled={!writable || !!busy || !!generating}
-                          onClick={() => {
-                            editDraft("Modifie le mannequin : ");
-                            const box = document.getElementById("studio-draft") as HTMLTextAreaElement | null;
-                            box?.focus();
-                          }}>
-                          Ajuster le mannequin
-                        </Button>
-                        <Button type="button" variant="outline" className="h-auto whitespace-normal py-2"
-                          disabled={!writable || !!busy || !!generating}
-                          onClick={() => openCastingRef.current?.()}>
-                          Le garder pour ma marque
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <section aria-label="État de la création">
-                  {generating && (
-                    <div
-                      role="status"
-                      className="rounded-xl border bg-card p-4 my-4 text-sm"
-                    >
-                      <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-                      Création en cours.
-                      <p className="mt-2">
-                        Tu peux quitter le Studio et retrouver le résultat dans
-                        « Mes sessions ».
-                      </p>
-                    </div>
-                  )}
-                  {current?.versions
-                    .filter((v) => v.status === "failed")
-                    .map((v) => (
-                      <div
-                        key={v.id}
-                        className="rounded-xl border p-4 my-4 text-sm"
-                      >
-                        <p>{v.proposal.series_size ? `Image ${(v.proposal.series_index || 0) + 1} de la série · ` : ""}{v.error_message}</p>
-                        <Button
-                          variant="link"
-                          disabled={!writable || !!busy || !!generating}
-                          onClick={() => {
-                            void mutate("retry", {
-                              version_id: v.id,
-                              revision: current!.session.revision,
-                            });
-                          }}
-                        >
-                          Réessayer cette image seulement
-                        </Button>
-                      </div>
-                    ))}
-                  {current?.versions
-                    .filter((v) => v.status === "uncertain")
-                    .map((v) => (
-                      <div key={v.id} role="status" className="rounded-xl border p-4 my-4 text-sm">
-                        <p>{v.proposal.series_size ? `Image ${(v.proposal.series_index || 0) + 1} de la série · ` : ""}{v.error_message}</p>
-                        <p className="mt-2">Tu peux poursuivre une autre demande dans cette session. Cette image ne peut pas être relancée automatiquement.</p>
-                      </div>
-                    ))}
+                />}
+                >
                   {hasExtraTools && (
                   <StudioToolsSheet
                     open={toolsOpen}
@@ -1119,161 +989,46 @@ function Studio({
                     onOpenTool={setExistingTool}
                   />
                   )}
-                </section>
+                </StudioMessageList>
               </div>
-              <div
-                className={`studio-composer p-3 border-t space-y-2${dropActive ? " studio-drop-active" : ""}`}
-                onDragEnter={(e) => {
-                  if (!writable || !!busy || generating) return;
-                  e.preventDefault();
-                  dragDepth.current += 1;
-                  setDropActive(true);
-                }}
-                onDragOver={(e) => {
-                  if (writable && !busy && !generating) e.preventDefault();
-                }}
-                onDragLeave={(e) => {
-                  e.preventDefault();
-                  dragDepth.current = Math.max(0, dragDepth.current - 1);
-                  if (dragDepth.current === 0) setDropActive(false);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  dragDepth.current = 0;
-                  setDropActive(false);
-                  if (!writable || !!busy || generating) return;
-                  const dropped = Array.from(e.dataTransfer?.files ?? []);
-                  const images = dropped.filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
-                  if (!images.length) {
-                    if (dropped.length) toast.error("Seules des images peuvent être ajoutées ici (JPG, PNG, HEIC…).");
-                    return;
-                  }
-                  if (dropped.length > images.length) toast.info(`${dropped.length - images.length} fichier${dropped.length - images.length > 1 ? "s ignorés" : " ignoré"} : seules les images peuvent être jointes.`);
-                  void addLocalFiles(images);
-                }}
-              >
-                <div className="studio-toolbar">
-                  <div className="studio-toolbar-group">
-                    {hasExtraTools && (
-                      <button type="button" className="studio-toolbar-btn" onClick={() => setToolsOpen(true)}>
-                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                        Outils et créations
-                      </button>
-                    )}
-                    {current && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button type="button" className="studio-toolbar-btn" disabled={!writable || !!busy}>
-                            Options
-                            <Ellipsis className="h-3.5 w-3.5" aria-hidden="true" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                          <DropdownMenuItem disabled={!writable || !!busy} onClick={() => setExistingTool("before_after")}>Avant / après</DropdownMenuItem>
-                          <DropdownMenuItem disabled={!writable || !!busy} onClick={() => setExistingTool("mockup")}>Mockup d’offre</DropdownMenuItem>
-                          <DropdownMenuItem disabled={!writable || !!busy || generating}
-                            aria-label="Nouvelle demande sans ces références" onClick={() => void updateSelection([], true)}>Nouvelle demande</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                  {!!selectedId && <button type="button" className="studio-selection-pill" onClick={() => { setSelectedId(null); setSelectedReferenceId(null); setCompare(false); }}>
-                    <span className="studio-selection-dot" aria-hidden="true" />
-                    Image sélectionnée
-                    <span className="studio-selection-clear" aria-hidden="true">×</span>
-                  </button>}
-                </div>
-                {version?.status === "ready" && version.proposal.person_reference && (
-                  <p className="text-sm text-muted-foreground">
-                    Ce mannequin te plaît ? Tu peux <button type="button" className="studio-link" disabled={!writable || !!busy || !!generating} onClick={() => openCastingRef.current?.()}>le garder pour ta marque</button>.
-                  </p>
-                )}
-                {activeBranchChoice && (
-                  <div role="status" className="rounded-lg border border-primary/30 bg-card p-3 space-y-2 text-sm">
-                    <p>Les références ont changé depuis cette version. Lesquelles veux-tu utiliser pour cette nouvelle demande ? Aucune image n’a été lancée.</p>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" disabled={!!busy}
-                        onClick={() => void send("version")}>
-                        Celles de cette version{branchChoice?.versionNames?.length ? ` : ${branchChoice.versionNames.join(", ")}` : ""}
-                      </Button>
-                      <Button type="button" variant="outline" disabled={!!busy}
-                        onClick={() => void send("current")}>
-                        Mes photos actuelles{branchChoice?.currentNames?.length ? ` : ${branchChoice.currentNames.join(", ")}` : ""}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                <label
-                  className="sr-only"
-                  htmlFor={mobile ? "studio-draft-mobile" : "studio-draft"}
-                >
-                  Ta demande
-                </label>
-                {attachedReferences.length > 0 && (
-                  <details className="studio-photos-accordion" open={photosOpen}
-                    onToggle={(e) => setPhotosOpen((e.currentTarget as HTMLDetailsElement).open)}>
-                    <summary>Photos de référence ({attachedReferences.length})</summary>
-                    <ReferenceCards references={attachedReferences} disabled={!writable || !!busy || !!generating}
-                      onSelection={ids => void updateSelection(ids)}
-                      onRole={(id, role) => void mutate("reference", { reference_id: id, reference_role: role, role_source: "user", revision: current!.session.revision })}
-                      onGroup={(id, group) => void mutate("reference", { reference_id: id, subject_group: group, revision: current!.session.revision })} />
-                  </details>
-                )}
-
-                <Textarea
-                  className="min-h-[88px] max-h-36 overflow-y-auto"
-                  id={mobile ? "studio-draft-mobile" : "studio-draft"}
-                  value={draft}
-                  maxLength={6000}
-                  onChange={(e) => editDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
-                    e.preventDefault();
-                    if (draft.trim()) {
-                      if (!writable || !!busy || generating || activeBranchChoice) return;
-                      void send();
-                    } else if (proposal && !error && !proposalGenerateDisabled) {
-                      void runProposalGenerate();
-                    }
-                  }}
-                  disabled={!writable}
-                  placeholder={proposal ? "Réponds pour ajuster la proposition…" : "Une idée, une question, une image à améliorer…"}
-                />
-                <input ref={fileInput} type="file" accept="image/*,.heic,.heif" multiple className="sr-only" aria-label="Importer plusieurs images" onChange={(event) => void addLocalFiles(event.target.files)} />
-                <div className="flex items-center gap-1 flex-wrap">
-                  <Button variant="ghost" size="icon" className="studio-icon-btn shrink-0" title="Importer" aria-label="Ajouter des images" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => fileInput.current?.click()}>
-                    <ImagePlus className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="studio-icon-btn shrink-0" title="Bibliothèque" aria-label="Depuis ma bibliothèque" disabled={!writable || !!busy || generating || references.length >= 8} onClick={() => setPicker(true)}>
-                    <Library className="h-4 w-4" />
-                  </Button>
-                  {proposal && !draft.trim() && !error ? (
-                    <Button
-                      className="ml-auto shrink-0 rounded-full px-5 h-auto min-h-10 py-2 whitespace-normal text-left"
-                      disabled={proposalGenerateDisabled}
-                      onClick={() => void runProposalGenerate()}
-                    >
-                      {busy === "generate"
-                        ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        : null}
-                      {proposalGenerateLabel}
-                    </Button>
-                  ) : (
-                    <Button
-                      className="ml-auto shrink-0 rounded-full px-6"
-                      disabled={!writable || !!busy || generating || activeBranchChoice ||
-                        !draft.trim()}
-                      onClick={() => void send()}
-                    >
-                      {busy === "message"
-                        ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        : null}
-                      Envoyer
-                    </Button>
-                  )}
-                </div>
-                {references.length >= 8 && <p className="text-xs text-muted-foreground">Huit références maximum. Retire une photo pour en choisir une autre.</p>}
-              </div>
+              <StudioComposer
+                mobile={mobile}
+                dropActive={dropActive}
+                setDropActive={setDropActive}
+                dragDepth={dragDepth}
+                writable={writable}
+                busy={busy}
+                generating={generating}
+                addLocalFiles={addLocalFiles}
+                hasExtraTools={hasExtraTools}
+                setToolsOpen={setToolsOpen}
+                current={current}
+                setExistingTool={setExistingTool}
+                updateSelection={updateSelection}
+                selectedId={selectedId}
+                setSelectedId={setSelectedId}
+                setSelectedReferenceId={setSelectedReferenceId}
+                setCompare={setCompare}
+                version={version}
+                openCastingRef={openCastingRef}
+                activeBranchChoice={activeBranchChoice}
+                send={send}
+                branchChoice={branchChoice}
+                attachedReferences={attachedReferences}
+                photosOpen={photosOpen}
+                setPhotosOpen={setPhotosOpen}
+                mutate={mutate}
+                draft={draft}
+                editDraft={editDraft}
+                proposal={proposal}
+                error={error}
+                proposalGenerateDisabled={proposalGenerateDisabled}
+                runProposalGenerate={runProposalGenerate}
+                proposalGenerateLabel={proposalGenerateLabel}
+                fileInput={fileInput}
+                references={references}
+                setPicker={setPicker}
+              />
         </>
       </div>
     );
