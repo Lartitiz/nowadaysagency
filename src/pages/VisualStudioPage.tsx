@@ -20,9 +20,6 @@ import {
 } from "lucide-react";
 import { StudioCompositionEditor } from "@/features/visual-studio/StudioCompositionEditor";
 import { uploadPhotoOriginal, type UserPhotoRow } from "@/lib/photo-storage";
-import { OfferMockupDialog } from "@/components/photos/OfferMockupDialog";
-import { AvantApresDialog } from "@/components/photos/AvantApresDialog";
-import PhotoPreparationDialog from "@/components/photos/PhotoPreparationDialog";
 import { StudioMemoryPanel } from "@/features/visual-studio/StudioMemoryPanel";
 import { cleanStudioSummary } from "@/features/visual-studio/summary";
 import { StudioBrandContext } from "@/features/visual-studio/StudioBrandContext";
@@ -35,13 +32,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
 import { useUploadLibraryPhotos } from "@/hooks/use-user-photos";
 import type { VideoSource } from "@/features/studio-video/StudioVideoPanel";
@@ -69,6 +59,8 @@ import "@/features/visual-studio/studio.css";
 import { readAttachedIds, referenceRoleForPhoto, writeAttachedIds } from "@/features/visual-studio/attachments";
 import { useChatWidth } from "@/features/visual-studio/useChatWidth";
 import { proposalGenerateLabelFor, readyFollowUpFor } from "@/features/visual-studio/proposal-labels";
+import { StudioSessionsDialog } from "@/features/visual-studio/StudioSessionsDialog";
+import { StudioToolDialogs, type StudioExistingTool, type StudioPreparation } from "@/features/visual-studio/StudioToolDialogs";
 
 export default function VisualStudioPage() {
   const { user } = useAuth(),
@@ -180,14 +172,8 @@ function Studio({
   const [olderCompositions, setOlderCompositions] = useState<StudioCompositionEntry[]>([]);
   const [moreCompositions, setMoreCompositions] = useState(true);
   const [olderCompositionsBusy, setOlderCompositionsBusy] = useState(false);
-  const [existingTool, setExistingTool] = useState<
-    "mockup" | "before_after" | null
-  >(null);
-  const [preparation, setPreparation] = useState<{
-    source: { id: string; name: string; dataUrl: string };
-    recipe?: StudioMessage["preparation"];
-    role: StudioReference["role"];
-  } | null>(null);
+  const [existingTool, setExistingTool] = useState<StudioExistingTool>(null);
+  const [preparation, setPreparation] = useState<StudioPreparation>(null);
   const [picker, setPicker] = useState(false),
     [sessionsOpen, setSessionsOpen] = useState(false),
     [sessionAction, setSessionAction] = useState<string | null>(null);
@@ -1807,59 +1793,24 @@ function Studio({
           }}
         />
       )}
-      {existingTool === "mockup" && (
-        <OfferMockupDialog
-          open
-          onOpenChange={(open) => {
-            if (!open) setExistingTool(null);
-          }}
-          initialImage={version?.url || selectedReference?.url}
-          onSaved={(photo) => {
-            setExistingTool(null);
-            void mutate("reference", {
-              photo_id: photo.id,
-              reference_role: "composition",
-              revision: current?.session.revision,
-            });
-          }}
-        />
-      )}
-      {preparation && (
-        <PhotoPreparationDialog
-          open
-          onOpenChange={(open) => { if (!open) setPreparation(null); }}
-          sources={[preparation.source]}
-          initialRecipe={preparation.recipe}
-          onSaved={(photo) => {
-            setPreparation(null);
-            void mutate("reference", {
-              photo_id: photo.id,
-              reference_role: preparation.role,
-              revision: current?.session.revision,
-            });
-          }}
-        />
-      )}
-      {existingTool === "before_after" && (
-        <AvantApresDialog
-          open
-          onOpenChange={(open) => {
-            if (!open) setExistingTool(null);
-          }}
-          initialImages={[
-            references[0]?.url,
-            version?.url || references[1]?.url,
-          ]}
-          onSaved={(photo) => {
-            setExistingTool(null);
-            void mutate("reference", {
-              photo_id: photo.id,
-              reference_role: "composition",
-              revision: current?.session.revision,
-            });
-          }}
-        />
-      )}
+      <StudioToolDialogs
+        existingTool={existingTool}
+        setExistingTool={setExistingTool}
+        preparation={preparation}
+        setPreparation={setPreparation}
+        mockupImage={version?.url || selectedReference?.url}
+        beforeAfterImages={[
+          references[0]?.url,
+          version?.url || references[1]?.url,
+        ]}
+        onAttach={(photoId, role) => {
+          void mutate("reference", {
+            photo_id: photoId,
+            reference_role: role,
+            revision: current?.session.revision,
+          });
+        }}
+      />
       <PhotoLibraryPickerDialog
         open={picker}
         onOpenChange={setPicker}
@@ -1870,72 +1821,17 @@ function Studio({
           void addReferencePhotos(photos);
         }}
       />
-      <Dialog open={sessionsOpen} onOpenChange={setSessionsOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Mes sessions Studio</DialogTitle>
-            <DialogDescription>
-              Les échanges et versions de{" "}
-              {workspaceName}. Les images choisies restent dans ta bibliothèque.
-            </DialogDescription>
-          </DialogHeader>
-          {sessions.isLoading
-            ? <p>Chargement…</p>
-            : sessions.error
-            ? (
-              <div role="alert">
-                {sessions.error.message}
-                <Button variant="ghost" onClick={() => void sessions.refetch()}>
-                  Réessayer
-                </Button>
-              </div>
-            )
-            : sessions.data && (sessions.data.active.length || sessions.data.archived.length)
-            ? (
-              <div className="max-h-[55vh] overflow-y-auto space-y-2">
-                {sessions.data.active.map((s) => (
-                  <div key={s.id} className="flex gap-2">
-                    <Button variant="outline" className="min-w-0 flex-1 justify-start overflow-hidden text-ellipsis"
-                      onClick={() => { setSessionsOpen(false); navigate(studioPath(s.id)); }}>
-                      {s.name}
-                    </Button>
-                    {roleWritable && (
-                      <Button type="button" variant="ghost" disabled={!!sessionAction}
-                        aria-label={`Archiver ${s.name}`}
-                        onClick={() => void setSessionArchived(s.id, s.revision, true)}>
-                        Archiver
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                {!!sessions.data.archived.length && (
-                  <h3 className="pt-3 text-sm font-medium">Sessions archivées</h3>
-                )}
-                {sessions.data.archived.map((s) => (
-                  <div key={s.id} className="flex items-center gap-2 text-sm">
-                    <span className="min-w-0 flex-1 truncate">{s.name}</span>
-                    {roleWritable && (
-                      <Button type="button" variant="outline" disabled={!!sessionAction}
-                        aria-label={`Restaurer ${s.name}`}
-                        onClick={() => void setSessionArchived(s.id, s.revision, false)}>
-                        Restaurer
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )
-            : <p>Pas encore de session dans cet espace.</p>}
-          <Button
-            onClick={() => {
-              setSessionsOpen(false);
-              navigate(studioPath());
-            }}
-          >
-            Commencer une nouvelle session
-          </Button>
-        </DialogContent>
-      </Dialog>
+      <StudioSessionsDialog
+        open={sessionsOpen}
+        onOpenChange={setSessionsOpen}
+        workspaceName={workspaceName}
+        sessions={sessions}
+        roleWritable={roleWritable}
+        sessionAction={sessionAction}
+        onArchive={setSessionArchived}
+        onOpenSession={(id) => navigate(studioPath(id))}
+        onNewSession={() => navigate(studioPath())}
+      />
     </div>
   );
 }
