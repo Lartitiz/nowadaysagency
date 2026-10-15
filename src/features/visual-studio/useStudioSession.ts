@@ -39,7 +39,6 @@ export function useStudioSession({
   navigate,
   cache,
   studioPath,
-  contentPath,
 }: {
   role: string;
   userId: string;
@@ -50,7 +49,6 @@ export function useStudioSession({
   navigate: NavigateFunction;
   cache: QueryClient;
   studioPath: (id?: string) => string;
-  contentPath: string;
 }) {
   const roleWritable = ["owner", "manager", "editor"].includes(role);
   const [compositionOpen, setCompositionOpen] = useState(false);
@@ -615,53 +613,6 @@ export function useStudioSession({
       sent.current = null;
       setBranchChoice(null);
       if (result.session.active_reference_ids) setAttachments(result.session.active_reference_ids);
-    }
-  }
-  async function save(useInContent = false, target?: typeof version) {
-    if (!current || actionLock.current || !writable) return;
-    return saveVersion(useInContent, target ?? version);
-  }
-  async function saveVersion(useInContent: boolean, version: (typeof current)["versions"][number] | undefined) {
-    if (!version) {
-      if (useInContent && current.session.source_photo_id) {
-        navigate(contentPath, {
-          state: { libraryPhotoIds: [current.session.source_photo_id] },
-        });
-      }
-      return;
-    }
-    actionLock.current = true;
-    setBusy("save");
-    setError("");
-    try {
-      const receipt = version.library_photo_id
-        ? { photo_id: version.library_photo_id }
-        : await studioRequest<{ photo_id: string }>({
-          action: "save",
-          workspace_id: workspaceId,
-          session_id: sessionId,
-          version_id: version.id,
-        });
-      if (!alive.current) return;
-      await cache.invalidateQueries({ queryKey: ["user-photos", workspaceId] });
-      if (!alive.current) return;
-      if (useInContent) {
-        navigate(contentPath, { state: { libraryPhotoIds: [receipt.photo_id] } });
-      } else {
-        await state.refetch();
-        toast.success("Image ajoutée à la bibliothèque.");
-      }
-    } catch (e) {
-      if (alive.current) {
-        setError(
-          e instanceof Error
-            ? e.message
-            : "L’image reste dans la session. Réessaie l’enregistrement.",
-        );
-      }
-    } finally {
-      actionLock.current = false;
-      if (alive.current) setBusy("");
     }
   }
   async function setSessionArchived(id: string, revision: number, archive: boolean) {
