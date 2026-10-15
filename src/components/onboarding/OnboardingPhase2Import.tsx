@@ -18,6 +18,11 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
 }: {answers: Answers;set: <K extends keyof Answers>(k: K, v: Answers[K]) => void;files: UploadedFile[];uploading: boolean;onUpload: (files: FileList | null) => void;onRemove: (id: string) => void;onNext: () => void;onLeave?: (url: string) => void;isDemoMode?: boolean;}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [linkedinOpen, setLinkedinOpen] = useState(() => !!answers.linkedin_summary);
+  // Ouvert d'office si quelque chose y est déjà rempli (retour en arrière,
+  // brouillon restauré) : on ne cache jamais une saisie de l'utilisatrice.
+  const [moreOpen, setMoreOpen] = useState(() =>
+    !!answers.linkedin_summary || files.length > 0 || !!answers.visual_reference_links?.length,
+  );
   const workspaceId = useWorkspaceId();
   const { user } = useAuth();
   const { isConnected, accountNames } = useSocialConnections();
@@ -79,52 +84,69 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="text-center space-y-2">
         <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-          2 minutes qui font 80 % du travail
+          Tu as un site ou un compte Instagram&nbsp;?
         </h1>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Si tu as un site, j'y repère des indices pour préparer ton identité, ton histoire et tes offres.
-          Tu vérifieras les propositions avant de les utiliser.
+          J'y repère ce qui m'aide à préparer ta fiche de marque. Tu vérifieras tout avant.
         </p>
       </div>
 
       <div className="space-y-3">
-        {/* Website — le chemin le plus riche, mis en avant */}
-        <div className="rounded-2xl border-2 border-primary/25 bg-card p-4">
-          <label className="text-sm font-semibold text-foreground mb-2 block">🌐 Ton site web</label>
-          <div className="relative">
-            <input
-              type="text"
-              inputMode="url"
-              value={answers.website}
-              onChange={(e) => set("website", e.target.value)}
-              onBlur={() => {if (answers.website) set("website", addHttpsIfNeeded(answers.website));}}
-              placeholder="https://tonsite.fr"
-              aria-label="URL de ton site web"
-              aria-invalid={webStatus === "warn"}
-              className="w-full text-base p-3 pr-10 border-2 border-border rounded-xl focus:border-primary outline-none bg-background transition-colors text-foreground placeholder:text-muted-foreground/50" />
+        {/* Les deux chemins les plus utiles, visibles sans défiler. Le reste
+            (connexion, captures, LinkedIn, exemples) est rangé dans
+            « Plus d'options » : rien n'est retiré, tout est à un clic. */}
+        <div className="rounded-2xl border-2 border-primary/25 bg-card p-4 space-y-3">
+          <div>
+            <label htmlFor="onb-site" className="text-sm font-semibold text-foreground mb-1.5 block">🌐 Ton site web</label>
+            <div className="relative">
+              <input
+                id="onb-site"
+                type="text"
+                inputMode="url"
+                value={answers.website}
+                onChange={(e) => set("website", e.target.value)}
+                onBlur={() => {if (answers.website) set("website", addHttpsIfNeeded(answers.website));}}
+                placeholder="https://tonsite.fr"
+                aria-label="URL de ton site web"
+                aria-invalid={webStatus === "warn"}
+                className="w-full text-base p-3 pr-10 border-2 border-border rounded-xl focus:border-primary outline-none bg-background transition-colors text-foreground placeholder:text-muted-foreground/50" />
 
-            <InputIndicator status={webStatus} />
+              <InputIndicator status={webStatus} />
+            </div>
+            {webStatus === "warn" && <p className="text-xs text-destructive mt-2">Vérifie cette adresse ou efface-la pour passer sans site.</p>}
           </div>
-          {webStatus === "warn" && <p className="text-xs text-destructive mt-2">Vérifie cette adresse ou efface-la pour passer sans site.</p>}
+          <div>
+            <label htmlFor="onb-insta" className="text-sm font-semibold text-foreground mb-1.5 block">📱 Ton compte Instagram</label>
+            <input
+              id="onb-insta"
+              type="text"
+              value={answers.instagram}
+              onChange={(e) => set("instagram", e.target.value)}
+              placeholder="@toncompte"
+              aria-label="Ton nom d'utilisateur Instagram"
+              className="w-full text-base p-3 border-2 border-border rounded-xl focus:border-primary outline-none bg-background transition-colors text-foreground placeholder:text-muted-foreground/50" />
+          </div>
         </div>
 
-        {/* Instagram — le plan A-bis assumé : le @ suffit, la capture complète */}
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-sm font-semibold text-foreground">📸 Pas de site ? Montre-moi tes réseaux.</p>
-          <p className="text-xs text-muted-foreground mt-1 mb-3">
-            Ton @ peut donner accès à quelques informations publiques, selon Instagram. Ajoute des captures Instagram ou LinkedIn pour montrer ce qui est réellement visible sur ton profil et tes publications.
-          </p>
-          <input
-            type="text"
-            value={answers.instagram}
-            onChange={(e) => set("instagram", e.target.value)}
-            placeholder="@toncompte"
-            aria-label="Ton nom d'utilisateur Instagram"
-            className="w-full text-base p-3 mb-3 border-2 border-border rounded-xl focus:border-primary outline-none bg-background transition-colors text-foreground placeholder:text-muted-foreground/50" />
+        <button
+          type="button"
+          onClick={() => setMoreOpen((o) => !o)}
+          className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline underline-offset-4 py-1"
+          aria-expanded={moreOpen}
+        >
+          <ChevronDown className={`h-4 w-4 transition-transform ${moreOpen ? "rotate-180" : ""}`} />
+          Plus d'options <span className="text-xs font-normal text-muted-foreground">(connecter Instagram, captures, LinkedIn, exemples)</span>
+        </button>
 
+        {moreOpen && <div className="space-y-3">
+        {/* Instagram (connexion + captures) */}
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground mb-3">
+            Ton @ donne accès à peu d'informations publiques. Une capture de ton profil Instagram ou LinkedIn montre ce qui est vraiment visible.
+          </p>
           {!isDemoMode && (
             <div className="mb-3 rounded-xl bg-secondary/40 p-3 flex flex-col sm:flex-row sm:items-center gap-2">
               {igConnected ? (
@@ -236,13 +258,14 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
             </div>
           }
         </div>
-      </div>
 
-      {!isDemoMode && <div className="rounded-2xl border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-foreground">Des exemples de ton univers ?</h2>
-        <p className="mt-1 mb-3 text-xs text-muted-foreground">Facultatif : ajoute plusieurs sites, créations ou vidéos que tu aimes, ou que tu veux éviter. Tu pourras aussi compléter cette fiche plus tard dans Mon identité.</p>
-        <CharterReferenceLinks links={answers.visual_reference_links || []} onChange={links => set("visual_reference_links", links)} />
-      </div>}
+        {!isDemoMode && <div className="rounded-2xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold text-foreground">Des exemples de ton univers ?</h2>
+          <p className="mt-1 mb-3 text-xs text-muted-foreground">Facultatif : ajoute plusieurs sites, créations ou vidéos que tu aimes, ou que tu veux éviter. Tu pourras aussi compléter cette fiche plus tard dans Mon identité.</p>
+          <CharterReferenceLinks links={answers.visual_reference_links || []} onChange={links => set("visual_reference_links", links)} />
+        </div>}
+        </div>}
+      </div>
 
       <div className="flex flex-col items-center gap-2">
         <Button onClick={continueFromImport} disabled={uploading} className="rounded-full px-8">
