@@ -22,11 +22,6 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Search, Film, Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import {
-  searchStockVideos,
-  suggestStockKeywords,
-  type StockVideo,
-} from "@/lib/stock-videos";
-import {
   submitReelRender,
   pollReelRender,
   archiveReelMp4,
@@ -35,12 +30,6 @@ import {
 } from "@/lib/reel-render";
 import { useBrandCharter } from "@/hooks/use-branding";
 import type { VoiceClip } from "@/lib/reel-voice";
-import {
-  uploadReelVideo,
-  listReelVideos,
-  loadVideoDuration,
-  type UserReelVideo,
-} from "@/lib/reel-user-videos";
 import { readStudioVideo, type StudioVideoJob } from "@/features/studio-video/api";
 import { MontageModeFork, MontageModeSummary } from "@/features/reel-montage/MontageModeChoice";
 import { MontageVoiceChoice } from "@/features/reel-montage/MontageVoiceChoice";
@@ -48,7 +37,9 @@ import { StudioClipDialog } from "@/features/reel-montage/StudioClipDialog";
 import { montageRenderKey, savedMontageProject } from "@/features/reel-montage/montage-project";
 import { assembleRefusal, chosenClips, voiceGuards } from "@/features/reel-montage/assemble-guards";
 import { buildMontagePlan } from "@/features/reel-montage/build-montage-plan";
-import { fromMine, fromStock, set, type MontageMode, type Phase, type ReelMontageProject, type Section, type SelectedClip, type StudioCutaway } from "@/features/reel-montage/types";
+import { useReelStockSearch } from "@/features/reel-montage/use-reel-stock-search";
+import { useReelMyVideos } from "@/features/reel-montage/use-reel-my-videos";
+import { fromStock, set, type MontageMode, type Phase, type ReelMontageProject, type Section, type SelectedClip, type StudioCutaway } from "@/features/reel-montage/types";
 
 // Réexportation : ReelResult.tsx et les tests importent ce type depuis ce fichier (fiche 16, lot 1).
 export type { ReelMontageProject } from "@/features/reel-montage/types";
@@ -79,8 +70,6 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
 
   const [montageMode, setMontageMode] = useState<MontageMode | null>(initialProject?.montageMode || null);
 
-  const [keywords, setKeywords] = useState<string[]>(() => spoken.map(() => ""));
-  const [results, setResults] = useState<StockVideo[][]>(() => spoken.map(() => []));
   const [clips, setClips] = useState<(SelectedClip | null)[]>(() => initialProject?.clips?.length === spoken.length ? initialProject.clips : spoken.map(() => null));
   const [cutaways, setCutaways] = useState<(StudioCutaway | null)[]>(() => initialProject?.cutaways?.length === spoken.length ? initialProject.cutaways : spoken.map(() => null));
   const [studioTarget, setStudioTarget] = useState<{ index: number; create: boolean } | null>(null);
@@ -123,13 +112,6 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
       setNeedsReview(true);
     }
   }, [sectionFingerprint]);
-  const [loading, setLoading] = useState<boolean[]>(() => spoken.map(() => true));
-
-  // Mes vidéos : bibliothèque perso (dépôts précédents) + upload en cours.
-  const [myVideos, setMyVideos] = useState<UserReelVideo[]>([]);
-  const [uploadingSection, setUploadingSection] = useState<number | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const uploadTargetRef = useRef(0);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [tick, setTick] = useState(0);
@@ -193,88 +175,8 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
     mp4Callback.current?.(null);
   }, [renderKey]);
 
-  // Suggestion initiale : un clip par section. Uniquement en mode "cache" — le
-  // mode "filme" n'utilise pas la banque libre, seulement les prises perso.
-  const stockSearchStarted = useRef(false);
-  useEffect(() => {
-    if (montageMode !== "cache" || stockSearchStarted.current) return;
-    stockSearchStarted.current = true;
-    // This one-time search belongs to the mounted editor, not the mode tab.
-    // Leaving and returning must not discard a paid keyword response.
-    const cancelled = () => !activeRender.current.mounted;
-    (async () => {
-      let kws: string[] = [];
-      try {
-        const { keywords: k, primary } = await suggestStockKeywords({
-          subject: subject || spoken.map((s) => s.texte_parle).join(" ").slice(0, 120),
-          slides: spoken.map((s) => s.texte_parle || ""),
-        });
-        kws = spoken.map((_, i) => k[i] || primary || subject || "");
-      } catch {
-        kws = spoken.map(() => subject || "");
-      }
-      if (cancelled()) return;
-      setKeywords(kws);
-      await Promise.all(kws.map((kw, i) => runSearch(i, kw, { cancelledRef: cancelled })));
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [montageMode]);
-
-  async function runSearch(i: number, kw: string, o?: { cancelledRef?: () => boolean }) {
-    const term = kw.trim();
-    setLoading((L) => set(L, i, true));
-    try {
-      const vids = term
-        ? await searchStockVideos(term, { perPage: 6, orientation: "portrait", locale: "en-US" })
-        : [];
-      if (o?.cancelledRef?.()) return;
-      setResults((R) => set(R, i, vids));
-      // Préserve les clips choisis explicitement dans la bibliothèque ou le Studio.
-      setClips((C) =>
-        set(C, i, C[i]?.source === "mine" || C[i]?.source === "studio" ? C[i] : vids[0] ? fromStock(vids[0]) : C[i]),
-      );
-    } catch (e) {
-      if (!o?.cancelledRef?.()) toast.error(readableError(e, "La recherche de vidéos n’a pas abouti. Réessaie dans un instant."));
-    } finally {
-      if (!o?.cancelledRef?.()) setLoading((L) => set(L, i, false));
-    }
-  }
-
-  // Bibliothèque perso, chargée une fois (best-effort).
-  useEffect(() => {
-    listReelVideos().then(setMyVideos).catch(() => {});
-  }, []);
-
-  function openFilePicker(i: number) {
-    uploadTargetRef.current = i;
-    fileInputRef.current?.click();
-  }
-
-  async function handleFileChosen(files: FileList | null) {
-    const file = files?.[0];
-    if (!file) return;
-    const i = uploadTargetRef.current;
-    setUploadingSection(i);
-    try {
-      const video = await uploadReelVideo(file);
-      const duration = await loadVideoDuration(video.url);
-      setMyVideos((v) => [video, ...v]);
-      setClips((C) => set(C, i, fromMine(video, duration)));
-      toast.success("Ta vidéo est prête pour cette section.");
-    } catch (e) {
-      toast.error(readableError(e, "L'envoi de la vidéo a échoué."));
-    } finally {
-      setUploadingSection(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  }
-
-  async function pickFromLibrary(i: number, url: string) {
-    const video = myVideos.find((v) => v.url === url);
-    if (!video) return;
-    const duration = await loadVideoDuration(video.url);
-    setClips((C) => set(C, i, fromMine(video, duration)));
-  }
+  const { keywords, setKeywords, results, loading, runSearch } = useReelStockSearch({ spoken, subject, montageMode, setClips, activeRender });
+  const { myVideos, uploadingSection, fileInputRef, openFilePicker, handleFileChosen, pickFromLibrary } = useReelMyVideos({ setClips });
 
   async function handleAssemble() {
     if (renderBusy.current || archiveBusy.current) return;
