@@ -266,12 +266,13 @@ writable : true
 charter_references : []
 suggested_photos : []
 composition_history : []
-── REQUÊTES (24)
+── REQUÊTES (25)
 GET /auth/v1/user
 GET /rest/v1/workspace_members [role]
 GET /rest/v1/visual_studio_sessions [*]
 GET /rest/v1/visual_studio_sessions [*]
 GET /rest/v1/visual_studio_versions [id]
+POST /rest/v1/rpc/has_role
 POST /rest/v1/rpc/studio_reserve_interpretation
 GET /rest/v1/brand_profile [mission,offer,target_description,voice_description,things_to_avoid]
 GET /rest/v1/brand_proposition [version_final,version_one_liner]
@@ -361,12 +362,13 @@ writable : true
 charter_references : []
 suggested_photos : []
 composition_history : []
-── REQUÊTES (28)
+── REQUÊTES (29)
 GET /auth/v1/user
 GET /rest/v1/workspace_members [role]
 GET /rest/v1/visual_studio_sessions [*]
 GET /rest/v1/visual_studio_sessions [*]
 GET /rest/v1/visual_studio_versions [id]
+POST /rest/v1/rpc/has_role
 POST /rest/v1/rpc/studio_reserve_interpretation
 GET /rest/v1/brand_profile [mission,offer,target_description,voice_description,things_to_avoid]
 GET /rest/v1/brand_proposition [version_final,version_one_liner]

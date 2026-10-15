@@ -25,7 +25,7 @@ export function AccessNotice({ quota, premiumBlocked, insufficient, onRetry }: {
   const packs = !unknown && !premiumBlocked && !hardCap && quota?.reason === "total";
   return <div role="status" className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-3 text-sm">
     <p>{unknown ? "Impossible de vérifier ton accès pour le moment. Aucun achat n’est nécessaire pour réessayer." :
-      premiumBlocked ? "La création de scènes et l’intégration de références sont incluses dans Premium. Tu peux continuer à préparer ton idée gratuitement." :
+      premiumBlocked ? "La création de scènes et l’intégration de références sont incluses dans Premium. Tu peux continuer à préparer ton idée gratuitement, jusqu’à 15 demandes par jour." :
       insufficient ? "Il ne reste pas assez d’images pour toute cette série. Réduis le nombre d’images ou attends le renouvellement mensuel." : quotaLimitMessage(quota) || quota?.message}</p>
     {hardCap && <p>Les packs de crédits n’augmentent pas les plafonds d’images, de carrousels ou de vidéos.</p>}
     <div className="flex flex-wrap gap-2">

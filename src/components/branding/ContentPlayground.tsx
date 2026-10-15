@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useProfileFilter, useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Copy, RefreshCw, Loader2, Check, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -43,6 +43,9 @@ interface Props {
 
 export default function ContentPlayground({ section }: Props) {
   const { user } = useAuth();
+  // profiles n'a pas de workspace_id rempli : on lit la ligne de la
+  // propriétaire de l'espace (user_id), valable aussi en mode Binôme.
+  const profileFilter = useProfileFilter();
   const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [activeAction, setActiveAction] = useState<number | null>(null);
@@ -65,11 +68,13 @@ export default function ContentPlayground({ section }: Props) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Non connecté·e");
 
-      const { data: profileData } = await (supabase
+      if (!profileFilter.value) throw new Error("Ton profil n'est pas encore chargé. Réessaie dans un instant.");
+      const { data: profileData, error: profileError } = await (supabase
         .from("profiles") as any)
         .select("activite, prenom, cible, piliers, tons, mission, offre, probleme_principal, type_activite")
-        .eq(column, value)
-        .single();
+        .eq(profileFilter.column, profileFilter.value)
+        .maybeSingle();
+      if (profileError) throw profileError;
 
       const res = await invokeWithTimeout("generate-content", {
         body: {
