@@ -65,10 +65,6 @@
       "lignes": 1808,
       "any": 6
     },
-    "src/lib/export-carousel-hybrid-pptx.ts": {
-      "lignes": 943,
-      "any": 2
-    },
     "src/lib/export-carousel-pptx.ts": {
       "lignes": 2296,
       "any": 41
