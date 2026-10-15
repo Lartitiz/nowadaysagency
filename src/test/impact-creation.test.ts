@@ -134,6 +134,17 @@ describe("rapport d'impact création de contenu", () => {
     }
   });
 
+  it("reconnaît les morceaux sortis de use-content-generator (fiche 17)", () => {
+    for (const file of [
+      "src/features/creer/generator/types.ts",
+      "src/features/creer/generator/tolerant-json.ts",
+      "src/features/creer/generator/error-messages.ts",
+    ]) {
+      const { formats } = analyzeImpact([file], usage);
+      expect([...formats.keys()], file).toEqual(["Parcours /creer : lancement des générations (tous formats)"]);
+    }
+  });
+
   it("reconnaît les exports sortis de CreerUnifie (lot D)", () => {
     const { formats } = analyzeImpact(["src/hooks/use-creer-exports.ts"], usage);
     expect([...formats.keys()]).toEqual(["Parcours /creer (tous formats)"]);
