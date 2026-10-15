@@ -1,0 +1,2606 @@
+export const snapshot = {};
+
+snapshot[`onboarding, profil seul, sans source : diagnostic, espace propre, aucun crédit 1`] = `
+{
+  body: {
+    diagnostic: {
+      branding_prefill: null,
+      priorities: [
+        {
+          example: "J'aide [public]…",
+          first_step: "Écris une phrase.",
+          impact: "high",
+          route: "/branding",
+          source: "profile",
+          time: "15 min",
+          title: "Écris ta promesse",
+          why: "Tes mots sont déjà là.",
+        },
+        {
+          example: "[pièce] en cours",
+          first_step: "Photographie une pièce.",
+          impact: "medium",
+          route: "/branding",
+          source: "profile",
+          time: "10 min",
+          title: "Montre l'atelier",
+          why: "Le fait-main se raconte.",
+        },
+      ],
+      scores: {
+        branding: 55,
+        instagram: null,
+        linkedin: null,
+        total: 52,
+        website: null,
+      },
+      strengths: [
+        {
+          detail: "Tu parles de « pièces uniques faites main ».",
+          source: "profile",
+          title: "Pièces uniques",
+        },
+      ],
+      summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+      weaknesses: [
+        {
+          detail: "Tu dis te sentir invisible.",
+          fix_hint: "Publie une pièce par semaine.",
+          source: "profile",
+          title: "Visibilité",
+        },
+      ],
+    },
+    id: "diagnostic_results-1",
+    sources_failed: [],
+    sources_used: [],
+    success: true,
+  },
+  claude: [
+    {
+      max_tokens: 4000,
+      messages: [
+        {
+          content: [
+            {
+              text: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+
+⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+              type: "text",
+            },
+          ],
+          role: "user",
+        },
+      ],
+      model: "claude-sonnet-4-6",
+      system: "<prompt système : 7068 car., voir prompts_snapshot_test.ts>",
+      temperature: 0.7,
+      tool_choice: {
+        name: "rendre_diagnostic",
+        type: "tool",
+      },
+      tools: [
+        "<outil rendre_diagnostic : 2533 car.>",
+      ],
+    },
+  ],
+  credits: [],
+  enrichissement: [
+    {
+      allowOverwrite: false,
+      isOnboarding: true,
+      savedDiagId: null,
+      userId: "u-onb-profil",
+      userPrompt: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+
+⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+      websiteStyleHints: "",
+      workspaceId: "espace-propre",
+    },
+  ],
+  insertions: {
+    audit_recommendations: [
+      {
+        completed: false,
+        detail: "Tes mots sont déjà là.
+Écris une phrase.
+J'aide [public]…",
+        label: "Écris ta promesse",
+        module: "diagnostic",
+        position: 1,
+        priorite: "high",
+        route: "/branding",
+        temps_estime: "15 min",
+        titre: "Écris ta promesse",
+        user_id: "u-onb-profil",
+        workspace_id: "espace-propre",
+      },
+      {
+        completed: false,
+        detail: "Le fait-main se raconte.
+Photographie une pièce.
+[pièce] en cours",
+        label: "Montre l'atelier",
+        module: "diagnostic",
+        position: 2,
+        priorite: "medium",
+        route: "/branding",
+        temps_estime: "10 min",
+        titre: "Montre l'atelier",
+        user_id: "u-onb-profil",
+        workspace_id: "espace-propre",
+      },
+    ],
+    diagnostic_results: [
+      {
+        branding_prefill: null,
+        priorities: [
+          {
+            example: "J'aide [public]…",
+            first_step: "Écris une phrase.",
+            impact: "high",
+            route: "/branding",
+            source: "profile",
+            time: "15 min",
+            title: "Écris ta promesse",
+            why: "Tes mots sont déjà là.",
+          },
+          {
+            example: "[pièce] en cours",
+            first_step: "Photographie une pièce.",
+            impact: "medium",
+            route: "/branding",
+            source: "profile",
+            time: "10 min",
+            title: "Montre l'atelier",
+            why: "Le fait-main se raconte.",
+          },
+        ],
+        raw_analysis: {
+          branding_prefill: {
+            mission: null,
+            offers: [],
+            positioning: "céramique",
+            target_description: null,
+            tone_keywords: [],
+            values: [],
+          },
+          priorities: [
+            {
+              example: "J'aide [public]…",
+              first_step: "Écris une phrase.",
+              impact: "high",
+              route: "/branding",
+              source: "profile",
+              time: "15 min",
+              title: "Écris ta promesse",
+              why: "Tes mots sont déjà là.",
+            },
+            {
+              example: "[pièce] en cours",
+              first_step: "Photographie une pièce.",
+              impact: "medium",
+              route: "/branding",
+              source: "profile",
+              time: "10 min",
+              title: "Montre l'atelier",
+              why: "Le fait-main se raconte.",
+            },
+          ],
+          scores: {
+            branding: 55,
+            instagram: null,
+            linkedin: null,
+            total: 52,
+            website: null,
+          },
+          strengths: [
+            {
+              detail: "Tu parles de « pièces uniques faites main ».",
+              source: "profile",
+              title: "Pièces uniques",
+            },
+          ],
+          summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+          weaknesses: [
+            {
+              detail: "Tu dis te sentir invisible.",
+              fix_hint: "Publie une pièce par semaine.",
+              source: "profile",
+              title: "Visibilité",
+            },
+          ],
+        },
+        scores: {
+          branding: 55,
+          instagram: null,
+          linkedin: null,
+          total: 52,
+          website: null,
+        },
+        sources_failed: [],
+        sources_used: [],
+        strengths: [
+          {
+            detail: "Tu parles de « pièces uniques faites main ».",
+            source: "profile",
+            title: "Pièces uniques",
+          },
+        ],
+        summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+        user_id: "u-onb-profil",
+        weaknesses: [
+          {
+            detail: "Tu dis te sentir invisible.",
+            fix_hint: "Publie une pièce par semaine.",
+            source: "profile",
+            title: "Visibilité",
+          },
+        ],
+        workspace_id: "espace-propre",
+      },
+    ],
+  },
+  requetes: [
+    "GET social_connections select=* user_id=eq.u-onb-profil platform=eq.instagram workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-onb-profil platform=eq.linkedin workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-onb-profil platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
+    "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
+    "GET workspace_members select=workspace_id user_id=eq.u-onb-profil role=eq.owner",
+    "POST audit_recommendations",
+    "POST diagnostic_results select=id",
+    "auth GET /user",
+    "claude POST /v1/messages",
+    "edge POST diagnostic-enrichment",
+  ],
+  status: 200,
+}
+`;
+
+snapshot[`onboarding avec « À propos » rempli : source about, pas de lecture LinkedIn 1`] = `
+{
+  body: {
+    diagnostic: {
+      branding_prefill: null,
+      priorities: [
+        {
+          example: "J'aide [public]…",
+          first_step: "Écris une phrase.",
+          impact: "high",
+          route: "/branding",
+          source: "profile",
+          time: "15 min",
+          title: "Écris ta promesse",
+          why: "Tes mots sont déjà là.",
+        },
+        {
+          example: "[pièce] en cours",
+          first_step: "Photographie une pièce.",
+          impact: "medium",
+          route: "/branding",
+          source: "profile",
+          time: "10 min",
+          title: "Montre l'atelier",
+          why: "Le fait-main se raconte.",
+        },
+      ],
+      scores: {
+        branding: 55,
+        instagram: null,
+        linkedin: null,
+        total: 52,
+        website: null,
+      },
+      strengths: [
+        {
+          detail: "Tu parles de « pièces uniques faites main ».",
+          source: "profile",
+          title: "Pièces uniques",
+        },
+      ],
+      summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+      weaknesses: [
+        {
+          detail: "Tu dis te sentir invisible.",
+          fix_hint: "Publie une pièce par semaine.",
+          source: "profile",
+          title: "Visibilité",
+        },
+      ],
+    },
+    id: "diagnostic_results-1",
+    sources_failed: [],
+    sources_used: [
+      "about",
+    ],
+    success: true,
+  },
+  claude: [
+    {
+      max_tokens: 4000,
+      messages: [
+        {
+          content: [
+            {
+              text: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+=== SOURCE: ABOUT ===
+À propos (texte fourni par l'utilisatrice sur elle-même et son activité — ce n'est PAS un profil LinkedIn) :
+Je façonne des bols et des tasses en grès dans mon atelier à Lyon.
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+              type: "text",
+            },
+          ],
+          role: "user",
+        },
+      ],
+      model: "claude-sonnet-4-6",
+      system: "<prompt système : 7068 car., voir prompts_snapshot_test.ts>",
+      temperature: 0.7,
+      tool_choice: {
+        name: "rendre_diagnostic",
+        type: "tool",
+      },
+      tools: [
+        "<outil rendre_diagnostic : 2533 car.>",
+      ],
+    },
+  ],
+  credits: [],
+  enrichissement: [
+    {
+      allowOverwrite: false,
+      isOnboarding: true,
+      savedDiagId: null,
+      userId: "u-onb-about",
+      userPrompt: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+=== SOURCE: ABOUT ===
+À propos (texte fourni par l'utilisatrice sur elle-même et son activité — ce n'est PAS un profil LinkedIn) :
+Je façonne des bols et des tasses en grès dans mon atelier à Lyon.
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+      websiteStyleHints: "",
+      workspaceId: "espace-propre",
+    },
+  ],
+  insertions: {
+    audit_recommendations: [
+      {
+        completed: false,
+        detail: "Tes mots sont déjà là.
+Écris une phrase.
+J'aide [public]…",
+        label: "Écris ta promesse",
+        module: "diagnostic",
+        position: 1,
+        priorite: "high",
+        route: "/branding",
+        temps_estime: "15 min",
+        titre: "Écris ta promesse",
+        user_id: "u-onb-about",
+        workspace_id: "espace-propre",
+      },
+      {
+        completed: false,
+        detail: "Le fait-main se raconte.
+Photographie une pièce.
+[pièce] en cours",
+        label: "Montre l'atelier",
+        module: "diagnostic",
+        position: 2,
+        priorite: "medium",
+        route: "/branding",
+        temps_estime: "10 min",
+        titre: "Montre l'atelier",
+        user_id: "u-onb-about",
+        workspace_id: "espace-propre",
+      },
+    ],
+    diagnostic_results: [
+      {
+        branding_prefill: null,
+        priorities: [
+          {
+            example: "J'aide [public]…",
+            first_step: "Écris une phrase.",
+            impact: "high",
+            route: "/branding",
+            source: "profile",
+            time: "15 min",
+            title: "Écris ta promesse",
+            why: "Tes mots sont déjà là.",
+          },
+          {
+            example: "[pièce] en cours",
+            first_step: "Photographie une pièce.",
+            impact: "medium",
+            route: "/branding",
+            source: "profile",
+            time: "10 min",
+            title: "Montre l'atelier",
+            why: "Le fait-main se raconte.",
+          },
+        ],
+        raw_analysis: {
+          branding_prefill: {
+            mission: null,
+            offers: [],
+            positioning: "céramique",
+            target_description: null,
+            tone_keywords: [],
+            values: [],
+          },
+          priorities: [
+            {
+              example: "J'aide [public]…",
+              first_step: "Écris une phrase.",
+              impact: "high",
+              route: "/branding",
+              source: "profile",
+              time: "15 min",
+              title: "Écris ta promesse",
+              why: "Tes mots sont déjà là.",
+            },
+            {
+              example: "[pièce] en cours",
+              first_step: "Photographie une pièce.",
+              impact: "medium",
+              route: "/branding",
+              source: "profile",
+              time: "10 min",
+              title: "Montre l'atelier",
+              why: "Le fait-main se raconte.",
+            },
+          ],
+          scores: {
+            branding: 55,
+            instagram: null,
+            linkedin: null,
+            total: 52,
+            website: null,
+          },
+          strengths: [
+            {
+              detail: "Tu parles de « pièces uniques faites main ».",
+              source: "profile",
+              title: "Pièces uniques",
+            },
+          ],
+          summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+          weaknesses: [
+            {
+              detail: "Tu dis te sentir invisible.",
+              fix_hint: "Publie une pièce par semaine.",
+              source: "profile",
+              title: "Visibilité",
+            },
+          ],
+        },
+        scores: {
+          branding: 55,
+          instagram: null,
+          linkedin: null,
+          total: 52,
+          website: null,
+        },
+        sources_failed: [],
+        sources_used: [
+          "about",
+        ],
+        strengths: [
+          {
+            detail: "Tu parles de « pièces uniques faites main ».",
+            source: "profile",
+            title: "Pièces uniques",
+          },
+        ],
+        summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+        user_id: "u-onb-about",
+        weaknesses: [
+          {
+            detail: "Tu dis te sentir invisible.",
+            fix_hint: "Publie une pièce par semaine.",
+            source: "profile",
+            title: "Visibilité",
+          },
+        ],
+        workspace_id: "espace-propre",
+      },
+    ],
+  },
+  requetes: [
+    "GET social_connections select=* user_id=eq.u-onb-about platform=eq.instagram workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-onb-about platform=eq.linkedin workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-onb-about platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
+    "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
+    "GET workspace_members select=workspace_id user_id=eq.u-onb-about role=eq.owner",
+    "POST audit_recommendations",
+    "POST diagnostic_results select=id",
+    "auth GET /user",
+    "claude POST /v1/messages",
+    "edge POST diagnostic-enrichment",
+  ],
+  status: 200,
+}
+`;
+
+snapshot[`hors onboarding, succès : un crédit audit / deep_diagnostic 1`] = `
+{
+  body: {
+    diagnostic: {
+      branding_prefill: null,
+      priorities: [
+        {
+          example: "J'aide [public]…",
+          first_step: "Écris une phrase.",
+          impact: "high",
+          route: "/branding",
+          source: "profile",
+          time: "15 min",
+          title: "Écris ta promesse",
+          why: "Tes mots sont déjà là.",
+        },
+        {
+          example: "[pièce] en cours",
+          first_step: "Photographie une pièce.",
+          impact: "medium",
+          route: "/branding",
+          source: "profile",
+          time: "10 min",
+          title: "Montre l'atelier",
+          why: "Le fait-main se raconte.",
+        },
+      ],
+      scores: {
+        branding: 55,
+        instagram: null,
+        linkedin: null,
+        total: 52,
+        website: null,
+      },
+      strengths: [
+        {
+          detail: "Tu parles de « pièces uniques faites main ».",
+          source: "profile",
+          title: "Pièces uniques",
+        },
+      ],
+      summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+      weaknesses: [
+        {
+          detail: "Tu dis te sentir invisible.",
+          fix_hint: "Publie une pièce par semaine.",
+          source: "profile",
+          title: "Visibilité",
+        },
+      ],
+    },
+    id: "diagnostic_results-1",
+    sources_failed: [],
+    sources_used: [],
+    success: true,
+  },
+  claude: [
+    {
+      max_tokens: 4000,
+      messages: [
+        {
+          content: [
+            {
+              text: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+
+⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+              type: "text",
+            },
+          ],
+          role: "user",
+        },
+      ],
+      model: "claude-sonnet-4-6",
+      system: "<prompt système : 7068 car., voir prompts_snapshot_test.ts>",
+      temperature: 0.7,
+      tool_choice: {
+        name: "rendre_diagnostic",
+        type: "tool",
+      },
+      tools: [
+        "<outil rendre_diagnostic : 2533 car.>",
+      ],
+    },
+  ],
+  credits: [
+    {
+      action_type: "deep_diagnostic",
+      category: "audit",
+      model_used: "claude-sonnet-4-6",
+      user_id: "u-hors-ok",
+      workspace_id: "espace-propre",
+    },
+  ],
+  enrichissement: [
+    {
+      allowOverwrite: false,
+      savedDiagId: null,
+      userId: "u-hors-ok",
+      userPrompt: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+
+⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+      websiteStyleHints: "",
+      workspaceId: "espace-propre",
+    },
+  ],
+  insertions: {
+    audit_recommendations: [
+      {
+        completed: false,
+        detail: "Tes mots sont déjà là.
+Écris une phrase.
+J'aide [public]…",
+        label: "Écris ta promesse",
+        module: "diagnostic",
+        position: 1,
+        priorite: "high",
+        route: "/branding",
+        temps_estime: "15 min",
+        titre: "Écris ta promesse",
+        user_id: "u-hors-ok",
+        workspace_id: "espace-propre",
+      },
+      {
+        completed: false,
+        detail: "Le fait-main se raconte.
+Photographie une pièce.
+[pièce] en cours",
+        label: "Montre l'atelier",
+        module: "diagnostic",
+        position: 2,
+        priorite: "medium",
+        route: "/branding",
+        temps_estime: "10 min",
+        titre: "Montre l'atelier",
+        user_id: "u-hors-ok",
+        workspace_id: "espace-propre",
+      },
+    ],
+    diagnostic_results: [
+      {
+        branding_prefill: null,
+        priorities: [
+          {
+            example: "J'aide [public]…",
+            first_step: "Écris une phrase.",
+            impact: "high",
+            route: "/branding",
+            source: "profile",
+            time: "15 min",
+            title: "Écris ta promesse",
+            why: "Tes mots sont déjà là.",
+          },
+          {
+            example: "[pièce] en cours",
+            first_step: "Photographie une pièce.",
+            impact: "medium",
+            route: "/branding",
+            source: "profile",
+            time: "10 min",
+            title: "Montre l'atelier",
+            why: "Le fait-main se raconte.",
+          },
+        ],
+        raw_analysis: {
+          branding_prefill: {
+            mission: null,
+            offers: [],
+            positioning: "céramique",
+            target_description: null,
+            tone_keywords: [],
+            values: [],
+          },
+          priorities: [
+            {
+              example: "J'aide [public]…",
+              first_step: "Écris une phrase.",
+              impact: "high",
+              route: "/branding",
+              source: "profile",
+              time: "15 min",
+              title: "Écris ta promesse",
+              why: "Tes mots sont déjà là.",
+            },
+            {
+              example: "[pièce] en cours",
+              first_step: "Photographie une pièce.",
+              impact: "medium",
+              route: "/branding",
+              source: "profile",
+              time: "10 min",
+              title: "Montre l'atelier",
+              why: "Le fait-main se raconte.",
+            },
+          ],
+          scores: {
+            branding: 55,
+            instagram: null,
+            linkedin: null,
+            total: 52,
+            website: null,
+          },
+          strengths: [
+            {
+              detail: "Tu parles de « pièces uniques faites main ».",
+              source: "profile",
+              title: "Pièces uniques",
+            },
+          ],
+          summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+          weaknesses: [
+            {
+              detail: "Tu dis te sentir invisible.",
+              fix_hint: "Publie une pièce par semaine.",
+              source: "profile",
+              title: "Visibilité",
+            },
+          ],
+        },
+        scores: {
+          branding: 55,
+          instagram: null,
+          linkedin: null,
+          total: 52,
+          website: null,
+        },
+        sources_failed: [],
+        sources_used: [],
+        strengths: [
+          {
+            detail: "Tu parles de « pièces uniques faites main ».",
+            source: "profile",
+            title: "Pièces uniques",
+          },
+        ],
+        summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+        user_id: "u-hors-ok",
+        weaknesses: [
+          {
+            detail: "Tu dis te sentir invisible.",
+            fix_hint: "Publie une pièce par semaine.",
+            source: "profile",
+            title: "Visibilité",
+          },
+        ],
+        workspace_id: "espace-propre",
+      },
+    ],
+  },
+  requetes: [
+    "GET ai_usage select=category created_at=gte.<date> workspace_id=eq.espace-propre",
+    "GET coaching_programs select=id client_user_id=eq.u-hors-ok status=eq.active",
+    "GET coaching_programs select=id client_user_id=eq.u-hors-ok status=eq.active",
+    "GET profiles select=bonus_credits user_id=eq.u-hors-ok",
+    "GET social_connections select=* user_id=eq.u-hors-ok platform=eq.instagram workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-hors-ok platform=eq.linkedin workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-hors-ok platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
+    "GET subscriptions select=plan,source,status,current_period_end,studio_end_date,stripe_subscription_id user_id=eq.u-hors-ok",
+    "GET subscriptions select=plan,source,status,current_period_end,studio_end_date,stripe_subscription_id user_id=eq.u-hors-ok",
+    "GET workspace_members select=role workspace_id=eq.espace-propre user_id=eq.u-hors-ok",
+    "GET workspace_members select=role workspace_id=eq.espace-propre user_id=eq.u-hors-ok",
+    "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
+    "GET workspace_members select=workspace_id user_id=eq.u-hors-ok role=eq.owner",
+    "GET workspaces select=plan id=eq.espace-propre",
+    "GET workspaces select=plan id=eq.espace-propre",
+    "POST audit_recommendations",
+    "POST diagnostic_results select=id",
+    "auth GET /user",
+    "claude POST /v1/messages",
+    "edge POST diagnostic-enrichment",
+    "rpc has_role",
+    "rpc has_role",
+    "rpc record_ai_usage",
+  ],
+  status: 200,
+}
+`;
+
+snapshot[`hors onboarding, Claude en échec : repli, zéro crédit 1`] = `
+{
+  body: {
+    diagnostic: {
+      _fallback: true,
+      branding_prefill: null,
+      priorities: [
+        {
+          example: "J'aide [public] à [résultat] grâce à [mon approche].",
+          first_step: "Écris une phrase qui dit ce que tu proposes, à qui et ce que cette personne y gagne.",
+          impact: "high",
+          route: "/branding",
+          source: "profile",
+          time: "15 min",
+          title: "Écris ta promesse en une phrase",
+          why: "Cette piste correspond au type d'activité que tu as indiqué, mais elle reste à vérifier avec tes contenus.",
+        },
+        {
+          example: "« Comment savoir si [offre] est adaptée à ma situation ? »",
+          first_step: "Note une question réelle qu'une personne te pose avant d'acheter ou de te contacter.",
+          impact: "high",
+          route: "/branding",
+          source: "profile",
+          time: "10 min",
+          title: "Choisis une personne à qui parler en premier",
+          why: "Une situation précise rend ton prochain contenu plus facile à écrire.",
+        },
+        {
+          example: "Une phrase pour le problème, une pour ta réponse, une pour inviter à échanger.",
+          first_step: "Réponds à cette question en trois phrases, puis choisis où publier cette réponse.",
+          impact: "medium",
+          route: "/calendrier",
+          source: "profile",
+          time: "15 min",
+          title: "Prépare un premier contenu utile",
+          why: "Tu peux partir de cette question sans attendre un plan éditorial complet.",
+        },
+      ],
+      scores: {
+        branding: 50,
+        instagram: null,
+        linkedin: null,
+        total: 50,
+        website: null,
+      },
+      strengths: [
+        {
+          detail: "Tu sais ce que tu fais : céramiste. C'est la base pour communiquer clairement.",
+          source: "profile",
+          title: "Activité définie",
+        },
+        {
+          detail: \`Tu as identifié ce qui te rend unique : "pièces uniques faites main". C'est un atout à mettre en avant.\`,
+          source: "profile",
+          title: "Différenciation identifiée",
+        },
+        {
+          detail: "Le fait-main a une histoire à raconter : le processus de fabrication peut devenir ton meilleur contenu",
+          source: "profile",
+          title: "Le fait-main a une histoire à raconter : le processus de fabrication peut devenir ton meilleur contenu",
+        },
+      ],
+      summary: "Voici un premier aperçu, basé sur tes réponses. Ton activité, avec tes mots : « céramiste ». Tu te sens invisible et cherches à gagner en visibilité. Mon conseil : montre les coulisses de ta création : les mains, les matières, le travail en cours. J'ai pas eu accès à tes réseaux ni à ton site, donc je me base sur ce que tu m'as dit. Ajoute tes liens pour un diagnostic plus poussé.",
+      weaknesses: [
+        {
+          detail: "Je n'ai pas pu analyser de site web ni de réseaux sociaux. Sans présence en ligne visible, tes client·es potentiel·les ont du mal à te trouver.",
+          fix_hint: "Montre les coulisses de ta création : les mains, les matières, le travail en cours",
+          source: "profile",
+          title: "Présence en ligne limitée",
+        },
+        {
+          detail: "Tu te sens invisible — c'est le blocage principal que tu as identifié. Souvent, c'est une question de régularité et de clarté dans le message.",
+          fix_hint: "Le visuel produit est ton premier levier de vente en ligne",
+          source: "profile",
+          title: "Manque de visibilité",
+        },
+      ],
+    },
+    id: "diagnostic_results-1",
+    sources_failed: [],
+    sources_used: [],
+    success: true,
+  },
+  claude: [
+    {
+      max_tokens: 4000,
+      messages: [
+        {
+          content: [
+            {
+              text: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+
+⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+              type: "text",
+            },
+          ],
+          role: "user",
+        },
+      ],
+      model: "claude-sonnet-4-6",
+      system: "<prompt système : 7068 car., voir prompts_snapshot_test.ts>",
+      temperature: 0.7,
+      tool_choice: {
+        name: "rendre_diagnostic",
+        type: "tool",
+      },
+      tools: [
+        "<outil rendre_diagnostic : 2533 car.>",
+      ],
+    },
+  ],
+  credits: [],
+  enrichissement: [
+    {
+      allowOverwrite: false,
+      savedDiagId: null,
+      userId: "u-hors-echec",
+      userPrompt: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+
+⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+      websiteStyleHints: "",
+      workspaceId: "espace-propre",
+    },
+  ],
+  insertions: {
+    audit_recommendations: [
+      {
+        completed: false,
+        detail: "Cette piste correspond au type d'activité que tu as indiqué, mais elle reste à vérifier avec tes contenus.
+Écris une phrase qui dit ce que tu proposes, à qui et ce que cette personne y gagne.
+J'aide [public] à [résultat] grâce à [mon approche].",
+        label: "Écris ta promesse en une phrase",
+        module: "diagnostic",
+        position: 1,
+        priorite: "high",
+        route: "/branding",
+        temps_estime: "15 min",
+        titre: "Écris ta promesse en une phrase",
+        user_id: "u-hors-echec",
+        workspace_id: "espace-propre",
+      },
+      {
+        completed: false,
+        detail: "Une situation précise rend ton prochain contenu plus facile à écrire.
+Note une question réelle qu'une personne te pose avant d'acheter ou de te contacter.
+« Comment savoir si [offre] est adaptée à ma situation ? »",
+        label: "Choisis une personne à qui parler en premier",
+        module: "diagnostic",
+        position: 2,
+        priorite: "high",
+        route: "/branding",
+        temps_estime: "10 min",
+        titre: "Choisis une personne à qui parler en premier",
+        user_id: "u-hors-echec",
+        workspace_id: "espace-propre",
+      },
+      {
+        completed: false,
+        detail: "Tu peux partir de cette question sans attendre un plan éditorial complet.
+Réponds à cette question en trois phrases, puis choisis où publier cette réponse.
+Une phrase pour le problème, une pour ta réponse, une pour inviter à échanger.",
+        label: "Prépare un premier contenu utile",
+        module: "diagnostic",
+        position: 3,
+        priorite: "medium",
+        route: "/calendrier",
+        temps_estime: "15 min",
+        titre: "Prépare un premier contenu utile",
+        user_id: "u-hors-echec",
+        workspace_id: "espace-propre",
+      },
+    ],
+    diagnostic_results: [
+      {
+        branding_prefill: null,
+        priorities: [
+          {
+            example: "J'aide [public] à [résultat] grâce à [mon approche].",
+            first_step: "Écris une phrase qui dit ce que tu proposes, à qui et ce que cette personne y gagne.",
+            impact: "high",
+            route: "/branding",
+            source: "profile",
+            time: "15 min",
+            title: "Écris ta promesse en une phrase",
+            why: "Cette piste correspond au type d'activité que tu as indiqué, mais elle reste à vérifier avec tes contenus.",
+          },
+          {
+            example: "« Comment savoir si [offre] est adaptée à ma situation ? »",
+            first_step: "Note une question réelle qu'une personne te pose avant d'acheter ou de te contacter.",
+            impact: "high",
+            route: "/branding",
+            source: "profile",
+            time: "10 min",
+            title: "Choisis une personne à qui parler en premier",
+            why: "Une situation précise rend ton prochain contenu plus facile à écrire.",
+          },
+          {
+            example: "Une phrase pour le problème, une pour ta réponse, une pour inviter à échanger.",
+            first_step: "Réponds à cette question en trois phrases, puis choisis où publier cette réponse.",
+            impact: "medium",
+            route: "/calendrier",
+            source: "profile",
+            time: "15 min",
+            title: "Prépare un premier contenu utile",
+            why: "Tu peux partir de cette question sans attendre un plan éditorial complet.",
+          },
+        ],
+        raw_analysis: {
+          _fallback: true,
+          branding_prefill: {
+            mission: null,
+            offers: [],
+            positioning: null,
+            target_description: null,
+            tone_keywords: [],
+            values: [],
+          },
+          priorities: [
+            {
+              example: "J'aide [public] à [résultat] grâce à [mon approche].",
+              first_step: "Écris une phrase qui dit ce que tu proposes, à qui et ce que cette personne y gagne.",
+              impact: "high",
+              route: "/branding",
+              source: "profile",
+              time: "15 min",
+              title: "Écris ta promesse en une phrase",
+              why: "Cette piste correspond au type d'activité que tu as indiqué, mais elle reste à vérifier avec tes contenus.",
+            },
+            {
+              example: "« Comment savoir si [offre] est adaptée à ma situation ? »",
+              first_step: "Note une question réelle qu'une personne te pose avant d'acheter ou de te contacter.",
+              impact: "high",
+              route: "/branding",
+              source: "profile",
+              time: "10 min",
+              title: "Choisis une personne à qui parler en premier",
+              why: "Une situation précise rend ton prochain contenu plus facile à écrire.",
+            },
+            {
+              example: "Une phrase pour le problème, une pour ta réponse, une pour inviter à échanger.",
+              first_step: "Réponds à cette question en trois phrases, puis choisis où publier cette réponse.",
+              impact: "medium",
+              route: "/calendrier",
+              source: "profile",
+              time: "15 min",
+              title: "Prépare un premier contenu utile",
+              why: "Tu peux partir de cette question sans attendre un plan éditorial complet.",
+            },
+          ],
+          scores: {
+            branding: 50,
+            instagram: null,
+            linkedin: null,
+            total: 50,
+            website: null,
+          },
+          strengths: [
+            {
+              detail: "Tu sais ce que tu fais : céramiste. C'est la base pour communiquer clairement.",
+              source: "profile",
+              title: "Activité définie",
+            },
+            {
+              detail: \`Tu as identifié ce qui te rend unique : "pièces uniques faites main". C'est un atout à mettre en avant.\`,
+              source: "profile",
+              title: "Différenciation identifiée",
+            },
+            {
+              detail: "Le fait-main a une histoire à raconter : le processus de fabrication peut devenir ton meilleur contenu",
+              source: "profile",
+              title: "Le fait-main a une histoire à raconter : le processus de fabrication peut devenir ton meilleur contenu",
+            },
+          ],
+          summary: "Voici un premier aperçu, basé sur tes réponses. Ton activité, avec tes mots : « céramiste ». Tu te sens invisible et cherches à gagner en visibilité. Mon conseil : montre les coulisses de ta création : les mains, les matières, le travail en cours. J'ai pas eu accès à tes réseaux ni à ton site, donc je me base sur ce que tu m'as dit. Ajoute tes liens pour un diagnostic plus poussé.",
+          weaknesses: [
+            {
+              detail: "Je n'ai pas pu analyser de site web ni de réseaux sociaux. Sans présence en ligne visible, tes client·es potentiel·les ont du mal à te trouver.",
+              fix_hint: "Montre les coulisses de ta création : les mains, les matières, le travail en cours",
+              source: "profile",
+              title: "Présence en ligne limitée",
+            },
+            {
+              detail: "Tu te sens invisible — c'est le blocage principal que tu as identifié. Souvent, c'est une question de régularité et de clarté dans le message.",
+              fix_hint: "Le visuel produit est ton premier levier de vente en ligne",
+              source: "profile",
+              title: "Manque de visibilité",
+            },
+          ],
+        },
+        scores: {
+          branding: 50,
+          instagram: null,
+          linkedin: null,
+          total: 50,
+          website: null,
+        },
+        sources_failed: [],
+        sources_used: [],
+        strengths: [
+          {
+            detail: "Tu sais ce que tu fais : céramiste. C'est la base pour communiquer clairement.",
+            source: "profile",
+            title: "Activité définie",
+          },
+          {
+            detail: \`Tu as identifié ce qui te rend unique : "pièces uniques faites main". C'est un atout à mettre en avant.\`,
+            source: "profile",
+            title: "Différenciation identifiée",
+          },
+          {
+            detail: "Le fait-main a une histoire à raconter : le processus de fabrication peut devenir ton meilleur contenu",
+            source: "profile",
+            title: "Le fait-main a une histoire à raconter : le processus de fabrication peut devenir ton meilleur contenu",
+          },
+        ],
+        summary: "Voici un premier aperçu, basé sur tes réponses. Ton activité, avec tes mots : « céramiste ». Tu te sens invisible et cherches à gagner en visibilité. Mon conseil : montre les coulisses de ta création : les mains, les matières, le travail en cours. J'ai pas eu accès à tes réseaux ni à ton site, donc je me base sur ce que tu m'as dit. Ajoute tes liens pour un diagnostic plus poussé.",
+        user_id: "u-hors-echec",
+        weaknesses: [
+          {
+            detail: "Je n'ai pas pu analyser de site web ni de réseaux sociaux. Sans présence en ligne visible, tes client·es potentiel·les ont du mal à te trouver.",
+            fix_hint: "Montre les coulisses de ta création : les mains, les matières, le travail en cours",
+            source: "profile",
+            title: "Présence en ligne limitée",
+          },
+          {
+            detail: "Tu te sens invisible — c'est le blocage principal que tu as identifié. Souvent, c'est une question de régularité et de clarté dans le message.",
+            fix_hint: "Le visuel produit est ton premier levier de vente en ligne",
+            source: "profile",
+            title: "Manque de visibilité",
+          },
+        ],
+        workspace_id: "espace-propre",
+      },
+    ],
+  },
+  requetes: [
+    "GET ai_usage select=category created_at=gte.<date> workspace_id=eq.espace-propre",
+    "GET coaching_programs select=id client_user_id=eq.u-hors-echec status=eq.active",
+    "GET profiles select=bonus_credits user_id=eq.u-hors-echec",
+    "GET social_connections select=* user_id=eq.u-hors-echec platform=eq.instagram workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-hors-echec platform=eq.linkedin workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-hors-echec platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
+    "GET subscriptions select=plan,source,status,current_period_end,studio_end_date,stripe_subscription_id user_id=eq.u-hors-echec",
+    "GET workspace_members select=role workspace_id=eq.espace-propre user_id=eq.u-hors-echec",
+    "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
+    "GET workspace_members select=workspace_id user_id=eq.u-hors-echec role=eq.owner",
+    "GET workspaces select=plan id=eq.espace-propre",
+    "POST audit_recommendations",
+    "POST diagnostic_results select=id",
+    "auth GET /user",
+    "claude POST /v1/messages",
+    "edge POST diagnostic-enrichment",
+    "rpc has_role",
+  ],
+  status: 200,
+}
+`;
+
+snapshot[`hors onboarding, quota épuisé : 429, ni Claude, ni enrichissement, ni insertion 1`] = `
+{
+  body: {
+    error: "Tu as utilisé tes 23 générations IA ce mois. Tes crédits se renouvellent le <date>",
+    quota: {
+      allowed: false,
+      available_total: 0,
+      bonus_credits: 0,
+      category: "audit",
+      eligible_solutions: [
+        "credits",
+        "premium",
+        "renewal",
+      ],
+      message: "Tu as utilisé tes 23 générations IA ce mois. Tes crédits se renouvellent le <date>",
+      plan: "free",
+      reason: "total",
+      remaining: 0,
+      remaining_total: 0,
+      usage: {
+        adaptation: {
+          limit: 23,
+          used: 0,
+        },
+        audit: {
+          limit: 3,
+          used: 0,
+        },
+        bio_profile: {
+          limit: 23,
+          used: 0,
+        },
+        carousel: {
+          limit: 3,
+          used: 0,
+        },
+        coach: {
+          limit: 23,
+          used: 0,
+        },
+        content: {
+          limit: 23,
+          used: 23,
+        },
+        deep_research: {
+          limit: 23,
+          used: 0,
+        },
+        dm_comment: {
+          limit: 23,
+          used: 0,
+        },
+        import: {
+          limit: 23,
+          used: 0,
+        },
+        photo_retouch: {
+          limit: 5,
+          used: 0,
+        },
+        quality_max: {
+          limit: 0,
+          used: 0,
+        },
+        suggestion: {
+          limit: 23,
+          used: 0,
+        },
+        total: {
+          limit: 23,
+          used: 23,
+        },
+        video: {
+          limit: 0,
+          used: 0,
+        },
+      },
+    },
+  },
+  claude: [],
+  credits: [],
+  enrichissement: [],
+  insertions: {},
+  requetes: [
+    "GET ai_usage select=category created_at=gte.<date> workspace_id=eq.espace-propre",
+    "GET coaching_programs select=id client_user_id=eq.u-hors-quota status=eq.active",
+    "GET profiles select=bonus_credits user_id=eq.u-hors-quota",
+    "GET subscriptions select=plan,source,status,current_period_end,studio_end_date,stripe_subscription_id user_id=eq.u-hors-quota",
+    "GET workspace_members select=role workspace_id=eq.espace-propre user_id=eq.u-hors-quota",
+    "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
+    "GET workspace_members select=workspace_id user_id=eq.u-hors-quota role=eq.owner",
+    "GET workspaces select=plan id=eq.espace-propre",
+    "auth GET /user",
+    "rpc has_role",
+  ],
+  status: 429,
+}
+`;
+
+snapshot[`réponse vide puis bonne : 2 appels, le 2e avec la consigne corrective 1`] = `
+{
+  body: {
+    diagnostic: {
+      branding_prefill: null,
+      priorities: [
+        {
+          example: "J'aide [public]…",
+          first_step: "Écris une phrase.",
+          impact: "high",
+          route: "/branding",
+          source: "profile",
+          time: "15 min",
+          title: "Écris ta promesse",
+          why: "Tes mots sont déjà là.",
+        },
+        {
+          example: "[pièce] en cours",
+          first_step: "Photographie une pièce.",
+          impact: "medium",
+          route: "/branding",
+          source: "profile",
+          time: "10 min",
+          title: "Montre l'atelier",
+          why: "Le fait-main se raconte.",
+        },
+      ],
+      scores: {
+        branding: 55,
+        instagram: null,
+        linkedin: null,
+        total: 52,
+        website: null,
+      },
+      strengths: [
+        {
+          detail: "Tu parles de « pièces uniques faites main ».",
+          source: "profile",
+          title: "Pièces uniques",
+        },
+      ],
+      summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+      weaknesses: [
+        {
+          detail: "Tu dis te sentir invisible.",
+          fix_hint: "Publie une pièce par semaine.",
+          source: "profile",
+          title: "Visibilité",
+        },
+      ],
+    },
+    id: "diagnostic_results-1",
+    sources_failed: [],
+    sources_used: [],
+    success: true,
+  },
+  consigne: {
+    text: "⚠️ ATTENTION : ta précédente réponse était invalide. Remplis CHAQUE champ du tool séparément : \`summary\` = 3-4 phrases de texte pur SANS AUCUNE balise <...>, \`strengths\`/\`weaknesses\`/\`priorities\` = tableaux remplis conformément au schéma. N'écris JAMAIS de XML dans un champ texte.",
+    type: "text",
+  },
+  status: 200,
+}
+`;
+
+snapshot[`réponse vide deux fois : repli _fallback 1`] = `
+{
+  body: {
+    diagnostic: {
+      _fallback: true,
+      branding_prefill: null,
+      priorities: [
+        {
+          example: "J'aide [public] à [résultat] grâce à [mon approche].",
+          first_step: "Écris une phrase qui dit ce que tu proposes, à qui et ce que cette personne y gagne.",
+          impact: "high",
+          route: "/branding",
+          source: "profile",
+          time: "15 min",
+          title: "Écris ta promesse en une phrase",
+          why: "Cette piste correspond au type d'activité que tu as indiqué, mais elle reste à vérifier avec tes contenus.",
+        },
+        {
+          example: "« Comment savoir si [offre] est adaptée à ma situation ? »",
+          first_step: "Note une question réelle qu'une personne te pose avant d'acheter ou de te contacter.",
+          impact: "high",
+          route: "/branding",
+          source: "profile",
+          time: "10 min",
+          title: "Choisis une personne à qui parler en premier",
+          why: "Une situation précise rend ton prochain contenu plus facile à écrire.",
+        },
+        {
+          example: "Une phrase pour le problème, une pour ta réponse, une pour inviter à échanger.",
+          first_step: "Réponds à cette question en trois phrases, puis choisis où publier cette réponse.",
+          impact: "medium",
+          route: "/calendrier",
+          source: "profile",
+          time: "15 min",
+          title: "Prépare un premier contenu utile",
+          why: "Tu peux partir de cette question sans attendre un plan éditorial complet.",
+        },
+      ],
+      scores: {
+        branding: 50,
+        instagram: null,
+        linkedin: null,
+        total: 50,
+        website: null,
+      },
+      strengths: [
+        {
+          detail: "Tu sais ce que tu fais : céramiste. C'est la base pour communiquer clairement.",
+          source: "profile",
+          title: "Activité définie",
+        },
+        {
+          detail: \`Tu as identifié ce qui te rend unique : "pièces uniques faites main". C'est un atout à mettre en avant.\`,
+          source: "profile",
+          title: "Différenciation identifiée",
+        },
+        {
+          detail: "Le fait-main a une histoire à raconter : le processus de fabrication peut devenir ton meilleur contenu",
+          source: "profile",
+          title: "Le fait-main a une histoire à raconter : le processus de fabrication peut devenir ton meilleur contenu",
+        },
+      ],
+      summary: "Voici un premier aperçu, basé sur tes réponses. Ton activité, avec tes mots : « céramiste ». Tu te sens invisible et cherches à gagner en visibilité. Mon conseil : montre les coulisses de ta création : les mains, les matières, le travail en cours. J'ai pas eu accès à tes réseaux ni à ton site, donc je me base sur ce que tu m'as dit. Ajoute tes liens pour un diagnostic plus poussé.",
+      weaknesses: [
+        {
+          detail: "Je n'ai pas pu analyser de site web ni de réseaux sociaux. Sans présence en ligne visible, tes client·es potentiel·les ont du mal à te trouver.",
+          fix_hint: "Montre les coulisses de ta création : les mains, les matières, le travail en cours",
+          source: "profile",
+          title: "Présence en ligne limitée",
+        },
+        {
+          detail: "Tu te sens invisible — c'est le blocage principal que tu as identifié. Souvent, c'est une question de régularité et de clarté dans le message.",
+          fix_hint: "Le visuel produit est ton premier levier de vente en ligne",
+          source: "profile",
+          title: "Manque de visibilité",
+        },
+      ],
+    },
+    id: "diagnostic_results-1",
+    sources_failed: [],
+    sources_used: [],
+    success: true,
+  },
+  insertions: {
+    audit_recommendations: [
+      {
+        completed: false,
+        detail: "Cette piste correspond au type d'activité que tu as indiqué, mais elle reste à vérifier avec tes contenus.
+Écris une phrase qui dit ce que tu proposes, à qui et ce que cette personne y gagne.
+J'aide [public] à [résultat] grâce à [mon approche].",
+        label: "Écris ta promesse en une phrase",
+        module: "diagnostic",
+        position: 1,
+        priorite: "high",
+        route: "/branding",
+        temps_estime: "15 min",
+        titre: "Écris ta promesse en une phrase",
+        user_id: "u-vide-vide",
+        workspace_id: "espace-propre",
+      },
+      {
+        completed: false,
+        detail: "Une situation précise rend ton prochain contenu plus facile à écrire.
+Note une question réelle qu'une personne te pose avant d'acheter ou de te contacter.
+« Comment savoir si [offre] est adaptée à ma situation ? »",
+        label: "Choisis une personne à qui parler en premier",
+        module: "diagnostic",
+        position: 2,
+        priorite: "high",
+        route: "/branding",
+        temps_estime: "10 min",
+        titre: "Choisis une personne à qui parler en premier",
+        user_id: "u-vide-vide",
+        workspace_id: "espace-propre",
+      },
+      {
+        completed: false,
+        detail: "Tu peux partir de cette question sans attendre un plan éditorial complet.
+Réponds à cette question en trois phrases, puis choisis où publier cette réponse.
+Une phrase pour le problème, une pour ta réponse, une pour inviter à échanger.",
+        label: "Prépare un premier contenu utile",
+        module: "diagnostic",
+        position: 3,
+        priorite: "medium",
+        route: "/calendrier",
+        temps_estime: "15 min",
+        titre: "Prépare un premier contenu utile",
+        user_id: "u-vide-vide",
+        workspace_id: "espace-propre",
+      },
+    ],
+    diagnostic_results: [
+      {
+        branding_prefill: null,
+        priorities: [
+          {
+            example: "J'aide [public] à [résultat] grâce à [mon approche].",
+            first_step: "Écris une phrase qui dit ce que tu proposes, à qui et ce que cette personne y gagne.",
+            impact: "high",
+            route: "/branding",
+            source: "profile",
+            time: "15 min",
+            title: "Écris ta promesse en une phrase",
+            why: "Cette piste correspond au type d'activité que tu as indiqué, mais elle reste à vérifier avec tes contenus.",
+          },
+          {
+            example: "« Comment savoir si [offre] est adaptée à ma situation ? »",
+            first_step: "Note une question réelle qu'une personne te pose avant d'acheter ou de te contacter.",
+            impact: "high",
+            route: "/branding",
+            source: "profile",
+            time: "10 min",
+            title: "Choisis une personne à qui parler en premier",
+            why: "Une situation précise rend ton prochain contenu plus facile à écrire.",
+          },
+          {
+            example: "Une phrase pour le problème, une pour ta réponse, une pour inviter à échanger.",
+            first_step: "Réponds à cette question en trois phrases, puis choisis où publier cette réponse.",
+            impact: "medium",
+            route: "/calendrier",
+            source: "profile",
+            time: "15 min",
+            title: "Prépare un premier contenu utile",
+            why: "Tu peux partir de cette question sans attendre un plan éditorial complet.",
+          },
+        ],
+        raw_analysis: {
+          _fallback: true,
+          branding_prefill: {
+            mission: null,
+            offers: [],
+            positioning: null,
+            target_description: null,
+            tone_keywords: [],
+            values: [],
+          },
+          priorities: [
+            {
+              example: "J'aide [public] à [résultat] grâce à [mon approche].",
+              first_step: "Écris une phrase qui dit ce que tu proposes, à qui et ce que cette personne y gagne.",
+              impact: "high",
+              route: "/branding",
+              source: "profile",
+              time: "15 min",
+              title: "Écris ta promesse en une phrase",
+              why: "Cette piste correspond au type d'activité que tu as indiqué, mais elle reste à vérifier avec tes contenus.",
+            },
+            {
+              example: "« Comment savoir si [offre] est adaptée à ma situation ? »",
+              first_step: "Note une question réelle qu'une personne te pose avant d'acheter ou de te contacter.",
+              impact: "high",
+              route: "/branding",
+              source: "profile",
+              time: "10 min",
+              title: "Choisis une personne à qui parler en premier",
+              why: "Une situation précise rend ton prochain contenu plus facile à écrire.",
+            },
+            {
+              example: "Une phrase pour le problème, une pour ta réponse, une pour inviter à échanger.",
+              first_step: "Réponds à cette question en trois phrases, puis choisis où publier cette réponse.",
+              impact: "medium",
+              route: "/calendrier",
+              source: "profile",
+              time: "15 min",
+              title: "Prépare un premier contenu utile",
+              why: "Tu peux partir de cette question sans attendre un plan éditorial complet.",
+            },
+          ],
+          scores: {
+            branding: 50,
+            instagram: null,
+            linkedin: null,
+            total: 50,
+            website: null,
+          },
+          strengths: [
+            {
+              detail: "Tu sais ce que tu fais : céramiste. C'est la base pour communiquer clairement.",
+              source: "profile",
+              title: "Activité définie",
+            },
+            {
+              detail: \`Tu as identifié ce qui te rend unique : "pièces uniques faites main". C'est un atout à mettre en avant.\`,
+              source: "profile",
+              title: "Différenciation identifiée",
+            },
+            {
+              detail: "Le fait-main a une histoire à raconter : le processus de fabrication peut devenir ton meilleur contenu",
+              source: "profile",
+              title: "Le fait-main a une histoire à raconter : le processus de fabrication peut devenir ton meilleur contenu",
+            },
+          ],
+          summary: "Voici un premier aperçu, basé sur tes réponses. Ton activité, avec tes mots : « céramiste ». Tu te sens invisible et cherches à gagner en visibilité. Mon conseil : montre les coulisses de ta création : les mains, les matières, le travail en cours. J'ai pas eu accès à tes réseaux ni à ton site, donc je me base sur ce que tu m'as dit. Ajoute tes liens pour un diagnostic plus poussé.",
+          weaknesses: [
+            {
+              detail: "Je n'ai pas pu analyser de site web ni de réseaux sociaux. Sans présence en ligne visible, tes client·es potentiel·les ont du mal à te trouver.",
+              fix_hint: "Montre les coulisses de ta création : les mains, les matières, le travail en cours",
+              source: "profile",
+              title: "Présence en ligne limitée",
+            },
+            {
+              detail: "Tu te sens invisible — c'est le blocage principal que tu as identifié. Souvent, c'est une question de régularité et de clarté dans le message.",
+              fix_hint: "Le visuel produit est ton premier levier de vente en ligne",
+              source: "profile",
+              title: "Manque de visibilité",
+            },
+          ],
+        },
+        scores: {
+          branding: 50,
+          instagram: null,
+          linkedin: null,
+          total: 50,
+          website: null,
+        },
+        sources_failed: [],
+        sources_used: [],
+        strengths: [
+          {
+            detail: "Tu sais ce que tu fais : céramiste. C'est la base pour communiquer clairement.",
+            source: "profile",
+            title: "Activité définie",
+          },
+          {
+            detail: \`Tu as identifié ce qui te rend unique : "pièces uniques faites main". C'est un atout à mettre en avant.\`,
+            source: "profile",
+            title: "Différenciation identifiée",
+          },
+          {
+            detail: "Le fait-main a une histoire à raconter : le processus de fabrication peut devenir ton meilleur contenu",
+            source: "profile",
+            title: "Le fait-main a une histoire à raconter : le processus de fabrication peut devenir ton meilleur contenu",
+          },
+        ],
+        summary: "Voici un premier aperçu, basé sur tes réponses. Ton activité, avec tes mots : « céramiste ». Tu te sens invisible et cherches à gagner en visibilité. Mon conseil : montre les coulisses de ta création : les mains, les matières, le travail en cours. J'ai pas eu accès à tes réseaux ni à ton site, donc je me base sur ce que tu m'as dit. Ajoute tes liens pour un diagnostic plus poussé.",
+        user_id: "u-vide-vide",
+        weaknesses: [
+          {
+            detail: "Je n'ai pas pu analyser de site web ni de réseaux sociaux. Sans présence en ligne visible, tes client·es potentiel·les ont du mal à te trouver.",
+            fix_hint: "Montre les coulisses de ta création : les mains, les matières, le travail en cours",
+            source: "profile",
+            title: "Présence en ligne limitée",
+          },
+          {
+            detail: "Tu te sens invisible — c'est le blocage principal que tu as identifié. Souvent, c'est une question de régularité et de clarté dans le message.",
+            fix_hint: "Le visuel produit est ton premier levier de vente en ligne",
+            source: "profile",
+            title: "Manque de visibilité",
+          },
+        ],
+        workspace_id: "espace-propre",
+      },
+    ],
+  },
+  status: 200,
+}
+`;
+
+snapshot[`espace d'une cliente envoyé EN onboarding : tout part dans l'espace propre 1`] = `
+{
+  enrichissement: [
+    {
+      allowOverwrite: false,
+      isOnboarding: true,
+      savedDiagId: null,
+      userId: "u-espace-onb",
+      userPrompt: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+
+⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+      websiteStyleHints: "",
+      workspaceId: "espace-propre",
+    },
+  ],
+  insertions: {
+    audit_recommendations: [
+      {
+        completed: false,
+        detail: "Tes mots sont déjà là.
+Écris une phrase.
+J'aide [public]…",
+        label: "Écris ta promesse",
+        module: "diagnostic",
+        position: 1,
+        priorite: "high",
+        route: "/branding",
+        temps_estime: "15 min",
+        titre: "Écris ta promesse",
+        user_id: "u-espace-onb",
+        workspace_id: "espace-propre",
+      },
+      {
+        completed: false,
+        detail: "Le fait-main se raconte.
+Photographie une pièce.
+[pièce] en cours",
+        label: "Montre l'atelier",
+        module: "diagnostic",
+        position: 2,
+        priorite: "medium",
+        route: "/branding",
+        temps_estime: "10 min",
+        titre: "Montre l'atelier",
+        user_id: "u-espace-onb",
+        workspace_id: "espace-propre",
+      },
+    ],
+    diagnostic_results: [
+      {
+        branding_prefill: null,
+        priorities: [
+          {
+            example: "J'aide [public]…",
+            first_step: "Écris une phrase.",
+            impact: "high",
+            route: "/branding",
+            source: "profile",
+            time: "15 min",
+            title: "Écris ta promesse",
+            why: "Tes mots sont déjà là.",
+          },
+          {
+            example: "[pièce] en cours",
+            first_step: "Photographie une pièce.",
+            impact: "medium",
+            route: "/branding",
+            source: "profile",
+            time: "10 min",
+            title: "Montre l'atelier",
+            why: "Le fait-main se raconte.",
+          },
+        ],
+        raw_analysis: {
+          branding_prefill: {
+            mission: null,
+            offers: [],
+            positioning: "céramique",
+            target_description: null,
+            tone_keywords: [],
+            values: [],
+          },
+          priorities: [
+            {
+              example: "J'aide [public]…",
+              first_step: "Écris une phrase.",
+              impact: "high",
+              route: "/branding",
+              source: "profile",
+              time: "15 min",
+              title: "Écris ta promesse",
+              why: "Tes mots sont déjà là.",
+            },
+            {
+              example: "[pièce] en cours",
+              first_step: "Photographie une pièce.",
+              impact: "medium",
+              route: "/branding",
+              source: "profile",
+              time: "10 min",
+              title: "Montre l'atelier",
+              why: "Le fait-main se raconte.",
+            },
+          ],
+          scores: {
+            branding: 55,
+            instagram: null,
+            linkedin: null,
+            total: 52,
+            website: null,
+          },
+          strengths: [
+            {
+              detail: "Tu parles de « pièces uniques faites main ».",
+              source: "profile",
+              title: "Pièces uniques",
+            },
+          ],
+          summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+          weaknesses: [
+            {
+              detail: "Tu dis te sentir invisible.",
+              fix_hint: "Publie une pièce par semaine.",
+              source: "profile",
+              title: "Visibilité",
+            },
+          ],
+        },
+        scores: {
+          branding: 55,
+          instagram: null,
+          linkedin: null,
+          total: 52,
+          website: null,
+        },
+        sources_failed: [],
+        sources_used: [],
+        strengths: [
+          {
+            detail: "Tu parles de « pièces uniques faites main ».",
+            source: "profile",
+            title: "Pièces uniques",
+          },
+        ],
+        summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+        user_id: "u-espace-onb",
+        weaknesses: [
+          {
+            detail: "Tu dis te sentir invisible.",
+            fix_hint: "Publie une pièce par semaine.",
+            source: "profile",
+            title: "Visibilité",
+          },
+        ],
+        workspace_id: "espace-propre",
+      },
+    ],
+  },
+  requetes: [
+    "GET social_connections select=* user_id=eq.u-espace-onb platform=eq.instagram workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-espace-onb platform=eq.linkedin workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-espace-onb platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
+    "GET workspace_members select=role workspace_id=eq.espace-cliente user_id=eq.u-espace-onb",
+    "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
+    "GET workspace_members select=workspace_id user_id=eq.u-espace-onb role=eq.owner",
+    "POST audit_recommendations",
+    "POST diagnostic_results select=id",
+    "auth GET /user",
+    "claude POST /v1/messages",
+    "edge POST diagnostic-enrichment",
+  ],
+}
+`;
+
+snapshot[`espace d'une cliente HORS onboarding : l'espace demandé est respecté (crédit compris) 1`] = `
+{
+  credits: [
+    {
+      action_type: "deep_diagnostic",
+      category: "audit",
+      model_used: "claude-sonnet-4-6",
+      user_id: "u-espace-hors",
+      workspace_id: "espace-cliente",
+    },
+  ],
+  enrichissement: [
+    {
+      allowOverwrite: false,
+      savedDiagId: null,
+      userId: "u-espace-hors",
+      userPrompt: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+
+⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+      websiteStyleHints: "",
+      workspaceId: "espace-cliente",
+    },
+  ],
+  insertions: {
+    audit_recommendations: [
+      {
+        completed: false,
+        detail: "Tes mots sont déjà là.
+Écris une phrase.
+J'aide [public]…",
+        label: "Écris ta promesse",
+        module: "diagnostic",
+        position: 1,
+        priorite: "high",
+        route: "/branding",
+        temps_estime: "15 min",
+        titre: "Écris ta promesse",
+        user_id: "u-espace-hors",
+        workspace_id: "espace-cliente",
+      },
+      {
+        completed: false,
+        detail: "Le fait-main se raconte.
+Photographie une pièce.
+[pièce] en cours",
+        label: "Montre l'atelier",
+        module: "diagnostic",
+        position: 2,
+        priorite: "medium",
+        route: "/branding",
+        temps_estime: "10 min",
+        titre: "Montre l'atelier",
+        user_id: "u-espace-hors",
+        workspace_id: "espace-cliente",
+      },
+    ],
+    diagnostic_results: [
+      {
+        branding_prefill: null,
+        priorities: [
+          {
+            example: "J'aide [public]…",
+            first_step: "Écris une phrase.",
+            impact: "high",
+            route: "/branding",
+            source: "profile",
+            time: "15 min",
+            title: "Écris ta promesse",
+            why: "Tes mots sont déjà là.",
+          },
+          {
+            example: "[pièce] en cours",
+            first_step: "Photographie une pièce.",
+            impact: "medium",
+            route: "/branding",
+            source: "profile",
+            time: "10 min",
+            title: "Montre l'atelier",
+            why: "Le fait-main se raconte.",
+          },
+        ],
+        raw_analysis: {
+          branding_prefill: {
+            mission: null,
+            offers: [],
+            positioning: "céramique",
+            target_description: null,
+            tone_keywords: [],
+            values: [],
+          },
+          priorities: [
+            {
+              example: "J'aide [public]…",
+              first_step: "Écris une phrase.",
+              impact: "high",
+              route: "/branding",
+              source: "profile",
+              time: "15 min",
+              title: "Écris ta promesse",
+              why: "Tes mots sont déjà là.",
+            },
+            {
+              example: "[pièce] en cours",
+              first_step: "Photographie une pièce.",
+              impact: "medium",
+              route: "/branding",
+              source: "profile",
+              time: "10 min",
+              title: "Montre l'atelier",
+              why: "Le fait-main se raconte.",
+            },
+          ],
+          scores: {
+            branding: 55,
+            instagram: null,
+            linkedin: null,
+            total: 52,
+            website: null,
+          },
+          strengths: [
+            {
+              detail: "Tu parles de « pièces uniques faites main ».",
+              source: "profile",
+              title: "Pièces uniques",
+            },
+          ],
+          summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+          weaknesses: [
+            {
+              detail: "Tu dis te sentir invisible.",
+              fix_hint: "Publie une pièce par semaine.",
+              source: "profile",
+              title: "Visibilité",
+            },
+          ],
+        },
+        scores: {
+          branding: 55,
+          instagram: null,
+          linkedin: null,
+          total: 52,
+          website: null,
+        },
+        sources_failed: [],
+        sources_used: [],
+        strengths: [
+          {
+            detail: "Tu parles de « pièces uniques faites main ».",
+            source: "profile",
+            title: "Pièces uniques",
+          },
+        ],
+        summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+        user_id: "u-espace-hors",
+        weaknesses: [
+          {
+            detail: "Tu dis te sentir invisible.",
+            fix_hint: "Publie une pièce par semaine.",
+            source: "profile",
+            title: "Visibilité",
+          },
+        ],
+        workspace_id: "espace-cliente",
+      },
+    ],
+  },
+  requetes: [
+    "GET ai_usage select=category created_at=gte.<date> workspace_id=eq.espace-cliente",
+    "GET coaching_programs select=id client_user_id=eq.u-espace-hors status=eq.active",
+    "GET coaching_programs select=id client_user_id=eq.u-espace-hors status=eq.active",
+    "GET profiles select=bonus_credits user_id=eq.u-espace-hors",
+    "GET social_connections select=* user_id=eq.u-espace-hors platform=eq.instagram workspace_id=eq.espace-cliente",
+    "GET social_connections select=* user_id=eq.u-espace-hors platform=eq.linkedin workspace_id=eq.espace-cliente",
+    "GET social_connections select=* user_id=eq.u-espace-hors platform=eq.linkedin_analytics workspace_id=eq.espace-cliente",
+    "GET subscriptions select=plan,source,status,current_period_end,studio_end_date,stripe_subscription_id user_id=eq.u-espace-hors",
+    "GET subscriptions select=plan,source,status,current_period_end,studio_end_date,stripe_subscription_id user_id=eq.u-espace-hors",
+    "GET workspace_members select=role workspace_id=eq.espace-cliente user_id=eq.u-espace-hors",
+    "GET workspace_members select=role workspace_id=eq.espace-cliente user_id=eq.u-espace-hors",
+    "GET workspace_members select=role workspace_id=eq.espace-cliente user_id=eq.u-espace-hors",
+    "GET workspace_members select=user_id workspace_id=eq.espace-cliente role=eq.owner",
+    "GET workspace_members select=workspace_id user_id=eq.u-espace-hors role=eq.owner",
+    "GET workspaces select=plan id=eq.espace-cliente",
+    "GET workspaces select=plan id=eq.espace-cliente",
+    "POST audit_recommendations",
+    "POST diagnostic_results select=id",
+    "auth GET /user",
+    "claude POST /v1/messages",
+    "edge POST diagnostic-enrichment",
+    "rpc has_role",
+    "rpc has_role",
+    "rpc record_ai_usage",
+  ],
+}
+`;
+
+snapshot[`espace dont l'utilisatrice n'est pas membre : 403, rien d'autre 1`] = `
+{
+  body: {
+    error: "workspace_access_denied",
+    message: "Tu n'as pas accès à cet espace.",
+  },
+  requetes: [
+    "GET workspace_members select=role workspace_id=eq.espace-inconnu user_id=eq.u-espace-refus",
+    "auth GET /user",
+  ],
+  status: 403,
+}
+`;
+
+snapshot[`site en cache avec indices de style : source website, indices transmis à l'enrichissement 1`] = `
+{
+  body: {
+    diagnostic: {
+      branding_prefill: null,
+      priorities: [
+        {
+          example: "J'aide [public]…",
+          first_step: "Écris une phrase.",
+          impact: "high",
+          route: "/branding",
+          source: "profile",
+          time: "15 min",
+          title: "Écris ta promesse",
+          why: "Tes mots sont déjà là.",
+        },
+        {
+          example: "[pièce] en cours",
+          first_step: "Photographie une pièce.",
+          impact: "medium",
+          route: "/branding",
+          source: "profile",
+          time: "10 min",
+          title: "Montre l'atelier",
+          why: "Le fait-main se raconte.",
+        },
+      ],
+      scores: {
+        branding: 55,
+        instagram: null,
+        linkedin: null,
+        total: 52,
+        website: 30,
+      },
+      strengths: [
+        {
+          detail: "Tu parles de « pièces uniques faites main ».",
+          source: "profile",
+          title: "Pièces uniques",
+        },
+      ],
+      summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+      weaknesses: [
+        {
+          detail: "Tu dis te sentir invisible.",
+          fix_hint: "Publie une pièce par semaine.",
+          source: "profile",
+          title: "Visibilité",
+        },
+      ],
+    },
+    id: "diagnostic_results-1",
+    sources_failed: [],
+    sources_used: [
+      "website",
+    ],
+    success: true,
+  },
+  enrichissement: [
+    {
+      allowOverwrite: true,
+      isOnboarding: true,
+      savedDiagId: null,
+      userId: "u-site-cache",
+      userPrompt: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+=== SOURCE: WEBSITE ===
+Atelier de céramique à Lyon. Réserver un atelier.
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.
+
+Couleurs : #FB3D80\`,
+      websiteStyleHints: "Couleurs : #FB3D80",
+      workspaceId: "espace-propre",
+    },
+  ],
+  prompt: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+=== SOURCE: WEBSITE ===
+Atelier de céramique à Lyon. Réserver un atelier.
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+  requetes: [
+    "GET scrape_cache select=content,style_hints user_id=eq.u-site-cache url=eq.monsite.fr created_at=gte.<date>",
+    "GET scrape_cache select=content,style_hints user_id=eq.u-site-cache url=eq.monsite.fr created_at=gte.<date>",
+    "GET social_connections select=* user_id=eq.u-site-cache platform=eq.instagram workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-site-cache platform=eq.linkedin workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-site-cache platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
+    "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
+    "GET workspace_members select=workspace_id user_id=eq.u-site-cache role=eq.owner",
+    "POST audit_recommendations",
+    "POST diagnostic_results select=id",
+    "auth GET /user",
+    "claude POST /v1/messages",
+    "edge POST diagnostic-enrichment",
+  ],
+}
+`;
+
+snapshot[`site en cache SANS indices de style : relecture du site pour les styles (404 → aucun indice) 1`] = `
+{
+  enrichissement: [
+    {
+      allowOverwrite: false,
+      isOnboarding: true,
+      savedDiagId: null,
+      userId: "u-site-sans-style",
+      userPrompt: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+=== SOURCE: WEBSITE ===
+Atelier de céramique à Lyon.
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+      websiteStyleHints: "",
+      workspaceId: "espace-propre",
+    },
+  ],
+  requetes: [
+    "GET scrape_cache select=content,style_hints user_id=eq.u-site-sans-style url=eq.monsite.fr created_at=gte.<date>",
+    "GET scrape_cache select=content,style_hints user_id=eq.u-site-sans-style url=eq.monsite.fr created_at=gte.<date>",
+    "GET social_connections select=* user_id=eq.u-site-sans-style platform=eq.instagram workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-site-sans-style platform=eq.linkedin workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-site-sans-style platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
+    "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
+    "GET workspace_members select=workspace_id user_id=eq.u-site-sans-style role=eq.owner",
+    "POST audit_recommendations",
+    "POST diagnostic_results select=id",
+    "auth GET /user",
+    "claude POST /v1/messages",
+    "edge POST diagnostic-enrichment",
+    "externe GET https://monsite.fr/",
+  ],
+}
+`;
+
+snapshot[`capture lisible : instagram_screenshot ajouté à sources_used DANS la réponse (provenance sans copie) 1`] = `
+{
+  body: {
+    diagnostic: {
+      branding_prefill: null,
+      priorities: [
+        {
+          example: "J'aide [public]…",
+          first_step: "Écris une phrase.",
+          impact: "high",
+          route: "/branding",
+          source: "profile",
+          time: "15 min",
+          title: "Écris ta promesse",
+          why: "Tes mots sont déjà là.",
+        },
+        {
+          example: "[pièce] en cours",
+          first_step: "Photographie une pièce.",
+          impact: "medium",
+          route: "/branding",
+          source: "profile",
+          time: "10 min",
+          title: "Montre l'atelier",
+          why: "Le fait-main se raconte.",
+        },
+      ],
+      scores: {
+        branding: 55,
+        instagram: 40,
+        linkedin: null,
+        total: 52,
+        website: null,
+      },
+      screenshot_readable: true,
+      strengths: [
+        {
+          detail: "La bio affiche « céramique peinte à la main » et un lien.",
+          source: "instagram_screenshot",
+          title: "Bio lisible",
+        },
+      ],
+      summary: "Tu crées des « pièces uniques faites main » et tu veux « être visible ».",
+      weaknesses: [
+        {
+          detail: "Tu dis te sentir invisible.",
+          fix_hint: "Publie une pièce par semaine.",
+          source: "profile",
+          title: "Visibilité",
+        },
+      ],
+    },
+    id: "diagnostic_results-1",
+    sources_failed: [],
+    sources_used: [
+      "instagram_screenshot",
+    ],
+    success: true,
+  },
+  messages: [
+    {
+      content: [
+        {
+          text: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+          type: "text",
+        },
+        {
+          source: {
+            data: "<image 12 car.>",
+            media_type: "image/png",
+            type: "base64",
+          },
+          type: "image",
+        },
+        {
+          text: "Ci-dessus : une capture sociale fournie pendant l'onboarding. Identifie Instagram ou LinkedIn seulement si l'interface le montre ; sinon utilise social_screenshot. Décris uniquement les éléments lisibles (bio, grille, publications ou messages visibles). Si illisible, aucun constat. Aucun rythme ou performance ne peut être déduit d'une capture partielle.",
+          type: "text",
+        },
+      ],
+      role: "user",
+    },
+  ],
+  requetes: [
+    "GET social_connections select=* user_id=eq.u-capture platform=eq.instagram workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-capture platform=eq.linkedin workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-capture platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
+    "GET user_documents select=id,file_name,file_url,file_type id=in.(doc-1) user_id=eq.u-capture",
+    "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
+    "GET workspace_members select=workspace_id user_id=eq.u-capture role=eq.owner",
+    "POST audit_recommendations",
+    "POST diagnostic_results select=id",
+    "auth GET /user",
+    "claude POST /v1/messages",
+    "edge POST diagnostic-enrichment",
+    "stockage GET onboarding-uploads/u-capture/bio.png",
+  ],
+}
+`;
+
+snapshot[`sources en échec (site, Instagram public, LinkedIn, capture) : listées et signalées au prompt 1`] = `
+{
+  prompt: \`=== CONTEXTE ===
+Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. Ce diagnostic est la PREMIÈRE chose qu'elle verra. Il doit être personnalisé, honnête, et lui donner envie de continuer.
+
+=== PROFIL ===
+Activité : céramiste
+Type : Artisan·e / créatrice
+Objectif principal : vendre en ligne
+Blocage principal : Je me sens invisible
+Temps disponible/semaine : 2h
+Canaux actuels : instagram
+
+=== RÉPONSES LIBRES ===
+Priorité de changement : être visible
+Ce qui te rend unique : pièces uniques faites main
+
+
+⚠️ Aucune source en ligne n'a pu être scrappée. Base ton diagnostic uniquement sur les réponses du profil.
+
+
+⚠️ Sources non analysées (scraping échoué) : instagram_public, LinkedIn, social_screenshot, Site web (monsite.fr). NE PAS inventer de score pour ces sources. Mettre leur score à null dans "scores".
+
+=== CONSIGNES FINALES ===
+- Le résumé (summary) : 3-4 phrases, reprends les mots exacts de la personne entre guillemets.
+- Scores : uniquement pour les sources réellement analysées ; statistiques seules ne suffisent pas.
+- RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
+- RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
+- RAPPEL : si une capture est lisible, cite au moins un élément visible et donne un conseil qui en découle. Attribue-la au bon réseau si reconnaissable.
+- Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
+  requetes: [
+    "GET scrape_cache select=content,style_hints user_id=eq.u-echecs url=eq.monsite.fr created_at=gte.<date>",
+    "GET scrape_cache select=content,style_hints user_id=eq.u-echecs url=eq.monsite.fr created_at=gte.<date>",
+    "GET social_connections select=* user_id=eq.u-echecs platform=eq.instagram workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-echecs platform=eq.linkedin workspace_id=eq.espace-propre",
+    "GET social_connections select=* user_id=eq.u-echecs platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
+    "GET user_documents select=id,file_name,file_url,file_type id=in.(doc-absent) user_id=eq.u-echecs",
+    "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
+    "GET workspace_members select=workspace_id user_id=eq.u-echecs role=eq.owner",
+    "POST audit_recommendations",
+    "POST diagnostic_results select=id",
+    "auth GET /user",
+    "claude POST /v1/messages",
+    "edge POST diagnostic-enrichment",
+    "externe GET https://monsite.fr/",
+    "externe GET https://monsite.fr/sitemap.xml",
+    "externe GET https://r.jina.ai/https://monsite.fr",
+    "externe GET https://www.instagram.com/atelier_test/",
+    "externe GET https://www.linkedin.com/in/test",
+  ],
+  sources_failed: [
+    "instagram_public",
+    "linkedin",
+    "social_screenshot",
+    "website",
+  ],
+}
+`;
