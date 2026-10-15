@@ -382,7 +382,7 @@ export default function AbonnementPage() {
             <div className="mt-5 pt-4 border-t border-border">
               <p className="text-sm font-semibold text-foreground mb-1">Envie de plus de crédits ?</p>
               <p className="text-xs text-muted-foreground mb-3">
-                Le plan Premium : tes textes sans compter, 20 carrousels, 30 images et 3 vidéos par mois, plus la publication automatique sur tes réseaux.
+                Le plan Premium : tes textes sans compter, 20 carrousels, 30 images et 3 vidéos par mois.
               </p>
               <Link to="/pricing">
                 <Button size="sm" variant="outline" className="rounded-full text-xs">
@@ -400,7 +400,7 @@ export default function AbonnementPage() {
             <PlanCard
               name="Gratuit"
               price="0€"
-              credits="Pour démarrer"
+              credits="23 crédits / mois · 3 carrousels · 5 images"
               active={plan === "free"}
               onSelect={() => {}}
               disabled

@@ -1,3 +1,7 @@
+import { findQuota, quotaLimitMessage } from "@/lib/quota-message";
+
+export { quotaLimitMessage };
+
 const ERROR_PATTERNS: { test: RegExp; message: string }[] = [
   { test: /La génération a échoué en cours de route/i, message: "Le recyclage n'a produit aucun texte utilisable. Réessaie ou ajoute des faits à ta source." },
   // AVANT la règle /quota|crédit/ : une panne de VÉRIFICATION des crédits (503
@@ -11,7 +15,7 @@ const ERROR_PATTERNS: { test: RegExp; message: string }[] = [
   { test: /fetch|network|Failed to fetch|ERR_NETWORK/i, message: "Problème de connexion. Vérifie ton Wi-Fi et réessaie." },
   { test: /timeout|timed out|504|524/i, message: "La requête a pris trop de temps. Réessaie dans quelques secondes." },
   { test: /429|rate.?limit|too many/i, message: "Trop de requêtes en même temps. Attends quelques secondes et réessaie." },
-  { test: /quota|crédit|limit.*atteint|limit_reached/i, message: "Tu as utilisé tous tes crédits IA ce mois-ci. Ils reviennent le 1er du mois, ou tu peux ajouter un pack de crédits." },
+  { test: /quota|crédit|limit.*atteint|limit_reached/i, message: "Tu as atteint une de tes limites du mois. Le détail est dans « Mon abonnement » ; tout revient le 1er du mois." },
   { test: /401|non.?authentifi|not.?authenticated/i, message: "Ta session a expiré. Reconnecte-toi pour continuer." },
   { test: /403|interdit|forbidden/i, message: "Tu n'as pas accès à cette fonctionnalité avec ton plan actuel." },
   { test: /500|internal.?server|erreur.?serveur/i, message: "Oups, un problème côté serveur. Réessaie dans un instant." },
@@ -21,8 +25,15 @@ const ERROR_PATTERNS: { test: RegExp; message: string }[] = [
   { test: /stripe|payment|paiement/i, message: "Problème avec le paiement. Vérifie tes infos bancaires ou contacte le support." },
 ];
 
+// Phrases de quota déjà claires écrites par le serveur (plan-limiter) : elles
+// nomment la limite atteinte (« tes 3 carrousels »), on les garde telles quelles.
+const SERVER_QUOTA_SENTENCE = /^(Tu as (utilisé|fait|créé) tes \d+ |Tu as atteint la limite|Cette fonctionnalité est disponible à partir|Les vidéos sont comprises|La Qualité Max est comprise)/;
+
 export function friendlyError(error: unknown): string {
+  const quotaText = quotaLimitMessage(findQuota(error));
+  if (quotaText) return quotaText;
   const raw = error instanceof Error ? error.message : String(error);
+  if (SERVER_QUOTA_SENTENCE.test(raw.trim())) return raw.trim();
 
   for (const pattern of ERROR_PATTERNS) {
     if (pattern.test.test(raw)) return pattern.message;
@@ -31,55 +42,28 @@ export function friendlyError(error: unknown): string {
   return "Quelque chose n'a pas fonctionné. Réessaie, et si le problème persiste, contacte-nous.";
 }
 
-// ─── Messages d'erreur IA contextuels ───
+// Message technique (anglais, code, statut HTTP, nom d'erreur JS) : à traduire.
+// Un message déjà écrit en français pour l'utilisatrice (serveur du Studio,
+// invokeWithTimeout…) passe tel quel.
+const TECHNICAL = /[A-Za-z]*Error\b|\bat \S+ \(|\b(undefined|null|NaN|fetch|network|timeout|timed out|status|edge function|non-2xx|JSON|unexpected|cannot|failed|invalid|internal|server|request|response|token|abort|denied|not found)\b|\b[a-z]+_[a-z_]+\b|\b[45]\d\d\b/i;
 
-export const AI_ERROR_MESSAGES: Record<string, { title: string; description: string; action?: string }> = {
-  "429": {
-    title: "L'IA fait une pause",
-    description: "Trop de demandes en même temps. C'est comme la queue au marché : ça vaut le coup d'attendre 30 secondes.",
-    action: "Réessaie dans un moment",
-  },
-  "529": {
-    title: "L'IA est débordée",
-    description: "Beaucoup de monde utilise l'IA en ce moment. Rien de grave, ça revient vite.",
-    action: "Réessaie dans 2-3 minutes",
-  },
-  "quota_category": {
-    title: "Crédits épuisés pour cette catégorie",
-    description: "Tes crédits se renouvellent le 1er du mois. En attendant, tu peux continuer à travailler sur d'autres sections de l'outil.",
-    action: "Voir mes crédits",
-  },
-  "quota_total": {
-    title: "Tes crédits du mois sont utilisés",
-    description: "Bonne nouvelle : ça veut dire que tu bosses ta com' ! Ils reviennent le 1er du mois.",
-    action: "Voir les options",
-  },
-  "parse_error": {
-    title: "L'IA a eu un moment de confusion",
-    description: "La réponse n'était pas dans le bon format. Ça arrive parfois. Un deuxième essai suffit généralement.",
-    action: "Réessayer",
-  },
-  "network": {
-    title: "Problème de connexion",
-    description: "Vérifie ta connexion internet et réessaie.",
-    action: "Réessayer",
-  },
-  "unknown": {
-    title: "Oups, quelque chose a coincé",
-    description: "Une erreur inattendue. Si ça persiste, contacte-nous.",
-    action: "Réessayer",
-  },
-};
-
-export function getAIErrorMessage(error: { status?: number; message?: string } | null): { title: string; description: string; action?: string } {
-  if (error?.status) {
-    return AI_ERROR_MESSAGES[String(error.status)] || AI_ERROR_MESSAGES.unknown;
+/**
+ * Texte d'erreur à montrer : garde un message déjà clair en français,
+ * traduit un message technique, et prend `fallback` si l'erreur est vide.
+ */
+export function readableError(error: unknown, fallback: string): string {
+  const quotaText = quotaLimitMessage(findQuota(error));
+  if (quotaText) return quotaText;
+  const raw = (error instanceof Error ? error.message : typeof error === "string" ? error : (error as any)?.message || "").trim();
+  if (!raw) return fallback;
+  if (raw.startsWith("{") || raw.startsWith("[")) {
+    try {
+      const o = JSON.parse(raw);
+      const inner = quotaLimitMessage(o?.quota) || o?.message;
+      if (typeof inner === "string" && inner) return readableError(inner, fallback);
+    } catch { /* pas du JSON : on continue */ }
+    return friendlyError(raw);
   }
-  if (error?.message?.includes("quota") || error?.message?.includes("crédit")) {
-    return AI_ERROR_MESSAGES.quota_total;
-  }
-  if (error?.message?.includes("fetch") || error?.message?.includes("network")) {
-    return AI_ERROR_MESSAGES.network;
-  }
-  return AI_ERROR_MESSAGES.unknown;
+  if (SERVER_QUOTA_SENTENCE.test(raw)) return raw;
+  return TECHNICAL.test(raw) ? friendlyError(raw) : raw;
 }

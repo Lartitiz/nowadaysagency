@@ -10,6 +10,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { handleQuotaError } from "@/lib/quota-error-handler";
+import { quotaLimitMessage } from "@/lib/quota-message";
 import { cn } from "@/lib/utils";
 
 interface ChatMessage {
@@ -167,7 +168,7 @@ export default function CoachChat() {
           if (!quotaHandled) {
             const limitMsg: ChatMessage = {
               role: "assistant",
-              content: "Tu as utilisé tous tes crédits IA ce mois-ci 🌸 Ils se renouvellent le 1er du mois prochain. En attendant, tu peux continuer à travailler ton branding, ton calendrier et ta bibliothèque d'idées !",
+              content: `${quotaLimitMessage(data?.quota) || "Tu as atteint une de tes limites du mois 🌸 Elle revient le 1er du mois prochain."} En attendant, tu peux continuer à travailler ton branding, ton calendrier et ta bibliothèque d'idées !`,
             };
             const final = [...updated, limitMsg];
             setMessages(final);

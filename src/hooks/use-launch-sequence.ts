@@ -4,6 +4,7 @@
 // par la sauvegarde CREER_RESULT_KEY) ; `generate` n'existe que plus bas dans
 // la page, d'où son passage au moment du lancement.
 import { useState } from "react";
+import { readableError } from "@/lib/error-messages";
 import { toast } from "sonner";
 import { CONTENT_STRUCTURES, getStructureForCombo } from "@/lib/content-structures";
 import type { GenerateParams } from "@/hooks/use-content-generator";
@@ -48,7 +49,7 @@ export function useLaunchSequence() {
     } catch (e: any) {
       // Sans ce filet, une erreur au chapitre N laissait le spinner tourner à l'infini.
       if (results.length > 0) setLaunchResults(results); // garde les chapitres déjà générés
-      toast.error(e?.message || "Erreur pendant la génération de la séquence. Réessaie.");
+      toast.error(readableError(e, "La séquence n'a pas pu être créée. Réessaie dans un instant."));
     } finally {
       setLaunchGenerating(false);
     }

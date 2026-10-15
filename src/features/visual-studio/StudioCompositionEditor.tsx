@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { readableError } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -106,7 +107,7 @@ export function StudioCompositionEditor(
         }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Une erreur est survenue.");
+      setError(readableError(e, "Une erreur est survenue."));
     } finally {
       setBusy(false);
     }

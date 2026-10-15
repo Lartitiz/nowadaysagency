@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { quotaLimitMessage, readableError } from "@/lib/error-messages";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface ActuAngle {
@@ -225,7 +226,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
         const msg = fnError.message || "";
         if (data?.error === "limit_reached" && data?.quota?.reason !== "error") {
           setIsQuotaError(true);
-          setError("Tu as utilisé tous tes crédits de recherche ce mois-ci.");
+          setError(quotaLimitMessage(data?.quota) || "Tu as atteint une de tes limites du mois. Elle revient le 1er du mois.");
         } else {
           setError("La recherche a échoué, réessaie.");
         }
@@ -319,9 +320,9 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
         const msg = fnError.message || "";
         if (data?.error === "limit_reached" && data?.quota?.reason !== "error") {
           setIsQuotaError(true);
-          setError("Tu as utilisé tous tes crédits de recherche ce mois-ci.");
+          setError(quotaLimitMessage(data?.quota) || "Tu as atteint une de tes limites du mois. Elle revient le 1er du mois.");
         } else {
-          setError(fnError.message || "Analyse du lien échouée, réessaie.");
+          setError(readableError(fnError, "L’analyse du lien n’a pas abouti. Vérifie l’adresse et réessaie."));
         }
         return;
       }

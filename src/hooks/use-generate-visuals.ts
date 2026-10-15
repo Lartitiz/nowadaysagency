@@ -1,4 +1,5 @@
 import { applyReviewedPhotoAssignments, carouselCompositionWarnings } from "@/lib/carousel-composition-fidelity";
+import { readableError } from "@/lib/error-messages";
 import { visualSlidePayload } from "@/lib/visual-slide-payload";
 import { fitGeneratedSchemaSlides } from "@/lib/carousel-schema-fit";
 import { useEffect, useRef } from "react";
@@ -473,7 +474,7 @@ export function useGenerateVisuals({
         background: !!opts?.background,
       });
       if (!opts?.background) {
-        toast.error(e?.message || "Erreur lors de la génération des visuels");
+        toast.error(readableError(e, "Les visuels n'ont pas pu être créés. Réessaie dans un instant."));
       } else {
         // Tentative auto : pas de toast surgissant, mais un état honnête près du
         // bouton — jamais un retour muet à « Créer les visuels ».

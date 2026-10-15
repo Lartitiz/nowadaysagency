@@ -7,6 +7,7 @@
 // génération lit firstProductRef). Recevoir les ENVELOPPES saveFlowState/savePhotos
 // de la page (garde isCurrentCreation), jamais celles de use-flow-persistence.
 import { useCallback, useEffect, useRef } from "react";
+import { readableError } from "@/lib/error-messages";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -152,7 +153,7 @@ export function useLibraryPhotosPreload({
         }
       } catch (e: any) {
         if (cancelled) return;
-        toast.error(e?.message || "Impossible de charger la photo de la photothèque.");
+        toast.error(readableError(e, "Impossible de charger la photo de la photothèque."));
         setStep("idea");
       } finally {
         if (!cancelled) setIsLoadingLibraryPhotos(false);

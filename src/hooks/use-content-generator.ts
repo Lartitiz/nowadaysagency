@@ -4,6 +4,8 @@ import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
 import { supabase } from "@/integrations/supabase/client";
 import { posthog } from "@/lib/posthog-lazy";
 import { handleQuotaError } from "@/lib/quota-error-handler";
+import { findQuota, quotaLimitMessage } from "@/lib/quota-message";
+import { readableError } from "@/lib/error-messages";
 import { downscalePhotosForVision } from "@/lib/image-vision";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -294,17 +296,11 @@ function cleanErrorMessage(raw: unknown): string {
 }
 
 // Message honnête affiché en ligne à l'étape résultat quand le quota a coupé la
-// génération (le détail plan/usage vit dans le QuotaWallModal, pas ici).
-const QUOTA_EXHAUSTED_MESSAGE =
-  "Tes crédits du mois sont utilisés — ils reviennent le 1er du mois 🌸";
-
-// Les erreurs « fonctionnalité premium » passent aussi par handleQuotaError : pour
-// elles on garde le message serveur (il nomme le plan requis), sinon le message
-// crédits générique.
-function quotaInlineMessage(serverMessage: string): string {
-  return serverMessage.includes("disponible à partir")
-    ? serverMessage
-    : QUOTA_EXHAUSTED_MESSAGE;
+// génération : il nomme la limite atteinte (carrousels, images, vidéos ou
+// crédits) à partir de la réponse du serveur (src/lib/quota-message.ts).
+// Sans objet quota lisible, on garde le message serveur, déjà en français.
+function quotaInlineMessage(e: unknown, serverMessage: string): string {
+  return quotaLimitMessage(findQuota(e)) || readableError(serverMessage, "Tu as atteint une de tes limites du mois. Elle revient le 1er du mois 🌸");
 }
 
 // ── Hook ──
@@ -385,7 +381,7 @@ export function useContentGenerator() {
   // dise la vérité aussi sur ces chemins.
   const markQuotaExhausted = useCallback((e?: unknown) => {
     const raw = typeof e === "string" ? e : (e as any)?.data?.message || (e as any)?.message || "";
-    setQuotaExhausted(quotaInlineMessage(cleanErrorMessage(raw)));
+    setQuotaExhausted(quotaInlineMessage(e, cleanErrorMessage(raw)));
   }, []);
 
   const clearQuotaExhausted = useCallback(() => setQuotaExhausted(null), []);
@@ -756,11 +752,11 @@ export function useContentGenerator() {
       // Erreurs quota/premium → toast convivial (jamais le JSON brut affiché).
       const cleaned = cleanErrorMessage(e?.message);
       if (handleQuotaError(e?._isQuota ? e : { message: cleaned, data: e?.data })) {
-        setQuotaExhausted(quotaInlineMessage(cleaned));
+        setQuotaExhausted(quotaInlineMessage(e, cleaned));
         setError(null);
         return null;
       }
-      setError(cleaned || "Erreur lors de la génération");
+      setError(readableError(cleaned, "La création n'a pas abouti. Réessaie dans un instant."));
       return null;
     } finally {
       if (epoch === generationEpoch.current) {
@@ -977,7 +973,7 @@ export function useContentGenerator() {
         return parsedQuestions;
       } catch (e: any) {
         if (epoch !== questionsEpoch.current) return [];
-        const cleaned = cleanErrorMessage(e?.message) || "Erreur lors de la génération des questions";
+        const cleaned = readableError(cleanErrorMessage(e?.message), "Les questions n'ont pas pu être préparées. Réessaie dans un instant.");
         setError(cleaned);
         setQuestionsError(cleaned);
         return [];
@@ -1101,11 +1097,11 @@ export function useContentGenerator() {
         if (epoch !== generationEpoch.current) return null;
         const cleaned = cleanErrorMessage(e?.message);
         if (handleQuotaError(e?._isQuota ? e : { message: cleaned, data: e?.data })) {
-          setQuotaExhausted(quotaInlineMessage(cleaned));
+          setQuotaExhausted(quotaInlineMessage(e, cleaned));
           setError(null);
           return null;
         }
-        setError(cleaned || "Erreur lors de la génération");
+        setError(readableError(cleaned, "La création n'a pas abouti. Réessaie dans un instant."));
         return null;
       }
 

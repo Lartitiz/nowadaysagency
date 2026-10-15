@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { readableError } from "@/lib/error-messages";
 import { reelSourceKey } from "@/lib/reel-publication";
 // build 2026-07-23c
 /**
@@ -304,7 +305,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
         set(C, i, C[i]?.source === "mine" || C[i]?.source === "studio" ? C[i] : vids[0] ? fromStock(vids[0]) : C[i]),
       );
     } catch (e) {
-      if (!o?.cancelledRef?.()) toast.error(e instanceof Error ? e.message : "Recherche impossible.");
+      if (!o?.cancelledRef?.()) toast.error(readableError(e, "La recherche de vidéos n’a pas abouti. Réessaie dans un instant."));
     } finally {
       if (!o?.cancelledRef?.()) setLoading((L) => set(L, i, false));
     }
@@ -332,7 +333,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
       setClips((C) => set(C, i, fromMine(video, duration)));
       toast.success("Ta vidéo est prête pour cette section.");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "L'envoi de la vidéo a échoué.");
+      toast.error(readableError(e, "L'envoi de la vidéo a échoué."));
     } finally {
       setUploadingSection(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -456,7 +457,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
       toast.success("Ton reel est monté !");
     } catch (e) {
       if (!isCurrent()) return;
-      setErrorMsg(e instanceof Error ? e.message : "Le montage a échoué.");
+      setErrorMsg(readableError(e, "Le montage a échoué."));
       setPhase("error");
     } finally {
       renderBusy.current = false;
@@ -480,7 +481,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
       onMp4Ready?.(durable);
       toast.success("Ta vidéo est rangée dans ta bibliothèque.");
     } catch (error) {
-      if (isCurrent()) toast.error(error instanceof Error ? error.message : "La vidéo n’a pas pu être rangée. Réessaie.");
+      if (isCurrent()) toast.error(readableError(error, "La vidéo n’a pas pu être rangée. Réessaie."));
     } finally {
       archiveBusy.current = false;
       if (activeRender.current.mounted) setArchiving(false);

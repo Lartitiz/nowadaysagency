@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { readableError } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, CircleCheck, Circle, Loader2, Play, Pause, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
@@ -162,7 +163,7 @@ export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange 
       // Le passage à la suivante est un geste explicite (bouton dédié).
     } catch (e) {
       setStates((s) => setAt(s, i, "todo"));
-      toast.error(e instanceof Error ? e.message : "L'enregistrement a échoué.");
+      toast.error(readableError(e, "L'enregistrement a échoué."));
     }
   }
 

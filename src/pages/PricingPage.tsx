@@ -38,7 +38,7 @@ const SECTIONS = [
     title: "Création de contenu",
     rows: [
       { label: "Posts, reels, stories, bio", free: true, premium: true },
-      { label: "Textes IA (posts, reels, stories, newsletters, LinkedIn…)", free: "Pour démarrer", premium: "Sans compter" },
+      { label: "Crédits du mois pour les textes IA (posts, reels, stories, newsletters, LinkedIn…)", free: "23 crédits", premium: "Sans compter" },
       { label: "Carrousels", free: "3 / mois", premium: "20 / mois" },
       { label: "Mode Qualité Max des carrousels", free: false, premium: true },
       { label: "Images (Studio, retouches, mises en scène)", free: "5 / mois", premium: "30 / mois" },
@@ -58,7 +58,7 @@ const SECTIONS = [
   {
     title: "Analyse & suivi",
     rows: [
-      { label: "Audits IA (Instagram, site, LinkedIn)", free: "Limités", premium: "Illimités" },
+      { label: "Audits IA (Instagram, site, LinkedIn)", free: "3 / mois", premium: "Sans compter" },
       { label: "Suivi de tes statistiques", free: true, premium: true },
     ],
   },
@@ -67,11 +67,11 @@ const SECTIONS = [
 const FAQ = [
   {
     q: "Qu'est-ce que je peux faire gratuitement ?",
-    a: "Tout pour démarrer : poser tes fondations (branding, cible, histoire), organiser ton calendrier éditorial, créer tes premiers contenus avec l'IA et lancer des audits pour te situer. Quand tu voudras publier régulièrement et automatiquement, le Premium prend le relais.",
+    a: "Tout pour démarrer : poser tes fondations (branding, cible, histoire), organiser ton calendrier éditorial, publier et programmer tes contenus sur tes réseaux. Tu as 23 crédits par mois pour créer avec l'IA (1 crédit = 1 création : un texte, un carrousel, une image…), dont 3 carrousels, 5 images et 3 audits au plus. Ils reviennent le 1er de chaque mois.",
   },
   {
     q: "C'est quoi la différence entre le gratuit et le Premium ?",
-    a: "Le gratuit t'aide à publier ton premier contenu. Pour 39 € par mois, le Premium comprend tous tes textes sans compter (audits compris), 20 carrousels, 30 images et 3 vidéos par mois, ainsi que la publication et la programmation.",
+    a: "La différence, c'est la quantité de créations avec l'IA. Le gratuit te donne 23 crédits par mois. Pour 39 € par mois, le Premium comprend tous tes textes sans compter (audits compris), 20 carrousels, 30 images et 3 vidéos par mois, et la Qualité Max des carrousels. La publication et la programmation sont comprises dans les deux.",
   },
   {
     q: "Je peux annuler quand je veux ?",
@@ -114,7 +114,7 @@ export default function PricingPage() {
 
   usePageSEO({
     title: "Tarifs : Gratuit ou Premium",
-    description: "Découvre les formules de l'Assistant Com'. Gratuit pour poser tes bases et publier tes premiers contenus, Premium à 39€/mois pour publier régulièrement et automatiquement.",
+    description: "Découvre les formules de L'Assistant Com'. Gratuit avec 23 crédits par mois pour créer avec l'IA, Premium à 39€/mois : textes sans compter, 20 carrousels, 30 images et 3 vidéos par mois.",
     canonical: "/pricing",
   });
 
@@ -198,7 +198,7 @@ export default function PricingPage() {
             un pour ne plus t'arrêter
           </h1>
           <p className="mt-3 text-muted-foreground text-base sm:text-lg max-w-lg mx-auto">
-            Commence gratuitement. Passe au Premium quand tu veux publier sans y penser.
+            Commence gratuitement avec 23 crédits par mois. Passe au Premium quand tu veux créer sans compter.
           </p>
         </div>
 
@@ -224,7 +224,8 @@ export default function PricingPage() {
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Fondations complètes : branding, cible, histoire</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Calendrier éditorial</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Création de contenu IA pour démarrer</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 23 crédits IA par mois (dont 3 carrousels et 5 images)</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Publication directe et programmation</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Audits IA pour te situer (Instagram, site, LinkedIn)</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Espaces par canal (Instagram, LinkedIn, Pinterest…)</li>
             </ul>
@@ -249,7 +250,7 @@ export default function PricingPage() {
             </div>
             <span className="text-2xl mb-2">🚀</span>
             <h3 className="font-display text-xl font-bold">Premium</h3>
-            <p className="text-xs text-muted-foreground font-medium mt-1">Pour publier régulièrement, sans y penser</p>
+            <p className="text-xs text-muted-foreground font-medium mt-1">Pour créer chaque semaine, sans compter tes crédits</p>
             <p className="text-3xl font-bold mt-2 text-primary">
               39€
               <span className="text-base font-normal text-muted-foreground">/mois</span>
@@ -263,8 +264,6 @@ export default function PricingPage() {
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tous tes textes sans compter</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 20 carrousels (Qualité Max compris), 30 images et 3 vidéos par mois</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Publication directe + programmation automatique</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Multi-réseaux en 1 clic + ouverture dans Canva</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Audits sans compter</li>
             </ul>
             {isAdmin ? (

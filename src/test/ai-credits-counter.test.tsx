@@ -183,3 +183,39 @@ describe("plan illimité", () => {
     expect(mocks.capture).not.toHaveBeenCalled();
   });
 });
+
+describe("ce qui reste par type (chantier E)", () => {
+  const usage = {
+    total: { limit: 23, used: 10 },
+    carousel: { limit: 3, used: 3 },
+    photo_retouch: { limit: 5, used: 1 },
+    video: { limit: 0, used: 0 },
+    audit: { limit: 3, used: 0 },
+    content: { limit: 23, used: 6 },
+  };
+
+  it("gratuit : carrousels, images, vidéos et audits restants", async () => {
+    render(<AiCreditsCounter plan="free" usage={usage} />);
+    await ouvrirPopover();
+    const bloc = screen.getByTestId("credits-par-type");
+    expect(bloc.textContent).toContain("Carrousels0 sur 3");
+    expect(bloc.textContent).toContain("Images4 sur 5");
+    expect(bloc.textContent).toContain("Vidéosavec Premium");
+    expect(bloc.textContent).toContain("Audits3 sur 3");
+  });
+
+  it("Premium : « Illimité » ouvre le détail des plafonds, sans les audits", async () => {
+    render(
+      <AiCreditsCounter
+        plan="outil"
+        usage={{ total: { limit: 200, used: 40 }, carousel: { limit: 20, used: 5 }, photo_retouch: { limit: 30, used: 30 }, video: { limit: 3, used: 1 }, audit: { limit: 200, used: 2 } }}
+      />,
+    );
+    await ouvrirPopover();
+    expect(screen.getByText("Tes textes : sans compter")).toBeTruthy();
+    const bloc = screen.getByTestId("credits-par-type");
+    expect(bloc.textContent).toContain("Carrousels15 sur 20");
+    expect(bloc.textContent).toContain("Images0 sur 30");
+    expect(bloc.textContent).not.toContain("Audits");
+  });
+});

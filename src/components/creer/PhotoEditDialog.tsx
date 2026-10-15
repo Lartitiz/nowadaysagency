@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { readableError } from "@/lib/error-messages";
 import { Loader2, Sparkles, Wand2, RotateCcw, ImagePlus, X } from "lucide-react";
 import {
   Dialog,
@@ -193,7 +194,7 @@ export function PhotoEditDialog({
 
     if (error || !data?.image_base64) {
       toast.error("Édition impossible", {
-        description: error?.message || "Réessaie dans quelques instants.",
+        description: readableError(error, "Réessaie dans quelques instants."),
       });
       return;
     }

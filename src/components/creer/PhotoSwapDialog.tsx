@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { readableError } from "@/lib/error-messages";
 import { Loader2, Search, Upload, Check, Library } from "lucide-react";
 import {
   Dialog,
@@ -99,7 +100,7 @@ export default function PhotoSwapDialog({
       onOpenChange(false);
     } catch (e) {
       toast.error("Import impossible", {
-        description: e instanceof Error ? e.message : "Cette photo n'a pas pu être chargée.",
+        description: readableError(e, "Cette photo n'a pas pu être chargée."),
       });
     } finally {
       setLibraryImporting(false);
@@ -123,7 +124,7 @@ export default function PhotoSwapDialog({
       }
     } catch (e) {
       toast.error("Recherche indisponible", {
-        description: e instanceof Error ? e.message : "Réessaie dans un instant.",
+        description: readableError(e, "Réessaie dans un instant."),
       });
     } finally {
       setSearching(false);
@@ -138,7 +139,7 @@ export default function PhotoSwapDialog({
       onOpenChange(false);
     } catch (e) {
       toast.error("Import impossible", {
-        description: e instanceof Error ? e.message : "Cette photo n'a pas pu être importée.",
+        description: readableError(e, "Cette photo n'a pas pu être importée."),
       });
     } finally {
       setImportingId(null);
