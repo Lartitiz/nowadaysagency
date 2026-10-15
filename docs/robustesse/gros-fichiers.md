@@ -1469,6 +1469,8 @@ Ce qui casse le plus souvent (`git log --since=2026-07-17` : 23 commits) :
 
 Une PR par lot (pas de session Lovable ouverte sur /calendrier pendant ces PR) :
 1. **Lot T** : `src/test/calendar-post-dialog.test.tsx` (tests 1 à 8) + test 9. Aucun code touché.
+   **Fait le 15/10/2026** : `src/test/calendar-post-dialog.test.tsx`, 52 cas, rendu réel de la fenêtre (menus Radix et volets rendus ouverts par des faux ; `CalendarPostContent`, `CalendarPostMetadata` et `CalendarPostPreview` remplacés par des faux qui exposent leurs props). Snapshots des URL et states envoyés à /creer et du corps du brouillon rapide dans `src/test/__snapshots__/`. Test 9 : `calendar-creer-contract.test.ts` lit une liste `FICHIERS_DIALOG` (un chemin à ajouter au lot 7). Vérifié contre 4 pannes volontaires (2e écriture de `markPostPublished` retirée, armement de l'auto-save coupé, date retirée d'« Approfondir », garde « date passée » retirée) : rouges à chaque fois. L'armement n'était vu qu'avec un post existant ouvert sans rien toucher : cas ajouté.
+   À noter pour les lots suivants : la raison exacte de blocage de « Publier maintenant » n'est pas affichée (le bouton est seulement désactivé) ; le test fige l'état activé / désactivé, les textes restent figés par `calendar-caption` et `calendar-reel-integration`.
 2. **Lot 1** : `src/features/calendar/post-dialog-helpers.ts` (fonctions pures). Risque très faible.
 3. **Lot 2** : `PostContextHeader.tsx` et `PostContentViewerSheet.tsx`.
 4. **Lot 3** : `PostEditionBlock.tsx` et `PostActionsFooter.tsx`.
