@@ -23,6 +23,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { installFigeReplay, FIGES_DIR, expectZoneMatches } from "./fige-replay";
+import { sondeResultatActions } from "./resultat-actions-sonde";
 import { exportAndCheckPptx } from "./pptx-export-check";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -129,6 +130,8 @@ test("contenus figés — carrousel texte : texte, design et export identiques �
   });
   expect(report.slideCount, "le PowerPoint n'a pas autant de slides que l'éditeur").toBe(n);
   console.log(`✅ Contenus figés — carrousel texte : ${n} slides identiques à la référence, export PowerPoint valide.`);
+  // Écran du résultat : 3 actions au plus, bouton principal visible (chantier C, ligne 🎛️).
+  await sondeResultatActions(page, "carrousel");
 
   // ── 4 : choisir un texte ne fait pas planter l'éditeur (15/10/2026, #1582) ──
   // La barre flottante mesurait une largeur qui dépendait de sa place : boucle de
