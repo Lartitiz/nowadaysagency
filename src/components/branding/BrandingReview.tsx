@@ -1,18 +1,13 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, Sparkles, ArrowLeft, Lock, Instagram, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
-import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import Confetti from "@/components/Confetti";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { SAVE_FNS, QUERY_KEYS } from "@/lib/branding-review-save";
 import { useReviewCarousel } from "@/components/branding/review/use-review-carousel";
-import { posthog } from "@/lib/posthog-lazy";
+import { useReviewValidation } from "@/components/branding/review/use-review-validation";
 import { BrandPhotosPicker } from "@/components/photos/BrandPhotosPicker";
 import { BrandLogoSuggestion } from "@/components/branding/BrandLogoSuggestion";
 import { COACHING_SECTION_MAP, SECTIONS, type AnalysisResult, type OfferItem, type SectionKey } from "@/components/branding/review/types";
@@ -53,39 +48,9 @@ interface Props {
 // ─── Main Component ──────────────────────────────────────────
 export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFailed = [], onDone, onProgress, preFilledSections, existingOfferNames, onReanalyzeWithBio, onDescribeProject, allSourcesFailed = false, mandatory = false }: Props) {
   const [productPhotosReady, setProductPhotosReady] = useState(false);
-  const { user } = useAuth();
-  const workspaceId = useWorkspaceId();
-  const queryClient = useQueryClient();
-
-  const [validated, setValidated] = useState<Set<SectionKey>>(() => new Set(
-    SECTIONS.filter(s => analysis.reviewed_sections?.includes(s.key)).map(s => s.key),
-  ));
-  const validatedRef = useRef(validated);
-  const written = useRef(new Set<SectionKey>());
-  const savingRef = useRef(false);
-  const markValidated = useCallback(async (key: SectionKey) => {
-    const next = new Set(validatedRef.current).add(key);
-    await onProgress?.([...next]);
-    validatedRef.current = next;
-    setValidated(next);
-  }, [onProgress]);
-  const [savingSection, setSavingSection] = useState<SectionKey | null>(null);
-  const [showConfetti, setShowConfetti] = useState(false);
   const [coachingSection, setCoachingSection] = useState<SectionKey | null>(null);
-  const [refinedSections, setRefinedSections] = useState<Set<SectionKey>>(new Set());
 
   const { total, index, setIndex, finished, goTo, goNext, goPrev, handleTouchStart, handleTouchEnd } = useReviewCarousel(coachingSection);
-  const [toReview, setToReview] = useState<Set<SectionKey>>(new Set());
-  const [validatingAll, setValidatingAll] = useState(false);
-  const waitingForPhotos = mandatory && finished && !productPhotosReady;
-  const canComplete = !mandatory || (finished && productPhotosReady);
-  const completeReview = () => {
-    if (mandatory && !finished) {
-      goTo(total); // Monte la carte photos avant d'autoriser le premier contenu.
-      return;
-    }
-    if (canComplete) onDone(true);
-  };
 
   // Editable offers state
   const [editedOffers, setEditedOffers] = useState<OfferItem[]>(() => analysis.offers?.offers ? [...analysis.offers.offers] : []);
@@ -102,6 +67,19 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
   const handleCharterUpdate = useCallback((charter: NonNullable<AnalysisResult["charter"]>) => {
     setEditedCharter(charter);
   }, []);
+
+  const { validated, savingSection, showConfetti, refinedSections, toReview, validatingAll, handleKeepAsIs, handleToReview, handleValidate, handleValidateAll, completeCoaching } = useReviewValidation({
+    analysis, onProgress, preFilledSections, editedOffers, editedCharter, goNext, setIndex, total, setCoachingSection,
+  });
+  const waitingForPhotos = mandatory && finished && !productPhotosReady;
+  const canComplete = !mandatory || (finished && productPhotosReady);
+  const completeReview = () => {
+    if (mandatory && !finished) {
+      goTo(total); // Monte la carte photos avant d'autoriser le premier contenu.
+      return;
+    }
+    if (canComplete) onDone(true);
+  };
   
   // Instagram bio fallback
   const instagramFailed = sourcesFailed.includes("instagram") || (analysis.sources_failed || []).includes("instagram");
@@ -114,128 +92,6 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
 
   const validatedCount = validated.size;
   const allDone = validatedCount === 7;
-
-  // Log section_validated events — PostHog, PAS ai_usage : ai_usage est la table
-  // de FACTURATION (checkQuota compte toutes ses lignes du mois dans le quota),
-  // y écrire de la télémétrie brûlait des crédits gratuits à chaque validation.
-  const logEvent = useCallback(async (eventType: string, meta?: Record<string, any>) => {
-    if (!user?.id) return;
-    try {
-      posthog.capture(eventType, {
-        source: "branding_autofill",
-        workspace_id: workspaceId !== user.id ? workspaceId : null,
-        ...meta,
-      });
-    } catch { /* silent */ }
-  }, [user?.id, workspaceId]);
-
-  const clearToReview = useCallback((key: SectionKey) => {
-    setToReview((prev) => {
-      if (!prev.has(key)) return prev;
-      const next = new Set(prev);
-      next.delete(key);
-      return next;
-    });
-  }, []);
-
-  // « Garder tel quel » : on valide sans rien réécrire (l'existant prime).
-  const handleKeepAsIs = useCallback(async (key: SectionKey) => {
-    if (savingRef.current) return;
-    savingRef.current = true;
-    setSavingSection(key);
-    try { await markValidated(key); clearToReview(key); goNext(); }
-    catch { toast.error("Impossible d’enregistrer ta relecture. Réessaie."); }
-    finally { savingRef.current = false; setSavingSection(null); }
-  }, [markValidated, clearToReview, goNext]);
-
-  // « À revoir » : on ne jette rien — la section est mise de côté et rappelée
-  // sur la carte de fin, avec le lien pour y revenir.
-  const handleToReview = useCallback((key: SectionKey) => {
-    setToReview((prev) => new Set(prev).add(key));
-    goNext();
-  }, [goNext]);
-
-  const handleValidate = useCallback(async (key: SectionKey) => {
-    if (!user?.id || savingRef.current) return;
-    savingRef.current = true;
-    setSavingSection(key);
-    try {
-      const dataToSave = key === "offers" ? { ...analysis.offers, offers: editedOffers }
-        : key === "charter" ? editedCharter
-        : analysis[key];
-      // `allow_overwrite` est posé par diagnostic-enrichment quand la reprise
-      // d'onboarding a été confirmée à l'écran : dans ce cas seulement, ce que
-      // la personne valide ici écrase ce qui était en place.
-      if (!written.current.has(key)) {
-        await SAVE_FNS[key](dataToSave, user.id, workspaceId, analysis.allow_overwrite === true);
-        written.current.add(key);
-      }
-      for (const qk of QUERY_KEYS[key]) queryClient.invalidateQueries({ queryKey: [qk] });
-      await markValidated(key);
-      clearToReview(key);
-      toast.success("Section sauvegardée ✓");
-      logEvent("section_validated");
-      if (validated.size === 6) {
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 4000);
-      }
-      goNext();
-    } catch (e) {
-      console.error("Save error:", e);
-      toast.error(e instanceof Error ? e.message : "Erreur lors de la sauvegarde");
-    } finally {
-      savingRef.current = false;
-      setSavingSection(null);
-    }
-  }, [user?.id, workspaceId, analysis, editedOffers, editedCharter, validated.size, queryClient, preFilledSections, logEvent, clearToReview, goNext, markValidated]);
-
-  /* « Je valide tout » : le raccourci pour qui fait confiance à l'analyse.
-     On enregistre section par section (les save* écrivent dans 7 tables
-     différentes) et on NE dit jamais « tout est validé » si l'une d'elles a
-     échoué — on ramène alors la carte fautive à l'écran. Une section vide est
-     marquée validée sans écriture : les save* sortent tôt sur données nulles. */
-  const handleValidateAll = useCallback(async () => {
-    if (!user?.id || savingRef.current) return;
-    savingRef.current = true;
-    setValidatingAll(true);
-    const failed: SectionKey[] = [];
-    const reasons: string[] = [];
-    try {
-      for (const sec of SECTIONS) {
-        if (validated.has(sec.key)) continue;
-        const dataToSave = sec.key === "offers" ? { ...analysis.offers, offers: editedOffers }
-          : sec.key === "charter" ? editedCharter
-          : analysis[sec.key];
-        try {
-          if (!written.current.has(sec.key)) {
-            await SAVE_FNS[sec.key](dataToSave, user.id, workspaceId, analysis.allow_overwrite === true);
-            written.current.add(sec.key);
-          }
-          for (const qk of QUERY_KEYS[sec.key]) queryClient.invalidateQueries({ queryKey: [qk] });
-          await markValidated(sec.key);
-          clearToReview(sec.key);
-        } catch (e) {
-          console.error("[valider tout]", sec.key, e);
-          failed.push(sec.key);
-          if (e instanceof Error) reasons.push(e.message);
-        }
-      }
-      logEvent("branding_validate_all", { failed: failed.length });
-      if (failed.length > 0) {
-        const labels = failed.map((k) => SECTIONS.find((s) => s.key === k)?.title || k).join(", ");
-        toast.error(`Je n'ai pas réussi à enregistrer : ${labels}. Reprends ${failed.length > 1 ? "ces cartes" : "cette carte"} une par une. ${reasons[0] || ""}`);
-        setIndex(SECTIONS.findIndex((s) => s.key === failed[0]));
-      } else {
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 4000);
-        toast.success("Toute ta fiche est validée ✓");
-        setIndex(total);
-      }
-    } finally {
-      savingRef.current = false;
-      setValidatingAll(false);
-    }
-  }, [user?.id, validatingAll, validated, analysis, editedOffers, editedCharter, workspaceId, queryClient, clearToReview, logEvent, total, markValidated]);
 
   const overallConf = analysis.overall_confidence || "medium";
   const confMessages: Record<string, { emoji: string; text: string }> = {
@@ -351,23 +207,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
               section={COACHING_SECTION_MAP[coachingSection] as any}
               autofillData={analysis[coachingSection]}
               autofillConfidence={getConfidence(analysis[coachingSection])}
-              onComplete={async () => {
-                if (savingRef.current) return;
-                savingRef.current = true;
-                try {
-                  written.current.add(coachingSection);
-                  await markValidated(coachingSection);
-                setRefinedSections((prev) => new Set(prev).add(coachingSection));
-                for (const qk of QUERY_KEYS[coachingSection]) queryClient.invalidateQueries({ queryKey: [qk] });
-                clearToReview(coachingSection);
-                setCoachingSection(null);
-                toast.success("Section affinée et sauvegardée ✓");
-                logEvent("section_validated");
-                if (validated.size === 6) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
-                goNext();
-                } catch { toast.error("La section est enregistrée, mais sa relecture n’a pas pu être confirmée. Réessaie."); }
-                finally { savingRef.current = false; }
-              }}
+              onComplete={() => completeCoaching(coachingSection)}
               onBack={() => setCoachingSection(null)}
             />
           </motion.div>
