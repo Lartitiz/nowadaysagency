@@ -1813,7 +1813,7 @@ function CreerWorkspace() {
                 onRegenerate={handleRegenerate}
                 onCopy={handleCopy}
                 onSave={effectiveHandleSave}
-                saveNotice={isDemoMode || carouselCloudEnabled ? undefined : ideaSaveNotice}
+                saveNotice={isDemoMode || carouselCloudEnabled ? undefined : ideaSaveNotice} autoSavedToIdeas={carouselCloudEnabled}
                 savingContent={ideaSaving}
                 canAutoPublish={!!publishChannel}
                 reelMp4Url={reelMp4Url}

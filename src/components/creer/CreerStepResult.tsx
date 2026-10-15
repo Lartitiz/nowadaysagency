@@ -1,6 +1,6 @@
-import { newsletterCopyText } from "@/lib/newsletter-copy";
+import { resultCopyText } from "@/lib/result-copy-text";
 import { copyTextForChannel } from "@/lib/linkedin-copy";
-import { Loader2, Pencil, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight, Send, MoreHorizontal } from "lucide-react";
+import { Loader2, Pencil, Palette, Sparkles, ArrowUpRight } from "lucide-react";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import type { CarouselQuality } from "@/hooks/use-carousel-quality";
 import { Link } from "react-router-dom";
@@ -19,10 +19,9 @@ import PinterestPhotoBriefResult from "@/components/creer/formatRenderers/Pinter
 import Confetti from "@/components/Confetti";
 import { CarouselDraftPreview, type DraftSlide } from "@/components/creer/CarouselDraftPreview";
 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
-import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
+import ResultActions from "@/components/creer/ResultActions";
+import GenerationTimeHint from "@/components/creer/GenerationTimeHint";
 import { getIncludeLogoPref, setIncludeLogoPref } from "@/lib/export-logo";
-import { EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, type EditorialAngle } from "@/lib/content-structures";
 
 /**
  * Nettoie le contenu streamé en temps réel.
@@ -51,33 +50,6 @@ function cleanStreamingContent(raw: string): string {
 
   return cleaned;
 }
-/** Héros « Ouvrir dans Canva » — partagé carrousel/stories (panneau minimal #608). */
-function CanvaHeroButton({ onClick, loading }: { onClick: () => void; loading?: boolean }) {
-  return (
-    <Button
-      onClick={onClick}
-      disabled={loading}
-      className="w-full gap-2 h-12 text-base font-semibold bg-primary hover:bg-primary text-white border-none"
-    >
-      {loading ? (
-        <Loader2 className="h-5 w-5 animate-spin" />
-      ) : (
-        <svg viewBox="0 0 32 32" className="h-5 w-5 shrink-0" aria-hidden="true">
-          <defs>
-            <linearGradient id="canvaHeroG" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#00C4CC" />
-              <stop offset="100%" stopColor="#7D2AE8" />
-            </linearGradient>
-          </defs>
-          <circle cx="16" cy="16" r="16" fill="url(#canvaHeroG)" />
-          <text x="16" y="23" textAnchor="middle" fontSize="20" fontWeight="700" fill="#ffffff" fontFamily="Georgia, serif">C</text>
-        </svg>
-      )}
-      {loading ? "Ouverture…" : "Ouvrir dans Canva"}
-    </Button>
-  );
-}
-
 // ── Progress messages par format ──
 const PROGRESS_MESSAGES: Record<string, string[]> = {
   carousel: [
@@ -223,18 +195,6 @@ function SkeletonPreview({ format }: { format: string }) {
     </div>
   );
 }
-// Cibles possibles pour "Transformer en…" — utilisent les format IDs internes
-// (cf. CreerUnifie paramFormat).
-const TRANSFORM_TARGETS: { id: string; emoji: string; label: string }[] = [
-  { id: "carousel", emoji: "🎠", label: "Carrousel Instagram" },
-  { id: "post", emoji: "📸", label: "Post Instagram" },
-  { id: "reel", emoji: "🎬", label: "Reel" },
-  { id: "story", emoji: "📱", label: "Stories" },
-  { id: "linkedin", emoji: "💼", label: "Post LinkedIn" },
-  { id: "newsletter", emoji: "📧", label: "Newsletter" },
-  { id: "pinterest_visual", emoji: "📌", label: "Pinterest visuel" },
-  { id: "pinterest_photo", emoji: "📌", label: "Pinterest photo" },
-];
 
 interface Props {
   result: any;
@@ -263,6 +223,8 @@ interface Props {
   onPostPhotosChange?: (photos: PhotoItem[]) => void | Promise<void>;
   onSave?: () => void;
   saveNotice?: string;
+  /** Carrousel enregistré tout seul dans Mes idées : on le dit au lieu d'un bouton. */
+  autoSavedToIdeas?: boolean;
   savingContent?: boolean;
   canAutoPublish?: boolean;
   /** Ouvre la fenêtre « Publier ou programmer » (ou sauvegarde directe si fromCalendar). */
@@ -348,6 +310,7 @@ export default function CreerStepResult({
   onPostPhotosChange,
   onSave,
   saveNotice,
+  autoSavedToIdeas,
   savingContent,
   canAutoPublish,
   onPublishOrSchedule,
@@ -418,9 +381,8 @@ export default function CreerStepResult({
     { key: "script" | "tournage" | "montage" | "caption"; step: number; isLast: boolean; montageDone: boolean } | null
   >(null);
 
-  // Encadrés sauvegarde + contrôle qualité du carrousel : rendus sous les
-  // boutons « Enregistrer mon contenu / Créer un nouveau contenu » via un
-  // portail (lisibilité — ils n'écrasent plus le haut de l'éditeur).
+  // Encadrés sauvegarde + contrôle qualité du carrousel : rendus sous la
+  // barre d'actions (ResultActions) via un portail (lisibilité — ils n'écrasent plus le haut de l'éditeur).
   const [carouselToolsSlot, setCarouselToolsSlot] = useState<HTMLElement | null>(null);
 
 
@@ -515,6 +477,7 @@ export default function CreerStepResult({
               <span className="inline-block w-0.5 h-4 bg-primary animate-pulse ml-0.5" />
             </div>
             <p className="text-xs text-center text-muted-foreground">L'IA rédige en temps réel…</p>
+            <GenerationTimeHint format={format} startedAt={startTimeRef.current} afterPlan={step2of2} />
           </div>
         );
       }
@@ -533,6 +496,7 @@ export default function CreerStepResult({
             </div>
           )}
           <CarouselDraftPreview slides={draftSlides ?? []} outline={outlineTitles} stage={generationStage} photos={photos} />
+          <GenerationTimeHint format={format} startedAt={startTimeRef.current} afterPlan={step2of2} />
           {qualityMax && (
             <p className="text-xs text-center text-primary/80 font-medium">
               ✨ Mode qualité Max activé — c'est plus long, mais plus soigné.
@@ -572,6 +536,7 @@ export default function CreerStepResult({
               style={{ width: `${displayedProgress}%` }}
             />
           </div>
+          <GenerationTimeHint format={format} startedAt={startTimeRef.current} afterPlan={step2of2} />
           {qualityMax ? (
             <p className="text-xs text-center text-primary/80 font-medium">
               ✨ Mode qualité Max activé — c'est plus long, mais plus soigné.
@@ -633,71 +598,7 @@ export default function CreerStepResult({
   // Texte propre à copier selon le format (déplacé tel quel dans le menu « Autres actions »).
   // LinkedIn n'interprète pas le markdown : un **gras** collé resterait en
   // astérisques. Même nettoyage que la publication directe (linkedin-graph).
-  const copyOut = (text: string) => onCopy(copyTextForChannel(text, format));
-  const handleCopyText = () => {
-    if (format === "newsletter") { copyOut(newsletterCopyText(result)); return; }
-    if (typeof result?.edited_text === "string" && format !== "reel") { copyOut(result.edited_text); return; }
-    if (format === "pinterest_photo" && result?.title) {
-      const b = result.photo_brief;
-      const briefText = b ? `\n\n📷 BRIEF PHOTO :\n• Sujet : ${b.what}\n• Cadrage : ${b.framing}\n• Lumière : ${b.lighting}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood}` : "";
-      copyOut(`📌 ${result.title}\n\n${result.description || ""}${briefText}`);
-      return;
-    }
-    if (format === "reel" && (result?.sections || result?.script)) {
-      // « Copier » suit l'ÉTAPE affichée. Sans ça, à l'étape « Légende » ce
-      // menu copiait le script alors qu'un bouton « Copier » juste au-dessus
-      // copiait la caption : deux boutons du même nom, deux résultats.
-      if (reelStep?.key === "caption") {
-        const c = result?.caption && typeof result.caption === "object" ? result.caption : null;
-        const tags = Array.isArray(result?.hashtags) ? result.hashtags.filter((h: unknown) => typeof h === "string") : [];
-        const captionText = [c?.text, c?.cta, tags.length ? tags.join(" ") : null].filter(Boolean).join("\n\n");
-        if (captionText) {
-          copyOut(captionText);
-          return;
-        }
-      }
-      if (reelStep?.key === "tournage" && Array.isArray(result?.plan_tournage) && result.plan_tournage.length > 0) {
-        const shots = result.plan_tournage
-          .map((s: any, i: number) => {
-            const type = s?.type === "face_cam" ? "Face cam" : s?.type === "insert" ? "Insert" : "B-roll";
-            return [`${i + 1}. [${type}${s?.duree ? ` · ${s.duree}` : ""}] ${s?.plan || ""}`, s?.conseil ? `   💡 ${s.conseil}` : ""]
-              .filter(Boolean)
-              .join("\n");
-          })
-          .join("\n\n");
-        copyOut(`🎥 Plan de tournage\n\n${shots}`);
-        return;
-      }
-      const reelSections = result.sections || result.script || [];
-      const scriptText = reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n");
-      const tip = result.personal_tip ? `\n\n🎯 ${result.personal_tip}` : "";
-      copyOut(`🎬 Script Reel (${result.duree_cible || ""})\n\n${scriptText}${tip}`);
-      return;
-    }
-    if (format === "pinterest_visual" && result?.title) {
-      copyOut(`${result.title}\n\n${result.description || ""}`);
-      return;
-    }
-    if (format === "story" && Array.isArray(result?.stories)) {
-      const storiesText = result.stories
-        .map((s: any, i: number) => {
-          const text = s?.text || s?.texte || s?.content || "";
-          const sticker = s?.sticker?.type ? ` [sticker : ${s.sticker.type}]` : "";
-          return text ? `📱 Story ${i + 1}${s?.timing ? ` (${s.timing})` : ""}${sticker}\n${text}` : "";
-        })
-        .filter(Boolean)
-        .join("\n\n");
-      if (storiesText) {
-        copyOut(storiesText);
-        return;
-      }
-    }
-    const cleanText =
-      result?.full_text ||
-      result?.content ||
-      [result?.hook, result?.body, result?.cta].filter(Boolean).join("\n\n").trim();
-    copyOut(cleanText || JSON.stringify(result, null, 2));
-  };
+  const handleCopyText = () => onCopy(copyTextForChannel(resultCopyText(format, result, reelStep?.key), format));
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -738,7 +639,7 @@ export default function CreerStepResult({
           </Button>
         </div>
       )}
-      {renderResult()}
+      <div data-testid="result-content">{renderResult()}</div>
 
       {/* Nudge personnalisation : les visuels utilisent une palette par défaut
           tant que la charte n'a pas de couleurs. On invite à la poser pour des
@@ -756,20 +657,8 @@ export default function CreerStepResult({
         </Link>
       )}
 
-      {/* The in-app document is ready to publish; Canva is an optional handoff. */}
-      {isCarousel && hasVisuals && onOpenInCanva && (
-        <Button variant="outline" className="max-w-full h-auto min-h-11 whitespace-normal px-4" onClick={onOpenInCanva} disabled={openingCanva}>{openingCanva ? "Ouverture…" : "Continuer dans Canva (optionnel)"}</Button>
-      )}
-
-      {/* HÉROS stories : mêmes visuels prêts à publier que le carrousel — le
-          bouton Canva vit dans le panneau, pas caché au-dessus des cartes. */}
-      {isStory && storyActions && (
-        <CanvaHeroButton onClick={storyActions.openInCanva} loading={storyActions.openingCanva} />
-      )}
-
-      {/* CTAs principaux — panneau « ultra-minimal » : 3 choix visibles
-          (Canva / Créer les visuels, Publier ou programmer, Autres actions).
-          Télécharger, Copier, les retouches et le rangement vivent dans le menu. */}
+      {/* Carrousel sans visuels : « Créer les visuels » est l'action principale.
+          Les autres actions vivent dans la barre collée en bas (ResultActions). */}
       {isCarousel && !hasVisuals && (
         <div className="space-y-3">
           {visualLoading ? (
@@ -839,254 +728,46 @@ export default function CreerStepResult({
         </div>
       )}
 
-      {format === "newsletter" && (
-        <div className="space-y-2">
-          <Button onClick={handleCopyText} className="w-full gap-2 h-11" data-testid="copy-newsletter">
-            <Copy className="h-4 w-4" /> Copier ma newsletter
-          </Button>
-          <p className="text-xs text-muted-foreground text-center">Colle-la dans ton outil d’emailing pour l’envoyer. Aucun email n’est envoyé depuis cet écran.</p>
-        </div>
-      )}
-
-      {/* Publier ou programmer : porte d'entrée unique vers publication immédiate,
-          programmation auto et brouillon calendrier (fenêtre gérée par le parent).
-          Pour un reel, n'apparaît qu'à la DERNIÈRE étape du parcours : proposer
-          de publier avant que la vidéo soit tournée n'a pas de sens. Le test est
-          écrit à l'envers (`!== false`) exprès — tant qu'aucune étape n'est
-          remontée, on montre le bouton. */}
-      {onPublishOrSchedule && (format !== "reel" || reelStep?.isLast !== false) && (
-        <Button
-          data-testid="publish-or-schedule"
-          onClick={onPublishOrSchedule}
-          variant={
-            (isCarousel && !hasVisuals && onGenerateVisuals && !visualLoading) ||
-            (isStory && !!storyActions) || format === "newsletter" || canAutoPublish === false
-              ? "outline"
-              : "default"
-          }
-          className="w-full gap-2 h-11 text-sm font-semibold"
-        >
-          <Send className="h-4 w-4" /> {publishOrScheduleLabel || (format === "newsletter" || canAutoPublish === false ? "Ajouter au calendrier" : "Publier ou programmer")}
-        </Button>
-      )}
-
-      {/* Autres actions : télécharger, copier, retouches et rangement dans UN menu */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" data-testid="more-actions" className="w-full gap-1.5 h-10 text-sm text-muted-foreground">
-            <MoreHorizontal className="h-4 w-4" /> Autres actions <ChevronDown className="h-3 w-3 ml-0.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="center" className="w-72">
-          {/* ── Récupérer le visuel / le texte ── */}
-          {isCarousel && hasVisuals && (onExportVisualPng || onExportHybridPptx) && (
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="gap-2">
-                <Download className="h-4 w-4" /> Télécharger
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-64">
-                <DownloadMenuItems
-                  onPng={onExportVisualPng}
-                  onPdf={onExportVisualPdf}
-                  onPptxEditable={onExportHybridPptx}
-                  count={visualSlides?.length ?? 1}
-                  logoAvailable={logoAvailable}
-                  includeLogo={includeLogo}
-                  onIncludeLogoChange={handleIncludeLogoChange}
-                />
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          )}
-          {isCarousel && !hasVisuals && onExportPptx && (
-            <DropdownMenuItem onClick={onExportPptx} className="gap-2">
-              <Download className="h-4 w-4" />
-              <div className="flex flex-col">
-                <span>Télécharger PPTX</span>
-                <span className="text-2xs text-muted-foreground whitespace-normal max-w-[220px] leading-snug">
-                  Installe les polices de ta marque pour conserver leur rendu dans PowerPoint.
-                </span>
-              </div>
-            </DropdownMenuItem>
-          )}
-          {isStory && storyActions && (
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="gap-2">
-                <Download className="h-4 w-4" /> Télécharger
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-64">
-                <DownloadMenuItems
-                  onPng={storyActions.exportPng}
-                  onPptxEditable={storyActions.exportPptx}
-                  downloadingPng={storyActions.exporting}
-                  downloadingPptx={storyActions.exportingPptx}
-                  count={storyActions.frameCount}
-                />
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          )}
-          {format === "pinterest_visual" && (result?.pin_html || result?.title) && (onExportPinterestPng || onExportPinterestEditablePptx) && (
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="gap-2">
-                <Download className="h-4 w-4" /> Télécharger
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-64">
-                <DownloadMenuItems
-                  onPng={onExportPinterestPng}
-                  onPptxEditable={onExportPinterestEditablePptx}
-                  count={1}
-                  logoAvailable={logoAvailable}
-                  includeLogo={includeLogo}
-                  onIncludeLogoChange={handleIncludeLogoChange}
-                />
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          )}
-          {format === "pinterest_photo" && result?.overlay_html && onExportPinterestPng && (
-            <DropdownMenuItem onClick={onExportPinterestPng} className="gap-2">
-              <Download className="h-4 w-4" /> Télécharger PNG
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={handleCopyText} className="gap-2">
-            <Copy className="h-4 w-4" /> Copier le texte
-          </DropdownMenuItem>
-
-          <DropdownMenuSeparator />
-
-          {/* ── Affiner ── */}
-          {isCarousel && hasVisuals && onGenerateVisuals && (
-            <DropdownMenuItem onClick={onGenerateVisuals} disabled={visualLoading} className="gap-2">
-              {visualLoading ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Génération…</>
-              ) : (
-                <><RefreshCw className="h-4 w-4" /> Regénérer les visuels</>
-              )}
-            </DropdownMenuItem>
-          )}
-          {isCarousel && result && (
-            <DropdownMenuItem
-              onClick={onRegenerate}
-              title="Régénère le carrousel sur le même sujet (compte pour 1 carrousel du mois)."
-              className="gap-2"
-            >
-              <RefreshCw className="h-4 w-4" /> Nouvelle proposition <span className="ml-auto text-2xs text-muted-foreground">1 carrousel</span>
-            </DropdownMenuItem>
-          )}
-          {onChangeAngle && result && (() => {
-            const angleList: EditorialAngle[] =
-              currentChannel === "linkedin" ? LINKEDIN_EDITORIAL_ANGLES :
-              currentChannel === "pinterest" ? PINTEREST_EDITORIAL_ANGLES :
-              EDITORIAL_ANGLES;
-            const currentLabel = currentAngle ? angleList.find(a => a.id === currentAngle)?.label : null;
-            return (
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="gap-2">
-                  <Palette className="h-4 w-4" /> Changer d'angle
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-72 max-h-96 overflow-y-auto">
-                  {currentLabel && (
-                    <DropdownMenuLabel className="text-2xs text-muted-foreground font-normal">
-                      Actuel : {currentLabel}
-                    </DropdownMenuLabel>
-                  )}
-                  <DropdownMenuItem onClick={() => onChangeAngle(null)} className="gap-2">
-                    <Sparkles className="h-4 w-4 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold">Laisser l'IA choisir</p>
-                      <p className="text-2xs text-muted-foreground">Selon ton idée et ta voix</p>
-                    </div>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {angleList.map((a) => (
-                    <DropdownMenuItem
-                      key={a.id}
-                      onClick={() => onChangeAngle(a.id)}
-                      disabled={a.id === currentAngle}
-                      className="gap-2"
-                    >
-                      <span className="text-base shrink-0">{a.emoji}</span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold">{a.label}</p>
-                        <p className="text-2xs text-muted-foreground line-clamp-2">{a.principle}</p>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            );
-          })()}
-          {sourceIdea && sourceIdea.trim().length > 0 && (() => {
-            const targets = TRANSFORM_TARGETS.filter((t) => t.id !== format);
-            return (
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="gap-2">
-                  <ArrowUpRight className="h-4 w-4" /> Transformer en
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-64">
-                  <DropdownMenuLabel className="text-2xs font-normal text-muted-foreground">
-                    Ouvre un nouvel onglet pré-rempli
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {targets.map((t) => (
-                    <DropdownMenuItem
-                      key={t.id}
-                      onClick={() => {
-                        const params = new URLSearchParams({
-                          sujet: sourceIdea,
-                          ...(sourceObjective ? { objectif: sourceObjective } : {}),
-                          format: t.id,
-                          ...(sourceAngle ? { angle: sourceAngle } : {}),
-                          from: "transform",
-                        });
-                        window.open(`/creer?${params.toString()}`, "_blank", "noopener,noreferrer");
-                      }}
-                      className="gap-2 cursor-pointer"
-                    >
-                      <span className="text-base">{t.emoji}</span>
-                      <span className="text-sm">{t.label}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            );
-          })()}
-
-          <DropdownMenuSeparator />
-
-          {/* ── Ranger ── (« Garder en idée » est un bouton visible plus bas) */}
-          <DropdownMenuItem onClick={onReset} className="gap-2">
-            <RotateCcw className="h-4 w-4" /> Nouveau contenu
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Sortie visible pour repartir de zéro : avant, la seule porte était
-          cachée tout en bas du menu « Autres actions » — sur un contenu déjà
-          terminé arrivé sans ?new=1 (brouillon restauré silencieusement),
-          rien à l'écran ne disait comment démarrer un nouveau contenu. */}
-      {saveNotice && <p role="status" className="text-sm text-muted-foreground rounded-xl border border-border bg-muted/20 p-3">{saveNotice}</p>}
-      <div className="flex flex-col sm:flex-row gap-2">
-        {/* « Garder en idée » sorti du menu « Autres actions » : c'est la porte
-            vers /idees (état « En cours »), elle doit se voir. */}
-        {onSave && (
-          <Button
-            onClick={onSave}
-            disabled={savingContent}
-            variant="outline"
-            data-testid="save-as-idea"
-            className="w-full sm:flex-1 gap-2 h-10 text-sm font-medium"
-          >
-            <Lightbulb className="h-4 w-4" /> {savingContent ? "Enregistrement…" : "Enregistrer mon contenu"}
-          </Button>
-        )}
-        <Button
-          onClick={onReset}
-          disabled={savingContent}
-          variant="outline"
-          className="w-full sm:flex-1 gap-2 h-10 text-sm font-medium"
-        >
-          <RotateCcw className="h-4 w-4" /> Créer un nouveau contenu
-        </Button>
-      </div>
+      <ResultActions
+        format={format}
+        result={result}
+        hasVisuals={hasVisuals}
+        visualCount={visualSlides?.length ?? 1}
+        visualLoading={visualLoading}
+        createVisualsPending={isCarousel && !hasVisuals && !!onGenerateVisuals}
+        onGenerateVisuals={onGenerateVisuals}
+        // Reel : publier seulement à la DERNIÈRE étape (on ne publie pas une vidéo
+        // pas encore tournée). Test à l'envers (`!== false`) exprès : tant
+        // qu'aucune étape n'est remontée, le bouton s'affiche.
+        onPublishOrSchedule={format !== "reel" || reelStep?.isLast !== false ? onPublishOrSchedule : undefined}
+        publishOrScheduleLabel={publishOrScheduleLabel}
+        canAutoPublish={canAutoPublish}
+        onCopyText={handleCopyText}
+        storyActions={isStory ? storyActions : null}
+        onExportVisualPng={onExportVisualPng}
+        onExportVisualPdf={onExportVisualPdf}
+        onExportHybridPptx={onExportHybridPptx}
+        onExportPptx={onExportPptx}
+        onExportPinterestPng={onExportPinterestPng}
+        onExportPinterestEditablePptx={onExportPinterestEditablePptx}
+        onOpenInCanva={onOpenInCanva}
+        openingCanva={openingCanva}
+        logoAvailable={logoAvailable}
+        includeLogo={includeLogo}
+        onIncludeLogoChange={handleIncludeLogoChange}
+        onSave={onSave}
+        savingContent={savingContent}
+        saveNotice={saveNotice}
+        autoSavedToIdeas={autoSavedToIdeas}
+        onReset={onReset}
+        onRegenerate={onRegenerate}
+        onChangeAngle={onChangeAngle}
+        currentAngle={currentAngle}
+        currentChannel={currentChannel}
+        sourceIdea={sourceIdea}
+        sourceObjective={sourceObjective}
+        sourceAngle={sourceAngle}
+      />
 
       {/* Encadrés sauvegarde + contrôle qualité (rendus par CarouselEditor
           via un portail) : sous les actions principales, jamais au-dessus. */}

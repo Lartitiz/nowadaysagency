@@ -1145,6 +1145,8 @@ Les plages de lignes de chaque fiche ont été relevées le 15/10/2026 ; comme p
 
 ### 11. `src/components/creer/CreerStepResult.tsx` — 1 096 lignes
 
+> **Mis à jour le 15/10/2026 (chantier C du plan simplicité)** : les actions d'après (blocs 15 à 19 ci-dessous : boutons, menu « Autres actions », enregistrer, repartir de zéro) sont sorties dans `src/components/creer/ResultActions.tsx` (barre collée en bas, 3 actions au plus + menu « Plus d'options ») ; le texte à copier dans `src/lib/result-copy-text.ts` ; la durée annoncée pendant l'attente dans `GenerationTimeHint.tsx`. Le fichier est passé à 777 lignes (sous le seuil de 800, sorti du cliquet). Garde-fou : `src/test/creer-resultat-actions.test.tsx`. Les plages de lignes ci-dessous datent d'avant ce changement.
+
 **En une phrase :** c'est l'écran « résultat » de /creer pour tous les formats. Il affiche l'attente pendant la génération (texte qui s'écrit en direct, brouillon de carrousel, barre et astuces), fête l'arrivée du résultat, choisit le bon écran de format (`switch (format)`), puis affiche tous les boutons d'après : créer les visuels, publier ou programmer, le menu « Autres actions » (télécharger, copier, changer d'angle, transformer en…), enregistrer et repartir de zéro.
 
 > Lignes vérifiées le 15/10/2026 sur `f70c0f28c` (dernier commit sur le fichier : `7b4e93239`, 08/10/2026, « Carrousels photo et mixte : plan et brouillons pendant l'attente »). Les numéros bougent à chaque modification : le **repère** (nom de fonction, d'état ou de commentaire) est la référence fiable.

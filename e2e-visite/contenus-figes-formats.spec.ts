@@ -259,9 +259,9 @@ test("contenus figés — post Instagram", async ({ page }) => {
   await generate(page);
   await waitResult(page);
   if (fige.recording) { await fige.save(); await dumpStructure(page, name); }
-  // Le texte du post : le bloc résultat juste au-dessus des actions.
-  const result = page.getByTestId("publish-or-schedule").first()
-    .locator("xpath=ancestor::div[contains(@class,'space-y-4')][1]");
+  // Le texte du post seul (chantier C, 15/10/2026) : la barre d'actions, collée
+  // en bas de l'écran, n'est plus dans la zone comparée.
+  const result = page.getByTestId("result-content").first();
   await compareZones(page, name, fige, [{
     label: "post",
     locator: result,

@@ -50,29 +50,19 @@ export async function exportAndCheckPptx(
   const outName = opts.outName || `export-${opts.format}.pptx`;
   const vopts = { minSlides: 3, expectEditableText: true, backgroundIsDecorative: true, ...(opts.validate || {}) };
 
-  // Depuis l'écran résultat #608, le téléchargement n'est plus un bouton de
-  // premier niveau (ceux-ci = Canva / Publier ou programmer / Autres actions) :
-  // « PowerPoint : éditable » vit dans « Autres actions » → sous-menu « Télécharger ».
+  // Depuis le chantier C (15/10/2026), le téléchargement est le bouton
+  // « Télécharger mes visuels » de la barre d'actions (menu direct, sans sous-menu).
   // html2canvas × N slides peut être long → 240 s pour l'événement download.
   //
-  // Le sous-menu « Télécharger » n'existe qu'une fois les visuels DESSINÉS
-  // (`hasVisuals`, CreerStepResult) ; avant, le menu n'offre que « Télécharger
-  // PPTX » (texte brut). Or l'écran résultat s'affiche dès le TEXTE prêt et les
-  // visuels se dessinent ensuite en arrière-plan (« Pas besoin d'attendre ici »)
-  // — le 14/09, photo + mixte ont ouvert le menu en plein « Création du layout »
-  // et échoué en 8 s. On rouvre donc le menu jusqu'à ce que le sous-menu
-  // apparaisse (plafond 180 s : au-delà, c'est bien les visuels qui manquent).
-  const dlSub = page.getByRole("menuitem", { name: "Télécharger", exact: true }).first();
-  const deadline = Date.now() + 180_000;
-  for (;;) {
-    await page.getByTestId("more-actions").click();
-    if (await dlSub.waitFor({ state: "visible", timeout: 3000 }).then(() => true, () => false)) break;
-    if (Date.now() > deadline) break;
-    await page.keyboard.press("Escape");
-    await page.waitForTimeout(5000);
-  }
-  await expect(dlSub).toBeVisible({ timeout: 1000 });
-  await dlSub.hover(); // Radix : le survol du sous-déclencheur ouvre le sous-menu
+  // Ce bouton n'existe qu'une fois les visuels DESSINÉS (`hasVisuals`) ; avant,
+  // la barre propose « Copier mon texte ». Or l'écran résultat s'affiche dès le
+  // TEXTE prêt et les visuels se dessinent ensuite en arrière-plan — le 14/09,
+  // photo + mixte ont cherché le menu en plein « Création du layout » et échoué
+  // en 8 s. On attend donc le bouton (plafond 180 s : au-delà, ce sont bien les
+  // visuels qui manquent).
+  const dlButton = page.getByTestId("download-visuals").first();
+  await expect(dlButton).toBeVisible({ timeout: 180_000 });
+  await dlButton.click();
   // Le séparateur du libellé a déjà bougé une fois (« — » → « : », #701 charte
   // lot 3) : on n'accroche QUE les deux mots stables, jamais la ponctuation —
   // sinon un simple lifting de charte rend l'export PPTX invisible à la sonde.
