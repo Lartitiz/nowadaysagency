@@ -13,10 +13,6 @@
       "lignes": 851,
       "any": 28
     },
-    "src/components/branding/BrandingReview.tsx": {
-      "lignes": 1013,
-      "any": 26
-    },
     "src/components/branding/SynthesisRenderer.tsx": {
       "lignes": 1081,
       "any": 19
