@@ -1,5 +1,4 @@
 import { readableError } from "@/lib/error-messages";
-import { reelSourceKey } from "@/lib/reel-publication";
 // build 2026-07-23c
 /**
  * ReelMontage — écran de montage d'un reel (Phase 1, beta).
@@ -28,15 +27,11 @@ import {
   type StockVideo,
 } from "@/lib/stock-videos";
 import {
-  buildRenderPlan,
-  countSectionsWithoutVoice,
-  sectionsWithVoiceButNoClip,
   submitReelRender,
   pollReelRender,
   archiveReelMp4,
   sectionDuration,
   voiceSectionDuration,
-  subtitleSettingsFromCharter,
 } from "@/lib/reel-render";
 import { useBrandCharter } from "@/hooks/use-branding";
 import type { VoiceClip } from "@/lib/reel-voice";
@@ -50,6 +45,9 @@ import { readStudioVideo, type StudioVideoJob } from "@/features/studio-video/ap
 import { MontageModeFork, MontageModeSummary } from "@/features/reel-montage/MontageModeChoice";
 import { MontageVoiceChoice } from "@/features/reel-montage/MontageVoiceChoice";
 import { StudioClipDialog } from "@/features/reel-montage/StudioClipDialog";
+import { montageRenderKey, savedMontageProject } from "@/features/reel-montage/montage-project";
+import { assembleRefusal, chosenClips, voiceGuards } from "@/features/reel-montage/assemble-guards";
+import { buildMontagePlan } from "@/features/reel-montage/build-montage-plan";
 import { fromMine, fromStock, set, type MontageMode, type Phase, type ReelMontageProject, type Section, type SelectedClip, type StudioCutaway } from "@/features/reel-montage/types";
 
 // Réexportation : ReelResult.tsx et les tests importent ce type depuis ce fichier (fiche 16, lot 1).
@@ -159,17 +157,12 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
 
   // Changing any render input invalidates publication, while preserving takes,
   // chosen clips and the old downloadable MP4. Late rendering responses are ignored.
-  const renderKey = JSON.stringify([reelSourceKey({ sections }),
-    clips.map(clip => clip?.source === "studio" ? { ...clip, url: "" } : clip),
-    cutaways.map(plan => plan ? { ...plan, url: "" } : plan),
-    voiceClips, voiceMode, montageMode, subtitleSettingsFromCharter(charter)]);
+  const renderKey = montageRenderKey({ sections, clips, cutaways, voiceClips, voiceMode, montageMode, charter });
   const projectCallback = useRef(onProjectChange);
   projectCallback.current = onProjectChange;
   const lastPersistedProject = useRef<string | null>(null);
   useEffect(() => {
-    const project: ReelMontageProject = { version: 1, sectionTexts: associationTexts, montageMode, voiceMode,
-      clips: clips.map(clip => clip?.source === "studio" ? { ...clip, url: "" } : clip),
-      voiceClips, cutaways: cutaways.map(plan => plan ? { ...plan, url: "" } : plan) };
+    const project = savedMontageProject({ associationTexts, montageMode, voiceMode, clips, voiceClips, cutaways });
     const key = JSON.stringify(project);
     if (lastPersistedProject.current === null) { lastPersistedProject.current = key; return; }
     if (lastPersistedProject.current === key) return;
@@ -285,46 +278,14 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
 
   async function handleAssemble() {
     if (renderBusy.current || archiveBusy.current) return;
-    if (needsReview) { toast.error("Vérifie les passages après la modification du texte."); return; }
-    if (montageMode === "filme" && clips.some(clip => clip?.source === "studio")) {
-      toast.error("Un clip du Studio est muet. Choisis une prise face caméra pour porter ta voix, puis ajoute ce clip comme plan.");
-      return;
-    }
+    const refusal = assembleRefusal({ needsReview, montageMode, clips });
+    if (refusal) { toast.error(refusal); return; }
     const generation = activeRender.current.generation;
     const isCurrent = () => activeRender.current.mounted && activeRender.current.generation === generation;
-    const chosen = clips.map((c) => (c ? { url: c.url, seek: c.seek } : null));
-    if (!chosen.some(Boolean)) {
-      toast.error("Choisis au moins un clip avant d'assembler.");
-      return;
-    }
-    // Les gardes « prise perdue » et « voix mixte » ne concernent que le mode
-    // "cache" (voix séparée) : en mode "filme", la voix est dans le clip.
-    if (montageMode === "cache" && voiceMode === "recorded") {
-      // Garde « prise perdue » : une phrase enregistrée mais sans clip est
-      // écartée du montage, la voix avec. C'est le travail de la cliente qui
-      // disparaît — on le dit AVANT, pas après.
-      const orphans = sectionsWithVoiceButNoClip(chosen, voiceUrls);
-      if (orphans.length > 0) {
-        const list = orphans.join(", ");
-        const ok = window.confirm(
-          orphans.length === 1
-            ? `La phrase ${list} est enregistrée mais n'a aucun clip : elle ne sera PAS dans la vidéo, ta voix non plus. Assembler quand même ?`
-            : `Les phrases ${list} sont enregistrées mais n'ont aucun clip : elles ne seront PAS dans la vidéo, ta voix non plus. Assembler quand même ?`,
-        );
-        if (!ok) return;
-      }
-      // Aucun repli en voix générée : une prise manquante doit être visible et
-      // résolue par la créatrice, ou elle peut choisir « Sans voix ».
-      const missing = countSectionsWithoutVoice(chosen, voiceUrls);
-      if (missing > 0) {
-        toast.error(
-          missing === 1
-            ? "Enregistre la voix de cette phrase, ou choisis « Sans voix » pour monter un reel muet."
-            : `Enregistre les ${missing} phrases sans voix, ou choisis « Sans voix » pour monter un reel muet.`,
-        );
-        return;
-      }
-    }
+    const chosen = chosenClips(clips);
+    const guards = voiceGuards({ montageMode, voiceMode, chosen, voiceUrls });
+    if (guards.confirm && !window.confirm(guards.confirm)) return;
+    if (guards.refuse) { toast.error(guards.refuse); return; }
     renderBusy.current = true;
     setArchived(false);
     setPhase("rendering");
@@ -333,40 +294,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
     onMp4Ready?.(null);
     setErrorMsg("");
     try {
-      // Private Studio URLs expire. Sign them afresh before the render service
-      // fetches the media; a saved project stores job IDs, never relies on URLs.
-      const fresh = await Promise.all(clips.map(async (clip, i) => {
-        if (!clip || clip.source !== "studio" || !clip.studioJobId) return chosen[i];
-        if (!workspaceId) throw new Error("Espace du Studio introuvable.");
-        const { job } = await readStudioVideo(workspaceId, clip.studioJobId);
-        if (job.status !== "ready" || !job.video_url) throw new Error("Ce clip du Studio n’est plus disponible.");
-        return { url: job.video_url, seek: clip.seek };
-      }));
-      const freshCutaways = await Promise.all(cutaways.map(async cutaway => {
-        if (!cutaway) return null;
-        if (!workspaceId) throw new Error("Espace du Studio introuvable.");
-        const { job } = await readStudioVideo(workspaceId, cutaway.jobId);
-        if (job.status !== "ready" || !job.video_url) throw new Error("Ce plan du Studio n’est plus disponible.");
-        return { url: job.video_url, start: cutaway.start, duration: cutaway.duration, seek: cutaway.seek };
-      }));
-      const plan =
-        montageMode === "filme"
-          ? buildRenderPlan(spoken, fresh, {
-              mode: "filme",
-              voice_mode: "tts", // ignoré côté moteur en mode "filme"
-              clipDurations: clips.map((c) => c?.duration ?? null),
-              brollBySection: freshCutaways,
-            })
-          : buildRenderPlan(spoken, fresh, {
-              mode: "cache",
-              voice_mode: voiceMode,
-              voiceAudioUrls: voiceUrls,
-              voiceDurations,
-              brollBySection: freshCutaways,
-            });
-      // Police + couleur d'accent de la charte sur les sous-titres ; sans
-      // charte (ou champs vides), le moteur retombe sur son style par défaut.
-      plan.subtitle_settings = subtitleSettingsFromCharter(charter);
+      const plan = await buildMontagePlan({ spoken, clips, chosen, cutaways, montageMode, voiceMode, voiceUrls, voiceDurations, charter, workspaceId });
       const project = await submitReelRender(plan);
       const url = await pollReelRender(project, { onTick: (n) => { if (isCurrent()) setTick(n); } });
       if (!isCurrent()) return;
