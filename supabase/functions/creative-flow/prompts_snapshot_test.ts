@@ -14,7 +14,7 @@
 // Lancer (flags EXACTS de la CI, script npm test:edges) :
 //   deno test --no-check --allow-env --allow-read --node-modules-dir=none supabase/functions/creative-flow/prompts_snapshot_test.ts
 
-import { assertSnapshot } from "https://deno.land/std@0.224.0/testing/snapshot.ts";
+import { assertSnapshot } from "../../edge-tests/snapshot.ts";
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { setTestEnv } from "../_shared/test-edge-harness.ts";
 

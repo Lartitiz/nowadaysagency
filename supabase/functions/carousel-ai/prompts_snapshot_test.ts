@@ -13,7 +13,7 @@
 // Si le diff touche une variante que tu ne voulais PAS modifier (ex. LinkedIn
 // alors que tu corrigeais Instagram) : c'est une régression.
 
-import { assertSnapshot } from "https://deno.land/std@0.224.0/testing/snapshot.ts";
+import { assertSnapshot } from "../../edge-tests/snapshot.ts";
 import { buildCarouselWritingSystem, carouselStructureGuide } from "./writing-contract.ts";
 import { mixWritingPrompt, newsWriting, photoWritingPrompt, textWritingPrompt } from "./variant-writing.ts";
 

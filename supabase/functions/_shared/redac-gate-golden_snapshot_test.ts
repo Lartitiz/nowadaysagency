@@ -10,7 +10,7 @@
 //
 // Lancer : deno test --no-check --allow-env --allow-read --node-modules-dir=none supabase/functions/_shared/redac-gate-golden_snapshot_test.ts
 
-import { assertSnapshot } from "https://deno.land/std@0.224.0/testing/snapshot.ts";
+import { assertSnapshot } from "../../edge-tests/snapshot.ts";
 import { anthropicTextSuccess, installFetchMock, setTestEnv } from "./test-edge-harness.ts";
 import { numbersIn, runRedacGate, runTextRedacGate } from "./redac-gate.ts";
 

@@ -15,7 +15,7 @@
 // Lancer (flags de la CI, script npm test:edges) :
 //   deno test --no-check --no-lock --allow-env --allow-read --node-modules-dir=none supabase/functions/visual-studio/prompts_snapshot_test.ts
 
-import { assertSnapshot } from "https://deno.land/std@0.224.0/testing/snapshot.ts";
+import { assertSnapshot } from "../../edge-tests/snapshot.ts";
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { id, PROPOSAL, stable, studioFixture, type StudioFixture } from "./contract_harness.ts";
 import { conversationTool, intentTool, studioSystem } from "./contract.ts";

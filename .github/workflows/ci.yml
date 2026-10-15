@@ -83,6 +83,13 @@ jobs:
       - name: Cliquet anti-dette (gros fichiers)
         run: node scripts/cliquet-dette.mjs
 
+      # Poids des edge functions (15/10/2026) : Lovable envoie dossier + _shared/
+      # entiers et refuse au-delà de ~4,5 Mo par fonction. creative-flow (7,0 Mo)
+      # et carousel-ai (6,6 Mo) ont été bloquées par des snapshots de tests rangés
+      # à côté du code. Échoue au-dessus de 4 Mo et liste les plus gros fichiers.
+      - name: Poids des edge functions (limite Lovable)
+        run: node scripts/poids-edges.mjs
+
       - name: Unit tests
         run: npm test
 

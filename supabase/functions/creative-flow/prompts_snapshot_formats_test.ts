@@ -18,7 +18,7 @@
 // Si le diff touche un format que tu ne voulais PAS modifier : c'est une
 // régression, corrige le code plutôt que le snapshot.
 
-import { assertSnapshot } from "https://deno.land/std@0.224.0/testing/snapshot.ts";
+import { assertSnapshot } from "../../edge-tests/snapshot.ts";
 import { setTestEnv } from "../_shared/test-edge-harness.ts";
 import { buildVisionGenerateBrief, buildVisionQuestionsPrompt, buildVisionTool } from "../_shared/vision-prompts.ts";
 

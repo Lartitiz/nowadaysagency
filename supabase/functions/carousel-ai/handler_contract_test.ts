@@ -16,7 +16,7 @@
 // Dérive VOULUE : régénère et relis le diff du .snap.
 //   deno test --no-check --no-lock --allow-env --allow-read --allow-write --node-modules-dir=none supabase/functions/carousel-ai/handler_contract_test.ts -- --update
 
-import { assertSnapshot } from "https://deno.land/std@0.224.0/testing/snapshot.ts";
+import { assertSnapshot } from "../../edge-tests/snapshot.ts";
 import { handleRequest, _deps } from "./index.ts";
 import { callAnthropic } from "../_shared/anthropic.ts";
 import { callCarouselWriter } from "./writer.ts";
