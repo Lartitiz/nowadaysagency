@@ -10,14 +10,11 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import { CalendarWorkspaceGate } from "@/components/calendar/CalendarWorkspaceGate";
 import { useProfile } from "@/hooks/use-profile";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
-import BrandingPrompt from "@/components/BrandingPrompt";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useDemoContext } from "@/contexts/DemoContext";
 
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 import { HubConnectBanner } from "@/components/hub";
-import AppHeader from "@/components/AppHeader";
-import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
@@ -193,26 +190,26 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
   );
 }
 
-export default function CalendarPage({ embedded = false }: { embedded?: boolean }) {
+// Toujours rendue dans OrganizationHub (`<CalendarPage embedded />`, qui pose l'en-tête et le <main>) :
+// `embedded` n'est plus lu, la page n'a plus de version autonome.
+export default function CalendarPage(_props: { embedded?: boolean }) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   return (
     <CalendarWorkspaceGate>
-      <CalendarInWorkspace key={JSON.stringify([user?.id, column, value])} embedded={embedded} />
+      <CalendarInWorkspace key={JSON.stringify([user?.id, column, value])} />
     </CalendarWorkspaceGate>
   );
 }
 
-function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
+function CalendarInWorkspace() {
   const { user } = useAuth();
   const confirm = useConfirm();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { isDemoMode, demoData } = useDemoContext();
   const isMobile = useIsMobile();
-  const location = useLocation();
   const navigate = useNavigate();
-  const isInstagramRoute = location.pathname.startsWith("/instagram/");
   const [searchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(() => {
     const dateParam = searchParams.get("date");
@@ -1136,19 +1133,5 @@ function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
     </div>
   );
 
-  if (embedded) {
-    return <div>{body}</div>;
-  }
-
-  return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main id="main-content" className="mx-auto max-w-[1600px] px-6 py-8 max-md:px-4">
-        {isInstagramRoute && (
-          <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" useFromParam />
-        )}
-        {body}
-      </main>
-    </div>
-  );
+  return <div>{body}</div>;
 }

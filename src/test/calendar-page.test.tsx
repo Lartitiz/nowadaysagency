@@ -108,9 +108,6 @@ vi.mock("@/components/calendar/SeasonalPhotoDialog", () => ({ SeasonalPhotoDialo
 vi.mock("@/components/calendar/CalendarShareDialog", () => ({ CalendarShareDialog: rien }));
 vi.mock("@/components/hub", () => ({ HubConnectBanner: rien }));
 vi.mock("@/components/AuditRecommendationBanner", () => ({ default: rien }));
-vi.mock("@/components/AppHeader", () => ({ default: rien }));
-vi.mock("@/components/SubPageHeader", () => ({ default: rien }));
-vi.mock("@/components/BrandingPrompt", () => ({ default: rien }));
 
 import CalendarPage from "@/pages/Calendar";
 
@@ -252,4 +249,11 @@ it("idée rapide de la vue Semaine : un échec d'enregistrement affiche un toast
   await act(async () => { await state.props.week.onQuickCreate("2026-10-15", "Une idée"); });
   expect(state.toast.error).toHaveBeenCalledWith("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
   expect(state.toast.success).not.toHaveBeenCalled();
+});
+
+// ── Défaut 6 : plus de version « autonome » (AppHeader + <main>) ──
+it("la page n'a qu'une version : sans `embedded`, elle ne pose ni en-tête d'application ni <main>", async () => {
+  const { container } = render(<MemoryRouter initialEntries={["/calendrier"]}><CalendarPage /></MemoryRouter>);
+  expect((await screen.findAllByText("Mon calendrier")).length).toBeGreaterThan(0);
+  expect(container.querySelector("main")).toBeNull();
 });
