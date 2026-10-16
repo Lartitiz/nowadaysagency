@@ -51,7 +51,8 @@ const PARAMS_URL = ["sujet", "objectif", "from"];
 
 const ENVOIS: { nom: string; bloc: string; state: string[]; params: string[] }[] = [
   { nom: "Calendar.tsx › handleQuickGenerate", bloc: corps(calendar, "handleQuickGenerate"),
-    state: [...CLES_STATE_COMMUNES, "postDate"], params: PARAMS_URL },
+    // canal : choisit le générateur LinkedIn (calendar-entry-canal.ts, 16/10/2026).
+    state: [...CLES_STATE_COMMUNES, "postDate", "canal"], params: PARAMS_URL },
   { nom: "CalendarPostDialog › handleNavigateToGenerator", bloc: corps(dialog, "handleNavigateToGenerator"),
     state: [...CLES_STATE_COMMUNES, "postDate"], params: PARAMS_URL },
   { nom: "CalendarPostDialog › handleNavigateToDeepen", bloc: corps(dialog, "handleNavigateToDeepen"),
