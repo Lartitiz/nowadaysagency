@@ -21,6 +21,7 @@ import type { CharterReferenceLink } from "@/components/branding/charter/Charter
 import { isOnboardingDraftExpired, purgeExpiredOnboardingDraft, purgeStaleOnboardingDraft } from "@/features/onboarding/draft-storage";
 import { emptyBrandingAnswers, emptyOnboardingAnswers } from "@/features/onboarding/empty-answers";
 import { captureExtension, pickOnboardingCaptures, removeOrphanCapture } from "@/features/onboarding/capture-upload";
+import { createBrandingSaveErrorReporter } from "@/features/onboarding/branding-save-error";
 
 /* ────────────────────────────────────────────── helpers */
 
@@ -651,6 +652,7 @@ export function useOnboarding() {
       }
 
       // 3. BRAND_PROPOSITION — save positioning if available
+      const reportBrandingError = createBrandingSaveErrorReporter(); // toast sans bloquer (3 et 4)
       // Lecture ET écriture scopées à l'espace actif, puis update PAR ID :
       // filtrer sur le seul `user_id` écrasait la proposition de TOUS les
       // espaces de la personne (dont ceux de ses clientes) d'un coup.
@@ -661,15 +663,14 @@ export function useOnboarding() {
           .select("id").eq(column, value).maybeSingle();
         const propData = { version_complete: brandingAnswers.positioning };
         if (existingProp) {
-          const { error } = await supabase.from("brand_proposition").update(propData).eq("id", existingProp.id);
-          if (error) console.error("Failed to update brand_proposition:", error);
+          reportBrandingError("update brand_proposition", (await supabase.from("brand_proposition").update(propData).eq("id", existingProp.id)).error);
         } else {
           const { error } = await supabase.from("brand_proposition").insert({
             user_id: profileUserId,
             workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
             ...propData,
           } as any);
-          if (error) console.error("Failed to insert brand_proposition:", error);
+          reportBrandingError("insert brand_proposition", error);
         }
       }
 
@@ -686,15 +687,14 @@ export function useOnboarding() {
         const { data: existingStrategy } = await (supabase.from("brand_strategy") as any)
           .select("id").eq(column, value).order("updated_at", { ascending: false }).limit(1).maybeSingle();
         if (existingStrategy) {
-          const { error } = await supabase.from("brand_strategy").update(strategyData as any).eq("id", existingStrategy.id);
-          if (error) console.error("Failed to update brand_strategy:", error);
+          reportBrandingError("update brand_strategy", (await supabase.from("brand_strategy").update(strategyData as any).eq("id", existingStrategy.id)).error);
         } else {
           const { error } = await supabase.from("brand_strategy").insert({
             user_id: profileUserId,
             workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
             ...strategyData,
           } as any);
-          if (error) console.error("Failed to insert brand_strategy:", error);
+          reportBrandingError("insert brand_strategy", error);
         }
       }
 
