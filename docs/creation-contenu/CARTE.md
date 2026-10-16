@@ -153,7 +153,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 
 ### Aller-retour avec le calendrier (navigate state)
 
-- **Départ** : `src/pages/Calendar.tsx` (state `fromCalendar`, `postId`,
+- **Départ** : `src/pages/Calendar.tsx` (state `fromCalendar`,
   `calendarPostId`, `theme`, `objectif`, `angle`, `format`, `notes`,
   `postDate`, `existingContent`, `canal` + paramètres d'URL), plus
   la fenêtre d'un post (`CalendarPostDialog.tsx`, dont les départs vivent dans
