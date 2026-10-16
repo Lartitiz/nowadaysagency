@@ -370,7 +370,14 @@ describe("publication immédiate", () => {
   it("post déjà publié (statut ou publish_status) → plus de « Publier »", () => {
     renderDialog({ editingPost: post({ media_urls: [IMG(1)], publish_status: "published" }) });
     expect(screen.queryByRole("menuitem", { name: /Publier maintenant/ })).toBeNull();
+    // Rien à proposer dans le menu (pas de « Remettre dans mes idées ») : il est masqué.
+    expect(screen.queryByText("Options")).toBeNull();
+  });
+
+  it("post déjà publié avec « Remettre dans mes idées » → menu « Options » gardé", () => {
+    renderDialog({ editingPost: post({ media_urls: [IMG(1)], publish_status: "published" }), onUnplan: vi.fn() });
     expect(screen.getByText("Options")).toBeInTheDocument();
+    expect(item(/Remettre dans mes idées/)).toBeInTheDocument();
   });
 });
 

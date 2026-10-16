@@ -137,7 +137,9 @@ export function PostActionsFooter({ canSchedule, publishStatus, scheduledAt, han
           </Button>
         )}
 
-        {/* Un seul bouton d'action principal */}
+        {/* Un seul bouton d'action principal, masqué quand le menu serait vide
+            (post déjà publié ou non publiable, sans « Remettre dans mes idées »). */}
+        {(canPublishActions || (editingPost && onUnplan)) && (
         <div className={effectiveId ? "" : "ml-auto"}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -167,6 +169,7 @@ export function PostActionsFooter({ canSchedule, publishStatus, scheduledAt, han
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        )}
       </div>
     </div>
   );
