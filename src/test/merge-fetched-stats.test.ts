@@ -1,4 +1,6 @@
-// La récupération automatique Instagram ne remplace jamais un chiffre saisi à la main
+// La récupération automatique Instagram ne remplace jamais un chiffre saisi à la main.
+// Depuis le 16/10/2026, la fusion est faite par la base (save_monthly_stats, source
+// « instagram », testée dans supabase/tests/stats-provenance.mjs) ; ici la page.
 // (fiche 21 de docs/robustesse/gros-fichiers.md, décision produit du 16/10/2026).
 // 1) la fonction pure ; 2) le vrai `fetchFromInstagram` de la page, relu dans son texte
 // et exécuté en injectant ses dépendances par leur nom (même méthode que
@@ -6,7 +8,7 @@
 import fs from 'node:fs';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { fillEmptyFields, instagramMonthPatch } from '@/features/stats/merge-fetched-stats';
+import { fillEmptyFields, instagramMonthPatch, instagramSaveReport } from '@/features/stats/merge-fetched-stats';
 
 describe('fillEmptyFields', () => {
   it('remplit seulement les champs null ou absents ; 0 compte comme rempli', () => {
@@ -57,25 +59,42 @@ function callback(name: string) {
   return ts.transpileModule('return ' + expression, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
 }
 
-it('« Remplir depuis Instagram » ne remplace pas un chiffre saisi à la main', async () => {
+describe('instagramSaveReport', () => {
+  it('rempli si la base a gardé la valeur envoyée, sinon gardé tel quel ; custom_data ignoré', () => {
+    expect(instagramSaveReport({ followers: 1500, reach: 900, custom_data: {} }, { followers: 1234, reach: 900 }))
+      .toEqual({ filled: ['portée (28 j)'], kept: ['abonnés'] });
+  });
+});
+
+it('« Remplir depuis Instagram » passe par save_monthly_stats (source instagram) et rend compte de ce qui est gardé', async () => {
+  // La base simulée fait comme save_monthly_stats : seuls les compteurs vides sont remplis.
   const row: any = { id: 'row', user_id: 'me', month_date: '2026-10-01', followers: 1234, reach: null, custom_data: { li_stats: { keep: true } } };
-  const update = vi.fn((payload: any) => ({ eq: async () => { Object.assign(row, payload); return { error: null }; } }));
-  const insert = vi.fn(async () => ({ error: null }));
+  const saveStatsPatch = vi.fn(async (_ws: unknown, _month: string, _expected: unknown, patch: any, _source?: string) => {
+    for (const [k, v] of Object.entries(patch)) {
+      if (k === 'custom_data') row.custom_data = { ...row.custom_data, ...(v as object) };
+      else if (row[k] == null) row[k] = v;
+    }
+    return { ...row };
+  });
   const toast = Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() });
   const noop = vi.fn();
   const scope: Record<string, unknown> = {
     user: { id: 'me' }, setFetchingLive: noop, workspaceId: 'me',
-    invokeWithTimeout: async () => ({ data: { metrics: { followers: 1500, reach30d: 900 } }, error: null }),
+    invokeWithTimeout: async () => ({ data: { metrics: { followers: 1500, reach30d: 900, audience: { age: [1] } } }, error: null }),
     toast, setAudience: noop, setLivePosts: noop, currentMonthDate: '2026-10-01', allStats: [{ ...row }],
-    instagramMonthPatch, supabase: { from: () => ({ update, insert }) }, setSelectedMonth: noop,
+    instagramMonthPatch, instagramSaveReport, saveStatsPatch, setSelectedMonth: noop,
     loadStats: async () => {}, monthLabel: (k: string) => k,
   };
   await new Function(...Object.keys(scope), callback('fetchFromInstagram'))(...Object.values(scope))();
-  expect(insert).not.toHaveBeenCalled();
-  expect(update).toHaveBeenCalledTimes(1);
-  expect(update.mock.calls[0][0]).not.toHaveProperty('followers');
+  expect(saveStatsPatch).toHaveBeenCalledTimes(1);
+  const [ws, month, expected, patch, source] = saveStatsPatch.mock.calls[0];
+  expect([ws, month, expected, source]).toEqual([null, '2026-10-01', null, 'instagram']);
+  expect(patch).toMatchObject({ followers: 1500, reach: 900 });
+  expect(Object.keys(patch.custom_data)).toEqual(['ig_audience']);
   expect(row.followers).toBe(1234);
   expect(row.reach).toBe(900);
   expect(row.custom_data.li_stats).toEqual({ keep: true });
-  expect(toast.success.mock.calls[0][1].description).toContain('Gardé tel quel (déjà rempli) : abonnés');
+  const { description } = toast.success.mock.calls[0][1];
+  expect(description).toContain('Rempli automatiquement : portée (28 j)');
+  expect(description).toContain('Gardé tel quel (déjà rempli) : abonnés');
 });
