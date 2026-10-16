@@ -4,8 +4,6 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatSlideRole } from "@/lib/slide-roles";
-import { replaceSlideText } from "@/lib/carousel-html-edit";
-import { SlideFramePreview } from "@/components/creer/formatRenderers/CarouselResult";
 import { sanitizeInternalLabels } from "@/lib/sanitize-internal-labels";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -59,9 +57,6 @@ interface CarouselPhotoResultProps {
   onOpenStudio?: (slideId: string) => void;
   photos?: PhotoItem[];
   onSlidesUpdate?: (slides: any[], caption: any) => void;
-  visualSlides?: { slide_number: number; html: string }[];
-  /** Remonte les visuels patchés quand une édition de texte est répercutée dans le HTML. */
-  onVisualSlidesUpdate?: (slides: { slide_number: number; html: string }[]) => void;
   channel?: "linkedin" | "instagram";
   onRetry?: () => void;
   captionLoading?: boolean;
@@ -76,143 +71,10 @@ interface CarouselPhotoResultProps {
   onColorsChange?: (colors: CarouselColors | null) => void;
   /** Couleurs par défaut de la charte (pré-remplissent les sélecteurs). */
   charterColors?: CarouselColors;
-  /** Remonte l'état « visuels périmés » (slides éditées depuis le dernier rendu) pour bloquer publication/export en amont. */
+  /** Remonte l'état « visuels périmés ». Cet écran n'affiche jamais de visuels (dès
+   *  qu'il y en a, CreerStepResult ouvre l'éditeur de carrousel) : il signale donc
+   *  toujours « à jour », pour lever un état laissé par l'éditeur. */
   onStaleChange?: (stale: boolean) => void;
-}
-
-// ─── VisualSlidesCarousel (unchanged) ───
-
-function VisualSlidesCarousel({ slides }: { slides: { slide_number: number; html: string }[] }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [containerWidth, setContainerWidth] = useState(0);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setContainerWidth(el.getBoundingClientRect().width));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  // Sur mobile, la slide fait 85% du conteneur. Sur desktop, 280px max.
-  const SLIDE_WIDTH = containerWidth > 0 ? Math.min(280, containerWidth * 0.85) : 280;
-  const SLIDE_GAP = 20;
-  const scale = SLIDE_WIDTH / 1080;
-  const slideHeight = SLIDE_WIDTH * (1350 / 1080);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-
-    const handleScroll = () => {
-      const scrollPos = el.scrollLeft;
-      const itemWidth = SLIDE_WIDTH + SLIDE_GAP;
-      const index = Math.round(scrollPos / itemWidth);
-      setActiveIndex(Math.max(0, Math.min(index, slides.length - 1)));
-    };
-
-    el.addEventListener("scroll", handleScroll, { passive: true });
-    return () => el.removeEventListener("scroll", handleScroll);
-  }, [slides.length, SLIDE_WIDTH]);
-
-  const scrollToSlide = (idx: number) => {
-    scrollRef.current?.scrollTo({
-      left: idx * (SLIDE_WIDTH + SLIDE_GAP),
-      behavior: "smooth",
-    });
-  };
-
-  return (
-    <div ref={containerRef} className="space-y-3 pt-2">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Aperçu des visuels ({slides.length} slides)
-        </p>
-        <p className="text-2xs text-muted-foreground">
-          ← Défiler →
-        </p>
-      </div>
-
-      <div
-        ref={scrollRef}
-        style={{
-          display: "flex",
-          gap: `${SLIDE_GAP}px`,
-          overflowX: "auto",
-          padding: "16px 0 24px",
-          scrollSnapType: "x mandatory",
-          WebkitOverflowScrolling: "touch",
-          scrollbarWidth: "thin",
-          scrollbarColor: "hsl(var(--primary)) transparent",
-        }}
-        className="[&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-primary/40 [&::-webkit-scrollbar-thumb]:rounded-full"
-      >
-        {slides.map((vs) => (
-          <div
-            key={vs.slide_number}
-            style={{
-              flex: `0 0 ${SLIDE_WIDTH}px`,
-              scrollSnapAlign: "center",
-            }}
-            className="group"
-          >
-            <div
-              className="relative overflow-hidden rounded-xl transition-all duration-300 group-hover:-translate-y-1"
-              style={{
-                width: `${SLIDE_WIDTH}px`,
-                height: `${slideHeight}px`,
-                boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 32px rgba(0,0,0,0.14)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 24px rgba(0,0,0,0.08)";
-              }}
-            >
-              <iframe
-                srcDoc={vs.html}
-                title={`Slide ${vs.slide_number}`}
-                sandbox="allow-same-origin allow-scripts"
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "1080px",
-                  height: "1350px",
-                  transform: `scale(${scale})`,
-                  transformOrigin: "top left",
-                  border: "none",
-                  pointerEvents: "none",
-                }}
-              />
-            </div>
-
-            <p className="text-2xs font-mono text-muted-foreground text-center mt-2">
-              {vs.slide_number} / {slides.length}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex justify-center gap-1.5">
-        {slides.map((vs, idx) => (
-          <button
-            key={vs.slide_number}
-            onClick={() => scrollToSlide(idx)}
-            className={`rounded-full transition-all duration-200 ${
-              idx === activeIndex
-                ? "w-2.5 h-2.5 bg-primary"
-                : "w-1.5 h-1.5 bg-muted-foreground/25 hover:bg-muted-foreground/50"
-            }`}
-            aria-label={`Aller à la slide ${vs.slide_number}`}
-          />
-        ))}
-      </div>
-    </div>
-  );
 }
 
 // ─── Main component ───
@@ -224,7 +86,7 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSlidesUpdate, visualSlides, onVisualSlidesUpdate, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false, onAddPhoto, colors, onColorsChange, charterColors, onStaleChange }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSlidesUpdate, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false, onAddPhoto, colors, onColorsChange, charterColors, onStaleChange }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
 
   // Construit la version "fullText" mono-bloc à partir des sous-champs
@@ -306,54 +168,8 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
   // Confirmation de suppression : index de la slide à supprimer (null = fermé).
   const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
 
-  // Signature des champs éditables d'un slide (texte + photo + type + ordre).
-  // Sert à détecter de façon fiable qu'on a édité DEPUIS le dernier rendu visuel —
-  // l'ancienne comparaison lisait les slides vivants des deux côtés et ratait les
-  // éditions de texte ET les changements de photo.
-  const slidesSignature = useCallback(
-    (sl: any[], cols?: CarouselColors | null) =>
-      JSON.stringify({
-        slides: (sl || []).map((s: any) => [
-          s.slide_number ?? null,
-          s.overlay_text || "",
-          s.title || "",
-          s.body || "",
-          s.photo_index ?? null,
-          s.slide_type || "",
-        ]),
-        // Les couleurs font partie du rendu : les changer doit aussi marquer
-        // l'aperçu comme à régénérer.
-        colors: cols || null,
-      }),
-    [],
-  );
-  // Signature du contenu au moment où les visuels affichés ont été générés.
-  // En STATE (pas en ref) : sa mise à jour doit re-render pour recalculer isStale,
-  // sinon la bannière « Mettre à jour les visuels » ne se referme pas après régénération.
-  const [renderedSig, setRenderedSig] = useState<string>("");
-
-  // Périmé = slides éditées depuis le dernier rendu visuel. Calculé au niveau
-  // composant (pas seulement dans la bannière) pour le REMONTER : publication et
-  // export d'un visuel obsolète sont bloqués/avertis en amont (avant : la bannière
-  // avertissait mais rien n'empêchait de publier une version périmée).
-  const visualsStale = useMemo(
-    () =>
-      Boolean(
-        visualSlides && visualSlides.length > 0 &&
-        slidesSignature(slides, colors) !== renderedSig,
-      ),
-    [visualSlides, renderedSig, slides, colors, slidesSignature],
-  );
-  useEffect(() => { onStaleChange?.(visualsStale); }, [visualsStale, onStaleChange]);
-  // La bannière « Mettre à jour les visuels » disparaît quand le composant se
-  // démonte : on remet l'état à « à jour » pour ne pas bloquer d'autres formats.
-  useEffect(() => () => { onStaleChange?.(false); }, [onStaleChange]);
-
-  // Aperçu par slide (vis-à-vis, lot F) : visuel apparié par slide_number
-  const visualBySlide = useMemo(
-    () => new Map((visualSlides || []).map((v) => [v.slide_number, v])),
-    [visualSlides],
-  );
+  // Pas de visuels sur cet écran (voir onStaleChange) : jamais périmé.
+  useEffect(() => { onStaleChange?.(false); }, [onStaleChange]);
 
 
   // La signature de resync inclut photo_index + cast_source pour que le casting
@@ -392,26 +208,6 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Only a completed replacement render clears staleness; a failed request or
-  // a local text patch must not validate an older color/photo composition.
-  const renderRequest = useRef<{ signature: string; visuals: typeof visualSlides } | null>(null);
-  useEffect(() => {
-    if (visualLoading && !renderRequest.current) renderRequest.current = { signature: slidesSignature(slides, colors), visuals: visualSlides };
-    if (!visualLoading && renderRequest.current) {
-      if (visualSlides?.length && visualSlides !== renderRequest.current.visuals) setRenderedSig(renderRequest.current.signature);
-      renderRequest.current = null;
-    }
-  }, [visualLoading]);
-  useEffect(() => {
-    if (renderedSig || colors || !visualSlides?.length) return;
-    const matches = slides.every((s: any) => {
-      const visual = visualSlides.find(v => v.slide_number === s.slide_number);
-      if (!visual) return false;
-      const doc = new DOMParser().parseFromString(visual.html, "text/html");
-      return ([['title',s.title],['body',s.body],['overlay',s.overlay_text]] as const).every(([field,text]) => !text || doc.querySelector(`[data-slide-text="${field}"]`)?.textContent?.trim() === text.trim());
-    });
-    if (matches) setRenderedSig(slidesSignature(slides, colors));
-  }, [visualSlides, renderedSig, colors]);
 
   // P2 : Quality check calculé côté front (au lieu de faire confiance à l'IA)
   const computedQuality = useMemo(() => {
@@ -447,32 +243,6 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
   );
 
 
-  // Édition live (lot F) : le changement de texte est répercuté
-  // chirurgicalement dans le HTML du visuel (ancre data-slide-text, repli par
-  // correspondance de texte). Succès → la signature "rendue" est synchronisée
-  // pour ne pas déclencher la bannière « visuels périmés » sur un simple texte ;
-  // échec → visuel inchangé, la bannière + « Mettre à jour » couvrent (comportement d'avant).
-  const visualSlidesLiveRef = useRef(visualSlides);
-  visualSlidesLiveRef.current = visualSlides;
-
-  const patchVisual = (
-    nextSlides: any[],
-    slideNumber: number,
-    field: "overlay" | "title" | "body",
-    oldText: string,
-    newText: string,
-  ) => {
-    const visuals = visualSlidesLiveRef.current;
-    if (!visuals?.length || !onVisualSlidesUpdate) return;
-    const vi = visuals.findIndex((v) => v.slide_number === slideNumber);
-    if (vi < 0) return;
-    const patched = replaceSlideText(visuals[vi].html, field, oldText, newText);
-    if (!patched) return;
-    const nextVisuals = [...visuals];
-    nextVisuals[vi] = { ...nextVisuals[vi], html: patched };
-    onVisualSlidesUpdate(nextVisuals);
-    if (!visualsStale) setRenderedSig(slidesSignature(nextSlides, colors));
-  };
 
   const updateSlideText = (idx: number, text: string) => {
     const oldText = slides[idx]?.overlay_text || "";
@@ -495,15 +265,12 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
     });
     setSlides(next);
     notify(next, caption);
-    patchVisual(next, slides[idx]?.slide_number || idx + 1, "overlay", oldText, text);
   };
 
   const updateSlideField = (idx: number, field: "title" | "body", text: string) => {
-    const oldText = (slides[idx]?.[field] as string) || "";
     const next = slides.map((s: any, i: number) => (i === idx ? { ...s, [field]: text } : s));
     setSlides(next);
     notify(next, caption);
-    patchVisual(next, slides[idx]?.slide_number || idx + 1, field, oldText, text);
   };
 
   const moveSlide = (idx: number, direction: -1 | 1) => {
@@ -517,8 +284,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
   };
 
   // Remplacement de la photo d'une slide : ajoute la photo au set (ou retrouve son
-  // index si elle y est déjà), pointe la slide dessus, et laisse la bannière
-  // « Mettre à jour les visuels » apparaître via la signature.
+  // index si elle y est déjà) et pointe la slide dessus.
   const handleSwapPhoto = (slideIdx: number, photo: PhotoItem, castSource?: string) => {
     const newIndex = onAddPhoto?.(photo);
     if (!newIndex) return;
@@ -838,7 +604,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
       )}
 
       {/* En-tête casting : progression + CTA de rendu, tant que les visuels n'existent pas */}
-      {castingActive && (!visualSlides || visualSlides.length === 0) && (
+      {castingActive && (
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
@@ -907,7 +673,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
               ))}
             </div>
             <p className="text-2xs text-muted-foreground">
-              Modifie les couleurs puis « Mettre à jour les visuels » pour les appliquer. Par défaut, ce sont les couleurs de ta charte.
+              Les couleurs choisies s'appliquent quand tu crées les visuels. Par défaut, ce sont les couleurs de ta charte.
             </p>
           </CardContent>
         </Card>
@@ -1290,16 +1056,6 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                 <p className="text-xs text-muted-foreground">💡 {sanitizeInternalLabels(slide.note)}</p>
               )}
               </div>
-              {(() => {
-                const v = visualBySlide.get(slide.slide_number || idx + 1);
-                return v ? (
-                  <SlideFramePreview
-                    html={v.html}
-                    title={`Aperçu slide ${slide.slide_number || idx + 1}`}
-                    width={150}
-                  />
-                ) : null;
-              })()}
               </div>
             </CardContent>
           </Card>
@@ -1412,37 +1168,6 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
         </div>
       )}
 
-      {visualSlides && visualSlides.length > 0 && (() => {
-        const isStale = visualsStale;
-        return (
-          <>
-            {isStale && onRegenerateVisuals && (
-              <div className="rounded-lg border border-warning/30 bg-warning-bg p-3 flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                <div className="flex-1 space-y-1.5">
-                  <p className="text-xs font-medium text-warning">
-                    Tu as modifié des slides depuis le dernier rendu visuel.
-                  </p>
-                  <p className="text-2xs text-warning">
-                    Mets à jour les visuels pour que l'aperçu et l'export reflètent tes modifications.
-                  </p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs border-warning hover:bg-warning-bg"
-                    onClick={onRegenerateVisuals}
-                    disabled={visualLoading}
-                  >
-                    <RefreshCw className={`h-3 w-3 mr-1 ${visualLoading ? "animate-spin" : ""}`} />
-                    {visualLoading ? "Mise à jour…" : "Mettre à jour les visuels"}
-                  </Button>
-                </div>
-              </div>
-            )}
-            <VisualSlidesCarousel slides={visualSlides} />
-          </>
-        );
-      })()}
 
       {onAddPhoto && swapSlideIdx !== null && (
         <PhotoSwapDialog
