@@ -13,6 +13,8 @@ const m = vi.hoisted(() => ({
   metadata: {} as Record<string, string>,
   statusDelay: false,
   signedUrlFails: false,
+  storage: [] as Array<[string, string]>,
+  failDocInsertFor: "",
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: m.userId, user_metadata: m.metadata } }) }));
@@ -25,6 +27,7 @@ vi.mock("@/hooks/use-workspace-query", () => ({
 }));
 vi.mock("react-router-dom", () => ({ useNavigate: () => m.navigate }));
 vi.mock("@/lib/posthog-lazy", () => ({ posthog: { capture: vi.fn() } }));
+vi.mock("@/lib/image-compress", () => ({ compressImageFile: async (file: File) => file }));
 vi.mock("@/lib/onboarding-status", () => ({ resolveOnboardingStatus: async () => {
   if (m.statusDelay) await new Promise(resolve => setTimeout(resolve, 700));
   return "needs";
@@ -36,13 +39,19 @@ vi.mock("@/integrations/supabase/client", () => ({
         if (m.signedUrlFails) throw new Error("signed URL unavailable");
         return { data: { signedUrl: `https://signed.example/${path}` }, error: null };
       },
+      upload: async (path: string) => { m.storage.push(["upload", path]); return { error: null }; },
+      remove: async (paths: string[]) => { m.storage.push(["remove", paths[0]]); return { error: null }; },
     }) },
     from: (table: string) => {
       let operation = "read";
+      let inserted: Record<string, unknown> = {};
       const chain = {
         select: () => chain,
         update: (data: Record<string, unknown>) => { operation = "update"; m.writes.push({ table, operation, data }); return chain; },
-        insert: (data: Record<string, unknown>) => { operation = "insert"; m.writes.push({ table, operation, data }); return chain; },
+        insert: (data: Record<string, unknown>) => { operation = "insert"; inserted = data; m.writes.push({ table, operation, data }); return chain; },
+        single: async () => inserted.file_name === m.failDocInsertFor
+          ? { data: null, error: new Error("insert refused") }
+          : { data: { id: `doc-${inserted.file_name}` }, error: null },
         eq: (...args: unknown[]) => { if (table === "user_documents") m.query("eq", ...args); return chain; },
         order: () => chain,
         limit: () => chain,
@@ -66,7 +75,7 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-beforeEach(() => { localStorage.clear(); m.userId = "qa-a"; m.failCompletion = false; m.failSave = false; m.existingCompleted = false; m.metadata = {}; m.statusDelay = false; m.signedUrlFails = false; m.query.mockClear(); m.writes.length = 0; m.navigate.mockClear(); });
+beforeEach(() => { localStorage.clear(); m.userId = "qa-a"; m.failCompletion = false; m.failSave = false; m.existingCompleted = false; m.metadata = {}; m.statusDelay = false; m.signedUrlFails = false; m.storage.length = 0; m.failDocInsertFor = ""; m.query.mockClear(); m.writes.length = 0; m.navigate.mockClear(); });
 
 describe("reprise des captures de l'onboarding", () => {
   it("attend le profil avant d'écrire un brouillon vide sur un autre appareil", async () => {
@@ -115,6 +124,29 @@ describe("reprise des captures de l'onboarding", () => {
     expect(result.current.brandingAnswers.positioning).toBe("");
     expect(result.current.uploadedFiles).toEqual([]);
     expect(JSON.parse(localStorage.getItem("lac_onboarding_upload_ids:qa-a") || "[]")).toEqual([]);
+  });
+
+  it("ne compte que les captures au bon format dans le plafond de 3", async () => {
+    const { result } = renderHook(() => useOnboarding());
+    await waitFor(() => expect(result.current.uploadsRestored).toBe(true));
+    const files = ["notes.pdf", "a.png", "b.jpg", "c.webp"].map(name => new File(["x"], name));
+    await act(async () => { await result.current.handleFileUpload(files as unknown as FileList); });
+    expect(result.current.uploadedFiles.map(f => f.name)).toEqual(["a.png", "b.jpg", "c.webp"]);
+  });
+
+  it("retire du stockage une capture dont la ligne n'a pas pu être créée, puis continue", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    m.failDocInsertFor = "a.png";
+    const { result } = renderHook(() => useOnboarding());
+    await waitFor(() => expect(result.current.uploadsRestored).toBe(true));
+    const files = ["a.png", "b.png"].map(name => new File(["x"], name));
+    await act(async () => { await result.current.handleFileUpload(files as unknown as FileList); });
+    const uploadedA = m.storage.find(([op, path]) => op === "upload" && path.endsWith("_a.png"))?.[1];
+    expect(uploadedA).toMatch(/^qa-a\/onboarding\//);
+    expect(m.storage).toContainEqual(["remove", uploadedA]);
+    expect(result.current.uploadedFiles.map(f => f.name)).toEqual(["b.png"]);
+    expect(result.current.uploading).toBe(false);
+    log.mockRestore();
   });
 
   it("ne revient pas au formulaire avec Échap pendant l'analyse", async () => {
