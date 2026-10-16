@@ -163,7 +163,7 @@ export default function Onboarding() {
           </div>
           <Button variant="outline" size="sm" onClick={handleSkipDemo} className="h-8 text-xs gap-1.5 border-primary/30 hover:bg-primary/5">
             <SkipForward className="h-3.5 w-3.5" />
-            Passer → Voir l'outil rempli
+            Passer le parcours → Voir l'outil rempli
           </Button>
         </div>
       )}

@@ -556,7 +556,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                   onClick={() => generateForSlide(idx)}
                 >
                   <RefreshCw size={13} className="mr-1" />
-                  Régénérer · 1 crédit
+                  Régénérer l'image · 1 crédit
                 </Button>
               </div>
               <div className="flex flex-wrap gap-1">
@@ -650,7 +650,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
                   title="Revenir aux couleurs de la charte"
                 >
                   <RotateCcw size={11} />
-                  Couleurs de la charte
+                  Revenir aux couleurs de la charte
                 </button>
               )}
             </div>
@@ -993,7 +993,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
 
               {slide.slide_type === "photo_integrated" && slide.photo_layout && (
                 <Badge variant="outline" className="text-2xs">
-                  Layout : {slide.photo_layout.replace(/_/g, " ")}
+                  Mise en page : {slide.photo_layout.replace(/_/g, " ")}
                 </Badge>
               )}
 
@@ -1220,14 +1220,14 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>Garder la slide</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (deleteIdx !== null) deleteSlide(deleteIdx);
                 setDeleteIdx(null);
               }}
             >
-              Supprimer
+              Supprimer cette slide
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

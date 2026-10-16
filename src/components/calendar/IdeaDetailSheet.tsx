@@ -161,7 +161,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
 
   const handleDelete = async () => {
     if (!idea) return;
-    if (!(await confirm({ title: "Supprimer cette idée ?", description: "Cette action est irréversible.", confirmText: "Supprimer", destructive: true }))) return;
+    if (!(await confirm({ title: "Supprimer cette idée ?", description: "Cette action est irréversible.", confirmText: "Supprimer l'idée", cancelText: "Garder l'idée", destructive: true }))) return;
     const { error } = await supabase.from("saved_ideas").delete().eq("id", idea.id);
     if (error) {
       console.error("Erreur technique:", error);
@@ -398,7 +398,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
               onClick={() => setShowDatePicker(false)}
               className="rounded-pill"
             >
-              Annuler
+              Annuler la planification
             </Button>
           </div>
         </div>
@@ -450,7 +450,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive">
-                <Trash2 className="h-4 w-4 mr-2" /> Supprimer
+                <Trash2 className="h-4 w-4 mr-2" /> Supprimer l'idée
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

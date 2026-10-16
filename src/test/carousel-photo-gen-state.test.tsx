@@ -67,7 +67,7 @@ describe("CarouselPhotoResult — la proposition d'image suit sa slide", () => {
     await waitFor(() => expect(proposalPosition(container)).toBe(2));
 
     fireEvent.click(within(cards(container)[0]).getByRole("button", { name: "Supprimer la slide" }));
-    fireEvent.click(screen.getByRole("button", { name: "Supprimer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Supprimer cette slide" }));
 
     await waitFor(() => expect(cards(container)).toHaveLength(2));
     expect(within(cards(container)[1]).getByText(/Directive C/)).toBeTruthy();

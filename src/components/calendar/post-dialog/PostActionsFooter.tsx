@@ -81,7 +81,7 @@ export function PostActionsFooter({ canSchedule, publishStatus, scheduledAt, han
           {!connectionsKnown && (
             <div className="text-2xs text-muted-foreground">
               {connectionsLoading ? "Vérification de la connexion…" : "Impossible de vérifier la connexion pour le moment."}
-              <button type="button" disabled={connectionsLoading} onClick={() => void refreshConnections()} className="ml-2 underline">Réessayer</button>
+              <button type="button" disabled={connectionsLoading} onClick={() => void refreshConnections()} className="ml-2 underline">Vérifier à nouveau la connexion</button>
             </div>
           )}
           {scheduleNeedsConnection && (
@@ -115,7 +115,7 @@ export function PostActionsFooter({ canSchedule, publishStatus, scheduledAt, han
               <>
                 ⚠️ Non enregistré
                 <button type="button" onClick={() => { void runAutoSave(); }} className="underline font-medium ml-1">
-                  Réessayer
+                  Relancer l'enregistrement
                 </button>
               </>
             )
@@ -130,10 +130,10 @@ export function PostActionsFooter({ canSchedule, publishStatus, scheduledAt, han
             size="sm"
             className="ml-auto rounded-pill text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5"
             onClick={async () => {
-              if (await confirm({ title: "Supprimer ce post du calendrier ?", description: "Cette action est irréversible.", confirmText: "Supprimer", destructive: true })) onDelete(effectiveId);
+              if (await confirm({ title: "Supprimer ce post du calendrier ?", description: "Cette action est irréversible.", confirmText: "Supprimer le post", cancelText: "Garder le post", destructive: true })) onDelete(effectiveId);
             }}
           >
-            <Trash2 className="h-4 w-4" /> Supprimer
+            <Trash2 className="h-4 w-4" /> Supprimer le post
           </Button>
         )}
 
@@ -162,7 +162,7 @@ export function PostActionsFooter({ canSchedule, publishStatus, scheduledAt, han
               )}
               {canPublishActions && editingPost && onUnplan && <DropdownMenuSeparator />}
               {editingPost && onUnplan && (
-                <DropdownMenuItem onClick={async () => { if (await confirm({ title: "Remettre ce post dans tes idées ?", description: "Il sera retiré du calendrier et rangé dans ta boîte à idées.", confirmText: "Remettre dans mes idées" })) onUnplan(); }}>
+                <DropdownMenuItem onClick={async () => { if (await confirm({ title: "Remettre ce post dans tes idées ?", description: "Il sera retiré du calendrier et rangé dans ta boîte à idées.", confirmText: "Remettre dans mes idées", cancelText: "Garder dans le calendrier" })) onUnplan(); }}>
                   <Lightbulb className="h-4 w-4 mr-2" /> Remettre dans mes idées
                 </DropdownMenuItem>
               )}

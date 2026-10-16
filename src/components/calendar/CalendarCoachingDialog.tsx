@@ -494,7 +494,7 @@ function CalendarCoachingSession({ open, onOpenChange, onPostAdded, existingPost
                 </p>
                 <div className="flex gap-2">
                   <Button size="sm" variant="ghost" className="text-xs" onClick={() => onOpenChange(false)}>
-                    Fermer
+                    Revenir au calendrier
                   </Button>
                   <Button
                     size="sm"

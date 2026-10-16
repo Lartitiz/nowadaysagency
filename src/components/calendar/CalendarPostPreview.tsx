@@ -324,12 +324,12 @@ export function CalendarPostPreview({
                   size="sm"
                   disabled={downloadingPng || downloadingHybrid || downloadingPdf}
                   className="gap-1.5 h-7 text-xs"
-                  title="Télécharger"
+                  title="Télécharger les visuels"
                 >
                   {(downloadingPng || downloadingHybrid || downloadingPdf)
                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     : <Download className="h-3.5 w-3.5" />}
-                  Télécharger
+                  Télécharger les visuels
                   <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>

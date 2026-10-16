@@ -291,7 +291,7 @@ function CalendarContentCardImpl({
                       onQuickDuplicate(post);
                     }}
                     className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-accent hover:border-border text-muted-foreground hover:text-foreground transition-colors"
-                    title="Dupliquer"
+                    title="Dupliquer le post"
                   >
                     <Copy className="h-3 w-3" />
                   </button>
@@ -303,7 +303,7 @@ function CalendarContentCardImpl({
                       onQuickDelete(post.id);
                     }}
                     className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-destructive/10 hover:border-destructive/30 text-muted-foreground hover:text-destructive transition-colors"
-                    title="Supprimer"
+                    title="Supprimer le post"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>

@@ -319,7 +319,7 @@ export default function StoryPhotoSuggestions({
             }}
             className="self-center inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-2xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
           >
-            <Plus className="h-3 w-3" /> libres de droits
+            <Plus className="h-3 w-3" /> Chercher une photo libre de droits
           </button>
         )}
       </div>
@@ -342,7 +342,7 @@ export default function StoryPhotoSuggestions({
               className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-primary px-3 text-2xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {searching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
-              Rechercher
+              Lancer la recherche
             </button>
           </form>
 
@@ -412,7 +412,7 @@ export default function StoryPhotoSuggestions({
           onClick={() => fileRef.current?.click()}
           className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-2xs text-foreground hover:bg-muted transition-colors"
         >
-          <Upload className="h-3 w-3" /> Ma photo
+          <Upload className="h-3 w-3" /> Importer ma photo
         </button>
         {directive && (
           <button

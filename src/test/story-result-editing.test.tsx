@@ -264,9 +264,9 @@ describe("Stories : édition et remplacement du résultat", () => {
     render(<StoryResult result={result} onStoriesUpdate={onStoriesUpdate} />);
 
     // Une story à la fois (chantier D) : les 3 sont dans la page, on va sur la 2e puis on la supprime.
-    expect(screen.getAllByRole("button", { name: "Supprimer", hidden: true })).toHaveLength(3);
+    expect(screen.getAllByRole("button", { name: "Supprimer la story", hidden: true })).toHaveLength(3);
     fireEvent.click(screen.getByRole("button", { name: "Voir la story 2" }));
-    fireEvent.click(screen.getByRole("button", { name: "Supprimer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Supprimer la story" }));
 
     expect(screen.getByText("Supprimer la story 2 ?")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Supprimer cette story" }));
@@ -287,7 +287,7 @@ describe("Stories : édition et remplacement du résultat", () => {
     };
     render(<StoryResult result={result} onStoriesUpdate={onStoriesUpdate} />);
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Supprimer" })[0]!);
+    fireEvent.click(screen.getAllByRole("button", { name: "Supprimer la story" })[0]!);
     fireEvent.click(screen.getByRole("button", { name: "Garder la story" }));
 
     expect(onStoriesUpdate).not.toHaveBeenCalled();
@@ -342,6 +342,6 @@ describe("Stories : édition et remplacement du résultat", () => {
 
   it("ne propose pas de supprimer la dernière story restante", () => {
     render(<StoryResult result={sequence("Unique story")} />);
-    expect(screen.queryByRole("button", { name: "Supprimer" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Supprimer la story" })).not.toBeInTheDocument();
   });
 });

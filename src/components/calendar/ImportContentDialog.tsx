@@ -588,9 +588,9 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
             : `Au ${new Date(`${schedOf(canals[0] || "instagram").date}T00:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}${mode === "schedule" ? ` · ${schedOf(canals[0] || "instagram").time}` : ""}`}
       </span>
       <div className="flex gap-2 ml-auto">
-        <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-pill">Annuler</Button>
+        <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-pill">Fermer sans importer</Button>
         <Button onClick={handleSave} disabled={saving || !!validationError} className="rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === "schedule" ? "Programmer" : "Ajouter au calendrier"}
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === "schedule" ? "Programmer la publication" : "Ajouter au calendrier"}
         </Button>
       </div>
     </div>

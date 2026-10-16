@@ -269,7 +269,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
 
       <div className="flex flex-col items-center gap-2">
         <Button onClick={continueFromImport} disabled={uploading} className="rounded-full px-8">
-          {uploading ? "Ajout en cours…" : hasAnything ? "Continuer →" : "Passer cette étape →"}
+          {uploading ? "Ajout en cours…" : hasAnything ? "Ajouter mes éléments et continuer →" : "Passer cette étape →"}
         </Button>
         {!hasAnything &&
         <p className="text-xs text-muted-foreground/60 italic">Sans lien ni capture, ton espace démarrera vide et mon diagnostic sera moins précis</p>

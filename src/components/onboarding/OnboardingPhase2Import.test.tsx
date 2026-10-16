@@ -35,7 +35,7 @@ describe("import de l'onboarding", () => {
   it("retient l'utilisatrice si l'URL du site est invalide", () => {
     const { onNext, onLeave } = show("https://exemple .fr");
     expect(screen.getByRole("textbox", { name: "URL de ton site web" })).toHaveAttribute("aria-invalid", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Continuer →" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter mes éléments et continuer →" }));
     expect(onNext).not.toHaveBeenCalled();
     expect(onLeave).not.toHaveBeenCalled();
     expect(screen.getByText(/Vérifie cette adresse/)).toBeInTheDocument();
@@ -43,7 +43,7 @@ describe("import de l'onboarding", () => {
 
   it("transmet l'URL normalisée au pré-scraping", () => {
     const { onNext, onLeave } = show("exemple.fr");
-    fireEvent.click(screen.getByRole("button", { name: "Continuer →" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter mes éléments et continuer →" }));
     expect(onLeave).toHaveBeenCalledWith("https://exemple.fr");
     expect(onNext).toHaveBeenCalledOnce();
   });

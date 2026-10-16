@@ -155,7 +155,7 @@ export function CalendarPostContent({
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onCopy} className="rounded-pill text-xs gap-1.5">
-              <Copy className="h-3 w-3" /> Copier
+              <Copy className="h-3 w-3" /> Copier le texte
             </Button>
 
 
@@ -167,7 +167,7 @@ export function CalendarPostContent({
           {contentEditableJsx}
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onCopy} className="rounded-pill text-xs gap-1.5">
-              <Copy className="h-3 w-3" /> Copier
+              <Copy className="h-3 w-3" /> Copier le texte
             </Button>
             <Button size="sm" onClick={() => setStatus("published")} className="rounded-pill text-xs gap-1.5">
               ✅ Marquer comme publié
@@ -179,7 +179,7 @@ export function CalendarPostContent({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setIsEditing(true)}>✏️ Modifier</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setIsEditing(true)}>✏️ Modifier le texte</DropdownMenuItem>
                 <DropdownMenuItem onClick={onSmartGenerate}>🔄 Nouvelle version IA</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -192,7 +192,7 @@ export function CalendarPostContent({
           {contentEditableJsx}
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onCopy} className="rounded-pill text-xs gap-1.5">
-              <Copy className="h-3 w-3" /> Copier
+              <Copy className="h-3 w-3" /> Copier le texte
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
