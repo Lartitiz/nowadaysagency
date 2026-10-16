@@ -83,6 +83,10 @@ describe("mode simple de l'éditeur", () => {
     render(<Harness />);
     fireEvent.click(screen.getByRole("button", { name: "Aide : gestes sur la slide" }));
     expect(screen.getByText(/Double-clique \(ou touche « Écrire »\)/)).toBeTruthy();
+    // Téléphone (passe du 16/10/2026) : une version au doigt, sans raccourcis clavier.
+    const touch = screen.getByText(/^Touche un texte, puis « Écrire »/);
+    expect(touch.className).toContain("md:hidden");
+    expect(touch.textContent).not.toMatch(/Ctrl|Alt|Échap|Suppr|Flèches|clic/);
   });
 
   it("la légende est repliée sous l'éditeur, son début reste visible, un clic l'ouvre", () => {
