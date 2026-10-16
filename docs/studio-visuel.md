@@ -10,10 +10,10 @@ Maquette cliquable (11 écrans, avec les règles dans les notes du canevas) : ht
 - Génération d'image OpenAI `gpt-image-2` :
   - `supabase/functions/product-on-model` : mise en scène d'une photo produit (images/edits), toujours à partir de la photo d'origine, recette « anti-effet IA » et charte injectées dans le prompt ;
   - `supabase/functions/carousel-slide-image` : création pure à partir d'une consigne (images/generations).
-  - Les deux sont réservées au Premium (décision du 09/07/2026, réponse `premium_required`).
+  - Réservées au Premium du 09/07/2026 au 16/10/2026 (réponse `premium_required`). Depuis le 16/10/2026, le plan gratuit y a accès dans la limite de ses 5 images par mois (grille du 01/10/2026, CGV) : seul le plafond dur `photo_retouch` l'arrête. Le Studio (`visual-studio`) suit la même règle (`generative_allowed` vaut `true` pour tous les plans).
 - Photoroom (visage jamais régénéré) : `photo-background-replace` (changer le décor, portrait pro), `photoroom-edit` (packshot).
 - Montages par code, offerts : `AvantApresDialog`, `OfferMockupDialog` (accès actuel par `CreateVisualDialog`).
-- Crédits : catégorie `photo_retouch` dans `supabase/functions/_shared/plan-limiter.ts` (5 gratuit, 50 Premium, 100 Binôme), 1 crédit par image, `logUsage` uniquement après succès. Coût indicatif d'une image gpt-image : environ 0,17 € (commentaire du 09/07/2026, à revérifier).
+- Crédits : catégorie `photo_retouch` dans `supabase/functions/_shared/plan-limiter.ts` (5 gratuit, 30 Premium, 60 Binôme), 1 crédit par image, `logUsage` uniquement après succès. Coût indicatif d'une image gpt-image : environ 0,17 € (commentaire du 09/07/2026, à revérifier).
 - Reels : `reel-render` (JSON2Video), clips Pexels via `stock-video-search`, montage dans `src/components/creer/ReelMontage.tsx`.
 
 ## Parcours

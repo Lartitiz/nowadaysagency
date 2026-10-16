@@ -5,8 +5,8 @@
 // Toutes les actions qui ne renvoient pas leur propre réponse finissent ici.
 // ORDRE DES REQUÊTES À GARDER : handler_contract_test.ts le fige.
 // Déplacé tel quel depuis index.ts (fiche 5, lot 4, docs/robustesse/gros-fichiers.md).
-import { checkQuota, isQaTestAccount } from "../_shared/plan-limiter.ts";
-import { premiumAllowed, shouldRecover } from "./contract.ts";
+import { checkQuota } from "../_shared/plan-limiter.ts";
+import { shouldRecover } from "./contract.ts";
 import { activeReferences } from "./conversation.ts";
 import { reconcileHiggsfieldImage } from "./higgsfield-image.ts";
 import { legacyReferences } from "./media.ts";
@@ -140,7 +140,9 @@ export async function readState(ctx: StudioContext, session: StudioSession, writ
       created_at: entry.created_at,
     })),
     quota,
-    generative_allowed: quota.reason === "error" ? undefined : premiumAllowed(quota.plan, isQaTestAccount(actor)),
+    // Tous les plans créent des images depuis le 16/10/2026 (5 en gratuit,
+    // plafond dur `photo_retouch` porté par `quota`).
+    generative_allowed: quota.reason === "error" ? undefined : true,
     writable: writable && !session.archived_at,
     memory: await readMemory(sb, p.workspace_id),
     charter_references: await Promise.all(

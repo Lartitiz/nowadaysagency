@@ -10,7 +10,9 @@
  *
  * Pipeline :
  *   1. Standard auth/quota/rate-limit (category: photo_retouch)
- *   2. Gate Premium (plan free → { error: "premium_required" }, bypass QA)
+ *   2. Plus de gate Premium depuis le 16/10/2026 : le plan gratuit a droit à
+ *      5 images (grille du 01/10/2026, CGV), plafond dur `photo_retouch`
+ *      vérifié au point 1 par le pipeline.
  *   3. Charte + profil → bloc « univers de marque » du prompt
  *   4. OpenAI /v1/images/generations (gpt-image-2.5-flare par défaut, cf.
  *      _shared/openai-image-model.ts ; n=1, retry 1× sur 5xx)
@@ -27,7 +29,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { readOwnerProfile } from "../_shared/profile-owner.ts";
-import { getServiceClient, isQaTestAccount, logUsage } from "../_shared/plan-limiter.ts";
+import { getServiceClient, logUsage } from "../_shared/plan-limiter.ts";
 import { fetchWithRetry } from "../_shared/http-retry.ts";
 import { openaiImageModel } from "../_shared/openai-image-model.ts";
 import {
@@ -87,14 +89,6 @@ serve(async (req) => {
 
     const bodyWorkspaceId = parsed.workspace_id ?? null;
     const adjustment = parsed.adjustment?.trim() || null;
-
-    // Gate Premium — même décision produit que la mise en scène (gpt-image =
-    // feature Premium). Statut 200 + error code pour un parsing front simple.
-    // Le compte QA garde un plan "free" réel mais passe le gate (bypass
-    // déterministe par UUID, cf. QA_TEST_USER_IDS dans plan-limiter).
-    if (quota && quota.plan === "free" && !isQaTestAccount(userId)) {
-      return jsonResponse({ error: "premium_required" }, 200);
-    }
 
     // Charte + profil pour le bloc « univers de marque »
     const col = bodyWorkspaceId ? "workspace_id" : "user_id";

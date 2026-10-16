@@ -218,22 +218,24 @@ Deno.test("rôles déclarés dans le message : références modifiées en place 
 });
 
 // ── 5. Ordre du quota dans `generate` ────────────────────────────────────────
-// checkQuota → contrôle Premium → prompt trop long → studio_confirm_generation.
+// checkQuota → plafond d'images → prompt trop long → studio_confirm_generation
+// (plus de contrôle Premium depuis le 16/10/2026 : 5 images en gratuit).
 // Un refus ne déclenche ni claim ni appel fournisseur.
 const PROVIDERS = /image-api\.photoroom\.com|api\.openai\.com|higgsfield/;
 const editProposal = { id: PROPOSAL, operation: "edit", visual_kind: "graphic", provider: "default", model: "gpt-image-2.5-sunburst",
   summary: "Lumière douce", image_prompt: "Soft light", input_path: `${SPACE}/${SESSION}/version`, references: [], cost: 1 };
 
-Deno.test("quota generate — refus Premium (plan gratuit, création) : ni claim ni fournisseur", async () => {
+Deno.test("quota generate — plan gratuit avec des images restantes : la création passe (5 images, 16/10/2026)", async () => {
+  // Plus de refus Premium : le plan gratuit a droit à 5 images (grille du
+  // 01/10/2026, CGV). Seul le plafond dur photo_retouch l'arrête (test suivant).
   const f = studioFixture({ actor: id(14), plan: "free" });
   try {
-    f.session.proposal = { ...editProposal };
     f.versions.splice(0);
     const res = await f.send({ ...base, action: "generate", proposal_id: PROPOSAL });
-    assertEquals([res.status, res.data.error], [403, "Cette création est disponible en Premium. Rien n’a été décompté."]);
-    assertEquals(f.rpcBodies.studio_confirm_generation, undefined);
-    assertEquals(f.requests.some((r) => PROVIDERS.test(r)), false);
-    assert(f.requests.includes("POST /rest/v1/rpc/has_role"), "le quota est bien lu");
+    assertEquals(res.status, 200, JSON.stringify(res.data));
+    assertEquals(f.rpcBodies.studio_confirm_generation?.length, 1);
+    assertEquals(f.rpcBodies.studio_confirm_generation[0].p_image_limit, 5);
+    assert(f.requests.some((r) => PROVIDERS.test(r)), "le fournisseur d'images est appelé");
   } finally { f.restore(); }
 });
 
