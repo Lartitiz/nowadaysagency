@@ -638,7 +638,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
           .map((row) => ({ row, url: map.get(row.storage_path) || "" }))
           .filter((x) => x.url),
       );
-    });
+    }).catch(() => { if (!cancelled) setLibraryPool([]); });
     return () => {
       cancelled = true;
     };
