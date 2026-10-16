@@ -114,3 +114,30 @@ it('le top garde ses 3 contenus au plus', () => {
   const tree = renderWith(postGroupCall('Ce qui a le mieux marché'), { livePosts: { top: posts(5), flop: [] } });
   expect(countLi(tree)).toBe(3);
 });
+
+/* ── 3. Analyse IA d'un mois sans relevé : prévenir au lieu de la perdre en silence ── */
+function analyze(formId: string | null) {
+  const update = vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) }));
+  const scope = {
+    user: { id: 'me' }, workspaceId: 'me', igConnected: false, allStats: [], formData: { reach: 10 }, formId,
+    selectedMonth: '2026-09', monthLabel: () => 'septembre 2026', supabase: { from: () => ({ update }) },
+    invokeWithTimeout: vi.fn(async () => ({ data: { insight: 'Bonne analyse' }, error: null })),
+    toast: toastSpy(), setIsGenerating: vi.fn(), setAiAnalysis: vi.fn(), setAnalysisMonthPosts: vi.fn(),
+  };
+  return { scope, update, done: run(declared('handleAnalyze'), scope)() };
+}
+
+it('analyse d\'un mois pas encore enregistré : message clair, aucune écriture', async () => {
+  const { scope, update, done } = analyze(null); await done;
+  expect(scope.setAiAnalysis).toHaveBeenCalledWith('Bonne analyse');
+  expect(update).not.toHaveBeenCalled();
+  expect(scope.toast.warning).toHaveBeenCalledTimes(1);
+  expect(scope.toast.warning.mock.calls[0][0]).toContain('enregistre d\'abord les chiffres de septembre 2026');
+});
+
+it('analyse d\'un mois enregistré : elle est gardée sur sa ligne, sans avertissement', async () => {
+  const { scope, update, done } = analyze('row-9'); await done;
+  expect(update).toHaveBeenCalledTimes(1);
+  expect(update.mock.results[0].value.eq).toHaveBeenCalledWith('id', 'row-9');
+  expect(scope.toast.warning).not.toHaveBeenCalled();
+});
