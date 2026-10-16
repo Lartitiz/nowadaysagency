@@ -1,7 +1,7 @@
 import BrandLogo from "@/components/BrandLogo";
 import { useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, Check, Home, UserRound, CircleHelp, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut,  Plus, Trash2, Image, BarChart3, IdCard,  Sparkles, Lightbulb } from "lucide-react";
+import { ChevronDown, Check, Home, UserRound, CircleHelp, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut,  Plus, Trash2, Image, BarChart3, IdCard, Lightbulb } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { isRouteVisible } from "@/config/feature-flags";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -50,10 +50,11 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   },
 ];
 
-// Créer ouvre l’accueil ; la création explicite reste dans son moteur,
-// qui arbitre le brouillon existant avant tout nouveau départ.
+// Un nom par page (choix de Laetitia du 16/10/2026) : cet onglet ouvre l’accueil,
+// il s’appelle donc « Accueil », comme dans le menu et le fil d’Ariane.
+// « Créer un contenu » reste la porte vers /creer (accueil et menu).
 const MOBILE_NAV = [
-  { to: "/dashboard", label: "Créer", icon: Sparkles, matchExact: true },
+  { to: "/dashboard", label: "Accueil", icon: Home, matchExact: true },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
 ];
 
@@ -122,8 +123,8 @@ export default function AppSidebar() {
             </div>
             <nav aria-label="Navigation principale" className="flex shrink-0 items-center gap-2">
               {quickNav.map(item => (
-                <Link key={item.to} to={item.to} aria-current={isQuickNavActive(item) || (item.to === "/dashboard" && location.pathname.startsWith("/creer")) ? "page" : undefined}
-                  className={`rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${isQuickNavActive(item) || (item.to === "/dashboard" && location.pathname.startsWith("/creer")) ? "bg-[hsl(var(--bento-dark))] text-white" : "text-bordeaux hover:bg-rose-pale"}`}>
+                <Link key={item.to} to={item.to} aria-current={isQuickNavActive(item) ? "page" : undefined}
+                  className={`rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${isQuickNavActive(item) ? "bg-[hsl(var(--bento-dark))] text-white" : "text-bordeaux hover:bg-rose-pale"}`}>
                   {item.label}
                 </Link>
               ))}
@@ -371,7 +372,7 @@ export default function AppSidebar() {
         <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.05)] md:hidden">
           <div className="flex items-center justify-around min-h-14 pb-[env(safe-area-inset-bottom)]">
             {quickNav.map((item) => {
-              const active = isQuickNavActive(item) || (item.to === "/dashboard" && location.pathname.startsWith("/creer"));
+              const active = isQuickNavActive(item);
               return (
                 <Link
                   key={item.to}
