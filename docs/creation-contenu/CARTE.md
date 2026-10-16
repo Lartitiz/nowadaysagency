@@ -687,12 +687,16 @@ première exception ci-dessus.
 ### Bouton d'appel à l'action du carrousel texte (lot 8, 14/10/2026)
 
 Le bouton de la dernière slide est dessiné dans le HTML (`data-slide-cta`).
-Le modifier ou le retirer depuis l'écran de résultat
-(`formatRenderers/CarouselResult.tsx`, `updateCta` / `removeCta`) range aussi
-son libellé dans la slide : `cta_label`, comme `patchElement` de l'éditeur
-visuel (`""` = retiré). Une slide texte ne l'envoie pas à `carousel-visual`
-(`visualSlidePayload`) : le rendu ne change pas. Test :
-`src/test/carousel-result-cta.test.tsx`.
+Le modifier ou le retirer se fait dans l'éditeur visuel, qui range aussi son
+libellé dans la slide : `cta_label` (`patchElement`, `""` = retiré). Une slide
+texte ne l'envoie pas à `carousel-visual` (`visualSlidePayload`) : le rendu ne
+change pas. Test : `src/test/carousel-result-cta.test.tsx`.
+
+Depuis le 16/10/2026, l'écran de résultat du carrousel texte
+(`formatRenderers/CarouselResult.tsx`) n'a plus de partie visuelle (aperçus,
+champ du bouton, alerte « périmé », `updateCta` / `removeCta`) : il ne
+s'affichait jamais avec des visuels, car `CreerStepResult` ouvre l'éditeur
+visuel dès qu'il y en a. Même nettoyage que le carrousel photo.
 
 Depuis le lot 8b (14/10/2026), le libellé est aussi rangé **à l'arrivée des
 visuels** du carrousel texte : `use-generate-visuals.ts` passe les visuels à

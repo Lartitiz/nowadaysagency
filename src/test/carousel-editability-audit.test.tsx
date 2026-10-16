@@ -65,7 +65,6 @@ function editInline(container: HTMLElement, value: string) {
 describe("Audit carrousel — reproductions de défauts", () => {
   it("A1: la correction automatique met réellement à jour les slides et le parent", () => {
     const onSlidesUpdate = vi.fn();
-    const onVisualSlidesUpdate = vi.fn();
     const result = {
       slides: [
         { ...textSlides[0], title: "Dans un monde où tout va vite" },
@@ -77,7 +76,6 @@ describe("Audit carrousel — reproductions de défauts", () => {
       <CarouselResult
         result={result}
         onSlidesUpdate={onSlidesUpdate}
-        onVisualSlidesUpdate={onVisualSlidesUpdate}
       />,
     );
     fireEvent.click(
@@ -89,23 +87,18 @@ describe("Audit carrousel — reproductions de défauts", () => {
         .innerText,
     ).not.toContain("Dans un monde où");
     expect(onSlidesUpdate).toHaveBeenCalled();
-    expect(onVisualSlidesUpdate).not.toHaveBeenCalled();
   });
 
-  it("A2: une ancre incompatible déclenche une alerte de visuel périmé", () => {
+  it("A2: carrousel texte — une retouche remonte, sans aperçu ni alerte « périmé »", () => {
+    // Partie visuelle retirée le 16/10/2026 : l'écran ne reçoit plus de visuels
+    // (dès qu'il y en a, /creer ouvre l'éditeur visuel à la place).
     const onSlidesUpdate = vi.fn();
-    const onVisualSlidesUpdate = vi.fn();
+    const onStaleChange = vi.fn();
     const { container } = render(
       <CarouselResult
         result={{ slides: textSlides, caption }}
-        visualSlides={[
-          {
-            slide_number: 1,
-            html: "<div><h1>Autre formulation visuelle</h1></div>",
-          },
-        ]}
         onSlidesUpdate={onSlidesUpdate}
-        onVisualSlidesUpdate={onVisualSlidesUpdate}
+        onStaleChange={onStaleChange}
       />,
     );
     editInline(container, "Mon titre corrigé");
@@ -115,10 +108,11 @@ describe("Audit carrousel — reproductions de défauts", () => {
       ]),
       caption,
     );
-    expect(onVisualSlidesUpdate).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Une slide n’a pas pu être actualisée",
-    );
+    expect(onStaleChange).toHaveBeenCalledWith(false);
+    expect(onStaleChange).not.toHaveBeenCalledWith(true);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(container.querySelector("iframe")).toBeNull();
+    expect(screen.queryByText(/Aperçu des visuels/)).toBeNull();
   });
 
   it("A3: un nouveau résultat remplace les textes même à numérotation identique", () => {
@@ -267,25 +261,22 @@ describe("Audit carrousel — reproductions de défauts", () => {
     expect(updated).toContain(">20 %</strong>");
   });
 
-  it("A8: les numéros de page dessinés dans les visuels sont retirés au déplacement de slide", () => {
-    const onVisualSlidesUpdate = vi.fn();
-    const vs = textSlides.map((s) => ({
-      slide_number: s.slide_number,
-      html: `<div><p data-slide-text="title">${s.title}</p><span>${s.slide_number} / 3</span></div>`,
-    }));
+  it("A8: déplacer une slide renumérote les slides remontées au parent", () => {
+    const onSlidesUpdate = vi.fn();
     render(
       <CarouselResult
         result={{ slides: textSlides, caption }}
-        visualSlides={vs}
-        onVisualSlidesUpdate={onVisualSlidesUpdate}
+        onSlidesUpdate={onSlidesUpdate}
       />,
     );
     fireEvent.click(
       screen.getAllByRole("button", { name: "Descendre la slide" })[0],
     );
-    const output = onVisualSlidesUpdate.mock.calls.at(-1)![0];
-    expect(output[0].slide_number).toBe(1);
-    // Plus de numéro de page sur les slides (04/10/2026).
-    expect(output[0].html).not.toContain(" / 3");
+    const output = onSlidesUpdate.mock.calls.at(-1)![0];
+    expect(output.map((s: any) => [s.slide_number, s.title])).toEqual([
+      [1, "Titre 2"],
+      [2, "Titre 1"],
+      [3, "Titre 3"],
+    ]);
   });
 });
