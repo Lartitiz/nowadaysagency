@@ -414,7 +414,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
             {step === "upload" && "📥 Importer mes stats"}
             {step === "analyzing" && "🔍 Analyse en cours..."}
             {step === "validate" && "📊 Vérification du mapping"}
-            {step === "correcting" && "✏️ Corriger le mapping"}
+            {step === "correcting" && "✏️ Corriger les colonnes"}
             {step === "preview" && "✅ Aperçu avant import"}
             {step === "importing" && "⏳ Import en cours..."}
             {step === "done" && "🎉 Import terminé !"}
@@ -519,7 +519,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
                 ✅ C'est bon, importer
               </Button>
               <Button variant="outline" onClick={() => setStep("correcting")}>
-                ✏️ Corriger le mapping
+                ✏️ Corriger les colonnes
               </Button>
             </div>
           </div>
