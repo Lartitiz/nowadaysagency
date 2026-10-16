@@ -1,6 +1,8 @@
 import { act, fireEvent, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 import { useOnboarding } from "@/hooks/use-onboarding";
+import { BRANDING_SAVE_ERROR_TITLE } from "@/features/onboarding/branding-save-error";
 
 const m = vi.hoisted(() => ({
   userId: "qa-a",
@@ -9,6 +11,7 @@ const m = vi.hoisted(() => ({
   navigate: vi.fn(),
   failCompletion: false,
   failSave: false,
+  failTables: [] as string[],
   existingCompleted: false,
   metadata: {} as Record<string, string>,
   statusDelay: false,
@@ -70,14 +73,14 @@ vi.mock("@/integrations/supabase/client", () => ({
           error: null,
         }),
         then: (resolve: (value: { data: null; error: Error | null }) => void) =>
-          Promise.resolve({ data: null, error: m.failSave && (operation === "insert" || operation === "update") ? new Error("offline") : null }).then(resolve),
+          Promise.resolve({ data: null, error: (m.failSave || m.failTables.includes(table)) && (operation === "insert" || operation === "update") ? new Error("offline") : null }).then(resolve),
       };
       return chain;
     },
   },
 }));
 
-beforeEach(() => { localStorage.clear(); m.userId = "qa-a"; m.failCompletion = false; m.failSave = false; m.existingCompleted = false; m.metadata = {}; m.statusDelay = false; m.signedUrlFails = false; m.storage.length = 0; m.invoke.mockClear(); m.failDocInsertFor = ""; m.query.mockClear(); m.writes.length = 0; m.navigate.mockClear(); });
+beforeEach(() => { localStorage.clear(); m.userId = "qa-a"; m.failCompletion = false; m.failSave = false; m.failTables = []; m.existingCompleted = false; m.metadata = {}; m.statusDelay = false; m.signedUrlFails = false; m.storage.length = 0; m.invoke.mockClear(); m.failDocInsertFor = ""; m.query.mockClear(); m.writes.length = 0; m.navigate.mockClear(); });
 
 describe("reprise des captures de l'onboarding", () => {
   it("attend le profil avant d'écrire un brouillon vide sur un autre appareil", async () => {
@@ -266,6 +269,25 @@ describe("reprise des captures de l'onboarding", () => {
     m.failCompletion = false;
     await act(async () => { await result.current.handleDiagnosticComplete(); });
     expect(m.navigate).toHaveBeenCalledWith("/dashboard", { replace: true });
+    log.mockRestore();
+  });
+
+  it("prévient (un seul toast) quand le branding ne s'enregistre pas, sans bloquer la suite", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const toastError = vi.spyOn(toast, "error");
+    localStorage.setItem("lac_onboarding_answers", JSON.stringify({ prenom: "Test", objectif: "visibility", blocage: "invisible" }));
+    localStorage.setItem("lac_onboarding_branding", JSON.stringify({ positioning: "Portraits qui mettent à l'aise" }));
+    const { result } = renderHook(() => useOnboarding());
+    await waitFor(() => expect(result.current.brandingAnswers.positioning).toBe("Portraits qui mettent à l'aise"));
+    m.failTables = ["brand_proposition", "brand_strategy"];
+    let saved: boolean | undefined;
+    await act(async () => { saved = await result.current.handleFinish(); });
+    expect(saved).toBe(true);
+    expect(m.writes.some(w => w.table === "brand_proposition")).toBe(true);
+    expect(m.writes.some(w => w.table === "brand_strategy")).toBe(true);
+    expect(toastError).toHaveBeenCalledTimes(1);
+    expect(toastError).toHaveBeenCalledWith(BRANDING_SAVE_ERROR_TITLE, expect.anything());
+    toastError.mockRestore();
     log.mockRestore();
   });
 
