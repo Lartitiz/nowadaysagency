@@ -852,7 +852,7 @@ function InstagramStatsScope() {
     );
   };
 
-  const renderPostGroup = (title: string, posts: any[] | undefined, withRecycle = false) => {
+  const renderPostGroup = (title: string, posts: any[] | undefined, withRecycle = false, max = 3) => {
     if (!posts || !posts.length) return null;
     const fmtIcon = (f: string) => {
       const u = String(f || "").toUpperCase();
@@ -864,7 +864,7 @@ function InstagramStatsScope() {
       <div className="space-y-1.5">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
         <ul className="space-y-1.5">
-          {posts.slice(0, 3).map((p, i) => {
+          {posts.slice(0, max).map((p, i) => {
             const er = typeof p?.engagementRate === "number" ? Math.round(p.engagementRate * 100) : null;
             const subject = (p?.subject || "").trim() || "(sans légende)";
             const inner = (
@@ -1396,8 +1396,8 @@ function InstagramStatsScope() {
                   <div className="pt-2 border-t border-border/60 space-y-2">
                     {renderPostGroup(
                       `Les contenus de ${monthLabel(selectedMonth)} (par engagement)`,
-                      analysisMonthPosts.slice(0, 5),
-                      true,
+                      analysisMonthPosts,
+                      true, 5, // les 5 contenus du mois (le top / flop en garde 3)
                     )}
                   </div>
                 )}

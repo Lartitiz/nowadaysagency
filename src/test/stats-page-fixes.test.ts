@@ -82,3 +82,35 @@ it('échec d\'enregistrement : le parcours reste ouvert et aucun « Configuratio
   expect(succeeded.scope.setShowOnboarding).toHaveBeenCalledWith(false);
   expect(succeeded.scope.toast.success).toHaveBeenCalledTimes(1);
 });
+
+/* ── 2. « Les contenus du mois » : les 5 contenus passés s'affichent ── */
+const h = (type: unknown, props: any, ...children: unknown[]) => ({ type, props, children });
+function countLi(node: any): number {
+  if (Array.isArray(node)) return node.reduce((n, c) => n + countLi(c), 0);
+  if (!node || typeof node !== 'object') return 0;
+  return (node.type === 'li' ? 1 : 0) + countLi(node.children);
+}
+function postGroupCall(label: string) {
+  const [call] = find(n => ts.isCallExpression(n) && n.expression.getText(file) === 'renderPostGroup'
+    && n.arguments[0].getText(file).includes(label)) as ts.CallExpression[];
+  if (!call) throw new Error('Missing renderPostGroup call ' + label);
+  return call.getText(file);
+}
+function renderWith(callText: string, scope: Record<string, unknown>) {
+  const base = { React: { createElement: h, Fragment: 'frag' }, Button: 'button', Clapperboard: 'i', Images: 'i', Camera: 'i',
+    Recycle: 'i', recycleTopPost: vi.fn() };
+  const renderPostGroup = run(declared('renderPostGroup'), base);
+  return run(callText, { ...base, renderPostGroup, ...scope });
+}
+const posts = (n: number) => Array.from({ length: n }, (_, i) => ({ id: 'p' + i, subject: 'Post ' + i, engagementRate: 0.1 }));
+
+it('« Les contenus du mois » affiche les 5 contenus, pas 3', () => {
+  const tree = renderWith(postGroupCall('Les contenus de'),
+    { analysisMonthPosts: posts(8), monthLabel: () => 'octobre 2026', selectedMonth: '2026-10' });
+  expect(countLi(tree)).toBe(5);
+});
+
+it('le top garde ses 3 contenus au plus', () => {
+  const tree = renderWith(postGroupCall('Ce qui a le mieux marché'), { livePosts: { top: posts(5), flop: [] } });
+  expect(countLi(tree)).toBe(3);
+});
