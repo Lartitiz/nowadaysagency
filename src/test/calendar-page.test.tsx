@@ -201,3 +201,40 @@ it("espace personnel : le plus proche hors période ignore les posts rangés dan
   await waitFor(() => expect(state.props.grid?.nearestOutsidePost).toBeTruthy());
   expect(state.props.grid.nearestOutsidePost).toEqual({ date: "2026-11-20", direction: "future" });
 });
+
+// ── Défaut 4 : mode démo, aucune écriture ni lecture Supabase ──
+it("mode démo : statut, déplacement (et annulation), suppressions restent locaux, sans aucun appel Supabase", async () => {
+  state.demo = true;
+  state.user = { id: "demo-user" }; // ce que pose AuthContext en démo
+  state.value = "demo-user";
+  state.demoData = { calendar_posts: [
+    { title: "Portrait en lumière", format: "post", objective: "vente", planned_day: "2026-10-14" },
+    { title: "Coulisses", format: "reel", objective: "confiance", planned_day: "2026-10-15" },
+    { title: "Avant / après", format: "carousel", objective: "visibilite", planned_day: "2026-10-16" },
+  ] };
+  rendre("/calendrier?date=2026-10-14");
+  fireEvent.click((await screen.findAllByRole("button", { name: "Semaine" }))[0]);
+  await screen.findByText("Coulisses");
+  const semaine = () => state.props.week;
+  const duPost = (id: string) => Object.values(semaine().postsByDate).flat().find((p: any) => p.id === id) as any;
+
+  await act(async () => { await semaine().onQuickStatusChange("demo-post-1", "ready"); });
+  expect(duPost("demo-post-1").status).toBe("ready");
+
+  let deplace: any;
+  await act(async () => { deplace = await semaine().onMovePost("demo-post-1", "2026-10-17"); });
+  expect(deplace).toBe(true);
+  expect(duPost("demo-post-1").date).toBe("2026-10-17");
+  const annuler = state.toast.mock.calls.at(-1)?.[1]?.action;
+  await act(async () => { await annuler.onClick(); });
+  expect(duPost("demo-post-1").date).toBe("2026-10-15");
+
+  await act(async () => { await semaine().onQuickDelete("demo-post-1"); });
+  expect(screen.queryByText("Coulisses")).not.toBeInTheDocument();
+  await act(async () => { await state.props.dialog.onDelete("demo-post-0"); });
+  expect(screen.queryByText("Portrait en lumière")).not.toBeInTheDocument();
+  expect(screen.getByText("Avant / après")).toBeInTheDocument();
+
+  expect(state.move).not.toHaveBeenCalled();
+  expect(state.appels.map((a) => a.table)).toEqual([]);
+});
