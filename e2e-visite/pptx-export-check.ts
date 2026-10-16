@@ -69,8 +69,51 @@ export async function exportAndCheckPptx(
   const pptxItem = page.getByText(/PowerPoint\s*[^\p{L}]{0,3}\s*éditable/iu).first();
   await expect(pptxItem).toBeVisible({ timeout: 8000 });
   const dlPromise = page.waitForEvent("download", { timeout: 240_000 });
-  await pptxItem.click();
-  const download = await dlPromise;
+  // Lenteur de l'export (une fois > 240 s, 16/10/2026) : on garde de quoi
+  // comprendre sans relancer — le minutage par slide que l'app écrit dans la
+  // console ([hybrid][perf]) et les requêtes réseau lentes pendant l'export.
+  const t0 = Date.now();
+  const perfLines: string[] = [];
+  const onConsole = (m: { text: () => string }) => { if (/^\[hybrid\]/.test(m.text())) perfLines.push(`+${((Date.now() - t0) / 1000).toFixed(1)}s ${m.text()}`); };
+  const started = new Map<object, number>();
+  const slowRequests: string[] = [];
+  const onRequest = (r: object) => started.set(r, Date.now());
+  const onDone = (r: { url: () => string; failure?: () => { errorText: string } | null }) => {
+    const s = started.get(r); if (s === undefined) return;
+    const ms = Date.now() - s;
+    const fail = r.failure?.()?.errorText;
+    if (ms > 3000 || fail) slowRequests.push(`${(ms / 1000).toFixed(1)}s${fail ? ` ÉCHEC ${fail}` : ""} ${r.url().slice(0, 120)}`);
+  };
+  page.on("console", onConsole);
+  page.on("request", onRequest);
+  page.on("requestfinished", onDone);
+  page.on("requestfailed", onDone);
+  let download;
+  try {
+    await pptxItem.click();
+    // Un export normal prend ~3 s (14 slides, 16/10/2026). Si, 30 s après le clic,
+    // l'app n'a écrit AUCUNE ligne [hybrid] et rien n'est téléchargé, l'export n'a
+    // pas démarré : le clic s'est perdu (menu qui se ferme) — on le refait une fois.
+    // S'il a démarré puis calé, pas de second essai : c'est l'app qui bloque, la
+    // sonde doit rester rouge (avec le minutage par slide ci-dessous).
+    download = await Promise.race([dlPromise, page.waitForTimeout(30_000).then(() => null)]);
+    if (!download && !perfLines.length) {
+      console.log(`↻ [${opts.format}] export pas démarré 30 s après le clic : second clic`);
+      // Borné : si l'export tournait en fait déjà (préparation des photos longue,
+      // item grisé « en cours »), on n'attend pas ce clic, juste le fichier.
+      if (!(await pptxItem.isVisible().catch(() => false))) await dlButton.click({ timeout: 5000 }).catch(() => {});
+      await pptxItem.click({ timeout: 5000 }).catch(() => console.log(`↻ [${opts.format}] second clic impossible (export déjà en cours ?)`));
+    }
+    download = download ?? await dlPromise;
+  } finally {
+    page.off("console", onConsole);
+    page.off("request", onRequest);
+    page.off("requestfinished", onDone);
+    page.off("requestfailed", onDone);
+    console.log(`⏱️ [${opts.format}] export PowerPoint : ${((Date.now() - t0) / 1000).toFixed(1)} s${download ? "" : " (pas de fichier)"}`);
+    for (const l of perfLines) console.log(`   ${l}`);
+    for (const l of slowRequests) console.log(`   🐢 réseau ${l}`);
+  }
 
   const outDir = path.join(dirname, "results");
   fs.mkdirSync(outDir, { recursive: true });
