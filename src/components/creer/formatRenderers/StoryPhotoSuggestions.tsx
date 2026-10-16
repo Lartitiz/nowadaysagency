@@ -47,7 +47,7 @@ interface Props {
   appliedPhotoId: string | null;
   /** true si la story n'a aucun fond → stock chargé d'office + pré-appliqué. */
   autoApply: boolean;
-  /** Vignettes bibliothèque récentes, signées une fois par StoryResult. */
+  /** Vignettes bibliothèque les plus pertinentes pour cette story (vivier signé une fois par StoryResult). */
   libraryStrip: { row: UserPhotoRow; url: string }[];
   onApply: (photo: AppliedStockPhoto, opts?: { onlyIfEmpty?: boolean }) => void;
   onApplyLibrary: (row: UserPhotoRow) => void;
