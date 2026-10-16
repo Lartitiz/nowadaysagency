@@ -127,8 +127,66 @@ export async function installFigeReplay(page: Page, name: string) {
  * de mise en page donne parfois 673 px au lieu de 674 pour la même slide
  * (vu sur le carrousel mixte le 09/10) : faux rouge sans aucun changement visible.
  */
+/**
+ * Attend que les polices des slides (iframes de la zone) soient chargées.
+ * Les slides chargent leurs polices Google par <link>/@import avec display=swap :
+ * tant que la police n'est pas arrivée, le texte s'affiche en police de secours
+ * (Times). Vu le 15-16/10/2026 environ une fois sur trois sur la slide 1 du
+ * carrousel texte → « aspect différent » à tort. document.fonts.ready seul ne
+ * suffit pas : il est déjà résolu si la feuille de style Google n'est pas encore
+ * arrivée (aucune police demandée). On attend donc : feuilles chargées, puis
+ * chargement explicite de chaque police utilisée, puis fonts.ready.
+ * Renvoie les polices encore absentes (vide = tout est prêt).
+ */
+export async function waitZoneFonts(locator: Locator, timeoutMs = 20_000): Promise<string[]> {
+  return locator.evaluate(async (el, timeout) => {
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const frames = [...(el instanceof HTMLIFrameElement ? [el] : []), ...el.querySelectorAll("iframe")] as HTMLIFrameElement[];
+    const end = Date.now() + timeout;
+    let missing: string[] = [];
+    for (const f of frames) {
+      for (;;) {
+        const doc = f.contentDocument;
+        if (doc && doc.readyState === "complete") {
+          // Feuilles <link> pas encore arrivées : .sheet reste null.
+          const pendingLinks = [...doc.querySelectorAll('link[rel="stylesheet"]')].filter((l) => !(l as HTMLLinkElement).sheet);
+          // Polices Google demandées (<link> ou @import) mais pas encore déclarées :
+          // la feuille de style Google n'est pas arrivée.
+          const declaredNow = new Set([...doc.fonts].map((ff) => ff.family.replace(/^["']|["']$/g, "")));
+          const google = [...doc.documentElement.innerHTML.matchAll(/fonts\.googleapis\.com\/css2?\?([^"')\s]+)/g)]
+            .flatMap((m) => [...m[1].replace(/&amp;/g, "&").matchAll(/family=([^:&]+)/g)].map((f) => decodeURIComponent(f[1].replace(/\+/g, " "))));
+          missing = google.filter((g) => !declaredNow.has(g));
+          if (!pendingLinks.length && !missing.length) {
+            const wanted = new Set<string>();
+            for (const n of doc.body?.querySelectorAll("*") || []) {
+              if (!(n as HTMLElement).innerText?.trim()) continue;
+              const cs = doc.defaultView!.getComputedStyle(n);
+              const fam = cs.fontFamily.split(",")[0].trim().replace(/^["']|["']$/g, "");
+              if (fam) wanted.add(`${cs.fontStyle} ${cs.fontWeight} 32px "${fam}"`);
+            }
+            // Ne garde que les polices déclarées (@font-face) : les polices système n'ont rien à charger.
+            const declared = new Set([...doc.fonts].map((ff) => ff.family.replace(/^["']|["']$/g, "")));
+            const toLoad = [...wanted].filter((w) => declared.has(w.split('"')[1]));
+            await Promise.all(toLoad.map((w) => doc.fonts.load(w).catch(() => [])));
+            await doc.fonts.ready;
+            missing = toLoad.filter((w) => !doc.fonts.check(w));
+            if (!missing.length) break;
+          }
+        }
+        if (Date.now() > end) break;
+        await sleep(200);
+      }
+    }
+    return missing;
+  }, timeoutMs);
+}
+
 export async function expectZoneMatches(page: Page, locator: Locator, name: string, message: string) {
   await locator.scrollIntoViewIfNeeded();
+  const missingFonts = await waitZoneFonts(locator);
+  if (missingFonts.length) console.log(`⚠️ ${name} : police(s) pas chargée(s) avant la photo : ${missingFonts.join(" ; ")}`);
+  // Le texte se remet en page avec la vraie police : une image pour finir.
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   const box = await locator.boundingBox();
   if (!box) throw new Error(`${message} (zone introuvable à l'écran)`);
   // Coordonnées de la PAGE (une zone peut dépasser la hauteur de l'écran).
