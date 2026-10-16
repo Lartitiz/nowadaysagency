@@ -22,7 +22,6 @@ interface Props {
   onCopy: () => void;
   onOpenAtelier: () => void;
   onNavigateToDeepen: () => void;
-  onNavigateToFormat: (format: string) => void;
   postCanal: string;
   format: string | null;
   angle: string | null;
@@ -36,7 +35,7 @@ interface Props {
 export function CalendarPostContent({
   editingPost, theme, contentDraft, setContentDraft, accroche, setAccroche,
   status, setStatus, isGenerating, onSmartGenerate, onCopy, onOpenAtelier,
-  onNavigateToDeepen, onNavigateToFormat, postCanal, format,
+  onNavigateToDeepen, postCanal, format,
   angle, objectif, notes, mediaUrls, onSaveAndClose, onShowContentViewer,
 }: Props) {
   const navigate = useNavigate();
