@@ -141,3 +141,44 @@ it('analyse d\'un mois enregistré : elle est gardée sur sa ligne, sans avertis
   expect(update.mock.results[0].value.eq).toHaveBeenCalledWith('id', 'row-9');
   expect(scope.toast.warning).not.toHaveBeenCalled();
 });
+
+/* ── 4. Remplir depuis Instagram / LinkedIn / 12 mois : invokeWithTimeout (délai 60 s, étiquetage Sentry) ── */
+function liveScope(answer: { data: unknown; error: unknown }) {
+  const invoke = vi.fn(async () => { throw new Error('supabase.functions.invoke appelé directement'); });
+  const update = vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) }));
+  const insert = vi.fn(async () => ({ error: null }));
+  return {
+    user: { id: 'me' }, workspaceId: 'ws-1', currentMonthDate: '2026-10-01', allStats: [], now: new Date(2026, 9, 16),
+    monthKey: (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`,
+    invokeWithTimeout: vi.fn(async () => answer), toast: toastSpy(), loadStats: vi.fn(async () => {}),
+    supabase: { from: () => ({ update, insert }), functions: { invoke } },
+    setFetchingLive: vi.fn(), setFetchingLiStats: vi.fn(), setBackfilling: vi.fn(), setAudience: vi.fn(),
+    setLivePosts: vi.fn(), setLiStats: vi.fn(), setSelectedMonth: vi.fn(),
+  };
+}
+
+it.each([
+  ['fetchFromInstagram', 'instagram-insights-fetch', { workspace_id: 'ws-1' }],
+  ['fetchFromLinkedIn', 'linkedin-insights-fetch', { workspace_id: 'ws-1' }],
+])('%s passe par invokeWithTimeout (60 s)', async (name, fn, body) => {
+  const scope = liveScope({ data: { metrics: { followers: 10 } }, error: null });
+  await run(declared(name), scope)();
+  expect(scope.supabase.functions.invoke).not.toHaveBeenCalled();
+  expect(scope.invokeWithTimeout).toHaveBeenCalledWith(fn, { body }, 60000);
+});
+
+it('backfillHistory passe par invokeWithTimeout (60 s) pour chacun des 12 mois', async () => {
+  const scope = liveScope({ data: { monthMetrics: null }, error: null });
+  await run(declared('backfillHistory'), scope)();
+  expect(scope.supabase.functions.invoke).not.toHaveBeenCalled();
+  expect(scope.invokeWithTimeout).toHaveBeenCalledTimes(12);
+  expect(scope.invokeWithTimeout).toHaveBeenCalledWith('instagram-insights-fetch',
+    { body: { workspace_id: 'ws-1', month: '2026-09-01' } }, 60000);
+});
+
+it('connexion à renouveler (409) : « Reconnexion requise », lu dans la réponse rendue par invokeWithTimeout', async () => {
+  const scope = liveScope({ data: { error: 'Reconnecte ton compte Instagram pour autoriser la lecture de tes statistiques.' },
+    error: { code: 'SERVER_ERROR', message: 'Reconnecte ton compte Instagram…' } });
+  await run(declared('fetchFromInstagram'), scope)();
+  expect(scope.toast.error).toHaveBeenCalledWith('Reconnexion requise', expect.anything());
+});
