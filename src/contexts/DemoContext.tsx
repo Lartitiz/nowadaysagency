@@ -98,6 +98,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;
 }
 
+/** Mode démo sans exiger DemoProvider (écran aussi rendu hors fournisseur, tests compris) : false par défaut. */
+export function useIsDemoMode(): boolean {
+  return useContext(DemoContext)?.isDemoMode ?? false;
+}
+
 export function useDemoContext() {
   const context = useContext(DemoContext);
   if (!context) throw new Error("useDemoContext must be used within DemoProvider");
