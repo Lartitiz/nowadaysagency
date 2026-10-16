@@ -173,3 +173,20 @@ it("retour du coaching (?post=&date=&canal=) : la fenêtre du post s'ouvre et l'
   expect(screen.getAllByText("filtre canal : linkedin").length).toBeGreaterThan(0);
   await waitFor(() => expect(adresse()).toBe("/calendrier"));
 });
+
+// ── Défaut 2 : « Générer » sur un post sans route ouvre la fenêtre avec SA date ──
+it("« Générer » sur un post sans format ouvre la fenêtre avec la date du post, et l'auto-save aboutit", async () => {
+  state.db.calendar_posts = [post({ id: "p2", user_id: "u1", date: "2026-10-14", theme: "Sans format" })];
+  rendre("/calendrier?date=2026-10-14");
+  fireEvent.click((await screen.findAllByRole("button", { name: "Semaine" }))[0]);
+  await screen.findByText("Sans format");
+  act(() => state.props.week.onQuickGenerate({ ...state.db.calendar_posts[0] }));
+  expect(await screen.findByText("fenêtre du post ouverte")).toBeInTheDocument();
+  expect(state.props.dialog.editingPost.id).toBe("p2");
+  expect(state.props.dialog.selectedDate).toBe("2026-10-14");
+  const brouillon = { theme: "Sans format", angle: null, status: "idea", notes: "", canal: "instagram", objectif: null };
+  let retour: any;
+  await act(async () => { retour = await state.props.dialog.onAutoSave(brouillon, "p2"); });
+  expect(retour).toEqual({});
+  expect(state.appels.some((a) => a.table === "calendar_posts" && a.ops.some(([m]) => m === "update"))).toBe(true);
+});
