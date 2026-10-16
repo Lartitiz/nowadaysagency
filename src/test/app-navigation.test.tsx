@@ -67,3 +67,11 @@ it("distingue identité et offres, statistiques et réseau, dans les deux groupe
   expect(menu.getByRole("link", { name: "Mes statistiques" })).toHaveAttribute("aria-current", "page");
   expect(menu.getByRole("link", { name: "Instagram" })).not.toHaveAttribute("aria-current");
 });
+
+it("appelle l’accueil « Accueil » dans les onglets, sans le confondre avec la création", () => {
+  mount("/creer");
+  const tabs = screen.getAllByRole("link", { name: "Accueil" }).filter(a => a.getAttribute("href") === "/dashboard");
+  expect(tabs.length).toBeGreaterThan(0);
+  expect(screen.queryByRole("link", { name: "Créer" })).not.toBeInTheDocument();
+  tabs.forEach(a => expect(a).not.toHaveAttribute("aria-current"));
+});

@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { WORKSPACE_SHARING_ENABLED } from "@/config/feature-flags";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import {   Sparkles, CalendarDays,  User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake,  Search, ChevronDown, Check, Plus,   Wrench,  Menu } from "lucide-react";
+import {   Home, CalendarDays,  User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake,  Search, ChevronDown, Check, Plus,   Wrench,  Menu } from "lucide-react";
 import { useMobileNav } from "@/contexts/MobileNavContext";
 import { isMobileNavAvailable } from "@/lib/app-shell-visibility";
 
@@ -28,7 +28,7 @@ import QuotaWallModal from "@/components/QuotaWallModal";
 /* ─── Unified nav items ─── */
 
 const NAV_ITEMS = [
-  { to: "/dashboard", label: "Créer", icon: Sparkles, matchExact: true },
+  { to: "/dashboard", label: "Accueil", icon: Home, matchExact: true },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
 ];
 
@@ -38,7 +38,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   "/branding/offres": "Mes offres",
   "/branding/coaching": "Coaching identité",
   "/branding/section": "Mon identité",
-  "/creer": "Créer",
+  "/creer": "Créer un contenu",
   "/idees": "Mes idées",
   "/calendrier": "Calendrier",
   "/instagram": "Instagram",

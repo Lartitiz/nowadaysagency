@@ -37,7 +37,7 @@ test("calendrier mobile : du calendrier est visible au-dessus du pli", async ({ 
       return cs.visibility !== "hidden" && cs.display !== "none" && cs.opacity !== "0";
     };
 
-    // Barre d'onglets fixe en bas (Assistant / Créer / Calendrier) : ce qu'elle
+    // Barre d'onglets fixe en bas (Accueil / Calendrier / Mon espace) : ce qu'elle
     // recouvre n'est pas vu, même si c'est « au-dessus du pli ».
     let barreBasse = 0;
     for (const el of Array.from(document.querySelectorAll<HTMLElement>("body *"))) {
