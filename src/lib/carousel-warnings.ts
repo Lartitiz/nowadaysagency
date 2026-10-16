@@ -22,6 +22,9 @@
  *   panne de notre côté, la personne ne peut rien en faire.
  */
 
+/** Fait de la recherche web repris dans le carrousel, avec le lien de sa page (16/10/2026). */
+export const WEB_FACT_PREFIX = "Fait trouvé sur le web";
+
 const PROGRESSION_FAILED = "Le contrôle final du fil n’a pas abouti. Relis l’enchaînement des slides avant de publier.";
 const TEXT_EDITED = "Le texte a changé depuis sa relecture. Vérifie le fil avant de publier.";
 const PHOTOS_EDITED = "Le texte ou les photos ont changé depuis leur vérification. Vérifie leurs associations avant de publier.";
@@ -112,7 +115,7 @@ export function splitCarouselWarnings(doc: any, mode?: string | null): { blockin
     if (judge.has(w)) { judgeShown = true; continue; }
     if (w === PROGRESSION_FAILED) continue;
     if (RELABEL[w]) suggestions.push(RELABEL[w]);
-    else if (repeats.has(w) || /^La photo \d+ revient sur \d+ slides/.test(w)) suggestions.push(w);
+    else if (repeats.has(w) || /^La photo \d+ revient sur \d+ slides/.test(w) || w.startsWith(WEB_FACT_PREFIX)) suggestions.push(w);
     else blocking.push(w);
   }
   // Seulement si le serveur les avait affichés : un reçu « sans objet »

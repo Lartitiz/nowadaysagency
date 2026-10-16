@@ -22,6 +22,7 @@ import { enforceCover, coverKind, coverRewritePrompt } from "../../_shared/carou
 import { type AudienceAddress, type AudienceAddressPass, enforceAudienceAddress } from "../../_shared/audience-address.ts";
 import { extractCarouselTexts, reinjectCarouselTexts } from "../../_shared/correction-pass.ts";
 import { progressionMaterial } from "../../_shared/carousel-editorial-snapshot.ts";
+import { researchSourceWarnings } from "../research-sources.ts";
 
 // ── Queue commune de génération ──
 // ── Fil du carrousel (16/09/2026) ──
@@ -146,6 +147,16 @@ export async function finalizeCarousel(
       id: "news",
       provenance: "provided_reference",
       text: typeof ctx.newsContext === "string" ? ctx.newsContext : "",
+    },
+    {
+      // Faits de la recherche web gardés parce qu'une page trouvée porte leur
+      // source (16/10/2026) : sans eux, le juge signalait comme « venu de
+      // nulle part » un fait que la rédaction avait le droit de reprendre.
+      id: "web_research",
+      provenance: "web_search_facts_with_found_page_links",
+      text: ctx.researchText
+        ? [ctx.researchText.trim(), ...(ctx.researchLinks || []).map((l) => `Page de « ${l.name} » : ${l.url}`)].join("\n")
+        : "",
     },
   ].filter((s) => s.text.trim());
   const remaining = () => 270_000 - (opts.reserveMs || 0) - (Date.now() - startedAt);
@@ -404,6 +415,9 @@ export async function finalizeCarousel(
   const finalDoc = !ownsText && ctx.audienceAddress
     ? await lap("thread_address_ms", () => enforceCarouselAudienceAddress(cover.doc, ctx.audienceAddress!, remaining() < 15_000 ? 0 : Math.min(20_000, remaining() - 5_000)))
     : cover.doc;
+  // Après couverture et tu/vous : le lien suit le texte réellement livré.
+  const webFacts = photosOnly || ownsText ? [] : researchSourceWarnings(finalDoc, ctx.researchLinks);
+  if (webFacts.length) finalDoc.structure_warnings = [...(finalDoc.structure_warnings || []), ...webFacts];
   return JSON.stringify(await rebindReceiptsAfterFinalTouches(beforeTouches, finalDoc));
 }
 

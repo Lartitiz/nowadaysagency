@@ -24,6 +24,13 @@ describe("Avertissements carrousel : manques vs pistes de relecture", () => {
     expect(out.suggestions.join(" ")).not.toMatch(/fiche de marque/);
   });
 
+  it("un fait trouvé sur le web (avec son lien) est une piste de relecture, pas un manque", () => {
+    const web = "Fait trouvé sur le web (slide 6) : « Ademe, 2025 ». Vérifie le chiffre sur la page avant de publier : https://www.ademe.fr/x";
+    const out = splitCarouselWarnings({ structure_warnings: [web] });
+    expect(out.blocking).toEqual([]);
+    expect(out.suggestions).toEqual([web]);
+  });
+
   it("les vrais manques restent bloquants", () => {
     const out = splitCarouselWarnings({ structure_warnings: ["La dernière slide est vide : complète la conclusion.", "Slide 2 : image à choisir. x", RAW], progression_review: receipt });
     expect(out.blocking).toEqual(["La dernière slide est vide : complète la conclusion.", "Slide 2 : image à choisir. x"]);

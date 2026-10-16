@@ -14,7 +14,7 @@ import { createContinuousNarrative } from "./continuous-narrative.ts";
 import { fetchRecentContentTexts } from "../_shared/recent-passages.ts";
 import { matchFinalPhotos } from "./final-photo-match.ts";
 import { addStockAmbientPhotos } from "./stock-ambient.ts";
-import { fetchDepthMaterial } from "../_shared/depth-research.ts";
+import { fetchDepthMaterial, type ResearchLink } from "../_shared/depth-research.ts";
 import { applyAudienceAddressPass } from "../_shared/audience-address-pass.ts";
 import { logCarouselPlan } from "../_shared/content-quality.ts";
 import { type StatusEmitter } from "../_shared/anthropic-stream.ts";
@@ -286,6 +286,8 @@ export interface CarouselRequestContext {
   gateInputText: string;
   /** Matière de recherche (incluse dans gateInputText) : ses chiffres seuls exigent leur source. */
   researchText?: string;
+  /** Pages web d'où viennent les faits gardés de la recherche (juge, pistes de relecture). */
+  researchLinks?: ResearchLink[];
   /** Cas personnel fourni : au plus N chiffres venus de la seule recherche (redac-gate, « Ton cas d'abord »). */
   researchNumbersCap?: number;
   /** Brief + réponses + photos + actu : seule source d'un témoignage ou d'un vécu au passé (redac-gate). */
