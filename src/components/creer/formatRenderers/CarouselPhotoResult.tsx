@@ -28,6 +28,7 @@ import { useNavigate } from "react-router-dom";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
+import { photoResultSignature, needsPhotoResultResync } from "@/features/creer/carousel-photo/resync";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -172,27 +173,21 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
   useEffect(() => { onStaleChange?.(false); }, [onStaleChange]);
 
 
-  // La signature de resync inclut photo_index + cast_source pour que le casting
-  // automatique bibliothèque (posé par le parent, régime texte d'abord) soit
-  // répercuté dans l'état local même quand la liste de slides n'a pas changé.
-  const prevSignature = useRef(JSON.stringify({
-    slides: (r?.slides || []).map((s: any) => [s.slide_number, s.photo_index ?? null, s.cast_source || ""]),
-    captionHash: JSON.stringify(r?.caption || {}),
-  }));
+  // Resync depuis /creer : textes compris, sans réagir à l'écho de nos propres
+  // retouches (slides renvoyées telles quelles par onSlidesUpdate) — voir resync.ts.
+  const prevSignature = useRef(photoResultSignature(r?.slides, r?.caption));
+  const lastSentSlides = useRef<unknown>(null);
 
   useEffect(() => {
     const currentSlides = r?.slides || [];
-    const newSig = JSON.stringify({
-      slides: currentSlides.map((s: any) => [s.slide_number, s.photo_index ?? null, s.cast_source || ""]),
-      captionHash: JSON.stringify(r?.caption || {}),
-    });
-    if (newSig !== prevSignature.current) {
+    const newSig = photoResultSignature(currentSlides, r?.caption);
+    if (needsPhotoResultResync(prevSignature.current, newSig, currentSlides === lastSentSlides.current)) {
       setSlides(currentSlides);
       const nextCaption = buildCaptionWithFallback(r?.caption, currentSlides);
       setCaption(nextCaption);
       setHashtagInput((nextCaption.hashtags || []).join(" "));
-      prevSignature.current = newSig;
     }
+    prevSignature.current = newSig;
   }, [result]);
 
   // Log si la légende est vide (Action 5)
@@ -237,6 +232,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
 
   const notify = useCallback(
     (s: any[], c: any) => {
+      lastSentSlides.current = s;
       onSlidesUpdate?.(s, c);
     },
     [onSlidesUpdate],

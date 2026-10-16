@@ -139,6 +139,63 @@ describe("Audit carrousel — reproductions de défauts", () => {
     ).toBe("Nouveau contenu");
   });
 
+  it("A3 bis: carrousel photo — un nouveau résultat qui ne change que les textes est affiché", () => {
+    const { rerender } = render(
+      <CarouselPhotoResult result={{ slides: photoSlides, caption }} />,
+    );
+    rerender(
+      <CarouselPhotoResult
+        result={{
+          slides: photoSlides.map((s) => ({ ...s, overlay_text: "Nouveau contenu" })),
+          caption,
+        }}
+      />,
+    );
+    expect(screen.getByLabelText("Texte de la slide 1")).toHaveValue("Nouveau contenu");
+  });
+
+  it("A3 ter: carrousel photo — l'écho d'une retouche par /creer ne réinitialise rien", () => {
+    // Rejoue le vrai onSlidesUpdate de CreerUnifie : nouvelle référence de
+    // `result` à chaque retouche, avec les slides et la légende reçues.
+    const hashtags = ["#atelier"];
+    const linkedinCaption = {
+      hook: caption.hook,
+      body: caption.body,
+      cta: "",
+      hashtags,
+      fullText: `${caption.hook}\n\n${caption.body}\n\n#atelier`,
+    };
+    const onSlidesUpdate = vi.fn();
+    function Harness() {
+      const [result, setResult] = useState<any>({
+        raw: { slides: photoSlides, caption: linkedinCaption },
+      });
+      return (
+        <CarouselPhotoResult
+          result={result}
+          channel="linkedin"
+          onSlidesUpdate={(s, c) => {
+            onSlidesUpdate(s, c);
+            setResult((prev: any) => ({ ...prev, raw: { ...prev.raw, slides: s, caption: c } }));
+          }}
+        />
+      );
+    }
+    render(<Harness />);
+    const tagsInput = screen.getByPlaceholderText("#hashtag1 #hashtag2 #hashtag3");
+    // Saisie en cours (virgule finale) : les hashtags enregistrés ne changent pas.
+    fireEvent.change(tagsInput, { target: { value: "#atelier," } });
+    fireEvent.change(screen.getByLabelText("Texte de la slide 1"), {
+      target: { value: "Texte corrigé" },
+    });
+    expect(screen.getByLabelText("Texte de la slide 1")).toHaveValue("Texte corrigé");
+    // La retouche de slide ne réinitialise pas la saisie en cours ailleurs…
+    expect(tagsInput).toHaveValue("#atelier,");
+    // …et chaque retouche ne remonte qu'une fois (pas de boucle).
+    expect(onSlidesUpdate).toHaveBeenCalledTimes(2);
+    expect(onSlidesUpdate.mock.calls.at(-1)[0][0].overlay_text).toBe("Texte corrigé");
+  });
+
   // A4 et A5 (16/10/2026) : la partie « visuels » de CarouselPhotoResult a été
   // retirée. Dès qu'il y a des visuels, CreerStepResult ouvre l'éditeur de
   // carrousel ; cet écran n'affiche donc jamais de visuels et signale toujours
