@@ -73,11 +73,11 @@ interface Props {
   onExportActionsChange?: (actions: StoryExportActions | null) => void;
 }
 
-const getTextField = (story: any): "text" | "texte" | "content" => {
-  if ("text" in story) return "text";
-  if ("texte" in story) return "texte";
-  return "content";
-};
+// Même lecture que l'aperçu (story-visual.ts : text || texte || content) ;
+// sans texte nulle part, le premier champ présent reste celui qu'on modifie.
+const TEXT_FIELDS = ["text", "texte", "content"] as const;
+const getTextField = (story: any): (typeof TEXT_FIELDS)[number] =>
+  TEXT_FIELDS.find((f) => story[f]) ?? TEXT_FIELDS.find((f) => f in story) ?? "content";
 
 const getStoryText = (story: any): string => String(story[getTextField(story)] ?? "");
 

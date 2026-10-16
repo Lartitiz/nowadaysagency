@@ -306,6 +306,16 @@ describe("Stories : édition et remplacement du résultat", () => {
     expect(screen.getByTitle("Aperçu story 1")).toBeInTheDocument();
   });
 
+  it("montre et modifie le même texte que l'aperçu quand « text » est vide mais « texte » rempli", () => {
+    const onStoriesUpdate = vi.fn();
+    render(<StoryResult result={{ stories: [{ text: "", texte: "Bonjour", face_cam: false }] }} onStoriesUpdate={onStoriesUpdate} />);
+    expect(previewHtml()).toContain("Bonjour");
+    expect(screen.getByLabelText("Texte complet de la story 1")).toHaveValue("Bonjour");
+    editNarration("Bonsoir");
+    expect(onStoriesUpdate.mock.lastCall?.[0][0].texte).toBe("Bonsoir");
+    expect(previewHtml()).toContain("Bonsoir");
+  });
+
   it("ne propose pas de supprimer la dernière story restante", () => {
     render(<StoryResult result={sequence("Unique story")} />);
     expect(screen.queryByRole("button", { name: "Supprimer" })).not.toBeInTheDocument();
