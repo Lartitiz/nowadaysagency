@@ -18,7 +18,8 @@ import { isValidUrl } from "@/components/onboarding/OnboardingShared";
 import { rememberProductOrService } from "@/lib/product-or-service";
 import { ONBOARDING_BLOCKER_TO_INSIGHT, ONBOARDING_GOAL_TO_PILLAR } from "@/lib/onboarding-strategy-defaults";
 import type { CharterReferenceLink } from "@/components/branding/charter/CharterReferenceLinks";
-import { isOnboardingDraftExpired, purgeExpiredOnboardingDraft } from "@/features/onboarding/draft-storage";
+import { isOnboardingDraftExpired, purgeExpiredOnboardingDraft, purgeStaleOnboardingDraft } from "@/features/onboarding/draft-storage";
+import { emptyBrandingAnswers, emptyOnboardingAnswers } from "@/features/onboarding/empty-answers";
 
 /* ────────────────────────────────────────────── helpers */
 
@@ -180,7 +181,8 @@ export function useOnboarding() {
         return { id, name: row.file_name, url: row.file_url, previewUrl: await createOnboardingPreviewUrl(row.file_url) };
       }));
       if (cancelled) return;
-      setUploadedFiles(prev => [...restored, ...prev.filter(file => !ids.includes(file.id))].slice(0, 3));
+      // Liste effacée entre-temps (remise à zéro du contrôle de statut) : ne pas ressusciter les captures.
+      if (localStorage.getItem(key) !== null) setUploadedFiles(prev => [...restored, ...prev.filter(file => !ids.includes(file.id))].slice(0, 3));
       setUploadsRestoredForUser(user.id);
     })();
     return () => { cancelled = true; };
@@ -306,17 +308,11 @@ export function useOnboarding() {
       // Safety: DB says NOT completed but localStorage has a step beyond the flow → reset to 0
       if (!done && step >= TOTAL_STEPS && !localStorage.getItem(`lac_onboarding_diagnostic:${user.id}`)) {
         console.warn("[onboarding] Stale step detected after reset, resetting to 0");
-        localStorage.removeItem("lac_onboarding_step");
-        localStorage.removeItem("lac_onboarding_answers");
-        localStorage.removeItem("lac_onboarding_branding");
-        localStorage.removeItem("lac_onboarding_ts");
+        purgeStaleOnboardingDraft(user.id); // 4 clés du brouillon + liste des captures de ce compte
         setStep(0);
-        setAnswers({
-          prenom: "", activite: "", activity_type: "", activity_detail: "",
-          canaux: [], desired_channels: [], blocage: "", objectif: "", temps: "",
-          instagram: "", website: "", linkedin: "", linkedin_summary: "",
-          change_priority: "", product_or_service: "", uniqueness: "",
-        });
+        setAnswers(emptyOnboardingAnswers()); // visual_reference_links compris
+        setBrandingAnswers(emptyBrandingAnswers());
+        setUploadedFiles([]); // sinon l'effet de sauvegarde réécrit la liste des captures
       }
 
       // Pre-fill from DB when profile has data but onboarding not completed
