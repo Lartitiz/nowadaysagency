@@ -97,18 +97,5 @@ export function useCalendarPostNavigation({ theme, format, postCanal, objectif, 
     }, 100);
   };
 
-  const handleNavigateToFormat = (targetFormat: string) => {
-    const params = new URLSearchParams();
-    if (theme) params.set("sujet", theme);
-    if (objectif) params.set("objectif", objectif);
-    if (editingPost?.id) params.set("calendar_id", editingPost.id);
-    params.set("from", "/calendrier");
-    if (targetFormat === "carousel") navigate(`/creer?format=carousel&${params.toString()}`);
-    else if (targetFormat === "reel") navigate(`/creer?format=reel&${params.toString()}`);
-    else if (targetFormat === "story") navigate(`/creer?format=story&${params.toString()}`);
-    else if (targetFormat === "linkedin") navigate(`/creer?canal=linkedin&${params.toString()}`);
-    else navigate("/transformer");
-  };
-
-  return { handleSmartGenerate, handleOpenAtelier, handleNavigateToGenerator, handleNavigateToDeepen, handleNavigateToFormat };
+  return { handleSmartGenerate, handleOpenAtelier, handleNavigateToGenerator, handleNavigateToDeepen };
 }

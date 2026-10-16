@@ -38,7 +38,6 @@ interface PostEditionBlockProps {
   handleCopy: () => void;
   handleOpenAtelier: () => Promise<void>;
   handleNavigateToDeepen: () => Promise<void>;
-  handleNavigateToFormat: (targetFormat: string) => void;
   postCanal: string;
   format: string | null;
   angle: string | null;
@@ -60,7 +59,7 @@ interface PostEditionBlockProps {
   ownerName: string;
 }
 
-export function PostEditionBlock({ editingPost, theme, setTheme, themeRef, contentDraft, setContentDraft, accroche, setAccroche, status, setStatus, isGenerating, handleSmartGenerate, handleCopy, handleOpenAtelier, handleNavigateToDeepen, handleNavigateToFormat, postCanal, format, angle, objectif, notes, setNotes, mediaUrls, setMediaUrls, handleSave, onOpenChange, isMobile, setShowContentViewer, uploading, handleMediaUpload, showSecondary, setShowSecondary, linkedBrief, guide, ownerName }: PostEditionBlockProps) {
+export function PostEditionBlock({ editingPost, theme, setTheme, themeRef, contentDraft, setContentDraft, accroche, setAccroche, status, setStatus, isGenerating, handleSmartGenerate, handleCopy, handleOpenAtelier, handleNavigateToDeepen, postCanal, format, angle, objectif, notes, setNotes, mediaUrls, setMediaUrls, handleSave, onOpenChange, isMobile, setShowContentViewer, uploading, handleMediaUpload, showSecondary, setShowSecondary, linkedBrief, guide, ownerName }: PostEditionBlockProps) {
   return (
     <div className="space-y-4 min-w-0">
       <div>
@@ -85,7 +84,6 @@ export function PostEditionBlock({ editingPost, theme, setTheme, themeRef, conte
         isGenerating={isGenerating} onSmartGenerate={handleSmartGenerate}
         onCopy={handleCopy} onOpenAtelier={handleOpenAtelier}
         onNavigateToDeepen={handleNavigateToDeepen}
-        onNavigateToFormat={handleNavigateToFormat}
         postCanal={postCanal} format={format} angle={angle}
         objectif={objectif} notes={notes} mediaUrls={mediaUrls}
         onSaveAndClose={() => { handleSave(); onOpenChange(false); }}

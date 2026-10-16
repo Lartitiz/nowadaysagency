@@ -26,6 +26,7 @@ const m = vi.hoisted(() => ({
   publishLi: vi.fn(),
   toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
   confirm: vi.fn(async () => true),
+  contenuProps: null as any,
 }));
 
 vi.mock("react-router-dom", () => ({ useNavigate: () => m.navigate }));
@@ -88,14 +89,12 @@ vi.mock("@/components/ui/collapsible", () => ({
 }));
 // Morceaux déjà sortis : faux qui exposent leurs props.
 vi.mock("@/components/calendar/CalendarPostContent", () => ({
-  CalendarPostContent: (p: any) => (
+  CalendarPostContent: (p: any) => (m.contenuProps = p) && (
     <div>
       <textarea aria-label="brouillon" value={p.contentDraft ?? ""} onChange={(e) => p.setContentDraft(e.target.value)} />
       <button onClick={p.onSmartGenerate}>faux:générer</button>
       <button onClick={p.onOpenAtelier}>faux:atelier</button>
       <button onClick={p.onNavigateToDeepen}>faux:approfondir</button>
-      <button onClick={() => p.onNavigateToFormat("reel")}>faux:format-reel</button>
-      <button onClick={() => p.onNavigateToFormat("autre")}>faux:format-autre</button>
     </div>
   ),
 }));
@@ -329,13 +328,9 @@ describe("navigation vers /creer", () => {
     expect(opts.state.resumeIdea).toEqual({ format: "carousel", raw: { ...detail, carousel_type: "photo" } });
   });
 
-  it("changer de format : pas d'enregistrement ni de state", () => {
-    const { props } = renderDialog({ editingPost: post({ objectif: "vente" }) });
-    fireEvent.click(screen.getByText("faux:format-reel"));
-    expect(m.navigate).toHaveBeenLastCalledWith("/creer?format=reel&sujet=Mon+sujet&objectif=vente&calendar_id=p1&from=%2Fcalendrier");
-    fireEvent.click(screen.getByText("faux:format-autre"));
-    expect(m.navigate).toHaveBeenLastCalledWith("/transformer");
-    expect(props.onAutoSave).not.toHaveBeenCalled();
+  it("plus de « changer de format » : la fenêtre ne passe plus cette prop (menu retiré le 06/03/2026)", () => {
+    renderDialog({ editingPost: post() });
+    expect(m.contenuProps).not.toHaveProperty("onNavigateToFormat");
   });
 });
 
@@ -371,12 +366,12 @@ describe("publication immédiate", () => {
     renderDialog({ editingPost: post({ media_urls: [IMG(1)], publish_status: "published" }) });
     expect(screen.queryByRole("menuitem", { name: /Publier maintenant/ })).toBeNull();
     // Rien à proposer dans le menu (pas de « Remettre dans mes idées ») : il est masqué.
-    expect(screen.queryByText("Options")).toBeNull();
+    expect(screen.queryByText("Gérer ce post")).toBeNull();
   });
 
-  it("post déjà publié avec « Remettre dans mes idées » → menu « Options » gardé", () => {
+  it("post déjà publié avec « Remettre dans mes idées » → menu « Gérer ce post » gardé", () => {
     renderDialog({ editingPost: post({ media_urls: [IMG(1)], publish_status: "published" }), onUnplan: vi.fn() });
-    expect(screen.getByText("Options")).toBeInTheDocument();
+    expect(screen.getByText("Gérer ce post")).toBeInTheDocument();
     expect(item(/Remettre dans mes idées/)).toBeInTheDocument();
   });
 });
@@ -404,13 +399,32 @@ describe("suppression", () => {
   });
 });
 
+describe("libellés « verbe + objet »", () => {
+  it("post publiable : « Publier ce post », panneau « Programmer ce post » / « Fermer sans programmer »", () => {
+    renderDialog({ editingPost: post({ media_urls: [IMG(1)] }) });
+    expect(screen.getByRole("button", { name: /Publier ce post/ })).toBeInTheDocument();
+    fireEvent.click(item(/Programmer la publication/));
+    expect(screen.getByRole("button", { name: "Programmer ce post" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Fermer sans programmer" }));
+    expect(screen.queryByRole("button", { name: "Programmer ce post" })).toBeNull();
+  });
+
+  it("aucun bouton réduit à « Publier », « Options », « Annuler », « Fermer » ou « Programmer »", () => {
+    renderDialog({ editingPost: post({ media_urls: [IMG(1)], publish_status: "scheduled", scheduled_publish_at: "2099-01-01T10:00:00Z" }) });
+    fireEvent.click(item(/Modifier la programmation/));
+    const seuls = screen.getAllByRole("button").map((b) => b.textContent!.trim());
+    for (const interdit of ["Publier", "Options", "Annuler", "Fermer", "Programmer"]) expect(seuls).not.toContain(interdit);
+    expect(screen.getByRole("button", { name: "Annuler la programmation" })).toBeInTheDocument();
+  });
+});
+
 describe("programmation", () => {
   const futur = "2099-01-01T10:00";
   async function programmer(editingPost: any, quand = futur) {
     renderDialog({ editingPost });
     fireEvent.click(item(/Programmer la publication/));
     fireEvent.change(document.querySelector('input[type="datetime-local"]')!, { target: { value: quand } });
-    fireEvent.click(screen.getByRole("button", { name: "Programmer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Programmer ce post" }));
   }
 
   it.each([
@@ -439,7 +453,7 @@ describe("programmation", () => {
     await programmer(post({ media_urls: [IMG(1)] }));
     await waitFor(() => expect(m.toast.success).toHaveBeenCalledWith("Publication programmée ! 🗓️", expect.anything()));
     expect(m.updates[0]).toMatchObject({ table: "calendar_posts", id: "p1", patch: { auto_publish: true, publish_status: "scheduled", publish_error: null, scheduled_publish_at: new Date(futur).toISOString() } });
-    fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+    fireEvent.click(screen.getByRole("button", { name: "Annuler la programmation" }));
     await waitFor(() => expect(m.toast.success).toHaveBeenCalledWith("Programmation annulée."));
     expect(m.updates[1].patch).toMatchObject({ auto_publish: false, publish_status: null });
   });

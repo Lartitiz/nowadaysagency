@@ -1431,7 +1431,7 @@ Repères de structure :
 
 À ne **pas** corriger pendant le découpage (noté pour une PR à part) :
 - Clés envoyées à /creer mais jamais lues par `CreerUnifie.tsx` ni ses hooks (vérifié par grep de `locState`) : `notes`, `existingAccroche`, `launchId`, `launchContext`, `contentType`, `contentTypeEmoji`, `category`, `angleSuggestion`, `chapter`, `chapterLabel`, `audiencePhase`. Le paramètre `carousel_type` n'est lu que par `ChatGuidePage.tsx`, pas par /creer. Les garder tels quels : les supprimer est une décision, pas un déplacement.
-- `handleNavigateToFormat` n'enregistre pas avant de partir et n'envoie ni state ni date (contrairement aux trois autres).
+- `handleNavigateToFormat` n'enregistre pas avant de partir et n'envoie ni state ni date (contrairement aux trois autres). **16/10/2026 : retiré.** Aucun bouton ne l'appelait depuis le retrait du menu « Changer de format » (commit Lovable du 06/03/2026) ; la prop `onNavigateToFormat` est retirée de `CalendarPostContent` et `PostEditionBlock`.
 - Les deux boutons « Supprimer » (pied + menu) font la même chose.
 
 **Tests qui le protègent aujourd'hui**
