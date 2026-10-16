@@ -18,6 +18,7 @@ import { isValidUrl } from "@/components/onboarding/OnboardingShared";
 import { rememberProductOrService } from "@/lib/product-or-service";
 import { ONBOARDING_BLOCKER_TO_INSIGHT, ONBOARDING_GOAL_TO_PILLAR } from "@/lib/onboarding-strategy-defaults";
 import type { CharterReferenceLink } from "@/components/branding/charter/CharterReferenceLinks";
+import { isOnboardingDraftExpired, purgeExpiredOnboardingDraft } from "@/features/onboarding/draft-storage";
 
 /* ────────────────────────────────────────────── helpers */
 
@@ -122,7 +123,7 @@ export function useOnboarding() {
   const demoDefaults = demoData?.onboarding;
 
   const [step, setStep] = useState(() => {
-    if (isDemoMode) return 0;
+    if (isDemoMode || isOnboardingDraftExpired()) return 0; // brouillon expiré : on repart du début
     const saved = localStorage.getItem("lac_onboarding_step");
     return saved ? parseInt(saved, 10) : 0;
   });
@@ -240,19 +241,7 @@ export function useOnboarding() {
   useEffect(() => {
     if (isDemoMode) return;
     try {
-      const savedTs = localStorage.getItem("lac_onboarding_ts");
-      if (savedTs) {
-        const saved = new Date(savedTs);
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        if (saved < sevenDaysAgo) {
-          localStorage.removeItem("lac_onboarding_step");
-          localStorage.removeItem("lac_onboarding_answers");
-          localStorage.removeItem("lac_onboarding_branding");
-          localStorage.removeItem("lac_onboarding_ts");
-          return;
-        }
-      }
+      if (purgeExpiredOnboardingDraft()) return; // plus de 7 jours : 4 clés effacées, étape à 0
       const savedAnswers = localStorage.getItem("lac_onboarding_answers");
       const savedStep = localStorage.getItem("lac_onboarding_step");
       if (savedAnswers) {
