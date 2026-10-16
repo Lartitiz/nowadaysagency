@@ -16,6 +16,7 @@ const state = vi.hoisted(() => ({
   value: "u1",
   db: {} as Record<string, any[]>,
   appels: [] as Appel[],
+  panne: null as null | ((appel: Appel) => boolean), // appel qui doit échouer
   props: {} as Record<string, any>,
   location: null as any,
   confirm: vi.fn(async () => true),
@@ -42,7 +43,9 @@ vi.mock("@/lib/saved-idea-summaries", () => ({ loadFullIdea: vi.fn(), needsFullI
 vi.mock("@/integrations/supabase/client", () => {
   const METHODES = ["select", "eq", "is", "gte", "lte", "gt", "lt", "in", "order", "limit", "insert", "update", "delete", "single", "maybeSingle"];
   let n = 0;
-  const executer = ({ table, ops }: Appel) => {
+  const executer = (appel: Appel) => {
+    const { table, ops } = appel;
+    if (state.panne?.(appel)) return { data: null, error: { message: "panne" } };
     const lignes = (state.db[table] ??= []);
     const op = (m: string) => ops.find(([x]) => x === m)?.[1];
     const garde = (r: any) => ops.every(([m, [c, v]]) =>
@@ -136,6 +139,7 @@ beforeEach(() => {
   state.value = "u1";
   state.db = {};
   state.appels = [];
+  state.panne = null;
   state.props = {};
   state.confirm.mockReset().mockResolvedValue(true);
   state.move.mockReset().mockResolvedValue(undefined);
@@ -237,4 +241,15 @@ it("mode démo : statut, déplacement (et annulation), suppressions restent loca
 
   expect(state.move).not.toHaveBeenCalled();
   expect(state.appels.map((a) => a.table)).toEqual([]);
+});
+
+// ── Défaut 5 : l'idée rapide affiche une erreur si l'enregistrement échoue ──
+it("idée rapide de la vue Semaine : un échec d'enregistrement affiche un toast d'erreur", async () => {
+  rendre("/calendrier?date=2026-10-14");
+  fireEvent.click((await screen.findAllByRole("button", { name: "Semaine" }))[0]);
+  await waitFor(() => expect(state.props.week).toBeTruthy());
+  state.panne = (a) => a.table === "calendar_posts" && a.ops.some(([m]) => m === "insert");
+  await act(async () => { await state.props.week.onQuickCreate("2026-10-15", "Une idée"); });
+  expect(state.toast.error).toHaveBeenCalledWith("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
+  expect(state.toast.success).not.toHaveBeenCalled();
 });
