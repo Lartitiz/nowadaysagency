@@ -20,6 +20,7 @@ import { ONBOARDING_BLOCKER_TO_INSIGHT, ONBOARDING_GOAL_TO_PILLAR } from "@/lib/
 import type { CharterReferenceLink } from "@/components/branding/charter/CharterReferenceLinks";
 import { isOnboardingDraftExpired, purgeExpiredOnboardingDraft, purgeStaleOnboardingDraft } from "@/features/onboarding/draft-storage";
 import { emptyBrandingAnswers, emptyOnboardingAnswers } from "@/features/onboarding/empty-answers";
+import { captureExtension, pickOnboardingCaptures, removeOrphanCapture } from "@/features/onboarding/capture-upload";
 
 /* ────────────────────────────────────────────── helpers */
 
@@ -439,13 +440,10 @@ export function useOnboarding() {
     if (!files || !user) return;
     setUploading(true);
     try {
-      for (const file of Array.from(files).slice(0, 3 - uploadedFiles.length)) {
-        const ext = file.name.split(".").pop()?.toLowerCase();
-        const allowed = ["png", "jpg", "jpeg", "webp"];
-        if (!ext || !allowed.includes(ext)) {
-          toast.error("Format non supporté", { description: `${file.name} ignoré` });
-          continue;
-        }
+      const { accepted, rejected } = pickOnboardingCaptures(Array.from(files), 3 - uploadedFiles.length); // plafond de 3 : fichiers au bon format seulement
+      rejected.forEach(file => toast.error("Format non supporté", { description: `${file.name} ignoré` }));
+      for (const file of accepted) {
+        const ext = captureExtension(file.name);
 
         // Compress large images before upload (target: 1.5 MB max)
         const { compressImageFile } = await import("@/lib/image-compress");
@@ -474,7 +472,8 @@ export function useOnboarding() {
           })
           .select("id")
           .single();
-        if (docError) throw docError;
+        // Pas de ligne user_documents : retirer le fichier du bucket, prévenir, passer au suivant.
+        if (docError) { await removeOrphanCapture(filePath, docError); toast.error("Erreur", { description: `Import de ${file.name} échoué` }); continue; }
 
         if (docRecord) {
           const previewUrl = await createOnboardingPreviewUrl(filePath);
