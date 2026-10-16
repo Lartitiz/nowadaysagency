@@ -91,6 +91,12 @@ export interface PhotoUploadZoneProps {
    * slide-photo du plan). Dépend du type de carrousel. Défaut 6.
    */
   aiAutoPickCount?: number;
+  /**
+   * Nombre de photos dans « Mes photos ». S'il y en a, « Choisir dans mes
+   * photos » devient le bouton principal et « L'IA choisit » passe en lien
+   * (choix de Laetitia du 16/10/2026 : ses photos avant la banque d'images).
+   */
+  libraryCount?: number;
 }
 
 function resizeAndEncode(file: File, maxWidth = 1600, quality = 0.8): Promise<{ base64: string; preview: string }> {
@@ -135,6 +141,7 @@ export function PhotoUploadZone({
   openStockSignal,
   stockAiContext,
   aiAutoPickCount,
+  libraryCount = 0,
 }: PhotoUploadZoneProps) {
   const [photos, setPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [description, setDescription] = useState(initialDescription ?? "");
@@ -295,6 +302,7 @@ export function PhotoUploadZone({
   }, [stockAiContext, aiAutoPickCount, autoPicking, photos, maxPhotos, updatePhotos]);
 
   const showAiAutoPick = !!stockAiContext?.subject?.trim();
+  const libraryFirst = libraryCount > 0;
 
   const removePhoto = useCallback(
     (idx: number) => {
@@ -403,6 +411,21 @@ export function PhotoUploadZone({
       {title && (
         <p className="text-sm font-semibold text-foreground">{title}</p>
       )}
+      {/* Mes photos d'abord : au-dessus de la zone de dépôt, visible sans défiler sur téléphone. */}
+      {!compact && libraryFirst && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            data-testid="photo-zone-library-main"
+            onClick={() => setLibraryOpen(true)}
+            disabled={isFull || importingFromLibrary}
+            className="inline-flex items-center gap-2 rounded-full border-2 border-primary/40 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary transition-all hover:border-primary/60 hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {importingFromLibrary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Library className="h-4 w-4" />}
+            {importingFromLibrary ? "Import…" : `Choisir dans mes photos (${libraryCount})`}
+          </button>
+        </div>
+      )}
       {/* ── Drop zone (hidden in compact mode) ─────────── */}
       {!compact && (
         <div
@@ -431,7 +454,7 @@ export function PhotoUploadZone({
       )}
 
       {/* ── « L'IA choisit les photos pour moi » (si contexte fourni) ───────── */}
-      {!compact && showAiAutoPick && (
+      {!compact && showAiAutoPick && !libraryFirst && (
         <div className="flex flex-col items-center gap-1 -mt-1">
           <button
             type="button"
@@ -460,7 +483,19 @@ export function PhotoUploadZone({
       {/* ── "Choose from library" / "Stock photos" links (non-compact mode) ───── */}
       {!compact && (
         <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1.5 -mt-1">
-          <button
+          {libraryFirst && showAiAutoPick && (
+            <button
+              type="button"
+              onClick={handleAiAutoPick}
+              disabled={isFull || autoPicking}
+              title="L'IA va chercher des photos libres de droit adaptées à ton contenu."
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed"
+            >
+              {autoPicking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              {autoPicking ? "L'IA choisit tes photos…" : "L'IA choisit pour moi"}
+            </button>
+          )}
+          {!libraryFirst && <button
             type="button"
             onClick={() => setLibraryOpen(true)}
             disabled={isFull || importingFromLibrary}
@@ -477,7 +512,7 @@ export function PhotoUploadZone({
                 Choisir dans mes photos
               </>
             )}
-          </button>
+          </button>}
           {/* Récupérer ses VRAIES photos (site / Instagram) doit se voir ICI :
               c'est en pleine création que le manque se ressent, et une photo
               de sa marque bat toujours une photo de banque d'images. */}

@@ -10,9 +10,12 @@ const MODES: { id: CarouselPreviewMode; label: string; hint: string }[] = [
   { id: "user_slides", label: "Mes slides", hint: "Tu fournis ton texte, slide par slide. L’IA le met en page sans le réécrire." },
 ];
 
-/** Type de carrousel conseillé par défaut (choix de Laetitia du 15/10/2026) : avec des photos, « Tes photos en fond », sinon « Texte design ». */
-export function defaultCarouselMode(hasPhotos: boolean): CarouselPreviewMode {
-  return hasPhotos ? "photo" : "text";
+/** À partir de ce nombre de photos dans « Mes photos », on conseille « Tes photos en fond » (choix de Laetitia du 16/10/2026). */
+export const LIBRARY_PHOTOS_FOR_PHOTO_CAROUSEL = 3;
+
+/** Type de carrousel conseillé par défaut (choix de Laetitia du 15/10/2026) : avec des photos (jointes, ou au moins 3 dans « Mes photos »), « Tes photos en fond », sinon « Texte design ». */
+export function defaultCarouselMode(attachedPhotos: number, libraryPhotos = 0): CarouselPreviewMode {
+  return attachedPhotos > 0 || libraryPhotos >= LIBRARY_PHOTOS_FOR_PHOTO_CAROUSEL ? "photo" : "text";
 }
 
 /** Les 5 types restent toujours visibles, en cartes compactes ; la description du type choisi s'affiche dessous. */
