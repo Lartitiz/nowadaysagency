@@ -16,7 +16,7 @@ import { recentPassagesPrompt } from "../_shared/recent-passages.ts";
 import { assignTemplatesToProvidedSlides } from "./layout.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
-import { buildDepthBlock } from "../_shared/depth-research.ts";
+import { buildDepthBlock, splitDepthMaterial, type ResearchLink } from "../_shared/depth-research.ts";
 import { livedCaseFromCarouselBody, researchNumbersCapFor } from "../_shared/lived-case.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { _deps, type CarouselRequestContext, buildPhotoContextRecap, normalizeGeneratedPlanFields, normalizeSlideType, pickCorrectionModel } from "./shared.ts";
@@ -258,6 +258,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       ? startPhotoOutline({ body, emitStatus, isLinkedIn, systemPrompt })
       : undefined;
     let depthBlock = "";
+    let researchLinks: ResearchLink[] = [];
     if (type === "express_full") {
       const newsAngle = typeof body.news_context === "string" ? body.news_context.trim().slice(0, 600) : "";
       const depthMode = livedCase.provided ? "support" : "depth";
@@ -271,6 +272,8 @@ export async function handleRequest(req: Request): Promise<Response> {
         livedCase: livedCase.provided ? [body.subject_details, ...livedCase.answers].filter(Boolean).join("\n") : undefined,
       });
       depthBlock = buildDepthBlock(material, depthMode);
+      // Liens des pages trouvées : pour le juge et les pistes de relecture (16/10/2026).
+      if (depthBlock) researchLinks = splitDepthMaterial(material).links;
       if (depthBlock) systemPrompt += depthBlock;
     }
 
@@ -386,6 +389,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       brandingContext,
       gateInputText,
       researchText: depthBlock,
+      researchLinks,
       // 1 chiffre de recherche pour son cas, 3 pour l'actu (avec ou sans ressenti).
       researchNumbersCap: researchNumbersCapFor(livedCase),
       testimonySource,
