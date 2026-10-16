@@ -737,7 +737,7 @@ function InstagramStatsScope() {
           ai_analysis: insight, ai_analyzed_at: new Date().toISOString(),
         }).eq("id", formId);
         if (updErr) { toast.error("Erreur de sauvegarde de l'analyse"); }
-      }
+      } else toast.warning(`Cette analyse ne sera pas gardée : enregistre d'abord les chiffres de ${monthLabel(selectedMonth)} dans « Mes données », puis relance-la.`);
     } catch {
       toast.error("Erreur lors de l'analyse");
     }
