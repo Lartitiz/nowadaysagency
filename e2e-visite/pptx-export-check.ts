@@ -99,8 +99,10 @@ export async function exportAndCheckPptx(
     download = await Promise.race([dlPromise, page.waitForTimeout(30_000).then(() => null)]);
     if (!download && !perfLines.length) {
       console.log(`↻ [${opts.format}] export pas démarré 30 s après le clic : second clic`);
-      if (!(await pptxItem.isVisible().catch(() => false))) await dlButton.click();
-      await pptxItem.click();
+      // Borné : si l'export tournait en fait déjà (préparation des photos longue,
+      // item grisé « en cours »), on n'attend pas ce clic, juste le fichier.
+      if (!(await pptxItem.isVisible().catch(() => false))) await dlButton.click({ timeout: 5000 }).catch(() => {});
+      await pptxItem.click({ timeout: 5000 }).catch(() => console.log(`↻ [${opts.format}] second clic impossible (export déjà en cours ?)`));
     }
     download = download ?? await dlPromise;
   } finally {
