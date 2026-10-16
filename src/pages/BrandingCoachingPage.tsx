@@ -47,7 +47,7 @@ export default function BrandingCoachingPage() {
   }
 
   return (
-    <LocalErrorBoundary fallbackMessage="Le coaching branding a rencontré une erreur.">
+    <LocalErrorBoundary fallbackMessage="Le coaching de l'identité de marque a rencontré une erreur.">
       <BrandingCoachingFlow
         section={section}
         personaId={personaId || undefined}

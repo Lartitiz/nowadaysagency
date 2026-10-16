@@ -43,11 +43,11 @@ const INCLUDES = [
    { emoji: "🛠️", title: "L'Assistant Com' Premium inclus", desc: "Valeur 39€/mois, en version renforcée : textes sans compter, 40 carrousels, 60 images et 6 vidéos par mois" },
   { emoji: "🎯", title: "6 sessions visio de 2h avec Laetitia", desc: "Sur-mesure, en visio. On fait ensemble." },
   { emoji: "💬", title: "Support WhatsApp jours ouvrés", desc: "Tu poses tes questions entre les sessions. Réponse sous 24-48h." },
-  { emoji: "✅", title: "Validation de tes livrables", desc: "Laetitia valide ta bio, ton branding, ton calendrier, tes contenus." },
+  { emoji: "✅", title: "Validation de tes livrables", desc: "Laetitia valide ta bio, ton identité de marque, ton calendrier, tes contenus." },
   { emoji: "📋", title: "Espace accompagnement dans l'outil", desc: "Sessions, livrables, journal de bord : tout au même endroit." },
-  { emoji: "🧭", title: "Stratégie sur mesure (mois 1-2)", desc: "Branding, positionnement, persona, plan d'action 6 mois." },
+  { emoji: "🧭", title: "Stratégie sur mesure (mois 1-2)", desc: "Identité de marque, positionnement, persona, plan d'action 6 mois." },
   { emoji: "🚀", title: "Application accompagnée (mois 3-6)", desc: "On met en œuvre ensemble. Contenus, calendrier, profils optimisés." },
-  { emoji: "📚", title: "Accès à vie au contenu", desc: "Replays, exercices, templates : tout reste accessible après les 6 mois." },
+  { emoji: "📚", title: "Accès à vie au contenu", desc: "Replays, exercices, modèles : tout reste accessible après les 6 mois." },
 ];
 
 const COMPARISONS = [
@@ -68,7 +68,7 @@ const TESTIMONIALS = [
     name: "Amina",
     activity: "Mazeh Paris · Cosmétiques naturels",
     quote: "Laetitia m'a aidée à trouver MA voix. L'accompagnement avec elle, c'est le meilleur investissement que j'ai fait.",
-    result: "3× plus de DM qualifiés",
+    result: "3× plus de messages privés qualifiés",
   },
   {
     name: "Julie",

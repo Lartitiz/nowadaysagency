@@ -128,7 +128,7 @@ export default function CoachChat() {
       const greeting = prenom ? `Salut ${prenom} ! 👋` : "Salut ! 👋";
       const welcome: ChatMessage = {
         role: "assistant",
-        content: `${greeting} Je suis ton coach com'. Pose-moi une question sur ta com', ton contenu, ton branding, ou dis-moi sur quoi tu bloques. Je suis là pour t'aider à avancer.`,
+        content: `${greeting} Je suis ton coach com'. Pose-moi une question sur ta com', ton contenu, ton identité de marque, ou dis-moi sur quoi tu bloques. Je suis là pour t'aider à avancer.`,
       };
       setMessages([welcome]);
       saveHistory([welcome]);
@@ -168,7 +168,7 @@ export default function CoachChat() {
           if (!quotaHandled) {
             const limitMsg: ChatMessage = {
               role: "assistant",
-              content: `${quotaLimitMessage(data?.quota) || "Tu as atteint une de tes limites du mois 🌸 Elle revient le 1er du mois prochain."} En attendant, tu peux continuer à travailler ton branding, ton calendrier et ta bibliothèque d'idées !`,
+              content: `${quotaLimitMessage(data?.quota) || "Tu as atteint une de tes limites du mois 🌸 Elle revient le 1er du mois prochain."} En attendant, tu peux continuer à travailler ton identité de marque, ton calendrier et ta bibliothèque d'idées !`,
             };
             const final = [...updated, limitMsg];
             setMessages(final);
@@ -368,7 +368,7 @@ export default function CoachChat() {
                 Radix exige pour les lecteurs d'écran, masquée à l'œil. */}
             <SheetTitle className="sr-only">Coach Com'</SheetTitle>
             <SheetDescription className="sr-only">
-              Pose ta question à ton coach com', il répond à partir de ton branding.
+              Pose ta question à ton coach com', il répond à partir de ton identité de marque.
             </SheetDescription>
             {chatContent}
           </SheetContent>

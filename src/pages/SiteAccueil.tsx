@@ -128,7 +128,7 @@ export default function SiteAccueil() {
 
   const generateAll = async () => {
     if (brandingPercent < 30) {
-      toast.error("Ton branding n'est pas assez complet. Remplis au moins ta proposition de valeur et ton persona.");
+      toast.error("Ton identité de marque n'est pas assez complète. Remplis au moins ta proposition de valeur et ton persona.");
       return;
     }
     if (data.framework === "storybrand") {

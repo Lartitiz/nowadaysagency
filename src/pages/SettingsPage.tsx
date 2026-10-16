@@ -333,7 +333,7 @@ function SettingsContent() {
                   Plan actuel :{" "}
                   <span className="text-primary font-semibold">
                     {subInfo?.source === "promo" && <Gem className="inline h-3.5 w-3.5 mr-1 align-text-bottom" strokeWidth={1.75} />}{planLabel}
-                    {subInfo?.source === "promo" && " · Accès beta"}
+                    {subInfo?.source === "promo" && " · Accès bêta"}
                   </span>
                 </p>
                 {subInfo?.source === "promo" && subInfo?.current_period_end && (
@@ -480,7 +480,7 @@ function SettingsContent() {
               <p className="font-semibold mb-1">Ce que l'IA fait :</p>
               <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
                 <li>Propose des structures, accroches, scripts et textes</li>
-                <li>Analyse ton profil et ton branding pour personnaliser</li>
+                <li>Analyse ton profil et ton identité de marque pour personnaliser</li>
                 <li>Suggère des améliorations et des angles</li>
               </ul>
             </div>
@@ -511,7 +511,7 @@ function SettingsContent() {
               localStorage.removeItem("lac_tour_dashboard_seen");
               localStorage.removeItem("lac_plan_welcomed");
               localStorage.removeItem("lac_dashboard_tour_seen");
-              toast.success("🎉 Tour réactivé", { description: "Tu verras la visite guidée à ta prochaine visite du dashboard." });
+              toast.success("🎉 Visite guidée réactivée", { description: "Tu verras la visite guidée à ton prochain passage sur l'accueil." });
             }}
           >
             <RotateCcw className="h-4 w-4 mr-2" />
@@ -522,13 +522,13 @@ function SettingsContent() {
         {/* ─── Parcours initial ─── */}
         <Section icon={<RotateCcw className="h-4 w-4" />} title="Parcours initial">
           <p className="text-sm text-muted-foreground mb-4">
-            Tu peux relancer le parcours d'onboarding pour repartir de zéro. Toutes tes données de branding seront supprimées.
+            Tu peux relancer le parcours de démarrage pour repartir de zéro. Toutes tes données d'identité de marque seront supprimées.
           </p>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="outline" className="rounded-full" disabled={resettingOnboarding}>
                 {resettingOnboarding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RotateCcw className="h-4 w-4 mr-2" />}
-                Refaire l'onboarding
+                Refaire le démarrage
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -537,8 +537,8 @@ function SettingsContent() {
                   Repartir de zéro{activeWorkspace?.name ? ` sur l'espace « ${activeWorkspace.name} »` : ""} ?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  Le branding (storytelling, persona, ton, stratégie, offres, charte) de l'espace
-                  {activeWorkspace?.name ? ` « ${activeWorkspace.name} »` : " actif"} sera supprimé et tu repasseras par l'onboarding pour CET espace uniquement. Tes autres espaces, ton compte et tes contenus générés sont conservés.
+                  L'identité de marque (histoire, persona, ton, stratégie, offres, charte) de l'espace
+                  {activeWorkspace?.name ? ` « ${activeWorkspace.name} »` : " actif"} sera supprimée et tu repasseras par le démarrage pour CET espace uniquement. Tes autres espaces, ton compte et tes contenus générés sont conservés.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -587,7 +587,7 @@ function SettingsContent() {
                       localStorage.removeItem("lac_plan_tour_seen");
 
                       toast.success("✅ Reset effectué", {
-                        description: "Tu vas être redirigée vers l'onboarding.",
+                        description: "Tu vas être redirigée vers le démarrage.",
                       });
 
                       // Hard redirect to clear all React state
@@ -624,7 +624,7 @@ function SettingsContent() {
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Tu es sûre ?</AlertDialogTitle>
-                <AlertDialogDescription>Toutes tes données seront définitivement supprimées : profil, branding, contenus, calendrier, audits, statistiques, coaching... Cette action est irréversible.</AlertDialogDescription>
+                <AlertDialogDescription>Toutes tes données seront définitivement supprimées : profil, identité de marque, contenus, calendrier, audits, statistiques, coaching... Cette action est irréversible.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel className="rounded-full">Annuler</AlertDialogCancel>
@@ -638,7 +638,7 @@ function SettingsContent() {
 
         {/* ─── Feature flags (admin only) ─── */}
         {isAdmin && (
-          <Section icon={<Shield className="h-5 w-5" />} title="Feature flags (admin)">
+          <Section icon={<Shield className="h-5 w-5" />} title="Interrupteurs des fonctions (admin)">
             <p className="text-sm text-muted-foreground mb-4">
               Modules masqués pour les utilisateur·ices. Active-les quand ils sont prêts.
             </p>
@@ -711,7 +711,7 @@ const QUOTA_CATEGORIES: { key: string; icon: LucideIcon; label: string }[] = [
   { key: "video", icon: Video, label: "Vidéos" },
   { key: "content", icon: FileText, label: "Contenus" },
   { key: "audit", icon: Search, label: "Audits" },
-  { key: "dm_comment", icon: Mail, label: "DM / Commentaires" },
+  { key: "dm_comment", icon: Mail, label: "Messages privés / Commentaires" },
   { key: "bio_profile", icon: User, label: "Bio / Profil" },
   { key: "suggestion", icon: Lightbulb, label: "Suggestions" },
   { key: "import", icon: FileUp, label: "Imports" },

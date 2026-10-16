@@ -104,7 +104,7 @@ function RecapScreen() {
         Ferme l'ordi et va prendre un café ☕ Tu l'as mérité.
       </p>
 
-      <Button onClick={handleBack}>Retour au dashboard</Button>
+      <Button onClick={handleBack}>Retour à l'accueil</Button>
     </div>
   );
 }

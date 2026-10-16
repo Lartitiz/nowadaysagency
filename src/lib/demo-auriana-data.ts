@@ -73,7 +73,7 @@ export const AURIANA_DEMO_FLOW = {
         title: "Résultats concrets",
         body: "Sur une découpe de 5 lots à Bordeaux :\n• 4 lots pré-vendus en 3 semaines\n• Financement bouclé avant signature\n• Marge sécurisée dès le départ\n\nPas de suspense. Du process.",
         role: "résultat",
-        visual_suggestion: "Résultats chiffrés, style dashboard, fond sombre"
+        visual_suggestion: "Résultats chiffrés, style tableau de bord, fond sombre"
       },
       {
         slide_number: 7,
@@ -87,7 +87,7 @@ export const AURIANA_DEMO_FLOW = {
         title: "Envie de structurer ta prochaine opération ?",
         body: "📩 Envoie-moi \"PRÉ-CO\" en DM.\nJe t'explique comment j'applique ça concrètement.",
         role: "cta",
-        visual_suggestion: "CTA clair, bouton DM, fond accent avec logo"
+        visual_suggestion: "Appel à l'action clair, bouton message privé, fond accent avec logo"
       },
     ],
     hashtags: ["#marchanddebiens #immobilier #precommercialisation #investissementimmobilier #mdb #strategieimmo"],

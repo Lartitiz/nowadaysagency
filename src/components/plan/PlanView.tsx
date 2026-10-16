@@ -23,7 +23,7 @@ export default function PlanView({ plan, onEditConfig, onToggleStep }: PlanViewP
     newsletter: "Newsletter",
     site: "Site web",
     pinterest: "Pinterest",
-    seo: "SEO",
+    seo: "Référencement",
   };
 
   const formatTime = (min: number) => {

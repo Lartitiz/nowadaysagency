@@ -292,7 +292,7 @@ describe("Proposition reference", () => {
   });
   it("selects a variant explicitly without generating or rewriting the other versions", async () => {
     setup(); const before = structuredClone(m.db.brand_proposition[0]);
-    fireEvent.click(await screen.findByRole("button", { name: "Utiliser : Pitch oral / networking" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Utiliser : Présentation orale / rencontres professionnelles" }));
     await waitFor(() => expect(m.db.brand_proposition[0].version_final).toBe("Mon pitch"));
     expect(m.db.brand_proposition[0]).toEqual({ ...before, version_final: "Mon pitch" });
   });

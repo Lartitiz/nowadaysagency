@@ -119,7 +119,7 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
   } else if (selectedFormat === "pinterest_photo" && (r?.title || r?.photo_brief)) {
     accroche = r.title || "";
     const briefLines = r.photo_brief ? [
-      "📷 BRIEF PHOTO :",
+      "📷 CONSIGNES PHOTO :",
       `• Sujet : ${r.photo_brief.what || ""}`,
       `• Cadrage : ${r.photo_brief.framing || ""}`,
       `• Lumière : ${r.photo_brief.lighting || ""}`,

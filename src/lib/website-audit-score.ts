@@ -230,9 +230,9 @@ export function getCategoryRecommendations(
           priority: "haute",
           effort: "moyen",
           recommendation:
-            "Tes CTA ne sont pas assez visibles ou clairs. Place un bouton d'action au-dessus de la ligne de flottaison.",
+            "Tes appels à l'action ne sont pas assez visibles ou clairs. Place un bouton d'action au-dessus de la ligne de flottaison.",
           link: "/site/accueil",
-          linkLabel: "Améliorer mes CTA",
+          linkLabel: "Améliorer mes appels à l'action",
         });
         recs.push({
           priority: "haute",
@@ -256,7 +256,7 @@ export function getCategoryRecommendations(
           priority: "basse",
           effort: "rapide",
           recommendation:
-            "Ton copywriting est solide ! Teste des variantes d'accroches pour optimiser encore.",
+            "Ta rédaction est solide ! Teste des variantes d'accroches pour optimiser encore.",
         });
       }
       break;
@@ -404,7 +404,7 @@ export function getCategoryRecommendations(
           priority: "haute",
           effort: "moyen",
           recommendation:
-            "Ta page d'accueil manque d'éléments clés. Retravaille le titre, le CTA et les offres.",
+            "Ta page d'accueil manque d'éléments clés. Retravaille le titre, l'appel à l'action et les offres.",
           link: "/site/accueil",
           linkLabel: "Retravailler ma page d'accueil",
         });
@@ -413,7 +413,7 @@ export function getCategoryRecommendations(
           priority: "moyenne",
           effort: "rapide",
           recommendation:
-            "Ajoute un deuxième CTA en bas de page et du micro-texte rassurant.",
+            "Ajoute un deuxième appel à l'action en bas de page et du micro-texte rassurant.",
           link: "/site/accueil",
           linkLabel: "Améliorer ma page d'accueil",
         });
@@ -426,7 +426,7 @@ export function getCategoryRecommendations(
           priority: "haute",
           effort: "moyen",
           recommendation:
-            "Ta page À propos doit commencer par ta cliente, pas par toi. Ajoute ta photo et un CTA.",
+            "Ta page À propos doit commencer par ta cliente, pas par toi. Ajoute ta photo et un appel à l'action.",
           link: "/site/a-propos",
           linkLabel: "Retravailler ma page À propos",
         });

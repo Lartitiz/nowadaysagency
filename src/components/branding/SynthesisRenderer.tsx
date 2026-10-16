@@ -180,7 +180,7 @@ function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText, forceOpen =
 
       {data.pitch_short && (
         <div className="mx-6 sm:mx-8 mb-6">
-          <HeroQuote text={data.pitch_short} label="Pitch court" onCopy={() => copyText(data.pitch_short)} />
+          <HeroQuote text={data.pitch_short} label="Présentation courte" onCopy={() => copyText(data.pitch_short)} />
         </div>
       )}
 
@@ -226,7 +226,7 @@ function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText, forceOpen =
       {/* Pitchs */}
       {(data.pitch_medium || data.pitch_long) && (
         <div className="mx-6 sm:mx-8 mb-6 rounded-xl p-5 bg-[#FFF4F8]">
-          <SectionLabel emoji="🎤" title="Mes pitchs" />
+          <SectionLabel emoji="🎤" title="Mes présentations" />
           {data.pitch_medium && (
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
@@ -239,7 +239,7 @@ function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText, forceOpen =
           {data.pitch_long && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="font-mono-ui text-2xs font-semibold uppercase tracking-wide text-muted-foreground">🎤 Networking</span>
+                <span className="font-mono-ui text-2xs font-semibold uppercase tracking-wide text-muted-foreground">🎤 Rencontres professionnelles</span>
                 <button onClick={() => copyText(data.pitch_long)} className="text-2xs font-semibold text-primary hover:opacity-70 inline-flex items-center gap-1"><Copy className="h-3 w-3" /> Copier</button>
               </div>
               <ClampField value={data.pitch_long} onSave={(v) => onSaveDirect("pitch_long", v)} lines={4} forceOpen={forceOpen} className="font-body text-sm italic leading-relaxed" />

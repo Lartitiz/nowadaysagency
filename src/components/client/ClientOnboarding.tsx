@@ -71,8 +71,8 @@ export default function ClientOnboarding({ workspaceName, workspaceId, onComplet
           Bienvenue dans l'espace de {workspaceName} 🎯
         </h1>
         <p className="text-sm text-muted-foreground max-w-md mx-auto">
-          Importe les documents de ton·ta client·e pour pré-remplir son branding automatiquement.
-          Stratégie, brief, persona, charte… tout est bon à prendre.
+          Importe les documents de ton·ta client·e pour pré-remplir son identité de marque automatiquement.
+          Stratégie, demande, persona, charte… tout est bon à prendre.
         </p>
       </div>
 
@@ -89,7 +89,7 @@ export default function ClientOnboarding({ workspaceName, workspaceId, onComplet
           Passer cette étape <ArrowRight className="h-3.5 w-3.5" />
         </Button>
         <p className="text-xs text-muted-foreground">
-          Tu pourras importer des documents à tout moment depuis la section Branding.
+          Tu pourras importer des documents à tout moment depuis l'espace Mon identité.
         </p>
       </div>
     </div>

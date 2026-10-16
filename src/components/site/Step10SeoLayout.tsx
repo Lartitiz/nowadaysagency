@@ -8,16 +8,16 @@ import { StepProps } from "./SiteShared";
 const CHECKLIST = [
   { cat: "CLARTÉ", items: [
     { key: "title_clear", label: "Titre compréhensible en 3 secondes" },
-    { key: "value_prop", label: "Proposition de valeur claire above the fold" },
-    { key: "cta_clear", label: "CTA dit exactement ce qui se passe au clic" },
+    { key: "value_prop", label: "Proposition de valeur claire dès le haut de la page" },
+    { key: "cta_clear", label: "L'appel à l'action dit exactement ce qui se passe au clic" },
   ]},
   { cat: "ÉTHIQUE", items: [
     { key: "no_urgency", label: "Aucune fausse urgence" },
-    { key: "no_shaming", label: "Aucun shaming (ni copy, ni popups, ni CTA)" },
+    { key: "no_shaming", label: "Aucune culpabilisation (ni dans les textes, ni dans les fenêtres, ni dans les appels à l'action)" },
     { key: "honest_price", label: "Prix présenté honnêtement" },
     { key: "real_testimonials", label: "Témoignages vrais" },
   ]},
-  { cat: "COPYWRITING", items: [
+  { cat: "RÉDACTION", items: [
     { key: "tone_ok", label: "Ton incarné, direct, chaleureux" },
     { key: "oral_ok", label: "Expressions orales naturelles" },
     { key: "no_dash", label: "Pas de tiret cadratin" },
@@ -27,7 +27,7 @@ const CHECKLIST = [
     { key: "testimonials", label: "2-3 témoignages minimum" },
     { key: "testimonial_context", label: "Prénom + contexte + résultat" },
   ]},
-  { cat: "SEO", items: [
+  { cat: "RÉFÉRENCEMENT", items: [
     { key: "title_tag", label: "Title tag renseigné (50-60 car.)" },
     { key: "meta_desc", label: "Meta description rédigée (150-160 car.)" },
     { key: "h1_ok", label: "H1 unique avec mot-clé principal" },
@@ -45,24 +45,24 @@ export default function Step10SeoLayout({ data, save, callAI, aiLoading, aiResul
 
   return (
     <div className="space-y-6">
-      <h2 className="font-display text-xl font-bold">🔍 SEO + Checklist qualité</h2>
+      <h2 className="font-display text-xl font-bold">🔍 Référencement + checklist qualité</h2>
 
       {/* SEO */}
       <div className="rounded-2xl border border-border bg-card p-5">
-        <h3 className="font-body text-base font-bold mb-3">🔍 SEO de ta page</h3>
+        <h3 className="font-body text-base font-bold mb-3">🔍 Référencement de ta page</h3>
         <Button variant="outline" size="sm" className="mb-4" onClick={async () => {
           const result = await callAI("seo", { page_type: data.page_type });
           if (result) {
             save({ seo_title: result.title_tag || "", seo_meta: result.meta_description || "", seo_h1: result.h1 || "" });
           }
         }} disabled={aiLoading === "seo"}>
-          <Sparkles className="h-4 w-4 mr-1" /> {aiLoading === "seo" ? "Génération..." : "Générer le SEO"}
+          <Sparkles className="h-4 w-4 mr-1" /> {aiLoading === "seo" ? "Génération..." : "Générer le référencement"}
         </Button>
 
         <div className="space-y-3">
           <div>
             <label htmlFor="seo-title" className="text-sm font-semibold block mb-1">Title tag (ce qui apparaît dans Google)</label>
-            <Input id="seo-title" value={data.seo_title} onChange={(e) => save({ seo_title: e.target.value })} placeholder="Mon titre SEO..." />
+            <Input id="seo-title" value={data.seo_title} onChange={(e) => save({ seo_title: e.target.value })} placeholder="Mon titre pour le référencement..." />
             <p className="font-mono-ui text-2xs text-muted-foreground mt-1">📊 {data.seo_title.length} / 60 caractères</p>
           </div>
           <div>
@@ -76,7 +76,7 @@ export default function Step10SeoLayout({ data, save, callAI, aiLoading, aiResul
           </div>
           {(data.seo_title || data.seo_meta) && (
             <Button variant="ghost" size="sm" onClick={() => copyText(`Title: ${data.seo_title}\nMeta: ${data.seo_meta}\nH1: ${data.seo_h1}`)}>
-              <Copy className="h-4 w-4 mr-1" /> Copier le SEO
+              <Copy className="h-4 w-4 mr-1" /> Copier le référencement
             </Button>
           )}
         </div>

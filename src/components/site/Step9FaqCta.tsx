@@ -57,8 +57,8 @@ export default function Step9FaqCta({ data, save, callAI, aiLoading, aiResults, 
 
       {/* CTA */}
       <div>
-        <h3 className="font-body text-base font-bold mb-2">B. Tes CTA (appels à l'action)</h3>
-        <p className="text-sm text-muted-foreground mb-3">Les CTA personnalisés convertissent 202% mieux que les génériques (HubSpot).</p>
+        <h3 className="font-body text-base font-bold mb-2">B. Tes appels à l'action</h3>
+        <p className="text-sm text-muted-foreground mb-3">Les appels à l'action personnalisés convertissent 202% mieux que les génériques (HubSpot).</p>
 
         <p className="text-sm font-semibold mb-2">Objectif principal :</p>
         <div className="flex flex-wrap gap-2 mb-4">
@@ -74,7 +74,7 @@ export default function Step9FaqCta({ data, save, callAI, aiLoading, aiResults, 
               save({ cta_primary: result.button_text, cta_micro_copy: result.micro_copy || "" });
             }
           }} disabled={aiLoading === "cta-personalized"}>
-            <Sparkles className="h-4 w-4 mr-1" /> {aiLoading === "cta-personalized" ? "Génération..." : "Générer mes CTA"}
+            <Sparkles className="h-4 w-4 mr-1" /> {aiLoading === "cta-personalized" ? "Génération..." : "Générer mes appels à l'action"}
           </Button>
         )}
 
@@ -82,15 +82,15 @@ export default function Step9FaqCta({ data, save, callAI, aiLoading, aiResults, 
 
         <div className="space-y-3 mt-4">
           <div>
-            <label htmlFor="cta-primary" className="text-sm font-semibold">Mon CTA principal</label>
+            <label htmlFor="cta-primary" className="text-sm font-semibold">Mon appel à l'action principal</label>
             <Input id="cta-primary" value={data.cta_primary} onChange={(e) => save({ cta_primary: e.target.value })} placeholder="Ex : Je réserve mon appel découverte" />
           </div>
           <div>
-            <label htmlFor="cta-micro-copy" className="text-sm font-semibold">Micro-copy (sous le bouton)</label>
+            <label htmlFor="cta-micro-copy" className="text-sm font-semibold">Petite phrase (sous le bouton)</label>
             <Input id="cta-micro-copy" value={data.cta_micro_copy} onChange={(e) => save({ cta_micro_copy: e.target.value })} placeholder="Ex : Gratuit · 30 minutes · Sans engagement" />
           </div>
           <div>
-            <label htmlFor="cta-secondary" className="text-sm font-semibold">Mon CTA secondaire (optionnel)</label>
+            <label htmlFor="cta-secondary" className="text-sm font-semibold">Mon appel à l'action secondaire (optionnel)</label>
             <Input id="cta-secondary" value={data.cta_secondary} onChange={(e) => save({ cta_secondary: e.target.value })} placeholder="Ex : Télécharger le guide gratuit" />
           </div>
         </div>

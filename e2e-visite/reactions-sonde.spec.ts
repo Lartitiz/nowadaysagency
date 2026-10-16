@@ -44,15 +44,15 @@ test.describe("sonde de réaction (< 2 s)", () => {
       test.skip(true, "section canaux absente sur ce compte");
     }
     const section = label.locator(".."); // le conteneur de la liste des canaux (onglet « Mes canaux »)
-    const seoBtn = section.getByRole("button", { name: /SEO/i }).first();
+    const seoBtn = section.getByRole("button", { name: /Référencement/i }).first();
     if (!(await seoBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
       test.skip(true, "canal SEO absent (jeu de canaux différent)");
     }
 
-    // Clic 1 : réaction attendue = toast « SEO ajouté/retiré » sous 2 s.
+    // Clic 1 : réaction attendue = toast « Référencement ajouté/retiré » sous 2 s.
     await seoBtn.click();
     await expect(
-      page.getByText(/SEO (ajouté|retiré)/i).first(),
+      page.getByText(/Référencement (ajouté|retiré)/i).first(),
       "Basculer un canal doit confirmer visuellement sous 2 s (sinon clic mort)",
     ).toBeVisible({ timeout: ACK_MS });
     await page.screenshot({ path: path.join(SHOTS, "reaction-canal.png") });
@@ -60,7 +60,7 @@ test.describe("sonde de réaction (< 2 s)", () => {
     // Clic 2 : on restaure l'état initial (net nul) — toujours une réaction.
     await page.waitForTimeout(600); // laisse le 1er toast se poser
     await seoBtn.click();
-    await expect(page.getByText(/SEO (ajouté|retiré)/i).first()).toBeVisible({ timeout: ACK_MS });
+    await expect(page.getByText(/Référencement (ajouté|retiré)/i).first()).toBeVisible({ timeout: ACK_MS });
     console.log("Réaction canal OK (toast < 2 s, état restauré)");
   });
 

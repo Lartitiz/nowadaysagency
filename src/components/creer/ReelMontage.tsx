@@ -112,7 +112,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
         <span className="text-xs font-bold text-primary uppercase tracking-wide">
           <Film className="inline h-3.5 w-3.5 mr-1" /> Monter la vidéo
         </span>
-        <Badge variant="secondary" className="text-2xs">beta</Badge>
+        <Badge variant="secondary" className="text-2xs">bêta</Badge>
       </div>
 
       {!montageMode ? (

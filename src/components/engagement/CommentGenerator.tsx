@@ -187,12 +187,12 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
           <div className="space-y-4">
             {/* Screenshot upload */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Screenshot du post</label>
+              <label className="text-xs font-semibold text-muted-foreground">Capture d'écran du post</label>
               {screenshotPreview ? (
                 <div className="relative rounded-lg border border-border overflow-hidden bg-muted/30">
                   <img loading="lazy"
                     src={screenshotPreview}
-                    alt="Screenshot du post"
+                    alt="Capture d'écran du post"
                     className="w-full max-h-[200px] object-contain"
                   />
                   <button
@@ -216,7 +216,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
                 >
                   <ImageIcon className="h-8 w-8 text-muted-foreground/60" />
                   <p className="text-xs text-muted-foreground text-center">
-                    Glisse le screenshot du post ici<br />ou clique pour uploader
+                    Glisse la capture d'écran du post ici<br />ou clique pour l'ajouter
                   </p>
                   <p className="text-2xs text-muted-foreground/60">PNG, JPG · 5 Mo max</p>
                 </div>
@@ -225,7 +225,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
                 ref={fileInputRef}
                 type="file"
                 accept=".png,.jpg,.jpeg"
-                aria-label="Screenshot du post"
+                aria-label="Capture d'écran du post"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];

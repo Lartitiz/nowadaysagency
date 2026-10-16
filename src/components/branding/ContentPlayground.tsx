@@ -17,7 +17,7 @@ interface PlaygroundAction {
 const PLAYGROUND_ACTIONS: Record<string, PlaygroundAction[]> = {
   story: [
     { label: "3 accroches basées sur mon histoire", prompt: "Génère 3 accroches de post Instagram basées sur mon histoire personnelle / storytelling. Courtes, percutantes, prêtes à copier. Numérote-les 1, 2, 3." },
-    { label: "Un post storytelling complet", prompt: "Écris un post Instagram de storytelling complet à partir de mon parcours et mon histoire. Prêt à copier-coller, avec une accroche forte, un développement et un CTA." },
+    { label: "Un post complet qui raconte ton histoire", prompt: "Écris un post Instagram de storytelling complet à partir de mon parcours et mon histoire. Prêt à copier-coller, avec une accroche forte, un développement et un CTA." },
   ],
   persona: [
     { label: "Un post pour ma cliente idéale", prompt: "Écris un post Instagram qui parle directement à ma cliente idéale, en utilisant ses mots, ses frustrations et ses aspirations. Prêt à copier-coller." },
@@ -134,10 +134,10 @@ export default function ContentPlayground({ section }: Props) {
     <div className="rounded-2xl border border-primary/20 bg-rose-pale p-6 mt-8">
       <div className="flex items-center gap-2.5 mb-1">
         <span className="text-xl">🎮</span>
-        <h3 className="font-body text-base font-bold text-foreground">Teste ton branding en action</h3>
+        <h3 className="font-body text-base font-bold text-foreground">Teste ton identité de marque en action</h3>
       </div>
       <p className="text-sm text-muted-foreground mb-4">
-        L'IA génère du contenu avec ton branding. Essaie pour voir le résultat !
+        L'IA génère du contenu avec ton identité de marque. Essaie pour voir le résultat !
       </p>
 
       <div className="flex flex-wrap gap-2 mb-4">

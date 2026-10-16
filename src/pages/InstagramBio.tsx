@@ -577,7 +577,7 @@ export default function InstagramBio() {
 
               {brandingFilled >= 2 ? (
                 <>
-                  <p className="text-sm text-muted-foreground">Je pars de ce que tu as déjà rempli dans ton branding :</p>
+                  <p className="text-sm text-muted-foreground">Je pars de ce que tu as déjà rempli dans ton identité de marque :</p>
                   <div className="rounded-xl bg-muted/30 border border-border p-4 space-y-2.5">
                     {brandingCtx.positioning && (
                       <div className="flex items-start gap-2 text-sm">
@@ -622,7 +622,7 @@ export default function InstagramBio() {
                     </Button>
                     <Link to="/branding">
                       <Button variant="outline" className="rounded-pill gap-2">
-                        <Pencil className="h-4 w-4" strokeWidth={1.75} /> Modifier mon branding d'abord
+                        <Pencil className="h-4 w-4" strokeWidth={1.75} /> Modifier mon identité de marque d'abord
                       </Button>
                     </Link>
                   </div>
@@ -630,13 +630,13 @@ export default function InstagramBio() {
               ) : (
                 <>
                   <div className="rounded-xl border border-warning/30 bg-warning-bg/50 p-4 space-y-2">
-                    <p className="flex items-center gap-1.5 text-sm text-foreground font-medium"><AlertTriangle className="h-4 w-4 shrink-0 text-warning" strokeWidth={1.75} /> Ton branding n'est pas encore complet.</p>
-                    <p className="text-xs text-muted-foreground">Plus tu remplis ton branding, plus ta bio sera précise et personnalisée.</p>
+                    <p className="flex items-center gap-1.5 text-sm text-foreground font-medium"><AlertTriangle className="h-4 w-4 shrink-0 text-warning" strokeWidth={1.75} /> Ton identité de marque n'est pas encore complète.</p>
+                    <p className="text-xs text-muted-foreground">Plus tu remplis ton identité de marque, plus ta bio sera précise et personnalisée.</p>
                   </div>
                   <div className="flex flex-wrap gap-3">
                     <Link to="/branding">
                       <Button className="rounded-pill gap-2">
-                        <Palette className="h-4 w-4" strokeWidth={1.75} /> Compléter mon branding d'abord
+                        <Palette className="h-4 w-4" strokeWidth={1.75} /> Compléter mon identité de marque d'abord
                       </Button>
                     </Link>
                     <Button variant="outline" className="rounded-pill gap-2" onClick={() => setView("generator")}>
@@ -825,7 +825,7 @@ export default function InstagramBio() {
               1. Ce que tu proposes<br />
               2. Ce qui te rend unique<br />
               3. Pour qui<br />
-              4. Un appel à l'action (lien, DM, inscription...)
+              4. Un appel à l'action (lien, message privé, inscription...)
             </p>
           </div>
         )}

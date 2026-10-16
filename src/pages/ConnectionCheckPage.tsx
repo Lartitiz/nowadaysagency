@@ -49,7 +49,7 @@ function CheckRow({ check }: { check: Check }) {
 const DEMO_CHECKS: Check[] = [
   { category: "Profil", name: "Profil chargé", status: "ok", detail: "OK" },
   { category: "Profil", name: "Prénom renseigné", status: "ok", detail: "Léa" },
-  { category: "Profil", name: "Onboarding complété", status: "ok", detail: "Complété" },
+  { category: "Profil", name: "Démarrage complété", status: "ok", detail: "Complété" },
   { category: "Identité", name: "Identité de marque existe", status: "ok", detail: "OK" },
   { category: "Identité", name: 'Champ "positioning"', status: "ok", detail: "Rempli" },
   { category: "Identité", name: 'Champ "mission"', status: "ok", detail: "Rempli" },
@@ -103,7 +103,7 @@ export default function ConnectionCheckPage() {
     results.push({ category: "Profil", name: "Profil chargé", status: profErr ? "error" : "ok", detail: profErr ? "Profil non trouvé" : "OK" });
     if (profile) {
       results.push({ category: "Profil", name: "Prénom renseigné", status: profile.prenom ? "ok" : "warning", detail: profile.prenom || "Manquant" });
-      results.push({ category: "Profil", name: "Onboarding complété", status: profile.onboarding_completed ? "ok" : "info", detail: profile.onboarding_completed ? "Complété" : "Pas encore complété" });
+      results.push({ category: "Profil", name: "Démarrage complété", status: profile.onboarding_completed ? "ok" : "info", detail: profile.onboarding_completed ? "Complété" : "Pas encore complété" });
       results.push({ category: "Profil", name: "Plan actif", status: profile.current_plan ? "ok" : "info", detail: `Plan : ${profile.current_plan || "free"}` });
     }
 
@@ -128,9 +128,9 @@ export default function ConnectionCheckPage() {
       for (const [label, pct] of sections) {
         results.push({ category: "Identité", name: label, status: pct >= 80 ? "ok" : pct > 0 ? "warning" : "info", detail: `${pct}%` });
       }
-      results.push({ category: "Identité", name: "Complétude branding", status: isBrandingReady(comp.total) ? "ok" : comp.total > 0 ? "warning" : "info", detail: `${comp.total}%` });
+      results.push({ category: "Identité", name: "Complétude de l'identité de marque", status: isBrandingReady(comp.total) ? "ok" : comp.total > 0 ? "warning" : "info", detail: `${comp.total}%` });
     } catch (e: any) {
-      results.push({ category: "Identité", name: "Complétude branding", status: "error", detail: e?.message || "Erreur de calcul" });
+      results.push({ category: "Identité", name: "Complétude de l'identité de marque", status: "error", detail: e?.message || "Erreur de calcul" });
     }
 
     // Persona
@@ -182,7 +182,7 @@ export default function ConnectionCheckPage() {
       sugs.push({ title: "Instagram renseigné mais pas d'audit", action: "Lancer un audit Instagram", route: "/instagram/audit" });
     }
     if (brand?.positioning && !propositionHookData) {
-      sugs.push({ title: "Positionnement défini mais pas de proposition", action: "Le branding est incomplet sans proposition de valeur", route: "/branding/proposition/recap" });
+      sugs.push({ title: "Positionnement défini mais pas de proposition", action: "L'identité de marque est incomplète sans proposition de valeur", route: "/branding/proposition/recap" });
     }
     if (audit && posts && !posts.some(p => p.status === "published")) {
       sugs.push({ title: "Audit fait mais aucun contenu publié", action: "Les recommandations ne sont pas encore appliquées", route: "/creer" });

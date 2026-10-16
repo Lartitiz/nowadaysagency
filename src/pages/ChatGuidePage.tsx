@@ -114,12 +114,12 @@ function TypingIndicator() {
 const DEMO_WELCOME_SUGGESTIONS: Suggestion[] = [
   { icon: "PenLine", label: "Créer un post Instagram" },
   { icon: "CalendarDays", label: "Planifier ma semaine" },
-  { icon: "Palette", label: "Compléter mon branding" },
+  { icon: "Palette", label: "Compléter mon identité de marque" },
 ];
 
 const DEMO_RESPONSES: Record<string, { content: string; actions?: ActionLink[]; suggestions?: Suggestion[] }> = {
   "Créer un post Instagram": {
-    content: "Super idée ! Tu as un bon storytelling et ton persona est défini. Je te propose de créer un post qui parle de ton approche de la photographie portraitiste éthique. Ça montrerait ta différence.",
+    content: "Super idée ! Tu as une belle histoire et ton persona est défini. Je te propose de créer un post qui parle de ton approche de la photographie portraitiste éthique. Ça montrerait ta différence.",
     actions: [{ route: "/creer", label: "Créer le post", icon: "PenLine" }],
     suggestions: [
       { icon: "Lightbulb", label: "Donne-moi des idées de sujets" },
@@ -147,7 +147,7 @@ const DEMO_FALLBACK = {
 const FALLBACK_WELCOME_SUGGESTIONS: Suggestion[] = [
   { icon: "PenLine", label: "Je veux créer un post" },
   { icon: "Target", label: "Je veux définir ma cible" },
-  { icon: "Palette", label: "Je veux travailler mon branding" },
+  { icon: "Palette", label: "Je veux travailler mon identité de marque" },
   { icon: "CalendarDays", label: "Je veux planifier ma semaine" },
   { icon: "Lightbulb", label: "J'ai pas d'idées de contenu" },
 ];
@@ -295,7 +295,7 @@ export default function ChatGuidePage() {
       return {
         id: "welcome",
         role: "assistant",
-        content: "Salut Léa ! 👋\n\nTon branding avance bien. Qu'est-ce qu'on crée aujourd'hui ?",
+        content: "Salut Léa ! 👋\n\nTon identité de marque avance bien. Qu'est-ce qu'on crée aujourd'hui ?",
         suggestions: DEMO_WELCOME_SUGGESTIONS,
         created_at: new Date().toISOString(),
       };

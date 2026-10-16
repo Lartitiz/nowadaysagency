@@ -27,7 +27,7 @@ export const PRODUCTION_GUIDES: Record<string, GuideStep[]> = {
     { label: "Slide 5 – L'impact négatif", detail: "Explique le mal que ce mythe fait aux créatrices qui le suivent." },
     { label: "Slide 6 – La vraie leçon", detail: "Propose ce qu'il faudrait croire/faire à la place." },
     { label: "Slide 7 – Comment appliquer", detail: "Un conseil actionnable pour remplacer le mythe par la bonne pratique." },
-    { label: "Slide 8 – CTA doux", detail: "Invite à réfléchir : « Quel mythe tu as arrêté de croire récemment ? »" },
+    { label: "Slide 8 – Appel à l'action doux", detail: "Invite à réfléchir : « Quel mythe tu as arrêté de croire récemment ? »" },
   ],
   "Coup de gueule": [
     { label: "Étape 1 – L'élément déclencheur", detail: "Commence par ce qui t'a fait réagir. Sois directe et authentique." },
@@ -65,8 +65,8 @@ export const PRODUCTION_GUIDES: Record<string, GuideStep[]> = {
     { label: "Slide 3 – Les conditions", detail: "Comment tu as fait : contexte, méthode, contraintes." },
     { label: "Slide 4 – Semaine(s) 1", detail: "Premiers résultats, premières impressions honnêtes." },
     { label: "Slide 5 – Le milieu", detail: "L'évolution : ce qui s'est amélioré ou dégradé." },
-    { label: "Slide 6 – Les résultats finaux", detail: "Chiffres, ressentis, screenshots si possible." },
-    { label: "Slide 7 – Verdict", detail: "« Ça vaut le coup si… » / « Skip si… » – Sois tranchée." },
+    { label: "Slide 6 – Les résultats finaux", detail: "Chiffres, ressentis, captures d'écran si possible." },
+    { label: "Slide 7 – Verdict", detail: "« Ça vaut le coup si… » / « Passe ton tour si… » – Sois tranchée." },
     { label: "Slide 8 – Et toi ?", detail: "Demande si d'autres ont testé, ou ce qu'elles aimeraient que tu testes." },
   ],
   "Before / After": [
@@ -80,7 +80,7 @@ export const PRODUCTION_GUIDES: Record<string, GuideStep[]> = {
     { label: "Slide 8 – Leçon universelle", detail: "Ce que ta lectrice peut en tirer pour elle-même." },
   ],
   "Histoire cliente": [
-    { label: "Slide 1 – Le verbatim", detail: "Commence par une citation directe : « Elle m'a dit : … »" },
+    { label: "Slide 1 – La citation", detail: "Commence par une citation directe : « Elle m'a dit : … »" },
     { label: "Slide 2 – Le contexte", detail: "Qui est cette personne ? (sans la nommer – décris son profil)" },
     { label: "Slide 3 – Son blocage", detail: "Le problème qu'elle vivait avant de travailler avec toi." },
     { label: "Slide 4 – Ce qu'elle avait déjà essayé", detail: "Les solutions qui n'avaient pas marché (et pourquoi)." },
@@ -132,7 +132,7 @@ export const PRODUCTION_GUIDES: Record<string, GuideStep[]> = {
     { label: "Slide 6 – Point clé 5", detail: "Cinquième axe ou conclusion intermédiaire." },
     { label: "Slide 7 – Synthèse", detail: "Résume les points clés en 3 phrases maximum." },
     { label: "Slide 8 – Ton take", detail: "Ta position personnelle sur le sujet. Assume." },
-    { label: "Slide 9 – CTA", detail: "Enregistre pour y revenir / Partage si ça t'a aidée." },
+    { label: "Slide 9 – Appel à l'action", detail: "Enregistre pour y revenir / Partage si ça t'a aidée." },
   ],
 };
 
@@ -145,7 +145,7 @@ export const INSTAGRAM_FORMAT_RECO: Record<string, string> = {
   "Conseil contre-intuitif": "Ce sujet se prête bien à un carrousel 8 slides ou un reel court.",
   "Test grandeur nature": "Ce sujet se prête bien à un reel ou un carrousel avant/après 8 slides.",
   "Before / After": "Ce sujet se prête bien à un carrousel visuel 8 slides ou un reel.",
-  "Histoire cliente": "Ce sujet se prête bien à un carrousel storytelling 8 slides ou un post texte.",
+  "Histoire cliente": "Ce sujet se prête bien à un carrousel qui raconte une histoire en 8 slides ou un post texte.",
   "Regard philosophique": "Ce sujet se prête bien à un post texte long ou un carrousel 7 slides.",
   "Surf sur l'actu": "Ce sujet se prête bien à un reel réactif ou une story.",
   "Identification / quotidien": "Ce sujet se prête bien à un reel POV ou un post texte court.",

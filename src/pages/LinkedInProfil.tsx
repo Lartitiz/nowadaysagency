@@ -151,7 +151,7 @@ function LinkedInProfilForm() {
           <AccordionItem value="title" className="rounded-xl border border-border bg-card px-5">
             <AccordionTrigger className="font-body text-base font-bold"><span className="flex-1 text-left">1. Ton titre</span>{sectionBadge(titleDone)}</AccordionTrigger>
             <AccordionContent className="space-y-4 pb-5">
-              <p className="text-sm text-muted-foreground">C'est la petite phrase sous ta photo. C'est elle qui donne envie de cliquer. Max 220 caractères, avec des mots-clés SEO.</p>
+              <p className="text-sm text-muted-foreground">C'est la petite phrase sous ta photo. C'est elle qui donne envie de cliquer. Max 220 caractères, avec des mots-clés pour le référencement.</p>
               <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-2">
                 <span className="inline-block font-mono-ui text-2xs font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1"><BookOpen className="inline h-3 w-3 align-[-2px] mr-1" strokeWidth={1.75} aria-hidden="true" />Exemple</span>
                 <p className="font-semibold">2 façons simples de le rédiger :</p>
@@ -245,7 +245,7 @@ function LinkedInProfilForm() {
               <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-1.5">
                 <p><Lightbulb className="inline h-3.5 w-3.5 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Ressources :</p>
                 <p>Photos libres de droit : <a href="https://unsplash.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">Unsplash</a></p>
-                <p>Templates : utilise <a href="https://canva.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">Canva</a> pour créer une bannière à tes couleurs</p>
+                <p>Modèles : utilise <a href="https://canva.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">Canva</a> pour créer une bannière à tes couleurs</p>
                 <p className="text-muted-foreground italic mt-1"><Smartphone className="inline h-3.5 w-3.5 align-[-2px] mr-1" strokeWidth={1.75} aria-hidden="true" />Pense mobile : le texte doit être lisible sur petit écran.</p>
               </div>
               <div className="flex items-center gap-2">
@@ -265,7 +265,7 @@ function LinkedInProfilForm() {
                 <p>☐ J'ai épinglé 3-5 contenus stratégiques</p>
                 <p>☐ Au moins 1 contenu montre mon expertise (post viral, article, carrousel)</p>
                 <p>☐ Au moins 1 contenu montre mes résultats (témoignage, étude de cas)</p>
-                <p>☐ Au moins 1 contenu dirige vers mon offre (lead magnet, page de vente, newsletter)</p>
+                <p>☐ Au moins 1 contenu dirige vers mon offre (cadeau, page de vente, newsletter)</p>
               </div>
               <div className="rounded-xl bg-rose-pale p-4 text-sm">
                 <Lightbulb className="inline h-3.5 w-3.5 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Pense ta sélection comme une vitrine : qu'est-ce qu'un·e prospect doit voir en premier ?

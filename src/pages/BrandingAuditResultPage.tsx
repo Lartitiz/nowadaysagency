@@ -49,7 +49,7 @@ const PILLAR_META: Record<string, { emoji: string; icon: LucideIcon; label: stri
   cible: { emoji: "👤", icon: User, label: "Cible", coachingModule: "persona", actionLabel: "Retravailler ma cible", hasCoaching: true },
   ton_voix: { emoji: "🗣️", icon: MessageCircle, label: "Ton / Voix", coachingModule: "tone", actionLabel: "Définir mon ton", hasCoaching: true },
   offres: { emoji: "🎁", icon: Gift, label: "Offres", coachingModule: "offers", actionLabel: "Reformuler mes offres", hasCoaching: true },
-  storytelling: { emoji: "📖", icon: BookOpen, label: "Storytelling", coachingModule: "story", actionLabel: "Écrire mon histoire", hasCoaching: true },
+  storytelling: { emoji: "📖", icon: BookOpen, label: "Histoire", coachingModule: "story", actionLabel: "Écrire mon histoire", hasCoaching: true },
   identite_visuelle: { emoji: "🎨", icon: Palette, label: "Identité visuelle", coachingModule: "branding", actionLabel: "Travailler mon identité", hasCoaching: false },
   coherence_cross_canal: { emoji: "🔗", icon: Link2, label: "Cohérence canaux", coachingModule: "branding", actionLabel: "Unifier ma communication", hasCoaching: false },
   contenu: { emoji: "📝", icon: FileText, label: "Contenu", coachingModule: "editorial", actionLabel: "Créer une ligne éditoriale", hasCoaching: true },

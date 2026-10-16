@@ -159,14 +159,14 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
                   Cette page est disponible dans l'outil complet
                 </h2>
                 <p className="text-muted-foreground text-sm">
-                  Crée ton compte gratuit pour accéder à toutes les fonctionnalités, ou reviens au dashboard pour continuer la visite.
+                  Crée ton compte gratuit pour accéder à toutes les fonctionnalités, ou reviens à l'accueil pour continuer la visite.
                 </p>
                 <div className="flex gap-3 justify-center pt-2">
                   <a href="/login" className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
                     Créer mon compte
                   </a>
                   <a href="/dashboard" className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border text-foreground text-sm font-medium hover:bg-muted/50 transition-colors">
-                    ← Retour au dashboard
+                    ← Retour à l'accueil
                   </a>
                 </div>
               </div>

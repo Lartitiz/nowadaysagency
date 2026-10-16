@@ -171,13 +171,13 @@ export default function PropositionRecapPage() {
 
   const VERSION_FIELDS = [
     { emoji: "🪪", label: "Bio Instagram / LinkedIn", field: "version_bio" },
-    { emoji: "🎤", label: "Pitch oral / networking", field: "version_pitch_naturel" },
+    { emoji: "🎤", label: "Présentation orale / rencontres professionnelles", field: "version_pitch_naturel" },
     { emoji: "🌐", label: "Page d'accueil site web", field: "version_site_web" },
     { emoji: "🔥", label: "Accroche engagée", field: "version_engagee" },
     { emoji: "✨", label: "One-liner mémorable", field: "version_one_liner" },
-    { emoji: "🎤", label: "Networking", field: "version_networking" },
+    { emoji: "🎤", label: "Rencontres professionnelles", field: "version_networking" },
     { emoji: "📄", label: "Version complète (ancienne version)", field: "version_complete" },
-    { emoji: "🎤", label: "Pitch (ancienne version)", field: "version_pitch" },
+    { emoji: "🎤", label: "Présentation (ancienne version)", field: "version_pitch" },
     { emoji: "✨", label: "Version courte (ancienne version)", field: "version_short" },
     { emoji: "❤️", label: "Version émotionnelle (ancienne version)", field: "version_emotional" },
   ];
@@ -331,7 +331,7 @@ export default function PropositionRecapPage() {
         )}
 
         <div className="mt-6">
-          <Link to="/branding" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">← Retour au Branding</Link>
+          <Link to="/branding" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">← Retour à Mon identité</Link>
         </div>
       </main>
     </div>

@@ -523,7 +523,7 @@ function Step1({ formData, setFormData, saved, autoSaving, onExtract, extracting
         <div className="flex gap-2 flex-wrap">
           {[
             { v: "paid", l: "Payante", icon: Gem },
-            { v: "free", l: "Gratuite (lead magnet)", icon: Gift },
+            { v: "free", l: "Gratuite (cadeau)", icon: Gift },
             { v: "service", l: "Ponctuelle", icon: Mic },
           ].map((t) => (
             <button

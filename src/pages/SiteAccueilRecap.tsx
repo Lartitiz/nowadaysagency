@@ -51,13 +51,13 @@ function SiteAccueilRecapView() {
   const copyAll = () => {
     if (!loaded || !data) return;
     const sections = [
-      `🎯 HOOK\n${data.hook_title}\n${data.hook_subtitle}`,
+      `🎯 ACCROCHE\n${data.hook_title}\n${data.hook_subtitle}`,
       `😩 LE PROBLÈME\n${data.problem_block || ""}`,
       `✨ LES BÉNÉFICES\n${data.benefits_block || ""}`,
       `💚 L'OFFRE\n${data.offer_block || ""}`,
       `👋 QUI TU ES\n${data.presentation_block || ""}`,
       `🦋 FAQ\n${(data.faq as FaqItem[]).map((f: FaqItem) => `Q : ${f.question}\nR : ${f.reponse}`).join("\n\n")}`,
-      `🔘 CTA\n${data.cta_primary || ""}${data.cta_secondary ? `\n${data.cta_secondary}` : ""}`,
+      `🔘 APPEL À L'ACTION\n${data.cta_primary || ""}${data.cta_secondary ? `\n${data.cta_secondary}` : ""}`,
     ].filter(s => s.trim().length > 10);
     copyText(sections.join("\n\n---\n\n"));
   };
@@ -93,13 +93,13 @@ function SiteAccueilRecapView() {
   // step = index of the matching editor step in SiteAccueil's STEPS (1-based):
   // 1 Hook · 2 Problème · 3 Transformation · 4 Plan · 5 Offre/Prix · 6 Pour qui · 7 Qui tu es · 8 Garantie · 9 FAQ+CTA · 10 SEO
   const sections = [
-    { icon: "🎯", label: "Hook", content: `${data.hook_title || ""}\n${data.hook_subtitle || ""}`.trim(), step: 1 },
+    { icon: "🎯", label: "Accroche", content: `${data.hook_title || ""}\n${data.hook_subtitle || ""}`.trim(), step: 1 },
     { icon: "😩", label: "Le problème", content: data.problem_block || "", step: 2 },
     { icon: "✨", label: "Les bénéfices", content: data.benefits_block || "", step: 3 },
     { icon: "💚", label: "L'offre", content: data.offer_block || "", step: 5 },
     { icon: "👋", label: "Qui tu es", content: data.presentation_block || "", step: 7 },
     { icon: "🦋", label: "FAQ", content: (data.faq as FaqItem[]).map((f: FaqItem) => `Q : ${f.question}\nR : ${f.reponse}`).join("\n\n"), step: 9 },
-    { icon: "🔘", label: "CTA", content: [data.cta_primary, data.cta_secondary].filter(Boolean).join("\n"), step: 9 },
+    { icon: "🔘", label: "Appel à l'action", content: [data.cta_primary, data.cta_secondary].filter(Boolean).join("\n"), step: 9 },
   ].filter(s => s.content.trim().length > 0);
 
   return (

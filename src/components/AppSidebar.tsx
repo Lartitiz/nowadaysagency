@@ -45,7 +45,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { label: "LinkedIn", path: "/linkedin", description: "Profil et stratégie", icon: <Briefcase size={18} /> },
       { label: "Pinterest", path: "/pinterest", description: "Profil, tableaux et visibilité", icon: <Pin size={18} /> },
       { label: "Améliorer mon site", path: "/site", description: "Textes et audit de mon site", icon: <Globe size={18} /> },
-      { label: "SEO", path: "/seo", description: "Outil dédié au référencement", icon: <Search size={18} /> },
+      { label: "Référencement", path: "/seo", description: "Outil dédié au référencement", icon: <Search size={18} /> },
     ],
   },
 ];

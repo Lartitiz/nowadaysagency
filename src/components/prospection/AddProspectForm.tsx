@@ -9,7 +9,7 @@ const SOURCE_OPTIONS = [
   { value: "like_regulier", label: "Like régulier" },
   { value: "story_reply", label: "Réponse story" },
   { value: "comment", label: "Commentaire" },
-  { value: "dm", label: "DM" },
+  { value: "dm", label: "Message privé" },
   { value: "other", label: "Autre" },
 ];
 

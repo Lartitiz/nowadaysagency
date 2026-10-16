@@ -606,7 +606,7 @@ function ProspectsTab({ contacts, onAdd, onSelect, onUpdateStage, onWriteDm, pip
                 {c.next_followup_text && <span className="text-xs text-muted-foreground"> · {c.next_followup_text}</span>}
               </span>
               <Button size="sm" variant="ghost" className="h-7 px-2 text-2xs" onClick={() => onWriteDm(c)}>
-                <MessageCircle className="h-3 w-3 mr-1" /> DM
+                <MessageCircle className="h-3 w-3 mr-1" /> Message privé
               </Button>
             </div>
           ))}
@@ -675,7 +675,7 @@ function ProspectsTab({ contacts, onAdd, onSelect, onUpdateStage, onWriteDm, pip
                       </div>
                       <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                         <button onClick={() => onWriteDm(c)} className="h-7 px-2 text-2xs rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1">
-                          <MessageCircle className="h-3 w-3" /> <span className="hidden sm:inline">DM</span>
+                          <MessageCircle className="h-3 w-3" /> <span className="hidden sm:inline">Message privé</span>
                         </button>
                         <InstagramLink username={c.username} className="h-7 px-2 text-2xs rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1" showCopy>
                           <ExternalLink className="h-3 w-3" />

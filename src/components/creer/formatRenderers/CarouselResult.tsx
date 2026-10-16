@@ -621,7 +621,7 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
       {(caption.hook || caption.body || caption.cta) && (
         <Card className="border-border">
           <CardContent className="p-3 space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Caption</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Légende</p>
             {caption.hook != null && (
               <InlineEditable
                 value={caption.hook || ""}
@@ -635,7 +635,7 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
                 value={caption.body || ""}
                 onChange={(v) => updateCaption("body", v)}
                 className="text-sm text-foreground leading-relaxed"
-                placeholder="Corps de la caption…"
+                placeholder="Corps de la légende…"
               />
             )}
             {caption.cta != null && (

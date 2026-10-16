@@ -31,7 +31,7 @@ const CATEGORIES = [
   { value: "general", label: "💬 Général" },
   { value: "victoire", label: "🎉 Victoire" },
   { value: "question", label: "❓ Question" },
-  { value: "feedback", label: "🔍 Feedback" },
+  { value: "feedback", label: "🔍 Retours" },
   { value: "inspiration", label: "✨ Inspiration" },
 ];
 

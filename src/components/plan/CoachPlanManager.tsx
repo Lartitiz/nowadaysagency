@@ -39,7 +39,7 @@ const ROUTE_OPTIONS = [
   { value: "/linkedin/audit", label: "Audit LinkedIn" },
   { value: "/linkedin/profil", label: "Profil LinkedIn" },
   { value: "/calendrier", label: "Calendrier" },
-  { value: "/seo", label: "SEO" },
+  { value: "/seo", label: "Référencement" },
 ];
 
 const PHASE_OPTIONS = [

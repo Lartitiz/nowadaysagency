@@ -14,7 +14,7 @@ const TOOL_LABELS: Record<string, string> = {
   structure: "Structure",
   presse: "Presse",
   plan: "Mon plan",
-  dashboard: "Dashboard",
+  dashboard: "Tableau de bord",
 };
 
 const VALID_TOOLS = Object.keys(TOOL_LABELS);
@@ -71,7 +71,7 @@ export default function SeoEmbed() {
           <nav className="flex items-center gap-1 text-sm text-muted-foreground">
             <Link to="/dashboard" className="hover:text-primary transition-colors">Retour à l'accueil</Link>
             <span className="mx-1">›</span>
-            <Link to="/seo" className="hover:text-primary transition-colors">SEO</Link>
+            <Link to="/seo" className="hover:text-primary transition-colors">Référencement</Link>
             <span className="mx-1">›</span>
             <span className="text-foreground font-medium">{TOOL_LABELS[tool]}</span>
           </nav>
@@ -94,7 +94,7 @@ export default function SeoEmbed() {
               <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  L'outil SEO a besoin d'une mise à jour
+                  L'outil de référencement a besoin d'une mise à jour
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   En attendant, tu peux y accéder directement ici :{" "}
@@ -104,7 +104,7 @@ export default function SeoEmbed() {
                     rel="noopener noreferrer"
                     className="text-primary underline hover:text-primary/80"
                   >
-                    {TOOL_LABELS[tool]} SEO →
+                    {TOOL_LABELS[tool]} (référencement) →
                   </a>
                 </p>
               </div>

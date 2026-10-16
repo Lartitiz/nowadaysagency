@@ -28,7 +28,7 @@ class IdeaVersionConflict extends Error {
 
 const TAG_OPTIONS = [
   { id: "education", label: "Éducation" },
-  { id: "storytelling", label: "Storytelling" },
+  { id: "storytelling", label: "Histoire" },
   { id: "vente", label: "Vente" },
   { id: "engagement", label: "Engagement" },
   { id: "coup_de_gueule", label: "Coup de gueule" },

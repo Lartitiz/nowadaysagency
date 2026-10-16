@@ -135,7 +135,7 @@ export function CharterSection({ data, onUpdate }: { data: AnalysisResult["chart
           <p className="text-xs text-muted-foreground">
             On n'a pas réussi à détecter automatiquement tes couleurs depuis ton site
             (elles sont parfois dans des fichiers que l'analyse ne peut pas lire).
-            {onUpdate ? " Tu peux les saisir directement ici :" : " Tu pourras les ajouter en un clic : ou uploader ton logo : dans ta charte graphique."}
+            {onUpdate ? " Tu peux les saisir directement ici :" : " Tu pourras les ajouter en un clic : ou importer ton logo : dans ta charte graphique."}
           </p>
           {onUpdate && (
             <button onClick={startEdit} className="inline-flex items-center gap-1 text-xs font-medium text-primary-text hover:underline mt-1.5">

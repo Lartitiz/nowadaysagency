@@ -26,26 +26,26 @@ interface ResetGroup {
 
 const RESET_GROUPS: ResetGroup[] = [
   {
-    id: "onboarding", label: "Onboarding", emoji: "🚀",
+    id: "onboarding", label: "Démarrage", emoji: "🚀",
     tables: [
-      { id: "onboarding", label: "Reset onboarding", table: "profiles", filterColumn: "user_id", updateInstead: { onboarding_completed: false, onboarding_completed_at: null, onboarding_step: null } },
+      { id: "onboarding", label: "Réinitialiser le démarrage", table: "profiles", filterColumn: "user_id", updateInstead: { onboarding_completed: false, onboarding_completed_at: null, onboarding_step: null } },
     ],
   },
   {
-    id: "branding", label: "Branding", emoji: "🎨",
+    id: "branding", label: "Identité de marque", emoji: "🎨",
     tables: [
-      { id: "storytelling", label: "Storytelling", table: "storytelling", filterColumn: "user_id" },
+      { id: "storytelling", label: "Histoire", table: "storytelling", filterColumn: "user_id" },
       { id: "persona", label: "Persona", table: "persona", filterColumn: "user_id" },
       { id: "proposition", label: "Proposition de valeur", table: "brand_proposition", filterColumn: "user_id" },
       { id: "tone", label: "Ton & voix", table: "brand_profile", filterColumn: "user_id" },
       { id: "strategy", label: "Stratégie éditoriale", table: "brand_strategy", filterColumn: "user_id" },
       { id: "charter", label: "Charte graphique", table: "brand_charter", filterColumn: "user_id" },
       { id: "offers", label: "Offres", table: "offers", filterColumn: "user_id" },
-      { id: "branding_audits", label: "Audits branding", table: "branding_audits", filterColumn: "user_id" },
-      { id: "branding_coaching", label: "Sessions coaching branding", table: "branding_coaching_sessions", filterColumn: "user_id" },
+      { id: "branding_audits", label: "Audits de l'identité de marque", table: "branding_audits", filterColumn: "user_id" },
+      { id: "branding_coaching", label: "Sessions de coaching sur l'identité de marque", table: "branding_coaching_sessions", filterColumn: "user_id" },
       { id: "voice_profile", label: "Voice profile", table: "voice_profile", filterColumn: "user_id" },
-      { id: "branding_mirror", label: "Branding mirror results", table: "branding_mirror_results", filterColumn: "user_id" },
-      { id: "branding_autofill", label: "Autofill branding", table: "branding_autofill", filterColumn: "user_id" },
+      { id: "branding_mirror", label: "Résultats du miroir de l'identité de marque", table: "branding_mirror_results", filterColumn: "user_id" },
+      { id: "branding_autofill", label: "Pré-remplissage de l'identité de marque", table: "branding_autofill", filterColumn: "user_id" },
     ],
   },
   {
@@ -269,7 +269,7 @@ export default function AdminResetTool() {
           <AlertDialogHeader>
             <AlertDialogTitle>Reset total du compte ?</AlertDialogTitle>
             <AlertDialogDescription>
-              TOUTES les données seront supprimées pour <strong>{targetEmail}</strong> : profil (reset onboarding), branding, contenus, calendrier, plan de com, stats, chat, audits, réseaux sociaux, badges, etc. Le compte repartira comme au premier jour. Cette action est irréversible.
+              TOUTES les données seront supprimées pour <strong>{targetEmail}</strong> : profil (démarrage réinitialisé), identité de marque, contenus, calendrier, plan de com, stats, chat, audits, réseaux sociaux, badges, etc. Le compte repartira comme au premier jour. Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

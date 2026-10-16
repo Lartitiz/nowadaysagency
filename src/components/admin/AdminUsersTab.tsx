@@ -142,7 +142,7 @@ export default function AdminUsersTab() {
         throw new Error(res.data?.errors?.join(" | ") || "Reset partiel : certaines données n'ont pas été réinitialisées.");
       }
 
-      toast.success("Onboarding reset ! L'utilisatrice repartira de zéro à sa prochaine connexion.");
+      toast.success("Démarrage réinitialisé ! L'utilisatrice repartira de zéro à sa prochaine connexion.");
       setResetTarget(null);
       setSelectedUser(null);
     } catch (e: any) {
@@ -333,7 +333,7 @@ export default function AdminUsersTab() {
                   <th className={thClass} onClick={() => toggleSort("prenom")}>Prénom<SortIcon col="prenom" /></th>
                   <th className={thClass} onClick={() => toggleSort("email")}>Email<SortIcon col="email" /></th>
                   <th className={thClass} onClick={() => toggleSort("plan")}>Plan<SortIcon col="plan" /></th>
-                  <th className={thClass} onClick={() => toggleSort("branding_score")}>Branding<SortIcon col="branding_score" /></th>
+                  <th className={thClass} onClick={() => toggleSort("branding_score")}>Identité<SortIcon col="branding_score" /></th>
                   <th className={thClass} onClick={() => toggleSort("ai_usage_count")}>Crédits IA<SortIcon col="ai_usage_count" /></th>
                   <th className={thClass} onClick={() => toggleSort("last_sign_in")}>Dernière co.<SortIcon col="last_sign_in" /></th>
                   <th className={thClass} onClick={() => toggleSort("created_at")}>Inscrite le<SortIcon col="created_at" /></th>
@@ -394,7 +394,7 @@ export default function AdminUsersTab() {
                 {/* Branding */}
                 <section>
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5" /> Branding
+                    <Sparkles className="w-3.5 h-3.5" /> Identité de marque
                   </h4>
                   <div className="flex items-center gap-3">
                     <span className="text-2xl font-bold">{selectedUser.branding_score}%</span>
@@ -442,7 +442,7 @@ export default function AdminUsersTab() {
                     disabled={resettingUser}
                   >
                     <RotateCcw className="w-4 h-4 mr-2" />
-                    {resettingUser ? "Reset en cours..." : "Reset onboarding"}
+                    {resettingUser ? "Réinitialisation en cours..." : "Réinitialiser le démarrage"}
                   </Button>
                   <Button variant="outline" className="w-full" onClick={() => setSelectedUser(null)}>
                     <X className="w-4 h-4 mr-2" /> Fermer
@@ -465,7 +465,7 @@ export default function AdminUsersTab() {
       <AlertDialog open={!!resetTarget} onOpenChange={v => { if (!v) setResetTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>🔄 Reset l'onboarding de {resetTarget?.prenom || resetTarget?.email} ?</AlertDialogTitle>
+            <AlertDialogTitle>🔄 Réinitialiser le démarrage de {resetTarget?.prenom || resetTarget?.email} ?</AlertDialogTitle>
             <AlertDialogDescription>
               L'utilisatrice repartira de zéro : elle reverra tout le parcours d'accueil à sa prochaine connexion. Son contenu n'est pas supprimé. Action réservée aux comptes de test.
             </AlertDialogDescription>
@@ -476,7 +476,7 @@ export default function AdminUsersTab() {
               disabled={resettingUser}
               onClick={(e) => { e.preventDefault(); if (resetTarget) resetUserOnboarding(resetTarget.user_id); }}
             >
-              {resettingUser ? "Reset en cours..." : "Reset onboarding"}
+              {resettingUser ? "Réinitialisation en cours..." : "Réinitialiser le démarrage"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -197,7 +197,7 @@ export default function SiteInspirationGeneratorPage() {
       }
       setVariants([...newVariants]);
 
-      toast.success("Templates générés ! 🎨", { description: "Tes 2 variantes sont prêtes." });
+      toast.success("Modèles générés ! 🎨", { description: "Tes 2 variantes sont prêtes." });
     } catch (err) {
       toast.error("Erreur", { description: friendlyError(err) });
     } finally {
@@ -284,7 +284,7 @@ export default function SiteInspirationGeneratorPage() {
               {section.emoji} {section.title}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Templates HTML prêts à copier-coller, personnalisés avec ton branding.
+              Modèles HTML prêts à copier-coller, personnalisés avec ton identité de marque.
             </p>
           </div>
           <div className="flex gap-2">
@@ -296,7 +296,7 @@ export default function SiteInspirationGeneratorPage() {
             )}
             <Button size="sm" onClick={generate} disabled={loading}>
               <Zap className="h-4 w-4 mr-1" />
-              {loaded ? "Nouvelles variantes" : "Générer mes templates"}
+              {loaded ? "Nouvelles variantes" : "Générer mes modèles"}
             </Button>
           </div>
         </div>
@@ -306,7 +306,7 @@ export default function SiteInspirationGeneratorPage() {
           <div className="space-y-6">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Sparkles className="h-4 w-4 animate-pulse text-primary" />
-              L'IA prépare tes templates...
+              L'IA prépare tes modèles...
             </div>
             {[1, 2].map((i) => (
               <div key={i} className="rounded-2xl border border-border bg-card p-5 space-y-4">
@@ -413,7 +413,7 @@ export default function SiteInspirationGeneratorPage() {
           <div className="text-center py-16 space-y-4">
             <p className="text-4xl">{section.emoji}</p>
             <p className="text-muted-foreground">
-              Clique sur "Générer mes templates" pour créer tes variantes personnalisées.
+              Clique sur "Générer mes modèles" pour créer tes variantes personnalisées.
             </p>
           </div>
         )}

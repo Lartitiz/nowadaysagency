@@ -84,10 +84,10 @@ export default function PinterestTableaux() {
                 <SelectTrigger className="w-full" aria-label={`Type du tableau ${idx + 1}`}><SelectValue /></SelectTrigger>
                 <SelectContent>{BOARD_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
               </Select>
-              <Textarea aria-label={`Description du tableau ${idx + 1}`} value={b.description || ""} onChange={e => updateBoard(idx, "description", e.target.value)} placeholder="Description avec mots-clés pour le SEO Pinterest..." className="min-h-[80px]" />
+              <Textarea aria-label={`Description du tableau ${idx + 1}`} value={b.description || ""} onChange={e => updateBoard(idx, "description", e.target.value)} placeholder="Description avec mots-clés pour le référencement Pinterest..." className="min-h-[80px]" />
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => optimizeDescription(idx)} disabled={generatingIdx === idx} className="rounded-pill gap-2">
-                  <Sparkles className="h-4 w-4" />{generatingIdx === idx ? "Optimisation..." : "✨ Optimiser la description SEO"}
+                  <Sparkles className="h-4 w-4" />{generatingIdx === idx ? "Optimisation..." : "✨ Optimiser la description pour le référencement"}
                 </Button>
                 {b.description && (
                   <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(b.description); setCopied(idx); setTimeout(() => setCopied(null), 2000); toast.success("📋 Copié !"); }} className="gap-1">

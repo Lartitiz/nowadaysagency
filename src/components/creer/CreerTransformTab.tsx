@@ -10,7 +10,7 @@ type TransformMode = "select" | "recycle" | "crosspost" | "inspire";
 
 const MODES = [
   { id: "recycle" as const, emoji: "♻️", label: "Recycler", desc: "Transforme un contenu existant en plusieurs formats" },
-  { id: "crosspost" as const, emoji: "🔄", label: "Crosspost", desc: "Adapte un contenu pour un autre canal" },
+  { id: "crosspost" as const, emoji: "🔄", label: "Adapter pour un autre réseau", desc: "Adapte un contenu pour un autre canal" },
   { id: "inspire" as const, emoji: "✨", label: "S'inspirer", desc: "Analyse un contenu qui te plaît et crée ta version" },
 ];
 

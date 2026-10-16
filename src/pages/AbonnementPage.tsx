@@ -19,7 +19,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 // (Qualité Max compris), images, vidéos, et les audits du gratuit. Le reste
 // compte dans le compteur global.
 const QUOTA_CATEGORIES: { key: AiCategory; icon: LucideIcon; label: string }[] = [
-  { key: "carousel", icon: Sparkles, label: "Carrousels (Qualité Max compris)" },
+  { key: "carousel", icon: Sparkles, label: "Carrousels (rédaction la plus soignée comprise)" },
   { key: "photo_retouch", icon: ImageIcon, label: "Images" },
   { key: "video", icon: Video, label: "Vidéos" },
   { key: "audit", icon: Search, label: "Audits" },

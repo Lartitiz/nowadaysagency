@@ -32,7 +32,7 @@ import { parseAiJson } from "@/lib/parse-ai-json";
 const LOADING_MESSAGES = [
   { time: 0, text: "🔍 Connexion au site..." },
   { time: 5000, text: "📖 Lecture des pages..." },
-  { time: 10000, text: "🧠 Analyse de la clarté, du copywriting, des CTA..." },
+  { time: 10000, text: "🧠 Analyse de la clarté, de la rédaction, des appels à l'action..." },
   { time: 20000, text: "📊 Calcul du score et des recommandations..." },
   { time: 30000, text: "⏳ Presque fini, l'IA peaufine les recommandations..." },
 ];
@@ -41,7 +41,7 @@ const MOTIVATIONAL_QUOTES = [
   "Un bon site, c'est pas un site parfait. C'est un site qui convertit.",
   "Tes visiteuses ne lisent pas : elles scannent. Chaque mot compte.",
   "Le meilleur investissement, c'est un message clair.",
-  "Un CTA visible = une cliente en moins qui part sans agir.",
+  "Un appel à l'action visible = une cliente en moins qui part sans agir.",
   "Ton site est ta vitrine 24h/24. Autant qu'il bosse pour toi.",
 ];
 
@@ -57,7 +57,7 @@ const GLOBAL_SECTIONS: AuditSection[] = [
     { id: "q3", text: "Ta page explique en quoi tu es différente des autres ?", tooltip: "Ce qui te rend unique n'est pas ton CV." },
     { id: "q4", text: "Ton visuel et tes textes racontent la même histoire ?", tooltip: "Si ton texte est chaleureux mais tes visuels sont froids, il y a un décalage." },
   ]},
-  { id: "copywriting", emoji: "💬", title: "Copywriting", questions: [
+  { id: "copywriting", emoji: "💬", title: "Rédaction", questions: [
     { id: "q5", text: "Tes titres parlent de ce que ta cliente va obtenir ?", tooltip: "'Reprends confiance dans ta com' fonctionne mieux." },
     { id: "q6", text: "Tu as un bouton d'action visible sans scroller ?", tooltip: "Si ta visiteuse doit scroller, tu perds 40% de conversions." },
     { id: "q7", text: "Le ton de tes textes correspond à ta cible ?", tooltip: "Parle comme ta cliente parle." },
@@ -474,7 +474,7 @@ const SiteAuditPage = () => {
 
             {/* Secondary link to screenshot */}
             <p className="text-sm text-muted-foreground text-center">
-              Tu préfères envoyer un screenshot ?{" "}
+              Tu préfères envoyer une capture d'écran ?{" "}
               <button onClick={() => setStep("screenshot")} className="text-primary hover:underline font-medium">
                 Utilise l'audit visuel →
               </button>
@@ -546,7 +546,7 @@ const SiteAuditPage = () => {
               <Button variant="outline" size="sm" onClick={() => { setStep("input"); setScreenshotResult(null); setScreenshotFile(null); setScreenshotPreview(null); }} className="gap-2 rounded-pill">
                 <ArrowLeft className="h-4 w-4" /> Retour
               </Button>
-              <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2"><Camera className="h-5 w-5 text-primary" strokeWidth={1.75} /> Audit visuel par screenshot</h2>
+              <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2"><Camera className="h-5 w-5 text-primary" strokeWidth={1.75} /> Audit visuel par capture d'écran</h2>
             </div>
 
             {!screenshotResult && (
@@ -562,7 +562,7 @@ const SiteAuditPage = () => {
                   ) : (
                     <>
                       <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Glisse ton screenshot ici ou clique pour sélectionner</p>
+                      <p className="text-sm text-muted-foreground">Glisse ta capture d'écran ici ou clique pour sélectionner</p>
                       <p className="text-xs text-muted-foreground">PNG ou JPG, max 5 Mo</p>
                     </>
                   )}
@@ -589,7 +589,7 @@ const SiteAuditPage = () => {
 
                 <Button onClick={analyzeScreenshot} disabled={!screenshotFile || screenshotLoading} className="gap-2 rounded-pill w-full sm:w-auto">
                   {screenshotLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                  {screenshotLoading ? "Analyse en cours..." : "Analyser mon screenshot"}
+                  {screenshotLoading ? "Analyse en cours..." : "Analyser ma capture d'écran"}
                 </Button>
               </div>
             )}
@@ -610,7 +610,7 @@ const SiteAuditPage = () => {
                 <div className="lg:col-span-2">
                   {screenshotPreview && (
                     <div className="rounded-2xl border border-border overflow-hidden sticky top-4">
-                      <img loading="lazy" src={screenshotPreview} alt="Screenshot analysé" className="w-full object-contain" />
+                      <img loading="lazy" src={screenshotPreview} alt="Capture d'écran analysée" className="w-full object-contain" />
                     </div>
                   )}
                 </div>
@@ -683,7 +683,7 @@ const SiteAuditPage = () => {
 
                   <div className="flex flex-wrap gap-3">
                     <Button variant="outline" size="sm" className="gap-2 rounded-pill" onClick={() => { setScreenshotResult(null); }}>
-                      <RotateCcw className="h-4 w-4" /> Refaire avec un autre screenshot
+                      <RotateCcw className="h-4 w-4" /> Refaire avec une autre capture d'écran
                     </Button>
                     <Button variant="ghost" size="sm" className="gap-2 rounded-pill" asChild>
                       <Link to="/site/inspirations"><Palette className="h-4 w-4" /> Voir des inspirations</Link>

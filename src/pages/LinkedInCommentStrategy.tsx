@@ -128,7 +128,7 @@ function LinkedInCommentStrategyForm() {
             <p>✅ <strong>Ajoute de la valeur</strong> : partage une expérience, un point de vue, une question de fond</p>
             <p>✅ <strong>Réponds aux réponses</strong> : conversation &gt; commentaire isolé</p>
             <p>❌ Pas de "super post !" ou "merci pour le partage"</p>
-            <p>❌ Pas de pitch déguisé en commentaire</p>
+            <p>❌ Pas de présentation commerciale déguisée en commentaire</p>
             <p>❌ Pas de lien vers ton profil/offre</p>
           </div>
           <div className="mt-4 rounded-lg bg-primary/5 border border-primary/20 p-3 text-sm text-foreground">

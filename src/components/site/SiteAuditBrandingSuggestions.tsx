@@ -209,7 +209,7 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
         </div>
 
         <p className="text-sm text-muted-foreground">
-          J'ai détecté {suggestions.length} info{suggestions.length > 1 ? "s" : ""} sur ton site qui {suggestions.length > 1 ? "peuvent" : "peut"} enrichir ton branding :
+          J'ai détecté {suggestions.length} info{suggestions.length > 1 ? "s" : ""} sur ton site qui {suggestions.length > 1 ? "peuvent" : "peut"} enrichir ton identité de marque :
         </p>
 
         <div className="space-y-1.5">
@@ -235,7 +235,7 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
       <Dialog open={showDetail} onOpenChange={setShowDetail}>
         <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Pré-remplir ton branding depuis ton site</DialogTitle>
+            <DialogTitle>Pré-remplir ton identité de marque depuis ton site</DialogTitle>
             <DialogDescription>Tu peux modifier les valeurs avant de les appliquer.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">

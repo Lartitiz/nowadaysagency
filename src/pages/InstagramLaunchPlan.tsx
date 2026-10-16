@@ -429,7 +429,7 @@ function InstagramLaunchPlanScreen() {
 
         {/* Stepper */}
         <div className="mt-6 flex items-center gap-1 overflow-x-auto pb-2">
-          {["Template", "Temps", "Générer", "Prévisualiser"].map((label, i) => (
+          {["Modèle", "Temps", "Générer", "Prévisualiser"].map((label, i) => (
             <button
               key={i}
               onClick={() => i <= currentStep && setCurrentStep(i)}

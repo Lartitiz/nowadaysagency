@@ -28,7 +28,7 @@ it("ouvre les outils secondaires et respecte les flags et accès contractuels", 
   expect(menu.queryByRole("link", { name: "Mon accompagnement" })).not.toBeInTheDocument();
   // Pinterest est de nouveau visible pour toutes (décision du 15/10/2026) ; le SEO reste masqué.
   expect(menu.getByRole("link", { name: "Pinterest" })).toHaveAttribute("href", "/pinterest");
-  expect(menu.queryByRole("link", { name: "SEO" })).not.toBeInTheDocument();
+  expect(menu.queryByRole("link", { name: "Référencement" })).not.toBeInTheDocument();
   expect(menu.queryByRole("link", { name: /Admin/ })).not.toBeInTheDocument();
   // Seule porte vers le profil sur ordinateur (le menu de l'avatar n'existe qu'en téléphone/tablette).
   expect(menu.getByRole("link", { name: "Mon profil" })).toHaveAttribute("href", "/profil");

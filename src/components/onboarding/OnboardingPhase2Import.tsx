@@ -38,7 +38,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
     const res = await startSocialConnect(
       "instagram",
       workspaceId && workspaceId !== user?.id ? workspaceId : undefined,
-      { depuis: "/onboarding", quoi: "ton onboarding" },
+      { depuis: "/onboarding", quoi: "ton démarrage" },
     );
     if (res.error) {
       setConnecting(false);
@@ -51,7 +51,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
     const res = await startSocialConnect(
       "linkedin_analytics",
       workspaceId && workspaceId !== user?.id ? workspaceId : undefined,
-      { depuis: "/onboarding", quoi: "ton onboarding" },
+      { depuis: "/onboarding", quoi: "ton démarrage" },
     );
     if (res.error) {
       setConnecting(false);
@@ -190,7 +190,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
           }
 
           {uploading &&
-          <p className="text-sm text-muted-foreground text-center animate-pulse mt-2">Upload en cours...</p>
+          <p className="text-sm text-muted-foreground text-center animate-pulse mt-2">Import en cours...</p>
           }
 
           {files.length > 0 &&
@@ -238,7 +238,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
 
           {linkedinOpen &&
           <div className="mt-2">
-              <p className="text-xs text-muted-foreground/70 mb-2 italic">Copie-colle le texte de la section "Infos" de ton profil LinkedIn. Le scraping automatique ne fonctionne pas avec LinkedIn, alors c'est plus fiable comme ça.</p>
+              <p className="text-xs text-muted-foreground/70 mb-2 italic">Copie-colle le texte de la section "Infos" de ton profil LinkedIn. La lecture automatique ne fonctionne pas avec LinkedIn, alors c'est plus fiable comme ça.</p>
               {!isDemoMode && <div className="mb-3 rounded-xl bg-secondary/40 p-3 text-xs text-muted-foreground">
                 {liAnalyticsConnected
                   ? "✅ LinkedIn Analytics connecté : les chiffres disponibles pourront compléter le diagnostic. Le texte du profil reste à fournir ici ou par capture."

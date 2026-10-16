@@ -42,7 +42,7 @@ const CANAL_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  content: "Contenus", audit: "Audits", dm_comment: "DM & Commentaires",
+  content: "Contenus", audit: "Audits", dm_comment: "Messages privés & commentaires",
   bio_profile: "Bio & Profil", suggestion: "Suggestions", import: "Import", adaptation: "Adaptations",
 };
 
@@ -302,7 +302,7 @@ function OverviewSection({ stats }: { stats: StatsData }) {
           subColor="text-success"
         />
         <KpiCard
-          title="Onboarding"
+          title="Démarrage"
           value={stats.onboarding_rate}
           suffix="%"
           sub={`${stats.onboarding_completed} sur ${stats.total_users}`}
@@ -457,7 +457,7 @@ function BusinessSection({ stats }: { stats: StatsData }) {
         <ChartCard title="Funnel de conversion">
           <div className="space-y-4 py-4">
             <FunnelStep label="Inscrites totales" value={stats.total_users} max={stats.total_users} color="#9CA3AF" />
-            <FunnelStep label="Onboarding terminé" value={stats.onboarding_completed} max={stats.total_users} color="#8B5CF6" />
+            <FunnelStep label="Démarrage terminé" value={stats.onboarding_completed} max={stats.total_users} color="#8B5CF6" />
             <FunnelStep label="Actives ce mois (IA)" value={stats.active_this_month} max={stats.total_users} color="#F59E0B" />
             <FunnelStep label="Abonnées payantes" value={stats.paid_users} max={stats.total_users} color="hsl(var(--primary))" />
           </div>
@@ -551,7 +551,7 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
           />
         </ChartCard>
 
-        <ChartCard title="Distribution scores branding">
+        <ChartCard title="Répartition des scores d'identité de marque">
           <StatBars
             items={scoreDistData.map(d => ({ label: `${d.range} %`, value: d.count, suffix: " inscrites", color: d.fill }))}
             emptyMessage="Aucune donnée"

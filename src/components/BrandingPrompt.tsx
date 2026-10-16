@@ -39,8 +39,8 @@ export default function BrandingPrompt({ section = "global", message, linkText, 
 
   const defaults: Record<string, { msg: string; link: string; to: string }> = {
     global: {
-      msg: "💡 Tes idées seront encore plus pertinentes si tu complètes ton Branding.",
-      link: "Aller au Branding →",
+      msg: "💡 Tes idées seront encore plus pertinentes si tu complètes ton identité de marque.",
+      link: "Aller à Mon identité →",
       to: "/branding",
     },
     tone: {

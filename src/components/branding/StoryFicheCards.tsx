@@ -97,7 +97,7 @@ export default function StoryFicheCards() {
 
         {selectedStory.pitch_short && (
           <Card className="p-5">
-            <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide mb-2">Pitch court</h4>
+            <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide mb-2">Présentation courte</h4>
             <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{selectedStory.pitch_short}</p>
           </Card>
         )}
@@ -113,7 +113,7 @@ export default function StoryFicheCards() {
 
         {!hasStoryContent(selectedStory) && (
           <Card className="p-6 text-center border-dashed">
-            <p className="text-muted-foreground text-sm italic">Ce storytelling est encore vide.</p>
+            <p className="text-muted-foreground text-sm italic">Cette histoire est encore vide.</p>
             <Button size="sm" className="mt-3" onClick={() => navigate(`/branding/storytelling/${selectedStory.id}/edit`)}>
               Commencer le coaching →
             </Button>
@@ -125,7 +125,7 @@ export default function StoryFicheCards() {
           className="w-full mt-2"
           onClick={() => navigate(`/branding/storytelling/${selectedStory.id}/edit`)}
         >
-          Modifier ce storytelling →
+          Modifier cette histoire →
         </Button>
       </div>
     );
@@ -135,9 +135,9 @@ export default function StoryFicheCards() {
   if (stories.length === 0) {
     return (
       <Card className="p-6 text-center border-dashed">
-        <p className="text-muted-foreground text-sm mb-3">Aucun storytelling pour l'instant.</p>
+        <p className="text-muted-foreground text-sm mb-3">Aucune histoire pour l'instant.</p>
         <Button size="sm" className="rounded-pill text-xs" onClick={createNew}>
-          <Plus className="h-3.5 w-3.5 mr-1" /> Créer mon premier storytelling
+          <Plus className="h-3.5 w-3.5 mr-1" /> Écrire mon histoire
         </Button>
       </Card>
     );
@@ -167,7 +167,7 @@ export default function StoryFicheCards() {
             {preview ? (
               <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{preview}</p>
             ) : (
-              <p className="text-sm text-muted-foreground italic">Storytelling en cours...</p>
+              <p className="text-sm text-muted-foreground italic">Histoire en cours...</p>
             )}
 
             {s.updated_at && (
@@ -180,7 +180,7 @@ export default function StoryFicheCards() {
       })}
 
       <Button variant="outline" className="w-full mt-2 gap-2" onClick={createNew}>
-        <Plus className="h-4 w-4" /> Nouveau storytelling
+        <Plus className="h-4 w-4" /> Nouvelle histoire
       </Button>
     </div>
   );

@@ -419,7 +419,7 @@ function PrioritiesSection({ priorities }: { priorities: DiagnosticData["priorit
   };
   const channelLabel: Record<string, string> = {
     instagram: "Instagram", website: "Site web", newsletter: "Newsletter",
-    seo: "SEO", branding: "Identité", linkedin: "LinkedIn",
+    seo: "Référencement", branding: "Identité", linkedin: "LinkedIn",
   };
   const impactBorder: Record<string, string> = {
     high: "border-l-primary", medium: "border-l-accent", low: "border-l-border",

@@ -163,7 +163,7 @@ async function checkDataCoherence(): Promise<AuditResult[]> {
       results.push({
         status: "warning",
         category: "Données",
-        title: `Branding très incomplet (${b.user_id.slice(0, 8)}…)`,
+        title: `Identité de marque très incomplète (${b.user_id.slice(0, 8)}…)`,
         detail: `Champs vides : ${missing.join(", ")}`,
       });
     }

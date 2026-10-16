@@ -1755,7 +1755,7 @@ function CreerWorkspace() {
               ) : (
                 <div className="py-16 text-center space-y-3 animate-fade-in">
                   <Spinner className="h-8 w-8 mx-auto" />
-                  <p className="text-sm font-medium text-foreground">Je compose ta séquence photo dump…</p>
+                  <p className="text-sm font-medium text-foreground">Je compose ta série de photos…</p>
                   <p className="text-xs text-muted-foreground">Tes vraies photos d'abord, l'IA pour le reste.</p>
                 </div>
               )

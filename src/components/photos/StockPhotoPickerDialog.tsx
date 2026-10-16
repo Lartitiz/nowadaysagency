@@ -199,7 +199,7 @@ export function StockPhotoPickerDialog({
           <DialogTitle>Photos libres de droit</DialogTitle>
           <DialogDescription>
             Cherche des photos libres de droit et ajoute-les comme si tu les avais
-            uploadées. Jusqu'à {maxSelectable} photo{maxSelectable > 1 ? "s" : ""}.
+            importées. Jusqu'à {maxSelectable} photo{maxSelectable > 1 ? "s" : ""}.
           </DialogDescription>
         </DialogHeader>
 

@@ -35,7 +35,7 @@ export default function ProspectionStats({ prospects }: Props) {
       </div>
       {prospects.length > 0 && (
         <p className="text-2xs text-muted-foreground italic">
-          💡 Envoie 2-3 DM personnalisés par semaine. La régularité bat le volume.
+          💡 Envoie 2-3 messages privés personnalisés par semaine. La régularité bat le volume.
         </p>
       )}
     </div>

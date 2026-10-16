@@ -10,7 +10,7 @@ export default function Step1Hook({ data, save, callAI, aiLoading, aiResults, co
     <div className="space-y-6">
       <h2 className="font-display text-xl font-bold">🎯 L'accroche qui arrête le scroll</h2>
       <div>
-        <h3 className="font-body text-base font-bold mb-2">A. Ton titre (hook)</h3>
+        <h3 className="font-body text-base font-bold mb-2">A. Ton titre (accroche)</h3>
         <p className="text-sm text-muted-foreground mb-3">Ta visiteuse a 3 secondes. Ton titre doit être clair, court et intriguant.</p>
         <HelpBlock title="💡 Les 5 ingrédients d'un bon titre">
           <ul className="list-disc pl-4 space-y-1">

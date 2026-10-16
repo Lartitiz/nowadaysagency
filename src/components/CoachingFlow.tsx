@@ -537,7 +537,7 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
           <div className="flex flex-col gap-2">
             <Button onClick={handleValidate} disabled={saving} className="w-full gap-2" size="lg">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              Valider et mettre à jour mon branding
+              Valider et mettre à jour mon identité de marque
             </Button>
 
             {iterationCount < MAX_ADJUSTMENTS ? (

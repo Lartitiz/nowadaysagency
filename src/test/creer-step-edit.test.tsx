@@ -115,7 +115,7 @@ describe("CreerStepEdit — ajustement par format", () => {
     invoke.mockClear();
     invoke.mockResolvedValue({ data: { content: "Ajusté" }, error: null });
     render(<CreerStepEdit content="Texte" format={format} onSave={vi.fn()} onBack={vi.fn()} onCopy={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: /Plus punchy/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Plus percutant/ }));
     await waitFor(() => expect(invoke).toHaveBeenCalled());
     expect(invoke.mock.calls[0][1].body.contentType).toBe(contentType);
   });

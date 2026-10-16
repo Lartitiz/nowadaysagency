@@ -429,7 +429,7 @@ function InstagramStatsScope() {
       const patch: any = {};
       const filled: string[] = [];
       if (typeof m.followers === "number") { patch.followers = m.followers; filled.push("abonnés"); }
-      if (typeof m.reach30d === "number") { patch.reach = m.reach30d; filled.push("reach (28 j)"); }
+      if (typeof m.reach30d === "number") { patch.reach = m.reach30d; filled.push("portée (28 j)"); }
       if (typeof m.views30d === "number") { patch.views = m.views30d; filled.push("vues"); }
       if (typeof m.totalInteractions30d === "number") { patch.interactions = m.totalInteractions30d; filled.push("interactions"); }
       if (typeof m.accountsEngaged30d === "number") { patch.accounts_engaged = m.accountsEngaged30d; filled.push("comptes engagés"); }
@@ -1223,7 +1223,7 @@ function InstagramStatsScope() {
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
               <Camera className="h-4 w-4 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} />
               <span>
-                Récupère automatiquement tes <strong className="text-foreground">abonnés, reach, vues, interactions, comptes engagés, visites de profil et abonnés gagnés</strong> depuis ton compte Instagram connecté.
+                Récupère automatiquement tes <strong className="text-foreground">abonnés, portée, vues, interactions, comptes engagés, visites de profil et abonnés gagnés</strong> depuis ton compte Instagram connecté.
                 {" "}<span className="text-xs">Instagram fournit une fenêtre glissante de 28 jours, rangée dans le mois en cours : et un instantané automatique fige tes chiffres en fin de mois, même sans clic.</span>
               </span>
             </div>

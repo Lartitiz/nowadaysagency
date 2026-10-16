@@ -67,7 +67,7 @@ export default function BrandingAnalysisLoader({
             Oups, j'ai eu du mal à analyser tes liens.
           </p>
           <p className="font-mono-ui text-sm text-muted-foreground mb-8 leading-relaxed">
-            Ça peut arriver ! Tu peux réessayer ou remplir ton branding manuellement.
+            Ça peut arriver ! Tu peux réessayer ou remplir ton identité de marque manuellement.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button

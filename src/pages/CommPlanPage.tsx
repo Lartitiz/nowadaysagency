@@ -297,7 +297,7 @@ function CommPlanPageScreen({ embedded = false }: { embedded?: boolean }) {
       <AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
         <SubPageHeader
-          parentLabel="Dashboard"
+          parentLabel="Accueil"
           parentTo="/dashboard"
           currentLabel="Mon plan"
         />

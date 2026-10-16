@@ -47,7 +47,7 @@ interface OptResult {
   plan_action: { priorite: number; action: string; section: string }[];
 }
 
-const FOCUS_CHIPS = ["Mon titre", "Mes CTA", "La preuve sociale", "Le prix", "Tout"];
+const FOCUS_CHIPS = ["Mon titre", "Mes appels à l'action", "La preuve sociale", "Le prix", "Tout"];
 
 function scoreColor(s: number) {
   if (s >= 75) return "text-success";
@@ -298,7 +298,7 @@ function SalesPageOptimizerForm() {
                   <Zap className="h-5 w-5" />
                 </span>
                 <div className="flex-1">
-                  <p className="text-xs font-semibold text-primary mb-1">⚡ Quick win</p>
+                  <p className="text-xs font-semibold text-primary mb-1">⚡ Action rapide</p>
                   <h4 className="text-sm font-bold text-foreground">{displayResult.quick_win.titre}</h4>
                   <p className="text-sm text-muted-foreground mt-1">{displayResult.quick_win.detail}</p>
                 </div>

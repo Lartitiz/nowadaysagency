@@ -33,7 +33,7 @@ export default function PhotoMissingDialog({ open, rawType, onOpenChange, onCont
           <AlertDialogDescription>
             L'IA a structuré un carrousel{" "}
             <strong>{rawType === "mix" ? "mixte (texte + photos)" : "photo"}</strong>,
-            mais aucune photo n'a été uploadée. Tu peux en ajouter maintenant
+            mais aucune photo n'a été ajoutée. Tu peux en ajouter maintenant
             ou continuer en mode texte uniquement.
           </AlertDialogDescription>
         </AlertDialogHeader>

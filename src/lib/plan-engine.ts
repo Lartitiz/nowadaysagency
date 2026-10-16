@@ -186,7 +186,7 @@ export async function computePlan(
   const phase1Steps: PlanStep[] = [
     {
       id: "branding",
-      label: "Poser ton branding",
+      label: "Poser ton identité de marque",
       description: "C'est le socle de tout. Plus ton positionnement est clair, plus l'outil génère des contenus qui te ressemblent.",
       duration: 20,
       route: "/branding",
@@ -318,7 +318,7 @@ export async function computePlan(
     phase2Steps.push({
       id: "site",
       label: "Optimiser ton site web",
-      description: "Pages clés, SEO, capture",
+      description: "Pages clés, référencement, capture",
       duration: 45,
       route: "/site",
       status: "todo",
@@ -329,8 +329,8 @@ export async function computePlan(
   if (channels.includes("seo")) {
     phase2Steps.push({
       id: "seo",
-      label: "Stratégie SEO",
-      description: "Référencement naturel — ouvre le SEO Toolkit",
+      label: "Stratégie de référencement",
+      description: "Référencement naturel — ouvre la boîte à outils du référencement",
       duration: 45,
       route: "/seo",
       status: "todo",

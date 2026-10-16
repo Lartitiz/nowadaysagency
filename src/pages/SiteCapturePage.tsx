@@ -118,7 +118,7 @@ function WorkspaceCapturePage({ workspaceId }: { workspaceId: string }) {
 
         <h1 className="font-display text-3xl font-bold text-foreground mb-2">🎁 Ta page de capture</h1>
         <p className="text-sm text-muted-foreground mb-8">
-          Récolte des emails avec un lead magnet. Structure minimale : titre bénéfice + 3-4 bullets + formulaire (prénom + email) + CTA.
+          Récolte des emails avec un cadeau. Structure minimale : titre bénéfice + 3-4 puces + formulaire (prénom + email) + appel à l'action.
           <br />
           <span className="italic">Chaque champ supplémentaire = -4% de conversion. 2 champs suffisent.</span>
         </p>
@@ -126,7 +126,7 @@ function WorkspaceCapturePage({ workspaceId }: { workspaceId: string }) {
         <div className="rounded-2xl border border-border bg-card p-6 mb-6">
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-semibold block mb-1">Nom du lead magnet</label>
+              <label className="text-sm font-semibold block mb-1">Nom du cadeau</label>
               <Input value={leadName} onChange={(e) => updateDraft({ leadName: e.target.value })} placeholder="Ex : Le guide de la com' éthique en 7 étapes" />
             </div>
             <div>
@@ -177,7 +177,7 @@ function WorkspaceCapturePage({ workspaceId }: { workspaceId: string }) {
                 result.title,
                 result.subtitle,
                 result.bullets?.map((b: string) => `✅ ${b}`).join("\n"),
-                `CTA : ${result.cta_text}`,
+                `Appel à l'action : ${result.cta_text}`,
                 result.micro_copy,
               ].filter(Boolean).join("\n\n");
               copyText(text);

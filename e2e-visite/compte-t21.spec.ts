@@ -62,7 +62,7 @@ test("T21-params — Bouton 'Refaire l'onboarding' visible + modale de confirmat
   await ouvrirReglagesAvances(page);
 
   // Le bouton doit exister
-  const resetBtn = page.getByRole("button", { name: /refaire l'onboarding/i });
+  const resetBtn = page.getByRole("button", { name: /refaire le démarrage/i });
   await expect(resetBtn).toBeVisible({ timeout: 10000 });
 
   // Cliquer pour voir la modale — SANS confirmer

@@ -26,7 +26,7 @@ const SECTIONS = [
   {
     title: "Fondations",
     rows: [
-      { label: "Branding guidé (6 sections)", free: true, premium: true },
+      { label: "Identité de marque guidée (6 sections)", free: true, premium: true },
       { label: "Cible & persona", free: true, premium: true },
       { label: "Mon histoire", free: true, premium: true },
       { label: "Calendrier éditorial", free: true, premium: true },
@@ -40,11 +40,11 @@ const SECTIONS = [
       { label: "Posts, reels, stories, bio", free: true, premium: true },
       { label: "Crédits du mois pour les textes IA (posts, reels, stories, newsletters, LinkedIn…)", free: "23 crédits", premium: "Sans compter" },
       { label: "Carrousels", free: "3 / mois", premium: "20 / mois" },
-      { label: "Mode Qualité Max des carrousels", free: false, premium: true },
+      { label: "Rédaction la plus soignée des carrousels", free: false, premium: true },
       { label: "Images (Studio, retouches, mises en scène)", free: "5 / mois", premium: "30 / mois" },
       { label: "Vidéos courtes", free: false, premium: "3 / mois" },
       { label: "Commentaires stratégiques", free: true, premium: true },
-      { label: "DM personnalisés", free: true, premium: true },
+      { label: "Messages privés personnalisés", free: true, premium: true },
     ],
   },
   {
@@ -67,11 +67,11 @@ const SECTIONS = [
 const FAQ = [
   {
     q: "Qu'est-ce que je peux faire gratuitement ?",
-    a: "Tout pour démarrer : poser tes fondations (branding, cible, histoire), organiser ton calendrier éditorial, publier et programmer tes contenus sur tes réseaux. Tu as 23 crédits par mois pour créer avec l'IA (1 crédit = 1 création : un texte, un carrousel, une image…), dont 3 carrousels, 5 images et 3 audits au plus. Ils reviennent le 1er de chaque mois.",
+    a: "Tout pour démarrer : poser tes fondations (identité de marque, cible, histoire), organiser ton calendrier éditorial, publier et programmer tes contenus sur tes réseaux. Tu as 23 crédits par mois pour créer avec l'IA (1 crédit = 1 création : un texte, un carrousel, une image…), dont 3 carrousels, 5 images et 3 audits au plus. Ils reviennent le 1er de chaque mois.",
   },
   {
     q: "C'est quoi la différence entre le gratuit et le Premium ?",
-    a: "La différence, c'est la quantité de créations avec l'IA. Le gratuit te donne 23 crédits par mois. Pour 39 € par mois, le Premium comprend tous tes textes sans compter (audits compris), 20 carrousels, 30 images et 3 vidéos par mois, et la Qualité Max des carrousels. La publication et la programmation sont comprises dans les deux.",
+    a: "La différence, c'est la quantité de créations avec l'IA. Le gratuit te donne 23 crédits par mois. Pour 39 € par mois, le Premium comprend tous tes textes sans compter (audits compris), 20 carrousels, 30 images et 3 vidéos par mois, et la rédaction la plus soignée des carrousels. La publication et la programmation sont comprises dans les deux.",
   },
   {
     q: "Je peux annuler quand je veux ?",
@@ -222,7 +222,7 @@ export default function PricingPage() {
               Découvre tout l'écosystème et crée tes premiers contenus, dans ta voix.
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Fondations complètes : branding, cible, histoire</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Fondations complètes : identité de marque, cible, histoire</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Calendrier éditorial</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 23 crédits IA par mois (dont 3 carrousels et 5 images)</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Publication directe et programmation</li>
@@ -263,7 +263,7 @@ export default function PricingPage() {
             </p>
             <ul className="space-y-2 text-sm text-foreground mb-6 flex-1">
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Tous tes textes sans compter</li>
-              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 20 carrousels (Qualité Max compris), 30 images et 3 vidéos par mois</li>
+              <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> 20 carrousels (rédaction la plus soignée comprise), 30 images et 3 vidéos par mois</li>
               <li className="flex items-start gap-2"><Check className="h-4 w-4 text-primary mt-0.5 shrink-0" /> Audits sans compter</li>
             </ul>
             {isAdmin ? (
@@ -410,7 +410,7 @@ export default function PricingPage() {
               to="/dashboard"
               className="inline-flex items-center gap-2 rounded-pill bg-primary text-primary-foreground px-8 py-3 font-medium shadow-cta hover:bg-bordeaux transition-all hover:-translate-y-0.5"
             >
-              <Sparkles className="h-4 w-4" /> Aller au dashboard
+              <Sparkles className="h-4 w-4" /> Aller à l'accueil
             </Link>
           ) : (
             <Link

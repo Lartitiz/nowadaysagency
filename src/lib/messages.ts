@@ -47,7 +47,7 @@ export const MESSAGES = {
     profile_updated: "Profil mis à jour.",
     file_uploaded: "Fichier importé, nickel.",
     audit_launched: "Audit lancé, ça arrive...",
-    branding_saved: "Branding sauvegardé ✨",
+    branding_saved: "Identité de marque sauvegardée ✨",
     post_scheduled: "Contenu planifié 📅",
     badge_unlocked: "Nouveau badge débloqué !",
   },
@@ -75,9 +75,9 @@ export const MESSAGES = {
     },
     branding: {
       icon: "🎨",
-      title: "Ton branding est à construire",
+      title: "Ton identité de marque est à construire",
       body: "Positionnement, cible, ton : on pose les bases ensemble.",
-      cta: "Commencer mon branding →",
+      cta: "Commencer mon identité de marque →",
     },
     offers: {
       icon: "💼",
@@ -98,9 +98,9 @@ export const MESSAGES = {
     },
     storytelling: {
       icon: "📖",
-      title: "Ton storytelling t'attend",
+      title: "Ton histoire t'attend",
       body: "Raconte ton histoire pour connecter avec ta communauté. C'est ce qui fait la différence.",
-      cta: "Créer mon storytelling →",
+      cta: "Écrire mon histoire →",
     },
     contacts: {
       icon: "👥",

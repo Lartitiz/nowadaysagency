@@ -33,7 +33,7 @@ export default function CarouselAdvancedOptions({
   const [open, setOpen] = useState(false);
 
   const active: string[] = [];
-  if (qualityMax && !qualityMaxLocked) active.push("Qualité Max");
+  if (qualityMax && !qualityMaxLocked) active.push("Rédaction la plus soignée");
   if (coverIllustration && !coverIllustrationLocked) active.push("Illustration");
 
   const upgradeLink = (
@@ -63,7 +63,7 @@ export default function CarouselAdvancedOptions({
           <label className={`block p-3 ${qualityMaxLocked ? "cursor-default" : "cursor-pointer"}`}>
             <span className="flex items-center gap-2">
               <Sparkles className={`h-4 w-4 shrink-0 ${qualityMaxLocked ? "text-muted-foreground" : "text-primary"}`} />
-              <span className="text-sm font-medium text-foreground">Mode qualité Max</span>
+              <span className="text-sm font-medium text-foreground">Rédaction la plus soignée</span>
               {qualityMaxLocked && (
                 <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
                   Premium
@@ -77,7 +77,7 @@ export default function CarouselAdvancedOptions({
               />
             </span>
             <p className="mt-1 pl-6 text-xs text-muted-foreground">
-              Texte <strong>et</strong> visuels dessinés par le modèle le plus puissant. À activer pour
+              Texte <strong>et</strong> visuels préparés avec la rédaction la plus soignée. À activer pour
               les contenus importants — c'est nettement plus long. Désactivé = rapide (qualité déjà très bonne).
             </p>
             {qualityMaxLocked && <span className="block pl-6">{upgradeLink}</span>}

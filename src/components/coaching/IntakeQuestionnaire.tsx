@@ -320,7 +320,7 @@ export default function IntakeQuestionnaire({ programId, onComplete, onBack }: I
         )}
         <div className="flex gap-3">
           <Button onClick={() => navigate("/dashboard")} variant="outline" className="rounded-pill">
-            Voir mon dashboard
+            Aller à l'accueil
           </Button>
           <Button
             onClick={() => window.open("https://calendly.com/laetitia-mattioli/atelier-2h", "_blank")}

@@ -341,7 +341,7 @@ function InscritesView() {
 
           <div className="space-y-4">
             <div>
-              <label htmlFor="email-template" className="text-xs font-medium text-muted-foreground mb-1 block">Template</label>
+              <label htmlFor="email-template" className="text-xs font-medium text-muted-foreground mb-1 block">Modèle</label>
               <Select value={selectedTemplateId} onValueChange={onTemplateChange}>
                 <SelectTrigger id="email-template"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -518,7 +518,7 @@ function SequencesView() {
                     <tr className="text-muted-foreground">
                       <th className="text-left py-1 px-2">#</th>
                       <th className="text-left py-1 px-2">Délai</th>
-                      <th className="text-left py-1 px-2">Template</th>
+                      <th className="text-left py-1 px-2">Modèle</th>
                     </tr>
                   </thead>
                   <tbody>

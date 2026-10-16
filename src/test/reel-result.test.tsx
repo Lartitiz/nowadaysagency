@@ -107,7 +107,7 @@ describe("ReelResult — parcours en 4 étapes", () => {
     expect(screen.getByText(/On m'a dit que c'était un hobby/)).toBeTruthy();
     // Ni le tournage, ni la légende ne sont là tant qu'on n'y est pas allée.
     expect(screen.queryByText("🎥 Ton plan de tournage")).toBeNull();
-    expect(screen.queryByText("📝 Caption")).toBeNull();
+    expect(screen.queryByText("📝 Légende")).toBeNull();
   });
 
   it("revient directement au montage après la préparation d'une image dans le Studio", () => {
@@ -150,7 +150,7 @@ describe("ReelResult — parcours en 4 étapes", () => {
     // Saut direct à la dernière étape depuis la première : beaucoup de
     // créatrices ne montent pas dans l'app, leur livrable c'est la légende.
     goToStep(4);
-    expect(screen.getByText("📝 Caption")).toBeTruthy();
+    expect(screen.getByText("📝 Légende")).toBeTruthy();
     goToStep(1);
     expect(screen.getByText(/On m'a dit que c'était un hobby/)).toBeTruthy();
   });
@@ -159,7 +159,7 @@ describe("ReelResult — parcours en 4 étapes", () => {
     render(<ReelResult result={{ ...captionResult, plan_tournage: planTournage }} />);
     fireEvent.click(screen.getByText(/aller directement à la légende/));
     expect(stepDots()[3].getAttribute("aria-selected")).toBe("true");
-    expect(screen.getByText("📝 Caption")).toBeTruthy();
+    expect(screen.getByText("📝 Légende")).toBeTruthy();
   });
 
   it("remonte l'avancée au parent, isLast seulement à la fin", () => {
@@ -196,7 +196,7 @@ describe("ReelResult — caption et amplification", () => {
   it("affiche caption + hashtags + stories à la dernière étape", () => {
     render(<ReelResult result={captionResult} />);
     goToStep(3);
-    expect(screen.getByText("📝 Caption")).toBeTruthy();
+    expect(screen.getByText("📝 Légende")).toBeTruthy();
     expect(screen.getByText(/Une caption qui complète/)).toBeTruthy();
     expect(screen.getByText("#ceramique")).toBeTruthy();
     expect(screen.getByText(/Texte de la cover/)).toBeTruthy();
@@ -209,7 +209,7 @@ describe("ReelResult — caption et amplification", () => {
   it("n'affiche RIEN sans caption ni stories (contenus d'avant le chantier)", () => {
     render(<ReelResult result={baseResult} />);
     goToStep(3);
-    expect(screen.queryByText("📝 Caption")).toBeNull();
+    expect(screen.queryByText("📝 Légende")).toBeNull();
     expect(screen.queryByText("📣 À poster en story dans l'heure")).toBeNull();
   });
 
@@ -220,7 +220,7 @@ describe("ReelResult — caption et amplification", () => {
       />,
     );
     goToStep(3);
-    expect(screen.queryByText("📝 Caption")).toBeNull();
+    expect(screen.queryByText("📝 Légende")).toBeNull();
     expect(screen.queryByText("📣 À poster en story dans l'heure")).toBeNull();
   });
 });

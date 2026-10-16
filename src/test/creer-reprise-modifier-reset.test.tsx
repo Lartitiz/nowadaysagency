@@ -188,7 +188,7 @@ describe('« Modifier » : texte à plat par format', () => {
 
   it('Pinterest photo avec brief', async () => {
     await ouvrir('pinterest_photo', { title: 'T', description: 'D', photo_brief: { what: 'Un bol', framing: 'Plongée', lighting: 'Naturelle', props: ['lin', 'bois'], colors: 'Crème', mood: 'Calme' } });
-    await attendreTexte('📌 TITRE :\nT\n\n📝 DESCRIPTION :\nD\n\n📷 BRIEF PHOTO :\n• Sujet : Un bol\n• Cadrage : Plongée\n• Lumière : Naturelle\n• Accessoires : lin, bois\n• Couleurs : Crème\n• Ambiance : Calme');
+    await attendreTexte('📌 TITRE :\nT\n\n📝 DESCRIPTION :\nD\n\n📷 CONSIGNES PHOTO :\n• Sujet : Un bol\n• Cadrage : Plongée\n• Lumière : Naturelle\n• Accessoires : lin, bois\n• Couleurs : Crème\n• Ambiance : Calme');
   });
 
   it('newsletter sans body → content', async () => {

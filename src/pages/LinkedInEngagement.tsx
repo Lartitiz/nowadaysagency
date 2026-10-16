@@ -156,8 +156,8 @@ function LinkedInEngagementForm() {
           <h3 className="font-semibold text-foreground">💡 5 règles pour commenter efficacement</h3>
           <p><strong>1. 15+ mots minimum.</strong> Les commentaires courts ("Super !", "Merci du partage") sont ignorés par l'algorithme.</p>
           <p><strong>2. Donne ton point de vue.</strong> Dire "c'est bien" ne sert à rien. Mouille-toi, apporte ton expertise.</p>
-          <p><strong>3. Commente dans les 60 premières minutes.</strong> C'est la Golden Hour du post : ton commentaire sera vu par tout le monde.</p>
-          <p><strong>4. Réponds aux réponses.</strong> Créer un thread sous un commentaire est plus puissant qu'un commentaire isolé.</p>
+          <p><strong>3. Commente dans les 60 premières minutes.</strong> C'est l'heure d'or du post : ton commentaire sera vu par tout le monde.</p>
+          <p><strong>4. Réponds aux réponses.</strong> Créer un fil de discussion sous un commentaire est plus puissant qu'un commentaire isolé.</p>
           <p><strong>5. Choisis les sujets, pas les gens.</strong> Commente ce qui t'intéresse vraiment, pas les gros comptes "pour prendre des abonnés".</p>
           <p className="text-muted-foreground">💡 Bonus : si un commentaire prend plus de 10% d'engagement par rapport au post original, transforme-le en publication.</p>
         </div>

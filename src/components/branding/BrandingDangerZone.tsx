@@ -25,7 +25,7 @@ export default function BrandingDangerZone() {
 
   const handleReset = async () => {
     const confirmed = await confirm({
-      title: `Réinitialiser le branding de « ${spaceName} » ?`,
+      title: `Réinitialiser l'identité de marque de « ${spaceName} » ?`,
       description:
         `Seul l'espace « ${spaceName} » est concerné — aucun autre espace n'est touché. ` +
         "Son histoire, sa cliente idéale, sa proposition de valeur, son ton, sa stratégie, sa charte graphique, ses offres et ses audits seront effacés définitivement. " +
@@ -38,7 +38,7 @@ export default function BrandingDangerZone() {
 
     const { ok, errors } = await resetBranding();
     if (ok) {
-      toast.success(`Branding de « ${spaceName} » réinitialisé. Tu peux repartir de zéro.`);
+      toast.success(`Identité de marque de « ${spaceName} » réinitialisée. Tu peux repartir de zéro.`);
     } else {
       toast.warning("Réinitialisation partielle", {
         description: errors.join(" · "),
@@ -58,7 +58,7 @@ export default function BrandingDangerZone() {
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-foreground">Réinitialiser le branding</h3>
+              <h3 className="text-sm font-semibold text-foreground">Réinitialiser l'identité de marque</h3>
               <p className="text-xs text-muted-foreground mt-1 max-w-md">
                 Efface toute l'identité de marque (histoire, cliente idéale, proposition,
                 ton, stratégie, charte, offres, audits) pour la reconstruire de zéro. Les
@@ -81,7 +81,7 @@ export default function BrandingDangerZone() {
                 disabled={isResetting}
               >
                 {isResetting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
-                Réinitialiser tout le branding
+                Réinitialiser toute l'identité de marque
               </Button>
             </div>
           </div>

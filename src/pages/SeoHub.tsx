@@ -9,7 +9,7 @@ const CARDS = [
   { emoji: "📈", title: "Analyser mes mots-clés", desc: "Évalue le potentiel réel de tes mots-clés.", to: "/seo/analyser" },
   { emoji: "✏️", title: "Optimiser une page", desc: "Améliore concrètement le contenu de tes pages existantes.", to: "/seo/optimiser" },
   { emoji: "🏗️", title: "Structurer mon site", desc: "Organise tes pages en silos thématiques pour que Google comprenne ton univers.", to: "/seo/structure" },
-  { emoji: "📰", title: "Trouver des contacts presse", desc: "Identifie les médias et blogs pertinents pour obtenir des backlinks.", to: "/seo/presse" },
+  { emoji: "📰", title: "Trouver des contacts presse", desc: "Identifie les médias et blogs pertinents pour obtenir des liens vers ton site.", to: "/seo/presse" },
   { emoji: "✅", title: "Compiler mon plan d'action", desc: "Compile le tout en un plan personnalisé sur 6 mois.", to: "/seo/plan" },
 ];
 
@@ -22,7 +22,7 @@ export default function SeoHub() {
           <ArrowLeft className="h-4 w-4" /> Retour à l'accueil
         </Link>
         <div className="mb-8">
-          <h1 className="font-display text-3xl sm:text-3xl font-bold text-foreground">🔎 Mon SEO</h1>
+          <h1 className="font-display text-3xl sm:text-3xl font-bold text-foreground">🔎 Mon référencement</h1>
           <p className="mt-1 text-base text-muted-foreground">Audite ton site, trouve tes mots-clés, optimise tes pages : l'objectif c'est que Google te trouve avant tes concurrent·es.</p>
         </div>
 

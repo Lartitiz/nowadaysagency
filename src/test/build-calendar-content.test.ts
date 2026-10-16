@@ -115,7 +115,7 @@ describe("buildCalendarContent", () => {
       photo_brief: { what: "Sujet", framing: "Plan large", lighting: "Naturelle", props: ["a", "b"], colors: "Pastel", mood: "Doux" },
     });
     expect(res.accroche).toBe("Pin photo");
-    expect(res.contentDraft).toContain("BRIEF PHOTO");
+    expect(res.contentDraft).toContain("CONSIGNES PHOTO");
     expect(res.contentDraft).toContain("Sujet : Sujet");
   });
 });

@@ -171,7 +171,7 @@ export default function BrandingImportDialog({
             <Textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Colle ici tes données : un brief, un document, des notes... L'IA les répartira automatiquement dans les bons champs."
+              placeholder="Colle ici tes données : une demande, un document, des notes... L'IA les répartira automatiquement dans les bons champs."
               className="min-h-[200px] text-sm"
             />
 

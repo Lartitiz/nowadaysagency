@@ -163,7 +163,7 @@ async function uploadSlideBlobs(
     const { error } = await supabase.storage
       .from(PUBLISH_BUCKET)
       .upload(path, blob, { contentType: blob.type || "image/png", upsert: true });
-    if (error) throw new Error(`Upload d'une slide échoué : ${error.message}`);
+    if (error) throw new Error(`Import d'une slide échoué : ${error.message}`);
     const { data, error: signErr } = await supabase.storage
       .from(PUBLISH_BUCKET)
       .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);

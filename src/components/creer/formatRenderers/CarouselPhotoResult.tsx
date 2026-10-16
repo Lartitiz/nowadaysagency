@@ -1377,13 +1377,13 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
           <CardContent className="p-4 space-y-3">
             <p className="text-sm font-semibold text-foreground">📝 Légende du carrousel</p>
             <p className="text-2xs text-muted-foreground">
-              Hook, corps, CTA et hashtags réunis dans un seul bloc éditable. Modifie librement.
+              Accroche, corps, appel à l'action et hashtags réunis dans un seul bloc éditable. Modifie librement.
             </p>
             <Textarea
               aria-label="Légende du carrousel"
               value={caption.fullText || ""}
               onChange={(e) => updateFullText(e.target.value)}
-              placeholder="Écris ou colle ta légende complète (hook, corps, CTA, hashtags)..."
+              placeholder="Écris ou colle ta légende complète (accroche, corps, appel à l'action, hashtags)..."
               className="min-h-[240px] text-sm leading-relaxed"
             />
           </CardContent>

@@ -261,7 +261,7 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
       }
     } catch (err: any) {
       console.error("Moodboard upload error:", err);
-      toast.error(err?.message || "Erreur lors de l'upload. Vérifie le format de l'image.");
+      toast.error(err?.message || "Erreur lors de l'import. Vérifie le format de l'image.");
     } finally {
       setUploading(false);
     }
@@ -335,7 +335,7 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
         >
           <Upload className="h-6 w-6 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">
-            {uploading ? "Upload en cours..." : `Ajouter des images (${images.length}/9)`}
+            {uploading ? "Import en cours..." : `Ajouter des images (${images.length}/9)`}
           </span>
           <input
             ref={inputRef}
@@ -606,7 +606,7 @@ function ScopedBrandCharterPage() {
       const { data: urlData } = supabase.storage.from("brand-assets").getPublicUrl(path);
       // Cache-bust pour forcer le re-fetch après upsert
       update("logo_url", `${urlData.publicUrl}?v=${Date.now()}`);
-      toast.success("Logo uploadé !");
+      toast.success("Logo ajouté !");
 
       // Propose cutout
       openCutoutDialog({ blob: uploadFile });
@@ -621,7 +621,7 @@ function ScopedBrandCharterPage() {
         console.warn("[logo palette extraction skipped]", e);
       }
     } catch (err: any) {
-      toast.error(err?.message || "Erreur lors de l'upload du logo");
+      toast.error(err?.message || "Erreur lors de l'import du logo");
       console.error(err);
     } finally {
       setLogoUploading(false);
@@ -811,7 +811,7 @@ function ScopedBrandCharterPage() {
       setAuditDialogOpen(true);
     } catch (err: any) {
       console.error(err);
-      toast.error("Erreur lors de l'audit des templates");
+      toast.error("Erreur lors de l'audit des modèles");
     } finally {
       setAuditing(false);
     }
@@ -996,7 +996,7 @@ function ScopedBrandCharterPage() {
                 )}
                 <label className="cursor-pointer" aria-disabled={logoUploading}>
                   <span className="text-xs text-primary hover:underline">
-                    {logoUploading ? "Upload en cours…" : "Changer le logo"}
+                    {logoUploading ? "Import en cours…" : "Changer le logo"}
                   </span>
                   <input
                     type="file"
@@ -1040,7 +1040,7 @@ function ScopedBrandCharterPage() {
               <BrandLogoSuggestion placement="charter" className="mb-3" onApplied={(url) => setData((prev) => ({ ...prev, logo_url: url }))} />
               <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-8">
                 <Upload className="h-8 w-8 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">{logoUploading ? "Upload en cours..." : "Clique pour uploader ton logo"}</span>
+                <span className="text-sm text-muted-foreground">{logoUploading ? "Import en cours..." : "Clique pour ajouter ton logo"}</span>
                 <input type="file" accept="image/*,.heic,.heif,image/heic,image/heif" className="hidden" onChange={handleLogoUpload} disabled={logoUploading} />
               </label>
               </>
@@ -1158,8 +1158,8 @@ function ScopedBrandCharterPage() {
           <Dialog open={auditDialogOpen} onOpenChange={setAuditDialogOpen}>
             <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">🔍 Audit de tes templates</DialogTitle>
-                <DialogDescription>Analyse visuelle de tes templates existants</DialogDescription>
+                <DialogTitle className="flex items-center gap-2">🔍 Audit de tes modèles</DialogTitle>
+                <DialogDescription>Analyse visuelle de tes modèles existants</DialogDescription>
               </DialogHeader>
 
               {auditResult && (

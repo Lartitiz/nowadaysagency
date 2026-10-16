@@ -95,7 +95,7 @@ export default function LinkedInResult({ result, photos, onTextChange }: Props) 
       {cta && (
         <Card className="border-border">
           <CardContent className="p-3 space-y-1">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">CTA</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Appel à l'action</p>
             <p className="text-sm text-primary font-medium">{cta}</p>
           </CardContent>
         </Card>

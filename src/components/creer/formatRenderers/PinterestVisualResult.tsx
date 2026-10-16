@@ -99,7 +99,7 @@ export default function PinterestVisualResult({ result, pinHtml, onRetry }: Prop
       {/* 2) Titre SEO */}
       <div className="space-y-1">
         <label className="text-sm font-medium text-foreground">
-          📌 Titre Pinterest (SEO)
+          📌 Titre Pinterest (référencement)
         </label>
         <div className="flex gap-2">
           <Input value={title} readOnly className="flex-1" />
@@ -120,7 +120,7 @@ export default function PinterestVisualResult({ result, pinHtml, onRetry }: Prop
       {/* 3) Description SEO */}
       <div className="space-y-1">
         <label className="text-sm font-medium text-foreground">
-          📝 Description Pinterest (SEO)
+          📝 Description Pinterest (référencement)
         </label>
         <div className="flex gap-2 items-start">
           <Textarea

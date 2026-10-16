@@ -61,7 +61,7 @@ export async function generateAndSaveFullStory(
     }
   } catch (e) {
     console.error("[BrandingCoaching] Error generating full story:", e);
-    toast.error("Ton histoire brute est enregistrée, mais je n'ai pas réussi à en rédiger la version complète. Retourne dans ta fiche storytelling pour relancer la génération.");
+    toast.error("Ton histoire brute est enregistrée, mais je n'ai pas réussi à en rédiger la version complète. Retourne dans ta fiche histoire pour relancer la génération.");
   }
 }
 

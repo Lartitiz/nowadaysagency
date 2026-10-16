@@ -115,7 +115,7 @@ export const ALL_BUSINESS_METRICS: Record<string, { label: string; type: "number
 };
 
 export const ALL_TRAFFIC_SOURCES = [
-  { id: "search", label: "Recherche Google (SEO)" },
+  { id: "search", label: "Recherche Google (référencement)" },
   { id: "social", label: "Réseaux sociaux" },
   { id: "pinterest", label: "Pinterest" },
   { id: "instagram", label: "Instagram" },
@@ -127,14 +127,14 @@ export const ALL_TRAFFIC_SOURCES = [
 ];
 
 export const ALL_LAUNCH_METRICS = [
-  { id: "signups", label: "Inscriptions (liste d'attente / freebie)" },
-  { id: "launch_dms", label: "DM liés au lancement" },
+  { id: "signups", label: "Inscriptions (liste d'attente / cadeau)" },
+  { id: "launch_dms", label: "Messages privés liés au lancement" },
   { id: "link_clicks", label: "Clics lien de vente" },
   { id: "story_views", label: "Vues stories lancement" },
   { id: "conversions", label: "Conversions (ventes)" },
   { id: "webinar_signups", label: "Inscrits webinar" },
   { id: "live_participants", label: "Participants live" },
-  { id: "freebie_downloads", label: "Téléchargements freebie" },
+  { id: "freebie_downloads", label: "Téléchargements du cadeau" },
 ];
 
 export const WEBSITE_PLATFORMS = [

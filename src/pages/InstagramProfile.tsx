@@ -78,7 +78,7 @@ function InstagramProfileOverview() {
         score_epingles: 60,
         score_feed: 75,
         score_edito: 65,
-        resume: "Profil cohérent visuellement mais manque de CTA et de structure dans les highlights.",
+        resume: "Profil cohérent visuellement mais manque d'appels à l'action et de structure dans les highlights.",
       });
       setSnippets({
         instagram_display_name: (demoData as any).profile.first_name + " Portraits",
@@ -238,7 +238,7 @@ function InstagramProfileOverview() {
               🔍 Envie d'un regard d'expert sur ton profil ?
             </p>
             <p className="text-sm text-muted-foreground mb-4">
-              Envoie des screenshots de ton profil Instagram. L'IA l'analyse face à ton branding et te donne un score avec des recommandations personnalisées.
+              Envoie des captures d'écran de ton profil Instagram. L'IA l'analyse face à ton identité de marque et te donne un score avec des recommandations personnalisées.
             </p>
             <div className="flex gap-3 flex-wrap">
               <Link to="/instagram/audit">

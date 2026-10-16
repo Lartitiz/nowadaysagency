@@ -149,7 +149,7 @@ export default function BrandingSuggestionsCard({
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
               <h3 className="font-body text-sm font-bold text-foreground">
-                Ton branding a changé
+                Ton identité de marque a changé
               </h3>
             </div>
             <button onClick={handleDismiss} className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">
@@ -209,7 +209,7 @@ export default function BrandingSuggestionsCard({
             <DialogTitle className="font-display text-lg">
               Voilà ce que je vais modifier
             </DialogTitle>
-            <DialogDescription className="sr-only">Aperçu des modifications de branding suggérées</DialogDescription>
+            <DialogDescription className="sr-only">Aperçu des modifications suggérées pour ton identité de marque</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5 py-2">

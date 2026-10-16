@@ -127,7 +127,7 @@ export default function LoginPage() {
           </Link>
           <p className="mt-1 font-body text-sm text-muted-foreground">par Nowadays Agency</p>
           <span className="mt-2 inline-block rounded-pill bg-secondary px-3 py-1 text-xs font-medium text-primary">
-            beta
+            bêta
           </span>
         </div>
 
