@@ -13,6 +13,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { buildStoryFrameHtml, type StoryFrameBranding } from "@/lib/story-visual";
 import { exportStoryPng } from "@/lib/export-carousel-png";
@@ -30,6 +31,14 @@ export interface StoryExportApi {
   exporting: boolean;
   exportingPptx: boolean;
   openingCanva: boolean;
+}
+
+function missingPhotosMessage(storyNumbers: number[]): string {
+  if (storyNumbers.length === 1) {
+    return `La photo de la story ${storyNumbers[0]} n'a pas pu être chargée : la story est exportée sans photo.`;
+  }
+  const list = `${storyNumbers.slice(0, -1).join(", ")} et ${storyNumbers[storyNumbers.length - 1]}`;
+  return `Les photos des stories ${list} n'ont pas pu être chargées : ces stories sont exportées sans photo.`;
 }
 
 export function useStoryExport(
@@ -100,13 +109,22 @@ export function useStoryExport(
   // doivent jamais dépendre d'une URL signée expirable ni du CORS.
   const buildExportFrames = useCallback(async () => {
     const frames: { story_number: number; html: string; photoUrl?: string | null }[] = [];
+    const missing: number[] = [];
+    // URL de bibliothèque redemandées à l'export : celles de l'affichage
+    // peuvent avoir expiré (même règle que l'atelier, 7c3ac6ce8).
+    const freshUrls = await resolveLibraryPhotoUrls(list).catch(() => new Map<string, string>());
     for (let i = 0; i < list.length; i++) {
       const s = list[i];
-      const rawUrl = getPhotoUrl(s);
+      const v = s?.visual;
+      const rawUrl = v?.photo_url || (v?.photo_id && freshUrls.get(v.photo_id)) || getPhotoUrl(s);
       const exportUrl = rawUrl ? await urlToDataUrl(rawUrl) : null;
       const html = buildStoryFrameHtml(s, branding, { photoUrl: exportUrl, preview: false });
       if (html) frames.push({ story_number: i + 1, html, photoUrl: exportUrl });
+      if (html && v?.background === "photo" && (v?.photo_url || v?.photo_id) && !exportUrl) missing.push(i + 1);
     }
+    // Hors atelier, pas de choix de photo possible : on exporte quand même,
+    // mais on prévient au lieu de livrer des stories sans photo en silence.
+    if (missing.length > 0) toast.warning(missingPhotosMessage(missing));
     return frames;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [list, charter, getPhotoUrl]);
