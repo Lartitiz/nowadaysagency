@@ -404,9 +404,9 @@ function InstagramStatsScope() {
     if (!user) return;
     setFetchingLive(true);
     try {
-      const { data, error } = await supabase.functions.invoke("instagram-insights-fetch", {
+      const { data, error } = await invokeWithTimeout("instagram-insights-fetch", {
         body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
-      });
+      }, 60000);
       if (error || !(data as any)?.metrics) {
         const ctxBody = (error as any)?.context?.body;
         const msg = ctxBody?.error || (data as any)?.error || "";
@@ -501,9 +501,9 @@ function InstagramStatsScope() {
     if (!user) return;
     setFetchingLiStats(true);
     try {
-      const { data, error } = await supabase.functions.invoke("linkedin-insights-fetch", {
+      const { data, error } = await invokeWithTimeout("linkedin-insights-fetch", {
         body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
-      });
+      }, 60000);
       if (error || !(data as any)?.metrics) {
         const ctxBody = (error as any)?.context?.body;
         const msg = ctxBody?.error || (data as any)?.error || "";
@@ -567,9 +567,9 @@ function InstagramStatsScope() {
         // posts_count) : sinon les colonnes ajoutées après un premier backfill
         // (ex. posts_count) ne se rempliraient jamais sur l'historique.
         if (existing?.reach != null && existing?.posts_count != null) { skipped++; continue; }
-        const { data, error } = await supabase.functions.invoke("instagram-insights-fetch", {
+        const { data, error } = await invokeWithTimeout("instagram-insights-fetch", {
           body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined, month },
-        });
+        }, 60000);
         const m = (data as any)?.monthMetrics;
         if (error || !m) { empty++; continue; }
         const patch: any = {};
