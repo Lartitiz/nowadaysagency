@@ -29,6 +29,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import { photoResultSignature, needsPhotoResultResync } from "@/features/creer/carousel-photo/resync";
+import { type SlideGenEntry, type SlideGenState, swapGenEntries, withoutGenEntry, removeGenEntryAt, patchGenEntry } from "@/features/creer/carousel-photo/gen-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -160,10 +161,9 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
   const [libraryImporting, setLibraryImporting] = useState(false);
   // Photo d'actu libre de droits (lot 3) : dialog Openverse pour la slide ciblée.
   const [newsPickSlideIdx, setNewsPickSlideIdx] = useState<number | null>(null);
-  // Génération IA par slide (lot 2) : proposition en cours par index de slide.
-  // Chaque appel repart de la photo_directive d'ORIGINE (jamais de l'image
-  // précédente) — l'ajustement s'applique par-dessus, côté edge.
-  const [genState, setGenState] = useState<Record<number, { loading: boolean; image?: string; error?: string }>>({});
+  // Génération IA par slide (lot 2) : proposition par position, qui suit la slide (gen-state.ts).
+  // Chaque appel repart de la photo_directive d'ORIGINE ; l'ajustement s'applique par-dessus, côté edge.
+  const [genState, setGenState] = useState<SlideGenState>({});
   const navigate = useNavigate();
   const castingWorkspaceId = useWorkspaceId();
   // Confirmation de suppression : index de la slide à supprimer (null = fermé).
@@ -275,6 +275,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
     const next = [...slides];
     [next[idx], next[target]] = [next[target], next[idx]];
     const renumbered = next.map((s, i) => ({ ...s, slide_number: i + 1 }));
+    setGenState((p) => swapGenEntries(p, idx, target));
     setSlides(renumbered);
     notify(renumbered, caption);
   };
@@ -325,7 +326,9 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
     if (onOpenStudio) { onOpenStudio(`index:${idx}`); return; }
     const directive = (slides[idx]?.photo_directive as string | undefined)?.trim();
     if (!directive || genState[idx]?.loading) return;
-    setGenState((p) => ({ ...p, [idx]: { ...p[idx], loading: true, error: undefined } }));
+    const token = {}; // la réponse suit la slide si elle bouge pendant la génération
+    const done = (patch: (e: SlideGenEntry) => SlideGenEntry) => setGenState((p) => patchGenEntry(p, token, patch));
+    setGenState((p) => ({ ...p, [idx]: { ...p[idx], loading: true, error: undefined, token } }));
     const { data, error } = await invokeWithTimeout(
       "carousel-slide-image",
       {
@@ -338,7 +341,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
       200_000,
     );
     if (data?.error === "premium_required") {
-      setGenState((p) => ({ ...p, [idx]: { ...p[idx], loading: false } }));
+      done((e) => ({ ...e, loading: false }));
       toast.error("La génération d'images est réservée au plan Premium", {
         description: "Passe en Premium pour créer les images de tes slides.",
         action: { label: "Voir les plans", onClick: () => versTarifs(navigate) },
@@ -346,7 +349,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
       return;
     }
     if (data?.error === "limit_reached" && data?.quota?.reason !== "error") {
-      setGenState((p) => ({ ...p, [idx]: { ...p[idx], loading: false } }));
+      done((e) => ({ ...e, loading: false }));
       toast.error("Tu as utilisé toutes tes images du mois", {
         description: "Elles se rechargent au début du mois prochain.",
       });
@@ -354,11 +357,11 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
     }
     if (error || typeof data?.image !== "string" || !data.image) {
       const msg = error?.message || data?.error || "Réessaie dans quelques instants.";
-      setGenState((p) => ({ ...p, [idx]: { ...p[idx], loading: false, error: msg } }));
+      done((e) => ({ ...e, loading: false, error: msg }));
       toast.error("Génération impossible", { description: msg });
       return;
     }
-    setGenState((p) => ({ ...p, [idx]: { loading: false, image: data.image } }));
+    done(() => ({ loading: false, image: data.image }));
   };
 
   // « Garder cette image » : la proposition générée devient la photo de la slide.
@@ -373,11 +376,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
       mimeType: "image/jpeg",
       context: "",
     }, "generated");
-    setGenState((p) => {
-      const n = { ...p };
-      delete n[idx];
-      return n;
-    });
+    setGenState((p) => withoutGenEntry(p, idx));
   };
 
   // Photo d'actu libre (lot 3) : pose la photo sur la slide ET injecte la ligne
@@ -446,6 +445,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
     const next = slides
       .filter((_, i) => i !== idx)
       .map((s, i) => ({ ...s, slide_number: i + 1 }));
+    setGenState((p) => removeGenEntryAt(p, idx));
     setSlides(next);
     notify(next, caption);
   };
