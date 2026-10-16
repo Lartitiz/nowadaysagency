@@ -370,7 +370,37 @@ describe("publication immédiate", () => {
   it("post déjà publié (statut ou publish_status) → plus de « Publier »", () => {
     renderDialog({ editingPost: post({ media_urls: [IMG(1)], publish_status: "published" }) });
     expect(screen.queryByRole("menuitem", { name: /Publier maintenant/ })).toBeNull();
+    // Rien à proposer dans le menu (pas de « Remettre dans mes idées ») : il est masqué.
+    expect(screen.queryByText("Options")).toBeNull();
+  });
+
+  it("post déjà publié avec « Remettre dans mes idées » → menu « Options » gardé", () => {
+    renderDialog({ editingPost: post({ media_urls: [IMG(1)], publish_status: "published" }), onUnplan: vi.fn() });
     expect(screen.getByText("Options")).toBeInTheDocument();
+    expect(item(/Remettre dans mes idées/)).toBeInTheDocument();
+  });
+});
+
+describe("suppression", () => {
+  it("un seul « Supprimer » (bouton du pied, plus de doublon dans le menu) ; confirmé → onDelete(id)", async () => {
+    const { props } = renderDialog({ editingPost: post() });
+    expect(screen.getAllByRole("button", { name: /^Supprimer$/ })).toHaveLength(1);
+    expect(screen.queryByRole("menuitem", { name: /Supprimer/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^Supprimer$/ }));
+    await waitFor(() => expect(props.onDelete).toHaveBeenCalledWith("p1"));
+  });
+
+  it("refusé → rien n'est supprimé", async () => {
+    m.confirm.mockResolvedValue(false);
+    const { props } = renderDialog({ editingPost: post() });
+    fireEvent.click(screen.getByRole("button", { name: /^Supprimer$/ }));
+    await waitFor(() => expect(m.confirm).toHaveBeenCalled());
+    expect(props.onDelete).not.toHaveBeenCalled();
+  });
+
+  it("nouveau post pas encore enregistré → pas de « Supprimer »", () => {
+    renderDialog();
+    expect(screen.queryByRole("button", { name: /^Supprimer$/ })).toBeNull();
   });
 });
 
