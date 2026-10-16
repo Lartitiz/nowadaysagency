@@ -56,7 +56,7 @@ const PILLAR_META: Record<string, { icon: LucideIcon; label: string }> = {
   cible: { icon: User, label: "Cible" },
   ton_voix: { icon: MessageCircle, label: "Ton / Voix" },
   offres: { icon: Gift, label: "Offres" },
-  storytelling: { icon: BookOpen, label: "Storytelling" },
+  storytelling: { icon: BookOpen, label: "Histoire" },
   identite_visuelle: { icon: Palette, label: "Identité visuelle" },
   coherence_cross_canal: { icon: Link2, label: "Cohérence canaux" },
   contenu: { icon: FileText, label: "Contenu" },
@@ -385,7 +385,7 @@ export default function BrandingAuditPage() {
       queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
       queryClient.invalidateQueries({ queryKey: ["branding-completion"] });
 
-      toast.success("Branding pré-rempli avec les données de ton audit !");
+      toast.success("Identité de marque pré-remplie avec les données de ton audit !");
       navigate("/branding");
     } catch (e: any) {
       toast.error("Erreur lors du pré-remplissage : " + (friendlyError(e)));
@@ -520,7 +520,7 @@ function AuditForm({
         <Input aria-label="URL de ton profil LinkedIn" placeholder="https://linkedin.com/in/..." value={linkedinUrl} onChange={(e: any) => setLinkedinUrl(e.target.value)} />
       </SourceToggle>
 
-      <SourceToggle checked={useDocument} onToggle={setUseDocument} label="Un document stratégique (brief, plan de com')">
+      <SourceToggle checked={useDocument} onToggle={setUseDocument} label="Un document stratégique (cahier des charges, plan de com')">
         <div
           className={`rounded-xl border-2 border-dashed p-4 text-center cursor-pointer transition-colors
             ${dragOver ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}
@@ -728,7 +728,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
       <div className="space-y-3 pt-2">
         {result.extraction_branding && (
           <Button variant="outline" className="w-full gap-2" disabled={autofilling} onClick={onAutofillBranding}>
-            {autofilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardList className="h-4 w-4" strokeWidth={1.75} />} Pré-remplir mon branding avec les infos extraites
+            {autofilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardList className="h-4 w-4" strokeWidth={1.75} />} Pré-remplir mon identité de marque avec les infos extraites
           </Button>
         )}
         <Button variant="outline" className="w-full gap-2" onClick={onRedo}>

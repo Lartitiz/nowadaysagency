@@ -28,7 +28,7 @@ export default function PhotoDumpProgress({ narrativeThread, items }: Props) {
     <div className="py-10 max-w-md mx-auto space-y-5 animate-fade-in">
       <div className="text-center space-y-2">
         <span className="inline-block text-2xs font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 rounded-full px-3 py-1">
-          Photo dump · Préparation de tes photos
+          Série de photos · Préparation de tes photos
         </span>
         {narrativeThread && (
           <p className="text-sm font-medium text-foreground">{narrativeThread}</p>

@@ -56,7 +56,7 @@ export type { Prospect, ProspectInteraction };
 const APPROACHES = [
   { key: "reconnect", emoji: "🫶", label: "Reprendre contact", desc: "Juste du lien humain, pas de vente." },
   { key: "resource", emoji: "💡", label: "Proposer une ressource", desc: "Offrir de la valeur gratuitement." },
-  { key: "personalized", emoji: "🎯", label: "DM personnalisé", desc: "Montrer que tu connais son projet." },
+  { key: "personalized", emoji: "🎯", label: "Message privé personnalisé", desc: "Montrer que tu connais son projet." },
   { key: "offer", emoji: "🤝", label: "Proposer un appel/offre", desc: "Message direct, relation chaude." },
 ];
 
@@ -151,7 +151,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
     const isFreeOffer = selectedOffer?.offer_type === "free";
 
     let suggestion = "personalized";
-    let reason = "Un DM personnalisé est l'approche la plus polyvalente.";
+    let reason = "Un message privé personnalisé est l'approche la plus polyvalente.";
 
     if (avoidSales) {
       suggestion = isFreeOffer ? "resource" : "reconnect";
@@ -271,7 +271,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       <div className="space-y-4">
         <StepHeader step={1} label="VOTRE CONVERSATION" prospect={prospect} onBack={onBack} />
         <label htmlFor="dm-conversation-history" className="text-xs text-muted-foreground block">
-          Copie-colle ici les derniers messages échangés avec @{getUsername(prospect)} (DM Instagram) :
+          Copie-colle ici les derniers messages échangés avec @{getUsername(prospect)} (messages privés Instagram) :
         </label>
         <Textarea
           id="dm-conversation-history"

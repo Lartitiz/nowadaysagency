@@ -34,7 +34,7 @@ const SOURCE_TYPES = [
 const TARGET_CHANNELS = [
   { id: "linkedin", label: "💼 Post LinkedIn", desc: "Version expert·e, données" },
   { id: "instagram", label: "📸 Carrousel Instagram", desc: "Version visuelle, pédago" },
-  { id: "reel", label: "🎬 Script Reel", desc: "Version punchy, 30-60 sec" },
+  { id: "reel", label: "🎬 Script Reel", desc: "Version percutante, 30-60 sec" },
   { id: "stories", label: "📱 Séquence Stories", desc: "Version intime, 5 stories" },
 ];
 
@@ -352,7 +352,7 @@ function CrosspostWorkspace() {
             onConfirm={planMode === "all" ? handleAddAllToCalendar : handleAddToCalendar}
             contentLabel={planMode === "all"
               ? `🔄 Planifier les ${versionCount} versions à la même date`
-              : `🔄 Crosspost ${getActiveChannelLabel()}`}
+              : `🔄 Adapté en ${getActiveChannelLabel()}`}
             contentEmoji="🔄"
             loading={addingToCalendar}
           />
@@ -360,7 +360,7 @@ function CrosspostWorkspace() {
             open={showIdeasDialog}
             onOpenChange={setShowIdeasDialog}
             contentType={activeVersionKey === "linkedin" ? "post_linkedin" : activeVersionKey === "reel" ? "reel" : activeVersionKey === "stories" ? "story" : "post_instagram"}
-            subject={`Crosspost ${getActiveChannelLabel()} : ${session?.source.source_type || sourceType}`}
+            subject={`Adapté en ${getActiveChannelLabel()} : ${session?.source.source_type || sourceType}`}
             contentData={session ? crosspostEnvelope(session.result, activeVersionKey, session.source) : {}}
             isSaveCurrent={() => mounted.current}
             onSaveContent={async (fields) => {

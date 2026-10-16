@@ -147,7 +147,7 @@ export function generateRoutineTasks(plan: CommPlan): GeneratedTask[] {
 
     // Prospection
     tasks.push({
-      title: "Envoyer 1 DM de prospection",
+      title: "Envoyer 1 message privé de prospection",
       task_type: "prospection",
       channel: "instagram",
       duration_minutes: Math.max(5, Math.round(plan.daily_time * 0.15)),
@@ -237,7 +237,7 @@ export function generateRoutineTasks(plan: CommPlan): GeneratedTask[] {
 
   // Admin daily: respond to comments
   tasks.push({
-    title: "Répondre aux commentaires et DM",
+    title: "Répondre aux commentaires et messages privés",
     task_type: "admin",
     channel: null,
     duration_minutes: 5,

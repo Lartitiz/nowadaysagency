@@ -307,7 +307,7 @@ export default function WorkspaceMembersSection() {
                 Inviter un·e manager
               </label>
               <p className="text-xs text-muted-foreground mb-2">
-                Un·e manager peut gérer cet espace avec toi (branding, contenus, calendrier). Tu recevras un lien à lui transmettre — on n'envoie pas d'email à ta place.
+                Un·e manager peut gérer cet espace avec toi (identité de marque, contenus, calendrier). Tu recevras un lien à lui transmettre — on n'envoie pas d'email à ta place.
               </p>
               <div className="flex flex-col sm:flex-row gap-2">
                 <Input

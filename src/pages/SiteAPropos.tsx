@@ -361,7 +361,7 @@ export default function SiteAPropos() {
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2 flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" strokeWidth={1.75} /> Rédiger ma page de zéro</h1>
           <p className="text-base text-muted-foreground mb-4">
-            L'IA rédige ta page à propos à partir de ton branding. Choisis un angle.
+            L'IA rédige ta page à propos à partir de ton identité de marque. Choisis un angle.
           </p>
 
           {/* Coaching recommendation banner */}
@@ -580,7 +580,7 @@ export default function SiteAPropos() {
 
             <SectionBlock icon={Wrench} label="Mon approche" text={data.approach || ""} field="approach" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
             <SectionBlock icon={Target} label="Pour qui" text={data.for_whom || ""} field="for_whom" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
-            <SectionBlock icon={MousePointerClick} label="CTA" text={data.cta || ""} field="cta" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} isLast />
+            <SectionBlock icon={MousePointerClick} label="Appel à l'action" text={data.cta || ""} field="cta" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} isLast />
 
             <p style={{ textAlign: "center", fontSize: 11, color: "#D1D5DB", marginTop: 32 }}>
               L'Assistant Com' × Nowadays Agency

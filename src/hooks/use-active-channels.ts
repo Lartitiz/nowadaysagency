@@ -14,7 +14,7 @@ export const ALL_CHANNELS: { id: ChannelId; label: string; emoji: string; coming
   { id: "newsletter", label: "Newsletter / Emailing", emoji: "📧", comingSoon: true },
   { id: "pinterest", label: "Pinterest", emoji: "📌", comingSoon: true },
   { id: "site", label: "Site web / Blog", emoji: "🌐", comingSoon: false },
-  { id: "seo", label: "SEO", emoji: "🔍", comingSoon: false },
+  { id: "seo", label: "Référencement", emoji: "🔍", comingSoon: false },
 ];
 
 export interface ActiveChannels {

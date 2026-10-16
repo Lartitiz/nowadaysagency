@@ -647,16 +647,16 @@ const HEADLINE_CRITERIA: Record<string, string> = {
   impact_80_chars: "Impact des 80 premiers caractères",
   keywords: "Mots-clés recherchables",
   structure: "Structure claire",
-  no_buzzwords: "Zéro buzzwords vides",
+  no_buzzwords: "Zéro mot creux",
   value_prop: "Proposition de valeur visible",
 };
 
 const ABOUT_CRITERIA: Record<string, string> = {
-  hook_3_lines: "Hook des 3 premières lignes",
-  storytelling: "Storytelling / structure narrative",
-  cta: "CTA clair",
+  hook_3_lines: "Accroche des 3 premières lignes",
+  storytelling: "Récit / structure narrative",
+  cta: "Appel à l'action clair",
   social_proof: "Preuve sociale / crédibilité",
-  tone_coherence: "Ton cohérent avec le branding",
+  tone_coherence: "Ton cohérent avec l'identité de marque",
 };
 
 function GranularBar({ score, max, label, feedback }: { score: number; max: number; label: string; feedback: string }) {

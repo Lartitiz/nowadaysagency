@@ -323,7 +323,7 @@ function LinkedInResumeForm() {
             {/* Structure guide */}
             <div className="rounded-xl bg-rose-pale p-5 text-sm mb-6 space-y-1">
               <p className="font-semibold"><Lightbulb className="inline h-3.5 w-3.5 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Un bon résumé LinkedIn, c'est 5 éléments :</p>
-              <p>1. <strong>Hook</strong> : une phrase d'accroche qui intrigue</p>
+              <p>1. <strong>Accroche</strong> : une phrase qui intrigue</p>
               <p>2. <strong>Ta passion</strong> : pourquoi tu fais ce métier</p>
               <p>3. <strong>Ton parcours</strong> : d'où tu viens en 2-3 phrases</p>
               <p>4. <strong>Ce que tu proposes</strong> : ta valeur + ta cible</p>
@@ -337,7 +337,7 @@ function LinkedInResumeForm() {
               </button>
               <button onClick={() => setMode("scratch")} className="rounded-xl border border-border bg-card p-6 text-left hover:border-primary transition-all">
                 <h3 className="font-body text-base font-bold mb-1 flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" />Je pars de zéro</h3>
-                <p className="text-sm text-muted-foreground">Génère-moi un résumé à partir de mon branding.</p>
+                <p className="text-sm text-muted-foreground">Génère-moi un résumé à partir de mon identité de marque.</p>
               </button>
             </div>
           </>
@@ -417,7 +417,7 @@ function LinkedInResumeForm() {
                   <span className="text-sm font-semibold text-foreground">Style :</span>
                   <ToggleGroup type="single" value={selectedStyle} onValueChange={(v) => { if (v) setSelectedStyle(v as any); }} className="bg-muted rounded-full p-1">
                     <ToggleGroupItem value="storytelling" className="rounded-full px-4 text-sm gap-1.5 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-                      <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" /> Storytelling
+                      <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" /> Récit
                     </ToggleGroupItem>
                     <ToggleGroupItem value="pro" className="rounded-full px-4 text-sm gap-1.5 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
                       <Briefcase className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" /> Pro
@@ -474,7 +474,7 @@ function LinkedInResumeForm() {
               <div className="mt-6 space-y-4">
                 {summaryStory && (
                   <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-                    <Badge variant="secondary" className="text-xs">Storytelling</Badge>
+                    <Badge variant="secondary" className="text-xs">Récit</Badge>
                     <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">{summaryStory}</p>
                     <CharacterCounter count={summaryStory.length} max={2600} />
                     <div className="flex gap-2">

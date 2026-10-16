@@ -44,7 +44,7 @@ export default function PinterestPhotoBriefResult({ result, overlayHtml, onRetry
   };
 
   const formatBriefText = () => {
-    const lines = ["📷 BRIEF PHOTO :"];
+    const lines = ["📷 CONSIGNES PHOTO :"];
     if (brief.what) lines.push(`• Sujet : ${brief.what}`);
     if (brief.framing) lines.push(`• Cadrage : ${brief.framing}`);
     if (brief.lighting) lines.push(`• Lumière : ${brief.lighting}`);
@@ -76,7 +76,7 @@ export default function PinterestPhotoBriefResult({ result, overlayHtml, onRetry
             scale > 0 && (
               <iframe
                 srcDoc={html}
-                title="Overlay Pinterest"
+                title="Texte en surimpression Pinterest"
                 sandbox="allow-same-origin"
                 style={{
                   position: "absolute",
@@ -98,7 +98,7 @@ export default function PinterestPhotoBriefResult({ result, overlayHtml, onRetry
                 L'aperçu n'a pas pu être créé cette fois.
               </p>
               <p className="text-xs text-muted-foreground">
-                Ton brief photo et ta description sont prêts ci-dessous.
+                Tes consignes photo et ta description sont prêtes ci-dessous.
               </p>
               {onRetry && (
                 <Button variant="outline" size="sm" onClick={onRetry} className="gap-1.5 mt-1">
@@ -113,7 +113,7 @@ export default function PinterestPhotoBriefResult({ result, overlayHtml, onRetry
       {/* 2) Brief photo */}
       {(brief.what || brief.framing || brief.lighting) && (
         <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-          <p className="font-semibold text-foreground">📷 Brief photo</p>
+          <p className="font-semibold text-foreground">📷 Consignes photo</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {brief.what && (
               <div className="rounded-lg border border-border bg-muted/50 p-3">
@@ -166,11 +166,11 @@ export default function PinterestPhotoBriefResult({ result, overlayHtml, onRetry
           <Button
             variant="outline"
             size="sm"
-            onClick={() => copyText(formatBriefText(), "Brief")}
+            onClick={() => copyText(formatBriefText(), "Consignes photo")}
             className="mt-1"
           >
             <Copy className="h-3.5 w-3.5 mr-1.5" />
-            Copier le brief
+            Copier les consignes
           </Button>
         </div>
       )}
@@ -178,7 +178,7 @@ export default function PinterestPhotoBriefResult({ result, overlayHtml, onRetry
       {/* 3) Titre SEO */}
       <div className="space-y-1">
         <label className="text-sm font-medium text-foreground">
-          📌 Titre Pinterest (SEO)
+          📌 Titre Pinterest (référencement)
         </label>
         <div className="flex gap-2">
           <Input value={title} readOnly className="flex-1" />
@@ -192,7 +192,7 @@ export default function PinterestPhotoBriefResult({ result, overlayHtml, onRetry
       {/* 4) Description SEO */}
       <div className="space-y-1">
         <label className="text-sm font-medium text-foreground">
-          📝 Description Pinterest (SEO)
+          📝 Description Pinterest (référencement)
         </label>
         <div className="flex gap-2 items-start">
           <Textarea value={description} readOnly className="flex-1 min-h-[120px]" />

@@ -84,7 +84,7 @@ test("carrousel « Tes photos en fond » : plan, brouillons sur photo, texte sur
   await page.screenshot({ path: path.join(SHOTS, "fond-1-upload.png") });
 
   // Dump OFF : on veut le parcours structure carousel-ai, pas photo-dump-plan
-  const dumpToggle = page.getByRole("switch", { name: /Compléter en photo dump/i });
+  const dumpToggle = page.getByRole("switch", { name: /Compléter en série de photos/i });
   if (await dumpToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
     if ((await dumpToggle.getAttribute("aria-checked")) === "true") await dumpToggle.click();
     await expect(dumpToggle).toHaveAttribute("aria-checked", "false");

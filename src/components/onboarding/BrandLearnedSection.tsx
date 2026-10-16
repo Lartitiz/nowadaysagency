@@ -142,7 +142,7 @@ export default function BrandLearnedSection() {
         timedOut ? (
           <p className="text-sm text-muted-foreground mt-2">
             Je n'ai pas réussi à pré-remplir ton espace cette fois. Pas grave :
-            ton Branding t'attend, tu pourras tout compléter là-bas (et c'est
+            ton identité de marque t'attend, tu pourras tout compléter là-bas (et c'est
             souvent mieux avec tes mots à toi).
           </p>
         ) : (
@@ -206,7 +206,7 @@ export default function BrandLearnedSection() {
           ) : (
             data.completionTotal > 0 && (
               <p className="text-sm text-primary font-medium mt-5">
-                ✓ Ton branding est déjà rempli à {data.completionTotal} % — pendant que tu lisais.
+                ✓ Ton identité de marque est déjà remplie à {data.completionTotal} % — pendant que tu lisais.
               </p>
             )
           )}

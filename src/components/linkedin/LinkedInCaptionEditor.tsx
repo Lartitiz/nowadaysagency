@@ -128,7 +128,7 @@ export default function LinkedInCaptionEditor({
       <Card className="border-border">
         <CardContent className="p-3 space-y-1.5">
           <div className="flex items-center justify-between gap-2">
-            <label htmlFor="li-caption-cta" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">CTA</label>
+            <label htmlFor="li-caption-cta" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Appel à l'action</label>
             <span className="text-xs font-medium text-muted-foreground tabular-nums">{ctaLen} car.</span>
           </div>
           <Textarea

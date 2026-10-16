@@ -120,7 +120,7 @@ export default function AboutOptimizeResult({ result, originalText, onRetry, use
     { key: "story", label: "👑 Mon histoire", text: result.texte_ameliore.story },
     { key: "approach", label: "🛠️ Mon approche", text: result.texte_ameliore.approach },
     { key: "for_whom", label: "🎯 Pour qui", text: result.texte_ameliore.for_whom },
-    { key: "cta", label: "🔘 CTA", text: result.texte_ameliore.cta },
+    { key: "cta", label: "🔘 Appel à l'action", text: result.texte_ameliore.cta },
   ];
 
   return (
@@ -273,7 +273,7 @@ export default function AboutOptimizeResult({ result, originalText, onRetry, use
               {result.variantes.pitch && (
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs font-bold text-muted-foreground">🎤 Version pitch (3 phrases)</p>
+                    <p className="text-xs font-bold text-muted-foreground">🎤 Version présentation (3 phrases)</p>
                     <button onClick={() => copyText(result.variantes.pitch)} className="text-xs font-semibold text-primary hover:opacity-70 flex items-center gap-1">
                       <Copy className="h-3 w-3" /> Copier
                     </button>

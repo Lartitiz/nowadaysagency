@@ -1035,11 +1035,11 @@ it("shows verified Soul examples and prepares a preset correction without genera
   const style = { id: "verified-style", name: "General", description: "Soft balanced light", description_fr: "Lumière douce et couleurs fidèles", preview_url: "https://cdn.higgsfield.ai/example.webp" };
   state.session.proposal = { ...proposal, operation: "create", scene_workflow: { phase: "scene", camera_match: "De face" }, planning_references: [product], soul_style_options: [style] };
   mock.request.mockResolvedValue(state); mount();
-  await screen.findByLabelText("Rendu Soul proposé");
-  expect(screen.getByText("Sans preset, direction propre à cette photo")).toBeInTheDocument();
+  await screen.findByLabelText("Style de rendu proposé");
+  expect(screen.getByText("Sans style imposé, direction propre à cette photo")).toBeInTheDocument();
   fireEvent.click(screen.getByText("Voir les autres rendus"));
   expect(screen.getByText("Lumière douce et couleurs fidèles")).toBeInTheDocument();
-  expect(screen.getByAltText("Exemple du preset General")).toHaveAttribute("src", style.preview_url);
+  expect(screen.getByAltText("Exemple du style General")).toHaveAttribute("src", style.preview_url);
   fireEvent.click(screen.getByRole("button", { name: /General/ }));
   expect((screen.getByPlaceholderText(/Une idée, une question|Réponds pour ajuster/) as HTMLTextAreaElement).value).toContain("General");
   fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));

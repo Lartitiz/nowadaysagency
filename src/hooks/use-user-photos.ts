@@ -340,7 +340,7 @@ export function useRetryPhotoRetouch() {
       throw new Error("Espace de travail en cours de chargement, réessaie dans 1 seconde.");
     }
     if (!photo.background_prompt && !photo.background_preset_key) {
-      throw new Error("Aucun prompt mémorisé pour cette photo. Recommence depuis l'upload.");
+      throw new Error("Aucune consigne mémorisée pour cette photo. Recommence depuis l'import.");
     }
     setIsRetrying(photo.id);
     try {

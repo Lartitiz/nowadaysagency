@@ -104,7 +104,7 @@ export function PostEditionBlock({ editingPost, theme, setTheme, themeRef, conte
         )}
         <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
           <Upload className="h-3.5 w-3.5" />
-          {uploading ? "Upload en cours..." : "Ajouter des visuels"}
+          {uploading ? "Import en cours..." : "Ajouter des visuels"}
           <input type="file" accept="image/*" multiple className="hidden" onChange={handleMediaUpload} disabled={uploading} />
         </label>
       </div>
@@ -112,7 +112,7 @@ export function PostEditionBlock({ editingPost, theme, setTheme, themeRef, conte
       {/* Secondaire replié : notes, brief créatif, guide de production, commentaires */}
       <Collapsible open={showSecondary} onOpenChange={setShowSecondary} className="border-t border-border pt-2">
         <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors py-1 w-full">
-          <span>📝 Notes, brief &amp; commentaires</span>
+          <span>📝 Notes, consignes &amp; commentaires</span>
           <ChevronDown className={cn("h-3.5 w-3.5 ml-auto transition-transform", showSecondary && "rotate-180")} />
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-4 pt-3">
@@ -123,7 +123,7 @@ export function PostEditionBlock({ editingPost, theme, setTheme, themeRef, conte
 
           {linkedBrief && (
               <div className="space-y-3">
-                <p className="text-xs font-medium text-foreground">📋 Brief créatif <span className="text-muted-foreground font-normal">— {Object.values(linkedBrief.answers).filter(v => v?.trim()).length} réponse(s)</span></p>
+                <p className="text-xs font-medium text-foreground">📋 Idée de départ <span className="text-muted-foreground font-normal">— {Object.values(linkedBrief.answers).filter(v => v?.trim()).length} réponse(s)</span></p>
                 {linkedBrief.questions.map((q: any) => {
                   const answer = linkedBrief.answers[q.id] || linkedBrief.answers[q.question] || "";
                   if (!answer.trim()) return null;

@@ -148,7 +148,7 @@ export default function QuotaWallModal({ open, onClose, plan, usage, serverMessa
           {/* En attendant */}
           <div className="rounded-xl bg-muted/50 px-4 py-3 space-y-1">
             <p className="text-xs font-semibold text-foreground">En attendant, tu peux :</p>
-            <p className="text-xs text-muted-foreground">→ Travailler ton branding et ton calendrier éditorial</p>
+            <p className="text-xs text-muted-foreground">→ Travailler ton identité de marque et ton calendrier éditorial</p>
             <p className="text-xs text-muted-foreground">→ Préparer tes idées dans la bibliothèque</p>
             <p className="text-xs text-muted-foreground">→ Organiser ta stratégie par canal</p>
           </div>

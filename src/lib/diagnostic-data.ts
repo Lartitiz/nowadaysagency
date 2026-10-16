@@ -189,7 +189,7 @@ export const DEMO_DIAGNOSTIC: DiagnosticData = {
   weaknesses: [
     { title: "Ta bio Instagram manque de mots-clés", why: "Les gens cherchent 'photographe portrait femmes', pas juste 'photographe'. Ajoute ces mots.", detail: "Ta bio actuelle dit seulement \"📸 Photographe\" — c'est trop vague pour l'algorithme.", source: "instagram", fix_hint: "Ajoute ta spécialité + ta ville dans ta bio." },
     { title: "Tu postes de façon irrégulière", why: "2 posts en 3 semaines puis 5 en une semaine. L'algorithme préfère la régularité.", source: "instagram", fix_hint: "Planifie 3 posts/semaine dans ton calendrier." },
-    { title: "Pas de CTA dans tes légendes", why: "Tes légendes sont belles mais ne disent jamais quoi faire ensuite.", source: "instagram", fix_hint: "Termine chaque légende par une question ou un appel à l'action." },
+    { title: "Pas d'appel à l'action dans tes légendes", why: "Tes légendes sont belles mais ne disent jamais quoi faire ensuite.", source: "instagram", fix_hint: "Termine chaque légende par une question ou un appel à l'action." },
     { title: "Pas de page Témoignages sur ton site", why: "La preuve sociale, c'est ce qui transforme les visiteuses en clientes.", source: "website", fix_hint: "Crée une section témoignages avec 3-5 retours clients." },
   ],
   priorities: [

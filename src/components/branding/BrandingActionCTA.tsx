@@ -10,13 +10,13 @@ interface ActionDef {
 
 const ACTIONS: Record<string, ActionDef[]> = {
   story: [
-    { label: "Écrire un post storytelling", route: "/creer" },
+    { label: "Écrire un post qui raconte ton histoire", route: "/creer" },
     { label: "Créer un carousel Mon Parcours", route: "/creer?format=carousel" },
     { label: "Générer une accroche newsletter", route: "/creer" },
   ],
   persona: [
     { label: "Écrire un post qui parle à ma cible", route: "/creer" },
-    { label: "Générer un DM de prospection", route: "/instagram/routine" },
+    { label: "Générer un message privé de prospection", route: "/instagram/routine" },
     { label: "Revoir ma bio Instagram", route: "/instagram/profil/bio" },
   ],
   value_proposition: [
@@ -63,7 +63,7 @@ export default function BrandingActionCTA({ section }: BrandingActionCTAProps) {
         ✨ Ta section est complète ! Et maintenant ?
       </p>
       <p className="text-sm text-muted-foreground mb-4">
-        Passe à l'action et utilise ton branding dans tes contenus.
+        Passe à l'action et utilise ton identité de marque dans tes contenus.
       </p>
       <div className="flex flex-col gap-2">
         {actions.map((action) => (

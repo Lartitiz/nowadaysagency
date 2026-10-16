@@ -39,7 +39,7 @@ export async function saveCrosspostCalendar(session: CrosspostSession, scope: st
     const { contentDraft, accroche, storyDetail } = buildCalendarContent(key, envelope);
     const format = key === 'reel' ? 'reel' : key === 'stories' ? 'story_serie' : key === 'instagram' ? 'carousel' : 'post';
     operation = { id: crypto.randomUUID(), payload: {
-      user_id: ownerId, workspace_id: workspaceId, date, theme: `Crosspost ${key} : ${session.source.source_type}`,
+      user_id: ownerId, workspace_id: workspaceId, date, theme: `Adaptation ${key} : ${session.source.source_type}`,
       canal: key === 'linkedin' ? 'linkedin' : 'instagram', format,
       content_draft: contentDraft, accroche, story_sequence_detail: storyDetail,
       ...(Array.isArray(storyDetail?.media_urls) ? { media_urls: storyDetail.media_urls }

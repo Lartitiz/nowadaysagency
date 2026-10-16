@@ -87,10 +87,10 @@ export const LAUNCH_TEMPLATES: LaunchTemplate[] = [
   },
   {
     id: "soft",
-    label: "Soft launch",
+    label: "Lancement doux",
     emoji: "🌱",
     duration: "Pas de durée fixe",
-    description: "Un lancement doux, sans plan formel. Mentions naturelles et DM personnalisés.",
+    description: "Un lancement doux, sans plan formel. Mentions naturelles et messages privés personnalisés.",
     idealFor: "Test de marché, petite audience, première offre",
     contentRange: "Rappels + guide",
     phases: [
@@ -153,7 +153,7 @@ export const CONTENT_TYPES: ContentTypeInfo[] = [
   { id: "enigme_teaser", emoji: "🧩", label: "Énigme / teaser", category: "visibilite" },
   { id: "tendance", emoji: "📈", label: "Tendance / sujet du moment", category: "visibilite" },
   // Confiance
-  { id: "storytelling_personnel", emoji: "📖", label: "Storytelling personnel", category: "confiance" },
+  { id: "storytelling_personnel", emoji: "📖", label: "Histoire personnelle", category: "confiance" },
   { id: "coulisses", emoji: "👀", label: "Coulisses", category: "confiance" },
   { id: "educatif_autorite", emoji: "🎓", label: "Contenu éducatif", category: "confiance" },
   { id: "question_engagement", emoji: "💬", label: "Question / sondage", category: "confiance" },
@@ -174,7 +174,7 @@ export const CONTENT_TYPES: ContentTypeInfo[] = [
   { id: "story_sequence_last_call", emoji: "⏰", label: "Séquence stories dernière chance", category: "vente" },
   { id: "story_sequence_bienvenue", emoji: "🎉", label: "Séquence stories accueil", category: "post_lancement" },
   { id: "live_qa", emoji: "🎤", label: "Live Q&A", category: "confiance" },
-  { id: "dm_strategiques", emoji: "💌", label: "DM stratégiques", category: "vente" },
+  { id: "dm_strategiques", emoji: "💌", label: "Messages privés stratégiques", category: "vente" },
   { id: "diagnostic", emoji: "🔍", label: "Diagnostic / 5 signes que...", category: "visibilite" },
   { id: "comparatif", emoji: "⚖️", label: "Comparatif avant/après", category: "confiance" },
   { id: "mini_fiction", emoji: "📖", label: "Mini-fiction (chapitre)", category: "confiance" },
@@ -192,9 +192,9 @@ export const STORY_SEQUENCE_TEMPLATES: Record<string, { label: string; stories: 
       { title: "Problème + sondage", description: "Nommer le problème. Sondage : \"Ça te parle ?\"" },
       { title: "Solution", description: "\"Ce qui change tout, c'est [concept clé].\"" },
       { title: "L'offre", description: "\"C'est pour ça que j'ai créé [offre].\"" },
-      { title: "Preuve", description: "Témoignage screenshot + contexte" },
-      { title: "Interaction", description: "Sondage : \"Tu veux les détails en DM ?\"" },
-      { title: "CTA", description: "\"Écris [MOT-CLÉ] en DM\"" },
+      { title: "Preuve", description: "Témoignage en capture d'écran + contexte" },
+      { title: "Interaction", description: "Sondage : \"Tu veux les détails en message privé ?\"" },
+      { title: "Appel à l'action", description: "\"Écris [MOT-CLÉ] en message privé\"" },
     ],
   },
   story_sequence_faq: {
@@ -205,7 +205,7 @@ export const STORY_SEQUENCE_TEMPLATES: Record<string, { label: string; stories: 
       { title: "Question 2", description: "Question fréquente + réponse claire" },
       { title: "Question 3", description: "Question fréquente + réponse honnête" },
       { title: "Récap", description: "\"Si tu as d'autres questions, écris-moi\"" },
-      { title: "CTA", description: "Lien vers page de vente ou DM" },
+      { title: "Appel à l'action", description: "Lien vers page de vente ou message privé" },
     ],
   },
   story_sequence_temoignage: {
@@ -215,7 +215,7 @@ export const STORY_SEQUENCE_TEMPLATES: Record<string, { label: string; stories: 
       { title: "Avant", description: "Situation avant (avec permission)" },
       { title: "Le déclic", description: "Ce qui a changé" },
       { title: "Après", description: "Résultats concrets" },
-      { title: "CTA doux", description: "\"Si ça te parle aussi...\"" },
+      { title: "Appel à l'action doux", description: "\"Si ça te parle aussi...\"" },
     ],
   },
   story_sequence_objection: {
@@ -236,7 +236,7 @@ export const STORY_SEQUENCE_TEMPLATES: Record<string, { label: string; stories: 
       { title: "Récap", description: "Ce qui est inclus en 1 story" },
       { title: "Face cam", description: "Message personnel et sincère" },
       { title: "Compteur", description: "Sticker compte à rebours" },
-      { title: "CTA final", description: "Lien direct vers inscription" },
+      { title: "Appel à l'action final", description: "Lien direct vers inscription" },
     ],
   },
   story_sequence_bienvenue: {
@@ -346,7 +346,7 @@ export const ETHICAL_CHECKLIST = [
   { id: "no_fake_urgency", label: "Pas de fausse urgence" },
   { id: "no_shaming", label: "Pas de shaming" },
   { id: "no_guaranteed_results", label: "Pas de promesse de résultats garantis" },
-  { id: "conversational_cta", label: "CTA conversationnel (pas agressif)" },
+  { id: "conversational_cta", label: "Appel à l'action conversationnel (pas agressif)" },
   { id: "value_without_purchase", label: "Le contenu a de la valeur même sans achat" },
 ];
 

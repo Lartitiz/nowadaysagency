@@ -645,7 +645,7 @@ export default function WelcomePage() {
             {prenom ? `${prenom}, voilà` : "Voilà"} ce que j'ai préparé pour toi
           </h1>
           <p className="text-sm text-muted-foreground">
-            J'ai pré-rempli ton branding à partir de ce que j'ai trouvé. <strong className="text-foreground">Clique sur n'importe quel texte pour le modifier.</strong> Quand tout te va, valide en bas.
+            J'ai pré-rempli ton identité de marque à partir de ce que j'ai trouvé. <strong className="text-foreground">Clique sur n'importe quel texte pour le modifier.</strong> Quand tout te va, valide en bas.
           </p>
         </div>
 
@@ -662,7 +662,7 @@ export default function WelcomePage() {
         {!loading && (
           <div className="space-y-4">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Ton branding pré-rempli
+              Ton identité de marque pré-remplie
             </h2>
             {brandReviewPending ? (
               // La fiche attend sa relecture : elle ne s'affichera pas ici
@@ -679,7 +679,7 @@ export default function WelcomePage() {
                     <div key={i} className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: `${i * 0.16}s` }} />
                   ))}
                 </div>
-                <p className="text-sm text-muted-foreground">Je prépare ton branding personnalisé...</p>
+                <p className="text-sm text-muted-foreground">Je prépare ton identité de marque personnalisée...</p>
                 <p className="text-xs text-muted-foreground">Ça prend quelques secondes, c'est bientôt prêt ✨</p>
               </div>
             ) : hasBranding ? (
@@ -943,7 +943,7 @@ export default function WelcomePage() {
             Voir mon tableau de bord
           </Button>
           <p className="text-xs text-muted-foreground text-center">
-            Tu pourras toujours modifier ton branding depuis l'espace Branding.
+            Tu pourras toujours modifier ton identité de marque depuis l'espace Mon identité.
           </p>
         </div>
       </div>

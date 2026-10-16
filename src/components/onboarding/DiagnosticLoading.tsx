@@ -95,7 +95,7 @@ const LOADING_TIPS: Record<string, string[]> = {
     "Astuce : photographier tes créations sur fond neutre + en situation = combo gagnant.",
   ],
   mode_textile: [
-    "Le storytelling de marque est le premier levier de vente en mode éthique.",
+    "Raconter l'histoire de ta marque est le premier levier de vente en mode éthique.",
     "Les lookbooks en situation convertissent 2x mieux que les photos produit seules.",
   ],
   art_design: [

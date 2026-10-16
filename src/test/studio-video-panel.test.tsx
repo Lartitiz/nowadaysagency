@@ -65,7 +65,7 @@ it("affiche le devis puis n'envoie le POST payant qu'au clic explicite", async (
   await prepareAndConfirm();
   expect(screen.getByText(prepared.continuity[0])).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Vérifier le prix" }));
-  expect(await screen.findByText(/Devis Higgsfield/)).toBeInTheDocument();
+  expect(await screen.findByText(/Devis du fournisseur vidéo/)).toBeInTheDocument();
   expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["prepare", "quote"]);
   expect(mock.request.mock.calls[1][0]).toMatchObject({ prompt: prepared.prompt,
     summary: prepared.summary, continuity: prepared.continuity, prepared_token: signedToken });

@@ -319,7 +319,7 @@ export default function SiteAuditResult({
                       <Button variant="ghost" size="sm" className="gap-1.5 rounded-pill text-xs" asChild>
                         <Link to={`/site/inspirations?section=${inspirationLink}`}>
                           <Palette className="h-3 w-3" />
-                          🎨 Voir un template
+                          🎨 Voir un modèle
                         </Link>
                       </Button>
                     )}

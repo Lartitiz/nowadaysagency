@@ -52,7 +52,7 @@ export function DashboardMessageEditor({ value, onSave }: { value: string; onSav
     setSaving(true);
     await onSave(msg);
     setSaving(false);
-    toast.success("Message dashboard mis à jour ✨");
+    toast.success("Message d'accueil mis à jour ✨");
   };
 
   return (
@@ -71,7 +71,7 @@ export function DashboardMessageEditor({ value, onSave }: { value: string; onSav
           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
           💾 Sauvegarder
         </Button>
-        <span className="text-2xs text-muted-foreground">Ce message s'affiche sur le dashboard de ta cliente.</span>
+        <span className="text-2xs text-muted-foreground">Ce message s'affiche sur l'accueil de ta cliente.</span>
       </div>
     </div>
   );
@@ -122,7 +122,7 @@ export function DeleteAccountDialog({ open, clientName, onConfirm, onCancel }: {
           <AlertDialogTitle>🗑️ Supprimer définitivement le compte de {clientName} ?</AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-2 text-sm">
-              <p className="font-medium text-destructive">Action irréversible. Supprime le compte de {clientName} et TOUTES ses données (contenus, branding, calendrier, connexions, abonnement…). Le compte ne pourra pas être récupéré.</p>
+              <p className="font-medium text-destructive">Action irréversible. Supprime le compte de {clientName} et TOUTES ses données (contenus, identité de marque, calendrier, connexions, abonnement…). Le compte ne pourra pas être récupéré.</p>
               <div className="pt-2"><Label className="text-xs text-muted-foreground">Tape « SUPPRIMER » pour confirmer :</Label><Input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="SUPPRIMER" className="mt-1" /></div>
             </div>
           </AlertDialogDescription>

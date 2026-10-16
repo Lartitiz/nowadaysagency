@@ -129,7 +129,7 @@ export default function SharedBrandingPage() {
       <header className="border-b border-border bg-card">
         <div className="mx-auto max-w-[700px] px-6 py-6 max-md:px-4 text-center">
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
-            {profile.prenom ? `Synthèse Branding de ${profile.prenom}` : "Synthèse Branding"}
+            {profile.prenom ? `Synthèse de l'identité de marque de ${profile.prenom}` : "Synthèse de l'identité de marque"}
           </h1>
           {profile.activite && (
             <p className="text-sm text-muted-foreground mt-1">{profile.activite}</p>
@@ -151,7 +151,7 @@ export default function SharedBrandingPage() {
             <Field label="Positionnement" value={proposition?.version_final || proposition?.version_one_liner} />
             <Field label="Mission" value={profile.mission} />
             <Field label="Bio" value={proposition?.version_bio} />
-            <Field label="Pitch naturel" value={proposition?.version_pitch_naturel} />
+            <Field label="Présentation naturelle" value={proposition?.version_pitch_naturel} />
             <Field label="One-liner" value={proposition?.version_one_liner} /><Field label="Version site web" value={proposition?.version_site_web} /><Field label="Version engagée" value={proposition?.version_engagee} />
           </Section>
         )}
@@ -162,7 +162,7 @@ export default function SharedBrandingPage() {
             <h3 className="font-semibold">{story.title || `Histoire ${index + 1}`}</h3>
             <Field label="Récit de référence" value={story.step_7_polished} />
             {!story.step_7_polished && <p className="text-sm text-muted-foreground">Récit final non renseigné.</p>}
-            <Field label="Pitch court" value={story.pitch_short} /><Field label="Pitch moyen" value={story.pitch_medium} /><Field label="Pitch long" value={story.pitch_long} />
+            <Field label="Présentation courte" value={story.pitch_short} /><Field label="Présentation moyenne" value={story.pitch_medium} /><Field label="Présentation longue" value={story.pitch_long} />
           </div>)}
         </Section>
         <Section emoji="👩‍💻" title={`Publics (${personas.length})`}>
@@ -184,7 +184,7 @@ export default function SharedBrandingPage() {
             <Field label="Ce que je refuse" value={voice.combat_refusals} />
             <Field label="Mes expressions clés" value={voice.key_expressions} />
             <Field label="Ce que j'évite" value={voice.things_to_avoid} />
-            {["combat_alternative", "tone_register", "tone_level", "tone_style", "tone_humor", "tone_engagement", "target_verbatims"].map((key, i) => <Field key={key} label={["Mon alternative", "Registre", "Niveau de langage", "Style", "Humour", "Engagement", "Verbatims"][i]} value={voice[key]} />)}
+            {["combat_alternative", "tone_register", "tone_level", "tone_style", "tone_humor", "tone_engagement", "target_verbatims"].map((key, i) => <Field key={key} label={["Mon alternative", "Registre", "Niveau de langage", "Style", "Humour", "Engagement", "Mots des client·es"][i]} value={voice[key]} />)}
           </Section>
         )}
 

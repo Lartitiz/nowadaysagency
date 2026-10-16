@@ -155,7 +155,7 @@ function ReelPreview({ data, compact, editable, onContentChange }: { data: any; 
   const handleCopyCaption = () => {
     if (localData.caption) {
       navigator.clipboard.writeText(`${localData.caption.text}\n\n${localData.caption.cta}\n\n${localData.hashtags?.join(" ") || ""}`);
-      toast.success("Caption copiée !");
+      toast.success("Légende copiée !");
     }
   };
 
@@ -245,7 +245,7 @@ function ReelPreview({ data, compact, editable, onContentChange }: { data: any; 
 
       {localData.caption && (
         <div className="rounded-xl border border-border bg-card p-3 space-y-1">
-          <p className="text-xs font-semibold text-muted-foreground">📝 CAPTION</p>
+          <p className="text-xs font-semibold text-muted-foreground">📝 LÉGENDE</p>
           {editable ? (
             <>
               <EditableText
@@ -284,7 +284,7 @@ function ReelPreview({ data, compact, editable, onContentChange }: { data: any; 
         </Button>
         {localData.caption && (
           <Button variant="outline" size="sm" onClick={handleCopyCaption} className="rounded-pill text-xs gap-1.5">
-            <Copy className="h-3 w-3" /> Copier la caption
+            <Copy className="h-3 w-3" /> Copier la légende
           </Button>
         )}
       </div>
@@ -518,9 +518,9 @@ function CarouselPreview({ data, compact, editable, onContentChange }: { data: a
           <p className="text-xs font-semibold text-muted-foreground">📝 LÉGENDE</p>
           {editable ? (
             <>
-              <EditableText value={caption.hook || ""} onSave={(v) => updateCaptionField("hook", v)} className="text-sm font-bold text-foreground" placeholder="Hook" />
-              <EditableText value={caption.body || ""} onSave={(v) => updateCaptionField("body", v)} className="text-sm text-foreground" placeholder="Body" />
-              {caption.cta != null && <EditableText value={caption.cta || ""} onSave={(v) => updateCaptionField("cta", v)} className="text-sm text-primary font-medium" placeholder="CTA" />}
+              <EditableText value={caption.hook || ""} onSave={(v) => updateCaptionField("hook", v)} className="text-sm font-bold text-foreground" placeholder="Accroche" />
+              <EditableText value={caption.body || ""} onSave={(v) => updateCaptionField("body", v)} className="text-sm text-foreground" placeholder="Corps du texte" />
+              {caption.cta != null && <EditableText value={caption.cta || ""} onSave={(v) => updateCaptionField("cta", v)} className="text-sm text-primary font-medium" placeholder="Appel à l'action" />}
             </>
           ) : (
             <>

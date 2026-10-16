@@ -32,7 +32,7 @@ const LAUNCH_STORIES_DAYS: LaunchStoriesDay[] = [
   },
   {
     id: "j-3", label: "Preuve sociale", dayLabel: "J-3", storiesRange: "4-6 stories",
-    description: "Témoignages, before/after, résultats concrets, \"regarde ce qu'on m'a envoyé\"",
+    description: "Témoignages, avant/après, résultats concrets, \"regarde ce qu'on m'a envoyé\"",
     presets: { objective: "vente", subject: "Témoignages et preuves sociales", structure_hint: "vente_douce" },
     hasGenerate: true,
   },
@@ -44,7 +44,7 @@ const LAUNCH_STORIES_DAYS: LaunchStoriesDay[] = [
   },
   {
     id: "j0", label: "Vente complète", dayLabel: "JOUR J", storiesRange: "7-10 stories",
-    description: "Séquence de vente complète : hook → problème → solution → offre → preuve → CTA",
+    description: "Séquence de vente complète : accroche → problème → solution → offre → preuve → appel à l'action",
     presets: { objective: "vente", price_range: "moyen", subject: "Séquence de vente complète" },
     hasGenerate: true,
   },
@@ -55,8 +55,8 @@ const LAUNCH_STORIES_DAYS: LaunchStoriesDay[] = [
     hasGenerate: true,
   },
   {
-    id: "last", label: "Last call", dayLabel: "Dernier jour", storiesRange: "5-7 stories",
-    description: "\"Dernières heures\", récap de ce que tu rates, dernier témoignage, CTA final doux",
+    id: "last", label: "Dernier appel", dayLabel: "Dernier jour", storiesRange: "5-7 stories",
+    description: "\"Dernières heures\", récap de ce que tu rates, dernier témoignage, appel à l'action final doux",
     presets: { objective: "vente", subject: "Last call", structure_hint: "vente_douce" },
     hasGenerate: true,
   },
@@ -70,7 +70,7 @@ const STRUCTURE_DETAILS: Record<string, string[]> = {
     "Story 4 : \"Active le rappel pour ne rien louper\" + ⏰ compte à rebours",
   ],
   "j-5": [
-    "Story 1 : Hook émotionnel \"Tu te reconnais ?\"",
+    "Story 1 : Accroche émotionnelle \"Tu te reconnais ?\"",
     "Story 2 : Nommer le problème précisément",
     "Story 3 : Pourquoi les \"fausses solutions\" ne marchent pas",
     "Story 4 : Sondage \"Ça te parle ?\"",
@@ -78,11 +78,11 @@ const STRUCTURE_DETAILS: Record<string, string[]> = {
     "Story 6 : \"J'en reparle bientôt...\" + question ouverte",
   ],
   "j-3": [
-    "Story 1 : \"Regarde ce qu'on m'a envoyé\" (screenshot DM / témoignage)",
-    "Story 2 : Contexte du before de la personne",
+    "Story 1 : \"Regarde ce qu'on m'a envoyé\" (capture d'écran d'un message privé / témoignage)",
+    "Story 2 : La situation de départ de la personne",
     "Story 3 : Le résultat concret obtenu",
     "Story 4 : 2ème témoignage ou résultat",
-    "Story 5 : \"Tu veux la même chose ?\" + CTA doux",
+    "Story 5 : \"Tu veux la même chose ?\" + appel à l'action doux",
   ],
   "j-1": [
     "Story 1 : \"Je réponds à vos questions les plus fréquentes 👇\"",
@@ -93,14 +93,14 @@ const STRUCTURE_DETAILS: Record<string, string[]> = {
     "Story 6 : \"D'autres questions ? Écris-moi 💬\"",
   ],
   "j0": [
-    "Story 1 : Hook fort \"Aujourd'hui c'est le jour\"",
+    "Story 1 : Accroche forte \"Aujourd'hui c'est le jour\"",
     "Story 2 : Le problème que tu résous",
     "Story 3 : Ta solution (nom de l'offre + tagline)",
     "Story 4-5 : Ce que contient l'offre",
     "Story 6 : Pour qui c'est fait",
     "Story 7 : Témoignage / preuve",
     "Story 8 : Pratique (prix, durée, dates)",
-    "Story 9 : CTA \"Écris [MOT] en DM\" ou lien",
+    "Story 9 : Appel à l'action \"Écris [MOT] en message privé\" ou lien",
     "Story 10 : Bonus / urgence douce",
   ],
   "j+1": [
@@ -108,14 +108,14 @@ const STRUCTURE_DETAILS: Record<string, string[]> = {
     "Story 2 : Nouveau témoignage reçu depuis l'ouverture",
     "Story 3 : Coulisses (toi qui lis les inscriptions)",
     "Story 4 : \"Il reste X places\" (si applicable)",
-    "Story 5 : CTA rappel",
+    "Story 5 : Appel à l'action de rappel",
   ],
   "last": [
     "Story 1 : \"Dernières heures ⏰\"",
     "Story 2 : Récap de tout ce que tu obtiens",
     "Story 3 : Ce que tu rates si tu ne rejoins pas",
     "Story 4 : Dernier témoignage (le plus fort)",
-    "Story 5 : \"C'est maintenant ou jamais\" + CTA final",
+    "Story 5 : \"C'est maintenant ou jamais\" + appel à l'action final",
     "Story 6 : \"Merci à toutes celles qui ont rejoint 💛\"",
   ],
 };

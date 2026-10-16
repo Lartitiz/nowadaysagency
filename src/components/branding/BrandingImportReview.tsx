@@ -237,7 +237,7 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
       }
 
       const changedCount = comparisons.filter(c => c.choice !== "keep").length;
-      toast.success(`✅ Branding mis à jour. ${changedCount} champ${changedCount > 1 ? "s" : ""} modifié${changedCount > 1 ? "s" : ""}.`);
+      toast.success(`✅ Identité de marque mise à jour. ${changedCount} champ${changedCount > 1 ? "s" : ""} modifié${changedCount > 1 ? "s" : ""}.`);
       onDone();
     } catch (e: any) {
       console.error("Save error:", e);
@@ -276,7 +276,7 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
   if (comparisons.length === 0) {
     return (
       <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-4">
-        <p className="text-sm text-muted-foreground">L'analyse n'a rien extrait de nouveau. Ton branding est peut-être déjà complet !</p>
+        <p className="text-sm text-muted-foreground">L'analyse n'a rien extrait de nouveau. Ton identité de marque est peut-être déjà complète !</p>
         <Button variant="outline" onClick={onCancel}>Retour</Button>
       </div>
     );
@@ -287,7 +287,7 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
       {/* Header */}
       <div>
         <h2 className="font-display text-xl font-bold text-foreground mb-1">
-          📋 Pré-remplir ton branding
+          📋 Pré-remplir ton identité de marque
         </h2>
         <p className="text-sm text-muted-foreground">
           L'audit a extrait des infos. Pour chaque champ, choisis ce que tu veux garder.

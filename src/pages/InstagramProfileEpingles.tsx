@@ -25,8 +25,8 @@ const SLOTS = [
     emoji: "📖",
     label: "Qui tu es",
     explanation:
-      "Un post qui te présente. Storytelling personnel, parcours, valeurs. La personne qui découvre ton profil doit se dire « ah, c'est une vraie personne, j'ai envie de la suivre ».",
-    formats: "📑 Carrousel storytelling · 🎬 Reel face cam",
+      "Un post qui te présente. Ton histoire personnelle, parcours, valeurs. La personne qui découvre ton profil doit se dire « ah, c'est une vraie personne, j'ai envie de la suivre ».",
+    formats: "📑 Carrousel qui raconte ton histoire · 🎬 Reel face cam",
     atelierPreset: {
       objectif: "confiance",
       angle: "storytelling",
@@ -56,7 +56,7 @@ const SLOTS = [
     label: "Tes résultats (preuve sociale)",
     explanation:
       "Un post qui montre que ça marche. Témoignage, before/after, étude de cas, résultat chiffré. La personne doit se dire « ça marche pour de vrai ».",
-    formats: "📑 Carrousel before/after · 📑 Carrousel témoignage",
+    formats: "📑 Carrousel avant/après · 📑 Carrousel témoignage",
     atelierPreset: {
       objectif: "vente",
       angle: "before_after",

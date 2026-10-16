@@ -240,7 +240,7 @@ function InstagramLaunchScreen() {
   };
 
   const copyIdea = async (idea: LaunchIdea, idx: number) => {
-    await navigator.clipboard.writeText(`${idea.content_type}\nAccroche : ${idea.hook}\nCTA : ${idea.cta}\nFormat : ${idea.format}`);
+    await navigator.clipboard.writeText(`${idea.content_type}\nAccroche : ${idea.hook}\nAppel à l'action : ${idea.cta}\nFormat : ${idea.format}`);
     setCopiedIdeaIdx(idx);
     setTimeout(() => setCopiedIdeaIdx(null), 1500);
   };
@@ -392,7 +392,7 @@ function InstagramLaunchScreen() {
                   <Textarea id="launch-objections" className="mt-1" placeholder="Quelles raisons pourraient empêcher l'achat ? (prix, temps, confiance…)" value={launch.objections} onChange={(e) => update("objections", e.target.value)} />
                 </div>
                 <div>
-                  <Label htmlFor="launch-free-resource">Ressource gratuite / lead magnet</Label>
+                  <Label htmlFor="launch-free-resource">Ressource gratuite / cadeau</Label>
                   <Input id="launch-free-resource" className="mt-1" placeholder="ex: Checklist PDF, mini-formation gratuite…" value={launch.free_resource} onChange={(e) => update("free_resource", e.target.value)} />
                 </div>
               </>
@@ -503,7 +503,7 @@ function InstagramLaunchScreen() {
                           <p className="text-sm text-foreground">{idea.hook}</p>
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-muted-foreground">CTA</p>
+                          <p className="text-xs font-medium text-muted-foreground">Appel à l'action</p>
                           <p className="text-sm text-foreground italic">{idea.cta}</p>
                         </div>
                         <div className="flex gap-2 mt-1">
@@ -548,7 +548,7 @@ function InstagramLaunchScreen() {
                   <RecapRow label="Offre" value={launch.name} />
                   <RecapRow label="Promesse" value={launch.promise} />
                   <RecapRow label="Objections" value={launch.objections} />
-                  <RecapRow label="Lead magnet" value={launch.free_resource} />
+                  <RecapRow label="Cadeau" value={launch.free_resource} />
                   <RecapRow
                     label="Teasing"
                     value={launch.teasing_start && launch.teasing_end ? `${formatDate(launch.teasing_start)} → ${formatDate(launch.teasing_end)}` : ""}

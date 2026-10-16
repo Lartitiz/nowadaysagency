@@ -269,7 +269,7 @@ function IdeasInWorkspace() {
       return;
     }
     setBriefs((prev) => prev.filter((b) => b.id !== id));
-    toast.success("Brief supprimé");
+    toast.success("Demande supprimée");
   };
 
   const changeTab = (nextView: IdeaView) => {
@@ -427,13 +427,13 @@ function IdeasInWorkspace() {
               {CANAL_OPTIONS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
             {view !== "calendar" && <select value={kind} onChange={e => changeKind(e.target.value)} aria-label="Filtrer par avancement" className="text-sm bg-card border border-border rounded-xl px-3 py-2 max-w-full">
-              <option value="all">Tous les avancements</option><option value="todo">Idées à développer</option><option value="in_progress">Contenus et briefs commencés</option>
+              <option value="all">Tous les avancements</option><option value="todo">Idées à développer</option><option value="in_progress">Contenus et demandes commencés</option>
             </select>}
           </div>
           <p className="text-xs text-muted-foreground" data-testid="ideas-summary">{loading ? "Chargement…" : `${filtered.length + filteredBriefs.length} élément(s) dans cette sélection`}</p>
-          {canalFilter !== "all" && briefs.length > 0 && view !== "calendar" && <p className="text-xs text-muted-foreground">Les briefs sans canal choisi sont visibles dans <button onClick={() => setCanalFilter("all")} className="underline">Tous les canaux</button>.</p>}
+          {canalFilter !== "all" && briefs.length > 0 && view !== "calendar" && <p className="text-xs text-muted-foreground">Les demandes sans canal choisi sont visibles dans <button onClick={() => setCanalFilter("all")} className="underline">Tous les canaux</button>.</p>}
         </div>
-        {!loading && loadError && <div role="alert" className="rounded-xl border border-border bg-muted p-4 mb-4 text-sm"><p>Une partie de tes idées ou de tes briefs n’a pas pu être chargée. La liste peut être incomplète.</p><button onClick={fetchIdeas} className="underline mt-2">Réessayer</button></div>}
+        {!loading && loadError && <div role="alert" className="rounded-xl border border-border bg-muted p-4 mb-4 text-sm"><p>Une partie de tes idées ou de tes demandes n’a pas pu être chargée. La liste peut être incomplète.</p><button onClick={fetchIdeas} className="underline mt-2">Réessayer</button></div>}
 
         {/* Liste */}
         {loading ? (
@@ -458,7 +458,7 @@ function IdeasInWorkspace() {
                     <h3 className="font-body text-[15px] font-bold leading-snug text-foreground"><button onClick={() => handleResumeBrief(brief)} className="text-left hover:underline">{cleanTitle(brief.subject)}</button></h3>
                     <p className="text-xs text-muted-foreground mt-1">
                       <span className="inline-flex items-center rounded-pill bg-rose-pale px-2 py-0.5 text-2xs font-semibold text-primary-text mr-2">
-                        Brief en cours
+                        Demande en cours
                       </span>
                       {formatLabel(brief.format || "")}
                       {brief.created_at && <> · commencé le {formatDate(brief.created_at, "d MMM")}</>}
@@ -467,12 +467,12 @@ function IdeasInWorkspace() {
                   <div className="shrink-0 flex items-center gap-1 sm:ml-auto" onClick={(e) => e.stopPropagation()}>
                     <div className="w-full sm:w-auto [&>button]:w-full sm:[&>button]:w-auto">
                       <Button size="sm" className="rounded-pill text-xs gap-1.5" onClick={() => handleResumeBrief(brief)}>
-                        <PenLine className="h-3.5 w-3.5" /> Reprendre ce brief
+                        <PenLine className="h-3.5 w-3.5" /> Reprendre cette demande
                       </Button>
                     </div>
                     <div className="hidden sm:block">
                       <DeleteIdeaDialog onConfirm={() => handleDeleteBrief(brief.id)}>
-                        <Button variant="ghost" size="sm" aria-label="Supprimer ce brief" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
+                        <Button variant="ghost" size="sm" aria-label="Supprimer cette demande" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
                           <X className="h-3.5 w-3.5" />
                         </Button>
                       </DeleteIdeaDialog>
@@ -481,7 +481,7 @@ function IdeasInWorkspace() {
                 </div>
                 <div className="absolute top-2 right-2 sm:hidden" onClick={(e) => e.stopPropagation()}>
                   <DeleteIdeaDialog onConfirm={() => handleDeleteBrief(brief.id)}>
-                    <Button variant="ghost" size="sm" aria-label="Supprimer ce brief" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
+                    <Button variant="ghost" size="sm" aria-label="Supprimer cette demande" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
                       <X className="h-3.5 w-3.5" />
                     </Button>
                   </DeleteIdeaDialog>

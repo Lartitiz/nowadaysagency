@@ -59,7 +59,7 @@ function getPhotoToggleCopy(format: string): { title: string; subtitle: string }
     case "post":
       return { title: "📸 J'accompagne une photo", subtitle: "Ta photo illustre ton idée : le texte parle de ton sujet, pas de l'image" };
     case "reel":
-      return { title: "📸 Mon Reel s'appuie sur une image", subtitle: "Référence visuelle pour le hook et le script : ton idée reste le sujet" };
+      return { title: "📸 Mon Reel s'appuie sur une image", subtitle: "Référence visuelle pour l'accroche et le script : ton idée reste le sujet" };
     case "story":
       return { title: "📸 J'ai des photos précises à utiliser", subtitle: "Optionnel : sans rien ajouter, chaque story sera illustrée automatiquement (ta bibliothèque d'abord, banques d'images sinon)" };
     case "linkedin":
@@ -330,7 +330,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
           ]
         : selectedChannel === "pinterest"
           ? [
-              ...(!hasPreloadedPhotos ? [{ id: "pinterest", label: "Texte SEO", emoji: "📝", desc: "Titre + description SEO" }] : []),
+              ...(!hasPreloadedPhotos ? [{ id: "pinterest", label: "Texte pour le référencement", emoji: "📝", desc: "Titre + description pour le référencement" }] : []),
               { id: "pinterest_visual", label: "Visuel", emoji: "🎨", desc: "Infographie, checklist, schéma" },
               { id: "pinterest_inspiration", label: "Inspiration", emoji: "🔍", desc: "Partir d'une épingle existante" },
             ]
@@ -715,14 +715,14 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
             checked={photoDump}
             onCheckedChange={setPhotoDump}
             className="flex-shrink-0"
-            aria-label="✨ Compléter en photo dump"
+            aria-label="✨ Compléter en série de photos"
           />
           <button
             type="button"
             onClick={() => setPhotoDump(!photoDump)}
             className="flex-1 min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded"
           >
-            <p className="text-sm font-medium text-foreground">✨ Compléter en photo dump</p>
+            <p className="text-sm font-medium text-foreground">✨ Compléter en série de photos</p>
             <p className="text-xs text-muted-foreground mt-0.5">
               L'app complète ta séquence : tes vraies photos d'abord, l'IA pour le reste.
             </p>
@@ -998,9 +998,9 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
       {/* Pinterest inspiration upload */}
       {selectedFormat === "pinterest_inspiration" && (
         <div className="space-y-3 animate-fade-in">
-          <p className="text-sm font-semibold text-foreground">📸 Uploade une capture d'une épingle qui t'inspire</p>
+          <p className="text-sm font-semibold text-foreground">📸 Ajoute une capture d'écran d'une épingle qui t'inspire</p>
           <p className="text-xs text-muted-foreground">
-            Va sur Pinterest, trouve une épingle qui cartonne sur ton mot-clé, fais une capture d'écran et uploade-la ici.
+            Va sur Pinterest, trouve une épingle qui cartonne sur ton mot-clé, fais une capture d'écran et ajoute-la ici.
           </p>
           <PhotoUploadZone
             maxPhotos={1}

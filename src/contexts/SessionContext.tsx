@@ -130,7 +130,7 @@ async function buildTasks(
       emoji: "🎨",
       duration: 600,
       route,
-      description: "Complète la section de ton branding qui en a le plus besoin.",
+      description: "Complète la section de ton identité de marque qui en a le plus besoin.",
       completed: false,
     });
   }
@@ -152,7 +152,7 @@ async function buildTasks(
     const route2 = pickBrandingRoute(completion, firstRoute);
     tasks.push({
       id: "branding2",
-      title: "Continue ton branding",
+      title: "Continue ton identité de marque",
       emoji: "🎯",
       duration: 300,
       route: route2,

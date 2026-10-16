@@ -101,7 +101,7 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
 
   const handleCopyCaption = () => {
     const parts = [caption?.text, caption?.cta, hashtags.length ? hashtags.join(" ") : null].filter(Boolean);
-    copy(parts.join("\n\n"), "Caption copiée !");
+    copy(parts.join("\n\n"), "Légende copiée !");
   };
 
   const fullText = sections
@@ -500,7 +500,7 @@ function CaptionStep({
       {caption?.text && (
         <div className="rounded-lg border border-border bg-card p-4 space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-bold text-foreground uppercase tracking-wide">📝 Caption</span>
+            <span className="text-xs font-bold text-foreground uppercase tracking-wide">📝 Légende</span>
             <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={onCopyCaption}>
               <Copy className="h-3 w-3" />
               Copier

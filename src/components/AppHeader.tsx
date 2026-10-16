@@ -219,7 +219,7 @@ function AppHeaderInner() {
             <MobileNavTrigger onOpen={() => setMobileNavOpen(true)} />
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
               <BrandLogo className="h-6" />
-              <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
+              <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">bêta</span>
             </Link>
             {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} switchingWorkspaceId={switchingWorkspaceId} navigate={navigate} />}
           </div>
@@ -280,7 +280,7 @@ function AppHeaderInner() {
                   → logo raccourci (« L'Assistant ») et badge beta sacrifiés */}
               <BrandLogo className={isMultiWorkspace ? "h-4" : "h-5"} />
               {!isMultiWorkspace && (
-                <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
+                <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">bêta</span>
               )}
             </Link>
             {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} switchingWorkspaceId={switchingWorkspaceId} navigate={navigate} />}

@@ -60,7 +60,7 @@ export default function PinterestEpingles() {
 
   const copyText = (text: string) => { navigator.clipboard.writeText(text); toast.success("📋 Copié !"); };
 
-  const VARIANT_LABELS = ["SEO", "Storytelling", "Bénéfice"];
+  const VARIANT_LABELS = ["Référencement", "Récit", "Bénéfice"];
   const VARIANT_KEYS = ["seo", "storytelling", "benefice"];
 
   return (
@@ -80,7 +80,7 @@ export default function PinterestEpingles() {
           <p>• Format vertical recommandé : 1000×1500px</p>
           <p>• Un titre court avec tes mots-clés</p>
           <p>• Un lien vers ta boutique ou ton site (très important)</p>
-          <p>• Une description avec des mots-clés pour le SEO</p>
+          <p>• Une description avec des mots-clés pour le référencement</p>
           <p>• Pas de # sur Pinterest (contrairement à Instagram)</p>
         </div>
 

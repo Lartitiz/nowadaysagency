@@ -110,7 +110,7 @@ export default function InspireFlow() {
         setTab("text");
         toast.success("Contenu récupéré ! Tu peux le modifier avant d'analyser.");
       } else {
-        toast.info("On a trouvé le post mais pas de texte. Colle la caption manuellement ou envoie un screenshot 👇");
+        toast.info("On a trouvé le post mais pas de texte. Colle la légende manuellement ou envoie une capture d'écran 👇");
         setTab("text");
       }
     } catch {
@@ -155,7 +155,7 @@ export default function InspireFlow() {
   const analyze = useCallback(async () => {
     const isScreenshot = tab === "screenshot";
     if (isScreenshot) {
-      if (files.length === 0) { toast.error("Ajoute au moins un screenshot."); return; }
+      if (files.length === 0) { toast.error("Ajoute au moins une capture d'écran."); return; }
     } else {
       if (!user || !sourceText.trim() || sourceText.trim().length < 20) { toast.error("Colle au moins 20 caractères de contenu."); return; }
     }
@@ -271,14 +271,14 @@ export default function InspireFlow() {
             <TabsList className="mb-4">
               <TabsTrigger value="text">📝 Coller un texte</TabsTrigger>
               <TabsTrigger value="link">🔗 Coller un lien</TabsTrigger>
-              <TabsTrigger value="screenshot">📸 Screenshot</TabsTrigger>
+              <TabsTrigger value="screenshot">📸 Capture d'écran</TabsTrigger>
             </TabsList>
 
             <TabsContent value="text">
               <Textarea
-                aria-label="Texte à analyser (caption, post, script de reel)"
+                aria-label="Texte à analyser (légende, post, script de reel)"
                 className="min-h-[200px]"
-                placeholder="Colle ici la caption, le texte du post, le script du reel..."
+                placeholder="Colle ici la légende, le texte du post, le script du reel..."
                 value={sourceText}
                 onChange={(e) => setSourceText(e.target.value)}
               />
@@ -311,7 +311,7 @@ export default function InspireFlow() {
                 }`}
               >
                 <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm font-medium text-foreground">Glisse tes screenshots ici</p>
+                <p className="text-sm font-medium text-foreground">Glisse tes captures d'écran ici</p>
                 <p className="text-xs text-muted-foreground mt-1">Post, carrousel, reel, story… (max {MAX_FILES} fichiers, 10 Mo chacun)</p>
                 <p className="text-xs text-muted-foreground mt-0.5">JPG, PNG, WebP, PDF</p>
                 <input

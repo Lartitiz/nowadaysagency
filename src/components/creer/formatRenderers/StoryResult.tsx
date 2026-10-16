@@ -367,7 +367,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     reflexion: { emoji: "💭", label: "Réflexion perso" },
     interpellation: { emoji: "🙋", label: "Interpellation communauté" },
     conseil_vecu: { emoji: "📖", label: "Conseil par l'expérience" },
-    storytime_client: { emoji: "💬", label: "Storytime client" },
+    storytime_client: { emoji: "💬", label: "Histoire de client·e" },
     coup_de_gueule: { emoji: "🔥", label: "Coup de gueule doux" },
     journal_bord: { emoji: "📓", label: "Journal de bord" },
   };

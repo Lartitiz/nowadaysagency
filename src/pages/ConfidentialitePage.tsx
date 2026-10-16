@@ -45,7 +45,7 @@ export default function ConfidentialitePage() {
             <div className="text-muted-foreground mt-1 space-y-2">
               <p><span className="font-medium text-foreground/80">Données de compte :</span> ton email et ton mot de passe (hashé et sécurisé, on n'y a pas accès en clair).</p>
               <p><span className="font-medium text-foreground/80">Données de profil :</span> ton prénom, ton activité, tes canaux de communication, ta cible.</p>
-              <p><span className="font-medium text-foreground/80">Données de branding :</span> ton identité visuelle, ton storytelling, ta proposition de valeur, ta charte : tout ce que tu renseignes dans l'outil pour construire ta communication.</p>
+              <p><span className="font-medium text-foreground/80">Données d'identité de marque :</span> ton identité visuelle, ton histoire, ta proposition de valeur, ta charte : tout ce que tu renseignes dans l'outil pour construire ta communication.</p>
               <p><span className="font-medium text-foreground/80">Contenus créés :</span> tes posts générés, brouillons, calendrier éditorial, idées sauvegardées, scripts, carrousels.</p>
               <p><span className="font-medium text-foreground/80">Données de navigation :</span> pages visitées et actions dans l'outil, collectées via PostHog (hébergé en Union européenne, serveur eu.i.posthog.com) : uniquement après ton consentement.</p>
               <p><span className="font-medium text-foreground/80">Données techniques :</span> un journal de pannes dans notre hébergement Supabase conserve la catégorie de panne, la rubrique concernée, le module technique et l'identifiant du compte connecté. Il ne contient ni tes textes, ni tes photos, ni tes saisies. Il sert uniquement à repérer et corriger les bugs. Sentry peut compléter ce suivi lorsqu'il est configuré ; ses replays de session nécessitent ton consentement.</p>
@@ -134,7 +134,7 @@ export default function ConfidentialitePage() {
             <div className="text-muted-foreground mt-1 space-y-1">
               <p>L'outil utilise l'IA (Claude, par Anthropic) pour t'aider à structurer et rédiger ta communication. Concrètement :</p>
               <ul className="list-disc list-inside space-y-1">
-                <li>Tes données de branding et tes instructions sont envoyées à l'API Anthropic pour générer du contenu.</li>
+                <li>Tes données d'identité de marque et tes instructions sont envoyées à l'API Anthropic pour générer du contenu.</li>
                 <li>Anthropic ne stocke pas tes données et ne les utilise pas pour entraîner ses modèles (API usage).</li>
                 <li>Chaque contenu généré est signalé comme tel dans l'interface.</li>
                 <li>L'IA propose, toi tu décides. Toujours.</li>

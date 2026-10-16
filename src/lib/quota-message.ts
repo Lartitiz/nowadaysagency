@@ -43,7 +43,7 @@ export function quotaLimitMessage(quota: QuotaInfo | null | undefined): string |
 
   if (quota.reason === "not_available") {
     if (quota.category === "video") return "Les vidéos sont comprises dans Premium. Tes textes, carrousels et images restent disponibles.";
-    if (quota.category === "quality_max") return "La Qualité Max est comprise dans Premium. Tu peux créer le même carrousel en qualité normale.";
+    if (quota.category === "quality_max") return "La rédaction la plus soignée est comprise dans Premium. Tu peux créer le même carrousel en qualité normale.";
     return quota.message || "Cette fonction est comprise dans Premium.";
   }
 

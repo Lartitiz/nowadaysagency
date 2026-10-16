@@ -201,7 +201,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
     <section className="space-y-5" aria-label="Clips du Studio">
       {!studioLayout && <div>
         <h2 className="text-lg font-semibold flex items-center gap-2"><Film className="h-5 w-5" /> Clips du Studio</h2>
-        <p className="text-sm text-muted-foreground">Crée un clip depuis une idée ou des images avec Seedance 2.5. Il reste ici, même sans Reel.</p>
+        <p className="text-sm text-muted-foreground">Crée un clip depuis une idée ou des images. Il reste ici, même sans Reel.</p>
       </div>}
       {jobs.data?.enabled === false && <p role="status" className="rounded-md border p-3 text-sm">{jobs.data?.access_reason === "plan_required"
         ? "Les vidéos sont incluses dans Premium (3 clips par mois) et dans Ta Binôme de Com’. Tes clips déjà créés restent accessibles ici."
@@ -340,7 +340,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
           !Number.isInteger(duration) || duration < 4 || duration > 10 || !!busy}
           onClick={checkPrice}>{busy === "quote" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Vérifier le prix</Button>
         {quote && <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2" role="status">
-          <p className="text-sm">Devis Higgsfield : <strong>{(Number(quote.estimated_usd) * USD_TO_EUR).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</strong> pour {quote.duration} s en {quote.resolution} ({Number(quote.estimated_usd).toFixed(2)} $ · {quote.estimated_credits} crédits API). Le montant est réservé dans le plafond vidéo au lancement.</p>
+          <p className="text-sm">Devis du fournisseur vidéo : <strong>{(Number(quote.estimated_usd) * USD_TO_EUR).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</strong> pour {quote.duration} s en {quote.resolution} ({Number(quote.estimated_usd).toFixed(2)} $ · {quote.estimated_credits} crédits API). Le montant est réservé dans le plafond vidéo au lancement.</p>
           <p className="text-xs text-muted-foreground">Si le devis expire, vérifie à nouveau le prix avant de générer. Une nouvelle tentative serait facturée séparément si ce clip est créé mais ne convient pas.</p>
           <Button type="button" disabled={!!busy || Date.parse(quote.quote_expires_at) <= Date.now()} onClick={() => void generate()}>
             {busy === "submit" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Générer ce clip · {(Number(quote.estimated_usd) * USD_TO_EUR).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
@@ -377,7 +377,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
             </div>}
             {current.status === "canceled" && <p className="text-sm text-muted-foreground">Génération annulée.</p>}
             {current.status === "submitting_uncertain" && <p role="status" className="text-sm text-amber-700">Réponse du fournisseur incertaine : aucune seconde génération ne sera lancée automatiquement.</p>}
-            {current.status === "nsfw" && <p role="status" className="text-sm">Higgsfield a refusé ce contenu. La facturation dépend du fournisseur.</p>}
+            {current.status === "nsfw" && <p role="status" className="text-sm">Le fournisseur vidéo a refusé ce contenu. La facturation dépend du fournisseur.</p>}
             {current.status === "failed" && <p role="status" className="text-sm">La génération a échoué. Vérifie le résultat avant une nouvelle tentative ; la facturation dépend du fournisseur.</p>}
             {["queued", "in_progress", "archiving"].includes(current.status) && <p role="status" className="text-sm">{current.status === "archiving" ? "Enregistrement du clip…" : "Génération en cours…"}</p>}
             {current.status !== "quoted" && current.status !== "ready" && <Button type="button" variant="outline" size="sm"

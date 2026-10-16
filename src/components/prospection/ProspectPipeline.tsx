@@ -69,7 +69,7 @@ export default function ProspectPipeline({ prospects, stages, onSelect, onStageC
                         className="h-7 px-2 text-2xs rounded-md hover:bg-accent text-foreground inline-flex items-center gap-1"
                       >
                         <MessageCircle className="h-3 w-3" />
-                        <span className="hidden sm:inline">DM</span>
+                        <span className="hidden sm:inline">Message</span>
                       </button>
                       <button
                         onClick={() => onSelect(p)}

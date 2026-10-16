@@ -269,7 +269,7 @@ export function useCalendarSave({
       updates.photo_urls = urls;
     }
     if (visualSlides.length > 0) {
-      toast.info("Upload des visuels...");
+      toast.info("Import des visuels...");
       const urls = await uploadVisualsImpl(supabase, session?.user?.id, postId, visualSlides, undefined, uploaded);
       if (urls.length !== visualSlides.length) throw new Error("Certains visuels manquent. Ton contenu reste dans l’éditeur : réessaie l’enregistrement.");
       updates.visual_urls = urls;
@@ -431,7 +431,7 @@ export function useCalendarSave({
         calendarNotes = `🔍 Inspiré de : ${inspirationAnalysis.source_description || ""}\n📐 Angle : ${chosenProposal.angle || ""}`;
         if (selectedFormat === "pinterest_photo" && result?.raw?.photo_brief) {
           const b = result.raw.photo_brief;
-          calendarNotes += `\n\n📷 BRIEF PHOTO :\n• Sujet : ${b.what || ""}\n• Cadrage : ${b.framing || ""}\n• Lumière : ${b.lighting || ""}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood || ""}`;
+          calendarNotes += `\n\n📷 CONSIGNES PHOTO :\n• Sujet : ${b.what || ""}\n• Cadrage : ${b.framing || ""}\n• Lumière : ${b.lighting || ""}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood || ""}`;
         }
       }
 

@@ -49,7 +49,7 @@ function QuotaExhaustedCard({
       <div className="space-y-2">
         <p className="text-sm font-medium text-foreground">En attendant, tu peux :</p>
         <p className="text-sm text-muted-foreground">
-          → Continuer à travailler ton branding et ton calendrier éditorial
+          → Continuer à travailler ton identité de marque et ton calendrier éditorial
         </p>
         <p className="text-sm text-muted-foreground">
           → Préparer tes données pour ton prochain audit

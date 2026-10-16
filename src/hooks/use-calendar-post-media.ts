@@ -33,7 +33,7 @@ export function useCalendarPostMedia(setMediaUrls: Dispatch<SetStateAction<strin
       }
       setMediaUrls(prev => [...prev, ...newUrls]);
     } catch (err: any) {
-      toast.error("Erreur upload", { description: friendlyError(err) });
+      toast.error("Erreur d'import", { description: friendlyError(err) });
     } finally {
       setUploading(false);
     }

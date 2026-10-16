@@ -56,11 +56,11 @@ const PROGRESS_MESSAGES: Record<string, string[]> = {
     "Construction de tes slides…",
     "L'IA structure le fil narratif…",
     "Personnalisation avec ta voix…",
-    "Rédaction des punchlines…",
-    "Ajustement des CTA…",
+    "Rédaction des formules percutantes…",
+    "Ajustement des appels à l'action…",
   ],
   reel: [
-    "Écriture du hook d'ouverture…",
+    "Écriture de l'accroche d'ouverture…",
     "Construction du script scène par scène…",
     "Calibrage du rythme (30-60s)…",
     "Ajout des indications visuelles…",
@@ -69,20 +69,20 @@ const PROGRESS_MESSAGES: Record<string, string[]> = {
     "Préparation de ta séquence stories…",
     "L'IA construit la narration slide par slide…",
     "Ajout des interactions (sondage, quiz)…",
-    "Peaufinage du CTA final…",
+    "Peaufinage de l'appel à l'action final…",
   ],
   pinterest_visual: [
     "Composition de ton épingle...",
-    "Création du layout infographie...",
+    "Création de la mise en page de l'infographie...",
     "Application de ta charte graphique...",
-    "Génération du titre SEO...",
+    "Génération du titre pour le référencement...",
     "Dernières retouches...",
   ],
   pinterest_photo: [
     "Analyse de l'inspiration...",
-    "Rédaction du brief photo...",
-    "Création de l'overlay texte...",
-    "Optimisation du titre SEO...",
+    "Rédaction des consignes photo...",
+    "Création du texte en surimpression...",
+    "Optimisation du titre pour le référencement...",
     "Dernières retouches...",
   ],
   pinterest_inspiration: [
@@ -100,7 +100,7 @@ const PROGRESS_MESSAGES: Record<string, string[]> = {
   ],
   newsletter: [
     "Rédaction de l'objet d'email…",
-    "Construction du storytelling…",
+    "Construction du récit…",
     "Développement de la réflexion en profondeur…",
     "Relecture et correction du style…",
     "Dernières retouches…",
@@ -115,7 +115,7 @@ const PROGRESS_MESSAGES: Record<string, string[]> = {
 
 const VISUAL_PROGRESS_MESSAGES = [
   "Analyse de ta charte graphique…",
-  "Création du layout de chaque slide…",
+  "Création de la mise en page de chaque slide…",
   "Application des couleurs et typos…",
   "Ajout des éléments décoratifs…",
   "Rendu des schémas visuels…",
@@ -132,12 +132,12 @@ const FORMAT_DONE_LABELS: Record<string, string> = {
   linkedin: "Ton post LinkedIn est prêt",
   newsletter: "Ta newsletter est prête",
   pinterest_visual: "Ton épingle est prête",
-  pinterest_photo: "Ton brief photo est prêt",
+  pinterest_photo: "Tes consignes photo sont prêtes",
 };
 
 // Tips universels (valables quel que soit le format).
 const TIPS_GENERIC = [
-  "💡 Un bon hook = une promesse. Pas un clickbait.",
+  "💡 Une bonne accroche = une promesse. Pas un attrape-clic.",
   "💡 L'algorithme favorise les contenus sauvegardés. Éducatif = jackpot.",
   "💡 Termine par une invitation qui te ressemble, sans forcer la vente.",
   "💡 Une prise de position gagne à s'appuyer sur un exemple concret.",
@@ -147,7 +147,7 @@ const TIPS_GENERIC = [
 // Tips spécifiques à un format (évite ex. un tip "stories" pendant un LinkedIn).
 const TIPS_BY_FORMAT: Record<string, string[]> = {
   carousel: ["💡 Le premier slide doit donner une raison de lire la suite."],
-  reel: ["💡 Un bon reel = un hook en 3s + une seule idée claire."],
+  reel: ["💡 Un bon reel = une accroche en 3s + une seule idée claire."],
   story: ["💡 Un sondage : une question simple à laquelle ta communauté peut répondre."],
 };
 
@@ -499,7 +499,7 @@ export default function CreerStepResult({
           <GenerationTimeHint format={format} startedAt={startTimeRef.current} afterPlan={step2of2} />
           {qualityMax && (
             <p className="text-xs text-center text-primary/80 font-medium">
-              ✨ Mode qualité Max activé — c'est plus long, mais plus soigné.
+              ✨ Rédaction la plus soignée activée — c'est plus long, mais ça en vaut la peine.
             </p>
           )}
         </div>
@@ -539,7 +539,7 @@ export default function CreerStepResult({
           <GenerationTimeHint format={format} startedAt={startTimeRef.current} afterPlan={step2of2} />
           {qualityMax ? (
             <p className="text-xs text-center text-primary/80 font-medium">
-              ✨ Mode qualité Max activé — c'est plus long, mais plus soigné.
+              ✨ Rédaction la plus soignée activée — c'est plus long, mais ça en vaut la peine.
             </p>
           ) : (
             <p className="text-xs text-center text-muted-foreground">{tips[tipIndex % tips.length]}</p>

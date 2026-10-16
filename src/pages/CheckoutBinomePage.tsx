@@ -15,12 +15,12 @@ const BENEFITS = [
   {
     emoji: "🗺️",
     title: "Tu as un plan clair, et il avance",
-    text: "Branding, réseaux, site, newsletter, SEO : tout est structuré, priorisé, planifié. Tu sais exactement quoi faire chaque semaine. L'éparpillement, c'est terminé.",
+    text: "Identité de marque, réseaux, site, newsletter, référencement : tout est structuré, priorisé, planifié. Tu sais exactement quoi faire chaque semaine. L'éparpillement, c'est terminé.",
   },
   {
     emoji: "⚡",
     title: "Quelqu'un fait pour toi (en vrai)",
-    text: "Je crée tes templates, tes accroches, ton calendrier éditorial. Tu n'as plus qu'à personnaliser et publier. La page blanche, c'est fini.",
+    text: "Je crée tes modèles, tes accroches, ton calendrier éditorial. Tu n'as plus qu'à personnaliser et publier. La page blanche, c'est fini.",
   },
   {
     emoji: "📈",
@@ -160,9 +160,9 @@ export default function CheckoutBinomePage() {
               </p>
               <ul className="space-y-1.5 text-sm text-foreground">
                 <li>– Audit complet + atelier de lancement</li>
-                <li>– Branding : positionnement, storytelling, ton</li>
+                <li>– Identité de marque : positionnement, histoire, ton</li>
                 <li>– Plan d'action 6 mois + calendrier éditorial</li>
-                <li>– Templates Canva créés dans ton identité</li>
+                <li>– Modèles Canva créés dans ton identité</li>
                 <li>– Messages clés rédigés (bio, accroches, scripts)</li>
               </ul>
             </div>

@@ -18,7 +18,7 @@ export default function Step5OfferPrice({ data, save, callAI, aiLoading, aiResul
             <tr><td className="py-1">&lt;100€</td><td>500-1000 mots</td><td>Décision rapide</td></tr>
             <tr><td className="py-1">100-500€</td><td>1500-3000 mots</td><td>Besoin de rassurer</td></tr>
             <tr><td className="py-1">500-2000€</td><td>3000-5000 mots</td><td>Chaque objection traitée</td></tr>
-            <tr><td className="py-1">2000€+</td><td>Longue ou moyenne</td><td>CTA = achat : longue / CTA = appel : moyenne</td></tr>
+            <tr><td className="py-1">2000€+</td><td>Longue ou moyenne</td><td>Appel à l'action = achat : longue / appel à l'action = appel : moyenne</td></tr>
           </tbody>
         </table>
       </HelpBlock>
@@ -34,7 +34,7 @@ export default function Step5OfferPrice({ data, save, callAI, aiLoading, aiResul
         </div>
         <div>
           <label htmlFor="offer-included" className="text-sm font-semibold block mb-1">Ce qui est inclus</label>
-          <Textarea id="offer-included" className="min-h-[100px]" value={data.offer_included} onChange={(e) => save({ offer_included: e.target.value })} placeholder="Branding complet, stratégie réseaux, site web, SEO, newsletter, 6 mois de suivi..." />
+          <Textarea id="offer-included" className="min-h-[100px]" value={data.offer_included} onChange={(e) => save({ offer_included: e.target.value })} placeholder="Identité de marque complète, stratégie réseaux, site web, référencement, newsletter, 6 mois de suivi..." />
         </div>
         <div>
           <label htmlFor="offer-payment" className="text-sm font-semibold block mb-1">Facilités de paiement</label>

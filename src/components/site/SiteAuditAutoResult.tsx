@@ -105,11 +105,11 @@ interface SiteAuditAutoResultProps {
 
 const PILIER_META: Record<string, { emoji: string; label: string }> = {
   clarte: { emoji: "🎯", label: "Clarté du message" },
-  copywriting: { emoji: "💬", label: "Copywriting" },
+  copywriting: { emoji: "💬", label: "Rédaction" },
   parcours: { emoji: "🗺️", label: "Parcours utilisateur·ice" },
   confiance: { emoji: "🛡️", label: "Confiance" },
-  seo: { emoji: "🔎", label: "SEO basique" },
-  coherence_branding: { emoji: "🎨", label: "Cohérence branding" },
+  seo: { emoji: "🔎", label: "Référencement de base" },
+  coherence_branding: { emoji: "🎨", label: "Cohérence avec ton identité de marque" },
   cta: { emoji: "👆", label: "Appels à l'action" },
   structure: { emoji: "📐", label: "Structure & hiérarchie" },
 };
@@ -471,7 +471,7 @@ export default function SiteAuditAutoResult({
                       return (
                         <div className="rounded-xl bg-warning-bg border border-warning/30 p-3 mt-2">
                           <p className="text-xs text-warning">
-                            💡 Ce score sera plus pertinent une fois ton branding complété. L'IA compare ton site avec ton profil de marque : si celui-ci est vide, la comparaison n'a pas beaucoup de sens.
+                            💡 Ce score sera plus pertinent une fois ton identité de marque complétée. L'IA compare ton site avec ton profil de marque : si celui-ci est vide, la comparaison n'a pas beaucoup de sens.
                           </p>
                           <Button
                             variant="outline"
@@ -479,7 +479,7 @@ export default function SiteAuditAutoResult({
                             className="gap-1.5 rounded-pill text-xs mt-2 border-warning/30 text-warning hover:bg-warning-bg"
                             onClick={() => navigate("/branding")}
                           >
-                            Compléter mon branding <ArrowRight className="h-3 w-3" />
+                            Compléter mon identité de marque <ArrowRight className="h-3 w-3" />
                           </Button>
                         </div>
                       );

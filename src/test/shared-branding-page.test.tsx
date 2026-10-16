@@ -24,8 +24,8 @@ describe("shared branding public page", () => {
   });
   it("late A response cannot overwrite B or a later visit to A", async () => {
     let resolveA!: (r:Response)=>void; const fetcher=vi.fn().mockImplementationOnce(()=>new Promise(r=>resolveA=r)).mockResolvedValueOnce(new Response(JSON.stringify({...payload,profile:{prenom:'B'}}))).mockResolvedValueOnce(new Response(JSON.stringify({...payload,profile:{prenom:'New A'}}))); vi.stubGlobal('fetch',fetcher); mount();
-    fireEvent.click(screen.getByText('Go B')); expect(await screen.findByText('Synthèse Branding de B')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Go A')); expect(await screen.findByText('Synthèse Branding de New A')).toBeInTheDocument();
-    await act(async()=>resolveA(new Response(JSON.stringify(payload)))); expect(screen.queryByText('Synthèse Branding de Alice')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Go B')); expect(await screen.findByText("Synthèse de l'identité de marque de B")).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Go A')); expect(await screen.findByText("Synthèse de l'identité de marque de New A")).toBeInTheDocument();
+    await act(async()=>resolveA(new Response(JSON.stringify(payload)))); expect(screen.queryByText("Synthèse de l'identité de marque de Alice")).not.toBeInTheDocument();
   });
 });

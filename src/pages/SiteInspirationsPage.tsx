@@ -6,15 +6,15 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const SECTION_TYPES = [
-  { id: "hero", emoji: "🚀", title: "Section Hero", desc: "Titre + sous-titre + CTA + image", popular: true },
+  { id: "hero", emoji: "🚀", title: "Section haut de page", desc: "Titre + sous-titre + appel à l'action + image", popular: true },
   { id: "benefits", emoji: "✨", title: "Section Bénéfices", desc: "3 colonnes icône + titre + texte" },
-  { id: "testimonials", emoji: "💬", title: "Section Témoignages", desc: "Grille ou slider de citations" },
+  { id: "testimonials", emoji: "💬", title: "Section Témoignages", desc: "Grille ou carrousel de citations" },
   { id: "how_it_works", emoji: "🗺️", title: "Comment ça marche", desc: "3 étapes numérotées" },
-  { id: "pricing", emoji: "💰", title: "Section Prix / Offre", desc: "Card avec features + CTA" },
+  { id: "pricing", emoji: "💰", title: "Section Prix / Offre", desc: "Carte avec avantages + appel à l'action" },
   { id: "faq", emoji: "❓", title: "Section FAQ", desc: "Accordéon questions/réponses" },
-  { id: "about_mini", emoji: "👋", title: "À propos condensé", desc: "Photo + texte + CTA" },
+  { id: "about_mini", emoji: "👋", title: "À propos condensé", desc: "Photo + texte + appel à l'action" },
   { id: "social_proof", emoji: "🏆", title: "Preuve sociale", desc: "Chiffres, logos, badges" },
-  { id: "footer", emoji: "📍", title: "Footer", desc: "Liens + newsletter + réseaux" },
+  { id: "footer", emoji: "📍", title: "Pied de page", desc: "Liens + newsletter + réseaux" },
 ];
 
 export default function SiteInspirationsPage() {
@@ -49,7 +49,7 @@ export default function SiteInspirationsPage() {
         <div className="space-y-2">
           <h1 className="text-2xl font-display font-bold text-foreground">🎨 Inspirations visuelles</h1>
           <p className="text-sm text-muted-foreground">
-            Des templates de sections prêts à copier-coller dans ton site. Personnalisés avec ton branding.
+            Des modèles de sections prêts à copier-coller dans ton site. Personnalisés avec ton identité de marque.
           </p>
         </div>
 

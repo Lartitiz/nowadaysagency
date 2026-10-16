@@ -108,7 +108,7 @@ function VoiceGuideContent({ userId, workspaceId }: { userId: string; workspaceI
       "",
       `ÉMOTIONS À CRÉER : ${guide.emotions_to_create.join(", ")}`,
       "",
-      `TEMPLATE DE POST :\n${guide.post_template}`,
+      `MODÈLE DE POST :\n${guide.post_template}`,
       "",
       `EXEMPLE DE BIO :\n${guide.bio_example}`,
     ].join("\n");
@@ -200,7 +200,7 @@ function VoiceGuideContent({ userId, workspaceId }: { userId: string; workspaceI
             <div className="text-4xl">🎤</div>
             <h2 className="font-display text-lg font-bold text-foreground">Ton guide de voix personnalisé</h2>
             <p className="text-sm text-muted-foreground max-w-md mx-auto">
-              L'IA analyse ton branding pour créer un guide que tu peux partager avec tes prestataires (graphiste, CM, assistante).
+              L'IA analyse ton identité de marque pour créer un guide que tu peux partager avec tes prestataires (graphiste, CM, assistante).
             </p>
             <Button onClick={generate} disabled={generating} className="gap-2">
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -291,7 +291,7 @@ function VoiceGuideContent({ userId, workspaceId }: { userId: string; workspaceI
               </Section>
 
               {/* Post template */}
-              <Section emoji="📝" title="Template de post">
+              <Section emoji="📝" title="Modèle de post">
                 <div className="rounded-xl bg-muted/50 border border-border p-5">
                   <pre className="text-sm text-foreground/80 whitespace-pre-wrap font-sans leading-relaxed">{guide.post_template}</pre>
                 </div>

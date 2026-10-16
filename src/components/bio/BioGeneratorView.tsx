@@ -9,33 +9,33 @@ const BIO_STRUCTURES = [
     id: "directe",
     name: "La Directe",
     emoji: "🎯",
-    description: "Hook percutant + qui tu es + CTA. Droit au but.",
+    description: "Accroche percutante + qui tu es + appel à l'action. Droit au but.",
     perfect_for: "Prestataires de services, freelances",
-    example_format: "Ligne 1 : hook / ce que tu fais\nLigne 2 : pour qui\nLigne 3 : preuve ou personnalité\nLigne 4 : CTA",
+    example_format: "Ligne 1 : accroche / ce que tu fais\nLigne 2 : pour qui\nLigne 3 : preuve ou personnalité\nLigne 4 : appel à l'action",
   },
   {
     id: "stratege",
     name: "La Stratège",
     emoji: "♟️",
-    description: "Problème de ta cible + ta solution + CTA. Tu montres que tu comprends.",
+    description: "Problème de ta cible + ta solution + appel à l'action. Tu montres que tu comprends.",
     perfect_for: "Coachs, consultantes, formatrices",
-    example_format: "Ligne 1 : problème de ta cible\nLigne 2 : ta solution\nLigne 3 : crédibilité\nLigne 4 : CTA",
+    example_format: "Ligne 1 : problème de ta cible\nLigne 2 : ta solution\nLigne 3 : crédibilité\nLigne 4 : appel à l'action",
   },
   {
     id: "engagee",
     name: "L'Engagée",
     emoji: "✊",
-    description: "Ta mission + ta personnalité + CTA. Pour celles qui ont un positionnement militant.",
+    description: "Ta mission + ta personnalité + appel à l'action. Pour celles qui ont un positionnement militant.",
     perfect_for: "Marques engagées, militantes, valeurs fortes",
-    example_format: "Ligne 1 : ta mission / ton combat\nLigne 2 : comment tu agis\nLigne 3 : ta touche perso\nLigne 4 : CTA",
+    example_format: "Ligne 1 : ta mission / ton combat\nLigne 2 : comment tu agis\nLigne 3 : ta touche perso\nLigne 4 : appel à l'action",
   },
   {
     id: "prouveuse",
     name: "La Prouveuse",
     emoji: "📊",
-    description: "Résultat concret + méthode + CTA. Les chiffres parlent.",
+    description: "Résultat concret + méthode + appel à l'action. Les chiffres parlent.",
     perfect_for: "Celles qui ont des résultats mesurables",
-    example_format: "Ligne 1 : résultat clé chiffré\nLigne 2 : comment (ta méthode)\nLigne 3 : crédibilité ou personnalité\nLigne 4 : CTA",
+    example_format: "Ligne 1 : résultat clé chiffré\nLigne 2 : comment (ta méthode)\nLigne 3 : crédibilité ou personnalité\nLigne 4 : appel à l'action",
   },
   {
     id: "storytelleuse",
@@ -43,15 +43,15 @@ const BIO_STRUCTURES = [
     emoji: "📖",
     description: "Mini-histoire en 4 lignes. Ta personnalité EST le produit.",
     perfect_for: "Profils incarnés, artistes, créatrices",
-    example_format: "Ligne 1 : mini-récit (d'où tu viens)\nLigne 2 : ce que tu fais maintenant\nLigne 3 : ton style unique\nLigne 4 : CTA",
+    example_format: "Ligne 1 : mini-récit (d'où tu viens)\nLigne 2 : ce que tu fais maintenant\nLigne 3 : ton style unique\nLigne 4 : appel à l'action",
   },
   {
     id: "convertisseuse",
     name: "La Convertisseuse",
     emoji: "🚀",
-    description: "Micro-landing page. Offre + bénéfice + urgence + CTA. Pour les lancements.",
+    description: "Mini page de vente. Offre + bénéfice + urgence + appel à l'action. Pour les lancements.",
     perfect_for: "Lancements, offres limitées, promos",
-    example_format: "Ligne 1 : offre spécifique\nLigne 2 : bénéfice clé\nLigne 3 : urgence ou preuve sociale\nLigne 4 : CTA direct",
+    example_format: "Ligne 1 : offre spécifique\nLigne 2 : bénéfice clé\nLigne 3 : urgence ou preuve sociale\nLigne 4 : appel à l'action direct",
   },
 ];
 
@@ -64,11 +64,11 @@ const DIFF_ANGLES = [
 ];
 
 const CTA_OPTIONS = [
-  { id: "freebie", emoji: "📩", label: "Télécharger un freebie / ressource gratuite" },
+  { id: "freebie", emoji: "📩", label: "Télécharger un cadeau / ressource gratuite" },
   { id: "rdv", emoji: "📞", label: "Prendre RDV / appel découverte" },
   { id: "boutique", emoji: "🛍️", label: "Voir ma boutique / mes offres" },
   { id: "newsletter", emoji: "📰", label: "S'inscrire à ma newsletter" },
-  { id: "dm", emoji: "💬", label: "M'envoyer un DM" },
+  { id: "dm", emoji: "💬", label: "M'envoyer un message privé" },
   { id: "site", emoji: "🔗", label: "Visiter mon site" },
 ];
 

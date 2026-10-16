@@ -56,7 +56,7 @@ export const DEMO_AUTOFILL_RESULT: AnalysisResult = {
         name: "Séance Révélation",
         price: "450€",
         description: "Séance portrait de 2h. Coaching posture inclus. 15 photos retouchées.",
-        target: "Entrepreneures qui débutent leur personal branding",
+        target: "Entrepreneures qui construisent leur identité de marque",
         promise: "Des photos dont tu es fière, prises dans la bienveillance.",
       },
       {

@@ -135,7 +135,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
     { id: "newsletter", label: "Newsletter", emoji: "📧" },
     { id: "pinterest", label: "Pinterest", emoji: "📌" },
     { id: "site", label: "Site web", emoji: "🌐" },
-    { id: "seo", label: "SEO", emoji: "🔍" },
+    { id: "seo", label: "Référencement", emoji: "🔍" },
   ];
 
   const missingParts: string[] = [];
@@ -173,7 +173,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             <p className="text-xs text-muted-foreground mt-2">Consulté le {today}</p>
             <div className="mt-8 bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/50">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-foreground">Complétion branding</span>
+                <span className="text-sm font-medium text-foreground">Complétion de l'identité de marque</span>
                 <span className="text-sm font-bold text-primary">{completion}%</span>
               </div>
               <Progress value={completion} className="h-2" />
@@ -545,7 +545,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         <SectionSep />
         <div className="flex flex-col sm:flex-row items-center gap-3 justify-center pt-2">
           <Button variant="outline" size="sm" className="gap-2 text-sm" onClick={() => { onClose(); navigate("/branding"); }}>
-            <Pencil className="h-3.5 w-3.5" /> Modifier le branding
+            <Pencil className="h-3.5 w-3.5" /> Modifier l'identité de marque
           </Button>
           <Button variant="outline" size="sm" className="gap-2 text-sm" onClick={() => { onClose(); navigate("/branding/voice-guide"); }}>
             🎤 Voir mon guide de voix

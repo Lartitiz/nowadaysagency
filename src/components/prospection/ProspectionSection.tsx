@@ -223,7 +223,7 @@ export default function ProspectionSection() {
       {/* DM du jour section */}
       {(todayReminders.length > 0 || prospects.length > 0) && (
         <div className="rounded-xl border-2 border-primary/20 bg-rose-pale/30 p-4 space-y-3">
-          <h3 className="text-sm font-bold">📩 Mes DM du jour</h3>
+          <h3 className="text-sm font-bold">📩 Mes messages privés du jour</h3>
           
           {todayReminders.length > 0 ? (
             <>
@@ -239,7 +239,7 @@ export default function ProspectionSection() {
                     )}
                   </span>
                   <Button size="sm" variant="ghost" className="h-7 px-2 text-2xs" onClick={() => openDmForProspect(p)}>
-                    <MessageCircle className="h-3 w-3 mr-1" /> Générer un DM
+                    <MessageCircle className="h-3 w-3 mr-1" /> Générer un message privé
                   </Button>
                   <Button size="sm" variant="ghost" className="h-7 px-2 text-2xs" onClick={async () => {
                     const tomorrow = new Date();
@@ -257,7 +257,7 @@ export default function ProspectionSection() {
 
           {/* Free DM button */}
           <div className="border-t border-primary/10 pt-2">
-            <p className="text-2xs text-muted-foreground mb-2">Ou choisis un prospect dans le pipeline ci-dessous pour lui écrire un DM personnalisé.</p>
+            <p className="text-2xs text-muted-foreground mb-2">Ou choisis un prospect dans le pipeline ci-dessous pour lui écrire un message privé personnalisé.</p>
           </div>
         </div>
       )}
@@ -289,7 +289,7 @@ export default function ProspectionSection() {
       {dmProspect && (
         <Dialog open={!!dmProspect} onOpenChange={(open) => { if (!open) setDmProspect(null); }}>
           <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-            <DialogTitle className="sr-only">Générateur de DM</DialogTitle>
+            <DialogTitle className="sr-only">Générateur de messages privés</DialogTitle>
             <DialogDescription className="sr-only">Générer un message direct pour ce prospect</DialogDescription>
             <DmGenerator
               prospect={dmProspect}

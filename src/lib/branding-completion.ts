@@ -60,7 +60,7 @@ export async function fetchBrandingDataWithStatus(
         offersList: offersRes.data,
         charter: charterRes.data,
       },
-      error: firstErr ? new Error(firstErr.message || "Erreur de chargement du branding") : null,
+      error: firstErr ? new Error(firstErr.message || "Erreur de chargement de l’identité de marque") : null,
     };
   };
 

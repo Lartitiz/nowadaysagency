@@ -8,9 +8,9 @@ import { motion, AnimatePresence } from "framer-motion";
 const LOADING_PHRASES = [
   "Je regarde ta bio...",
   "J'analyse tes derniers posts...",
-  "Je scanne tes highlights...",
+  "Je parcours tes stories à la une...",
   "Je calcule ton score...",
-  "Je prépare ton insight...",
+  "Je prépare ton analyse...",
 ];
 
 type Phase = "input" | "loading" | "result";

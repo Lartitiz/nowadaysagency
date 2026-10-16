@@ -191,8 +191,8 @@ export default function BrandingImportBlock({ onResult, prefillLinks }: Props) {
 
   const sourceCount = [files.length > 0, text.trim().length > 0, url.trim().length > 0].filter(Boolean).length;
   const analyzeLabel = files.length > 0
-    ? `Analyser ${files.length} document${files.length > 1 ? "s" : ""}${sourceCount > 1 ? " + autres sources" : ""} et pré-remplir mon branding`
-    : "Analyser et pré-remplir mon branding";
+    ? `Analyser ${files.length} document${files.length > 1 ? "s" : ""}${sourceCount > 1 ? " + autres sources" : ""} et pré-remplir mon identité de marque`
+    : "Analyser et pré-remplir mon identité de marque";
 
   if (analyzing) {
     return (
@@ -246,7 +246,7 @@ export default function BrandingImportBlock({ onResult, prefillLinks }: Props) {
           <>
             <Upload className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">
-              <span className="max-md:hidden">📎 Glisse tes fichiers ici ou clique pour uploader (jusqu'à 10)</span>
+              <span className="max-md:hidden">📎 Glisse tes fichiers ici ou clique pour les ajouter (jusqu'à 10)</span>
               <span className="md:hidden">📎 Clique pour choisir des fichiers</span>
             </p>
             <p className="text-xs text-muted-foreground/70 mt-1">PDF, Word (.docx), texte (.txt) : jusqu'à 10 fichiers</p>
@@ -274,7 +274,7 @@ export default function BrandingImportBlock({ onResult, prefillLinks }: Props) {
               </label>
             ))}
           </div>
-          <p className="text-2xs text-muted-foreground">Les profils publics seront analysés pour enrichir le branding.</p>
+          <p className="text-2xs text-muted-foreground">Les profils publics seront analysés pour enrichir l'identité de marque.</p>
         </div>
       )}
 
@@ -289,7 +289,7 @@ export default function BrandingImportBlock({ onResult, prefillLinks }: Props) {
       <div className="mb-4">
         <p className="text-sm font-medium text-foreground mb-2">📋 Colle ton texte directement</p>
         <Textarea
-          placeholder="Colle ici ton brief, tes notes, ton plan de com'..."
+          placeholder="Colle ici ta demande, tes notes, ton plan de com'..."
           value={text}
           onChange={(e) => setText(e.target.value)}
           className="min-h-[100px]"

@@ -16,7 +16,7 @@ export function withIdeaBrief(functionName: string, body: any): any {
   } else if (functionName === "creative-flow") {
     // Every creative-flow branch, including questions/Reels/stories, uses context.
     next.context = `${body.context || ""}\n\n${material}`;
-    if (next.context.length > 8000) throw new Error("Le brief est trop long pour ce format. Raccourcis les précisions avant de générer.");
+    if (next.context.length > 8000) throw new Error("L'idée de départ est trop longue pour ce format. Raccourcis les précisions avant de générer.");
   } else {
     next.subject = `${body.subject || ""}\n\n${material}`;
   }

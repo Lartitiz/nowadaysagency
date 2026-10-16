@@ -37,7 +37,7 @@ export default function GenerationTimeHint({
   return (
     <p data-testid="generation-time-hint" className="text-xs text-center text-muted-foreground">
       Compte {totalDurationLabel(format, { afterPlan })}
-      {qualityMax ? ", un peu plus en qualité Max" : ""}. Déjà {elapsedLabel(elapsed)}. Tu peux rester sur cette page.
+      {qualityMax ? ", un peu plus avec la rédaction la plus soignée" : ""}. Déjà {elapsedLabel(elapsed)}. Tu peux rester sur cette page.
     </p>
   );
 }

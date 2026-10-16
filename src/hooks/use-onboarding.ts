@@ -474,7 +474,7 @@ export function useOnboarding() {
 
         if (uploadError) {
           console.error("Upload error:", uploadError);
-          toast.error("Erreur", { description: `Upload de ${file.name} échoué` });
+          toast.error("Erreur", { description: `Import de ${file.name} échoué` });
           continue;
         }
 
@@ -800,8 +800,8 @@ export function useOnboarding() {
     // au début de l'onboarding à la prochaine vérification. On le dit au lieu
     // de continuer comme si de rien n'était.
     if (profileCompletionError && configCompletionError) {
-      toast.error("Ta fin d'onboarding n'a pas pu être enregistrée", {
-        description: "Vérifie ta connexion — sans ça, l'app te redemandera l'onboarding à la prochaine visite.",
+      toast.error("La fin de ton démarrage n'a pas pu être enregistrée", {
+        description: "Vérifie ta connexion — sans ça, l'app te redemandera le démarrage à la prochaine visite.",
         duration: 10000,
       });
       completingRef.current = false;

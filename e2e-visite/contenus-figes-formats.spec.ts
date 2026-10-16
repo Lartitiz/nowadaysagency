@@ -170,7 +170,7 @@ test("contenus figés — carrousel photo", async ({ page }) => {
   await page.getByText(/Photos brutes/i).first().click();
   await page.locator('input[type="file"]').first().setInputFiles(PHOTOS);
   await expect(page.locator('img[src^="blob:"], img[src^="data:"]').nth(1)).toBeVisible({ timeout: 20000 });
-  const dump = page.getByRole("switch", { name: /Compléter en photo dump/i });
+  const dump = page.getByRole("switch", { name: /Compléter en série de photos/i });
   if (await dump.isVisible({ timeout: 3000 }).catch(() => false) && (await dump.getAttribute("aria-checked")) === "true") await dump.click();
   await toStep3(page);
   await generate(page);

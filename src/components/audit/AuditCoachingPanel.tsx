@@ -65,12 +65,12 @@ const MODULE_SKIP_ROUTES: Record<string, string> = {
 
 const ACTION_ROUTES: Record<string, { label: string; route: string; emoji: string }> = {
   bio: { label: "Réécrire ma bio maintenant", route: "/instagram/profil/bio", emoji: "✍️" },
-  story: { label: "Retravailler mon storytelling", route: "/branding/section?section=story", emoji: "📖" },
+  story: { label: "Retravailler mon histoire", route: "/branding/section?section=story", emoji: "📖" },
   persona: { label: "Affiner ma cible", route: "/branding/section?section=persona", emoji: "👩‍💻" },
   tone: { label: "Redéfinir mon ton", route: "/branding/section?section=tone_style", emoji: "🎨" },
   editorial: { label: "Revoir ma ligne éditoriale", route: "/branding/section?section=content_strategy", emoji: "🍒" },
   offers: { label: "Reformuler mes offres", route: "/branding/offres", emoji: "🎁" },
-  branding: { label: "Compléter mon branding", route: "/branding", emoji: "💎" },
+  branding: { label: "Compléter mon identité de marque", route: "/branding", emoji: "💎" },
 };
 
 export default function AuditCoachingPanel(props: AuditCoachingPanelProps) {

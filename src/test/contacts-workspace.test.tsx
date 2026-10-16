@@ -151,7 +151,7 @@ async function openDetail() {
 }
 async function openGenerator() {
   await screen.findByRole('tab', { name: 'Mes prospects' }); await switchProspects();
-  await userEvent.click(screen.getAllByRole('button', { name: 'DM' })[0]);
+  await userEvent.click(screen.getAllByRole('button', { name: 'Message privé' })[0]);
   await screen.findByLabelText(/Copie-colle ici/);
 }
 async function generate() {
@@ -197,7 +197,7 @@ describe('Contacts: dialogues réels, historique et DM fictif', () => {
     m.query.mockImplementation(q => q.table === 'contact_interactions' ? slow.promise : original(q));
     const view = render(<ContactsPage />);
     await screen.findByRole('tab', { name: 'Mes prospects' }); await switchProspects();
-    await userEvent.click(screen.getAllByRole('button', { name: 'DM' })[0]);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Message privé' })[0]);
     m.workspace = 'B'; view.rerender(<ContactsPage />);
     await screen.findByRole('tab', { name: 'Mes prospects' });
     m.workspace = 'A'; view.rerender(<ContactsPage />);
@@ -313,7 +313,7 @@ it('une confirmation DM tardive ne ferme pas le nouveau dialogue du même espace
   await userEvent.click(await screen.findByRole('button', { name: 'Message envoyé' }));
   await waitFor(() => expect(m.query.mock.calls.some(([q]) => q.op === 'insert')).toBe(true));
   await userEvent.click(screen.getByRole('button', { name: /Close|Fermer/ }));
-  await userEvent.click(screen.getAllByRole('button', { name: 'DM' })[1]);
+  await userEvent.click(screen.getAllByRole('button', { name: 'Message privé' })[1]);
   await screen.findByLabelText(/Copie-colle ici/);
   expect(screen.getByText(/DM pour @fiction_A2/)).toBeInTheDocument();
   await act(async () => slow.resolve({ data: { id: 'interaction-fixture' }, error: null }));
@@ -331,7 +331,7 @@ it('conserve le reçu d’historique accepté après fermeture pour reprendre sa
   await waitFor(() => expect(m.query.mock.calls.some(([q]) => q.op === 'insert')).toBe(true));
   await userEvent.click(screen.getByRole('button', { name: /Close|Fermer/ }));
   await act(async () => slow.resolve({ data: { id: 'interaction-fixture' }, error: null }));
-  await userEvent.click(screen.getAllByRole('button', { name: 'DM' })[0]);
+  await userEvent.click(screen.getAllByRole('button', { name: 'Message privé' })[0]);
   await screen.findByLabelText(/Copie-colle ici/); await generate();
   await userEvent.click(await screen.findByRole('button', { name: 'Message envoyé' }));
   await waitFor(() => expect(m.success).toHaveBeenCalledWith('✅ Message noté !'));
@@ -343,7 +343,7 @@ it('deux messages réellement confirmés avec le même texte gardent chacun leur
   render(<ContactsPage />); await openGenerator(); await generate();
   await userEvent.click(await screen.findByRole('button', { name: 'Message envoyé' }));
   await waitFor(() => expect(m.success).toHaveBeenCalledTimes(1));
-  await userEvent.click(screen.getAllByRole('button', { name: 'DM' })[0]);
+  await userEvent.click(screen.getAllByRole('button', { name: 'Message privé' })[0]);
   await screen.findByLabelText(/Copie-colle ici/); await generate();
   await userEvent.click(await screen.findByRole('button', { name: 'Message envoyé' }));
   await waitFor(() => expect(m.success).toHaveBeenCalledTimes(2));

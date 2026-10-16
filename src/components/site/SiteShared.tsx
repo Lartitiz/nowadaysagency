@@ -90,7 +90,7 @@ export const EMPTY: HomepageData = {
 };
 
 export const STEPS = [
-  { icon: "🎯", label: "Ton hook" },
+  { icon: "🎯", label: "Ton accroche" },
   { icon: "😩", label: "Problème" },
   { icon: "✨", label: "Transformation" },
   { icon: "🗺️", label: "Le plan" },
@@ -98,8 +98,8 @@ export const STEPS = [
   { icon: "🎯", label: "Pour qui" },
   { icon: "👋", label: "Qui tu es" },
   { icon: "🛡️", label: "Garantie" },
-  { icon: "🦋", label: "FAQ + CTA" },
-  { icon: "🔍", label: "SEO + Récap" },
+  { icon: "🦋", label: "FAQ + appel à l'action" },
+  { icon: "🔍", label: "Référencement + récap" },
 ];
 
 export const FRAMEWORKS = [
@@ -109,10 +109,10 @@ export const FRAMEWORKS = [
 ];
 
 export const PAGE_TYPES = [
-  { value: "home", emoji: "🏠", label: "Page d'accueil", desc: "Le hub de ton site : positionnement, offres, preuves. 6-8 sections courtes." },
-  { value: "sales", emoji: "💰", label: "Page de vente", desc: "Vendre ton offre : coaching, service, produit, programme. 10-12 sections (long-form)." },
-  { value: "services", emoji: "🏛️", label: "Page de services", desc: "Présenter tes services B2B, CTA = appel découverte. 6-8 sections." },
-  { value: "capture", emoji: "🎁", label: "Page de capture", desc: "Récolter des emails avec un lead magnet. 3-4 éléments.", isLink: true, to: "/site/capture" },
+  { value: "home", emoji: "🏠", label: "Page d'accueil", desc: "Le cœur de ton site : positionnement, offres, preuves. 6-8 sections courtes." },
+  { value: "sales", emoji: "💰", label: "Page de vente", desc: "Vendre ton offre : coaching, service, produit, programme. 10-12 sections (format long)." },
+  { value: "services", emoji: "🏛️", label: "Page de services", desc: "Présenter tes services B2B, appel à l'action = appel découverte. 6-8 sections." },
+  { value: "capture", emoji: "🎁", label: "Page de capture", desc: "Récolter des emails avec un cadeau. 3-4 éléments.", isLink: true, to: "/site/capture" },
   { value: "about", emoji: "👤", label: "Page à propos", desc: "Raconter ton histoire, créer la confiance. 4-5 sections.", isLink: true, to: "/site/a-propos" },
 ];
 
@@ -134,6 +134,6 @@ export const GUARANTEE_TYPES = [
 export const OFFER_TYPES = [
   { value: "formation", label: "🎓 Formation/Accompagnement" },
   { value: "services", label: "🏛️ Services/Agency" },
-  { value: "leadmagnet", label: "🎁 Lead magnet" },
+  { value: "leadmagnet", label: "🎁 Cadeau" },
   { value: "autre", label: "Autre" },
 ];

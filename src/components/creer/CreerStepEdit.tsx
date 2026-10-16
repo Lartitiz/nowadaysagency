@@ -51,17 +51,17 @@ const ADJUST_CONTENT_TYPES: Record<string, string> = {
 
 const ADJUSTMENTS = [
   { id: "shorter", label: "Plus court", emoji: "✂️" },
-  { id: "punchy", label: "Plus punchy", emoji: "💥" },
+  { id: "punchy", label: "Plus punchy", display: "Plus percutant", emoji: "💥" },
   { id: "tone", label: "Ajuste le ton", emoji: "🎨" },
-  { id: "storytelling", label: "Plus de storytelling", emoji: "📖" },
+  { id: "storytelling", label: "Plus de storytelling", display: "Raconter davantage ton histoire", emoji: "📖" },
 ];
 
 const QUALITY_CHECKLIST = [
-  "Le contenu est clair, affirmé, punchy ?",
-  "Y a-t-il du storytelling ou un exemple concret ?",
+  "Le contenu est clair, affirmé, percutant ?",
+  "Y a-t-il une histoire ou un exemple concret ?",
   "Écriture inclusive avec point médian ?",
   "L'accroche donne envie de lire la suite ?",
-  "Le CTA est naturel et non agressif ?",
+  "L'appel à l'action est naturel et non agressif ?",
 ];
 
 export default function CreerStepEdit({ content, savedContent, onDraftChange, format, subject, newsContext, workspaceId, onSave, onBack, onCopy, onCalendar }: Props) {
@@ -176,7 +176,7 @@ export default function CreerStepEdit({ content, savedContent, onDraftChange, fo
             ) : (
               <span>{adj.emoji}</span>
             )}
-            {adj.label}
+            {adj.display ?? adj.label}
           </Button>
         ))}
       </div>

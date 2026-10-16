@@ -32,7 +32,7 @@ export function PillarsSyncBanner() {
           description:
             mode === "rename_only"
               ? "Les descriptions et pourcentages ont été préservés."
-              : "Les piliers ont été régénérés depuis le Branding.",
+              : "Les piliers ont été régénérés depuis ton identité de marque.",
         },
       );
     } catch (e: any) {
@@ -51,10 +51,10 @@ export function PillarsSyncBanner() {
           <div className="flex-1 space-y-3">
             <div>
               <h3 className="text-sm font-semibold text-foreground">
-                Tes piliers Branding ont changé
+                Les piliers de ton identité de marque ont changé
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
-                Les noms de tes piliers diffèrent entre ton Branding et ta Ligne éditoriale Instagram.
+                Les noms de tes piliers diffèrent entre ton identité de marque et ta Ligne éditoriale Instagram.
                 L'IA utilise la version éditoriale — penses à resynchroniser pour qu'elle reste alignée.
               </p>
             </div>
@@ -62,7 +62,7 @@ export function PillarsSyncBanner() {
             <div className="grid sm:grid-cols-2 gap-3 text-xs">
               <div className="rounded-lg bg-background/60 border border-border p-3">
                 <div className="text-2xs uppercase tracking-wide text-muted-foreground mb-1">
-                  Branding (source)
+                  Identité de marque (source)
                 </div>
                 <ul className="space-y-0.5 text-foreground">
                   {brandingPillars.length === 0 ? (
@@ -126,7 +126,7 @@ export function PillarsSyncBanner() {
           <AlertDialogHeader>
             <AlertDialogTitle>Tout remplacer ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action régénère tes piliers depuis le Branding et <strong>écrase les descriptions
+              Cette action régénère tes piliers depuis ton identité de marque et <strong>écrase les descriptions
               et pourcentages</strong> que tu as personnalisés ici. Cette opération est irréversible.
               <br /><br />
               Si tu veux juste mettre à jour les noms en gardant tes descriptions, annule et utilise

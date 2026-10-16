@@ -15,7 +15,7 @@ export function resultCopyText(format: string, result: any, reelStepKey?: string
   if (typeof result?.edited_text === "string" && format !== "reel") return result.edited_text;
   if (format === "pinterest_photo" && result?.title) {
     const b = result.photo_brief;
-    const briefText = b ? `\n\n📷 BRIEF PHOTO :\n• Sujet : ${b.what}\n• Cadrage : ${b.framing}\n• Lumière : ${b.lighting}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood}` : "";
+    const briefText = b ? `\n\n📷 CONSIGNES PHOTO :\n• Sujet : ${b.what}\n• Cadrage : ${b.framing}\n• Lumière : ${b.lighting}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood}` : "";
     return `📌 ${result.title}\n\n${result.description || ""}${briefText}`;
   }
   if (format === "reel" && (result?.sections || result?.script)) {

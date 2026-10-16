@@ -11,7 +11,7 @@ const messages: Record<string, string> = {
   calendar_invalid_payload: "La sauvegarde n’a pas pu être préparée. Ton contenu reste dans l’éditeur.",
   calendar_media_required: "Ajoute un visuel avant de programmer ce contenu.",
   calendar_idea_not_found: "L’idée de départ n’est plus accessible. Rien n’a été enregistré dans le calendrier ; ton contenu reste dans l’éditeur.",
-  calendar_brief_not_found: "Le brief de départ n’est plus accessible. Rien n’a été enregistré dans le calendrier ; ton contenu reste dans l’éditeur.",
+  calendar_brief_not_found: "La demande de départ n’est plus accessible. Rien n’a été enregistré dans le calendrier ; ton contenu reste dans l’éditeur.",
 };
 export function calendarSaveError(error: any): string {
   const key = Object.keys(messages).find(k => error?.message?.includes(k));

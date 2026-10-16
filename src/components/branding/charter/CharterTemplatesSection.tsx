@@ -35,13 +35,13 @@ export default function CharterTemplatesSection({
     // Always use the authenticated user's ID for storage path (matches RLS policy)
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      toast.error("Tu dois être connecté·e pour uploader des fichiers");
+      toast.error("Tu dois être connecté·e pour ajouter des fichiers");
       return;
     }
     const authUserId = user.id;
 
     if (data.uploaded_templates.length + files.length > 20) {
-      toast.error("Maximum 20 templates");
+      toast.error("Maximum 20 visuels");
       return;
     }
     setTemplatesUploading(true);
@@ -67,11 +67,11 @@ export default function CharterTemplatesSection({
       const added = newTemplates.length - data.uploaded_templates.length;
       if (added > 0) {
         onDataChange({ uploaded_templates: newTemplates });
-        toast.success(added > 1 ? `${added} templates uploadés !` : "Template uploadé !");
+        toast.success(added > 1 ? `${added} visuels ajoutés !` : "Visuel ajouté !");
       }
     } catch (err: any) {
       console.error("Upload failed:", err);
-      toast.error(err?.message || "Erreur lors de l'upload");
+      toast.error(err?.message || "Erreur lors de l'ajout");
     } finally {
       setTemplatesUploading(false);
     }
@@ -98,7 +98,7 @@ export default function CharterTemplatesSection({
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
       <h2 className="font-body text-base font-bold text-foreground mb-1">🎨 Montre-nous tes visuels, on fait le reste</h2>
-      <p className="text-sm text-muted-foreground mb-4">Uploade 3 à 5 visuels qui représentent ta marque (posts Instagram, visuels Canva, flyers, cartes de visite…). L'IA analyse tes couleurs, ton style et tes typographies, et pré-remplit toute ta charte graphique. Tu n'auras plus qu'à ajuster.</p>
+      <p className="text-sm text-muted-foreground mb-4">Ajoute 3 à 5 visuels qui représentent ta marque (posts Instagram, visuels Canva, flyers, cartes de visite…). L'IA analyse tes couleurs, ton style et tes typographies, et pré-remplit toute ta charte graphique. Tu n'auras plus qu'à ajuster.</p>
 
       {data.uploaded_templates.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-4">
@@ -135,7 +135,7 @@ export default function CharterTemplatesSection({
         <label className="flex flex-col items-center gap-2 cursor-pointer rounded-xl border-2 border-dashed border-border hover:border-primary/40 transition-colors p-6">
           <Upload className="h-6 w-6 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">
-            {templatesUploading ? "Upload en cours..." : "Ajouter des visuels à analyser (PNG, JPG, PDF)"}
+            {templatesUploading ? "Import en cours..." : "Ajouter des visuels à analyser (PNG, JPG, PDF)"}
           </span>
           <input
             type="file"

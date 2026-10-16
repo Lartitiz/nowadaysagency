@@ -371,7 +371,7 @@ export const DEMO_COACHING_DATA: Record<string, DemoCoachingSection> = {
         question: "Et le Pack, il est pour qui ? Même profil que la Séance ou un profil différent ?",
         question_type: "textarea",
         placeholder: "La cible du pack...",
-        demo_answer: "Pour celles qui sont plus avancées. Elles ont déjà un site, une newsletter, des réseaux actifs. Elles ont besoin d'un renouvellement complet de leur image. Souvent c'est un pivot ou un re-branding.",
+        demo_answer: "Pour celles qui sont plus avancées. Elles ont déjà un site, une newsletter, des réseaux actifs. Elles ont besoin d'un renouvellement complet de leur image. Souvent c'est un pivot ou un changement d'identité de marque.",
         field_hint: "target",
         completion_percentage: 62,
         extracted_insights: {},

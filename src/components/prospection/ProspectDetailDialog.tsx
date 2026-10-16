@@ -101,8 +101,8 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
     comment_sent: "💬 Commentaire envoyé",
     comment_received: "💬 Commentaire reçu",
     story_reply: "📱 Réponse story",
-    dm_sent: "📩 DM envoyé",
-    dm_received: "📩 DM reçu",
+    dm_sent: "📩 Message privé envoyé",
+    dm_received: "📩 Message privé reçu",
     resource_sent: "🎁 Ressource envoyée",
     call_proposed: "📞 Appel proposé",
     call_done: "✅ Appel réalisé",
@@ -141,7 +141,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader className="sr-only">
-            <DialogTitle>Générateur de DM</DialogTitle>
+            <DialogTitle>Générateur de messages privés</DialogTitle>
             <DialogDescription>Générer un message direct pour ce prospect</DialogDescription>
           </DialogHeader>
           <DmGenerator
@@ -361,7 +361,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
         {/* Actions */}
         <div className="flex gap-2 border-t pt-3">
           <Button size="sm" onClick={() => onWriteDm ? onWriteDm() : setShowDmGen(true)} className="flex-1">
-            💬 Écrire un DM
+            💬 Écrire un message privé
           </Button>
           <Button size="sm" variant="destructive" onClick={onDelete}>
             <Trash2 className="h-3.5 w-3.5" />

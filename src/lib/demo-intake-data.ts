@@ -52,7 +52,7 @@ export const DEMO_INTAKE_DATA = {
       question: "Top, on a de la matière. Dernière question : tu as des deadlines à venir ? Un événement, un lancement, un truc qui presse ?",
       question_type: "textarea" as const,
       placeholder: "Tes échéances des prochains mois...",
-      demo_answer: "Mon site doit être refait pour début avril, j'ai un mini-lancement prévu en mai pour une offre de shooting branding express.",
+      demo_answer: "Mon site doit être refait pour début avril, j'ai un mini-lancement prévu en mai pour une offre de shooting express pour l'identité de marque.",
       completion_percentage: 92,
     },
   ] as DemoIntakeQuestion[],

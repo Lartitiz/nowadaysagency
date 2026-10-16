@@ -108,9 +108,9 @@ function StoryCards() {
   if (stories.length === 0) {
     return (
       <Card className="p-6 text-center border-dashed">
-        <p className="text-muted-foreground text-sm mb-3">Aucun storytelling pour l'instant.</p>
+        <p className="text-muted-foreground text-sm mb-3">Aucune histoire pour l'instant.</p>
         <Button size="sm" className="rounded-pill text-xs" onClick={() => navigate("/branding/coaching?section=story")}>
-          <Plus className="h-3.5 w-3.5 mr-1" /> Créer mon premier storytelling
+          <Plus className="h-3.5 w-3.5 mr-1" /> Écrire mon histoire
         </Button>
       </Card>
     );
@@ -123,7 +123,7 @@ function StoryCards() {
       {stories.map((s) => {
         const preview = s.step_7_polished
           ? single ? s.step_7_polished : truncate(s.step_7_polished, 80)
-          : "Storytelling en cours…";
+          : "Histoire en cours…";
         const label = s.title || "Mon histoire";
 
         return (

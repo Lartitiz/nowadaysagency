@@ -15,7 +15,7 @@ const CHANNEL_OPTIONS = [
   { key: "newsletter", emoji: "📧", label: "Newsletter / Emailing" },
   { key: "site", emoji: "🌐", label: "Site web / Blog" },
   { key: "pinterest", emoji: "📌", label: "Pinterest" },
-  { key: "seo", emoji: "🔍", label: "SEO" },
+  { key: "seo", emoji: "🔍", label: "Référencement" },
 ];
 
 const GOAL_OPTIONS = [

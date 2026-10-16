@@ -229,14 +229,14 @@ export function useSynthesisFetch() {
         pdf.text(userActivity, pageW / 2, y, { align: "center" }); y += 8;
       }
       pdf.setFont("helvetica", "normal"); pdf.setFontSize(10); pdf.setTextColor(150, 150, 150);
-      pdf.text(`Synthèse Branding · ${dateStr}`, pageW / 2, y, { align: "center" }); y += 5;
+      pdf.text(`Synthèse de l'identité de marque · ${dateStr}`, pageW / 2, y, { align: "center" }); y += 5;
       pdf.setDrawColor(COLOR_TITLE); pdf.setLineWidth(0.3);
       pdf.line(pageW / 2 - 25, y, pageW / 2 + 25, y); y += 15;
 
       // L'ESSENTIEL
       addSectionTitle("L'essentiel");
       const pitch = proposition?.version_pitch_naturel || proposition?.version_final || proposition?.version_one_liner;
-      if (pitch) { addSubtitle("Pitch"); addBody(pitch); }
+      if (pitch) { addSubtitle("Présentation"); addBody(pitch); }
       if (brand?.mission) addBullet("Mission", brand.mission);
       // Positionnement : source de vérité = brand_proposition.version_final (déjà dans le Pitch ci-dessus, cf #207).
       // On n'affiche le legacy brand_profile.positioning qu'à défaut, pour ne pas dupliquer/contredire le Pitch.

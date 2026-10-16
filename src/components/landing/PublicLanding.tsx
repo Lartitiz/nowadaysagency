@@ -540,7 +540,7 @@ export default function PublicLanding({
             </h2>
             <p>
               Fais le point sur ta communication avec les audits Instagram et
-              SEO. Identifie des pistes à travailler pour la suite.
+              référencement. Identifie des pistes à travailler pour la suite.
             </p>
             <span className="feature-tags">
               Instagram · Site web · Recommandations
@@ -592,7 +592,7 @@ export default function PublicLanding({
                 <span>Un lien direct avec ton audience</span>
               </div>
               <div>
-                <b>Site web & SEO</b>
+                <b>Site web & référencement</b>
                 <span>Des contenus et des repères pour ton site</span>
               </div>
             </div>

@@ -692,7 +692,7 @@ export function PhotoUploadZone({
             Ou décris tes photos en quelques mots
           </label>
           {photos.length > 0 && (
-            <p className="text-xs text-muted-foreground">(optionnel si tu as uploadé tes photos)</p>
+            <p className="text-xs text-muted-foreground">(optionnel si tu as ajouté tes photos)</p>
           )}
           <Textarea
             value={description}

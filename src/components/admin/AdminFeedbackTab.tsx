@@ -228,7 +228,7 @@ export default function AdminFeedbackTab() {
                     <ImageIcon className="h-3.5 w-3.5" />
                     <img loading="lazy"
                       src={fb.screenshot_url}
-                      alt="Screenshot"
+                      alt="Capture d'écran"
                       className="h-16 rounded-lg border border-border object-cover cursor-pointer hover:opacity-80 transition-opacity"
                     />
                   </button>
@@ -280,7 +280,7 @@ export default function AdminFeedbackTab() {
           </button>
           <img loading="lazy"
             src={lightboxUrl}
-            alt="Screenshot agrandie"
+            alt="Capture d'écran agrandie"
             className="max-w-full max-h-[90vh] rounded-xl object-contain"
             onClick={e => e.stopPropagation()}
           />

@@ -159,7 +159,7 @@ export async function generatePinterestPhotoBrief(params: GeneratePinterestPhoto
       workspace_id: ctx.workspaceId !== ctx.session.user.id ? ctx.workspaceId : undefined,
     },
     timeoutMs,
-    errorFallbackMessage: "Erreur lors de la génération du brief",
+    errorFallbackMessage: "Erreur lors de la génération des consignes photo",
     resetHtml: () => setPhotoBriefOverlayHtml(null),
     onResult: (r) => {
       setPhotoBriefOverlayHtml(r?.overlay_html || null);

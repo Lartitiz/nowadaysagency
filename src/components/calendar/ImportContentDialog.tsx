@@ -228,7 +228,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
       }
 
       // 3) Upload vers le bucket public calendar-media.
-      setUploadLabel("Upload en cours…");
+      setUploadLabel("Import en cours…");
       const newUrls: string[] = [];
       for (const file of toUpload) {
         const path = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
