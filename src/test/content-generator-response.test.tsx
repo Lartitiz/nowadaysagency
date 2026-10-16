@@ -49,13 +49,16 @@ describe("generate — JSON de l'IA lu avec tolérance", () => {
     });
   }
 
-  // CONSTAT (lot T, 15/10/2026), comportement actuel figé, à corriger dans sa
-  // propre PR après le découpage : quand le JSON est cassé ET contient une
-  // liste, la recherche d'un tableau passe avant le sauvetage du champ
-  // `content` → le post affiché est la liste des hashtags.
-  it("constat : JSON cassé avec une liste de hashtags → la liste l'emporte sur le texte", async () => {
+  // Corrigé le 16/10/2026 (constat du lot T de la fiche 17) : la liste des
+  // hashtags rangée dans l'objet ne remplace plus le texte du post.
+  it("JSON cassé avec une liste de hashtags → le texte est sauvé, pas la liste", async () => {
     const { out } = await run('```json\n{"content":"Elle a dit "oui"", "hashtags": ["a"]}\n```');
-    expect(out.raw).toEqual(["a"]);
+    expect(out.raw).toEqual({ content: 'Elle a dit "oui"' });
+  });
+
+  it("texte autour d'un tableau sans objet → tableau lu", async () => {
+    const { out } = await run('Voici :\n["a", "b"]\nFin');
+    expect(out.raw).toEqual(["a", "b"]);
   });
 
   it("tableau JSON accepté tel quel", async () => {

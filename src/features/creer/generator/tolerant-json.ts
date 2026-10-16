@@ -111,9 +111,13 @@ export function parseAIJson(raw: string | object): any {
     }
   }
 
-  // Try to find a JSON array
+  // Try to find a JSON array. Pas quand ce tableau est une liste rangée DANS
+  // un objet qui porte un champ `content` (ex. "hashtags": [...]) : le post
+  // affiché serait la liste. On laisse alors le sauvetage de `content` agir.
   const arrMatch = cleaned.match(/\[[\s\S]*\]/);
-  if (arrMatch) {
+  const arrInsideContentObject =
+    !!arrMatch && !!objMatch && arrMatch.index! > objMatch.index! && salvageContentField(cleaned) !== null;
+  if (arrMatch && !arrInsideContentObject) {
     try {
       return JSON.parse(arrMatch[0]);
     } catch {
