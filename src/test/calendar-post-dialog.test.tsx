@@ -374,6 +374,29 @@ describe("publication immédiate", () => {
   });
 });
 
+describe("suppression", () => {
+  it("un seul « Supprimer » (bouton du pied, plus de doublon dans le menu) ; confirmé → onDelete(id)", async () => {
+    const { props } = renderDialog({ editingPost: post() });
+    expect(screen.getAllByRole("button", { name: /^Supprimer$/ })).toHaveLength(1);
+    expect(screen.queryByRole("menuitem", { name: /Supprimer/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^Supprimer$/ }));
+    await waitFor(() => expect(props.onDelete).toHaveBeenCalledWith("p1"));
+  });
+
+  it("refusé → rien n'est supprimé", async () => {
+    m.confirm.mockResolvedValue(false);
+    const { props } = renderDialog({ editingPost: post() });
+    fireEvent.click(screen.getByRole("button", { name: /^Supprimer$/ }));
+    await waitFor(() => expect(m.confirm).toHaveBeenCalled());
+    expect(props.onDelete).not.toHaveBeenCalled();
+  });
+
+  it("nouveau post pas encore enregistré → pas de « Supprimer »", () => {
+    renderDialog();
+    expect(screen.queryByRole("button", { name: /^Supprimer$/ })).toBeNull();
+  });
+});
+
 describe("programmation", () => {
   const futur = "2099-01-01T10:00";
   async function programmer(editingPost: any, quand = futur) {

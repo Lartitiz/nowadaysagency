@@ -1,5 +1,6 @@
 // Pied de la fenêtre d'un post du calendrier : état de publication, panneau
-// de programmation, indicateur d'auto-save + « Réessayer », « Supprimer » et
+// de programmation, indicateur d'auto-save + « Réessayer », « Supprimer » (un
+// seul bouton, plus de doublon dans le menu depuis le 16/10/2026) et
 // menu « Publier ▾ » / « Options ». Sorti de CalendarPostDialog.tsx à
 // l'identique (fiche 13 de docs/robustesse/gros-fichiers.md, lot 3). Les
 // valeurs calculées (raisons de blocage, publier / programmer) arrivent en
@@ -157,15 +158,10 @@ export function PostActionsFooter({ canSchedule, publishStatus, scheduledAt, han
                   <CalendarClock className="h-4 w-4 mr-2" /> {publishStatus === "scheduled" ? "Modifier la programmation" : "Programmer la publication"}
                 </DropdownMenuItem>
               )}
-              {canPublishActions && (!!editingPost || !!effectiveId) && <DropdownMenuSeparator />}
+              {canPublishActions && editingPost && onUnplan && <DropdownMenuSeparator />}
               {editingPost && onUnplan && (
                 <DropdownMenuItem onClick={async () => { if (await confirm({ title: "Remettre ce post dans tes idées ?", description: "Il sera retiré du calendrier et rangé dans ta boîte à idées.", confirmText: "Remettre dans mes idées" })) onUnplan(); }}>
                   <Lightbulb className="h-4 w-4 mr-2" /> Remettre dans mes idées
-                </DropdownMenuItem>
-              )}
-              {effectiveId && (
-                <DropdownMenuItem onClick={async () => { if (await confirm({ title: "Supprimer ce post du calendrier ?", description: "Cette action est irréversible.", confirmText: "Supprimer", destructive: true })) onDelete(effectiveId); }} className="text-destructive focus:text-destructive">
-                  <Trash2 className="h-4 w-4 mr-2" /> Supprimer
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
