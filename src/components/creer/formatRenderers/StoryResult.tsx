@@ -21,7 +21,7 @@ import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import { toast } from "sonner";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useBrandCharter } from "@/hooks/use-branding";
-import { buildStoryFrameHtml, placeTextAwayFromLikelyFace, withStoryVisualFallback, type StoryFrameBranding } from "@/lib/story-visual";
+import { buildStoryFrameHtml, placeTextAwayFromLikelyFace, storyVisualOrFallback, withStoryVisualFallback, type StoryFrameBranding } from "@/lib/story-visual";
 import { classerParPertinence } from "@/lib/rank-library-photos";
 import { exportStoryPng } from "@/lib/export-carousel-png";
 import { exportStoryPptx } from "@/lib/export-story-pptx";
@@ -257,7 +257,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     const freshUrls = await resolveLibraryPhotoUrls(stories);
     for (let i = 0; i < stories.length; i++) {
       const s = stories[i];
-      if (!buildStoryFrameHtml(s, branding, { preview: false })) continue;
+      if (!storyVisualOrFallback(s)) continue; // même test que buildStoryFrameHtml, sans fabriquer le HTML deux fois
       const visual = s?.visual;
       const usesPhoto = visual?.background === "photo";
       // Never substitute an attached photo for an explicitly selected missing ID.
