@@ -240,6 +240,20 @@ it("mode démo : statut, déplacement (et annulation), suppressions restent loca
   expect(state.appels.map((a) => a.table)).toEqual([]);
 });
 
+it("mode démo : l'idée rapide s'ajoute localement, sans appel Supabase", async () => {
+  state.demo = true;
+  state.user = { id: "demo-user" };
+  state.value = "demo-user";
+  state.demoData = { calendar_posts: [{ title: "Coulisses", format: "reel", objective: "confiance", planned_day: "2026-10-15" }] };
+  rendre("/calendrier?date=2026-10-14");
+  fireEvent.click((await screen.findAllByRole("button", { name: "Semaine" }))[0]);
+  await screen.findByText("Coulisses");
+  await act(async () => { await state.props.week.onQuickCreate("2026-10-16", "Une idée de démo"); });
+  expect(screen.getByText("Une idée de démo")).toBeInTheDocument();
+  expect(state.toast.success).toHaveBeenCalledWith("💡 Idée ajoutée !", { description: "Une idée de démo" });
+  expect(state.appels.map((a) => a.table)).toEqual([]);
+});
+
 // ── Défaut 5 : l'idée rapide affiche une erreur si l'enregistrement échoue ──
 it("idée rapide de la vue Semaine : un échec d'enregistrement affiche un toast d'erreur", async () => {
   rendre("/calendrier?date=2026-10-14");

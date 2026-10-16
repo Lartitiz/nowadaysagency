@@ -597,14 +597,14 @@ function CalendarInWorkspace() {
 
   const handleQuickCreate = async (dateStr: string, title: string) => {
     if (!user) return;
-    const { data, error } = await supabase.from("calendar_posts").insert({
+    const row = {
       user_id: user.id,
       workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       date: dateStr,
       theme: title,
-      status: "idea",
-      canal: canalFilter !== "all" ? canalFilter : "instagram",
-    }).select().single();
+      status: "idea", canal: canalFilter !== "all" ? canalFilter : "instagram",
+    }; // démo : ajout local seulement, sans appel Supabase
+    const { data, error } = isDemoMode ? { data: { id: `demo-idea-${Date.now()}`, ...row }, error: null } : await supabase.from("calendar_posts").insert(row).select().single();
 
     if (!error && data) {
       setPosts(prev => [...prev, data as CalendarPost]);
