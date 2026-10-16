@@ -690,8 +690,7 @@ function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
         canal: post.canal || "instagram",
       } });
     } else {
-      setEditingPost(post);
-      setDialogOpen(true);
+      handlePostClick(post); // comme un clic : la fenêtre reçoit aussi la date du post
     }
   };
 
