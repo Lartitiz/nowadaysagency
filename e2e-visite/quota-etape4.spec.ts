@@ -113,8 +113,8 @@ test("Quota pendant la génération carrousel → message honnête, pas « Sessi
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toBeHidden({ timeout: 5000 });
 
-  // 3) L'écran résultat derrière dit la vérité…
-  await expect(page.getByText(/tes crédits du mois sont utilisés/i)).toBeVisible({ timeout: 5000 });
+  // 3) L'écran résultat derrière dit la vérité (texte de src/lib/quota-message.ts, #1585)…
+  await expect(page.getByText(/tu as utilisé tes \d+ crédits du mois/i)).toBeVisible({ timeout: 5000 });
   // …et ne ment plus.
   await expect(page.getByText(/session expirée/i)).toHaveCount(0);
 
