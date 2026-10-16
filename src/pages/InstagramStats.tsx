@@ -30,10 +30,7 @@ import StatsForm from "@/components/stats/StatsForm";
 
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
-import {
-  MONTHS_FR, monthKey, monthLabel, monthLabelShort,
-  fmt, fmtPct, fmtEur, safeDivPct, safeDiv,
-} from "@/lib/stats-helpers";
+import { monthKey, monthLabel, monthLabelShort, fmt } from "@/lib/stats-helpers";
 
 import {
   type StatsRow, type StatsConfig, type PeriodPreset,
@@ -801,9 +798,8 @@ function InstagramStatsScope() {
     );
   };
 
-  // Relance la création depuis un top post : même contrat que RecycleDialog
-  // (state { sujet, existingContent, fromRecycle } consommé par /creer), avec
-  // l'en-tête « RÉ-ANGLE » pour éviter la redite.
+  // Relance la création depuis un top post : state { sujet, existingContent,
+  // fromRecycle } consommé par /creer, avec l'en-tête « RÉ-ANGLE » pour éviter la redite.
   const recycleTopPost = (p: any) => {
     const stats: string[] = [];
     if (typeof p?.engagementRate === "number") stats.push(`${(p.engagementRate * 100).toFixed(1)} % d'engagement`);
@@ -826,8 +822,6 @@ function InstagramStatsScope() {
     });
   };
 
-  // Affiche une liste compacte de posts (top ou flop) avec format, engagement et lien.
-  // withRecycle : bouton ♻️ par post (top uniquement — recycler un flop n'a pas de sens).
   // Affiche un segment d'analyse de contenus (par format / jour / créneau),
   // trié par taux d'engagement décroissant.
   const renderBucketGroup = (title: string, buckets: any[] | undefined) => {
@@ -852,6 +846,9 @@ function InstagramStatsScope() {
     );
   };
 
+  // Affiche une liste compacte de posts (top ou flop) avec format, engagement et lien.
+  // withRecycle : bouton ♻️ par post (top uniquement — recycler un flop n'a pas de sens).
+  // max : 3 par défaut (top / flop), 5 pour « Les contenus du mois ».
   const renderPostGroup = (title: string, posts: any[] | undefined, withRecycle = false, max = 3) => {
     if (!posts || !posts.length) return null;
     const fmtIcon = (f: string) => {

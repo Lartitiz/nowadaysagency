@@ -2380,6 +2380,8 @@ Repères de structure :
 - 5 imports inutilisés (mission 1).
 - Libellés hors règle « verbe + objet » de CLAUDE.md : « Réessayer » (l. 901 et 1218), « Actualiser » (l. 1176), « Relancer » (l. 1372), « Oui » / « Non », « Retour », « Suivant ».
 
+Fait le 16/10/2026 (branches empilées `claude/zen-brown-1owrp8-stats-1` à `-6`, tests dans `src/test/stats-page-fixes.test.ts`) : configuration mise à jour au lieu d'être dupliquée (`saveConfig` reprend `cfg.id`) et plus de faux succès (le parcours reste ouvert si l'enregistrement échoue) ; « Les contenus du mois » affiche 5 contenus (`renderPostGroup` prend un `max`, 3 par défaut) ; analyse d'un mois sans ligne : avertissement « enregistre d'abord les chiffres… » (pas d'écriture créée, pour ne pas faire apparaître un mois vide) ; `fetchFromInstagram`, `fetchFromLinkedIn`, `backfillHistory` passent par `invokeWithTimeout` (60 s) ; `analyzeContent` garde `existing.user_id || user.id` ; commentaires `RecycleDialog` / `renderPostGroup` corrigés et 5 imports inutilisés retirés (1 409 lignes, référence du cliquet baissée). Restent volontairement : l'écrasement des chiffres saisis par `fetchFromInstagram` et le contournement de `save_monthly_stats` (décision produit), `refreshConnections` hors dépendances de `saveGa4Property`, les libellés, le parcours sans bouton de sortie.
+
 **Tests qui le protègent aujourd'hui**
 
 - `src/test/ga4-other-source-preservation.test.ts` : lecture du texte ; exécute `fetchFromLinkedIn` sur une ligne déjà modifiée par GA4 et vérifie que `ga4_users`, sa provenance, `reach` et `custom_data.ig` sont gardés. C'est le **seul** test qui exécute du code de la page.
