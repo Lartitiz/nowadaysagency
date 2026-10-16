@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import StoryResult from "@/components/creer/formatRenderers/StoryResult";
 
 vi.mock("@/hooks/use-branding", () => ({ useBrandCharter: () => ({ data: null }) }));
@@ -12,7 +12,11 @@ vi.mock("@/lib/story-photos", () => ({ resolveLibraryPhotoUrls: async () => new 
 vi.mock("@/lib/photo-storage", () => ({ getSignedPhotoUrls: async () => new Map() }));
 vi.mock("@/lib/export-carousel-png", () => ({ exportStoryPng: vi.fn() }));
 vi.mock("@/lib/export-story-pptx", () => ({ exportStoryPptx: vi.fn() }));
-vi.mock("@/components/RedFlagsChecker", () => ({ default: () => null }));
+const redFlags = vi.hoisted(() => ({ onFix: null as null | (() => void) }));
+vi.mock("@/components/RedFlagsChecker", () => ({
+  default: ({ onFix }: { onFix: () => void }) => { redFlags.onFix = onFix; return null; },
+  fixRedFlags: (text: string) => text,
+}));
 vi.mock("@/components/creer/formatRenderers/StoryPhotoSuggestions", () => ({ default: () => null }));
 vi.mock("@/components/photos/PhotoLibraryPickerDialog", () => ({ PhotoLibraryPickerDialog: () => null }));
 
@@ -314,6 +318,26 @@ describe("Stories : édition et remplacement du résultat", () => {
     editNarration("Bonsoir");
     expect(onStoriesUpdate.mock.lastCall?.[0][0].texte).toBe("Bonsoir");
     expect(previewHtml()).toContain("Bonsoir");
+  });
+
+  it("garde une saisie faite juste avant un changement de position ou une correction « robot » (gestionnaire d'un rendu précédent)", () => {
+    const onStoriesUpdate = vi.fn();
+    render(<StoryResult result={sequence("Les boutons en nacre")} onStoriesUpdate={onStoriesUpdate} />);
+    // Gestionnaires du rendu d'avant la saisie, comme deux actions dans le même tour.
+    const haut = screen.getByRole("button", { name: "Haut" });
+    const propsKey = Object.keys(haut).find((k) => k.startsWith("__reactProps$"))!;
+    const staleSetTop = (haut as any)[propsKey].onClick;
+    const staleFix = redFlags.onFix!;
+
+    editNarration("Les boutons en bois");
+    act(() => staleSetTop());
+    expect(onStoriesUpdate.mock.lastCall?.[0][0].text).toBe("Les boutons en bois");
+    expect(onStoriesUpdate.mock.lastCall?.[0][0].visual.text_position).toBe("top");
+
+    editNarration("Les boutons en corne");
+    act(() => staleFix());
+    expect(onStoriesUpdate.mock.lastCall?.[0][0].text).toBe("Les boutons en corne");
+    expect(screen.getByLabelText("Texte complet de la story 1")).toHaveValue("Les boutons en corne");
   });
 
   it("ne propose pas de supprimer la dernière story restante", () => {
