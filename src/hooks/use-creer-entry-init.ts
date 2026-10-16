@@ -14,6 +14,7 @@ import { stripFontImportLeakFromSlides } from "@/lib/strip-font-import-leak";
 import { consumeFreshStart } from "@/lib/creation-navigation";
 import { multiSubjectChoicePending } from "../../supabase/functions/_shared/multi-subject";
 import { FORMAT_MAP, SUPPORTED_FORMATS, ONE_SHOT_PARAMS } from "@/features/creer/creer-step";
+import { buildCalendarExistingContent } from "@/features/creer/calendar-entry-context";
 
 export function useCreerEntryInit({
   conflictPending, brandReviewChecking, brandReviewPending, flowShownRef, ps, hasUrlParams, location, locState, searchParams, setSearchParams, paramSujet, paramObjectif, paramFormat, paramIdeaId, paramAngle, paramCanal, paramAuto, paramMode, saveFlowState, handleFormatNext, setIdeaText, setObjective, setExistingCalendarContent, setNewsjackingContext, setSelectedFormat, setCarouselSubMode, setResult, setEditingIdeaId, setEditorialAngle, setIsLinkedInCarousel, setVisualSlides, setPinterestPinHtml, setPhotoBriefOverlayHtml, setSavedId, setStep, setQuestions, setAnswers, setBriefPrefillAnswers, setIncomingBriefId,
@@ -53,7 +54,9 @@ export function useCreerEntryInit({
     if (subject) setIdeaText(subject);
     else if (locState.fromCalendar && typeof locState.theme === "string" && locState.theme.trim()) setIdeaText(locState.theme.trim()); // atelier du calendrier : sujet dans `theme`
     if (obj) setObjective(normalizeObjective(obj) ?? obj);
-    if (locState?.existingContent) setExistingCalendarContent(locState.existingContent);
+    // Brouillon du post + repères du calendrier (notes, accroche, lancement).
+    const calendarEntryContent = buildCalendarExistingContent(locState, locState?.existingContent || null);
+    if (calendarEntryContent) setExistingCalendarContent(calendarEntryContent);
 
     // Newsjacking context arriving from "Créer depuis cette actu" (IdeaDetailSheet)
     // — preserves the actu block so the generated content stays a real newsjacking.
@@ -121,7 +124,8 @@ export function useCreerEntryInit({
     if (!locState.resumeIdea?.raw && fmt && subject.trim()) {
       // Build enriched subject directly from locState to avoid race condition
       // (setExistingCalendarContent is async and not yet available)
-      const calendarContent = locState?.existingContent || null;
+      const calendarDraft: string | null = locState?.existingContent || null;
+      const calendarContent = buildCalendarExistingContent(locState, calendarDraft);
       const enrichedSubject = calendarContent
         ? subject + "\n\n[Contenu existant à approfondir]\n" + calendarContent
         : subject;
@@ -134,11 +138,11 @@ export function useCreerEntryInit({
       // Stories ou reel sur un texte à plusieurs sujets (calendrier, idée, lien) :
       // l'écran format demande d'abord quoi en faire (09/10/2026). Un contenu du
       // calendrier à plusieurs sujets passe dans le texte de l'idée, pour être choisi.
-      const multiInContent = !!calendarContent && multiSubjectChoicePending(calendarContent) && !multiSubjectChoicePending(subject);
+      const multiInContent = !!calendarDraft && multiSubjectChoicePending(calendarDraft) && !multiSubjectChoicePending(subject);
       if ((fmt === "story" || fmt === "reel") && (multiInContent || multiSubjectChoicePending(subject))) {
         if (multiInContent) {
-          setIdeaText(`${subject.trim()}\n\n${calendarContent.trim()}`);
-          setExistingCalendarContent(null);
+          setIdeaText(`${subject.trim()}\n\n${calendarDraft.trim()}`);
+          setExistingCalendarContent(buildCalendarExistingContent(locState, null));
         }
         setStep("format");
       } else if (paramAuto && fmt === "carousel" && paramCarouselSubMode === "text") {

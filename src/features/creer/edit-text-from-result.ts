@@ -1,7 +1,11 @@
 // Mise à plat d'un résultat pour l'étape « Modifier » (formats hors carrousel
 // et stories, qui passent par edited-text.ts). Sorti à l'identique de
 // CreerUnifie.tsx › handleEdit (lot C, docs/robustesse/gros-fichiers.md, fiche 1).
-export function flattenResultForEdit(selectedFormat: string | null, r: any, existingCalendarContent: string | null | undefined): string {
+import { stripCalendarContext } from "@/features/creer/calendar-entry-context";
+
+export function flattenResultForEdit(selectedFormat: string | null, r: any, existingCalendarContentWithContext: string | null | undefined): string {
+  // Les repères du calendrier (notes, lancement) guident l'IA, ils ne sont pas le texte du post.
+  const existingCalendarContent = stripCalendarContext(existingCalendarContentWithContext);
   let text = "";
 
   if (!r) {

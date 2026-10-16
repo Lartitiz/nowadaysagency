@@ -128,6 +128,7 @@ describe("rapport d'impact création de contenu", () => {
       "src/features/creer/pending-stream.ts",
       "src/features/creer/edit-text-from-result.ts",
       "src/features/creer/content-brief.ts",
+      "src/features/creer/calendar-entry-context.ts",
     ]) {
       const { formats } = analyzeImpact([file], usage);
       expect([...formats.keys()], file).toEqual(["Parcours /creer (tous formats)"]);
