@@ -86,7 +86,7 @@ function Breadcrumb() {
     <div className="border-b border-border bg-card/50 px-4 py-2">
       <nav className="mx-auto max-w-6xl flex items-center gap-1.5 text-xs text-muted-foreground">
         <Link to="/dashboard" className="hover:text-foreground transition-colors">
-          Créer
+          Accueil
         </Link>
         <span className="text-border">›</span>
         {sectionLabel ? (
