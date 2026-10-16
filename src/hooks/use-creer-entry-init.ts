@@ -15,13 +15,14 @@ import { consumeFreshStart } from "@/lib/creation-navigation";
 import { multiSubjectChoicePending } from "../../supabase/functions/_shared/multi-subject";
 import { FORMAT_MAP, SUPPORTED_FORMATS, ONE_SHOT_PARAMS } from "@/features/creer/creer-step";
 import { buildCalendarExistingContent } from "@/features/creer/calendar-entry-context";
+import { calendarEntryFormat } from "@/features/creer/calendar-entry-canal";
 
 export function useCreerEntryInit({
   conflictPending, brandReviewChecking, brandReviewPending, flowShownRef, ps, hasUrlParams, location, locState, searchParams, setSearchParams, paramSujet, paramObjectif, paramFormat, paramIdeaId, paramAngle, paramCanal, paramAuto, paramMode, saveFlowState, handleFormatNext, setIdeaText, setObjective, setExistingCalendarContent, setNewsjackingContext, setSelectedFormat, setCarouselSubMode, setResult, setEditingIdeaId, setEditorialAngle, setIsLinkedInCarousel, setVisualSlides, setPinterestPinHtml, setPhotoBriefOverlayHtml, setSavedId, setStep, setQuestions, setAnswers, setBriefPrefillAnswers, setIncomingBriefId,
 }: Record<string, any> & {
   flowShownRef: MutableRefObject<boolean>;
   searchParams: URLSearchParams;
-  handleFormatNext: (format: string, angle?: string, options?: { overrideSubject?: string }) => unknown;
+  handleFormatNext: (format: string, angle?: string, options?: { overrideSubject?: string; linkedinCarousel?: boolean }) => unknown;
 }) {
   // Pre-fill from URL/state & auto-advance (only when URL params are present)
   const initDone = useRef(false);
@@ -68,9 +69,11 @@ export function useCreerEntryInit({
     const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null;
 
     const fmtMapped = fmtRaw ? (FORMAT_MAP[fmtRaw] || fmtRaw) : null;
-    const fmt = fmtMapped && SUPPORTED_FORMATS.has(fmtMapped) ? fmtMapped : null;
+    // Post LinkedIn du calendrier : le canal choisit le générateur (calendar-entry-canal.ts).
+    const { fmt, linkedinCarousel } = calendarEntryFormat(fmtMapped && SUPPORTED_FORMATS.has(fmtMapped) ? fmtMapped : null, locState?.fromCalendar ? paramCanal || locState.canal : null);
 
     if (fmt) setSelectedFormat(fmt);
+    if (linkedinCarousel) setIsLinkedInCarousel(true);
     if (paramCarouselSubMode) setCarouselSubMode(paramCarouselSubMode);
 
     // Saved output is an editing request, never an automatic regeneration.
@@ -151,7 +154,7 @@ export function useCreerEntryInit({
         setStep("format");
       } else {
         // Autres raccourcis préremplis : le flux normal prépare les questions.
-        handleFormatNext(fmt, calendarAngle, { overrideSubject: enrichedSubject });
+        handleFormatNext(fmt, calendarAngle, { overrideSubject: enrichedSubject, ...(linkedinCarousel ? { linkedinCarousel: true } : {}) });
       }
     } else if (!locState.resumeIdea?.raw && locState?.fromCalendar && subject) {
       // Calendar fallback path (already handled above with FORMAT_MAP)

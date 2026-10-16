@@ -160,7 +160,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
   `src/hooks/use-calendar-post-navigation.ts` depuis le lot 7 de la fiche 13 :
   `resumeIdea`, `existingAccroche`, `launchId`, `contentType`…) et
   `CalendarCoachingDialog.tsx`.
-- **Lecture** : `src/hooks/use-creer-entry-init.ts` (arrivée) et `locState` dans `CreerUnifie.tsx` (`fromCalendar = !!calendarPostId`). Depuis le 16/10/2026, `notes`, `existingAccroche` et `launchContext` (type de contenu, chapitre, phase d'audience) sont lus par `src/features/creer/calendar-entry-context.ts` : ajoutés au contenu existant après `[Repères du calendrier]`, retirés du texte de l'étape « Modifier » (`edit-text-from-result.ts`). Non lus : `launchId`, `category` (déjà repris dans `objectif`), `chapter` seul hors `launchContext`.
+- **Lecture** : `src/hooks/use-creer-entry-init.ts` (arrivée) et `locState` dans `CreerUnifie.tsx` (`fromCalendar = !!calendarPostId`). Depuis le 16/10/2026, `notes`, `existingAccroche` et `launchContext` (type de contenu, chapitre, phase d'audience) sont lus par `src/features/creer/calendar-entry-context.ts` : ajoutés au contenu existant après `[Repères du calendrier]`, retirés du texte de l'étape « Modifier » (`edit-text-from-result.ts`). Depuis le 16/10/2026 aussi, le canal du post (`canal` du state de `handleQuickGenerate`, ou `?canal=`) choisit le générateur LinkedIn quand le format ne le dit pas (`post_texte` → `linkedin`, `post_carrousel` → carrousel LinkedIn) : `src/features/creer/calendar-entry-canal.ts`. Non lus : `launchId`, `category` (déjà repris dans `objectif`), `chapter` seul hors `launchContext`.
 - **Retour** : `handleAddToCalendar` → `handleSaveBackToCalendar`
   (`use-calendar-save.ts`), qui renvoie vers `/calendrier?date=…&post=…`.
 

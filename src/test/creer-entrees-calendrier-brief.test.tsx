@@ -118,6 +118,40 @@ describe('calendrier → /creer (rendu réel)', () => {
     expect(urlParams().get('canal')).toBe('linkedin');
   });
 
+  // Le format du calendrier ne dit pas le réseau : le canal du post choisit le
+  // générateur LinkedIn (calendar-entry-canal.ts, 16/10/2026).
+  it('Calendar › handleQuickGenerate (Carrousel PDF LinkedIn) : carrousel LinkedIn, pas Instagram', async () => {
+    mount({
+      pathname: '/creer',
+      search: '?format=carousel&calendar_id=cal-7&sujet=Carrousel+LinkedIn&from=%2Fcalendrier',
+      state: { fromCalendar: true, calendarPostId: 'cal-7', theme: 'Carrousel LinkedIn', objectif: '', angle: '', format: 'post_carrousel', notes: '', postDate: '2026-11-10', existingContent: '', canal: 'linkedin' },
+    });
+    await waitFor(() => expect(mocks.formatNext).toHaveBeenCalledTimes(1));
+    expect(mocks.formatNext).toHaveBeenCalledWith('carousel', undefined, { overrideSubject: 'Carrousel LinkedIn', linkedinCarousel: true });
+    await waitFor(() => expect(loadFlowState()).toMatchObject({ selectedFormat: 'carousel', isLinkedInCarousel: true, calendarPostId: 'cal-7' }));
+  });
+
+  it('CalendarPostDialog › handleNavigateToGenerator (Post texte LinkedIn) : générateur LinkedIn, pas post Instagram', async () => {
+    mount({
+      pathname: '/creer',
+      search: '?canal=linkedin&calendar_id=cal-8&sujet=Post+texte&from=%2Fcalendrier',
+      state: { fromCalendar: true, calendarPostId: 'cal-8', theme: 'Post texte', objectif: '', angle: '', format: 'post_texte', notes: '', postDate: '2026-11-11', existingContent: '', existingAccroche: null },
+    });
+    await waitFor(() => expect(mocks.formatNext).toHaveBeenCalledTimes(1));
+    expect(mocks.formatNext).toHaveBeenCalledWith('linkedin', undefined, { overrideSubject: 'Post texte' });
+  });
+
+  it('Calendar › handleQuickGenerate (carrousel Instagram) : inchangé (contrôle)', async () => {
+    mount({
+      pathname: '/creer',
+      search: '?format=carousel&calendar_id=cal-9&sujet=Carrousel+Insta&from=%2Fcalendrier',
+      state: { fromCalendar: true, calendarPostId: 'cal-9', theme: 'Carrousel Insta', objectif: '', angle: '', format: 'post_carrousel', notes: '', postDate: '2026-11-12', existingContent: '', canal: 'instagram' },
+    });
+    await waitFor(() => expect(mocks.formatNext).toHaveBeenCalledTimes(1));
+    expect(mocks.formatNext).toHaveBeenCalledWith('carousel', undefined, { overrideSubject: 'Carrousel Insta' });
+    expect(loadFlowState()?.isLinkedInCarousel).toBeFalsy();
+  });
+
   it('CalendarPostDialog › handleNavigateToGenerator (lancement) : notes, accroche et contexte de lancement transmis au générateur (16/10/2026)', async () => {
     mount({
       pathname: '/creer',
