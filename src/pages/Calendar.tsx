@@ -612,7 +612,7 @@ function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
     if (!error && data) {
       setPosts(prev => [...prev, data as CalendarPost]);
       toast.success("💡 Idée ajoutée !", { description: title });
-    }
+    } else toast.error("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
   };
 
   const handleQuickStatusChange = async (postId: string, newStatus: string) => {
