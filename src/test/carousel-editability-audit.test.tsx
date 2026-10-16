@@ -54,10 +54,6 @@ const photoSlides = [1, 2].map((n) => ({
   photo_index: n,
   overlay_text: `Texte ${n}`,
 }));
-const visuals = photoSlides.map((s) => ({
-  slide_number: s.slide_number,
-  html: `<div style="background:#ffffff"><p data-slide-text="overlay">${s.overlay_text}</p></div>`,
-}));
 
 function editInline(container: HTMLElement, value: string) {
   const el = container.querySelector('[contenteditable="true"]') as HTMLElement;
@@ -143,63 +139,50 @@ describe("Audit carrousel — reproductions de défauts", () => {
     ).toBe("Nouveau contenu");
   });
 
-  it("A4: une édition de texte conserve l'alerte de couleurs non rendues", () => {
+  // A4 et A5 (16/10/2026) : la partie « visuels » de CarouselPhotoResult a été
+  // retirée. Dès qu'il y a des visuels, CreerStepResult ouvre l'éditeur de
+  // carrousel ; cet écran n'affiche donc jamais de visuels et signale toujours
+  // « à jour », pour lever un état « périmé » laissé par l'éditeur.
+  it("A4: couleurs et texte modifiés : la retouche remonte, rien n'est signalé périmé", () => {
+    const onStaleChange = vi.fn();
+    const onSlidesUpdate = vi.fn();
     function Harness() {
-      const [result, setResult] = useState({ slides: photoSlides, caption });
-      const [html, setHtml] = useState(visuals);
       const [colors, setColors] = useState<any>(null);
-      const [stale, setStale] = useState(false);
       return (
-        <>
-          <output data-testid="stale">{String(stale)}</output>
-          <output data-testid="html">{html[0].html}</output>
-          <CarouselPhotoResult
-            result={result}
-            visualSlides={html}
-            colors={colors}
-            onColorsChange={setColors}
-            onSlidesUpdate={(slides, caption) => setResult({ slides, caption })}
-            onVisualSlidesUpdate={setHtml}
-            onStaleChange={setStale}
-            onRegenerateVisuals={() => {}}
-          />
-        </>
+        <CarouselPhotoResult
+          result={{ slides: photoSlides, caption }}
+          colors={colors}
+          onColorsChange={setColors}
+          onSlidesUpdate={onSlidesUpdate}
+          onStaleChange={onStaleChange}
+          onRegenerateVisuals={() => {}}
+        />
       );
     }
     render(<Harness />);
     fireEvent.change(screen.getByLabelText("Couleur Principale"), {
       target: { value: "#ff0000" },
     });
-    expect(screen.getByTestId("stale").textContent).toBe("true");
     fireEvent.change(screen.getByLabelText("Texte de la slide 1"), {
       target: { value: "Texte corrigé" },
     });
-    expect(screen.getByTestId("stale").textContent).toBe("true");
-    expect(screen.getByTestId("html").textContent).toContain("#ffffff");
-    expect(screen.getByTestId("html").textContent).not.toContain("#ff0000");
+    expect(onSlidesUpdate.mock.calls.at(-1)[0][0].overlay_text).toBe("Texte corrigé");
+    expect(onStaleChange).toHaveBeenCalledWith(false);
+    expect(onStaleChange).not.toHaveBeenCalledWith(true);
   });
 
-  it("A5: la réouverture détecte des visuels anciens", () => {
+  it("A5: à l'ouverture, « à jour » est signalé et aucun aperçu ni bannière n'apparaît", () => {
     const onStaleChange = vi.fn();
-    render(
+    const { container } = render(
       <CarouselPhotoResult
-        result={{
-          slides: photoSlides.map((s) => ({
-            ...s,
-            overlay_text: "Nouveau texte non rendu",
-          })),
-          caption,
-        }}
-        visualSlides={visuals}
+        result={{ slides: photoSlides, caption }}
         onStaleChange={onStaleChange}
         onRegenerateVisuals={() => {}}
       />,
     );
-    expect(screen.getByLabelText("Texte de la slide 1")).toHaveValue(
-      "Nouveau texte non rendu",
-    );
-    expect(onStaleChange).toHaveBeenLastCalledWith(true);
-    expect(screen.getByText(/depuis le dernier rendu visuel/)).toBeTruthy();
+    expect(onStaleChange).toHaveBeenLastCalledWith(false);
+    expect(screen.queryByText(/depuis le dernier rendu visuel/)).toBeNull();
+    expect(container.querySelector("iframe")).toBeNull();
   });
 
   it("A6: une photo sans texte initial propose un champ pour en ajouter", () => {

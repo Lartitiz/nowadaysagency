@@ -565,7 +565,7 @@ export default function CreerStepResult({
     const hasCastingSlides = Array.isArray(r?.slides) && r.slides.some((s: any) => s?.photo_directive);
     if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix") && ((photos && photos.length > 0) || hasCastingSlides)) {
       return (
-        <CarouselPhotoResult onOpenStudio={onOpenCarouselStudio} result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} onVisualSlidesUpdate={onVisualSlidesUpdate} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} onAddPhoto={onAddPhoto} colors={carouselColors} onColorsChange={onCarouselColorsChange} charterColors={charterColors} onStaleChange={onCarouselStaleChange} />
+        <CarouselPhotoResult onOpenStudio={onOpenCarouselStudio} result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} onAddPhoto={onAddPhoto} colors={carouselColors} onColorsChange={onCarouselColorsChange} charterColors={charterColors} onStaleChange={onCarouselStaleChange} />
       );
     }
 
