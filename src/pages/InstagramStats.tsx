@@ -754,16 +754,16 @@ function InstagramStatsScope() {
       updated_at: new Date().toISOString(),
     } as any;
     delete payload.id;
-    if (config?.id) {
-      const { error } = await supabase.from("stats_config" as any).update(payload).eq("id", config.id);
-      if (error) { toast.error("Erreur de sauvegarde"); return; }
+    const existingId = config?.id || cfg.id; // « Configurer » vide `config` : l'id reste dans le brouillon
+    if (existingId) {
+      const { error } = await supabase.from("stats_config" as any).update(payload).eq("id", existingId);
+      if (error) { toast.error("Erreur de sauvegarde"); return false; }
     } else {
       const { data, error } = await supabase.from("stats_config" as any).insert(payload).select("id").single();
-      if (error) { toast.error("Erreur de sauvegarde"); return; }
+      if (error) { toast.error("Erreur de sauvegarde"); return false; }
       if (data) payload.id = (data as any).id;
     }
-    setConfig({ ...cfg, id: config?.id || payload.id });
-    setDraftConfig({ ...cfg, id: config?.id || payload.id });
+    const saved = { ...cfg, id: existingId || payload.id }; setConfig(saved); setDraftConfig(saved); return true;
   }, [user, config, workspaceId]);
 
   const handleConfigClick = useCallback((step: number) => {
@@ -1029,7 +1029,7 @@ function InstagramStatsScope() {
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => setOnboardingStep(2)}>Retour</Button>
                   <Button className="flex-1" onClick={async () => {
-                    await saveConfig(draftConfig);
+                    if (!(await saveConfig(draftConfig))) return; // échec : le parcours reste ouvert
                     setShowOnboarding(false);
                     toast.success("✅ Configuration enregistrée !");
                   }}>
