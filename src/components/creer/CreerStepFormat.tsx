@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useLibraryPhotoCount } from "@/hooks/use-library-photo-count";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -116,13 +117,11 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | "user_slides" | null>(
     // Un carrousel arrive toujours avec un type conseillé déjà choisi (chantier B).
-    initialCarouselSubMode ?? (initialFormat === "carousel" ? defaultCarouselMode((initialPhotos?.length ?? 0) > 0) : null)
+    initialCarouselSubMode ?? (initialFormat === "carousel" ? defaultCarouselMode(initialPhotos?.length ?? 0) : null)
   );
   const [slideLength, setSlideLength] = useState<SlideLength>(initialSlideLength ?? "auto");
-  // Lot 4 : fourche du mixte hors newsjacking. null = pas encore choisi (on
-  // affiche les deux entrées), false = « j'ai mes photos » (upload classique),
-  // true = « j'écris d'abord » (régime texte d'abord, casting dans le résultat).
-  // Le newsjacking, lui, force le texte d'abord sans passer par cette fourche.
+  // Lot 4 : fourche du mixte hors newsjacking (qui force le texte d'abord). null = pas encore choisi,
+  // false = « j'ai mes photos » (upload classique), true = « j'écris d'abord » (casting dans le résultat).
   const [textFirstChoice, setTextFirstChoice] = useState<boolean | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   // Photo dump (pure_photo uniquement) : l'app complète la séquence — vraies
@@ -130,11 +129,8 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
   const [photoDump, setPhotoDump] = useState(true);
   const [photoDescription, setPhotoDescription] = useState(initialPhotoDescription ?? "");
   const [photoMode, setPhotoMode] = useState(false);
-  const [postPhoto, setPostPhoto] = useState<PhotoItem[]>(
-    // On garde toutes les photos par défaut — handleFormatSelect slicera
-    // selon le format choisi (LinkedIn = 10, autres = 1).
-    initialPhotos ?? []
-  );
+  // Toutes les photos gardées par défaut : handleFormatSelect coupe selon le format (LinkedIn = 10, autres = 1).
+  const [postPhoto, setPostPhoto] = useState<PhotoItem[]>(initialPhotos ?? []);
   const [postPhotoDescription, setPostPhotoDescription] = useState(initialPhotoDescription ?? "");
   // Les photos restaurées (IndexedDB / photothèque) arrivent en ASYNCHRONE après
   // le montage : initialPhotos est vide au premier rendu puis se remplit. On les
@@ -178,6 +174,10 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
 
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  // « Mes photos » compte pour le type conseillé (choix du 16/10/2026). Lu après le choix du carrousel : appliqué tant qu'elle n'a pas choisi elle-même.
+  const libraryPhotoCount = useLibraryPhotoCount({ column, value });
+  const carouselModeTouched = useRef(!!initialCarouselSubMode);
+  useEffect(() => { if (selectedFormat === "carousel" && carouselSubMode === "text" && !carouselModeTouched.current && uploadedPhotos.length === 0) setCarouselSubMode(defaultCarouselMode(0, libraryPhotoCount)); }, [libraryPhotoCount]);
 
   useEffect(() => {
     if (selectedChannel !== "pinterest" || !user) return;
@@ -191,9 +191,8 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
     loadBoards();
   }, [selectedChannel, user?.id]);
 
-  // Auto-active photoMode dès qu'une photo est présente sur un format compatible.
-  // Sinon, l'utilisateur·rice voit sa photo affichée mais le `photo_mode: true`
-  // n'est jamais envoyé à l'IA → texte généré "à l'aveugle".
+  // Auto-active photoMode dès qu'une photo est présente sur un format compatible : sinon la photo
+  // est affichée mais `photo_mode: true` n'est jamais envoyé à l'IA → texte généré "à l'aveugle".
   useEffect(() => {
     if (formatAcceptsSinglePhoto(selectedFormat) && postPhoto.length > 0 && !photoMode) {
       setPhotoMode(true);
@@ -239,7 +238,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
       setPhotoDescription(initialPhotoDescription ?? "");
       if (id === "carousel") {
         // Type conseillé déjà choisi (photos présentes → « Tes photos en fond »), modifiable en un clic.
-        setCarouselSubMode(opts?.keepCarouselSubMode ?? defaultCarouselMode(true));
+        setCarouselSubMode(opts?.keepCarouselSubMode ?? defaultCarouselMode(1));
         setPhotoMode(false);
       } else if (formatAcceptsSinglePhoto(id)) {
         setCarouselSubMode(null);
@@ -251,7 +250,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
         setPhotoMode(false);
       }
     } else {
-      const mode = id === "carousel" ? (opts?.keepCarouselSubMode ?? defaultCarouselMode(uploadedPhotos.length > 0)) : null;
+      const mode = id === "carousel" ? (opts?.keepCarouselSubMode ?? defaultCarouselMode(uploadedPhotos.length, libraryPhotoCount)) : null;
       setCarouselSubMode(mode);
       // Préserver les photos uploadées si on entre en mode carousel mix/photo/pure_photo
       if (!(id === "carousel" && (mode === "mix" || mode === "photo" || mode === "pure_photo"))) {
@@ -346,7 +345,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
     } else if (selectedChannel === "pinterest") {
       setPinterestSubMode(id === "pinterest_visual" ? "visual" : id === "pinterest_inspiration" ? ("inspiration" as any) : "text");
     }
-    const recommendedMode = id === recommendation?.format ? recommendation?.mode : undefined;
+    const recommendedMode = id === recommendation?.format && recommendation?.mode === "photo" ? "photo" : undefined;
     handleFormatSelect(id, recommendedMode ? { keepCarouselSubMode: recommendedMode } : undefined);
   };
   const onPageOne = !!selectedChannel && !selectedFormat && pageOneChoices.length > 0;
@@ -697,7 +696,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
 
       {/* All five modes stay visible, including when one has been selected. */}
       {selectedFormat === "carousel" && (selectedChannel === "instagram" || selectedChannel === "linkedin") && (
-        <CarouselModePicker value={carouselSubMode} photos={uploadedPhotos.map(p => p.base64).filter(Boolean)} onChange={(mode) => { setCarouselSubMode(mode); setPhotoWarning(false); }} />
+        <CarouselModePicker value={carouselSubMode} photos={uploadedPhotos.map(p => p.base64).filter(Boolean)} recommended={defaultCarouselMode(uploadedPhotos.length, libraryPhotoCount)} onChange={(mode) => { carouselModeTouched.current = true; setCarouselSubMode(mode); setPhotoWarning(false); }} />
       )}
 
       {/* Photo dump (pure_photo uniquement) : l'app complète la séquence photo —
@@ -830,6 +829,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
               objective: objective || undefined,
             }}
             aiAutoPickCount={carouselSubMode === "mix" ? 3 : 6}
+            libraryCount={libraryPhotoCount}
           />
           {photoWarning && (
             <div className="mt-3 p-3 rounded-lg bg-warning-bg border border-warning/30 space-y-2 animate-fade-in">
