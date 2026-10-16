@@ -24,6 +24,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { installFigeReplay, FIGES_DIR, expectZoneMatches } from "./fige-replay";
 import { sondeResultatActions } from "./resultat-actions-sonde";
+import { sondeHauteurEditeur } from "./hauteur-editeur-sonde";
 import { exportAndCheckPptx } from "./pptx-export-check";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -158,4 +159,6 @@ test("contenus figés — carrousel texte : texte, design et export identiques �
   // En dernier (chantier D, 15/10/2026) : ses changements de taille d'écran ne
   // doivent pas précéder le clic de l'étape 4.
   await sondeResultatActions(page, "carrousel");
+  // Hauteur de la page et commandes visibles (chantier D, ligne 📏) : en tout dernier.
+  await sondeHauteurEditeur(page, "carrousel");
 });

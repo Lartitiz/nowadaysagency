@@ -18,6 +18,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { installFigeReplay, FIGES_DIR, LIVE_OK, expectZoneMatches } from "./fige-replay";
 import { sondeResultatActions } from "./resultat-actions-sonde";
+import { sondeHauteurEditeur } from "./hauteur-editeur-sonde";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PHOTOS = [path.join(__dirname, "fixtures-portrait-test.jpg"), path.join(__dirname, "fixtures-cover-test.jpg")];
@@ -222,6 +223,8 @@ test("contenus figés — story", async ({ page }) => {
     },
   })));
   await sondeResultatActions(page, "stories");
+  // Hauteur de la page et commandes visibles (chantier D, ligne 📏) : en tout dernier.
+  await sondeHauteurEditeur(page, "stories");
 });
 
 test("contenus figés — reel", async ({ page }) => {
