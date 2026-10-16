@@ -15,6 +15,7 @@ const m = vi.hoisted(() => ({
   signedUrlFails: false,
   storage: [] as Array<[string, string]>,
   failDocInsertFor: "",
+  invoke: vi.fn(async () => ({ data: null, error: null })),
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: m.userId, user_metadata: m.metadata } }) }));
@@ -34,6 +35,7 @@ vi.mock("@/lib/onboarding-status", () => ({ resolveOnboardingStatus: async () =>
 } }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    functions: { invoke: m.invoke },
     storage: { from: () => ({
       createSignedUrl: async (path: string) => {
         if (m.signedUrlFails) throw new Error("signed URL unavailable");
@@ -75,7 +77,7 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-beforeEach(() => { localStorage.clear(); m.userId = "qa-a"; m.failCompletion = false; m.failSave = false; m.existingCompleted = false; m.metadata = {}; m.statusDelay = false; m.signedUrlFails = false; m.storage.length = 0; m.failDocInsertFor = ""; m.query.mockClear(); m.writes.length = 0; m.navigate.mockClear(); });
+beforeEach(() => { localStorage.clear(); m.userId = "qa-a"; m.failCompletion = false; m.failSave = false; m.existingCompleted = false; m.metadata = {}; m.statusDelay = false; m.signedUrlFails = false; m.storage.length = 0; m.invoke.mockClear(); m.failDocInsertFor = ""; m.query.mockClear(); m.writes.length = 0; m.navigate.mockClear(); });
 
 describe("reprise des captures de l'onboarding", () => {
   it("attend le profil avant d'écrire un brouillon vide sur un autre appareil", async () => {
@@ -147,6 +149,13 @@ describe("reprise des captures de l'onboarding", () => {
     expect(result.current.uploadedFiles.map(f => f.name)).toEqual(["b.png"]);
     expect(result.current.uploading).toBe(false);
     log.mockRestore();
+  });
+
+  it("pré-scrape le site une seule fois, sans envoyer d'identifiant (le jeton suffit)", async () => {
+    const { result } = renderHook(() => useOnboarding());
+    act(() => { result.current.triggerPreScrape("https://exemple.fr"); result.current.triggerPreScrape("https://exemple.fr"); });
+    expect(m.invoke).toHaveBeenCalledTimes(1);
+    expect(m.invoke).toHaveBeenCalledWith("pre-scrape-website", { body: { websiteUrl: "https://exemple.fr" } });
   });
 
   it("ne revient pas au formulaire avec Échap pendant l'analyse", async () => {

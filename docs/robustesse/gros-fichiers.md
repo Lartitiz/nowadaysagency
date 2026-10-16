@@ -2648,6 +2648,8 @@ Bugs ou incohérences repérés en lisant (une PR à part chacun, **après** le 
 6. **Erreurs muettes** : `brand_proposition` et `brand_strategy` n'écrivent qu'en console (681, 688, 706, 713), contrairement au profil et au plan. Décision à prendre, pas un déplacement.
 7. Le corps du pré-scraping envoie `userId` (l. 435), que `pre-scrape-website` ignore (il prend l'identité du jeton, l. 15) : sans danger, à nettoyer.
 
+Fait le 16/10/2026 : points 1, 2, 3, 5 (le `as any` seulement) et 7 corrigés, une branche empilée chacun (`claude/zen-brown-1owrp8-onboarding-1` à `-4`), avec un cas de test qui change exprès dans `src/test/onboarding-uploads-recovery.test.tsx` (17 cas). Brouillon de plus de 7 jours → étape 0 ; la remise à zéro « étape ≥ 11 » vide aussi `brandingAnswers`, `visual_reference_links` et la liste des captures (qui ne ressuscite plus après coup) ; captures : plafond de 3 sur les seuls fichiers au bon format, et un envoi sans ligne `user_documents` est retiré du bucket puis on continue ; `userId` retiré du corps du pré-scraping. Nouveaux fichiers : `src/features/onboarding/draft-storage.ts` (purges « expiré » et « remise à zéro », clés inchangées), `empty-answers.ts`, `capture-upload.ts`. Hook : 918 → 902 lignes, 15 → 14 `any`. Points 4 (code mort `brandingAnswers` / `setBranding`, textes à un seul persona de `getPlaceholder`) et 6 (erreurs muettes `brand_proposition` / `brand_strategy`) : décisions, pas touchés.
+
 **Vérifications à chaque PR**
 - `npx tsc --noEmit -p tsconfig.app.json` ;
 - `npx vitest run src/test/onboarding-uploads-recovery.test.tsx src/test/onboarding-*.test.tsx src/components/onboarding/OnboardingPhase2Import.test.tsx src/test/storage-cleanup.test.ts`, puis `npm test` ;
