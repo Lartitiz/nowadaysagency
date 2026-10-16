@@ -679,7 +679,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
             initialDescription={postPhotoDescription}
             onPhotosChange={setPostPhoto}
             onDescriptionChange={setPostPhotoDescription}
-            title={postPhoto.length > 0 ? `Vos photos (${postPhoto.length})` : undefined}
+            title={postPhoto.length > 0 ? `Tes photos (${postPhoto.length})` : undefined}
             compact={(initialPhotos?.length ?? 0) > 0}
           />
           {selectedFormat === "linkedin" && (
@@ -819,7 +819,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
               if (photos.length > 0) setPhotoWarning(false);
             }}
             onDescriptionChange={setPhotoDescription}
-            title={uploadedPhotos.length > 0 ? `Vos photos (${uploadedPhotos.length})` : undefined}
+            title={uploadedPhotos.length > 0 ? `Tes photos (${uploadedPhotos.length})` : undefined}
             compact={uploadedPhotos.length > 0}
             stockSearchSeed={idea}
             openStockSignal={stockSignal}
