@@ -307,10 +307,10 @@ function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
 
   // Fetch posts target from communication_plans
   useEffect(() => {
-    if (!user) return;
+    if (!user || isDemoMode) return; // démo : pas d'appel Supabase, objectif par défaut
     (supabase.from("communication_plans") as any).select("instagram_posts_week").eq(column, value).maybeSingle()
       .then(({ data }) => { if ((data as any)?.instagram_posts_week) setPostsPerWeek((data as any).instagram_posts_week as number); });
-  }, [user?.id, column, value]);
+  }, [user?.id, isDemoMode, column, value]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -587,14 +587,14 @@ function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
       });
       if (also) ids = [targetId, ...siblings.map((p) => p.id)];
     }
-    const { error } = await supabase.from("calendar_posts").delete().in("id", ids);
+    const { error } = isDemoMode ? { error: null } : await supabase.from("calendar_posts").delete().in("id", ids); // démo : local seulement
     if (error) {
       toast.error("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
       fetchPosts();
       return;
     }
     setDialogOpen(false);
-    fetchPosts();
+    if (isDemoMode) setPosts((prev) => prev.filter((p) => !ids.includes(p.id))); else fetchPosts();
     toast.success(ids.length > 1 ? `${ids.length} posts supprimés` : "Post supprimé");
   };
 
@@ -616,7 +616,7 @@ function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
   };
 
   const handleQuickStatusChange = async (postId: string, newStatus: string) => {
-    const { error } = await supabase.from("calendar_posts").update({ status: newStatus }).eq("id", postId);
+    const { error } = isDemoMode ? { error: null } : await supabase.from("calendar_posts").update({ status: newStatus }).eq("id", postId);
     if (error) {
       toast.error("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
       fetchPosts();
@@ -654,7 +654,7 @@ function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
 
   const handleQuickDelete = async (postId: string) => {
     if (!(await confirm({ title: "Supprimer ce post ?", confirmText: "Supprimer", destructive: true }))) return;
-    const { error } = await supabase.from("calendar_posts").delete().eq("id", postId);
+    const { error } = isDemoMode ? { error: null } : await supabase.from("calendar_posts").delete().eq("id", postId);
     if (error) {
       toast.error("Suppression impossible", { description: "Réessaie dans un instant." });
       return;
@@ -700,16 +700,16 @@ function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, date: newDate } : p)));
     if (!originalDate) return false;
     try {
-      await moveCalendarPost(postId, newDate, originalDate);
+      if (!isDemoMode) await moveCalendarPost(postId, newDate, originalDate); // démo : déplacement local seulement
       setIdeasRefreshKey(k => k + 1);
       const formatted = new Date(newDate + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
       toast(`Déplacé au ${formatted}`, {
         action: originalDate && originalDate !== newDate ? {
           label: "Annuler",
           onClick: async () => {
+            if (isDemoMode) { setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, date: originalDate } : p))); return; }
             try { await moveCalendarPost(postId, originalDate, newDate); setIdeasRefreshKey(k => k + 1); }
-            catch (error) { toast.error(calendarSaveError(error)); }
-            fetchPosts();
+            catch (error) { toast.error(calendarSaveError(error)); } finally { fetchPosts(); }
           },
         } : undefined,
       });
