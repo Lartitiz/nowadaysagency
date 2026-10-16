@@ -72,7 +72,7 @@ function getPhotoToggleCopy(format: string): { title: string; subtitle: string }
 }
 
 interface Props {
-  idea: string;
+  idea: string; /** Premier contenu : le carrousel part tout de suite, sans questions. */ directStart?: boolean;
   objective?: string;
   // Canal imposé par l'URL (?canal=) — pré-sélectionne ce canal même si un brouillon
   // d'un autre canal a été restauré. Null = aucun forçage (comportement normal).
@@ -99,7 +99,7 @@ interface Props {
   onIdeaChange?: (text: string) => void;
 }
 
-export default function CreerStepFormat({ idea, objective, forcedChannel, onChannelChange, initialFormat, initialChannel, initialCarouselSubMode, initialSlideLength, suggestedFormat, initialPhotos, initialPhotoDescription, newsjackingActive, onNext, onSelectionChange, onBack, onIdeaChange }: Props) {
+export default function CreerStepFormat({ idea, directStart, objective, forcedChannel, onChannelChange, initialFormat, initialChannel, initialCarouselSubMode, initialSlideLength, suggestedFormat, initialPhotos, initialPhotoDescription, newsjackingActive, onNext, onSelectionChange, onBack, onIdeaChange }: Props) {
   // Pré-sélection du canal : on déduit du format déjà choisi, sinon du format
   // suggéré par le newsjacking. Évite de juxtaposer « L'IA suggère : Carrousel »
   // (un format) avec « Sur quel canal publier ? » (un canal) — la suggestion
@@ -1035,7 +1035,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
               ? "Choisis d'abord comment construire ton carrousel mixte, juste au-dessus."
               : carouselSubMode === "user_slides"
                 ? "Prochaine étape : tu colles ton texte, slide par slide."
-                : "Quelques précisions ensuite, avec la possibilité de passer les questions."}
+                : directStart && selectedFormat === "carousel" && (carouselSubMode === "text" || (carouselSubMode === "photo" && uploadedPhotos.length > 0)) ? "Je crée ton carrousel tout de suite : compte 3 à 4 minutes." : "Quelques précisions ensuite, avec la possibilité de passer les questions."}
         </p>
       </div>
     </div>

@@ -1599,7 +1599,7 @@ function CreerWorkspace() {
                 texte pendant ce chargement. */}
             {step === "format" && !isLoadingLibraryPhotos && (
               <CreerStepFormat
-                idea={ideaText}
+                idea={ideaText} directStart={autoFlow}
                 objective={objective || undefined}
                 forcedChannel={forcedChannel}
                 onChannelChange={(channel) => {
