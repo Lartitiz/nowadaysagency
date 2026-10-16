@@ -28,6 +28,7 @@ import { recordCreationResume } from "@/lib/retour-apres-detour";
 import { toast } from "sonner";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import CreerTransformTab from "@/components/creer/CreerTransformTab";
+import { CarouselRelecture } from "@/components/creer/CarouselRelecture";
 import PublishOrScheduleDialog from "@/components/creer/PublishOrScheduleDialog";
 import { useSocialConnections } from "@/hooks/use-social-connections";
 import LowCreditsBanner from "@/components/creer/LowCreditsBanner";
@@ -1920,15 +1921,7 @@ function CreerWorkspace() {
             )}
 
             {step === "result" && currentWarnings.suggestions.length > 0 && !generating && (
-              <div data-testid="carousel-relecture" className="mt-4 rounded-lg border border-border bg-muted/40 p-4 text-sm text-foreground">
-                <p className="font-medium">Pistes de relecture (facultatif)</p>
-                <p className="mt-1 text-xs text-muted-foreground">{currentWarnings.blocking.length ? "" : "Ton carrousel est publiable tel quel. "}Ces passages gagneraient peut-être à être retouchés.</p>
-                <ul className="mt-2 list-disc pl-5">{currentWarnings.suggestions.map((message: string, i: number) => {
-                  // Fait trouvé sur le web : le lien de la page devient cliquable.
-                  const link = message.match(/^(.*?)(https?:\/\/\S+)$/);
-                  return <li key={i}>{link ? <>{link[1]}<a href={link[2]} target="_blank" rel="noopener noreferrer" className="underline break-all">{link[2]}</a></> : message}</li>;
-                })}</ul>
-              </div>
+              <CarouselRelecture suggestions={currentWarnings.suggestions} publishable={!currentWarnings.blocking.length} />
             )}
 
             {/* Transform LinkedIn text to carousel */}
