@@ -256,10 +256,12 @@ function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
   const igUsername = (profileData as any)?.instagram_username || "";
 
   useEffect(() => {
+    // Paramètres à usage unique : lus une fois, puis retirés de l'URL en UN seul navigate
+    // (sinon le prochain changement d'URL, ex. le choix d'une série, les rejoue).
+    const next = new URLSearchParams(searchParams);
     const urlCanal = searchParams.get("canal");
-    if (urlCanal && CANAL_FILTERS.some((c) => c.id === urlCanal && c.enabled)) {
-      setCanalFilter(urlCanal);
-    }
+    if (urlCanal && CANAL_FILTERS.some((c) => c.id === urlCanal && c.enabled)) setCanalFilter(urlCanal);
+    if (urlCanal) next.delete("canal");
     const urlSerie = searchParams.get("serie");
     if (urlSerie) setSeriesFilter(urlSerie);
     const prefillTheme = searchParams.get("prefill_theme");
@@ -269,24 +271,21 @@ function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
       setSelectedDate(today);
       setPrefillData({ theme: prefillTheme, notes: prefillContent || "" });
       setDialogOpen(true);
-      // Clean up the params so reopening doesn't re-trigger
-      const next = new URLSearchParams(searchParams);
       next.delete("prefill_theme");
       next.delete("prefill_content");
-      navigate({ search: next.toString() }, { replace: true });
     }
     if (searchParams.get("coaching") === "1") {
       setCoachingOpen(true);
+      next.delete("coaching");
     }
     // Ouverture directe de l'import depuis le dashboard (/calendrier?import=1)
     if (searchParams.get("import") === "1") {
       const d = searchParams.get("date");
       if (d) setImportDate(d);
       setImportOpen(true);
-      const next = new URLSearchParams(searchParams);
       next.delete("import");
-      navigate({ search: next.toString() }, { replace: true });
     }
+    if (next.toString() !== searchParams.toString()) navigate({ search: next.toString() }, { replace: true });
   }, [searchParams]);
 
   // Fetch all series names (for badge display)

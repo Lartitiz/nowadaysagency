@@ -1,0 +1,175 @@
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, useLocation } from "react-router-dom";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+
+// Rendu réel de la page « Mon calendrier » (src/pages/Calendar.tsx, fiche 20 de
+// docs/robustesse/gros-fichiers.md). Les grilles, filtres et fenêtres sont des
+// faux qui exposent leurs props ; Supabase est un petit client en mémoire qui
+// enregistre chaque appel (table + chaîne de méthodes).
+
+type Appel = { table: string; ops: [string, any[]][] };
+const state = vi.hoisted(() => ({
+  user: { id: "u1" } as { id: string } | null,
+  demo: false,
+  demoData: null as any,
+  column: "user_id",
+  value: "u1",
+  db: {} as Record<string, any[]>,
+  appels: [] as Appel[],
+  props: {} as Record<string, any>,
+  location: null as any,
+  confirm: vi.fn(async () => true),
+  move: vi.fn(async () => undefined),
+  toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
+}));
+
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: state.user }) }));
+vi.mock("@/contexts/DemoContext", () => ({ useDemoContext: () => ({ isDemoMode: state.demo, demoData: state.demoData }) }));
+vi.mock("@/hooks/use-workspace-query", () => ({
+  useWorkspaceFilter: () => ({ column: state.column, value: state.value }),
+  useWorkspaceId: () => state.value,
+  useWorkspaceReady: () => true,
+}));
+vi.mock("@/hooks/use-profile", () => ({ useProfile: () => ({ data: null }) }));
+vi.mock("@/hooks/use-active-series", () => ({ useAllSeriesMap: () => ({ data: undefined }) }));
+vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
+vi.mock("@/components/ui/confirm-dialog", () => ({ useConfirm: () => state.confirm }));
+vi.mock("sonner", () => ({ toast: state.toast }));
+vi.mock("@/lib/idea-calendar-persistence", () => ({ planSavedIdea: vi.fn(), moveCalendarPost: state.move }));
+vi.mock("@/lib/saved-idea-summaries", () => ({ loadFullIdea: vi.fn(), needsFullIdea: () => false }));
+
+// Client Supabase en mémoire : filtre les lignes de state.db selon la chaîne.
+vi.mock("@/integrations/supabase/client", () => {
+  const METHODES = ["select", "eq", "is", "gte", "lte", "gt", "lt", "in", "order", "limit", "insert", "update", "delete", "single", "maybeSingle"];
+  let n = 0;
+  const executer = ({ table, ops }: Appel) => {
+    const lignes = (state.db[table] ??= []);
+    const op = (m: string) => ops.find(([x]) => x === m)?.[1];
+    const garde = (r: any) => ops.every(([m, [c, v]]) =>
+      m === "eq" ? r[c] === v : m === "is" ? (r[c] ?? null) === v : m === "gte" ? r[c] >= v : m === "lte" ? r[c] <= v
+        : m === "gt" ? r[c] > v : m === "lt" ? r[c] < v : m === "in" ? v.includes(r[c]) : true);
+    if (op("insert")) {
+      const ligne = { id: `new-${++n}`, ...op("insert")[0] };
+      lignes.push(ligne);
+      return { data: op("single") ? ligne : [ligne], error: null };
+    }
+    let trouvees = lignes.filter(garde);
+    if (op("update")) { trouvees.forEach((r) => Object.assign(r, op("update")[0])); return { data: null, error: null }; }
+    if (op("delete")) { state.db[table] = lignes.filter((r) => !trouvees.includes(r)); return { data: null, error: null }; }
+    const tri = op("order");
+    if (tri) trouvees = [...trouvees].sort((a, b) => (a[tri[0]] < b[tri[0]] ? -1 : 1) * (tri[1]?.ascending === false ? -1 : 1));
+    if (op("limit")) trouvees = trouvees.slice(0, op("limit")[0]);
+    return { data: op("single") || op("maybeSingle") ? trouvees[0] ?? null : trouvees, error: null };
+  };
+  const from = (table: string) => {
+    const appel: Appel = { table, ops: [] };
+    state.appels.push(appel);
+    const q: any = {};
+    for (const m of METHODES) q[m] = (...a: any[]) => { appel.ops.push([m, a]); return q; };
+    q.then = (ok: any, ko: any) => Promise.resolve().then(() => executer(appel)).then(ok, ko);
+    return q;
+  };
+  return { supabase: { from, rpc: vi.fn() } };
+});
+
+// Faux composants : exposent leurs props dans state.props.
+const { affichePosts, rien } = vi.hoisted(() => ({
+  affichePosts: (p: any) => Object.values(p.postsByDate).flat().map((post: any) => <span key={post.id}>{post.theme}</span>),
+  rien: () => null,
+}));
+vi.mock("@/components/calendar/CalendarGrid", () => ({ CalendarGrid: (p: any) => { state.props.grid = p; return <div>{affichePosts(p)}</div>; } }));
+vi.mock("@/components/calendar/CalendarWeekGrid", () => ({ CalendarWeekGrid: (p: any) => { state.props.week = p; return <div>{affichePosts(p)}</div>; } }));
+vi.mock("@/components/calendar/CalendarFilterBar", () => ({
+  CalendarFilterBar: (p: any) => (
+    <div>
+      <p>filtre canal : {p.canalFilter}</p>
+      <button onClick={() => p.onCanalChange("instagram")}>choisir Instagram</button>
+      <button onClick={() => p.onSeriesChange("s1")}>choisir la série s1</button>
+    </div>
+  ),
+}));
+vi.mock("@/components/calendar/CalendarCoachingDialog", () => ({
+  default: (p: any) => (p.open ? <div>coaching ouvert <button onClick={() => p.onOpenChange(false)}>fermer le coaching</button></div> : null),
+}));
+vi.mock("@/components/calendar/CalendarPostDialog", () => ({
+  CalendarPostDialog: (p: any) => { state.props.dialog = p; return p.open ? <p>fenêtre du post ouverte</p> : null; },
+}));
+vi.mock("@/components/calendar/CalendarDndWrapper", () => ({ default: (p: any) => { state.props.dnd = p; return <>{p.children}</>; } }));
+vi.mock("@/components/calendar/CalendarIdeasSidebar", () => ({ CalendarIdeasSidebar: rien }));
+vi.mock("@/components/calendar/IdeaDetailSheet", () => ({ IdeaDetailSheet: rien }));
+vi.mock("@/components/calendar/WeekDashboard", () => ({ WeekDashboard: rien }));
+vi.mock("@/components/calendar/QuickBatchAdd", () => ({ QuickBatchAdd: rien }));
+vi.mock("@/components/calendar/ImportContentDialog", () => ({ ImportContentDialog: rien }));
+vi.mock("@/components/calendar/MarronnierBanner", () => ({ MarronnierBanner: rien }));
+vi.mock("@/components/calendar/SeasonalPhotoDialog", () => ({ SeasonalPhotoDialog: rien }));
+vi.mock("@/components/calendar/CalendarShareDialog", () => ({ CalendarShareDialog: rien }));
+vi.mock("@/components/hub", () => ({ HubConnectBanner: rien }));
+vi.mock("@/components/AuditRecommendationBanner", () => ({ default: rien }));
+vi.mock("@/components/AppHeader", () => ({ default: rien }));
+vi.mock("@/components/SubPageHeader", () => ({ default: rien }));
+vi.mock("@/components/BrandingPrompt", () => ({ default: rien }));
+
+import CalendarPage from "@/pages/Calendar";
+
+function Sonde() {
+  const location = useLocation();
+  state.location = location;
+  return <output aria-label="adresse">{location.pathname + location.search}</output>;
+}
+
+function rendre(url: string) {
+  return render(
+    <MemoryRouter initialEntries={[url]}>
+      <CalendarPage embedded />
+      <Sonde />
+    </MemoryRouter>,
+  );
+}
+const adresse = () => screen.getByLabelText("adresse").textContent;
+const post = (champs: Record<string, any>) => ({ canal: "instagram", status: "idea", theme: "Sans titre", ...champs });
+
+beforeEach(() => {
+  state.user = { id: "u1" };
+  state.demo = false;
+  state.demoData = null;
+  state.column = "user_id";
+  state.value = "u1";
+  state.db = {};
+  state.appels = [];
+  state.props = {};
+  state.confirm.mockReset().mockResolvedValue(true);
+  state.move.mockReset().mockResolvedValue(undefined);
+  state.toast.mockReset(); state.toast.success.mockReset(); state.toast.error.mockReset();
+});
+afterEach(cleanup);
+
+// ── Défaut 1 : paramètres d'URL à usage unique (?coaching=1, ?canal=) ──
+it("?coaching=1 ouvre le coaching une seule fois : un autre changement d'URL ne le rouvre pas", async () => {
+  rendre("/calendrier?coaching=1");
+  expect(await screen.findByText("coaching ouvert")).toBeInTheDocument();
+  await waitFor(() => expect(adresse()).toBe("/calendrier"));
+  fireEvent.click(screen.getByRole("button", { name: "fermer le coaching" }));
+  fireEvent.click(screen.getAllByRole("button", { name: "choisir la série s1" })[0]);
+  await waitFor(() => expect(adresse()).toContain("serie=s1"));
+  expect(screen.queryByText("coaching ouvert")).not.toBeInTheDocument();
+});
+
+it("?canal= règle le filtre à l'arrivée, puis ne l'impose plus après un autre changement d'URL", async () => {
+  rendre("/calendrier?canal=linkedin");
+  expect((await screen.findAllByText("filtre canal : linkedin")).length).toBeGreaterThan(0);
+  await waitFor(() => expect(adresse()).toBe("/calendrier"));
+  fireEvent.click(screen.getAllByRole("button", { name: "choisir Instagram" })[0]);
+  fireEvent.click(screen.getAllByRole("button", { name: "choisir la série s1" })[0]);
+  await waitFor(() => expect(adresse()).toContain("serie=s1"));
+  expect(screen.getAllByText("filtre canal : instagram").length).toBeGreaterThan(0);
+  expect(screen.queryByText("filtre canal : linkedin")).not.toBeInTheDocument();
+});
+
+it("retour du coaching (?post=&date=&canal=) : la fenêtre du post s'ouvre et l'URL est nettoyée", async () => {
+  state.db.calendar_posts = [post({ id: "p1", user_id: "u1", date: "2026-10-12", canal: "linkedin", theme: "Mon post" })];
+  rendre("/calendrier?post=p1&date=2026-10-12&canal=linkedin");
+  expect(await screen.findByText("fenêtre du post ouverte")).toBeInTheDocument();
+  expect(state.props.dialog.editingPost.id).toBe("p1");
+  expect(screen.getAllByText("filtre canal : linkedin").length).toBeGreaterThan(0);
+  await waitFor(() => expect(adresse()).toBe("/calendrier"));
+});
