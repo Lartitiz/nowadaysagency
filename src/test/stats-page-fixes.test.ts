@@ -182,3 +182,28 @@ it('connexion à renouveler (409) : « Reconnexion requise », lu dans la répon
   await run(declared('fetchFromInstagram'), scope)();
   expect(scope.toast.error).toHaveBeenCalledWith('Reconnexion requise', expect.anything());
 });
+
+/* ── 5. « Ce qui marche pour toi » : user_id de la ligne gardé, comme les 3 autres écritures ── */
+function contentScope(allStats: unknown[]) {
+  const update = vi.fn((_p: any) => ({ eq: vi.fn(async () => ({ error: null })) }));
+  const insert = vi.fn(async (_p: any) => ({ error: null }));
+  const scope = { user: { id: 'me' }, workspaceId: 'ws-1', currentMonthDate: '2026-10-01', allStats,
+    invokeWithTimeout: vi.fn(async () => ({ data: { analysis: { sampleSize: 12 } }, error: null })),
+    toast: toastSpy(), loadStats: vi.fn(async () => {}), supabase: { from: () => ({ update, insert }) },
+    setAnalyzingContent: vi.fn(), setContentInsights: vi.fn() };
+  return { scope, update, insert };
+}
+
+it('analyzeContent garde le user_id de la ligne existante', async () => {
+  const { scope, update } = contentScope([{ id: 'row-10', month_date: '2026-10-01', user_id: 'owner', custom_data: { ig: 1 } }]);
+  await run(declared('analyzeContent'), scope)();
+  expect(update).toHaveBeenCalledTimes(1);
+  expect(update.mock.calls[0][0].user_id).toBe('owner');
+  expect(update.mock.calls[0][0].custom_data.ig).toBe(1);
+});
+
+it('analyzeContent sans ligne du mois : insertion au nom de la personne connectée', async () => {
+  const { scope, insert } = contentScope([]);
+  await run(declared('analyzeContent'), scope)();
+  expect(insert.mock.calls[0][0].user_id).toBe('me');
+});

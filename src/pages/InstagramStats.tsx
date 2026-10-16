@@ -673,7 +673,7 @@ function InstagramStatsScope() {
       const existing = allStats.find(s => s.month_date === currentMonthDate) || {};
       const payload: any = {
         custom_data: { ...((existing as any).custom_data || {}), ig_content_insights: a },
-        user_id: user.id,
+        user_id: (existing as { user_id?: string }).user_id || user.id, // comme les 3 autres écritures
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         month_date: currentMonthDate, updated_at: new Date().toISOString(),
       };
