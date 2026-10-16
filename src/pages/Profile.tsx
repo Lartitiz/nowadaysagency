@@ -75,6 +75,10 @@ type ProfileTab = typeof PROFILE_TABS[number]["id"];
 const firstKnown = (keys: { key: string }[], ...values: (string | null | undefined)[]) =>
   values.find(v => !!v && keys.some(k => k.key === v)) || "";
 
+/** « https://instagram.com/moncompte », « instagram.com/moncompte » ou « @moncompte » → « moncompte ». */
+const instagramHandle = (v: string) =>
+  v.trim().replace(/^(https?:\/\/)?(www\.)?instagram\.com\//i, "").replace(/^@/, "").split(/[/?#]/)[0];
+
 interface ProfileData {
   prenom: string;
   activite: string;
@@ -253,7 +257,8 @@ export default function Profile() {
           storiesPerWeek: (data as any).stories_per_week ?? null,
           linkedinPostsPerWeek: (data as any).linkedin_posts_per_week ?? null,
           websiteUrl: (data as any).website_url || "",
-          instagramUrl: (data as any).instagram_url || "",
+          // Le démarrage range le compte dans instagram_username : on le montre ici aussi (passe du 16/10/2026).
+          instagramUrl: (data as any).instagram_url || ((data as any).instagram_username ? `https://instagram.com/${(data as any).instagram_username}` : ""),
           linkedinUrl: (data as any).linkedin_url || "",
         };
         setCurrent(loaded);
@@ -294,6 +299,7 @@ export default function Profile() {
           linkedin_posts_per_week: current.linkedinPostsPerWeek,
           website_url: current.websiteUrl,
           instagram_url: current.instagramUrl,
+          instagram_username: instagramHandle(current.instagramUrl) || null,
           linkedin_url: current.linkedinUrl,
         })
         .eq(profileFilter.column, profileFilter.value)
