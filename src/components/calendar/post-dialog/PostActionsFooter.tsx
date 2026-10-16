@@ -1,11 +1,11 @@
 // Pied de la fenêtre d'un post du calendrier : état de publication, panneau
 // de programmation, indicateur d'auto-save + « Réessayer », « Supprimer » (un
 // seul bouton, plus de doublon dans le menu depuis le 16/10/2026) et
-// menu « Publier ▾ » / « Options ». Sorti de CalendarPostDialog.tsx à
+// menu « Publier ce post ▾ » / « Gérer ce post ». Sorti de CalendarPostDialog.tsx à
 // l'identique (fiche 13 de docs/robustesse/gros-fichiers.md, lot 3). Les
 // valeurs calculées (raisons de blocage, publier / programmer) arrivent en
-// props. Les libellés « Publier » / « Options », « Annuler » / « Fermer » ne
-// suivent pas la règle « verbe + objet » : à changer dans une PR à part.
+// props. Libellés « verbe + objet » depuis le 16/10/2026 (« Publier ce post »,
+// « Gérer ce post », « Annuler la programmation », « Fermer sans programmer »).
 import type { NavigateFunction } from "react-router-dom";
 import { Trash2, ChevronDown, Loader2, Check, Send, CalendarClock, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -60,7 +60,7 @@ export function PostActionsFooter({ canSchedule, publishStatus, scheduledAt, han
       {canSchedule && publishStatus === "scheduled" && (
         <div className="flex items-center gap-2 text-2xs">
           <span className="text-foreground">🗓️ Programmé pour le <strong>{scheduledAt ? new Date(scheduledAt).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "?"}</strong></span>
-          <button type="button" onClick={handleCancelSchedule} disabled={savingSchedule} className="ml-auto text-primary hover:underline">Annuler</button>
+          <button type="button" onClick={handleCancelSchedule} disabled={savingSchedule} className="ml-auto text-primary hover:underline">Annuler la programmation</button>
         </div>
       )}
       {canSchedule && publishStatus === "published" && (
@@ -73,7 +73,7 @@ export function PostActionsFooter({ canSchedule, publishStatus, scheduledAt, han
         <p className="text-2xs text-destructive">❌ Échec de la dernière tentative{publishError ? ` : ${publishError}` : ""}.</p>
       )}
 
-      {/* Panneau de programmation, ouvert depuis le menu « Publier » */}
+      {/* Panneau de programmation, ouvert depuis le menu « Publier ce post » */}
       {schedulerOpen && canSchedule && (
         <div className="rounded-[10px] border border-border bg-card/40 p-3 space-y-2">
           <p className="text-xs font-semibold text-foreground">🗓️ Programmer la publication {postCanal === "linkedin" ? "LinkedIn" : "Instagram"}</p>
@@ -87,13 +87,13 @@ export function PostActionsFooter({ canSchedule, publishStatus, scheduledAt, han
           {scheduleNeedsConnection && (
             <div className="rounded-[8px] border border-amber-300/60 bg-amber-50/60 px-2.5 py-2 text-2xs text-amber-900 flex items-center justify-between gap-2 flex-wrap dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-200">
               <span>⚠️ Connecte ton compte {postCanal === "linkedin" ? "LinkedIn" : "Instagram"} pour que la publication parte automatiquement.</span>
-              <button type="button" onClick={() => versConnexions(navigate)} className="font-medium underline shrink-0">Connecter</button>
+              <button type="button" onClick={() => versConnexions(navigate)} className="font-medium underline shrink-0">Connecter mon compte</button>
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
             <input type="datetime-local" value={scheduleInput} onChange={(e) => setScheduleInput(e.target.value)} className="rounded-[8px] border border-border bg-background px-2 py-1.5 text-xs text-foreground" />
-            <Button type="button" size="sm" onClick={handleSchedulePublish} disabled={savingSchedule} className="rounded-pill text-xs bg-primary text-primary-foreground hover:bg-primary/90">{savingSchedule ? "…" : "Programmer"}</Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setSchedulerOpen(false)} className="rounded-pill text-xs">Fermer</Button>
+            <Button type="button" size="sm" onClick={handleSchedulePublish} disabled={savingSchedule} className="rounded-pill text-xs bg-primary text-primary-foreground hover:bg-primary/90">{savingSchedule ? "…" : "Programmer ce post"}</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setSchedulerOpen(false)} className="rounded-pill text-xs">Fermer sans programmer</Button>
           </div>
           {scheduleAfterTokenExpiry && (
             <p className="text-2xs text-amber-900 dark:text-amber-200">
@@ -122,7 +122,7 @@ export function PostActionsFooter({ canSchedule, publishStatus, scheduledAt, han
             : theme.trim() ? "Enregistrement automatique" : "Ajoute un sujet pour commencer"}
         </span>
 
-        {/* Supprimer : visible directement, plus enterré dans le menu « Options »
+        {/* Supprimer : visible directement, plus enterré dans le menu « Gérer ce post »
             (qui est même désactivé tant qu'il n'y a pas de sujet). */}
         {effectiveId && (
           <Button
@@ -145,7 +145,7 @@ export function PostActionsFooter({ canSchedule, publishStatus, scheduledAt, han
             <DropdownMenuTrigger asChild>
               <Button disabled={!theme.trim()} className="rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">
                 {(publishingInstagram || publishingLinkedIn) && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-                {canPublishActions ? "Publier" : "Options"}
+                {canPublishActions ? "Publier ce post" : "Gérer ce post"}
                 <ChevronDown className="h-4 w-4 ml-1" />
               </Button>
             </DropdownMenuTrigger>

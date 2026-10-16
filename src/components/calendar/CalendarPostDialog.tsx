@@ -318,7 +318,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
     </Collapsible>
   );
 
-  // Footer actions : auto-save silencieux + UN bouton « Publier ▾ »
+  // Footer actions : auto-save silencieux + UN bouton « Publier ce post ▾ »
   const publishNowDisabled = publishingInstagram || publishingLinkedIn
     || (postCanal === "instagram" ? !!instagramPublishDisabledReason : postCanal === "linkedin" ? !!linkedInPublishDisabledReason : true);
   const handlePublishNow = () => { if (postCanal === "linkedin") handlePublishLinkedIn(); else handlePublishInstagram(); };
