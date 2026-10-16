@@ -21,6 +21,7 @@ import { CAROUSEL_WRITER_VERSION } from "../writer.ts";
 import { enforceCover, coverKind, coverRewritePrompt } from "../../_shared/carousel-cover.ts";
 import { type AudienceAddress, type AudienceAddressPass, enforceAudienceAddress } from "../../_shared/audience-address.ts";
 import { extractCarouselTexts, reinjectCarouselTexts } from "../../_shared/correction-pass.ts";
+import { progressionMaterial } from "../../_shared/carousel-editorial-snapshot.ts";
 
 // ── Queue commune de génération ──
 // ── Fil du carrousel (16/09/2026) ──
@@ -376,6 +377,7 @@ export async function finalizeCarousel(
   ];
   // COUVERTURE (04/10/2026) : accroche de 10 mots max + sous-titre facultatif,
   // rien d'autre ; seule la slide 1 est touchée (cf. _shared/carousel-cover.ts).
+  const beforeTouches = progressionMaterial(doc);
   const coverSink: UsageSink = {};
   const cover = photosOnly ? { doc, receipt: null } : await lap("thread_cover_ms", () => enforceCover(doc, {
     kind: coverKind(body.carousel_type),
@@ -402,7 +404,26 @@ export async function finalizeCarousel(
   const finalDoc = !ownsText && ctx.audienceAddress
     ? await lap("thread_address_ms", () => enforceCarouselAudienceAddress(cover.doc, ctx.audienceAddress!, remaining() < 15_000 ? 0 : Math.min(20_000, remaining() - 5_000)))
     : cover.doc;
-  return JSON.stringify(finalDoc);
+  return JSON.stringify(await rebindReceiptsAfterFinalTouches(beforeTouches, finalDoc));
+}
+
+/**
+ * Couverture et tu/vous retouchent le texte APRÈS la relecture du fil. Un reçu
+ * à jour avant ces retouches le reste (comme après les schémas) : sinon l'appli
+ * affichait « Tu as modifié le texte » sur un carrousel jamais touché, et les
+ * pistes du relecteur (chiffre sans source…) disparaissaient (passe du 16/10/2026).
+ */
+export async function rebindReceiptsAfterFinalTouches(before: string, doc: any): Promise<any> {
+  const after = progressionMaterial(doc);
+  if (after === before) return doc;
+  const out = { ...doc };
+  if (doc.progression_review?.reviewed_material === before) {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(after));
+    const hash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+    out.progression_review = { ...doc.progression_review, reviewed_material: after, reviewed_text_hash: hash, touched_after_review: true };
+  }
+  if (doc.photo_review?.reviewed_material === before) out.photo_review = { ...doc.photo_review, reviewed_material: after };
+  return out;
 }
 
 /** Contrôle tu/vous du carrousel final (textes balisés, légende comprise). `budgetMs` 0 = mesure seule. */
