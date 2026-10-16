@@ -109,6 +109,9 @@ export default function ResultActions(p: ResultActionsProps) {
   const getPrimary = !p.createVisualsPending && !publishPrimary;
   // Stories : la fenêtre ne propose que le calendrier (publication directe désactivée).
   const publishLabel = p.publishOrScheduleLabel || (format === "newsletter" || isStory || p.canAutoPublish === false ? "Mettre dans mon calendrier" : "Publier ou mettre au calendrier");
+  // Bouton secondaire (3 par ligne, colonne étroite des stories) : « Mettre dans mon
+  // calendrier » était coupé en « Mettre dans mon calen… » (passe du 16/10/2026).
+  const publishShort = ({ "Mettre dans mon calendrier": "Mettre au calendrier", "Sauvegarder dans le calendrier": "Garder au calendrier" } as Record<string, string>)[publishLabel] || publishLabel;
 
   const publishButton = p.onPublishOrSchedule && (
     <Button
@@ -120,7 +123,7 @@ export default function ResultActions(p: ResultActionsProps) {
       <Send className="h-4 w-4 shrink-0" />
       {publishPrimary ? publishLabel : (
         // Téléphone : 3 boutons sur une ligne, libellé court.
-        <span className="truncate"><span className="hidden sm:inline">{publishLabel}</span><span className="sm:hidden">Planifier</span></span>
+        <span className="truncate" title={publishLabel}><span className="hidden sm:inline">{publishShort}</span><span className="sm:hidden">Planifier</span></span>
       )}
     </Button>
   );

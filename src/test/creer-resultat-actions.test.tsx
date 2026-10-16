@@ -77,6 +77,13 @@ describe("écran du résultat : barre d'actions courte", () => {
     expect(screen.getByTestId("copy-text")).toHaveTextContent("Copier mon texte");
   });
 
+  it("bouton calendrier secondaire : libellé court qui tient sur la ligne (passe du 16/10/2026)", () => {
+    renderResult("newsletter", { subject: "Objet", body: "Corps" });
+    const btn = screen.getByTestId("publish-or-schedule");
+    expect(btn).toHaveTextContent("Mettre au calendrier");
+    expect(btn).not.toHaveTextContent("Mettre dans mon calendrier");
+  });
+
   it("carrousel enregistré tout seul : on le dit, pas de bouton d'enregistrement", () => {
     renderResult("carousel", { slides: [{ title: "a" }] }, { autoSavedToIdeas: true });
     expect(screen.getByTestId("auto-saved-to-ideas")).toHaveTextContent(/Enregistré dans .*Mes idées/);
