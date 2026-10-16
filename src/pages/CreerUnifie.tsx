@@ -1514,7 +1514,7 @@ function CreerWorkspace() {
 
 
 
-      <div className={`${step === "idea" || (step === "result" && selectedFormat === "carousel") ? "max-w-6xl" : step === "format" ? "max-w-3xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-24 [--primary:330_55%_20%] [--ring:330_55%_20%] dark:[--primary:338_96%_61%] dark:[--ring:338_96%_61%]`}>
+      <div className={`${step === "idea" || (step === "result" && selectedFormat === "carousel") ? "max-w-6xl" : step === "format" ? "max-w-3xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 ${step === "result" ? "pt-3 sm:pt-4" : "py-6 sm:py-10"} pb-24 [--primary:330_55%_20%] [--ring:330_55%_20%] dark:[--primary:338_96%_61%] dark:[--ring:338_96%_61%]`}>
         {/* Sub-page header */}
         {paramFrom && (
           <SubPageHeader
