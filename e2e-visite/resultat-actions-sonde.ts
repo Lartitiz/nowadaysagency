@@ -4,7 +4,10 @@
  * Appelée À LA FIN des contenus figés (post, story, carrousel texte), déjà rejoués
  * chaque matin sans crédit. Elle n'échoue jamais : elle écrit une ligne lue par
  * la visite du matin (consigne 7duodecies) :
- *   🎛️ Écran du résultat (post) : 3 actions + menu · bouton principal visible ordi ✅ téléphone ✅
+ *   🎛️ Écran du résultat (post) : 3 actions + menu · bouton principal visible ordi ✅ téléphone ✅ · libellés coupés 0
+ *
+ * Libellés coupés (passe complète du 16/10/2026, #1709) : « Mettre dans mon
+ * calen… » sous les stories. Un texte de bouton plus large que sa place = coupé.
  *
  * Pourquoi : avant le 15/10, l'écran du résultat avait 3 boutons, un menu de 6 à
  * 8 entrées, 2 boutons en bas, et le bouton principal était caché sous 2 à 9
@@ -23,6 +26,7 @@ export async function sondeResultatActions(page: Page, label: string) {
     const avant = page.viewportSize();
     let actions = -1;
     const visible: string[] = [];
+    const coupes: string[] = [];
     for (const vp of VIEWPORTS) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.waitForTimeout(800);
@@ -36,7 +40,10 @@ export async function sondeResultatActions(page: Page, label: string) {
         );
         const first = shown[0] as HTMLElement | undefined;
         const box = first?.getBoundingClientRect();
-        return { n: shown.length, ok: !!box && box.top >= 0 && box.bottom <= window.innerHeight };
+        const coupes = shown
+          .filter((b) => [b, ...b.querySelectorAll("span")].some((e) => (e as HTMLElement).offsetParent && e.scrollWidth > e.clientWidth + 1))
+          .map((b) => (b as HTMLElement).innerText.trim().slice(0, 30));
+        return { n: shown.length, ok: !!box && box.top >= 0 && box.bottom <= window.innerHeight, coupes };
       });
       if (!r) {
         console.log(`🎛️ Écran du résultat (${label}) : non vérifié (barre d'actions introuvable)`);
@@ -45,10 +52,11 @@ export async function sondeResultatActions(page: Page, label: string) {
       }
       if (vp.nom === "ordi") actions = r.n;
       visible.push(`${vp.nom} ${r.ok ? "✅" : "❌"}`);
+      for (const c of r.coupes) coupes.push(`${vp.nom} « ${c} »`);
     }
     if (avant) await page.setViewportSize(avant);
-    const alerte = actions > 3 || visible.some((v) => v.includes("❌")) ? " 🟠" : "";
-    console.log(`🎛️ Écran du résultat (${label}) : ${actions} actions + menu · bouton principal visible ${visible.join(" ")}${alerte}`);
+    const alerte = actions > 3 || visible.some((v) => v.includes("❌")) || coupes.length ? " 🟠" : "";
+    console.log(`🎛️ Écran du résultat (${label}) : ${actions} actions + menu · bouton principal visible ${visible.join(" ")} · libellés coupés ${coupes.length}${coupes.length ? ` (${coupes.join(", ")})` : ""}${alerte}`);
   } catch (e) {
     console.log(`🎛️ Écran du résultat (${label}) : non vérifié (${e instanceof Error ? e.message.slice(0, 80) : "?"})`);
   }

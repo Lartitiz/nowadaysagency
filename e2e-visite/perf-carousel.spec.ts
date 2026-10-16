@@ -210,6 +210,15 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   await page.waitForTimeout(1500); // fin du fondu d'entrée de l'éditeur
   await page.screenshot({ path: "e2e-visite/shots/perf-carousel-final.png", fullPage: false });
 
+  // 🧾 Relecture du fil (passe complète du 16/10/2026, #1704) : sur un carrousel
+  // que personne n'a touché, « Tu as modifié le texte » est faux et cache les
+  // vraies pistes du relecteur (chiffre sans source…). Ligne lue par la visite.
+  await page.waitForTimeout(2000);
+  const fauxRetouche = await page.getByText(/Tu as modifié le texte|Le texte a changé depuis sa relecture/).count();
+  console.log(fauxRetouche
+    ? "🧾 Relecture du fil : « Tu as modifié le texte » affiché sur un carrousel jamais touché 🔴"
+    : "🧾 Relecture du fil : pas de faux « texte modifié » ✅");
+
   // ── Récap ──
   console.log("\n═══ RÉCAP DES APPELS EDGE (headers) ═══");
   for (const t of timings) {
