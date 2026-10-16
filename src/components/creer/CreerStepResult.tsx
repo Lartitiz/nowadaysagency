@@ -247,7 +247,6 @@ interface Props {
   /** Progression réelle des visuels (lots de slides terminés, SSE). null = barre simulée. */
   visualChunkProgress?: { done: number; total: number } | null;
   visualSlides?: { slide_number: number; html: string }[];
-  onVisualSlidesUpdate?: (slides: { slide_number: number; html: string }[]) => void;
   onCarouselDocumentChange?: (raw: any, slides: { slide_number: number; html: string }[]) => void;
   onOpenCarouselStudio?: (slideId: string) => void;
   carouselCloudTools?: ReactNode;
@@ -324,7 +323,6 @@ export default function CreerStepResult({
   visualsAutoError,
   visualChunkProgress,
   visualSlides,
-  onVisualSlidesUpdate,
   onCarouselDocumentChange,
   onOpenCarouselStudio,
   carouselCloudTools,
@@ -571,7 +569,7 @@ export default function CreerStepResult({
 
     switch (format) {
       case "carousel":
-        return <CarouselResult result={result} visualSlides={visualSlides} onSlidesUpdate={onSlidesUpdate} onVisualSlidesUpdate={onVisualSlidesUpdate} onStaleChange={onCarouselStaleChange} />;
+        return <CarouselResult result={result} onSlidesUpdate={onSlidesUpdate} onStaleChange={onCarouselStaleChange} />;
       case "reel":
         return <ReelResult initialMp4Url={reelMp4Url} result={result} workspaceId={reelWorkspaceId} onStepChange={setReelStep} onMp4Change={onReelMp4Change} onResultChange={onReelResultChange} />;
       case "story":

@@ -1832,7 +1832,6 @@ function CreerWorkspace() {
                 visualsAutoError={visualsAutoError}
                 visualChunkProgress={visualChunkProgress}
                 visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
-                onVisualSlidesUpdate={setVisualSlides}
                 onCarouselDocumentChange={(raw, visuals) => {
                   // Le reçu de sauvegarde reste celui du carrousel courant (jamais
                   // la copie de l'éditeur) : sinon « Une version plus récente existe ».
