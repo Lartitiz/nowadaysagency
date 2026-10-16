@@ -118,6 +118,19 @@ describe('calendrier → /creer (rendu réel)', () => {
     expect(urlParams().get('canal')).toBe('linkedin');
   });
 
+  it('CalendarPostDialog › handleNavigateToGenerator (lancement) : notes, accroche et contexte de lancement transmis au générateur (16/10/2026)', async () => {
+    mount({
+      pathname: '/creer',
+      search: '?format=reel&calendar_id=cal-6&sujet=Teaser&from=%2Fcalendrier',
+      state: { fromCalendar: true, calendarPostId: 'cal-6', theme: 'Teaser', objectif: '', angle: '', format: 'reel', notes: 'Montrer l’atelier', postDate: '2026-11-09', existingContent: 'Brouillon', existingAccroche: 'Tu ne devineras jamais',
+        launchId: 'L1', contentType: 'teasing', launchContext: { launchId: 'L1', contentType: 'teasing', chapter: 1, chapterLabel: 'Avant-première', audiencePhase: 'tiède' } },
+    });
+    await waitFor(() => expect(mocks.formatNext).toHaveBeenCalledTimes(1));
+    expect(mocks.formatNext).toHaveBeenCalledWith('reel', undefined, { overrideSubject:
+      'Teaser\n\n[Contenu existant à approfondir]\nBrouillon\n\n[Repères du calendrier]\nAccroche déjà écrite : Tu ne devineras jamais\nNotes : Montrer l’atelier\n'
+      + 'Contenu d\'un lancement : type de contenu « teasing », chapitre « Avant-première », phase d\'audience « tiède »' });
+  });
+
   it('CalendarPostDialog › handleOpenAtelier avec resumeIdea : ouvre le contenu enregistré sans le régénérer et garde le retour au même post', async () => {
     const raw = { content: 'Texte enregistré dans le calendrier', caption: 'Légende' };
     mount({
