@@ -79,6 +79,14 @@ describe("contrat calendrier → /creer", () => {
     });
   }
 
+  it("handleQuickGenerate n'envoie plus postId, doublon mort de calendarPostId", () => {
+    // /creer n'a jamais lu locState.postId : l'identifiant du post arrive par
+    // calendarPostId (state) et calendar_id (URL). Une clé morte laisse croire
+    // qu'elle sert : si elle revient, la faire lire par /creer ou la retirer.
+    expect(litState("postId")).toBe(false);
+    expect(envoie(corps(calendar, "handleQuickGenerate"), "postId")).toBe(false);
+  });
+
   it("le retour vers le calendrier part bien de calendarPostId", () => {
     // fromCalendar = !!calendarPostId : sans cet identifiant, « Sauvegarder
     // dans le calendrier » crée un nouveau post au lieu de remplir l'ancien.

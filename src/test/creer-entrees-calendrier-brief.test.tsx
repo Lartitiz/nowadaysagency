@@ -79,7 +79,7 @@ describe('calendrier → /creer (rendu réel)', () => {
     mount({
       pathname: '/creer',
       search: '?format=reel&calendar_id=cal-1&sujet=Mon+sujet&objectif=visibilite&from=%2Fcalendrier',
-      state: { fromCalendar: true, postId: 'cal-1', calendarPostId: 'cal-1', theme: 'Mon sujet', objectif: 'visibilite', angle: '', format: 'reel', notes: '', postDate: '2026-11-03', existingContent: 'Brouillon du calendrier', canal: 'instagram' },
+      state: { fromCalendar: true, calendarPostId: 'cal-1', theme: 'Mon sujet', objectif: 'visibilite', angle: '', format: 'reel', notes: '', postDate: '2026-11-03', existingContent: 'Brouillon du calendrier', canal: 'instagram' },
     });
     await waitFor(() => expect(mocks.formatNext).toHaveBeenCalledTimes(1));
     expect(mocks.formatNext).toHaveBeenCalledWith('reel', undefined, { overrideSubject: 'Mon sujet\n\n[Contenu existant à approfondir]\nBrouillon du calendrier' });

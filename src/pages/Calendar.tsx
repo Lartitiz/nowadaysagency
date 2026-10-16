@@ -675,7 +675,6 @@ function CalendarInWorkspace() {
       const sep = route.includes("?") ? "&" : "?";
       navigate(`${route}${sep}${params.toString()}`, { state: {
         fromCalendar: true,
-        postId: post.id,
         calendarPostId: post.id,
         theme: post.theme,
         objectif: post.objectif || post.category || "",
