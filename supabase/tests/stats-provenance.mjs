@@ -49,6 +49,18 @@ try {
  await identity(owner,'service_role');row=await save(row,{ga4_users:2},'ga4',A,obs,owner);assert.equal(row.ga4_users,2);pass('cron uses same guarded contract');
  await identity(owner);await assert.rejects(()=>save(null,{ga4_users:0},'ga4',null));pass('legacy uniqueness conflict preserves unrelated scope without reassignment');
  await db.exec("RESET ROLE;INSERT INTO social_connections(user_id,workspace_id,platform,platform_account_id) VALUES ('"+manager+"',NULL,'google','123')");await identity(manager);const personal=await save(null,{ga4_users:0},'ga4',null);assert.equal(personal.workspace_id,null);assert.equal(personal.user_id,manager);await assert.rejects(()=>save(null,{ga4_users:5},'ga4',null));pass('personal scope and repeated first insert safe');
+ await db.exec('RESET ROLE');await db.exec(readFile('../migrations/20261016200000_stats_instagram_source.sql'));await identity(owner);
+ // Source « instagram » (16/10/2026) : seuls les compteurs vides sont remplis, sous le verrou.
+ row=await read();assert.equal(row.reach,50);
+ row=await save(null,{reach:900,views:300,followers:1500,custom_data:{ig_audience:{age:[1]}}},'instagram',A,null);
+ assert.equal(row.reach,50);assert.equal(row.views,300);assert.equal(row.followers,1500);
+ assert.deepEqual(row.custom_data,{instagram:'keep',linkedin:'keep',ig_audience:{age:[1]}});pass('instagram fills only empty counters, keeps manual reach and other custom_data');
+ await db.exec('RESET ROLE;UPDATE monthly_stats SET views=7 WHERE workspace_id=\''+A+'\'');await identity(owner);
+ row=await save({stale:true},{views:999,interactions:12},'instagram',A,null);assert.equal(row.views,7);assert.equal(row.interactions,12);pass('value typed in another tab after the page loaded is never overwritten');
+ const same=await save(null,{views:1,interactions:2},'instagram',A,null);assert.equal(same.views,7);assert.equal(same.interactions,12);pass('nothing left to fill: no write, current row returned');
+ for(const patch of [{reach:-1},{reach:'9'},{ga4_users:5},{custom_data:{li_stats:{}}},{custom_data:'x'}])await assert.rejects(()=>save(null,patch,'instagram',A,null));pass('instagram refuses foreign fields, negative or text metrics');
+ await identity(viewer);await assert.rejects(()=>save(null,{reach:1},'instagram',A,null));await identity(owner);pass('instagram source keeps workspace write checks');
+ assert.equal((await save(row,{ga4_users:4},'ga4',A,obs)).ga4_users,4);await assert.rejects(()=>save({stale:true},{ga4_users:5},'manual',A,null));pass('other sources unchanged: stale snapshot still refused');
  await db.exec('RESET ROLE;CREATE FUNCTION refuse_fixture() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NULL;END $$;CREATE TRIGGER fixture_skip BEFORE UPDATE ON monthly_stats FOR EACH ROW EXECUTE FUNCTION refuse_fixture();');await identity(owner);
  await assert.rejects(async()=>save(await read(),{ga4_users:100}));pass('zero-row write is not success');
  await identity(owner,'anon');await assert.rejects(()=>save(row,{ga4_users:3}));pass('anon execute denied');

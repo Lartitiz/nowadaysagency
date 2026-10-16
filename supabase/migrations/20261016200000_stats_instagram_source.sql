@@ -1,0 +1,91 @@
+-- Récupération automatique des stats Instagram par le contrat d'enregistrement
+-- partagé (16/10/2026). Nouvelle source « instagram » : seuls les compteurs
+-- encore vides sont remplis, sous le verrou du relevé ; un chiffre saisi à la
+-- main (même dans un autre onglet) n'est jamais écrasé. custom_data : seuls les
+-- encarts ig_audience / ig_top_posts sont fusionnés, le reste est gardé.
+-- Sources manual / import / ga4 : comportement inchangé.
+CREATE OR REPLACE FUNCTION public.save_monthly_stats(
+  p_workspace_id uuid, p_month date, p_expected jsonb, p_patch jsonb,
+  p_source text, p_observation jsonb DEFAULT NULL, p_user_id uuid DEFAULT NULL
+) RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path=public,pg_temp AS $$
+DECLARE actor uuid := auth.uid(); role_name text; rows_now jsonb; old_row jsonb;
+  provenance jsonb; result_row jsonb; k text; cols text; vals text; assigns text; affected int;
+  ga4_fields text[] := ARRAY['website_visitors','ga4_users','traffic_search','traffic_social','traffic_pinterest','traffic_instagram'];
+  property text; connection_property text;
+  ig_fields text[] := ARRAY['followers','reach','views','interactions','accounts_engaged','profile_visits','followers_gained','posts_count'];
+BEGIN
+  IF current_user='service_role' THEN actor:=p_user_id;
+  ELSIF p_user_id IS NOT NULL AND p_user_id IS DISTINCT FROM actor THEN RAISE EXCEPTION 'Actor mismatch' USING ERRCODE='42501'; END IF;
+  IF actor IS NULL THEN RAISE EXCEPTION 'Authentication required' USING ERRCODE='42501'; END IF;
+  IF p_workspace_id IS NOT NULL THEN
+    SELECT role INTO role_name FROM public.workspace_members WHERE workspace_id=p_workspace_id AND user_id=actor;
+    IF role_name IS NULL OR role_name NOT IN ('owner','manager','editor') THEN RAISE EXCEPTION 'Workspace write denied' USING ERRCODE='42501'; END IF;
+  END IF;
+  IF p_month IS NULL OR extract(day FROM p_month)<>1 OR p_source IS NULL OR p_source NOT IN ('manual','import','ga4','instagram') OR
+     p_patch IS NULL OR jsonb_typeof(p_patch)<>'object' OR p_patch='{}'::jsonb THEN RAISE EXCEPTION 'Invalid stats patch'; END IF;
+  IF EXISTS(SELECT 1 FROM jsonb_object_keys(p_patch) key WHERE key IN ('id','user_id','workspace_id','month_date','created_at','updated_at','metric_provenance') OR
+    NOT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='monthly_stats' AND column_name=key)) THEN RAISE EXCEPTION 'Unsupported stats field'; END IF;
+  IF p_source='ga4' THEN
+    property:=p_observation->>'propertyId';
+    IF property IS NULL OR property !~ '^[0-9]+$' OR p_observation->>'startDate' IS DISTINCT FROM p_month::text OR
+       (p_observation->>'endDate')::date < p_month OR (p_observation->>'endDate')::date >= (p_month+interval '1 month')::date OR
+       p_observation->>'endDate' IS NULL OR p_observation->>'fetchedAt' IS NULL OR p_observation->>'timeZone' IS NULL OR
+       p_observation->>'periodState' IS NULL OR p_observation->>'periodState' NOT IN ('partial','complete') OR
+       p_observation->>'reportState' IS NULL OR p_observation->>'reportState' NOT IN ('partial','complete') THEN RAISE EXCEPTION 'Invalid GA4 observation'; END IF;
+    -- Locks the connection against a simultaneous property change/disconnect.
+    SELECT platform_account_id INTO connection_property FROM public.social_connections
+      WHERE platform='google' AND user_id=actor AND workspace_id IS NOT DISTINCT FROM p_workspace_id FOR SHARE;
+    IF NOT FOUND OR (connection_property IS NOT NULL AND connection_property<>'' AND connection_property IS DISTINCT FROM property) THEN
+      RAISE EXCEPTION 'La propriété Google a changé. Relance la récupération.' USING ERRCODE='40001';
+    END IF;
+    IF EXISTS(SELECT 1 FROM jsonb_each(p_patch) e WHERE NOT e.key=ANY(ga4_fields) OR jsonb_typeof(e.value)<>'number' OR
+      e.value::text !~ '^[0-9]+$') THEN RAISE EXCEPTION 'Invalid GA4 metric'; END IF;
+  END IF;
+  IF p_source='instagram' THEN
+    -- Récupération automatique Instagram : seulement ses 8 compteurs (entiers >= 0)
+    -- et ses deux encarts de custom_data (audience, top/flop).
+    IF EXISTS(SELECT 1 FROM jsonb_each(p_patch) e WHERE NOT (e.key=ANY(ig_fields) OR e.key='custom_data') OR
+      (e.key=ANY(ig_fields) AND (jsonb_typeof(e.value)<>'number' OR e.value::text !~ '^[0-9]+$')) OR
+      (e.key='custom_data' AND (jsonb_typeof(e.value)<>'object' OR EXISTS(SELECT 1 FROM jsonb_object_keys(e.value) c WHERE c NOT IN ('ig_audience','ig_top_posts'))))) THEN
+      RAISE EXCEPTION 'Invalid Instagram metric';
+    END IF;
+  END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended('monthly_stats:'||coalesce(p_workspace_id,actor)::text||':'||p_month::text,0));
+  SELECT coalesce(jsonb_agg(to_jsonb(t)),'[]'::jsonb) INTO rows_now FROM
+    (SELECT * FROM public.monthly_stats WHERE month_date=p_month AND
+      ((p_workspace_id IS NOT NULL AND workspace_id=p_workspace_id) OR (p_workspace_id IS NULL AND workspace_id IS NULL AND user_id=actor)) FOR UPDATE) t;
+  IF jsonb_array_length(rows_now)>1 THEN RAISE EXCEPTION 'Plusieurs relevés existent pour ce mois. Aucun écrasement.'; END IF;
+  old_row:=rows_now->0;
+  IF p_source='instagram' THEN
+    -- La saisie à la main prime (16/10/2026) : un compteur déjà rempli n'est jamais
+    -- remplacé, quel que soit l'onglet qui l'a rempli. La fusion se fait ici, sous
+    -- le verrou : pas de comparaison au relevé attendu, rien ne peut être écrasé.
+    p_patch:=(SELECT coalesce(jsonb_object_agg(e.key,CASE WHEN e.key='custom_data'
+        THEN coalesce(old_row->'custom_data','{}'::jsonb)||e.value ELSE e.value END),'{}'::jsonb)
+      FROM jsonb_each(p_patch) e
+      WHERE e.key='custom_data' OR old_row IS NULL OR jsonb_typeof(old_row->e.key) IS NULL OR jsonb_typeof(old_row->e.key)='null');
+    IF p_patch='{}'::jsonb THEN RETURN old_row; END IF;
+  ELSIF old_row IS DISTINCT FROM p_expected THEN RAISE EXCEPTION 'Les statistiques ont changé. Recharge le relevé avant de réessayer.' USING ERRCODE='40001'; END IF;
+  provenance:=coalesce(old_row->'metric_provenance','{}'::jsonb);
+  FOR k IN SELECT jsonb_object_keys(p_patch) LOOP
+    IF k=ANY(ga4_fields) THEN
+      provenance:=jsonb_set(provenance,ARRAY[k],CASE WHEN p_source='ga4' THEN
+        p_observation||jsonb_build_object('source','ga4','value',p_patch->k,'unit',CASE WHEN k IN ('website_visitors','ga4_users') THEN 'users' ELSE 'sessions' END)
+        ELSE jsonb_build_object('source',p_source,'at',now()) END);
+    END IF;
+  END LOOP;
+  SELECT string_agg(format('%I',key),','),string_agg(format('(jsonb_populate_record(NULL::public.monthly_stats,$1)).%I',key),','),
+    string_agg(format('%I=(jsonb_populate_record(NULL::public.monthly_stats,$1)).%I',key,key),',') INTO cols,vals,assigns FROM jsonb_object_keys(p_patch) key;
+  IF old_row IS NULL THEN
+    EXECUTE format('INSERT INTO public.monthly_stats(user_id,workspace_id,month_date,metric_provenance,%s) SELECT $2,$3,$4,$5,%s RETURNING to_jsonb(monthly_stats)',cols,vals)
+      INTO result_row USING p_patch,actor,p_workspace_id,p_month,provenance;
+  ELSE
+    EXECUTE format('UPDATE public.monthly_stats SET %s,metric_provenance=$2,updated_at=clock_timestamp() WHERE id=$3 RETURNING to_jsonb(monthly_stats)',assigns)
+      INTO result_row USING p_patch,provenance,(old_row->>'id')::uuid;
+  END IF;
+  GET DIAGNOSTICS affected=ROW_COUNT;
+  IF affected<>1 OR result_row IS NULL THEN RAISE EXCEPTION 'Aucune statistique enregistrée'; END IF;
+  RETURN result_row;
+END $$;
+REVOKE ALL ON FUNCTION public.save_monthly_stats(uuid,date,jsonb,jsonb,text,jsonb,uuid) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.save_monthly_stats(uuid,date,jsonb,jsonb,text,jsonb,uuid) TO authenticated,service_role;

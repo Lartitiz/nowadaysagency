@@ -36,6 +36,19 @@ const labelOf = (column: string) => INSTAGRAM_FIELDS.find(([c]) => c === column)
  * `filled` : libellés des champs complétés ; `kept` : libellés des champs
  * déjà remplis (à la main ou avant) que la récupération n'a pas touchés.
  */
+/**
+ * Compte rendu après l'enregistrement par save_monthly_stats (source
+ * « instagram ») : la base ne remplit que les compteurs vides. Un compteur
+ * envoyé dont la valeur enregistrée diffère est resté tel quel (déjà rempli).
+ */
+export function instagramSaveReport(sent: Record<string, unknown>, saved: Record<string, unknown> | null | undefined) {
+  const columns = Object.keys(sent).filter((c) => INSTAGRAM_FIELDS.some(([f]) => f === c));
+  return {
+    filled: columns.filter((c) => saved?.[c] === sent[c]).map(labelOf),
+    kept: columns.filter((c) => saved?.[c] !== sent[c]).map(labelOf),
+  };
+}
+
 export function instagramMonthPatch(m: Record<string, unknown> | null | undefined, existing: Row) {
   const fetched: Record<string, number> = {};
   for (const [column, key] of INSTAGRAM_FIELDS) {

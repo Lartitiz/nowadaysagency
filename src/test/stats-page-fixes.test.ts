@@ -154,6 +154,7 @@ function liveScope(answer: { data: unknown; error: unknown }) {
     supabase: { from: () => ({ update, insert }), functions: { invoke } },
     setFetchingLive: vi.fn(), setFetchingLiStats: vi.fn(), setBackfilling: vi.fn(), setAudience: vi.fn(),
     setLivePosts: vi.fn(), setLiStats: vi.fn(), setSelectedMonth: vi.fn(),
+    saveStatsPatch: vi.fn(async (..._args: unknown[]) => ({ id: 'row' })),
   };
 }
 
@@ -181,6 +182,13 @@ it('connexion à renouveler (409) : « Reconnexion requise », lu dans la répon
     error: { code: 'SERVER_ERROR', message: 'Reconnecte ton compte Instagram…' } });
   await run(declared('fetchFromInstagram'), scope)();
   expect(scope.toast.error).toHaveBeenCalledWith('Reconnexion requise', expect.anything());
+});
+
+it('backfillHistory enregistre par save_monthly_stats, source « instagram » (la base ne remplit que les cases vides)', async () => {
+  const scope = liveScope({ data: { monthMetrics: { reach: 50, views: 9 } }, error: null });
+  await run(declared('backfillHistory'), scope)();
+  expect(scope.saveStatsPatch).toHaveBeenCalledTimes(12);
+  expect(scope.saveStatsPatch).toHaveBeenCalledWith('ws-1', '2026-09-01', null, { reach: 50, views: 9 }, 'instagram');
 });
 
 /* ── 5. « Ce qui marche pour toi » : user_id de la ligne gardé, comme les 3 autres écritures ── */

@@ -26,7 +26,7 @@ import StatsCharts from "@/components/stats/StatsCharts";
 import Ga4SyncPanel from "@/components/stats/Ga4SyncPanel";
 import { saveStatsPatch } from "@/lib/stats-persistence";
 import { statsPatch, GA4_FIELDS } from "@/lib/ga4-stats";
-import { instagramMonthPatch } from "@/features/stats/merge-fetched-stats";
+import { instagramMonthPatch, instagramSaveReport } from "@/features/stats/merge-fetched-stats";
 import StatsForm from "@/components/stats/StatsForm";
 
 import { SkeletonCard } from "@/components/ui/skeleton-card";
@@ -423,13 +423,12 @@ function InstagramStatsScope() {
           : null,
       );
       const target = currentMonthDate;
-      const existing = allStats.find(s => s.month_date === target) || {};
-      // La saisie à la main prime : seuls les champs encore vides du mois sont remplis.
-      const { patch, filled, kept } = instagramMonthPatch(m, existing);
-      // Persiste les snapshots du mois dans custom_data (JSONB) : audience ET
-      // top/flop, pour que les encarts survivent au rechargement et que la
-      // tendance d'audience se construise. Non bloquant : pas dans `filled`.
-      const customData: any = { ...((existing as any).custom_data || {}) };
+      // La saisie à la main prime : la base (save_monthly_stats, source « instagram »)
+      // ne remplit que les compteurs encore vides, même saisis dans un autre onglet.
+      const { patch } = instagramMonthPatch(m, null);
+      // Snapshots du mois dans custom_data (fusionnés par la base, le reste est gardé) :
+      // audience ET top/flop, pour que les encarts survivent au rechargement.
+      const customData: any = {};
       const aud = m.audience;
       if (aud && (aud.age?.length || aud.gender?.length || aud.cities?.length || aud.countries?.length)) {
         customData.ig_audience = { ...aud, fetchedAt: m.fetchedAt || new Date().toISOString() };
@@ -441,24 +440,15 @@ function InstagramStatsScope() {
           fetchedAt: m.fetchedAt || new Date().toISOString(),
         };
       }
-      if (Object.keys(customData).length) patch.custom_data = customData;
-      if (!filled.length && !kept.length) {
+      if (!Object.keys(patch).length) {
         toast("Aucune métrique exploitable", { description: "L'API n'a renvoyé aucun chiffre fiable cette fois. Réessaie un peu plus tard." });
         return;
       }
-      const payload: any = {
-        ...patch, user_id: existing.user_id || user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        month_date: target, updated_at: new Date().toISOString(),
-      };
-      delete payload.id; delete payload.created_at;
-      if ((existing as any).id) {
-        const { error: upErr } = await supabase.from("monthly_stats" as any).update(payload).eq("id", (existing as any).id);
-        if (upErr) { toast.error("Erreur d'enregistrement des stats récupérées"); return; }
-      } else {
-        const { error: insErr } = await supabase.from("monthly_stats" as any).insert(payload);
-        if (insErr) { toast.error("Erreur d'enregistrement des stats récupérées"); return; }
-      }
+      if (Object.keys(customData).length) patch.custom_data = customData;
+      let saved: Record<string, unknown>;
+      try { saved = await saveStatsPatch(workspaceId !== user.id ? workspaceId : null, target, null, patch as any, "instagram"); }
+      catch { toast.error("Erreur d'enregistrement des stats récupérées"); return; }
+      const { filled, kept } = instagramSaveReport(patch, saved);
       setSelectedMonth(target);
       await loadStats();
       toast.success(`✅ Stats Instagram récupérées — ${monthLabel(target)}`, {
@@ -570,16 +560,9 @@ function InstagramStatsScope() {
         setIfEmpty("followers_gained", m.followersGained);
         setIfEmpty("posts_count", m.postsCount);
         if (!Object.keys(patch).length) { empty++; continue; }
-        const payload: any = {
-          ...patch, user_id: existing?.user_id || user.id,
-          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-          month_date: month, updated_at: new Date().toISOString(),
-        };
-        delete payload.id; delete payload.created_at;
-        const { error: writeErr } = (existing as any)?.id
-          ? await supabase.from("monthly_stats" as any).update(payload).eq("id", (existing as any).id)
-          : await supabase.from("monthly_stats" as any).insert(payload);
-        if (writeErr) { empty++; continue; }
+        // Même porte que « Remplir depuis Instagram » : la base ne remplit que les cases vides.
+        try { await saveStatsPatch(workspaceId !== user.id ? workspaceId : null, month, null, patch, "instagram"); }
+        catch { empty++; continue; }
         filled++;
       }
       await loadStats();

@@ -7,7 +7,7 @@ export async function readStatsMonth(userId: string, workspaceId: string | null,
   if(error) throw error;
   return data;
 }
-export async function saveStatsPatch(workspaceId: string | null, month: string, expected: StatsRecord | null, patch: StatsRecord, source: 'manual'|'import'|'ga4', report?: Ga4Report): Promise<StatsRecord> {
+export async function saveStatsPatch(workspaceId: string | null, month: string, expected: StatsRecord | null, patch: StatsRecord, source: 'manual'|'import'|'ga4'|'instagram', report?: Ga4Report): Promise<StatsRecord> {
   const {data,error} = await (supabase.rpc as any)('save_monthly_stats',{
     p_workspace_id: workspaceId, p_month: month, p_expected: expected, p_patch: patch, p_source: source,
     p_observation: report ? {...report.observation,propertyId:report.propertyId} : null,
