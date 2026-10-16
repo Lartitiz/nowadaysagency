@@ -15,11 +15,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react";
+import { useIsDemoMode } from "@/contexts/DemoContext";
 
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import LinkedInCaptionEditor from "@/components/linkedin/LinkedInCaptionEditor";
-import { AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon, ImagePlus, Palette, RotateCcw, Trash2, Plus, Search, Type, Sparkles, Newspaper } from "lucide-react";
+import { ChevronDown, AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon, ImagePlus, Palette, RotateCcw, Trash2, Plus, Search, Type, Sparkles, Newspaper } from "lucide-react";
 import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
 import NewsPhotoPickerDialog from "@/components/creer/NewsPhotoPickerDialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
@@ -167,6 +167,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
   const [genState, setGenState] = useState<SlideGenState>({});
   const navigate = useNavigate();
   const castingWorkspaceId = useWorkspaceId();
+  const isDemoMode = useIsDemoMode(); // démo : aucun appel IA (« Générer l'image » ne part pas au serveur)
   // Confirmation de suppression : index de la slide à supprimer (null = fermé).
   const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
 
@@ -238,8 +239,6 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
     },
     [onSlidesUpdate],
   );
-
-
 
   const updateSlideText = (idx: number, text: string) => {
     const oldText = slides[idx]?.overlay_text || "";
@@ -325,6 +324,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
   // 1 crédit par appel (edge carousel-slide-image, gpt-image-2.5-flare, gate Premium).
   const generateForSlide = async (idx: number, adjustment?: string) => {
     if (onOpenStudio) { onOpenStudio(`index:${idx}`); return; }
+    if (isDemoMode) { toast("Cette action est disponible dans l'outil complet. Crée ton compte gratuit !"); return; }
     const directive = (slides[idx]?.photo_directive as string | undefined)?.trim();
     if (!directive || genState[idx]?.loading) return;
     const token = {}; // la réponse suit la slide si elle bouge pendant la génération
