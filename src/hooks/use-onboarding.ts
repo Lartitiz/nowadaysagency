@@ -418,7 +418,7 @@ export function useOnboarding() {
     if (!url || !isValidUrl(url)) return;
     preScrapeTriggered.current = true;
     supabase.functions.invoke("pre-scrape-website", {
-      body: { userId: user.id, websiteUrl: url },
+      body: { websiteUrl: url }, // le serveur identifie la personne par son jeton
     }).catch(e => console.warn("Pre-scrape failed (non-blocking):", e));
   }, [isDemoMode, user, answers.website]);
 
@@ -858,7 +858,7 @@ export function useOnboarding() {
   const getPlaceholder = (field: string) => {
     const examples = getActivityExamples(answers.activity_detail || answers.activite || answers.activity_type);
     const map: Record<string, string> = {
-      positioning: (examples as any).post_examples?.[0] || "Ex: Je capture la confiance. Photographe portrait pour les femmes entrepreneures.",
+      positioning: examples.post_examples?.[0] || "Ex: Je capture la confiance. Photographe portrait pour les femmes entrepreneures.",
       mission: "Ex: Rendre visible les femmes qui créent. Par l'image, par le regard, par la confiance.",
       target: "Ex: Marion, 35 ans, solopreneuse créative. Elle a besoin de photos pro mais repousse toujours...",
     };
