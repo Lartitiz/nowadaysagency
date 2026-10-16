@@ -411,6 +411,21 @@ export function PhotoUploadZone({
       {title && (
         <p className="text-sm font-semibold text-foreground">{title}</p>
       )}
+      {/* Mes photos d'abord : au-dessus de la zone de dépôt, visible sans défiler sur téléphone. */}
+      {!compact && libraryFirst && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            data-testid="photo-zone-library-main"
+            onClick={() => setLibraryOpen(true)}
+            disabled={isFull || importingFromLibrary}
+            className="inline-flex items-center gap-2 rounded-full border-2 border-primary/40 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary transition-all hover:border-primary/60 hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {importingFromLibrary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Library className="h-4 w-4" />}
+            {importingFromLibrary ? "Import…" : `Choisir dans mes photos (${libraryCount})`}
+          </button>
+        </div>
+      )}
       {/* ── Drop zone (hidden in compact mode) ─────────── */}
       {!compact && (
         <div
@@ -439,20 +454,6 @@ export function PhotoUploadZone({
       )}
 
       {/* ── « L'IA choisit les photos pour moi » (si contexte fourni) ───────── */}
-      {!compact && libraryFirst && (
-        <div className="flex justify-center -mt-1">
-          <button
-            type="button"
-            data-testid="photo-zone-library-main"
-            onClick={() => setLibraryOpen(true)}
-            disabled={isFull || importingFromLibrary}
-            className="inline-flex items-center gap-2 rounded-full border-2 border-primary/40 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary transition-all hover:border-primary/60 hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {importingFromLibrary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Library className="h-4 w-4" />}
-            {importingFromLibrary ? "Import…" : `Choisir dans mes photos (${libraryCount})`}
-          </button>
-        </div>
-      )}
       {!compact && showAiAutoPick && !libraryFirst && (
         <div className="flex flex-col items-center gap-1 -mt-1">
           <button
