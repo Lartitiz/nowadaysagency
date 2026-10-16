@@ -84,3 +84,22 @@ it("enregistre profiles par user_id et prévient si aucune ligne n'est touchée"
   fireEvent.click(await screen.findByRole("button", { name: "Enregistrer mes infos" }, { timeout: 3000 }));
   await waitFor(() => expect(m.toastError).toHaveBeenCalled());
 });
+
+it("montre le compte Instagram donné au démarrage et garde les deux champs alignés", async () => {
+  // Passe complète du 16/10/2026 : le démarrage range le compte dans
+  // instagram_username, l'onglet Mes liens ne lisait que instagram_url (vide).
+  m.profile.data = { ...m.profile.data, instagram_username: "atelier_lou" } as any;
+  try {
+    renderAt("/profil?onglet=liens");
+    const field = await screen.findByLabelText("Instagram");
+    expect((field as HTMLInputElement).value).toBe("https://instagram.com/atelier_lou");
+    fireEvent.change(field, { target: { value: "instagram.com/lou_ceramique/" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enregistrer mes infos" }));
+    await waitFor(() => expect(m.toastSuccess).toHaveBeenCalled());
+    const patch = m.writes.find(w => w.table === "profiles")!.patch;
+    expect(patch.instagram_url).toBe("instagram.com/lou_ceramique/");
+    expect(patch.instagram_username).toBe("lou_ceramique");
+  } finally {
+    delete (m.profile.data as any).instagram_username;
+  }
+});
