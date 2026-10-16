@@ -872,7 +872,7 @@ function InstagramStatsScope() {
                     title="Recycler ce sujet : repartir de ce qui a marché avec un nouvel angle"
                     onClick={() => recycleTopPost(p)}
                   >
-                    <Recycle className="h-3.5 w-3.5" /> Recycler
+                    <Recycle className="h-3.5 w-3.5" /> Recycler ce sujet
                   </Button>
                 )}
               </li>
@@ -884,7 +884,7 @@ function InstagramStatsScope() {
   };
 
   if (!configLoaded || !statsLoaded) return <div><AppHeader /><main className="p-8" role="status">Chargement des statistiques…</main></div>;
-  if (configError || statsError) return <div><AppHeader /><main className="mx-auto max-w-3xl p-8"><p role="alert">Impossible de charger les statistiques de cet espace. Tes données sont conservées.</p><Button className="mt-4" onClick={() => { void loadConfig(); void loadStats(); }}>Réessayer</Button></main></div>;
+  if (configError || statsError) return <div><AppHeader /><main className="mx-auto max-w-3xl p-8"><p role="alert">Impossible de charger les statistiques de cet espace. Tes données sont conservées.</p><Button className="mt-4" onClick={() => { void loadConfig(); void loadStats(); }}>Recharger les statistiques</Button></main></div>;
 
   /* ── ONBOARDING ── */
   if (showOnboarding && !config) {
@@ -954,7 +954,7 @@ function InstagramStatsScope() {
                   </div>
                 </div>
                 <Button className="w-full" onClick={() => setOnboardingStep(2)}>
-                  Suivant <ChevronRight className="h-4 w-4 ml-1" />
+                  Aller à mes pages de vente <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               </div>
             )}
@@ -988,9 +988,9 @@ function InstagramStatsScope() {
                   <Plus className="h-3.5 w-3.5" /> Ajouter une page de vente
                 </Button>
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setOnboardingStep(1)}>Retour</Button>
+                  <Button variant="outline" onClick={() => setOnboardingStep(1)}>Revenir à mon site web</Button>
                   <Button className="flex-1" onClick={() => setOnboardingStep(3)}>
-                    Suivant <ChevronRight className="h-4 w-4 ml-1" />
+                    Aller à mon modèle business <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </div>
               </div>
@@ -1013,7 +1013,7 @@ function InstagramStatsScope() {
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setOnboardingStep(2)}>Retour</Button>
+                  <Button variant="outline" onClick={() => setOnboardingStep(2)}>Revenir à mes pages de vente</Button>
                   <Button className="flex-1" onClick={async () => {
                     if (!(await saveConfig(draftConfig))) return; // échec : le parcours reste ouvert
                     setShowOnboarding(false);
@@ -1048,7 +1048,7 @@ function InstagramStatsScope() {
             </p>
           </div>
           <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => handleConfigClick(1)}>
-            <Settings className="h-4 w-4" /> Configurer
+            <Settings className="h-4 w-4" /> Configurer mes stats
           </Button>
         </div>
 
@@ -1159,7 +1159,7 @@ function InstagramStatsScope() {
                     <Button onClick={analyzeContent} disabled={analyzingContent || fetchingLive} variant="outline" size="sm" className="gap-1.5 shrink-0">
                       {analyzingContent
                         ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Analyse en cours…</>
-                        : <><Sparkles className="h-3.5 w-3.5" />{contentInsights ? "Actualiser" : "Analyser mes 50 derniers posts"}</>}
+                        : <><Sparkles className="h-3.5 w-3.5" />{contentInsights ? "Actualiser l'analyse des posts" : "Analyser mes 50 derniers posts"}</>}
                     </Button>
                   )}
                 </div>
@@ -1201,7 +1201,7 @@ function InstagramStatsScope() {
         {!igStatusChecked && !connectionsLoading && (
           <p className="text-sm text-muted-foreground">
             Impossible de vérifier tes connexions pour le moment.
-            <button type="button" onClick={() => void refreshConnections()} className="ml-2 underline">Réessayer</button>
+            <button type="button" onClick={() => void refreshConnections()} className="ml-2 underline">Vérifier à nouveau mes connexions</button>
           </p>
         )}
         {!igStatusChecked ? null : igConnected ? (
@@ -1355,7 +1355,7 @@ function InstagramStatsScope() {
                   </h3>
                   <Button variant="ghost" size="sm" onClick={handleAnalyze} disabled={isGenerating} className="gap-1">
                     <RefreshCw className={`h-3.5 w-3.5 ${isGenerating ? "animate-spin" : ""}`} />
-                    Relancer
+                    Relancer l'analyse
                   </Button>
                 </div>
                 <AiGeneratedMention />

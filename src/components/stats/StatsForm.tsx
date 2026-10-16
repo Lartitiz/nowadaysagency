@@ -51,7 +51,7 @@ export default function StatsForm({
           </SelectContent>
         </Select>
         <Button variant="outline" size="sm" className="gap-1.5 ml-auto" onClick={onImportClick}>
-          <Upload className="h-3.5 w-3.5" /> Importer (Excel)
+          <Upload className="h-3.5 w-3.5" /> Importer mes stats (Excel)
         </Button>
       </div>
 
@@ -147,7 +147,7 @@ export default function StatsForm({
             {(activeConfig.sales_pages || []).length === 0 ? (
               <p className="text-sm text-muted-foreground">Aucune page configurée.
                 <Button variant="link" size="sm" className="ml-1 p-0 h-auto" onClick={() => onConfigClick(2)}>
-                  Configurer
+                  Configurer mes pages de vente
                 </Button>
               </p>
             ) : (
@@ -171,7 +171,7 @@ export default function StatsForm({
               </div>
             )}
             <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => onConfigClick(2)}>
-              <Settings className="h-3.5 w-3.5" /> Modifier
+              <Settings className="h-3.5 w-3.5" /> Modifier mes pages de vente
             </Button>
           </AccordionContent>
         </AccordionItem>
@@ -212,7 +212,7 @@ export default function StatsForm({
               <ComputedField label="CAC" value={fmtEur(cac)} />
             </div>
             <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => onConfigClick(3)}>
-              <Settings className="h-3.5 w-3.5" /> Modifier
+              <Settings className="h-3.5 w-3.5" /> Modifier mon modèle business
             </Button>
           </AccordionContent>
         </AccordionItem>
@@ -258,7 +258,7 @@ export default function StatsForm({
 
       <Button onClick={onSave} disabled={saving} className="gap-2">
         <Save className="h-4 w-4" />
-        {saving ? "Sauvegarde..." : "💾 Sauvegarder"}
+        {saving ? "Sauvegarde..." : "💾 Enregistrer mes stats du mois"}
       </Button>
     </div>
   );

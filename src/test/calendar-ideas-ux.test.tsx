@@ -71,7 +71,7 @@ it('failed reads are errors, not an empty list; retry restores the list', async 
  state.list.mockResolvedValueOnce({ data: null, error: new Error('offline') }); render(<App/>);
  expect(await screen.findByRole('alert')).toHaveTextContent('Impossible de charger');
  expect(screen.queryByText('Aucune idée en attente')).not.toBeInTheDocument();
- fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+ fireEvent.click(screen.getByRole('button', { name: 'Recharger mes idées' }));
  expect(await screen.findByRole('button', { name: idea.titre })).toBeVisible();
 });
 it('late refresh and A → B → A responses cannot replace the current list', async () => {

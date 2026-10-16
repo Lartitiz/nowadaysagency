@@ -714,7 +714,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
             </Button>
             <Button variant="outline" size="sm" onClick={handleExportPptx} disabled={exportingPptx} className="gap-1.5">
               {exportingPptx ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
-              PPTX éditable
+              Télécharger le PPTX éditable
             </Button>
             <Button variant="outline" size="sm" onClick={handleOpenInCanva} disabled={openingCanva} className="gap-1.5">
               {openingCanva ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Palette className="h-3.5 w-3.5" />}
@@ -753,12 +753,12 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                       {story.face_cam ? (
                         <>
                           <ImageIcon className="h-3.5 w-3.5" />
-                          Story designée
+                          Revenir à la story designée
                         </>
                       ) : (
                         <>
                           <Camera className="h-3.5 w-3.5" />
-                          Me filmer
+                          Me filmer à la place
                         </>
                       )}
                     </Button>
@@ -770,7 +770,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                         onClick={() => setDeleteTarget(i)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                        Supprimer
+                        Supprimer la story
                       </Button>
                     )}
                   </div>

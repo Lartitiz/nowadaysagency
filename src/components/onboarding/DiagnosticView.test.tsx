@@ -36,7 +36,7 @@ describe("fin d'onboarding : un seul récapitulatif", () => {
   it("garde le diagnostic complet à un clic, avec retour au résumé", () => {
     render(<DiagnosticView data={data} prenom="Lina" onComplete={vi.fn()} onCreateFirst={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Voir le diagnostic complet" }));
-    expect(screen.getByRole("button", { name: /Suivant/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Voir la suite/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Revenir au résumé/ }));
     expect(screen.getByRole("button", { name: "Créer mon premier contenu" })).toBeInTheDocument();
   });

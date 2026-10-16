@@ -81,7 +81,7 @@ export default function ProductServiceScreen({
       {onNext && (
         <div className="flex justify-center">
           <Button type="button" onClick={onNext} className="rounded-full px-8">
-            Suivant →
+            Aller à l'étape suivante →
           </Button>
         </div>
       )}

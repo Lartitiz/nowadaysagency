@@ -250,14 +250,14 @@ describe("enregistrement automatique", () => {
     expect(screen.getByText("Ajoute un sujet pour commencer")).toBeInTheDocument();
   }, 5000);
 
-  it("échec → « Non enregistré » puis « Réessayer » relance", async () => {
+  it("échec → « Non enregistré » puis « Relancer l'enregistrement » relance", async () => {
     const onAutoSave = vi.fn().mockResolvedValueOnce({ error: true }).mockResolvedValueOnce({ post: { id: "p1" } });
     renderDialog({ editingPost: post(), onAutoSave });
     await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
     fireEvent.change(theme(), { target: { value: "Sujet modifié" } });
     expect(await screen.findByText(/Non enregistré/, {}, { timeout: 2500 })).toBeInTheDocument();
     expect(m.toast.error).toHaveBeenCalledWith("Sauvegarde impossible", { description: "Réessaie dans un instant." });
-    fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
+    fireEvent.click(screen.getByRole("button", { name: "Relancer l'enregistrement" }));
     await waitFor(() => expect(onAutoSave).toHaveBeenCalledTimes(2));
     expect(onAutoSave.mock.calls[1][1]).toBe("p1");
     expect(await screen.findByText("Enregistré")).toBeInTheDocument();
@@ -377,25 +377,27 @@ describe("publication immédiate", () => {
 });
 
 describe("suppression", () => {
-  it("un seul « Supprimer » (bouton du pied, plus de doublon dans le menu) ; confirmé → onDelete(id)", async () => {
+  it("un seul « Supprimer le post » (bouton du pied, plus de doublon dans le menu) ; confirmé → onDelete(id)", async () => {
     const { props } = renderDialog({ editingPost: post() });
-    expect(screen.getAllByRole("button", { name: /^Supprimer$/ })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /^Supprimer le post$/ })).toHaveLength(1);
     expect(screen.queryByRole("menuitem", { name: /Supprimer/ })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /^Supprimer$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Supprimer le post$/ }));
     await waitFor(() => expect(props.onDelete).toHaveBeenCalledWith("p1"));
   });
 
   it("refusé → rien n'est supprimé", async () => {
     m.confirm.mockResolvedValue(false);
     const { props } = renderDialog({ editingPost: post() });
-    fireEvent.click(screen.getByRole("button", { name: /^Supprimer$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Supprimer le post$/ }));
     await waitFor(() => expect(m.confirm).toHaveBeenCalled());
+    // Boutons verbe + objet (Vocabulaire UI) : jamais « Supprimer » / « Annuler » seuls.
+    expect(m.confirm).toHaveBeenCalledWith(expect.objectContaining({ confirmText: "Supprimer le post", cancelText: "Garder le post" }));
     expect(props.onDelete).not.toHaveBeenCalled();
   });
 
-  it("nouveau post pas encore enregistré → pas de « Supprimer »", () => {
+  it("nouveau post pas encore enregistré → pas de « Supprimer le post »", () => {
     renderDialog();
-    expect(screen.queryByRole("button", { name: /^Supprimer$/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Supprimer le post$/ })).toBeNull();
   });
 });
 

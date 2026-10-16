@@ -117,7 +117,7 @@ export function CalendarPostMetadata({
             type="button"
             variant="outline"
             onClick={async () => {
-              if (await confirm({ title: "Remettre ce post dans tes idées ?", description: "Il sera retiré du calendrier et rangé dans ta boîte à idées.", confirmText: "Remettre dans mes idées" })) {
+              if (await confirm({ title: "Remettre ce post dans tes idées ?", description: "Il sera retiré du calendrier et rangé dans ta boîte à idées.", confirmText: "Remettre dans mes idées", cancelText: "Garder dans le calendrier" })) {
                 onUnplan();
               }
             }}

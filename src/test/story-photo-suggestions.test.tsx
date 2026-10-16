@@ -72,12 +72,12 @@ describe("StoryPhotoSuggestions", () => {
     const onApply = renderSuggestions();
     mocks.searchStockPhotos.mockResolvedValue([stockPhoto]);
 
-    await user.click(screen.getByRole("button", { name: /libres de droits/i }));
+    await user.click(screen.getByRole("button", { name: /Chercher une photo libre de droits/i }));
     const input = screen.getByRole("searchbox", {
       name: "Rechercher une photo libre de droit pour la story 1",
     });
     await user.type(input, "machine à café");
-    await user.click(screen.getByRole("button", { name: "Rechercher" }));
+    await user.click(screen.getByRole("button", { name: "Lancer la recherche" }));
 
     await waitFor(() =>
       expect(mocks.searchStockPhotos).toHaveBeenCalledWith("machine à café", {
@@ -103,9 +103,9 @@ describe("StoryPhotoSuggestions", () => {
     renderSuggestions();
     mocks.searchStockPhotos.mockResolvedValue([]);
 
-    await user.click(screen.getByRole("button", { name: /libres de droits/i }));
+    await user.click(screen.getByRole("button", { name: /Chercher une photo libre de droits/i }));
     await user.type(screen.getByRole("searchbox"), "requête introuvable");
-    await user.click(screen.getByRole("button", { name: "Rechercher" }));
+    await user.click(screen.getByRole("button", { name: "Lancer la recherche" }));
 
     expect(await screen.findByText("Aucune photo trouvée. Essaie avec d'autres mots.")).toBeInTheDocument();
   });

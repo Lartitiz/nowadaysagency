@@ -167,7 +167,7 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
               <Sparkles className="h-4 w-4" /> Préparer ma semaine
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setShareOpen(true)} className="cursor-pointer gap-2">
-              <Link2 className="h-4 w-4" /> Partager
+              <Link2 className="h-4 w-4" /> Partager le calendrier
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onImportOpen} className="cursor-pointer gap-2">
               <FileInput className="h-4 w-4" /> Importer un contenu
@@ -559,7 +559,7 @@ function CalendarInWorkspace() {
     } else {
       toast.success("Post ajouté au calendrier !", {
         action: createdPost ? {
-          label: "Générer",
+          label: "Générer le contenu",
           onClick: () => handleQuickGenerate(createdPost!),
         } : undefined,
       });
@@ -579,7 +579,7 @@ function CalendarInWorkspace() {
         title: "Supprimer aussi les posts liés ?",
         description: `Ce contenu est lié à ${siblings.length} autre(s) post(s) (${siblings.map((p) => p.canal).join(", ")}).`,
         confirmText: "Tout supprimer",
-        cancelText: "Ce post seulement",
+        cancelText: "Supprimer ce post seulement",
         destructive: true,
       });
       if (also) ids = [targetId, ...siblings.map((p) => p.id)];
@@ -650,7 +650,7 @@ function CalendarInWorkspace() {
   };
 
   const handleQuickDelete = async (postId: string) => {
-    if (!(await confirm({ title: "Supprimer ce post ?", confirmText: "Supprimer", destructive: true }))) return;
+    if (!(await confirm({ title: "Supprimer ce post ?", confirmText: "Supprimer le post", cancelText: "Garder le post", destructive: true }))) return;
     const { error } = isDemoMode ? { error: null } : await supabase.from("calendar_posts").delete().eq("id", postId);
     if (error) {
       toast.error("Suppression impossible", { description: "Réessaie dans un instant." });
@@ -701,7 +701,7 @@ function CalendarInWorkspace() {
       const formatted = new Date(newDate + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
       toast(`Déplacé au ${formatted}`, {
         action: originalDate && originalDate !== newDate ? {
-          label: "Annuler",
+          label: "Annuler le déplacement",
           onClick: async () => {
             if (isDemoMode) { setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, date: originalDate } : p))); return; }
             try { await moveCalendarPost(postId, originalDate, newDate); setIdeasRefreshKey(k => k + 1); }
@@ -931,7 +931,7 @@ function CalendarInWorkspace() {
         <div role="alert" className="rounded-2xl border border-border bg-card p-6 space-y-3">
           <p className="font-semibold">Impossible de charger ce calendrier.</p>
           <p className="text-sm text-muted-foreground">Tes contenus n’ont pas été effacés. Réessaie pour voir cette période.</p>
-          <Button variant="outline" onClick={fetchPosts}>Réessayer</Button>
+          <Button variant="outline" onClick={fetchPosts}>Recharger le calendrier</Button>
         </div>
       ) : viewMode === "month" ? (
         <CalendarGrid

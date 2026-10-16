@@ -246,7 +246,7 @@ function IdeasInWorkspace({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse, re
       {/* Ideas list */}
       <div className="flex-1 overflow-y-auto space-y-1.5 min-h-0">
         {loading && <p role="status" className="text-xs text-muted-foreground py-4">Chargement des idées…</p>}
-        {!loading && loadError && <div role="alert" className="text-xs p-3 rounded-lg bg-muted"><p>Impossible de charger tes idées.</p><button onClick={fetchIdeas} className="underline mt-2">Réessayer</button></div>}
+        {!loading && loadError && <div role="alert" className="text-xs p-3 rounded-lg bg-muted"><p>Impossible de charger tes idées.</p><button onClick={fetchIdeas} className="underline mt-2">Recharger mes idées</button></div>}
         {!loading && !loadError && filteredIdeas.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-4">
             {searchQuery.trim()

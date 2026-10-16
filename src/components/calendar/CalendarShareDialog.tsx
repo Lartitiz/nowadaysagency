@@ -359,7 +359,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
               📊 Exporter en Excel
             </Button>
 
-            {loadError ? (<div role="alert">Impossible de charger les liens. <Button onClick={fetchShares}>Réessayer</Button></div>) : loading ? (
+            {loadError ? (<div role="alert">Impossible de charger les liens. <Button onClick={fetchShares}>Recharger les liens</Button></div>) : loading ? (
               <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
             ) : shares.length === 0 ? (
               <div className="text-center py-8">
@@ -407,7 +407,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
 
                     <div className="flex items-center gap-1.5">
                       <Button variant="outline" size="sm" className="rounded-full text-xs gap-1 h-8" onClick={() => copyLink(share.share_token)}>
-                        <Copy className="h-3 w-3" /> Copier
+                        <Copy className="h-3 w-3" /> Copier le lien
                       </Button>
                       {(share.edit_logs || []).length > 0 && (
                         <Button
@@ -417,15 +417,15 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                           onClick={() => setExpandedShare(isExpanded ? null : share.id)}
                         >
                           {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                          Historique
+                          {isExpanded ? "Masquer l'historique" : "Voir l'historique"}
                         </Button>
                       )}
                       <div className="flex items-center gap-1.5 ml-auto">
                         <Switch checked={share.is_active} onCheckedChange={() => toggleActive(share)} className="scale-75" />
                         {confirmDeleteId === share.id ? (
                           <div className="flex items-center gap-1">
-                            <Button variant="destructive" size="sm" className="h-8 text-xs rounded-full" onClick={() => deleteShare(share.id)}>Confirmer</Button>
-                            <Button variant="outline" size="sm" className="h-8 text-xs rounded-full" onClick={() => setConfirmDeleteId(null)}>Annuler</Button>
+                            <Button variant="destructive" size="sm" className="h-8 text-xs rounded-full" onClick={() => deleteShare(share.id)}>Supprimer le partage</Button>
+                            <Button variant="outline" size="sm" className="h-8 text-xs rounded-full" onClick={() => setConfirmDeleteId(null)}>Garder le partage</Button>
                           </div>
                         ) : (
                           <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive" onClick={() => setConfirmDeleteId(share.id)} aria-label="Supprimer ce partage">
