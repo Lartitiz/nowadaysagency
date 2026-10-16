@@ -396,7 +396,7 @@ function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
     if (posts.length > 0 || !user || isDemoMode) { setNearestOutsidePost(null); return; }
     let cancelled = false;
     (async () => {
-      const base = () => (supabase.from("calendar_posts") as any).select("date").eq(column, value);
+      const base = () => { const q = (supabase.from("calendar_posts") as any).select("date").eq(column, value); return column === "user_id" ? q.is("workspace_id", null) : q; }; // même portée que fetchPosts
       // À venir d'abord (c'est ce qui aide à avancer), sinon le plus récent passé.
       const { data: future } = await base().gt("date", periodRange.endDate).order("date", { ascending: true }).limit(1);
       if (cancelled) return;

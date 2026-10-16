@@ -190,3 +190,14 @@ it("« Générer » sur un post sans format ouvre la fenêtre avec la date du po
   expect(retour).toEqual({});
   expect(state.appels.some((a) => a.table === "calendar_posts" && a.ops.some(([m]) => m === "update"))).toBe(true);
 });
+
+// ── Défaut 3 : le contenu le plus proche suit la même portée que fetchPosts ──
+it("espace personnel : le plus proche hors période ignore les posts rangés dans un espace de travail", async () => {
+  state.db.calendar_posts = [
+    post({ id: "w1", user_id: "u1", workspace_id: "ws-cliente", date: "2026-11-02", theme: "Post d'un espace" }),
+    post({ id: "m1", user_id: "u1", date: "2026-11-20", theme: "Mon post" }),
+  ];
+  rendre("/calendrier?date=2026-10-10");
+  await waitFor(() => expect(state.props.grid?.nearestOutsidePost).toBeTruthy());
+  expect(state.props.grid.nearestOutsidePost).toEqual({ date: "2026-11-20", direction: "future" });
+});
