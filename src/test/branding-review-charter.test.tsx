@@ -34,7 +34,7 @@ describe("CharterSection — provenance honnête", () => {
     render(<CharterSection data={CHARTER} />);
     expect(screen.getByText(/palette proposée d'après ton univers/i)).toBeTruthy();
     expect(screen.queryByText(/couleurs détectées/i)).toBeNull();
-    expect(screen.getByText(/je n'ai pas pu lire les couleurs exactes de ton site/i)).toBeTruthy();
+    expect(screen.getByText(/je n'ai pas pu lire tes couleurs exactes/i)).toBeTruthy();
   });
 
   it("confidence high → « couleurs détectées sur ton site », sans avertissement", () => {

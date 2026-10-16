@@ -386,7 +386,7 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
           <p className="text-sm font-semibold text-foreground">Tes photos</p>
           <p className="text-xs text-muted-foreground mt-0.5">
             {status === "loading"
-              ? "Je cherche les photos déjà publiées sur ton site…"
+              ? hasSite ? "Je cherche les photos déjà publiées sur ton site…" : "Je cherche tes photos déjà publiées…"
               : status === "done"
                 ? isProduct
                   ? `${confirmedProductUrls.length} photo${confirmedProductUrls.length > 1 ? "s de ton site prêtes" : " de ton site prête"} dans Mes photos pour ton premier carrousel. Tu pourras les remplacer ou en ajouter.`
@@ -396,7 +396,7 @@ export function BrandPhotosPicker({ placement, className, onReadyChange }: Brand
                     // Sans photo, /creer part sur l'idée du diagnostic en carrousel texte.
                     ? hasSite
                       ? "Je n'ai pas trouvé de photo exploitable sur ton site : ton premier carrousel partira d'une idée de ton diagnostic. Tu pourras ajouter tes photos ensuite."
-                      : "Pas de site renseigné : ton premier carrousel partira d'une idée de ton diagnostic. Tu pourras ajouter tes photos ensuite."
+                      : "Pas encore de photo à reprendre : ton premier carrousel partira d'une idée de ton diagnostic. Tu pourras ajouter tes photos ensuite."
                     : "Je n'ai pas trouvé de photo exploitable sur ton site. Tu pourras en ajouter dans la préparation du carrousel."
                 : status === "error"
                   ? "Je n'ai pas pu lire les photos de ton site. Réessaie ou ajoute-les dans la préparation du carrousel."
