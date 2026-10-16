@@ -238,7 +238,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
     setContentDraft, setAccroche, setStatus,
   });
 
-  const { handleSmartGenerate, handleOpenAtelier, handleNavigateToGenerator, handleNavigateToDeepen, handleNavigateToFormat } = useCalendarPostNavigation({
+  const { handleSmartGenerate, handleOpenAtelier, handleNavigateToGenerator, handleNavigateToDeepen } = useCalendarPostNavigation({
     theme, format, postCanal, objectif, angle, notes, selectedDate, contentDraft, accroche, editingPost,
     savedPreviewContent, effectiveId, buildSaveData, onAutoSave, onOpenChange, navigate, handleQuickGenerate,
   });
@@ -256,7 +256,7 @@ function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDa
       setAccroche={setAccroche} status={status} setStatus={setStatus} isGenerating={isGenerating}
       handleSmartGenerate={handleSmartGenerate} handleCopy={handleCopy}
       handleOpenAtelier={handleOpenAtelier} handleNavigateToDeepen={handleNavigateToDeepen}
-      handleNavigateToFormat={handleNavigateToFormat} postCanal={postCanal} format={format} angle={angle}
+      postCanal={postCanal} format={format} angle={angle}
       objectif={objectif} notes={notes} setNotes={setNotes} mediaUrls={mediaUrls}
       setMediaUrls={setMediaUrls} handleSave={handleSave} onOpenChange={onOpenChange} isMobile={isMobile}
       setShowContentViewer={setShowContentViewer} uploading={uploading}

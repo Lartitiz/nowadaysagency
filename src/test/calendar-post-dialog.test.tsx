@@ -26,6 +26,7 @@ const m = vi.hoisted(() => ({
   publishLi: vi.fn(),
   toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
   confirm: vi.fn(async () => true),
+  contenuProps: null as any,
 }));
 
 vi.mock("react-router-dom", () => ({ useNavigate: () => m.navigate }));
@@ -88,14 +89,12 @@ vi.mock("@/components/ui/collapsible", () => ({
 }));
 // Morceaux déjà sortis : faux qui exposent leurs props.
 vi.mock("@/components/calendar/CalendarPostContent", () => ({
-  CalendarPostContent: (p: any) => (
+  CalendarPostContent: (p: any) => (m.contenuProps = p) && (
     <div>
       <textarea aria-label="brouillon" value={p.contentDraft ?? ""} onChange={(e) => p.setContentDraft(e.target.value)} />
       <button onClick={p.onSmartGenerate}>faux:générer</button>
       <button onClick={p.onOpenAtelier}>faux:atelier</button>
       <button onClick={p.onNavigateToDeepen}>faux:approfondir</button>
-      <button onClick={() => p.onNavigateToFormat("reel")}>faux:format-reel</button>
-      <button onClick={() => p.onNavigateToFormat("autre")}>faux:format-autre</button>
     </div>
   ),
 }));
@@ -329,13 +328,9 @@ describe("navigation vers /creer", () => {
     expect(opts.state.resumeIdea).toEqual({ format: "carousel", raw: { ...detail, carousel_type: "photo" } });
   });
 
-  it("changer de format : pas d'enregistrement ni de state", () => {
-    const { props } = renderDialog({ editingPost: post({ objectif: "vente" }) });
-    fireEvent.click(screen.getByText("faux:format-reel"));
-    expect(m.navigate).toHaveBeenLastCalledWith("/creer?format=reel&sujet=Mon+sujet&objectif=vente&calendar_id=p1&from=%2Fcalendrier");
-    fireEvent.click(screen.getByText("faux:format-autre"));
-    expect(m.navigate).toHaveBeenLastCalledWith("/transformer");
-    expect(props.onAutoSave).not.toHaveBeenCalled();
+  it("plus de « changer de format » : la fenêtre ne passe plus cette prop (menu retiré le 06/03/2026)", () => {
+    renderDialog({ editingPost: post() });
+    expect(m.contenuProps).not.toHaveProperty("onNavigateToFormat");
   });
 });
 
