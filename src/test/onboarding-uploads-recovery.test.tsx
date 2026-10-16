@@ -89,6 +89,18 @@ describe("reprise des captures de l'onboarding", () => {
     expect(result.current.answers.website).toBe("https://exemple.fr");
   });
 
+  it("repart de l'écran 0 quand le brouillon a plus de 7 jours", async () => {
+    localStorage.setItem("lac_onboarding_step", "6");
+    localStorage.setItem("lac_onboarding_answers", JSON.stringify({ prenom: "Ancien", activite: "Céramiste" }));
+    localStorage.setItem("lac_onboarding_ts", new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString());
+    const { result } = renderHook(() => useOnboarding());
+    await waitFor(() => expect(result.current.draftRestored).toBe(true));
+    expect(result.current.step).toBe(0);
+    expect(result.current.answers.prenom).toBe("");
+    expect(localStorage.getItem("lac_onboarding_answers")).toBeNull();
+    await waitFor(() => expect(localStorage.getItem("lac_onboarding_step")).toBe("0"));
+  });
+
   it("ne revient pas au formulaire avec Échap pendant l'analyse", async () => {
     localStorage.setItem("lac_onboarding_step", "10");
     localStorage.setItem("lac_onboarding_ts", new Date().toISOString());
