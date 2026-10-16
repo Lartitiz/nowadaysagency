@@ -26,6 +26,7 @@ import StatsCharts from "@/components/stats/StatsCharts";
 import Ga4SyncPanel from "@/components/stats/Ga4SyncPanel";
 import { saveStatsPatch } from "@/lib/stats-persistence";
 import { statsPatch, GA4_FIELDS } from "@/lib/ga4-stats";
+import { instagramMonthPatch } from "@/features/stats/merge-fetched-stats";
 import StatsForm from "@/components/stats/StatsForm";
 
 import { SkeletonCard } from "@/components/ui/skeleton-card";
@@ -423,20 +424,8 @@ function InstagramStatsScope() {
       );
       const target = currentMonthDate;
       const existing = allStats.find(s => s.month_date === target) || {};
-      const patch: any = {};
-      const filled: string[] = [];
-      if (typeof m.followers === "number") { patch.followers = m.followers; filled.push("abonnés"); }
-      if (typeof m.reach30d === "number") { patch.reach = m.reach30d; filled.push("portée (28 j)"); }
-      if (typeof m.views30d === "number") { patch.views = m.views30d; filled.push("vues"); }
-      if (typeof m.totalInteractions30d === "number") { patch.interactions = m.totalInteractions30d; filled.push("interactions"); }
-      if (typeof m.accountsEngaged30d === "number") { patch.accounts_engaged = m.accountsEngaged30d; filled.push("comptes engagés"); }
-      if (typeof m.profileViews30d === "number") { patch.profile_visits = m.profileViews30d; filled.push("visites du profil"); }
-      if (typeof m.followerGrowth30d === "number" && m.followerGrowth30d >= 0) {
-        patch.followers_gained = m.followerGrowth30d; filled.push("abonnés gagnés");
-      }
-      if (typeof m.postsMonthCount === "number") {
-        patch.posts_count = m.postsMonthCount; filled.push("posts publiés");
-      }
+      // La saisie à la main prime : seuls les champs encore vides du mois sont remplis.
+      const { patch, filled, kept } = instagramMonthPatch(m, existing);
       // Persiste les snapshots du mois dans custom_data (JSONB) : audience ET
       // top/flop, pour que les encarts survivent au rechargement et que la
       // tendance d'audience se construise. Non bloquant : pas dans `filled`.
@@ -453,7 +442,7 @@ function InstagramStatsScope() {
         };
       }
       if (Object.keys(customData).length) patch.custom_data = customData;
-      if (!filled.length) {
+      if (!filled.length && !kept.length) {
         toast("Aucune métrique exploitable", { description: "L'API n'a renvoyé aucun chiffre fiable cette fois. Réessaie un peu plus tard." });
         return;
       }
@@ -473,7 +462,7 @@ function InstagramStatsScope() {
       setSelectedMonth(target);
       await loadStats();
       toast.success(`✅ Stats Instagram récupérées — ${monthLabel(target)}`, {
-        description: `Rempli automatiquement : ${filled.join(", ")}. Complète le reste à la main dans « Mes données » si besoin.`,
+        description: `${filled.length ? `Rempli automatiquement : ${filled.join(", ")}. ` : ""}${kept.length ? `Gardé tel quel (déjà rempli) : ${kept.join(", ")}. ` : ""}Complète le reste à la main dans « Mes données » si besoin.`,
       });
       // Honnêteté : le back signale quand une partie des appels Meta a échoué.
       // Sans ce message, l'utilisatrice croit ses stats complètes.
