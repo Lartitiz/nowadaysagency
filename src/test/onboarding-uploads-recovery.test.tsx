@@ -101,6 +101,22 @@ describe("reprise des captures de l'onboarding", () => {
     await waitFor(() => expect(localStorage.getItem("lac_onboarding_step")).toBe("0"));
   });
 
+  it("remet tout à zéro (marque, références visuelles, captures) après une remise à zéro du compte", async () => {
+    localStorage.setItem("lac_onboarding_step", "11");
+    localStorage.setItem("lac_onboarding_ts", new Date().toISOString());
+    localStorage.setItem("lac_onboarding_answers", JSON.stringify({ prenom: "Ancien", visual_reference_links: [{ url: "https://ref.example" }] }));
+    localStorage.setItem("lac_onboarding_branding", JSON.stringify({ positioning: "Ancien positionnement" }));
+    localStorage.setItem("lac_onboarding_upload_ids:qa-a", JSON.stringify(["file-a"]));
+    const { result } = renderHook(() => useOnboarding());
+    await waitFor(() => expect(result.current.uploadsRestored).toBe(true));
+    await waitFor(() => expect(result.current.step).toBe(0));
+    expect(result.current.answers.prenom).toBe("");
+    expect(result.current.answers.visual_reference_links).toEqual([]);
+    expect(result.current.brandingAnswers.positioning).toBe("");
+    expect(result.current.uploadedFiles).toEqual([]);
+    expect(JSON.parse(localStorage.getItem("lac_onboarding_upload_ids:qa-a") || "[]")).toEqual([]);
+  });
+
   it("ne revient pas au formulaire avec Échap pendant l'analyse", async () => {
     localStorage.setItem("lac_onboarding_step", "10");
     localStorage.setItem("lac_onboarding_ts", new Date().toISOString());

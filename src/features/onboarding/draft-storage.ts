@@ -32,3 +32,14 @@ export function purgeExpiredOnboardingDraft(): boolean {
   DRAFT_KEYS.forEach(key => localStorage.removeItem(key));
   return true;
 }
+
+/**
+ * Étape au-delà du parcours sans diagnostic local (compte remis à zéro) :
+ * efface les 4 clés du brouillon ET la liste des captures de ce compte.
+ * Ce n'est pas la purge de fin d'onboarding (qui efface aussi lac_prenom,
+ * lac_activite et le diagnostic local) : ne pas les fusionner.
+ */
+export function purgeStaleOnboardingDraft(userId: string): void {
+  DRAFT_KEYS.forEach(key => localStorage.removeItem(key));
+  localStorage.removeItem(`lac_onboarding_upload_ids:${userId}`);
+}
