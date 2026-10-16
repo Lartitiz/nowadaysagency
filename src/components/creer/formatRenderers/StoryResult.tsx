@@ -342,8 +342,8 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     .filter(Boolean)
     .join("\n\n");
 
-  const fixStoryExpressions = () => {
-    const updated = stories.map(story => {
+  const fixStoryExpressions = () => setStories(prev => {
+    const updated = prev.map(story => {
       const field = getTextField(story);
       const visual = story.visual;
       return {
@@ -358,9 +358,9 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
         } } : {}),
       };
     });
-    setStories(updated);
     onStoriesUpdate?.(updated);
-  };
+    return updated;
+  });
 
   const ANGLE_LABELS: Record<string, { emoji: string; label: string }> = {
     coulisses: { emoji: "🎬", label: "Coulisses" },
@@ -451,8 +451,8 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     });
   }, [onStoriesUpdate]);
 
-  const setTextPosition = (index: number, text_position: "top" | "middle" | "bottom") => {
-    const updated = stories.map((story, i) => i === index
+  const setTextPosition = (index: number, text_position: "top" | "middle" | "bottom") => setStories(prev => {
+    const updated = prev.map((story, i) => i === index
       ? { ...story, visual: {
           ...story.visual,
           text_position,
@@ -461,9 +461,9 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
           text_position_edited: true,
           face_avoidance_applied: false,
         } } : story);
-    setStories(updated);
     onStoriesUpdate?.(updated);
-  };
+    return updated;
+  });
 
   const updateVisualViewport = useCallback((index: number, patch: Record<string, unknown>) => {
     setStories((prev) => {
