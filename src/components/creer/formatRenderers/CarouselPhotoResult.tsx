@@ -321,7 +321,7 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
   };
 
   // Génération IA de l'image d'une slide depuis sa directive (lot 2).
-  // 1 crédit par appel (edge carousel-slide-image, gpt-image-2.5-flare, gate Premium).
+  // 1 crédit par appel (edge carousel-slide-image, gpt-image-2.5-flare ; 5 images en gratuit depuis le 16/10/2026).
   const generateForSlide = async (idx: number, adjustment?: string) => {
     if (onOpenStudio) { onOpenStudio(`index:${idx}`); return; }
     if (isDemoMode) { toast("Cette action est disponible dans l'outil complet. Crée ton compte gratuit !"); return; }

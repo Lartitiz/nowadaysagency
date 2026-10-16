@@ -150,7 +150,7 @@ export function StudioProposalCard({
             <dd>
               {proposal.operation === "background"
                 ? "Changer le décor"
-                : "Création générative · Premium"}
+                : "Création générative"}
             </dd>
           </div>
           <div>
@@ -220,9 +220,9 @@ export function StudioProposalCard({
           confirmation lance la création.
         </p>
         <p className="text-xs text-muted-foreground">
-          Fonds inclus dans ton quota. Création, mise en scène et
-          transformation générative en Premium. Les textes des compositions
-          restent modifiables sans crédit image.
+          Fonds, créations, mises en scène et transformations comptent dans
+          ton quota d'images (5 par mois en gratuit). Les textes des
+          compositions restent modifiables sans crédit image.
         </p>
       </div>
     );

@@ -7,7 +7,7 @@
 // studio_confirm_generation / studio_complete_generation, pas par logUsage.
 // Déplacée telle quelle depuis index.ts (fiche 5, lot 3, docs/robustesse/gros-fichiers.md).
 import { checkQuota, isQaTestAccount, PLAN_LIMITS, quotaDeniedResponse } from "../../_shared/plan-limiter.ts";
-import { generative, premiumAllowed } from "../contract.ts";
+import { generative } from "../contract.ts";
 import {
   failHiggsfieldImage, higgsfieldImagesEnabled, MARKETING_MAX_IMAGES, MARKETING_PROMPT_ERROR, marketingFidelityEligible,
   marketingPromptCandidate, marketingPromptTooLong, routeToMarketingStudio, SOUL2_MODEL, submitHiggsfieldImage,
@@ -94,18 +94,9 @@ export async function generate(ctx: StudioContext, session: StudioSession): Prom
     }
     const quota = await checkQuota(actor, "photo_retouch", p.workspace_id);
     if (quota.reason === "error") return quotaDeniedResponse(quota, corsHeaders);
-    if (
-      generative(session.proposal.operation) &&
-      !premiumAllowed(quota.plan, isQaTestAccount(actor))
-    ) {
-      return json(
-        {
-          error:
-            "Cette création est disponible en Premium. Rien n’a été décompté.",
-        },
-        403,
-      );
-    }
+    // Plus de refus Premium depuis le 16/10/2026 : le plan gratuit a droit à
+    // 5 images (grille du 01/10/2026, CGV). Le plafond dur `photo_retouch`
+    // (quotaDeniedResponse ci-dessous, puis p_image_limit) suffit.
     if (!quota.allowed) return quotaDeniedResponse(quota, corsHeaders);
     const workflow = session.proposal.scene_workflow;
     if (workflow?.phase === "integration" && !session.proposal.integration_preparation &&
