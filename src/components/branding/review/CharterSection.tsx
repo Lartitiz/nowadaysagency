@@ -115,7 +115,7 @@ export function CharterSection({ data, onUpdate }: { data: AnalysisResult["chart
           </div>
           {conf !== "high" && (
             <p className="text-xs text-muted-foreground mb-2">
-              Je n'ai pas pu lire les couleurs exactes de ton site — celles-ci sont une proposition. Corrige-les ici si ce ne sont pas les tiennes.
+              Je n'ai pas pu lire tes couleurs exactes — celles-ci sont une proposition. Corrige-les ici si ce ne sont pas les tiennes.
             </p>
           )}
           <div className="flex flex-wrap gap-3">
