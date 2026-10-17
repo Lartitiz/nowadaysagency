@@ -92,3 +92,37 @@ describe("clearAppStorage — isolation entre comptes", () => {
     expect(localStorage.getItem("missions_dismissed_at")).toBeNull();
   });
 });
+
+describe("clearDeletedAccountStorage — suppression du compte (vie privée)", () => {
+  it("efface les brouillons du Studio, l'historique du coach et retire le compte mémorisé", async () => {
+    const { clearDeletedAccountStorage } = await import("@/lib/storage-cleanup");
+    localStorage.setItem("visual-studio:draft:u1:ws1:s1", "un four de potière");
+    localStorage.setItem("visual-studio:draft:u1:ws1:s1:images", "[\"p1\"]");
+    localStorage.setItem("studio-video:u1:ws1:s1", "{}");
+    localStorage.setItem("studio-video:last-session:u1:ws1", "s1");
+    localStorage.setItem("carousel-studio:ticket", "{}");
+    localStorage.setItem("capture-page:ws1", "{}");
+    localStorage.setItem("coach_chat_history", "[]");
+    localStorage.setItem("visual-studio-chat-width", "420");
+    sessionStorage.setItem("studio-video-for-reel:ws1", "job");
+    localStorage.setItem("saved_accounts", JSON.stringify([{ userId: "u1", email: "a@b.c" }, { userId: "u2", email: "d@e.f" }]));
+
+    clearDeletedAccountStorage("u1");
+
+    for (const k of ["visual-studio:draft:u1:ws1:s1", "visual-studio:draft:u1:ws1:s1:images", "studio-video:u1:ws1:s1",
+      "studio-video:last-session:u1:ws1", "carousel-studio:ticket", "capture-page:ws1", "coach_chat_history"]) {
+      expect(localStorage.getItem(k)).toBeNull();
+    }
+    expect(sessionStorage.getItem("studio-video-for-reel:ws1")).toBeNull();
+    // Réglage d'affichage sans donnée personnelle : gardé.
+    expect(localStorage.getItem("visual-studio-chat-width")).toBe("420");
+    expect(JSON.parse(localStorage.getItem("saved_accounts")!)).toEqual([{ userId: "u2", email: "d@e.f" }]);
+  });
+
+  it("une simple déconnexion garde les brouillons du Studio", async () => {
+    const { clearAppStorage } = await import("@/lib/storage-cleanup");
+    localStorage.setItem("visual-studio:draft:u1:ws1:s1", "brouillon");
+    clearAppStorage();
+    expect(localStorage.getItem("visual-studio:draft:u1:ws1:s1")).toBe("brouillon");
+  });
+});

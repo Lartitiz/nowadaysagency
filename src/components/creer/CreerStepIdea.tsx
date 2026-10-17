@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, lazy, Suspense, type ReactNode } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,9 @@ interface Props {
   initialPhotos?: PhotoItem[];
   initialPhotoDescription?: string;
   initialPhotoSubject?: string;
+  /** Boutons Annuler / Rétablir, posés sur la ligne du titre du champ : leur
+      apparition ne décale plus « Continuer » (passe du 16/10). */
+  historyControls?: ReactNode;
 }
 
 const UNIVERSAL_PLACEHOLDER = "Ex : je raconte une expérience vécue / je réagis à un chiffre qui m'a marquée / j'ose un avis à contre-courant / je montre mon process en coulisses…";
@@ -47,7 +50,7 @@ const STARTER_IDEAS = [
   "Ce que j'aurais aimé savoir en débutant",
 ];
 
-export default function CreerStepIdea({ initialFormat, channel, onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject, onIdeaChange, onPhotosChange, onPhotoDescriptionChange, onPhotoSubjectChange, onPhotoEntryChange, photoEntry }: Props) {
+export default function CreerStepIdea({ initialFormat, channel, onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject, onIdeaChange, onPhotosChange, onPhotoDescriptionChange, onPhotoSubjectChange, onPhotoEntryChange, photoEntry, historyControls }: Props) {
   const [fallbackIdea, setFallbackIdea] = useState(initialIdea || "");
   const [coachOpen, setCoachOpen] = useState(false);
   const [showNewsjacking, setShowNewsjacking] = useState(false);
@@ -128,7 +131,10 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onCoachi
           <div className="grid gap-8 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] md:gap-10">
             <div className="min-w-0">
               <div className="space-y-5 rounded-2xl border border-border bg-card p-5 sm:p-7">
-                <label htmlFor="creation-idea" className="block text-sm font-semibold text-primary">Ton idée</label>
+                <div className="flex min-h-7 flex-wrap items-center justify-between gap-2">
+                  <label htmlFor="creation-idea" className="block text-sm font-semibold text-primary">Ton idée</label>
+                  {historyControls}
+                </div>
                 <Textarea
                   id="creation-idea"
                   data-testid="creer-idea-input"
@@ -216,9 +222,12 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onCoachi
           />
 
           <div className="space-y-2">
-          <label htmlFor="creation-photo-subject" className="text-sm font-medium text-foreground">
-            De quoi veux-tu parler ? <span className="font-normal text-muted-foreground">(optionnel)</span>
-          </label>
+          <div className="flex min-h-7 flex-wrap items-center justify-between gap-2">
+            <label htmlFor="creation-photo-subject" className="text-sm font-medium text-foreground">
+              De quoi veux-tu parler ? <span className="font-normal text-muted-foreground">(optionnel)</span>
+            </label>
+            {historyControls}
+          </div>
             <Textarea
               id="creation-photo-subject"
               value={localPhotoSubject}

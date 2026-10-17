@@ -85,13 +85,31 @@ export function formatLabel(format: string | null | undefined): string {
     case "pinterest_visual":
     case "pinterest_photo":
     case "pinterest_inspiration":
+    case "epingle":
       return "Épingle Pinterest";
+    case "epingle_idee":
+      return "Épingle idée";
+    case "post_texte_linkedin":
+      return "Post LinkedIn";
+    case "stories":
+      return "Stories";
+    case "live":
+      return "Live";
+    case "article":
+      return "Article";
+    case "sondage":
+      return "Sondage";
+    case "newsletter_standard":
+      return "Newsletter";
     case "actu":
       return "Actu";
     case "":
       return "Contenu";
-    default:
-      return format!.charAt(0).toUpperCase() + format!.slice(1);
+    default: {
+      // Clé inconnue : jamais de « Epingle_idee » brut à l'écran.
+      const words = format!.replace(/_/g, " ").trim();
+      return words.charAt(0).toUpperCase() + words.slice(1);
+    }
   }
 }
 

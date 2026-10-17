@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { clearDeletedAccountStorage } from "@/lib/storage-cleanup";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -185,8 +186,12 @@ function SettingsContent() {
       }
 
       console.log("[delete-account] Success, tables cleaned:", data?.tables_cleaned);
-      if (!mounted.current) return;
-      await signOut();
+      // Le compte n'existe plus : effacer aussi ce que ce navigateur gardait
+      // (brouillons du Studio, compte mémorisé…), même si l'écran est parti.
+      const deletedUserId = user?.id;
+      if (!mounted.current) { clearDeletedAccountStorage(deletedUserId); return; }
+      await signOut().catch(() => { /* session déjà invalide côté serveur */ });
+      clearDeletedAccountStorage(deletedUserId);
       toast.success("Compte supprimé. À bientôt peut-être 💛");
       window.location.href = "/";
     } catch (e: any) {
@@ -623,7 +628,7 @@ function SettingsContent() {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Tu es sûre ?</AlertDialogTitle>
+                <AlertDialogTitle>Supprimer ton compte ?</AlertDialogTitle>
                 <AlertDialogDescription>Toutes tes données seront définitivement supprimées : profil, identité de marque, contenus, calendrier, audits, statistiques, coaching... Cette action est irréversible.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

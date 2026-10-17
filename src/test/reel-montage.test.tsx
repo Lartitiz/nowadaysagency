@@ -322,7 +322,7 @@ describe("ReelMontage — recherche manuelle dans la banque libre", () => {
     const champs = screen.getAllByPlaceholderText("mots-clés du plan (ex: mains savon atelier)");
     fireEvent.change(champs[0], { target: { value: "savon" } });
     fireEvent.keyDown(champs[0], { key: "Enter" });
-    await waitFor(() => expect(m.search).toHaveBeenCalledWith("savon", { perPage: 6, orientation: "portrait", locale: "en-US" }));
+    await waitFor(() => expect(m.search).toHaveBeenCalledWith("savon", { perPage: 6, orientation: "portrait", locale: "fr-FR" }));
     await screen.findAllByRole("button", { name: "Choisir ce clip" });
     expect(screen.getByText("Ma vidéo · Prise 1")).toBeInTheDocument();
     // Loupe de la 2e phrase : le 1er résultat devient le clip (pas de vidéo à moi).

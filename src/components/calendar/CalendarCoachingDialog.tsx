@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { formatLabel } from "@/lib/idea-state";
 import { useNavigate } from "react-router-dom";
 import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
@@ -447,7 +448,7 @@ function CalendarCoachingSession({ open, onOpenChange, onPostAdded, existingPost
                         <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-pill">{item.pillar}</span>
                       </div>
                       <span className="text-xs text-muted-foreground shrink-0">
-                        {FORMAT_ICONS[item.format] || "📝"} {item.format}
+                        {FORMAT_ICONS[item.format] || "📝"} {formatLabel(item.format)}
                         {OBJ_LABELS[item.objective] && ` · ${OBJ_LABELS[item.objective]}`}
                       </span>
                     </div>

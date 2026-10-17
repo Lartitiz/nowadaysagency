@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, memo} from "react";
+import { channelLabel } from "@/lib/channel-labels";
 import { type CalendarPost } from "@/lib/calendar-constants";
 import {
   FORMAT_LABELS,
@@ -134,7 +135,7 @@ function CalendarContentCardImpl({
     <div className="space-y-1 max-w-[220px]">
       <p className="font-semibold text-sm">{title}</p>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span>{canalIcon} {post.canal}</span>
+        <span>{canalIcon} {channelLabel(post.canal)}</span>
         {formatLabel && <span>· {formatLabel}</span>}
       </div>
       {hasSeries && (
@@ -334,7 +335,7 @@ function CalendarContentCardImpl({
           >
             <div className="flex items-center gap-1 mb-1 text-2xs text-muted-foreground">
               <span aria-hidden="true">{canalIcon}</span>
-              <span className="truncate">{formatLabel || post.canal}</span>
+              <span className="truncate">{formatLabel || channelLabel(post.canal)}</span>
               {badge && <span className={cn("ml-auto shrink-0", badge.className)} title={badge.label}><span aria-hidden="true">{badge.icon}</span><span className="sr-only">{badge.label}</span></span>}
               {seriesBadgeCompact}
             </div>

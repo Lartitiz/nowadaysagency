@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { formatLabel } from "@/lib/idea-state";
 import type { QueryClient } from "@tanstack/react-query";
 
 export interface InsightsSaveCtx {
@@ -141,7 +142,12 @@ export async function saveContentStrategyInsights(
   // Combine formats + editorial line in step_1_hidden_facets (no data loss)
   const hiddenParts: string[] = [];
   if (insights.content_formats) {
-    hiddenParts.push("Formats : " + (typeof insights.content_formats === "string" ? insights.content_formats : JSON.stringify(insights.content_formats)));
+    const formats = typeof insights.content_formats === "string"
+      ? insights.content_formats.split(/[,;]/)
+      : Array.isArray(insights.content_formats) ? insights.content_formats : [];
+    // Libellés lisibles (« carousel » → « Carrousel »), jamais de JSON brut dans la fiche.
+    const shown = formats.map((f: unknown) => formatLabel(String(f).trim())).filter((f: string) => f && f !== "Contenu");
+    if (shown.length) hiddenParts.push("Formats : " + shown.join(", "));
   }
   if (insights.content_editorial_line) {
     hiddenParts.push("Ligne éditoriale : " + insights.content_editorial_line);

@@ -31,6 +31,8 @@ export interface PhotoSwapDialogProps {
   currentIndex?: number;
   /** Requête de recherche par défaut (sujet du carrousel). */
   defaultQuery?: string;
+  /** Requête anglaise cachée, lancée tant que le champ montre `defaultQuery`. */
+  defaultQueryEn?: string;
   /** Photo choisie, déjà convertie en PhotoItem (prête à injecter dans le pipeline). */
   onSelect: (photo: PhotoItem) => void;
 }
@@ -54,6 +56,7 @@ export default function PhotoSwapDialog({
   currentPhotos = [],
   currentIndex,
   defaultQuery = "",
+  defaultQueryEn = "",
   onSelect,
 }: PhotoSwapDialogProps) {
   const hasLibrary = currentPhotos.length > 0;
@@ -108,18 +111,21 @@ export default function PhotoSwapDialog({
   };
 
   const runSearch = async () => {
-    const q = query.trim();
-    if (!q) return;
+    const typed = query.trim();
+    if (!typed) return;
+    const useEnglish = !!defaultQueryEn.trim() && typed === defaultQuery.trim();
+    const q = useEnglish ? defaultQueryEn.trim() : typed;
     setSearching(true);
     try {
       const photos = await searchStockPhotos(q, {
         perPage: 24,
         orientation: "portrait",
+        ...(useEnglish ? { locale: "en-US" } : {}),
       });
       setResults(photos);
       if (photos.length === 0) {
         toast("Aucune photo trouvée", {
-          description: "Essaie d'autres mots-clés (en anglais, ça marche souvent mieux).",
+          description: "Essaie d'autres mots, plus simples.",
         });
       }
     } catch (e) {
@@ -299,7 +305,7 @@ export default function PhotoSwapDialog({
                     onClick={() => pickStock(p)}
                     disabled={!!importingId}
                     className="relative aspect-[3/4] rounded-lg overflow-hidden border border-border hover:border-primary/50 transition-all disabled:opacity-50"
-                    title={p.alt || `Photo de ${p.photographer}`}
+                    title={`Photo de ${p.photographer} · Pexels`}
                   >
                     <img loading="lazy" src={p.thumbnail} alt={p.alt || "Photo Pexels"} className="w-full h-full object-cover" />
                     {importingId === p.id && (

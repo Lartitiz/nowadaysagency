@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { channelLabel } from "@/lib/channel-labels";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
@@ -863,7 +864,7 @@ export default function WelcomePage() {
             )}
             {channels.map((ch) => (
               <span key={ch} className="text-xs bg-secondary text-foreground px-3 py-1.5 rounded-pill font-medium inline-flex items-center gap-1.5">
-                <Smartphone className="h-4 w-4 text-primary" strokeWidth={1.75} /> {ch}
+                <Smartphone className="h-4 w-4 text-primary" strokeWidth={1.75} /> {channelLabel(ch)}
               </span>
             ))}
           </div>
