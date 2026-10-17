@@ -73,3 +73,17 @@ Deno.test("researchSourceWarnings : slide qui reprend la source → piste avec l
   assertEquals(researchSourceWarnings({ slides: [], caption: { body: "D'après l'Insee, c'est rare." } }, links)[0].includes("(légende)"), true);
   assertEquals(researchSourceWarnings(doc, undefined), []);
 });
+
+Deno.test("researchSourceWarnings : fait repris sans sa source, nommée par le juge → piste avec le lien", () => {
+  const doc = {
+    slides: [{ title: "Dans certains calculs, l'eau compte comme ingrédient naturel" }, { body: "x" }, { body: "y" }, { body: "z" }, { body: "L'eau compte comme ingrédient naturel." }],
+    progression_review: { report: { defects: [
+      { type: "unsupported", slide_ids: ["slides.0", "slides.4"], reason: "Le fait est repris sans sa source (DGCCRF, 2022)." },
+      { type: "unsupported", slide_ids: ["slides.2"], reason: "Généralisation sans source." },
+      { type: "voice", slide_ids: ["slides.3"], reason: "DGCCRF" },
+    ] } },
+  };
+  assertEquals(researchSourceWarnings(doc, [{ name: "DGCCRF, 2022", url: "https://www.economie.gouv.fr/dgccrf/x" }]), [
+    "Fait trouvé sur le web (slides 1, 5) : « DGCCRF, 2022 ». Vérifie le chiffre sur la page avant de publier : https://www.economie.gouv.fr/dgccrf/x",
+  ]);
+});
