@@ -85,17 +85,8 @@ const CANAL_COLORS: Record<string, { label: string; color: string }> = {
   newsletter: { label: "Newsletter", color: "bg-success-bg text-success" },
 };
 
-const FORMAT_LABELS: Record<string, string> = {
-  post_carrousel: "Carrousel",
-  post_photo: "Photo",
-  reel: "Reel",
-  story: "Story",
-  story_serie: "Série Stories",
-  live: "Live",
-  texte: "Texte",
-  article: "Article",
-  video: "Vidéo",
-};
+// Les autres formats passent par formatLabel (jamais la clé brute).
+const FORMAT_LABELS: Record<string, string> = { post_photo: "Photo", video: "Vidéo" };
 
 type PeriodMode = "week" | "month" | "all";
 type SortKey = "date" | "status" | "canal";

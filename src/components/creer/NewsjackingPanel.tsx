@@ -51,14 +51,6 @@ const VEHICULE_CONFIG: Record<string, { emoji: string; label: string; className:
   parallele_absurde: { emoji: "🎭", label: "Parallèle", className: "bg-primary/15 text-primary" },
 };
 
-const FORMAT_LABELS: Record<string, string> = {
-  post: "Post",
-  carousel: "Carrousel",
-  reel: "Reel",
-  story: "Story",
-  linkedin: "LinkedIn",
-};
-
 const AXE_CONFIG: Record<string, { emoji: string; label: string }> = {
   // Nouveaux axes (micro-phénomènes culturels)
   mot_qui_revient: { emoji: "💬", label: "Mot" },
@@ -1078,7 +1070,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                             {vc.emoji} {vc.label}
                                           </span>
                                           <span className="text-2xs px-2 py-0.5 rounded-full bg-muted/50 text-muted-foreground/70 italic">
-                                            💡 idéal en {FORMAT_LABELS[angle.format_suggere] || formatLabel(angle.format_suggere)}
+                                            💡 idéal en {formatLabel(angle.format_suggere)}
                                           </span>
                                         </div>
                                         <p className="text-sm font-semibold leading-snug">« {angle.hook} »</p>

@@ -26,7 +26,7 @@
       "any": 2
     },
     "src/components/creer/NewsjackingPanel.tsx": {
-      "lignes": 1166,
+      "lignes": 1159,
       "any": 3
     },
     "src/components/creer/formatRenderers/CarouselPhotoResult.tsx": {
@@ -90,7 +90,7 @@
       "any": 37
     },
     "src/pages/SharedCalendarPage.tsx": {
-      "lignes": 1126,
+      "lignes": 1119,
       "any": 2
     },
     "src/pages/WelcomePage.tsx": {
