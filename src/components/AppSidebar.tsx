@@ -1,12 +1,11 @@
 import BrandLogo from "@/components/BrandLogo";
 import { useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, Check, Home, UserRound, CircleHelp, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut,  Plus, Trash2, Image, BarChart3, IdCard, Lightbulb } from "lucide-react";
+import { ChevronDown, Check, Home, UserRound, CircleHelp, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut,  Plus, Trash2, Image, BarChart3, IdCard, Lightbulb } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { isRouteVisible } from "@/config/feature-flags";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
-import { useDemoContext } from "@/contexts/DemoContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAccountSwitcher } from "@/hooks/use-account-switcher";
 import { useMobileNav } from "@/contexts/MobileNavContext";
@@ -62,7 +61,6 @@ export default function AppSidebar() {
   const location = useLocation();
   const { user, isAdmin, signOut } = useAuth();
   const { plan, usage, bonusCredits, loading: planLoading } = useUserPlan();
-  const { activateDemo } = useDemoContext();
   const navigate = useNavigate();
   const isBinome = plan === "binome";
 
@@ -183,13 +181,6 @@ export default function AppSidebar() {
           {isAdmin && (
             <details className="mt-3 border-t border-border pt-3">
               <summary className="cursor-pointer text-sm text-muted-foreground">Administration</summary>
-              <button
-                onClick={() => { activateDemo(); navigate("/dashboard"); setOpen(false); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors text-left"
-              >
-                <Film size={16} />
-                🎬 Mode démo
-              </button>
               <Link to="/admin/coaching" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors">
                 <GraduationCap size={16} />
                 🎓 Admin

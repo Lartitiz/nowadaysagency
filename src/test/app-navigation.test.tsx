@@ -50,6 +50,8 @@ it("conserve les outils admin sans les ajouter aux comptes ordinaires", () => {
   expect(menu.getByRole("link", { name: "Pinterest" })).toBeVisible();
   fireEvent.click(menu.getByText("Administration"));
   expect(menu.getByRole("link", { name: /Admin/ })).toBeVisible();
+  // Mode démo retiré du menu le 17/10/2026 (plus utilisé par Laetitia).
+  expect(menu.queryByText(/Mode démo/)).not.toBeInTheDocument();
 });
 it("ne superpose pas la navigation à une session guidée", () => {
   state.session = true; mount();

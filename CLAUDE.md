@@ -162,7 +162,7 @@ Ce n'est PAS un Hootsuite (programmation pure), un Canva (création visuelle), n
 **Admin (Laetitia)** — Dashboard coach : vue programmes actifs, sessions planifiées, préparation kick-off automatisée (résumé IA + agenda suggéré + sujets manquants + branding complétion par champ). Page /admin/audit : scan complet de l'app (tables, RLS, cohérence données, connexions modules, mode démo).
 
 ### MODE DÉMO
-Compte pré-rempli "Léa" (photographe portraitiste éthique). Sert pendant les appels découverte.
+Compte pré-rempli "Léa" (photographe portraitiste éthique). Plus utilisé : bouton d'entrée (menu Administration) retiré le 17/10/2026, le code reste en place.
 - Toggle Free/Binôme pour montrer les 2 expériences
 - Données en dur (pas d'appel Supabase ni IA)
 - Toutes fonctionnalités navigables et interactives
@@ -220,6 +220,7 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 - Si Lovable affiche « Un push vers votre dépôt a remplacé votre travail » : garder **la version du dépôt**. Le workflow `.github/workflows/lovable-sync-pr.yml` ouvre une PR de récupération (ou une issue `lovable-sync`) ; la fusionner en « Create a merge commit », jamais squash ni rebase.
 - `deno.json` garde `"nodeModulesDir": "auto"` (décision du 14/10/2026) : la version `"manual"` faite par Lovable le 08/10 n'a pas été reprise, Lovable redéploie sans souci en `auto`. Repasser en `manual` seulement si l'erreur « File exists (os error 17) » revient.
 - Sessions Claude Code dans le cloud : l'installation des dépendances échoue (`bun.lock` pointe vers le registre de Lovable, 403) et la suppression de branches GitHub est refusée (403). La CI de la PR sert de vérification ; les branches se suppriment à la main sur GitHub.
+- Contournement possible (17/10/2026) pour lancer les tests en local dans le cloud : copier `package.json` dans un dossier à part, y remplacer `"postcss": "$postcss"` (dans `overrides`) par la version de postcss et le paquet `xlsx` du CDN SheetJS (403) par `0.18.5`, faire `npm install --ignore-scripts` sans lockfile, puis relier `node_modules` au dépôt par un lien symbolique (ignoré par git). Les versions diffèrent un peu : 9 fichiers de tests (exports pptx, docx) échouent aussi sur `main`, sans rapport avec le code testé. La CI reste la référence.
 
 ### Gros fichiers : cliquet anti-dette (lot G1, 14/10/2026)
 - Les fichiers de plus de 800 lignes de `src/` et `supabase/functions/` (hors tests et types générés) ont leur taille et leur nombre de `as any` / `: any` gelés dans `scripts/cliquet-dette.baseline.json`. La CI (`node scripts/cliquet-dette.mjs`) échoue si l'un d'eux grossit ou gagne un `any`, ou si un nouveau fichier dépasse 800 lignes.
@@ -232,6 +233,7 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 **Quota IA :**
 - Pattern obligatoire : `checkQuota()` AVANT l'appel IA + `logUsage()` APRÈS succès
 - NE PAS utiliser `checkAndIncrementUsage` (incrémente même en cas d'échec)
+- À trancher par Laetitia (relecture du 17/10/2026) : `checkQuota` puis `logUsage` n'est pas atomique. En lançant plusieurs créations d'images exactement en même temps (3 par minute au plus par fonction), un compte gratuit peut finir à 6 ou 7 images au lieu de 5 (`carousel-slide-image`, `product-on-model`, `photoroom-edit`…). Le Studio visuel n'a pas ce trou (réservation atomique `studio_confirm_generation`). Ne pas corriger sans sa décision.
 - Système de crédits : compteur unique total (23 en free ; garde-fou 200 Premium / 400 Binôme, affiché « Illimité »). Plafonds DURS par catégorie, que les crédits bonus ne lèvent pas : `carousel`, `photo_retouch` (= images), `video` (voir PLAN_LIMITS dans `_shared/plan-limiter.ts`, miroir `src/lib/plan-limits.ts`). `quality_max` n'est plus qu'un droit d'accès (0 en free). Un carrousel = 1 unité `carousel` (à la rédaction) ; la mise en forme visuelle compte en `content`.
 
 **Workspace isolation :**

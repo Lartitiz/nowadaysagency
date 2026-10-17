@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { WORKSPACE_SHARING_ENABLED } from "@/config/feature-flags";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import {   Home, CalendarDays,  User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake,  Search, ChevronDown, Check, Plus,   Wrench,  Menu } from "lucide-react";
+import {   Home, CalendarDays,  User, Palette, CreditCard, Settings, HelpCircle, LogOut, GraduationCap, Handshake,  Search, ChevronDown, Check, Plus,   Wrench,  Menu } from "lucide-react";
 import { useMobileNav } from "@/contexts/MobileNavContext";
 import { isMobileNavAvailable } from "@/lib/app-shell-visibility";
 import { useAppBreadcrumbHidden } from "@/lib/app-breadcrumb";
@@ -127,8 +127,7 @@ function AppHeaderInner() {
   const location = useLocation();
   const navigate = useNavigate();
   const { plan, usage, bonusCredits, isBinome, isPaid, loading: planLoading, verified: planVerified, refresh: refreshPlan } = useUserPlan();
-  const { isDemoMode, demoData, demoPlan, activateDemo } = useDemoContext();
-  const handleDemoClick = () => { activateDemo(); navigate("/dashboard"); };
+  const { isDemoMode, demoData, demoPlan } = useDemoContext();
   const [searchParams] = useSearchParams();
 
   const [hasCoaching, setHasCoaching] = useState(false);
@@ -263,7 +262,6 @@ function AppHeaderInner() {
               isBinome={isBinome}
               coachingMonth={coachingMonth}
               coachingPhase={coachingPhase}
-              onDemoClick={handleDemoClick}
             />
           </div>
         </div>
@@ -306,7 +304,6 @@ function AppHeaderInner() {
               
               coachingMonth={coachingMonth}
               coachingPhase={coachingPhase}
-              onDemoClick={handleDemoClick}
             />
           </div>
         </div>
@@ -393,10 +390,9 @@ interface AvatarMenuProps {
   
   coachingMonth?: number | null;
   coachingPhase?: string | null;
-  onDemoClick: () => void;
 }
 
-function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, totalLimit, totalPercent, signOut, navigate, isAdmin, hasCoaching, isBinome, coachingMonth, coachingPhase, onDemoClick }: AvatarMenuProps) {
+function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, totalLimit, totalPercent, signOut, navigate, isAdmin, hasCoaching, isBinome, coachingMonth, coachingPhase }: AvatarMenuProps) {
   const remaining = totalLimit - totalUsed;
   const isLow = remaining <= 10 && totalLimit > 0;
 
@@ -463,9 +459,6 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
         {isAdmin && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onDemoClick} className="gap-2 cursor-pointer">
-              <Film className="h-4 w-4" /> 🎬 Mode démo
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/admin/coaching")} className="gap-2 cursor-pointer">
               <GraduationCap className="h-4 w-4" /> 👥 Utilisatrices
             </DropdownMenuItem>
