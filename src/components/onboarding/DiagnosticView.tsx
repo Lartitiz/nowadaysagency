@@ -3,6 +3,7 @@ import { motion, useInView, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { type DiagnosticData, type DiagnosticStrength, type DiagnosticWeakness, normalizeStrength, getScoreMessage, diagnosticLevel, channelLevelLabel } from "@/lib/diagnostic-data";
+import { channelLabel } from "@/lib/channel-labels";
 import BrandLearnedSection from "./BrandLearnedSection";
 import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 
@@ -429,12 +430,9 @@ function WeaknessesSection({ weaknesses }: { weaknesses: DiagnosticWeakness[] })
 function PrioritiesSection({ priorities }: { priorities: DiagnosticData["priorities"] }) {
   const channelEmoji: Record<string, string> = {
     instagram: "📱", website: "🌐", newsletter: "✉️",
-    seo: "🔍", branding: "🎨", linkedin: "💼",
+    seo: "🔍", branding: "🎨", linkedin: "💼", pinterest: "📌", site: "🌐",
   };
-  const channelLabel: Record<string, string> = {
-    instagram: "Instagram", website: "Site web", newsletter: "Newsletter",
-    seo: "Référencement", branding: "Identité", linkedin: "LinkedIn",
-  };
+  const priorityChannelLabel = (channel: string) => (channel === "branding" ? "Identité" : channelLabel(channel));
   const impactBorder: Record<string, string> = {
     high: "border-l-primary", medium: "border-l-accent", low: "border-l-border",
   };
@@ -461,7 +459,7 @@ function PrioritiesSection({ priorities }: { priorities: DiagnosticData["priorit
                 {p.first_step && <p className="text-sm text-foreground mt-3"><span className="font-semibold">À faire maintenant :</span> {p.first_step}</p>}
                 {p.example && <p className="text-sm text-muted-foreground mt-2 rounded-lg bg-muted/60 px-3 py-2"><span className="font-medium">Pour t'aider :</span> {p.example}</p>}
                 <div className="flex gap-3 mt-2 text-xs text-muted-foreground">
-                  <span>{channelEmoji[p.channel] || "📌"} {channelLabel[p.channel] || p.channel}</span>
+                  <span>{channelEmoji[p.channel] || "📌"} {priorityChannelLabel(p.channel)}</span>
                   <span>·</span>
                   <span>Impact {p.impact === "high" ? "fort" : "moyen"}</span>
                   <span>·</span>

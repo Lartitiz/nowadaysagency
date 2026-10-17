@@ -6,8 +6,9 @@ import { angleLabelOf, draftFromPost, isoToLocalInput, ANGLE_TO_CAROUSEL, CANAL_
 
 describe("fonctions de la fenêtre d'un post du calendrier", () => {
   it("angleLabelOf : libellé connu, id brut connu, id mis en forme, rien", () => {
-    expect(angleLabelOf("Storytelling")).toBe("Storytelling");
-    expect(angleLabelOf("storytelling_pro")).toBe("Storytelling");
+    expect(angleLabelOf("Storytelling")).toBe("Récit");
+    expect(angleLabelOf("Before / After")).toBe("Avant / après");
+    expect(angleLabelOf("storytelling_pro")).toBe("Récit");
     expect(angleLabelOf("angle_maison")).toBe("Angle maison");
     expect(angleLabelOf(null)).toBeNull();
   });

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { cn, toLocalDateStr } from "@/lib/utils";
 import { ChevronDown, CalendarIcon } from "lucide-react";
 import { ANGLES, STATUSES, OBJECTIFS } from "@/lib/calendar-constants";
+import { angleLabelOf } from "@/features/calendar/post-dialog-helpers";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useActiveSeries, getNextEpisodeNumber } from "@/hooks/use-active-series";
 
@@ -254,7 +255,7 @@ export function CalendarPostMetadata({
               {ANGLES.map((a) => (
                 <button key={a} onClick={() => setAngle(angle === a ? null : a)}
                   className={`rounded-pill px-2 py-0.5 text-2xs font-medium border transition-all ${angle === a ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-                  {a}
+                  {angleLabelOf(a)}
                 </button>
               ))}
             </div>

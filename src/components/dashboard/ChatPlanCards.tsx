@@ -8,6 +8,7 @@ import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { dropAlreadyPlanned } from "@/lib/calendar-duplicates";
+import { formatLabel } from "@/lib/idea-state";
 import {
   ChatPlanItem,
   PLAN_FORMAT_EMOJI,
@@ -134,7 +135,7 @@ export default function ChatPlanCards({ items }: { items: ChatPlanItem[] }) {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-pill">{item.day}</span>
               <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-pill">
-                {PLAN_FORMAT_EMOJI[item.format] || "📝"} {PLAN_FORMAT_LABEL[item.format] || item.format}
+                {PLAN_FORMAT_EMOJI[item.format] || "📝"} {PLAN_FORMAT_LABEL[item.format] || formatLabel(item.format)}
               </span>
             </div>
             <p className="text-sm font-medium text-foreground">{item.subject}</p>

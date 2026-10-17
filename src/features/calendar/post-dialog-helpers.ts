@@ -29,17 +29,23 @@ export const CANAL_META: Record<string, { emoji: string; label: string }> = {
 
 // Libellé d'angle lisible : certains vieux posts stockent un id brut (« storytelling_pro »).
 export const ANGLE_ID_LABELS: Record<string, string> = {
-  storytelling: "Storytelling", storytelling_pro: "Storytelling",
+  storytelling: "Récit", storytelling_pro: "Récit",
   mythe_realite: "Mythe à déconstruire", prise_de_position: "Prise de position",
-  tips: "Conseil", etude_de_cas: "Étude de cas", before_after: "Before / After",
+  tips: "Conseil", etude_de_cas: "Étude de cas", before_after: "Avant / après",
   epingle_conseil: "Épingle conseil", epingle_produit: "Épingle produit",
   epingle_inspiration: "Épingle inspiration", epingle_article: "Épingle article",
+};
+
+// Valeurs de ANGLES gardées telles quelles en base (lues par l'IA) : seul l'affichage passe en français.
+const ANGLE_DISPLAY_LABELS: Record<string, string> = {
+  "Storytelling": "Récit",
+  "Before / After": "Avant / après",
 };
 
 /** Libellé d'angle lisible (libellé connu, id brut connu, ou id mis en forme). */
 export function angleLabelOf(angle: string | null): string | null {
   return angle
-    ? (ANGLES.includes(angle) ? angle : (ANGLE_ID_LABELS[angle] || (angle.charAt(0).toUpperCase() + angle.slice(1).replace(/_/g, " "))))
+    ? (ANGLES.includes(angle) ? (ANGLE_DISPLAY_LABELS[angle] || angle) : (ANGLE_ID_LABELS[angle] || (angle.charAt(0).toUpperCase() + angle.slice(1).replace(/_/g, " "))))
     : null;
 }
 
