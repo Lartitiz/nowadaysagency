@@ -109,6 +109,7 @@ import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
 import { useGenerationReloadGuard } from "@/hooks/use-generation-reload-guard";
 import ResultEmptyState from "@/components/creer/ResultEmptyState";
+import { useSubjectBaseline, nextIdeaLink } from "@/hooks/use-subject-baseline";
 import { loadFlowState, saveFlowState as persistFlowState, clearFlowState, savePhotos as persistPhotos, loadPhotos, setFlowWorkspaceId, setFlowUserId } from "@/hooks/use-flow-persistence";
 import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
@@ -678,15 +679,14 @@ function CreerWorkspace() {
     setStep("format");
   }, [objective]);
 
+  const subjectBaseline = useSubjectBaseline(step, ideaText);
   const handleIdeaNext = (idea: string, ideaId?: string) => {
-    ideaHistory.change(idea); if (ideaId && !editingIdeaId) setEditingIdeaId(ideaId);
-    setNewsjackingContext(null);
-    setNewsjackingSuggestedFormat(null);
+    // Idée du diagnostic ou nouveau sujet après un contenu écrit : l'ancienne fiche reste intacte (use-subject-baseline.ts).
+    const link = nextIdeaLink({ pickedIdeaId: ideaId, editingIdeaId, subject: idea, previousSubject: subjectBaseline.current, hasContent: !!result || !!editContent || visualSlides.length > 0 });
+    if (link.freshContent) { void carouselSave.flush(); resetGenerator(); streamReset(); setEditContent(""); setEditBaseline(null); setVisualSlides([]); setSavedId(null); sessionStorage.removeItem(CREER_RESULT_KEY); }
+    ideaHistory.change(idea); setEditingIdeaId(link.ideaId); setNewsjackingContext(null); setNewsjackingSuggestedFormat(null);
     // Auriana demo: keep pre-filled format/angle if subject unchanged
-    if (aurianaDemoActive && idea === AURIANA_DEMO_SUBJECT) {
-      setStep("format");
-      return;
-    }
+    if (aurianaDemoActive && idea === AURIANA_DEMO_SUBJECT) { setStep("format"); return; }
     // Reset format-related state so the user starts fresh at channel selection.
     // NOTE: photos (uploadedPhotos / photoDescription) are NOT reset here so
     // that the "Partir de photos" entry point can pre-load them in CreerStepFormat.
