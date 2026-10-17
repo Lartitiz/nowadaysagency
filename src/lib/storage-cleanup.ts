@@ -92,3 +92,34 @@ export function clearAppStorage() {
     }
   } catch { /* IndexedDB indisponible — ignore */ }
 }
+
+// Traces gardées exprès d'une connexion à l'autre (brouillons du Studio,
+// capture de page, historique du coach) : on ne les efface qu'à la suppression
+// du compte, pour ne rien laisser de la personne dans ce navigateur.
+const DELETED_ACCOUNT_LOCAL_PREFIXES = [
+  "visual-studio",   // "visual-studio:draft:{user}:{ws}:{session}" (+ ":images")
+  "studio-video",    // brouillons vidéo, dernière session
+  "carousel-studio", // tickets et demandes du Studio carrousel
+  "capture-page",    // brouillon de la capture de page de site
+  "lac_product_or_service",
+];
+const DELETED_ACCOUNT_LOCAL_KEYS = ["coach_chat_history"];
+const DELETED_ACCOUNT_SESSION_PREFIXES = ["studio-video-for-reel"];
+
+export function clearDeletedAccountStorage(userId?: string) {
+  clearAppStorage();
+  try {
+    for (const k of DELETED_ACCOUNT_LOCAL_KEYS) localStorage.removeItem(k);
+    sweepByPrefix(localStorage, DELETED_ACCOUNT_LOCAL_PREFIXES);
+    // Le compte supprimé ne doit plus être proposé dans « Changer de compte ».
+    if (userId) {
+      const saved = JSON.parse(localStorage.getItem("saved_accounts") || "[]");
+      if (Array.isArray(saved)) {
+        localStorage.setItem("saved_accounts", JSON.stringify(saved.filter((a) => a?.userId !== userId)));
+      }
+    }
+  } catch { /* storage indisponible — ignore */ }
+  try {
+    sweepByPrefix(sessionStorage, DELETED_ACCOUNT_SESSION_PREFIXES);
+  } catch { /* storage indisponible — ignore */ }
+}

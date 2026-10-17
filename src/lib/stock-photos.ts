@@ -72,6 +72,8 @@ export interface StockKeywords {
   primary: string;
   /** Toutes les suggestions (inclut primary en tête). */
   keywords: string[];
+  /** Libellé français à afficher pour chaque requête anglaise (peut manquer). */
+  labels: Record<string, string>;
 }
 
 /**
@@ -85,7 +87,7 @@ export async function suggestStockKeywords(
   opts: { count?: number } = {},
 ): Promise<StockKeywords> {
   const subject = ctx.subject.trim();
-  if (!subject) return { primary: "", keywords: [] };
+  if (!subject) return { primary: "", keywords: [], labels: {} };
   const { data, error } = await supabase.functions.invoke("stock-photo-keywords", {
     body: {
       subject,
@@ -103,7 +105,35 @@ export async function suggestStockKeywords(
   }
   if (data?.error) throw new Error(data.error);
   const keywords = Array.isArray(data?.keywords) ? (data.keywords as string[]) : [];
-  return { primary: (data?.primary as string) || keywords[0] || "", keywords };
+  const labels: Record<string, string> = {};
+  if (data?.labels && typeof data.labels === "object") {
+    for (const [k, v] of Object.entries(data.labels as Record<string, unknown>)) {
+      if (typeof v === "string" && v.trim()) labels[k] = v.trim();
+    }
+  }
+  // Sans traduction, la requête anglaise reste affichée (et cherchée en anglais).
+  for (const kw of keywords) if (!labels[kw]) labels[kw] = kw;
+  return { primary: (data?.primary as string) || keywords[0] || "", keywords, labels };
+}
+
+/** Le libellé français d'une requête anglaise, ou la requête elle-même. */
+export function stockKeywordLabel(keyword: string, labels: Record<string, string> | undefined): string {
+  return labels?.[keyword] || keyword;
+}
+
+/**
+ * Ce qu'on envoie vraiment à Pexels pour un texte affiché : un libellé
+ * français proposé par l'IA repart avec sa requête anglaise (meilleurs
+ * résultats) ; un texte tapé à la main part tel quel, en français.
+ */
+export function stockSearchFor(
+  shown: string,
+  labels: Record<string, string> | undefined,
+): { term: string; locale: "en-US" | "fr-FR" } {
+  const text = shown.trim();
+  const entries = Object.entries(labels || {});
+  const english = entries.find(([, fr]) => fr.trim().toLowerCase() === text.toLowerCase())?.[0];
+  return english ? { term: english, locale: "en-US" } : { term: text, locale: "fr-FR" };
 }
 
 /**
@@ -179,9 +209,9 @@ export async function stockPhotoToPhotoItem(stock: StockPhoto): Promise<PhotoIte
   if (!res.ok) throw new Error("Téléchargement de la photo impossible.");
   const blob = await res.blob();
   const { base64, mimeType } = await blobToResizedBase64(blob);
-  const name = stock.alt
-    ? `${slugify(stock.alt).slice(0, 40) || "pexels"}.jpg`
-    : `pexels-${stock.id}.jpg`;
+  // La description Pexels est en anglais (« closed pottery kiln studio ») :
+  // elle ne sert pas de nom visible dans « Mes photos ».
+  const name = `Photo libre de droits${stock.photographer ? ` (${stock.photographer})` : ""}.jpg`;
   return {
     id: crypto.randomUUID(),
     base64,
@@ -249,13 +279,4 @@ function blobToDataUrl(blob: Blob): Promise<string> {
     reader.onerror = () => reject(new Error("Lecture du fichier impossible."));
     reader.readAsDataURL(blob);
   });
-}
-
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }

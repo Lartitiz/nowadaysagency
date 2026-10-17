@@ -16,7 +16,7 @@ interface ConfirmResetDialogProps {
   onConfirm: () => void;
 }
 
-/** Garde anti-perte : confirmation avant "Nouveau contenu" quand un
+/** Garde anti-perte : confirmation avant « Créer un autre contenu » quand un
     travail est en cours (texte généré et/ou photos uploadées). Évite
     d'effacer photos + contenu par un clic réflexe. */
 export default function ConfirmResetDialog({ open, onOpenChange, photoCount, onConfirm }: ConfirmResetDialogProps) {
@@ -32,13 +32,13 @@ export default function ConfirmResetDialog({ open, onOpenChange, photoCount, onC
                 <strong>
                   {photoCount} photo{photoCount > 1 ? "s" : ""}
                 </strong>
-                . « Nouveau contenu » efface le texte généré et retire les
+                . Créer un autre contenu efface le texte généré et retire les
                 photos. Cette action est irréversible.
               </>
             ) : (
               <>
-                Tu as un contenu en cours. « Nouveau contenu » efface le texte
-                généré et repart d'une page blanche. Cette action est
+                Tu as un contenu en cours. Créer un autre contenu efface le
+                texte généré et repart d'une page blanche. Cette action est
                 irréversible.
               </>
             )}

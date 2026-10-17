@@ -1175,12 +1175,12 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
             return Number.isInteger(s?.photo_index) && s.photo_index >= 1 ? s.photo_index : swapSlideIdx + 1;
           })()}
           defaultQuery={(() => {
-            // Casting : la recherche banque d'images est pré-remplie avec les
-            // mots-clés de la directive (photo_query_en, généré par l'IA), à
-            // défaut la directive elle-même, à défaut le sujet du carrousel.
+            // Casting : le champ montre la consigne photo en français (à défaut
+            // le sujet) ; la requête anglaise photo_query_en part en coulisses.
             const s = slides[swapSlideIdx];
-            return s?.photo_query_en || s?.photo_directive || r?.subject || result?.subject || "";
+            return s?.photo_directive || r?.subject || result?.subject || s?.photo_query_en || "";
           })()}
+          defaultQueryEn={slides[swapSlideIdx]?.photo_query_en || ""}
           onSelect={(photo) => handleSwapPhoto(swapSlideIdx, photo)}
         />
       )}

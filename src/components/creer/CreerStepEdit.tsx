@@ -49,11 +49,12 @@ const ADJUST_CONTENT_TYPES: Record<string, string> = {
   pinterest_photo: "post_pinterest",
 };
 
+// `instruction` part à l'IA telle quelle ; l'écran montre `display` (ou l'instruction).
 const ADJUSTMENTS = [
-  { id: "shorter", label: "Plus court", emoji: "✂️" },
-  { id: "punchy", label: "Plus punchy", display: "Plus percutant", emoji: "💥" },
-  { id: "tone", label: "Ajuste le ton", emoji: "🎨" },
-  { id: "storytelling", label: "Plus de storytelling", display: "Raconter davantage ton histoire", emoji: "📖" },
+  { id: "shorter", instruction: "Plus court", emoji: "✂️" },
+  { id: "punchy", instruction: "Plus punchy", display: "Plus percutant", emoji: "💥" },
+  { id: "tone", instruction: "Ajuste le ton", emoji: "🎨" },
+  { id: "storytelling", instruction: "Plus de storytelling", display: "Raconter davantage ton histoire", emoji: "📖" },
 ];
 
 const QUALITY_CHECKLIST = [
@@ -96,7 +97,7 @@ export default function CreerStepEdit({ content, savedContent, onDraftChange, fo
           step: "adjust",
           contentType: ADJUST_CONTENT_TYPES[format] || "instagram_post",
           content: editedContent,
-          adjustment: ADJUSTMENTS.find((a) => a.id === adjustmentId)?.label || adjustmentId,
+          adjustment: ADJUSTMENTS.find((a) => a.id === adjustmentId)?.instruction || adjustmentId,
           context: subject || "",
           ...(newsContext?.trim() ? { news_context: newsContext.trim().slice(0, 3800) } : {}),
           ...(workspaceId ? { workspace_id: workspaceId } : {}),
@@ -176,7 +177,7 @@ export default function CreerStepEdit({ content, savedContent, onDraftChange, fo
             ) : (
               <span>{adj.emoji}</span>
             )}
-            {adj.display ?? adj.label}
+            {adj.display ?? adj.instruction}
           </Button>
         ))}
       </div>

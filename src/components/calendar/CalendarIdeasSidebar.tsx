@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { channelLabel } from "@/lib/channel-labels";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 
@@ -312,7 +313,7 @@ function IdeaCard({ idea, isMobile, onDelete, onPlan, onClick, opening }: { idea
         {!isMobile && <button {...attributes} {...listeners} aria-label={`Glisser : ${idea.titre}`} className="cursor-grab touch-none p-1 -mr-1 text-muted-foreground"><GripVertical className="h-4 w-4" /></button>}
       </div>
       <p className="text-xs text-primary-text mt-2">{ideaContentLabel(idea)}</p>
-      <p className="text-xs text-muted-foreground mt-0.5">{formatLabel(idea.format)}{idea.canal ? ` · ${idea.canal === "linkedin" ? "LinkedIn" : idea.canal.charAt(0).toUpperCase() + idea.canal.slice(1)}` : ""}</p>
+      <p className="text-xs text-muted-foreground mt-0.5">{formatLabel(idea.format)}{idea.canal ? ` · ${channelLabel(idea.canal)}` : ""}</p>
       <div className="flex items-center gap-2 mt-3">
         <button onClick={onClick} disabled={opening} aria-busy={opening} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline py-1 disabled:cursor-wait">
           {opening ? <><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Ouverture…</> : "Ouvrir"}

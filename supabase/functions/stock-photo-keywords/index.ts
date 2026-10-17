@@ -88,11 +88,14 @@ Règles :
 - Varie les angles visuels (gros plan, ambiance, personne, objet, lieu) pour offrir du choix et éviter les doublons.
 - Évite le texte sur image, les logos, les captures d'écran.
 - "primary" = la requête la plus sûre pour ramener des résultats pertinents tout de suite.
+- La créatrice ne lit pas l'anglais : "primary_fr" et "keywords_fr" donnent la même scène en français simple, dans le même ordre (ex : "closed pottery kiln studio" → "four de potière dans l'atelier").
 
 Réponds UNIQUEMENT en JSON valide (pas de markdown) :
 {
   "primary": "best single english search phrase",
-  "keywords": ["phrase 1", "phrase 2", "phrase 3", "phrase 4", "phrase 5"]
+  "primary_fr": "la même en français",
+  "keywords": ["phrase 1", "phrase 2", "phrase 3", "phrase 4", "phrase 5"],
+  "keywords_fr": ["phrase 1 en français", "phrase 2 en français", "phrase 3 en français", "phrase 4 en français", "phrase 5 en français"]
 }`;
 
   let aiResponse: Response;
@@ -114,7 +117,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown) :
           { role: "user", content: prompt },
         ],
         temperature: 0.6,
-        max_tokens: 300,
+        max_tokens: 600,
       }),
     });
   } catch (e) {
@@ -134,7 +137,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown) :
 
   const aiData = await aiResponse.json().catch(() => ({}));
   const text: string = aiData?.choices?.[0]?.message?.content || "";
-  const parsed = tryParseAiObject<{ primary?: unknown; keywords?: unknown }>(text, "stock-photo-keywords");
+  const parsed = tryParseAiObject<{ primary?: unknown; primary_fr?: unknown; keywords?: unknown; keywords_fr?: unknown }>(text, "stock-photo-keywords");
   if (!parsed) {
     console.error("[stock-photo-keywords] réponse IA non parsable", text.slice(0, 200));
     return json({ error: "Suggestion de mots-clés indisponible." }, 502);
@@ -143,6 +146,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown) :
   // Normalisation défensive : on ne renvoie que des chaînes propres, dédupliquées.
   const clean = (s: unknown) => (typeof s === "string" ? s.trim() : "");
   const rawList = Array.isArray(parsed.keywords) ? parsed.keywords.map(clean) : [];
+  const rawFr = Array.isArray(parsed.keywords_fr) ? parsed.keywords_fr.map(clean) : [];
   const primary = clean(parsed.primary) || rawList[0] || "";
   // On renvoie jusqu'à `count` thèmes (au moins 6 pour garder du choix côté UI).
   const limit = Math.max(n, 6);
@@ -152,5 +156,11 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown) :
     return json({ error: "Aucun mot-clé proposé." }, 502);
   }
 
-  return json({ primary: primary || keywords[0], keywords });
+  // Libellés français affichés à l'écran (la recherche Pexels reste en anglais).
+  const labels: Record<string, string> = {};
+  const primaryFr = clean(parsed.primary_fr);
+  if (primary && primaryFr) labels[primary] = primaryFr;
+  rawList.forEach((kw, i) => { if (kw && rawFr[i] && !labels[kw]) labels[kw] = rawFr[i]; });
+
+  return json({ primary: primary || keywords[0], keywords, labels });
 });

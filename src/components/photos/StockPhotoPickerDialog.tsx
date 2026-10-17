@@ -29,6 +29,8 @@ import { toast } from "sonner";
 import {
   searchStockPhotos,
   suggestStockKeywords,
+  stockKeywordLabel,
+  stockSearchFor,
   stockPhotoToPhotoItem,
   type StockPhoto,
   type StockKeywordContext,
@@ -67,6 +69,8 @@ export function StockPhotoPickerDialog({
   const [error, setError] = useState<string | null>(null);
   // Mots-clés visuels proposés par l'IA (chips cliquables).
   const [aiKeywords, setAiKeywords] = useState<string[]>([]);
+  // Libellé français de chaque mot-clé (la recherche Pexels reste en anglais).
+  const [aiLabels, setAiLabels] = useState<Record<string, string>>({});
   const [suggesting, setSuggesting] = useState(false);
   // Évite une double recherche auto en mode React StrictMode (double effet).
   const autoSearchedFor = useRef<string | null>(null);
@@ -118,6 +122,7 @@ export function StockPhotoPickerDialog({
     setSearched(false);
     setError(null);
     setAiKeywords([]);
+    setAiLabels({});
 
     const signature = aiSubject ? `ai:${aiSubject}` : seed;
     if (!signature || autoSearchedFor.current === signature) return;
@@ -127,11 +132,12 @@ export function StockPhotoPickerDialog({
       setSuggesting(true);
       void (async () => {
         try {
-          const { primary, keywords } = await suggestStockKeywords(aiContext!);
+          const { primary, keywords, labels } = await suggestStockKeywords(aiContext!);
           if (keywords.length) setAiKeywords(keywords);
+          setAiLabels(labels ?? {});
           const first = primary || keywords[0];
           if (first) {
-            setQuery(first);
+            setQuery(stockKeywordLabel(first, labels));
             await runSearch(first, "en-US");
             return;
           }
@@ -206,7 +212,8 @@ export function StockPhotoPickerDialog({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void runSearch(query);
+            const { term, locale } = stockSearchFor(query, aiLabels);
+            void runSearch(term, locale);
           }}
           className="flex gap-2"
         >
@@ -234,14 +241,15 @@ export function StockPhotoPickerDialog({
               {suggesting ? "L'IA cherche des pistes…" : "Suggestions IA"}
             </span>
             {aiKeywords.map((kw) => {
-              const active = query.trim().toLowerCase() === kw.toLowerCase();
+              const label = stockKeywordLabel(kw, aiLabels);
+              const active = query.trim().toLowerCase() === label.toLowerCase();
               return (
                 <button
                   key={kw}
                   type="button"
                   disabled={searching}
                   onClick={() => {
-                    setQuery(kw);
+                    setQuery(label);
                     void runSearch(kw, "en-US");
                   }}
                   className={cn(
@@ -251,7 +259,7 @@ export function StockPhotoPickerDialog({
                       : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary",
                   )}
                 >
-                  {kw}
+                  {label}
                 </button>
               );
             })}

@@ -87,14 +87,16 @@ export default function StoryPhotoSuggestions({
   const autoApplied = useRef(false);
 
   const query = (queryEn || directive || "").trim();
-  const [searchInput, setSearchInput] = useState(query);
-  const previousQuery = useRef(query);
+  // Le champ montre la consigne en français ; la requête anglaise reste en coulisses.
+  const shownQuery = (directive || queryEn || "").trim();
+  const [searchInput, setSearchInput] = useState(shownQuery);
+  const previousQuery = useRef(shownQuery);
 
   useEffect(() => {
     const oldQuery = previousQuery.current;
-    setSearchInput((current) => (!current.trim() || current === oldQuery ? query : current));
-    previousQuery.current = query;
-  }, [query]);
+    setSearchInput((current) => (!current.trim() || current === oldQuery ? shownQuery : current));
+    previousQuery.current = shownQuery;
+  }, [shownQuery]);
 
   useEffect(() => {
     if (!query || !stockRequested || startedQuery.current === query) return;
@@ -181,11 +183,13 @@ export default function StoryPhotoSuggestions({
 
   async function handleStockSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const term = searchInput.trim();
-    if (!term) {
+    const typed = searchInput.trim();
+    if (!typed) {
       searchInputRef.current?.focus();
       return;
     }
+    const useEnglish = !!queryEn?.trim() && typed === shownQuery;
+    const term = useEnglish ? queryEn!.trim() : typed;
 
     const requestId = ++searchRequestId.current;
     setStockRequested(true);
@@ -198,7 +202,7 @@ export default function StoryPhotoSuggestions({
       const results = await searchStockPhotos(term, {
         perPage: EXPANDED,
         orientation: "portrait",
-        locale: "fr-FR",
+        locale: useEnglish ? "en-US" : "fr-FR",
       });
       if (requestId !== searchRequestId.current) return;
       setSuggestions(results);
@@ -374,7 +378,7 @@ export default function StoryPhotoSuggestions({
                     className={thumbClass(active)}
                     style={{ aspectRatio: "9 / 16" }}
                     aria-label={`Utiliser la photo de ${p.photographer}`}
-                    title={`${p.alt || "Photo"} — ${p.photographer} · Pexels`}
+                    title={`Photo de ${p.photographer} · Pexels`}
                   >
                     <img
                       src={p.thumbnail}

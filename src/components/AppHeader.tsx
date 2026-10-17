@@ -54,7 +54,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   "/accompagnement": "Accompagnement",
   "/profil": "Mon profil",
   "/aide": "Aide",
-  "/settings": "Paramètres",
+  "/parametres": "Paramètres",
   "/abonnement": "Abonnement",
 };
 

@@ -32,6 +32,8 @@ export const ANGLE_ID_LABELS: Record<string, string> = {
   storytelling: "Storytelling", storytelling_pro: "Storytelling",
   mythe_realite: "Mythe à déconstruire", prise_de_position: "Prise de position",
   tips: "Conseil", etude_de_cas: "Étude de cas", before_after: "Before / After",
+  epingle_conseil: "Épingle conseil", epingle_produit: "Épingle produit",
+  epingle_inspiration: "Épingle inspiration", epingle_article: "Épingle article",
 };
 
 /** Libellé d'angle lisible (libellé connu, id brut connu, ou id mis en forme). */

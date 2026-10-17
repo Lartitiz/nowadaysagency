@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, type Dispatch, type MutableRefObject, type
 import { toast } from "sonner";
 import { readableError } from "@/lib/error-messages";
 import { searchStockVideos, suggestStockKeywords, type StockVideo } from "@/lib/stock-videos";
+import { stockKeywordLabel, stockSearchFor } from "@/lib/stock-photos";
 import { fromStock, set, type MontageMode, type Section, type SelectedClip } from "./types";
 
 interface StockSearchArgs {
@@ -21,6 +22,8 @@ export function useReelStockSearch({ spoken, subject, montageMode, setClips, act
   const [keywords, setKeywords] = useState<string[]>(() => spoken.map(() => ""));
   const [results, setResults] = useState<StockVideo[][]>(() => spoken.map(() => []));
   const [loading, setLoading] = useState<boolean[]>(() => spoken.map(() => true));
+  // Libellés français affichés dans les champs ; Pexels reçoit la requête anglaise.
+  const labels = useRef<Record<string, string>>({});
 
   // Suggestion initiale : un clip par section. Uniquement en mode "cache" — le
   // mode "filme" n'utilise pas la banque libre, seulement les prises perso.
@@ -34,11 +37,15 @@ export function useReelStockSearch({ spoken, subject, montageMode, setClips, act
     (async () => {
       let kws: string[] = [];
       try {
-        const { keywords: k, primary } = await suggestStockKeywords({
+        const { keywords: k, primary, labels: l } = await suggestStockKeywords({
           subject: subject || spoken.map((s) => s.texte_parle).join(" ").slice(0, 120),
           slides: spoken.map((s) => s.texte_parle || ""),
         });
-        kws = spoken.map((_, i) => k[i] || primary || subject || "");
+        labels.current = l ?? {};
+        kws = spoken.map((_, i) => {
+          const kw = k[i] || primary;
+          return kw ? stockKeywordLabel(kw, labels.current) : subject || "";
+        });
       } catch {
         kws = spoken.map(() => subject || "");
       }
@@ -50,11 +57,11 @@ export function useReelStockSearch({ spoken, subject, montageMode, setClips, act
   }, [montageMode]);
 
   async function runSearch(i: number, kw: string, o?: { cancelledRef?: () => boolean }) {
-    const term = kw.trim();
+    const { term, locale } = stockSearchFor(kw, labels.current);
     setLoading((L) => set(L, i, true));
     try {
       const vids = term
-        ? await searchStockVideos(term, { perPage: 6, orientation: "portrait", locale: "en-US" })
+        ? await searchStockVideos(term, { perPage: 6, orientation: "portrait", locale })
         : [];
       if (o?.cancelledRef?.()) return;
       setResults((R) => set(R, i, vids));

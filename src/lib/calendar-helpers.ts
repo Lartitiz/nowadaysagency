@@ -40,6 +40,14 @@ export const FORMAT_EMOJIS: Record<string, string> = {
 
 export const FORMAT_LABELS: Record<string, string> = {
   post_carrousel: "Carrousel",
+  carousel: "Carrousel",
+  post: "Post",
+  post_texte: "Post texte",
+  epingle: "Épingle",
+  epingle_idee: "Épingle idée",
+  article: "Article",
+  sondage: "Sondage",
+  newsletter_standard: "Newsletter",
   post_photo: "Post photo",
   reel: "Reel",
   story: "Story",

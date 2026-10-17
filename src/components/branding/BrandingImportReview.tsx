@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { channelLabel } from "@/lib/channel-labels";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { readImportRows, saveImportRow, importTarget } from "@/lib/branding-import-persistence";
@@ -124,7 +125,7 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
         target_desires: personaRes.data?.step_2_transformation || null,
         story: storyRes.data?.step_7_polished || storyRes.data?.step_6_full_story || storyRes.data?.imported_text || storyRes.data?.step_1_raw || null,
         content_pillars: [stratRes.data?.pillar_major, stratRes.data?.pillar_minor_1, stratRes.data?.pillar_minor_2, stratRes.data?.pillar_minor_3].filter(Boolean).join(", ") || null,
-        channels: Array.isArray(brandRes.data?.channels) ? brandRes.data.channels.join(", ") : null,
+        channels: Array.isArray(brandRes.data?.channels) ? brandRes.data.channels.map(channelLabel).join(", ") : null,
         offers: brandRes.data?.offer || null,
       };
 

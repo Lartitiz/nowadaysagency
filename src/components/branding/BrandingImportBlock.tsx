@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { channelLabel } from "@/lib/channel-labels";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -268,7 +269,7 @@ export default function BrandingImportBlock({ onResult, prefillLinks }: Props) {
                 />
                 <div className="flex items-center gap-2 min-w-0">
                   {getSocialIcon(link.type)}
-                  <span className="text-xs font-medium text-foreground capitalize">{link.type}</span>
+                  <span className="text-xs font-medium text-foreground">{channelLabel(link.type)}</span>
                   <span className="text-xs text-muted-foreground truncate">{truncateUrl(link.url)}</span>
                 </div>
               </label>
