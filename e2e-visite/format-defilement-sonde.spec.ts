@@ -7,6 +7,9 @@
  * sans rien générer, et vérifie que « Suivant » est dans l'écran, non recouvert.
  * 20 cas par taille d'écran : 40/40 attendu (ordi + téléphone).
  * Seconde ligne 🧭 : rendu de carrousel conseillé (« photo » dès 3 photos dans « Mes photos », sinon « text »).
+ * Troisième ligne 🧭 (17/10/2026, #1736) : « Suivant » sans photo en « Tes photos en fond » montre l'alerte
+ * « il faut au moins une photo » dans l'écran, non recouverte (elle naissait sous l'écran, la cliente ne voyait rien).
+ * Sans photo jointe, « Suivant » ne passe pas l'écran : rien n'est généré.
  */
 import { test, expect, type Page } from "@playwright/test";
 
@@ -54,6 +57,7 @@ test("écran Format : « Suivant » visible sans défiler", async ({ page }, inf
   // Rendu conseillé (17/10/2026) : « Tes photos en fond » dès 3 photos dans « Mes photos », sinon « Texte design ».
   let conseille = "?";
   let mesPhotos = 0;
+  let alerte = "non vérifiée";
 
   await page.goto("/creer?new=1", { waitUntil: "networkidle" });
   const fermer = page.locator('[data-testid="branding-banner-close"], button[aria-label*="ermer"]').first();
@@ -81,6 +85,17 @@ test("écran Format : « Suivant » visible sans défiler", async ({ page }, inf
       if (canal === "instagram" && id === "photo") {
         const bouton = page.getByTestId("photo-zone-library-main");
         mesPhotos = (await bouton.isVisible().catch(() => false)) ? Number((await bouton.textContent())?.match(/\((\d+)\)/)?.[1] ?? 0) : 0;
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.getByTestId("creer-format-next").click();
+        await page.waitForTimeout(1200);
+        alerte = await page.evaluate(() => {
+          const el = document.querySelector('[data-testid="carousel-photo-warning"]') as HTMLElement | null;
+          if (!el) return "absente";
+          const r = el.getBoundingClientRect();
+          const p = el.querySelector("p")?.getBoundingClientRect() ?? r;
+          const dessus = document.elementFromPoint(p.left + 10, p.top + p.height / 2);
+          return r.top >= 0 && r.bottom <= window.innerHeight && !!dessus && el.contains(dessus) ? "visible" : `hors écran (${Math.round(r.top)} px / ${window.innerHeight})`;
+        });
       }
     }
   }
@@ -105,7 +120,9 @@ test("écran Format : « Suivant » visible sans défiler", async ({ page }, inf
   for (const c of cas.filter((x) => !x.ok)) console.log(`   - ❌ ${c.nom} (${c.hauteur.toFixed(2)} écran)`);
   const attendu = mesPhotos >= 3 ? "photo" : "text";
   console.log(`🧭 Carrousel conseillé : ${conseille} (Mes photos : ${mesPhotos}, attendu ${attendu})${conseille === attendu ? "" : " ❌"}`);
+  console.log(`🧭 Alerte photo : ${alerte}${alerte === "visible" ? "" : " ❌"}`);
   await page.screenshot({ path: `e2e-visite/results/format-defilement-${info.project.name}.png` });
   expect(cas.filter((c) => !c.ok).map((c) => c.nom), "« Suivant » repassé sous l'écran Format").toEqual([]);
   expect(conseille, "rendu de carrousel conseillé selon « Mes photos »").toBe(attendu);
+  expect(alerte, "alerte « il faut au moins une photo » dans l'écran").toBe("visible");
 });
