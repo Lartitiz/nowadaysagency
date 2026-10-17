@@ -5,7 +5,7 @@
 // et le branding se complète ensuite dans l'espace Branding.
 import { toast } from "sonner";
 
-export const BRANDING_SAVE_ERROR_TITLE = "Ton branding n'a pas pu être enregistré. Réessaie dans un instant.";
+export const BRANDING_SAVE_ERROR_TITLE = "Ton branding n'a pas pu être enregistré.";
 
 /**
  * Rend une fonction à appeler avec l'erreur (ou `null`) de chaque écriture.

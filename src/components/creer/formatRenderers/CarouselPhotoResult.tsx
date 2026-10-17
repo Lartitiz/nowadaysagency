@@ -1216,7 +1216,6 @@ export default function CarouselPhotoResult({ result, onOpenStudio, photos, onSl
             <AlertDialogTitle>Supprimer cette slide ?</AlertDialogTitle>
             <AlertDialogDescription>
               La slide {deleteIdx !== null ? deleteIdx + 1 : ""} et son texte seront retirés du carrousel.
-              Pense à mettre à jour les visuels ensuite.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

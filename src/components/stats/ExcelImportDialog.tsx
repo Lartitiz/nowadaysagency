@@ -514,7 +514,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
               )}
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button onClick={() => runImport(editedMapping, editedDateCol, selectedSheet)} className="flex-1">
                 ✅ C'est bon, importer
               </Button>
@@ -559,7 +559,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
                 </div>
               ))}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button onClick={() => runImport(editedMapping, editedDateCol, selectedSheet)} className="flex-1">
                 ✅ Valider et importer
               </Button>
@@ -622,9 +622,9 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
               </p>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button onClick={handleConfirmImport} className="flex-1">✅ Importer mes stats</Button>
-              <Button variant="outline" onClick={() => setStep("validate")}>❌ Revenir à la vérification</Button>
+              <Button variant="outline" onClick={() => setStep("validate")}>Revenir à la vérification</Button>
             </div>
           </div>
         )}
