@@ -970,7 +970,7 @@ function InstagramStatsScope() {
                 }} className="gap-1">
                   <Plus className="h-3.5 w-3.5" /> Ajouter une page de vente
                 </Button>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button variant="outline" onClick={() => setOnboardingStep(1)}>Revenir à mon site web</Button>
                   <Button className="flex-1" onClick={() => setOnboardingStep(3)}>
                     Aller à mon modèle business <ChevronRight className="h-4 w-4 ml-1" />
@@ -995,7 +995,7 @@ function InstagramStatsScope() {
                     </button>
                   ))}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button variant="outline" onClick={() => setOnboardingStep(2)}>Revenir à mes pages de vente</Button>
                   <Button className="flex-1" onClick={async () => {
                     if (!(await saveConfig(draftConfig))) return; // échec : le parcours reste ouvert
