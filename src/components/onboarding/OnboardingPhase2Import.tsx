@@ -94,6 +94,20 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
         </p>
       </div>
 
+      {/* Toujours monté : les deux boutons « captures » (sous le @ et dans
+          « Plus d'options ») ouvrent le même sélecteur. */}
+      {!isDemoMode && (
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+          onChange={(e) => { onUpload(e.target.files); e.target.value = ""; }}
+          className="hidden"
+          aria-hidden="true"
+          tabIndex={-1} />
+      )}
+
       <div className="space-y-3">
         {/* Les deux chemins les plus utiles, visibles sans défiler. Le reste
             (connexion, captures, LinkedIn, exemples) est rangé dans
@@ -128,6 +142,23 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
               placeholder="@toncompte"
               aria-label="Ton nom d'utilisateur Instagram"
               className="w-full text-base p-3 border-2 border-border rounded-xl focus:border-primary outline-none bg-background transition-colors text-foreground placeholder:text-muted-foreground/50" />
+            {/* Instagram bloque la lecture d'un profil depuis un serveur : le @
+                seul ne me donne rien. On propose les captures ici même, sans
+                obliger à ouvrir « Plus d'options ». */}
+            {!isDemoMode && !igConnected && (answers.instagram || "").trim().length > 1 && (
+              <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2" data-testid="insta-captures-hint">
+                <p className="text-xs text-muted-foreground flex-1">
+                  {files.length > 0
+                    ? `📸 ${files.length} capture${files.length > 1 ? "s" : ""} ajoutée${files.length > 1 ? "s" : ""} : je lirai ton profil avec.`
+                    : "Instagram ne me laisse pas lire ton profil avec le @ seul. Ajoute 1 à 3 captures de ton profil pour que je le lise vraiment."}
+                </p>
+                {files.length < 3 && (
+                  <Button type="button" size="sm" variant="outline" className="rounded-full shrink-0" disabled={uploading} onClick={() => inputRef.current?.click()}>
+                    {files.length > 0 ? "Ajouter une capture" : "📸 Ajouter des captures"}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -145,7 +176,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
         {/* Instagram (connexion + captures) */}
         <div className="rounded-2xl border border-border bg-card p-4">
           <p className="text-xs text-muted-foreground mb-3">
-            Ton @ donne accès à peu d'informations publiques. Une capture de ton profil Instagram ou LinkedIn montre ce qui est vraiment visible.
+            Instagram ne me laisse pas lire ton profil avec le @ seul. Une capture de ton profil Instagram ou LinkedIn montre ce qui est vraiment visible.
           </p>
           {!isDemoMode && (
             <div className="mb-3 rounded-xl bg-secondary/40 p-3 flex flex-col sm:flex-row sm:items-center gap-2">
@@ -178,13 +209,6 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
               <Upload className="h-5 w-5 mx-auto text-bordeaux mb-1.5" />
               <p className="text-sm font-medium text-bordeaux">Ajouter des captures Instagram ou LinkedIn</p>
               <p className="text-xs text-muted-foreground/70 mt-1">Clique ou glisse ici · PNG, JPG, WebP · Max 3</p>
-              <input
-              ref={inputRef}
-              type="file"
-              multiple
-              accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
-              onChange={(e) => { onUpload(e.target.files); e.target.value = ""; }}
-              className="hidden" />
 
             </div>
           }

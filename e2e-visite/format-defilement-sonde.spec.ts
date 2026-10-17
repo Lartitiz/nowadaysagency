@@ -6,6 +6,7 @@
  * La sonde parcourt l'écran Format pour chaque canal, format et type de carrousel,
  * sans rien générer, et vérifie que « Suivant » est dans l'écran, non recouvert.
  * 20 cas par taille d'écran : 40/40 attendu (ordi + téléphone).
+ * Seconde ligne 🧭 : rendu de carrousel conseillé (« photo » dès 3 photos dans « Mes photos », sinon « text »).
  */
 import { test, expect, type Page } from "@playwright/test";
 
@@ -50,6 +51,9 @@ test("écran Format : « Suivant » visible sans défiler", async ({ page }, inf
   test.setTimeout(120_000);
   const taille = info.project.name === "mobile" ? "téléphone" : "ordi";
   const cas: Cas[] = [];
+  // Rendu conseillé (17/10/2026) : « Tes photos en fond » dès 3 photos dans « Mes photos », sinon « Texte design ».
+  let conseille = "?";
+  let mesPhotos = 0;
 
   await page.goto("/creer?new=1", { waitUntil: "networkidle" });
   const fermer = page.locator('[data-testid="branding-banner-close"], button[aria-label*="ermer"]').first();
@@ -67,9 +71,17 @@ test("écran Format : « Suivant » visible sans défiler", async ({ page }, inf
     await changerCanal(page, canal);
     await verifier(page, `${canal} : choix du format`, cas);
     await page.getByTestId("creer-format-carousel").click();
+    if (canal === "instagram") {
+      await page.waitForTimeout(1500);
+      conseille = (await page.locator('[data-testid^="carousel-mode-"][aria-pressed="true"]').first().getAttribute("data-testid"))?.replace("carousel-mode-", "") ?? "aucun";
+    }
     for (const [id, nom] of MODES) {
       await page.getByTestId(`carousel-mode-${id}`).click();
       await verifier(page, `${canal} : carrousel ${nom}`, cas);
+      if (canal === "instagram" && id === "photo") {
+        const bouton = page.getByTestId("photo-zone-library-main");
+        mesPhotos = (await bouton.isVisible().catch(() => false)) ? Number((await bouton.textContent())?.match(/\((\d+)\)/)?.[1] ?? 0) : 0;
+      }
     }
   }
   for (const f of ["post", "reel", "story"]) {
@@ -91,6 +103,9 @@ test("écran Format : « Suivant » visible sans défiler", async ({ page }, inf
   const plusHaut = cas.reduce((a, c) => (c.hauteur > a.hauteur ? c : a));
   console.log(`🧭 Écran Format (${taille}) : Suivant visible sans défiler ${ok}/${cas.length} · le plus haut : ${plusHaut.nom} ${plusHaut.hauteur.toFixed(2)} écran`);
   for (const c of cas.filter((x) => !x.ok)) console.log(`   - ❌ ${c.nom} (${c.hauteur.toFixed(2)} écran)`);
+  const attendu = mesPhotos >= 3 ? "photo" : "text";
+  console.log(`🧭 Carrousel conseillé : ${conseille} (Mes photos : ${mesPhotos}, attendu ${attendu})${conseille === attendu ? "" : " ❌"}`);
   await page.screenshot({ path: `e2e-visite/results/format-defilement-${info.project.name}.png` });
   expect(cas.filter((c) => !c.ok).map((c) => c.nom), "« Suivant » repassé sous l'écran Format").toEqual([]);
+  expect(conseille, "rendu de carrousel conseillé selon « Mes photos »").toBe(attendu);
 });
