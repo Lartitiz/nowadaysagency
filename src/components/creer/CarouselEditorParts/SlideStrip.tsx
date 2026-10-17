@@ -93,7 +93,10 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
           </button>
         ))}
       </div>
-      <div className="flex shrink-0 flex-wrap gap-1.5">
+      {/* Boutons des slides, avec l'avertissement « plus de 10 slides » dessous : sur
+          ordinateur il tient dans la hauteur des miniatures, sans ligne en plus (17/10/2026). */}
+      <div className="flex shrink-0 flex-col gap-1">
+      <div className="flex flex-wrap gap-1.5">
         {!simple && (<>
         <Button
           size="sm"
@@ -163,13 +166,14 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
           Supprimer la slide
         </Button>
       </div>
-    </div>
       {document.slides.length > INSTAGRAM_DIRECT_MAX_IMAGES && (
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          {document.slides.length} slides : au-delà de {INSTAGRAM_DIRECT_MAX_IMAGES}, publie-le depuis l’appli Instagram.
+        <p className="text-xs text-muted-foreground md:max-w-[21rem]">
+          {document.slides.length} slides : au-delà de {INSTAGRAM_DIRECT_MAX_IMAGES}, publie-le depuis l’appli Instagram.{" "}
           <HelpTip label="nombre de slides">{instagramTooManyImagesReason(document.slides.length)}</HelpTip>
         </p>
       )}
+      </div>
+    </div>
     </>
   );
 }

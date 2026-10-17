@@ -142,6 +142,9 @@ test("contenus figés — carrousel texte : texte, design et export identiques �
   await vignettes.first().click();
   await page.waitForTimeout(800);
   const titre = page.frameLocator('iframe[title^="Éditeur de la slide"]').locator("[data-slide-text]").first();
+  // Slide au milieu de l'écran : sinon son centre peut être sous la barre « Publier »
+  // collée en bas (écran bas de 600 px), et le clic ouvre la publication (17/10/2026).
+  await preview.evaluate((f) => f.scrollIntoView({ block: "center" }));
   await titre.scrollIntoViewIfNeeded();
   await titre.click();
   await page.waitForTimeout(1500);
