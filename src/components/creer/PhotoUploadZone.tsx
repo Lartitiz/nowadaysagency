@@ -80,6 +80,8 @@ export interface PhotoUploadZoneProps {
    * valeur ouvre le dialog.
    */
   openStockSignal?: number;
+  /** Même principe : chaque incrément ouvre « Choisir dans mes photos ». */
+  openLibrarySignal?: number;
   /**
    * Contexte du contenu à venir (sujet + angle + format). Si fourni, la recherche
    * de photos libres de droit propose des mots-clés visuels suggérés par l'IA,
@@ -139,6 +141,7 @@ export function PhotoUploadZone({
   hideDescription = false,
   stockSearchSeed,
   openStockSignal,
+  openLibrarySignal,
   stockAiContext,
   aiAutoPickCount,
   libraryCount = 0,
@@ -173,6 +176,9 @@ export function PhotoUploadZone({
   useEffect(() => {
     if (openStockSignal) setStockOpen(true);
   }, [openStockSignal]);
+  useEffect(() => {
+    if (openLibrarySignal) setLibraryOpen(true);
+  }, [openLibrarySignal]);
 
   const updatePhotos = useCallback(
     (next: PhotoItem[]) => {
