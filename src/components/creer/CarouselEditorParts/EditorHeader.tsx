@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Keyboard, Redo2, SlidersHorizontal, Smartphone, Undo2 } from "lucide-react";
 import type { CarouselDocument } from "@/lib/carousel-editor";
 import type { EditorMode } from "@/components/creer/CarouselEditorParts/editor-mode";
+import { useHideAppBreadcrumb } from "@/lib/app-breadcrumb";
 
 // Sur PC, les raccourcis s'affichent avec Ctrl (et Maj) au lieu de ⌘ (et ⇧).
 const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -41,12 +42,12 @@ export function EditorHeader({ history, mode, setInstaOpen, setMode, undo }: {
   setMode: (mode: EditorMode) => void;
   undo: (redo?: boolean) => unknown;
 }) {
+  // La place du fil d'Ariane et du sous-titre va à la slide (17/10/2026) ; « Tes retouches
+  // ne coûtent aucun crédit » est dans l'aide « ? » (mode simple et gestes sur la slide).
+  useHideAppBreadcrumb();
   return (
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <h2 className="font-display text-xl text-primary md:text-2xl">Personnaliser mon carrousel</h2>
-          <p className="hidden text-xs text-muted-foreground md:block">Tes retouches ne coûtent aucun crédit.</p>
-        </div>
+        <h2 className="min-w-0 font-display text-xl text-primary md:text-2xl">Personnaliser mon carrousel</h2>
         <div className="flex flex-wrap gap-1">
           <Button
             variant="outline"

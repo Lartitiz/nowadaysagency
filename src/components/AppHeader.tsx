@@ -7,6 +7,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from "react-router-do
 import {   Home, CalendarDays,  User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake,  Search, ChevronDown, Check, Plus,   Wrench,  Menu } from "lucide-react";
 import { useMobileNav } from "@/contexts/MobileNavContext";
 import { isMobileNavAvailable } from "@/lib/app-shell-visibility";
+import { useAppBreadcrumbHidden } from "@/lib/app-breadcrumb";
 
 import { useDemoContext } from "@/contexts/DemoContext";
 
@@ -69,8 +70,9 @@ function Breadcrumb() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const path = location.pathname;
+  const hidden = useAppBreadcrumbHidden();
 
-  if (path === "/dashboard" || path === "/dashboard/guide" || path === "/welcome") return null;
+  if (hidden || path === "/dashboard" || path === "/dashboard/guide" || path === "/welcome") return null;
 
   const matchedPath = Object.keys(BREADCRUMB_LABELS)
     .sort((a, b) => b.length - a.length)

@@ -768,8 +768,8 @@ export default function CarouselEditor({
         thumbIndexAt={thumbIndexAt}
       />
       <div className="grid items-start gap-3 md:grid-cols-[minmax(0,1fr)_280px] md:gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        {/* Téléphone : l'aperçu reste visible (collé sous l'en-tête, plus petit)
-            pendant qu'on fait défiler les réglages en dessous. */}
+        {/* Téléphone : l'aperçu reste collé sous l'en-tête pendant qu'on fait défiler les réglages. Ordinateur : la
+            slide tient au-dessus de la barre « Publier » à l'arrivée (456 px = haut de la slide 331 + barre 113 + marge). */}
         <div
           className={
             fullscreen
@@ -784,7 +784,7 @@ export default function CarouselEditor({
           <div className="mb-1 flex flex-wrap items-center justify-end gap-1">
             {!fullscreen && <p className="mr-auto flex min-w-0 items-center gap-1.5 text-2xs text-muted-foreground md:text-xs">
               Slide {active + 1} / {document.slides.length} · <span className="hidden md:inline">Double-clic : écrire · Glisser : déplacer</span><span className="md:hidden">Touche un élément, glisse-le</span>
-              <HelpTip label="gestes sur la slide"><span className="md:hidden">Touche un texte, puis « Écrire » pour le modifier. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses. Glisse une photo plein écran pour la recadrer, les poignées pour agrandir.</span><span className="hidden md:inline">Double-clique (ou touche « Écrire ») pour écrire dans un texte. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses (⌘/Ctrl pour placer librement). Glisse une photo plein écran pour la recadrer (double-clic pour une photo encadrée), les poignées pour agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre.</span></HelpTip>
+              <HelpTip label="gestes sur la slide"><span className="md:hidden">Touche un texte, puis « Écrire » pour le modifier. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses. Glisse une photo plein écran pour la recadrer, les poignées pour agrandir. Tes retouches ne coûtent aucun crédit.</span><span className="hidden md:inline">Double-clique (ou touche « Écrire ») pour écrire dans un texte. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses (⌘/Ctrl pour placer librement). Glisse une photo plein écran pour la recadrer (double-clic pour une photo encadrée), les poignées pour agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre. Tes retouches ne coûtent aucun crédit.</span></HelpTip>
             </p>}
             {!fullscreen && (
               <>
@@ -806,7 +806,7 @@ export default function CarouselEditor({
             className={
               fullscreen
                 ? "w-full max-w-[min(1080px,calc((100vh-6rem)*0.8))]"
-                : "mx-auto w-full max-w-[min(540px,30vh)] md:max-w-[min(540px,max(240px,calc((100vh-250px)*0.8)))]"
+                : "mx-auto w-full max-w-[min(540px,30vh)] md:max-w-[min(540px,max(240px,calc((100vh-456px)*0.8)))]"
             }
           >
           <SlideCanvas

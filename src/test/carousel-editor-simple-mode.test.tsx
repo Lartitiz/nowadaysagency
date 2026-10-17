@@ -7,6 +7,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import CarouselEditor from "@/components/creer/CarouselEditor";
 import { readCarouselDocument } from "@/lib/carousel-editor";
+import { useAppBreadcrumbHidden } from "@/lib/app-breadcrumb";
 
 vi.mock("@/components/creer/PhotoSwapDialog", () => ({ default: () => null }));
 beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} }));
@@ -124,5 +125,19 @@ describe("mode simple de l'éditeur", () => {
     } finally {
       width.mockRestore();
     }
+  });
+
+  // 17/10/2026 (choix de Laetitia) : à l'arrivée sur ordinateur, la slide 1 tient en entier
+  // au-dessus de la barre « Publier » : fil d'Ariane masqué, sous-titre rangé dans l'aide,
+  // slide calculée sur la place restante (456 px = haut de la slide + barre + marge).
+  it("laisse la place à la slide : fil d'Ariane masqué tant que l'éditeur est là", () => {
+    const Probe = () => <output data-testid="fil">{useAppBreadcrumbHidden() ? "masqué" : "visible"}</output>;
+    const { unmount } = render(<><Probe /><Harness /></>);
+    expect(screen.getByTestId("fil").textContent).toBe("masqué");
+    expect(screen.queryByText("Tes retouches ne coûtent aucun crédit.")).toBeNull();
+    expect(document.querySelector("[data-canvas-sticky] > div:nth-child(2)")!.className).toContain("(100vh-456px)");
+    unmount();
+    render(<Probe />);
+    expect(screen.getByTestId("fil").textContent).toBe("visible");
   });
 });

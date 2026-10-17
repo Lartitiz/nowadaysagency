@@ -13,12 +13,12 @@
  */
 import type { Page } from "@playwright/test";
 
-// Seuils (au-delà = 🟠) : mesuré en ligne le 16/10/2026 à cet endroit du test (titre de
-// la slide 1 choisi) — carrousel 2,04 / 2,36 écrans, 58 commandes ; stories 2,01 / 2,95,
-// 61 commandes — plus environ 10 % de marge. Avant le chantier D : 2,77 / 3,85 et 84 ;
-// stories 5,46 / 8,99.
+// Seuils (au-delà = 🟠) : mesuré à cet endroit du test (titre de la slide 1 choisi) —
+// carrousel 1,85 / 2,22 écrans, 58 commandes (17/10/2026, slide qui tient au-dessus de la
+// barre « Publier » ; 2,04 / 2,36 le 16/10) ; stories 2,01 / 2,95, 61 commandes (16/10) —
+// plus environ 10 % de marge. Avant le chantier D : 2,77 / 3,85 et 84 ; stories 5,46 / 8,99.
 const SEUILS = {
-  carrousel: { ordi: 2.3, telephone: 2.6, commandes: 65 },
+  carrousel: { ordi: 2.05, telephone: 2.45, commandes: 65 },
   stories: { ordi: 2.3, telephone: 3.3, commandes: 70 },
 } as const;
 
