@@ -1,4 +1,5 @@
 import CarouselModePicker, { defaultCarouselMode } from "./CarouselModePicker";
+import CarouselPhotoWarning from "./CarouselPhotoWarning";
 import FormatChoiceCards, { type FormatChoice } from "./FormatChoiceCards";
 import FormatMoreOptions from "./FormatMoreOptions";
 import MultiSubjectChoice from "./MultiSubjectChoice";
@@ -168,6 +169,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
   // Compteur : chaque incrément ouvre le sélecteur de photos libres de droit
   // dans la PhotoUploadZone (depuis l'encart « Pas de photos sous la main ? »).
   const [stockSignal, setStockSignal] = useState(0);
+  const [librarySignal, setLibrarySignal] = useState(0);
   const [expandAngles, setExpandAngles] = useState(false);
   const [forceShowAll, setForceShowAll] = useState(false);
   const hasPreloadedPhotos = (initialPhotos?.length ?? 0) > 0 && !forceShowAll;
@@ -317,7 +319,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
   }, [forcedChannel]);
 
   // Page « quel format ? » : cartes compactes et format conseillé (chantier B, 15/10/2026).
-  const recommendation = selectedChannel ? recommendContentFormat(selectedChannel, initialPhotos?.length || 0, idea) : null;
+  const recommendation = selectedChannel ? recommendContentFormat(selectedChannel, initialPhotos?.length || 0, idea, libraryPhotoCount) : null;
   const pageOneChoices: FormatChoice[] =
     selectedChannel === "instagram"
       ? typeEntries
@@ -823,6 +825,7 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
             compact={uploadedPhotos.length > 0}
             stockSearchSeed={idea}
             openStockSignal={stockSignal}
+            openLibrarySignal={librarySignal}
             stockAiContext={{
               subject: idea,
               format: selectedFormat || undefined,
@@ -833,30 +836,8 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
             libraryCount={libraryPhotoCount}
           />
           {photoWarning && (
-            <div className="mt-3 p-3 rounded-lg bg-warning-bg border border-warning/30 space-y-2 animate-fade-in">
-              <p className="text-sm text-warning">
-                📸 Pour ce mode, il faut au moins une photo. Pas de photos sous la main ?
-              </p>
-              <div className="flex flex-col gap-1.5">
-                <button
-                  onClick={() => setStockSignal((s) => s + 1)}
-                  className="text-sm font-medium text-primary hover:underline text-left"
-                >
-                  → Trouver des photos libres de droit
-                </button>
-                <button
-                  onClick={() => {
-                    setCarouselSubMode("text");
-                    setUploadedPhotos([]);
-                    setPhotoDescription("");
-                    setPhotoWarning(false);
-                  }}
-                  className="text-sm font-medium text-primary hover:underline text-left"
-                >
-                  → Passer en mode Texte (tu pourras toujours ajouter tes photos plus tard)
-                </button>
-              </div>
-            </div>
+            <CarouselPhotoWarning libraryCount={libraryPhotoCount} onLibrary={() => setLibrarySignal((s) => s + 1)} onStock={() => setStockSignal((s) => s + 1)}
+              onText={() => { setCarouselSubMode("text"); setUploadedPhotos([]); setPhotoDescription(""); setPhotoWarning(false); }} />
           )}
         </div>
       )}
