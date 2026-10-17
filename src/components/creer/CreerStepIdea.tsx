@@ -17,7 +17,8 @@ import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 interface Props {
   initialFormat?: string | null;
   channel?: "instagram" | "linkedin" | "pinterest" | "newsletter" | null;
-  onNext: (idea: string) => void;
+  /** ideaId : fiche de l'idée du diagnostic choisie telle quelle (le contenu s'y enregistre). */
+  onNext: (idea: string, ideaId?: string) => void;
   onIdeaChange?: (idea: string) => void;
   onPhotosChange?: (photos: PhotoItem[]) => void;
   onPhotoDescriptionChange?: (description: string) => void;
@@ -72,26 +73,31 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onCoachi
 
   // L4 : idées personnalisées générées par le diagnostic (saved_ideas,
   // source_module="diagnostic") — remplacent les départs génériques quand elles existent.
-  const [personalIdeas, setPersonalIdeas] = useState<string[]>([]);
+  const [personalIdeas, setPersonalIdeas] = useState<{ id: string; titre: string }[]>([]);
   useEffect(() => {
     if (!value) return;
     let cancelled = false;
     (async () => {
       const { data } = await (supabase.from("saved_ideas") as any)
-        .select("titre")
+        .select("id, titre")
         .eq(column, value)
         .eq("source_module", "diagnostic")
         .eq("status", "to_explore")
+        .is("calendar_post_id", null)
+        .is("content_data", null)
         .order("created_at", { ascending: true })
         .limit(5);
       if (!cancelled && data?.length) {
-        setPersonalIdeas(data.map((d: any) => d.titre).filter(Boolean));
+        setPersonalIdeas(data.filter((d: any) => d.titre));
       }
     })();
     return () => { cancelled = true; };
   }, [column, value]);
 
-  const starterChips = personalIdeas.length > 0 ? personalIdeas : STARTER_IDEAS;
+  const starterChips = personalIdeas.length > 0 ? personalIdeas.map((p) => p.titre) : STARTER_IDEAS;
+  // Idée du diagnostic reprise telle quelle → le contenu s'enregistre dans sa fiche
+  // (sinon elle reste « à placer » une fois le contenu fait, passe du 16/10).
+  const pickedIdeaId = personalIdeas.find((p) => p.titre === idea.trim())?.id;
 
   // Si on arrive via un legacy redirect (?mode=transform), nettoyer le param
   // de l'URL pour éviter que le panneau ne se ré-ouvre au refresh.
@@ -139,7 +145,7 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onCoachi
                 )}
                 <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
                   <p className="max-w-56 text-xs leading-relaxed text-muted-foreground">Quelques mots suffisent pour commencer.</p>
-                  <Button onClick={() => onNext(idea.trim())} disabled={!idea.trim()} className="gap-2" size="lg" data-testid="creer-idea-next">
+                  <Button onClick={() => onNext(idea.trim(), pickedIdeaId)} disabled={!idea.trim()} className="gap-2" size="lg" data-testid="creer-idea-next">
                     Continuer <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>

@@ -18,16 +18,22 @@ export async function resolveFirstContentDestination(params: {
 }): Promise<string> {
   const { column, value, userId } = params;
   let sujet: string | null = null;
+  let ideaId: string | null = null;
   let sellsProducts = false;
   try {
     const { data } = await (supabase.from("saved_ideas") as any)
-      .select("titre, format")
+      .select("id, titre, format")
       .eq(column, value)
       .eq("source_module", "diagnostic")
+      // Idée encore intacte : une idée déjà commencée ou posée au calendrier
+      // n'est pas reproposée (et ne recevrait pas un second carrousel).
+      .eq("status", "to_explore")
+      .is("calendar_post_id", null)
+      .is("content_data", null)
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
-    if (data?.titre) sujet = data.titre;
+    if (data?.titre) { sujet = data.titre; ideaId = data.id ?? null; }
   } catch { /* idée perso pas encore prête (enrichment async) → générique */ }
 
   // Produits / services : réponse donnée à l'étape 2 de l'onboarding,
@@ -52,5 +58,5 @@ export async function resolveFirstContentDestination(params: {
       .eq("user_id", userId)
       .then(({ error }: any) => { if (error) console.error("welcome_seen update failed:", error); });
   }
-  return buildFirstContentUrl({ sellsProducts, subject: sujet });
+  return buildFirstContentUrl({ sellsProducts, subject: sujet, ideaId });
 }

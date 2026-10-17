@@ -17,6 +17,10 @@ export interface FirstContentUrlOptions {
   sellsProducts: boolean;
   /** Idée personnelle tirée du diagnostic, si déjà prête (enrichment async). */
   subject?: string | null;
+  /** Fiche de cette idée : le carrousel s'enregistre DANS l'idée au lieu d'en
+      créer une seconde (sinon l'idée reste « à placer » une fois le carrousel
+      fait — passe du 16/10). */
+  ideaId?: string | null;
 }
 
 /**
@@ -25,18 +29,22 @@ export interface FirstContentUrlOptions {
  * Le mode automatique attend les photos du site avant de lancer le carrousel
  * produit. Sans photo exploitable, le choix manuel reste disponible.
  */
-export function buildFirstContentUrl({ sellsProducts, subject }: FirstContentUrlOptions): string {
+export function buildFirstContentUrl({ sellsProducts, subject, ideaId }: FirstContentUrlOptions): string {
   const sujet = (subject ?? "").trim();
+  // Sans sujet personnel, pas de fiche à relier (sujet générique).
+  const fiche = sujet && ideaId ? ideaId : "";
   if (sellsProducts) {
     // Le sujet n'entre PAS comme `sujet` (le carrousel photo part des photos),
     // mais voyage en repli : sans photo exploitable (pas de site, site sans
     // photo), /creer bascule sur un carrousel texte avec cette idée au lieu de
     // laisser la nouvelle inscrite devant un mode photo vide (passe du 10/10).
+    // La fiche ne voyage qu'avec ce repli : un carrousel de ses photos ne
+    // parle pas de l'idée, il ne doit pas la marquer comme faite.
     return `/creer?format=carousel&carouselSubMode=photo&firstProduct=1&auto=1&sujetSansPhoto=${encodeURIComponent(
       sujet || SUJET_PREMIER_CONTENU_GENERIQUE,
-    )}`;
+    )}${fiche ? `&ideaSansPhoto=${encodeURIComponent(fiche)}` : ""}`;
   }
   return `/creer?sujet=${encodeURIComponent(
     sujet || SUJET_PREMIER_CONTENU_GENERIQUE,
-  )}&format=carousel&carouselSubMode=text&auto=1`;
+  )}&format=carousel&carouselSubMode=text&auto=1${fiche ? `&idea_id=${encodeURIComponent(fiche)}` : ""}`;
 }

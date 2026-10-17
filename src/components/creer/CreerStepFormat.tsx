@@ -2,6 +2,7 @@ import CarouselModePicker, { defaultCarouselMode } from "./CarouselModePicker";
 import FormatChoiceCards, { type FormatChoice } from "./FormatChoiceCards";
 import FormatMoreOptions from "./FormatMoreOptions";
 import MultiSubjectChoice from "./MultiSubjectChoice";
+import CreerSubjectLine from "./CreerSubjectLine";
 import { multiSubjectChoicePending } from "../../../supabase/functions/_shared/multi-subject";
 import { recommendContentFormat } from "@/lib/format-recommendation";
 import { useState, useEffect, useRef } from "react";
@@ -484,8 +485,8 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Preloaded photos banner — visible only before a channel is picked.
-          Once a channel is chosen, the photo state lives in the PhotoUploadZone (no duplication). */}
+      <CreerSubjectLine idea={idea} onChange={onBack} />
+      {/* Preloaded photos banner — only before a channel is picked (then the PhotoUploadZone shows them). */}
       {(initialPhotos?.length ?? 0) > 0 && !hasUserChangedFormat.current && !selectedChannel && (
         <div className="rounded-2xl bg-primary/5 border border-primary/10 p-3 flex items-center gap-3">
           <span className="text-lg">📸</span>
@@ -1010,9 +1011,8 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
         </div>
       )}
 
-      {/* Navigation — collée en bas de l'écran pour que « Suivant » reste visible
-          sans défiler, même avec la zone de photos (chantier B). Au-dessus de la
-          barre du bas sur téléphone. */}
+      {/* Navigation — collée en bas pour que « Suivant » reste visible sans défiler, même avec
+          la zone de photos (chantier B). Au-dessus de la barre du bas sur téléphone. */}
       <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] md:bottom-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 pb-3 bg-background/95 backdrop-blur-sm border-t border-border/60 space-y-1">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 text-muted-foreground shrink-0">

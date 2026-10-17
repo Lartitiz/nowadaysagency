@@ -337,7 +337,7 @@ export default function WelcomePage() {
   const [brandingStillLoading, setBrandingStillLoading] = useState(true);
   // L4 : première idée personnalisée générée par le diagnostic (saved_ideas,
   // source_module="diagnostic") — alimente le CTA « Générer mon premier contenu ».
-  const [starterIdea, setStarterIdea] = useState<{ titre: string; format: string } | null>(null);
+  const [starterIdea, setStarterIdea] = useState<{ id?: string; titre: string; format: string } | null>(null);
   const [sellsProducts, setSellsProducts] = useState(false);
   const [productPhotosReady, setProductPhotosReady] = useState(false);
   const starterIdeaRef = useRef(false);
@@ -346,15 +346,15 @@ export default function WelcomePage() {
   const fetchStarterIdea = useCallback(async () => {
     if (starterIdeaRef.current) return;
     const { data } = await (supabase.from("saved_ideas") as any)
-      .select("titre, format")
+      .select("id, titre, format")
       .eq(column, value)
-      .eq("source_module", "diagnostic")
+      .eq("source_module", "diagnostic").eq("status", "to_explore").is("calendar_post_id", null).is("content_data", null)
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
     if (data?.titre) {
       starterIdeaRef.current = true;
-      setStarterIdea({ titre: data.titre, format: data.format || "post" });
+      setStarterIdea({ id: data.id, titre: data.titre, format: data.format || "post" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [column, value]);
@@ -578,7 +578,7 @@ export default function WelcomePage() {
     // la fin d'onboarding et la sortie de validation de marque.
     const creerUrl = buildFirstContentUrl({
       sellsProducts,
-      subject: starterIdea?.titre,
+      subject: starterIdea?.titre, ideaId: starterIdea?.id,
     });
     let pendingReview = false;
     try {

@@ -165,7 +165,9 @@ export function useCarouselAutosave(options: Options) {
         let query = scoped(
           supabase
             .from("saved_ideas")
-            .update({ content_data: raw })
+            // Une idée ouverte depuis Mes idées / le diagnostic était peut-être
+            // notée « Post » : son contenu est désormais un carrousel.
+            .update({ content_data: raw, format: "carousel" })
             .eq("id", draftId),
         );
         query =
