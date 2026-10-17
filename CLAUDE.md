@@ -162,7 +162,7 @@ Ce n'est PAS un Hootsuite (programmation pure), un Canva (création visuelle), n
 **Admin (Laetitia)** — Dashboard coach : vue programmes actifs, sessions planifiées, préparation kick-off automatisée (résumé IA + agenda suggéré + sujets manquants + branding complétion par champ). Page /admin/audit : scan complet de l'app (tables, RLS, cohérence données, connexions modules, mode démo).
 
 ### MODE DÉMO
-Compte pré-rempli "Léa" (photographe portraitiste éthique). Sert pendant les appels découverte.
+Compte pré-rempli "Léa" (photographe portraitiste éthique). Plus utilisé : bouton d'entrée (menu Administration) retiré le 17/10/2026, le code reste en place.
 - Toggle Free/Binôme pour montrer les 2 expériences
 - Données en dur (pas d'appel Supabase ni IA)
 - Toutes fonctionnalités navigables et interactives
