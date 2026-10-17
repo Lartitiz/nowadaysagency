@@ -41,6 +41,14 @@ async function generateDirect(page: Page) {
   await btn.click();
 }
 
+/**
+ * Une vraie génération dure plusieurs secondes : l'écran passe par « en cours »
+ * puis célèbre le résultat (« … est prêt »). Une réponse simulée instantanée
+ * saute l'état « en cours » et la célébration ne se déclenche pas (17/10/2026).
+ * Même délai que pinterest-visual-feedback.spec.ts.
+ */
+const mockLatency = () => new Promise((r) => setTimeout(r, 3000));
+
 /** Attend l'écran résultat : le titre « prêt » ou la zone d'actions. */
 async function waitResult(page: Page) {
   await expect(
@@ -69,6 +77,7 @@ test("post LinkedIn : bouton LinkedIn, PAS de bouton Instagram", async ({ page }
   test.setTimeout(180_000);
 
   await page.route("**/functions/v1/creative-flow", async (route) => {
+    await mockLatency();
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -103,6 +112,7 @@ test("post Instagram : option Instagram toujours là (contrôle)", async ({ page
   test.setTimeout(180_000);
 
   await page.route("**/functions/v1/creative-flow", async (route) => {
+    await mockLatency();
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -132,6 +142,7 @@ test("épingle Pinterest visuelle : ni Maintenant ni Programmer", async ({ page 
   test.setTimeout(180_000);
 
   await page.route("**/functions/v1/pinterest-visual", async (route) => {
+    await mockLatency();
     await route.fulfill({
       status: 200,
       contentType: "application/json",
