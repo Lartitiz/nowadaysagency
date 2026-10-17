@@ -36,6 +36,16 @@ interface Props {
   sourcesFailed?: string[];
 }
 
+/* Le @ seul ne se lit pas : Instagram montre sa page de connexion aux
+   serveurs (vérifié le 16/10/2026). On le dit au lieu de laisser croire que le
+   compte a été lu. Une capture, même non identifiée, peut être Instagram :
+   dans le doute, on se tait. */
+const INSTAGRAM_READ_SOURCES = ["instagram_public", "instagram_screenshot", "social_screenshot", "instagram_connected", "instagram_insights"];
+function instagramNotRead(sourcesUsed: string[] = [], sourcesFailed: string[] = []) {
+  return sourcesFailed.includes("instagram_public") && !sourcesUsed.some(s => INSTAGRAM_READ_SOURCES.includes(s));
+}
+const INSTAGRAM_NOT_READ_TEXT = "📱 Je n'ai pas pu lire ton Instagram : il bloque la lecture avec le @ seul. Ce diagnostic ne parle donc pas de ton compte. Ajoute 2 captures de ton profil dans l’audit de ton profil Instagram, ou connecte ton compte dans Paramètres › Mes connexions.";
+
 /* Fin d'onboarding = UN récapitulatif court, sans défilement (15/10/2026).
    Les 9 diapositives d'avant restent à un clic (« Voir le diagnostic
    complet ») : rien n'est retiré, tout est rangé. */
@@ -47,7 +57,7 @@ export default function DiagnosticView(props: Props) {
 }
 
 /* ═══ Récapitulatif court ═══ */
-function RecapView({ data, prenom, onComplete, onCreateFirst, onShowFull }: Props & { onShowFull: () => void }) {
+function RecapView({ data, prenom, onComplete, onCreateFirst, onShowFull, sourcesUsed, sourcesFailed }: Props & { onShowFull: () => void }) {
   const [showConfetti, setShowConfetti] = useState(false);
   // La fiche « à valider » peut arriver PENDANT la lecture (enrichissement
   // asynchrone) : on la surveille pour annoncer la relecture avant le clic.
@@ -79,6 +89,9 @@ function RecapView({ data, prenom, onComplete, onCreateFirst, onShowFull }: Prop
           <div className="rounded-2xl bg-card border border-border px-4 py-3">
             <p className="text-sm text-foreground leading-relaxed line-clamp-4">{data.summary}</p>
           </div>
+        )}
+        {instagramNotRead(sourcesUsed, sourcesFailed) && (
+          <p className="rounded-xl bg-secondary/40 px-3 py-2 text-xs text-foreground" data-testid="instagram-not-read">{INSTAGRAM_NOT_READ_TEXT}</p>
         )}
         <p className="text-sm text-center text-muted-foreground">
           Où tu en es : <span className="font-semibold text-foreground">{diagnosticLevel(data.totalScore)}</span>
@@ -277,13 +290,14 @@ function AccrocheSection({ prenom, isFallback, sourcesUsed = [], sourcesFailed =
                     : "bg-muted text-muted-foreground border border-border"
                 }`}
               >
-                {isAnalyzed ? "✅" : meta.emoji} {meta.label}{!isAnalyzed && (source === "instagram_insights" || source === "linkedin_analytics" ? " : données indisponibles" : " : à auditer")}
+                {isAnalyzed ? "✅" : meta.emoji} {meta.label}{!isAnalyzed && (source === "instagram_insights" || source === "linkedin_analytics" ? " : données indisponibles" : source === "instagram_public" ? " : pas pu le lire" : " : à auditer")}
               </span>
             );
           })}
         </div>
       )}
       <p className="text-sm text-muted-foreground">{baseText}</p>
+      {instagramNotRead(sourcesUsed, sourcesFailed) && <p className="text-xs text-muted-foreground max-w-md mx-auto">{INSTAGRAM_NOT_READ_TEXT}</p>}
       {sourcesFailed.includes("social_screenshot") && <p className="text-xs text-muted-foreground max-w-md mx-auto">Ta capture n'a pas donné de constat fiable. Tu pourras en ajouter une plus nette, montrant le profil ou une publication entière, dans l'audit du réseau.</p>}
       {sourcesFailed.some(s => ["instagram_connected", "instagram_insights", "linkedin_analytics"].includes(s)) && (
         <p className="text-xs text-muted-foreground max-w-md mx-auto">

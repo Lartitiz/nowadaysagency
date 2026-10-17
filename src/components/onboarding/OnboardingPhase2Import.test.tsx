@@ -69,4 +69,14 @@ describe("import de l'onboarding", () => {
     expect(isValidUrl("https://exemple..fr")).toBe(false);
     expect(isValidUrl("ftp://exemple.fr")).toBe(false);
   });
+
+  it("propose les captures sous le @ Instagram, sans ouvrir « Plus d'options »", () => {
+    render(<OnboardingPhase2Import
+      answers={{ ...answers(), instagram: "@savons_lina" }} set={vi.fn()} files={[]}
+      uploading={false} onUpload={vi.fn()} onRemove={vi.fn()} onNext={vi.fn()}
+    />);
+    expect(screen.getByTestId("insta-captures-hint")).toHaveTextContent("ne me laisse pas lire ton profil avec le @ seul");
+    expect(screen.getByRole("button", { name: "📸 Ajouter des captures" })).toBeInTheDocument();
+    expect(screen.queryByText(/Des exemples de ton univers/)).not.toBeInTheDocument();
+  });
 });
