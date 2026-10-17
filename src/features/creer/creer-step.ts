@@ -21,7 +21,7 @@ export const SUPPORTED_FORMATS = new Set([
 ]);
 
 // Paramètres d'URL à usage unique, retirés une fois l'init consommée.
-export const ONE_SHOT_PARAMS = ["sujet", "subject", "format", "objectif", "objective", "auto", "angle", "carouselSubMode", "firstProduct", "sujetSansPhoto", "idea_id"];
+export const ONE_SHOT_PARAMS = ["sujet", "subject", "format", "objectif", "objective", "auto", "angle", "carouselSubMode", "firstProduct", "sujetSansPhoto", "ideaSansPhoto", "idea_id"];
 
 /** Une génération a été coupée par un rechargement (ou une fermeture) : l'étape
  * résultat était ouverte, la génération lancée depuis moins de 30 min, et rien

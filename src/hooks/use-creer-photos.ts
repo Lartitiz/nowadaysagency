@@ -23,7 +23,7 @@ type SavePhotos = (photos: any[]) => Promise<unknown>;
 
 export function useLibraryPhotosPreload({
   locState, searchParams, creationId, conflictPending, workspaceId, ideaText, autoGeneratePendingRef,
-  savePhotos, setIsLoadingLibraryPhotos, setStep, setCarouselSubMode, setIdeaText, setUploadedPhotos,
+  savePhotos, setIsLoadingLibraryPhotos, setStep, setCarouselSubMode, setIdeaText, setUploadedPhotos, setEditingIdeaId,
 }: {
   locState: any;
   searchParams: URLSearchParams;
@@ -38,6 +38,8 @@ export function useLibraryPhotosPreload({
   setCarouselSubMode: (mode: any) => void;
   setIdeaText: (text: string) => void;
   setUploadedPhotos: SetPhotos;
+  /** Relie le carrousel texte de repli à la fiche de l'idée du diagnostic. */
+  setEditingIdeaId?: (id: string) => void;
 }) {
   // ── Library photos → preload as if uploaded (chemin /photos → /creer) ──
   // Capturé une seule fois au mount pour survivre au cleanup replaceState.
@@ -48,6 +50,7 @@ export function useLibraryPhotosPreload({
   );
   const firstProductRef = useRef(searchParams.get("firstProduct") === "1");
   const sujetSansPhotoRef = useRef((searchParams.get("sujetSansPhoto") || "").trim());
+  const ideaSansPhotoRef = useRef(searchParams.get("ideaSansPhoto") || "");
   const libraryLoadedRef = useRef(false);
   const initialCreationId = useRef(creationId);
   useEffect(() => {
@@ -88,6 +91,7 @@ export function useLibraryPhotosPreload({
           autoGeneratePendingRef.current = false;
           setCarouselSubMode("text");
           setIdeaText(sujetSansPhotoRef.current || SUJET_PREMIER_CONTENU_GENERIQUE);
+          if (sujetSansPhotoRef.current && ideaSansPhotoRef.current) setEditingIdeaId?.(ideaSansPhotoRef.current);
           return;
         }
         if (ids.length === 0) return; // le sélecteur manuel reste disponible

@@ -56,4 +56,22 @@ describe("buildFirstContentUrl", () => {
     const url = buildFirstContentUrl({ sellsProducts: false, subject: "Savon & thé : 100% naturel" });
     expect(url).toContain(encodeURIComponent("Savon & thé : 100% naturel"));
   });
+
+  it("services : la fiche de l'idée voyage, le carrousel s'enregistre dedans (passe du 16/10)", () => {
+    const url = buildFirstContentUrl({ sellsProducts: false, subject: "Mon sujet", ideaId: "abc-1" });
+    expect(new URL(url, "https://x.fr").searchParams.get("idea_id")).toBe("abc-1");
+  });
+
+  it("produits : la fiche ne voyage qu'avec le repli texte, jamais comme idea_id", () => {
+    const params = new URL(buildFirstContentUrl({ sellsProducts: true, subject: "Ma gamme", ideaId: "abc-1" }), "https://x.fr").searchParams;
+    expect(params.get("idea_id")).toBeNull();
+    expect(params.get("ideaSansPhoto")).toBe("abc-1");
+  });
+
+  it("sujet générique : aucune fiche reliée", () => {
+    for (const sellsProducts of [true, false]) {
+      const url = buildFirstContentUrl({ sellsProducts, subject: null, ideaId: "abc-1" });
+      expect(url).not.toContain("abc-1");
+    }
+  });
 });

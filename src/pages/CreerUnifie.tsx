@@ -598,7 +598,7 @@ function CreerWorkspace() {
   // ── Library photos → preload as if uploaded (chemin /photos → /creer, use-creer-photos.ts) ──
   const { libraryPhotoIdsRef, firstProductRef, initialCreationId } = useLibraryPhotosPreload({
     locState, searchParams, creationId, conflictPending, workspaceId, ideaText, autoGeneratePendingRef,
-    savePhotos, setIsLoadingLibraryPhotos, setStep, setCarouselSubMode, setIdeaText, setUploadedPhotos,
+    savePhotos, setIsLoadingLibraryPhotos, setStep, setCarouselSubMode, setIdeaText, setUploadedPhotos, setEditingIdeaId,
   });
 
 
@@ -677,8 +677,8 @@ function CreerWorkspace() {
     setStep("format");
   }, [objective]);
 
-  const handleIdeaNext = (idea: string) => {
-    ideaHistory.change(idea);
+  const handleIdeaNext = (idea: string, ideaId?: string) => {
+    ideaHistory.change(idea); if (ideaId && !editingIdeaId) setEditingIdeaId(ideaId);
     setNewsjackingContext(null);
     setNewsjackingSuggestedFormat(null);
     // Auriana demo: keep pre-filled format/angle if subject unchanged
