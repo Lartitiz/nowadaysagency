@@ -40,4 +40,13 @@ describe("fin d'onboarding : un seul récapitulatif", () => {
     fireEvent.click(screen.getByRole("button", { name: /Revenir au résumé/ }));
     expect(screen.getByRole("button", { name: "Créer mon premier contenu" })).toBeInTheDocument();
   });
+
+  it("dit clairement que le @ Instagram n'a pas été lu", () => {
+    const { unmount } = render(<DiagnosticView data={data} prenom="Lina" onComplete={vi.fn()} sourcesUsed={["profile"]} sourcesFailed={["instagram_public"]} />);
+    expect(screen.getByTestId("instagram-not-read")).toHaveTextContent("Je n'ai pas pu lire ton Instagram");
+    unmount();
+    // Lu autrement (capture) : pas d'alerte.
+    render(<DiagnosticView data={data} prenom="Lina" onComplete={vi.fn()} sourcesUsed={["instagram_screenshot"]} sourcesFailed={["instagram_public"]} />);
+    expect(screen.queryByTestId("instagram-not-read")).not.toBeInTheDocument();
+  });
 });
