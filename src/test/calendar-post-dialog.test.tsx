@@ -188,7 +188,7 @@ describe("en-tête de contexte", () => {
     renderDialog({ editingPost: post({ format: "reel", objectif: "vente", angle: "storytelling_pro" }) });
     expect(screen.getByText("Reel Instagram")).toBeInTheDocument();
     expect(screen.getByText("💰 Vente")).toBeInTheDocument();
-    expect(screen.getByText("Storytelling")).toBeInTheDocument();
+    expect(screen.getByText("Récit")).toBeInTheDocument();
     expect(screen.getByLabelText("Changer le statut du post").textContent).toContain("Idée");
     fireEvent.click(item("Prêt à publier"));
     expect(meta().status).toBe("ready");

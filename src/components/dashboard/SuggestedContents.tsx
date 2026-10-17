@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { format, startOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
 import { tryParseAiJson } from "@/lib/parse-ai-json";
+import { formatLabel } from "@/lib/idea-state";
 
 /* ── Types ── */
 interface IdeaSpark {
@@ -458,7 +459,7 @@ export default function SuggestedContents() {
                     {OBJECTIVE_LABELS[idea.objective] || idea.objective}
                   </span>
                   <span className="text-2xs text-muted-foreground">
-                    {FORMAT_LABEL[idea.format] || idea.format}
+                    {FORMAT_LABEL[idea.format] || formatLabel(idea.format)}
                   </span>
                   {idea.angle && ANGLE_LABELS[idea.angle] && (
                     <span className="text-2xs text-muted-foreground/70">

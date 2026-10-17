@@ -13,6 +13,8 @@ import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { formatLabel } from "@/lib/idea-state";
+import { channelLabel } from "@/lib/channel-labels";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -504,7 +506,7 @@ export default function SharedCalendarPage() {
               {selectedPost.theme}
             </p>
             <p className="text-2xs text-gray-500 mt-0.5">
-              {format(parseISO(selectedPost.date), "d MMMM yyyy", { locale: fr })} · {CANAL_COLORS[selectedPost.canal]?.label || selectedPost.canal}
+              {format(parseISO(selectedPost.date), "d MMMM yyyy", { locale: fr })} · {CANAL_COLORS[selectedPost.canal]?.label || channelLabel(selectedPost.canal)}
             </p>
           </div>
           <button onClick={() => setSelectedPost(null)} className="p-1 rounded hover:bg-gray-100">
@@ -687,7 +689,7 @@ export default function SharedCalendarPage() {
               <span className="text-2xs text-gray-400 uppercase font-semibold mr-1 font-body">Canal</span>
               <FilterChip label="Tout" active={filterCanal === "all"} onClick={() => setFilterCanal("all")} />
               {uniqueCanals.map(c => (
-                <FilterChip key={c} label={CANAL_COLORS[c]?.label || c} active={filterCanal === c} onClick={() => setFilterCanal(c)} />
+                <FilterChip key={c} label={CANAL_COLORS[c]?.label || channelLabel(c)} active={filterCanal === c} onClick={() => setFilterCanal(c)} />
               ))}
             </div>
           )}
@@ -873,7 +875,7 @@ export default function SharedCalendarPage() {
                   )}
                   {showColumns.includes("format") && (
                     <div className="px-3 py-2.5 text-xs text-gray-500">
-                      {FORMAT_LABELS[post.format || ""] || post.format || "-"}
+                      {post.format ? FORMAT_LABELS[post.format] || formatLabel(post.format) : "-"}
                     </div>
                   )}
                   {showColumns.includes("phase") && (
@@ -1087,7 +1089,7 @@ function MobilePostCard({ post, share, comments, unresolvedCount, onOpenComments
 
       <div className="flex flex-wrap gap-1.5 mb-2">
         {canalInfo && <span className={`text-2xs font-medium px-1.5 py-0.5 rounded-full ${canalInfo.color}`}>{canalInfo.label}</span>}
-        {post.format && <span className="text-2xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">{FORMAT_LABELS[post.format] || post.format}</span>}
+        {post.format && <span className="text-2xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">{FORMAT_LABELS[post.format] || formatLabel(post.format)}</span>}
         {post.phase && <span className="text-2xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">{post.phase}</span>}
       </div>
 
