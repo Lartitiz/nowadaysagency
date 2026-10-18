@@ -241,6 +241,8 @@ ${isReaction
 - Si tu ne peux pas nommer l'élément → l'angle dérive, REFORMULE-le pour qu'il s'ancre dans la pertinence donnée plus haut.
 - Si l'angle ramène à un autre sujet plus lointain que celui de la pertinence → REFORMULE.`}
 
+Date du jour : ${new Date().toISOString().slice(0, 10)}. Une règle ou un fait déjà en vigueur à cette date s'écrit au présent ou au passé, jamais au futur.
+
 ══════════════════════════════════════════════
 FORMAT DE RÉPONSE — JSON STRICT (pas de markdown)
 ══════════════════════════════════════════════
@@ -250,7 +252,7 @@ FORMAT DE RÉPONSE — JSON STRICT (pas de markdown)
     {
       "vehicule": "recit_experience" | "declencheur_externe" | "constat_decale" | "montrer_plutot_quexpliquer" | "parallele_absurde",
       "hook": "La première phrase du contenu (max 20 mots)",
-      "description": "En 2-3 phrases, comment relier l'actu à l'expertise de la personne",
+      "description": "En 2-3 phrases, comment relier l'actu à ton expertise, écrit en « tu » à la personne (jamais son prénom ni « elle »)",
       "format_suggere": "post" | "carousel" | "reel" | "story" | "linkedin"
     }
   ]

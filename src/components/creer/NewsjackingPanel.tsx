@@ -10,6 +10,7 @@ import { formatLabel } from "@/lib/idea-state";
 import { supabase } from "@/integrations/supabase/client";
 import { quotaLimitMessage, readableError } from "@/lib/error-messages";
 import { useAuth } from "@/contexts/AuthContext";
+import { dateActu } from "./newsjacking-date";
 
 interface ActuAngle {
   vehicule: string;
@@ -23,6 +24,7 @@ interface Actu {
   resume: string;
   source: string;
   source_url?: string;
+  date_publication?: string;
   type: "globale" | "niche";
   axe?: string;
   ton?: string;
@@ -590,7 +592,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
         </Button>
         {started && !loading && (
           <Button variant="outline" size="sm" onClick={() => fetchActus()} className="gap-1.5">
-            <RefreshCw className="h-3.5 w-3.5" /> Relancer
+            <RefreshCw className="h-3.5 w-3.5" /> Relancer · 3 crédits
           </Button>
         )}
       </div>
@@ -610,7 +612,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                 L'IA explore l'actu fraîche et la croise avec l'univers de ta marque (30 à 60 secondes).
               </p>
               <p className="text-2xs text-muted-foreground/80 max-w-md mx-auto">
-                💳 1 crédit pour lancer la recherche. Ensuite, voir les angles d'une actu = 1 crédit — mais les 2 premières sont déjà prêtes. Tu ne dépenses que pour ce que tu explores.
+                💳 3 crédits pour lancer la recherche : elle prépare aussi les angles des 2 premières actus (rien si elle ne trouve rien). Ensuite, les angles d'une autre actu = 1 crédit.
               </p>
             </div>
           </div>
@@ -655,8 +657,6 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           <div className="text-center">
             <span className="text-2xs uppercase tracking-wider text-muted-foreground">ou</span>
           </div>
-
-
 
           {/* Intention (optionnelle) */}
           <div className="space-y-3 rounded-xl bg-muted/30 p-4">
@@ -841,7 +841,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           </div>
           <div className="space-y-1.5 max-w-md mx-auto">
             <p className="text-sm font-semibold text-foreground">
-              {broadenedEmpty ? "Toujours rien de net cette fois" : "Aucun pont solide cette fois"}
+              {broadenedEmpty ? "Toujours rien de net cette fois" : "Rien de solide cette fois"}
             </p>
             <p className="text-xs text-muted-foreground leading-relaxed">{emptyMsg}</p>
           </div>
@@ -863,7 +863,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                 <Sparkles className="h-3.5 w-3.5" /> Montre-moi quand même les actus chaudes
               </Button>
               <p className="text-2xs text-muted-foreground max-w-xs leading-relaxed">
-                On relâche le filtre : des actus grand public avec une piste de réaction, même sans lien direct à ta marque. Consomme 1 crédit.
+                On relâche le filtre : des actus grand public avec une piste de réaction, même sans lien direct à ta marque. 3 crédits.
               </p>
               <Button
                 variant="ghost"
@@ -895,7 +895,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                {visibleActus.length} actu{visibleActus.length > 1 ? "s" : ""} • clique sur "Voir les angles" pour découvrir une 1ʳᵉ idée (puis 2 variantes à la demande)
+                {visibleActus.length} actu{visibleActus.length > 1 ? "s" : ""} • les angles des 2 premières sont prêts ; pour les autres, "Voir les angles" = 1 crédit
               </p>
               <AnimatePresence>
                 {visibleActus.map(({ actu, idx }, displayI) => {
@@ -955,10 +955,10 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                 className="text-2xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors underline-offset-2 hover:underline"
                                 title="Voir l'article source"
                               >
-                                {actu.source} ↗
+                                {actu.source}{actu.date_publication ? ` · ${dateActu(actu.date_publication)}` : ""} ↗
                               </a>
                             ) : (
-                              <span className="text-2xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{actu.source}</span>
+                              <span className="text-2xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{actu.source}{actu.date_publication ? ` · ${dateActu(actu.date_publication)}` : ""}</span>
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-2 italic">💡 {stripCitations(actu.pertinence)}</p>
@@ -1101,7 +1101,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                       }}
                                       className="w-full gap-1.5"
                                     >
-                                      <Sparkles className="h-3.5 w-3.5" /> Voir 2 autres angles
+                                      <Sparkles className="h-3.5 w-3.5" /> Voir 2 autres angles · 1 crédit
                                     </Button>
                                   )}
 
@@ -1148,7 +1148,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
               </AnimatePresence>
 
               <Button variant="outline" size="sm" onClick={() => fetchActus()} className="w-full gap-1.5 mt-2">
-                <RefreshCw className="h-3.5 w-3.5" /> Relancer la recherche
+                <RefreshCw className="h-3.5 w-3.5" /> Relancer la recherche · 3 crédits
               </Button>
             </div>
           )}

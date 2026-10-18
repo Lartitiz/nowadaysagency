@@ -23,6 +23,7 @@ const UNIVERSE_TOOL: AnthropicTool = {
   },
 };
 import { fetchHotNews, evergreenPatternsForMode, type PerplexityActu } from "../_shared/perplexity.ts";
+import { garderActusSourcees, normaliserActus, pagesTrouvees } from "./sources.ts";
 
 // Perplexity insère parfois ses balises de citation (<cite index="40-3">…</cite>)
 // dans les champs texte. On les retire à la normalisation pour ne jamais les
@@ -642,13 +643,13 @@ FORMAT DE RÉPONSE — JSON STRICT (pas de markdown, pas de backticks)
     {
       "titre": "Titre court du phénomène (max 80 caractères)",
       "resume": "Résumé factuel en 2 phrases courtes du phénomène et pourquoi on en parle",
-      "source": "Nom du média ou de la source",
-      "source_url": "URL de l'article source si disponible (sinon omettre)",
+      "source": "Nom du média, de l'institution ou de l'étude (jamais un blog de marque, une boutique ni un concurrent)",
+      "source_url": "URL EXACTE d'une page trouvée par ta recherche web (OBLIGATOIRE : un sujet sans page trouvée est retiré)", "date_publication": "AAAA-MM-JJ, date de cette page",
       "type": "globale" | "niche",
       "axe": "mot_qui_revient" | "obsession_collective" | "comportement_emergent" | "debat_recurrent" | "objet_culturel" | "actu_connectable",
       "ton": "confortable" | "entre_deux" | "decalant",
       "force_pont": "fort" | "moyen",
-      "pertinence": "Pont explicite citant un élément précis du profil (cible/activité/combat/piliers)"
+      "pertinence": "Pont explicite citant un élément précis du profil (cible/activité/combat/piliers), écrit en « tu » à la personne (jamais son prénom ni « elle »)"
     }
   ]
 }
@@ -827,34 +828,8 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
       parsed = { actus: [], message: typeof parsed?.message === "string" ? parsed.message : undefined };
     }
 
-    // Normalisation/whitelist des champs (mêmes listes que newsjacking-from-url) :
-    // si le modèle invente un axe/ton/force_pont/type hors config, le badge
-    // correspondant ne s'afficherait pas côté front. On clampe sur les valeurs
-    // connues pour garantir un rendu cohérent.
-    const ALLOWED_AXES = new Set(["mot_qui_revient","obsession_collective","comportement_emergent","debat_recurrent","objet_culturel","actu_connectable"]);
-    const ALLOWED_TONS = new Set(["confortable","entre_deux","decalant"]);
-    const ALLOWED_PONTS = new Set(["fort","moyen","fragile"]);
-    const ALLOWED_TYPES = new Set(["globale","niche"]);
-    parsed.actus = parsed.actus
-      .filter((a: any) => a && typeof a === "object")
-      .map((a: any) => ({
-        ...a,
-        titre: typeof a.titre === "string" ? stripCitations(a.titre).slice(0, 140) : "Actu",
-        resume: typeof a.resume === "string" ? stripCitations(a.resume) : "",
-        source: typeof a.source === "string" ? a.source : "",
-        type: ALLOWED_TYPES.has(a.type) ? a.type : "globale",
-        axe: ALLOWED_AXES.has(a.axe) ? a.axe : "actu_connectable",
-        ton: ALLOWED_TONS.has(a.ton) ? a.ton : "entre_deux",
-        force_pont: ALLOWED_PONTS.has(a.force_pont) ? a.force_pont : "moyen",
-        pertinence: typeof a.pertinence === "string" ? stripCitations(a.pertinence) : "",
-        faits_cles: Array.isArray(a.faits_cles)
-          ? a.faits_cles
-              .filter((f: unknown): f is string => typeof f === "string")
-              .map((f: string) => stripCitations(f).slice(0, 200))
-              .filter((f: string) => f.length > 0)
-              .slice(0, 8)
-          : [],
-      }));
+    // Normalisation des champs (valeurs connues seulement) : sources.ts.
+    parsed.actus = normaliserActus(parsed.actus, stripCitations);
 
     // Post-validation : on retire tout sujet qui ressemble à un événement /
     // webinaire / replay / page evergreen, même si Claude l'a fait passer.
@@ -876,6 +851,10 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
     if (parsed.actus.length < beforeCount) {
       console.log(`[newsjacking] filtered ${beforeCount - parsed.actus.length}/${beforeCount} actus (evergreen)`);
     }
+    // Actu gardée seulement si son lien est une page trouvée par la recherche (sources.ts, 18/10/2026).
+    const tri = garderActusSourcees(parsed.actus, pagesTrouvees(allContent, hotNews));
+    if (tri.retirees.length) console.log(`[newsjacking] ${tri.retirees.length} actu(s) sans page trouvée retirée(s) : ${tri.retirees.join(" | ")}`);
+    parsed.actus = tri.gardees;
 
     // Filet anti-vide SCOOP : si après tri il ne reste rien (Claude a flanché ou
     // le post-filtre a tout raboté) mais que Perplexity avait pré-sourcé des actus
@@ -913,7 +892,7 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
     }
 
     if (parsed.actus.length === 0) {
-      parsed.message = parsed.message || "Pas d'actu vraiment fraîche cette fois. Réessaie dans quelques jours.";
+      parsed.message = parsed.message || "Pas d'actu avec une source vérifiable cette fois. Réessaie, ou colle le lien d'un article.";
     }
 
     // Mode élargi (macro/scoop) : ici le pont est une PISTE DE RÉACTION, pas une
@@ -928,8 +907,8 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
       }
     }
 
-    // Log usage
-    await logUsage(user.id, "deep_research", "newsjacking", tokensUsed, model, workspace_id);
+    // Une recherche sans actu ne coûte rien (18/10/2026).
+    if (parsed.actus.length > 0) await logUsage(user.id, "deep_research", "newsjacking", tokensUsed, model, workspace_id);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
