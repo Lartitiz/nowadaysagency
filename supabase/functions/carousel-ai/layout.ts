@@ -27,7 +27,9 @@
 
 import type { UsageSink } from "../_shared/anthropic.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
-import { addSchemasToContent, type SchemaPlan } from "../_shared/schema-formatting.ts";
+import { addSchemasToContent, planRequestedSchema, SCHEMA_TYPES, type SchemaPlan } from "../_shared/schema-formatting.ts";
+import { MIX_SCHEMA_TYPES } from "../_shared/mix-schema-render.ts";
+import { SLIDE_REDO_GRANT, signInternalGrant } from "../_shared/internal-grant.ts";
 import { keepDraftLayoutFields, stripMixWriterLayoutFields } from "../_shared/mix-layout-formatting.ts";
 import { normalizeOverlayStyles } from "../_shared/photo-slide-structure.ts";
 import { assignPhotoTemplates, assignTemplatesToProvidedSlides, revalidatePhotoLayoutContent, stripWriterLayoutFields } from "../_shared/photo-template-assign.ts";
@@ -136,4 +138,57 @@ export function narrativeMixLayout(slideType: string, ref: any) {
       ? { photo_layout: ref.photo_layout }
       : {}),
   };
+}
+
+// ── « REFAIRE CETTE SLIDE » (chantier AA, 18/10/2026) ──
+// L'écriture (modes/slide-redo.ts) refait le texte ; la mise en forme vient
+// d'ici : le schéma demandé par l'utilisatrice, puis le dessin de la slide par
+// carousel-visual. Rien ici ne débite : le crédit unique est posé par le mode,
+// après les deux étapes.
+
+/** Types de schéma que l'utilisatrice peut demander (le mixte n'en dessine que quelques-uns). */
+export const REDO_SCHEMA_TYPES: readonly string[] = SCHEMA_TYPES;
+export const REDO_MIX_SCHEMA_TYPES: readonly string[] = MIX_SCHEMA_TYPES;
+
+/** Schéma demandé, tiré du texte final de la slide ; null si le texte ne le permet pas. */
+// deno-lint-ignore no-explicit-any
+export function redoSlideSchema(slide: Record<string, any>, type: string, isMix: boolean, usage: UsageSink) {
+  return planRequestedSchema(slide, type, isMix, usage);
+}
+
+export interface RedesignRequest {
+  /** Corps habituel de carousel-visual préparé par l'appli (photos, charte, type), sans les slides. */
+  visualRequest: Record<string, unknown>;
+  slides: unknown[];
+  slideNumber: number;
+  designNote: string;
+  authHeader: string;
+  userId: string;
+}
+export type RedesignResult =
+  | { ok: true; html: string; mixLayoutMemo: unknown; usage: { total_tokens?: number; model?: string } }
+  | { ok: false; status: number; error: string; quota?: unknown };
+
+/** Dessin de la slide refaite par carousel-visual (render_only), jeton interne
+ * pour qu'il ne débite pas une deuxième fois. */
+export async function redesignSlide(r: RedesignRequest): Promise<RedesignResult> {
+  const grant = await signInternalGrant(SLIDE_REDO_GRANT.purpose, r.userId);
+  let res: Response;
+  try {
+    res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/carousel-visual`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: r.authHeader, apikey: Deno.env.get("SUPABASE_ANON_KEY") || "", [SLIDE_REDO_GRANT.header]: grant },
+      body: JSON.stringify({ ...r.visualRequest, slides: r.slides, render_only: r.slideNumber, design_note: r.designNote || undefined, cover_illustration: false }),
+      signal: AbortSignal.timeout(200_000),
+    });
+  } catch (e) {
+    return { ok: false, status: 504, error: e instanceof Error ? e.message.slice(0, 200) : "délai dépassé" };
+  }
+  // deno-lint-ignore no-explicit-any
+  const data: any = await res.json().catch(() => null);
+  if (!res.ok || !data?.result) return { ok: false, status: res.status || 502, error: String(data?.error || "rendu indisponible").slice(0, 300), quota: data?.quota };
+  // deno-lint-ignore no-explicit-any
+  const slide = (Array.isArray(data.result.slides_html) ? data.result.slides_html : []).find((s: any) => Number(s?.slide_number) === r.slideNumber);
+  if (typeof slide?.html !== "string" || !slide.html.trim()) return { ok: false, status: 502, error: "slide vide" };
+  return { ok: true, html: slide.html, mixLayoutMemo: data.result.redo_mix_layout_memo ?? null, usage: data.redo_usage || {} };
 }

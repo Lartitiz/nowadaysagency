@@ -118,8 +118,8 @@
       "any": 8
     },
     "supabase/functions/carousel-visual/index.ts": {
-      "lignes": 2792,
-      "any": 155
+      "lignes": 2592,
+      "any": 139
     },
     "supabase/functions/diagnostic-enrichment/index.ts": {
       "lignes": 882,

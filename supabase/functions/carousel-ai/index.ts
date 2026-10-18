@@ -28,6 +28,7 @@ import { handleDeepeningQuestionsRequest } from "./steps/questions.ts";
 import { runGenerationAndRespond } from "./steps/generate.ts";
 import { handleMixCarouselRequest } from "./modes/mix.ts";
 import { handlePhotoCarouselRequest } from "./modes/photo.ts";
+import { handleSlideRedoRequest } from "./modes/slide-redo.ts";
 export { emptySlidesText } from "./modes/photo.ts";
 
 // Fiche 2 (docs/robustesse/gros-fichiers.md) : déplacés à l'identique, réexportés pour les tests.
@@ -91,7 +92,7 @@ export async function handleRequest(req: Request): Promise<Response> {
     }
 
     validateInput(body, z.object({
-      type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles", "deepening_questions", "express_full", "structure_proposal", "assign_templates"]),
+      type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles", "deepening_questions", "express_full", "structure_proposal", "assign_templates", "slide_redo"]),
       // Mode « Mes slides » (assign_templates) : slides déjà écrites par
       // l'utilisatrice — la passe ne fait que poser les gabarits, jamais le texte.
       slides: z.array(z.record(z.unknown())).max(20).optional(),
@@ -147,6 +148,10 @@ export async function handleRequest(req: Request): Promise<Response> {
       })).max(40).optional(),
       series_id: z.string().uuid().optional().nullable(),
       episode_number: z.number().int().min(1).optional().nullable(),
+      // « Refaire cette slide » (modes/slide-redo.ts) : slide, consigne libre, corps du rendu.
+      redo_slide_number: z.number().int().min(1).max(30).optional(),
+      instruction: z.string().max(600).optional().nullable(),
+      visual_request: z.record(z.unknown()).optional().nullable(),
     }).passthrough());
     const { type, workspace_id, launch_context, series_id, episode_number, news_context: newsContext } = body;
     const isLinkedIn = body.channel === "linkedin";
@@ -402,6 +407,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       brandVocabBlock,
       newsContext,
       corsHeaders,
+      authHeader: req.headers.get("authorization") || undefined,
       emitStatus,
       startedAt,
       outline,
@@ -422,6 +428,8 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
         return await handleSuggestAnglesRequest(reqCtx);
       case "deepening_questions":
         return await handleDeepeningQuestionsRequest(reqCtx);
+      case "slide_redo":
+        return await handleSlideRedoRequest(reqCtx);
       default:
         return new Response(JSON.stringify({ error: "Type invalide" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
