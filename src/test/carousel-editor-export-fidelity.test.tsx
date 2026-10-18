@@ -31,6 +31,9 @@ import {
   type EditorElement,
   type EditorSlide,
 } from "@/lib/carousel-editor";
+import { restyleAllTexts } from "@/components/creer/CarouselEditorParts/AllSlidesPanel";
+import { blockFromElement } from "@/lib/export-carousel-hybrid/text-blocks";
+import { mapFontToPptx } from "@/lib/pptx-font-mapping";
 import { composePhotoSlide } from "../../supabase/functions/_shared/photo-overlay-templates";
 import { buildCarouselDesignPlan, composeEditorialSlide } from "../../supabase/functions/_shared/carousel-design-plan";
 import { composeMixSlide } from "../../supabase/functions/_shared/mix-slide-layouts";
@@ -187,5 +190,31 @@ describe("opérations lourdes : les étiquettes d'export sont reconstruites", ()
     const styled = patchElement(themed.slides[0], title.id, { styles: { "font-size": "90px", color: "#fb3d80" } });
     const all = applyToAllSlides({ ...themed, slides: [styled, ...themed.slides.slice(1)] }, styled.id, title.id, { style: true, position: true }).document;
     expect(all.slides.map((s) => exportLabels(s.html))).toEqual(before);
+  });
+  // Chantier V (18/10/2026) : « Mettre cette police partout » (mode simple) et « Police et
+  // couleur sur toutes les slides » : la police reportée est celle que lit l'export PowerPoint
+  // (style calculé de chaque zone de texte), les étiquettes ne bougent pas, la slide verrouillée non plus.
+  it("police reportée sur toutes les slides : elle arrive dans chaque zone de texte du PowerPoint", () => {
+    const doc = renumberDocument({
+      caption: {},
+      slides: [SLIDES[0], SLIDES[4], SLIDES[3], SLIDES[1]].map((c, i) => ({ id: `s${i}`, data: { ...c.data }, html: prepareSlideHtml(withPhotos(c.html())), locked: i === 3 })),
+    });
+    const before = doc.slides.map((s) => exportLabels(s.html));
+    const all = restyleAllTexts(doc, { "font-family": "'Playfair Display', serif" });
+    expect(all.slides.map((s) => exportLabels(s.html))).toEqual(before);
+    expect(all.slides[3].html).toBe(doc.slides[3].html);
+    for (const slide of all.slides.slice(0, 3)) {
+      expect(slide.html).toMatch(/Playfair\+Display/);
+      // L'export lit le style calculé : la slide est posée dans une vraie page.
+      const page = window.document;
+      page.body.innerHTML = dom(slide.html).body.innerHTML;
+      const zones = [...page.querySelectorAll<HTMLElement>("[data-pptx-editable]")];
+      expect(zones.length).toBeGreaterThan(0);
+      for (const el of zones) {
+        el.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 80, right: 400, bottom: 80, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+        const block = blockFromElement(el, page, "body")!;
+        expect(mapFontToPptx(block.style.fontFamily)).toBe("Playfair Display");
+      }
+    }
   });
 });

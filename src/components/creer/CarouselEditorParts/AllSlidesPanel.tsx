@@ -7,6 +7,22 @@ import type { CarouselStylesApi, SavedCarouselStyle } from "@/hooks/use-carousel
 import { ensureFontLink, GOOGLE_FONTS, restyleSlide, type CarouselDocument, type EditorElement } from "@/lib/carousel-editor";
 import { PanelSection } from "@/components/creer/CarouselEditorParts/PanelBits";
 
+/** Chantier V (18/10/2026) : la police et/ou la couleur sur tous les textes de toutes
+ * les slides, en une seule étape d'Annuler. Les slides verrouillées ne bougent pas.
+ * Sert à « Police et couleur sur toutes les slides » et aux boutons « … partout ». */
+export function restyleAllTexts(document: CarouselDocument, styles: Record<string, string | undefined>): CarouselDocument {
+  const kept = Object.fromEntries(Object.entries(styles).filter(([, v]) => v)) as Record<string, string>;
+  // Une police Google suit sur chaque slide (aperçu et export).
+  const google = GOOGLE_FONTS.find((f) => (kept["font-family"] || "").includes(f.family));
+  return {
+    ...document,
+    slides: document.slides.map((s) => {
+      const restyled = restyleSlide(s, kept, "texts");
+      return google ? ensureFontLink(restyled, google.family) : restyled;
+    }),
+  };
+}
+
 /** Reporter l'élément choisi (police, couleur, style, position) sur les autres slides. */
 export function AllSlidesPanel({ applyAll, commit, css, document, element }: {
   applyAll: (what: { style?: boolean; position?: boolean }) => void;
@@ -22,25 +38,7 @@ export function AllSlidesPanel({ applyAll, commit, css, document, element }: {
                 variant="outline"
                 size="sm"
                 className="w-full"
-                onClick={() =>
-                  commit({
-                    ...document,
-                    slides: document.slides.map((s) => {
-                      const restyled = restyleSlide(
-                        s,
-                        Object.fromEntries(
-                          ["font-family", "color"]
-                            .filter((k) => css[k])
-                            .map((k) => [k, css[k]]),
-                        ),
-                        "texts",
-                      );
-                      // Une police Google suit sur chaque slide (aperçu et export).
-                      const google = GOOGLE_FONTS.find((f) => (css["font-family"] || "").includes(f.family));
-                      return google ? ensureFontLink(restyled, google.family) : restyled;
-                    }),
-                  })
-                }
+                onClick={() => commit(restyleAllTexts(document, { "font-family": css["font-family"], color: css.color }))}
               >
                 Police et couleur sur toutes les slides
               </Button>

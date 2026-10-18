@@ -2,14 +2,20 @@
 // réglages seulement : le texte, la photo, la couleur et la police. Tout le
 // reste est à un clic, dans « Plus d'outils » (le panneau complet).
 // Sur téléphone, quatre gros boutons sous la slide ouvrent chacun leur partie.
-import { useState, type MutableRefObject } from "react";
+// Chantier V (18/10/2026) : « Mettre cette police / couleur partout » sous la
+// police et les couleurs (même action que « Toutes les slides »), et la police
+// remonte au-dessus de la photo quand un texte est choisi (visible sans défiler).
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ImagePlus, Palette, Pencil, SlidersHorizontal, Type } from "lucide-react";
-import { addTextElement, patchElement, restyleSlide, type EditorElement, type EditorSlide, type listDocumentFonts } from "@/lib/carousel-editor";
+import { addTextElement, patchElement, restyleSlide, type CarouselDocument, type EditorElement, type EditorSlide, type listDocumentFonts } from "@/lib/carousel-editor";
+import { restyleAllTexts } from "@/components/creer/CarouselEditorParts/AllSlidesPanel";
 import type { CanvasApi } from "@/components/creer/CarouselEditorParts/canvas-geometry";
 import { FontPicker } from "@/components/creer/CarouselEditorParts/FontPicker";
 import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
+import { OPEN_FONT_EVENT } from "@/components/creer/CarouselEditorParts/editor-mode";
 import { range, toHex } from "@/components/creer/CarouselEditorParts/panel-controls";
 
 type Part = "texte" | "photo" | "couleur" | "police";
@@ -39,10 +45,12 @@ function Swatches({ colors, current, label, onPick }: { colors: string[]; curren
 const sectionClass = (part: Part, shown: Part | null) =>
   `space-y-2 rounded-lg border p-2.5 ${shown === part ? "" : "hidden"} md:block`;
 
-export function SimplePanel({ canvasApi, changeSlide, css, documentFonts, element, elements, fill, fillAlpha, fillHex, filterValue, fontQuery, onAddPhoto, onMore, palette, pickFont, selectOne, setFilter, setFitId, setFontQuery, setPhotoOpen, slide, style }: {
+export function SimplePanel({ canvasApi, changeSlide, commit, css, document, documentFonts, element, elements, fill, fillAlpha, fillHex, filterValue, fontQuery, onAddPhoto, onMore, palette, pickFont, selectOne, setFilter, setFitId, setFontQuery, setPhotoOpen, slide, style }: {
   canvasApi: MutableRefObject<CanvasApi | null>;
   changeSlide: (next: EditorSlide, key?: string) => void;
+  commit: (next: CarouselDocument, key?: string) => void;
   css: Record<string, string>;
+  document: CarouselDocument;
   documentFonts: ReturnType<typeof listDocumentFonts>;
   element: EditorElement | undefined;
   elements: EditorElement[];
@@ -65,6 +73,18 @@ export function SimplePanel({ canvasApi, changeSlide, css, documentFonts, elemen
 }) {
   // Téléphone : la partie ouverte par un des 4 gros boutons (ordinateur : tout est visible).
   const [shown, setShown] = useState<Part | null>(null);
+  const [fontOpen, setFontOpen] = useState(false);
+  const fontSection = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const openFont = () => {
+      setShown("police");
+      fontSection.current?.scrollIntoView?.({ block: "center" });
+      // Après la fermeture du menu « … » (sinon il reprend le focus et referme la liste).
+      window.setTimeout(() => setFontOpen(true), 150);
+    };
+    window.addEventListener(OPEN_FONT_EVENT, openFont);
+    return () => window.removeEventListener(OPEN_FONT_EVENT, openFont);
+  }, []);
   const text = element?.kind === "text" ? element : undefined;
   const photo = element?.kind === "photo" ? element : undefined;
   const firstText = elements.find((e) => e.kind === "text");
@@ -82,6 +102,28 @@ export function SimplePanel({ canvasApi, changeSlide, css, documentFonts, elemen
     }
   };
   const locked = slide.locked;
+  // Police ou couleur du texte choisi sur tous les textes du carrousel, en une étape d'Annuler.
+  const many = document.slides.length > 1;
+  const everywhere = (styles: Record<string, string>, done: string) => {
+    commit(restyleAllTexts(document, styles));
+    const kept = document.slides.filter((s) => s.locked).length;
+    toast.success(done, {
+      description: kept
+        ? `${kept > 1 ? `${kept} slides verrouillées gardent` : "1 slide verrouillée garde"} la sienne. Tu peux annuler.`
+        : "Tu peux annuler.",
+    });
+  };
+  // Sur la ligne du titre de la section : visible sans défiler, sous la barre « Publier » jamais.
+  const sectionTitle = (title: string, everywhereButton?: false | { testId: string; label: string; onClick: () => void; disabled: boolean }) => (
+    <div className="flex items-center justify-between gap-2">
+      <p className="text-xs font-semibold">{title}</p>
+      {everywhereButton && (
+        <Button data-testid={everywhereButton.testId} size="sm" variant="ghost" className="h-6 px-2 text-2xs" disabled={everywhereButton.disabled} onClick={everywhereButton.onClick}>
+          {everywhereButton.label}
+        </Button>
+      )}
+    </div>
+  );
   return (
     <div className="min-w-0 space-y-2" aria-label="Réglages simples">
       <div className="grid grid-cols-4 gap-1.5 md:hidden" role="group" aria-label="Que veux-tu changer ?">
@@ -111,7 +153,7 @@ export function SimplePanel({ canvasApi, changeSlide, css, documentFonts, elemen
           en page, thèmes, position, ombre et retouche photo sont dans « Plus d'outils ».
         </HelpTip>
       </p>
-      <fieldset disabled={locked} className="min-w-0 space-y-2 disabled:opacity-50">
+      <fieldset disabled={locked} className="flex min-w-0 flex-col gap-2 disabled:opacity-50">
         <div className={sectionClass("texte", shown)}>
           <p className="text-xs font-semibold">Texte</p>
           {text ? (
@@ -142,7 +184,7 @@ export function SimplePanel({ canvasApi, changeSlide, css, documentFonts, elemen
             Ajouter un texte
           </Button>
         </div>
-        <div className={sectionClass("photo", shown)}>
+        <div className={`${sectionClass("photo", shown)} ${text ? "order-last" : ""}`}>
           <p className="text-xs font-semibold">Photo</p>
           {onAddPhoto && (
             <Button size="sm" variant="outline" className="w-full" onClick={() => setPhotoOpen(true)}>
@@ -174,7 +216,7 @@ export function SimplePanel({ canvasApi, changeSlide, css, documentFonts, elemen
           )}
         </div>
         <div className={sectionClass("couleur", shown)}>
-          <p className="text-xs font-semibold">Couleur</p>
+          {sectionTitle("Couleur", !!text && many && { testId: "color-everywhere", label: "Mettre cette couleur partout", onClick: () => everywhere({ color: css.color }, "Couleur mise sur tous les textes"), disabled: !css.color })}
           {text ? (
             <Swatches colors={palette} current={toHex(css.color, "#222222")} label="Couleur du texte" onPick={(hex) => style({ color: hex })} />
           ) : element?.kind === "shape" && element.role !== "background" && element.role !== "veil" ? (
@@ -188,10 +230,14 @@ export function SimplePanel({ canvasApi, changeSlide, css, documentFonts, elemen
             />
           )}
         </div>
-        <div className={sectionClass("police", shown)}>
-          <p className="text-xs font-semibold">Police</p>
+        <div ref={fontSection} className={sectionClass("police", shown)}>
+          {sectionTitle("Police", !!text && many && { testId: "font-everywhere", label: "Mettre cette police partout", onClick: () => everywhere({ "font-family": css["font-family"] }, "Police mise sur tous les textes"), disabled: !css["font-family"] })}
           {text ? (
-            <FontPicker css={css} documentFonts={documentFonts} fontQuery={fontQuery} pickFont={pickFont} setFontQuery={setFontQuery} />
+            <FontPicker css={css} documentFonts={documentFonts} fontQuery={fontQuery} open={fontOpen} onOpenChange={setFontOpen} pickFont={(value, family) => {
+                // La liste se referme : « Mettre cette police partout » est juste dessous.
+                pickFont(value, family);
+                setFontOpen(false);
+              }} setFontQuery={setFontQuery} />
           ) : (
             <p className="text-2xs text-muted-foreground">Touche un texte sur la slide pour changer sa police.</p>
           )}

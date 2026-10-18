@@ -1,12 +1,14 @@
 // Chantier D (15/10/2026) : menu « … » de la barre posée sur la slide, en mode
 // simple. Chaque action y a son nom écrit (lisible au toucher, sans survol).
+// Chantier V (18/10/2026) : « Changer la police » ouvre la liste du panneau simple.
 import { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { AlignCenter, Copy, CopyPlus, LockKeyhole, MoreHorizontal, Pipette, Underline } from "lucide-react";
+import { AlignCenter, Copy, CopyPlus, LockKeyhole, MoreHorizontal, Pipette, Type, Underline } from "lucide-react";
 import { photoShapeOf } from "@/lib/carousel-editor";
 import { isFullBleedBox } from "@/components/creer/CarouselEditorParts/canvas-geometry";
 import { PhotoShapePicker } from "@/components/creer/CarouselEditorParts/PanelBits";
 import type { SelectionBox } from "@/components/creer/CarouselEditorParts/CanvasToolbar";
+import { OPEN_FONT_EVENT } from "@/components/creer/CarouselEditorParts/editor-mode";
 
 export function ToolbarMore({ box, cropId, selected, onAlign, onCopy, onDuplicate, onLock, onPickColor, onShape, onUnderline }: {
   box: SelectionBox;
@@ -36,6 +38,7 @@ export function ToolbarMore({ box, cropId, selected, onAlign, onCopy, onDuplicat
       <PopoverContent align="end" className="w-56 p-1" aria-label="Plus d’actions">
         {box.kind === "text" && (
           <>
+            <button type="button" className={item} onClick={run(() => window.dispatchEvent(new Event(OPEN_FONT_EVENT)))}><Type size={14} /> Changer la police</button>
             <button type="button" className={item} onClick={run(onUnderline)}><Underline size={14} /> Souligner</button>
             <button type="button" className={item} onClick={run(onAlign)}><AlignCenter size={14} /> Changer l’alignement</button>
           </>
