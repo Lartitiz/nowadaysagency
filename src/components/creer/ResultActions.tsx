@@ -1,8 +1,8 @@
 import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { useStickyHeightVar } from "@/hooks/use-sticky-height-var";
-import { useCarouselEditorShown } from "@/lib/carousel-editor-shown";
-import { ArrowUpRight, Check, ChevronDown, Copy, Download, Lightbulb, Loader2, MoreHorizontal, Palette, RefreshCw, RotateCcw, Send, Sparkles } from "lucide-react";
+import { requestCarouselTextList, useCarouselEditorShown } from "@/lib/carousel-editor-shown";
+import { ArrowUpRight, Check, ChevronDown, Copy, Download, Lightbulb, Loader2, MoreHorizontal, Palette, Pencil, RefreshCw, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
@@ -221,6 +221,12 @@ export default function ResultActions(p: ResultActionsProps) {
         {oneLine && !p.autoSavedToIdeas && p.onSave && (
           <DropdownMenuItem onClick={p.onSave} disabled={p.savingContent} className="gap-2 sm:hidden">
             <Lightbulb className="h-4 w-4" /> {p.savingContent ? "Enregistrement…" : "Garder dans mes idées"}
+          </DropdownMenuItem>
+        )}
+        {/* Chantier X (choix C2) : tout le texte du carrousel en liste, comme pour un post. */}
+        {oneLine && hasVisuals && (
+          <DropdownMenuItem onClick={requestCarouselTextList} className="gap-2" data-testid="carousel-edit-text">
+            <Pencil className="h-4 w-4" /> Modifier le texte
           </DropdownMenuItem>
         )}
         {download && (

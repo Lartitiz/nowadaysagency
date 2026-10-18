@@ -4,7 +4,11 @@
 // Chantier W élargi (18/10/2026) : sur ordinateur, une colonne à gauche de la slide
 // (comme Google Slides ou Keynote), boutons en bas de la colonne ; sur téléphone,
 // une rangée sous la slide.
-import type { MutableRefObject } from "react";
+// Chantier X (18/10/2026) : en mode simple, monter, descendre et dupliquer sous la
+// vignette choisie ; l'aide « glisse pour changer l'ordre » écrite (plus seulement
+// au survol) ; « Slide supprimée · Annuler » après une suppression.
+import { Fragment, type MutableRefObject } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, LockKeyhole, Plus, Trash2, Unlock } from "lucide-react";
 import { INSTAGRAM_DIRECT_MAX_IMAGES, instagramTooManyImagesReason } from "@/features/creer/publish-guards";
@@ -14,7 +18,7 @@ import { SlideThumb } from "@/components/creer/CarouselEditorParts/PanelBits";
 
 /** Bande des miniatures et boutons des slides. */
 export function SlideStrip({ simple = false, active, add, changeSlide, commit, current, document, dragSlide, dropAt, justDragged, move, reorder, setActive, setDragSlide, setDropAt, setSelected, slide, thumbDrag, thumbIndexAt }: {
-  /** Mode simple : flèches, dupliquer et verrouiller passent dans « Plus d'outils ». */
+  /** Mode simple : flèches et dupliquer sous la vignette choisie, verrouiller dans « Plus d'outils ». */
   simple?: boolean;
   active: number;
   add: (duplicate?: boolean) => void;
@@ -37,6 +41,42 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
 }) {
   // Boutons de la colonne (ordinateur) : pleine largeur, libellé sur deux lignes si besoin.
   const colButton = "md:h-auto md:w-full md:justify-start md:whitespace-normal md:px-2 md:py-1 md:text-left md:text-2xs md:leading-tight";
+  const last = document.slides.length - 1;
+  const full = document.slides.length >= CAROUSEL_MAX_SLIDES;
+  const remove = () => {
+    const removed = slide, at = document.slides.findIndex((s) => s.id === slide.id);
+    commit(renumberDocument({ ...document, slides: document.slides.filter((s) => s.id !== slide.id) }));
+    setActive(Math.max(0, active - 1));
+    setSelected(null);
+    toast("Slide supprimée", {
+      action: {
+        label: "Annuler",
+        onClick: () => {
+          const doc = current.current;
+          if (doc.slides.some((s) => s.id === removed.id) || doc.slides.length >= CAROUSEL_MAX_SLIDES) return;
+          const slides = [...doc.slides];
+          slides.splice(Math.min(at, slides.length), 0, removed);
+          commit(renumberDocument({ ...doc, slides }));
+          setActive(Math.min(at, slides.length - 1));
+          setSelected(null);
+        },
+      },
+    });
+  };
+  // Mode simple : petits boutons sous la vignette choisie (à côté, sur téléphone).
+  const orderTools = (
+    <div className="flex shrink-0 flex-col justify-center gap-0.5 md:flex-row" data-testid="slide-order-tools">
+      {([
+        ["Monter la slide", () => move(-1), active === 0, <><ArrowLeft size={13} className="md:hidden" /><ArrowUp size={13} className="hidden md:block" /></>],
+        ["Descendre la slide", () => move(1), active === last, <><ArrowRight size={13} className="md:hidden" /><ArrowDown size={13} className="hidden md:block" /></>],
+        ["Dupliquer la slide", () => add(true), full, <Copy size={13} />],
+      ] as const).map(([label, onClick, disabled, icon]) => (
+        <Button key={label} size="icon" variant="outline" className="h-6 w-6" aria-label={label} title={label} onClick={onClick} disabled={disabled}>
+          {icon}
+        </Button>
+      ))}
+    </div>
+  );
   return (
     <>
     <div className="flex flex-col gap-1.5 md:max-h-[var(--editor-room,calc(100vh-15rem))] md:gap-2">
@@ -45,8 +85,8 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
         aria-label="Slides du carrousel"
       >
         {document.slides.map((s, i) => (
+          <Fragment key={s.id}>
           <button
-            key={s.id}
             type="button"
             data-thumb={i}
             style={{ touchAction: "none" }}
@@ -96,8 +136,13 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
               {s.locked ? " 🔒" : ""}
             </span>
           </button>
+          {simple && i === active && orderTools}
+          </Fragment>
         ))}
       </div>
+      {document.slides.length > 1 && (
+        <p className="shrink-0 text-2xs leading-tight text-muted-foreground">Glisse une vignette pour changer l’ordre.</p>
+      )}
       {/* Boutons des slides, avec l'avertissement « plus de 10 slides » dessous : en bas
           de la colonne sur ordinateur, sous les miniatures sur téléphone. */}
       <div className="flex shrink-0 flex-col gap-1">
@@ -117,7 +162,7 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
           size="sm"
           variant="outline"
           onClick={() => move(1)}
-          disabled={active === document.slides.length - 1}
+          disabled={active === last}
           aria-label="Descendre la slide"
           className={colButton}
         >
@@ -127,7 +172,7 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
         <Button
           size="sm"
           variant="outline"
-          disabled={document.slides.length >= CAROUSEL_MAX_SLIDES}
+          disabled={full}
           onClick={() => add()}
           className={colButton}
         >
@@ -138,7 +183,7 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
         <Button
           size="sm"
           variant="outline"
-          disabled={document.slides.length >= CAROUSEL_MAX_SLIDES}
+          disabled={full}
           onClick={() => add(true)}
           className={colButton}
         >
@@ -162,16 +207,7 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
           variant="outline"
           disabled={document.slides.length <= 2 || slide.locked}
           className={colButton}
-          onClick={() => {
-            commit(
-              renumberDocument({
-                ...document,
-                slides: document.slides.filter((s) => s.id !== slide.id),
-              }),
-            );
-            setActive(Math.max(0, active - 1));
-            setSelected(null);
-          }}
+          onClick={remove}
         >
           <Trash2 size={14} className="mr-1 shrink-0" />
           Supprimer la slide
