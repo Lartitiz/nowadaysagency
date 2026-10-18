@@ -1,5 +1,6 @@
 import { type EmojiZone } from "../pptx-font-mapping";
 import html2canvas from "html2canvas-pro";
+import { waitForClonedTextFonts } from "../export-text-fonts";
 import { SLIDE_W_PX, SLIDE_H_PX } from "./types";
 import { CAPTURE_TIMEOUT_MS } from "@/lib/export-budget";
 
@@ -133,6 +134,7 @@ export async function captureBody(doc: Document): Promise<string> {
       backgroundColor: null,
       logging: false,
       imageTimeout: 8000,
+      onclone: (clone) => waitForClonedTextFonts(clone),
     }),
     CAPTURE_TIMEOUT_MS,
     null,
