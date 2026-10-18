@@ -5,18 +5,25 @@
 // Chantier V (18/10/2026) : « Mettre cette police / couleur partout » sous la
 // police et les couleurs (même action que « Toutes les slides »), et la police
 // remonte au-dessus de la photo quand un texte est choisi (visible sans défiler).
-import { useEffect, useRef, useState, type MutableRefObject } from "react";
+// Chantier AB (18/10/2026) : « Mise en page » et « Thème du carrousel » ouvrent les
+// galeries de « Plus d'outils » (mêmes composants) ; « Ajouter une icône » ; la
+// couleur d'une icône se change comme celle d'un texte.
+import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, Palette, Pencil, SlidersHorizontal, Type } from "lucide-react";
-import { addTextElement, patchElement, restyleSlide, type CarouselDocument, type EditorElement, type EditorSlide, type listDocumentFonts } from "@/lib/carousel-editor";
+import { ImagePlus, LayoutTemplate, Palette, Pencil, SlidersHorizontal, SwatchBook, Type } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { addTextElement, patchElement, restyleSlide, type carouselThemes, type CarouselDocument, type LayoutVariant, type EditorElement, type EditorSlide, type listDocumentFonts } from "@/lib/carousel-editor";
 import { restyleAllTexts } from "@/components/creer/CarouselEditorParts/AllSlidesPanel";
 import type { CanvasApi } from "@/components/creer/CarouselEditorParts/canvas-geometry";
 import { FontPicker } from "@/components/creer/CarouselEditorParts/FontPicker";
 import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
 import { OPEN_FONT_EVENT } from "@/components/creer/CarouselEditorParts/editor-mode";
 import { range, toHex } from "@/components/creer/CarouselEditorParts/panel-controls";
+import { LayoutGallery, ThemeGallery } from "@/components/creer/CarouselEditorParts/SlideSettings";
+import { IconPicker } from "@/components/creer/CarouselEditorParts/IconPicker";
+import { addIcon, brandInk, iconColor, isIcon, setIconColor } from "@/components/creer/CarouselEditorParts/editor-icons";
 
 type Part = "texte" | "photo" | "couleur" | "police";
 
@@ -45,8 +52,10 @@ function Swatches({ colors, current, label, onPick }: { colors: string[]; curren
 const sectionClass = (part: Part, shown: Part | null) =>
   `space-y-2 rounded-lg border p-2.5 ${shown === part ? "" : "hidden"} md:block`;
 
-export function SimplePanel({ canvasApi, changeSlide, commit, css, document, documentFonts, element, elements, fill, fillAlpha, fillHex, filterValue, fontQuery, onAddPhoto, onMore, palette, pickFont, selectOne, setFilter, setFitId, setFontQuery, setPhotoOpen, slide, style }: {
+export function SimplePanel({ applyCarouselTheme, canvasApi, changeLayout, changeSlide, commit, css, document, documentFonts, element, elements, fill, fillAlpha, fillHex, filterValue, fontQuery, layoutPreviews, onAddPhoto, onMore, palette, pickFont, selectOne, setFilter, setFitId, setFontQuery, setPhotoOpen, slide, style, themes }: {
+  applyCarouselTheme: (themeId: string) => void;
   canvasApi: MutableRefObject<CanvasApi | null>;
+  changeLayout: (variant: LayoutVariant) => void;
   changeSlide: (next: EditorSlide, key?: string) => void;
   commit: (next: CarouselDocument, key?: string) => void;
   css: Record<string, string>;
@@ -59,6 +68,7 @@ export function SimplePanel({ canvasApi, changeSlide, commit, css, document, doc
   fillHex: string;
   filterValue: (name: string, fallback: number) => number;
   fontQuery: string;
+  layoutPreviews: { variant: LayoutVariant; label: string; preview: { html: string } }[];
   onAddPhoto?: unknown;
   onMore: () => void;
   palette: string[];
@@ -70,6 +80,7 @@ export function SimplePanel({ canvasApi, changeSlide, commit, css, document, doc
   setPhotoOpen: (open: boolean) => void;
   slide: EditorSlide;
   style: (styles: Record<string, string>, key?: string) => void;
+  themes: ReturnType<typeof carouselThemes>;
 }) {
   // Téléphone : la partie ouverte par un des 4 gros boutons (ordinateur : tout est visible).
   const [shown, setShown] = useState<Part | null>(null);
@@ -102,6 +113,21 @@ export function SimplePanel({ canvasApi, changeSlide, commit, css, document, doc
     }
   };
   const locked = slide.locked;
+  const icon = element?.kind === "shape" && isIcon(slide, element.id) ? element : undefined;
+  const [gallery, setGallery] = useState<"page" | "theme" | null>(null);
+  const galleryButton = (which: "page" | "theme", label: string, Icon: typeof LayoutTemplate, content: ReactNode) => (
+    <Popover open={gallery === which} onOpenChange={(next) => setGallery(next ? which : null)}>
+      <PopoverTrigger asChild>
+        <Button size="sm" variant="outline" className="h-7 flex-1 gap-1 px-2 text-xs" disabled={which === "page" && locked}>
+          <Icon size={14} aria-hidden="true" /> {label}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 space-y-2 p-3" aria-label={label}>
+        <p className="text-xs font-semibold">{label}</p>
+        {content}
+      </PopoverContent>
+    </Popover>
+  );
   // Police ou couleur du texte choisi sur tous les textes du carrousel, en une étape d'Annuler.
   const many = document.slides.length > 1;
   const everywhere = (styles: Record<string, string>, done: string) => {
@@ -146,7 +172,7 @@ export function SimplePanel({ canvasApi, changeSlide, commit, css, document, doc
         ))}
       </div>
       <p className={`items-center gap-1.5 text-xs text-muted-foreground ${shown ? "hidden md:flex" : "flex"}`}>
-        {text ? "Texte choisi" : photo ? "Photo choisie" : element ? "Forme choisie" : "Touche un texte ou une photo sur la slide pour le modifier."}
+        {text ? "Texte choisi" : photo ? "Photo choisie" : icon ? "Icône choisie" : element ? "Forme choisie" : "Touche un texte ou une photo sur la slide pour le modifier."}
         {/* Téléphone (W élargi) : les vignettes laissent leur place aux réglages ; ce bouton les rend. */}
         {element && element.role !== "background" && (
           <button type="button" className="ml-auto text-2xs font-medium text-primary underline-offset-2 hover:underline md:hidden" onClick={() => selectOne(null)}>
@@ -159,6 +185,14 @@ export function SimplePanel({ canvasApi, changeSlide, commit, css, document, doc
           en page, thèmes, position, ombre et retouche photo sont dans « Plus d'outils ».
         </HelpTip>
       </p>
+      <div className={`gap-1.5 ${shown ? "hidden md:flex" : "flex"}`} role="group" aria-label="Toute la slide">
+        {galleryButton("page", "Mise en page", LayoutTemplate, (
+          <LayoutGallery changeLayout={(variant) => { changeLayout(variant); setGallery(null); }} layoutPreviews={layoutPreviews} slide={slide} />
+        ))}
+        {galleryButton("theme", "Thème du carrousel", SwatchBook, (
+          <ThemeGallery applyCarouselTheme={(id) => { applyCarouselTheme(id); setGallery(null); }} themes={themes} />
+        ))}
+      </div>
       <fieldset disabled={locked} className="flex min-w-0 flex-col gap-2 disabled:opacity-50">
         <div className={sectionClass("texte", shown)}>
           <p className="text-xs font-semibold">Texte</p>
@@ -183,12 +217,21 @@ export function SimplePanel({ canvasApi, changeSlide, commit, css, document, doc
                 ))}
               </div>
             </>
-          ) : (
-            <p className="text-2xs text-muted-foreground">Touche un texte sur la slide, ou ajoutes-en un.</p>
-          )}
-          <Button size="sm" variant="outline" className="w-full" onClick={() => changeSlide(addTextElement(slide))}>
-            Ajouter un texte
-          </Button>
+          ) : null}
+          <div className="grid grid-cols-2 gap-1.5">
+            <Button size="sm" variant="outline" className="px-1 text-xs" onClick={() => changeSlide(addTextElement(slide))}>
+              Ajouter un texte
+            </Button>
+            <IconPicker
+              disabled={locked}
+              onPick={(name, svg) => {
+                const out = addIcon(slide, name, svg, brandInk(palette));
+                if (!out.id) return;
+                changeSlide(out.slide);
+                selectOne(out.id);
+              }}
+            />
+          </div>
         </div>
         <div className={`${sectionClass("photo", shown)} ${text ? "order-last" : ""}`}>
           <p className="text-xs font-semibold">Photo</p>
@@ -225,6 +268,8 @@ export function SimplePanel({ canvasApi, changeSlide, commit, css, document, doc
           {sectionTitle("Couleur", !!text && many && { testId: "color-everywhere", label: "Mettre cette couleur partout", onClick: () => everywhere({ color: css.color }, "Couleur mise sur tous les textes"), disabled: !css.color })}
           {text ? (
             <Swatches colors={palette} current={toHex(css.color, "#222222")} label="Couleur du texte" onPick={(hex) => style({ color: hex })} />
+          ) : icon ? (
+            <Swatches colors={palette} current={iconColor(slide, icon.id)} label="Couleur de l’icône" onPick={(hex) => changeSlide(setIconColor(slide, icon.id, hex), `icon-${slide.id}-${icon.id}`)} />
           ) : element?.kind === "shape" && element.role !== "background" && element.role !== "veil" ? (
             <Swatches colors={palette} current={fillHex} label="Fond du bloc" onPick={(hex) => fill(hex, fillAlpha || 1)} />
           ) : (

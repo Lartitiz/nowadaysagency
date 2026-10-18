@@ -47,6 +47,7 @@ export default function CanvasToolbar({
   editingId,
   simple = false,
   outside = false,
+  onCenter,
 }: {
   box: SelectionBox | null;
   selected: string | null;
@@ -77,6 +78,8 @@ export default function CanvasToolbar({
   editingId: string | null;
   /** Mode simple : les actions avancées passent dans le menu « … », chacune avec son nom. */
   simple?: boolean;
+  /** « Centrer sur la slide » (menu « … » du mode simple). */
+  onCenter?: () => void;
   /** La barre peut sortir de la slide (au-dessus ou en dessous) plutôt que de cacher un texte qui la remplit. */
   outside?: boolean;
 }) {
@@ -267,6 +270,7 @@ export default function CanvasToolbar({
                 cropId={cropId}
                 selected={selected}
                 onUnderline={() => apply({ "text-decoration": "toggle" }, { "text-decoration": box.underline ? "none" : "underline" })}
+                onCenter={onCenter}
                 onAlign={() => { tools.current.finish(); latest.current.onMove(selected, { "text-align": box.align === "left" || box.align === "start" ? "center" : box.align === "center" ? "right" : "left" }); }}
                 onPickColor={pickColor}
                 onCopy={() => { tools.current.finish(); latest.current.onCopy(); }}
