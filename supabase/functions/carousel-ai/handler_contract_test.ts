@@ -125,6 +125,10 @@ function toolInput(req: any): unknown {
 function slideRedoInput(message: string): unknown {
   const consigne = message.match(/CONSIGNE DE L'UTILISATRICE[^«]*« ([^»]*) »/)?.[1] ?? "";
   if (consigne.includes("plus court")) return { change: "texte", slide: { title: "Le temps compté", body: "Un mois de notes : 40 % de mon temps partait dans des pièces vendues à perte." }, schema_type: null, design_note: null, photo_requested: false };
+  // Premier essai réel (18/10/2026) : une frise demandée, un texte trop long, schéma refusé.
+  if (consigne.includes("frise détaillée")) return message.includes("Texte trop long pour poser le schéma")
+    ? { change: "schema", slide: { title: "Trois passages", body: "Tournage, puis tournassage, puis émaillage." }, schema_type: "timeline", design_note: null, photo_requested: false }
+    : { change: "schema", slide: { title: "Trois passages entre mes mains", body: "1. Le tournage : je centre la terre, j'ouvre la forme et je monte la paroi en trois passes lentes. 2. Le tournassage : je reprends le pied à l'outil quand la pièce est sèche au toucher. 3. L'émaillage : je trempe chaque bol puis je l'essuie au pied avant la cuisson." }, schema_type: "timeline", design_note: null, photo_requested: false };
   if (consigne.includes("frise")) return { change: "schema", slide: { title: "Trois passages", body: "Tournage, puis tournassage, puis émaillage : chaque bol passe trois fois entre mes mains." }, schema_type: "timeline", design_note: null, photo_requested: false };
   if (consigne.includes("en haut")) return { change: "disposition", slide: { overlay_text: "Texte que le code ne doit pas garder" }, schema_type: null, design_note: "Texte en haut de la slide, avec plus d'air autour.", photo_requested: true };
   return { change: "texte", slide: { title: "Le temps compté", body: "73 % des artisan·es vendent à perte sans le savoir." }, schema_type: null, design_note: null, photo_requested: false };
@@ -351,6 +355,8 @@ const CASES: { name: string; body: Record<string, unknown>; text: string }[] = [
     body: { type: "slide_redo", carousel_type: "prise_de_position", subject: SUBJECT, slides: TEXT_DOC.slides, redo_slide_number: 3, instruction: "plus court", visual_request: { template_style: null } } },
   { name: "slide_redo — schéma demandé (frise en 3 étapes)", text: "",
     body: { type: "slide_redo", carousel_type: "prise_de_position", subject: SUBJECT, slides: TEXT_DOC.slides, redo_slide_number: 3, instruction: "fais-en une frise en 3 étapes", visual_request: { template_style: null } } },
+  { name: "slide_redo — schéma demandé, texte trop long : relance avec un texte court", text: "",
+    body: { type: "slide_redo", carousel_type: "prise_de_position", subject: SUBJECT, slides: TEXT_DOC.slides, redo_slide_number: 3, instruction: "fais-en une frise détaillée", visual_request: { template_style: null } } },
   { name: "slide_redo — disposition seule sur une slide photo (texte mot pour mot, photo gardée)", text: "",
     body: { type: "slide_redo", carousel_type: "photo", subject: "Une journée d'atelier", slides: PHOTO_DOC.slides, redo_slide_number: 2, instruction: "mets le texte en haut et change la photo",
       visual_request: { carousel_type: "photo", photos: PHOTOS, slides: PHOTO_DOC.slides.map((s) => ({ ...s, overlay_position: s.overlay_position ?? "bottom_center" })) } } },

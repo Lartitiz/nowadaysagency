@@ -22,7 +22,7 @@ import { tryParseAiObject } from "../../_shared/parse-ai-json.ts";
 import { findInventedExperiences, findInventedTestimonials, fixElisionsInFields, numbersIn } from "../../_shared/redac-gate.ts";
 import { findFabricatedNumbers } from "../../_shared/redac-gate/numbers.ts";
 import { clientStillThere } from "../../_shared/anthropic-stream.ts";
-import { REDO_MIX_SCHEMA_TYPES, REDO_SCHEMA_TYPES, redoSlideSchema, revalidatePhotoLayoutContent } from "../layout.ts";
+import { REDO_MIX_SCHEMA_TYPES, REDO_SCHEMA_MAX_WORDS, REDO_SCHEMA_TYPES, redoSchemaHasRoom, redoSlideSchema, revalidatePhotoLayoutContent } from "../layout.ts";
 
 type Slide = Record<string, unknown>;
 type Change = "texte" | "disposition" | "texte_et_disposition" | "schema";
@@ -80,7 +80,7 @@ RÈGLES :
 - Aucun chiffre, date, nom, client·e, témoignage ni vécu qui ne figure pas déjà dans le carrousel, le brief ou la consigne. Un exemple demandé par la consigne s'écrit avec ses seuls mots, sans l'enrichir de faits.
 - Champs à écrire pour ce type : ${fields.join(", ")}.${target.slide_type === "photo_full" ? " Le texte se lit sur la photo : court." : ""}
 - Mise en page (disposition, place ou taille du texte, couleurs, « une autre disposition ») : ce n'est pas ton travail. Résume-la dans design_note. Si la consigne ne demande rien d'autre, change = "disposition" et recopie le texte actuel mot pour mot.
-- Schéma demandé (frise, étapes, avant / après, chiffres clés, liste, comparaison, citation…) : change = "schema", schema_type parmi : ${schemaTypes}. Écris alors un texte court qui contient déjà tout ce que le schéma montrera (par exemple les 3 étapes nommées), sans rien inventer.
+- Schéma demandé (frise, étapes, avant / après, chiffres clés, liste, comparaison, citation…) : change = "schema", schema_type parmi : ${schemaTypes}. Le schéma porte le détail, le texte reste court : ${REDO_SCHEMA_MAX_WORDS - 10} mots au plus en tout (titre et corps), qui nomment déjà ce que le schéma montrera (par exemple les 3 étapes en quelques mots chacune), sans rien inventer. Pas de liste numérotée dans le corps : c'est le schéma qui la dessine.
 - La photo d'une slide ne change jamais ici : si la consigne le demande, photo_requested = true et le reste de la consigne s'applique quand même.${feedback ? `
 
 À CORRIGER DANS TA PROPOSITION PRÉCÉDENTE :
@@ -170,9 +170,13 @@ export async function handleSlideRedoRequest(reqCtx: CarouselRequestContext): Pr
     next = applyRedoText(target, proposal?.slide, change);
     if (!next) { feedback = "La slide refaite était vide : écris son texte."; continue; }
     const defects = change === "disposition" ? [] : slideRedoDefects(textOf(next), sources);
+    // Schéma demandé sur un texte trop long : il serait refusé à la mise en forme.
+    if (typeof proposal?.schema_type === "string" && !redoSchemaHasRoom(next, isMix)) defects.push(`Texte trop long pour poser le schéma : ${REDO_SCHEMA_MAX_WORDS - 10} mots au plus en tout (titre et corps). Le schéma porte le détail.`);
     if (!defects.length) { feedback = ""; break; }
     console.log(JSON.stringify({ event: "slide_redo_defects", attempt, defects }));
     feedback = defects.join("\n");
+    // Dernière tentative trop longue pour le schéma seulement : la slide est livrée sans schéma (message).
+    if (attempt === 1 && defects.every((d) => d.startsWith("Texte trop long pour poser le schéma"))) break;
     next = null;
   }
   if (!next) return json(422, { error: "Claude n'a pas réussi à refaire cette slide sans inventer de chiffre ou d'histoire. Rien n'a été débité : reformule ta consigne." }, corsHeaders);
