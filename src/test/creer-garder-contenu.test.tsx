@@ -89,7 +89,7 @@ async function changerSujet(state: Record<string, unknown> = {}) {
 beforeEach(() => {
   cleanup(); vi.spyOn(window, 'scrollTo').mockImplementation(() => {}); vi.clearAllMocks();
   sessionStorage.clear(); localStorage.clear();
-  mocks.inserts = []; mocks.insertError = null; mocks.generating = false;
+  mocks.inserts = []; mocks.insertError = null; mocks.generating = false; mocks.generate.mockReset();
   setFlowUserId('owner'); setFlowWorkspaceId('owner');
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); window.history.replaceState(null, '', '/'); });
@@ -187,6 +187,25 @@ describe('« Créer le carrousel » sous un post LinkedIn', () => {
     fireEvent.click(within(await fenetre()).getByTestId('keep-content-keep'));
     await waitFor(() => expect(mocks.generate).toHaveBeenCalled());
     expect(mocks.inserts[0].row).toMatchObject({ canal: 'linkedin', format: 'linkedin' });
+  });
+
+  it('carrousel raté : le post LinkedIn revient tout seul', async () => {
+    mocks.generate.mockResolvedValue(null);
+    ouvrir(LINKEDIN);
+    fireEvent.click(await screen.findByRole('button', { name: /Créer le carrousel/ }));
+    fireEvent.click(within(await fenetre()).getByTestId('keep-content-replace'));
+    await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith(expect.stringMatching(/Ton post LinkedIn est revenu/), expect.anything()));
+    expect(await screen.findByTestId('result')).toHaveTextContent('Contenu linkedin');
+    expect(screen.getByTestId('linkedin-carousel-invite')).toBeInTheDocument();
+  });
+
+  it('carrousel réussi : pas de retour en arrière', async () => {
+    mocks.generate.mockResolvedValue({ type: 'carousel', raw: { slides: [] } });
+    ouvrir(LINKEDIN);
+    fireEvent.click(await screen.findByRole('button', { name: /Créer le carrousel/ }));
+    fireEvent.click(within(await fenetre()).getByTestId('keep-content-replace'));
+    await waitFor(() => expect(mocks.generate).toHaveBeenCalled());
+    expect(mocks.toast).not.toHaveBeenCalledWith(expect.stringMatching(/est revenu/), expect.anything());
   });
 });
 

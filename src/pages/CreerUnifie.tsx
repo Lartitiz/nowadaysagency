@@ -1156,6 +1156,7 @@ function CreerWorkspace() {
     const linkedinText = r.full_text || r.content || [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
     if (!linkedinText) return;
 
+    const post = { result, visualSlides, savedId, carouselSubMode }; // copie de secours (chantier J)
     setIsLinkedInCarousel(true);
     setSelectedFormat("carousel");
     setCarouselSubMode("text");
@@ -1163,13 +1164,16 @@ function CreerWorkspace() {
     setVisualSlides([]);
     setSavedId(null);
 
-    await generate({
+    const made = await generate({
       format: "carousel" as any,
       subject: linkedinText,
       objective: objective || undefined,
       editorialAngle: editorialAngle || undefined,
       channel: "linkedin",
     });
+    if (made || !isCurrentCreation()) return;
+    setIsLinkedInCarousel(false); setSelectedFormat("linkedin"); setCarouselSubMode(post.carouselSubMode); setResult(post.result); setVisualSlides(post.visualSlides); setSavedId(post.savedId);
+    toast("Le carrousel n'a pas pu être créé. Ton post LinkedIn est revenu.", { duration: 10000 });
   };
 
   // ── Post-generation handlers ──
