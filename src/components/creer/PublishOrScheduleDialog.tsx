@@ -117,6 +117,208 @@ export default function PublishOrScheduleDialog({
   const optionClass =
     "w-full rounded-xl border border-border p-3 flex items-start gap-3 text-left transition-colors hover:bg-muted/40 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent";
 
+  // Publication auto impossible (compte non connecté, trop de slides, image
+  // manquante) : le choix qui marche, « Garder au calendrier », passe en premier.
+  const draftFirst = !!channel && (notConnected || !!disabledReason);
+
+  const autoBlock = channel && (
+    <>
+      <p className="text-xs font-medium text-muted-foreground px-1">
+        Publication automatique sur {channelLabel}
+      </p>
+      {/* La raison du blocage vaut pour les deux choix : écrite une seule fois, au-dessus. */}
+      {blockedReason && (
+        <p data-testid="publish-blocked-reason" className="text-xs text-amber-700 px-1">{blockedReason}</p>
+      )}
+      {/* 1. Maintenant */}
+      <button
+        type="button"
+        data-testid="publish-now-option"
+        className={optionClass}
+        disabled={!!blockedReason || publishing || scheduling}
+        onClick={onPublishNow}
+      >
+        {publishing ? (
+          <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0 mt-0.5" />
+        ) : (
+          <Zap className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+        )}
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-foreground">Maintenant</span>
+          <span className="block text-xs text-muted-foreground">
+            Publié tout de suite sur {channelLabel}
+          </span>
+        </span>
+      </button>
+
+      {/* 2. Programmer */}
+      <button
+        type="button"
+        data-testid="publish-schedule-option"
+        className={optionClass}
+        disabled={!!blockedReason || publishing || scheduling}
+        onClick={() => {
+          setMode((m) => (m === "schedule" ? null : "schedule"));
+          if (!scheduleInput) setScheduleInput(tomorrowAtNine());
+        }}
+      >
+        <Clock className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-foreground">Programmer</span>
+          <span className="block text-xs text-muted-foreground">
+            Date + heure : publié tout seul sur {channelLabel}
+          </span>
+        </span>
+      </button>
+      {connectionUnknown && onRefreshConnection && (
+        <Button type="button" variant="outline" className="w-full" disabled={connectionLoading} onClick={onRefreshConnection}>
+          Réessayer la connexion
+        </Button>
+      )}
+      {/* Action de déblocage : sans elle, la raison affichée serait un cul-de-sac.
+          Priorité au blocage le plus immédiat (image) ; la connexion ne s'affiche
+          que quand ce n'est PAS ce qui bloque — se corrige d'elle-même une fois
+          l'image ajoutée (disabledReason recalculé par le parent). */}
+      {blockedReason && !disabledReason && notConnected && onConnectChannel ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full gap-2"
+          data-testid="publish-connect-action"
+          disabled={connectingChannel || publishing || scheduling}
+          onClick={onConnectChannel}
+        >
+          {connectingChannel ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Link2 className="h-4 w-4" />
+          )}
+          {connectingChannel ? "Connexion…" : `Connecter ${channelLabel}`}
+        </Button>
+      ) : (
+        blockedReason && blockedAction && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full gap-2"
+            data-testid="publish-blocked-action"
+            disabled={blockedAction.busy || publishing || scheduling}
+            onClick={blockedAction.onClick}
+          >
+            {blockedAction.busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : blockedAction.icon === "download" ? (
+              <Download className="h-4 w-4" />
+            ) : (
+              <ImagePlus className="h-4 w-4" />
+            )}
+            {blockedAction.busy ? (blockedAction.busyLabel ?? "Ajout en cours…") : blockedAction.label}
+          </Button>
+        )
+      )}
+      {mode === "schedule" && !blockedReason && (
+        <div className="rounded-xl bg-muted/40 p-3 space-y-2 animate-fade-in">
+          <Input
+            aria-label="Date et heure de publication"
+            type="datetime-local"
+            value={scheduleInput}
+            onChange={(e) => setScheduleInput(e.target.value)}
+            min={new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16)}
+          />
+          <AlreadyPlannedNotice date={scheduleInput.slice(0, 10)} theme={theme} canal={canal} />
+          <Button
+            className="w-full gap-2"
+            disabled={!scheduleInput || scheduling}
+            onClick={() => onSchedule(scheduleInput)}
+          >
+            {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4" />}
+            {scheduling ? "Programmation…" : "Programmer la publication"}
+          </Button>
+        </div>
+      )}
+    </>
+  );
+
+  // 3. Brouillon (toujours disponible) — volontairement à part visuellement :
+  // c'est l'option qui NE publie rien seule, contrairement aux deux autres.
+  const manualBlock = (
+    <>
+      {onPublishedByHand && (
+        <button
+          type="button"
+          data-testid="publish-by-hand-option"
+          className={`${optionClass} border-success/40 bg-success/5`}
+          disabled={publishingByHand || publishing || scheduling}
+          onClick={onPublishedByHand}
+        >
+          {publishingByHand ? (
+            <Loader2 className="h-4 w-4 animate-spin text-success shrink-0 mt-0.5" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
+          )}
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-foreground">
+              {canal === "newsletter" ? "Je l'ai envoyée moi-même" : "Je l'ai publié moi-même"}
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              {canal === "newsletter"
+                ? "Depuis mon outil d'envoi. Elle est notée « envoyée » dans mon calendrier."
+                : "Depuis mon téléphone, Canva ou ailleurs. Il est noté « publié » dans mon calendrier."}
+            </span>
+          </span>
+        </button>
+      )}
+      <button
+        type="button"
+        data-testid="publish-draft-option"
+        className={`${optionClass} border-dashed bg-muted/20`}
+        disabled={scheduling || publishing}
+        onClick={() => {
+          setMode((m) => (m === "draft" ? null : "draft"));
+          if (!draftDate) setDraftDate(defaultDraftDate || todayISO());
+        }}
+      >
+        <FileEdit className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-foreground">
+            Garder au calendrier (sans publication)
+          </span>
+          <span className="block text-xs text-muted-foreground">
+            Un rappel daté. Tu publieras ou enverras ce contenu toi-même.
+          </span>
+        </span>
+      </button>
+      {mode === "draft" && (
+        <div className="rounded-xl bg-muted/40 p-3 space-y-2 animate-fade-in">
+          <Input
+            aria-label="Date du rappel au calendrier"
+            type="date"
+            value={draftDate}
+            onChange={(e) => setDraftDate(e.target.value)}
+            min={todayISO()}
+          />
+          <AlreadyPlannedNotice date={draftDate} theme={theme} canal={canal} />
+          <Button
+            className="w-full gap-2"
+            disabled={!draftDate || scheduling}
+            onClick={() => onDraft(draftDate)}
+          >
+            {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileEdit className="h-4 w-4" />}
+            {scheduling ? "Ajout en cours…" : "Enregistrer le brouillon"}
+          </Button>
+        </div>
+      )}
+    </>
+  );
+
+  const divider = (label: string) => (
+    <div className="flex items-center gap-2 pt-1 px-1">
+      <div className="h-px flex-1 bg-border" />
+      <span className="text-[11px] text-muted-foreground">{label}</span>
+      <div className="h-px flex-1 bg-border" />
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -124,199 +326,18 @@ export default function PublishOrScheduleDialog({
           <DialogTitle>{channel || onPublishedByHand ? "Publier ou garder au calendrier" : "Garder ce contenu au calendrier"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-2 py-1">
-          {channel && (
+          {draftFirst ? (
             <>
-              <p className="text-xs font-medium text-muted-foreground px-1">
-                Publication automatique sur {channelLabel}
-              </p>
-              {/* 1. Maintenant */}
-              <button
-                type="button"
-                data-testid="publish-now-option"
-                className={optionClass}
-                disabled={!!blockedReason || publishing || scheduling}
-                onClick={onPublishNow}
-              >
-                {publishing ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0 mt-0.5" />
-                ) : (
-                  <Zap className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                )}
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-foreground">Maintenant</span>
-                  <span className="block text-xs text-muted-foreground">
-                    Publié tout de suite sur {channelLabel}
-                  </span>
-                  {blockedReason && (
-                    <span className="block text-xs text-amber-700 mt-0.5">{blockedReason}</span>
-                  )}
-                </span>
-              </button>
-
-              {/* 2. Programmer */}
-              <button
-                type="button"
-                data-testid="publish-schedule-option"
-                className={optionClass}
-                disabled={!!blockedReason || publishing || scheduling}
-                onClick={() => {
-                  setMode((m) => (m === "schedule" ? null : "schedule"));
-                  if (!scheduleInput) setScheduleInput(tomorrowAtNine());
-                }}
-              >
-                <Clock className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                <span className="min-w-0">
-                  <span className="block text-sm font-semibold text-foreground">Programmer</span>
-                  <span className="block text-xs text-muted-foreground">
-                    Date + heure : publié tout seul sur {channelLabel}
-                  </span>
-                  {blockedReason && (
-                    <span className="block text-xs text-amber-700 mt-0.5">{blockedReason}</span>
-                  )}
-                </span>
-              </button>
-              {connectionUnknown && onRefreshConnection && (
-                <Button type="button" variant="outline" className="w-full" disabled={connectionLoading} onClick={onRefreshConnection}>
-                  Réessayer la connexion
-                </Button>
-              )}
-              {/* Action de déblocage : sans elle, la raison affichée serait un cul-de-sac.
-                  Priorité au blocage le plus immédiat (image) ; la connexion ne s'affiche
-                  que quand ce n'est PAS ce qui bloque — se corrige d'elle-même une fois
-                  l'image ajoutée (disabledReason recalculé par le parent). */}
-              {blockedReason && !disabledReason && notConnected && onConnectChannel ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full gap-2"
-                  data-testid="publish-connect-action"
-                  disabled={connectingChannel || publishing || scheduling}
-                  onClick={onConnectChannel}
-                >
-                  {connectingChannel ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Link2 className="h-4 w-4" />
-                  )}
-                  {connectingChannel ? "Connexion…" : `Connecter ${channelLabel}`}
-                </Button>
-              ) : (
-                blockedReason && blockedAction && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full gap-2"
-                    data-testid="publish-blocked-action"
-                    disabled={blockedAction.busy || publishing || scheduling}
-                    onClick={blockedAction.onClick}
-                  >
-                    {blockedAction.busy ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : blockedAction.icon === "download" ? (
-                      <Download className="h-4 w-4" />
-                    ) : (
-                      <ImagePlus className="h-4 w-4" />
-                    )}
-                    {blockedAction.busy ? (blockedAction.busyLabel ?? "Ajout en cours…") : blockedAction.label}
-                  </Button>
-                )
-              )}
-              {mode === "schedule" && !blockedReason && (
-                <div className="rounded-xl bg-muted/40 p-3 space-y-2 animate-fade-in">
-                  <Input
-                    aria-label="Date et heure de publication"
-                    type="datetime-local"
-                    value={scheduleInput}
-                    onChange={(e) => setScheduleInput(e.target.value)}
-                    min={new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16)}
-                  />
-                  <AlreadyPlannedNotice date={scheduleInput.slice(0, 10)} theme={theme} canal={canal} />
-                  <Button
-                    className="w-full gap-2"
-                    disabled={!scheduleInput || scheduling}
-                    onClick={() => onSchedule(scheduleInput)}
-                  >
-                    {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4" />}
-                    {scheduling ? "Programmation…" : "Programmer la publication"}
-                  </Button>
-                </div>
-              )}
+              {manualBlock}
+              {divider("ou plus tard, publication automatique")}
+              {autoBlock}
             </>
-          )}
-
-          {/* 3. Brouillon (toujours disponible) — volontairement à part visuellement :
-              c'est l'option qui NE publie rien seule, contrairement aux deux au-dessus. */}
-          {channel && (
-            <div className="flex items-center gap-2 pt-1 px-1">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-[11px] text-muted-foreground">sans publication auto</span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-          )}
-          {onPublishedByHand && (
-            <button
-              type="button"
-              data-testid="publish-by-hand-option"
-              className={`${optionClass} border-success/40 bg-success/5`}
-              disabled={publishingByHand || publishing || scheduling}
-              onClick={onPublishedByHand}
-            >
-              {publishingByHand ? (
-                <Loader2 className="h-4 w-4 animate-spin text-success shrink-0 mt-0.5" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
-              )}
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-foreground">
-                  {canal === "newsletter" ? "Je l'ai envoyée moi-même" : "Je l'ai publié moi-même"}
-                </span>
-                <span className="block text-xs text-muted-foreground">
-                  {canal === "newsletter"
-                    ? "Depuis mon outil d'envoi. Elle est notée « envoyée » dans mon calendrier."
-                    : "Depuis mon téléphone, Canva ou ailleurs. Il est noté « publié » dans mon calendrier."}
-                </span>
-              </span>
-            </button>
-          )}
-          <button
-            type="button"
-            data-testid="publish-draft-option"
-            className={`${optionClass} border-dashed bg-muted/20`}
-            disabled={scheduling || publishing}
-            onClick={() => {
-              setMode((m) => (m === "draft" ? null : "draft"));
-              if (!draftDate) setDraftDate(defaultDraftDate || todayISO());
-            }}
-          >
-            <FileEdit className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-foreground">
-                Garder au calendrier (sans publication)
-              </span>
-              <span className="block text-xs text-muted-foreground">
-                Un rappel daté. Tu publieras ou enverras ce contenu toi-même.
-              </span>
-            </span>
-          </button>
-          {mode === "draft" && (
-            <div className="rounded-xl bg-muted/40 p-3 space-y-2 animate-fade-in">
-              <Input
-                aria-label="Date du rappel au calendrier"
-                type="date"
-                value={draftDate}
-                onChange={(e) => setDraftDate(e.target.value)}
-                min={todayISO()}
-              />
-              <AlreadyPlannedNotice date={draftDate} theme={theme} canal={canal} />
-              <Button
-                className="w-full gap-2"
-                disabled={!draftDate || scheduling}
-                onClick={() => onDraft(draftDate)}
-              >
-                {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileEdit className="h-4 w-4" />}
-                {scheduling ? "Ajout en cours…" : "Enregistrer le brouillon"}
-              </Button>
-            </div>
+          ) : (
+            <>
+              {autoBlock}
+              {channel && divider("sans publication auto")}
+              {manualBlock}
+            </>
           )}
 
           {!channel && (

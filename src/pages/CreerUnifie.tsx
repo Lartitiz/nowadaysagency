@@ -1303,7 +1303,7 @@ function CreerWorkspace() {
   });
 
   // ── Sauvegarde dans le calendrier (nouveau post + mise à jour d'un post existant) ──
-  const { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, recordImmediatePublication, uploadVisualsToStorage, resetPublishedTracking } = useCalendarSave({
+  const { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, recordImmediatePublication, uploadVisualsToStorage, resetPublishedTracking, calendarFollow } = useCalendarSave({
     enabled: !conflictPending,
     creationId,
     session,
@@ -1328,10 +1328,9 @@ function CreerWorkspace() {
     carouselQualityDisabledReason: selectedFormat === "carousel" ? carouselQuality.disabledReason : undefined,
     reelMp4Url,
     publishableImageUrl,
-    calendarPostId,
-    calendarPostDate,
+    calendarPostId, calendarPostDate,
     setPublishDialogOpen,
-    persistCarousel,
+    persistCarousel, carouselAutosave: carouselSave,
   });
 
   // ── Publier ou programmer (use-creer-publish.ts) ──
@@ -1848,7 +1847,7 @@ function CreerWorkspace() {
                   setVisualSlides(visuals);
                 }}
                 onOpenCarouselStudio={workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive ? openCarouselStudio : undefined}
-                carouselCloudTools={<CarouselSaveStatus save={carouselSave} />}
+                carouselCloudTools={<CarouselSaveStatus save={carouselSave} calendar={calendarFollow} />}
                 carouselQuality={carouselQuality}
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
                 onExportVisualPng={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPng : undefined}

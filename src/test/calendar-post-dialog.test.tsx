@@ -27,7 +27,9 @@ const m = vi.hoisted(() => ({
   toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() }),
   confirm: vi.fn(async () => true),
   contenuProps: null as any,
+  linked: null as any,
 }));
+vi.mock("@/features/calendar/linked-carousel-idea", () => ({ findLinkedCarouselIdea: async () => m.linked }));
 
 vi.mock("react-router-dom", () => ({ useNavigate: () => m.navigate }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: m.user }) }));
@@ -326,6 +328,18 @@ describe("navigation vers /creer", () => {
     const detail = { type: "carousel_photo", slides: [{ n: 1 }], visual_html: ["<div/>"] };
     const [, opts] = await suivre("faux:atelier", post({ story_sequence_detail: detail }));
     expect(opts.state.resumeIdea).toEqual({ format: "carousel", raw: { ...detail, carousel_type: "photo" } });
+  });
+
+  it("atelier d'un carrousel déjà relié à une fiche de Mes idées → même fiche reprise (chantier Y)", async () => {
+    const detail = { type: "carousel", slides: [{ n: 1 }], visual_html: ["<div/>"] };
+    const fiche = { format: "carousel", raw: { slides: [{ n: 1 }], visual_html: ["<div>retouché</div>"] } };
+    m.linked = { ideaId: "idee-1", resumeIdea: fiche };
+    try {
+      const [, opts] = await suivre("faux:atelier", post({ story_sequence_detail: detail }));
+      expect(opts.state.ideaId).toBe("idee-1");
+      expect(opts.state.resumeIdea).toBe(fiche);
+      expect(opts.state.calendarPostId).toBeTruthy();
+    } finally { m.linked = null; }
   });
 
   it("plus de « changer de format » : la fenêtre ne passe plus cette prop (menu retiré le 06/03/2026)", () => {

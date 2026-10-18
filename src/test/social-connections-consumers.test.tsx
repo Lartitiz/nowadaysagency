@@ -88,7 +88,7 @@ describe("Publish/schedule connection states", () => {
   });
   it("loading is distinct from unknown and known disconnection", () => {
     const { rerender } = render(<PublishOrScheduleDialog {...props} channelConnected={null} connectionLoading />);
-    expect(screen.getAllByText("Vérification de la connexion…")).toHaveLength(2);
+    expect(screen.getAllByText("Vérification de la connexion…")).toHaveLength(1); // écrit une seule fois (chantier Y)
     expect(screen.getByRole("button", { name: "Réessayer la connexion" })).toBeDisabled();
     rerender(<PublishOrScheduleDialog {...props} channelConnected={false} />);
     expect(screen.getByTestId("publish-connect-action")).toBeEnabled();
