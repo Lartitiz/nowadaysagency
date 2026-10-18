@@ -5,17 +5,21 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ChevronDown } from "lucide-react";
 import { GOOGLE_FONTS, googleFontUrl, type listDocumentFonts } from "@/lib/carousel-editor";
 
-export function FontPicker({ css, documentFonts, fontQuery, pickFont, setFontQuery }: {
+export function FontPicker({ css, documentFonts, fontQuery, open, onOpenChange, pickFont, setFontQuery }: {
   css: Record<string, string>;
   documentFonts: ReturnType<typeof listDocumentFonts>;
   fontQuery: string;
+  /** Ouverture pilotée (le « … » de la barre de la slide ouvre la liste). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   pickFont: (value: string, family?: string) => void;
   setFontQuery: (query: string) => void;
 }) {
   return (
-    <Popover onOpenChange={(open) => {
+    <Popover open={open} onOpenChange={(next) => {
+      onOpenChange?.(next);
       // Aperçu : les polices Google se chargent dans la page à l'ouverture.
-      if (!open || window.document.querySelector("link[data-font-preview]")) return;
+      if (!next || window.document.querySelector("link[data-font-preview]")) return;
       const link = window.document.createElement("link");
       link.rel = "stylesheet";
       link.href = googleFontUrl(GOOGLE_FONTS.map((f) => f.family));

@@ -67,7 +67,7 @@ export default function CanvasToolbar({
     onCopy: () => void;
     onLock?: (id: string, locked: boolean) => void;
   }>;
-  fitRef: MutableRefObject<(id: string) => void>;
+  fitRef: MutableRefObject<(ids: string | string[]) => void>;
   cropId: string | null;
   setCropId: (id: string | null) => void;
   onReplacePhoto?: () => void;

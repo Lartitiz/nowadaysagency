@@ -5,6 +5,8 @@ import { useState } from "react";
 
 export type EditorMode = "simple" | "complet";
 export const EDITOR_MODE_KEY = "carousel-editor:mode";
+/** Chantier V : le « … » de la barre posée sur la slide demande au panneau simple d'ouvrir la police. */
+export const OPEN_FONT_EVENT = "carousel-editor:police";
 
 const readMode = (): EditorMode => {
   try {

@@ -3,10 +3,13 @@
 // déplacé à l'identique depuis CarouselEditor.tsx. Ses réactions à la souris
 // et au clavier sont dans canvas-events.ts, sa barre flottante dans
 // CanvasToolbar.tsx.
+// Chantier V (18/10/2026) : « Ajuster la taille » dans l'alerte de débordement
+// réduit chaque texte coupé (même réglage que « ! Corriger » de la barre).
 import { useEffect, useRef, useState } from "react";
 import { ImagePlus } from "lucide-react";
-import { isPassiveShape, type ElementRect, type EditorSlide } from "@/lib/carousel-editor";
-import type { QualityIssue } from "@/lib/carousel-quality";
+import { toast } from "sonner";
+import { getEditorElements, isPassiveShape, type ElementRect, type EditorSlide } from "@/lib/carousel-editor";
+import { findClippedIds, type QualityIssue } from "@/lib/carousel-quality";
 import {
   clamp,
   numberOr,
@@ -160,7 +163,7 @@ export default function SlideCanvas({
   const [cropId, setCropId] = useState<string | null>(null);
   const cropRef = useRef<string | null>(null);
   const zoomRef = useRef<(el: HTMLElement, zoom: number) => Promise<Record<string, string> | null>>(async () => null);
-  const fitRef = useRef<(id: string) => void>(() => {});
+  const fitRef = useRef<(ids: string | string[]) => void>(() => {});
   cropRef.current = cropId;
   useEffect(() => setCropId(null), [slide.id]);
   // Barre d'outils : état de la saisie sur la slide et actions branchées sur l'aperçu.
@@ -530,6 +533,29 @@ export default function SlideCanvas({
         <p role="status" className="mt-2 text-xs text-amber-700">
           Un élément dépasse ou manque de place. Ajuste sa taille ou sa position
           avant d’exporter.
+          {!slide.locked && (
+            <button
+              type="button"
+              className="ml-2 rounded-md border border-amber-700/40 px-2 py-0.5 font-medium hover:bg-amber-50"
+              onClick={() => {
+                const doc = frame.current?.contentDocument;
+                const texts = new Set(getEditorElements(slide.html).filter((e) => e.kind === "text").map((e) => e.id));
+                const ids = doc
+                  ? findClippedIds(doc).filter((id) => {
+                      const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
+                      return texts.has(id) && !!el && !isLockedEl(el);
+                    })
+                  : [];
+                if (!ids.length) {
+                  toast("Ce n’est pas un texte qui dépasse", { description: "Déplace ou réduis le bloc signalé sur la slide." });
+                  return;
+                }
+                fitRef.current(ids);
+              }}
+            >
+              Ajuster la taille
+            </button>
+          )}
         </p>
       )}
     </div>

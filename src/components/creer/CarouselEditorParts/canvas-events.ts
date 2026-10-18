@@ -61,7 +61,7 @@ export interface CanvasContext {
   tools: MutableRefObject<CanvasTools>;
   api: MutableRefObject<CanvasApi | null>;
   zoomRef: MutableRefObject<(el: HTMLElement, zoom: number) => Promise<Record<string, string> | null>>;
-  fitRef: MutableRefObject<(id: string) => void>;
+  fitRef: MutableRefObject<(ids: string | string[]) => void>;
   cropRef: MutableRefObject<string | null>;
   recheck: MutableRefObject<() => void>;
   target: () => HTMLElement | null;
@@ -270,11 +270,11 @@ export function bindCanvas(ctx: CanvasContext) {
       }
       return size;
     };
-    fitRef.current = (id) => {
-      const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`);
-      const size = el ? fitText(el) : null;
-      if (typeof size === "number") commitLive(id, { "font-size": `${size}px` });
-      else if (size === "trop-long") latest.current.onFitDone?.(id, size);
+    fitRef.current = (ids) => { // un texte (« ! Corriger ») ou plusieurs (« Ajuster la taille »), en un seul enregistrement
+      const sizes = [ids].flat().map((id) => { const el = doc.querySelector<HTMLElement>(`[data-editor-id="${id}"]`); return [id, el ? fitText(el) : null] as const; });
+      const done = Object.fromEntries(sizes.filter(([, size]) => typeof size === "number").map(([id, size]) => [id, { "font-size": `${size}px` }]));
+      if (Object.keys(done).length) commitLiveMany(done);
+      sizes.forEach(([id, size]) => size === "trop-long" && latest.current.onFitDone?.(id, size));
     };
     // Aligner / répartir la sélection multiple, copier des éléments.
     api.current = {

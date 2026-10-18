@@ -867,7 +867,7 @@ export default function CarouselEditor({
         {/* Panneau sous la slide sur téléphone ; à côté (avec son propre défilement) sur ordinateur. */}
         <div className="min-w-0 space-y-4 md:sticky md:top-28 md:max-h-[calc(100vh-15rem)] md:overflow-y-auto md:rounded-xl md:border md:bg-card md:p-4">
           {mode === "simple" ? (
-            <SimplePanel canvasApi={canvasApi} changeSlide={changeSlide} css={css} documentFonts={documentFonts} element={element} elements={elements} fill={fill} fillAlpha={fillAlpha} fillHex={fillHex} filterValue={filterValue} fontQuery={fontQuery} onAddPhoto={onAddPhoto} onMore={() => setMode("complet")} palette={palette} pickFont={pickFont} selectOne={selectOne} setFilter={setFilter} setFitId={setFitId} setFontQuery={setFontQuery} setPhotoOpen={setPhotoOpen} slide={slide} style={style} />
+            <SimplePanel canvasApi={canvasApi} changeSlide={changeSlide} commit={commit} css={css} document={document} documentFonts={documentFonts} element={element} elements={elements} fill={fill} fillAlpha={fillAlpha} fillHex={fillHex} filterValue={filterValue} fontQuery={fontQuery} onAddPhoto={onAddPhoto} onMore={() => setMode("complet")} palette={palette} pickFont={pickFont} selectOne={selectOne} setFilter={setFilter} setFitId={setFitId} setFontQuery={setFontQuery} setPhotoOpen={setPhotoOpen} slide={slide} style={style} />
           ) : (<>
           <LayersPanel
             changeSlide={changeSlide}
