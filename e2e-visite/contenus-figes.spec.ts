@@ -26,6 +26,7 @@ import { installFigeReplay, FIGES_DIR, expectZoneMatches } from "./fige-replay";
 import { sondeResultatActions } from "./resultat-actions-sonde";
 import { sondeHauteurEditeur } from "./hauteur-editeur-sonde";
 import { sondeModifierTexte, sondeCalendrierSuit } from "./retouches-sonde";
+import { sondeIconeExport } from "./icone-export-sonde";
 import { exportAndCheckPptx } from "./pptx-export-check";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -165,6 +166,8 @@ test("contenus figés — carrousel texte : texte, design et export identiques �
   await sondeResultatActions(page, "carrousel");
   // Hauteur de la page et commandes visibles (chantier D, ligne 📏) : en tout dernier.
   await sondeHauteurEditeur(page, "carrousel");
+  // Icône à l'export (18/10/2026, ligne 🔣) : posée puis retirée par « Annuler ».
+  await sondeIconeExport(page);
   // Retouches (18/10/2026, lignes 📝 et 🗓️) : après les mesures, car elles changent le
   // carrousel ; le calendrier quitte l'écran et efface son contenu de test à la fin.
   await sondeModifierTexte(page);

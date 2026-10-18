@@ -30,8 +30,11 @@ import type { Page } from "@playwright/test";
 // carrousel 1,85 / 2,22 écrans, 58 commandes (17/10/2026, slide qui tient au-dessus de la
 // barre « Publier » ; 2,04 / 2,36 le 16/10) ; stories 2,01 / 2,95, 61 commandes (16/10) —
 // plus environ 10 % de marge. Avant le chantier D : 2,77 / 3,85 et 84 ; stories 5,46 / 8,99.
+// 18/10/2026 : 67 commandes après X (ordre des slides), AA (« Refaire cette slide ») et AB
+// (« Mise en page », « Thème du carrousel », « Ajouter une icône »), ajouts validés par
+// Laetitia dans le plan design : seuil carrousel relevé de 65 à 72.
 const SEUILS = {
-  carrousel: { ordi: 2.05, telephone: 2.45, commandes: 65 },
+  carrousel: { ordi: 2.05, telephone: 2.45, commandes: 72 },
   stories: { ordi: 2.3, telephone: 3.3, commandes: 70 },
 } as const;
 
