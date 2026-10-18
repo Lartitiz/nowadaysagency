@@ -80,6 +80,7 @@ export const FRONT_ONLY_ATTRIBUTES = {
   "data-editor-copy": { role: "Élément collé." },
   "data-editor-display": { role: "Affichage d'origine d'un calque masqué." },
   "data-editor-unwrapped": { role: "Cadre retiré (le texte reste)." },
+  "data-editor-icon": { role: "Icône ajoutée par l'éditeur (nom de l'icône, couleur réglable)." },
   "data-emphasis-color": { role: "Couleur d'un mot mis en valeur dans l'éditeur." },
   "data-photo-filter": { role: "Filtre de retouche photo posé par l'éditeur." },
   "data-schema-fit": { role: "Ajustement d'un schéma au texte (front)." },

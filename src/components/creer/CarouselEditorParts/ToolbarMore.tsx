@@ -1,20 +1,22 @@
 // Chantier D (15/10/2026) : menu « … » de la barre posée sur la slide, en mode
 // simple. Chaque action y a son nom écrit (lisible au toucher, sans survol).
 // Chantier V (18/10/2026) : « Changer la police » ouvre la liste du panneau simple.
+// Chantier AB (18/10/2026) : « Centrer sur la slide ».
 import { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { AlignCenter, Copy, CopyPlus, LockKeyhole, MoreHorizontal, Pipette, Type, Underline } from "lucide-react";
+import { AlignCenter, Copy, Crosshair, CopyPlus, LockKeyhole, MoreHorizontal, Pipette, Type, Underline } from "lucide-react";
 import { photoShapeOf } from "@/lib/carousel-editor";
 import { isFullBleedBox } from "@/components/creer/CarouselEditorParts/canvas-geometry";
 import { PhotoShapePicker } from "@/components/creer/CarouselEditorParts/PanelBits";
 import type { SelectionBox } from "@/components/creer/CarouselEditorParts/CanvasToolbar";
 import { OPEN_FONT_EVENT } from "@/components/creer/CarouselEditorParts/editor-mode";
 
-export function ToolbarMore({ box, cropId, selected, onAlign, onCopy, onDuplicate, onLock, onPickColor, onShape, onUnderline }: {
+export function ToolbarMore({ box, cropId, selected, onAlign, onCenter, onCopy, onDuplicate, onLock, onPickColor, onShape, onUnderline }: {
   box: SelectionBox;
   cropId: string | null;
   selected: string;
   onAlign: () => void;
+  onCenter?: () => void;
   onCopy: () => void;
   onDuplicate: () => void;
   onLock: () => void;
@@ -42,6 +44,9 @@ export function ToolbarMore({ box, cropId, selected, onAlign, onCopy, onDuplicat
             <button type="button" className={item} onClick={run(onUnderline)}><Underline size={14} /> Souligner</button>
             <button type="button" className={item} onClick={run(onAlign)}><AlignCenter size={14} /> Changer l’alignement</button>
           </>
+        )}
+        {onCenter && box.kind !== "veil" && !isFullBleedBox(box) && (
+          <button type="button" className={item} onClick={run(onCenter)}><Crosshair size={14} /> Centrer sur la slide</button>
         )}
         {box.kind !== "photo" && (
           <button type="button" className={item} onClick={run(onPickColor)}><Pipette size={14} /> Prendre une couleur à l’écran</button>

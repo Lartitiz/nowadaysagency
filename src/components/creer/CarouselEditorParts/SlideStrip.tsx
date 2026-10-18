@@ -40,7 +40,7 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
   thumbIndexAt: (x: number, y: number) => number;
 }) {
   // Boutons de la colonne (ordinateur) : pleine largeur, libellé sur deux lignes si besoin.
-  const colButton = "md:h-auto md:w-full md:justify-start md:whitespace-normal md:px-2 md:py-1 md:text-left md:text-2xs md:leading-tight";
+  const colButton = "h-8 md:h-auto md:w-full md:justify-start md:whitespace-normal md:px-2 md:py-1 md:text-left md:text-2xs md:leading-tight";
   const last = document.slides.length - 1;
   const full = document.slides.length >= CAROUSEL_MAX_SLIDES;
   const remove = () => {
@@ -141,7 +141,9 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
         ))}
       </div>
       {document.slides.length > 1 && (
-        <p className="shrink-0 text-2xs leading-tight text-muted-foreground">Glisse une vignette pour changer l’ordre.</p>
+        // Téléphone (chantier AB) : l'aide passe sous « Ajouter / Supprimer la slide »,
+        // qui restent ainsi au-dessus de la barre « Publier » à l'arrivée.
+        <p className="order-last shrink-0 text-2xs leading-tight text-muted-foreground md:order-none">Glisse une vignette pour changer l’ordre.</p>
       )}
       {/* Boutons des slides, avec l'avertissement « plus de 10 slides » dessous : en bas
           de la colonne sur ordinateur, sous les miniatures sur téléphone. */}

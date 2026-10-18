@@ -70,6 +70,7 @@ import { SlideStrip } from "@/components/creer/CarouselEditorParts/SlideStrip";
 import { TextListDialog } from "@/components/creer/CarouselEditorParts/TextListDialog";
 import { AllSlidesPanel, SavedStylesPanel } from "@/components/creer/CarouselEditorParts/AllSlidesPanel";
 import { SimplePanel } from "@/components/creer/CarouselEditorParts/SimplePanel";
+import { brandInk, isIcon, setIconColor } from "@/components/creer/CarouselEditorParts/editor-icons";
 import { CaptionField } from "@/components/creer/CarouselEditorParts/CaptionField";
 import { EDITOR_GRID, roomStyle, slideBoxProps, useSlideFit } from "@/components/creer/CarouselEditorParts/EditorLayout";
 import { useEditorMode } from "@/components/creer/CarouselEditorParts/editor-mode";
@@ -471,15 +472,7 @@ export default function CarouselEditor({
     setExtra(out.ids.slice(1));
   };
   const addReady = (kind: PresetKind) => {
-    // Couleur de marque : la plus vive de la palette, assez foncée pour se lire
-    // sur un fond clair (le fond rose pâle est souvent la couleur la plus fréquente).
-    const score = (hex: string) => {
-      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-      const max = Math.max(r, g, b), min = Math.min(r, g, b), light = (max + min) / 2;
-      const sat = max === min ? 0 : (max - min) / (1 - Math.abs(2 * light - 1));
-      return light > 0.12 && light < 0.6 ? sat : -1;
-    };
-    const brand = [...palette].sort((a, b) => score(b) - score(a)).find((c) => score(c) > 0.2) || "#1a1a1a";
+    const brand = brandInk(palette);
     const out = addPreset(slide, kind, brand, "#ffffff");
     if (!out.id) return;
     changeSlide(out.slide);
@@ -807,7 +800,7 @@ export default function CarouselEditor({
               // La couleur change, la transparence choisie (verre, voile) reste.
               const current = getEditorElements(slide.html).find((e) => e.id === id)?.style["background-color"];
               const alpha = current ? alphaOf(current) : 1;
-              changeSlide(setShapeFill(slide, id, hex, alpha || 1));
+              changeSlide(isIcon(slide, id) ? setIconColor(slide, id, hex) : setShapeFill(slide, id, hex, alpha || 1));
             }}
             onDuplicate={(id) => {
               const out = duplicateElement(slide, id);
@@ -823,7 +816,7 @@ export default function CarouselEditor({
         {/* Panneau sous la slide sur téléphone ; à côté (avec son propre défilement, à la hauteur de la slide) sur ordinateur. */}
         <div className="order-3 min-w-0 space-y-4 md:sticky md:top-28 md:order-none md:max-h-[var(--editor-room,calc(100vh-15rem))] md:overflow-y-auto md:rounded-xl md:border md:bg-card md:p-4">
           {mode === "simple" ? (
-            <SimplePanel canvasApi={canvasApi} changeSlide={changeSlide} commit={commit} css={css} document={document} documentFonts={documentFonts} element={element} elements={elements} fill={fill} fillAlpha={fillAlpha} fillHex={fillHex} filterValue={filterValue} fontQuery={fontQuery} onAddPhoto={onAddPhoto} onMore={() => setMode("complet")} palette={palette} pickFont={pickFont} selectOne={selectOne} setFilter={setFilter} setFitId={setFitId} setFontQuery={setFontQuery} setPhotoOpen={setPhotoOpen} slide={slide} style={style} />
+            <SimplePanel applyCarouselTheme={applyCarouselTheme} canvasApi={canvasApi} changeLayout={changeLayout} changeSlide={changeSlide} commit={commit} css={css} document={document} documentFonts={documentFonts} element={element} elements={elements} fill={fill} fillAlpha={fillAlpha} fillHex={fillHex} filterValue={filterValue} fontQuery={fontQuery} layoutPreviews={layoutPreviews} onAddPhoto={onAddPhoto} onMore={() => setMode("complet")} palette={palette} pickFont={pickFont} selectOne={selectOne} setFilter={setFilter} setFitId={setFitId} setFontQuery={setFontQuery} setPhotoOpen={setPhotoOpen} slide={slide} style={style} themes={themes} />
           ) : (<>
           <LayersPanel
             changeSlide={changeSlide}

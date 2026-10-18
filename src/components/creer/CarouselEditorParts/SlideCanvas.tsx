@@ -23,6 +23,7 @@ import {
 } from "@/components/creer/CarouselEditorParts/canvas-geometry";
 import CanvasToolbar, { type SelectionBox } from "@/components/creer/CarouselEditorParts/CanvasToolbar";
 import { bindCanvas } from "@/components/creer/CarouselEditorParts/canvas-events";
+import { centerOnSlide } from "@/components/creer/CarouselEditorParts/editor-icons";
 
 export default function SlideCanvas({
   slide,
@@ -110,6 +111,11 @@ export default function SlideCanvas({
   const liveUntil = useRef(0);
   const recheck = useRef<() => void>(() => {});
   const shownId = useRef(slide.id);
+  // Retouche faite dans l'aperçu depuis le dernier rechargement : si le document
+  // revient ensuite au HTML affiché (« Annuler » juste après un glisser, centrage
+  // au même endroit), le même srcDoc ne rechargerait rien et l'aperçu resterait
+  // sur l'état glissé. Un repère en fin de page force alors le rechargement.
+  const liveDirty = useRef(false);
   // Fin d'une saisie déjà enregistrée mot à mot : la slide est remise en page.
   const [reloads, setReloads] = useState(0);
   useEffect(() => {
@@ -121,18 +127,23 @@ export default function SlideCanvas({
       return;
     }
     liveUntil.current = 0;
-    setShown(slide.html);
+    const stale = liveDirty.current;
+    liveDirty.current = false;
+    setShown((prev) => (stale && prev.replace(/<!--r\d+-->$/, "") === slide.html ? `${slide.html}<!--r${Date.now()}-->` : slide.html));
   }, [slide.html, slide.id, reloads]);
   const commitLive = (id: string, styles: Record<string, string>) => {
+    liveDirty.current = true;
     liveUntil.current = Date.now() + 1000;
     latest.current.onMove(id, styles);
   };
   const commitLiveMany = (moves: Record<string, Record<string, string>>) => {
+    liveDirty.current = true;
     liveUntil.current = Date.now() + 1000;
     latest.current.onMoveMany(moves);
   };
   // Texte tapé sur la slide : enregistré sans recharger l'aperçu (la frappe continue).
   const commitText = (id: string, value: string, editorial: boolean) => {
+    liveDirty.current = true;
     liveUntil.current = Date.now() + 1000;
     if (editorial) latest.current.onEditText(id, value, true);
     else latest.current.onEditHtml(id, value, true);
@@ -532,6 +543,11 @@ export default function SlideCanvas({
         editingId={editingId}
         simple={simple}
         outside={zoom <= 1}
+        onCenter={() => {
+          const el = frame.current?.contentDocument?.querySelector(`[data-editor-id="${selected}"]`);
+          const view = frame.current?.contentWindow;
+          if (el && view && selected) latest.current.onMove(selected, centerOnSlide(el, view));
+        }}
       />
       </div>
       {overflow && (
