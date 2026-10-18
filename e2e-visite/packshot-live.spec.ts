@@ -3,7 +3,7 @@
  *
  * Parcours : /photos → détail d'une photo prête → « Retoucher » → « Une photo pour mon e-commerce »
  * → « Générer le packshot » (1 crédit, appel Photoroom réel) → aperçu
- * → « Ajouter à ma bibliothèque » → nouvelle photo taguée packshot.
+ * → rangé tout seul dans « Mes photos » (P4) → « C'est bon, terminer » → nouvelle photo taguée packshot.
  *
  * Desktop uniquement (1 seul crédit/jour) et NETTOYAGE : le packshot créé est
  * supprimé en fin de test pour ne pas faire gonfler la bibliothèque de Camille.
@@ -63,9 +63,11 @@ test("packshot : génération fond blanc + ajout bibliothèque", async ({ page, 
   await expect(result).toBeVisible({ timeout: 150_000 });
   await page.screenshot({ path: path.join(SHOTS, "packshot-2-resultat.png") });
 
-  // Ajout à la bibliothèque
-  await page.getByRole("button", { name: /Ajouter à ma bibliothèque/i }).click();
-  await expect(page.getByText("Packshot ajouté à ta bibliothèque")).toBeVisible({
+  // Rangement automatique (P4, 18/10/2026) : l'image payée est déjà dans
+  // « Mes photos » avant tout clic ; « C'est bon, terminer » ferme seulement.
+  await expect(page.getByTestId("packshot-range")).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: /C'est bon, terminer/i }).click();
+  await expect(page.getByText("Ton packshot est dans Mes photos")).toBeVisible({
     timeout: 30_000,
   });
 

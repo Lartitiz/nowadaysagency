@@ -7,10 +7,14 @@
  * marketplace 2000x2000 avec marges, ombre douce. Le résultat s'ajoute à la
  * bibliothèque comme NOUVELLE photo taguée « packshot » — l'originale n'est
  * jamais modifiée.
+ *
+ * Rangement automatique (P4, 18/10/2026, choix de Laetitia) : le résultat payé
+ * est rangé dans « Mes photos » dès qu'il arrive ; fermer ne perd plus rien,
+ * « Retirer cet essai » l'enlève de la bibliothèque.
  */
 
 import { useEffect, useState } from "react";
-import { Download, Loader2, Package, RotateCcw, Sparkles } from "lucide-react";
+import { Check, Download, Loader2, Package, RotateCcw, Sparkles, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -24,42 +28,24 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { derivedPhotoDescription, derivedPhotoName, rootPhotoName } from "@/lib/photo-naming";
-import { redescribePhoto } from "@/lib/photo-redescribe";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import {
-  uploadPhotoOriginal,
+  discardPhotoAttempt,
   userPhotoToRawBase64,
   type UserPhotoRow,
 } from "@/lib/photo-storage";
+import {
+  dataUrlToBlob,
+  PACKSHOT_KIND,
+  saveGeneratedPhoto,
+  slugifyPhotoName as slugify,
+} from "@/lib/photo-auto-save";
 import { useRefreshUserPhotos } from "@/hooks/use-user-photos";
 
 interface PackshotDialogProps {
   photo: UserPhotoRow | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
-}
-
-function slugify(s: string): string {
-  return (
-    s
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 60) || "photo"
-  );
-}
-
-function dataUrlToBlob(dataUrl: string): Blob {
-  const m = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-  if (!m) throw new Error("Image invalide");
-  const bin = atob(m[2]);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new Blob([bytes], { type: m[1] });
 }
 
 export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProps) {
@@ -71,6 +57,8 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
   const [shadow, setShadow] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [resultBase64, setResultBase64] = useState<string | null>(null);
+  // Id dans « Mes photos » du résultat affiché (null tant qu'il n'est pas rangé).
+  const [resultPhotoId, setResultPhotoId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // Reset + chargement de la source à chaque ouverture
@@ -81,6 +69,7 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
     setShadow(true);
     setIsGenerating(false);
     setResultBase64(null);
+    setResultPhotoId(null);
     setIsSaving(false);
     let cancelled = false;
     userPhotoToRawBase64(photo)
@@ -115,16 +104,37 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
       90_000,
     );
 
-    setIsGenerating(false);
-
     if (error || !data?.image_base64) {
+      setIsGenerating(false);
       toast.error("Packshot impossible", {
         description: error?.message || "Réessaie dans quelques instants.",
       });
       return;
     }
+    // Image payée : rangée tout de suite, avant même qu'on la regarde.
     setResultBase64(data.image_base64);
+    setResultPhotoId(null);
+    await keep(data.image_base64);
+    setIsGenerating(false);
   };
+
+  async function keep(dataUrl: string): Promise<string | null> {
+    if (!user?.id) return null;
+    try {
+      const photoId = await saveGeneratedPhoto({ dataUrl, source: photo!, userId: user.id, kind: PACKSHOT_KIND });
+      setResultPhotoId(photoId);
+      // Fait apparaître la nouvelle photo dans la grille sans dépendre du
+      // Realtime ni d'un aller-retour sur la page.
+      refreshPhotos();
+      return photoId;
+    } catch (e) {
+      console.warn("[PackshotDialog] rangement automatique impossible:", e);
+      toast.error("L'image n'a pas pu être rangée dans Mes photos", {
+        description: "Réessaie avec « Ranger dans Mes photos » ou télécharge-la.",
+      });
+      return null;
+    }
+  }
 
   const handleDownload = () => {
     if (!resultBase64) return;
@@ -143,53 +153,35 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
     }
   };
 
+  // Bouton principal : déjà rangé → on ferme ; rangement raté → on réessaie.
   const handleSave = async () => {
-    if (!resultBase64 || !user?.id || isSaving) return;
+    if (!resultBase64 || isSaving) return;
+    if (resultPhotoId) {
+      toast.success("Ton packshot est dans Mes photos");
+      onOpenChange(false);
+      return;
+    }
+    setIsSaving(true);
+    const id = await keep(resultBase64);
+    setIsSaving(false);
+    if (id) {
+      toast.success("Ton packshot est dans Mes photos");
+      onOpenChange(false);
+    }
+  };
+
+  // « Retirer cet essai » : l'image quitte la bibliothèque (retrait récupérable).
+  const handleRemove = async () => {
+    if (!resultBase64 || isSaving) return;
     setIsSaving(true);
     try {
-      const blob = dataUrlToBlob(resultBase64);
-      const file = new File([blob], `${slugify(rootPhotoName(photo.name, "photo"))}-packshot.jpg`, {
-        type: blob.type || "image/jpeg",
-      });
-      const { photoId } = await uploadPhotoOriginal({
-        file,
-        userId: user.id,
-        workspaceId: photo.workspace_id,
-        name: derivedPhotoName(photo.name, "packshot"),
-        purpose: "library",
-      });
-
-      // Pas d'héritage des tags de la source (audit 14/08) : le détourage a
-      // REMPLACÉ le fond, donc tout tag de décor de la source est devenu faux.
-      // On pose la provenance, la description sert de texte d'attente, et
-      // photo-describe dit ensuite ce que la nouvelle image montre vraiment.
-      const tags = ["packshot"];
-      const description = derivedPhotoDescription(
-        "Packshot fond blanc",
-        photo.description,
-        "Packshot e-commerce sur fond blanc",
-      );
-      const { error: updError } = await supabase
-        .from("user_photos")
-        .update({
-          tags,
-          description,
-          source_type: "generated",
-          background_preset_key: "packshot",
-        })
-        .eq("id", photoId);
-      if (updError) {
-        console.warn("[PackshotDialog] metadata update failed:", updError.message);
-      }
-
-      // Fait apparaître la nouvelle photo dans la grille sans dépendre du
-      // Realtime ni d'un aller-retour sur la page.
-      redescribePhoto(photoId, photo.workspace_id);
+      if (resultPhotoId) await discardPhotoAttempt(resultPhotoId);
       refreshPhotos();
-      toast.success("Packshot ajouté à ta bibliothèque");
-      onOpenChange(false);
-    } catch (e: any) {
-      toast.error(e?.message || "Enregistrement impossible");
+      setResultBase64(null);
+      setResultPhotoId(null);
+      toast.success("Essai retiré de Mes photos");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Impossible de retirer cet essai");
     } finally {
       setIsSaving(false);
     }
@@ -198,7 +190,16 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
   const busy = isGenerating || isSaving;
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !busy && onOpenChange(v)}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (busy) return;
+        // Filet : une image dont le rangement a échoué ne part pas sans prévenir.
+        if (!v && resultBase64 && !resultPhotoId
+          && !window.confirm("Cette image n'a pas pu être rangée dans Mes photos. Fermer quand même ?")) return;
+        onOpenChange(v);
+      }}
+    >
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -299,14 +300,14 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
             />
           </div>
           <p className="text-2xs text-muted-foreground">
-            Chaque génération utilise 1 crédit photo. Le packshot s'ajoute comme nouvelle
-            photo, ton originale reste intacte.
+            Chaque génération utilise 1 crédit photo. Le packshot va tout seul dans Mes
+            photos, ton originale reste intacte.
           </p>
         </div>
 
         {/* 4 boutons ne tiennent pas dans max-w-2xl : Annuler disparaît après
             génération (le X ferme) et le footer peut wrapper au besoin. */}
-        <DialogFooter className="flex-col sm:flex-row sm:flex-wrap gap-2">
+        <DialogFooter className="flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
           {!resultBase64 && (
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
               Annuler
@@ -314,6 +315,18 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
           )}
           {resultBase64 && (
             <>
+              {resultPhotoId ? (
+                <p className="text-xs text-emerald-700 flex items-center gap-1 sm:mr-auto" data-testid="packshot-range">
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                  Déjà rangé dans Mes photos
+                </p>
+              ) : (
+                !isGenerating && <p className="text-xs text-amber-800 sm:mr-auto">Pas encore dans Mes photos</p>
+              )}
+              <Button type="button" variant="ghost" size="sm" onClick={handleRemove} disabled={busy} className="text-muted-foreground">
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                Retirer cet essai
+              </Button>
               <Button type="button" variant="outline" onClick={handleGenerate} disabled={busy}>
                 <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
                 Réessayer
@@ -326,10 +339,12 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
                 {isSaving ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    Enregistrement…
+                    Un instant…
                   </>
+                ) : resultPhotoId ? (
+                  "C'est bon, terminer"
                 ) : (
-                  "Ajouter à ma bibliothèque"
+                  "Ranger dans Mes photos"
                 )}
               </Button>
             </>

@@ -13,12 +13,17 @@ import { versTarifs } from "@/lib/retour-apres-detour";
  * permanent (validation fidélité fusionnée — le CTA dit « C'est fidèle »).
  * Les ajustements régénèrent TOUJOURS à partir de la photo d'origine (1 crédit),
  * jamais de l'image générée (sinon le produit s'érode).
+ *
+ * Rangement automatique (P4, 18/10/2026, choix de Laetitia) : chaque image
+ * reçue (proposition, variante, ajustement) est rangée dans « Mes photos » dès
+ * qu'elle arrive. Fermer la fenêtre ne perd plus rien ; « Retirer cet essai »
+ * l'enlève de la bibliothèque.
  */
 
 import { PhotoDirectionPicker } from "./PhotoDirectionPicker";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Download, Info, Loader2, RotateCcw, Shirt, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Download, Info, Loader2, RotateCcw, Shirt, Sparkles, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -33,15 +38,19 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { readableError } from "@/lib/error-messages";
-import { derivedPhotoDescription, derivedPhotoName, rootPhotoName } from "@/lib/photo-naming";
-import { redescribePhoto } from "@/lib/photo-redescribe";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  uploadPhotoOriginal,
+  discardPhotoAttempt,
   userPhotoToRawBase64,
   type UserPhotoRow,
 } from "@/lib/photo-storage";
+import {
+  dataUrlToBlob,
+  MISE_EN_SCENE_KIND,
+  saveGeneratedPhoto,
+  slugifyPhotoName as slugify,
+} from "@/lib/photo-auto-save";
 import { useRefreshUserPhotos } from "@/hooks/use-user-photos";
 import PhotoDetailComparison from "./PhotoDetailComparison";
 
@@ -83,25 +92,10 @@ const ADJUST_CHIPS: { key: string; label: string; prompt: string }[] = [
   },
 ];
 
-function slugify(s: string): string {
-  return (
-    s
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 60) || "photo"
-  );
-}
-
-function dataUrlToBlob(dataUrl: string): Blob {
-  const m = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-  if (!m) throw new Error("Image invalide");
-  const bin = atob(m[2]);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new Blob([bytes], { type: m[1] });
+/** Une image reçue et son id dans « Mes photos » (null si le rangement a échoué). */
+interface Proposal {
+  url: string;
+  photoId: string | null;
 }
 
 export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDialogProps) {
@@ -120,9 +114,9 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAdjusting, setIsAdjusting] = useState(false);
   const [isAddingVariants, setIsAddingVariants] = useState(false);
-  const [proposals, setProposals] = useState<string[]>([]);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const [previousProposals, setPreviousProposals] = useState<Record<number, string>>({});
+  const [previousProposals, setPreviousProposals] = useState<Record<number, Proposal>>({});
   const [customAdjust, setCustomAdjust] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -174,6 +168,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
 
   const busy = isGenerating || isAdjusting || isAddingVariants || isSaving;
   const hasResult = proposals.length > 0;
+  const selected: Proposal | undefined = proposals[selectedIdx];
 
   async function callEdge(
     adjustment: string | null,
@@ -218,13 +213,39 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     return data.images as string[];
   }
 
+  // Range chaque image payée dans « Mes photos » dès réception. Un échec de
+  // rangement ne jette pas l'image : elle reste ici avec « Ranger dans Mes photos ».
+  async function keep(images: string[]): Promise<Proposal[]> {
+    const kept: Proposal[] = [];
+    let failed = false;
+    for (const url of images) {
+      let photoId: string | null = null;
+      try {
+        if (user?.id) photoId = await saveGeneratedPhoto({ dataUrl: url, source: photo!, userId: user.id, kind: MISE_EN_SCENE_KIND });
+      } catch (e) {
+        console.warn("[MiseEnSceneDialog] rangement automatique impossible:", e);
+      }
+      if (!photoId) failed = true;
+      kept.push({ url, photoId });
+    }
+    // Grille à jour sans dépendre du Realtime ni d'un rechargement de page.
+    refreshPhotos();
+    if (failed) {
+      toast.error("L'image n'a pas pu être rangée dans Mes photos", {
+        description: "Réessaie avec « Ranger dans Mes photos » ou télécharge-la.",
+      });
+    }
+    return kept;
+  }
+
   const handleGenerate = async () => {
     if (busy) return;
     setIsGenerating(true);
     const images = await callEdge(null);
+    const kept = images ? await keep(images) : null;
     setIsGenerating(false);
-    if (images) {
-      setProposals(images);
+    if (kept) {
+      setProposals(kept);
       setSelectedIdx(0);
     }
   };
@@ -235,10 +256,11 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     if (busy || !hasResult) return;
     setIsAddingVariants(true);
     const images = await callEdge(null, true);
+    const kept = images?.length ? await keep(images) : null;
     setIsAddingVariants(false);
-    if (images?.length) {
+    if (kept) {
       setSelectedIdx(proposals.length);
-      setProposals((prev) => [...prev, ...images]);
+      setProposals((prev) => [...prev, ...kept]);
     }
   };
 
@@ -246,72 +268,67 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     if (busy || !hasResult) return;
     setIsAdjusting(true);
     const images = await callEdge(adjustPrompt);
+    const kept = images?.length ? await keep(images.slice(0, 1)) : null;
     setIsAdjusting(false);
-    if (images?.length) {
-      // La nouvelle image remplace la proposition sélectionnée (générée depuis
-      // la photo d'origine, jamais depuis l'image précédente).
+    if (kept) {
+      // La nouvelle image remplace la proposition sélectionnée à l'écran
+      // (générée depuis la photo d'origine, jamais depuis l'image précédente).
+      // L'ancienne reste dans « Mes photos » : elle a été payée.
       setPreviousProposals(prev => ({ ...prev, [selectedIdx]: proposals[selectedIdx] }));
-      setProposals((prev) => prev.map((p, i) => (i === selectedIdx ? images[0] : p)));
+      setProposals((prev) => prev.map((p, i) => (i === selectedIdx ? kept[0] : p)));
       setCustomAdjust("");
     }
   };
 
-  const saveSelected = async (): Promise<string | null> => {
-    if (!user?.id) return null;
-    const dataUrl = proposals[selectedIdx];
-    const blob = dataUrlToBlob(dataUrl);
-    const file = new File([blob], `${slugify(rootPhotoName(photo.name, "photo"))}-mise-en-scene.jpg`, {
-      type: blob.type || "image/jpeg",
-    });
-    const { photoId } = await uploadPhotoOriginal({
-      file,
-      userId: user.id,
-      workspaceId: photo.workspace_id,
-      name: derivedPhotoName(photo.name, "mise en scène"),
-      purpose: "library",
-    });
-
-    // Pas d'héritage des tags de la source (audit 14/08) : la scène générée
-    // n'a plus rien du décor d'origine. photo-describe décrira la vraie image.
-    const tags = ["mise-en-scene"];
-    const description = derivedPhotoDescription(
-      "Mise en scène IA",
-      photo.description,
-      "Produit mis en scène par IA",
-    );
-    const { error: updError } = await supabase
-      .from("user_photos")
-      .update({
-        tags,
-        description,
-        source_type: "generated",
-        background_preset_key: "mise_en_scene",
-      })
-      .eq("id", photoId);
-    if (updError) {
-      console.warn("[MiseEnSceneDialog] metadata update failed:", updError.message);
-    }
-    redescribePhoto(photoId, photo.workspace_id);
-    // Grille à jour sans dépendre du Realtime ni d'un rechargement de page.
-    refreshPhotos();
-    return photoId;
+  // Range la proposition sélectionnée si le rangement automatique a échoué.
+  const ensureSaved = async (): Promise<string | null> => {
+    if (!selected) return null;
+    if (selected.photoId) return selected.photoId;
+    const [again] = await keep([selected.url]);
+    if (!again.photoId) return null;
+    setProposals((prev) => prev.map((p, i) => (i === selectedIdx ? again : p)));
+    return again.photoId;
   };
 
   const handleSave = async (thenCreate: boolean) => {
     if (!hasResult || isSaving) return;
     setIsSaving(true);
     try {
-      const newId = await saveSelected();
-      if (!newId) throw new Error("Enregistrement impossible");
+      const newId = await ensureSaved();
+      if (!newId) return;
       if (thenCreate) {
         onOpenChange(false);
         navigate("/creer", { state: { libraryPhotoIds: [newId] } });
       } else {
-        toast.success("Mise en scène ajoutée à ta bibliothèque");
+        toast.success("Ta mise en scène est dans Mes photos");
         onOpenChange(false);
       }
-    } catch (e: any) {
-      toast.error(e?.message || "Enregistrement impossible");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // « Retirer cet essai » : l'image quitte la bibliothèque (retrait récupérable).
+  const handleRemove = async () => {
+    if (!selected || busy) return;
+    setIsSaving(true);
+    try {
+      if (selected.photoId) await discardPhotoAttempt(selected.photoId);
+      refreshPhotos();
+      setPreviousProposals((prev) => {
+        const next: Record<number, Proposal> = {};
+        for (const [k, v] of Object.entries(prev)) {
+          const i = Number(k);
+          if (i < selectedIdx) next[i] = v;
+          else if (i > selectedIdx) next[i - 1] = v;
+        }
+        return next;
+      });
+      setProposals((prev) => prev.filter((_, i) => i !== selectedIdx));
+      setSelectedIdx((i) => Math.max(0, Math.min(i, proposals.length - 2)));
+      toast.success("Essai retiré de Mes photos");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Impossible de retirer cet essai");
     } finally {
       setIsSaving(false);
     }
@@ -320,7 +337,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
   const handleDownload = () => {
     if (!hasResult) return;
     try {
-      const blob = dataUrlToBlob(proposals[selectedIdx]);
+      const blob = dataUrlToBlob(selected!.url);
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objectUrl;
@@ -344,7 +361,16 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     );
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !busy && onOpenChange(v)}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (busy) return;
+        // Filet : une image dont le rangement a échoué ne part pas sans prévenir.
+        if (!v && proposals.some((p) => !p.photoId)
+          && !window.confirm("Une image n'a pas pu être rangée dans Mes photos. Fermer quand même ?")) return;
+        onOpenChange(v);
+      }}
+    >
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -468,7 +494,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
             )}
 
             <p className="text-2xs text-muted-foreground">
-              1 crédit photo. Ta photo d'origine reste intacte.
+              1 crédit photo. L'image ira toute seule dans Mes photos, ta photo d'origine reste intacte.
             </p>
 
             <DialogFooter>
@@ -505,7 +531,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
                     i === selectedIdx ? "border-primary" : "border-transparent hover:border-primary/40",
                   )}
                 >
-                  <img loading="lazy" src={p} alt={`Proposition ${i + 1}`} className="w-full h-full object-cover" />
+                  <img loading="lazy" src={p.url} alt={`Proposition ${i + 1}`} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
@@ -541,7 +567,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
                 )}
                 <img
                   loading="lazy"
-                  src={proposals[selectedIdx]}
+                  src={selected?.url}
                   alt={`Proposition ${selectedIdx + 1} en grand`}
                   className="w-full max-h-[46vh] object-contain"
                 />
@@ -567,7 +593,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
                 setProposals(prev => prev.map((p, i) => i === selectedIdx ? previousProposals[selectedIdx] : p));
                 setPreviousProposals(prev => { const next = { ...prev }; delete next[selectedIdx]; return next; });
               }}>Annuler le dernier ajustement</Button>}
-              {sourceBase64 && <PhotoDetailComparison original={sourceBase64} proposal={proposals[selectedIdx]} />}
+              {sourceBase64 && selected && <PhotoDetailComparison original={sourceBase64} proposal={selected.url} />}
               <div className="flex flex-wrap gap-1.5">
                 {ADJUST_CHIPS.map((c) => (
                   <button
@@ -611,7 +637,19 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
               un label « Info IA » sur ce type de visuel.
             </p>
 
-            <DialogFooter className="flex-col sm:flex-row sm:flex-wrap gap-2">
+            <DialogFooter className="flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
+              {selected?.photoId ? (
+                <p className="text-xs text-emerald-700 flex items-center gap-1 sm:mr-auto" data-testid="mise-en-scene-rangee">
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                  Déjà rangée dans Mes photos
+                </p>
+              ) : (
+                <p className="text-xs text-amber-800 sm:mr-auto">Pas encore dans Mes photos</p>
+              )}
+              <Button type="button" variant="ghost" size="sm" onClick={handleRemove} disabled={busy} className="text-muted-foreground">
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                Retirer cet essai
+              </Button>
               <Button type="button" variant="outline" onClick={handleDownload} disabled={busy}>
                 <Download className="h-3.5 w-3.5 mr-1.5" />
                 Télécharger
@@ -623,10 +661,12 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
                 {isSaving ? (
                   <>
                     <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    Enregistrement…
+                    Un instant…
                   </>
+                ) : selected?.photoId ? (
+                  "C'est fidèle, terminer"
                 ) : (
-                  "C'est fidèle, ajouter à mes photos"
+                  "Ranger dans Mes photos"
                 )}
               </Button>
             </DialogFooter>
