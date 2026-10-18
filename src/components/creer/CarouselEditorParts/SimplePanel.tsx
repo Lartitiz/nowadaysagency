@@ -118,7 +118,7 @@ export function SimplePanel({ applyCarouselTheme, canvasApi, changeLayout, chang
   const galleryButton = (which: "page" | "theme", label: string, Icon: typeof LayoutTemplate, content: ReactNode) => (
     <Popover open={gallery === which} onOpenChange={(next) => setGallery(next ? which : null)}>
       <PopoverTrigger asChild>
-        <Button size="sm" variant="outline" className="h-8 flex-1 gap-1 px-2 text-xs" disabled={which === "page" && locked}>
+        <Button size="sm" variant="outline" className="h-7 flex-1 gap-1 px-2 text-xs" disabled={which === "page" && locked}>
           <Icon size={14} aria-hidden="true" /> {label}
         </Button>
       </PopoverTrigger>
@@ -217,9 +217,7 @@ export function SimplePanel({ applyCarouselTheme, canvasApi, changeLayout, chang
                 ))}
               </div>
             </>
-          ) : (
-            <p className="text-2xs text-muted-foreground">Touche un texte sur la slide, ou ajoutes-en un.</p>
-          )}
+          ) : null}
           <div className="grid grid-cols-2 gap-1.5">
             <Button size="sm" variant="outline" className="px-1 text-xs" onClick={() => changeSlide(addTextElement(slide))}>
               Ajouter un texte
