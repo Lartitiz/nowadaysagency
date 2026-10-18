@@ -288,6 +288,11 @@ export default function CarouselEditor({
       },
       key,
     );
+  // Texte tapé sur la slide, enregistré mot à mot (`live`, sans ajustement) : une étape d'Annuler par mot ou pause.
+  const editSlideText = (id: string, next: EditorSlide, live?: boolean) => {
+    if (!live) setFitId(id);
+    if (next.html !== slide.html) changeSlide(next, `text-${slide.id}-${id}`);
+  };
   const moveMany = (moves: Record<string, Record<string, string>>) => {
     let next = slide;
     Object.entries(moves).forEach(([id, styles]) => (next = patchElement(next, id, { styles })));
@@ -832,14 +837,8 @@ export default function CarouselEditor({
               changeSlide(patchElement(slide, id, { styles }))
             }
             onRemove={remove}
-            onEditText={(id, text) => {
-              setFitId(id);
-              changeSlide(patchElement(slide, id, { text }), `text-${slide.id}-${id}`);
-            }}
-            onEditHtml={(id, html) => {
-              setFitId(id);
-              changeSlide(setElementHtml(slide, id, html));
-            }}
+            onEditText={(id, text, live) => editSlideText(id, patchElement(slide, id, { text }), live)}
+            onEditHtml={(id, html, live) => editSlideText(id, setElementHtml(slide, id, html), live)}
             fitId={fitId}
             onFitDone={(_id, size) => {
               setFitId(null);
