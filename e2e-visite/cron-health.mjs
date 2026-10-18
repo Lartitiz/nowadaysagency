@@ -289,7 +289,15 @@ try {
     console.log("   top actions 7 j (vs S-1) :");
     const prevActions = Object.fromEntries((prev.topActions || []).map((a) => [a.action, a.count]));
     for (const a of cur.topActions || []) console.log(`      ${String(a.action).padEnd(28)} ${String(a.count).padStart(4)}  (S-1 : ${prevActions[a.action] ?? 0})`);
-    console.log(`   publications : ${d.publications.cette_semaine} cette semaine (S-1 : ${d.publications.semaine_precedente})`);
+    // a_la_main / emails_coupes : edge ≥ 18/10/2026 (absents sinon).
+    const alaMain = d.publications.a_la_main != null ? `, dont ${d.publications.a_la_main} « publié moi-même »` : "";
+    console.log(`   publications : ${d.publications.cette_semaine} cette semaine${alaMain} (S-1 : ${d.publications.semaine_precedente})`);
+    const ec = d.emails_coupes;
+    if (!ec) console.log("   e-mails génériques coupés : non mesuré (edge cron-health pas redéployée)");
+    else if (ec.erreur) console.log(`   e-mails génériques coupés : lecture impossible (${ec.erreur})`);
+    else console.log(ec.alerte
+      ? `   ⚠️ e-mails génériques coupés le 18/10 : ${ec.envoyes_7j} reparti(s) sur 7 j (${Object.entries(ec.par_type).map(([k, v]) => `${k} ×${v}`).join(", ")}) — interrupteur rallumé ?`
+      : "   ✅ e-mails génériques coupés le 18/10 : 0 envoyé sur 7 j");
     console.log(`   actives cette semaine : ${d.actives_cette_semaine}`);
     console.log("   rétention par cohorte d'inscription (active = ≥1 génération ou post sur 7 j) :");
     for (const c of d.cohortes || []) {

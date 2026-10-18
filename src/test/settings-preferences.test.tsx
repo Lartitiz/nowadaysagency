@@ -12,6 +12,8 @@ vi.mock('@/components/settings/WorkspaceMembersSection',()=>({default:()=>null})
 vi.mock('@/components/settings/PurchaseHistory',()=>({default:()=>null}));
 vi.mock('@/components/PromoCodeInput',()=>({default:()=>null}));
 vi.mock('@/components/ui/input-with-voice',()=>({InputWithVoice:(p:any)=><input {...p}/>}));
+// Réglages des e-mails de relance : visibles seulement interrupteur rallumé (coupés le 18/10/2026).
+vi.mock('@/config/feature-flags',async(orig)=>({...(await orig() as any),EMAILS_RELANCE_ENABLED:true}));
 vi.mock('@/lib/invoke-with-timeout',()=>({invokeWithTimeout:m.invoke}));
 vi.mock('sonner',()=>({toast:Object.assign(vi.fn(),{success:m.success,error:m.error})}));
 vi.mock('@/integrations/supabase/client',()=>({supabase:{auth:{getSession:async()=>({data:{session:{access_token:'fixture'}}})},from:(table:string)=>{const q:any={table,op:'select',filters:[]};const c:any={select:()=>c,update:(patch:any)=>{q.op='update';q.patch=patch;return c;},insert:(patch:any)=>{q.op='insert';q.patch=patch;return c;},delete:()=>{q.op='delete';return c;},eq:(k:string,v:string)=>{q.filters.push([k,v]);return c;},maybeSingle:()=>c,single:()=>c,then:(r:any,j:any)=>Promise.resolve().then(()=>m.read(q)).then(r,j)};return c;}}}));

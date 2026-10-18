@@ -139,18 +139,20 @@ export function useCalendarSave({
    */
   const publicationCalendarId = publishedCalendarId.current || calendarPostId;
   const publicationCreationId = creationId.current;
-  const recordImmediatePublication = async ({ canal, caption, postId }: {
-    canal: "instagram" | "linkedin"; caption: string; postId?: string;
+  // `manual` : elle a publié elle-même (téléphone, Canva…) et le dit depuis la
+  // fenêtre « Publier ». Même fiche calendrier, sans lien de post ni statut d'API.
+  const recordImmediatePublication = async ({ canal, caption, postId, manual }: {
+    canal: string; caption: string; postId?: string; manual?: boolean;
   }): Promise<boolean> => {
     if (!session?.user?.id) return false;
     try {
       const now = new Date();
       const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-      const { accroche, storyDetail } = extractContentForCalendar();
+      const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
       const payload = {
         theme: ideaText, canal, date, format: selectedFormat || "post",
-        content_draft: caption, accroche, status: "published",
-        publish_status: "published", published_at: now.toISOString(),
+        content_draft: manual ? contentDraft || caption : caption, accroche, status: "published",
+        publish_status: manual ? null : "published", published_at: now.toISOString(),
         published_post_id: postId || null, publish_error: null,
         auto_publish: false, scheduled_publish_at: null,
         updated_at: now.toISOString(),
@@ -199,7 +201,7 @@ export function useCalendarSave({
         }
         if (!applied) {
           const { data, error } = await supabase.from("calendar_posts").update({
-            date, status: "published", publish_status: "published", published_at: payload.published_at,
+            date, status: "published", publish_status: payload.publish_status, published_at: payload.published_at,
             published_post_id: payload.published_post_id, publish_error: null,
             auto_publish: false, scheduled_publish_at: null, updated_at: payload.updated_at,
           }).eq("id", id).select("id").single();
@@ -239,12 +241,16 @@ export function useCalendarSave({
         const { error } = await supabase.from("content_briefs").update({ calendar_post_id: id }).eq("id", currentBriefId);
         if (error) throw error;
       }
-      if (keptNewerVersion) {
+      if (keptNewerVersion && !manual) {
         toast.warning("Ton contenu est publié. Sa fiche du calendrier avait été modifiée ailleurs entre-temps : on a gardé cette autre version et on l’a marquée comme publiée. Ne le republie pas.", { duration: 12000 });
       }
       return true;
     } catch (error) {
       console.error("Publication réussie, suivi calendrier incomplet", error);
+      if (manual) {
+        toast.error("Ta publication n’a pas pu être notée dans le calendrier. Réessaie dans un instant.");
+        return false;
+      }
       toast.warning("Ton contenu est publié, mais son suivi dans le calendrier n’a pas été enregistré. Ne le republie pas.");
       return false;
     }

@@ -11,6 +11,7 @@ import { inWindow, week } from "./fenetres.ts";
 import { addEditorialReview, summarize } from "./couts.ts";
 import { cohortes, comptesInternes, espacesOwnerMultiples, publications, topConsommatrices } from "./usage-hebdo.ts";
 import { blocQualite, lireQualite } from "./qualite.ts";
+import { emailsCoupesStats, publicationsAlaMain } from "./emails-coupes.ts";
 
 export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }: {
   supabase: any;
@@ -20,7 +21,7 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
   emailOf: Map<string, string>;
 }) {
   const since35d = new Date(now - 35 * DAY).toISOString();
-  const [aiRows, calRows, higgsfield, ownerRows] = await Promise.all([
+  const [aiRows, calRows, higgsfield, ownerRows, emailsCoupes] = await Promise.all([
     fetchAllRows(
       supabase,
       "ai_usage",
@@ -30,6 +31,14 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
     fetchAllRows(supabase, "calendar_posts", "id, user_id, created_at, published_at, publish_status, status"),
     higgsfieldBudget(supabase, now),
     fetchAllRows(supabase, "workspace_members", "user_id, workspace_id, joined_at", (q) => q.eq("role", "owner")),
+    // E-mails génériques coupés le 18/10/2026 : on vérifie qu'ils ne repartent pas.
+    Promise.all([
+      fetchAllRows(supabase, "email_sends", "template_id, status, sent_at", (q) => q.gte("sent_at", new Date(now - 7 * DAY).toISOString())),
+      fetchAllRows(supabase, "email_templates", "id, name"),
+    ]).then(([sends, templates]) => {
+      const nom = new Map(templates.map((t: any) => [t.id, t.name]));
+      return emailsCoupesStats(sends, (id) => (id ? nom.get(id) ?? null : null), now - 7 * DAY, now);
+    }).catch((e) => ({ erreur: String((e as any)?.message || e).slice(0, 90) })),
   ]);
   const espaces_owner_multiples = espacesOwnerMultiples(ownerRows, { emailOf, isClient, now });
   const ai = aiRows.filter((a: any) => isClient(a.user_id));
@@ -59,7 +68,8 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
     ia_7j_precedents: aiPrev,
     top_consommatrices_7j,
     comptes_internes_7j,
-    publications: { cette_semaine: publishedCur, semaine_precedente: publishedPrev },
+    publications: { cette_semaine: publishedCur, semaine_precedente: publishedPrev, a_la_main: publicationsAlaMain(cal, curFrom, curTo) },
+    emails_coupes: emailsCoupes,
     cohortes: cohorts,
     actives_cette_semaine: activeThisWeek.size,
     qualite,

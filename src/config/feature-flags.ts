@@ -57,3 +57,13 @@ export function isModuleHidden(moduleId: string): boolean {
  * `true` suffit à tout réafficher.
  */
 export const WORKSPACE_SHARING_ENABLED = false;
+
+/**
+ * E-mails de conseils et de relance (rendez-vous d'idées, relances d'inactivité,
+ * crédits épuisés, rappels de brouillons…) COUPÉS le 18/10/2026, choix de
+ * Laetitia : ~300 envois en 90 jours pour 10 clics. Côté serveur, l'interrupteur
+ * est `is_active` des séquences (migration 20261018130000_couper_emails_generiques).
+ * Ici, il cache les réglages de ces e-mails dans Paramètres → Préférences, pour
+ * ne pas proposer un e-mail qui ne part plus. Rallumer les deux ensemble.
+ */
+export const EMAILS_RELANCE_ENABLED = false;

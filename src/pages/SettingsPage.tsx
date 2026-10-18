@@ -32,7 +32,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { MODULE_FLAGS } from "@/config/feature-flags";
 import PurchaseHistory from "@/components/settings/PurchaseHistory";
 import WorkspaceMembersSection from "@/components/settings/WorkspaceMembersSection";
-import { WORKSPACE_SHARING_ENABLED } from "@/config/feature-flags";
+import { EMAILS_RELANCE_ENABLED, WORKSPACE_SHARING_ENABLED } from "@/config/feature-flags";
 import PromoCodeInput from "@/components/PromoCodeInput";
 import { isFairUsePlan } from "@/lib/plan-limits";
 import {
@@ -272,8 +272,14 @@ function SettingsContent() {
 
           </TabsContent>
           <TabsContent value="preferences" forceMount className="data-[state=inactive]:hidden">
+        {!EMAILS_RELANCE_ENABLED && (
+          <Section icon={<Mail className="h-4 w-4" />} title="Mes e-mails">
+            <p className="text-sm text-muted-foreground mb-3">L'Assistant Com' ne t'envoie ni conseils ni relances par e-mail. Tu reçois seulement l'essentiel : bienvenue, paiement, et une alerte si une publication programmée échoue.</p>
+            <Link to="/unsubscribe" className="text-sm text-primary underline">Gérer ma désinscription générale des emails</Link>
+          </Section>
+        )}
         {/* ─── Rendez-vous hebdo ─── */}
-        <Section icon={<CalendarHeart className="h-4 w-4" />} title="Mes idées par email">
+        {EMAILS_RELANCE_ENABLED && <Section icon={<CalendarHeart className="h-4 w-4" />} title="Mes idées par email">
           {ritual.error && <p role="alert">{ritual.error} <Button variant="link" onClick={ritual.reload}>Réessayer</Button></p>}
           {!ritual.canEdit && <p className="text-sm text-muted-foreground">Ces préférences appartiennent au propriétaire du compte.</p>}
           <div className="space-y-4">
@@ -310,10 +316,10 @@ function SettingsContent() {
               </div>
             )}
           </div>
-        </Section>
+        </Section>}
 
         {/* ─── Notification preferences ─── */}
-        <Section icon={<Bell className="h-4 w-4" />} title="Préférences de notification">
+        {EMAILS_RELANCE_ENABLED && <Section icon={<Bell className="h-4 w-4" />} title="Préférences de notification">
           <p className="text-xs text-muted-foreground mb-3">Ces choix concernent tes emails personnels, indépendamment de l’espace affiché. Ils ne réactivent pas une désinscription générale.</p>
           {notifications.error && <p role="alert">{notifications.error} <Button variant="link" onClick={notifications.reload}>Réessayer</Button></p>}
           <Link to="/unsubscribe" className="text-sm text-primary underline">Gérer ma désinscription générale des emails</Link>
@@ -321,7 +327,7 @@ function SettingsContent() {
             <PrefRow icon={<Sparkles className="h-4 w-4 text-muted-foreground" />} label="Conseils & astuces" description="Conseils de prise en main et informations sur ton utilisation." checked={notifications.data.notification_tips} disabled={!notifications.loaded || notifications.saving} onCheckedChange={(v) => { void notifications.save({notification_tips: v}); }} />
             <PrefRow icon={<Bell className="h-4 w-4 text-muted-foreground" />} label="Rappels de routines" description="Relances d’inactivité et rappels de brouillons oubliés." checked={notifications.data.notification_reminders} disabled={!notifications.loaded || notifications.saving} onCheckedChange={(v) => { void notifications.save({notification_reminders: v}); }} />
           </div>
-        </Section>
+        </Section>}
 
           </TabsContent>
           <TabsContent value="billing" forceMount className="data-[state=inactive]:hidden"><p className="mb-4 text-sm text-muted-foreground">Plan et crédits de l’espace actuel. Le portail de facturation te permet de gérer ton abonnement.</p>
