@@ -27,7 +27,7 @@
 
 import type { UsageSink } from "../_shared/anthropic.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
-import { addSchemasToContent, planRequestedSchema, SCHEMA_TYPES, type SchemaPlan } from "../_shared/schema-formatting.ts";
+import { addSchemasToContent, DENSE_SLIDE_WORDS, planRequestedSchema, SCHEMA_TYPES, wordCount, type SchemaPlan } from "../_shared/schema-formatting.ts";
 import { MIX_SCHEMA_TYPES } from "../_shared/mix-schema-render.ts";
 import { SLIDE_REDO_GRANT, signInternalGrant } from "../_shared/internal-grant.ts";
 import { keepDraftLayoutFields, stripMixWriterLayoutFields } from "../_shared/mix-layout-formatting.ts";
@@ -149,6 +149,15 @@ export function narrativeMixLayout(slideType: string, ref: any) {
 /** Types de schéma que l'utilisatrice peut demander (le mixte n'en dessine que quelques-uns). */
 export const REDO_SCHEMA_TYPES: readonly string[] = SCHEMA_TYPES;
 export const REDO_MIX_SCHEMA_TYPES: readonly string[] = MIX_SCHEMA_TYPES;
+
+/** Carrousel texte : un schéma ne se pose qu'à côté d'un texte court (45 mots au
+ * plus, titre compris ; décision de Laetitia du 04/10/2026). Vu au premier essai
+ * réel du 18/10/2026 : une frise demandée, un texte de 55 mots, schéma refusé. */
+export const REDO_SCHEMA_MAX_WORDS = DENSE_SLIDE_WORDS;
+// deno-lint-ignore no-explicit-any
+export function redoSchemaHasRoom(slide: Record<string, any>, isMix: boolean): boolean {
+  return isMix || wordCount(slide) <= DENSE_SLIDE_WORDS;
+}
 
 /** Schéma demandé, tiré du texte final de la slide ; null si le texte ne le permet pas. */
 // deno-lint-ignore no-explicit-any
