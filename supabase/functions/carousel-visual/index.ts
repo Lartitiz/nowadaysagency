@@ -2394,7 +2394,7 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     const editorialSlides: Array<{ slide_number: number; html: string } | null> = !isPhotoCarousel && !isMixCarousel && !isCharterRef && !custom_overrides
       ? slides.map((s: any, i: number) => composeEditorialSlide(s, designPlan.sequence[i], ch))
       : [];
-    if (redoNeedsModelRender(redo, slides, !isPhotoCarousel && !isMixCarousel)) editorialSlides[redo!.index] = null;
+    if (redoNeedsModelRender(redo, slides, isPhotoCarousel ? "photo" : isMixCarousel ? "mix" : "text")) editorialSlides[redo!.index] = null;
     const allEditorial = editorialSlides.length === slides.length && editorialSlides.every(Boolean);
     // MISE EN FORME du carrousel texte (03/10/2026) : même étage que le photo et
     // le mixte, séparé de l'écriture, lancé en parallèle du rendu. Il ne touche
@@ -2416,7 +2416,7 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     // validée le 02/10/2026). null = au moins une slide exige le rendu modèle
     // (schéma visuel, texte hors gabarit) → tout le carrousel garde ce rendu.
     const mixPhotoCount = Array.isArray(reqBody.photos) ? reqBody.photos.length : 0;
-    let mixComposed = isMixCarousel && !custom_overrides
+    let mixComposed = isMixCarousel && !custom_overrides && !redoNeedsModelRender(redo, slides, "mix")
       ? composeMixCarousel(slides, ch, mixPhotoCount)
       : null;
     // MISE EN FORME du mixte (03/10/2026) : même étage que le carrousel photo,

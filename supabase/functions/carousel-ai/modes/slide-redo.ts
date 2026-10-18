@@ -186,12 +186,16 @@ export async function handleSlideRedoRequest(reqCtx: CarouselRequestContext): Pr
   const notices: string[] = [];
   if (proposal?.photo_requested) notices.push("La photo reste la même : « Refaire cette slide » change le texte et la mise en page.");
   const schemaType = typeof proposal?.schema_type === "string" ? proposal.schema_type : null;
+  const designNote = typeof proposal?.design_note === "string" ? proposal.design_note.replace(/\s+/g, " ").trim().slice(0, 300) : "";
   if (schemaType) {
     const allowed = target.slide_type === "photo_full" ? [] : isMix ? (target.slide_type === "text_only" ? REDO_MIX_SCHEMA_TYPES : []) : REDO_SCHEMA_TYPES;
     const placed = allowed.includes(schemaType) ? await redoSlideSchema(next, schemaType, isMix, usage, instruction) : { visual_schema: null, rejected: [`${schemaType}:slide`] };
     console.log(JSON.stringify({ event: "slide_redo_schema", type: schemaType, placed: !!placed.visual_schema, rejected: placed.rejected }));
     if (placed.visual_schema) next.visual_schema = placed.visual_schema;
-    else notices.push("Le schéma demandé n'a pas pu être tiré du texte de cette slide : elle est refaite sans schéma.");
+    // Avec une consigne de mise en page, le dessin la suit quand même (vu en réel le 18/10/2026) : pas d'alarme.
+    else notices.push(designNote
+      ? "Ce n'est pas un schéma tout fait : la mise en page a été refaite librement selon ta consigne."
+      : "Le schéma demandé n'a pas pu être tiré du texte de cette slide : elle est refaite sans schéma.");
   }
   const newSlides = slides.map((s, i) => i === index ? next! : s);
   if (next.slide_type === "photo_full") {
@@ -202,7 +206,6 @@ export async function handleSlideRedoRequest(reqCtx: CarouselRequestContext): Pr
   const visualRequest: Record<string, unknown> = body.visual_request && typeof body.visual_request === "object" ? { ...body.visual_request } : {};
   const visualSlides: Slide[] = Array.isArray(visualRequest.slides) && visualRequest.slides.length === slides.length ? visualRequest.slides as Slide[] : newSlides;
   delete visualRequest.slides;
-  const designNote = typeof proposal?.design_note === "string" ? proposal.design_note.replace(/\s+/g, " ").trim().slice(0, 300) : "";
   const drawn = await _deps.redesignSlide({
     visualRequest, slideNumber: n, designNote, authHeader: reqCtx.authHeader, userId,
     slides: visualSlides.map((s, i) => i === index ? mergeIntoVisualSlide(s, next!) : s),
