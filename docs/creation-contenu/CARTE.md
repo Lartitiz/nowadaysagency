@@ -428,7 +428,7 @@ d'`index.ts` est cité ici.
 | `pinterest-photo-brief` | `pin_type` (photo_product, photo_lifestyle, photo_flat_lay) | `content` | `index_test.ts` |
 | `pinterest-inspiration` | mode unique | `content` | via mock front |
 | `ai-text-action` (menu sur sélection) | action de réécriture | `adaptation` | `index_test.ts` |
-| `newsjacking-ai` / `-angles` / `-from-url` | recherche web / angles | `deep_research` / `content` | `newsjacking-ai/index_test.ts` seulement |
+| `newsjacking-ai` / `-angles` / `-from-url` | recherche web / angles ; une actu n'est renvoyée que si son lien est une page trouvée par la recherche (`newsjacking-ai/sources.ts`, 18/10/2026) ; recherche sans actu non débitée | `deep_research` / `content` | `newsjacking-ai/index_test.ts`, `newsjacking-ai/sources_test.ts` |
 | `storytelling-ai` | `improve`, `generate-story`, `generate-pitch`, `generate-recap` | `content` | `contract_test.ts` |
 | `inspire-ai` | capture d'écran → format conseillé | `content` | `contract_test.ts` |
 | `reel-render` | `archive`, `submit`, `status` (json2video, pas d'IA) | sans quota | `recipe_test`, `archive-url_test`, `reel_reference_test` |
