@@ -15,6 +15,15 @@
  *
  * Chaque étape dégrade proprement : en cas d'échec, on garde l'image précédente
  * (jamais perdre une image payée). Les journaux ne contiennent ni prompt ni URL.
+ *
+ * Temps de calcul (18/10/2026) : l'hébergement coupe une requête après ~2 s de
+ * CPU (546 WORKER_RESOURCE_LIMIT, journal « CPU Time exceeded »), attente
+ * réseau non comprise. Décoder un JPEG 2000×2000 avec imagescript coûte déjà
+ * ~0,5 s. La mise en scène dépassait (2 152 ms mesurées) : la vision recevait
+ * une copie réduite de chaque image (un décodage de plus), et une image déjà
+ * à 1024 px était réduite une seconde fois. La vision lit maintenant l'image
+ * telle quelle quand elle est assez légère, et un `CpuMeter` passé par
+ * l'appelant fait sauter la passe zoomée quand la marge manque.
  */
 import { callAnthropic } from "./anthropic.ts";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
@@ -37,6 +46,75 @@ export type PreparedReference = {
 
 const VISION_MODEL = "claude-sonnet-4-6" as const;
 const VISION_WIDTH = 1024;
+// Sent as is to the vision model below these bounds (its API accepts 5 MB in
+// base64 and resizes large images itself): no decode, no CPU spent.
+const VISION_MAX_BYTES = 3_700_000;
+const VISION_MAX_SIDE = 2600;
+/** CPU assumed for one zoomed pass (decode, crop, patch, composite, encode): ~150 ms measured, doubled. */
+export const REFINE_CPU_ESTIMATE_MS = 300;
+
+/**
+ * CPU spent on image work in ONE request (decode, crop, resize, encode are
+ * synchronous: their duration is CPU time). Budget-aware callers claim an
+ * estimate before an optional step and skip it when the budget is spent.
+ */
+export class CpuMeter {
+  spent = 0;
+  private reserved = 0;
+  constructor(readonly budgetMs: number) {}
+  async time<T>(work: () => Promise<T> | T): Promise<T> {
+    const t0 = Date.now();
+    try {
+      return await work();
+    } finally {
+      this.spent += Date.now() - t0;
+    }
+  }
+  /** Reserves `ms` if it fits in the budget (parallel steps cannot both pass). */
+  claim(ms: number) {
+    if (this.spent + this.reserved + ms > this.budgetMs) return false;
+    this.reserved += ms;
+    return true;
+  }
+  release(ms: number) {
+    this.reserved = Math.max(0, this.reserved - ms);
+  }
+}
+
+/** Pixel size read from a JPEG or PNG header, without decoding. */
+export function imageSize(bytes: Uint8Array): { width: number; height: number } | null {
+  if (bytes.length > 24 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+    const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    return { width: v.getUint32(16), height: v.getUint32(20) };
+  }
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  let i = 2;
+  while (i + 9 < bytes.length) {
+    if (bytes[i] !== 0xff) return null;
+    const marker = bytes[i + 1];
+    if (marker === 0xff) { i++; continue; }
+    if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) { i += 2; continue; }
+    const length = (bytes[i + 2] << 8) | bytes[i + 3];
+    // SOF0..SOF15 except DHT (C4), JPG (C8) and DAC (CC).
+    if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+      return { height: (bytes[i + 5] << 8) | bytes[i + 6], width: (bytes[i + 7] << 8) | bytes[i + 8] };
+    }
+    if (marker === 0xda || length < 2) return null;
+    i += 2 + length;
+  }
+  return null;
+}
+
+/** The image as the vision model will get it: untouched when light enough. */
+export async function visionImage(image: Blob, meter?: CpuMeter): Promise<Blob> {
+  if (/^image\/(jpeg|png)$/.test(image.type) && image.size <= VISION_MAX_BYTES) {
+    const size = imageSize(new Uint8Array(await image.slice(0, 256 * 1024).arrayBuffer()));
+    if (size && size.width > 0 && size.height > 0 && Math.max(size.width, size.height) <= VISION_MAX_SIDE) return image;
+  }
+  const { downscaleToJpeg } = await import("./image-downscale.ts");
+  const shrink = () => downscaleToJpeg(image, VISION_WIDTH, 85);
+  return meter ? await meter.time(shrink) : await shrink();
+}
 const PHOTOROOM_URL = "https://image-api.photoroom.com/v2/edit";
 
 async function imagescript() {
@@ -87,10 +165,11 @@ const LOCATE_TOOL = {
 };
 
 /** Vision call: tight bounding box of the product only (0..1000 grid). */
-export async function locateProduct(image: Blob, product: string, mode: "reference" | "result"): Promise<ProductLocation | null> {
+export async function locateProduct(
+  image: Blob, product: string, mode: "reference" | "result", meter?: CpuMeter,
+): Promise<ProductLocation | null> {
   try {
-    const { downscaleToJpeg } = await import("./image-downscale.ts");
-    const light = await downscaleToJpeg(image, VISION_WIDTH, 85);
+    const light = await visionImage(image, meter);
     if (light.size > 5_000_000) return null;
     const ask = mode === "reference"
       ? `This photo is a product reference for an image generator. Its saved caption (possibly inaccurate: trust the image) is: ${product}. ` +
@@ -168,24 +247,31 @@ async function photoroomCutout(blob: Blob): Promise<Blob | null> {
   }
 }
 
+async function cropJpeg(original: Blob, located: Box) {
+  const image = await decode(original);
+  const box = expandBox(located, 0.2);
+  const x = Math.floor(box.x * image.width), y = Math.floor(box.y * image.height);
+  const w = Math.max(1, Math.round(box.w * image.width)), h = Math.max(1, Math.round(box.h * image.height));
+  return await toJpeg(image.crop(x, y, Math.min(w, image.width - x), Math.min(h, image.height - y)));
+}
+
 export interface PrepareDeps {
   locate?: typeof locateProduct;
   cutout?: (blob: Blob) => Promise<Blob | null>;
 }
 
 /** Product crop + cutout. Always resolves: the original photo is the fallback. */
-export async function prepareProductReference(original: Blob, product: string, deps: PrepareDeps = {}): Promise<PreparedReference> {
+export async function prepareProductReference(
+  original: Blob, product: string, deps: PrepareDeps = {}, meter?: CpuMeter,
+): Promise<PreparedReference> {
   const t0 = Date.now();
-  const located = await (deps.locate ?? locateProduct)(original, product, "reference");
+  const located = await (deps.locate ?? locateProduct)(original, product, "reference", meter);
   let blob = original, cropped = false;
   // A product already filling the photo needs no crop.
   if (located?.box && located.box.w * located.box.h < 0.6) {
     try {
-      const image = await decode(original);
-      const box = expandBox(located.box, 0.2);
-      const x = Math.floor(box.x * image.width), y = Math.floor(box.y * image.height);
-      const w = Math.max(1, Math.round(box.w * image.width)), h = Math.max(1, Math.round(box.h * image.height));
-      blob = await toJpeg(image.crop(x, y, Math.min(w, image.width - x), Math.min(h, image.height - y)));
+      const box = located.box;
+      blob = await (meter ? meter.time(() => cropJpeg(original, box)) : cropJpeg(original, box));
       cropped = true;
     } catch (error) {
       console.warn("[product-fidelity] crop failed", JSON.stringify({ error: error instanceof Error ? error.message : "unknown" }));
@@ -194,6 +280,7 @@ export async function prepareProductReference(original: Blob, product: string, d
   const cut = await (deps.cutout ?? photoroomCutout)(blob);
   console.log("[product-fidelity] reference", JSON.stringify({
     located: !!located?.box, cropped, detoured: !!cut, described: !!located?.description, ms: Date.now() - t0,
+    ...(meter ? { cpu_ms: meter.spent } : {}),
   }));
   return {
     blob: cut ?? blob,
@@ -253,31 +340,47 @@ export interface RefineRequest {
   /** Generates the square patch from [crop, reference]; null = failed (keep the image). */
   generate: (prompt: string, inputs: Blob[]) => Promise<Blob | null>;
   locate?: typeof locateProduct;
+  /** Request CPU meter: the pass is skipped when its estimate no longer fits. */
+  meter?: CpuMeter;
 }
 
 export type RefineOutcome =
   | { ok: true; blob: Blob }
-  | { ok: false; reason: "not_found" | "already_large" | "generation_failed" | "composite_failed" };
+  | { ok: false; reason: "cpu_budget" | "not_found" | "already_large" | "generation_failed" | "composite_failed" };
 
 /** Zoomed second pass. Never throws: on any failure the caller keeps its image. */
 export async function refineProductRegion(req: RefineRequest): Promise<RefineOutcome> {
   const t0 = Date.now();
+  const meter = req.meter;
+  // Checked first: no vision call nor provider image for a pass that would
+  // push the request over the host's CPU limit (and lose the paid image).
+  if (meter && !meter.claim(REFINE_CPU_ESTIMATE_MS)) {
+    console.log("[product-fidelity] refine", JSON.stringify({ ok: false, reason: "cpu_budget", cpu_ms: meter.spent, ms: 0 }));
+    return { ok: false, reason: "cpu_budget" };
+  }
+  const cpu = <T>(work: () => Promise<T>) => meter ? meter.time(work) : work();
   const done = (outcome: RefineOutcome) => {
-    console.log("[product-fidelity] refine", JSON.stringify({ ok: outcome.ok, ...(outcome.ok ? {} : { reason: outcome.reason }), ms: Date.now() - t0 }));
+    meter?.release(REFINE_CPU_ESTIMATE_MS);
+    console.log("[product-fidelity] refine", JSON.stringify({
+      ok: outcome.ok, ...(outcome.ok ? {} : { reason: outcome.reason }), ms: Date.now() - t0, ...(meter ? { cpu_ms: meter.spent } : {}),
+    }));
     return outcome;
   };
-  const located = await (req.locate ?? locateProduct)(req.image, req.product, "result");
+  const located = await (req.locate ?? locateProduct)(req.image, req.product, "result", meter);
   if (!located?.box) return done({ ok: false, reason: "not_found" });
   // Product already dominant in the frame: a zoomed pass would add nothing.
   if (located.box.w > 0.45 && located.box.h > 0.45) return done({ ok: false, reason: "already_large" });
-  let base, square;
+  let base, square, crop: Blob;
   try {
-    base = await decode(req.image);
-    square = refineSquare(located.box, base.width, base.height);
+    const box = located.box;
+    [base, square, crop] = await cpu(async () => {
+      const image = await decode(req.image);
+      const sq = refineSquare(box, image.width, image.height);
+      return [image, sq, await toJpeg(image.clone().crop(sq.x, sq.y, sq.side, sq.side))] as const;
+    });
   } catch {
     return done({ ok: false, reason: "composite_failed" });
   }
-  const crop = await toJpeg(base.clone().crop(square.x, square.y, square.side, square.side));
   let patchBlob: Blob | null = null;
   try {
     patchBlob = await req.generate(refinePrompt(req.product, req.ref), [crop, req.reference]);
@@ -286,19 +389,22 @@ export async function refineProductRegion(req: RefineRequest): Promise<RefineOut
   }
   if (!patchBlob) return done({ ok: false, reason: "generation_failed" });
   try {
-    const patch = await decode(patchBlob);
-    patch.resize(square.side, square.side);
-    const feather = Math.max(4, Math.round(square.side * 0.1));
-    const bitmap = patch.bitmap;
-    for (let py = 0; py < square.side; py++) {
-      for (let px = 0; px < square.side; px++) {
-        const d = Math.min(px, py, square.side - 1 - px, square.side - 1 - py);
-        const a = featherAlpha(d, feather);
-        if (a < 1) bitmap[(py * square.side + px) * 4 + 3] = Math.round(255 * a);
+    const out = await cpu(async () => {
+      const patch = await decode(patchBlob!);
+      patch.resize(square.side, square.side);
+      const feather = Math.max(4, Math.round(square.side * 0.1));
+      const bitmap = patch.bitmap;
+      for (let py = 0; py < square.side; py++) {
+        for (let px = 0; px < square.side; px++) {
+          const d = Math.min(px, py, square.side - 1 - px, square.side - 1 - py);
+          const a = featherAlpha(d, feather);
+          if (a < 1) bitmap[(py * square.side + px) * 4 + 3] = Math.round(255 * a);
+        }
       }
-    }
-    base.composite(patch, square.x, square.y);
-    return done({ ok: true, blob: await toJpeg(base) });
+      base.composite(patch, square.x, square.y);
+      return await toJpeg(base);
+    });
+    return done({ ok: true, blob: out });
   } catch {
     return done({ ok: false, reason: "composite_failed" });
   }

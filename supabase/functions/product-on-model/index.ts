@@ -38,7 +38,8 @@ import {
   SYNC_IMAGE_MESSAGES,
 } from "../_shared/higgsfield-image-api.ts";
 import { buildPrompt } from "./prompt.ts";
-import { prepareProductReference, productFidelityLine, refineProductRegion } from "../_shared/product-fidelity.ts";
+import { CpuMeter, prepareProductReference, productFidelityLine, refineProductRegion } from "../_shared/product-fidelity.ts";
+import { downscaleToJpeg } from "../_shared/image-downscale.ts";
 
 // ── Body schema ──
 const BodySchema = z.object({
@@ -73,6 +74,12 @@ const OPENAI_TIMEOUT_MS = 200_000;
 // 150 s de l'hébergement (le front abandonne à 160 s).
 const REFINE_START_BEFORE_MS = 85_000;
 const REFINE_DEADLINE_MS = 145_000;
+// CPU de l'hébergement (18/10/2026) : la requête est tuée au-delà de ~2 s de
+// calcul (546 WORKER_RESOURCE_LIMIT, image déjà payée chez le fournisseur).
+// Le travail d'image (recadrage, réduction, passe zoomée) reste sous 1,4 s ;
+// le reste (démarrage, JSON, base64) tient dans la marge. La passe zoomée
+// saute quand elle ne rentre plus : l'image de la 1re passe est rendue.
+const IMAGE_CPU_BUDGET_MS = 1_400;
 
 serve(async (req) => {
   const t0 = Date.now();
@@ -157,7 +164,8 @@ serve(async (req) => {
     // aucun bokeh d'origine à hériter. Dégrade proprement : sans vision ni
     // Photoroom, on continue avec la photo brute.
     const productName = [photo.name, photo.description].filter(Boolean).join(" — ").slice(0, 300) || "the product";
-    const prepared = await prepareProductReference(blob, productName);
+    const meter = new CpuMeter(IMAGE_CPU_BUDGET_MS);
+    const prepared = await prepareProductReference(blob, productName, {}, meter);
     const sourceBlob: Blob = prepared.blob;
     const detoured = prepared.detoured;
 
@@ -215,9 +223,12 @@ serve(async (req) => {
           inputs,
           // Le front abandonne à 160 s (200 s pour les variantes).
           deadline: t0 + (parsed.variants ? 190_000 : 150_000),
+          // Réduite ici, sous le compteur de CPU de la requête.
+          downscale: false,
         })
       ));
-      let blobs = results.flatMap((r) => r.ok ? [r.blob] : []);
+      let blobs: Blob[] = [];
+      for (const r of results) if (r.ok) blobs.push(await meter.time(() => downscaleToJpeg(r.blob)));
       // 2e passe zoomée sur le produit (03/10/2026) : recadrage autour du produit
       // dans l'image obtenue, régénération de ce carré seul avec la référence,
       // recollage en fondu. Coût fournisseur en plus, aucun crédit en plus ; en
@@ -226,12 +237,13 @@ serve(async (req) => {
       if (blobs.length && Date.now() - t0 < REFINE_START_BEFORE_MS) {
         blobs = await Promise.all(blobs.map(async (image) => {
           const outcome = await refineProductRegion({
-            image, reference: sourceBlob, product: productName, ref: prepared,
+            image, reference: sourceBlob, product: productName, ref: prepared, meter,
             generate: async (refinePrompt, refineInputs) => {
               const r = await generateHiggsfieldImageSync(db, {
                 source: "product-on-model", userId, workspaceId: bodyWorkspaceId,
                 model: MARKETING_FIDELITY_MODEL, prompt: refinePrompt, format: "square",
-                inputs: refineInputs, resolution: "1k", deadline: t0 + REFINE_DEADLINE_MS,
+                // Décodé tel quel par le recollage : pas de réduction intermédiaire.
+                inputs: refineInputs, resolution: "1k", deadline: t0 + REFINE_DEADLINE_MS, downscale: false,
               });
               return r.ok ? r.blob : null;
             },
@@ -244,10 +256,13 @@ serve(async (req) => {
         const reason = results.find((r) => !r.ok)?.reason ?? "failed";
         console.error(JSON.stringify({
           event: "product_on_model_failed", reason: `higgsfield_${reason}`,
-          user_id: userId, n_requested: n, detoured, total_ms: Date.now() - t0,
+          user_id: userId, n_requested: n, detoured, cpu_ms: meter.spent, total_ms: Date.now() - t0,
         }));
         return jsonResponse({ error: SYNC_IMAGE_MESSAGES[reason] }, 502);
       }
+      // Réponse prête AVANT le décompte : rien n'est compté si la requête
+      // tombe avant de pouvoir rendre les images.
+      const images = await Promise.all(blobs.map(blobToDataUrl));
       // 1 crédit PAR image générée (après succès uniquement)
       for (let i = 0; i < blobs.length; i++) {
         await logUsage(
@@ -278,12 +293,13 @@ serve(async (req) => {
         detoured,
         reference_cropped: prepared.cropped,
         refined,
+        cpu_ms: meter.spent,
         total_ms: Date.now() - t0,
       }));
       return jsonResponse(
         {
           success: true,
-          images: await Promise.all(blobs.map(blobToDataUrl)),
+          images,
           remaining: quota?.remaining,
           remaining_total: quota?.remaining_total,
         },

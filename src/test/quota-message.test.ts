@@ -66,6 +66,9 @@ describe("friendlyError / readableError", () => {
     expect(readableError(new Error("Edge Function returned a non-2xx status code"), "x")).toContain("momentanément indisponible");
     expect(readableError(new Error("Cannot read properties of undefined (reading 'slides')"), "x")).toContain("Réessaie");
     expect(readableError(new Error("unknown_subscription_plan"), "x")).toContain("Réessaie");
+    // 546 de l'hébergement, tel que remonté par invokeWithTimeout (mise en scène, 17/10/2026).
+    expect(readableError({ message: "Function failed due to not having enough compute resources (please check logs)" }, "x"))
+      .toBe("Le serveur a manqué de puissance pour terminer. Réessaie dans un instant ; si ça recommence, contacte-nous.");
   });
   it("lit le JSON brut renvoyé par certaines fonctions", () => {
     expect(readableError('{"error":"limit_reached","message":"Tu as utilisé tes 5 images ce mois."}', "x")).toBe("Tu as utilisé tes 5 images ce mois.");
