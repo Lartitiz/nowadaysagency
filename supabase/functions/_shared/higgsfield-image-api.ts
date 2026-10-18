@@ -154,6 +154,8 @@ export interface SyncImageRequest {
   inputs: Blob[];
   /** Output size; 2k by default (a zoomed product patch only needs 1k). */
   resolution?: "1k" | "2k";
+  /** false = provider image returned as is; the caller shrinks it under its own CPU meter. */
+  downscale?: boolean;
   /** Absolute deadline (ms epoch) for the whole generation, polling included. */
   deadline: number;
   /** Status polling interval (tests only). */
@@ -267,7 +269,7 @@ export async function generateHiggsfieldImageSync(db: DB, req: SyncImageRequest)
         throw new Error("studio_provider_output");
       }
       await setSpendStatus(db, spendId, "completed");
-      return { ok: true, blob: await downscaleToJpeg(blob), requestId };
+      return { ok: true, blob: req.downscale === false ? blob : await downscaleToJpeg(blob), requestId };
     }
     await setSpendStatus(db, spendId, "uncertain");
     log({ error: "timeout" });

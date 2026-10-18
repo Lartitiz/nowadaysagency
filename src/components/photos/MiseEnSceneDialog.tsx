@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { readableError } from "@/lib/error-messages";
 import { derivedPhotoDescription, derivedPhotoName, rootPhotoName } from "@/lib/photo-naming";
 import { redescribePhoto } from "@/lib/photo-redescribe";
 import { useAuth } from "@/contexts/AuthContext";
@@ -209,7 +210,8 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     }
     if (error || !Array.isArray(data?.images) || data.images.length === 0) {
       toast.error("Mise en scène impossible", {
-        description: error?.message || data?.error || "Réessaie dans quelques instants.",
+        // Message du serveur en français tel quel, message technique traduit.
+        description: readableError(error ?? data?.error, "Réessaie dans quelques instants."),
       });
       return null;
     }
