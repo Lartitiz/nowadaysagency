@@ -78,6 +78,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 | `src/lib/content-structures.ts` | Angles et structures par format (`CONTENT_STRUCTURES`, `CONTENT_TYPE_SPECS`, `getAnglesForType`), plus la correspondance format → fonction serveur. |
 | `src/lib/idea-brief-request.ts` | Mise en forme du brief envoyé au serveur. |
 | `src/hooks/use-flow-persistence.ts` | Brouillon local du parcours (sessionStorage + copie de secours localStorage par utilisatrice et par onglet), conflit dans `DraftConflictDialog.tsx`. |
+| `src/features/creer/idea-pick.ts` + `src/components/creer/CreerIdeaPicks.tsx`, `src/lib/ideas-to-develop.ts`, `src/lib/idea-create-link.ts` | Idées de Mes idées encore sans contenu (diagnostic d'abord) montrées sans repli sur l'écran Idée (chantier S, 18/10/2026). Un clic prend le même chemin que « Créer ce contenu » de Mes idées (`ideaCreateLink`, aussi utilisé par « Ta prochaine idée » de l'accueil) : titre, angle, format, canal, fiche reliée ; droit aux questions sauf carrousel / post sans angle (écran Format). `useIdeaPick` passe par `handleIdeaNext` puis appelle `handleFormatNext` au rendu suivant. Test en rendu réel : `src/test/idees-diagnostic-premier-plan.test.tsx`. |
 | `src/lib/first-content-url.ts`, `first-content-destination.ts` | Premier contenu de l'onboarding (toujours un carrousel, `auto=1`). |
 
 ### Sauvegarde
