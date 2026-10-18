@@ -25,3 +25,20 @@ export function useMarkCarouselEditorShown() {
     return () => { shown -= 1; notify(); };
   }, []);
 }
+
+// Chantier X (18/10/2026) : « Modifier le texte » du menu « Plus d'options »
+// ouvre la liste du texte de toutes les slides dans l'éditeur affiché.
+const textListOpeners = new Set<() => void>();
+
+/** Demande à l'éditeur affiché d'ouvrir « Modifier le texte ». */
+export function requestCarouselTextList() {
+  textListOpeners.forEach((open) => open());
+}
+
+/** À appeler par la fenêtre « Modifier le texte » de l'éditeur. */
+export function useCarouselTextListRequest(open: () => void) {
+  useEffect(() => {
+    textListOpeners.add(open);
+    return () => { textListOpeners.delete(open); };
+  }, [open]);
+}

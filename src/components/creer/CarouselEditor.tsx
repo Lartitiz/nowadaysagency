@@ -67,6 +67,7 @@ import { EditorHeader } from "@/components/creer/CarouselEditorParts/EditorHeade
 import { useEditorKeys } from "@/components/creer/CarouselEditorParts/editor-keys";
 import { QualityPanel } from "@/components/creer/CarouselEditorParts/QualityPanel";
 import { SlideStrip } from "@/components/creer/CarouselEditorParts/SlideStrip";
+import { TextListDialog } from "@/components/creer/CarouselEditorParts/TextListDialog";
 import { AllSlidesPanel, SavedStylesPanel } from "@/components/creer/CarouselEditorParts/AllSlidesPanel";
 import { SimplePanel } from "@/components/creer/CarouselEditorParts/SimplePanel";
 import { CaptionField } from "@/components/creer/CarouselEditorParts/CaptionField";
@@ -745,27 +746,10 @@ export default function CarouselEditor({
       <div ref={grid} className={EDITOR_GRID} style={roomStyle(fit)}>
       {/* Téléphone : la rangée des vignettes sous la slide laisse sa place aux réglages dès qu'un élément est choisi. */}
       <div className={`order-2 min-w-0 md:sticky md:top-28 md:order-none ${mode === "simple" && element && element.role !== "background" ? "hidden md:block" : ""}`}>
-      <SlideStrip
-        simple={mode === "simple"}
-        active={active}
-        add={add}
-        changeSlide={changeSlide}
-        commit={commit}
-        current={current}
-        document={document}
-        dragSlide={dragSlide}
-        dropAt={dropAt}
-        justDragged={justDragged}
-        move={move}
-        reorder={reorder}
-        setActive={setActive}
-        setDragSlide={setDragSlide}
-        setDropAt={setDropAt}
-        setSelected={setSelected}
-        slide={slide}
-        thumbDrag={thumbDrag}
-        thumbIndexAt={thumbIndexAt}
-      />
+      <SlideStrip simple={mode === "simple"} active={active} add={add} changeSlide={changeSlide} commit={commit} current={current} document={document}
+        dragSlide={dragSlide} dropAt={dropAt} justDragged={justDragged} move={move} reorder={reorder} setActive={setActive} setDragSlide={setDragSlide}
+        setDropAt={setDropAt} setSelected={setSelected} slide={slide} thumbDrag={thumbDrag} thumbIndexAt={thumbIndexAt} />
+      <TextListDialog document={document} commit={commit} getDocument={() => current.current} />
       </div>
         {/* Téléphone : l'aperçu reste collé sous l'en-tête pendant qu'on fait défiler les réglages. Sa taille suit la
             place réelle au-dessus de la barre « Publier » (EditorLayout.tsx). */}
