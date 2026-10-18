@@ -115,6 +115,7 @@ import { loadFlowState, saveFlowState as persistFlowState, clearFlowState, saveP
 import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 import LinkedInCarouselInvite from "@/components/creer/LinkedInCarouselInvite";
 import { useCreerKeepContent, KeepContentDialog } from "@/hooks/use-creer-keep-content";
+import { useCreerSettingsPersistence } from "@/hooks/use-creer-settings-persistence";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 
 // Phase 4: streaming SSE is now encapsulated inside useContentGenerator
@@ -581,6 +582,9 @@ function CreerWorkspace() {
   useAutoPersistFlow({
     conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, editBaseline, result, regenerationBackup, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, aurianaDemoActive, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate, saveFlowState,
   });
+  useCreerSettingsPersistence({ ps, conflictPending, saveFlowState, // réglages de l'utilisatrice (chantier J)
+    values: { photoMode, pinterestData, qualityMax, coverIllustration, explicitTextFirstMix, photoDumpEnabled, existingCalendarContent, selectedReelHook, lastConfirmedStructure, lastScenarioOrigin, lastNarrativeThread },
+    setters: { photoMode: setPhotoMode, pinterestData: setPinterestData, qualityMax: setQualityMax, coverIllustration: setCoverIllustration, explicitTextFirstMix: setExplicitTextFirstMix, photoDumpEnabled: setPhotoDumpEnabled, existingCalendarContent: setExistingCalendarContent, selectedReelHook: setSelectedReelHook, lastConfirmedStructure: setLastConfirmedStructure, lastScenarioOrigin: setLastScenarioOrigin, lastNarrativeThread: setLastNarrativeThread } });
 
   // Filets anti-perte au rechargement en pleine génération (texte reçu,
   // génération en cours, purge) : use-generation-reload-guard.ts.
