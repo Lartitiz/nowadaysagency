@@ -202,3 +202,7 @@ La CI de la PR reste la référence.
 ## Notes techniques (sessions Claude Code dans le cloud)
 - La CI principale (`ci.yml`) ne tourne que sur les PR qui visent `main` : une PR empilée sur une autre branche n'est pas vérifiée. Changer la base d'une PR ne relance pas la CI ; il faut un nouveau commit.
 - Installer les dépendances sans `bun` (registre Lovable refusé) : voir la section « Méthode » de `docs/robustesse/prompt-lot-e3.md`.
+
+## Journal de build
+
+- 2026-10-18 : node_modules réinstallé (`deno install` racine) ; `deno check supabase/functions/` passe 0 erreur ; build Vite OK.
