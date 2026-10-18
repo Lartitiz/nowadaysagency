@@ -120,7 +120,7 @@ it('chooses a Studio clip for one Reel passage and keeps its editable associatio
   cutaways:[null],voiceClips:[null]};
  const onProjectChange=vi.fn();
  render(<ReelMontage sections={sections} workspaceId='space' initialProject={project} onProjectChange={onProjectChange}/>);
- fireEvent.click(screen.getByRole('button',{name:'Choisir un clip du Studio'}));
+ fireEvent.click(screen.getByRole('button',{name:'Choisir un de mes clips'}));
  fireEvent.click(await screen.findByRole('button',{name:'Tester le clip Studio'}));
  expect(await screen.findByText(/Prévisualisation pour ce passage/)).toBeInTheDocument();
  fireEvent.click(screen.getByRole('button',{name:'Insérer dans ce passage'}));

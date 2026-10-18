@@ -33,7 +33,9 @@ interface MontageResultProps {
 export function MontageResult({ spoken, ready, phase, archiving, needsReview, handleAssemble, setAssociationTexts, sectionTexts, setNeedsReview, montageMode, clips, tick, errorMsg, mp4Url, downloading, handleDownload, downloadFailed, archived, archiveRetryAvailable, handleArchiveRetry }: MontageResultProps) {
   return (
     <>
-  <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+  {/* Toujours en vue : collée en bas de l'écran, au-dessus du menu du téléphone
+      et de la barre d'actions du résultat (hauteur publiée par ResultActions). */}
+  <div data-testid="montage-assemble-bar" className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom)+var(--result-actions-h,0px))] md:bottom-[var(--result-actions-h,0px)] z-20 -mx-4 flex items-center justify-between gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur">
     <span className="text-2xs text-muted-foreground">
       {ready} clip{ready > 1 ? "s" : ""} sur {spoken.length} prêt{ready > 1 ? "s" : ""}
     </span>
@@ -56,7 +58,7 @@ export function MontageResult({ spoken, ready, phase, archiving, needsReview, ha
     <Button type="button" variant="outline" size="sm" onClick={() => { setAssociationTexts(sectionTexts); setNeedsReview(false); }}>J’ai vérifié les passages</Button>
   </div>}
   {montageMode === "filme" && clips.some(clip => clip?.source === "studio") && <p role="alert" className="text-xs text-destructive">
-    Un clip du Studio est muet. Remplace-le par ta prise face caméra, puis ajoute-le comme plan visuel.
+    Un clip du Studio est muet. Remplace-le par ta vidéo filmée face à la caméra, puis ajoute-le comme image en plus.
   </p>}
 
   {phase === "rendering" && (

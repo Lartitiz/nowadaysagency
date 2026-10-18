@@ -90,6 +90,6 @@ export function listVideoLibrary(workspaceId: string, page: number, search: stri
   return videoRequest<{ jobs: StudioVideoJob[]; total: number; enabled?: boolean; access_reason?: "off" | "plan_required" | null }>({ action: "library", workspace_id: workspaceId, page, search, sort });
 }
 export function listLegacyVideoJobs(workspaceId: string, page = 0) {
-  return videoRequest<{ jobs: StudioVideoJob[]; total: number; enabled: boolean }>(
+  return videoRequest<{ jobs: StudioVideoJob[]; total: number; enabled: boolean; access_reason?: "off" | "plan_required" | null }>(
     { action: "legacy_jobs", workspace_id: workspaceId, page });
 }

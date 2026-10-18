@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import { Link } from "react-router-dom";
+import { useStickyHeightVar } from "@/hooks/use-sticky-height-var";
 import { ArrowUpRight, Check, ChevronDown, Copy, Download, Lightbulb, Loader2, MoreHorizontal, Palette, RefreshCw, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -308,6 +310,9 @@ export default function ResultActions(p: ResultActionsProps) {
     </DropdownMenu>
   );
 
+  // Sa hauteur sert aux barres collées posées au-dessus (montage du reel).
+  const barRef = useRef<HTMLDivElement>(null);
+  useStickyHeightVar(barRef, "--result-actions-h");
   const first = getPrimary ? getButton : publishButton;
   const second = getPrimary ? publishButton : getButton;
 
@@ -317,6 +322,7 @@ export default function ResultActions(p: ResultActionsProps) {
           défiler, même sous un long carrousel. Au-dessus de la barre du bas
           sur téléphone (même réglage que l'écran Format, chantier B). */}
       <div
+        ref={barRef}
         data-testid="result-actions"
         className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] md:bottom-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 pb-3 bg-background/95 backdrop-blur-sm border-t border-border/60"
       >

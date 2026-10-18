@@ -1,4 +1,4 @@
-// Choix de la voix en mode « Je ne me montre pas » (« Ma voix off » / « Sans
+// Choix de la voix en mode « Je ne me montre pas » (« Ma voix » / « Sans
 // voix »), mention honnête sur le son des vidéos et téléprompteur. Sorti de
 // ReelMontage.tsx à l'identique (fiche 16 de docs/robustesse/gros-fichiers.md, lot 2).
 import { Mic, VolumeX } from "lucide-react";
@@ -26,7 +26,7 @@ export function MontageVoiceChoice({ voiceMode, setVoiceMode, spoken, voiceClips
         }`}
       >
         <span className="flex items-center gap-1.5 text-xs font-medium">
-          <Mic className="h-3.5 w-3.5" /> Ma voix off
+          <Mic className="h-3.5 w-3.5" /> Ma voix
         </span>
         <span className="block text-2xs text-muted-foreground">J'enregistre en lisant le script</span>
       </button>
@@ -50,9 +50,8 @@ export function MontageVoiceChoice({ voiceMode, setVoiceMode, spoken, voiceClips
         de laisser croire à un micro cassé ; le mode "Je me filme" existe
         pour ce cas. */}
     <p className="text-2xs text-muted-foreground">
-      Le son de tes vidéos n'est pas conservé dans ce mode. Choisis « Ma voix off » pour
-      raconter le reel, ou « Sans voix » pour un montage visuel avec texte à l'écran. Pour une
-      prise face cam où tu parles, choisis « Je me filme ».
+      Ici, le son de tes vidéos est coupé. Pour une vidéo où tu parles face à la caméra,
+      choisis « Je me filme ».
     </p>
 
     {voiceMode === "recorded" && (

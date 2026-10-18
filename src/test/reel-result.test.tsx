@@ -115,7 +115,7 @@ describe("ReelResult — parcours en 4 étapes", () => {
     render(<ReelResult result={captionResult} workspaceId="space" />);
     expect(screen.getByRole("tab", { name: "Montage" })).toHaveAttribute("aria-selected", "true");
     fireEvent.click(screen.getByRole("button", { name: /Je ne me montre pas/ }));
-    expect(screen.getByText("Préparer une image dans Studio photo")).toBeInTheDocument();
+    expect(screen.getByText("Créer d'abord une image")).toBeInTheDocument();
   });
 
   it("saute l'étape tournage quand plan_tournage est vide (3 pastilles, pas 4)", () => {
@@ -253,7 +253,7 @@ describe("ReelResult — montage vidéo : monté seulement à son étape", () =>
     expect(suggestStockKeywords).not.toHaveBeenCalled();
     // Mode "Je ne me montre pas" choisi : la mention honnête apparaît…
     fireEvent.click(screen.getByText("Je ne me montre pas"));
-    expect(await screen.findByText(/son de tes vidéos n'est pas conservé dans ce mode/)).toBeTruthy();
+    expect(await screen.findByText(/le son de tes vidéos est coupé/)).toBeTruthy();
     // …et la suggestion de clips démarre.
     await waitFor(() => expect(suggestStockKeywords).toHaveBeenCalledTimes(1));
   });
@@ -277,7 +277,7 @@ describe("ReelResult — montage vidéo : monté seulement à son étape", () =>
     fireEvent.click(screen.getByText("Je ne me montre pas"));
     expect(await screen.findByText("Sans voix")).toBeTruthy();
     fireEvent.click(screen.getByText("Sans voix"));
-    expect(screen.getByText(/sans piste voix : le texte reste visible à l'écran/)).toBeTruthy();
+    expect(screen.getByText(/sans voix : le texte reste visible à l'écran/)).toBeTruthy();
     expect(screen.queryByText("Voix générée")).toBeNull();
   });
 });

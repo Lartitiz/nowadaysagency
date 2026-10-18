@@ -173,14 +173,17 @@ describe("ReelMontage — mes vidéos", () => {
     m.upload.mockImplementation(() => new Promise(r => { finish = r; }));
     render(<ReelMontage sections={SECTIONS} initialProject={project({ montageMode: "filme" })} />);
     await settle();
-    fireEvent.click(screen.getAllByRole("button", { name: "Ma vidéo" })[1]);
+    // Un passage par page : on passe au 2e.
+    fireEvent.click(screen.getByRole("button", { name: "Passage suivant" }));
+    expect(screen.getByText("Passage 2 sur 2")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Mettre ma vidéo" }));
     fireEvent.change(fileInput(), { target: { files: [fichier] } });
-    await waitFor(() => { for (const b of screen.getAllByRole("button", { name: "Ma vidéo" })) expect(b).toBeDisabled(); });
+    await waitFor(() => { for (const b of screen.getAllByRole("button", { name: "Mettre ma vidéo" })) expect(b).toBeDisabled(); });
     await act(async () => finish({ url: "https://clips.test/nouvelle.mp4", name: "Nouvelle prise" }));
     expect(await screen.findByText("Ma vidéo · Nouvelle prise")).toBeInTheDocument();
     expect(m.toast.success).toHaveBeenCalledWith("Ta vidéo est prête pour cette section.");
     expect(fileInput().value).toBe("");
-    for (const b of screen.getAllByRole("button", { name: "Ma vidéo" })) expect(b).toBeEnabled();
+    for (const b of screen.getAllByRole("button", { name: "Mettre ma vidéo" })) expect(b).toBeEnabled();
     // La vidéo est rangée sur la 2e phrase : « 1 clip sur 2 prêt ».
     expect(screen.getByText("1 clip sur 2 prêt")).toBeInTheDocument();
   });
@@ -225,7 +228,7 @@ describe("ReelMontage — fenêtre de lecture", () => {
 
 describe("ReelMontage — plans du Studio", () => {
   const pickStudio = async (index = 0) => {
-    fireEvent.click(screen.getAllByRole("button", { name: "Choisir un clip du Studio" })[index]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Choisir un de mes clips" })[index]);
     fireEvent.click(await screen.findByRole("button", { name: "Tester le clip Studio" }));
     await screen.findByText(/Prévisualisation pour ce passage/);
   };
@@ -247,7 +250,7 @@ describe("ReelMontage — plans du Studio", () => {
     await settle();
     await pickStudio();
     expect(screen.getByRole("button", { name: "Insérer dans ce passage" })).toBeDisabled();
-    expect(screen.getByText(/Choisis d’abord ta prise face caméra/)).toBeInTheDocument();
+    expect(screen.getByText(/Choisis d’abord ta vidéo filmée face à la caméra/)).toBeInTheDocument();
   });
 
   it("plan inséré : déplacer son début puis le retirer met à jour le projet", async () => {
@@ -268,7 +271,8 @@ describe("ReelMontage — boîte de dialogue Studio", () => {
   it("« Choisir » : lecture seule, sans consigne ; brouillon propre au passage", async () => {
     render(<ReelMontage sections={SECTIONS} subject="Savon" workspaceId="space" initialProject={project({ montageMode: "filme" })} />);
     await settle();
-    fireEvent.click(screen.getAllByRole("button", { name: "Choisir un clip du Studio" })[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Passage 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Choisir un de mes clips" }));
     await screen.findByRole("button", { name: "Tester le clip Studio" });
     expect(m.panelProps.at(-1)).toMatchObject({
       workspaceId: "space", writable: false, showComposer: false, initialPrompt: "",
@@ -282,7 +286,7 @@ describe("ReelMontage — boîte de dialogue Studio", () => {
     render(<ReelMontage sections={sections} subject="Savon" workspaceId="space"
       initialProject={project({ montageMode: "filme", sectionTexts: [long, TEXTS[1]] })} />);
     await settle();
-    fireEvent.click(screen.getAllByRole("button", { name: "Créer un clip dans le Studio" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Créer un clip" }));
     await screen.findByRole("button", { name: "Tester le clip Studio" });
     const props = m.panelProps.at(-1)!;
     expect(props).toMatchObject({ writable: true, showComposer: true });
@@ -319,16 +323,16 @@ describe("ReelMontage — recherche manuelle dans la banque libre", () => {
     await settle();
     await waitFor(() => expect(m.suggest).toHaveBeenCalledOnce());
     m.search.mockResolvedValue([video]);
-    const champs = screen.getAllByPlaceholderText("mots-clés du plan (ex: mains savon atelier)");
-    fireEvent.change(champs[0], { target: { value: "savon" } });
-    fireEvent.keyDown(champs[0], { key: "Enter" });
+    const champ = () => screen.getByPlaceholderText("ce qu'on voit (ex. : mains savon atelier)");
+    fireEvent.change(champ(), { target: { value: "savon" } });
+    fireEvent.keyDown(champ(), { key: "Enter" });
     await waitFor(() => expect(m.search).toHaveBeenCalledWith("savon", { perPage: 6, orientation: "portrait", locale: "fr-FR" }));
     await screen.findAllByRole("button", { name: "Choisir ce clip" });
     expect(screen.getByText("Ma vidéo · Prise 1")).toBeInTheDocument();
     // Loupe de la 2e phrase : le 1er résultat devient le clip (pas de vidéo à moi).
-    fireEvent.change(champs[1], { target: { value: "atelier" } });
-    const loupes = champs.map(c => c.parentElement!.querySelector("button")!);
-    fireEvent.click(loupes[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Passage suivant" }));
+    fireEvent.change(champ(), { target: { value: "atelier" } });
+    fireEvent.click(screen.getByRole("button", { name: "Chercher des clips" }));
     await waitFor(() => expect(m.search).toHaveBeenLastCalledWith("atelier", expect.any(Object)));
     await screen.findByRole("button", { name: "Clip sélectionné" });
     expect(screen.getByText("2 clips sur 2 prêts")).toBeInTheDocument();
@@ -338,7 +342,7 @@ describe("ReelMontage — recherche manuelle dans la banque libre", () => {
     render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "silent" })} />);
     await settle();
     m.search.mockRejectedValue(new Error("Pexels indisponible"));
-    const champ = screen.getAllByPlaceholderText("mots-clés du plan (ex: mains savon atelier)")[0];
+    const champ = screen.getAllByPlaceholderText("ce qu'on voit (ex. : mains savon atelier)")[0];
     fireEvent.change(champ, { target: { value: "savon" } });
     fireEvent.keyDown(champ, { key: "Enter" });
     await waitFor(() => expect(m.toast.error).toHaveBeenCalled());
@@ -354,7 +358,7 @@ describe("ReelMontage — projet sauvegardé", () => {
       initialProject={project({ voiceMode: "silent", clips: [studioClip, mine(2)], cutaways: [null, cutaway] })} />);
     await settle();
     expect(onProjectChange).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: /Ma voix off/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Ma voix/ }));
     await waitFor(() => expect(onProjectChange).toHaveBeenCalledOnce());
     expect(onProjectChange.mock.calls[0][0]).toEqual({
       version: 1, sectionTexts: TEXTS, montageMode: "cache", voiceMode: "recorded",
@@ -385,5 +389,24 @@ describe("ReelMontage — projet sauvegardé", () => {
     await settle();
     fireEvent.click(screen.getByRole("button", { name: "Poser les voix de test" }));
     await waitFor(() => expect(onProjectChange).toHaveBeenLastCalledWith(expect.objectContaining({ voiceClips: [voice(1, 2), null] })));
+  });
+});
+
+describe("ReelMontage — un passage par page", () => {
+  it("affiche un seul passage, passe au suivant, et garde « Assembler mon reel » à l'écran", async () => {
+    render(<ReelMontage sections={SECTIONS} initialProject={project({ voiceMode: "silent", clips: [stock(1), null] })} />);
+    await settle();
+    expect(screen.getByText("Passage 1 sur 2")).toBeInTheDocument();
+    expect(screen.getByText("Phrase un")).toBeInTheDocument();
+    expect(screen.queryByText("Phrase deux")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Passage précédent" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Passage 1, prêt" })).toHaveAttribute("aria-current", "step");
+    fireEvent.click(screen.getByRole("button", { name: "Passage suivant" }));
+    expect(screen.getByText("Phrase deux")).toBeInTheDocument();
+    expect(screen.queryByText("Phrase un")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Passage suivant" })).toBeNull();
+    expect(screen.getByTestId("montage-assemble-bar").className).toContain("sticky");
+    expect(screen.getByRole("button", { name: /Assembler mon reel/ })).toBeInTheDocument();
+    expect(screen.queryByText(/bêta/i)).toBeNull();
   });
 });
