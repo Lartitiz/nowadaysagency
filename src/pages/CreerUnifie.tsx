@@ -34,6 +34,7 @@ import { useSocialConnections } from "@/hooks/use-social-connections";
 import LowCreditsBanner from "@/components/creer/LowCreditsBanner";
 import PhotoMissingDialog from "@/components/creer/PhotoMissingDialog";
 import ConfirmResetDialog from "@/components/creer/ConfirmResetDialog";
+import RedoVisualsDialog, { useRedoVisualsConfirm } from "@/components/creer/RedoVisualsDialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Loader2, Palette, Sparkles, Undo2, Redo2 } from "lucide-react";
@@ -53,6 +54,7 @@ import { applyMixRenderMemory, mergeEditorRaw, withRaw } from "@/lib/mix-layout-
 import { withVisualCtaLabels } from "@/lib/carousel-cta-label";
 import { useDoGenerate } from "@/hooks/use-do-generate";
 import { useRegenerationBackup } from "@/hooks/use-regeneration-backup";
+import { useRestoreVisualsFromIdea } from "@/hooks/use-restore-visuals-from-idea";
 import CreerStepIdea from "@/components/creer/CreerStepIdea";
 // Code-splitting : les étapes après l'écran « idée » sont chargées à la demande
 // (chunk /creer initial allégé → premier écran plus rapide).
@@ -495,21 +497,16 @@ function CreerWorkspace() {
   // Filet « Régénérer » / « Changer d'angle » : la version d'avant (retouches
   // comprises) revient si la nouvelle échoue, et reste à un clic sinon.
   const regenerationBackup = useRegenerationBackup({
-    result,
-    step,
-    busy: generating || streaming || structureLoading || photoDumpResolving || hooksLoading,
-    restore: (snapshot) => {
-      setResult(snapshot.result);
-      setVisualSlides(snapshot.visualSlides);
-      setEditContent(snapshot.editContent);
-      setStep("result");
-    },
+    result, visualSlides, step,
+    busy: generating || streaming || structureLoading || photoDumpResolving || hooksLoading || visualLoading,
+    restore: (snapshot) => { setResult(snapshot.result); setVisualSlides(snapshot.visualSlides); setEditContent(snapshot.editContent); setStep("result"); },
   });
   const regenerationSnapshot = () => ({ result, visualSlides, editContent });
+  const cloudVisuals = useRestoreVisualsFromIdea({ ps, setResult, setVisualSlides }); // copie locale trop lourde : visuels relus dans Mes idées
   const currentWarnings = useMemo(() => splitCarouselWarnings(invalidateProgressionReceipt(result?.raw || {}), carouselSubMode), [result?.raw, carouselSubMode]);
 
   const [studioSlideId, setStudioSlideId] = useState<string | null>(null);
-  const carouselCloudEnabled = workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive && step === "result" && selectedFormat === "carousel" && !!(result?.raw?.carousel_editor_version || result?.raw?.carousel_studio_version);
+  const carouselCloudEnabled = workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive && step === "result" && selectedFormat === "carousel" && !cloudVisuals.restoring && !!(result?.raw?.carousel_editor_version || result?.raw?.carousel_studio_version);
   const openCarouselStudio = (id: string) => {
     if (id.startsWith("index:")) {
       const index = Number(id.slice(6));
@@ -770,8 +767,7 @@ function CreerWorkspace() {
   const handleRegenerate = async () => {
     // « Mes slides » : le texte vient de l'utilisatrice — « Régénérer » ne doit
     // JAMAIS réécrire. On refait uniquement le design (nouveaux visuels).
-    if (carouselSubMode === "user_slides") {
-      setVisualSlides([]);
+    if (carouselSubMode === "user_slides") { // visuels gardés jusqu'à l'accord (chantier U)
       await handleGenerateVisuals();
       return;
     }
@@ -1241,8 +1237,9 @@ function CreerWorkspace() {
   // enable the normal automatic continuation; the manual button stays usable.
   const automaticVisualsAllowed = useRef(!ps?.result && !ps?.pendingStream && !locState.resumeIdea?.raw);
   if (generating || streaming || userSlidesBuilding) automaticVisualsAllowed.current = true;
+  const redoVisuals = useRedoVisualsConfirm({ beginBackup: () => regenerationBackup.begin(regenerationSnapshot()), copySource: () => ({ enabled: carouselCloudEnabled, userId: session?.user?.id, workspaceId, title: ideaText, channel: isLinkedInCarousel ? "linkedin" : "instagram", raw: result?.raw && { ...result.raw, visual_html: visualSlides } }) });
   const { handleGenerateVisuals } = useGenerateVisuals({
-    result, creationId,
+    result, creationId, confirmRedo: redoVisuals.ask,
     allowAutomatic: automaticVisualsAllowed.current,
     contentGenerating: generating || streaming || userSlidesBuilding || structureLoading || photoDumpResolving,
     visualLoading,
@@ -1828,7 +1825,7 @@ function CreerWorkspace() {
                 reelWorkspaceId={workspaceId}
                 onPublishOrSchedule={effectiveHandleAddToCalendar}
                 publishOrScheduleLabel={fromCalendar ? "Sauvegarder dans le calendrier" : undefined}
-                onGenerateVisuals={selectedFormat === "carousel" ? handleGenerateVisuals : undefined}
+                onGenerateVisuals={selectedFormat === "carousel" && !cloudVisuals.restoring ? handleGenerateVisuals : undefined}
                 visualLoading={visualLoading}
                 visualsAutoError={visualsAutoError}
                 visualChunkProgress={visualChunkProgress}
@@ -2083,6 +2080,7 @@ function CreerWorkspace() {
           setStep("format");
         }}
       />
+      <RedoVisualsDialog {...redoVisuals.dialog} />
       <ConfirmResetDialog
         open={confirmResetOpen}
         onOpenChange={setConfirmResetOpen}

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import type { UserSlidesInputDraft } from "@/components/creer/UserSlidesStep";
+import { clearCloudMarker, slimFlowState } from "@/features/creer/flow-state-slim";
 
 const STORAGE_KEY = "creer_flow_state";
 const PHOTOS_KEY = "creer_flow_photos";
@@ -28,6 +29,8 @@ interface FlowState {
   editBaseline?: string | null;
   result: any;
   visualSlides: { slide_number: number; html: string }[];
+  /** Visuels trop lourds pour l'onglet : à relire dans la fiche de Mes idées (editingIdeaId). */
+  visualsInCloud?: boolean;
   savedId: string | null;
   questions: { id: string; question: string; placeholder?: string }[];
   inspirationAnalysis: any;
@@ -264,7 +267,16 @@ export function saveFlowState(state: Partial<FlowState>) {
       if (raw._carousel_cloud) raw._carousel_cloud = { ...raw._carousel_cloud, history: [] };
       merged.result = { ...merged.result, raw };
     }
-    sessionStorage.setItem(flowStorageKey(), JSON.stringify(merged));
+    // Carrousel trop lourd pour l'onglet (photos dans le HTML) : copie légère,
+    // les visuels reviennent de Mes idées au rechargement (chantier U).
+    let stored = clearCloudMarker(merged);
+    try { sessionStorage.setItem(flowStorageKey(), JSON.stringify(stored)); }
+    catch (error) {
+      stored = slimFlowState(merged);
+      if (!stored) throw error;
+      sessionStorage.setItem(flowStorageKey(), JSON.stringify(stored));
+      if (!stored.visualsInCloud) toast.warning("Tes visuels sont trop lourds pour la copie de ce navigateur. Enregistre ton contenu dans Mes idées avant de fermer cet onglet.", { id: "carousel-storage-warning" });
+    }
 
     const userId = getFlowUserId();
     // Backup to localStorage for tab-recycling / HMR protection — scoped per user.
@@ -273,7 +285,8 @@ export function saveFlowState(state: Partial<FlowState>) {
       try {
         const key = ownBackupKey(backupKeyFor(userId));
         if (!key) throw new Error("tab_id_unavailable");
-        localStorage.setItem(key, JSON.stringify(merged));
+        try { localStorage.setItem(key, JSON.stringify(stored)); }
+        catch (error) { const light = slimFlowState(stored); if (!light) throw error; localStorage.setItem(key, JSON.stringify(light)); }
         startTabPresence();
         markTabPresent();
       } catch { toast.warning("La copie de secours n’a pas pu être enregistrée. Enregistre ton contenu dans Mes idées avant de fermer cet onglet.", { id: "carousel-storage-warning" }); }

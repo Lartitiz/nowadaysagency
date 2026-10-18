@@ -104,6 +104,22 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 - Tests : `src/test/regeneration-backup.test.tsx`, `src/test/creer-step-edit.test.tsx`.
 - Tout nouveau bouton qui relance la génération d'un résultat existant appelle
   `regenerationBackup.begin(regenerationSnapshot())` avant `doGenerate`.
+- **« Refaire les visuels » et « Mes slides › Refaire une version »** (chantier U,
+  18/10/2026, choix C4 de Laetitia) : sur un carrousel retouché, la fenêtre de
+  l'app `RedoVisualsDialog.tsx` remplace `window.confirm` (`confirmRedo` de
+  `use-generate-visuals.ts`). Rien n'est vidé avant l'accord ; « Annuler » ne
+  change rien et ne lance aucun rendu ; « Garder une copie dans Mes idées » crée
+  une fiche à part « (ma version retouchée) » ; après un nouveau design, « Revenir
+  à ma version précédente » pendant 30 s (`use-regeneration-backup.ts`, qui suit
+  aussi `visualSlides`).
+- **Copie locale trop lourde** (carrousel « Tes photos en fond », ~11 Mo de photos
+  dans le HTML pour ~5 Mo de place dans l'onglet) : `saveFlowState` garde une copie
+  sans visuels (`src/features/creer/flow-state-slim.ts`, `visualsInCloud`) ; au
+  rechargement, `use-restore-visuals-from-idea.ts` relit les visuels dans la fiche
+  de Mes idées (`editingIdeaId`) et coupe la sauvegarde automatique et le bouton
+  payant pendant la relecture. Plus de « Sauvegarde locale indisponible » quand la
+  fiche est enregistrée.
+- Tests : `src/test/creer-refaire-visuels-rechargement.test.tsx` (vraie page /creer).
 
 ### Pas d'écrasement entre onglets ni de texte démesuré (lot 10, 14/10/2026)
 
