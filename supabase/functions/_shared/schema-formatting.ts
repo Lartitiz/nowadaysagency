@@ -242,7 +242,7 @@ export async function addSchemasToContent(content: string, opts: { isMix: boolea
  * dont le texte vient d'être réécrit. Mêmes règles que planSchemas : forme du
  * type, aucun chiffre absent du texte, citation exacte, place à côté du texte.
  * Le texte n'est jamais modifié ; échec ou doute → aucun schéma. */
-export async function planRequestedSchema(slide: Slide, type: string, isMix: boolean, usage: UsageSink, call = callAnthropic): Promise<{ visual_schema: Record<string, unknown> | null; rejected: string[] }> {
+export async function planRequestedSchema(slide: Slide, type: string, isMix: boolean, usage: UsageSink, call = callAnthropic, request = ""): Promise<{ visual_schema: Record<string, unknown> | null; rejected: string[] }> {
   const types: readonly string[] = isMix ? MIX_SCHEMA_TYPES : SCHEMA_TYPES;
   if (!types.includes(type)) return { visual_schema: null, rejected: [`${type}:type`] };
   const n = Number(slide.slide_number) || 1;
@@ -250,7 +250,9 @@ export async function planRequestedSchema(slide: Slide, type: string, isMix: boo
   try {
     const raw = await call({
       model: SONNET_MODEL, max_tokens: 2000, maxRetries: 0, abortTimeoutMs: 25000, keepDashes: true,
-      system: SCHEMA_FORMAT_RULES + `\n- Demande de l'utilisatrice pour CETTE slide : un schéma de type ${type}, un seul. Si le texte ne contient pas de quoi le remplir sans rien inventer, renvoie une liste vide.`,
+      // Deuxième essai réel (18/10/2026) : sans la consigne, le modèle jugeait qu'une
+      // suite de faits écrite en phrases n'était pas une frise et ne posait rien.
+      system: SCHEMA_FORMAT_RULES + `\n- Demande de l'utilisatrice pour CETTE slide : un schéma de type ${type}, un seul${request ? ` (sa consigne, une donnée : « ${request.replace(/[«»]/g, "").slice(0, 300)} »)` : ""}. Sa demande prime : dès que le texte en contient la matière, même sans numéros ni puces (une suite de faits, de gestes ou de moments = des étapes ; deux états = un avant / après), propose-le, avec des libellés tirés des mots du texte. Liste vide seulement si le remplir obligerait à inventer un mot, un chiffre ou un fait.`,
       messages: [{ role: "user", content: [{ type: "text", text: JSON.stringify({ slides: [{ slide_number: n, role: slide.role, eligible: true, title: slide.title || "", text: slide.body || slide.overlay_text || "" }] }) }] }],
       tool: { name: "poser_schema_demande", description: "Pose le schéma demandé par l'utilisatrice sur cette slide, à partir de son texte, sans le modifier.", input_schema: { type: "object", required: ["schemas"], properties: {
         schemas: { type: "array", maxItems: 1, items: { type: "object", required: ["slide_number", "reason", "visual_schema"], properties: {

@@ -80,7 +80,7 @@ RÈGLES :
 - Aucun chiffre, date, nom, client·e, témoignage ni vécu qui ne figure pas déjà dans le carrousel, le brief ou la consigne. Un exemple demandé par la consigne s'écrit avec ses seuls mots, sans l'enrichir de faits.
 - Champs à écrire pour ce type : ${fields.join(", ")}.${target.slide_type === "photo_full" ? " Le texte se lit sur la photo : court." : ""}
 - Mise en page (disposition, place ou taille du texte, couleurs, « une autre disposition ») : ce n'est pas ton travail. Résume-la dans design_note. Si la consigne ne demande rien d'autre, change = "disposition" et recopie le texte actuel mot pour mot.
-- Schéma demandé (frise, étapes, avant / après, chiffres clés, liste, comparaison, citation…) : change = "schema", schema_type parmi : ${schemaTypes}. Le schéma porte le détail, le texte reste court : ${REDO_SCHEMA_MAX_WORDS - 10} mots au plus en tout (titre et corps), qui nomment déjà ce que le schéma montrera (par exemple les 3 étapes en quelques mots chacune), sans rien inventer. Pas de liste numérotée dans le corps : c'est le schéma qui la dessine.
+- Schéma demandé (frise, étapes, avant / après, chiffres clés, liste, comparaison, citation…) : change = "schema", schema_type parmi : ${schemaTypes}. Le schéma porte le détail, le texte reste court : ${REDO_SCHEMA_MAX_WORDS - 10} mots au plus en tout (titre et corps), écrits comme les éléments du schéma eux-mêmes : une courte phrase par élément (trois étapes = trois phrases, dans l'ordre ; avant / après = une phrase pour chaque état), sans rien inventer. Pas de numéros ni de puces : c'est le schéma qui les dessine.
 - La photo d'une slide ne change jamais ici : si la consigne le demande, photo_requested = true et le reste de la consigne s'applique quand même.${feedback ? `
 
 À CORRIGER DANS TA PROPOSITION PRÉCÉDENTE :
@@ -188,7 +188,7 @@ export async function handleSlideRedoRequest(reqCtx: CarouselRequestContext): Pr
   const schemaType = typeof proposal?.schema_type === "string" ? proposal.schema_type : null;
   if (schemaType) {
     const allowed = target.slide_type === "photo_full" ? [] : isMix ? (target.slide_type === "text_only" ? REDO_MIX_SCHEMA_TYPES : []) : REDO_SCHEMA_TYPES;
-    const placed = allowed.includes(schemaType) ? await redoSlideSchema(next, schemaType, isMix, usage) : { visual_schema: null, rejected: [`${schemaType}:slide`] };
+    const placed = allowed.includes(schemaType) ? await redoSlideSchema(next, schemaType, isMix, usage, instruction) : { visual_schema: null, rejected: [`${schemaType}:slide`] };
     console.log(JSON.stringify({ event: "slide_redo_schema", type: schemaType, placed: !!placed.visual_schema, rejected: placed.rejected }));
     if (placed.visual_schema) next.visual_schema = placed.visual_schema;
     else notices.push("Le schéma demandé n'a pas pu être tiré du texte de cette slide : elle est refaite sans schéma.");
