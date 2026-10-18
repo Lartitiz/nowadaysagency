@@ -118,10 +118,12 @@ export function useStudioSession({
         workspace_id: workspaceId,
         session_id: sessionId,
       }),
+    // Les liens des images durent 15 minutes : une relecture toutes les 12
+    // minutes (onglet visible) les renouvelle avant qu'ils n'expirent.
     refetchInterval: (q) =>
       q.state.data?.versions.some((v) => v.status === "processing")
         ? 5000
-        : false,
+        : 12 * 60_000,
     staleTime: 10000,
     retry: 1,
   });
@@ -635,7 +637,7 @@ export function useStudioSession({
           await state.refetch();
         }
       }
-      toast.success(archive ? "Session archivée. Ses images restent disponibles." : "Session restaurée.");
+      toast.success(archive ? "Session archivée. Ses images restent dans Mes photos." : "Session restaurée.");
     } catch (e) {
       toast.error(readableError(e, "Impossible de modifier cette session."));
       await sessions.refetch();

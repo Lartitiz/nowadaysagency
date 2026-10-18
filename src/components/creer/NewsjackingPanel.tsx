@@ -390,7 +390,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   const angleOuvertPret = expandedActu !== null && !!anglesByIdx[expandedActu]?.data?.length;
   useEffect(() => {
     if (!angleOuvertPret) return;
-    const t = setTimeout(() => document.querySelector(`[data-choisir-angle="${expandedActu}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 250);
+    const t = setTimeout(() => document.querySelector(`[data-choisir-angle="${expandedActu}"]`)?.scrollIntoView?.({ block: "center", behavior: "smooth" }), 250);
     return () => clearTimeout(t);
   }, [angleOuvertPret, expandedActu]);
 
