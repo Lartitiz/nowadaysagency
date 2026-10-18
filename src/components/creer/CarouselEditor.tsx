@@ -2,13 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { CarouselQuality } from "@/hooks/use-carousel-quality";
 import { Button } from "@/components/ui/button";
-import {
-  LockKeyhole,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  Minimize2,
-} from "lucide-react";
+import { LockKeyhole, Minimize2 } from "lucide-react";
 import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
@@ -76,7 +70,7 @@ import { SlideStrip } from "@/components/creer/CarouselEditorParts/SlideStrip";
 import { AllSlidesPanel, SavedStylesPanel } from "@/components/creer/CarouselEditorParts/AllSlidesPanel";
 import { SimplePanel } from "@/components/creer/CarouselEditorParts/SimplePanel";
 import { CaptionField } from "@/components/creer/CarouselEditorParts/CaptionField";
-import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
+import { EDITOR_GRID, roomStyle, slideBoxProps, useSlideFit } from "@/components/creer/CarouselEditorParts/EditorLayout";
 import { useEditorMode } from "@/components/creer/CarouselEditorParts/editor-mode";
 
 
@@ -124,6 +118,8 @@ export default function CarouselEditor({
 }: Props) {
   const raw = result?.raw || result;
   const editorRoot = useRef<HTMLElement>(null);
+  const grid = useRef<HTMLDivElement>(null);
+  const fit = useSlideFit(grid);
   const [document, setDocument] = useState<CarouselDocument>(() =>
     readCarouselDocument(raw, visualSlides),
   );
@@ -394,15 +390,17 @@ export default function CarouselEditor({
   };
   const onEditorKey = useEditorKeys({ editorRoot, copySelection, paste, shortcut, onHistoryKey, removeMany, selected, group, slide });
   // Réordonner en glissant une vignette (souris ou doigt).
-  const thumbDrag = useRef<{ from: number; x: number; moved: boolean } | null>(null);
+  const thumbDrag = useRef<{ from: number; x: number; y: number; moved: boolean } | null>(null);
   const justDragged = useRef(false);
-  const thumbIndexAt = (x: number) => {
+  const thumbIndexAt = (x: number, y: number) => {
     const thumbs = Array.from(window.document.querySelectorAll<HTMLElement>("[data-thumb]"));
-    // Position d'insertion : avant la vignette dont on passe la moitié, sinon à la fin.
+    // Position d'insertion : avant la vignette dont on passe la moitié, sinon à la fin
+    // (vignettes en colonne sur ordinateur, en rangée sur téléphone).
+    const column = thumbs.length > 1 && thumbs[1].getBoundingClientRect().top > thumbs[0].getBoundingClientRect().bottom - 1;
     let index = thumbs.length;
     for (let k = 0; k < thumbs.length; k++) {
       const r = thumbs[k].getBoundingClientRect();
-      if (x < r.left + r.width / 2) {
+      if (column ? y < r.top + r.height / 2 : x < r.left + r.width / 2) {
         index = k;
         break;
       }
@@ -732,13 +730,7 @@ export default function CarouselEditor({
   if (!slide) return null;
   return (
     <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-3" onKeyDown={(event) => onEditorKey(event.nativeEvent, event.target as HTMLElement)}>
-      <EditorHeader
-        history={history}
-        mode={mode}
-        setMode={setMode}
-        setInstaOpen={setInstaOpen}
-        undo={undo}
-      />
+      <EditorHeader active={active} count={document.slides.length} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom} />
       {toolsPortal && createPortal(
         <QualityPanel
           cloudTools={cloudTools}
@@ -751,6 +743,9 @@ export default function CarouselEditor({
         />,
         toolsPortal,
       )}
+      <div ref={grid} className={EDITOR_GRID} style={roomStyle(fit)}>
+      {/* Téléphone : la rangée des vignettes sous la slide laisse sa place aux réglages dès qu'un élément est choisi. */}
+      <div className={`order-2 min-w-0 md:sticky md:top-28 md:order-none ${mode === "simple" && element && element.role !== "background" ? "hidden md:block" : ""}`}>
       <SlideStrip
         simple={mode === "simple"}
         active={active}
@@ -772,48 +767,26 @@ export default function CarouselEditor({
         thumbDrag={thumbDrag}
         thumbIndexAt={thumbIndexAt}
       />
-      <div className="grid items-start gap-3 md:grid-cols-[minmax(0,1fr)_280px] md:gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        {/* Téléphone : l'aperçu reste collé sous l'en-tête pendant qu'on fait défiler les réglages. Ordinateur : la
-            slide tient au-dessus de la barre « Publier » à l'arrivée (456 px = haut de la slide 331 + barre 113 + marge). */}
+      </div>
+        {/* Téléphone : l'aperçu reste collé sous l'en-tête pendant qu'on fait défiler les réglages. Sa taille suit la
+            place réelle au-dessus de la barre « Publier » (EditorLayout.tsx). */}
         <div
           className={
             fullscreen
               ? "fixed inset-0 z-50 flex flex-col items-center justify-center gap-2 overflow-auto bg-background p-4"
-              : "sticky top-12 z-30 min-w-0 w-full bg-background pb-2 md:top-28 md:bg-transparent md:pb-0"
+              : "sticky top-12 z-30 order-1 min-w-0 w-full bg-background pb-1 md:top-28 md:order-none md:bg-transparent md:pb-0"
           }
           data-canvas-sticky
           onKeyDown={(e) => {
             if (fullscreen && e.key === "Escape" && !selected) setFullscreen(false);
           }}
         >
-          <div className="mb-1 flex flex-wrap items-center justify-end gap-1">
-            {!fullscreen && <p className="mr-auto flex min-w-0 items-center gap-1.5 text-2xs text-muted-foreground md:text-xs">
-              Slide {active + 1} / {document.slides.length} · <span className="hidden md:inline">Double-clic : écrire · Glisser : déplacer</span><span className="md:hidden">Touche un élément, glisse-le</span>
-              <HelpTip label="gestes sur la slide"><span className="md:hidden">Touche un texte, puis « Écrire » pour le modifier. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses. Glisse une photo plein écran pour la recadrer, les poignées pour agrandir. Tes retouches ne coûtent aucun crédit.</span><span className="hidden md:inline">Double-clique (ou touche « Écrire ») pour écrire dans un texte. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses (⌘/Ctrl pour placer librement). Glisse une photo plein écran pour la recadrer (double-clic pour une photo encadrée), les poignées pour agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre. Tes retouches ne coûtent aucun crédit.</span></HelpTip>
-            </p>}
-            {!fullscreen && (
-              <>
-                <Button size="sm" variant="ghost" className="hidden h-7 px-2 md:inline-flex" aria-label="Dézoomer l’aperçu" disabled={zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - 0.5))}>
-                  <ZoomOut size={14} />
-                </Button>
-                <span className="hidden w-10 text-center text-2xs tabular-nums text-muted-foreground md:inline">{Math.round(zoom * 100)} %</span>
-                <Button size="sm" variant="ghost" className="hidden h-7 px-2 md:inline-flex" aria-label="Zoomer l’aperçu" disabled={zoom >= 3} onClick={() => setZoom((z) => Math.min(3, z + 0.5))}>
-                  <ZoomIn size={14} />
-                </Button>
-              </>
-            )}
-            <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-2xs" aria-label={fullscreen ? "Quitter le plein écran" : "Ouvrir l’aperçu en grand"} onClick={() => setFullscreen((f) => !f)}>
-              {fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-              {fullscreen ? "Quitter le plein écran" : "En grand"}
+          {fullscreen && (
+            <Button size="sm" variant="ghost" className="h-7 gap-1 self-end px-2 text-2xs" aria-label="Quitter le plein écran" onClick={() => setFullscreen(false)}>
+              <Minimize2 size={14} /> Quitter le plein écran
             </Button>
-          </div>
-          <div
-            className={
-              fullscreen
-                ? "w-full max-w-[min(1080px,calc((100vh-6rem)*0.8))]"
-                : "mx-auto w-full max-w-[min(540px,30vh)] md:max-w-[min(540px,max(240px,calc((100vh-456px)*0.8)))]"
-            }
-          >
+          )}
+          <div {...(fullscreen ? { className: "w-full max-w-[min(1080px,calc((100vh-6rem)*0.8))]" } : slideBoxProps(fit))}>
           <SlideCanvas
             onHistoryKey={onHistoryKey}
             slide={slide}
@@ -864,8 +837,8 @@ export default function CarouselEditor({
           />
           </div>
         </div>
-        {/* Panneau sous la slide sur téléphone ; à côté (avec son propre défilement) sur ordinateur. */}
-        <div className="min-w-0 space-y-4 md:sticky md:top-28 md:max-h-[calc(100vh-15rem)] md:overflow-y-auto md:rounded-xl md:border md:bg-card md:p-4">
+        {/* Panneau sous la slide sur téléphone ; à côté (avec son propre défilement, à la hauteur de la slide) sur ordinateur. */}
+        <div className="order-3 min-w-0 space-y-4 md:sticky md:top-28 md:order-none md:max-h-[var(--editor-room,calc(100vh-15rem))] md:overflow-y-auto md:rounded-xl md:border md:bg-card md:p-4">
           {mode === "simple" ? (
             <SimplePanel canvasApi={canvasApi} changeSlide={changeSlide} commit={commit} css={css} document={document} documentFonts={documentFonts} element={element} elements={elements} fill={fill} fillAlpha={fillAlpha} fillHex={fillHex} filterValue={filterValue} fontQuery={fontQuery} onAddPhoto={onAddPhoto} onMore={() => setMode("complet")} palette={palette} pickFont={pickFont} selectOne={selectOne} setFilter={setFilter} setFitId={setFitId} setFontQuery={setFontQuery} setPhotoOpen={setPhotoOpen} slide={slide} style={style} />
           ) : (<>

@@ -373,6 +373,9 @@ export default function SlideCanvas({
 
   return (
     <div className={zoom > 1 ? "max-h-[75vh] overflow-auto rounded-xl" : undefined}>
+      {/* La barre de l'élément est posée à côté de la slide (pas dedans, qui coupe ce qui dépasse) :
+          elle peut en sortir quand le texte choisi remplit la slide (W élargi, 18/10/2026). */}
+      <div className="relative">
       <div
         ref={host}
         className="relative overflow-hidden rounded-xl border bg-white shadow-sm"
@@ -477,24 +480,6 @@ export default function SlideCanvas({
             </button>
           </div>
         )}
-        <CanvasToolbar
-          box={box}
-          selected={selected}
-          slide={slide}
-          dropping={dropping}
-          scale={scale}
-          width={width}
-          issues={issues}
-          tools={tools}
-          latest={latest}
-          fitRef={fitRef}
-          cropId={cropId}
-          setCropId={setCropId}
-          onReplacePhoto={onReplacePhoto}
-          colors={colors}
-          editingId={editingId}
-          simple={simple}
-        />
         {extraBoxes.map((b, i) => (
           <div
             key={i}
@@ -528,6 +513,26 @@ export default function SlideCanvas({
             ))}
           </div>
         )}
+      </div>
+      <CanvasToolbar
+        box={box}
+        selected={selected}
+        slide={slide}
+        dropping={dropping}
+        scale={scale}
+        width={width}
+        issues={issues}
+        tools={tools}
+        latest={latest}
+        fitRef={fitRef}
+        cropId={cropId}
+        setCropId={setCropId}
+        onReplacePhoto={onReplacePhoto}
+        colors={colors}
+        editingId={editingId}
+        simple={simple}
+        outside={zoom <= 1}
+      />
       </div>
       {overflow && (
         <p role="status" className="mt-2 text-xs text-amber-700">

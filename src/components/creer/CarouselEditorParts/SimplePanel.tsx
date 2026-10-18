@@ -147,6 +147,12 @@ export function SimplePanel({ canvasApi, changeSlide, commit, css, document, doc
       </div>
       <p className={`items-center gap-1.5 text-xs text-muted-foreground ${shown ? "hidden md:flex" : "flex"}`}>
         {text ? "Texte choisi" : photo ? "Photo choisie" : element ? "Forme choisie" : "Touche un texte ou une photo sur la slide pour le modifier."}
+        {/* Téléphone (W élargi) : les vignettes laissent leur place aux réglages ; ce bouton les rend. */}
+        {element && element.role !== "background" && (
+          <button type="button" className="ml-auto text-2xs font-medium text-primary underline-offset-2 hover:underline md:hidden" onClick={() => selectOne(null)}>
+            Voir les slides
+          </button>
+        )}
         <HelpTip label="modifier la slide">
           Touche un élément pour le choisir, puis glisse-le pour le déplacer. « Écrire » (ou un double-clic) change un texte
           directement sur la slide. Tes retouches ne coûtent aucun crédit, et « Annuler » revient en arrière. Calques, mises

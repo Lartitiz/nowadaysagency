@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { useStickyHeightVar } from "@/hooks/use-sticky-height-var";
+import { useCarouselEditorShown } from "@/lib/carousel-editor-shown";
 import { ArrowUpRight, Check, ChevronDown, Copy, Download, Lightbulb, Loader2, MoreHorizontal, Palette, RefreshCw, RotateCcw, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -94,6 +95,11 @@ export default function ResultActions(p: ResultActionsProps) {
   const isCarousel = format === "carousel";
   const isStory = format === "story";
   const cost = isCarousel ? "1 carrousel" : "1 crédit";
+  // Éditeur de carrousel affiché (chantier W élargi, 18/10/2026) : la barre tient sur
+  // une ligne (~60 px au lieu de 113) pour laisser la place à la slide. Sur téléphone,
+  // « Enregistré dans Mes idées » passe dans « Plus d'options ».
+  const editorShown = useCarouselEditorShown();
+  const oneLine = isCarousel && editorShown;
 
   // ── Récupérer : télécharger les visuels, ou copier le texte ──
   const download: DownloadSpec | null =
@@ -120,17 +126,20 @@ export default function ResultActions(p: ResultActionsProps) {
       data-testid="publish-or-schedule"
       onClick={p.onPublishOrSchedule}
       variant={publishPrimary ? "default" : "outline"}
-      className={`gap-2 font-semibold ${publishPrimary ? "w-full h-11" : "flex-1 min-w-0 h-10 px-2 sm:px-4"}`}
+      className={`gap-2 font-semibold ${publishPrimary && oneLine ? "flex-1 min-w-0 h-10 px-3" : publishPrimary ? "w-full h-11" : "flex-1 min-w-0 h-10 px-2 sm:px-4"}`}
     >
       <Send className="h-4 w-4 shrink-0" />
-      {publishPrimary ? publishLabel : (
+      {publishPrimary && oneLine ? (
+        <span className="truncate" title={publishLabel}><span className="hidden sm:inline">{publishLabel}</span><span className="sm:hidden">Publier</span></span>
+      ) : publishPrimary ? publishLabel : (
         // Téléphone : 3 boutons sur une ligne, libellé court.
         <span className="truncate" title={publishLabel}><span className="hidden sm:inline">{publishShort}</span><span className="sm:hidden">Planifier</span></span>
       )}
     </Button>
   );
 
-  const getClass = `gap-2 ${getPrimary ? "w-full h-11 font-semibold" : "flex-1 min-w-0 h-10 px-2 sm:px-4"}`;
+  // Une ligne : « Télécharger » garde sa largeur (le bouton principal prend le reste).
+  const getClass = `gap-2 ${getPrimary && oneLine ? "flex-[1.6] min-w-0 h-10 font-semibold" : getPrimary ? "w-full h-11 font-semibold" : oneLine ? "shrink-0 h-10 px-3 sm:px-4" : "flex-1 min-w-0 h-10 px-2 sm:px-4"}`;
   const getButton = download ? (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -180,12 +189,12 @@ export default function ResultActions(p: ResultActionsProps) {
     <Link
       to="/idees"
       data-testid="auto-saved-to-ideas"
-      className="flex-1 min-w-0 h-10 inline-flex items-center justify-center gap-1.5 rounded-md px-2 sm:px-3 text-sm text-muted-foreground hover:text-foreground"
+      className={`flex-1 min-w-0 h-10 ${oneLine ? "hidden sm:inline-flex" : "inline-flex"} items-center justify-center gap-1.5 rounded-md px-2 sm:px-3 text-sm text-muted-foreground hover:text-foreground`}
     >
       <Check className="h-4 w-4 text-primary shrink-0" /> <span className="truncate"><span className="hidden sm:inline">Enregistré dans </span><span className="sm:hidden">Dans </span>Mes idées</span>
     </Link>
   ) : p.onSave ? (
-    <Button onClick={p.onSave} disabled={p.savingContent} variant="outline" data-testid="save-as-idea" className="flex-1 min-w-0 gap-2 h-10 px-2 sm:px-4">
+    <Button onClick={p.onSave} disabled={p.savingContent} variant="outline" data-testid="save-as-idea" className={`flex-1 min-w-0 gap-2 h-10 px-2 sm:px-4 ${oneLine ? "max-sm:hidden" : ""}`}>
       <Lightbulb className="h-4 w-4 shrink-0" /> <span className="truncate">{p.savingContent ? "Enregistrement…" : <>Garder <span className="hidden sm:inline">dans mes idées</span><span className="sm:hidden">en idée</span></>}</span>
     </Button>
   ) : null;
@@ -204,6 +213,16 @@ export default function ResultActions(p: ResultActionsProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
+        {oneLine && p.autoSavedToIdeas && (
+          <DropdownMenuItem asChild className="gap-2 sm:hidden">
+            <Link to="/idees"><Check className="h-4 w-4 text-primary" /> Enregistré dans Mes idées</Link>
+          </DropdownMenuItem>
+        )}
+        {oneLine && !p.autoSavedToIdeas && p.onSave && (
+          <DropdownMenuItem onClick={p.onSave} disabled={p.savingContent} className="gap-2 sm:hidden">
+            <Lightbulb className="h-4 w-4" /> {p.savingContent ? "Enregistrement…" : "Garder dans mes idées"}
+          </DropdownMenuItem>
+        )}
         {download && (
           <DropdownMenuItem onClick={p.onCopyText} className="gap-2">
             <Copy className="h-4 w-4" /> Copier le texte
@@ -324,10 +343,19 @@ export default function ResultActions(p: ResultActionsProps) {
       <div
         ref={barRef}
         data-testid="result-actions"
+        data-one-line={oneLine || undefined}
         className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] md:bottom-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2 pb-3 bg-background/95 backdrop-blur-sm border-t border-border/60"
       >
         {/* Deux lignes : l'action principale en entier, puis les deux autres et
             le menu (une seule ligne tronquait les libellés dans la colonne étroite). */}
+        {oneLine ? (
+          <div className="flex items-center gap-2">
+            {first}
+            {second}
+            {saveBlock}
+            {moreMenu}
+          </div>
+        ) : (
         <div className="flex flex-col gap-2">
           {first}
           <div className="flex gap-2">
@@ -336,6 +364,7 @@ export default function ResultActions(p: ResultActionsProps) {
             {moreMenu}
           </div>
         </div>
+        )}
         {format === "newsletter" && (
           <p className="mt-1 text-2xs text-muted-foreground text-center">Colle-la dans ton outil d’emailing pour l’envoyer. Aucun email n’est envoyé depuis cet écran.</p>
         )}

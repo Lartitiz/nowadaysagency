@@ -2,6 +2,7 @@
 // l'élément choisi), déplacée à l'identique depuis SlideCanvas dans
 // CarouselEditor.tsx. Elle lit les actions du dernier rendu dans `latest`
 // (jamais une copie) et agit sur l'aperçu par `tools`.
+import { outsideRoom } from "@/components/creer/CarouselEditorParts/EditorLayout";
 import { useLayoutEffect, useRef, useState, type MutableRefObject } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Copy, ImagePlus, LockKeyhole, Pipette, Trash2, Unlock } from "lucide-react";
@@ -45,6 +46,7 @@ export default function CanvasToolbar({
   colors,
   editingId,
   simple = false,
+  outside = false,
 }: {
   box: SelectionBox | null;
   selected: string | null;
@@ -75,6 +77,8 @@ export default function CanvasToolbar({
   editingId: string | null;
   /** Mode simple : les actions avancées passent dans le menu « … », chacune avec son nom. */
   simple?: boolean;
+  /** La barre peut sortir de la slide (au-dessus ou en dessous) plutôt que de cacher un texte qui la remplit. */
+  outside?: boolean;
 }) {
   // Barre d'outils flottante au-dessus de l'élément choisi (comme Canva).
   const apply = (word: Record<string, string>, whole: Record<string, string>) => {
@@ -126,6 +130,9 @@ export default function CanvasToolbar({
           { left: box.left * scale, top: box.top * scale, width: box.width * scale, height: box.height * scale },
           { width: toolbarSize.w, height: toolbarSize.h },
           { width, height: width * 1.25 },
+          8,
+          4,
+          outside ? outsideRoom(toolbarRef.current?.parentElement) : undefined,
         )
       : { left: 0, top: 0 };
   const toolButton = "flex h-8 min-w-8 items-center justify-center rounded-md px-1.5 text-xs font-semibold hover:bg-muted aria-pressed:bg-primary/15";

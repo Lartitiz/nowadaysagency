@@ -14,6 +14,15 @@
  * « slide 1 entière » (17/10/2026, accord de Laetitia, après #1726) : à 1440×900, en haut
  * de page, le bas de la slide de l'éditeur doit rester au-dessus de la barre « Publier »
  * collée en bas. Le 16/10, 269 px de slide étaient cachés dessous et rien ne le voyait.
+ *
+ * Trois tailles (18/10/2026, chantier W élargi, accord de Laetitia) : la slide coupée sur
+ * un petit portable (1280×720, 22 px) et sur téléphone (36 à 60 px) échappait à la sonde,
+ * qui ne regardait que 1440×900. Ligne :
+ *   … · slide 1 : ordi ✅ 521 px · petit écran ✅ 377 px · téléphone ✅ 356 px
+ * (largeur de la slide ; « coupée N px » = cachée sous la barre « Publier »). Seuils : 0 px
+ * caché à chaque taille, et une slide d'au moins 440 / 330 / 320 px de large (mesuré 521 /
+ * 377 / 356 le 18/10 ; avant W élargi 353 / 238 / 251) : plus petite = la mise en page a
+ * régressé, 🟠.
  */
 import type { Page } from "@playwright/test";
 
@@ -28,8 +37,11 @@ const SEUILS = {
 
 const VIEWPORTS = [
   { nom: "ordi", width: 1440, height: 900 },
+  { nom: "petit écran", width: 1280, height: 720 },
   { nom: "telephone", width: 390, height: 844 },
 ] as const;
+// Largeur minimale de la slide par taille (W élargi : 521 / 377 / 356 px le 18/10/2026).
+const SLIDE_MIN: Record<string, number> = { ordi: 440, "petit écran": 330, telephone: 320 };
 
 const fr = (n: number) => n.toFixed(2).replace(".", ",");
 
@@ -38,8 +50,8 @@ export async function sondeHauteurEditeur(page: Page, label: keyof typeof SEUILS
     const avant = page.viewportSize();
     const ecrans: Record<string, number> = {};
     let commandes = -1;
-    // Pixels de slide cachés sous la barre « Publier » (ordi, haut de page) ; null = non mesuré.
-    let cache: number | null = null;
+    // Par taille : pixels de slide cachés sous la barre « Publier » (haut de page) et largeur ; null = non mesuré.
+    const slides: { nom: string; cache: number | null; largeur: number }[] = [];
     for (const vp of VIEWPORTS) {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.waitForTimeout(1000);
@@ -56,8 +68,9 @@ export async function sondeHauteurEditeur(page: Page, label: keyof typeof SEUILS
         }).length;
         const slide = document.querySelector('iframe[title^="Éditeur de la slide"]')?.getBoundingClientRect();
         const barre = document.querySelector('[data-testid="result-actions"]')?.getBoundingClientRect();
-        const cache = slide && barre ? Math.max(0, Math.round(slide.bottom - barre.top)) : null;
-        return { ecrans: document.scrollingElement!.scrollHeight / window.innerHeight, visibles, cache };
+        // Caché sous la barre « Publier », ou sous le bas de l'écran.
+        const cache = slide && barre ? Math.max(0, Math.round(slide.bottom - Math.min(barre.top, window.innerHeight))) : null;
+        return { ecrans: document.scrollingElement!.scrollHeight / window.innerHeight, visibles, cache, largeur: Math.round(slide?.width ?? 0) };
       }, label);
       if (!r) {
         console.log(`📏 Hauteur (${label}) : non vérifié (écran introuvable)`);
@@ -65,13 +78,18 @@ export async function sondeHauteurEditeur(page: Page, label: keyof typeof SEUILS
         return;
       }
       ecrans[vp.nom] = r.ecrans;
-      if (vp.nom === "ordi") { commandes = r.visibles; cache = r.cache; }
+      slides.push({ nom: vp.nom === "telephone" ? "téléphone" : vp.nom, cache: r.cache, largeur: r.largeur });
+      if (vp.nom === "ordi") commandes = r.visibles;
     }
     if (avant) await page.setViewportSize(avant);
     const s = SEUILS[label];
-    // Seuil : 0 px caché (mesuré 773 / 787 le 17/10/2026, 14 px de marge).
-    const slide = label !== "carrousel" ? "" : cache === null ? " · slide 1 non vérifiée" : cache > 0 ? ` · slide 1 coupée de ${cache} px` : " · slide 1 entière ✅";
-    const alerte = ecrans.ordi > s.ordi || ecrans.telephone > s.telephone || commandes > s.commandes || (cache ?? 0) > 0 ? " 🟠" : "";
+    const minimum = (nom: string) => SLIDE_MIN[nom === "téléphone" ? "telephone" : nom];
+    const petite = (x: (typeof slides)[number]) => x.largeur < minimum(x.nom);
+    // Seuil : 0 px caché à chaque taille, et une slide pas plus petite qu'après W élargi.
+    const slide = label !== "carrousel" ? ""
+      : ` · slide 1 : ${slides.map((x) => `${x.nom} ${x.cache === null ? "non vérifiée" : x.cache > 0 ? `coupée ${x.cache} px 🟠` : petite(x) ? `${x.largeur} px, trop petite 🟠` : `✅ ${x.largeur} px`}`).join(" · ")}`;
+    const slideKo = label === "carrousel" && slides.some((x) => (x.cache ?? 0) > 0 || petite(x));
+    const alerte = ecrans.ordi > s.ordi || ecrans.telephone > s.telephone || commandes > s.commandes || slideKo ? " 🟠" : "";
     console.log(`📏 Hauteur (${label}) : ordi ${fr(ecrans.ordi)} · téléphone ${fr(ecrans.telephone)} écrans · ${commandes} commandes visibles${slide}${alerte}`);
   } catch (e) {
     console.log(`📏 Hauteur (${label}) : non vérifié (${e instanceof Error ? e.message.slice(0, 80) : "?"})`);
