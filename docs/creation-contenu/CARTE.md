@@ -435,9 +435,10 @@ d'`index.ts` est cité ici.
   `carousel-visual/model-render.ts` (sorti d'`index.ts` à l'identique, 18/10/2026).
 - « Refaire cette slide » (`carousel-visual/slide-redo.ts`, chantier AA) :
   `render_only` = la seule slide renvoyée, tout le carrousel reste fourni pour
-  la charte et la grille ; `design_note` = consigne de mise en page (texte :
-  rendu du modèle d'un lot d'une slide ; mixte et photo : ajoutée aux étapes
-  de disposition). Avec le jeton interne de carousel-ai, pas de `logUsage` ici.
+  la charte et la grille ; `design_note` = consigne de mise en page (texte et
+  mixte : rendu du modèle d'un lot d'une slide, avec la consigne ; photo :
+  ajoutée à la direction artistique). Essais réels du 18/10/2026 : PR #1766,
+  #1768, #1769. Avec le jeton interne de carousel-ai, pas de `logUsage` ici.
 - Quota : `content`, ou `quality_max` si demandé.
   - Illustration de couverture : `photo_retouch`.
 - Snapshot des prompts : `carousel-visual/prompts_snapshot_test.ts`.
