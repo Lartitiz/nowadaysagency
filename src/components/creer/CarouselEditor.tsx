@@ -72,6 +72,8 @@ import { SimplePanel } from "@/components/creer/CarouselEditorParts/SimplePanel"
 import { CaptionField } from "@/components/creer/CarouselEditorParts/CaptionField";
 import { EDITOR_GRID, roomStyle, slideBoxProps, useSlideFit } from "@/components/creer/CarouselEditorParts/EditorLayout";
 import { useEditorMode } from "@/components/creer/CarouselEditorParts/editor-mode";
+import { SlideRedo } from "@/components/creer/CarouselEditorParts/SlideRedoDialog";
+import { replaceSlide, type SlideRedoApi } from "@/components/creer/CarouselEditorParts/slide-redo";
 
 
 interface Props {
@@ -93,14 +95,12 @@ interface Props {
   savedStyles?: CarouselStylesApi;
   /** Couleurs de la charte, proposées en premier dans les pastilles. */
   brandColors?: string[];
+  /** « Refaire cette slide » (chantier AA) ; absent : pas de bouton. */
+  slideRedo?: SlideRedoApi;
 }
 // Compare immutable references, not megabytes of embedded photo HTML on every
 // keystroke. Parent echoes retain these exact references.
-const inputKey = (raw: any, visuals: any) => [
-  raw.slides || raw.carousel?.slides,
-  raw.caption || raw.carousel?.caption,
-  visuals,
-];
+const inputKey = (raw: any, visuals: any) => [raw.slides || raw.carousel?.slides, raw.caption || raw.carousel?.caption, visuals];
 
 export default function CarouselEditor({
   result,
@@ -115,6 +115,7 @@ export default function CarouselEditor({
   toolsPortal,
   savedStyles,
   brandColors,
+  slideRedo,
 }: Props) {
   const raw = result?.raw || result;
   const editorRoot = useRef<HTMLElement>(null);
@@ -192,10 +193,7 @@ export default function CarouselEditor({
     setDocument(next);
     callbacks.current.onChange(output.raw, output.visualSlides);
   };
-  const incoming = useMemo(
-    () => inputKey(raw, visualSlides),
-    [raw, visualSlides],
-  );
+  const incoming = useMemo(() => inputKey(raw, visualSlides), [raw, visualSlides]);
   useEffect(() => {
     if (incoming.every((value, index) => value === echo.current[index])) return;
     echo.current = incoming;
@@ -730,7 +728,8 @@ export default function CarouselEditor({
   if (!slide) return null;
   return (
     <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-3" onKeyDown={(event) => onEditorKey(event.nativeEvent, event.target as HTMLElement)}>
-      <EditorHeader active={active} count={document.slides.length} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom} />
+      <EditorHeader active={active} count={document.slides.length} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom}
+        redo={slideRedo && slide && <SlideRedo api={slideRedo} raw={raw} slide={slide} getDocument={() => current.current} onKeep={(next) => commit(replaceSlide(current.current, next))} />} />
       {toolsPortal && createPortal(
         <QualityPanel
           cloudTools={cloudTools}
