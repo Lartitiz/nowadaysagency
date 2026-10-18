@@ -74,6 +74,18 @@ describe("Publish/schedule connection states", () => {
     fireEvent.click(screen.getByRole("button", { name: "Programmer la publication" }));
     expect(props.onSchedule).toHaveBeenCalledTimes(1);
   });
+  it("« Je l'ai publié moi-même » reste cliquable même sans compte connecté", () => {
+    const onPublishedByHand = vi.fn();
+    render(<PublishOrScheduleDialog {...props} channelConnected={false} onPublishedByHand={onPublishedByHand} />);
+    expect(screen.getByTestId("publish-now-option")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Je l'ai publié moi-même/ }));
+    expect(onPublishedByHand).toHaveBeenCalledTimes(1);
+  });
+  it("newsletter : « Je l'ai envoyée moi-même », même sans canal de publication", () => {
+    render(<PublishOrScheduleDialog {...props} channel={null} channelConnected={false} canal="newsletter" onPublishedByHand={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /Je l'ai envoyée moi-même/ })).toBeEnabled();
+    expect(screen.getByText("Publier ou garder au calendrier")).toBeInTheDocument();
+  });
   it("loading is distinct from unknown and known disconnection", () => {
     const { rerender } = render(<PublishOrScheduleDialog {...props} channelConnected={null} connectionLoading />);
     expect(screen.getAllByText("Vérification de la connexion…")).toHaveLength(2);

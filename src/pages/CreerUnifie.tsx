@@ -1331,7 +1331,7 @@ function CreerWorkspace() {
   const {
     publishImageInputRef, addingPublishImage, handlePublishImageSelected,
     isCarouselPublish, publishChannel, publishDialogDisabledReason, handlePublishNowFromDialog,
-    connectingPublishChannel, handleConnectFromDialog, handleScheduleFromDialog,
+    connectingPublishChannel, handleConnectFromDialog, handleScheduleFromDialog, publishingByHand, handlePublishedByHand,
   } = useCreerPublish({
     session, result, setResult, selectedFormat, isLinkedInCarousel, visualSlides, publishableImageUrl, reelMp4Url,
     carouselVisualsStale, visualLoading, generating, carouselQuality, carouselCloudEnabled, carouselSave, charterData,
@@ -2044,7 +2044,7 @@ function CreerWorkspace() {
         onSchedule={handleScheduleFromDialog}
         onDraft={(d) => handleConfirmCalendar({ date: d })}
         defaultDraftDate={paramCalendarDate || undefined}
-        theme={ideaText}
+        theme={ideaText} onPublishedByHand={handlePublishedByHand} publishingByHand={publishingByHand}
         canal={selectedFormat === "newsletter" ? "newsletter" : selectedFormat?.startsWith("pinterest") ? "pinterest" : isLinkedInCarousel ? "linkedin" : publishChannel || "instagram"}
       />
 

@@ -42,7 +42,7 @@ type CreerPublishInput = {
   instagramInFlight: MutableRefObject<{ scope: string } | null>;
   setPublishingInstagram: (value: boolean) => void;
   setPublishingLinkedIn: (value: boolean) => void;
-  recordImmediatePublication: (input: { canal: SocialChannel; caption: string; postId?: string }) => Promise<unknown>;
+  recordImmediatePublication: (input: { canal: string; caption: string; postId?: string; manual?: boolean }) => Promise<unknown>;
   handleConfirmCalendar: (input: { date: string; scheduleAt: Date }) => Promise<unknown>;
   setPublishDialogOpen: (open: boolean) => void;
   navigate: NavigateFunction;
@@ -325,7 +325,30 @@ export function useCreerPublish({
     }
   };
 
+  // « Je l'ai publié moi-même » : jamais bloqué (pas de connexion, plus de 10
+  // slides, story, newsletter…). Elle a publié ailleurs, on le note au calendrier.
+  const [publishingByHand, setPublishingByHand] = useState(false);
+  const handlePublishedByHand = async () => {
+    if (publishingByHand) return;
+    const canal = selectedFormat === "newsletter" ? "newsletter"
+      : selectedFormat?.startsWith("pinterest") ? "pinterest"
+      : isLinkedInCarousel || isLinkedInTextPost ? "linkedin" : "instagram";
+    setPublishingByHand(true);
+    try {
+      if (carouselCloudEnabled && !(await carouselSave.flush())) return;
+      const ok = await recordImmediatePublication({ canal, caption: "", manual: true });
+      if (!ok || activeReelScope.current !== reelScope) return;
+      toast.success(canal === "newsletter" ? "Bravo, ta newsletter est notée comme envoyée 🎉" : "Bravo, c'est noté comme publié 🎉", {
+        description: "À retrouver dans ton calendrier.",
+      });
+      setPublishDialogOpen(false);
+    } finally {
+      setPublishingByHand(false);
+    }
+  };
+
   return {
+    publishingByHand, handlePublishedByHand,
     publishImageInputRef, addingPublishImage, handlePublishImageSelected,
     isCarouselPublish,
     publishChannel, publishDialogDisabledReason, handlePublishNowFromDialog,

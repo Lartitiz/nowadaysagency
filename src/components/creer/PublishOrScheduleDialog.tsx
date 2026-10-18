@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Clock, Download, FileEdit, ImagePlus, Link2, Loader2, Zap } from "lucide-react";
+import { CheckCircle2, Clock, Download, FileEdit, ImagePlus, Link2, Loader2, Zap } from "lucide-react";
 import AlreadyPlannedNotice from "@/components/calendar/AlreadyPlannedNotice";
 
 export type PublishChannel = "instagram" | "linkedin" | null;
@@ -42,6 +42,13 @@ interface Props {
   theme?: string | null;
   /** Réseau visé (le doublon se juge par jour + réseau + sujet). */
   canal?: string | null;
+  /**
+   * « Je l'ai publié moi-même » : elle a publié depuis son téléphone, Canva ou
+   * ailleurs. JAMAIS bloqué (compte non connecté, plus de 10 slides, story…) :
+   * c'est la sortie qui marche toujours. Le contenu est noté publié au calendrier.
+   */
+  onPublishedByHand?: () => void;
+  publishingByHand?: boolean;
 }
 
 /** Valeur datetime-local par défaut : demain 09:00 (heure locale). */
@@ -87,6 +94,8 @@ export default function PublishOrScheduleDialog({
   defaultDraftDate,
   theme,
   canal,
+  onPublishedByHand,
+  publishingByHand,
 }: Props) {
   const [mode, setMode] = useState<"schedule" | "draft" | null>(null);
   const [scheduleInput, setScheduleInput] = useState("");
@@ -112,7 +121,7 @@ export default function PublishOrScheduleDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{channel ? "Publier ou garder au calendrier" : "Garder ce contenu au calendrier"}</DialogTitle>
+          <DialogTitle>{channel || onPublishedByHand ? "Publier ou garder au calendrier" : "Garder ce contenu au calendrier"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-2 py-1">
           {channel && (
@@ -243,6 +252,31 @@ export default function PublishOrScheduleDialog({
               <span className="text-[11px] text-muted-foreground">sans publication auto</span>
               <div className="h-px flex-1 bg-border" />
             </div>
+          )}
+          {onPublishedByHand && (
+            <button
+              type="button"
+              data-testid="publish-by-hand-option"
+              className={`${optionClass} border-success/40 bg-success/5`}
+              disabled={publishingByHand || publishing || scheduling}
+              onClick={onPublishedByHand}
+            >
+              {publishingByHand ? (
+                <Loader2 className="h-4 w-4 animate-spin text-success shrink-0 mt-0.5" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
+              )}
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-foreground">
+                  {canal === "newsletter" ? "Je l'ai envoyée moi-même" : "Je l'ai publié moi-même"}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  {canal === "newsletter"
+                    ? "Depuis mon outil d'envoi. Elle est notée « envoyée » dans mon calendrier."
+                    : "Depuis mon téléphone, Canva ou ailleurs. Il est noté « publié » dans mon calendrier."}
+                </span>
+              </span>
+            </button>
           )}
           <button
             type="button"

@@ -126,6 +126,16 @@ describe('publication LinkedIn', () => {
     expect(mocks.toast.success).toHaveBeenCalledWith('Publié sur LinkedIn ! Ouvre ton profil pour le voir.', { action: expect.objectContaining({ label: 'Voir sur LinkedIn' }) });
   });
 
+  it("« Je l'ai publié moi-même » : noté publié à la main, fenêtre fermée, sans appel LinkedIn", async () => {
+    mocks.recordPublication.mockResolvedValue(true);
+    await ouvrirLinkedIn('');
+    await act(async () => { await mocks.publishProps.onPublishedByHand(); });
+    expect(mocks.recordPublication).toHaveBeenCalledWith({ canal: 'linkedin', caption: '', manual: true });
+    expect(mocks.publishLinkedIn).not.toHaveBeenCalled();
+    expect(mocks.toast.success).toHaveBeenCalledWith("Bravo, c'est noté comme publié 🎉", expect.anything());
+    await waitFor(() => expect(mocks.publishProps.publishingByHand).toBe(false));
+  });
+
   it('post vide → bloqué avec la raison, aucun appel LinkedIn', async () => {
     await ouvrirLinkedIn('');
     expect(mocks.publishProps.disabledReason).toBe('Génère ton post LinkedIn pour pouvoir le publier.');

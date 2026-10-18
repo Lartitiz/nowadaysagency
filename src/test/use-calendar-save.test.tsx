@@ -572,6 +572,18 @@ describe('publication immédiate — suivi après succès réseau', () => {
     expect(inserts()[0].row).toMatchObject({ workspace_id: 'atelier', status: 'published', publish_status: 'published', published_post_id: 'ig-1', content_draft: 'Légende envoyée', auto_publish: false });
     expect(updates().find(o => o.table === 'saved_ideas')).toMatchObject({ row: { calendar_post_id: 'post-1' }, eq: ['id', 'idea-1'] });
   });
+  it("publiée à la main : notée publiée, sans statut d'API ni lien de post, avec le texte du contenu", async () => {
+    const { result } = renderHook(() => useCalendarSave(makeParams({ selectedFormat: 'newsletter' })));
+    await act(async () => { expect(await result.current.recordImmediatePublication({ canal: 'newsletter', caption: '', manual: true })).toBe(true); });
+    expect(inserts()[0].row).toMatchObject({ canal: 'newsletter', status: 'published', publish_status: null, published_post_id: null, content_draft: 'Brouillon', auto_publish: false, scheduled_publish_at: null });
+  });
+  it("publiée à la main, échec d'écriture : erreur claire, jamais « ne le republie pas »", async () => {
+    mocks.db.insertResponse = { data: null, error: { message: 'boom' } };
+    const { result } = renderHook(() => useCalendarSave(makeParams()));
+    await act(async () => { expect(await result.current.recordImmediatePublication({ canal: 'instagram', caption: '', manual: true })).toBe(false); });
+    expect(mocks.toast.error).toHaveBeenCalled();
+    expect(mocks.toast.warning).not.toHaveBeenCalled();
+  });
   it('met à jour le post du calendrier existant sans doublon', async () => {
     const { result } = renderHook(() => useCalendarSave(makeParams({ calendarPostId: 'existing' })));
     await act(async () => { await result.current.recordImmediatePublication({ canal: 'linkedin', caption: 'Lin', postId: 'li-1' }); });
