@@ -40,6 +40,7 @@ import {
 import { buildPrompt } from "./prompt.ts";
 import { CpuMeter, prepareProductReference, productFidelityLine, refineProductRegion } from "../_shared/product-fidelity.ts";
 import { downscaleToJpeg } from "../_shared/image-downscale.ts";
+import { downloadReference } from "./reference-source.ts";
 
 // ── Body schema ──
 const BodySchema = z.object({
@@ -76,10 +77,13 @@ const REFINE_START_BEFORE_MS = 85_000;
 const REFINE_DEADLINE_MS = 145_000;
 // CPU de l'hébergement (18/10/2026) : la requête est tuée au-delà de ~2 s de
 // calcul (546 WORKER_RESOURCE_LIMIT, image déjà payée chez le fournisseur).
-// Le travail d'image (recadrage, réduction, passe zoomée) reste sous 1,4 s ;
-// le reste (démarrage, JSON, base64) tient dans la marge. La passe zoomée
-// saute quand elle ne rentre plus : l'image de la 1re passe est rendue.
-const IMAGE_CPU_BUDGET_MS = 1_400;
+// Le travail d'image (recadrage, réduction, passe zoomée) reste sous 1,5 s ;
+// le reste (démarrage, JSON, base64 : ~20 ms mesurés) tient dans la marge. La
+// passe zoomée saute quand elle ne rentre plus : l'image de la 1re passe est
+// rendue. Mesuré en ligne le 18/10 (photo 2000 px, non réduite) : recadrage
+// 1 039 ms + réduction du 2k 371 ms → passe sautée ; d'où la photo réduite à
+// 1280 px par le stockage (reference-source.ts).
+const IMAGE_CPU_BUDGET_MS = 1_500;
 
 serve(async (req) => {
   const t0 = Date.now();
@@ -136,7 +140,7 @@ serve(async (req) => {
     // 4. Photo source (RLS-scoped : la cliente ne voit que ses photos)
     const { data: photo, error: photoErr } = await supabase
       .from("user_photos")
-      .select("id, storage_path, description, name, status, workspace_id")
+      .select("id, storage_path, description, name, status, workspace_id, width, height")
       .eq("id", parsed.photo_id)
       .maybeSingle();
 
@@ -148,9 +152,13 @@ serve(async (req) => {
       return jsonResponse({ error: "Photo introuvable ou pas encore prête" }, 404);
     }
 
-    const { data: blob, error: dlErr } = await supabase.storage
-      .from("user-photos")
-      .download(photo.storage_path);
+    // Copie réduite à 1280 px par le stockage : le recadrage tient dans le
+    // budget CPU et laisse la place à la passe zoomée (reference-source.ts).
+    const bucket = supabase.storage.from("user-photos");
+    const { blob, reduced: referenceReduced, error: dlErr } = await downloadReference(
+      (options) => bucket.download(photo.storage_path, options),
+      Math.max(photo.width ?? 0, photo.height ?? 0) || null,
+    );
     if (dlErr || !blob) {
       console.error("[product-on-model] download error:", dlErr);
       return jsonResponse({ error: "Téléchargement de la photo impossible" }, 500);
@@ -292,6 +300,7 @@ serve(async (req) => {
         has_reference: !!referenceBlob,
         detoured,
         reference_cropped: prepared.cropped,
+        reference_reduced: referenceReduced,
         refined,
         cpu_ms: meter.spent,
         total_ms: Date.now() - t0,
