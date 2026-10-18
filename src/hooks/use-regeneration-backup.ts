@@ -29,10 +29,17 @@ export function regenerationOutcome(params: {
   result: unknown;
   previousResult: unknown;
   step: string;
+  /** « Refaire les visuels » (chantier U) : le texte reste, seuls les visuels changent. */
+  visualSlides?: unknown[];
+  previousVisualSlides?: unknown[];
 }): Outcome {
-  const { started, busy, result, previousResult, step } = params;
+  const { started, busy, result, previousResult, step, visualSlides, previousVisualSlides } = params;
   if (busy || !started) return "waiting";
   if (result && result !== previousResult) return "succeeded";
+  const visualsTouched = visualSlides !== undefined && visualSlides !== previousVisualSlides;
+  if (visualsTouched && visualSlides.length > 0) return "succeeded";
+  // Rien n'a changé (visuels refusés par le serveur…) : rien à rendre.
+  if (visualSlides !== undefined && !visualsTouched && result === previousResult && step === "result") return "abandoned";
   // Les échecs de génération laissent l'étape résultat vide, ou renvoient à
   // l'étape format (carrousel photo, structure non reçue…).
   if (!result && (step === "result" || step === "format")) return "failed";
@@ -43,11 +50,13 @@ export function regenerationOutcome(params: {
 
 export function useRegenerationBackup(params: {
   result: any;
+  /** Visuels affichés : « Refaire les visuels » réussi = de nouveaux visuels. */
+  visualSlides?: RegenerationSnapshot["visualSlides"];
   step: string;
   busy: boolean;
   restore: (snapshot: RegenerationSnapshot) => void;
 }) {
-  const { result, step, busy, restore } = params;
+  const { result, visualSlides, step, busy, restore } = params;
   const [pending, setPending] = useState<RegenerationSnapshot | null>(null);
   const startedRef = useRef(false);
   const restoreRef = useRef(restore);
@@ -68,7 +77,10 @@ export function useRegenerationBackup(params: {
   useEffect(() => {
     if (!pending) return;
     if (busy) startedRef.current = true;
-    const outcome = regenerationOutcome({ started: startedRef.current, busy, result, previousResult: pending.result, step });
+    const outcome = regenerationOutcome({
+      started: startedRef.current, busy, result, previousResult: pending.result, step,
+      visualSlides, previousVisualSlides: visualSlides === undefined ? undefined : pending.visualSlides,
+    });
     if (outcome === "waiting") return;
     setPending(null);
     if (outcome === "failed") {
@@ -82,7 +94,7 @@ export function useRegenerationBackup(params: {
         action: { label: "Revenir à ma version précédente", onClick: () => restoreRef.current(previous) },
       });
     }
-  }, [pending, busy, result, step]);
+  }, [pending, busy, result, visualSlides, step]);
 
   return { pending, begin, settleIfNotStarted };
 }

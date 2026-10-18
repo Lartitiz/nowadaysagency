@@ -61,6 +61,8 @@ function makeParams(overrides: Record<string, any> = {}) {
   return {
     result: makeTextResult(),
     creationId: undefined as string | undefined,
+    // Accord donné tout de suite (la fenêtre de l'app est testée à part).
+    confirmRedo: vi.fn((run: () => void) => run()),
     visualLoading: false,
     contentGenerating: false,
     allowAutomatic: true,
@@ -212,7 +214,6 @@ describe("useGenerateVisuals — appel manuel (avant-plan)", () => {
     expect(params.refreshPlan).toHaveBeenCalledTimes(1);
   });
   it("préserve le HTML d'une slide verrouillée pendant une régénération explicite", async () => {
-    const confirm=vi.spyOn(window,"confirm").mockReturnValue(true);
     const raw=makeTextResult().raw;
     const params=makeParams({result:{raw:{...raw,carousel_editor_version:1,slides:raw.slides.map((s,i)=>({...s,editor_locked:i===0}))}},visualSlides:[{slide_number:1,html:"<div>Design verrouillé</div>"},{slide_number:2,html:"<div>Ancien design</div>"}]});
     const {result}=renderHook(()=>useGenerateVisuals(params));
@@ -220,15 +221,14 @@ describe("useGenerateVisuals — appel manuel (avant-plan)", () => {
     expect(params.setVisualSlides).toHaveBeenCalledWith([{slide_number:1,html:"<div>Design verrouillé</div>"},{slide_number:2,html:"<div>T2 B2</div>"}]);
     expect(params.setVisualsAutoError).toHaveBeenCalledWith(expect.stringContaining("texte manque"));
     expect(mocks.toast.success).not.toHaveBeenCalled();
-    expect(confirm).toHaveBeenCalled();confirm.mockRestore();
+    expect(params.confirmRedo).toHaveBeenCalled();
   });
   it("ne facture ni ne remplace les retouches quand la régénération est annulée", async () => {
-    const confirm=vi.spyOn(window,"confirm").mockReturnValue(false);
-    const params=makeParams({result:{raw:{...makeTextResult().raw,carousel_editor_version:1}}});
+    const params=makeParams({confirmRedo:vi.fn(),result:{raw:{...makeTextResult().raw,carousel_editor_version:1}}});
     const {result}=renderHook(()=>useGenerateVisuals(params));
     await act(()=>result.current.handleGenerateVisuals());
+    expect(params.confirmRedo).toHaveBeenCalled();
     expect(mocks.invokeWithHeartbeat).not.toHaveBeenCalled();expect(params.setVisualSlides).not.toHaveBeenCalled();
-    confirm.mockRestore();
   });
 
   it("résultat amputé (1 slide sur 2) → jamais « Visuels générés ! », erreur réessayable", async () => {
