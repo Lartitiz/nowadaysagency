@@ -59,7 +59,8 @@ export function useCreerKeepContent(p: {
     hasContent: () => !p.disabled && !!p.result?.raw,
     alreadyKept,
     saveCopy: () => saveContentCopyToIdeas({
-      userId: p.userId, workspaceId: p.workspaceId, subject: p.ideaText,
+      // Sujet du contenu affiché : à l'écran Idée, `ideaText` suit déjà la frappe du nouveau sujet.
+      userId: p.userId, workspaceId: p.workspaceId, subject: p.previousSubject || p.ideaText,
       format: written.current?.selectedFormat ?? p.selectedFormat, isLinkedInCarousel: written.current?.isLinkedInCarousel ?? p.isLinkedInCarousel,
       objective: p.objective, raw: p.result?.raw, visualSlides: p.visualSlides, draftText: p.editContent,
     }),
