@@ -6,6 +6,7 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from "react";
 import { isPassiveShape, syncGlass, type ElementRect } from "@/lib/carousel-editor";
 import { findClippedIds, hasClippedElement, inspectSlide, type QualityIssue } from "@/lib/carousel-quality";
+import { caretRange, trackTyping } from "@/components/creer/CarouselEditorParts/inline-typing";
 import {
   clamp,
   numberOr,
@@ -67,6 +68,8 @@ export interface CanvasContext {
   measure: () => void;
   commitLive: (id: string, styles: Record<string, string>) => void;
   commitLiveMany: (moves: Record<string, Record<string, string>>) => void;
+  commitText: (id: string, value: string, editorial: boolean) => void;
+  reload: () => void;
   setEditingId: (id: string | null) => void;
   setCropId: (id: string | null) => void;
   setMarquee: (marquee: { x: number; y: number; w: number; h: number } | null) => void;
@@ -80,7 +83,7 @@ export interface CanvasContext {
 /** Branche l'aperçu chargé (appelé à chaque chargement de l'iframe). */
 export function bindCanvas(ctx: CanvasContext) {
   const { frame, keepFocus, latest, tools, api, zoomRef, fitRef, cropRef, recheck, target, measure } = ctx;
-  const { commitLive, commitLiveMany, setEditingId, setCropId, setMarquee, setGuides, setDropping } = ctx;
+  const { commitLive, commitLiveMany, commitText, reload, setEditingId, setCropId, setMarquee, setGuides, setDropping } = ctx;
   const { setOverflow, setEmptyFrames, setIssues } = ctx;
     const doc = frame.current?.contentDocument;
     if (!doc) return;
@@ -88,9 +91,10 @@ export function bindCanvas(ctx: CanvasContext) {
     // Keyboard events inside the sandboxed preview do not bubble to React.
     if (keepFocus.current) view.focus();
     // Édition du texte sur la slide (double-clic) : le texte devient
-    // modifiable sur place ; il est enregistré quand on clique ailleurs ou
-    // qu'on appuie sur Échap (⌘/Ctrl + Entrée aussi).
-    let editing: { el: HTMLElement; id: string; before: string; html: string } | null = null;
+    // modifiable sur place ; il est enregistré à chaque mot ou pause
+    // (`trackTyping`), puis remis en page quand on clique ailleurs ou qu'on
+    // appuie sur Échap (⌘/Ctrl + Entrée aussi).
+    let editing: { el: HTMLElement; id: string; before: string; html: string; typing: ReturnType<typeof trackTyping> } | null = null;
     const readText = (el: HTMLElement) =>
       el.hasAttribute("data-photo-editorial-text") ? el.textContent || "" : (el.innerText ?? el.textContent ?? "").replace(/\n$/, "");
     const finishEditing = () => {
@@ -102,18 +106,28 @@ export function bindCanvas(ctx: CanvasContext) {
       e.el.style.removeProperty("user-select");
       e.el.style.removeProperty("-webkit-user-select");
       e.el.style.removeProperty("cursor");
+      e.typing.stop();
       const text = readText(e.el);
+      const editorial = e.el.hasAttribute("data-photo-editorial-text");
       if (!text.trim()) e.el.innerHTML = e.html;
       // Texte éditorial : le texte seul (sa mise en valeur est recomposée).
-      else if (e.el.hasAttribute("data-photo-editorial-text")) {
-        if (text !== e.before) latest.current.onEditText(e.id, text);
-        else e.el.innerHTML = e.html;
-      } else if (e.el.innerHTML !== e.html) latest.current.onEditHtml(e.id, e.el.innerHTML);
+      const value = editorial ? (text.trim() ? text : e.before) : e.el.innerHTML;
+      const original = editorial ? e.before : e.html;
+      if (value === original && e.typing.saved() === original) {
+        if (editorial) e.el.innerHTML = e.html;
+        return;
+      }
+      // Déjà enregistré mot à mot : on remet seulement la slide en page (ajustement).
+      if (editorial) latest.current.onEditText(e.id, value);
+      else latest.current.onEditHtml(e.id, value);
+      reload();
     };
     view.addEventListener("blur", finishEditing);
     // Le texte grandit en écrivant : le cadre (et la barre qui l'évite) suit.
-    doc.addEventListener("input", () => {
-      if (editing) measure();
+    doc.addEventListener("input", (event) => {
+      if (!editing) return;
+      measure();
+      editing.typing.input((event as InputEvent).data);
     });
     // Mise en forme d'un mot : la sélection reçoit sa propre couleur/graisse.
     const format = (styles: Record<string, string>) => {
@@ -141,24 +155,29 @@ export function bindCanvas(ctx: CanvasContext) {
       r.selectNodeContents(span);
       sel.addRange(r);
       measure();
+      editing.typing.input(" ");
       return true;
     };
-    const startEditing = (el: HTMLElement) => {
+    const startEditing = (el: HTMLElement, at?: { x: number; y: number }) => {
       finishEditing();
-      editing = { el, id: el.dataset.editorId!, before: readText(el), html: el.innerHTML };
-      setEditingId(editing.id);
+      const id = el.dataset.editorId!;
       const editorial = el.hasAttribute("data-photo-editorial-text");
+      const typing = trackTyping(
+        () => (editorial ? readText(el) : el.innerHTML),
+        (value) => readText(el).trim() && commitText(id, value, editorial),
+      );
+      editing = { el, id, before: readText(el), html: el.innerHTML, typing };
+      setEditingId(editing.id);
       el.setAttribute("contenteditable", editorial ? "plaintext-only" : "true");
       if (editorial && el.contentEditable !== "plaintext-only") el.setAttribute("contenteditable", "true");
       el.style.setProperty("user-select", "text");
       el.style.setProperty("-webkit-user-select", "text");
       el.style.setProperty("cursor", "text");
       el.focus();
-      const range = doc.createRange();
-      range.selectNodeContents(el);
+      // Curseur là où l'on a double-cliqué (sinon à la fin) : taper ajoute des mots.
       const sel = view.getSelection();
       sel?.removeAllRanges();
-      sel?.addRange(range);
+      sel?.addRange(caretRange(doc, el, at));
       latest.current.onSelect(editing.id);
     };
     tools.current = {
@@ -339,7 +358,7 @@ export function bindCanvas(ctx: CanvasContext) {
       }
       if (!el || !isInlineText(el) || isLockedEl(el)) return;
       e.preventDefault();
-      startEditing(el);
+      startEditing(el, { x: e.clientX, y: e.clientY });
     });
     doc.addEventListener("keydown", (event) => {
       keepFocus.current = true;

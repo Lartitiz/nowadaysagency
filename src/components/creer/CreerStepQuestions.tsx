@@ -4,6 +4,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, ArrowRight, Sparkles, SkipForward, Loader2 } from "lucide-react";
 import type { Question } from "@/hooks/use-content-generator";
+import StickyStepBar from "./StickyStepBar";
 
 // ─── Loader honnête pour la préparation des questions ───
 // La latence de l'edge qui génère les questions varie fortement (cold-start
@@ -215,18 +216,20 @@ export default function CreerStepQuestions({
             autoFocus
           />
         </div>
-        <Button onClick={handleSkip} disabled={isSubmitting} className="w-full gap-2" data-testid="creer-field-question-generate">
-          {isSubmitting ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> Lancement…</>
-          ) : (
-            <><Sparkles className="h-4 w-4" /> {fieldAnswer.trim() ? "Générer avec ma réponse" : "Générer sans répondre"}</>
-          )}
-        </Button>
-        <div className="text-center">
-          <Button variant="ghost" size="sm" onClick={() => setAskingField(false)} disabled={isSubmitting} className="gap-1">
-            <ArrowLeft className="h-3.5 w-3.5" /> Revenir aux questions
-          </Button>
-        </div>
+        <StickyStepBar>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setAskingField(false)} disabled={isSubmitting} aria-label="Revenir aux questions" className="gap-1 text-muted-foreground shrink-0">
+              <ArrowLeft className="h-3.5 w-3.5" /> Retour
+            </Button>
+            <Button size="lg" onClick={handleSkip} disabled={isSubmitting} className="flex-1 gap-2" data-testid="creer-field-question-generate">
+              {isSubmitting ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Lancement…</>
+              ) : (
+                <><Sparkles className="h-4 w-4" /> {fieldAnswer.trim() ? "Générer avec ma réponse" : "Générer sans répondre"}</>
+              )}
+            </Button>
+          </div>
+        </StickyStepBar>
       </div>
     );
   }
@@ -320,43 +323,45 @@ export default function CreerStepQuestions({
 
       {narrativeField}
 
-      {/* Navigation */}
-      <div className="flex justify-between items-center">
-        <Button variant="ghost" size="sm" onClick={handlePrev} disabled={isSubmitting} className="gap-1">
-          <ArrowLeft className="h-3.5 w-3.5" /> {currentIndex > 0 ? "Précédent" : "Retour"}
-        </Button>
-        <Button size="sm" onClick={handleNext} disabled={isSubmitting} className="gap-1" data-testid="creer-questions-next">
+      {/* Navigation — collée en bas pour que « Générer » reste visible sans défiler sur
+          téléphone, au-dessus de la barre du menu du bas (chantier I, comme l'écran Format). */}
+      <StickyStepBar testId="creer-questions-bar">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={handlePrev} disabled={isSubmitting} className="gap-1 text-muted-foreground shrink-0">
+            <ArrowLeft className="h-3.5 w-3.5" /> {currentIndex > 0 ? "Précédent" : "Retour"}
+          </Button>
+          <Button size="lg" onClick={handleNext} disabled={isSubmitting} className="flex-1 gap-2" data-testid="creer-questions-next">
+            {isSubmitting ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Lancement…</>
+            ) : isLast ? (
+              <>Générer <Sparkles className="h-4 w-4" /></>
+            ) : (
+              <>Suivant <ArrowRight className="h-4 w-4" /></>
+            )}
+          </Button>
+        </div>
+
+        {/* Skip */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full gap-1.5 text-muted-foreground"
+          onClick={handleSkip}
+          disabled={isSubmitting}
+          data-testid="creer-generate-direct"
+        >
           {isSubmitting ? (
             <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Lancement…</>
-          ) : isLast ? (
-            <>Générer <Sparkles className="h-3.5 w-3.5" /></>
           ) : (
-            <>Suivant <ArrowRight className="h-3.5 w-3.5" /></>
+            <><SkipForward className="h-3.5 w-3.5" /> {hasAnswers ? "Générer avec mes précisions" : "Passer les questions, générer directement"}</>
           )}
         </Button>
-      </div>
-
-      {/* Skip */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="w-full gap-1.5 text-muted-foreground"
-        onClick={handleSkip}
-        disabled={isSubmitting}
-        data-testid="creer-generate-direct"
-      >
-        {isSubmitting ? (
-          <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Lancement…</>
-        ) : (
-          <><SkipForward className="h-3.5 w-3.5" /> {hasAnswers ? "Générer avec mes précisions" : "Passer les questions, générer directement"}</>
+        {isSubmitting && (
+          <p className="text-xs text-center text-muted-foreground animate-fade-in">
+            ⚡ Préparation de la génération…
+          </p>
         )}
-      </Button>
-
-      {isSubmitting && (
-        <p className="text-xs text-center text-muted-foreground animate-fade-in">
-          ⚡ Préparation de la génération…
-        </p>
-      )}
+      </StickyStepBar>
     </div>
   );
 }

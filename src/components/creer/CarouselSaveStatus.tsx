@@ -2,16 +2,19 @@ import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import type { useCarouselAutosave } from "@/hooks/use-carousel-autosave";
+import { useTypingPending } from "@/components/creer/CarouselEditorParts/inline-typing";
 export default function CarouselSaveStatus({
   save,
 }: {
   save: ReturnType<typeof useCarouselAutosave>;
 }) {
+  // Un texte tapé sur la slide pas encore parti : ce n'est pas « tout enregistré ».
+  const typing = useTypingPending();
   if (!save.enabled) return null;
   const label =
-    save.status === "saved"
+    save.status === "saved" && !typing
       ? "Tout est enregistré dans ton compte"
-      : save.status === "saving"
+      : save.status === "saving" || (typing && save.status === "saved")
         ? "Enregistrement en cours…"
         : save.status === "offline"
           ? "Hors connexion : garde cet onglet ouvert. La sauvegarde reprendra à la reconnexion."

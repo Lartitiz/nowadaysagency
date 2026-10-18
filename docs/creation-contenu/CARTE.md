@@ -120,6 +120,13 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
   payant pendant la relecture. Plus de « Sauvegarde locale indisponible » quand la
   fiche est enregistrée.
 - Tests : `src/test/creer-refaire-visuels-rechargement.test.tsx` (vraie page /creer).
+- **Texte tapé sur la slide de l'éditeur** (double-clic, « Écrire », Entrée ;
+  chantier T, 18/10/2026) : enregistré à chaque mot ou après 600 ms de pause,
+  sans recharger l'aperçu (`CarouselEditorParts/inline-typing.ts`, branché dans
+  `canvas-events.ts`). Tant qu'un texte tapé n'est pas parti, l'encadré dit
+  « Enregistrement en cours… » et quitter la page l'envoie en prévenant. Le
+  double-clic place le curseur au point cliqué (plus de titre entier
+  sélectionné). Test : `src/test/carousel-editor-typing.test.tsx`.
 
 ### Pas d'écrasement entre onglets ni de texte démesuré (lot 10, 14/10/2026)
 
@@ -651,6 +658,7 @@ après le découpage, ils doivent tous passer sans être retouchés.
 | `carousel-editor-heavy-undo.test.tsx` | Annuler / Rétablir à l'identique après une mise en page, un thème, « Appliquer à toutes les slides », « Police et couleur sur toutes les slides », un collage sur une autre slide |
 | `carousel-editor-roundtrip.test.tsx` | Aller-retour `readCarouselDocument` → retouches → `documentOutput` → `mergeEditorRaw` → relecture identique ; branchement comme `CreerUnifie.tsx` : une seule émission par retouche, reçu de sauvegarde gardé, pas de relecture sur un écho, réouverture identique, régénération relue une fois |
 | `carousel-editor-export-fidelity.test.tsx` | Après chaque retouche (texte, style, déplacement, taille, rotation, ombre, filtre, fond, police, verrou, ordre, masquage, duplication, photo, mise en page, thème, report), sur le vrai HTML du serveur : `data-pptx-editable`, `data-pptx-photo`, `data-pptx-shape` et `data-slide-text` restent sur les mêmes éléments |
+| `carousel-editor-typing.test.tsx` (chantier T) | Texte tapé dans la slide : enregistré par mot ou pause sans cliquer ailleurs, encadré « Enregistrement en cours… » pendant la frappe, envoi avant de quitter la page, une étape d'Annuler, titre vidé remis, curseur au point cliqué |
 | `carousel-editor-wiring.test.tsx` (lot E3-0) | Branchement des commandes que les autres tests ne passent pas par l'écran : encadré « Contrôle qualité » (bilan, Revérifier, Appliquer la correction, Voir cet élément), sélection multiple (aligner, centrer, grouper, dégrouper), flèches et Suppr dans l'aperçu, boutons des slides (monter, descendre, supprimer, verrouiller), calques masqués / retirés / remis, fond de la slide, texte sur la photo, intensité du voile, aperçu Instagram |
 
 ---

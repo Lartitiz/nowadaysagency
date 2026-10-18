@@ -56,8 +56,8 @@ export default function SlideCanvas({
   onSelect: (id: string | null) => void;
   onMove: (id: string, styles: Record<string, string>) => void;
   onRemove: (id: string) => void;
-  onEditText: (id: string, text: string) => void;
-  onEditHtml: (id: string, html: string) => void;
+  onEditText: (id: string, text: string, live?: boolean) => void;
+  onEditHtml: (id: string, html: string, live?: boolean) => void;
   onFill: (id: string, hex: string) => void;
   onDuplicate: (id: string) => void;
   /** Couleurs du carrousel proposées dans la barre d'outils. */
@@ -107,6 +107,8 @@ export default function SlideCanvas({
   const liveUntil = useRef(0);
   const recheck = useRef<() => void>(() => {});
   const shownId = useRef(slide.id);
+  // Fin d'une saisie déjà enregistrée mot à mot : la slide est remise en page.
+  const [reloads, setReloads] = useState(0);
   useEffect(() => {
     const sameSlide = shownId.current === slide.id;
     shownId.current = slide.id;
@@ -117,7 +119,7 @@ export default function SlideCanvas({
     }
     liveUntil.current = 0;
     setShown(slide.html);
-  }, [slide.html, slide.id]);
+  }, [slide.html, slide.id, reloads]);
   const commitLive = (id: string, styles: Record<string, string>) => {
     liveUntil.current = Date.now() + 1000;
     latest.current.onMove(id, styles);
@@ -125,6 +127,16 @@ export default function SlideCanvas({
   const commitLiveMany = (moves: Record<string, Record<string, string>>) => {
     liveUntil.current = Date.now() + 1000;
     latest.current.onMoveMany(moves);
+  };
+  // Texte tapé sur la slide : enregistré sans recharger l'aperçu (la frappe continue).
+  const commitText = (id: string, value: string, editorial: boolean) => {
+    liveUntil.current = Date.now() + 1000;
+    if (editorial) latest.current.onEditText(id, value, true);
+    else latest.current.onEditHtml(id, value, true);
+  };
+  const reload = () => {
+    liveUntil.current = 0;
+    setReloads((n) => n + 1);
   };
   // L'aperçu se recharge après chaque retouche : s'il avait le clavier, il le
   // reprend (flèches répétées) ; jamais s'il a été quitté pour le panneau.
@@ -246,6 +258,8 @@ export default function SlideCanvas({
       measure,
       commitLive,
       commitLiveMany,
+      commitText,
+      reload,
       setEditingId,
       setCropId,
       setMarquee,
