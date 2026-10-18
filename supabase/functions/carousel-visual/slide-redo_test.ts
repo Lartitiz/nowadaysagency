@@ -46,13 +46,18 @@ Deno.test("slide refaite — numéro absent du carrousel : refus 400", async () 
   await assertRejects(() => readSlideRedo({ slides: slides(), render_only: 9 }, req(), USER), Error, "introuvable");
 });
 
-Deno.test("slide refaite — carrousel texte : rendu du modèle seulement avec consigne ou schéma", () => {
+Deno.test("slide refaite — rendu du modèle : consigne de mise en page (texte, mixte) ou schéma (texte)", () => {
   const s = slides();
-  assertEquals(redoNeedsModelRender({ slideNumber: 1, index: 0, note: "", granted: true }, s, true), false);
-  assertEquals(redoNeedsModelRender({ slideNumber: 1, index: 0, note: "autre disposition", granted: true }, s, true), true);
-  assertEquals(redoNeedsModelRender({ slideNumber: 3, index: 2, note: "", granted: true }, s, true), true);
-  assertEquals(redoNeedsModelRender({ slideNumber: 1, index: 0, note: "autre disposition", granted: true }, s, false), false);
-  assertEquals(redoNeedsModelRender(null, s, true), false);
+  const plain = { slideNumber: 1, index: 0, note: "", granted: true };
+  const note = { ...plain, note: "texte en haut" };
+  assertEquals(redoNeedsModelRender(plain, s, "text"), false);
+  assertEquals(redoNeedsModelRender(note, s, "text"), true);
+  assertEquals(redoNeedsModelRender({ slideNumber: 3, index: 2, note: "", granted: true }, s, "text"), true);
+  // Mixte : la consigne seule fait redessiner (vu en réel : la couverture ne changeait pas).
+  assertEquals(redoNeedsModelRender(note, s, "mix"), true);
+  assertEquals(redoNeedsModelRender({ slideNumber: 3, index: 2, note: "", granted: true }, s, "mix"), false);
+  assertEquals(redoNeedsModelRender(note, s, "photo"), false);
+  assertEquals(redoNeedsModelRender(null, s, "text"), false);
 });
 
 Deno.test("slide refaite — consigne de mise en page dans le rendu et les étapes de disposition", async () => {

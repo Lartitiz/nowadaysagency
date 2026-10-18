@@ -48,12 +48,16 @@ export async function readSlideRedo(reqBody: any, req: Request, userId: string):
   return { slideNumber: n, index, note, granted: await verifyInternalGrant(req.headers.get(SLIDE_REDO_GRANT.header), SLIDE_REDO_GRANT.purpose, userId) };
 }
 
-/** Carrousel texte : la slide refaite passe par le rendu du modèle quand une
- * consigne de mise en page ou un schéma le demande (le rendu composé par le
- * code redonnerait la même mise en page pour un même texte). */
+/** La slide refaite passe par le rendu du modèle (un lot d'une slide, avec la consigne) :
+ * - carrousel texte : avec une consigne de mise en page ou un schéma (le rendu composé
+ *   par le code redonnerait la même mise en page pour un même texte) ;
+ * - mixte : avec une consigne de mise en page (essai réel du 18/10/2026 : passée aux
+ *   seules étapes de disposition, elle ne changeait rien sur la couverture).
+ * Carrousel photo : jamais (pas de rendu par le modèle) ; la consigne va à la direction artistique. */
 // deno-lint-ignore no-explicit-any
-export function redoNeedsModelRender(redo: SlideRedo | null, slides: any[], isText: boolean): boolean {
-  return !!redo && isText && (!!redo.note || !!slides[redo.index]?.visual_schema);
+export function redoNeedsModelRender(redo: SlideRedo | null, slides: any[], kind: "text" | "mix" | "photo"): boolean {
+  if (!redo || kind === "photo") return false;
+  return !!redo.note || (kind === "text" && !!slides[redo.index]?.visual_schema);
 }
 
 /** Ajouté au message du rendu par le modèle (lot d'une seule slide). */
