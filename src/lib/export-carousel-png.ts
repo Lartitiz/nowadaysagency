@@ -1,4 +1,5 @@
 import { embedExportFonts } from "./export-font-embedding";
+import { waitForClonedTextFonts, waitForTextFonts } from "./export-text-fonts";
 import { exportFileName } from "./export-file-name";
 import { ExportImageError, embedExportImages, waitForExportImages } from "./export-image-readiness";
 import { inlineSlidesMedia } from "./carousel-media";
@@ -80,38 +81,7 @@ async function waitForIframeReady(
   const doc = iframe.contentDocument;
   if (!doc) return;
 
-  // Fonts
-  try {
-    if (doc.fonts?.ready) {
-      await Promise.race([
-        doc.fonts.ready,
-        new Promise((r) => setTimeout(r, timeoutMs)),
-      ]);
-
-      // Les fontes de marque vivent dans le srcdoc, pas toujours dans la page React.
-      // Une demande explicite par graisse/taille évite qu'un export lancé juste
-      // après l'affichage capture la police de secours pendant le chargement.
-      const textElements = Array.from(doc.querySelectorAll<HTMLElement>("[data-story-pptx], [data-pptx-editable], [data-slide-text]"));
-      const requested = new Set<string>();
-      const loads = textElements.flatMap((el) => {
-        const cs = doc.defaultView?.getComputedStyle(el);
-        if (!cs) return [];
-        const shorthand = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-        const key = `${shorthand}|${el.textContent || ""}`;
-        if (requested.has(key)) return [];
-        requested.add(key);
-        return [(doc as Document & { fonts: FontFaceSet }).fonts.load(shorthand, el.textContent || "")];
-      });
-      if (loads.length > 0) {
-        await Promise.race([
-          Promise.allSettled(loads),
-          new Promise((r) => setTimeout(r, timeoutMs)),
-        ]);
-      }
-    }
-  } catch {
-    /* noop */
-  }
+  await waitForTextFonts(doc, timeoutMs);
 
   await waitForExportImages(doc.body, timeoutMs);
   // Verre dépoli : html2canvas ignore filter:blur, on pose une photo déjà floutée.
@@ -304,11 +274,13 @@ async function captureSlide(
       logging: false,
       imageTimeout: 8000,
       foreignObjectRendering: output.foreignObjectRendering,
-      onclone: (doc) => {
-        if (!fontCss) return;
-        const style = doc.createElement("style");
-        style.textContent = fontCss;
-        doc.body.appendChild(style);
+      onclone: async (doc) => {
+        if (fontCss) {
+          const style = doc.createElement("style");
+          style.textContent = fontCss;
+          doc.body.appendChild(style);
+        }
+        await waitForClonedTextFonts(doc);
       },
     });
 
