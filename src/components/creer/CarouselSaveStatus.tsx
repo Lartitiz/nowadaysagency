@@ -2,11 +2,15 @@ import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import type { useCarouselAutosave } from "@/hooks/use-carousel-autosave";
+import type { useCalendarFollow } from "@/hooks/use-calendar-follow";
 import { useTypingPending } from "@/components/creer/CarouselEditorParts/inline-typing";
 export default function CarouselSaveStatus({
   save,
+  calendar,
 }: {
   save: ReturnType<typeof useCarouselAutosave>;
+  /** Contenu déjà mis au calendrier : il suit les retouches (choix C3). */
+  calendar?: ReturnType<typeof useCalendarFollow>;
 }) {
   // Un texte tapé sur la slide pas encore parti : ce n'est pas « tout enregistré ».
   const typing = useTypingPending();
@@ -50,6 +54,7 @@ export default function CarouselSaveStatus({
           </Button>
         )}
       </div>
+      {calendar && <CalendarFollowLine calendar={calendar} />}
       {!!save.history.length && (
         <details className="text-xs">
           <summary className="cursor-pointer py-1 font-medium">
@@ -79,6 +84,40 @@ export default function CarouselSaveStatus({
             ))}
           </ul>
         </details>
+      )}
+    </div>
+  );
+}
+
+/** Ce que devient le contenu du calendrier quand on retouche ici. */
+function CalendarFollowLine({ calendar }: { calendar: ReturnType<typeof useCalendarFollow> }) {
+  const text =
+    calendar.status === "syncing" || (calendar.pending && calendar.status !== "error" && calendar.status !== "blocked")
+      ? "Mise à jour de ton calendrier…"
+      : calendar.status === "updated"
+        ? "Mis à jour dans ton calendrier"
+        : calendar.status === "following"
+          ? "Ce contenu est dans ton calendrier : tes retouches y iront toutes seules."
+          : calendar.status === "published"
+            ? "Déjà publié : ton calendrier garde la version publiée. Tes retouches restent ici et dans Mes idées."
+            : calendar.status === "conflict"
+              ? "Ce contenu a été modifié ailleurs dans ton calendrier : ta retouche n’y est pas allée."
+              : calendar.status === "blocked" || calendar.status === "error"
+                ? `Ton calendrier n’a pas été mis à jour. ${calendar.message}`
+                : null;
+  if (!text) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1" data-testid="calendar-follow-status">
+      <p role="status" aria-live="polite">{text}</p>
+      {calendar.status === "conflict" && (
+        <Button size="sm" variant="outline" onClick={() => calendar.retry(true)}>
+          Mettre à jour quand même
+        </Button>
+      )}
+      {calendar.status === "error" && (
+        <Button size="sm" variant="outline" onClick={() => calendar.retry()}>
+          Réessayer
+        </Button>
       )}
     </div>
   );

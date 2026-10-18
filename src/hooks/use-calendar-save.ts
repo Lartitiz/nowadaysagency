@@ -1,5 +1,5 @@
 import { isDurableReelUrl, REEL_VIDEO_REQUIRED } from "@/lib/reel-publication";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { commitCalendarContent, calendarSaveError } from "@/lib/calendar-persistence";
@@ -13,6 +13,7 @@ import {
   uploadVisualsToStorage as uploadVisualsImpl,
   uploadPinterestVisualToStorage as uploadPinterestVisualImpl,
 } from "@/features/creer/upload-helpers";
+import { useCalendarFollow, type CalendarFollowOutcome } from "@/hooks/use-calendar-follow";
 
 interface UseCalendarSaveParams {
   enabled?: boolean;
@@ -44,6 +45,8 @@ interface UseCalendarSaveParams {
   calendarPostDate: string | null;
   setPublishDialogOpen: (open: boolean) => void;
   persistCarousel?: () => Promise<unknown>;
+  /** Sauvegarde continue du carrousel : quand elle a fini, la retouche part aussi au calendrier (choix C3). */
+  carouselAutosave?: { enabled: boolean; status: string };
 }
 
 /**
@@ -85,6 +88,7 @@ export function useCalendarSave({
   calendarPostId,
   calendarPostDate,
   setPublishDialogOpen,
+  carouselAutosave,
 }: UseCalendarSaveParams) {
   const navigate = useNavigate();
   const [savingToCalendar, setSavingToCalendar] = useState(false);
@@ -319,6 +323,9 @@ export function useCalendarSave({
     saveInFlight.current = true;
     setSavingToCalendar(true);
     try {
+      // Une mise à jour automatique du calendrier en cours : on l'attend, sa
+      // version devient celle attendue (sinon faux conflit de version).
+      await followInFlight.current?.catch(() => {});
       if (carouselQualityDisabledReason) {
         const { data: current, error: readError } = await supabase.from("calendar_posts").select("auto_publish").eq("id", calendarPostId).single();
         if (readError) throw readError;
@@ -358,6 +365,7 @@ export function useCalendarSave({
       assertCurrentEditor();
       versionRead.current = { id: calendarPostId, promise: Promise.resolve(receipt.updated_at) };
       overwriteConfirmed.current = false;
+      calendarFollow.markSynced();
       toast.success("Contenu sauvegardé dans ton calendrier !");
       clearFlowState();
       navigate(`/calendrier?date=${calendarPostDate || ""}&post=${calendarPostId}`);
@@ -510,6 +518,103 @@ export function useCalendarSave({
     }
   };
 
+
+  /**
+   * Choix C3 (18/10/2026) : une retouche faite APRÈS la mise au calendrier y
+   * va toute seule tant que le contenu n'est pas publié. Écriture complète
+   * comme « Sauvegarder dans le calendrier » (visuels refaits, légende, texte
+   * des slides), mais sans navigation ni lien d'idée : la fiche de Mes idées
+   * reste à la sauvegarde continue (relier l'idée changerait sa version et
+   * ferait un faux conflit). Un contenu programmé reste programmé à la même
+   * heure, avec la nouvelle version.
+   */
+  const followInFlight = useRef<Promise<CalendarFollowOutcome> | null>(null);
+  const pushRetouchToCalendar = (postId: string, options?: { force?: boolean }): Promise<CalendarFollowOutcome> => {
+    const run = async (): Promise<CalendarFollowOutcome> => {
+      const userId = session?.user?.id;
+      if (!userId || !result?.raw || selectedFormat !== "carousel") return { kind: "skipped" };
+      const { data: post, error: readError } = await supabase.from("calendar_posts")
+        .select("status,publish_status,auto_publish,scheduled_publish_at,story_sequence_detail,updated_at,canal")
+        .eq("id", postId).maybeSingle();
+      if (readError) throw readError;
+      if (!post) return { kind: "gone" };
+      if (post.status === "published" || ["publishing", "published"].includes(post.publish_status || "")) return { kind: "published" };
+      if (post.auto_publish && carouselQualityDisabledReason) return { kind: "blocked", message: carouselQualityDisabledReason };
+      if (options?.force && postId === calendarPostId) { versionRead.current = null; saveFlowState({ calendarPostUpdatedAt: null }); }
+      const expectedUpdatedAt = options?.force ? post.updated_at : postId === calendarPostId ? await readVersion(postId) : (followVersion.current[postId] ?? post.updated_at);
+      const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
+      const paths: string[] = [];
+      let visualUrls: string[] = [];
+      try {
+        if (visualSlides.length > 0) {
+          visualUrls = await uploadVisualsImpl(supabase, userId, postId, visualSlides, undefined, (path) => paths.push(path));
+          if (visualUrls.length !== visualSlides.length) throw new Error("Certains visuels manquent.");
+        }
+        const oldDetail: any = post.story_sequence_detail && typeof post.story_sequence_detail === "object" ? post.story_sequence_detail : {};
+        const caption = post.canal === "linkedin" ? extractLinkedInText(result.raw) : extractInstagramCaption(result.raw);
+        const receipt = await commitCalendarContent({ postId, create: false, briefId: null, ideaId: null, expectedUpdatedAt, payload: {
+          // Programmé : le cron publie content_draft tel quel, il faut la légende propre.
+          content_draft: post.auto_publish ? caption : contentDraft,
+          accroche: accroche || null,
+          story_sequence_detail: { ...oldDetail, ...(storyDetail || {}), ...(visualUrls.length ? { visual_urls: visualUrls, visual_html: visualSlides } : {}) },
+          ...(visualUrls.length ? { media_urls: visualUrls } : {}),
+          ...(post.auto_publish ? { auto_publish: true, scheduled_publish_at: post.scheduled_publish_at } : {}),
+          ...(savedId ? { generated_content_id: savedId, generated_content_type: "carousel" } : {}),
+          updated_at: new Date().toISOString(),
+        } });
+        followVersion.current[postId] = receipt.updated_at;
+        if (postId === calendarPostId) {
+          versionRead.current = { id: postId, promise: Promise.resolve(receipt.updated_at) };
+          if (activeScope.current === editorScope) saveFlowState({ calendarPostUpdatedAt: receipt.updated_at });
+        }
+        // Les visuels remplacés ne servent plus à rien (contenu jamais publié).
+        const prefix = `${userId}/${postId}/slides/`;
+        const stale = (Array.isArray(oldDetail.visual_urls) ? oldDetail.visual_urls : [])
+          .map((u: string) => String(u).split("/calendar-visuals/")[1]?.split("?")[0])
+          .filter((path: string | undefined) => path?.startsWith(prefix) && !paths.includes(path));
+        if (stale.length) void supabase.storage.from("calendar-visuals").remove(stale).then(() => {}, () => {});
+        return { kind: "updated" };
+      } catch (error: any) {
+        if (paths.length) void supabase.storage.from("calendar-visuals").remove(paths).then(() => {}, () => {});
+        const message = String(error?.message || "");
+        if (message.includes("calendar_publication_locked")) return { kind: "published" };
+        if (message.includes("calendar_version_conflict")) return { kind: "conflict" };
+        if (message.includes("calendar_not_found")) return { kind: "gone" };
+        throw error;
+      }
+    };
+    const previous = followInFlight.current;
+    const next = (previous ? previous.catch(() => null).then(run) : run()).catch((error): CalendarFollowOutcome => {
+      void reportClientError("operation");
+      return { kind: "error", message: calendarSaveError(error) };
+    });
+    followInFlight.current = next;
+    void next.finally(() => { if (followInFlight.current === next) followInFlight.current = null; });
+    return next;
+  };
+  const followVersion = useRef<Record<string, string>>({});
+  const followEnabled = enabled && !!carouselAutosave?.enabled && selectedFormat === "carousel";
+  // Ce qui part au calendrier : visuels + texte. Calculé seulement quand ça change.
+  const followSignature = useMemo(
+    () => (followEnabled ? JSON.stringify([visualSlides, extractContentForCalendar().contentDraft]) : ""),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [followEnabled, visualSlides, result?.raw],
+  );
+  const calendarFollow = useCalendarFollow({
+    enabled: followEnabled,
+    autosaveStatus: carouselAutosave?.status || "waiting",
+    ideaId: editingIdeaId,
+    calendarPostId,
+    signature: followSignature,
+    // Version du calendrier au moment où la retouche commence : un changement
+    // fait ailleurs entre-temps n'est jamais écrasé sans le dire.
+    seed: (postId, updatedAt) => {
+      if (postId === calendarPostId) return;
+      if (!followVersion.current[postId]) followVersion.current[postId] = updatedAt;
+    },
+    push: pushRetouchToCalendar,
+  });
+
   /** « Nouveau contenu » : le suivi de la publication précédente ne doit plus
    * bloquer l'enregistrement du contenu suivant dans le même onglet. */
   const resetPublishedTracking = () => {
@@ -519,5 +624,5 @@ export function useCalendarSave({
     activeScope.current = "reset";
   };
 
-  return { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, uploadVisualsToStorage, recordImmediatePublication, resetPublishedTracking };
+  return { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, uploadVisualsToStorage, recordImmediatePublication, resetPublishedTracking, calendarFollow };
 }
