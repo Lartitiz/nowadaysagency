@@ -13,9 +13,11 @@ import type { VideoDraft } from "./sources";
 import { videoReferencePreviews } from "./library-sources";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { CHEMIN_TARIFS } from "@/lib/retour-apres-detour";
 
-// Taux indicatif pour l'affichage : Higgsfield facture en dollars, on montre l'équivalent en euros.
+// Taux indicatif pour l'affichage : le fournisseur facture en dollars, on montre l'équivalent en euros.
 const USD_TO_EUR = 0.92;
+const euros = (usd: number | string) => (Number(usd) * USD_TO_EUR).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 
 interface Props {
   workspaceId: string; writable: boolean; initialSource?: VideoSource | null;
@@ -69,6 +71,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
     staleTime: 5 * 60_000 });
   const missingRoles = references.length > 1 && references.some(ref => !ref.role);
   const formId = useId();
+  const proposalRef = useRef<HTMLDivElement>(null);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => { writeVideoDraft(draftKey, { images: references, useImages, prompt, duration, resolution, aspectRatio, shot, camera, light }); },
@@ -100,11 +103,8 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
     return () => window.clearTimeout(timer);
   }, [sessionId, workspaceId, writable, references, useImages, prompt, duration, resolution, aspectRatio, shot, camera, light, cache]);
   useEffect(() => { setUsageRightsConfirmed(false); }, [referenceKey]);
-  const [quote, setQuote] = useState<StudioVideoJob | null>(null);
-  const [quoteKey, setQuoteKey] = useState<string | null>(null);
   const [prepared, setPrepared] = useState<PreparedVideo | null>(() =>
     readPreparedVideo(draftKey, briefKey) || readPreparedVideo(legacyDraftKey, briefKey));
-  const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [watchId, setWatchId] = useState<string | null>(null);
@@ -120,12 +120,12 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
   const events: StudioVideoEvent[] = jobs.data && "events" in jobs.data && Array.isArray(jobs.data.events)
     ? jobs.data.events as StudioVideoEvent[] : [];
   const libraryTotal = jobs.data && "total" in jobs.data && typeof jobs.data.total === "number" ? jobs.data.total : 0;
+  // Vidéos comprises dans le forfait (Premium 3, Binôme 6) ; 0 hors forfait (essai, cohorte).
+  const planClips = jobs.data && "plan_clips" in jobs.data && typeof jobs.data.plan_clips === "number" ? jobs.data.plan_clips : 0;
   const watched = useQuery({ queryKey: ["studio-video", workspaceId, watchId], enabled: !!watchId,
     queryFn: () => readStudioVideo(workspaceId, watchId!), retry: 1,
     refetchInterval: (query) => ["submitting_uncertain", "queued", "in_progress", "archiving"].includes(query.state.data?.job.status || "") ? 5000 : false });
 
-  useEffect(() => { setQuote(null); setQuoteKey(null); }, [inputKey]);
-  useEffect(() => { setConfirmed(false); }, [briefKey]);
   useEffect(() => {
     if (["ready", "failed", "nsfw", "canceled"].includes(watched.data?.job.status || "")) {
       void cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId] });
@@ -137,7 +137,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
     if ((mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) ||
       promptTooLong || (mode !== "text" && !usageRightsConfirmed) || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || busy) return;
     const requestedKey = briefKey;
-    setBusy("prepare"); setError(""); setPrepared(null); writePreparedVideo(draftKey, null); setConfirmed(false); setQuote(null);
+    setBusy("prepare"); setError(""); setPrepared(null); writePreparedVideo(draftKey, null);
     try {
       const result = await videoRequest<{ summary: string; continuity: string[];
         allowed_changes: string; forbidden_changes: string; prompt: string; prepared_token: string }>({
@@ -154,20 +154,25 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
           prompt: result.prompt, token: result.prepared_token, key: requestedKey };
         setPrepared(next);
         writePreparedVideo(draftKey, next);
+        // La proposition et son bouton « Créer ce clip » arrivent sous les yeux.
+        requestAnimationFrame(() => proposalRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" }));
         void cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId, sessionId || "all"] });
       }
-    } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "Claude n’a pas pu préparer le clip."); }
+    } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "Le clip n’a pas pu être préparé. Réessaie."); }
     finally { if (alive.current) setBusy(""); }
   }
-  async function checkPrice() {
+  // Un seul clic après la proposition : le serveur chiffre le clip (et refuse
+  // tout dépassement du forfait), puis le lance dans la foulée. Si la demande
+  // change pendant le chiffrage, rien n'est lancé.
+  async function createClip() {
     if ((mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) || promptTooLong ||
       (mode !== "text" && !usageRightsConfirmed) || !prepared || prepared.key !== briefKey ||
-      Number(prepared.token.split(".")[0]) <= Date.now() || !confirmed ||
+      Number(prepared.token.split(".")[0]) <= Date.now() ||
       !Number.isInteger(duration) || duration < 4 || duration > 10 || busy) return;
     const requestedKey = inputKey;
-    setBusy("quote"); setError("");
+    setBusy("submit"); setError("");
     try {
-      const result = await videoRequest<{ job: StudioVideoJob }>({ action: "quote", workspace_id: workspaceId,
+      const priced = await videoRequest<{ job: StudioVideoJob }>({ action: "quote", workspace_id: workspaceId,
         session_id: sessionId || undefined,
         source_kind: mode === "image" ? source!.kind : mode,
         source_id: mode === "image" ? source!.id : undefined,
@@ -176,26 +181,37 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         allowed_changes: prepared.allowedChanges, forbidden_changes: prepared.forbiddenChanges,
         prepared_token: prepared.token, duration, resolution, aspect_ratio: aspectRatio,
         person_free_attested: mode === "text" ? false : usageRightsConfirmed });
-      if (alive.current && currentInputKey.current === requestedKey) { setQuote(result.job); setQuoteKey(requestedKey); }
-      await cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId] });
-    } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "Le devis n’a pas pu être obtenu."); }
-    finally { if (alive.current) setBusy(""); }
+      if (!alive.current || currentInputKey.current !== requestedKey) return;
+      // Même proposition déjà lancée (double clic, onglet rouvert) : on suit ce clip.
+      if (priced.job.status !== "quoted") { setWatchId(priced.job.id); return; }
+      const result = await videoRequest<{ job: StudioVideoJob; error?: string }>({ action: "submit", workspace_id: workspaceId, job_id: priced.job.id });
+      if (!alive.current) return;
+      setWatchId(result.job.id);
+      if (result.error) setError(result.error);
+    } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "Le clip n’a pas pu être lancé. Regarde tes clips avant de réessayer."); }
+    finally {
+      if (alive.current) setBusy("");
+      void cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId] });
+      void cache.invalidateQueries({ queryKey: ["video-library", workspaceId] });
+    }
   }
-  async function generate(savedQuote?: StudioVideoJob) {
-    const offer = savedQuote || quote;
-    if (!offer || (!savedQuote && quoteKey !== inputKey) || (savedQuote && !savedQuote.can_submit) ||
-      busy || Date.parse(offer.quote_expires_at) <= Date.now()) return;
+  // Reprise d'un clip déjà chiffré (ancien parcours) : un nouveau clic explicite le lance.
+  async function generate(savedQuote: StudioVideoJob) {
+    if (!savedQuote.can_submit || busy || Date.parse(savedQuote.quote_expires_at) <= Date.now()) return;
     setBusy("submit"); setError("");
     try {
-      const result = await videoRequest<{ job: StudioVideoJob; error?: string }>({ action: "submit", workspace_id: workspaceId, job_id: offer.id });
+      const result = await videoRequest<{ job: StudioVideoJob; error?: string }>({ action: "submit", workspace_id: workspaceId, job_id: savedQuote.id });
       if (!alive.current) return;
-      setQuote(null); setWatchId(result.job.id);
+      setWatchId(result.job.id);
       if (result.error) setError(result.error);
       await cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId] });
       void cache.invalidateQueries({ queryKey: ["video-library", workspaceId] });
     } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : "Le lancement a échoué. Consulte les clips avant de réessayer."); }
     finally { if (alive.current) setBusy(""); }
   }
+  const preparedReady = prepared?.key === briefKey && Number(prepared.token.split(".")[0]) > Date.now();
+  const formBlocked = (mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) ||
+    promptTooLong || (mode !== "text" && !usageRightsConfirmed) || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10;
 
   return (
     <section className="space-y-5" aria-label="Clips du Studio">
@@ -204,8 +220,9 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         <p className="text-sm text-muted-foreground">Crée un clip depuis une idée ou des images. Il reste ici, même sans Reel.</p>
       </div>}
       {jobs.data?.enabled === false && <p role="status" className="rounded-md border p-3 text-sm">{jobs.data?.access_reason === "plan_required"
-        ? "Les vidéos sont incluses dans Premium (3 clips par mois) et dans Ta Binôme de Com’. Tes clips déjà créés restent accessibles ici."
-        : "La création vidéo sera disponible après l’activation du Studio. Tes clips déjà créés restent accessibles ici."}</p>}
+        ? <><span className="block">La vidéo est comprise dans Premium : 3 vidéos par mois (6 avec Ta Binôme de Com’). Tes clips déjà créés restent ici.</span>
+          <a href={CHEMIN_TARIFS} className="mt-2 inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground">Passer à Premium</a></>
+        : "La création vidéo n’est pas encore ouverte. Tes clips déjà créés restent accessibles ici."}</p>}
       {saveError && <p role="alert" className="text-sm text-destructive">{saveError}</p>}
       {studioLayout && <a href="/photos?tab=videos" className="text-sm text-primary underline">Voir tous mes clips terminés dans Ma bibliothèque</a>}
       {studioLayout && <a href="#video-results" className="block text-sm text-primary underline lg:hidden">Aller aux résultats de cette session</a>}
@@ -266,7 +283,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
                 </article>;
               })}
             </div>
-            {missingRoles && <p className="text-xs text-muted-foreground">Choisis le rôle de chaque image avant de vérifier le prix.</p>}
+            {missingRoles && <p className="text-xs text-muted-foreground">Choisis le rôle de chaque image avant de préparer le clip.</p>}
           </div>}
         </div>}
         <label className="block text-sm font-medium" htmlFor={`${formId}-prompt`}>{mode === "image" ? "Ce qui doit bouger" : "Quelle vidéo veux-tu créer ?"}</label>
@@ -301,7 +318,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
           <label className="text-sm">Durée <Input type="number" min={4} max={10} value={duration} onChange={e => setDuration(Number(e.target.value))} className="w-24" /></label>
           <label className="text-sm">Qualité
             <select className="block h-10 rounded-md border bg-background px-3" value={resolution} onChange={e => setResolution(e.target.value as "480p" | "720p")}
-              aria-label="Qualité vidéo"><option value="480p">480p, inclus dans les forfaits (jusqu’à 8 s)</option><option value="720p">720p</option></select>
+              aria-label="Qualité vidéo"><option value="480p">Standard, compris dans ton forfait (jusqu’à 8 s)</option><option value="720p">Haute définition</option></select>
           </label>
           {mode !== "image" && <label className="text-sm">Format
             <select className="block h-10 rounded-md border bg-background px-3" value={aspectRatio}
@@ -313,37 +330,25 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
         {mode === "image" && <p className="text-xs text-muted-foreground">Avec une seule image, le format suit celui de l’image.</p>}
         {mode !== "text" && <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" checked={usageRightsConfirmed} onChange={e => setUsageRightsConfirmed(e.target.checked)} className="mt-1" />
-          <span>Je confirme avoir le droit d’utiliser ces images et de les transmettre à Claude pour préparer le clip, puis à Higgsfield pour obtenir le prix et le créer.</span>
+          <span>J’ai le droit d’utiliser ces images pour créer ma vidéo.</span>
         </label>}
-        <p className="text-xs text-muted-foreground">Claude prépare la description à valider. Vérifier le prix transmet ensuite {mode === "text" ? "la consigne" : "les images et la consigne"} à Higgsfield. La génération ne démarre qu’après le clic suivant. Ce clip est créé sans son ; la voix du Reel reste dans le montage.</p>
-        <Button type="button" variant="outline" disabled={(mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) ||
-          promptTooLong || (mode !== "text" && !usageRightsConfirmed) || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || !!busy}
-          onClick={prepareClip}>{busy === "prepare" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Préparer avec Claude</Button>
-        {prepared?.key === briefKey && Number(prepared.token.split(".")[0]) > Date.now() && <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
-          <p className="text-sm font-medium">Est-ce bien le clip que tu veux ?</p>
-          <p className="text-sm whitespace-pre-line break-words">{prepared.summary}</p>
-          <div className="rounded-md border bg-background p-3 text-sm space-y-1">
-            <p className="font-medium">À vérifier avant le devis</p>
-            <ul className="list-disc pl-5 space-y-1">{prepared.continuity.map((rule, index) => <li key={index}>{rule}</li>)}</ul>
-            <p><strong>Ce qui peut changer :</strong> {prepared.allowedChanges}</p>
-            <p><strong>Ce qui ne doit pas changer :</strong> {prepared.forbiddenChanges}</p>
-          </div>
-          <details className="text-sm"><summary className="cursor-pointer">Lire la consigne technique exacte du devis et de la génération</summary>
-            <p className="mt-2 whitespace-pre-line break-words">{prepared.prompt}</p></details>
-          <p className="text-xs text-muted-foreground">Pour une continuité stricte, un geste simple, un plan court et une caméra fixe sont souvent plus faciles à contrôler. Relis le rendu avant de l’utiliser : ces consignes ne garantissent pas un résultat sans faux raccord.</p>
-          <p className="text-xs text-muted-foreground">Pour corriger cette proposition, modifie ton idée ou les réglages ci-dessus, puis demande une nouvelle préparation.</p>
-          <Button type="button" variant={confirmed ? "outline" : "default"} disabled={!!busy}
-            onClick={() => setConfirmed(true)}>{confirmed ? "Description validée" : "Oui, c’est bien ça"}</Button>
-        </div>}
-        <Button type="button" variant="outline" disabled={(mode === "image" && !source) || (mode === "references" && (references.length < 2 || missingRoles)) || promptTooLong ||
-          (mode !== "text" && !usageRightsConfirmed) || !prepared || prepared.key !== briefKey || Number(prepared.token.split(".")[0]) <= Date.now() || !confirmed ||
-          !Number.isInteger(duration) || duration < 4 || duration > 10 || !!busy}
-          onClick={checkPrice}>{busy === "quote" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Vérifier le prix</Button>
-        {quote && <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2" role="status">
-          <p className="text-sm">Devis du fournisseur vidéo : <strong>{(Number(quote.estimated_usd) * USD_TO_EUR).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}</strong> pour {quote.duration} s en {quote.resolution} ({Number(quote.estimated_usd).toFixed(2)} $ · {quote.estimated_credits} crédits API). Le montant est réservé dans le plafond vidéo au lancement.</p>
-          <p className="text-xs text-muted-foreground">Si le devis expire, vérifie à nouveau le prix avant de générer. Une nouvelle tentative serait facturée séparément si ce clip est créé mais ne convient pas.</p>
-          <Button type="button" disabled={!!busy || Date.parse(quote.quote_expires_at) <= Date.now()} onClick={() => void generate()}>
-            {busy === "submit" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Générer ce clip · {(Number(quote.estimated_usd) * USD_TO_EUR).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}
+        <Button type="button" variant={preparedReady ? "outline" : "default"} disabled={formBlocked || !!busy}
+          onClick={prepareClip}>{busy === "prepare" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}{preparedReady ? "Préparer à nouveau" : "Préparer mon clip"}</Button>
+        {preparedReady && <div ref={proposalRef} className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+          <p className="text-sm font-medium">Voici le clip proposé</p>
+          <p className="text-sm whitespace-pre-line break-words">{prepared!.summary}</p>
+          <details className="rounded-md border bg-background p-3 text-sm">
+            <summary className="cursor-pointer font-medium">Ce qui reste identique, ce qui peut changer</summary>
+            <ul className="mt-2 list-disc pl-5 space-y-1">{prepared!.continuity.map((rule, index) => <li key={index}>{rule}</li>)}</ul>
+            <p className="mt-1"><strong>Ce qui peut changer :</strong> {prepared!.allowedChanges}</p>
+            <p><strong>Ce qui ne doit pas changer :</strong> {prepared!.forbiddenChanges}</p>
+            <p className="mt-2 text-xs text-muted-foreground">Un geste simple, un plan court et une caméra fixe donnent un rendu plus fidèle. Regarde le clip avant de t’en servir.</p>
+            <p className="mt-2 text-xs text-muted-foreground whitespace-pre-line break-words">Consigne exacte : {prepared!.prompt}</p>
+          </details>
+          <p className="text-xs text-muted-foreground">Pas tout à fait ça ? Modifie ton idée au-dessus et prépare à nouveau. Le clip est muet : la voix du reel reste dans le montage.</p>
+          <Button type="button" disabled={formBlocked || !!busy} onClick={() => void createClip()}>
+            {busy === "submit" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            {planClips > 0 ? `Créer ce clip · 1 de tes ${planClips} vidéos du mois` : "Créer ce clip"}
           </Button>
         </div>}
 
@@ -369,11 +374,11 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
             </details>}
             {current.status === "ready" && current.video_url && <video src={current.video_url} controls playsInline preload="metadata" className="w-full max-w-sm rounded bg-black" />}
             {current.status === "quoted" && <div className="space-y-2 text-sm">
-              <p className="text-muted-foreground">Devis conservé · génération non lancée · {(Number(current.estimated_usd) * USD_TO_EUR).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}.</p>
+              <p className="text-muted-foreground">Clip préparé, pas encore créé{planClips > 0 ? "" : ` · ${euros(current.estimated_usd)}`}.</p>
               {!!current.source_refs?.length && <p>Images prévues : {current.source_refs.map((ref, index) => `${index + 1}. ${ref.name} (${({ subject: "sujet", product: "produit", casting: "mannequin", background: "décor", style: "ambiance", composition: "composition" } as Record<string, string>)[ref.role] || ref.role})`).join(" · ")}</p>}
-              {writable && jobs.data?.enabled && current.can_submit && current.id !== quote?.id && Date.parse(current.quote_expires_at) > Date.now() && <Button type="button" variant="outline" size="sm" disabled={!!busy}
-                onClick={() => void generate(current)}>Générer ce clip avec ce devis</Button>}
-              {Date.parse(current.quote_expires_at) <= Date.now() && <p>Devis expiré. Prépare le clip à nouveau pour vérifier son prix.</p>}
+              {writable && jobs.data?.enabled && current.can_submit && Date.parse(current.quote_expires_at) > Date.now() && <Button type="button" variant="outline" size="sm" disabled={!!busy}
+                onClick={() => void generate(current)}>Créer ce clip préparé</Button>}
+              {Date.parse(current.quote_expires_at) <= Date.now() && <p>Cette préparation a expiré. Prépare le clip à nouveau pour le créer.</p>}
             </div>}
             {current.status === "canceled" && <p className="text-sm text-muted-foreground">Génération annulée.</p>}
             {current.status === "submitting_uncertain" && <p role="status" className="text-sm text-amber-700">Réponse du fournisseur incertaine : aucune seconde génération ne sera lancée automatiquement.</p>}

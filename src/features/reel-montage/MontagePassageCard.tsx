@@ -21,6 +21,7 @@ import { fromStock, set, type MontageMode, type Section, type SelectedClip, type
 interface MontagePassageCardProps {
   s: Section;
   i: number;
+  total?: number;
   montageMode: MontageMode;
   clips: (SelectedClip | null)[];
   setClips: Dispatch<SetStateAction<(SelectedClip | null)[]>>;
@@ -43,22 +44,22 @@ interface MontagePassageCardProps {
   highlightedPassage: number | null;
 }
 
-export function MontagePassageCard({ s, i, montageMode, clips, setClips, cutaways, setCutaways, voiceClips, keywords, setKeywords, results, loading, runSearch, uploadingSection, openFilePicker, myVideos, pickFromLibrary, workspaceId, pendingCutaway, setPendingCutaway, setStudioTarget, highlightedPassage }: MontagePassageCardProps) {
+export function MontagePassageCard({ s, i, total = 1, montageMode, clips, setClips, cutaways, setCutaways, voiceClips, keywords, setKeywords, results, loading, runSearch, uploadingSection, openFilePicker, myVideos, pickFromLibrary, workspaceId, pendingCutaway, setPendingCutaway, setStudioTarget, highlightedPassage }: MontagePassageCardProps) {
   return (
   <Card key={i} id={`studio-reel-passage-${i}`} className={i === highlightedPassage ? "border-primary ring-2 ring-primary/20" : "border-border"}>
     <CardContent className="p-3 space-y-2">
       <div className="flex items-center gap-2 flex-wrap">
-        {s.timing && <Badge variant="secondary" className="font-mono text-2xs">{s.timing}</Badge>}
+        {total > 1 && <span className="text-xs font-semibold">Passage {i + 1} sur {total}</span>}
         <span className="text-2xs text-muted-foreground">
           {montageMode === "filme"
             ? clips[i]?.duration != null
               ? `${Math.round(clips[i]!.duration as number)} s (ta prise)`
               : "durée : celle de ta prise, une fois choisie"
-            : `≈ ${sectionDuration(s)} s`}
+            : `environ ${sectionDuration(s)} s`}
         </span>
       </div>
       {s.texte_parle && (
-        <p className="text-xs text-foreground leading-snug line-clamp-2">{s.texte_parle}</p>
+        <p className="text-xs text-foreground leading-snug line-clamp-3">{s.texte_parle}</p>
       )}
 
       {montageMode === "cache" && (
@@ -68,7 +69,8 @@ export function MontagePassageCard({ s, i, montageMode, clips, setClips, cutaway
               value={keywords[i] ?? ""}
               onChange={(e) => setKeywords((K) => set(K, i, e.target.value))}
               onKeyDown={(e) => e.key === "Enter" && runSearch(i, keywords[i] ?? "")}
-              placeholder="mots-clés du plan (ex: mains savon atelier)"
+              placeholder="ce qu'on voit (ex. : mains savon atelier)"
+              aria-label="Ce qu'on voit sur ce passage"
               className="h-8 text-xs"
             />
             <Button
@@ -77,6 +79,7 @@ export function MontagePassageCard({ s, i, montageMode, clips, setClips, cutaway
               className="h-8 shrink-0"
               onClick={() => runSearch(i, keywords[i] ?? "")}
               disabled={loading[i]}
+              aria-label="Chercher des clips"
             >
               {loading[i] ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -122,7 +125,7 @@ export function MontagePassageCard({ s, i, montageMode, clips, setClips, cutaway
           ) : (
             <Upload className="h-3.5 w-3.5 mr-1" />
           )}
-          Ma vidéo
+          Mettre ma vidéo
         </Button>
         {myVideos.length > 0 && (
           <select
@@ -147,13 +150,14 @@ export function MontagePassageCard({ s, i, montageMode, clips, setClips, cutaway
         {clips[i]?.source === "studio" && <Badge variant="secondary" className="text-2xs">Clip du Studio · {clips[i]?.label}</Badge>}
       </div>
 
-      {workspaceId && <div className="space-y-2 rounded-md border border-primary/15 bg-primary/5 p-2">
-        <p className="text-2xs font-medium">Ajouter un plan du Studio sur ce passage</p>
-        <div className="flex gap-2 flex-wrap">
-          <Button type="button" variant="outline" size="sm" onClick={() => setStudioTarget({ index: i, create: false })}>Choisir un clip du Studio</Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => setStudioTarget({ index: i, create: true })}>Créer un clip dans le Studio</Button>
+      {workspaceId && <details open={pendingCutaway?.index === i || !!cutaways[i] || i === highlightedPassage || undefined}
+        className="rounded-md border border-primary/15 bg-primary/5 p-2 space-y-2">
+        <summary className="cursor-pointer text-2xs font-medium">Ajouter une image animée sur ce passage (facultatif){cutaways[i] ? " · 1 ajoutée" : ""}</summary>
+        <div className="mt-2 flex gap-2 flex-wrap">
+          <Button type="button" variant="outline" size="sm" onClick={() => setStudioTarget({ index: i, create: false })}>Choisir un de mes clips</Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => setStudioTarget({ index: i, create: true })}>Créer un clip</Button>
           <a href={`/photos/studio?reel_passage=${i}`} className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm hover:bg-accent hover:text-accent-foreground">
-            Préparer une image dans Studio photo
+            Créer d'abord une image
           </a>
         </div>
         {pendingCutaway?.index === i && <div className="space-y-2 rounded-md border bg-background p-2">
@@ -180,7 +184,7 @@ export function MontagePassageCard({ s, i, montageMode, clips, setClips, cutaway
             }}>Insérer dans ce passage</Button>
             <Button type="button" size="sm" variant="ghost" onClick={() => setPendingCutaway(null)}>Garder sans insérer</Button>
           </div>
-          {montageMode === "filme" && !clips[i] && <p className="text-2xs">Choisis d’abord ta prise face caméra : elle portera la voix sous le plan.</p>}
+          {montageMode === "filme" && !clips[i] && <p className="text-2xs">Choisis d’abord ta vidéo filmée face à la caméra : elle portera la voix sous le plan.</p>}
         </div>}
         {cutaways[i] && <div className="space-y-1">
           <p className="text-2xs">Plan inséré : {cutaways[i]!.label} · {cutaways[i]!.duration} s</p>
@@ -192,7 +196,7 @@ export function MontagePassageCard({ s, i, montageMode, clips, setClips, cutaway
           </label>
           <Button type="button" variant="ghost" size="sm" onClick={() => setCutaways(C => set(C, i, null))}>Retirer ce plan</Button>
         </div>}
-      </div>}
+      </details>}
 
       {montageMode === "cache" &&
         clips[i]?.source === "mine" &&

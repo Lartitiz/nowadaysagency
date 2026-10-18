@@ -14,8 +14,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Film } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Check, Film } from "lucide-react";
 import { useBrandCharter } from "@/hooks/use-branding";
 import type { VoiceClip } from "@/lib/reel-voice";
 import { MontageModeFork, MontageModeSummary } from "@/features/reel-montage/MontageModeChoice";
@@ -106,13 +106,24 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
 
   const ready = clips.filter(Boolean).length;
 
+  // Un passage par page (« Passage 2 sur 4 ») : l'écran reste court et
+  // « Assembler mon reel » reste en vue. Le retour du Studio rouvre le bon passage.
+  const [current, setCurrent] = useState(() => highlightedPassage ?? 0);
+  const page = Math.min(current, Math.max(0, spoken.length - 1));
+  useEffect(() => { if (highlightedPassage !== null) setCurrent(highlightedPassage); }, [highlightedPassage]);
+  useEffect(() => { if (pendingCutaway) setCurrent(pendingCutaway.index); }, [pendingCutaway]);
+  const goTo = (index: number) => {
+    setCurrent(index);
+    requestAnimationFrame(() => document.getElementById(`studio-reel-passage-${index}`)?.scrollIntoView?.({ block: "nearest" }));
+  };
+
   return (
     <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-3">
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="space-y-0.5">
         <span className="text-xs font-bold text-primary uppercase tracking-wide">
           <Film className="inline h-3.5 w-3.5 mr-1" /> Monter la vidéo
         </span>
-        <Badge variant="secondary" className="text-2xs">bêta</Badge>
+        <p className="text-2xs text-muted-foreground">Le montage automatique est tout neuf : regarde ta vidéo avant de la publier.</p>
       </div>
 
       {!montageMode ? (
@@ -132,10 +143,29 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
             </p>
           )}
 
+          {spoken.length > 1 && (
+            <nav aria-label="Passages du reel" className="flex items-center gap-1.5 flex-wrap">
+              {spoken.map((_, i) => (
+                <button key={i} type="button" onClick={() => goTo(i)} aria-current={i === page ? "step" : undefined}
+                  aria-label={`Passage ${i + 1}${clips[i] ? ", prêt" : ""}`}
+                  className={`inline-flex h-8 min-w-8 items-center justify-center gap-0.5 rounded-md border px-2 text-xs font-medium ${
+                    i === page ? "border-primary ring-2 ring-primary/20 bg-background" : clips[i] ? "border-transparent bg-success/15 text-foreground" : "border-border bg-background"}`}>
+                  {i + 1}{clips[i] && <Check className="h-3 w-3" aria-hidden />}
+                </button>
+              ))}
+            </nav>
+          )}
+
           <div className="space-y-2">
-            {spoken.map((s, i) => (
-              <MontagePassageCard key={i} s={s} i={i} montageMode={montageMode} clips={clips} setClips={setClips} cutaways={cutaways} setCutaways={setCutaways} voiceClips={voiceClips} keywords={keywords} setKeywords={setKeywords} results={results} loading={loading} runSearch={runSearch} uploadingSection={uploadingSection} openFilePicker={openFilePicker} myVideos={myVideos} pickFromLibrary={pickFromLibrary} workspaceId={workspaceId} pendingCutaway={pendingCutaway} setPendingCutaway={setPendingCutaway} setStudioTarget={setStudioTarget} highlightedPassage={highlightedPassage} />
+            {spoken.map((s, i) => i !== page ? null : (
+              <MontagePassageCard key={i} s={s} i={i} total={spoken.length} montageMode={montageMode} clips={clips} setClips={setClips} cutaways={cutaways} setCutaways={setCutaways} voiceClips={voiceClips} keywords={keywords} setKeywords={setKeywords} results={results} loading={loading} runSearch={runSearch} uploadingSection={uploadingSection} openFilePicker={openFilePicker} myVideos={myVideos} pickFromLibrary={pickFromLibrary} workspaceId={workspaceId} pendingCutaway={pendingCutaway} setPendingCutaway={setPendingCutaway} setStudioTarget={setStudioTarget} highlightedPassage={highlightedPassage} />
             ))}
+            {spoken.length > 1 && (
+              <div className="flex items-center justify-between gap-2">
+                {page > 0 ? <Button type="button" variant="ghost" size="sm" onClick={() => goTo(page - 1)}>Passage précédent</Button> : <span />}
+                {page < spoken.length - 1 && <Button type="button" variant="outline" size="sm" onClick={() => goTo(page + 1)}>Passage suivant</Button>}
+              </div>
+            )}
           </div>
 
           <input

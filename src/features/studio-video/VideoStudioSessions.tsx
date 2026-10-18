@@ -6,6 +6,7 @@ import { StudioVideoPanel, type VideoSource } from "./StudioVideoPanel";
 import { archiveVideoSession, createVideoSession, getVideoSession, listVideoSessions,
   listLegacyVideoJobs, readStudioVideo, videoRequest, videoTitle, type StudioVideoJob } from "./api";
 import { readVideoDraft } from "./sources";
+import { CHEMIN_TARIFS } from "@/lib/retour-apres-detour";
 
 interface Props {
   workspaceId: string; userId: string; writable: boolean;
@@ -115,7 +116,7 @@ export function VideoStudioSessions({ workspaceId, userId, writable, initialSour
         action: "submit", workspace_id: workspaceId, job_id: job.id });
       if (result.error) setError(result.error);
       await cache.invalidateQueries({ queryKey: ["studio-video-legacy", workspaceId] });
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Impossible de lancer ce devis."); }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Impossible de lancer ce clip."); }
     finally { setBusy(false); }
   }
 
@@ -151,18 +152,22 @@ export function VideoStudioSessions({ workspaceId, userId, writable, initialSour
         <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Précédentes</Button>
         <Button variant="outline" size="sm" disabled={(page + 1) * 40 >= sessions.data.total} onClick={() => setPage(page + 1)}>Suivantes</Button></div>}
     </div>}
-    {(!sessionId || open) && <section className="rounded-xl border p-4 space-y-3" aria-label="Ancien suivi vidéo">
-      <h3 className="font-medium">Anciens devis et essais</h3>
+    {!sessionId && legacy.data?.access_reason === "plan_required" && <div role="status" className="rounded-xl border p-4 space-y-2 text-sm">
+      <p>La vidéo est comprise dans Premium : 3 vidéos par mois (6 avec Ta Binôme de Com’). Tes clips déjà créés restent dans Ma bibliothèque.</p>
+      <a href={CHEMIN_TARIFS} className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground">Passer à Premium</a>
+    </div>}
+    {(!sessionId || open) && (open || !!legacy.data?.jobs.length || legacy.isError) && <section className="rounded-xl border p-4 space-y-3" aria-label="Ancien suivi vidéo">
+      <h3 className="font-medium">Clips préparés et anciens essais</h3>
       {legacy.isLoading && <p className="text-sm">Chargement du suivi…</p>}
       {legacy.isError && <p role="alert">Impossible de charger le suivi. <Button variant="outline" size="sm" onClick={() => void legacy.refetch()}>Réessayer</Button></p>}
-      {legacy.data?.jobs.length === 0 && <p className="text-sm text-muted-foreground">Aucun devis ou essai ancien en attente. Les clips terminés sont dans Ma bibliothèque.</p>}
+      {legacy.data?.jobs.length === 0 && <p className="text-sm text-muted-foreground">Aucun clip préparé ni ancien essai en attente. Les clips terminés sont dans Ma bibliothèque.</p>}
       {legacy.data?.jobs.map(job => <article key={job.id} className="rounded-lg border p-3 space-y-2 text-sm">
         <p className="font-medium">{videoTitle(job)} · {job.duration} s · {job.resolution}</p>
-        <p className="text-muted-foreground">{new Date(job.created_at).toLocaleString("fr-FR")} · {job.status === "quoted" ? "Devis non lancé" : job.status === "failed" ? "Échec" : job.status === "canceled" ? "Annulé" : "Suivi : " + job.status}</p>
-        {job.status === "quoted" && <p>Devis : {Number(job.estimated_usd).toFixed(2)} $ · {Date.parse(job.quote_expires_at) <= Date.now() ? "expiré" : "valide jusqu’au " + new Date(job.quote_expires_at).toLocaleString("fr-FR")}</p>}
+        <p className="text-muted-foreground">{new Date(job.created_at).toLocaleString("fr-FR")} · {job.status === "quoted" ? "Préparé, pas encore créé" : job.status === "failed" ? "Échec" : job.status === "canceled" ? "Annulé" : job.status === "ready" ? "Terminé" : "En cours"}</p>
+        {job.status === "quoted" && <p>{Date.parse(job.quote_expires_at) <= Date.now() ? "Préparation expirée" : "Préparation valable jusqu’au " + new Date(job.quote_expires_at).toLocaleString("fr-FR")}</p>}
         {job.status === "quoted" && writable && legacy.data?.enabled && job.can_submit && Date.parse(job.quote_expires_at) > Date.now() &&
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => void submitLegacy(job)}>Générer ce clip avec ce devis · {Number(job.estimated_usd).toFixed(2)} $</Button>}
-        {job.status === "quoted" && Date.parse(job.quote_expires_at) <= Date.now() && <p>Reprends l’idée dans une nouvelle session pour demander un prix actualisé.</p>}
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => void submitLegacy(job)}>Créer ce clip préparé</Button>}
+        {job.status === "quoted" && Date.parse(job.quote_expires_at) <= Date.now() && <p>Reprends l’idée dans une nouvelle session pour la préparer à nouveau.</p>}
         {job.status !== "quoted" && <Button size="sm" variant="outline" onClick={() => void readStudioVideo(workspaceId, job.id)
           .then(() => legacy.refetch()).catch(() => setError("Le suivi de ce clip a échoué."))}>Vérifier le résultat</Button>}
       </article>)}
@@ -182,8 +187,9 @@ export function VideoStudioSessions({ workspaceId, userId, writable, initialSour
       draftKey={`studio-video:${userId}:${workspaceId}:${sessionId}`} studioLayout
       initialSource={starterSessionId === sessionId ? initialSource : null}
       initialJob={oldClip.data?.job || undefined} onPickClip={onPickClip} />}
-    {!sessionId && !fromClip && !initialSource && <p className="rounded-xl border p-6 text-sm text-muted-foreground">
-      Ouvre une session ou commence une nouvelle idée. Les clips historiques restent dans <a className="underline" href="/photos?tab=videos">Ma bibliothèque</a>.
-    </p>}
+    {!sessionId && !fromClip && !initialSource && legacy.data?.access_reason !== "plan_required" && <div className="rounded-xl border p-6 space-y-3 text-sm text-muted-foreground">
+      <p>Commence une nouvelle vidéo ou rouvre une de tes sessions. Tes clips terminés restent dans <a className="underline" href="/photos?tab=videos">Ma bibliothèque</a>.</p>
+      {writable && <Button disabled={busy} onClick={() => void create()}>Commencer une vidéo</Button>}
+    </div>}
   </div>;
 }

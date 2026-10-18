@@ -45,10 +45,10 @@ export function MontageModeSummary({ montageMode, voiceMode, setMontageMode }: {
     <div className="flex items-start justify-between gap-2">
       <p className="text-2xs text-muted-foreground">
         {montageMode === "filme"
-          ? "Une prise face cam par phrase : ta voix est déjà dedans, les sous-titres suivent."
+          ? "Une vidéo de toi par phrase : ta voix est déjà dedans, les sous-titres suivent."
           : voiceMode === "silent"
-            ? "Un clip par phrase, sans piste voix : le texte reste visible à l'écran."
-            : "Un clip par phrase, ta voix off par-dessus, les sous-titres suivent."}
+            ? "Un clip par phrase, sans voix : le texte reste visible à l'écran."
+            : "Un clip par phrase, ta voix par-dessus, les sous-titres suivent."}
       </p>
       <button
         type="button"

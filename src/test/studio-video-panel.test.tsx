@@ -29,11 +29,12 @@ const prepared = { summary: "Le produit est montré dans un plan doux avec un mo
   continuity: ["La table rouge garde la même couleur pendant tout le plan."],
   allowed_changes: "Le produit et les mains bougent.", forbidden_changes: "La table ne devient pas beige.",
   prompt: "Plan vidéo précis du produit, mouvement lent et lumière douce. La table reste rouge.", prepared_token: signedToken };
+// Un clic « Préparer mon clip », la proposition s'affiche avec un seul bouton « Créer ce clip ».
 async function prepareAndConfirm() {
-  fireEvent.click(screen.getByRole("button", { name: "Préparer avec Claude" }));
+  fireEvent.click(screen.getByRole("button", { name: /^Préparer (mon clip|à nouveau)$/ }));
   expect(await screen.findByText(prepared.summary)).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Oui, c’est bien ça" }));
 }
+const createButton = () => screen.queryByRole("button", { name: /^Créer ce clip/ });
 const clients: QueryClient[] = [];
 async function mount(withSource = true, draftKey?: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -52,8 +53,8 @@ afterEach(() => {
   mock.request.mockReset(); mock.list.mockReset(); mock.read.mockReset();
 });
 
-it("affiche le devis puis n'envoie le POST payant qu'au clic explicite", async () => {
-  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
+it("prépare, puis chiffre et lance le clip d'un seul clic explicite", async () => {
+  mock.list.mockResolvedValue({ enabled: true, plan_clips: 3, jobs: [] });
   mock.request.mockImplementation(async (body: { action: string }) =>
     body.action === "prepare" ? prepared : body.action === "quote" ? { job: quote } : { job: { ...quote, status: "failed" } });
   mock.read.mockResolvedValue({ job: { ...quote, status: "failed" } });
@@ -61,16 +62,19 @@ it("affiche le devis puis n'envoie le POST payant qu'au clic explicite", async (
   fireEvent.change(screen.getByRole("textbox", { name: "Ce qui doit bouger" }),
     { target: { value: quote.prompt } });
   fireEvent.click(screen.getByRole("checkbox"));
-  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  expect(createButton()).not.toBeInTheDocument();
   await prepareAndConfirm();
   expect(screen.getByText(prepared.continuity[0])).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Vérifier le prix" }));
-  expect(await screen.findByText(/Devis du fournisseur vidéo/)).toBeInTheDocument();
-  expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["prepare", "quote"]);
+  // Rien n'est chiffré ni lancé tant qu'on n'a pas cliqué.
+  expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["prepare"]);
+  // Un seul prix, dit en vidéos du mois : ni euros, ni dollars, ni crédits.
+  expect(createButton()).toHaveTextContent("Créer ce clip · 1 de tes 3 vidéos du mois");
+  expect(screen.queryByText(/€|\$|crédits API|Claude|Higgsfield/)).not.toBeInTheDocument();
+  fireEvent.click(createButton()!);
+  await waitFor(() => expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["prepare", "quote", "submit"]));
   expect(mock.request.mock.calls[1][0]).toMatchObject({ prompt: prepared.prompt,
     summary: prepared.summary, continuity: prepared.continuity, prepared_token: signedToken });
-  fireEvent.click(screen.getByRole("button", { name: /Générer ce clip/ }));
-  await waitFor(() => expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["prepare", "quote", "submit"]));
+  expect(mock.request.mock.calls[2][0]).toMatchObject({ action: "submit", job_id: "job" });
 });
 
 it("propose le style vidéo de la marque dans une consigne modifiable sans lancer de génération", async () => {
@@ -90,10 +94,10 @@ it("ne tronque pas silencieusement l'idée quand le style de marque dépasse la 
   fireEvent.click(screen.getByRole("button", { name: "Reprendre mon style vidéo dans cette consigne" }));
   expect(idea).toHaveValue(`${longIdea}\nStyle de ma marque : Plans calmes ; Fenêtre douce`);
   expect(screen.getByText(/La consigne complète dépasse 1000 caractères/)).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Préparer avec Claude" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Préparer mon clip" })).toBeDisabled();
 });
 
-it("écarte un devis arrivé après que la demande a changé", async () => {
+it("ne lance rien si la demande change pendant le chiffrage", async () => {
   mock.list.mockResolvedValue({ enabled: true, jobs: [] });
   let finish: (value: unknown) => void = () => {};
   mock.request.mockImplementation(async (body: { action: string }) => body.action === "prepare" ? prepared : new Promise(resolve => { finish = resolve; }));
@@ -102,11 +106,12 @@ it("écarte un devis arrivé après que la demande a changé", async () => {
   fireEvent.change(prompt, { target: { value: quote.prompt } });
   fireEvent.click(screen.getByRole("checkbox"));
   await prepareAndConfirm();
-  fireEvent.click(screen.getByRole("button", { name: "Vérifier le prix" }));
+  fireEvent.click(createButton()!);
   fireEvent.change(prompt, { target: { value: "Une autre idée" } });
   finish({ job: quote });
   await waitFor(() => expect(mock.list).toHaveBeenCalledTimes(2));
-  expect(screen.queryByRole("button", { name: /Générer ce clip/ })).not.toBeInTheDocument();
+  expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["prepare", "quote"]);
+  expect(createButton()).not.toBeInTheDocument();
 });
 
 it("invalide la validation dès que l'idée change avant le devis", async () => {
@@ -116,19 +121,27 @@ it("invalide la validation dès que l'idée change avant le devis", async () => 
   const idea = screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" });
   fireEvent.change(idea, { target: { value: "Un produit tourne sur une table" } });
   await prepareAndConfirm();
-  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeEnabled();
+  expect(createButton()).toBeEnabled();
   fireEvent.change(idea, { target: { value: "Un produit avance sur une table" } });
-  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  expect(createButton()).not.toBeInTheDocument();
   expect(screen.queryByText(prepared.summary)).not.toBeInTheDocument();
 });
 
 it("garde la bibliothèque lisible quand les générations sont désactivées", async () => {
   mock.list.mockResolvedValue({ enabled: false, jobs: [] });
   await mount();
-  expect(await screen.findByText(/création vidéo sera disponible après l’activation/)).toBeInTheDocument();
+  expect(await screen.findByText(/création vidéo n’est pas encore ouverte/)).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Mes clips" })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Vérifier le prix" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Préparer mon clip" })).not.toBeInTheDocument();
   expect(mock.request).not.toHaveBeenCalled();
+});
+
+it("en gratuit, dit d'emblée que la vidéo est dans Premium, avec le bouton pour y passer", async () => {
+  mock.list.mockResolvedValue({ enabled: false, access_reason: "plan_required", plan_clips: 0, jobs: [] });
+  await mount();
+  expect(await screen.findByText(/La vidéo est comprise dans Premium : 3 vidéos par mois/)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Passer à Premium" })).toHaveAttribute("href", "/pricing");
+  expect(screen.queryByRole("button", { name: "Préparer mon clip" })).not.toBeInTheDocument();
 });
 
 it("obtient un devis depuis une idée seule sans attestation d'image", async () => {
@@ -140,8 +153,8 @@ it("obtient un devis depuis une idée seule sans attestation d'image", async () 
     { target: { value: "Une main ouvre une boîte dans un atelier lumineux" } });
   expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   await prepareAndConfirm();
-  fireEvent.click(screen.getByRole("button", { name: "Vérifier le prix" }));
-  await waitFor(() => expect(mock.request).toHaveBeenCalled());
+  fireEvent.click(createButton()!);
+  await waitFor(() => expect(mock.request).toHaveBeenCalledTimes(3));
   expect(mock.request.mock.calls[1][0]).toMatchObject({ source_kind: "text", person_free_attested: false, aspect_ratio: "9:16" });
   expect(mock.request.mock.calls[1][0].source_id).toBeUndefined();
 });
@@ -163,8 +176,8 @@ it("transmet les rôles et l'ordre de deux références avec le devis", async ()
   fireEvent.change(screen.getByRole("combobox", { name: "Lumière" }), { target: { value: "studio" } });
   fireEvent.click(screen.getByRole("checkbox"));
   await prepareAndConfirm();
-  fireEvent.click(screen.getByRole("button", { name: "Vérifier le prix" }));
-  await waitFor(() => expect(mock.request).toHaveBeenCalled());
+  fireEvent.click(createButton()!);
+  await waitFor(() => expect(mock.request).toHaveBeenCalledTimes(3));
   expect(mock.request.mock.calls[0][0]).toMatchObject({ action: "prepare", source_kind: "references", references: [
     { kind: "photo", id: "photo-1", role: "product" }, { kind: "photo", id: "photo-2", role: "background" },
   ] });
@@ -178,7 +191,7 @@ it("demande de confirmer le droit d’utiliser les images, y compris les portrai
   fireEvent.click(screen.getByRole("radio", { name: "Une ou plusieurs images" }));
   fireEvent.click(screen.getByRole("button", { name: /Ajouter mes images/ }));
   fireEvent.click(screen.getByRole("button", { name: "Choisir deux photos" }));
-  expect(screen.getByText(/Je confirme avoir le droit d’utiliser ces images/)).toBeInTheDocument();
+  expect(screen.getByText("J’ai le droit d’utiliser ces images pour créer ma vidéo.")).toBeInTheDocument();
   expect(screen.queryByText(/aucune personne identifiable/)).not.toBeInTheDocument();
 });
 
@@ -196,14 +209,14 @@ it("retire la confirmation si un rôle, l'ordre des images ou un réglage change
   fireEvent.click(screen.getByRole("checkbox"));
   await prepareAndConfirm();
   fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Décor" }), { target: { value: "style" } });
-  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  expect(createButton()).not.toBeInTheDocument();
   await prepareAndConfirm();
   fireEvent.click(screen.getByRole("button", { name: "Avancer Décor" }));
-  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  expect(createButton()).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("checkbox"));
   await prepareAndConfirm();
   fireEvent.change(screen.getByRole("combobox", { name: "Mouvement de caméra" }), { target: { value: "static" } });
-  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  expect(createButton()).not.toBeInTheDocument();
   expect(mock.request.mock.calls.every(([body]) => body.action === "prepare")).toBe(true);
 });
 
@@ -226,11 +239,11 @@ it("montre les images choisies et demande leurs rôles avant le devis", async ()
   expect(screen.getByRole("img", { name: "Décor" })).toBeInTheDocument();
   fireEvent.change(screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" }), { target: { value: "Le produit apparaît dans ce décor" } });
   fireEvent.click(screen.getByRole("checkbox"));
-  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Préparer mon clip" })).toBeDisabled();
   fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Produit" }), { target: { value: "product" } });
   fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Décor" }), { target: { value: "background" } });
-  expect(screen.getByRole("button", { name: "Préparer avec Claude" })).toBeEnabled();
-  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Préparer mon clip" })).toBeEnabled();
+  expect(createButton()).not.toBeInTheDocument();
 });
 
 it("restaure le brouillon mais pas l’attestation ni le devis", async () => {
@@ -244,7 +257,7 @@ it("restaure le brouillon mais pas l’attestation ni le devis", async () => {
   expect(screen.getByRole("textbox")).toHaveValue("La caméra tourne autour du produit");
   expect(screen.getByRole("combobox", { name: "Type de plan" })).toHaveValue("detail");
   expect(screen.getByRole("checkbox")).not.toBeChecked();
-  expect(screen.queryByRole("button", { name: /Générer ce clip/ })).not.toBeInTheDocument();
+  expect(createButton()).not.toBeInTheDocument();
 });
 
 it("reprend une préparation exacte après rechargement sans restaurer les confirmations", async () => {
@@ -258,7 +271,7 @@ it("reprend une préparation exacte après rechargement sans restaurer les confi
   await mount(true, "prepared-a");
   expect(screen.getByText(prepared.summary)).toBeInTheDocument();
   expect(screen.getByRole("checkbox")).not.toBeChecked();
-  expect(screen.getByRole("button", { name: "Vérifier le prix" })).toBeDisabled();
+  expect(createButton()).toBeDisabled();
   expect(mock.request).toHaveBeenCalledTimes(1);
 });
 
@@ -271,7 +284,20 @@ it("permet de reprendre uniquement son devis conservé avec un nouveau clic expl
   mock.read.mockResolvedValue({ job: { ...quote, status: "queued" } });
   await mount(false);
   expect(mock.request).not.toHaveBeenCalled();
-  const resume = screen.getByRole("button", { name: "Générer ce clip avec ce devis" });
+  const resume = screen.getByRole("button", { name: "Créer ce clip préparé" });
   fireEvent.click(resume);
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "submit", job_id: "job" })));
+});
+
+it("ne relance pas un clip déjà lancé avec la même proposition (double clic, onglet rouvert)", async () => {
+  mock.list.mockResolvedValue({ enabled: true, plan_clips: 3, jobs: [] });
+  mock.request.mockImplementation(async (body: { action: string }) =>
+    body.action === "prepare" ? prepared : { job: { ...quote, status: "queued" } });
+  mock.read.mockResolvedValue({ job: { ...quote, status: "queued" } });
+  await mount(false);
+  fireEvent.change(screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" }), { target: { value: "Un bol tourne lentement" } });
+  await prepareAndConfirm();
+  fireEvent.click(createButton()!);
+  await waitFor(() => expect(mock.read).toHaveBeenCalled());
+  expect(mock.request.mock.calls.map(([body]) => body.action)).toEqual(["prepare", "quote"]);
 });
