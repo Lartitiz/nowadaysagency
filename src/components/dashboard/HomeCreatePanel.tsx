@@ -1,6 +1,7 @@
 import { ArrowRight, Instagram, Linkedin, Mail, Pin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
+import { cleanIdeaTitle, type IdeaToCreate } from "@/lib/idea-create-link";
 
 const CHANNELS = [
   { id: "instagram", label: "Instagram", description: "Posts, carrousels, Reels et stories", icon: Instagram },
@@ -11,9 +12,12 @@ const CHANNELS = [
 
 /** Les quatre canaux du créateur restent accessibles : les préférences et les
  * flags des hubs spécialisés ne sont pas des permissions de création. */
-export default function HomeCreatePanel({ onCreate, incompleteBrand }: {
+export default function HomeCreatePanel({ onCreate, incompleteBrand, nextIdea, onCreateIdea }: {
   onCreate: (path: string) => void;
   incompleteBrand: boolean;
+  /** Prochaine idée encore sans contenu (celles du diagnostic d'abord, choix I10 du 18/10/2026). */
+  nextIdea?: IdeaToCreate | null;
+  onCreateIdea?: (idea: IdeaToCreate) => void;
 }) {
   const { pending, checking } = usePendingBrandReview();
   return (
@@ -43,6 +47,13 @@ export default function HomeCreatePanel({ onCreate, incompleteBrand }: {
           )}
         </div>
       </div>
+      {/* Sous les canaux : au doigt, la ligne ne repousse pas les boutons de création. */}
+      {!checking && !pending && nextIdea && onCreateIdea && (
+        <div data-testid="home-next-idea" className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="min-w-0 text-sm leading-relaxed"><span className="text-white/80">Ta prochaine idée : </span><span className="font-semibold">{cleanIdeaTitle(nextIdea.titre)}</span></p>
+          <button type="button" onClick={() => onCreateIdea(nextIdea)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-bordeaux focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Créer ce contenu <ArrowRight size={16} aria-hidden="true" /></button>
+        </div>
+      )}
     </section>
   );
 }

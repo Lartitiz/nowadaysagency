@@ -110,6 +110,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useGenerationReloadGuard } from "@/hooks/use-generation-reload-guard";
 import ResultEmptyState from "@/components/creer/ResultEmptyState";
 import { useSubjectBaseline, nextIdeaLink } from "@/hooks/use-subject-baseline";
+import { useIdeaPick } from "@/features/creer/idea-pick";
 import { loadFlowState, saveFlowState as persistFlowState, clearFlowState, savePhotos as persistPhotos, loadPhotos, setFlowWorkspaceId, setFlowUserId } from "@/hooks/use-flow-persistence";
 import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
@@ -405,9 +406,6 @@ function CreerWorkspace() {
   const textFirstRowsSnapshotRef = useRef<UserPhotoRow[]>([]);
   const uploadedPhotosLiveRef = useRef<any[]>(uploadedPhotos);
   uploadedPhotosLiveRef.current = uploadedPhotos;
-
-
-
 
   // Le canal demandé via l'URL (?canal=) est géré de façon déterministe à
   // l'initialisation (canalConflict ci-dessus) + pré-sélectionné dans
@@ -1414,9 +1412,8 @@ function CreerWorkspace() {
     generateQuestions,
     handleLaunchSequence,
   });
-
-  // ── Progress bar moved into <CreerStepper /> below ──
-
+  // Idée choisie à l'écran « De quoi veux-tu parler ? » : même chemin que Mes idées (idea-pick.ts).
+  const handleIdeaPick = useIdeaPick({ handleIdeaNext, handleFormatNext, setObjective, setSelectedFormat, setEditorialAngle, setIsLinkedInCarousel, setForcedChannel });
 
   // ── Launch mode rendering ──
 
@@ -1577,7 +1574,7 @@ function CreerWorkspace() {
                 (photoEntry ? photoSubjectHistory : ideaHistory).travel(action === "redo");
               }}>
                 {planVerified && <LowCreditsBanner remaining={remainingWithBonus()} plan={plan} />}
-                <CreerStepIdea initialFormat={selectedFormat} channel={(deriveCanalFromState({ selectedFormat, isLinkedInCarousel }) as ForcedChannel | null) ?? forcedChannel} onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
+                <CreerStepIdea initialFormat={selectedFormat} channel={(deriveCanalFromState({ selectedFormat, isLinkedInCarousel }) as ForcedChannel | null) ?? forcedChannel} onNext={handleIdeaNext} onPickIdea={handleIdeaPick} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
                   onIdeaChange={(value) => { if (isCurrentCreation()) ideaHistory.change(value, true); }} onPhotosChange={(photos) => { if (!isCurrentCreation()) return; setUploadedPhotos(photos); void savePhotos(photos); }}
                   onPhotoDescriptionChange={setPhotoDescription} onPhotoSubjectChange={(value) => { if (isCurrentCreation()) photoSubjectHistory.change(value, true); }}
                   photoEntry={photoEntry} onPhotoEntryChange={setPhotoEntry}

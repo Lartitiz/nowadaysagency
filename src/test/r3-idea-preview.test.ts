@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 import {renderIdeaDraft} from '@/lib/render-idea-draft';
 const source=readFileSync('src/pages/IdeasPage.tsx','utf8');
-const extracted=source.slice(source.indexOf('function cleanSlideMarkers'),source.indexOf('/** Titre sans'));
+const extracted=source.slice(source.indexOf('function cleanSlideMarkers'),source.indexOf('/** « Série de stories'));
 const code=ts.transpileModule(extracted,{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
 const preview=new Function(`${code};return getIdeaPreview;`)();
 it('real list preview prefers the edited newsletter text, including an explicit empty edit',()=>{
