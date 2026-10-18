@@ -11,11 +11,15 @@
  * NOUVELLE photo de bibliothèque (l'originale reste intacte) ; l'écran
  * résultat garde l'originale en vis-à-vis, les chips d'ajustement regénèrent
  * la même ligne (1 crédit) toujours depuis la photo d'origine.
+ *
+ * Rangement automatique (P4, 18/10/2026, choix de Laetitia) : la photo générée
+ * reste dans « Mes photos » quoi qu'il arrive. Avant, fermer la fenêtre sans
+ * « Garder » effaçait l'essai, déjà payé. Seul « Retirer cet essai » l'enlève.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, Loader2, RefreshCw, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { Check, Download, Loader2, RefreshCw, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -80,8 +84,6 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
   const [adjustingKey, setAdjustingKey] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  // true dès que l'essai est explicitement gardé (bouton "Garder" ou "Créer un post avec")
-  const keptRef = useRef(false);
 
   const { ambiances, isLoading, isError, regenerate, isRegenerating } = usePortraitAmbiances(open);
   const { mutate: generate, isPending: isGenerating } = useGeneratePortraitPro();
@@ -97,7 +99,6 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
     setResult(null);
     setResultUrl(null);
     setSourceUrl(null);
-    keptRef.current = false;
     let cancelled = false;
     const srcPath = photo.original_storage_path || photo.storage_path;
     getSignedPhotoUrl(srcPath).then((u) => {
@@ -178,7 +179,7 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
       await discardPhotoAttempt(result);
       setResult(null);
       setResultUrl(null);
-      toast.success("Essai retiré.");
+      toast.success("Essai retiré de Mes photos");
     } catch (e: any) {
       toast.error(e?.message || "Suppression impossible");
     } finally {
@@ -205,13 +206,7 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
       open={open}
       onOpenChange={(v) => {
         if (busy) return; // pas de fermeture pendant une génération
-        if (!v && result && !keptRef.current) {
-          // Fermeture sans avoir cliqué "Garder" ni "Supprimer cet essai" : on ne laisse pas
-          // un essai non validé dans la bibliothèque.
-          discardPhotoAttempt(result).catch(() => {
-            toast.error("Un essai n'a pas pu être retiré, vérifie ta bibliothèque.");
-          });
-        }
+        // Fermer garde l'essai : il est payé et déjà dans « Mes photos » (règle 6).
         onOpenChange(v);
       }}
     >
@@ -353,6 +348,11 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
               </div>
             </div>
 
+            <p className="text-xs text-emerald-700 flex items-center gap-1" data-testid="portrait-range">
+              <Check className="h-3.5 w-3.5 shrink-0" />
+              Déjà rangé dans Mes photos
+            </p>
+
             <DialogFooter className="flex-col sm:flex-row gap-2 sm:justify-between items-center">
               <button
                 type="button"
@@ -360,7 +360,7 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
                 disabled={busy}
                 className="text-xs text-muted-foreground hover:text-destructive transition-colors inline-flex items-center gap-1 disabled:opacity-50"
               >
-                <Trash2 className="h-3.5 w-3.5" /> Supprimer cet essai
+                <Trash2 className="h-3.5 w-3.5" /> Retirer cet essai
               </button>
               <div className="flex flex-wrap justify-end gap-2">
                 <Button variant="outline" size="sm" onClick={handleDownload} disabled={busy || isDownloading}>
@@ -376,7 +376,6 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
                   size="sm"
                   disabled={busy}
                   onClick={() => {
-                    keptRef.current = true;
                     onOpenChange(false);
                     navigate("/creer", { state: { libraryPhotoIds: [result!.id] } });
                   }}
@@ -387,12 +386,11 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
                   size="sm"
                   disabled={busy}
                   onClick={() => {
-                    keptRef.current = true;
-                    toast.success("Portrait ajouté à ta bibliothèque.");
+                    toast.success("Ton portrait est dans Mes photos");
                     onOpenChange(false);
                   }}
                 >
-                  Garder dans ma bibliothèque
+                  C'est bon, terminer
                 </Button>
               </div>
             </DialogFooter>

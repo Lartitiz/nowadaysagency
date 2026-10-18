@@ -104,8 +104,18 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
 
   // Packshot / Mettre en scène = actions produit : mises en avant seulement si
   // la photo est un produit (ou pas encore classée — comportement historique).
+  // P4 (18/10/2026) : une image faite par un outil produit (fond blanc, mise
+  // en scène) reste un produit même si l'IA la classe ensuite « autre » ; et
+  // « autre » (classement incertain) ne cache plus les outils produit. Seuls
+  // portrait, ambiance et coulisses les rangent sous le repli.
   const isProductPhoto =
-    !photo?.kind || photo.kind === "produit" || photo.kind === "produit_porte";
+    !photo?.kind ||
+    photo.kind === "produit" ||
+    photo.kind === "produit_porte" ||
+    photo.kind === "autre" ||
+    photo.background_preset_key === "packshot" ||
+    photo.background_preset_key === "mise_en_scene" ||
+    !!photo.tags?.some((t) => t === "packshot" || t === "mise-en-scene");
 
   useEffect(() => {
     if (!photo || !open) return;
