@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Loader2,
 } from "lucide-react";
+import StickyStepBar from "./StickyStepBar";
 
 // Lot 7 reels : l'utilisatrice choisit son angle d'attaque AVANT la génération
 // complète. La forme de ReelHook = celle du `selected_hook` que reelBrief
@@ -189,37 +190,44 @@ export default function HookSelectionStep({
         })}
       </div>
 
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-1.5">
-          <Button variant="outline" size="sm" onClick={onRefresh} disabled={refreshing}>
-            {refreshing ? (
-              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-            ) : (
-              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-            )}
-            3 autres angles
-          </Button>
-          {/* Sortie de secours : JAMAIS désactivée. `refreshing` ne doit verrouiller
-              que le bouton qui le déclenche — sinon un refresh qui traîne fige tout
-              l'écran sans le dire (vécu live 03/08). */}
-          <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={onSkip}>
-            Laisser l'IA choisir
-          </Button>
-        </div>
-        <Button
-          size="sm"
-          disabled={selectedIdx === null}
-          onClick={() => selectedIdx !== null && onSelect(hooks[selectedIdx])}
-        >
-          Écrire le script complet
-          <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+      <div>
+        <Button variant="outline" size="sm" onClick={onRefresh} disabled={refreshing}>
+          {refreshing ? (
+            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+          )}
+          3 autres angles
         </Button>
       </div>
 
-      <Button variant="ghost" size="sm" onClick={onBack} className="text-muted-foreground">
-        <ArrowLeft className="h-3.5 w-3.5 mr-1.5" />
-        Revenir aux questions
-      </Button>
+      {/* Collée en bas pour que « Écrire le script complet » reste visible sans défiler
+          sur téléphone, au-dessus de la barre du menu du bas (chantier I). */}
+      <StickyStepBar testId="hooks-bar">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={onBack} aria-label="Revenir aux questions" className="gap-1 text-muted-foreground shrink-0">
+            <ArrowLeft className="h-3.5 w-3.5" /> Retour
+          </Button>
+          <Button
+            size="lg"
+            className="flex-1 gap-2"
+            disabled={selectedIdx === null}
+            onClick={() => selectedIdx !== null && onSelect(hooks[selectedIdx])}
+          >
+            Écrire le script complet
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+        {/* Sortie de secours : JAMAIS désactivée. `refreshing` ne doit verrouiller
+            que le bouton qui le déclenche — sinon un refresh qui traîne fige tout
+            l'écran sans le dire (vécu live 03/08). */}
+        <div className="flex items-center justify-center gap-1 text-2xs text-muted-foreground">
+          {selectedIdx === null && <span>Touche un angle juste au-dessus, ou :</span>}
+          <Button variant="ghost" size="sm" className="h-7 px-1.5 text-xs text-muted-foreground underline underline-offset-2" onClick={onSkip}>
+            Laisser l'IA choisir
+          </Button>
+        </div>
+      </StickyStepBar>
     </div>
   );
 }
