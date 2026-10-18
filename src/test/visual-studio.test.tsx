@@ -171,7 +171,7 @@ it("guide librement la suite après une image générique, sans boutons sous l�
   }] });
   mount();
   await screen.findByText("Décris ton fond.");
-  expect(screen.getByText("Voilà la nouvelle version. Qu’est-ce que tu veux ajuster maintenant ? Réponds-moi directement ici.")).toBeInTheDocument();
+  expect(await screen.findByText("Voilà la nouvelle version. Qu’est-ce que tu veux ajuster maintenant ? Réponds-moi directement ici.")).toBeInTheDocument();
   const gallery = screen.getByRole("region", { name: "Visuels et versions" });
   expect(within(gallery).queryByRole("button", { name: "Joindre à ma demande" })).not.toBeInTheDocument();
   expect(within(gallery).queryByRole("link", { name: "Agrandir l’image" })).not.toBeInTheDocument();

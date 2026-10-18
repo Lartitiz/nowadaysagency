@@ -38,7 +38,10 @@ export function useStudioLibrarySync({
         workspace_id: workspaceId,
         session_id: sessionId,
         version_id: version.id,
-      }).then((receipt) => receipt.photo_id);
+      }).then((receipt) => {
+        if (!receipt?.photo_id) throw new Error("L’image n’a pas pu être rangée dans Mes photos.");
+        return receipt.photo_id;
+      });
       inflight.current.set(version.id, pending);
       pending.catch(() => inflight.current.delete(version.id));
     }
