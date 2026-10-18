@@ -25,6 +25,7 @@ import { countCarouselSlides } from "../_shared/photo-slide-structure.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { type AudienceAddress } from "../_shared/audience-address.ts";
 import { type CaptionEndingRule, type EchoContext } from "../_shared/redac-gate.ts";
+import { redesignSlide } from "./layout.ts";
 
 // ── Seam d'injection de dépendances (tests) ──
 // Indirection pure : en prod, ces champs pointent vers les imports ci-dessus
@@ -45,6 +46,8 @@ export const _deps = {
   fetchDepthMaterial,
   audienceAddressPass: applyAudienceAddressPass,
   logPlan: logCarouselPlan,
+  // « Refaire cette slide » : dessin par carousel-visual (appel réseau).
+  redesignSlide,
 };
 
 /** Durées par étape (ms) des carrousels photo et mixte, comme le carrousel texte. */
@@ -305,6 +308,8 @@ export interface CarouselRequestContext {
   brandVocabBlock: string;
   newsContext: any;
   corsHeaders: Record<string, string>;
+  /** En-tête Authorization de la requête : transmis à carousel-visual (« Refaire cette slide »). */
+  authHeader?: string;
   emitStatus: StatusEmitter;
   /** Début de la requête (Date.now()) : budget temps global des étapes facultatives. */
   startedAt: number;

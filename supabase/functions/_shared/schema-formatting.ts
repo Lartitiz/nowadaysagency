@@ -1,4 +1,5 @@
 import { callAnthropic, SONNET_MODEL, type UsageSink } from "./anthropic.ts";
+import { tryParseAiObject } from "./parse-ai-json.ts";
 import { progressionMaterial } from "./carousel-editorial-snapshot.ts";
 import { MIX_SCHEMA_TYPES } from "./mix-schema-render.ts";
 import { MIX_SCHEMA_ROOM_PROBE, mixPauseFits } from "./mix-slide-layouts.ts";
@@ -233,5 +234,40 @@ export async function addSchemasToContent(content: string, opts: { isMix: boolea
     return { content: content.slice(0, start) + JSON.stringify(parsed) + content.slice(start + m[0].length), plan };
   } catch {
     return { content, plan: null };
+  }
+}
+
+/** « Refaire cette slide » (chantier AA, 18/10/2026) : l'utilisatrice demande
+ * UN schéma d'un type donné (« fais-en une frise en 3 étapes ») sur une slide
+ * dont le texte vient d'être réécrit. Mêmes règles que planSchemas : forme du
+ * type, aucun chiffre absent du texte, citation exacte, place à côté du texte.
+ * Le texte n'est jamais modifié ; échec ou doute → aucun schéma. */
+export async function planRequestedSchema(slide: Slide, type: string, isMix: boolean, usage: UsageSink, call = callAnthropic): Promise<{ visual_schema: Record<string, unknown> | null; rejected: string[] }> {
+  const types: readonly string[] = isMix ? MIX_SCHEMA_TYPES : SCHEMA_TYPES;
+  if (!types.includes(type)) return { visual_schema: null, rejected: [`${type}:type`] };
+  const n = Number(slide.slide_number) || 1;
+  const sink: UsageSink = {};
+  try {
+    const raw = await call({
+      model: SONNET_MODEL, max_tokens: 2000, maxRetries: 0, abortTimeoutMs: 25000, keepDashes: true,
+      system: SCHEMA_FORMAT_RULES + `\n- Demande de l'utilisatrice pour CETTE slide : un schéma de type ${type}, un seul. Si le texte ne contient pas de quoi le remplir sans rien inventer, renvoie une liste vide.`,
+      messages: [{ role: "user", content: [{ type: "text", text: JSON.stringify({ slides: [{ slide_number: n, role: slide.role, eligible: true, title: slide.title || "", text: slide.body || slide.overlay_text || "" }] }) }] }],
+      tool: { name: "poser_schema_demande", description: "Pose le schéma demandé par l'utilisatrice sur cette slide, à partir de son texte, sans le modifier.", input_schema: { type: "object", required: ["schemas"], properties: {
+        schemas: { type: "array", maxItems: 1, items: { type: "object", required: ["slide_number", "reason", "visual_schema"], properties: {
+          slide_number: { type: "integer" }, reason: { type: "string", maxLength: 300 },
+          visual_schema: { type: "object", required: ["type"], additionalProperties: true, description: `Objet complet {type, ...données} selon la forme du type : ${SCHEMA_SHAPES}`, properties: { type: { type: "string", enum: [type] } } },
+        } } },
+      } } },
+    } as any, sink);
+    const parsed = tryParseAiObject(raw as string | object, "schema-demande");
+    const rejected: string[] = [];
+    const fits = isMix ? (s: Slide, sc: unknown) => mixPauseFits(s as any, sc) : (s: Slide) => wordCount(s) <= DENSE_SLIDE_WORDS;
+    const out = validateSchemaPlan(parsed, [{ ...slide, slide_number: n }], () => true, rejected, [type], fits);
+    return { visual_schema: out[0]?.visual_schema ?? null, rejected };
+  } catch {
+    return { visual_schema: null, rejected: ["indisponible"] };
+  } finally {
+    for (const key of ["input_tokens", "output_tokens", "total_tokens"] as const) usage[key] = (usage[key] || 0) + (sink[key] || 0);
+    if (!usage.model) usage.model = sink.model || SONNET_MODEL;
   }
 }

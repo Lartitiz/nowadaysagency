@@ -347,7 +347,7 @@ un format en casse un autre.
 **Aiguillage**
 - `switch (type)` : `hooks`, `slides`, `express_full`,
   `structure_proposal`, `suggest_topics`, `suggest_angles`,
-  `deepening_questions`.
+  `deepening_questions`, `slide_redo` (« Refaire cette slide », chantier AA).
 - `assign_templates` (slides fournies par l'utilisatrice) sort **avant** le
   `switch`, sans quota et sans réécriture éditoriale.
 - Sous-aiguillage par `carousel_type` : `handleMixCarouselRequest` et
@@ -377,6 +377,7 @@ découpage en cours : code déplacé à l'identique, `index.ts` réexporte ce qu
 | `carousel-ai/steps/questions.ts` (lot 5) | Questions d'approfondissement (gratuites) : variante photo / mixte avec vision, variante texte via `runGenerationAndRespond` | les questions de tous les carrousels |
 | `carousel-ai/modes/text.ts` (lot 5) | Parcours texte : `handleHooksRequest`, `handleSlidesRequest`, `handleSuggestTopicsRequest`, `handleSuggestAnglesRequest` (appels `build…Prompt(reqCtx.body, reqCtx.isLinkedIn)`) | accroches, slides, idées de sujets et d'angles |
 | `carousel-ai/modes/mix.ts` (lot 6) | Parcours mixte avec plan validé, ou quand le récit continu ne s'applique pas (`handleMixCarouselRequest`) : vision ou texte, relance si trop court, refus photo, structure, relecture, fusion du plan, indexes photo, redac-gate, fil, schémas ; nettoyage « texte d'abord » (`enforceTextFirstDirectives`) | le carrousel mixte |
+| `carousel-ai/modes/slide-redo.ts` (chantier AA, 18/10/2026) | « Refaire cette slide » (`handleSlideRedoRequest`, type `slide_redo`) : le rédacteur du carrousel réécrit UNE slide selon la consigne libre, avec le texte des autres slides ; garde-fous en code (aucun chiffre, témoignage ni vécu absent du carrousel, du brief et de la consigne : une relance puis refus) ; « mise en page seule » = texte recopié mot pour mot ; schéma demandé et dessin par `layout.ts` (`redoSlideSchema`, `redesignSlide` → `carousel-visual` avec `render_only` et un jeton interne `_shared/internal-grant.ts`) ; **un seul** `logUsage("content", "slide_redo")`, après le dessin. Slide verrouillée refusée, photo jamais changée | « Refaire cette slide » seulement |
 | `carousel-ai/modes/photo.ts` (lot 6) | Parcours photo avec plan validé, ou quand le récit continu ne s'applique pas (`handlePhotoCarouselRequest`, `emptySlidesText`) : vision, relance si trop court, refus photo, structure, relecture, fusion du plan, indexes photo, redac-gate, gabarits posés sur le texte final, fil, « photos brutes » | le carrousel photo |
 
 `carousel-ai/boundaries_test.ts` garde ce rangement : aucun fichier n'importe
@@ -396,6 +397,9 @@ d'`index.ts` est cité ici.
   - styles d'overlay (`normalizeOverlayStyles`) ;
   - gabarits photo et leur revérification (`assignPhotoTemplates`,
     `revalidatePhotoLayoutContent`, `assignTemplatesToProvidedSlides`) ;
+  - « Refaire cette slide » (chantier AA) : schéma demandé par l'utilisatrice
+    (`redoSlideSchema` → `planRequestedSchema`) et dessin de la slide par
+    carousel-visual (`redesignSlide`) ;
   - récit continu photo / mixte (lot 8b) : gabarit, style et position du texte
     sur photo (`narrativePhotoLayout`), disposition du mixte
     (`narrativeMixLayout`) et mot mis en valeur sur la couverture
@@ -414,7 +418,9 @@ d'`index.ts` est cité ici.
 **Quota**
 - Catégorie `carousel` pour `slides` et `express_full`, y compris photo et
   mixte. C'est un plafond **dur**.
-- Catégorie `content` pour `hooks` ; catégorie `suggestion` pour
+- Catégorie `content` pour `hooks` et `slide_redo` (1 crédit, action
+  `slide_redo` dans `ai_usage`, carousel-visual ne débite pas une 2e fois) ;
+  catégorie `suggestion` pour
   `suggest_*`, `deepening_questions` et `structure_proposal`.
 - Contrôle d'accès `quality_max` en plus.
 
@@ -424,7 +430,14 @@ d'`index.ts` est cité ici.
 ### `carousel-visual` (~2 800 lignes) : mise en forme visuelle des carrousels
 
 - Branche sur `carousel_type` (photo / mixte / texte). Rendu par lots, mode
-  `single`, rattrapage des slides manquantes, passe de contraste.
+  `single`, rattrapage des slides manquantes, passe de contraste. Le rendu par
+  le modèle (lots, rattrapage, `parseSlidesJson`) vit dans
+  `carousel-visual/model-render.ts` (sorti d'`index.ts` à l'identique, 18/10/2026).
+- « Refaire cette slide » (`carousel-visual/slide-redo.ts`, chantier AA) :
+  `render_only` = la seule slide renvoyée, tout le carrousel reste fourni pour
+  la charte et la grille ; `design_note` = consigne de mise en page (texte :
+  rendu du modèle d'un lot d'une slide ; mixte et photo : ajoutée aux étapes
+  de disposition). Avec le jeton interne de carousel-ai, pas de `logUsage` ici.
 - Quota : `content`, ou `quality_max` si demandé.
   - Illustration de couverture : `photo_retouch`.
 - Snapshot des prompts : `carousel-visual/prompts_snapshot_test.ts`.

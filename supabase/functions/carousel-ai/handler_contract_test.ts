@@ -24,6 +24,7 @@ import { reviewCarouselProgression } from "../_shared/carousel-progression.ts";
 import { createContinuousNarrative } from "./continuous-narrative.ts";
 import { applyAudienceAddressPass } from "../_shared/audience-address-pass.ts";
 import { TEST_SUPABASE_URL } from "../_shared/test-edge-harness.ts";
+import { SLIDE_REDO_GRANT, verifyInternalGrant } from "../_shared/internal-grant.ts";
 
 const USER_ID = "contract-user";
 const WORKSPACE_ID = "22222222-2222-2222-2222-222222222222";
@@ -94,6 +95,8 @@ const TOOL_INPUTS: Record<string, unknown> = {
     ],
     caption: { hook: "Un bol, trois passages.", body: "Voilà pourquoi je n'ai plus de remises.", cta: "Tu affiches tes prix ?", hashtags: ["ceramique"] },
   },
+  // « Refaire cette slide » (chantier AA) : schéma demandé, tiré du texte réécrit.
+  poser_schema_demande: { schemas: [{ slide_number: 3, reason: "Les trois passages se lisent dans l'ordre.", visual_schema: { type: "timeline", steps: [{ label: "Tournage" }, { label: "Tournassage" }, { label: "Émaillage" }] } }] },
   poser_les_gabarits: { slides: [
     { slide_number: 1, template: "couverture" },
     { slide_number: 2, template: "profonde" },
@@ -114,7 +117,17 @@ function toolInput(req: any): unknown {
     try { fields = JSON.parse(message.split(marker)[1] ?? "[]"); } catch { fields = []; }
     return { reviews: fields.map((f) => ({ field_id: f.field_id, decision: "keep", reason: "le passage sert le propos", edits: [] })) };
   }
+  if (tool === "refaire_slide") return slideRedoInput(String(req.messages?.[0]?.content ?? ""));
   return TOOL_INPUTS[tool] ?? {};
+}
+
+/** « Refaire cette slide » : la réponse du rédacteur dépend de la consigne. */
+function slideRedoInput(message: string): unknown {
+  const consigne = message.match(/CONSIGNE DE L'UTILISATRICE[^«]*« ([^»]*) »/)?.[1] ?? "";
+  if (consigne.includes("plus court")) return { change: "texte", slide: { title: "Le temps compté", body: "Un mois de notes : 40 % de mon temps partait dans des pièces vendues à perte." }, schema_type: null, design_note: null, photo_requested: false };
+  if (consigne.includes("frise")) return { change: "schema", slide: { title: "Trois passages", body: "Tournage, puis tournassage, puis émaillage : chaque bol passe trois fois entre mes mains." }, schema_type: "timeline", design_note: null, photo_requested: false };
+  if (consigne.includes("en haut")) return { change: "disposition", slide: { overlay_text: "Texte que le code ne doit pas garder" }, schema_type: null, design_note: "Texte en haut de la slide, avec plus d'air autour.", photo_requested: true };
+  return { change: "texte", slide: { title: "Le temps compté", body: "73 % des artisan·es vendent à perte sans le savoir." }, schema_type: null, design_note: null, photo_requested: false };
 }
 
 // deno-lint-ignore no-explicit-any
@@ -209,6 +222,8 @@ async function run(body: Record<string, unknown>, text: string) {
   setDeps(credits);
   // deno-lint-ignore no-explicit-any
   const requests: any[] = [];
+  // deno-lint-ignore no-explicit-any
+  const visualCalls: any[] = [];
   const previousFetch = globalThis.fetch;
   // deno-lint-ignore no-explicit-any
   globalThis.fetch = (async (input: any, init?: any) => {
@@ -219,12 +234,22 @@ async function run(body: Record<string, unknown>, text: string) {
       if (req?.stream) return new Response(streamBody(req, text), { status: 200, headers: { "Content-Type": "text/event-stream" } });
       return new Response(JSON.stringify(reply(req, text)), { status: 200, headers: { "Content-Type": "application/json" } });
     }
+    // « Refaire cette slide » : dessin de la slide par carousel-visual (simulé).
+    if (url === `${TEST_SUPABASE_URL}/functions/v1/carousel-visual`) {
+      const sent = JSON.parse(init?.body as string);
+      visualCalls.push({
+        jeton_interne_valide: await verifyInternalGrant(init?.headers?.[SLIDE_REDO_GRANT.header], SLIDE_REDO_GRANT.purpose, USER_ID),
+        authorization: init?.headers?.Authorization ? "transmise" : "absente",
+        corps: { ...sent, ...(sent.photos ? { photos: `${sent.photos.length} photo(s)` } : {}) },
+      });
+      return new Response(JSON.stringify({ result: { slides_html: [{ slide_number: sent.render_only, html: `<div data-slide-refaite="${sent.render_only}">rendu</div>` }] }, redo_usage: { total_tokens: 42, model: "composition-code" } }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     // Supabase (journal qualité, etc.) : réponse vide générique, jamais le vrai réseau.
     return new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } });
   }) as typeof fetch;
   try {
     const res = await handleRequest(new Request("http://localhost/carousel-ai", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workspace_id: WORKSPACE_ID, ...body }),
+      method: "POST", headers: { "Content-Type": "application/json", ...(body.type === "slide_redo" ? { Authorization: "Bearer jeton-de-test" } : {}) }, body: JSON.stringify({ workspace_id: WORKSPACE_ID, ...body }),
     }));
     const raw = await res.text();
     let out = raw;
@@ -240,6 +265,7 @@ async function run(body: Record<string, unknown>, text: string) {
       `── CRÉDITS\n${JSON.stringify(credits)}`,
       // Plusieurs étapes partent en parallèle : appels triés pour une référence stable.
       `── APPELS À CLAUDE (${requests.length})\n${requests.map(requestDoc).sort().join("\n\n")}`,
+      ...(visualCalls.length ? [`── DESSIN PAR CAROUSEL-VISUAL (${visualCalls.length})\n${JSON.stringify(visualCalls, null, 1)}`] : []),
     ].join("\n\n"));
   } finally {
     globalThis.fetch = previousFetch;
@@ -320,6 +346,18 @@ const CASES: { name: string; body: Record<string, unknown>; text: string }[] = [
       photos: PHOTOS, prefer_distinct_photos: true } },
   { name: "deepening_questions — photos sans sujet", text: "",
     body: { type: "deepening_questions", carousel_type: "photo", photo_contexts: PHOTO_CONTEXTS } },
+  // ── Chantier AA : « Refaire cette slide » (un crédit content/slide_redo, après le dessin) ──
+  { name: "slide_redo — texte seul (« plus court »)", text: "",
+    body: { type: "slide_redo", carousel_type: "prise_de_position", subject: SUBJECT, slides: TEXT_DOC.slides, redo_slide_number: 3, instruction: "plus court", visual_request: { template_style: null } } },
+  { name: "slide_redo — schéma demandé (frise en 3 étapes)", text: "",
+    body: { type: "slide_redo", carousel_type: "prise_de_position", subject: SUBJECT, slides: TEXT_DOC.slides, redo_slide_number: 3, instruction: "fais-en une frise en 3 étapes", visual_request: { template_style: null } } },
+  { name: "slide_redo — disposition seule sur une slide photo (texte mot pour mot, photo gardée)", text: "",
+    body: { type: "slide_redo", carousel_type: "photo", subject: "Une journée d'atelier", slides: PHOTO_DOC.slides, redo_slide_number: 2, instruction: "mets le texte en haut et change la photo",
+      visual_request: { carousel_type: "photo", photos: PHOTOS, slides: PHOTO_DOC.slides.map((s) => ({ ...s, overlay_position: s.overlay_position ?? "bottom_center" })) } } },
+  { name: "slide_redo — chiffre inventé deux fois : refus, rien débité", text: "",
+    body: { type: "slide_redo", carousel_type: "prise_de_position", subject: SUBJECT, slides: TEXT_DOC.slides, redo_slide_number: 3, instruction: "ajoute une statistique frappante", visual_request: {} } },
+  { name: "slide_redo — slide verrouillée refusée (400)", text: "",
+    body: { type: "slide_redo", carousel_type: "prise_de_position", subject: SUBJECT, slides: TEXT_DOC.slides.map((s) => s.slide_number === 3 ? { ...s, editor_locked: true } : s), redo_slide_number: 3, instruction: "plus court" } },
   { name: "type inconnu refusé (400)", text: "",
     body: { type: "inconnu", carousel_type: "storytelling", subject: SUBJECT } },
 ];
