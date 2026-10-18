@@ -63,7 +63,7 @@ export function EditorHeader({ active, count, history, mode, redo, setFullscreen
   const tool = "h-8 gap-1.5 px-2 lg:px-3";
   return (
       <div role="group" aria-labelledby="carousel-editor-title" className="flex items-center justify-between gap-1.5">
-        <h2 id="carousel-editor-title" className="sr-only xl:not-sr-only xl:shrink-0 xl:whitespace-nowrap xl:font-display xl:text-base xl:text-primary">Personnaliser mon carrousel</h2>
+        <h2 id="carousel-editor-title" className="sr-only 2xl:not-sr-only 2xl:shrink-0 2xl:whitespace-nowrap 2xl:font-display 2xl:text-base 2xl:text-primary">Personnaliser mon carrousel</h2>
         <p className="mr-auto flex min-w-0 shrink items-center gap-1 overflow-hidden whitespace-nowrap text-2xs text-muted-foreground md:text-xs">
           Slide {active + 1} / {count}<span className="hidden 2xl:inline"> · Double-clic : écrire · Glisser : déplacer</span>
           <HelpTip label="gestes sur la slide"><span className="md:hidden">Touche un texte, puis « Écrire » pour le modifier. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses. Glisse une photo plein écran pour la recadrer, les poignées pour agrandir. Tes retouches ne coûtent aucun crédit.</span><span className="hidden md:inline">Double-clique (ou touche « Écrire ») pour écrire dans un texte. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses (⌘/Ctrl pour placer librement). Glisse une photo plein écran pour la recadrer (double-clic pour une photo encadrée), les poignées pour agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre. Tes retouches ne coûtent aucun crédit.</span></HelpTip>
