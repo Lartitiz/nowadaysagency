@@ -11,14 +11,19 @@ const NewsjackingPanel = lazy(() => import("./NewsjackingPanel"));
 import CreerTransformTab from "./CreerTransformTab";
 import { PhotoUploadZone, type PhotoItem } from "./PhotoUploadZone";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { IdeaPicks } from "./CreerIdeaPicks";
+import { fetchIdeasToDevelop } from "@/lib/ideas-to-develop";
+import type { IdeaToCreate } from "@/lib/idea-create-link";
 
 interface Props {
   initialFormat?: string | null;
   channel?: "instagram" | "linkedin" | "pinterest" | "newsletter" | null;
   /** ideaId : fiche de l'idée du diagnostic choisie telle quelle (le contenu s'y enregistre). */
   onNext: (idea: string, ideaId?: string) => void;
+  /** Idée de Mes idées choisie d'un clic : même chemin que « Créer ce contenu » (chantier S). */
+  onPickIdea?: (idea: IdeaToCreate) => void;
   onIdeaChange?: (idea: string) => void;
   onPhotosChange?: (photos: PhotoItem[]) => void;
   onPhotoDescriptionChange?: (description: string) => void;
@@ -50,7 +55,7 @@ const STARTER_IDEAS = [
   "Ce que j'aurais aimé savoir en débutant",
 ];
 
-export default function CreerStepIdea({ initialFormat, channel, onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject, onIdeaChange, onPhotosChange, onPhotoDescriptionChange, onPhotoSubjectChange, onPhotoEntryChange, photoEntry, historyControls }: Props) {
+export default function CreerStepIdea({ initialFormat, channel, onNext, onPickIdea, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject, onIdeaChange, onPhotosChange, onPhotoDescriptionChange, onPhotoSubjectChange, onPhotoEntryChange, photoEntry, historyControls }: Props) {
   const [fallbackIdea, setFallbackIdea] = useState(initialIdea || "");
   const [coachOpen, setCoachOpen] = useState(false);
   const [showNewsjacking, setShowNewsjacking] = useState(false);
@@ -74,31 +79,20 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onCoachi
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
 
-  // L4 : idées personnalisées générées par le diagnostic (saved_ideas,
-  // source_module="diagnostic") — remplacent les départs génériques quand elles existent.
-  const [personalIdeas, setPersonalIdeas] = useState<{ id: string; titre: string }[]>([]);
+  // Idées encore sans contenu (celles du diagnostic d'abord), montrées sans
+  // repli sous le champ (chantier S, 18/10) ; sinon les départs génériques.
+  const [personalIdeas, setPersonalIdeas] = useState<IdeaToCreate[]>([]);
   useEffect(() => {
     if (!value) return;
     let cancelled = false;
-    (async () => {
-      const { data } = await (supabase.from("saved_ideas") as any)
-        .select("id, titre")
-        .eq(column, value)
-        .eq("source_module", "diagnostic")
-        .eq("status", "to_explore")
-        .is("calendar_post_id", null)
-        .is("content_data", null)
-        .order("created_at", { ascending: true })
-        .limit(5);
-      if (!cancelled && data?.length) {
-        setPersonalIdeas(data.filter((d: any) => d.titre));
-      }
-    })();
+    fetchIdeasToDevelop(column, value).then((ideas) => { if (!cancelled) setPersonalIdeas(ideas); });
     return () => { cancelled = true; };
   }, [column, value]);
-
-  const starterChips = personalIdeas.length > 0 ? personalIdeas.map((p) => p.titre) : STARTER_IDEAS;
-  // Idée du diagnostic reprise telle quelle → le contenu s'enregistre dans sa fiche
+  const isMobile = useIsMobile();
+  const ideaPicks = personalIdeas.length > 0 && (
+    <IdeaPicks ideas={personalIdeas} max={3} onPick={(p) => (onPickIdea ? onPickIdea(p) : setIdea(p.titre))} />
+  );
+  // Idée reprise telle quelle → le contenu s'enregistre dans sa fiche
   // (sinon elle reste « à placer » une fois le contenu fait, passe du 16/10).
   const pickedIdeaId = personalIdeas.find((p) => p.titre === idea.trim())?.id;
 
@@ -141,9 +135,10 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onCoachi
                   value={idea}
                   onChange={(e) => setIdea(e.target.value)}
                   placeholder="Une nouveauté, les coulisses, une question de tes clientes…"
-                  rows={6}
-                  className="resize-y min-h-40 text-base"
+                  rows={ideaPicks && isMobile ? 3 : 6}
+                  className={`resize-y text-base ${ideaPicks && isMobile ? "min-h-24" : "min-h-40"}`}
                 />
+                {isMobile && ideaPicks}
                 {onPhotosNext && (
                   <button type="button" onClick={() => setShowPhotosMode(true)} className="inline-flex items-center gap-2 text-sm text-primary underline underline-offset-4 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4">
                     <Camera size={17} aria-hidden="true" /> Partir de photos{localPhotos.length > 0 ? ` (${localPhotos.length})` : ""}
@@ -156,20 +151,21 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onCoachi
                   </Button>
                 </div>
               </div>
-              <details className="mt-5 text-sm">
+              {!ideaPicks && <details className="mt-5 text-sm">
                 <summary className="w-fit cursor-pointer text-primary underline underline-offset-4 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4">
-                  {personalIdeas.length > 0 ? "Retrouver mes idées du diagnostic" : "Essayer avec un exemple"}
+                  Essayer avec un exemple
                 </summary>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {starterChips.map((s) => (
+                  {STARTER_IDEAS.map((s) => (
                     <button key={s} type="button" onClick={() => setIdea(s)} className="rounded-xl border border-border bg-card px-3 py-2 text-left text-xs hover:border-primary/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
                       {s}
                     </button>
                   ))}
                 </div>
-              </details>
+              </details>}
             </div>
             <aside aria-label="Autres points de départ" className="min-w-0">
+              {!isMobile && ideaPicks && <div className="mb-8">{ideaPicks}</div>}
               <p className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">Un autre point de départ</p>
               <div className="divide-y divide-border border-y border-border">
                 {[

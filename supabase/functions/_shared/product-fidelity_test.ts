@@ -1,7 +1,7 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
-  expandBox, featherAlpha, normalizeBox, prepareProductReference, productFidelityLine, refineProductRegion, refinePrompt,
-  refineSquare,
+  CpuMeter, expandBox, featherAlpha, imageSize, normalizeBox, prepareProductReference, productFidelityLine, REFINE_CPU_ESTIMATE_MS,
+  refineProductRegion, refinePrompt, refineSquare, visionImage,
 } from "./product-fidelity.ts";
 
 // imagescript loads its WebAssembly over the network: pixel tests run only with
@@ -118,3 +118,85 @@ Deno.test("refinePrompt keeps the framing and names the product", () => {
   assert(prompt.includes("no zoom, shift or rotation"));
   assert(prompt.length < 2000);
 });
+
+// ── Host CPU limit (18/10/2026) ──
+// The staging died at 2 152 ms of CPU (546 WORKER_RESOURCE_LIMIT, « CPU Time
+// exceeded »), the provider image already paid: the vision step decoded and
+// re-encoded every image, a 2000×2000 photo included, and re-shrank an image
+// already at 1024 px. These tests pin the cheap path, without network.
+
+/** Minimal JPEG header: SOI, APP0, SOF0 with the given size (no pixels). */
+function jpegHeader(width: number, height: number) {
+  return new Uint8Array([
+    0xff, 0xd8,
+    0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
+    0xff, 0xc0, 0x00, 0x11, 0x08, height >> 8, height & 255, width >> 8, width & 255, 0x03,
+    0x01, 0x22, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01,
+  ]);
+}
+function pngHeader(width: number, height: number) {
+  const bytes = new Uint8Array(33);
+  bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+  const view = new DataView(bytes.buffer);
+  view.setUint32(16, width);
+  view.setUint32(20, height);
+  return bytes;
+}
+
+Deno.test("imageSize reads JPEG and PNG headers without decoding", () => {
+  assertEquals(imageSize(jpegHeader(2000, 1500)), { width: 2000, height: 1500 });
+  assertEquals(imageSize(pngHeader(1360, 2048)), { width: 1360, height: 2048 });
+  assertEquals(imageSize(new Uint8Array([1, 2, 3, 4])), null);
+});
+
+Deno.test("visionImage sends a light photo as is: no decode for the 2000×2000 packshot", async () => {
+  const packshot = new Blob([jpegHeader(2000, 2000)], { type: "image/jpeg" });
+  const meter = new CpuMeter(1_000);
+  assertEquals(await visionImage(packshot, meter), packshot);
+  const result = new Blob([jpegHeader(1024, 1542)], { type: "image/jpeg" });
+  assertEquals(await visionImage(result, meter), result, "an image already at 1024 px is not shrunk again");
+  assertEquals(meter.spent, 0);
+});
+
+Deno.test("CpuMeter: parallel claims cannot both pass a full budget", async () => {
+  const meter = new CpuMeter(1_000);
+  await meter.time(() => new Promise((r) => setTimeout(r, 20)));
+  assert(meter.spent >= 15);
+  assert(meter.claim(600));
+  assert(!meter.claim(600), "the second parallel pass waits for the first one's release");
+  meter.release(600);
+  assert(meter.claim(600));
+});
+
+Deno.test("refineProductRegion skips the zoomed pass when the CPU budget is spent: no vision, no provider image", async () => {
+  const meter = new CpuMeter(1_400);
+  meter.spent = 1_400 - REFINE_CPU_ESTIMATE_MS + 1;
+  let located = 0, generated = 0;
+  const image = new Blob([jpegHeader(1024, 1542)], { type: "image/jpeg" });
+  const outcome = await refineProductRegion({
+    image, reference: image, product: "bague", ref: { description: "", extraneous: "" }, meter,
+    locate: () => { located++; return Promise.resolve(null); },
+    generate: () => { generated++; return Promise.resolve(null); },
+  });
+  assertEquals(outcome, { ok: false, reason: "cpu_budget" });
+  assertEquals([located, generated], [0, 0]);
+});
+
+Deno.test({ name: "a 2000×2000 product photo, prepared then refined, stays well under the 2 s CPU limit", ignore: !net, fn: async () => {
+  const photo = new Image(2000, 2000).fill((x: number, y: number) => Image.rgbToColor((x * 7) % 256, (y * 3) % 256, (x + y) % 256));
+  const original = new Blob([new Uint8Array(await photo.encodeJPEG(90))], { type: "image/jpeg" });
+  const meter = new CpuMeter(1_400);
+  const prepared = await prepareProductReference(original, "bureau", {
+    locate: async (img, _p, _m, m) => { assertEquals(await visionImage(img, m), img); return { box: { x: 0.2, y: 0.2, w: 0.5, h: 0.5 }, description: "", extraneous: "" }; },
+    cutout: (blob) => Promise.resolve(blob),
+  }, meter);
+  assert(prepared.cropped);
+  const result = await solid(1024, 1536, 0xff0000ff);
+  const outcome = await refineProductRegion({
+    image: result, reference: prepared.blob, product: "bureau", ref: prepared, meter,
+    locate: () => Promise.resolve({ box: { x: 0.4, y: 0.4, w: 0.1, h: 0.1 }, description: "", extraneous: "" }),
+    generate: () => solid(1024, 1024, 0x0000ffff),
+  });
+  assert(outcome.ok);
+  assert(meter.spent < 1_400, `image CPU ${meter.spent} ms`);
+} });

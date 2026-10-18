@@ -25,6 +25,8 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import HomeCreatePanel from "@/components/dashboard/HomeCreatePanel";
+import { fetchIdeasToDevelop } from "@/lib/ideas-to-develop";
+import { ideaCreateLink } from "@/lib/idea-create-link";
 import { toLocalDateStr } from "@/lib/utils";
 import { getSignedPhotoThumbUrls } from "@/lib/photo-storage";
 import { trackPorte } from "@/lib/dashboard-portes";
@@ -155,6 +157,14 @@ export default function AdaptiveHome() {
     enabled: !!user,
     staleTime: 2 * 60 * 1000,
     retry: 1,
+  });
+
+  // Prochaine idée à développer (diagnostic d'abord), montrée sous « Créer mon contenu ».
+  const { data: nextIdea = null } = useQuery({
+    queryKey: ["adaptive-home-next-idea", wsFilter.column, wsFilter.value],
+    queryFn: async () => (await fetchIdeasToDevelop(wsFilter.column, wsFilter.value))[0] ?? null,
+    enabled: !!wsFilter.value,
+    staleTime: 2 * 60 * 1000,
   });
 
   // Photos : compteur de la pill « Mes photos » (accès direct à la bibliothèque).
@@ -391,7 +401,8 @@ export default function AdaptiveHome() {
         )}
 
         <div className="">
-          <HomeCreatePanel incompleteBrand={profileSummary.brandingTotal < 50} onCreate={(path) => { porte("creer"); navigate(path); }} />
+          <HomeCreatePanel incompleteBrand={profileSummary.brandingTotal < 50} onCreate={(path) => { porte("creer"); navigate(path); }}
+            nextIdea={nextIdea} onCreateIdea={(idea) => { porte("creer"); const link = ideaCreateLink(idea); navigate(link.to, { state: link.state }); }} />
         </div>
 
         <section className="grid grid-cols-[96px_minmax(0,1fr)] items-center sm:flex gap-x-4 gap-y-5 sm:gap-5 rounded-2xl border border-border bg-[#f9e8ef] p-6 sm:p-8" aria-labelledby="home-photos-title">

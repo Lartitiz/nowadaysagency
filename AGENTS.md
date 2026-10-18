@@ -1,6 +1,7 @@
 # Architecture decisions
 
 - Deno uses manual node_modules management to prevent symlink collisions during parallel preview checks.
+- With `nodeModulesDir: "manual"`, edge-function type-checks need the npm deps present: run `deno install` (root) to populate `node_modules` from `deno.lock` whenever resolution errors like "Could not find a matching package for npm:@supabase/supabase-js@2.57.2" appear.
 
 - Studio image actions are described as clickable words in a chat sentence (no hidden menu, no "Créer un contenu" button in that section), so every action is explained in place.
 - Higgsfield Marketing Studio prompts are fitted to the provider 5000-char limit by condensing only generic boilerplate; the current confirmed request is never cut. Only on a subsequent edit (the edited image already shows them) may the oldest earlier accepted choices be omitted, newest kept; otherwise an oversized request fails before upload.

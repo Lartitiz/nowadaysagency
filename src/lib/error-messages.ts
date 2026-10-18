@@ -3,6 +3,9 @@ import { findQuota, quotaLimitMessage } from "@/lib/quota-message";
 export { quotaLimitMessage };
 
 const ERROR_PATTERNS: { test: RegExp; message: string }[] = [
+  // 546 de l'hébergement (WORKER_RESOURCE_LIMIT) : la fonction a dépassé son
+  // temps de calcul ou sa mémoire. Message anglais brut vu en ligne le 17/10/2026.
+  { test: /WORKER_RESOURCE_LIMIT|enough compute resources|CPU time exceeded/i, message: "Le serveur a manqué de puissance pour terminer. Réessaie dans un instant ; si ça recommence, contacte-nous." },
   { test: /La génération a échoué en cours de route/i, message: "Le recyclage n'a produit aucun texte utilisable. Réessaie ou ajoute des faits à ta source." },
   // AVANT la règle /quota|crédit/ : une panne de VÉRIFICATION des crédits (503
   // quota_check_failed) n'est pas un quota épuisé — dire « tu as tout utilisé »

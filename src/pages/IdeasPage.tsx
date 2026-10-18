@@ -2,7 +2,7 @@ import { planSavedIdea } from '@/lib/idea-calendar-persistence';
 import { copyTextForChannel } from "@/lib/linkedin-copy";
 import { calendarSaveError } from '@/lib/calendar-persistence';
 import { savePreviewEdit } from "@/lib/content-preview-save";
-import { resumeIdea } from "@/lib/resume-idea";
+import { cleanIdeaTitle as cleanTitle, ideaCreateLink } from "@/lib/idea-create-link";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -128,11 +128,6 @@ function getIdeaPreview(idea: SavedIdea): { title?: string; text?: string } {
   return {};
 }
 
-/** Titre sans l'emoji de rangement (« 📱 Mon sujet » → « Mon sujet »). */
-function cleanTitle(titre: string): string {
-  return (titre || "").replace(/^[\p{Extended_Pictographic}️\s]+/u, "").trim() || titre;
-}
-
 /** « Série de stories · Instagram · idée du diagnostic » */
 function metaLine(idea: SavedIdea): string {
   const canal = CANAL_OPTIONS.find((c) => c.id === (idea.canal || "instagram"))?.label || "Instagram";
@@ -231,10 +226,16 @@ function IdeasInWorkspace() {
     const q = query.trim().toLocaleLowerCase("fr");
     if (q) result = result.filter(i => [i.titre, i.notes, i.angle, getIdeaPreview(i).text].filter(Boolean).join(" ").toLocaleLowerCase("fr").includes(q));
     if (canalFilter !== "all") result = result.filter((i) => (i.canal || "instagram") === canalFilter);
-    // Les plus fraîches d'abord (dernière modification, sinon création).
-    result.sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime());
+    // Les idées à développer d'abord, celles du diagnostic en tête (choix I8,
+    // chantier S, 18/10/2026) ; puis les plus fraîches (dernière modification).
+    const rank = (i: SavedIdea) => getIdeaState(i) !== "todo" ? 2 : i.source_module === "diagnostic" ? 0 : 1;
+    // Idées du diagnostic dans leur ordre de naissance, comme sur /creer et l'accueil.
+    const time = (i: SavedIdea) => new Date(rank(i) === 0 ? i.created_at : i.updated_at || i.created_at).getTime();
+    result.sort((a, b) => rank(a) - rank(b) || (rank(a) === 0 ? time(a) - time(b) : time(b) - time(a)));
     return result;
   }, [ideas, view, kind, canalFilter, query]);
+  const todoIdeas = filtered.filter((i) => getIdeaState(i) === "todo");
+  const otherIdeas = filtered.filter((i) => getIdeaState(i) !== "todo");
 
   /** Les briefs n'ont pas de canal : ils n'apparaissent que sans filtre canal. */
   const filteredBriefs = useMemo(() => {
@@ -318,15 +319,8 @@ function IdeasInWorkspace() {
     try { if (needsFullIdea(light)) idea = await loadFullIdea(light); }
     catch (error) { toast.error("Impossible d'ouvrir cette idée", { description: friendlyError(error) }); return; }
     finally { if (mounted.current) setOpeningId(null); }
-    const params = new URLSearchParams({
-      sujet: cleanTitle(idea.titre),
-      angle: idea.angle || "",
-      format: idea.format || "",
-      canal: idea.canal || "instagram",
-      objectif: idea.objectif || "",
-      idea_id: idea.id,
-    });
-    navigate(`/creer?${params.toString()}`, { state: { resumeIdea: resumeIdea(idea), ideaId: idea.id } });
+    const link = ideaCreateLink(idea);
+    navigate(link.to, { state: link.state });
   };
 
   const handleViewCalendar = (idea: SavedIdea) => {
@@ -397,6 +391,58 @@ function IdeasInWorkspace() {
   const totalCount = ideas.length + briefs.length;
   const viewCounts = { active: counts.todo + counts.in_progress, calendar: counts.created, all: totalCount };
 
+  const renderIdea = (idea: SavedIdea, idx: number) => {
+    const state = getIdeaState(idea);
+    const preview = idea.format !== "actu" ? getIdeaPreview(idea) : {};
+    return (
+      <li
+        key={idea.id}
+        className="relative rounded-xl border border-border bg-card px-4 py-3.5 transition-all animate-fade-in hover:border-rose-medium hover:shadow-sm"
+        style={{ animationDelay: `${Math.min(idx, 10) * 0.04}s` }}
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1 pr-6 sm:pr-0">
+            <h3 className="font-body text-[15px] font-bold leading-snug text-foreground">
+              <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} aria-busy={openingId === idea.id} className="text-left hover:underline break-words disabled:cursor-wait">{cleanTitle(idea.titre)}</button>
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              <span className="text-primary-text">{ideaContentLabel(idea)}</span> · {metaLine(idea)}
+              {state === "created" && idea.planned_date && (
+                <> · <span className="text-[#2E7D32]">{calendarPlacementLabel(formatDate(idea.planned_date, "d MMM"))}</span></>
+              )}
+              {state === "in_progress" && idea.updated_at && (
+                <> · reprise le {formatDate(idea.updated_at, "d MMM")}</>
+              )}
+            </p>
+            {preview.text && (
+              <p className="text-sm text-foreground/70 line-clamp-2 mt-2">{preview.text}</p>
+            )}
+          </div>
+          <div className="shrink-0 flex items-center gap-1 sm:ml-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full sm:w-auto [&>button]:w-full sm:[&>button]:w-auto">{primaryAction(idea)}</div>
+            {/* Supprimer — à côté de l'action sur grand écran */}
+            <div className="hidden sm:block">
+              <DeleteIdeaDialog onConfirm={() => handleDelete(idea.id)}>
+                <Button variant="ghost" size="sm" aria-label="Supprimer cette idée" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </DeleteIdeaDialog>
+            </div>
+          </div>
+        </div>
+
+        {/* Supprimer — en haut à droite au doigt (le bouton d'action prend toute la largeur) */}
+        <div className="absolute top-2 right-2 sm:hidden" onClick={(e) => e.stopPropagation()}>
+          <DeleteIdeaDialog onConfirm={() => handleDelete(idea.id)}>
+            <Button variant="ghost" size="sm" aria-label="Supprimer cette idée" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </DeleteIdeaDialog>
+        </div>
+      </li>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -447,7 +493,10 @@ function IdeasInWorkspace() {
             action={totalCount ? <Button variant="outline" onClick={() => { setQuery(""); setCanalFilter("all"); changeTab("all"); }}>Voir toutes mes idées</Button> : <Button onClick={() => setAddOpen(true)}>Noter une idée</Button>}
           />
         ) : (
+          <>
+          {todoIdeas.length > 0 && otherIdeas.length + filteredBriefs.length > 0 && <h2 data-testid="ideas-todo-heading" className="mb-2.5 text-sm font-semibold text-bordeaux">Tes idées à développer ({todoIdeas.length}), puis tes contenus</h2>}
           <ul className="space-y-2.5" data-testid="ideas-list">
+            {todoIdeas.map(renderIdea)}
             {filteredBriefs.map((brief) => (
               <li
                 key={`brief-${brief.id}`}
@@ -488,58 +537,9 @@ function IdeasInWorkspace() {
                 </div>
               </li>
             ))}
-            {filtered.map((idea, idx) => {
-              const state = getIdeaState(idea);
-              const preview = idea.format !== "actu" ? getIdeaPreview(idea) : {};
-              return (
-                <li
-                  key={idea.id}
-                  className="relative rounded-xl border border-border bg-card px-4 py-3.5 transition-all animate-fade-in hover:border-rose-medium hover:shadow-sm"
-                  style={{ animationDelay: `${Math.min(idx, 10) * 0.04}s` }}
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <div className="min-w-0 flex-1 pr-6 sm:pr-0">
-                      <h3 className="font-body text-[15px] font-bold leading-snug text-foreground">
-                        <button onClick={() => openDetail(idea)} disabled={openingId === idea.id} aria-busy={openingId === idea.id} className="text-left hover:underline break-words disabled:cursor-wait">{cleanTitle(idea.titre)}</button>
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        <span className="text-primary-text">{ideaContentLabel(idea)}</span> · {metaLine(idea)}
-                        {state === "created" && idea.planned_date && (
-                          <> · <span className="text-[#2E7D32]">{calendarPlacementLabel(formatDate(idea.planned_date, "d MMM"))}</span></>
-                        )}
-                        {state === "in_progress" && idea.updated_at && (
-                          <> · reprise le {formatDate(idea.updated_at, "d MMM")}</>
-                        )}
-                      </p>
-                      {preview.text && (
-                        <p className="text-sm text-foreground/70 line-clamp-2 mt-2">{preview.text}</p>
-                      )}
-                    </div>
-                    <div className="shrink-0 flex items-center gap-1 sm:ml-auto" onClick={(e) => e.stopPropagation()}>
-                      <div className="w-full sm:w-auto [&>button]:w-full sm:[&>button]:w-auto">{primaryAction(idea)}</div>
-                      {/* Supprimer — à côté de l'action sur grand écran */}
-                      <div className="hidden sm:block">
-                        <DeleteIdeaDialog onConfirm={() => handleDelete(idea.id)}>
-                          <Button variant="ghost" size="sm" aria-label="Supprimer cette idée" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </DeleteIdeaDialog>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Supprimer — en haut à droite au doigt (le bouton d'action prend toute la largeur) */}
-                  <div className="absolute top-2 right-2 sm:hidden" onClick={(e) => e.stopPropagation()}>
-                    <DeleteIdeaDialog onConfirm={() => handleDelete(idea.id)}>
-                      <Button variant="ghost" size="sm" aria-label="Supprimer cette idée" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </DeleteIdeaDialog>
-                  </div>
-                </li>
-              );
-            })}
+            {otherIdeas.map((idea, idx) => renderIdea(idea, todoIdeas.length + idx))}
           </ul>
+          </>
         )}
 
         <AddIdeaDialog open={addOpen} onOpenChange={setAddOpen} onAdded={() => { fetchIdeas(); changeTab("active"); }} />
