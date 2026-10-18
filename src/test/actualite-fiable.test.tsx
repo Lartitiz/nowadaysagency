@@ -66,3 +66,29 @@ describe("Réagir à une actualité — fiable", () => {
     expect(invoke).not.toHaveBeenCalled();
   });
 });
+
+import { ideaCreateLink } from "@/lib/idea-create-link";
+
+describe("Actu sauvegardée reprise depuis Mes idées ou l'accueil", () => {
+  const idee = {
+    id: "i1", titre: "📰 Allergènes sur l'étiquette", format: "actu", canal: "instagram", source_module: "newsjacking",
+    angle: "actualité, Débat", notes: "R1",
+    content_data: { ...ACTUS[0], faits_cles: ["80 allergènes à citer", "nouveaux produits dès le 31/07/2026"] },
+  };
+
+  it("envoie à /creer le résumé, la source, la date et les faits, sans le faux format « actu »", () => {
+    const link = ideaCreateLink(idee);
+    expect(new URL(link.to, "https://x").searchParams.get("format")).toBe("");
+    const ctx = (link.state as any).context as string;
+    expect(ctx).toContain("ACTUALITÉ : Allergènes sur l'étiquette");
+    expect(ctx).toContain("Source : ecomundo.eu (https://ecomundo.eu/b)");
+    expect(ctx).toContain("Date : 2026-10-10");
+    expect(ctx).toContain("- 80 allergènes à citer");
+  });
+
+  it("ne change rien pour une idée qui n'est pas une actu", () => {
+    const link = ideaCreateLink({ id: "i2", titre: "Mon sujet", format: "post", source_module: "diagnostic" });
+    expect(new URL(link.to, "https://x").searchParams.get("format")).toBe("post");
+    expect((link.state as any).context).toBeUndefined();
+  });
+});
