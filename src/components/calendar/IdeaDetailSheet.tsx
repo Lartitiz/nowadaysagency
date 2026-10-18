@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { actuContext } from "@/lib/actu-context";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Calendar } from "@/components/ui/calendar";
@@ -216,9 +217,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
     if (!idea) return;
     const actu = actuData || {};
     const subject = actu.titre || idea.titre?.replace(/^📰\s*/, "") || "";
-    const context = actu.titre
-      ? `ACTUALITÉ : ${actu.titre}\nSource : ${actu.source || ""}\nRésumé : ${actu.resume || ""}\nPertinence : ${actu.pertinence || ""}`
-      : idea.notes || "";
+    const context = actuContext(idea as any) || idea.notes || "";
     onOpenChange(false);
     navigate("/creer", { state: { subject, context, fromIdeas: true, ideaId: idea.id } });
   };

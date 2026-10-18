@@ -49,6 +49,9 @@ interface UseGenerateVisualsParams {
   /** Carrousel texte : visuels arrivés, pour ranger le libellé du bouton
    * d'appel à l'action dans la slide (cta_label, lot 8b). Le HTML ne change pas. */
   onCtaLabels?: (visuals: { slide_number: number; html: string }[]) => void;
+  /** Carrousel retouché : demande l'accord dans la fenêtre de l'app
+   * (RedoVisualsDialog.tsx) ; `run` refait les visuels une fois l'accord donné. */
+  confirmRedo: (run: () => void) => void;
 }
 
 /**
@@ -93,6 +96,7 @@ export function useGenerateVisuals({
   refreshPlan,
   onMixLayoutMemos,
   onCtaLabels,
+  confirmRedo,
 }: UseGenerateVisualsParams) {
   const luminanceCacheRef = useRef<Map<string, { top: number; center: number; bottom: number }>>(new Map());
   const autoVisualsAttemptRef = useRef<{ key: string | null; n: number }>({ key: null, n: 0 });
@@ -110,11 +114,12 @@ export function useGenerateVisuals({
     sourceRef.current = { result, contentGenerating, revision: sourceRef.current.revision + 1 };
   }
 
-  const handleGenerateVisuals = async (opts?: { forceText?: boolean; background?: boolean }) => {
+  const handleGenerateVisuals = async (opts?: { forceText?: boolean; background?: boolean; confirmed?: boolean }) => {
     if (!result?.raw?.slides || visualLoading || contentGenerating) return;
     const revision = sourceRef.current.revision;
     const isCurrent = () => sourceRef.current.revision === revision;
-    if (result.raw.carousel_editor_version && !opts?.background && !window.confirm("Recréer le design des slides non verrouillées ? Cela remplacera leurs réglages manuels. Enregistre une copie dans Mes idées si tu souhaites les conserver.")) return;
+    // Rien n'est remplacé avant l'accord ; « Annuler » ne change rien (chantier U).
+    if (result.raw.carousel_editor_version && !opts?.background && !opts?.confirmed) return confirmRedo(() => void handleGenerateVisuals({ ...opts, confirmed: true }));
     // Casting texte-d'abord incomplet : chaque slide photo doit avoir son image avant
     // le rendu (sinon le curseur auto poserait des photos arbitraires dessus).
     const uncastCount = (result.raw.slides || []).filter(

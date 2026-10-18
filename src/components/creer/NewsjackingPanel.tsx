@@ -11,136 +11,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { quotaLimitMessage, readableError } from "@/lib/error-messages";
 import { useAuth } from "@/contexts/AuthContext";
 import { dateActu } from "./newsjacking-date";
+import { ecrireListeActus, lireListeActus } from "./newsjacking-session";
 
-interface ActuAngle {
-  vehicule: string;
-  hook: string;
-  description: string;
-  format_suggere: string;
-}
-
-interface Actu {
-  titre: string;
-  resume: string;
-  source: string;
-  source_url?: string;
-  date_publication?: string;
-  type: "globale" | "niche";
-  axe?: string;
-  ton?: string;
-  force_pont?: "fort" | "moyen" | "fragile";
-  pertinence: string;
-  faits_cles?: string[];
-  from_url?: boolean;
-  // "reaction" = actu choisie en mode élargi (macro/scoop) ou lien sans pont fort :
-  // le générateur d'angles relâche le pivot métier. Transite tel quel vers
-  // newsjacking-angles (le panel renvoie l'actu entière).
-  angle_mode?: "reaction";
-  // angles are now generated on demand
-}
-
-interface NewsjackingPanelProps {
-  onSelect: (data: { subject: string; context: string; format?: string; vehicule?: string }) => void;
-  onClose: () => void;
-  workspaceId?: string;
-}
-
-const VEHICULE_CONFIG: Record<string, { emoji: string; label: string; className: string }> = {
-  recit_experience: { emoji: "📖", label: "Récit", className: "bg-[hsl(var(--accent))]/20 text-[hsl(var(--accent-foreground))]" },
-  declencheur_externe: { emoji: "🔗", label: "Déclencheur", className: "bg-primary/10 text-primary" },
-  constat_decale: { emoji: "🔍", label: "Constat", className: "bg-secondary/40 text-secondary-foreground" },
-  montrer_plutot_quexpliquer: { emoji: "👁", label: "Montrer", className: "bg-[hsl(var(--accent))]/30 text-[hsl(var(--accent-foreground))]" },
-  parallele_absurde: { emoji: "🎭", label: "Parallèle", className: "bg-primary/15 text-primary" },
-};
-
-const AXE_CONFIG: Record<string, { emoji: string; label: string }> = {
-  // Nouveaux axes (micro-phénomènes culturels)
-  mot_qui_revient: { emoji: "💬", label: "Mot" },
-  obsession_collective: { emoji: "🌀", label: "Obsession" },
-  comportement_emergent: { emoji: "🔄", label: "Comportement" },
-  debat_recurrent: { emoji: "⚖️", label: "Débat" },
-  objet_culturel: { emoji: "🎬", label: "Culture" },
-  actu_connectable: { emoji: "📰", label: "Actu" },
-  // Anciens (rétro-compat)
-  societe_debat: { emoji: "🗣️", label: "Société" },
-  economie_argent: { emoji: "💶", label: "Économie" },
-  culture_pop: { emoji: "🎬", label: "Culture" },
-  science_decouverte: { emoji: "🔬", label: "Science" },
-  politique_loi: { emoji: "⚖️", label: "Politique" },
-  viral_insolite: { emoji: "🌀", label: "Viral" },
-};
-
-const TON_CONFIG: Record<string, { emoji: string; label: string; className: string }> = {
-  // Nouveaux registres
-  confortable: { emoji: "🪴", label: "Confortable", className: "bg-secondary/40 text-secondary-foreground" },
-  entre_deux: { emoji: "🔀", label: "Angle inattendu", className: "bg-primary/10 text-primary" },
-  decalant: { emoji: "✨", label: "Décalant", className: "bg-[hsl(var(--accent))]/30 text-[hsl(var(--accent-foreground))]" },
-  // Anciens (rétro-compat)
-  serieux_marquant: { emoji: "💭", label: "Marquant", className: "bg-secondary/40 text-secondary-foreground" },
-  drole_decale: { emoji: "😏", label: "Drôle", className: "bg-[hsl(var(--accent))]/30 text-[hsl(var(--accent-foreground))]" },
-  surprenant_contre_intuitif: { emoji: "⚡", label: "Surprenant", className: "bg-primary/10 text-primary" },
-};
-
-const PONT_CONFIG: Record<string, { emoji: string; label: string; className: string }> = {
-  fort: { emoji: "🟢", label: "Pont direct", className: "bg-success/15 text-success" },
-  moyen: { emoji: "🟡", label: "Pont élargi", className: "bg-warning/15 text-warning" },
-  fragile: { emoji: "🔴", label: "Pont fragile", className: "bg-muted text-muted-foreground" },
-};
-
-interface AnglesState {
-  loading: boolean;           // chargement du primary (1er angle)
-  data?: ActuAngle[];         // angles actuellement affichés (1 si seulement primary, 3 après variants)
-  error?: string;
-  errorCode?: "TIMEOUT" | "AUTH" | "NETWORK" | "RATE_LIMIT" | "SERVER" | "UNKNOWN";
-  startedAt?: number;
-  slow?: boolean;             // true après 15s sans réponse
-  primaryOnly?: boolean;      // true si on a 1 angle (primary) sans variantes encore
-  variantsLoading?: boolean;  // chargement des 2 variantes à la demande
-  variantsError?: string;
-  variantsSlow?: boolean;
-}
-
-// Combien d'actus dont on pré-calcule l'angle "primary" en arrière-plan
-// dès que la recherche d'actus aboutit.
-const PRECOMPUTE_COUNT = 2;
-
-const VIBES: { id: string; emoji: string; label: string }[] = [
-  { id: "scoop", emoji: "💥", label: "Actu choc à rebondir" },
-  { id: "phenomene", emoji: "🌀", label: "Phénomène culturel" },
-  { id: "debat", emoji: "⚖️", label: "Débat clivant" },
-  { id: "stat", emoji: "📊", label: "Stat ou étude étonnante" },
-  { id: "tendance", emoji: "🌱", label: "Tendance émergente" },
-  { id: "culture", emoji: "🎬", label: "Sortie culturelle" },
-  { id: "combat", emoji: "🧭", label: "Combat / cause de société" },
-];
-
-const MAX_VIBES = 3;
-const MAX_INTENT_CHARS = 200;
-
-// Perplexity renvoie parfois ses balises de citation (<cite index="40-3">…</cite>)
-// dans le résumé/la pertinence. On les retire à l'affichage — filet de sécurité ;
-// le strip principal est fait côté edge à la normalisation.
-function stripCitations(text?: string): string {
-  if (!text) return "";
-  return text
-    .replace(/<\/?cite[^>]*>/gi, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-}
-
-// Étapes de progression affichées pendant la recherche (~30-90 s) pour
-// remplacer le spinner muet : rassure que ça avance, pas que ça a planté.
-function searchStageLabel(elapsed: number): string {
-  if (elapsed < 12) return "Je cherche les actus fraîches du moment…";
-  if (elapsed < 30) return "Je croise avec l'univers de ta marque…";
-  if (elapsed < 60) return "Je prépare les premiers angles pour toi…";
-  return "Encore un instant, je fouille en profondeur…";
-}
+import { type ActuAngle, type Actu, type NewsjackingPanelProps, type AnglesState, VEHICULE_CONFIG, AXE_CONFIG, PONT_CONFIG, PRECOMPUTE_COUNT, VIBES, MAX_VIBES, MAX_INTENT_CHARS, stripCitations, searchStageLabel } from "./newsjacking-config";
 
 export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: NewsjackingPanelProps) {
+  const { user } = useAuth();
+  // Liste déjà payée, gardée dans l'onglet (newsjacking-session.ts).
+  const [gardee] = useState(() => lireListeActus(user?.id, workspaceId));
   const [loading, setLoading] = useState(false);
-  const [started, setStarted] = useState(false);
-  const [actus, setActus] = useState<Actu[] | null>(null);
+  const [started, setStarted] = useState(!!gardee);
+  const [actus, setActus] = useState<Actu[] | null>(gardee?.actus ?? null);
   const [error, setError] = useState<string | null>(null);
   // Résultat vide "propre" (pas une erreur) : le moteur a cherché mais n'a trouvé
   // aucun pont assez solide. On affiche un écran dédié avec une porte de sortie
@@ -149,20 +30,24 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   const [broadenedEmpty, setBroadenedEmpty] = useState(false);
   const [expandedActu, setExpandedActu] = useState<number | null>(null);
   const [isQuotaError, setIsQuotaError] = useState(false);
-  const [filter, setFilter] = useState<"all" | "globale" | "niche">("all");
-  const [hidden, setHidden] = useState<Set<number>>(new Set());
-  const [savedIdx, setSavedIdx] = useState<Set<number>>(new Set());
+  const [filter, setFilter] = useState<"all" | "globale" | "niche">(gardee?.filter ?? "all");
+  const [hidden, setHidden] = useState<Set<number>>(new Set(gardee?.hidden));
+  const [savedIdx, setSavedIdx] = useState<Set<number>>(new Set(gardee?.savedIdx));
   const [savingIdx, setSavingIdx] = useState<Set<number>>(new Set());
   // Intention de recherche (optionnelle)
-  const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
-  const [customIntent, setCustomIntent] = useState("");
+  const [selectedVibes, setSelectedVibes] = useState<string[]>(gardee?.vibes ?? []);
+  const [customIntent, setCustomIntent] = useState(gardee?.intent ?? "");
   const [urlInput, setUrlInput] = useState("");
+  const [preciser, setPreciser] = useState(() => !!gardee?.vibes?.length || !!gardee?.intent);
   // angles cache, keyed by actu index
-  const [anglesByIdx, setAnglesByIdx] = useState<Record<number, AnglesState>>({});
+  const [anglesByIdx, setAnglesByIdx] = useState<Record<number, AnglesState>>(gardee?.angles ?? {});
   // Déduplication synchrone des fetchs d'angles (évite spinner infini lié au
-  // batching React 18 quand l'updater est différé).
-  const primaryStartedRef = useRef<Set<number>>(new Set());
-  const variantsStartedRef = useRef<Set<number>>(new Set());
+  // batching React 18 quand l'updater est différé). Angles gardés = déjà chargés.
+  const primaryStartedRef = useRef<Set<number>>(new Set(Object.keys(gardee?.angles ?? {}).map(Number)));
+  const variantsStartedRef = useRef<Set<number>>(new Set(Object.entries(gardee?.angles ?? {}).filter(([, a]) => !a.primaryOnly).map(([i]) => Number(i))));
+  useEffect(() => {
+    ecrireListeActus(user?.id, actus ? { actus, angles: anglesByIdx, filter, hidden: [...hidden], savedIdx: [...savedIdx], vibes: selectedVibes, intent: customIntent, workspaceId } : null);
+  }, [user?.id, workspaceId, actus, anglesByIdx, filter, hidden, savedIdx, selectedVibes, customIntent]);
   // Compteur écoulé pendant la recherche (rassure l'utilisatrice)
   const [searchElapsed, setSearchElapsed] = useState(0);
   useEffect(() => {
@@ -173,9 +58,8 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   }, [loading]);
   // URLs déjà retournées dans cette session — passées à Perplexity pour
   // éviter qu'une même actu remonte à chaque "Relancer".
-  const seenUrlsRef = useRef<Set<string>>(new Set());
+  const seenUrlsRef = useRef<Set<string>>(new Set((gardee?.actus ?? []).map((a) => a.source_url).filter(Boolean) as string[]));
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const toggleVibe = (id: string) => {
     setSelectedVibes((prev) => {
@@ -502,6 +386,14 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
   // Alias rétro-compat : si la 5ᵉ actu (non pré-calculée) est ouverte → on lance le primary.
   const fetchAngles = fetchPrimaryAngle;
 
+  // Sur téléphone, « Choisir cet angle » arrivait sous l'écran (957 px) : on l'amène au milieu dès qu'il est prêt.
+  const angleOuvertPret = expandedActu !== null && !!anglesByIdx[expandedActu]?.data?.length;
+  useEffect(() => {
+    if (!angleOuvertPret) return;
+    const t = setTimeout(() => document.querySelector(`[data-choisir-angle="${expandedActu}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 250);
+    return () => clearTimeout(t);
+  }, [angleOuvertPret, expandedActu]);
+
   const handleToggleActu = (idx: number, actu: Actu) => {
     if (expandedActu === idx) {
       setExpandedActu(null);
@@ -597,67 +489,25 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
         )}
       </div>
 
-      {/* Idle — CTA explicite pour déclencher la recherche (consomme 1 crédit) */}
+      {/* Départ : le bouton principal visible sans défiler (18/10/2026) ; préciser et coller un lien restent à un clic. */}
       {!started && !loading && (
-        <div className="rounded-2xl border border-dashed border-primary/30 bg-card p-6 space-y-5">
-          <div className="text-center space-y-3">
-            <div className="flex justify-center">
-              <div className="rounded-full bg-primary/10 p-3">
-                <Newspaper className="h-6 w-6 text-primary" />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold text-foreground">Trouver des actus à surfer pour ta marque</h3>
-              <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                L'IA explore l'actu fraîche et la croise avec l'univers de ta marque (30 à 60 secondes).
-              </p>
-              <p className="text-2xs text-muted-foreground/80 max-w-md mx-auto">
-                💳 3 crédits pour lancer la recherche : elle prépare aussi les angles des 2 premières actus (rien si elle ne trouve rien). Ensuite, les angles d'une autre actu = 1 crédit.
-              </p>
-            </div>
-          </div>
-
-          {/* Analyser un lien d'actu */}
-          <div className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-4">
-            <div className="flex items-center gap-2">
-              <Link2 className="h-3.5 w-3.5 text-primary" />
-              <p className="text-xs font-medium text-foreground">
-                Tu as déjà une actu en tête&nbsp;? <span className="text-muted-foreground font-normal">Colle son lien.</span>
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="url"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="https://…"
-                className="flex-1 text-xs rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && urlInput.trim()) {
-                    e.preventDefault();
-                    fetchFromUrl();
-                  }
-                }}
-              />
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={fetchFromUrl}
-                disabled={!urlInput.trim()}
-                className="gap-1.5 shrink-0"
-              >
-                <Sparkles className="h-3.5 w-3.5" /> Analyser ce lien
-              </Button>
-            </div>
-            <p className="text-2xs text-muted-foreground">
-              L'IA lit l'article et te propose des angles connectés à ta marque. 💳 2 crédits (lecture + 1ᵉʳ angle). Articles web uniquement (pas YouTube ni réseaux sociaux).
+        <div className="rounded-2xl border border-dashed border-primary/30 bg-card p-5 space-y-4">
+          <div className="text-center space-y-1">
+            <h3 className="text-sm font-semibold text-foreground">Trouver une actu à relier à ton activité</h3>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
+              L'IA cherche l'actu récente et la croise avec ta marque (30 à 60 secondes). Chaque actu vient avec le lien de sa source.
+            </p>
+            <p className="text-2xs text-muted-foreground/80 max-w-md mx-auto">
+              💳 3 crédits pour lancer la recherche : elle prépare aussi les angles des 2 premières actus (rien si elle ne trouve rien). Ensuite, les angles d'une autre actu = 1 crédit.
             </p>
           </div>
 
           <div className="text-center">
-            <span className="text-2xs uppercase tracking-wider text-muted-foreground">ou</span>
+            <button type="button" onClick={() => setPreciser((v) => !v)} aria-expanded={preciser} className="inline-flex items-center gap-1 text-xs text-primary underline underline-offset-4">
+              Préciser ce que je cherche (facultatif) <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", preciser && "rotate-180")} />
+            </button>
           </div>
-
+          {preciser && (<>
           {/* Intention (optionnelle) */}
           <div className="space-y-3 rounded-xl bg-muted/30 p-4">
             <div className="flex items-center justify-between">
@@ -719,11 +569,55 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
             </p>
           </div>
 
+          </>)}
+
           <div className="flex justify-center">
-            <Button size="sm" onClick={() => fetchActus()} className="gap-1.5">
+            <Button onClick={() => fetchActus()} className="gap-1.5 w-full sm:w-auto">
               <Sparkles className="h-3.5 w-3.5" /> Lancer la recherche
             </Button>
           </div>
+
+          <div className="text-center">
+            <span className="text-2xs uppercase tracking-wider text-muted-foreground">ou</span>
+          </div>
+
+          {/* Analyser un lien d'actu */}
+          <div className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-3.5 w-3.5 text-primary" />
+              <p className="text-xs font-medium text-foreground">
+                Tu as déjà un article en tête&nbsp;? <span className="text-muted-foreground font-normal">Colle son lien.</span>
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="url"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="https://…"
+                className="flex-1 text-xs rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && urlInput.trim()) {
+                    e.preventDefault();
+                    fetchFromUrl();
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={fetchFromUrl}
+                disabled={!urlInput.trim()}
+                className="gap-1.5 shrink-0"
+              >
+                <Sparkles className="h-3.5 w-3.5" /> Analyser ce lien
+              </Button>
+            </div>
+            <p className="text-2xs text-muted-foreground">
+              L'IA lit l'article et te propose des angles connectés à ta marque. 💳 2 crédits (lecture + 1ᵉʳ angle). Articles web uniquement (pas YouTube ni réseaux sociaux).
+            </p>
+          </div>
+
         </div>
       )}
 
@@ -901,8 +795,6 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                 {visibleActus.map(({ actu, idx }, displayI) => {
                   const isExpanded = expandedActu === idx;
                   const anglesState = anglesByIdx[idx];
-                  const axe = actu.axe ? AXE_CONFIG[actu.axe] : null;
-                  const ton = actu.ton ? TON_CONFIG[actu.ton] : null;
                   const pont = actu.force_pont ? PONT_CONFIG[actu.force_pont] : null;
                   return (
                     <motion.div
@@ -922,23 +814,9 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                           <h4 className="font-medium text-sm leading-snug">{stripCitations(actu.titre)}</h4>
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{stripCitations(actu.resume)}</p>
                           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                            {actu.from_url ? (
+                            {actu.from_url && (
                               <span className="text-2xs px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium">
                                 🔗 D'après ton lien
-                              </span>
-                            ) : (
-                              <span className="text-2xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                {actu.type === "globale" ? "Globale" : "Niche"}
-                              </span>
-                            )}
-                            {axe && (
-                              <span className="text-2xs px-2 py-0.5 rounded-full bg-secondary/40 text-secondary-foreground">
-                                {axe.emoji} {axe.label}
-                              </span>
-                            )}
-                            {ton && (
-                              <span className={cn("text-2xs px-2 py-0.5 rounded-full", ton.className)}>
-                                {ton.emoji} {ton.label}
                               </span>
                             )}
                             {pont && (
@@ -1010,7 +888,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                           className="gap-1.5 text-muted-foreground"
                           title="Masquer cette actu"
                         >
-                          <EyeOff className="h-3.5 w-3.5" /> Pas pour moi
+                          <EyeOff className="h-3.5 w-3.5" /> Masquer
                         </Button>
                       </div>
 
@@ -1078,6 +956,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
                                         <Button
                                           size="sm"
                                           variant="default"
+                                          data-choisir-angle={j === 0 ? idx : undefined}
                                           className="w-full mt-1"
                                           onClick={(e) => {
                                             e.stopPropagation();
