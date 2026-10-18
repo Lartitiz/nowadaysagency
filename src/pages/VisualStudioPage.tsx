@@ -1,5 +1,5 @@
 
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { readableError } from "@/lib/error-messages";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -39,6 +39,11 @@ import { StudioMessageList } from "@/features/visual-studio/StudioMessageList";
 import { StudioComposer } from "@/features/visual-studio/StudioComposer";
 import { useStudioSession } from "@/features/visual-studio/useStudioSession";
 import { StudioToolDialogs } from "@/features/visual-studio/StudioToolDialogs";
+import { useStudioLibrarySync } from "@/features/visual-studio/useStudioLibrarySync";
+import { useReopenLastSession } from "@/features/visual-studio/useReopenLastSession";
+import { useStudioFit } from "@/features/visual-studio/useStudioFit";
+import { createLinkRenewer, downloadImage } from "@/features/visual-studio/studio-image-actions";
+import type { StudioVersion } from "@/features/visual-studio/api";
 
 export default function VisualStudioPage() {
   const { user } = useAuth(),
@@ -115,6 +120,7 @@ function Studio({
   const studioPath = useCallback((id?: string) => {
     const next = new URLSearchParams();
     if (id) next.set("session", id);
+    else next.set("new", "1"); // Sans session : discussion vide, pas la dernière session.
     if (carouselReturnId && (!id || id === sessionId)) next.set("carousel_return", carouselReturnId);
     if (reelReturn !== null) next.set("reel_passage", String(reelReturn));
     const query = next.toString();
@@ -136,6 +142,8 @@ function Studio({
   const isMobile = useIsMobile();
   const { gridRef, chatWidth, wide, startChatResize, resetChatWidth, onResizerKey } = useChatWidth();
   const openCastingRef = useRef<(() => void) | null>(null);
+  const reopening = useReopenLastSession({ params: urlParams, userId, workspaceId, navigate, studioPath });
+  useStudioFit(gridRef);
 
   const {
     roleWritable, compositionOpen, setCompositionOpen, compositionDraft, setCompositionDraft,
@@ -151,6 +159,47 @@ function Studio({
     generating, editDraft, setAutoSend, openPhoto, mutate, syncAttachments, sceneAttachments,
     updateSelection, addReferencePhotos, addLocalFiles, send, setSessionArchived,
   } = useStudioSession({ role, userId, workspaceId, sessionId, photoId, carouselReturnId, navigate, cache, studioPath });
+  const { saveVersion } = useStudioLibrarySync({
+    current, sessionId, workspaceId, writable, cache,
+    queryKey: ["visual-studio", userId, workspaceId, sessionId],
+  });
+  const [imageAction, setImageAction] = useState<string | null>(null);
+  const refetchState = state.refetch;
+  const renewImageLink = useMemo(() => createLinkRenewer(
+    () => refetchState(),
+    () => setError("L’aperçu ne se charge pas. Réessaie pour le recharger, sans régénérer."),
+  ), [refetchState, setError]);
+  async function downloadVersion(item: StudioVersion, number: number) {
+    if (imageAction) return;
+    setImageAction(`download:${item.id}`);
+    const fileName = `studio-image-${number}.jpg`;
+    try {
+      try {
+        await downloadImage(item.url!, fileName);
+      } catch {
+        // Lien expiré : la relecture de la session signe une nouvelle adresse.
+        const fresh = (await state.refetch()).data?.versions.find((v) => v.id === item.id)?.url;
+        if (!fresh) throw new Error("expired");
+        await downloadImage(fresh, fileName);
+      }
+    } catch {
+      if (alive.current) setError("Le téléchargement n’a pas abouti. Réessaie dans un instant.");
+    } finally {
+      if (alive.current) setImageAction(null);
+    }
+  }
+  async function createContentWith(item: StudioVersion) {
+    if (imageAction) return;
+    setImageAction(`content:${item.id}`);
+    try {
+      const photoId = await saveVersion(item);
+      if (alive.current) navigate(contentPath, { state: { libraryPhotoIds: [photoId] } });
+    } catch (cause) {
+      if (alive.current) setError(readableError(cause, "L’image reste dans le Studio. Réessaie dans un instant."));
+    } finally {
+      if (alive.current) setImageAction(null);
+    }
+  }
   const source = selectedReference?.url ||
       (current?.session.references === undefined
         ? current?.session.source_url
@@ -510,7 +559,7 @@ function Studio({
               Cet espace est en lecture seule. Tu peux consulter ses sessions.
             </p>
           )}
-          {busy === "opening" || (sessionId && !current && state.isFetching)
+          {reopening || busy === "opening" || (sessionId && !current && state.isFetching)
             ? <p className="p-8">Ouverture de la session…</p>
             : (
               <div
@@ -576,7 +625,10 @@ function Studio({
                       setCompare(false);
                       if (item.proposal.scene_workflow?.phase === "scene" && writable && !generating) void syncAttachments(sceneAttachments(item), item.id);
                     }}
-                    setError={setError}
+                    onImageExpired={renewImageLink}
+                    onDownload={(item, number) => void downloadVersion(item, number)}
+                    onCreateContent={(item) => void createContentWith(item)}
+                    actionBusy={imageAction}
                     carouselReturn={carouselReturn}
                     writable={writable}
                     busy={busy}

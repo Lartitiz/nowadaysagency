@@ -14,6 +14,10 @@ exports[`instantané d'écran : intégration prête après une scène 1`] = `
     " [Depuis ma bibliothèque]",
     "Envoyer (inactif)",
     "Mémoire de marque",
+    "Créer un contenu avec cette image",
+    "Télécharger",
+    "Créer un contenu avec cette image",
+    "Télécharger",
     "Assiette",
   ],
   "headings": [
@@ -22,6 +26,8 @@ exports[`instantané d'écran : intégration prête après une scène 1`] = `
   ],
   "requests": [
     "action,session_id,workspace_id · read",
+    "action,session_id,version_id,workspace_id · save",
+    "action,session_id,version_id,workspace_id · save",
   ],
 }
 `;
@@ -86,6 +92,8 @@ exports[`instantané d'écran : série en échec partiel 1`] = `
     " [Depuis ma bibliothèque]",
     "Envoyer (inactif)",
     "Mémoire de marque",
+    "Créer un contenu avec cette image",
+    "Télécharger",
   ],
   "headings": [
     "Studio visuel",
@@ -93,6 +101,7 @@ exports[`instantané d'écran : série en échec partiel 1`] = `
   ],
   "requests": [
     "action,session_id,workspace_id · read",
+    "action,session_id,version_id,workspace_id · save",
   ],
 }
 `;

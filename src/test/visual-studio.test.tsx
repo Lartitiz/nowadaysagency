@@ -206,6 +206,7 @@ it("resends the first message after an interpretation failure without an invalid
     return Promise.resolve(start);
   });
   mount("/photos/studio");
+  await screen.findByRole("textbox", { name: "Ta demande" });
   fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), { target: { value: "Une illustration fictive" } });
   fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
   expect(await screen.findByText("Interprétation indisponible.")).toBeInTheDocument();
@@ -439,7 +440,7 @@ it("viewer can read but cannot send or generate", async () => {
   ).toBeDisabled();
   expect(screen.getByRole("textbox", { name: "Ta demande" })).toBeDisabled();
 });
-it("generated versions stay outside the library until the user asks in the chat", async () => {
+it("every ready image goes to the library on its own, once, with download and content actions", async () => {
   const start = original(),
     v = {
       id: "v1",
@@ -451,16 +452,28 @@ it("generated versions stay outside the library until the user asks in the chat"
       created_at: "",
     };
   const state = { ...start, versions: [v] };
-  mock.request.mockResolvedValue(state);
+  mock.request.mockImplementation(async (body: { action: string }) =>
+    body.action === "save" ? { photo_id: "v1" } : state);
   mount();
-  await screen.findByText(/Qu’est-ce que tu veux ajuster maintenant/);
-  expect(mock.request.mock.calls.some(([b]) => b.action === "save")).toBe(
-    false,
-  );
-  fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), { target: { value: "Ajoute cette image à ma bibliothèque" } });
-  fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
-  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({ action: "message", viewed_version_id: "v1" })));
-  expect(mock.request.mock.calls.filter(([b]) => b.action === "save")).toHaveLength(0);
+  await screen.findByText("Rangée dans Mes photos");
+  const saves = () => mock.request.mock.calls.filter(([b]) => b.action === "save");
+  expect(saves()).toHaveLength(1);
+  expect(saves()[0][0]).toMatchObject({ version_id: "v1", session_id: "session", workspace_id: mock.space });
+  expect(screen.getByRole("button", { name: /Télécharger/ })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Créer un contenu avec cette image" }));
+  await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/creer"));
+  expect(screen.getByTestId("current-state")).toHaveTextContent('"libraryPhotoIds":["v1"]');
+  expect(saves()).toHaveLength(1);
+});
+it("reopens the latest active session, but not when a new session is asked", async () => {
+  mock.request.mockResolvedValue(original());
+  mock.list.mockResolvedValue({ active: [{ id: "session", name: "Ma tasse", revision: 0, archived_at: null }], archived: [] });
+  const first = mount("/photos/studio");
+  await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("session=session"));
+  first.unmount();
+  mount("/photos/studio?new=1");
+  await screen.findByRole("textbox", { name: "Ta demande" });
+  expect(screen.getByTestId("current-path")).not.toHaveTextContent("session=session");
 });
 it("mobile stacks the conversation and confirmation before the image stream", async () => {
   window.innerWidth = 390;
@@ -561,6 +574,7 @@ it("starts a session with several references while keeping the unfinished prompt
     return Promise.resolve(state);
   });
   mount("/photos/studio");
+  await screen.findByRole("textbox", { name: "Ta demande" });
   fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), { target: { value: "Une scène pour mon offre" } });
   fireEvent.click(screen.getByRole("button", { name: "Depuis ma bibliothèque" }));
   fireEvent.click(screen.getByRole("button", { name: "Utiliser deux photos" }));
@@ -748,6 +762,7 @@ it("a question starts a source-free session and prepares without generating", as
     ),
   );
   mount("/photos/studio");
+  await screen.findByRole("textbox", { name: "Ta demande" });
   fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), {
     target: { value: "Quel visuel pour mon atelier ?" },
   });
@@ -829,6 +844,7 @@ it("the first mobile question keeps the conversation open after creating its ses
     ),
   );
   mount("/photos/studio");
+  await screen.findByRole("textbox", { name: "Ta demande" });
   await screen.findByRole("region", { name: "Conversation" });
   fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), {
     target: { value: "Quel visuel pour mon atelier ?" },

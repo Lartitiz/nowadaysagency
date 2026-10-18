@@ -42,7 +42,7 @@ export function StudioSessionsDialog({
           <DialogTitle>Mes sessions Studio</DialogTitle>
           <DialogDescription>
             Les échanges et versions de{" "}
-            {workspaceName}. Les images choisies restent dans ta bibliothèque.
+            {workspaceName}. Chaque image créée est rangée toute seule dans Mes photos.
           </DialogDescription>
         </DialogHeader>
         {sessions.isLoading
