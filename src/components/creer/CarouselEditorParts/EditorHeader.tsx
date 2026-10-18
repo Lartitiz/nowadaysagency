@@ -5,7 +5,7 @@
 // la slide : « Slide 1 / 14 », Annuler, Rétablir, Aperçu Instagram, zoom, En grand,
 // Plus d'outils. Le titre devient le nom de la ligne (lu par les lecteurs d'écran,
 // petit libellé sur grand écran).
-import { Fragment, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { Fragment, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Keyboard, Maximize2, Redo2, SlidersHorizontal, Smartphone, Undo2, ZoomIn, ZoomOut } from "lucide-react";
@@ -41,7 +41,7 @@ const SHORTCUTS: [string, string][] = [
 ];
 
 /** Ligne d'outils du haut de l'éditeur (une ligne), avec le passage au mode complet. */
-export function EditorHeader({ active, count, history, mode, setFullscreen, setInstaOpen, setMode, setZoom, undo, zoom }: {
+export function EditorHeader({ active, count, history, mode, redo, setFullscreen, setInstaOpen, setMode, setZoom, undo, zoom }: {
   active: number;
   count: number;
   setFullscreen: (on: boolean) => void;
@@ -52,6 +52,8 @@ export function EditorHeader({ active, count, history, mode, setFullscreen, setI
   setInstaOpen: (open: boolean) => void;
   setMode: (mode: EditorMode) => void;
   undo: (redo?: boolean) => unknown;
+  /** « Refaire cette slide » (chantier AA), en tête des outils, dans les deux modes. */
+  redo?: ReactNode;
 }) {
   // La place du fil d'Ariane et du sous-titre va à la slide (17/10/2026) ; « Tes retouches
   // ne coûtent aucun crédit » est dans l'aide « ? » (mode simple et gestes sur la slide).
@@ -67,6 +69,7 @@ export function EditorHeader({ active, count, history, mode, setFullscreen, setI
           <HelpTip label="gestes sur la slide"><span className="md:hidden">Touche un texte, puis « Écrire » pour le modifier. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses. Glisse une photo plein écran pour la recadrer, les poignées pour agrandir. Tes retouches ne coûtent aucun crédit.</span><span className="hidden md:inline">Double-clique (ou touche « Écrire ») pour écrire dans un texte. Glisse un bloc pour le déplacer : il s’aligne sur les repères roses (⌘/Ctrl pour placer librement). Glisse une photo plein écran pour la recadrer (double-clic pour une photo encadrée), les poignées pour agrandir. Alt + glisser : le texte seul. Glisser depuis le vide, ou clic long puis glisser, choisit plusieurs éléments. Flèches pour ajuster, Suppr pour retirer, Échap pour choisir le cadre. Tes retouches ne coûtent aucun crédit.</span></HelpTip>
         </p>
         <div className="flex shrink-0 items-center gap-1">
+          {redo}
           <Button
             variant="outline"
             size="sm"
