@@ -210,7 +210,7 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
   const etape1 = page.getByText(/Dis-moi qui tu es/i).first();
   await expect(etape1, "Le diagnostic ne démarre pas après « C'est parti » (écran blanc ?)").toBeVisible({ timeout: 12000 });
   await shot(page, "03-diagnostic-etape1");
-  await boutonSansDefiler(page, page.getByRole("button", { name: /^Suivant/ }).first(), "qui tu es", defilement);
+  await boutonSansDefiler(page, page.getByRole("button", { name: /^Suivant|étape suivante/i }).first(), "qui tu es", defilement);
 
   // Un pas de plus — BEST-EFFORT (informationnel, ne fait PAS échouer le smoke) :
   // Suivant → écran « Tu proposes plutôt quoi ? ». On capture ce qui s'affiche
@@ -228,11 +228,11 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
   await shot(page, "04-diagnostic-etape2");
   if (!step2) console.log("ℹ️  étape 2 non atteinte au clic Suivant (best-effort) — l'entrée diagnostic reste OK");
   if (step2) {
-    await boutonSansDefiler(page, page.getByRole("button", { name: /^Suivant/ }).first(), "produits ou services", defilement);
+    await boutonSansDefiler(page, page.getByRole("button", { name: /^Suivant|étape suivante/i }).first(), "produits ou services", defilement);
     // Un écran de plus, sans rien saisir de réel : le choix « Des produits »
     // et l'activité pré-remplie suffisent pour atteindre l'écran des liens.
     await page.getByRole("button", { name: /Des produits/ }).click().catch(() => {});
-    await page.getByRole("button", { name: /^Suivant/ }).first().click().catch(() => {});
+    await page.getByRole("button", { name: /^Suivant|étape suivante/i }).first().click().catch(() => {});
     const passer = page.getByRole("button", { name: /Passer cette étape|Continuer/ }).first();
     if (await passer.waitFor({ timeout: 8000 }).then(() => true, () => false)) {
       await boutonSansDefiler(page, passer, "site et Instagram", defilement);
