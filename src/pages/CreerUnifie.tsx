@@ -37,7 +37,7 @@ import ConfirmResetDialog from "@/components/creer/ConfirmResetDialog";
 import RedoVisualsDialog, { useRedoVisualsConfirm } from "@/components/creer/RedoVisualsDialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Loader2, Palette, Sparkles, Undo2, Redo2 } from "lucide-react";
+import { Loader2, Sparkles, Undo2, Redo2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -115,6 +115,9 @@ import { useSubjectBaseline, nextIdeaLink } from "@/hooks/use-subject-baseline";
 import { useIdeaPick } from "@/features/creer/idea-pick";
 import { loadFlowState, saveFlowState as persistFlowState, clearFlowState, savePhotos as persistPhotos, loadPhotos, setFlowWorkspaceId, setFlowUserId } from "@/hooks/use-flow-persistence";
 import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
+import LinkedInCarouselInvite from "@/components/creer/LinkedInCarouselInvite";
+import { useCreerKeepContent, KeepContentDialog } from "@/hooks/use-creer-keep-content";
+import { useCreerSettingsPersistence } from "@/hooks/use-creer-settings-persistence";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 
 // Phase 4: streaming SSE is now encapsulated inside useContentGenerator
@@ -576,6 +579,9 @@ function CreerWorkspace() {
   useAutoPersistFlow({
     conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, editBaseline, result, regenerationBackup, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, aurianaDemoActive, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, userSlidesInput, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate, saveFlowState,
   });
+  useCreerSettingsPersistence({ ps, conflictPending, saveFlowState, // réglages de l'utilisatrice (chantier J)
+    values: { photoMode, pinterestData, qualityMax, coverIllustration, explicitTextFirstMix, photoDumpEnabled, existingCalendarContent, selectedReelHook, lastConfirmedStructure, lastScenarioOrigin, lastNarrativeThread },
+    setters: { photoMode: setPhotoMode, pinterestData: setPinterestData, qualityMax: setQualityMax, coverIllustration: setCoverIllustration, explicitTextFirstMix: setExplicitTextFirstMix, photoDumpEnabled: setPhotoDumpEnabled, existingCalendarContent: setExistingCalendarContent, selectedReelHook: setSelectedReelHook, lastConfirmedStructure: setLastConfirmedStructure, lastScenarioOrigin: setLastScenarioOrigin, lastNarrativeThread: setLastNarrativeThread } });
 
   // Filets anti-perte au rechargement en pleine génération (texte reçu,
   // génération en cours, purge) : use-generation-reload-guard.ts.
@@ -1150,6 +1156,7 @@ function CreerWorkspace() {
     const linkedinText = r.full_text || r.content || [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
     if (!linkedinText) return;
 
+    const post = { result, visualSlides, savedId, carouselSubMode }; // copie de secours (chantier J)
     setIsLinkedInCarousel(true);
     setSelectedFormat("carousel");
     setCarouselSubMode("text");
@@ -1157,13 +1164,16 @@ function CreerWorkspace() {
     setVisualSlides([]);
     setSavedId(null);
 
-    await generate({
+    const made = await generate({
       format: "carousel" as any,
       subject: linkedinText,
       objective: objective || undefined,
       editorialAngle: editorialAngle || undefined,
       channel: "linkedin",
     });
+    if (made || !isCurrentCreation()) return;
+    setIsLinkedInCarousel(false); setSelectedFormat("linkedin"); setCarouselSubMode(post.carouselSubMode); setResult(post.result); setVisualSlides(post.visualSlides); setSavedId(post.savedId);
+    toast("Le carrousel n'a pas pu être créé. Ton post LinkedIn est revenu.", { duration: 10000 });
   };
 
   // ── Post-generation handlers ──
@@ -1435,6 +1445,10 @@ function CreerWorkspace() {
       : savedIdeaVersion
         ? "Modifications à enregistrer pour mettre à jour ton contenu dans Mes idées."
         : "Pour retrouver cette version plus tard, enregistre-la dans Mes idées → En cours.";
+  const keepContent = useCreerKeepContent({ // Chantier J : rien n'est effacé sans le choix de l'utilisatrice
+    disabled: isDemoMode || aurianaDemoActive, step, result, editContent, visualSlides, ideaText, previousSubject: subjectBaseline.current, editingIdeaId, savedSignature: savedIdeaVersion?.signature, currentSignature: ideaVersionSignature, userId: session?.user?.id, workspaceId, selectedFormat, isLinkedInCarousel, carouselSubMode, slideLength, objective,
+    busy: generating || streaming || structureLoading || photoDumpResolving || visualLoading || pinterestVisualGenerating || inspirationLoading || launchGenerating,
+    setEditingIdeaId, forgetSavedVersion: () => { setSavedIdeaVersion(null); setSavedId(null); }, setSelectedFormat, setIsLinkedInCarousel, setCarouselSubMode, setSlideLength, setStep });
 
   /* Fiche de marque d'abord. Tant que la fiche captée à l'inscription attend
      sa relecture, la marque n'est pas encore écrite dans les tables lues par la
@@ -1571,7 +1585,7 @@ function CreerWorkspace() {
                 (photoEntry ? photoSubjectHistory : ideaHistory).travel(action === "redo");
               }}>
                 {planVerified && <LowCreditsBanner remaining={remainingWithBonus()} plan={plan} />}
-                <CreerStepIdea initialFormat={selectedFormat} channel={(deriveCanalFromState({ selectedFormat, isLinkedInCarousel }) as ForcedChannel | null) ?? forcedChannel} onNext={handleIdeaNext} onPickIdea={handleIdeaPick} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
+                <CreerStepIdea initialFormat={selectedFormat} channel={(deriveCanalFromState({ selectedFormat, isLinkedInCarousel }) as ForcedChannel | null) ?? forcedChannel} onNext={(idea, id) => keepContent.guardSubject(idea, id, () => handleIdeaNext(idea, id))} onPickIdea={(idea) => keepContent.guardIdeaPick(idea, handleIdeaPick)} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
                   onIdeaChange={(value) => { if (isCurrentCreation()) ideaHistory.change(value, true); }} onPhotosChange={(photos) => { if (!isCurrentCreation()) return; setUploadedPhotos(photos); void savePhotos(photos); }}
                   onPhotoDescriptionChange={setPhotoDescription} onPhotoSubjectChange={(value) => { if (isCurrentCreation()) photoSubjectHistory.change(value, true); }}
                   photoEntry={photoEntry} onPhotoEntryChange={setPhotoEntry}
@@ -1612,7 +1626,7 @@ function CreerWorkspace() {
                 initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
                 initialPhotoDescription={photoDescription || undefined}
                 newsjackingActive={!!newsjackingContext}
-                onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar, photoDump, textFirstMix, slideLen) => {
+                onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar, photoDump, textFirstMix, slideLen) => keepContent.ask("format", () => {
                   if (pintData) setPinterestData(pintData);
                   if (linkedinCar) setIsLinkedInCarousel(true);
                   else setIsLinkedInCarousel(false);
@@ -1621,7 +1635,7 @@ function CreerWorkspace() {
                     autoGeneratePendingRef.current = true;
                   }
                   handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar, photoDump, textFirstMix, slideLength: slideLen, skipQuestions: directFirstContent });
-                }}
+                })}
                 onSelectionChange={({ channel, format, carouselSubMode: sub, slideLength: length }) => {
                   setSlideLength(length);
                   setIsLinkedInCarousel(channel === "linkedin" && format === "carousel");
@@ -1922,22 +1936,7 @@ function CreerWorkspace() {
             {step === "result" && result && !generating && !streaming && !isDemoMode && <CreationUpgradeInvite key={session?.user?.id} />}
 
             {step === "result" && selectedFormat === "linkedin" && result?.raw && (result.raw.content || result.raw.full_text || result.raw.hook) && !generating && !streaming && !demoGenerating && (
-              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Transformer en carrousel LinkedIn ?</p>
-                  <p className="text-xs text-muted-foreground">L'IA structure ton post en slides visuelles téléchargeables en PDF.</p>
-                </div>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleTransformToLinkedInCarousel}
-                  disabled={generating}
-                  className="gap-1.5 shrink-0"
-                >
-                  <Palette className="h-3.5 w-3.5" /> Créer le carrousel
-                </Button>
-              </div>
-            )}
+              <LinkedInCarouselInvite disabled={generating} onCreate={() => keepContent.ask("linkedin_carousel", () => void handleTransformToLinkedInCarousel())} />)}
 
             {/* Launch mode: multi-chapter results */}
             {isLaunchMode && (
@@ -2093,6 +2092,7 @@ function CreerWorkspace() {
         raw={result!.raw} slideId={studioSlideId} photos={recoverStudioPhotos(result!.raw, uploadedPhotos).filter(Boolean)}
         flush={carouselSave.flush} isCurrent={isCurrentCreation} onClose={() => setStudioSlideId(null)}
       />}
+      <KeepContentDialog {...keepContent.dialog} />
       <SaveToIdeasDialog
         open={saveIdeaDialogOpen}
         onOpenChange={setSaveIdeaDialogOpen}
