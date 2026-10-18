@@ -18,7 +18,7 @@
       "any": 19
     },
     "src/components/creer/CarouselEditor.tsx": {
-      "lignes": 1117,
+      "lignes": 1090,
       "any": 4
     },
     "src/components/creer/CreerStepFormat.tsx": {
@@ -42,7 +42,7 @@
       "any": 14
     },
     "src/lib/carousel-editor.ts": {
-      "lignes": 1808,
+      "lignes": 1804,
       "any": 6
     },
     "src/lib/export-carousel-pptx.ts": {

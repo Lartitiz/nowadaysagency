@@ -1779,9 +1779,9 @@ export function withGoogleFonts(slide: EditorSlide, fontFamily: string): EditorS
 }
 
 /**
- * Place la barre d'outils flottante sans cacher l'élément choisi : au-dessus
- * s'il y a la place, sinon en dessous, sinon collée au bord le plus éloigné
- * de l'élément. Toutes les valeurs sont en pixels de l'aperçu.
+ * Place la barre d'outils flottante sans cacher l'élément choisi : au-dessus s'il y a la place,
+ * sinon en dessous, sinon hors de la slide quand la page le permet (`outside`, W élargi du
+ * 18/10/2026), sinon collée au bord le plus éloigné de l'élément. Valeurs en pixels de l'aperçu.
  */
 export function placeToolbar(
   box: { left: number; top: number; width: number; height: number },
@@ -1789,20 +1789,16 @@ export function placeToolbar(
   canvas: { width: number; height: number },
   gap = 8,
   margin = 4,
+  outside = { above: 0, below: 0 },
 ): { left: number; top: number } {
   const bottom = box.top + box.height;
   const above = box.top - gap - bar.height;
   const below = bottom + gap;
-  const top =
-    above >= margin
-      ? above
-      : below + bar.height <= canvas.height - margin
-        ? below
-        : box.top >= canvas.height - bottom
-          ? margin
-          : canvas.height - bar.height - margin;
-  return {
-    left: Math.max(margin, Math.min(box.left, canvas.width - bar.width - margin)),
-    top: Math.max(margin, top),
-  };
+  const left = Math.max(margin, Math.min(box.left, canvas.width - bar.width - margin));
+  const fitsInside = above >= margin || below + bar.height <= canvas.height - margin;
+  if (!fitsInside && outside.above >= bar.height + gap) return { left, top: -bar.height - gap };
+  if (!fitsInside && outside.below >= bar.height + gap) return { left, top: canvas.height + gap };
+  const top = above >= margin ? above : below + bar.height <= canvas.height - margin ? below
+    : box.top >= canvas.height - bottom ? margin : canvas.height - bar.height - margin;
+  return { left, top: Math.max(margin, top) };
 }

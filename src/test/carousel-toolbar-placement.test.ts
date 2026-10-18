@@ -40,4 +40,16 @@ describe("floating toolbar placement", () => {
     const pos = placeToolbar({ left: 300, top: 400, width: 200, height: 50 }, bar, canvas);
     expect(pos.left + bar.width).toBeLessThanOrEqual(canvas.width - 4);
   });
+
+  // W élargi (18/10/2026) : la slide est plus grande, un titre peut la remplir. La barre
+  // sort alors de la slide (au-dessus, sinon en dessous) au lieu de se poser sur le texte.
+  it("leaves the slide instead of covering a text that fills it, when the page has room", () => {
+    const full = { left: 0, top: 30, width: 540, height: 620 };
+    expect(placeToolbar(full, bar, canvas, 8, 4, { above: 120, below: 0 }).top).toBe(-96 - 8);
+    expect(placeToolbar(full, bar, canvas, 8, 4, { above: 40, below: 200 }).top).toBe(675 + 8);
+    // Pas de place autour de la slide : comme avant, collée au bord le plus libre.
+    expect(placeToolbar(full, bar, canvas, 8, 4, { above: 40, below: 40 }).top).toBe(4);
+    // Une place dans la slide reste prioritaire.
+    expect(placeToolbar({ left: 40, top: 300, width: 400, height: 120 }, bar, canvas, 8, 4, { above: 500, below: 500 }).top).toBe(300 - 8 - 96);
+  });
 });
