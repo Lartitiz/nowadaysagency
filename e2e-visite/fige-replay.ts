@@ -187,7 +187,15 @@ export async function expectZoneMatches(page: Page, locator: Locator, name: stri
   if (missingFonts.length) console.log(`⚠️ ${name} : police(s) pas chargée(s) avant la photo : ${missingFonts.join(" ; ")}`);
   // Le texte se remet en page avec la vraie police : une image pour finir.
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-  const box = await locator.boundingBox();
+  // La slide de l'éditeur prend la place mesurée sur la page (W élargi, 18/10/2026) : au
+  // chargement à froid elle peut encore s'ajuster de 1 ou 2 px. On attend une taille stable.
+  let box = await locator.boundingBox();
+  for (let i = 0; i < 10 && box; i++) {
+    await page.waitForTimeout(300);
+    const next = await locator.boundingBox();
+    if (next && Math.abs(next.width - box.width) < 0.5 && Math.abs(next.height - box.height) < 0.5) break;
+    box = next;
+  }
   if (!box) throw new Error(`${message} (zone introuvable à l'écran)`);
   // Coordonnées de la PAGE (une zone peut dépasser la hauteur de l'écran).
   const scroll = await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }));
