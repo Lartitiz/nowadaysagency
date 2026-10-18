@@ -53,8 +53,9 @@ afterEach(cleanup);
 it('met les idées à développer en haut, le diagnostic d’abord, puis les contenus commencés', async () => {
   render(<MemoryRouter initialEntries={['/idees?vue=all']}><IdeasPage /></MemoryRouter>);
   const list = await screen.findByTestId('ideas-list');
-  await waitFor(() => expect(list.querySelectorAll(':scope > li')).toHaveLength(6));
-  const titres = [...list.querySelectorAll(':scope > li h3')].map((h) => h.textContent);
+  const items = () => Array.from(list.children).filter((el) => el.tagName === 'LI');
+  await waitFor(() => expect(items()).toHaveLength(6));
+  const titres = items().map((li) => li.querySelector('h3')?.textContent);
   expect(titres).toEqual(['Idée du diagnostic', 'Deuxième idée du diagnostic', 'Idée gardée récente', 'Demande commencée', 'Carrousel tout neuf', 'Déjà au calendrier']);
   expect(screen.getByTestId('ideas-todo-heading')).toHaveTextContent('Tes idées à développer (3), puis tes contenus');
 });
