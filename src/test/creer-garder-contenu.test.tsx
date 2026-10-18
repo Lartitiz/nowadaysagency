@@ -44,7 +44,7 @@ vi.mock('@/components/dashboard/ContentCoachingDialog', () => ({ default: () => 
 vi.mock('@/components/creer/CreerTransformTab', () => ({ default: () => null }));
 vi.mock('@/components/creer/CreerStepIdea', () => ({ default: (p: any) => <div>
   <p>Étape idée</p>
-  <button onClick={() => p.onNext('Un tout autre sujet')}>Nouveau sujet</button>
+  <button onClick={() => { p.onIdeaChange?.('Un tout autre sujet'); p.onNext('Un tout autre sujet'); }}>Nouveau sujet</button>
   <button onClick={() => p.onNext(p.initialIdea)}>Même sujet</button>
 </div> }));
 vi.mock('@/components/creer/CreerStepFormat', () => ({ default: (p: any) => <div>
@@ -149,6 +149,9 @@ describe('Changer de sujet après un contenu', () => {
     expect(await screen.findByText('Étape format')).toBeInTheDocument();
     expect(mocks.inserts).toHaveLength(1);
     expect(mocks.inserts[0].row.content_data.body).toBe('Le corps du post');
+    // Le titre est celui du contenu gardé, pas le nouveau sujet en cours de frappe.
+    expect(mocks.inserts[0].row.titre).toContain('Mes 3 erreurs de débutante');
+    expect(mocks.inserts[0].row.titre).not.toContain('Un tout autre sujet');
   });
 
   it('même sujet : rien à demander', async () => {
