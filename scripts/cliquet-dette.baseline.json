@@ -26,7 +26,7 @@
       "any": 2
     },
     "src/components/creer/NewsjackingPanel.tsx": {
-      "lignes": 1159,
+      "lignes": 1038,
       "any": 3
     },
     "src/components/creer/formatRenderers/CarouselPhotoResult.tsx": {
@@ -66,7 +66,7 @@
       "any": 14
     },
     "src/pages/CreerUnifie.tsx": {
-      "lignes": 2121,
+      "lignes": 2125,
       "any": 21
     },
     "src/pages/InstagramAudit.tsx": {
