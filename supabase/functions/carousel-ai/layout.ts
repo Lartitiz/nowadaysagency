@@ -161,8 +161,8 @@ export function redoSchemaHasRoom(slide: Record<string, any>, isMix: boolean): b
 
 /** Schéma demandé, tiré du texte final de la slide ; null si le texte ne le permet pas. */
 // deno-lint-ignore no-explicit-any
-export function redoSlideSchema(slide: Record<string, any>, type: string, isMix: boolean, usage: UsageSink) {
-  return planRequestedSchema(slide, type, isMix, usage);
+export function redoSlideSchema(slide: Record<string, any>, type: string, isMix: boolean, usage: UsageSink, request = "") {
+  return planRequestedSchema(slide, type, isMix, usage, undefined, request);
 }
 
 export interface RedesignRequest {
