@@ -1,9 +1,18 @@
-import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { usePageSEO } from "@/hooks/use-page-seo";
 
 export default function ConfidentialitePage() {
   const navigate = useNavigate();
+  const { hash } = useLocation();
+
+  // Les liens #suppression-donnees (réglages de l'app Meta) et #instagram arrivent
+  // avant que la page soit dessinée : le navigateur ne défile pas tout seul.
+  useEffect(() => {
+    if (!hash) return;
+    document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView();
+  }, [hash]);
 
   usePageSEO({
     title: "Politique de confidentialité",
@@ -24,7 +33,7 @@ export default function ConfidentialitePage() {
         <h1 className="font-display text-2xl font-bold text-foreground mb-6">Politique de confidentialité</h1>
 
         <div className="rounded-2xl bg-card border border-border p-6 space-y-5 text-sm leading-relaxed">
-          <p className="text-xs text-muted-foreground">Dernière mise à jour : 11 septembre 2026</p>
+          <p className="text-xs text-muted-foreground">Dernière mise à jour : 19 octobre 2026</p>
 
           <p className="italic text-muted-foreground">
             Chez Nowadays Agency, on prend la protection de tes données au sérieux. Pas par obligation (bon, un peu quand même), mais parce qu'on croit que la confiance, ça se construit aussi dans les petits caractères.
@@ -85,6 +94,7 @@ export default function ConfidentialitePage() {
               <li><span className="font-medium text-foreground/80">PostHog</span> (analytics) : serveurs UE</li>
               <li><span className="font-medium text-foreground/80">Sentry</span> (monitoring d'erreurs)</li>
               <li><span className="font-medium text-foreground/80">Meta</span> (pixel publicitaire Facebook/Instagram) : uniquement avec ton consentement, pour mesurer l'effet de nos campagnes</li>
+              <li><span className="font-medium text-foreground/80">Meta / Instagram</span> (API Instagram) : uniquement si tu connectes ton compte Instagram, pour publier à ta demande et lire tes statistiques (voir la section 10)</li>
             </ul>
             <p className="text-muted-foreground mt-2 font-medium">Aucune donnée n'est vendue. Avec ton consentement, certaines données de navigation sont partagées avec Meta pour mesurer l'effet de nos publicités — jamais sans ton accord, et jamais vendues à un tiers.</p>
           </div>
@@ -96,13 +106,14 @@ export default function ConfidentialitePage() {
             </p>
           </div>
 
-          <div>
+          <div id="suppression-donnees" className="scroll-mt-6">
             <p className="font-semibold text-foreground">7. Tes droits</p>
             <p className="text-muted-foreground mt-1">Conformément aux articles 15 à 21 du RGPD, tu peux à tout moment :</p>
             <ul className="list-disc list-inside text-muted-foreground mt-1 space-y-1">
               <li>Accéder à tes données</li>
               <li>Les rectifier</li>
               <li>Les supprimer (depuis Paramètres &gt; Supprimer mon compte, ou sur demande par email)</li>
+              <li>Déconnecter Instagram et effacer les données liées (voir la section 10)</li>
               <li>Demander leur portabilité</li>
               <li>T'opposer au traitement</li>
               <li>Retirer ton consentement pour les cookies (depuis Paramètres &gt; Cookies et traceurs)</li>
@@ -138,6 +149,29 @@ export default function ConfidentialitePage() {
                 <li>Anthropic ne stocke pas tes données et ne les utilise pas pour entraîner ses modèles (API usage).</li>
                 <li>Chaque contenu généré est signalé comme tel dans l'interface.</li>
                 <li>L'IA propose, toi tu décides. Toujours.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="instagram" className="scroll-mt-6">
+            <p className="font-semibold text-foreground">10. Connexion à Instagram</p>
+            <div className="text-muted-foreground mt-1 space-y-2">
+              <p>Tu peux, si tu le souhaites, connecter ton compte Instagram professionnel depuis Paramètres &gt; Connexions. C'est facultatif : sans connexion, tout le reste de l'outil fonctionne.</p>
+              <p><span className="font-medium text-foreground/80">Ce qu'on reçoit de Meta :</span></p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>un jeton d'accès, chiffré dans notre base, qui permet à l'outil d'agir pour toi ;</li>
+                <li>l'identifiant et le nom de ton compte Instagram ;</li>
+                <li>tes informations de profil (bio, site, nombre d'abonnés) et la liste de tes publications (légendes, dates, liens) ;</li>
+                <li>les statistiques de ton compte et de tes publications (portée, vues, interactions, abonnés gagnés, visites du profil).</li>
+              </ul>
+              <p><span className="font-medium text-foreground/80">Ce qu'on en fait :</span> remplir tes statistiques sans saisie à la main (y compris un relevé automatique en fin de mois), analyser tes publications pour t'aider à améliorer ta communication, et publier sur ton compte les contenus que tu as choisis, uniquement quand tu cliques sur « Publier » ou à la date que tu as programmée. L'outil ne publie jamais rien sans ton action, ne lit pas tes messages privés et ne modifie pas ton profil.</p>
+              <p><span className="font-medium text-foreground/80">Partage :</span> ces données ne sont ni vendues, ni utilisées pour de la publicité, ni partagées avec d'autres clientes. Pour l'analyse de tes publications, les légendes et chiffres concernés sont envoyés ponctuellement à l'IA (voir la section 9).</p>
+              <p><span className="font-medium text-foreground/80">Durée de conservation :</span> le jeton d'accès est gardé tant qu'Instagram est connecté, et effacé dès que tu déconnectes Instagram. Les statistiques déjà rangées dans tes tableaux de bord sont gardées tant que ton compte est actif, puis supprimées avec lui (sous 30 jours).</p>
+              <p><span className="font-medium text-foreground/80">Déconnecter Instagram et supprimer ces données :</span></p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>dans l'outil : Paramètres &gt; Connexions &gt; Instagram &gt; « Déconnecter ». Le jeton d'accès et les informations du compte sont effacés immédiatement ;</li>
+                <li>dans Instagram : Paramètres &gt; Sécurité &gt; Applications et sites web, puis retirer « Assistant Com Nowadays » ;</li>
+                <li>pour effacer aussi tes statistiques et publications importées : Paramètres &gt; Supprimer mon compte, ou un email à <a href="mailto:laetitia@nowadaysagency.com" className="text-primary hover:underline">laetitia@nowadaysagency.com</a> avec l'objet « Suppression des données Instagram ». On s'en occupe sous 30 jours maximum et on te confirme par email.</li>
               </ul>
             </div>
           </div>
