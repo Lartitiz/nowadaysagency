@@ -12,6 +12,7 @@ import { addEditorialReview, summarize } from "./couts.ts";
 import { cohortes, comptesInternes, espacesOwnerMultiples, publications, topConsommatrices } from "./usage-hebdo.ts";
 import { blocQualite, lireQualite } from "./qualite.ts";
 import { emailsCoupesStats, publicationsAlaMain } from "./emails-coupes.ts";
+import { slidesRefaites } from "./slides-refaites.ts";
 
 export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }: {
   supabase: any;
@@ -75,5 +76,7 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
     qualite,
     higgsfield,
     espaces_owner_multiples,
+    // « 🔁 Slides refaites » (chantier AA), lu par la routine du lundi.
+    slides_refaites: slidesRefaites({ ai, aiRows, internalIds, curFrom, curTo, prevFrom, prevTo }),
   };
 }

@@ -975,6 +975,12 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
     },
   },
   scope: "weekly",
+  slides_refaites: {
+    clientes: 0,
+    internes: 0,
+    n: 0,
+    n_s1: 0,
+  },
   top_consommatrices_7j: [
     {
       action_principale: "studio_image",
