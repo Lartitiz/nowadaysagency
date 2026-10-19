@@ -207,3 +207,4 @@ La CI de la PR reste la référence.
 
 - 2026-10-18 : node_modules réinstallé (`deno install` racine) ; `deno check supabase/functions/` passe 0 erreur ; build Vite OK.
 - 2026-10-19 : node_modules à nouveau vidé puis réinstallé (`deno install` racine) ; `deno check supabase/functions/` repasse 0 erreur.
+- 2026-10-19 08:05 — réinstallation des dépendances Deno après wipe de node_modules (déclencheur de build frais, aucun code modifié).
