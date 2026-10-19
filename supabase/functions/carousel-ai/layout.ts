@@ -165,6 +165,17 @@ export function redoSlideSchema(slide: Record<string, any>, type: string, isMix:
   return planRequestedSchema(slide, type, isMix, usage, undefined, request);
 }
 
+/** Texte posé sur une photo : « en bas », « en haut », « au centre » dans la consigne de
+ * mise en page fixent la position et la verrouillent pour cette slide (essai réel du
+ * 19/10/2026 : « mets le texte en bas » laissé en haut par la direction artistique). */
+export function redoOverlayPosition(designNote: string): "top_left" | "bottom_left" | "center" | null {
+  const n = (designNote || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (/\b(en bas|vers le bas|au bas|en pied|bas de (la )?(slide|photo|page))\b/.test(n)) return "bottom_left";
+  if (/\b(en haut|vers le haut|au haut|haut de (la )?(slide|photo|page))\b/.test(n)) return "top_left";
+  if (/\b(au centre|au milieu|centre de (la )?(slide|photo)|milieu de (la )?(slide|photo))\b/.test(n)) return "center";
+  return null;
+}
+
 export interface RedesignRequest {
   /** Corps habituel de carousel-visual préparé par l'appli (photos, charte, type), sans les slides. */
   visualRequest: Record<string, unknown>;
