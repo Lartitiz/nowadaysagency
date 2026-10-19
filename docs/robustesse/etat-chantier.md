@@ -206,3 +206,4 @@ La CI de la PR reste la référence.
 ## Journal de build
 
 - 2026-10-18 : node_modules réinstallé (`deno install` racine) ; `deno check supabase/functions/` passe 0 erreur ; build Vite OK.
+- 2026-10-19 : node_modules à nouveau vidé puis réinstallé (`deno install` racine) ; `deno check supabase/functions/` repasse 0 erreur.
