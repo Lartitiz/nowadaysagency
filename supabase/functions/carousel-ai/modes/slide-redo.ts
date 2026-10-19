@@ -22,7 +22,7 @@ import { tryParseAiObject } from "../../_shared/parse-ai-json.ts";
 import { findInventedExperiences, findInventedTestimonials, fixElisionsInFields, numbersIn } from "../../_shared/redac-gate.ts";
 import { findFabricatedNumbers } from "../../_shared/redac-gate/numbers.ts";
 import { clientStillThere } from "../../_shared/anthropic-stream.ts";
-import { REDO_MIX_SCHEMA_TYPES, REDO_SCHEMA_MAX_WORDS, REDO_SCHEMA_TYPES, redoSchemaHasRoom, redoSlideSchema, revalidatePhotoLayoutContent } from "../layout.ts";
+import { REDO_MIX_SCHEMA_TYPES, REDO_SCHEMA_MAX_WORDS, REDO_SCHEMA_TYPES, redoOverlayPosition, redoSchemaHasRoom, redoSlideSchema, revalidatePhotoLayoutContent } from "../layout.ts";
 
 type Slide = Record<string, unknown>;
 type Change = "texte" | "disposition" | "texte_et_disposition" | "schema";
@@ -118,13 +118,16 @@ export function applyRedoText(original: Slide, proposal: any, change: Change): S
 }
 
 /** Slide envoyée au rendu : celle préparée par l'appli, avec le nouveau texte et le schéma. */
-export function mergeIntoVisualSlide(visual: Slide | undefined, next: Slide): Slide {
+export function mergeIntoVisualSlide(visual: Slide | undefined, next: Slide, designNote = ""): Slide {
   const out: Slide = { ...(visual || next) };
   const fields = redoTextFields(next);
   for (const k of fields) { if (typeof next[k] === "string" && next[k]) out[k] = next[k]; else delete out[k]; }
   if (next.slide_type === "photo_full") for (const k of PHOTO_LAYOUT_FIELDS) { if (next[k] != null) out[k] = next[k]; else delete out[k]; }
   if (next.visual_schema) out.visual_schema = next.visual_schema; else delete out.visual_schema;
   delete out.schema_pause;
+  // Texte sur photo : position demandée (« en bas »…) fixée et verrouillée pour le rendu.
+  const position = next.slide_type === "photo_full" ? redoOverlayPosition(designNote) : null;
+  if (position) { out.overlay_position = position; out.position_locked = true; }
   return out;
 }
 
@@ -211,7 +214,7 @@ export async function handleSlideRedoRequest(reqCtx: CarouselRequestContext): Pr
   delete visualRequest.slides;
   const drawn = await _deps.redesignSlide({
     visualRequest, slideNumber: n, designNote, authHeader: reqCtx.authHeader, userId,
-    slides: visualSlides.map((s, i) => i === index ? mergeIntoVisualSlide(s, next!) : s),
+    slides: visualSlides.map((s, i) => i === index ? mergeIntoVisualSlide(s, next!, designNote) : s),
   });
   if (!drawn.ok) {
     console.error(JSON.stringify({ event: "slide_redo_render_failed", status: drawn.status, error: drawn.error }));

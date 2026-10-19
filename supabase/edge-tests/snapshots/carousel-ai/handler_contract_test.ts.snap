@@ -15598,7 +15598,8 @@ snapshot[`handler carousel-ai — slide_redo — disposition seule sur une slide
      \\"overlay_text\\": \\"Trois passages entre mes mains : tournage, tournassage, émaillage.\\",
      \\"overlay_style\\": \\"minimal\\",
      \\"kicker\\": \\"Le geste\\",
-     \\"overlay_position\\": \\"bottom_center\\"
+     \\"overlay_position\\": \\"top_left\\",
+     \\"position_locked\\": true
     },
     {
      \\"slide_number\\": 3,
