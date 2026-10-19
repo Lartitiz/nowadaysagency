@@ -140,6 +140,9 @@ export async function handleSlideRedoRequest(reqCtx: CarouselRequestContext): Pr
   const instruction = typeof body.instruction === "string" ? body.instruction.replace(/\s+/g, " ").trim().slice(0, 500) : "";
   if (index < 0 || instruction.length < 2) return json(400, { error: "Choisis une slide et écris ce que tu veux changer." }, corsHeaders);
   if (slides[index].editor_locked) return json(400, { error: "Déverrouille la slide pour la refaire." }, corsHeaders);
+  // « Photos brutes » : une photo seule, sans texte, n'a rien à refaire (essai réel du 19/10/2026 :
+  // slide identique, crédit payé pour rien). Refus avant tout appel, rien débité.
+  if (!textOf(slides[index]).trim() && !slides[index].visual_schema) return json(400, { error: "Cette slide est une photo seule, sans texte : rien à refaire ici. Pour la remplacer, utilise « Changer la photo »." }, corsHeaders);
   if (!reqCtx.authHeader) return json(401, { error: "Non autorisé" }, corsHeaders);
   const isMix = body.carousel_type === "mix";
   const target = slides[index];

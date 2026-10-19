@@ -364,6 +364,8 @@ const CASES: { name: string; body: Record<string, unknown>; text: string }[] = [
     body: { type: "slide_redo", carousel_type: "prise_de_position", subject: SUBJECT, slides: TEXT_DOC.slides, redo_slide_number: 3, instruction: "ajoute une statistique frappante", visual_request: {} } },
   { name: "slide_redo — slide verrouillée refusée (400)", text: "",
     body: { type: "slide_redo", carousel_type: "prise_de_position", subject: SUBJECT, slides: TEXT_DOC.slides.map((s) => s.slide_number === 3 ? { ...s, editor_locked: true } : s), redo_slide_number: 3, instruction: "plus court" } },
+  { name: "slide_redo — photo seule sans texte (« Photos brutes ») refusée, rien débité (400)", text: "",
+    body: { type: "slide_redo", carousel_type: "photo", subject: "Une journée d'atelier", slides: PHOTO_DOC.slides.map((s) => s.slide_number === 2 ? { slide_number: 2, slide_type: "photo_full", photo_index: 2, overlay_text: null } : s), redo_slide_number: 2, instruction: "mets le texte en haut" } },
   { name: "type inconnu refusé (400)", text: "",
     body: { type: "inconnu", carousel_type: "storytelling", subject: SUBJECT } },
 ];

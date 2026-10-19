@@ -147,6 +147,19 @@ describe("Refaire cette slide dans l'éditeur", () => {
     expect(button.parentElement?.getAttribute("title")).toBe("Déverrouille la slide pour la refaire");
   });
 
+  it("photo seule sans texte (« Photos brutes ») : bouton grisé, avec la raison", () => {
+    const PHOTO = "https://exemple.supabase.co/storage/v1/object/public/calendar-visuals/u/carousel-media/brute.jpg";
+    const pure = { carousel_type: "photo", slides: [{ slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: null }, { slide_number: 2, slide_type: "photo_full", photo_index: 2, overlay_text: null }] };
+    function Pure() {
+      const [r, setR] = useState<any>(pure), [v, setV] = useState([1, 2].map((n) => ({ slide_number: n, html: `<div style="position:relative;width:1080px;height:1350px"><img data-pptx-photo="${n}" src="${PHOTO}" style="position:absolute;left:0;top:0;width:1080px;height:1350px;object-fit:cover"></div>` })));
+      return <CarouselEditor result={r} visualSlides={v} onChange={(a, b) => { setR(a); setV(b); }} slideRedo={fakeApi()} />;
+    }
+    render(<Pure />);
+    const button = screen.getByTestId("slide-redo-button") as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.parentElement?.getAttribute("title")).toMatch(/photo seule, sans texte/);
+  });
+
   it("sans l'appli (pas de slideRedo) : pas de bouton", () => {
     function Bare() {
       const [r, setR] = useState<any>(raw), [v, setV] = useState(visuals);
