@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SlideThumb } from "@/components/creer/CarouselEditorParts/PanelBits";
 import type { CarouselDocument, EditorSlide } from "@/lib/carousel-editor";
-import { SLIDE_REDO_EXAMPLES, type SlideRedoApi } from "@/components/creer/CarouselEditorParts/slide-redo";
+import { isPhotoOnlySlide, PHOTO_ONLY_REASON, SLIDE_REDO_EXAMPLES, type SlideRedoApi } from "@/components/creer/CarouselEditorParts/slide-redo";
 import { useSlideRedo } from "@/components/creer/CarouselEditorParts/use-slide-redo";
 
 export function SlideRedo({ api, raw, slide, getDocument, onKeep }: {
@@ -31,17 +31,20 @@ export function SlideRedo({ api, raw, slide, getDocument, onKeep }: {
   const index = doc.slides.findIndex((s) => s.id === redo.slideId);
   const target = index >= 0 ? doc.slides[index] : slide;
   const locked = !!slide.locked;
+  const photoOnly = isPhotoOnlySlide(slide);
   const pending = state.status === "loading" || state.status === "result";
+  const blocked = (locked || photoOnly) && !pending;
+  const reason = locked ? "Déverrouille la slide pour la refaire" : PHOTO_ONLY_REASON;
   const label = state.status === "result" ? "Voir la nouvelle version" : state.status === "loading" ? "Slide en cours…" : "Refaire cette slide";
   return (
     <>
-      <span title={locked && !pending ? "Déverrouille la slide pour la refaire" : undefined}>
+      <span title={blocked ? reason : undefined}>
         <Button
           variant="outline"
           size="sm"
           className="h-8 gap-1.5 border-primary/40 px-2 text-primary lg:px-3"
-          disabled={locked && !pending}
-          aria-label={locked && !pending ? "Refaire cette slide (déverrouille la slide pour la refaire)" : label}
+          disabled={blocked}
+          aria-label={blocked ? (locked ? "Refaire cette slide (déverrouille la slide pour la refaire)" : `Refaire cette slide (${PHOTO_ONLY_REASON})`) : label}
           onClick={() => redo.start(slide)}
           data-testid="slide-redo-button"
         >

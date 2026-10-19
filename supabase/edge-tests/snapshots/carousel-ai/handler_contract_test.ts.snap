@@ -15911,6 +15911,21 @@ snapshot[`handler carousel-ai — slide_redo — slide verrouillée refusée (40
 '
 `;
 
+snapshot[`handler carousel-ai — slide_redo — photo seule sans texte (« Photos brutes ») refusée, rien débité (400) 1`] = `
+'── STATUT 400
+
+── RÉPONSE AU FRONT
+{
+ "error": "Cette slide est une photo seule, sans texte : rien à refaire ici. Pour la remplacer, utilise « Changer la photo »."
+}
+
+── CRÉDITS
+[]
+
+── APPELS À CLAUDE (0)
+'
+`;
+
 snapshot[`handler carousel-ai — type inconnu refusé (400) 1`] = `
 \`── STATUT 400
 

@@ -28,6 +28,15 @@ export interface SlideRedoApi {
   loadPhoto: (src: string) => Promise<{ base64: string; mimeType?: string } | null>;
 }
 
+/** Slide photo seule, sans aucun texte (« Photos brutes ») : rien à refaire, le bouton
+ * est grisé (essai réel du 19/10/2026 : nouvelle version identique, crédit payé pour rien). */
+export const PHOTO_ONLY_REASON = "Cette slide est une photo seule, sans texte : rien à refaire ici. Pour la remplacer, utilise « Changer la photo ».";
+export function isPhotoOnlySlide(slide: EditorSlide): boolean {
+  const d = slide.data || {};
+  const text = ["title", "body", "overlay_text", "kicker", "detail", "cta_label"].some((k) => typeof d[k] === "string" && d[k].trim());
+  return !text && !d.visual_schema && !!slidePhotoSource(slide.html);
+}
+
 /** Photos du carrousel lues dans les slides (une par adresse, 10 au plus) et leur numéro par slide. */
 export function collectSlidePhotos(document: CarouselDocument): { sources: string[]; indexBySlide: (number | undefined)[] } {
   const sources: string[] = [];
