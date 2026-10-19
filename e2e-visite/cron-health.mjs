@@ -292,6 +292,11 @@ try {
     // a_la_main / emails_coupes : edge ≥ 18/10/2026 (absents sinon).
     const alaMain = d.publications.a_la_main != null ? `, dont ${d.publications.a_la_main} « publié moi-même »` : "";
     console.log(`   publications : ${d.publications.cette_semaine} cette semaine${alaMain} (S-1 : ${d.publications.semaine_precedente})`);
+    // slides_refaites : edge ≥ 19/10/2026 (chantier AA ; pas de seuil, règle d'usage à 60 jours).
+    const sr = d.slides_refaites;
+    console.log(sr
+      ? `   🔁 Slides refaites : ${sr.n} (${sr.clientes} cliente${sr.clientes > 1 ? "s" : ""}) · S-1 : ${sr.n_s1}${sr.internes ? ` · comptes internes : ${sr.internes}` : ""}`
+      : "   🔁 Slides refaites : non mesuré (edge cron-health pas redéployée)");
     const ec = d.emails_coupes;
     if (!ec) console.log("   e-mails génériques coupés : non mesuré (edge cron-health pas redéployée)");
     else if (ec.erreur) console.log(`   e-mails génériques coupés : lecture impossible (${ec.erreur})`);
