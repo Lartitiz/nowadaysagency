@@ -2,7 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateSitePalette } from "../_shared/validate-site-palette.ts";
-import { AnthropicError, callAnthropic, getModelForAction, type AnthropicTool } from "../_shared/anthropic.ts";
+import { AnthropicError, callAnthropic, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+import { logUsageHorsCredit } from "../_shared/usage-hors-credit.ts";
 import { parseAiJson } from "../_shared/parse-ai-json.ts";
 // (import logUsage retiré — l'enrichissement ne décompte plus de crédit, voir note dans le handler)
 
@@ -236,6 +237,7 @@ Précisions importantes :
 
     const runEnrichmentCall = async (abortTimeoutMs: number, extraInstruction?: string) => {
       const prompt = extraInstruction ? `${userPrompt}\n\n${extraInstruction}` : userPrompt;
+      const usage: UsageSink = {};
       const raw = await callAnthropic({
         model: opusModel,
         system: enrichmentSystemPrompt,
@@ -245,6 +247,11 @@ Précisions importantes :
         tool: ENRICHMENT_TOOL,
         abortTimeoutMs,
         maxRetries: 0,
+      }, usage);
+      // Aucun crédit (cf. plus haut), mais coût visible au bilan du lundi.
+      await logUsageHorsCredit({
+        source: isOnboarding ? "inscription" : "passe_interne", action: "diagnostic_enrichment",
+        userId, workspaceId, model: usage.model, tokens: usage.total_tokens,
       });
       return parseAiJson(raw, "diagnostic-enrichment"); // JSON valide par construction (tool forcé)
     };

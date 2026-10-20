@@ -1,5 +1,6 @@
 import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { logUsage } from "../_shared/plan-limiter.ts";
+import { logUsageHorsCredit } from "../_shared/usage-hors-credit.ts";
 import { DIAGNOSTIC_TOOL } from "./tool.ts";
 import { robustJsonParse, isDegenerateDiagnostic, stripMarkupFromSummary } from "./parse.ts";
 import { hasScreenshotFinding } from "./evidence.ts";
@@ -131,6 +132,14 @@ export async function runFastDiagnostic(opts: {
     ? logUsage(userId, "audit", "deep_diagnostic", diagUsage.total_tokens, diagUsage.model, workspaceId)
         .catch(e => console.error("logUsage failed:", e))
     : null;
+  // Diagnostic d'inscription : gratuit, mais compté hors crédit pour que le
+  // bilan du lundi voie son coût (audit de coût du 20/10/2026).
+  if (isOnboarding && aiSucceeded) {
+    await logUsageHorsCredit({
+      source: "inscription", action: "deep_diagnostic", userId, workspaceId,
+      model: diagUsage.model, tokens: diagUsage.total_tokens,
+    });
+  }
 
   return { analysisResult, usageLog };
 }
