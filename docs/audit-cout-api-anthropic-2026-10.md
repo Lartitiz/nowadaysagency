@@ -2,7 +2,13 @@
 
 Audit en lecture seule, fait le 20/10/2026 sur `origin/main`. Aucun code, aucune fonction, aucune migration, aucun secret ni réglage n'a été modifié.
 
-Contexte : environ 2 800 € d'API Anthropic de janvier à septembre 2026, dont environ 1 700 € en juillet (recharges automatiques les 2, 13, 15 et 30 juillet), pour 241 € d'abonnements encaissés. Depuis le 9 octobre, l'API est plafonnée à 200 $ par mois.
+Contexte (corrigé le 20/10 avec les chiffres de la console Anthropic) :
+- **API des outils** (clés `assistant-app` et `mission-flow`) : environ **830 $ sur l'année**, dont **144,56 $ en juillet**.
+- Le pic d'environ 1 700 € de juillet (recharges automatiques les 2, 13, 15 et 30 juillet) était du **développement fait avec Claude Code**, pas de l'API de l'outil.
+- 241 € d'abonnements encaissés sur la même période.
+- Depuis le 9 octobre, l'API est plafonnée à 200 $ par mois.
+
+La première version de ce rapport partait de 2 800 € d'API pour l'outil ; les ordres de grandeur ci-dessous sont recalés sur les vrais chiffres.
 
 Conventions :
 - Les chiffres incertains sont entre crochets.
@@ -11,9 +17,9 @@ Conventions :
 
 ## 0. En bref
 
-1. **Le pic de juillet ne vient très probablement pas des clientes.** Le compteur interne (`ai_usage`, lu chaque lundi par `cron-health`) estimait le texte des clientes à environ 2 à 5 € par semaine en juillet et août. Le 14/08, la console affichait 23,67 $ dépensés depuis le 1er août. Les recharges de juillet tombent juste après les plus grosses rafales de développement (près de 400 commits écrits avec Claude Fable 5 et Opus 4.8 entre le 26/06 et le 26/07). Hypothèse principale : du développement facturé sur la même organisation API. Une seule lecture de la console (coût par clé API et par jour) tranche la question (voir 3.1).
+1. **Le pic de juillet était du développement Claude Code, pas l'outil (confirmé par la console).** L'API des outils a coûté 144,56 $ en juillet et environ 830 $ sur l'année, soit [70 à 90 $ par mois] en moyenne. Le compteur interne (`ai_usage`, lu chaque lundi par `cron-health`) estimait le texte des clientes à environ 2 à 5 € par semaine en juillet et août : la plus grande part de ces ~830 $ n'est donc pas visible dans la base (point 2).
 2. **Une partie du coût réel est invisible dans la base.**
-   - Le compte de test Camille n'écrit rien dans `ai_usage` ni dans `content_quality_events`. Or la visite de 8 h y lance chaque jour de vraies générations : environ [55 à 65 $ par mois], soit [30 %] du plafond de 200 $.
+   - Le compte de test Camille n'écrit rien dans `ai_usage` ni dans `content_quality_events`. Or la visite de 8 h y lance chaque jour de vraies générations : environ [40 à 65 $ par mois], soit [la moitié environ] de la facture API mensuelle des outils. Chiffre à confirmer dès que ces générations seront comptées.
    - Un carrousel fait 8 à 11 appels, dont 2 à 3 sur Opus, mais `ai_usage` n'en compte qu'une partie.
 3. **L'app n'a aucune boucle dangereuse.** Aucune tâche programmée n'appelle l'IA, aucun traitement par lot sur les utilisatrices, aucun `useEffect` qui tourne en boucle. Il y a quelques appels automatiques, mais petits.
 4. **Les postes les plus chers par action** sont le carrousel Qualité Max [1,5 à 2,5 $], les carrousels photo ou mixte [0,8 à 1,3 $], le carrousel texte [0,6 à 1 $], la boîte à idées (`content-coaching`, 7 appels Opus pour 1 crédit, [0,7 à 0,9 $]) et l'audit Instagram [0,3 à 0,7 $, jusqu'au double avec la relance automatique].
@@ -185,7 +191,7 @@ Estimations faites avec Sonnet = Sonnet 5, une réflexion Opus en effort `low` d
 | 17 | Étape gratuite de creative-flow (angles, accroches…) | 1 | [0,04 à 0,07 $] | 51 000 car. de système, **sans quota** |
 | 18 | Petites actions (palette, commentaire, DM, texte choisi, questions Haiku) | 1 | [< 0,02 $] | |
 
-**Ordre de grandeur pour le plafond.** 200 $ par mois correspondent à environ 200 à 300 carrousels texte, ou 100 carrousels Qualité Max, ou 2 000 posts. Un abonnement Premium (39 €) autorise 20 carrousels Qualité Max, soit [30 à 50 $] d'API si la cliente les utilise tous : **une cliente Premium très active peut coûter plus que son abonnement.**
+**Ordre de grandeur pour le plafond.** 200 $ par mois correspondent à environ 200 à 300 carrousels texte, ou 100 carrousels Qualité Max, ou 2 000 posts. La facture réelle des outils tourne autour de [70 à 90 $ par mois] (144,56 $ au plus haut, en juillet) : le plafond laisse aujourd'hui une marge d'environ ×2, qui fond vite si quelques clientes utilisent beaucoup la Qualité Max. Un abonnement Premium (39 €) autorise 20 carrousels Qualité Max, soit [30 à 50 $] d'API si la cliente les utilise tous : **une cliente Premium très active peut coûter plus que son abonnement.**
 
 ### 2.3 Signalements demandés
 
@@ -244,30 +250,25 @@ Cas particulier : le carrousel envoie son système complet (30 000 à 45 000) à
 - `audit-instagram-ai` : même prompt et mêmes images ×4 ;
 - `newsjacking-ai` : chaque tour `pause_turn` renvoie les résultats de recherche.
 
-## 3. Le pic de juillet : hypothèses
+## 3. Le pic de juillet
 
-### 3.1 Ce que disent les chiffres déjà disponibles
+### 3.1 Réponse (console Anthropic, 20/10)
+
+- L'API des outils (clés `assistant-app` et `mission-flow`) a coûté **144,56 $ en juillet** et environ **830 $ sur l'année**.
+- Les ~1 700 € de recharges de juillet étaient du **développement fait avec Claude Code** (près de 400 commits écrits avec Claude Fable 5 et Opus 4.8 entre le 26/06 et le 26/07, 357 PR fusionnées en juillet), pas l'outil.
+- L'hypothèse H1 de la première version est donc confirmée. Elle n'est pas du ressort du code de l'app : c'est un réglage de facturation du développement (usage supplémentaire de Claude Code, limite à part).
+
+### 3.2 Ce qui reste à expliquer : l'écart entre la console et la base
 
 | Source | Ce qu'elle montre |
 |---|---|
-| Bilan hebdo `cron-health` (mémoire `project_maitrise_couts_api`) | 09/07 : ~2,20 €/semaine de texte Claude. 03/08 : 4,83 € après correction de la grille Sonnet 5. |
-| Console Anthropic au 14/08 | 23,67 $ dépensés depuis le 1er août ; la limite mensuelle était alors à 200 000 $ (aucune limite réelle). Plafond posé à 100 $ le 14/08. |
-| Hors juillet | (2 800 − 1 700) / 8 ≈ [140 € par mois] en moyenne sur les autres mois. |
-| Activité de développement (git) | 357 PR fusionnées en juillet. Commits par jour : 28/06 : 161, 30/06 : 174, 09/07 : 134, 10/07 : 98, 12/07 : 116, puis 21 au 26/07 : 111. Co-auteurs juin-juillet : 226 Claude Opus 4.8, 170 Claude Fable 5. |
-| Recharges | 2/07 (après 28 et 30/06), 13/07 (après 9-12/07), 15/07, 30/07 (après 21-26/07). |
-| Compte Claude Code | « usage supplémentaire » activé (`hasExtraUsageEnabled`). |
-| Volume clientes | Semaine du 21/07 : 9 carrousels générés, 0 gardés (commit `27172f00f`). |
+| Console Anthropic | 144,56 $ en juillet, ~830 $ sur l'année, soit [70 à 90 $ par mois] en moyenne |
+| Bilan hebdo `cron-health` (`ai_usage`) | 09/07 : ~2,20 €/semaine de texte Claude ; 03/08 : 4,83 € après correction de la grille Sonnet 5, soit [10 à 20 € par mois] |
+| Volume clientes | Semaine du 21/07 : 9 carrousels générés, 0 gardés (commit `27172f00f`) |
 
-Le coût facturé en juillet est donc de l'ordre de [100 à 300 fois] ce que l'app comptait pour ses utilisatrices réelles.
+La console voit environ **[4 à 8 fois]** ce que la base compte. Les hypothèses ci-dessous expliquent cet écart.
 
-### 3.2 Hypothèses classées
-
-**H1 (forte) : de la consommation hors de l'app sur la même organisation API.**
-- Sessions de développement (Claude Code, agents, routines) facturées au tarif API, par une clé API ou par l'usage supplémentaire de l'abonnement, avec Fable 5 (10 $ / 50 $) et Opus 4.8 (5 $ / 25 $).
-- Les rafales de commits précèdent chaque recharge, et le volume de l'app ne peut pas expliquer 1 700 €.
-- **Vérification (5 min, sans code)** : console Anthropic, page Usage ou Cost, regrouper par clé API puis par modèle et par jour, du 25/06 au 31/07. Si la clé des fonctions Supabase pèse peu, H1 est confirmée. Regarder aussi la page Billing pour les lignes « usage supplémentaire ».
-
-**H2 (forte, mais pèse moins en €) : des générations réelles du compte de test, invisibles dans la base.**
+**H2 (forte, probablement la plus grosse part de l'écart) : des générations réelles du compte de test, invisibles dans la base.**
 - La visite guidée de 8 h (routine `visite-guidee-quotidienne`, créée le 30/06) fait chaque jour de vraies générations sur Camille :
   - `perf-carousel` (1 carrousel texte + visuel) ;
   - `fonctionnel-t1` (post Instagram + post LinkedIn) ;
@@ -275,7 +276,7 @@ Le coût facturé en juillet est donc de l'ordre de [100 à 300 fois] ce que l'a
   - `plan-carrousel-sonde` (1 plan) ;
   - le lundi, 3 carrousels photo ou mixte (`carousel-photo-live`, `carousel-photo-fond-live`, `carousel-mix-live`) ;
   - plus `packshot-live` (images).
-- Coût estimé : [1,5 à 2 $ par jour], soit **[50 à 65 $ par mois]**, sans aucune ligne en base.
+- Coût estimé : [1,3 à 2 $ par jour], soit **[40 à 65 $ par mois]**, sans aucune ligne en base : à lui seul [la moitié environ] de la facture mensuelle des outils.
 - Les sessions de développement font en plus leurs « tests réels » sur Camille.
 - En juillet, les lignes de Camille ont en plus été purgées (migration du 05-06/07), et son contournement est déterministe depuis le 10/07.
 
@@ -284,7 +285,7 @@ Le coût facturé en juillet est donc de l'ordre de [100 à 300 fois] ce que l'a
 - `tokens_used` mélange entrée et sortie et ignore le cache. Le tarif mixte 75/25 de `cron-health` est une approximation.
 - Facteur de sous-comptage plausible pour un carrousel : [×2 à ×3].
 
-**H4 (faible) : des rafales dans l'app.** Rien trouvé qui puisse produire des centaines d'euros :
+**H4 (faible) : des rafales dans l'app.** Rien trouvé qui puisse produire de gros montants :
 - aucun appel IA dans les tâches programmées ni les webhooks ;
 - aucun traitement par lot sur toutes les utilisatrices ;
 - aucune boucle de relance sans limite : toutes les relances sont bornées, à 3 tentatives plus le repli.
@@ -298,7 +299,7 @@ Appels automatiques trouvés, tous bornés :
 - `PhotosPage.tsx:136` et `:155` : classement et descriptions Haiku, ≤5 photos par ouverture.
 - `InstagramAudit.tsx:354` et `:448` : relance automatique d'un audit complet en cas d'échec.
 
-**H5 (contribue) : les prix de juillet étaient plus hauts.**
+**H5 (explique que juillet soit le mois le plus cher côté outils, 144,56 $) : les prix de juillet étaient plus hauts.**
 - Opus 4.8 (5 $ / 25 $) pour le coaching et la Qualité Max.
 - Sonnet 4.6 (3 $ / 15 $) jusqu'à la bascule Sonnet 5 de mi-juillet.
 - Mode Qualité Max lancé le 26/06.
@@ -386,12 +387,12 @@ order by 1, 2;
 ```
 
 **Lecture attendue :**
-- Si les requêtes 1 et 2 donnent quelques dizaines d'euros pour juillet face à 1 700 € facturés, le pic ne vient pas des clientes (H1, H2).
-- Si la console montre la clé des fonctions Supabase très au-dessus de ces chiffres, chercher plutôt du côté de H2 et H3.
+- Comparer le total de juillet des requêtes 1 et 2 aux 144,56 $ de la console. L'écart mesure ce que la base ne voit pas (H2 et H3).
+- Une fois le paquet (a) en ligne, les générations du compte de test et des fonctions de la passerelle Lovable apparaîtront dans `ai_usage` sans débiter de crédit, et l'écart devrait se resserrer nettement.
 
 ## 4. Plan de réduction
 
-Le volume de référence est inconnu tant que les requêtes ne sont pas lancées. Les gains sont donc donnés **par action**, puis par mois pour un volume hypothétique de **[30 carrousels texte, 10 carrousels photo ou mixte, 5 Qualité Max, 150 textes, 300 messages de coaching, 10 audits Instagram et 15 inscriptions]** côté clientes, plus la visite quotidienne. Pour ce volume, le coût de l'app est de [110 à 170 $ par mois].
+Le volume de référence est inconnu tant que les requêtes ne sont pas lancées. Les gains sont donc donnés **par action**, puis par mois pour un volume hypothétique de **[30 carrousels texte, 10 carrousels photo ou mixte, 5 Qualité Max, 150 textes, 300 messages de coaching, 10 audits Instagram et 15 inscriptions]** côté clientes, plus la visite quotidienne. Pour ce volume, le coût estimé de l'app serait de [110 à 170 $ par mois] : c'est plus que la facture réelle (~[70 à 90 $] en moyenne, 144,56 $ en juillet), donc le volume réel des clientes est plus faible que cette hypothèse. Les gains en $ par mois ci-dessous sont à lire comme des plafonds, à recaler avec les requêtes SQL.
 
 Chaque ligne indique le fichier, le changement, le gain et le risque. Rien n'est fait dans cette passe.
 
@@ -432,7 +433,7 @@ Chaque ligne indique le fichier, le changement, le gain et le risque. Rien n'est
 
 | # | Sujet | Ce qui changerait | Gain estimé | Risque ou contrepartie |
 |---|---|---|---|---|
-| c1 | Origine du pic (H1) | Après la lecture de la console : sortir le développement de l'organisation API des fonctions, ou lui donner sa propre limite | jusqu'à l'essentiel des 1 700 € de juillet | aucun pour les clientes |
+| c1 | Origine du pic (H1, confirmée) | Pic de juillet = développement Claude Code : régler sa propre limite (usage supplémentaire) côté abonnement, sans toucher à l'outil | l'essentiel des ~1 700 € de juillet | aucun pour les clientes |
 | c2 | Étapes gratuites de creative-flow | Plafond quotidien comme le Studio (ex. 30 par jour en gratuit), ou compter 1 crédit toutes les N étapes | protège le plafond ; quelques $ en usage normal | une cliente qui explore beaucoup peut être freinée |
 | c3 | Plan gratuit : 3 carrousels par mois | 1 à 2 carrousels en gratuit, ou carrousel gratuit sans recherche web ni relecture | [0,6 à 2 $ par utilisatrice gratuite active] | moins d'« effet waouh » à l'essai |
 | c4 | Qualité Max (20 par mois en Premium) | 5 à 10 Qualité Max par mois dans les 20 carrousels, ou Fable seulement pour la rédaction et Opus / Sonnet pour le reste (rendu visuel, contraste) | jusqu'à [20 à 30 $ par cliente très active] | promesse commerciale « 20 carrousels Qualité Max compris » à revoir |
@@ -442,10 +443,21 @@ Chaque ligne indique le fichier, le changement, le gain et le risque. Rien n'est
 | c8 | Recyclage en 5 formats pour 1 crédit | 1 crédit par format, ou 3 formats par défaut | [0,2 à 0,5 $ par recyclage] | fonction moins généreuse |
 | c9 | Univers de marque de l'actu (`newsjacking-ai:99`) | Haiku ou Sonnet au lieu d'Opus | < 1 $ | presque aucun (4 listes de mots-clés) |
 
+### Décisions de Laetitia (20/10)
+
+- **Paquet (a) validé**, une seule PR, dans cet ordre :
+  1. fermer le trou de quota de `deep-diagnostic` (état d'inscription vérifié côté serveur, jamais depuis le navigateur) ;
+  2. visite de 8 h : générations payantes le lundi seulement, et comptées dans `ai_usage` ;
+  3. données de la cliente et compteur de crédits sortis de la partie mise en cache des prompts ;
+  4. quota sur les étapes gratuites de création ;
+  5. code mort de la passerelle Lovable retiré (a14) et 3 fonctions comptées dans `ai_usage` (a15).
+- **Sondes acceptées** : bilan du lundi (console contre estimation de l'app, alerte au-delà de 3 fois) ; visite du matin (nombre et coût des tests payants).
+- **Paquets (b) et (c) en attente** : décision à part, avec les vrais volumes.
+
 ### Ordre conseillé
 
-1. **c1 d'abord** (5 minutes dans la console) : si H1 se confirme, c'est le seul levier à la hauteur du pic de juillet.
+1. ~~c1 (console)~~ : fait le 20/10, H1 confirmée.
 2. **Les requêtes SQL 1 à 4**, pour remplacer le volume hypothétique par le vrai.
-3. **Paquet (a)** en une seule PR, a14 et a15 compris ; a2 se règle dans la console. Déploiement (règle de Laetitia du 20/10) : toutes les fonctions et migrations de la passe en UNE seule demande à l'agent Lovable, puis dire à Laetitia combien de demandes Lovable la session a coûté.
-4. **Paquet (b)** en une PR, avec un avant / après sur quelques générations réelles.
-5. **Paquet (c)** selon tes décisions.
+3. **Paquet (a)** en une seule PR (validé), a14 et a15 compris ; a2 se règle dans la console. Déploiement (règle de Laetitia du 20/10) : toutes les fonctions et migrations de la passe en UNE seule demande à l'agent Lovable, puis dire à Laetitia combien de demandes Lovable la session a coûté.
+4. **Paquet (b)** en une PR, avec un avant / après sur quelques générations réelles (en attente).
+5. **Paquet (c)** selon tes décisions (en attente).
