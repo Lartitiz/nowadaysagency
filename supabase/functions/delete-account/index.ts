@@ -258,6 +258,7 @@ export async function handleDeleteAccountRequest(req: Request): Promise<Response
       "workspace_members",
       "brand_profile",
       "ai_usage",
+      "ai_usage_hors_credit", // appels IA comptés sans crédit (20/10/2026)
       "profiles",
       "workspaces",
     ];
