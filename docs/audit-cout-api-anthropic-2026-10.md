@@ -454,6 +454,13 @@ Chaque ligne indique le fichier, le changement, le gain et le risque. Rien n'est
 - **Sondes acceptées** : bilan du lundi (console contre estimation de l'app, alerte au-delà de 3 fois) ; visite du matin (nombre et coût des tests payants).
 - **Paquets (b) et (c) en attente** : décision à part, avec les vrais volumes.
 
+### Vérifié le 20/10 : `AI_MODEL_DEFAULT` n'existe pas en production
+
+- Réponse de l'agent Lovable (mode Chat, lecture seule) : le secret `AI_MODEL_SONNET` existe, `AI_MODEL_DEFAULT` **n'existe pas**.
+- Donc `getDefaultModel()` rend la valeur du code, `claude-sonnet-4-6` (3 $ / 15 $), alors que le reste du tier Sonnet tourne sur `claude-sonnet-5` (2 $ / 10 $). La base le confirme sur 120 jours : `coaching_questions` et `branding_import` en `claude-sonnet-4-6`, `creative_flow` en `claude-sonnet-5` (193 générations).
+- Fonctions concernées : `analyze-branding-import`, `analyze-documents`, `analyze-excel-mapping`, `import-branding-data`, `linkedin-audit-ai`, `optimize-sales-page` (action « generation »), `coaching-module`, `assistant-chat` ; plus les littéraux `claude-sonnet-4-6` de `audit-visual-templates` et `_shared/product-fidelity.ts`.
+- Proposition (à ranger dans le paquet b, effet léger) : faire suivre `AI_MODEL_SONNET` à `getDefaultModel()`, soit −33 % sur ces appels, avec le même risque de qualité que la bascule Sonnet 5 déjà faite en juillet sur le reste.
+
 ### Ordre conseillé
 
 1. ~~c1 (console)~~ : fait le 20/10, H1 confirmée.
