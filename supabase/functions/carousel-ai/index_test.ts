@@ -713,7 +713,11 @@ for(const variant of ["text","photo","mix"]) for(const outcome of ["acceptable",
     assert(options.sources.find((s:any)=>s.id==="request").text.includes("Demandes contradictoires."));
     // Juge final : plafond par appel + temps propre de relance. Juge du récit
     // (photo/mixte, sans callTimeoutMs) : un seul appel au plafond.
-    if (options.callTimeoutMs !== undefined) {
+    // 2e juge (après réparation) : borné à sa réserve, relance comprise.
+    if (options.callTimeoutMs !== undefined && judges > 0) {
+      assertEquals(options.callTimeoutMs, options.abortTimeoutMs);
+      assert(options.abortTimeoutMs <= 45_000);
+    } else if (options.callTimeoutMs !== undefined) {
       assertEquals(options.callTimeoutMs, progressionJudgeCallMs(doc.slides.length));
       assert(options.abortTimeoutMs <= options.callTimeoutMs + PROGRESSION_FORMAT_RETRY_MS);
     } else assert(options.abortTimeoutMs <= progressionJudgeCallMs(doc.slides.length));
@@ -929,6 +933,66 @@ for (const local of [true, false]) Deno.test(`progression finale texte : budget 
       assertEquals(doc.progression_review.repair.slides, [6, 7]);
       assert(doc.progression_review.repair.expected_ms < 65_000);
       assertEquals(doc.progression_review.repair_skipped, undefined);
+    } else {
+      assertEquals([writes, judges], [1, 1]);
+      assertEquals(doc.progression_review.repair_skipped, "time-budget");
+    }
+  } finally { globalThis.fetch = oldFetch; Date.now = now; }
+});
+
+// 20/10/2026 (mobile, 15 slides) : juge fini à 173,5 s, réparation locale 32 s,
+// puis 2e juge 64 s → « invalid », carrousel à 275 s. Le 2e juge recevait le
+// plafond du 1er (63 s + 45 s de relance) au lieu des 48 s réservés pour lui.
+// Ici il consomme tout le temps qu'on lui donne : il doit s'arrêter à 48 s et
+// laisser 10 s pour finir. Fini à 185 s, réparation + 2e juge ne tiennent plus :
+// la réparation ne part pas.
+for (const judgeEndMs of [173_500, 185_000]) Deno.test(`progression finale texte : 2e juge borné à sa réserve à 15 slides (juge fini à ${judgeEndMs / 1000} s)`, async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch, now = Date.now; let offset = 0;
+  Date.now = () => now() + offset;
+  globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
+  const draft = { slides: Array.from({ length: 15 }, (_, i) => ({ slide_number: i + 1, role: i === 0 ? "hook" : i === 14 ? "conclusion" : "body", title: `Étape ${i + 1} : un choix précis à faire avant la maquette.` })),
+    caption: { body: "Un choix commun précède les modifications.", hashtags: [] } };
+  let writes = 0, judges = 0, recheck: any = null;
+  _deps.callCarouselWriter = (async (o: any, sink: any) => {
+    writes++; Object.assign(sink, { model: o.model, total_tokens: 10 });
+    await Promise.resolve();
+    if (writes === 1) { offset += 63_000; return JSON.stringify(draft); }
+    offset += 32_000;
+    return JSON.stringify({ slides: [5, 6].map((i) => ({ ...draft.slides[i], title: `Étape ${i + 1}, donc un choix relié à la précédente.` })) });
+  }) as any;
+  _deps.reviewThread = async (doc: any, options: any) => {
+    if (judges++ === 0) {
+      offset = judgeEndMs;
+      const base = await progressionReceipt(doc, "completed");
+      const report = { trajectory: { kind: "developed_idea" },
+        boundaries: doc.slides.slice(1).map((_: any, i: number) => ({ from: `slides.${i}`, to: `slides.${i + 1}`, kind: i === 5 ? "rupture" : "progression" })),
+        defects: [{ type: "rupture", severity: "major", slide_ids: ["slides.6"], reason: "Lien manquant.", repair: "Relier." }] };
+      return { ...base, verdict: "needs_repair" as const, report, issues: ["slide 7 : Lien manquant. Relier."] };
+    }
+    // 2e juge lent : il prend tout le temps accordé puis rend un rapport refusé.
+    recheck = { abort: options.abortTimeoutMs, call: options.callTimeoutMs, left: 270_000 - offset };
+    offset += options.abortTimeoutMs;
+    return progressionReceipt(doc, "invalid");
+  };
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", subject: "Choisir une direction avant de modifier", slide_count: 15 }));
+    assertEquals(res.status, 200);
+    const data = await res.json(), doc = JSON.parse(data.content);
+    assertEquals(doc.slides.length, 15);
+    assertEquals(doc.progression_review.verdict, "needs_repair");
+    assert(data.timings.total_ms <= 270_000, `total ${data.timings.total_ms}`);
+    if (judgeEndMs < 180_000) {
+      assertEquals([writes, judges], [2, 2]);
+      // judgeCapMs à 15 slides = 48 s, même plafond par appel (pas de relance en plus).
+      assertEquals(recheck.abort, 48_000);
+      assertEquals(recheck.call, 48_000);
+      assert(recheck.left - recheck.abort >= 10_000, "10 s gardées pour finir");
+      assertEquals(doc.progression_review.repair.attempted, true);
+      assertEquals(doc.progression_review.repair.accepted, false);
+      assertEquals(doc.progression_review.repair.reason, "review-invalid");
+      assertEquals(doc.slides[6].title, draft.slides[6].title, "réparation refusée : brouillon jugé conservé");
+      assert(data.timings.thread_recheck_ms <= 48_000);
     } else {
       assertEquals([writes, judges], [1, 1]);
       assertEquals(doc.progression_review.repair_skipped, "time-budget");

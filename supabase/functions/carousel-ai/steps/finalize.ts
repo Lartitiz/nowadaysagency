@@ -24,6 +24,9 @@ import { extractCarouselTexts, reinjectCarouselTexts } from "../../_shared/corre
 import { progressionMaterial } from "../../_shared/carousel-editorial-snapshot.ts";
 import { researchSourceWarnings } from "../research-sources.ts";
 
+/** Temps gardé après le 2e juge du fil pour couverture, tu/vous et envoi. */
+export const RECHECK_FINISH_MS = 10_000;
+
 // ── Queue commune de génération ──
 // ── Fil du carrousel (16/09/2026) ──
 // Relecture du carrousel ENTIER par un juge court (_shared/carousel-thread.ts),
@@ -174,16 +177,27 @@ export async function finalizeCarousel(
   // pas abouti ». Chaque appel a son plafond et la relance son propre temps ;
   // remaining() borne toujours le tout, donc le pire cas ne bouge pas.
   const judgeCallMs = progressionJudgeCallMs(doc.slides.length);
-  const judge = async (value: any, key = "thread_judge_ms"): Promise<ProgressionResult> => lap(key, () =>
-    remaining() < 8_000
-      ? progressionReceipt(value, "skipped", "time-budget")
-      : _deps.reviewThread(value, {
-        sources,
-        sourceContext: JSON.stringify(sources),
-        preserveStructure: true,
-        abortTimeoutMs: Math.min(judgeCallMs + PROGRESSION_FORMAT_RETRY_MS, remaining()),
-        callTimeoutMs: judgeCallMs,
-      }));
+  // 2e JUGE (après réparation) BORNÉ À SA RÉSERVE (20/10/2026, 15 slides) : la
+  // réserve comptait judgeCapMs (48 s) mais l'appel recevait le plafond du 1er
+  // juge (63 s + 45 s de relance), borné seulement par la fin du budget. Il a
+  // pris les 64 s restantes (67 s le 19/10), fini « invalid », et le carrousel
+  // est sorti à 275 s. Désormais il a exactement le temps réservé, relance de
+  // format comprise, et laisse toujours RECHECK_FINISH_MS pour finir.
+  const judge = async (value: any, key = "thread_judge_ms", capMs?: number): Promise<ProgressionResult> => {
+    const budgetMs = capMs === undefined
+      ? Math.min(judgeCallMs + PROGRESSION_FORMAT_RETRY_MS, remaining())
+      : Math.min(capMs, remaining() - RECHECK_FINISH_MS);
+    return lap(key, () =>
+      budgetMs < 8_000
+        ? progressionReceipt(value, "skipped", "time-budget")
+        : _deps.reviewThread(value, {
+          sources,
+          sourceContext: JSON.stringify(sources),
+          preserveStructure: true,
+          abortTimeoutMs: budgetMs,
+          callTimeoutMs: capMs === undefined ? judgeCallMs : budgetMs,
+        }));
+  };
   const ownsText = body.type === "slides" || body.user_slides?.length;
   // « Photos brutes » : les slides n'ont plus de texte (vidées après
   // l'écriture), il n'y a pas de fil à juger, réparer ni couverture à poser.
@@ -221,8 +235,9 @@ export async function finalizeCarousel(
   const expectedRepairMs = localTargets
     ? expectedLocalRepairMs(opts.expectedRepairMs || 0, localTargets.length, doc.slides.length)
     : (opts.expectedRepairMs || 0);
-  // Réserve après la réparation : le 2e juge (son plafond) + 10 s pour finir.
-  const recheckReserveMs = judgeCapMs + 10_000;
+  // Réserve après la réparation : le 2e juge (son plafond, qu'il respecte
+  // désormais, cf. judge) + 10 s pour finir.
+  const recheckReserveMs = judgeCapMs + RECHECK_FINISH_MS;
   const repairTimeoutMs = Math.min(120_000, remaining() - recheckReserveMs);
   const repairFits = repairTimeoutMs >= 30_000 && repairTimeoutMs >= expectedRepairMs;
   if (wantsRepair && !repairFits) {
@@ -324,7 +339,7 @@ export async function finalizeCarousel(
           correction: { enabled: false },
         });
         const finalCandidate: any = tryParseAiJson(measured.content);
-        const checked = await judge(finalCandidate, "thread_recheck_ms");
+        const checked = await judge(finalCandidate, "thread_recheck_ms", judgeCapMs);
         recordUsage(checked);
         candidateStatus = checked.execution_status;
         candidateVerdict = checked.verdict;
