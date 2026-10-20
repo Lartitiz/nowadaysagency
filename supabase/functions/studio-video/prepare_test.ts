@@ -58,6 +58,7 @@ Deno.test("overlong change rules get one text-only repair without dropping the s
   globalThis.fetch = async (_input, init) => {
     requests.push(JSON.parse(String((init as { body?: unknown } | undefined)?.body)));
     const input = requests.length === 1 ? first : requests.length === 2 ? {
+      invariants: ["Réécrit alors que ce champ était déjà valide."],
       allowed_changes: compactAllowed,
       forbidden_changes: "Le bol bleu et la même surface rouge restent inchangés ; aucune seconde table.",
     } : { verdict: "ok", reason: "Même surface rouge." };
@@ -80,6 +81,49 @@ Deno.test("overlong change rules get one text-only repair without dropping the s
     assertEquals(result.allowed_changes, compactAllowed);
     assert(result.forbidden_changes.includes("même surface rouge"));
     assert(buildVideoPrompt(result, 5, [{ role: "product" }]).includes("même surface rouge"));
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey == null) Deno.env.delete("ANTHROPIC_API_KEY");
+    else Deno.env.set("ANTHROPIC_API_KEY", originalKey);
+  }
+});
+
+Deno.test("too many keep-unchanged items get the same text-only repair", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = Deno.env.get("ANTHROPIC_API_KEY");
+  Deno.env.set("ANTHROPIC_API_KEY", "test-key");
+  const requests: Array<Record<string, unknown>> = [];
+  const first = {
+    summary: "Le mannequin prend le bol bleu et le repose sur la même surface rouge.",
+    scene: "Le mannequin prend le bol bleu, le soulève puis le repose sur la même surface rouge.",
+    invariants: ["Le bol bleu garde sa forme.", "La surface rouge reste la même.", "Le mannequin garde sa tenue.",
+      "Le décor du fond reste identique.", "La lumière reste douce.", "Le logo du bol reste lisible et identique sur toute la durée du plan. ".repeat(4)],
+    allowed_changes: "Les mains et le bol bougent pendant le geste.",
+    forbidden_changes: "Ne pas changer le bol bleu ni la surface rouge.",
+  };
+  const compactInvariants = ["Le bol bleu garde sa forme et son logo lisible.", "La même surface rouge reste sous le bol.",
+    "Le mannequin garde sa tenue.", "Le décor du fond et la lumière douce restent identiques."];
+  globalThis.fetch = async (_input, init) => {
+    requests.push(JSON.parse(String((init as { body?: unknown } | undefined)?.body)));
+    const input = requests.length === 1 ? first : requests.length === 2 ? {
+      invariants: compactInvariants,
+      allowed_changes: "Réécrit alors que ce champ était déjà valide.",
+      forbidden_changes: "Réécrit alors que ce champ était déjà valide.",
+    } : { verdict: "ok" };
+    return new Response(JSON.stringify({ stop_reason: "tool_use", content: [{
+      type: "tool_use", name: requests.length === 1 ? "prepare_video_clip" :
+        requests.length === 2 ? "condense_video_changes" : "audit_video_grounding", input,
+    }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    const result = await prepareVideo({ idea: "Le mannequin prend le bol" }, [{
+      name: "Bol bleu", role: "product", blob: new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" }),
+    }]);
+    assertEquals(requests.length, 3);
+    assert(!JSON.stringify(requests[1]).includes('"type":"image"'));
+    assertEquals(result.invariants, compactInvariants);
+    assertEquals(result.allowed_changes, first.allowed_changes);
+    assertEquals(result.forbidden_changes, first.forbidden_changes);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalKey == null) Deno.env.delete("ANTHROPIC_API_KEY");
