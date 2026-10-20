@@ -11,7 +11,6 @@ import { numbersIn, runTextRedacGate } from "../_shared/redac-gate.ts";
 import { parseAudienceAddress, type AudienceAddress } from "../_shared/audience-address.ts";
 import { addressPassOptions } from "../_shared/audience-address-pass.ts";
 import { collectTextSlots, enforceAudienceAddressInSlots } from "../_shared/audience-address-fields.ts";
-import { angleFamily } from "../_shared/angle-families.ts";
 import { captionAnswersText, linkedInSocleBlock } from "./socle-linkedin.ts";
 import { SYSTEM_CACHE_BREAK } from "../_shared/system-cache.ts";
 
@@ -143,7 +142,7 @@ function isParseableJson(raw: unknown): boolean {
 
 // Actions dont la réponse est du JSON (les seules soumises au parse-gate).
 // Exclues volontairement : optimize-experience & draft-recommendation (texte
-// brut) et suggest-template (retour anticipé, ne facture pas).
+// brut). (suggest-template, sans appelant, retiré le 20/10/2026.)
 const JSON_ACTIONS = new Set([
   "title", "summary", "adapt-instagram", "crosspost", "suggest-skills",
   "personalize-message", "analyze-resume", "caption-for-carousel", "improve-post",
@@ -337,58 +336,6 @@ serve(async (req) => {
       const { postContent } = params;
       systemPrompt = `${LINKEDIN_PRINCIPLES_COMPACT}\n\n${SYSTEM_CACHE_BREAK}${context}\n\n${LINKEDIN_STORYTELLING_RULES}\n\n${qualityBlocks}\n\nANALYSE ce post LinkedIn et propose une version améliorée.\n\nPOST ORIGINAL :\n"""\n${postContent}\n"""\n\nCRITÈRES D'ANALYSE :\n1. ACCROCHE (210 premiers car.) : intrigue-t-elle ? Donne-t-elle envie de cliquer "voir plus" ?\n2. STRUCTURE : paragraphes courts ? Espacement ? Lisibilité ?\n3. LONGUEUR : chaque passage apporte-t-il quelque chose au récit ?\n4. OPINION : le point de vue de l'auteur·ice est-il visible ?\n5. CONCRET : y a-t-il des exemples, des preuves, du vécu ?\n6. FIN : termine-t-elle la pensée ou le récit sans question plaquée ?\n7. TON : est-ce incarné ou ça pourrait être écrit par n'importe qui ?\n8. HASHTAGS : 0-2 max ? Pertinents ?\n9. EMOJIS : 0-2 max ? Pas excessifs ?\n10. ÉCRITURE INCLUSIVE : point médian utilisé ?\n\nRETOURNE UNIQUEMENT un JSON valide sans backticks :\n{\n  "score": 65,\n  "points_forts": ["...", "..."],\n  "points_faibles": ["...", "..."],\n  "accroche_analysis": "Les 210 premiers caractères sont... parce que...",\n  "improved_version": "Le post complet amélioré",\n  "hook_alternatives": ["Variante 1 d'accroche", "Variante 2 d'accroche"],\n  "character_count": 0,\n  "checklist": [\n    { "item": "Accroche efficace", "ok": true },\n    { "item": "Structure aérée", "ok": true },\n    { "item": "Longueur adaptée au récit", "ok": true },\n    { "item": "Opinion visible", "ok": true },\n    { "item": "Exemples concrets", "ok": true },\n    { "item": "Fin adaptée au sujet", "ok": true },\n    { "item": "Ton incarné", "ok": true },\n    { "item": "Hashtags ok", "ok": true },\n    { "item": "Emojis ok", "ok": true },\n    { "item": "Écriture inclusive", "ok": true }\n  ]\n}`;
       userPrompt = "Analyse et améliore ce post LinkedIn.";
-
-    } else if (action === "suggest-template") {
-      const { sujet: suggestSujet } = params;
-      const templateList = [
-        { id: "decryptage_expert", label: "Décryptage expert", desc: "Analyser un phénomène avec un angle neuf, sourcé et argumenté", objectif: "crédibilité" },
-        { id: "prise_de_position", label: "Prise de position", desc: "Défendre une conviction argumentée sur son métier ou secteur", objectif: "visibilité" },
-        { id: "mythe_deconstruire", label: "Mythe à déconstruire", desc: "Démonter une croyance répandue avec des preuves concrètes", objectif: "crédibilité" },
-        { id: "storytelling_pro", label: "Storytelling pro", desc: "Raconter un vécu professionnel depuis le point de vue de la personne", objectif: "confiance" },
-        { id: "etude_de_cas", label: "Étude de cas", desc: "Montrer des résultats concrets, process et transformation", objectif: "vente" },
-        { id: "coulisses_metier", label: "Coulisses métier", desc: "Montrer comment on travaille vraiment, les process et décisions", objectif: "confiance" },
-        { id: "conseil_contre_courant", label: "Conseil contre-courant", desc: "Challenger un conseil mainstream et proposer une alternative", objectif: "crédibilité" },
-        { id: "reflexion_de_fond", label: "Réflexion de fond", desc: "Prendre de la hauteur sur un enjeu sociétal lié au métier", objectif: "confiance" },
-      ];
-
-      // Use Gemini Flash for speed (classification task)
-      // Timeout + vérif du statut : sans ça, un hang de la gateway bloque l'edge function.
-      let rawContent = "{}";
-      const sugCtrl = new AbortController();
-      const sugTimer = setTimeout(() => sugCtrl.abort(), 15000);
-      try {
-        const geminiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${Deno.env.get("LOVABLE_API_KEY")}` },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash-lite",
-            messages: [
-              { role: "system", content: `Tu es un expert LinkedIn. Voici les templates disponibles :\n${templateList.map(t => `- ${t.id}: ${t.label} (${t.desc}) [objectif: ${t.objectif}]`).join("\n")}\n\nPour le sujet donné, choisis LE meilleur template et explique pourquoi en 1 phrase. Si le sujet raconte son propre vécu, privilégie storytelling_pro ou coulisses_metier ; le cas d'une cliente, etude_de_cas ; une actualité, decryptage_expert ou prise_de_position (l'actu déclenche, sa position porte le post).\nRéponds UNIQUEMENT en JSON sans backticks :\n{"template_id": "...", "reason": "..."}` },
-              { role: "user", content: `Sujet : "${suggestSujet}"` },
-            ],
-            max_tokens: 200,
-            temperature: 0.3,
-          }),
-          signal: sugCtrl.signal,
-        });
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          rawContent = geminiData?.choices?.[0]?.message?.content || "{}";
-        } else {
-          console.warn("[linkedin-ai] suggest-template gateway status", geminiRes.status);
-        }
-      } catch (e) {
-        console.warn("[linkedin-ai] suggest-template failed (timeout/réseau)", e);
-      } finally {
-        clearTimeout(sugTimer);
-      }
-      // Famille d'angle du modèle choisi (socle commun) : lue par le code, pas par l'IA.
-      const chosen = tryParseAiJson(rawContent, "linkedin-ai:suggest-template") as any;
-      const family = angleFamily(chosen?.template_id, "linkedin_templates");
-      // Don't log usage for this lightweight action
-      return new Response(JSON.stringify({ content: rawContent, family }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
 
     } else {
       return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
