@@ -4,7 +4,9 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField, adjustContentField } from "../_shared/input-validators.ts";
-import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
+import { checkQuota, getServiceClient, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
+import { logUsageHorsCredit } from "../_shared/usage-hors-credit.ts";
+import { BILLED_STEPS, freeStepsCapReached, freeStepsCapResponse } from "./free-steps-cap.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -66,7 +68,8 @@ serve(async (req) => {
     // finale et ses variantes (generate/adjust/recycle) débitent un crédit `content`.
     // Les étapes d'assistance (angles/questions/follow-up) et la dictée vocale sont
     // gratuites → on désactive le gate quota ET le logUsage pour elles.
-    const BILLED_STEPS = new Set(["generate", "adjust", "recycle"]);
+    // (Depuis le 20/10/2026, les étapes gratuites ont un plafond quotidien sans
+    // crédit : free-steps-cap.ts.)
     const isBilledStep = typeof body?.step === "string" && BILLED_STEPS.has(body.step);
 
     const r = await runPipeline(req, {
@@ -76,6 +79,9 @@ serve(async (req) => {
     });
     if (!r.ok) return r.response;
     const { userId, supabase } = r;
+    if (!isBilledStep && await freeStepsCapReached(getServiceClient(), userId, body?.workspace_id)) {
+      return freeStepsCapResponse(corsHeaders);
+    }
 
     // Champs écrits par l'IA à une étape précédente puis renvoyés par le front
     // (angle choisi, structure, accroches déjà proposées renvoyées en exclusion
@@ -407,6 +413,12 @@ serve(async (req) => {
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.
     if (isBilledStep) {
       await logUsage(userId, "content", "creative_flow", finalUsage.total_tokens, finalUsage.model, workspace_id);
+    } else {
+      // Étape gratuite : aucun crédit, mais comptée (plafond quotidien + bilan du lundi).
+      await logUsageHorsCredit({
+        source: "etape_gratuite", action: `creative_flow_${step}`, userId, workspaceId: workspace_id,
+        model: finalUsage.model, tokens: finalUsage.total_tokens,
+      });
     }
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
