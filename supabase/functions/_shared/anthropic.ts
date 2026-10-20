@@ -1,4 +1,5 @@
 // Shared Anthropic API helper for edge functions
+import { stripCacheBreakFromMessages, systemBlocks } from "./system-cache.ts";
 
 /**
  * Règle de marque : JAMAIS de tiret cadratin (—) en sortie. Le modèle en produit
@@ -282,7 +283,9 @@ export function stripTrailingAssistant(messages: AnthropicMessage[]): AnthropicM
 }
 
 function prepareMessages(model: string, messages: AnthropicMessage[]): AnthropicMessage[] {
-  return supportsTemperature(model) ? messages : stripTrailingAssistant(messages);
+  // Un system recopié dans un message (réparations) ne doit pas garder le marqueur de cache.
+  const clean = stripCacheBreakFromMessages(messages);
+  return supportsTemperature(model) ? clean : stripTrailingAssistant(clean);
 }
 
 export interface AnthropicMessage {
@@ -478,13 +481,8 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
   }
 
   if (options.system) {
-    body.system = [
-      {
-        type: "text",
-        text: options.system + toolInstruction(options.model, options.tool),
-        cache_control: { type: "ephemeral" }
-      }
-    ];
+    // Partie fixe en cache, partie propre à la cliente sans cache (system-cache.ts).
+    body.system = systemBlocks(options.system, toolInstruction(options.model, options.tool));
   }
 
   // Opus 4.8/4.7 rejettent `temperature` (400) — on ne l'envoie que si le modèle l'accepte.
@@ -708,13 +706,8 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
   }
 
   if (options.system) {
-    body.system = [
-      {
-        type: "text",
-        text: options.system + toolInstruction(options.model, options.tool),
-        cache_control: { type: "ephemeral" }
-      }
-    ];
+    // Partie fixe en cache, partie propre à la cliente sans cache (system-cache.ts).
+    body.system = systemBlocks(options.system, toolInstruction(options.model, options.tool));
   }
 
   // Opus 4.8/4.7 rejettent `temperature` (400) — on ne l'envoie que si le modèle l'accepte.

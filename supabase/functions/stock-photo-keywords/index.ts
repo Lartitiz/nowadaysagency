@@ -20,6 +20,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { tryParseAiObject } from "../_shared/parse-ai-json.ts";
+import { logUsageHorsCredit } from "../_shared/usage-hors-credit.ts";
 
 const BodySchema = z.object({
   subject: z.string().min(1).max(2000),
@@ -137,6 +138,11 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown) :
 
   const aiData = await aiResponse.json().catch(() => ({}));
   const text: string = aiData?.choices?.[0]?.message?.content || "";
+  // Sans crédit, mais compté hors crédit (bilan du lundi, audit de coût du 20/10/2026).
+  await logUsageHorsCredit({
+    source: "passerelle_lovable", action: "stock_photo_keywords", userId: r.userId,
+    model: "google/gemini-2.5-flash", tokens: aiData?.usage?.total_tokens ?? null,
+  });
   const parsed = tryParseAiObject<{ primary?: unknown; primary_fr?: unknown; keywords?: unknown; keywords_fr?: unknown }>(text, "stock-photo-keywords");
   if (!parsed) {
     console.error("[stock-photo-keywords] réponse IA non parsable", text.slice(0, 200));

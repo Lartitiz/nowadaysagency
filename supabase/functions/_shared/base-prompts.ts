@@ -1,3 +1,5 @@
+// Limite du cache du prompt système, réexportée pour les fichiers qui assemblent BASE_SYSTEM_RULES + données.
+export { SYSTEM_CACHE_BREAK } from "./system-cache.ts";
 export const BASE_SYSTEM_RULES = `
 RÈGLES ABSOLUES :
 - Tu ne dis JAMAIS de gros mots, de jurons, ni de langage vulgaire (pas de "merde", "fais chier", "putain", "bordel", etc.). Tu restes toujours courtois·e, professionnel·le et bienveillant·e, même quand tu es direct·e.

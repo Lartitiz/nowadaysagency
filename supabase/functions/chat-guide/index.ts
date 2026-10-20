@@ -5,6 +5,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { parseActionLinks, parsePlanPosts } from "../_shared/chat-markers.ts";
+import { SYSTEM_CACHE_BREAK, systemBlocks } from "../_shared/system-cache.ts";
 
 /** Parse [SUGGESTION:...] from AI text */
 function parseSuggestions(text: string): { cleanText: string; suggestions: string[] } {
@@ -279,7 +280,7 @@ async function streamAnthropicSSE(
       },
       body: JSON.stringify({
         model,
-        system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+        system: systemBlocks(systemPrompt),
         messages: sampled ? messages : stripTrailingAssistant(messages as any),
         ...(sampled ? { temperature } : {}),
         // assistant_chat = Opus 5.5 : réflexion toujours active (disabled → 400),
@@ -391,14 +392,14 @@ Deno.serve(async (req) => {
       contextBlock = "Contexte non disponible.";
     }
 
-    // System prompt (same as before)
-    const systemPrompt = `Tu es l'Assistant Com' de Nowadays Agency. Tu es la binôme de communication de l'utilisatrice. Tu la connais déjà grâce à son profil.
-
-CONTEXTE DU COMPTE :
-${contextBlock}
+    // System prompt. Audit de coût du 20/10/2026 : le CONTEXTE DU COMPTE (fiche,
+    // brouillons, compteur de crédits du mois, qui change à chaque échange) passe
+    // APRÈS les règles fixes, derrière la limite du cache : les règles sont relues
+    // d'un message à l'autre au lieu d'être réécrites à chaque tour.
+    const systemPrompt = `Tu es l'Assistant Com' de Nowadays Agency. Tu es la binôme de communication de l'utilisatrice. Tu la connais déjà grâce à son profil (CONTEXTE DU COMPTE, en fin de consignes).
 
 ═══ RÈGLE N°1 (LA PLUS IMPORTANTE) ═══
-Tu as accès à TOUT le branding de l'utilisatrice ci-dessus.
+Tu as accès à TOUT le branding de l'utilisatrice (CONTEXTE DU COMPTE, en fin de consignes).
 - Si une section est remplie (pas de ❌) : tu la CONNAIS. Tu ne la redemandes JAMAIS.
 - Si l'utilisatrice te parle de sa cible, ses offres, son histoire, son ton : UTILISE ce que tu sais déjà et complète avec des questions ciblées sur ce qui manque.
 - Si elle dit "tu l'as pas en mémoire ?" : montre-lui que si, tu sais. Cite ce que tu connais d'elle.
@@ -514,7 +515,10 @@ Règles pour les suggestions :
 - Basées sur son activité, ses offres, ses piliers
 - Jamais génériques ("Créer un post")
 - Variées en format (post, carrousel, reel, newsletter)
-- Adaptées à la saison si pertinent`;
+- Adaptées à la saison si pertinent
+${SYSTEM_CACHE_BREAK}
+CONTEXTE DU COMPTE :
+${contextBlock}`;
 
     // Build messages
     const history = Array.isArray(conversationHistory) ? conversationHistory.slice(-10) : [];

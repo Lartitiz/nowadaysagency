@@ -122,6 +122,19 @@ Deno.test("onboarding, profil seul, sans source : diagnostic, espace propre, auc
   await assertSnapshot(t, r);
 });
 
+Deno.test("navigateur dit onboarding mais démarrage déjà fini : diagnostic compté comme un audit (1 crédit)", async () => {
+  // Trou fermé le 20/10/2026 : avant, `isOnboarding: true` envoyé par le
+  // navigateur suffisait à sauter le quota et le crédit.
+  const r = await appeler(
+    monde("u-onb-fini", { claude: [DIAGNOSTIC], tables: { profiles: [{ user_id: "u-onb-fini", onboarding_completed: true, bonus_credits: 0 }] } }),
+    { profile: PROFIL, freeformAnswers: REPONSES, isOnboarding: true },
+  );
+  assertEquals(r.status, 200);
+  assertEquals(r.credits.length, 1, "1 crédit audit débité");
+  assertEquals(r.credits[0].category, "audit");
+  assertEquals(r.insertions.ai_usage_hors_credit ?? [], [], "rien en hors crédit : c'est un audit payé");
+});
+
 Deno.test("onboarding avec « À propos » rempli : source about, pas de lecture LinkedIn", async (t) => {
   const r = await appeler(monde("u-onb-about", { claude: [DIAGNOSTIC] }), {
     profile: PROFIL, isOnboarding: true, linkedinUrl: "https://www.linkedin.com/in/test",

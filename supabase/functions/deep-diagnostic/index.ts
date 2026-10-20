@@ -11,6 +11,7 @@ import { DIAGNOSTIC_SYSTEM_PROMPT, buildDiagnosticUserPrompt } from "./prompts.t
 import { collectDiagnosticSources } from "./sources.ts";
 import { startBrandingEnrichment } from "./enrichment.ts";
 import { saveDiagnostic } from "./save.ts";
+import { inscriptionEnCours } from "./inscription.ts";
 
 // Réexports : index_test.ts importe ces fonctions depuis ./index.ts.
 export { normalizeDiagnosticRoute } from "./routes.ts";
@@ -85,8 +86,12 @@ export async function handleDeepDiagnostic(req: Request): Promise<Response> {
       if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
     }
 
-    // Check quota (diagnostic = 3 credits, category: audit) — skip during onboarding
-    if (!isOnboarding) {
+    // Diagnostic gratuit seulement si l'INSCRIPTION est réellement en cours,
+    // lue côté serveur (inscription.ts) : le champ `isOnboarding` du navigateur
+    // ne décide plus de la facturation (il garde son rôle d'espace et de fiche
+    // « à valider » pour l'enrichissement).
+    const inscription = isOnboarding ? await inscriptionEnCours(supabaseAdmin, userId) : false;
+    if (!inscription) {
       const quota = await checkQuota(userId, "audit", workspaceId);
       if (!quota.allowed) {
         clearTimeout(timeout);
@@ -139,7 +144,7 @@ export async function handleDeepDiagnostic(req: Request): Promise<Response> {
       sourcesUsed,
       userId,
       workspaceId,
-      isOnboarding: !!isOnboarding,
+      isOnboarding: inscription,
     });
     finalizeDiagnosticEvidence(analysisResult, sourcesUsed, sourcesFailed, instagramScreenshots.length);
 

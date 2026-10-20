@@ -37,6 +37,7 @@ import {
   discoverLinksFromHtml,
   isSameSite,
 } from "../_shared/scraping.ts";
+import { SYSTEM_CACHE_BREAK } from "../_shared/system-cache.ts";
 
 /* ─── Constants ─── */
 const GLOBAL_TIMEOUT_MS = 60_000;
@@ -462,7 +463,8 @@ serve(async (req) => {
     }).join("\n");
 
     // Build AI prompt
-    const systemPrompt = `${buildIdentityBlock(ctx.profile, "experte en conversion web et UX")}
+    // Pages du site dans le system, jamais relues : aucun cache (audit de coût du 20/10/2026).
+    const systemPrompt = `${SYSTEM_CACHE_BREAK}${buildIdentityBlock(ctx.profile, "experte en conversion web et UX")}
 
 DONNÉES DU SITE :
 ${pagesDataText}

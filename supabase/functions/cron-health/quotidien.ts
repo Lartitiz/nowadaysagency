@@ -11,6 +11,7 @@ import { DAY, fetchAllRows, HOUR } from "./lecture.ts";
 import { photoroomCredits } from "./photoroom.ts";
 import { facturationHealth } from "./facturation.ts";
 import { higgsfieldBudget } from "./higgsfield-budget.ts";
+import { compteTest24h, lireHorsCredit } from "./hors-credit.ts";
 
 export async function bilanQuotidien({ supabase, now, isClient, emailOf }: {
   supabase: any;
@@ -18,7 +19,7 @@ export async function bilanQuotidien({ supabase, now, isClient, emailOf }: {
   isClient: (userId: string) => boolean;
   emailOf: Map<string, string>;
 }) {
-    const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, sante, higgsfield, cronsPg, studioBloquees] = await Promise.all([
+    const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, sante, higgsfield, cronsPg, studioBloquees, horsCredit] = await Promise.all([
       fetchAllRows(
         supabase,
         "calendar_posts",
@@ -42,6 +43,7 @@ export async function bilanQuotidien({ supabase, now, isClient, emailOf }: {
       higgsfieldBudget(supabase, now),
       lireCronsPg(supabase, now), // automates pg_cron
       studioImagesBloquees(supabase, now), // images Studio « en cours » > 1 h
+      lireHorsCredit(supabase, now - DAY), // générations du compte de recette (visite du matin)
     ]);
     const posts = postsRows.filter((p: any) => isClient(p.user_id));
     const conns = connRows.filter((c: any) => isClient(c.user_id));
@@ -136,6 +138,7 @@ export async function bilanQuotidien({ supabase, now, isClient, emailOf }: {
       photoroom_credits: photoroom,
       higgsfield,
       facturation,
+      compte_test_24h: compteTest24h(horsCredit, now), // sonde 🧪 coût de la visite
       ...sante, // client_errors_24h (vraies clientes, internes à part) + emails_24h
     };
 }

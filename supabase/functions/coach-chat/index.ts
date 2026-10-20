@@ -8,6 +8,7 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { SYSTEM_CACHE_BREAK } from "../_shared/system-cache.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -120,10 +121,12 @@ Tu peux sauter des questions si le profil branding y répond déjà. Tu peux en 
 IMPORTANT : Le marqueur [BRIEF_COMPLETE] doit apparaître UNIQUEMENT quand tu as posé au moins 3 questions ET reçu les réponses. Ne l'ajoute jamais prématurément.
 ` : "";
 
+    // Limite du cache (audit de coût du 20/10/2026) : règles fixes en cache,
+    // identité et contexte de la cliente hors cache.
     const systemPrompt = buildSystemPrompt(
       CONTENT_VOICE_RULES,
       ANTI_PATTERNS,
-      isPreGen ? preGenBlock : `${buildIdentityBlock(ctx.profile, "coach communication")}
+      SYSTEM_CACHE_BREAK + (isPreGen ? preGenBlock : `${buildIdentityBlock(ctx.profile, "coach communication")}
 
 TON RÔLE : Tu es une alliée, pas une experte en surplomb. Tu aides cette personne à communiquer avec authenticité et efficacité.
 
@@ -184,7 +187,7 @@ LIMITES :
 - Si la question est trop vaste, pose UNE question de clarification
 - Si tu ne sais pas, dis-le franchement
 - Commence souvent par valider ce que la personne dit avant de donner ton conseil
-- Réponds en markdown (gras, italique) mais pas de titres h1/h2`,
+- Réponds en markdown (gras, italique) mais pas de titres h1/h2`),
       isPreGen ? `PROFIL DE LA PERSONNE :\n${brandingContext || "Aucun profil branding renseigné pour le moment."}` : ""
     );
 

@@ -28,6 +28,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock
 import { isSafePublicUrl, safeFetchFollow } from "../_shared/scraping.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { readOwnerProfile } from "../_shared/profile-owner.ts";
+import { SYSTEM_CACHE_BREAK } from "../_shared/system-cache.ts";
 
 // Borne chaque fetch de scraping : un site qui pend ne doit pas manger le budget
 // temps de l'audit (l'appel IA a besoin de la quasi-totalité des 190s du client).
@@ -263,7 +264,8 @@ Deno.serve(async (req) => {
       sourceText += `\n\n══ SOURCE : ${key.toUpperCase()} ══\n${val}`;
     }
 
-    const systemPrompt = `${buildIdentityBlock(ctx?.profile, "experte en communication et branding")}
+    // Identité de la cliente en tête, appel unique : aucun cache (audit de coût du 20/10/2026).
+    const systemPrompt = `${SYSTEM_CACHE_BREAK}${buildIdentityBlock(ctx?.profile, "experte en communication et branding")}
 L'utilisatrice te donne toutes les sources de sa communication actuelle. Fais un audit complet, bienveillant mais honnête.
 
 RÈGLES :

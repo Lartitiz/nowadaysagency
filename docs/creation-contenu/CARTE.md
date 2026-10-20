@@ -241,6 +241,7 @@ pinterest_photo. Les alias sont dans `ALIASES`. Un carrousel LinkedIn est
 | `research.ts` | Recherches qui ajoutent des faits au prompt : `skipDepthResearch`, `creativeDepthBlock` (« creuser le sujet »), `runDeepResearchWebSearch` (recherche web, crédit `deep_research` seulement si elle réussit) | posts, reels, stories |
 | `telemetry.ts` | `logGenerationQualityTelemetry` : note du texte final dans `content_quality_events`, sans appel IA | stories, reel, LinkedIn |
 | `call-options.ts` | `callOptionsForStep` : modèle, tokens, température, délai et outil structuré par étape (fonction pure, `call-options_test.ts`) | tous les formats |
+| `free-steps-cap.ts` | `freeStepsCapReached` : plafond quotidien des étapes gratuites (angles, questions, suite, accroches, dictée), 30 par jour en gratuit et 150 en payant, sans crédit ; compteur dans `ai_usage_hors_credit` (audit de coût du 20/10/2026, `free-steps-cap_test.ts`) | tous les formats |
 | `formats/linkedin.ts` | `runLinkedInTwoStep`, `applyLinkedInCorrectionPass`, `streamLinkedInPhotoVision`, brief fictif | LinkedIn |
 | `formats/newsletter.ts` | `runNewsletterTwoStep`, `applyNewsletterCorrectionPass` | la newsletter |
 | `formats/stories.ts` | `applyStoriesCorrectionPass`, `finalizeRecycledStories`, lectures en base du brief (`loadStoriesGenerateData` : garde-fou 3 séquences vente en 7 jours, catalogue photos) | les stories, y compris recyclées |

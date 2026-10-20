@@ -46,6 +46,9 @@ const NEUTRAL = new Set([
   "anthropic", "anthropic-stream", "auth", "cors", "guard-demo", "image-utils", "input-validators", "internal-grant",
   "parse-ai-json", "photo-slide-structure", "plan-limiter", "rate-limiter", "request-pipeline", "safe-fetch", "scraping",
   "workspace-guard",
+  // Audit de coût du 20/10/2026 : limite du cache du prompt système, et appels
+  // comptés sans crédit. Infrastructure, aucune règle d'écriture ni de design.
+  "system-cache", "usage-hors-credit",
 ]);
 
 /**

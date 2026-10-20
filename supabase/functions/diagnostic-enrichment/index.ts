@@ -2,7 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateSitePalette } from "../_shared/validate-site-palette.ts";
-import { AnthropicError, callAnthropic, getModelForAction, type AnthropicTool } from "../_shared/anthropic.ts";
+import { AnthropicError, getModelForAction, type AnthropicTool } from "../_shared/anthropic.ts";
+import { appelEnrichissement } from "./appel.ts";
 import { parseAiJson } from "../_shared/parse-ai-json.ts";
 // (import logUsage retiré — l'enrichissement ne décompte plus de crédit, voir note dans le handler)
 
@@ -216,9 +217,7 @@ Précisions importantes :
 - Pour starter_ideas : EXACTEMENT 5 idées de premiers contenus, ULTRA-spécifiques à CETTE activité — jamais de générique passe-partout type "Les coulisses de mon travail" sans contexte métier. TEST DU NOM ÉCHANGEABLE : si l'idée fonctionnerait telle quelle pour une concurrente du même secteur, elle est trop vague — ancre-la dans un détail spécifique de CETTE activité. Jamais de sujet sur la communication/les réseaux (sauf si c'est son métier), jamais de chiffre inventé. Chaque titre = un sujet concret prêt à être généré tel quel (10-15 mots max), formulé comme la personne le dirait elle-même. Ancre chaque idée dans les piliers de contenu, l'activité, la cible et les combats détectés (exemple céramiste : "Pourquoi je refuse de produire en série, même quand ça se vend"). Varie les objectifs (visibilité, confiance, vente) et privilégie le canal principal détecté. Formats simples de préférence (post, carousel).`;
 
     const opusModel = getModelForAction("branding_audit");
-    // Pas de logUsage ici : le diagnostic = 1 acte métier = 1 crédit "audit", déjà
-    // décompté par deep-diagnostic (le parent). En logger un 2e ici facturait l'audit
-    // en double — et même 1 crédit parasite pendant l'onboarding (où le parent skippe).
+    // Aucun crédit ici (déjà décompté par deep-diagnostic, sinon double facture) ; coût compté hors crédit (appel.ts).
 
     // Budget temps borné explicitement : chaque étape n'a qu'une tentative dans
     // callAnthropic. Sans maxRetries: 0, son retry interne multiplierait chaque
@@ -236,7 +235,7 @@ Précisions importantes :
 
     const runEnrichmentCall = async (abortTimeoutMs: number, extraInstruction?: string) => {
       const prompt = extraInstruction ? `${userPrompt}\n\n${extraInstruction}` : userPrompt;
-      const raw = await callAnthropic({
+      const raw = await appelEnrichissement({
         model: opusModel,
         system: enrichmentSystemPrompt,
         messages: [{ role: "user", content: prompt }],
@@ -245,7 +244,7 @@ Précisions importantes :
         tool: ENRICHMENT_TOOL,
         abortTimeoutMs,
         maxRetries: 0,
-      });
+      }, { isOnboarding, userId, workspaceId });
       return parseAiJson(raw, "diagnostic-enrichment"); // JSON valide par construction (tool forcé)
     };
 

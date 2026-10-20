@@ -371,11 +371,16 @@ Deno.test("checkQuota: compte QA → autorisé même au-delà des limites, avec 
   assertEquals(r.remaining_total, 9999);
 });
 
-Deno.test("logUsage: compte QA → aucune écriture ai_usage, aucun bonus consommé", async () => {
+Deno.test("logUsage: compte QA → aucune écriture ai_usage, aucun bonus consommé, 1 ligne hors crédit", async () => {
   const client = fakeClient({ userPlan: "free", usage: rows(50, "content"), bonusCredits: 5 });
   // deno-lint-ignore no-explicit-any
-  await logUsage(QA_UUID, "content", "create", undefined, undefined, undefined, client as any);
-  assertEquals(client._inserted.length, 0);
+  await logUsage(QA_UUID, "content", "create", 1200, "claude-sonnet-5", undefined, client as any);
+  // Coût visible (bilan du lundi) sans crédit : seule écriture, dans la table hors crédit.
+  assertEquals(client._inserted.length, 1);
+  assertEquals(client._inserted[0]._table, "ai_usage_hors_credit");
+  assertEquals(client._inserted[0].source, "compte_test");
+  assertEquals(client._inserted[0].tokens_used, 1200);
+  assertEquals(client._rpcCalls.filter((c) => c.name === "record_ai_usage").length, 0);
   assertEquals(client._rpcCalls.filter((c) => c.name === "consume_bonus_credit").length, 0);
 });
 

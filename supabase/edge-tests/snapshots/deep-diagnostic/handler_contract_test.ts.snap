@@ -51,7 +51,7 @@ snapshot[`onboarding, profil seul, sans source : diagnostic, espace propre, aucu
         },
       ],
     },
-    id: "diagnostic_results-1",
+    id: "diagnostic_results-2",
     sources_failed: [],
     sources_used: [],
     success: true,
@@ -145,6 +145,16 @@ Ce qui te rend unique : pièces uniques faites main
     },
   ],
   insertions: {
+    ai_usage_hors_credit: [
+      {
+        action_type: "deep_diagnostic",
+        model_used: "claude-sonnet-4-6",
+        source: "inscription",
+        tokens_used: 150,
+        user_id: "u-onb-profil",
+        workspace_id: "espace-propre",
+      },
+    ],
     audit_recommendations: [
       {
         completed: false,
@@ -288,11 +298,14 @@ Photographie une pièce.
     ],
   },
   requetes: [
+    "GET profiles select=onboarding_completed user_id=eq.u-onb-profil",
     "GET social_connections select=* user_id=eq.u-onb-profil platform=eq.instagram workspace_id=eq.espace-propre",
     "GET social_connections select=* user_id=eq.u-onb-profil platform=eq.linkedin workspace_id=eq.espace-propre",
     "GET social_connections select=* user_id=eq.u-onb-profil platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
+    "GET user_plan_config select=onboarding_completed user_id=eq.u-onb-profil",
     "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
     "GET workspace_members select=workspace_id user_id=eq.u-onb-profil role=eq.owner",
+    "POST ai_usage_hors_credit",
     "POST audit_recommendations",
     "POST diagnostic_results select=id",
     "auth GET /user",
@@ -354,7 +367,7 @@ snapshot[`onboarding avec « À propos » rempli : source about, pas de lecture 
         },
       ],
     },
-    id: "diagnostic_results-1",
+    id: "diagnostic_results-2",
     sources_failed: [],
     sources_used: [
       "about",
@@ -452,6 +465,16 @@ Je façonne des bols et des tasses en grès dans mon atelier à Lyon.
     },
   ],
   insertions: {
+    ai_usage_hors_credit: [
+      {
+        action_type: "deep_diagnostic",
+        model_used: "claude-sonnet-4-6",
+        source: "inscription",
+        tokens_used: 150,
+        user_id: "u-onb-about",
+        workspace_id: "espace-propre",
+      },
+    ],
     audit_recommendations: [
       {
         completed: false,
@@ -597,11 +620,14 @@ Photographie une pièce.
     ],
   },
   requetes: [
+    "GET profiles select=onboarding_completed user_id=eq.u-onb-about",
     "GET social_connections select=* user_id=eq.u-onb-about platform=eq.instagram workspace_id=eq.espace-propre",
     "GET social_connections select=* user_id=eq.u-onb-about platform=eq.linkedin workspace_id=eq.espace-propre",
     "GET social_connections select=* user_id=eq.u-onb-about platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
+    "GET user_plan_config select=onboarding_completed user_id=eq.u-onb-about",
     "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
     "GET workspace_members select=workspace_id user_id=eq.u-onb-about role=eq.owner",
+    "POST ai_usage_hors_credit",
     "POST audit_recommendations",
     "POST diagnostic_results select=id",
     "auth GET /user",
@@ -1489,7 +1515,7 @@ snapshot[`réponse vide puis bonne : 2 appels, le 2e avec la consigne corrective
         },
       ],
     },
-    id: "diagnostic_results-1",
+    id: "diagnostic_results-2",
     sources_failed: [],
     sources_used: [],
     success: true,
@@ -1839,6 +1865,16 @@ Ce qui te rend unique : pièces uniques faites main
     },
   ],
   insertions: {
+    ai_usage_hors_credit: [
+      {
+        action_type: "deep_diagnostic",
+        model_used: "claude-sonnet-4-6",
+        source: "inscription",
+        tokens_used: 150,
+        user_id: "u-espace-onb",
+        workspace_id: "espace-propre",
+      },
+    ],
     audit_recommendations: [
       {
         completed: false,
@@ -1982,12 +2018,15 @@ Photographie une pièce.
     ],
   },
   requetes: [
+    "GET profiles select=onboarding_completed user_id=eq.u-espace-onb",
     "GET social_connections select=* user_id=eq.u-espace-onb platform=eq.instagram workspace_id=eq.espace-propre",
     "GET social_connections select=* user_id=eq.u-espace-onb platform=eq.linkedin workspace_id=eq.espace-propre",
     "GET social_connections select=* user_id=eq.u-espace-onb platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
+    "GET user_plan_config select=onboarding_completed user_id=eq.u-espace-onb",
     "GET workspace_members select=role workspace_id=eq.espace-cliente user_id=eq.u-espace-onb",
     "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
     "GET workspace_members select=workspace_id user_id=eq.u-espace-onb role=eq.owner",
+    "POST ai_usage_hors_credit",
     "POST audit_recommendations",
     "POST diagnostic_results select=id",
     "auth GET /user",
@@ -2280,7 +2319,7 @@ snapshot[`site en cache avec indices de style : source website, indices transmis
         },
       ],
     },
-    id: "diagnostic_results-1",
+    id: "diagnostic_results-2",
     sources_failed: [],
     sources_used: [
       "website",
@@ -2352,13 +2391,16 @@ Atelier de céramique à Lyon. Réserver un atelier.
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
 - Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
   requetes: [
+    "GET profiles select=onboarding_completed user_id=eq.u-site-cache",
     "GET scrape_cache select=content,style_hints user_id=eq.u-site-cache url=eq.monsite.fr created_at=gte.<date>",
     "GET scrape_cache select=content,style_hints user_id=eq.u-site-cache url=eq.monsite.fr created_at=gte.<date>",
     "GET social_connections select=* user_id=eq.u-site-cache platform=eq.instagram workspace_id=eq.espace-propre",
     "GET social_connections select=* user_id=eq.u-site-cache platform=eq.linkedin workspace_id=eq.espace-propre",
     "GET social_connections select=* user_id=eq.u-site-cache platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
+    "GET user_plan_config select=onboarding_completed user_id=eq.u-site-cache",
     "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
     "GET workspace_members select=workspace_id user_id=eq.u-site-cache role=eq.owner",
+    "POST ai_usage_hors_credit",
     "POST audit_recommendations",
     "POST diagnostic_results select=id",
     "auth GET /user",
@@ -2407,13 +2449,16 @@ Atelier de céramique à Lyon.
     },
   ],
   requetes: [
+    "GET profiles select=onboarding_completed user_id=eq.u-site-sans-style",
     "GET scrape_cache select=content,style_hints user_id=eq.u-site-sans-style url=eq.monsite.fr created_at=gte.<date>",
     "GET scrape_cache select=content,style_hints user_id=eq.u-site-sans-style url=eq.monsite.fr created_at=gte.<date>",
     "GET social_connections select=* user_id=eq.u-site-sans-style platform=eq.instagram workspace_id=eq.espace-propre",
     "GET social_connections select=* user_id=eq.u-site-sans-style platform=eq.linkedin workspace_id=eq.espace-propre",
     "GET social_connections select=* user_id=eq.u-site-sans-style platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
+    "GET user_plan_config select=onboarding_completed user_id=eq.u-site-sans-style",
     "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
     "GET workspace_members select=workspace_id user_id=eq.u-site-sans-style role=eq.owner",
+    "POST ai_usage_hors_credit",
     "POST audit_recommendations",
     "POST diagnostic_results select=id",
     "auth GET /user",
@@ -2476,7 +2521,7 @@ snapshot[`capture lisible : instagram_screenshot ajouté à sources_used DANS la
         },
       ],
     },
-    id: "diagnostic_results-1",
+    id: "diagnostic_results-2",
     sources_failed: [],
     sources_used: [
       "instagram_screenshot",
@@ -2529,12 +2574,15 @@ Ce qui te rend unique : pièces uniques faites main
     },
   ],
   requetes: [
+    "GET profiles select=onboarding_completed user_id=eq.u-capture",
     "GET social_connections select=* user_id=eq.u-capture platform=eq.instagram workspace_id=eq.espace-propre",
     "GET social_connections select=* user_id=eq.u-capture platform=eq.linkedin workspace_id=eq.espace-propre",
     "GET social_connections select=* user_id=eq.u-capture platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
     "GET user_documents select=id,file_name,file_url,file_type id=in.(doc-1) user_id=eq.u-capture",
+    "GET user_plan_config select=onboarding_completed user_id=eq.u-capture",
     "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
     "GET workspace_members select=workspace_id user_id=eq.u-capture role=eq.owner",
+    "POST ai_usage_hors_credit",
     "POST audit_recommendations",
     "POST diagnostic_results select=id",
     "auth GET /user",
@@ -2577,14 +2625,17 @@ Ce qui te rend unique : pièces uniques faites main
 - Chaque force/faiblesse a une preuve concrète dans le "detail". Ne transforme pas une hypothèse en observation.
 - Chaque priorité a un premier geste et un exemple utile, sans fait inventé.\`,
   requetes: [
+    "GET profiles select=onboarding_completed user_id=eq.u-echecs",
     "GET scrape_cache select=content,style_hints user_id=eq.u-echecs url=eq.monsite.fr created_at=gte.<date>",
     "GET scrape_cache select=content,style_hints user_id=eq.u-echecs url=eq.monsite.fr created_at=gte.<date>",
     "GET social_connections select=* user_id=eq.u-echecs platform=eq.instagram workspace_id=eq.espace-propre",
     "GET social_connections select=* user_id=eq.u-echecs platform=eq.linkedin workspace_id=eq.espace-propre",
     "GET social_connections select=* user_id=eq.u-echecs platform=eq.linkedin_analytics workspace_id=eq.espace-propre",
     "GET user_documents select=id,file_name,file_url,file_type id=in.(doc-absent) user_id=eq.u-echecs",
+    "GET user_plan_config select=onboarding_completed user_id=eq.u-echecs",
     "GET workspace_members select=user_id workspace_id=eq.espace-propre role=eq.owner",
     "GET workspace_members select=workspace_id user_id=eq.u-echecs role=eq.owner",
+    "POST ai_usage_hors_credit",
     "POST audit_recommendations",
     "POST diagnostic_results select=id",
     "auth GET /user",

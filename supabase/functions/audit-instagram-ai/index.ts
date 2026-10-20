@@ -9,6 +9,7 @@ import { authenticateEdgeUser } from "../_shared/edge-auth.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { tryParseAiObject } from "../_shared/parse-ai-json.ts";
+import { SYSTEM_CACHE_BREAK, stripCacheBreak } from "../_shared/system-cache.ts";
 
 const AuditInstagramSchema = z.object({
   auditTextData: z.object({
@@ -265,7 +266,7 @@ serve(async (req) => {
     }
 
     const systemPrompt = `${CORE_PRINCIPLES}
-${profileTextBlock}
+${SYSTEM_CACHE_BREAK}${profileTextBlock}
 ${publicProfileBlock}
 
 ${bc || wc || rh || obj ? `RÉPONSES COMPLÉMENTAIRES :
@@ -467,7 +468,7 @@ Réponds en JSON :
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
             messages: [
-              { role: "system", content: systemPrompt },
+              { role: "system", content: stripCacheBreak(systemPrompt) },
               { role: "user", content: userText },
             ],
             temperature: 0.7,

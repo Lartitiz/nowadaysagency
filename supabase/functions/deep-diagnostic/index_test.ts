@@ -76,6 +76,7 @@ Deno.test("échec IA -> fallback renvoyé SANS logUsage (aucune ligne ai_usage)"
     // …mais AUCUN crédit débité : c'est LA régression du fix #843.
     assertEquals(usageLog, null);
     assertEquals(mock.aiUsageInserts.length, 0);
+    assertEquals(mock.horsCreditInserts.length, 0, "échec IA : rien n'est compté");
   } finally {
     mock.restore();
   }
@@ -90,6 +91,10 @@ Deno.test("onboarding : succès IA -> pas de logUsage (diagnostic d'onboarding g
     assertEquals(analysisResult._fallback, undefined);
     assertEquals(usageLog, null);
     assertEquals(mock.aiUsageInserts.length, 0);
+    // Gratuit mais visible : une ligne hors crédit (source inscription).
+    assertEquals(mock.horsCreditInserts.length, 1);
+    assertEquals(mock.horsCreditInserts[0].source, "inscription");
+    assertEquals(mock.horsCreditInserts[0].action_type, "deep_diagnostic");
   } finally {
     mock.restore();
   }

@@ -1,5 +1,9 @@
 // Test de charge des GARDES de quota sous concurrence (pas de la génération elle-même).
 //
+// ⚠️ HORS SERVICE depuis le 20/10/2026 : sa cible `suggest-format` (Gemini, sans appelant)
+//    a été retirée (audit de coût API). Pour le relancer, choisir une autre edge
+//    légère soumise au quota et adapter `oneCall`.
+//
 // Envoie N appels concurrents à une edge quota-gated légère (suggest-format, Gemini
 // Flash, ne persiste AUCUNE donnée → zéro pollution du compte) et vérifie que :
 //   - le pipeline tient la concurrence (pas de crash, latences raisonnables) ;

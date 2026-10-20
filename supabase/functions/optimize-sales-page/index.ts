@@ -26,6 +26,7 @@ import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isSafePublicUrl } from "../_shared/scraping.ts";
+import { SYSTEM_CACHE_BREAK } from "../_shared/system-cache.ts";
 
 /* ─── Constants ─── */
 const PAGE_TIMEOUT_MS = 15_000;
@@ -294,7 +295,8 @@ serve(async (req) => {
     ].filter(Boolean).join("\n");
 
     // Build AI prompt
-    const systemPrompt = `Tu es une experte en copywriting de pages de vente.
+    // Page de vente dans le system, jamais relue : aucun cache (audit de coût du 20/10/2026).
+    const systemPrompt = `${SYSTEM_CACHE_BREAK}Tu es une experte en copywriting de pages de vente.
 
 CONTENU ACTUEL DE LA PAGE :
 ${contentBlock}

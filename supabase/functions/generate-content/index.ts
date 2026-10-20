@@ -14,6 +14,7 @@ import { numbersIn, runTextRedacGate } from "../_shared/redac-gate.ts";
 import { parseAudienceAddress, type AudienceAddress } from "../_shared/audience-address.ts";
 import { addressPassOptions } from "../_shared/audience-address-pass.ts";
 import { enforceAudienceAddressInJsonText, enforceAudienceAddressInText } from "../_shared/audience-address-fields.ts";
+import { SYSTEM_CACHE_BREAK } from "../_shared/system-cache.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -105,7 +106,7 @@ serve(async (req) => {
       const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
       const profileBlock = buildProfileBlock(profile || {});
       const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "");
-      systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nIMPORTANT :\n- Utilise le ton, le vocabulaire et le style de l'utilisatrice\n- Le contenu doit sonner authentique, pas IA\n- Respecte les expressions interdites\n- Sois concise et actionnable`;
+      systemPrompt = `${CORE_PRINCIPLES}\n\n${SYSTEM_CACHE_BREAK}PROFIL DE L'UTILISATRICE :\n${fullContext}\n\nIMPORTANT :\n- Utilise le ton, le vocabulaire et le style de l'utilisatrice\n- Le contenu doit sonner authentique, pas IA\n- Respecte les expressions interdites\n- Sois concise et actionnable`;
       userPrompt = playground_prompt || rawPrompt || "";
     } else {
       const canalLabel = canal === "linkedin" ? "LinkedIn" : canal === "blog" ? "un article de blog" : canal === "pinterest" ? "Pinterest" : "Instagram";
@@ -117,7 +118,7 @@ serve(async (req) => {
         const objectifInstruction = objectif
           ? `L'objectif choisi est : ${objectif}. Oriente les sujets en conséquence.`
           : "";
-        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\n${objectifInstruction}\n\nPropose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.\n\nVarie les angles : un récit d'expérience (raconter ce qui s'est passé quand…), un constat décalé (remettre en question une évidence du secteur), un déclencheur externe (rebondir sur un retour client, un chiffre, une conversation), un sujet engagé (prise de position sur un enjeu du métier), un sujet qui montre plutôt qu'il explique (process, transformation, avant/après). JAMAIS de sujet formulé comme une liste de conseils ou d'erreurs.\n\nRéponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${SYSTEM_CACHE_BREAK}PROFIL DE L'UTILISATRICE :\n${fullContext}\n\n${objectifInstruction}\n\nPropose exactement 5 idées de sujets de posts ${canalLabel}, adaptées à son activité et sa cible. Chaque idée doit être formulée comme un sujet concret et spécifique (pas vague), en une phrase.\n\nVarie les angles : un récit d'expérience (raconter ce qui s'est passé quand…), un constat décalé (remettre en question une évidence du secteur), un déclencheur externe (rebondir sur un retour client, un chiffre, une conversation), un sujet engagé (prise de position sur un enjeu du métier), un sujet qui montre plutôt qu'il explique (process, transformation, avant/après). JAMAIS de sujet formulé comme une liste de conseils ou d'erreurs.\n\nRéponds uniquement avec les 5 sujets, un par ligne, sans numérotation, sans tiret, sans explication.`;
         userPrompt = `Propose-moi 5 sujets de posts ${canalLabel}.`;
 
       } else if (type === "weekly-suggestions") {
@@ -141,7 +142,7 @@ serve(async (req) => {
 
         systemPrompt = `${CORE_PRINCIPLES}
 
-PROFIL DE L'UTILISATRICE :
+${SYSTEM_CACHE_BREAK}PROFIL DE L'UTILISATRICE :
 ${wFullContext}
 ${recentTopics}
 
@@ -223,7 +224,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown, sans backticks, sans explicatio
 
 ${FRAMEWORK_SELECTION}
 
-PROFIL DE L'UTILISATRICE :
+${SYSTEM_CACHE_BREAK}PROFIL DE L'UTILISATRICE :
 ${fullContext}
 
 CANAL SÉLECTIONNÉ : ${canalLabel}
@@ -262,7 +263,7 @@ IMPORTANT : Réponds UNIQUEMENT en JSON :
 
       } else if (type === "bio-audit") {
         const bioText = body.bioText || "";
-        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONSIGNE :\nAnalyse cette bio Instagram et donne un retour structuré.\n\nBIO :\n${bioText}\n\nCritères d'évaluation (chacun sur 20 points) :\n1. Clarté : on comprend quoi/pour qui en 3 secondes ?\n2. Proposition de valeur : pourquoi toi et pas un·e autre ?\n3. Personnalité : on sent une vraie voix, pas un template ?\n4. CTA : il y a une raison claire de cliquer/suivre ?\n5. Technique : lien fonctionnel, mots-clés pertinents, longueur ok ?\n\nTon : direct, bienveillant, concret. Pas de blabla.\nDonne des EXEMPLES de reformulation pour chaque point à améliorer.\n\nRéponds UNIQUEMENT en JSON :\n{"bio_displayed":"la bio telle quelle","score":55,"works_well":[{"point":"...","why":"..."}],"to_improve":[{"point":"...","why":"...","suggestion":"..."}],"missing":[{"point":"...","why":"..."}]}`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${SYSTEM_CACHE_BREAK}PROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONSIGNE :\nAnalyse cette bio Instagram et donne un retour structuré.\n\nBIO :\n${bioText}\n\nCritères d'évaluation (chacun sur 20 points) :\n1. Clarté : on comprend quoi/pour qui en 3 secondes ?\n2. Proposition de valeur : pourquoi toi et pas un·e autre ?\n3. Personnalité : on sent une vraie voix, pas un template ?\n4. CTA : il y a une raison claire de cliquer/suivre ?\n5. Technique : lien fonctionnel, mots-clés pertinents, longueur ok ?\n\nTon : direct, bienveillant, concret. Pas de blabla.\nDonne des EXEMPLES de reformulation pour chaque point à améliorer.\n\nRéponds UNIQUEMENT en JSON :\n{"bio_displayed":"la bio telle quelle","score":55,"works_well":[{"point":"...","why":"..."}],"to_improve":[{"point":"...","why":"...","suggestion":"..."}],"missing":[{"point":"...","why":"..."}]}`;
         userPrompt = "Analyse ma bio Instagram.";
 
       } else if (type === "bio-generator") {
@@ -276,7 +277,7 @@ IMPORTANT : Réponds UNIQUEMENT en JSON :
 
         systemPrompt = `${CORE_PRINCIPLES}
 
-PROFIL DE L'UTILISATRICE :
+${SYSTEM_CACHE_BREAK}PROFIL DE L'UTILISATRICE :
 ${fullContext}
 
 CONTEXTE BRANDING (issu du module Branding) :
@@ -341,7 +342,7 @@ Réponds UNIQUEMENT en JSON :
 
       } else if (type === "bio") {
         // SECTION 1 (règles d'écriture uniquement via CORE_PRINCIPLES)
-        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONSIGNE :\nGénère exactement 2 versions de bio Instagram pour cette utilisatrice.\n\nVERSION 1 : Bio structurée & claire\nFormat strict ligne par ligne :\n- Ligne "nom_profil" : Prénom + mot-clé de l'activité\n- Ligne 1 : Ce qu'elle propose (commence par un emoji pertinent)\n- Ligne 2 : Ce qui la rend unique (commence par un emoji pertinent)\n- Ligne 3 : Appel à l'action (commence par un emoji pertinent, termine par ⤵️)\n\nVERSION 2 : Bio créative & incarnée\nMême structure mais avec un ton plus libre, poétique, avec de l'humour ou de la personnalité.\n\nCONTRAINTE ABSOLUE : Une bio Instagram est limitée à 150 caractères maximum (espaces et emojis inclus). Chaque variante DOIT faire 150 caractères ou moins au total (toutes lignes confondues). Compte les caractères avant de retourner.\n\nRÈGLES :\n- 150 caractères MAX pour la bio complète (toutes lignes)\n- Pas de hashtags dans la bio\n\nIMPORTANT : Réponds UNIQUEMENT en JSON :\n{"structured": {"nom_profil": "...", "ligne1": "...", "ligne2": "...", "ligne3": "..."}, "creative": {"nom_profil": "...", "ligne1": "...", "ligne2": "...", "ligne3": "..."}}`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${SYSTEM_CACHE_BREAK}PROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONSIGNE :\nGénère exactement 2 versions de bio Instagram pour cette utilisatrice.\n\nVERSION 1 : Bio structurée & claire\nFormat strict ligne par ligne :\n- Ligne "nom_profil" : Prénom + mot-clé de l'activité\n- Ligne 1 : Ce qu'elle propose (commence par un emoji pertinent)\n- Ligne 2 : Ce qui la rend unique (commence par un emoji pertinent)\n- Ligne 3 : Appel à l'action (commence par un emoji pertinent, termine par ⤵️)\n\nVERSION 2 : Bio créative & incarnée\nMême structure mais avec un ton plus libre, poétique, avec de l'humour ou de la personnalité.\n\nCONTRAINTE ABSOLUE : Une bio Instagram est limitée à 150 caractères maximum (espaces et emojis inclus). Chaque variante DOIT faire 150 caractères ou moins au total (toutes lignes confondues). Compte les caractères avant de retourner.\n\nRÈGLES :\n- 150 caractères MAX pour la bio complète (toutes lignes)\n- Pas de hashtags dans la bio\n\nIMPORTANT : Réponds UNIQUEMENT en JSON :\n{"structured": {"nom_profil": "...", "ligne1": "...", "ligne2": "...", "ligne3": "..."}, "creative": {"nom_profil": "...", "ligne1": "...", "ligne2": "...", "ligne3": "..."}}`;
         userPrompt = "Génère 2 versions de bio Instagram pour moi.";
 
       } else if (type === "launch-ideas") {
@@ -519,7 +520,7 @@ Réponds en JSON :
       } else if (type === "caption") {
         // Simple caption generation for a given theme/subject
         const captionObjectif = objectif || "visibilite";
-        systemPrompt = `${CORE_PRINCIPLES}\n\nPROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONSIGNE :\nRédige une caption Instagram complète et prête à copier-coller sur le sujet donné.\n\nObjectif : ${captionObjectif}\n\nLa caption doit contenir :\n- Une accroche percutante (première ligne)\n- Un corps de texte engageant\n- Un appel à l'action naturel\n- 3-5 hashtags pertinents à la fin\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Ton direct et bienveillant\n- Le contenu doit pouvoir être publié tel quel\n\nRéponds avec le texte uniquement, prêt à copier-coller.`;
+        systemPrompt = `${CORE_PRINCIPLES}\n\n${SYSTEM_CACHE_BREAK}PROFIL DE L'UTILISATRICE :\n${fullContext}\n\nCONSIGNE :\nRédige une caption Instagram complète et prête à copier-coller sur le sujet donné.\n\nObjectif : ${captionObjectif}\n\nLa caption doit contenir :\n- Une accroche percutante (première ligne)\n- Un corps de texte engageant\n- Un appel à l'action naturel\n- 3-5 hashtags pertinents à la fin\n\nRÈGLES :\n- Écriture inclusive avec point médian\n- JAMAIS de tiret cadratin (—). Utilise : ou ;\n- Ton direct et bienveillant\n- Le contenu doit pouvoir être publié tel quel\n\nRéponds avec le texte uniquement, prêt à copier-coller.`;
         userPrompt = `Rédige une caption Instagram sur : "${sujet || "test de connexion"}"`;
 
       } else {

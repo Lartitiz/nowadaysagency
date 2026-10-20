@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { callAnthropic, callAnthropicWithMeta, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
-import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
+import { BASE_SYSTEM_RULES, SYSTEM_CACHE_BREAK } from "../_shared/base-prompts.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
@@ -714,7 +714,7 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
       });
     }
 
-    const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + buildSystemPrompt(section, context || {}, covered_topics || [], autofill_data, autofill_confidence);
+    const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + SYSTEM_CACHE_BREAK /* règles fixes en cache, le reste hors cache (audit coût 20/10/2026) */ + buildSystemPrompt(section, context || {}, covered_topics || [], autofill_data, autofill_confidence);
 
     // Build anthropic messages — send ALL messages, no pruning
     let anthropicMessages = (messages || []).map((m: any) => ({

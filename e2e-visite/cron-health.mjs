@@ -229,6 +229,20 @@ try {
     if (!sb) console.log("🖼️ Studio : non mesuré (edge cron-health pas redéployée)");
     else if (sb.erreur) console.log(`🖼️ Studio : ⚠️ non lu (${sb.erreur.slice(0, 90)})`);
     else console.log(`🖼️ Studio : ${sb.count} image(s) bloquée(s) en cours depuis > 1 h${sb.count ? "  ⚠️ rattrapage auto (cron studio-reconcile-images) en échec ?" : " ✅"}`);
+    // Sonde 🧪 (audit de coût du 20/10/2026) : générations RÉELLES du compte de
+    // recette sur 24 h (visite du matin + tests des sessions), comptées hors crédit.
+    // Seuils : mardi à dimanche, attendu 0 (specs payantes le lundi seulement) ;
+    // > 0 un autre jour = 🟡 (test réel d'une session, ou spec payante relancée) ;
+    // > 3 € sur 24 h = 🔴 (la visite repaye chaque jour ?).
+    const ct = d.compte_test_24h;
+    if (!ct) console.log("🧪 Compte test 24 h : non mesuré (edge cron-health pas redéployée)");
+    else if (ct.erreur) console.log(`🧪 Compte test 24 h : ⚠️ non lu (${ct.erreur.slice(0, 90)}) — migration ai_usage_hors_credit pas appliquée ?`);
+    else {
+      const lundi = new Date().getDay() === 1;
+      const icone = ct.cout_estime_eur > 3 ? "🔴" : !lundi && ct.generations > 0 ? "🟡" : "✅";
+      const detail = Object.entries(ct.actions || {}).map(([a, n]) => `${a} ×${n}`).join(", ");
+      console.log(`🧪 Compte test 24 h : ${ct.generations} génération(s) payée(s) ≈ ${ct.cout_estime_eur} € ${icone}${detail ? ` (${detail})` : ""}`);
+    }
   } else {
     const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : "n/a");
     const delta = (cur, prev) => (prev ? `${cur >= prev ? "+" : ""}${Math.round(((cur - prev) / prev) * 100)}%` : "n/a");
@@ -253,6 +267,18 @@ try {
       console.log(
         `   coût estimé 7 j : ${cur.cout_total_estime_eur} €${cur.cout_incomplet ? " ⚠️ INCOMPLET" : ""} (texte ${cur.cout_texte_estime_eur} € + images ${cur.cout_images_estime_eur} €)  (S-1 : ${prev.cout_total_estime_eur ?? "?"} €${prev.cout_incomplet ? " ⚠️ incomplet" : ""})`
       );
+    }
+    // Appels sans crédit (audit de coût du 20/10/2026) et total « tout compris »
+    // à comparer à la console Anthropic (sonde 💳 de la routine du lundi).
+    const hc = d.hors_credit_7j;
+    if (!hc) console.log("   hors crédit 7 j : non mesuré (edge cron-health pas redéployée)");
+    else if (hc.erreur) console.log(`   hors crédit 7 j : ⚠️ non lu (${hc.erreur.slice(0, 90)}) — migration ai_usage_hors_credit pas appliquée ?`);
+    else {
+      console.log(`   hors crédit 7 j : ≈ ${hc.cout_estime_eur} €`);
+      for (const s of hc.par_source || []) console.log(`      ${String(s.source).padEnd(20)} ${String(s.appels).padStart(4)} appels  ${String(s.tokens).padStart(9)} tokens  ≈ ${s.cout_estime_eur} €`);
+    }
+    if (d.cout_estime_total_7j != null) {
+      console.log(`   💳 coût estimé TOUT COMPRIS 7 j (clientes + internes + hors crédit) : ${d.cout_estime_total_7j} € → comparer au coût 7 j de la console Anthropic (alerte si la console dépasse 3 fois ce chiffre)`);
     }
     // Un modèle absent des grilles tarifaires compte 0 € : il doit CRIER, sinon
     // le total ment en silence (cas `claude-sonnet-5`, ~1 mois de sous-comptage).

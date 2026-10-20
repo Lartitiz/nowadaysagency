@@ -2,6 +2,7 @@ import { COMMON, WRITE } from "../_shared/carousel-editorial-contract.ts";
 import { COVER_WRITING } from "../_shared/carousel-cover.ts";
 import { LIVED_CASE_FIRST, NEWS_FEELING_FIRST, type CaseMode } from "../_shared/lived-case.ts";
 import { VOIX_ORALE, VOIX_ORALE_LINKEDIN } from "../_shared/socle.ts";
+import { SYSTEM_CACHE_BREAK } from "../_shared/system-cache.ts";
 /** Carousel-specific writing policy. Layout contracts remain in the variant builders. */
 export const CAROUSEL_WRITING_VERSION = "fil-v12-voix-orale";
 
@@ -78,12 +79,17 @@ export function carouselSubstance(livedCase: boolean | CaseMode = false): string
   return CAROUSEL_SUBSTANCE;
 }
 
-/** `addressRule` : règle ferme tu/vous de la fiche de marque (audience-address.ts), en tête ; vide = inchangé. */
+/**
+ * `addressRule` : règle ferme tu/vous de la fiche de marque (audience-address.ts), en tête ; vide = inchangé.
+ * Limite du cache (audit de coût du 20/10/2026) : tout ce qui précède l'identité
+ * de la cliente (~12 000 caractères, règle tu/vous comprise, qui n'a que quelques
+ * valeurs) est en cache ; l'identité, la fiche de marque et la suite n'y sont pas.
+ */
 export function buildCarouselWritingSystem(brandingContext: string, isLinkedIn: boolean, identity: string, clarity: string, livedCase: boolean | CaseMode = false, addressRule = ""): string {
   return `${addressRule ? `${addressRule}\n\n` : ""}${COMMON}
 ${WRITE}
 ${clarity}
-${identity} Tu rédiges pour la personne un carrousel ${isLinkedIn ? "LinkedIn" : "Instagram"} fidèle à sa demande et agréable à lire.
+${SYSTEM_CACHE_BREAK}${identity} Tu rédiges pour la personne un carrousel ${isLinkedIn ? "LinkedIn" : "Instagram"} fidèle à sa demande et agréable à lire.
 ${carouselSubstance(livedCase)}
 ${carouselContinuity(isLinkedIn)}
 ${CAROUSEL_TITLES}

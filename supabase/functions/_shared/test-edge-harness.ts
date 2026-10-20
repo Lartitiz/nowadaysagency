@@ -94,6 +94,8 @@ export interface FetchMockConfig {
 export interface FetchMockHandle {
   /** Toutes les requêtes POST reçues sur /rest/v1/ai_usage (= tentatives de logUsage). */
   aiUsageInserts: Record<string, unknown>[];
+  /** Toutes les requêtes POST reçues sur /rest/v1/ai_usage_hors_credit (appels comptés sans crédit). */
+  horsCreditInserts: Record<string, unknown>[];
   /** Nombre d'appels faits à l'API Anthropic. */
   anthropicCallCount: number;
   /** Corps JSON de chaque requête envoyée à l'API Anthropic, dans l'ordre. */
@@ -119,6 +121,7 @@ export interface FetchMockHandle {
 export function installFetchMock(config: FetchMockConfig): FetchMockHandle {
   const originalFetch = globalThis.fetch;
   const aiUsageInserts: Record<string, unknown>[] = [];
+  const horsCreditInserts: Record<string, unknown>[] = [];
   let anthropicCallCount = 0;
   // deno-lint-ignore no-explicit-any
   const anthropicRequests: any[] = [];
@@ -175,6 +178,12 @@ export function installFetchMock(config: FetchMockConfig): FetchMockHandle {
         return new Response(JSON.stringify([row]), { status: 201, headers: { "Content-Type": "application/json" } });
       }
 
+      if (path === "/rest/v1/ai_usage_hors_credit" && method === "POST") {
+        const row = init?.body ? JSON.parse(init.body as string) : {};
+        horsCreditInserts.push(row);
+        return new Response(JSON.stringify([row]), { status: 201, headers: { "Content-Type": "application/json" } });
+      }
+
       // Table générique : tableau vide. postgrest-js déballe .single()/.maybeSingle()
       // côté client (0 ligne -> null), pas besoin d'émuler l'Accept header PostgREST.
       return new Response(JSON.stringify([]), {
@@ -188,6 +197,7 @@ export function installFetchMock(config: FetchMockConfig): FetchMockHandle {
 
   return {
     aiUsageInserts,
+    horsCreditInserts,
     anthropicRequests,
     get anthropicCallCount() {
       return anthropicCallCount;

@@ -183,12 +183,6 @@ verify_jwt = false
 [functions.newsjacking-angles]
 verify_jwt = false
 
-[functions.suggest-format]
-verify_jwt = false
-
-[functions.score-content]
-verify_jwt = false
-
 [functions.pinterest-visual]
 verify_jwt = false
 

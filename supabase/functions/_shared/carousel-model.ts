@@ -2,6 +2,7 @@
 // Other generators keep their models. No silent provider/model fallback.
 import { AnthropicError, sanitizeStyle, sanitizeStyleDeep, type AnthropicOptions, type UsageSink } from "./anthropic.ts";
 import { tryParseAiObject } from "./parse-ai-json.ts";
+import { stripCacheBreak, stripCacheBreakFromMessages, systemBlocks } from "./system-cache.ts";
 
 // Erreur typée avec un code de diagnostic SÛR (aucun secret, aucun message
 // fournisseur) : la relecture l'écrit dans editorial_review.error au lieu d'un
@@ -62,13 +63,14 @@ const noForcedTool = (model: CarouselWriterModel) => model === "claude-opus-5-5"
 export function writerRequest(options: CarouselWriterOptions): Record<string, unknown> {
   if (options.model !== "gpt-6-astra") {
     const autoTool = noForcedTool(options.model);
-    const system = options.system && options.tool && autoTool
-      ? options.system + `\n\nLivre ta réponse uniquement en appelant l'outil \`${options.tool.name}\`, une seule fois.`
-      : options.system;
+    const toolSuffix = options.system && options.tool && autoTool
+      ? `\n\nLivre ta réponse uniquement en appelant l'outil \`${options.tool.name}\`, une seule fois.`
+      : "";
     const maxTokens = options.max_tokens || 8192;
     return {
-      model: options.model, system: system ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] : "",
-      messages: options.messages, max_tokens: autoTool ? Math.max(maxTokens, NO_FORCED_TOOL_MIN_MAX_TOKENS) : maxTokens,
+      // Partie fixe du rédacteur en cache, fiche de marque et blocs de la requête sans cache.
+      model: options.model, system: options.system ? systemBlocks(options.system, toolSuffix) : "",
+      messages: stripCacheBreakFromMessages(options.messages), max_tokens: autoTool ? Math.max(maxTokens, NO_FORCED_TOOL_MIN_MAX_TOKENS) : maxTokens,
       thinking: { type: "adaptive" }, output_config: { effort: "medium" },
       ...(streamsText(options) ? { stream: true } : {}),
       ...(options.tool ? {
@@ -79,8 +81,8 @@ export function writerRequest(options: CarouselWriterOptions): Record<string, un
   }
   const input = options.messages.map(message => ({
     role: message.role,
-    content: typeof message.content === "string" ? message.content : message.content.map(block => {
-      if (block.type === "text") return { type: "input_text", text: block.text };
+    content: typeof message.content === "string" ? stripCacheBreak(message.content) : message.content.map(block => {
+      if (block.type === "text") return { type: "input_text", text: stripCacheBreak(block.text) };
       if (block.type === "image" && block.source?.type === "base64") {
         return { type: "input_image", image_url: `data:${block.source.media_type};base64,${block.source.data}` };
       }
@@ -88,7 +90,7 @@ export function writerRequest(options: CarouselWriterOptions): Record<string, un
     }),
   }));
   return {
-    model: options.model, instructions: options.system || "", input,
+    model: options.model, instructions: stripCacheBreak(options.system || ""), input,
     reasoning: { effort: "medium" }, max_output_tokens: options.max_tokens || 8192,
     store: false, service_tier: "default",
     ...(options.tool ? {

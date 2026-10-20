@@ -2,10 +2,19 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getServiceClient } from "../_shared/auth.ts";
 import { tryParseAiObject } from "../_shared/parse-ai-json.ts";
+import { logUsageHorsCredit } from "../_shared/usage-hors-credit.ts";
 
 // Rate-limit DURABLE (table Postgres) : survit aux cold starts, contrairement à une Map en mémoire.
 const RATE_WINDOW_MS = 3600000; // 1h
 const MAX_PER_IP = 3;
+// Plafond GLOBAL (toutes adresses) : seule fonction IA ouverte sans compte, et
+// l'adresse IP se falsifie (en-tête x-forwarded-for fourni par le client). Ce
+// plafond borne le coût quoi qu'il arrive (audit de coût du 20/10/2026).
+const MAX_GLOBAL_PER_HOUR = 60;
+export const MESSAGE_LIMITE_IP =
+  "Tu as déjà testé 3 profils cette heure-ci. Reviens dans une heure, ou crée ton compte gratuit pour un diagnostic complet 😉";
+export const MESSAGE_LIMITE_GLOBALE =
+  "Beaucoup de monde teste son profil en ce moment. Réessaie dans une heure, ou crée ton compte gratuit pour un diagnostic complet 😉";
 
 async function checkRateLimit(
   admin: ReturnType<typeof getServiceClient>,
@@ -30,8 +39,15 @@ async function checkRateLimit(
     return null; // fail-open : ne pas bloquer un vrai prospect si la DB hoquette
   }
   if ((count ?? 0) >= MAX_PER_IP) {
-    return "Tu as déjà testé 3 profils. Crée ton compte pour des analyses illimitées 😉";
+    return MESSAGE_LIMITE_IP;
   }
+
+  const { count: total, error: totalError } = await admin
+    .from("mini_audit_attempts")
+    .select("id", { count: "exact", head: true })
+    .gte("created_at", sinceIso);
+  if (totalError) console.error("mini-audit global count error:", totalError);
+  else if ((total ?? 0) >= MAX_GLOBAL_PER_HOUR) return MESSAGE_LIMITE_GLOBALE;
 
   const { error: insertError } = await admin.from("mini_audit_attempts").insert({ ip, handle });
   // fail-open, comme le count ci-dessus : ne pas bloquer un vrai prospect si la DB hoquette.
@@ -54,7 +70,9 @@ serve(async (req) => {
     }
 
     const cleanHandle = handle.trim().replace(/^@/, "").toLowerCase();
-    const ip = (req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown")
+    // cf-connecting-ip d'abord : posé par le proxy, pas par le visiteur
+    // (x-forwarded-for peut être rempli par le client lui-même).
+    const ip = (req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "unknown")
       .split(",")[0].trim();
     
     const rateLimitMsg = await checkRateLimit(getServiceClient(), ip, cleanHandle);
@@ -118,6 +136,12 @@ Retourne UNIQUEMENT un JSON valide :
 
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || "";
+    // Aucun compte (page publique) : comptée hors crédit sans user_id, pour que
+    // le bilan du lundi voie son coût (audit de coût du 20/10/2026).
+    await logUsageHorsCredit({
+      source: "passerelle_lovable", action: "mini_audit_instagram",
+      model: "google/gemini-2.5-flash", tokens: data?.usage?.total_tokens ?? null,
+    }, getServiceClient());
     
     // Parse JSON from response
     const result = tryParseAiObject(text, "mini-audit-instagram");

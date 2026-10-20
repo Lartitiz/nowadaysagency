@@ -59,8 +59,10 @@ export const TEXT_COST_EUR_PER_MTOKEN: Record<string, number> = {
   "claude-opus-4-8": 10,
   "claude-opus-4-7": 10,
   // Modèles servis par la passerelle Lovable (`ai.gateway.lovable.dev`,
-  // préfixe `google/`) : mini-audit Instagram, audit IA, impact branding,
-  // suggestion de format, score de contenu, insight engagement, LinkedIn.
+  // préfixe `google/`) : mini-audit Instagram, repli de l'audit Instagram, impact
+  // branding, insight engagement, mots-clés des photos d'ambiance. (Suggestion de
+  // format, score de contenu et modèle de post LinkedIn, sans appelant, retirés
+  // le 20/10/2026 ; Flash-Lite gardé pour l'historique.)
   // Lovable les facture en CRÉDITS d'abonnement, pas à l'appel — on retient
   // donc le tarif public Google comme APPROXIMATION d'ordre de grandeur
   // (Flash 0,30$/2,50$ ; Flash-Lite 0,10$/0,40$ par Mtok), même hypothèse

@@ -9,6 +9,11 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, EngagementInsightSchema } from "../_shared/input-validators.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { logUsageHorsCredit } from "../_shared/usage-hors-credit.ts";
+
+/** Utilisatrice de la requête en cours, lue par callGateway pour le comptage hors crédit. */
+const requete = new AsyncLocalStorage<{ userId: string }>();
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { numbersIn, analyzeTextRedac, buildTextFixInstructions } from "../_shared/redac-gate.ts";
 
@@ -63,6 +68,12 @@ async function callGateway(system: string, prompt: string): Promise<string> {
     throw new Error(`AI gateway error: ${status}`);
   }
   const aiData = await aiResponse.json();
+  // Gratuit pour la cliente, mais compté hors crédit (bilan du lundi, audit de
+  // coût du 20/10/2026). L'utilisatrice vient du contexte de la requête.
+  await logUsageHorsCredit({
+    source: "passerelle_lovable", action: "engagement_insight", userId: requete.getStore()?.userId,
+    model: "google/gemini-2.5-flash", tokens: aiData?.usage?.total_tokens ?? null,
+  });
   return (aiData.choices?.[0]?.message?.content || "").trim();
 }
 
@@ -289,15 +300,15 @@ Deno.serve(async (req) => {
 
     const { currentWeek, history, mode, monthPosts } = validateInput(await req.json(), EngagementInsightSchema);
 
-    const insight = mode === "monthly_stats"
-      ? await monthlyInsight(
+    const insight = await requete.run({ userId }, () => mode === "monthly_stats"
+      ? monthlyInsight(
           currentWeek as Record<string, unknown>,
           (history || []) as Record<string, unknown>[],
           (monthPosts || []) as Record<string, unknown>[],
         )
       : mode === "content_reading"
-      ? await contentReading(currentWeek as Record<string, unknown>)
-      : await weeklyInsight(currentWeek, history);
+      ? contentReading(currentWeek as Record<string, unknown>)
+      : weeklyInsight(currentWeek, history));
 
     if (!insight) {
       return new Response(JSON.stringify({ error: "L'IA n'a renvoyé aucun insight, réessaie." }), {
