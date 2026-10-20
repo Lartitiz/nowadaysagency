@@ -5,6 +5,7 @@
  */
 
 import { sanitizeStyle, supportsTemperature, stripTrailingAssistant, modelRequestFields, toolInstruction, type AnthropicUsage } from "./anthropic.ts";
+import { stripCacheBreakFromMessages, systemBlocks } from "./system-cache.ts";
 
 export async function streamAnthropicSSE(
   apiKey: string,
@@ -40,8 +41,8 @@ export async function streamAnthropicSSE(
       },
       body: JSON.stringify({
         model,
-        system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
-        messages: finalMessages,
+        system: systemBlocks(systemPrompt),
+        messages: stripCacheBreakFromMessages(finalMessages),
         ...(sampled ? { temperature } : {}),
         // Sonnet 5 : thinking disabled (sinon il mange max_tokens sans text_delta) ;
         // Opus 5.5 : réflexion toujours active → effort + marge de max_tokens.
@@ -102,8 +103,8 @@ export async function streamAnthropicToolSSE(
       },
       body: JSON.stringify({
         model,
-        system: [{ type: "text", text: systemPrompt + toolInstruction(model, tool), cache_control: { type: "ephemeral" } }],
-        messages: finalMessages,
+        system: systemBlocks(systemPrompt, toolInstruction(model, tool)),
+        messages: stripCacheBreakFromMessages(finalMessages),
         tools: [tool],
         ...(sampled ? { temperature } : {}),
         // Outil forcé sauf Opus 5.5 (400) → auto + consigne ; cf. modelRequestFields.

@@ -14,6 +14,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback, buildBrandGuardText, type getUserContext } from "../_shared/user-context.ts";
 import { parseAudienceAddress } from "../_shared/audience-address.ts";
 import { livedCaseFromCreativeBody } from "../_shared/lived-case.ts";
+import { SYSTEM_CACHE_BREAK } from "../_shared/system-cache.ts";
 
 export function buildRequestContext(params: {
   body: any;
@@ -119,9 +120,22 @@ Son activité : ${activity || "(non renseignée)"}. Sa cible : ${target || "(non
 
 Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES tics de langage, SES tournures, SES expressions favorites. Le contenu doit sonner comme elle, pas comme "un post bien écrit par une IA".
 `;
+  // Même bloc pour la RÉDACTION, en deux temps (audit de coût du 20/10/2026) :
+  // la partie générale reste à sa place, la ligne propre à la cliente rejoint son
+  // contexte, après la limite du cache. Les ~30 000 caractères de règles fixes
+  // sont ainsi relus d'un appel à l'autre (tous formats, toutes clientes) au lieu
+  // d'être réécrits à chaque génération.
+  const incarnationRegles = `
+Tu n'écris PAS comme une IA qui a reçu un brief.
+Tu écris comme cette personne parlerait si elle avait trouvé les mots justes.
 
-  // COMMON_PREFIX: identical for ALL steps → maximizes Anthropic prompt caching
-  const COMMON_PREFIX = CONTENT_CLARITY_RULES + "\n\n" + BASE_SYSTEM_RULES + "\n\n" + incarnationBlock + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + CORE_PRINCIPLES + "\n\n" + EMBEDDED_EDUCATION + "\n\n" + ANTI_SLOP + "\n\n" + fullContext;
+Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES tics de langage, SES tournures, SES expressions favorites. Le contenu doit sonner comme elle, pas comme "un post bien écrit par une IA".
+`;
+  const incarnationCliente = `Son activité : ${activity || "(non renseignée)"}. Sa cible : ${target || "(non renseignée)"}. Son ton naturel : ${tone || "(non renseigné)"}.`;
+
+  // COMMON_PREFIX : règles fixes (identiques pour TOUTES les étapes et toutes les
+  // clientes, en cache) | SYSTEM_CACHE_BREAK | incarnation + contexte de la cliente.
+  const COMMON_PREFIX = CONTENT_CLARITY_RULES + "\n\n" + BASE_SYSTEM_RULES + "\n\n" + incarnationRegles + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + CORE_PRINCIPLES + "\n\n" + EMBEDDED_EDUCATION + "\n\n" + ANTI_SLOP + "\n\n" + SYSTEM_CACHE_BREAK + incarnationCliente + "\n\n" + fullContext;
 
   // QUESTIONS_PREFIX : version allégée pour les steps `questions` et `follow-up`.
   // On retire CORE_PRINCIPLES / EMBEDDED_EDUCATION / ANTI_SLOP / bloc voix :

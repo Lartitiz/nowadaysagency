@@ -5,6 +5,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { parseActionLinks, parsePlanPosts } from "../_shared/chat-markers.ts";
+import { systemBlocks } from "../_shared/system-cache.ts";
 
 /** Parse [SUGGESTION:...] from AI text */
 function parseSuggestions(text: string): { cleanText: string; suggestions: string[] } {
@@ -279,7 +280,7 @@ async function streamAnthropicSSE(
       },
       body: JSON.stringify({
         model,
-        system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+        system: systemBlocks(systemPrompt),
         messages: sampled ? messages : stripTrailingAssistant(messages as any),
         ...(sampled ? { temperature } : {}),
         // assistant_chat = Opus 5.5 : réflexion toujours active (disabled → 400),
