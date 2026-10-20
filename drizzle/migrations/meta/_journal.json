@@ -71,6 +71,13 @@
       "when": 1792051812679,
       "tag": "0009_studio_complete_generation_cron",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792504184345,
+      "tag": "0010_ai_usage_hors_credit",
+      "breakpoints": true
     }
   ]
 }
