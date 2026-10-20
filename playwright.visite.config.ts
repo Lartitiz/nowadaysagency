@@ -20,12 +20,21 @@ if (fs.existsSync(envPath)) {
 
 const AUTH_FILE = path.join(__dirname, "e2e-visite/.auth/camille.json");
 
-// VISITE_SANS_CREDIT=1 (verdict SANS_CREDIT de e2e-visite/machine-check.mjs : Mac sur
-// batterie faible ou capot fermé) écarte les specs qui PAIENT une génération réelle :
-// sur une machine qui va s'endormir, elles finissent en faux rouges payés pour rien.
+// Specs qui PAIENT une génération réelle (API Anthropic, images) sur le compte Camille.
+// Écartées :
+//  - VISITE_SANS_CREDIT=1 (verdict SANS_CREDIT de e2e-visite/machine-check.mjs : Mac sur
+//    batterie faible ou capot fermé) : sur une machine qui va s'endormir, elles finissent
+//    en faux rouges payés pour rien ;
+//  - tous les jours sauf le LUNDI (décision du 20/10/2026, audit de coût API) : ~1,5 à
+//    2 $ par jour de générations, soit environ la moitié de la facture API mensuelle.
+//    VISITE_PAYANTE=1 les force un autre jour (après un correctif de génération).
+// `plan-carrousel-sonde` ne débite aucun crédit mais paie un appel Sonnet : même règle.
+// Leur nombre et leur coût réels se lisent chaque matin dans cron-health (`compte_test_24h`).
 const SPECS_PAYANTES =
-  /(fonctionnel-t1|perf-carousel|stories-visuelles|carousel-mix-live|carousel-photo-live|carousel-photo-fond-live|packshot-live)\.spec\.ts/;
-const IGNORES = [/cold-smoke\.spec\.ts/, ...(process.env.VISITE_SANS_CREDIT ? [SPECS_PAYANTES] : [])];
+  /(fonctionnel-t1|perf-carousel|stories-visuelles|carousel-mix-live|carousel-photo-live|carousel-photo-fond-live|packshot-live|plan-carrousel-sonde)\.spec\.ts/;
+const estLundi = new Date().getDay() === 1;
+const sansSpecsPayantes = !!process.env.VISITE_SANS_CREDIT || (!estLundi && !process.env.VISITE_PAYANTE);
+const IGNORES = [/cold-smoke\.spec\.ts/, ...(sansSpecsPayantes ? [SPECS_PAYANTES] : [])];
 
 export default defineConfig({
   testDir: "./e2e-visite",

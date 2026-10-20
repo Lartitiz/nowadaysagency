@@ -30,6 +30,15 @@ snapshot[`daily : JSON complet sur la base de référence 1`] = `
     },
     render: 1,
   },
+  compte_test_24h: {
+    actions: {
+      creative_flow_post: 1,
+      generate_carousel: 1,
+    },
+    cout_estime_eur: 0.8,
+    generations: 2,
+    tokens: 110000,
+  },
   connections_at_risk: [
     {
       compte: "marie.photo",
@@ -265,6 +274,7 @@ snapshot[`daily : JSON complet sur la base de référence 1`] = `
 
 snapshot[`daily : liste des requêtes (tables, colonnes, filtres) 1`] = `
 [
+  "GET ai_usage_hors_credit user_id,created_at,source,action_type,model_used,tokens_used created_at=gte.2026-10-08T08:00:00.000Z [0+1000]",
   "GET beta_feedback user_id,type,severity,content,details,page_url,screenshot_url,status,created_at created_at=gte.2026-10-08T08:00:00.000Z [0+1000]",
   "GET beta_feedback user_id,type,severity,content,page_url,created_at status=eq.new [0+1000]",
   "GET calendar_posts user_id,canal,publish_status,publish_error,scheduled_publish_at,published_at,updated_at publish_status=in.(failed,publishing,scheduled,published) [0+1000]",
@@ -315,6 +325,15 @@ snapshot[`daily dégradé : sans clés Photoroom/Stripe, RPC des crons en erreur
       "/creer/render": 1,
     },
     render: 1,
+  },
+  compte_test_24h: {
+    actions: {
+      creative_flow_post: 1,
+      generate_carousel: 1,
+    },
+    cout_estime_eur: 0.8,
+    generations: 2,
+    tokens: 110000,
   },
   connections_at_risk: [
     {
@@ -638,6 +657,7 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
     cout_estime_eur: 2.23,
     tokens: 210000,
   },
+  cout_estime_total_7j: 4.67,
   emails_coupes: {
     alerte: false,
     envoyes_7j: 0,
@@ -689,6 +709,32 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
     reserve_mois_usd: 1.06,
     restant_usd: 48.94,
     rythme_7j_usd_par_jour: 0.15,
+  },
+  hors_credit_7j: {
+    cout_estime_eur: 1.51,
+    par_source: [
+      {
+        appels: 3,
+        cout_estime_eur: 1.44,
+        modeles_non_tarifes: [],
+        source: "compte_test",
+        tokens: 190000,
+      },
+      {
+        appels: 1,
+        cout_estime_eur: 0.06,
+        modeles_non_tarifes: [],
+        source: "inscription",
+        tokens: 15000,
+      },
+      {
+        appels: 1,
+        cout_estime_eur: 0.01,
+        modeles_non_tarifes: [],
+        source: "passerelle_lovable",
+        tokens: 8000,
+      },
+    ],
   },
   ia_7j: {
     appels: 8,
@@ -1016,6 +1062,7 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
 snapshot[`weekly : liste des requêtes (tables, colonnes, filtres) 1`] = `
 [
   "GET ai_usage user_id,created_at,action_type,model_used,tokens_used created_at=gte.2026-09-04T08:00:00.000Z [0+1000]",
+  "GET ai_usage_hors_credit user_id,created_at,source,action_type,model_used,tokens_used created_at=gte.2026-09-04T08:00:00.000Z [0+1000]",
   "GET calendar_posts id,user_id,created_at,published_at,publish_status,status [0+1000]",
   "GET content_quality_events user_id,format,redac_score,redac_repassed,created_at,content_preview created_at=gte.2026-09-04T08:00:00.000Z [0+1000]",
   "GET email_sends template_id,status,sent_at sent_at=gte.2026-10-02T08:00:00.000Z [0+1000]",

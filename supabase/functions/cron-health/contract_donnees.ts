@@ -222,6 +222,18 @@ const EVENEMENTS_QUALITE = [
   { user_id: "u-recette", format: "carousel_plan", redac_score: null, redac_repassed: false, created_at: ilYa(J), content_preview: { plan_ms: 180000 } },
 ];
 
+// Appels comptés sans crédit (audit de coût du 20/10/2026) : visite du matin sur
+// le compte de recette (dont une ligne de plus de 24 h), inscription, passerelle
+// Lovable publique (sans compte), et la semaine précédente.
+const HORS_CREDIT = [
+  { user_id: "u-test", created_at: ilYa(2 * H), source: "compte_test", action_type: "generate_carousel", model_used: "claude-opus-5-5", tokens_used: 90000 },
+  { user_id: "u-test", created_at: ilYa(3 * H), source: "compte_test", action_type: "creative_flow_post", model_used: "claude-sonnet-5", tokens_used: 20000 },
+  { user_id: "u-test", created_at: ilYa(30 * H), source: "compte_test", action_type: "generate_carousel", model_used: "claude-opus-5-5", tokens_used: 80000 },
+  { user_id: "u-marie", created_at: ilYa(2 * J), source: "inscription", action_type: "deep_diagnostic", model_used: "claude-sonnet-5", tokens_used: 15000 },
+  { user_id: null, created_at: ilYa(3 * J), source: "passerelle_lovable", action_type: "mini_audit_instagram", model_used: "google/gemini-2.5-flash", tokens_used: 8000 },
+  { user_id: "u-test", created_at: ilYa(9 * J), source: "compte_test", action_type: "generate_carousel", model_used: "claude-opus-5-5", tokens_used: 85000 },
+];
+
 /** La base complète, pour les deux scopes. Chaque test peut remplacer une table. */
 export function mondeComplet(): FauxMonde {
   return {
@@ -243,6 +255,7 @@ export function mondeComplet(): FauxMonde {
       workspace_members: MEMBRES_ESPACES,
       generated_carousels: CARROUSELS,
       content_quality_events: EVENEMENTS_QUALITE,
+      ai_usage_hors_credit: HORS_CREDIT,
     },
     cronJobs: CRON_JOBS,
     photoroom: { status: 200, body: { credits: { available: 790, subscription: 1000 } } },

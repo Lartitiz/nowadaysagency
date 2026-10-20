@@ -13,6 +13,7 @@ import { cohortes, comptesInternes, espacesOwnerMultiples, publications, topCons
 import { blocQualite, lireQualite } from "./qualite.ts";
 import { emailsCoupesStats, publicationsAlaMain } from "./emails-coupes.ts";
 import { slidesRefaites } from "./slides-refaites.ts";
+import { horsCreditParSource, lireHorsCredit } from "./hors-credit.ts";
 
 export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }: {
   supabase: any;
@@ -22,7 +23,7 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
   emailOf: Map<string, string>;
 }) {
   const since35d = new Date(now - 35 * DAY).toISOString();
-  const [aiRows, calRows, higgsfield, ownerRows, emailsCoupes] = await Promise.all([
+  const [aiRows, calRows, higgsfield, ownerRows, emailsCoupes, horsCreditRows] = await Promise.all([
     fetchAllRows(
       supabase,
       "ai_usage",
@@ -40,6 +41,7 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
       const nom = new Map(templates.map((t: any) => [t.id, t.name]));
       return emailsCoupesStats(sends, (id) => (id ? nom.get(id) ?? null : null), now - 7 * DAY, now);
     }).catch((e) => ({ erreur: String((e as any)?.message || e).slice(0, 90) })),
+    lireHorsCredit(supabase, now - 35 * DAY),
   ]);
   const espaces_owner_multiples = espacesOwnerMultiples(ownerRows, { emailOf, isClient, now });
   const ai = aiRows.filter((a: any) => isClient(a.user_id));
@@ -64,8 +66,18 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
     carCur, carPrev, cqEvents, cqAll, planAll, planClients, internalIds, cal, curFrom, curTo, prevFrom, prevTo,
   });
 
+  // Appels sans crédit (compte de recette, inscription, étapes gratuites,
+  // passerelle Lovable) + total « tout compris » à comparer à la console (sonde 💳).
+  const hors_credit_7j = Array.isArray(horsCreditRows) ? horsCreditParSource(horsCreditRows, curFrom, curTo) : horsCreditRows;
+  const cout_estime_total_7j = Math.round((
+    (aiCur.cout_total_estime_eur || 0) + (comptes_internes_7j?.cout_estime_eur || 0) +
+    (Array.isArray(horsCreditRows) ? (hors_credit_7j as any).cout_estime_eur : 0)
+  ) * 100) / 100;
+
   return {
     ia_7j: aiCur,
+    hors_credit_7j,
+    cout_estime_total_7j,
     ia_7j_precedents: aiPrev,
     top_consommatrices_7j,
     comptes_internes_7j,

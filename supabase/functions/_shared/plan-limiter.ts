@@ -4,6 +4,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
+import { logUsageHorsCredit } from "./usage-hors-credit.ts";
 
 // Grille des forfaits (01/10/2026) — « Pour 39 € par mois : tous tes textes
 // sans compter, 20 carrousels, 30 images et 3 vidéos. »
@@ -478,11 +479,16 @@ export async function logUsage(
 ): Promise<void> {
   const sb = sbOverride ?? getServiceClient();
 
-  // Bypass comptes QA (même Set déterministe que checkQuota, cf.
-  // QA_TEST_USER_IDS) : on ne loggue rien pour ces comptes afin que la QA
-  // automatisée puisse tourner tous les jours sans polluer ai_usage ni
-  // consommer de bonus.
-  if (isQaTestAccount(userId)) return;
+  // Comptes QA (même Set déterministe que checkQuota, cf. QA_TEST_USER_IDS) :
+  // rien dans ai_usage (aucun crédit, aucun bonus, stats produit propres), mais
+  // depuis le 20/10/2026 la génération est comptée HORS CRÉDIT pour que le
+  // bilan du lundi voie le coût de la visite du matin et des tests réels.
+  if (isQaTestAccount(userId)) {
+    await logUsageHorsCredit({
+      source: "compte_test", action: actionType, userId, workspaceId, model: modelUsed, tokens: tokensUsed,
+    }, sbOverride);
+    return;
+  }
 
   // Même périmètre que checkQuota : le workspace est résolu côté serveur pour
   // que TOUTE ligne ai_usage porte un workspace_id (les ~20 edges qui n'en
