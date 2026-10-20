@@ -412,6 +412,8 @@ Chaque ligne indique le fichier, le changement, le gain et le risque. Rien n'est
 | a11 | `carousel-ai/structure-hedge.ts` | Le 2e appel du plan à 80 s annule vraiment le premier (`signal`), et pas de doublement en cas d'erreur 4xx | [0,02 à 0,05 $ par plan lent] | faible |
 | a12 | mesure : `_shared/plan-limiter.ts` (`logUsage`), `_shared/anthropic.ts` (`extractUsage`), `cron-health/couts.ts` | Garder entrée, sortie, écriture et lecture du cache séparées ; compter sans crédit la recherche web, les passes Haiku, l'enrichissement, l'univers, le plan ; marquer les appels de Camille au lieu de les taire | 0 $ direct, mais rend le pilotage possible (le bilan du lundi verrait le vrai coût) | faible ; une migration (colonnes) et une table de suivi à part pour ne pas débiter de crédit |
 | a13 | `assistant-chat`, `analyze-documents`, `voice-analysis`, `branding-structure-ai` | Retrait du code mort (aucun appelant) | 0 $ ; surface d'abus en moins (fonctions déployées et appelables) | aucun si vraiment sans appelant (le revérifier dans `src/` et l'admin) |
+| a14 | `supabase/functions/score-content/`, `supabase/functions/suggest-format/` (+ leurs lignes dans `supabase/config.toml`), action `suggest-template` de `linkedin-ai/index.ts` (bloc ~340-380), commentaire de `cron-health/tarifs.ts:61`, knip | Retrait du code mort de la passerelle IA Lovable (Gemini) : aucun appelant dans `src/`. Ajouté le 20/10 depuis l'audit des crédits Lovable (`docs/audit-conso-lovable-2026-10.md`, PR #1781), validé par Laetitia | crédits Lovable en moins (aucun sur la facture Anthropic) ; surface d'abus en moins | aucun si vraiment sans appelant (le revérifier dans `src/` et l'admin) |
+| a15 | `mini-audit-instagram/index.ts:72`, `stock-photo-keywords/index.ts:103`, `engagement-insight/index.ts:48` | Compter dans `ai_usage`, sans débiter de crédit (même principe que a12), les 3 fonctions de la passerelle Lovable qui n'écrivent rien aujourd'hui. Modèle `google/gemini-2.5-flash`, déjà tarifé dans `cron-health/tarifs.ts`. `mini-audit-instagram` est publique (pas de compte, donc pas d'`user_id`) : prévoir une autre façon de la compter. Même origine que a14 | 0 $ direct ; le bilan du lundi les voit | faible. Ne pas passer les 5 autres fonctions Gemini sur Haiku (pas prioritaire selon Laetitia) |
 
 ### Paquet (b) : effet léger
 
@@ -444,6 +446,6 @@ Chaque ligne indique le fichier, le changement, le gain et le risque. Rien n'est
 
 1. **c1 d'abord** (5 minutes dans la console) : si H1 se confirme, c'est le seul levier à la hauteur du pic de juillet.
 2. **Les requêtes SQL 1 à 4**, pour remplacer le volume hypothétique par le vrai.
-3. **Paquet (a)** en une PR : a1, a3 à a12 ; a2 et a13 à part si tu préfères.
+3. **Paquet (a)** en une seule PR, a14 et a15 compris ; a2 se règle dans la console. Déploiement (règle de Laetitia du 20/10) : toutes les fonctions et migrations de la passe en UNE seule demande à l'agent Lovable, puis dire à Laetitia combien de demandes Lovable la session a coûté.
 4. **Paquet (b)** en une PR, avec un avant / après sur quelques générations réelles.
 5. **Paquet (c)** selon tes décisions.
