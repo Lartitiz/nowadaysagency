@@ -55,6 +55,39 @@ export type Database = {
           },
         ]
       }
+      ai_usage_hors_credit: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          model_used: string | null
+          source: string
+          tokens_used: number | null
+          user_id: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          model_used?: string | null
+          source: string
+          tokens_used?: number | null
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          model_used?: string | null
+          source?: string
+          tokens_used?: number | null
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       assistant_undo_log: {
         Row: {
           action_type: string
