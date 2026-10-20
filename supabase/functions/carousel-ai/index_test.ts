@@ -949,7 +949,11 @@ for (const local of [true, false]) Deno.test(`progression finale texte : budget 
 for (const judgeEndMs of [173_500, 185_000]) Deno.test(`progression finale texte : 2e juge borné à sa réserve à 15 slides (juge fini à ${judgeEndMs / 1000} s)`, async () => {
   resetDeps();
   const oldFetch = globalThis.fetch, now = Date.now; let offset = 0;
-  Date.now = () => now() + offset;
+  // Horloge FIGÉE (seul le temps simulé avance) : avec now() + offset, une
+  // milliseconde réelle pendant le 2e juge donnait 48 001 ms et faisait
+  // échouer « thread_recheck_ms <= 48 000 » au hasard (CI du 20/10/2026).
+  const t0 = now();
+  Date.now = () => t0 + offset;
   globalThis.fetch = (() => Promise.resolve(new Response("{}", { status: 503 }))) as typeof fetch;
   const draft = { slides: Array.from({ length: 15 }, (_, i) => ({ slide_number: i + 1, role: i === 0 ? "hook" : i === 14 ? "conclusion" : "body", title: `Étape ${i + 1} : un choix précis à faire avant la maquette.` })),
     caption: { body: "Un choix commun précède les modifications.", hashtags: [] } };
