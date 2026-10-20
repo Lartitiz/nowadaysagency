@@ -2,6 +2,7 @@ import { callAnthropic, getModelForAction, type AnthropicModel, type UsageSink }
 import { tryParseAiJson } from "../parse-ai-json.ts";
 import { parseDeepIdea, type DeepIdea } from "./contract.ts";
 import { researchIdeas, type IdeaResearch } from "./research.ts";
+import { SYSTEM_CACHE_BREAK } from "../../_shared/system-cache.ts";
 
 export interface IdeaInput {
   context: string; history: string; subject?: string; objective?: string; channel?: string; format?: string;
@@ -26,7 +27,7 @@ export async function generateDeepIdeas(input: IdeaInput, deps: { call: typeof c
     catch (error) { console.error("[ideas-stage-failure]", { stage, max_tokens: tokens, usage, message: error instanceof Error ? error.message : "unknown" }); throw error; }
   };
   const context = `MATIÈRE DE L'ACTIVITÉ :\n${input.context}\n\nCONTRAINTES FACULTATIVES :\n${JSON.stringify({ sujet: input.subject, objectif: input.objective, canal: input.channel, format: input.format, precision: input.refinement })}\n\nDÉJÀ TRAITÉ :\n${input.history}\n\nDÉJÀ PROPOSÉ (ne pas répéter sujets ET conclusions) :\n${JSON.stringify((input.previous || []).filter(p => p.subject !== input.deepen?.subject))}`;
-  const preparation = await ask("preparation", `${IDEA_EDITORIAL_RULES}\n${context}`, input.deepen
+  const preparation = await ask("preparation", `${IDEA_EDITORIAL_RULES}\n${SYSTEM_CACHE_BREAK}${context}`, input.deepen
     ? `Approfondis UNIQUEMENT cette idée : ${JSON.stringify(input.deepen)}. Préserve sa thèse sauf correction demandée. Cherche ce qui manque pour expliquer son mécanisme, sa nuance et un exemple exploitable. JSON {"candidates":[{"subject":"100 caractères max","insight":"180 caractères max","grounding":"160 caractères max"}],"research_queries":["..."]}. Maximum 2 questions générales de recherche, uniquement si une affirmation mérite vérification ; aucune donnée personnelle ni nom de client dans les requêtes.`
     : `Explore 6 pistes compactes, classées de la plus forte à la plus faible (les 4 premières seront développées, les 2 dernières servent de réserve), sur des sujets et conclusions distincts. Pour chacune, trouve d'abord un détail propre au métier et une conclusion qui dépasse le conseil attendu. Explore aussi une comparaison avec un domaine éloigné (uniquement si les correspondances expliquent vraiment le mécanisme) et un cas où un bon conseil cesse de fonctionner. Avant de classer, écarte toute piste générique, promesse absolue, tautologie ou recommandation connue simplement remaquillée, et remplace-la par une piste plus concrète. Les pistes doivent être liés aux problèmes/décisions de CE public et à cette activité. Si un sujet précis est fourni, reste dans ce sujet avec des analyses distinctes. Pas quatre variantes du même conseil. Maximum une piste prix et une analogie si elle apporte vraiment quelque chose. JSON {"candidates":[{"subject":"100 caractères max","insight":"180 caractères max","grounding":"160 caractères max"}],"research_queries":["..."]}. Maximum 2 questions générales de recherche pour les mécanismes qui en ont besoin. Choisis toi-même ces questions même sans sujet fourni ; aucune donnée personnelle ni nom de client dans les requêtes. Tableau vide si aucune vérification externe utile.`, 3200, 60_000);
   const prep = tryParseAiJson<any>(preparation, "ideas:preparation");
@@ -38,7 +39,7 @@ export async function generateDeepIdeas(input: IdeaInput, deps: { call: typeof c
     console.info("[ideas-pipeline-usage]", { stages: usages, idea_count: ideas.length, research_status: research.status });
     return { version: 2, ideas, research_status: research.status, usage: { total_tokens: usages.reduce((sum, u) => sum + (u.total_tokens || 0), 0), model: deps.model }, recommended_format: input.format || "auto", redirect_route: "/creer" };
   };
-  const system = `${IDEA_EDITORIAL_RULES}\n${context}\n\nEXPLORATION :\n${JSON.stringify(prep.candidates).slice(0, 9000)}\n\nRÉFÉRENCES VÉRIFIÉES :\n${JSON.stringify(research.sources)}\nStatut recherche : ${research.status}. Si indisponible, retire les affirmations qui exigeaient une source ; garde une hypothèse explicite ou un exemple fictif. Une URL est autorisée uniquement via un ID de cette liste.`;
+  const system = `${IDEA_EDITORIAL_RULES}\n${SYSTEM_CACHE_BREAK}${context}\n\nEXPLORATION :\n${JSON.stringify(prep.candidates).slice(0, 9000)}\n\nRÉFÉRENCES VÉRIFIÉES :\n${JSON.stringify(research.sources)}\nStatut recherche : ${research.status}. Si indisponible, retire les affirmations qui exigeaient une source ; garde une hypothèse explicite ou un exemple fictif. Une URL est autorisée uniquement via un ID de cette liste.`;
   const schema = `JSON uniquement : {"ideas":[{
 "subject":"titre clair, 220 caractères max", "angle":"nom court de l'approche, 80 caractères max",
 "insight":"thèse précise, 500 caractères max", "mechanism":"explication du pourquoi/comment, 900 caractères max",

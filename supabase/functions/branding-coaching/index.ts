@@ -9,6 +9,7 @@ import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
+import { SYSTEM_CACHE_BREAK } from "../_shared/system-cache.ts";
 
 /**
  * Sortie structurée FORCÉE de la question de coaching. Sans ça, Opus « bavarde »
@@ -714,7 +715,10 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
       });
     }
 
-    const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + buildSystemPrompt(section, context || {}, covered_topics || [], autofill_data, autofill_confidence);
+    // Limite du cache (audit de coût du 20/10/2026) : seules les règles de base
+    // sont fixes ; le reste (prénom, contexte, sujets couverts qui changent à
+    // chaque réponse) part sans cache au lieu d'être réécrit en cache à chaque tour.
+    const systemPrompt = BASE_SYSTEM_RULES + "\n\n" + SYSTEM_CACHE_BREAK + buildSystemPrompt(section, context || {}, covered_topics || [], autofill_data, autofill_confidence);
 
     // Build anthropic messages — send ALL messages, no pruning
     let anthropicMessages = (messages || []).map((m: any) => ({
