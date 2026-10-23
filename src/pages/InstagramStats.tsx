@@ -29,6 +29,7 @@ import { statsPatch, GA4_FIELDS } from "@/lib/ga4-stats";
 import { instagramMonthPatch, instagramSaveReport } from "@/features/stats/merge-fetched-stats";
 import StatsForm from "@/components/stats/StatsForm";
 import { signalerEchecEnregistrementStats, tracerEchecEnregistrementStats } from "@/features/stats/stats-save-error";
+import { statsLinkedInManquantes } from "@/features/stats/linkedin-stats-manquantes";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 import { monthKey, monthLabel, monthLabelShort, fmt } from "@/lib/stats-helpers";
@@ -515,11 +516,8 @@ function InstagramStatsScope() {
       }
       await loadStats();
       toast.success("✅ Stats LinkedIn récupérées");
-      if (m.partial) {
-        toast.warning("Certaines statistiques n'ont pas pu être lues", {
-          description: "LinkedIn n'a pas renvoyé toutes les métriques cette fois : les chiffres manquants sont restés vides. Réessaie plus tard.",
-        });
-      }
+      const manquantes = statsLinkedInManquantes(m);
+      if (manquantes.length) toast.warning("Certaines statistiques n'ont pas pu être lues", { description: `LinkedIn n'a pas renvoyé cette fois : ${manquantes.join(", ")}. Ces cases restent vides ; réessaie plus tard.` });
     } catch {
       toast.error("Erreur lors de la récupération des stats LinkedIn");
     } finally {
