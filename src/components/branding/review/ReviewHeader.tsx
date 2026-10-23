@@ -15,6 +15,8 @@ interface ReviewHeaderProps {
   sourcesUsed: string[];
   sourcesFailed: string[];
   preFilledSections?: Set<string>;
+  /** Cartes où il y a vraiment quelque chose à relire. */
+  filledCount: number;
   allDone: boolean;
   validatingAll: boolean;
   savingSection: SectionKey | null;
@@ -22,19 +24,20 @@ interface ReviewHeaderProps {
   onReanalyzeWithBio?: (bio: string) => void;
 }
 
-export function ReviewHeader({ analysis, sourcesUsed, sourcesFailed, preFilledSections, allDone, validatingAll, savingSection, handleValidateAll, onReanalyzeWithBio }: ReviewHeaderProps) {
+export function ReviewHeader({ analysis, sourcesUsed, sourcesFailed, preFilledSections, filledCount, allDone, validatingAll, savingSection, handleValidateAll, onReanalyzeWithBio }: ReviewHeaderProps) {
   // Instagram bio fallback
   const instagramFailed = sourcesFailed.includes("instagram") || (analysis.sources_failed || []).includes("instagram");
   const [igBio, setIgBio] = useState("");
   const [showIgBioInput, setShowIgBioInput] = useState(false);
 
-  const overallConf = analysis.overall_confidence || "medium";
-  const confMessages: Record<string, { emoji: string; text: string }> = {
-    high: { emoji: "🎯", text: "Confiance élevée : j'ai trouvé beaucoup d'infos !" },
-    medium: { emoji: "👍", text: "Bonne base, mais quelques sections auront besoin de ton aide" },
-    low: { emoji: "🌱", text: "Premier jet : j'ai fait avec ce que j'avais. On affine ensemble ?" },
-  };
-  const confMsg = confMessages[overallConf] || confMessages.medium;
+  // Compté sur les cartes, pas lu dans `overall_confidence` : en onboarding,
+  // le serveur l'écrit « medium » d'office, d'où un « Bonne base » affiché
+  // au-dessus de 7 cartes vides (vu le 22/10/2026).
+  const confMsg = filledCount >= 7
+    ? { emoji: "🎯", text: "J'ai rempli les 7 cartes : relis-les et corrige ce qui ne va pas." }
+    : filledCount === 0
+      ? { emoji: "🌱", text: "Je n'ai presque rien trouvé : une question courte par carte, ou « Plus tard »." }
+      : { emoji: "🌱", text: `J'ai rempli ${filledCount} carte${filledCount > 1 ? "s" : ""} sur 7. Pour les autres, une question courte suffit.` };
 
   const allSources = [...new Set([...sourcesUsed, ...sourcesFailed])];
   if (allSources.length === 0 && analysis.sources_used) {

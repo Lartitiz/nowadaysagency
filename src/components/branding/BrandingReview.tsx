@@ -1,12 +1,14 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import Confetti from "@/components/Confetti";
 import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import { useReviewCarousel } from "@/components/branding/review/use-review-carousel";
 import { useReviewValidation } from "@/components/branding/review/use-review-validation";
-import { COACHING_SECTION_MAP, type AnalysisResult, type OfferItem, type SectionKey } from "@/components/branding/review/types";
+import { SECTIONS, COACHING_SECTION_MAP, type AnalysisResult, type OfferItem, type SectionKey } from "@/components/branding/review/types";
 import { getConfidence } from "@/components/branding/review/ReviewBits";
+import { sectionHasData } from "@/components/branding/review/SectionViews";
+import { withAnswer } from "@/components/branding/review/catch-up";
 import { ReviewHeader } from "@/components/branding/review/ReviewHeader";
 import { ReviewCard } from "@/components/branding/review/ReviewCard";
 import { ReviewEndCard } from "@/components/branding/review/ReviewEndCard";
@@ -38,8 +40,12 @@ interface Props {
 }
 
 // ─── Main Component ──────────────────────────────────────────
-export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFailed = [], onDone, onProgress, preFilledSections, existingOfferNames, onReanalyzeWithBio, mandatory = false }: Props) {
+export default function BrandingReview({ analysis: analysisIn, sourcesUsed = [], sourcesFailed = [], onDone, onProgress, preFilledSections, existingOfferNames, onReanalyzeWithBio, mandatory = false }: Props) {
   const [productPhotosReady, setProductPhotosReady] = useState(false);
+  // Réponses de rattrapage des cartes vides : ajoutées à l'analyse affichée et
+  // enregistrée, comme si l'analyse les avait trouvées.
+  const [answers, setAnswers] = useState<Partial<AnalysisResult>>({});
+  const analysis = useMemo(() => ({ ...analysisIn, ...answers }), [analysisIn, answers]);
   const [coachingSection, setCoachingSection] = useState<SectionKey | null>(null);
 
   const { total, index, setIndex, finished, goTo, goNext, goPrev, handleTouchStart, handleTouchEnd } = useReviewCarousel(coachingSection);
@@ -60,9 +66,24 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
     setEditedCharter(charter);
   }, []);
 
+  // Carte vide = rien trouvé par l'analyse (ni dans les offres / la charte
+  // retouchées) et rien de déjà écrit par la personne.
+  const cardIsEmpty = useCallback((key: SectionKey) => {
+    if (preFilledSections?.has(key)) return false;
+    const view = { ...analysis, offers: { ...analysis.offers, offers: editedOffers }, charter: editedCharter };
+    return !sectionHasData(key, view);
+  }, [analysis, editedOffers, editedCharter, preFilledSections]);
+
   const { validated, savingSection, showConfetti, refinedSections, toReview, validatingAll, wroteSomething, handleKeepAsIs, handleToReview, handleValidate, handleValidateAll, completeCoaching } = useReviewValidation({
-    analysis, onProgress, preFilledSections, editedOffers, editedCharter, goNext, setIndex, total, setCoachingSection,
+    analysis, onProgress, preFilledSections, editedOffers, editedCharter, goNext, setIndex, total, setCoachingSection, isEmptyCard: cardIsEmpty,
   });
+  const handleAnswer = (key: SectionKey, answer: string) => {
+    const data = withAnswer(key, analysis[key], answer);
+    setAnswers((prev) => ({ ...prev, [key]: data }));
+    if (key === "offers") setEditedOffers((data as NonNullable<AnalysisResult["offers"]>).offers || []);
+    if (key === "charter") setEditedCharter(data as AnalysisResult["charter"]);
+    void handleValidate(key, data);
+  };
   const waitingForPhotos = mandatory && finished && !productPhotosReady;
   const canComplete = !mandatory || (finished && productPhotosReady);
   const completeReview = () => {
@@ -74,7 +95,10 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
   };
 
   const validatedCount = validated.size;
-  const allDone = validatedCount === 7;
+  // Les cartes restées vides ne bloquent pas la fin : elles se rempliront dans Mon identité.
+  const emptyLeft = SECTIONS.filter((s) => !validated.has(s.key) && cardIsEmpty(s.key)).length;
+  const filledCount = SECTIONS.filter((s) => !cardIsEmpty(s.key)).length;
+  const allDone = validatedCount + emptyLeft === SECTIONS.length;
 
   return (
     <div className="pb-40 md:pb-24">
@@ -86,6 +110,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
         sourcesUsed={sourcesUsed}
         sourcesFailed={sourcesFailed}
         preFilledSections={preFilledSections}
+        filledCount={filledCount}
         allDone={allDone}
         validatingAll={validatingAll}
         savingSection={savingSection}
@@ -134,6 +159,8 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
           handleTouchStart={handleTouchStart}
           handleTouchEnd={handleTouchEnd}
           handleValidate={handleValidate}
+          isEmpty={cardIsEmpty(SECTIONS[Math.min(index, SECTIONS.length - 1)].key)}
+          onAnswer={handleAnswer}
           handleKeepAsIs={handleKeepAsIs}
           handleToReview={handleToReview}
           setCoachingSection={setCoachingSection}
@@ -154,6 +181,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
           handleValidateAll={handleValidateAll}
           validatingAll={validatingAll}
           savingSection={savingSection}
+          isEmptyCard={cardIsEmpty}
           recheckHint={analysis.allow_overwrite === true && wroteSomething}
         />
       )}
@@ -162,6 +190,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
       <ReviewStickyBar
         allDone={allDone}
         validatedCount={validatedCount}
+        emptyLeft={emptyLeft}
         total={total}
         completeReview={completeReview}
         waitingForPhotos={waitingForPhotos}

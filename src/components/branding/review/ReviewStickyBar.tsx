@@ -9,6 +9,8 @@ import type { SectionKey } from "./types";
 interface ReviewStickyBarProps {
   allDone: boolean;
   validatedCount: number;
+  /** Cartes vides laissées pour plus tard (elles ne bloquent pas la fin). */
+  emptyLeft?: number;
   total: number;
   completeReview: () => void;
   waitingForPhotos: boolean;
@@ -20,14 +22,14 @@ interface ReviewStickyBarProps {
   onDone: (complete?: boolean) => void;
 }
 
-export function ReviewStickyBar({ allDone, validatedCount, total, completeReview, waitingForPhotos, mandatory, finished, handleValidateAll, validatingAll, savingSection, onDone }: ReviewStickyBarProps) {
+export function ReviewStickyBar({ allDone, validatedCount, emptyLeft = 0, total, completeReview, waitingForPhotos, mandatory, finished, handleValidateAll, validatingAll, savingSection, onDone }: ReviewStickyBarProps) {
   return (
     <div className="fixed bottom-14 md:bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border px-4 py-3">
       <div className="mx-auto max-w-[900px] flex items-center gap-4">
         <div className="flex-1">
           <div className="flex items-center justify-between gap-3 mb-1.5">
             <span className="text-sm font-semibold text-foreground">
-              {allDone ? "Fiche validée ! 🎉" : `${validatedCount}/${total} validées`}
+              {allDone && emptyLeft === 0 ? "Fiche validée ! 🎉" : allDone ? `${validatedCount}/${total} validées · ${emptyLeft} à remplir plus tard` : `${validatedCount}/${total} validées`}
             </span>
             <div className="flex items-center gap-3 shrink-0">
               {allDone ? (

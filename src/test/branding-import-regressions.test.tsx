@@ -201,7 +201,7 @@ describe("Structured review", () => {
     m.db.brand_proposition = [row("prop", { step_1_what: "Activité", version_final: "Référence", version_one_liner: "Courte", version_bio: "Bio", step_3_for_whom: "Public", step_2d_refuse: "Refus" })];
     const before = structuredClone(m.db);
     render(<BrandingReview analysis={{ story: { origin: "IA", full_story: "Suggestion" }, value_proposition: { key_phrase: "Nouvelle", problem: "Problème", differentiator: "Différence" }, charter: { color_primary: "#ffffff", font_body: "Inter" } }} onDone={() => {}} />);
-    validateAll(); await screen.findByText("Fiche validée ! 🎉");
+    validateAll(); await screen.findByText(/Fiche validée ! 🎉|à remplir plus tard/);
     expect(m.db.storytelling).toEqual(before.storytelling);
     expect(m.db.brand_proposition).toEqual(before.brand_proposition);
     expect(m.db.brand_charter[0]).toMatchObject({ ...before.brand_charter[0], font_body: "Inter" });
@@ -211,7 +211,7 @@ describe("Structured review", () => {
     m.db.brand_charter = [row("c1", { mood_keywords: ["élégant"], moodboard_description: "Maison de luxe" })];
     const before = structuredClone(m.db.brand_charter);
     render(<BrandingReview analysis={{ reviewed_sections: ["story", "persona", "value_proposition", "tone_style", "content_strategy", "offers"], charter: { confidence: "low", mood_keywords: ["raffiné"], visual_style_description: "Autre" } }} onDone={() => {}} />);
-    validateAll(); await screen.findByText("Fiche validée ! 🎉");
+    validateAll(); await screen.findByText(/Fiche validée ! 🎉|à remplir plus tard/);
     expect(m.toast.error).not.toHaveBeenCalled();
     expect(m.db.brand_charter).toEqual(before);
   });
@@ -233,14 +233,14 @@ describe("Structured review", () => {
   it("replaces the generic onboarding pillar with the analysed one instead of keeping it", async () => {
     m.db.brand_strategy = [row("strat", { pillar_major: "Organisation & régularité", step_1_hidden_facets: "Priorité : augmenter la découvrabilité et le reach", updated_at: "2026-10-10" })];
     render(<BrandingReview analysis={{ content_strategy: { pillars: ["Céramique du quotidien", "Coulisses"] } }} onDone={() => {}} />);
-    validateAll(); await screen.findByText("Fiche validée ! 🎉");
+    validateAll(); await screen.findByText(/Fiche validée ! 🎉|à remplir plus tard/);
     expect(m.db.brand_strategy[0].pillar_major).toBe("Céramique du quotidien");
     expect(m.db.brand_strategy[0].pillar_minor_1).toBe("Coulisses");
   });
   it("keeps a pillar the person wrote herself", async () => {
     m.db.brand_strategy = [row("strat", { pillar_major: "Mon pilier à moi", updated_at: "2026-10-10" })];
     render(<BrandingReview analysis={{ content_strategy: { pillars: ["Autre pilier"] } }} onDone={() => {}} />);
-    validateAll(); await screen.findByText("Fiche validée ! 🎉");
+    validateAll(); await screen.findByText(/Fiche validée ! 🎉|à remplir plus tard/);
     expect(m.db.brand_strategy[0].pillar_major).toBe("Mon pilier à moi");
   });
   it("only mentions duplicate offer names when one really clashes, and no « existing info kept » banner without existing info", () => {
@@ -256,7 +256,7 @@ describe("Structured review", () => {
   it("creates multiple offers in one write with legacy workspace left null", async () => {
     m.state.workspace = "";
     render(<BrandingReview analysis={{ offers: { offers: [{ name: "A" }, { name: "B" }] } }} onDone={() => {}} />);
-    validateAll(); await screen.findByText("Fiche validée ! 🎉");
+    validateAll(); await screen.findByText(/Fiche validée ! 🎉|à remplir plus tard/);
     expect(m.db.offers).toHaveLength(2); expect(m.db.offers[0].workspace_id).toBeNull();
     expect(m.writes.filter(w => w.table === "offers")).toHaveLength(1);
   });
@@ -272,7 +272,7 @@ describe("Structured review", () => {
     render(<BrandingReview analysis={{ reviewed_sections: ["story", "persona", "value_proposition", "tone_style", "content_strategy", "charter"], offers: { offers: [{ name: "A" }] } }} onProgress={progress} onDone={() => {}} />);
     validateAll(); await waitFor(() => expect(m.toast.error).toHaveBeenCalled());
     expect(m.db.offers).toHaveLength(1); validateAll();
-    await screen.findByText("Fiche validée ! 🎉");
+    await screen.findByText(/Fiche validée ! 🎉|à remplir plus tard/);
     expect(m.db.offers).toHaveLength(1); expect(progress).toHaveBeenCalledTimes(2);
   });
 });
