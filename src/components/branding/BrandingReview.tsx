@@ -13,6 +13,7 @@ import { ReviewHeader } from "@/components/branding/review/ReviewHeader";
 import { ReviewCard } from "@/components/branding/review/ReviewCard";
 import { ReviewEndCard } from "@/components/branding/review/ReviewEndCard";
 import { ReviewStickyBar } from "@/components/branding/review/ReviewStickyBar";
+import { ReviewQuickRefine } from "@/components/branding/review/ReviewQuickRefine";
 
 // Réexportations : BrandingPage, demo-autofill-data, BrandLearnedSection et les
 // tests importent ces noms depuis ce fichier (fiche 14, lot 1).
@@ -47,8 +48,11 @@ export default function BrandingReview({ analysis: analysisIn, sourcesUsed = [],
   const [answers, setAnswers] = useState<Partial<AnalysisResult>>({});
   const analysis = useMemo(() => ({ ...analysisIn, ...answers }), [analysisIn, answers]);
   const [coachingSection, setCoachingSection] = useState<SectionKey | null>(null);
+  // Onboarding : « On affine ensemble » = une seule passe (ReviewQuickRefine),
+  // sauf sur une partie déjà remplie avant (la conversation y complète sans écraser).
+  const [quickSection, setQuickSection] = useState<SectionKey | null>(null);
 
-  const { total, index, setIndex, finished, goTo, goNext, goPrev, handleTouchStart, handleTouchEnd } = useReviewCarousel(coachingSection);
+  const { total, index, setIndex, finished, goTo, goNext, goPrev, handleTouchStart, handleTouchEnd } = useReviewCarousel(coachingSection || quickSection);
 
   // Editable offers state
   const [editedOffers, setEditedOffers] = useState<OfferItem[]>(() => analysis.offers?.offers ? [...analysis.offers.offers] : []);
@@ -77,12 +81,19 @@ export default function BrandingReview({ analysis: analysisIn, sourcesUsed = [],
   const { validated, savingSection, showConfetti, refinedSections, toReview, validatingAll, wroteSomething, handleKeepAsIs, handleToReview, handleValidate, handleValidateAll, completeCoaching } = useReviewValidation({
     analysis, onProgress, preFilledSections, editedOffers, editedCharter, goNext, setIndex, total, setCoachingSection, isEmptyCard: cardIsEmpty,
   });
-  const handleAnswer = (key: SectionKey, answer: string) => {
-    const data = withAnswer(key, analysis[key], answer);
+  // Carte remplie à l'écran (réponse de rattrapage ou carte réécrite) : affichée
+  // et enregistrée avec les mêmes fonctions d'écriture que « C'est bon ».
+  const saveCard = async (key: SectionKey, data: NonNullable<AnalysisResult[SectionKey]>) => {
     setAnswers((prev) => ({ ...prev, [key]: data }));
     if (key === "offers") setEditedOffers((data as NonNullable<AnalysisResult["offers"]>).offers || []);
     if (key === "charter") setEditedCharter(data as AnalysisResult["charter"]);
-    void handleValidate(key, data);
+    await handleValidate(key, data);
+  };
+  const handleAnswer = (key: SectionKey, answer: string) => { void saveCard(key, withAnswer(key, analysis[key], answer)); };
+  const quickRefine = mandatory;
+  const openRefine = (key: SectionKey | null) => {
+    if (key && quickRefine && !preFilledSections?.has(key)) setQuickSection(key);
+    else setCoachingSection(key);
   };
   const waitingForPhotos = mandatory && finished && !productPhotosReady;
   const canComplete = !mandatory || (finished && productPhotosReady);
@@ -136,8 +147,19 @@ export default function BrandingReview({ analysis: analysisIn, sourcesUsed = [],
         )}
       </AnimatePresence>
 
+      {quickSection && (
+        <ReviewQuickRefine
+          key={quickSection}
+          sectionKey={quickSection}
+          analysis={analysis}
+          saving={savingSection === quickSection}
+          onSave={async (data) => { await saveCard(quickSection, data); setQuickSection(null); }}
+          onCancel={() => setQuickSection(null)}
+        />
+      )}
+
       {/* Carrousel : une carte par section */}
-      {!coachingSection && !finished && (
+      {!coachingSection && !quickSection && !finished && (
         <ReviewCard
           analysis={analysis}
           index={index}
@@ -163,12 +185,13 @@ export default function BrandingReview({ analysis: analysisIn, sourcesUsed = [],
           onAnswer={handleAnswer}
           handleKeepAsIs={handleKeepAsIs}
           handleToReview={handleToReview}
-          setCoachingSection={setCoachingSection}
+          setCoachingSection={openRefine}
+          quickRefine={quickRefine}
         />
       )}
 
       {/* Carte de fin : ce qui est enregistré, et ce qui attend encore une réponse */}
-      {!coachingSection && finished && (
+      {!coachingSection && !quickSection && finished && (
         <ReviewEndCard
           validated={validated}
           toReview={toReview}
