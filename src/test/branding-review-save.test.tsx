@@ -76,7 +76,7 @@ const row = (id: string, fields: any = {}) => ({ id, user_id: "u1", workspace_id
 async function validateAll(analysis: AnalysisResult) {
   render(<BrandingReview analysis={analysis} onDone={() => {}} />);
   fireEvent.click(screen.getAllByText("Je valide tout")[0]);
-  await screen.findByText("Fiche validée ! 🎉");
+  await screen.findByText(/Fiche validée ! 🎉|à remplir plus tard/);
   expect(m.toast.error).not.toHaveBeenCalled();
 }
 

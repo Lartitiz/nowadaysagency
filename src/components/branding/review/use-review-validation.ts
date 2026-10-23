@@ -24,9 +24,11 @@ interface ReviewValidationArgs {
   setIndex: (index: number) => void;
   total: number;
   setCoachingSection: (section: SectionKey | null) => void;
+  /** Carte sans contenu ni saisie existante : « Je valide tout » la laisse de côté. */
+  isEmptyCard?: (key: SectionKey) => boolean;
 }
 
-export function useReviewValidation({ analysis, onProgress, preFilledSections, editedOffers, editedCharter, goNext, setIndex, total, setCoachingSection }: ReviewValidationArgs) {
+export function useReviewValidation({ analysis, onProgress, preFilledSections, editedOffers, editedCharter, goNext, setIndex, total, setCoachingSection, isEmptyCard }: ReviewValidationArgs) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const queryClient = useQueryClient();
@@ -89,12 +91,13 @@ export function useReviewValidation({ analysis, onProgress, preFilledSections, e
     goNext();
   }, [goNext]);
 
-  const handleValidate = useCallback(async (key: SectionKey) => {
+  // `override` : réponse de rattrapage d'une carte vide, déjà au format de la section.
+  const handleValidate = useCallback(async (key: SectionKey, override?: unknown) => {
     if (!user?.id || savingRef.current) return;
     savingRef.current = true;
     setSavingSection(key);
     try {
-      const dataToSave = key === "offers" ? { ...analysis.offers, offers: editedOffers }
+      const dataToSave = override !== undefined ? override : key === "offers" ? { ...analysis.offers, offers: editedOffers }
         : key === "charter" ? editedCharter
         : analysis[key];
       // `allow_overwrite` est posé par diagnostic-enrichment quand la reprise
@@ -134,9 +137,14 @@ export function useReviewValidation({ analysis, onProgress, preFilledSections, e
     setValidatingAll(true);
     const failed: SectionKey[] = [];
     const reasons: string[] = [];
+    // Une carte vide n'est ni écrite ni comptée comme validée : avant le
+    // 23/10/2026, « Je valide tout » sur 7 cartes vides lançait les confettis
+    // sans rien enregistrer.
+    const empty: SectionKey[] = [];
     try {
       for (const sec of SECTIONS) {
         if (validated.has(sec.key)) continue;
+        if (isEmptyCard?.(sec.key)) { empty.push(sec.key); continue; }
         const dataToSave = sec.key === "offers" ? { ...analysis.offers, offers: editedOffers }
           : sec.key === "charter" ? editedCharter
           : analysis[sec.key];
@@ -154,11 +162,16 @@ export function useReviewValidation({ analysis, onProgress, preFilledSections, e
           if (e instanceof Error) reasons.push(e.message);
         }
       }
-      logEvent("branding_validate_all", { failed: failed.length });
+      logEvent("branding_validate_all", { failed: failed.length, empty: empty.length });
       if (failed.length > 0) {
         const labels = failed.map((k) => SECTIONS.find((s) => s.key === k)?.title || k).join(", ");
         toast.error(`Je n'ai pas réussi à enregistrer : ${labels}. Reprends ${failed.length > 1 ? "ces cartes" : "cette carte"} une par une. ${reasons[0] || ""}`);
         setIndex(SECTIONS.findIndex((s) => s.key === failed[0]));
+      } else if (empty.length > 0) {
+        const saved = SECTIONS.length - empty.length;
+        const reste = empty.length > 1 ? `${empty.length} cartes restent à remplir` : "1 carte reste à remplir";
+        toast.success(`${saved > 1 ? `${saved} cartes enregistrées` : saved === 1 ? "1 carte enregistrée" : "Rien à enregistrer pour l'instant"}. ${reste} : tu ${empty.length > 1 ? "les" : "la"} retrouveras dans Mon identité.`);
+        setIndex(total);
       } else {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 4000);
@@ -169,7 +182,7 @@ export function useReviewValidation({ analysis, onProgress, preFilledSections, e
       savingRef.current = false;
       setValidatingAll(false);
     }
-  }, [user?.id, validatingAll, validated, analysis, editedOffers, editedCharter, workspaceId, queryClient, clearToReview, logEvent, total, markValidated]);
+  }, [user?.id, validatingAll, validated, analysis, editedOffers, editedCharter, workspaceId, queryClient, clearToReview, logEvent, total, markValidated, isEmptyCard]);
 
   // Fin de « On affine ensemble » : BrandingCoachingFlow a déjà écrit la section.
   const completeCoaching = async (section: SectionKey) => {

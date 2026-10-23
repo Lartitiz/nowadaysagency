@@ -154,7 +154,7 @@ describe("BrandingReview — coaching dans la relecture", () => {
 
     // « Je valide tout » écrit les autres sections, jamais l'histoire déjà affinée.
     fireEvent.click(screen.getAllByText("Je valide tout")[0]);
-    await screen.findByText("Fiche validée ! 🎉");
+    await screen.findByText(/Fiche validée ! 🎉|à remplir plus tard/);
     const tables = new Set(m.writes.map(w => w.table));
     expect(tables.has("storytelling")).toBe(false);
     expect(tables.has("persona")).toBe(true);
@@ -232,11 +232,60 @@ describe("BrandingReview — proposition de valeur sans conversation", () => {
     expect(screen.getByText("C'est bon ✓")).toBeInTheDocument();
   });
 
-  it("une proposition de valeur vide renvoie vers Mon identité, sans bouton de conversation", () => {
+  it("une proposition de valeur vide pose sa question de rattrapage, sans bouton de conversation", () => {
     render(<BrandingReview analysis={{ ...ANALYSIS, value_proposition: { confidence: "low" } }} onDone={() => {}} />);
     fireEvent.click(screen.getByLabelText("Aller à « Ta proposition de valeur »"));
-    expect(screen.getByText(/Tu pourras l'écrire dans Mon identité/)).toBeInTheDocument();
-    expect(screen.queryByText("On la remplit ensemble →")).toBeNull();
+    expect(screen.getByText("En une phrase : qu'est-ce que tu apportes, et à qui ?")).toBeInTheDocument();
+    expect(screen.queryByText("On affine ensemble →")).toBeNull();
     expect(screen.getByText("Plus tard")).toBeInTheDocument();
+  });
+});
+
+describe("BrandingReview — carte vide : question de rattrapage (23/10/2026)", () => {
+  it("le haut compte les cartes vraiment remplies, au lieu d'une phrase écrite d'avance", () => {
+    render(<BrandingReview analysis={{ ...ANALYSIS, overall_confidence: "medium" }} onDone={() => {}} />);
+    expect(screen.getByText("J'ai rempli 3 cartes sur 7. Pour les autres, une question courte suffit.")).toBeInTheDocument();
+    expect(screen.queryByText(/Bonne base/)).toBeNull();
+  });
+
+  it("une carte vide pose sa question, sans « C'est bon », et enregistre la réponse telle quelle", async () => {
+    // Forme réelle de l'onboarding : confiance « medium » écrite d'office, aucun contenu.
+    render(<BrandingReview analysis={{ ...ANALYSIS, story: { confidence: "medium", full_story: null as any } }} onDone={() => {}} />);
+    expect(screen.getByText("Je n'ai rien trouvé sur ton histoire.")).toBeInTheDocument();
+    expect(screen.queryByText("C'est bon ✓")).toBeNull();
+    const enregistrer = screen.getByText("Enregistrer ma réponse").closest("button")!;
+    expect(enregistrer).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("En deux phrases, comment ton activité a commencé ?"), { target: { value: "J'ai ouvert mon atelier en 2020." } });
+    fireEvent.click(enregistrer);
+    await screen.findByText("1/7 validées");
+    expect(m.writes.some(w => w.table === "storytelling")).toBe(true);
+    expect(currentCard()).toBe("Carte 2 sur 7");
+    fireEvent.click(screen.getByText("Précédent"));
+    expect(screen.getByText("J'ai ouvert mon atelier en 2020.")).toBeInTheDocument();
+  });
+
+  it("« Plus tard » passe à la carte suivante sans rien écrire", () => {
+    render(<BrandingReview analysis={{ ...ANALYSIS, story: { confidence: "medium" } }} onDone={() => {}} />);
+    fireEvent.click(screen.getByText("Plus tard"));
+    expect(currentCard()).toBe("Carte 2 sur 7");
+    expect(m.writes).toHaveLength(0);
+  });
+
+  it("« Je valide tout » ne fête pas les cartes vides et les rappelle pour plus tard", async () => {
+    render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
+    fireEvent.click(screen.getAllByText("Je valide tout")[0]);
+    await screen.findByText("3/7 validées · 4 à remplir plus tard");
+    expect(screen.queryByText("Fiche validée ! 🎉")).toBeNull();
+    expect(m.toast.success).toHaveBeenCalledWith("3 cartes enregistrées. 4 cartes restent à remplir : tu les retrouveras dans Mon identité.");
+    expect(screen.getByText("Ta relecture est terminée")).toBeInTheDocument();
+    expect(screen.getByText("À remplir plus tard dans Mon identité :")).toBeInTheDocument();
+    expect(new Set(m.writes.map(w => w.table)).has("offers")).toBe(false);
+  });
+
+  it("une partie déjà remplie sans rien de neuf ne montre plus un encadré sur du vide", () => {
+    render(<BrandingReview analysis={{ ...ANALYSIS, story: { confidence: "medium" } }} preFilledSections={new Set(["story"])} onDone={() => {}} />);
+    expect(screen.getByText(/Tu avais déjà rempli cette partie, et l'analyse n'a rien trouvé de plus/)).toBeInTheDocument();
+    expect(screen.queryByText("Compléter les champs vides ✓")).toBeNull();
+    expect(screen.getByText("Garder tel quel")).toBeInTheDocument();
   });
 });

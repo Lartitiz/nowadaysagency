@@ -18,13 +18,16 @@ interface ReviewEndCardProps {
   handleValidateAll: () => void;
   validatingAll: boolean;
   savingSection: SectionKey | null;
+  /** Carte vide : elle ne bloque pas la fin, on la rappelle « à remplir plus tard ». */
+  isEmptyCard?: (key: SectionKey) => boolean;
   /** Reprise d'onboarding qui a remplacé la fiche : les connecteurs intelligents
       ne sont pas passés, on invite à relire le reste (décision du 15/10/2026). */
   recheckHint?: boolean;
 }
 
-export function ReviewEndCard({ validated, toReview, goTo, mandatory, setProductPhotosReady, completeReview, canComplete, productPhotosReady, handleValidateAll, validatingAll, savingSection, recheckHint = false }: ReviewEndCardProps) {
-  const pending = SECTIONS.filter((s) => !validated.has(s.key));
+export function ReviewEndCard({ validated, toReview, goTo, mandatory, setProductPhotosReady, completeReview, canComplete, productPhotosReady, handleValidateAll, validatingAll, savingSection, isEmptyCard, recheckHint = false }: ReviewEndCardProps) {
+  const pending = SECTIONS.filter((s) => !validated.has(s.key) && !isEmptyCard?.(s.key));
+  const later = SECTIONS.filter((s) => !validated.has(s.key) && isEmptyCard?.(s.key));
   const done = pending.length === 0;
   return (
     <div className="bg-card rounded-[20px] shadow-card border border-border p-6 sm:p-8 text-center animate-in fade-in duration-300">
@@ -37,6 +40,19 @@ export function ReviewEndCard({ validated, toReview, goTo, mandatory, setProduct
           ? "Tes choix sont enregistrés. Les informations manquantes restent à compléter quand tu en as besoin depuis Mon identité."
           : `${pending.length} carte${pending.length > 1 ? "s attendent" : " attend"} encore ta réponse. Reprends-${pending.length > 1 ? "les" : "la"} une par une, ou valide tout d'un coup si l'analyse te convient.`}
       </p>
+
+      {done && later.length > 0 && (
+        <div className="mb-5">
+          <p className="text-sm text-foreground mb-2">À remplir plus tard dans Mon identité :</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {later.map((s) => (
+              <button key={s.key} onClick={() => goTo(SECTIONS.findIndex((x) => x.key === s.key))} className="inline-flex items-center gap-1.5 rounded-pill border border-border bg-background px-3 py-1.5 text-sm text-foreground hover:border-primary transition-colors">
+                <span>{s.emoji}</span> {s.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {done && recheckHint && (
         <p className="text-sm text-foreground bg-rose-pale rounded-[12px] px-4 py-3 mb-5 max-w-md mx-auto leading-relaxed">
