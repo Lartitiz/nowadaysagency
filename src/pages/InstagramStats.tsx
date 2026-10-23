@@ -28,7 +28,7 @@ import { saveStatsPatch } from "@/lib/stats-persistence";
 import { statsPatch, GA4_FIELDS } from "@/lib/ga4-stats";
 import { instagramMonthPatch, instagramSaveReport } from "@/features/stats/merge-fetched-stats";
 import StatsForm from "@/components/stats/StatsForm";
-
+import { signalerEchecEnregistrementInstagram, tracerEchecEnregistrementInstagram } from "@/features/stats/instagram-save-error";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 import { monthKey, monthLabel, monthLabelShort, fmt } from "@/lib/stats-helpers";
@@ -447,7 +447,7 @@ function InstagramStatsScope() {
       if (Object.keys(customData).length) patch.custom_data = customData;
       let saved: Record<string, unknown>;
       try { saved = await saveStatsPatch(workspaceId !== user.id ? workspaceId : null, target, null, patch as any, "instagram"); }
-      catch { toast.error("Erreur d'enregistrement des stats récupérées"); return; }
+      catch (e) { signalerEchecEnregistrementInstagram(e, target); return; }
       const { filled, kept } = instagramSaveReport(patch, saved);
       setSelectedMonth(target);
       await loadStats();
@@ -562,7 +562,7 @@ function InstagramStatsScope() {
         if (!Object.keys(patch).length) { empty++; continue; }
         // Même porte que « Remplir depuis Instagram » : la base ne remplit que les cases vides.
         try { await saveStatsPatch(workspaceId !== user.id ? workspaceId : null, month, null, patch, "instagram"); }
-        catch { empty++; continue; }
+        catch (e) { tracerEchecEnregistrementInstagram(e, month); empty++; continue; }
         filled++;
       }
       await loadStats();
