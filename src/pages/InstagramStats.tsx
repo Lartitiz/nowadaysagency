@@ -28,7 +28,7 @@ import { saveStatsPatch } from "@/lib/stats-persistence";
 import { statsPatch, GA4_FIELDS } from "@/lib/ga4-stats";
 import { instagramMonthPatch, instagramSaveReport } from "@/features/stats/merge-fetched-stats";
 import StatsForm from "@/components/stats/StatsForm";
-import { signalerEchecEnregistrementInstagram, tracerEchecEnregistrementInstagram } from "@/features/stats/instagram-save-error";
+import { signalerEchecEnregistrementStats, tracerEchecEnregistrementStats } from "@/features/stats/stats-save-error";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 import { monthKey, monthLabel, monthLabelShort, fmt } from "@/lib/stats-helpers";
@@ -447,7 +447,7 @@ function InstagramStatsScope() {
       if (Object.keys(customData).length) patch.custom_data = customData;
       let saved: Record<string, unknown>;
       try { saved = await saveStatsPatch(workspaceId !== user.id ? workspaceId : null, target, null, patch as any, "instagram"); }
-      catch (e) { signalerEchecEnregistrementInstagram(e, target); return; }
+      catch (e) { signalerEchecEnregistrementStats("instagram", e, target); return; }
       const { filled, kept } = instagramSaveReport(patch, saved);
       setSelectedMonth(target);
       await loadStats();
@@ -508,10 +508,10 @@ function InstagramStatsScope() {
       delete payload.id; delete payload.created_at;
       if ((existing as any).id) {
         const { error: upErr } = await supabase.from("monthly_stats" as any).update(payload).eq("id", (existing as any).id);
-        if (upErr) { toast.error("Erreur d'enregistrement des stats LinkedIn"); return; }
+        if (upErr) { signalerEchecEnregistrementStats("linkedin", upErr, target); return; }
       } else {
         const { error: insErr } = await supabase.from("monthly_stats" as any).insert(payload);
-        if (insErr) { toast.error("Erreur d'enregistrement des stats LinkedIn"); return; }
+        if (insErr) { signalerEchecEnregistrementStats("linkedin", insErr, target); return; }
       }
       await loadStats();
       toast.success("✅ Stats LinkedIn récupérées");
@@ -562,7 +562,7 @@ function InstagramStatsScope() {
         if (!Object.keys(patch).length) { empty++; continue; }
         // Même porte que « Remplir depuis Instagram » : la base ne remplit que les cases vides.
         try { await saveStatsPatch(workspaceId !== user.id ? workspaceId : null, month, null, patch, "instagram"); }
-        catch (e) { tracerEchecEnregistrementInstagram(e, month); empty++; continue; }
+        catch (e) { tracerEchecEnregistrementStats("instagram", e, month); empty++; continue; }
         filled++;
       }
       await loadStats();
