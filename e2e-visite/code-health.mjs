@@ -25,6 +25,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
+import { analyser as analyserMigrations, lireDepot as lireMigrations, rapport as rapportMigrations } from "./migrations-non-appliquees.mjs";
 
 const execFileAsync = promisify(execFile);
 const REPO_ROOT = process.cwd();
@@ -273,15 +274,25 @@ async function main() {
   }
   if (dup) printJscpd(dup, baseline);
 
+  // Migration mergée jamais appliquée en production (angle mort du 23/10/2026).
+  let migrations = null;
+  try {
+    migrations = rapportMigrations(analyserMigrations(lireMigrations(REPO_ROOT)));
+    console.log(migrations.lignes.join("\n"));
+  } catch (e) {
+    console.log(`🗄️ Migrations du dépôt\n   non déterminé (${e.message}) — étape sautée`);
+  }
+
   const warn =
     (deps && baseline?.deps?.counts && (deps.counts.critical > baseline.deps.counts.critical || deps.counts.high > baseline.deps.counts.high)) ||
     (knip?.ok && knip.newIssues > 0) ||
-    (dup && baseline?.duplication?.percentage != null && dup.percentage - baseline.duplication.percentage > 0.5);
+    (dup && baseline?.duplication?.percentage != null && dup.percentage - baseline.duplication.percentage > 0.5) ||
+    migrations?.verdict === "WARN";
 
   // Une étape sautée ne doit JAMAIS donner « OK » : le 12/10/2026, l'audit a
   // dépassé son délai, le verdict a dit OK et 2 failles critiques nouvelles
   // (tinypool) sont passées inaperçues. WARN l'emporte (vrai signal mesuré).
-  const sautees = [!deps && "dépendances", !knip?.ok && "code mort", !dup && "duplication"].filter(Boolean);
+  const sautees = [!deps && "dépendances", !knip?.ok && "code mort", !dup && "duplication", !migrations && "migrations"].filter(Boolean);
   const verdict = warn ? "WARN" : sautees.length ? "INCOMPLET" : "OK";
   if (sautees.length) {
     console.log(`\n⚠️ étape(s) non mesurée(s) : ${sautees.join(", ")} — relancer (ex. \`bun audit\`) avant de conclure « rien de neuf »`);
