@@ -95,7 +95,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
 
       {/* Coaching overlay */}
       <AnimatePresence>
-        {coachingSection && (
+        {coachingSection && COACHING_SECTION_MAP[coachingSection] && (
           <motion.div key="coaching" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} transition={{ duration: 0.3 }} className="mb-6">
             <button onClick={() => setCoachingSection(null)} className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-4 transition-colors">
               <ArrowLeft className="h-4 w-4" /> Revenir à la vue d'ensemble

@@ -219,3 +219,24 @@ describe("BrandingReview — exports du fichier", () => {
     await waitFor(() => expect(BrandingReviewModule.normalizeHex("#ABC")).toBeTruthy());
   });
 });
+
+describe("BrandingReview — proposition de valeur sans conversation", () => {
+  // « On affine ensemble » sur cette carte faisait planter l'écran (22/10/2026) :
+  // la conversation ne connaît pas cette section, elle a sa propre page.
+  it("n'offre pas « On affine ensemble » sur la proposition de valeur", () => {
+    render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
+    expect(screen.getByText("On affine ensemble →")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Aller à « Ta proposition de valeur »"));
+    expect(currentCard()).toBe("Carte 3 sur 7");
+    expect(screen.queryByText("On affine ensemble →")).toBeNull();
+    expect(screen.getByText("C'est bon ✓")).toBeInTheDocument();
+  });
+
+  it("une proposition de valeur vide renvoie vers Mon identité, sans bouton de conversation", () => {
+    render(<BrandingReview analysis={{ ...ANALYSIS, value_proposition: { confidence: "low" } }} onDone={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Aller à « Ta proposition de valeur »"));
+    expect(screen.getByText(/Tu pourras l'écrire dans Mon identité/)).toBeInTheDocument();
+    expect(screen.queryByText("On la remplit ensemble →")).toBeNull();
+    expect(screen.getByText("Plus tard")).toBeInTheDocument();
+  });
+});

@@ -19,10 +19,13 @@ export interface AnalysisResult {
   missing_info?: string;
 }
 
-export const COACHING_SECTION_MAP: Record<SectionKey, string> = {
+/* Sections qu'« On affine ensemble » sait travailler en conversation. La
+   proposition de valeur n'y est pas : partout ailleurs elle passe par sa page
+   (/branding/proposition/recap), et la conversation ne sait ni la poser ni
+   l'enregistrer (le bouton faisait planter l'écran, 22/10/2026). */
+export const COACHING_SECTION_MAP: Partial<Record<SectionKey, string>> = {
   story: "story",
   persona: "persona",
-  value_proposition: "value_proposition",
   tone_style: "tone_style",
   content_strategy: "content_strategy",
   offers: "offers",
