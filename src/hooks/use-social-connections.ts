@@ -9,15 +9,20 @@ type ConnectionData = {
   connected: Record<string, boolean>;
   expiresAt: Record<string, string | null>;
   needsProperty: Record<string, boolean>;
+  /** Renouvellement refusé par la plateforme (seulement avec verify) : reconnecter. */
+  needsReconnect: Record<string, boolean>;
   accountNames: Record<string, string | null>;
 };
-const EMPTY: ConnectionData = { connected: {}, expiresAt: {}, needsProperty: {}, accountNames: {} };
+const EMPTY: ConnectionData = { connected: {}, expiresAt: {}, needsProperty: {}, needsReconnect: {}, accountNames: {} };
 
 /** OAuth connections belong to one account/workspace visit and its latest request.
  * An unavailable status is not proof that a connection is missing. Token expiry
  * is metadata, not disconnection: Canva can refresh an expired token server-side.
+ * `verify` (page Connexions) asks the server to actually try that refresh, so a
+ * connection the platform no longer accepts comes back with needsReconnect.
  */
-export function useSocialConnections() {
+export function useSocialConnections(options: { verify?: boolean } = {}) {
+  const verify = options.verify === true;
   const { user } = useAuth();
   const userId = user?.id;
   const workspaceId = useWorkspaceId();
@@ -40,12 +45,13 @@ export function useSocialConnections() {
     setState({ scope, loading: true, data: null });
     try {
       const { data, error } = await supabase.functions.invoke("social-status", {
-        body: { workspace_id: workspaceId && workspaceId !== userId ? workspaceId : undefined },
+        body: { workspace_id: workspaceId && workspaceId !== userId ? workspaceId : undefined, ...(verify ? { verify: true } : {}) },
       });
       if (!isCurrent()) return null;
       if (error || data?.error || !Array.isArray(data?.connections)) throw new Error("Unknown social status");
       const connected: ConnectionData["connected"] = {};
       const needsProperty: ConnectionData["needsProperty"] = {};
+      const needsReconnect: ConnectionData["needsReconnect"] = {};
       const expiresAt: ConnectionData["expiresAt"] = {};
       const accountNames: ConnectionData["accountNames"] = {};
       for (const c of data.connections) {
@@ -55,17 +61,18 @@ export function useSocialConnections() {
         connected[c.platform] = c.connected;
         accountNames[c.platform] = typeof c.accountName === "string" ? c.accountName : null;
         needsProperty[c.platform] = c.needsProperty === true;
+        needsReconnect[c.platform] = c.needsReconnect === true;
         expiresAt[c.platform] = typeof c.expiresAt === "string" && Number.isFinite(Date.parse(c.expiresAt))
           ? c.expiresAt : null;
       }
-      const result = { connected, expiresAt, needsProperty, accountNames };
+      const result = { connected, expiresAt, needsProperty, needsReconnect, accountNames };
       setState({ scope, loading: false, data: result });
       return result;
     } catch {
       if (isCurrent()) setState({ scope, loading: false, data: null });
       return null;
     }
-  }, [scope, userId, workspaceId, ready]);
+  }, [scope, userId, workspaceId, ready, verify]);
 
   useLayoutEffect(() => {
     activeScope.current = scope;
@@ -79,9 +86,9 @@ export function useSocialConnections() {
   const current = state?.scope === scope && userId && ready ? state : null;
   const known = !!current?.data;
   const loading = !!userId && (!ready || (current?.loading ?? true));
-  const { connected, expiresAt, needsProperty, accountNames } = current?.data ?? EMPTY;
+  const { connected, expiresAt, needsProperty, needsReconnect, accountNames } = current?.data ?? EMPTY;
   const isConnected = useCallback((platform: SocialPlatform) => connected[platform] === true, [connected]);
   const getTokenExpiry = useCallback((platform: SocialPlatform) => expiresAt[platform] || null, [expiresAt]);
 
-  return { connected, needsProperty, accountNames, loading, known, isConnected, getTokenExpiry, refresh: load };
+  return { connected, needsProperty, needsReconnect, accountNames, loading, known, isConnected, getTokenExpiry, refresh: load };
 }

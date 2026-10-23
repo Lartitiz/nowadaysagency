@@ -5,14 +5,12 @@ import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/w
 // get design -> urls.edit_url.
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
-import { encryptToken, decryptConnTokens } from "../_shared/token-crypto.ts";
+import { decryptConnTokens } from "../_shared/token-crypto.ts";
+import { refreshCanvaTokenIfNeeded } from "../_shared/canva-token.ts";
 
 import { CanvaApiError, checkCanvaResponse } from "./api-error.ts";
 
 const CANVA_API = "https://api.canva.com/rest/v1";
-// Le jeton d'accès Canva est court (~4 h). On rafraîchit s'il expire dans < 10 min.
-const REFRESH_THRESHOLD_MS = 10 * 60 * 1000;
-
 // Temps accordé à Canva pour traiter le fichier.
 //
 // ⚠️ Ce nombre a un JUMEAU côté front : CANVA_IMPORT_TIMEOUT_MS dans
@@ -35,50 +33,6 @@ function json(body: unknown, status: number, corsHeaders: Record<string, string>
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-// Rafraîchit le jeton d'accès Canva via le refresh_token (rotation possible).
-async function refreshCanvaTokenIfNeeded(supabase: any, conn: any): Promise<string | null> {
-  const expiresAtMs = conn.token_expires_at ? new Date(conn.token_expires_at).getTime() : 0;
-  if (expiresAtMs - Date.now() > REFRESH_THRESHOLD_MS) return conn.access_token;
-  if (!conn.refresh_token) return conn.access_token; // pas de refresh dispo : on tente l'actuel
-
-  const clientId = Deno.env.get("CANVA_CLIENT_ID")!;
-  const clientSecret = Deno.env.get("CANVA_CLIENT_SECRET")!;
-  const basic = btoa(`${clientId}:${clientSecret}`);
-  const form = new URLSearchParams();
-  form.set("grant_type", "refresh_token");
-  form.set("refresh_token", conn.refresh_token);
-  const res = await fetch(`${CANVA_API}/oauth/token`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${basic}`,
-    },
-    body: form.toString(),
-  });
-  const j = await res.json();
-  if (!res.ok || !j.access_token) {
-    console.warn("Canva refresh failed:", j);
-    // invalid_grant = refresh token expiré/révoqué : le jeton actuel est mort
-    // aussi, inutile de partir dans un export de 2 min qui finira en erreur.
-    if (j?.error === "invalid_grant") return null;
-    return conn.access_token;
-  }
-
-  const newExpires = new Date(Date.now() + Number(j.expires_in || 4 * 3600) * 1000).toISOString();
-  const { error: persistError } = await supabase
-    .from("social_connections")
-    .update({
-      access_token: await encryptToken(j.access_token),
-      refresh_token: await encryptToken(j.refresh_token || conn.refresh_token),
-      token_expires_at: newExpires,
-    })
-    .eq("id", conn.id);
-  // Non-bloquant : le jeton rafraîchi reste utilisable pour CET appel même si
-  // la persistance échoue (au pire, un nouveau refresh au prochain appel).
-  if (persistError) console.error("[social-canva-import] Échec persistance jeton rafraîchi:", persistError);
-  return j.access_token as string;
 }
 
 // Attend la fin du job d'import et renvoie l'id du design créé.

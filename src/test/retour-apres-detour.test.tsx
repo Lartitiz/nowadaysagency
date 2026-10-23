@@ -27,7 +27,7 @@ vi.mock("@/contexts/AuthContext", () => ({
 vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "u1", useWorkspaceReady: () => true }));
 vi.mock("@/hooks/use-social-connections", () => ({
   useSocialConnections: () => ({
-    known: mocks.social.known, loading: false, accountNames: {}, getTokenExpiry: () => null,
+    known: mocks.social.known, loading: false, accountNames: {}, needsReconnect: {}, getTokenExpiry: () => null,
     isConnected: (p: string) => !!mocks.social.connectedMap[p],
     refresh: mocks.social.refresh,
   }),

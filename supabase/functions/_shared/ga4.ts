@@ -132,6 +132,7 @@ async function getAccessToken(): Promise<string> {
 // (grant_type=refresh_token). Renvoie le nouveau jeton + son expiration ISO.
 export async function refreshGoogleUserToken(
   refreshToken: string,
+  opts: { signal?: AbortSignal } = {},
 ): Promise<{ accessToken: string; expiresAt: string }> {
   const clientId = Deno.env.get("GOOGLE_CLIENT_ID");
   const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
@@ -147,10 +148,14 @@ export async function refreshGoogleUserToken(
       client_secret: clientSecret,
       refresh_token: refreshToken,
     }),
+    signal: opts.signal,
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok || !json?.access_token) {
-    throw new Error(`Échec du refresh OAuth Google (${res.status}): ${json?.error_description || json?.error || "inconnu"}`);
+    const err = new Error(`Échec du refresh OAuth Google (${res.status}): ${json?.error_description || json?.error || "inconnu"}`);
+    // Statut et réponse gardés pour distinguer un refus définitif (reconnecter) d'une panne.
+    Object.assign(err, { status: res.status, body: json });
+    throw err;
   }
   const expiresIn = Number(json.expires_in || 3600);
   return {
