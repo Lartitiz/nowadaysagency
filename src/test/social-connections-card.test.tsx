@@ -68,3 +68,26 @@ it("late disconnection response from A neither reloads nor toasts in B", async (
   expect(m.invoke).toHaveBeenCalledTimes(3);
   expect(screen.getByRole("button", { name: "Déconnecter" })).toBeEnabled();
 });
+// 23/10/2026 : Canva, Pinterest et GA4 affichaient « Connecté · expire le 14/08 »
+// alors que les plateformes refusaient le renouvellement. La page demande au
+// serveur de vérifier (verify) et affiche « Connexion expirée » quand il le dit.
+it("asks the server to verify, and shows a refused renewal as an expired connection", async () => {
+  const past = "2026-08-14T12:15:49.113Z";
+  m.invoke.mockResolvedValue({ data: { connections: [
+    { platform: "canva", connected: true, accountName: "Canva", expiresAt: past, needsReconnect: true },
+    { platform: "pinterest", connected: true, accountName: "nowadaysagency", expiresAt: past, needsReconnect: false },
+  ] }, error: null });
+  render(<SocialConnectionsCard />);
+  await screen.findByText(/Connexion expirée — reconnecte-toi pour ouvrir tes carrousels dans Canva/);
+  expect(m.invoke).toHaveBeenCalledWith("social-status", { body: expect.objectContaining({ verify: true }) });
+  expect(screen.getByRole("button", { name: "Reconnecter" })).toBeInTheDocument();
+  // Renouvellement non refusé : connectée, sans la date trompeuse du dernier usage.
+  expect(screen.getByText("Connecté : @nowadaysagency")).toBeInTheDocument();
+  expect(screen.queryByText(/expire le/)).not.toBeInTheDocument();
+});
+it("keeps the real expiry date and warning for Instagram / LinkedIn", async () => {
+  const soon = new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString();
+  m.invoke.mockResolvedValue({ data: { connections: [{ platform: "linkedin", connected: true, accountName: "L", expiresAt: soon }] }, error: null });
+  render(<SocialConnectionsCard />);
+  await screen.findByText(/expire le .* : reconnecte-toi d'ici là/);
+});

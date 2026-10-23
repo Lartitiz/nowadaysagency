@@ -31,10 +31,14 @@ type PlatformMeta = {
   notConnectedHint?: string;
   /**
    * Alerter quand le jeton expire (Instagram/LinkedIn : sans reconnexion, les
-   * publications automatiques échouent). Canva et Pinterest se rafraîchissent
-   * seuls via refresh_token → leur date d'expiration en base est trompeuse.
+   * publications automatiques échouent). Canva, Pinterest et Google se
+   * rafraîchissent seuls via refresh_token → leur date en base est celle du
+   * dernier usage : on ne l'affiche pas, et c'est le serveur qui dit si le
+   * renouvellement est refusé (needsReconnect, vérifié à l'ouverture de la page).
    */
   warnOnExpiry?: boolean;
+  /** Ce que la connexion expirée empêche (fin de « Connexion expirée — reconnecte-toi pour … »). */
+  expiredHint: string;
 };
 
 const PLATFORMS: PlatformMeta[] = [
@@ -45,6 +49,7 @@ const PLATFORMS: PlatformMeta[] = [
     iconWrapClass: "bg-gradient-to-br from-fuchsia-500 to-orange-400",
     atHandle: true,
     warnOnExpiry: true,
+    expiredHint: "relancer les publications automatiques",
   },
   {
     key: "linkedin",
@@ -52,6 +57,7 @@ const PLATFORMS: PlatformMeta[] = [
     icon: <Linkedin className="h-4 w-4" />,
     iconWrapClass: "bg-[#0a66c2]",
     warnOnExpiry: true,
+    expiredHint: "relancer les publications automatiques",
   },
   {
     key: "linkedin_analytics",
@@ -60,6 +66,7 @@ const PLATFORMS: PlatformMeta[] = [
     iconWrapClass: "bg-[#0a66c2]",
     notConnectedHint: "Non connecté : pour remplir tes stats LinkedIn automatiquement",
     warnOnExpiry: true,
+    expiredHint: "remplir tes stats LinkedIn automatiquement",
   },
   {
     key: "canva",
@@ -67,6 +74,7 @@ const PLATFORMS: PlatformMeta[] = [
     icon: <Palette className="h-4 w-4" />,
     iconWrapClass: "bg-gradient-to-br from-cyan-400 to-violet-500",
     notConnectedHint: "Non connecté : pour ouvrir tes carrousels dans Canva",
+    expiredHint: "ouvrir tes carrousels dans Canva",
   },
   {
     key: "pinterest",
@@ -74,6 +82,7 @@ const PLATFORMS: PlatformMeta[] = [
     icon: <PinterestIcon className="h-4 w-4" />,
     iconWrapClass: "bg-[#e60023]",
     atHandle: true,
+    expiredHint: "publier tes épingles",
   },
   {
     key: "google",
@@ -81,7 +90,7 @@ const PLATFORMS: PlatformMeta[] = [
     icon: <BarChart3 className="h-4 w-4" />,
     iconWrapClass: "bg-gradient-to-br from-amber-400 to-orange-500",
     notConnectedHint: "Non connecté : pour remplir tes stats de site automatiquement",
-    // Google se rafraîchit seul via refresh_token → pas d'alerte d'expiration.
+    expiredHint: "remplir tes stats de site automatiquement",
   },
 ];
 
@@ -90,7 +99,7 @@ export default function SocialConnectionsCard() {
   const workspaceId = useWorkspaceId();
   const ready = useWorkspaceReady();
   const navigate = useNavigate();
-  const social = useSocialConnections();
+  const social = useSocialConnections({ verify: true });
   const { loading, known, refresh: reload } = social;
   const errored = !loading && !known;
   const scope = useMemo(() => ({ userId: user?.id, workspaceId, ready }), [user?.id, workspaceId, ready]);
@@ -203,10 +212,11 @@ export default function SocialConnectionsCard() {
         {PLATFORMS.map((p) => {
           const conn = { connected: social.isConnected(p.key), accountName: social.accountNames[p.key], expiresAt: social.getTokenExpiry(p.key) };
           const isConnected = !statusUnknown && conn?.connected;
-          // Jeton expiré ou en fin de vie (< 7 jours) → la connexion existe encore en
-          // base mais les publications automatiques vont échouer : inciter à reconnecter.
+          // Jeton expiré ou en fin de vie (< 7 jours), ou renouvellement refusé par la
+          // plateforme → la connexion existe encore en base mais ne marche plus :
+          // inciter à reconnecter.
           const expMs = p.warnOnExpiry && conn?.expiresAt ? new Date(conn.expiresAt).getTime() : null;
-          const tokenExpired = !!(isConnected && expMs && expMs < Date.now());
+          const tokenExpired = !!(isConnected && (social.needsReconnect[p.key] || (expMs && expMs < Date.now())));
           const tokenExpiresSoon = !!(isConnected && !tokenExpired && expMs && expMs - Date.now() < 7 * 24 * 3600 * 1000);
           return (
             <div key={p.key} className="flex items-center justify-between gap-3 px-4 py-3">
@@ -227,13 +237,13 @@ export default function SocialConnectionsCard() {
                   ) : tokenExpired ? (
                     <p className="text-xs text-destructive flex items-center gap-1">
                       <AlertCircle className="h-3 w-3" />
-                      Connexion expirée — reconnecte-toi pour relancer les publications automatiques.
+                      Connexion expirée — reconnecte-toi pour {p.expiredHint}.
                     </p>
                   ) : isConnected ? (
                     <p className="text-xs text-muted-foreground break-words">
                       <CheckCircle2 className="inline-block h-3 w-3 mr-1 text-success" />
                       Connecté{conn?.accountName ? ` : ${p.atHandle ? "@" : ""}${conn.accountName}` : ""}
-                      {conn?.expiresAt && (
+                      {p.warnOnExpiry && conn?.expiresAt && (
                         <span className={tokenExpiresSoon ? "block text-warning font-medium" : "block"}>
                           · expire le {new Date(conn.expiresAt).toLocaleDateString("fr-FR")}
                           {tokenExpiresSoon ? " : reconnecte-toi d'ici là" : ""}

@@ -4,6 +4,7 @@
 //  - l'échange/rafraîchissement du jeton se fait en HTTP Basic auth (client_id:client_secret) ;
 //  - une épingle va TOUJOURS dans un tableau précis (board_id obligatoire).
 import { encryptToken } from "./token-crypto.ts";
+import { isDefinitiveRefusal, type RefreshOutcome } from "./oauth-refresh.ts";
 
 const PIN_API = "https://api.pinterest.com/v5";
 const TOKEN_URL = `${PIN_API}/oauth/token`;
@@ -25,28 +26,46 @@ export function pinterestPermalink(pinId: string): string {
 /**
  * Renvoie un access_token valide, en le rafraîchissant via le refresh_token si le jeton
  * courant arrive à expiration. Met à jour la connexion en base le cas échéant.
+ * En cas d'échec, tente le jeton actuel (l'appel Pinterest dira 401 s'il est mort).
  */
 export async function refreshPinterestTokenIfNeeded(supabase: any, conn: any): Promise<string> {
+  const out = await refreshPinterestToken(supabase, conn);
+  return out.state === "fresh" || out.state === "refreshed" ? out.token : conn.access_token;
+}
+
+/** Même rafraîchissement, avec son issue (social-status s'en sert pour dire si la connexion marche). */
+export async function refreshPinterestToken(
+  supabase: any,
+  conn: any,
+  opts: { signal?: AbortSignal } = {},
+): Promise<RefreshOutcome> {
   const expiresAtMs = conn.token_expires_at ? new Date(conn.token_expires_at).getTime() : 0;
-  if (expiresAtMs && expiresAtMs - Date.now() > REFRESH_THRESHOLD_MS) return conn.access_token;
-  if (!conn.refresh_token) return conn.access_token; // pas de refresh possible : on tente le jeton tel quel
+  if (expiresAtMs && expiresAtMs - Date.now() > REFRESH_THRESHOLD_MS) return { state: "fresh", token: conn.access_token };
+  if (!conn.refresh_token) return { state: "unknown", token: conn.access_token }; // pas de refresh possible
 
   const form = new URLSearchParams();
   form.set("grant_type", "refresh_token");
   form.set("refresh_token", conn.refresh_token);
 
-  const res = await fetch(TOKEN_URL, {
-    method: "POST",
-    headers: {
-      Authorization: basicAuthHeader(),
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: form.toString(),
-  });
+  let res: Response;
+  try {
+    res = await fetch(TOKEN_URL, {
+      method: "POST",
+      headers: {
+        Authorization: basicAuthHeader(),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: form.toString(),
+      signal: opts.signal,
+    });
+  } catch (e) {
+    console.warn("Pinterest refresh unreachable:", e);
+    return { state: "unknown", token: conn.access_token };
+  }
   const json = await res.json().catch(() => ({}));
   if (!res.ok || !json.access_token) {
     console.warn("Pinterest refresh failed:", json);
-    return conn.access_token;
+    return isDefinitiveRefusal(res.status, json) ? { state: "dead" } : { state: "unknown", token: conn.access_token };
   }
 
   const newExpires = new Date(Date.now() + Number(json.expires_in || 30 * 24 * 3600) * 1000).toISOString();
@@ -60,7 +79,7 @@ export async function refreshPinterestTokenIfNeeded(supabase: any, conn: any): P
   // Non-bloquant : le jeton rafraîchi reste utilisable pour CET appel même si
   // la persistance échoue (au pire, un nouveau refresh au prochain appel).
   if (persistError) console.error("[pinterest-graph] Échec persistance jeton rafraîchi:", persistError);
-  return json.access_token as string;
+  return { state: "refreshed", token: json.access_token as string, expiresAt: newExpires };
 }
 
 export interface PinterestBoard {
