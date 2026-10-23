@@ -213,3 +213,6 @@ La CI de la PR reste la référence.
 
 ## 23/10/2026 09h UTC
 Dépendances Deno réinstallées après wipe de node_modules ; `deno check supabase/functions/` 0 erreur.
+
+## 23/10/2026 17h05 UTC
+Dépendances Deno réinstallées après wipe de node_modules ; `deno check supabase/functions/` 0 erreur.
