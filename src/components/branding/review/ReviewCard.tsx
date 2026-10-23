@@ -5,7 +5,7 @@ import type React from "react";
 import { CheckCircle2, Sparkles, Lock, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { BrandLogoSuggestion } from "@/components/branding/BrandLogoSuggestion";
-import { SECTIONS, type AnalysisResult, type OfferItem, type SectionKey } from "./types";
+import { SECTIONS, COACHING_SECTION_MAP, type AnalysisResult, type OfferItem, type SectionKey } from "./types";
 import { getConfidence, ConfidenceBadge } from "./ReviewBits";
 import { RENDERERS, sectionHasData } from "./SectionViews";
 import { OffersSection } from "./OffersSection";
@@ -47,6 +47,8 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
   const isLow = conf === "low" && !hasData;
   const isSaving = savingSection === sec.key;
   const isRefined = refinedSections.has(sec.key);
+  // Pas d'« On affine ensemble » sur une section sans conversation prévue.
+  const canRefine = !!COACHING_SECTION_MAP[sec.key];
   const sectionBody = sec.key === "offers"
     ? <OffersSection data={{ ...analysis.offers, offers: editedOffers }} onUpdate={handleOfferUpdate} onDelete={handleOfferDelete} existingOfferNames={existingOfferNames} />
     : sec.key === "charter"
@@ -125,18 +127,24 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
                 <button onClick={() => handleKeepAsIs(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-success text-success rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-success-bg transition-all disabled:opacity-50">
                   <CheckCircle2 className="h-4 w-4" /> Garder tel quel
                 </button>
-                <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-rose-pale transition-all">
-                  <Sparkles className="h-4 w-4" /> On affine ensemble →
-                </button>
+                {canRefine && (
+                  <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-rose-pale transition-all">
+                    <Sparkles className="h-4 w-4" /> On affine ensemble →
+                  </button>
+                )}
               </div>
             </>
           ) : isLow ? (
             <div className="text-center py-6">
-              <p className="text-sm text-muted-foreground mb-4">Je n'ai pas assez d'éléments pour cette section. On la remplit ensemble ?</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                {canRefine ? "Je n'ai pas assez d'éléments pour cette section. On la remplit ensemble ?" : "Je n'ai pas assez d'éléments pour cette section. Tu pourras l'écrire dans Mon identité."}
+              </p>
               <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg">
-                  <Sparkles className="h-4 w-4" /> On la remplit ensemble →
-                </button>
+                {canRefine && (
+                  <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg">
+                    <Sparkles className="h-4 w-4" /> On la remplit ensemble →
+                  </button>
+                )}
                 <button onClick={() => handleToReview(sec.key)} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-border text-muted-foreground rounded-[12px] px-5 py-2 text-sm font-semibold hover:border-warning hover:text-warning transition-all">
                   Plus tard
                 </button>
@@ -148,9 +156,11 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
               {isValidated ? (
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                   <p className="text-sm text-success font-medium flex-1">✅ Cette carte est enregistrée.</p>
-                  <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-primary-text hover:underline">
-                    <Sparkles className="h-4 w-4" /> L'affiner quand même
-                  </button>
+                  {canRefine && (
+                    <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-primary-text hover:underline">
+                      <Sparkles className="h-4 w-4" /> L'affiner quand même
+                    </button>
+                  )}
                 </div>
               ) : (
                 <>
@@ -162,11 +172,13 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
                     <button onClick={() => handleToReview(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-warning text-warning rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-warning-bg transition-all disabled:opacity-50">
                       <Pencil className="h-4 w-4" /> À revoir
                     </button>
-                    <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-rose-pale transition-all">
-                      <Sparkles className="h-4 w-4" /> On affine ensemble →
-                    </button>
+                    {canRefine && (
+                      <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-rose-pale transition-all">
+                        <Sparkles className="h-4 w-4" /> On affine ensemble →
+                      </button>
+                    )}
                   </div>
-                  {conf === "low" && (
+                  {conf === "low" && canRefine && (
                     <p className="text-xs text-muted-foreground mt-2">Je n'ai pas trouvé assez d'infos pour cette partie. Quelques questions vont m'aider à compléter.</p>
                   )}
                 </>
