@@ -210,3 +210,6 @@ La CI de la PR reste la référence.
 - 2026-10-19 08:05 — réinstallation des dépendances Deno après wipe de node_modules (déclencheur de build frais, aucun code modifié).
 
 - 2026-10-20 : vérif post-déploiement studio-video — dépendances réinstallées, `deno check` 0 erreur, `npm run build` et `deno check` propre.
+
+## 23/10/2026 09h UTC
+Dépendances Deno réinstallées après wipe de node_modules ; `deno check supabase/functions/` 0 erreur.
