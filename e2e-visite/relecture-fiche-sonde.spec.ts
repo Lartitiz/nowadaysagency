@@ -15,6 +15,10 @@
  *
  * Depuis le 24/10/2026, « On affine ensemble » s'appelle « Je corrige » et
  * « C'est bon » s'appelle « C'est juste » sur les cartes : la sonde cherche les deux.
+ *
+ * Au téléphone (375 × 812, ajouté le 24/10/2026 après #1797) : sur chacune des
+ * 7 cartes, à l'arrivée et sans défiler, les 2 boutons de la carte sont au-dessus
+ * de la barre du bas. Une carte trop longue les cachait (jusqu'à 2,5 écrans).
  */
 import { test, expect, type Page, type Route } from "@playwright/test";
 
@@ -35,6 +39,7 @@ const VIDE = {
   charter: { confidence: "low", mood_keywords: [] }, sources_used: [], sources_failed: [], overall_confidence: "medium",
 };
 const CARTES = ["Ton histoire", "client·e idéal·e", "proposition de valeur", "Ton & style", "stratégie de contenu", "Tes offres", "charte graphique"];
+const BOUTONS_CARTE = /C'est juste|C'est bon|Je corrige|On affine ensemble|Garder tel quel/;
 const TABLES_MARQUE = ["storytelling", "persona", "brand_proposition", "brand_profile", "brand_strategy", "offers", "brand_charter"];
 
 async function simuler(page: Page, analysis: Record<string, unknown>) {
@@ -71,7 +76,29 @@ test.describe("Relecture de la fiche : 7 cartes et carte vide", () => {
     const taille = info.project.name;
     const oups = page.getByText("Oups, quelque chose a coincé");
 
+    if (taille === "mobile") await page.setViewportSize({ width: 375, height: 812 });
     await simuler(page, REMPLIE);
+
+    // Téléphone : les 2 boutons de chaque carte visibles à l'arrivée, sans défiler.
+    const cachees: string[] = [];
+    if (taille === "mobile") {
+      for (const nom of CARTES) {
+        await page.getByRole("button", { name: new RegExp(`Aller à « .*${nom.replace(/[·&]/g, ".")}`) }).click();
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForTimeout(400);
+        const m = await page.evaluate((motif) => {
+          const re = new RegExp(motif);
+          const carte = [...document.querySelectorAll("h2")].map((h) => h.closest("div.border")).find(Boolean);
+          const barre = [...document.querySelectorAll("div.fixed")].find((d) => d.textContent?.includes("validées"));
+          const limite = barre ? barre.getBoundingClientRect().top : innerHeight;
+          const boutons = carte ? [...carte.querySelectorAll("button")].filter((b) => re.test(b.textContent || "")) : [];
+          return { n: boutons.length, visibles: boutons.filter((b) => { const r = b.getBoundingClientRect(); return r.top >= 0 && r.bottom <= limite; }).length };
+        }, BOUTONS_CARTE.source);
+        if (m.n < 2 || m.visibles < 2) cachees.push(`${nom} (boutons visibles : ${m.visibles}/${Math.max(m.n, 2)})`);
+      }
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.getByRole("button", { name: /Aller à « Ton histoire »/ }).click();
+    }
     const ouvertes: string[] = [];
     const ko: string[] = [];
     for (const nom of CARTES) {
@@ -99,7 +126,11 @@ test.describe("Relecture de la fiche : 7 cartes et carte vide", () => {
 
     console.log(`🪪 Relecture fiche (${taille}) : ${ouvertes.length}/7 cartes s'ouvrent · carte vide ${videOk ? "pose sa question ✅" : `❌ (${!question ? "pas de question" : cestBon ? "« C'est bon » sur du vide" : "plantage"})`}`);
     for (const k of ko) console.log(`   - ❌ ${k}`);
+    if (taille === "mobile") {
+      console.log(`📱 Boutons au téléphone (375 × 812) : ${cachees.length === 0 ? "7/7 cartes ✅" : `🔴 ${7 - cachees.length}/7, cachés sur : ${cachees.join(", ")}`}`);
+    }
     expect(ko, "« On affine ensemble » ne s'ouvre pas sur toutes les cartes").toEqual([]);
     expect(videOk, "la carte vide ne pose pas sa question").toBe(true);
+    expect(cachees, "boutons de carte cachés au téléphone à l'arrivée").toEqual([]);
   });
 });
