@@ -1,12 +1,13 @@
 // Carte en cours de la relecture de marque : fil de progression, une section
-// (déjà commencée / pas assez d'infos / normale), réponses et Précédent / Suivant.
-// Sorti de BrandingReview.tsx à l'identique (fiche 14 de docs/robustesse/gros-fichiers.md, lot 5).
+// (déjà commencée / vide / normale), réponses et Précédent / Suivant.
+// Sorti de BrandingReview.tsx (fiche 14 de docs/robustesse/gros-fichiers.md, lot 5).
+// Depuis le 24/10/2026 (chantier 4) : les mêmes 2 boutons sur une carte remplie,
+// « C'est juste » et « Je corrige », sans badge de confiance ni « À revoir ».
 import type React from "react";
-import { CheckCircle2, Sparkles, Lock, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle2, Sparkles, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { BrandLogoSuggestion } from "@/components/branding/BrandLogoSuggestion";
 import { SECTIONS, COACHING_SECTION_MAP, type AnalysisResult, type OfferItem, type SectionKey } from "./types";
-import { getConfidence, ConfidenceBadge } from "./ReviewBits";
 import { RENDERERS, sectionHasData } from "./SectionViews";
 import { OffersSection } from "./OffersSection";
 import { CharterSection } from "./CharterSection";
@@ -18,7 +19,6 @@ interface ReviewCardProps {
   total: number;
   preFilledSections?: Set<string>;
   validated: Set<SectionKey>;
-  toReview: Set<SectionKey>;
   savingSection: SectionKey | null;
   refinedSections: Set<SectionKey>;
   editedOffers: OfferItem[];
@@ -43,12 +43,10 @@ interface ReviewCardProps {
   quickRefine?: boolean;
 }
 
-export function ReviewCard({ analysis, index, total, preFilledSections, validated, toReview, savingSection, refinedSections, editedOffers, handleOfferUpdate, handleOfferDelete, existingOfferNames, editedCharter, handleCharterUpdate, goTo, goPrev, goNext, handleTouchStart, handleTouchEnd, handleValidate, handleKeepAsIs, handleToReview, setCoachingSection, isEmpty = false, onAnswer, quickRefine = false }: ReviewCardProps) {
+export function ReviewCard({ analysis, index, total, preFilledSections, validated, savingSection, refinedSections, editedOffers, handleOfferUpdate, handleOfferDelete, existingOfferNames, editedCharter, handleCharterUpdate, goTo, goPrev, goNext, handleTouchStart, handleTouchEnd, handleValidate, handleKeepAsIs, handleToReview, setCoachingSection, isEmpty = false, onAnswer, quickRefine = false }: ReviewCardProps) {
   const sec = SECTIONS[index];
-  const conf = getConfidence(analysis[sec.key]);
   const isPreFilled = preFilledSections?.has(sec.key) ?? false;
   const isValidated = validated.has(sec.key);
-  const isMarked = toReview.has(sec.key);
   const hasData = sectionHasData(sec.key, analysis);
   // Carte vide (rien trouvé, rien d'écrit avant) : question de rattrapage.
   const showCatchUp = isEmpty && !isValidated;
@@ -84,8 +82,7 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
               className={`h-2 rounded-full transition-all ${
                 i === index ? "w-6 bg-primary"
                   : validated.has(s.key) ? "w-2 bg-success"
-                    : toReview.has(s.key) ? "w-2 bg-warning"
-                      : "w-2 bg-border"
+                    : "w-2 bg-border"
               }`}
             />
           ))}
@@ -100,33 +97,22 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
         onTouchEnd={handleTouchEnd}
         className="bg-card rounded-[20px] shadow-card border border-border overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300"
       >
-        <div className="flex items-center justify-between gap-3 p-5 sm:p-6 pb-0">
+        <div className="flex items-center justify-between gap-3 p-5 sm:p-6 pb-0 sm:pb-0">
           <div className="flex items-center gap-3 min-w-0">
             <span className="text-xl shrink-0">{sec.emoji}</span>
             <h2 className="font-display text-lg text-foreground" style={{ fontWeight: 400 }}>{sec.title}</h2>
             {isValidated && <CheckCircle2 className="h-5 w-5 text-success shrink-0" />}
             {isRefined && <span className="text-2xs text-success font-medium">Affiné</span>}
-            {isMarked && !isValidated && (
-              <span className="inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full bg-warning-bg text-warning shrink-0">
-                À revoir
-              </span>
-            )}
-            {isPreFilled && !isRefined && (
-              <span className="inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full bg-info-bg text-info shrink-0">
-                <Lock className="h-3 w-3" /> Déjà complété
-              </span>
-            )}
           </div>
-          {!isValidated && !isPreFilled && <ConfidenceBadge level={isEmpty ? "low" : conf} />}
         </div>
 
-        <div className="px-5 sm:px-6 py-5 sm:py-6">
+        <div className="px-5 sm:px-6 pt-4 pb-5 sm:pb-6">
           {isPreFilled && !isRefined ? (
             <>
               {hasData ? (
                 <>
-                  <p className="text-sm text-muted-foreground mb-3 bg-info-bg border border-info/20 rounded-[12px] px-3 py-2">
-                    Tu avais déjà commencé cette section. Voici ce que l'analyse a trouvé en plus — je <strong>complète seulement les champs vides</strong>, sans toucher à ce que tu as écrit.
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Tu avais déjà commencé cette partie. « C'est juste » complète seulement les champs vides, sans toucher à ce que tu as écrit.
                   </p>
                   <div className="mb-5">{sectionBody}</div>
                 </>
@@ -134,18 +120,20 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
                 // Déjà remplie, rien de neuf : avant, la carte montrait un encadré sur du vide.
                 <p className="text-sm text-muted-foreground mb-5">Tu avais déjà rempli cette partie, et l'analyse n'a rien trouvé de plus. Ce que tu as écrit reste tel quel.</p>
               )}
+              {/* 2 boutons au plus : avec du neuf, « C'est juste » complète les
+                  champs vides et « Garder tel quel » n'ajoute rien ; sans rien de
+                  neuf, « Garder tel quel » et « Je corrige ». */}
               <div className="flex flex-col sm:flex-row gap-2">
-                {hasData && <button onClick={() => handleValidate(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-5 py-2 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50">
-                  {isSaving ? <Spinner className="h-4 w-4 text-white" /> : <CheckCircle2 className="h-4 w-4" />}
-                  Compléter les champs vides ✓
-                </button>}
-                <button onClick={() => handleKeepAsIs(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-success text-success rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-success-bg transition-all disabled:opacity-50">
-                  <CheckCircle2 className="h-4 w-4" /> Garder tel quel
-                </button>
-                {canRefine && (
-                  <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-rose-pale transition-all">
-                    <Sparkles className="h-4 w-4" /> On affine ensemble →
-                  </button>
+                {hasData ? (
+                  <>
+                    <PrimaryButton onClick={() => handleValidate(sec.key)} disabled={isSaving} saving={isSaving}>C'est juste</PrimaryButton>
+                    <SecondaryButton onClick={() => handleKeepAsIs(sec.key)} disabled={isSaving}>Garder tel quel</SecondaryButton>
+                  </>
+                ) : (
+                  <>
+                    <PrimaryButton onClick={() => handleKeepAsIs(sec.key)} disabled={isSaving} saving={isSaving}>Garder tel quel</PrimaryButton>
+                    {canRefine && <SecondaryButton onClick={() => setCoachingSection(sec.key)} icon={<Pencil className="h-4 w-4" />}>Je corrige</SecondaryButton>}
+                  </>
                 )}
               </div>
             </>
@@ -165,25 +153,11 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
                   )}
                 </div>
               ) : (
-                <>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <button onClick={() => handleValidate(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-5 py-2 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50">
-                      {isSaving ? <Spinner className="h-4 w-4 text-white" /> : <CheckCircle2 className="h-4 w-4" />}
-                      C'est bon ✓
-                    </button>
-                    <button onClick={() => handleToReview(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-warning text-warning rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-warning-bg transition-all disabled:opacity-50">
-                      <Pencil className="h-4 w-4" /> À revoir
-                    </button>
-                    {canRefine && (
-                      <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-rose-pale transition-all">
-                        <Sparkles className="h-4 w-4" /> On affine ensemble →
-                      </button>
-                    )}
-                  </div>
-                  {conf === "low" && canRefine && (
-                    <p className="text-xs text-muted-foreground mt-2">Je n'ai pas trouvé assez d'infos pour cette partie. Quelques questions vont m'aider à compléter.</p>
-                  )}
-                </>
+                // « À revoir » retiré : ne rien choisir et passer à la suivante revient au même.
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <PrimaryButton onClick={() => handleValidate(sec.key)} disabled={isSaving} saving={isSaving}>C'est juste</PrimaryButton>
+                  {canRefine && <SecondaryButton onClick={() => setCoachingSection(sec.key)} icon={<Pencil className="h-4 w-4" />}>Je corrige</SecondaryButton>}
+                </div>
               )}
             </>
           )}
@@ -209,5 +183,23 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
         </button>
       </div>
     </div>
+  );
+}
+
+// Les 2 boutons de carte, partout les mêmes : plein (bordeaux) puis contour.
+function PrimaryButton({ onClick, disabled, saving, children }: { onClick: () => void; disabled?: boolean; saving?: boolean; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} disabled={disabled} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-5 py-2 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50">
+      {saving ? <Spinner className="h-4 w-4 text-white" /> : <CheckCircle2 className="h-4 w-4" />}
+      {children}
+    </button>
+  );
+}
+
+function SecondaryButton({ onClick, disabled, icon, children }: { onClick: () => void; disabled?: boolean; icon?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} disabled={disabled} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-rose-pale transition-all disabled:opacity-50">
+      {icon} {children}
+    </button>
   );
 }
