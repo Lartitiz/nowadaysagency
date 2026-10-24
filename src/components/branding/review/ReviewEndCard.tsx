@@ -69,7 +69,7 @@ export function ReviewEndCard({ validated, toReview, goTo, mandatory, setProduct
               className="inline-flex items-center gap-1.5 rounded-pill border border-border bg-background px-3 py-1.5 text-sm text-foreground hover:border-primary transition-colors"
             >
               <span>{s.emoji}</span> {s.title}
-              {toReview.has(s.key) && <span className="text-2xs text-warning font-medium">à revoir</span>}
+              {toReview.has(s.key) && <span className="text-2xs text-muted-foreground font-medium">plus tard</span>}
             </button>
           ))}
         </div>

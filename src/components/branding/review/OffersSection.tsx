@@ -2,16 +2,20 @@ import { useState } from "react";
 import { Pencil, Trash2, X, Check } from "lucide-react";
 import type { AnalysisResult, OfferItem } from "./types";
 
+// On ne parle de doublon que s'il y en a un VRAI : la règle affichée en dur
+// à toutes les inscrites laissait croire qu'elles avaient déjà des offres.
+export function offerClashes(offers: OfferItem[], existingOfferNames: string[] = []): string[] {
+  const existing = new Set(existingOfferNames.map(n => n.toLocaleLowerCase().trim()).filter(Boolean));
+  return offers.map(o => o.name?.trim()).filter((n): n is string => !!n && existing.has(n.toLocaleLowerCase()));
+}
+
 export function OffersSection({ data, onUpdate, onDelete, existingOfferNames = [] }: { data: AnalysisResult["offers"]; onUpdate?: (index: number, offer: OfferItem) => void; onDelete?: (index: number) => void; existingOfferNames?: string[] }) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState<OfferItem>({});
 
   if (!data?.offers?.length) return null;
 
-  // On ne parle de doublon que s'il y en a un VRAI : la règle affichée en dur
-  // à toutes les inscrites laissait croire qu'elles avaient déjà des offres.
-  const existing = new Set(existingOfferNames.map(n => n.toLocaleLowerCase().trim()).filter(Boolean));
-  const clashes = data.offers.map(o => o.name?.trim()).filter((n): n is string => !!n && existing.has(n.toLocaleLowerCase()));
+  const clashes = offerClashes(data.offers, existingOfferNames);
 
   const startEdit = (i: number) => {
     setEditDraft({ ...data.offers![i] });
