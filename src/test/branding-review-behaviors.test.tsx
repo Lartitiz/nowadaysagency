@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 /* Relecture de marque : comportements de l'écran jamais testés avant la fiche 14
    de docs/robustesse/gros-fichiers.md (lot T, 15/10/2026). « Garder tel quel »,
-   « À revoir » rappelé en fin, clavier, swipe, coaching (pas de 2e écriture
+   « C'est juste » / « Je corrige », clavier, swipe, coaching (pas de 2e écriture
    après « On affine ensemble »), bio Instagram, et ce que le fichier exporte
    (les découpages suivants doivent garder ces exports). */
 
@@ -65,7 +65,10 @@ describe("BrandingReview — réponses carte par carte", () => {
   it("« Garder tel quel » valide une section déjà commencée sans rien écrire", async () => {
     const progress = vi.fn().mockResolvedValue(undefined);
     render(<BrandingReview analysis={ANALYSIS} preFilledSections={new Set(["story"])} onProgress={progress} onDone={() => {}} />);
-    expect(screen.getByText("Déjà complété")).toBeInTheDocument();
+    expect(screen.getByText(/Tu avais déjà commencé cette partie/)).toBeInTheDocument();
+    // 2 boutons au plus sur une partie déjà commencée (chantier 4, 24/10/2026).
+    expect(screen.getByRole("button", { name: /C'est juste/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Je corrige/ })).toBeNull();
 
     fireEvent.click(screen.getByText("Garder tel quel"));
 
@@ -75,18 +78,21 @@ describe("BrandingReview — réponses carte par carte", () => {
     expect(currentCard()).toBe("Carte 2 sur 7");
   });
 
-  it("« À revoir » passe à la carte suivante et la section est rappelée sur la carte de fin", () => {
+  it("une carte remplie n'a que « C'est juste » et « Je corrige », sans « À revoir » ni badge", () => {
     render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
-    fireEvent.click(screen.getByText("À revoir"));
-    expect(currentCard()).toBe("Carte 2 sur 7");
-
-    for (let i = 0; i < 6; i++) fireEvent.click(screen.getByText("Suivant"));
-
-    expect(screen.getByText("Il reste des cartes sans réponse")).toBeInTheDocument();
-    const rappel = screen.getByRole("button", { name: /Ton histoire/ });
-    expect(rappel).toHaveTextContent("à revoir");
-    expect(screen.getByRole("button", { name: /Ta proposition de valeur/ })).not.toHaveTextContent("à revoir");
+    expect(screen.getByRole("button", { name: /C'est juste/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Je corrige/ })).toBeInTheDocument();
+    expect(screen.queryByText("À revoir")).toBeNull();
+    expect(screen.queryByText("À vérifier")).toBeNull();
     expect(m.writes).toEqual([]);
+  });
+
+  it("en haut : le titre, une phrase et le compte des cartes, un seul « Je valide tout » (barre du bas)", () => {
+    render(<BrandingReview analysis={ANALYSIS} preFilledSections={new Set(["story"])} onDone={() => {}} />);
+    expect(screen.getByText("Voici ce que j'ai compris de ton projet")).toBeInTheDocument();
+    expect(screen.getByText(/7 cartes à relire\. Pour chacune : c'est juste, ou tu corriges\./)).toBeInTheDocument();
+    expect(screen.getAllByText("Je valide tout")).toHaveLength(1);
+    expect(screen.queryByText(/Tes informations existantes sont conservées/)).toBeNull();
   });
 
   it("« Finir plus tard » existe hors onboarding et disparaît en onboarding", () => {
@@ -136,7 +142,7 @@ describe("BrandingReview — coaching dans la relecture", () => {
   it("à la fin du coaching, la section est validée et marquée « Affiné », sans être réécrite ensuite", async () => {
     const progress = vi.fn().mockResolvedValue(undefined);
     render(<BrandingReview analysis={ANALYSIS} onProgress={progress} onDone={() => {}} />);
-    fireEvent.click(screen.getByText("On affine ensemble →"));
+    fireEvent.click(screen.getByRole("button", { name: /Je corrige/ }));
     // Pendant le coaching, la carte et les flèches sont coupées.
     expect(screen.queryByText(/^Carte \d sur 7$/)).toBeNull();
     fireEvent.keyDown(window, { key: "ArrowRight" });
@@ -193,22 +199,18 @@ describe("BrandingReview — reprise d'onboarding qui remplace la fiche", () => 
   });
 });
 
-describe("BrandingReview — bio Instagram", () => {
-  it("Instagram inaccessible → coller sa bio puis réanalyser avec le texte nettoyé", () => {
-    const reanalyze = vi.fn();
-    render(<BrandingReview analysis={{ ...ANALYSIS, sources_failed: ["instagram"] }} onReanalyzeWithBio={reanalyze} onDone={() => {}} />);
-    fireEvent.click(screen.getByText("Coller ma bio Instagram →"));
-    const bouton = screen.getByRole("button", { name: "Réanalyser avec ma bio" });
-    expect(bouton).toBeDisabled();
-    fireEvent.change(screen.getByPlaceholderText("Colle ta bio Instagram ici..."), { target: { value: "  Céramiste à Lyon  " } });
-    expect(screen.getByRole("button", { name: "Réanalyser avec ma bio" })).toBeEnabled();
-    fireEvent.click(screen.getByRole("button", { name: "Réanalyser avec ma bio" }));
-    expect(reanalyze).toHaveBeenCalledWith("Céramiste à Lyon");
+describe("BrandingReview — Instagram non lu", () => {
+  // La bio collée partait derrière le @ et n'était jamais lue (24/10/2026) :
+  // une ligne le dit, sans encadré ni champ.
+  it("Instagram inaccessible → une phrase, plus de « Coller ma bio Instagram »", () => {
+    render(<BrandingReview analysis={{ ...ANALYSIS, sources_failed: ["instagram"] }} onDone={() => {}} />);
+    expect(screen.getByText(/Je n'ai pas pu lire ton Instagram/)).toBeInTheDocument();
+    expect(screen.queryByText("Coller ma bio Instagram →")).toBeNull();
   });
 
-  it("pas d'aide Instagram quand Instagram a été lu", () => {
+  it("rien sur Instagram quand il a été lu", () => {
     render(<BrandingReview analysis={{ ...ANALYSIS, sources_used: ["instagram"] }} onDone={() => {}} />);
-    expect(screen.queryByText("Coller ma bio Instagram →")).toBeNull();
+    expect(screen.queryByText(/Je n'ai pas pu lire ton Instagram/)).toBeNull();
   });
 });
 
@@ -225,18 +227,18 @@ describe("BrandingReview — proposition de valeur sans conversation", () => {
   // la conversation ne connaît pas cette section, elle a sa propre page.
   it("n'offre pas « On affine ensemble » sur la proposition de valeur", () => {
     render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
-    expect(screen.getByText("On affine ensemble →")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Je corrige/ })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Aller à « Ta proposition de valeur »"));
     expect(currentCard()).toBe("Carte 3 sur 7");
-    expect(screen.queryByText("On affine ensemble →")).toBeNull();
-    expect(screen.getByText("C'est bon ✓")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Je corrige/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /C'est juste/ })).toBeInTheDocument();
   });
 
   it("une proposition de valeur vide pose sa question de rattrapage, sans bouton de conversation", () => {
     render(<BrandingReview analysis={{ ...ANALYSIS, value_proposition: { confidence: "low" } }} onDone={() => {}} />);
     fireEvent.click(screen.getByLabelText("Aller à « Ta proposition de valeur »"));
     expect(screen.getByText("En une phrase : qu'est-ce que tu apportes, et à qui ?")).toBeInTheDocument();
-    expect(screen.queryByText("On affine ensemble →")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Je corrige/ })).toBeNull();
     expect(screen.getByText("Plus tard")).toBeInTheDocument();
   });
 });
@@ -252,7 +254,7 @@ describe("BrandingReview — carte vide : question de rattrapage (23/10/2026)", 
     // Forme réelle de l'onboarding : confiance « medium » écrite d'office, aucun contenu.
     render(<BrandingReview analysis={{ ...ANALYSIS, story: { confidence: "medium", full_story: null as any } }} onDone={() => {}} />);
     expect(screen.getByText("Je n'ai rien trouvé sur ton histoire.")).toBeInTheDocument();
-    expect(screen.queryByText("C'est bon ✓")).toBeNull();
+    expect(screen.queryByRole("button", { name: /C'est juste/ })).toBeNull();
     const enregistrer = screen.getByText("Enregistrer ma réponse").closest("button")!;
     expect(enregistrer).toBeDisabled();
     fireEvent.change(screen.getByLabelText("En deux phrases, comment ton activité a commencé ?"), { target: { value: "J'ai ouvert mon atelier en 2020." } });
@@ -285,7 +287,7 @@ describe("BrandingReview — carte vide : question de rattrapage (23/10/2026)", 
   it("une partie déjà remplie sans rien de neuf ne montre plus un encadré sur du vide", () => {
     render(<BrandingReview analysis={{ ...ANALYSIS, story: { confidence: "medium" } }} preFilledSections={new Set(["story"])} onDone={() => {}} />);
     expect(screen.getByText(/Tu avais déjà rempli cette partie, et l'analyse n'a rien trouvé de plus/)).toBeInTheDocument();
-    expect(screen.queryByText("Compléter les champs vides ✓")).toBeNull();
+    expect(screen.queryByRole("button", { name: /C'est juste/ })).toBeNull();
     expect(screen.getByText("Garder tel quel")).toBeInTheDocument();
   });
 });

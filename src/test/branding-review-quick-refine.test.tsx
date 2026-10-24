@@ -66,7 +66,7 @@ describe("BrandingReview — « On affine ensemble » en une passe (onboarding)"
   it("3 questions, un seul appel à l'IA, la carte proposée puis enregistrée", async () => {
     invoke.mockResolvedValue({ data: { section_data: { full_story: "Tout a commencé avec un savon." } }, error: null });
     render(<BrandingReview analysis={ANALYSIS} mandatory onDone={() => {}} />);
-    fireEvent.click(screen.getByText("On affine ensemble →"));
+    fireEvent.click(screen.getByRole("button", { name: /Je corrige/ }));
     expect(screen.getByLabelText("Qu'est-ce qui t'a donné envie de te lancer ?")).toBeInTheDocument();
     expect(screen.getByLabelText("Où tu veux emmener ton activité ?")).toBeInTheDocument();
     expect(screen.queryByText(/^Carte \d sur 7$/)).toBeNull();
@@ -91,7 +91,7 @@ describe("BrandingReview — « On affine ensemble » en une passe (onboarding)"
 
   it("« Revenir à mes cartes » ne coûte rien et revient sur la même carte", () => {
     render(<BrandingReview analysis={ANALYSIS} mandatory onDone={() => {}} />);
-    fireEvent.click(screen.getByText("On affine ensemble →"));
+    fireEvent.click(screen.getByRole("button", { name: /Je corrige/ }));
     fireEvent.click(screen.getByText("Revenir à mes cartes"));
     expect(currentCard()).toBe("Carte 1 sur 7");
     expect(invoke).not.toHaveBeenCalled();
@@ -101,7 +101,7 @@ describe("BrandingReview — « On affine ensemble » en une passe (onboarding)"
   it("une erreur de l'IA s'affiche et garde les réponses", async () => {
     invoke.mockResolvedValue({ data: null, error: { message: "Le service est momentanément indisponible. Réessaie dans quelques instants.", code: "NETWORK" } });
     render(<BrandingReview analysis={ANALYSIS} mandatory onDone={() => {}} />);
-    fireEvent.click(screen.getByText("On affine ensemble →"));
+    fireEvent.click(screen.getByRole("button", { name: /Je corrige/ }));
     fireEvent.change(screen.getByLabelText("Un moment difficile ou un déclic dont tu te souviens ?"), { target: { value: "Un marché raté." } });
     fireEvent.click(screen.getByText("Réécrire ma carte"));
     await screen.findByRole("alert");
@@ -112,20 +112,22 @@ describe("BrandingReview — « On affine ensemble » en une passe (onboarding)"
   it("en onboarding, la proposition de valeur s'affine aussi en une passe", () => {
     render(<BrandingReview analysis={ANALYSIS} mandatory onDone={() => {}} />);
     fireEvent.click(screen.getByLabelText("Aller à « Ta proposition de valeur »"));
-    fireEvent.click(screen.getByText("On affine ensemble →"));
+    fireEvent.click(screen.getByRole("button", { name: /Je corrige/ }));
     expect(screen.getByLabelText("Quel problème tu règles pour elle ?")).toBeInTheDocument();
   });
 
   it("hors onboarding, « On affine ensemble » garde la conversation", () => {
     render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
-    fireEvent.click(screen.getByText("On affine ensemble →"));
+    fireEvent.click(screen.getByRole("button", { name: /Je corrige/ }));
     expect(screen.getByText("Terminer le coaching story")).toBeInTheDocument();
     expect(screen.queryByText("Réécrire ma carte")).toBeNull();
   });
 
+  // Partie déjà remplie, rien de neuf : « Garder tel quel » ou « Je corrige »
+  // (2 boutons au plus depuis le 24/10/2026), qui ouvre la conversation.
   it("une partie déjà remplie avant garde la conversation, même en onboarding", () => {
-    render(<BrandingReview analysis={ANALYSIS} preFilledSections={new Set(["story"])} mandatory onDone={() => {}} />);
-    fireEvent.click(screen.getByText("On affine ensemble →"));
+    render(<BrandingReview analysis={{ ...ANALYSIS, story: { confidence: "medium" } }} preFilledSections={new Set(["story"])} mandatory onDone={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: /Je corrige/ }));
     expect(screen.getByText("Terminer le coaching story")).toBeInTheDocument();
   });
 });

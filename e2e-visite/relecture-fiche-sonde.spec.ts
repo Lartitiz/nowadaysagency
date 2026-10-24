@@ -12,6 +12,9 @@
  * « On affine ensemble » sur les 7 cartes sans rien lancer, puis vérifie qu'une
  * fiche vide (forme réelle de l'onboarding : confiance « medium » d'office)
  * pose sa question de rattrapage, sans « C'est bon ».
+ *
+ * Depuis le 24/10/2026, « On affine ensemble » s'appelle « Je corrige » et
+ * « C'est bon » s'appelle « C'est juste » sur les cartes : la sonde cherche les deux.
  */
 import { test, expect, type Page, type Route } from "@playwright/test";
 
@@ -74,7 +77,9 @@ test.describe("Relecture de la fiche : 7 cartes et carte vide", () => {
     for (const nom of CARTES) {
       await page.getByRole("button", { name: new RegExp(`Aller à « .*${nom.replace(/[·&]/g, ".")}`) }).click();
       await page.waitForTimeout(300);
-      await page.getByRole("button", { name: /On affine ensemble/ }).first().click();
+      // « Je corrige » depuis le 24/10/2026 (chantier 4) ; l'ancien nom reste
+      // reconnu tant que la version en ligne n'est pas republiée.
+      await page.getByRole("button", { name: /Je corrige|On affine ensemble/ }).first().click();
       await page.waitForTimeout(800);
       if (await oups.isVisible().catch(() => false)) { ko.push(`${nom} : plantage`); break; }
       // Onboarding : la passe unique s'ouvre (questions), on revient sans rien lancer.
@@ -88,7 +93,7 @@ test.describe("Relecture de la fiche : 7 cartes et carte vide", () => {
 
     await simuler(page, VIDE);
     const question = await page.getByLabel("En deux phrases, comment ton activité a commencé ?").isVisible().catch(() => false);
-    const cestBon = await page.getByRole("button", { name: /C'est bon/ }).isVisible().catch(() => false);
+    const cestBon = await page.getByRole("button", { name: /C'est juste|C'est bon/ }).isVisible().catch(() => false);
     const videOk = question && !cestBon && !(await oups.isVisible().catch(() => false));
     await page.screenshot({ path: `e2e-visite/results/relecture-fiche-vide-${taille}.png` });
 
