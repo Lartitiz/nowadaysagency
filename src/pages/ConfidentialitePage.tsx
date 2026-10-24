@@ -56,8 +56,10 @@ export default function ConfidentialitePage() {
               <p><span className="font-medium text-foreground/80">Données de profil :</span> ton prénom, ton activité, tes canaux de communication, ta cible.</p>
               <p><span className="font-medium text-foreground/80">Données d'identité de marque :</span> ton identité visuelle, ton histoire, ta proposition de valeur, ta charte : tout ce que tu renseignes dans l'outil pour construire ta communication.</p>
               <p><span className="font-medium text-foreground/80">Contenus créés :</span> tes posts générés, brouillons, calendrier éditorial, idées sauvegardées, scripts, carrousels.</p>
+              <p><span className="font-medium text-foreground/80">Photos et vidéos :</span> celles que tu ajoutes à ta bibliothèque ou à tes contenus, et les images et vidéos créées pour toi dans l'outil.</p>
+              <p><span className="font-medium text-foreground/80">Données des comptes connectés :</span> si tu connectes Instagram, LinkedIn, Pinterest, Canva ou Google Analytics, les informations et statistiques décrites dans les sections 5 et 10. Sans connexion, rien n'est récupéré.</p>
               <p><span className="font-medium text-foreground/80">Données de navigation :</span> pages visitées et actions dans l'outil, collectées via PostHog (hébergé en Union européenne, serveur eu.i.posthog.com) : uniquement après ton consentement.</p>
-              <p><span className="font-medium text-foreground/80">Données techniques :</span> un journal de pannes dans notre hébergement Supabase conserve la catégorie de panne, la rubrique concernée, le module technique et l'identifiant du compte connecté. Il ne contient ni tes textes, ni tes photos, ni tes saisies. Il sert uniquement à repérer et corriger les bugs. Sentry peut compléter ce suivi lorsqu'il est configuré ; ses replays de session nécessitent ton consentement.</p>
+              <p><span className="font-medium text-foreground/80">Données techniques :</span> un journal de pannes dans notre hébergement Supabase conserve la catégorie de panne, la rubrique concernée, le module technique et l'identifiant du compte connecté. Il ne contient ni tes textes, ni tes photos, ni tes saisies. Il sert uniquement à repérer et corriger les bugs. Sentry peut compléter ce suivi quand il est activé ; ses replays de session nécessitent ton consentement.</p>
               <p><span className="font-medium text-foreground/80">Données de facturation :</span> gérées directement par Stripe. On ne stocke jamais tes coordonnées bancaires.</p>
             </div>
           </div>
@@ -78,7 +80,7 @@ export default function ConfidentialitePage() {
               <p><span className="font-medium text-foreground/80">Après suppression de ton compte :</span> suppression définitive de toutes tes données sous 30 jours.</p>
               <p><span className="font-medium text-foreground/80">Logs de navigation (PostHog) :</span> 12 mois maximum.</p>
               <p><span className="font-medium text-foreground/80">Pixel Meta :</span> selon la politique de conservation de Meta, hors de notre contrôle direct.</p>
-              <p><span className="font-medium text-foreground/80">Logs d'erreur (Sentry) :</span> 90 jours.</p>
+              <p><span className="font-medium text-foreground/80">Logs d'erreur (Sentry, quand il est activé) :</span> 90 jours.</p>
               <p><span className="font-medium text-foreground/80">Journal technique Supabase :</span> 30 jours maximum, effacé aussi à la suppression du compte.</p>
               <p><span className="font-medium text-foreground/80">Données de facturation (Stripe) :</span> conservées par Stripe selon leurs obligations légales.</p>
             </div>
@@ -90,7 +92,7 @@ export default function ConfidentialitePage() {
             <ul className="list-disc list-inside text-muted-foreground mt-1 space-y-1">
               <li><span className="font-medium text-foreground/80">Supabase</span> (hébergement base de données) : serveurs UE (Paris)</li>
               <li><span className="font-medium text-foreground/80">Lovable</span> (hébergement de l'application via Lovable Cloud, et passerelle IA) : certaines demandes à l'IA passent par sa passerelle, qui les transmet au modèle Gemini de Google (voir la section 9)</li>
-              <li><span className="font-medium text-foreground/80">Anthropic</span> (traitement IA pour la génération de contenus) : tes données sont envoyées ponctuellement pour générer du contenu, elles ne sont pas stockées par Anthropic</li>
+              <li><span className="font-medium text-foreground/80">Anthropic</span> (traitement IA pour la génération de contenus) : tes données sont envoyées ponctuellement pour générer du contenu. Anthropic les efface sous 30 jours (sauf contrôle d'un abus) et ne les utilise pas pour entraîner ses modèles</li>
               <li><span className="font-medium text-foreground/80">Google</span> (modèle d'IA Gemini, appelé via la passerelle Lovable) : reçoit ponctuellement les données d'une analyse précise, par exemple tes statistiques Instagram pour « la lecture du coach » (voir la section 9)</li>
               <li><span className="font-medium text-foreground/80">OpenAI</span> (création et retouche d'images) : reçoit la description de l'image à créer (sujet, univers de ta marque) et, quand tu retouches ou mets en scène une photo, cette photo. Jamais tes données Instagram</li>
               <li><span className="font-medium text-foreground/80">Higgsfield</span> (création d'images et de vidéos) : reçoit la description de l'image ou de la vidéo à créer et les photos que tu choisis de mettre en scène ou d'animer. Jamais tes données Instagram</li>
@@ -98,7 +100,7 @@ export default function ConfidentialitePage() {
               <li><span className="font-medium text-foreground/80">Resend</span> (envoi des e-mails de l'outil) : reçoit ton adresse e-mail et le contenu des e-mails qu'on t'envoie</li>
               <li><span className="font-medium text-foreground/80">Stripe</span> (paiements sécurisés)</li>
               <li><span className="font-medium text-foreground/80">PostHog</span> (analytics) : serveurs UE</li>
-              <li><span className="font-medium text-foreground/80">Sentry</span> (monitoring d'erreurs)</li>
+              <li><span className="font-medium text-foreground/80">Sentry</span> (monitoring d'erreurs) : quand il est activé</li>
               <li><span className="font-medium text-foreground/80">Meta</span> (pixel publicitaire Facebook/Instagram) : uniquement avec ton consentement, pour mesurer l'effet de nos campagnes</li>
               <li><span className="font-medium text-foreground/80">Meta / Instagram</span> (API Instagram) : uniquement si tu connectes ton compte Instagram, pour publier à ta demande et lire tes statistiques (voir la section 10)</li>
               <li><span className="font-medium text-foreground/80">LinkedIn, Pinterest, Canva et Google Analytics</span> : uniquement si tu connectes ton compte, pour publier à ta demande sur LinkedIn ou Pinterest, lire tes statistiques LinkedIn, tes tableaux Pinterest et les statistiques de ton site, et importer tes designs Canva. Tu peux les déconnecter à tout moment dans Paramètres &gt; Connexions</li>
@@ -109,7 +111,7 @@ export default function ConfidentialitePage() {
           <div>
             <p className="font-semibold text-foreground">6. Transferts hors Union européenne</p>
             <p className="text-muted-foreground mt-1">
-              Certains sous-traitants sont basés aux États-Unis (Anthropic, Google, OpenAI, Higgsfield, Resend, Stripe, Sentry). Lovable, basée en Suède, peut aussi traiter des données aux États-Unis, notamment les demandes envoyées à Gemini (Google) via sa passerelle IA. Ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne (article 46.2.c RGPD).
+              Certains sous-traitants sont basés aux États-Unis (Anthropic, Google, OpenAI, Higgsfield, Resend, Stripe, et Sentry quand il est activé). Lovable, basée en Suède, peut aussi traiter des données aux États-Unis, notamment les demandes envoyées à Gemini (Google) via sa passerelle IA. Ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne (article 46.2.c RGPD).
             </p>
           </div>
 
@@ -141,7 +143,7 @@ export default function ConfidentialitePage() {
                 <li><span className="font-medium text-foreground/80">Cookies strictement nécessaires</span> (session d'authentification) : pas besoin de consentement.</li>
                 <li><span className="font-medium text-foreground/80">PostHog</span> (analytics) : activé uniquement après ton consentement via le bandeau cookies.</li>
                 <li><span className="font-medium text-foreground/80">Pixel Meta</span> (Facebook/Instagram Ads) : activé uniquement après ton consentement, pour mesurer l'effet de nos publicités.</li>
-                <li><span className="font-medium text-foreground/80">Sentry</span> (monitoring d'erreurs de base) : intérêt légitime, pas de consentement requis. Les replays de session ne sont activés qu'avec ton consentement.</li>
+                <li><span className="font-medium text-foreground/80">Sentry</span> (monitoring d'erreurs de base, quand il est activé) : intérêt légitime, pas de consentement requis. Les replays de session ne sont activés qu'avec ton consentement.</li>
               </ul>
               <p className="mt-1">Tu peux modifier ton choix à tout moment dans Paramètres &gt; Cookies et traceurs.</p>
             </div>
@@ -153,10 +155,10 @@ export default function ConfidentialitePage() {
               <p>L'outil utilise l'IA (surtout Claude, par Anthropic, et Gemini, par Google) pour t'aider à structurer et rédiger ta communication. Concrètement :</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>Tes données d'identité de marque et tes instructions sont envoyées à l'API Anthropic pour générer du contenu.</li>
-                <li>Anthropic ne stocke pas tes données et ne les utilise pas pour entraîner ses modèles (API usage).</li>
+                <li>Anthropic efface ces données sous 30 jours (sauf contrôle d'un abus) et ne les utilise pas pour entraîner ses modèles.</li>
                 <li>Quelques analyses passent par Gemini (Google), via la passerelle IA de Lovable : la lecture du coach sur tes statistiques (chiffres du mois et des mois précédents), l'analyse de l'effet d'un changement de ton identité de marque, les mots-clés de recherche de photos d'illustration (sujet et texte du carrousel), le mini-audit gratuit d'un compte Instagram (le nom du compte seulement), et, en secours si Claude ne répond pas, l'audit Instagram (texte seulement, sans tes images).</li>
                 <li>Les images et vidéos créées par l'outil passent par OpenAI ou Higgsfield (et Photoroom pour refaire un fond) : seules la description demandée et les photos que tu choisis leur sont envoyées.</li>
-                <li>Chaque contenu généré est signalé comme tel dans l'interface.</li>
+                <li>Dans l'outil, tu sais toujours ce qui vient de l'IA.</li>
                 <li>L'IA propose, toi tu décides. Toujours.</li>
               </ul>
             </div>
