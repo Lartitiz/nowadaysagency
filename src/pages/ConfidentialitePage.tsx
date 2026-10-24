@@ -101,6 +101,7 @@ export default function ConfidentialitePage() {
               <li><span className="font-medium text-foreground/80">Sentry</span> (monitoring d'erreurs)</li>
               <li><span className="font-medium text-foreground/80">Meta</span> (pixel publicitaire Facebook/Instagram) : uniquement avec ton consentement, pour mesurer l'effet de nos campagnes</li>
               <li><span className="font-medium text-foreground/80">Meta / Instagram</span> (API Instagram) : uniquement si tu connectes ton compte Instagram, pour publier à ta demande et lire tes statistiques (voir la section 10)</li>
+              <li><span className="font-medium text-foreground/80">LinkedIn, Pinterest, Canva et Google Analytics</span> : uniquement si tu connectes ton compte, pour publier à ta demande sur LinkedIn ou Pinterest, lire tes statistiques LinkedIn, tes tableaux Pinterest et les statistiques de ton site, et importer tes designs Canva. Tu peux les déconnecter à tout moment dans Paramètres &gt; Connexions</li>
             </ul>
             <p className="text-muted-foreground mt-2 font-medium">Aucune donnée n'est vendue. Avec ton consentement, certaines données de navigation sont partagées avec Meta pour mesurer l'effet de nos publicités — jamais sans ton accord, et jamais vendues à un tiers.</p>
           </div>

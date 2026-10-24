@@ -38,5 +38,6 @@ describe("Politique de confidentialité : Instagram", () => {
     expect(texte).toMatch(/Photoroom\s*\(détourage et fond des photos\)/);
     expect(texte).toMatch(/Resend\s*\(envoi des e-mails de l'outil\)/);
     expect(texte).toContain("(Anthropic, Google, OpenAI, Higgsfield, Resend, Stripe, Sentry)");
+    expect(texte).toContain("LinkedIn, Pinterest, Canva et Google Analytics : uniquement si tu connectes ton compte");
   });
 });
