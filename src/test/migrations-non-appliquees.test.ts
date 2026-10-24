@@ -6,7 +6,10 @@ const NOW = Date.UTC(2026, 9, 19);
 
 describe("sonde migrations non appliquées", () => {
   it("attrape le cas du 23/10/2026 : stats_instagram_source mergée, absente du journal Lovable", () => {
-    const { migrations, tags } = lireDepot();
+    const { migrations: toutes, tags } = lireDepot();
+    // Le dépôt tel qu'il était ce jour-là : une migration plus récente, pas
+    // encore appliquée par Lovable, ne doit pas faire échouer ce cas.
+    const migrations = toutes.filter((m: { fichier: string }) => m.fichier < "20261024");
     const avantLovable = tags.filter((t: string) => t !== "0011_stats_instagram_source");
     const res = analyser({ migrations, tags: avantLovable, now: NOW });
     expect(res.nonAppliquees).toEqual(["20261016200000_stats_instagram_source"]);
