@@ -65,7 +65,7 @@ describe("BrandingReview — réponses carte par carte", () => {
   it("« Garder tel quel » valide une section déjà commencée sans rien écrire", async () => {
     const progress = vi.fn().mockResolvedValue(undefined);
     render(<BrandingReview analysis={ANALYSIS} preFilledSections={new Set(["story"])} onProgress={progress} onDone={() => {}} />);
-    expect(screen.getByText(/Tu avais déjà commencé cette partie/)).toBeInTheDocument();
+    expect(screen.getByText(/Déjà commencée : « C'est juste » ajoute seulement ce qui manque/)).toBeInTheDocument();
     // 2 boutons au plus sur une partie déjà commencée (chantier 4, 24/10/2026).
     expect(screen.getByRole("button", { name: /C'est juste/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Je corrige/ })).toBeNull();
