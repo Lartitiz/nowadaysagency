@@ -21,4 +21,18 @@ describe("Politique de confidentialité : Instagram", () => {
     expect(screen.getByText("10. Connexion à Instagram")).toBeInTheDocument();
     expect(scrollIntoView).toHaveBeenCalled();
   });
+
+  // Déclaré à Meta (Contrôle app, « Traitement des données », 23/10/2026) : la page
+  // publique doit citer les mêmes sous-traitants qui voient les données Instagram.
+  it("cite Lovable et Google parmi les sous-traitants", () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={["/confidentialite"]}>
+        <ConfidentialitePage />
+      </MemoryRouter>,
+    );
+    const texte = container.textContent ?? "";
+    expect(texte).toMatch(/Lovable\s*\(hébergement de l'application via Lovable Cloud, et passerelle IA\)/);
+    expect(texte).toMatch(/Google\s*\(modèle d'IA Gemini/);
+    expect(texte).toContain("(Anthropic, Google, Stripe, Sentry)");
+  });
 });
