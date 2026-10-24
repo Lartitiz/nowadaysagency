@@ -84,8 +84,8 @@ export function useReviewValidation({ analysis, onProgress, preFilledSections, e
     finally { savingRef.current = false; setSavingSection(null); }
   }, [markValidated, clearToReview, goNext]);
 
-  // « À revoir » : on ne jette rien — la section est mise de côté et rappelée
-  // sur la carte de fin, avec le lien pour y revenir.
+  // « Plus tard » d'une carte vide (le bouton « À revoir » est retiré le
+  // 24/10/2026) : on ne jette rien, la section est rappelée sur la carte de fin.
   const handleToReview = useCallback((key: SectionKey) => {
     setToReview((prev) => new Set(prev).add(key));
     goNext();
