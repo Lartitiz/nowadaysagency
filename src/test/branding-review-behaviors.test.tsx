@@ -284,6 +284,18 @@ describe("BrandingReview — carte vide : question de rattrapage (23/10/2026)", 
     expect(new Set(m.writes.map(w => w.table)).has("offers")).toBe(false);
   });
 
+  it("fiche toute vide : la carte de fin ne fête rien et ne dit pas « enregistrés »", async () => {
+    const vide = { story: { confidence: "medium" }, persona: { confidence: "medium" }, value_proposition: { confidence: "medium" }, tone_style: { confidence: "medium" }, content_strategy: { confidence: "medium" }, offers: { confidence: "medium", offers: [] }, charter: { confidence: "low" } };
+    render(<BrandingReview analysis={{ ...ANALYSIS, ...vide } as AnalysisResult} onDone={() => {}} />);
+    await screen.findByText("0/7 validées · 7 à remplir plus tard");
+    for (let i = 0; i < 7; i++) fireEvent.click(screen.getByText("Suivant"));
+    await screen.findByText("Ta fiche reste à remplir");
+    expect(screen.queryByText("Ta relecture est terminée")).toBeNull();
+    expect(screen.queryByText(/Tes choix sont enregistrés/)).toBeNull();
+    expect(screen.queryByText("🎉")).toBeNull();
+    expect(m.writes).toHaveLength(0);
+  });
+
   it("une partie déjà remplie sans rien de neuf ne montre plus un encadré sur du vide", () => {
     render(<BrandingReview analysis={{ ...ANALYSIS, story: { confidence: "medium" } }} preFilledSections={new Set(["story"])} onDone={() => {}} />);
     expect(screen.getByText(/Tu avais déjà rempli cette partie, et l'analyse n'a rien trouvé de plus/)).toBeInTheDocument();
