@@ -24,7 +24,7 @@ describe("Politique de confidentialité : Instagram", () => {
 
   // Déclaré à Meta (Contrôle app, « Traitement des données », 23/10/2026) : la page
   // publique doit citer les mêmes sous-traitants qui voient les données Instagram.
-  it("cite Lovable et Google parmi les sous-traitants", () => {
+  it("cite Lovable, Google, OpenAI et Higgsfield parmi les sous-traitants", () => {
     const { container } = render(
       <MemoryRouter initialEntries={["/confidentialite"]}>
         <ConfidentialitePage />
@@ -33,6 +33,8 @@ describe("Politique de confidentialité : Instagram", () => {
     const texte = container.textContent ?? "";
     expect(texte).toMatch(/Lovable\s*\(hébergement de l'application via Lovable Cloud, et passerelle IA\)/);
     expect(texte).toMatch(/Google\s*\(modèle d'IA Gemini/);
-    expect(texte).toContain("(Anthropic, Google, Stripe, Sentry)");
+    expect(texte).toMatch(/OpenAI\s*\(création et retouche d'images\)/);
+    expect(texte).toMatch(/Higgsfield\s*\(création d'images et de vidéos\)/);
+    expect(texte).toContain("(Anthropic, Google, OpenAI, Higgsfield, Stripe, Sentry)");
   });
 });

@@ -92,6 +92,8 @@ export default function ConfidentialitePage() {
               <li><span className="font-medium text-foreground/80">Lovable</span> (hébergement de l'application via Lovable Cloud, et passerelle IA) : certaines demandes à l'IA passent par sa passerelle, qui les transmet au modèle Gemini de Google (voir la section 9)</li>
               <li><span className="font-medium text-foreground/80">Anthropic</span> (traitement IA pour la génération de contenus) : tes données sont envoyées ponctuellement pour générer du contenu, elles ne sont pas stockées par Anthropic</li>
               <li><span className="font-medium text-foreground/80">Google</span> (modèle d'IA Gemini, appelé via la passerelle Lovable) : reçoit ponctuellement les données d'une analyse précise, par exemple tes statistiques Instagram pour « la lecture du coach » (voir la section 9)</li>
+              <li><span className="font-medium text-foreground/80">OpenAI</span> (création et retouche d'images) : reçoit la description de l'image à créer (sujet, univers de ta marque) et, quand tu retouches ou mets en scène une photo, cette photo. Jamais tes données Instagram</li>
+              <li><span className="font-medium text-foreground/80">Higgsfield</span> (création d'images et de vidéos) : reçoit la description de l'image ou de la vidéo à créer et les photos que tu choisis de mettre en scène ou d'animer. Jamais tes données Instagram</li>
               <li><span className="font-medium text-foreground/80">Stripe</span> (paiements sécurisés)</li>
               <li><span className="font-medium text-foreground/80">PostHog</span> (analytics) : serveurs UE</li>
               <li><span className="font-medium text-foreground/80">Sentry</span> (monitoring d'erreurs)</li>
@@ -104,7 +106,7 @@ export default function ConfidentialitePage() {
           <div>
             <p className="font-semibold text-foreground">6. Transferts hors Union européenne</p>
             <p className="text-muted-foreground mt-1">
-              Certains sous-traitants sont basés aux États-Unis (Anthropic, Google, Stripe, Sentry). Lovable, basée en Suède, peut aussi traiter des données aux États-Unis, notamment les demandes envoyées à Gemini (Google) via sa passerelle IA. Ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne (article 46.2.c RGPD).
+              Certains sous-traitants sont basés aux États-Unis (Anthropic, Google, OpenAI, Higgsfield, Stripe, Sentry). Lovable, basée en Suède, peut aussi traiter des données aux États-Unis, notamment les demandes envoyées à Gemini (Google) via sa passerelle IA. Ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne (article 46.2.c RGPD).
             </p>
           </div>
 
@@ -150,6 +152,7 @@ export default function ConfidentialitePage() {
                 <li>Tes données d'identité de marque et tes instructions sont envoyées à l'API Anthropic pour générer du contenu.</li>
                 <li>Anthropic ne stocke pas tes données et ne les utilise pas pour entraîner ses modèles (API usage).</li>
                 <li>Quelques analyses passent par Gemini (Google), via la passerelle IA de Lovable : la lecture du coach sur tes statistiques (chiffres du mois et des mois précédents), l'analyse de l'effet d'un changement de ton identité de marque, les mots-clés de recherche de photos d'illustration (sujet et texte du carrousel), le mini-audit gratuit d'un compte Instagram (le nom du compte seulement), et, en secours si Claude ne répond pas, l'audit Instagram (texte seulement, sans tes images).</li>
+                <li>Les images et vidéos créées par l'outil passent par OpenAI ou Higgsfield : seules la description demandée et les photos que tu choisis leur sont envoyées.</li>
                 <li>Chaque contenu généré est signalé comme tel dans l'interface.</li>
                 <li>L'IA propose, toi tu décides. Toujours.</li>
               </ul>
