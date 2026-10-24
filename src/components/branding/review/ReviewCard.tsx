@@ -12,6 +12,7 @@ import { RENDERERS, sectionHasData } from "./SectionViews";
 import { OffersSection } from "./OffersSection";
 import { CharterSection } from "./CharterSection";
 import { ReviewCatchUp } from "./ReviewCatchUp";
+import { FoldableSection, sectionSummary } from "./SectionSummary";
 
 interface ReviewCardProps {
   analysis: AnalysisResult;
@@ -66,6 +67,10 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
         </>
       )
       : RENDERERS[sec.key](analysis);
+  // Chantier 5 (24/10/2026) : l'essentiel en 3 à 5 lignes, le reste derrière
+  // « Voir le détail ». L'enregistrement, lui, prend toujours toute la section.
+  const summary = sectionSummary(sec.key, { ...analysis, offers: { ...analysis.offers, offers: editedOffers }, charter: editedCharter }, existingOfferNames);
+  const cardBody = <FoldableSection key={sec.key} summary={summary.node} hasMore={summary.hasMore} full={sectionBody} />;
   return (
     <div>
       {/* Fil de progression : où j'en suis, et ce que j'ai déjà répondu */}
@@ -112,9 +117,9 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
               {hasData ? (
                 <>
                   <p className="text-sm text-muted-foreground mb-3">
-                    Tu avais déjà commencé cette partie. « C'est juste » complète seulement les champs vides, sans toucher à ce que tu as écrit.
+                    Déjà commencée : « C'est juste » ajoute seulement ce qui manque, sans toucher à ce que tu as écrit.
                   </p>
-                  <div className="mb-5">{sectionBody}</div>
+                  <div className="mb-5">{cardBody}</div>
                 </>
               ) : (
                 // Déjà remplie, rien de neuf : avant, la carte montrait un encadré sur du vide.
@@ -123,7 +128,7 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
               {/* 2 boutons au plus : avec du neuf, « C'est juste » complète les
                   champs vides et « Garder tel quel » n'ajoute rien ; sans rien de
                   neuf, « Garder tel quel » et « Je corrige ». */}
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex gap-2 [&>button]:flex-1 sm:[&>button]:flex-none">
                 {hasData ? (
                   <>
                     <PrimaryButton onClick={() => handleValidate(sec.key)} disabled={isSaving} saving={isSaving}>C'est juste</PrimaryButton>
@@ -141,7 +146,7 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
             <ReviewCatchUp key={sec.key} sectionKey={sec.key} saving={isSaving} onSubmit={(answer) => onAnswer(sec.key, answer)} onLater={() => handleToReview(sec.key)} />
           ) : (
             <>
-              <div className="mb-5">{sectionBody}</div>
+              <div className="mb-5">{cardBody}</div>
               {isValidated ? (
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                   <p className="text-sm text-success font-medium flex-1">✅ Cette carte est enregistrée.</p>
@@ -154,7 +159,7 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
                 </div>
               ) : (
                 // « À revoir » retiré : ne rien choisir et passer à la suivante revient au même.
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex gap-2 [&>button]:flex-1 sm:[&>button]:flex-none">
                   <PrimaryButton onClick={() => handleValidate(sec.key)} disabled={isSaving} saving={isSaving}>C'est juste</PrimaryButton>
                   {canRefine && <SecondaryButton onClick={() => setCoachingSection(sec.key)} icon={<Pencil className="h-4 w-4" />}>Je corrige</SecondaryButton>}
                 </div>
@@ -189,7 +194,7 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
 // Les 2 boutons de carte, partout les mêmes : plein (bordeaux) puis contour.
 function PrimaryButton({ onClick, disabled, saving, children }: { onClick: () => void; disabled?: boolean; saving?: boolean; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} disabled={disabled} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-5 py-2 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50">
+    <button onClick={onClick} disabled={disabled} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-3 sm:px-5 py-2 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50">
       {saving ? <Spinner className="h-4 w-4 text-white" /> : <CheckCircle2 className="h-4 w-4" />}
       {children}
     </button>
@@ -198,7 +203,7 @@ function PrimaryButton({ onClick, disabled, saving, children }: { onClick: () =>
 
 function SecondaryButton({ onClick, disabled, icon, children }: { onClick: () => void; disabled?: boolean; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} disabled={disabled} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-rose-pale transition-all disabled:opacity-50">
+    <button onClick={onClick} disabled={disabled} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary rounded-[12px] px-3 sm:px-5 py-2 text-sm font-semibold hover:bg-rose-pale transition-all disabled:opacity-50">
       {icon} {children}
     </button>
   );
