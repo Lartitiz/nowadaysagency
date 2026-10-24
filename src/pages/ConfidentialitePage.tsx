@@ -33,7 +33,7 @@ export default function ConfidentialitePage() {
         <h1 className="font-display text-2xl font-bold text-foreground mb-6">Politique de confidentialité</h1>
 
         <div className="rounded-2xl bg-card border border-border p-6 space-y-5 text-sm leading-relaxed">
-          <p className="text-xs text-muted-foreground">Dernière mise à jour : 19 octobre 2026</p>
+          <p className="text-xs text-muted-foreground">Dernière mise à jour : 24 octobre 2026</p>
 
           <p className="italic text-muted-foreground">
             Chez Nowadays Agency, on prend la protection de tes données au sérieux. Pas par obligation (bon, un peu quand même), mais parce qu'on croit que la confiance, ça se construit aussi dans les petits caractères.
@@ -88,8 +88,10 @@ export default function ConfidentialitePage() {
             <p className="font-semibold text-foreground">5. Qui a accès à tes données ?</p>
             <p className="text-muted-foreground mt-1">On travaille avec des sous-traitants techniques de confiance :</p>
             <ul className="list-disc list-inside text-muted-foreground mt-1 space-y-1">
-              <li><span className="font-medium text-foreground/80">Supabase</span> (hébergement base de données) : serveurs UE</li>
+              <li><span className="font-medium text-foreground/80">Supabase</span> (hébergement base de données) : serveurs UE (Paris)</li>
+              <li><span className="font-medium text-foreground/80">Lovable</span> (hébergement de l'application via Lovable Cloud, et passerelle IA) : certaines demandes à l'IA passent par sa passerelle, qui les transmet au modèle Gemini de Google (voir la section 9)</li>
               <li><span className="font-medium text-foreground/80">Anthropic</span> (traitement IA pour la génération de contenus) : tes données sont envoyées ponctuellement pour générer du contenu, elles ne sont pas stockées par Anthropic</li>
+              <li><span className="font-medium text-foreground/80">Google</span> (modèle d'IA Gemini, appelé via la passerelle Lovable) : reçoit ponctuellement les données d'une analyse précise, par exemple tes statistiques Instagram pour « la lecture du coach » (voir la section 9)</li>
               <li><span className="font-medium text-foreground/80">Stripe</span> (paiements sécurisés)</li>
               <li><span className="font-medium text-foreground/80">PostHog</span> (analytics) : serveurs UE</li>
               <li><span className="font-medium text-foreground/80">Sentry</span> (monitoring d'erreurs)</li>
@@ -102,7 +104,7 @@ export default function ConfidentialitePage() {
           <div>
             <p className="font-semibold text-foreground">6. Transferts hors Union européenne</p>
             <p className="text-muted-foreground mt-1">
-              Certains sous-traitants sont basés aux États-Unis (Anthropic, Stripe, Sentry). Ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne (article 46.2.c RGPD).
+              Certains sous-traitants sont basés aux États-Unis (Anthropic, Google, Stripe, Sentry). Lovable, basée en Suède, peut aussi traiter des données aux États-Unis, notamment les demandes envoyées à Gemini (Google) via sa passerelle IA. Ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne (article 46.2.c RGPD).
             </p>
           </div>
 
@@ -143,10 +145,11 @@ export default function ConfidentialitePage() {
           <div>
             <p className="font-semibold text-foreground">9. Utilisation de l'intelligence artificielle</p>
             <div className="text-muted-foreground mt-1 space-y-1">
-              <p>L'outil utilise l'IA (Claude, par Anthropic) pour t'aider à structurer et rédiger ta communication. Concrètement :</p>
+              <p>L'outil utilise l'IA (surtout Claude, par Anthropic, et Gemini, par Google) pour t'aider à structurer et rédiger ta communication. Concrètement :</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>Tes données d'identité de marque et tes instructions sont envoyées à l'API Anthropic pour générer du contenu.</li>
                 <li>Anthropic ne stocke pas tes données et ne les utilise pas pour entraîner ses modèles (API usage).</li>
+                <li>Quelques analyses passent par Gemini (Google), via la passerelle IA de Lovable : la lecture du coach sur tes statistiques (chiffres du mois et des mois précédents), l'analyse de l'effet d'un changement de ton identité de marque, les mots-clés de recherche de photos d'illustration (sujet et texte du carrousel), le mini-audit gratuit d'un compte Instagram (le nom du compte seulement), et, en secours si Claude ne répond pas, l'audit Instagram (texte seulement, sans tes images).</li>
                 <li>Chaque contenu généré est signalé comme tel dans l'interface.</li>
                 <li>L'IA propose, toi tu décides. Toujours.</li>
               </ul>
