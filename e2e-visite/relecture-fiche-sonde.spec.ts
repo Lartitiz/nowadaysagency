@@ -19,6 +19,7 @@
  * Au téléphone (375 × 812, ajouté le 24/10/2026 après #1797) : sur chacune des
  * 7 cartes, à l'arrivée et sans défiler, les 2 boutons de la carte sont au-dessus
  * de la barre du bas. Une carte trop longue les cachait (jusqu'à 2,5 écrans).
+ * Seuil choisi par Laetitia : sous 7/7 = 🟠, une ligne sans faire échouer la spec.
  */
 import { test, expect, type Page, type Route } from "@playwright/test";
 
@@ -127,10 +128,9 @@ test.describe("Relecture de la fiche : 7 cartes et carte vide", () => {
     console.log(`🪪 Relecture fiche (${taille}) : ${ouvertes.length}/7 cartes s'ouvrent · carte vide ${videOk ? "pose sa question ✅" : `❌ (${!question ? "pas de question" : cestBon ? "« C'est bon » sur du vide" : "plantage"})`}`);
     for (const k of ko) console.log(`   - ❌ ${k}`);
     if (taille === "mobile") {
-      console.log(`📱 Boutons au téléphone (375 × 812) : ${cachees.length === 0 ? "7/7 cartes ✅" : `🔴 ${7 - cachees.length}/7, cachés sur : ${cachees.join(", ")}`}`);
+      console.log(`📱 Boutons au téléphone (375 × 812) : ${cachees.length === 0 ? "7/7 cartes ✅" : `🟠 ${7 - cachees.length}/7, cachés sur : ${cachees.join(", ")}`}`);
     }
     expect(ko, "« On affine ensemble » ne s'ouvre pas sur toutes les cartes").toEqual([]);
     expect(videOk, "la carte vide ne pose pas sa question").toBe(true);
-    expect(cachees, "boutons de carte cachés au téléphone à l'arrivée").toEqual([]);
   });
 });
