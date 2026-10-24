@@ -9,7 +9,7 @@ export function useReviewCarousel(coachingSection: SectionKey | null) {
   /* ── Carrousel : une section par carte ────────────────────────────────────
      La longue page qui empilait les 7 sections ne disait ni où on en était ni
      ce qu'il restait à faire. Une carte à la fois, avec une réponse explicite
-     (« c'est bon » / « à revoir »), rend l'étape lisible ; les « à revoir »
+     (« c'est juste » / « je corrige »), rend l'étape lisible ; les « plus tard »
      sont rappelées à la fin au lieu de se perdre dans le scroll.
      Le swipe est un RACCOURCI tactile, jamais le seul moyen de répondre :
      sur ordinateur il n'y a pas de doigt, et un swipe seul ne dit pas si on a

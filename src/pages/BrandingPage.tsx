@@ -370,22 +370,6 @@ function ScopedBrandingPage() {
     }
   };
 
-  const handleReanalyzeWithBio = (bio: string) => {
-    // Re-run analysis with bio as extra context
-    const data = lastImportData || { files: [] };
-    // We'll pass the bio via documentIds mechanism or as a note
-    // For now, append bio to website text
-    setImportPhaseNew("form");
-    setTimeout(() => {
-      handleStartAnalysis({
-        ...data,
-        // The bio will be used as additional context
-        instagram: `${data.instagram || ""} [BIO: ${bio}]`,
-        files: data.files || [],
-      });
-    }, 100);
-  };
-
   const handleSkipImport = () => {
     setForceImport(false);
     if (reanalyzeMode) {
@@ -541,11 +525,9 @@ function ScopedBrandingPage() {
                   });
                 }}
                 analysis={analysisResult}
-                sourcesUsed={analysisResult.sources_used || []}
                 sourcesFailed={analysisResult.sources_failed || []}
                 preFilledSections={preFilledSections}
                 existingOfferNames={(overview?.offersList || []).map((o: any) => o?.name).filter(Boolean)}
-                onReanalyzeWithBio={handleReanalyzeWithBio}
                 // Parcours d'inscription : valider sa fiche EST l'étape en cours.
                 // On retire donc « finir plus tard » — la création attend la fiche.
                 mandatory={fromOnboarding}

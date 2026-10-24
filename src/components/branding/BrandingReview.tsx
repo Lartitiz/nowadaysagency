@@ -22,7 +22,6 @@ export { CharterSection, normalizeHex } from "@/components/branding/review/Chart
 
 interface Props {
   analysis: AnalysisResult;
-  sourcesUsed?: string[];
   sourcesFailed?: string[];
   onDone: (complete?: boolean) => void;
   onProgress?: (sections: string[]) => Promise<void>;
@@ -30,8 +29,6 @@ interface Props {
   preFilledSections?: Set<string>;
   /** Noms des offres déjà enregistrées dans l'espace (détection de doublon) */
   existingOfferNames?: string[];
-  /** Callback for Instagram bio paste + reanalysis */
-  onReanalyzeWithBio?: (bio: string) => void;
   /**
    * Parcours d'inscription : valider sa fiche EST l'étape en cours (pas de
    * « finir plus tard », pas de raccourci vers la création). Hors onboarding
@@ -41,7 +38,7 @@ interface Props {
 }
 
 // ─── Main Component ──────────────────────────────────────────
-export default function BrandingReview({ analysis: analysisIn, sourcesUsed = [], sourcesFailed = [], onDone, onProgress, preFilledSections, existingOfferNames, onReanalyzeWithBio, mandatory = false }: Props) {
+export default function BrandingReview({ analysis: analysisIn, sourcesFailed = [], onDone, onProgress, preFilledSections, existingOfferNames, mandatory = false }: Props) {
   const [productPhotosReady, setProductPhotosReady] = useState(false);
   // Réponses de rattrapage des cartes vides : ajoutées à l'analyse affichée et
   // enregistrée, comme si l'analyse les avait trouvées.
@@ -118,15 +115,8 @@ export default function BrandingReview({ analysis: analysisIn, sourcesUsed = [],
       {/* Header */}
       <ReviewHeader
         analysis={analysis}
-        sourcesUsed={sourcesUsed}
         sourcesFailed={sourcesFailed}
-        preFilledSections={preFilledSections}
         filledCount={filledCount}
-        allDone={allDone}
-        validatingAll={validatingAll}
-        savingSection={savingSection}
-        handleValidateAll={handleValidateAll}
-        onReanalyzeWithBio={onReanalyzeWithBio}
       />
 
       {/* Coaching overlay */}
@@ -166,7 +156,6 @@ export default function BrandingReview({ analysis: analysisIn, sourcesUsed = [],
           total={total}
           preFilledSections={preFilledSections}
           validated={validated}
-          toReview={toReview}
           savingSection={savingSection}
           refinedSections={refinedSections}
           editedOffers={editedOffers}
