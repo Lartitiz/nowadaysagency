@@ -89,7 +89,8 @@ export default function BrandingReview({ analysis: analysisIn, sourcesFailed = [
   const handleAnswer = (key: SectionKey, answer: string) => { void saveCard(key, withAnswer(key, analysis[key], answer)); };
   const quickRefine = mandatory;
   const openRefine = (key: SectionKey | null) => {
-    if (key && quickRefine && !preFilledSections?.has(key)) setQuickSection(key);
+    // Passe unique : en onboarding, et pour une section sans conversation (proposition de valeur).
+    if (key && !preFilledSections?.has(key) && (quickRefine || !COACHING_SECTION_MAP[key])) setQuickSection(key);
     else setCoachingSection(key);
   };
   const waitingForPhotos = mandatory && finished && !productPhotosReady;

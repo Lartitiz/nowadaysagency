@@ -2,7 +2,8 @@
 // 2 ou 3 questions sur un écran, « Réécrire ma carte » (1 crédit, un seul appel
 // à l'IA), puis la carte proposée, à enregistrer ou non. Remplace, dans
 // l'onboarding seulement, la conversation qui demandait ~5 questions, ~5 min et
-// ~7 crédits par carte (mesuré le 22/10). Mon identité garde la conversation.
+// ~7 crédits par carte (mesuré le 22/10). Mon identité garde la conversation,
+// sauf pour la proposition de valeur, qui n'en a pas (24/10/2026).
 import { useState } from "react";
 import { ArrowLeft, CheckCircle2, Sparkles } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";

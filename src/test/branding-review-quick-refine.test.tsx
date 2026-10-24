@@ -116,6 +116,28 @@ describe("BrandingReview — « On affine ensemble » en une passe (onboarding)"
     expect(screen.getByLabelText("Quel problème tu règles pour elle ?")).toBeInTheDocument();
   });
 
+  it("hors onboarding (import de Mon identité), la proposition de valeur s'affine en une passe", async () => {
+    invoke.mockResolvedValue({ data: { section_data: { key_phrase: "Des savons pour peaux qui tiraillent." } }, error: null });
+    render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Aller à « Ta proposition de valeur »"));
+    fireEvent.click(screen.getByRole("button", { name: /Je corrige/ }));
+    fireEvent.change(screen.getByLabelText("Quel problème tu règles pour elle ?"), { target: { value: "Les peaux qui tiraillent." } });
+    fireEvent.click(screen.getByText("Réécrire ma carte"));
+    await screen.findByText("Des savons pour peaux qui tiraillent.");
+    expect(invoke.mock.calls[0][0]).toBe("branding-quick-refine");
+    fireEvent.click(screen.getByText("Enregistrer cette version"));
+    await screen.findByText("1/7 validées");
+    expect(m.writes.some(w => w.table === "brand_proposition")).toBe(true);
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it("hors onboarding, une proposition de valeur déjà remplie n'ouvre pas la passe", () => {
+    render(<BrandingReview analysis={{ ...ANALYSIS, value_proposition: { confidence: "medium" } }} preFilledSections={new Set(["value_proposition"])} onDone={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Aller à « Ta proposition de valeur »"));
+    expect(screen.queryByRole("button", { name: /Je corrige/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Garder tel quel/ })).toBeInTheDocument();
+  });
+
   it("hors onboarding, « On affine ensemble » garde la conversation", () => {
     render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: /Je corrige/ }));
