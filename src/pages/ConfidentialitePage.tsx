@@ -104,7 +104,7 @@ export default function ConfidentialitePage() {
           <div>
             <p className="font-semibold text-foreground">6. Transferts hors Union européenne</p>
             <p className="text-muted-foreground mt-1">
-              Certains sous-traitants sont basés aux États-Unis (Anthropic, Google, Stripe, Sentry). Les demandes envoyées à Gemini (Google) via la passerelle Lovable peuvent donc être traitées hors UE. Ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne (article 46.2.c RGPD).
+              Certains sous-traitants sont basés aux États-Unis (Anthropic, Google, Stripe, Sentry). Lovable, basée en Suède, peut aussi traiter des données aux États-Unis, notamment les demandes envoyées à Gemini (Google) via sa passerelle IA. Ces transferts sont encadrés par les clauses contractuelles types de la Commission européenne (article 46.2.c RGPD).
             </p>
           </div>
 
