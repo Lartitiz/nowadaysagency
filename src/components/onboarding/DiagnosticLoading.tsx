@@ -4,7 +4,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { type DiagnosticData, computeDiagnosticData, DEMO_DIAGNOSTIC, diagnosticLevel } from "@/lib/diagnostic-data";
-import { onboardingLabel, ACTIVITY_OPTIONS, BLOCKERS, OBJECTIVES, TIME_OPTIONS, PRODUCT_OPTIONS } from "@/lib/onboarding-constants";
+import { onboardingLabel, ACTIVITY_OPTIONS, BLOCKERS, OBJECTIVES, TIME_OPTIONS, PRODUCT_OPTIONS, CHANNELS, DESIRED_CHANNELS } from "@/lib/onboarding-constants";
 import { ACTIVITY_SECTIONS_REAL_ESTATE, BLOCKERS_REAL_ESTATE, OBJECTIVES_REAL_ESTATE } from "@/lib/onboarding-variants";
 import { Progress } from "@/components/ui/progress";
 
@@ -268,7 +268,11 @@ export default function DiagnosticLoading({
             blocker: answers.blocage || "",
             blockerLabel: onboardingLabel(answers.blocage, BLOCKERS, BLOCKERS_REAL_ESTATE),
             weeklyTime: onboardingLabel(answers.temps, TIME_OPTIONS),
-            channels: answers.canaux,
+            // Les canaux aussi sont des clés (« website », « linkedin ») : le
+            // modèle les recopiait telles quelles (« tu es sur instagram et
+            // website », passe compte neuf du 25/10/2026). L'edge ne s'en sert
+            // que comme texte de prompt → on envoie les libellés.
+            channels: (answers.canaux || []).map(c => onboardingLabel(c, CHANNELS, DESIRED_CHANNELS)),
           },
           freeformAnswers: {
             positioning: brandingAnswers.positioning || "",
@@ -277,7 +281,7 @@ export default function DiagnosticLoading({
             change_priority: answers.change_priority || "",
             product_or_service: onboardingLabel(answers.product_or_service, PRODUCT_OPTIONS),
             activity_detail: answers.activity_detail || "",
-            desired_channels: answers.desired_channels || [],
+            desired_channels: (answers.desired_channels || []).map(c => onboardingLabel(c, DESIRED_CHANNELS, CHANNELS)),
             uniqueness: answers.uniqueness || "",
             linkedin_summary: (answers as any).linkedin_summary || "",
           },

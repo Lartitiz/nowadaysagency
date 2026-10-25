@@ -5,7 +5,8 @@ import DiagnosticLoading from "./DiagnosticLoading";
 let finishRequest!: (value: { data: unknown; error: null }) => void;
 const invoke = vi.fn(() => new Promise<{ data: unknown; error: null }>((resolve) => { finishRequest = resolve; }));
 
-vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: () => invoke() }));
+let lastCall: unknown[] = [];
+vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: (...args: unknown[]) => { lastCall = args; return invoke(); } }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "qa-user" } }) }));
 vi.mock("@/contexts/WorkspaceContext", () => ({ useWorkspace: () => ({ ownWorkspace: { id: "qa-space" } }) }));
 
@@ -52,5 +53,16 @@ describe("provenance du chargement du diagnostic", () => {
     const line = screen.getByText("Ton site web").parentElement!;
     await act(async () => { finishRequest(result(["website"])); });
     expect(within(line).getByText("✅")).toBeInTheDocument();
+  });
+});
+
+describe("canaux envoyés au diagnostic", () => {
+  it("envoie les libellés lisibles, pas les clés techniques (website → Site web)", async () => {
+    render(<DiagnosticLoading {...props} answers={{ ...props.answers, canaux: ["instagram", "website"], desired_channels: ["linkedin", "newsletter"] }} />);
+    await act(async () => { finishRequest(result([])); });
+    const body = JSON.stringify(lastCall);
+    expect(body).toContain('"channels":["Instagram","Site web"]');
+    expect(body).toContain('"desired_channels":["LinkedIn","Newsletter"]');
+    expect(body).not.toMatch(/"website"|"linkedin"/);
   });
 });

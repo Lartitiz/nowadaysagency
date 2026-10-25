@@ -82,15 +82,22 @@ function judgeSuggestions(receipt: any): string[] {
   if (report.trajectory?.kind === "descriptive_catalogue") {
     out.push("Le carrousel décrit plusieurs choses sans dérouler une idée : tu peux relier les slides par un fil.");
   }
+  // Slides déjà signalées « brusques » par un constat : la frontière qui dit la
+  // même chose n'ajoute pas de ligne (vu le 25/10/2026 : « Slides 11 et 12 :
+  // … brusque » puis « Slides 11 → 12 : … brusque » l'une sous l'autre).
+  const ruptureSlides = new Set<number>();
   for (const d of Array.isArray(report.defects) ? report.defects : []) {
     const nums = (Array.isArray(d?.slide_ids) ? d.slide_ids : []).map(slideNumber).filter((n: number | null): n is number => n != null);
     const label = defectLabel(d);
+    if (d?.type === "rupture") nums.forEach((n: number) => ruptureSlides.add(n));
     out.push(nums.length ? `${slidesLabel(nums)} : à relire, ${label}${quote(d?.excerpt)}.` : `À relire : ${label}.`);
   }
   for (const b of Array.isArray(report.boundaries) ? report.boundaries : []) {
     if (b?.kind !== "rupture") continue;
     const from = slideNumber(b.from), to = slideNumber(b.to);
-    if (from && to) out.push(`Slides ${from} → ${to} : à relire, le passage de l’une à l’autre est un peu brusque.`);
+    if (!from || !to) continue;
+    if (ruptureSlides.has(from) && ruptureSlides.has(to)) continue;
+    out.push(`Slides ${from} → ${to} : à relire, le passage de l’une à l’autre est un peu brusque.`);
   }
   if (report.verdict === "insufficient_evidence") {
     out.push("Une affirmation importante mérite d’être vérifiée avant de publier.");
