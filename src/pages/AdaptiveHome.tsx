@@ -157,9 +157,11 @@ export default function AdaptiveHome() {
     queryKey: ["adaptive-home-photos-count", user?.id, workspaceId],
     queryFn: async () => {
       if (!user) return 0;
+      // `id` et non `*` : avec `*`, PostgREST fait lire toutes les colonnes
+      // même pour un comptage HEAD (cf. use-ideas-todo-count.ts, 27 Mo lus pour rien).
       const { count, error } = await supabase
         .from("user_photos")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .eq("workspace_id", workspaceId ?? user.id)
         .is("removed_from_library_at", null);
       if (error) throw error;
