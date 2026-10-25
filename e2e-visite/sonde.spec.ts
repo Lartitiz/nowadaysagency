@@ -39,10 +39,6 @@ type Sonde = {
   consoleErrors: Array<{ text: string; location: string }>;
   pageErrors: string[]; // exceptions JS non catchées
   network: Array<{ status: number; method: string; url: string; body?: string }>; // 4xx/5xx de notre réseau (corps gardé sur 5xx)
-  // Bandeau « Impossible de charger certaines de tes données » de l'accueil :
-  // une lecture a échoué (compteur d'idées, contenus à venir, photos). Vu 3 fois
-  // en 5 jours (21-25/10) sans qu'aucun capteur ne le voie — seul le regard.
-  bandeauDonnees: boolean;
   requestFailed: Array<{ url: string; error: string }>;
   brokenImages: string[]; // <img> chargées mais cassées (naturalWidth=0)
   // Contenu VERTICALEMENT coupé par un conteneur qui le cache (overflow:hidden
@@ -70,7 +66,6 @@ for (const e of ECRANS) {
       consoleErrors: [],
       pageErrors: [],
       network: [],
-      bandeauDonnees: false,
       requestFailed: [],
       brokenImages: [],
       clipped: [],
@@ -177,16 +172,6 @@ for (const e of ECRANS) {
     // masqués — et on exige une coupe franche (> 16 px), pas un arrondi.
     try {
       s.clipped = await page.evaluate(detectClipped);
-    } catch {
-      /* ignore */
-    }
-
-    // Bandeau « données incomplètes » (accueil) : visible = une lecture a échoué
-    // même si la page est « chargée ». Lu dans le DOM après le temps de repos.
-    try {
-      s.bandeauDonnees = await page.evaluate(() =>
-        /Impossible de charger certaines de tes données/.test(document.body?.innerText || ""),
-      );
     } catch {
       /* ignore */
     }

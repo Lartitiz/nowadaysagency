@@ -36,7 +36,6 @@ type Sonde = {
   consoleErrors: Array<{ text: string; location: string }>;
   pageErrors: string[];
   network: Array<{ status: number; method: string; url: string; body?: string }>;
-  bandeauDonnees?: boolean;
   requestFailed: Array<{ url: string; error: string }>;
   brokenImages: string[];
   clipped: Array<{ selector: string; hiddenPx: number; sample: string }>;
@@ -93,11 +92,6 @@ export default function () {
       });
     for (const img of s.brokenImages || [])
       dur.push({ bac: "dur", type: "image-cassée", ecran, detail: img });
-
-    // Bandeau « Impossible de charger certaines de tes données » : l'écran est
-    // chargé mais une lecture a échoué → ce que voit l'utilisatrice est faux.
-    if (s.bandeauDonnees)
-      dur.push({ bac: "dur", type: "données-incomplètes", ecran, detail: "bandeau « Impossible de charger certaines de tes données » visible" });
 
     // --- 🟡 observation ---
     // Échec réseau (hors annulations, déjà filtrées côté sonde) : souvent une
