@@ -36,14 +36,16 @@ export function ReviewEndCard({ validated, toReview, goTo, mandatory, setProduct
     <div className="bg-card rounded-[20px] shadow-card border border-border p-6 sm:p-8 text-center animate-in fade-in duration-300">
       <div className="text-3xl mb-2">{done && !nothingSaved ? "🎉" : "📝"}</div>
       <h2 className="font-display text-2xl text-foreground mb-2" style={{ fontWeight: 400 }}>
-        {nothingSaved ? "Ta fiche reste à remplir" : done ? "Ta relecture est terminée" : "Il reste des cartes sans réponse"}
+        {nothingSaved ? "Ta fiche reste à remplir" : done ? "Ta relecture est terminée" : "Il reste des cartes à valider"}
       </h2>
       <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto leading-relaxed">
         {nothingSaved
           ? "Je n'ai rien trouvé à enregistrer pour l'instant. Tu rempliras ces cartes quand tu veux, depuis Mon identité."
           : done
           ? "Tes choix sont enregistrés. Les informations manquantes restent à compléter quand tu en as besoin depuis Mon identité."
-          : `${pending.length} carte${pending.length > 1 ? "s attendent" : " attend"} encore ta réponse. Reprends-${pending.length > 1 ? "les" : "la"} une par une, ou valide tout d'un coup si l'analyse te convient.`}
+          // Ces cartes sont remplies, pas vides : « attendent encore ta réponse »
+          // se lisait comme 6 questions à remplir (vu le 25/10/2026).
+          : `Tu n'as pas encore dit si ${pending.length > 1 ? `ces ${pending.length} cartes sont justes` : "cette carte est juste"}. Reprends-${pending.length > 1 ? "les" : "la"} une par une, ou valide tout d'un coup si ça te convient.`}
       </p>
 
       {done && later.length > 0 && (

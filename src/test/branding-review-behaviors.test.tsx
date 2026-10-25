@@ -248,7 +248,7 @@ describe("BrandingReview — proposition de valeur sans conversation", () => {
 describe("BrandingReview — carte vide : question de rattrapage (23/10/2026)", () => {
   it("le haut compte les cartes vraiment remplies, au lieu d'une phrase écrite d'avance", () => {
     render(<BrandingReview analysis={{ ...ANALYSIS, overall_confidence: "medium" }} onDone={() => {}} />);
-    expect(screen.getByText("J'ai rempli 3 cartes sur 7. Pour les autres, une question courte suffit.")).toBeInTheDocument();
+    expect(screen.getByText("J'ai rempli 3 cartes sur 7 : dis-moi si c'est juste. Pour les 4 autres, une question courte suffit.")).toBeInTheDocument();
     expect(screen.queryByText(/Bonne base/)).toBeNull();
   });
 
@@ -303,5 +303,62 @@ describe("BrandingReview — carte vide : question de rattrapage (23/10/2026)", 
     expect(screen.getByText(/Tu avais déjà rempli cette partie, et l'analyse n'a rien trouvé de plus/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /C'est juste/ })).toBeNull();
     expect(screen.getByText("Garder tel quel")).toBeInTheDocument();
+  });
+});
+
+describe("BrandingReview — textes vus en vrai le 25/10/2026", () => {
+  const SIX = {
+    persona: { confidence: "medium", description: "Hypothèse : des personnes qui aiment les objets faits main" },
+    value_proposition: { confidence: "medium", key_phrase: "Des tasses en céramique faites main" },
+    tone_style: { confidence: "medium", voice_description: "Hypothèse : chaleureux" },
+    content_strategy: { confidence: "medium", pillars: ["Atelier"] },
+    offers: { confidence: "medium", offers: [{ name: "Tasses en céramique" }] },
+    charter: { confidence: "low", color_primary: "#aa5533" },
+    story: { confidence: "medium" },
+  } as AnalysisResult;
+
+  it("une carte écrite par la personne n'est pas comptée comme remplie par l'analyse", async () => {
+    render(<BrandingReview analysis={SIX} onDone={() => {}} />);
+    expect(screen.getByText("J'ai rempli 6 cartes sur 7 : dis-moi si c'est juste. Pour la dernière, une question courte suffit.")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("En deux phrases, comment ton activité a commencé ?"), { target: { value: "J'ai appris le tour en 2019." } });
+    fireEvent.click(screen.getByText("Enregistrer ma réponse").closest("button")!);
+    await screen.findByText("1/7 validées");
+    expect(screen.queryByText(/J'ai rempli les 7 cartes/)).toBeNull();
+    expect(screen.getByText("J'ai rempli 6 cartes sur 7 : dis-moi si c'est juste.")).toBeInTheDocument();
+  });
+
+  it("la carte de fin parle de cartes à valider, pas de réponses qui manquent", async () => {
+    render(<BrandingReview analysis={SIX} onDone={() => {}} />);
+    for (let i = 0; i < 7; i++) fireEvent.click(screen.getByText("Suivant"));
+    await screen.findByText("Il reste des cartes à valider");
+    expect(screen.getByText(/Tu n'as pas encore dit si ces 6 cartes sont justes/)).toBeInTheDocument();
+    expect(screen.queryByText(/attendent encore ta réponse/)).toBeNull();
+  });
+
+  it("proposition de valeur qui reprend la réponse de départ : « Hypothèse » et « Je corrige » devant", () => {
+    render(<BrandingReview analysis={SIX} onDone={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Aller à « Ta proposition de valeur »"));
+    expect(screen.getByText(/je n'ai que ta réponse de départ/)).toBeInTheDocument();
+    const buttons = screen.getAllByRole("button").filter(b => /Je corrige|C'est juste/.test(b.textContent || ""));
+    expect(buttons.map(b => b.textContent?.trim())).toEqual(["Je corrige", "C'est juste"]);
+  });
+
+  it("offres sans prix ni description : « Hypothèse », sans la phrase sur les fiches « payantes »", () => {
+    render(<BrandingReview analysis={SIX} onDone={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Aller à « Tes offres »"));
+    expect(screen.getByText(/je n'ai que le nom de ton offre, sans prix ni description/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Voir le détail/));
+    expect(screen.queryByText(/payantes/)).toBeNull();
+  });
+
+  it("une carte avec de la matière garde « C'est juste » devant, sans « Hypothèse »", () => {
+    const riche = { ...SIX, value_proposition: { confidence: "high", key_phrase: "Des tasses", problem: "Vaisselle sans âme", differentiator: "Émail local" }, offers: { confidence: "high", offers: [{ name: "Tasse", price: "35 €" }] } } as AnalysisResult;
+    render(<BrandingReview analysis={riche} onDone={() => {}} />);
+    for (const titre of ["Ta proposition de valeur", "Tes offres"]) {
+      fireEvent.click(screen.getByLabelText(`Aller à « ${titre} »`));
+      expect(screen.queryByText("Hypothèse :")).toBeNull();
+      const buttons = screen.getAllByRole("button").filter(b => /Je corrige|C'est juste/.test(b.textContent || ""));
+      expect(buttons[0].textContent?.trim()).toBe("C'est juste");
+    }
   });
 });

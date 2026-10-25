@@ -10,11 +10,13 @@ import { SECTIONS, type AnalysisResult } from "./types";
 interface ReviewHeaderProps {
   analysis: AnalysisResult;
   sourcesFailed: string[];
-  /** Cartes où il y a vraiment quelque chose à relire. */
+  /** Cartes remplies par l'analyse (pas celles que la personne a écrites ici). */
   filledCount: number;
+  /** Cartes encore vides : la question courte ne s'annonce que s'il en reste. */
+  emptyLeft: number;
 }
 
-export function ReviewHeader({ analysis, sourcesFailed, filledCount }: ReviewHeaderProps) {
+export function ReviewHeader({ analysis, sourcesFailed, filledCount, emptyLeft }: ReviewHeaderProps) {
   const total = SECTIONS.length;
   // Le @ seul n'est jamais lu (décision du 17/10, #1731) : on le dit en une
   // ligne, sans proposer de coller une bio que l'analyse ne lit pas.
@@ -27,7 +29,7 @@ export function ReviewHeader({ analysis, sourcesFailed, filledCount }: ReviewHea
     ? { emoji: "🎯", text: `J'ai rempli les ${total} cartes.` }
     : filledCount === 0
       ? { emoji: "🌱", text: "Je n'ai presque rien trouvé : une question courte par carte, ou « Plus tard »." }
-      : { emoji: "🌱", text: `J'ai rempli ${filledCount} carte${filledCount > 1 ? "s" : ""} sur ${total}. Pour les autres, une question courte suffit.` };
+      : { emoji: "🌱", text: `J'ai rempli ${filledCount} carte${filledCount > 1 ? "s" : ""} sur ${total} : dis-moi si c'est juste.${emptyLeft > 0 ? ` Pour ${emptyLeft === 1 ? "la dernière" : `les ${emptyLeft} autres`}, une question courte suffit.` : ""}` };
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-6">
