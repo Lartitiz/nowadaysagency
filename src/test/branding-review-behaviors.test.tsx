@@ -224,14 +224,16 @@ describe("BrandingReview — exports du fichier", () => {
 
 describe("BrandingReview — proposition de valeur sans conversation", () => {
   // « On affine ensemble » sur cette carte faisait planter l'écran (22/10/2026) :
-  // la conversation ne connaît pas cette section, elle a sa propre page.
-  it("n'offre pas « On affine ensemble » sur la proposition de valeur", () => {
+  // la conversation ne connaît pas cette section. Depuis le 24/10/2026, « Je
+  // corrige » y ouvre la passe unique, jamais la conversation.
+  it("« Je corrige » sur la proposition de valeur ouvre la passe unique, pas la conversation", () => {
     render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
-    expect(screen.getByRole("button", { name: /Je corrige/ })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Aller à « Ta proposition de valeur »"));
     expect(currentCard()).toBe("Carte 3 sur 7");
-    expect(screen.queryByRole("button", { name: /Je corrige/ })).toBeNull();
     expect(screen.getByRole("button", { name: /C'est juste/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Je corrige/ }));
+    expect(screen.getByText("Revenir à mes cartes")).toBeInTheDocument();
+    expect(screen.queryByText("Revenir à la vue d'ensemble")).toBeNull();
   });
 
   it("une proposition de valeur vide pose sa question de rattrapage, sans bouton de conversation", () => {

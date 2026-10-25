@@ -53,9 +53,11 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
   const showCatchUp = isEmpty && !isValidated;
   const isSaving = savingSection === sec.key;
   const isRefined = refinedSections.has(sec.key);
-  // Pas d'« On affine ensemble » sur une section sans conversation prévue, sauf
-  // en onboarding où la passe unique sait réécrire toutes les cartes.
-  const canRefine = (quickRefine && !isPreFilled) || !!COACHING_SECTION_MAP[sec.key];
+  // « Je corrige » : la passe unique en onboarding, et partout pour une section
+  // sans conversation prévue (la proposition de valeur, depuis le 24/10/2026 :
+  // à l'import de Mon identité, sa carte n'avait que « C'est juste »).
+  const quickPass = !isPreFilled && (quickRefine || !COACHING_SECTION_MAP[sec.key]);
+  const canRefine = quickPass || !!COACHING_SECTION_MAP[sec.key];
   const sectionBody = sec.key === "offers"
     ? <OffersSection data={{ ...analysis.offers, offers: editedOffers }} onUpdate={handleOfferUpdate} onDelete={handleOfferDelete} existingOfferNames={existingOfferNames} />
     : sec.key === "charter"
@@ -151,7 +153,8 @@ export function ReviewCard({ analysis, index, total, preFilledSections, validate
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                   <p className="text-sm text-success font-medium flex-1">✅ Cette carte est enregistrée.</p>
                   {/* En onboarding, une carte enregistrée ne se réécrit plus ici (une seule écriture) : Mon identité s'en charge. */}
-                  {canRefine && !quickRefine && (
+                  {/* La passe unique n'écrit qu'une fois : pas de seconde passe sur une carte enregistrée. */}
+                  {!!COACHING_SECTION_MAP[sec.key] && !quickRefine && (
                     <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-primary-text hover:underline">
                       <Sparkles className="h-4 w-4" /> L'affiner quand même
                     </button>
