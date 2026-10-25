@@ -32,7 +32,6 @@ export function OffersSection({ data, onUpdate, onDelete, existingOfferNames = [
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <p className="text-xs text-muted-foreground sm:col-span-2">Les nouvelles fiches sont classées « payantes » par défaut ; tu pourras préciser leur type dans Mes offres.</p>
       {clashes.length > 0 && (
         <p className="text-xs text-warning bg-warning-bg border border-warning/30 rounded-[12px] px-3 py-2 sm:col-span-2">
           {clashes.map(n => `« ${n} »`).join(", ")} {clashes.length > 1 ? "existent" : "existe"} déjà dans Mes offres : renomme ou retire {clashes.length > 1 ? "ces offres" : "cette offre"} de cet import. La fiche existante est conservée.

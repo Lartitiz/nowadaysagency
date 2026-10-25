@@ -106,7 +106,10 @@ export default function BrandingReview({ analysis: analysisIn, sourcesFailed = [
   const validatedCount = validated.size;
   // Les cartes restées vides ne bloquent pas la fin : elles se rempliront dans Mon identité.
   const emptyLeft = SECTIONS.filter((s) => !validated.has(s.key) && cardIsEmpty(s.key)).length;
-  const filledCount = SECTIONS.filter((s) => !cardIsEmpty(s.key)).length;
+  // Le haut ne compte que ce que l'analyse a trouvé : une carte écrite par la
+  // personne (réponse de rattrapage, carte réécrite) n'est pas « remplie par
+  // moi » (vu le 25/10/2026 : « J'ai rempli les 7 cartes » après son histoire).
+  const filledCount = useMemo(() => SECTIONS.filter((s) => sectionHasData(s.key, analysisIn)).length, [analysisIn]);
   const allDone = validatedCount + emptyLeft === SECTIONS.length;
 
   return (
@@ -118,6 +121,7 @@ export default function BrandingReview({ analysis: analysisIn, sourcesFailed = [
         analysis={analysis}
         sourcesFailed={sourcesFailed}
         filledCount={filledCount}
+        emptyLeft={emptyLeft}
       />
 
       {/* Coaching overlay */}
