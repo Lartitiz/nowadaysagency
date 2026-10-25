@@ -35,7 +35,8 @@ type Sonde = {
   overflowPx: number;
   consoleErrors: Array<{ text: string; location: string }>;
   pageErrors: string[];
-  network: Array<{ status: number; method: string; url: string }>;
+  network: Array<{ status: number; method: string; url: string; body?: string }>;
+  bandeauDonnees?: boolean;
   requestFailed: Array<{ url: string; error: string }>;
   brokenImages: string[];
   clipped: Array<{ selector: string; hiddenPx: number; sample: string }>;
@@ -77,7 +78,7 @@ export default function () {
       dur.push({ bac: "dur", type: "erreur-js", ecran, detail: pe });
     for (const n of s.network)
       if (n.status >= 500)
-        dur.push({ bac: "dur", type: "réseau-5xx", ecran, detail: `${n.status} ${n.method} ${n.url}` });
+        dur.push({ bac: "dur", type: "réseau-5xx", ecran, detail: `${n.status} ${n.method} ${n.url}${n.body ? ` — corps : ${n.body}` : ""}` });
     // Écran de plantage React (ErrorBoundary) : l'erreur est rattrapée, donc
     // absente de pageErrors — mais l'utilisatrice voit un écran cassé.
     for (const p of s.plantages || [])
@@ -92,6 +93,11 @@ export default function () {
       });
     for (const img of s.brokenImages || [])
       dur.push({ bac: "dur", type: "image-cassée", ecran, detail: img });
+
+    // Bandeau « Impossible de charger certaines de tes données » : l'écran est
+    // chargé mais une lecture a échoué → ce que voit l'utilisatrice est faux.
+    if (s.bandeauDonnees)
+      dur.push({ bac: "dur", type: "données-incomplètes", ecran, detail: "bandeau « Impossible de charger certaines de tes données » visible" });
 
     // --- 🟡 observation ---
     // Échec réseau (hors annulations, déjà filtrées côté sonde) : souvent une

@@ -23,6 +23,7 @@ import { useBrandProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useIdeasTodoCount } from "@/hooks/use-ideas-todo-count";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import HomeCreatePanel from "@/components/dashboard/HomeCreatePanel";
 import { fetchIdeasToDevelop } from "@/lib/ideas-to-develop";
@@ -132,32 +133,15 @@ export default function AdaptiveHome() {
     ? Date.now() - new Date(user.created_at).getTime() < 14 * 24 * 3600 * 1000
     : false;
 
-  // Ideas count
+  // Ideas count — voir src/hooks/use-ideas-todo-count.ts (RPC + repli, 2 reprises,
+  // dernier compte connu). Les erreurs remontent (isError) au lieu d'être maquillées
+  // en données vides : un réseau qui tombe ne doit pas afficher « 0 idée » sans rien dire.
   const workspaceId = activeWorkspace?.id ?? null;
   const wsFilter = useWorkspaceFilter();
-  // Les erreurs de chargement remontent (isError) au lieu d'être maquillées en
-  // données vides : un réseau qui tombe ne doit pas afficher « 0 idée » sans rien dire.
-  const { data: ideaCount = 0, isError: ideasError } = useQuery<number>({
-    queryKey: ["adaptive-home-ideas-count", user?.id, workspaceId],
-    queryFn: async () => {
-      if (!user) return 0;
-      const filterCol = workspaceId ? "workspace_id" : "user_id";
-      const filterVal = workspaceId ?? user.id;
-      // Seulement ce qui reste à faire : une idée déjà créée (posée au
-      // calendrier) n'est plus un rappel.
-      const { count, error } = await supabase
-        .from("saved_ideas")
-        .select("*", { count: "exact", head: true })
-        .eq(filterCol, filterVal)
-        .is("calendar_post_id", null)
-        .or("status.is.null,status.not.in.(planned,published)");
-      if (error) throw error;
-      return count ?? 0;
-    },
-    enabled: !!user,
-    staleTime: 2 * 60 * 1000,
-    retry: 1,
-  });
+  const { count: ideaCount, known: ideaCountKnown, fromMemory: ideaCountFromMemory, isError: ideasFetchError } = useIdeasTodoCount(user?.id, workspaceId);
+  // Le bandeau ne s'allume pour les idées que si on ne sait RIEN (pas même un
+  // compte précédent) : un compteur d'hier vaut mieux qu'une alerte rouge.
+  const ideasError = ideasFetchError && !ideaCountKnown;
 
   // Prochaine idée à développer (diagnostic d'abord), montrée sous « Créer mon contenu ».
   const { data: nextIdea = null } = useQuery({
@@ -417,7 +401,7 @@ export default function AdaptiveHome() {
         </section>
 
         <div className="flex flex-wrap items-center gap-x-7 gap-y-3 text-sm text-bordeaux">
-          <button data-tour="card-ideas" type="button" onClick={() => navigate("/idees")} className="inline-flex items-center gap-2 underline underline-offset-4"><Lightbulb size={16} />Accéder à mes idées{!ideasError && ideaCount > 0 ? ` (${ideaCount})` : ""}</button>
+          <button data-tour="card-ideas" type="button" onClick={() => navigate("/idees")} className="inline-flex items-center gap-2 underline underline-offset-4"><Lightbulb size={16} />Accéder à mes idées{ideaCountKnown && ideaCount > 0 ? ` (${ideaCount})` : ""}{ideaCountFromMemory && <span className="sr-only"> (dernier compte connu)</span>}</button>
           <button type="button" onClick={() => navigate("/photos")} className="inline-flex items-center gap-2 underline underline-offset-4"><ImageIcon size={16} />Ouvrir ma bibliothèque photo{!photoCountLoading && !photoCountError && photoCount > 0 ? ` (${photoCount})` : ""}</button>
         </div>
 
