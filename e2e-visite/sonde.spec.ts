@@ -38,7 +38,7 @@ type Sonde = {
   overflowPx: number; // débordement horizontal (0 = ok)
   consoleErrors: Array<{ text: string; location: string }>;
   pageErrors: string[]; // exceptions JS non catchées
-  network: Array<{ status: number; method: string; url: string }>; // 4xx/5xx de notre réseau
+  network: Array<{ status: number; method: string; url: string; body?: string }>; // 4xx/5xx de notre réseau (corps gardé sur 5xx)
   requestFailed: Array<{ url: string; error: string }>;
   brokenImages: string[]; // <img> chargées mais cassées (naturalWidth=0)
   // Contenu VERTICALEMENT coupé par un conteneur qui le cache (overflow:hidden
@@ -90,7 +90,14 @@ for (const e of ECRANS) {
       const st = res.status();
       const u = res.url();
       if (st >= 400 && isNotreReseau(u)) {
-        s.network.push({ status: st, method: res.request().method(), url: u.slice(0, 300) });
+        const entry = { status: st, method: res.request().method(), url: u.slice(0, 300) } as Sonde["network"][number];
+        s.network.push(entry);
+        // Sur un 5xx, le CORPS porte le code PostgREST (57014 délai dépassé,
+        // PGRST002 cache de schéma…) : sans lui, un « 500 HEAD saved_ideas »
+        // est resté 5 jours sans cause. (HEAD n'a pas de corps : vide alors.)
+        if (st >= 500) {
+          res.text().then((t) => { entry.body = t.replace(/\s+/g, " ").slice(0, 300); }).catch(() => undefined);
+        }
       }
     });
     page.on("requestfailed", (req) => {

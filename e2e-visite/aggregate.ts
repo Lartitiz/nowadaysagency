@@ -35,7 +35,7 @@ type Sonde = {
   overflowPx: number;
   consoleErrors: Array<{ text: string; location: string }>;
   pageErrors: string[];
-  network: Array<{ status: number; method: string; url: string }>;
+  network: Array<{ status: number; method: string; url: string; body?: string }>;
   requestFailed: Array<{ url: string; error: string }>;
   brokenImages: string[];
   clipped: Array<{ selector: string; hiddenPx: number; sample: string }>;
@@ -77,7 +77,7 @@ export default function () {
       dur.push({ bac: "dur", type: "erreur-js", ecran, detail: pe });
     for (const n of s.network)
       if (n.status >= 500)
-        dur.push({ bac: "dur", type: "réseau-5xx", ecran, detail: `${n.status} ${n.method} ${n.url}` });
+        dur.push({ bac: "dur", type: "réseau-5xx", ecran, detail: `${n.status} ${n.method} ${n.url}${n.body ? ` — corps : ${n.body}` : ""}` });
     // Écran de plantage React (ErrorBoundary) : l'erreur est rattrapée, donc
     // absente de pageErrors — mais l'utilisatrice voit un écran cassé.
     for (const p of s.plantages || [])
