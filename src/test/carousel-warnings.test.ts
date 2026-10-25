@@ -88,6 +88,18 @@ describe("Avertissements carrousel : manques vs pistes de relecture", () => {
     expect(out.suggestions[1]).toBe("Slides 4 → 5 : à relire, le passage de l’une à l’autre est un peu brusque.");
   });
 
+  it("rupture signalée deux fois (constat + frontière) : une seule ligne", () => {
+    const out = splitCarouselWarnings({ structure_warnings: ["i1"], progression_review: { execution_status: "completed", issues: ["i1"], report: {
+      verdict: "needs_repair", trajectory: { kind: "developed_idea" },
+      defects: [{ slide_ids: ["slides.10", "slides.11"], type: "rupture", excerpt: "Toute la frontière tient donc à une question" }],
+      boundaries: [{ kind: "rupture", from: "slides.10", to: "slides.11" }, { kind: "rupture", from: "slides.3", to: "slides.4" }],
+    } } });
+    expect(out.suggestions).toEqual([
+      "Slides 11 et 12 : à relire, le passage depuis la slide d’avant est un peu brusque (« Toute la frontière tient donc à une question »).",
+      "Slides 4 → 5 : à relire, le passage de l’une à l’autre est un peu brusque.",
+    ]);
+  });
+
   it("reçu sans rapport : repli générique, jamais la note brute", () => {
     const out = splitCarouselWarnings({ structure_warnings: [RAW], progression_review: { execution_status: "completed", issues: [RAW] } });
     expect(out.suggestions).toEqual(["Quelques passages méritent une relecture avant de publier."]);
