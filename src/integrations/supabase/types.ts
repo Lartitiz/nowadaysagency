@@ -9232,6 +9232,10 @@ export type Database = {
         }[]
       }
       consume_bonus_credit: { Args: { p_user_id: string }; Returns: number }
+      count_ideas_a_faire: {
+        Args: { p_workspace_id?: string }
+        Returns: number
+      }
       create_coaching_program_full: {
         Args: {
           p_client_user_id: string
