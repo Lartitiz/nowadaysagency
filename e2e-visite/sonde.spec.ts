@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import { ECRANS } from "./ecrans";
 import { detectClipped, type Clipped } from "./detect-clipped";
 import { detectPlantage, type Plantage } from "./detect-plantage";
+import { detectDonneesIncompletes, type DonneesIncompletes } from "./detect-donnees";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SONDE_DIR = path.join(__dirname, "sonde");
@@ -47,6 +48,7 @@ type Sonde = {
   // Écran de plantage React (ErrorBoundary global « 😵 » ou LocalErrorBoundary).
   // Erreur RATTRAPÉE par React → invisible pour `pageerror` : on lit le DOM.
   plantages: Plantage[];
+  bandeaux: DonneesIncompletes[];
   a11y: Array<{ id: string; impact: string; help: string; nodes: number; sample: string }> | null;
 };
 
@@ -68,6 +70,7 @@ for (const e of ECRANS) {
       brokenImages: [],
       clipped: [],
       plantages: [],
+      bandeaux: [],
       a11y: null,
     };
 
@@ -171,6 +174,14 @@ for (const e of ECRANS) {
     // lecture du DOM, un écran entièrement cassé passait en simple console.error.
     try {
       s.plantages = await page.evaluate(detectPlantage);
+    } catch {
+      /* ignore */
+    }
+
+    // Donnée manquante DITE à l'écran (« Impossible de charger … ») : pas une
+    // erreur JS, pas un écran de plantage, mais l'utilisatrice la voit.
+    try {
+      s.bandeaux = await page.evaluate(detectDonneesIncompletes);
     } catch {
       /* ignore */
     }

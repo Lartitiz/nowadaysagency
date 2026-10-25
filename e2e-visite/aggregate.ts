@@ -40,6 +40,7 @@ type Sonde = {
   brokenImages: string[];
   clipped: Array<{ selector: string; hiddenPx: number; sample: string }>;
   plantages?: Array<{ kind: "global" | "local"; titre: string }>;
+  bandeaux?: Array<{ texte: string }>;
   a11y: Array<{ id: string; impact: string; help: string; nodes: number; sample: string }> | null;
 };
 
@@ -60,6 +61,7 @@ export default function () {
 
   for (const f of files) {
     if (f === "_landing.json") continue; // traité à part (forme différente)
+    if (f.startsWith("_bandeau-")) continue; // signaux de visite.spec, traités à part
     let s: Sonde;
     try {
       s = JSON.parse(fs.readFileSync(path.join(SONDE_DIR, f), "utf8"));
@@ -114,6 +116,11 @@ export default function () {
         ecran,
         detail: `${c.hiddenPx}px cachés dans ${c.selector} — « ${c.sample} »`,
       });
+    // Donnée manquante DITE à l'écran : « Impossible de charger … » visible.
+    // Observation (pas dur) : souvent une base lente le matin, et le re-run
+    // tranche — mais l'utilisatrice l'a vu, donc on le note.
+    for (const b of s.bandeaux || [])
+      obs.push({ bac: "observation", type: "donnees-incompletes", ecran, detail: `« ${b.texte} » affiché (${s.url})` });
     const goto = s.gotoMs ?? null;
     if (goto && goto > PERF_GOTO_MS)
       obs.push({ bac: "observation", type: "lenteur", ecran, detail: `chargement ${goto}ms (> ${PERF_GOTO_MS}ms)` });
@@ -139,7 +146,31 @@ export default function () {
     /* pas de sonde landing dans ce run */
   }
 
-  const nEcrans = files.filter((f) => f !== "_landing.json").length;
+  // --- Bandeaux vus par visite.spec (la capture de chaque écran) ---
+  // La sonde charge chaque écran à part ; la visite le charge une 2e fois pour
+  // la capture, parfois plus lentement. Le 25/10/2026 c'est la visite qui a vu
+  // le bandeau de l'accueil, pas la sonde : les deux passages comptent.
+  for (const f of files.filter((f) => f.startsWith("_bandeau-"))) {
+    try {
+      const b = JSON.parse(fs.readFileSync(path.join(SONDE_DIR, f), "utf8")) as {
+        slug: string;
+        projet: string;
+        url: string;
+        bandeaux: Array<{ texte: string }>;
+      };
+      for (const x of b.bandeaux || [])
+        obs.push({
+          bac: "observation",
+          type: "donnees-incompletes",
+          ecran: `${b.slug} [${b.projet}]`,
+          detail: `« ${x.texte} » affiché à la visite (${b.url})`,
+        });
+    } catch {
+      /* fichier illisible : on ne bloque pas la synthèse */
+    }
+  }
+
+  const nEcrans = files.filter((f) => f !== "_landing.json" && !f.startsWith("_bandeau-")).length;
   const report = {
     mode: heavy ? "heavy" : "light",
     ecransSondes: nEcrans,
