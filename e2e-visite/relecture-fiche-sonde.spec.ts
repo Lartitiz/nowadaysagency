@@ -20,6 +20,13 @@
  * 7 cartes, à l'arrivée et sans défiler, les 2 boutons de la carte sont au-dessus
  * de la barre du bas. Une carte trop longue les cachait (jusqu'à 2,5 écrans).
  * Seuil choisi par Laetitia : sous 7/7 = 🟠, une ligne sans faire échouer la spec.
+ *
+ * Chemin import (ajouté le 24/10/2026 avec l'accord de Laetitia, après #1804) :
+ * la même relecture s'ouvre depuis Mon identité, « Remplir à partir de mon site,
+ * Instagram ou LinkedIn ». La lecture des liens (analyze-brand) est simulée, rien
+ * n'est écrit ni lancé. Sur les 7 cartes, « Je corrige » doit être là : le 24/10,
+ * « Ta proposition de valeur » n'avait que « C'est juste » sur ce chemin.
+ * Seuil choisi par Laetitia : sous 7/7 = 🟠, une ligne sans faire échouer la spec.
  */
 import { test, expect, type Page, type Route } from "@playwright/test";
 
@@ -68,6 +75,43 @@ async function simuler(page: Page, analysis: Record<string, unknown>) {
   // Zéro crédit : aucun appel à l'IA ne part.
   await page.route(/functions\/v1\/(branding-quick-refine|branding-coaching|charter-coaching)/, (route) => route.abort());
   await page.goto("/branding?from=onboarding&next=creer");
+  await expect(page.getByText("Voici ce que j'ai compris de ton projet")).toBeVisible({ timeout: 60_000 });
+}
+
+// Chemin import : Mon identité → lecture des liens simulée → relecture hors onboarding.
+async function ouvrirParImport(page: Page) {
+  let aRelire = false;
+  const ligne = { id: "00000000-0000-0000-0000-00000000c0de", analysis_result: REMPLIE, website_url: null, instagram_handle: null, linkedin_url: null, autofill_status: "pending_review" };
+  await page.route("**/rest/v1/**", async (route) => {
+    const req = route.request();
+    const url = req.url();
+    const table = url.split("/rest/v1/")[1].split("?")[0];
+    const objet = (req.headers()["accept"] || "").includes("object");
+    const rien = () => objet
+      ? route.fulfill({ status: 406, contentType: "application/json", body: JSON.stringify({ code: "PGRST116", message: "0 rows" }) })
+      : route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+    if (req.method() === "GET" && table === "branding_autofill" && url.includes("pending_review")) {
+      return aRelire ? route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(objet ? ligne : [ligne]) }) : rien();
+    }
+    if (req.method() === "GET" && (TABLES_MARQUE.includes(table) || table === "branding_coaching_sessions")) return rien();
+    if (req.method() === "GET" || req.method() === "HEAD") return route.continue();
+    if (table === "branding_autofill") aRelire = true;
+    // Aucune écriture n'atteint la base.
+    if (req.method() === "DELETE") return route.fulfill({ status: 204, body: "" });
+    let corps: unknown[] = [];
+    try { const b = req.postDataJSON(); corps = Array.isArray(b) ? b : [b]; } catch { /* rien */ }
+    return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(objet ? { id: "00000000-0000-0000-0000-0000000000aa", ...(corps[0] as object) } : corps) });
+  });
+  // Zéro crédit : la lecture des liens est simulée, aucun autre appel à l'IA ne part.
+  await page.route(/functions\/v1\/analyze-brand/, (route) => route.request().method() === "OPTIONS"
+    ? route.continue()
+    : route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true, id: ligne.id, analysis: REMPLIE }) }));
+  await page.route(/functions\/v1\/(branding-quick-refine|branding-coaching|charter-coaching)/, (route) => route.abort());
+  await page.goto("/branding");
+  await page.getByRole("button", { name: /Remplir à partir de mon site/ }).click({ timeout: 60_000 });
+  const insta = page.getByLabel("Mon compte Instagram");
+  if (!(await insta.inputValue())) await insta.fill("@camille");
+  await page.getByRole("button", { name: /^Remplir mon identité$/ }).click();
   await expect(page.getByText("Voici ce que j'ai compris de ton projet")).toBeVisible({ timeout: 60_000 });
 }
 
@@ -132,5 +176,20 @@ test.describe("Relecture de la fiche : 7 cartes et carte vide", () => {
     }
     expect(ko, "« On affine ensemble » ne s'ouvre pas sur toutes les cartes").toEqual([]);
     expect(videOk, "la carte vide ne pose pas sa question").toBe(true);
+  });
+  test("chemin import : « Je corrige » sur les 7 cartes", async ({ page }, info) => {
+    test.setTimeout(120_000);
+    const taille = info.project.name;
+    if (taille === "mobile") await page.setViewportSize({ width: 375, height: 812 });
+    await ouvrirParImport(page);
+    const sans: string[] = [];
+    for (const nom of CARTES) {
+      await page.getByRole("button", { name: new RegExp(`Aller à « .*${nom.replace(/[·&]/g, ".")}`) }).click();
+      await page.waitForTimeout(300);
+      if (!(await page.getByRole("button", { name: /Je corrige/ }).first().isVisible().catch(() => false))) sans.push(nom);
+    }
+    await page.screenshot({ path: `e2e-visite/results/relecture-fiche-import-${taille}.png` });
+    // Seuil choisi par Laetitia : sous 7/7 = 🟠, sans faire échouer la spec.
+    console.log(`🪪 Import : "Je corrige" sur ${7 - sans.length}/7 cartes (${taille}) ${sans.length === 0 ? "✅" : `🟠 absent sur : ${sans.join(", ")}`}`);
   });
 });
