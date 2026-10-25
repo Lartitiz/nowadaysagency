@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import Confetti from "@/components/Confetti";
@@ -35,10 +35,18 @@ interface Props {
    * — retour sur /branding plus tard — la porte de sortie reste ouverte.
    */
   mandatory?: boolean;
+  /**
+   * Appelé UNE fois dès que toutes les cartes sont validées (ou laissées
+   * vides) : la page enregistre alors la fiche comme validée sans attendre
+   * le bouton de la carte de fin. Vu le 25/10/2026 : après « Je valide tout »
+   * la barre disait « Fiche validée ! 🎉 », mais quitter par le menu laissait
+   * la fiche « à relire » → /creer bloqué sur « Ta fiche de marque t'attend ».
+   */
+  onAllDone?: () => void;
 }
 
 // ─── Main Component ──────────────────────────────────────────
-export default function BrandingReview({ analysis: analysisIn, sourcesFailed = [], onDone, onProgress, preFilledSections, existingOfferNames, mandatory = false }: Props) {
+export default function BrandingReview({ analysis: analysisIn, sourcesFailed = [], onDone, onProgress, preFilledSections, existingOfferNames, mandatory = false, onAllDone }: Props) {
   const [productPhotosReady, setProductPhotosReady] = useState(false);
   // Réponses de rattrapage des cartes vides : ajoutées à l'analyse affichée et
   // enregistrée, comme si l'analyse les avait trouvées.
@@ -111,6 +119,12 @@ export default function BrandingReview({ analysis: analysisIn, sourcesFailed = [
   // moi » (vu le 25/10/2026 : « J'ai rempli les 7 cartes » après son histoire).
   const filledCount = useMemo(() => SECTIONS.filter((s) => sectionHasData(s.key, analysisIn)).length, [analysisIn]);
   const allDone = validatedCount + emptyLeft === SECTIONS.length;
+  const allDoneFired = useRef(false);
+  useEffect(() => {
+    if (!allDone || allDoneFired.current) return;
+    allDoneFired.current = true;
+    onAllDone?.();
+  }, [allDone, onAllDone]);
 
   return (
     <div className="pb-40 md:pb-24">

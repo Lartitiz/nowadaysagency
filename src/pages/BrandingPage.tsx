@@ -531,6 +531,19 @@ function ScopedBrandingPage() {
                 // Parcours d'inscription : valider sa fiche EST l'étape en cours.
                 // On retire donc « finir plus tard » — la création attend la fiche.
                 mandatory={fromOnboarding}
+                // Toutes les cartes validées = fiche validée, tout de suite :
+                // la garde de /creer et la réouverture de la relecture lisent
+                // ce statut, pas le clic sur la carte de fin (bug du 25/10/2026).
+                onAllDone={async () => {
+                  if (!user?.id || isDemoMode || !pendingReviewId) return;
+                  try {
+                    await saveImportRow("branding_autofill", { column, value, userId: user.id }, pendingReviewId,
+                      { autofill_status: "completed", autofill_pending_review: false });
+                    queryClient.invalidateQueries({ queryKey: ["pending-brand-review"] });
+                  } catch {
+                    // onDone (carte de fin) réessaie et prévient si ça échoue encore.
+                  }
+                }}
                 onDone={async (complete = true) => {
                   if (complete && user?.id && !isDemoMode) {
                     try {
