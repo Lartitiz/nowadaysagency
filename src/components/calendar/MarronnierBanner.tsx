@@ -35,7 +35,11 @@ export function MarronnierBanner({ onDecliner }: MarronnierBannerProps) {
     }
   });
 
-  const isServiceOnly = profileData?.type_activite === "services";
+  // Le choix « Des services » de l'inscription vit dans `product_or_service`
+  // (`type_activite` = métier : coach, artisane…). Lu sur le mauvais champ, le
+  // bandeau « Tes photos produit en version Halloween » s'affichait à une
+  // consultante sans produit (compte neuf du 25/10/2026).
+  const isServiceOnly = profileData?.product_or_service === "services" || profileData?.type_activite === "services";
   if (!occ || dismissed || isServiceOnly) return null;
   const { marronnier: m, daysUntil } = occ;
   const when =
