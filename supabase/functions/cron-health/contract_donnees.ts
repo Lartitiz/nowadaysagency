@@ -236,6 +236,16 @@ const HORS_CREDIT = [
   { user_id: "u-test", created_at: ilYa(9 * J), source: "compte_test", action_type: "generate_carousel", model_used: "claude-opus-5-5", tokens_used: 85000 },
 ];
 
+// Fiches de marque « à relire » (sonde 🪪 du 26/10/2026) : une cliente coincée
+// (7/7 relues, 5 jours), une relecture pas faite, une fiche du compte de recette.
+const SEPT = ["story", "persona", "value_proposition", "tone_style", "content_strategy", "offers", "charter"];
+const FICHES_A_RELIRE = [
+  { user_id: "u-marie", autofill_status: "pending_review", updated_at: ilYa(5 * J), reviewed: SEPT },
+  { user_id: "u-jo", autofill_status: "pending_review", updated_at: ilYa(10 * J), reviewed: ["story"] },
+  { user_id: "u-test", autofill_status: "pending_review", updated_at: ilYa(3 * J), reviewed: SEPT },
+  { user_id: "u-sam", autofill_status: "completed", updated_at: ilYa(8 * J), reviewed: SEPT },
+];
+
 /** La base complète, pour les deux scopes. Chaque test peut remplacer une table. */
 export function mondeComplet(): FauxMonde {
   return {
@@ -258,6 +268,7 @@ export function mondeComplet(): FauxMonde {
       generated_carousels: CARROUSELS,
       content_quality_events: EVENEMENTS_QUALITE,
       ai_usage_hors_credit: HORS_CREDIT,
+      branding_autofill: FICHES_A_RELIRE,
     },
     cronJobs: CRON_JOBS,
     photoroom: { status: 200, body: { credits: { available: 790, subscription: 1000 } } },
