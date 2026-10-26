@@ -4,7 +4,7 @@
 // COMPORTEMENT en marche de l'app (régressions, coûts, intégrité infra) ; ce
 // script teste la SANTÉ DU CODE lui-même, ce qu'aucune sonde comportementale
 // ne peut voir : dépendances vulnérables/obsolètes, dette gelée (knip),
-// duplication. Cadence hebdo (routine-hebdo-lundi) : ces signaux bougent lentement,
+// duplication, version de zod des edge functions. Cadence hebdo (routine-hebdo-lundi) : ces signaux bougent lentement,
 // une lecture quotidienne serait du bruit.
 //
 // Ne bloque JAMAIS le run appelant : chaque section est indépendante (une
@@ -26,6 +26,7 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { analyser as analyserMigrations, lireDepot as lireMigrations, rapport as rapportMigrations } from "./migrations-non-appliquees.mjs";
+import { analyser as analyserZodEdges, lireDepot as lireZodEdges, rapport as rapportZodEdges } from "./zod-edges.mjs";
 
 const execFileAsync = promisify(execFile);
 const REPO_ROOT = process.cwd();
@@ -283,16 +284,26 @@ async function main() {
     console.log(`🗄️ Migrations du dépôt\n   non déterminé (${e.message}) — étape sautée`);
   }
 
+  // zod des edge functions : bun.lock ne les voit pas (angle mort vu en #1813).
+  let zodEdges = null;
+  try {
+    zodEdges = rapportZodEdges(analyserZodEdges(lireZodEdges(REPO_ROOT)), baseline?.zodEdges);
+    console.log(zodEdges.lignes.join("\n"));
+  } catch (e) {
+    console.log(`🧬 zod dans les edge functions\n   non déterminé (${e.message}) — étape sautée`);
+  }
+
   const warn =
     (deps && baseline?.deps?.counts && (deps.counts.critical > baseline.deps.counts.critical || deps.counts.high > baseline.deps.counts.high)) ||
     (knip?.ok && knip.newIssues > 0) ||
     (dup && baseline?.duplication?.percentage != null && dup.percentage - baseline.duplication.percentage > 0.5) ||
-    migrations?.verdict === "WARN";
+    migrations?.verdict === "WARN" ||
+    zodEdges?.verdict === "WARN";
 
   // Une étape sautée ne doit JAMAIS donner « OK » : le 12/10/2026, l'audit a
   // dépassé son délai, le verdict a dit OK et 2 failles critiques nouvelles
   // (tinypool) sont passées inaperçues. WARN l'emporte (vrai signal mesuré).
-  const sautees = [!deps && "dépendances", !knip?.ok && "code mort", !dup && "duplication", !migrations && "migrations"].filter(Boolean);
+  const sautees = [!deps && "dépendances", !knip?.ok && "code mort", !dup && "duplication", !migrations && "migrations", !zodEdges && "zod des edges"].filter(Boolean);
   const verdict = warn ? "WARN" : sautees.length ? "INCOMPLET" : "OK";
   if (sautees.length) {
     console.log(`\n⚠️ étape(s) non mesurée(s) : ${sautees.join(", ")} — relancer (ex. \`bun audit\`) avant de conclure « rien de neuf »`);
@@ -304,6 +315,7 @@ async function main() {
     deps: deps ? { counts: deps.counts } : baseline?.deps,
     knip: knip?.ok ? { newIssues: knip.newIssues } : baseline?.knip,
     duplication: dup ? { percentage: dup.percentage } : baseline?.duplication,
+    zodEdges: zodEdges ? zodEdges.mesure : baseline?.zodEdges,
   });
 
   process.exit(0);
