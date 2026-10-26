@@ -49,6 +49,9 @@ const NEUTRAL = new Set([
   // Audit de coût du 20/10/2026 : limite du cache du prompt système, et appels
   // comptés sans crédit. Infrastructure, aucune règle d'écriture ni de design.
   "system-cache", "usage-hors-credit",
+  // 26/10/2026 : capacités par modèle (température, réflexion, outil forcé, plafond)
+  // et tiers Haiku / Opus, sortis d'anthropic.ts (cliquet gros fichiers). Infrastructure.
+  "model-capabilities",
 ]);
 
 /**
