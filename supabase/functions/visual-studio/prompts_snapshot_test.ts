@@ -17,6 +17,7 @@
 
 import { assertSnapshot } from "../../edge-tests/snapshot.ts";
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { HAIKU_MODEL } from "../_shared/anthropic.ts";
 import { id, PROPOSAL, stable, studioFixture, type StudioFixture } from "./contract_harness.ts";
 import { conversationTool, intentTool, studioSystem } from "./contract.ts";
 import { CONVERSATION_SYSTEM } from "./conversation.ts";
@@ -111,7 +112,7 @@ Deno.test("prompts Studio — conseil simple (Haiku, sans image)", async (t) => 
     const { status, data } = await f.send({ ...base, request_id: id(31), reference_ids: [],
       message: "Qu'en penses-tu : fond clair ou fond sombre pour mon bol ?" });
     assertEquals(status, 200);
-    assertEquals(f.payloads[0].model, "claude-haiku-4-5");
+    assertEquals(f.payloads[0].model, HAIKU_MODEL);
     await assertSnapshot(t, turnDoc(f, status, data));
   } finally { f.restore(); }
 });

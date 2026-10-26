@@ -8,7 +8,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { validateInput, ValidationError, GenerateContentSchema, clampAiField } from "../_shared/input-validators.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink, HAIKU_MODEL } from "../_shared/anthropic.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { numbersIn, runTextRedacGate } from "../_shared/redac-gate.ts";
 import { parseAudienceAddress, type AudienceAddress } from "../_shared/audience-address.ts";
@@ -599,7 +599,7 @@ Réponds en JSON :
           correction: {
             logger: (m) => console.log(`[generate-content] ${m}`),
             // Édition mécanique à règles fermées → Haiku (cf. #364)
-            model: "claude-haiku-4-5",
+            model: HAIKU_MODEL,
             // Aligné sur la génération principale (ligne au-dessus) : budget
             // serveur total borné à 120s (audit timeouts 17/08).
             abortTimeoutMs: 60_000,

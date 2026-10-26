@@ -9,7 +9,7 @@ import { authoredContentSource, testimonySourceText } from "../../_shared/editor
 import { type AudienceAddress } from "../../_shared/audience-address.ts";
 import { enforceAudienceAddressInJsonText } from "../../_shared/audience-address-fields.ts";
 import { logUsage } from "../../_shared/plan-limiter.ts";
-import { type AnthropicModel } from "../../_shared/anthropic.ts";
+import { type AnthropicModel, HAIKU_MODEL } from "../../_shared/anthropic.ts";
 import { streamAnthropicToolSSE, createClientSSEStream } from "../../_shared/anthropic-stream.ts";
 import { analyzeTextRedac, runTextRedacGate, textRedacViolations, dropUserSourcedReversals, hookEchoesBefore } from "../../_shared/redac-gate.ts";
 import { logContentQuality } from "../../_shared/content-quality.ts";
@@ -120,7 +120,7 @@ export async function correctPostStreamContent(
         authoredText: authoredContentSource(body),
         sourceContext: [authoredContentSource(body), fullContext, researchSource].filter(Boolean).join("\n"),
         // Édition mécanique à règles fermées → Haiku (cf. #364)
-        model: "claude-haiku-4-5",
+        model: HAIKU_MODEL,
         abortTimeoutMs: CORRECTION_ABORT_MS,
       },
       allowedNumbers: postAllowed,

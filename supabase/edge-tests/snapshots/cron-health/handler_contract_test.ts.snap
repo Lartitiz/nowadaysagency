@@ -657,7 +657,7 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
     cout_estime_eur: 2.23,
     tokens: 210000,
   },
-  cout_estime_total_7j: 4.67,
+  cout_estime_total_7j: 4.68,
   emails_coupes: {
     alerte: false,
     envoyes_7j: 0,
@@ -737,8 +737,12 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
     ],
   },
   ia_7j: {
-    appels: 8,
+    appels: 9,
     byModel: {
+      "claude-haiku-5-5": {
+        appels: 1,
+        tokens: 30000,
+      },
       "claude-sonnet-5": {
         appels: 1,
         tokens: 120000,
@@ -770,8 +774,8 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
     },
     cout_images_estime_eur: 0.31,
     cout_incomplet: true,
-    cout_texte_estime_eur: 0.62,
-    cout_total_estime_eur: 0.93,
+    cout_texte_estime_eur: 0.63,
+    cout_total_estime_eur: 0.94,
     modeles_non_tarifes: [
       {
         appels: 1,
@@ -814,7 +818,7 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
       },
       rejected: 1,
     },
-    tokens: 165300,
+    tokens: 195300,
     topActions: [
       {
         action: "studio_image",
@@ -826,7 +830,7 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
       },
       {
         action: "generate_post",
-        count: 1,
+        count: 2,
       },
       {
         action: "inconnu",
@@ -1034,17 +1038,17 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
       cout_estime_eur: 0.89,
       email_masque: "ma***@client.fr",
       inscrite_le: "2026-10-05",
-      part_du_cout_pct: 96,
+      part_du_cout_pct: 95,
       tokens: 120000,
     },
     {
       action_principale: "audit_instagram",
-      appels: 2,
-      cout_estime_eur: 0.04,
+      appels: 3,
+      cout_estime_eur: 0.05,
       email_masque: "sa***@client.fr",
       inscrite_le: "2026-09-09",
-      part_du_cout_pct: 4,
-      tokens: 40000,
+      part_du_cout_pct: 5,
+      tokens: 70000,
     },
     {
       action_principale: "generate_post",
@@ -1084,8 +1088,12 @@ snapshot[`weekly qualité : colonne content_preview absente → relecture sans e
     tokens: 210000,
   },
   ia_7j: {
-    appels: 8,
+    appels: 9,
     byModel: {
+      "claude-haiku-5-5": {
+        appels: 1,
+        tokens: 30000,
+      },
       "claude-sonnet-5": {
         appels: 1,
         tokens: 120000,
@@ -1117,8 +1125,8 @@ snapshot[`weekly qualité : colonne content_preview absente → relecture sans e
     },
     cout_images_estime_eur: 0.31,
     cout_incomplet: true,
-    cout_texte_estime_eur: 0.51,
-    cout_total_estime_eur: 0.82,
+    cout_texte_estime_eur: 0.52,
+    cout_total_estime_eur: 0.83,
     modeles_non_tarifes: [
       {
         appels: 1,
@@ -1133,7 +1141,7 @@ snapshot[`weekly qualité : colonne content_preview absente → relecture sans e
     ],
     relecture_editoriale: [],
     relecture_issues: {},
-    tokens: 165300,
+    tokens: 195300,
     topActions: [
       {
         action: "studio_image",
@@ -1145,7 +1153,7 @@ snapshot[`weekly qualité : colonne content_preview absente → relecture sans e
       },
       {
         action: "generate_post",
-        count: 1,
+        count: 2,
       },
       {
         action: "inconnu",
@@ -1315,8 +1323,12 @@ snapshot[`weekly qualité : colonne content_preview absente → relecture sans e
 snapshot[`weekly qualité : table content_quality_events absente → repli sur les brouillons 1`] = `
 {
   ia_7j: {
-    appels: 8,
+    appels: 9,
     byModel: {
+      "claude-haiku-5-5": {
+        appels: 1,
+        tokens: 30000,
+      },
       "claude-sonnet-5": {
         appels: 1,
         tokens: 120000,
@@ -1348,8 +1360,8 @@ snapshot[`weekly qualité : table content_quality_events absente → repli sur l
     },
     cout_images_estime_eur: 0.31,
     cout_incomplet: true,
-    cout_texte_estime_eur: 0.51,
-    cout_total_estime_eur: 0.82,
+    cout_texte_estime_eur: 0.52,
+    cout_total_estime_eur: 0.83,
     modeles_non_tarifes: [
       {
         appels: 1,
@@ -1364,7 +1376,7 @@ snapshot[`weekly qualité : table content_quality_events absente → repli sur l
     ],
     relecture_editoriale: [],
     relecture_issues: {},
-    tokens: 165300,
+    tokens: 195300,
     topActions: [
       {
         action: "studio_image",
@@ -1376,7 +1388,7 @@ snapshot[`weekly qualité : table content_quality_events absente → repli sur l
       },
       {
         action: "generate_post",
-        count: 1,
+        count: 2,
       },
       {
         action: "inconnu",

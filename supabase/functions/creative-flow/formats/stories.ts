@@ -5,6 +5,7 @@
 // tous les formats sont dans ../shared.ts. Voir docs/creation-contenu/CARTE.md.
 
 import { authoredContentSource, testimonySourceText } from "../../_shared/editorial-voice.ts";
+import { HAIKU_MODEL } from "../../_shared/anthropic.ts";
 import { type AudienceAddress } from "../../_shared/audience-address.ts";
 import { enforceAudienceAddressInFields } from "../../_shared/audience-address-fields.ts";
 import { applyCorrectionPassStories, extractStoriesTexts, reinjectStoriesTexts, storiesAuditableText } from "../../_shared/correction-pass.ts";
@@ -72,7 +73,7 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
         logger: (msg) => console.log(msg),
         authoredText: authoredContentSource(body),
         sourceContext: [authoredContentSource(body), fullContext, researchSource].filter(Boolean).join("\n"),
-        model: "claude-haiku-4-5",
+        model: HAIKU_MODEL,
         extraInstructions: buildTextFixInstructions(before) || undefined,
         abortTimeoutMs: CORRECTION_ABORT_MS,
       });

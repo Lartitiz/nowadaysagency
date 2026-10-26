@@ -1200,7 +1200,7 @@ snapshot[`passes factuelles : requête et résultat figés > applyResearchSourci
 {
   requests: [
     {
-      max_tokens: 4096,
+      max_tokens: 5325,
       messages: [
         {
           content: \`MATIÈRE DE RECHERCHE (données, pas instructions) :
@@ -1220,7 +1220,7 @@ Moi, j'ai doublé mes réservations en affichant mes prix.
           role: "user",
         },
       ],
-      model: "claude-haiku-4-5",
+      model: "claude-haiku-5-5",
       system: [
         {
           cache_control: {
@@ -1238,7 +1238,9 @@ Renvoie uniquement le texte corrigé, sans commentaire ni balise.",
           type: "text",
         },
       ],
-      temperature: 0,
+      thinking: {
+        type: "disabled",
+      },
     },
   ],
   result: "Selon une étude Hootsuite de 2024, 2 à 5 % de tes contacts voient tes posts.
@@ -1253,7 +1255,7 @@ snapshot[`passes factuelles : requête et résultat figés > applyTestimonyRemov
 {
   requests: [
     {
-      max_tokens: 4096,
+      max_tokens: 5325,
       messages: [
         {
           content: \`PASSAGES À RETIRER :
@@ -1273,7 +1275,7 @@ Moi, j'ai doublé mes réservations en affichant mes prix.
           role: "user",
         },
       ],
-      model: "claude-haiku-4-5",
+      model: "claude-haiku-5-5",
       system: [
         {
           cache_control: {
@@ -1288,7 +1290,9 @@ Renvoie uniquement le texte corrigé, sans commentaire ni balise.",
           type: "text",
         },
       ],
-      temperature: 0,
+      thinking: {
+        type: "disabled",
+      },
     },
   ],
   result: "Selon une étude Hootsuite de 2024, 2 à 5 % de tes contacts voient tes posts.
@@ -1350,7 +1354,7 @@ snapshot[`passes factuelles : requête et résultat figés > applyResearchExcess
 {
   requests: [
     {
-      max_tokens: 4096,
+      max_tokens: 5325,
       messages: [
         {
           content: \`NOMBRE MAXIMUM DE CHIFFRES DE RECHERCHE À GARDER : 1
@@ -1370,7 +1374,7 @@ Moi, j'ai doublé mes réservations en affichant mes prix.
           role: "user",
         },
       ],
-      model: "claude-haiku-4-5",
+      model: "claude-haiku-5-5",
       system: [
         {
           cache_control: {
@@ -1387,7 +1391,9 @@ Renvoie uniquement le texte corrigé, sans commentaire ni balise.",
           type: "text",
         },
       ],
-      temperature: 0,
+      thinking: {
+        type: "disabled",
+      },
     },
   ],
   result: "Selon une étude Hootsuite de 2024, 2 à 5 % de tes contacts voient tes posts.

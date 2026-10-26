@@ -7,7 +7,7 @@
 
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic, type AnthropicModel, SONNET_MODEL, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, type AnthropicModel, SONNET_MODEL, type UsageSink, HAIKU_MODEL } from "../_shared/anthropic.ts";
 import { callCarouselWriter, pickCarouselWriter } from "./writer.ts";
 import { reviewCarouselProgression } from "../_shared/carousel-progression.ts";
 import { createContinuousNarrative } from "./continuous-narrative.ts";
@@ -87,7 +87,7 @@ export const pickCarouselModel = pickCarouselWriter;
 // réduit la latence perçue de la phase texte (les 2 appels étant séquentiels).
 // En Mode qualité Max on garde Sonnet, cohérent avec la promesse du toggle.
 export function pickCorrectionModel(body: any): AnthropicModel {
-  return body?.quality_max ? SONNET_MODEL : "claude-haiku-4-5";
+  return body?.quality_max ? SONNET_MODEL : HAIKU_MODEL;
 }
 
 // ── Helpers contexte par photo ──

@@ -5,6 +5,7 @@
 // tous les formats sont dans ../shared.ts. Voir docs/creation-contenu/CARTE.md.
 
 import { authoredContentSource, testimonySourceText } from "../../_shared/editorial-voice.ts";
+import { HAIKU_MODEL } from "../../_shared/anthropic.ts";
 import { enforceAudienceAddress, type AudienceAddress } from "../../_shared/audience-address.ts";
 import { tryParseAiJson } from "../../_shared/parse-ai-json.ts";
 import { applyCorrectionPassReel } from "../../_shared/correction-pass.ts";
@@ -149,7 +150,7 @@ export async function applyReelQualityPass(parsed: any, params: { body: any; eff
       logger: (msg) => console.log(msg),
       authoredText: authoredContentSource(body),
       sourceContext: [fullContext, researchSource, authoredContentSource(body)].filter(Boolean).join("\n"),
-      model: "claude-haiku-4-5",
+      model: HAIKU_MODEL,
       extraInstructions: extras.length ? extras.join("\n\n") : undefined,
       abortTimeoutMs: CORRECTION_ABORT_MS,
     });

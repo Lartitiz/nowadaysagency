@@ -17,7 +17,10 @@ snapshot[`handler creative-flow (complément) — marque remplie — questions p
    "content": "Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : \\\\"Pourquoi je ne fais plus de remises sur mes créations\\\\" (angle \\\\"Le mythe du prix cassé\\\\")."
   }
  ],
- "max_tokens": 800,
+ "max_tokens": 1040,
+ "thinking": {
+  "type": "disabled"
+ },
  "tool_choice": {
   "type": "tool",
   "name": "poser_questions"
@@ -62,8 +65,7 @@ snapshot[`handler creative-flow (complément) — marque remplie — questions p
     "type": "ephemeral"
    }
   }
- ],
- "temperature": 0.85
+ ]
 }\`
 `;
 
@@ -84,7 +86,10 @@ snapshot[`handler creative-flow (complément) — marque remplie — suivi 1`] =
    "content": "Pose-moi 1 ou 2 questions d'approfondissement basées sur mes réponses."
   }
  ],
- "max_tokens": 8192,
+ "max_tokens": 10650,
+ "thinking": {
+  "type": "disabled"
+ },
  "tool_choice": {
   "type": "tool",
   "name": "poser_questions_suivi"
@@ -132,8 +137,7 @@ snapshot[`handler creative-flow (complément) — marque remplie — suivi 1`] =
     "type": "ephemeral"
    }
   }
- ],
- "temperature": 0.85
+ ]
 }\`
 `;
 
@@ -1231,7 +1235,10 @@ snapshot[`handler creative-flow (complément) — reel sans face cam, objectif v
    "content": "VÉCUS AU PASSÉ À RÉÉCRIRE :\\\\n- « J'ai arrêté les remises. »\\\\n\\\\nTEXTE :\\\\n\\\\"\\\\"\\\\"\\\\n[SECTION 1 - PARLE]\\\\nJ'ai arrêté les remises.\\\\n\\\\n[SECTION 1 - OVERLAY]\\\\nREMISES\\\\n\\\\n[SECTION 2 - PARLE]\\\\nLa cliente a signé quand même.\\\\n\\\\n[SECTION 2 - OVERLAY]\\\\nELLE A SIGNÉ\\\\n\\\\n[CAPTION]\\\\nLe prix juste.\\\\n\\\\"\\\\"\\\\""
   }
  ],
- "max_tokens": 4096,
+ "max_tokens": 5325,
+ "thinking": {
+  "type": "disabled"
+ },
  "system": [
   {
    "type": "text",
@@ -1240,8 +1247,7 @@ snapshot[`handler creative-flow (complément) — reel sans face cam, objectif v
     "type": "ephemeral"
    }
   }
- ],
- "temperature": 0
+ ]
 }\`
 `;
 

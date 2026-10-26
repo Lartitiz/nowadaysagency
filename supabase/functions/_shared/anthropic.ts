@@ -1,5 +1,6 @@
 // Shared Anthropic API helper for edge functions
 import { stripCacheBreakFromMessages, systemBlocks } from "./system-cache.ts";
+import { HAIKU_MODEL, OPUS_MODEL, alwaysThinks, forcesDisabledThinking, maxTokensFor, modelRequestFields, supportsTemperature, toolInstruction } from "./model-capabilities.ts";
 
 /**
  * Règle de marque : JAMAIS de tiret cadratin (—) en sortie. Le modèle en produit
@@ -133,6 +134,7 @@ export type AnthropicModel =
   | "claude-opus-4-8"
   | "claude-sonnet-4-6"
   | "claude-sonnet-5"
+  | "claude-haiku-5-5"
   | "claude-haiku-4-5";
 
 export function getDefaultModel(): AnthropicModel {
@@ -152,97 +154,9 @@ export function getDefaultModel(): AnthropicModel {
 export const SONNET_MODEL: AnthropicModel =
   (Deno.env.get("AI_MODEL_SONNET") as AnthropicModel) || "claude-sonnet-4-6";
 
-/**
- * Opus 4.8 (et 4.7) REJETTENT les paramètres d'échantillonnage (temperature,
- * top_p, top_k) → erreur 400. Sonnet 4.6 et Haiku 4.5 les acceptent encore.
- * On retire donc `temperature` du corps de requête pour ces modèles ; ils
- * utilisent leur échantillonnage par défaut (comportement attendu et seul valide).
- */
-const MODELS_REJECTING_SAMPLING = new Set<string>([
-  "claude-opus-5-5",
-  "claude-opus-4-8",
-  "claude-opus-4-7",
-  // Sonnet 5 rejette lui aussi temperature/top_p/top_k (valeur non-défaut → 400).
-  "claude-sonnet-5",
-]);
-
-export function supportsTemperature(model: string): boolean {
-  return !MODELS_REJECTING_SAMPLING.has(model);
-}
-
-/**
- * Certains modèles activent le thinking ADAPTATIF quand le champ `thinking` est OMIS
- * (Sonnet 5 : omission ⇒ adaptatif ON ; ≠ Sonnet 4.6 / Opus 4.8 où omission ⇒ off).
- * Comme ce code n'envoie jamais `thinking`, on force `disabled` pour ces modèles afin
- * de préserver le comportement historique (sortie directe, sans latence ni blocs de
- * réflexion non gérés par le parsing JSON). N'affecte que Sonnet 5 → no-op tant que
- * `AI_MODEL_SONNET` n'est pas basculé.
- */
-const MODELS_THINKING_ON_WHEN_OMITTED = new Set<string>([
-  "claude-sonnet-5",
-]);
-
-export function forcesDisabledThinking(model: string): boolean {
-  return MODELS_THINKING_ON_WHEN_OMITTED.has(model);
-}
-
-/**
- * Tier « Opus » de l'app (coaching, stratégie, audit branding, assistant, visuels
- * Qualité Max, Pinterest). Point de vérité unique : changer ici suffit.
- */
-export const OPUS_MODEL: AnthropicModel = "claude-opus-5-5";
-
-/**
- * Opus 5.5 ne coupe JAMAIS sa réflexion : `thinking: disabled` → 400, et
- * `tool_choice` forcé (`tool`/`any`) → 400 aussi. La réflexion compte dans
- * `max_tokens` sans être renvoyée, et le premier bloc de la réponse peut être un
- * bloc `thinking` (d'où `responseText`, jamais `content[0].text`).
- */
-const MODELS_ALWAYS_THINKING = new Set<string>(["claude-opus-5-5"]);
-
-export function alwaysThinks(model: string): boolean {
-  return MODELS_ALWAYS_THINKING.has(model);
-}
-
-/**
- * Ces routes tournaient SANS réflexion sur Opus 4.8. La doc Opus 5.5 recommande
- * alors l'effort `low` (le défaut API est `medium`) : réflexion courte, latence
- * proche de l'ancien comportement. Monter ici si la qualité le demande.
- */
-const ALWAYS_THINKING_EFFORT = "low";
-
-/** Marge de `max_tokens` pour la réflexion (comptée dans le plafond). */
-export function maxTokensFor(model: string, requested: number): number {
-  return alwaysThinks(model) ? Math.max(16000, Math.ceil(requested * 1.5)) : requested;
-}
-
-/**
- * Champs de requête qui dépendent du modèle (appels bruts, stream ou non) :
- * plafond de tokens, effort, réflexion, choix d'outil. Seul endroit à toucher
- * pour un nouveau modèle.
- */
-export function modelRequestFields(
-  model: string,
-  maxTokens: number,
-  tool?: { name: string },
-): Record<string, unknown> {
-  const fields: Record<string, unknown> = { max_tokens: maxTokensFor(model, maxTokens) };
-  if (forcesDisabledThinking(model)) fields.thinking = { type: "disabled" };
-  if (alwaysThinks(model)) fields.output_config = { effort: ALWAYS_THINKING_EFFORT };
-  if (tool) {
-    fields.tool_choice = alwaysThinks(model)
-      ? { type: "auto", disable_parallel_tool_use: true }
-      : { type: "tool", name: tool.name };
-  }
-  return fields;
-}
-
-/** Consigne ajoutée au system quand l'outil ne peut pas être forcé (Opus 5.5). */
-export function toolInstruction(model: string, tool?: { name: string }): string {
-  return tool && alwaysThinks(model)
-    ? `\n\nLivre ta réponse uniquement en appelant l'outil \`${tool.name}\`, une seule fois.`
-    : "";
-}
+// Capacités par modèle et tiers Haiku / Opus : `./model-capabilities.ts` (sorti d'ici
+// le 26/10/2026, cliquet gros fichiers). Ré-exportés pour ne changer aucun import.
+export { HAIKU_MODEL, OPUS_MODEL, alwaysThinks, forcesDisabledThinking, maxTokensFor, modelRequestFields, supportsTemperature, toolInstruction } from "./model-capabilities.ts";
 
 /** Texte d'une réponse non-stream : tous les blocs `text`, jamais les blocs thinking. */
 export function responseText(data: any): string {
@@ -380,7 +294,7 @@ const MODEL_MAP: Record<string, AnthropicModel> = {
 
   // Haiku : tâches courtes et structurées (génération de questions, classification)
   // Override possible via env AI_MODEL_QUESTIONS pour revenir à Sonnet en cas de souci.
-  "questions": (Deno.env.get("AI_MODEL_QUESTIONS") as AnthropicModel) || "claude-haiku-4-5",
+  "questions": (Deno.env.get("AI_MODEL_QUESTIONS") as AnthropicModel) || HAIKU_MODEL,
 };
 
 export function getModelForAction(action: string): AnthropicModel {

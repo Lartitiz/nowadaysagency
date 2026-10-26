@@ -2,7 +2,7 @@
   "seuil": 800,
   "fichiers": {
     "src/components/admin/AdminStatsTab.tsx": {
-      "lignes": 882,
+      "lignes": 867,
       "any": 1
     },
     "src/components/branding/BrandingCoachingFlow.tsx": {
@@ -98,7 +98,7 @@
       "any": 46
     },
     "supabase/functions/_shared/anthropic.ts": {
-      "lignes": 920,
+      "lignes": 834,
       "any": 20
     },
     "supabase/functions/_shared/copywriting-prompts.ts": {
