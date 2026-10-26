@@ -681,6 +681,11 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
     ],
     nouveaux_7j: 1,
   },
+  fiches_coincees: {
+    a_relire: 2,
+    coincees: 1,
+    plus_ancienne: "2026-10-04",
+  },
   generated_at: "2026-10-09T08:00:00.000Z",
   higgsfield: {
     actif: true,
@@ -1067,6 +1072,7 @@ snapshot[`weekly : liste des requêtes (tables, colonnes, filtres) 1`] = `
 [
   "GET ai_usage user_id,created_at,action_type,model_used,tokens_used created_at=gte.2026-09-04T08:00:00.000Z [0+1000]",
   "GET ai_usage_hors_credit user_id,created_at,source,action_type,model_used,tokens_used created_at=gte.2026-09-04T08:00:00.000Z [0+1000]",
+  "GET branding_autofill user_id,updated_at,reviewed:analysis_result->reviewed_sections autofill_status=eq.pending_review [0+1000]",
   "GET calendar_posts id,user_id,created_at,published_at,publish_status,status [0+1000]",
   "GET content_quality_events user_id,format,redac_score,redac_repassed,created_at,content_preview created_at=gte.2026-09-04T08:00:00.000Z [0+1000]",
   "GET email_sends template_id,status,sent_at sent_at=gte.2026-10-02T08:00:00.000Z [0+1000]",

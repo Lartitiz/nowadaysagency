@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitCarouselWarnings } from "@/lib/carousel-warnings";
+import { isCarouselPublishable, splitCarouselWarnings } from "@/lib/carousel-warnings";
 
 // Passe compte neuf du 10/10 : la note brute du juge s'affichait sous
 // « à compléter avant de le publier », à côté d'un 100/100.
@@ -107,5 +107,14 @@ describe("Avertissements carrousel : manques vs pistes de relecture", () => {
 
   it("rien → rien", () => {
     expect(splitCarouselWarnings({})).toEqual({ blocking: [], suggestions: [] });
+  });
+});
+
+describe("isCarouselPublishable", () => {
+  it("publiable seulement sans manque bloquant ni erreur du contrôle des slides", () => {
+    expect(isCarouselPublishable([], [])).toBe(true);
+    expect(isCarouselPublishable([], [{ severity: "warning" }])).toBe(true);
+    expect(isCarouselPublishable([], [{ severity: "warning" }, { severity: "error" }])).toBe(false);
+    expect(isCarouselPublishable(["Il manque une photo."], [])).toBe(false);
   });
 });

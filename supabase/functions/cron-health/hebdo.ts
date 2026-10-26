@@ -14,6 +14,7 @@ import { blocQualite, lireQualite } from "./qualite.ts";
 import { emailsCoupesStats, publicationsAlaMain } from "./emails-coupes.ts";
 import { slidesRefaites } from "./slides-refaites.ts";
 import { horsCreditParSource, lireHorsCredit } from "./hors-credit.ts";
+import { fichesCoincees, lireFichesCoincees } from "./fiches-coincees.ts";
 
 export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }: {
   supabase: any;
@@ -23,7 +24,7 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
   emailOf: Map<string, string>;
 }) {
   const since35d = new Date(now - 35 * DAY).toISOString();
-  const [aiRows, calRows, higgsfield, ownerRows, emailsCoupes, horsCreditRows] = await Promise.all([
+  const [aiRows, calRows, higgsfield, ownerRows, emailsCoupes, horsCreditRows, fichesRows] = await Promise.all([
     fetchAllRows(
       supabase,
       "ai_usage",
@@ -42,6 +43,8 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
       return emailsCoupesStats(sends, (id) => (id ? nom.get(id) ?? null : null), now - 7 * DAY, now);
     }).catch((e) => ({ erreur: String((e as any)?.message || e).slice(0, 90) })),
     lireHorsCredit(supabase, now - 35 * DAY),
+    // Fiches de marque restées « à relire » (bug #1809) : une lecture qui échoue ne casse pas le bilan.
+    lireFichesCoincees(supabase, fetchAllRows).catch((e) => ({ erreur: String((e as any)?.message || e).slice(0, 90) })),
   ]);
   const espaces_owner_multiples = espacesOwnerMultiples(ownerRows, { emailOf, isClient, now });
   const ai = aiRows.filter((a: any) => isClient(a.user_id));
@@ -90,5 +93,7 @@ export async function bilanHebdo({ supabase, now, profiles, isClient, emailOf }:
     espaces_owner_multiples,
     // « 🔁 Slides refaites » (chantier AA), lu par la routine du lundi.
     slides_refaites: slidesRefaites({ ai, aiRows, internalIds, curFrom, curTo, prevFrom, prevTo }),
+    // « 🪪 Fiches coincées » : 0 attendu depuis #1809.
+    fiches_coincees: Array.isArray(fichesRows) ? fichesCoincees(fichesRows, { isClient, now }) : fichesRows,
   };
 }

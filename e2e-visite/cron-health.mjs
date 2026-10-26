@@ -323,6 +323,13 @@ try {
     console.log(sr
       ? `   🔁 Slides refaites : ${sr.n} (${sr.clientes} cliente${sr.clientes > 1 ? "s" : ""}) · S-1 : ${sr.n_s1}${sr.internes ? ` · comptes internes : ${sr.internes}` : ""}`
       : "   🔁 Slides refaites : non mesuré (edge cron-health pas redéployée)");
+    // fiches_coincees : edge ≥ 26/10/2026. Seuil : 0 attendu (bug #1809, 4 inscrites bloquées 25 j sur « Ta fiche de marque t'attend »).
+    const fc = d.fiches_coincees;
+    if (!fc) console.log("   🪪 Fiches coincées : non mesuré (edge cron-health pas redéployée)");
+    else if (fc.erreur) console.log(`   🪪 Fiches coincées : lecture impossible (${fc.erreur})`);
+    else console.log(fc.coincees
+      ? `   ⚠️ 🪪 Fiches coincées « à relire » (≥ 6/7 cartes relues, > 24 h) : ${fc.coincees} cliente(s), la plus ancienne du ${fc.plus_ancienne} → la page Créer leur dit « Ta fiche de marque t'attend » (rattrapage SQL comme le 26/10)`
+      : `   ✅ 🪪 Fiches coincées « à relire » : 0 (${fc.a_relire} fiche(s) simplement pas encore relue(s))`);
     const ec = d.emails_coupes;
     if (!ec) console.log("   e-mails génériques coupés : non mesuré (edge cron-health pas redéployée)");
     else if (ec.erreur) console.log(`   e-mails génériques coupés : lecture impossible (${ec.erreur})`);

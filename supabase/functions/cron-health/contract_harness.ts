@@ -75,7 +75,11 @@ const PARAMS_RESERVES = new Set(["select", "offset", "limit", "order"]);
 function projeter(row: Row, select: string): Row {
   if (!select || select === "*") return { ...row };
   const out: Row = {};
-  for (const c of select.split(",").map((s) => s.trim()).filter(Boolean)) out[c] = row[c] ?? null;
+  for (const c of select.split(",").map((s) => s.trim()).filter(Boolean)) {
+    // Alias PostgREST « nom:colonne->chemin » : la ligne de test porte déjà la valeur sous « nom ».
+    const nom = c.includes(":") ? c.split(":")[0] : c;
+    out[nom] = row[nom] ?? null;
+  }
   return out;
 }
 
