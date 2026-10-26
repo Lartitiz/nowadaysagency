@@ -82,7 +82,7 @@ describe("dompurify", () => {
   it("retire le script et les gestionnaires d'événements", async () => {
     const name = "dompurify";
     const DOMPurify = (await import(/* @vite-ignore */ name)).default;
-    expect(DOMPurify.version).toBe("3.4.16");
+    expect(DOMPurify.version).toBe("3.4.17");
     const clean = DOMPurify.sanitize('<p onclick="x()">ok<img src=x onerror=alert(1)><script>alert(1)</script></p>');
     expect(clean).toBe('<p>ok<img src="x"></p>');
   });
