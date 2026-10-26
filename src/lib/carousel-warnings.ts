@@ -133,3 +133,13 @@ export function splitCarouselWarnings(doc: any, mode?: string | null): { blockin
   }
   return { blocking: [...new Set(blocking)], suggestions: [...new Set(suggestions)] };
 }
+
+/**
+ * « Ton carrousel est publiable tel quel » : vrai seulement s'il ne manque rien
+ * (avertissements bloquants) ET si le contrôle des slides n'a trouvé aucune
+ * erreur (texte coupé, trop petit, image manquante). Vu le 25/10/2026 : la
+ * phrase s'affichait juste sous « 1 point(s) bloquant(s) ».
+ */
+export function isCarouselPublishable(blocking: string[], qualityIssues: { severity: string }[] = []): boolean {
+  return !blocking.length && !qualityIssues.some((i) => i.severity === "error");
+}

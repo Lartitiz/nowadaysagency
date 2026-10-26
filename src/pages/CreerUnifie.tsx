@@ -4,7 +4,7 @@ import { recoverStudioPhotos } from "@/features/carousel-studio/bridge";
 import { CarouselStudioDialog } from "@/features/carousel-studio/CarouselStudioDialog";
 import { CreationUpgradeInvite } from "@/components/CreationUpgradeInvite";
 import { invalidateProgressionReceipt } from "../../supabase/functions/_shared/carousel-editorial-snapshot";
-import { splitCarouselWarnings } from "@/lib/carousel-warnings";
+import { splitCarouselWarnings, isCarouselPublishable } from "@/lib/carousel-warnings";
 import { prepareIdeaPhotos } from "@/features/creer/prepare-idea-photos";
 import { useCreationEntryKey } from "@/hooks/use-creation-entry-key";
 import { useTextEditHistory } from "@/hooks/use-text-edit-history";
@@ -1928,7 +1928,7 @@ function CreerWorkspace() {
             )}
 
             {step === "result" && currentWarnings.suggestions.length > 0 && !generating && (
-              <CarouselRelecture suggestions={currentWarnings.suggestions} publishable={!currentWarnings.blocking.length} />
+              <CarouselRelecture suggestions={currentWarnings.suggestions} publishable={isCarouselPublishable(currentWarnings.blocking, carouselQuality.issues)} />
             )}
 
             {/* Transform LinkedIn text to carousel */}
