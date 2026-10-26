@@ -13,7 +13,7 @@ import { applyAudienceAddressPass } from "../../_shared/audience-address-pass.ts
 import { enforceAudienceAddressInFields, enforceAudienceAddressInJsonText } from "../../_shared/audience-address-fields.ts";
 import { logUsage } from "../../_shared/plan-limiter.ts";
 import { tryParseAiJson, tryParseAiObject } from "../../_shared/parse-ai-json.ts";
-import { callAnthropicSimple, type UsageSink, type AnthropicModel } from "../../_shared/anthropic.ts";
+import { callAnthropicSimple, type UsageSink, type AnthropicModel, HAIKU_MODEL } from "../../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream, clientStillThere, type StatusEmitter } from "../../_shared/anthropic-stream.ts";
 import { buildVisionGenerateBrief } from "../../_shared/vision-prompts.ts";
 import { analyzeTextRedac, buildTextFixInstructions, enforceNoInventedTestimonials, enforceResearchNumberSources, fixElisionsInFields, runTextRedacGate, textRedacRawCount, textRedacViolations, hookEchoesBefore } from "../../_shared/redac-gate.ts";
@@ -88,7 +88,7 @@ export async function applyLinkedInCorrectionPass(parsed: any, params: { body: a
         authoredText: authoredContentSource(body),
         sourceContext: [authoredContentSource(body), fullContext, researchSource].filter(Boolean).join("\n"),
         // Édition mécanique à règles fermées → Haiku (cf. #364)
-        model: "claude-haiku-4-5",
+        model: HAIKU_MODEL,
         abortTimeoutMs: CORRECTION_ABORT_MS,
       },
       allowedNumbers: liAllowed,
@@ -394,7 +394,7 @@ Réponds UNIQUEMENT en JSON :
     ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${liExtraInstructions}\n\nVoici le post LinkedIn à corriger :\n\n"""\n${postText}\n"""`
     : `Voici le post LinkedIn à corriger :\n\n"""\n${postText}\n"""`;
   const correctedRaw = await callAnthropicSimple(
-    "claude-haiku-4-5",
+    HAIKU_MODEL,
     correctionPrompt + CONTENT_CLARITY_RULES,
     claritySourceBlock([body.news_context, body.context, JSON.stringify(body.answers || []), JSON.stringify(body.followUpAnswers || []), researchSource].filter(Boolean).join("\n")) + correctionUserMsg,
     0.3,

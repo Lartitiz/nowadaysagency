@@ -5,7 +5,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { getModelForAction, callAnthropic, callAnthropicToolSimple, forcesDisabledThinking, sanitizeStyleDeep, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+import { getModelForAction, callAnthropic, callAnthropicToolSimple, forcesDisabledThinking, sanitizeStyleDeep, type AnthropicTool, type UsageSink, HAIKU_MODEL } from "../_shared/anthropic.ts";
 
 // Tool forcé (chantier éradication parse texte, 26/07) : JSON garanti.
 const UNIVERSE_TOOL: AnthropicTool = {
@@ -790,7 +790,7 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
       try {
         const extractUsage: UsageSink = {};
         const rawExtract = await callAnthropic({
-          model: "claude-haiku-4-5",
+          model: HAIKU_MODEL,
           system: "Tu extrais des données structurées d'un texte de veille d'actualités. Ne reformule pas, n'invente RIEN : recopie fidèlement les sujets présents dans le texte (titre, résumé, source, URL, tags). Si le texte ne contient aucun sujet exploitable, renvoie un tableau actus vide.",
           messages: [{ role: "user", content: `Texte de veille à structurer :\n\n${fullText.slice(0, 12000)}` }],
           max_tokens: 3000,

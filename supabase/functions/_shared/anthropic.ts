@@ -133,6 +133,7 @@ export type AnthropicModel =
   | "claude-opus-4-8"
   | "claude-sonnet-4-6"
   | "claude-sonnet-5"
+  | "claude-haiku-5-5"
   | "claude-haiku-4-5";
 
 export function getDefaultModel(): AnthropicModel {
@@ -153,8 +154,27 @@ export const SONNET_MODEL: AnthropicModel =
   (Deno.env.get("AI_MODEL_SONNET") as AnthropicModel) || "claude-sonnet-4-6";
 
 /**
+ * Tier « Haiku » de l'app (plan de carrousel hors Max, passe de correction,
+ * description/tri de photos, extraction, questions, interprète du Studio…).
+ * Point de vérité unique : bascule Haiku 4.5 → Haiku 5.5 le 26/10/2026
+ * (0,10 $ / 0,50 $ par Mtok au lieu de 1 $ / 5 $, contexte 1M). Retour arrière
+ * = secret Lovable `AI_MODEL_HAIKU=claude-haiku-4-5` (valeur inconnue ignorée).
+ * ⚠️ Haiku 5.5 : `temperature` non défaut et prefill → 400 (cf
+ * MODELS_REJECTING_SAMPLING) ; pense par défaut quand `thinking` est omis (cf
+ * MODELS_THINKING_ON_WHEN_OMITTED) ; `tool_choice` forcé reste ACCEPTÉ (≠ Opus 5.5) ;
+ * tokenizer ~30 % plus dense (cf maxTokensFor).
+ */
+const HAIKU_MODELS: ReadonlySet<string> = new Set(["claude-haiku-5-5", "claude-haiku-4-5"]);
+function readHaikuModel(): AnthropicModel {
+  const v = Deno.env.get("AI_MODEL_HAIKU");
+  return v && HAIKU_MODELS.has(v) ? (v as AnthropicModel) : "claude-haiku-5-5";
+}
+export const HAIKU_MODEL: AnthropicModel = readHaikuModel();
+
+/**
  * Opus 4.8 (et 4.7) REJETTENT les paramètres d'échantillonnage (temperature,
- * top_p, top_k) → erreur 400. Sonnet 4.6 et Haiku 4.5 les acceptent encore.
+ * top_p, top_k) → erreur 400. Sonnet 4.6 et Haiku 4.5 les acceptent encore ;
+ * Haiku 5.5 ne les accepte plus.
  * On retire donc `temperature` du corps de requête pour ces modèles ; ils
  * utilisent leur échantillonnage par défaut (comportement attendu et seul valide).
  */
@@ -164,6 +184,10 @@ const MODELS_REJECTING_SAMPLING = new Set<string>([
   "claude-opus-4-7",
   // Sonnet 5 rejette lui aussi temperature/top_p/top_k (valeur non-défaut → 400).
   "claude-sonnet-5",
+  // Haiku 5.5 : temperature ≠ 1 → 400, et le prefill (dernier tour assistant) → 400
+  // (doc « Migrating to Claude Haiku 5.5 », breaking changes 2 et 3). Haiku 4.5
+  // les acceptait encore.
+  "claude-haiku-5-5",
 ]);
 
 export function supportsTemperature(model: string): boolean {
@@ -180,6 +204,11 @@ export function supportsTemperature(model: string): boolean {
  */
 const MODELS_THINKING_ON_WHEN_OMITTED = new Set<string>([
   "claude-sonnet-5",
+  // Haiku 5.5 : omission ⇒ réflexion adaptative (comptée dans max_tokens, un
+  // plafond court de 300 tokens pourrait être mangé avant le texte). `disabled` est
+  // accepté à l'effort par défaut (medium) ; Haiku 4.5 ne réfléchissait jamais ici,
+  // on garde ce comportement. `tool_choice` forcé reste accepté avec ou sans réflexion.
+  "claude-haiku-5-5",
 ]);
 
 export function forcesDisabledThinking(model: string): boolean {
@@ -211,9 +240,19 @@ export function alwaysThinks(model: string): boolean {
  */
 const ALWAYS_THINKING_EFFORT = "low";
 
-/** Marge de `max_tokens` pour la réflexion (comptée dans le plafond). */
+/**
+ * Haiku 5.5 : tokenizer plus dense (le même texte ≈ 30 % de tokens en plus que
+ * Haiku 4.5, doc de migration). Un `max_tokens` réglé pour Haiku 4.5 couperait
+ * donc la même sortie → on élargit le plafond d'autant (c'est un plafond, pas
+ * une dépense : seuls les tokens produits sont facturés).
+ */
+const MODELS_DENSER_TOKENIZER = new Set<string>(["claude-haiku-5-5"]);
+
+/** Marge de `max_tokens` pour la réflexion (comptée dans le plafond) ou le tokenizer. */
 export function maxTokensFor(model: string, requested: number): number {
-  return alwaysThinks(model) ? Math.max(16000, Math.ceil(requested * 1.5)) : requested;
+  if (alwaysThinks(model)) return Math.max(16000, Math.ceil(requested * 1.5));
+  if (MODELS_DENSER_TOKENIZER.has(model)) return Math.ceil(requested * 1.3);
+  return requested;
 }
 
 /**
@@ -380,7 +419,7 @@ const MODEL_MAP: Record<string, AnthropicModel> = {
 
   // Haiku : tâches courtes et structurées (génération de questions, classification)
   // Override possible via env AI_MODEL_QUESTIONS pour revenir à Sonnet en cas de souci.
-  "questions": (Deno.env.get("AI_MODEL_QUESTIONS") as AnthropicModel) || "claude-haiku-4-5",
+  "questions": (Deno.env.get("AI_MODEL_QUESTIONS") as AnthropicModel) || HAIKU_MODEL,
 };
 
 export function getModelForAction(action: string): AnthropicModel {

@@ -13,7 +13,7 @@ import {
   assertEquals,
   assertExists,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { AnthropicError } from "../_shared/anthropic.ts";
+import { AnthropicError, HAIKU_MODEL } from "../_shared/anthropic.ts";
 import { progressionReceipt, progressionJudgeCallMs, PROGRESSION_FORMAT_RETRY_MS } from "../_shared/carousel-progression.ts";
 import { handleRequest, _deps, normalizeSlideType, writerTimeoutMs } from "./index.ts";
 import { createContinuousNarrative } from "./continuous-narrative.ts";
@@ -1664,7 +1664,7 @@ for (const outcome of ["ok", "fails"] as const) Deno.test(`carrousel texte : pla
     const req = makeHooksRequest({ type: "express_full", subject: "Choisir une direction", slide_count: 3 });
     const res = await handleRequest(new Request(req.url, { method: "POST", headers: { "Content-Type": "application/json", Accept: "text/event-stream" }, body: await req.text() }));
     const events = (await res.text()).split("\n\n").filter((l) => l.startsWith("data: ")).map((l) => JSON.parse(l.slice(6)));
-    assertEquals(outlineCall.model, "claude-haiku-4-5");
+    assertEquals(outlineCall.model, HAIKU_MODEL);
     assert(outlineCall.messages[0].content.includes("NE RÉDIGE PAS LE CARROUSEL"));
     const outline = events.filter((e) => e.stage === "outline");
     if (outcome === "ok") {
@@ -1798,7 +1798,7 @@ for (const carousel_type of ["photo", "mix"]) Deno.test(`récit continu ${carous
       photo_contexts: [{ context: "Assiette peinte" }, { context: "Atelier" }], slide_count: 4 });
     const res = await handleRequest(new Request(req.url, { method: "POST", headers: { "Content-Type": "application/json", Accept: "text/event-stream" }, body: await req.text() }));
     const events = (await res.text()).split("\n\n").filter((l) => l.startsWith("data: ")).map((l) => JSON.parse(l.slice(6)));
-    assertEquals(outlineCall.model, "claude-haiku-4-5");
+    assertEquals(outlineCall.model, HAIKU_MODEL);
     assert(!JSON.stringify(outlineCall.messages).includes("base64"), "le plan n'envoie jamais les photos");
     assertEquals(events.filter((e) => e.stage === "outline").map((e) => e.titles), [["La couverture", "La forme", "Le décor", "La main"]]);
     const drafts = events.filter((e) => e.stage === "draft");

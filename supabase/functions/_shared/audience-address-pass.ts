@@ -1,5 +1,5 @@
 // Passe IA courte du contrôle tu/vous (cf. audience-address.ts, module pur).
-import { callAnthropicSimple } from "./anthropic.ts";
+import { callAnthropicSimple, HAIKU_MODEL } from "./anthropic.ts";
 import { unwrapCorrectionOutput } from "./correction-pass/options.ts";
 import { keepStructureOrRevert } from "./text-structure-guard.ts";
 import { audienceAddressFixPrompt, type AudienceAddressPass } from "./audience-address.ts";
@@ -9,7 +9,7 @@ export const applyAudienceAddressPass: AudienceAddressPass = async (content, add
   if (!content || !items.length) return content;
   try {
     const raw = await callAnthropicSimple(
-      "claude-haiku-4-5",
+      HAIKU_MODEL,
       audienceAddressFixPrompt(addr),
       `PASSAGES À CORRIGER :\n${items.map((t) => `- « ${t} »`).join("\n")}\n\nTEXTE :\n"""\n${content}\n"""`,
       0,

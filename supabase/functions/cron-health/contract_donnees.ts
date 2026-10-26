@@ -161,6 +161,8 @@ const IA = [
   { user_id: "u-jo", created_at: ilYa(4 * J), action_type: null, model_used: null, tokens_used: 300 },
   { user_id: "u-sam", created_at: ilYa(5 * J), action_type: "audit_instagram", model_used: "google/gemini-2.5-flash", tokens_used: 40000 },
   { user_id: "u-sam", created_at: ilYa(5 * J), action_type: "studio_image", model_used: "higgsfield-ai/soul/v2/standard", tokens_used: 0 },
+  // Tier Haiku depuis le 26/10/2026 (0,2 €/Mtok mélangé) : 30 000 tokens = 0,006 €.
+  { user_id: "u-sam", created_at: ilYa(2 * J), action_type: "generate_post", model_used: "claude-haiku-5-5", tokens_used: 30000 },
   // Semaine précédente.
   { user_id: "u-marie", created_at: ilYa(9 * J), action_type: "generate_post", model_used: "claude-haiku-4-5", tokens_used: 30000 },
   { user_id: "u-jo", created_at: ilYa(10 * J), action_type: "generate_carousel", model_used: "claude-fable-5-1", tokens_used: 50000 },

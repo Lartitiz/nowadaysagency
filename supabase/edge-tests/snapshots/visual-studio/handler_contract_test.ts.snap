@@ -294,7 +294,7 @@ GET /rest/v1/studio_brand_memory [id,kind,name,note,revision,references]
 GET /rest/v1/brand_charter [moodboard_images]
 ── FONCTIONS SQL (hors has_role)
 studio_reserve_interpretation : [{"p_actor":"id(11)","p_session":"id(3)","p_request":"id(30)"}]
-── APPELS À CLAUDE : 1 (claude-haiku-4-5)
+── APPELS À CLAUDE : 1 (claude-haiku-5-5)
 ── VERSIONS EN BASE
 [
  {

@@ -5,7 +5,7 @@ import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_STORYTELLING_RULES, LINKEDIN_TEMP
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink, HAIKU_MODEL } from "../_shared/anthropic.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { numbersIn, runTextRedacGate } from "../_shared/redac-gate.ts";
 import { parseAudienceAddress, type AudienceAddress } from "../_shared/audience-address.ts";
@@ -36,7 +36,7 @@ async function correctJsonField(rawJson: string, field: string, abortTimeoutMs =
       correction: {
         logger: (m) => console.log(`[linkedin-ai] ${m}`),
         // Édition mécanique à règles fermées → Haiku (cf. #364)
-        model: "claude-haiku-4-5",
+        model: HAIKU_MODEL,
         abortTimeoutMs,
         sourceContext: inputText,
       },
@@ -66,7 +66,7 @@ async function correctCrosspostJson(rawJson: string, abortTimeoutMs = CORRECTION
         format: channel === "linkedin" ? "linkedin" : "instagram_caption",
         correction: {
           logger: (m) => console.log(`[linkedin-ai:crosspost:${channel}] ${m}`),
-          model: "claude-haiku-4-5", abortTimeoutMs, sourceContext: inputText,
+          model: HAIKU_MODEL, abortTimeoutMs, sourceContext: inputText,
         },
         allowedNumbers: numbersIn(inputText || ""),
       });

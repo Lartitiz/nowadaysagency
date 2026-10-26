@@ -36,7 +36,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
-import { callAnthropic, AnthropicError } from "../_shared/anthropic.ts";
+import { callAnthropic, AnthropicError, HAIKU_MODEL } from "../_shared/anthropic.ts";
 import { getUserContext } from "../_shared/user-context.ts";
 import { mergePhotoTags } from "../_shared/photo-tags.ts";
 
@@ -312,7 +312,7 @@ serve(async (req) => {
 
       // 3. Vision Haiku, tool forcé
       const raw = await callAnthropic({
-        model: "claude-haiku-4-5",
+        model: HAIKU_MODEL,
         system:
           "Tu décris des photos pour la bibliothèque de photos de marque d'une entrepreneuse. Tes descriptions serviront à retrouver la bonne photo pour illustrer un contenu Instagram : elles doivent être factuelles, visuelles et concrètes (sujet, action, ambiance/lumière). Jamais d'interprétation marketing.",
         messages: [
@@ -384,7 +384,7 @@ serve(async (req) => {
       );
 
       const raw = await callAnthropic({
-        model: "claude-haiku-4-5",
+        model: HAIKU_MODEL,
         system:
           "Tu classes des photos de la bibliothèque d'une marque à partir de leur description. Réponds pour CHAQUE photo listée, en reprenant son id tel quel.",
         messages: [
@@ -436,7 +436,7 @@ Exclus du classement toute candidate hors sujet — mieux vaut 2 bonnes photos q
       });
 
       const raw = await callAnthropic({
-        model: "claude-haiku-4-5",
+        model: HAIKU_MODEL,
         messages: [{ role: "user", content }],
         tool: PICK_STOCK_TOOL,
         temperature: 0.2,
@@ -508,7 +508,7 @@ Exclus du classement toute candidate hors sujet — mieux vaut 2 bonnes photos q
         : [];
 
       const raw = await callAnthropic({
-        model: "claude-haiku-4-5",
+        model: HAIKU_MODEL,
         system:
           "Tu imagines des fonds de portrait professionnel pour une entrepreneuse. Une IA de remplacement d'arrière-plan (détourage) incrustera sa photo TELLE QUELLE sur le décor : la personne n'est jamais modifiée, seul le fond change. Les décors doivent être crédibles pour son activité, cohérents avec sa charte, et flatteurs derrière un buste/visage (pas de décor trop chargé au centre).",
         messages: [
@@ -578,7 +578,7 @@ Exclus du classement toute candidate hors sujet — mieux vaut 2 bonnes photos q
     if (charter.mood_keywords) lines.push(`Ambiance de marque : ${charter.mood_keywords}`);
 
     const raw = await callAnthropic({
-      model: "claude-haiku-4-5",
+      model: HAIKU_MODEL,
       system:
         "Tu prépares une « séance photo de 20 minutes au téléphone » pour une entrepreneuse qui démarre sa bibliothèque de photos de marque. Les idées doivent être faisables SEULE, au smartphone, dans son lieu de travail, sans matériel. Elles serviront de fonds de stories Instagram et d'illustrations de posts : varie les échelles (portrait, mains/geste, lieu large, produit, détail) et privilégie l'authentique au posé.",
       messages: [

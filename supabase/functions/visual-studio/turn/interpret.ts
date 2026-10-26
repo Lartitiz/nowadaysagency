@@ -8,7 +8,7 @@
 //    réparation d'une sortie incomplète et d'une réponse qui se répète.
 //    Échec : réponse 503 refresh_request, rien n'est écrit ni lancé.
 // Déplacé tel quel depuis index.ts (fiche 5, lot 6, docs/robustesse/gros-fichiers.md).
-import { callAnthropic, SONNET_MODEL } from "../../_shared/anthropic.ts";
+import { callAnthropic, SONNET_MODEL, HAIKU_MODEL } from "../../_shared/anthropic.ts";
 import { COMPETENCIES, isIdentity } from "../competencies.ts";
 import { cleanStudioSummary, conversationTool, intentSchema, intentTool, studioSystem } from "../contract.ts";
 import { CONVERSATION_SYSTEM, type ConversationContext, dialogueHistory, explicitRoles } from "../conversation.ts";
@@ -70,7 +70,7 @@ export async function interpret(ctx: StudioContext, input: InterpretInput) {
   let interpreterArgs: Parameters<typeof callAnthropic>[0];
   try {
     interpreterArgs = {
-      model: conversational ? "claude-haiku-4-5" : SONNET_MODEL,
+      model: conversational ? HAIKU_MODEL : SONNET_MODEL,
       system: conversational ? CONVERSATION_SYSTEM : studioSystem,
       tool: conversational ? conversationTool : intentTool,
       // Supplied titles, dates and time ranges must survive structured output verbatim.

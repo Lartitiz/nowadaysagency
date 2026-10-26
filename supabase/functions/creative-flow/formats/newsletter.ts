@@ -9,7 +9,7 @@ import { type AudienceAddress } from "../../_shared/audience-address.ts";
 import { enforceAudienceAddressInFields } from "../../_shared/audience-address-fields.ts";
 import { logUsage } from "../../_shared/plan-limiter.ts";
 import { tryParseAiObject } from "../../_shared/parse-ai-json.ts";
-import { callAnthropicSimple, type UsageSink, type AnthropicModel } from "../../_shared/anthropic.ts";
+import { callAnthropicSimple, type UsageSink, type AnthropicModel, HAIKU_MODEL } from "../../_shared/anthropic.ts";
 import { clientStillThere, type StatusEmitter } from "../../_shared/anthropic-stream.ts";
 import { analyzeTextRedac, runTextRedacGate, textRedacViolations, hookEchoesBefore } from "../../_shared/redac-gate.ts";
 import { logContentQuality } from "../../_shared/content-quality.ts";
@@ -48,7 +48,7 @@ export async function applyNewsletterCorrectionPass(parsed: any, params: {
           sourceContext: [newsContext, context, JSON.stringify(body.answers || []), JSON.stringify(body.followUpAnswers || []), researchSource].filter(Boolean).join("\n"),
           authoredText: authoredContentSource(body),
           // Édition mécanique à règles fermées → Haiku (cf. #364)
-          model: "claude-haiku-4-5",
+          model: HAIKU_MODEL,
           abortTimeoutMs: CORRECTION_ABORT_MS,
         },
         allowedNumbers: nlAllowed,

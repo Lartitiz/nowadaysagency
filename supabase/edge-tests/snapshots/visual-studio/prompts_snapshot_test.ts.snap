@@ -622,8 +622,8 @@ Tu es le Studio visuel de L’Assistant Com’. Réponds directement au DERNIER 
 snapshot[`prompts Studio — conseil simple (Haiku, sans image) 1`] = `
 \`STATUT 200 — opération finale : advise — 1 appel(s) à Claude
 
-══ APPEL 1 — claude-haiku-4-5
-réglages : {"max_tokens":6000,"tool_choice":{"type":"tool","name":"prepare_photo_request"},"temperature":0.2}
+══ APPEL 1 — claude-haiku-5-5
+réglages : {"max_tokens":7800,"thinking":{"type":"disabled"},"tool_choice":{"type":"tool","name":"prepare_photo_request"}}
 système : CONVERSATION_SYSTEM
 système (cache) : [{"type":"text","cache_control":{"type":"ephemeral"}}]
 outil : conversationTool (prepare_photo_request)

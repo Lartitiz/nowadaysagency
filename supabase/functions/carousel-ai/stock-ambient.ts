@@ -1,4 +1,4 @@
-import { callAnthropic, SONNET_MODEL, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, SONNET_MODEL, type UsageSink, HAIKU_MODEL } from "../_shared/anthropic.ts";
 
 /**
  * Photos d'ambiance libres de droit (Pexels) pour un carrousel « Tes photos en
@@ -25,7 +25,6 @@ const PEXELS_CALL_MS = 8_000;
 const VERIFY_CALL_MS = 25_000;
 const CANDIDATES_PER_SLIDE = 3;
 const PEXELS_URL = "https://api.pexels.com/v1/search";
-const HAIKU_MODEL = "claude-haiku-4-5";
 
 /**
  * Premier tri sur la description Pexels (anglais) : une photo décrite avec une

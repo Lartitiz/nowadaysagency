@@ -7,7 +7,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage, quotaDeniedResponse, COMPOSED_BY_CODE_MODEL } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { callAnthropic, OPUS_MODEL, SONNET_MODEL, type AnthropicModel, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, OPUS_MODEL, SONNET_MODEL, type AnthropicModel, type UsageSink, HAIKU_MODEL } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { buildPptxInvariants, formatInvariantsForPrompt, NEUTRAL_DEFAULT_PALETTE } from "../_shared/pptx-invariants.ts";
@@ -1838,7 +1838,7 @@ export async function applyCoverIllustration(result: any, params: {
 
       // Concept visuel dérivé du titre (Haiku, court) — pas de texte dans l'image.
       const conceptRaw = await callAnthropic({
-        model: "claude-haiku-4-5",
+        model: HAIKU_MODEL,
         system:
           "Tu proposes une scène d'illustration éditoriale simple et chaleureuse pour une couverture de carrousel. Concret (une personne ou des objets du quotidien du métier), jamais de texte ni de logo dans l'image.",
         messages: [{

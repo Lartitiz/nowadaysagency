@@ -10,7 +10,7 @@ import { parseAudienceAddress } from "../../_shared/audience-address.ts";
 import { enforceAudienceAddressInText } from "../../_shared/audience-address-fields.ts";
 import { logUsage } from "../../_shared/plan-limiter.ts";
 import { tryParseAiJson } from "../../_shared/parse-ai-json.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink, HAIKU_MODEL } from "../../_shared/anthropic.ts";
 import { RECYCLAGE_CARROUSEL_LONGUEUR, RECYCLAGE_CARROUSEL_SLIDES, RECYCLAGE_STORIES_LONGUEUR, STORY1_ACCROCHE, VOIX_PARLEE_PAS_HACHEE } from "../../_shared/socle.ts";
 import { type CorrectionFormat } from "../../_shared/correction-pass.ts";
 import { numbersIn, runRedacGate, runTextRedacGate, hookEchoesBefore } from "../../_shared/redac-gate.ts";
@@ -373,7 +373,7 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
       try {
         const gated = await runRedacGate(JSON.stringify(resultVal), {
           isLinkedIn: false,
-          correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(`[creative-flow recycle carrousel] ${m}`), model: "claude-haiku-4-5", abortTimeoutMs: CORRECTION_ABORT_MS },
+          correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(`[creative-flow recycle carrousel] ${m}`), model: HAIKU_MODEL, abortTimeoutMs: CORRECTION_ABORT_MS },
           // Liste blanche des chiffres : ceux de la source recyclée (le contenu
           // vient d'elle, ses chiffres sont légitimes) + réponses/actu/branding.
           inputText: [sourceForFormats, plan?.synthese_source || "", recActivity, recTarget, recPiliers].filter(Boolean).join("\n"),
@@ -407,7 +407,7 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
             logger: (m) => console.log(`[creative-flow recycle ${f}] ${m}`),
             sourceContext: sourceForFormats,
             authoredText: sourceForFormats,
-            model: "claude-haiku-4-5",
+            model: HAIKU_MODEL,
             abortTimeoutMs: CORRECTION_ABORT_MS,
           },
           allowedNumbers: textAllowed,

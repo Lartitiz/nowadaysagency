@@ -36,8 +36,8 @@ export const IMAGE_COST_EUR: Record<string, number> = {
 // quels (1 $ ≈ 1 €, sans conversion) : le « € » surestime donc le coût réel
 // de ~10-15 %. Borne prudente assumée, garder la même convention partout.
 // Coût texte estimé (€/million de tokens, tarifs Anthropic ~août 2026 :
-// Haiku 4.5 = 1$/5$, Sonnet 5 = 2$/10$, Sonnet 4.6 = 3$/15$,
-// Opus 4.8 et Opus 5 = 5$/25$ in/out).
+// Haiku 5.5 = 0,10$/0,50$ (prompt ≤ 100K tokens), Haiku 4.5 = 1$/5$,
+// Sonnet 5 = 2$/10$, Sonnet 4.6 = 3$/15$, Opus 4.8 et Opus 5 = 5$/25$ in/out).
 // `tokens_used` mélange input+output ; on applique un tarif MIXTE avec une
 // hypothèse 75 % input / 25 % output (les prompts contexte+charte dominent).
 // Approximation assumée — l'ordre de grandeur suffit pour la tendance hebdo.
@@ -51,6 +51,12 @@ export const IMAGE_COST_EUR: Record<string, number> = {
 // un modèle inconnu doit CRIER, pas coûter 0. À chaque nouveau modèle,
 // l'ajouter ici (sinon il ressortira dans l'alerte du rapport hebdo).
 export const TEXT_COST_EUR_PER_MTOKEN: Record<string, number> = {
+  // Haiku 5.5 (tier Haiku de l'app depuis le 26/10/2026, `HAIKU_MODEL`) :
+  // 0,10 $ / 0,50 $ par Mtok → 0,75×0,10 + 0,25×0,50 = 0,2. Au-delà de 100K
+  // tokens de prompt le tarif quintuple (0,50 $ / 2,50 $) ; aucun appel Haiku
+  // de l'app n'approche ce seuil. Haiku 4.5 gardé pour l'historique et le
+  // retour arrière (`AI_MODEL_HAIKU`).
+  "claude-haiku-5-5": 0.2,
   "claude-haiku-4-5": 2,
   "claude-sonnet-5": 4,
   "claude-sonnet-4-6": 6,
@@ -92,6 +98,9 @@ export const REVIEW_COST_EUR_PER_MTOKEN: Record<string, { input: number; output:
   // Relecture sur Claude depuis le 02/10 (4 $ / 20 $ par Mtok). Le cache
   // de prompt est compté au plein tarif d'entrée : borne haute.
   "claude-opus-5-5": { input: 4, output: 20 },
+  // Haiku 5.5 : pas relecteur aujourd'hui, grille posée pour qu'un futur usage
+  // (ou un `editorial_usage` sur ce modèle) ne soit jamais compté 0 €.
+  "claude-haiku-5-5": { input: 0.1, output: 0.5 },
 };
 
 // Générations RÉELLES mais sans appel modèle : coût API nul, et c'est VOULU.

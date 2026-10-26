@@ -63,7 +63,8 @@ const MODEL_COST_PER_TOKEN: { match: RegExp; rate: number }[] = [
   { match: /^claude-opus-5(?:$|-)/i, rate: 0.000025 }, // $25/M output (before generic legacy Opus)
   { match: /opus/i, rate: 0.00007 },          // ~75 $/M
   { match: /sonnet/i, rate: 0.000014 },       // ~15 $/M
-  { match: /haiku/i, rate: 0.000005 },        // ~5 $/M
+  { match: /^claude-haiku-5-5(?:$|-)/i, rate: 0.0000005 }, // $0.50/M output (tier Haiku depuis le 26/10/2026)
+  { match: /haiku/i, rate: 0.000005 },        // ~5 $/M (Haiku 4.5)
   { match: /gemini.*flash/i, rate: 0.0000004 }, // gateway Lovable, scoring/suggestions (~0,3 $/M)
 ];
 const DEFAULT_COST_PER_TOKEN = 0.000014; // modèle inconnu / gateway → tarif Sonnet
