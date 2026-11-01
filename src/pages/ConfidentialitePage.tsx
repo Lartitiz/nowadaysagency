@@ -33,7 +33,7 @@ export default function ConfidentialitePage() {
         <h1 className="font-display text-2xl font-bold text-foreground mb-6">Politique de confidentialité</h1>
 
         <div className="rounded-2xl bg-card border border-border p-6 space-y-5 text-sm leading-relaxed">
-          <p className="text-xs text-muted-foreground">Dernière mise à jour : 24 octobre 2026</p>
+          <p className="text-xs text-muted-foreground">Dernière mise à jour : 1er novembre 2026</p>
 
           <p className="italic text-muted-foreground">
             Chez Nowadays Agency, on prend la protection de tes données au sérieux. Pas par obligation (bon, un peu quand même), mais parce qu'on croit que la confiance, ça se construit aussi dans les petits caractères.
@@ -78,6 +78,7 @@ export default function ConfidentialitePage() {
             <div className="text-muted-foreground mt-1 space-y-1">
               <p><span className="font-medium text-foreground/80">Données de compte et contenus :</span> tant que ton compte est actif.</p>
               <p><span className="font-medium text-foreground/80">Après suppression de ton compte :</span> suppression définitive de toutes tes données sous 30 jours.</p>
+              <p><span className="font-medium text-foreground/80">Copies de sécurité :</span> chaque mois, une copie de nos données (sans tes photos ni tes fichiers, sans jetons de connexion) est gardée dans un espace privé, pour réparer une panne. Personne d'autre que l'administratrice du service n'y a accès. Si tu supprimes ton compte, tes données peuvent y rester jusqu'au remplacement de ces copies, soit environ 3 mois, et elles ne sont jamais remises en service.</p>
               <p><span className="font-medium text-foreground/80">Logs de navigation (PostHog) :</span> 12 mois maximum.</p>
               <p><span className="font-medium text-foreground/80">Pixel Meta :</span> selon la politique de conservation de Meta, hors de notre contrôle direct.</p>
               <p><span className="font-medium text-foreground/80">Logs d'erreur (Sentry, quand il est activé) :</span> 90 jours.</p>
