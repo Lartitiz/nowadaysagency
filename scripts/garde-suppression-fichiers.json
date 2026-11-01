@@ -1,0 +1,45 @@
+{
+  "_doc": "Endroits du code qui effacent physiquement des fichiers du storage, validés un par un. Voir scripts/garde-suppression-fichiers.mjs. Les fichiers du storage ne sont PAS sauvegardés par Lovable Cloud.",
+  "valides": {
+    "src/components/branding/charter/CharterTemplatesSection.tsx": {
+      "occurrences": 1,
+      "raison": "L'utilisatrice retire elle-même un modèle de charte qu'elle avait importé."
+    },
+    "src/features/creer/prepare-idea-photos.ts": {
+      "occurrences": 1,
+      "raison": "Annulation : efface seulement les fichiers envoyés par CETTE tentative quand elle échoue."
+    },
+    "src/hooks/use-calendar-save.ts": {
+      "occurrences": 1,
+      "raison": "Annulation : efface seulement les visuels envoyés par CETTE tentative, avant toute écriture en base."
+    },
+    "src/hooks/use-onboarding.ts": {
+      "occurrences": 1,
+      "raison": "L'utilisatrice retire elle-même un document importé pendant l'onboarding."
+    },
+    "src/hooks/use-user-photos.ts": {
+      "occurrences": 1,
+      "raison": "Annulation d'une retouche : efface la copie temporaire créée pour la retouche, l'original est remis en place."
+    },
+    "src/lib/crosspost-generation.ts": {
+      "occurrences": 1,
+      "raison": "Fichiers temporaires de l'adaptation multi-réseaux (crosspost-uploads), et sources seulement si le résultat n'est pas gardé."
+    },
+    "src/lib/instagram-publish.ts": {
+      "occurrences": 1,
+      "raison": "Copies temporaires du bucket de publication Instagram, après envoi."
+    },
+    "supabase/functions/delete-account/storage-cleanup.ts": {
+      "occurrences": 1,
+      "raison": "Suppression de compte demandée par l'utilisatrice (RGPD)."
+    },
+    "supabase/functions/export-securite/index.ts": {
+      "occurrences": 1,
+      "raison": "Rotation des exports de sécurité : garde les 3 plus récents, n'efface jamais si l'export du jour est incomplet."
+    },
+    "supabase/functions/social-canva-import/index.ts": {
+      "occurrences": 1,
+      "raison": "Fichier temporaire de l'import Canva quand l'import échoue."
+    }
+  }
+}
