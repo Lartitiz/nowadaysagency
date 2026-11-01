@@ -110,7 +110,7 @@ const RESET_GROUPS: ResetGroup[] = [
 ];
 
 export default function AdminResetTool() {
-  const [targetEmail, setTargetEmail] = useState("laetitiamattioli@gmail.com");
+  const [targetEmail, setTargetEmail] = useState("");
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalResetting, setTotalResetting] = useState(false);
