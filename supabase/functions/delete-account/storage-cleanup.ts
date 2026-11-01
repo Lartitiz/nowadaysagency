@@ -29,6 +29,7 @@ export const SPECIAL_BUCKETS: Record<string, string> = {
   "visual-studio": "`<espace>/<session>/…` (original, références, dérivés .fidelity.*, verrous .refine-lock, résultats)",
   "studio-video": "`<espace>/<clip>/clip.mp4`",
   "crosspost-sources": "`workspace/<espace>/…` ou `user/<cliente>/…`",
+  sauvegardes: "exports mensuels `<date>/<table>…`, toutes clientes mélangées : effacés par la rotation d'export-securite (3 exports gardés, environ 3 mois), annoncé dans la politique de confidentialité",
   "landing-assets": "images du site déposées par l'admin seulement : aucune donnée cliente, rien à effacer",
 };
 

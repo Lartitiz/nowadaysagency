@@ -148,6 +148,13 @@ jobs:
       - name: Poids des edge functions (limite Lovable)
         run: node scripts/poids-edges.mjs
 
+      # Garde-fou suppression de fichiers (14/10/2026) : les fichiers du storage
+      # (photos des clientes) ne sont PAS sauvegardés par Lovable Cloud. Tout
+      # nouvel effacement physique doit être validé dans
+      # scripts/garde-suppression-fichiers.json, avec sa raison.
+      - name: Garde suppression de fichiers
+        run: node scripts/garde-suppression-fichiers.mjs
+
       - name: Unit tests
         run: npm test
 
