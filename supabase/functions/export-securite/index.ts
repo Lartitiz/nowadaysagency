@@ -11,7 +11,7 @@
 // protégée par le secret partagé CRON_STATS_SECRET (header x-cron-secret),
 // comme cron-health. Les 3 exports les plus récents sont gardés.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { COLONNE_TRI, contientUnSecret, retirerColonnes, TABLES_EXPORTEES } from "./tables.ts";
+import { COLONNE_TRI, retirerColonnes, retirerSecrets, TABLES_EXPORTEES } from "./tables.ts";
 
 const BUCKET = "sauvegardes";
 const PAGE = 1000;
@@ -42,7 +42,8 @@ Deno.serve(async (req) => {
   const tables: Record<string, { lignes: number; octets: number; parties: number }> = {};
   const erreurs: Record<string, string> = {};
   const nonFaites: string[] = [];
-  const secretsVus: string[] = [];
+  const secretsVus: Record<string, number> = {};
+  const liensSignesRetires: Record<string, number> = {};
 
   for (const table of TABLES_EXPORTEES) {
     if (Date.now() - debut > BUDGET_MS) {
@@ -50,19 +51,25 @@ Deno.serve(async (req) => {
       continue;
     }
     try {
-      let lignes = 0, octets = 0, partie = 0, attendues: number | null = null;
-      for (let from = 0; ; from += PAGE) {
-        const { data, error, count } = await supabase.from(table)
-          .select("*", from === 0 ? { count: "exact" } : undefined)
+      const { count: attendues, error: errCompte } = await supabase.from(table).select("*", { count: "exact", head: true });
+      if (errCompte) throw new Error(errCompte.message);
+      let lignes = 0, octets = 0, partie = 0, taille = PAGE;
+      for (let from = 0; ;) {
+        const { data, error } = await supabase.from(table).select("*")
           .order(COLONNE_TRI[table] || "id")
-          .range(from, from + PAGE - 1);
+          .range(from, from + taille - 1);
+        // Lignes très lourdes (ex. saved_ideas) : la base coupe la requête, reprendre par plus petits paquets.
+        if (error && /statement timeout/i.test(error.message) && taille > 1) {
+          taille = Math.max(1, Math.floor(taille / 10));
+          continue;
+        }
         if (error) throw new Error(error.message);
-        if (from === 0) attendues = count;
         const rows = retirerColonnes(table, data || []);
         if (rows.length || from === 0) {
-          const texte = JSON.stringify(rows);
-          if (contientUnSecret(texte) && !secretsVus.includes(table)) secretsVus.push(table);
-          const corps = await gzip(texte);
+          const nettoye = retirerSecrets(JSON.stringify(rows));
+          if (nettoye.autres) secretsVus[table] = (secretsVus[table] || 0) + nettoye.autres;
+          if (nettoye.liensSignes) liensSignesRetires[table] = (liensSignesRetires[table] || 0) + nettoye.liensSignes;
+          const corps = await gzip(nettoye.texte);
           const { error: up } = await supabase.storage.from(BUCKET)
             .upload(`${dossier}/${table}.${String(partie).padStart(3, "0")}.json.gz`, corps, {
               contentType: "application/gzip",
@@ -73,7 +80,8 @@ Deno.serve(async (req) => {
           octets += corps.length;
           partie++;
         }
-        if (rows.length < PAGE) break;
+        if (rows.length < taille) break;
+        from += rows.length;
       }
       // Une copie tronquée ne doit pas passer pour complète.
       if (attendues !== null && lignes < attendues) throw new Error(`${lignes} lignes copiées sur ${attendues}`);
@@ -92,6 +100,7 @@ Deno.serve(async (req) => {
     erreurs,
     non_faites: nonFaites,
     secrets_vus: secretsVus,
+    liens_signes_retires: liensSignesRetires,
     tables,
   };
   const { error: errManifeste } = await supabase.storage.from(BUCKET).upload(`${dossier}/_manifeste.json`, JSON.stringify(manifeste, null, 1), {

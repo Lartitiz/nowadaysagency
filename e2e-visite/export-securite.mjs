@@ -56,12 +56,14 @@ if (!r.ok) {
 const d = await r.json();
 const mo = (d.octets / 1024 / 1024).toFixed(1);
 const erreurs = Object.entries(d.erreurs || {});
-const secrets = d.secrets_vus || [];
+const secrets = Object.entries(d.secrets_vus || {});
+const liens = Object.entries(d.liens_signes_retires || {});
 const complet = !erreurs.length && !(d.non_faites || []).length;
 console.log(`${complet && !secrets.length ? "✅" : "🔴"} export de sécurité du ${d.date} : ${d.tables_copiees} tables, ${d.lignes} lignes, ${mo} Mo compressés, ${d.duree_s} s`);
 for (const [t, e] of erreurs) console.log(`   🔴 ${t} : ${e}`);
 if ((d.non_faites || []).length) console.log(`   🔴 pas le temps de copier : ${d.non_faites.join(", ")}`);
-if (secrets.length) console.log(`   🔴 forme de clé ou de jeton trouvée dans : ${secrets.join(", ")} (à masquer dans tables.ts)`);
+if (secrets.length) console.log(`   🔴 forme de clé ou de jeton retirée de la copie (à comprendre) : ${secrets.map(([t, n]) => `${t} ${n}`).join(", ")}`);
+if (liens.length) console.log(`   jetons de liens signés retirés de la copie : ${liens.map(([t, n]) => `${t} ${n}`).join(", ")}`);
 if ((d.anciens_exports_supprimes || []).length) console.log(`   rotation : anciens exports retirés ${d.anciens_exports_supprimes.join(", ")}`);
 const gardes = d.exports_gardes || [];
 if (gardes.length) {
