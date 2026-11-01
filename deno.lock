@@ -10,6 +10,7 @@
     "npm:@dnd-kit/sortable@10": "10.0.0_@dnd-kit+core@6.3.1__react@18.3.1__react-dom@18.3.1___react@18.3.1_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:@dnd-kit/utilities@^3.2.2": "3.2.2_react@18.3.1",
     "npm:@eslint/js@^9.32.0": "9.39.5",
+    "npm:@hookform/resolvers@^5.9.2": "5.9.2_react-hook-form@7.81.0__react@18.3.1_zod@4.6.7",
     "npm:@lovable.dev/cloud-auth-js@^1.1.2": "1.2.1",
     "npm:@playwright/test@^1.58.2": "1.61.1",
     "npm:@radix-ui/react-accordion@^1.2.11": "1.2.16_@types+react@18.3.31_@types+react-dom@18.3.7__@types+react@18.3.31_react@18.3.1_react-dom@18.3.1__react@18.3.1",
@@ -94,7 +95,8 @@
     "npm:typescript@^5.8.3": "5.9.3",
     "npm:vaul@~0.9.9": "0.9.9_react@18.3.1_react-dom@18.3.1__react@18.3.1_@types+react@18.3.31_@types+react-dom@18.3.7__@types+react@18.3.31",
     "npm:vite@^6.4.5": "6.4.5_@types+node@22.20.1_picomatch@4.0.5",
-    "npm:vitest@^3.2.7": "3.2.7_@types+node@22.20.1_jsdom@20.0.3_vite@6.4.5__@types+node@22.20.1__picomatch@4.0.5"
+    "npm:vitest@^3.2.7": "3.2.7_@types+node@22.20.1_jsdom@20.0.3_vite@6.4.5__@types+node@22.20.1__picomatch@4.0.5",
+    "npm:zod@^4.6.7": "4.6.7"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -654,10 +656,15 @@
     "@floating-ui/utils@0.2.12": {
       "integrity": "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww=="
     },
-    "@hookform/resolvers@3.10.0_react-hook-form@7.81.0__react@18.3.1_react@18.3.1": {
-      "integrity": "sha512-79Dv+3mDF7i+2ajj7SkypSKHhl1cbln1OGavqrsF7p6mbUv11xpqpacPsGDCTRvCSjEEIez2ef1NveSVL3b0Ag==",
+    "@hookform/resolvers@5.9.2_react-hook-form@7.81.0__react@18.3.1_zod@4.6.7": {
+      "integrity": "sha512-RtjTnZqsC38s4NKp2XO3fD8IA5uyN4tB7McQ5C6uiMPcV+WWO8F+wVa3e+BXUpH2ScgxghAlwFRMVqjT9WChAQ==",
       "dependencies": [
-        "react-hook-form"
+        "@standard-schema/utils",
+        "react-hook-form",
+        "zod@4.6.7"
+      ],
+      "optionalPeers": [
+        "zod@4.6.7"
       ]
     },
     "@humanfs/core@0.19.2": {
@@ -1767,6 +1774,9 @@
         "@sentry/browser-utils",
         "@sentry/core"
       ]
+    },
+    "@standard-schema/utils@0.3.0": {
+      "integrity": "sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g=="
     },
     "@supabase/auth-js@2.110.2": {
       "integrity": "sha512-Qj7a6EDP+AMMQFWqGv+qFa8r6re//dk+qQI5bA0KK+PZmnI3JPu97TDeNt6SMiQ2FkklP79hP2yDFYSnA989OA==",
@@ -3714,10 +3724,10 @@
         "form-data-encoder",
         "formdata-node",
         "node-fetch",
-        "zod"
+        "zod@3.25.76"
       ],
       "optionalPeers": [
-        "zod"
+        "zod@3.25.76"
       ],
       "bin": true
     },
@@ -4686,6 +4696,9 @@
     },
     "zod@3.25.76": {
       "integrity": "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="
+    },
+    "zod@4.6.7": {
+      "integrity": "sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg=="
     }
   },
   "redirects": {
@@ -5048,7 +5061,31 @@
         "npm:vite@^6.4.5",
         "npm:vitest@^3.2.7",
         "npm:zod@^4.6.7"
-      ]
+      ],
+      "overrides": {
+        "framer-motion": "12.6.3",
+        "motion-dom": "12.6.3",
+        "motion-utils": "12.6.3",
+        "@xmldom/xmldom": "0.9.12",
+        "vite": "$vite",
+        "rollup": "4.62.4",
+        "glob": "10.5.0",
+        "nanoid": "3.3.18",
+        "tinypool": "2.1.2",
+        "ws": "8.21.3",
+        "form-data": "4.0.6",
+        "flatted": "3.4.4",
+        "protobufjs": "7.6.5",
+        "@protobufjs/utf8": "1.1.2",
+        "brace-expansion": "1.1.21",
+        "dompurify": "3.4.17",
+        "browserslist": "4.29.3",
+        "lodash": "4.18.1",
+        "image-size": "2.0.4",
+        "minimatch": "9.0.9",
+        "picomatch": "2.3.2",
+        "postcss": "$postcss"
+      }
     }
   }
 }
