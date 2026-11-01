@@ -68,6 +68,9 @@ Deno.test("export de sécurité : le filet retire les secrets, garde le JSON et 
   assertEquals(JSON.parse(lien.texte), { u: "https://x.co/sign/a.jpg?token=[retire]" });
   assertEquals([lien.liensSignes, lien.autres], [1, 0]);
   assertEquals(retirerSecrets(`{"k":"${jwt}"}`).autres, 1);
+  const image = `data:image/jpeg;base64,/9j/4AAQ+EAA${"Ab1".repeat(20)}/sk-${"x".repeat(25)}+ya29.${"y".repeat(25)}==`;
+  assertEquals(retirerSecrets(JSON.stringify({ i: image })).autres, 0);
+  assertEquals(retirerSecrets(`{"t":"EAA${"Ab1".repeat(20)}"}`).autres, 1);
   const normal = '{"texte":"Risk-management pour indépendantes, ask-me-anything du lundi"}';
   assertEquals(retirerSecrets(normal), { texte: normal, liensSignes: 0, autres: 0 });
 });

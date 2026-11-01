@@ -61,7 +61,9 @@ export function retirerColonnes(table: string, lignes: Record<string, unknown>[]
 // valeur n'est jamais recopiée. Le cas normal est le jeton d'un lien signé vers
 // une photo, en base dans des contenus : le lien cassé se régénère. Tout autre
 // cas est compté à part et signalé en rouge.
-const FORMES_DE_SECRET = /eyJ[\w-]{10,}\.eyJ[\w-]{10,}\.[\w-]*|\b(?:sk|rk)_live_\w{10,}|\bwhsec_\w{10,}|\bsk-(?:ant-|proj-)?[\w-]{20,}|\bEAA[A-Za-z0-9]{40,}|\bya29\.[\w-]{20,}/g;
+// Le début de forme ne doit pas suivre un caractère d'encodage : dans une image
+// en base64, « +EAA… » n'est pas un jeton Meta, et l'effacer abîmerait l'image.
+const FORMES_DE_SECRET = /eyJ[\w-]{10,}\.eyJ[\w-]{10,}\.[\w-]*|(?<![A-Za-z0-9+\/=_-])(?:(?:sk|rk)_live_\w{10,}|whsec_\w{10,}|sk-(?:ant-|proj-)?[\w-]{20,}|EAA[A-Za-z0-9]{40,}|ya29\.[\w-]{20,})(?![+\/=])/g;
 
 export function retirerSecrets(texte: string): { texte: string; liensSignes: number; autres: number } {
   let liensSignes = 0, autres = 0;
