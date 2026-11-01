@@ -43,25 +43,45 @@ if (!URL || !ANON || !SECRET) {
   process.exit(1);
 }
 
-const r = await fetch(`${URL}/functions/v1/export-securite`, {
-  method: "POST",
-  headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "x-cron-secret": SECRET, "Content-Type": "application/json" },
-  body: "{}",
-  signal: AbortSignal.timeout(420_000),
-});
-if (!r.ok) {
-  console.log(`🔴 export de sécurité : HTTP ${r.status} (${(await r.text()).slice(0, 120)}) — edge pas déployée ou bucket « sauvegardes » absent ?`);
-  process.exit(1);
+// L'edge copie un morceau par appel et dit où elle en est. Sur un 546 (pas assez
+// de ressources), repartir du dernier état avec des morceaux plus petits.
+const debut = Date.now();
+const LIMITE_MS = 40 * 60_000;
+let d = null;
+let date = null;
+let plafond_mo = 15;
+let page_max = 1000;
+for (;;) {
+  const r = await fetch(`${URL}/functions/v1/export-securite`, {
+    method: "POST",
+    headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, "x-cron-secret": SECRET, "Content-Type": "application/json" },
+    body: JSON.stringify({ date, plafond_mo, page_max }),
+    signal: AbortSignal.timeout(300_000),
+  });
+  if (r.status === 546 && (plafond_mo > 1 || page_max > 1)) {
+    plafond_mo = Math.max(1, Math.floor(plafond_mo / 2));
+    page_max = Math.max(1, Math.floor(page_max / 5));
+    continue;
+  }
+  if (!r.ok) {
+    console.log(`🔴 export de sécurité : HTTP ${r.status} (${(await r.text()).slice(0, 120)}) — edge pas déployée ou bucket « sauvegardes » absent ?${d ? ` Arrêté à ${d.avancement}.` : ""}`);
+    process.exit(1);
+  }
+  d = await r.json();
+  date = d.date;
+  if (d.termine) break;
+  if (Date.now() - debut > LIMITE_MS) {
+    console.log(`🔴 export de sécurité : pas fini après 40 min, arrêté à ${d.avancement}.`);
+    process.exit(1);
+  }
 }
-const d = await r.json();
 const mo = (d.octets / 1024 / 1024).toFixed(1);
 const erreurs = Object.entries(d.erreurs || {});
 const secrets = Object.entries(d.secrets_vus || {});
 const liens = Object.entries(d.liens_signes_retires || {});
-const complet = !erreurs.length && !(d.non_faites || []).length;
+const complet = !erreurs.length;
 console.log(`${complet && !secrets.length ? "✅" : "🔴"} export de sécurité du ${d.date} : ${d.tables_copiees} tables, ${d.lignes} lignes, ${mo} Mo compressés, ${d.duree_s} s`);
 for (const [t, e] of erreurs) console.log(`   🔴 ${t} : ${e}`);
-if ((d.non_faites || []).length) console.log(`   🔴 pas le temps de copier : ${d.non_faites.join(", ")}`);
 if (secrets.length) console.log(`   🔴 forme de clé ou de jeton retirée de la copie (à comprendre) : ${secrets.map(([t, n]) => `${t} ${n}`).join(", ")}`);
 if (liens.length) console.log(`   jetons de liens signés retirés de la copie : ${liens.map(([t, n]) => `${t} ${n}`).join(", ")}`);
 if ((d.anciens_exports_supprimes || []).length) console.log(`   rotation : anciens exports retirés ${d.anciens_exports_supprimes.join(", ")}`);
