@@ -1,7 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
-const ADMIN_EMAILS = ["laetitia@nowadaysagency.com", "laetitiamattioli@gmail.com"];
+const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
+// Compte de recette de l'admin, par identifiant : le dépôt est public, pas d'adresse perso ici.
+const ADMIN_USER_IDS = ["3049ac29-ff13-4472-87c4-77ed00dad43a"];
 
 // Branding / diagnostic tables. TOUTES portent `workspace_id` SAUF
 // `audit_validations` (clé `user_id, section`). C'est pourquoi le reset scopé
@@ -122,7 +124,7 @@ Deno.serve(async (req) => {
 
     const callerUserId = user.id;
     const callerEmail = user.email as string;
-    const isAdmin = ADMIN_EMAILS.includes(callerEmail);
+    const isAdmin = callerEmail === ADMIN_EMAIL || ADMIN_USER_IDS.includes(callerUserId);
     console.log(`[reset-onboarding] Caller: ${callerEmail} (${callerUserId})`);
 
     const body = await req.json().catch(() => ({}));

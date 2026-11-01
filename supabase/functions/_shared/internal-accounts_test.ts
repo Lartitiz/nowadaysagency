@@ -1,4 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+Deno.env.set("INTERNAL_GMAIL_BOXES", "boiterecette, boiterecettetest");
 import { isInternalEmail, isTestAccountEmail, maskEmail } from "./internal-accounts.ts";
 
 Deno.test("comptes internes : admin, Camille et tout alias laetitia+…@ de l'agence", () => {
@@ -10,12 +11,12 @@ Deno.test("comptes internes : admin, Camille et tout alias laetitia+…@ de l'ag
     "laetitia+membres-desktop@nowadaysagency.com",
     "Laetitia+Immo1707@NowadaysAgency.com",
     " laetitiatest@nowadaysagency.com ",
-    "laetitiamattioli@gmail.com",
-    "Laetitia.Mattioli@gmail.com",
-    "laetitiamattioli+recette3009@gmail.com",
-    "laetitia.mattioli+x@googlemail.com",
-    "laetitiamattiolitest@gmail.com", // 2e compte de recette, inscrit le 30/09
-    "laetitia.mattioli.test@gmail.com",
+    "boiterecette@gmail.com",
+    "Boite.Recette@gmail.com",
+    "boiterecette+recette3009@gmail.com",
+    "boite.recette+x@googlemail.com",
+    "boiterecettetest@gmail.com", // 2e compte de recette, inscrit le 30/09
+    "boite.recette.test@gmail.com",
     "qa-premiere-mun4mvu8@example.com", // spec de recette, domaine réservé
     "qa@demo.test",
     "x@example.org",
@@ -24,17 +25,17 @@ Deno.test("comptes internes : admin, Camille et tout alias laetitia+…@ de l'ag
 
 Deno.test("jamais une cliente : autres domaines, homonymes, sous-domaines", () => {
   for (const e of [
-    "laetitia@gmail.com",
-    "laetitia+pro@gmail.com",
+    "homonyme@gmail.com",
+    "homonyme+pro@gmail.com",
     "camille@atelier.fr",
     "laetitia.dupont@nowadaysagency.com",
     "laetitia+x@nowadaysagency.com.evil.fr",
     "xlaetitia+x@nowadaysagency.com",
-    "laetitiamattioli2@gmail.com",
-    "laetitiamattioli@gmail.com.fr",
-    "laetitiamattioli@outlook.com",
-    "laura@gmail.com",
-    "laetitiamattiolitest2@gmail.com",
+    "boiterecette2@gmail.com",
+    "boiterecette@gmail.com.fr",
+    "boiterecette@outlook.com",
+    "cliente.gmail@gmail.com",
+    "boiterecettetest2@gmail.com",
     "camille@example.com.fr",
     "camille@monexample.com",
     "camille@test.fr",
@@ -50,7 +51,7 @@ Deno.test("comptes de test = internes SAUF l'admin (scope daily de cron-health)"
   assertEquals(isTestAccountEmail("laetitiatest@nowadaysagency.com"), true);
   assertEquals(isTestAccountEmail("laetitia+qaneuf0907@nowadaysagency.com"), true);
   assertEquals(isTestAccountEmail("cliente@exemple.fr"), false);
-  assertEquals(isTestAccountEmail("laetitiamattioli@gmail.com"), true);
+  assertEquals(isTestAccountEmail("boiterecette@gmail.com"), true);
 });
 
 Deno.test("maskEmail ne laisse jamais passer l'adresse complète", () => {
@@ -59,4 +60,15 @@ Deno.test("maskEmail ne laisse jamais passer l'adresse complète", () => {
   assertEquals(maskEmail("Camille.Martin@Gmail.com"), "ca***@gmail.com");
   assertEquals(maskEmail(null), "***");
   assertEquals(maskEmail("sans-arobase"), "***");
+});
+
+Deno.test("secret absent ou vide : aucune adresse Gmail n'est traitée comme interne", () => {
+  const avant = Deno.env.get("INTERNAL_GMAIL_BOXES")!;
+  try {
+    Deno.env.delete("INTERNAL_GMAIL_BOXES");
+    assertEquals(isInternalEmail("boiterecette@gmail.com"), false);
+    assertEquals(isInternalEmail("laetitia@nowadaysagency.com"), true);
+  } finally {
+    Deno.env.set("INTERNAL_GMAIL_BOXES", avant);
+  }
 });
