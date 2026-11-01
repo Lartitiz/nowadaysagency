@@ -99,6 +99,8 @@ interface Props {
   brandColors?: string[];
   /** « Refaire cette slide » (chantier AA) ; absent : pas de bouton. */
   slideRedo?: SlideRedoApi;
+  /** Réseau du carrousel : les aides propres à Instagram ne s'affichent que là. */
+  channel?: "linkedin" | "instagram";
 }
 // Compare immutable references, not megabytes of embedded photo HTML on every
 // keystroke. Parent echoes retain these exact references.
@@ -118,6 +120,7 @@ export default function CarouselEditor({
   savedStyles,
   brandColors,
   slideRedo,
+  channel,
 }: Props) {
   const raw = result?.raw || result;
   const editorRoot = useRef<HTMLElement>(null);
@@ -722,7 +725,7 @@ export default function CarouselEditor({
   if (!slide) return null;
   return (
     <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-3" onKeyDown={(event) => onEditorKey(event.nativeEvent, event.target as HTMLElement)}>
-      <EditorHeader active={active} count={document.slides.length} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom}
+      <EditorHeader showInstagramPreview={channel !== "linkedin"} active={active} count={document.slides.length} history={history} mode={mode} setFullscreen={setFullscreen} setInstaOpen={setInstaOpen} setMode={setMode} setZoom={setZoom} undo={undo} zoom={zoom}
         redo={slideRedo && slide && <SlideRedo api={slideRedo} raw={raw} slide={slide} getDocument={() => current.current} onKeep={(next) => commit(replaceSlide(current.current, next))} />} />
       {toolsPortal && createPortal(
         <QualityPanel
@@ -739,7 +742,7 @@ export default function CarouselEditor({
       <div ref={grid} className={EDITOR_GRID} style={roomStyle(fit)}>
       {/* Téléphone : la rangée des vignettes sous la slide laisse sa place aux réglages dès qu'un élément est choisi. */}
       <div className={`order-2 min-w-0 md:sticky md:top-28 md:order-none ${mode === "simple" && element && element.role !== "background" ? "hidden md:block" : ""}`}>
-      <SlideStrip simple={mode === "simple"} active={active} add={add} changeSlide={changeSlide} commit={commit} current={current} document={document}
+      <SlideStrip channel={channel} simple={mode === "simple"} active={active} add={add} changeSlide={changeSlide} commit={commit} current={current} document={document}
         dragSlide={dragSlide} dropAt={dropAt} justDragged={justDragged} move={move} reorder={reorder} setActive={setActive} setDragSlide={setDragSlide}
         setDropAt={setDropAt} setSelected={setSelected} slide={slide} thumbDrag={thumbDrag} thumbIndexAt={thumbIndexAt} />
       <TextListDialog document={document} commit={commit} getDocument={() => current.current} />
@@ -1007,7 +1010,7 @@ export default function CarouselEditor({
           </>)}
         </div>
       </div>
-      <CaptionField value={captionText(document.caption)} onChange={(text) => commit({ ...document, caption: captionFromText(text) }, "caption")} />
+      <CaptionField channel={channel} value={captionText(document.caption)} onChange={(text) => commit({ ...document, caption: captionFromText(text) }, "caption")} />
       <RedFlagsChecker
         content={[
           captionText(document.caption),

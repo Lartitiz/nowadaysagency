@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
-export function CaptionField({ value, onChange }: { value: string; onChange: (text: string) => void }) {
+export function CaptionField({ channel, value, onChange }: { channel?: "linkedin" | "instagram"; value: string; onChange: (text: string) => void }) {
   const [open, setOpen] = useState(false);
   const preview = value.replace(/\s+/g, " ").trim();
   return (
@@ -19,7 +19,7 @@ export function CaptionField({ value, onChange }: { value: string; onChange: (te
           <span className="font-medium">Légende de la publication</span>
           {!open && (
             <span className="block truncate text-xs text-muted-foreground">
-              {preview || "Le texte qui accompagne ton carrousel sur Instagram"}
+              {preview || `Le texte qui accompagne ton carrousel sur ${channel === "linkedin" ? "LinkedIn" : "Instagram"}`}
             </span>
           )}
         </span>

@@ -11,7 +11,8 @@ import { BrandPhotosPicker } from "@/components/photos/BrandPhotosPicker";
 import { BrandLogoSuggestion } from "@/components/branding/BrandLogoSuggestion";
 
 import EditableText from "@/components/EditableText";
-import { buildFirstContentUrl } from "@/lib/first-content-url";
+import { chooseFirstContentChannel, firstContentIsCarousel, pickFirstContentIdea } from "@/lib/first-content-url";
+import { resolveFirstContentDestination } from "@/lib/first-content-destination";
 import { markWelcomeSeen } from "@/lib/mark-welcome-seen";
 import { sellsProducts as profileSellsProducts } from "@/lib/product-or-service";
 import { toast as sonnerToast } from "sonner";
@@ -338,7 +339,7 @@ export default function WelcomePage() {
   const [brandingStillLoading, setBrandingStillLoading] = useState(true);
   // L4 : première idée personnalisée générée par le diagnostic (saved_ideas,
   // source_module="diagnostic") — alimente le CTA « Générer mon premier contenu ».
-  const [starterIdea, setStarterIdea] = useState<{ id?: string; titre: string; format: string } | null>(null);
+  const [starterIdeas, setStarterIdeas] = useState<{ id?: string; titre: string; canal?: string | null }[]>([]);
   const [sellsProducts, setSellsProducts] = useState(false);
   const [productPhotosReady, setProductPhotosReady] = useState(false);
   const starterIdeaRef = useRef(false);
@@ -347,15 +348,15 @@ export default function WelcomePage() {
   const fetchStarterIdea = useCallback(async () => {
     if (starterIdeaRef.current) return;
     const { data } = await (supabase.from("saved_ideas") as any)
-      .select("id, titre, format")
+      .select("id, titre, canal")
       .eq(column, value)
       .eq("source_module", "diagnostic").eq("status", "to_explore").is("calendar_post_id", null).is("content_data", null)
       .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (data?.titre) {
+      .limit(10);
+    const ideas = (data ?? []).filter((idea: any) => idea?.titre);
+    if (ideas.length > 0) {
       starterIdeaRef.current = true;
-      setStarterIdea({ id: data.id, titre: data.titre, format: data.format || "post" });
+      setStarterIdeas(ideas);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [column, value]);
@@ -363,6 +364,10 @@ export default function WelcomePage() {
   const prenom = (profileData as any)?.prenom || "";
   const channels: string[] = (profileData as any)?.canaux || [];
   const onboardingTime = (profileData as any)?.weekly_time || "";
+  // Même règle que l'URL du 1er contenu : ce qui est annoncé ici est ce qui démarre.
+  const firstChannel = chooseFirstContentChannel(channels, starterIdeas[0]?.canal);
+  const starterIdea = pickFirstContentIdea(starterIdeas, firstChannel);
+  const startsFromPhotos = sellsProducts && firstContentIsCarousel(firstChannel);
 
   useEffect(() => {
     if (!user || !profileUserId) return;
@@ -574,13 +579,6 @@ export default function WelcomePage() {
   // au mount) : l'enrichment est async, la fiche peut arriver pendant que la
   // personne lit cette page. En cas d'erreur réseau → chemin historique.
   const handleCreateFirst = async () => {
-    // Règle du 1er contenu (carrousel toujours, photo si elle vend des
-    // produits) : source unique dans first-content-destination, partagée avec
-    // la fin d'onboarding et la sortie de validation de marque.
-    const creerUrl = buildFirstContentUrl({
-      sellsProducts,
-      subject: starterIdea?.titre, ideaId: starterIdea?.id,
-    });
     let pendingReview = false;
     try {
       const { data } = await (supabase.from("branding_autofill") as any)
@@ -591,7 +589,10 @@ export default function WelcomePage() {
         .maybeSingle();
       pendingReview = !!data;
     } catch { /* réseau KO → on ne bloque jamais la 1re création */ }
-    markSeen(pendingReview ? "/branding?from=onboarding&next=creer" : creerUrl);
+    // Règle du 1er contenu (carrousel, photo si produits, canal) : source unique
+    // dans first-content-destination, partagée avec la fin d'onboarding et la
+    // sortie de validation de marque. Lue au clic : le profil peut encore charger.
+    markSeen(pendingReview ? "/branding?from=onboarding&next=creer" : await resolveFirstContentDestination({ column, value, userId: user?.id }));
   };
 
   const handleCardSave = useCallback(async (cardIndex: number, newValue: string) => {
@@ -881,7 +882,7 @@ export default function WelcomePage() {
           {/* Vend des produits : on annonce le carrousel photo AVANT le clic —
               elle sait qu'on va lui demander ses photos, et qu'elle peut les
               récupérer depuis son site plutôt que de les chercher. */}
-          {sellsProducts && !brandReviewPending && (
+          {startsFromPhotos && !brandReviewPending && (
             <div className="rounded-xl border border-border bg-card p-4 space-y-3">
               <div>
                 <p className="text-sm font-medium text-foreground">
@@ -911,11 +912,11 @@ export default function WelcomePage() {
           )}
           <Button
             onClick={handleCreateFirst}
-            disabled={sellsProducts && !productPhotosReady}
+            disabled={startsFromPhotos && !productPhotosReady}
             className="w-full rounded-pill gap-2"
             size="lg"
           >
-            {sellsProducts && !productPhotosReady && !brandReviewPending ? (
+            {startsFromPhotos && !productPhotosReady && !brandReviewPending ? (
               <><Sparkles className="h-4 w-4" strokeWidth={1.75} /> Préparation de tes photos…</>
             ) : brandReviewPending ? (
               <><Sparkles className="h-4 w-4" strokeWidth={1.75} /> Créer mon premier contenu</>
@@ -930,7 +931,7 @@ export default function WelcomePage() {
           )}
           {/* En mode produits on ne démarre PAS sur ce sujet (on part des
               photos) : l'annoncer serait mentir sur l'écran suivant. */}
-          {starterIdea && !brandReviewPending && !sellsProducts && (
+          {starterIdea && !brandReviewPending && !startsFromPhotos && (
             <p className="text-xs text-muted-foreground text-center -mt-1">
               On démarre sur « {starterIdea.titre} » — une idée tirée de ton diagnostic.
             </p>

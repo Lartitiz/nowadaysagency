@@ -1,7 +1,7 @@
 import React, { StrictMode, useState } from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import CreerUnifie from '@/pages/CreerUnifie';
 import ProductionApp from '@/App';
 import { loadFlowState, saveFlowState, setFlowUserId, setFlowWorkspaceId, savePhotos, loadPhotos, clearFlowState } from '@/hooks/use-flow-persistence';
@@ -84,6 +84,21 @@ describe('initial creation draft through real React components', () => {
     app.unmount();
     mount();
     expect(mocks.generate).toHaveBeenCalledTimes(1);
+  });
+
+  it('premier carrousel LinkedIn : généré pour LinkedIn, et le mode survit au rechargement', async () => {
+    const UrlProbe = () => <output data-testid="url">{useLocation().search}</output>;
+    render(<StrictMode><MemoryRouter initialEntries={['/creer?sujet=Mon%20offre&format=carousel&carouselSubMode=text&auto=1&canal=linkedin']}><UrlProbe/><App/></MemoryRouter></StrictMode>);
+    await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(loadFlowState()).toMatchObject({ isLinkedInCarousel: true, forcedChannel: 'linkedin', autoFlow: true }));
+    await waitFor(() => expect(screen.getByTestId('url').textContent).toBe(''));
+  });
+
+  it('produits sur LinkedIn sans photo : écran de choix sur LinkedIn, sans génération', async () => {
+    mocks.photoRead.mockResolvedValue({ data: [], error: null });
+    mount('/creer?format=carousel&carouselSubMode=photo&firstProduct=1&auto=1&sujetSansPhoto=Mes%20fleurs&canal=linkedin');
+    await waitFor(() => expect(loadFlowState()).toMatchObject({ ideaText: 'Mes fleurs', isLinkedInCarousel: true }));
+    expect(mocks.generate).not.toHaveBeenCalled();
   });
 
   it('attend les photos du site avant le premier carrousel produit', async () => {

@@ -70,7 +70,7 @@ export function useCreerEntryInit({
 
     const fmtMapped = fmtRaw ? (FORMAT_MAP[fmtRaw] || fmtRaw) : null;
     // Post LinkedIn du calendrier : le canal choisit le générateur (calendar-entry-canal.ts).
-    const { fmt, linkedinCarousel } = calendarEntryFormat(fmtMapped && SUPPORTED_FORMATS.has(fmtMapped) ? fmtMapped : null, locState?.fromCalendar ? paramCanal || locState.canal : null);
+    const { fmt, linkedinCarousel } = calendarEntryFormat(fmtMapped && SUPPORTED_FORMATS.has(fmtMapped) ? fmtMapped : null, locState?.fromCalendar || paramAuto ? paramCanal || locState.canal : null);
 
     if (fmt) setSelectedFormat(fmt);
     if (linkedinCarousel) setIsLinkedInCarousel(true);
@@ -189,6 +189,9 @@ export function useCreerEntryInit({
     if (paramMode !== "transform" && ONE_SHOT_PARAMS.some((k) => searchParams.has(k))) {
       const cleaned = consumeFreshStart(searchParams);
       ONE_SHOT_PARAMS.forEach((k) => cleaned.delete(k));
+      // 1er contenu : le canal est déjà gardé dans le flux. Laissé dans l'URL, il
+      // ferait passer un rechargement pour une nouvelle entrée et perdrait le mode.
+      if (paramAuto) cleaned.delete("canal");
       justStrippedRef.current = true;
       setSearchParams(cleaned, { replace: true });
     }

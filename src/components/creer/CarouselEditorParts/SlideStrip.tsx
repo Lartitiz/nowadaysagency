@@ -17,7 +17,8 @@ import { HelpTip } from "@/components/creer/CarouselEditorParts/HelpTip";
 import { SlideThumb } from "@/components/creer/CarouselEditorParts/PanelBits";
 
 /** Bande des miniatures et boutons des slides. */
-export function SlideStrip({ simple = false, active, add, changeSlide, commit, current, document, dragSlide, dropAt, justDragged, move, reorder, setActive, setDragSlide, setDropAt, setSelected, slide, thumbDrag, thumbIndexAt }: {
+export function SlideStrip({ channel, simple = false, active, add, changeSlide, commit, current, document, dragSlide, dropAt, justDragged, move, reorder, setActive, setDragSlide, setDropAt, setSelected, slide, thumbDrag, thumbIndexAt }: {
+  channel?: "linkedin" | "instagram";
   /** Mode simple : flèches et dupliquer sous la vignette choisie, verrouiller dans « Plus d'outils ». */
   simple?: boolean;
   active: number;
@@ -215,7 +216,7 @@ export function SlideStrip({ simple = false, active, add, changeSlide, commit, c
           Supprimer la slide
         </Button>
       </div>
-      {document.slides.length > INSTAGRAM_DIRECT_MAX_IMAGES && (
+      {channel !== "linkedin" && document.slides.length > INSTAGRAM_DIRECT_MAX_IMAGES && (
         <p className="text-xs text-muted-foreground md:text-2xs md:leading-tight">
           {document.slides.length} slides : au-delà de {INSTAGRAM_DIRECT_MAX_IMAGES}, publie-le depuis l’appli Instagram.{" "}
           <HelpTip label="nombre de slides">{instagramTooManyImagesReason(document.slides.length)}</HelpTip>
