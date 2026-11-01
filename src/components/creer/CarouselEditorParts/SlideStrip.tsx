@@ -66,7 +66,9 @@ export function SlideStrip({ channel, simple = false, active, add, changeSlide, 
   };
   // Mode simple : petits boutons sous la vignette choisie (à côté, sur téléphone).
   const orderTools = (
-    <div className="flex shrink-0 flex-col justify-center gap-0.5 md:flex-row" data-testid="slide-order-tools">
+    <div className="flex shrink-0 flex-col items-center justify-center gap-0.5 md:flex-row" data-testid="slide-order-tools">
+      {/* Sur téléphone, les flèches seules passaient pour « slide suivante » (audit du 01/11). */}
+      <span className="text-[9px] leading-none text-muted-foreground md:hidden">Déplacer</span>
       {([
         ["Monter la slide", () => move(-1), active === 0, <><ArrowLeft size={13} className="md:hidden" /><ArrowUp size={13} className="hidden md:block" /></>],
         ["Descendre la slide", () => move(1), active === last, <><ArrowRight size={13} className="md:hidden" /><ArrowDown size={13} className="hidden md:block" /></>],

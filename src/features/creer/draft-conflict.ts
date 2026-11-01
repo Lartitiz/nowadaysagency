@@ -17,6 +17,18 @@ type DraftConflictInput = {
   locState: any;
 };
 
+/** Contenu comparable : sans les marques de sauvegarde, clés triées (la base les réordonne). */
+function contentKey(value: any): string {
+  return JSON.stringify(value, (key, v) => {
+    if (key.startsWith("_carousel_")) return undefined;
+    if (v && typeof v === "object" && !Array.isArray(v)) return Object.fromEntries(Object.keys(v).sort().map((k) => [k, v[k]]));
+    return v;
+  });
+}
+function sameContent(a: unknown, b: unknown): boolean {
+  return !!a && !!b && contentKey(a) === contentKey(b);
+}
+
 // Une nouvelle intention de création (recyclage, actu, brief, raccourci sujet…)
 // qui arrive alors qu'un brouillon significatif existe : on demande au lieu de
 // silencieusement restaurer l'ancien contenu (et donc ignorer la demande).
@@ -49,6 +61,9 @@ export function computeDraftConflict({
   if (!hasNewIntent) return null;
   // A verified Studio return resumes this exact saved idea, not a new draft.
   if (locState.carouselStudioResume === true && locState.ideaId === d.editingIdeaId) return null;
+  // Rouvrir depuis Mes idées le contenu déjà en cours, à l'identique : rien à
+  // arbitrer (audit du 01/11). Au moindre écart (retouche ailleurs), on demande.
+  if (typeof locState.ideaId === "string" && locState.ideaId === d.editingIdeaId && sameContent(d.result?.raw, locState.resumeIdea?.raw)) return null;
   // Même sujet que le brouillon → pas de conflit, on reprend simplement.
   const hasSource = !!(paramIdeaId || locState.ideaId || locState.fromBrief || locState.fromCalendar || locState.fromRecycle || locState.resumeIdea || locState.libraryPhotoIds?.length);
   if (!isFreshStart && !hasSource && newSubject && newSubject === d.ideaText?.trim()) return null;

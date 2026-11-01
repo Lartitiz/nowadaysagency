@@ -102,15 +102,17 @@ const DELETED_ACCOUNT_LOCAL_PREFIXES = [
   "carousel-studio", // tickets et demandes du Studio carrousel
   "capture-page",    // brouillon de la capture de page de site
   "lac_product_or_service",
+  "lac_ideas_todo_count",
 ];
 const DELETED_ACCOUNT_LOCAL_KEYS = ["coach_chat_history"];
-const DELETED_ACCOUNT_SESSION_PREFIXES = ["studio-video-for-reel"];
+const DELETED_ACCOUNT_SESSION_PREFIXES = ["studio-video-for-reel", "creer_flow_reset_at"];
 
 export function clearDeletedAccountStorage(userId?: string) {
   clearAppStorage();
   try {
     for (const k of DELETED_ACCOUNT_LOCAL_KEYS) localStorage.removeItem(k);
     sweepByPrefix(localStorage, DELETED_ACCOUNT_LOCAL_PREFIXES);
+    for (const k of Object.keys(localStorage)) if (k.startsWith("branding_skip_import_")) localStorage.removeItem(k);
     // Le compte supprimé ne doit plus être proposé dans « Changer de compte ».
     if (userId) {
       const saved = JSON.parse(localStorage.getItem("saved_accounts") || "[]");

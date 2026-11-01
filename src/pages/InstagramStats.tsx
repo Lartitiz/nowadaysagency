@@ -1,5 +1,6 @@
 import { instagramKPIs, monthsInRange } from "@/lib/stats-reading";
-import StatsReading from "@/components/stats/StatsReading";
+import StatsReading, { defaultStatsMetric } from "@/components/stats/StatsReading";
+import { useProfile } from "@/hooks/use-profile";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { Link, useNavigate } from "react-router-dom";
@@ -10,7 +11,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import AppHeader from "@/components/AppHeader";
-import SubPageHeader from "@/components/SubPageHeader";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -76,6 +76,7 @@ function InstagramStatsScope() {
 
   /* ── State ── */
   const [statsTab, setStatsTab] = useState("overview");
+  const profileCanaux = useProfile().data?.canaux;
   const [statsLoaded, setStatsLoaded] = useState(false);
   const [statsError, setStatsError] = useState(false);
   const [configError, setConfigError] = useState(false);
@@ -875,7 +876,6 @@ function InstagramStatsScope() {
         {/* pb mobile : le bouton feedback flottant (fixed bottom) recouvrait le
             CTA « Suivant » pleine largeur en bas d'écran à 390px. */}
         <main className="mx-auto max-w-2xl px-6 py-8 max-md:px-4 max-md:pb-28 space-y-6">
-          <SubPageHeader parentTo="/dashboard" parentLabel="Accueil" currentLabel="Statistiques" />
           <div className="rounded-xl border border-border bg-card p-6 space-y-6">
             <div className="text-center space-y-2">
               <h1 className="font-display text-2xl font-bold flex items-center justify-center gap-2"><TrendingUp className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.75} /> Configurons tes stats</h1>
@@ -1019,7 +1019,6 @@ function InstagramStatsScope() {
     <div className="min-h-screen bg-background [--primary:330_50%_20%] [--bordeaux:330_50%_20%] dark:[--primary:338_72%_83%]">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4 max-md:pb-28 space-y-6">
-        <SubPageHeader parentTo="/dashboard" parentLabel="Accueil" currentLabel="Statistiques" />
 
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
@@ -1052,7 +1051,7 @@ function InstagramStatsScope() {
           monthOptions={monthOptions}
         />
 
-            <StatsReading rows={periodStats} from={periodRange.from} to={periodRange.to} currentMonth={currentMonthDate} onData={() => setStatsTab("input")} />
+            <StatsReading rows={periodStats} from={periodRange.from} to={periodRange.to} currentMonth={currentMonthDate} defaultMetric={defaultStatsMetric(profileCanaux)} onData={() => setStatsTab("input")} />
             <details className="rounded-xl border border-border bg-card p-5"><summary className="cursor-pointer font-medium text-primary">Tous les graphiques et comparaisons</summary><div className="space-y-6 pt-5">
             <p className="text-sm text-muted-foreground">Instagram · Moyennes calculées sur les mois renseignés. « — » signifie indisponible. Les évolutions comparent la période précédente de même durée, uniquement pour les mois terminés.</p>
             {dashboardKPIs && <StatsOverview kpis={dashboardKPIs} isSingleMonth={isSingleMonth} />}

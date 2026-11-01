@@ -2080,6 +2080,7 @@ function CreerWorkspace() {
         open={confirmResetOpen}
         onOpenChange={setConfirmResetOpen}
         photoCount={uploadedPhotos.length}
+        savedInIdeas={!!savedIdeaVersion || !!result?.raw?._carousel_cloud}
         onConfirm={() => {
           setConfirmResetOpen(false);
           handleReset();

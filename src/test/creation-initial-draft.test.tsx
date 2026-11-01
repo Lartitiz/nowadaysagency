@@ -350,8 +350,6 @@ it('does not replay a saved result entry when the brand query refetches after UR
   const entry={pathname:'/creer',search:'?sujet=Newsletter&format=newsletter&angle=newsletter&canal=newsletter&idea_id=saved-newsletter',state:{ideaId:'saved-newsletter',resumeIdea:{format:'newsletter',raw}}};
   saveFlowState({step:'result',ideaText:'Newsletter',selectedFormat:'newsletter',result:{type:'newsletter',raw},editingIdeaId:'saved-newsletter'});
   const app=mount(entry);
-  fireEvent.click(screen.getByRole('checkbox'));
-  fireEvent.click(screen.getByText('Démarrer le nouveau contenu'));
   await screen.findByTestId('result');
   mocks.brandChecking=true;
   app.rerender(<StrictMode><MemoryRouter initialEntries={[entry]}><App/></MemoryRouter></StrictMode>);

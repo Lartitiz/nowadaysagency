@@ -11,8 +11,14 @@ const metrics = {
   clients_signed: { label: 'Clients signés', unit: 'clients', source: 'Activité · chiffres saisis ou importés', money: false },
 };
 type Metric = keyof typeof metrics;
-export default function StatsReading({ rows, from, to, currentMonth, onData }: { rows: StatsRow[]; from: string; to: string; currentMonth: string; onData: () => void }) {
-  const [metric, setMetric] = useState<Metric>('reach');
+/** Sans Instagram, ouvrir sur « Portée Instagram » ne dit rien à la cliente (audit du 01/11). */
+export function defaultStatsMetric(canaux: unknown): Metric {
+  if (!Array.isArray(canaux) || !canaux.length || canaux.includes('instagram')) return 'reach';
+  return canaux.includes('website') || canaux.includes('site') ? 'website_visitors' : 'clients_signed';
+}
+export default function StatsReading({ rows, from, to, currentMonth, onData, defaultMetric = 'reach' }: { rows: StatsRow[]; from: string; to: string; currentMonth: string; onData: () => void; defaultMetric?: Metric }) {
+  const [chosenMetric, setMetric] = useState<Metric | null>(null);
+  const metric = chosenMetric ?? defaultMetric;
   const definition = metrics[metric];
   const entries = monthsInRange(from,to).map(month => ({month,row:rows.find(r=>r.month_date===month)}));
   const values = entries.map(({row}) => typeof row?.[metric] === 'number' && Number.isFinite(row[metric]) ? row[metric] as number : null);
@@ -37,7 +43,7 @@ export default function StatsReading({ rows, from, to, currentMonth, onData }: {
       <div>
         <p className="text-xs text-muted-foreground">{definition.source}</p>
         <h2 className="font-display text-4xl text-[#4a1733] dark:text-foreground mt-3">{display(value)}</h2>
-        <p className="text-sm mt-2">{single ? definition.unit : average ? `${definition.unit} en moyenne par mois renseigné` : `${definition.unit} sur la période complète`}</p>
+        {value!==null && <p className="text-sm mt-2">{single ? definition.unit : average ? `${definition.unit} en moyenne par mois renseigné` : `${definition.unit} sur la période complète`}</p>}
         <p className="text-xs text-muted-foreground mt-2">{monthLabel(from)}{!single && ` à ${monthLabel(to)}`} · {present.length}/{entries.length} mois renseignés{to>=currentMonth?' · période en cours':''}</p>
         {!complete && <p className="text-sm mt-3 text-muted-foreground">Les mois absents restent vides. {average ? 'La moyenne porte seulement sur les mois renseignés.' : 'Le total sera disponible quand tous les mois seront renseignés.'}</p>}
         {metric==='reach' && <p className="text-xs text-muted-foreground mt-2">Un relevé Instagram récent peut couvrir 28 jours glissants, rangés dans le mois en cours. La portée mensuelle ne s’additionne pas en audience unique.</p>}
