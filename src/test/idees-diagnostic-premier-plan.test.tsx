@@ -120,6 +120,15 @@ describe('/creer : une idée du diagnostic, un clic, le chemin de Mes idées', (
     expect(picks.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('sur téléphone, écrire efface les idées pour garder « Continuer » à portée', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
+    mount();
+    await screen.findByTestId('creer-idea-picks');
+    fireEvent.change(screen.getByTestId('creer-idea-input'), { target: { value: 'Mon idée' } });
+    await waitFor(() => expect(screen.queryByTestId('creer-idea-picks')).toBeNull());
+    expect(screen.getByTestId('creer-idea-next')).toBeEnabled();
+  });
+
   it('sans idée gardée, les exemples restent dans « Essayer avec un exemple »', async () => {
     mocks.ideas = [];
     mount();

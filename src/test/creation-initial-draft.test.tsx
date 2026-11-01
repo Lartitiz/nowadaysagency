@@ -394,7 +394,7 @@ it.each(['/creer?mode=transform','/creer?mode=transform&format=stories'])('opens
  const raw={script:[{text:'Reel conservé'}]};saveFlowState({step:'result',ideaText:'Reel QA',selectedFormat:'reel',result:{type:'reel',raw},editingIdeaId:'saved-reel',creationId:'reel-id'});
  mount(url);await screen.findByText('Choix Recycler et Crosspost');
  expect(loadFlowState()).toMatchObject({step:'result',selectedFormat:'reel',editingIdeaId:'saved-reel',creationId:'reel-id',result:{raw}});
- fireEvent.click(screen.getByRole('button',{name:'Fermer'}));
+ fireEvent.click(screen.getByRole('button',{name:'Fermer la fenêtre'}));
  expect(screen.getByTestId('result')).toHaveTextContent('Reel conservé');expect(loadFlowState()?.editingIdeaId).toBe('saved-reel');
 });
 it('opens transform on the already-mounted result and preserves the current creation',async()=>{
