@@ -23,7 +23,7 @@ export const CATCH_UP: Record<SectionKey, CatchUpQuestion> = {
   story: {
     missing: "Je n'ai rien trouvé sur ton histoire.",
     question: "En deux phrases, comment ton activité a commencé ?",
-    placeholder: "Ex : J'ai ouvert mon atelier après dix ans dans un bureau, parce que…",
+    placeholder: "Ex : Je me suis lancée après dix ans dans un bureau, parce que…",
     toData: (a) => ({ full_story: a }),
   },
   persona: {

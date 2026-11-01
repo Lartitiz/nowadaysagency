@@ -20,8 +20,23 @@ export function progressionMaterial(doc: any): string {
  * « Le texte a changé » ; le reçu photo, lui, reste sensible aux photos. */
 function textMaterial(material: string): string {
   try {
-    const m = JSON.parse(material);
+    const m = JSON.parse(canonicalMaterial(material));
     return JSON.stringify({ ...m, slides: (m.slides || []).map(({ photo: _p, ...s }: any) => s) });
+  } catch {
+    return material;
+  }
+}
+
+/** La base (jsonb) range les clés d'un objet à sa façon : `after` repasse avant
+ * `before` dans un schéma avant / après. L'ordre des champs ne dit donc rien
+ * d'une retouche, leur identifiant porte déjà la position. Sans ce tri, tout
+ * carrousel rouvert avec ce schéma affichait « Tu as modifié le texte » et
+ * perdait ses vraies pistes de relecture (audit du 01/11/2026). */
+function canonicalMaterial(material: string): string {
+  try {
+    const m = JSON.parse(material);
+    const fields = [...(m.fields || [])].sort((x: any, y: any) => String(x.id).localeCompare(String(y.id)));
+    return JSON.stringify({ ...m, fields });
   } catch {
     return material;
   }
@@ -57,7 +72,7 @@ function invalidateTextReceipt<T extends Record<string, any>>(
 export function invalidateProgressionReceipt<T extends Record<string, any>>(doc: T): T {
   const result = invalidateTextReceipt(doc);
   const photo = result.photo_review;
-  if (!photo || photo.execution_status === "stale" || photo.reviewed_material === progressionMaterial(result)) return result;
+  if (!photo || photo.execution_status === "stale" || canonicalMaterial(photo.reviewed_material) === canonicalMaterial(progressionMaterial(result))) return result;
   const prior = new Set(photo.issues || []);
   return { ...result,
     photo_review: { ...photo, execution_status: "stale", verdict: null, reason: "content-edited" },
@@ -79,10 +94,10 @@ export function rebindReceiptsAfterPhotoCast<T extends Record<string, any>>(befo
   const old = progressionMaterial(before), now = progressionMaterial(after);
   if (old === now) return after;
   const out: any = { ...after };
-  if (after.progression_review?.reviewed_material === old) {
+  if (canonicalMaterial(after.progression_review?.reviewed_material) === canonicalMaterial(old)) {
     out.progression_review = { ...after.progression_review, reviewed_material: now, photos_reassigned_after_text_review: true };
   }
-  if (after.photo_review?.reviewed_material === old) {
+  if (canonicalMaterial(after.photo_review?.reviewed_material) === canonicalMaterial(old)) {
     out.photo_review = { ...after.photo_review, reviewed_material: now };
   }
   return out;

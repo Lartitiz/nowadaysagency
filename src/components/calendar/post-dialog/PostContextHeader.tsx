@@ -30,7 +30,7 @@ export function PostContextHeader({ postCanal, format, objectif, angle, selected
 
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap pr-6">
         <span className="text-base leading-none" aria-hidden="true">{canalMeta.emoji}</span>
         <span className="text-sm font-semibold text-foreground">
           {formatMeta ? `${formatMeta.label} ${canalMeta.label}` : canalMeta.label}

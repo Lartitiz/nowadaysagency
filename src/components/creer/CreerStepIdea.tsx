@@ -136,9 +136,8 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
                   onChange={(e) => setIdea(e.target.value)}
                   placeholder="Une nouveauté, les coulisses, une question de tes clientes…"
                   rows={ideaPicks && isMobile ? 3 : 6}
-                  className={`resize-y text-base ${ideaPicks && isMobile ? "min-h-24" : "min-h-40"}`}
+                  className={`resize-y text-base max-h-[40vh] overflow-y-auto ${ideaPicks && isMobile ? "min-h-24" : "min-h-40"}`}
                 />
-                {isMobile && ideaPicks}
                 {onPhotosNext && (
                   <button type="button" onClick={() => setShowPhotosMode(true)} className="inline-flex items-center gap-2 text-sm text-primary underline underline-offset-4 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4">
                     <Camera size={17} aria-hidden="true" /> Partir de photos{localPhotos.length > 0 ? ` (${localPhotos.length})` : ""}
@@ -150,6 +149,8 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onPickId
                     Continuer <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>
+                {/* Sous « Continuer » : au-dessus, les idées le poussaient hors de l'écran du téléphone (audit du 01/11). */}
+                {isMobile && ideaPicks}
               </div>
               {!ideaPicks && <details className="mt-5 text-sm">
                 <summary className="w-fit cursor-pointer text-primary underline underline-offset-4 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4">
