@@ -18,6 +18,7 @@
  */
 
 import { test, expect } from "@playwright/test";
+import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { exportAndCheckPptx } from "./pptx-export-check";
@@ -218,6 +219,31 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   console.log(fauxRetouche
     ? "🧾 Relecture du fil : « Tu as modifié le texte » affiché sur un carrousel jamais touché 🔴"
     : "🧾 Relecture du fil : pas de faux « texte modifié » ✅");
+
+  // 🔁 Carrousel rouvert (audit du 01/11/2026, #1822) : le faux « texte modifié »
+  // n'apparaissait qu'en relisant le carrousel ENREGISTRÉ, car la base réordonne
+  // les clés du schéma. On relit la ligne, sans rien écrire et sans crédit.
+  const repoEnvText = fs.existsSync(path.join(__dirname, "..", ".env")) ? fs.readFileSync(path.join(__dirname, "..", ".env"), "utf8") : "";
+  const envValue = (name: string) => process.env[name] || repoEnvText.match(new RegExp(`^${name}=["']?([^"'\\n]+)`, "m"))?.[1];
+  const rouvert = await page.evaluate(async ({ url, key, sujet }) => {
+    const tokenKey = Object.keys(localStorage).find((k) => k.endsWith("-auth-token"));
+    if (!url || !key || !tokenKey) return null;
+    const headers = { apikey: key, Authorization: `Bearer ${JSON.parse(localStorage[tokenKey]).access_token}` };
+    for (let i = 0; i < 15; i++) {
+      const res = await fetch(`${url}/rest/v1/saved_ideas?select=content_data&titre=eq.${encodeURIComponent(sujet)}&order=updated_at.desc&limit=1`, { headers, cache: "no-store" });
+      const doc = res.ok ? (await res.json())[0]?.content_data : null;
+      if (doc?.progression_review) {
+        return { status: doc.progression_review.execution_status, schemas: (doc.slides || []).filter((s: any) => s.visual_schema).length };
+      }
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    return null;
+  }, { url: envValue("VITE_SUPABASE_URL"), key: envValue("VITE_SUPABASE_PUBLISHABLE_KEY"), sujet: IDEA }).catch(() => null);
+  console.log(!rouvert
+    ? "🔁 Carrousel rouvert : ligne enregistrée non relue ⚪"
+    : rouvert.status === "stale"
+      ? `🔁 Carrousel rouvert : marqué « texte modifié » sans aucune retouche (${rouvert.schemas} schéma(s)) 🔴`
+      : `🔁 Carrousel rouvert : relecture intacte (${rouvert.schemas} schéma(s)) ✅`);
 
   // ── Récap ──
   console.log("\n═══ RÉCAP DES APPELS EDGE (headers) ═══");

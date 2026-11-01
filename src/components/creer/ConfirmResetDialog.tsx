@@ -14,19 +14,26 @@ interface ConfirmResetDialogProps {
   onOpenChange: (open: boolean) => void;
   photoCount: number;
   onConfirm: () => void;
+  /** Déjà dans Mes idées : la page se vide, le contenu n'est pas perdu (audit du 01/11). */
+  savedInIdeas?: boolean;
 }
 
 /** Garde anti-perte : confirmation avant « Créer un autre contenu » quand un
     travail est en cours (texte généré et/ou photos uploadées). Évite
     d'effacer photos + contenu par un clic réflexe. */
-export default function ConfirmResetDialog({ open, onOpenChange, photoCount, onConfirm }: ConfirmResetDialogProps) {
+export default function ConfirmResetDialog({ open, onOpenChange, photoCount, onConfirm, savedInIdeas }: ConfirmResetDialogProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Repartir de zéro ?</AlertDialogTitle>
           <AlertDialogDescription>
-            {photoCount > 0 ? (
+            {savedInIdeas ? (
+              <>
+                Ce contenu reste dans Mes idées, tel qu'il y a été enregistré.
+                Cette page repart d'une feuille blanche.
+              </>
+            ) : photoCount > 0 ? (
               <>
                 Tu as un contenu en cours avec{" "}
                 <strong>

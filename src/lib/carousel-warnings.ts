@@ -51,11 +51,15 @@ const DEFECT_LABEL: Record<string, string> = {
 // Le libellé par type perdait l'essentiel : « ce chiffre daté de 2026 n'a pas
 // de source vérifiable » devenait « la phrase généralise ou affirme un peu trop ».
 const FIGURE = /\d+\s*(?:%|fois\b)|chiffr|statisti|[ée]tude|sondage|pourcentage/i;
+// Le juge peut parler de chiffres à propos d'une phrase qui n'en contient aucun
+// (vu le 01/11/2026 sur une simple question) : l'extrait a le dernier mot.
+const FIGURE_IN_EXCERPT = /\d|chiffr|statisti|[ée]tude|recherche|sondage|pourcentage|enqu[êe]te/i;
 const ANALOGY = /analogi|rapprochement|parall[eè]le|comparaison|transposition|m[ée]taphore/i;
 
 function defectLabel(d: any): string {
   const why = `${d?.reason ?? ""} ${d?.repair ?? ""}`;
-  if (d?.type === "unsupported" && FIGURE.test(why)) return "vérifie ce chiffre ou cette étude, sa source n’est pas confirmée";
+  const excerpt = typeof d?.excerpt === "string" ? d.excerpt.trim() : "";
+  if (d?.type === "unsupported" && FIGURE.test(why) && (!excerpt || FIGURE_IN_EXCERPT.test(excerpt))) return "vérifie ce chiffre ou cette étude, sa source n’est pas confirmée";
   if ((d?.type === "unsupported" || d?.type === "juxtaposition") && ANALOGY.test(why)) return "le rapprochement paraît plaqué, montre en quoi il éclaire ton propos";
   return DEFECT_LABEL[d?.type] || "un passage mérite une relecture";
 }

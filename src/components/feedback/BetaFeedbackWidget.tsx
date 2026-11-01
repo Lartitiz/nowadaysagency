@@ -109,7 +109,7 @@ export default function BetaFeedbackWidget() {
       checkCover(rect);
       const candidates = document.querySelectorAll(
         // iframe : la slide de l'éditeur de carrousel, que BÊTA ne doit pas recouvrir (W élargi, 18/10/2026).
-        'button, a[href], input, select, textarea, [role="button"], iframe'
+        'button, a[href], input, select, textarea, summary, [role="button"], iframe'
       );
       let found = false;
       for (const el of candidates) {

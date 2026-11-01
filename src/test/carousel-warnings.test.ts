@@ -118,3 +118,13 @@ describe("isCarouselPublishable", () => {
     expect(isCarouselPublishable(["Il manque une photo."], [])).toBe(false);
   });
 });
+
+describe("constat sur un chiffre, extrait sans chiffre (audit du 01/11/2026)", () => {
+  it("ne demande pas de vérifier un chiffre absent de la phrase", () => {
+    const shown = splitCarouselWarnings({ structure_warnings: ["i1"], progression_review: { execution_status: "completed", issues: ["i1"], report: { verdict: "needs_repair", trajectory: { kind: "developed_idea" }, boundaries: [], defects: [
+      { slide_ids: ["slides.0"], type: "unsupported", excerpt: "Combien d'heures te prend vraiment l'administratif ?", reason: "Aucun chiffre sourcé n'appuie le titre." },
+    ] } } }, "text");
+    expect(shown.suggestions.join(" ")).toContain("la phrase généralise");
+    expect(shown.suggestions.join(" ")).not.toContain("vérifie ce chiffre");
+  });
+});
