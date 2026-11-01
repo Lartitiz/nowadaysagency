@@ -311,7 +311,8 @@ export default function CarouselResult({ result, onSlidesUpdate, onStaleChange }
                         </Badge>
                       </div>
                     )}
-                    {slide.visual_suggestion && !slide.visual_schema && (
+                    {/* Consigne de mise en page avec codes couleur : pour l'IA, pas pour la lecture (audit du 01/11). */}
+                    {slide.visual_suggestion && !slide.visual_schema && !/#[0-9a-f]{3,8}\b/i.test(slide.visual_suggestion) && (
                       <p className="text-xs italic text-muted-foreground">🎨 {slide.visual_suggestion}</p>
                     )}
                   </div>

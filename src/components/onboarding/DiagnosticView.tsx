@@ -224,7 +224,7 @@ function SlideView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasW
         </div>
         {slide === 0 && (
           <p className="text-center text-xs text-muted-foreground/60 animate-pulse mb-2">
-            {isMobile ? "← Swipe ou clique « Voir la suite » →" : "Clique « Voir la suite » ou utilise les flèches ← →"}
+            {isMobile ? "← Glisse ou clique « Voir la suite » →" : "Clique « Voir la suite » ou utilise les flèches ← →"}
           </p>
         )}
         {slide < totalSlides - 1 && (
@@ -268,7 +268,7 @@ function AccrocheSection({ prenom, isFallback, sourcesUsed = [], sourcesFailed =
     .filter(s => SOURCE_LABELS[s])
     .map(s => SOURCE_LABELS[s].label.toLowerCase()))];
   const baseText = analyzedLabels.length > 0
-    ? `Mon diagnostic se base sur ${analyzedLabels.join(", ")} + ce que tu m'as partagé.`
+    ? `Mon diagnostic s'appuie sur : ${analyzedLabels.join(", ")} + ce que tu m'as partagé.`
     : "Mon diagnostic se base sur ce que tu m'as partagé.";
 
   return (

@@ -169,18 +169,18 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
       <div className="mx-4 border-t border-neutral-200" />
 
       {/* Actions */}
-      <div className="grid grid-cols-4 px-2 py-1 text-sm font-medium text-neutral-600">
-        <span className="flex items-center justify-center gap-1.5 rounded py-2">
-          <ThumbsUp className="h-4 w-4" /> J'aime
+      <div className="grid grid-cols-4 px-1 py-1 text-xs sm:px-2 sm:text-sm font-medium text-neutral-600">
+        <span className="flex items-center justify-center gap-1 sm:gap-1.5 rounded py-2">
+          <ThumbsUp className="h-4 w-4 shrink-0" /> J'aime
         </span>
-        <span className="flex items-center justify-center gap-1.5 rounded py-2">
-          <MessageCircle className="h-4 w-4" /> Commenter
+        <span className="flex items-center justify-center gap-1 sm:gap-1.5 rounded py-2">
+          <MessageCircle className="h-4 w-4 shrink-0" /> Commenter
         </span>
-        <span className="flex items-center justify-center gap-1.5 rounded py-2">
-          <Repeat2 className="h-4 w-4" /> Republier
+        <span className="flex items-center justify-center gap-1 sm:gap-1.5 rounded py-2">
+          <Repeat2 className="h-4 w-4 shrink-0" /> Republier
         </span>
-        <span className="flex items-center justify-center gap-1.5 rounded py-2">
-          <Send className="h-4 w-4" /> Envoyer
+        <span className="flex items-center justify-center gap-1 sm:gap-1.5 rounded py-2">
+          <Send className="h-4 w-4 shrink-0" /> Envoyer
         </span>
       </div>
     </div>
