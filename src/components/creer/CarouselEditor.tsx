@@ -98,9 +98,7 @@ interface Props {
   /** Couleurs de la charte, proposées en premier dans les pastilles. */
   brandColors?: string[];
   /** « Refaire cette slide » (chantier AA) ; absent : pas de bouton. */
-  slideRedo?: SlideRedoApi;
-  /** Réseau du carrousel : les aides propres à Instagram ne s'affichent que là. */
-  channel?: "linkedin" | "instagram";
+  slideRedo?: SlideRedoApi; channel?: "linkedin" | "instagram"; // canal : les aides Instagram ne s'affichent que là
 }
 // Compare immutable references, not megabytes of embedded photo HTML on every
 // keystroke. Parent echoes retain these exact references.
@@ -119,8 +117,7 @@ export default function CarouselEditor({
   toolsPortal,
   savedStyles,
   brandColors,
-  slideRedo,
-  channel,
+  slideRedo, channel,
 }: Props) {
   const raw = result?.raw || result;
   const editorRoot = useRef<HTMLElement>(null);

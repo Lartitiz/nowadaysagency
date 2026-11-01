@@ -353,7 +353,7 @@ export default function WelcomePage() {
       .eq("source_module", "diagnostic").eq("status", "to_explore").is("calendar_post_id", null).is("content_data", null)
       .order("created_at", { ascending: true })
       .limit(10);
-    const ideas = (data ?? []).filter((idea: any) => idea?.titre);
+    const ideas = (data ?? []).filter((idea: { titre?: string }) => idea?.titre);
     if (ideas.length > 0) {
       starterIdeaRef.current = true;
       setStarterIdeas(ideas);
@@ -589,9 +589,8 @@ export default function WelcomePage() {
         .maybeSingle();
       pendingReview = !!data;
     } catch { /* réseau KO → on ne bloque jamais la 1re création */ }
-    // Règle du 1er contenu (carrousel, photo si produits, canal) : source unique
-    // dans first-content-destination, partagée avec la fin d'onboarding et la
-    // sortie de validation de marque. Lue au clic : le profil peut encore charger.
+    // Règle du 1er contenu : source unique, partagée avec la fin d'onboarding et
+    // la sortie de validation de marque. Lue au clic : le profil peut encore charger.
     markSeen(pendingReview ? "/branding?from=onboarding&next=creer" : await resolveFirstContentDestination({ column, value, userId: user?.id }));
   };
 
