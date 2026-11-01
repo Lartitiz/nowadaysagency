@@ -17,13 +17,49 @@ export const TABLES_EXCLUES: Record<string, string> = {
   studio_video_session_events: "journal technique",
   carousel_media_backfill_backup: "table de transit vidée le 04/10/2026",
   content_quality_events: "mesures de qualité (journal), volumineux",
+  mini_audit_attempts: "anti-abus du mini-audit public : adresses IP de visiteuses sans compte, à ne pas dupliquer",
 };
+
+// Colonnes retirées de la copie : les jetons qui ouvrent un lien de partage,
+// une invitation ou un retour de prestataire. Une ligne restaurée aura besoin
+// d'un nouveau lien. tables_test.ts échoue si une colonne au nom de secret
+// n'est ni ici ni dans une table exclue.
+export const COLONNES_MASQUEES: Record<string, string[]> = {
+  calendar_shares: ["share_token"],
+  shared_branding_links: ["token"],
+  studio_image_requests: ["callback_token"],
+  studio_video_jobs: ["webhook_token"],
+  workspace_invitations: ["token"],
+};
+
+// Colonne de tri des tables sans `id` : sans ordre stable, les pages de 1000
+// lignes peuvent se chevaucher ou en oublier.
+export const COLONNE_TRI: Record<string, string> = {
+  checkout_attempts: "attempt_id",
+  credit_grants: "checkout_session_id",
+  payment_checkout_attempts: "attempt_id",
+  studio_image_requests: "version_id",
+  studio_video_cohort_access: "workspace_id",
+};
+
+export function retirerColonnes(table: string, lignes: Record<string, unknown>[]): Record<string, unknown>[] {
+  const masquees = COLONNES_MASQUEES[table];
+  if (!masquees) return lignes;
+  return lignes.map((l) => Object.fromEntries(Object.entries(l).filter(([c]) => !masquees.includes(c))));
+}
+
+// Dernier filet, sur le contenu réel : formes connues de clés et de jetons
+// (JWT, Stripe, Anthropic, OpenAI, Meta, Google) qui auraient atterri dans un
+// texte ou un JSON. Signalé en rouge dans le résumé, jamais recopié.
+const FORMES_DE_SECRET = /eyJ[\w-]{10,}\.eyJ[\w-]{10,}\.|\b(?:sk|rk)_live_\w{10,}|\bwhsec_\w{10,}|\bsk-(?:ant-|proj-)?[\w-]{20,}|\bEAA[A-Za-z0-9]{40,}|\bya29\.[\w-]{20,}/;
+
+export const contientUnSecret = (texte: string): boolean => FORMES_DE_SECRET.test(texte);
 
 // Tout le reste du schéma public est copié (la liste est calculée par
 // l'appelante à partir de TABLES_EXPORTEES, gardée explicite pour que la
 // fonction n'ait pas besoin de lire le schéma).
 export const TABLES_EXPORTEES = [
-  "ai_usage", "assistant_undo_log", "audit_recommendations", "audit_validations", "beta_feedback", "bio_versions",
+  "ai_usage", "ai_usage_hors_credit", "assistant_undo_log", "audit_recommendations", "audit_validations", "beta_feedback", "bio_versions",
   "brand_charter", "brand_profile", "brand_proposition", "brand_strategy", "branding_audits", "branding_autofill",
   "branding_coaching_sessions", "branding_mirror_results", "branding_suggestions", "branding_summary",
   "calendar_comments", "calendar_posts", "calendar_shares", "carousel_styles", "chat_guide_conversations",
@@ -39,7 +75,7 @@ export const TABLES_EXPORTEES = [
   "instagram_highlights_questions", "instagram_inspirations", "instagram_pinned_posts", "instagram_weekly_stats",
   "intake_questionnaires", "launch_plan_contents", "launches", "linkedin_audit", "linkedin_comment_strategy",
   "linkedin_experiences", "linkedin_profile", "linkedin_recommendations", "live_questions", "live_reminders",
-  "lives", "mini_audit_attempts", "monthly_stats", "notifications", "offers", "payment_checkout_attempts",
+  "lives", "monthly_stats", "notifications", "offers", "payment_checkout_attempts",
   "persona", "photo_wishlist", "photo_workflows", "pinterest_boards", "pinterest_keywords", "pinterest_pins",
   "pinterest_profile", "pinterest_routine", "plan_step_overrides", "plan_step_visibility", "plan_tasks",
   "profiles", "promo_codes", "promo_redemptions", "prospect_interactions", "prospects", "purchases",

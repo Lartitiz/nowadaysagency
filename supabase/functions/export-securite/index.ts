@@ -11,7 +11,7 @@
 // protégée par le secret partagé CRON_STATS_SECRET (header x-cron-secret),
 // comme cron-health. Les 3 exports les plus récents sont gardés.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { TABLES_EXPORTEES } from "./tables.ts";
+import { COLONNE_TRI, contientUnSecret, retirerColonnes, TABLES_EXPORTEES } from "./tables.ts";
 
 const BUCKET = "sauvegardes";
 const PAGE = 1000;
@@ -39,9 +39,10 @@ Deno.serve(async (req) => {
   const debut = Date.now();
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const dossier = new Date().toISOString().slice(0, 10);
-  const tables: Record<string, { lignes: number; octets: number }> = {};
+  const tables: Record<string, { lignes: number; octets: number; parties: number }> = {};
   const erreurs: Record<string, string> = {};
   const nonFaites: string[] = [];
+  const secretsVus: string[] = [];
 
   for (const table of TABLES_EXPORTEES) {
     if (Date.now() - debut > BUDGET_MS) {
@@ -49,20 +50,19 @@ Deno.serve(async (req) => {
       continue;
     }
     try {
-      let lignes = 0, octets = 0, partie = 0, trie = true;
+      let lignes = 0, octets = 0, partie = 0, attendues: number | null = null;
       for (let from = 0; ; from += PAGE) {
-        // Ordre stable par id quand la table en a un (sinon pages non garanties).
-        let { data, error } = await (trie
-          ? supabase.from(table).select("*").order("id").range(from, from + PAGE - 1)
-          : supabase.from(table).select("*").range(from, from + PAGE - 1));
-        if (error && trie && from === 0 && /id/.test(error.message)) {
-          trie = false;
-          ({ data, error } = await supabase.from(table).select("*").range(from, from + PAGE - 1));
-        }
+        const { data, error, count } = await supabase.from(table)
+          .select("*", from === 0 ? { count: "exact" } : undefined)
+          .order(COLONNE_TRI[table] || "id")
+          .range(from, from + PAGE - 1);
         if (error) throw new Error(error.message);
-        const rows = data || [];
+        if (from === 0) attendues = count;
+        const rows = retirerColonnes(table, data || []);
         if (rows.length || from === 0) {
-          const corps = await gzip(JSON.stringify(rows));
+          const texte = JSON.stringify(rows);
+          if (contientUnSecret(texte) && !secretsVus.includes(table)) secretsVus.push(table);
+          const corps = await gzip(texte);
           const { error: up } = await supabase.storage.from(BUCKET)
             .upload(`${dossier}/${table}.${String(partie).padStart(3, "0")}.json.gz`, corps, {
               contentType: "application/gzip",
@@ -75,7 +75,9 @@ Deno.serve(async (req) => {
         }
         if (rows.length < PAGE) break;
       }
-      tables[table] = { lignes, octets };
+      // Une copie tronquée ne doit pas passer pour complète.
+      if (attendues !== null && lignes < attendues) throw new Error(`${lignes} lignes copiées sur ${attendues}`);
+      tables[table] = { lignes, octets, parties: partie };
     } catch (e) {
       erreurs[table] = String((e as Error).message || e).slice(0, 160);
     }
@@ -89,27 +91,41 @@ Deno.serve(async (req) => {
     octets: Object.values(tables).reduce((s, t) => s + t.octets, 0),
     erreurs,
     non_faites: nonFaites,
+    secrets_vus: secretsVus,
     tables,
   };
-  await supabase.storage.from(BUCKET).upload(`${dossier}/_manifeste.json`, JSON.stringify(manifeste, null, 1), {
+  const { error: errManifeste } = await supabase.storage.from(BUCKET).upload(`${dossier}/_manifeste.json`, JSON.stringify(manifeste, null, 1), {
     contentType: "application/json",
     upsert: true,
   });
+  if (errManifeste) erreurs._manifeste = errManifeste.message.slice(0, 160);
 
   // Rotation : garder les GARDER exports les plus récents (dossiers AAAA-MM-JJ),
   // seulement si celui-ci est complet — jamais effacer un bon export pour un raté.
   const supprimes: string[] = [];
+  const { data: racine, error: errRacine } = await supabase.storage.from(BUCKET).list("", { limit: 100 });
+  if (errRacine) erreurs._rotation = errRacine.message.slice(0, 160);
+  const dossiers = (racine || []).map((o) => o.name).filter((n) => /^\d{4}-\d{2}-\d{2}$/.test(n)).sort().reverse();
   if (!nonFaites.length && !Object.keys(erreurs).length) {
-    const { data: racine } = await supabase.storage.from(BUCKET).list("", { limit: 100 });
-    const dossiers = (racine || []).map((o) => o.name).filter((n) => /^\d{4}-\d{2}-\d{2}$/.test(n)).sort().reverse();
     for (const vieux of dossiers.slice(GARDER)) {
-      const { data: fichiers } = await supabase.storage.from(BUCKET).list(vieux, { limit: 1000 });
-      const chemins = (fichiers || []).map((f) => `${vieux}/${f.name}`);
-      if (chemins.length) await supabase.storage.from(BUCKET).remove(chemins);
-      supprimes.push(vieux);
+      try {
+        // Tout effacer : ces copies gardent les données de clientes parties,
+        // la politique de confidentialité promet qu'elles disparaissent.
+        for (;;) {
+          const { data: fichiers, error } = await supabase.storage.from(BUCKET).list(vieux, { limit: 1000 });
+          if (error) throw error;
+          if (!fichiers?.length) break;
+          const { error: errRemove } = await supabase.storage.from(BUCKET).remove(fichiers.map((f) => `${vieux}/${f.name}`));
+          if (errRemove) throw errRemove;
+        }
+        supprimes.push(vieux);
+      } catch (e) {
+        erreurs._rotation = `${vieux} : ${String((e as Error).message || e).slice(0, 140)}`;
+      }
     }
   }
+  const restants = dossiers.filter((d) => !supprimes.includes(d));
 
   const { tables: _detail, ...resume } = manifeste;
-  return json({ ...resume, anciens_exports_supprimes: supprimes });
+  return json({ ...resume, erreurs, anciens_exports_supprimes: supprimes, exports_gardes: restants });
 });

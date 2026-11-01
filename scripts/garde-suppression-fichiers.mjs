@@ -18,7 +18,8 @@
 //      suppression demandée par l'utilisatrice, suppression de compte), ajouter
 //      l'entrée au JSON avec sa raison, dans la même PR.
 //
-// Périmètre : src/, supabase/functions/ (hors tests), supabase/migrations/.
+// Périmètre : src/, supabase/functions/ (hors tests), supabase/migrations/ et
+// drizzle/migrations/ (là où Lovable range les siennes).
 // Un endroit = fichier + nombre d'occurrences (pas de numéro de ligne, pour ne
 // pas casser à chaque modification voisine).
 
@@ -31,6 +32,7 @@ const LISTE = path.join(RACINE, "scripts/garde-suppression-fichiers.json");
 const MOTIFS_CODE = [
   /storage\s*\.\s*from\([^)]*\)\s*\.\s*remove\s*\(/g,
   /\bstorage\s*\.\s*remove\s*\(/g,
+  /\b\w*[Bb]ucket\w*\s*\.\s*remove\s*\(/g,
   /\.\s*emptyBucket\s*\(/g,
   /\.\s*deleteBucket\s*\(/g,
 ];
@@ -49,9 +51,10 @@ function parcourir(dossier, exts, out = []) {
   return out;
 }
 
-export function compter(texte, motifs) {
-  // Les commentaires de code ne comptent pas (ex. la doc de ce garde-fou).
-  const sansCommentaires = texte.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1").replace(/--.*$/gm, "");
+export function compter(texte, motifs, sql = false) {
+  // Les commentaires ne comptent pas (ex. la doc de ce garde-fou).
+  const sansBlocs = texte.replace(/\/\*[\s\S]*?\*\//g, "");
+  const sansCommentaires = sql ? sansBlocs.replace(/--.*$/gm, "") : sansBlocs.replace(/(^|[^:])\/\/.*$/gm, "$1");
   return motifs.reduce((n, m) => n + (sansCommentaires.match(m) || []).length, 0);
 }
 
@@ -65,8 +68,12 @@ export function inventaire(racine = RACINE) {
     const n = compter(fs.readFileSync(f, "utf8"), MOTIFS_CODE);
     if (n) trouve[path.relative(racine, f)] = n;
   }
-  for (const f of parcourir(path.join(racine, "supabase/migrations"), [".sql"])) {
-    const n = compter(fs.readFileSync(f, "utf8"), MOTIFS_SQL);
+  const sql = [
+    ...parcourir(path.join(racine, "supabase/migrations"), [".sql"]),
+    ...parcourir(path.join(racine, "drizzle/migrations"), [".sql"]),
+  ];
+  for (const f of sql) {
+    const n = compter(fs.readFileSync(f, "utf8"), MOTIFS_SQL, true);
     if (n) trouve[path.relative(racine, f)] = n;
   }
   return trouve;
@@ -84,7 +91,9 @@ export function comparer(trouve, valide) {
 
 if (process.argv[1] && import.meta.url.endsWith(path.basename(process.argv[1]))) {
   const valide = JSON.parse(fs.readFileSync(LISTE, "utf8")).valides;
-  const problemes = comparer(inventaire(), valide);
+  // --racine : pour le test, qui vérifie le vrai refus sur un dossier fabriqué.
+  const iRacine = process.argv.indexOf("--racine");
+  const problemes = comparer(iRacine > 0 ? inventaire(path.resolve(process.argv[iRacine + 1])) : inventaire(), valide);
   if (!problemes.length) {
     console.log("✅ Garde suppression de fichiers : aucun nouvel effacement de fichiers.");
     process.exit(0);

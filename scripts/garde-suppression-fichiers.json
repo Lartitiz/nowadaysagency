@@ -9,9 +9,13 @@
       "occurrences": 1,
       "raison": "Annulation : efface seulement les fichiers envoyés par CETTE tentative quand elle échoue."
     },
-    "src/hooks/use-calendar-save.ts": {
+    "src/features/onboarding/capture-upload.ts": {
       "occurrences": 1,
-      "raison": "Annulation : efface seulement les visuels envoyés par CETTE tentative, avant toute écriture en base."
+      "raison": "Annulation : capture envoyée dont la ligne user_documents n'a pas pu être créée, fichier orphelin de CETTE tentative."
+    },
+    "src/hooks/use-calendar-save.ts": {
+      "occurrences": 3,
+      "raison": "Annulation : efface les visuels envoyés par CETTE tentative quand l'enregistrement échoue (2 endroits). Après un enregistrement réussi : efface les anciennes slides remplacées du MÊME contenu (dossier <user>/<post>/slides/), jamais celles de la nouvelle version."
     },
     "src/hooks/use-onboarding.ts": {
       "occurrences": 1,
