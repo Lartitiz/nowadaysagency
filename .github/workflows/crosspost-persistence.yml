@@ -1,8 +1,16 @@
 name: Crosspost persistence
 on:
   pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/crosspost-persistence.sql'
+      - '.github/workflows/crosspost-persistence.yml'
   push:
     branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/crosspost-persistence.sql'
+      - '.github/workflows/crosspost-persistence.yml'
 jobs:
   crosspost-transactions:
     runs-on: ubuntu-latest

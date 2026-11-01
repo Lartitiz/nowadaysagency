@@ -30,6 +30,8 @@ concurrency:
 
 jobs:
   alerte:
+    # Lancement annulé (remplacé par un plus récent) : rien à dire, pas de minute dépensée.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion != 'cancelled'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -67,7 +69,9 @@ jobs:
             else
               gh issue create --title "🔴 Tests en échec sur main ($sha « ${title:0:60} »)" --body "$body" --label ci-rouge --assignee "$OWNER"
             fi
-          elif [ "$conclusion" = "success" ] && [ -n "$open" ]; then
+          # Fusion d'une PR déjà verte : la CI saute les tests et finit « success ».
+          # Seule une vraie passe des tests a le droit de fermer l'alerte.
+          elif [ "$conclusion" = "success" ] && [ -n "$open" ] && jq -e 'any(.jobs[]; .name == "build-and-test" and .conclusion == "success")' <<<"$run" >/dev/null; then
             gh issue close "$open" --comment "✅ Les tests sont de nouveau verts sur main (\`$sha\` — « $title »). Alerte fermée automatiquement."
           else
             echo "Rien à faire ($conclusion)."
