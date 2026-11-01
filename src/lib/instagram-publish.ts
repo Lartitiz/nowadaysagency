@@ -201,6 +201,7 @@ export async function publishRenderedCarouselToInstagram(opts: {
     return await publishToInstagram({ caption, imageUrls: urls, workspaceId, userId, timeoutMs });
   } finally {
     supabase.storage.from(PUBLISH_BUCKET).remove(paths).then(undefined, () => {});
+    supabase.storage.from(PUBLISH_BUCKET).remove(paths).then(undefined, () => {});
   }
 }
 
