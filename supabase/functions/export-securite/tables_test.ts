@@ -4,6 +4,7 @@ import {
   COLONNES_MASQUEES,
   retirerColonnes,
   retirerSecrets,
+  tailleSuivante,
   TABLES_EXCLUES,
   TABLES_EXPORTEES,
 } from "./tables.ts";
@@ -69,4 +70,12 @@ Deno.test("export de sécurité : le filet retire les secrets, garde le JSON et 
   assertEquals(retirerSecrets(`{"k":"${jwt}"}`).autres, 1);
   const normal = '{"texte":"Risk-management pour indépendantes, ask-me-anything du lundi"}';
   assertEquals(retirerSecrets(normal), { texte: normal, liensSignes: 0, autres: 0 });
+});
+
+Deno.test("export de sécurité : le paquet rétrécit sur les lignes lourdes, regrandit doucement", () => {
+  assertEquals(tailleSuivante(200, 200_000_000, 1_000_000, 1000), 1);
+  assertEquals(tailleSuivante(100, 2_000_000, 1_000_000, 1000), 50);
+  assertEquals(tailleSuivante(100, 10_000, 1_000_000, 1000), 200);
+  assertEquals(tailleSuivante(1000, 10_000, 1_000_000, 1000), 1000);
+  assertEquals(tailleSuivante(50, 0, 1_000_000, 1000), 50);
 });

@@ -42,6 +42,14 @@ export const COLONNE_TRI: Record<string, string> = {
   studio_video_cohort_access: "workspace_id",
 };
 
+// Taille du paquet suivant : viser environ `cible` octets de JSON par lecture,
+// pour qu'une table aux lignes très lourdes (saved_ideas) tienne en mémoire.
+export function tailleSuivante(taille: number, octetsLus: number, cible: number, max: number): number {
+  if (octetsLus <= 0) return taille;
+  const visee = Math.floor((taille * cible) / octetsLus);
+  return Math.max(1, Math.min(max, taille * 2, visee));
+}
+
 export function retirerColonnes(table: string, lignes: Record<string, unknown>[]): Record<string, unknown>[] {
   const masquees = COLONNES_MASQUEES[table];
   if (!masquees) return lignes;
