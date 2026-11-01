@@ -49,11 +49,21 @@ export function retirerColonnes(table: string, lignes: Record<string, unknown>[]
 }
 
 // Dernier filet, sur le contenu réel : formes connues de clés et de jetons
-// (JWT, Stripe, Anthropic, OpenAI, Meta, Google) qui auraient atterri dans un
-// texte ou un JSON. Signalé en rouge dans le résumé, jamais recopié.
-const FORMES_DE_SECRET = /eyJ[\w-]{10,}\.eyJ[\w-]{10,}\.|\b(?:sk|rk)_live_\w{10,}|\bwhsec_\w{10,}|\bsk-(?:ant-|proj-)?[\w-]{20,}|\bEAA[A-Za-z0-9]{40,}|\bya29\.[\w-]{20,}/;
+// (JWT, Stripe, Anthropic, OpenAI, Meta, Google) dans un texte ou un JSON. La
+// valeur n'est jamais recopiée. Le cas normal est le jeton d'un lien signé vers
+// une photo, en base dans des contenus : le lien cassé se régénère. Tout autre
+// cas est compté à part et signalé en rouge.
+const FORMES_DE_SECRET = /eyJ[\w-]{10,}\.eyJ[\w-]{10,}\.[\w-]*|\b(?:sk|rk)_live_\w{10,}|\bwhsec_\w{10,}|\bsk-(?:ant-|proj-)?[\w-]{20,}|\bEAA[A-Za-z0-9]{40,}|\bya29\.[\w-]{20,}/g;
 
-export const contientUnSecret = (texte: string): boolean => FORMES_DE_SECRET.test(texte);
+export function retirerSecrets(texte: string): { texte: string; liensSignes: number; autres: number } {
+  let liensSignes = 0, autres = 0;
+  const propre = texte.replace(FORMES_DE_SECRET, (valeur, position: number) => {
+    if (valeur.startsWith("eyJ") && /[?&]token=$/.test(texte.slice(Math.max(0, position - 7), position))) liensSignes++;
+    else autres++;
+    return "[retire]";
+  });
+  return { texte: propre, liensSignes, autres };
+}
 
 // Tout le reste du schéma public est copié (la liste est calculée par
 // l'appelante à partir de TABLES_EXPORTEES, gardée explicite pour que la

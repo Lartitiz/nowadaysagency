@@ -2,8 +2,8 @@ import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.t
 import {
   COLONNE_TRI,
   COLONNES_MASQUEES,
-  contientUnSecret,
   retirerColonnes,
+  retirerSecrets,
   TABLES_EXCLUES,
   TABLES_EXPORTEES,
 } from "./tables.ts";
@@ -56,9 +56,17 @@ Deno.test("export de sécurité : le jeton sort de la ligne, le reste y reste", 
   assertEquals(retirerColonnes("tasks", sansMasque), sansMasque);
 });
 
-Deno.test("export de sécurité : le filet reconnaît les formes de secrets, pas un texte normal", () => {
-  for (const s of ["sk_live_abcdefghijkl123", "whsec_abcdefghijkl123", "sk-ant-api03-abcdefghijklmnopqrst", "eyJhbGciOiJIUzI1.eyJyb2xlIjoiYW5vbiJ9.sig"]) {
-    assert(contientUnSecret(`{"x":"${s}"}`), s);
+Deno.test("export de sécurité : le filet retire les secrets, garde le JSON et le texte normal", () => {
+  for (const v of ["sk_live_abcdefghijkl123", "whsec_abcdefghijkl123", "sk-ant-api03-abcdefghijklmnopqrst"]) {
+    const r = retirerSecrets(JSON.stringify({ x: `avant ${v} après` }));
+    assertEquals(JSON.parse(r.texte), { x: "avant [retire] après" });
+    assertEquals([r.liensSignes, r.autres], [0, 1]);
   }
-  assert(!contientUnSecret('{"texte":"Risk-management pour indépendantes, ask-me-anything du lundi"}'));
+  const jwt = "eyJhbGciOiJIUzI1.eyJyb2xlIjoiYW5vbiJ9.c2ln-_";
+  const lien = retirerSecrets(JSON.stringify({ u: `https://x.co/sign/a.jpg?token=${jwt}` }));
+  assertEquals(JSON.parse(lien.texte), { u: "https://x.co/sign/a.jpg?token=[retire]" });
+  assertEquals([lien.liensSignes, lien.autres], [1, 0]);
+  assertEquals(retirerSecrets(`{"k":"${jwt}"}`).autres, 1);
+  const normal = '{"texte":"Risk-management pour indépendantes, ask-me-anything du lundi"}';
+  assertEquals(retirerSecrets(normal), { texte: normal, liensSignes: 0, autres: 0 });
 });
