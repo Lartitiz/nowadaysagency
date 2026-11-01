@@ -553,7 +553,7 @@ export default function CreerStepResult({
     if (format === "carousel" && visualSlides?.length && onCarouselDocumentChange) {
       return <fieldset disabled={visualLoading} className={`min-w-0 w-full ${visualLoading ? "pointer-events-none opacity-60" : ""}`} aria-busy={visualLoading}>
         {visualLoading && <p role="status" className="mb-3 text-sm">Régénération en cours. Les retouches seront disponibles dès que les nouveaux visuels seront prêts.</p>}
-        <CarouselEditorConnected brandColors={charterColors ? [charterColors.primary, charterColors.secondary, charterColors.accent] : undefined} onOpenStudio={onOpenCarouselStudio} result={result} visualSlides={visualSlides} onChange={onCarouselDocumentChange} photos={photos} onAddPhoto={onAddPhoto} onStaleChange={onCarouselStaleChange} cloudTools={carouselCloudTools} quality={carouselQuality} toolsPortal={carouselToolsSlot} />
+        <CarouselEditorConnected channel={channel} brandColors={charterColors ? [charterColors.primary, charterColors.secondary, charterColors.accent] : undefined} onOpenStudio={onOpenCarouselStudio} result={result} visualSlides={visualSlides} onChange={onCarouselDocumentChange} photos={photos} onAddPhoto={onAddPhoto} onStaleChange={onCarouselStaleChange} cloudTools={carouselCloudTools} quality={carouselQuality} toolsPortal={carouselToolsSlot} />
       </fieldset>;
     }
     // Carousel photo gets its own renderer — si on a des photos, OU si les slides

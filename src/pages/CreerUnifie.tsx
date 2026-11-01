@@ -2095,7 +2095,7 @@ function CreerWorkspace() {
       <SaveToIdeasDialog
         open={saveIdeaDialogOpen}
         onOpenChange={setSaveIdeaDialogOpen}
-        contentType={mapFormatToContentType(selectedFormat)}
+        contentType={isLinkedInCarousel ? "post_linkedin" : mapFormatToContentType(selectedFormat)}
         subject={ideaText}
         contentData={result?.raw}
         sourcePhotos={selectedFormat === "post" || photoMode ||

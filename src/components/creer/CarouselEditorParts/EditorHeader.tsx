@@ -41,7 +41,8 @@ const SHORTCUTS: [string, string][] = [
 ];
 
 /** Ligne d'outils du haut de l'éditeur (une ligne), avec le passage au mode complet. */
-export function EditorHeader({ active, count, history, mode, redo, setFullscreen, setInstaOpen, setMode, setZoom, undo, zoom }: {
+export function EditorHeader({ showInstagramPreview = true, active, count, history, mode, redo, setFullscreen, setInstaOpen, setMode, setZoom, undo, zoom }: {
+  showInstagramPreview?: boolean;
   active: number;
   count: number;
   setFullscreen: (on: boolean) => void;
@@ -92,9 +93,11 @@ export function EditorHeader({ active, count, history, mode, redo, setFullscreen
           >
             <Redo2 size={15} /> <span className="hidden lg:inline">Rétablir</span>
           </Button>
-          <Button variant="outline" size="sm" className={tool} onClick={() => setInstaOpen(true)} aria-label="Aperçu Instagram">
-            <Smartphone size={15} /> <span className="hidden lg:inline">Aperçu Instagram</span>
-          </Button>
+          {showInstagramPreview && (
+            <Button variant="outline" size="sm" className={tool} onClick={() => setInstaOpen(true)} aria-label="Aperçu Instagram">
+              <Smartphone size={15} /> <span className="hidden lg:inline">Aperçu Instagram</span>
+            </Button>
+          )}
           <Button size="sm" variant="ghost" className="hidden h-8 px-1.5 md:inline-flex" aria-label="Dézoomer l’aperçu" disabled={zoom <= 1} onClick={() => setZoom((z) => Math.max(1, z - 0.5))}>
             <ZoomOut size={14} />
           </Button>
