@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
     error: vi.fn(),
   },
   invokeWithTimeout: vi.fn(),
+  canvaConnexionExpiree: vi.fn(async () => false),
   navigate: vi.fn(),
   social: {
     known: true,
@@ -26,6 +27,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("sonner", () => ({ toast: mocks.toast }));
 vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: mocks.invokeWithTimeout }));
+vi.mock("@/lib/canva-connexion-expiree", () => ({ canvaConnexionExpiree: mocks.canvaConnexionExpiree }));
 vi.mock("react-router-dom", () => ({ useNavigate: () => mocks.navigate }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u1" } }) }));
 vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "u1" }));
@@ -53,6 +55,7 @@ describe("garde « Ouvrir dans Canva » sans compte connecté", () => {
     vi.clearAllMocks();
     mocks.social.known = true;
     mocks.social.connectedMap = {};
+    mocks.canvaConnexionExpiree.mockResolvedValue(false);
   });
 
   it("bloque net : pas d'onglet, pas d'export, invitation à connecter", async () => {
@@ -123,5 +126,52 @@ describe("garde « Ouvrir dans Canva » sans compte connecté", () => {
       "noopener",
     );
     openSpy.mockRestore();
+  });
+
+  // 09/11/2026 : 4 clientes avaient une connexion Canva refusée par Canva alors
+  // que l'app la croyait active. Elles attendaient 1 à 3 min de préparation pour
+  // lire « expiré » à la fin. On vérifie maintenant AVANT de préparer.
+  it("connexion connue mais refusée par Canva → rien n'est préparé, invitation à reconnecter", async () => {
+    mocks.social.connectedMap = { canva: true };
+    mocks.canvaConnexionExpiree.mockResolvedValue(true);
+    const buildBlob = vi.fn(async () => new Blob(["x"]));
+
+    const { result } = renderHook(() => useOpenInCanva());
+    await act(() => result.current.openInCanva(buildBlob, "Mon carrousel"));
+
+    expect(mocks.canvaConnexionExpiree).toHaveBeenCalledTimes(1);
+    expect(buildBlob).not.toHaveBeenCalled();
+    expect(mocks.invokeWithTimeout).not.toHaveBeenCalled();
+    expect(mocks.toast.dismiss).toHaveBeenCalledWith("canva-export");
+    expect(mocks.toast.error).toHaveBeenCalledTimes(1);
+    const [titre, opts] = mocks.toast.error.mock.calls[0];
+    expect(titre).toBe("Ta connexion Canva a expiré.");
+    expect(opts.action.label).toBe("Reconnecter Canva");
+    opts.action.onClick();
+    expect(mocks.navigate).toHaveBeenCalledWith("/parametres/connexions");
+    // Le statut de la page se resynchronise pour le prochain clic.
+    expect(mocks.social.refresh).toHaveBeenCalled();
+    expect(result.current.openingCanva).toBe(false);
+  });
+
+  it("statut inconnu → pas de vérification préalable (le serveur de l'import reste le filet)", async () => {
+    mocks.social.known = false;
+    mocks.invokeWithTimeout.mockResolvedValue({ data: { editUrl: "https://www.canva.com/design/xyz/edit" }, error: null });
+    const { result } = renderHook(() => useOpenInCanva());
+    await act(() => result.current.openInCanva(async () => new Blob(["x"]), "Mon carrousel"));
+    expect(mocks.canvaConnexionExpiree).not.toHaveBeenCalled();
+    await waitFor(() => expect(mocks.toast.success).toHaveBeenCalled());
+  });
+
+  it("le serveur de l'import dit « expiré » → bouton « Reconnecter Canva »", async () => {
+    mocks.social.connectedMap = { canva: true };
+    mocks.invokeWithTimeout.mockResolvedValue({
+      data: { error: "not_connected", message: "Ta connexion Canva a expiré. Reconnecte ton compte Canva pour continuer." },
+      error: null,
+    });
+    const { result } = renderHook(() => useOpenInCanva());
+    await act(() => result.current.openInCanva(async () => new Blob(["x"]), "Mon carrousel"));
+    await waitFor(() => expect(mocks.toast.error).toHaveBeenCalledTimes(1));
+    expect(mocks.toast.error.mock.calls[0][1].action.label).toBe("Reconnecter Canva");
   });
 });
