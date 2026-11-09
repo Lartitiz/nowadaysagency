@@ -330,6 +330,14 @@ try {
     else console.log(fc.coincees
       ? `   ⚠️ 🪪 Fiches coincées « à relire » (≥ 6/7 cartes relues, > 24 h) : ${fc.coincees} cliente(s), la plus ancienne du ${fc.plus_ancienne} → la page Créer leur dit « Ta fiche de marque t'attend » (rattrapage SQL comme le 26/10)`
       : `   ✅ 🪪 Fiches coincées « à relire » : 0 (${fc.a_relire} fiche(s) simplement pas encore relue(s))`);
+    // connexions_figees : edge ≥ 09/11/2026 (#1829). Seuil : 0 attendu. Google / Canva / Pinterest dont le jeton
+    // est expiré depuis > 30 j = connexion plus renouvelée (morte, inutilisée, ou app Google repassée en mode test).
+    const cf = d.connexions_figees;
+    if (!cf) console.log("   🔌 Connexions figées : non mesuré (edge cron-health pas redéployée)");
+    else if (cf.erreur) console.log(`   🔌 Connexions figées : lecture impossible (${cf.erreur})`);
+    else console.log(cf.alerte
+      ? `   ⚠️ 🔌 Connexions figées (Google / Canva / Pinterest, > ${cf.seuil_jours} j sans renouvellement) : ${cf.clientes} cliente(s), ${cf.internes} interne(s) · ${Object.entries(cf.par_plateforme).filter(([, n]) => n).map(([k, n]) => `${k} ×${n}`).join(", ")}`
+      : `   ✅ 🔌 Connexions figées (Google / Canva / Pinterest, > ${cf.seuil_jours} j) : 0`);
     const ec = d.emails_coupes;
     if (!ec) console.log("   e-mails génériques coupés : non mesuré (edge cron-health pas redéployée)");
     else if (ec.erreur) console.log(`   e-mails génériques coupés : lecture impossible (${ec.erreur})`);
