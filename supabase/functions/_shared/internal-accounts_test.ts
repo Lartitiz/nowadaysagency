@@ -2,7 +2,7 @@ import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 Deno.env.set("INTERNAL_GMAIL_BOXES", "boiterecette, boiterecettetest");
 import { isInternalEmail, isTestAccountEmail, maskEmail } from "./internal-accounts.ts";
 
-Deno.test("comptes internes : admin, Camille et tout alias laetitia+…@ de l'agence", () => {
+Deno.test("comptes internes : admin, Camille et toute adresse du domaine de l'agence", () => {
   for (const e of [
     "laetitia@nowadaysagency.com",
     "laetitiatest@nowadaysagency.com",
@@ -11,6 +11,9 @@ Deno.test("comptes internes : admin, Camille et tout alias laetitia+…@ de l'ag
     "laetitia+membres-desktop@nowadaysagency.com",
     "Laetitia+Immo1707@NowadaysAgency.com",
     " laetitiatest@nowadaysagency.com ",
+    "laetitia.dupont@nowadaysagency.com", // 09/11/2026 : tout le domaine de l'agence est interne
+    "contact@nowadaysagency.com",
+    "xlaetitia+x@nowadaysagency.com",
     "boiterecette@gmail.com",
     "Boite.Recette@gmail.com",
     "boiterecette+recette3009@gmail.com",
@@ -28,9 +31,9 @@ Deno.test("jamais une cliente : autres domaines, homonymes, sous-domaines", () =
     "homonyme@gmail.com",
     "homonyme+pro@gmail.com",
     "camille@atelier.fr",
-    "laetitia.dupont@nowadaysagency.com",
     "laetitia+x@nowadaysagency.com.evil.fr",
-    "xlaetitia+x@nowadaysagency.com",
+    "x@sous.nowadaysagency.com",
+    "x@nowadaysagency.co",
     "boiterecette2@gmail.com",
     "boiterecette@gmail.com.fr",
     "boiterecette@outlook.com",
