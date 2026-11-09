@@ -33,6 +33,10 @@
       "occurrences": 1,
       "raison": "Copies temporaires du bucket de publication Instagram, après envoi."
     },
+    "src/lib/pinterest-publish.ts": {
+      "occurrences": 2,
+      "raison": "Visuel temporaire d'une épingle (dossier de l'utilisatrice, bucket de publication), effacé après envoi à Pinterest ou si son lien n'a pas pu être créé."
+    },
     "supabase/functions/delete-account/storage-cleanup.ts": {
       "occurrences": 1,
       "raison": "Suppression de compte demandée par l'utilisatrice (RGPD)."
