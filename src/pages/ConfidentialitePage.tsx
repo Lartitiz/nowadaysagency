@@ -104,7 +104,7 @@ export default function ConfidentialitePage() {
               <li><span className="font-medium text-foreground/80">Sentry</span> (monitoring d'erreurs) : quand il est activé</li>
               <li><span className="font-medium text-foreground/80">Meta</span> (pixel publicitaire Facebook/Instagram) : uniquement avec ton consentement, pour mesurer l'effet de nos campagnes</li>
               <li><span className="font-medium text-foreground/80">Meta / Instagram</span> (API Instagram) : uniquement si tu connectes ton compte Instagram, pour publier à ta demande et lire tes statistiques (voir la section 10)</li>
-              <li><span className="font-medium text-foreground/80">LinkedIn, Pinterest, Canva et Google Analytics</span> : uniquement si tu connectes ton compte, pour publier à ta demande sur LinkedIn ou Pinterest, lire tes statistiques LinkedIn, tes tableaux Pinterest et les statistiques de ton site, et importer tes designs Canva. Tu peux les déconnecter à tout moment dans Paramètres &gt; Connexions</li>
+              <li><span className="font-medium text-foreground/80">LinkedIn, Pinterest, Canva et Google Analytics</span> : uniquement si tu connectes ton compte, pour publier à ta demande sur LinkedIn ou Pinterest, lire tes statistiques LinkedIn, tes tableaux Pinterest et les statistiques de ton site, et importer tes designs Canva. Tu peux les déconnecter à tout moment dans Paramètres &gt; Connexions (LinkedIn : voir la section 12)</li>
             </ul>
             <p className="text-muted-foreground mt-2 font-medium">Aucune donnée n'est vendue. Avec ton consentement, certaines données de navigation sont partagées avec Meta pour mesurer l'effet de nos publicités — jamais sans ton accord, et jamais vendues à un tiers.</p>
           </div>
@@ -207,6 +207,28 @@ export default function ConfidentialitePage() {
                 <li>dans l'outil : Paramètres &gt; Connexions &gt; Google Analytics &gt; « Déconnecter ». Le jeton d'accès est effacé immédiatement ;</li>
                 <li>dans ton compte Google : <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">myaccount.google.com/permissions</a>, puis retirer l'accès de « L'Assistant Com' » ;</li>
                 <li>pour effacer aussi les chiffres déjà importés : Paramètres &gt; Supprimer mon compte, ou un email à <a href="mailto:laetitia@nowadaysagency.com" className="text-primary hover:underline">laetitia@nowadaysagency.com</a> avec l'objet « Suppression des données Google Analytics ». On s'en occupe sous 30 jours maximum et on te confirme par email.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="linkedin" className="scroll-mt-6">
+            <p className="font-semibold text-foreground">12. Connexion à LinkedIn</p>
+            <div className="text-muted-foreground mt-1 space-y-2">
+              <p>Tu peux, si tu le souhaites, connecter ton compte LinkedIn depuis Paramètres &gt; Connexions. C'est facultatif : sans connexion, tu peux toujours écrire tes posts et saisir tes statistiques à la main. Il y a deux connexions séparées : « LinkedIn », pour publier tes posts, et « Stats LinkedIn », pour lire tes statistiques.</p>
+              <p><span className="font-medium text-foreground/80">Ce qu'on reçoit de LinkedIn :</span></p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>pour chaque connexion, un jeton d'accès chiffré dans notre base (valable environ 60 jours), ton identifiant LinkedIn et ton nom, pour afficher le compte connecté ;</li>
+                <li>avec « LinkedIn » : le droit de publier sur ton profil les posts que tu as validés ;</li>
+                <li>avec « Stats LinkedIn » : les statistiques de ton profil et de tes propres posts, en lecture seule (impressions, personnes touchées, réactions, commentaires, partages, enregistrements, envois, clics, nombre d'abonnés et abonnés gagnés, vues du profil).</li>
+              </ul>
+              <p><span className="font-medium text-foreground/80">Ce qu'on en fait :</span> publier sur ton profil les contenus que tu as choisis, uniquement quand tu cliques sur « Publier » ou à la date que tu as programmée, et remplir tes statistiques LinkedIn dans ton tableau de bord quand tu cliques sur « Remplir depuis LinkedIn ». L'outil ne lit jamais tes messages, ni les données d'autres membres, et ne modifie pas ton profil.</p>
+              <p><span className="font-medium text-foreground/80">Partage :</span> ces données ne sont affichées qu'à toi. Elles ne sont ni vendues, ni utilisées pour de la publicité, ni partagées avec d'autres clientes, et elles ne servent jamais à entraîner un modèle d'IA. Pour l'audit LinkedIn et le diagnostic de ta communication, tes chiffres LinkedIn sont envoyés ponctuellement à l'IA (voir la section 9).</p>
+              <p><span className="font-medium text-foreground/80">Durée de conservation :</span> le jeton d'accès est gardé tant que la connexion est active, et effacé dès que tu la déconnectes. Les chiffres déjà rangés dans tes tableaux de bord sont gardés tant que ton compte est actif, puis supprimés avec lui (sous 30 jours).</p>
+              <p><span className="font-medium text-foreground/80">Déconnecter LinkedIn et supprimer ces données :</span></p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>dans l'outil : Paramètres &gt; Connexions &gt; « LinkedIn » ou « Stats LinkedIn » &gt; « Déconnecter ». Le jeton d'accès est effacé immédiatement ;</li>
+                <li>dans LinkedIn : <a href="https://www.linkedin.com/psettings/permitted-services" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">linkedin.com/psettings/permitted-services</a> (Préférences &gt; Confidentialité des données &gt; Services autorisés), puis retirer « Nowadays Assistant » (publication) et « Nowadays Assistant Analytics » (statistiques) ;</li>
+                <li>pour effacer aussi les chiffres déjà importés : Paramètres &gt; Supprimer mon compte, ou un email à <a href="mailto:laetitia@nowadaysagency.com" className="text-primary hover:underline">laetitia@nowadaysagency.com</a> avec l'objet « Suppression des données LinkedIn ». On s'en occupe sous 30 jours maximum et on te confirme par email.</li>
               </ul>
             </div>
           </div>
