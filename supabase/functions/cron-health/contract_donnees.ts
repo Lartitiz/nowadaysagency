@@ -55,6 +55,9 @@ const CONNEXIONS = [
   // Pinterest et Canva : ignorées même expirées (refresh_token).
   { user_id: "u-marie", platform: "pinterest", platform_account_name: "marie-pins", token_expires_at: ilYa(5 * J), updated_at: ilYa(40 * J) },
   { user_id: "u-jo", platform: "canva", platform_account_name: "jo-canva", token_expires_at: ilYa(5 * J), updated_at: ilYa(40 * J) },
+  // Google : renouvelée à l'usage ; figée depuis 40 j chez une cliente, 45 j chez l'admin (sonde 🔌 du lundi).
+  { user_id: "u-marie", platform: "google", platform_account_name: "Marie GA4", token_expires_at: ilYa(40 * J), updated_at: ilYa(40 * J) },
+  { user_id: "u-admin", platform: "google", platform_account_name: "Nowadays GA4", token_expires_at: ilYa(45 * J), updated_at: ilYa(45 * J) },
   // Compte de test : exclu.
   { user_id: "u-test", platform: "instagram", platform_account_name: "camille.test", token_expires_at: ilYa(J), updated_at: ilYa(70 * J) },
 ];
