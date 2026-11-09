@@ -11,14 +11,16 @@ import type { MutableRefObject } from "react";
 import type { Location, NavigateFunction, SetURLSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason, checkScheduleGuards, tokenExpiresBeforeSchedule } from "@/features/creer/publish-guards";
+import { REASON_IMAGE_MANQUANTE, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason, checkScheduleGuards, tokenExpiresBeforeSchedule } from "@/features/creer/publish-guards";
 import { startSocialConnect } from "@/lib/social-connect";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { versConnexions } from "@/lib/retour-apres-detour";
 import { publishReelToInstagram, publishImageToInstagram, publishRenderedCarouselToInstagram, resolveWorkspaceParam } from "@/lib/instagram-publish";
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
+import { useCreerPinterestPublish } from "@/hooks/use-creer-pinterest-publish";
+import { REASON_EPINGLE_IMAGE_MANQUANTE } from "@/features/creer/pinterest-publish-guards";
 
-type SocialChannel = "instagram" | "linkedin";
+type SocialChannel = "instagram" | "linkedin" | "pinterest";
 
 type CreerPublishInput = {
   session: any;
@@ -53,6 +55,10 @@ type CreerPublishInput = {
   refreshConnections: () => unknown;
   isSocialConnected: (channel: SocialChannel) => boolean;
   getTokenExpiry: (channel: SocialChannel) => string | null | undefined;
+  /** Épingle visuelle rendue (HTML) et lien / tableau choisis à l'étape format. */
+  pinterestPinHtml?: string | null;
+  pinterestData?: { link?: string; boardName?: string } | null;
+  publishDialogOpen?: boolean;
 };
 
 export function useCreerPublish({
@@ -61,6 +67,7 @@ export function useCreerPublish({
   workspaceId, reelScope, activeReelScope, instagramInFlight, setPublishingInstagram, setPublishingLinkedIn,
   recordImmediatePublication, handleConfirmCalendar, setPublishDialogOpen, navigate, location, searchParams,
   setSearchParams, connectionsKnown, refreshConnections, isSocialConnected, getTokenExpiry,
+  pinterestPinHtml, pinterestData, publishDialogOpen,
 }: CreerPublishInput) {
   // ── Ajout d'image depuis la fenêtre « Publier ou programmer » (post sans visuel) ──
   // L'image part dans le bucket public `calendar-media` (même chemin que les visuels
@@ -229,14 +236,31 @@ export function useCreerPublish({
     }
   };
 
+  // ═══ Publication directe Pinterest (épingle) : use-creer-pinterest-publish.ts ═══
+  const pinterest = useCreerPinterestPublish({
+    session, result, selectedFormat, pinterestPinHtml, pinterestData, publishableImageUrl, charterData, workspaceId,
+    shouldLoadBoards: !!publishDialogOpen && connectionsKnown && isSocialConnected("pinterest"),
+    recordImmediatePublication, navigate,
+  });
+
   // ═══ Fenêtre « Publier ou programmer » ═══
   // Canal de publication automatique du contenu affiché (null = brouillon seulement).
-  const publishChannel: "instagram" | "linkedin" | null =
-    isLinkedInTextPost ? "linkedin" : showInstagramPublish ? "instagram" : null;
+  const publishChannel: "instagram" | "linkedin" | "pinterest" | null =
+    isLinkedInTextPost ? "linkedin" : showInstagramPublish ? "instagram" : pinterest.enabled ? "pinterest" : null;
   const publishDialogDisabledReason =
-    publishChannel === "linkedin" ? publishLinkedInDisabledReason : publishInstagramDisabledReason;
+    publishChannel === "linkedin" ? publishLinkedInDisabledReason
+      : publishChannel === "pinterest" ? pinterest.disabledReason
+      : publishInstagramDisabledReason;
+  // Blocage levé par « Ajouter une image » (post Instagram ou épingle sans visuel).
+  const publishNeedsImage =
+    (publishChannel === "instagram" && publishDialogDisabledReason === REASON_IMAGE_MANQUANTE) ||
+    (publishChannel === "pinterest" && publishDialogDisabledReason === REASON_EPINGLE_IMAGE_MANQUANTE);
 
   const handlePublishNowFromDialog = async () => {
+    if (publishChannel === "pinterest") {
+      if (await pinterest.handlePublish()) setPublishDialogOpen(false);
+      return;
+    }
     if (publishChannel === "linkedin") await handlePublishLinkedIn();
     else await handlePublishInstagram();
     if (activeReelScope.current === reelScope) setPublishDialogOpen(false);
@@ -351,7 +375,8 @@ export function useCreerPublish({
     publishingByHand, handlePublishedByHand,
     publishImageInputRef, addingPublishImage, handlePublishImageSelected,
     isCarouselPublish,
-    publishChannel, publishDialogDisabledReason, handlePublishNowFromDialog,
+    publishChannel, publishDialogDisabledReason, handlePublishNowFromDialog, publishNeedsImage,
+    publishingPinterest: pinterest.publishing, pinterestBoards: publishChannel === "pinterest" ? pinterest.boardsState : null,
     connectingPublishChannel, handleConnectFromDialog, handleScheduleFromDialog,
   };
 }

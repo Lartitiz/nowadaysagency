@@ -198,7 +198,7 @@ export type ScheduleGuardResult =
  * `blocked: false` signifie que la programmation peut être déléguée à handleConfirmCalendar.
  */
 export function checkScheduleGuards(args: {
-  publishChannel: "instagram" | "linkedin" | null;
+  publishChannel: "instagram" | "linkedin" | "pinterest" | null;
   disabledReason?: string | null;
   isChannelConnected: boolean;
   input: string;
@@ -206,6 +206,10 @@ export function checkScheduleGuards(args: {
 }): ScheduleGuardResult {
   const { publishChannel, disabledReason, isChannelConnected, input, now = Date.now() } = args;
   if (!publishChannel) return { blocked: true, reason: "no_channel" };
+  // Le cron social-publish-scheduled ne publie pas d'épingle : publication immédiate seulement.
+  if (publishChannel === "pinterest") {
+    return { blocked: true, reason: "disabled", message: "La programmation d'épingles n'existe pas encore : publie-la maintenant ou garde-la au calendrier." };
+  }
   if (disabledReason) return { blocked: true, reason: "disabled", message: disabledReason };
   if (!isChannelConnected) {
     const reseau = publishChannel === "linkedin" ? "LinkedIn" : "Instagram";

@@ -22,7 +22,7 @@ import { pickNonEmpty } from "@/features/creer/photo-source";
 import { applyEditedText, structuredEditText, withoutEditedText } from "@/features/creer/edited-text";
 import { replaceSlideText } from "@/lib/carousel-html-edit";
 import { ownPhotos } from "@/lib/stock-ambient-photos";
-import { findPublishableImageUrl, REASON_IMAGE_MANQUANTE, INSTAGRAM_DIRECT_MAX_IMAGES } from "@/features/creer/publish-guards";
+import { findPublishableImageUrl, INSTAGRAM_DIRECT_MAX_IMAGES } from "@/features/creer/publish-guards";
 import { useSearchParams, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { recordCreationResume } from "@/lib/retour-apres-detour";
 import { toast } from "sonner";
@@ -1336,14 +1336,14 @@ function CreerWorkspace() {
   // ── Publier ou programmer (use-creer-publish.ts) ──
   const {
     publishImageInputRef, addingPublishImage, handlePublishImageSelected,
-    isCarouselPublish, publishChannel, publishDialogDisabledReason, handlePublishNowFromDialog,
+    isCarouselPublish, publishChannel, publishDialogDisabledReason, handlePublishNowFromDialog, publishNeedsImage, publishingPinterest, pinterestBoards,
     connectingPublishChannel, handleConnectFromDialog, handleScheduleFromDialog, publishingByHand, handlePublishedByHand,
   } = useCreerPublish({
     session, result, setResult, selectedFormat, isLinkedInCarousel, visualSlides, publishableImageUrl, reelMp4Url,
     carouselVisualsStale, visualLoading, generating, carouselQuality, carouselCloudEnabled, carouselSave, charterData,
     workspaceId, reelScope, activeReelScope, instagramInFlight, setPublishingInstagram, setPublishingLinkedIn,
     recordImmediatePublication, handleConfirmCalendar, setPublishDialogOpen, navigate, location, searchParams,
-    setSearchParams, connectionsKnown, refreshConnections, isSocialConnected, getTokenExpiry,
+    setSearchParams, connectionsKnown, refreshConnections, isSocialConnected, getTokenExpiry, pinterestPinHtml, pinterestData, publishDialogOpen,
   });
 
   const {
@@ -2015,7 +2015,7 @@ function CreerWorkspace() {
         channel={publishChannel}
         disabledReason={publishDialogDisabledReason}
         blockedAction={
-          publishChannel === "instagram" && publishDialogDisabledReason === REASON_IMAGE_MANQUANTE
+          publishNeedsImage
             ? {
                 label: "Ajouter une image",
                 onClick: () => publishImageInputRef.current?.click(),
@@ -2033,13 +2033,13 @@ function CreerWorkspace() {
         onRefreshConnection={() => void refreshConnections()}
         onConnectChannel={handleConnectFromDialog}
         connectingChannel={connectingPublishChannel}
-        publishing={publishingInstagram || publishingLinkedIn}
+        publishing={publishingInstagram || publishingLinkedIn || publishingPinterest}
         onPublishNow={handlePublishNowFromDialog}
         scheduling={savingToCalendar}
         onSchedule={handleScheduleFromDialog}
         onDraft={(d) => handleConfirmCalendar({ date: d })}
         defaultDraftDate={paramCalendarDate || undefined}
-        theme={ideaText} onPublishedByHand={handlePublishedByHand} publishingByHand={publishingByHand}
+        theme={ideaText} onPublishedByHand={handlePublishedByHand} publishingByHand={publishingByHand} pinterestBoards={pinterestBoards}
         canal={selectedFormat === "newsletter" ? "newsletter" : selectedFormat?.startsWith("pinterest") ? "pinterest" : isLinkedInCarousel ? "linkedin" : publishChannel || "instagram"}
       />
 

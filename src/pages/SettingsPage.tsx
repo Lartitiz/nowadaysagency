@@ -259,7 +259,7 @@ function SettingsContent() {
         <Section icon={<Share2 className="h-4 w-4" />} title="Mes connexions">
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Connecte tes comptes Instagram, LinkedIn, Pinterest et Canva pour publier et récupérer tes statistiques directement depuis l'app.
+              Connecte tes comptes (Instagram, LinkedIn, Canva, Google Analytics…) pour publier et récupérer tes statistiques directement depuis l'app.
             </p>
             <Button asChild className="rounded-full bg-primary text-primary-foreground hover:bg-bordeaux">
               <Link to="/parametres/connexions">Gérer mes connexions</Link>

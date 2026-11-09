@@ -1,8 +1,8 @@
 import React from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-const m = vi.hoisted(() => ({ workspace: "A", userId: "qa-user", ready: true, invoke: vi.fn(), success: vi.fn(), error: vi.fn(), navigate: vi.fn() }));
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: m.userId }, session: { user: { id: m.userId } } }) }));
+const m = vi.hoisted(() => ({ workspace: "A", userId: "qa-user", ready: true, invoke: vi.fn(), success: vi.fn(), error: vi.fn(), navigate: vi.fn(), isAdmin: false }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: m.userId }, session: { user: { id: m.userId } }, isAdmin: m.isAdmin }) }));
 vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => m.workspace, useWorkspaceReady: () => m.ready }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { functions: { invoke: m.invoke } } }));
 vi.mock("react-router-dom", () => ({ useNavigate: () => m.navigate }));
@@ -10,7 +10,7 @@ vi.mock("sonner", () => ({ toast: { success: m.success, error: m.error } }));
 import SocialConnectionsCard from "@/components/SocialConnectionsCard";
 const status = (name: string) => ({ data: { connections: [{ platform: "instagram", connected: true, accountName: name }] }, error: null });
 const deferred = () => { let resolve!: (v: unknown) => void; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
-beforeEach(() => { vi.clearAllMocks(); m.workspace = "A"; m.userId = "qa-user"; m.ready = true; window.history.replaceState({}, "", "/parametres/connexions"); sessionStorage.clear(); });
+beforeEach(() => { vi.clearAllMocks(); m.workspace = "A"; m.userId = "qa-user"; m.ready = true; m.isAdmin = false; window.history.replaceState({}, "", "/parametres/connexions"); sessionStorage.clear(); });
 afterEach(cleanup);
 it("late A status cannot replace the current B account and disconnect action", async () => {
   const a = deferred(); m.invoke.mockReturnValueOnce(a.promise).mockResolvedValueOnce(status("QA-B"));
@@ -90,4 +90,22 @@ it("keeps the real expiry date and warning for Instagram / LinkedIn", async () =
   m.invoke.mockResolvedValue({ data: { connections: [{ platform: "linkedin", connected: true, accountName: "L", expiresAt: soon }] }, error: null });
   render(<SocialConnectionsCard />);
   await screen.findByText(/expire le .* : reconnecte-toi d'ici là/);
+});
+
+// Pinterest en accès d'essai (09/11/2026) : la ligne n'est proposée qu'aux admins,
+// sauf compte déjà connecté (qu'on doit pouvoir déconnecter).
+it("Pinterest : caché aux clientes non connectées, visible pour l'admin et pour un compte connecté", async () => {
+  m.invoke.mockResolvedValue(status("QA-A"));
+  const { unmount } = render(<SocialConnectionsCard />);
+  await screen.findByText("Connecté : @QA-A");
+  expect(screen.queryByText("Pinterest")).not.toBeInTheDocument();
+  unmount();
+  m.isAdmin = true;
+  const second = render(<SocialConnectionsCard />);
+  expect(await screen.findByRole("button", { name: "Connecter Pinterest" })).toBeInTheDocument();
+  second.unmount();
+  m.isAdmin = false;
+  m.invoke.mockResolvedValue({ data: { connections: [{ platform: "pinterest", connected: true, accountName: "epingles" }] }, error: null });
+  render(<SocialConnectionsCard />);
+  expect(await screen.findByText("Connecté : @epingles")).toBeInTheDocument();
 });
