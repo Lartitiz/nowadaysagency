@@ -43,4 +43,22 @@ describe("Politique de confidentialité : Instagram", () => {
     expect(texte).toContain("Photos et vidéos :");
     expect(texte).toContain("LinkedIn, Pinterest, Canva et Google Analytics : uniquement si tu connectes ton compte");
   });
+
+  // Validation Google (écran de consentement OAuth, 09/11/2026) : la page publique
+  // doit décrire l'usage des données Google Analytics et citer la règle « Limited Use ».
+  it("garde la section Google Analytics exigée par la validation Google", () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={["/confidentialite"]}>
+        <ConfidentialitePage />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector("#google-analytics")).not.toBeNull();
+    expect(screen.getByText("11. Connexion à Google Analytics")).toBeInTheDocument();
+    const texte = container.textContent ?? "";
+    expect(texte).toContain("analytics.readonly");
+    expect(texte).toContain("Règlement sur les données utilisateur des services d'API Google");
+    expect(texte).toContain("Limited Use");
+    expect(texte).toContain("ni envoyés à l'IA");
+    expect(container.querySelector('a[href="https://developers.google.com/terms/api-services-user-data-policy"]')).not.toBeNull();
+  });
 });

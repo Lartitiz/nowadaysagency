@@ -33,7 +33,7 @@ export default function ConfidentialitePage() {
         <h1 className="font-display text-2xl font-bold text-foreground mb-6">Politique de confidentialité</h1>
 
         <div className="rounded-2xl bg-card border border-border p-6 space-y-5 text-sm leading-relaxed">
-          <p className="text-xs text-muted-foreground">Dernière mise à jour : 1er novembre 2026</p>
+          <p className="text-xs text-muted-foreground">Dernière mise à jour : 9 novembre 2026</p>
 
           <p className="italic text-muted-foreground">
             Chez Nowadays Agency, on prend la protection de tes données au sérieux. Pas par obligation (bon, un peu quand même), mais parce qu'on croit que la confiance, ça se construit aussi dans les petits caractères.
@@ -57,7 +57,7 @@ export default function ConfidentialitePage() {
               <p><span className="font-medium text-foreground/80">Données d'identité de marque :</span> ton identité visuelle, ton histoire, ta proposition de valeur, ta charte : tout ce que tu renseignes dans l'outil pour construire ta communication.</p>
               <p><span className="font-medium text-foreground/80">Contenus créés :</span> tes posts générés, brouillons, calendrier éditorial, idées sauvegardées, scripts, carrousels.</p>
               <p><span className="font-medium text-foreground/80">Photos et vidéos :</span> celles que tu ajoutes à ta bibliothèque ou à tes contenus, et les images et vidéos créées pour toi dans l'outil.</p>
-              <p><span className="font-medium text-foreground/80">Données des comptes connectés :</span> si tu connectes Instagram, LinkedIn, Pinterest, Canva ou Google Analytics, les informations et statistiques décrites dans les sections 5 et 10. Sans connexion, rien n'est récupéré.</p>
+              <p><span className="font-medium text-foreground/80">Données des comptes connectés :</span> si tu connectes Instagram, LinkedIn, Pinterest, Canva ou Google Analytics, les informations et statistiques décrites dans les sections 5, 10 et 11. Sans connexion, rien n'est récupéré.</p>
               <p><span className="font-medium text-foreground/80">Données de navigation :</span> pages visitées et actions dans l'outil, collectées via PostHog (hébergé en Union européenne, serveur eu.i.posthog.com) : uniquement après ton consentement.</p>
               <p><span className="font-medium text-foreground/80">Données techniques :</span> un journal de pannes dans notre hébergement Supabase conserve la catégorie de panne, la rubrique concernée, le module technique et l'identifiant du compte connecté. Il ne contient ni tes textes, ni tes photos, ni tes saisies. Il sert uniquement à repérer et corriger les bugs. Sentry peut compléter ce suivi quand il est activé ; ses replays de session nécessitent ton consentement.</p>
               <p><span className="font-medium text-foreground/80">Données de facturation :</span> gérées directement par Stripe. On ne stocke jamais tes coordonnées bancaires.</p>
@@ -184,6 +184,29 @@ export default function ConfidentialitePage() {
                 <li>dans l'outil : Paramètres &gt; Connexions &gt; Instagram &gt; « Déconnecter ». Le jeton d'accès et les informations du compte sont effacés immédiatement ;</li>
                 <li>dans Instagram : Paramètres &gt; Sécurité &gt; Applications et sites web, puis retirer « Assistant Com Nowadays » ;</li>
                 <li>pour effacer aussi tes statistiques et publications importées : Paramètres &gt; Supprimer mon compte, ou un email à <a href="mailto:laetitia@nowadaysagency.com" className="text-primary hover:underline">laetitia@nowadaysagency.com</a> avec l'objet « Suppression des données Instagram ». On s'en occupe sous 30 jours maximum et on te confirme par email.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="google-analytics" className="scroll-mt-6">
+            <p className="font-semibold text-foreground">11. Connexion à Google Analytics</p>
+            <div className="text-muted-foreground mt-1 space-y-2">
+              <p>Tu peux, si tu le souhaites, connecter ton compte Google Analytics depuis Paramètres &gt; Connexions. C'est facultatif : sans connexion, tu peux toujours saisir ou importer les statistiques de ton site.</p>
+              <p><span className="font-medium text-foreground/80">Ce qu'on reçoit de Google :</span></p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>un jeton d'accès en lecture seule (autorisation « analytics.readonly »), chiffré dans notre base ;</li>
+                <li>la liste de tes propriétés Google Analytics, pour que tu choisisses celle de ton site ;</li>
+                <li>pour la propriété choisie, des chiffres par mois : nombre de visiteurs, visites venues de la recherche et des réseaux sociaux, visites venues d'Instagram et de Pinterest.</li>
+              </ul>
+              <p><span className="font-medium text-foreground/80">Ce qu'on en fait :</span> remplir les statistiques de ton site dans ton tableau de bord, quand tu le demandes ou par le relevé automatique de fin de mois. L'outil ne modifie jamais rien dans ton compte Google Analytics.</p>
+              <p><span className="font-medium text-foreground/80">Partage :</span> ces chiffres ne sont ni vendus, ni utilisés pour de la publicité, ni partagés avec d'autres clientes, ni envoyés à l'IA, et ils ne servent jamais à entraîner un modèle d'IA.</p>
+              <p>L'utilisation et le transfert à toute autre application des informations reçues des API Google respectent le <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Règlement sur les données utilisateur des services d'API Google</a> (Google API Services User Data Policy), y compris les exigences d'utilisation limitée (Limited Use).</p>
+              <p><span className="font-medium text-foreground/80">Durée de conservation :</span> le jeton d'accès est gardé tant que Google Analytics est connecté, et effacé dès que tu le déconnectes. Les chiffres déjà rangés dans tes tableaux de bord sont gardés tant que ton compte est actif, puis supprimés avec lui (sous 30 jours).</p>
+              <p><span className="font-medium text-foreground/80">Déconnecter Google Analytics et supprimer ces données :</span></p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>dans l'outil : Paramètres &gt; Connexions &gt; Google Analytics &gt; « Déconnecter ». Le jeton d'accès est effacé immédiatement ;</li>
+                <li>dans ton compte Google : <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">myaccount.google.com/permissions</a>, puis retirer l'accès de « L'Assistant Com' » ;</li>
+                <li>pour effacer aussi les chiffres déjà importés : Paramètres &gt; Supprimer mon compte, ou un email à <a href="mailto:laetitia@nowadaysagency.com" className="text-primary hover:underline">laetitia@nowadaysagency.com</a> avec l'objet « Suppression des données Google Analytics ». On s'en occupe sous 30 jours maximum et on te confirme par email.</li>
               </ul>
             </div>
           </div>
