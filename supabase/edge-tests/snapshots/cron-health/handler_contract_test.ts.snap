@@ -59,7 +59,7 @@ snapshot[`daily : JSON complet sur la base de référence 1`] = `
       platform: "linkedin",
     },
   ],
-  connections_total: 7,
+  connections_total: 9,
   crons_pg: {
     jobs: [
       {
@@ -355,7 +355,7 @@ snapshot[`daily dégradé : sans clés Photoroom/Stripe, RPC des crons en erreur
       platform: "linkedin",
     },
   ],
-  connections_total: 7,
+  connections_total: 9,
   crons_pg: {
     erreur: "function cron_jobs_health() does not exist",
   },
@@ -656,6 +656,17 @@ snapshot[`weekly : JSON complet sur la base de référence 1`] = `
     comptes: 3,
     cout_estime_eur: 2.23,
     tokens: 210000,
+  },
+  connexions_figees: {
+    alerte: true,
+    clientes: 1,
+    internes: 1,
+    par_plateforme: {
+      canva: 0,
+      google: 2,
+      pinterest: 0,
+    },
+    seuil_jours: 30,
   },
   cout_estime_total_7j: 4.68,
   emails_coupes: {
@@ -1080,6 +1091,7 @@ snapshot[`weekly : liste des requêtes (tables, colonnes, filtres) 1`] = `
   "GET generated_carousels user_id,carousel_type,subject,hook_text,caption,slides,slide_count,quality_score,calendar_post_id,status,created_at,updated_at created_at=gte.2026-09-04T08:00:00.000Z [0+1000]",
   "GET higgsfield_image_spend source,estimated_usd,status,created_at created_at=gte.2026-10-01T00:00:00.000Z [0+1000]",
   "GET profiles user_id,email,created_at [0+1000]",
+  "GET social_connections user_id,platform,token_expires_at platform=in.(google,canva,pinterest) [0+1000]",
   "GET studio_image_requests estimated_usd,status,created_at created_at=gte.2026-10-01T00:00:00.000Z [0+1000]",
   "GET workspace_members user_id,workspace_id,joined_at role=eq.owner [0+1000]",
 ]
