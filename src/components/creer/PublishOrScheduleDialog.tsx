@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CheckCircle2, Clock, Download, FileEdit, ImagePlus, Link2, Loader2, Zap } from "lucide-react";
 import AlreadyPlannedNotice from "@/components/calendar/AlreadyPlannedNotice";
+import PinterestBoardPicker from "@/components/creer/PinterestBoardPicker";
+import type { PinterestBoardsState } from "@/hooks/use-creer-pinterest-publish";
 
-export type PublishChannel = "instagram" | "linkedin" | null;
+export type PublishChannel = "instagram" | "linkedin" | "pinterest" | null;
 
 interface Props {
   open: boolean;
@@ -49,6 +51,8 @@ interface Props {
    */
   onPublishedByHand?: () => void;
   publishingByHand?: boolean;
+  /** Pinterest : tableaux du compte connecté (choix de la destination de l'épingle). */
+  pinterestBoards?: PinterestBoardsState | null;
 }
 
 /** Valeur datetime-local par défaut : demain 09:00 (heure locale). */
@@ -96,12 +100,15 @@ export default function PublishOrScheduleDialog({
   canal,
   onPublishedByHand,
   publishingByHand,
+  pinterestBoards,
 }: Props) {
   const [mode, setMode] = useState<"schedule" | "draft" | null>(null);
   const [scheduleInput, setScheduleInput] = useState("");
   const [draftDate, setDraftDate] = useState("");
 
-  const channelLabel = channel === "linkedin" ? "LinkedIn" : "Instagram";
+  const channelLabel = channel === "linkedin" ? "LinkedIn" : channel === "pinterest" ? "Pinterest" : "Instagram";
+  // Pinterest : publication immédiate seulement (le cron de programmation ne publie pas d'épingle).
+  const canSchedule = channel !== "pinterest";
   const notConnected = !!channel && channelConnected === false;
   const connectionUnknown = !!channel && channelConnected === null;
   // Message court : le bouton "Connecter X" juste en dessous porte l'action —
@@ -127,6 +134,7 @@ export default function PublishOrScheduleDialog({
         Publication automatique sur {channelLabel}
       </p>
       {/* La raison du blocage vaut pour les deux choix : écrite une seule fois, au-dessus. */}
+      {channel === "pinterest" && channelConnected && pinterestBoards && <PinterestBoardPicker {...pinterestBoards} />}
       {blockedReason && (
         <p data-testid="publish-blocked-reason" className="text-xs text-amber-700 px-1">{blockedReason}</p>
       )}
@@ -152,7 +160,7 @@ export default function PublishOrScheduleDialog({
       </button>
 
       {/* 2. Programmer */}
-      <button
+      {canSchedule && <button
         type="button"
         data-testid="publish-schedule-option"
         className={optionClass}
@@ -169,7 +177,7 @@ export default function PublishOrScheduleDialog({
             Date + heure : publié tout seul sur {channelLabel}
           </span>
         </span>
-      </button>
+      </button>}
       {connectionUnknown && onRefreshConnection && (
         <Button type="button" variant="outline" className="w-full" disabled={connectionLoading} onClick={onRefreshConnection}>
           Réessayer la connexion
@@ -216,7 +224,7 @@ export default function PublishOrScheduleDialog({
           </Button>
         )
       )}
-      {mode === "schedule" && !blockedReason && (
+      {canSchedule && mode === "schedule" && !blockedReason && (
         <div className="rounded-xl bg-muted/40 p-3 space-y-2 animate-fade-in">
           <Input
             aria-label="Date et heure de publication"

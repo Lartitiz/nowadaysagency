@@ -67,3 +67,13 @@ export const WORKSPACE_SHARING_ENABLED = false;
  * ne pas proposer un e-mail qui ne part plus. Rallumer les deux ensemble.
  */
 export const EMAILS_RELANCE_ENABLED = false;
+
+/**
+ * Publication d'épingles depuis /creer (fenêtre « Publier », 09/11/2026).
+ * L'app Pinterest (ID 1589997) est en accès d'essai « Trial » : une épingle
+ * publiée n'y est visible que par son autrice. Tant que c'est le cas, seules les
+ * admins voient la publication (pour la tester et filmer la vidéo demandée par
+ * Pinterest) et la ligne Pinterest de Paramètres > Connexions est cachée aux
+ * autres. Passer à `true` une fois l'accès « Standard » accordé.
+ */
+export const PINTEREST_PUBLISH_FOR_ALL = false;

@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { lireRetour, oublieRetour } from "@/lib/retour-apres-detour";
 import { startSocialConnect } from "@/lib/social-connect";
 import { useSocialConnections } from "@/hooks/use-social-connections";
+import { PINTEREST_PUBLISH_FOR_ALL } from "@/config/feature-flags";
 
 type Platform = "instagram" | "linkedin" | "linkedin_analytics" | "canva" | "pinterest" | "google";
 
@@ -82,6 +83,7 @@ const PLATFORMS: PlatformMeta[] = [
     icon: <PinterestIcon className="h-4 w-4" />,
     iconWrapClass: "bg-[#e60023]",
     atHandle: true,
+    notConnectedHint: "Non connecté : pour publier tes épingles depuis l'app",
     expiredHint: "publier tes épingles",
   },
   {
@@ -95,7 +97,7 @@ const PLATFORMS: PlatformMeta[] = [
 ];
 
 export default function SocialConnectionsCard() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const workspaceId = useWorkspaceId();
   const ready = useWorkspaceReady();
   const navigate = useNavigate();
@@ -210,6 +212,10 @@ export default function SocialConnectionsCard() {
       </div>
       <div className="rounded-xl border border-border bg-card divide-y">
         {PLATFORMS.map((p) => {
+          // Pinterest en accès d'essai : la publication n'est ouverte qu'aux admins
+          // (feature-flags.ts). On ne la propose pas aux autres, sauf compte déjà
+          // connecté (pour pouvoir le déconnecter).
+          if (p.key === "pinterest" && !PINTEREST_PUBLISH_FOR_ALL && !isAdmin && !(!statusUnknown && social.isConnected("pinterest"))) return null;
           const conn = { connected: social.isConnected(p.key), accountName: social.accountNames[p.key], expiresAt: social.getTokenExpiry(p.key) };
           const isConnected = !statusUnknown && conn?.connected;
           // Jeton expiré ou en fin de vie (< 7 jours), ou renouvellement refusé par la
