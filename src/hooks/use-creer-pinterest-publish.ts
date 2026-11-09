@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { PINTEREST_PUBLISH_FOR_ALL } from "@/config/feature-flags";
 import { versConnexions } from "@/lib/retour-apres-detour";
-import { listPinterestBoards, publishPinToPinterest, uploadPinImage, isPinterestNotConnectedError, type PinterestBoard } from "@/lib/pinterest-publish";
+import { listPinterestBoards, publishPinToPinterest, uploadPinImage, schedulePinImageCleanup, isPinterestNotConnectedError, type PinterestBoard } from "@/lib/pinterest-publish";
 import { canPublishToPinterest, defaultPinterestBoardId, extractPinterestText, pinterestDestinationLink, pinterestPublishDisabledReason } from "@/features/creer/pinterest-publish-guards";
 
 export type PinterestBoardsState = {
@@ -99,6 +99,7 @@ export function useCreerPinterestPublish({
     }
     inFlight.current = true;
     setPublishing(true);
+    let uploadedPath: string | null = null;
     try {
       let imageUrl = publishableImageUrl;
       if (pinHtml) {
@@ -108,7 +109,9 @@ export function useCreerPinterestPublish({
         ]);
         const logoUrl = getIncludeLogoPref() ? charterData?.logo_url : null;
         const blob = await renderPinterestVisualToBlob(pinHtml, logoUrl);
-        imageUrl = await uploadPinImage(blob, userId);
+        const uploaded = await uploadPinImage(blob, userId);
+        uploadedPath = uploaded.path;
+        imageUrl = uploaded.url;
       }
       const { title, description } = extractPinterestText(raw);
       const res = await publishPinToPinterest({
@@ -137,6 +140,8 @@ export function useCreerPinterestPublish({
       }
       return false;
     } finally {
+      // Visuel hébergé seulement le temps que Pinterest le récupère.
+      if (uploadedPath) schedulePinImageCleanup(uploadedPath);
       inFlight.current = false;
       setPublishing(false);
     }
