@@ -7,9 +7,12 @@
 // Résultat : la recette de la semaine du 28/09 gonflait le bilan hebdo (coûts,
 // cohortes) sans que les autres tableaux bougent. Une seule liste, ici.
 //
-// Règle : le domaine nowadaysagency.com n'a qu'UNE boîte réelle, celle de l'admin.
-// Tout alias `laetitia+…@nowadaysagency.com` est donc un compte interne (qaneuf,
-// qabranding, mobile, immo, cs, membres…). Ne JAMAIS ajouter ici un motif qui
+// Règle : le domaine nowadaysagency.com est celui de l'agence. Aucune cliente ne
+// peut avoir une adresse dessus : TOUTE adresse @nowadaysagency.com est un compte
+// interne (admin, Camille, alias `laetitia+…` de recette, autres boîtes de l'agence).
+// 09/11/2026 : seuls les alias `laetitia+…` étaient reconnus ; une autre adresse de
+// l'agence était comptée comme cliente dans le bilan du lundi (« Connexions figées »).
+// Ne JAMAIS ajouter ici un motif qui
 // pourrait attraper une vraie cliente : seulement des adresses exactes, le
 // domaine de l'agence, ou les variantes d'UNE boîte Gmail de Laetitia.
 
@@ -21,7 +24,8 @@ const INTERNAL_EMAILS = new Set<string>([
   "laetitiatest@nowadaysagency.com", // « Camille » — compte test de référence (visite quotidienne)
 ]);
 
-const AGENCY_ALIAS = /^laetitia\+[^@]*@nowadaysagency\.com$/i;
+// Domaine exact (pas de sous-domaine, pas de « nowadaysagency.com.autre.fr »).
+const AGENCY_DOMAIN = /^[^@\s]+@nowadaysagency\.com$/;
 
 // Boîtes Gmail de Laetitia : Gmail ignore les points et tout ce qui suit un « + »
 // dans la partie avant @, donc toutes les variantes d'une boîte arrivent chez elle.
@@ -46,7 +50,7 @@ const norm = (e: string | null | undefined) => (e || "").trim().toLowerCase();
 export function isInternalEmail(e: string | null | undefined): boolean {
   const v = norm(e);
   if (!v) return false;
-  if (INTERNAL_EMAILS.has(v) || AGENCY_ALIAS.test(v) || RESERVED_DOMAIN.test(v)) return true;
+  if (INTERNAL_EMAILS.has(v) || AGENCY_DOMAIN.test(v) || RESERVED_DOMAIN.test(v)) return true;
   const box = gmailBox(v);
   return !!box && gmailBoxes().has(box);
 }
