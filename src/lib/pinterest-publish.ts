@@ -21,6 +21,9 @@ export interface PinterestBoard {
 const PUBLISH_BUCKET = "instagram-publish";
 // Pinterest télécharge l'image après la création de l'épingle : on laisse une heure.
 const SIGNED_URL_TTL_SECONDS = 3600;
+// Effacement du visuel après la publication : Pinterest le récupère à la création de
+// l'épingle, on attend quand même 2 minutes par prudence (onglet fermé avant : il reste).
+export const PIN_IMAGE_CLEANUP_DELAY_MS = 120_000;
 
 /** Liste les tableaux du compte Pinterest connecté. Lève une erreur lisible sinon. */
 export async function listPinterestBoards(opts: {
@@ -82,16 +85,26 @@ export async function publishPinToPinterest(opts: {
   return { success: true, permalink: (data as any)?.permalink, postId: (data as any).postId };
 }
 
-/** Héberge le visuel rendu (PNG) le temps que Pinterest le récupère ; renvoie un lien signé. */
-export async function uploadPinImage(blob: Blob, userId: string): Promise<string> {
+/** Héberge le visuel rendu (PNG) le temps que Pinterest le récupère ; renvoie le lien signé et le chemin. */
+export async function uploadPinImage(blob: Blob, userId: string): Promise<{ url: string; path: string }> {
   const path = `${userId}/pin-${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
   const { error } = await supabase.storage
     .from(PUBLISH_BUCKET)
     .upload(path, blob, { contentType: blob.type || "image/png", upsert: true });
   if (error) throw new Error(`Import du visuel échoué : ${error.message}`);
   const { data, error: signErr } = await supabase.storage.from(PUBLISH_BUCKET).createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
-  if (signErr || !data?.signedUrl) throw new Error("Lien du visuel introuvable. Réessaie dans un instant.");
-  return data.signedUrl;
+  if (signErr || !data?.signedUrl) {
+    supabase.storage.from(PUBLISH_BUCKET).remove([path]).then(undefined, () => {});
+    throw new Error("Lien du visuel introuvable. Réessaie dans un instant.");
+  }
+  return { url: data.signedUrl, path };
+}
+
+/** Efface le visuel hébergé, après un délai, sans jamais bloquer ni lever d'erreur. */
+export function schedulePinImageCleanup(path: string, delayMs = PIN_IMAGE_CLEANUP_DELAY_MS): void {
+  setTimeout(() => {
+    supabase.storage.from(PUBLISH_BUCKET).remove([path]).then(undefined, () => {});
+  }, delayMs);
 }
 
 /** Vrai si le message d'erreur correspond à « aucun compte Pinterest connecté ». */
