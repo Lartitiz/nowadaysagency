@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSocialConnections } from "@/hooks/use-social-connections";
 import { versConnexions } from "@/lib/retour-apres-detour";
 import { budgetExportMs } from "@/lib/export-budget";
+import { canvaConnexionExpiree } from "@/lib/canva-connexion-expiree";
 
 // Identifiant du bandeau d'avancement : un seul message, mis à jour sur place
 // (« slide 3 sur 10 ») plutôt qu'une pile de toasts.
@@ -55,13 +56,14 @@ export function useOpenInCanva() {
   // null = statut encore inconnu (chargement ou échec réseau) → on ne bloque pas.
   const canvaConnected: boolean | null = known ? isConnected("canva") : null;
 
-  const promptToConnect = useCallback((titre?: string) => {
+  const promptToConnect = useCallback((titre?: string, expiree = false) => {
     toast.error(titre || "Ton compte Canva n'est pas encore connecté.", {
-      description:
-        "Connecte-le une fois, et on te ramène tout de suite à ton contenu — tu ne perds rien.",
+      description: expiree
+        ? "Reconnecte-le en un clic : on te ramène ensuite à ton contenu, tu ne perds rien."
+        : "Connecte-le une fois, et on te ramène tout de suite à ton contenu — tu ne perds rien.",
 
       action: {
-        label: "Connecter Canva",
+        label: expiree ? "Reconnecter Canva" : "Connecter Canva",
         // On note d'où l'on part : la page des connexions y ramènera.
         onClick: () => versConnexions(navigate),
       },
@@ -95,6 +97,20 @@ export function useOpenInCanva() {
       // (un clic = geste utilisateur → jamais bloqué par le pop-up blocker).
       setOpeningCanva(true);
       try {
+        // Connexion connue : on vérifie en ~1 s que Canva l'accepte encore,
+        // plutôt que de préparer le carrousel 1 à 3 min pour rien.
+        // Voir src/lib/canva-connexion-expiree.ts.
+        if (canvaConnected === true) {
+          toast.loading("Vérification de ta connexion Canva…", { id: TOAST_ID });
+          const expiree = await canvaConnexionExpiree(
+            workspaceId && workspaceId !== user?.id ? workspaceId : undefined,
+          );
+          if (expiree) {
+            toast.dismiss(TOAST_ID);
+            promptToConnect("Ta connexion Canva a expiré.", true);
+            return;
+          }
+        }
         toast.loading("Préparation de ton carrousel…", {
           id: TOAST_ID,
           description: "Reste sur cet onglet : ça peut prendre une à trois minutes.",
@@ -145,7 +161,8 @@ export function useOpenInCanva() {
         // Filet serveur (statut local périmé ou inconnu) : même invitation à connecter.
         if ((data as any)?.error === "not_connected") {
           toast.dismiss(TOAST_ID);
-          promptToConnect((data as any)?.message);
+          const message = (data as any)?.message;
+          promptToConnect(message, typeof message === "string" && /expir/i.test(message));
           return;
         }
 
