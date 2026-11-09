@@ -61,4 +61,19 @@ describe("Politique de confidentialité : Instagram", () => {
     expect(texte).toContain("ni envoyés à l'IA");
     expect(container.querySelector('a[href="https://developers.google.com/terms/api-services-user-data-policy"]')).not.toBeNull();
   });
+  // Passage de « Stats LinkedIn » au palier Standard (dossier du 09/11/2026) : LinkedIn
+  // exige une politique valide qui décrit l'usage des données LinkedIn.
+  it("garde la section LinkedIn exigée par la revue LinkedIn", () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={["/confidentialite"]}>
+        <ConfidentialitePage />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector("#linkedin")).not.toBeNull();
+    expect(screen.getByText("12. Connexion à LinkedIn")).toBeInTheDocument();
+    const texte = container.textContent ?? "";
+    expect(texte).toContain("« Stats LinkedIn »");
+    expect(texte).toContain("ne servent jamais à entraîner un modèle d'IA");
+    expect(texte).toContain("linkedin.com/psettings/permitted-services");
+  });
 });
