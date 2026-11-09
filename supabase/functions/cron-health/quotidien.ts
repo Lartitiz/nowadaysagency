@@ -77,18 +77,20 @@ export async function bilanQuotidien({ supabase, now, isClient, emailOf }: {
 
     // Connexions sociales : expirées, expirant sous 7 j, et LinkedIn vieillissantes
     // sans date d'expiration connue (refresh manuel ~60 j — alerter à 50 j d'âge).
-    // ⚠️ Seulement Instagram + LinkedIn : Canva/Pinterest se rafraîchissent via
-    // refresh_token, leur token_expires_at en base est trompeur — même règle que
-    // la page Connexions (PR #306), sinon faux positif quotidien.
+    // ⚠️ Seulement Instagram + LinkedIn (publication `linkedin` et « Stats LinkedIn »
+    // `linkedin_analytics`, même règle : pas de refresh, ~60 j) : Canva/Pinterest se
+    // rafraîchissent via refresh_token, leur token_expires_at en base est trompeur —
+    // même règle que la page Connexions (PR #306), sinon faux positif quotidien.
+    const isLinkedin = (p: string) => p === "linkedin" || p === "linkedin_analytics";
     const connState = (c: any) => {
-      if (c.platform !== "instagram" && c.platform !== "linkedin") return null;
+      if (c.platform !== "instagram" && !isLinkedin(c.platform)) return null;
       if (c.token_expires_at) {
         const left = (new Date(c.token_expires_at).getTime() - now) / DAY;
         if (left < 0) return { etat: "expirée", jours: Math.round(left) };
         if (left <= 7) return { etat: "expire bientôt", jours: Math.round(left * 10) / 10 };
         return null;
       }
-      if (c.platform === "linkedin" && c.updated_at) {
+      if (isLinkedin(c.platform) && c.updated_at) {
         const age = (now - new Date(c.updated_at).getTime()) / DAY;
         if (age > 50) return { etat: "linkedin vieillissante (~60 j max)", jours: Math.round(age) };
       }

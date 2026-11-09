@@ -51,6 +51,10 @@ const CONNEXIONS = [
   { user_id: "u-jo", platform: "linkedin", platform_account_name: "jo-linkedin", token_expires_at: dansLe(3 * J), updated_at: ilYa(57 * J) },
   { user_id: "u-admin", platform: "linkedin", platform_account_name: "laetitia", token_expires_at: null, updated_at: ilYa(55 * J) },
   { user_id: "u-sam", platform: "linkedin", platform_account_name: "sam-jeune", token_expires_at: null, updated_at: ilYa(10 * J) },
+  // « Stats LinkedIn » (linkedin_analytics) : même règle que linkedin (expire sous 7 j, ou vieille sans date).
+  { user_id: "u-marie", platform: "linkedin_analytics", platform_account_name: "marie-stats", token_expires_at: dansLe(5 * J), updated_at: ilYa(55 * J) },
+  { user_id: "u-sam", platform: "linkedin_analytics", platform_account_name: "sam-stats", token_expires_at: null, updated_at: ilYa(52 * J) },
+  { user_id: "u-jo", platform: "linkedin_analytics", platform_account_name: "jo-stats-ok", token_expires_at: dansLe(40 * J), updated_at: ilYa(20 * J) },
   { user_id: "u-sam", platform: "instagram", platform_account_name: "sam.ok", token_expires_at: dansLe(30 * J), updated_at: ilYa(10 * J) },
   // Pinterest et Canva : ignorées même expirées (refresh_token).
   { user_id: "u-marie", platform: "pinterest", platform_account_name: "marie-pins", token_expires_at: ilYa(5 * J), updated_at: ilYa(40 * J) },

@@ -58,8 +58,20 @@ snapshot[`daily : JSON complet sur la base de référence 1`] = `
       jours: 55,
       platform: "linkedin",
     },
+    {
+      compte: "marie-stats",
+      etat: "expire bientôt",
+      jours: 5,
+      platform: "linkedin_analytics",
+    },
+    {
+      compte: "sam-stats",
+      etat: "linkedin vieillissante (~60 j max)",
+      jours: 52,
+      platform: "linkedin_analytics",
+    },
   ],
-  connections_total: 9,
+  connections_total: 12,
   crons_pg: {
     jobs: [
       {
@@ -354,8 +366,20 @@ snapshot[`daily dégradé : sans clés Photoroom/Stripe, RPC des crons en erreur
       jours: 55,
       platform: "linkedin",
     },
+    {
+      compte: "marie-stats",
+      etat: "expire bientôt",
+      jours: 5,
+      platform: "linkedin_analytics",
+    },
+    {
+      compte: "sam-stats",
+      etat: "linkedin vieillissante (~60 j max)",
+      jours: 52,
+      platform: "linkedin_analytics",
+    },
   ],
-  connections_total: 9,
+  connections_total: 12,
   crons_pg: {
     erreur: "function cron_jobs_health() does not exist",
   },
