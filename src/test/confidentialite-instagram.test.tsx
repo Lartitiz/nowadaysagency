@@ -59,6 +59,11 @@ describe("Politique de confidentialité : Instagram", () => {
     expect(texte).toContain("Règlement sur les données utilisateur des services d'API Google");
     expect(texte).toContain("Limited Use");
     expect(texte).toContain("ni envoyés à l'IA");
+    // Relance Google du 10/11/2026 : protection, agrégats, conservation et version anglaise.
+    expect(texte).toContain("Protection :");
+    expect(texte).toContain("aucune donnée agrégée ou anonymisée");
+    expect(texte).toContain("will adhere to the");
+    expect(texte).toContain("including the Limited Use requirements");
     expect(container.querySelector('a[href="https://developers.google.com/terms/api-services-user-data-policy"]')).not.toBeNull();
   });
   // Passage de « Stats LinkedIn » au palier Standard (dossier du 09/11/2026) : LinkedIn
