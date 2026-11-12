@@ -221,6 +221,14 @@ describe('initial creation draft through real React components', () => {
     fireEvent.click(screen.getByText('Retirer photos')); expect(loadPhotos()).toEqual([]);
     app.unmount(); closeTab(); mount(); expect(screen.getByTestId('photos')).toBeEmptyDOMElement();
   });
+  it("garde l'idée tapée avant « Partir de photos » et l'envoie comme sujet (test LinkedIn du 12/11)", async () => {
+    mount(); type('Rénover un T3 sans exploser le budget'); fireEvent.click(screen.getByText('Partir de photos'));
+    const subject=screen.getAllByRole('textbox').find(x => x.tagName==='TEXTAREA')!;
+    expect(subject).toHaveValue('Rénover un T3 sans exploser le budget');
+    fireEvent.click(screen.getByText('Ajouter photo test')); fireEvent.click(screen.getByText('Suivant'));
+    await waitFor(() => expect(loadFlowState()?.step).toBe('format'));
+    expect(loadFlowState()?.ideaText).toBe('Rénover un T3 sans exploser le budget');
+  });
   it('undoes the initial idea, persists the restored value and clears history across spaces', async () => {
     const app=mount(); type('Idée corrigée');
     fireEvent.keyDown(screen.getByLabelText('Ton idée'), {key:'z',metaKey:true});

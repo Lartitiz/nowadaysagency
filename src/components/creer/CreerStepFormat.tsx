@@ -1,4 +1,5 @@
 import CarouselModePicker, { defaultCarouselMode } from "./CarouselModePicker";
+import PhotoFormatHint from "./PhotoFormatHint";
 import CarouselPhotoWarning from "./CarouselPhotoWarning";
 import FormatChoiceCards, { type FormatChoice } from "./FormatChoiceCards";
 import FormatMoreOptions from "./FormatMoreOptions";
@@ -554,35 +555,9 @@ export default function CreerStepFormat({ idea, directStart, objective, forcedCh
       {selectedChannel && (() => { const ch = CHANNELS.find((c) => c.id === selectedChannel); return ch && <ChannelFormatChip icon={ch.icon} channelLabel={ch.label} onChangeChannel={handleChangeChannel} onChangeFormat={handleChangeFormat}
         formatLabel={selectedFormat && pageOneChoices.length > 0 ? (pageOneChoices.find((c) => c.id === selectedFormat)?.label ?? CONTENT_TYPE_SPECS[selectedFormat]?.label ?? selectedFormat) : null} />; })()}
 
-      {/* Photos preloaded: discreet hint that some formats are filtered out */}
-      {selectedChannel && (initialPhotos?.length ?? 0) > 0 && !selectedFormat && (
-        <p className="text-xs text-muted-foreground -mt-1">
-          {hasPreloadedPhotos ? (
-            <>
-              {multiPhotos
-                ? "Avec plusieurs photos, on te propose le carrousel ou le Reel."
-                : "Quelques formats sont masqués car ils n'utilisent pas tes photos."}{" "}
-              <button
-                type="button"
-                onClick={() => setForceShowAll(true)}
-                className="text-primary hover:underline"
-              >
-                Tout afficher quand même
-              </button>
-            </>
-          ) : (
-            <>
-              Tous les formats sont affichés.{" "}
-              <button
-                type="button"
-                onClick={() => setForceShowAll(false)}
-                className="text-primary hover:underline"
-              >
-                Masquer ceux qui n'utilisent pas mes photos
-              </button>
-            </>
-          )}
-        </p>
+      {/* Photos preloaded: discreet hint, worded per channel (PhotoFormatHint). */}
+      {selectedChannel && !selectedFormat && (
+        <PhotoFormatHint channel={selectedChannel} photoCount={initialPhotos?.length ?? 0} forceShowAll={forceShowAll} onForceShowAll={setForceShowAll} />
       )}
 
       {/* Choix du format en cartes compactes, le conseillé en avant (chantier B). */}
